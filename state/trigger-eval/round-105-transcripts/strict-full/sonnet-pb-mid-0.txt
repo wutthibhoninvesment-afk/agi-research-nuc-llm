@@ -1,0 +1,13 @@
+case: pb-mid
+model: sonnet
+arm: None
+fired: ['prediction-banking']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=prediction-banking

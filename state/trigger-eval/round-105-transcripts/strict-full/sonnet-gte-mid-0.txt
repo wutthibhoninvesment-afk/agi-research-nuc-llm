@@ -1,0 +1,13 @@
+case: gte-mid
+model: sonnet
+arm: None
+fired: ['generator-trampoline-evaluator']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=generator-trampoline-evaluator

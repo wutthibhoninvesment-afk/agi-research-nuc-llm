@@ -1,0 +1,13 @@
+case: multi-1
+model: sonnet
+arm: None
+fired: ['tiny-language-implementation', 'subprocess-cli-testing']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=tiny-language-implementation, subprocess-cli-testing

@@ -200,8 +200,9 @@ description: Converts a recursive tree-walking interpreter in Python into a gene
     bookkeeping helpers so semantics stay single-sourced. Bound the host
     stack by a FRAME BUDGET, not by hope: at every top-level entry measure
     `sys.getrecursionlimit() − frames on the stack now − reserve` (walk
-    `sys._getframe().f_back`; reserve ≈ fast-closure transient height ×2 +
-    one fallback driver + rendering ≈ 350). Charge each direct entry the
+    `sys._getframe().f_back`; reserve = the fast-closure height cap + one
+    fallback driver, times ~2 — Whence: bound ≈ 110, measured 94, reserve
+    250; the original 350 was a guess, see step 16). Charge each direct entry the
     frames it can consume before the next call frame — `cdepth`, the
     direct-closure frames on the deepest path from the node to a call,
     computed in the same post-order pass as the fast-path height — plus one
@@ -216,39 +217,21 @@ description: Converts a recursive tree-walking interpreter in Python into a gene
     (direct / compiled-only / pure trampoline): the third leg found a
     provenance-shape bug that the two-way differential had missed for
     four versions.
+14–16. **Value-model floor, ceiling, frame-charge oracle** — once direct mode
+    (step 13) exists, the remaining wins are in the per-node value model, in
+    knowing the ceiling before optimising, and in an oracle that catches
+    budget-arithmetic bugs no value-comparing oracle sees. Read
+    [references/floor-ceiling-oracle.md](references/floor-ceiling-oracle.md)
+    before starting an optimisation round beyond step 13; it holds the three
+    numbered steps with their measurements.
 
 ## Exact commands
+The copy-pasteable one-liners for steps 10–16 (fast-path differential,
+call-count profile, three-way differential, frames-per-level measurement,
+decoupling proof under `sys.setrecursionlimit(200)`) are in
+[references/commands.md](references/commands.md); run them, don't retype them.
+
 ```bash
-# differential check of the fast path (must be identical both ways)
-python3 -c "from whence.interp import Interpreter; from whence.values import render_why
-for fast in (False, True):
-    i = Interpreter(fast=fast); env = i.run('let r = if 1 < 2 { [1, 2][1] } else { 0 }')
-    print(fast, i.fast_hits, render_why(env.get('r')))"
-# where does the time go? count calls per iteration, not just seconds
-python3 -c "import cProfile, pstats; from whence.interp import Interpreter
-cProfile.run('Interpreter().run(open(\"examples/tco.lang\").read())', '/tmp/p')
-pstats.Stats('/tmp/p').sort_stats('tottime').print_stats(15)"
-# three-way differential incl. direct mode (v0.9): all render_why equal
-python3 -c "from whence.interp import Interpreter; from whence.values import render_why
-src = 'fn f(n) { if n < 2 { n } else { f(n - 1) + f(n - 2) } }\nlet r = f(12)'
-ts = [render_why(Interpreter(**kw).run(src).get('r')) for kw in ({}, {'direct': False}, {'fast': False})]
-print(ts[0] == ts[1] == ts[2])"
-# frames per guest level in direct mode (must equal the charge, cdepth + 1)
-python3 -c "import sys; from whence.interp import Interpreter
-def peak(n):
-    d=[0]; p=[0]
-    def prof(f, ev, a):
-        if ev == 'call': d[0] += 1; p[0] = max(p[0], d[0])
-        elif ev == 'return': d[0] -= 1
-    sys.setprofile(prof); Interpreter().run('fn c(n) { if n == 0 { 0 } else { 1 + c(n - 1) } }\nlet r = c(%d)' % n); sys.setprofile(None); return p[0]
-print((peak(60) - peak(30)) / 30.0)"
-# prove decoupling: evaluate a 3000-deep guest recursion under a tiny host limit
-python3 - <<'EOF'
-import sys; sys.setrecursionlimit(200)
-from whence.interp import Interpreter
-i = Interpreter(); env = i.run("fn c(n) { if n == 0 { 0 } else { 1 + c(n - 1) } }\nlet r = c(3000)")
-print(env.get("r").payload, i.peak_depth)
-EOF
 python3 -m pytest tests/ -q
 ```
 
@@ -326,6 +309,35 @@ python3 -m pytest tests/ -q
   driver entry: `fast_hits` counts driver entries into compiled closures,
   `direct_hits` counts direct calls; a test asserting `fast_hits >=
   direct_hits` encoded an accident, not a semantics.
+- **A list comprehension is a host frame (CPython < 3.12) and the frame
+  charge did not know.** Direct closures evaluated call arguments and
+  list items in comprehensions; `cdepth` counted closures only, so a
+  recursion through a list literal or an argument used one frame per
+  level more than it was charged. Invisible at the default recursion
+  limit (~160 levels × 1 < the 350 reserve), fatal at the CLI's 6000
+  (~1400 levels): `run.py` died with a RecursionError on the fuzzer's own
+  deep-nesting template a full version after direct mode shipped. Two
+  rules: no comprehensions (or generator expressions, or nested defs) on
+  any path the charge covers — list displays for 1–2 items, explicit
+  loops otherwise — and measure frames per level for EVERY shape that
+  recurses (call in argument position, list literal, record field, 3+
+  arguments), not just the plain `count` shape. Run the totality fuzz at
+  the CLI's limit as well as the default: the reference differential
+  with `--fuzz` at limit 6000 found it in 300 programs.
+- **A test that keeps three big histories alive pays the collector for
+  all of them.** The three-way differential over meta.lang took 27 s when
+  the test held (interp, env) for every mode and 12 s when it reduced
+  each run to plain data (why-tree strings, checks, counters) before the
+  next mode ran; and it took 16 s for self_eval.lang when the PREVIOUS
+  test's million-node cyclic garbage (Env ↔ Closure ↔ Prov) was still
+  uncollected — `gc.collect()` before each run made it 1.7 s. Raising the
+  gen-0 threshold (`gc_relief`) does not help with either: gen-2 passes
+  still traverse everything live.
+- **A differential script without the CLI's GC setting measures the
+  collector, not the interpreter.** `ref_diff.py` took 9.7 s on two runs
+  of a 100 k-iteration loop that the bench runs in 0.4 s each until it
+  passed `gc_relief=True` like `run.py` does. Any new driver must copy
+  the CLI's constructor arguments.
 - **Timing tests must not measure the collector.** A relative test (fast
   vs `fast=False` in-process) that ran second inherited a bigger heap and
   lost to GC; `gc.collect(); gc.disable()` around both timings made it
@@ -358,3 +370,21 @@ python3 -m pytest tests/ -q
   `direct_hits == 0`; measured frames per guest level equals the charge;
   the budget is restored after every statement (`host_budget() > 0`);
   the fuzz oracles gain a `direct` leg and report 0 mismatches.
+- With the ceiling measured (steps 15–16): the hand-transpiled hot body
+  and the ablated call function are both timed BEFORE any build and the
+  numbers are in the spec; the frames oracle is silent on the corpus,
+  reports its maximum in every outcome, fires on an injected uncharged
+  frame per call and is skipped (ok) on packages without direct mode; the
+  reserve probe's corpus maximum is below the configured reserve with
+  margin; the fuzz campaigns run at the CLI's recursion limit as well as
+  the default.
+- With the value-model floor (step 14): the reference differential
+  (working tree vs `git show HEAD:` package) reports 0 differing
+  (example, mode) pairs with `--counters`; a corpus of every operator ×
+  operand kind (int/float/mixed/bool/str/list/record/miss/function, zero
+  divisors, int-meets-float overflow) is three-way identical; a
+  sabotaged reference copy (one wording changed) makes the differential
+  exit 1 on the examples that contain that construct and SAME on those
+  that do not; retention per iteration is unchanged to the byte; the
+  Python-call count of the big example drops (≥ 30 %) while every node
+  count stays the same.

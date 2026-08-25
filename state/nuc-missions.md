@@ -15,7 +15,12 @@ Known facts (measured 2026-08-24, E1 full curve — /work/logs/nuc-bench.md):
   prefill re-paid every turn; usable interactive ceiling ≈ 1k-token prompt
 - deployment drift: systemd units qwen36-colibri/qwen36-toolproxy no longer
   exist; same engine runs as user processes (coli serve :8000, adapter :8080)
-- SSH: ssh -i ~/.ssh/id_ed25519_nuc jab@192.168.1.42 (key-based, works)
+- SSH: ssh -i ~/.ssh/id_ed25519_nuc jab@192.168.1.37 (key-based, works when
+  the box is up; DOWN on 2026-08-25 14:44 and 20:09 — ARP incomplete, i.e.
+  the box itself is off/asleep, not a routing problem)
+- qwen36-colibri IS a systemd unit — a USER unit (`systemctl --user`), cgroup
+  `user.slice/user-1000.slice/user@1000.service/app.slice/qwen36-colibri.service`
+  (round 100); the "units no longer exist" line above was a scope error
 
 ## Missions
 
@@ -60,12 +65,38 @@ Known facts (measured 2026-08-24, E1 full curve — /work/logs/nuc-bench.md):
   /work/src/colibri-v170/c/qwen36.c + openai_server.py. Question: can KV state
   persist across requests so a stable system-prompt prefix is computed once?
   Document findings + draft an upstream proposal. NO edits to colibri sources.
-- [ ] **E4 — Fast lane feasibility.** Measure NUC→HuggingFace bandwidth
+- [ ] **E4 — Fast lane feasibility.** VERDICT REACHED (rounds 100+106+112,
+  Mac-side; tick blocked only on the NUC-side log write — the box was down on
+  both 08-25 E rounds): bandwidth PASS (NUC→HF 8.7–66.7 MB/s per shard),
+  disk PASS (677 GB free vs 7.42 GB), RAM FAIL (qwen36 `--cap 256` is itself
+  36.0 GB on a 31.2 GiB box, 4.2 GB in swap — every option incl. "no lane"
+  needs one restart at a lower cap: 204 no-lane / 143 cap-16 lane / 75 cap-64).
+  Lane rates measured on the Mac in the box's page-cache-cold regime: prefill
+  8.0–9.6 prompt-tok/s (cap 16; compute-bound, flat in prompt length), decode
+  1.20 tok/s (disk-bound; cap 64 = 0.30). Against qwen36 (E1 curve, 3.3 tok/s)
+  the lane wins only above ~700 prompt tokens for a 60-token reply
+  (`fast_lane.breakeven_prompt_tokens`); NVMe projection 3.6 tok/s would win
+  everywhere and needs a 5-minute on-box measurement. Recommendation: restart
+  at `--cap 204`, run the E3 A/B, treat OLMoE as a long-prompt/short-reply
+  helper only. Plan + tables: `nuc/fast_lane/PLAN-E4.md`; hand-off script
+  `fast_lane.py handoff`; NUC window checklist in knowledge/round-112 §7.
+  Original brief: Measure NUC→HuggingFace bandwidth
   (curl a known file). If sustained >3 MB/s and disk allows, plan the
   OLMoE-1B-7B int8 lane (~7 GB container via colibri's olmoe engine, which
   has tool-friendly smaller prompts). Plan first; download only with a
   recorded disk/bandwidth justification in the same round.
-- [ ] **E5 — Task-script DSL.** Design a tiny task-script language for NUC
+- [ ] **E5 — Task-script DSL.** PROTOTYPE BUILT round 112 (Mac-side; tick
+  blocked on one live run against :8080 to compare projected vs measured
+  seconds + the NUC log write): **Errand** — `nuc/taskscript/` (SPEC.md,
+  lexer/parser/interp/transport/run.py, 77 offline tests, 3 examples).
+  Lanes carry measured curves (`prefill e1` = the E1 points), budgets are
+  consumed ledgers, every task is priced and refused BEFORE any request when
+  it does not fit the remaining budget, retries draw on the budget, results
+  are ok/miss values with trails (`rescue`, `why`), JSONL telemetry, dry-run
+  pricing with the box down, port 8001 refused at parse and send time.
+  `run.py examples/triage.errand triage text=... --transport http` is the
+  live check. Skill: `skills/preflight-priced-task-scripts/`.
+  Original brief: Design a tiny task-script language for NUC
   agent ops (declare task → retries → budget → telemetry), informed by
   languages/whence and harness/ learnings. Spec + interpreter prototype.
 

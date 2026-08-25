@@ -287,3 +287,27 @@ def test_campaign_smoke():
     assert camp.programs == 6
     kinds = set(k for (_, k) in camp.counts)
     assert kinds <= {"ok", "parse_error", "timeout", "mismatch", "crash"}
+
+
+# Round 107: three divergences found by guest-differential seed 115 (all
+# pre-existing in self_eval.lang): functions nested in lists/records under
+# `==` compared structurally (host: miss at any depth), `contains` with a
+# function needle missed (host: false), and `num(number)` derived a `num`
+# node (host: pass-through). Each source was a `mismatch` before the fix.
+ROUND107_SOURCES = [
+    'fn even(n) { if n == 0 { true } else { odd(n - 1) } }\n'
+    'fn odd(n) { if n == 0 { false } else { even(n - 1) } }\n'
+    'let v1 = [odd, even]\nlet v2 = odd\nlet v3 = @{a: odd}\n'
+    'check "q_v1": v1 == v1\ncheck "q_v2": v2 == v2\ncheck "q_v3": v3 == v3\n'
+    'let r1 = (v1 == v1) rescue "m"\nlet r3 = (v3 != v3) rescue "m"\n',
+    'fn odd(n) { n }\nlet c1 = contains([odd], odd)\nlet c2 = contains([1, odd], 1)\n'
+    'let c3 = contains([[odd]], [odd])\nlet c4 = (contains("abc", odd)) rescue "m"\n',
+    'fn adder(a) { fn(b) { a + b } }\nlet addv = adder(0)(0) + adder(0)(0)\n'
+    'let v1 = num(addv)\nlet v2 = num("5")\nlet v3 = num(3.5)\n',
+]
+
+
+@pytest.mark.parametrize("src", ROUND107_SOURCES)
+def test_round107_guest_divergences_fixed(pkg, src):
+    out = G.oracle_self_eval(pkg, src)
+    assert out.kind == "ok", out.detail

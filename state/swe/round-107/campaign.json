@@ -1,0 +1,102 @@
+{
+ "created": "2026-08-25T15:21:54",
+ "root": "/Users/jaby/agi-research/languages/whence",
+ "files": [
+  "whence/interp.py"
+ ],
+ "stages": {
+  "mutation": {
+   "status": "done",
+   "started": "2026-08-25T15:36:39",
+   "finished": "2026-08-25T16:38:48",
+   "info": {
+    "total": 1056,
+    "killed": 931,
+    "survived": 125,
+    "score": 0.8816,
+    "seconds": 3722.2
+   }
+  },
+  "recheck": {
+   "status": "done",
+   "started": "2026-08-25T16:38:49",
+   "finished": "2026-08-25T17:30:20",
+   "info": {
+    "timeouts": 22,
+    "flips": 14,
+    "score": 0.875,
+    "survived": 132
+   }
+  },
+  "repair": {
+   "status": "done",
+   "started": "2026-08-25T16:48:09",
+   "finished": "2026-08-25T17:09:09",
+   "info": {
+    "attempted": 6,
+    "green": 5,
+    "exact": 5,
+    "localized": 5,
+    "cost_usd": 0.2923
+   }
+  },
+  "coverage": {
+   "status": "done",
+   "started": "2026-08-25T17:30:20",
+   "finished": "2026-08-25T17:34:45",
+   "info": {
+    "seconds": 265.0,
+    "returncode": 0,
+    "pct": {
+     "whence/interp.py": 72.78
+    },
+    "targeted": true,
+    "survived_uncovered": 20,
+    "survived_covered": 112,
+    "survived_unknown": 0,
+    "killed_traced": 267,
+    "killed_on_uncovered": 2
+   }
+  },
+  "corpus": {
+   "status": "done",
+   "started": "2026-08-25T17:34:45",
+   "finished": "2026-08-25T17:48:59",
+   "info": {
+    "survivors": 132,
+    "found": 6,
+    "no_killer": 126,
+    "test_file": "tests/test_generated_killers_r29.py"
+   }
+  },
+  "verify": {
+   "status": "done",
+   "started": "2026-08-25T17:48:59",
+   "finished": "2026-08-25T17:49:06",
+   "info": {
+    "pinned": 6,
+    "verified": 6
+   }
+  },
+  "live_kill": {
+   "status": "done",
+   "started": "2026-08-25T17:49:06",
+   "finished": "2026-08-25T18:06:40",
+   "info": {
+    "attempted": 8,
+    "killed": 0,
+    "verified": 0,
+    "cost_usd": 3.6035
+   }
+  },
+  "report": {
+   "status": "done",
+   "started": "2026-08-25T18:06:40",
+   "finished": "2026-08-25T18:06:40",
+   "info": {
+    "projected_score": 0.8807,
+    "tests_added": 6
+   }
+  }
+ }
+}

@@ -33,7 +33,8 @@ def test_oracle_tool_reports_every_oracle_and_fired_list():
     r = t.run("let a = 1 + 1\nprint(a)\n")
     d = json.loads(r.output)
     assert r.ok and d["_fired"] == []
-    assert set(d) == {"totality", "fast_slow", "direct", "determinism", "render", "_fired"}
+    # round 110 added the sixth oracle (`frames`, the frame-charge oracle); round 112 re-pinned the set
+    assert set(d) == {"totality", "fast_slow", "direct", "determinism", "render", "frames", "_fired"}
     assert all(d[k]["kind"] == "ok" for k in ("totality", "fast_slow", "direct", "determinism", "render"))
     d2 = json.loads(t.run("let a = (\n", oracles="totality,fast_slow").output)
     assert set(d2) == {"totality", "fast_slow", "_fired"}
@@ -92,15 +93,19 @@ def _mutant(pred):
     raise AssertionError("no such mutant")
 
 
-def _zero_guard_mutant():
-    """`r == 0 and (op == "/" ...)` -> `r != 0`: every non-zero `%` becomes a miss."""
-    return _mutant(lambda m: m.op == "cmp" and "Eq -> NotEq" in m.description
-                   and 'r == 0 and (op == "/"' in _INTERP_LINES[m.lineno - 1])
+def _mod_mutant():
+    """`x % y` -> `x * y` inside the v0.10 `%` closure (`f_mod`): every
+    numeric modulo computes the product (7 % 3 -> 21). Round-109 re-anchor
+    (process rule 7): v0.9's `binop` zero guard, the old anchor, is no
+    longer reached by two numbers, so that mutant became equivalent for
+    `7 % 3` and these tests went red under v0.10."""
+    return _mutant(lambda m: m.op == "arith" and "Mod -> Mult" in m.description
+                   and "x % y" in _INTERP_LINES[m.lineno - 1])
 
 
 def test_mutant_diff_tool_and_score_kill_on_a_real_mutant():
-    # `modulo by zero` guard: `r == 0` -> `r != 0` makes every non-zero modulo a miss
-    m = _zero_guard_mutant()
+    # `x % y` -> `x * y` in the `%` closure: 7 % 3 prints 21 on the mutant
+    m = _mod_mutant()
     tool = R.MutantDiffTool(WHENCE_ROOT, m)
     try:
         d = json.loads(tool.run("let a = 7 % 3\nprint(a)\n").output)
@@ -121,7 +126,7 @@ def test_mutant_diff_tool_and_score_kill_on_a_real_mutant():
 
 
 def test_run_kill_pins_a_test_and_reports_cost(tmp_path):
-    m = _zero_guard_mutant()
+    m = _mod_mutant()
     prog = "let a = 7 % 3\nprint(a)\n"
     steps = [
         lambda obs, st: call("mutant_diff", source=prog),
@@ -219,7 +224,7 @@ def test_cli_oracle_and_mutant_diff_modes(tmp_path, capsys):
     out = json.loads(capsys.readouterr().out)
     assert out["_fired"] == []
     # a mutation report with one survivor
-    m = _zero_guard_mutant()
+    m = _mod_mutant()
     mj = tmp_path / "mutation.json"
     mj.write_text(json.dumps({"mutants": [dict(m.as_dict(), status="survived")]}))
     assert R.main(["mutant-diff", "--mutation-json", str(mj), "--mutant-id", m.id,

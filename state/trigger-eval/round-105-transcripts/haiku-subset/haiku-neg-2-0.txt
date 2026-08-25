@@ -1,0 +1,42 @@
+case: neg-2
+model: haiku
+arm: None
+fired: []
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=NONE
+
+**`asyncio.gather`** collects results from multiple coroutines and returns them as a list:
+- Returns a single awaitable that resolves when all coroutines complete
+- Results are returned in the order coroutines were passed, regardless of completion order
+- If any coroutine raises an exception, the exception propagates (unless `return_exceptions=True`)
+- Simpler API for the common case of "run these tasks and get all results"
+
+**`asyncio.wait`** waits for tasks to complete and returns two sets of done/pending tasks:
+- Returns `(done, pending)` — sets of Task objects, not results
+- Supports `return_when` parameter to return early: `FIRST_COMPLETED`, `FIRST_EXCEPTION`, or `ALL_COMPLETED` (default)
+- Exceptions are stored in the task objects, not raised immediately
+- More control over partial completion scenarios
+
+**Quick comparison:**
+
+```python
+# gather: simple case, get results
+results = await asyncio.gather(coro1(), coro2(), coro3())  # [r1, r2, r3]
+
+# wait: more control, early exit possible
+done, pending = await asyncio.wait(
+    [coro1(), coro2(), coro3()],
+    return_when=asyncio.FIRST_COMPLETED
+)
+```
+
+**Use `gather` when:** you want results from all tasks and don't need partial completion logic.
+
+**Use `wait` when:** you need to react to tasks completing one-by-one, handle timeouts, or process exceptions without propagating them immediately.

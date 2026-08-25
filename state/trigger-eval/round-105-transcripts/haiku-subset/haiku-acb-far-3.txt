@@ -1,0 +1,39 @@
+case: acb-far
+model: haiku
+arm: None
+fired: []
+distractors: []
+foreign: ['claude-api']
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+The issue is that prompt caching computes a cache key over the entire prompt text *up to* where you place the `cache_control` block. When you trim old messages, you change that prefix — even if the remaining messages are identical to before, the prefix no longer matches the cached version, so the cache misses.
+
+**Why it breaks:**
+- Request 1: `[msg1, msg2, msg3, cache_control, msg4]` → cached
+- Trim msg1–2 in your agent logic
+- Request 2: `[msg3, cache_control, msg4]` → cache key doesn't match (prefix changed), **cache miss**
+
+**How to trim without losing cache:**
+
+1. **Place the checkpoint after the trimmed section** — keep old messages in the prompt but mark them as not cacheable:
+   ```
+   [msg1, msg2, msg3]  ← keep these, no cache control
+   [cache_control on system prompt or early messages]
+   [msg4, msg5, msg6]  ← new messages, freely trimmed
+   ```
+   The cached part (system + early context) stays stable; you only trim the non-cached section.
+
+2. **Trim *after* the cache checkpoint** — only remove messages that come after the cached boundary, not before it.
+
+3. **Cache the summary** — if msg1–3 can be replaced with a summary, add that summary *before* the cache control, and trim the originals *after* it:
+   ```
+   "Summary: msgs 1-3 established X and Y"
+   [cache_control]
+   [msg4, msg5, msg6]  ← trim these freely
+   ```
+
+The key insight: **trim only below the cache checkpoint, not above it.** That way the cached prefix stays constant across requests, and you keep your cache hits while reducing context.

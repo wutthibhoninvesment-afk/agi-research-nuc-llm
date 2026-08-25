@@ -85,3 +85,39 @@ def test_timeout_counts_as_killed(tmp_path):
     m.source = "import time\ntime.sleep(5)\n" + m.source
     run_mutant(m, root, DEFAULT_TEST_CMD, timeout_s=0.5)
     assert m.status == "timeout"
+
+
+def test_timeout_kills_grandchild_holding_stdout(tmp_path):
+    """Round 101: a test spawned a `run.py` grandchild that inherited stdout
+    and looped forever; `subprocess.run(timeout=)` killed pytest, then blocked
+    in `communicate()` for 22,071 s because the pipe never closed. The runner
+    must return within the cap and the grandchild must be dead."""
+    import time
+    root = make_project(tmp_path)
+    pidfile = tmp_path / "grandchild.pid"
+    m = generate(MOD, "mod.py")[0]
+    m.source = textwrap.dedent('''
+        import os, subprocess, sys, time
+        # grandchild inherits our stdout (the pipe) and outlives the cap
+        subprocess.Popen([sys.executable, "-c",
+            "import os,time; open(%r,'w').write(str(os.getpid())); time.sleep(60)"])
+        time.sleep(0.5)
+        while not os.path.exists(%r):
+            time.sleep(0.05)
+        time.sleep(60)
+    ''' % (str(pidfile), str(pidfile))) + m.source
+    t0 = time.time()
+    run_mutant(m, root, DEFAULT_TEST_CMD, timeout_s=2.0)
+    wall = time.time() - t0
+    assert m.status == "timeout" and "group" in m.detail
+    assert wall < 15, "runner blocked on the grandchild's pipe for %.1fs" % wall
+    pid = int(pidfile.read_text())
+    dead = False
+    for _ in range(50):
+        try:
+            os.kill(pid, 0)
+            time.sleep(0.1)
+        except ProcessLookupError:
+            dead = True
+            break
+    assert dead, "grandchild %d survived the cap" % pid

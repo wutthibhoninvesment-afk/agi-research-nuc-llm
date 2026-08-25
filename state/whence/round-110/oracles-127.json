@@ -1,0 +1,33 @@
+{
+ "programs": 311,
+ "seconds": 160.68,
+ "oracles": [
+  "totality",
+  "fast_slow",
+  "direct",
+  "determinism",
+  "render",
+  "frames"
+ ],
+ "counts": {
+  "totality/ok": 268,
+  "fast_slow/ok": 268,
+  "direct/ok": 268,
+  "determinism/ok": 268,
+  "render/ok": 268,
+  "frames/ok": 267,
+  "frames/timeout": 8,
+  "totality/timeout": 7,
+  "fast_slow/timeout": 7,
+  "direct/timeout": 7,
+  "determinism/timeout": 7,
+  "render/timeout": 7,
+  "totality/parse_error": 36,
+  "fast_slow/parse_error": 36,
+  "direct/parse_error": 36,
+  "determinism/parse_error": 36,
+  "render/parse_error": 36,
+  "frames/parse_error": 36
+ },
+ "findings": []
+}

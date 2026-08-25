@@ -1,0 +1,13 @@
+case: oat-mid
+model: sonnet
+arm: None
+fired: ['offline-agent-testing']
+distractors: []
+foreign: ['claude-api']
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=offline-agent-testing

@@ -1,0 +1,139 @@
+case: neg-5
+model: haiku
+arm: None
+fired: []
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=NONE
+
+I'll write a React component with pagination, sorting, and sample data. This will be a functional component using hooks.
+
+```jsx
+import React, { useState, useMemo } from 'react';
+
+export default function PaginatedUserTable() {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
+  const itemsPerPage = 10;
+
+  // Sample data
+  const allUsers = Array.from({ length: 47 }, (_, i) => ({
+    id: i + 1,
+    name: `User ${i + 1}`,
+    email: `user${i + 1}@example.com`,
+    role: ['Admin', 'User', 'Editor'][i % 3],
+    joinDate: new Date(2024, Math.floor(Math.random() * 12), Math.floor(Math.random() * 28) + 1).toLocaleDateString(),
+  }));
+
+  // Sort users
+  const sortedUsers = useMemo(() => {
+    const sorted = [...allUsers];
+    sorted.sort((a, b) => {
+      const aValue = a[sortConfig.key];
+      const bValue = b[sortConfig.key];
+      
+      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [sortConfig]);
+
+  // Paginate
+  const totalPages = Math.ceil(sortedUsers.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedUsers = sortedUsers.slice(startIndex, startIndex + itemsPerPage);
+
+  const handleSort = (key) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc',
+    }));
+  };
+
+  const handlePrevious = () => {
+    setCurrentPage(prev => Math.max(prev - 1, 1));
+  };
+
+  const handleNext = () => {
+    setCurrentPage(prev => Math.min(prev + 1, totalPages));
+  };
+
+  return (
+    <div style={{ padding: '20px', fontFamily: 'system-ui' }}>
+      <h1>Users</h1>
+      
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr style={{ backgroundColor: '#f5f5f5' }}>
+            {['name', 'email', 'role', 'joinDate'].map(key => (
+              <th
+                key={key}
+                onClick={() => handleSort(key)}
+                style={{
+                  padding: '12px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                  borderBottom: '2px solid #ddd',
+                }}
+              >
+                {key.charAt(0).toUpperCase() + key.slice(1)}
+                {sortConfig.key === key && (sortConfig.direction === 'asc' ? ' ↑' : ' ↓')}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {paginatedUsers.map(user => (
+            <tr key={user.id} style={{ borderBottom: '1px solid #eee' }}>
+              <td style={{ padding: '12px' }}>{user.name}</td>
+              <td style={{ padding: '12px' }}>{user.email}</td>
+              <td style={{ padding: '12px' }}>{user.role}</td>
+              <td style={{ padding: '12px' }}>{user.joinDate}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {/* Pagination controls */}
+      <div style={{ marginTop: '20px', display: 'flex', gap: '10px', alignItems: 'center' }}>
+        <button onClick={handlePrevious} disabled={currentPage === 1}>
+          Previous
+        </button>
+        <span>
+          Page {currentPage} of {totalPages}
+        </span>
+        <button onClick={handleNext} disabled={currentPage === totalPages}>
+          Next
+        </button>
+        <select
+          value={currentPage}
+          onChange={(e) => setCurrentPage(Number(e.target.value))}
+          style={{ marginLeft: 'auto' }}
+        >
+          {Array.from({ length: totalPages }, (_, i) => (
+            <option key={i + 1} value={i + 1}>
+              Go to page {i + 1}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+}
+```
+
+The component includes:
+- **Sample data**: 47 users with name, email, role, and join date
+- **Sorting**: Click column headers to sort ascending/descending
+- **Pagination**: 10 users per page with Previous/Next buttons
+- **Page selector**: Dropdown to jump to any page directly
+
+You can customize `itemsPerPage`, the sample data, or columns as needed.

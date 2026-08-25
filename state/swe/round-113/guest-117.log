@@ -1,0 +1,3 @@
+oracle fuzz: 300 programs x 1 oracles in 204.1s
+  self_eval    ok 278  parse_error 17  timeout 5
+  unique finding signatures: 0

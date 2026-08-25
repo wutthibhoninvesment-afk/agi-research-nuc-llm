@@ -1,0 +1,13 @@
+case: fmk-far
+model: sonnet
+arm: None
+fired: []
+distractors: []
+foreign: ['security-review']
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=security-review

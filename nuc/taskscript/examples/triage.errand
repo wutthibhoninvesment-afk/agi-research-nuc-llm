@@ -1,0 +1,32 @@
+# triage.errand — route a short text: classify on the small lane, answer on qwen36.
+# Lane numbers are the program's measurements (E1 curve for qwen36; round-112 Mac
+# lane bench for olmoe at cap 16: prefill ~9 tok/s, decode 1.2 tok/s disk-bound).
+lane qwen  { url "http://127.0.0.1:8080" model "qwen36-tools" prefill e1 decode 3.3 fixed 2.4s tools yes ctx 32768 }
+lane olmoe { url "http://127.0.0.1:8090" model "olmoe" prefill 9.0 decode 1.2 fixed 0.5s tools no ctx 2048 }
+
+budget quick { time 90s tokens 800 }
+budget turn  { time 4m }
+
+task classify(text) on olmoe within quick retry 2 backoff 2s {
+  system "Classify the user's text as exactly one word: bug, feature or question"
+  user   "{text}"
+  reply  6
+  expect one_of "bug" "feature" "question"
+}
+
+task answer(text, kind) on qwen within turn retry 1 backoff 5s {
+  system "You are a terse engineering assistant. Reply in at most 60 words"
+  user   "This is a {kind} report:\n{text}"
+  reply  90
+  expect nonempty
+}
+
+flow triage(text) within turn {
+  let kind = classify(text) rescue "question"
+  emit kind
+  if kind == "bug" {
+    emit answer(text, "bug")
+  } else {
+    emit "queued as {kind} (no model turn spent)"
+  }
+}

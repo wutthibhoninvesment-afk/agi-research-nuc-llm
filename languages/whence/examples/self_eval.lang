@@ -557,6 +557,21 @@ fn is_callable(v) {
   let t = guest_tag(v)
   t == "closure" or t == "builtin"
 }
+fn is_num(v) { not missed(v) and not missed(v + 0) }
+fn is_record(v) { not missed(v) and not is_callable(v) and not missed(keys(v)) }
+# The host's deep_eq misses on a function at ANY depth ([odd] == [odd] and
+# @{a: odd} == @{a: odd} are misses, not true); a top-level-only test let
+# the guest say `[odd, even] == [odd, even]` is true (round 107, guest
+# differential seed 115). List items and record fields are boxes.
+fn holds_callable(v) {
+  if missed(v) { false }
+  else if is_callable(v) { true }
+  else if is_list(v) { not missed(find(fn(b) { holds_callable(b.v) }, v)) }
+  else if is_record(v) {
+    not missed(find(fn(k) { holds_callable((get(v, k)).v) }, keys(v)))
+  }
+  else { false }
+}
 
 # ---- eval: node x env x store -> @{v: box, st} ------------------------------
 fn eval(node, env, st) {
@@ -612,7 +627,7 @@ fn eval_pairs(pairs, i, acc, env, st) {
 # semantics (misses, strictness, overflow, merge-of-reasons) come for free;
 # the result box records the operator and both operand boxes ----------------
 fn guest_eq(a, b) {
-  if is_callable(a.v) or is_callable(b.v) { miss "cannot compare functions" }
+  if holds_callable(a.v) or holds_callable(b.v) { miss "cannot compare functions" }
   else { strip(a) == strip(b) }
 }
 
@@ -885,6 +900,12 @@ fn apply_builtin(name, args, st) {
         st: st}
     }
   }
+  # host b_num returns its argument's own node when it is already a number:
+  # a pass-through, no `num` node (round 107, why-shape probe: guest-only op
+  # `num` on `num(addv)`); strings still derive a `num` node below
+  else if name == "num" and len(args) == 1 and is_num((args[0]).v) {
+    @{v: args[0], st: st}
+  }
   else {
     let p = apply_host_builtin(name, args)
     # element ops mirror the host exactly: range items are `range` leaves,
@@ -926,8 +947,11 @@ fn apply_host_builtin(name, args) {
     miss (name + " of a function")
   }
   else if name == "merge" and is_callable((args[1]).v) { miss "merge of a function" }
-  else if name == "contains" and is_callable((args[1]).v) {
-    miss "cannot compare functions"
+  # host b_contains: a list item that fails deep_eq (a function anywhere
+  # in either side makes deep_eq miss) simply does not match — `false`,
+  # never a miss (round 107: the guest guard here said miss)
+  else if name == "contains" and is_list(a0) and holds_callable((args[1]).v) {
+    false
   }
   else if name == "print" { print(strip(args[0])) }
   else if name == "len" { len(a0) }

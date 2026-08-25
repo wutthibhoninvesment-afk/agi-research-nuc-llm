@@ -1,0 +1,482 @@
+case: body-fmk
+model: sonnet
+arm: None
+fired: ['fuzz-mutate-kill-loop']
+distractors: []
+foreign: []
+error: None
+reads: ['/private/var/folders/_6/3xh6ssk928jcqvpbw1p5kjh80000gn/T/trigger-eval-3c6icdun']
+reads_failed: [{'path': '/private/var/folders/_6/3xh6ssk928jcqvpbw1p5kjh80000gn/T/trigger-eval-3c6icdun', 'reason': "EISDIR: illegal operation on a directory, read '/private/var/folders/_6/3xh6ssk928jcqvpbw1p5kjh80000gn/T/trigger-eval-3c6icdun'", 'denied': False}]
+bash: []
+
+--- transcript ---
+I don't have shell/glob access in this session to inspect your actual evaluator's source, so the code below is written against a small **adapter shim** — a few lines you fill in to point at your real `evaluate`/`parse` functions. Everything else runs as-is.
+
+## The plan
+
+**(a) Find real bugs — fuzz with an oracle, not example inputs.**
+Grammar-directed random expressions + stress templates (deep nesting, huge literals, weird strings), run in-process with a wall-clock timeout, classify each run as `ok / expected_error / crash / timeout`, group crashes by a signature that's stable under re-runs, shrink each unique crash to a minimal reproducer. If your evaluator has a "fast path" (e.g. constant folding, a bytecode compiler) alongside a reference interpreter, add a **differential oracle**: same input must give byte-identical results on both paths. That catches wrong-answer bugs, not just crashes — usually more of them than crashes once totality holds.
+
+**(b) Measure suite strength — mutation testing.**
+Take the AST of your evaluator, apply one small semantic mutation at a time (`<`→`<=`, `and`→`or`, `+`→`-`, drop a `not`, off-by-one on an index/depth), run your 300 tests against each mutant. `mutation score = killed / total`. Anything the suite doesn't kill is either a real gap (write a test) or an equivalent mutant (no observable behavior difference — note it and move on, don't force a test). This number is the actual answer to "how strong is my suite" — line/branch coverage only tells you code ran, not that anything checked the result.
+
+Both loops feed each other: mutation survivors that correspond to real behavior differences are exactly the kind of bug fuzzing should also be able to trigger — use fuzz-generated + corpus inputs to search for a killer for each survivor automatically, rather than hand-writing one.
+
+---
+
+## Code
+
+### 0. Adapter — point this at your evaluator
+
+```python
+# adapter.py
+"""
+Fill these in for your project. Everything below only depends on this file.
+"""
+
+# Reference path: must never raise anything except your own "expected" error type.
+def evaluate(src: str):
+    from myproject.evaluator import evaluate as _evaluate
+    return _evaluate(src)
+
+# Exceptions that mean "the input was invalid" (parse/type errors you raise on purpose).
+EXPECTED_ERRORS = (SyntaxError,)   # e.g. (ParseError, TypeError_in_your_language)
+
+# Optional: a second, optimized/compiled evaluation path, for differential testing.
+# Set to None if you don't have one.
+def evaluate_fast(src: str):
+    return None  # e.g. from myproject.evaluator import evaluate_fast as _f; return _f(src)
+
+PACKAGE_ROOT = "myproject"   # used to find "your" frames in a traceback for signatures
+```
+
+### 1. Oracle
+
+```python
+# oracle.py
+import signal, traceback
+from dataclasses import dataclass
+from adapter import evaluate, EXPECTED_ERRORS, PACKAGE_ROOT
+
+class FuzzTimeout(Exception):
+    pass
+
+def _on_alarm(signum, frame):
+    raise FuzzTimeout()
+
+@dataclass
+class Outcome:
+    kind: str          # "ok" | "expected_error" | "crash" | "timeout"
+    value: object = None
+    exc: Exception = None
+    tb: str = None
+
+def run_program(src: str, timeout_s: float = 2.0) -> Outcome:
+    old_handler = signal.signal(signal.SIGALRM, _on_alarm)
+    signal.setitimer(signal.ITIMER_REAL, timeout_s)
+    try:
+        try:
+            value = evaluate(src)
+            return Outcome("ok", value=value)
+        except FuzzTimeout:
+            return Outcome("timeout")
+        except EXPECTED_ERRORS as e:
+            return Outcome("expected_error", exc=e)
+        except Exception as e:
+            return Outcome("crash", exc=e, tb=traceback.format_exc())
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, old_handler)
+
+def signature(outcome: Outcome) -> tuple:
+    """Stable across stack depth: key on frames that recur (a cycle),
+    not the innermost frame (which shifts with call depth for RecursionError)."""
+    if outcome.kind != "crash":
+        return (outcome.kind,)
+    tb_lines = outcome.tb.splitlines()
+    funcs = [l.split(", in ")[-1] for l in tb_lines if ", in " in l
+             and PACKAGE_ROOT in l.split(", in ")[0]]
+    from collections import Counter
+    counts = Counter(funcs)
+    cyclic = tuple(sorted(f for f, c in counts.items() if c >= 2))
+    if cyclic:
+        return (type(outcome.exc).__name__, cyclic)
+    return (type(outcome.exc).__name__, funcs[-1] if funcs else None,
+            str(outcome.exc)[:40])
+```
+
+Sanity check before trusting it (do this first, it's cheap):
+
+```python
+# test_oracle_sanity.py
+from oracle import run_program
+
+def test_expected_error_classified():
+    assert run_program("1 +").kind == "expected_error"   # syntax error
+
+def test_real_crash_classified():
+    # inject a deliberately broken input that trips a real bug/None-deref/etc.
+    # replace with something you *know* currently breaks your evaluator, or
+    # a synthetic one (see step below) if none currently does.
+    pass
+
+def test_timeout_not_crash():
+    assert run_program("((((((((((((((1))))))))))))))" * 200, timeout_s=0.2).kind in ("ok", "timeout")
+```
+
+### 2. Grammar-directed fuzzer + stress templates
+
+```python
+# fuzzgen.py
+import random
+
+OPS = ["+", "-", "*", "/", "%", "==", "!=", "<", "<=", ">", ">=", "and", "or"]
+NAMES = ["x", "y", "z"]
+
+def expr(depth, rnd: random.Random):
+    if depth <= 0 or rnd.random() < 0.35:
+        return rnd.choice([
+            str(rnd.randint(-1000, 1000)),
+            f'"{rnd.choice(["", "a", "nan", "1_000", "١٢"])}"',
+            rnd.choice(NAMES),
+            "true", "false",
+        ])
+    choice = rnd.random()
+    if choice < 0.5:
+        return f"({expr(depth-1, rnd)} {rnd.choice(OPS)} {expr(depth-1, rnd)})"
+    if choice < 0.7:
+        return f"(if {expr(depth-1, rnd)} then {expr(depth-1, rnd)} else {expr(depth-1, rnd)})"
+    return f"-{expr(depth-1, rnd)}"
+
+def stress_program(rnd: random.Random) -> str:
+    kind = rnd.choice(["deep_nest", "long_lit_chain", "neg_chain", "probe"])
+    if kind == "deep_nest":
+        n = rnd.randint(200, 2000)
+        return "(" * n + "1" + ")" * n
+    if kind == "long_lit_chain":
+        return "1" + "".join(f" + {rnd.randint(0,9)}" for _ in range(rnd.randint(500, 3000)))
+    if kind == "neg_chain":
+        return "- " * rnd.randint(200, 1500) + "1"
+    # probe: bind a name, then hit code paths random expressions rarely reach
+    x = expr(2, rnd)
+    return rnd.choice([f"let x = {x}; x == x", f"let x = {x}; x != x"])
+
+def gen_program(rnd: random.Random, stress_rate: float = 0.15) -> str:
+    if rnd.random() < stress_rate:
+        return stress_program(rnd)
+    return expr(rnd.randint(2, 5), rnd)
+```
+
+### 3. Fuzz driver: dedupe, shrink, report
+
+```python
+# fuzz.py
+import argparse, random
+from oracle import run_program, signature
+from fuzzgen import gen_program
+
+def shrink(src: str, target_sig, timeout_s=2.0):
+    """ddmin over lines, then binary search of integers/repeats toward 0/1."""
+    def matches(s):
+        try:
+            return signature(run_program(s, timeout_s)) == target_sig
+        except Exception:
+            return None  # flaky candidate, not a match
+
+    lines = src.splitlines() or [src]
+    changed = True
+    while changed:
+        changed = False
+        n = len(lines)
+        if n <= 1:
+            break
+        for chunk in (n // 2, 1):
+            i = 0
+            while i < len(lines):
+                candidate = lines[:i] + lines[i + chunk:]
+                if candidate and matches("\n".join(candidate)):
+                    lines = candidate
+                    changed = True
+                else:
+                    i += chunk
+
+    # shrink balanced bracket runs and repeated unary ops toward the minimum that still fails
+    text = "\n".join(lines)
+    for opener, closer in [("(", ")")]:
+        while True:
+            n_open = text.count(opener)
+            if n_open <= 1:
+                break
+            candidate = text.replace(opener, "", 1).replace(closer, "", 1)
+            if matches(candidate):
+                text = candidate
+            else:
+                break
+    return text
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("-n", type=int, default=300)
+    ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--show", action="store_true")
+    args = ap.parse_args()
+
+    rnd = random.Random(args.seed)
+    found = {}  # sig -> first source
+    for _ in range(args.n):
+        src = gen_program(rnd)
+        outcome = run_program(src)
+        if outcome.kind in ("crash", "timeout"):
+            sig = signature(outcome)
+            if sig not in found:
+                found[sig] = src
+
+    print(f"ran {args.n}, found {len(found)} unique signatures")
+    for sig, src in found.items():
+        minimal = shrink(src, sig)
+        print(f"--- {sig} ---")
+        print(repr(minimal))
+
+if __name__ == "__main__":
+    main()
+```
+
+Run:
+```bash
+python3 -m fuzz -n 2000 --seed 1 --show
+```
+Every printed signature is a real bug (or a real, worth-fixing timeout — check those for accidental quadratic behavior before dismissing as "just slow"). File one issue/test per signature, not per input.
+
+### 3b. Once fuzzing finds 0 crashes: differential oracle (catches *wrong answers*)
+
+Only meaningful if you have a second evaluation path (fast/compiled vs reference). Skip if you don't.
+
+```python
+# diff_oracle.py
+from oracle import run_program, Outcome
+from adapter import evaluate_fast
+
+def run_differential(src: str, timeout_s=2.0):
+    ref = run_program(src, timeout_s)
+    if evaluate_fast is None:
+        return ref, None, None
+    import signal
+    from oracle import FuzzTimeout, EXPECTED_ERRORS
+    signal.setitimer(signal.ITIMER_REAL, timeout_s)
+    try:
+        try:
+            fast_val = evaluate_fast(src)
+            fast = Outcome("ok", value=fast_val)
+        except FuzzTimeout:
+            fast = Outcome("timeout")
+        except EXPECTED_ERRORS as e:
+            fast = Outcome("expected_error", exc=e)
+        except Exception as e:
+            fast = Outcome("crash", exc=e)
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+
+    mismatch = None
+    if ref.kind == "ok" and fast.kind == "ok" and ref.value != fast.value:
+        mismatch = f"ref={ref.value!r} fast={fast.value!r}"
+    elif ref.kind != fast.kind:
+        mismatch = f"ref_kind={ref.kind} fast_kind={fast.kind}"
+    return ref, fast, mismatch
+```
+
+Wire this into the same fuzz loop in `fuzz.py`: any non-`None` `mismatch` is a bug signature just like a crash — key it on `type(ref).__name__ + first-differing-field`, not on the oracle name, since the same root cause can show up as both a crash in one path and a wrong value in the other.
+
+### 4. Mutation testing — the "how strong is my suite" number
+
+```python
+# mutation.py
+import argparse, ast, copy, shutil, subprocess, sys, tempfile
+from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+MUTATIONS = {
+    ast.Lt: ast.LtE, ast.LtE: ast.Lt, ast.Gt: ast.GtE, ast.GtE: ast.Gt,
+    ast.Eq: ast.NotEq, ast.NotEq: ast.Eq,
+    ast.Add: ast.Sub, ast.Sub: ast.Add,
+    ast.And: ast.Or, ast.Or: ast.And,
+}
+
+class MutantMaker(ast.NodeTransformer):
+    def __init__(self):
+        self.sites = []  # (id, node, original, replacement) filled during a dry pass
+        self.target_id = None
+        self.counter = 0
+
+    def _maybe_swap(self, node, table):
+        kind = type(node)
+        if kind in table:
+            this_id = self.counter
+            self.counter += 1
+            if this_id == self.target_id:
+                return table[kind](), this_id
+            return node, this_id
+        return node, None
+
+    def visit_Compare(self, node):
+        self.generic_visit(node)
+        new_ops = []
+        for op in node.ops:
+            swapped, sid = self._maybe_swap(op, MUTATIONS)
+            new_ops.append(swapped)
+        node.ops = new_ops
+        return node
+
+    def visit_BoolOp(self, node):
+        self.generic_visit(node)
+        node.op, _ = self._maybe_swap(node.op, MUTATIONS)
+        return node
+
+    def visit_BinOp(self, node):
+        self.generic_visit(node)
+        node.op, _ = self._maybe_swap(node.op, MUTATIONS)
+        return node
+
+    def visit_UnaryOp(self, node):
+        self.generic_visit(node)
+        if isinstance(node.op, ast.Not):
+            this_id = self.counter
+            self.counter += 1
+            if this_id == self.target_id:
+                return node.operand  # drop the `not`
+        return node
+
+def count_sites(tree):
+    m = MutantMaker()
+    m.target_id = -1  # never matches; just counts
+    m.visit(copy.deepcopy(tree))
+    return m.counter
+
+def make_mutant(tree, target_id):
+    m = MutantMaker()
+    m.target_id = target_id
+    return m.visit(copy.deepcopy(tree))
+
+def run_one_mutant(project_root: Path, rel_path: str, mutant_src: str,
+                    test_args: list[str], timeout_s: float):
+    with tempfile.TemporaryDirectory() as tmp:
+        dst = Path(tmp) / project_root.name
+        shutil.copytree(project_root, dst)
+        (dst / rel_path).write_text(mutant_src)
+        try:
+            proc = subprocess.run(
+                [sys.executable, "-m", "pytest", "-q", "-x", "-p", "no:cacheprovider", *test_args],
+                cwd=dst, timeout=timeout_s, capture_output=True,
+            )
+            killed = proc.returncode != 0
+            timed_out = False
+        except subprocess.TimeoutExpired:
+            killed = True       # a mutant the suite can't even finish counts as killed
+            timed_out = True
+        return killed, timed_out
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("project_root")
+    ap.add_argument("rel_path")            # e.g. "myproject/evaluator.py"
+    ap.add_argument("--tests", nargs="*", default=["tests"])
+    ap.add_argument("--limit", type=int, default=None)
+    ap.add_argument("--timeout", type=float, default=30.0)
+    ap.add_argument("--workers", type=int, default=4)
+    args = ap.parse_args()
+
+    root = Path(args.project_root).resolve()
+    src_path = root / args.rel_path
+    tree = ast.parse(src_path.read_text())
+    n_sites = count_sites(tree)
+    if args.limit:
+        n_sites = min(n_sites, args.limit)
+
+    results = {}
+    with ThreadPoolExecutor(max_workers=args.workers) as pool:
+        futs = {}
+        for i in range(n_sites):
+            mutant_tree = make_mutant(tree, i)
+            mutant_src = ast.unparse(mutant_tree)
+            if mutant_src == ast.unparse(tree):
+                continue  # no-op mutation id (unused slot), skip
+            fut = pool.submit(run_one_mutant, root, args.rel_path, mutant_src,
+                               args.tests, args.timeout)
+            futs[fut] = i
+        for fut in as_completed(futs):
+            i = futs[fut]
+            killed, timed_out = fut.result()
+            results[i] = (killed, timed_out)
+
+    killed = sum(1 for k, _ in results.values() if k)
+    total = len(results)
+    survivors = [i for i, (k, _) in results.items() if not k]
+    print(f"mutation: {total} mutants, {killed} killed, score={killed/total:.1%}" if total else "no mutants")
+    print(f"survivors (mutant ids): {survivors}")
+
+if __name__ == "__main__":
+    main()
+```
+
+Run against your actual project (never mutates the real checkout — everything happens in a temp copy):
+```bash
+python3 -m mutation /path/to/your/project myproject/evaluator.py --tests tests --limit 60 --workers 8
+```
+
+Check afterward: `git status` (or diff) on your real checkout should show nothing changed.
+
+### 5. Turning survivors into real test cases (kill by search, not by hand)
+
+For each surviving mutant id, load original and mutant as separately-named modules in one process and diff them over a corpus (your existing test inputs + fuzz-generated ones); the first input where they disagree is a killer test.
+
+```python
+# kill_survivor.py
+import ast, importlib.util, sys
+from mutation import make_mutant
+
+def load_as(name, path, source_override=None):
+    spec = importlib.util.spec_from_file_location(name, path)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod
+    if source_override is not None:
+        code = compile(source_override, path, "exec")
+        exec(code, mod.__dict__)
+    else:
+        spec.loader.exec_module(mod)
+    return mod
+
+def find_killer(project_root, rel_path, mutant_id, corpus: list[str]):
+    src_path = project_root / rel_path
+    tree = ast.parse(src_path.read_text())
+    mutant_src = ast.unparse(make_mutant(tree, mutant_id))
+
+    orig_mod = load_as("orig_eval", str(src_path))
+    mut_mod = load_as("mut_eval", str(src_path), source_override=mutant_src)
+
+    for prog in corpus:
+        try:
+            a = orig_mod.evaluate(prog)
+        except Exception as e:
+            a = ("raised", type(e).__name__)
+        try:
+            b = mut_mod.evaluate(prog)
+        except Exception as e:
+            b = ("raised", type(e).__name__)
+        if a != b:
+            del sys.modules["orig_eval"], sys.modules["mut_eval"]
+            return prog, a, b
+    del sys.modules["orig_eval"], sys.modules["mut_eval"]
+    return None  # no_killer: equivalent mutant or corpus gap — report, don't hide
+```
+
+Feed it your existing 300 tests' literal input strings plus a batch from `fuzzgen.gen_program` as the corpus. Any `no_killer` result is worth a manual look — it's either a genuinely equivalent mutant (fine, note it) or a real hole in your test corpus's *diversity*, not just its count.
+
+---
+
+## What "done" looks like
+
+1. `python3 -m fuzz -n 2000` → 0 unique crash signatures (or a short list you triage and fix one by one).
+2. Mutation score printed before you add anything: likely well below 100% even with 300 green tests — that number, not "300 passed", is your real answer to "how strong is the suite."
+3. For each survivor: either a new regression test (via `kill_survivor.py`) or a documented equivalent mutant.
+4. Re-run mutation on the same unmutated code with the new tests added — score should go up. That delta is what your 300 tests were missing.
+
+Want me to tailor the adapter and mutation operator set once you show me your evaluator's actual entry point and file layout?

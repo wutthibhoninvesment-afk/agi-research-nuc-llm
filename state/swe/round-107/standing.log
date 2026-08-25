@@ -1,0 +1,44 @@
+oracle fuzz: 311 programs x 5 oracles in 162.3s
+  totality     ok 264  parse_error 40  timeout 7
+  fast_slow    ok 263  parse_error 40  timeout 8
+  direct       ok 264  parse_error 40  timeout 7
+  determinism  ok 263  parse_error 40  timeout 8
+  render       ok 264  parse_error 40  timeout 7
+  unique finding signatures: 0
+===DONE 113===
+oracle fuzz: 311 programs x 5 oracles in 168.0s
+  totality     ok 253  parse_error 51  timeout 7
+  fast_slow    ok 252  parse_error 51  timeout 8
+  direct       ok 252  parse_error 51  timeout 8
+  determinism  ok 252  parse_error 51  timeout 8
+  render       ok 253  parse_error 51  timeout 7
+  unique finding signatures: 0
+===DONE 114===
+oracle fuzz: 300 programs x 1 oracles in 359.4s
+  self_eval    ok 270  mismatch 3  parse_error 14  timeout 13
+  unique finding signatures: 2
+  - mismatch | self_eval | checks 2-vs-2  (seed 115000456, 9 lines, minimized to 5)
+  - mismatch | self_eval | why_shape v1  (seed 115000385, 12 lines, minimized to 3)
+
+### mismatch | self_eval | why_shape v1
+fn adder(a) { fn(b) { a + b } }
+let addv = adder(0)(0) + adder(0)(0)
+let v1 = num(addv)
+
+--- detail:
+why_shape v1
+guest-only ops: ['num']
+host ops: ['+', 'arg', 'call', 'let', 'literal']
+
+### mismatch | self_eval | checks 2-vs-2
+fn even(n) { if n == 0 { true } else { odd(n - 0) } }
+fn odd(n) { if n == 0 { false } else { even(n - 0) } }
+let v1 = [odd, even]
+check "q_v1": v1 == v1
+check "q_v2": v2 == v2
+
+--- detail:
+checks 2-vs-2
+host:  [('q_v1', False), ('q_v2', False)]
+guest: [('q_v1', True), ('q_v2', False)]
+===DONE guest 115===

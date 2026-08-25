@@ -1,0 +1,16 @@
+{"name": "p200", "cap": 16, "bits": 8, "env": {}, "n_prompt": 200, "n_new": 1, "wall_s": 22.119, "user_s": 14.698, "sys_s": 10.963, "stats": {"tokens": 1, "seconds": 20.886, "tok_s": 0.047878961984104185, "load_s": 1.1, "rss_after_load_gb": 0.73, "peak_rss_gb": 0.85, "hit_rate_pct": 43.6, "hits": 11149, "misses": 14451, "matching": 0}, "returncode": 0, "stderr_tail": "[OMP] olmoe: 2 physical-core threads instead of 6 logical CPUs; SMT can halve decode throughput on some CPUs (#718); set OMP_NUM_THREADS=<n> to override\n"}
+| case | cap | env | prompt | new | tok/s | harness s | hit % | peak RSS GB | load s | user s | sys s | sys share |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| p200 | 16 | — | 200 | 1 | 9.6 (prefill) | 20.9 | 43.6 | 0.85 | 1.1 | 14.7 | 11.0 | 43 % |
+{"name": "p50", "cap": 16, "bits": 8, "env": {}, "n_prompt": 50, "n_new": 1, "wall_s": 8.467, "user_s": 3.969, "sys_s": 3.98, "stats": {"tokens": 1, "seconds": 7.438, "tok_s": 0.13444474321054048, "load_s": 0.9, "rss_after_load_gb": 1.98, "peak_rss_gb": 2.07, "hit_rate_pct": 45.0, "hits": 2881, "misses": 3519, "matching": 0}, "returncode": 0, "stderr_tail": "[OMP] olmoe: 2 physical-core threads instead of 6 logical CPUs; SMT can halve decode throughput on some CPUs (#718); set OMP_NUM_THREADS=<n> to override\n"}
+| case | cap | env | prompt | new | tok/s | harness s | hit % | peak RSS GB | load s | user s | sys s | sys share |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| p50 | 16 | — | 50 | 1 | 6.7 (prefill) | 7.4 | 45.0 | 2.07 | 0.9 | 4.0 | 4.0 | 50 % |
+{"name": "p800", "cap": 16, "bits": 8, "env": {}, "n_prompt": 800, "n_new": 1, "wall_s": 93.941, "user_s": 73.757, "sys_s": 53.09, "stats": {"tokens": 1, "seconds": 92.968, "tok_s": 0.010756389295241373, "load_s": 0.8, "rss_after_load_gb": 1.98, "peak_rss_gb": 2.1, "hit_rate_pct": 42.1, "hits": 43157, "misses": 59243, "matching": 0}, "returncode": 0, "stderr_tail": "[OMP] olmoe: 2 physical-core threads instead of 6 logical CPUs; SMT can halve decode throughput on some CPUs (#718); set OMP_NUM_THREADS=<n> to override\n"}
+| case | cap | env | prompt | new | tok/s | harness s | hit % | peak RSS GB | load s | user s | sys s | sys share |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| p800 | 16 | — | 800 | 1 | 8.6 (prefill) | 93.0 | 42.1 | 2.10 | 0.8 | 73.8 | 53.1 | 42 % |
+{"name": "p200b", "cap": 16, "bits": 8, "env": {}, "n_prompt": 200, "n_new": 1, "wall_s": 26.03, "user_s": 17.708, "sys_s": 14.767, "stats": {"tokens": 1, "seconds": 24.87, "tok_s": 0.04020908725371934, "load_s": 1.0, "rss_after_load_gb": 1.98, "peak_rss_gb": 2.37, "hit_rate_pct": 43.6, "hits": 11149, "misses": 14451, "matching": 0}, "returncode": 0, "stderr_tail": "[OMP] olmoe: 2 physical-core threads instead of 6 logical CPUs; SMT can halve decode throughput on some CPUs (#718); set OMP_NUM_THREADS=<n> to override\n"}
+| case | cap | env | prompt | new | tok/s | harness s | hit % | peak RSS GB | load s | user s | sys s | sys share |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| p200b | 16 | — | 200 | 1 | 8.0 (prefill) | 24.9 | 43.6 | 2.37 | 1.0 | 17.7 | 14.8 | 45 % |

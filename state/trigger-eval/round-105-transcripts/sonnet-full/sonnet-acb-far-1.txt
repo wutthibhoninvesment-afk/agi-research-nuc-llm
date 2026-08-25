@@ -1,0 +1,13 @@
+case: acb-far
+model: sonnet
+arm: None
+fired: ['agent-context-budgeting']
+distractors: []
+foreign: ['claude-api']
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=agent-context-budgeting

@@ -1,10 +1,42 @@
 [
-  {"case": "fmk-near", "model": "sonnet", "repeats": 4, "min_rate": 0.75,
-   "mode": "native",
-   "_baseline": "2026-08-24 round 27: hit 6/6, exact 6/6 (state/trigger-eval/round-027-canary-baseline.json)",
-   "_meaning": "sonnet is the stable instrument; <3/4 fired-at-all = host/model drift, re-baseline before any cross-round comparison"},
-  {"case": "fmk-near", "model": "haiku", "repeats": 6, "min_rate": 0.33,
-   "mode": "native",
-   "_baseline": "2026-08-24 round 27: hit 5/6 (83%), exact 0/6 (siblings co-fire on every run)",
-   "_meaning": "wide band: haiku in-band variance is large; this trips only on population-collapse-scale drift (the round-21 7/7 to 1/12 kind)"}
+ {
+  "case": "fmk-near",
+  "model": "sonnet",
+  "repeats": 4,
+  "min_rate": 0.75,
+  "mode": "native",
+  "_baseline": "2026-08-24 round 27: hit 6/6, exact 6/6 (state/trigger-eval/round-027-canary-baseline.json)",
+  "_meaning": "sonnet is the stable instrument; <3/4 fired-at-all = host/model drift, re-baseline before any cross-round comparison",
+  "protocol": "default"
+ },
+ {
+  "case": "fmk-near",
+  "model": "haiku",
+  "repeats": 6,
+  "min_rate": 0.33,
+  "mode": "native",
+  "_baseline": "2026-08-24 round 27: hit 5/6 (83%), exact 0/6 (siblings co-fire on every run)",
+  "_meaning": "wide band: haiku in-band variance is large; this trips only on population-collapse-scale drift (the round-21 7/7 to 1/12 kind)",
+  "protocol": "default"
+ },
+ {
+  "case": "fmk-near",
+  "model": "sonnet",
+  "repeats": 4,
+  "min_rate": 0.75,
+  "mode": "native",
+  "protocol": "strict",
+  "_baseline": "2026-08-25 round 105: hit 4/4 under --protocol strict (state/trigger-eval/round-105-canary-strict.json)",
+  "_meaning": "sentinel for the strict probe protocol (SKILLS= line invalid without a Skill call); a run made with --protocol strict compares only against strict baselines"
+ },
+ {
+  "case": "fmk-near",
+  "model": "haiku",
+  "repeats": 6,
+  "min_rate": 0.33,
+  "mode": "native",
+  "protocol": "strict",
+  "_baseline": "2026-08-25 round 105: hit 6/6 under --protocol strict (state/trigger-eval/round-105-canary-strict.json)",
+  "_meaning": "strict-protocol haiku sentinel; wide band, trips only on population-collapse-scale drift"
+ }
 ]

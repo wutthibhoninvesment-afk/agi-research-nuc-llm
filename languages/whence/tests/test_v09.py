@@ -240,11 +240,15 @@ def test_runs_inside_a_deep_host_stack():
     interp, env, _ = deep(300, lambda: run(src))
     assert env.get("result").payload == 3000
     assert interp.direct_hits > 0 and interp.direct_fallbacks >= 1
-    # ~650 frames used: no headroom at all — direct never engages, and the
-    # program still runs (trampoline), no RecursionError
-    interp, env, _ = deep(650, lambda: run(src))
+    # the stack already past `limit - HOST_RESERVE`: no headroom at all —
+    # direct never engages, and the program still runs (trampoline), no
+    # RecursionError. Computed from the constant (v0.11 shrank the reserve
+    # 350 → 250 after measuring it; a fixed 650 would now leave headroom).
+    from whence.interp import _stack_depth
+    n = sys.getrecursionlimit() - Interpreter.HOST_RESERVE - _stack_depth() + 5
+    interp, env, _ = deep(n, lambda: run(src))
     assert env.get("result").payload == 3000
-    assert interp.direct_hits == 0
+    assert interp.direct_hits == 0 and interp.host_budget() <= 0
 
 
 def test_tiny_recursion_limit_keeps_direct_dormant():

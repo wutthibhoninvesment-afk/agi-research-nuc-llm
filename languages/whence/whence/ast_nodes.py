@@ -11,8 +11,12 @@ class Node(object):
     compiled, False = too tall, trampoline only); `cdepth` is the number of
     direct-closure frames on the deepest path from this node to a call
     (0 for call-free nodes), i.e. the host frames a direct evaluation of
-    this node needs before the next `_call_direct` frame."""
-    __slots__ = ("line", "fast", "const", "fdepth", "direct", "cdepth")
+    this node needs before the next `_call_direct` frame. `entry` (v0.11)
+    caches, on a function BODY, the pair `(bd, cost)` a direct call
+    needs: the body's evaluator (fast or direct closure, False when
+    it cannot compile) and the host frames it is charged."""
+    __slots__ = ("line", "fast", "const", "fdepth", "direct", "cdepth",
+                 "entry")
 
     def __init__(self, line):
         self.line = line
@@ -21,6 +25,7 @@ class Node(object):
         self.fdepth = 0
         self.direct = None
         self.cdepth = 0
+        self.entry = None
 
 
 def _simple(name, fields):

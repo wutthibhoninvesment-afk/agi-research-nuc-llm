@@ -1,0 +1,1275 @@
+{
+ "seed": 0,
+ "corpus_n": 300,
+ "include_examples": true,
+ "extra_programs": 44,
+ "programs": 356,
+ "survivors": 132,
+ "found": 6,
+ "no_killer": 126,
+ "test_file": "tests/test_generated_killers_r29.py",
+ "seconds": 847.8,
+ "killers": [
+  {
+   "mutant": "interp.py:146:const#40",
+   "found": false,
+   "tried": 356,
+   "seconds": 12.47,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:261:bool#60",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.67,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:301:const#71",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.73,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:307:const#72",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.33,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:346:ifneg#73",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.44,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:409:ifneg#75",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.53,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:420:ifneg#78",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.32,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:606:ifneg#83",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.49,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:715:ifneg#87",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.29,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:749:ifneg#92",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.46,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:772:ifneg#94",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.45,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:783:ifneg#97",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.34,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:875:const#101",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.42,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:926:ifneg#106",
+   "found": false,
+   "tried": 356,
+   "seconds": 7.01,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:1476:ifneg#142",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.39,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:169:arith#216",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.6,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:230:bool#223",
+   "found": true,
+   "tried": 148,
+   "seconds": 5.83,
+   "program": "let v1 = (contrast(even, even)[steps(even, \"fold\")] rescue sqrt(odd).b)\n",
+   "expected": {
+    "kind": "ok",
+    "out": [],
+    "checks": [],
+    "vals": {
+     "v1": "miss: unbound name 'odd' (line 1)"
+    }
+   },
+   "mutant_behaviour": {
+    "kind": "crash",
+    "exc": "TypeError",
+    "out": []
+   }
+  },
+  {
+   "mutant": "interp.py:318:const#237",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.5,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:409:cmp#244",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.59,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:420:cmp#246",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.65,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:446:const#248",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.59,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:561:const#250",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.32,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:606:cmp#257",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.53,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:619:const#260",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.43,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:621:cmp#262",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.6,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:715:cmp#265",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.35,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:724:cmp#269",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.44,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:728:const#270",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.58,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:730:cmp#272",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.28,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:749:cmp#273",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.34,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:757:const#275",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.48,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:772:cmp#276",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.37,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:783:cmp#278",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.31,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:826:ifneg#286",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.36,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:926:cmp#297",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.52,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:1476:cmp#362",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.48,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:1486:ifneg#363",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.32,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:1639:const#372",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.42,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:1700:const#381",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.28,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:236:arith#463",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.35,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:329:const#469",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.29,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:412:const#473",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.34,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:420:const#474",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.48,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:460:ifneg#477",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.28,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:609:const#487",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.54,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:780:cmp#502",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.33,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:786:const#503",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.29,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:796:ifneg#507",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.36,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:826:cmp#511",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.48,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:906:cmp#520",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.31,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:924:const#521",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.35,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:935:bool#522",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.37,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:947:bool#525",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.49,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:1203:arith#552",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.26,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:1291:arith#566",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.3,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:1471:arith#582",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.31,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:1479:const#583",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.29,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:1486:cmp#584",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.53,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:1521:cmp#590",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.29,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:1672:bool#600",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.3,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:1692:const#603",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.53,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:2111:const#632",
+   "found": true,
+   "tried": 354,
+   "seconds": 6.52,
+   "program": "let v1 = ((steps(0, q, q) and (true % undefined_name)) % reasons)\n",
+   "expected": {
+    "kind": "ok",
+    "out": [],
+    "checks": [],
+    "vals": {
+     "v1": "miss: steps expects 1..2 args, got 3 (line 1)"
+    }
+   },
+   "mutant_behaviour": {
+    "kind": "ok",
+    "out": [],
+    "checks": [],
+    "vals": {
+     "v1": "miss: 'and' needs true/false, got [@{count: 1, …] (line 1)"
+    }
+   }
+  },
+  {
+   "mutant": "interp.py:2172:const#639",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.28,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:2224:arith#643",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.46,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:2198:const#646",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.33,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:231:arith#651",
+   "found": true,
+   "tried": 148,
+   "seconds": 5.54,
+   "program": "let v1 = (contrast(even, even)[steps(even, \"fold\")] rescue sqrt(odd).b)\n",
+   "expected": {
+    "kind": "ok",
+    "out": [],
+    "checks": [],
+    "vals": {
+     "v1": "miss: unbound name 'odd' (line 1)"
+    }
+   },
+   "mutant_behaviour": {
+    "kind": "crash",
+    "exc": "TypeError",
+    "out": []
+   }
+  },
+  {
+   "mutant": "interp.py:460:cmp#661",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.33,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:470:bool#662",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.39,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:491:ifneg#666",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.28,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:614:const#678",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.31,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:615:cmp#680",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.38,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:616:const#681",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.54,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:676:ifneg#692",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.32,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:721:arith#694",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.29,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:725:arith#695",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.38,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:780:const#698",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.5,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:796:cmp#699",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.28,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:829:const#702",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.42,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:841:ifneg#706",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.31,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:947:cmp#714",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.49,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:1489:const#777",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.29,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:1675:bool#789",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.54,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:2177:arith#830",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.31,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:2219:const#834",
+   "found": true,
+   "tried": 62,
+   "seconds": 5.26,
+   "program": "let v1 = contrast([zz, q])\n",
+   "expected": {
+    "kind": "ok",
+    "out": [],
+    "checks": [],
+    "vals": {
+     "v1": "run 1 vs run 0:\norigin 1 of 1 (step):\n▶ miss ← name zz  (line 1) │ ▶ miss ← name q  (line 1)"
+    }
+   },
+   "mutant_behaviour": {
+    "kind": "ok",
+    "out": [],
+    "checks": [],
+    "vals": {
+     "v1": "no divergence"
+    }
+   }
+  },
+  {
+   "mutant": "interp.py:347:const#836",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.26,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:463:const#842",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.34,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:470:cmp#843",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.39,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:491:cmp#846",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.29,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:522:ifneg#851",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.58,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:676:cmp#861",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.46,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:680:ifneg#863",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.33,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:682:ifneg#864",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.44,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:690:ifneg#865",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.56,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:799:const#867",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.31,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:841:cmp#869",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.48,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:1006:bool#880",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.31,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:1238:arith#890",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.3,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:1459:arith#898",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.32,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:1503:arith#899",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.31,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:347:const#934",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.4,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:400:bool#935",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.36,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:470:const#938",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.3,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:475:cmp#939",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.47,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:477:arith#940",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.32,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:478:const#941",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.34,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:479:const#942",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.52,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:498:const#943",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.35,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:522:cmp#947",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.39,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:545:cmp#949",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.31,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:586:arith#953",
+   "found": true,
+   "tried": 102,
+   "seconds": 5.45,
+   "program": "fold(blame, reasons(\"0x1f\"), [1.5.b, @{name: v1, b: v3, x: v3}, str(0), \"0.5\"])\n",
+   "expected": {
+    "kind": "ok",
+    "out": [],
+    "checks": [],
+    "vals": {}
+   },
+   "mutant_behaviour": {
+    "kind": "crash",
+    "exc": "TypeError",
+    "out": []
+   }
+  },
+  {
+   "mutant": "interp.py:680:cmp#956",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.33,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:684:ifneg#957",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.33,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:690:not#958",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.4,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:844:const#960",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.3,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:2163:const#998",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.38,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:2164:const#999",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.37,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:402:bool#1007",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.33,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:525:const#1014",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.43,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:545:const#1017",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.36,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:683:arith#1018",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.35,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:684:cmp#1019",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.45,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:685:ifneg#1020",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.5,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:691:const#1021",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.31,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:948:const#1023",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.37,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:1565:arith#1028",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.31,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:2117:const#1038",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.41,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:683:arith#1043",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.68,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:684:const#1044",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.28,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:685:cmp#1045",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.36,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:1163:cmp#1047",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.33,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  },
+  {
+   "mutant": "interp.py:1685:const#1049",
+   "found": true,
+   "tried": 254,
+   "seconds": 6.09,
+   "program": "let v2 = ((@{name: v1, v: v1} == @{c: false, v: v1}) or (@{v: 0, x: v1, b: v1} * v1))\n",
+   "expected": {
+    "kind": "ok",
+    "out": [],
+    "checks": [],
+    "vals": {
+     "v2": "miss: unbound name 'v1' (line 1)"
+    }
+   },
+   "mutant_behaviour": {
+    "kind": "ok",
+    "out": [],
+    "checks": [],
+    "vals": {
+     "v2": "true"
+    }
+   }
+  },
+  {
+   "mutant": "interp.py:683:const#1053",
+   "found": false,
+   "tried": 356,
+   "seconds": 6.39,
+   "program": null,
+   "expected": null,
+   "mutant_behaviour": null
+  }
+ ]
+}

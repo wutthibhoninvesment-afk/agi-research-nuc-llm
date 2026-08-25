@@ -1,6 +1,6 @@
 ---
 name: fuzz-mutate-kill-loop
-description: Bug-finding, test-generation and model-benchmarking loop for an interpreter or any pure library: totality-oracle fuzzing with a shrinker, self-differential oracles, AST mutation testing with settrace coverage triage (test gap vs equivalent mutant), differential search that pins surviving mutants as tests, a repair benchmark that injects killed mutants as bugs and scores the model's fix, oracle-gated model review with enforced read budgets, and a resumable checkpointed campaign. Use when asked to find bugs in an evaluator/parser/compiler, measure or improve test-suite strength, generate tests automatically, benchmark a model as a bug finder or fixer against known answers, when a suite is green but proves little, when a fuzzer reports 0 crashes and you need semantic bugs, when survivors must be split into test gaps vs equivalents, when a reviewing model reads or greps for its whole budget and never runs a reproducer, or when a long pipeline keeps dying before it reports.
+description: Use when asked to find bugs in an evaluator, parser, compiler or pure library (crashes or wrong answers, not style), to harden such code before it ships, to measure or improve how much a green test suite actually proves, to generate tests automatically, to make a model prove its review claims, or to benchmark a model as a bug finder or fixer against known answers. Symptoms: "all tests pass but they prove little"; a fuzzer reports 0 crashes yet semantic bugs are suspected (fast vs reference path); fuzz-campaign timeouts nobody triaged; survivors must be split into test gaps vs equivalents; a reviewing model reads or greps for its whole budget and never runs a reproducer; a long pipeline keeps dying before it reports. Method: totality-oracle fuzzing with a shrinker, self-differential oracles, AST mutation testing with coverage triage, killer search that pins survivors as tests, a repair benchmark from killed mutants, oracle-gated model review with enforced read budgets, and a resumable checkpointed campaign.
 ---
 
 # Fuzz → mutate → kill: a self-improvement loop for interpreters
@@ -166,7 +166,13 @@ The steps are self-contained.)
    state/mutation/round-NNN.json --extra-programs pins.json --live-kill 8
    --live-review --model claude-sonnet-5`. Checkable outcome: kill the
    process mid-stage, re-run, and the manifest shows the stage resuming
-   with `resuming: k of n mutants already checkpointed`.
+   with `resuming: k of n mutants already checkpointed`. Every suite run
+   the campaign spawns (mutant, recheck, verify, repair, the model's
+   `pytest` tool, the coverage bootstrap) goes through one helper that
+   starts the child in its own session and SIGKILLs the whole process
+   group on timeout (`harness/swe/proc.py::run_capped`); the regression
+   test spawns a grandchild that inherits stdout and asserts it is dead
+   after the cap.
 
 12. **Re-check timeouts serially before calling them kills, and verify
    every pin against only its own test file.** A `timeout` recorded under
@@ -248,88 +254,100 @@ The steps are self-contained.)
    Checkable outcome: mark stage A running in process 1, stage B done in
    process 2, A done in 1 → the file shows both done.
 
+18. **Order the suite kill-first from the previous baseline; the verdict
+   cannot change under `-x`, only the time to the first failure.** Every
+   killed record names the file that failed first (`FAILED
+   tests/test_v09.py::…`); for a new mutant run the files that killed the
+   k nearest mutated lines (same-op ties first), then the rest in default
+   order (`harness/swe/prioritize.py`; campaign flag `--prioritize-from
+   PRIOR.json|.jsonl`; checkpoint lines carry `killed_by`/`first_file` so
+   each baseline teaches the next). Measured paired, leave-one-out, on 30
+   kills: verdicts 30/30 identical, kills by a later file 0.22× aggregate
+   (108 s → 1.8 s), kills by the first file unchanged — so judge it by the
+   SUM of seconds, not by a median of ratios (23 of 30 kills were already
+   fast; the median said "no gain" while the sum said 0.46×). Survivors
+   still pay the whole suite; only a smaller suite helps them.
+
+19. **Build a per-test-FILE coverage map once, then run only the files
+   that can see each mutant.** One full `sys.settrace` run of the suite
+   with a pytest plugin that switches the hit dict on `runtest_logstart`
+   (`{rel: {test_file: {line: hits}}}` + seconds per file) costs ~4× the
+   untraced suite (274 s for a 66 s suite; the "10–30×" folklore was
+   never measured). For a mutant at `[line, end_line]`: the files whose
+   tests executed one of those lines run first, cheapest first; with
+   `subset=True` ONLY they run — a file that never executes the mutated
+   node cannot observe the mutation, so a green covering subset is a
+   `survived` verdict by construction. Lines hit only at import time
+   (`<collect>` key) are covered by every file. Mutants no file covers
+   run the full suite (they are the instrument's blind spot and there are
+   few). Keep the instrument honest: the recheck stage re-runs a seeded
+   sample of subset-survivors under the full suite and records
+   `subset_flips` — one flip is an instrument error to chase, not noise.
+   Implementation: `swe.coverage --by-file --out map.json`, then
+   `swe.campaign --coverage-map map.json` (`--no-subset` = order only,
+   `--subset-check N`). Checkable outcome: every kill's `killed_by` file
+   is in the map's covering set for that line (fidelity), `subset_flips`
+   is 0 or explained.
+
+20. **Classify survivors by the code they sit in before spending anything
+   on them.** Key on NAMES and one shape, not on judgement: statistics
+   counters (`fast_hits += 1`, `depth > peak_depth`), host-frame budget
+   identifiers (`HOST_RESERVE`, `cost = body.cdepth + 1`, `_hleft`),
+   `x is None` cache guards, `"..." % args` error-message formatting,
+   other. For an `if`, the text is the CONDITION, never the body (a
+   counter increment inside the body would mislabel the guard). Report
+   the score over all mutants AND over the behavioural set (drop
+   `counter` + `budget` mutants — killed and surviving alike — from the
+   denominator; the score is a property of the code class). The classes
+   are not equivalence verdicts: they say which INSTRUMENT can see the
+   mutant (step 21) and which pool the live model should sample from.
+   `swe.triage mutation.json --show`.
+
+21. **Kill "equivalent" survivors with instruments that are not the value
+   comparison.** Three, in priority order, each pinned as a plain pytest
+   from a single helper source written verbatim into the generated file:
+   *modes* — behaviour under direct / trampoline / slow mode must agree
+   and equal the original's (an undercharged frame budget crashes direct
+   mode at the default recursion limit where the trampoline runs: a
+   behaviour kill); *frames* — host frames above `exec_stmt` beyond the
+   charge, via `sys.setprofile`, at the CLI's recursion limit, must stay
+   under the slack (the only instrument that sees an undercharge too
+   small to crash); *counters* — `fast_hits/direct_hits/direct_fallbacks/
+   peak_depth` after a run (sees counter bumps, flipped cache guards and
+   OVERcharges through an earlier fallback). Feed them deep non-tail
+   recursion probes (`f(100)`, `f(200)`, `f(400)` at max_depth 500): the
+   fuzz corpus never reaches the budget. **Run every measurement on a
+   fresh thread**: the budget is `recursion limit − frames in use −
+   reserve`, so counters and crash points depend on the CALLER's stack
+   depth — a pin computed 40 frames deep in the harness fails in pytest.
+   `in_thread(fn, timeout)` with `threading.stack_size(64 MB)`, timeouts
+   by `PyThreadState_SetAsyncExc` with a `BaseException` subclass (the
+   interpreter's `except Exception` swallows anything less); never nest
+   two such threads or the inner one leaks on timeout. `swe.oraclekill
+   mutation.json --write tests/test_oracle_killers_rNNN.py`.
+
 ## Pitfalls
-- **Fixes applied to a copy never ship.** A round-5 run hardened
-  `/tmp/whence-copy` and reported green; the checkout never changed and
-  the next fuzz campaign against the checkout was blind because its
-  regression file did not exist. Verify fixes by running the checkout's
-  own test file by path, and grep the checkout for the fix before
-  writing "fixed" anywhere.
-- **Fuzz timeouts are findings too.** Left untriaged since round 5, they
-  hid a quadratic history walker. Collect the timeout programs, time the
-  suspicious builtins in isolation at 2× sizes, and treat superlinear
-  growth on a shared DAG as a bug.
-- **Non-deterministic RecursionError signature.** Innermost frame varies
-  with stack depth → ddmin rejects every subset and the campaign reports
-  the same bug under several names. Use the ≥2-occurrence cycle set (step 4).
-- **Unbalanced bracket shrinking.** Shrinking `(((` alone yields syntax
-  errors for every candidate; the run never shortens. Shrink pairs.
-- **Signal timers are main-thread only.** `setitimer` in a worker thread
-  raises; keep fuzzing sequential and parallelise *mutants* (subprocesses)
-  instead.
-- **Mutating the checkout in place.** A crash mid-run leaves a mutated
-  file behind. Always copy the project per mutant.
-- **`ast.unparse` reflows the file.** Line numbers in the mutant differ from
-  the original; keep the ORIGINAL node line in the mutant id, and never diff
-  mutant text against the original for reporting.
-- **Corpus contamination through the module cache.** Loading a mutant under
-  the plain package name replaces the original for the rest of the process.
-  Unique names per variant, and delete `sys.modules` entries when done.
-- **Timeouts counted as survivors.** An infinite-loop mutant that the suite
-  can't finish *is* detected; count `timeout` as killed.
-- **Equivalent mutants treated as failures.** `>= 0` vs `> 0` on a length
-  that is never 0 cannot be killed; report `no_killer` and move on.
-- **Running the suite under CPU contention.** Killer search that takes 0.1s
-  idle took 60s with two mutation runs in the background; profile pieces
-  before blaming the code.
-- **Success removes your fixtures.** Tests of the crash-handling paths
-  (oracle classification, signature stability, the run tool's `crash`
-  kind) used a real crasher — a 400-deep parenthesised expression. Once
-  the interpreter fixed every crash the fuzzer could find (round 009: 0
-  signatures), those tests broke. Inject a *synthetic* bug instead: compile
-  a self-recursive replacement for a real internal function (`deep_eq`)
-  under the package's own path so frame filters and signatures treat it as
-  a real bug, patch it into the loaded module, restore in `finally`
-  (`harness/tests/synthetic_crash.py`). Never keep a real bug around to
-  serve as a fixture.
-- **Hot-path refactors manufacture equivalent mutants.** Adding a numeric
-  fast path to `binop` left the old numeric branches in the general path
-  unreachable; the killer test anchored on that line and could not kill
-  its mutant. When a fast path makes general-path code dead, delete the
-  dead code the same commit — and re-anchor mutation tests on a live site
-  (the string-concat `+`, killed by `let a = "x" + "y"`).
-- **Driving a multi-hour pipeline by hand from an agent session.** Rounds
-  17 and 23 of this program each spent a full turn budget interleaving
-  mutation runs, kill attempts and reviews, died at max-turns, and left an
-  incomplete log, an empty output file and unscored predictions. Launch
-  the campaign runner with `nohup … < /dev/null &`, write predictions
-  first, and read the manifest — the round survives its own death.
-- **A `timeout` under parallel load counted as a kill.** Five workers on
-  six cores stretch a 20 s suite past 60 s for innocent mutants; the
-  recheck stage exists because the baseline number is otherwise inflated
-  by the machine, not the tests.
-- **"corpus_n=0" is not an empty corpus.** The killer corpus always
-  prepends the checked-in examples; two campaign tests assumed no killer
-  could be found with `corpus_n=0` and went red the moment a new example
-  exercised the fixture mutants' lines. Say which corpus you mean
-  (`include_examples=False`) instead of relying on a count.
-- **A def line is executed at import time.** Naive per-function coverage
-  shows 1/111 for a function that was never called; exclude the `def`
-  (and decorator) lines from the body count before calling anything
-  "never executed".
-- **The CLI backend reads until the budget dies.** One tool per reply and
-  200-line windows make "read the whole file" 12+ steps; nothing in the
-  prompt stops it. Budget the tools (step 16) and never let the review's
-  only `oracle_check` be the one the wrap-up could not run.
-- **Escaped newlines through a heredoc.** Patching a source file from a
-  `python3 - <<'EOF'` script with a newline escape inside a triple-quoted
-  replacement writes a literal newline into the target's string literal
-  (`SyntaxError: EOL while scanning string literal`); double the escape
-  or use the Edit tool for anything containing escapes.
-- **Anchoring a test on a source line of another component.** `"provs, l
-  + r)"` matched a different line after the refactor. Anchor on a marker
-  comment or a unique string literal, and state in the test what behaviour
-  the mutant must change.
+- **A `RecursionError` inside the trace hook silently removes the tracer.**
+  CPython drops `sys.settrace` for the thread when the trace function
+  raises; a suite that lowers the recursion limit for one test
+  (`setrecursionlimit(200)`) then reports zero coverage for every later
+  file (round 113: `test_v10.py`/`test_v11.py` invisible, and the first
+  hypothesis — a `settrace(None)` in the tests — was wrong; they use
+  `setprofile`). Re-arm `sys.settrace`/`threading.settrace` at every
+  `runtest_logstart`, and read the per-file hit counts before trusting a
+  map: a 23 s test file with 0 hits is the instrument, not the file.
+- **Counter pins that depend on the caller's stack depth.** Direct-mode
+  statistics change with the entry depth (budget = limit − frames in
+  use − reserve); the same program gave `direct_hits` 186 from the harness
+  and a different number from a deeper call site. Measure on a fresh
+  thread (step 21) — verified identical from the main thread and from
+  150 frames deep.
+- **Nested `in_thread` calls leak the inner worker.** An async exception
+  kills the outer thread at `join`; the inner one keeps spinning at 100 %
+  CPU. One thread per measurement, each with its own timeout.
+
+Older pitfalls (one per failure the program hit, rounds 5–107) are in
+[references/pitfalls.md](references/pitfalls.md): Fixes applied to a copy never ship; Fuzz timeouts are findings too; Non-deterministic RecursionError signature; Unbalanced bracket shrinking; Signal timers are main-thread only; Mutating the checkout in place; `ast.unparse` reflows the file; Corpus contamination through the module cache; Timeouts counted as survivors; Equivalent mutants treated as failures; Running the suite under CPU contention; Success removes your fixtures; Hot-path refactors manufacture equivalent mutants; Driving a multi-hour pipeline by hand from an agent session; `subprocess.run(timeout=)` kills the child, not its children; Campaign durations from `time.time()` across a laptop sleep; A `timeout` under parallel load counted as a kill; "corpus_n=0" is not an empty corpus; A def line is executed at import time; The CLI backend reads until the budget dies; Escaped newlines through a heredoc; Anchoring a test on a source line of another component.
 
 ## Verification
 ```bash
@@ -343,7 +361,13 @@ python3 -m swe.loop --out /tmp/swe-run --fuzz-n 100 --mutant-limit 30      # end
 python3 -m pytest -q tests/test_swe_regiontools.py tests/test_swe_campaign.py  # region tools + resumable campaign, offline
 python3 -m swe.campaign --out /tmp/camp --limit 30 --corpus-n 100 --workers 4   # manifest + report.md; re-run = instant (all stages done)
 python3 -m pytest -q tests/test_swe_coverage.py tests/test_swe_repair.py tests/test_round101.py  # coverage triage, repair scoring, read budget + wrap-up
+python3 -m pytest -q tests/test_swe_proc.py tests/test_swe_mutation.py -k 'grandchild or group'  # cap kills the whole process group
 python3 -m swe.coverage --files whence/interp.py --args "-q -p no:cacheprovider tests/test_interp.py"  # per-def coverage; "never executed:" list
+python3 -m swe.coverage --files whence/interp.py --by-file --out /tmp/map.json   # "by-file map: N test files, durations ..."; every in-process test file has hits
+python3 -m swe.campaign --out /tmp/camp --coverage-map /tmp/map.json --limit 60 --workers 4  # mutants carry basis=subset/full, first_file, files_run; recheck reports subset_checked/subset_flips
+python3 -m swe.triage /tmp/camp/mutation-rechecked.json --show                 # class table + score all vs behavioural
+python3 -m swe.oraclekill /tmp/camp/mutation-rechecked.json --corpus 30 --write tests/test_oracle_killers_tmp.py  # KILLER modes|frames|counters lines
+python3 -m pytest -q tests/test_swe_bymap.py tests/test_swe_triage.py tests/test_swe_oraclekill.py  # map/prioritizer/triage/instruments offline (real checkout for the instruments)
 ```
 - [ ] Oracle classifies a known crasher as `crash`, a syntax error as expected
 - [ ] Every reported signature reproduces from its minimized source
@@ -355,7 +379,12 @@ python3 -m swe.coverage --files whence/interp.py --args "-q -p no:cacheprovider 
 - [ ] Previous round's regression test file exists in the checkout and runs
 - [ ] `campaign.json` lists every stage `done`; a second run of the same command finishes in seconds
 - [ ] Timeouts from the parallel run were re-checked serially; flips are in `mutation-rechecked.json`
+- [ ] `ps -axo pid,ppid,etime,command | awk '$2==1'` shows no `run.py`/pytest orphans after the campaign; no recorded duration exceeds the cap by more than seconds
 - [ ] Review trace tool histogram shows `oracle_check` calls, not only `search`
 - [ ] `killed_on_uncovered == 0` in the coverage triage (else the instrument, not the suite, is wrong)
 - [ ] Repair records carry `green` / `localized` / `exact` separately, and `cheated` is counted, never folded into green
 - [ ] A `max_steps` review still ends with a JSON answer (wrap-up turn traced)
+- [ ] By-file map: every test file that imports the interpreter has > 0 hits; `_durations` sums to about the traced wall time
+- [ ] Map fidelity: every kill's `killed_by` file covers the mutated line; `subset_flips` is 0 or each flip is explained as an instrument error
+- [ ] Triage counts sum to the survivor count; behavioural score reported next to the raw score
+- [ ] Oracle pins reproduce from a fresh pytest process (computed on a fresh thread), and `verify` shows each pinned mutant killed by the pinned file alone

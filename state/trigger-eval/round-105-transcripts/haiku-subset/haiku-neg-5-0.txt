@@ -1,0 +1,108 @@
+case: neg-5
+model: haiku
+arm: None
+fired: []
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=NONE
+
+Here's a paginated user table component:
+
+```jsx
+import React, { useState } from 'react';
+
+export default function UserTable({ users = [], itemsPerPage = 10 }) {
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const totalPages = Math.ceil(users.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentUsers = users.slice(startIndex, endIndex);
+
+  const handlePrevious = () => {
+    setCurrentPage(prev => Math.max(prev - 1, 1));
+  };
+
+  const handleNext = () => {
+    setCurrentPage(prev => Math.min(prev + 1, totalPages));
+  };
+
+  return (
+    <div style={{ padding: '20px' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr style={{ backgroundColor: '#f5f5f5' }}>
+            <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #ddd' }}>ID</th>
+            <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #ddd' }}>Name</th>
+            <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #ddd' }}>Email</th>
+          </tr>
+        </thead>
+        <tbody>
+          {currentUsers.map(user => (
+            <tr key={user.id} style={{ borderBottom: '1px solid #ddd' }}>
+              <td style={{ padding: '12px' }}>{user.id}</td>
+              <td style={{ padding: '12px' }}>{user.name}</td>
+              <td style={{ padding: '12px' }}>{user.email}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <div style={{ marginTop: '20px', display: 'flex', gap: '10px', alignItems: 'center' }}>
+        <button 
+          onClick={handlePrevious}
+          disabled={currentPage === 1}
+          style={{
+            padding: '8px 16px',
+            cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+            opacity: currentPage === 1 ? 0.5 : 1
+          }}
+        >
+          Previous
+        </button>
+        <span>
+          Page {currentPage} of {totalPages}
+        </span>
+        <button 
+          onClick={handleNext}
+          disabled={currentPage === totalPages}
+          style={{
+            padding: '8px 16px',
+            cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+            opacity: currentPage === totalPages ? 0.5 : 1
+          }}
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+}
+```
+
+**Usage:**
+```jsx
+const users = [
+  { id: 1, name: 'Alice', email: 'alice@example.com' },
+  { id: 2, name: 'Bob', email: 'bob@example.com' },
+  // ... more users
+];
+
+<UserTable users={users} itemsPerPage={10} />
+```
+
+The component:
+- Accepts a `users` array and configurable `itemsPerPage` (defaults to 10)
+- Maintains current page state with `useState`
+- Calculates which users to show based on page and page size
+- Provides Previous/Next buttons with proper disabled states
+- Shows page info (e.g., "Page 2 of 5")
+- Includes basic table styling
+
+Customize the table columns, styling, or button behavior as needed for your use case.

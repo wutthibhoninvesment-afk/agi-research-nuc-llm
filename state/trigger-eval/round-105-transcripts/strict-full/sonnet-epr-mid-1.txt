@@ -1,0 +1,13 @@
+case: epr-mid
+model: sonnet
+arm: None
+fired: ['engine-prefix-reuse-audit']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=engine-prefix-reuse-audit

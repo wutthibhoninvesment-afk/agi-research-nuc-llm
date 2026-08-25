@@ -110,7 +110,22 @@ skills — that duplicates their triggers and adds an indirection hop.
    transcript (`--transcripts DIR` keeps the full text). Before ANY
    cross-round comparison, run the frozen sentinel first: `--canary
    canary.json` exits 1 when the instrument has drifted out of its stored
-   band — on drift, re-baseline; don't compare. Before writing or editing
+   band — on drift, re-baseline; don't compare. Then compare with
+   `--baseline prior.json`: a per-case delta table with verdicts
+   (REGRESSED / IMPROVED / CO-FIRE / noise? / same) replaces reading two
+   reports side by side — a description rewrite that ships without this
+   step can silently lose a far case (measured: 2/2 → 0/2, found two
+   rounds later). A miss whose transcript is a one-turn `SKILLS=<the
+   expected skill>` with no tool call is a probe-protocol artifact, not a
+   description problem — the report counts these as `declared-not-invoked`;
+   the strict protocol (the default since v4.2; `--protocol default`
+   reproduces older reports) removes it — re-probe under it, or read
+   the rate with `--count-declared`, before editing. At session start
+   and after every description edit run `--audit <reports-dir>` (offline):
+   it lists, per skill, whether the description on disk now was ever
+   probed (`probed` / `STALE` / `never`) and the case counts — a skill
+   with cases but no report is `never`, and that is the state two skills
+   shipped in. Before writing or editing
    a case file, READ
    [references/trigger-evaluation.md](references/trigger-evaluation.md) —
    the near/mid/far case-design rules, body/evidence marker guidance, and
@@ -150,6 +165,22 @@ skills — that duplicates their triggers and adds an indirection hop.
   shift underneath the benchmark (a case measured 7/7 → 1/12 across
   rounds with the skill untouched). Run `--canary` first; on drift,
   re-baseline the same day and compare within-day only.
+- **Editing a description without re-probing it** — a mechanism-first
+  rewrite (capability list, then "use when") shipped with a green lint
+  and cost the skill its far case (2/2 → 0/2) and a co-firing sibling on
+  its near case; nobody saw it until the next full run two rounds later.
+  Every description change is followed by `--only <its cases> --repeats
+  3 --baseline <last-clean-run>.json` the same session.
+- **A case file is not a probe** — two skills shipped with three trigger
+  cases and a body case each and were never run (the cases made them look
+  tested; the round that wrote them had no budget line for the probe).
+  `--audit` names them `never`; a description whose digest is not in any
+  report is unmeasured, whatever the case file says.
+- **A capability list leads, the triggers trail** — the selector reads
+  the first clause; if it is "X loop for Y: technique, technique,
+  technique", a far-phrased task ("harden calc.py before we ship") is
+  claimed by a sibling whose first clause matches the task's noun.
+  Symptom-first, method last.
 - **Acting on a single probe of a small model** — small-model selection
   is noisy enough that n=1 is a coin report; use `--repeats ≥4` and read
   the per-case rate table, and phrase every small-model claim as a rate.
@@ -170,7 +201,7 @@ skills — that duplicates their triggers and adds an indirection hop.
 ```bash
 cd ~/agi-research
 python3 -m unittest discover -s skills/skill-authoring/scripts -v
-# expected: Ran 116 tests, OK  (test_skill_lint.py + test_trigger_eval.py, offline)
+# expected: Ran 141 tests, OK  (test_skill_lint.py + test_trigger_eval.py, offline)
 python3 skills/skill-authoring/scripts/skill_lint.py --house --strict skills/
 # expected: 0 error(s), 0 warning(s), exit 0
 ```
@@ -179,6 +210,8 @@ python3 skills/skill-authoring/scripts/skill_lint.py --house --strict skills/
 - [ ] Linter clean under `--house --strict`
 - [ ] `trigger_eval.py` shows 100% recall on the skill's cases and no false
       fires on negatives (native mode, repeated if a miss looks like noise)
+- [ ] `trigger_eval.py … --audit <reports-dir>` exits 0: every skill
+      `probed` under its current description, none `STALE`/`never`
 - [ ] For a skill whose body carries the value (procedures, bundled files):
       a `--mode body` case exists and the evidence markers match, or a real
       session followed the steps without improvising

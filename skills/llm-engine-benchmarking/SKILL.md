@@ -91,6 +91,11 @@ or for quality evaluation.
    every prediction hit/miss.
 
 ## Pitfalls
+- **RSS as the engine's size.** An engine parked at its cgroup
+  `memory.max` has already pushed part of itself to swap (4.2 GB of a
+  36 GB Qwen3.6 worker); `ps` RSS under-states it and any co-location or
+  cache-cap plan built on it is wrong. Read `memory.current`,
+  `memory.swap.current` and `VmSwap` (see `colocated-model-lane`).
 
 - `print` to a redirected file is block-buffered: launch long runs with
   `python3 -u` or you get an empty log until exit.

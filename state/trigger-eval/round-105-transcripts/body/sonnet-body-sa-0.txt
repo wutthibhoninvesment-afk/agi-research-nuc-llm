@@ -1,0 +1,96 @@
+case: body-sa
+model: sonnet
+arm: None
+fired: ['skill-authoring']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+I'll use the skill-authoring skill to diagnose this properly.
+
+## Diagnosis
+
+Your `SKILL.md` fails for two separate, additive reasons — either one alone is enough to make Claude never pick it up:
+
+1. **Second-person description.** `description: You can use this to help with deployments.` is second-person ("you"). The skill-authoring guidance is explicit that this measurably hurts selection — descriptions must be third person, since they're spliced into the system prompt alongside every other skill's third-person description, and the inconsistency in voice degrades the model's ability to match it to a task.
+
+2. **No trigger vocabulary.** "help with deployments" states a vague capability but enumerates zero concrete trigger contexts. Claude Code's selector matches on *symptom words the user actually types* — "deploy", "ship", "release", "push to prod", "rollback" — not on a restated capability. A description this thin essentially never fires unless the user's message happens to contain the literal word "deployments."
+
+3. **Body has no usable procedure.** `This skill helps you deploy. Be careful with production.` isn't a step, it's a mood. Even if the skill did trigger, there's nothing checkable to follow — no `## Steps`, no exact commands, no `## Verification`. "Be careful" is exactly the kind of vague pitfall the house format flags: it names no mechanism, so it changes no behavior.
+
+## Rewrite
+
+```markdown
+---
+name: deploy-helper
+description: Guides a safe application deployment — pre-deploy checks, the rollout steps, and rollback — for this project. Use when the user asks to deploy, ship, release, push to production, promote a build to staging or prod, cut a release, run the deploy pipeline, or asks how to roll back a bad deploy.
+---
+# Deploy Helper
+
+## When to use (triggers)
+- The user asks to deploy, ship, release, or push a change to staging/production.
+- The user asks "how do I deploy this" / "is it safe to deploy" / "how do I roll back".
+- The user is about to merge or tag a release and asks what happens next.
+
+**When NOT to use:** local dev server start/restart (that's just running the app,
+not a deploy) — don't invoke this skill for `npm run dev` or similar.
+
+## Steps
+1. **Confirm target and branch.** Ask or verify: which environment (staging vs
+   production), and which commit/branch is being deployed. Do not assume
+   production if the user didn't say so.
+2. **Run pre-deploy checks.** Run the project's test suite and any lint/build
+   step, e.g.:
+   ```bash
+   <replace with this repo's actual test command>
+   ```
+   Expected: exit code 0 before proceeding.
+3. **Confirm before any production action.** Per this environment's own rules
+   on hard-to-reverse actions, state exactly what will happen (target env,
+   version, rollback plan) and get explicit user confirmation before running
+   anything that touches production.
+4. **Run the deploy.**
+   ```bash
+   <replace with this repo's actual deploy command, e.g. `./deploy.sh staging`>
+   ```
+5. **Verify the deploy.** Check the health endpoint / smoke test / version
+   endpoint to confirm the new version is live before declaring success.
+
+## Pitfalls
+- **Deploying without confirming the environment** — "deploy" alone is
+  ambiguous between staging and production; assuming production risks an
+  unwanted prod push.
+- **Skipping pre-deploy tests to save time** — a green test suite is the only
+  cheap evidence you have before an action that's expensive to undo.
+
+## Verification
+- [ ] Pre-deploy checks passed (exit code 0)
+- [ ] User explicitly confirmed the target environment before a production
+      action was taken
+- [ ] Post-deploy health check / version check confirms the new build is live
+```
+
+Replace the two `<replace with...>` command placeholders with this project's actual test and deploy commands — I don't have those, so I left them explicit rather than guessing.
+
+## How to verify the fix actually works before you ship it
+
+Don't just re-read the file — measure it, per the skill's own house rules:
+
+```bash
+# 1. Structural/format check
+python3 skills/skill-authoring/scripts/skill_lint.py --house --strict skills/deploy-helper/
+# expect: 1 skill(s), 0 error(s), 0 warning(s), exit 0
+
+# 2. Does it actually trigger on real phrasings (not just the word "deploy")?
+python3 skills/skill-authoring/scripts/trigger_eval.py cases.json --skills skills/ --json out.json
+# expect: 100% recall on a cases.json you write with near/mid/far paraphrases
+# ("push this to prod", "is it safe to ship this branch", "how do I roll back
+# yesterday's release") plus negatives (e.g. "start the dev server") that
+# should NOT fire it
+```
+
+Write `cases.json` with at least: 2–3 near-paraphrases of "deploy", 2 far paraphrases that never say "deploy" (e.g. "can we cut a release for this"), and 1–2 negatives like starting a local dev server. If recall isn't 100%, the description still lacks the missing case's vocabulary — add that phrase, don't rewrite the whole thing. Re-run the linter after any edit, since it's the cheaper, deterministic check and catches regressions like reintroducing second-person voice before you burn a trigger-eval run on it.

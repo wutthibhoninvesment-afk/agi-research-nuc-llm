@@ -1,0 +1,46 @@
+case: neg-2
+model: haiku
+arm: None
+fired: []
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+`asyncio.gather` and `asyncio.wait` both run multiple coroutines concurrently, but they differ in what they return and how they handle completion:
+
+**asyncio.gather**
+- Returns a list of **results** in the same order as the input coroutines
+- Raises an exception immediately if any coroutine fails (unless `return_exceptions=True`)
+- Simpler, more intuitive for when you want all results
+- Example: `results = await asyncio.gather(coro1(), coro2(), coro3())`
+
+**asyncio.wait**
+- Returns two sets: `(done, pending)` containing Future/Task objects, not results
+- Doesn't raise exceptions—you check the futures yourself
+- Offers control via `return_when` parameter:
+  - `FIRST_COMPLETED`: return as soon as one completes
+  - `FIRST_EXCEPTION`: return when first exception occurs
+  - `ALL_COMPLETED`: wait for all (default)
+- Example: `done, pending = await asyncio.wait([coro1(), coro2()], return_when=asyncio.FIRST_COMPLETED)`
+
+**When to use each:**
+- **gather**: You want all results, order matters, simple happy-path exception handling
+- **wait**: You need to handle results as they complete, want fine-grained control over when to stop waiting, or need to handle exceptions per-task
+
+**Quick example:**
+```python
+# gather - simple, get all results
+results = await asyncio.gather(fetch_url(a), fetch_url(b))
+
+# wait - respond to first result
+done, pending = await asyncio.wait(
+    [fetch_url(a), fetch_url(b)], 
+    return_when=asyncio.FIRST_COMPLETED
+)
+for task in done:
+    print(task.result())  # extract result manually
+```

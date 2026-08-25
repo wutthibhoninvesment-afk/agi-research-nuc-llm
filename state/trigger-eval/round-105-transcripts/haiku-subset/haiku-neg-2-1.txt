@@ -1,0 +1,60 @@
+case: neg-2
+model: haiku
+arm: None
+fired: []
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+# asyncio.gather vs asyncio.wait
+
+**asyncio.gather** collects results; **asyncio.wait** tracks task completion state.
+
+| Aspect | gather | wait |
+|--------|--------|------|
+| **Returns** | Results in order as tuple/list | Two sets: (done tasks, pending tasks) |
+| **API level** | High-level, convenient | Low-level, flexible |
+| **Result extraction** | Automatic — `results = await gather(...)` | Manual — must call `.result()` on each task |
+| **Control** | `return_exceptions` param | `return_when` param: `FIRST_COMPLETED`, `FIRST_EXCEPTION`, `ALL_COMPLETED` |
+| **Failure handling** | Cancels all if one fails (unless `return_exceptions=True`) | Doesn't cancel; just marks as done |
+
+## When to use each
+
+**Use `gather` when:**
+- You want results in order
+- You're waiting for all tasks to finish
+- Simple, readable code matters
+
+```python
+results = await asyncio.gather(task1, task2, task3)
+# results = [result1, result2, result3]
+```
+
+**Use `wait` when:**
+- You need to process results as they complete (`FIRST_COMPLETED`)
+- You want to stop on first error
+- You need fine-grained control over task state
+
+```python
+done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+for task in done:
+    print(task.result())
+```
+
+**Example difference:**
+```python
+# gather: simple, results in order
+results = await asyncio.gather(fetch(1), fetch(2), fetch(3))
+
+# wait: process as completed
+tasks = {asyncio.create_task(fetch(1)), asyncio.create_task(fetch(2))}
+done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+for task in done:
+    print(task.result())  # Handle immediately
+```
+
+`gather` is the go-to for most cases; `wait` is for advanced scenarios where you need control over the completion order.

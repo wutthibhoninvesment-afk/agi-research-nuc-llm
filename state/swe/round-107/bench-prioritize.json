@@ -1,0 +1,679 @@
+{
+ "source": "../state/swe/round-107/mutation.json",
+ "n": 30,
+ "seed": 0,
+ "k": 3,
+ "workers": 2,
+ "seconds": 834.0,
+ "summary": {
+  "n": 30,
+  "verdict_same": 30,
+  "first_file_killed": 27,
+  "median_ratio": 1.0,
+  "mean_ratio": 0.857,
+  "sum_default_s": 482.8,
+  "sum_learned_s": 220.9
+ },
+ "rows": [
+  {
+   "id": "interp.py:1036:bool#726",
+   "op": "bool",
+   "line": 1036,
+   "baseline_killed_by": "tests/test_examples.py",
+   "first_file": "tests/test_examples.py",
+   "learned_files": [
+    "tests/test_examples.py",
+    "tests/test_v09.py",
+    "tests/test_generated_killers.py"
+   ],
+   "default": {
+    "status": "killed",
+    "seconds": 1.3,
+    "killed_by": "tests/test_examples.py"
+   },
+   "learned": {
+    "status": "killed",
+    "seconds": 1.3,
+    "killed_by": "tests/test_examples.py"
+   }
+  },
+  {
+   "id": "interp.py:1049:ifneg#113",
+   "op": "ifneg",
+   "line": 1049,
+   "baseline_killed_by": "tests/test_examples.py",
+   "first_file": "tests/test_examples.py",
+   "learned_files": [
+    "tests/test_examples.py",
+    "tests/test_v09.py",
+    "tests/test_v03.py"
+   ],
+   "default": {
+    "status": "killed",
+    "seconds": 1.1,
+    "killed_by": "tests/test_examples.py"
+   },
+   "learned": {
+    "status": "killed",
+    "seconds": 1.1,
+    "killed_by": "tests/test_examples.py"
+   }
+  },
+  {
+   "id": "interp.py:1103:cmp#884",
+   "op": "cmp",
+   "line": 1103,
+   "baseline_killed_by": "tests/test_examples.py",
+   "first_file": "tests/test_examples.py",
+   "learned_files": [
+    "tests/test_examples.py",
+    "tests/test_v03.py",
+    "tests/test_v09.py"
+   ],
+   "default": {
+    "status": "killed",
+    "seconds": 1.2,
+    "killed_by": "tests/test_examples.py"
+   },
+   "learned": {
+    "status": "killed",
+    "seconds": 1.3,
+    "killed_by": "tests/test_examples.py"
+   }
+  },
+  {
+   "id": "interp.py:1124:cmp#326",
+   "op": "cmp",
+   "line": 1124,
+   "baseline_killed_by": "tests/test_examples.py",
+   "first_file": "tests/test_examples.py",
+   "learned_files": [
+    "tests/test_examples.py",
+    "tests/test_v04.py",
+    "tests/test_v09.py"
+   ],
+   "default": {
+    "status": "killed",
+    "seconds": 1.1,
+    "killed_by": "tests/test_examples.py"
+   },
+   "learned": {
+    "status": "killed",
+    "seconds": 1.1,
+    "killed_by": "tests/test_examples.py"
+   }
+  },
+  {
+   "id": "interp.py:1146:cmp#887",
+   "op": "cmp",
+   "line": 1146,
+   "baseline_killed_by": "tests/test_examples.py",
+   "first_file": "tests/test_examples.py",
+   "learned_files": [
+    "tests/test_examples.py",
+    "tests/test_v04.py",
+    "tests/test_v09.py"
+   ],
+   "default": {
+    "status": "killed",
+    "seconds": 1.3,
+    "killed_by": "tests/test_examples.py"
+   },
+   "learned": {
+    "status": "killed",
+    "seconds": 1.3,
+    "killed_by": "tests/test_examples.py"
+   }
+  },
+  {
+   "id": "interp.py:1227:ifneg#554",
+   "op": "ifneg",
+   "line": 1227,
+   "baseline_killed_by": "tests/test_examples.py",
+   "first_file": "tests/test_examples.py",
+   "learned_files": [
+    "tests/test_examples.py",
+    "tests/test_v07.py",
+    "tests/test_generated_killers.py"
+   ],
+   "default": {
+    "status": "killed",
+    "seconds": 1.0,
+    "killed_by": "tests/test_examples.py"
+   },
+   "learned": {
+    "status": "killed",
+    "seconds": 1.1,
+    "killed_by": "tests/test_examples.py"
+   }
+  },
+  {
+   "id": "interp.py:1259:ifneg#563",
+   "op": "ifneg",
+   "line": 1259,
+   "baseline_killed_by": "tests/test_interp.py",
+   "first_file": "tests/test_interp.py",
+   "learned_files": [
+    "tests/test_interp.py",
+    "tests/test_generated_killers.py",
+    "tests/test_examples.py"
+   ],
+   "default": {
+    "status": "killed",
+    "seconds": 24.0,
+    "killed_by": "tests/test_interp.py"
+   },
+   "learned": {
+    "status": "killed",
+    "seconds": 1.5,
+    "killed_by": "tests/test_interp.py"
+   }
+  },
+  {
+   "id": "interp.py:1398:cmp#348",
+   "op": "cmp",
+   "line": 1398,
+   "baseline_killed_by": "tests/test_examples.py",
+   "first_file": "tests/test_examples.py",
+   "learned_files": [
+    "tests/test_examples.py",
+    "tests/test_self_eval.py",
+    "tests/test_v08.py"
+   ],
+   "default": {
+    "status": "killed",
+    "seconds": 3.7,
+    "killed_by": "tests/test_examples.py"
+   },
+   "learned": {
+    "status": "killed",
+    "seconds": 3.7,
+    "killed_by": "tests/test_examples.py"
+   }
+  },
+  {
+   "id": "interp.py:1512:cmp#587",
+   "op": "cmp",
+   "line": 1512,
+   "baseline_killed_by": "tests/test_examples.py",
+   "first_file": "tests/test_examples.py",
+   "learned_files": [
+    "tests/test_examples.py",
+    "tests/test_v07.py",
+    "tests/test_fuzz_regressions.py"
+   ],
+   "default": {
+    "status": "killed",
+    "seconds": 4.0,
+    "killed_by": "tests/test_examples.py"
+   },
+   "learned": {
+    "status": "killed",
+    "seconds": 4.0,
+    "killed_by": "tests/test_examples.py"
+   }
+  },
+  {
+   "id": "interp.py:160:ifneg#43",
+   "op": "ifneg",
+   "line": 160,
+   "baseline_killed_by": "tests/test_examples.py",
+   "first_file": "tests/test_examples.py",
+   "learned_files": [
+    "tests/test_examples.py",
+    "tests/test_generated_killers.py",
+    "tests/test_v09.py"
+   ],
+   "default": {
+    "status": "killed",
+    "seconds": 1.3,
+    "killed_by": "tests/test_examples.py"
+   },
+   "learned": {
+    "status": "killed",
+    "seconds": 1.3,
+    "killed_by": "tests/test_examples.py"
+   }
+  },
+  {
+   "id": "interp.py:1616:cmp#595",
+   "op": "cmp",
+   "line": 1616,
+   "baseline_killed_by": "tests/test_examples.py",
+   "first_file": "tests/test_examples.py",
+   "learned_files": [
+    "tests/test_examples.py",
+    "tests/test_v07.py",
+    "tests/test_v06.py"
+   ],
+   "default": {
+    "status": "killed",
+    "seconds": 27.8,
+    "killed_by": "tests/test_examples.py"
+   },
+   "learned": {
+    "status": "killed",
+    "seconds": 28.7,
+    "killed_by": "tests/test_examples.py"
+   }
+  },
+  {
+   "id": "interp.py:1679:cmp#978",
+   "op": "cmp",
+   "line": 1679,
+   "baseline_killed_by": "tests/test_examples.py",
+   "first_file": "tests/test_examples.py",
+   "learned_files": [
+    "tests/test_examples.py",
+    "tests/test_generated_killers.py",
+    "tests/test_fuzz_regressions.py"
+   ],
+   "default": {
+    "status": "killed",
+    "seconds": 16.1,
+    "killed_by": "tests/test_examples.py"
+   },
+   "learned": {
+    "status": "killed",
+    "seconds": 14.5,
+    "killed_by": "tests/test_examples.py"
+   }
+  },
+  {
+   "id": "interp.py:1679:ifneg#916",
+   "op": "ifneg",
+   "line": 1679,
+   "baseline_killed_by": "tests/test_examples.py",
+   "first_file": "tests/test_examples.py",
+   "learned_files": [
+    "tests/test_examples.py",
+    "tests/test_generated_killers.py",
+    "tests/test_fuzz_regressions.py"
+   ],
+   "default": {
+    "status": "killed",
+    "seconds": 14.2,
+    "killed_by": "tests/test_examples.py"
+   },
+   "learned": {
+    "status": "killed",
+    "seconds": 14.9,
+    "killed_by": "tests/test_examples.py"
+   }
+  },
+  {
+   "id": "interp.py:1757:cmp#159",
+   "op": "cmp",
+   "line": 1757,
+   "baseline_killed_by": "tests/test_examples.py",
+   "first_file": "tests/test_examples.py",
+   "learned_files": [
+    "tests/test_examples.py",
+    "tests/test_generated_killers.py",
+    "tests/test_interp.py"
+   ],
+   "default": {
+    "status": "killed",
+    "seconds": 1.0,
+    "killed_by": "tests/test_examples.py"
+   },
+   "learned": {
+    "status": "killed",
+    "seconds": 1.1,
+    "killed_by": "tests/test_examples.py"
+   }
+  },
+  {
+   "id": "interp.py:1780:ifneg#160",
+   "op": "ifneg",
+   "line": 1780,
+   "baseline_killed_by": "tests/test_examples.py",
+   "first_file": "tests/test_examples.py",
+   "learned_files": [
+    "tests/test_examples.py",
+    "tests/test_interp.py",
+    "tests/test_fuzz_regressions.py"
+   ],
+   "default": {
+    "status": "killed",
+    "seconds": 4.6,
+    "killed_by": "tests/test_examples.py"
+   },
+   "learned": {
+    "status": "killed",
+    "seconds": 4.7,
+    "killed_by": "tests/test_examples.py"
+   }
+  },
+  {
+   "id": "interp.py:1826:ifneg#167",
+   "op": "ifneg",
+   "line": 1826,
+   "baseline_killed_by": "tests/test_examples.py",
+   "first_file": "tests/test_examples.py",
+   "learned_files": [
+    "tests/test_examples.py",
+    "tests/test_generated_killers.py",
+    "tests/test_interp.py"
+   ],
+   "default": {
+    "status": "killed",
+    "seconds": 1.3,
+    "killed_by": "tests/test_examples.py"
+   },
+   "learned": {
+    "status": "killed",
+    "seconds": 1.3,
+    "killed_by": "tests/test_examples.py"
+   }
+  },
+  {
+   "id": "interp.py:1912:const#993",
+   "op": "const",
+   "line": 1912,
+   "baseline_killed_by": "tests/test_examples.py",
+   "first_file": "tests/test_examples.py",
+   "learned_files": [
+    "tests/test_examples.py",
+    "tests/test_generated_killers.py",
+    "tests/test_fuzz_regressions.py"
+   ],
+   "default": {
+    "status": "killed",
+    "seconds": 4.6,
+    "killed_by": "tests/test_examples.py"
+   },
+   "learned": {
+    "status": "killed",
+    "seconds": 4.6,
+    "killed_by": "tests/test_examples.py"
+   }
+  },
+  {
+   "id": "interp.py:1949:not#408",
+   "op": "not",
+   "line": 1949,
+   "baseline_killed_by": "tests/test_examples.py",
+   "first_file": "tests/test_examples.py",
+   "learned_files": [
+    "tests/test_examples.py",
+    "tests/test_interp.py",
+    "tests/test_fuzz_regressions.py"
+   ],
+   "default": {
+    "status": "killed",
+    "seconds": 1.1,
+    "killed_by": "tests/test_examples.py"
+   },
+   "learned": {
+    "status": "killed",
+    "seconds": 1.2,
+    "killed_by": "tests/test_examples.py"
+   }
+  },
+  {
+   "id": "interp.py:1968:ifneg#619",
+   "op": "ifneg",
+   "line": 1968,
+   "baseline_killed_by": "tests/test_examples.py",
+   "first_file": "tests/test_examples.py",
+   "learned_files": [
+    "tests/test_examples.py",
+    "tests/test_generated_killers.py",
+    "tests/test_interp.py"
+   ],
+   "default": {
+    "status": "killed",
+    "seconds": 14.8,
+    "killed_by": "tests/test_examples.py"
+   },
+   "learned": {
+    "status": "killed",
+    "seconds": 16.1,
+    "killed_by": "tests/test_examples.py"
+   }
+  },
+  {
+   "id": "interp.py:2053:arith#819",
+   "op": "arith",
+   "line": 2053,
+   "baseline_killed_by": "tests/test_v06.py",
+   "first_file": "tests/test_examples.py",
+   "learned_files": [
+    "tests/test_examples.py",
+    "tests/test_v06.py",
+    "tests/test_v05.py"
+   ],
+   "default": {
+    "status": "killed",
+    "seconds": 35.0,
+    "killed_by": "tests/test_v06.py"
+   },
+   "learned": {
+    "status": "killed",
+    "seconds": 24.2,
+    "killed_by": "tests/test_v06.py"
+   }
+  },
+  {
+   "id": "interp.py:2136:not#436",
+   "op": "not",
+   "line": 2136,
+   "baseline_killed_by": "tests/test_examples.py",
+   "first_file": "tests/test_examples.py",
+   "learned_files": [
+    "tests/test_examples.py",
+    "tests/test_history.py",
+    "tests/test_generated_killers.py"
+   ],
+   "default": {
+    "status": "killed",
+    "seconds": 4.7,
+    "killed_by": "tests/test_examples.py"
+   },
+   "learned": {
+    "status": "killed",
+    "seconds": 4.6,
+    "killed_by": "tests/test_examples.py"
+   }
+  },
+  {
+   "id": "interp.py:2190:const#932",
+   "op": "const",
+   "line": 2190,
+   "baseline_killed_by": "tests/test_examples.py",
+   "first_file": "tests/test_examples.py",
+   "learned_files": [
+    "tests/test_examples.py",
+    "tests/test_v04.py",
+    "tests/test_v06.py"
+   ],
+   "default": {
+    "status": "killed",
+    "seconds": 21.8,
+    "killed_by": "tests/test_examples.py"
+   },
+   "learned": {
+    "status": "killed",
+    "seconds": 29.5,
+    "killed_by": "tests/test_examples.py"
+   }
+  },
+  {
+   "id": "interp.py:225:cmp#458",
+   "op": "cmp",
+   "line": 225,
+   "baseline_killed_by": "tests/test_examples.py",
+   "first_file": "tests/test_generated_killers.py",
+   "learned_files": [
+    "tests/test_generated_killers.py",
+    "tests/test_examples.py",
+    "tests/test_interp.py"
+   ],
+   "default": {
+    "status": "killed",
+    "seconds": 4.3,
+    "killed_by": "tests/test_examples.py"
+   },
+   "learned": {
+    "status": "killed",
+    "seconds": 4.1,
+    "killed_by": "tests/test_examples.py"
+   }
+  },
+  {
+   "id": "interp.py:415:cmp#245",
+   "op": "cmp",
+   "line": 415,
+   "baseline_killed_by": "tests/test_self_eval.py",
+   "first_file": "tests/test_self_eval.py",
+   "learned_files": [
+    "tests/test_self_eval.py",
+    "tests/test_fuzz_regressions.py",
+    "tests/test_v06.py"
+   ],
+   "default": {
+    "status": "killed",
+    "seconds": 38.7,
+    "killed_by": "tests/test_self_eval.py"
+   },
+   "learned": {
+    "status": "killed",
+    "seconds": 9.2,
+    "killed_by": "tests/test_self_eval.py"
+   }
+  },
+  {
+   "id": "interp.py:470:ifneg#479",
+   "op": "ifneg",
+   "line": 470,
+   "baseline_killed_by": "tests/test_v09.py",
+   "first_file": "tests/test_v09.py",
+   "learned_files": [
+    "tests/test_v09.py",
+    "tests/test_v04.py",
+    "tests/test_examples.py"
+   ],
+   "default": {
+    "status": "killed",
+    "seconds": 50.3,
+    "killed_by": "tests/test_v09.py"
+   },
+   "learned": {
+    "status": "killed",
+    "seconds": 1.6,
+    "killed_by": "tests/test_v09.py"
+   }
+  },
+  {
+   "id": "interp.py:636:cmp#682",
+   "op": "cmp",
+   "line": 636,
+   "baseline_killed_by": "tests/test_examples.py",
+   "first_file": "tests/test_examples.py",
+   "learned_files": [
+    "tests/test_examples.py",
+    "tests/test_trampoline.py",
+    "tests/test_v03.py"
+   ],
+   "default": {
+    "status": "killed",
+    "seconds": 1.4,
+    "killed_by": "tests/test_examples.py"
+   },
+   "learned": {
+    "status": "killed",
+    "seconds": 1.5,
+    "killed_by": "tests/test_examples.py"
+   }
+  },
+  {
+   "id": "interp.py:654:arith#954",
+   "op": "arith",
+   "line": 654,
+   "baseline_killed_by": "tests/test_v03.py",
+   "first_file": "tests/test_examples.py",
+   "learned_files": [
+    "tests/test_examples.py",
+    "tests/test_v03.py",
+    "tests/test_trampoline.py"
+   ],
+   "default": {
+    "status": "killed",
+    "seconds": 45.3,
+    "killed_by": "tests/test_v03.py"
+   },
+   "learned": {
+    "status": "killed",
+    "seconds": 35.9,
+    "killed_by": "tests/test_v03.py"
+   }
+  },
+  {
+   "id": "interp.py:902:ifneg#293",
+   "op": "ifneg",
+   "line": 902,
+   "baseline_killed_by": "tests/test_v04.py",
+   "first_file": "tests/test_v04.py",
+   "learned_files": [
+    "tests/test_v04.py",
+    "tests/test_examples.py",
+    "tests/test_v09.py"
+   ],
+   "default": {
+    "status": "killed",
+    "seconds": 108.3,
+    "killed_by": "tests/test_v04.py"
+   },
+   "learned": {
+    "status": "killed",
+    "seconds": 1.8,
+    "killed_by": "tests/test_v04.py"
+   }
+  },
+  {
+   "id": "interp.py:905:const#708",
+   "op": "const",
+   "line": 905,
+   "baseline_killed_by": "tests/test_v04.py",
+   "first_file": "tests/test_v04.py",
+   "learned_files": [
+    "tests/test_v04.py",
+    "tests/test_examples.py",
+    "tests/test_v09.py"
+   ],
+   "default": {
+    "status": "killed",
+    "seconds": 45.9,
+    "killed_by": "tests/test_v04.py"
+   },
+   "learned": {
+    "status": "killed",
+    "seconds": 2.1,
+    "killed_by": "tests/test_v04.py"
+   }
+  },
+  {
+   "id": "interp.py:970:bool#303",
+   "op": "bool",
+   "line": 970,
+   "baseline_killed_by": "tests/test_examples.py",
+   "first_file": "tests/test_examples.py",
+   "learned_files": [
+    "tests/test_examples.py",
+    "tests/test_generated_killers.py",
+    "tests/test_v09.py"
+   ],
+   "default": {
+    "status": "killed",
+    "seconds": 1.6,
+    "killed_by": "tests/test_examples.py"
+   },
+   "learned": {
+    "status": "killed",
+    "seconds": 1.6,
+    "killed_by": "tests/test_examples.py"
+   }
+  }
+ ]
+}

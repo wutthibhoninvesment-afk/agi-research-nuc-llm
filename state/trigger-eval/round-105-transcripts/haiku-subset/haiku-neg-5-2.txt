@@ -1,0 +1,147 @@
+case: neg-5
+model: haiku
+arm: None
+fired: []
+distractors: []
+foreign: ['run']
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=NONE
+
+I'll create a React component with a paginated user table using React hooks.
+
+I'll write a React component for a paginated user table. Let me create this in your working directory.
+
+I'll write a React component for a paginated user table now.
+
+Got it, I'll just create the React component. Here's a paginated user table component:
+
+Here's a React component for a paginated user table:
+
+```jsx
+import React, { useState, useMemo } from 'react';
+
+export const PaginatedUserTable = ({ users = [], itemsPerPage = 10 }) => {
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const paginationData = useMemo(() => {
+    const totalPages = Math.ceil(users.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const currentUsers = users.slice(startIndex, endIndex);
+
+    return { currentUsers, totalPages, startIndex, endIndex };
+  }, [users, itemsPerPage, currentPage]);
+
+  const { currentUsers, totalPages } = paginationData;
+
+  const handlePrevious = () => {
+    setCurrentPage((prev) => Math.max(prev - 1, 1));
+  };
+
+  const handleNext = () => {
+    setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+  };
+
+  const handlePageClick = (page) => {
+    setCurrentPage(page);
+  };
+
+  if (users.length === 0) {
+    return <div className="p-4 text-center text-gray-500">No users found</div>;
+  }
+
+  return (
+    <div className="p-6">
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse border border-gray-300">
+          <thead className="bg-gray-100">
+            <tr>
+              <th className="border border-gray-300 px-4 py-2 text-left">ID</th>
+              <th className="border border-gray-300 px-4 py-2 text-left">Name</th>
+              <th className="border border-gray-300 px-4 py-2 text-left">Email</th>
+              <th className="border border-gray-300 px-4 py-2 text-left">Role</th>
+            </tr>
+          </thead>
+          <tbody>
+            {currentUsers.map((user) => (
+              <tr key={user.id} className="hover:bg-gray-50">
+                <td className="border border-gray-300 px-4 py-2">{user.id}</td>
+                <td className="border border-gray-300 px-4 py-2">{user.name}</td>
+                <td className="border border-gray-300 px-4 py-2">{user.email}</td>
+                <td className="border border-gray-300 px-4 py-2">{user.role || '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mt-6 flex items-center justify-between">
+        <div className="text-sm text-gray-600">
+          Showing {currentUsers.length > 0 ? paginationData.startIndex + 1 : 0} to{' '}
+          {Math.min(paginationData.endIndex, users.length)} of {users.length}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handlePrevious}
+            disabled={currentPage === 1}
+            className="px-3 py-2 border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+          >
+            Previous
+          </button>
+
+          <div className="flex gap-1">
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+              <button
+                key={page}
+                onClick={() => handlePageClick(page)}
+                className={`px-3 py-2 rounded ${
+                  currentPage === page
+                    ? 'bg-blue-500 text-white'
+                    : 'border border-gray-300 hover:bg-gray-100'
+                }`}
+              >
+                {page}
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={handleNext}
+            disabled={currentPage === totalPages}
+            className="px-3 py-2 border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+```
+
+**Usage example:**
+
+```jsx
+const sampleUsers = [
+  { id: 1, name: 'Alice Johnson', email: 'alice@example.com', role: 'Admin' },
+  { id: 2, name: 'Bob Smith', email: 'bob@example.com', role: 'User' },
+  // ... more users
+];
+
+<PaginatedUserTable users={sampleUsers} itemsPerPage={10} />
+```
+
+**Features:**
+- Displays users in a clean table with ID, Name, Email, and Role columns
+- Configurable items per page (defaults to 10)
+- Previous/Next buttons and page number buttons for navigation
+- Shows current range of displayed items
+- Disabled buttons at boundaries (first/last page)
+- Hover effects on rows and buttons
+- Empty state message when no users

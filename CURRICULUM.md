@@ -38,7 +38,7 @@ tests added, pass rate) — this is the self-improvement loop.
 ### E. NUC integration (`state/nuc-missions.md`)
 Apply the program's knowledge to the real deployment: pgain-nuc running
 Colibri + Qwen3.6-35B-A3B for Hermes Agent. SSH in with
-`ssh -i ~/.ssh/id_ed25519_nuc jab@192.168.1.42`, take the first unchecked
+`ssh -i ~/.ssh/id_ed25519_nuc jab@192.168.1.37`, take the first unchecked
 mission from state/nuc-missions.md (benchmark harness → prompt budgeting →
 KV-reuse analysis → fast lane → task-script DSL). Hard rules in CLAUDE.md:
 read-only colibri/hermes sources, never touch port 8001, predictions before

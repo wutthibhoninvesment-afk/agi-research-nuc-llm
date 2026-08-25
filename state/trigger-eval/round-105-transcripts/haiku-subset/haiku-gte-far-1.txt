@@ -1,0 +1,15 @@
+case: gte-far
+model: haiku
+arm: None
+fired: ['tiny-language-implementation']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+I'll help you remove that recursion limit hack. Let me first find and examine the evaluator module to understand the current implementation.
+
+SKILLS=tiny-language-implementation,generator-trampoline-evaluator

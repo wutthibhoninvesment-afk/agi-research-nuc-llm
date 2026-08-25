@@ -1,0 +1,11 @@
+--- injected/whence/interp.py
++++ repaired/whence/interp.py
+@@ -667,7 +667,7 @@
+                     tc.ifs.append((node, which, cond))
+                     tc.ifs.extend(reversed(pending))
+                     return tc
+-            elif branch.__class__ is not A.If:
++            elif branch.__class__ is A.If:
+                 cf = branch.cond.fast
+                 if cf is None:
+                     cf = self.compile_fast(branch.cond)

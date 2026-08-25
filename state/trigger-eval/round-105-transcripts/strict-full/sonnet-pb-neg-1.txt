@@ -1,0 +1,15 @@
+case: pb-neg
+model: sonnet
+arm: None
+fired: []
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+None of the listed skills apply to this task.
+
+SKILLS=NONE

@@ -1,0 +1,447 @@
+case: body-fmk
+model: claude-sonnet-5
+arm: None
+fired: ['fuzz-mutate-kill-loop']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+Good — that skill matches exactly. I don't have access to your actual repo (no write access, and this session isn't attached to your project directory), so I can't run this against your real code right now. Below is the plan adapted from the skill's methodology, plus two complete, runnable, dependency-free Python scripts you can drop into your project and point at your real module names.
+
+## The plan
+
+**(a) Find real bugs — differential/totality fuzzing, not "throw garbage at it and hope"**
+
+1. Pin down the oracle *before* generating anything. For an expression evaluator the contract is almost always: "every input either returns a value or raises the evaluator's own error type (`EvalError`/`ParseError`/whatever you call it) — nothing else ever escapes, and nothing hangs." Anything else (`ZeroDivisionError`, `RecursionError`, `KeyError`, `OverflowError` leaking out, or a >3s hang) is a crash finding, full stop, no judgment calls.
+2. Generate programs two ways: a grammar-directed random expression walker (gets you broad but shallow coverage), plus hand-picked stress templates the grammar rarely hits by chance — deep nesting (`((((...1...))))` × 1500), long unary chains (`- - - - 1`), huge literals, division/mod edge cases (`1/0`, `0/0`, `1%0`), weird numeric literal forms if your lexer accepts underscores/hex/scientific notation.
+3. Run in-process (not subprocess) with a `signal.setitimer` wall-clock budget so a fuzzing loop of 10k programs takes seconds, not minutes.
+4. Group crashes by `(exception type, innermost function in your package, message prefix)` — this is what turns "500 raw stack traces" into "3 actual bugs."
+5. Shrink each unique signature to a minimal reproducer (delta-debug the expression, binary-search literals toward 0) so each bug report is a 5-character expression, not the original random 200-character one.
+
+**(b) Measure test-suite strength — mutation testing**
+
+1. Enumerate small semantic mutations of your evaluator's source (`+`→`-`, `<`→`<=`, swap operand order, `and`↔`or`, drop a `not`, off-by-one on a bound) via `ast`.
+2. For each mutant, run your 300 tests against it in an isolated copy of the project. If the suite still passes, your tests didn't actually pin that behavior — that's the number that matters, not "300 green tests."
+3. `mutation score = killed / total mutants`. This is a much harder, much more honest number than line coverage.
+4. For every surviving mutant, either write down why it's genuinely equivalent (e.g. `>= 0` vs `> 0` where the value is provably never 0), or generate a killing test and add it as a permanent regression — then re-run mutation testing on the same code to get the corrected score.
+
+Now the code.
+
+### `fuzz_eval.py` — bug finder
+
+```python
+#!/usr/bin/env python3
+"""Grammar-directed fuzzer + oracle + shrinker for an expression evaluator.
+
+Adapt EVAL_MODULE / call_evaluator() to your actual API, then run:
+    python3 fuzz_eval.py -n 5000 --seed 1
+"""
+from __future__ import annotations
+import argparse, importlib, random, signal, sys, traceback
+from dataclasses import dataclass, field
+
+# ---- 1. point this at your real evaluator -------------------------------
+EVAL_MODULE = "evaluator"          # e.g. your package/module name
+EVAL_FUNC = "evaluate"             # e.g. evaluate(expr_str) -> value
+
+try:
+    _mod = importlib.import_module(EVAL_MODULE)
+    _evaluate = getattr(_mod, EVAL_FUNC)
+except Exception as e:
+    print(f"!! could not import {EVAL_MODULE}.{EVAL_FUNC}: {e}\n"
+          f"   edit EVAL_MODULE/EVAL_FUNC at the top of this file.", file=sys.stderr)
+    _mod, _evaluate = None, None
+
+# Error types your evaluator is CONTRACTUALLY allowed to raise.
+# Anything else escaping = a crash finding. Adjust to your real exception hierarchy.
+EXPECTED_ERROR_TYPES: tuple[type, ...] = (SyntaxError, ValueError, ZeroDivisionError)
+
+TIMEOUT_S = 2.0
+
+
+class FuzzTimeout(Exception):
+    pass
+
+
+def _on_alarm(signum, frame):
+    raise FuzzTimeout()
+
+
+@dataclass
+class Outcome:
+    kind: str            # "ok" | "expected_error" | "crash" | "timeout"
+    value: object = None
+    exc: BaseException | None = None
+    signature: str | None = None
+
+
+def run_program(src: str) -> Outcome:
+    old_handler = signal.signal(signal.SIGALRM, _on_alarm)
+    signal.setitimer(signal.ITIMER_REAL, TIMEOUT_S)
+    try:
+        try:
+            value = _evaluate(src)
+            return Outcome("ok", value=value)
+        except FuzzTimeout:
+            return Outcome("timeout")
+        except EXPECTED_ERROR_TYPES as e:
+            return Outcome("expected_error", exc=e)
+        except BaseException as e:          # noqa: BLE001 - deliberate: catch everything else
+            return Outcome("crash", exc=e, signature=signature(e))
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, old_handler)
+
+
+def signature(exc: BaseException) -> str:
+    """Stable-ish key for grouping crashes. RecursionError needs special handling
+    because its innermost frame moves with call-stack depth at fuzz time."""
+    tb = traceback.extract_tb(exc.__traceback__)
+    project_frames = [f for f in tb if EVAL_MODULE in (f.filename or "")]
+    if isinstance(exc, RecursionError):
+        # use the SET of function names that recur (the cycle), not the innermost one
+        names = [f.name for f in project_frames]
+        counts: dict[str, int] = {}
+        for n in names:
+            counts[n] = counts.get(n, 0) + 1
+        cycle = tuple(sorted(n for n, c in counts.items() if c >= 2))
+        return f"RecursionError:{cycle}"
+    innermost = project_frames[-1].name if project_frames else "?"
+    return f"{type(exc).__name__}:{innermost}:{str(exc)[:40]}"
+
+
+# ---- 2. grammar-directed generator ---------------------------------------
+OPS = ["+", "-", "*", "/", "%", "**"]
+
+def gen_expr(rng: random.Random, depth: int) -> str:
+    if depth <= 0 or rng.random() < 0.35:
+        return gen_atom(rng)
+    choice = rng.random()
+    if choice < 0.7:
+        return f"({gen_expr(rng, depth - 1)} {rng.choice(OPS)} {gen_expr(rng, depth - 1)})"
+    if choice < 0.85:
+        return f"(-{gen_expr(rng, depth - 1)})"
+    return f"({gen_expr(rng, depth - 1)})"
+
+def gen_atom(rng: random.Random) -> str:
+    kind = rng.choice(["int", "float", "zero", "neg"])
+    if kind == "int":
+        return str(rng.randint(0, 10_000))
+    if kind == "float":
+        return f"{rng.uniform(-1000, 1000):.4f}"
+    if kind == "zero":
+        return "0"
+    return str(-rng.randint(1, 1000))
+
+def gen_stress(rng: random.Random) -> list[str]:
+    """Templates the random walk rarely produces by chance."""
+    progs = []
+    progs.append("(" * 400 + "1" + ")" * 400)                       # deep nesting
+    progs.append("-" * 300 + "1")                                    # long unary chain
+    progs.append("1" + "/0" * 1)                                     # div by zero
+    progs.append("0/0")
+    progs.append("1%0")
+    progs.append("9" * 400)                                          # huge literal
+    progs.append(f"{'2**' * 20}2")                                   # overflow-prone
+    progs.append("((()))")                                           # malformed
+    progs.append("1 + ")                                             # truncated
+    progs.append("")                                                 # empty
+    return progs
+
+
+# ---- 3/4. run + group -----------------------------------------------------
+@dataclass
+class Finding:
+    signature: str
+    example: str
+    exc_repr: str
+    minimized: str | None = None
+
+
+def fuzz(n: int, seed: int, show: bool) -> dict[str, Finding]:
+    rng = random.Random(seed)
+    findings: dict[str, Finding] = {}
+    parsed_ok = 0
+    total = 0
+
+    for src in gen_stress(rng):
+        total += 1
+        _classify(src, findings)
+
+    for _ in range(n):
+        total += 1
+        src = gen_expr(rng, depth=rng.randint(1, 6))
+        outcome_kind = _classify(src, findings)
+        if outcome_kind in ("ok", "expected_error"):
+            parsed_ok += 1
+
+    print(f"ran {total} programs, {parsed_ok}/{n} random exprs handled cleanly")
+    print(f"{len(findings)} unique crash signature(s)")
+
+    for sig, f in findings.items():
+        f.minimized = shrink(f.example, sig)
+        if show:
+            print(f"\n--- {sig} ---")
+            print(f"  repro: {f.minimized!r}")
+            print(f"  error: {f.exc_repr}")
+
+    return findings
+
+
+def _classify(src: str, findings: dict[str, Finding]) -> str:
+    outcome = run_program(src)
+    if outcome.kind == "crash":
+        sig = outcome.signature
+        if sig not in findings:
+            findings[sig] = Finding(sig, src, repr(outcome.exc))
+    elif outcome.kind == "timeout":
+        sig = f"TIMEOUT:{len(src)}chars"
+        if sig not in findings:
+            findings[sig] = Finding(sig, src, "wall-clock budget exceeded")
+    return outcome.kind
+
+
+# ---- 5. shrink --------------------------------------------------------
+def shrink(src: str, target_sig: str) -> str:
+    def preserves(candidate: str) -> bool:
+        try:
+            o = run_program(candidate)
+        except Exception:
+            return False
+        if o.kind == "crash":
+            return o.signature == target_sig
+        if o.kind == "timeout":
+            return target_sig.startswith("TIMEOUT")
+        return False
+
+    cur = src
+    # ddmin over characters, chunk sizes halving
+    chunk = len(cur) // 2
+    while chunk >= 1:
+        i = 0
+        changed = True
+        while changed and i < len(cur):
+            changed = False
+            candidate = cur[:i] + cur[i + chunk:]
+            if candidate and preserves(candidate):
+                cur = candidate
+                changed = True
+            else:
+                i += chunk
+        chunk //= 2
+
+    # binary-search integer literals toward 0
+    import re
+    for m in list(re.finditer(r"\d+", cur))[::-1]:
+        lo, hi = 0, int(m.group())
+        while lo < hi:
+            mid = (lo + hi) // 2
+            cand = cur[:m.start()] + str(mid) + cur[m.end():]
+            if preserves(cand):
+                hi = mid
+            else:
+                lo = mid + 1
+        cur = cur[:m.start()] + str(hi) + cur[m.end():]
+
+    return cur
+
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser()
+    ap.add_argument("-n", type=int, default=2000)
+    ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--show", action="store_true", default=True)
+    args = ap.parse_args()
+    if _evaluate is None:
+        sys.exit(1)
+    fuzz(args.n, args.seed, args.show)
+```
+
+### `mutate_eval.py` — mutation-strength scorer
+
+```python
+#!/usr/bin/env python3
+"""Mutation-test your evaluator against its pytest suite.
+
+Usage:
+    python3 mutate_eval.py --module-path src/evaluator.py --tests tests --limit 100
+"""
+from __future__ import annotations
+import argparse, ast, copy, shutil, subprocess, sys, tempfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
+from pathlib import Path
+
+CMP_SWAPS = {
+    ast.Lt: ast.LtE, ast.LtE: ast.Lt,
+    ast.Gt: ast.GtE, ast.GtE: ast.Gt,
+    ast.Eq: ast.NotEq, ast.NotEq: ast.Eq,
+}
+BOOLOP_SWAPS = {ast.And: ast.Or, ast.Or: ast.And}
+ARITH_SWAPS = {ast.Add: ast.Sub, ast.Sub: ast.Add, ast.Mult: ast.FloorDiv}
+
+
+class Mutator(ast.NodeTransformer):
+    def __init__(self, target_id: int):
+        self.target_id = target_id
+        self.count = -1
+        self.applied: str | None = None
+
+    def _maybe(self, node, replacement_factory, label):
+        self.count += 1
+        if self.count == self.target_id:
+            self.applied = label
+            return ast.copy_location(replacement_factory(), node)
+        return node
+
+    def visit_Compare(self, node):
+        self.generic_visit(node)
+        for i, op in enumerate(node.ops):
+            if type(op) in CMP_SWAPS:
+                def factory(op=op, i=i):
+                    new = copy.deepcopy(node)
+                    new.ops[i] = CMP_SWAPS[type(op)]()
+                    return new
+                node2 = self._maybe(node, factory, f"cmp {type(op).__name__}->{CMP_SWAPS[type(op)].__name__}")
+                if node2 is not node:
+                    return node2
+        return node
+
+    def visit_BoolOp(self, node):
+        self.generic_visit(node)
+        if type(node.op) in BOOLOP_SWAPS:
+            def factory():
+                new = copy.deepcopy(node)
+                new.op = BOOLOP_SWAPS[type(node.op)]()
+                return new
+            return self._maybe(node, factory, f"boolop {type(node.op).__name__}")
+        return node
+
+    def visit_BinOp(self, node):
+        self.generic_visit(node)
+        if type(node.op) in ARITH_SWAPS:
+            def factory():
+                new = copy.deepcopy(node)
+                new.op = ARITH_SWAPS[type(node.op)]()
+                return new
+            return self._maybe(node, factory, f"binop {type(node.op).__name__}")
+        return node
+
+    def visit_UnaryOp(self, node):
+        self.generic_visit(node)
+        if isinstance(node.op, ast.Not):
+            def factory():
+                return copy.deepcopy(node.operand)
+            return self._maybe(node, factory, "drop-not")
+        return node
+
+    def visit_Constant(self, node):
+        if isinstance(node.value, bool):
+            def factory():
+                new = copy.deepcopy(node)
+                new.value = not node.value
+                return new
+            return self._maybe(node, factory, "flip-bool")
+        return node
+
+
+def count_sites(tree: ast.AST) -> int:
+    m = Mutator(target_id=-1)
+    m.visit(copy.deepcopy(tree))
+    return m.count + 1
+
+
+@dataclass
+class MutantResult:
+    mutant_id: int
+    label: str
+    killed: bool
+    detail: str
+
+
+def run_one_mutant(project_root: Path, module_rel_path: str, tests_rel: str,
+                    tree: ast.AST, mutant_id: int, timeout_s: float) -> MutantResult:
+    mutator = Mutator(mutant_id)
+    mutated_tree = mutator.visit(copy.deepcopy(tree))
+    ast.fix_missing_locations(mutated_tree)
+    if mutator.applied is None:
+        return MutantResult(mutant_id, "no-op", killed=False, detail="site out of range")
+
+    with tempfile.TemporaryDirectory() as td:
+        tmp_root = Path(td) / "proj"
+        shutil.copytree(project_root, tmp_root)
+        (tmp_root / module_rel_path).write_text(ast.unparse(mutated_tree))
+
+        try:
+            proc = subprocess.run(
+                [sys.executable, "-m", "pytest", "-q", "-x", "-p", "no:cacheprovider", tests_rel],
+                cwd=tmp_root, capture_output=True, text=True, timeout=timeout_s,
+                start_new_session=True,
+            )
+            killed = proc.returncode != 0
+            detail = "killed" if killed else "SURVIVED"
+        except subprocess.TimeoutExpired:
+            killed = True   # a mutant that hangs the suite is detected too
+            detail = "killed (timeout)"
+
+    return MutantResult(mutant_id, mutator.applied, killed, detail)
+
+
+def mutation_test(project_root: Path, module_rel_path: str, tests_rel: str,
+                   limit: int | None, workers: int, timeout_s: float):
+    src = (project_root / module_rel_path).read_text()
+    tree = ast.parse(src)
+    total_sites = count_sites(tree)
+    n = min(total_sites, limit) if limit else total_sites
+    print(f"{total_sites} mutation sites found; testing {n}")
+
+    results: list[MutantResult] = []
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        futs = {
+            ex.submit(run_one_mutant, project_root, module_rel_path, tests_rel, tree, i, timeout_s): i
+            for i in range(n)
+        }
+        for fut in as_completed(futs):
+            r = fut.result()
+            results.append(r)
+            status = "killed" if r.killed else "SURVIVED"
+            print(f"  mutant {r.mutant_id:4d} [{r.label:30s}] {status}")
+
+    results.sort(key=lambda r: r.mutant_id)
+    killed = sum(1 for r in results if r.killed)
+    survivors = [r for r in results if not r.killed]
+    print(f"\nmutation score: {killed}/{len(results)} = {killed/len(results):.1%}")
+    if survivors:
+        print(f"\nSURVIVORS ({len(survivors)}) — either equivalent mutants or test gaps:")
+        for r in survivors:
+            print(f"  mutant {r.mutant_id}: {r.label}")
+
+    # sanity: original checkout must be untouched
+    assert (project_root / module_rel_path).read_text() == src, "original file was mutated in place!"
+    return results
+
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--project-root", type=Path, default=Path("."))
+    ap.add_argument("--module-path", required=True, help="path to evaluator source, relative to project root")
+    ap.add_argument("--tests", default="tests")
+    ap.add_argument("--limit", type=int, default=None)
+    ap.add_argument("--workers", type=int, default=4)
+    ap.add_argument("--timeout", type=float, default=30.0)
+    args = ap.parse_args()
+    mutation_test(args.project_root, args.module_path, args.tests, args.limit, args.workers, args.timeout)
+```
+
+### How to use these on your real project
+
+1. Edit `EVAL_MODULE`/`EVAL_FUNC`/`EXPECTED_ERROR_TYPES` at the top of `fuzz_eval.py` to match your evaluator's actual entry point and error hierarchy, then `python3 fuzz_eval.py -n 5000 --seed 1`. Every reported signature is a real, minimized bug — triage those first, they're free wins.
+2. Run `python3 mutate_eval.py --module-path path/to/evaluator.py --tests tests --limit 100` to get your honest mutation score. Expect it to be well below 100% even with 300 green tests — that gap is exactly "what your tests don't prove."
+3. For each survivor, either write the one-line test that kills it (comparison operators and boundary conditions are the highest-yield category) or note why it's equivalent and move on. Re-run step 2 on the same unmutated code afterward to get the corrected score — don't compare scores across a code change.
+4. If your evaluator has both an interpreted and a "fast"/compiled path, add a self-differential oracle (run both, assert identical output) — that catches an entire class of bugs pure fuzzing against a single implementation cannot.
+
+One thing I'd need from you to go further: the actual module path and function signature of your evaluator (and whether it has a fast/reference path split) — happy to tailor the generator's grammar (variables, function calls, comparisons, etc.) once I can see the real code.

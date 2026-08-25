@@ -1,0 +1,13 @@
+case: sct-mid
+model: sonnet
+arm: None
+fired: ['subprocess-cli-testing']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=subprocess-cli-testing

@@ -1,0 +1,62 @@
+case: body-sia
+model: sonnet
+arm: None
+fired: ['session-inheritance-audit']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+This exactly matches a skill built for this situation — I'll load it first.
+
+Here's the exact pre-work checklist, in order. Run all of this before touching the backlog — the state file and driver log are both suspect right now (stub entry + "success" log + slow box is the classic triad this skill targets).
+
+## 1. Read the record, don't trust it
+```bash
+cat state/research-state.md   # or wherever your cumulative state file lives
+tail -n 100 logs/driver.log   # or your driver/run log
+```
+Write down: every entry marked STUB/in-progress/PENDING, and every round number with no matching report file. That's your "claimed but unverified" list.
+
+## 2. Diff the whole tree against the last recorded artifact
+```bash
+find . -type f -newer knowledge/round-LAST.md \
+  -not -path './.venv/*' -not -path './.git/*' -not -path '*/__pycache__/*'
+git status --short   # if it's a repo
+```
+Anything here with no corresponding round entry is orphaned — the dead session built it and never recorded it. Attribute every file: recorded / orphaned / scratch.
+
+## 3. Kill orphaned processes before measuring anything — this is the "box feels slow" step
+```bash
+uptime
+ps -axo pid,ppid,etime,%cpu,command | awk '$2==1' | grep -v -e launchd -e '/System/'
+```
+Kill any leftover worker by process group (not just the parent PID — timeouts often orphan child subprocesses). Re-run `uptime` and confirm load has dropped before you do any benchmarking or new heavy work — measurements taken on a loaded box are biased, not just noisy.
+
+## 4. Check the backlog against the tree, not memory
+For each "next step" the state file lists, grep the tree for it before planning to build it:
+```bash
+grep -rl "<feature/identifier>" .
+```
+Mark each backlog item done / open / partially-done with the file that proves it.
+
+## 5. Read and score unread artifacts instead of re-running them
+Find any result/manifest/log files that finished but were never consumed (e.g. `*.json`, partial reports) and score the dead session's predictions from them directly — don't re-run work that already completed.
+
+## 6. Run every component's suite, not just the one you're about to touch
+```bash
+perl -e 'alarm 300; exec @ARGV' python3 -m pytest -q   # wall-clock alarm; macOS has no `timeout`
+```
+Do this for every subsystem, since an unrecorded change from the dead session may have broken something outside its own track.
+
+## 7. Write the inheritance into the record before starting new work
+- Finalize the dead session's STUB entry from what you found in steps 1–6 ("entry finalized by session N+1").
+- List every orphaned file and its attribution.
+- Append your own stub entry for this session before you start, so if you die too, the next session isn't stuck at square one.
+
+**What to write down, concretely:** the orphan file list with attribution, the backlog re-marked from tree evidence (not the old notes), scored predictions from any unread artifacts, suite results per component, and the killed-process/uptime-before-and-after numbers. Only after that record is committed should you start new work.
+
+One thing I can't do for you here: I don't have your actual state file path, driver log location, or process list — plug those in and run the commands above yourself, since I have no write/execute access in this session.

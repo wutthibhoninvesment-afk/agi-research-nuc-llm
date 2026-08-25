@@ -12,7 +12,8 @@ Usage:
         [--concurrency 4] [--timeout 150] [--json OUT.json] [--only ID,ID]
         [--distractors DIR] [--n-distractors N] [--distractor-seed S]
         [--body-tools "Skill,Read"] [--paired] [--transcripts DIR]
-        [--canary CANARY.json]
+        [--canary CANARY.json] [--baseline PRIOR.json]
+        [--protocol strict|default] [--audit REPORTS_DIR] [--also-cases FILE]
 
 Modes:
     native   (default) Stage the skills in a temp project's ``.claude/skills/``
@@ -61,6 +62,16 @@ text blocks + tool touches) to ``DIR/<model>[-<arm>]-<case>-<k>.txt`` —
 the JSON keeps only a 4000-char tail, which is too little to diagnose a
 long body-mode run.
 
+``--baseline PRIOR.json`` compares this run's per-case rates against a
+prior ``--json`` report (per model when both have the model) and prints a
+delta table with verdicts: REGRESSED / IMPROVED (fire count moved by ≥2
+runs at equal n, else rate moved ≥0.5), CO-FIRE (fires as before but exact
+dropped — a sibling now co-fires), noise? (smaller move: re-probe the case
+at higher n before editing), same, new / dropped. This is iteration-loop
+step 4 ("did any sibling regress after my edit?") as a table instead of
+two reports read side by side. Only meaningful within a canary-checked
+instrument (see below).
+
 ``--canary CANARY.json`` runs frozen sentinel case(s) against stored
 acceptance bands and exits 0 (in band) / 1 (drift) / 2 (inconclusive):
 an instrument-drift tripwire to run at session start BEFORE trusting any
@@ -75,6 +86,24 @@ lenient about broken frontmatter) stages foreign skills alongside yours —
 Fires on staged distractors are reported separately from host "foreign"
 fires, and *displacement* (an expected skill missing while a staged
 distractor fired) is counted.
+
+``--audit REPORTS_DIR`` (offline, no probes) answers "has every skill's
+CURRENT description been probed?": every ``--json`` report since v4.2
+stores a digest of each staged description, so the audit finds, per skill,
+the newest report under REPORTS_DIR with a non-errored probe of a case
+expecting it and reports ``probed`` (digest matches the description on
+disk), ``STALE`` (edited since), ``unverified`` (pre-4.2 report, no
+digest) or ``never``, plus the case counts (positives / body cases; the
+floor is 3 positives). Exit 1 unless every skill is ``probed`` and at the
+floor — the check that would have caught three skills shipped or
+rewritten without a probe. ``--also-cases FILE`` merges more case files
+(e.g. the body cases) into any run.
+
+Probe protocol: ``--protocol`` defaults to ``strict`` since v4.2 (the
+``SKILLS=`` line is invalid without a preceding Skill call; measured to
+remove the one-turn declared-not-invoked artifact). ``default`` is the
+pre-4.2 prompt, kept so older reports stay reproducible; ``--baseline``
+prints a NOTE when the two reports' protocols differ.
 
 Case file (JSON):
     [{"id": "gte-1", "prompt": "…indirect task…", "expect": ["skill-name"],
@@ -94,6 +123,7 @@ Exit codes: 0 = ran and every case matched; 1 = ran with mismatches;
 
 import argparse
 import concurrent.futures
+import hashlib
 import json
 import os
 import random
@@ -113,6 +143,14 @@ PROBE_SYSTEM = (
     "applies, reply with exactly one line: SKILLS=<comma-separated skill "
     "names you invoked, or NONE> and stop. Do not perform the task itself."
 )
+
+PROBE_SYSTEM_STRICT = PROBE_SYSTEM + (
+    " The SKILLS= line is valid ONLY after the Skill tool has actually been "
+    "called for every skill it names; writing the line without a preceding "
+    "Skill tool call is an invalid answer. Decide, call the tool, then answer."
+)
+
+PROTOCOLS = {"default": PROBE_SYSTEM, "strict": PROBE_SYSTEM_STRICT}
 
 CATALOG_PROMPT = (
     "You are an agent with the following skills available. Each entry is a "
@@ -368,12 +406,12 @@ def stage_skills(catalog, project_dir):
     return dest_root
 
 
-def native_argv(executable, model, prompt, budget_usd):
+def native_argv(executable, model, prompt, budget_usd, protocol="default"):
     return [executable, "-p", "--output-format", "stream-json", "--verbose",
             "--model", model, "--tools", "Skill", "--permission-mode", "dontAsk",
             "--no-session-persistence", "--setting-sources", "project",
             "--max-budget-usd", str(budget_usd),
-            "--append-system-prompt", PROBE_SYSTEM, prompt]
+            "--append-system-prompt", PROTOCOLS[protocol], prompt]
 
 
 def body_argv(executable, model, prompt, budget_usd, tools):
@@ -438,13 +476,16 @@ def render_catalog(catalog):
 
 def run_probe(case, mode, catalog, project_dir, runner, executable, model,
               timeout_s, budget_usd, distractor_names=frozenset(),
-              body_tools="Skill,Read", arm=None, transcript_path=None):
+              body_tools="Skill,Read", arm=None, transcript_path=None,
+              protocol="default"):
     """Run one probe; return a record with fired skills and diagnostics.
     ``arm`` tags the result ("plain"/"staged") for --paired runs;
-    ``transcript_path`` writes the full transcript there."""
+    ``transcript_path`` writes the full transcript there; ``protocol``
+    picks the native-mode probe system prompt (see PROTOCOLS)."""
     if mode in ("native", "body"):
         if mode == "native":
-            argv = native_argv(executable, model, case["prompt"], budget_usd)
+            argv = native_argv(executable, model, case["prompt"], budget_usd,
+                               protocol)
         else:
             argv = body_argv(executable, model, case["prompt"], budget_usd,
                              body_tools)
@@ -531,7 +572,7 @@ def run_probe(case, mode, catalog, project_dir, runner, executable, model,
 
 
 # ----------------------------------------------------------------- metrics --
-def score(results, catalog_names):
+def score(results, catalog_names, count_declared=False):
     """Aggregate probe results into per-skill and overall metrics.
 
     A result is *exact* when set(fired) == set(expect); it is a *hit*
@@ -539,7 +580,16 @@ def score(results, catalog_names):
     for negatives. Foreign fires are reported but never penalised. Errored
     probes are excluded from the metrics and counted separately.
     ``per_case`` aggregates repeats into rates — the readable unit when a
-    probe model is noisy at n=1."""
+    probe model is noisy at n=1. ``count_declared`` scores a catalog skill
+    the probe *declared* (SKILLS= line) but never invoked as fired —
+    the "selected" reading; the default keeps the tool_use ground truth."""
+    if count_declared:
+        merged = []
+        for r in results:
+            extra = [d for d in (r.get("declared") or [])
+                     if d in catalog_names and d not in r["fired"]]
+            merged.append(dict(r, fired=list(r["fired"]) + extra))
+        results = merged
     per = {n: {"tp": 0, "fp": 0, "fn": 0} for n in catalog_names}
     per_case = {}
     exact = 0
@@ -548,6 +598,7 @@ def score(results, catalog_names):
     neg_total = neg_false_fire = 0
     cost = 0.0
     distractor_fires = displaced = 0
+    declared_only = 0
     body_n = body_followed = 0
     bf_hit = bf_tot = be_hit = be_tot = 0
     for r in results:
@@ -555,7 +606,8 @@ def score(results, catalog_names):
         pc = per_case.setdefault(r["id"], {"expect": list(r["expect"]), "n": 0,
                                            "err": 0, "exact": 0, "hit": 0,
                                            "displaced": 0,
-                                           "distractor_fired": 0})
+                                           "distractor_fired": 0,
+                                           "declared_only": 0})
         if r.get("error"):
             n_err += 1
             pc["err"] += 1
@@ -579,6 +631,13 @@ def score(results, catalog_names):
         if d_fired and expect - fired:
             displaced += 1
             pc["displaced"] += 1
+        # protocol artifact, not a selection failure: the probe wrote
+        # "SKILLS=<expected>" but never emitted the Skill tool_use
+        declared = r.get("declared")
+        if expect and expect - fired and isinstance(declared, list) \
+                and expect <= set(declared):
+            declared_only += 1
+            pc["declared_only"] += 1
         b = r.get("body")
         if b is not None:
             body_n += 1
@@ -611,6 +670,7 @@ def score(results, catalog_names):
             "neg_total": neg_total, "neg_false_fire": neg_false_fire,
             "cost_usd": cost,
             "distractor_fires": distractor_fires, "displaced": displaced,
+            "declared_only": declared_only, "count_declared": count_declared,
             "body": None if not body_n else {
                 "n": body_n, "followed": body_followed,
                 "files_hit": bf_hit, "files_expected": bf_tot,
@@ -622,11 +682,20 @@ def fmt_rate(x):
 
 
 def render_report(results, metrics, catalog_names, mode, model,
-                  distractor_names=()):
-    lines = ["# skill trigger eval — mode=%s model=%s" % (mode, model), ""]
+                  distractor_names=(), protocol=None):
+    lines = ["# skill trigger eval — mode=%s model=%s%s%s" % (
+        mode, model,
+        " protocol=%s" % protocol if protocol and mode == "native" else "",
+        " (declared skills counted as fired)"
+        if metrics.get("count_declared") else ""), ""]
     lines.append("probes: %d ok, %d errored, exact-match %s, negatives false-fire %d/%d, cost $%.3f"
                  % (metrics["n_ok"], metrics["n_err"], fmt_rate(metrics["exact_rate"]).strip(),
                     metrics["neg_false_fire"], metrics["neg_total"], metrics["cost_usd"]))
+    if metrics.get("declared_only"):
+        lines.append("declared-not-invoked: %d probe(s) wrote SKILLS=<expected> "
+                     "without a Skill tool_use (protocol artifact — re-probe "
+                     "before treating the miss as a selection failure)"
+                     % metrics["declared_only"])
     lines += ["", "| skill | recall | precision | tp | fp | fn |", "|---|---|---|---|---|---|"]
     for n in catalog_names:
         d = metrics["per_skill"][n]
@@ -765,6 +834,227 @@ def render_paired(verdicts, model):
     return "\n".join(lines)
 
 
+# ---------------------------------------------------------------- baseline --
+def load_baseline(path):
+    """Load a prior ``--json`` report for comparison. Returns
+    {"metrics": ..., "metrics_by_model": {...} or {}}."""
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
+    if not isinstance(data, dict) or not isinstance(data.get("metrics"), dict):
+        raise ValueError("%s: not a trigger_eval report (no metrics)" % path)
+    metrics = data["metrics"]
+    by_model = data.get("metrics_by_model") or {}
+    if "per_case" not in metrics:
+        # pre-v4 report: no per-case rates stored — rebuild them from the
+        # raw results so old baselines stay comparable
+        results = data.get("results")
+        if not isinstance(results, list):
+            raise ValueError("%s: report has neither metrics.per_case nor "
+                             "results" % path)
+        names = list(metrics.get("per_skill") or {})
+        metrics = score(results, names)
+        by_model = {m: score([r for r in results if r.get("model") == m], names)
+                    for m in (data.get("models") or [])}
+    return {"metrics": metrics, "metrics_by_model": by_model,
+            "protocol": data.get("protocol", "default"),
+            "descriptions": data.get("descriptions") or {}}
+
+
+def compare_reports(base_metrics, new_metrics):
+    """Per-case comparison of two ``score()`` outputs (same case ids).
+    Returns rows [{"id", "expect", "base": "h/n"|None, "new": "h/n"|None,
+    "hit_delta", "exact_delta", "verdict"}]. Verdicts: ``same``;
+    ``REGRESSED`` / ``IMPROVED`` (all-expected-fired moved by ≥2 runs
+    when both sides have the same n, else by ≥0.5 in rate); ``noise?`` (a
+    smaller move — re-probe with ``--only <id> --repeats 4`` before
+    acting); ``CO-FIRE`` (fire rate held but the exact rate dropped by
+    the same margin: a sibling now fires alongside); ``new`` / ``dropped``
+    (case only on one side); ``low-n`` (the sides differ in n
+    and one of them is a single run — 1/1 → 0/2 is not evidence either
+    way; re-probe at equal n ≥ 2). Errored-out cases (n=0) compare as
+    None."""
+    bp, np_ = base_metrics["per_case"], new_metrics["per_case"]
+    rows = []
+    for cid in list(np_) + [c for c in bp if c not in np_]:
+        b, n = bp.get(cid), np_.get(cid)
+        row = {"id": cid, "expect": list((n or b)["expect"]),
+               "base": None if not b or not b["n"] else "%d/%d" % (b["hit"], b["n"]),
+               "new": None if not n or not n["n"] else "%d/%d" % (n["hit"], n["n"]),
+               "base_exact": None if not b or not b["n"] else "%d/%d" % (b["exact"], b["n"]),
+               "new_exact": None if not n or not n["n"] else "%d/%d" % (n["exact"], n["n"]),
+               "hit_delta": None, "exact_delta": None}
+        if n is None:
+            row["verdict"] = "dropped"
+        elif b is None:
+            row["verdict"] = "new"
+        elif not b["n"] or not n["n"]:
+            row["verdict"] = "n/a"
+        else:
+            hd = n["hit_rate"] - b["hit_rate"]
+            ed = n["exact_rate"] - b["exact_rate"]
+            row["hit_delta"], row["exact_delta"] = hd, ed
+            low_n = b["n"] != n["n"] and min(b["n"], n["n"]) < 2
+            if b["n"] == n["n"]:
+                big = lambda d: abs(round(d * b["n"])) >= 2   # noqa: E731
+            else:
+                big = lambda d: abs(d) >= 0.5                  # noqa: E731
+            if hd == 0 and ed == 0:
+                row["verdict"] = "same"
+            elif low_n:
+                row["verdict"] = "low-n"
+            elif hd < 0 and big(hd):
+                row["verdict"] = "REGRESSED"
+            elif hd > 0 and big(hd):
+                row["verdict"] = "IMPROVED"
+            elif hd == 0 and ed < 0 and big(ed):
+                row["verdict"] = "CO-FIRE"
+            else:
+                row["verdict"] = "noise?"
+        rows.append(row)
+    return rows
+
+
+def render_comparison(rows, base_metrics, new_metrics, model, base_path,
+                      base_protocol=None, new_protocol=None, changed=()):
+    """Delta table plus two provenance notes the numbers cannot carry:
+    a protocol mismatch (baseline and this run used different probe
+    prompts — the verdicts are cross-instrument candidates for a
+    same-protocol re-probe) and the skills whose descriptions changed
+    since the baseline (so a verdict on their cases is an edit effect,
+    not drift)."""
+    def pct(x):
+        return "n/a" if x is None else "%.0f%%" % (100 * x)
+
+    def sd(x):
+        return "—" if x is None else "%+.0f%%" % (100 * x)
+    counts = {}
+    for r in rows:
+        counts[r["verdict"]] = counts.get(r["verdict"], 0) + 1
+    lines = ["# comparison vs baseline %s — model=%s" % (base_path, model),
+             "exact-match %s -> %s; negatives false-fire %d/%d -> %d/%d; "
+             "verdicts: %s" % (
+                 pct(base_metrics["exact_rate"]), pct(new_metrics["exact_rate"]),
+                 base_metrics["neg_false_fire"], base_metrics["neg_total"],
+                 new_metrics["neg_false_fire"], new_metrics["neg_total"],
+                 ", ".join("%d %s" % (v, k) for k, v in sorted(
+                     counts.items(), key=lambda kv: (-kv[1], kv[0])))),
+             ]
+    if base_protocol and new_protocol and base_protocol != new_protocol:
+        lines.append("NOTE: probe protocol differs (baseline=%s, this run=%s) "
+                     "— cross-instrument comparison; treat every verdict as "
+                     "a candidate for a same-protocol re-probe, not as a "
+                     "regression" % (base_protocol, new_protocol))
+    if changed:
+        lines.append("descriptions edited since the baseline: %s"
+                     % ", ".join(changed))
+    lines += ["", "| case | expect | base fired | new fired | Δ | base exact "
+              "| new exact | verdict |",
+              "|---|---|---|---|---|---|---|---|"]
+    for r in rows:
+        lines.append("| %s | %s | %s | %s | %s | %s | %s | %s |" % (
+            r["id"], ",".join(r["expect"]) or "—", r["base"] or "—",
+            r["new"] or "—", sd(r["hit_delta"]), r["base_exact"] or "—",
+            r["new_exact"] or "—", r["verdict"]))
+    return "\n".join(lines)
+
+
+# ------------------------------------------------------------------- audit --
+def description_digest(description):
+    """Short stable digest of a description (whitespace-trimmed). Written
+    into every --json report (``descriptions``) so a later ``--audit`` can
+    tell whether the description that was probed is the one on disk."""
+    return hashlib.sha1((description or "").strip().encode("utf-8")).hexdigest()[:12]
+
+
+def load_reports(reports_dir):
+    """Every trigger_eval ``--json`` run report directly under reports_dir
+    as [(path, mtime, data)], newest first by file mtime. Canary dumps,
+    comparison files and non-report JSON are skipped."""
+    out = []
+    for e in os.listdir(reports_dir):
+        if not e.endswith(".json"):
+            continue
+        p = os.path.join(reports_dir, e)
+        try:
+            with open(p, encoding="utf-8") as f:
+                data = json.load(f)
+        except (OSError, ValueError):
+            continue
+        if not isinstance(data, dict) or not isinstance(data.get("results"), list):
+            continue
+        out.append((p, os.path.getmtime(p), data))
+    out.sort(key=lambda t: -t[1])
+    return out
+
+
+def audit_skills(catalog, cases, reports, positive_floor=3):
+    """Per catalog skill: case coverage (positives = cases expecting it
+    without a body spec; body_cases = with one) and probe freshness from
+    the newest report holding a non-errored probe of a case expecting it:
+    ``probed`` (that report's description digest == the current one),
+    ``STALE`` (digest differs — edited since), ``unverified`` (report
+    predates digests), ``never``. ``under_floor`` flags positives <
+    positive_floor."""
+    rows = []
+    for name, desc, _ in catalog:
+        pos = [c for c in cases if name in c["expect"] and c.get("body") is None]
+        body = [c for c in cases if name in c["expect"] and c.get("body") is not None]
+        row = {"name": name, "positives": len(pos), "body_cases": len(body),
+               "status": "never", "report": None, "probes": 0,
+               "protocol": None, "mode": None,
+               "digest": description_digest(desc),
+               "under_floor": len(pos) < positive_floor}
+        for path, _, data in reports:
+            probes = [r for r in data["results"]
+                      if name in (r.get("expect") or []) and not r.get("error")]
+            if not probes:
+                continue
+            row["report"] = os.path.basename(path)
+            row["probes"] = len(probes)
+            row["protocol"] = data.get("protocol", "default")
+            row["mode"] = data.get("mode")
+            seen = (data.get("descriptions") or {}).get(name)
+            if seen is None:
+                row["status"] = "unverified"
+            elif seen == row["digest"]:
+                row["status"] = "probed"
+            else:
+                row["status"] = "STALE"
+            break
+        rows.append(row)
+    return rows
+
+
+def audit_exit_code(rows):
+    return 0 if all(r["status"] == "probed" and not r["under_floor"]
+                    for r in rows) else 1
+
+
+def render_audit(rows, cases, n_reports, reports_dir):
+    n_neg = sum(1 for c in cases if not c["expect"])
+    n_body = sum(1 for c in cases if c.get("body") is not None)
+    lines = ["# probe audit — %d skills, %d cases (%d negatives, %d body), "
+             "%d reports under %s" % (len(rows), len(cases), n_neg, n_body,
+                                       n_reports, reports_dir), "",
+             "| skill | positives | body | newest probing report | mode/protocol "
+             "| probes | status |", "|---|---|---|---|---|---|---|"]
+    for r in rows:
+        pos = "%d%s" % (r["positives"], " (UNDER FLOOR)" if r["under_floor"] else "")
+        mp = "%s/%s" % (r["mode"], r["protocol"]) if r["report"] else "—"
+        lines.append("| %s | %s | %d | %s | %s | %d | %s |" % (
+            r["name"], pos, r["body_cases"], r["report"] or "—", mp,
+            r["probes"], r["status"]))
+    counts = {}
+    for r in rows:
+        counts[r["status"]] = counts.get(r["status"], 0) + 1
+    lines += ["", "summary: " + ", ".join("%d %s" % (v, k) for k, v in sorted(
+        counts.items(), key=lambda kv: (-kv[1], kv[0])))
+        + "; %d under the %d-positive floor" % (
+            sum(1 for r in rows if r["under_floor"]), 3)
+        + "; exit %d" % audit_exit_code(rows)]
+    return "\n".join(lines)
+
+
 # ------------------------------------------------------------------ canary --
 def load_canary(path):
     """Load and validate a canary file: a sentinel dict or list of them.
@@ -791,14 +1081,20 @@ def load_canary(path):
         mode = s.get("mode", "native")
         if mode not in ("native", "catalog", "body"):
             raise ValueError("canary sentinel %d: bad mode %r" % (i, mode))
+        protocol = s.get("protocol")
+        if protocol is not None and protocol not in PROTOCOLS:
+            raise ValueError("canary sentinel %d: bad protocol %r"
+                             % (i, protocol))
         out.append({"case": s["case"], "model": s.get("model", "sonnet"),
                     "repeats": rep, "min_rate": float(lo),
-                    "max_rate": float(hi), "mode": mode})
+                    "max_rate": float(hi), "mode": mode,
+                    "protocol": protocol})   # None = the run's --protocol
     return out
 
 
 def run_canary(sentinels, cases, catalog, project_dir, runner, executable,
-               timeout_s, budget_usd, body_tools, concurrency, quiet):
+               timeout_s, budget_usd, body_tools, concurrency, quiet,
+               protocol="default"):
     """Run each sentinel case ×repeats; band-check the all-expected-fired
     rate. Returns (exit_code, records): 0 all in band, 1 drift, 2
     inconclusive (a sentinel had zero non-errored runs or an unknown
@@ -811,11 +1107,13 @@ def run_canary(sentinels, cases, catalog, project_dir, runner, executable,
         if case is None:
             print("canary: unknown case id %r" % s["case"], file=sys.stderr)
             return 2, records
+        s = dict(s, protocol=s.get("protocol") or protocol)
         with concurrent.futures.ThreadPoolExecutor(
                 max_workers=max(1, concurrency)) as ex:
             futs = [ex.submit(run_probe, case, s["mode"], catalog, project_dir,
                               runner, executable, s["model"], timeout_s,
-                              budget_usd, body_tools=body_tools)
+                              budget_usd, body_tools=body_tools,
+                              protocol=s["protocol"])
                     for _ in range(s["repeats"])]
             results = [f.result() for f in futs]
         m = score(results, [n for n, _, _ in catalog])
@@ -834,10 +1132,11 @@ def run_canary(sentinels, cases, catalog, project_dir, runner, executable,
                 code = 1
         records.append(rec)
         if not quiet:
-            print("CANARY %-12s %-8s %s: fired %d/%d (errs %d) band "
+            print("CANARY %-12s %-8s %s/%s: fired %d/%d (errs %d) band "
                   "[%.2f, %.2f] -> %s" % (
-                      s["case"], s["model"], s["mode"], pc["hit"], pc["n"],
-                      pc["err"], s["min_rate"], s["max_rate"], rec["status"]),
+                      s["case"], s["model"], s["mode"], s["protocol"],
+                      pc["hit"], pc["n"], pc["err"], s["min_rate"],
+                      s["max_rate"], rec["status"]),
                   file=sys.stderr)
     return code, records
 
@@ -870,6 +1169,28 @@ def main(argv=None):
                     help="canary sentinel file: run frozen case(s) against "
                          "stored acceptance bands; exit 0 in-band / 1 drift "
                          "/ 2 inconclusive")
+    ap.add_argument("--protocol", choices=sorted(PROTOCOLS), default="strict",
+                    help="native-mode probe system prompt (default: strict "
+                         "— the SKILLS= line is invalid without a preceding "
+                         "Skill call; 'default' is the pre-v4.2 prompt, "
+                         "kept for comparisons with older reports)")
+    ap.add_argument("--also-cases", action="append", default=[], metavar="FILE",
+                    help="additional case file(s) merged in (ids unique "
+                         "across files), e.g. the body cases so --audit "
+                         "sees body coverage")
+    ap.add_argument("--audit", metavar="REPORTS_DIR",
+                    help="offline, no probes: per skill, case coverage and "
+                         "whether the newest --json report under "
+                         "REPORTS_DIR probed the CURRENT description "
+                         "(digest match); exit 1 on STALE / never / "
+                         "unverified / fewer than 3 positive cases")
+    ap.add_argument("--count-declared", action="store_true",
+                    help="score a catalog skill the probe declared (SKILLS= "
+                         "line) but never invoked as fired")
+    ap.add_argument("--baseline",
+                    help="a prior --json report; after the run print a "
+                         "per-case delta table (REGRESSED / IMPROVED / "
+                         "CO-FIRE / noise? / same) per model")
     ap.add_argument("--repeats", type=int, default=1)
     ap.add_argument("--concurrency", type=int, default=4)
     ap.add_argument("--timeout", type=float, default=150.0)
@@ -882,6 +1203,13 @@ def main(argv=None):
     try:
         catalog = load_catalog(args.skills)
         cases = load_cases(args.cases)
+        for p in args.also_cases:
+            extra = load_cases(p)
+            dup = {c["id"] for c in cases} & {c["id"] for c in extra}
+            if dup:
+                raise ValueError("duplicate case ids across case files: %s"
+                                 % sorted(dup))
+            cases += extra
     except (OSError, ValueError) as e:
         print("trigger-eval: %s" % e, file=sys.stderr)
         return 2
@@ -901,6 +1229,28 @@ def main(argv=None):
         print("trigger-eval: --model is empty", file=sys.stderr)
         return 2
 
+    baseline = None
+    if args.baseline:
+        try:
+            baseline = load_baseline(args.baseline)
+        except (OSError, ValueError) as e:
+            print("trigger-eval: baseline: %s" % e, file=sys.stderr)
+            return 2
+
+    if args.audit:
+        try:
+            reports = load_reports(args.audit)
+        except OSError as e:
+            print("trigger-eval: audit: %s" % e, file=sys.stderr)
+            return 2
+        rows = audit_skills(catalog, cases, reports)
+        print(render_audit(rows, cases, len(reports), args.audit))
+        if args.json:
+            with open(args.json, "w", encoding="utf-8") as f:
+                json.dump({"audit": rows, "exit": audit_exit_code(rows)},
+                          f, indent=1)
+        return audit_exit_code(rows)
+
     if args.canary:
         try:
             sentinels = load_canary(args.canary)
@@ -913,7 +1263,8 @@ def main(argv=None):
             code, records = run_canary(
                 sentinels, cases, catalog, tmp, default_runner,
                 args.executable, args.timeout, args.budget_usd,
-                args.body_tools, args.concurrency, args.quiet)
+                args.body_tools, args.concurrency, args.quiet,
+                protocol=args.protocol)
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
         if args.json:
@@ -961,7 +1312,8 @@ def main(argv=None):
             futs = {ex.submit(run_probe, c, args.mode, catalog, proj, default_runner,
                               args.executable, m, args.timeout, args.budget_usd,
                               distractor_names=dn, body_tools=args.body_tools,
-                              arm=arm, transcript_path=tp): i
+                              arm=arm, transcript_path=tp,
+                              protocol=args.protocol): i
                     for i, (c, m, arm, proj, dn, tp) in enumerate(jobs)}
             for fut in concurrent.futures.as_completed(futs):
                 i = futs[fut]
@@ -983,35 +1335,64 @@ def main(argv=None):
     paired_by_model = {}
     for m in models:
         rs = [r for r in results if r["model"] == m]
-        metrics_by_model[m] = score(rs, names)
+        metrics_by_model[m] = score(rs, names, args.count_declared)
         if args.paired:
             arm_metrics = {}
             for arm in ("plain", "staged"):
                 ars = [r for r in rs if r.get("arm") == arm]
-                arm_metrics[arm] = score(ars, names)
+                arm_metrics[arm] = score(ars, names, args.count_declared)
                 print(render_report(ars, arm_metrics[arm], names, args.mode,
                                     "%s arm=%s" % (m, arm),
-                                    dnames if arm == "staged" else frozenset()))
+                                    dnames if arm == "staged" else frozenset(),
+                                    protocol=args.protocol))
                 print()
             metrics_by_model_arm[m] = arm_metrics
             paired_by_model[m] = paired_verdicts(arm_metrics["plain"],
                                                  arm_metrics["staged"])
             print(render_paired(paired_by_model[m], m))
         else:
-            print(render_report(rs, metrics_by_model[m], names, args.mode, m, dnames))
+            print(render_report(rs, metrics_by_model[m], names, args.mode, m, dnames,
+                                protocol=args.protocol))
         if len(models) > 1:
             print()
     if len(models) > 1:
         print(render_model_comparison(metrics_by_model, names, models))
-    metrics = score(results, names)
+    metrics = score(results, names, args.count_declared)
+    comparison = None
+    if baseline is not None:
+        changed = sorted(n for n, d, _ in catalog
+                         if baseline["descriptions"].get(n)
+                         not in (None, description_digest(d)))
+        comparison = {"path": args.baseline, "by_model": {},
+                      "base_protocol": baseline["protocol"],
+                      "protocol": args.protocol,
+                      "protocol_mismatch": baseline["protocol"] != args.protocol,
+                      "descriptions_changed": changed}
+        for m in models:
+            # a per-model baseline when the prior run had that model, else
+            # the prior run's overall metrics (single-model reports agree)
+            bm = baseline["metrics_by_model"].get(m) or baseline["metrics"]
+            rows = compare_reports(bm, metrics_by_model[m])
+            comparison["by_model"][m] = rows
+            print()
+            print(render_comparison(rows, bm, metrics_by_model[m], m,
+                                    args.baseline,
+                                    base_protocol=baseline["protocol"],
+                                    new_protocol=args.protocol,
+                                    changed=changed))
     if args.json:
-        out = {"mode": args.mode, "model": args.model, "models": models,
+        out = {"version": "4.2", "mode": args.mode, "model": args.model,
+               "models": models,
+               "descriptions": {n: description_digest(d) for n, d, _ in catalog},
                "distractors": sorted(dnames), "paired": args.paired,
+               "protocol": args.protocol, "count_declared": args.count_declared,
                "results": results,
                "metrics": metrics, "metrics_by_model": metrics_by_model}
         if args.paired:
             out["metrics_by_model_arm"] = metrics_by_model_arm
             out["paired_by_model"] = paired_by_model
+        if comparison is not None:
+            out["baseline"] = comparison
         with open(args.json, "w", encoding="utf-8") as f:
             json.dump(out, f, indent=1)
     if metrics["n_err"] == len(results):

@@ -115,16 +115,21 @@ class Prov(object):
     # MergedProv (v0.6: −8 bytes on every ordinary node).
     count = 1
 
-    def __init__(self, op, detail, line, inputs=(), show=_LAZY, value=None):
+    def __init__(self, op, detail, line, ins=(), show=_LAZY, value=None):
+        # v0.10: the constructor is the raw slot store — six assignments,
+        # nothing else. `ins` is stored as given: a tuple of input nodes,
+        # or ONE input node unboxed (v0.6: no 1-element tuple, ~56 bytes
+        # saved on every 1-input node; `inputs` re-wraps on read, query
+        # time only). A 1-tuple is also accepted (it is simply not unboxed).
+        # Normalisation — lists, unboxing — lives in `derived`/`leaf`/
+        # `mk_miss`/`merge_miss`; the hot paths call `Prov(...)` directly
+        # with the slot already in its final shape. 2.77 M nodes for one
+        # meta.lang run: the two tests removed here were 12–18 % of the
+        # constructor (214 → 187 ns, values microbench, round 108).
         self.op = op
         self.detail = detail
         self.line = line
-        if type(inputs) is not tuple:
-            inputs = tuple(inputs)
-        # v0.6: a single input is stored unboxed — no 1-element tuple. Most
-        # nodes have 1 or 2 inputs, so this trims ~56 bytes from every
-        # 1-input node; `inputs` re-wraps on read (query-time only).
-        self._ins = inputs[0] if len(inputs) == 1 else inputs
+        self._ins = ins
         self._show = show
         self.value = value
 
@@ -173,9 +178,18 @@ class MergedProv(Prov):
     branch decisions. Only these carry a real `count` slot."""
     __slots__ = ("count",)
 
-    def __init__(self, op, detail, line, inputs=(), show=_LAZY, value=None,
+    def __init__(self, op, detail, line, ins=(), show=_LAZY, value=None,
                  count=1):
-        Prov.__init__(self, op, detail, line, inputs, show, value)
+        # v0.10: one frame, not two (388 → 215 ns); same raw `ins` contract
+        # as Prov. Only runs of ≥2 merged steps are built as MergedProv —
+        # a run of one decision is a plain Prov of the same shape (count
+        # is 1 either way and nothing renders differently; see _finish_call)
+        self.op = op
+        self.detail = detail
+        self.line = line
+        self._ins = ins
+        self._show = show
+        self.value = value
         self.count = count
 
 
@@ -309,15 +323,25 @@ def leaf(op, detail, line, payload):
     return Prov(op, detail, line, (), _LAZY, payload)
 
 
+def _slot(inputs):
+    """The raw `_ins` slot for an inputs sequence: () / one node / tuple."""
+    if type(inputs) is not tuple:
+        inputs = tuple(inputs)
+    return inputs[0] if len(inputs) == 1 else inputs
+
+
 def derived(op, detail, line, inputs, payload):
-    return Prov(op, detail, line, inputs, _LAZY, payload)
+    """A node derived from `inputs` (any sequence of nodes). The general
+    constructor; hot paths build `Prov(...)` directly with the slot shape
+    (v0.10) — this wrapper is one more Python frame per node."""
+    return Prov(op, detail, line, _slot(inputs), _LAZY, payload)
 
 
 def mk_miss(reason, line, op, detail="", inputs=()):
     """A fresh miss with a single reason (line is baked into the reason).
     The reason doubles as the prov node's detail so why-trees show it inline."""
     m = Miss([reason + " (line %d)" % line])
-    return Prov(op, detail if detail else reason, line, tuple(inputs), "miss", m)
+    return Prov(op, detail if detail else reason, line, _slot(inputs), "miss", m)
 
 
 def merge_miss(op, detail, line, operands):
@@ -327,7 +351,7 @@ def merge_miss(op, detail, line, operands):
         if isinstance(v.payload, Miss):
             reasons.extend(v.payload.reasons)
     m = Miss(reasons)
-    return Prov(op, detail, line, tuple(operands), "miss", m)
+    return Prov(op, detail, line, _slot(operands), "miss", m)
 
 
 def is_origin_miss(node):

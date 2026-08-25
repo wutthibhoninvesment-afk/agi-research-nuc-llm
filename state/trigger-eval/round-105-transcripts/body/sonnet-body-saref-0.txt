@@ -1,0 +1,36 @@
+case: body-saref
+model: sonnet
+arm: None
+fired: ['skill-authoring']
+distractors: []
+foreign: []
+error: None
+reads: ['/private/var/folders/_6/3xh6ssk928jcqvpbw1p5kjh80000gn/T/trigger-eval-ccfmbf9o/.claude/skills/skill-authoring/references/trigger-evaluation.md']
+reads_failed: []
+bash: []
+
+--- transcript ---
+I need to read the bundled reference file for the precise numbers on evaluator modes.
+
+Here are the exact numbers from `references/trigger-evaluation.md`:
+
+**1. Three evaluator modes and approximate cost per probe (sonnet probe model):**
+
+| mode | what it measures | cost/probe |
+|---|---|---|
+| `native` (default) | real path — skills staged in a temp project's `.claude/skills/`, `claude -p` with only the `Skill` tool; a `Skill` tool_use counts as fired | **~$0.03/probe, ~20s** |
+| `catalog` | descriptions pasted into one prompt, model returns a JSON list | **~$0.02/probe** |
+| `body` | probe does the real task; records which staged bundled files were read and whether evidence regexes match | **~2–5× a native probe** (so roughly $0.06–$0.15/probe) |
+
+**2. Which to use for real decisions:** Use **native** mode for actual trigger decisions — it has the real distractor and system-prompt framing. **Catalog** mode is only a cheap smoke test for a description draft when the CLI is unavailable (it's lower fidelity: no distractors, no system-prompt framing, and it over-fires on multi-skill cases).
+
+**3. "Fully followed" in body mode** — a case counts as fully followed only when **all three** hold simultaneously:
+- the fired skill set matches `expect`
+- every file listed in `body.files` was actually read (error-result Reads don't count — those land in `files_failed`, not `files_read`)
+- every regex in `body.evidence` matched the transcript (unless `body.evidence_min: N` is set, relaxing it to ≥N of M matching)
+
+**4. What counts as "displacement" in a distractor run:** a probe where an **expected skill went missing while a staged distractor fired**. It's distinct from two other outcomes the report also tracks:
+- **suppress**ion: fire count drops ≥2 with **no** distractor firing (selector goes uncertain and picks neither) — displacement reads 0 here even though your skill lost
+- **noise?**: a drop of only 1 (re-run at higher n before acting)
+
+`--paired` (running each probe once "plain" and once "staged") is what lets you tell displacement apart from suppression — without it, a sibling can sink your fire rate while displacement itself stays at 0.

@@ -1,0 +1,40 @@
+case: acb-far
+model: haiku
+arm: None
+fired: []
+distractors: []
+foreign: ['claude-api']
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+Prompt caching requires the exact sequence of cached content to be stable. When you trim old messages, you're changing the hash of what precedes the `cache_control` marker—even if you trim content *after* it—which invalidates the cache.
+
+**The solution: cache the right boundary.** Put `"cache_control": {"type": "ephemeral"}` on a stable block (your system prompt or initial context), then trim only messages *after* that marker:
+
+```json
+{
+  "system": [
+    {
+      "type": "text",
+      "text": "You are an agent. Context...",
+      "cache_control": {"type": "ephemeral"}
+    }
+  ],
+  "messages": [
+    // These get trimmed as the conversation grows
+    {"role": "user", "content": "..."},
+    {"role": "assistant", "content": "..."}
+    // Keep trimming here ↑
+  ]
+}
+```
+
+The cached block stays unchanged; the message array rolls. Cache stays live as long as you:
+- Don't modify or reorder system/context above the marker
+- Only remove or add messages *below* it
+- Don't change the position of `cache_control` itself
+
+If your trimming is happening at the system level (removing entire context chunks), that's the problem—you're breaking the stable prefix that caching relies on.

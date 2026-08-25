@@ -34,21 +34,52 @@ import tempfile
 import time
 import types
 
+from .proc import run_capped
+
 _BOOTSTRAP = r'''
-import atexit, dis, json, os, sys, threading
+import atexit, dis, json, os, sys, threading, time
 TARGETS = %(targets)r            # realpath -> rel
 INTEREST = %(interest)r          # realpath -> sorted lines of interest, or None (= every line)
 OUT = %(out)r
-HITS = dict((k, {}) for k in TARGETS)
+BY_FILE = %(by_file)r            # True: hits keyed by the running test FILE (round 113)
+HITS = dict((k, {}) for k in TARGETS)     # real -> {line: hits} | by file: real -> {test_file: {line: hits}}
+CURD = dict((k, HITS[k]) for k in TARGETS)  # real -> the dict line events write to right now
+DUR = {}                         # by file: test_file -> seconds spent in its tests
 _cache = {}
 _code_ok = {}                    # id(code) -> bool: does this code object contain a line of interest?
+_t = [None]
 
 def _local(frame, event, arg):
     if event == "line":
-        d = HITS[frame.f_code.co_filename]
+        d = CURD[frame.f_code.co_filename]
         ln = frame.f_lineno
         d[ln] = d.get(ln, 0) + 1
     return _local
+
+def _switch(test_file):
+    """By-file mode: point every target (and every alias of it) at the
+    per-test-file dict; HITS[alias] is HITS[real], so setdefault returns
+    the same inner dict for both."""
+    for k, d in list(HITS.items()):
+        CURD[k] = d.setdefault(test_file, {})
+
+class _ByFilePlugin(object):
+    def pytest_runtest_logstart(self, nodeid, location):
+        _switch(nodeid.split("::")[0])
+        # a test that measures frames may call sys.settrace(None) and leave
+        # the tracer OFF for every later test (round 113: test_v10/test_v11
+        # showed zero hits) -- re-arm at every test start
+        sys.settrace(_global)
+        threading.settrace(_global)
+        _t[0] = time.monotonic()
+    def pytest_runtest_logfinish(self, nodeid, location):
+        f = nodeid.split("::")[0]
+        if _t[0] is not None:
+            DUR[f] = DUR.get(f, 0.0) + (time.monotonic() - _t[0])
+        _switch("<between>")
+
+if BY_FILE:
+    _switch("<collect>")
 
 def _wanted(code, real):
     """Targeted mode: trace a code object only if its own line range holds a
@@ -79,6 +110,7 @@ def _global(frame, event, arg):
         if hit and hit != fn:
             # alias: the code object names the file by another path
             HITS[fn] = HITS[hit]
+            CURD[fn] = CURD[hit]
     if hit and _wanted(code, hit):
         return _local
     return None
@@ -91,7 +123,13 @@ def _dump():
     sys.settrace(None)
     out = {}
     for real, rel in TARGETS.items():
-        out[rel] = dict((str(l), c) for l, c in HITS[real].items())
+        if BY_FILE:
+            out[rel] = dict((tf, dict((str(l), c) for l, c in d.items()))
+                            for tf, d in HITS[real].items())
+        else:
+            out[rel] = dict((str(l), c) for l, c in HITS[real].items())
+    if BY_FILE:
+        out["_durations"] = dict((k, round(v, 3)) for k, v in DUR.items())
     with open(OUT, "w") as f:
         json.dump(out, f)
 
@@ -99,7 +137,7 @@ atexit.register(_dump)
 sys.settrace(_global)
 threading.settrace(_global)
 import pytest
-rc = pytest.main(%(args)r)
+rc = pytest.main(%(args)r, plugins=[_ByFilePlugin()] if BY_FILE else [])
 _dump()
 sys.exit(int(rc))
 '''
@@ -122,7 +160,7 @@ def executable_lines(source, filename="<file>"):
 
 
 def collect(root, rel_paths, pytest_args=("-q", "-p", "no:cacheprovider", "tests"),
-            timeout_s=3600.0, python=sys.executable, interest=None):
+            timeout_s=3600.0, python=sys.executable, interest=None, by_file=False):
     """Run the suite under the tracer; return the coverage dict
     `{rel: {lineno(int): hits}}` plus `_meta`.
 
@@ -132,7 +170,15 @@ def collect(root, rel_paths, pytest_args=("-q", "-p", "no:cacheprovider", "tests
     executed line of the hot loop is a Python callback); targeted tracing
     of the ~60 survivor lines costs a fraction of that. Lines outside the
     traced code objects are then UNKNOWN, not uncovered — `triage` and
-    `line_hits` say so via `_interest`."""
+    `line_hits` say so via `_interest`.
+
+    `by_file=True` (round 113) keys every hit by the test FILE that was
+    running (`{rel: {test_file: {line: hits}}}`, plus `_durations`
+    = seconds per test file) and re-arms the tracer at every test start (a
+    test that calls `sys.settrace(None)` would otherwise blind the rest of
+    the run); `collapse()` folds it back into the plain shape. One full-trace run then gives both the coverage triage and the
+    per-file map that `prioritize.MapPrioritizer` orders and restricts the
+    suite with."""
     root = os.path.realpath(root)
     targets = {}
     for rel in rel_paths:
@@ -147,11 +193,12 @@ def collect(root, rel_paths, pytest_args=("-q", "-p", "no:cacheprovider", "tests
     os.close(fd)
     try:
         prog = _BOOTSTRAP % {"targets": targets, "out": out, "args": list(pytest_args),
-                             "interest": interest_real}
+                             "interest": interest_real, "by_file": bool(by_file)}
         t0 = time.time()
-        p = subprocess.run([python, "-c", prog], cwd=root, capture_output=True, text=True,
-                           timeout=timeout_s)
-        secs = time.time() - t0
+        p = run_capped([python, "-c", prog], root, timeout_s)
+        if p.timed_out:
+            raise RuntimeError("coverage run exceeded %.0fs (process group killed)" % timeout_s)
+        secs = p.seconds
         with open(out, encoding="utf-8") as f:
             raw = json.load(f)
     finally:
@@ -161,21 +208,36 @@ def collect(root, rel_paths, pytest_args=("-q", "-p", "no:cacheprovider", "tests
             pass
     cov = {}
     for rel, hits in raw.items():
-        cov[rel] = dict((int(k), v) for k, v in hits.items())
-    tail = "\n".join((p.stdout + p.stderr).strip().splitlines()[-3:])
+        if rel == "_durations":
+            cov[rel] = hits
+        elif by_file:
+            cov[rel] = dict((tf, dict((int(k), v) for k, v in d.items())) for tf, d in hits.items())
+        else:
+            cov[rel] = dict((int(k), v) for k, v in hits.items())
+    tail = "\n".join(p.output.strip().splitlines()[-3:])
     cov["_meta"] = {"root": root, "files": list(rel_paths), "pytest_args": list(pytest_args),
                     "returncode": p.returncode, "seconds": round(secs, 1), "pytest_tail": tail,
-                    "targeted": interest is not None}
+                    "targeted": interest is not None, "by_file": bool(by_file)}
     if interest is not None:
         cov["_interest"] = dict((rel, interest_real[real]) for real, rel in targets.items())
     return cov
 
 
+_SPECIAL = ("_meta", "_interest", "_durations")
+
+
+def is_by_file(cov):
+    return bool((cov.get("_meta") or {}).get("by_file"))
+
+
 def save(cov, path):
     data = {}
+    by_file = is_by_file(cov)
     for rel, hits in cov.items():
-        if rel in ("_meta", "_interest"):
+        if rel in _SPECIAL:
             data[rel] = hits
+        elif by_file:
+            data[rel] = dict((tf, dict((str(k), v) for k, v in d.items())) for tf, d in hits.items())
         else:
             data[rel] = dict((str(k), v) for k, v in hits.items())
     tmp = path + ".tmp"
@@ -188,9 +250,56 @@ def load(path):
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
     cov = {}
+    by_file = bool((data.get("_meta") or {}).get("by_file"))
     for rel, hits in data.items():
-        cov[rel] = hits if rel in ("_meta", "_interest") else dict((int(k), v) for k, v in hits.items())
+        if rel in _SPECIAL:
+            cov[rel] = hits
+        elif by_file:
+            cov[rel] = dict((tf, dict((int(k), v) for k, v in d.items())) for tf, d in hits.items())
+        else:
+            cov[rel] = dict((int(k), v) for k, v in hits.items())
     return cov
+
+
+def collapse(cov):
+    """A by-file map folded into the plain `{rel: {line: hits}}` shape
+    (hits summed over test files, `_meta.by_file` cleared) so every
+    analysis below works on it unchanged. A plain cov is returned as is."""
+    if not is_by_file(cov):
+        return cov
+    out = {}
+    for rel, per_file in cov.items():
+        if rel in _SPECIAL:
+            continue
+        tot = {}
+        for d in per_file.values():
+            for ln, c in d.items():
+                tot[ln] = tot.get(ln, 0) + c
+        out[rel] = tot
+    meta = dict(cov.get("_meta") or {})
+    meta["by_file"] = False
+    meta["collapsed_from_by_file"] = True
+    out["_meta"] = meta
+    if "_interest" in cov:
+        out["_interest"] = cov["_interest"]
+    return out
+
+
+def covering_files(cov, rel, line, end_line=None):
+    """Test files whose tests executed any line in [line, end_line] of
+    `rel`, with the hit count; `<collect>`/`<between>` (import time, in
+    between tests) are reported under their own keys — a line hit only
+    there is executed by EVERY file's run."""
+    per_file = cov.get(rel, {})
+    hi = end_line if end_line and end_line >= line else line
+    out = {}
+    for tf, d in per_file.items():
+        n = 0
+        for ln in range(line, hi + 1):
+            n += d.get(ln, 0)
+        if n:
+            out[tf] = n
+    return out
 
 
 # ---------------------------------------------------------------- analysis --
@@ -344,6 +453,8 @@ def main(argv=None):
                     help="trace only code objects holding a survivor line (+ --killed-sample killed lines)")
     ap.add_argument("--killed-sample", type=int, default=60)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--by-file", action="store_true",
+                    help="key hits by the running test file (+ per-file durations); implies a full trace")
     a = ap.parse_args(argv)
     files = [p.strip() for p in a.files.split(",") if p.strip()]
     if a.load:
@@ -355,11 +466,16 @@ def main(argv=None):
                 ap.error("--targeted needs --mutation-json")
             with open(a.mutation_json, encoding="utf-8") as f:
                 interest = interest_from_mutants(json.load(f)["mutants"], a.killed_sample, a.seed)
-        cov = collect(a.root, files, tuple(a.args.split()), interest=interest)
+        cov = collect(a.root, files, tuple(a.args.split()), interest=interest, by_file=a.by_file)
         print("suite rc=%s in %.0fs: %s" % (cov["_meta"]["returncode"], cov["_meta"]["seconds"],
                                              cov["_meta"]["pytest_tail"].splitlines()[-1:]))
         if a.out:
             save(cov, a.out)
+    if is_by_file(cov):
+        dur = cov.get("_durations") or {}
+        print("by-file map: %d test files, durations %s" % (
+            len(dur), ", ".join("%s %.1fs" % (os.path.basename(k), v) for k, v in sorted(dur.items()))))
+        cov = collapse(cov)
     for rel in files:
         print(render_summary(file_summary(a.root, rel, cov)))
     if a.mutation_json:

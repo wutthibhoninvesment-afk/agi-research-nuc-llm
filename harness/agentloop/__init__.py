@@ -15,6 +15,7 @@ Layers (each independently testable):
     checkpoint.py Crash-safe per-step state persistence + resume (round 31)
     delegate.py  DelegateTool: fresh-context sub-agents with cost roll-up (round 31)
     sim.py       CachingSimLLM: prompt-cache-pricing test double (round 31)
+    guards.py    Completion guards: prose-tool-call recovery, empty/format answers (round 109)
 """
 
 from .llm import (
@@ -49,6 +50,8 @@ from .adapters import ClaudeCLILLM, AnthropicAPILLM
 from .checkpoint import Checkpoint
 from .delegate import DelegateTool, ChildSpec
 from .sim import CachingSimLLM, SimCache
+from .guards import (Guard, GuardContext, Rejection, EmptyAnswerGuard, ProseToolCallGuard,
+                     JsonAnswerGuard, PatternGuard, CallableGuard, default_guards)
 
 __all__ = [
     "LLM", "MockLLM", "FlakyLLM", "AssistantTurn", "ToolCall",
@@ -66,4 +69,6 @@ __all__ = [
     "TokenEstimator", "ContextBudget", "CompactionReport", "compact",
     "ClaudeCLILLM", "AnthropicAPILLM",
     "Checkpoint", "DelegateTool", "ChildSpec", "CachingSimLLM", "SimCache",
+    "Guard", "GuardContext", "Rejection", "EmptyAnswerGuard", "ProseToolCallGuard",
+    "JsonAnswerGuard", "PatternGuard", "CallableGuard", "default_guards",
 ]

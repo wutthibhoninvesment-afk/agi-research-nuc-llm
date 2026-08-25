@@ -1,0 +1,17 @@
+case: acb-mid
+model: haiku
+arm: None
+fired: ['subprocess-cli-testing', 'agent-context-budgeting']
+distractors: []
+foreign: ['claude-api']
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+I'll help you add a max-spend-in-dollars option to the agent runner. Let me first explore the current project structure to understand what we're working with.
+
+Let me check for another relevant skill for this budgeting task.
+
+SKILLS=agent-context-budgeting

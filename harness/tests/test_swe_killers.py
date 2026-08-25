@@ -36,14 +36,18 @@ def test_behaviour_is_plain_data_and_stable():
 def test_find_killer_for_a_real_semantic_mutant():
     with open(os.path.join(WHENCE_ROOT, "whence", "interp.py")) as f:
         src = f.read()
-    # string concat in binop: since v0.6 two strings take the fast path
-    # `Prov(op, "concat", line, (left, right), _LAZY, l + r)` — anchor on
-    # THAT site (the old general-path concat line is unreachable for two
-    # strings now; round-20 re-anchor, process rule 7). The arith mutant
-    # turns `+` into `-`, which crashes on strings.
-    m = next(m for m in generate(src, "whence/interp.py")
-             if m.op == "arith"
-             and "(left, right), _LAZY, l + r)" in src.splitlines()[m.lineno - 1])
+    # string concat: since v0.10 a `+` node compiles to its own closure
+    # (`f_add`) whose string case is `Prov("+", "concat", line, (l, r),
+    # _LAZY, x + y)` — anchor on THAT site (v0.6's `binop` concat line is
+    # unreachable for two strings now; round-20 and round-109 re-anchors,
+    # process rule 7). The arith mutant turns `+` into `-`, which crashes on
+    # strings. If the site moves again, list the candidate lines: every
+    # arith mutant on a line containing `"concat"` is a legitimate anchor.
+    candidates = [m for m in generate(src, "whence/interp.py")
+                  if m.op == "arith" and '"concat"' in src.splitlines()[m.lineno - 1]
+                  and "x + y" in src.splitlines()[m.lineno - 1]]
+    assert candidates, "no arith mutant on a `\"concat\"` line with `x + y` — re-anchor (rule 7)"
+    m = candidates[0]
     orig = load_whence(WHENCE_ROOT, "orig")
     progs = ['let a = "x" + "y"\n', "let b = 1\n"]
     k = find_killer(m, progs, orig, WHENCE_ROOT)

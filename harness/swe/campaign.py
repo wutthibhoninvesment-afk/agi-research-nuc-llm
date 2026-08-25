@@ -48,13 +48,17 @@ from concurrent.futures import ThreadPoolExecutor
 
 from . import coverage as CV
 from . import killers as K
+from . import oraclekill as OK
+from . import triage as TR
 from . import repair as RP
+from . import prioritize as PR
 from . import review as R
 from .fuzz import WHENCE_ROOT
 from .mutation import (DEFAULT_TEST_CMD, Mutant, MutationReport, generate,
                        run_mutant)
 
-STAGES = ("mutation", "recheck", "coverage", "corpus", "verify", "live_kill", "review", "repair", "report")
+STAGES = ("mutation", "recheck", "coverage", "corpus", "verify", "triage", "oracle_kill",
+          "live_kill", "review", "repair", "report")
 
 
 def _now():
@@ -99,7 +103,9 @@ def pinned_test_cmd(test_file):
 
 class Campaign(object):
     def __init__(self, out, root=WHENCE_ROOT, files=("whence/interp.py",),
-                 test_cmd=DEFAULT_TEST_CMD, log=None):
+                 test_cmd=DEFAULT_TEST_CMD, log=None, prioritizer=None, coverage_map=None):
+        self.prioritizer = prioritizer     # swe.prioritize.Prioritizer / MapPrioritizer or None
+        self.coverage_map = coverage_map   # by-file coverage dict (round 113) or None
         self.out = os.path.abspath(out)
         os.makedirs(self.out, exist_ok=True)
         self.root = os.path.realpath(root)
@@ -157,9 +163,22 @@ class Campaign(object):
         todo = [m for m in mutants if m.id not in done]
         if done:
             self.log("resuming: %d of %d mutants already checkpointed" % (len(done), len(mutants)))
+        pr = self.prioritizer
+
+        def one(m):
+            cmd = pr.cmd_for(m, self.test_cmd) if pr else self.test_cmd
+            run_mutant(m, self.root, cmd, timeout_s)
+            return m
+
         with ThreadPoolExecutor(max_workers=workers) as ex:
-            for m in ex.map(lambda m: run_mutant(m, self.root, self.test_cmd, timeout_s), todo):
+            for m in ex.map(one, todo):
                 d = m.as_dict()
+                if pr:
+                    order = pr.order_for(m.path, m.lineno, m.op)
+                    d["first_file"] = order[0] if order else None
+                    if hasattr(pr, "basis_for"):
+                        d.update(pr.basis_for(m))
+                d["killed_by"] = PR.killed_by(m.detail) if m.status == "killed" else None
                 _append_jsonl(partial_path, d)
                 done[m.id] = d
                 self.log("%-8s %s %.1fs" % (m.status, m.id, m.seconds or 0))
@@ -188,9 +207,19 @@ class Campaign(object):
         if limit:
             mutants = mutants[:limit]
         t0 = time.time()
+        done = dict((d["id"], d) for d in _read_jsonl(self.path("mutation.partial.jsonl")))  # noqa: F841 (refreshed below)
         self._run_mutants(mutants, workers, timeout_s, self.path("mutation.partial.jsonl"))
+        done = dict((d["id"], d) for d in _read_jsonl(self.path("mutation.partial.jsonl")))
         rep = MutationReport(mutants, time.time() - t0)
         data = rep.as_dict()
+        # carry the per-mutant ordering/basis fields into the report (round 113:
+        # the recheck's subset self-check and the map-fidelity check read them)
+        for d in data["mutants"]:
+            src = done.get(d["id"]) if done else None
+            if src:
+                for k in ("first_file", "killed_by", "basis", "files_run"):
+                    if k in src:
+                        d[k] = src[k]
         data["test_cmd"] = self.test_cmd
         data["workers"] = workers
         data["timeout_s"] = timeout_s
@@ -199,12 +228,39 @@ class Campaign(object):
                    survived=data["survived"], score=data["score"], seconds=data["seconds"])
         return data
 
-    def stage_recheck(self, timeout_s=600.0):
+    def stage_recheck(self, timeout_s=600.0, subset_check=20, seed=0):
+        """Timeouts re-run serially with a longer budget; and (round 113)
+        `subset_check` seeded subset-basis survivors re-run under the FULL
+        suite — the instrument self-check of covering-subset verdicts. A
+        flip there is an instrument error and is corrected in place."""
         art = self.path("mutation-rechecked.json")
         if self.done("recheck"):
             return _load_json(art)
         self._mark("recheck", "running")
         data = _load_json(self.path("mutation.json"))
+        sub_flips, sub_sample = [], []
+        subset_survivors = [d for d in data["mutants"]
+                            if d["status"] == "survived" and d.get("basis") == "subset"]
+        if subset_survivors and subset_check:
+            rng = random.Random(seed)
+            sub_sample = sorted(rng.sample(subset_survivors, min(subset_check, len(subset_survivors))),
+                                key=lambda d: d["id"])
+            by_id = self._mutants_by_id(sub_sample)
+            for d in sub_sample:
+                m = by_id.get(d["id"])
+                if m is None:
+                    continue
+                run_mutant(m, self.root, self.test_cmd, timeout_s)
+                self.log("subset-check %-8s %s (%d files -> full) %.0fs"
+                         % (m.status, m.id, d.get("files_run", 0), m.seconds or 0))
+                if m.status != "survived":
+                    rec = {"id": m.id, "files_run": d.get("files_run"), "after": m.status,
+                           "killed_by": PR.killed_by(m.detail), "detail": (m.detail or "")[-200:]}
+                    sub_flips.append(rec)
+                    d["status"] = m.status
+                    d["subset_check"] = rec
+                    d["detail"] = m.detail
+                    d["basis"] = "full"
         timeouts = [d for d in data["mutants"] if d["status"] == "timeout"]
         by_id = self._mutants_by_id(timeouts) if timeouts else {}
         flips = []
@@ -228,10 +284,13 @@ class Campaign(object):
         data["survived"] = sum(1 for d in data["mutants"] if d["status"] == "survived")
         data["score"] = round(killed / data["total"], 4) if data["total"] else 0.0
         data["recheck"] = {"timeouts": len(timeouts), "flips": flips,
-                           "timeout_s": timeout_s, "seconds": round(time.time() - t0, 1)}
+                           "timeout_s": timeout_s, "seconds": round(time.time() - t0, 1),
+                           "subset_checked": len(sub_sample), "subset_flips": sub_flips,
+                           "subset_survivors": len(subset_survivors)}
         _dump_json(art, data)
         self._mark("recheck", "done", timeouts=len(timeouts), flips=len(flips),
-                   score=data["score"], survived=data["survived"])
+                   score=data["score"], survived=data["survived"],
+                   subset_checked=len(sub_sample), subset_flips=len(sub_flips))
         return data
 
     def stage_coverage(self, pytest_args=("-q", "-p", "no:cacheprovider", "tests"), targeted=True,
@@ -245,11 +304,18 @@ class Campaign(object):
         self._mark("coverage", "running")
         data = _load_json(self.path("mutation-rechecked.json")) or _load_json(self.path("mutation.json"))
         interest = None
-        if targeted and data:
-            interest = CV.interest_from_mutants(data["mutants"], killed_sample, seed)
-            self.log("coverage: targeted run over %s lines of interest"
-                     % {k: len(v) for k, v in interest.items()})
-        cov = CV.collect(self.root, self.files, pytest_args, interest=interest)
+        if self.coverage_map is not None:
+            # a full by-file map already exists (round 113): collapse it —
+            # no second run, and a FULL (not targeted) coverage picture
+            cov = CV.collapse(self.coverage_map)
+            self.log("coverage: derived from the by-file map (full trace, %d test files)"
+                     % len(self.coverage_map.get("_durations") or {}))
+        else:
+            if targeted and data:
+                interest = CV.interest_from_mutants(data["mutants"], killed_sample, seed)
+                self.log("coverage: targeted run over %s lines of interest"
+                         % {k: len(v) for k, v in interest.items()})
+            cov = CV.collect(self.root, self.files, pytest_args, interest=interest)
         CV.save(cov, art)
         summaries = [CV.file_summary(self.root, rel, cov) for rel in self.files]
         for sm in summaries:
@@ -260,6 +326,7 @@ class Campaign(object):
         info = {"seconds": cov["_meta"]["seconds"], "returncode": cov["_meta"]["returncode"],
                 "pct": dict((sm["file"], sm["pct"]) for sm in summaries)}
         info["targeted"] = interest is not None
+        info["from_map"] = self.coverage_map is not None
         if tri:
             info.update(survived_uncovered=tri["survived_uncovered"],
                         survived_covered=tri["survived_covered"],
@@ -375,6 +442,93 @@ class Campaign(object):
         kdata = _load_json(self.path("killers.json")) or {"killers": []}
         return [k["mutant"] for k in kdata["killers"] if not k["found"]]
 
+    def stage_triage(self):
+        """Static classification of the survivors (swe.triage): which
+        instrument can see each one; the score over the behavioural set."""
+        art = self.path("triage.json")
+        if self.done("triage"):
+            return _load_json(art)
+        self._mark("triage", "running")
+        data = _load_json(self.path("mutation-rechecked.json")) or _load_json(self.path("mutation.json"))
+        srcs = dict((rel, open(os.path.join(self.root, rel), encoding="utf-8").read()) for rel in self.files)
+        t = TR.triage(data["mutants"], srcs)
+        _dump_json(art, t)
+        self.log(TR.render(t))
+        self._mark("triage", "done", counts=t["counts"], score_all=t["score_all"],
+                   score_behavioural=t["score_behavioural"])
+        return t
+
+    def stage_oracle_kill(self, seed=0, corpus_n=60, test_file="tests/test_oracle_killers_r113.py",
+                          timeout_s=5.0, limit=6000):
+        """modes / frames / counters differential over the `no_killer`
+        survivors (swe.oraclekill); kills pinned into `test_file` and
+        verified against the pinned file alone."""
+        art = self.path("oracle-killers.json")
+        if self.done("oracle_kill"):
+            return _load_json(art)
+        self._mark("oracle_kill", "running")
+        partial = self.path("oracle-killers.partial.jsonl")
+        done = dict((d["mutant"], d) for d in _read_jsonl(partial))
+        pool = self.no_killer_ids()
+        survivors = [d for d in self.survivors() if d["id"] in set(pool)]
+        by_id = self._mutants_by_id(survivors)
+        programs = OK.corpus(seed, corpus_n, self.root)
+        original = OK.load_whence(self.root, "orig_okill")
+        cache = {}
+        kills = []
+        t0 = time.time()
+        for d in survivors:
+            m = by_id.get(d["id"])
+            if m is None:
+                continue
+            if m.id in done:
+                rec = done[m.id]
+                if rec["found"]:
+                    kills.append(OK.OracleKill(m, rec["kind"], rec["program"], rec["expected"],
+                                               rec["got"], rec["tried"], rec["seconds"]))
+                continue
+            k = OK.find_oracle_killer(m, programs, original, self.root, cache, timeout_s=timeout_s, limit=limit)
+            rec = k.as_dict()
+            _append_jsonl(partial, rec)
+            done[m.id] = rec
+            if k.found:
+                kills.append(k)
+            self.log("%-9s %-8s %s tried=%d %.1fs" % ("OKILLER" if k.found else "no_killer",
+                                                      k.kind or "-", m.id, k.tried, k.seconds))
+        verified = []
+        if kills:
+            path = os.path.join(self.root, test_file)
+            existing = open(path, encoding="utf-8").read() if os.path.exists(path) else ""
+            body = OK.render_tests(kills, existing)
+            compile(body, path, "exec")
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(body)
+            verified = self._verify([k.mutant.id for k in kills], test_file)
+        recs = [done[i] for i in pool if i in done]
+        by_kind = dict((kind, sum(1 for r in recs if r["found"] and r["kind"] == kind))
+                       for kind in ("modes", "frames", "counters"))
+        data = {"seed": seed, "corpus_n": corpus_n, "programs": len(programs), "limit": limit,
+                "pool": len(pool), "found": sum(1 for r in recs if r["found"]), "by_kind": by_kind,
+                "no_killer": sum(1 for r in recs if not r["found"]), "test_file": test_file,
+                "verified": sum(1 for v in verified if v["status"] in ("killed", "timeout")),
+                "verify": verified, "seconds": round(time.time() - t0, 1), "killers": recs}
+        _dump_json(art, data)
+        self._mark("oracle_kill", "done", pool=len(pool), found=data["found"], by_kind=by_kind,
+                   verified=data["verified"], test_file=test_file)
+        return data
+
+    def live_pool(self, exclude_classes=TR.NON_BEHAVIOURAL):
+        """`no_killer` survivors minus the oracle kills minus the triage
+        classes no program can observe: where a model's time can pay."""
+        pool = self.no_killer_ids()
+        ok = _load_json(self.path("oracle-killers.json")) or {"killers": []}
+        killed = set(k["mutant"] for k in ok["killers"] if k["found"])
+        tri = _load_json(self.path("triage.json")) or {"classes": {}}
+        skip = set()
+        for c in exclude_classes:
+            skip.update(tri["classes"].get(c, []))
+        return [i for i in pool if i not in killed and i not in skip]
+
     def stage_live_kill(self, make_llm, n=8, seed=0, max_steps=20,
                         test_file="tests/test_model_killers_r29.py", model=""):
         art = self.path("live-kill.json")
@@ -383,7 +537,7 @@ class Campaign(object):
         self._mark("live_kill", "running")
         partial = self.path("live-kill.partial.jsonl")
         done = dict((d["mutant"], d) for d in _read_jsonl(partial))
-        pool = self.no_killer_ids()
+        pool = self.live_pool()
         rng = random.Random(seed)
         sample = sorted(rng.sample(pool, min(n, len(pool))))
         survivors = self.survivors()
@@ -495,9 +649,11 @@ class Campaign(object):
         review = _load_json(self.path("review.json")) or {}
         covsum = _load_json(self.path("coverage-summary.json")) or {}
         repair = _load_json(self.path("repair.json")) or {}
+        tri = _load_json(self.path("triage.json")) or {}
+        okill = _load_json(self.path("oracle-killers.json")) or {}
         total = base.get("total", 0)
         killed = (rech or base).get("killed", 0)
-        new_pins = verify.get("verified", 0) + live.get("verified", 0)
+        new_pins = verify.get("verified", 0) + live.get("verified", 0) + okill.get("verified", 0)
         rep = {
             "total": total,
             "baseline": {"killed": base.get("killed"), "survived": base.get("survived"),
@@ -515,6 +671,14 @@ class Campaign(object):
                            ("claimed", "confirmed", "steps", "tool_calls", "cost_usd",
                             "stop_reason", "model", "tool_histogram")),
             "coverage": self._coverage_block(covsum, corpus),
+            "triage": dict((k, tri.get(k)) for k in ("counts", "score_all", "score_behavioural",
+                                                     "behavioural_total", "behavioural_killed")) if tri else None,
+            "oracle_kill": dict((k, okill.get(k)) for k in ("pool", "found", "by_kind", "verified",
+                                                            "programs")) if okill else None,
+            "subset": ((rech or {}).get("recheck") or {}).get("subset_survivors") and {
+                "subset_survivors": rech["recheck"]["subset_survivors"],
+                "subset_checked": rech["recheck"]["subset_checked"],
+                "subset_flips": len(rech["recheck"]["subset_flips"])},
             "repair": dict((k, (repair.get("summary") or {}).get(k)) for k in
                            ("attempted", "green", "exact", "localized", "cheated",
                             "green_not_exact", "cost_usd", "steps")),
@@ -584,6 +748,9 @@ def render_report(rep):
              "| review | %s claims, %s confirmed, tools %s, $%s, stop=%s |"
              % (rv["claimed"], rv["confirmed"], rv["tool_histogram"], rv["cost_usd"], rv["stop_reason"]),
              "| coverage | %s |" % _cov_row(rep.get("coverage")),
+             "| subset verdicts | %s |" % _subset_row(rep.get("subset")),
+             "| triage | %s |" % _triage_row(rep.get("triage")),
+             "| oracle kills | %s |" % _okill_row(rep.get("oracle_kill")),
              "| repair | %s |" % _repair_row(rep.get("repair")),
              "| tests added | %s |" % rep["tests_added"],
              "| projected final score | %s |" % rep["projected_score"],
@@ -603,6 +770,29 @@ def _cov_row(c):
             c["corpus_found_covered"], c["corpus_tried_covered"],
             c["corpus_found_uncovered"], c["corpus_tried_uncovered"])
     return s
+
+
+def _subset_row(s):
+    if not s:
+        return "n/a"
+    return "%s survivors on a covering subset; %s re-run under the full suite, %s flipped" % (
+        s["subset_survivors"], s["subset_checked"], s["subset_flips"])
+
+
+def _triage_row(t):
+    if not t:
+        return "n/a"
+    return "survivors %s; score all %s, behavioural %s (%s/%s)" % (
+        ", ".join("%s %d" % (k, v) for k, v in (t.get("counts") or {}).items()),
+        t["score_all"], t["score_behavioural"], t["behavioural_killed"], t["behavioural_total"])
+
+
+def _okill_row(o):
+    if not o:
+        return "n/a"
+    return "%s of %s no_killer survivors (%s), %s verified, %s programs" % (
+        o["found"], o["pool"], ", ".join("%s %d" % (k, v) for k, v in (o.get("by_kind") or {}).items()),
+        o["verified"], o["programs"])
 
 
 def _repair_row(r):
@@ -634,6 +824,13 @@ def main(argv=None):
     ap.add_argument("--timeout", type=float, default=240.0)
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--adopt-mutation", help="existing mutation JSON to take as the baseline")
+    ap.add_argument("--prioritize-from", help="previous mutation JSON/partial.jsonl: run the test files "
+                    "that killed the nearest mutants first (verdict-invariant under -x)")
+    ap.add_argument("--coverage-map", help="by-file coverage JSON (swe.coverage --by-file): kill-first "
+                    "order from real coverage, covering-subset verdicts, and the coverage stage derived from it")
+    ap.add_argument("--no-subset", action="store_true", help="with --coverage-map: order only, run the full suite")
+    ap.add_argument("--subset-check", type=int, default=20,
+                    help="recheck: subset-basis survivors re-run under the full suite (instrument self-check)")
     ap.add_argument("--recheck-timeout", type=float, default=600.0)
     ap.add_argument("--corpus-n", type=int, default=300)
     ap.add_argument("--seed", type=int, default=0)
@@ -641,6 +838,10 @@ def main(argv=None):
     ap.add_argument("--no-examples", action="store_true", help="corpus: leave the checked-in examples out")
     ap.add_argument("--test-file-corpus", default="tests/test_generated_killers_r29.py")
     ap.add_argument("--test-file-model", default="tests/test_model_killers_r29.py")
+    ap.add_argument("--no-oracle-kill", action="store_true", help="skip the triage + oracle-kill stages")
+    ap.add_argument("--oracle-corpus-n", type=int, default=60)
+    ap.add_argument("--oracle-limit", type=int, default=6000, help="host recursion limit for the frames probe")
+    ap.add_argument("--test-file-oracle", default="tests/test_oracle_killers_r113.py")
     ap.add_argument("--live-kill", type=int, default=0, help="model kills on N sampled no_killer survivors")
     ap.add_argument("--live-review", action="store_true")
     ap.add_argument("--live-repair", type=int, default=0, help="model repairs on N sampled killed mutants")
@@ -658,7 +859,12 @@ def main(argv=None):
     a = ap.parse_args(argv)
 
     files = tuple(p.strip() for p in a.files.split(",") if p.strip())
-    c = Campaign(a.out, a.root, files)
+    pr = PR.Prioritizer.from_file(a.prioritize_from, a.root) if a.prioritize_from else None
+    cov_map = None
+    if a.coverage_map:
+        cov_map = CV.load(a.coverage_map)
+        pr = PR.MapPrioritizer(cov_map, PR.default_test_files(a.root), subset=not a.no_subset)
+    c = Campaign(a.out, a.root, files, prioritizer=pr, coverage_map=cov_map)
     if a.force:
         c.force([s.strip() for s in a.force.split(",") if s.strip()])
     extra = load_programs(a.extra_programs) if a.extra_programs else ()
@@ -670,7 +876,7 @@ def main(argv=None):
                      adopt=a.adopt_mutation)
     if after("mutation"):
         return 0
-    c.stage_recheck(timeout_s=a.recheck_timeout)
+    c.stage_recheck(timeout_s=a.recheck_timeout, subset_check=a.subset_check, seed=a.seed)
     if after("recheck"):
         return 0
     if not a.no_coverage:
@@ -684,6 +890,14 @@ def main(argv=None):
     c.stage_verify()
     if after("verify"):
         return 0
+    if not a.no_oracle_kill:
+        c.stage_triage()
+        if after("triage"):
+            return 0
+        c.stage_oracle_kill(seed=a.seed, corpus_n=a.oracle_corpus_n, test_file=a.test_file_oracle,
+                            limit=a.oracle_limit)
+        if after("oracle_kill"):
+            return 0
     if a.live_kill or a.live_review or a.live_repair:
         from agentloop.adapters import ClaudeCLILLM
         make_llm = lambda: ClaudeCLILLM(model=a.model, timeout_s=600)   # noqa: E731

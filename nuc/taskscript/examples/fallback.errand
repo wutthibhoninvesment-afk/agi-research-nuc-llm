@@ -1,0 +1,28 @@
+# fallback.errand — try the small lane, fall back to qwen36 when it misses
+# (transport failure, exhausted retries, or a preflight refusal); the trail
+# of the recovered miss travels with the answer (`why`).
+lane qwen  { url "http://127.0.0.1:8080" model "qwen36-tools" prefill e1 decode 3.3 fixed 2.4s ctx 32768 }
+lane olmoe { url "http://127.0.0.1:8090" model "olmoe" prefill 9.0 decode 1.2 fixed 0.5s ctx 2048 }
+
+budget lane_slot { time 45s }
+budget session   { time 6m }
+
+task summarize_small(text) on olmoe within lane_slot retry 1 backoff 1s {
+  system "Summarize in one sentence"
+  user   "{text}"
+  reply  40
+  expect nonempty
+}
+
+task summarize_big(text) on qwen retry 1 backoff 5s {
+  system "Summarize in one sentence"
+  user   "{text}"
+  reply  40
+  expect nonempty
+}
+
+flow summarize(text) within session {
+  let s = summarize_small(text) rescue summarize_big(text)
+  emit s
+  emit why(s)
+}

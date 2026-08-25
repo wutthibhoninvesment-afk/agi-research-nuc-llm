@@ -1,0 +1,39 @@
+case: acb-far
+model: haiku
+arm: None
+fired: []
+distractors: []
+foreign: ['claude-api']
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+The cache key is based on the full prefix hash—once you trim messages, the prefix changes and the cache miss because it's a different request.
+
+To keep the cache alive during trimming, split your prompt into two parts:
+
+1. **Static system prompt + instructions** — in the `system` role, marked with `cache_control: {"type": "ephemeral"}` for a ~5-minute TTL
+2. **Conversation history** — in a separate `cache_control` block that persists across trims
+
+Only trim *within* the history; never alter the system prompt or the cached instruction block. The cache key stays stable for the static part, and that's what costs the most.
+
+**Pseudocode:**
+```python
+messages = [
+    {"role": "system", "content": [
+        {"type": "text", "text": "You are..."},
+        {"type": "text", "text": "Instructions...", "cache_control": {"type": "ephemeral"}}
+    ]},
+    {"role": "user", "content": "...", "cache_control": {"type": "ephemeral"}},
+    # ... trimmed history (newest first, remove oldest) ...
+]
+```
+
+The key insight: **trim from the end of the conversation history, not from the cached prefix.** The system block and any explicitly cached early messages stay locked; only the sliding window of context changes. That way, `cache_creation_input_tokens` pays once for the system prompt, and every subsequent request with the same prefix hits `cache_read_input_tokens`.
+
+If you're still seeing zero reads, verify:
+- The system/instruction block is identical across requests (byte-for-byte)
+- Trimming isn't removing messages that come *before* the `cache_control` boundary
+- Your requests are hitting the same API endpoint within the TTL window

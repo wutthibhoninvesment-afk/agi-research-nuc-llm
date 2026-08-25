@@ -1,0 +1,13 @@
+case: multi-2
+model: sonnet
+arm: None
+fired: ['generator-trampoline-evaluator', 'fuzz-mutate-kill-loop']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=generator-trampoline-evaluator, fuzz-mutate-kill-loop

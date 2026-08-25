@@ -1,0 +1,25 @@
+case: pm-neg
+model: sonnet
+arm: None
+fired: []
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+No skill applies here—this requires actual incident details (root cause, timeline, action items) that I don't have. Let me clarify with you.
+
+SKILLS=NONE
+
+To write this post-mortem, I need details about the actual outage since I don't have access to your monitoring, logs, or incident channels. Could you share:
+
+1. **What broke** (service/system affected, user-facing symptoms)
+2. **Timeline** — key timestamps (detection, escalation, mitigation, resolution)
+3. **Root cause** (if known) or what you suspect
+4. **Who was involved** / how it was detected (alert, customer report, etc.)
+5. Any relevant logs, Slack threads, or ticket links
+
+Once I have that, I'll draft the full post-mortem.

@@ -1,0 +1,13 @@
+case: fmk-far
+model: sonnet
+arm: None
+fired: ['fuzz-mutate-kill-loop']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=fuzz-mutate-kill-loop

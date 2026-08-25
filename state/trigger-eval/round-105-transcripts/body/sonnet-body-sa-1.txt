@@ -1,0 +1,108 @@
+case: body-sa
+model: sonnet
+arm: None
+fired: ['skill-authoring']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+## Diagnosis
+
+The original file has two separate failures, both named as pitfalls in the skill-authoring reference:
+
+1. **Second-person description.** `"You can use this to help with deployments."` — the reference explicitly calls this out: *"Second-person or first-person descriptions... inconsistent point-of-view inside the system prompt measurably hurts selection."* Every other skill in your index is third person; this one breaks the pattern the model's selector was calibrated on.
+
+2. **Capability stated, no triggers.** The description says *what* the skill does but never enumerates *when* a user's phrasing should fire it. Real requests are things like "ship this to prod," "push a release," "roll this back," "run the deploy pipeline" — none of which reliably match on the single word "deployments." Per the reference: *"a description that says [mechanism] does not fire on [symptom]... a trigger list needs symptom vocabulary."* This description has none.
+
+3. **Body problem, latent.** Even if it did trigger, the body is two sentences with no procedure — no `## Steps`, no actual commands, no `## Pitfalls`, no `## Verification`. So today it's silently skipped; if you widened the description without fixing the body, it would trigger and then have nothing useful to do (the other named failure mode: "triggers and gets ignored").
+
+I don't have visibility into your actual deploy tooling (no git repo, no CI config, no deploy scripts in this working directory), so I've written the body with the correct **structure** and safety-critical steps, but flagged the one step that's a placeholder you must fill in with your real deploy command — otherwise this just becomes a second vague skill with better formatting.
+
+## Rewritten SKILL.md
+
+```markdown
+---
+name: deploy-helper
+description: Guides deploying an application to staging or production safely. Use when the user asks to deploy, ship, release, push to prod, roll out a change, run the deploy script, trigger a deploy pipeline, or asks about a rollback. Covers pre-deploy checks (clean git state, correct branch, passing tests), confirming the target environment before running deploy commands, post-deploy health verification, and the rollback procedure if a deploy fails. Not for local dev server startup or CI config unrelated to shipping to an environment.
+---
+# Deploy Helper
+
+## When to use (triggers)
+- User asks to deploy, ship, release, push to prod/production, roll out a
+  change, or run a deploy/release script.
+- User asks how to trigger or check a CI/CD deploy pipeline.
+- User asks about rolling back a bad deploy.
+
+**When NOT to use:** starting a local dev server, editing CI config that
+doesn't ship anything (linting, test-only workflows), or general
+infrastructure work with no deploy in scope.
+
+## Steps
+1. **Confirm the target environment out loud** (staging vs production) —
+   do not assume; ask if it's ambiguous from context.
+2. **Check git state is clean and on the intended branch**:
+   ```bash
+   git status --short
+   git branch --show-current
+   ```
+   Uncommitted changes or the wrong branch means stop and confirm with the
+   user before proceeding — production deploys are hard to reverse.
+3. **Run pre-deploy checks** (tests/build) if the project has them —
+   don't deploy on a red build.
+4. **Run the deploy command.**
+   > _Placeholder — replace this with the project's actual deploy
+   > invocation (e.g. `./deploy.sh prod`, `vercel --prod`,
+   > `kubectl rollout`, a CI trigger). This skill has no visibility into
+   > your deploy tooling yet; leaving this generic is what makes a skill
+   > look followed but do nothing real._
+5. **Verify the deploy succeeded** — hit a health-check endpoint, check
+   the pipeline's status, or tail logs, per what step 4 exposes.
+6. **State the rollback command before you need it**, not after — know
+   how to undo step 4 before running it.
+
+## Pitfalls
+- **Deploying with uncommitted changes silently included** — `git status`
+  before every deploy; an untracked file or stray edit ships to
+  production without ever being reviewed.
+- **Deploying from the wrong branch** — a feature branch or stale local
+  branch can look identical to `main` in a terminal prompt.
+- **Running the deploy command without a known rollback path** —
+  irreversible by the time something breaks; confirm the rollback command
+  works *before* the forward deploy, not after.
+- **Treating staging and production deploy commands as interchangeable**
+  — confirm the target flag/environment variable every time; a copy-paste
+  from a staging runbook onto prod is a common source of incidents.
+
+## Verification
+- [ ] `git status --short` is empty and `git branch --show-current` is
+      the expected branch before running step 4.
+- [ ] Pre-deploy checks (tests/build) passed.
+- [ ] Post-deploy health check/smoke test passed.
+- [ ] Rollback command is known and was stated before the deploy ran.
+```
+
+## How to verify the fix actually works
+
+You have `scripts/skill_lint.py` and `scripts/trigger_eval.py` bundled with skill-authoring — run these yourself (I don't have shell/write access in this session):
+
+**1. Structural lint** — catches frontmatter/format errors:
+```bash
+python3 .claude/skills/skill-authoring/scripts/skill_lint.py --house .claude/skills/deploy-helper/
+# expect: 1 skill(s), 0 error(s), 0 warning(s)
+```
+
+**2. Trigger measurement** — this is the real test, since "looks right" isn't the same as "fires." Write a small `cases.json` with prompts that *don't* say "deploy-helper" by name — near paraphrases ("ship this to prod"), mid ("can you push the release out"), far ("we need this live for users now"), and negatives that resemble the domain but shouldn't fire (e.g. "add a lint step to CI", "start the dev server"). Then:
+```bash
+python3 .claude/skills/skill-authoring/scripts/trigger_eval.py cases.json \
+    --skills .claude/skills/ --json out.json
+# expect: 100% recall on deploy-helper cases, no false fires on negatives
+```
+Before trusting a before/after comparison, run `--canary canary.json` first — the reference notes trigger rates drift round to round even with an untouched skill, so compare within the same day only.
+
+**3. Before you actually ship anything with it**: replace the step-4 placeholder with your real deploy command, then do one dry run of the full Steps sequence yourself and confirm each `## Verification` checkbox is genuinely checkable against real output — not just present in the file.
+
+The one thing I couldn't do here: fill in your actual deploy command, since this working directory has no repo or deploy scripts to read. Tell me the real command (or point me at the repo) and I'll fold it into step 4 and re-check the lint/trigger numbers.

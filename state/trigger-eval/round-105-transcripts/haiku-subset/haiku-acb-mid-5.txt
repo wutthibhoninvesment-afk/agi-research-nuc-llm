@@ -1,0 +1,19 @@
+case: acb-mid
+model: haiku
+arm: None
+fired: ['agent-context-budgeting']
+distractors: []
+foreign: ['claude-api']
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+I'll start by checking the Claude API reference for agent spending management.
+
+Let me explore the current directory to understand the project structure and find the agent runner code.
+
+SKILLS=agent-context-budgeting
+
+The skill has loaded. Now let me explore the project to understand the agent runner structure and where to add the max-spend-in-dollars option.

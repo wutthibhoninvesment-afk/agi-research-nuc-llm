@@ -1,0 +1,11 @@
+--- injected/whence/interp.py
++++ repaired/whence/interp.py
+@@ -1661,7 +1661,7 @@
+         if m:
+             return m
+         (a, b) = args
+-        if not not isinstance(a.payload, Record) or not isinstance(b.payload, Record):
++        if not isinstance(a.payload, Record) or not isinstance(b.payload, Record):
+             return mk_miss('merge needs two records', line, 'merge', inputs=(a, b))
+         fields = dict(a.payload.fields)
+         fields.update(b.payload.fields)

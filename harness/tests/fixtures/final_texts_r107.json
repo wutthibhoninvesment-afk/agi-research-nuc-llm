@@ -1,0 +1,148 @@
+[
+ {
+  "source": "r107-live-kill",
+  "id": "interp.py:1291:arith#566",
+  "task": "kill",
+  "outcome": "failed",
+  "steps": 1,
+  "final_text": "read_file(path=whence/interp.py, start=1260, end=1320)",
+  "expect_reject": true
+ },
+ {
+  "source": "r107-live-kill",
+  "id": "interp.py:409:ifneg#75",
+  "task": "kill",
+  "outcome": "failed",
+  "steps": 3,
+  "final_text": "",
+  "expect_reject": true
+ },
+ {
+  "source": "r107-live-kill",
+  "id": "interp.py:470:const#938",
+  "task": "kill",
+  "outcome": "equivalent_claimed",
+  "steps": 16,
+  "final_text": "ls back to the ordinary generator/trampoline evaluation of the same node. Both paths are constructed to be semantically identical — `compile_direct`/`_call_direct` is deliberately `_call_gen` minus the generator, sharing all miss-wording, depth/tail-loop bookkeeping, and provenance-shaping code (see the module docstring and SPEC.md's 'Three-way differential' section, which pins byte-equal behaviour between direct, fast-only, and slow evaluation). So switching which path handles one borderline node can never change the printed output, check results, or top-level bindings — the only way this shift could ever be observable is by pushing real Python recursion past its limit in one interpreter but not the other. That cannot happen: `HOST_RESERVE` reserves 350 host frames below `sys.getrecursionlimit()` before direct mode is even considered, and a single node's `cdepth` is bounded by the parser's 60-level expression-nesting limit, so an off-by-one at the `_hleft` gate is negligible next to that margin — it can only shift by one node when the direct→trampoline handoff happens, never risk an actual stack overflow. I confirmed this empirically: `mutant_diff` on non-tail recursive functions (plain and with inflated per-call frame cost via nested arithmetic) at depths from ~150 up to 499 (the practical ceiling under the harness's max_depth=500), spanning the expected direct/trampoline crossover region, produced identical `out`/`checks`/`vals` on original and mutant in every trial.\"}\n```",
+  "expect_reject": false
+ },
+ {
+  "source": "r107-live-kill",
+  "id": "interp.py:545:const#1017",
+  "task": "kill",
+  "outcome": "equivalent_claimed",
+  "steps": 17,
+  "final_text": " (nested nonfast calls forcing `eval_Call`'s `_Call` yield, deep non-tail recursion depleting `_hleft`, and nested `map`/`filter` builtin-generator calls that consume `_hleft` without incrementing guest recursion depth) — none showed any difference between original and mutant.\n\n```json\n{\"verdict\": \"equivalent\", \"program\": null, \"argument\": \"The mutated condition (`self._hleft > 0` -> `> 1`) only gates which of two internally-equivalent call-execution strategies `_drive` uses for a yielded `_Call` request: host recursion via `_call_direct`, or the trampoline (`_closure_inline`/`_call_gen`). Both strategies share the same arity checks, depth-limit checks, miss messages, and tail-loop merging helpers (`_merge_ifs`, `_wrap_ifs`, `_finish_call`), and the codebase's own differential-testing invariant (`Interpreter(direct=False)` must match `direct=True`) guarantees they always compute identical results. The mutant only shifts, by one frame-budget unit, which path is taken when `self._hleft == 1` at the moment of a `_Call` request; since the 350-frame `HOST_RESERVE` safety margin makes an actual host stack overflow impossible from this one-unit shift, no printed output, check result, or top-level binding rendering can differ. Empirical tests (deep non-tail recursion, nested calls-as-arguments forcing `eval_Call`'s `_Call` yield, and nested `map`/`filter` builtin-generator calls that specifically exercise the mutated branch) all showed no difference between original and mutant.\"}\n```",
+  "expect_reject": false
+ },
+ {
+  "source": "r107-live-kill",
+  "id": "interp.py:685:cmp#1045",
+  "task": "kill",
+  "outcome": "equivalent_claimed",
+  "steps": 5,
+  "final_text": "budget check (interp.py, inside the `nb is not body` branch). This only matters in the exact-equality case `self._hleft == extra`. In that case the original continues evaluating the new closure body via its compiled *direct* closure (host recursion), while the mutant instead evaluates the same body via `_trampoline_body`, i.e. `self.eval(node, env)` driven by the generator trampoline (`_drive`). These two execution mechanisms are required by the codebase's own stated invariant to be semantically identical: `_call_direct` mirrors `_call_gen`'s tail-loop bookkeeping (`_merge_ifs`, `_finish_call`, `_wrap_ifs`) exactly, and `Interpreter(direct=False)` (pure trampoline) is documented as the differential oracle for `direct=True`. The choice between the two paths only affects internal performance counters (`fast_hits`, `direct_hits`, `direct_fallbacks`, `peak_depth`, `_hleft`), none of which are exposed by any Whence builtin or otherwise observable in printed output, check results, or the rendered value of a top-level binding. Empirically, a 50000-deep mutual-recursion program (two closures with different body shapes, to vary `cdepth`) produced identical output/checks/bindings under `mutant_diff` (`differs: false`), consistent with this argument. Because the boundary condition is both (a) unreachable to deliberately target from Whence source without control over host-stack/recursion-limit internals, and (b) provably behavior-preserving even when hit, this mutant is equivalent.\"}\n```",
+  "expect_reject": false
+ },
+ {
+  "source": "r107-live-kill",
+  "id": "interp.py:844:const#960",
+  "task": "kill",
+  "outcome": "equivalent_claimed",
+  "steps": 8,
+  "final_text": "f.fast_hits` counting `+1` vs `+2` visible. I exercised exactly the code path containing the mutated line (a walked else-if chain with fast/compilable conditions, `if a==2 {..} else if a==3 {..} else if a==1 {..} else {..}`, forcing multiple iterations through line 844) and confirmed via `mutant_diff` that original and mutant outputs, checks, bindings, and even the why-tree text are byte-identical.\n\n```json\n{\"verdict\": \"equivalent\", \"program\": \"let a = 1\\nlet r = if a == 2 { 10 } else if a == 3 { 20 } else if a == 1 { 30 } else { 40 }\\nprint(r)\\ncheck \\\"chain\\\": r == 30\\nprint(why r)\\n\", \"argument\": \"The mutated line (interp.py:844) only changes `self.fast_hits += 1` to `self.fast_hits += 2` inside the walked else-if fast-path of _if_chain_gen's driving loop. `fast_hits` is a write-only performance counter: grep across the whole whence package shows it is incremented in 14 spots but never read anywhere (not in control flow, not in any builtin, not in provenance node construction, not in rendering/why output, not exposed to Whence code at all). It therefore cannot influence printed output, check results, or top-level binding renderings for any program. I confirmed with mutant_diff on a program that specifically drives the mutated code path (a multi-branch else-if chain with fast-compilable conditions, forcing several passes through line 844) and original vs mutant outputs were byte-for-byte identical, including the why-tree. No Whence program can distinguish this mutant.\"}\n```",
+  "expect_reject": false
+ },
+ {
+  "source": "r107-live-kill",
+  "id": "interp.py:924:const#521",
+  "task": "kill",
+  "outcome": "failed",
+  "steps": 2,
+  "final_text": "{\"name\": \"read_file\", \"args\": {\"path\": \"whence/interp.py\", \"start\": 912, \"960}}\n```\nWait invalid JSON, need proper braces.\n</br>\nLet me redo correctly.\n```\n{\"name\": \"read_file\", \"args\": {\"path\": \"whence/interp.py\", \"start\": 912, \"end\": 960}}",
+  "expect_reject": true
+ },
+ {
+  "source": "r107-live-kill",
+  "id": "interp.py:926:cmp#297",
+  "task": "kill",
+  "outcome": "equivalent_claimed",
+  "steps": 15,
+  "final_text": "t\": \"equivalent\", \"program\": null, \"argument\": \"The mutation flips `if f is None:` to `if f is not None:` in Interpreter.compile_direct (interp.py:926), guarding a call to `self.compile_fast(node)`. compile_fast is memoized: it returns node.fast immediately if that attribute is already non-None, with no side effects. Every one of the three call sites of compile_direct (_drive's direct-mode gate, _call_direct's initial body dispatch, and _call_direct's mutual-recursion body-switch) unconditionally calls compile_fast(node) on the exact same node just before compile_direct(node) is invoked, which fully populates node.fast (and node.fdepth for its whole subtree) in a post-order pass that is not gated on call-freedom. Hence node.fast is always already non-None by the time compile_direct's mutated line executes. Under the original code the (now redundant) compile_fast call is skipped; under the mutant it is executed but returns the identical cached value via its own memoization check. In both cases `f` ends up equal to the pre-existing `node.fast`, so control flow, cached closures, and all resulting values/prints/checks are identical. No Whence program can force compile_direct to be entered with node.fast still None, so the branch flip is unreachable in a distinguishing way. Confirmed empirically with mutual tail recursion, tail-accumulator loops, and deep non-tail recursion (triggering direct-mode dispatch, fallback, and body-switch paths) — mutant_diff showed no difference.\"}\n```",
+  "expect_reject": false
+ },
+ {
+  "source": "r107-repair",
+  "id": "interp.py:839:cmp#705",
+  "task": "repair",
+  "outcome": "exact",
+  "steps": 4,
+  "final_text": "All tests pass.\n\n```json\n{\"root_cause\": \"In Interp._if_chain (else-if chain fast-path walker), the branch-classification check was inverted: `elif branch.__class__ is not A.If:` instead of `is A.If`. This made the walker treat non-If branches (e.g. a single-statement Block) as if they were nested If nodes, so it unconditionally accessed `branch.cond.fast`, crashing with AttributeError on Block objects. It also meant genuine If-chains never took the intended fast chain-walk path. The analogous, correct check exists a few lines above in `_if_inline` (`elif branch.__class__ is A.If:`).\", \"files\": [\"whence/interp.py\"], \"summary\": \"Fixed inverted class check in Interp._if_chain: changed `branch.__class__ is not A.If` to `branch.__class__ is A.If` so the else-if fast-path chain-walk only dereferences `branch.cond` when branch really is an If node, matching the correct logic already used in `_if_inline`.\"}\n```",
+  "expect_reject": false
+ },
+ {
+  "source": "r107-repair",
+  "id": "interp.py:1089:ifneg#324",
+  "task": "repair",
+  "outcome": "exact",
+  "steps": 6,
+  "final_text": "All 506 tests pass now.\n\n```json\n{\"root_cause\": \"In interp.py's compile-time handler for A.If, the guard used a double negation `if not not (cf and tf and ef): return False`, which inverted the intended check. It bailed out (returned False, meaning 'fall back / cannot compile') precisely when cf, tf, ef all successfully compiled, and instead proceeded to build f_if/d_if when one of them was falsy (e.g. False from a failed sub()). This let a non-callable (e.g. plain bool) leak into ef, causing `branch = ef(env)` to raise `TypeError: 'bool' object is not callable`.\", \"files\": [\"whence/interp.py\"], \"summary\": \"Fixed the inverted guard in the If-node fast-path compiler: changed `if not not (cf and tf and ef): return False` to `if not (cf and tf and ef): return False`, restoring the correct fallback behavior when any sub-expression fails to compile, and allowing normal compilation to proceed when all three succeed.\"}\n```",
+  "expect_reject": false
+ },
+ {
+  "source": "r107-repair",
+  "id": "interp.py:970:bool#303",
+  "task": "repair",
+  "outcome": "failed",
+  "steps": 2,
+  "final_text": "tool call: search",
+  "expect_reject": true
+ },
+ {
+  "source": "r107-repair",
+  "id": "interp.py:1517:arith#901",
+  "task": "repair",
+  "outcome": "exact",
+  "steps": 5,
+  "final_text": "All tests pass.\n\n```json\n{\"root_cause\": \"In whence/interp.py, one of the deep-recursion miss messages used the multiplication operator `*` instead of the string-formatting operator `%` when building the 'recursion too deep' message: `'recursion too deep in %s (depth %d)' * (name, self.depth)`. This attempted to multiply a string by a tuple, raising a TypeError instead of producing the intended miss, which crashed the deep recursion example.\", \"files\": [\"whence/interp.py\"], \"summary\": \"Fixed a typo at interp.py:1262 where `%` was mistakenly written as `*` in the recursion-depth miss message construction, restoring correct string formatting and the intended miss-propagation semantics for deep recursion.\"}\n```",
+  "expect_reject": false
+ },
+ {
+  "source": "r107-repair",
+  "id": "interp.py:2191:const#832",
+  "task": "repair",
+  "outcome": "exact",
+  "steps": 15,
+  "final_text": "All tests pass.\n\n```json\n{\"root_cause\": \"In the n-way `diverge([r0, r1, ...])` builtin, the loop comparing each run to the first started at index 2 instead of 1 (`for i in range(2, len(runs.value))`), so run index 1 was never compared against run 0. With exactly the example's 3 runs (monday, tuesday, wednesday) this skipped the actually-diverging run (tuesday, index 1) and only compared wednesday (index 2, identical to monday), yielding zero origins instead of one.\", \"files\": [\"whence/interp.py\"], \"summary\": \"Fixed off-by-one in b_diverge's n-way branch: changed `range(2, len(runs.value))` to `range(1, len(runs.value))` so every run from index 1 onward is diffed against the first run, restoring correct n-way divergence detection (examples/diverge.lang's week checks now pass).\"}\n```",
+  "expect_reject": false
+ },
+ {
+  "source": "r107-repair",
+  "id": "interp.py:2015:not#624",
+  "task": "repair",
+  "outcome": "exact",
+  "steps": 12,
+  "final_text": "All tests pass.\n\n```json\n{\"root_cause\": \"b_merge's type check in whence/interp.py used `not not isinstance(a.payload, Record) or not isinstance(b.payload, Record)`, where the double negation on the first operand canceled out, making the guard true (and thus reject) whenever `a` WAS a valid Record — inverting the intended validation and causing `merge` to spuriously miss on correct record inputs.\", \"files\": [\"whence/interp.py\"], \"summary\": \"Removed the stray double-negation in the `merge` builtin's argument type check so it correctly requires both `a` and `b` to be Records (was accidentally requiring `a` NOT be a Record), fixing sales.lang's 'merge overrides'/'merge keeps' checks.\"}\n```",
+  "expect_reject": false
+ },
+ {
+  "source": "r101-review-control",
+  "id": "r101-review-control",
+  "task": "review",
+  "outcome": "claims=0 confirmed=0",
+  "steps": 30,
+  "stop_reason": "max_steps",
+  "final_text": "",
+  "expect_reject": true
+ },
+ {
+  "source": "r101-review-budget",
+  "id": "r101-review-budget",
+  "task": "review",
+  "outcome": "claims=0 confirmed=0",
+  "steps": 30,
+  "stop_reason": "max_steps",
+  "final_text": "Budget exhausted. Despite extensive probing (block/statement compilation edge cases, builtin-shadowing gates, mutual tail-recursion cost accounting, deep_eq/binop hot paths, builtin argument-order/type edge cases, num() parsing, and self_eval differential runs), I was unable to find a program on which any oracle actually fires. The one genuine oddity I found — `join`'s error message reporting the offending *value* instead of its *index* (e.g. `join([1,\"ok\",\"ok3\",5], \",\")` says `\"element 5 is not a string\"` when 5 is the value at index 3, not an index) — never triggers any oracle: it doesn't crash (totality), both fast/slow/direct paths call the same `b_join` so they agree, determinism is unaffected, and self_eval explicitly exempts miss-wording differences. Per the instructions, I'm not reporting it since I have no firing reproducer.\n\n```json\n{\"claims\": []}\n```",
+  "expect_reject": false
+ }
+]

@@ -1,0 +1,11 @@
+--- injected/whence/interp.py
++++ repaired/whence/interp.py
+@@ -1259,7 +1259,7 @@
+             if len(args) != len(p.params):
+                 return mk_miss('%s expects %d args, got %d' % (name, len(p.params), len(args)), line, 'call', name, inputs=tuple(args))
+             if self.depth >= self.max_depth:
+-                return mk_miss('recursion too deep in %s (depth %d)' * (name, self.depth), line, 'call', name, inputs=tuple(args))
++                return mk_miss('recursion too deep in %s (depth %d)' % (name, self.depth), line, 'call', name, inputs=tuple(args))
+             self.depth += 1
+             if self.depth > self.peak_depth:
+                 self.peak_depth = self.depth

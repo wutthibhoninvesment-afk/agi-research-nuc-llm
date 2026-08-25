@@ -28,7 +28,15 @@ Design decisions (each covered by a test):
   - Spend caps (tokens / USD) are checked after every completion; hitting one
     is a distinct stop reason, never an exception.
   - stop_reason is one of: "completed" | "max_steps" | "llm_error" |
-    "budget_exhausted".
+    "budget_exhausted" | "rejected".
+  - Completion guards (round 109): a reply with no tool call is only
+    "completed" once every `config.guards` accepts it. A rejection appends
+    the guard's corrective user message and the loop takes another
+    completion (bounded by `max_guard_retries` per RUN, then stop_reason
+    "rejected"); a rejection that recovered tool calls (a prose
+    `read_file(path=…)` parsed against a read-only tool) is dispatched as
+    if the model had called the tool. See guards.py for the shapes — all
+    observed live in round 107, where they ended runs as "completed".
   - Tools may spend LLM tokens themselves (a delegated sub-agent, an
     LLM-judge): `ToolResult.usage` is added to the run's usage and the caps
     are re-checked right after dispatch, so tool-side spend can neither hide
@@ -48,6 +56,7 @@ from typing import Callable, List, Optional
 
 from .checkpoint import Checkpoint
 from .context import ContextBudget, TokenEstimator, compact
+from .guards import Guard, GuardContext, run_guards
 from .llm import LLM, FatalLLMError, RetryableLLMError
 from .memory import Scratchpad
 from .retry import RetriesExhausted, RetryPolicy, retry_call
@@ -88,6 +97,12 @@ class AgentConfig:
     # "max_steps"; the answer lands in final_text; tool calls the model
     # still emits are ignored and logged.
     wrap_up_on_max_steps: bool = False
+    # Completion guards (round 109): checked on every reply that has no tool
+    # call, in order; the first rejection wins. Empty list = every text
+    # reply completes the run (pre-109 behaviour). The wrap-up answer after
+    # max_steps is NOT guarded (there is no step left to retry with).
+    guards: List[Guard] = field(default_factory=list)
+    max_guard_retries: int = 2                          # rejections per run before "rejected"
     wrap_up_prompt: str = ("Your tool-step budget is exhausted: no further tool calls will be "
                            "run. Reply now with your final answer, in the format the task "
                            "asked for, based on what you have seen so far.")
@@ -95,7 +110,7 @@ class AgentConfig:
 
 @dataclass
 class AgentResult:
-    stop_reason: str                  # "completed" | "max_steps" | "llm_error" | "budget_exhausted"
+    stop_reason: str                  # "completed" | "max_steps" | "llm_error" | "budget_exhausted" | "rejected"
     final_text: str
     steps: int                        # LLM completions consumed
     tool_calls: int                   # tool dispatches performed
@@ -105,6 +120,8 @@ class AgentResult:
     cost_usd: Optional[float] = None  # None when the model is unpriced
     compactions: int = 0              # how many steps compacted the history
     resumed_from: Optional[int] = None  # steps already done when this run resumed a checkpoint
+    guard_rejections: int = 0         # replies a guard sent back with a corrective message
+    guard_recoveries: int = 0         # replies a guard turned into a dispatched tool call
 
     @property
     def ok(self) -> bool:
@@ -154,6 +171,8 @@ class Agent:
             steps = int(state["steps"])
             tool_calls_made = int(state["tool_calls"])
             compactions = int(state["compactions"])
+            guard_rejections = int(state.get("guard_rejections", 0))
+            guard_recoveries = int(state.get("guard_recoveries", 0))
             usage = Usage(**state["usage"])
             est = state.get("estimator") or {}
             if est.get("observations"):
@@ -170,7 +189,8 @@ class Agent:
                 return AgentResult(r["stop_reason"], r.get("final_text", ""), steps,
                                    tool_calls_made, error=r.get("error"), messages=messages,
                                    usage=usage, cost_usd=cost, compactions=compactions,
-                                   resumed_from=steps)
+                                   resumed_from=steps, guard_rejections=guard_rejections,
+                                   guard_recoveries=guard_recoveries)
             resumed_from = steps
             self.trace.log("run_resumed", task=task, steps=steps, tool_calls=tool_calls_made,
                            n_messages=len(messages), last_stop_reason=state.get("last_stop_reason"),
@@ -184,12 +204,15 @@ class Agent:
             tool_calls_made = 0
             usage = Usage()
             compactions = 0
+            guard_rejections = 0
+            guard_recoveries = 0
             self.trace.log("run_start", task=task, tools=self.registry.names(),
                            max_steps=cfg.max_steps, model=model)
 
         def snapshot(msgs: List[dict], **extra) -> dict:
             st = {"task": task, "steps": steps, "tool_calls": tool_calls_made,
                   "compactions": compactions, "usage": usage.as_dict(), "messages": msgs,
+                  "guard_rejections": guard_rejections, "guard_recoveries": guard_recoveries,
                   "estimator": {"chars_per_token": self.estimator.chars_per_token,
                                 "observations": self.estimator.observations},
                   "model": model, "done": False}
@@ -209,6 +232,7 @@ class Agent:
                            tool_calls=tool_calls_made, usage=usage.as_dict(),
                            cost_usd=cost, compactions=compactions,
                            cache_hit_rate=round(usage.cache_hit_rate, 4),
+                           guard_rejections=guard_rejections, guard_recoveries=guard_recoveries,
                            **({"error": error} if error else {}),
                            **({"resumed_from": resumed_from} if resumed_from is not None else {}))
             if checkpoint is not None:
@@ -223,7 +247,8 @@ class Agent:
                          last_stop_reason=stop_reason, error=error)
             return AgentResult(stop_reason, text, steps, tool_calls_made, error=error,
                                messages=messages, usage=usage, cost_usd=cost,
-                               compactions=compactions, resumed_from=resumed_from)
+                               compactions=compactions, resumed_from=resumed_from,
+                               guard_rejections=guard_rejections, guard_recoveries=guard_recoveries)
 
         if state is None:
             save(messages)   # step-0 boundary: a crash inside step 1 resumes cleanly
@@ -273,7 +298,42 @@ class Agent:
                            estimated_input_tokens=self.estimator.estimate(messages[:-1], tool_specs))
 
             if not turn.wants_tools:
-                return finish("completed", turn.text)
+                rejection = self._check_guards(turn.text, tool_specs, steps)
+                if rejection is None:
+                    return finish("completed", turn.text)
+                if rejection.recovered:
+                    # The reply WAS a tool call, just not on the wire: run
+                    # it. The assistant message (and its provider blocks)
+                    # gain the synthesized tool_use so the next request's
+                    # tool_result has a partner.
+                    guard_recoveries += 1
+                    turn.tool_calls = list(rejection.calls)
+                    assistant_msg["tool_calls"] = [
+                        {"name": c.name, "args": c.args, "call_id": c.call_id}
+                        for c in turn.tool_calls]
+                    if assistant_msg.get("raw_content") is not None:
+                        assistant_msg["raw_content"] = list(assistant_msg["raw_content"]) + [
+                            {"type": "tool_use", "id": c.call_id, "name": c.name, "input": c.args}
+                            for c in turn.tool_calls]
+                    self.trace.log("guard_recovered", step=steps, guard=rejection.guard,
+                                   reason=rejection.reason, detail=rejection.detail,
+                                   calls=[c.name for c in turn.tool_calls])
+                else:
+                    guard_rejections += 1
+                    retries_left = cfg.max_guard_retries - guard_rejections
+                    self.trace.log("guard_rejected", step=steps, guard=rejection.guard,
+                                   reason=rejection.reason, detail=rejection.detail,
+                                   retries_left=retries_left)
+                    # The corrective message goes into the transcript either
+                    # way: it documents the rejection, and a resumed run
+                    # (bigger max_guard_retries) then starts from the nudge
+                    # rather than continuing the rejected assistant turn.
+                    messages.append({"role": "user", "content": rejection.message})
+                    if retries_left < 0:
+                        return finish("rejected", turn.text,
+                                      error="%s: %s" % (rejection.guard, rejection.reason))
+                    save(messages)
+                    continue
 
             over = self._budget_exceeded(usage, model)
             if over:
@@ -332,6 +392,18 @@ class Agent:
         return finish("max_steps")
 
     # -------------------------------------------------------------- helpers --
+
+    def _check_guards(self, text: str, tool_specs, step: int):
+        guards = self.config.guards
+        if not guards:
+            return None
+        ctx = GuardContext(tool_specs=tool_specs, registry=self.registry,
+                           tool_call_hint=getattr(self.llm, "tool_call_hint", None), step=step)
+
+        def on_crash(g, e):
+            self.trace.log("guard_crashed", step=step, guard=getattr(g, "name", "?"), error=repr(e))
+
+        return run_guards(guards, text, ctx, on_crash)
 
     def _maybe_exact_check(self, messages, tool_specs, budget: ContextBudget, step: int) -> int:
         """Opt-in ground-truth check near the budget boundary.

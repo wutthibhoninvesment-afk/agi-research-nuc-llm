@@ -1,0 +1,4 @@
+== whence suite
+exit=0
+654 passed in 58.08s
+== reserve probe (limit 6000, examples + 10 deep templates + 30 fuzz)

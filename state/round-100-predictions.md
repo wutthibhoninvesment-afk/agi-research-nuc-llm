@@ -4,7 +4,7 @@ Track E, mission **E4 — fast lane feasibility** (OLMoE-1B-7B int8 lane).
 
 Context held, not predicted (read-only facts gathered before this file):
 - NUC: i5-7260U 2c/4t, 31.2 GiB RAM, `/work` 677 GB free (738 GB LV, 4 % used),
-  only NIC with an address is **Wi-Fi `wlp58s0`** (192.168.1.42/24).
+  only NIC with an address is **Wi-Fi `wlp58s0`** (192.168.1.37/24).
 - Production: user units `qwen36-colibri.service` (`MemoryMax=30G`, RSS 29.8 GiB,
   worker PID 14192) + `qwen36-toolproxy.service`; `MemAvailable` 584 MB, swap
   3.2 GB of 4 GB used; engine idle (`/health` active 0, admitted 28/28).

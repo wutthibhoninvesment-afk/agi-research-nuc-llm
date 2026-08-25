@@ -1,7 +1,9 @@
 [
  {
   "id": "body-oat",
-  "expect": ["offline-agent-testing"],
+  "expect": [
+   "offline-agent-testing"
+  ],
   "prompt": "Our agent framework's retry logic sleeps between attempts with jitter, and I want unit tests that assert the exact backoff delays without the test taking real time or hitting the network. Write the test file and any test doubles it needs.",
   "body": {
    "files": [],
@@ -16,7 +18,9 @@
  },
  {
   "id": "body-gte",
-  "expect": ["generator-trampoline-evaluator"],
+  "expect": [
+   "generator-trampoline-evaluator"
+  ],
   "prompt": "My tree-walking interpreter in Python crashes with RecursionError when guest programs recurse about 1000 deep. Restructure the evaluator so guest recursion depth no longer depends on the host stack — show the core driver code and how an eval_If method changes.",
   "body": {
    "files": [],
@@ -31,7 +35,9 @@
  },
  {
   "id": "body-acb",
-  "expect": ["agent-context-budgeting"],
+  "expect": [
+   "agent-context-budgeting"
+  ],
   "prompt": "Our autonomous agent's requests keep growing until the model API returns a 413 request-too-large. Add context management to the loop: explain exactly what to trim, when, and how to keep the provider prompt cache warm, with code.",
   "body": {
    "files": [],
@@ -46,7 +52,9 @@
  },
  {
   "id": "body-sct",
-  "expect": ["subprocess-cli-testing"],
+  "expect": [
+   "subprocess-cli-testing"
+  ],
   "prompt": "I have a small interpreter with a run.py entry point; unit tests are all green but users still see raw tracebacks and wrong exit codes when they run it from the shell. Write end-to-end tests that lock down the command-line behavior, including the shipped examples.",
   "body": {
    "files": [],
@@ -61,7 +69,9 @@
  },
  {
   "id": "body-fmk",
-  "expect": ["fuzz-mutate-kill-loop"],
+  "expect": [
+   "fuzz-mutate-kill-loop"
+  ],
   "prompt": "All 300 tests on our expression evaluator are green but I don't trust that they prove much. Give me a concrete plan plus working code to (a) find real bugs in it automatically and (b) measure how strong the test suite actually is.",
   "body": {
    "files": [],
@@ -76,7 +86,9 @@
  },
  {
   "id": "body-stil",
-  "expect": ["shared-tip-immutable-lists"],
+  "expect": [
+   "shared-tip-immutable-lists"
+  ],
   "prompt": "My interpreter keeps every intermediate version of every list for its history feature, and appending in a loop makes memory grow quadratically. Design the data structure that fixes this in pure Python and show the implementation.",
   "body": {
    "files": [],
@@ -91,10 +103,14 @@
  },
  {
   "id": "body-sa",
-  "expect": ["skill-authoring"],
+  "expect": [
+   "skill-authoring"
+  ],
   "prompt": "Here is my SKILL.md:\n---\nname: deploy-helper\ndescription: You can use this to help with deployments.\n---\n# Deploy Helper\nThis skill helps you deploy. Be careful with production.\n\nUsers say Claude never picks it up even when they ask about deploys. Diagnose the problem, rewrite the file properly, and tell me exactly how to verify the fix actually works before I ship it.",
   "body": {
-   "files": ["skill-authoring/references/trigger-evaluation.md"],
+   "files": [
+    "skill-authoring/references/trigger-evaluation.md"
+   ],
    "evidence": [
     "third.person",
     "symptom",
@@ -106,10 +122,14 @@
  },
  {
   "id": "body-saref",
-  "expect": ["skill-authoring"],
+  "expect": [
+   "skill-authoring"
+  ],
   "prompt": "I'm about to measure whether my team's skill descriptions actually trigger, using the skill-authoring toolkit installed here. Before I run anything, answer precisely from its documentation — I need the specific numbers for budgeting, not general advice: (1) the three evaluator modes and the approximate cost per probe of EACH mode; (2) which mode to use for real trigger decisions and which is only a cheap smoke test for a description draft; (3) in body mode, the exact conditions a case must meet to count as 'fully followed'; (4) what 'displacement' counts in a distractor run.",
   "body": {
-   "files": ["skill-authoring/references/trigger-evaluation.md"],
+   "files": [
+    "skill-authoring/references/trigger-evaluation.md"
+   ],
    "evidence": [
     "0\\.02",
     "2\\s*[–—-]\\s*5|2 to 5",
@@ -125,5 +145,94 @@
   "prompt": "Explain the practical differences between TCP and UDP and when I'd pick each for a realtime game.",
   "body": {},
   "note": "negative under body framing: the do-the-task system prompt must not force a skill fire"
+ },
+ {
+  "id": "body-pb",
+  "expect": [
+   "prediction-banking"
+  ],
+  "prompt": "I'm about to measure whether moving our interpreter's hot loop into compiled closures speeds it up. The profiler says the loop's own self time is 15% of the run, and the machine also serves a background job. Write the predictions file we should commit BEFORE running the benchmark, with concrete bands, and say how we'll score it afterwards.",
+  "body": {
+   "files": [],
+   "evidence": [
+    "computed|machine.state",
+    "floor|lower bound",
+    "tottime|self time",
+    "amend",
+    "HIT|MISS"
+   ]
+  },
+  "note": "evidence: the two band classes, floor-as-lower-bound, price off self time, timestamped amendments, HIT/MISS scoring"
+ },
+ {
+  "id": "body-sia",
+  "expect": [
+   "session-inheritance-audit"
+  ],
+  "prompt": "I'm the next unattended session of an autonomous research program. The last session died at its turn limit; the state file's last entry says 'STUB - in progress', the driver log says success, and the box feels slow. Give me the exact checklist and commands to run before I do any new work, and what to write down.",
+  "body": {
+   "files": [],
+   "evidence": [
+    "-newer|newer than|mtime",
+    "ppid|orphan",
+    "unscored|scor(e|ing)[\\s\\S]{0,60}prediction|prediction[\\s\\S]{0,40}scor",
+    "every (component'?s |test |component )?suite|all (the )?suites|not (just|only) (the one|your|my|its)",
+    "stub|before (any )?new work"
+   ]
+  },
+  "note": "evidence: find -newer tree diff, orphaned processes, scoring the dead session's predictions, run every component's suite, stub-first record (regexes widened in round 105 after transcripts showed 'every component's suite' / 'score ... predictions' phrasings)"
+ },
+ {
+  "id": "body-cml",
+  "expect": [
+   "colocated-model-lane"
+  ],
+  "prompt": "A production MoE engine on our server sits at its cgroup memory ceiling with swap in use. We want to add a small 7 GB second model as a fast lane on the same box. Give me the concrete feasibility procedure: what to measure first, how to decide whether there is room, how to move the weights there safely, and how to tell afterwards whether the small model is running from RAM or from disk.",
+  "body": {
+   "files": [],
+   "evidence": [
+    "memory\\.(current|max|swap)|cgroup|swap(ped)?",
+    "per[- ](object|shard|file)|each shard|per shard|shard",
+    "cap\\b|expert[- ]cache|expert bytes|geometry",
+    "fadvise|page[- ]cache|DONTNEED|fdatasync|nocache",
+    "resume|tail -c|md5"
+   ]
+  },
+  "note": "evidence: cgroup footprint incl. swap, per-shard bandwidth, cap arithmetic, page-cache-safe sink, resumable+md5 transfer (round 106)"
+ },
+ {
+  "id": "body-acg",
+  "expect": [
+   "agent-completion-guards"
+  ],
+  "prompt": "Our tool-calling agent loop treats any reply without a structured tool call as the final answer. Live, the model sometimes writes the call as prose (`search(query=foo)`) or replies with nothing, and we bill those as finished runs. Add a completion-guard layer to the loop with tests: detect those replies, dispatch the safe ones, send the model a corrective message otherwise, bound the retries, and end with a distinct stop reason when they run out.",
+  "body": {
+   "files": [],
+   "evidence": [
+    "parallel_safe|read[- ]?only|safe",
+    "rejected|stop_reason",
+    "max_guard_retries|retries|bounded",
+    "nudge|corrective|hint"
+   ]
+  },
+  "note": "evidence: read-only recovery gate, distinct stop reason, bounded retries, corrective message carrying the protocol"
+ },
+ {
+  "id": "body-pts",
+  "expect": [
+   "preflight-priced-task-scripts"
+  ],
+  "prompt": "Write a small task-script runner for our slow CPU LLM server: scripts declare tasks with a lane, prompt, reply cap, budget and retry policy; the runner must project each task's seconds from our measured latency curve and refuse tasks that don't fit the remaining budget before sending, retry only retryable failures with jittered backoff that also draws on the budget, and emit one JSON line per preflight/attempt/retry. Include tests with a fake clock.",
+  "body": {
+   "files": [],
+   "evidence": [
+    "preflight|refus|before send|projected",
+    "remaining|ledger|spent",
+    "backoff|jitter|retryable",
+    "clock|sleep|rng|fake",
+    "jsonl|trace|telemetry"
+   ]
+  },
+  "note": "evidence: preflight refusal before sending, budget as consumed/remaining, retry policy on retryable only, injected clock, JSONL telemetry"
  }
 ]

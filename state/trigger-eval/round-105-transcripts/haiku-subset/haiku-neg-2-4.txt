@@ -1,0 +1,45 @@
+case: neg-2
+model: haiku
+arm: None
+fired: []
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=NONE
+
+Here are the key differences:
+
+**`asyncio.gather()`**
+- Returns results in a **list** in the order tasks were passed
+- **Cancels all tasks** if any one raises an exception (unless `return_exceptions=True`)
+- Simpler API — good when you want all results or want exceptions to propagate
+- Returns the gathered results directly when awaited
+
+```python
+results = await asyncio.gather(task1, task2, task3)
+# results = [result1, result2, result3]
+```
+
+**`asyncio.wait()`**
+- Returns two **sets**: `(done, pending)` — tasks that finished and those still running
+- Gives you **fine-grained control** over how to handle completion
+- Supports `return_when` modes: `FIRST_COMPLETED`, `FIRST_EXCEPTION`, `ALL_COMPLETED`
+- Does **not cancel** tasks automatically; doesn't propagate exceptions by default
+- More verbose but more flexible
+
+```python
+done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+# Handle done tasks, keep waiting on pending, etc.
+```
+
+**When to use each:**
+
+- **`gather`**: Simple fan-out/fan-in — run multiple tasks, collect all results, fail fast on exceptions
+- **`wait`**: Complex scenarios — need partial results as they complete, custom exception handling, want to add more tasks to the set, or need to distinguish which tasks succeeded
+
+Example: `gather` for running independent API calls and combining results; `wait` for a race condition where you want the first successful response.

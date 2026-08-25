@@ -1,0 +1,13 @@
+case: acg-mid
+model: sonnet
+arm: None
+fired: ['agent-completion-guards']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=agent-completion-guards

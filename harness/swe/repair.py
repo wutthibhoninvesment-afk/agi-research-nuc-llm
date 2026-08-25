@@ -42,13 +42,15 @@ import sys
 import tempfile
 import time
 
-from agentloop import ToolRegistry
+from .proc import run_capped
+
+from agentloop import ToolRegistry, default_guards
 from . import killers as K
 from .fuzz import WHENCE_ROOT
 from .mutation import _copy_project, generate
 from .regiontools import region_tools, CallBudget
 from .review import (EditFileTool, OracleTool, WHENCE_PRIMER, _llm_cost, _tag,
-                     extract_json, run_task)
+                     answer_guard, extract_json, run_task)
 from .tools import PytestTool, WhenceRunTool
 
 REPAIR_SYSTEM = """You are an interpreter engineer fixing a regression. The
@@ -146,13 +148,13 @@ def failing_output(dst, test_args=("-q", "-x", "tests"), tail_lines=40, timeout_
     """Run the suite in the injected copy; return the CI-style signal."""
     cmd = [sys.executable, "-m", "pytest", "-p", "no:cacheprovider"] + list(test_args)
     t0 = time.time()
-    try:
-        p = subprocess.run(cmd, cwd=dst, capture_output=True, text=True, timeout=timeout_s)
-        text = (p.stdout + p.stderr).strip()
-        rc = p.returncode
-    except subprocess.TimeoutExpired as e:
-        text = ((e.stdout or "") + (e.stderr or "")).strip() + "\n[pytest timed out after %ds]" % timeout_s
+    r = run_capped(cmd, dst, timeout_s)
+    if r.timed_out:
+        text = r.output.strip() + "\n[pytest timed out after %ds; process group killed]" % timeout_s
         rc = -1
+    else:
+        text = r.output.strip()
+        rc = r.returncode
     lines = text.splitlines()
     m = FAILED_RE.findall(text)
     return {"returncode": rc, "seconds": round(time.time() - t0, 1),
@@ -285,9 +287,11 @@ def run_repair(make_llm, mutants, root=WHENCE_ROOT, out_dir=None, max_steps=25,
             registry, prompt, ws = repair_task(root, m, failure, max_steps=max_steps,
                                                test_args=test_args, read_budget=read_budget)
             r, secs = run_task(llm, registry, prompt, REPAIR_SYSTEM, out_dir, max_steps,
-                               tag="repair-" + re.sub(r"\W", "_", m.id))
+                               tag="repair-" + re.sub(r"\W", "_", m.id),
+                               guards=default_guards() + [answer_guard("repair")])
             rec = score_repair(ws, run_tests=run_tests, test_args=test_args)
             rec.update({"mutant": m.id, "op": m.op, "description": m.description, "line": m.lineno,
+                        "guard_rejections": r.guard_rejections, "guard_recoveries": r.guard_recoveries,
                         "failing_tests": failure["failing_tests"], "hint_lines": failure["tail"].count("\n") + 1,
                         "stop_reason": r.stop_reason, "steps": r.steps, "tool_calls": r.tool_calls,
                         "seconds": round(time.time() - t0, 1), "answer": extract_json(r.final_text),

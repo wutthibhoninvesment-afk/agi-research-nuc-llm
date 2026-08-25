@@ -1,0 +1,51 @@
+{
+ "programs": 300,
+ "seconds": 359.44,
+ "oracles": [
+  "self_eval"
+ ],
+ "counts": {
+  "self_eval/ok": 270,
+  "self_eval/parse_error": 14,
+  "self_eval/timeout": 13,
+  "self_eval/mismatch": 3
+ },
+ "findings": [
+  {
+   "signature": [
+    "mismatch",
+    "self_eval",
+    "why_shape v1"
+   ],
+   "seed": 115000385,
+   "src": "fn adder(a) { fn(b) { a + b } }\nlet addv = adder(5)(2) + adder(1)(5)\nlet v1 = num(addv)\nfn f2(p3) { let t4 = v1\n  let t5 = addv\n  if contains(p3, \"-inf\") { 10 } else { zz } }\nlet v6 = \"literal\"\n([] > @{b: missed(2), c: (-f2 % num(2)), v: 0})\nstr(addv)\nstr(v6)\n(v1 + v1) rescue 0\nlet __result = @{addv: (addv rescue (if contains(join(reasons(addv), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" })), v1: (v1 rescue (if contains(join(reasons(v1), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" })), v6: (v6 rescue (if contains(join(reasons(v6), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" })), adder: (adder rescue (if contains(join(reasons(adder), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" })), f2: (f2 rescue (if contains(join(reasons(f2), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" }))}\n",
+   "outcome": {
+    "kind": "mismatch",
+    "oracle": "self_eval",
+    "detail": "why_shape v1\nguest-only ops: ['num']\nhost ops: ['+', 'arg', 'call', 'let', 'literal']",
+    "exc_type": "",
+    "frames": [],
+    "seconds": 0.4643
+   },
+   "minimized": "fn adder(a) { fn(b) { a + b } }\nlet addv = adder(0)(0) + adder(0)(0)\nlet v1 = num(addv)\n"
+  },
+  {
+   "signature": [
+    "mismatch",
+    "self_eval",
+    "checks 2-vs-2"
+   ],
+   "seed": 115000456,
+   "src": "fn even(n) { if n == 0 { true } else { odd(n - 1) } }\nfn odd(n) { if n == 0 { false } else { even(n - 1) } }\nlet parv = even(12)\nlet v1 = [odd, even]\nlet v2 = odd\ncheck \"q_v1\": v1 == v1\ncheck \"q_v2\": v2 == v2\n(parv + parv) rescue 0\nlet __result = @{parv: (parv rescue (if contains(join(reasons(parv), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" })), v1: (v1 rescue (if contains(join(reasons(v1), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" })), v2: (v2 rescue (if contains(join(reasons(v2), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" })), even: (even rescue (if contains(join(reasons(even), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" })), odd: (odd rescue (if contains(join(reasons(odd), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" }))}\n",
+   "outcome": {
+    "kind": "mismatch",
+    "oracle": "self_eval",
+    "detail": "checks 2-vs-2\nhost:  [('q_v1', False), ('q_v2', False)]\nguest: [('q_v1', True), ('q_v2', False)]",
+    "exc_type": "",
+    "frames": [],
+    "seconds": 0.1296
+   },
+   "minimized": "fn even(n) { if n == 0 { true } else { odd(n - 0) } }\nfn odd(n) { if n == 0 { false } else { even(n - 0) } }\nlet v1 = [odd, even]\ncheck \"q_v1\": v1 == v1\ncheck \"q_v2\": v2 == v2\n"
+  }
+ ]
+}

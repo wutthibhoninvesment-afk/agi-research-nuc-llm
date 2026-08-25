@@ -8,6 +8,7 @@
 - [Multi-model comparison](#multi-model-comparison)
 - [Controlled distractors](#controlled-distractors) — displacement, `--paired`
 - [Instrument drift](#instrument-drift--canary) — the canary sentinel
+- [Probe audit](#probe-audit---audit) — is every skill's CURRENT description probed?
 - [Reading the report](#reading-the-report) / [Iteration loop](#iteration-loop) / [Limits](#limits)
 
 The description is the only thing the model sees before deciding to load a
@@ -225,12 +226,111 @@ probes: 32 ok, 0 errored, exact-match 91%, negatives false-fire 0/6, cost $1.071
 
 ## Iteration loop
 
+0. `--canary canary.json` (instrument in band?) and `--audit REPORTS_DIR`
+   (which descriptions are unprobed or edited since their probe?).
 1. Baseline: full run, save `--json baseline.json`.
 2. Edit only the descriptions of skills with misses.
-3. Re-run *only* the affected cases with `--repeats 3` (cheap, fast).
-4. Full run again to confirm no sibling regressed and negatives still hold.
+3. Re-run *only* the affected cases with `--repeats 3 --baseline
+   baseline.json` (cheap, fast) — the delta table names the verdict per
+   case.
+4. Full run again with `--baseline baseline.json` to confirm no sibling
+   regressed and negatives still hold.
 5. Keep the JSON reports next to the state file; they are the evidence
    that the description works.
+
+### Comparing two runs — `--baseline`
+
+`--baseline PRIOR.json` compares the current run's per-case rates against
+a prior `--json` report (per model when the prior run had that model;
+pre-v4 reports without stored rates are rebuilt from their raw results)
+and appends a delta table:
+
+```
+# comparison vs baseline round-021.json — model=sonnet
+exact-match 97% -> 95%; negatives false-fire 0/14 -> 0/14; verdicts: 39 same, 1 REGRESSED, 1 CO-FIRE, 1 noise?, 3 new
+| case | expect | base fired | new fired | Δ | base exact | new exact | verdict |
+| fmk-far | fuzz-mutate-kill-loop | 2/2 | 0/2 | -100% | 2/2 | 0/2 | REGRESSED |
+```
+
+Verdicts: `REGRESSED` / `IMPROVED` — the fire count moved by ≥2 runs at
+equal n (else the rate moved ≥0.5, and only when both sides have n ≥ 2);
+`CO-FIRE` — fires as before but exact dropped by that margin (a sibling
+now fires alongside: fix the sibling's boundaries, not this description);
+`noise?` — a smaller move, re-probe the case with `--only <id> --repeats
+4` before editing; `low-n` — the sides differ in n and one of them is a
+single run (1/1 → 0/2 is not evidence either way; re-probe at equal
+n ≥ 2 — re-scoring an older table under this rule turned all four of its
+single-run verdicts, including the one true catch, into `low-n`: the rule
+buys false-positive protection with a re-probe, never with a shipped
+edit); `same`; `new` / `dropped` for cases on one side only. Two
+provenance lines precede the table when they apply: `NOTE: probe
+protocol differs (baseline=…, this run=…)` — a cross-instrument
+comparison, every verdict is a re-probe candidate, not a regression —
+and `descriptions edited since the baseline: …` (from the description
+digests every v4.2 report stores), so a verdict on those skills' cases is
+an edit effect, not drift. The table is only meaningful inside
+a canary-checked instrument (next section): a REGRESSED verdict against
+last round's report with the canary on DRIFT is two different experiments,
+not a regression. Measured use: after an unprobed description rewrite two
+rounds earlier, the table against the last clean baseline showed exactly
+one REGRESSED case (`fmk-far` 2/2 → 0/2) and one CO-FIRE — the two
+distinct failure modes the split exists for.
+
+### Declared but not invoked
+
+Native-mode probes must emit a `Skill` tool_use to count as fired; the
+`SKILLS=…` reply line is diagnostic only. A probe that *writes*
+`SKILLS=<expected>` without ever calling the tool is a protocol artifact
+(the model answered the probe question instead of following its
+instruction), not evidence about the description. The report prints
+`declared-not-invoked: N` when it happens and `per_case[id].declared_only`
+carries the count; re-probe such a case before treating its miss as a
+selection failure. Measured: 1 of 84 probes in a full sonnet run, but 6 of
+6 remaining "misses" in two targeted re-probes the same afternoon — every
+one a one-turn reply naming the expected skill, so the description had
+selected and only the tool call was skipped. Two opt-in switches exist
+for that situation, both off by default so reports stay comparable with
+older ones:
+
+- `--count-declared` scores a *catalog* skill the probe declared but
+  never invoked as fired (the "selected" reading; host names in the line
+  are still ignored). Use it to read a rate, not to hide the artifact —
+  the JSON records `count_declared: true`.
+- `--protocol strict` appends to the probe system prompt that a
+  `SKILLS=` line without a preceding Skill call is an invalid answer —
+  measured to remove the artifact entirely (8/8 fired where the default
+  prompt had 0/6 with 6 declared-only), so since v4.2 **strict is the
+  default**. `--protocol default` keeps the older prompt reachable for
+  reproducing pre-4.2 reports. The protocol is an instrument setting: a
+  canary sentinel exists per protocol (`"protocol"` in `canary.json`),
+  and `--baseline` prints a NOTE when the two reports' protocols differ.
+
+## Probe audit (`--audit`)
+
+Every `--json` report since v4.2 stores a short digest of each staged
+description. `--audit REPORTS_DIR` (offline, no probes) then answers the
+question lint cannot: *has the description that is on disk now ever been
+probed?* Per skill it finds the newest report under the directory that
+holds a non-errored probe of a case expecting the skill and prints:
+
+```bash
+python3 trigger_eval.py cases.json --also-cases body-cases.json --skills skills/ --audit state/trigger-eval
+# | skill | positives | body | newest probing report | mode/protocol | probes | status |
+# | agent-completion-guards | 3 | 1 | — | — | 0 | never |
+# | generator-trampoline-evaluator | 4 | 1 | round-111-strict-full.json | native/strict | 8 | STALE |
+# summary: 12 probed, 1 STALE, 1 never; 0 under the 3-positive floor; exit 1
+```
+
+`probed` = the probed digest equals the current one; `STALE` = edited
+since its last probe; `unverified` = only pre-4.2 reports (no digest)
+probe it; `never` = no report holds a probe of it. Exit 0 only when every
+skill is `probed` and has ≥3 positive cases. Run it at session start and
+after every description edit: the three descriptions that shipped without
+a probe (one rewrite that lost a far case, two new skills whose case
+files made them *look* tested) would each have been a `STALE`/`never` row.
+Report order is file mtime — keep reports where they were written.
+`--also-cases` merges the body-case file so the body column is real; the
+audit counts a case as body when it carries a `body` object (even empty).
 
 ## Limits
 

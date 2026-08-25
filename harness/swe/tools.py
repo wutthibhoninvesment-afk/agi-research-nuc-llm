@@ -11,6 +11,8 @@ import os
 import subprocess
 import sys
 
+from .proc import run_capped
+
 from agentloop.tools import Tool, ToolResult
 from . import fuzz as F
 from . import mutation as M
@@ -179,13 +181,11 @@ class PytestTool(Tool):
 
     def run(self, args="-q tests"):
         cmd = [sys.executable, "-m", "pytest", "-p", "no:cacheprovider"] + args.split()
-        try:
-            p = subprocess.run(cmd, cwd=self.root, capture_output=True, text=True,
-                               timeout=self.timeout_s)
-        except subprocess.TimeoutExpired:
-            return ToolResult(False, "pytest timed out after %ds" % self.timeout_s)
-        tail = "\n".join((p.stdout + p.stderr).strip().splitlines()[-15:])
-        return ToolResult(p.returncode == 0, tail + "\n[exit %d]" % p.returncode)
+        r = run_capped(cmd, self.root, self.timeout_s)
+        if r.timed_out:
+            return ToolResult(False, "pytest timed out after %ds (process group killed)" % self.timeout_s)
+        tail = "\n".join(r.output.strip().splitlines()[-15:])
+        return ToolResult(r.returncode == 0, tail + "\n[exit %d]" % r.returncode)
 
 
 class WhenceRunTool(Tool):

@@ -1,0 +1,46 @@
+case: acb-far
+model: haiku
+arm: None
+fired: []
+distractors: []
+foreign: ['claude-api']
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+Prompt caching uses **exact prefix matching**—if you modify or remove any text before your current messages, you change the prefix hash and the cache key becomes invalid.
+
+**The core issue:** When you trim old messages, you're altering the exact text that precedes your new request. Even if the content is semantically identical, the cache can't find a match because the prefix bytes changed.
+
+**How to trim without breaking cache:**
+
+1. **Separate stable from ephemeral content**
+   - Keep a stable "context block" (system instructions, few-shot examples, shared context) at the top with `cache_control: {"type": "ephemeral"}`
+   - This gets cached and marked for reuse
+   - Append new user/assistant messages after this block
+
+2. **Trim only after the cached boundary**
+   - Don't remove or reorder anything in the cached prefix
+   - Trim old messages from the *end* of your conversation history, not the beginning
+   - New turns add to the tail; keep the head fixed
+
+3. **Practical pattern** (pseudocode):
+   ```
+   messages = [
+       {"role": "system", "content": "...", "cache_control": {"type": "ephemeral"}},
+       {"role": "user", "content": "...context...", "cache_control": {"type": "ephemeral"}},
+       # Keep this block stable across requests
+       {"role": "assistant", "content": "..."},
+       {"role": "user", "content": "..."},
+       # Trim old turns here ↑ but preserve everything ↑
+   ]
+   ```
+
+4. **Alternative: sliding context window**
+   - Rebuild messages on each turn, but always include a fixed preamble
+   - Keep recent turns (e.g., last 10 exchanges) plus the preamble
+   - Cache the preamble, trim old exchanges before new ones are added
+
+The key insight: cache is valid *only if the prefix is byte-for-byte identical*. Design for a stable cached section (system/shared context), then manage your sliding conversation window after it.

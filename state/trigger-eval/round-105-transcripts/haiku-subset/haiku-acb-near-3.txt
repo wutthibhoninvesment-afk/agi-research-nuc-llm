@@ -1,0 +1,22 @@
+case: acb-near
+model: haiku
+arm: None
+fired: ['agent-context-budgeting']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=agent-context-budgeting
+
+To fix this, I need to see your agent loop code. The skill outlines a 11-step approach; your immediate issue is **step 3** — compacting old tool observations (file reads) in place before each request, so the context doesn't grow unbounded.
+
+Show me:
+1. Your agent loop (how messages are built and sent to the model)
+2. How tool observations are appended to history
+3. Your LLM client interface (does it return `Usage` info?)
+
+With that I can add the compaction ladder: first elide older observations with a stub, then drop whole steps if still over budget, while preserving the assistant-call/tool-result pairing so the API doesn't reject orphaned tool results.

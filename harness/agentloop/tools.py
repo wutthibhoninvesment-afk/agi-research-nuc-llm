@@ -14,7 +14,9 @@ symlink escapes (realpath is checked, not just the lexical path).
 """
 
 import os
+import signal
 import subprocess
+import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
@@ -221,25 +223,73 @@ class BashTool(Tool):
         self._timeout_s = timeout_s
 
     def run(self, command: str) -> ToolResult:
+        # The child gets its own session (so it and every descendant that
+        # does not setsid itself form one process group) and on timeout the
+        # WHOLE group is SIGKILLed. `subprocess.run(timeout=)` kills only the
+        # direct child, then drains the pipes again with NO timeout: a
+        # grandchild that inherited stdout (`sleep 30 &`, a server the model
+        # started, a test suite's own subprocess) holds the pipe open and the
+        # tool blocks for as long as the grandchild lives — round 107 traced
+        # 22,071-s "timeouts" in the SWE campaign to exactly this and fixed it
+        # in swe/proc.py; this is the same fix for the generic tool. Seconds
+        # are read on the monotonic clock, the one the cap itself uses.
+        t0 = time.monotonic()
+        proc = subprocess.Popen(
+            command,
+            shell=True,
+            cwd=self._sb.root,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            stdin=subprocess.DEVNULL,
+            text=True,
+            start_new_session=True,
+        )
         try:
-            proc = subprocess.run(
-                command,
-                shell=True,
-                cwd=self._sb.root,
-                capture_output=True,
-                text=True,
-                timeout=self._timeout_s,
-            )
-        except subprocess.TimeoutExpired:
-            return ToolResult(False, "command timed out after %.0fs: %s"
-                              % (self._timeout_s, command))
+            out, err = proc.communicate(timeout=self._timeout_s)
+        except subprocess.TimeoutExpired as e:
+            _kill_process_group(proc)
+            partial_out = _as_text(e.stdout)
+            partial_err = _as_text(e.stderr)
+            for stream in (proc.stdout, proc.stderr):
+                try:
+                    stream.close()          # nothing that escaped the group can hold us
+                except OSError:
+                    pass
+            proc.wait()                     # the child is dead: reap it promptly
+            parts = ["command timed out after %.0fs (process group killed, %.1fs elapsed): %s"
+                     % (self._timeout_s, time.monotonic() - t0, command)]
+            if partial_out.strip():
+                parts.append("[partial stdout]\n" + partial_out.rstrip("\n"))
+            if partial_err.strip():
+                parts.append("[partial stderr]\n" + partial_err.rstrip("\n"))
+            return ToolResult(False, "\n".join(parts))
         parts = []
-        if proc.stdout:
-            parts.append(proc.stdout.rstrip("\n"))
-        if proc.stderr:
-            parts.append("[stderr]\n" + proc.stderr.rstrip("\n"))
+        if out:
+            parts.append(out.rstrip("\n"))
+        if err:
+            parts.append("[stderr]\n" + err.rstrip("\n"))
         parts.append("[exit %d]" % proc.returncode)
         return ToolResult(proc.returncode == 0, "\n".join(parts))
+
+
+def _as_text(data) -> str:
+    if data is None:
+        return ""
+    if isinstance(data, bytes):
+        return data.decode("utf-8", "replace")
+    return str(data)
+
+
+def _kill_process_group(proc) -> None:
+    """SIGKILL the child's whole group (its pgid == its pid thanks to
+    start_new_session); fall back to killing the child alone."""
+    try:
+        os.killpg(proc.pid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError, OSError):
+        try:
+            proc.kill()
+        except OSError:
+            pass
 
 
 # ------------------------------------------------------------ search tool --

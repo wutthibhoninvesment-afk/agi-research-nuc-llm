@@ -27,6 +27,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import shlex
 import statistics
 import sys
@@ -286,6 +287,30 @@ def cap_cost(geom: MoeGeometry, rss_full: int, cap_full: int, cap: int,
 
 # ------------------------------------------------------------------ lane projection
 
+OLMOE_TOPK = 8
+
+
+def lane_disk_bound_tok_s(miss_fraction: float, disk_mb_s: float, geom: MoeGeometry = OLMOE,
+                          topk: int = OLMOE_TOPK) -> float:
+    """Decode ceiling when every expert-cache miss is a disk read: the lane
+    performs layers x topk lookups per token (OLMoE: 16 x 8 = 128; measured
+    127.4 on the Mac), each miss streams one expert. At cap 16 the Mac
+    measured miss 0.511 -> 411 MB/token -> 1.2 tok/s at its ~500 MB/s
+    page-fault path; the same arithmetic with the box's NVMe rate is the
+    NUC projection. Returns inf when nothing misses (compute-bound)."""
+    if not 0.0 <= miss_fraction <= 1.0 or disk_mb_s <= 0:
+        raise FastLaneError("miss_fraction in [0,1], disk_mb_s > 0")
+    mb_per_token = geom.layers * topk * miss_fraction * geom.expert_bytes / MB
+    return math.inf if mb_per_token == 0 else disk_mb_s / mb_per_token
+
+
+def measured_miss_fraction(hits: int, misses: int) -> float:
+    tot = hits + misses
+    if tot <= 0:
+        raise FastLaneError("no lookups")
+    return misses / tot
+
+
 @dataclass
 class LaneTurn:
     prompt_tokens: int
@@ -330,6 +355,28 @@ def qwen36_turn(prompt_tokens: int, reply_tokens: int, decode_tps: float = 3.3) 
     return LaneTurn(prompt_tokens, reply_tokens, pre, dec, pre + dec)
 
 
+LANE_PREFILL_MAC_CAP16 = 8.8      # round 112: 9.6 / 8.0 prompt-tok/s at 200, 6.7 @50, 8.6 @800 (Mac, cap 16, n_new=1)
+LANE_DECODE_MAC_CAP16 = 1.2       # round 106: disk-bound regime (hit 48.9 %, sys share 85 %)
+
+
+def breakeven_prompt_tokens(reply_tokens: int, prefill_tps: float = LANE_PREFILL_MAC_CAP16,
+                            decode_tps: float = LANE_DECODE_MAC_CAP16, overhead_s: float = 0.5,
+                            qwen_decode_tps: float = 3.3, limit: int = 8000, step: int = 5) -> Optional[int]:
+    """Smallest prompt length at which a lane turn is faster than the qwen36
+    turn for the same reply length; None when the lane never wins below
+    `limit`. Round 112: with the measured lane rates (8.8 / 1.2 tok/s) the
+    lane wins only above ~700 prompt tokens for a 60-token reply — its decode
+    is 2.75x slower than qwen36's, so short replies are the only regime where
+    it is a "fast" lane, and only for long prompts."""
+    if reply_tokens < 0 or limit <= 0 or step <= 0:
+        raise FastLaneError("reply_tokens >= 0, limit > 0, step > 0")
+    for p in range(0, limit + 1, step):
+        if lane_turn(p, reply_tokens, prefill_tps, decode_tps, overhead_s).total_s < \
+                qwen36_turn(p, reply_tokens, qwen_decode_tps).total_s:
+            return p
+    return None
+
+
 # ------------------------------------------------------------------ transfer
 
 def transfer_cmd(local_path: str, ssh_target: str, remote_path: str,
@@ -337,9 +384,124 @@ def transfer_cmd(local_path: str, ssh_target: str, remote_path: str,
                  chunk_mb: int = 8, sync_every_mb: int = 256) -> str:
     """Shell pipeline: stream a local file into the page-cache-safe sink on the box."""
     ssh = ["ssh"] + (["-i", ssh_key] if ssh_key else []) + [ssh_target]
-    remote = (f"python3 {sink} --out {shlex.quote(remote_path)} "
+    remote = (f"python3 {sink} --out {remote_quote(remote_path)} "
               f"--chunk-mb {int(chunk_mb)} --sync-every-mb {int(sync_every_mb)}")
     return f"cat {shlex.quote(local_path)} | {' '.join(ssh)} {shlex.quote(remote)}"
+
+
+def remote_quote(path: str) -> str:
+    """Quote a path for the REMOTE shell. A leading `~/` must survive as an
+    expansion there, so it becomes `"$HOME"/…` (the outer ssh argument is
+    single-quoted by the caller, which keeps the local shell out of it).
+    Round 100's `transfer_cmd` single-quoted `'~/x'` — the box would have
+    created a directory literally named `~`."""
+    if path == "~":
+        return '"$HOME"'
+    if path.startswith("~/"):
+        return '"$HOME"/' + shlex.quote(path[2:])
+    return shlex.quote(path)
+
+
+@dataclass
+class FileXfer:
+    relpath: str
+    size: int
+    remote_have: int          # bytes already in <remote>.part (or the finished file)
+    action: str               # "skip" | "resume" | "send"
+    command: str = ""
+
+
+def transfer_plan(files: Sequence[tuple[str, int]], remote_have: dict,
+                  local_dir: str, ssh_target: str, remote_dir: str,
+                  ssh_key: Optional[str] = None, sink: str = "~/nuc-research/fast_lane_sink.py",
+                  chunk_mb: int = 8, sync_every_mb: int = 256) -> list[FileXfer]:
+    """Per-file, resumable transfer of a directory (a container is 18 shards +
+    config + tokenizer). `remote_have` maps relpath -> bytes already on the box:
+    equal to size → skip; 0 < have < size → `tail -c +have+1` into the sink with
+    --resume; else send whole. A stream of separate files can resume where a
+    tar stream cannot (its headers carry mtimes, so a re-run is not byte-identical)."""
+    ssh = ["ssh"] + (["-i", ssh_key] if ssh_key else []) + [ssh_target]
+    plan = []
+    for rel, size in files:
+        have = int(remote_have.get(rel, 0))
+        remote_path = remote_dir.rstrip("/") + "/" + rel
+        local_path = os.path.join(local_dir, rel)
+        if have >= size and size > 0:
+            plan.append(FileXfer(rel, size, have, "skip"))
+            continue
+        action = "resume" if have > 0 else "send"
+        src = (f"tail -c +{have + 1} {shlex.quote(local_path)}" if have > 0
+               else f"cat {shlex.quote(local_path)}")
+        remote = (f"python3 {sink} --out {remote_quote(remote_path)} --chunk-mb {int(chunk_mb)} "
+                  f"--sync-every-mb {int(sync_every_mb)}" + (" --resume" if have > 0 else ""))
+        cmd = f"{src} | {' '.join(ssh)} {shlex.quote(remote)}"
+        plan.append(FileXfer(rel, size, have, action, cmd))
+    return plan
+
+
+def list_container(local_dir: str) -> list[tuple[str, int]]:
+    out = []
+    for name in sorted(os.listdir(local_dir)):
+        path = os.path.join(local_dir, name)
+        if os.path.isfile(path) and not name.startswith("."):
+            out.append((name, os.path.getsize(path)))
+    if not out:
+        raise FastLaneError(f"no files in {local_dir}")
+    return out
+
+
+def handoff_script(files: Sequence[tuple[str, int]], remote_have: dict, local_dir: str,
+                   ssh_target: str, remote_dir: str, local_md5: dict,
+                   ssh_key: Optional[str] = None, log_path: str = "/work/logs/nuc-fast-lane.md",
+                   sink_local: str = "nuc/fast_lane_sink.py") -> str:
+    """The exact shell sequence the next round runs once the box answers:
+    guard (host up, no 8001), stage the sink, per-file resumable copies,
+    remote md5 verification against the local digests, then a log stub."""
+    ssh = "ssh" + (f" -i {ssh_key}" if ssh_key else "") + f" {ssh_target}"
+    scp = "scp" + (f" -i {ssh_key}" if ssh_key else "")
+    plan = transfer_plan(files, remote_have, local_dir, ssh_target, remote_dir, ssh_key=ssh_key)
+    total = sum(f.size for f in plan)
+    todo = sum(f.size - f.remote_have for f in plan if f.action != "skip")
+    lines = ["#!/bin/sh", "# generated by fast_lane.py handoff — run from the Mac; every step is idempotent",
+             "set -e",
+             f"# {len(plan)} files, {total / GB:.2f} GB total, {todo / GB:.2f} GB still to send "
+             f"({sum(1 for f in plan if f.action == 'skip')} skip / "
+             f"{sum(1 for f in plan if f.action == 'resume')} resume / "
+             f"{sum(1 for f in plan if f.action == 'send')} send)",
+             f"{ssh} 'echo HOST_OK; grep MemAvailable /proc/meminfo; df -h /work | tail -1' || {{ echo 'host down — stop'; exit 2; }}",
+             f"{ssh} 'mkdir -p {remote_quote(remote_dir)} \"$HOME\"/nuc-research'",
+             f"{scp} {shlex.quote(sink_local)} {ssh_target}:~/nuc-research/fast_lane_sink.py"]
+    for f in plan:
+        if f.action == "skip":
+            lines.append(f"# skip {f.relpath} ({f.size} B already on the box)")
+        else:
+            lines.append(f"# {f.action} {f.relpath}: {f.size - f.remote_have} B to go")
+            lines.append(f.command)
+    lines.append("# verify every file against the local digests")
+    for rel, digest in sorted(local_md5.items()):
+        remote_path = remote_dir.rstrip("/") + "/" + rel
+        check = 'test "$(md5sum ' + remote_quote(remote_path) + ' | cut -d" " -f1)" = ' + digest
+        lines.append(f"{ssh} {shlex.quote(check)} || {{ echo 'md5 mismatch {rel}'; exit 3; }}")
+    note = (f'echo "- $(date -u +%FT%TZ) container verified in {remote_dir} '
+            f'({total / GB:.2f} GB, {len(plan)} files)" >> {log_path}')
+    lines.append(f"{ssh} {shlex.quote(note)}")
+    lines.append("echo HANDOFF_OK")
+    script = "\n".join(lines) + "\n"
+    if ":8001" in script or " 8001" in script:
+        raise FastLaneError("handoff script mentions port 8001")
+    return script
+
+
+def md5_of_files(local_dir: str, files: Sequence[tuple[str, int]], chunk: int = 1 << 20) -> dict:
+    import hashlib
+    out = {}
+    for rel, _ in files:
+        h = hashlib.md5()
+        with open(os.path.join(local_dir, rel), "rb") as fh:
+            for block in iter(lambda: fh.read(chunk), b""):
+                h.update(block)
+        out[rel] = h.hexdigest()
+    return out
 
 
 # ------------------------------------------------------------------ CLI
@@ -430,6 +592,16 @@ def main(argv=None) -> int:
     x.add_argument("remote")
     x.add_argument("--key", default=None)
 
+    h = sub.add_parser("handoff", help="resumable per-file transfer script + md5 verification for the next round")
+    h.add_argument("local_dir")
+    h.add_argument("target")
+    h.add_argument("remote_dir")
+    h.add_argument("--key", default=None)
+    h.add_argument("--remote-sizes", default=None,
+                   help="JSON {relpath: bytes_on_box} from `fast_lane_sink.py --part-size` / stat; default: nothing there")
+    h.add_argument("--md5", action="store_true", help="hash the local files (slow on 7 GB) and emit verify steps")
+    h.add_argument("--log-path", default="/work/logs/nuc-fast-lane.md")
+
     a = ap.parse_args(argv)
     if a.cmd == "parse":
         with open(a.log, encoding="utf-8", errors="replace") as fh:
@@ -450,6 +622,15 @@ def main(argv=None) -> int:
                           "speedup": big.total_s / lane.total_s}, indent=2))
     elif a.cmd == "transfer-cmd":
         print(transfer_cmd(a.local, a.target, a.remote, ssh_key=a.key))
+    elif a.cmd == "handoff":
+        files = list_container(a.local_dir)
+        have = {}
+        if a.remote_sizes:
+            with open(a.remote_sizes, encoding="utf-8") as fh:
+                have = json.load(fh)
+        digests = md5_of_files(a.local_dir, files) if a.md5 else {}
+        print(handoff_script(files, have, a.local_dir, a.target, a.remote_dir, digests,
+                             ssh_key=a.key, log_path=a.log_path), end="")
     return 0
 
 

@@ -1,5 +1,6 @@
 """Offline tests for nuc/fast_lane.py and nuc/fast_lane_sink.py."""
 import hashlib
+import math
 import io
 import json
 import os
@@ -41,7 +42,7 @@ def test_probe_cmd_refuses_frontier_port():
 def test_check_url_default_ports():
     assert fl.check_url("https://huggingface.co/a") == "https://huggingface.co/a"
     with pytest.raises(fl.FastLaneError):
-        fl.check_url("http://192.168.1.42:8001/")
+        fl.check_url("http://192.168.1.37:8001/")
 
 
 # ----------------------------------------------------------------- bandwidth
@@ -192,9 +193,9 @@ def test_lane_turn_and_speedup():
 # ----------------------------------------------------------------- transfer + sink
 
 def test_transfer_cmd_shape():
-    cmd = fl.transfer_cmd("/tmp/a b.bin", "jab@192.168.1.42", "~/nuc-research/models/x.st",
+    cmd = fl.transfer_cmd("/tmp/a b.bin", "jab@192.168.1.37", "~/nuc-research/models/x.st",
                           ssh_key="~/.ssh/k")
-    assert cmd.startswith("cat '/tmp/a b.bin' | ssh -i ~/.ssh/k jab@192.168.1.42 ")
+    assert cmd.startswith("cat '/tmp/a b.bin' | ssh -i ~/.ssh/k jab@192.168.1.37 ")
     assert "fast_lane_sink.py" in cmd and "--sync-every-mb 256" in cmd
 
 
@@ -253,3 +254,126 @@ def test_cli_plan_and_turn_and_gate(tmp_path, capsys):
                     "--disk-needed-gb", "21.3"]) == 0
     assert fl.main(["gate", "--min-rate", "2", "--disk-free-gb", "677",
                     "--disk-needed-gb", "21.3"]) == 2
+
+
+# ---------------------------------------------------------------- round 106: resume + handoff
+
+def test_sink_resume_appends_and_reports_offsets(tmp_path):
+    payload = os.urandom(2_500_000)
+    out = tmp_path / "blob.bin"
+    part = tmp_path / "blob.bin.part"
+    part.write_bytes(payload[:1_000_000])                      # a transfer that died
+    res = sink.sink(io.BytesIO(payload[1_000_000:]), str(out), chunk_bytes=300_000,
+                    sync_every=500_000, resume=True)
+    assert out.read_bytes() == payload and not part.exists()
+    assert res["start"] == 1_000_000 and res["appended"] == 1_500_000 and res["bytes"] == 2_500_000
+    assert res["md5"] == hashlib.md5(payload[1_000_000:]).hexdigest() and res["md5_covers"] == "appended"
+    fresh = sink.sink(io.BytesIO(payload), str(tmp_path / "b2.bin"), 300_000, 500_000)
+    assert fresh["start"] == 0 and fresh["md5_covers"] == "file"
+
+
+def test_sink_without_resume_truncates_a_stale_part(tmp_path):
+    out = tmp_path / "x.bin"
+    (tmp_path / "x.bin.part").write_bytes(b"stale")
+    sink.sink(io.BytesIO(b"fresh"), str(out), 1_000, 1_000)
+    assert out.read_bytes() == b"fresh"
+
+
+def test_sink_cli_part_size_and_resume_flag(tmp_path):
+    out = tmp_path / "y.bin"
+    (tmp_path / "y.bin.part").write_bytes(b"abc")
+    r = subprocess.run([sys.executable, sink.__file__, "--out", str(out), "--part-size"],
+                       capture_output=True, text=True)
+    assert r.stdout.strip() == "3"
+    r = subprocess.run([sys.executable, sink.__file__, "--out", str(out), "--resume", "--quiet"],
+                       input=b"def", capture_output=True)
+    d = json.loads(r.stdout)
+    assert out.read_bytes() == b"abcdef" and d["start"] == 3 and d["appended"] == 3
+    r = subprocess.run([sys.executable, sink.__file__, "--out", str(tmp_path / "none.bin"), "--part-size"],
+                       capture_output=True, text=True)
+    assert r.stdout.strip() == "0"
+
+
+FILES = [("model-00000.safetensors", 400), ("model-00001.safetensors", 400), ("config.json", 50)]
+
+
+def test_transfer_plan_skip_resume_send():
+    have = {"model-00000.safetensors": 400, "model-00001.safetensors": 150}
+    plan = fl.transfer_plan(FILES, have, "/loc/dir", "jab@box", "~/models/olmoe", ssh_key="~/.ssh/k")
+    by = {p.relpath: p for p in plan}
+    assert by["model-00000.safetensors"].action == "skip" and by["model-00000.safetensors"].command == ""
+    r = by["model-00001.safetensors"]
+    assert r.action == "resume" and r.command.startswith("tail -c +151 /loc/dir/model-00001.safetensors | ssh -i ~/.ssh/k jab@box ")
+    assert "--resume" in r.command and '--out "$HOME"/models/olmoe/model-00001.safetensors' in r.command
+    assert "'~" not in r.command                                   # tilde must expand on the box
+    s = by["config.json"]
+    assert s.action == "send" and s.command.startswith("cat /loc/dir/config.json | ") and "--resume" not in s.command
+
+
+def test_handoff_script_guards_and_verifies(tmp_path):
+    d = tmp_path / "snap"
+    d.mkdir()
+    (d / "a.safetensors").write_bytes(b"x" * 100)
+    (d / "config.json").write_bytes(b"{}")
+    (d / ".hidden").write_bytes(b"no")
+    files = fl.list_container(str(d))
+    assert files == [("a.safetensors", 100), ("config.json", 2)]
+    md5s = fl.md5_of_files(str(d), files)
+    assert md5s["config.json"] == hashlib.md5(b"{}").hexdigest()
+    script = fl.handoff_script(files, {"a.safetensors": 40}, str(d), "jab@box", "~/m", md5s, ssh_key="k")
+    lines = script.splitlines()
+    assert lines[0] == "#!/bin/sh" and "set -e" in lines
+    assert any("HOST_OK" in l and "exit 2" in l for l in lines)          # host guard before any copy
+    assert any(l.startswith("tail -c +41 ") for l in lines)             # resume offset = have + 1
+    assert any(l.startswith("cat ") and "config.json" in l for l in lines)
+    assert sum("md5sum" in l for l in lines) == 2 and "exit 3" in script
+    assert "nuc-fast-lane.md" in script and lines[-1] == "echo HANDOFF_OK"
+    assert "8001" not in script
+    assert "1 resume / 1 send" in script
+    assert "'~" not in script and '"$HOME"/m' in script
+    assert "test \"$(md5sum \"$HOME\"/m/config.json | cut -d\" \" -f1)\" = " in script
+
+
+def test_remote_quote_tilde_and_spaces():
+    assert fl.remote_quote("~/a b/c") == '"$HOME"/\'a b/c\''
+    assert fl.remote_quote("~") == '"$HOME"'
+    assert fl.remote_quote("/work/logs/x") == "/work/logs/x"
+
+
+def test_handoff_refuses_frontier_port_anywhere():
+    with pytest.raises(fl.FastLaneError):
+        fl.handoff_script([("a", 1)], {}, "/d", "jab@box", "~/m", {}, log_path="/work/logs/x:8001")
+
+
+def test_cli_handoff_reads_remote_sizes(tmp_path, capsys):
+    d = tmp_path / "snap"
+    d.mkdir()
+    (d / "b.safetensors").write_bytes(b"y" * 10)
+    sizes = tmp_path / "sizes.json"
+    sizes.write_text(json.dumps({"b.safetensors": 4}))
+    assert fl.main(["handoff", str(d), "jab@box", "~/m", "--remote-sizes", str(sizes), "--md5"]) == 0
+    out = capsys.readouterr().out
+    assert "tail -c +5 " in out and "md5sum" in out and out.endswith("echo HANDOFF_OK\n")
+
+
+def test_lane_disk_bound_decode_matches_mac_measurement():
+    # lane-bench-r106 case cap=16: 205 tokens, hit=12771 miss=13341 → miss 0.511, 84.2 GB read in 166 s ≈ 507 MB/s
+    miss = fl.measured_miss_fraction(12_771, 13_341)
+    assert miss == pytest.approx(0.511, abs=0.002)
+    assert fl.lane_disk_bound_tok_s(miss, 507) == pytest.approx(1.23, abs=0.03)
+    assert fl.lane_disk_bound_tok_s(miss, 1500) == pytest.approx(3.6, abs=0.1)
+    assert fl.lane_disk_bound_tok_s(0.0, 500) == math.inf
+    with pytest.raises(fl.FastLaneError):
+        fl.lane_disk_bound_tok_s(1.2, 500)
+    with pytest.raises(fl.FastLaneError):
+        fl.measured_miss_fraction(0, 0)
+
+
+def test_breakeven_prompt_tokens_round_112():
+    # measured Mac lane rates: the lane beats qwen36 only for long prompts with short replies
+    assert 600 <= fl.breakeven_prompt_tokens(60) <= 800
+    assert fl.breakeven_prompt_tokens(20) < fl.breakeven_prompt_tokens(60)     # shorter reply -> earlier win
+    assert fl.breakeven_prompt_tokens(60, decode_tps=3.6) == 0                 # NVMe projection: wins everywhere
+    assert fl.breakeven_prompt_tokens(60, prefill_tps=5.0) is None             # slower than qwen36 prefill: never
+    with pytest.raises(fl.FastLaneError):
+        fl.breakeven_prompt_tokens(-1)

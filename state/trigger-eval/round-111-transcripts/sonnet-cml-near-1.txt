@@ -1,0 +1,13 @@
+case: cml-near
+model: sonnet
+arm: None
+fired: ['colocated-model-lane']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=colocated-model-lane

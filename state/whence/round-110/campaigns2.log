@@ -1,0 +1,52 @@
+== reserve probe (limit 6000, examples + 10 deep templates + 30 fuzz)
+exit=0
+corpus maximum need: 351 (fuzz:1000007) at limit 6000; current HOST_RESERVE 350
+== host fuzz seed 123 n=400 (default limit)
+fuzz: 400 programs in 23.6s
+  ok           341
+  parse_error  53
+  timeout      6
+  unique crash signatures: 0
+exit=0
+== host fuzz seed 124 n=400 (default limit)
+fuzz: 400 programs in 21.4s
+  ok           335
+  parse_error  59
+  timeout      6
+  unique crash signatures: 0
+exit=0
+== host fuzz seed 125 n=400 --limit 6000
+fuzz: 400 programs in 23.0s
+  ok           333
+  parse_error  61
+  timeout      6
+  unique crash signatures: 0
+exit=0
+== host fuzz seed 126 n=400 --limit 6000
+fuzz: 400 programs in 24.2s
+  ok           340
+  parse_error  54
+  timeout      6
+  unique crash signatures: 0
+exit=0
+== oracle fuzz seed 127 n=300 (6 oracles)
+oracle fuzz: 311 programs x 6 oracles in 160.7s
+  totality     ok 268  parse_error 36  timeout 7
+  fast_slow    ok 268  parse_error 36  timeout 7
+  direct       ok 268  parse_error 36  timeout 7
+  determinism  ok 268  parse_error 36  timeout 7
+  render       ok 268  parse_error 36  timeout 7
+  frames       ok 267  parse_error 36  timeout 8
+  unique finding signatures: 0
+exit=0
+== oracle fuzz seed 128 n=300 --limit 6000
+oracle fuzz: 311 programs x 6 oracles in 163.3s
+  totality     ok 260  parse_error 45  timeout 6
+  fast_slow    ok 259  parse_error 45  timeout 7
+  direct       ok 259  parse_error 45  timeout 7
+  determinism  ok 259  parse_error 45  timeout 7
+  render       ok 259  parse_error 45  timeout 7
+  frames       ok 258  parse_error 45  timeout 8
+  unique finding signatures: 0
+exit=0
+== guest seed 129 n=200

@@ -27,9 +27,11 @@ def _mutant(pred):
     raise AssertionError("no such mutant")
 
 
-def _zero_guard():
-    return _mutant(lambda m: m.op == "cmp" and "Eq -> NotEq" in m.description
-                   and 'r == 0 and (op == "/"' in _LINES[m.lineno - 1])
+def _mod_mutant():
+    """`x % y` -> `x * y` in the v0.10 `%` closure (7 % 3 -> 21). Round-109
+    re-anchor: v0.9's `binop` zero guard is unreachable for two numbers now."""
+    return _mutant(lambda m: m.op == "arith" and "Mod -> Mult" in m.description
+                   and "x % y" in _LINES[m.lineno - 1])
 
 
 def _docstring_const():
@@ -70,7 +72,7 @@ def test_manifest_is_created_and_stage_skipping_is_persistent(tmp_path, checkout
     assert os.path.exists(os.path.join(out, "campaign.json"))
     assert not c.done("mutation")
     mj = str(tmp_path / "m.json")
-    _mutation_json(mj, [(_zero_guard(), "survived")])
+    _mutation_json(mj, [(_mod_mutant(), "survived")])
     d = c.stage_mutation(adopt=mj)
     assert d["survived"] == 1 and c.done("mutation")
     assert c.manifest["stages"]["mutation"]["info"]["adopted_from"] == mj
@@ -107,7 +109,7 @@ def test_recheck_reruns_timeouts_serially_and_records_flips(tmp_path, checkout):
     fast = [sys.executable, "-c", "import sys; sys.exit(1)"]      # the 'suite' now fails -> killed
     c = C.Campaign(out, checkout, test_cmd=fast, log=lambda s: None)
     mj = str(tmp_path / "m.json")
-    _mutation_json(mj, [(_zero_guard(), "timeout"), (_docstring_const(), "survived")])
+    _mutation_json(mj, [(_mod_mutant(), "timeout"), (_docstring_const(), "survived")])
     c.stage_mutation(adopt=mj)
     d = c.stage_recheck(timeout_s=30)
     assert d["recheck"]["timeouts"] == 1 and len(d["recheck"]["flips"]) == 1
@@ -121,7 +123,7 @@ def test_corpus_stage_pins_killers_and_verify_confirms_them(tmp_path, checkout):
     out = str(tmp_path / "out")
     c = C.Campaign(out, checkout, log=lambda s: None)
     mj = str(tmp_path / "m.json")
-    zg, dc = _zero_guard(), _docstring_const()
+    zg, dc = _mod_mutant(), _docstring_const()
     _mutation_json(mj, [(zg, "survived"), (dc, "survived")])
     c.stage_mutation(adopt=mj)
     c.stage_recheck()
@@ -149,7 +151,7 @@ def test_live_kill_stage_resumes_from_partial_and_pins_verified_kills(tmp_path, 
     out = str(tmp_path / "out")
     c = C.Campaign(out, checkout, log=lambda s: None)
     mj = str(tmp_path / "m.json")
-    zg, dc = _zero_guard(), _docstring_const()
+    zg, dc = _mod_mutant(), _docstring_const()
     _mutation_json(mj, [(zg, "survived"), (dc, "survived")])
     c.stage_mutation(adopt=mj)
     c.stage_recheck()
@@ -190,7 +192,7 @@ def test_review_stage_and_report(tmp_path, checkout):
     out = str(tmp_path / "out")
     c = C.Campaign(out, checkout, log=lambda s: None)
     mj = str(tmp_path / "m.json")
-    zg = _zero_guard()
+    zg = _mod_mutant()
     _mutation_json(mj, [(zg, "killed"), (_docstring_const(), "survived")])
     c.stage_mutation(adopt=mj)
     c.stage_recheck()
@@ -230,7 +232,7 @@ def test_load_programs_json_and_separated(tmp_path):
 def test_cli_runs_offline_stages_and_stops(tmp_path, checkout, capsys):
     out = str(tmp_path / "out")
     mj = str(tmp_path / "m.json")
-    _mutation_json(mj, [(_zero_guard(), "survived")])
+    _mutation_json(mj, [(_mod_mutant(), "survived")])
     extra = tmp_path / "extra.json"
     extra.write_text(json.dumps(["let a = 7 % 3\nprint(a)\n"]))
     rc = C.main(["--out", out, "--root", checkout, "--adopt-mutation", mj, "--corpus-n", "0",
@@ -246,7 +248,11 @@ def test_cli_runs_offline_stages_and_stops(tmp_path, checkout, capsys):
 # ---------------------------------------------------------- round 101 stages --
 
 # one test: the division-by-zero case reaches binop's zero guard and nothing exotic
-_DIV_ONLY = ("-q", "-p", "no:cacheprovider", "tests/test_interp.py", "-k", "division_by_zero")
+# test_arithmetic computes `7 % 3` (covers the `%` closure the mod mutant
+# sits in); test_division_by_zero covers binop's zero guard; neither reaches
+# `diverge` (round 109 widened from division_by_zero alone).
+_DIV_ONLY = ("-q", "-p", "no:cacheprovider", "tests/test_interp.py", "-k",
+             "division_by_zero or test_arithmetic")
 
 
 def _in_diverge():
@@ -264,7 +270,7 @@ def test_coverage_stage_triages_survivors_and_report_shows_the_split(tmp_path, c
     logs = []
     c = C.Campaign(out, checkout, log=logs.append)
     mj = str(tmp_path / "m.json")
-    zg, dv = _zero_guard(), _in_diverge()
+    zg, dv = _mod_mutant(), _in_diverge()
     _mutation_json(mj, [(zg, "survived"), (dv, "survived")])
     c.stage_mutation(adopt=mj)
     c.stage_recheck()
@@ -306,7 +312,7 @@ def test_repair_stage_samples_killed_mutants_resumes_and_reports(tmp_path, check
     out = str(tmp_path / "out")
     c = C.Campaign(out, checkout, log=lambda s: None)
     mj = str(tmp_path / "m.json")
-    zg, dc = _zero_guard(), _docstring_const()
+    zg, dc = _mod_mutant(), _docstring_const()
     ms = []
     for m, status in [(zg, "killed"), (dc, "survived")]:
         d = m.as_dict()
@@ -333,13 +339,16 @@ def test_repair_stage_samples_killed_mutants_resumes_and_reports(tmp_path, check
     def make_llm():
         calls.append(1)
 
+        # round-112 re-anchor: the mutant is v0.10's `%` closure (`x % y` -> `x * y`, see _mod_mutant).
+        # Mutants are applied through ast.unparse, which re-quotes the whole file with single quotes,
+        # so the anchor must be quote-agnostic: search the operand text, pick the '%' closure's line.
         def s_search(obs, st):
-            return call("search", query="r != 0 and", path="whence/interp.py")
+            return call("search", query="_LAZY, x * y", path="whence/interp.py")
 
         def s_edit(obs, st):
-            line = [l for l in obs.splitlines() if "r != 0 and" in l][0]
+            line = [l for l in obs.splitlines() if "'%'" in l and "x * y" in l][0]
             old = line.split(": ", 1)[1].strip()
-            return call("edit_file", path="whence/interp.py", old=old, new=old.replace("r != 0", "r == 0"))
+            return call("edit_file", path="whence/interp.py", old=old, new=old.replace("x * y", "x % y"))
 
         def s_done(obs, st):
             return say('```json\n{"root_cause": "guard", "files": ["whence/interp.py"], "summary": "s"}\n```')
@@ -349,7 +358,7 @@ def test_repair_stage_samples_killed_mutants_resumes_and_reports(tmp_path, check
     assert calls == [1] and d["summary"] == {
         "attempted": 1, "green": 1, "exact": 1, "localized": 1, "cheated": 0, "green_not_exact": 0,
         "cost_usd": d["summary"]["cost_usd"], "steps": d["results"][0]["steps"],
-        "by_op": {"cmp": {"attempted": 1, "green": 1, "exact": 1, "localized": 1}}}
+        "by_op": {"arith": {"attempted": 1, "green": 1, "exact": 1, "localized": 1}}}
     assert d["results"][0]["model"] == "policy" and d["results"][0]["failing_tests"]
     assert c.manifest["stages"]["repair"]["info"]["exact"] == 1
     c.stage_corpus(corpus_n=0, test_file="tests/test_generated_killers_camp.py")

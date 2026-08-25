@@ -112,7 +112,16 @@ def parse_turn(text: str) -> AssistantTurn:
     return AssistantTurn(text=prose, tool_calls=[ToolCall(name, args, make_call_id())])
 
 
+TOOL_CALL_HINT = ('end your reply with exactly one fenced block of the form\n'
+                  '```tool\n{"name": "<tool name>", "args": {<json arguments>}}\n```')
+
+
 class ClaudeCLILLM(LLM):
+    # Published for completion guards (agentloop/guards.py): the corrective
+    # message after a prose tool call quotes THIS syntax, so the model gets
+    # the protocol back, not just a complaint.
+    tool_call_hint = TOOL_CALL_HINT
+
     def __init__(self, model: str = "claude-sonnet-5", runner: Callable = _default_runner,
                  timeout_s: float = 300.0, executable: str = "claude",
                  max_turns_per_call: int = 1):

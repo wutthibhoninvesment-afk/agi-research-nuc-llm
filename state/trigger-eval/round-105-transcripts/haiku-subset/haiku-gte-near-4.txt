@@ -1,0 +1,54 @@
+case: gte-near
+model: haiku
+arm: None
+fired: ['tiny-language-implementation']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=tiny-language-implementation
+
+The core issue: a plain recursive walker uses ~10–12 Python stack frames per guest call, so Python's default ~1000-frame limit caps you at ~1800 guest depth. For 5000, you need **generator trampolining**.
+
+Instead of `eval(node, env)` returning a value, make it a generator that yields a work tuple and consumes results:
+
+```python
+def eval(node, env):
+    if isinstance(node, Call):
+        fn_gen = eval(node.fn, env)
+        arg_gen = eval(node.arg, env)
+        fn = yield ("wait", fn_gen)
+        arg = yield ("wait", arg_gen)
+        yield ("call", fn, arg)
+    elif isinstance(node, Literal):
+        yield ("return", node.value)
+```
+
+A trampoline loop drives all generators:
+
+```python
+def run(node, env, depth_limit=5000):
+    stack = [(eval(node, env), depth_limit)]
+    while stack:
+        gen, remaining = stack[-1]
+        try:
+            msg = next(gen)
+            if msg[0] == "wait":
+                stack.append((msg[1], remaining - 1))
+            elif msg[0] == "call":
+                # ... execute function call
+                stack.append((msg[1], remaining))
+        except StopIteration as e:
+            result = e.value
+            stack.pop()
+```
+
+**Key win:** guest recursion depth ≈ heap size (generator objects), not stack depth. You can cap at 5000 by checking `remaining` before pushing a new frame, converting overflow to an error value.
+
+**Gotcha:** this moves the recursion problem to value *walkers* (equality, serialization, contains). Rewrite those with explicit stacks too, or they'll crash comparing two 5000-deep values.
+
+Want me to refactor your evaluator, or would you like to see a worked example first?

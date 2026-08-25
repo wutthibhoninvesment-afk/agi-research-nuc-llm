@@ -860,7 +860,42 @@ class TestCanary(Base):
             {"case": "a1", "min_rate": 0.75}))    # single-dict form
         self.assertEqual(one, [{"case": "a1", "model": "sonnet", "repeats": 4,
                                 "min_rate": 0.75, "max_rate": 1.0,
-                                "mode": "native"}])
+                                "mode": "native", "protocol": None}])
+        with self.assertRaises(ValueError):
+            te.load_canary(self._canary(
+                [{"case": "a1", "min_rate": 0.5, "protocol": "lax"}]))
+        strict = te.load_canary(self._canary(
+            [{"case": "a1", "min_rate": 0.5, "protocol": "strict"}]))
+        self.assertEqual(strict[0]["protocol"], "strict")
+
+    def test_canary_sentinel_protocol_overrides_run_protocol(self):
+        # two sentinels: one pinned to strict, one inheriting the run's default
+        p = self._canary([{"case": "a1", "min_rate": 0.5, "repeats": 2,
+                           "protocol": "strict"},
+                          {"case": "a1", "min_rate": 0.5, "repeats": 2}])
+        prompts = []
+
+        def fake(argv, cwd, timeout):
+            prompts.append(argv[-2])
+            return 0, stream(invoked=["alpha"], text="SKILLS=alpha"), ""
+        orig = te.default_runner
+        te.default_runner = fake
+        try:
+            rc = te.main([self.cases_path, "--skills", self.root, "--quiet",
+                          "--protocol", "default", "--canary", p])
+        finally:
+            te.default_runner = orig
+        self.assertEqual(rc, 0)
+        strict_n = sum("invalid answer" in x for x in prompts)
+        self.assertEqual((strict_n, len(prompts)), (2, 4))
+        # v4.2: with no --protocol the run itself is strict, so both inherit it
+        prompts.clear()
+        te.default_runner = fake
+        try:
+            te.main([self.cases_path, "--skills", self.root, "--quiet", "--canary", p])
+        finally:
+            te.default_runner = orig
+        self.assertEqual(sum("invalid answer" in x for x in prompts), 4)
 
     def test_main_canary_ok_and_json(self):
         p = self._canary([{"case": "a1", "min_rate": 0.75, "repeats": 3}])
@@ -958,6 +993,452 @@ class TestTranscripts(Base):
         self.assertIn("case: a1", body)
         self.assertIn("fired: ['alpha']", body)
         self.assertIn("SKILLS=alpha", body)
+
+
+class TestBaseline(Base):
+    def _m(self, cases):
+        """Build a metrics dict from {id: (expect, [fired-sets...])}."""
+        results = []
+        for cid, (expect, fires) in cases.items():
+            for fired in fires:
+                results.append({"id": cid, "expect": expect, "fired": fired,
+                                "error": None, "cost_usd": 0.01,
+                                "distractors": [], "foreign": [],
+                                "available": []})
+        return te.score(results, ["alpha", "beta"])
+
+    def test_same_rates_verdict_same(self):
+        base = self._m({"a1": (["alpha"], [["alpha"], ["alpha"]])})
+        new = self._m({"a1": (["alpha"], [["alpha"], ["alpha"]])})
+        rows = te.compare_reports(base, new)
+        self.assertEqual(rows[0]["verdict"], "same")
+        self.assertEqual(rows[0]["hit_delta"], 0.0)
+
+    def test_equal_n_uses_count_gap(self):
+        # 4/4 -> 3/4 is one flip (noise?); 4/4 -> 2/4 is a regression
+        base = self._m({"a1": (["alpha"], [["alpha"]] * 4)})
+        one = self._m({"a1": (["alpha"], [["alpha"]] * 3 + [[]])})
+        two = self._m({"a1": (["alpha"], [["alpha"]] * 2 + [[], []])})
+        self.assertEqual(te.compare_reports(base, one)[0]["verdict"], "noise?")
+        self.assertEqual(te.compare_reports(base, two)[0]["verdict"], "REGRESSED")
+
+    def test_unequal_n_uses_rate_delta(self):
+        base = self._m({"a1": (["alpha"], [["alpha"]] * 2)})          # 2/2
+        new = self._m({"a1": (["alpha"], [["alpha"], [], []])})       # 1/3
+        rows = te.compare_reports(base, new)
+        self.assertEqual(rows[0]["verdict"], "REGRESSED")
+        mild = self._m({"a1": (["alpha"], [["alpha"]] * 3 + [[]])})  # 3/4
+        self.assertEqual(te.compare_reports(base, mild)[0]["verdict"], "noise?")
+
+    def test_improved_and_cofire(self):
+        base = self._m({"a1": (["alpha"], [[], []]),
+                        "b1": (["beta"], [["beta"], ["beta"]])})
+        new = self._m({"a1": (["alpha"], [["alpha"], ["alpha"]]),
+                       "b1": (["beta"], [["beta", "alpha"], ["beta", "alpha"]])})
+        rows = {r["id"]: r for r in te.compare_reports(base, new)}
+        self.assertEqual(rows["a1"]["verdict"], "IMPROVED")
+        # b1 still fires 2/2 but exact fell 2/2 -> 0/2: a sibling now co-fires
+        self.assertEqual(rows["b1"]["verdict"], "CO-FIRE")
+
+    def test_new_and_dropped_cases_are_listed(self):
+        base = self._m({"a1": (["alpha"], [["alpha"]]),
+                        "old": (["beta"], [["beta"]])})
+        new = self._m({"a1": (["alpha"], [["alpha"]]),
+                       "fresh": (["beta"], [["beta"]])})
+        rows = {r["id"]: r for r in te.compare_reports(base, new)}
+        self.assertEqual(rows["fresh"]["verdict"], "new")
+        self.assertEqual(rows["old"]["verdict"], "dropped")
+        self.assertIsNone(rows["old"]["new"])
+
+    def test_render_comparison_summary_and_flags(self):
+        base = self._m({"a1": (["alpha"], [["alpha"]] * 4),
+                        "n1": ([], [[], [], [], []])})
+        new = self._m({"a1": (["alpha"], [["alpha"]] * 2 + [[], []]),
+                       "n1": ([], [["beta"], [], [], []])})
+        rows = te.compare_reports(base, new)
+        out = te.render_comparison(rows, base, new, "sonnet", "old.json")
+        self.assertIn("baseline old.json", out)
+        self.assertIn("| a1 | alpha | 4/4 | 2/4 | -50% | 4/4 | 2/4 | REGRESSED |", out)
+        self.assertIn("exact-match 100% -> 62%", out)      # 5 exact of 8 runs
+        self.assertIn("negatives false-fire 0/4 -> 1/4", out)
+        self.assertIn("1 REGRESSED", out)
+
+    def test_main_baseline_compares_matching_model_and_writes_json(self):
+        # baseline: a1 fired 2/2 on sonnet; new run: a1 never fires
+        base_path = os.path.join(self.root, "base.json")
+        base_metrics = self._m({"a1": (["alpha"], [["alpha"], ["alpha"]]),
+                                "b1": (["beta"], [["beta"], ["beta"]]),
+                                "n1": ([], [[], []])})
+        with open(base_path, "w") as f:
+            json.dump({"metrics": base_metrics,
+                       "metrics_by_model": {"sonnet": base_metrics,
+                                            "haiku": self._m({})}}, f)
+
+        def fake(argv, cwd, timeout):
+            p = argv[-1]
+            if "beta" in p:
+                return 0, stream(invoked=["beta"], text="SKILLS=beta"), ""
+            return 0, stream(text="SKILLS=NONE"), ""
+        out_json = os.path.join(self.root, "out.json")
+        orig = te.default_runner
+        te.default_runner = fake
+        try:
+            rc = te.main([self.cases_path, "--skills", self.root, "--quiet",
+                          "--repeats", "2", "--baseline", base_path,
+                          "--json", out_json])
+        finally:
+            te.default_runner = orig
+        self.assertEqual(rc, 1)                      # a1 mismatches
+        with open(out_json) as f:
+            data = json.load(f)
+        comp = data["baseline"]
+        self.assertEqual(comp["path"], base_path)
+        rows = {r["id"]: r for r in comp["by_model"]["sonnet"]}
+        self.assertEqual(rows["a1"]["verdict"], "REGRESSED")
+        self.assertEqual(rows["b1"]["verdict"], "same")
+        self.assertEqual(rows["n1"]["verdict"], "same")
+
+    def test_main_baseline_missing_file_is_usage_error(self):
+        rc = te.main([self.cases_path, "--skills", self.root, "--quiet",
+                      "--baseline", os.path.join(self.root, "nope.json")])
+        self.assertEqual(rc, 2)
+
+    def test_load_baseline_rebuilds_per_case_for_pre_v4_reports(self):
+        # a v3 report stores metrics without per_case, plus raw results
+        results = [{"id": "a1", "expect": ["alpha"], "fired": ["alpha"],
+                    "error": None, "cost_usd": 0.01, "distractors": [],
+                    "foreign": [], "available": [], "model": "sonnet"},
+                   {"id": "n1", "expect": [], "fired": ["beta"],
+                    "error": None, "cost_usd": 0.01, "distractors": [],
+                    "foreign": [], "available": [], "model": "sonnet"}]
+        old = te.score(results, ["alpha", "beta"])
+        del old["per_case"]
+        p = os.path.join(self.root, "v3.json")
+        with open(p, "w") as f:
+            json.dump({"metrics": old, "results": results,
+                       "models": ["sonnet"]}, f)
+        b = te.load_baseline(p)
+        self.assertEqual(b["metrics"]["per_case"]["a1"]["hit"], 1)
+        self.assertEqual(b["metrics"]["per_case"]["n1"]["hit"], 0)
+        self.assertIn("sonnet", b["metrics_by_model"])
+
+    def test_declared_but_not_invoked_is_counted_separately(self):
+        r = {"id": "a1", "expect": ["alpha"], "fired": [], "error": None,
+             "cost_usd": 0.01, "distractors": [], "foreign": [],
+             "available": [], "declared": ["alpha"]}
+        m = te.score([r], ["alpha"])
+        self.assertEqual(m["declared_only"], 1)
+        self.assertEqual(m["per_case"]["a1"]["declared_only"], 1)
+        self.assertEqual(m["per_case"]["a1"]["hit"], 0)     # still a miss
+        out = te.render_report([r], m, ["alpha"], "native", "sonnet")
+        self.assertIn("declared-not-invoked: 1", out)
+        # a genuine miss (declared NONE) is not counted
+        r2 = dict(r, declared=[])
+        self.assertEqual(te.score([r2], ["alpha"])["declared_only"], 0)
+
+    def test_count_declared_scores_declared_catalog_skill_as_fired(self):
+        r = {"id": "a1", "expect": ["alpha"], "fired": [], "error": None,
+             "cost_usd": 0.01, "distractors": [], "foreign": [],
+             "available": [], "declared": ["alpha", "host-thing"]}
+        m = te.score([r], ["alpha", "beta"], count_declared=True)
+        self.assertEqual(m["per_case"]["a1"]["hit"], 1)
+        self.assertEqual(m["per_case"]["a1"]["exact"], 1)   # host-thing ignored
+        self.assertEqual(m["per_skill"]["alpha"]["tp"], 1)
+        self.assertTrue(m["count_declared"])
+        self.assertEqual(r["fired"], [])                     # input untouched
+        out = te.render_report([r], m, ["alpha", "beta"], "native", "sonnet")
+        self.assertIn("declared skills counted as fired", out)
+
+    def test_protocol_strict_changes_system_prompt_only(self):
+        d = te.native_argv("claude", "sonnet", "task", 0.5)
+        s = te.native_argv("claude", "sonnet", "task", 0.5, protocol="strict")
+        self.assertEqual(d[:-2], s[:-2])
+        self.assertEqual(d[-2], te.PROBE_SYSTEM)
+        self.assertTrue(s[-2].startswith(te.PROBE_SYSTEM))
+        self.assertIn("invalid answer", s[-2])
+        with self.assertRaises(KeyError):
+            te.native_argv("claude", "sonnet", "task", 0.5, protocol="lax")
+
+    def test_main_count_declared_and_protocol_recorded_in_json(self):
+        seen = []
+
+        def fake(argv, cwd, timeout):
+            seen.append(argv)
+            p = argv[-1]
+            if "alpha" in p:      # declared without a tool call
+                return 0, stream(text="SKILLS=alpha"), ""
+            if "beta" in p:
+                return 0, stream(invoked=["beta"], text="SKILLS=beta"), ""
+            return 0, stream(text="SKILLS=NONE"), ""
+        out_json = os.path.join(self.root, "out.json")
+        orig = te.default_runner
+        te.default_runner = fake
+        try:
+            rc = te.main([self.cases_path, "--skills", self.root, "--quiet",
+                          "--protocol", "strict", "--count-declared",
+                          "--json", out_json])
+        finally:
+            te.default_runner = orig
+        self.assertEqual(rc, 0)                     # a1 counts via declared
+        with open(out_json) as f:
+            data = json.load(f)
+        self.assertEqual(data["protocol"], "strict")
+        self.assertTrue(data["count_declared"])
+        self.assertEqual(data["metrics"]["declared_only"], 0)   # merged away
+        self.assertTrue(all("invalid answer" in a[-2] for a in seen))
+
+    def test_load_baseline_rejects_reports_without_metrics(self):
+        p = os.path.join(self.root, "bad.json")
+        with open(p, "w") as f:
+            json.dump({"results": []}, f)
+        with self.assertRaises(ValueError):
+            te.load_baseline(p)
+
+
+# ------------------------------------------------------------ v4.2 helpers --
+import contextlib  # noqa: E402
+import io  # noqa: E402
+import time  # noqa: E402
+
+
+class TestV42(Base):
+    """v4.2: strict default protocol, low-n verdict, provenance notes on
+    --baseline, description digests in reports, offline --audit."""
+
+    def _run(self, argv, fake):
+        orig = te.default_runner
+        te.default_runner = fake
+        buf = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(buf):
+                rc = te.main(argv)
+        finally:
+            te.default_runner = orig
+        return rc, buf.getvalue()
+
+    @staticmethod
+    def _fake_all_match(argv, cwd, timeout):
+        p = argv[-1]
+        name = "alpha" if "alpha" in p else ("beta" if "beta" in p else None)
+        return 0, stream(invoked=[name] if name else [],
+                         text="SKILLS=%s" % (name or "NONE")), ""
+
+    # -- protocol default ---------------------------------------------------
+    def test_default_protocol_is_strict_and_default_still_reachable(self):
+        seen = []
+
+        def fake(argv, cwd, timeout):
+            seen.append(argv)
+            return self._fake_all_match(argv, cwd, timeout)
+        out = os.path.join(self.root, "o.json")
+        rc, text = self._run([self.cases_path, "--skills", self.root, "--quiet",
+                              "--json", out], fake)
+        self.assertEqual(rc, 0)
+        self.assertTrue(all("invalid answer" in a[-2] for a in seen))
+        with open(out) as f:
+            self.assertEqual(json.load(f)["protocol"], "strict")
+        self.assertIn("protocol=strict", text)
+        seen.clear()
+        rc, text = self._run([self.cases_path, "--skills", self.root, "--quiet",
+                              "--protocol", "default"], fake)
+        self.assertTrue(all(a[-2] == te.PROBE_SYSTEM for a in seen))
+        self.assertIn("protocol=default", text)
+
+    # -- low-n verdict -----------------------------------------------------
+    def _m(self, cases):
+        results = []
+        for cid, (expect, fires) in cases.items():
+            for fired in fires:
+                results.append({"id": cid, "expect": expect, "fired": fired,
+                                "error": None, "cost_usd": 0.01,
+                                "distractors": [], "foreign": [],
+                                "available": []})
+        return te.score(results, ["alpha", "beta"])
+
+    def test_single_run_side_never_regresses_or_improves(self):
+        one = self._m({"a1": (["alpha"], [["alpha"]])})            # 1/1
+        two_miss = self._m({"a1": (["alpha"], [[], []])})          # 0/2
+        self.assertEqual(te.compare_reports(one, two_miss)[0]["verdict"], "low-n")
+        self.assertEqual(te.compare_reports(two_miss, one)[0]["verdict"], "low-n")
+        half = self._m({"a1": (["alpha"], [["alpha"], []])})       # 1/2
+        self.assertEqual(te.compare_reports(one, half)[0]["verdict"], "low-n")
+        # identical rates are still 'same' even at n=1 vs n=2
+        two_hit = self._m({"a1": (["alpha"], [["alpha"], ["alpha"]])})
+        self.assertEqual(te.compare_reports(one, two_hit)[0]["verdict"], "same")
+        # equal n=1 keeps the count-gap rule: a single flip is noise?
+        zero = self._m({"a1": (["alpha"], [[]])})
+        self.assertEqual(te.compare_reports(one, zero)[0]["verdict"], "noise?")
+        # unequal n with both sides >= 2 keeps the rate rule
+        base = self._m({"a1": (["alpha"], [["alpha"]] * 2)})
+        new = self._m({"a1": (["alpha"], [["alpha"], [], []])})
+        self.assertEqual(te.compare_reports(base, new)[0]["verdict"], "REGRESSED")
+
+    # -- digests + provenance ----------------------------------------------
+    def test_description_digest_is_stable_and_trimmed(self):
+        self.assertEqual(te.description_digest("Does x. "), te.description_digest("Does x."))
+        self.assertNotEqual(te.description_digest("Does x."), te.description_digest("Does y."))
+        self.assertEqual(len(te.description_digest("")), 12)
+
+    def test_report_records_version_and_description_digests(self):
+        out = os.path.join(self.root, "o.json")
+        rc, _ = self._run([self.cases_path, "--skills", self.root, "--quiet",
+                           "--json", out], self._fake_all_match)
+        self.assertEqual(rc, 0)
+        with open(out) as f:
+            data = json.load(f)
+        self.assertEqual(data["version"], "4.2")
+        self.assertEqual(data["descriptions"], {
+            "alpha": te.description_digest("Does alpha. Use when alpha-ish."),
+            "beta": te.description_digest("Does beta. Use when beta-ish.")})
+
+    def test_baseline_notes_protocol_mismatch_and_edited_descriptions(self):
+        base = os.path.join(self.root, "base.json")
+        rc, _ = self._run([self.cases_path, "--skills", self.root, "--quiet",
+                           "--protocol", "default", "--json", base],
+                          self._fake_all_match)
+        self.assertEqual(rc, 0)
+        # edit alpha's description on disk, then compare under strict
+        with open(os.path.join(self.root, "alpha", "SKILL.md"), "w") as f:
+            f.write("---\nname: alpha\ndescription: Does alpha differently.\n---\nbody\n")
+        out = os.path.join(self.root, "new.json")
+        rc, text = self._run([self.cases_path, "--skills", self.root, "--quiet",
+                              "--baseline", base, "--json", out],
+                             self._fake_all_match)
+        self.assertIn("NOTE: probe protocol differs (baseline=default, this run=strict)", text)
+        self.assertIn("descriptions edited since the baseline: alpha", text)
+        with open(out) as f:
+            cmp_ = json.load(f)["baseline"]
+        self.assertTrue(cmp_["protocol_mismatch"])
+        self.assertEqual(cmp_["descriptions_changed"], ["alpha"])
+        # same protocol, nothing edited: no notes
+        rc, text = self._run([self.cases_path, "--skills", self.root, "--quiet",
+                              "--baseline", out], self._fake_all_match)
+        self.assertNotIn("NOTE: probe protocol", text)
+        self.assertNotIn("descriptions edited", text)
+
+    def test_load_baseline_defaults_protocol_for_pre_v42_reports(self):
+        p = os.path.join(self.root, "old.json")
+        with open(p, "w") as f:
+            json.dump({"metrics": te.score([], ["alpha"]), "results": []}, f)
+        b = te.load_baseline(p)
+        self.assertEqual(b["protocol"], "default")
+        self.assertEqual(b["descriptions"], {})
+
+    # -- --also-cases --------------------------------------------------------
+    def test_also_cases_merges_and_rejects_duplicate_ids(self):
+        extra = os.path.join(self.root, "body.json")
+        with open(extra, "w") as f:
+            json.dump([{"id": "body-a", "prompt": "alpha task for real",
+                        "expect": ["alpha"], "body": {"evidence": ["bundled"]}}], f)
+        out = os.path.join(self.root, "o.json")
+        rc, _ = self._run([self.cases_path, "--skills", self.root, "--quiet",
+                           "--also-cases", extra, "--json", out], self._fake_all_match)
+        self.assertEqual(rc, 0)
+        with open(out) as f:
+            self.assertEqual([r["id"] for r in json.load(f)["results"]],
+                             ["a1", "b1", "n1", "body-a"])
+        rc, _ = self._run([self.cases_path, "--skills", self.root, "--quiet",
+                           "--also-cases", self.cases_path], self._fake_all_match)
+        self.assertEqual(rc, 2)
+
+    # -- --audit -------------------------------------------------------------
+    def _report(self, name, results, descriptions=None, age=0, **extra):
+        rdir = os.path.join(self.root, "reports")
+        os.makedirs(rdir, exist_ok=True)
+        p = os.path.join(rdir, name)
+        data = {"results": results, "mode": "native", "protocol": "strict"}
+        if descriptions is not None:
+            data["descriptions"] = descriptions
+        data.update(extra)
+        with open(p, "w") as f:
+            json.dump(data, f)
+        t = time.time() - age
+        os.utime(p, (t, t))
+        return rdir
+
+    @staticmethod
+    def _res(cid, expect, fired, error=None):
+        return {"id": cid, "expect": expect, "fired": fired, "error": error}
+
+    def test_audit_statuses_probed_stale_unverified_never(self):
+        make_skill(self.root, "gamma", "Does gamma.")
+        make_skill(self.root, "delta", "Does delta.")
+        catalog = te.load_catalog([self.root])
+        cur = {n: te.description_digest(d) for n, d, _ in catalog}
+        rdir = self._report("old.json", [self._res("a1", ["alpha"], ["alpha"]),
+                                         self._res("b1", ["beta"], ["beta"]),
+                                         self._res("g1", ["gamma"], [])],
+                            age=100)                       # pre-4.2: no digests
+        self._report("new.json", [self._res("a1", ["alpha"], ["alpha"]),
+                                  self._res("b1", ["beta"], [], error="rc=1")],
+                     descriptions={"alpha": cur["alpha"], "beta": "deadbeef0000"},
+                     age=10)
+        self._report("canary.json", [], age=0)             # results empty: never picked
+        with open(os.path.join(rdir, "dump.json"), "w") as f:
+            json.dump({"canary": [], "exit": 0}, f)       # not a report: skipped
+        cases = [{"id": "a1", "prompt": "p", "expect": ["alpha"]},
+                 {"id": "b1", "prompt": "p", "expect": ["beta"]},
+                 {"id": "g1", "prompt": "p", "expect": ["gamma"]},
+                 {"id": "bb", "prompt": "p", "expect": ["beta"], "body": {}}]
+        reports = te.load_reports(rdir)
+        self.assertEqual([os.path.basename(p) for p, _, _ in reports],
+                         ["canary.json", "new.json", "old.json"])
+        rows = {r["name"]: r for r in te.audit_skills(catalog, cases, reports)}
+        self.assertEqual(rows["alpha"]["status"], "probed")
+        self.assertEqual(rows["alpha"]["report"], "new.json")
+        # beta's only probe in new.json errored -> falls back to old.json (no digest)
+        self.assertEqual(rows["beta"]["status"], "unverified")
+        self.assertEqual(rows["beta"]["report"], "old.json")
+        self.assertEqual(rows["beta"]["body_cases"], 1)
+        self.assertEqual(rows["beta"]["positives"], 1)
+        self.assertEqual(rows["gamma"]["status"], "unverified")   # a miss is still a probe
+        self.assertEqual(rows["delta"]["status"], "never")
+        self.assertTrue(all(r["under_floor"] for r in rows.values()))
+        self.assertEqual(te.audit_exit_code(list(rows.values())), 1)
+        text = te.render_audit(list(rows.values()), cases, len(reports), rdir)
+        self.assertIn("| delta | 0 (UNDER FLOOR) | 0 | — | — | 0 | never |", text)
+        self.assertIn("1 body", text)
+
+    def test_audit_stale_when_description_edited_after_probe(self):
+        catalog = te.load_catalog([self.root])
+        cur = {n: te.description_digest(d) for n, d, _ in catalog}
+        rdir = self._report("r.json", [self._res("a1", ["alpha"], ["alpha"])] * 3
+                            + [self._res("b1", ["beta"], ["beta"])] * 3,
+                            descriptions=dict(cur))
+        cases = [{"id": "a%d" % i, "prompt": "p", "expect": ["alpha"]} for i in range(3)] + \
+                [{"id": "b%d" % i, "prompt": "p", "expect": ["beta"]} for i in range(3)]
+        rows = te.audit_skills(catalog, cases, te.load_reports(rdir))
+        self.assertEqual([r["status"] for r in rows], ["probed", "probed"])
+        self.assertEqual(rows[0]["probes"], 3)
+        self.assertEqual(te.audit_exit_code(rows), 0)
+        with open(os.path.join(self.root, "beta", "SKILL.md"), "w") as f:
+            f.write("---\nname: beta\ndescription: Does beta, rewritten.\n---\nbody\n")
+        rows = te.audit_skills(te.load_catalog([self.root]), cases, te.load_reports(rdir))
+        self.assertEqual([r["status"] for r in rows], ["probed", "STALE"])
+        self.assertEqual(te.audit_exit_code(rows), 1)
+
+    def test_main_audit_runs_offline_and_writes_json(self):
+        calls = []
+        rdir = self._report("r.json", [self._res("a1", ["alpha"], ["alpha"]),
+                                       self._res("b1", ["beta"], ["beta"])],
+                            descriptions={n: te.description_digest(d)
+                                          for n, d, _ in self.catalog})
+        out = os.path.join(self.root, "audit.json")
+        rc, text = self._run([self.cases_path, "--skills", self.root, "--audit", rdir,
+                              "--json", out],
+                             lambda a, c, t: calls.append(a) or (0, "", ""))
+        self.assertEqual(calls, [])                       # no probe ran
+        self.assertEqual(rc, 1)                           # 1 positive < floor
+        self.assertIn("# probe audit — 2 skills, 3 cases (1 negatives, 0 body)", text)
+        self.assertIn("UNDER FLOOR", text)
+        with open(out) as f:
+            data = json.load(f)
+        self.assertEqual(data["exit"], 1)
+        self.assertEqual({r["name"]: r["status"] for r in data["audit"]},
+                         {"alpha": "probed", "beta": "probed"})
+        rc, _ = self._run([self.cases_path, "--skills", self.root, "--audit",
+                           os.path.join(self.root, "nope")], lambda a, c, t: (0, "", ""))
+        self.assertEqual(rc, 2)
 
 
 if __name__ == "__main__":

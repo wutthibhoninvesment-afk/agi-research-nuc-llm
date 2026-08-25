@@ -1,0 +1,91 @@
+case: neg-5
+model: haiku
+arm: None
+fired: []
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=NONE
+
+I'll write a clean paginated user table component for you.
+
+```jsx
+import React, { useState, useMemo } from 'react';
+
+export function UserTable({ users = [], pageSize = 10 }) {
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const { paginatedUsers, totalPages } = useMemo(() => {
+    const total = Math.ceil(users.length / pageSize);
+    const start = (currentPage - 1) * pageSize;
+    const end = start + pageSize;
+    return {
+      paginatedUsers: users.slice(start, end),
+      totalPages: total,
+    };
+  }, [users, pageSize, currentPage]);
+
+  return (
+    <div style={{ padding: '20px' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr style={{ borderBottom: '2px solid #ddd' }}>
+            <th style={{ padding: '10px', textAlign: 'left' }}>ID</th>
+            <th style={{ padding: '10px', textAlign: 'left' }}>Name</th>
+            <th style={{ padding: '10px', textAlign: 'left' }}>Email</th>
+          </tr>
+        </thead>
+        <tbody>
+          {paginatedUsers.map((user) => (
+            <tr key={user.id} style={{ borderBottom: '1px solid #eee' }}>
+              <td style={{ padding: '10px' }}>{user.id}</td>
+              <td style={{ padding: '10px' }}>{user.name}</td>
+              <td style={{ padding: '10px' }}>{user.email}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <div style={{ marginTop: '20px', display: 'flex', gap: '10px', alignItems: 'center' }}>
+        <button
+          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+          disabled={currentPage === 1}
+        >
+          Previous
+        </button>
+
+        <span>
+          Page {currentPage} of {totalPages || 1}
+        </span>
+
+        <button
+          onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+          disabled={currentPage === totalPages}
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+}
+```
+
+**Usage:**
+
+```jsx
+const users = [
+  { id: 1, name: 'Alice', email: 'alice@example.com' },
+  { id: 2, name: 'Bob', email: 'bob@example.com' },
+  { id: 3, name: 'Charlie', email: 'charlie@example.com' },
+  // ... more users
+];
+
+<UserTable users={users} pageSize={10} />
+```
+
+The component handles page state, disables buttons at boundaries, and only renders the current page's data. Customize the columns, styling, or add features like sorting/filtering as needed.

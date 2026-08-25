@@ -1,0 +1,65 @@
+case: body-pb
+model: sonnet
+arm: None
+fired: ['prediction-banking']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+# Benchmark predictions — interpreter hot-loop closure compilation
+
+Banked BEFORE running the benchmark. 2026-08-25.
+
+**Setup facts used to derive bands:** profiler-measured **self time** of the hot loop = 15% of total run (`tottime`, not `cumtime`). Machine also runs a background job → shared CPU, so wall-clock measurements are a machine-state quantity, not a computed one.
+
+## The governing bound (Amdahl, from self time)
+
+Only the loop's own 15% self-time slice can shrink. Even if compiled closures made that slice's cost zero:
+
+```
+max overall speedup = 1 / (1 - 0.15) = 1.176x   (17.6% total runtime reduction — hard ceiling)
+```
+
+Any measured overall speedup above **1.18x** is not attributable to this change — treat it as a measurement artifact (most likely: the background job was idle during the "after" run but busy during the "before" run, or vice versa).
+
+## Predictions
+
+**P1 — Loop-local speedup (the closures' own effect on the 15% slice)**
+Class: computed (derived, but implementation details are unknown, so a wider band than usual)
+Band: **2.5x – 5x**, point estimate **3.5x**
+Reasoning: closure-compiled dispatch typically eliminates AST-walk/switch overhead; this range is the commonly observed win for this class of change, not a formula I can tighten further without profiling the closures directly.
+
+**P2 — Overall wall-clock speedup (total run, before vs after)**
+Class: computed (Amdahl projection from P1 × the 15% self-time share)
+Formula: `1 / (1 - 0.15 + 0.15/S)` for S = loop-local speedup
+- S=2.5x → 1.064x (6.4% reduction)
+- S=3.5x → 1.088x (8.8% reduction) ← point estimate
+- S=5x → 1.111x (11.1% reduction)
+Band: **lower bound 1.03x (3%) — upper bound 1.176x (17.6%, hard ceiling, unreachable in practice)**
+I'd be surprised by anything below 1.03x (would mean closures barely beat the interpreter loop) and anything above 1.15x (would mean contention noise, not the optimization, is being measured).
+
+**P3 — Wall-clock variance across repeated runs**
+Class: machine-state (background job contention) — two branches, predict both:
+- **Background job idle/light during the run:** run-to-run coefficient of variation ≤ 8%
+- **Background job actively contending for CPU:** CV **20–50%**, and at least one run in a set of 5 will be a >1.5x outlier vs the median
+Because we can't guarantee which state we're in, plan to log background-job activity (e.g. `ps`/load average) alongside each run and report which branch applies, rather than pooling idle and contended runs together.
+
+**P4 — Post-optimization self-time share of the loop**
+Class: computed
+Band: **3% – 7%** of total run (down from 15%, using P1's 2.5–5x range applied to the self-time slice: `0.15/S`)
+This should not hit 0% — dispatch/call overhead for entering the compiled closure remains.
+
+**P5 — Base-rate bet on the process**
+At least one of the first 5 benchmark runs will need to be discarded as a contention outlier (background job spike) rather than averaged in blindly.
+
+## How we'll score it afterward
+
+For each Pn: **HIT** / **MISS (high)** / **MISS (low)**, with one sentence naming the mechanism for any miss (e.g. "background job was idle in both runs, so P3's contended-branch CV never applied — wrong branch selected, not a bad prediction" vs "closures underperformed dispatch elimination assumption").
+
+- Report as a ledger line: `P k/5` hits, plus any amendments logged with timestamps *before* the run they precede.
+- Any overall speedup measurement claimed above 1.176x triggers a re-check of the profiler's self-time number and the background-job state before being accepted — it cannot be a true optimization result under these numbers.
+- Use median-of-N (not mean) for the wall-clock comparison given P3's contention risk, and report the CV alongside the point number so a reader can judge whether the "before/after" delta exceeds the noise floor.

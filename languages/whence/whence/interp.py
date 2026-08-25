@@ -53,6 +53,7 @@ from . import ast_nodes as A
 from .parser import parse
 from .values import (
     Value, Prov, MergedProv, Miss, Record, Closure, Builtin, Explanation,
+    _slot,
     WList, wlist,
     show_payload, full_show, leaf, derived, mk_miss, merge_miss, render_why,
     render_contrast, is_origin_miss, walk_steps, find_step, matches_step,
@@ -89,10 +90,10 @@ class Env(object):
     # that happened to compile the node (v0.7 determinism fix).
     __slots__ = ("vars", "parent", "interp")
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, interp=None):
         self.vars = {}
         self.parent = parent
-        self.interp = None
+        self.interp = interp
 
     def get(self, name):
         env = self
@@ -301,10 +302,19 @@ class Interpreter(object):
     GC_RELIEF_THRESHOLD = 50000
 
     # v0.9: host frames kept in reserve below the recursion limit while
-    # direct mode runs: transient fast-closure recursion (FAST_MAX_DEPTH
-    # levels × ~2 frames), one trampoline fallback (`_drive` + generator +
-    # helpers), rendering. The budget is whatever is left above this.
-    HOST_RESERVE = 350
+    # direct mode runs: transient fast-closure recursion (a call-free
+    # subtree compiles only up to FAST_MAX_DEPTH levels, one frame each),
+    # one trampoline fallback (`_drive` + generator + helpers), rendering
+    # (depth-capped). The budget is whatever is left above this.
+    # v0.11 (round 110): measured with bench/reserve_probe.py — the
+    # smallest reserve that survives, per program, at limit 6000: deep
+    # recursions with short bodies need 0–5 (the charge is exact), a
+    # 95-term `+` chain in the base case of a non-tail recursion 93–94,
+    # 55-deep nesting 57 (the parser caps nesting at 60), a 39-level
+    # else-if chain 41; the fuzz corpus and every example ≤ 5. The bound
+    # by construction is FAST_MAX_DEPTH + a nested drive ≈ 110; 250 is
+    # 2.3× that (was 350 — a guess).
+    HOST_RESERVE = 250
 
     def __init__(self, out=None, max_depth=DEFAULT_MAX_DEPTH, max_iter=None,
                  fast=True, gc_relief=False, direct=True):
@@ -575,7 +585,13 @@ class Interpreter(object):
         body that does not fit — or cannot compile (too tall) — runs on the
         trampoline through a nested `_drive`, whose own generator-mode calls
         never touch the host stack: host depth is bounded by the budget
-        measured at `exec_stmt`, whatever the program does."""
+        measured at `exec_stmt`, whatever the program does.
+
+        v0.11: the body's `(bd, cost)` pair is cached on the body node
+        (`entry`, `_body_entry`); one- and two-parameter bindings are
+        unrolled (no `zip` iterator); `depth` and `_hleft` are read once
+        and stored back, not read-modify-written. Measured bound for all
+        of this together: 1.14× on fib20 with EVERYTHING ablated."""
         p = fn.value
         tp = type(p)
         if tp is not Closure:
@@ -592,46 +608,58 @@ class Interpreter(object):
                 return r
             return mk_miss("%s is not callable" % show_payload(p), line,
                            "call", inputs=(fn,))
-        name = p.name or "<fn>"
-        if len(args) != len(p.params):
+        params = p.params
+        nargs = len(args)
+        if nargs != len(params):
+            name = p.name or "<fn>"
             return mk_miss("%s expects %d args, got %d" %
-                           (name, len(p.params), len(args)),
+                           (name, len(params), nargs),
                            line, "call", name, inputs=tuple(args))
-        if self.depth >= self.max_depth:
+        depth = self.depth
+        if depth >= self.max_depth:
+            name = p.name or "<fn>"
             return mk_miss("recursion too deep in %s (depth %d)" %
-                           (name, self.depth), line, "call", name,
+                           (name, depth), line, "call", name,
                            inputs=tuple(args))
         body = p.body
-        bd = body.fast
-        if bd is None:
-            bd = self.compile_fast(body)
-        if bd:
-            cost = 1
-        else:
-            bd = body.direct
-            if bd is None:
-                bd = self.compile_direct(body)
-            cost = body.cdepth + 1
-            if not bd or self._hleft < cost:
-                self.direct_fallbacks += 1
-                return self._drive(self._call_gen(fn, args, line))
-        self._hleft -= cost
+        ent = body.entry
+        if ent is None:
+            ent = self._body_entry(body)
+        bd, cost = ent
+        hleft = self._hleft
+        if not bd or hleft < cost:
+            self.direct_fallbacks += 1
+            return self._drive(self._call_gen(fn, args, line))
+        self._hleft = hleft - cost
         self.direct_hits += 1
-        self.depth += 1
-        if self.depth > self.peak_depth:
-            self.peak_depth = self.depth
+        depth += 1
+        self.depth = depth
+        if depth > self.peak_depth:
+            self.peak_depth = depth
+        name = p.name or "<fn>"
         names = None
         merged = 1
         runs = None
         call_line = line
         try:
             while True:
-                call_env = Env(p.env)
-                call_env.interp = self
+                call_env = Env(p.env, self)
                 vs = call_env.vars
-                for pname, arg in zip(p.params, args):
-                    vs[pname] = Prov("arg", pname, call_line, (arg,),
-                                     _LAZY, arg.value)
+                if nargs == 1:
+                    arg = args[0]
+                    pn = params[0]
+                    vs[pn] = Prov("arg", pn, call_line, arg, _LAZY, arg.value)
+                elif nargs == 2:
+                    arg = args[0]
+                    pn = params[0]
+                    vs[pn] = Prov("arg", pn, call_line, arg, _LAZY, arg.value)
+                    arg = args[1]
+                    pn = params[1]
+                    vs[pn] = Prov("arg", pn, call_line, arg, _LAZY, arg.value)
+                else:
+                    for pn, arg in zip(params, args):
+                        vs[pn] = Prov("arg", pn, call_line, arg, _LAZY,
+                                      arg.value)
                 result = bd(call_env)
                 if type(result) is not _TailCall:
                     break
@@ -648,11 +676,13 @@ class Interpreter(object):
                     runs = []
                 _merge_ifs(runs, tc.ifs)
                 p = fn2.value
+                params = p.params
+                nargs = len(args)
                 name2 = p.name or "<fn>"
-                if len(args) != len(p.params):
+                if nargs != len(params):
                     result = mk_miss(
                         "%s expects %d args, got %d" %
-                        (name2, len(p.params), len(args)), call_line,
+                        (name2, len(params), nargs), call_line,
                         "call", name2, inputs=tuple(args))
                     break
                 if self.max_iter is not None and merged >= self.max_iter:
@@ -672,30 +702,48 @@ class Interpreter(object):
                 nb = p.body
                 if nb is not body:
                     body = nb
-                    bd = nb.fast
-                    if bd is None:
-                        bd = self.compile_fast(nb)
+                    ent = nb.entry
+                    if ent is None:
+                        ent = self._body_entry(nb)
+                    bd, ncost = ent
+                    if bd:
+                        extra = ncost - cost
+                        if extra > 0:
+                            if self._hleft >= extra:
+                                self._hleft -= extra
+                                cost += extra
+                            else:
+                                bd = False
                     if not bd:
-                        bd = nb.direct
-                        if bd is None:
-                            bd = self.compile_direct(nb)
-                        if bd:
-                            extra = nb.cdepth + 1 - cost
-                            if extra > 0:
-                                if self._hleft >= extra:
-                                    self._hleft -= extra
-                                    cost += extra
-                                else:
-                                    bd = False
-                        if not bd:
-                            self.direct_fallbacks += 1
-                            bd = self._trampoline_body(nb)
+                        self.direct_fallbacks += 1
+                        bd = self._trampoline_body(nb)
         finally:
-            self.depth -= 1
-            self._hleft += cost
+            self.depth = depth - 1
+            self._hleft = hleft
         if runs is None:      # the common case: one frame, nothing deferred
-            return derived("call", name, line, (result,), result.value)
+            return Prov("call", name, line, result, _LAZY, result.value)
         return _finish_call(name, line, result, runs, names, merged)
+
+    def _body_entry(self, body):
+        """`(bd, cost)` for calling a function body directly (v0.11), cached
+        on the body node: `bd` is its fast closure (cost 1: this call's
+        frame) or its direct closure (cost `cdepth` + 1), or False when
+        the body cannot compile (too tall) — then every direct call of it
+        falls back to the trampoline. Compilation results are stable, so
+        the pair is computed once per body per process; `direct=False`
+        interpreters never read it (they never reach `_call_direct`)."""
+        bd = body.fast
+        if bd is None:
+            bd = self.compile_fast(body)
+        if bd:
+            cost = 1
+        else:
+            bd = body.direct
+            if bd is None:
+                bd = self.compile_direct(body)
+            cost = body.cdepth + 1
+        ent = body.entry = (bd, cost)
+        return ent
 
     def _trampoline_body(self, node):
         """A body evaluator with the direct-closure signature that runs the
@@ -730,15 +778,14 @@ class Interpreter(object):
         if self.depth > self.peak_depth:
             self.peak_depth = self.depth
         try:
-            call_env = Env(p.env)
-            call_env.interp = self
+            call_env = Env(p.env, self)
             vs = call_env.vars
             for pname, arg in zip(p.params, args):
-                vs[pname] = Prov("arg", pname, line, (arg,), _LAZY, arg.value)
+                vs[pname] = Prov("arg", pname, line, arg, _LAZY, arg.value)
             v = bf(call_env)
         finally:
             self.depth -= 1
-        return derived("call", name, line, (v,), v.value)
+        return Prov("call", name, line, v, _LAZY, v.value)
 
     def _tail_inline(self, node, env):
         """A `_TailCall` for a tail `Call` node whose callee and arguments
@@ -1006,16 +1053,45 @@ class Interpreter(object):
             if not direct or not (ff and all(gs)):
                 return False
             gs = tuple(gs)
+            # v0.10: NO list comprehension on the direct path. In CPython
+            # < 3.12 a comprehension is a real frame, and `cdepth` charges
+            # closure frames only — v0.9 under-charged every call whose
+            # argument (or list literal) holds a call by one frame per
+            # level, and `fn nest(n) { … [nest(n - 1)] }` overflowed the
+            # 350-frame reserve at the CLI's limit of 6000 (found by
+            # bench/ref_diff.py --fuzz at that limit; the oracle campaigns
+            # run at the default limit, where ~160 levels fit the reserve).
+            # One and two arguments (nearly every call) are list displays.
             if node.tail:
                 # tail position: hand the pending call to the enclosing
                 # call loop (same object the trampoline path produces)
-                return lambda env: _TailCall(ff(env), [g(env) for g in gs],
-                                             line)
+                if len(gs) == 1:
+                    g0, = gs
+                    return lambda env: _TailCall(ff(env), [g0(env)], line)
+                if len(gs) == 2:
+                    g0, g1 = gs
+                    return lambda env: _TailCall(ff(env), [g0(env), g1(env)],
+                                                 line)
+
+                def d_tail(env):
+                    fn = ff(env)
+                    args = []
+                    for g in gs:
+                        args.append(g(env))
+                    return _TailCall(fn, args, line)
+                return d_tail
             interp = self
 
             def d_call(env):
                 fn = ff(env)
-                args = [g(env) for g in gs]
+                if len(gs) == 1:
+                    args = [gs[0](env)]
+                elif len(gs) == 2:
+                    args = [gs[0](env), gs[1](env)]
+                else:
+                    args = []
+                    for g in gs:
+                        args.append(g(env))
                 # act through the interpreter that owns this env chain,
                 # not the one that compiled the (shared) node — see
                 # _compile_builtin_call. Call envs (and globals) carry
@@ -1044,8 +1120,7 @@ class Interpreter(object):
                         return r
                     return _logic_right(op, left, rf(env), line)
                 return f_logic
-            binop = self.binop
-            return lambda env: binop(op, lf(env), rf(env), line)
+            return _compile_binop(op, lf, rf, line, self.binop)
         if t is A.Unary:
             g = sub(node.operand)
             if not g:
@@ -1091,35 +1166,38 @@ class Interpreter(object):
             if direct:
                 def d_if(env):
                     cond = cf(env)
-                    bad = _if_bad(cond, line)
-                    if bad is not None:
-                        return bad
-                    if cond.value:
+                    c = cond.value
+                    # v0.10: the guard is two identity tests; `_if_bad`
+                    # (a frame per `if`) only builds the miss
+                    if c is True:
                         branch = tf(env)
                         which = "took then-branch"
-                    else:
+                    elif c is False:
                         branch = ef(env)
                         which = "took else-branch"
+                    else:
+                        return _if_bad(cond, line)
                     if type(branch) is _TailCall:
                         # completed by the enclosing call loop (eval_If)
                         branch.ifs.append((node, which, cond))
                         return branch
-                    return derived("if", which, line, (branch, cond),
-                                   branch.value)
+                    return Prov("if", which, line, (branch, cond), _LAZY,
+                                branch.value)
                 return d_if
 
             def f_if(env):
                 cond = cf(env)
-                bad = _if_bad(cond, line)
-                if bad is not None:
-                    return bad
-                if cond.value:
+                c = cond.value
+                if c is True:
                     branch = tf(env)
                     which = "took then-branch"
-                else:
+                elif c is False:
                     branch = ef(env)
                     which = "took else-branch"
-                return derived("if", which, line, (branch, cond), branch.value)
+                else:
+                    return _if_bad(cond, line)
+                return Prov("if", which, line, (branch, cond), _LAZY,
+                            branch.value)
             return f_if
         if t is A.Block:
             steps = []
@@ -1147,9 +1225,9 @@ class Interpreter(object):
                         result = g(inner)   # may be a pending _TailCall
                     elif ts is A.Let:
                         v = g(inner)
-                        result = derived("let", stmt.name, stmt.line, (v,),
-                                         v.value)
-                        inner.define(stmt.name, result)
+                        result = Prov("let", stmt.name, stmt.line, v, _LAZY,
+                                      v.value)
+                        inner.vars[stmt.name] = result
                     elif ts is A.FnDef:
                         clo = Closure(stmt.name, stmt.params, stmt.body, inner)
                         inner.define(stmt.name,
@@ -1173,8 +1251,11 @@ class Interpreter(object):
             n = "%d items" % len(fs)
 
             def f_list(env):
-                items = [g(env) for g in fs]
-                return derived("list", n, line, tuple(items), wlist(items))
+                items = []
+                for g in fs:            # no comprehension frame (v0.10)
+                    items.append(g(env))
+                return Prov("list", n, line, _slot(items), _LAZY,
+                            WList(items))
             return f_list
         if t is A.RecordLit:
             pairs = [(name, sub(e)) for name, e in node.pairs]
@@ -1193,13 +1274,34 @@ class Interpreter(object):
             xf = sub(node.index)
             if not (of and xf):
                 return False
-            return lambda env: _index(of(env), xf(env), line)
+            def f_index(env):
+                obj = of(env)
+                idx = xf(env)
+                o = obj.value
+                i = idx.value
+                # v0.10: list element in range — the pass-through case —
+                # without the `_index` frame and WList.__getitem__
+                if type(o) is WList and type(i) is int and 0 <= i < o.n:
+                    return o.buf[i]
+                return _index(obj, idx, line)
+            return f_index
         if t is A.FieldAccess:
             of = sub(node.obj)
             if not of:
                 return False
             name = node.name
-            return lambda env: _field(of(env), name, line)
+
+            def f_field(env):
+                obj = of(env)
+                o = obj.value
+                # v0.10: present field of a record — the pass-through case
+                # — without the `_field` frame (1.26 M per meta.lang run)
+                if type(o) is Record:
+                    fields = o.fields
+                    if name in fields:
+                        return fields[name]
+                return _field(obj, name, line)
+            return f_field
         raise AssertionError("cannot compile %r" % node)
 
     def _compile_builtin_call(self, name, b, gs, line):
@@ -1233,7 +1335,14 @@ class Interpreter(object):
                     break
                 e = parent
             cur = e.interp or interp
-            args = [g(env) for g in gs]
+            if nargs == 1:
+                args = [gs[0](env)]
+            elif nargs == 2:
+                args = [gs[0](env), gs[1](env)]
+            else:
+                args = []
+                for g in gs:            # no comprehension frame (v0.10)
+                    args.append(g(env))
             if fnv is None:      # unreachable while builtins are global
                 fnv = mk_miss("unbound name '%s'" % name, line, "name", name)
             p = fnv.value
@@ -1529,12 +1638,11 @@ class Interpreter(object):
             call_line = line
             try:
                 while True:
-                    call_env = Env(p.env)
-                    call_env.interp = self
+                    call_env = Env(p.env, self)
                     vs = call_env.vars
                     for pname, arg in zip(p.params, args):
-                        vs[pname] = Prov("arg", pname, call_line, (arg,),
-                                         _LAZY, arg.value)
+                        vs[pname] = Prov("arg", pname, call_line, arg, _LAZY,
+                                         arg.value)
                     result = yield (p.body, call_env)
                     if type(result) is not _TailCall:
                         break
@@ -1579,7 +1687,7 @@ class Interpreter(object):
             finally:
                 self.depth -= 1
             if runs is None:  # the common case: one frame, nothing merged
-                return derived("call", name, line, (result,), result.value)
+                return Prov("call", name, line, result, _LAZY, result.value)
             return _finish_call(name, line, result, runs, names, merged)
         return mk_miss("%s is not callable" % show_payload(p), line, "call",
                        inputs=(fn,))
@@ -1606,17 +1714,156 @@ Interpreter._LEAF = frozenset(
 _OPAQUE = (Closure, Builtin, Miss, Explanation)
 
 
+def _compile_binop(op, lf, rf, line, binop):
+    """v0.10: one closure per operator with the numeric hot path INLINE —
+    the exact-type test (bool excluded), the native operator, one `Prov` —
+    instead of a lambda frame plus `binop`'s dictionary dispatch per
+    guest operation (816 k per meta.lang run). `==`/`!=`/`+` also take the
+    string case inline. Everything else (misses, lists, mixed types, zero
+    divisors, int-vs-float overflow) goes to `binop`, which builds the
+    byte-identical node — the closure never decides a miss itself, so the
+    two paths cannot disagree on wording."""
+    if op == "+":
+        def f_add(env):
+            l = lf(env)
+            r = rf(env)
+            x = l.value
+            y = r.value
+            tx = type(x)
+            ty = type(y)
+            if (tx is int or tx is float) and (ty is int or ty is float):
+                try:
+                    return Prov("+", "", line, (l, r), _LAZY, x + y)
+                except OverflowError:
+                    pass
+            elif tx is str and ty is str:
+                return Prov("+", "concat", line, (l, r), _LAZY, x + y)
+            return binop("+", l, r, line)
+        return f_add
+    if op == "-":
+        def f_sub(env):
+            l = lf(env)
+            r = rf(env)
+            x = l.value
+            y = r.value
+            tx = type(x)
+            ty = type(y)
+            if (tx is int or tx is float) and (ty is int or ty is float):
+                try:
+                    return Prov("-", "", line, (l, r), _LAZY, x - y)
+                except OverflowError:
+                    pass
+            return binop("-", l, r, line)
+        return f_sub
+    if op == "*":
+        def f_mul(env):
+            l = lf(env)
+            r = rf(env)
+            x = l.value
+            y = r.value
+            tx = type(x)
+            ty = type(y)
+            if (tx is int or tx is float) and (ty is int or ty is float):
+                try:
+                    return Prov("*", "", line, (l, r), _LAZY, x * y)
+                except OverflowError:
+                    pass
+            return binop("*", l, r, line)
+        return f_mul
+    if op == "/":
+        def f_div(env):
+            l = lf(env)
+            r = rf(env)
+            x = l.value
+            y = r.value
+            tx = type(x)
+            ty = type(y)
+            if (tx is int or tx is float) and (ty is int or ty is float) \
+                    and y != 0:
+                try:
+                    return Prov("/", "", line, (l, r), _LAZY, x / y)
+                except OverflowError:
+                    pass
+            return binop("/", l, r, line)
+        return f_div
+    if op == "%":
+        def f_mod(env):
+            l = lf(env)
+            r = rf(env)
+            x = l.value
+            y = r.value
+            tx = type(x)
+            ty = type(y)
+            if (tx is int or tx is float) and (ty is int or ty is float) \
+                    and y != 0:
+                try:
+                    return Prov("%", "", line, (l, r), _LAZY, x % y)
+                except OverflowError:
+                    pass
+            return binop("%", l, r, line)
+        return f_mod
+    if op == "==":
+        def f_eq(env):
+            l = lf(env)
+            r = rf(env)
+            x = l.value
+            y = r.value
+            tx = type(x)
+            ty = type(y)
+            if ((tx is int or tx is float) and (ty is int or ty is float)) \
+                    or (tx is str and ty is str):
+                return Prov("==", "", line, (l, r), _LAZY, x == y)
+            return binop("==", l, r, line)
+        return f_eq
+    if op == "!=":
+        def f_ne(env):
+            l = lf(env)
+            r = rf(env)
+            x = l.value
+            y = r.value
+            tx = type(x)
+            ty = type(y)
+            if ((tx is int or tx is float) and (ty is int or ty is float)) \
+                    or (tx is str and ty is str):
+                return Prov("!=", "", line, (l, r), _LAZY, x != y)
+            return binop("!=", l, r, line)
+        return f_ne
+    fn = _NUM_OPS[op]          # < <= > >= : numbers, and strings (same fn)
+
+    def f_cmp(env):
+        l = lf(env)
+        r = rf(env)
+        x = l.value
+        y = r.value
+        tx = type(x)
+        ty = type(y)
+        if ((tx is int or tx is float) and (ty is int or ty is float)) \
+                or (tx is str and ty is str):
+            return Prov(op, "", line, (l, r), _LAZY, fn(x, y))
+        return binop(op, l, r, line)
+    return f_cmp
+
+
 def _merge_ifs(runs, ifs):
     """Tail-loop bookkeeping shared by `_call_gen` and `_call_direct`
     (v0.4 merged decisions): fold the `if` decisions one iteration passed
     through (innermost first, so reversed = evaluation order) into `runs`,
     where consecutive identical decisions (same `if` node, same branch)
     accumulate their conditions into one run."""
-    for ifn, which, cond in reversed(ifs):
-        if runs and runs[-1][0] is ifn and runs[-1][1] == which:
-            runs[-1][2].append(cond)
-        else:
-            runs.append([ifn, which, [cond]])
+    # v0.10: an entry is the `(if_node, which, cond)` tuple the tail call
+    # carried (no allocation) until a second identical decision promotes
+    # it to a `[if_node, which, [cond, ...]]` run. 99.99 % of the runs in
+    # meta.lang / self_host.lang are one decision long.
+    for t in reversed(ifs):
+        if runs:
+            last = runs[-1]
+            if last[0] is t[0] and last[1] == t[1]:
+                if type(last) is tuple:
+                    runs[-1] = [t[0], t[1], [last[2], t[2]]]
+                else:
+                    last[2].append(t[2])
+                continue
+        runs.append(t)
 
 
 def _wrap_ifs(result, ifs):
@@ -1626,7 +1873,8 @@ def _wrap_ifs(result, ifs):
     plain value. Used when a tail loop ends in a builtin / non-callable /
     miss call (v0.7 found the single-frame case; v0.9 the multi-frame)."""
     for ifn, which, cond in ifs:
-        result = derived("if", which, ifn.line, (result, cond), result.value)
+        result = Prov("if", which, ifn.line, (result, cond), _LAZY,
+                      result.value)
     return result
 
 
@@ -1636,13 +1884,22 @@ def _finish_call(name, line, result, runs, names, merged):
     a/b ×N` whose inputs are the final result followed by one `if … ×K`
     node per run of identical decisions (v0.4). `runs` is None exactly
     when merged == 1 (a loop that never re-entered)."""
+    value = result.value
     if merged == 1:
-        return derived("call", name, line, (result,), result.value)
-    ifs = tuple(MergedProv("if", which, ifn.line, tuple(conds),
-                           value=result.value, count=len(conds))
-                for ifn, which, conds in runs)
-    return MergedProv("call", "/".join(names), line, (result,) + ifs,
-                      value=result.value, count=merged)
+        return Prov("call", name, line, result, _LAZY, value)
+    ifs = [result]
+    for run in runs:
+        if type(run) is tuple:
+            # a run of ONE decision: a plain `if` node with the condition
+            # as its single input — the shape MergedProv(count=1) had,
+            # minus the second class, the count slot and two lists (v0.10)
+            ifs.append(Prov("if", run[1], run[0].line, run[2], _LAZY, value))
+        else:
+            ifn, which, conds = run
+            ifs.append(MergedProv("if", which, ifn.line, tuple(conds), _LAZY,
+                                  value, len(conds)))
+    return MergedProv("call", "/".join(names), line, tuple(ifs), _LAZY, value,
+                      merged)
 
 
 def deep_eq(l, r, memo=None):

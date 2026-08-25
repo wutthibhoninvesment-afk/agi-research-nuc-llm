@@ -1,0 +1,176 @@
+{
+ "total": 1056,
+ "baseline": {
+  "killed": 931,
+  "survived": 125,
+  "score": 0.8816,
+  "seconds": 3722.2
+ },
+ "recheck": {
+  "timeouts": 22,
+  "flips": [
+   {
+    "id": "interp.py:420:const#474",
+    "before": "timeout",
+    "after": "survived",
+    "seconds": 70.4,
+    "detail": ""
+   },
+   {
+    "id": "interp.py:460:ifneg#477",
+    "before": "timeout",
+    "after": "survived",
+    "seconds": 67.8,
+    "detail": ""
+   },
+   {
+    "id": "interp.py:609:const#487",
+    "before": "timeout",
+    "after": "survived",
+    "seconds": 61.7,
+    "detail": ""
+   },
+   {
+    "id": "interp.py:740:const#500",
+    "before": "timeout",
+    "after": "killed",
+    "seconds": 27.2,
+    "detail": "ree_way_differential[fn mk(x) { fn(y) { x + y } }\\nlet result = mk(1)(2) + mk(10)(20)\\n]\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 465 passed in 27.06s"
+   },
+   {
+    "id": "interp.py:780:cmp#502",
+    "before": "timeout",
+    "after": "survived",
+    "seconds": 70.2,
+    "detail": ""
+   },
+   {
+    "id": "interp.py:786:const#503",
+    "before": "timeout",
+    "after": "survived",
+    "seconds": 54.8,
+    "detail": ""
+   },
+   {
+    "id": "interp.py:796:ifneg#507",
+    "before": "timeout",
+    "after": "survived",
+    "seconds": 48.4,
+    "detail": ""
+   },
+   {
+    "id": "interp.py:826:cmp#511",
+    "before": "timeout",
+    "after": "survived",
+    "seconds": 61.1,
+    "detail": ""
+   },
+   {
+    "id": "interp.py:835:ifneg#513",
+    "before": "timeout",
+    "after": "killed",
+    "seconds": 60.3,
+    "detail": "FAILED tests/test_v09.py::test_self_host_lexer_regression_multi_frame_builtin_tail\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 482 passed in 56.56s"
+   },
+   {
+    "id": "interp.py:839:ifneg#514",
+    "before": "timeout",
+    "after": "killed",
+    "seconds": 25.1,
+    "detail": "FAILED tests/test_self_eval.py::test_differential_host_vs_guest - AttributeEr...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 245 passed in 24.76s"
+   },
+   {
+    "id": "interp.py:889:const#515",
+    "before": "timeout",
+    "after": "killed",
+    "seconds": 20.0,
+    "detail": "uzz_regressions.py::test_float_overflow_is_a_miss_on_the_fast_path_and_the_generator_path\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 32 passed in 19.76s"
+   },
+   {
+    "id": "interp.py:890:const#516",
+    "before": "timeout",
+    "after": "killed",
+    "seconds": 19.5,
+    "detail": "uzz_regressions.py::test_float_overflow_is_a_miss_on_the_fast_path_and_the_generator_path\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 32 passed in 19.26s"
+   },
+   {
+    "id": "interp.py:897:cmp#517",
+    "before": "timeout",
+    "after": "killed",
+    "seconds": 29.4,
+    "detail": "FAILED tests/test_v04.py::test_fast_path_is_taken_for_call_free_subtrees_only\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 342 passed in 29.18s"
+   },
+   {
+    "id": "interp.py:902:cmp#518",
+    "before": "timeout",
+    "after": "killed",
+    "seconds": 67.5,
+    "detail": "FAILED tests/test_v04.py::test_fast_path_is_taken_for_call_free_subtrees_only\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 342 passed in 67.29s (0:01:07)"
+   }
+  ],
+  "timeout_s": 300.0,
+  "seconds": 3084.4
+ },
+ "corrected": {
+  "killed": 924,
+  "survived": 132,
+  "score": 0.875
+ },
+ "corpus": {
+  "survivors": 132,
+  "found": 6,
+  "no_killer": 126,
+  "verified": 6,
+  "programs": 356
+ },
+ "live_kill": {
+  "attempted": 8,
+  "killed": 0,
+  "equivalent_claimed": 5,
+  "failed": 3,
+  "verified": 0,
+  "cost_usd": 3.6035,
+  "steps": 67,
+  "model": "claude-sonnet-5"
+ },
+ "review": {
+  "claimed": null,
+  "confirmed": null,
+  "steps": null,
+  "tool_calls": null,
+  "cost_usd": null,
+  "stop_reason": null,
+  "model": null,
+  "tool_histogram": null
+ },
+ "coverage": {
+  "pct": {
+   "whence/interp.py": 72.78
+  },
+  "targeted": true,
+  "never_executed_defs": 1,
+  "survived_covered": 112,
+  "survived_uncovered": 20,
+  "survived_unknown": 0,
+  "killed_traced": 267,
+  "killed_on_uncovered": 2,
+  "corpus_found_covered": 3,
+  "corpus_tried_covered": 112,
+  "corpus_found_uncovered": 3,
+  "corpus_tried_uncovered": 20
+ },
+ "repair": {
+  "attempted": 6,
+  "green": 5,
+  "exact": 5,
+  "localized": 5,
+  "cheated": 0,
+  "green_not_exact": 0,
+  "cost_usd": 0.2923,
+  "steps": 44,
+  "model": "claude-sonnet-5"
+ },
+ "tests_added": 6,
+ "projected_score": 0.8807,
+ "cost_usd": 3.8958
+}

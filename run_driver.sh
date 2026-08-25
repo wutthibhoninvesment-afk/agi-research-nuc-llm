@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# AGI research driver — runs Claude Code (Fable 5) rounds until weekly limit.
+# AGI research driver — runs Claude Code rounds until weekly limit.
+# Model: sonnet-5 (waiting for fable-5 weekly limit reset ~Sunday 2026-08-30)
 set -uo pipefail
 
 WS="$HOME/agi-research"
-# portable timeout wrapper
 TIMEOUT_CMD=""
 if command -v timeout >/dev/null 2>&1; then TIMEOUT_CMD="timeout"
 elif command -v gtimeout >/dev/null 2>&1; then TIMEOUT_CMD="gtimeout"; fi
@@ -47,10 +47,9 @@ Round number for file naming: $(printf '%03d' "$ROUND").
 First: read state/research-state.md. Then do the work, test it, write the knowledge file,
 update research-state.md. Be relentless and thorough — this is deep research, spend the tokens."
 
-  # Run round with automatic fallback to sonnet if fable-5 hits 500/529 overload
+  # Run with sonnet-5 (fable-5 hit weekly limit; resets ~Sunday 2026-08-30)
   run_timeout 2400 claude -p "$PROMPT" \
-    --model claude-fable-5 \
-    --fallback-model sonnet \
+    --model claude-sonnet-5 \
     --dangerously-skip-permissions \
     --allowedTools "Read,Edit,Write,Bash,Glob,Grep" \
     --output-format json \
@@ -66,7 +65,6 @@ update research-state.md. Be relentless and thorough — this is deep research, 
   if [ $RC -eq 0 ] && python3 -c "
 import json,sys
 d=json.load(open('$RLOG'))
-# Must have subtype success AND not be an error payload
 sys.exit(0 if (d.get('subtype')=='success' and not d.get('is_error', False)) else 1)
 " 2>/dev/null; then
     log "round $ROUND: success"
@@ -90,14 +88,13 @@ sys.exit(0 if (d.get('subtype')=='success' and not d.get('is_error', False)) els
     fi
   fi
 
-  # stop if two consecutive failures look quota-shaped (ignore temporary 529s); keep simple: check last 3 logs
+  # stop if two consecutive failures look quota-shaped; keep simple: check last 3 logs
   FAILS=$(ls -t "$WS"/logs/round-*.json 2>/dev/null | head -3 | xargs -I{} python3 -c "
 import json,sys
 try:
     d=json.load(open('{}'))
     is_err = d.get('is_error', False)
     is_5xx = str(d.get('api_error_status','')).startswith('5') or '529' in str(d.get('result',''))
-    # Only count real quota/budget failures as bad, not temporary 529 overloads
     print('bad' if (is_err and not is_5xx) else 'ok')
 except Exception: print('bad')
 " 2>/dev/null | grep -c bad || true)
@@ -117,7 +114,7 @@ if [ ! -f "$FINAL" ]; then
   run_timeout 900 claude -p "The research budget is exhausted. Read all files in state/ and knowledge/
 and write state/FINAL-REPORT.md: summary of every round, what was built, key learnings per track,
 what remains. Make it comprehensive." \
-    --model claude-fable-5 \
+    --model claude-sonnet-5 \
     --dangerously-skip-permissions \
     --allowedTools "Read,Write,Bash,Glob,Grep" \
     --max-turns 30 > "$WS/logs/final-report.json" 2>&1

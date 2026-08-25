@@ -1,0 +1,54 @@
+deep0                        need=   5  OK fallbacks=1 peak=3001
+deep1                        need=   1  OK fallbacks=1 peak=3001
+deep2                        need=   1  OK fallbacks=1 peak=3001
+deep3                        need=   0  OK fallbacks=0 peak=1
+deep4                        need=   5  OK fallbacks=2 peak=3001
+deep5                        need=   0  OK fallbacks=1 peak=6001
+deep6                        need=   1  OK fallbacks=1 peak=3001
+deep7                        need=   0  OK fallbacks=0 peak=3001
+deep8                        need=   0  OK fallbacks=1 peak=3001
+deep9                        need=   1  OK fallbacks=1 peak=3001
+ex:blame.lang                need=   0  OK fallbacks=0 peak=1
+ex:checks_demo.lang          need=   0  OK fallbacks=0 peak=10
+ex:deep.lang                 need=   5  OK fallbacks=3 peak=1000000
+ex:diverge.lang              need=   0  OK fallbacks=0 peak=2
+ex:failing_check.lang        need=   0  OK fallbacks=0 peak=0
+ex:hello.lang                need=   0  OK fallbacks=0 peak=1
+ex:history.lang              need=   0  OK fallbacks=0 peak=1
+ex:meta.lang                 need=   0  OK fallbacks=0 peak=29
+ex:provenance.lang           need=   0  OK fallbacks=0 peak=1
+ex:sales.lang                need=   0  OK fallbacks=0 peak=2
+ex:self_eval.lang            need=   0  OK fallbacks=0 peak=606
+ex:self_host.lang            need=   0  OK fallbacks=0 peak=34
+ex:tco.lang                  need=   4  OK fallbacks=1 peak=30001
+fuzz:1000003                 need=   0  OK fallbacks=0 peak=0
+fuzz:1000004                 need=   0  OK fallbacks=0 peak=0
+fuzz:1000005                 need=   0  OK fallbacks=0 peak=1
+fuzz:1000006                 need=   0  OK fallbacks=0 peak=1
+fuzz:1000007                 need= 351  CRASH whence.parser.ParseError: expression nested more than 60 levels deep at line 1, col 73
+fuzz:1000008                 need= 351  CRASH whence.parser.ParseError: expression nested more than 60 levels deep at line 1, col 73
+fuzz:1000009                 need=   0  OK fallbacks=0 peak=701
+fuzz:1000010                 need=   0  OK fallbacks=0 peak=1
+fuzz:1000011                 need= 351  CRASH whence.parser.ParseError: expression nested more than 60 levels deep at line 1, col 71
+fuzz:1000012                 need=   0  OK fallbacks=0 peak=201
+fuzz:1000013                 need=   0  OK fallbacks=0 peak=1
+fuzz:1000014                 need=   0  OK fallbacks=0 peak=201
+fuzz:1000015                 need= 351  CRASH whence.parser.ParseError: unexpected 'not' at line 4, col 18
+fuzz:1000016                 need=   0  OK fallbacks=0 peak=4
+fuzz:1000017                 need=   0  OK fallbacks=0 peak=1
+fuzz:1000018                 need= 351  CRASH whence.parser.ParseError: expression nested more than 60 levels deep at line 1, col 73
+fuzz:1000019                 need=   0  OK fallbacks=0 peak=1
+fuzz:1000020                 need=   0  OK fallbacks=0 peak=1
+fuzz:1000021                 need=   0  OK fallbacks=0 peak=1
+fuzz:1000022                 need= 351  CRASH whence.parser.ParseError: unexpected 'not' at line 13, col 8
+fuzz:1000023                 need=   0  OK fallbacks=0 peak=1
+fuzz:1000024                 need=   0  OK fallbacks=0 peak=1
+fuzz:1000025                 need=   0  OK fallbacks=0 peak=61
+fuzz:1000026                 need= 351  CRASH whence.parser.ParseError: expression nested more than 60 levels deep at line 1, col 131
+fuzz:1000027                 need=   0  OK fallbacks=0 peak=0
+fuzz:1000028                 need=   0  OK fallbacks=0 peak=0
+fuzz:1000029                 need=   0  OK fallbacks=0 peak=201
+fuzz:1000030                 need= 351  CRASH whence.parser.ParseError: unexpected 'not' at line 4, col 56
+fuzz:1000031                 need=   1  OK fallbacks=1 peak=1501
+fuzz:1000032                 need=   0  OK fallbacks=0 peak=0
+corpus maximum need: 351 (fuzz:1000007) at limit 6000; current HOST_RESERVE 350

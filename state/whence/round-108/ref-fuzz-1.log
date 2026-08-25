@@ -1,0 +1,2003 @@
+Traceback (most recent call last):
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1031, in d_call
+    return cur._call_direct(fn, args, line)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 635, in _call_direct
+    result = bd(call_env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1101, in d_if
+    branch = ef(env)
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in f_list
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1176, in <listcomp>
+    items = [g(env) for g in fs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1018, in d_call
+    args = [g(env) for g in gs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1018, in <listcomp>
+    args = [g(env) for g in gs]
+  File "/tmp/whence_ref/whence_ref/interp.py", line 1048, in <lambda>
+    return lambda env: binop(op, lf(env), rf(env), line)
+RecursionError: maximum recursion depth exceeded
+exit=1

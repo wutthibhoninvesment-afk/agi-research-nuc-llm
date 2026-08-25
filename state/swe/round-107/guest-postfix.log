@@ -1,0 +1,8 @@
+oracle fuzz: 300 programs x 1 oracles in 294.3s
+  self_eval    ok 279  parse_error 14  timeout 7
+  unique finding signatures: 0
+===DONE 115 postfix===
+oracle fuzz: 300 programs x 1 oracles in 281.6s
+  self_eval    ok 279  parse_error 12  timeout 9
+  unique finding signatures: 0
+===DONE 116===

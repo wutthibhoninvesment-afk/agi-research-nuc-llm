@@ -1,0 +1,43 @@
+== host fuzz seed 117 n=400
+fuzz: 400 programs in 14.1s
+  ok           326
+  parse_error  70
+  timeout      4
+  unique crash signatures: 0
+exit=0
+== host fuzz seed 118 n=400
+fuzz: 400 programs in 16.3s
+  ok           338
+  parse_error  60
+  timeout      2
+  unique crash signatures: 0
+exit=0
+== oracle fuzz seed 119 n=300
+oracle fuzz: 311 programs x 5 oracles in 79.7s
+  totality     ok 261  parse_error 46  timeout 4
+  fast_slow    ok 261  parse_error 46  timeout 4
+  direct       ok 261  parse_error 46  timeout 4
+  determinism  ok 261  parse_error 46  timeout 4
+  render       ok 261  parse_error 46  timeout 4
+  unique finding signatures: 0
+exit=0
+== oracle fuzz seed 120 n=300
+oracle fuzz: 311 programs x 5 oracles in 130.6s
+  totality     ok 255  parse_error 49  timeout 7
+  fast_slow    ok 255  parse_error 49  timeout 7
+  direct       ok 255  parse_error 49  timeout 7
+  determinism  ok 255  parse_error 49  timeout 7
+  render       ok 255  parse_error 49  timeout 7
+  unique finding signatures: 0
+exit=0
+== guest seed 121 n=200
+oracle fuzz: 200 programs x 1 oracles in 143.8s
+  self_eval    ok 188  parse_error 9  timeout 3
+  unique finding signatures: 0
+exit=0
+== guest seed 122 n=200
+oracle fuzz: 200 programs x 1 oracles in 151.7s
+  self_eval    ok 181  parse_error 14  timeout 5
+  unique finding signatures: 0
+exit=0
+campaigns done

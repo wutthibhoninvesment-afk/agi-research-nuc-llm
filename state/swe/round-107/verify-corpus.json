@@ -1,0 +1,43 @@
+{
+ "test_file": "tests/test_generated_killers_r29.py",
+ "pinned": 6,
+ "verified": 6,
+ "results": [
+  {
+   "id": "interp.py:230:bool#223",
+   "status": "killed",
+   "seconds": 0.2,
+   "detail": "FAILED tests/test_generated_killers_r29.py::test_kill_interp_py_230_bool_223\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed in 0.04s"
+  },
+  {
+   "id": "interp.py:2111:const#632",
+   "status": "killed",
+   "seconds": 0.2,
+   "detail": "FAILED tests/test_generated_killers_r29.py::test_kill_interp_py_2111_const_632\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 1 passed in 0.04s"
+  },
+  {
+   "id": "interp.py:231:arith#651",
+   "status": "killed",
+   "seconds": 0.2,
+   "detail": "FAILED tests/test_generated_killers_r29.py::test_kill_interp_py_230_bool_223\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed in 0.04s"
+  },
+  {
+   "id": "interp.py:2219:const#834",
+   "status": "killed",
+   "seconds": 0.2,
+   "detail": "FAILED tests/test_generated_killers_r29.py::test_kill_interp_py_2219_const_834\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 3 passed in 0.04s"
+  },
+  {
+   "id": "interp.py:586:arith#953",
+   "status": "killed",
+   "seconds": 0.2,
+   "detail": "FAILED tests/test_generated_killers_r29.py::test_kill_interp_py_586_arith_953\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 4 passed in 0.04s"
+  },
+  {
+   "id": "interp.py:1685:const#1049",
+   "status": "killed",
+   "seconds": 0.2,
+   "detail": "FAILED tests/test_generated_killers_r29.py::test_kill_interp_py_1685_const_1049\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 5 passed in 0.04s"
+  }
+ ]
+}

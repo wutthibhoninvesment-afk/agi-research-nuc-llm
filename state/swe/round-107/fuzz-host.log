@@ -1,0 +1,12 @@
+fuzz: 400 programs in 11.5s
+  ok           341
+  parse_error  57
+  timeout      2
+  unique crash signatures: 0
+===DONE 111===
+fuzz: 400 programs in 21.3s
+  ok           345
+  parse_error  50
+  timeout      5
+  unique crash signatures: 0
+===DONE 112===

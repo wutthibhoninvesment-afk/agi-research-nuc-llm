@@ -1,0 +1,13 @@
+{
+ "programs": 300,
+ "seconds": 294.29,
+ "oracles": [
+  "self_eval"
+ ],
+ "counts": {
+  "self_eval/ok": 279,
+  "self_eval/parse_error": 14,
+  "self_eval/timeout": 7
+ },
+ "findings": []
+}

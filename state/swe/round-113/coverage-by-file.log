@@ -1,0 +1,35 @@
+suite rc=0 in 274s: ['654 passed in 273.26s (0:04:33)']
+by-file map: 20 test files, durations test_examples.py 11.8s, test_fuzz_regressions.py 7.3s, test_generated_killers.py 0.4s, test_generated_killers_r29.py 0.0s, test_history.py 0.1s, test_interp.py 3.6s, test_lexer.py 0.0s, test_parser.py 0.0s, test_self_eval.py 20.4s, test_trampoline.py 2.0s, test_v03.py 19.6s, test_v04.py 14.7s, test_v05.py 0.1s, test_v06.py 0.2s, test_v07.py 0.5s, test_v08.py 0.3s, test_v09.py 168.4s, test_v10.py 23.1s, test_v11.py 0.6s, test_values.py 0.0s
+whence/interp.py: 1806/1880 executable lines executed (96.1%)
+  never executed: Interpreter.eval, Interpreter._trampoline_body
+  Interpreter.call_value                     2/  3  66.7%  [429-432]
+  Interpreter.compile_direct                24/ 31  77.4%  [959-999]
+  Interpreter._closure_inline               21/ 27  77.8%  [754-788]
+  _arity_ok                                  4/  5  80.0%  [1955-1960]
+  _arity_str                                 4/  5  80.0%  [1963-1968]
+  _make_builtin_table.b_filter              18/ 21  85.7%  [2078-2099]
+  _make_builtin_table.b_push                 6/  7  85.7%  [2121-2128]
+  _make_builtin_table.b_abs                  7/  8  87.5%  [2163-2171]
+  Interpreter._call_gen                     64/ 72  88.9%  [1606-1693]
+  _make_builtin_table.b_join                16/ 18  88.9%  [2234-2252]
+  _make_builtin_table.b_keys                 8/  9  88.9%  [2255-2264]
+  Interpreter.eval_Call                     18/ 20  90.0%  [1582-1604]
+exit=0
+----- rerun with per-test re-arm Tue Aug 25 21:08:29 +07 2026
+suite rc=0 in 732s: ['654 passed in 732.27s (0:12:12)']
+by-file map: 20 test files, durations test_examples.py 8.6s, test_fuzz_regressions.py 5.0s, test_generated_killers.py 0.3s, test_generated_killers_r29.py 0.0s, test_history.py 0.1s, test_interp.py 2.5s, test_lexer.py 0.0s, test_parser.py 0.0s, test_self_eval.py 14.4s, test_trampoline.py 1.4s, test_v03.py 14.2s, test_v04.py 10.6s, test_v05.py 0.0s, test_v06.py 0.2s, test_v07.py 0.4s, test_v08.py 0.2s, test_v09.py 186.5s, test_v10.py 486.9s, test_v11.py 0.9s, test_values.py 0.0s
+whence/interp.py: 1816/1880 executable lines executed (96.6%)
+  never executed: Interpreter.eval, Interpreter._trampoline_body
+  Interpreter.call_value                     2/  3  66.7%  [429-432]
+  _arity_ok                                  4/  5  80.0%  [1955-1960]
+  _arity_str                                 4/  5  80.0%  [1963-1968]
+  Interpreter.compile_direct                25/ 31  80.6%  [959-999]
+  _make_builtin_table.b_filter              18/ 21  85.7%  [2078-2099]
+  _make_builtin_table.b_push                 6/  7  85.7%  [2121-2128]
+  _make_builtin_table.b_abs                  7/  8  87.5%  [2163-2171]
+  Interpreter._closure_inline               24/ 27  88.9%  [754-788]
+  _make_builtin_table.b_join                16/ 18  88.9%  [2234-2252]
+  _make_builtin_table.b_keys                 8/  9  88.9%  [2255-2264]
+  Interpreter.eval_Call                     18/ 20  90.0%  [1582-1604]
+  _make_builtin_table.b_merge                9/ 10  90.0%  [2267-2277]
+exit=0 Tue Aug 25 21:20:42 +07 2026

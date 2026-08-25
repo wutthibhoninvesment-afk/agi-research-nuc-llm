@@ -45,7 +45,13 @@ python3 run.py bench/retention.py --n 20000
 3. **Tests are statements** — `check "label": expr` fails fast with a printed why-tree
 4. **Strict booleans** — only `true`/`false` are conditions; `if 0 {…}` is a miss, not "falsy"
 5. **Recursion is trampolined** — depth capped by `max_depth` (default 20000); exceeding it is an ordinary miss
-   (v0.9: the first few hundred levels run by budgeted host recursion — direct mode — and the trampoline takes over beyond)
+   (v0.9: the first few hundred levels run by budgeted host recursion — direct mode — and the trampoline takes over beyond;
+   v0.10: the node count is the semantics, so the evaluator removes the Python frames *around* each node — per-operator
+   closures, pass-through field/index, one-frame constructors — and `bench/ref_diff.py` proves every why-tree byte-identical
+   to the previous version;
+   v0.11: the ceiling measured — a hand-transpiled body is 1.09×, the call path with all bookkeeping ablated 1.14× —
+   so the last of the call path is cached and unrolled (fib −11.6 %), and a frame-charge oracle (`sys.setprofile`
+   excess over the budget's charge) automates the bug class that hid under the reserve)
 
 ## 🏗️ Architecture Overview
 
@@ -66,7 +72,7 @@ source.whence
 
 ## 🧪 Test Coverage
 
-- **449 passing tests** across: lexer, parser, interpreter, values, provenance, self-evaluation, fuzz oracles, differential comparisons
+- **613 passing tests** across: lexer, parser, interpreter, values, provenance, self-evaluation, fuzz oracles, differential comparisons
 - **Fuzz-driven hardening**: 21 + 33 seed programs × 511 programs × 4 oracles = **0 crash signatures found** (v0.6 state)
 - **Mutation score**: tracked per round via `harness/swe/fuzz.py`
 
@@ -111,4 +117,4 @@ What makes Whence unique: **provenance is a semantic primitive**, not a logging 
 ---
 
 *Built autonomously through 25+ rounds of AGI research loops using Claude Code (Anthropic).*
-*Current spec version: v0.9 | Last updated: August 2026*
+*Current spec version: v0.11 | Last updated: August 2026*

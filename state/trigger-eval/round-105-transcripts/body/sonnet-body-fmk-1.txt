@@ -1,0 +1,389 @@
+case: body-fmk
+model: sonnet
+arm: None
+fired: ['fuzz-mutate-kill-loop']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+This is exactly the fuzz-mutate-kill-loop scenario — green suite, need to find real bugs and measure suite strength. Let me load that skill first.
+
+## Plan
+
+Two separate engines, both stdlib-only Python, both drop-in against your repo:
+
+**(a) Find real bugs — differential/totality fuzzing.** Generate expressions from the evaluator's grammar plus adversarial stress templates (deep nesting, huge literals, long chains), run each in-process under a wall-clock budget, and classify every outcome as `ok` / `expected_error` / `crash` / `timeout`. Any `crash` or `timeout` that isn't a documented error path is a real bug. Group crashes by signature so 500 fuzz runs don't report the same bug 40 times, then shrink each one to a minimal reproducer.
+
+**(b) Measure suite strength — mutation testing.** Enumerate small semantic edits to the evaluator's source (`<`→`<=`, `and`↔`or`, `+`↔`-`, drop `not`, flip booleans, negate `if` conditions). For each mutant, run your 300 tests against the mutated code. If the suite still passes, none of your 300 tests exercise that logic branch meaningfully — that's the real "test strength" number, not the pass count. `score = killed / total`.
+
+These are independent and complementary: fuzzing catches things no test hits at all; mutation testing catches things tests hit but don't actually assert on.
+
+---
+
+## (a) Fuzzer with oracle, shrinker, and crash grouping
+
+```python
+#!/usr/bin/env python3
+# fuzz_eval.py
+"""Fuzz an expression evaluator: generate, run under a timeout, classify,
+group crash signatures, shrink to a minimal reproducer.
+
+Point _evaluate() at your real entry point before running.
+"""
+from __future__ import annotations
+import argparse, random, re, signal, sys, traceback
+from dataclasses import dataclass
+
+# --- 1. Adapter: replace this with your evaluator's entry point ------------
+def _evaluate(src: str):
+    from myevaluator import evaluate  # <-- edit this import
+    return evaluate(src)
+
+KNOWN_ERRORS = (ValueError, ZeroDivisionError, SyntaxError, OverflowError, TypeError)
+PACKAGE_HINT = "myevaluator"  # <-- substring of your package's file paths
+
+class FuzzTimeout(Exception): pass
+def _on_alarm(signum, frame): raise FuzzTimeout()
+
+@dataclass
+class Outcome:
+    kind: str            # "ok" | "expected_error" | "crash" | "timeout"
+    detail: str = ""
+    exc: BaseException = None
+
+def run_program(src: str, budget: float = 2.0) -> Outcome:
+    signal.signal(signal.SIGALRM, _on_alarm)
+    signal.setitimer(signal.ITIMER_REAL, budget)
+    try:
+        _evaluate(src)
+        return Outcome("ok")
+    except FuzzTimeout:
+        return Outcome("timeout")
+    except KNOWN_ERRORS as e:
+        return Outcome("expected_error", str(e))
+    except Exception as e:
+        return Outcome("crash", str(e), e)
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+
+# --- 2. Grammar-directed generator + adversarial templates ------------------
+NUM_LITERALS = ["0", "1", "-1", "3.14", "1e300", "1e-300", "0.1",
+                "999999999999999999999", "1_000", "-0"]
+OPS = ["+", "-", "*", "/", "%", "**"]
+
+def gen_expr(depth: int, rnd: random.Random) -> str:
+    if depth <= 0 or rnd.random() < 0.3:
+        return rnd.choice(NUM_LITERALS)
+    r = rnd.random()
+    if r < 0.6:
+        return f"({gen_expr(depth-1, rnd)} {rnd.choice(OPS)} {gen_expr(depth-1, rnd)})"
+    if r < 0.8:
+        return f"(-{gen_expr(depth-1, rnd)})"
+    return f"({gen_expr(depth-1, rnd)})"
+
+def gen_stress(rnd: random.Random) -> str:
+    kind = rnd.choice(["deep_nest", "long_chain", "unary_run", "big_pow"])
+    if kind == "deep_nest":
+        n = rnd.choice([500, 1000, 2000]); return "(" * n + "1" + ")" * n
+    if kind == "long_chain":
+        n = rnd.choice([200, 1000]); return " + ".join(["1"] * n)
+    if kind == "unary_run":
+        n = rnd.choice([50, 500]); return "-" * n + "1"
+    return f"2 ** {rnd.choice([1000, 100000])}"
+
+def generate(n: int, seed: int, stress_rate: float = 0.15):
+    rnd = random.Random(seed)
+    for _ in range(n):
+        yield gen_stress(rnd) if rnd.random() < stress_rate else gen_expr(rnd.randint(2, 6), rnd)
+
+# --- 3. Signature grouping (RecursionError needs the cycle set, not the
+#        innermost frame, since that frame moves with call-stack depth) -----
+def signature(exc: BaseException) -> tuple:
+    tb = traceback.extract_tb(exc.__traceback__)
+    names = [f"{f.filename}:{f.name}" for f in tb]
+    if isinstance(exc, RecursionError):
+        seen, dupes = set(), set()
+        for name in names:
+            (dupes if name in seen else seen).add(name)
+        return ("RecursionError", frozenset(dupes))
+    innermost = next((f.name for f in reversed(tb) if PACKAGE_HINT in f.filename),
+                      tb[-1].name if tb else "?")
+    return (type(exc).__name__, innermost, str(exc)[:40])
+
+# --- 4. Shrinker: numeric literals toward 0, strip outer parens, halve
+#        repeated-character runs (never shrink a single bracket in isolation)
+def make_predicate(orig_kind, orig_sig, budget):
+    def predicate(candidate):
+        o = run_program(candidate, budget)
+        if o.kind != orig_kind:
+            return False
+        return True if orig_kind == "timeout" else signature(o.exc) == orig_sig
+    return predicate
+
+def shrink(src: str, predicate, max_rounds: int = 200) -> str:
+    best = src
+    for _ in range(max_rounds):
+        progressed = False
+        for m in list(re.finditer(r"-?\d+", best)):
+            n = int(m.group())
+            if n == 0:
+                continue
+            for cand_n in (0, n // 2, n - 1):
+                cand = best[:m.start()] + str(cand_n) + best[m.end():]
+                if cand != best and predicate(cand):
+                    best, progressed = cand, True
+                    break
+            if progressed:
+                break
+        if progressed:
+            continue
+        if best.startswith("(") and best.endswith(")") and predicate(best[1:-1]):
+            best, progressed = best[1:-1], True
+            continue
+        for ch in set(best):
+            if best.count(ch) > 3:
+                cand = best.replace(ch * 2, ch, 1)
+                if cand != best and predicate(cand):
+                    best, progressed = cand, True
+                    break
+        if not progressed:
+            break
+    return best
+
+# --- 5. Driver ---------------------------------------------------------------
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("-n", type=int, default=300)
+    ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--budget", type=float, default=2.0)
+    ap.add_argument("--show", action="store_true")
+    args = ap.parse_args()
+
+    found = {}
+    for src in generate(args.n, args.seed):
+        outcome = run_program(src, args.budget)
+        if outcome.kind not in ("crash", "timeout"):
+            continue
+        sig = ("timeout",) if outcome.kind == "timeout" else signature(outcome.exc)
+        if sig in found:
+            continue
+        pred = make_predicate(outcome.kind, sig, args.budget)
+        found[sig] = shrink(src, pred)
+
+    print(f"ran {args.n} programs, {len(found)} unique signatures")
+    if args.show:
+        for sig, src in found.items():
+            print(f"--- {sig}\n{src}\n")
+
+if __name__ == "__main__":
+    main()
+```
+
+```bash
+python3 fuzz_eval.py -n 500 --seed 1 --show
+```
+
+Every signature printed here is a bug report with a minimal reproducer attached — file each one, then add a hand-written regression test for it (don't just leave the crashing input as a fixture; fix the bug and pin the test, per the skill's "fixtures shouldn't be real bugs" pitfall).
+
+---
+
+## (b) Mutation tester to measure suite strength
+
+```python
+#!/usr/bin/env python3
+# mutate_eval.py
+"""Mutation-test a module against its pytest suite.
+
+  python3 mutate_eval.py --project /path/to/repo --module src/evaluator.py \
+      --tests tests --workers 4 --limit 60
+"""
+from __future__ import annotations
+import argparse, ast, copy, shutil, subprocess, sys, tempfile, threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
+
+COMPARE_SWAP = {ast.Lt: ast.LtE, ast.LtE: ast.Lt, ast.Gt: ast.GtE, ast.GtE: ast.Gt,
+                ast.Eq: ast.NotEq, ast.NotEq: ast.Eq}
+BOOLOP_SWAP = {ast.And: ast.Or, ast.Or: ast.And}
+
+def classify(node) -> str | None:
+    if isinstance(node, ast.Compare) and any(type(o) in COMPARE_SWAP for o in node.ops):
+        return "compare"
+    if isinstance(node, ast.BoolOp) and type(node.op) in BOOLOP_SWAP:
+        return "boolop"
+    if isinstance(node, ast.BinOp) and type(node.op) in (ast.Add, ast.Sub):
+        return "arith"
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
+        return "not"
+    if isinstance(node, ast.Constant) and isinstance(node.value, bool):
+        return "boolconst"
+    if isinstance(node, ast.If):
+        return "ifneg"
+    return None
+
+def enumerate_sites(tree):
+    sites, counters = [], {}
+    for node in ast.walk(tree):
+        kind = classify(node)
+        if kind is None:
+            continue
+        idx = counters.get(kind, 0)
+        sites.append({"kind": kind, "index": idx, "lineno": getattr(node, "lineno", -1)})
+        counters[kind] = idx + 1
+    return sites
+
+class Mutator(ast.NodeTransformer):
+    def __init__(self, target_index, kind):
+        self.target_index, self.kind = target_index, kind
+        self.counter, self.applied = -1, False
+
+    def _maybe(self, node, matches, mutate):
+        if not matches:
+            return node
+        self.counter += 1
+        if self.counter != self.target_index:
+            return node
+        self.applied = True
+        return mutate(node)
+
+    def visit_Compare(self, node):
+        self.generic_visit(node)
+        def mutate(n):
+            for i, op in enumerate(n.ops):
+                if type(op) in COMPARE_SWAP:
+                    n.ops[i] = COMPARE_SWAP[type(op)]()
+                    break
+            return n
+        return self._maybe(node, self.kind == "compare" and any(type(o) in COMPARE_SWAP for o in node.ops), mutate)
+
+    def visit_BoolOp(self, node):
+        self.generic_visit(node)
+        return self._maybe(node, self.kind == "boolop" and type(node.op) in BOOLOP_SWAP,
+                            lambda n: (setattr(n, "op", BOOLOP_SWAP[type(n.op)]()), n)[1])
+
+    def visit_BinOp(self, node):
+        self.generic_visit(node)
+        matches = self.kind == "arith" and type(node.op) in (ast.Add, ast.Sub)
+        def mutate(n):
+            n.op = ast.Sub() if isinstance(n.op, ast.Add) else ast.Add()
+            return n
+        return self._maybe(node, matches, mutate)
+
+    def visit_UnaryOp(self, node):
+        self.generic_visit(node)
+        return self._maybe(node, self.kind == "not" and isinstance(node.op, ast.Not),
+                            lambda n: n.operand)
+
+    def visit_Constant(self, node):
+        matches = self.kind == "boolconst" and isinstance(node.value, bool)
+        return self._maybe(node, matches, lambda n: ast.copy_location(ast.Constant(value=not n.value), n))
+
+    def visit_If(self, node):
+        self.generic_visit(node)
+        def mutate(n):
+            n.test = ast.copy_location(ast.UnaryOp(op=ast.Not(), operand=n.test), n.test)
+            return n
+        return self._maybe(node, self.kind == "ifneg", mutate)
+
+def build_mutant(tree, kind, index):
+    new_tree = copy.deepcopy(tree)
+    m = Mutator(index, kind)
+    new_tree = m.visit(new_tree)
+    if not m.applied:
+        return None
+    ast.fix_missing_locations(new_tree)
+    return new_tree
+
+def run_campaign(project: Path, module_rel: str, test_args, limit, workers, timeout):
+    module_path = project / module_rel
+    original_src = module_path.read_text()
+    tree = ast.parse(original_src)
+    sites = enumerate_sites(tree)[:limit] if limit else enumerate_sites(tree)
+
+    work_dirs = [Path(tempfile.mkdtemp(prefix="mutant-")) for _ in range(workers)]
+    for d in work_dirs:
+        shutil.copytree(project, d, dirs_exist_ok=True)
+    free, lock = list(range(workers)), threading.Lock()
+
+    def run_one(site, mid):
+        with lock:
+            slot = free.pop()
+        try:
+            wdir = work_dirs[slot]
+            target = wdir / module_rel
+            mutant_tree = build_mutant(tree, site["kind"], site["index"])
+            if mutant_tree is None:
+                return {"id": mid, **site, "result": "no_mutant"}
+            target.write_text(ast.unparse(mutant_tree))
+            try:
+                proc = subprocess.run(
+                    [sys.executable, "-m", "pytest", "-q", "-x", "-p", "no:cacheprovider", *test_args],
+                    cwd=wdir, timeout=timeout, capture_output=True, text=True)
+                killed = proc.returncode != 0
+            except subprocess.TimeoutExpired:
+                killed = True  # timeouts count as killed, not survivors
+            finally:
+                target.write_text(original_src)  # restore before the slot is reused
+            return {"id": mid, **site, "result": "killed" if killed else "survived"}
+        finally:
+            with lock:
+                free.append(slot)
+
+    results = []
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        futs = [ex.submit(run_one, site, i) for i, site in enumerate(sites)]
+        for fut in as_completed(futs):
+            results.append(fut.result())
+
+    for d in work_dirs:
+        shutil.rmtree(d, ignore_errors=True)
+
+    assert module_path.read_text() == original_src, "original checkout was modified!"
+    return results
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--project", required=True, type=Path)
+    ap.add_argument("--module", required=True)
+    ap.add_argument("--tests", default="tests")
+    ap.add_argument("--workers", type=int, default=4)
+    ap.add_argument("--timeout", type=float, default=30.0)
+    ap.add_argument("--limit", type=int, default=None)
+    args = ap.parse_args()
+
+    results = run_campaign(args.project, args.module, [args.tests], args.limit, args.workers, args.timeout)
+    killed = sum(1 for r in results if r["result"] == "killed")
+    no_mutant = sum(1 for r in results if r["result"] == "no_mutant")
+    total = len(results) - no_mutant
+    print(f"mutation: {total} mutants, {killed} killed, score={killed/total:.1%}" if total else "no mutants generated")
+    print("\nsurvivors (test suite gap or equivalent mutant):")
+    for r in results:
+        if r["result"] == "survived":
+            print(f"  #{r['id']:3d} line {r['lineno']:4d}  {r['kind']}")
+
+if __name__ == "__main__":
+    main()
+```
+
+```bash
+python3 mutate_eval.py --project . --module src/evaluator.py --tests tests --workers 4
+```
+
+**Reading the output:** `killed/total` is your real coverage-of-assertions number — expect it well below 100% even at 300 green tests. Survivors fall into two buckets:
+- **Test gap** — the mutated line runs during the suite but nothing asserts on its output. Write a test that pins the correct behavior at that line.
+- **Equivalent mutant** — the mutation can't actually change observable behavior (e.g. `>=` vs `>` on a value that's never exactly at the boundary). Note it and move on; don't force a test for it.
+
+To tell them apart without reading code by hand: for each survivor, feed it the fuzz corpus from step (a) run against both the original and the mutated module in-process (load both under different `sys.modules` names via `importlib.util.spec_from_file_location`) — the first input where they disagree is a killer test; if none disagree after a few hundred inputs, it's probably equivalent.
+
+---
+
+## Running order
+1. Run `fuzz_eval.py` first — file and fix any real crashes/timeouts, adding a regression test per bug.
+2. Run `mutate_eval.py` on the now-fixed code to get your baseline mutation score.
+3. For each survivor, add a test (or mark it equivalent), then re-run mutation on the *same* code (don't re-mutate after fixing bugs — line numbers shift) to get the honest before/after score.
+
+Say the word if you want the differential killer-search script fleshed out too, or if your evaluator isn't Python (the mutation approach translates to Stryker for JS/TS, PIT for Java, etc., but the AST mutator above is Python-specific).

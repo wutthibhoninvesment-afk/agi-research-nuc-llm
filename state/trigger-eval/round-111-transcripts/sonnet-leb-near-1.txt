@@ -1,0 +1,13 @@
+case: leb-near
+model: sonnet
+arm: None
+fired: ['llm-engine-benchmarking']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=llm-engine-benchmarking

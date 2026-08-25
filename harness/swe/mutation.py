@@ -30,6 +30,8 @@ import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor
 
+from .proc import run_capped
+
 _CMP_SWAP = {
     ast.Lt: ast.LtE, ast.LtE: ast.Lt, ast.Gt: ast.GtE, ast.GtE: ast.Gt,
     ast.Eq: ast.NotEq, ast.NotEq: ast.Eq, ast.Is: ast.IsNot, ast.IsNot: ast.Is,
@@ -151,21 +153,17 @@ def run_mutant(m, project_root, test_cmd, timeout_s=120.0):
         _copy_project(project_root, dst)
         with open(os.path.join(dst, m.path), "w", encoding="utf-8") as f:
             f.write(m.source)
-        t0 = time.time()
-        try:
-            p = subprocess.run(test_cmd, cwd=dst, capture_output=True, text=True,
-                               timeout=timeout_s)
-            m.seconds = time.time() - t0
-            if p.returncode == 0:
-                m.status = "survived"
-            else:
-                m.status = "killed"
-                tail = (p.stdout + p.stderr).strip().splitlines()
-                m.detail = "\n".join(tail[-3:])
-        except subprocess.TimeoutExpired:
-            m.seconds = time.time() - t0
+        r = run_capped(test_cmd, dst, timeout_s)
+        m.seconds = r.seconds
+        if r.timed_out:
             m.status = "timeout"
-            m.detail = "test run exceeded %.0fs" % timeout_s
+            m.detail = "test run exceeded %.0fs (process group killed)" % timeout_s
+        elif r.returncode == 0:
+            m.status = "survived"
+        else:
+            m.status = "killed"
+            tail = r.output.strip().splitlines()
+            m.detail = "\n".join(tail[-3:])
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     return m

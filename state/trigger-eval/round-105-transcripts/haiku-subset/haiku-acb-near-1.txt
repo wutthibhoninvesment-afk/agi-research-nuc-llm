@@ -1,0 +1,15 @@
+case: acb-near
+model: haiku
+arm: None
+fired: ['agent-context-budgeting']
+distractors: []
+foreign: ['claude-api']
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=agent-context-budgeting
+
+I need to see the agent code to apply the fix. What's the path to your agent implementation?

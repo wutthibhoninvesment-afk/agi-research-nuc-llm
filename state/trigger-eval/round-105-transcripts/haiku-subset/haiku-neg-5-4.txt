@@ -1,0 +1,126 @@
+case: neg-5
+model: haiku
+arm: None
+fired: []
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=NONE
+
+I'll create a React component with a paginated user table that includes navigation controls and sample data.
+
+```jsx
+import React, { useState } from 'react';
+
+const UserTable = ({ data = [] }) => {
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  const totalPages = Math.ceil(data.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentData = data.slice(startIndex, endIndex);
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handlePageChange = (page) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
+  return (
+    <div style={{ padding: '20px' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr style={{ backgroundColor: '#f0f0f0', borderBottom: '2px solid #ddd' }}>
+            <th style={{ padding: '12px', textAlign: 'left' }}>ID</th>
+            <th style={{ padding: '12px', textAlign: 'left' }}>Name</th>
+            <th style={{ padding: '12px', textAlign: 'left' }}>Email</th>
+            <th style={{ padding: '12px', textAlign: 'left' }}>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {currentData.map((user) => (
+            <tr key={user.id} style={{ borderBottom: '1px solid #ddd' }}>
+              <td style={{ padding: '12px' }}>{user.id}</td>
+              <td style={{ padding: '12px' }}>{user.name}</td>
+              <td style={{ padding: '12px' }}>{user.email}</td>
+              <td style={{ padding: '12px' }}>{user.status}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <div style={{ marginTop: '20px', display: 'flex', gap: '10px', alignItems: 'center' }}>
+        <button onClick={handlePrevPage} disabled={currentPage === 1}>
+          Previous
+        </button>
+
+        <div style={{ display: 'flex', gap: '5px' }}>
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+            <button
+              key={page}
+              onClick={() => handlePageChange(page)}
+              style={{
+                padding: '5px 10px',
+                backgroundColor: currentPage === page ? '#007bff' : '#f0f0f0',
+                color: currentPage === page ? '#fff' : '#000',
+                border: '1px solid #ddd',
+                cursor: 'pointer',
+              }}
+            >
+              {page}
+            </button>
+          ))}
+        </div>
+
+        <button onClick={handleNextPage} disabled={currentPage === totalPages}>
+          Next
+        </button>
+
+        <span style={{ marginLeft: '10px' }}>
+          Page {currentPage} of {totalPages}
+        </span>
+      </div>
+    </div>
+  );
+};
+
+// Example usage with sample data
+const sampleUsers = Array.from({ length: 45 }, (_, i) => ({
+  id: i + 1,
+  name: `User ${i + 1}`,
+  email: `user${i + 1}@example.com`,
+  status: i % 3 === 0 ? 'Active' : 'Inactive',
+}));
+
+export default function App() {
+  return <UserTable data={sampleUsers} />;
+}
+```
+
+The component features:
+- **Table display**: Shows ID, Name, Email, and Status columns
+- **Pagination**: Shows 10 items per page with configurable limit
+- **Navigation**: Previous/Next buttons and direct page number buttons
+- **State**: Tracks current page and calculates visible data range
+- **Disabled states**: Buttons disable at boundaries (first/last page)
+- **Sample data**: 45 users to demonstrate pagination
+
+Customize by adjusting `itemsPerPage` and passing your own user data array as the `data` prop.

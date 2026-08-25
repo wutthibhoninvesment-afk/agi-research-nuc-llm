@@ -592,7 +592,13 @@ if __name__ == "__main__":
     ap.add_argument("-n", type=int, default=200)
     ap.add_argument("--no-shrink", action="store_true")
     ap.add_argument("--show", action="store_true", help="print minimized crashers")
+    ap.add_argument("--limit", type=int, default=0,
+                    help="host recursion limit (run.py uses 6000; the default "
+                         "limit's reserve hides linear frame undercounts — "
+                         "round 108)")
     a = ap.parse_args()
+    if a.limit:
+        sys.setrecursionlimit(a.limit)
     c = fuzz(a.seed, a.n, do_shrink=not a.no_shrink)
     print(c.summary())
     if a.show:

@@ -1,0 +1,13 @@
+case: oat-near
+model: sonnet
+arm: None
+fired: ['offline-agent-testing']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=offline-agent-testing

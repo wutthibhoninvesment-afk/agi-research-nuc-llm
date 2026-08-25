@@ -1,0 +1,13 @@
+case: sa-far
+model: sonnet
+arm: staged
+fired: ['skill-authoring']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=skill-authoring

@@ -1,0 +1,29 @@
+# nuc_mini_probe.errand — price E2's nuc-mini tiers on qwen36 under an interactive budget.
+# micro tier = 338 engine tokens, mini = ~600 (round 22). The E1 curve says 60 s is
+# only enough for the micro tier; `--transport dry` shows the refusal without the box.
+lane qwen { url "http://127.0.0.1:8080" model "qwen36-tools" prefill e1 decode 3.3 fixed 2.4s tools yes ctx 32768 }
+
+budget interactive { time 60s }
+budget patient     { time 5m }
+
+# 338 tokens ≈ 1330 chars of system prompt + tool schema text at 4 chars/token
+task micro_turn(question) on qwen within interactive {
+  system "You are nuc-agent on pgain-nuc, a small Debian machine (user jab, 2 cores, 31 GB RAM). Work step by step: call one tool, read its result, then decide. Keep replies under 80 words. Only touch files under /home/jab/nuc-research, /work/logs, or /tmp. When the task is complete, state the answer in plain text with no JSON. Tool run_shell: Run a bash command on the host, returns stdout, stderr and exit code; parameters: command (string, required), timeout_s (integer). Tool read_file: Read a UTF-8 text file, returns at most max_bytes of it; parameters: path (string, required), max_bytes (integer). Tool write_file: Create or overwrite a UTF-8 text file with the given content; parameters: path (string, required), content (string, required). Respond with a single tool call as JSON when a tool is needed, otherwise answer the user directly in plain text. Environment facts: hostname pgain-nuc, shell bash, python3 available, no internet access from tools, current directory /home/jab/nuc-research. Be brief and precise in every reply and never repeat the question back to the user before answering it fully"
+  user   "{question}"
+  reply  60
+  expect nonempty
+}
+
+task mini_turn(question) on qwen within patient {
+  system "You are nuc-agent on pgain-nuc, a small Debian machine (user jab, 2 cores, 31 GB RAM). Work step by step: call one tool, read its result, then decide. Keep replies under 80 words. Only touch files under /home/jab/nuc-research, /work/logs, or /tmp. When the task is complete, state the answer in plain text with no JSON. Tool run_shell: Run a bash command on the host, returns stdout, stderr and exit code; parameters: command (string, required), timeout_s (integer). Tool read_file: Read a UTF-8 text file, returns at most max_bytes of it; parameters: path (string, required), max_bytes (integer). Tool write_file: Create or overwrite a UTF-8 text file with the given content; parameters: path (string, required), content (string, required). Respond with a single tool call as JSON when a tool is needed, otherwise answer the user directly in plain text. Environment facts: hostname pgain-nuc, shell bash, python3 available, no internet access from tools, current directory /home/jab/nuc-research. Be brief and precise in every reply and never repeat the question back to the user before answering it fully. Additional schema detail for the mini tier: every tool result is returned as a JSON object with keys stdout, stderr, exit_code (run_shell) or content, truncated (read_file) or ok, bytes_written (write_file); when a command may take long pass timeout_s; prefer read_file over cat for files larger than a screen; prefer write_file over heredocs for multi-line content; never run commands that modify anything outside the allowed directories; if a tool fails, read the error and try a different approach at most twice before reporting the failure to the user in plain words with the exact error text quoted"
+  user   "{question}"
+  reply  60
+  expect nonempty
+}
+
+flow probe(question) {
+  let fast = micro_turn(question)
+  emit fast rescue "micro tier refused: {question}"
+  let slow = mini_turn(question)
+  emit slow
+}

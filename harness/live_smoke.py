@@ -5,6 +5,8 @@
     python3 live_smoke.py cli   # ClaudeCLILLM:    needs the `claude` CLI logged in
     python3 live_smoke.py cli-delegate   # round 31: parent + DelegateTool sub-agent, both via the CLI
     python3 live_smoke.py cli-resume     # round 31: crash after step 1, resume from the checkpoint
+    python3 live_smoke.py cli-guards     # round 109: completion guards live — a JSON answer format the
+                                         # task never mentions; the guard's nudge must carry it
 
 Each mode runs one small agentic task (read a file, count something, answer)
 with a token cap and prints the AgentResult stop reason, usage, cost, and the
@@ -19,8 +21,8 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from agentloop import (Agent, AgentConfig, AnthropicAPILLM, Checkpoint, ClaudeCLILLM,  # noqa: E402
-                       ContextBudget, DelegateTool, ListDirTool, ReadFileTool, SearchTool,
-                       ToolRegistry, TraceLogger, WriteFileTool)
+                       ContextBudget, DelegateTool, JsonAnswerGuard, ListDirTool, ReadFileTool,
+                       SearchTool, ToolRegistry, TraceLogger, WriteFileTool, default_guards)
 from agentloop.adapters import _default_runner  # noqa: E402
 from agentloop.llm import FatalLLMError  # noqa: E402
 
@@ -121,12 +123,51 @@ def run_cli_resume() -> int:
     return 0 if result.ok and result.resumed_from else 1
 
 
+GUARD_TASK = ("The workspace contains notes/*.txt. Read every notes file and count the words "
+              "in each. Then answer with the number of files and the total number of words.")
+
+
+def run_cli_guards() -> int:
+    """The task states NO answer format; a JsonAnswerGuard demands one. A
+    prose first answer must be rejected once, and the guard's corrective
+    message (which carries the format) must yield a valid JSON answer on the
+    next completion. Also a false-positive check for the prose-tool-call
+    guard across an ordinary multi-step run."""
+    ws = make_workspace()
+    trace_path = os.path.join(ws, "trace.jsonl")
+    trace = TraceLogger(trace_path)
+    model = os.environ.get("AGENTLOOP_MODEL", "claude-sonnet-5")
+    llm = ClaudeCLILLM(model=model)
+    registry = ToolRegistry([ReadFileTool(ws), ListDirTool(ws), SearchTool(ws)])
+    json_guard = JsonAnswerGuard(["files", "total_words"],
+                                 example='```json\n{"files": <n>, "total_words": <n>}\n```')
+    cfg = AgentConfig(max_steps=12, max_total_tokens=300_000,
+                      guards=default_guards() + [json_guard], max_guard_retries=2)
+    result = Agent(llm, registry, cfg, trace=trace).run(GUARD_TASK)
+    events = [e for e in trace.events if e["event"].startswith("guard_")]
+    print("stop_reason:", result.stop_reason, "| steps:", result.steps, "| tool_calls:", result.tool_calls)
+    print("guard_rejections:", result.guard_rejections, "| guard_recoveries:", result.guard_recoveries)
+    for e in events:
+        print("  %s step=%s guard=%s reason=%s detail=%r" % (
+            e["event"], e.get("step"), e.get("guard"), e.get("reason"), (e.get("detail") or "")[:100]))
+    print("usage:", result.usage.as_dict(), "| cost_usd:", result.cost_usd,
+          "| cli-reported cost_usd:", round(llm.usage["cost_usd"], 4))
+    print("final:", result.final_text[-400:])
+    answer = json_guard.extract(result.final_text)
+    print("parsed answer:", answer, "| expected: files 3, total_words 22")
+    print("trace:", trace_path)
+    prose_fp = [e for e in events if e.get("guard") == "prose_tool_call"]
+    print("prose_tool_call events (false positives on a normal run):", len(prose_fp))
+    return 0 if (result.ok and answer is not None) else 1
+
+
 def main(mode: str) -> int:
-    if mode in ("cli-delegate", "cli-resume"):
+    if mode in ("cli-delegate", "cli-resume", "cli-guards"):
         if not shutil.which("claude"):
             print("SKIP: claude CLI not on PATH")
             return 2
-        return run_cli_delegate() if mode == "cli-delegate" else run_cli_resume()
+        return {"cli-delegate": run_cli_delegate, "cli-resume": run_cli_resume,
+                "cli-guards": run_cli_guards}[mode]()
     if mode == "api":
         try:
             # AGENTLOOP_SERVER_COMPACTION=1 additionally sends the

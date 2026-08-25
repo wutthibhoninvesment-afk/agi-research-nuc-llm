@@ -1,0 +1,51 @@
+case: neg-2
+model: haiku
+arm: None
+fired: []
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+**`asyncio.gather`** and **`asyncio.wait`** both run multiple coroutines concurrently, but they differ in purpose and behavior:
+
+## asyncio.gather
+- **Returns results**: Collects and returns the results of all awaited coroutines in order
+- **Simple API**: Returns a single awaitable that you `await`
+- **All-or-nothing**: If any coroutine raises an exception, it propagates immediately (unless `return_exceptions=True`)
+- **Use case**: When you want results from all tasks and care about their return values
+
+```python
+results = await asyncio.gather(coro1(), coro2(), coro3())
+# results = [result1, result2, result3]
+```
+
+## asyncio.wait
+- **Returns events**: Returns a tuple of (done, pending) sets of Task objects, not results
+- **Lower-level control**: You check which tasks completed and can inspect them individually
+- **Flexible completion**: Supports `return_when` parameter to return on first exception, first completion, or all completion
+- **Use case**: When you need fine-grained control over task completion or need to handle tasks as they finish
+
+```python
+done, pending = await asyncio.wait(
+    [coro1(), coro2(), coro3()],
+    return_when=asyncio.FIRST_COMPLETED
+)
+# done = {Task1, Task3}  # whichever finished first
+# pending = {Task2}
+```
+
+## Quick comparison table
+
+| Aspect | gather | wait |
+|--------|--------|------|
+| Returns | Results in order | (done, pending) Task sets |
+| Exception handling | Propagates immediately | No auto-propagation |
+| Completion control | All tasks | `FIRST_COMPLETED`, `FIRST_EXCEPTION`, `ALL_COMPLETED` |
+| Simplicity | Higher | Lower |
+| Use case | Most common; want results | Need granular control or streaming results |
+
+**In practice**: Use `gather` for most cases (cleaner, simpler). Use `wait` when you need to react to tasks completing one at a time or have unusual completion logic.

@@ -1,4 +1,4 @@
-# Whence — a provenance-first language (spec v0.9, rounds 009/011/014/020/024/026/030)
+# Whence — a provenance-first language (spec v0.10, rounds 009/011/014/020/024/026/030/108)
 
 **One idea:** every value remembers where it came from. `why x` returns the
 derivation tree of `x` as a first-class value. Failures are values too, so a
@@ -326,6 +326,143 @@ that cannot end a statement.
   → 5.64 µs/iter, self_eval.lang −13 % (281 budget fallbacks: the guest's
   recursion outruns a 646-frame budget), generator sends in meta.lang
   1.10 M → 807, retention 634 B/iter unchanged.
+
+## v0.10 (round 108)
+- **The value-model floor.** The number of provenance nodes a program
+  builds is fixed by the semantics (one per operation, argument, binding,
+  decision, call: 2.77 M for one meta.lang run), so v0.10 removes the
+  Python frames AROUND each node instead of the nodes:
+  - `Prov.__init__` is a raw slot store. Its `ins` argument is stored as
+    given — a tuple of input nodes, or ONE node unboxed (the v0.6 layout;
+    a 1-tuple is accepted and simply not unboxed). Normalisation (lists,
+    unboxing) lives in `derived` / `leaf` / `mk_miss` / `merge_miss`; the
+    hot paths build `Prov(...)` directly. `MergedProv.__init__` is one
+    frame, not a delegation.
+  - Every binary operator compiles to its own closure with the numeric
+    case inline (exact type test — `bool` excluded — the native operator,
+    one node); `==`, `!=`, `+` and the orderings take the string case
+    inline too. Every other case (misses, lists, mixed kinds, zero
+    divisors, int-meets-float overflow) is decided by `binop`, so a miss
+    has exactly one wording wherever it is produced.
+  - Field access and list indexing compile to closures that return the
+    pass-through element directly (present field of a record; in-range
+    integer index of a list); every other case goes to the shared helper.
+  - The `if` guard is `c is True` / `c is False`; only a non-boolean pays
+    the `_if_bad` frame that builds the miss.
+  - A run of ONE merged decision in a tail loop is a plain `if` node whose
+    single input is the condition — the shape `MergedProv(count=1)` had,
+    minus the second class and two lists. Runs of ≥ 2 decisions remain
+    `MergedProv`. 99.99 % of the runs in meta.lang and self_host.lang are
+    one decision long (a loop through an else-if chain alternates between
+    `if` nodes, and only CONSECUTIVE identical decisions merge). Nothing
+    renders differently: `×N` appears for `count > 1` only.
+  - `Env(parent, interp)` takes the acting interpreter positionally.
+- **Bug found by the reference differential (pre-existing since v0.9):
+  comprehensions are frames.** `cdepth` charged one host frame per
+  direct closure, but the list literal closure, the call-argument
+  evaluation and the builtin-argument evaluation used list
+  comprehensions — a real frame each in CPython < 3.12 — so every level
+  of `fn nest(n) { if n == 0 { [] } else { [nest(n - 1)] } }` used 5
+  frames and was charged 4. Under the default limit (~160 direct levels)
+  the 350-frame reserve absorbed the difference; at the CLI's limit of
+  6000 (~1400 levels) `run.py` died with a RecursionError traceback on
+  `nest(1500)` — the fuzzer's own deep-nesting template, never run at
+  that limit by the oracle campaigns. v0.10 evaluates arguments and list
+  items with list displays (one and two arguments) or explicit loops:
+  no comprehension on the direct path, so the charge is exact by
+  construction (measured 4.00 frames per level for the list, argument,
+  three-argument and record-in-list shapes; pinned). `nest(3000)` at
+  6000 now runs direct for ~1400 levels and trampolines the rest.
+- **Reference differential.** `bench/ref_diff.py` runs every example under
+  the working tree and under a reference copy of the package (git HEAD by
+  default, extracted with `git show`) in every mode and compares output,
+  check records, every top-level binding's `render_why`, and (with
+  `--counters`) the evaluation counters; `--fuzz SEED -n N` does the
+  same over the harness fuzzer's random programs at the CLI's recursion
+  limit, reporting an exception under the new tree as a finding and one
+  under the reference as a note. v0.9 → v0.10: 39/39 (example, mode)
+  pairs identical, counters included; 769 random programs × 3 modes, 0
+  differing (the reference raised on 5 direct-mode pairs, the tree on
+  none). The three-way differential now also covers meta.lang and
+  self_eval.lang (suite +16 s).
+- **Numbers (idle machine, fresh process, min of 3, paired against v0.9
+  on the same day):** meta.lang 3.35 → 2.49 s (−25.5 %; `direct=False`
+  4.03 → 3.30 s, −18 %), fib(20) 4.18 → 2.99 µs/call (1.40×; trampoline
+  mode 9.61 → 8.04), tail loop 4.74 → 3.96 µs/iter (−16.5 %),
+  self_eval.lang −6.7 %, deep.lang −14 %, retention 634 B/iter unchanged;
+  Python calls per meta.lang run 30.5 M → 17.5 M (−43 %).
+
+## v0.11 (round 110)
+- **The ceiling, measured before building.** Three experiments priced the
+  frame-removal strategy that v0.4–v0.10 followed, before any of them was
+  built: (1) fusing a `NameRef` or literal operand into the closure above
+  it (no `f_name` / constant frame) saves 10–20 ns per operand — the env
+  walk is the cost, the call is not — so the 2.28 M name and 0.78 M
+  constant frames of a meta.lang run are worth 2–3 %; (2) a
+  hand-transpiled `fib` body (all 15 closure frames of the body folded
+  into ONE Python function, why-tree byte-identical) through the real
+  `_call_direct` is **1.09×**; (3) `_call_direct` with every piece of
+  bookkeeping ablated (no depth / peak / counters / try, cached entry,
+  unrolled binding) is **1.14×**. `__slots__` on the interpreter (0.3 %
+  of a call), static scope-hop hints (0.33 failed probes per lookup in
+  meta.lang → ≤ 1.2 %) and `Env` as a dict subclass (walk slower,
+  creation faster, net 0) were measured and declined. What remains is
+  the value model: one six-slot node per operation, an `Env` and a dict
+  per call, and the call bookkeeping. A transpiler would buy ≤ 10 %; the
+  evaluator is within ~15 % of what a CPython closure compiler can do for
+  this semantics.
+- **What was built: the last of the call path.** A function body's
+  direct-call entry `(evaluator, frames charged)` is cached on the body
+  node (`Node.entry`, `_body_entry`): the fast closure at cost 1, the
+  direct closure at `cdepth` + 1, or `False` when the body is too tall to
+  compile (then every call of it falls back to the trampoline — as
+  before, one lookup instead of four). One- and two-parameter bindings
+  are unrolled (no `zip` iterator); `depth` and the frame budget are read
+  once and stored back rather than read-modify-written. Trampoline-only
+  interpreters never write the entry. Same misses, same nodes, same
+  counters — pinned three-way over 0–4 parameter widths, misses as
+  arguments, arity misses at every stage of a tail loop, and loops that
+  switch between bodies of different widths and heights.
+- **The frame-charge oracle** (`harness/swe/oracles.py::oracle_frames`,
+  the sixth oracle of the fuzz campaign). Round 108's bug — a host frame
+  per guest level that `cdepth` did not know about — was invisible at the
+  default recursion limit because the 350-frame reserve absorbed ~160
+  uncounted levels; it surfaced only at the CLI's limit. The oracle runs
+  a program under `sys.setprofile`, tracking the host frames actually on
+  the stack above `exec_stmt` minus the frames direct mode has charged
+  against its budget; the maximum of that excess over the run is the
+  transient the reserve exists for. It is bounded by construction
+  (fast-closure recursion ≤ `FAST_MAX_DEPTH` levels, one nested drive and
+  its helpers): measured over 264 fuzz programs and the examples, the
+  examples reach ≤ 19 frames, most programs 5–20, the fuzzer's
+  `1 + 1 + …` chains 98 and nested list literals 59 — all at guest depth
+  0. An uncharged frame per level reaches 161 within 160 levels at the
+  default limit (injected, pinned) and ~1400 at 6000, so the slack of
+  140 (`FRAME_SLACK`) separates the two; `swe.oracles --limit` and
+  `swe.fuzz --limit` run the campaigns at the CLI's limit.
+- **`bench/reserve_probe.py`** finds, per program, the smallest
+  `HOST_RESERVE` that still completes without a RecursionError at a given
+  limit (binary search, fresh process per probe) over ten deep templates,
+  the examples and fuzz programs — the reserve's true requirement,
+  measured in the limit's own units (which count C-level recursion
+  entries the profile hook does not). Measured: deep recursions with
+  short bodies need 0–5 (the charge is exact; recursion through `fold`
+  even overcharges and falls back early), a 95-term `+` chain in the
+  base case of a non-tail recursion 93–94 (reached through a call, a
+  list literal or a record field alike), 55-deep nesting 57 (the parser
+  caps nesting at 60), a 39-level else-if chain 41, every example and
+  fuzz program ≤ 5. The bound by construction is `FAST_MAX_DEPTH` + a
+  nested drive ≈ 110, so **`HOST_RESERVE` is 250** (was 350, a guess):
+  2.3× the bound, and 100 more frames of direct budget (+17 % at the
+  default limit). `bench/minof.py` is the min-of-N fresh-process bench
+  driver.
+- **Numbers (idle, fresh process, min of 3, paired the same day, limit
+  6000):** fib(20) 3.18 → 2.81 µs/call (−11.6 %; trampoline mode 9.50 →
+  9.19), meta.lang 2.325 → 2.275 s (−2.2 %; `direct=False` 3.309 → 3.271),
+  tail loop 3.81 → 3.71 µs/iter (−2.6 %), deep.lang 1.095 → 1.066 s,
+  self_eval.lang 0.421 → 0.424 s (nothing: builtin-call bound), retention
+  634 B/iter unchanged. Reference differential v0.9 → v0.11: 39/39
+  (example, mode) pairs identical with counters.
 
 ## Builtins
 `print len range map filter fold push str num abs sqrt missed reasons note

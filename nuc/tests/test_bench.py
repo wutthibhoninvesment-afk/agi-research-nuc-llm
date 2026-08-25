@@ -119,7 +119,7 @@ def test_refuses_frontier_port():
     with pytest.raises(bench.BenchError):
         bench.check_base_url("http://127.0.0.1:8001")
     with pytest.raises(bench.BenchError):
-        bench.check_base_url("http://192.168.1.42:8001/")
+        bench.check_base_url("http://192.168.1.37:8001/")
     assert bench.check_base_url("http://127.0.0.1:8000/") == "http://127.0.0.1:8000"
 
 

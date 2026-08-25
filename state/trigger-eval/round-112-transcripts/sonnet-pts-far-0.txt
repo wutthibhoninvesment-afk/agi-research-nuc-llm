@@ -1,0 +1,13 @@
+case: pts-far
+model: sonnet
+arm: None
+fired: ['preflight-priced-task-scripts']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=preflight-priced-task-scripts

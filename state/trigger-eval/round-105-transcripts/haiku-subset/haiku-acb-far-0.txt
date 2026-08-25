@@ -1,0 +1,30 @@
+case: acb-far
+model: haiku
+arm: None
+fired: []
+distractors: []
+foreign: ['claude-api']
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+I wasn't able to load the Claude API reference skill due to permissions, but I can explain the core issue:
+
+**Why cache hits are zero after trimming:** Prompt caching works by hashing the exact content of your prompt prefix. When the agent trims old messages from the conversation, it changes the full prompt text. This creates a different hash, so even though cached content exists, it no longer matches the incoming request—cache miss on every call.
+
+**How to trim without losing cache:**
+
+The solution is **cache breakpoints with stable prefixes**. Instead of deleting old messages from the middle of your conversation, structure your context so the cached portion stays constant:
+
+1. **Keep the cached prefix immutable** — system prompt + any permanent context (codebase docs, project guidelines, etc.) should never change between requests
+2. **Compress old conversation into a stable summary** — summarize or extract key facts from trimmed messages and store that summary as an immutable prefix section, not as chat history
+3. **Use cache breakpoints** — explicitly mark where the cache ends and the request-specific part begins, so only new messages vary
+
+For Claude Code's agent specifically, this likely means:
+- The system message and any persistent project context should stay at the top (cached)
+- Instead of removing old user/assistant messages, compress them into a single "context summary" block that's part of the cached system context
+- Only the current conversation window after that summary varies per request
+
+This way your cache stays warm even as the conversation grows. The tradeoff is that old details get lossy compression rather than full preservation, but you keep the performance benefit of caching.

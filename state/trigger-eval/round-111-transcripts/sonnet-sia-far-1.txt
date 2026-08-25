@@ -1,0 +1,13 @@
+case: sia-far
+model: sonnet
+arm: None
+fired: ['session-inheritance-audit']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=session-inheritance-audit

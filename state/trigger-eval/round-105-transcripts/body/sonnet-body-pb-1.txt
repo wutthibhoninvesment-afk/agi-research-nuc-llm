@@ -1,0 +1,63 @@
+case: body-pb
+model: sonnet
+arm: None
+fired: ['prediction-banking']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+Predictions file, written before any benchmark run. Save as `state/round-001-predictions.md`.
+
+```markdown
+# Closure-compiled hot loop — predictions
+Banked BEFORE running the benchmark. 2026-08-25.
+
+## Context
+- Profiler: hot loop's own self time (tottime) = 15% of total run.
+- Optimization: recompile the loop body into compiled closures (eliminates AST-dispatch overhead: attribute lookups, isinstance branching, re-interpretation per node).
+- Machine also runs a background job of unknown/variable load at benchmark time — this is a machine-state confound, not a computed one.
+
+## P1 — Amdahl ceiling on overall wall-time speedup [computed, narrow]
+Only the loop's own 15% self time is addressable; everything else (85%) is untouched by this change.
+  overall_speedup = 1 / ((1 - p) + p/S), p = 0.15, S = local speedup, S → ∞
+  ceiling = 1 / 0.85 = **1.176×** (≤ 17.6% wall-time reduction), no matter how fast the closures get.
+This is a hard bound, not a guess: if the measured overall speedup exceeds ~1.18×, distrust the measurement (self-time estimate was wrong, or the "hot loop" isn't isolated the way the profiler thinks) before believing the optimization outperformed physics.
+
+## P2 — Local speedup on the loop itself, S [computed, narrow]
+Typical gain from eliminating per-node AST dispatch via closure compilation, absent other confounds: **2.5×–4.5×**, floor **2.0×** (below this the change isn't worth the added complexity/maintenance).
+
+## P3 — Overall wall-clock speedup, derived from P1+P2 [computed, narrow]
+Plugging P2's band into Amdahl:
+  S=2.5 → 1/(0.85+0.06)  = 1.099
+  S=4.5 → 1/(0.85+0.0333)= 1.132
+Predicted overall wall-time speedup: **1.08×–1.13×** (8%–13% reduction).
+Lower bound worth betting on: **≥1.08×**. Anything below that means either S landed under 2.0× or the 15% self-time figure was stale.
+
+## P4 — Background-job noise floor [machine-state, wide, both branches]
+State which branch applies at measurement time — do not average across both.
+- **Quiet** (background job idle or <10% CPU during the run): run-to-run noise ±2–3%. The 8–13% signal from P3 should be clearly visible above noise.
+- **Contended** (background job actively burning CPU/mem during the run): run-to-run noise **±15–25%**, likely swamping the predicted 8–13% signal in any single run — expect overlapping distributions, not a clean win.
+Precondition to record before each run: background job's CPU state (idle / light / bursting), via whatever process monitor is available.
+
+## P5 — Process base-rate bets [self-bet]
+- At least one existing test fails on first pass of the closure-compiled path (common failure mode: captured-variable scoping / late binding in the closures) — bet: **YES**.
+- A single un-replicated run (n=1) will NOT be trustworthy in the contended state — bet: **YES**, i.e., we commit to n≥5 runs per condition before drawing a conclusion.
+
+## Amendments
+(none yet — any change in belief before the run goes here, timestamped, with rationale)
+```
+
+**How we'll score it afterward:**
+
+1. Run the benchmark ≥5 times per background-job condition (quiet, contended), tag each run with the observed background-job CPU state, take the median per condition.
+2. Score each line HIT / MISS(high) / MISS(low):
+   - P1 is a bound check, not a point prediction — HIT unless the measured overall speedup exceeds 1.18×, in which case the methodology (not the physics) is suspect and gets investigated before anything else is trusted.
+   - P2, P3: compare measured local/overall speedup against their bands.
+   - P4: check which branch (quiet/contended) actually applied, and whether the observed noise matched that branch's stated range.
+   - P5: check whether a test broke on first pass, and whether we actually ran ≥5 reps before concluding anything in the contended state.
+3. For every miss, name the mechanism in one sentence (e.g., "MISS(low) on P3 — contended background job pushed noise past the signal, run averaged across states instead of separated").
+4. Report a ledger line: `P k/6, A m/m` and fold any recurring miss pattern (e.g., always over-optimistic on contended-state noise) into a standing rule for the next round.

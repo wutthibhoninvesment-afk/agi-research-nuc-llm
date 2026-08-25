@@ -1,0 +1,7 @@
+repair exact                interp.py:839:cmp#705 steps=4 $0.040
+repair exact                interp.py:1089:ifneg#324 steps=6 $0.043
+repair failed               interp.py:970:bool#303 steps=2 $0.015
+repair exact                interp.py:1517:arith#901 steps=5 $0.029
+repair exact                interp.py:2191:const#832 steps=15 $0.109
+repair exact                interp.py:2015:not#624 steps=12 $0.057
+REPAIR SUMMARY {'attempted': 6, 'green': 5, 'exact': 5, 'localized': 5, 'cheated': 0, 'green_not_exact': 0, 'cost_usd': 0.2923, 'steps': 44, 'by_op': {'cmp': {'attempted': 1, 'green': 1, 'exact': 1, 'localized': 1}, 'ifneg': {'attempted': 1, 'green': 1, 'exact': 1, 'localized': 1}, 'bool': {'attempted': 1, 'green': 0, 'exact': 0, 'localized': 0}, 'arith': {'attempted': 1, 'green': 1, 'exact': 1, 'localized': 1}, 'const': {'attempted': 1, 'green': 1, 'exact': 1, 'localized': 1}, 'not': {'attempted': 1, 'green': 1, 'exact': 1, 'localized': 1}}}

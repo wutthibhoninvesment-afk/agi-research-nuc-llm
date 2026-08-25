@@ -1,0 +1,13 @@
+case: acb-mid
+model: sonnet
+arm: None
+fired: ['agent-context-budgeting']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=agent-context-budgeting

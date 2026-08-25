@@ -1,0 +1,30 @@
+case: acb-far
+model: haiku
+arm: None
+fired: []
+distractors: []
+foreign: ['claude-api']
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+Prompt caching hashes the exact sequence of cached message blocks. When your agent trims old messages, the prefix changes—even if recent messages are identical—so cache keys no longer match. You're hitting zero reads because the full message array is different each request.
+
+**Why it breaks:**
+- Cache keys are computed over the entire prefix up to the cache point
+- Trimming messages shifts the sequence, invalidating prior hashes
+- The API sees: "this is a new message block sequence I've never seen before"
+
+**How to trim without losing cache:**
+
+1. **Keep the preamble stable** — Pin your system prompt, initial instructions, and "seed" context as a fixed prefix. Only append new messages. Never trim them. The cache then stays hot on that stable prefix while only the suffix (recent messages) grows.
+
+2. **Trim outside the cache window** — The API caches up to a token limit. Trim messages beyond that limit only; keep recent enough messages to stay within it consistently.
+
+3. **Use summaries instead of trimming** — When context grows, don't delete old messages; replace them with a summary. Keep the summary in the same position so cache keys remain stable.
+
+4. **Externalize trimmed content** — Move old messages to a file or database, then reference them via tool calls when needed, rather than including them inline. This keeps your message sequence deterministic.
+
+The strongest approach: **structure for cache stability**. Make your system prompt + core context the immutable base, append without deleting, and let natural context limits (or your own summaries at fixed points) manage growth.

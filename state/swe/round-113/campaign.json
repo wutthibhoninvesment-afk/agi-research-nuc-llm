@@ -1,0 +1,25 @@
+{
+ "created": "2026-08-25T21:00:49",
+ "root": "/Users/jaby/agi-research/languages/whence",
+ "files": [
+  "whence/interp.py"
+ ],
+ "stages": {
+  "mutation": {
+   "status": "done",
+   "started": "2026-08-25T21:20:43",
+   "finished": "2026-08-25T22:15:23",
+   "info": {
+    "total": 1226,
+    "killed": 1194,
+    "survived": 32,
+    "score": 0.9739,
+    "seconds": 3274.6
+   }
+  },
+  "recheck": {
+   "status": "running",
+   "started": "2026-08-25T22:15:23"
+  }
+ }
+}

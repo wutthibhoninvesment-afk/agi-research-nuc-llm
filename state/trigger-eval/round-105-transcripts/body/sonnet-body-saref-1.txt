@@ -1,0 +1,32 @@
+case: body-saref
+model: sonnet
+arm: None
+fired: ['skill-authoring']
+distractors: []
+foreign: []
+error: None
+reads: ['/private/var/folders/_6/3xh6ssk928jcqvpbw1p5kjh80000gn/T/trigger-eval-ccfmbf9o/.claude/skills/skill-authoring/references/trigger-evaluation.md']
+reads_failed: []
+bash: []
+
+--- transcript ---
+Here's the precise documentation from `references/trigger-evaluation.md`:
+
+**1. Three evaluator modes and cost per probe (sonnet):**
+
+| mode | cost/probe | notes |
+|---|---|---|
+| `native` (default) | ~$0.03, ~20s | real path: skills staged in a temp project, `claude -p` with only the `Skill` tool; a `Skill` tool_use = fired |
+| `catalog` | ~$0.02 | descriptions pasted into one prompt, model returns JSON list |
+| `body` | ~2–5× a native probe | probe does the task; records files read + evidence-regex matches |
+
+**2. Which mode for what:**
+Use **native** mode for real trigger decisions. **Catalog** mode is only a cheap smoke test for a description draft when the CLI is unavailable (lower fidelity — no distractors, no system-prompt framing, over-fires on multi-skill cases).
+
+**3. Body mode "fully followed" — exact conditions (all three must hold):**
+- The fired skill set matches expected
+- Every expected file in `body.files` was read (Read result did not error — errored reads land in `files_failed`, not `files_read`)
+- Every `body.evidence` regex matched the transcript (or, if `body.evidence_min: N` is set, at least N of M matched)
+
+**4. Displacement in a distractor run:**
+Displacement = probes where an expected skill went missing **while a staged distractor fired**. It's counted specifically under `--distractors`, and with `--paired` gets its own verdict: `DISPLACED` = fire count dropped ≥2 with the distractor firing and yours missing. Contrast with `SUPPRESSED` (drop ≥2, no distractor fired either — the selector went uncertain and picked neither), `noise?` (drop of 1, re-run before acting), and `ok`.

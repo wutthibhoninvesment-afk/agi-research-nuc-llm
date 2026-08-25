@@ -1,0 +1,21 @@
+case: gte-near
+model: haiku
+arm: None
+fired: ['tiny-language-implementation']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=tiny-language-implementation
+
+**Recommendation:** Convert your evaluator from direct recursion to a **generator trampoline** — an iterative dispatch loop where each evaluation step is a generator yield. This restructures the problem from Python's call stack (deep recursion hits `RecursionError`) to an explicit interpreter loop (bounded only by memory).
+
+**Main tradeoff:** Generator trampolines add complexity (every recursive step yields a continuation); the payoff is that guest programs can recurse thousands deep and you get a tunable depth cap that converts to an in-language error value instead of crashing.
+
+The skill above notes that a plain walker uses ~10–12 Python frames per guest call, so Python's ~20000 default limit ≈ guest depth ~1800. With a trampoline, you control the depth budget directly and tune it per invocation.
+
+There's a dedicated skill (`generator-trampoline-evaluator`) that teaches the trampoline pattern—it's designed exactly for this problem. Ready to restructure, or want to see the trampoline pattern first?

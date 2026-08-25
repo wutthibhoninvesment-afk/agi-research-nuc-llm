@@ -1,0 +1,15 @@
+case: fmk-near
+model: sonnet
+arm: None
+fired: ['fuzz-mutate-kill-loop', 'tiny-language-implementation']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+I'll explore the whence language implementation to find crash bugs.
+
+SKILLS=fuzz-mutate-kill-loop, tiny-language-implementation

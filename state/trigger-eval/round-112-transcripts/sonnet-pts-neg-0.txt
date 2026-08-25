@@ -1,0 +1,13 @@
+case: pts-neg
+model: sonnet
+arm: None
+fired: ['llm-engine-benchmarking']
+distractors: []
+foreign: ['dataviz']
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=llm-engine-benchmarking, dataviz

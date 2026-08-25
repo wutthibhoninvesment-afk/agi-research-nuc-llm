@@ -22,8 +22,9 @@ import sys
 import time
 
 
-def open_nocache(path: str) -> int:
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)
+def open_nocache(path: str, append: bool = False) -> int:
+    flags = os.O_WRONLY | os.O_CREAT | (os.O_APPEND if append else os.O_TRUNC)
+    fd = os.open(path, flags, 0o644)
     if not hasattr(os, "posix_fadvise") and sys.platform == "darwin":
         import fcntl  # noqa: WPS433 — macOS only
         fcntl.fcntl(fd, fcntl.F_NOCACHE, 1)
@@ -42,13 +43,19 @@ def drop_range(fd: int, offset: int, length: int) -> None:
 
 
 def sink(stream, out_path: str, chunk_bytes: int, sync_every: int,
-         log=lambda s: None) -> dict:
+         log=lambda s: None, resume: bool = False) -> dict:
+    """resume=True appends to an existing `<out>.part` (a transfer that died
+    mid-stream — round 100 lost one at 1.09 GB of 7.42 GB); the SENDER must
+    skip the bytes already on disk (`tail -c +<start+1>`), and `md5` then
+    covers only the appended bytes, so verify the whole file separately
+    (`md5sum` on the box vs the local md5 — see fast_lane.transfer_plan)."""
     part = out_path + ".part"
     os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
-    fd = open_nocache(part)
+    start = os.path.getsize(part) if (resume and os.path.exists(part)) else 0
+    fd = open_nocache(part, append=resume)
     md5 = hashlib.md5()
-    total = 0
-    since_sync_start = 0
+    total = start
+    since_sync_start = start
     t0 = time.monotonic()
     try:
         while True:
@@ -64,15 +71,17 @@ def sink(stream, out_path: str, chunk_bytes: int, sync_every: int,
             if total - since_sync_start >= sync_every:
                 drop_range(fd, since_sync_start, total - since_sync_start)
                 since_sync_start = total
-                log(f"  {total / 1e9:.2f} GB  {total / 1e6 / (time.monotonic() - t0):.1f} MB/s")
+                log(f"  {total / 1e9:.2f} GB  {(total - start) / 1e6 / (time.monotonic() - t0):.1f} MB/s")
         drop_range(fd, since_sync_start, total - since_sync_start)
     finally:
         os.close(fd)
     os.replace(part, out_path)
     elapsed = time.monotonic() - t0
-    return {"out": out_path, "bytes": total, "md5": md5.hexdigest(),
+    moved = total - start
+    return {"out": out_path, "bytes": total, "start": start, "appended": moved,
+            "md5": md5.hexdigest(), "md5_covers": "appended" if start else "file",
             "seconds": round(elapsed, 3),
-            "mb_s": round(total / 1e6 / elapsed, 2) if elapsed > 0 else None}
+            "mb_s": round(moved / 1e6 / elapsed, 2) if elapsed > 0 else None}
 
 
 def main(argv=None) -> int:
@@ -81,9 +90,18 @@ def main(argv=None) -> int:
     ap.add_argument("--chunk-mb", type=int, default=8)
     ap.add_argument("--sync-every-mb", type=int, default=256)
     ap.add_argument("--quiet", action="store_true")
+    ap.add_argument("--resume", action="store_true",
+                    help="append to an existing <out>.part; sender must skip its size")
+    ap.add_argument("--part-size", action="store_true",
+                    help="print the size of <out>.part (0 if absent) and exit")
     a = ap.parse_args(argv)
+    if a.part_size:
+        part = a.out + ".part"
+        print(os.path.getsize(part) if os.path.exists(part) else 0)
+        return 0
     log = (lambda s: None) if a.quiet else (lambda s: print(s, file=sys.stderr, flush=True))
-    result = sink(sys.stdin.buffer, a.out, a.chunk_mb * 1_000_000, a.sync_every_mb * 1_000_000, log)
+    result = sink(sys.stdin.buffer, a.out, a.chunk_mb * 1_000_000, a.sync_every_mb * 1_000_000,
+                  log, resume=a.resume)
     print(json.dumps(result), flush=True)
     return 0
 

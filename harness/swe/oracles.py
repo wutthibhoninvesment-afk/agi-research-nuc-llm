@@ -28,6 +28,22 @@ see semantic bugs:
                 `diverge(a, b)` must mirror `diverge(b, a)` (symmetry) for
                 every pair of bindings.
 
+  frames        (round 110) the frame-charge oracle. Direct mode charges
+                every host frame it will use (`cdepth` + 1 per call)
+                against a budget measured at `exec_stmt`; round 108's bug
+                was a frame the charge did not know (a list comprehension
+                per level), invisible at the default limit because the
+                350-frame reserve absorbed ~160 uncounted levels. Under
+                `sys.setprofile` this oracle tracks the host frames
+                actually on the stack above `exec_stmt` minus the frames
+                charged so far (`h0 - interp._hleft`); the maximum of that
+                EXCESS over the run is the transient the reserve must
+                cover. It is bounded by construction (fast-closure
+                recursion, one nested drive, render helpers); an
+                undercount makes it grow with guest depth. Excess above
+                FRAME_SLACK is a finding; the detail carries the number
+                either way, so a campaign can report the distribution.
+
 Every oracle returns an `OracleOutcome`; `signature()` groups findings by
 root cause so the campaign shrinks one reproducer per cause, exactly as the
 totality fuzzer does.
@@ -35,13 +51,26 @@ totality fuzzer does.
 
 import os
 import signal
+import sys
 import time
 import traceback
 
 from .fuzz import ProgramGen, WHENCE_ROOT, shrink, _whence_frames
 from .killers import load_whence, _Timeout, _alarm
 
-ORACLE_NAMES = ("totality", "fast_slow", "direct", "determinism", "render")
+ORACLE_NAMES = ("totality", "fast_slow", "direct", "determinism", "render",
+                "frames")
+
+# Largest transient (host frames used above the charge) the frames oracle
+# tolerates. The transient is bounded by construction: a call-free subtree
+# compiles to closures only up to `Interpreter.FAST_MAX_DEPTH` (100)
+# levels of host recursion, plus one nested drive and its helpers. Measured
+# (round 110, 264 programs + examples): examples <= 19, most fuzz programs
+# 5-20, the fuzzer's `1 + 1 + ...` chains 98, nested list literals 59 —
+# all at guest depth 0. An uncharged frame per guest level (round 108's
+# bug) reaches 161 within ~160 levels at the DEFAULT recursion limit and
+# ~1400 at the CLI's 6000 (`--limit`), so the slack separates the two.
+FRAME_SLACK = 140
 
 
 class OracleOutcome(object):
@@ -266,9 +295,77 @@ def oracle_direct(pkg, src, max_depth=500):
     return OracleOutcome("mismatch" if d else "ok", "direct", d)
 
 
+def frame_excess(pkg, program, max_depth=500):
+    """Run `program` (a parsed AST) in direct mode under a profile hook and
+    return `(max_excess, guest_depth_at_max, interp)`: the largest number of
+    host frames on the stack above `exec_stmt` beyond what direct mode had
+    charged against its budget at that moment. `h0` is the budget the
+    interpreter measured for the statement (read at its first `_drive`
+    call, which follows the measurement); `charged` = `h0 - _hleft`.
+    Generator frames count while they run (setprofile reports each
+    resumption as a call), C calls are ignored — so this is in host-frame
+    units, the units of `cdepth`; the recursion limit also counts a few
+    C-level entries per Python call, which is the reserve's own margin."""
+    out = []
+    interp = pkg["Interpreter"](out=out.append, max_depth=max_depth, direct=True)
+    env = pkg["Env"](interp.globals)
+    state = {"depth": 0, "d0": None, "h0": None, "best": -10 ** 9, "at": 0}
+
+    def hook(frame, event, arg):
+        if event == "call":
+            d = state["depth"] = state["depth"] + 1
+            name = frame.f_code.co_name
+            if state["d0"] is None:
+                if name == "exec_stmt":
+                    state["d0"] = d
+                return
+            if state["h0"] is None:
+                if name == "_drive":
+                    state["h0"] = interp._hleft
+                return
+            excess = (d - state["d0"]) - (state["h0"] - interp._hleft)
+            if excess > state["best"]:
+                state["best"] = excess
+                state["at"] = interp.depth
+        elif event == "return":
+            state["depth"] -= 1
+            if state["d0"] is not None and state["depth"] < state["d0"]:
+                state["d0"] = None          # exec_stmt returned: re-arm
+                state["h0"] = None
+
+    sys.setprofile(hook)
+    try:
+        for stmt in program.stmts:
+            interp.exec_stmt(stmt, env)
+    finally:
+        sys.setprofile(None)
+    return state["best"], state["at"], interp
+
+
+def oracle_frames(pkg, src, max_depth=500, slack=None):
+    """The frame-charge oracle (round 110, see the module docstring): the
+    transient host-frame excess over the charge must stay under
+    FRAME_SLACK for the whole run. `detail` always carries the measured
+    maximum and the guest depth it occurred at."""
+    if not has_direct_mode(pkg):
+        return OracleOutcome("ok", "frames", "interpreter has no direct mode")
+    try:
+        program = _parse(pkg, src)
+    except (pkg["LexError"], pkg["ParseError"]) as e:
+        return OracleOutcome("parse_error", "frames", type(e).__name__)
+    if slack is None:
+        slack = FRAME_SLACK
+    best, at, interp = frame_excess(pkg, program, max_depth=max_depth)
+    detail = "max excess %d frames at guest depth %d (slack %d)" % (best, at, slack)
+    if best > slack:
+        return OracleOutcome("mismatch", "frames", "excess %d > slack %d\n  %s" %
+                             (best, slack, detail))
+    return OracleOutcome("ok", "frames", detail)
+
+
 ORACLES = {"totality": oracle_totality, "fast_slow": oracle_fast_slow,
            "direct": oracle_direct, "determinism": oracle_determinism,
-           "render": oracle_render}
+           "render": oracle_render, "frames": oracle_frames}
 
 
 def run_oracle(name, pkg, src, timeout_s=3.0, max_depth=500, root=WHENCE_ROOT):
@@ -393,7 +490,13 @@ if __name__ == "__main__":
     ap.add_argument("--no-examples", action="store_true")
     ap.add_argument("--show", action="store_true")
     ap.add_argument("--json")
+    ap.add_argument("--limit", type=int, default=0,
+                    help="host recursion limit for the run (the CLI uses 6000; "
+                         "the frames oracle's excess on an undercount scales "
+                         "with it, a legitimate transient does not)")
     a = ap.parse_args()
+    if a.limit:
+        sys.setrecursionlimit(a.limit)
     names = ORACLE_NAMES if a.oracle == "all" else tuple(a.oracle.split(","))
     c = fuzz_oracles(a.seed, a.n, names, do_shrink=not a.no_shrink,
                      extra_programs=() if a.no_examples else example_programs())

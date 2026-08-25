@@ -1,0 +1,42 @@
+case: neg-2
+model: haiku
+arm: None
+fired: []
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+The main differences between `asyncio.gather` and `asyncio.wait`:
+
+**Return value:**
+- `gather()` returns a list of results in the order coroutines were passed
+- `wait()` returns a tuple of two sets: `(done, pending)` containing Task objects, not results
+
+**Exception handling:**
+- `gather()` raises the first exception encountered (by default) and cancels remaining tasks
+- `wait()` doesn't raise exceptions; you inspect the Task objects in the `done` set to check for errors
+
+**Use cases:**
+- `gather()` is simpler when you just want results: run multiple coroutines and collect outputs
+- `wait()` is more flexible for monitoring progress, handling timeouts, or processing results as they complete with `return_when` parameter (`FIRST_COMPLETED`, `FIRST_EXCEPTION`, `ALL_COMPLETED`)
+
+**Example:**
+```python
+# gather - simple "run and collect"
+results = await asyncio.gather(coro1(), coro2(), coro3())
+# results = [result1, result2, result3]
+
+# wait - inspect what finished
+done, pending = await asyncio.wait([coro1(), coro2(), coro3()], timeout=5)
+# Get results from done tasks
+for task in done:
+    result = task.result()  # May raise if task failed
+```
+
+**When to use:**
+- `gather()` for straightforward parallel execution where you want results in order
+- `wait()` when you need finer control, timeouts, or to process tasks as they complete

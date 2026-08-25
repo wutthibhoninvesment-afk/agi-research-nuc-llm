@@ -1,0 +1,66 @@
+case: body-sia
+model: sonnet
+arm: None
+fired: ['session-inheritance-audit']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+This matches a known scenario, so I'll load the session-inheritance-audit skill first.
+
+Here's the exact sequence to run before touching new work — in order, since each step gates the next.
+
+## 1. Read the record, then distrust it
+```bash
+tail -n 100 <state-file>         # e.g. knowledge/round-LAST.md or state/research-state.md
+tail -n 200 <driver-log>
+grep -n "STUB\|in progress\|PENDING" <state-file>
+```
+Write down: which round/entry is the stub, and what the driver log claims happened in that same window. A `success` exit code with a stub entry means the process likely exited cleanly after writing nothing (or died between "wrote artifact" and "updated state file") — don't trust either signal alone.
+
+## 2. Diff the tree against the record (whole tree, not just your subsystem)
+```bash
+find . -type f -newer <last-recorded-artifact> \
+  -not -path './.venv/*' -not -path './.git/*' -not -path '*/__pycache__/*'
+git status --short   # if it's a repo
+```
+Every file that shows up here and isn't mentioned in the state file is orphaned output from the dead session — attribute each one (recorded / orphaned-but-real / scratch) before doing anything else.
+
+## 3. Kill orphaned processes before measuring anything — this explains "the box feels slow"
+```bash
+uptime
+ps -axo pid,ppid,etime,%cpu,command | awk '$2==1' | grep -v -e launchd -e '/System/'
+```
+Look for long `etime` + high `%cpu` processes with no living parent — these are the leaked children a timeout killed by parent PID but not by process group. Kill them (`kill -TERM <pid>`, then `-KILL` if needed), and re-run `uptime` to confirm load has actually dropped before you benchmark or resume compute-heavy work.
+
+## 4. Check the backlog against the tree, not against the state file's memory
+For each "next step" the state file lists as open, grep the codebase for it first — a prior unrecorded round may have already implemented it.
+```bash
+grep -rn "<backlog-item-keyword>" --include="*.py" .
+```
+
+## 5. Read and score unread artifacts instead of re-running them
+Find result/manifest files newer than the stub entry and open them — a finished result sitting on disk is common when a session dies right after producing output but before logging it.
+```bash
+find . -name "*.json" -o -name "*result*" -o -name "*manifest*" -newer <last-recorded-artifact>
+```
+For any prediction/hypothesis file from the dead session, score it HIT/MISS/unscorable against what actually landed.
+
+## 6. Run every component's test suite, not just the one you're about to touch
+```bash
+perl -e 'alarm 300; exec @ARGV' python3 -m pytest -q   # macOS has no `timeout`
+```
+A change in one subsystem can leave a sibling subsystem's suite red without anyone noticing for a round.
+
+## 7. Write the inheritance into the state file *before* starting new work
+- Finalize the dead session's stub entry from what you found in steps 1–6 ("entry finalized by session N+1, based on artifacts X/Y/Z").
+- List every orphaned file and its attribution.
+- Note the process-cleanup result (what was killed, load before/after).
+- Note test suite results across all components.
+- Append your own new stub entry so that if *this* session dies too, the next one isn't stuck with the same ambiguity.
+
+Do this write **before** you begin any new compute — it's the one step that protects the session after you.

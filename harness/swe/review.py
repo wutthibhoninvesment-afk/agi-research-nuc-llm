@@ -32,7 +32,8 @@ import shutil
 import tempfile
 import time
 
-from agentloop import Agent, AgentConfig, ToolRegistry, TraceLogger
+from agentloop import (Agent, AgentConfig, JsonAnswerGuard, ToolRegistry, TraceLogger,
+                       default_guards)
 from agentloop.tools import Tool, ToolResult
 from . import killers as K
 from . import oracles as O
@@ -480,12 +481,42 @@ def score_fix(ws, finding, run_tests=True, test_timeout_s=900):
 
 # --------------------------------------------------------------- running --
 
+def answer_guard(kind):
+    """The JSON answer each task demands, as a completion guard (round 109):
+    a reply without it is nudged back with the format instead of being
+    scored as "failed"."""
+    if kind == "kill":
+        def validate(obj):
+            v = obj.get("verdict")
+            if v not in ("killed", "equivalent"):
+                return "verdict must be \"killed\" or \"equivalent\""
+            if v == "killed" and not (isinstance(obj.get("program"), str) and obj["program"].strip()):
+                return "verdict is \"killed\" but \"program\" is empty — include the Whence source"
+            return None
+        # only what score_kill needs: `verdict`, and `program` when killed
+        # (the scripted kill in test_swe_review answers without `argument`)
+        return JsonAnswerGuard(["verdict"], validate=validate,
+                               example='```json\n{"verdict": "killed" | "equivalent", '
+                                       '"program": "<whence source or null>", "argument": "..."}\n```')
+    if kind == "review":
+        return JsonAnswerGuard(["claims"], validate=lambda o: None if isinstance(o.get("claims"), list)
+                               else "\"claims\" must be a list")
+    if kind in ("fix", "repair"):
+        return JsonAnswerGuard(["root_cause"])
+    raise ValueError(kind)
+
+
 def run_task(llm, registry, prompt, system, out_dir=None, max_steps=25, tag="task",
-             max_observation_chars=12000, wrap_up=True):
+             max_observation_chars=12000, wrap_up=True, guards=None, max_guard_retries=2):
+    """`guards=None` → the default completion guards (empty reply, tool call
+    written as prose — round 107 lost three $0.2–0.3 runs to them); pass
+    `answer_guard(kind)` in the list to also demand the task's JSON."""
     trace = TraceLogger(os.path.join(out_dir, "%s.trace.jsonl" % tag)) if out_dir else None
     cfg = AgentConfig(system_prompt=system, max_steps=max_steps,
                       max_observation_chars=max_observation_chars,
-                      wrap_up_on_max_steps=wrap_up)
+                      wrap_up_on_max_steps=wrap_up,
+                      guards=default_guards() if guards is None else list(guards),
+                      max_guard_retries=max_guard_retries)
     agent = Agent(llm, registry, config=cfg, trace=trace)
     t0 = time.time()
     r = agent.run(prompt)
@@ -511,10 +542,12 @@ def run_kill(make_llm, mutants, root=WHENCE_ROOT, out_dir=None, max_steps=20,
         registry, prompt, tool = kill_task(root, m)
         try:
             r, secs = run_task(llm, registry, prompt, KILL_SYSTEM, out_dir, max_steps,
-                               tag="kill-" + re.sub(r"\W", "_", m.id))
+                               tag="kill-" + re.sub(r"\W", "_", m.id),
+                               guards=default_guards() + [answer_guard("kill")])
             rec = score_kill(r.final_text, tool)
             rec.update({"mutant": m.id, "description": m.description, "line": m.lineno,
                         "stop_reason": r.stop_reason, "steps": r.steps, "tool_calls": r.tool_calls,
+                        "guard_rejections": r.guard_rejections, "guard_recoveries": r.guard_recoveries,
                         "mutant_diff_calls": tool.calls, "seconds": round(secs, 1),
                         "final_text": r.final_text[-1500:]})
             rec.update(_llm_cost(llm, r))
@@ -541,10 +574,12 @@ def run_review(make_llm, root=WHENCE_ROOT, files=("whence/interp.py",), focus=""
                out_dir=None, max_steps=30, tag="review", read_budget=None):
     llm = make_llm()
     registry, prompt = review_task(root, files, focus, max_steps=max_steps, read_budget=read_budget)
-    r, secs = run_task(llm, registry, prompt, REVIEW_SYSTEM, out_dir, max_steps, tag=tag)
+    r, secs = run_task(llm, registry, prompt, REVIEW_SYSTEM, out_dir, max_steps, tag=tag,
+                       guards=default_guards() + [answer_guard("review")])
     claims = score_review(r.final_text, registry.get("oracle_check"))
     rec = {"claims": claims, "confirmed": sum(1 for c in claims if c["confirmed"]),
            "claimed": len(claims), "stop_reason": r.stop_reason, "steps": r.steps,
+           "guard_rejections": r.guard_rejections, "guard_recoveries": r.guard_recoveries,
            "tool_calls": r.tool_calls, "seconds": round(secs, 1), "read_budget": read_budget,
            "answered": bool(extract_json(r.final_text)),
            "final_text": r.final_text[-3000:]}
@@ -557,9 +592,11 @@ def run_fix(make_llm, finding, root=WHENCE_ROOT, out_dir=None, max_steps=30, tag
     llm = make_llm()
     registry, prompt, ws = fix_task(finding, root)
     try:
-        r, secs = run_task(llm, registry, prompt, FIX_SYSTEM, out_dir, max_steps, tag=tag)
+        r, secs = run_task(llm, registry, prompt, FIX_SYSTEM, out_dir, max_steps, tag=tag,
+                           guards=default_guards() + [answer_guard("fix")])
         rec = score_fix(ws, finding, run_tests=run_tests)
         rec.update({"stop_reason": r.stop_reason, "steps": r.steps, "tool_calls": r.tool_calls,
+                    "guard_rejections": r.guard_rejections, "guard_recoveries": r.guard_recoveries,
                     "seconds": round(secs, 1), "final_text": r.final_text[-3000:],
                     "answer": extract_json(r.final_text)})
         rec.update(_llm_cost(llm, r))

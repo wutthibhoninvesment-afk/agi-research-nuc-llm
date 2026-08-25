@@ -1,0 +1,19 @@
+case: gte-near
+model: haiku
+arm: None
+fired: ['tiny-language-implementation']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=tiny-language-implementation
+
+The skill recommends switching from direct recursion to a **generator trampoline**: instead of the evaluator calling itself recursively, it yields continuations (thunks) that the trampoline loop executes. This lets guest programs recurse thousands deep while keeping the Python call stack shallow.
+
+The tradeoff is complexity — trampolining adds ~50 lines of infrastructure and requires every recursive operation to return a generator. Other recursive helpers (equality testing, serialization) still need explicit stacks to avoid crashing on deeply-nested *values* even if the evaluator itself is trampolined.
+
+Would you like me to refactor your evaluator to use trampolining, or do you want to see the technique explained first?

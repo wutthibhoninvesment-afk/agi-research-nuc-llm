@@ -1,0 +1,714 @@
+resuming: 519 of 1056 mutants already checkpointed
+killed   interp.py:905:arith#519 80.4s
+survived interp.py:906:cmp#520 130.7s
+survived interp.py:924:const#521 131.2s
+survived interp.py:935:bool#522 132.6s
+killed   interp.py:940:cmp#523 92.2s
+killed   interp.py:943:bool#524 1.5s
+survived interp.py:947:bool#525 127.4s
+killed   interp.py:970:cmp#526 1.6s
+killed   interp.py:970:cmp#527 1.6s
+killed   interp.py:970:cmp#528 1.7s
+killed   interp.py:999:bool#529 1.7s
+killed   interp.py:1002:ifneg#530 1.6s
+killed   interp.py:1006:bool#531 2.7s
+killed   interp.py:1036:not#532 1.7s
+killed   interp.py:1039:cmp#533 1.5s
+killed   interp.py:1051:not#534 22.9s
+killed   interp.py:1057:not#535 3.1s
+killed   interp.py:1062:not#536 54.1s
+killed   interp.py:1068:not#537 24.5s
+killed   interp.py:1074:not#538 52.4s
+killed   interp.py:1079:ifneg#539 1.8s
+killed   interp.py:1089:not#540 1.8s
+killed   interp.py:1114:ifneg#541 1.5s
+killed   interp.py:1116:ifneg#542 1.5s
+killed   interp.py:1126:const#543 1.4s
+killed   interp.py:1129:ifneg#544 1.5s
+killed   interp.py:1133:not#545 1.5s
+killed   interp.py:1135:cmp#546 1.9s
+killed   interp.py:1171:not#547 7.3s
+killed   interp.py:1173:arith#548 35.1s
+killed   interp.py:1181:not#549 7.1s
+killed   interp.py:1194:not#550 20.3s
+killed   interp.py:1199:not#551 5.8s
+survived interp.py:1203:arith#552 113.6s
+killed   interp.py:1226:const#553 1.2s
+killed   interp.py:1227:ifneg#554 1.3s
+killed   interp.py:1232:ifneg#555 1.3s
+killed   interp.py:1235:bool#556 45.8s
+killed   interp.py:1237:cmp#557 1.2s
+killed   interp.py:1240:cmp#558 46.3s
+killed   interp.py:1241:ifneg#559 1.4s
+killed   interp.py:1252:const#560 1.5s
+killed   interp.py:1253:const#561 1.3s
+killed   interp.py:1256:const#562 1.7s
+killed   interp.py:1259:ifneg#563 33.6s
+killed   interp.py:1269:bool#564 43.9s
+killed   interp.py:1271:ifneg#565 44.3s
+survived interp.py:1291:arith#566 115.3s
+killed   interp.py:1319:arith#567 42.7s
+killed   interp.py:1380:cmp#568 39.5s
+killed   interp.py:1382:ifneg#569 38.9s
+killed   interp.py:1401:cmp#570 43.4s
+killed   interp.py:1412:bool#571 1.3s
+killed   interp.py:1412:bool#572 1.3s
+killed   interp.py:1415:cmp#573 1.3s
+killed   interp.py:1416:ifneg#574 1.3s
+timeout  interp.py:1427:bool#575 400.0s
+killed   interp.py:1432:ifneg#576 1.2s
+killed   interp.py:1435:ifneg#577 58.4s
+killed   interp.py:1444:cmp#578 5.3s
+killed   interp.py:1451:bool#579 31.7s
+killed   interp.py:1458:bool#580 32.1s
+killed   interp.py:1460:bool#581 32.4s
+survived interp.py:1471:arith#582 110.7s
+survived interp.py:1479:const#583 110.9s
+survived interp.py:1486:cmp#584 112.5s
+killed   interp.py:1502:not#585 32.1s
+killed   interp.py:1511:bool#586 5.4s
+killed   interp.py:1512:cmp#587 4.8s
+killed   interp.py:1516:cmp#588 5.7s
+killed   interp.py:1520:const#589 5.0s
+survived interp.py:1521:cmp#590 110.1s
+killed   interp.py:1524:const#591 44.3s
+killed   interp.py:1581:cmp#592 44.9s
+killed   interp.py:1584:arith#593 43.0s
+killed   interp.py:1603:not#594 2.0s
+killed   interp.py:1616:cmp#595 33.4s
+killed   interp.py:1616:cmp#596 34.5s
+killed   interp.py:1662:cmp#597 30.5s
+killed   interp.py:1668:const#598 32.1s
+killed   interp.py:1670:cmp#599 5.4s
+survived interp.py:1672:bool#600 111.9s
+killed   interp.py:1673:ifneg#601 30.6s
+killed   interp.py:1675:ifneg#602 5.7s
+survived interp.py:1692:const#603 113.7s
+killed   interp.py:1775:const#604 1.5s
+killed   interp.py:1787:arith#605 32.3s
+killed   interp.py:1796:bool#606 33.8s
+killed   interp.py:1800:cmp#607 1.3s
+killed   interp.py:1803:arith#608 1.4s
+killed   interp.py:1790:const#609 31.9s
+killed   interp.py:1790:const#610 32.2s
+killed   interp.py:1836:not#611 1.6s
+killed   interp.py:1856:const#612 32.2s
+killed   interp.py:1860:arith#613 32.4s
+killed   interp.py:1894:not#614 1.5s
+killed   interp.py:1898:bool#615 6.0s
+resuming: 616 of 1056 mutants already checkpointed
+killed   interp.py:1902:arith#616 35.2s
+killed   interp.py:1913:arith#617 35.2s
+killed   interp.py:1925:const#618 35.2s
+killed   interp.py:1968:ifneg#619 21.1s
+killed   interp.py:1972:arith#620 35.5s
+killed   interp.py:1982:not#621 36.8s
+killed   interp.py:1982:not#622 37.5s
+killed   interp.py:1989:not#623 37.9s
+killed   interp.py:2015:not#624 2.0s
+killed   interp.py:2015:not#625 2.0s
+killed   interp.py:2061:cmp#626 7.0s
+killed   interp.py:2098:not#627 39.0s
+killed   interp.py:2114:const#628 7.1s
+killed   interp.py:2118:not#629 6.3s
+killed   interp.py:2128:arith#630 36.6s
+killed   interp.py:2111:const#631 6.6s
+survived interp.py:2111:const#632 127.2s
+killed   interp.py:2153:arith#633 37.6s
+killed   interp.py:2166:cmp#634 35.9s
+killed   interp.py:2174:const#635 35.4s
+killed   interp.py:2181:const#636 36.1s
+killed   interp.py:2194:arith#637 34.7s
+killed   interp.py:2172:const#638 34.7s
+survived interp.py:2172:const#639 125.5s
+killed   interp.py:2205:const#640 34.7s
+killed   interp.py:2209:const#641 51.0s
+killed   interp.py:2222:ifneg#642 50.6s
+survived interp.py:2224:arith#643 124.0s
+killed   interp.py:2225:bool#644 49.7s
+killed   interp.py:2198:const#645 50.6s
+survived interp.py:2198:const#646 123.4s
+killed   interp.py:166:not#647 1.5s
+killed   interp.py:223:arith#648 34.1s
+killed   interp.py:225:const#649 6.6s
+killed   interp.py:226:arith#650 34.3s
+survived interp.py:231:arith#651 121.2s
+killed   interp.py:233:const#652 6.6s
+killed   interp.py:234:arith#653 34.6s
+killed   interp.py:270:cmp#654 1.7s
+killed   interp.py:358:not#655 47.4s
+killed   interp.py:366:arith#656 120.6s
+killed   interp.py:391:cmp#657 1.5s
+killed   interp.py:396:ifneg#658 1.5s
+killed   interp.py:427:arith#659 48.0s
+killed   interp.py:457:bool#660 1.5s
+survived interp.py:460:cmp#661 118.8s
+survived interp.py:470:bool#662 119.2s
+killed   interp.py:473:ifneg#663 52.7s
+killed   interp.py:475:ifneg#664 50.8s
+killed   interp.py:484:cmp#665 2.3s
+survived interp.py:491:ifneg#666 118.7s
+killed   interp.py:496:ifneg#667 33.1s
+killed   interp.py:516:ifneg#668 2.4s
+killed   interp.py:540:cmp#669 2.4s
+killed   interp.py:544:cmp#670 1.4s
+killed   interp.py:545:ifneg#671 47.4s
+killed   interp.py:549:ifneg#672 33.7s
+killed   interp.py:552:ifneg#673 33.5s
+killed   interp.py:585:not#674 1.5s
+killed   interp.py:593:arith#675 35.0s
+killed   interp.py:597:arith#676 34.5s
+killed   interp.py:601:arith#677 21.1s
+survived interp.py:614:const#678 113.7s
+killed   interp.py:615:not#679 49.4s
+survived interp.py:615:cmp#680 115.6s
+survived interp.py:616:const#681 115.1s
+killed   interp.py:636:cmp#682 1.5s
+killed   interp.py:640:bool#683 1.7s
+killed   interp.py:646:cmp#684 2.4s
+killed   interp.py:651:bool#685 30.9s
+killed   interp.py:652:cmp#686 2.8s
+killed   interp.py:658:bool#687 2.5s
+killed   interp.py:664:const#688 30.4s
+killed   interp.py:665:const#689 44.3s
+killed   interp.py:666:cmp#690 51.2s
+killed   interp.py:673:cmp#691 6.2s
+survived interp.py:676:ifneg#692 113.3s
+killed   interp.py:678:ifneg#693 2.4s
+survived interp.py:721:arith#694 113.5s
+survived interp.py:725:arith#695 115.1s
+killed   interp.py:753:bool#696 47.1s
+killed   interp.py:753:const#697 47.4s
+survived interp.py:780:const#698 112.5s
+survived interp.py:796:cmp#699 112.3s
+killed   interp.py:823:cmp#700 40.6s
+killed   interp.py:823:cmp#701 35.8s
+survived interp.py:829:const#702 112.8s
+killed   interp.py:833:cmp#703 41.5s
+killed   interp.py:835:cmp#704 95.0s
+killed   interp.py:839:cmp#705 40.7s
+survived interp.py:841:ifneg#706 113.9s
+killed   interp.py:843:ifneg#707 93.5s
+killed   interp.py:905:const#708 44.2s
+killed   interp.py:907:const#709 43.4s
+killed   interp.py:935:cmp#710 52.3s
+killed   interp.py:943:cmp#711 1.4s
+killed   interp.py:943:cmp#712 95.3s
+killed   interp.py:946:arith#713 2.2s
+survived interp.py:947:cmp#714 112.0s
+killed   interp.py:949:const#715 44.7s
+killed   interp.py:977:cmp#716 1.4s
+killed   interp.py:979:ifneg#717 1.4s
+killed   interp.py:999:cmp#718 38.6s
+killed   interp.py:1000:cmp#719 46.9s
+killed   interp.py:1002:bool#720 1.3s
+killed   interp.py:1006:not#721 2.4s
+killed   interp.py:1006:not#722 50.9s
+killed   interp.py:1007:const#723 1.3s
+killed   interp.py:1025:cmp#724 1.3s
+killed   interp.py:1027:ifneg#725 96.5s
+killed   interp.py:1036:bool#726 1.6s
+killed   interp.py:1037:const#727 1.5s
+killed   interp.py:1043:ifneg#728 5.3s
+killed   interp.py:1052:const#729 19.9s
+killed   interp.py:1058:const#730 2.3s
+killed   interp.py:1063:const#731 46.6s
+killed   interp.py:1069:const#732 19.3s
+killed   interp.py:1074:bool#733 43.1s
+killed   interp.py:1075:const#734 42.8s
+killed   interp.py:1079:not#735 1.6s
+killed   interp.py:1089:bool#736 1.6s
+killed   interp.py:1090:const#737 1.5s
+killed   interp.py:1095:ifneg#738 1.5s
+timeout  interp.py:1097:ifneg#739 400.0s
+killed   interp.py:1103:ifneg#740 1.6s
+killed   interp.py:1114:cmp#741 1.3s
+killed   interp.py:1129:cmp#742 1.3s
+killed   interp.py:1134:const#743 1.5s
+killed   interp.py:1135:const#744 1.7s
+killed   interp.py:1146:ifneg#745 1.6s
+killed   interp.py:1172:const#746 6.0s
+killed   interp.py:1182:const#747 5.8s
+killed   interp.py:1194:bool#748 19.6s
+killed   interp.py:1195:const#749 19.6s
+killed   interp.py:1200:const#750 6.1s
+killed   interp.py:1227:cmp#751 1.4s
+killed   interp.py:1229:ifneg#752 1.3s
+killed   interp.py:1232:cmp#753 1.3s
+killed   interp.py:1241:not#754 1.3s
+killed   interp.py:1258:arith#755 29.1s
+killed   interp.py:1259:cmp#756 32.2s
+killed   interp.py:1269:cmp#757 43.7s
+killed   interp.py:1269:cmp#758 44.5s
+killed   interp.py:1271:cmp#759 43.9s
+killed   interp.py:1306:arith#760 43.2s
+killed   interp.py:1382:cmp#761 40.4s
+killed   interp.py:1386:ifneg#762 46.4s
+killed   interp.py:1412:cmp#763 1.1s
+killed   interp.py:1412:cmp#764 1.3s
+killed   interp.py:1412:cmp#765 1.2s
+killed   interp.py:1412:cmp#766 1.3s
+killed   interp.py:1416:bool#767 1.3s
+timeout  interp.py:1427:cmp#768 400.0s
+killed   interp.py:1427:cmp#769 41.2s
+killed   interp.py:1432:cmp#770 1.5s
+killed   interp.py:1435:cmp#771 58.9s
+killed   interp.py:1447:cmp#772 14.3s
+killed   interp.py:1447:not#773 28.0s
+killed   interp.py:1453:arith#774 32.2s
+killed   interp.py:1462:arith#775 38.6s
+killed   interp.py:1467:arith#776 39.7s
+survived interp.py:1489:const#777 140.3s
+killed   interp.py:1499:arith#778 53.4s
+killed   interp.py:1531:const#779 3.2s
+killed   interp.py:1539:ifneg#780 3.1s
+killed   interp.py:1545:ifneg#781 45.6s
+killed   interp.py:1557:ifneg#782 45.5s
+killed   interp.py:1563:ifneg#783 46.3s
+killed   interp.py:1569:ifneg#784 41.3s
+killed   interp.py:1577:ifneg#785 57.6s
+killed   interp.py:1580:const#786 49.0s
+killed   interp.py:1671:const#787 47.8s
+killed   interp.py:1673:cmp#788 38.6s
+survived interp.py:1675:bool#789 133.6s
+killed   interp.py:1676:ifneg#790 22.6s
+killed   interp.py:1678:ifneg#791 22.4s
+killed   interp.py:1702:const#792 6.7s
+killed   interp.py:1702:const#793 1.5s
+killed   interp.py:1760:const#794 36.3s
+killed   interp.py:1782:const#795 6.6s
+killed   interp.py:1796:not#796 1.7s
+killed   interp.py:1800:const#797 1.5s
+killed   interp.py:1800:const#798 35.6s
+killed   interp.py:1813:arith#799 36.6s
+killed   interp.py:1827:arith#800 36.5s
+killed   interp.py:1851:arith#801 36.8s
+killed   interp.py:1869:arith#802 36.0s
+killed   interp.py:1885:const#803 1.9s
+killed   interp.py:1887:const#804 39.3s
+killed   interp.py:1897:bool#805 6.5s
+killed   interp.py:1898:bool#806 38.6s
+killed   interp.py:1910:const#807 7.3s
+killed   interp.py:1921:const#808 2.3s
+killed   interp.py:1923:arith#809 39.9s
+killed   interp.py:1926:arith#810 40.3s
+killed   interp.py:1941:const#811 39.3s
+killed   interp.py:1950:arith#812 39.2s
+killed   interp.py:1964:cmp#813 1.8s
+killed   interp.py:1968:cmp#814 23.4s
+killed   interp.py:1971:const#815 22.9s
+killed   interp.py:2002:const#816 37.7s
+killed   interp.py:2004:arith#817 37.5s
+killed   interp.py:2035:arith#818 51.2s
+killed   interp.py:2053:arith#819 51.8s
+killed   interp.py:2057:arith#820 52.3s
+killed   interp.py:2072:arith#821 53.0s
+killed   interp.py:2076:arith#822 52.8s
+killed   interp.py:2090:arith#823 52.8s
+killed   interp.py:2113:const#824 7.0s
+killed   interp.py:2115:const#825 7.2s
+killed   interp.py:2124:arith#826 6.7s
+killed   interp.py:2137:arith#827 37.3s
+killed   interp.py:2143:arith#828 7.0s
+killed   interp.py:2150:const#829 7.0s
+survived interp.py:2177:arith#830 129.8s
+killed   interp.py:2185:arith#831 53.1s
+killed   interp.py:2191:const#832 36.3s
+killed   interp.py:2213:arith#833 51.6s
+survived interp.py:2219:const#834 128.6s
+killed   interp.py:2222:cmp#835 52.0s
+survived interp.py:347:const#836 127.1s
+killed   interp.py:348:const#837 1.5s
+killed   interp.py:396:cmp#838 1.6s
+killed   interp.py:400:ifneg#839 1.6s
+killed   interp.py:457:cmp#840 1.5s
+killed   interp.py:457:cmp#841 37.5s
+survived interp.py:463:const#842 126.5s
+survived interp.py:470:cmp#843 125.6s
+killed   interp.py:473:cmp#844 55.3s
+killed   interp.py:475:bool#845 48.1s
+survived interp.py:491:cmp#846 123.4s
+killed   interp.py:501:ifneg#847 2.7s
+killed   interp.py:505:ifneg#848 2.4s
+killed   interp.py:508:ifneg#849 44.1s
+killed   interp.py:516:cmp#850 2.6s
+survived interp.py:522:ifneg#851 122.5s
+killed   interp.py:524:ifneg#852 43.9s
+killed   interp.py:545:bool#853 48.8s
+killed   interp.py:549:bool#854 34.7s
+killed   interp.py:552:cmp#855 34.2s
+killed   interp.py:554:ifneg#856 33.7s
+killed   interp.py:583:arith#857 33.6s
+killed   interp.py:640:not#858 1.6s
+killed   interp.py:658:cmp#859 2.5s
+killed   interp.py:658:cmp#860 33.6s
+survived interp.py:676:cmp#861 116.7s
+killed   interp.py:678:not#862 2.6s
+survived interp.py:680:ifneg#863 119.7s
+survived interp.py:682:ifneg#864 114.9s
+survived interp.py:690:ifneg#865 118.9s
+killed   interp.py:781:const#866 2.3s
+survived interp.py:799:const#867 116.1s
+killed   interp.py:823:const#868 37.0s
+survived interp.py:841:cmp#869 115.4s
+killed   interp.py:905:bool#870 1.4s
+killed   interp.py:942:not#871 1.5s
+killed   interp.py:943:const#872 97.7s
+killed   interp.py:946:const#873 97.9s
+killed   interp.py:951:const#874 53.3s
+killed   interp.py:979:cmp#875 1.5s
+killed   interp.py:982:arith#876 34.7s
+killed   interp.py:1002:cmp#877 32.6s
+killed   interp.py:1002:cmp#878 45.6s
+killed   interp.py:1003:not#879 1.2s
+survived interp.py:1006:bool#880 113.0s
+killed   interp.py:1027:cmp#881 95.1s
+killed   interp.py:1043:cmp#882 6.2s
+killed   interp.py:1095:cmp#883 1.5s
+killed   interp.py:1103:cmp#884 1.7s
+killed   interp.py:1131:bool#885 1.7s
+killed   interp.py:1139:const#886 1.4s
+killed   interp.py:1146:cmp#887 1.7s
+killed   interp.py:1148:ifneg#888 1.7s
+killed   interp.py:1229:cmp#889 1.4s
+survived interp.py:1238:arith#890 114.9s
+killed   interp.py:1259:const#891 34.7s
+killed   interp.py:1262:arith#892 35.0s
+killed   interp.py:1269:const#893 44.9s
+killed   interp.py:1271:const#894 45.1s
+killed   interp.py:1386:cmp#895 48.8s
+killed   interp.py:1416:cmp#896 1.7s
+killed   interp.py:1416:bool#897 1.7s
+survived interp.py:1459:arith#898 120.1s
+survived interp.py:1503:arith#899 121.1s
+killed   interp.py:1513:arith#900 49.0s
+killed   interp.py:1517:arith#901 3.5s
+killed   interp.py:1539:cmp#902 3.1s
+killed   interp.py:1545:bool#903 41.9s
+killed   interp.py:1557:cmp#904 43.4s
+killed   interp.py:1562:bool#905 47.5s
+killed   interp.py:1563:cmp#906 38.1s
+killed   interp.py:1569:bool#907 41.4s
+killed   interp.py:1575:const#908 48.0s
+killed   interp.py:1576:const#909 48.2s
+killed   interp.py:1577:cmp#910 48.2s
+killed   interp.py:1616:const#911 37.5s
+killed   interp.py:1616:const#912 37.8s
+killed   interp.py:1674:const#913 32.1s
+killed   interp.py:1676:cmp#914 19.7s
+killed   interp.py:1678:bool#915 33.3s
+killed   interp.py:1679:ifneg#916 21.0s
+killed   interp.py:1683:ifneg#917 32.9s
+killed   interp.py:1797:arith#918 34.1s
+killed   interp.py:1837:arith#919 34.8s
+killed   interp.py:1877:const#920 1.2s
+killed   interp.py:1895:arith#921 1.6s
+killed   interp.py:1898:cmp#922 6.2s
+killed   interp.py:1898:cmp#923 6.0s
+killed   interp.py:1899:arith#924 32.9s
+killed   interp.py:1936:const#925 1.7s
+killed   interp.py:1944:const#926 33.6s
+killed   interp.py:1968:const#927 20.3s
+killed   interp.py:1990:arith#928 33.4s
+killed   interp.py:2007:const#929 34.3s
+killed   interp.py:2099:arith#930 47.4s
+killed   interp.py:2119:arith#931 39.5s
+killed   interp.py:2190:const#932 32.2s
+killed   interp.py:2218:const#933 47.1s
+survived interp.py:347:const#934 115.8s
+survived interp.py:400:bool#935 114.2s
+killed   interp.py:402:ifneg#936 1.4s
+killed   interp.py:457:const#937 35.8s
+survived interp.py:470:const#938 114.2s
+survived interp.py:475:cmp#939 113.6s
+survived interp.py:477:arith#940 113.6s
+survived interp.py:478:const#941 113.7s
+survived interp.py:479:const#942 114.6s
+survived interp.py:498:const#943 114.6s
+killed   interp.py:505:bool#944 2.5s
+killed   interp.py:508:cmp#945 41.9s
+killed   interp.py:510:ifneg#946 2.5s
+survived interp.py:522:cmp#947 115.3s
+killed   interp.py:528:ifneg#948 2.2s
+survived interp.py:545:cmp#949 115.1s
+killed   interp.py:549:cmp#950 32.7s
+killed   interp.py:549:not#951 32.3s
+killed   interp.py:554:cmp#952 32.2s
+survived interp.py:586:arith#953 114.8s
+killed   interp.py:654:arith#954 45.2s
+killed   interp.py:660:arith#955 31.6s
+survived interp.py:680:cmp#956 117.0s
+survived interp.py:684:ifneg#957 114.3s
+survived interp.py:690:not#958 117.0s
+killed   interp.py:824:const#959 40.9s
+survived interp.py:844:const#960 114.6s
+killed   interp.py:938:not#961 51.0s
+killed   interp.py:944:const#962 1.5s
+killed   interp.py:946:bool#963 1.3s
+killed   interp.py:948:cmp#964 51.8s
+killed   interp.py:1139:const#965 1.3s
+killed   interp.py:1148:cmp#966 1.6s
+killed   interp.py:1153:ifneg#967 46.0s
+killed   interp.py:1242:arith#968 33.3s
+killed   interp.py:1416:const#969 1.6s
+killed   interp.py:1416:cmp#970 1.6s
+killed   interp.py:1416:cmp#971 1.5s
+killed   interp.py:1433:arith#972 1.5s
+killed   interp.py:1545:not#973 39.6s
+killed   interp.py:1569:cmp#974 41.5s
+killed   interp.py:1569:cmp#975 47.7s
+killed   interp.py:1617:const#976 3.0s
+killed   interp.py:1677:const#977 20.9s
+killed   interp.py:1679:cmp#978 21.0s
+killed   interp.py:1683:bool#979 33.7s
+killed   interp.py:1684:ifneg#980 31.5s
+killed   interp.py:1774:const#981 1.2s
+killed   interp.py:1784:const#982 6.2s
+killed   interp.py:1786:const#983 34.1s
+killed   interp.py:1788:const#984 34.3s
+killed   interp.py:1800:const#985 33.0s
+killed   interp.py:1801:const#986 1.4s
+killed   interp.py:1801:const#987 1.3s
+killed   interp.py:1878:const#988 1.3s
+killed   interp.py:1897:const#989 6.3s
+killed   interp.py:1897:const#990 1.5s
+killed   interp.py:1901:const#991 1.6s
+killed   interp.py:1903:const#992 33.2s
+killed   interp.py:1912:const#993 6.2s
+killed   interp.py:1914:const#994 32.8s
+killed   interp.py:1929:const#995 1.7s
+killed   interp.py:1937:const#996 1.6s
+killed   interp.py:1970:const#997 6.1s
+survived interp.py:2163:const#998 114.8s
+survived interp.py:2164:const#999 114.9s
+killed   interp.py:2175:const#1000 32.2s
+killed   interp.py:2175:const#1001 31.4s
+killed   interp.py:2206:const#1002 32.1s
+killed   interp.py:2206:const#1003 31.6s
+killed   interp.py:2223:arith#1004 45.3s
+killed   interp.py:400:cmp#1005 1.3s
+killed   interp.py:400:cmp#1006 1.4s
+survived interp.py:402:bool#1007 113.6s
+killed   interp.py:458:const#1008 2.1s
+killed   interp.py:494:bool#1009 41.1s
+killed   interp.py:495:const#1010 33.1s
+killed   interp.py:505:cmp#1011 2.2s
+killed   interp.py:505:not#1012 41.1s
+killed   interp.py:510:cmp#1013 2.1s
+survived interp.py:525:const#1014 111.9s
+killed   interp.py:528:cmp#1015 2.2s
+killed   interp.py:531:ifneg#1016 2.7s
+survived interp.py:545:const#1017 111.9s
+survived interp.py:683:arith#1018 114.9s
+survived interp.py:684:cmp#1019 112.2s
+survived interp.py:685:ifneg#1020 112.3s
+survived interp.py:691:const#1021 113.9s
+killed   interp.py:905:const#1022 44.3s
+survived interp.py:948:const#1023 115.6s
+killed   interp.py:1153:cmp#1024 45.5s
+killed   interp.py:1272:const#1025 45.8s
+killed   interp.py:1272:const#1026 1.6s
+killed   interp.py:1417:cmp#1027 32.4s
+survived interp.py:1565:arith#1028 115.4s
+killed   interp.py:1571:arith#1029 47.4s
+killed   interp.py:1616:const#1030 2.3s
+killed   interp.py:1616:const#1031 3.1s
+killed   interp.py:1680:const#1032 31.8s
+killed   interp.py:1684:cmp#1033 32.7s
+killed   interp.py:1689:const#1034 32.0s
+killed   interp.py:1924:const#1035 33.0s
+killed   interp.py:1927:const#1036 33.4s
+killed   interp.py:2005:const#1037 33.2s
+survived interp.py:2117:const#1038 112.0s
+killed   interp.py:402:cmp#1039 1.3s
+killed   interp.py:402:cmp#1040 1.5s
+killed   interp.py:450:const#1041 1.3s
+killed   interp.py:531:cmp#1042 2.6s
+survived interp.py:683:arith#1043 110.9s
+survived interp.py:684:const#1044 112.1s
+survived interp.py:685:cmp#1045 109.6s
+killed   interp.py:946:const#1046 95.6s
+survived interp.py:1163:cmp#1047 111.3s
+killed   interp.py:1617:const#1048 3.0s
+survived interp.py:1685:const#1049 107.4s
+killed   interp.py:1896:const#1050 1.6s
+killed   interp.py:1900:const#1051 33.2s
+killed   interp.py:1932:const#1052 33.4s
+survived interp.py:683:const#1053 104.4s
+killed   interp.py:689:const#1054 40.8s
+killed   interp.py:1165:bool#1055 81.9s
+recheck timeout  -> timeout  interp.py:182:ifneg#6 300s
+recheck timeout  -> timeout  interp.py:182:bool#48 300s
+recheck timeout  -> timeout  interp.py:182:cmp#220 300s
+recheck timeout  -> timeout  interp.py:181:const#450 300s
+recheck timeout  -> timeout  interp.py:182:const#451 300s
+recheck timeout  -> survived interp.py:420:const#474 70s
+recheck timeout  -> survived interp.py:460:ifneg#477 68s
+recheck timeout  -> survived interp.py:609:const#487 62s
+recheck timeout  -> killed   interp.py:740:const#500 27s
+recheck timeout  -> survived interp.py:780:cmp#502 70s
+recheck timeout  -> survived interp.py:786:const#503 55s
+recheck timeout  -> survived interp.py:796:ifneg#507 48s
+recheck timeout  -> survived interp.py:826:cmp#511 61s
+recheck timeout  -> killed   interp.py:835:ifneg#513 60s
+recheck timeout  -> killed   interp.py:839:ifneg#514 25s
+recheck timeout  -> killed   interp.py:889:const#515 20s
+recheck timeout  -> killed   interp.py:890:const#516 20s
+recheck timeout  -> killed   interp.py:897:cmp#517 29s
+recheck timeout  -> killed   interp.py:902:cmp#518 68s
+recheck timeout  -> timeout  interp.py:1427:bool#575 300s
+recheck timeout  -> timeout  interp.py:1097:ifneg#739 300s
+recheck timeout  -> timeout  interp.py:1427:cmp#768 300s
+coverage: targeted run over {'whence/interp.py': 313} lines of interest
+whence/interp.py: 1227/1686 executable lines executed (72.8%) [targeted run: lower bound; per-def list = defs holding a line of interest]
+  never executed: Interpreter.eval
+  _make_builtin_table                      226/399  56.6%  [1763-2227]
+  Interpreter.call_value                     2/  3  66.7%  [419-422]
+  Interpreter.compile_direct                24/ 31  77.4%  [912-952]
+  Interpreter._closure_inline               22/ 28  78.6%  [706-741]
+  _arity_ok                                  4/  5  80.0%  [1698-1703]
+  _arity_str                                 4/  5  80.0%  [1706-1711]
+  _make_builtin_table.b_blame                4/  5  80.0%  [2149-2154]
+  Interpreter._compile                     177/207  85.5%  [961-1203]
+  _logic_right                               6/  7  85.7%  [187-194]
+  _finish_call                               6/  7  85.7%  [1633-1645]
+  _make_builtin_table.b_steps               15/ 17  88.2%  [2112-2129]
+  _make_builtin_table.b_join                16/ 18  88.9%  [1977-1995]
+no_killer interp.py:146:const#40 tried=356 12.5s
+no_killer interp.py:261:bool#60 tried=356 6.7s
+no_killer interp.py:301:const#71 tried=356 6.7s
+no_killer interp.py:307:const#72 tried=356 6.3s
+no_killer interp.py:346:ifneg#73 tried=356 6.4s
+no_killer interp.py:409:ifneg#75 tried=356 6.5s
+no_killer interp.py:420:ifneg#78 tried=356 6.3s
+no_killer interp.py:606:ifneg#83 tried=356 6.5s
+no_killer interp.py:715:ifneg#87 tried=356 6.3s
+no_killer interp.py:749:ifneg#92 tried=356 6.5s
+no_killer interp.py:772:ifneg#94 tried=356 6.5s
+no_killer interp.py:783:ifneg#97 tried=356 6.3s
+no_killer interp.py:875:const#101 tried=356 6.4s
+no_killer interp.py:926:ifneg#106 tried=356 7.0s
+no_killer interp.py:1476:ifneg#142 tried=356 6.4s
+no_killer interp.py:169:arith#216 tried=356 6.6s
+KILLER    interp.py:230:bool#223 tried=148 5.8s
+no_killer interp.py:318:const#237 tried=356 6.5s
+no_killer interp.py:409:cmp#244 tried=356 6.6s
+no_killer interp.py:420:cmp#246 tried=356 6.7s
+no_killer interp.py:446:const#248 tried=356 6.6s
+no_killer interp.py:561:const#250 tried=356 6.3s
+no_killer interp.py:606:cmp#257 tried=356 6.5s
+no_killer interp.py:619:const#260 tried=356 6.4s
+no_killer interp.py:621:cmp#262 tried=356 6.6s
+no_killer interp.py:715:cmp#265 tried=356 6.4s
+no_killer interp.py:724:cmp#269 tried=356 6.4s
+no_killer interp.py:728:const#270 tried=356 6.6s
+no_killer interp.py:730:cmp#272 tried=356 6.3s
+no_killer interp.py:749:cmp#273 tried=356 6.3s
+no_killer interp.py:757:const#275 tried=356 6.5s
+no_killer interp.py:772:cmp#276 tried=356 6.4s
+no_killer interp.py:783:cmp#278 tried=356 6.3s
+no_killer interp.py:826:ifneg#286 tried=356 6.4s
+no_killer interp.py:926:cmp#297 tried=356 6.5s
+no_killer interp.py:1476:cmp#362 tried=356 6.5s
+no_killer interp.py:1486:ifneg#363 tried=356 6.3s
+no_killer interp.py:1639:const#372 tried=356 6.4s
+no_killer interp.py:1700:const#381 tried=356 6.3s
+no_killer interp.py:236:arith#463 tried=356 6.3s
+no_killer interp.py:329:const#469 tried=356 6.3s
+no_killer interp.py:412:const#473 tried=356 6.3s
+no_killer interp.py:420:const#474 tried=356 6.5s
+no_killer interp.py:460:ifneg#477 tried=356 6.3s
+no_killer interp.py:609:const#487 tried=356 6.5s
+no_killer interp.py:780:cmp#502 tried=356 6.3s
+no_killer interp.py:786:const#503 tried=356 6.3s
+no_killer interp.py:796:ifneg#507 tried=356 6.4s
+no_killer interp.py:826:cmp#511 tried=356 6.5s
+no_killer interp.py:906:cmp#520 tried=356 6.3s
+no_killer interp.py:924:const#521 tried=356 6.3s
+no_killer interp.py:935:bool#522 tried=356 6.4s
+no_killer interp.py:947:bool#525 tried=356 6.5s
+no_killer interp.py:1203:arith#552 tried=356 6.3s
+no_killer interp.py:1291:arith#566 tried=356 6.3s
+no_killer interp.py:1471:arith#582 tried=356 6.3s
+no_killer interp.py:1479:const#583 tried=356 6.3s
+no_killer interp.py:1486:cmp#584 tried=356 6.5s
+no_killer interp.py:1521:cmp#590 tried=356 6.3s
+no_killer interp.py:1672:bool#600 tried=356 6.3s
+no_killer interp.py:1692:const#603 tried=356 6.5s
+KILLER    interp.py:2111:const#632 tried=354 6.5s
+no_killer interp.py:2172:const#639 tried=356 6.3s
+no_killer interp.py:2224:arith#643 tried=356 6.5s
+no_killer interp.py:2198:const#646 tried=356 6.3s
+KILLER    interp.py:231:arith#651 tried=148 5.5s
+no_killer interp.py:460:cmp#661 tried=356 6.3s
+no_killer interp.py:470:bool#662 tried=356 6.4s
+no_killer interp.py:491:ifneg#666 tried=356 6.3s
+no_killer interp.py:614:const#678 tried=356 6.3s
+no_killer interp.py:615:cmp#680 tried=356 6.4s
+no_killer interp.py:616:const#681 tried=356 6.5s
+no_killer interp.py:676:ifneg#692 tried=356 6.3s
+no_killer interp.py:721:arith#694 tried=356 6.3s
+no_killer interp.py:725:arith#695 tried=356 6.4s
+no_killer interp.py:780:const#698 tried=356 6.5s
+no_killer interp.py:796:cmp#699 tried=356 6.3s
+no_killer interp.py:829:const#702 tried=356 6.4s
+no_killer interp.py:841:ifneg#706 tried=356 6.3s
+no_killer interp.py:947:cmp#714 tried=356 6.5s
+no_killer interp.py:1489:const#777 tried=356 6.3s
+no_killer interp.py:1675:bool#789 tried=356 6.5s
+no_killer interp.py:2177:arith#830 tried=356 6.3s
+KILLER    interp.py:2219:const#834 tried=62 5.3s
+no_killer interp.py:347:const#836 tried=356 6.3s
+no_killer interp.py:463:const#842 tried=356 6.3s
+no_killer interp.py:470:cmp#843 tried=356 6.4s
+no_killer interp.py:491:cmp#846 tried=356 6.3s
+no_killer interp.py:522:ifneg#851 tried=356 6.6s
+no_killer interp.py:676:cmp#861 tried=356 6.5s
+no_killer interp.py:680:ifneg#863 tried=356 6.3s
+no_killer interp.py:682:ifneg#864 tried=356 6.4s
+no_killer interp.py:690:ifneg#865 tried=356 6.6s
+no_killer interp.py:799:const#867 tried=356 6.3s
+no_killer interp.py:841:cmp#869 tried=356 6.5s
+no_killer interp.py:1006:bool#880 tried=356 6.3s
+no_killer interp.py:1238:arith#890 tried=356 6.3s
+no_killer interp.py:1459:arith#898 tried=356 6.3s
+no_killer interp.py:1503:arith#899 tried=356 6.3s
+no_killer interp.py:347:const#934 tried=356 6.4s
+no_killer interp.py:400:bool#935 tried=356 6.4s
+no_killer interp.py:470:const#938 tried=356 6.3s
+no_killer interp.py:475:cmp#939 tried=356 6.5s
+no_killer interp.py:477:arith#940 tried=356 6.3s
+no_killer interp.py:478:const#941 tried=356 6.3s
+no_killer interp.py:479:const#942 tried=356 6.5s
+no_killer interp.py:498:const#943 tried=356 6.3s
+no_killer interp.py:522:cmp#947 tried=356 6.4s
+no_killer interp.py:545:cmp#949 tried=356 6.3s
+KILLER    interp.py:586:arith#953 tried=102 5.5s
+no_killer interp.py:680:cmp#956 tried=356 6.3s
+no_killer interp.py:684:ifneg#957 tried=356 6.3s
+no_killer interp.py:690:not#958 tried=356 6.4s
+no_killer interp.py:844:const#960 tried=356 6.3s
+no_killer interp.py:2163:const#998 tried=356 6.4s
+no_killer interp.py:2164:const#999 tried=356 6.4s
+no_killer interp.py:402:bool#1007 tried=356 6.3s
+no_killer interp.py:525:const#1014 tried=356 6.4s
+no_killer interp.py:545:const#1017 tried=356 6.4s
+no_killer interp.py:683:arith#1018 tried=356 6.4s
+no_killer interp.py:684:cmp#1019 tried=356 6.5s
+no_killer interp.py:685:ifneg#1020 tried=356 6.5s
+no_killer interp.py:691:const#1021 tried=356 6.3s
+no_killer interp.py:948:const#1023 tried=356 6.4s
+no_killer interp.py:1565:arith#1028 tried=356 6.3s
+no_killer interp.py:2117:const#1038 tried=356 6.4s
+no_killer interp.py:683:arith#1043 tried=356 6.7s
+no_killer interp.py:684:const#1044 tried=356 6.3s
+no_killer interp.py:685:cmp#1045 tried=356 6.4s
+no_killer interp.py:1163:cmp#1047 tried=356 6.3s
+KILLER    interp.py:1685:const#1049 tried=254 6.1s
+no_killer interp.py:683:const#1053 tried=356 6.4s
+verify killed   interp.py:230:bool#223
+verify killed   interp.py:2111:const#632
+verify killed   interp.py:231:arith#651
+verify killed   interp.py:2219:const#834
+verify killed   interp.py:586:arith#953
+verify killed   interp.py:1685:const#1049

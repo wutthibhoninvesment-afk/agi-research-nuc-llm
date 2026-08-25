@@ -1,0 +1,340 @@
+{
+ "sample": [
+  "interp.py:839:cmp#705",
+  "interp.py:1089:ifneg#324",
+  "interp.py:970:bool#303",
+  "interp.py:1517:arith#901",
+  "interp.py:2191:const#832",
+  "interp.py:2015:not#624"
+ ],
+ "pool": 909,
+ "model": "claude-sonnet-5",
+ "max_steps": 25,
+ "test_args": "-q tests",
+ "read_budget": 12,
+ "summary": {
+  "attempted": 6,
+  "green": 5,
+  "exact": 5,
+  "localized": 5,
+  "cheated": 0,
+  "green_not_exact": 0,
+  "cost_usd": 0.2923,
+  "steps": 44,
+  "by_op": {
+   "cmp": {
+    "attempted": 1,
+    "green": 1,
+    "exact": 1,
+    "localized": 1
+   },
+   "ifneg": {
+    "attempted": 1,
+    "green": 1,
+    "exact": 1,
+    "localized": 1
+   },
+   "bool": {
+    "attempted": 1,
+    "green": 0,
+    "exact": 0,
+    "localized": 0
+   },
+   "arith": {
+    "attempted": 1,
+    "green": 1,
+    "exact": 1,
+    "localized": 1
+   },
+   "const": {
+    "attempted": 1,
+    "green": 1,
+    "exact": 1,
+    "localized": 1
+   },
+   "not": {
+    "attempted": 1,
+    "green": 1,
+    "exact": 1,
+    "localized": 1
+   }
+  }
+ },
+ "results": [
+  {
+   "changed_files": [
+    "whence/interp.py"
+   ],
+   "diff": "--- injected/whence/interp.py\n+++ repaired/whence/interp.py\n@@ -667,7 +667,7 @@\n                     tc.ifs.append((node, which, cond))\n                     tc.ifs.extend(reversed(pending))\n                     return tc\n-            elif branch.__class__ is not A.If:\n+            elif branch.__class__ is A.If:\n                 cf = branch.cond.fast\n                 if cf is None:\n                     cf = self.compile_fast(branch.cond)\n",
+   "test_edits": [],
+   "site": [
+    670,
+    670
+   ],
+   "touched": [
+    [
+     670,
+     670
+    ]
+   ],
+   "localized": true,
+   "parses": true,
+   "exact": true,
+   "tests_green": true,
+   "pytest_tail": "........................................................................ [ 28%]\n........................................................................ [ 42%]\n........................................................................ [ 56%]\n........................................................................ [ 71%]\n........................................................................ [ 85%]\n........................................................................ [ 99%]\n..                                                                       [100%]\n506 passed in 107.47s (0:01:47)\n[exit 0]",
+   "green": true,
+   "outcome": "exact",
+   "mutant": "interp.py:839:cmp#705",
+   "op": "cmp",
+   "description": "Is -> IsNot",
+   "line": 839,
+   "failing_tests": [
+    "tests/test_self_eval.py::test_differential_host_vs_guest"
+   ],
+   "hint_lines": 40,
+   "stop_reason": "completed",
+   "steps": 4,
+   "tool_calls": 3,
+   "seconds": 291.0,
+   "answer": {
+    "root_cause": "In Interp._if_chain (else-if chain fast-path walker), the branch-classification check was inverted: `elif branch.__class__ is not A.If:` instead of `is A.If`. This made the walker treat non-If branches (e.g. a single-statement Block) as if they were nested If nodes, so it unconditionally accessed `branch.cond.fast`, crashing with AttributeError on Block objects. It also meant genuine If-chains never took the intended fast chain-walk path. The analogous, correct check exists a few lines above in `_if_inline` (`elif branch.__class__ is A.If:`).",
+    "files": [
+     "whence/interp.py"
+    ],
+    "summary": "Fixed inverted class check in Interp._if_chain: changed `branch.__class__ is not A.If` to `branch.__class__ is A.If` so the else-if fast-path chain-walk only dereferences `branch.cond` when branch really is an If node, matching the correct logic already used in `_if_inline`."
+   },
+   "final_text": "All tests pass.\n\n```json\n{\"root_cause\": \"In Interp._if_chain (else-if chain fast-path walker), the branch-classification check was inverted: `elif branch.__class__ is not A.If:` instead of `is A.If`. This made the walker treat non-If branches (e.g. a single-statement Block) as if they were nested If nodes, so it unconditionally accessed `branch.cond.fast`, crashing with AttributeError on Block objects. It also meant genuine If-chains never took the intended fast chain-walk path. The analogous, correct check exists a few lines above in `_if_inline` (`elif branch.__class__ is A.If:`).\", \"files\": [\"whence/interp.py\"], \"summary\": \"Fixed inverted class check in Interp._if_chain: changed `branch.__class__ is not A.If` to `branch.__class__ is A.If` so the else-if fast-path chain-walk only dereferences `branch.cond` when branch really is an If node, matching the correct logic already used in `_if_inline`.\"}\n```",
+   "input_tokens": 21939,
+   "output_tokens": 976,
+   "cost_usd": 0.0403058,
+   "model": "claude-sonnet-5"
+  },
+  {
+   "changed_files": [
+    "whence/interp.py"
+   ],
+   "diff": "--- injected/whence/interp.py\n+++ repaired/whence/interp.py\n@@ -888,7 +888,7 @@\n             cf = sub(node.cond)\n             tf = sub(node.then)\n             ef = sub(node.otherwise)\n-            if not not (cf and tf and ef):\n+            if not (cf and tf and ef):\n                 return False\n             if direct:\n \n",
+   "test_edits": [],
+   "site": [
+    891,
+    891
+   ],
+   "touched": [
+    [
+     891,
+     891
+    ]
+   ],
+   "localized": true,
+   "parses": true,
+   "exact": true,
+   "tests_green": true,
+   "pytest_tail": "\n........................................................................ [ 28%]\n........................................................................ [ 42%]\n........................................................................ [ 56%]\n........................................................................ [ 71%]\n........................................................................ [ 85%]\n........................................................................ [ 99%]\n..                                                                       [100%]\n506 passed in 92.34s (0:01:32)\n[exit 0]",
+   "green": true,
+   "outcome": "exact",
+   "mutant": "interp.py:1089:ifneg#324",
+   "op": "ifneg",
+   "description": "negate if-condition",
+   "line": 1089,
+   "failing_tests": [
+    "tests/test_examples.py::test_checks_demo"
+   ],
+   "hint_lines": 15,
+   "stop_reason": "completed",
+   "steps": 6,
+   "tool_calls": 5,
+   "seconds": 217.4,
+   "answer": {
+    "root_cause": "In interp.py's compile-time handler for A.If, the guard used a double negation `if not not (cf and tf and ef): return False`, which inverted the intended check. It bailed out (returned False, meaning 'fall back / cannot compile') precisely when cf, tf, ef all successfully compiled, and instead proceeded to build f_if/d_if when one of them was falsy (e.g. False from a failed sub()). This let a non-callable (e.g. plain bool) leak into ef, causing `branch = ef(env)` to raise `TypeError: 'bool' object is not callable`.",
+    "files": [
+     "whence/interp.py"
+    ],
+    "summary": "Fixed the inverted guard in the If-node fast-path compiler: changed `if not not (cf and tf and ef): return False` to `if not (cf and tf and ef): return False`, restoring the correct fallback behavior when any sub-expression fails to compile, and allowing normal compilation to proceed when all three succeed."
+   },
+   "final_text": "All 506 tests pass now.\n\n```json\n{\"root_cause\": \"In interp.py's compile-time handler for A.If, the guard used a double negation `if not not (cf and tf and ef): return False`, which inverted the intended check. It bailed out (returned False, meaning 'fall back / cannot compile') precisely when cf, tf, ef all successfully compiled, and instead proceeded to build f_if/d_if when one of them was falsy (e.g. False from a failed sub()). This let a non-callable (e.g. plain bool) leak into ef, causing `branch = ef(env)` to raise `TypeError: 'bool' object is not callable`.\", \"files\": [\"whence/interp.py\"], \"summary\": \"Fixed the inverted guard in the If-node fast-path compiler: changed `if not not (cf and tf and ef): return False` to `if not (cf and tf and ef): return False`, restoring the correct fallback behavior when any sub-expression fails to compile, and allowing normal compilation to proceed when all three succeed.\"}\n```",
+   "input_tokens": 31739,
+   "output_tokens": 1352,
+   "cost_usd": 0.042774000000000006,
+   "model": "claude-sonnet-5"
+  },
+  {
+   "changed_files": [],
+   "diff": "",
+   "test_edits": [],
+   "site": [
+    791,
+    791
+   ],
+   "touched": [],
+   "localized": false,
+   "parses": true,
+   "exact": false,
+   "tests_green": false,
+   "pytest_tail": ".\nFAILED tests/test_v09.py::test_budget_is_remeasured_per_statement - Assertion...\nFAILED tests/test_v09.py::test_mutual_recursion_recharges_for_a_taller_body\nFAILED tests/test_v09.py::test_cdepth_is_the_frame_count_to_the_deepest_call\nFAILED tests/test_v09.py::test_host_frames_per_guest_level_match_the_charge\nFAILED tests/test_v09.py::test_shared_ast_two_interpreters_keep_their_own_state\nFAILED tests/test_v09.py::test_call_value_public_api_before_and_after_a_run\nFAILED tests/test_v09.py::test_cli_no_direct_flag_gives_identical_output - As...\n425 failed, 81 passed in 117.15s (0:01:57)\n[exit 1]",
+   "green": false,
+   "outcome": "failed",
+   "mutant": "interp.py:970:bool#303",
+   "op": "bool",
+   "description": "Or -> And",
+   "line": 970,
+   "failing_tests": [
+    "tests/test_examples.py::test_hello"
+   ],
+   "hint_lines": 15,
+   "stop_reason": "completed",
+   "steps": 2,
+   "tool_calls": 1,
+   "seconds": 128.1,
+   "answer": null,
+   "final_text": "tool call: search",
+   "input_tokens": 7556,
+   "output_tokens": 157,
+   "cost_usd": 0.0151592,
+   "model": "claude-sonnet-5"
+  },
+  {
+   "changed_files": [
+    "whence/interp.py"
+   ],
+   "diff": "--- injected/whence/interp.py\n+++ repaired/whence/interp.py\n@@ -1259,7 +1259,7 @@\n             if len(args) != len(p.params):\n                 return mk_miss('%s expects %d args, got %d' % (name, len(p.params), len(args)), line, 'call', name, inputs=tuple(args))\n             if self.depth >= self.max_depth:\n-                return mk_miss('recursion too deep in %s (depth %d)' * (name, self.depth), line, 'call', name, inputs=tuple(args))\n+                return mk_miss('recursion too deep in %s (depth %d)' % (name, self.depth), line, 'call', name, inputs=tuple(args))\n             self.depth += 1\n             if self.depth > self.peak_depth:\n                 self.peak_depth = self.depth\n",
+   "test_edits": [],
+   "site": [
+    1262,
+    1262
+   ],
+   "touched": [
+    [
+     1262,
+     1262
+    ]
+   ],
+   "localized": true,
+   "parses": true,
+   "exact": true,
+   "tests_green": true,
+   "pytest_tail": "\n........................................................................ [ 28%]\n........................................................................ [ 42%]\n........................................................................ [ 56%]\n........................................................................ [ 71%]\n........................................................................ [ 85%]\n........................................................................ [ 99%]\n..                                                                       [100%]\n506 passed in 76.38s (0:01:16)\n[exit 0]",
+   "green": true,
+   "outcome": "exact",
+   "mutant": "interp.py:1517:arith#901",
+   "op": "arith",
+   "description": "Mod -> Mult",
+   "line": 1517,
+   "failing_tests": [
+    "tests/test_examples.py::test_deep"
+   ],
+   "hint_lines": 15,
+   "stop_reason": "completed",
+   "steps": 5,
+   "tool_calls": 4,
+   "seconds": 189.1,
+   "answer": {
+    "root_cause": "In whence/interp.py, one of the deep-recursion miss messages used the multiplication operator `*` instead of the string-formatting operator `%` when building the 'recursion too deep' message: `'recursion too deep in %s (depth %d)' * (name, self.depth)`. This attempted to multiply a string by a tuple, raising a TypeError instead of producing the intended miss, which crashed the deep recursion example.",
+    "files": [
+     "whence/interp.py"
+    ],
+    "summary": "Fixed a typo at interp.py:1262 where `%` was mistakenly written as `*` in the recursion-depth miss message construction, restoring correct string formatting and the intended miss-propagation semantics for deep recursion."
+   },
+   "final_text": "All tests pass.\n\n```json\n{\"root_cause\": \"In whence/interp.py, one of the deep-recursion miss messages used the multiplication operator `*` instead of the string-formatting operator `%` when building the 'recursion too deep' message: `'recursion too deep in %s (depth %d)' * (name, self.depth)`. This attempted to multiply a string by a tuple, raising a TypeError instead of producing the intended miss, which crashed the deep recursion example.\", \"files\": [\"whence/interp.py\"], \"summary\": \"Fixed a typo at interp.py:1262 where `%` was mistakenly written as `*` in the recursion-depth miss message construction, restoring correct string formatting and the intended miss-propagation semantics for deep recursion.\"}\n```",
+   "input_tokens": 23188,
+   "output_tokens": 619,
+   "cost_usd": 0.028810000000000002,
+   "model": "claude-sonnet-5"
+  },
+  {
+   "changed_files": [
+    "whence/interp.py"
+   ],
+   "diff": "--- injected/whence/interp.py\n+++ repaired/whence/interp.py\n@@ -1778,7 +1778,7 @@\n         items = []\n         if len(runs.value):\n             ra = _history_root(runs.value[0])\n-            for i in range(2, len(runs.value)):\n+            for i in range(1, len(runs.value)):\n                 rb = _history_root(runs.value[i])\n                 items.extend(_diverge_records(ra, rb, line, which=i))\n         return derived('diverge', '%d origins across %d runs' % (len(items), len(runs.value)), line, (runs,), wlist(items))\n",
+   "test_edits": [],
+   "site": [
+    1781,
+    1781
+   ],
+   "touched": [
+    [
+     1781,
+     1781
+    ]
+   ],
+   "localized": true,
+   "parses": true,
+   "exact": true,
+   "tests_green": true,
+   "pytest_tail": "\n........................................................................ [ 28%]\n........................................................................ [ 42%]\n........................................................................ [ 56%]\n........................................................................ [ 71%]\n........................................................................ [ 85%]\n........................................................................ [ 99%]\n..                                                                       [100%]\n506 passed in 69.58s (0:01:09)\n[exit 0]",
+   "green": true,
+   "outcome": "exact",
+   "mutant": "interp.py:2191:const#832",
+   "op": "const",
+   "description": "1 -> 2",
+   "line": 2191,
+   "failing_tests": [
+    "tests/test_examples.py::test_diverge"
+   ],
+   "hint_lines": 15,
+   "stop_reason": "completed",
+   "steps": 15,
+   "tool_calls": 14,
+   "seconds": 233.7,
+   "answer": {
+    "root_cause": "In the n-way `diverge([r0, r1, ...])` builtin, the loop comparing each run to the first started at index 2 instead of 1 (`for i in range(2, len(runs.value))`), so run index 1 was never compared against run 0. With exactly the example's 3 runs (monday, tuesday, wednesday) this skipped the actually-diverging run (tuesday, index 1) and only compared wednesday (index 2, identical to monday), yielding zero origins instead of one.",
+    "files": [
+     "whence/interp.py"
+    ],
+    "summary": "Fixed off-by-one in b_diverge's n-way branch: changed `range(2, len(runs.value))` to `range(1, len(runs.value))` so every run from index 1 onward is diffed against the first run, restoring correct n-way divergence detection (examples/diverge.lang's week checks now pass)."
+   },
+   "final_text": "All tests pass.\n\n```json\n{\"root_cause\": \"In the n-way `diverge([r0, r1, ...])` builtin, the loop comparing each run to the first started at index 2 instead of 1 (`for i in range(2, len(runs.value))`), so run index 1 was never compared against run 0. With exactly the example's 3 runs (monday, tuesday, wednesday) this skipped the actually-diverging run (tuesday, index 1) and only compared wednesday (index 2, identical to monday), yielding zero origins instead of one.\", \"files\": [\"whence/interp.py\"], \"summary\": \"Fixed off-by-one in b_diverge's n-way branch: changed `range(2, len(runs.value))` to `range(1, len(runs.value))` so every run from index 1 onward is diffed against the first run, restoring correct n-way divergence detection (examples/diverge.lang's week checks now pass).\"}\n```",
+   "input_tokens": 128318,
+   "output_tokens": 3344,
+   "cost_usd": 0.10877340000000002,
+   "model": "claude-sonnet-5"
+  },
+  {
+   "changed_files": [
+    "whence/interp.py"
+   ],
+   "diff": "--- injected/whence/interp.py\n+++ repaired/whence/interp.py\n@@ -1661,7 +1661,7 @@\n         if m:\n             return m\n         (a, b) = args\n-        if not not isinstance(a.payload, Record) or not isinstance(b.payload, Record):\n+        if not isinstance(a.payload, Record) or not isinstance(b.payload, Record):\n             return mk_miss('merge needs two records', line, 'merge', inputs=(a, b))\n         fields = dict(a.payload.fields)\n         fields.update(b.payload.fields)\n",
+   "test_edits": [],
+   "site": [
+    1664,
+    1664
+   ],
+   "touched": [
+    [
+     1664,
+     1664
+    ]
+   ],
+   "localized": true,
+   "parses": true,
+   "exact": true,
+   "tests_green": true,
+   "pytest_tail": "\n........................................................................ [ 28%]\n........................................................................ [ 42%]\n........................................................................ [ 56%]\n........................................................................ [ 71%]\n........................................................................ [ 85%]\n........................................................................ [ 99%]\n..                                                                       [100%]\n506 passed in 70.88s (0:01:10)\n[exit 0]",
+   "green": true,
+   "outcome": "exact",
+   "mutant": "interp.py:2015:not#624",
+   "op": "not",
+   "description": "drop 'not'",
+   "line": 2015,
+   "failing_tests": [
+    "tests/test_examples.py::test_sales"
+   ],
+   "hint_lines": 15,
+   "stop_reason": "completed",
+   "steps": 12,
+   "tool_calls": 11,
+   "seconds": 187.3,
+   "answer": {
+    "root_cause": "b_merge's type check in whence/interp.py used `not not isinstance(a.payload, Record) or not isinstance(b.payload, Record)`, where the double negation on the first operand canceled out, making the guard true (and thus reject) whenever `a` WAS a valid Record — inverting the intended validation and causing `merge` to spuriously miss on correct record inputs.",
+    "files": [
+     "whence/interp.py"
+    ],
+    "summary": "Removed the stray double-negation in the `merge` builtin's argument type check so it correctly requires both `a` and `b` to be Records (was accidentally requiring `a` NOT be a Record), fixing sales.lang's 'merge overrides'/'merge keeps' checks."
+   },
+   "final_text": "All tests pass.\n\n```json\n{\"root_cause\": \"b_merge's type check in whence/interp.py used `not not isinstance(a.payload, Record) or not isinstance(b.payload, Record)`, where the double negation on the first operand canceled out, making the guard true (and thus reject) whenever `a` WAS a valid Record — inverting the intended validation and causing `merge` to spuriously miss on correct record inputs.\", \"files\": [\"whence/interp.py\"], \"summary\": \"Removed the stray double-negation in the `merge` builtin's argument type check so it correctly requires both `a` and `b` to be Records (was accidentally requiring `a` NOT be a Record), fixing sales.lang's 'merge overrides'/'merge keeps' checks.\"}\n```",
+   "input_tokens": 72031,
+   "output_tokens": 1087,
+   "cost_usd": 0.056514999999999996,
+   "model": "claude-sonnet-5"
+  }
+ ]
+}

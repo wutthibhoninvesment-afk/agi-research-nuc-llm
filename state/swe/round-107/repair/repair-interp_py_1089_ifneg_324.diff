@@ -1,0 +1,11 @@
+--- injected/whence/interp.py
++++ repaired/whence/interp.py
+@@ -888,7 +888,7 @@
+             cf = sub(node.cond)
+             tf = sub(node.then)
+             ef = sub(node.otherwise)
+-            if not not (cf and tf and ef):
++            if not (cf and tf and ef):
+                 return False
+             if direct:
+ 

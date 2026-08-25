@@ -1,0 +1,13 @@
+case: pm-neg
+model: sonnet
+arm: None
+fired: []
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=NONE

@@ -1,0 +1,13 @@
+case: stil-far
+model: sonnet
+arm: None
+fired: ['shared-tip-immutable-lists']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=shared-tip-immutable-lists
