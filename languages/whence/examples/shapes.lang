@@ -1,0 +1,73 @@
+# shapes.lang — structural types (v0.12): optional, checked at call
+# boundaries, and a mismatch is an ordinary miss, not a crash.
+
+shape Point = @{x: num, y: num}
+shape Line = @{a: Point, b: Point}
+
+fn length(l: Line) {
+  let dx = l.b.x - l.a.x
+  let dy = l.b.y - l.a.y
+  sqrt(dx * dx + dy * dy)
+}
+
+let good = @{a: @{x: 0, y: 0}, b: @{x: 3, y: 4}}
+check "a well-shaped line": length(good) == 5
+
+# Structural typing is duck typing: a record matches a shape by having the
+# declared fields, whatever else it carries. No relation to `Line` was
+# ever declared for `tagged` — it just happens to have the right shape.
+let tagged = @{a: @{x: 0, y: 0, note: "origin"}, b: @{x: 3, y: 4}, color: "red"}
+check "extra fields don't break a match": length(tagged) == 5
+check "matches agrees, with no call and no miss": matches(tagged, Line)
+
+let flat = @{a: @{x: 0}, b: @{x: 3, y: 4}}
+let broken = length(flat)
+check "a missing field is a miss, not a crash": missed(broken)
+check "the miss names the parameter and the shape": contains(
+  reasons(broken)[0], "parameter 'l' of length expected Line")
+check "matches agrees too, and never itself misses": not matches(flat, Line)
+
+# Untyped code costs nothing: a plain parameter is exactly what it always
+# was, and the check compiles away with everything else that touches no
+# call (v0.4 decision 13).
+fn untyped_add(a, b) { a + b }
+check "untyped functions are unaffected": missed(untyped_add(1, "x"))
+
+# A type mismatch is a value: it propagates, and `blame` finds it.
+shape Request = @{method: str, path: str, retries: num}
+fn validate(r: Request) { r }
+
+let requests = [
+  @{method: "GET",  path: "/health", retries: 0},
+  @{method: "POST", path: "/orders", retries: 3},
+  @{method: "GET",  path: "/status", retries: "3"}   # typo: a string, not a number
+]
+
+let checked = map(validate, requests)
+fn sum_retries(reqs) { fold(fn(acc, r) { acc + r.retries }, 0, reqs) }
+let attempted = sum_retries(checked)
+
+check "one malformed request poisons the whole fold": missed(attempted)
+let origin = blame(attempted)[0]
+check "blame names the call that rejected it": origin.detail == "parameter 'r' of validate"
+print("why the total failed:")
+print(reasons(attempted))
+
+# Recover with a default per request, same as any other miss (decision 2).
+fn safe_retries(r) { validate(r).retries rescue 0 }
+let total = fold(fn(acc, r) { acc + safe_retries(r) }, 0, requests)
+check "recovered total skips only the bad one": total == 3
+print("")
+print("recovered total (bad request contributes 0): " + str(total))
+
+# Recursion through a typed parameter is still a tail call: the guard is
+# an ordinary leading binding, not a wrapper around the body (v0.9/v0.3
+# tail merging is unaffected by annotating a parameter).
+fn count_points(n: num, acc: num) {
+  if n == 0 { acc } else { count_points(n - 1, acc + 1) }
+}
+check "typed tail recursion stays one frame": count_points(50000, 0) == 50000
+
+check "shapeof tells values apart, even a miss": shapeof(good) == "record" and
+  shapeof(good.a.x) == "num" and shapeof(validate) == "fn" and
+  shapeof(broken) == "miss"

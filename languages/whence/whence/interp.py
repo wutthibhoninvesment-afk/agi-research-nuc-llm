@@ -1975,6 +1975,55 @@ def _propagate(name, args, line):
     return None
 
 
+_KIND_ORDER = (
+    (Miss, "miss"), (bool, "bool"), ((int, float), "num"), (str, "str"),
+    (WList, "list"), (Record, "record"), ((Closure, Builtin), "fn"),
+)
+
+
+def _kind(payload):
+    """The runtime shape of a payload as a Whence-visible string: one of
+    `num str bool list record fn miss`, or `"value"` for the two payloads
+    with no Whence type tag (`why`'s Explanation; nothing else escapes to
+    user code). `bool` before `(int, float)`: Python bools are ints."""
+    for types, name in _KIND_ORDER:
+        if isinstance(payload, types):
+            return name
+    return "value"
+
+
+def _type_match(payload, spec):
+    """Structural type test (v0.12): `spec` is a Python str (a primitive
+    tag, `"any"` always matching) or a Whence Record (a `shape`'s payload:
+    `__shape` names it for messages, every other field maps to a nested
+    spec — a str or, for a shape-typed field, another Record — checked
+    recursively). A record matches a shape when every declared field is
+    PRESENT with a non-miss value of the right shape; extra fields are
+    ignored (width/structural subtyping, not nominal — a record built by
+    hand matches a `shape` exactly as one built from it). Returns
+    (matched, the name to show in a mismatch message). Shapes can only
+    reference earlier shapes (parser-enforced), so this recursion is
+    bounded by the shape declaration order and cannot cycle."""
+    if isinstance(spec, str):
+        if spec == "any":
+            return True, "any"
+        return _kind(payload) == spec, spec
+    name_node = spec.fields.get("__shape")
+    name = name_node.value if name_node is not None else "record"
+    if not isinstance(payload, Record):
+        return False, name
+    have = payload.fields
+    for fname, fspec_node in spec.fields.items():
+        if fname == "__shape":
+            continue
+        if fname not in have or isinstance(have[fname].value, Miss):
+            return False, name
+        ok, _ = _type_match(have[fname].value, fspec_node.value)
+        if not ok:
+            return False, name
+    return True, name
+
+
 def _history_root(v):
     """The provenance node a query builtin should start from: an explanation's
     root if given `why x`, else the value's own provenance."""
@@ -2360,6 +2409,53 @@ def _make_builtin_table():
                 return x  # provenance passes through, like xs[i]
         return mk_miss("find: no element matched", line, "find",
                        inputs=(fn, xs))
+
+    # --- structural types (v0.12) ---------------------------------------
+    # `typed` is the whole feature's runtime: `fn f(a: num) {…}` desugars
+    # at PARSE time (parser.py `_apply_type_guards`) to a leading
+    # `let a = typed(a, "num", "parameter 'a' of f")` — an ordinary
+    # builtin call, so a mismatch is an ordinary miss that propagates
+    # through the rest of the body exactly like any other bad input
+    # (decision 2). `shapeof`/`matches` are the same check exposed
+    # directly for programs that want to test structure themselves.
+
+    @register("typed", 3)
+    def b_typed(interp, args, line):
+        m = _propagate("typed", args, line)
+        if m:
+            return m
+        value, spec, label = args
+        if not isinstance(label.payload, str):
+            return mk_miss("typed label must be a string, got %s" %
+                           show_payload(label.payload), line, "typed",
+                           inputs=(value, spec, label))
+        if not isinstance(spec.payload, (str, Record)):
+            return mk_miss("typed spec must be a type name or a shape, "
+                           "got %s" % show_payload(spec.payload), line,
+                           "typed", inputs=(value, spec, label))
+        ok, desc = _type_match(value.payload, spec.payload)
+        if ok:
+            return value                    # pass-through: no new node
+        return mk_miss("%s expected %s, got %s" %
+                       (label.payload, desc, _kind(value.payload)), line,
+                       "typed", label.payload, inputs=(value,))
+
+    @register("matches", 2)
+    def b_matches(interp, args, line):
+        # Total, like `missed`: never itself a miss, even on a miss or a
+        # malformed spec (both simply do not match).
+        value, spec = args
+        if _is_miss(value) or _is_miss(spec) or \
+                not isinstance(spec.payload, (str, Record)):
+            return derived("matches", "", line, args, False)
+        ok, _ = _type_match(value.payload, spec.payload)
+        return derived("matches", "", line, args, ok)
+
+    @register("shapeof", 1)
+    def b_shapeof(interp, args, line):
+        # Total: works on misses too (returns "miss"), like `missed`.
+        v = args[0]
+        return derived("shapeof", "", line, args, _kind(v.payload))
 
     # --- provenance as data (round 4) -----------------------------------
     # These are total: they work on misses (that is the point) and accept

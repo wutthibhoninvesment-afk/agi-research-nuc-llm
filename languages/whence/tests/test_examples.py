@@ -130,6 +130,14 @@ def test_diverge():
     assert "checks: 16 passed, 0 failed" in r.stdout
 
 
+def test_shapes():
+    r = run_example("shapes.lang")
+    assert r.returncode == 0, r.stdout
+    assert "parameter 'r' of validate expected Request, got record" in r.stdout
+    assert "recovered total (bad request contributes 0): 3" in r.stdout
+    assert "12 passed, 0 failed" in r.stdout
+
+
 def test_max_iter_flag(tmp_path):
     prog = tmp_path / "spin.lang"
     prog.write_text("fn spin(n) { spin(n + 1) }\nlet r = spin(0)\nprint(r)\n"

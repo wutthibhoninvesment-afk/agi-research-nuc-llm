@@ -1260,3 +1260,4 @@ subset-check killed   interp.py:2481:arith#693 (2 files -> full) 59s
 subset-check killed   interp.py:430:cmp#264 (3 files -> full) 60s
 subset-check killed   interp.py:430:ifneg#85 (3 files -> full) 68s
 recheck timeout  -> timeout  interp.py:819:ifneg#103 600s
+recheck timeout  -> timeout  interp.py:819:cmp#296 600s

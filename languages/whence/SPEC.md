@@ -1,4 +1,4 @@
-# Whence — a provenance-first language (spec v0.10, rounds 009/011/014/020/024/026/030/108)
+# Whence — a provenance-first language (spec v0.11, rounds 009/011/014/020/024/026/030/108/ADD_TIME_TRAVEL)
 
 **One idea:** every value remembers where it came from. `why x` returns the
 derivation tree of `x` as a first-class value. Failures are values too, so a
@@ -499,3 +499,34 @@ that, so a Whence call never *requires* host stack; a tail call costs zero
 Whence frames (`interp.tail_calls` counts them; `interp.fast_hits` counts
 driver entries into compiled closures, `interp.direct_hits` /
 `direct_fallbacks` the direct calls and the ones the budget refused).
+
+
+## Time-Travel Debugging (v0.7+)
+
+### Built-in Functions
+- `snap(name)` — Take a named snapshot of all variable bindings
+- `rewind(name)` — Restore state from a saved checkpoint (clears forward progress)
+- `timeline()` — List all checkpoints with metadata
+- `diff_snap(a, b)` — Compare differences between two snapshots
+- `trace(value)` — Full provenance tree of any value
+
+### Architecture
+- Snapshots store deep copies of env.vars (structural sharing via immutability)
+- Rewinding clears future checkpoints (time paradox prevention)
+- Memory-efficient: only reference counts increase on shared nodes
+- Safety: each snap creates independent scope; rewinding restores exact state
+
+### Example Usage
+```whence
+let x = 42
+let y = x * 2
+snap("before_modification")
+
+let x = x + 10  // This diverges from the original x=42
+let z = x + y
+
+// Compare states
+diff_snap("before_modification", "after_modification")  // Shows what changed
+
+// View full derivation tree
+trace(x)  // Why is x = 52? See full DAG from literals

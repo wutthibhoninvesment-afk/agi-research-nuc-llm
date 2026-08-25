@@ -283,3 +283,11 @@ Workspace: ~/agi-research
 
 ### Round 113 — SWE-loop(D) — 2026-08-25
 - [STUB written at round start 21:20; finalised below if the session survived] Plan: per-test-FILE coverage map (`swe.coverage --by-file`) → `MapPrioritizer` kill-first order + covering-subset verdicts + recheck self-check; static survivor triage (`swe/triage.py`); oracle-kill stage (`swe/oraclekill.py`: modes / frames / counters, pins in `tests/test_oracle_killers_r113.py`); v0.11 re-baseline (1226 mutants) in `state/swe/round-113/`; live kill n=16 + repair 6; guest seeds 117/118. Predictions banked in `state/round-113-predictions.md` (P1–P16).
+
+---
+### 2026-08-25: Time-Travel Debugger v0.7 COMPLETE
+- Created `whence/timetravel.py` with 5 builtins: snap(), rewind(), timeline(), diff_snap(), trace()
+- Full integration with interpreter (install_timetravel_builtins function)
+- Test suite: 11/11 tests passed
+- SPEC updated to v0.11
+- All code committed and pushed to GitHub
