@@ -1,0 +1,1 @@
+{"model": "qwen36", "prompt": "<|im_start|>system\nhi<|im_end|>\n", "max_tokens": 1, "stream": false}

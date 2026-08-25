@@ -1,0 +1,24 @@
+{
+ "created": "2026-08-24T23:14:52",
+ "root": "/Users/jaby/agi-research/languages/whence",
+ "files": [
+  "whence/interp.py"
+ ],
+ "stages": {
+  "mutation": {
+   "status": "running",
+   "started": "2026-08-25T00:50:57"
+  },
+  "review": {
+   "status": "done",
+   "started": "2026-08-24T23:40:34",
+   "finished": "2026-08-24T23:44:44",
+   "info": {
+    "claimed": 0,
+    "confirmed": 0,
+    "oracle_calls": 1,
+    "cost_usd": 0.48542820000000003
+   }
+  }
+ }
+}

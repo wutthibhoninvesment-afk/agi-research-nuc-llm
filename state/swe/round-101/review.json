@@ -1,0 +1,22 @@
+{
+ "claims": [],
+ "confirmed": 0,
+ "claimed": 0,
+ "stop_reason": "max_steps",
+ "steps": 30,
+ "tool_calls": 30,
+ "seconds": 249.9,
+ "final_text": "",
+ "input_tokens": 826721,
+ "output_tokens": 11898,
+ "cost_usd": 0.48542820000000003,
+ "model": "claude-sonnet-5",
+ "tool_histogram": {
+  "outline": 2,
+  "read_file": 23,
+  "search": 2,
+  "whence_run": 1,
+  "oracle_check": 1,
+  "__malformed_tool_block__": 1
+ }
+}

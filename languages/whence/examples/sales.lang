@@ -1,0 +1,33 @@
+# sales.lang — a small report with records, and checks inline
+
+let sales = [
+  @{region: "east", units: 120, price: 2.5},
+  @{region: "west", units: 80,  price: 2.5},
+  @{region: "east", units: 45,  price: 4.0},
+  @{region: "south", units: 60, price: 3.0}
+]
+
+fn revenue(row) { row.units * row.price }
+fn add(a, b) { a + b }
+fn total_for(region) {
+  let rows = filter(fn(r) { r.region == region }, sales)
+  fold(add, 0, map(revenue, rows))
+}
+
+let east = total_for("east")
+let west = total_for("west")
+let everywhere = fold(add, 0, map(revenue, sales))
+
+print("east:  " + str(east))
+print("west:  " + str(west))
+print("total: " + str(everywhere))
+
+check "east revenue": east == 480.0
+check "west revenue": west == 200.0
+check "totals add up": everywhere == east + west + total_for("south")
+
+# records are open: merge produces a new record
+let base = @{region: "north", units: 0}
+let filled = merge(base, @{units: 10, price: 1.5})
+check "merge overrides": filled.units == 10
+check "merge keeps": filled.region == "north"

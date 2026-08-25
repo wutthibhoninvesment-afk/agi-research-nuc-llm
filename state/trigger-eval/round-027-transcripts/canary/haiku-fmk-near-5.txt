@@ -1,0 +1,15 @@
+case: fmk-near
+model: haiku
+arm: None
+fired: ['tiny-language-implementation']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+I'll check what skills apply to debugging a parser and evaluator.
+
+SKILLS=tiny-language-implementation

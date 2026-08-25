@@ -1,0 +1,1 @@
+{"model": "qwen36", "prompt": "{\n \"a\": 1,\n \"b\": {\n  \"c\": 2\n }\n}", "max_tokens": 1, "stream": false}

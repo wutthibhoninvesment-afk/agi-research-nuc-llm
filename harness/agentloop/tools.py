@@ -1,0 +1,299 @@
+"""Tool protocol, registry, and built-in tools.
+
+Every tool:
+  - declares name / description / a JSON-Schema-ish params dict (sent to the
+    LLM so it knows the call signature),
+  - implements run(**args) -> ToolResult,
+  - NEVER raises for expected failures (missing file, non-zero exit): those
+    come back as ToolResult(ok=False, output=...) so the model can react.
+    Only programmer errors (bad tool wiring) raise.
+
+File tools are sandboxed to a root directory: every path is resolved and
+checked against the root, so "../../etc/passwd" is rejected, including
+symlink escapes (realpath is checked, not just the lexical path).
+"""
+
+import os
+import subprocess
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional
+
+from .usage import Usage
+
+
+@dataclass
+class ToolResult:
+    ok: bool
+    output: str
+    # LLM tokens the tool ITSELF spent while running (a sub-agent, an
+    # LLM-judge, a summarizer). The loop adds this into the run's usage and
+    # re-checks the spend caps right after dispatch, so tool-side spending
+    # is neither invisible to `AgentResult.usage` nor a way around
+    # max_cost_usd / max_total_tokens. Zero for ordinary tools.
+    usage: Usage = field(default_factory=Usage)
+    # Extra fields merged into the `tool_result` trace event (e.g. a
+    # sub-agent's steps / stop_reason / depth). Never sent to the model.
+    meta: Optional[dict] = None
+
+    def as_text(self) -> str:
+        prefix = "" if self.ok else "ERROR: "
+        return prefix + self.output
+
+
+class SandboxViolation(ValueError):
+    pass
+
+
+class Tool:
+    name = "tool"
+    description = ""
+    params: Dict[str, dict] = {}  # arg name -> {"type": ..., "description": ...}
+    required: List[str] = []
+    # May this tool run concurrently with other calls from the same turn?
+    # Read-only tools say yes; anything that mutates the workspace says no,
+    # and the loop then runs the whole batch serially, in call order.
+    parallel_safe: bool = False
+
+    def spec(self) -> dict:
+        """Provider-neutral tool spec handed to the LLM."""
+        return {
+            "name": self.name,
+            "description": self.description,
+            "input_schema": {
+                "type": "object",
+                "properties": self.params,
+                "required": list(self.required),
+            },
+        }
+
+    def run(self, **args: object) -> ToolResult:
+        raise NotImplementedError
+
+
+class ToolRegistry:
+    def __init__(self, tools: Optional[List[Tool]] = None):
+        self._tools: Dict[str, Tool] = {}
+        for t in tools or []:
+            self.register(t)
+
+    def register(self, tool: Tool) -> None:
+        if tool.name in self._tools:
+            raise ValueError("duplicate tool name: %s" % tool.name)
+        self._tools[tool.name] = tool
+
+    def specs(self) -> List[dict]:
+        return [t.spec() for t in self._tools.values()]
+
+    def names(self) -> List[str]:
+        return list(self._tools.keys())
+
+    def get(self, name: str) -> Optional[Tool]:
+        return self._tools.get(name)
+
+    def dispatch(self, name: str, args: Dict[str, object]) -> ToolResult:
+        """Run a tool by name. Unknown tool / bad args / tool crash all come
+        back as failed ToolResults — the loop must survive a confused model."""
+        tool = self._tools.get(name)
+        if tool is None:
+            return ToolResult(False, "unknown tool %r; available: %s"
+                              % (name, ", ".join(sorted(self._tools))))
+        missing = [k for k in tool.required if k not in args]
+        if missing:
+            return ToolResult(False, "tool %r missing required args: %s"
+                              % (name, ", ".join(missing)))
+        unexpected = [k for k in args if k not in tool.params]
+        if unexpected:
+            return ToolResult(False, "tool %r got unexpected args: %s"
+                              % (name, ", ".join(unexpected)))
+        try:
+            return tool.run(**args)
+        except Exception as e:  # noqa: BLE001 — tool bugs must not kill the loop
+            return ToolResult(False, "tool %r crashed: %s: %s"
+                              % (name, type(e).__name__, e))
+
+
+# ---------------------------------------------------------------- sandbox --
+
+class _Sandboxed:
+    def __init__(self, root: str):
+        self.root = os.path.realpath(root)
+        if not os.path.isdir(self.root):
+            raise ValueError("sandbox root is not a directory: %s" % root)
+
+    def resolve(self, rel_path: str) -> str:
+        """Map a tool-supplied path to an absolute path inside the sandbox.
+        Raises SandboxViolation on escape attempts (.. or symlinks)."""
+        if os.path.isabs(rel_path):
+            candidate = os.path.realpath(rel_path)
+        else:
+            candidate = os.path.realpath(os.path.join(self.root, rel_path))
+        if candidate != self.root and not candidate.startswith(self.root + os.sep):
+            raise SandboxViolation("path escapes sandbox: %r" % rel_path)
+        return candidate
+
+
+# ------------------------------------------------------------- file tools --
+
+class ReadFileTool(Tool):
+    name = "read_file"
+    parallel_safe = True
+    description = "Read a UTF-8 text file inside the workspace. Returns its contents."
+    params = {"path": {"type": "string", "description": "path relative to workspace root"}}
+    required = ["path"]
+
+    def __init__(self, root: str, max_bytes: int = 256 * 1024):
+        self._sb = _Sandboxed(root)
+        self._max_bytes = max_bytes
+
+    def run(self, path: str) -> ToolResult:
+        try:
+            abs_path = self._sb.resolve(path)
+        except SandboxViolation as e:
+            return ToolResult(False, str(e))
+        if not os.path.isfile(abs_path):
+            return ToolResult(False, "no such file: %s" % path)
+        size = os.path.getsize(abs_path)
+        if size > self._max_bytes:
+            return ToolResult(False, "file too large (%d bytes > %d limit): %s"
+                              % (size, self._max_bytes, path))
+        with open(abs_path, "r", encoding="utf-8", errors="replace") as f:
+            return ToolResult(True, f.read())
+
+
+class WriteFileTool(Tool):
+    name = "write_file"
+    description = "Write (create or overwrite) a UTF-8 text file inside the workspace."
+    params = {
+        "path": {"type": "string", "description": "path relative to workspace root"},
+        "content": {"type": "string", "description": "full file contents"},
+    }
+    required = ["path", "content"]
+
+    def __init__(self, root: str):
+        self._sb = _Sandboxed(root)
+
+    def run(self, path: str, content: str) -> ToolResult:
+        try:
+            abs_path = self._sb.resolve(path)
+        except SandboxViolation as e:
+            return ToolResult(False, str(e))
+        os.makedirs(os.path.dirname(abs_path) or self._sb.root, exist_ok=True)
+        with open(abs_path, "w", encoding="utf-8") as f:
+            f.write(content)
+        return ToolResult(True, "wrote %d chars to %s" % (len(content), path))
+
+
+class ListDirTool(Tool):
+    name = "list_dir"
+    parallel_safe = True
+    description = "List entries of a directory inside the workspace (dirs get a trailing /)."
+    params = {"path": {"type": "string", "description": "directory, relative to workspace root; default '.'"}}
+    required = []
+
+    def __init__(self, root: str):
+        self._sb = _Sandboxed(root)
+
+    def run(self, path: str = ".") -> ToolResult:
+        try:
+            abs_path = self._sb.resolve(path)
+        except SandboxViolation as e:
+            return ToolResult(False, str(e))
+        if not os.path.isdir(abs_path):
+            return ToolResult(False, "no such directory: %s" % path)
+        entries = []
+        for name in sorted(os.listdir(abs_path)):
+            full = os.path.join(abs_path, name)
+            entries.append(name + "/" if os.path.isdir(full) else name)
+        return ToolResult(True, "\n".join(entries) if entries else "(empty)")
+
+
+# ------------------------------------------------------------- bash tool ---
+
+class BashTool(Tool):
+    name = "bash"
+    description = ("Run a shell command with the workspace as cwd. "
+                   "Returns stdout+stderr and exit code. Times out after a limit.")
+    params = {"command": {"type": "string", "description": "shell command to run"}}
+    required = ["command"]
+
+    def __init__(self, root: str, timeout_s: float = 30.0):
+        self._sb = _Sandboxed(root)
+        self._timeout_s = timeout_s
+
+    def run(self, command: str) -> ToolResult:
+        try:
+            proc = subprocess.run(
+                command,
+                shell=True,
+                cwd=self._sb.root,
+                capture_output=True,
+                text=True,
+                timeout=self._timeout_s,
+            )
+        except subprocess.TimeoutExpired:
+            return ToolResult(False, "command timed out after %.0fs: %s"
+                              % (self._timeout_s, command))
+        parts = []
+        if proc.stdout:
+            parts.append(proc.stdout.rstrip("\n"))
+        if proc.stderr:
+            parts.append("[stderr]\n" + proc.stderr.rstrip("\n"))
+        parts.append("[exit %d]" % proc.returncode)
+        return ToolResult(proc.returncode == 0, "\n".join(parts))
+
+
+# ------------------------------------------------------------ search tool --
+
+class SearchTool(Tool):
+    name = "search"
+    parallel_safe = True
+    description = ("Search workspace text files for a substring (case-sensitive). "
+                   "Returns 'path:lineno: line' matches.")
+    params = {
+        "query": {"type": "string", "description": "substring to look for"},
+        "path": {"type": "string", "description": "subdirectory to search; default '.'"},
+    }
+    required = ["query"]
+
+    SKIP_DIRS = {".git", "__pycache__", ".venv", "node_modules"}
+
+    def __init__(self, root: str, max_matches: int = 200):
+        self._sb = _Sandboxed(root)
+        self._max_matches = max_matches
+
+    def run(self, query: str, path: str = ".") -> ToolResult:
+        if not query:
+            return ToolResult(False, "empty query")
+        try:
+            base = self._sb.resolve(path)
+        except SandboxViolation as e:
+            return ToolResult(False, str(e))
+        if not os.path.isdir(base):
+            return ToolResult(False, "no such directory: %s" % path)
+        matches = []
+        truncated = False
+        for dirpath, dirnames, filenames in os.walk(base):
+            dirnames[:] = sorted(d for d in dirnames if d not in self.SKIP_DIRS)
+            for fname in sorted(filenames):
+                fpath = os.path.join(dirpath, fname)
+                try:
+                    with open(fpath, "r", encoding="utf-8") as f:
+                        for lineno, line in enumerate(f, 1):
+                            if query in line:
+                                rel = os.path.relpath(fpath, self._sb.root)
+                                matches.append("%s:%d: %s" % (rel, lineno, line.rstrip("\n")))
+                                if len(matches) >= self._max_matches:
+                                    truncated = True
+                                    break
+                except (UnicodeDecodeError, OSError):
+                    continue  # binary or unreadable file — skip
+                if truncated:
+                    break
+            if truncated:
+                break
+        if not matches:
+            return ToolResult(True, "no matches for %r" % query)
+        out = "\n".join(matches)
+        if truncated:
+            out += "\n... [match limit %d reached]" % self._max_matches
+        return ToolResult(True, out)

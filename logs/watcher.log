@@ -1,0 +1,11 @@
+[2026-08-24 06:59:29] watcher started; waiting for round 9 (language) to finish
+[2026-08-24 06:59:29] round 9 finished
+[2026-08-24 06:59:29] old driver stopped
+[2026-08-24 06:59:32] stray claude round still running — killing for clean handover
+[2026-08-24 06:59:37] rolled counter back to 9 (killed stray round 10)
+[2026-08-24 06:59:37] starting updated driver (6-track rotation)
+[2026-08-24 06:59:37] new driver launched (pid 26793)
+[2026-08-24 06:59:37] === driver started; resuming after round 9 ===
+[2026-08-24 06:59:37] round 10 track=NUC-integration(E) start
+[2026-08-24 07:14:09] round 10: success
+[2026-08-24 07:14:54] round 11 track=SWE-loop(D) start

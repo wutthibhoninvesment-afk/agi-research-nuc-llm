@@ -1,0 +1,5 @@
+fuzz: 400 programs in 25.9s
+  ok           341
+  parse_error  53
+  timeout      6
+  unique crash signatures: 0

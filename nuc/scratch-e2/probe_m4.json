@@ -1,0 +1,1 @@
+{"model": "qwen36", "prompt": "line one\n indented\n  deeper\nflush", "max_tokens": 1, "stream": false}

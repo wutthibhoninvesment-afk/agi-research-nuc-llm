@@ -1,0 +1,73 @@
+--- a/c/openai_server.py
++++ b/c/openai_server.py
+@@ -2005,12 +2005,29 @@
+         # the engine only discovers the boundary on the second fresh prompt.
+         # Older engines parse six or seven fields and ignore the eighth.
+         prefix_field = ""
++        cut = 0
+         if ARCH == "deepseek_v4":
+             cut = min((i for i in (prompt.find("<\uff5cUser\uff5c>"),
+                                    prompt.find("<\uff5cAssistant\uff5c>")) if i > 0),
+                       default=0)
+-            if cut > 0:
+-                prefix_field = f" {len(xpayload)} {len(prompt[:cut].encode('utf-8'))}"
++        elif ARCH == "qwen36":
++            # The qwen36 hybrid takes the same hint: it snapshots its DeltaNet
++            # state at that boundary so a fresh conversation restores the shared
++            # system prefix instead of re-prefilling it. In the Qwen template the
++            # system turn ends where the first user turn begins.
++            cut = max(prompt.find("<|im_start|>user"), 0)
++            # Second hint (9th field): where the NEXT turn of this conversation
++            # diverges from this prompt -- right after the assistant header. The
++            # history rendering omits the generation suffix (the empty <think>
++            # block) and re-renders the reply, so a snapshot at the prompt end
++            # would never be reusable; one at the header is.
++            head = "<|im_start|>assistant\n"
++            last = prompt.rfind(head)
++            stable = last + len(head) if last > 0 else 0
++        if cut > 0:
++            prefix_field = f" {len(xpayload)} {len(prompt[:cut].encode('utf-8'))}"
++            if ARCH == "qwen36" and stable > cut:
++                prefix_field += f" {len(prompt[:stable].encode('utf-8'))}"
+         header = (f"SUBMIT {request_id} {cache_slot} {len(payload)} {max_tokens} "
+                   f"{temperature:.8g} {top_p:.8g}"
+                   + (prefix_field if prefix_field else (f" {len(xpayload)}" if xpayload else ""))
+--- a/c/tests/test_openai_server.py
++++ b/c/tests/test_openai_server.py
+@@ -526,7 +526,36 @@
+         self.assertEqual(chunks, ["A\né"])
+         self.assertEqual(stats["completion_tokens"], 1)
+         self.assertEqual(stats["prompt_tokens"], 42)
++
++    def test_qwen36_request_carries_the_system_prefix_hint(self):
++        prompt = ("<|im_start|>system\nS<|im_end|>\n<|im_start|>user\nHello<|im_end|>\n"
++                  "<|im_start|>assistant\n<think>\n\n</think>\n\n")
++        payload = prompt.encode("utf-8")
++        prefix = len("<|im_start|>system\nS<|im_end|>\n".encode("utf-8"))
++        stable = len(payload) - len("<think>\n\n</think>\n\n".encode("utf-8"))
++        expected = (f"SUBMIT 1 0 {len(payload)} 4 0.25 0.9 0 {prefix} {stable}\n".encode() +
++                    payload + b"\n")
+ 
++        def respond(process, frame):
++            self.assertEqual(frame, expected)
++            process.stdout.feed(
++                b"ACCEPT 1 21\n"
++                b"DATA 1 4\nA\n\xc3\xa9\n"
++                b"DONE 1 STAT 1 2.500 0.0 1.25 21 0\n"
++            )
++
++        process = FakeProcess(respond)
++        with patch("openai_server.ARCH", "qwen36"), \
++             patch("openai_server.subprocess.Popen", return_value=process):
++            engine = Engine("qwen36", "model")
++            chunks = []
++            stats = engine.generate(prompt, 4, 0.25, 0.9, chunks.append)
++        engine.close()
++
++        self.assertEqual(process.writes, [expected])
++        self.assertEqual(chunks, ["A\n\u00e9"])
++        self.assertEqual(stats["prompt_tokens"], 21)
++
+     def test_kimi_request_and_response_transcript_is_byte_exact(self):
+         prompt = render_chat_kimi([
+             {"role": "system", "content": "Be precise."},

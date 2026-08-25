@@ -1,0 +1,227 @@
+# meta.lang — Whence in Whence: a lexer, parser and evaluator for a small
+# guest language, written entirely in Whence (self-hosting subset experiment).
+#
+# Guest grammar:   expr := term (("+" | "-") term)*
+#                  term := atom (("*" | "/") atom)*
+#                  atom := NUMBER | NAME | NAME "(" expr ")" | "(" expr ")"
+#                        | "let" NAME "=" expr "in" expr
+#                        | "if" expr "then" expr "else" expr   (nonzero = true)
+#                        | "fun" NAME "=>" expr                 (v0.3: closures)
+#
+# v0.3 (self-hosting round 2): the guest has first-class functions. A
+# `let`-bound function sees itself, so the guest can recurse — and because
+# the host's `meta_eval` reaches a guest function body in tail position, a
+# guest tail loop runs in the host's ONE frame: 30000 guest iterations under a
+# host max_depth of 20000 (they would have been a depth miss in v0.2).
+#
+# Because the host has no exceptions, every guest error (bad token, missing
+# paren, unbound variable, division by zero) is a miss that propagates out of
+# `run` with a blame trail reaching back to the guest source characters.
+
+let digits = "0123456789"
+let letters = "abcdefghijklmnopqrstuvwxyz_"
+let symbols = "+-*/()="
+
+fn is_digit(c) { contains(digits, c) }
+fn is_letter(c) { contains(letters, c) }
+
+# index of the first char at/after i that fails pred
+fn scan_while(s, i, pred) {
+  if i < len(s) and pred(s[i]) { scan_while(s, i + 1, pred) } else { i }
+}
+
+# s[i..j) — there is no slice builtin, so build it by concatenation
+fn slice(s, i, j) { if i >= j { "" } else { s[i] + slice(s, i + 1, j) } }
+
+# ---- lexer: string -> list of @{t, v} ------------------------------------
+fn lex(s, i) {
+  if i >= len(s) { [] }
+  else if s[i] == " " { lex(s, i + 1) }
+  else if is_digit(s[i]) {
+    let j = scan_while(s, i, is_digit)
+    [@{t: "num", v: num(slice(s, i, j))}] + lex(s, j)
+  }
+  else if is_letter(s[i]) {
+    let j = scan_while(s, i, is_letter)
+    [@{t: "name", v: slice(s, i, j)}] + lex(s, j)
+  }
+  else if s[i] == "=" and i + 1 < len(s) and s[i + 1] == ">" {
+    [@{t: "op", v: "=>"}] + lex(s, i + 2)
+  }
+  else if contains(symbols, s[i]) { [@{t: "op", v: s[i]}] + lex(s, i + 1) }
+  else { [@{t: "bad", v: s[i]}] }
+}
+
+# ---- parser: tokens -> @{node, pos} ---------------------------------------
+fn tok(toks, pos) { if pos < len(toks) { toks[pos] } else { @{t: "eof", v: ""} } }
+fn is_op(toks, pos, o) { let k = tok(toks, pos)
+  k.t == "op" and k.v == o }
+fn is_kw(toks, pos, w) { let k = tok(toks, pos)
+  k.t == "name" and k.v == w }
+
+# expect_*: the position after the token, or a miss that poisons the parse
+fn expect_op(toks, pos, o) {
+  if is_op(toks, pos, o) { pos + 1 } else { miss ("expected '" + o + "'") }
+}
+fn expect_kw(toks, pos, w) {
+  if is_kw(toks, pos, w) { pos + 1 } else { miss ("expected '" + w + "'") }
+}
+
+fn parse_expr(toks, pos) {
+  let first = parse_term(toks, pos)
+  parse_expr_rest(first.node, toks, first.pos)
+}
+fn parse_expr_rest(left, toks, pos) {
+  if is_op(toks, pos, "+") or is_op(toks, pos, "-") {
+    let right = parse_term(toks, pos + 1)
+    let node = @{kind: "bin", op: tok(toks, pos).v, left: left, right: right.node}
+    parse_expr_rest(node, toks, right.pos)
+  } else { @{node: left, pos: pos} }
+}
+fn parse_term(toks, pos) {
+  let first = parse_atom(toks, pos)
+  parse_term_rest(first.node, toks, first.pos)
+}
+fn parse_term_rest(left, toks, pos) {
+  if is_op(toks, pos, "*") or is_op(toks, pos, "/") {
+    let right = parse_atom(toks, pos + 1)
+    let node = @{kind: "bin", op: tok(toks, pos).v, left: left, right: right.node}
+    parse_term_rest(node, toks, right.pos)
+  } else { @{node: left, pos: pos} }
+}
+fn parse_atom(toks, pos) {
+  let k = tok(toks, pos)
+  if k.t == "num" { @{node: @{kind: "num", value: k.v}, pos: pos + 1} }
+  else if is_kw(toks, pos, "let") {
+    let name = tok(toks, pos + 1)
+    let value = parse_expr(toks, expect_op(toks, pos + 2, "="))
+    let body = parse_expr(toks, expect_kw(toks, value.pos, "in"))
+    @{node: @{kind: "let", name: name.v, value: value.node, body: body.node},
+      pos: body.pos}
+  }
+  else if is_kw(toks, pos, "if") {
+    let cond = parse_expr(toks, pos + 1)
+    let then = parse_expr(toks, expect_kw(toks, cond.pos, "then"))
+    let other = parse_expr(toks, expect_kw(toks, then.pos, "else"))
+    @{node: @{kind: "if", cond: cond.node, then: then.node, other: other.node},
+      pos: other.pos}
+  }
+  else if is_kw(toks, pos, "fun") {
+    let param = tok(toks, pos + 1)
+    let body = parse_expr(toks, expect_op(toks, pos + 2, "=>"))
+    @{node: @{kind: "fun", param: param.v, body: body.node}, pos: body.pos}
+  }
+  else if k.t == "name" and is_op(toks, pos + 1, "(") {
+    let arg = parse_expr(toks, pos + 2)
+    @{node: @{kind: "app", func: @{kind: "var", name: k.v}, arg: arg.node},
+      pos: expect_op(toks, arg.pos, ")")}
+  }
+  else if k.t == "name" { @{node: @{kind: "var", name: k.v}, pos: pos + 1} }
+  else if is_op(toks, pos, "(") {
+    let inner = parse_expr(toks, pos + 1)
+    @{node: inner.node, pos: expect_op(toks, inner.pos, ")")}
+  }
+  else { @{node: miss ("unexpected token '" + str(k.v) + "'"), pos: pos + 1} }
+}
+
+# ---- evaluator: node + env (record name -> value, v0.5) -------------------
+# The env is a record, not a list: `put` gives shadowing for free (the newer
+# binding overwrites the older in a fresh record; the closure that captured
+# the old record still sees the old binding), and `get` is one host field
+# access instead of a guest-recursion scan per variable reference.
+# Presence must be `has(env, name)`, not get+missed: a name legitimately
+# bound to a miss value would otherwise look unbound.
+fn lookup(env, name) {
+  if has(env, name) { get(env, name) }
+  else { miss ("unbound guest variable '" + name + "'") }
+}
+fn meta_eval(node, env) {
+  if node.kind == "num" { node.value }
+  else if node.kind == "var" { lookup(env, node.name) }
+  else if node.kind == "bin" {
+    let l = meta_eval(node.left, env)
+    let r = meta_eval(node.right, env)
+    if node.op == "+" { l + r } else if node.op == "-" { l - r }
+    else if node.op == "*" { l * r } else { l / r }
+  }
+  else if node.kind == "let" {
+    let raw = meta_eval(node.value, env)
+    # a let-bound closure learns its own name so it can recurse (`rescue`
+    # is the idiom for "if this is not a record with .kind, fall through")
+    let is_fn = (raw.kind == "closure") rescue false
+    let bound = note("guest " + node.name,
+      if is_fn { merge(raw, @{self: node.name}) } else { raw })
+    meta_eval(node.body, put(env, node.name, bound))
+  }
+  else if node.kind == "fun" {
+    @{kind: "closure", param: node.param, body: node.body, env: env, self: ""}
+  }
+  else if node.kind == "app" {
+    let f = meta_eval(node.func, env)
+    let arg = meta_eval(node.arg, env)
+    # param is put after self, so a parameter named like the function shadows it
+    let with_self = put(f.env, f.self, f)
+    meta_eval(f.body, put(with_self, f.param, arg))   # tail
+  }
+  else if node.kind == "if" {
+    if meta_eval(node.cond, env) != 0 { meta_eval(node.then, env) }
+    else { meta_eval(node.other, env) }
+  }
+  else { miss ("unknown node kind " + str(node.kind)) }
+}
+
+fn run(src) {
+  let toks = lex(src, 0)
+  let parsed = parse_expr(toks, 0)
+  if parsed.pos == len(toks) { meta_eval(parsed.node, @{}) }
+  else { miss ("trailing input at token " + str(parsed.pos)) }
+}
+
+# ---- guest programs -------------------------------------------------------
+check "precedence": run("1 + 2 * 3") == 7
+check "parens": run("(1 + 2) * 3") == 9
+check "let": run("let x = 4 in x * (3 + 2)") == 20
+check "nested let shadows": run("let x = 1 in let x = x + 1 in x * 10") == 20
+check "if nonzero": run("if 2 - 2 then 1 else 2") == 2
+check "if in let": run("let n = 5 in if n then n * n else 0") == 25
+check "division is float": run("7 / 2") == 3.5
+
+let boom = run("let d = 0 in 100 / d")
+print(boom)
+check "guest division by zero is a miss": missed(boom)
+# The rendered why-tree is depth-capped, so text search over `str(why boom)`
+# would miss the guest binding; `steps` walks the whole history.
+check "the history names the guest variable":
+  contains(map(fn(s) { s.detail }, steps(boom)), "guest d")
+check "time travel to the guest binding": at(boom, "guest d") == 0
+let origin = blame(boom)[0]
+check "origin is the host's '/'": origin.op == "/"
+
+check "syntax error is a miss": missed(run("1 + )"))
+check "syntax error is described": contains(str(run("1 + )")), "unexpected token")
+check "missing paren": contains(str(run("(1 + 2")), "expected ')'")
+check "unbound guest name": contains(str(run("y + 1")), "unbound guest variable 'y'")
+check "trailing input": contains(str(run("1 2")), "trailing input")
+print("guest: let x = 4 in x * (3 + 2)  =>  " + str(run("let x = 4 in x * (3 + 2)")))
+
+# ---- v0.3: guest functions ---------------------------------------------------
+check "guest closure": run("let twice = fun x => x * 2 in twice(21)") == 42
+check "guest closure captures its environment":
+  run("let k = 10 in let addk = fun x => x + k in addk(5)") == 15
+check "guest recursion":
+  run("let fact = fun n => if n then n * fact(n - 1) else 1 in fact(10)") == 3628800
+check "guest higher-order":
+  run("let apply = fun f => f(3) in let sq = fun x => x * x in apply(sq)") == 9
+check "calling a number is a guest error":
+  contains(str(run("let n = 3 in n(1)")), "cannot access .body")
+check "unbound guest function":
+  contains(str(run("g(1)")), "unbound guest variable 'g'")
+# env-as-record (v0.5): a name bound to a miss VALUE is still bound —
+# presence is contains(keys(env), name), so lookup must not call it unbound
+check "a binding whose value is a miss is not 'unbound'":
+  run("let x = y in 7") == 7
+check "referencing a miss-valued binding propagates the original miss":
+  contains(str(run("let x = y in x")), "unbound guest variable 'y'")
+# host TCO gives the guest constant-stack loops for free
+let spin = run("let loop = fun n => if n then loop(n - 1) else 0 in loop(30000)")
+check "30000 guest iterations under a host max_depth of 20000": spin == 0

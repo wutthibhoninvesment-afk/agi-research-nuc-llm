@@ -1,0 +1,23 @@
+# checks_demo.lang — tests are statements; programs can inspect provenance
+
+fn fib(n) {
+  if n < 2 { n } else { fib(n - 1) + fib(n - 2) }
+}
+
+check "fib base": fib(0) == 0
+check "fib(10)": fib(10) == 55
+
+# provenance is a value: programs can check their own derivations
+let a = 3
+let b = 4
+let c = sqrt(a * a + b * b)
+check "pythagoras": c == 5.0
+check "c was derived from a": contains(str(why c), "let a")
+
+# misses are values: recovery is visible in provenance
+let risky = 10 / 0
+check "divide by zero misses": missed(risky)
+check "reason is recorded": contains(str(why risky), "zero")
+let saved = risky rescue -1
+check "rescue recovers": saved == -1
+check "recovery remembers the miss": contains(str(why saved), "rescue")

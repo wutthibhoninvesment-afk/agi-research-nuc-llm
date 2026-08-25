@@ -1,0 +1,409 @@
+--- a/c/qwen36.c
++++ b/c/qwen36.c
+@@ -59,6 +59,7 @@
+ #endif
+ #include "st.h"
+ #include "json.h"   /* tokenizer.json parsing (reuse minimal parser) */
++#include "kv_prefix.h"   /* KV/state prefix reuse (shared with kimi_k3/inkling) */
+ #include "qwen36_tier.h"   /* optional transparent Vulkan compute backend for MoE experts */
+ 
+ #ifdef _WIN32
+@@ -587,6 +588,16 @@
+ typedef struct { int eid; int pinned; int is_int4; int8_t *g, *u, *d; uint8_t *g4, *u4, *d4; float *gs, *us, *ds; uint64_t used; } Slot;
+ typedef struct { Slot *slots; int n, cap; } LCache;
+ 
++/* A snapshot of the DeltaNet state (recurrent S[h] + conv ring of every
++ * linear-attention layer) as it stood after feeding fed[0..pos). Fixed
++ * size (~63 MB for the shipping geometry), independent of the context.
++ * Slot 0 = the system-prefix boundary (gateway hint, or the LCP of two
++ * successive fresh prompts); slot 1 = the end of the last prompt. */
++#define Q36_SNAP_SYS 0
++#define Q36_SNAP_PROMPT_END 1
++#define Q36_SNAP_N 2
++typedef struct { int pos; float **rec; float **conv; } Q36Snap;
++
+ typedef struct {
+     Cfg c;
+     shards S;
+@@ -599,6 +610,14 @@
+     float **DN_conv;        /* [n_layers] conv ring [conv_dim, convk-1] for DeltaNet layers (NULL for attn) */
+     uint64_t clock, hits, miss;
+     float **K, **V; int kv_len, max_t, kv_cap;
++    /* PREFIX REUSE (kv_prefix.h). kvp.fed[0..len) are the token ids the
++     * current state was built from. The 10 attention layers keep K/V rows
++     * per position, which stay valid for every position whose id still
++     * matches the next prompt; the 30 DeltaNet layers keep a recurrent
++     * state that cannot be rewound, so partial reuse restores one of the
++     * snapshots below instead. See prepare_request_state(). */
++    kv_prefix kvp;
++    Q36Snap snap[Q36_SNAP_N];
+     float *attn_sc;            /* [attn_sc_thr * kv_cap] score rows, one per thread */
+     int attn_sc_thr;
+     double dense_load_s;
+@@ -1512,8 +1531,10 @@
+     }
+     for (int s = 0; s < S; s++) for (int kvh = 0; kvh < KV; kvh++) {
+         int t = pos_base + s;
+-        memcpy(m->K[layer] + ((int64_t)kvh*m->max_t + t)*kvd, k + (int64_t)s*KV*kvd + kvh*kvd, kvd*sizeof(float));
+-        memcpy(m->V[layer] + ((int64_t)kvh*m->max_t + t)*kvd, vv + (int64_t)s*KV*kvd + kvh*kvd, kvd*sizeof(float));
++        /* stride = kv_cap (the allocation), not max_t: reused rows were
++         * written by an earlier request that may have had a different max_t */
++        memcpy(m->K[layer] + ((int64_t)kvh*m->kv_cap + t)*kvd, k + (int64_t)s*KV*kvd + kvh*kvd, kvd*sizeof(float));
++        memcpy(m->V[layer] + ((int64_t)kvh*m->kv_cap + t)*kvd, vv + (int64_t)s*KV*kvd + kvh*kvd, kvd*sizeof(float));
+     }
+     float scale = 1.f / sqrtf((float)hd);
+     float *ctx = falloc((int64_t)S*H*hd);
+@@ -1529,7 +1550,7 @@
+ #endif
+             float *sc = m->attn_sc + (int64_t)tid * m->kv_cap;
+             for (int t = 0; t <= qpos; t++) {
+-                const float *kv = m->K[layer] + ((int64_t)kvh*m->max_t + t)*kvd;
++                const float *kv = m->K[layer] + ((int64_t)kvh*m->kv_cap + t)*kvd;
+                 float acc = 0; for (int dd = 0; dd < kvd; dd++) acc += qv[dd]*kv[dd];
+                 sc[t] = acc * scale;
+             }
+@@ -1537,7 +1558,7 @@
+             float *cx = ctx + ((int64_t)s*H + hh)*hd;
+             for (int dd = 0; dd < kvd; dd++) cx[dd] = 0;
+             for (int t = 0; t <= qpos; t++) {
+-                const float *vrow = m->V[layer] + ((int64_t)kvh*m->max_t + t)*kvd;
++                const float *vrow = m->V[layer] + ((int64_t)kvh*m->kv_cap + t)*kvd;
+                 float a = sc[t]; for (int dd = 0; dd < kvd; dd++) cx[dd] += a * vrow[dd];
+             }
+         }
+@@ -1923,6 +1944,8 @@
+     m->token_count += S; m->freq_token_count += S;
+     if (!m->hot_pinned && m->hot_n > 0 && m->freq_token_count >= m->warmup_tokens) pin_hot_experts(m);
+     m->kv_len = pos_base + S;
++    /* record what was just fed, at the positions it went to (kv_prefix.h) */
++    kv_prefix_record(&m->kvp, ids, pos_base, S);
+     float *last = falloc(D);
+     rmsnorm_row(last, x + (int64_t)(S-1)*D, m->final_norm, D, c->eps);
+     float *logit = falloc(c->vocab);
+@@ -2059,22 +2082,32 @@
+ }
+ 
+ /* Allocate (once) or reuse the KV cache across requests. Grows only when a
+- * longer context is needed; never shrinks. Frees the previous buffers on
+- * growth so the server doesn't leak KV memory across requests. */
++ * longer context is needed; never shrinks. GROW, DO NOT RESTART: a
++ * conversation asks for a larger max_t every turn (np grows), so freeing
++ * on growth would discard the very positions prefix reuse exists for
++ * (same shape of bug kimi_k3.c/inkling.c had). Rows are head-major
++ * [kv_heads][kv_cap][kvd], so the copy is one strided memcpy per head. */
+ static void ensure_kv(Model *m){
+     Cfg *c = &m->c;
+     if (m->kv_cap >= m->max_t && m->K) return;
+-    if (m->K){
+-        for (int i = 0; i < c->n_layers; i++){ if (m->K[i]) free(m->K[i]); if (m->V[i]) free(m->V[i]); }
+-        free(m->K); free(m->V); m->K = NULL; m->V = NULL;
+-    }
++    float **oldK = m->K, **oldV = m->V; int old_cap = m->kv_cap;
++    int keep = (oldK && m->kvp.len > 0 && m->kvp.len <= old_cap) ? m->kvp.len : 0;
++    int kvd = c->k_head_dim;
+     m->K = calloc(c->n_layers, sizeof(float*)); m->V = calloc(c->n_layers, sizeof(float*));
+     for (int i = 0; i < c->n_layers; i++){
+         if (c->is_attn[i]){
+-            m->K[i] = falloc((int64_t)c->kv_heads * m->max_t * c->k_head_dim);
+-            m->V[i] = falloc((int64_t)c->kv_heads * m->max_t * c->k_head_dim);
++            m->K[i] = falloc((int64_t)c->kv_heads * m->max_t * kvd);
++            m->V[i] = falloc((int64_t)c->kv_heads * m->max_t * kvd);
++            if (keep && oldK[i] && oldV[i]) for (int kvh = 0; kvh < c->kv_heads; kvh++){
++                memcpy(m->K[i] + (int64_t)kvh*m->max_t*kvd, oldK[i] + (int64_t)kvh*old_cap*kvd, (size_t)keep*kvd*sizeof(float));
++                memcpy(m->V[i] + (int64_t)kvh*m->max_t*kvd, oldV[i] + (int64_t)kvh*old_cap*kvd, (size_t)keep*kvd*sizeof(float));
++            }
+         } else { m->K[i] = NULL; m->V[i] = NULL; }
+     }
++    if (oldK){
++        for (int i = 0; i < c->n_layers; i++){ if (oldK[i]) free(oldK[i]); if (oldV[i]) free(oldV[i]); }
++        free(oldK); free(oldV);
++    }
+     /* Attention scores: one row per thread, indexed by absolute position, so
+      * each row must hold max_t entries. Sized here rather than in attention()
+      * because it grows with the context exactly like the KV cache does, and
+@@ -2087,8 +2120,120 @@
+ #endif
+     m->attn_sc = falloc((int64_t)m->attn_sc_thr * m->max_t);
+     m->kv_cap = m->max_t;
++    /* the record describes those same positions, so it survives with them */
++    if (!kv_prefix_grow(&m->kvp, m->max_t, keep)) kv_prefix_clear(&m->kvp);
++}
++
++/* ---- prefix reuse: snapshots + the decision ------------------------------ */
++static size_t q36_dn_rec_n(const Cfg *c){ return (size_t)c->dn_vheads * c->dn_kdim * c->dn_vdim; }
++static size_t q36_dn_conv_n(const Cfg *c){ return (size_t)c->dn_conv_dim * (c->dn_convk - 1); }
++
++static int q36_prefix_enabled(void){
++    const char *e = getenv("Q36_PREFIX");
++    return !(e && *e && atoi(e) == 0);
++}
++
++/* Snapshot the DeltaNet state as it stands now. Only valid when the state
++ * IS at `pos` (kv_len == pos) and the record covers it; anything else would
++ * label a state with tokens that did not produce it. Buffers are kept for
++ * the process lifetime (one allocation per slot). Returns 1 on success. */
++static int q36_snap_take(Model *m, Q36Snap *s, int pos){
++    Cfg *c = &m->c;
++    s->pos = 0;
++    if (pos <= 0 || m->kv_len != pos || m->kvp.len < pos || m->kvp.tainted) return 0;
++    if (!s->rec){
++        s->rec = calloc(c->n_layers, sizeof(float*)); s->conv = calloc(c->n_layers, sizeof(float*));
++        if (!s->rec || !s->conv){ free(s->rec); free(s->conv); s->rec = NULL; s->conv = NULL; return 0; }
++        for (int i = 0; i < c->n_layers; i++){
++            if (c->is_attn[i]) continue;
++            s->rec[i] = malloc(q36_dn_rec_n(c) * sizeof(float));
++            s->conv[i] = malloc(q36_dn_conv_n(c) * sizeof(float));
++            if (!s->rec[i] || !s->conv[i]){
++                for (int j = 0; j <= i; j++){ free(s->rec[j]); free(s->conv[j]); }
++                free(s->rec); free(s->conv); s->rec = NULL; s->conv = NULL; return 0;
++            }
++        }
++    }
++    for (int i = 0; i < c->n_layers; i++){
++        if (c->is_attn[i]) continue;
++        memcpy(s->rec[i], m->DN_rec[i], q36_dn_rec_n(c) * sizeof(float));
++        memcpy(s->conv[i], m->DN_conv[i], q36_dn_conv_n(c) * sizeof(float));
++    }
++    s->pos = pos;
++    return 1;
+ }
+ 
++static void q36_snap_restore(Model *m, const Q36Snap *s){
++    Cfg *c = &m->c;
++    for (int i = 0; i < c->n_layers; i++){
++        if (c->is_attn[i]) continue;
++        memcpy(m->DN_rec[i], s->rec[i], q36_dn_rec_n(c) * sizeof(float));
++        memcpy(m->DN_conv[i], s->conv[i], q36_dn_conv_n(c) * sizeof(float));
++    }
++}
++
++/* Longest common prefix of the record and this prompt, capped at np-1: at
++ * least one token must be fed so there is a final hidden state to sample. */
++static int q36_lcp(const kv_prefix *p, const int *ids, int np){
++    if (!p->fed || p->tainted || p->len <= 0) return 0;
++    int n = p->len < np - 1 ? p->len : np - 1;
++    int i = 0;
++    while (i < n && p->fed[i] == ids[i]) i++;
++    return i;
++}
++
++/* Forget the conversation: the record, the recurrent state, the snapshots.
++ * Pairs the three so they can never disagree (kv_prefix.h). */
++static void model_state_reset(Model *m){
++    kv_prefix_clear(&m->kvp);
++    reset_recurrent(m);
++    m->kv_len = 0;
++    for (int k = 0; k < Q36_SNAP_N; k++) m->snap[k].pos = 0;
++}
++
++/* Decide how much of the state to keep BEFORE touching it, then size the
++ * KV cache. Returns the position prefill starts at (0 = cold).
++ *
++ *  1. strict continuation (kv_prefix_reuse): the prompt begins with every
++ *     id the state was built from, prompt and reply alike -> the state
++ *     already IS the state at that position; nothing to restore.
++ *  2. otherwise the deepest snapshot at or before the longest common
++ *     prefix: the attention rows below the LCP are still the rows a cold
++ *     run would compute (a row depends only on its prefix), and the
++ *     snapshot supplies the recurrent state at exactly that position.
++ *     This is what an agent turn needs: the client re-renders the reply
++ *     (tool calls, stripped reasoning) so 1 fails at the reply boundary,
++ *     but the prompt-end snapshot restores everything up to it.
++ *  3. nothing usable -> cold: reset, prefill from 0.
++ * The logits are the ones a cold run would have produced in every case. */
++static int prepare_request_state(Model *m, const int *ids, int np, int max_t, int *lcp_out){
++    int reuse = 0;
++    *lcp_out = 0;
++    if (q36_prefix_enabled()){
++        reuse = kv_prefix_reuse(&m->kvp, ids, np);
++        if (!reuse){
++            int lcp = q36_lcp(&m->kvp, ids, np), best = -1;
++            *lcp_out = lcp;
++            for (int k = 0; k < Q36_SNAP_N; k++)
++                if (m->snap[k].pos > 0 && m->snap[k].pos <= lcp &&
++                    (best < 0 || m->snap[k].pos > m->snap[best].pos)) best = k;
++            if (best >= 0){
++                q36_snap_restore(m, &m->snap[best]);
++                reuse = m->snap[best].pos;
++                m->kvp.len = reuse;      /* the record now ends where the state does */
++            }
++        }
++    }
++    if (!reuse) model_state_reset(m);
++    m->max_t = max_t;
++    ensure_kv(m);
++    if (reuse && m->kvp.len != reuse){ model_state_reset(m); reuse = 0; }   /* growth lost the rows */
++    m->kv_len = reuse;
++    /* snapshots above the kept prefix describe positions about to be overwritten */
++    for (int k = 0; k < Q36_SNAP_N; k++) if (m->snap[k].pos > reuse) m->snap[k].pos = 0;
++    return reuse;
++}
++
+ static void generate(Model *m, const int *prompt, int np, int n_new, int *out) {
+     Cfg *c = &m->c;
+     /* Same ceiling serve_one() enforces. Past max_position_embeddings the RoPE
+@@ -2100,9 +2245,8 @@
+         exit(1);
+     }
+     m->max_t = np + n_new;
+-    reset_recurrent(m);
++    model_state_reset(m);
+     ensure_kv(m);
+-    m->kv_len = 0;
+     for (int i = 0; i < np; i++) out[i] = prompt[i];
+     float *logit = step(m, prompt, np, 0);
+     int len = np;
+@@ -2134,9 +2278,8 @@
+         exit(1);
+     }
+     m->max_t = nfull;
+-    reset_recurrent(m);
++    model_state_reset(m);
+     ensure_kv(m);
+-    m->kv_len = 0;
+     double nll = 0; int scored = 0;
+     float *logit = step(m, full, np, 0);
+     for (int i = np; i < nfull; i++) {
+@@ -2170,7 +2313,11 @@
+  * Protocol (matches kimi_k3.c / inkling.c, the other non-GLM engines):
+  *   engine:  \x01\x01READY\x01\x01\n
+  *            STAT 0 0.00 0.0 <rss>\n
+- *   gateway: SUBMIT <id> <slot> <plen> <max_tok> <temp> <top_p>\n <payload bytes>\n
++ *   gateway: SUBMIT <id> <slot> <plen> <max_tok> <temp> <top_p> [<xlen> <prefix_bytes>]\n <payload bytes>\n
++ *            (prefix_bytes: the gateway's system-prefix hint, byte length of the
++ *             rendered prompt up to the first user turn -- same 8th field the
++ *             DeepSeek V4 engine takes; xlen bytes of extension payload, if any,
++ *             follow the prompt and are read and ignored here)
+  *   engine:  ACCEPT <id> <np>\n
+  *            DATA <id> <n>\n <bytes>\n     (repeated per decoded chunk)
+  *            DONE <id> STAT <gen> <tps> <hit%> <rss> <np> <limited>\n
+@@ -2180,7 +2327,34 @@
+  * session hangs forever (#748). compat.h's coli_serve_binary_mode (#749)
+  * carries that fix for every engine; see its comment for the full story. */
+ 
+-typedef struct { char id[64]; int max_tok; float temp, top_p; char *payload; int plen; } ServeReq;
++typedef struct { char id[64]; int max_tok; float temp, top_p; char *payload; int plen; int prefix_bytes, stable_bytes; } ServeReq;
++
++/* Parse a SUBMIT header line. Returns the number of numeric fields read
++ * (5 = classic, 6 = +xlen, 7 = +system-prefix hint, 8 = +stable-prefix
++ * hint) or 0 on a malformed line. Hints outside the payload are dropped. */
++static int serve_parse_header(const char *line, int *slot, int *plen, int *max_tok,
++                              float *temp, float *top_p, int *xlen, int *prefix_bytes, int *stable_bytes){
++    *xlen = 0; *prefix_bytes = 0; *stable_bytes = 0;
++    int n = sscanf(line,"%*s %*s %d %d %d %f %f %d %d %d",slot,plen,max_tok,temp,top_p,xlen,prefix_bytes,stable_bytes);
++    if (n < 5) return 0;
++    if (n < 6 || *xlen < 0) *xlen = 0;
++    if (n < 7 || *prefix_bytes < 0 || *prefix_bytes >= *plen) *prefix_bytes = 0;
++    if (n < 8 || *stable_bytes < 0 || *stable_bytes >= *plen) *stable_bytes = 0;
++    return n;
++}
++
++/* Tokenize the first `nbytes` of the payload. The count is a usable boundary
++ * only when those ids are an exact token prefix of the whole prompt (template
++ * markers make that the normal case) and strictly inside it. */
++static int serve_hint_tokens(ServeReq *q, int nbytes, const int *ids, int np){
++    if (nbytes <= 0 || nbytes >= q->plen) return 0;
++    char save = q->payload[nbytes]; q->payload[nbytes] = 0;
++    int *pids = NULL, pn = 0; encode_text(q->payload, &pids, &pn);
++    q->payload[nbytes] = save;
++    int ok = pn > 0 && pn < np && !memcmp(pids, ids, (size_t)pn*sizeof(int));
++    free(pids);
++    return ok ? pn : 0;
++}
+ 
+ static int serve_read_req(ServeReq *q){
+     char line[512], cmd[16], id[64];
+@@ -2188,16 +2362,19 @@
+     if(sscanf(line,"%15s %63s",cmd,id)<2) return 0;
+     if(!strcmp(cmd,"CANCEL")||!strcmp(cmd,"STOP")) return 0;
+     if(strcmp(cmd,"SUBMIT")) return 0;
+-    int slot, plen, max_tok; float temp, top_p;
+-    if(sscanf(line,"%*s %*s %d %d %d %f %f",&slot,&plen,&max_tok,&temp,&top_p)!=5 ||
+-       plen<0||plen>(1<<24)||max_tok<1){
++    int slot, plen, max_tok, xlen, prefix_bytes, stable_bytes; float temp, top_p;
++    if(!serve_parse_header(line,&slot,&plen,&max_tok,&temp,&top_p,&xlen,&prefix_bytes,&stable_bytes) ||
++       plen<0||plen>(1<<24)||max_tok<1||xlen>(1<<24)){
+         printf("ERROR %s bad submit header\n",id); fflush(stdout); return 0;
+     }
+-    (void)slot;
++    (void)slot;   /* KV_SLOTS is 1 for this engine: one conversation state, reused by prefix */
+     char *payload=malloc((size_t)plen+1);
+     if(!payload){ printf("ERROR %s out of memory\n",id); fflush(stdout); return 0; }
+     if(fread(payload,1,(size_t)plen,stdin)!=(size_t)plen){ free(payload); return -1; }
++    /* extension payload (grammar/audio on other engines): not ours, drain it */
++    for(int k=0;k<xlen;k++) if(fgetc(stdin)==EOF){ free(payload); return -1; }
+     (void)fgetc(stdin); payload[plen]=0;
++    q->prefix_bytes=prefix_bytes; q->stable_bytes=stable_bytes;
+     snprintf(q->id,sizeof(q->id),"%s",id);
+     q->max_tok=max_tok; q->temp=temp; q->top_p=top_p;
+     q->payload=payload; q->plen=plen;
+@@ -2255,18 +2432,64 @@
+         fflush(stdout); free(ids); return;
+     }
+     printf("ACCEPT %s %d\n",q->id,np); fflush(stdout);
+-    m->max_t = np + q->max_tok;
+-    reset_recurrent(m); ensure_kv(m); m->kv_len = 0;
++    /* KV PREFIX REUSE: decide before the state it describes is touched. */
++    int lcp = 0;
++    int reuse = prepare_request_state(m, ids, np, np + q->max_tok, &lcp);
+     /* Per-REQUEST state, not per-process: without this the server keeps the
+      * first request's prefill flag and expert-collection set forever, so
+      * COLIBRI_RESIDENT=1 collects on request #1 and never again, and the
+-     * router EMA carries one conversation's history into the next. */
++     * router EMA carries one conversation's history into the next. The EMA
++     * only steers the pilot prefetch (routing uses the raw logits), so a
++     * kept prefix keeps its history: that is the same conversation. */
+     m->first_step = 1;
+     if (m->seen) memset(m->seen, 0, (size_t)m->c.n_layers * m->c.n_experts);
+-    if (m->momentum_logits)
++    if (!reuse && m->momentum_logits)
+         memset(m->momentum_logits, 0,
+                (size_t)m->c.n_layers * m->c.n_experts * sizeof(float));
+-    float *lo = step(m, ids, np, 0);
++    /* Where to snapshot mid-prefill. Two boundaries, both byte hints from the
++     * gateway (tokenized, accepted only as exact token prefixes):
++     *  - prefix_bytes: end of the system turn, so the NEXT fresh conversation
++     *    starts from the shared system prefix. Without a hint, a cold miss
++     *    plans it at the LCP with the previous prompt (two fresh prompts
++     *    reveal the boundary -- DeepSeek V4's rule).
++     *  - stable_bytes: where the next turn of THIS conversation will diverge:
++     *    right after the assistant header, before the renderer's generation
++     *    suffix (Qwen's empty <think> block) that the history rendering omits
++     *    and the re-rendered reply that follows it. A snapshot at the prompt
++     *    END would sit past that divergence and every turn would fall back to
++     *    the system boundary (measured on the nuc-mini profile: 317 of 415
++     *    instead of 334). Without the hint the prompt end is used. */
++    int cut = 0, pe_cut = 0;
++    if (q36_prefix_enabled()){
++        int min_cut = getenv("Q36_PREFIX_MIN") ? atoi(getenv("Q36_PREFIX_MIN")) : 64;
++        if (min_cut < 8) min_cut = 8;
++        cut = serve_hint_tokens(q, q->prefix_bytes, ids, np);
++        if (cut < min_cut || cut <= reuse) cut = 0;
++        if (!cut && !reuse && lcp >= min_cut && lcp < np) cut = lcp;
++        if (m->snap[Q36_SNAP_SYS].pos > 0 && m->snap[Q36_SNAP_SYS].pos == cut) cut = 0;   /* already held */
++        pe_cut = serve_hint_tokens(q, q->stable_bytes, ids, np);
++        if (pe_cut <= reuse || pe_cut <= cut) pe_cut = 0;
++    }
++    if (getenv("Q36_PREFIX_LOG")){
++        if (reuse) fprintf(stderr,"[PREFIX] reusing %d of %d prompt tokens (%.0f%%) sys_cut=%d stable_cut=%d\n",
++                           reuse,np,100.0*reuse/np,cut,pe_cut);
++        else fprintf(stderr,"[PREFIX] no reuse: held=%d cap=%d prompt=%d sys_cut=%d stable_cut=%d\n",
++                     m->kvp.len,m->kvp.cap,np,cut,pe_cut);
++        fflush(stderr);
++    }
++    /* chunked prefill is exact: attention is position-indexed and the
++     * DeltaNet state is carried, the same way decode extends it */
++    float *lo = NULL; int at = reuse;
++    if (cut > at){
++        lo = step(m, ids + at, cut - at, at); free(lo); at = cut;
++        q36_snap_take(m, &m->snap[Q36_SNAP_SYS], at);
++    }
++    if (pe_cut > at){
++        lo = step(m, ids + at, pe_cut - at, at); free(lo); at = pe_cut;
++        q36_snap_take(m, &m->snap[Q36_SNAP_PROMPT_END], at);
++    }
++    lo = step(m, ids + at, np - at, at);
++    if (!pe_cut && q36_prefix_enabled()) q36_snap_take(m, &m->snap[Q36_SNAP_PROMPT_END], np);
+     int gen=0, limited=1;
+     int eos_ids[4]; int n_eos=serve_eos_ids(eos_ids,4);
+     double t0=now_s();

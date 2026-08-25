@@ -1,0 +1,45 @@
+oracle fuzz: 400 programs x 1 oracles in 520.3s
+  self_eval    ok 361  mismatch 8  parse_error 11  timeout 20
+  unique finding signatures: 3
+  - mismatch | self_eval | why_shape v1  (seed 91000350, 5 lines, minimized to 1)
+  - mismatch | self_eval | why_shape v2  (seed 91000461, 8 lines, minimized to 3)
+  - mismatch | self_eval | why_shape v3  (seed 91000446, 14 lines)
+
+### mismatch | self_eval | why_shape v1
+let v1 = [len((zz or q))]
+
+--- detail:
+why_shape v1
+guest-only ops: ['len']
+host ops: ['builtin', 'let', 'list', 'name', 'or']
+
+### mismatch | self_eval | why_shape v3
+fn fib(n) { if n < 2 { n } else { fib(n - 1) + fib(n - 2) } }
+let fibv = fib(5)
+check "c1": -fn() { (get(fibv, " 7 ") or -fib) }
+let v2 = (not fib(true).name and keys(2.0).a)
+let v3 = fib((put(1, v2, fib) rescue -2.0))
+let v4 = @{x: fib, a: []}
+v4
+fn f5(p6, p7) { fibv.x }
+fn f8() { let t9 = note("k", note("note", 0))
+  sqrt }
+check "p_v4": missed(v4)
+check "r_fibv": (len(fibv) rescue 0) >= 0
+check "q_v3": v3 == v3
+let __result = @{fibv: (fibv rescue (if contains(join(reasons(fibv), "|"), "depth") { "&DEPTHMISS&" } else { "&MISS&" })), v2: (v2 rescue (if contains(join(reasons(v2), "|"), "depth") { "&DEPTHMISS&" } else { "&MISS&" })), v3: (v3 rescue (if contains(join(reasons(v3), "|"), "depth") { "&DEPTHMISS&" } else { "&MISS&" })), v4: (v4 rescue (if contains(join(reasons(v4), "|"), "depth") { "&DEPTHMISS&" } else { "&MISS&" })), fib: (fib rescue (if contains(join(reasons(fib), "|"), "depth") { "&DEPTHMISS&" } else { "&MISS&" })), f5: (f5 rescue (if contains(join(reasons(f5), "|"), "depth") { "&DEPTHMISS&" } else { "&MISS&" })), f8: (f8 rescue (if contains(join(reasons(f8), "|"), "depth") { "&DEPTHMISS&" } else { "&MISS&" }))}
+
+--- detail:
+why_shape v3
+guest-only ops: ['fn', 'put']
+host ops: ['-', '<', 'and', 'arg', 'builtin', 'call', 'field', 'if', 'let', 'literal', 'not', 'rescue']
+
+### mismatch | self_eval | why_shape v2
+let v2 = [if map(fn(q3) { "1_000" }, [0, zz]) { (if "-inf" { 100.25 } else { undefined_name } == merge(q, "inf")) } else { undefined_name }, merge(0["a"], [])]
+fn f7(p8, p9) { let t10 = ((v2 <= @{b: v2, name: true, v: f7}) > 0)
+  (((p8 >= v5) != true) < if true { ("0" % 100.25) } else { (0 > "true") }) }
+
+--- detail:
+why_shape v2
+guest-only ops: ['merge']
+host ops: ['builtin', 'if', 'index', 'let', 'list', 'literal', 'map', 'name']

@@ -1,0 +1,38 @@
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Claude Code
+.claude/worktrees/
+
+# Generated logs  
+logs/*.json
+logs/driver.log
+logs/round-*.json
+logs/nuc-llm-tunnel*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE configs
+.vscode/
+.idea/
+
+# NUC research binaries & model weights (too large for git)
+nuc/fast_lane/olmoe_merged/
+nuc/fast_lane/colibri-c/olmoe
+nuc/.venv/
+harness/.venv/
+
+# Evaluation transcripts
+state/trigger-eval/round-*/transcripts/
+state/trigger-eval/*.json
+state/trigger-eval/*.log

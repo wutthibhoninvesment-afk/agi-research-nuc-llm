@@ -1,0 +1,10 @@
+# failing_check.lang — a failing check explains itself (this program exits 1)
+
+let subtotal = 40
+let tax_rate = 1.08          # BUG: should be 0.08
+let tax = subtotal * tax_rate
+let total = subtotal + tax
+
+check "tax is 8 percent": tax == 3.2
+check "total under 50": total < 50
+print("computed total: " + str(total))

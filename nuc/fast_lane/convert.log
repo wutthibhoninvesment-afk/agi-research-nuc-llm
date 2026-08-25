@@ -1,0 +1,44 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[1/3] downloading model-00001-of-00003.safetensors (106 GB free)...
+  wrote model-00000.safetensors (128 tensors)
+  wrote model-00001.safetensors (129 tensors)
+  wrote model-00002.safetensors (129 tensors)
+  wrote model-00003.safetensors (129 tensors)
+  wrote model-00004.safetensors (129 tensors)
+  wrote model-00005.safetensors (128 tensors)
+    -> extracted+deleted model-00001-of-00003.safetensors (1 experts still incomplete)
+[2/3] downloading model-00002-of-00003.safetensors (98 GB free)...
+  wrote model-00006.safetensors (128 tensors)
+  wrote model-00007.safetensors (128 tensors)
+  wrote model-00008.safetensors (128 tensors)
+  wrote model-00009.safetensors (129 tensors)
+  wrote model-00010.safetensors (129 tensors)
+  wrote model-00011.safetensors (129 tensors)
+    -> extracted+deleted model-00002-of-00003.safetensors (1 experts still incomplete)
+[3/3] downloading model-00003-of-00003.safetensors (96 GB free)...
+  wrote model-00012.safetensors (128 tensors)
+  wrote model-00013.safetensors (129 tensors)
+  wrote model-00014.safetensors (129 tensors)
+  wrote model-00015.safetensors (128 tensors)
+  wrote model-00016.safetensors (129 tensors)
+    -> extracted+deleted model-00003-of-00003.safetensors (0 experts still incomplete)
+  wrote model-00017.safetensors (9 tensors)
+DONE.
+      218.46 real        57.89 user        47.19 sys
+          3961700352  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+             2214065  page reclaims
+              847593  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                2913  messages sent
+             1444047  messages received
+                   0  signals received
+               10345  voluntary context switches
+             1636194  involuntary context switches
+        431039377650  instructions retired
+        200415851635  cycles elapsed
+          3669908848  peak memory footprint

@@ -1,0 +1,24 @@
+# provenance.lang — every value can explain itself
+
+let base = 40
+let rate = 0.05
+
+fn grow(amount, r) { amount + amount * r }
+
+let after1 = note("year 1", grow(base, rate))
+let after2 = note("year 2", grow(after1, rate))
+let after3 = note("year 3", grow(after2, rate))
+
+print("value after 3 years:")
+print(after3)
+print("")
+print("-- why after3 --")
+print(why after3)
+print("")
+print("-- snip erases history --")
+let clean = snip after3
+print(why clean)
+
+check "growth math": after1 == 42.0
+check "why mentions rate": contains(str(why after3), "let rate")
+check "snip removed history": not contains(str(why clean), "rate")

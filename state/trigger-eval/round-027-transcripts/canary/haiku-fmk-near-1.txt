@@ -1,0 +1,15 @@
+case: fmk-near
+model: haiku
+arm: None
+fired: ['fuzz-mutate-kill-loop', 'tiny-language-implementation']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+I'll look for bugs in the parser and evaluator for the Whence language. Let me start by checking what skills apply to this task.
+
+SKILLS=fuzz-mutate-kill-loop, tiny-language-implementation

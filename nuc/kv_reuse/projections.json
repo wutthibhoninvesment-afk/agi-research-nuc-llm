@@ -1,0 +1,165 @@
+{
+ "nuc-mini": {
+  "none": [
+   {
+    "np": 339,
+    "reuse": 0,
+    "prefilled": 339,
+    "prefill_s": 55.2,
+    "decode_tok_s": 5.27
+   },
+   {
+    "np": 415,
+    "reuse": 0,
+    "prefilled": 415,
+    "prefill_s": 67.0,
+    "decode_tok_s": 5.21
+   },
+   {
+    "np": 445,
+    "reuse": 0,
+    "prefilled": 445,
+    "prefill_s": 71.7,
+    "decode_tok_s": 5.19
+   },
+   {
+    "np": 537,
+    "reuse": 0,
+    "prefilled": 537,
+    "prefill_s": 86.0,
+    "decode_tok_s": 5.12
+   }
+  ],
+  "strict": [
+   {
+    "np": 339,
+    "reuse": 0,
+    "prefilled": 339,
+    "prefill_s": 55.2,
+    "decode_tok_s": 5.27
+   },
+   {
+    "np": 415,
+    "reuse": 0,
+    "prefilled": 415,
+    "prefill_s": 67.0,
+    "decode_tok_s": 5.21
+   },
+   {
+    "np": 445,
+    "reuse": 0,
+    "prefilled": 445,
+    "prefill_s": 71.7,
+    "decode_tok_s": 5.19
+   },
+   {
+    "np": 537,
+    "reuse": 0,
+    "prefilled": 537,
+    "prefill_s": 86.0,
+    "decode_tok_s": 5.12
+   }
+  ],
+  "snapshot": [
+   {
+    "np": 339,
+    "reuse": 0,
+    "prefilled": 339,
+    "prefill_s": 55.2,
+    "decode_tok_s": 5.27
+   },
+   {
+    "np": 415,
+    "reuse": 335,
+    "prefilled": 80,
+    "prefill_s": 14.8,
+    "decode_tok_s": 5.21
+   },
+   {
+    "np": 445,
+    "reuse": 411,
+    "prefilled": 34,
+    "prefill_s": 7.7,
+    "decode_tok_s": 5.19
+   },
+   {
+    "np": 537,
+    "reuse": 441,
+    "prefilled": 96,
+    "prefill_s": 17.3,
+    "decode_tok_s": 5.12
+   }
+  ]
+ },
+ "hermes": {
+  "none": [
+   {
+    "np": 26475,
+    "reuse": 0,
+    "prefilled": 26475,
+    "prefill_s": 5175.8,
+    "decode_tok_s": 1.0
+   },
+   {
+    "np": 26551,
+    "reuse": 0,
+    "prefilled": 26551,
+    "prefill_s": 5190.7,
+    "decode_tok_s": 1.0
+   },
+   {
+    "np": 26581,
+    "reuse": 0,
+    "prefilled": 26581,
+    "prefill_s": 5196.6,
+    "decode_tok_s": 1.0
+   }
+  ],
+  "strict": [
+   {
+    "np": 26475,
+    "reuse": 0,
+    "prefilled": 26475,
+    "prefill_s": 5175.8,
+    "decode_tok_s": 1.0
+   },
+   {
+    "np": 26551,
+    "reuse": 0,
+    "prefilled": 26551,
+    "prefill_s": 5190.7,
+    "decode_tok_s": 1.0
+   },
+   {
+    "np": 26581,
+    "reuse": 0,
+    "prefilled": 26581,
+    "prefill_s": 5196.6,
+    "decode_tok_s": 1.0
+   }
+  ],
+  "snapshot": [
+   {
+    "np": 26475,
+    "reuse": 0,
+    "prefilled": 26475,
+    "prefill_s": 5175.8,
+    "decode_tok_s": 1.0
+   },
+   {
+    "np": 26551,
+    "reuse": 26471,
+    "prefilled": 80,
+    "prefill_s": 18.1,
+    "decode_tok_s": 1.0
+   },
+   {
+    "np": 26581,
+    "reuse": 26547,
+    "prefilled": 34,
+    "prefill_s": 9.1,
+    "decode_tok_s": 1.0
+   }
+  ]
+ }
+}

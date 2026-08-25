@@ -1,0 +1,7 @@
+oracle fuzz: 411 programs x 5 oracles in 207.7s
+  totality     ok 345  parse_error 56  timeout 10
+  fast_slow    ok 344  parse_error 56  timeout 11
+  direct       ok 345  parse_error 56  timeout 10
+  determinism  ok 344  parse_error 56  timeout 11
+  render       ok 345  parse_error 56  timeout 10
+  unique finding signatures: 0

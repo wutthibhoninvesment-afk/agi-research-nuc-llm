@@ -1,0 +1,49 @@
+# history.lang — provenance is data: fold over it, travel back into it, and
+# ask a failure for its origin as a record, not a string.
+
+let prices = [19.99, 5.25, 3.50]
+fn add(a, b) { a + b }
+let subtotal = note("subtotal", fold(add, 0, prices))
+let discounted = note("after discount", subtotal * 0.9)
+let total = note("after tax", discounted * 1.08)
+print("total: " + str(total))
+
+# 1. steps(x): the whole history as a list of step records, root first.
+#    Each record has op, detail, line, show, depth, inputs and `value` — the
+#    real historic value, still carrying its own provenance.
+let history = steps(total)
+print(str(len(history)) + " steps in the history of total")
+let notes = filter(fn(s) { s.op == "note" }, history)
+print(map(fn(s) { s.detail }, notes))
+check "history is structured, not text":
+  contains(map(fn(s) { s.detail }, notes), "subtotal")
+
+# 2. at(x, name): travel back to a named step. The result is live: it can be
+#    computed with, checked, and asked `why` in turn.
+print("subtotal was " + str(at(total, "subtotal")))
+check "historic values are live":
+  at(total, "subtotal") * 0.9 == at(total, "after discount")
+check "tax was 8 percent":
+  abs(total - at(total, "after discount") * 1.08) < 0.0001
+check "travelling back shortens history":
+  len(steps(at(total, "subtotal"))) < len(history)
+check "steps are addressable by op too": at(total, "call") == subtotal
+# v0.3: fold has a node of its own, and steps(x, name) filters the history.
+check "the fold step is in the history": at(total, "fold") == subtotal
+check "steps can be filtered by name": len(steps(total, "call add")) == 3
+check "filtering by op works too": len(steps(total, "note")) == 3
+print(at(total, "no such step"))
+check "unknown step is a miss": missed(at(total, "no such step"))
+
+# 3. blame(x): the origin nodes of a failure — misses whose inputs were fine.
+fn parse_price(s) { num(s) }
+let raw = ["19.99", "5,25", "3.50"]              # European decimal comma
+let bad_total = fold(add, 0, map(parse_price, raw))
+let culprits = blame(bad_total)
+print(culprits)
+check "exactly one origin": len(culprits) == 1
+check "the culprit is the num call": culprits[0].op == "num"
+check "the culprit's line is parse_price": culprits[0].line == 39
+check "the culprit input is the raw string":
+  at(culprits[0].value, "literal") == "5,25"
+check "a healthy value has no blame": len(blame(total)) == 0

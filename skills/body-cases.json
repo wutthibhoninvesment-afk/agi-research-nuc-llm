@@ -1,0 +1,129 @@
+[
+ {
+  "id": "body-oat",
+  "expect": ["offline-agent-testing"],
+  "prompt": "Our agent framework's retry logic sleeps between attempts with jitter, and I want unit tests that assert the exact backoff delays without the test taking real time or hitting the network. Write the test file and any test doubles it needs.",
+  "body": {
+   "files": [],
+   "evidence": [
+    "sleeps\\.append|sleep\\s*=\\s*sleeps|sleeps\\s*:\\s*list|sleeps\\s*=\\s*\\[\\]",
+    "fail_times|flaky",
+    "rng|random",
+    "\\brequests\\b"
+   ]
+  },
+  "note": "evidence: sleep-as-list injection, FlakyLLM-style failure wrapper, injected rng, request-recording mock"
+ },
+ {
+  "id": "body-gte",
+  "expect": ["generator-trampoline-evaluator"],
+  "prompt": "My tree-walking interpreter in Python crashes with RecursionError when guest programs recurse about 1000 deep. Restructure the evaluator so guest recursion depth no longer depends on the host stack — show the core driver code and how an eval_If method changes.",
+  "body": {
+   "files": [],
+   "evidence": [
+    "yield",
+    "StopIteration",
+    "\\.send\\(",
+    "max_depth|peak_depth"
+   ]
+  },
+  "note": "evidence: generator requests, StopIteration.value protocol, send-driven driver, depth limit moved into the language"
+ },
+ {
+  "id": "body-acb",
+  "expect": ["agent-context-budgeting"],
+  "prompt": "Our autonomous agent's requests keep growing until the model API returns a 413 request-too-large. Add context management to the loop: explain exactly what to trim, when, and how to keep the provider prompt cache warm, with code.",
+  "body": {
+   "files": [],
+   "evidence": [
+    "EMA|exponential moving average|calibrat",
+    "monotonic|in.place",
+    "elide|elis|oldest",
+    "tool_use[\\s\\S]{0,80}tool_result|pairing|orphan"
+   ]
+  },
+  "note": "evidence: self-calibrating estimator, monotonic compaction, elide-oldest ladder, tool_use/tool_result pairing"
+ },
+ {
+  "id": "body-sct",
+  "expect": ["subprocess-cli-testing"],
+  "prompt": "I have a small interpreter with a run.py entry point; unit tests are all green but users still see raw tracebacks and wrong exit codes when they run it from the shell. Write end-to-end tests that lock down the command-line behavior, including the shipped examples.",
+  "body": {
+   "files": [],
+   "evidence": [
+    "sys\\.executable",
+    "returncode",
+    "stderr",
+    "subprocess\\.run"
+   ]
+  },
+  "note": "evidence: sys.executable (not bare python3), exit-code assertions, stderr routing, subprocess.run harness"
+ },
+ {
+  "id": "body-fmk",
+  "expect": ["fuzz-mutate-kill-loop"],
+  "prompt": "All 300 tests on our expression evaluator are green but I don't trust that they prove much. Give me a concrete plan plus working code to (a) find real bugs in it automatically and (b) measure how strong the test suite actually is.",
+  "body": {
+   "files": [],
+   "evidence": [
+    "oracle",
+    "mutat",
+    "shrink|ddmin",
+    "surviv"
+   ]
+  },
+  "note": "evidence: totality/differential oracle, mutation testing, shrinking, surviving mutants"
+ },
+ {
+  "id": "body-stil",
+  "expect": ["shared-tip-immutable-lists"],
+  "prompt": "My interpreter keeps every intermediate version of every list for its history feature, and appending in a loop makes memory grow quadratically. Design the data structure that fixes this in pure Python and show the implementation.",
+  "body": {
+   "files": [],
+   "evidence": [
+    "append.only|shared buffer|one buffer",
+    "\\btip\\b",
+    "cop(y|ies)",
+    "O\\(n"
+   ]
+  },
+  "note": "evidence: shared append-only buffer, extend-at-the-tip, copy-on-divergence, linear total memory"
+ },
+ {
+  "id": "body-sa",
+  "expect": ["skill-authoring"],
+  "prompt": "Here is my SKILL.md:\n---\nname: deploy-helper\ndescription: You can use this to help with deployments.\n---\n# Deploy Helper\nThis skill helps you deploy. Be careful with production.\n\nUsers say Claude never picks it up even when they ask about deploys. Diagnose the problem, rewrite the file properly, and tell me exactly how to verify the fix actually works before I ship it.",
+  "body": {
+   "files": ["skill-authoring/references/trigger-evaluation.md"],
+   "evidence": [
+    "third.person",
+    "symptom",
+    "near|far|paraphras",
+    "trigger.?eval|fresh instance|skill_lint"
+   ]
+  },
+  "note": "the only case with a bundled-file expectation; evidence: third-person rule, symptom vocabulary, case distances, measured verification"
+ },
+ {
+  "id": "body-saref",
+  "expect": ["skill-authoring"],
+  "prompt": "I'm about to measure whether my team's skill descriptions actually trigger, using the skill-authoring toolkit installed here. Before I run anything, answer precisely from its documentation — I need the specific numbers for budgeting, not general advice: (1) the three evaluator modes and the approximate cost per probe of EACH mode; (2) which mode to use for real trigger decisions and which is only a cheap smoke test for a description draft; (3) in body mode, the exact conditions a case must meet to count as 'fully followed'; (4) what 'displacement' counts in a distractor run.",
+  "body": {
+   "files": ["skill-authoring/references/trigger-evaluation.md"],
+   "evidence": [
+    "0\\.02",
+    "2\\s*[–—-]\\s*5|2 to 5",
+    "fired|every[\\s\\S]{0,60}(regex|marker|evidence)",
+    "displac|went missing|lost[\\s\\S]{0,40}(case|contest)"
+   ]
+  },
+  "note": "reference-REQUIRING case: catalog ~$0.02 and the 2–5× body multiplier exist ONLY in references/trigger-evaluation.md (SKILL.md leaks only the native ~$0.03). Markers 1–2 are unanswerable without reading the file; markers 3–4 are follow-through. Tests round-15's open question: are bundled files read when actually NEEDED (0/5 when merely suggested)."
+ },
+ {
+  "id": "body-neg",
+  "expect": [],
+  "prompt": "Explain the practical differences between TCP and UDP and when I'd pick each for a realtime game.",
+  "body": {},
+  "note": "negative under body framing: the do-the-task system prompt must not force a skill fire"
+ }
+]

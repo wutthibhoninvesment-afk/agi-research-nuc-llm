@@ -1,0 +1,1181 @@
+# self_eval.lang — a Whence EVALUATOR written in Whence (self-hosting round 4;
+# round 12's self_host.lang built the lexer + parser, and its header deferred
+# exactly this file: "writing a full guest evaluator ... is a separate, much
+# larger project left for a future round").
+#
+# The pipeline is now source text -> tokens -> AST -> VALUE, all in Whence:
+#   run_src("fn fib(n) { if n < 2 { n } else { fib(n - 1) + fib(n - 2) } }
+#            fib(10)")            ->  @{v: 55, checks: [], parse_error: false}
+#
+# The one hard problem is that the host's environments are MUTABLE (a closure
+# captures the Env object; bindings made after capture are visible at call
+# time — that is how mutual recursion and forward references work), and
+# Whence has no mutation. The guest models this with STORE-PASSING:
+#
+#   store  = @{frames: @{f0: @{...}, f1: @{...}, ...}, next: N, checks: [...]}
+#   env    = a list of frame ids, innermost first (["f3", "f1", "f0"])
+#   eval(node, env, st) -> @{v: value, st: new-store}
+#
+# A closure captures its env (frame IDS, not contents); the store — the whole
+# mutable state of the interpreted program — is one immutable value threaded
+# through every evaluation step. Lookups read the store AS OF CALL TIME, so
+# late binding is faithful: `fn a() { b() }  fn b() { 1 }  a()` works, and
+# calling a() BEFORE b's definition has executed is an "unbound name" miss,
+# exactly like the host. (put/get/find are the v0.5 builtins added for this.)
+#
+# Guest values ARE host values (numbers, strings, bools, lists, records,
+# misses) — so every host operator applied by the evaluator brings host
+# semantics with it: mixed-type arithmetic, division by zero, overflow,
+# strict booleans and miss PROPAGATION come for free, and a guest program's
+# failure carries a host blame trail that reaches through two levels of
+# interpretation down to the guest lexer characters that built the bad
+# literal. Guest closures are tagged records (@{__tag: "closure", ...}).
+#
+# GUEST-LEVEL PROVENANCE (self-hosting round 5): every guest value is a BOX
+# @{v: payload, op: label, ins: [input boxes]} — the host's v0.4 "a value IS
+# its provenance node", applied one level up. Reads pass through, derivations
+# wrap, and `why` inside the guest reifies the box graph into ordinary guest
+# records, so guest programs traverse their own derivation with find/fold.
+# run_src deep-strips boxes, so callers still see plain values.
+#
+# Known, deliberate divergences from the host (documented, tested where
+# cheap): reason STRINGS for arity/callable errors are worded differently
+# (missed-ness always agrees); `==` on records that CONTAIN closures compares
+# structure instead of missing; guest provenance carries no line numbers (the
+# guest AST has none — the parser is pinned to self_host.lang) and no merged
+# tail-loop/if nodes (host v0.3/v0.4 compressions); `why` output is capped at
+# 300 nodes. The old `__tag` spoofing leak is CLOSED by boxing: a user
+# record's fields are boxes, and a box never equals the raw string "closure".
+# Guest recursion spends host frames (~15 per guest call), so guest depth
+# tops out around max_depth/15.
+#
+# The lexer + parser below are self_host.lang's, verbatim (kept in sync by
+# tests/test_self_eval.py::test_parser_section_matches_self_host).
+
+# ---- character classes -----------------------------------------------------
+let digits = "0123456789"
+let lower = "abcdefghijklmnopqrstuvwxyz"
+let upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+let name_start_chars = lower + upper + "_"
+let name_cont_chars = name_start_chars + digits
+
+fn is_digit(c) { contains(digits, c) }
+fn is_name_start(c) { contains(name_start_chars, c) }
+fn is_name_cont(c) { contains(name_cont_chars, c) }
+
+let keywords = ["let", "fn", "if", "else", "check", "rescue",
+                "why", "snip", "miss", "true", "false", "and", "or", "not"]
+let two_char_ops = ["==", "!=", "<=", ">=", "@{"]
+let one_char_ops = "+-*/%()[]{},:.=<>"
+
+# index of the first char at/after i that fails pred (mirrors meta.lang)
+fn scan_while(s, i, pred) {
+  if i < len(s) and pred(s[i]) { scan_while(s, i + 1, pred) } else { i }
+}
+fn slice(s, i, j) { if i >= j { "" } else { s[i] + slice(s, i + 1, j) } }
+
+# ---- lexer ------------------------------------------------------------------
+# bracket stack: a list of "(" "[" "@{" "{" strings, pushed on open, popped on
+# ANY close (matching whence/lexer.py's `brackets` — it does not check which
+# open matches which close either). Newlines are suppressed while the top of
+# the stack is "(" "[" or "@{" — NOT inside plain "{" blocks, so a block body
+# still statement-separates on newlines even nested inside a call's parens
+# (`map(fn(x) { x * 2\n x }, xs)` keeps the block's internal newline).
+fn top_of(stack) { if len(stack) == 0 { "" } else { stack[len(stack) - 1] } }
+fn pop_last(xs) { list_slice(xs, 0, len(xs) - 1) }
+fn list_slice(xs, i, j) { if i >= j { [] } else { [xs[i]] + list_slice(xs, i + 1, j) } }
+fn suppressed(stack) {
+  let t = top_of(stack)
+  t == "(" or t == "[" or t == "@{"
+}
+
+fn lex_str_body(s, i, acc) {
+  if i >= len(s) { miss "unterminated string" }
+  else if s[i] == "\"" { @{v: acc, pos: i + 1} }
+  else if s[i] == "\\" {
+    if i + 1 >= len(s) { miss "unterminated string" }
+    else {
+      let e = s[i + 1]
+      let ch = if e == "n" { "\n" }
+        else if e == "t" { "\t" }
+        else if e == "\"" { "\"" }
+        else if e == "\\" { "\\" }
+        else { miss ("bad escape '\\" + e + "'") }
+      if missed(ch) { ch } else { lex_str_body(s, i + 2, acc + ch) }
+    }
+  }
+  else { lex_str_body(s, i + 1, acc + s[i]) }
+}
+
+# lex(s, i, stack, acc, line) -> final token list (acc grows via push, which
+# is O(1) amortized on the tip of a shared-buffer WList — round 7's finding).
+fn lex(s, i, stack, acc, line) {
+  if i >= len(s) { push(acc, @{t: "eof", v: "", line: line}) }
+  else if s[i] == "#" { lex(s, scan_while(s, i, fn(c) { c != "\n" }), stack, acc, line) }
+  else if s[i] == "\n" {
+    let last_is_nl = len(acc) > 0 and acc[len(acc) - 1].t == "nl"
+    if suppressed(stack) or last_is_nl or len(acc) == 0 {
+      lex(s, i + 1, stack, acc, line + 1)
+    } else {
+      lex(s, i + 1, stack, push(acc, @{t: "nl", v: "\n", line: line}), line + 1)
+    }
+  }
+  else if s[i] == " " or s[i] == "\t" { lex(s, i + 1, stack, acc, line) }
+  else if is_digit(s[i]) {
+    let j0 = scan_while(s, i, is_digit)
+    let has_frac = j0 + 1 < len(s) and s[j0] == "." and is_digit(s[j0 + 1])
+    let j = if has_frac { scan_while(s, j0 + 1, is_digit) } else { j0 }
+    lex(s, j, stack, push(acc, @{t: "num", v: num(slice(s, i, j)), line: line}), line)
+  }
+  else if is_name_start(s[i]) {
+    let j = scan_while(s, i, is_name_cont)
+    let word = slice(s, i, j)
+    let kind = if contains(keywords, word) { "kw" } else { "name" }
+    lex(s, j, stack, push(acc, @{t: kind, v: word, line: line}), line)
+  }
+  else if s[i] == "\"" {
+    let r = lex_str_body(s, i + 1, "")
+    if missed(r) { push(acc, @{t: "bad", v: str(r), line: line}) }
+    else { lex(s, r.pos, stack, push(acc, @{t: "str", v: r.v, line: line}), line) }
+  }
+  else if i + 1 < len(s) and contains(two_char_ops, s[i] + s[i + 1]) {
+    let op = s[i] + s[i + 1]
+    let stack2 = if op == "@{" { stack + ["@{"] } else { stack }
+    lex(s, i + 2, stack2, push(acc, @{t: "op", v: op, line: line}), line)
+  }
+  else if contains(one_char_ops, s[i]) {
+    let c = s[i]
+    let stack2 = if c == "(" or c == "[" or c == "{" { stack + [c] }
+      else if c == ")" or c == "]" or c == "}" { pop_last(stack) }
+      else { stack }
+    lex(s, i + 1, stack2, push(acc, @{t: "op", v: c, line: line}), line)
+  }
+  else { push(acc, @{t: "bad", v: "unexpected character '" + s[i] + "'", line: line}) }
+}
+fn lex_all(s) { lex(s, 0, [], [], 1) }
+
+# ---- token helpers ------------------------------------------------------
+fn t_at(toks, pos) { if pos < len(toks) { toks[pos] } else { @{t: "eof", v: "", line: 0} } }
+fn is_op(toks, pos, o) { let k = t_at(toks, pos)
+  k.t == "op" and k.v == o }
+fn is_kw(toks, pos, w) { let k = t_at(toks, pos)
+  k.t == "kw" and k.v == w }
+fn skip_nl(toks, pos) { if is_ntype(toks, pos, "nl") { skip_nl(toks, pos + 1) } else { pos } }
+fn is_ntype(toks, pos, ty) { t_at(toks, pos).t == ty }
+
+fn expect_op(toks, pos, o) {
+  if is_op(toks, pos, o) { pos + 1 }
+  else { miss ("expected '" + o + "', got '" + str(t_at(toks, pos).v) +
+               "' at line " + str(t_at(toks, pos).line)) }
+}
+fn expect_name(toks, pos) {
+  let k = t_at(toks, pos)
+  if k.t == "name" { @{name: k.v, pos: pos + 1} } else { miss "expected a name" }
+}
+
+# ---- expression parser (precedence low -> high, mirrors whence/parser.py) --
+fn parse_expr(toks, pos) { parse_rescue(toks, pos) }
+
+fn parse_rescue(toks, pos) {
+  let first = parse_or(toks, pos)
+  parse_rescue_rest(first.node, toks, first.pos)
+}
+fn parse_rescue_rest(left, toks, pos) {
+  if is_kw(toks, pos, "rescue") {
+    let right = parse_or(toks, pos + 1)
+    parse_rescue_rest(@{kind: "binary", op: "rescue", left: left, right: right.node},
+                       toks, right.pos)
+  } else { @{node: left, pos: pos} }
+}
+
+fn parse_or(toks, pos) {
+  let first = parse_and(toks, pos)
+  parse_or_rest(first.node, toks, first.pos)
+}
+fn parse_or_rest(left, toks, pos) {
+  if is_kw(toks, pos, "or") {
+    let right = parse_and(toks, pos + 1)
+    parse_or_rest(@{kind: "binary", op: "or", left: left, right: right.node}, toks, right.pos)
+  } else { @{node: left, pos: pos} }
+}
+
+fn parse_and(toks, pos) {
+  let first = parse_not(toks, pos)
+  parse_and_rest(first.node, toks, first.pos)
+}
+fn parse_and_rest(left, toks, pos) {
+  if is_kw(toks, pos, "and") {
+    let right = parse_not(toks, pos + 1)
+    parse_and_rest(@{kind: "binary", op: "and", left: left, right: right.node}, toks, right.pos)
+  } else { @{node: left, pos: pos} }
+}
+
+fn parse_not(toks, pos) {
+  if is_kw(toks, pos, "not") {
+    let inner = parse_not(toks, pos + 1)
+    @{node: @{kind: "unary", op: "not", operand: inner.node}, pos: inner.pos}
+  } else { parse_cmp(toks, pos) }
+}
+
+let cmp_ops = ["==", "!=", "<", "<=", ">", ">="]
+fn parse_cmp(toks, pos) {
+  let left = parse_add(toks, pos)
+  let k = t_at(toks, left.pos)
+  if k.t == "op" and contains(cmp_ops, k.v) {
+    let right = parse_add(toks, left.pos + 1)
+    let k2 = t_at(toks, right.pos)
+    if k2.t == "op" and contains(cmp_ops, k2.v) {
+      miss ("comparisons do not chain; use 'and' at line " + str(k2.line))
+    } else {
+      @{node: @{kind: "binary", op: k.v, left: left.node, right: right.node}, pos: right.pos}
+    }
+  } else { left }
+}
+
+fn parse_add(toks, pos) {
+  let first = parse_mul(toks, pos)
+  parse_add_rest(first.node, toks, first.pos)
+}
+fn parse_add_rest(left, toks, pos) {
+  if is_op(toks, pos, "+") or is_op(toks, pos, "-") {
+    let op = t_at(toks, pos).v
+    let right = parse_mul(toks, pos + 1)
+    parse_add_rest(@{kind: "binary", op: op, left: left, right: right.node}, toks, right.pos)
+  } else { @{node: left, pos: pos} }
+}
+
+fn parse_mul(toks, pos) {
+  let first = parse_unary(toks, pos)
+  parse_mul_rest(first.node, toks, first.pos)
+}
+fn parse_mul_rest(left, toks, pos) {
+  if is_op(toks, pos, "*") or is_op(toks, pos, "/") or is_op(toks, pos, "%") {
+    let op = t_at(toks, pos).v
+    let right = parse_unary(toks, pos + 1)
+    parse_mul_rest(@{kind: "binary", op: op, left: left, right: right.node}, toks, right.pos)
+  } else { @{node: left, pos: pos} }
+}
+
+fn parse_unary(toks, pos) {
+  let k = t_at(toks, pos)
+  if is_op(toks, pos, "-") {
+    let inner = parse_unary(toks, pos + 1)
+    @{node: @{kind: "unary", op: "-", operand: inner.node}, pos: inner.pos}
+  } else if k.t == "kw" and (k.v == "why" or k.v == "snip" or k.v == "miss") {
+    let inner = parse_unary(toks, pos + 1)
+    @{node: @{kind: "unary", op: k.v, operand: inner.node}, pos: inner.pos}
+  } else { parse_postfix(toks, pos) }
+}
+
+fn parse_postfix(toks, pos) {
+  let first = parse_primary(toks, pos)
+  parse_postfix_rest(first.node, toks, first.pos)
+}
+fn parse_postfix_rest(expr, toks, pos) {
+  if is_op(toks, pos, "(") {
+    let a = parse_args(toks, pos + 1, [])
+    parse_postfix_rest(@{kind: "call", func: expr, args: a.args}, toks, a.pos)
+  } else if is_op(toks, pos, "[") {
+    let ix = parse_expr(toks, pos + 1)
+    let after = expect_op(toks, ix.pos, "]")
+    parse_postfix_rest(@{kind: "index", obj: expr, index: ix.node}, toks, after)
+  } else if is_op(toks, pos, ".") {
+    let fld = expect_name(toks, pos + 1)
+    parse_postfix_rest(@{kind: "field", obj: expr, name: fld.name}, toks, fld.pos)
+  } else { @{node: expr, pos: pos} }
+}
+fn parse_args(toks, pos, acc) {
+  if is_op(toks, pos, ")") { @{args: acc, pos: pos + 1} }
+  else {
+    let a = parse_expr(toks, pos)
+    let acc2 = push(acc, a.node)
+    if is_op(toks, a.pos, ",") { parse_args(toks, a.pos + 1, acc2) }
+    else {
+      let after = expect_op(toks, a.pos, ")")
+      @{args: acc2, pos: after}
+    }
+  }
+}
+
+fn parse_primary(toks, pos) {
+  let k = t_at(toks, pos)
+  if k.t == "num" { @{node: @{kind: "num", value: k.v}, pos: pos + 1} }
+  else if k.t == "str" { @{node: @{kind: "str", value: k.v}, pos: pos + 1} }
+  else if k.t == "kw" and (k.v == "true" or k.v == "false") {
+    @{node: @{kind: "bool", value: k.v == "true"}, pos: pos + 1}
+  }
+  else if k.t == "name" { @{node: @{kind: "name", value: k.v}, pos: pos + 1} }
+  else if is_op(toks, pos, "[") { parse_list_lit(toks, pos + 1, []) }
+  else if is_op(toks, pos, "@{") { parse_record_lit(toks, pos + 1, [], []) }
+  else if is_op(toks, pos, "(") {
+    let inner = parse_expr(toks, pos + 1)
+    @{node: inner.node, pos: expect_op(toks, inner.pos, ")")}
+  }
+  else if k.t == "kw" and k.v == "if" { parse_if(toks, pos) }
+  else if is_op(toks, pos, "{") { parse_block(toks, pos) }
+  else if k.t == "kw" and k.v == "fn" and is_op(toks, pos + 1, "(") {
+    let ps = parse_params(toks, pos + 1, [])
+    let body = parse_block(toks, ps.pos)
+    @{node: @{kind: "fnexpr", params: ps.params, body: body.node}, pos: body.pos}
+  }
+  else { miss ("unexpected token '" + str(k.v) + "' at line " + str(k.line)) }
+}
+
+fn parse_list_lit(toks, pos, acc) {
+  if is_op(toks, pos, "]") { @{node: @{kind: "list", items: acc}, pos: pos + 1} }
+  else {
+    let it = parse_expr(toks, pos)
+    let acc2 = push(acc, it.node)
+    if is_op(toks, it.pos, ",") { parse_list_lit(toks, it.pos + 1, acc2) }
+    else { @{node: @{kind: "list", items: acc2}, pos: expect_op(toks, it.pos, "]")} }
+  }
+}
+fn parse_record_lit(toks, pos, acc, seen) {
+  if is_op(toks, pos, "}") { @{node: @{kind: "record", pairs: acc}, pos: pos + 1} }
+  else {
+    let key = expect_name(toks, pos)
+    let dup = contains(seen, key.name)
+    let after_colon = expect_op(toks, key.pos, ":")
+    let val = parse_expr(toks, after_colon)
+    let pair = @{name: key.name, value: val.node}
+    let acc2 = push(acc, pair)
+    let seen2 = push(seen, key.name)
+    let step = if dup { miss ("duplicate field '" + key.name + "'") }
+      else if is_op(toks, val.pos, ",") { parse_record_lit(toks, val.pos + 1, acc2, seen2) }
+      else { @{node: @{kind: "record", pairs: acc2}, pos: expect_op(toks, val.pos, "}")} }
+    step
+  }
+}
+
+# ---- params, blocks, if -----------------------------------------------------
+fn parse_params(toks, pos, acc) {
+  let after_paren = if len(acc) == 0 { expect_op(toks, pos, "(") } else { pos }
+  if is_op(toks, after_paren, ")") { @{params: acc, pos: after_paren + 1} }
+  else {
+    let nm = expect_name(toks, after_paren)
+    let dup = contains(acc, nm.name)
+    let acc2 = push(acc, nm.name)
+    if dup { miss ("duplicate parameter '" + nm.name + "'") }
+    else if is_op(toks, nm.pos, ",") { parse_params(toks, nm.pos + 1, acc2) }
+    else { @{params: acc2, pos: expect_op(toks, nm.pos, ")")} }
+  }
+}
+
+fn parse_block(toks, pos) {
+  let open = expect_op(toks, pos, "{")
+  let sl = parse_stmt_list(toks, skip_nl(toks, open), "}", [], [])
+  let after = expect_op(toks, sl.pos, "}")
+  if len(sl.stmts) == 0 { miss "block must contain at least one expression" }
+  else if (sl.stmts[len(sl.stmts) - 1]).kind != "exprstmt" {
+    miss "block must end with an expression"
+  } else { @{node: @{kind: "block", stmts: sl.stmts}, pos: after} }
+}
+
+# `end` is either the literal "}" (an operator token) or the string "eof"
+# (the sentinel type, NOT an operator) — a block ends on an op, the program
+# ends on the real EOF token, and the two are different token *types*, so
+# they need different tests (an earlier version used is_op for both, which
+# can never match "eof" and looped forever re-parsing synthetic EOF tokens).
+fn at_end(toks, pos, end) {
+  if end == "eof" { is_ntype(toks, pos, "eof") } else { is_op(toks, pos, end) }
+}
+
+fn parse_stmt_list(toks, pos, end, acc, bound) {
+  if at_end(toks, pos, end) { @{stmts: acc, pos: pos} }
+  else {
+    let s = parse_stmt(toks, pos)
+    let nm = if s.node.kind == "let" or s.node.kind == "fndef" { s.node.name } else { "" }
+    let dup = nm != "" and contains(bound, nm)
+    let bound2 = if nm != "" { push(bound, nm) } else { bound }
+    if dup { miss ("'" + nm + "' already bound") }
+    else {
+      let acc2 = push(acc, s.node)
+      let after = skip_nl(toks, s.pos)
+      if at_end(toks, after, end) { @{stmts: acc2, pos: after} }
+      else { parse_stmt_list(toks, after, end, acc2, bound2) }
+    }
+  }
+}
+
+fn parse_stmt(toks, pos) {
+  if is_kw(toks, pos, "let") {
+    let nm = expect_name(toks, pos + 1)
+    let after_eq = expect_op(toks, nm.pos, "=")
+    let v = parse_expr(toks, after_eq)
+    @{node: @{kind: "let", name: nm.name, value: v.node}, pos: v.pos}
+  }
+  else if is_kw(toks, pos, "fn") and is_ntype(toks, pos + 1, "name") {
+    let nm = expect_name(toks, pos + 1)
+    let ps = parse_params(toks, nm.pos, [])
+    let body = parse_block(toks, ps.pos)
+    @{node: @{kind: "fndef", name: nm.name, params: ps.params, body: body.node}, pos: body.pos}
+  }
+  else if is_kw(toks, pos, "check") {
+    let k = t_at(toks, pos + 1)
+    let label = if k.t == "str" { k.v } else { miss "expected a string label after 'check'" }
+    let after_colon = expect_op(toks, pos + 2, ":")
+    let e = parse_expr(toks, after_colon)
+    @{node: @{kind: "check", label: label, expr: e.node}, pos: e.pos}
+  }
+  else {
+    let e = parse_expr(toks, pos)
+    @{node: @{kind: "exprstmt", expr: e.node}, pos: e.pos}
+  }
+}
+
+fn parse_if(toks, pos) {
+  let cond = parse_expr(toks, pos + 1)
+  let then = parse_block(toks, cond.pos)
+  let after_then = skip_nl(toks, then.pos)
+  if is_kw(toks, after_then, "else") {
+    let after_else = after_then + 1
+    let other = if is_kw(toks, after_else, "if") { parse_if(toks, after_else) }
+      else { parse_block(toks, after_else) }
+    @{node: @{kind: "if", cond: cond.node, then: then.node, otherwise: other.node},
+      pos: other.pos}
+  } else {
+    miss ("'if' requires 'else' at line " + str(t_at(toks, after_then).line))
+  }
+}
+
+# ---- top level ---------------------------------------------------------
+fn parse_program(toks) {
+  let sl = parse_stmt_list(toks, skip_nl(toks, 0), "eof", [], [])
+  if is_ntype(toks, sl.pos, "eof") { @{kind: "program", stmts: sl.stmts} }
+  else { miss ("trailing input at token " + str(sl.pos)) }
+}
+fn parse_whence(src) { parse_program(lex_all(src)) }
+
+# ==== EVALUATOR (self-hosting rounds 4+5) ===================================
+
+# ---- guest provenance: a guest value IS its provenance node (round 18) ------
+# The host's v0.4 idea, applied one level up: every guest value is a BOX
+#   @{v: payload, op: label, ins: [input boxes]}
+# where `payload` is a host value (number, string, bool, miss, WList of
+# boxes, record of boxes, tagged closure record) and `ins` are the boxes it
+# was derived from. Reads pass through (name lookup, list index, field and
+# `get` return the element's own box, exactly like the host); derivations
+# wrap (`let x`, `arg n`, `call f`, `if then branch`, every operator and
+# builtin). `why` REIFIES the box graph into ordinary guest records
+# (@{op, v, ins}, budget-capped), so a guest program can traverse its own
+# derivation with find/fold — no provenance builtins needed at guest level.
+# Boxes carry no line numbers: the guest AST has none (the parser section is
+# pinned byte-identical to self_host.lang). run_src strips boxes from its
+# result, so callers and the host-vs-guest differential see plain values.
+fn mkb(p, o, i) { @{v: p, op: o, ins: i} }
+
+# strip: deep-unbox a guest value into a plain host-shaped value. Misses and
+# closures pass through unchanged (a closure's fields are raw, not boxed).
+fn strip(b) {
+  let p = b.v
+  if missed(p) { p }
+  else if is_callable(p) { p }
+  else if is_list(p) { map(strip, p) }
+  else if not missed(keys(p)) {
+    fold(fn(acc, kk) { put(acc, kk, strip(get(p, kk))) }, @{}, keys(p))
+  }
+  else { p }
+}
+
+# reify: box graph -> guest-visible records, threading a node budget so a
+# shared/deep history cannot blow up (the host caps render_why the same way;
+# a node past the budget keeps its op and payload but drops its inputs).
+fn reify_node(op, p, rins) {
+  mkb(@{op: mkb(op, "literal", []), v: mkb(p, "literal", []),
+        ins: mkb(rins, "list", rins)}, "why", [])
+}
+fn reify_ins(ins, i, acc, k) {
+  if i >= len(ins) or k <= 0 { @{acc: acc, k: k} }
+  else {
+    let r = reify(ins[i], k)
+    reify_ins(ins, i + 1, push(acc, r.r), r.k)
+  }
+}
+fn reify(b, k) {
+  if k <= 0 { @{r: reify_node(b.op, b.v, []), k: 0} }
+  else {
+    let sub = reify_ins(b.ins, 0, [], k - 1)
+    @{r: reify_node(b.op, b.v, sub.acc), k: sub.k}
+  }
+}
+
+# ---- the store: every frame of every environment, one immutable record -----
+# f0 is the builtin frame; a guest builtin value is a tagged record naming
+# which host builtin it stands for.
+let builtin_names = ["print", "len", "range", "map", "filter", "fold", "push",
+                     "str", "num", "abs", "sqrt", "missed", "reasons", "note",
+                     "contains", "join", "keys", "merge", "get", "put", "has",
+                     "find"]
+
+# host builtins whose first step is `_propagate` (a miss argument yields
+# a "builtin"-op miss before the builtin looks at anything)
+let propagating = ["len", "range", "num", "abs", "sqrt", "contains", "join",
+                   "keys", "merge", "has", "put"]
+let arities = @{print: 1, len: 1, range: -1, map: 2, filter: 2, fold: 3,
+                push: 2, str: 1, num: 1, abs: 1, sqrt: 1, missed: 1,
+                reasons: 1, note: 2, contains: 2, join: 2, keys: 1,
+                merge: 2, get: 2, put: 3, has: 2, find: 2}
+
+fn new_store() {
+  let f0 = fold(fn(fr, n) {
+      put(fr, n, mkb(@{__tag: "builtin", name: n}, "builtin " + n, []))
+    }, @{}, builtin_names)
+  @{frames: put(@{}, "f0", f0), next: 1, checks: []}
+}
+
+fn alloc(st) {
+  let fid = "f" + str(st.next)
+  @{fid: fid,
+    st: merge(st, @{frames: put(st.frames, fid, @{}), next: st.next + 1})}
+}
+
+fn frame_bind(st, fid, name, v) {
+  merge(st, @{frames: put(st.frames, fid,
+                          put(get(st.frames, fid), name, v))})
+}
+
+# innermost frame that HAS the name wins; reading the store at call time is
+# what makes binding late, like the host's mutable Env chain
+fn lookup(st, env, name) {
+  let fid = find(fn(f) { contains(keys(get(st.frames, f)), name) }, env)
+  if missed(fid) { miss ("unbound name '" + name + "'") }
+  else { get(get(st.frames, fid), name) }
+}
+
+# ---- type tests without a typeof: total operations + missed ----------------
+# `v + []` succeeds exactly for lists; `v == true or v == false` is safe once
+# misses are excluded (== across types is false, on misses it is a miss).
+# guest_tag reads a RAW __tag string, which only genuine closures/builtin
+# refs carry — a user record's fields are boxes, and a box never == a string,
+# so the old __tag-spoofing leak is closed by boxing itself.
+fn is_bool(v) { not missed(v) and (v == true or v == false) }
+fn is_list(v) { not missed(v + []) }
+fn guest_tag(v) { (get(v, "__tag")) rescue "" }
+fn is_closure(v) { guest_tag(v) == "closure" }
+fn is_builtin_ref(v) { guest_tag(v) == "builtin" }
+fn is_callable(v) {
+  let t = guest_tag(v)
+  t == "closure" or t == "builtin"
+}
+
+# ---- eval: node x env x store -> @{v: box, st} ------------------------------
+fn eval(node, env, st) {
+  let k = node.kind
+  if k == "num" or k == "str" or k == "bool" {
+    @{v: mkb(node.value, "literal", []), st: st}
+  }
+  else if k == "name" {
+    let b = lookup(st, env, node.value)
+    @{v: if missed(b) { mkb(b, "name", []) } else { b }, st: st}
+  }
+  else if k == "list" {
+    let r = eval_items(node.items, 0, [], env, st)
+    @{v: mkb(r.v, "list", r.v), st: r.st}
+  }
+  else if k == "record" {
+    let r = eval_pairs(node.pairs, 0, @{}, env, st)
+    @{v: mkb(r.v, "record", map(fn(kk) { get(r.v, kk) }, keys(r.v))), st: r.st}
+  }
+  else if k == "binary" { eval_binary(node, env, st) }
+  else if k == "unary" { eval_unary(node, env, st) }
+  else if k == "if" { eval_if(node, env, st) }
+  else if k == "block" { eval_block(node, env, st) }
+  else if k == "call" { eval_call(node, env, st) }
+  else if k == "index" { eval_index(node, env, st) }
+  else if k == "field" { eval_field(node, env, st) }
+  else if k == "fnexpr" {
+    @{v: mkb(@{__tag: "closure", name: "(anonymous)", params: node.params,
+               body: node.body, env: env}, "fn (anonymous)", []),
+      st: st}
+  }
+  else { @{v: mkb(miss ("unknown node kind '" + str(k) + "'"), "eval", []), st: st} }
+}
+
+fn eval_items(items, i, acc, env, st) {
+  if i >= len(items) { @{v: acc, st: st} }
+  else {
+    let r = eval(items[i], env, st)
+    eval_items(items, i + 1, push(acc, r.v), env, r.st)
+  }
+}
+
+fn eval_pairs(pairs, i, acc, env, st) {
+  if i >= len(pairs) { @{v: acc, st: st} }
+  else {
+    let p = pairs[i]
+    let r = eval(p.value, env, st)
+    eval_pairs(pairs, i + 1, put(acc, p.name, r.v), env, r.st)
+  }
+}
+
+# ---- operators: delegate to the HOST operator on the payloads, so its
+# semantics (misses, strictness, overflow, merge-of-reasons) come for free;
+# the result box records the operator and both operand boxes ----------------
+fn guest_eq(a, b) {
+  if is_callable(a.v) or is_callable(b.v) { miss "cannot compare functions" }
+  else { strip(a) == strip(b) }
+}
+
+fn apply_binop(op, a, b) {
+  let p = if op == "+" { a.v + b.v }
+    else if op == "-" { a.v - b.v }
+    else if op == "*" { a.v * b.v }
+    else if op == "/" { a.v / b.v }
+    else if op == "%" { a.v % b.v }
+    else if op == "==" { guest_eq(a, b) }
+    else if op == "!=" {
+      let e = guest_eq(a, b)
+      not e
+    }
+    else if op == "<" { a.v < b.v }
+    else if op == "<=" { a.v <= b.v }
+    else if op == ">" { a.v > b.v }
+    else if op == ">=" { a.v >= b.v }
+    else { miss ("unknown operator '" + op + "'") }
+  mkb(p, op, [a, b])
+}
+
+fn eval_binary(node, env, st) {
+  let op = node.op
+  if op == "and" { eval_and(node, env, st) }
+  else if op == "or" { eval_or(node, env, st) }
+  else if op == "rescue" {
+    let l = eval(node.left, env, st)
+    if missed(l.v.v) {
+      let r = eval(node.right, env, l.st)
+      @{v: mkb(r.v.v, "rescue recovered", [r.v, l.v]), st: r.st}
+    } else { l }
+  }
+  else {
+    let l = eval(node.left, env, st)
+    let r = eval(node.right, env, l.st)
+    @{v: apply_binop(op, l.v, r.v), st: r.st}
+  }
+}
+
+# short-circuit: the right EXPRESSION is only evaluated when needed; a
+# miss/non-bool left is handed to the host operator, which words the miss
+fn eval_and(node, env, st) {
+  let l = eval(node.left, env, st)
+  if not is_bool(l.v.v) { @{v: mkb(l.v.v and true, "and", [l.v]), st: l.st} }
+  else if l.v.v == false {
+    @{v: mkb(false, "and short-circuit", [l.v]), st: l.st}
+  }
+  else {
+    let r = eval(node.right, env, l.st)
+    @{v: mkb(true and r.v.v, "and", [l.v, r.v]), st: r.st}
+  }
+}
+
+fn eval_or(node, env, st) {
+  let l = eval(node.left, env, st)
+  if not is_bool(l.v.v) { @{v: mkb(l.v.v or true, "or", [l.v]), st: l.st} }
+  else if l.v.v == true {
+    @{v: mkb(true, "or short-circuit", [l.v]), st: l.st}
+  }
+  else {
+    let r = eval(node.right, env, l.st)
+    @{v: mkb(false or r.v.v, "or", [l.v, r.v]), st: r.st}
+  }
+}
+
+fn eval_unary(node, env, st) {
+  let r = eval(node.operand, env, st)
+  let op = node.op
+  let b = if op == "-" { mkb(0 - r.v.v, "-", [r.v]) }
+    else if op == "not" { mkb(not r.v.v, "not", [r.v]) }
+    else if op == "miss" { mkb(miss r.v.v, "miss", [r.v]) }
+    else if op == "why" { (reify(r.v, 300)).r }
+    else if op == "snip" { mkb(r.v.v, "snipped", []) }
+    else { mkb(miss ("unknown unary '" + op + "'"), "unary", []) }
+  @{v: b, st: r.st}
+}
+
+# a miss/non-bool condition goes through a real host `if`, which words the
+# miss exactly as the host would ("if condition must be true/false, ...")
+fn eval_if(node, env, st) {
+  let c = eval(node.cond, env, st)
+  if not is_bool(c.v.v) {
+    @{v: mkb(if c.v.v { true } else { true }, "if", [c.v]), st: c.st}
+  }
+  else if c.v.v {
+    let r = eval(node.then, env, c.st)
+    @{v: mkb(r.v.v, "if took then-branch", [r.v, c.v]), st: r.st}
+  }
+  else {
+    let r = eval(node.otherwise, env, c.st)
+    @{v: mkb(r.v.v, "if took else-branch", [r.v, c.v]), st: r.st}
+  }
+}
+
+fn eval_block(node, env, st) {
+  let a = alloc(st)
+  exec_stmts(node.stmts, 0, [a.fid] + env, a.st,
+             mkb(miss "empty block", "block", []))
+}
+
+fn exec_stmts(stmts, i, env, st, last) {
+  if i >= len(stmts) { @{v: last, st: st} }
+  else {
+    let r = exec_stmt(stmts[i], env, st)
+    exec_stmts(stmts, i + 1, env, r.st, r.v)
+  }
+}
+
+fn exec_stmt(stmt, env, st) {
+  let k = stmt.kind
+  if k == "exprstmt" { eval(stmt.expr, env, st) }
+  else if k == "let" {
+    let r = eval(stmt.value, env, st)
+    let w = mkb(r.v.v, "let " + stmt.name, [r.v])
+    @{v: w, st: frame_bind(r.st, env[0], stmt.name, w)}
+  }
+  else if k == "fndef" {
+    let c = mkb(@{__tag: "closure", name: stmt.name, params: stmt.params,
+                  body: stmt.body, env: env}, "fn " + stmt.name, [])
+    @{v: c, st: frame_bind(st, env[0], stmt.name, c)}
+  }
+  else if k == "check" {
+    let r = eval(stmt.expr, env, st)
+    let ok = if missed(r.v.v) { false } else { r.v.v == true }
+    @{v: r.v,
+      st: merge(r.st, @{checks: push(r.st.checks,
+                                     @{label: stmt.label, pass: ok})})}
+  }
+  else { @{v: mkb(miss ("unknown statement kind '" + str(k) + "'"), "eval", []),
+           st: st} }
+}
+
+# ---- calls ------------------------------------------------------------------
+fn eval_call(node, env, st) {
+  let f = eval(node.func, env, st)
+  let a = eval_items(node.args, 0, [], env, f.st)
+  apply(f.v, a.v, a.st)
+}
+
+fn apply(f, args, st) {
+  if missed(f.v) { @{v: mkb(f.v, "call", [f] + args), st: st} }
+  else if is_closure(f.v) { apply_closure(f, args, st) }
+  else if is_builtin_ref(f.v) { apply_builtin(f.v.name, args, st) }
+  else {
+    @{v: mkb(miss (str(strip(f)) + " is not callable"), "call", [f]), st: st}
+  }
+}
+
+# NOTE the host calls functions WITH miss arguments (f(miss) runs the body);
+# so does the guest: bind_params binds whatever it is given, wrapped in an
+# `arg <name>` node exactly like the host's per-param binding step.
+fn apply_closure(f, args, st) {
+  let c = f.v
+  if len(args) != len(c.params) {
+    @{v: mkb(miss ("fn expects " + str(len(c.params)) + " args, got " +
+                   str(len(args))),
+             "call " + c.name, args),
+      st: st}
+  } else {
+    let a = alloc(st)
+    let st2 = bind_params(a.st, a.fid, c.params, args, 0)
+    let r = eval(c.body, [a.fid] + c.env, st2)
+    @{v: mkb(r.v.v, "call " + c.name, [r.v]), st: r.st}
+  }
+}
+
+fn bind_params(st, fid, params, args, i) {
+  if i >= len(params) { st }
+  else {
+    let w = mkb((args[i]).v, "arg " + params[i], [args[i]])
+    bind_params(frame_bind(st, fid, params[i], w), fid,
+                params, args, i + 1)
+  }
+}
+
+# ---- builtins: delegate to the host on payloads wherever the argument is
+# not a guest function; higher-order builtins re-implement the loop with
+# guest apply so callbacks receive boxes (pass-through provenance).
+# An INITIAL miss argument is handed to the host builtin so propagation
+# happens before inspection, exactly like the host's _propagate; a miss that
+# APPEARS mid-loop (a fold accumulator going bad) is still passed to the
+# callback, because that is what the host does too.
+fn apply_builtin(name, args, st) {
+  let ar = get(arities, name)
+  let ok = if ar == -1 { len(args) == 1 or len(args) == 2 }
+    else { len(args) == ar }
+  if not ok {
+    @{v: mkb(miss (name + " arity mismatch: got " + str(len(args)) + " args"),
+             "call " + name, args),
+      st: st}
+  }
+  else if name == "map" {
+    if missed((args[0]).v) or missed((args[1]).v) {
+      # a propagated arg-miss is the host's merge_miss("builtin", name),
+      # not a `map` node (round 24 — found by the why-shape probe's first
+      # full campaign)
+      @{v: mkb(map((args[0]).v, (args[1]).v), "builtin map", args), st: st}
+    }
+    else if not is_list((args[1]).v) {
+      @{v: mkb(miss ("map needs a list, got " + str(strip(args[1]))),
+               "map", args),
+        st: st}
+    }
+    else {
+      let r = guest_map(args[0], (args[1]).v, 0, [], st)
+      # ins mirror the host's curated inputs: map records the LIST only,
+      # not the mapping fn (round 20, found by the why-shape probe)
+      @{v: mkb(r.v, "map", [args[1]]), st: r.st}
+    }
+  }
+  else if name == "filter" {
+    if missed((args[0]).v) or missed((args[1]).v) {
+      @{v: mkb(filter((args[0]).v, (args[1]).v), "builtin filter", args),
+        st: st}
+    }
+    else if not is_list((args[1]).v) {
+      @{v: mkb(miss ("filter needs a list, got " + str(strip(args[1]))),
+               "filter", args),
+        st: st}
+    }
+    else {
+      let r = guest_filter(args[0], (args[1]).v, 0, [], st)
+      @{v: mkb(r.v, "filter", [args[1]]), st: r.st}
+    }
+  }
+  else if name == "fold" {
+    if missed((args[0]).v) or missed((args[1]).v) or missed((args[2]).v) {
+      @{v: mkb(fold((args[0]).v, (args[1]).v, (args[2]).v), "builtin fold",
+               args),
+        st: st}
+    }
+    else if not is_list((args[2]).v) {
+      @{v: mkb(miss ("fold needs a list, got " + str(strip(args[2]))),
+               "fold", args),
+        st: st}
+    }
+    else {
+      let r = guest_fold(args[0], args[1], (args[2]).v, 0, st)
+      # host fold node inputs: (final accumulator, list)
+      @{v: mkb((r.v).v, "fold", [r.v, args[2]]), st: r.st}
+    }
+  }
+  else if name == "find" {
+    if missed((args[0]).v) or missed((args[1]).v) {
+      @{v: mkb(find((args[0]).v, (args[1]).v), "builtin find", args), st: st}
+    }
+    else if not is_list((args[1]).v) {
+      @{v: mkb(miss ("find needs a list, got " + str(strip(args[1]))),
+               "find", args),
+        st: st}
+    }
+    else { guest_find(args[0], (args[1]).v, 0, st) }
+  }
+  else if name == "get" {
+    if is_callable((args[0]).v) {
+      @{v: mkb(miss "get of a function", "get", args), st: st}
+    }
+    else {
+      # host mirroring (round 24): only KEY-side trouble is get's own node;
+      # record-side misses (missed record, non-record, absent field) are
+      # _field's — get(r, "a") and r.a are indistinguishable node for node
+      let nm = (args[1]).v
+      let r0 = get((args[0]).v, nm)
+      let keybad = missed(nm) or missed(nm + "")
+      @{v: if missed(r0) {
+             if keybad { mkb(r0, "get", [args[1], args[0]]) }
+             else { mkb(r0, "field", [args[0]]) }
+           } else { r0 },
+        st: st}
+    }
+  }
+  else {
+    let p = apply_host_builtin(name, args)
+    # element ops mirror the host exactly: range items are `range` leaves,
+    # keys are `key`, reasons are `reason` (round 20 — the why-shape probe
+    # caught these labelled "literal", an op the host never performed here)
+    let p2 = if missed(p) { p }
+      else if name == "range" { map(fn(x) { mkb(x, "range", []) }, p) }
+      else if name == "keys" { map(fn(x) { mkb(x, "key", []) }, p) }
+      else if name == "reasons" { map(fn(x) { mkb(x, "reason", []) }, p) }
+      else { p }
+    # a PROPAGATED miss — a miss among the arguments the host checks first
+    # (`_propagate`) — is the host's merge_miss("builtin", name): op
+    # "builtin", inputs = the checked arguments. The higher-order builtins
+    # above mirrored this since round 24; the plain ones did not (round 30
+    # — the why-shape probe reported `len`/`merge` on misses as guest-only
+    # ops). `put` checks (record, key) only: its value may be a miss.
+    let pargs = if name == "put" { [args[0], args[1]] } else { args }
+    let propagated = contains(propagating, name) and
+      not missed(find(fn(a) { missed(a.v) }, pargs))
+    # curated ins where the host drops an argument's derivation: put keeps
+    # (record, value) but not the key; note keeps only the noted value
+    let ins2 = if propagated { pargs }
+      else if name == "put" { [args[0], args[2]] }
+      else if name == "note" { [args[1]] }
+      else { args }
+    let o = if propagated { "builtin" } else { name }
+    @{v: mkb(p2, o, ins2), st: st}
+  }
+}
+
+fn apply_host_builtin(name, args) {
+  let a0 = (args[0]).v
+  # guest closures/builtin refs are ordinary records under the hood, but the
+  # HOST's functions are opaque: len/keys/put/merge on a function miss.
+  # Guard the record-piercing builtins so the guest is opaque too
+  # (found by the round-17 guest-differential fuzzer: len(fn) was 4).
+  if is_callable(a0) and (name == "len" or name == "keys" or
+                          name == "put" or name == "merge" or name == "has") {
+    miss (name + " of a function")
+  }
+  else if name == "merge" and is_callable((args[1]).v) { miss "merge of a function" }
+  else if name == "contains" and is_callable((args[1]).v) {
+    miss "cannot compare functions"
+  }
+  else if name == "print" { print(strip(args[0])) }
+  else if name == "len" { len(a0) }
+  else if name == "str" { str(strip(args[0])) }
+  else if name == "num" { num(a0) }
+  else if name == "abs" { abs(a0) }
+  else if name == "sqrt" { sqrt(a0) }
+  else if name == "missed" { missed(a0) }
+  else if name == "reasons" { reasons(a0) }
+  else if name == "keys" { keys(a0) }
+  else if name == "range" {
+    if len(args) == 1 { range(a0) } else { range(a0, (args[1]).v) }
+  }
+  else if name == "push" { push(a0, args[1]) }
+  else if name == "note" { note(a0, (args[1]).v) }
+  else if name == "contains" { contains(strip(args[0]), strip(args[1])) }
+  else if name == "join" { join(strip(args[0]), (args[1]).v) }
+  else if name == "merge" { merge(a0, (args[1]).v) }
+  else if name == "put" { put(a0, (args[1]).v, args[2]) }
+  # v0.6: presence check — field VALUES are boxes but has only reads keys,
+  # so the host builtin applies directly (guard above keeps closures opaque)
+  else if name == "has" { has(a0, (args[1]).v) }
+  else { miss ("builtin '" + name + "' is not implemented in the guest") }
+}
+
+fn guest_map(f, xs, i, acc, st) {
+  if i >= len(xs) { @{v: acc, st: st} }
+  else {
+    let r = apply(f, [xs[i]], st)
+    guest_map(f, xs, i + 1, push(acc, r.v), r.st)
+  }
+}
+
+fn guest_filter(f, xs, i, acc, st) {
+  if i >= len(xs) { @{v: acc, st: st} }
+  else {
+    let r = apply(f, [xs[i]], st)
+    if missed((r.v).v) { @{v: (r.v).v and true, st: r.st} }
+    else if not is_bool((r.v).v) {
+      @{v: miss "filter predicate must return true/false", st: r.st}
+    }
+    else if (r.v).v { guest_filter(f, xs, i + 1, push(acc, xs[i]), r.st) }
+    else { guest_filter(f, xs, i + 1, acc, r.st) }
+  }
+}
+
+fn guest_fold(f, acc, xs, i, st) {
+  if i >= len(xs) { @{v: acc, st: st} }
+  else {
+    let r = apply(f, [acc, xs[i]], st)
+    guest_fold(f, r.v, xs, i + 1, r.st)
+  }
+}
+
+fn guest_find(f, xs, i, st) {
+  if i >= len(xs) {
+    @{v: mkb(miss "find: no element matched", "find", []), st: st}
+  }
+  else {
+    let r = apply(f, [xs[i]], st)
+    if missed((r.v).v) { @{v: mkb((r.v).v and true, "find", [r.v]), st: r.st} }
+    else if not is_bool((r.v).v) {
+      @{v: mkb(miss "find predicate must return true/false", "find", [r.v]),
+        st: r.st}
+    }
+    else if (r.v).v { @{v: xs[i], st: r.st} }
+    else { guest_find(f, xs, i + 1, r.st) }
+  }
+}
+
+fn eval_index(node, env, st) {
+  let o = eval(node.obj, env, st)
+  let ix = eval(node.index, env, o.st)
+  let raw = ((o.v).v)[(ix.v).v]
+  let b = if missed(raw) { mkb(raw, "index", [o.v, ix.v]) }
+    else if is_list((o.v).v) { raw }
+    else { mkb(raw, "index", [o.v, ix.v]) }
+  @{v: b, st: ix.st}
+}
+
+fn eval_field(node, env, st) {
+  let o = eval(node.obj, env, st)
+  if is_callable((o.v).v) {
+    @{v: mkb(miss ("cannot access ." + node.name + " on a function"),
+             "field ." + node.name, [o.v]),
+      st: o.st}
+  }
+  else {
+    let raw = get((o.v).v, node.name)
+    @{v: if missed(raw) { mkb(raw, "field ." + node.name, [o.v]) } else { raw },
+      st: o.st}
+  }
+}
+
+# ---- driver -----------------------------------------------------------------
+fn eval_program(ast, st) {
+  let a = alloc(st)
+  exec_stmts(ast.stmts, 0, [a.fid, "f0"], a.st,
+             mkb(miss "empty program", "program", []))
+}
+
+fn run_src(src) {
+  let ast = parse_whence(src)
+  if missed(ast) { @{v: ast, checks: [], parse_error: true} }
+  else {
+    let r = eval_program(ast, new_store())
+    @{v: strip(r.v), checks: r.st.checks, parse_error: false}
+  }
+}
+
+# run_src_p keeps the boxes: v is the final statement's provenance node
+fn run_src_p(src) {
+  let ast = parse_whence(src)
+  if missed(ast) { @{v: mkb(ast, "parse", []), checks: [], parse_error: true} }
+  else {
+    let r = eval_program(ast, new_store())
+    @{v: r.v, checks: r.st.checks, parse_error: false}
+  }
+}
+
+fn gv(src) { (run_src(src)).v }
+fn gp(src) { (run_src_p(src)).v }
+
+# ==== SELF-TESTS (tests/test_self_eval.py strips everything below) ===========
+
+check "guest arithmetic": gv("let result = 1 + 2 * 3") == 7
+check "guest parens": gv("(1 + 2) * 3") == 9
+check "guest float division": gv("7 / 2") == 3.5
+check "guest string concat": gv("\"a\" + \"b\"") == "ab"
+check "guest if": gv("if 2 > 1 { \"yes\" } else { \"no\" }") == "yes"
+check "guest else-if chain":
+  gv("let x = 0\nif x > 0 { \"pos\" } else if x < 0 { \"neg\" } else { \"zero\" }") == "zero"
+check "guest block scoping (inner shadow leaves outer alone)":
+  gv("let x = 1\nlet y = if true { let x = 2\nx } else { 0 }\nx + y") == 3
+
+check "guest recursion (fib 10)":
+  gv("fn fib(n) { if n < 2 { n } else { fib(n - 1) + fib(n - 2) } }\nfib(10)") == 55
+check "guest mutual recursion":
+  gv("fn even(n) { if n == 0 { true } else { odd(n - 1) } }\nfn odd(n) { if n == 0 { false } else { even(n - 1) } }\neven(8)") == true
+check "guest closures capture their environment":
+  gv("fn adder(a) { fn(b) { a + b } }\nlet add3 = adder(3)\nadd3(4)") == 7
+check "guest late binding: a body may call a sibling defined later":
+  gv("fn a() { b() }\nfn b() { 41 }\na() + 1") == 42
+check "guest late binding is call-time: calling BEFORE the sibling exists misses":
+  missed(gv("fn a() { b() }\nlet r = a()\nfn b() { 1 }\nr"))
+
+check "guest map": gv("map(fn(x) { x * x }, range(1, 5))") == [1, 4, 9, 16]
+check "guest filter": gv("filter(fn(x) { x % 2 == 0 }, range(1, 7))") == [2, 4, 6]
+check "guest fold": gv("fold(fn(a, x) { a + x }, 0, range(1, 11))") == 55
+check "guest find": gv("find(fn(x) { x > 2 }, [1, 2, 3, 4])") == 3
+check "guest builtin as a value": gv("map(missed, [1, num(\"x\")])") == [false, true]
+
+check "guest records": gv("let r = @{name: \"Ada\", age: 36}\nr.age + 1") == 37
+check "guest get/put": gv("get(put(@{}, \"k\", 5), \"k\")") == 5
+check "guest has present/absent (v0.6)":
+  gv("let r = @{a: 1}\n[has(r, \"a\"), has(r, \"b\")]") == [true, false]
+check "guest has is presence, not readability":
+  gv("has(put(@{}, \"a\", num(\"x\")), \"a\")") == true
+check "guest has keeps closures opaque":
+  missed(gv("fn f(x) { x }\nhas(f, \"body\")"))
+check "guest lists": gv("let xs = push([1, 2], 3)\nxs[2] + len(xs)") == 6
+check "guest strings": gv("join(map(str, range(1, 4)), \"-\")") == "1-2-3"
+
+check "guest miss propagates through +": missed(gv("num(\"3O\") + 1"))
+check "guest rescue recovers": gv("num(\"3O\") rescue 42") == 42
+check "guest unbound name misses": missed(gv("nope + 1"))
+check "guest unbound reason names the name":
+  contains(str(gv("nope + 1")), "unbound name 'nope'")
+check "guest division by zero misses": missed(gv("1 / 0"))
+check "guest strict if rejects 0": missed(gv("if 1 { 2 } else { 3 }"))
+check "guest calling a number misses": missed(gv("let f = 3\nf(1)"))
+check "guest arity mismatch misses": missed(gv("fn f(a, b) { a }\nf(1)"))
+check "guest == on functions misses": missed(gv("fn f(x) { x }\nf == f"))
+check "guest short-circuit and skips the right":
+  gv("false and num(\"3O\") == 1") == false
+check "guest miss literal": missed(gv("miss \"deliberate\""))
+check "guest miss argument still runs the body (host does too)":
+  gv("fn f(a) { 7 }\nf(num(\"3O\"))") == 7
+
+# --- the guest runs the host's own check statements --------------------------
+let rep = run_src("check \"good\": 1 + 1 == 2\ncheck \"bad\": 1 == 2\n0")
+check "guest check report has two entries": len(rep.checks) == 2
+check "guest passing check recorded":
+  (rep.checks[0]).label == "good" and (rep.checks[0]).pass == true
+check "guest failing check recorded": (rep.checks[1]).pass == false
+
+# --- two levels of interpretation, one blame trail ---------------------------
+let sick = gv("let rows = [\"12\", \"3O\", \"7\"]\nfold(fn(a, r) { a + num(r) }, 0, rows)")
+check "a typo'd row poisons the guest fold": missed(sick)
+check "the reason survives both levels": contains(str(sick), "cannot parse")
+check "host blame() reaches into the guest run": len(blame(sick)) > 0
+
+# --- parse errors are values too ----------------------------------------------
+check "guest parse error is a miss": missed((run_src("(1 + 2")).v)
+check "guest parse error names the expectation":
+  contains(str((run_src("(1 + 2")).v), "expected ')'")
+check "parse_error flag set": (run_src("(1 + 2")).parse_error == true
+
+# --- guest functions are opaque, exactly like host functions (round 17) ------
+check "len of a guest closure misses": missed(gv("fn f(x) { x }\nlen(f)"))
+check "keys of a guest closure misses": missed(gv("fn f(x) { x }\nkeys(f)"))
+check "field access on a guest closure misses": missed(gv("fn f(x) { x }\nf.params"))
+check "merge with a guest closure misses": missed(gv("fn f(x) { x }\nmerge(@{a: 1}, f)"))
+
+# ==== GUEST-LEVEL PROVENANCE (self-hosting round 5) ==========================
+# A guest value is its provenance node. The library can read the box graph
+# directly (gp); a guest PROGRAM reads its own derivation through `why`,
+# which reifies the graph into ordinary records — the language's one idea,
+# applied to itself.
+
+let pw = gp("let x = 2 + 3\nlet y = x * 10\ny")
+check "guest value is its provenance node": pw.op == "let y"
+check "guest derivation input is the multiply": (pw.ins[0]).op == "*"
+check "pass-through: reading x keeps its binding node":
+  ((pw.ins[0]).ins[0]).op == "let x"
+check "the binding's input is the plus": (((pw.ins[0]).ins[0]).ins[0]).op == "+"
+check "guest literals sit at the leaves":
+  ((((pw.ins[0]).ins[0]).ins[0]).ins[0]).op == "literal"
+
+let pc = gp("fn double(n) { n + n }\ndouble(4)")
+check "guest call node names the guest function": pc.op == "call double"
+check "the call's input is the body result": (pc.ins[0]).op == "+"
+check "params bind through arg nodes": ((pc.ins[0]).ins[0]).op == "arg n"
+
+let pi = gp("if 2 > 1 { \"yes\" } else { \"no\" }")
+check "guest if records which branch ran": pi.op == "if took then-branch"
+check "guest if keeps the condition": (pi.ins[1]).op == ">"
+
+# `why` inside the guest: the derivation as guest DATA (records op/v/ins)
+check "guest why is guest data": gv("let x = 2 + 3\n(why x).op") == "let x"
+check "guest why exposes the payload": gv("let x = 2 + 3\n(why x).v") == 5
+check "guest why nests": gv("let x = 2 + 3\n((why x).ins[0]).op") == "+"
+check "guest snip prunes guest history":
+  gv("let x = snip (2 + 3)\nlen(((why x).ins[0]).ins)") == 0
+check "guest why is budget-capped, not divergent":
+  not missed(gv("let big = fold(fn(a, x) { a + x }, 0, range(100))\n(why big).op"))
+
+# --- the flagship: guest-level blame, written IN the guest -------------------
+# origin() walks the why-data to the node that CREATED the miss (its value
+# is a miss but no input's is) — the host's blame(), as three lines of
+# interpreted guest code traversing its own derivation.
+let blame_src = "fn origin(w) { let bad = find(fn(i) { missed(i.v) }, w.ins)\n" +
+  "if missed(bad) { w } else { origin(bad) } }\n" +
+  "let total = fold(fn(a, r) { a + num(r) }, 0, [\"12\", \"3O\", \"7\"])\n" +
+  "let o = origin(why total)\n" +
+  "o.op + \": \" + reasons(o.v)[0]"
+let verdict = gv(blame_src)
+check "guest blame names the origin op": contains(verdict, "num:")
+check "guest blame reads the origin reason": contains(verdict, "cannot parse")
+
+print("self_eval.lang: source -> tokens -> AST -> value -> provenance, all in Whence; all checks above passed")

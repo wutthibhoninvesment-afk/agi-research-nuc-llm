@@ -1,0 +1,29 @@
+# deep.lang — recursion depth is a language tunable, not a host-stack limit
+#
+# The evaluator is trampolined: Whence calls do not consume Python stack.
+# Depth is capped by `max_depth` (default 20000, `run.py --max-depth N`), and
+# exceeding it is a miss like any other error — the program keeps running.
+
+fn count(n) { if n == 0 { 0 } else { 1 + count(n - 1) } }
+let deep = count(15000)
+print("count(15000) = " + str(deep))
+check "15000-deep recursion works": deep == 15000
+
+fn even(n) { if n == 0 { true } else { odd(n - 1) } }
+fn odd(n) { if n == 0 { false } else { even(n - 1) } }
+check "mutual recursion 10001 deep": even(10001) == false
+
+# a provenance tree this deep is still rendered in a handful of lines
+print(why count(2000))
+
+fn loop(n) { 1 + loop(n + 1) }        # NOT a tail call: nests until the cap
+let runaway = loop(0)
+print(runaway)
+check "runaway recursion is a miss, not a crash": missed(runaway)
+check "the miss says how deep it got": contains(str(runaway), "depth 20000")
+check "the program continues after it": count(10) == 10
+
+# v0.3: a call in tail position needs no frame at all, so a tail loop runs
+# far past max_depth (see tco.lang). `--max-iter N` bounds those instead.
+fn count_tail(n, acc) { if n == 0 { acc } else { count_tail(n - 1, acc + 1) } }
+check "a tail loop runs 10x past max_depth": count_tail(200000, 0) == 200000

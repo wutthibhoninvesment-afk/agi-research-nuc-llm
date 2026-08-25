@@ -1,0 +1,69 @@
+{
+ "programs": 400,
+ "seconds": 520.29,
+ "oracles": [
+  "self_eval"
+ ],
+ "counts": {
+  "self_eval/ok": 361,
+  "self_eval/parse_error": 11,
+  "self_eval/timeout": 20,
+  "self_eval/mismatch": 8
+ },
+ "findings": [
+  {
+   "signature": [
+    "mismatch",
+    "self_eval",
+    "why_shape v1"
+   ],
+   "seed": 91000350,
+   "src": "let v1 = [len((zz or q))]\nlet v2 = true\ncheck \"q_v1\": v1 == v1\n(v2 + v2) rescue 0\nlet __result = @{v1: (v1 rescue (if contains(join(reasons(v1), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" })), v2: (v2 rescue (if contains(join(reasons(v2), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" }))}\n",
+   "outcome": {
+    "kind": "mismatch",
+    "oracle": "self_eval",
+    "detail": "why_shape v1\nguest-only ops: ['len']\nhost ops: ['builtin', 'let', 'list', 'name', 'or']",
+    "exc_type": "",
+    "frames": [],
+    "seconds": 0.1642
+   },
+   "minimized": "let v1 = [len((zz or q))]\n"
+  },
+  {
+   "signature": [
+    "mismatch",
+    "self_eval",
+    "why_shape v3"
+   ],
+   "seed": 91000446,
+   "src": "fn fib(n) { if n < 2 { n } else { fib(n - 1) + fib(n - 2) } }\nlet fibv = fib(5)\ncheck \"c1\": -fn() { (get(fibv, \" 7 \") or -fib) }\nlet v2 = (not fib(true).name and keys(2.0).a)\nlet v3 = fib((put(1, v2, fib) rescue -2.0))\nlet v4 = @{x: fib, a: []}\nv4\nfn f5(p6, p7) { fibv.x }\nfn f8() { let t9 = note(\"k\", note(\"note\", 0))\n  sqrt }\ncheck \"p_v4\": missed(v4)\ncheck \"r_fibv\": (len(fibv) rescue 0) >= 0\ncheck \"q_v3\": v3 == v3\nlet __result = @{fibv: (fibv rescue (if contains(join(reasons(fibv), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" })), v2: (v2 rescue (if contains(join(reasons(v2), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" })), v3: (v3 rescue (if contains(join(reasons(v3), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" })), v4: (v4 rescue (if contains(join(reasons(v4), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" })), fib: (fib rescue (if contains(join(reasons(fib), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" })), f5: (f5 rescue (if contains(join(reasons(f5), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" })), f8: (f8 rescue (if contains(join(reasons(f8), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" }))}\n",
+   "outcome": {
+    "kind": "mismatch",
+    "oracle": "self_eval",
+    "detail": "why_shape v3\nguest-only ops: ['fn', 'put']\nhost ops: ['-', '<', 'and', 'arg', 'builtin', 'call', 'field', 'if', 'let', 'literal', 'not', 'rescue']",
+    "exc_type": "",
+    "frames": [],
+    "seconds": 1.5583
+   },
+   "minimized": null
+  },
+  {
+   "signature": [
+    "mismatch",
+    "self_eval",
+    "why_shape v2"
+   ],
+   "seed": 91000461,
+   "src": "check \"c1\": num((1 rescue 10), (zz - \"let a\"))[-1]\nlet v2 = [if map(fn(q3) { \"1_000\" }, [0, zz]) { (if \"-inf\" { 100.25 } else { undefined_name } == merge(q, \"inf\")) } else { undefined_name }, merge(3[\"a\"], [])]\nlet v5 = if (v2 / 1.b) { (-if v2 { 0 } else { v2 } <= @{x: @{b: 1}, c: fn(q6) { true }}) } else { v2 }\nfn f7(p8, p9) { let t10 = ((v2 <= @{b: v2, name: true, v: f7}) > 1)\n  (((p8 >= v5) != true) < if true { (\"42\" % 100.25) } else { (2 > \"true\") }) }\ncheck \"r_v2\": (len(v2) rescue 0) >= 0\ncheck \"p_v5\": missed(v5)\nlet __result = @{v2: (v2 rescue (if contains(join(reasons(v2), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" })), v5: (v5 rescue (if contains(join(reasons(v5), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" })), f7: (f7 rescue (if contains(join(reasons(f7), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" }))}\n",
+   "outcome": {
+    "kind": "mismatch",
+    "oracle": "self_eval",
+    "detail": "why_shape v2\nguest-only ops: ['merge']\nhost ops: ['builtin', 'if', 'index', 'let', 'list', 'literal', 'map', 'name']",
+    "exc_type": "",
+    "frames": [],
+    "seconds": 0.4451
+   },
+   "minimized": "let v2 = [if map(fn(q3) { \"1_000\" }, [0, zz]) { (if \"-inf\" { 100.25 } else { undefined_name } == merge(q, \"inf\")) } else { undefined_name }, merge(0[\"a\"], [])]\nfn f7(p8, p9) { let t10 = ((v2 <= @{b: v2, name: true, v: f7}) > 0)\n  (((p8 >= v5) != true) < if true { (\"0\" % 100.25) } else { (0 > \"true\") }) }\n"
+  }
+ ]
+}

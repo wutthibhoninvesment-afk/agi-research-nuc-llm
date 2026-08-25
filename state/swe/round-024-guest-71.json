@@ -1,0 +1,87 @@
+{
+ "programs": 400,
+ "seconds": 322.67,
+ "oracles": [
+  "self_eval"
+ ],
+ "counts": {
+  "self_eval/ok": 370,
+  "self_eval/mismatch": 6,
+  "self_eval/parse_error": 11,
+  "self_eval/timeout": 13
+ },
+ "findings": [
+  {
+   "signature": [
+    "mismatch",
+    "self_eval",
+    "why_shape v3"
+   ],
+   "seed": 71000235,
+   "src": "let v1 = len(([] < abs(0)))\nlet v3 = str(v1)\nlet v4 = 10\nlet v5 = 10\ncheck \"p_v2\": missed(v2)\ncontains([v1], v1)\ncontains([v5], v5)\nlet __result = @{v1: (v1 rescue (if contains(join(reasons(v1), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" })), v2: (v2 rescue (if contains(join(reasons(v2), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" })), v3: (v3 rescue (if contains(join(reasons(v3), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" })), v4: (v4 rescue (if contains(join(reasons(v4), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" })), v5: (v5 rescue (if contains(join(reasons(v5), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" }))}\n",
+   "outcome": {
+    "kind": "mismatch",
+    "oracle": "self_eval",
+    "detail": "why_shape v3\nguest-only ops: ['len']\nhost ops: ['<', 'abs', 'builtin', 'let', 'list', 'literal', 'str']",
+    "exc_type": "",
+    "frames": [],
+    "seconds": 0.2424
+   },
+   "minimized": "let v1 = len(([] < abs(0)))\nlet v3 = str(v1)\n"
+  },
+  {
+   "signature": [
+    "mismatch",
+    "self_eval",
+    "why_shape v2"
+   ],
+   "seed": 71000262,
+   "src": "let v1 = (q or true)\nlet v2 = @{a: ((0 <= (false rescue 3)) < -0.c), v: put(3, (v1 + 0), not \"3O\"), x: len(v1)[v1.name]}\nlet v3 = (v1 - [10, 0.0])\nmiss \"boom\"\nlet v8 = @{v: v3, name: filter(fn(q9) { 100 }, range(1))}.v\ncheck \"q_v3\": v3 == v3\n(v8 + v8) rescue 0\ncheck \"q_v2\": v2 == v2\nlet __result = @{v1: (v1 rescue (if contains(join(reasons(v1), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" })), v2: (v2 rescue (if contains(join(reasons(v2), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" })), v3: (v3 rescue (if contains(join(reasons(v3), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" })), v8: (v8 rescue (if contains(join(reasons(v8), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" })), f4: (f4 rescue (if contains(join(reasons(f4), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" }))}\n",
+   "outcome": {
+    "kind": "mismatch",
+    "oracle": "self_eval",
+    "detail": "why_shape v2\nguest-only ops: ['len', 'not', 'put']\nhost ops: ['+', '-', '<', '<=', 'builtin', 'field', 'index', 'let', 'literal', 'name', 'or', 'record']",
+    "exc_type": "",
+    "frames": [],
+    "seconds": 0.8593
+   },
+   "minimized": "let v2 = @{a: ((0 <= (false rescue 0)) < -0.c), v: put(0, (v1 + 0), not \"3O\"), x: len(v1)[v1.name]}\n"
+  },
+  {
+   "signature": [
+    "mismatch",
+    "self_eval",
+    "why_shape v5"
+   ],
+   "seed": 71000292,
+   "src": "let v3 = 1.5\nlet v5 = @{c: merge((10 rescue \"call f\"), not v3), v: put(0, 2, v3.name), x: contains(v2, true).v}\ncheck \"c6\": -merge(v3, (true rescue 10), [1, 100.25])\ncheck \"q_v2\": v2 == v2\n(v1 + v1) rescue 0\nstr(v3)\nlet __result = @{v1: (v1 rescue (if contains(join(reasons(v1), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" })), v2: (v2 rescue (if contains(join(reasons(v2), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" })), v3: (v3 rescue (if contains(join(reasons(v3), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" })), v5: (v5 rescue (if contains(join(reasons(v5), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" }))}\n",
+   "outcome": {
+    "kind": "mismatch",
+    "oracle": "self_eval",
+    "detail": "why_shape v5\nguest-only ops: ['contains', 'merge']\nhost ops: ['builtin', 'field', 'let', 'literal', 'name', 'not', 'put', 'record']",
+    "exc_type": "",
+    "frames": [],
+    "seconds": 0.2072
+   },
+   "minimized": "let v5 = @{c: merge((0 rescue \"call f\"), not v3), v: put(0, 0, v3.name), x: contains(v2, true).v}\n"
+  },
+  {
+   "signature": [
+    "mismatch",
+    "self_eval",
+    "why_shape v7"
+   ],
+   "seed": 71000307,
+   "src": "fn f2(p3, p4) { let t5 = \"call f\"\n  f2 }\nlet v6 = num((false >= \"1e5\").b)\nlet v7 = @{b: not 100.25, v: v6, x: get(\"-inf\", \"name\")}\n(f2(100.25.x, v6) != ((\"a\" >= false) / (1 > f8)).b)\ncontains([v7], v7)\n(v6 + v6) rescue 0\nlet __result = @{v6: (v6 rescue (if contains(join(reasons(v6), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" })), v7: (v7 rescue (if contains(join(reasons(v7), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" })), f2: (f2 rescue (if contains(join(reasons(f2), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" })), f8: (f8 rescue (if contains(join(reasons(f8), \"|\"), \"depth\") { \"&DEPTHMISS&\" } else { \"&MISS&\" }))}\n",
+   "outcome": {
+    "kind": "mismatch",
+    "oracle": "self_eval",
+    "detail": "why_shape v7\nguest-only ops: ['get', 'num']\nhost ops: ['>=', 'builtin', 'field', 'let', 'literal', 'not', 'record']",
+    "exc_type": "",
+    "frames": [],
+    "seconds": 0.1928
+   },
+   "minimized": "let v7 = @{b: not 100.25, v: v6, x: get(\"-inf\", \"name\")}\n"
+  }
+ ]
+}

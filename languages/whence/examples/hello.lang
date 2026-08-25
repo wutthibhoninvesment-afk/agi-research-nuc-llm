@@ -1,0 +1,19 @@
+# hello.lang — Whence basics
+
+let greeting = "hello, " + "whence"
+print(greeting)
+
+fn square(x) { x * x }
+let numbers = range(1, 6)            # [1, 2, 3, 4, 5]
+let squares = map(square, numbers)
+print(squares)
+
+fn add(a, b) { a + b }
+let total = fold(add, 0, squares)
+print("sum of squares: " + str(total))
+
+let verdict = if total > 50 { "big" } else { "small" }
+print(verdict)
+
+check "sum of squares": total == 55
+check "verdict": verdict == "big"

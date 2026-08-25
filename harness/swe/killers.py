@@ -1,0 +1,287 @@
+"""Differential test generation: turn surviving mutants into tests.
+
+A mutant survived the suite, so no existing test distinguishes it from the
+original. But a *random program* might: run a corpus of generated programs
+through both interpreters and compare canonical behaviour (printed output,
+check results, the rendering of every top-level binding). The first program
+that differs is a killer; shrink it while the difference persists; pin the
+ORIGINAL behaviour as a pytest. Re-running mutation testing afterwards must
+show that mutant killed — that is the verification.
+
+A mutant for which the corpus finds no difference is reported as
+`no_killer` — usually an equivalent mutant (e.g. `>= 0` vs `> 0` on a value
+that is never 0), sometimes a corpus gap. Both are stated, never hidden.
+
+The canonical-behaviour helper is defined ONCE as source text: it is exec'd
+here and written verbatim into the generated test file, so generator and
+tests can never disagree about what "behaviour" means.
+"""
+
+import importlib.util
+import json
+import os
+import re
+import signal
+import sys
+import tempfile
+import time
+
+from .fuzz import ProgramGen, shrink, WHENCE_ROOT
+from .mutation import Mutant, _copy_project
+
+CANONICAL_HELPER_SRC = '''
+def canonical(src, Interpreter, Env, LexError, ParseError, full_show, max_depth=500):
+    """Behaviour of a program as plain data: kind, printed lines, check
+    results, and the rendering of every top-level binding."""
+    out = []
+    interp = Interpreter(out=out.append, max_depth=max_depth)
+    try:
+        from_parse = __import__(Interpreter.__module__.rsplit(".", 1)[0] + ".parser",
+                                fromlist=["parse"])
+        program = from_parse.parse(src)
+    except (LexError, ParseError) as e:
+        return {"kind": type(e).__name__, "message": str(e)}
+    env = Env(interp.globals)
+    try:
+        for stmt in program.stmts:
+            interp.exec_stmt(stmt, env)
+    except Exception as e:  # noqa: BLE001 — a crash is behaviour too
+        return {"kind": "crash", "exc": type(e).__name__, "out": out}
+    return {
+        "kind": "ok",
+        "out": out,
+        "checks": [[c["label"], c["ok"]] for c in interp.checks],
+        "vals": dict((k, full_show(v.payload)) for k, v in env.vars.items()),
+    }
+'''
+_ns = {}
+exec(CANONICAL_HELPER_SRC, _ns)
+canonical = _ns["canonical"]
+
+
+class _Timeout(Exception):
+    pass
+
+
+def _alarm(signum, frame):
+    raise _Timeout()
+
+
+def load_whence(root, tag):
+    """Import `<root>/whence` as an independently named package so several
+    variants (original + mutants) can coexist in one process."""
+    name = "whence_%s" % re.sub(r"\W", "_", tag)
+    for k in [k for k in sys.modules if k == name or k.startswith(name + ".")]:
+        del sys.modules[k]
+    pkg_dir = os.path.join(root, "whence")
+    spec = importlib.util.spec_from_file_location(
+        name, os.path.join(pkg_dir, "__init__.py"),
+        submodule_search_locations=[pkg_dir])
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod
+    spec.loader.exec_module(mod)
+    interp = importlib.import_module(name + ".interp")
+    lexer = importlib.import_module(name + ".lexer")
+    parser = importlib.import_module(name + ".parser")
+    values = importlib.import_module(name + ".values")
+    return {"Interpreter": interp.Interpreter, "Env": interp.Env,
+            "LexError": lexer.LexError, "ParseError": parser.ParseError,
+            "full_show": values.full_show, "name": name, "root": root}
+
+
+def behaviour(pkg, src, timeout_s=2.0, max_depth=500):
+    old = signal.signal(signal.SIGALRM, _alarm)
+    signal.setitimer(signal.ITIMER_REAL, timeout_s)
+    try:
+        return canonical(src, pkg["Interpreter"], pkg["Env"], pkg["LexError"],
+                         pkg["ParseError"], pkg["full_show"], max_depth=max_depth)
+    except _Timeout:
+        return {"kind": "timeout"}
+    except RecursionError:
+        return {"kind": "crash", "exc": "RecursionError"}
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, old)
+
+
+def corpus(seed=0, n=300, root=WHENCE_ROOT, include_examples=True):
+    """Programs to diff on: fuzz programs (light on stress templates so they
+    run fast) plus the checked-in examples."""
+    progs = []
+    if include_examples:
+        ex_dir = os.path.join(root, "examples")
+        for name in sorted(os.listdir(ex_dir)):
+            if name.endswith(".lang") and name != "deep.lang":   # deep.lang: 15k recursion
+                with open(os.path.join(ex_dir, name), encoding="utf-8") as f:
+                    progs.append(f.read())
+    for i in range(n):
+        progs.append(ProgramGen(seed * 7919 + i, stress_rate=0.15, max_depth=3).program())
+    return progs
+
+
+class Killer(object):
+    def __init__(self, mutant, program, expected, mutant_behaviour, tried, seconds):
+        self.mutant = mutant
+        self.program = program          # minimized killer source (None if none)
+        self.expected = expected        # original behaviour on `program`
+        self.mutant_behaviour = mutant_behaviour
+        self.tried = tried              # corpus programs examined
+        self.seconds = seconds
+
+    @property
+    def found(self):
+        return self.program is not None
+
+    def as_dict(self):
+        return {"mutant": self.mutant.id, "found": self.found, "tried": self.tried,
+                "seconds": round(self.seconds, 2), "program": self.program,
+                "expected": self.expected, "mutant_behaviour": self.mutant_behaviour}
+
+
+def find_killer(mutant, programs, original_pkg, project_root, orig_cache=None):
+    """Search `programs` for one whose behaviour differs under the mutant;
+    shrink it; return a Killer (found or not)."""
+    t0 = time.time()
+    tmp = tempfile.mkdtemp(prefix="kill-")
+    try:
+        dst = os.path.join(tmp, "proj")
+        _copy_project(project_root, dst)
+        with open(os.path.join(dst, mutant.path), "w", encoding="utf-8") as f:
+            f.write(mutant.source)
+        try:
+            mut_pkg = load_whence(dst, "mut_" + mutant.id)
+        except Exception as e:  # noqa: BLE001 — mutant fails to import: killed by import
+            return Killer(mutant, None, None, {"kind": "import_error", "exc": repr(e)},
+                          0, time.time() - t0)
+        orig_cache = orig_cache if orig_cache is not None else {}
+        for i, src in enumerate(programs):
+            if src not in orig_cache:
+                orig_cache[src] = behaviour(original_pkg, src)
+            expected = orig_cache[src]
+            if expected["kind"] == "timeout":
+                continue
+            got = behaviour(mut_pkg, src)
+            if got != expected:
+                def keep(cand):
+                    e = behaviour(original_pkg, cand)
+                    return e["kind"] != "timeout" and behaviour(mut_pkg, cand) != e
+                small = shrink(src, keep) or src
+                return Killer(mutant, small, behaviour(original_pkg, small),
+                              behaviour(mut_pkg, small), i + 1, time.time() - t0)
+        return Killer(mutant, None, None, None, len(programs), time.time() - t0)
+    finally:
+        import shutil
+        shutil.rmtree(tmp, ignore_errors=True)
+        name = "whence_" + re.sub(r"\W", "_", "mut_" + mutant.id)
+        for k in [k for k in sys.modules if k == name or k.startswith(name + ".")]:
+            del sys.modules[k]
+
+
+def _test_name(mutant_id):
+    return "test_kill_" + re.sub(r"\W+", "_", mutant_id).strip("_")
+
+
+TEST_HEADER = '''"""GENERATED by harness/swe/killers.py — do not edit by hand.
+
+Each test pins the behaviour of a program that distinguished the original
+interpreter from a mutant that the hand-written suite let survive. The
+docstring names the mutant (file:line:operator) and what it changed.
+"""
+
+from whence.interp import Interpreter, Env
+from whence.lexer import LexError
+from whence.parser import ParseError
+from whence.values import full_show
+
+''' + CANONICAL_HELPER_SRC + '''
+
+def run(src):
+    return canonical(src, Interpreter, Env, LexError, ParseError, full_show)
+
+'''
+
+
+def render_tests(killers, existing=""):
+    """Append one test per found killer to `existing` (or a fresh file)."""
+    body = existing if existing.strip() else TEST_HEADER
+    for k in killers:
+        if not k.found:
+            continue
+        name = _test_name(k.mutant.id)
+        if ("def %s(" % name) in body:
+            continue
+        body += (
+            "\n\ndef %s():\n"
+            '    """mutant %s: %s (line %d) — mutant gave %s"""\n'
+            "    src = %r\n"
+            "    assert run(src) == %r\n"
+            % (name, k.mutant.id, docstring_safe(k.mutant.description), k.mutant.lineno,
+               docstring_safe(json.dumps(k.mutant_behaviour)), k.program, k.expected))
+    return body
+
+
+def docstring_safe(text, limit=120):
+    """Make arbitrary text safe inside a triple-quoted docstring: no
+    backslashes (escape sequences), no double quotes (a trailing one fuses
+    with the closing triple), no newlines, bounded length."""
+    text = text.replace("\\", "/").replace('"', "'").replace("\n", " ").replace("\r", " ")
+    return text[:limit].rstrip()
+
+
+def generate_killers(mutants, project_root=WHENCE_ROOT, seed=0, corpus_n=300,
+                     on_result=None):
+    programs = corpus(seed, corpus_n, project_root)
+    original = load_whence(project_root, "orig")
+    cache = {}
+    out = []
+    for m in mutants:
+        k = find_killer(m, programs, original, project_root, cache)
+        out.append(k)
+        if on_result:
+            on_result(k)
+    return out
+
+
+def load_survivors(mutation_json):
+    with open(mutation_json) as f:
+        data = json.load(f)
+    return [d for d in data["mutants"] if d["status"] == "survived"]
+
+
+def rebuild_mutants(project_root, survivor_dicts):
+    """Regenerate Mutant objects (with source) for survivor records."""
+    from .mutation import generate
+    by_path = {}
+    for d in survivor_dicts:
+        by_path.setdefault(d["path"], []).append(d["id"])
+    out = []
+    for rel, ids in by_path.items():
+        with open(os.path.join(project_root, rel), encoding="utf-8") as f:
+            all_m = generate(f.read(), rel)
+        by_id = dict((m.id, m) for m in all_m)
+        for i in ids:
+            if i in by_id:
+                out.append(by_id[i])
+    return out
+
+
+if __name__ == "__main__":
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("mutation_json")
+    ap.add_argument("--project", default=WHENCE_ROOT)
+    ap.add_argument("--corpus", type=int, default=300)
+    ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--write", help="test file to create/append")
+    a = ap.parse_args()
+    ms = rebuild_mutants(a.project, load_survivors(a.mutation_json))
+    ks = generate_killers(ms, a.project, a.seed, a.corpus,
+                          on_result=lambda k: print("%-9s %s tried=%d %.1fs" % (
+                              "KILLER" if k.found else "no_killer", k.mutant.id, k.tried, k.seconds), flush=True))
+    found = [k for k in ks if k.found]
+    print("killers: %d/%d survivors now have a killing test" % (len(found), len(ks)))
+    if a.write:
+        existing = open(a.write).read() if os.path.exists(a.write) else ""
+        with open(a.write, "w") as f:
+            f.write(render_tests(ks, existing))
+        print("wrote", a.write)

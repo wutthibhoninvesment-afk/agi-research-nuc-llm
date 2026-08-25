@@ -1,0 +1,86 @@
+# diverge.lang — diff two histories and find the origin of the difference.
+#
+# `diverge(a, b)` walks the histories of two values in lockstep and returns
+# the steps where they FIRST disagree: a step whose inputs all matched but
+# whose result differs (kind "value" — e.g. a literal that changed), or a
+# place where the two computations have different shapes (kind "step" —
+# e.g. one run took the other branch). Differences downstream of an origin
+# are not reported: they are consequences, not causes.
+
+fn parse_qty(row) { note("qty of " + row.name, num(row.qty)) }
+fn add(a, b) { a + b }
+fn report(rows) { fold(add, 0, map(parse_qty, rows)) }
+
+let monday = report([
+  @{name: "alpha", qty: "10"},
+  @{name: "beta",  qty: "30"},
+  @{name: "gamma", qty: "5"}
+])
+let tuesday = report([
+  @{name: "alpha", qty: "10"},
+  @{name: "beta",  qty: "3O"},        # typo: letter O
+  @{name: "gamma", qty: "5"}
+])
+print("monday:  " + str(monday))
+print("tuesday: " + str(tuesday))
+
+# 1. same program, one input changed: the origin IS that input.
+let origins = diverge(monday, tuesday)
+check "exactly one origin of divergence": len(origins) == 1
+let o = origins[0]
+check "it is a value difference, not a shape difference": o.kind == "value"
+check "monday's side was the literal 30": o.a.value == "30"
+check "tuesday's side was the typo": o.b.value == "3O"
+print("first divergence: " + o.a.show + " (line " + str(o.a.line) +
+      ") became " + o.b.show + " (line " + str(o.b.line) + ")")
+
+# 2. same inputs, same program: no divergence at all.
+check "a value does not diverge from itself": len(diverge(monday, monday)) == 0
+let again = report([
+  @{name: "alpha", qty: "10"}, @{name: "beta", qty: "30"}, @{name: "gamma", qty: "5"}
+])
+check "nor from a rerun with the same inputs": len(diverge(monday, again)) == 0
+
+# 3. a changed branch: the origins are the argument that changed AND the
+#    branch literal that was picked instead — the `if` itself is downstream
+#    of both, so it is not reported. When the branches have different
+#    shapes (say `x` vs `[x]`) the branch shows up as kind "step".
+fn classify(n) { if n > 100 { "big" } else { "small" } }
+let a = classify(150)
+let b = classify(50)
+let d = diverge(a, b)
+print(map(fn(x) { x.kind + ": " + x.a.op + " " + x.a.show + " vs " + x.b.show }, d))
+check "the changed argument is reported": contains(map(fn(x) { x.b.show }, d), "50")
+check "the other branch's literal is reported":
+  contains(map(fn(x) { x.b.show }, d), "\"small\"")
+check "the if itself is downstream, not an origin": len(d) == 2
+fn shape(n) { if n > 0 { n } else { [n] } }
+check "differently shaped branches are a step divergence":
+  contains(map(fn(x) { x.kind }, diverge(shape(1), shape(0))), "step")
+
+# 4. `diverge` accepts `why` values and works on failures too.
+let bad1 = num("x")
+let bad2 = num("y")
+check "two different failures diverge at their inputs":
+  diverge(why bad1, why bad2)[0].a.value == "x"
+
+# 5. (v0.4) `contrast(a, b)` renders the two histories side by side, from the
+#    roots down to each origin, with the origin marked ▶ — the human view of
+#    what `diverge` returns as data.
+let side_by_side = contrast(monday, tuesday)
+print(side_by_side)
+check "contrast shows the origin pair on one line":
+  contains(side_by_side, "\"30\" ← literal") and
+  contains(side_by_side, "\"3O\" ← literal")
+check "contrast of equal histories says so": contrast(monday, again) == "no divergence"
+
+# 6. (v0.4) n-way: `diverge([r0, r1, ...])` compares every run with the
+#    first and tags each origin with `which` run diverged. Three days of
+#    reports, one bad row: exactly one origin, in run 1 (tuesday).
+let wednesday = report([
+  @{name: "alpha", qty: "10"}, @{name: "beta", qty: "30"}, @{name: "gamma", qty: "5"}
+])
+let week = diverge([monday, tuesday, wednesday])
+check "one origin across three runs": len(week) == 1
+check "it names the run that diverged": week[0].which == 1
+check "and the value it diverged to": week[0].b.value == "3O"
