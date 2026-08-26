@@ -16,9 +16,15 @@ Known facts (measured 2026-08-24, E1 full curve — /work/logs/nuc-bench.md):
 - deployment drift: systemd units qwen36-colibri/qwen36-toolproxy no longer
   exist; same engine runs as user processes (coli serve :8000, adapter :8080)
 - SSH: ssh -i ~/.ssh/id_ed25519_nuc jab@192.168.1.37 (key-based, works when
-  the box is up; DOWN on 2026-08-25 14:44 and 20:09 — ARP incomplete, i.e.
-  the box itself is off/asleep, not a routing problem; UP again round 124,
-  2026-08-25 ~16:11 UTC, uptime 3h13m — no fixed schedule observed yet)
+  the box is up AND the calling host is on the same LAN as the Mac; DOWN
+  on 2026-08-25 14:44 and 20:09 — ARP incomplete, i.e. the box itself is
+  off/asleep, not a routing problem; UP again round 124, 2026-08-25
+  ~16:11 UTC, uptime 3h13m — no fixed schedule observed yet). **Round 154:
+  also reachable from ANY tailnet host via
+  ssh -i ~/.ssh/id_ed25519 jab@100.78.44.111 (tailnet name `pgain-nuc`) —
+  use this path when working from an environment without LAN access to
+  192.168.1.37; port 8000/8080 are still 127.0.0.1-only, so bench/curl
+  calls to the engine must run ON the box either way.**
 - qwen36-colibri IS a systemd unit — a USER unit (`systemctl --user`), cgroup
   `user.slice/user-1000.slice/user@1000.service/app.slice/qwen36-colibri.service`
   (round 100); the "units no longer exist" line above was a scope error
@@ -180,6 +186,116 @@ Known facts (measured 2026-08-24, E1 full curve — /work/logs/nuc-bench.md):
   a fourth time (124/130/136/142) without sign-off; swap now within
   ~858 MB of exhausting the swapfile is a louder version of the existing
   RAM-FAIL argument, not a new independent one.
+
+## Round 154 addendum (2026-08-26, box UP — SAME boot as rounds 124/130/136/142, uptime 1d4h21m)
+
+- **New standing fact: pgain-nuc is reachable over Tailscale** at
+  100.78.44.111 (`ssh -i ~/.ssh/id_ed25519 jab@100.78.44.111`) from any
+  host on the tailnet, not only the Mac's LAN path (`192.168.1.37` via
+  `id_ed25519_nuc`). This round ran from a different environment entirely
+  (a cloud host with no LAN route to 192.168.1.37) and reached the box
+  anyway — the Tailscale path is the more robust one going forward and
+  doesn't depend on the Mac being present on the same network. Port 8000
+  is still bound to `127.0.0.1` only (not exposed on the tailnet), so
+  `bench.py`/curl calls to the engine must run ON the box over this SSH
+  link, same as rounds 136/142 already did ("bypassing the Mac tunnel").
+- **E4:** fifth live cgroup snapshot, ~14h after round 142's — swap
+  growth has *decelerated* an order of magnitude (round 142's 88-minute
+  burst implied ~1.82 GB/hour; 142→154 measured ~65-70 MB/hour over 14h)
+  and is now within ~100-150 MB of exhausting the 4 GiB swapfile
+  (3.84-3.97 GiB in use). Still no OOM kills anywhere in this ~28-hour
+  boot. First nonzero `/proc/pressure/memory` reading of the five
+  snapshots (avg10/avg60 ≈ 0.01-0.04, still tiny).
+- **Third decode-under-pressure point (n=3 now): 5.04 tok/s**, essentially
+  identical to round 142's 5.07 despite ~13x more swap (3.84 GiB vs 310.6
+  MB) — closes the question rounds 136/142 left open: decode tok/s is not
+  predicted by raw swap.current on this box; round 136's 4.30 reading
+  looks like the outlier, not the start of a trend. Prefill continues its
+  136→142→154 upward trend (5.23→6.60→6.98 tok/s), the opposite direction
+  a swap-degradation story would predict. Full tables + analysis:
+  `/work/logs/nuc-fast-lane.md` "Round 154 addendum"; raw bench output:
+  `state/bench-r154.json`/`.md`; knowledge:
+  `knowledge/round-154-nuc-e-fifth-snapshot-swap-plateau-decode-confirmed.md`.
+- **Still open, unchanged:** the E3 A/B and OLMoE NVMe check both still
+  need an operator-approved restart of the live service — box reachable a
+  fifth time (124/130/136/142/154) without sign-off. The near-exhausted
+  swapfile is a louder version of the existing RAM-FAIL argument, not
+  independent new evidence, and is reported (not acted on unilaterally).
+
+## Round 160 addendum (2026-08-26, box UP — SAME boot as rounds 124/130/136/142/154, uptime 1d5h49m)
+
+- **New: cgroup `memory.events` for `qwen36-colibri.service`** —
+  `max 989 oom 0 oom_kill 0` since boot start (~29.8h): the 30.0 GiB
+  ceiling has been hit and reclaimed through 989 times, **never once by
+  killing a process**. Quantifies with a hard counter what prior rounds
+  only inferred ("ceiling contact and swap are sequential, no OOM
+  found"). `memory.high` unset (no soft throttle before the hard limit).
+- **Swapfile now at 99% (47 MiB of 4 GiB free)**, up from round 154's
+  ~100-150 MB headroom — growth itself has gone essentially flat
+  (154→160 pre-bench: ~-5 MB/12.4h, inside noise) since round 154's
+  already-decelerated 65-70 MB/hour. Reads as approaching equilibrium at
+  the swapfile ceiling, still with zero OOM kills.
+- **Fourth decode-under-pressure point (n=4): 5.06 tok/s** — matches
+  142 (5.07)/154 (5.04), keeps round 154's "closed at n=3" finding closed
+  at n=4, now at the single most swap-saturated point measured (99% full
+  swapfile). Prefill 6.95 tok/s, essentially flat vs round 154's 6.98
+  (136→142→154→160: 5.23→6.60→6.98→6.95 — the upward trend may be
+  plateauing).
+- **New: OLMoE readiness check** — the model tarball
+  (`~/nuc-research/models/olmoe_merged.tar`, 7.0 GB) has been staged
+  on-box since round 124 and never needed re-downloading. Confirmed via
+  `free -h` that the box has ~300 MiB free RAM and a 99%-full swapfile
+  right now — running OLMoE alongside the live qwen36 process without
+  stopping it first would very likely degrade or fail both; the OLMoE
+  check specifically needs a stop-qwen36-then-run sequence.
+- **Still open, escalated this round (not just deferred):** the E3 A/B
+  and OLMoE NVMe check are both fully staged (patch compiled+tested;
+  model already on-box) and have been reachable-but-undecided across six
+  windows now (124/130/136/142/154/160). Raised directly with the user
+  this round as an explicit decision point rather than re-deferred
+  silently again — see `knowledge/round-160-nuc-e-sixth-snapshot-oom-mechanism-and-operator-ask.md`.
+
+## Round 166 addendum (2026-08-26, box UP — the 124-160 "same boot" streak broke: the SERVICE was restarted by the box's actual human operator ~90 min before this round, the underlying Linux boot did not change)
+
+- **The `qwen36-colibri` service restarted at 19:24 UTC (and once more
+  at 19:17), ~90 minutes before this round connected — not the box
+  itself (`uptime` still reads the same 2026-08-25 ~12:58 UTC boot as
+  rounds 124-160).** `who -a`/`journalctl` show the box's actual human
+  administrator (`jab`) was logged in interactively at the time
+  (`192.168.1.39`, the Mac's LAN address) doing unrelated `colibri`
+  engineering (building v1.7.0 from source, deleting old model dirs) —
+  the restart shows no sign of adopting any of rounds 130-160's asks
+  (`--cap 256` unchanged, no `Q36_PREFIX` set). **Six rounds' worth of
+  in-repo escalation (130/136/142/154/160) show no evidence of having
+  reached this operator** — treat the silence as "not delivered," not
+  "declined," going forward.
+- **New data from measuring right after a real restart for the first
+  time:** three `bench.py --sizes 300` points taken ~3 min apart,
+  starting ~1h35m post-restart with the cgroup genuinely cold
+  (`memory.current` 4.8 GiB→~29.3 GiB, `swap.current` 0 B throughout):
+  prefill 5.00→6.57→6.90 tok/s, decode 3.35→4.60→4.55 tok/s — both climb
+  from BELOW the round 142/154/160 cluster (6.6-6.98 prefill / 5.04-5.07
+  decode) toward it within a few requests, with swap at 0 B the whole
+  time. This directly falsifies reading 142/154/160's higher numbers as
+  a swap-pressure effect (the fastest points on record came at up to
+  3.92 GiB swap; the slowest new points come at 0 B) and instead points
+  to a request-activity/uptime warm-up curve as the better explanation.
+  Also: the discarded warm-up request measured **105.71s cold-start**,
+  the slowest of any E-track measurement (vs. E1's 25.7s baseline / E5's
+  85.4s worst case) — this is the engine's literal first request
+  post-restart, not just a post-idle-gap request, so idle-cold-start
+  penalties may depend on more than elapsed idle time alone. Details:
+  `knowledge/round-166-nuc-e-seventh-snapshot-operator-restart-warmup-curve.md`.
+- **Still open, unchanged:** the E3 A/B and OLMoE NVMe check are both
+  still fully staged and un-actioned — seven reachable windows now
+  (124/130/136/142/154/160/166). Not executed unilaterally this round
+  either — restarting/interrupting the live shared service still needs
+  explicit sign-off, and this round found active evidence the box has a
+  human operator who does NOT appear to be reading this project's asks,
+  which changes the recommendation for the next E round (see knowledge
+  file §5): stop treating "ask again in the files" as a channel with
+  unknown latency and treat it as probably a dead channel unless a
+  different communication path is used.
 
 ## Done-criteria for any mission
 Code runs (proof in round file), measurements banked in both places,

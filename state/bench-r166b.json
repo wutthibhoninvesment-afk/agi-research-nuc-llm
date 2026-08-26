@@ -1,0 +1,33 @@
+{
+ "meta": {
+  "base_url": "http://127.0.0.1:8000",
+  "model": "qwen36",
+  "started": "2026-08-26 21:00:31",
+  "decode_tokens": 64,
+  "cutoff_s": 300.0,
+  "seed": 1662,
+  "mode": "non-streaming",
+  "finished": "2026-08-26 21:03:35"
+ },
+ "results": [
+  {
+   "target_tokens": 300,
+   "prompt_tokens": 290,
+   "prompt_chars": 1464,
+   "ttft_cold_s": 44.14970574200561,
+   "ttft_warm_s": 41.213127183000324,
+   "decode_tokens": 64,
+   "decode_run_s": 54.90951882099034,
+   "decode_tok_s": 4.599751647379544,
+   "prefill_tok_s": 6.568560200483593,
+   "warm_over_cold": 0.933485886040429,
+   "extrapolated": false,
+   "ttft_fresh_s": 43.64487757500319,
+   "repeat_over_fresh": 0.9442832578044483,
+   "stream_ttft_s": null,
+   "stream_decode_tok_s": null,
+   "reply_text": "OK\n\nThe morning light did not break so much as it bled across the horizon, a pal",
+   "note": ""
+  }
+ ]
+}

@@ -1,0 +1,33 @@
+{
+ "meta": {
+  "base_url": "http://127.0.0.1:8000",
+  "model": "qwen36",
+  "started": "2026-08-26 18:43:38",
+  "decode_tokens": 64,
+  "cutoff_s": 300.0,
+  "seed": 160,
+  "mode": "non-streaming",
+  "finished": "2026-08-26 18:46:43"
+ },
+ "results": [
+  {
+   "target_tokens": 300,
+   "prompt_tokens": 304,
+   "prompt_chars": 1458,
+   "ttft_cold_s": 43.74555539000721,
+   "ttft_warm_s": 42.487367681998876,
+   "decode_tokens": 64,
+   "decode_run_s": 54.94656466599554,
+   "decode_tok_s": 5.056505654491294,
+   "prefill_tok_s": 6.9492774132076205,
+   "warm_over_cold": 0.9712385019051388,
+   "extrapolated": false,
+   "ttft_fresh_s": 43.20808746799594,
+   "repeat_over_fresh": 0.9833197943201977,
+   "stream_ttft_s": null,
+   "stream_decode_tok_s": null,
+   "reply_text": "OK\n\nThe morning mist clung to the grey stones of the old walls, a damp, heavy bl",
+   "note": ""
+  }
+ ]
+}

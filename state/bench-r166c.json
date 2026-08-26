@@ -1,0 +1,33 @@
+{
+ "meta": {
+  "base_url": "http://127.0.0.1:8000",
+  "model": "qwen36",
+  "started": "2026-08-26 21:03:56",
+  "decode_tokens": 64,
+  "cutoff_s": 300.0,
+  "seed": 1663,
+  "mode": "non-streaming",
+  "finished": "2026-08-26 21:06:57"
+ },
+ "results": [
+  {
+   "target_tokens": 300,
+   "prompt_tokens": 291,
+   "prompt_chars": 1459,
+   "ttft_cold_s": 42.15688799900818,
+   "ttft_warm_s": 40.844055278997985,
+   "decode_tokens": 64,
+   "decode_run_s": 54.70300975900318,
+   "decode_tok_s": 4.545797454699223,
+   "prefill_tok_s": 6.90278656258608,
+   "warm_over_cold": 0.968858405296874,
+   "extrapolated": false,
+   "ttft_fresh_s": 43.15335702500306,
+   "repeat_over_fresh": 0.9464861622546059,
+   "stream_ttft_s": null,
+   "stream_decode_tok_s": null,
+   "reply_text": "OK\n\nThe morning began not with a shout, but with a silence so profound it felt l",
+   "note": ""
+  }
+ ]
+}
