@@ -1,0 +1,18 @@
+[2026-08-26 18:33:48] === driver started; resuming after round 148 ===
+[2026-08-26 18:33:48] round 149 track=SWE-loop(D) start (driver_version=147-crash-safety-valve) pid=71683
+[2026-08-26 19:11:06] round 149: quota/limit signal detected (rc=1) — checking state
+[2026-08-26 19:11:06] round 149: turn summary {"assistant_turns": 162, "thinking_tokens": 35484, "tool_calls": 91, "span_s": 2229.505}
+[2026-08-26 19:11:06] round 149: non-success status=error:err
+[2026-08-26 19:11:51] === driver started; resuming after round 149 ===
+[2026-08-26 19:11:51] round 150 track=language(C) start (driver_version=147-crash-safety-valve) pid=71683
+[2026-08-26 19:45:37] round 150: quota/limit signal detected (rc=1) — checking state
+[2026-08-26 19:45:37] round 150: turn summary {"assistant_turns": 148, "thinking_tokens": 31396, "tool_calls": 86, "span_s": 2019.559}
+[2026-08-26 19:45:37] round 150: non-success status=error:err
+[2026-08-26 19:46:22] === driver started; resuming after round 150 ===
+[2026-08-26 19:46:22] round 151 track=harness(A) start (driver_version=147-crash-safety-valve) pid=71683
+[2026-08-26 20:04:31] round 151: quota/limit signal detected (rc=1) — checking state
+[2026-08-26 20:04:31] round 151: turn summary {"assistant_turns": 148, "thinking_tokens": 28901, "tool_calls": 80, "span_s": 1084.748}
+[2026-08-26 20:04:31] round 151: non-success status=error:max_turns
+[2026-08-26 20:04:32] 3 consecutive failures — assuming weekly limit reached, stopping
+[2026-08-26 20:04:32] === driver stopping at round 151 ===
+[2026-08-26 20:04:32] === driver finished ===

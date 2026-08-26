@@ -12,10 +12,13 @@ import pytest
 
 from harness.driver_health import (
     RATE_LIMIT_BACKOFF_SCHEDULE,
+    all_max_turns,
     classify_round_log,
     count_consecutive_failures,
     exact_reset_wait_seconds,
+    has_real_ratelimit_signal,
     is_5xx,
+    is_max_turns,
     is_rate_limit,
     latest_rate_limit_reset_epoch,
     load_round_result,
@@ -447,3 +450,113 @@ def test_cli_matches_library(tmp_path):
     )
     assert out.returncode == 0
     assert out.stdout.strip() == "1"
+
+
+# --- round 151: max-turns must not be conflated with a quota/outage stop --
+
+def test_status_text_reports_max_turns_not_generic_err(tmp_path):
+    p = _write(str(tmp_path), "a.json", {"is_error": True, "subtype": "error_max_turns"})
+    assert round_status_text(p) == "error:max_turns"
+
+
+def test_is_max_turns_true_only_for_error_max_turns_subtype(tmp_path):
+    mt = _write(str(tmp_path), "mt.json", {"is_error": True, "subtype": "error_max_turns"})
+    other = _write(str(tmp_path), "other.json", {"is_error": True, "api_error_status": 429})
+    ok = _write(str(tmp_path), "ok.json", {"is_error": False, "subtype": "success"})
+    missing = os.path.join(str(tmp_path), "missing.json")
+    assert is_max_turns(mt) is True
+    assert is_max_turns(other) is False
+    assert is_max_turns(ok) is False
+    assert is_max_turns(missing) is False
+
+
+def test_all_max_turns_true_only_when_every_log_is_a_max_turns_death(tmp_path):
+    mt1 = _write(str(tmp_path), "mt1.json", {"is_error": True, "subtype": "error_max_turns"})
+    mt2 = _write(str(tmp_path), "mt2.json", {"is_error": True, "subtype": "error_max_turns"})
+    mt3 = _write(str(tmp_path), "mt3.json", {"is_error": True, "subtype": "error_max_turns"})
+    err429 = _write(str(tmp_path), "e.json", {"is_error": True, "api_error_status": 429})
+    ok = _write(str(tmp_path), "ok.json", {"is_error": False, "subtype": "success"})
+
+    assert all_max_turns([mt1, mt2, mt3]) is True
+    # a mix (one real error alongside max-turns deaths) must NOT read as an
+    # all-workload cluster — the safety valve should still stop for this one
+    assert all_max_turns([mt1, mt2, err429]) is False
+    # a successful round in the window means there is no 3-failure cluster
+    # at all in the first place, but the predicate itself must still say
+    # False rather than accidentally True
+    assert all_max_turns([mt1, ok, mt3]) is False
+    assert all_max_turns([]) is False
+
+
+def test_all_max_turns_reproduces_the_actual_round_146_to_150_pattern(tmp_path):
+    """Regression pin: rounds 146/147 (then 149/150 on a second restart)
+    were each a genuine `error_max_turns` death after 140-160 real turns of
+    work, not a quota/outage — `all_max_turns` must certify a cluster shaped
+    exactly like that so `run_driver.sh` does not stop the whole program on
+    it, matching CURRICULUM.md's "stop only when the WEEKLY limit is
+    reached." Frozen shapes, not reads of the live logs directory."""
+    stretch = [
+        {"is_error": True, "subtype": "error_max_turns", "num_turns": 81,
+         "stop_reason": "tool_use"},
+        {"is_error": True, "subtype": "error_max_turns", "num_turns": 81,
+         "stop_reason": "tool_use"},
+        {"is_error": True, "subtype": "error_max_turns", "num_turns": 81,
+         "stop_reason": "tool_use"},
+    ]
+    paths = [_write(str(tmp_path), "r%d.json" % i, d) for i, d in enumerate(stretch)]
+    assert count_consecutive_failures(paths) == 3  # still counts as "bad"...
+    assert all_max_turns(paths) is True            # ...but is certified all-workload
+
+
+def test_has_real_ratelimit_signal_true_for_structured_429(tmp_path):
+    p = _write(str(tmp_path), "a.json", {"is_error": True, "api_error_status": 429})
+    assert has_real_ratelimit_signal(p) is True
+
+
+def test_has_real_ratelimit_signal_true_for_high_utilization_event(tmp_path):
+    high_util = dict(REAL_RATE_LIMIT_LINE)
+    high_util["rate_limit_info"] = {
+        "status": "allowed",
+        "unifiedWindows": {"five_hour": {"utilization": 0.95, "resetsAt": 1787723400}},
+    }
+    p = _write_ndjson(str(tmp_path), "a.json", [REAL_INIT_LINE, high_util, REAL_RESULT_LINE])
+    assert has_real_ratelimit_signal(p) is True
+
+
+def test_has_real_ratelimit_signal_false_for_low_utilization_or_prose(tmp_path):
+    # a normal round's routine, low-utilization telemetry event...
+    ok = _write_ndjson(str(tmp_path), "ok.json",
+                        [REAL_INIT_LINE, REAL_RATE_LIMIT_LINE, REAL_ASSISTANT_LINE, REAL_RESULT_LINE])
+    assert has_real_ratelimit_signal(ok) is False
+
+    # ...and text that merely MENTIONS rate limits (e.g. a round reading
+    # research-state.md's own history, or this module's docstrings) must
+    # not trip the structured check the way the old blind grep did.
+    prose_line = {
+        "type": "assistant",
+        "message": {"role": "assistant", "content": [
+            {"type": "text", "text": "Discussing the weekly limit and 5-hour "
+                                      "rolling rate limit / usage_policies..."}]},
+    }
+    prosy = _write_ndjson(str(tmp_path), "prosy.json", [REAL_INIT_LINE, prose_line, REAL_RESULT_LINE])
+    assert has_real_ratelimit_signal(prosy) is False
+
+
+def test_cli_is_max_turns_and_all_max_turns_and_ratelimit_signal(tmp_path):
+    mt = _write(str(tmp_path), "mt.json", {"is_error": True, "subtype": "error_max_turns"})
+    ok = _write(str(tmp_path), "ok.json", {"is_error": False, "subtype": "success"})
+
+    def run(*args):
+        out = subprocess.run(
+            [sys.executable, "-m", "harness.driver_health"] + list(args),
+            cwd=os.path.join(HERE, "..", ".."),
+            capture_output=True, text=True, timeout=10,
+        )
+        assert out.returncode == 0, out.stderr
+        return out.stdout.strip()
+
+    assert run("is_max_turns", mt) == "yes"
+    assert run("is_max_turns", ok) == "no"
+    assert run("all_max_turns", mt, mt, mt) == "yes"
+    assert run("all_max_turns", mt, ok, mt) == "no"
+    assert run("ratelimit_signal", ok) == "no"

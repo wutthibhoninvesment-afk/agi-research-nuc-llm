@@ -29,7 +29,14 @@ import sys
 import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-REPO = os.path.dirname(os.path.dirname(ROOT))
+# REPO must be the real agi-research checkout root even when this whole
+# `languages/whence` directory has been copied into a tempdir (every
+# mutation/repair run does exactly that) — `dirname(dirname(ROOT))` is only
+# correct in the original checkout. `harness/swe/proc.py` injects
+# AGI_RESEARCH_ROOT into every test subprocess's env for this reason (round
+# 149: found via 7/78 round-137 "kills" that were really `git -C <tempdir>`
+# / `import swe` failures here, misclassified as genuine mutant kills).
+REPO = os.environ.get("AGI_RESEARCH_ROOT") or os.path.dirname(os.path.dirname(ROOT))
 MODULES = ("__init__", "ast_nodes", "interp", "lexer", "parser", "values")
 MODES = {"direct": {}, "fast": {"direct": False}, "slow": {"fast": False}}
 

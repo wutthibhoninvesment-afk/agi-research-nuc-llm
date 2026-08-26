@@ -1,0 +1,11 @@
+--- injected/whence/interp.py
++++ repaired/whence/interp.py
+@@ -1424,7 +1424,7 @@
+     divisors, int-vs-float overflow) goes to `binop`, which builds the
+     byte-identical node — the closure never decides a miss itself, so the
+     two paths cannot disagree on wording."""
+-    if op != '+':
++    if op == '+':
+ 
+         def f_add(env):
+             l = lf(env)

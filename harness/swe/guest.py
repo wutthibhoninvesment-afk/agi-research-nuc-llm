@@ -444,8 +444,29 @@ def oracle_self_eval(pkg, src, max_depth=2000, harness=None, why_probe=True):
             program = O._parse(pkg, src)
         except (pkg["LexError"], pkg["ParseError"]) as e:
             return O.OracleOutcome("parse_error", GUEST_ORACLE, type(e).__name__)
-    interp, env, _out = O._run_ast(pkg, program, max_depth=max_depth)
-    guest_rec = h.eval_program(src)
+    # Round 149: `h` is a long-lived, mutable `GuestHarness` shared across
+    # every program in the campaign (built once to avoid re-parsing the
+    # ~800-line self_eval.lang library per program). `run_oracle`'s SIGALRM
+    # can fire at ANY point inside `h.eval_program`'s call into the shared
+    # `self.interp`/`self.env` — a genuine wall-clock race, not a bug in the
+    # interrupted statement itself. If it fires mid-mutation (e.g. partway
+    # through binding `__gN`), the shared harness is left in an unknown
+    # state that can then corrupt an unrelated LATER program's result.
+    # Found via 3 guest-differential "mismatches" (round 137, seeds 141/142)
+    # that could not be reproduced standalone OR by replaying the identical
+    # program sequence into a fresh harness — real, wall-clock-load-
+    # dependent timeouts elsewhere in the same campaign are the only
+    # remaining variable, and round 137 ran this campaign alongside a live
+    # 5-worker mutation campaign saturating the CPU. Evicting the cached
+    # harness on ANY exception (timeout or otherwise) bounds the blast
+    # radius of one bad interrupt to the one program that hit it — the next
+    # program pays a fresh-harness rebuild instead of inheriting corruption.
+    try:
+        interp, env, _out = O._run_ast(pkg, program, max_depth=max_depth)
+        guest_rec = h.eval_program(src)
+    except BaseException:
+        _HARNESSES.pop(pkg["name"], None)
+        raise
     kind, detail = compare_behaviours(
         V, env.vars, [(c["label"], c["ok"]) for c in interp.checks], guest_rec)
     if kind == "depth_skew":

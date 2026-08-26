@@ -250,6 +250,32 @@ def test_provenance_labels_agree_host_vs_guest():
                 label, src, sorted(g))
 
 
+def test_get_of_a_callable_mirrors_field_not_a_bespoke_get_node():
+    """Round 150: `get(r, name)` has EXACTLY `.field` semantics on the host
+    (`b_get` delegates straight to `_field` — same op "field", same
+    single-input shape, `get(r, "a")` and `r.a` are indistinguishable node
+    for node, by design since round 24). self_eval.lang's own `get`
+    special-cased a CALLABLE first argument (needed: a guest closure is an
+    ordinary record under the hood and would otherwise let `get` pierce
+    it) with a bespoke "get" node naming BOTH arguments as inputs — an
+    op/arity the host's real `_field` helper never produces for ANY
+    non-record object, callable or not. Found live by the guest-
+    differential why-shape probe (`harness/swe/guest.py`, seed
+    602001893): `guest ops: ['get', 'literal']` vs `host ops: ['field',
+    'fn', 'let', 'record']` — the guest invented an op and leaked the key
+    argument's own `literal` node into the tree, neither of which the host
+    derivation for the same program ever produces."""
+    src = ('fn adder(a) { fn(b) { a + b } }\n'
+           'let result = @{c: get(adder, "b")}')
+    h = host_labels(host_eval(src))
+    g = guest_labels(guest_box(src))
+    assert "field" in g, sorted(g)
+    assert "get" not in g, sorted(g)
+    assert "literal" not in g, sorted(g)   # the key "b" is not a derivation input
+    assert g - h == set(), "guest invented ops the host never used: %s (guest=%s host=%s)" % (
+        sorted(g - h), sorted(g), sorted(h))
+
+
 def guest_origin(rec):
     """The guest-side blame walk: descend into the first missed input until
     no input is missed — the node that created the miss."""

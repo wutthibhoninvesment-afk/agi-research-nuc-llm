@@ -1,0 +1,32 @@
+# blame.lang — failures are values that carry their own blame trail
+
+fn parse_row(row) {
+  note("parsed " + row.name, num(row.qty))
+}
+
+let rows = [
+  @{name: "alpha", qty: "12"},
+  @{name: "beta",  qty: "3O"},   # typo: letter O, not zero
+  @{name: "gamma", qty: "7"}
+]
+
+let quantities = map(parse_row, rows)
+fn add(a, b) { a + b }
+let total = fold(add, 0, quantities)
+
+print("total is:")
+print(total)                      # the typo poisoned the whole sum
+print("")
+print("why? ask the value itself:")
+print(why total)
+
+check "total is a miss": missed(total)
+check "blame names the bad row": contains(str(why total), "beta")
+check "reason names the typo": contains(str(total), "3O")
+
+# recover per-row and continue
+fn safe(row) { num(row.qty) rescue 0 }
+let fixed = fold(add, 0, map(safe, rows))
+check "recovered total": fixed == 19
+print("")
+print("with per-row rescue, total = " + str(fixed))

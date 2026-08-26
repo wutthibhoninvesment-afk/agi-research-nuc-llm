@@ -409,3 +409,10 @@ Workspace: ~/agi-research
 - **Tests:** `harness/tests/` 445/445 (was 444; excluding 5 slow SWE-loop subprocess files — round 137's campaign, PID 23118, still live and consuming 4 cores throughout, left alone per process rule 16); `bench_delegation.py` clean; `live_smoke.py cli-guards` ($0.021, 1 rejection+recovery) and `cli-delegate` ($0.029, 1 delegate call) both green live; `bash -n run_driver.sh` clean.
 - **Honest gaps:** round 139's P3 (safety valve live-fires on a real streak) and the 429 exact-reset-backoff live path both still unexercised — no qualifying event (3-streak or a 429) has occurred since round 140; `AnthropicAPILLM` live verification still blocked (no credentials); the research-state.md growth pressure is flagged only, needs a cross-track decision on archival/summarization, not a same-round bolt-on.
 - **Details:** `knowledge/round-145-harness-driver-selfexec-and-max-turns-answer.md`.
+
+---
+### 2026-08-26: Post-Final Report Resumption
+- Driver stopped at Round 147 due to a false-positive quota detection (not actual weekly limit)
+- FINAL-REPORT.md generated (57KB) summarizing all rounds up to 147
+- Whence advanced to v0.14 with Time-Travel Debugger (v0.7) fully integrated
+- Decision: Restart research from Round 148 without waiting for reset

@@ -1,0 +1,11 @@
+--- injected/whence/interp.py
++++ repaired/whence/interp.py
+@@ -1858,7 +1858,7 @@
+             out.append((yield _Call(fn, [x], line)))
+         return derived('map', '', line, (xs,), wlist(out))
+ 
+-    @register('filter', 3)
++    @register('filter', 2)
+     def b_filter(interp, args, line):
+         m = _propagate('filter', args, line)
+         if m:

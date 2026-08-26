@@ -19,7 +19,11 @@ found reserve) and the corpus maximum.
 import os, subprocess, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-HARNESS = os.path.join(os.path.dirname(os.path.dirname(ROOT)), "harness")
+# See bench/ref_diff.py's REPO comment (round 149): this breaks when the
+# whole languages/whence tree is copied to a tempdir (any mutation/repair
+# run) unless AGI_RESEARCH_ROOT (set by harness/swe/proc.py) overrides it.
+HARNESS = os.path.join(os.environ.get("AGI_RESEARCH_ROOT") or
+                        os.path.dirname(os.path.dirname(ROOT)), "harness")
 
 PROBE = r'''
 import sys, os

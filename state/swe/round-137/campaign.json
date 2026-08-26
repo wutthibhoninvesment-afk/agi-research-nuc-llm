@@ -18,8 +18,120 @@
    }
   },
   "recheck": {
-   "status": "running",
-   "started": "2026-08-26T10:11:38"
+   "status": "done",
+   "started": "2026-08-26T10:11:38",
+   "finished": "2026-08-26T11:07:22",
+   "info": {
+    "timeouts": 5,
+    "flips": 2,
+    "score": 1.0,
+    "survived": 0,
+    "subset_checked": 78,
+    "subset_flips": 78
+   }
+  },
+  "coverage": {
+   "status": "done",
+   "started": "2026-08-26T11:07:22",
+   "finished": "2026-08-26T11:07:22",
+   "info": {
+    "seconds": 701.3,
+    "returncode": 0,
+    "pct": {
+     "whence/interp.py": 76.71
+    },
+    "targeted": false,
+    "from_map": true,
+    "survived_uncovered": 0,
+    "survived_covered": 0,
+    "survived_unknown": 0,
+    "killed_traced": 1276,
+    "killed_on_uncovered": 244
+   }
+  },
+  "corpus": {
+   "status": "done",
+   "started": "2026-08-26T11:07:22",
+   "finished": "2026-08-26T11:07:22",
+   "info": {
+    "survivors": 0,
+    "found": 0,
+    "no_killer": 0,
+    "test_file": "tests/test_generated_killers_r29.py"
+   }
+  },
+  "verify": {
+   "status": "done",
+   "started": "2026-08-26T11:07:22",
+   "finished": "2026-08-26T11:07:22",
+   "info": {
+    "pinned": 0,
+    "verified": 0
+   }
+  },
+  "triage": {
+   "status": "done",
+   "started": "2026-08-26T11:07:22",
+   "finished": "2026-08-26T11:07:22",
+   "info": {
+    "counts": {
+     "counter": 0,
+     "budget": 0,
+     "none_guard": 0,
+     "error_message": 0,
+     "other": 0
+    },
+    "score_all": 1.0,
+    "score_behavioural": 1.0
+   }
+  },
+  "oracle_kill": {
+   "status": "done",
+   "started": "2026-08-26T11:07:22",
+   "finished": "2026-08-26T11:07:22",
+   "info": {
+    "pool": 0,
+    "found": 0,
+    "by_kind": {
+     "modes": 0,
+     "frames": 0,
+     "counters": 0
+    },
+    "verified": 0,
+    "test_file": "tests/test_oracle_killers_r113.py"
+   }
+  },
+  "live_kill": {
+   "status": "done",
+   "started": "2026-08-26T11:07:23",
+   "finished": "2026-08-26T11:07:23",
+   "info": {
+    "attempted": 0,
+    "killed": 0,
+    "verified": 0,
+    "cost_usd": 0
+   }
+  },
+  "repair": {
+   "status": "done",
+   "started": "2026-08-26T11:07:23",
+   "finished": "2026-08-26T11:31:09",
+   "info": {
+    "attempted": 6,
+    "green": 0,
+    "exact": 0,
+    "localized": 5,
+    "cost_usd": 0.7634
+   }
+  },
+  "report": {
+   "status": "done",
+   "started": "2026-08-26T11:31:09",
+   "finished": "2026-08-26T11:31:09",
+   "info": {
+    "projected_score": 1.0,
+    "tests_added": 0
+   }
   }
  }
 }

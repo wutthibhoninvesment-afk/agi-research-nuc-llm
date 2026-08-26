@@ -128,10 +128,16 @@ def test_selfexec_picks_up_mid_run_edit_without_restart(tmp_path):
     assert pid1 == pid2, (pid1, pid2, log_text)
     assert int(pid1) == proc.pid
 
-    # Proof #2: round 1 ran under the ORIGINAL version string...
+    # Proof #2: round 1 ran under the ORIGINAL version string (whatever it
+    # currently is on disk — this test proves the self-exec MECHANISM, not
+    # a specific version string, so it reads the source file instead of
+    # pinning a value that goes stale every time DRIVER_VERSION is bumped).
+    with open(DRIVER_SRC) as f:
+        original_version = [l for l in f if l.strip().startswith("DRIVER_VERSION=")][0]
+    original_version = original_version.split("=", 1)[1].strip().strip('"')
     assert "round 1 track=" in log_text
     round1_line = [l for l in log_text.splitlines() if "round 1 track=" in l][0]
-    assert "driver_version=145-selfexec" in round1_line, round1_line
+    assert f"driver_version={original_version}" in round1_line, round1_line
 
     # ...and round 2 — produced by the SAME process, no restart — reflects
     # the edit the round-1 stub made to the on-disk script. This is the

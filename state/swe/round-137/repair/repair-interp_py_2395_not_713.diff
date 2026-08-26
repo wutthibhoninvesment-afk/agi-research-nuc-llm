@@ -1,0 +1,11 @@
+--- injected/whence/interp.py
++++ repaired/whence/interp.py
+@@ -1989,7 +1989,7 @@
+         if m:
+             return m
+         (xs, sep) = args
+-        if not isinstance(xs.payload, WList) or not not isinstance(sep.payload, str):
++        if not isinstance(xs.payload, WList) or not isinstance(sep.payload, str):
+             return mk_miss('join needs (list, string)', line, 'join', inputs=(xs, sep))
+         parts = []
+         for x in xs.payload:

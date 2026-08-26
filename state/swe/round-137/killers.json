@@ -1,0 +1,13 @@
+{
+ "seed": 137,
+ "corpus_n": 400,
+ "include_examples": true,
+ "extra_programs": 0,
+ "programs": 413,
+ "survivors": 0,
+ "found": 0,
+ "no_killer": 0,
+ "test_file": "tests/test_generated_killers_r29.py",
+ "seconds": 0.0,
+ "killers": []
+}

@@ -1,0 +1,560 @@
+# self_host.lang — a lexer and parser for REAL Whence syntax, written in
+# Whence (self-hosting round 3; meta.lang's guest arithmetic language was
+# round 2's warm-up). This is the honest test of the host language's own
+# expressiveness: can Whence describe Whence?
+#
+# Scope: lexer + parser only. The output is an AST as Whence records
+# (`@{kind: "...", ...}`), not evaluated — writing a full guest evaluator
+# with closures/env/provenance/builtins in Whence-without-mutation is a
+# separate, much larger project left for a future round (see the knowledge
+# file). What IS built here: character classification, a real two-pass-free
+# single-pass lexer with the SAME bracket-depth newline-suppression rule as
+# the host (`whence/lexer.py`), full operator-precedence recursive descent
+# (rescue > or > and > not > comparison > +- > */％ > unary > postfix >
+# primary), blocks, if/else-if chains, fn literals and defs, record and list
+# literals, and the host's own "no rebinding in one block" rule re-enforced
+# by the guest parser itself.
+#
+# Errors are total, per design decision 2: every `expect_*` either returns
+# the next position or a `miss`, and because `if`/`and`/`or` on a miss
+# condition never evaluate either branch (see `_if_bad`/host `and`/`or`),
+# a poisoned position silently short-circuits every later step without ever
+# fabricating a new, wrong reason — the ORIGINAL miss reason (a plain string)
+# survives untouched all the way to the top because `merge_miss` only
+# extends a reason list, never replaces it. `run.py`'s own meta.lang comment
+# already used this pattern for a toy language; here it carries the full
+# real grammar.
+
+# ---- character classes -----------------------------------------------------
+let digits = "0123456789"
+let lower = "abcdefghijklmnopqrstuvwxyz"
+let upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+let name_start_chars = lower + upper + "_"
+let name_cont_chars = name_start_chars + digits
+
+fn is_digit(c) { contains(digits, c) }
+fn is_name_start(c) { contains(name_start_chars, c) }
+fn is_name_cont(c) { contains(name_cont_chars, c) }
+
+let keywords = ["let", "fn", "if", "else", "check", "rescue",
+                "why", "snip", "miss", "true", "false", "and", "or", "not"]
+let two_char_ops = ["==", "!=", "<=", ">=", "@{"]
+let one_char_ops = "+-*/%()[]{},:.=<>"
+
+# index of the first char at/after i that fails pred (mirrors meta.lang)
+fn scan_while(s, i, pred) {
+  if i < len(s) and pred(s[i]) { scan_while(s, i + 1, pred) } else { i }
+}
+fn slice(s, i, j) { if i >= j { "" } else { s[i] + slice(s, i + 1, j) } }
+
+# ---- lexer ------------------------------------------------------------------
+# bracket stack: a list of "(" "[" "@{" "{" strings, pushed on open, popped on
+# ANY close (matching whence/lexer.py's `brackets` — it does not check which
+# open matches which close either). Newlines are suppressed while the top of
+# the stack is "(" "[" or "@{" — NOT inside plain "{" blocks, so a block body
+# still statement-separates on newlines even nested inside a call's parens
+# (`map(fn(x) { x * 2\n x }, xs)` keeps the block's internal newline).
+fn top_of(stack) { if len(stack) == 0 { "" } else { stack[len(stack) - 1] } }
+fn pop_last(xs) { list_slice(xs, 0, len(xs) - 1) }
+fn list_slice(xs, i, j) { if i >= j { [] } else { [xs[i]] + list_slice(xs, i + 1, j) } }
+fn suppressed(stack) {
+  let t = top_of(stack)
+  t == "(" or t == "[" or t == "@{"
+}
+
+fn lex_str_body(s, i, acc) {
+  if i >= len(s) { miss "unterminated string" }
+  else if s[i] == "\"" { @{v: acc, pos: i + 1} }
+  else if s[i] == "\\" {
+    if i + 1 >= len(s) { miss "unterminated string" }
+    else {
+      let e = s[i + 1]
+      let ch = if e == "n" { "\n" }
+        else if e == "t" { "\t" }
+        else if e == "\"" { "\"" }
+        else if e == "\\" { "\\" }
+        else { miss ("bad escape '\\" + e + "'") }
+      if missed(ch) { ch } else { lex_str_body(s, i + 2, acc + ch) }
+    }
+  }
+  else { lex_str_body(s, i + 1, acc + s[i]) }
+}
+
+# lex(s, i, stack, acc, line) -> final token list (acc grows via push, which
+# is O(1) amortized on the tip of a shared-buffer WList — round 7's finding).
+fn lex(s, i, stack, acc, line) {
+  if i >= len(s) { push(acc, @{t: "eof", v: "", line: line}) }
+  else if s[i] == "#" { lex(s, scan_while(s, i, fn(c) { c != "\n" }), stack, acc, line) }
+  else if s[i] == "\n" {
+    let last_is_nl = len(acc) > 0 and acc[len(acc) - 1].t == "nl"
+    if suppressed(stack) or last_is_nl or len(acc) == 0 {
+      lex(s, i + 1, stack, acc, line + 1)
+    } else {
+      lex(s, i + 1, stack, push(acc, @{t: "nl", v: "\n", line: line}), line + 1)
+    }
+  }
+  else if s[i] == " " or s[i] == "\t" { lex(s, i + 1, stack, acc, line) }
+  else if is_digit(s[i]) {
+    let j0 = scan_while(s, i, is_digit)
+    let has_frac = j0 + 1 < len(s) and s[j0] == "." and is_digit(s[j0 + 1])
+    let j = if has_frac { scan_while(s, j0 + 1, is_digit) } else { j0 }
+    lex(s, j, stack, push(acc, @{t: "num", v: num(slice(s, i, j)), line: line}), line)
+  }
+  else if is_name_start(s[i]) {
+    let j = scan_while(s, i, is_name_cont)
+    let word = slice(s, i, j)
+    let kind = if contains(keywords, word) { "kw" } else { "name" }
+    lex(s, j, stack, push(acc, @{t: kind, v: word, line: line}), line)
+  }
+  else if s[i] == "\"" {
+    let r = lex_str_body(s, i + 1, "")
+    if missed(r) { push(acc, @{t: "bad", v: str(r), line: line}) }
+    else { lex(s, r.pos, stack, push(acc, @{t: "str", v: r.v, line: line}), line) }
+  }
+  else if i + 1 < len(s) and contains(two_char_ops, s[i] + s[i + 1]) {
+    let op = s[i] + s[i + 1]
+    let stack2 = if op == "@{" { stack + ["@{"] } else { stack }
+    lex(s, i + 2, stack2, push(acc, @{t: "op", v: op, line: line}), line)
+  }
+  else if contains(one_char_ops, s[i]) {
+    let c = s[i]
+    let stack2 = if c == "(" or c == "[" or c == "{" { stack + [c] }
+      else if c == ")" or c == "]" or c == "}" { pop_last(stack) }
+      else { stack }
+    lex(s, i + 1, stack2, push(acc, @{t: "op", v: c, line: line}), line)
+  }
+  else { push(acc, @{t: "bad", v: "unexpected character '" + s[i] + "'", line: line}) }
+}
+fn lex_all(s) { lex(s, 0, [], [], 1) }
+
+# ---- token helpers ------------------------------------------------------
+fn t_at(toks, pos) { if pos < len(toks) { toks[pos] } else { @{t: "eof", v: "", line: 0} } }
+fn is_op(toks, pos, o) { let k = t_at(toks, pos)
+  k.t == "op" and k.v == o }
+fn is_kw(toks, pos, w) { let k = t_at(toks, pos)
+  k.t == "kw" and k.v == w }
+fn skip_nl(toks, pos) { if is_ntype(toks, pos, "nl") { skip_nl(toks, pos + 1) } else { pos } }
+fn is_ntype(toks, pos, ty) { t_at(toks, pos).t == ty }
+
+fn expect_op(toks, pos, o) {
+  if is_op(toks, pos, o) { pos + 1 }
+  else { miss ("expected '" + o + "', got '" + str(t_at(toks, pos).v) +
+               "' at line " + str(t_at(toks, pos).line)) }
+}
+fn expect_name(toks, pos) {
+  let k = t_at(toks, pos)
+  if k.t == "name" { @{name: k.v, pos: pos + 1} } else { miss "expected a name" }
+}
+
+# ---- expression parser (precedence low -> high, mirrors whence/parser.py) --
+fn parse_expr(toks, pos) { parse_rescue(toks, pos) }
+
+fn parse_rescue(toks, pos) {
+  let first = parse_or(toks, pos)
+  parse_rescue_rest(first.node, toks, first.pos)
+}
+fn parse_rescue_rest(left, toks, pos) {
+  if is_kw(toks, pos, "rescue") {
+    let right = parse_or(toks, pos + 1)
+    parse_rescue_rest(@{kind: "binary", op: "rescue", left: left, right: right.node},
+                       toks, right.pos)
+  } else { @{node: left, pos: pos} }
+}
+
+fn parse_or(toks, pos) {
+  let first = parse_and(toks, pos)
+  parse_or_rest(first.node, toks, first.pos)
+}
+fn parse_or_rest(left, toks, pos) {
+  if is_kw(toks, pos, "or") {
+    let right = parse_and(toks, pos + 1)
+    parse_or_rest(@{kind: "binary", op: "or", left: left, right: right.node}, toks, right.pos)
+  } else { @{node: left, pos: pos} }
+}
+
+fn parse_and(toks, pos) {
+  let first = parse_not(toks, pos)
+  parse_and_rest(first.node, toks, first.pos)
+}
+fn parse_and_rest(left, toks, pos) {
+  if is_kw(toks, pos, "and") {
+    let right = parse_not(toks, pos + 1)
+    parse_and_rest(@{kind: "binary", op: "and", left: left, right: right.node}, toks, right.pos)
+  } else { @{node: left, pos: pos} }
+}
+
+fn parse_not(toks, pos) {
+  if is_kw(toks, pos, "not") {
+    let inner = parse_not(toks, pos + 1)
+    @{node: @{kind: "unary", op: "not", operand: inner.node}, pos: inner.pos}
+  } else { parse_cmp(toks, pos) }
+}
+
+let cmp_ops = ["==", "!=", "<", "<=", ">", ">="]
+fn parse_cmp(toks, pos) {
+  let left = parse_add(toks, pos)
+  let k = t_at(toks, left.pos)
+  if k.t == "op" and contains(cmp_ops, k.v) {
+    let right = parse_add(toks, left.pos + 1)
+    let k2 = t_at(toks, right.pos)
+    if k2.t == "op" and contains(cmp_ops, k2.v) {
+      miss ("comparisons do not chain; use 'and' at line " + str(k2.line))
+    } else {
+      @{node: @{kind: "binary", op: k.v, left: left.node, right: right.node}, pos: right.pos}
+    }
+  } else { left }
+}
+
+fn parse_add(toks, pos) {
+  let first = parse_mul(toks, pos)
+  parse_add_rest(first.node, toks, first.pos)
+}
+fn parse_add_rest(left, toks, pos) {
+  if is_op(toks, pos, "+") or is_op(toks, pos, "-") {
+    let op = t_at(toks, pos).v
+    let right = parse_mul(toks, pos + 1)
+    parse_add_rest(@{kind: "binary", op: op, left: left, right: right.node}, toks, right.pos)
+  } else { @{node: left, pos: pos} }
+}
+
+fn parse_mul(toks, pos) {
+  let first = parse_unary(toks, pos)
+  parse_mul_rest(first.node, toks, first.pos)
+}
+fn parse_mul_rest(left, toks, pos) {
+  if is_op(toks, pos, "*") or is_op(toks, pos, "/") or is_op(toks, pos, "%") {
+    let op = t_at(toks, pos).v
+    let right = parse_unary(toks, pos + 1)
+    parse_mul_rest(@{kind: "binary", op: op, left: left, right: right.node}, toks, right.pos)
+  } else { @{node: left, pos: pos} }
+}
+
+fn parse_unary(toks, pos) {
+  let k = t_at(toks, pos)
+  if is_op(toks, pos, "-") {
+    let inner = parse_unary(toks, pos + 1)
+    @{node: @{kind: "unary", op: "-", operand: inner.node}, pos: inner.pos}
+  } else if k.t == "kw" and (k.v == "why" or k.v == "snip" or k.v == "miss") {
+    let inner = parse_unary(toks, pos + 1)
+    @{node: @{kind: "unary", op: k.v, operand: inner.node}, pos: inner.pos}
+  } else { parse_postfix(toks, pos) }
+}
+
+fn parse_postfix(toks, pos) {
+  let first = parse_primary(toks, pos)
+  parse_postfix_rest(first.node, toks, first.pos)
+}
+fn parse_postfix_rest(expr, toks, pos) {
+  if is_op(toks, pos, "(") {
+    let a = parse_args(toks, pos + 1, [])
+    parse_postfix_rest(@{kind: "call", func: expr, args: a.args}, toks, a.pos)
+  } else if is_op(toks, pos, "[") {
+    let ix = parse_expr(toks, pos + 1)
+    let after = expect_op(toks, ix.pos, "]")
+    parse_postfix_rest(@{kind: "index", obj: expr, index: ix.node}, toks, after)
+  } else if is_op(toks, pos, ".") {
+    let fld = expect_name(toks, pos + 1)
+    parse_postfix_rest(@{kind: "field", obj: expr, name: fld.name}, toks, fld.pos)
+  } else { @{node: expr, pos: pos} }
+}
+fn parse_args(toks, pos, acc) {
+  if is_op(toks, pos, ")") { @{args: acc, pos: pos + 1} }
+  else {
+    let a = parse_expr(toks, pos)
+    let acc2 = push(acc, a.node)
+    if is_op(toks, a.pos, ",") { parse_args(toks, a.pos + 1, acc2) }
+    else {
+      let after = expect_op(toks, a.pos, ")")
+      @{args: acc2, pos: after}
+    }
+  }
+}
+
+fn parse_primary(toks, pos) {
+  let k = t_at(toks, pos)
+  if k.t == "num" { @{node: @{kind: "num", value: k.v}, pos: pos + 1} }
+  else if k.t == "str" { @{node: @{kind: "str", value: k.v}, pos: pos + 1} }
+  else if k.t == "kw" and (k.v == "true" or k.v == "false") {
+    @{node: @{kind: "bool", value: k.v == "true"}, pos: pos + 1}
+  }
+  else if k.t == "name" { @{node: @{kind: "name", value: k.v}, pos: pos + 1} }
+  else if is_op(toks, pos, "[") { parse_list_lit(toks, pos + 1, []) }
+  else if is_op(toks, pos, "@{") { parse_record_lit(toks, pos + 1, [], []) }
+  else if is_op(toks, pos, "(") {
+    let inner = parse_expr(toks, pos + 1)
+    @{node: inner.node, pos: expect_op(toks, inner.pos, ")")}
+  }
+  else if k.t == "kw" and k.v == "if" { parse_if(toks, pos) }
+  else if is_op(toks, pos, "{") { parse_block(toks, pos) }
+  else if k.t == "kw" and k.v == "fn" and is_op(toks, pos + 1, "(") {
+    let ps = parse_params(toks, pos + 1, [])
+    let body = parse_block(toks, ps.pos)
+    @{node: @{kind: "fnexpr", params: ps.params, body: body.node}, pos: body.pos}
+  }
+  else { miss ("unexpected token '" + str(k.v) + "' at line " + str(k.line)) }
+}
+
+fn parse_list_lit(toks, pos, acc) {
+  if is_op(toks, pos, "]") { @{node: @{kind: "list", items: acc}, pos: pos + 1} }
+  else {
+    let it = parse_expr(toks, pos)
+    let acc2 = push(acc, it.node)
+    if is_op(toks, it.pos, ",") { parse_list_lit(toks, it.pos + 1, acc2) }
+    else { @{node: @{kind: "list", items: acc2}, pos: expect_op(toks, it.pos, "]")} }
+  }
+}
+fn parse_record_lit(toks, pos, acc, seen) {
+  if is_op(toks, pos, "}") { @{node: @{kind: "record", pairs: acc}, pos: pos + 1} }
+  else {
+    let key = expect_name(toks, pos)
+    let dup = contains(seen, key.name)
+    let after_colon = expect_op(toks, key.pos, ":")
+    let val = parse_expr(toks, after_colon)
+    let pair = @{name: key.name, value: val.node}
+    let acc2 = push(acc, pair)
+    let seen2 = push(seen, key.name)
+    let step = if dup { miss ("duplicate field '" + key.name + "'") }
+      else if is_op(toks, val.pos, ",") { parse_record_lit(toks, val.pos + 1, acc2, seen2) }
+      else { @{node: @{kind: "record", pairs: acc2}, pos: expect_op(toks, val.pos, "}")} }
+    step
+  }
+}
+
+# ---- params, blocks, if -----------------------------------------------------
+fn parse_params(toks, pos, acc) {
+  let after_paren = if len(acc) == 0 { expect_op(toks, pos, "(") } else { pos }
+  if is_op(toks, after_paren, ")") { @{params: acc, pos: after_paren + 1} }
+  else {
+    let nm = expect_name(toks, after_paren)
+    let dup = contains(acc, nm.name)
+    let acc2 = push(acc, nm.name)
+    if dup { miss ("duplicate parameter '" + nm.name + "'") }
+    else if is_op(toks, nm.pos, ",") { parse_params(toks, nm.pos + 1, acc2) }
+    else { @{params: acc2, pos: expect_op(toks, nm.pos, ")")} }
+  }
+}
+
+fn parse_block(toks, pos) {
+  let open = expect_op(toks, pos, "{")
+  let sl = parse_stmt_list(toks, skip_nl(toks, open), "}", [], [])
+  let after = expect_op(toks, sl.pos, "}")
+  if len(sl.stmts) == 0 { miss "block must contain at least one expression" }
+  else if (sl.stmts[len(sl.stmts) - 1]).kind != "exprstmt" {
+    miss "block must end with an expression"
+  } else { @{node: @{kind: "block", stmts: sl.stmts}, pos: after} }
+}
+
+# `end` is either the literal "}" (an operator token) or the string "eof"
+# (the sentinel type, NOT an operator) — a block ends on an op, the program
+# ends on the real EOF token, and the two are different token *types*, so
+# they need different tests (an earlier version used is_op for both, which
+# can never match "eof" and looped forever re-parsing synthetic EOF tokens).
+fn at_end(toks, pos, end) {
+  if end == "eof" { is_ntype(toks, pos, "eof") } else { is_op(toks, pos, end) }
+}
+
+fn parse_stmt_list(toks, pos, end, acc, bound) {
+  if at_end(toks, pos, end) { @{stmts: acc, pos: pos} }
+  else {
+    let s = parse_stmt(toks, pos)
+    let nm = if s.node.kind == "let" or s.node.kind == "fndef" { s.node.name } else { "" }
+    let dup = nm != "" and contains(bound, nm)
+    let bound2 = if nm != "" { push(bound, nm) } else { bound }
+    if dup { miss ("'" + nm + "' already bound") }
+    else {
+      let acc2 = push(acc, s.node)
+      let after = skip_nl(toks, s.pos)
+      if at_end(toks, after, end) { @{stmts: acc2, pos: after} }
+      else { parse_stmt_list(toks, after, end, acc2, bound2) }
+    }
+  }
+}
+
+fn parse_stmt(toks, pos) {
+  if is_kw(toks, pos, "let") {
+    let nm = expect_name(toks, pos + 1)
+    let after_eq = expect_op(toks, nm.pos, "=")
+    let v = parse_expr(toks, after_eq)
+    @{node: @{kind: "let", name: nm.name, value: v.node}, pos: v.pos}
+  }
+  else if is_kw(toks, pos, "fn") and is_ntype(toks, pos + 1, "name") {
+    let nm = expect_name(toks, pos + 1)
+    let ps = parse_params(toks, nm.pos, [])
+    let body = parse_block(toks, ps.pos)
+    @{node: @{kind: "fndef", name: nm.name, params: ps.params, body: body.node}, pos: body.pos}
+  }
+  else if is_kw(toks, pos, "check") {
+    let k = t_at(toks, pos + 1)
+    let label = if k.t == "str" { k.v } else { miss "expected a string label after 'check'" }
+    let after_colon = expect_op(toks, pos + 2, ":")
+    let e = parse_expr(toks, after_colon)
+    @{node: @{kind: "check", label: label, expr: e.node}, pos: e.pos}
+  }
+  else {
+    let e = parse_expr(toks, pos)
+    @{node: @{kind: "exprstmt", expr: e.node}, pos: e.pos}
+  }
+}
+
+fn parse_if(toks, pos) {
+  let cond = parse_expr(toks, pos + 1)
+  let then = parse_block(toks, cond.pos)
+  let after_then = skip_nl(toks, then.pos)
+  if is_kw(toks, after_then, "else") {
+    let after_else = after_then + 1
+    let other = if is_kw(toks, after_else, "if") { parse_if(toks, after_else) }
+      else { parse_block(toks, after_else) }
+    @{node: @{kind: "if", cond: cond.node, then: then.node, otherwise: other.node},
+      pos: other.pos}
+  } else {
+    miss ("'if' requires 'else' at line " + str(t_at(toks, after_then).line))
+  }
+}
+
+# ---- top level ---------------------------------------------------------
+fn parse_program(toks) {
+  let sl = parse_stmt_list(toks, skip_nl(toks, 0), "eof", [], [])
+  if is_ntype(toks, sl.pos, "eof") { @{kind: "program", stmts: sl.stmts} }
+  else { miss ("trailing input at token " + str(sl.pos)) }
+}
+fn parse_whence(src) { parse_program(lex_all(src)) }
+
+# =========================================================================
+# ---- tests: lexer -------------------------------------------------------
+let lx = lex_all("let x = 1 + 2")
+check "lexer token count": len(lx) == 7   # let x = 1 + 2 EOF
+check "lexer keyword": lx[0].t == "kw" and lx[0].v == "let"
+check "lexer name": lx[1].t == "name" and lx[1].v == "x"
+check "lexer op =": lx[2].t == "op" and lx[2].v == "="
+check "lexer number": lx[3].t == "num" and lx[3].v == 1
+check "lexer eof": lx[len(lx) - 1].t == "eof"
+
+check "lexer float": (lex_all("3.5"))[0].v == 3.5
+check "lexer string with escape": (lex_all("\"a\\nb\""))[0].v == "a\nb"
+check "lexer two-char op": (lex_all("=="))[0].v == "=="
+check "lexer comment stripped": len(lex_all("# hi\n1")) == 2   # NUMBER EOF, no leading nl
+check "lexer newline is a statement separator": (lex_all("1\n2"))[1].t == "nl"
+check "lexer newline suppressed inside parens":
+  not contains(map(fn(t) { t.t }, lex_all("(1\n2)")), "nl")
+check "lexer newline NOT suppressed inside a block nested in parens":
+  contains(map(fn(t) { t.t }, lex_all("f(fn(x) { x\nx })")), "nl")
+check "lexer record-open pushes bracket": (lex_all("@{"))[0].v == "@{"
+check "lexer bad character reported": contains(str((lex_all("`"))[0].v), "unexpected character")
+
+# ---- tests: parser, structural -------------------------------------------
+fn body_expr(block) { (block.stmts[len(block.stmts) - 1]).expr }
+
+let p1 = parse_whence("let x = 1 + 2 * 3")
+check "parses without error": not missed(p1)
+check "one statement": len(p1.stmts) == 1
+let let1 = p1.stmts[0]
+check "top is a let": let1.kind == "let" and let1.name == "x"
+check "precedence: + below *": let1.value.op == "+"
+check "precedence: right side is the *": let1.value.right.op == "*"
+check "precedence: left side is the literal 1": let1.value.left.value == 1
+
+let p2 = parse_whence("fn add(a, b) { a + b }")
+let fd = p2.stmts[0]
+check "fn def parses": fd.kind == "fndef" and fd.name == "add"
+check "fn def params": fd.params == ["a", "b"]
+check "fn body is a block whose expr is the sum":
+  (body_expr(fd.body)).op == "+"
+
+let p3 = parse_whence("if x > 0 { \"pos\" } else if x < 0 { \"neg\" } else { \"zero\" }")
+let ifn = (p3.stmts[0]).expr
+check "if node": ifn.kind == "if" and ifn.cond.op == ">"
+check "else-if chains as a nested if": ifn.otherwise.kind == "if"
+check "else-if condition": ifn.otherwise.cond.op == "<"
+check "final else is a block": ifn.otherwise.otherwise.kind == "block"
+
+let p4 = parse_whence("f(1, 2)[0].name")
+let chain = (p4.stmts[0]).expr
+check "postfix chain outermost is field": chain.kind == "field" and chain.name == "name"
+check "postfix chain middle is index": chain.obj.kind == "index"
+check "postfix chain innermost is call": chain.obj.obj.kind == "call"
+check "call has two args": len(chain.obj.obj.args) == 2
+
+let p5 = parse_whence("@{a: 1, b: [1, 2, 3]}")
+let rec = (p5.stmts[0]).expr
+check "record literal": rec.kind == "record" and len(rec.pairs) == 2
+check "record field b is a list": (rec.pairs[1]).value.kind == "list"
+check "list has three items": len((rec.pairs[1]).value.items) == 3
+
+let p6 = parse_whence("not a and b or c rescue d")
+let e6 = (p6.stmts[0]).expr
+check "rescue is lowest precedence": e6.op == "rescue"
+check "or below and": e6.left.op == "or"
+check "and below not": e6.left.left.op == "and"
+check "not binds to the name": e6.left.left.left.op == "not"
+
+let p7 = parse_whence("fn go(n) { if n == 0 { 0 } else { go(n - 1) } }")
+check "recursive fn body parses": not missed(p7)
+check "guest AST is itself a real Whence value with its own history":
+  not missed(p7) and len(steps(p7)) > 0    # it is an ordinary value, not exempt
+
+# ---- tests: total error handling -----------------------------------------
+# whence/parser.py raises a ParseError (a hard abort) on every one of these;
+# the guest mirrors that by returning a raw `miss` (not an error wrapped
+# inside an otherwise-valid node) so it propagates through every caller via
+# ordinary miss-propagation instead of local recovery — verified against the
+# real host parser for each case below (`python3 -c "from whence.parser
+# import parse; parse(SRC)"`) before being written into a check.
+check "unclosed paren is a miss": missed(parse_whence("(1 + 2"))
+check "unclosed paren names the culprit":
+  contains(str(parse_whence("(1 + 2")), "expected ')'")
+check "missing else is a miss": missed(parse_whence("if 1 { 2 }"))
+check "missing else says so": contains(str(parse_whence("if 1 { 2 }")), "requires 'else'")
+check "empty block is a miss": missed(parse_whence("fn f() { }"))
+# A statement list has NO required separator between statements (host's own
+# `stmt_list` just loops calling `statement()` until `end`, `skip_newlines()`
+# is best-effort) — "1 2" is two valid top-level statements in both the host
+# and the guest, verified against the real parser. An actually-unparseable
+# trailing token needs to be one `parse_primary` cannot start an expression
+# with, e.g. a stray ')'.
+check "two statements with no separator both parse (host allows this)":
+  not missed(parse_whence("1 2")) and len((parse_whence("1 2")).stmts) == 2
+check "a stray token that starts no expression is a miss":
+  missed(parse_whence("1 + 2)"))
+check "...and names the offending token":
+  contains(str(parse_whence("1 + 2)")), "unexpected token")
+check "duplicate let in one block is a miss":
+  missed(parse_whence("fn f() { let x = 1\nlet x = 2\nx }"))
+check "duplicate let names the variable":
+  contains(str(parse_whence("fn f() { let x = 1\nlet x = 2\nx }")), "'x' already bound")
+check "duplicate param is a miss": missed(parse_whence("fn f(a, a) { a }"))
+check "bad token in a string is a miss": missed(parse_whence("`"))
+check "chained comparisons are rejected, matching the host":
+  missed(parse_whence("1 < 2 < 3"))
+check "...with the host's own wording":
+  contains(str(parse_whence("1 < 2 < 3")), "do not chain")
+
+# ---- tests: round-trip on a REAL example file's actual source -------------
+# hello.lang, verbatim (escaped for embedding as a Whence string literal).
+let hello_src =
+  "let greeting = \"hello, \" + \"whence\"\n" +
+  "print(greeting)\n" +
+  "fn square(x) { x * x }\n" +
+  "let numbers = range(1, 6)\n" +
+  "let squares = map(square, numbers)\n" +
+  "print(squares)\n" +
+  "fn add(a, b) { a + b }\n" +
+  "let total = fold(add, 0, squares)\n" +
+  "print(\"sum of squares: \" + str(total))\n" +
+  "let verdict = if total > 50 { \"big\" } else { \"small\" }\n" +
+  "print(verdict)\n" +
+  "check \"sum of squares\": total == 55\n" +
+  "check \"verdict\": verdict == \"big\"\n"
+let hello_ast = parse_whence(hello_src)
+check "the guest parser consumes hello.lang's real source without error":
+  not missed(hello_ast)
+check "hello.lang has 13 top-level statements": len(hello_ast.stmts) == 13
+check "hello.lang's first statement is the greeting let":
+  (hello_ast.stmts[0]).kind == "let" and (hello_ast.stmts[0]).name == "greeting"
+check "hello.lang's last statement is the verdict check":
+  (hello_ast.stmts[12]).kind == "check" and (hello_ast.stmts[12]).label == "verdict"
+check "the if/else in hello.lang round-trips structurally":
+  ((hello_ast.stmts[9]).value).kind == "if" and
+    ((hello_ast.stmts[9]).value).cond.op == ">" and
+    (((((hello_ast.stmts[9]).value).then).stmts[0]).expr).value == "big"
+
+print("self_host.lang: guest lexer+parser for real Whence syntax, all checks above passed")

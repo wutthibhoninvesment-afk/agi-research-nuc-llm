@@ -1,0 +1,52 @@
+# tco.lang — tail calls run in constant stack and leave ONE merged history
+# node: `call go ×N`. Whence v0.3 reconciles tail-call elimination with
+# provenance: instead of one `call` node per frame, a tail loop produces a
+# single node whose `count` is the number of frames it stood for, with the
+# provenance of every branch decision along the way as its inputs. Nothing
+# is forgotten; there is just no host stack (and no `max_depth`) to pay for.
+# v0.4: consecutive identical decisions merge the same way — a loop that
+# takes the else-branch 100000 times records ONE `if took else-branch
+# ×100000` node whose inputs are the 100000 individual conditions.
+
+fn sum_to(i, acc) { if i == 0 { acc } else { sum_to(i - 1, acc + i) } }
+
+let s = sum_to(100000, 0)              # 100000 frames; max_depth is 20000
+print("sum_to(100000) = " + str(s))
+check "a 100000-iteration tail loop runs under the default depth cap":
+  s == 5000050000
+
+# the merged call node: op "call", detail "sum_to", count 100001
+let loop_step = steps(s, "call sum_to")[0]
+print("frames merged: " + str(loop_step.count))
+check "one call node stands for every frame": loop_step.count == 100001
+# its inputs: the final value (the last iteration's own `if`) and one node
+# per run of identical decisions — here a single run of 100000 else-branches
+check "the loop's inputs are the final value plus the run of decisions":
+  loop_step.inputs == 2
+let decisions = steps(s, "if")
+check "the last decision is the result itself":
+  decisions[0].detail == "took then-branch" and decisions[0].count == 1
+check "every other decision is in one merged node, none lost":
+  decisions[1].detail == "took else-branch" and
+  decisions[1].count == 100000 and decisions[1].inputs == 100000
+
+# mutual tail recursion merges under both names: "even/odd"
+fn even(n) { if n == 0 { true } else { odd(n - 1) } }
+fn odd(n) { if n == 0 { false } else { even(n - 1) } }
+let e = even(100001)
+check "mutual tail recursion": e == false
+check "merged node names both functions": steps(e, "call")[0].detail == "even/odd"
+check "and answers to either name (v0.4)":
+  steps(e, "call odd")[0].count == 100002 and at(e, "call even") == false
+
+# a small loop rendered: `15 ← call go ×6`, its final `if`, and the merged
+# `if took else-branch ×5` holding the five conditions that kept it going
+fn go(i, acc) { if i == 0 { acc } else { go(i - 1, acc + i) } }
+print(why go(5, 0))
+
+# only calls in tail position are merged: `1 + count(n - 1)` still nests,
+# so it still hits the depth cap — the miss is unchanged from v0.2.
+fn count(n) { if n == 0 { 0 } else { 1 + count(n - 1) } }
+check "non-tail recursion still keeps one node per frame":
+  steps(count(3), "call count")[0].count == 1
+check "and still respects max_depth": missed(count(30000))

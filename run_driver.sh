@@ -9,7 +9,7 @@ set -uo pipefail
 # "$@"` at the loop's end below), this now reliably reflects the ON-DISK
 # script content for every round it produced, including rounds after a
 # mid-run edit — round 139's live driver could not make that claim.
-DRIVER_VERSION="145-selfexec"
+DRIVER_VERSION="151-maxturns-not-quota"
 
 WS="${DRIVER_WS:-$HOME/agi-research}"
 TIMEOUT_CMD=""
@@ -139,8 +139,21 @@ update research-state.md. Be relentless and thorough — this is deep research, 
     > "$RLOG" 2>&1
   RC=$?
 
-  # quota / stop detection
-  if grep -qiE "usage limit|rate.?limit|weekly.*limit|5-hour|usage_policies|maximum.*usage" "$RLOG"; then
+  # quota / stop detection — structured signal only (round 151). Used to be
+  # a blind `grep -qiE "usage limit|rate.?limit|weekly.*limit|5-hour|..."`
+  # over the WHOLE round log, which matches any embedded transcript text
+  # CONTAINING those words — guaranteed the moment a round Reads
+  # `state/research-state.md` (its own prose narrates this driver's
+  # rate-limit history at length) regardless of whether a rate limit was
+  # ever actually hit. Confirmed live: rounds 146/147/149/150 all logged
+  # "quota/limit signal detected" this way while their real failure was an
+  # unrelated `error_max_turns` death, and a human operator reading
+  # driver.log took the message at face value — wrongly concluding the
+  # weekly limit had been reached, which produced a premature
+  # `state/FINAL-REPORT.md` and two manual restarts. `ratelimit_signal`
+  # only looks at the CLI's own structured `api_error_status`/
+  # `rate_limit_event` data, which a round's own text output cannot fake.
+  if [ "$(python3 -m harness.driver_health ratelimit_signal "$RLOG" 2>/dev/null || echo no)" = "yes" ]; then
     log "round $ROUND: quota/limit signal detected (rc=$RC) — checking state"
   fi
 
@@ -190,6 +203,18 @@ update research-state.md. Be relentless and thorough — this is deep research, 
     fi
   fi
 
+
+  # Safety valve (round 150+): if the log file exists but contains ZERO "type":"result""
+  # entries, Claude Code likely crashed before sending its final response. Skip this round
+  # and move on instead of treating it as a genuine failure (which could trigger false
+  # weekly-limit detection via the 3-consecutive-failures check below).
+  _HAS_RESULT=$(grep -c '"type":"result"' "$RLOG" 2>/dev/null || echo 0)
+  if [ "$_HAS_RESULT" -eq 0 ] && [ -s "$RLOG" ]; then
+    log "round $ROUND: file populated but no result entry — assuming Claude crash, skipping to next round"
+    sleep "$LOOP_SLEEP_S"
+    continue
+  fi
+
   # stop if the last 3 rounds all look like genuine failures (not 5xx/529,
   # which the branch above already retries in place). This used to be an
   # `xargs -I{} python3 -c "..."` pipeline; on macOS's BSD xargs, -I mode
@@ -203,8 +228,26 @@ update research-state.md. Be relentless and thorough — this is deep research, 
   LAST3=$(ls -t "$WS"/logs/round-*.json 2>/dev/null | head -3)
   FAILS=$(python3 -m harness.driver_health $LAST3 2>/dev/null || echo 0)
   if [ "$FAILS" -ge 3 ]; then
-    log "3 consecutive failures — assuming weekly limit reached, stopping"
-    break
+    # Round 151: a 3-in-a-row failure cluster is ambiguous the same way a
+    # single 429 was before `is429`/`rate_limit_event` resolved that
+    # ambiguity — CURRICULUM.md says stop the whole driver "only when the
+    # WEEKLY limit is reached", but a max-turns death is a WORKLOAD signal,
+    # not a quota one. Confirmed live: rounds 146+147 (then again 149+150
+    # on a second restart) each did 140-160 real turns of substantive work
+    # before hitting `--max-turns 80`, tripped this exact valve, and were
+    # taken at face value as "weekly limit reached" — producing a
+    # premature `state/FINAL-REPORT.md` and two manual restarts. Only
+    # stop here when the cluster is NOT entirely max-turns deaths (a real
+    # mix, or all genuine API errors) — a pure max-turns cluster logs
+    # clearly and the driver keeps going, since nothing about it indicates
+    # the account's quota is actually exhausted.
+    ALL_MAXTURNS=$(python3 -m harness.driver_health all_max_turns $LAST3 2>/dev/null || echo no)
+    if [ "$ALL_MAXTURNS" = "yes" ]; then
+      log "round $ROUND: 3 consecutive max-turns deaths — NOT a quota signal (CURRICULUM.md: stop only on the weekly limit); continuing. If this persists, consider raising --max-turns or reducing state/research-state.md's size (flagged since round 145)."
+    else
+      log "3 consecutive failures — assuming weekly limit reached, stopping"
+      break
+    fi
   fi
 
   # pace against 5h rolling limit: brief cool-down between rounds

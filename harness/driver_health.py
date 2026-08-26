@@ -28,7 +28,11 @@ from typing import List, Optional
 
 def load_round_result(path: str) -> Optional[dict]:
     """Return the round's final `type: "result"` object, or None if the
-    file is missing/unreadable/has no such object.
+    file is missing/unreadable/has no such object. Note: when the CLI
+    emits `--output-format stream-json --verbose`, the result object is
+    just the LAST event among many intermediate ones (system, assistant,
+    user, tool_progress, rate_limit_event); use `load_round_events()` to
+    inspect those intermediate events for diagnosing interrupted sessions.
 
     Two on-disk shapes exist and both must keep working: (1) the original
     `--output-format json` shape, the WHOLE FILE is that one object (every
@@ -62,21 +66,110 @@ def load_round_result(path: str) -> Optional[dict]:
     return result
 
 
+def load_round_events(path: str) -> Optional[list]:
+    """Return ALL JSON events from a round log (stream-json or single-format).
+
+    Useful for diagnosing interrupted sessions where no final result was emitted.
+    """
+    try:
+        with open(path) as f:
+            text = f.read()
+    except Exception:
+        return None
+
+    # Try single-JSON first
+    try:
+        obj = json.loads(text)
+        if isinstance(obj, dict):
+            return [obj]
+    except Exception:
+        pass
+
+    # Fall back to newline-delimited JSON
+    events = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        try:
+            obj = json.loads(stripped)
+            if isinstance(obj, dict):
+                events.append(obj)
+        except Exception:
+            continue
+
+    return events if events else None
+
+
+def has_real_ratelimit_signal(path: str) -> bool:
+    """True iff the round log shows a REAL, structured rate-limit signal —
+    either a 429 API error (`is_rate_limit`) or a `rate_limit_event` whose
+    `utilization` for some window is >= 0.8.
+
+    Replaces `run_driver.sh`'s former informational check, a blind
+    `grep -qiE "usage limit|rate.?limit|weekly.*limit|5-hour|..."` over the
+    ENTIRE round log text. That matches any embedded transcript CONTAINING
+    those words, which is unavoidable the moment a round Reads
+    `state/research-state.md` (whose own prose narrates the driver's
+    rate-limit history at length) or this very module (whose docstrings
+    say "rate limit" repeatedly) — nothing to do with whether a rate limit
+    was actually hit. Confirmed live: rounds 146/147/149/150 all logged
+    "quota/limit signal detected" from exactly this false-positive path
+    while their real (and only) failure was an unrelated `error_max_turns`
+    death; the misleading wording is what led a human operator to
+    (wrongly) conclude the weekly limit had been reached, producing a
+    premature `state/FINAL-REPORT.md` and two manual restarts. This
+    function only fires on the CLI's own structured signals, which cannot
+    be triggered by a round merely reading or writing text about limits.
+    """
+    if is_rate_limit(path):
+        return True
+    events = load_round_events(path) or []
+    for e in events:
+        if e.get("type") != "rate_limit_event":
+            continue
+        windows = (e.get("rate_limit_info") or {}).get("unifiedWindows") or {}
+        for w in windows.values():
+            if w.get("utilization", 0.0) >= 0.8:
+                return True
+    return False
+
+
 def classify_round_log(path: str) -> str:
     """Return "bad" (a genuine failure the driver should count) or "ok".
 
-    Matches run_driver.sh's original per-file semantics exactly: an
-    `is_error` result whose `api_error_status` (or embedded `result` text)
-    does not look like a transient 5xx/529 is "bad" — 5xx/529 is handled
-    separately by the driver's own retry-with-backoff branch and must NOT
-    also count toward the consecutive-failure stop, or a run of retryable
-    server overloads would look identical to a real outage. Any read/parse
-    failure (missing file, truncated JSON from a round still mid-flight,
-    unexpected shape) also counts as "bad": an unreadable round log is not
-    evidence of success.
+    Enhanced for stream-json logs (round ≥133+): if the file has events
+    (assistant turns, thinking tokens, etc.) but no final `type:"result"`
+    object, treat it as a likely interrupted session (rate limit / network
+    drop / process kill) rather than a hard failure — it's retryable ("ok").
+    Only mark truly empty/corrupt files as "bad" in that no-result case.
+
+    When a final result DOES exist, matches run_driver.sh's original
+    per-file semantics exactly (this branch was silently DROPPED by an
+    uncommitted, untested edit sometime around round 146-150 while adding
+    the no-result handling above — the function fell off the end and
+    returned `None` for every log with a result, success or failure alike,
+    which made `count_consecutive_failures` unable to ever count a real
+    failure; caught by 10 already-written tests going red, none of which
+    had been run before this bug shipped): an `is_error` result whose
+    `api_error_status` (or embedded `result` text) does not look like a
+    transient 5xx/529 is "bad" — 5xx/529 is handled separately by the
+    driver's own retry-with-backoff branch and must NOT also count toward
+    the consecutive-failure stop, or a run of retryable server overloads
+    would look identical to a real outage. A `max_turns` death also reads
+    "bad" here (it IS a failed round) — see `is_max_turns`/`all_max_turns`
+    for how the driver's safety valve avoids conflating a workload-driven
+    max-turns cluster with an actual quota outage before deciding to stop.
     """
     d = load_round_result(path)
     if d is None:
+        # For stream-json: check if Claude started working before being cut short
+        events = load_round_events(path)
+        if events and any(e.get("type") == "assistant" for e in events):
+            # Has assistant content → Claude was working → likely rate-limited/interrupted
+            return "ok"  # Retryable, not a fatal failure
+
+        # Truly empty or corrupted file → genuine problem
         return "bad"
     try:
         is_err = bool(d.get("is_error", False))
@@ -91,6 +184,45 @@ def classify_round_log(path: str) -> str:
 def count_consecutive_failures(paths: List[str]) -> int:
     """How many of the given round logs (most-recent-first) are "bad"."""
     return sum(1 for p in paths if classify_round_log(p) == "bad")
+
+
+def is_max_turns(path: str) -> bool:
+    """True iff the round log's final result is specifically a
+    `--max-turns` interruption (`subtype == "error_max_turns"`), as
+    opposed to a real API/quota error.
+
+    Why this distinction exists (round 151): CURRICULUM.md says to stop
+    the whole driver "only when the WEEKLY limit is reached" — a max-turns
+    death is a WORKLOAD signal (the round needed more turns than the cap
+    allows), not a quota signal, and conflating the two is exactly what
+    happened live: rounds 146/147 (and again 149/150 on a second restart)
+    each did 140-160 real turns of substantive work — SWE-loop campaigns,
+    language work — hit `--max-turns 80`, and were misread by a human
+    operator watching `driver.log`'s "3 consecutive failures — assuming
+    weekly limit reached" message as an actual weekly-quota exhaustion.
+    That produced a premature `state/FINAL-REPORT.md` and two manual
+    restarts, both later noted as a "false-positive quota detection (not
+    actual weekly limit)". See `all_max_turns` for how the safety valve
+    uses this to stop only on a genuine outage/quota cluster.
+    """
+    d = load_round_result(path)
+    if d is None:
+        return False
+    return d.get("subtype") == "error_max_turns"
+
+
+def all_max_turns(paths: List[str]) -> bool:
+    """True iff every one of the given round logs is BOTH classified "bad"
+    (a real failure) AND specifically a max-turns death — i.e. the
+    3-consecutive-failures cluster is entirely workload-driven, not a
+    quota/outage cluster. False for an empty list (nothing to certify) and
+    for any mix that includes a 429, a hard error, or a truly empty/corrupt
+    log alongside the max-turns deaths — those cases keep the original
+    "assume weekly limit, stop" behavior.
+    """
+    return bool(paths) and all(
+        classify_round_log(p) == "bad" and is_max_turns(p) for p in paths
+    )
 
 
 def is_rate_limit(path: str) -> bool:
@@ -317,11 +449,21 @@ def round_status_text(path: str) -> str:
     """Human-readable one-line status, matching `run_driver.sh`'s original
     `SUB` variable exactly: `"error:<api_error_status>"` when `is_error`,
     else the `subtype`, else `"?"` if the result is unreadable.
+
+    `api_error_status` is absent for a max-turns death (it's not an API
+    error at all), which used to fall back to the generic literal "err" —
+    indistinguishable in `driver.log` from any other unclassified failure.
+    Reports "max_turns" instead when `subtype == "error_max_turns"`, so a
+    human reading the log (or `all_max_turns` reasoning about a cluster of
+    these lines) doesn't have to open the round's raw JSON to tell a
+    workload-driven max-turns death apart from a real API error.
     """
     d = load_round_result(path)
     if d is None:
         return "?"
     if d.get("is_error"):
+        if d.get("subtype") == "error_max_turns":
+            return "error:max_turns"
         return "error:" + str(d.get("api_error_status", "err"))
     return str(d.get("subtype", "?"))
 
@@ -370,6 +512,21 @@ def main(argv: List[str]) -> int:
             print("usage: driver_health.py is429 ROUND_LOG", file=sys.stderr)
             return 2
         print("yes" if is_rate_limit(argv[1]) else "no")
+        return 0
+    if argv[:1] == ["is_max_turns"]:
+        if len(argv) != 2:
+            print("usage: driver_health.py is_max_turns ROUND_LOG", file=sys.stderr)
+            return 2
+        print("yes" if is_max_turns(argv[1]) else "no")
+        return 0
+    if argv[:1] == ["all_max_turns"]:
+        print("yes" if all_max_turns(argv[1:]) else "no")
+        return 0
+    if argv[:1] == ["ratelimit_signal"]:
+        if len(argv) != 2:
+            print("usage: driver_health.py ratelimit_signal ROUND_LOG", file=sys.stderr)
+            return 2
+        print("yes" if has_real_ratelimit_signal(argv[1]) else "no")
         return 0
     if argv[:1] == ["wait"]:
         if len(argv) != 3:

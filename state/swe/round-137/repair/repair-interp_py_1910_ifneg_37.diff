@@ -1,0 +1,11 @@
+--- injected/whence/interp.py
++++ repaired/whence/interp.py
+@@ -1580,7 +1580,7 @@
+     node per run of identical decisions (v0.4). `runs` is None exactly
+     when merged == 1 (a loop that never re-entered)."""
+     value = result.value
+-    if not merged == 1:
++    if merged == 1:
+         return Prov('call', name, line, result, _LAZY, value)
+     ifs = [result]
+     for run in runs:

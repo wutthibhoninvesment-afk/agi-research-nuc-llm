@@ -139,6 +139,24 @@ def test_shapes():
     assert "16 passed, 0 failed" in r.stdout
 
 
+def test_effects():
+    r = run_example("effects.lang")
+    assert r.returncode == 0, r.stdout
+    assert "total: 60" in r.stdout
+    assert "auditing 3 prices" in r.stdout
+    assert "(debug) 10" in r.stdout
+    assert "4 passed, 0 failed" in r.stdout
+
+
+def test_effects_violation_exits_2(tmp_path):
+    bad = tmp_path / "bad_effects.lang"
+    bad.write_text('fn f() effects [] { print(1) }\n1\n')
+    r = subprocess.run([sys.executable, RUN, str(bad)],
+                       capture_output=True, text=True)
+    assert r.returncode == 2
+    assert "'print' requires effect 'io'" in r.stderr
+
+
 def test_max_iter_flag(tmp_path):
     prog = tmp_path / "spin.lang"
     prog.write_text("fn spin(n) { spin(n + 1) }\nlet r = spin(0)\nprint(r)\n"

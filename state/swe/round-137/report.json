@@ -1,0 +1,668 @@
+{
+ "total": 1276,
+ "baseline": {
+  "killed": 1198,
+  "survived": 78,
+  "score": 0.9389,
+  "seconds": 3478.0
+ },
+ "recheck": {
+  "timeouts": 5,
+  "flips": [
+   {
+    "id": "interp.py:2377:cmp#944",
+    "before": "timeout",
+    "after": "killed",
+    "seconds": 1.0,
+    "detail": "FAILED tests/test_examples.py::test_provenance - assert 1 == 0\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 1 passed in 0.81s"
+   },
+   {
+    "id": "interp.py:1836:cmp#1082",
+    "before": "timeout",
+    "after": "killed",
+    "seconds": 570.8,
+    "detail": "AILED tests/test_examples.py::test_self_hosting_real_syntax - AssertionError: \n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 11 passed in 570.67s (0:09:30)"
+   }
+  ],
+  "timeout_s": 600.0,
+  "seconds": 2373.3,
+  "subset_checked": 78,
+  "subset_flips": [
+   {
+    "id": "interp.py:1968:const#1251",
+    "files_run": 4,
+    "after": "killed",
+    "killed_by": "tests/test_fuzz_regressions.py",
+    "detail": "FAILED tests/test_fuzz_regressions.py::test_equality_on_deeply_nested_records\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 20 passed in 11.13s"
+   },
+   {
+    "id": "interp.py:1988:ifneg#42",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_generated_killers.py",
+    "detail": "FAILED tests/test_generated_killers.py::test_kill_interp_py_575_const_247 - A...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 83 passed in 12.12s"
+   },
+   {
+    "id": "interp.py:1989:arith#432",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_generated_killers.py",
+    "detail": "FAILED tests/test_generated_killers.py::test_kill_interp_py_514_arith_156 - A...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 73 passed in 11.51s"
+   },
+   {
+    "id": "interp.py:2031:const#922",
+    "files_run": 5,
+    "after": "killed",
+    "killed_by": "tests/test_v10.py",
+    "detail": "D tests/test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 611 passed in 69.16s (0:01:09)"
+   },
+   {
+    "id": "interp.py:2070:ifneg#48",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_shapes - AssertionError: why the total fa...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 15 passed in 10.82s"
+   },
+   {
+    "id": "interp.py:2072:arith#440",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_shapes - AssertionError: why the total fa...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 15 passed in 10.67s"
+   },
+   {
+    "id": "interp.py:2113:cmp#192",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_shapes - AssertionError: why the total fa...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 15 passed in 10.66s"
+   },
+   {
+    "id": "interp.py:2119:arith#441",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_shapes - AssertionError: why the total fa...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 15 passed in 10.64s"
+   },
+   {
+    "id": "interp.py:2187:const#1191",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_hello - assert 1 == 0\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed in 0.48s"
+   },
+   {
+    "id": "interp.py:2190:const#443",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_history - AssertionError: assert 1 == 0\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 9 passed in 1.90s"
+   },
+   {
+    "id": "interp.py:2209:bool#697",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_interp.py",
+    "detail": "FAILED tests/test_interp.py::test_range - TypeError: 'float' object cannot be...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 197 passed in 11.53s"
+   },
+   {
+    "id": "interp.py:2210:arith#1100",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_interp.py",
+    "detail": "FAILED tests/test_interp.py::test_range - TypeError: can't multiply sequence ...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 197 passed in 11.51s"
+   },
+   {
+    "id": "interp.py:2222:ifneg#198",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_hello - AssertionError: assert 1 == 0\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed in 0.48s"
+   },
+   {
+    "id": "interp.py:2226:arith#930",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_generated_killers.py",
+    "detail": "FAILED tests/test_generated_killers.py::test_kill_interp_py_598_arith_311 - A...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 97 passed in 11.14s"
+   },
+   {
+    "id": "interp.py:2236:ifneg#200",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_sales - AssertionError: assert 1 == 0\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 4 passed in 0.57s"
+   },
+   {
+    "id": "interp.py:2240:arith#931",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_generated_killers.py",
+    "detail": "FAILED tests/test_generated_killers.py::test_kill_interp_py_612_arith_312 - A...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 98 passed in 11.26s"
+   },
+   {
+    "id": "interp.py:2281:ifneg#205",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_self_hosting_real_syntax - AssertionError...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 11 passed in 6.67s"
+   },
+   {
+    "id": "interp.py:2282:arith#933",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_generated_killers.py",
+    "detail": "FAILED tests/test_generated_killers.py::test_kill_interp_py_648_arith_314 - a...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 100 passed in 11.62s"
+   },
+   {
+    "id": "interp.py:2315:arith#707",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_generated_killers.py",
+    "detail": "FAILED tests/test_generated_killers.py::test_kill_interp_py_677_arith_250 - A...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 84 passed in 11.32s"
+   },
+   {
+    "id": "interp.py:2316:const#1202",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_generated_killers.py",
+    "detail": "FAILED tests/test_generated_killers.py::test_kill_interp_py_677_arith_250 - A...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 84 passed in 11.41s"
+   },
+   {
+    "id": "interp.py:2336:arith#940",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_generated_killers.py",
+    "detail": "FAILED tests/test_generated_killers.py::test_kill_interp_py_677_arith_250 - A...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 84 passed in 11.22s"
+   },
+   {
+    "id": "interp.py:2339:arith#941",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_interp.py",
+    "detail": "FAILED tests/test_interp.py::test_abs_sqrt - AssertionError: assert (True and...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 203 passed in 11.48s"
+   },
+   {
+    "id": "interp.py:2342:const#1205",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_checks_demo - AssertionError: assert 1 == 0\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 3 passed in 0.57s"
+   },
+   {
+    "id": "interp.py:2349:const#1107",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_blame - AssertionError: assert 1 == 0\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 2 passed in 0.54s"
+   },
+   {
+    "id": "interp.py:2359:const#468",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_provenance - AssertionError: assert 1 == 0\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 1 passed in 0.52s"
+   },
+   {
+    "id": "interp.py:2363:arith#943",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_interp.py",
+    "detail": "FAILED tests/test_interp.py::test_note_waypoint - TypeError: can't multiply s...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 193 passed in 11.47s"
+   },
+   {
+    "id": "interp.py:2383:const#1207",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_history - AssertionError: assert 1 == 0\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 9 passed in 1.92s"
+   },
+   {
+    "id": "interp.py:2384:const#946",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_self_hosting_real_syntax - AssertionError...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 11 passed in 6.17s"
+   },
+   {
+    "id": "interp.py:2389:const#474",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_generated_killers.py",
+    "detail": "FAILED tests/test_generated_killers.py::test_kill_interp_py_801_arith_260 - a...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 87 passed in 10.99s"
+   },
+   {
+    "id": "interp.py:2402:not#714",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_generated_killers.py",
+    "detail": "FAILED tests/test_generated_killers.py::test_kill_interp_py_801_arith_260 - a...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 87 passed in 11.07s"
+   },
+   {
+    "id": "interp.py:2422:const#478",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_sales - assert 1 == 0\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 4 passed in 0.58s"
+   },
+   {
+    "id": "interp.py:2425:ifneg#222",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_sales - AssertionError: assert 1 == 0\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 4 passed in 0.57s"
+   },
+   {
+    "id": "interp.py:2428:bool#477",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_generated_killers.py",
+    "detail": "FAILED tests/test_generated_killers.py::test_kill_interp_py_786_bool_189 - As...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 76 passed in 11.10s"
+   },
+   {
+    "id": "interp.py:2428:ifneg#223",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_sales - assert 1 == 0\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 4 passed in 0.58s"
+   },
+   {
+    "id": "interp.py:2428:not#715",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_sales - assert 1 == 0\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 4 passed in 0.57s"
+   },
+   {
+    "id": "interp.py:2428:not#716",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_sales - assert 1 == 0\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 4 passed in 0.58s"
+   },
+   {
+    "id": "interp.py:2447:ifneg#225",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_meta_self_hosting_subset - assert 1 == 0\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 10 passed in 1.96s"
+   },
+   {
+    "id": "interp.py:2447:not#479",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_meta_self_hosting_subset - assert 1 == 0\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 10 passed in 1.96s"
+   },
+   {
+    "id": "interp.py:2448:arith#949",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_v05.py",
+    "detail": "FAILED tests/test_v05.py::test_get_non_string_name - TypeError: can't multipl...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 380 passed in 15.15s"
+   },
+   {
+    "id": "interp.py:2455:const#483",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_meta_self_hosting_subset - assert 1 == 0\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 10 passed in 1.98s"
+   },
+   {
+    "id": "interp.py:2465:not#481",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_meta_self_hosting_subset - assert 1 == 0\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 10 passed in 1.95s"
+   },
+   {
+    "id": "interp.py:2469:ifneg#228",
+    "files_run": 4,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_meta_self_hosting_subset - assert 1 == 0\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 10 passed in 1.96s"
+   },
+   {
+    "id": "interp.py:2469:not#482",
+    "files_run": 4,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_meta_self_hosting_subset - assert 1 == 0\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 10 passed in 1.96s"
+   },
+   {
+    "id": "interp.py:2470:arith#951",
+    "files_run": 4,
+    "after": "killed",
+    "killed_by": "tests/test_v06.py",
+    "detail": "FAILED tests/test_v06.py::test_has_needs_record_and_string - TypeError: can't...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 408 passed in 15.32s"
+   },
+   {
+    "id": "interp.py:2474:cmp#717",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_meta_self_hosting_subset - assert 1 == 0\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 10 passed in 1.94s"
+   },
+   {
+    "id": "interp.py:2476:const#486",
+    "files_run": 4,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_meta_self_hosting_subset - assert 1 == 0\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 10 passed in 1.96s"
+   },
+   {
+    "id": "interp.py:2484:not#484",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_meta_self_hosting_subset - assert 1 == 0\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 10 passed in 1.95s"
+   },
+   {
+    "id": "interp.py:2488:not#485",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_meta_self_hosting_subset - assert 1 == 0\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 10 passed in 1.96s"
+   },
+   {
+    "id": "interp.py:2496:const#491",
+    "files_run": 4,
+    "after": "killed",
+    "killed_by": "tests/test_self_eval.py",
+    "detail": "FAILED tests/test_self_eval.py::test_example_runs_green - AssertionError: sel...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 250 passed in 11.54s"
+   },
+   {
+    "id": "interp.py:2502:not#487",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_self_eval.py",
+    "detail": "FAILED tests/test_self_eval.py::test_example_runs_green - AssertionError: sel...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 250 passed in 11.63s"
+   },
+   {
+    "id": "interp.py:2508:ifneg#488",
+    "files_run": 4,
+    "after": "killed",
+    "killed_by": "tests/test_self_eval.py",
+    "detail": "FAILED tests/test_self_eval.py::test_example_runs_green - AssertionError: sel...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 250 passed in 11.60s"
+   },
+   {
+    "id": "interp.py:2511:ifneg#489",
+    "files_run": 3,
+    "after": "killed",
+    "killed_by": "tests/test_self_eval.py",
+    "detail": "FAILED tests/test_self_eval.py::test_example_runs_green - AssertionError: sel...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 250 passed in 11.65s"
+   },
+   {
+    "id": "interp.py:2511:not#718",
+    "files_run": 3,
+    "after": "killed",
+    "killed_by": "tests/test_self_eval.py",
+    "detail": "FAILED tests/test_self_eval.py::test_example_runs_green - AssertionError: sel...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 250 passed in 11.57s"
+   },
+   {
+    "id": "interp.py:2512:arith#1112",
+    "files_run": 3,
+    "after": "killed",
+    "killed_by": "tests/test_v05.py",
+    "detail": "FAILED tests/test_v05.py::test_find_predicate_non_bool - TypeError: can't mul...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 397 passed in 15.63s"
+   },
+   {
+    "id": "interp.py:2515:ifneg#490",
+    "files_run": 3,
+    "after": "killed",
+    "killed_by": "tests/test_self_eval.py",
+    "detail": "FAILED tests/test_self_eval.py::test_example_runs_green - AssertionError: sel...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 250 passed in 11.66s"
+   },
+   {
+    "id": "interp.py:2529:const#494",
+    "files_run": 2,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_shapes - AssertionError: why the total fa...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 15 passed in 10.26s"
+   },
+   {
+    "id": "interp.py:2535:ifneg#235",
+    "files_run": 2,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_shapes - AssertionError: why the total fa...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 15 passed in 10.16s"
+   },
+   {
+    "id": "interp.py:2535:not#492",
+    "files_run": 2,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_shapes - AssertionError: why the total fa...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 15 passed in 10.20s"
+   },
+   {
+    "id": "interp.py:2536:arith#955",
+    "files_run": 2,
+    "after": "killed",
+    "killed_by": "tests/test_v10.py",
+    "detail": "FAILED tests/test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 611 passed in 59.84s"
+   },
+   {
+    "id": "interp.py:2539:ifneg#236",
+    "files_run": 2,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_shapes - AssertionError: why the total fa...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 15 passed in 10.26s"
+   },
+   {
+    "id": "interp.py:2539:not#493",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_shapes - AssertionError: why the total fa...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 15 passed in 10.12s"
+   },
+   {
+    "id": "interp.py:2540:arith#956",
+    "files_run": 2,
+    "after": "killed",
+    "killed_by": "tests/test_v10.py",
+    "detail": "D tests/test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 611 passed in 61.89s (0:01:01)"
+   },
+   {
+    "id": "interp.py:2544:ifneg#237",
+    "files_run": 2,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_shapes - AssertionError: why the total fa...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 15 passed in 10.17s"
+   },
+   {
+    "id": "interp.py:2546:arith#719",
+    "files_run": 2,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_shapes - AssertionError: \n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 15 passed in 10.21s"
+   },
+   {
+    "id": "interp.py:2561:const#497",
+    "files_run": 4,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_shapes - AssertionError: why the total fa...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 15 passed in 10.80s"
+   },
+   {
+    "id": "interp.py:2564:const#721",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_shapes - AssertionError: why the total fa...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 15 passed in 10.68s"
+   },
+   {
+    "id": "interp.py:2573:const#958",
+    "files_run": 2,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_history - assert 1 == 0\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 9 passed in 2.17s"
+   },
+   {
+    "id": "interp.py:2574:cmp#498",
+    "files_run": 2,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_history - assert 1 == 0\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 9 passed in 1.99s"
+   },
+   {
+    "id": "interp.py:2574:const#722",
+    "files_run": 2,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_history - AssertionError: assert 1 == 0\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 9 passed in 2.03s"
+   },
+   {
+    "id": "interp.py:2574:ifneg#239",
+    "files_run": 3,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_history - assert 1 == 0\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 9 passed in 1.98s"
+   },
+   {
+    "id": "interp.py:2576:ifneg#499",
+    "files_run": 2,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_history - AssertionError: assert 1 == 0\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 9 passed in 2.08s"
+   },
+   {
+    "id": "interp.py:2577:const#1255",
+    "files_run": 2,
+    "after": "killed",
+    "killed_by": "tests/test_v10.py",
+    "detail": "D tests/test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 611 passed in 66.72s (0:01:06)"
+   },
+   {
+    "id": "interp.py:2578:ifneg#500",
+    "files_run": 3,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_history - AssertionError: assert 1 == 0\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 9 passed in 2.03s"
+   },
+   {
+    "id": "interp.py:2578:not#723",
+    "files_run": 2,
+    "after": "killed",
+    "killed_by": "tests/test_examples.py",
+    "detail": "FAILED tests/test_examples.py::test_history - AssertionError: assert 1 == 0\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 9 passed in 1.92s"
+   },
+   {
+    "id": "interp.py:2579:arith#1113",
+    "files_run": 1,
+    "after": "killed",
+    "killed_by": "tests/test_v03.py",
+    "detail": "FAILED tests/test_v03.py::test_steps_filter_rejects_non_string - TypeError: c...\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 291 passed in 13.31s"
+   },
+   {
+    "id": "interp.py:430:cmp#285",
+    "files_run": 3,
+    "after": "killed",
+    "killed_by": "tests/test_v10.py",
+    "detail": "D tests/test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 611 passed in 60.90s (0:01:00)"
+   },
+   {
+    "id": "interp.py:430:const#539",
+    "files_run": 3,
+    "after": "killed",
+    "killed_by": "tests/test_v10.py",
+    "detail": "D tests/test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 611 passed in 60.47s (0:01:00)"
+   },
+   {
+    "id": "interp.py:430:ifneg#92",
+    "files_run": 3,
+    "after": "killed",
+    "killed_by": "tests/test_v10.py",
+    "detail": "D tests/test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 611 passed in 65.29s (0:01:05)"
+   }
+  ],
+  "subset_survivors": 78,
+  "subset_unverified": 0
+ },
+ "corrected": {
+  "killed": 1276,
+  "survived": 0,
+  "score": 1.0
+ },
+ "corpus": {
+  "survivors": 0,
+  "found": 0,
+  "no_killer": 0,
+  "verified": 0,
+  "programs": 413
+ },
+ "live_kill": {
+  "attempted": 0,
+  "killed": 0,
+  "equivalent_claimed": 0,
+  "failed": 0,
+  "verified": 0,
+  "cost_usd": 0,
+  "steps": 0,
+  "model": "claude-sonnet-5"
+ },
+ "review": {
+  "claimed": null,
+  "confirmed": null,
+  "steps": null,
+  "tool_calls": null,
+  "cost_usd": null,
+  "stop_reason": null,
+  "model": null,
+  "tool_histogram": null
+ },
+ "coverage": {
+  "pct": {
+   "whence/interp.py": 76.71
+  },
+  "targeted": false,
+  "never_executed_defs": 12,
+  "survived_covered": 0,
+  "survived_uncovered": 0,
+  "survived_unknown": 0,
+  "killed_traced": 1276,
+  "killed_on_uncovered": 244
+ },
+ "triage": {
+  "counts": {
+   "counter": 0,
+   "budget": 0,
+   "none_guard": 0,
+   "error_message": 0,
+   "other": 0
+  },
+  "score_all": 1.0,
+  "score_behavioural": 1.0,
+  "behavioural_total": 1192,
+  "behavioural_killed": 1192
+ },
+ "oracle_kill": {
+  "pool": 0,
+  "found": 0,
+  "by_kind": {
+   "modes": 0,
+   "frames": 0,
+   "counters": 0
+  },
+  "verified": 0,
+  "programs": 318
+ },
+ "subset": {
+  "subset_survivors": 78,
+  "subset_checked": 78,
+  "subset_flips": 78
+ },
+ "repair": {
+  "attempted": 6,
+  "green": 0,
+  "exact": 0,
+  "localized": 5,
+  "cheated": 0,
+  "green_not_exact": 0,
+  "cost_usd": 0.7634,
+  "steps": 76,
+  "model": "claude-sonnet-5"
+ },
+ "tests_added": 0,
+ "projected_score": 1.0,
+ "cost_usd": 0.7634
+}

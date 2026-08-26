@@ -1,4 +1,4 @@
-# Whence — a provenance-first language (spec v0.13, rounds 009/011/014/020/024/026/030/108/110/122/128/132)
+# Whence — a provenance-first language (spec v0.14, rounds 009/011/014/020/024/026/030/108/110/122/128/132/146)
 
 **One idea:** every value remembers where it came from. `why x` returns the
 derivation tree of `x` as a first-class value. Failures are values too, so a
@@ -626,6 +626,89 @@ that cannot end a statement.
   unnecessary since the feature composes directly with v0.12's existing
   one and the design point (return checks are call-boundary checks like
   parameter checks) is best shown as an addition, not a separate story.
+
+## v0.14 (round 146) — effect system
+- **The curriculum's remaining "advanced feature" slot (after v0.12
+  structural types and v0.13 return types) is an effect system, not
+  AI-native primitives** — decided this round because the language
+  already has an observable effect to make interesting (`print`, which
+  writes to the host) and because a minimal design falls directly out of
+  the v0.12/v0.13 precedent, unlike AI-native primitives, which have no
+  settled scope yet. `fn f(params) effects [tag, ...] -> Type { body }` —
+  an optional clause after the parameter list, fixed order (effects
+  before `-> Type`; the other order is an ordinary out-of-order syntax
+  error, "expected '{'"). Anonymous `fn(...) effects [...] { ... }` takes
+  the same clause.
+- **The whole check is resolved at PARSE time, with zero interpreter
+  change** — no new AST field, no `Closure` slot, no runtime cost,
+  unlike `: Type`/`-> Type` (v0.12/v0.13), which both check a RUNTIME
+  value and therefore have to live in the interpreter. Whether a
+  function's own body directly names an effectful builtin is a static
+  property of the source text, decidable before the program ever runs —
+  the same category of fact that already makes rebinding and "block must
+  end in an expression" PARSE errors rather than misses. `_EFFECTFUL_
+  BUILTINS = {"print": "io"}` (`parser.py`) is the one place a future
+  effectful builtin (randomness, a clock, real I/O) would register its
+  tag; nothing else would need to change.
+- **Mechanism:** the parser keeps a stack of "the nearest enclosing fn's
+  declared effect set" while parsing (`self.effects_stack`, pushed on
+  entering any `fn`'s body — `None` for no clause, a `frozenset` for a
+  declared one, possibly empty) and checks it at every direct call whose
+  callee is literally a builtin name in the effect table
+  (`Parser._check_effect_call`, called from `postfix()`'s call-parsing
+  site). No clause anywhere in scope (including the module top level,
+  which has no enclosing fn at all) means unrestricted — **every program
+  written before this feature existed parses identically**, confirmed by
+  the full pre-existing suite (779/779) and every `examples/*.lang` file
+  running unchanged after the change landed.
+- **`effects []` is the interesting case: "this function's own body may
+  not directly call an effectful builtin."** Violating it is a
+  `ParseError` naming the builtin, the required tag, and the declared
+  set (`'print' requires effect 'io', not permitted by the enclosing
+  function's 'effects [] (no effects declared)'`). `effects [io]` (or
+  any set containing the tag) grants it; an unrelated tag like `effects
+  [network]` does NOT grant `"io"` — the check is per-tag, not merely
+  "was a clause present" (`test_effects_unrelated_tag_still_blocks_
+  print`).
+- **Deliberately SHALLOW, not merely incomplete — the same scoping
+  discipline v0.13's return-type check already established (one settle
+  point, not full call-graph composition):**
+  - A declaration vouches ONLY for calls made directly, textually, in
+    that function's own body. A nested `fn` defined inside a restricted
+    body is a SEPARATE closure with its own (absent, hence unrestricted)
+    declaration and may print freely, even lexically inside an `effects
+    []` function (`test_nested_undeclared_fn_escapes_outer_purity`,
+    `examples/effects.lang`'s `strict_sum`). Calling a DIFFERENT,
+    unrestricted function that itself prints is likewise untouched by
+    the caller's declaration.
+  - Only a literal `name(...)` callee is inspected. `let p = print` then
+    `p(1)` is invisible to the check inside an `effects []` function —
+    the callee at that call site is the `NameRef` `p`, not `print`
+    (`test_indirect_call_via_variable_is_not_checked`).
+  - Both gaps are real, tested, and documented rather than hidden; a
+    call-graph-aware (transitive) effect system that closes them is
+    future work, not this round's scope (see research-state.md's
+    language backlog).
+- **Zero interpreter change means the three-way differential (fast /
+  direct / trampoline) already agrees by construction** — pinned
+  explicitly anyway with two `assert_three_way` cases
+  (`tests/test_v14.py`), plus the full pre-existing fuzz/oracle/guest/
+  ref_diff standing checks (round 146: two fresh fuzz seeds, two oracle
+  seeds — one at `--limit 6000` — two guest seeds, `reserve_probe
+  --examples -n 30`, `ref_diff` over every example) all ran clean or
+  found nothing attributable to this change (`ref_diff` correctly
+  reports `examples/effects.lang` as `NEWSYNTAX` against the pre-round
+  reference tree, not a diff).
+- **New example `examples/effects.lang`** (4 checks): a declared-pure
+  `total`, an `effects [io]` `report` that legitimately prints, `effects
+  [io] -> num` composing with a return type, and the honest
+  `strict_sum` escape-hatch demonstration. No example demonstrates the
+  REJECTED case (a `ParseError` aborts the whole file before any `check`
+  can run, so a "this should fail" example can't coexist with passing
+  checks in one file, unlike a v0.12/v0.13 type mismatch, which is a
+  runtime `miss` that keeps the rest of the program running) — the
+  rejection path is covered by `tests/test_v14.py` and
+  `test_examples.py::test_effects_violation_exits_2` instead.
 
 ## Builtins
 `print len range map filter fold push str num abs sqrt missed reasons note

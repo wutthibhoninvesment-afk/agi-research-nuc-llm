@@ -938,20 +938,36 @@ fn apply_builtin(name, args, st) {
     else { guest_find(args[0], (args[1]).v, 0, st) }
   }
   else if name == "get" {
-    if is_callable((args[0]).v) {
-      @{v: mkb(miss "get of a function", "get", args), st: st}
+    # host mirroring (round 24): only KEY-side trouble is get's own node;
+    # record-side misses (missed record, non-record, absent field) are
+    # _field's — get(r, "a") and r.a are indistinguishable node for node.
+    # Key-badness is checked FIRST, matching host b_get's own order (it
+    # rejects a non-string name before ever looking at the record side).
+    let nm = (args[1]).v
+    let keybad = missed(nm) or missed(nm + "")
+    if keybad {
+      @{v: mkb(miss "get field name must be a string", "get",
+               [args[1], args[0]]), st: st}
+    }
+    else if is_callable((args[0]).v) {
+      # Guest closures/builtin refs are ordinary records under the hood
+      # (see the len/keys/put/merge/has guard above) but must stay opaque
+      # like a real host function — the host's real `_field` helper (used
+      # by BOTH `.field` and `get`) never sees a Record here at all, so it
+      # can't pierce through. Mirror its exact node shape for a non-record
+      # object: op "field", ONE input (the object only — the key is never
+      # itself a derivation input, same as the ordinary non-callable path
+      # below). Found by the why-shape probe (round 150, seed 602001893):
+      # this branch used to derive its own "get" node naming BOTH args as
+      # inputs, an op/arity host `_field` never produces for any object,
+      # callable or not.
+      @{v: mkb(miss ("cannot access ." + nm + " on " + str((args[0]).v)),
+               "field", [args[0]]),
+        st: st}
     }
     else {
-      # host mirroring (round 24): only KEY-side trouble is get's own node;
-      # record-side misses (missed record, non-record, absent field) are
-      # _field's — get(r, "a") and r.a are indistinguishable node for node
-      let nm = (args[1]).v
       let r0 = get((args[0]).v, nm)
-      let keybad = missed(nm) or missed(nm + "")
-      @{v: if missed(r0) {
-             if keybad { mkb(r0, "get", [args[1], args[0]]) }
-             else { mkb(r0, "field", [args[0]]) }
-           } else { r0 },
+      @{v: if missed(r0) { mkb(r0, "field", [args[0]]) } else { r0 },
         st: st}
     }
   }

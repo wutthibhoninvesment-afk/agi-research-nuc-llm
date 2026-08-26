@@ -235,6 +235,45 @@ def test_run_oracle_path_works(pkg):
     assert o.kind == "ok", o.detail
 
 
+def test_guest_harness_cache_evicted_after_a_mid_call_exception(pkg):
+    """Round 149: `run_oracle`'s SIGALRM can fire at ANY point inside
+    `h.eval_program`, which mutates the long-lived, CACHED `GuestHarness`
+    shared across every program in a campaign (built once to avoid
+    re-parsing the ~800-line self_eval.lang library per program). An
+    interrupt mid-mutation can leave that shared harness in an unknown
+    state that then corrupts a later, unrelated program's result.
+    Found via 3 guest-differential 'mismatch' findings (round 137, seeds
+    141/142) that reproduced neither standalone nor via an identical-
+    sequence replay into a FRESH harness — the only remaining variable is
+    a genuinely wall-clock-timed interrupt elsewhere in the same long-lived
+    harness, and round 137 ran this campaign under heavy concurrent CPU
+    load (a live 5-worker mutation campaign). Simulates the interrupt
+    directly (no real SIGALRM needed) and checks the cache entry for a
+    harness that raised is evicted, so the next call rebuilds fresh instead
+    of inheriting whatever state the raise left behind."""
+    # A genuinely distinctly-named package, not just a copied dict with a
+    # relabeled "name" field: GuestHarness.__init__ re-imports
+    # `pkg["name"] + ".values"` via `__import__`, which only resolves if a
+    # module was actually registered under that name in `sys.modules` —
+    # `load_whence` does that; overwriting "name" on a dict copy of the
+    # module-scoped `pkg` fixture does not, and fails with
+    # ModuleNotFoundError before this test's own logic ever runs.
+    d = load_whence(WHENCE_ROOT, "guest_evict_test")
+    h1 = G.harness_for(d)
+    assert G._HARNESSES[d["name"]] is h1
+
+    def boom(src):
+        raise RuntimeError("simulated mid-flight interrupt")
+    h1.eval_program = boom
+    with pytest.raises(RuntimeError):
+        G.oracle_self_eval(d, "let a = 1\n")
+    assert d["name"] not in G._HARNESSES
+
+    o = G.oracle_self_eval(d, "let b = 2 + 3\n")
+    assert o.kind == "ok", o.detail
+    assert G._HARNESSES[d["name"]] is not h1
+
+
 # ------------------------------------------------------ why-shape probe --
 
 def test_why_probe_fires_on_injected_mirror_bug(pkg):

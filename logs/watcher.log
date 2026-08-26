@@ -21,3 +21,15 @@
 [2026-08-26 11:12:49] fresh driver launched (pid 42972), now reading the CURRENT run_driver.sh from disk
 [2026-08-26 11:12:49] === driver started; resuming after round 145 ===
 [2026-08-26 11:12:49] round 146 track=language(C) start (driver_version=145-selfexec) pid=42972
+[2026-08-26 11:43:28] round 146: quota/limit signal detected (rc=1) — checking state
+[2026-08-26 11:43:28] round 146: turn summary {"assistant_turns": 143, "thinking_tokens": 26388, "tool_calls": 84, "span_s": 1834.779}
+[2026-08-26 11:43:28] round 146: non-success status=error:err
+[2026-08-26 11:44:14] === driver started; resuming after round 146 ===
+[2026-08-26 11:44:14] round 147 track=skills(B) start (driver_version=145-selfexec) pid=42972
+[2026-08-26 11:57:45] round 147: quota/limit signal detected (rc=1) — checking state
+[2026-08-26 11:57:45] round 147: turn summary {"assistant_turns": 145, "thinking_tokens": 17194, "tool_calls": 82, "span_s": 794.692}
+[2026-08-26 11:57:45] round 147: non-success status=error:err
+[2026-08-26 11:57:45] 3 consecutive failures — assuming weekly limit reached, stopping
+[2026-08-26 11:57:45] === driver stopping at round 147 ===
+[2026-08-26 12:05:45] final report round done
+[2026-08-26 12:05:45] === driver finished ===

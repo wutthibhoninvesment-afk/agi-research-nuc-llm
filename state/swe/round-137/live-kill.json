@@ -1,0 +1,15 @@
+{
+ "sample": [],
+ "pool": 0,
+ "attempted": 0,
+ "killed": 0,
+ "equivalent_claimed": 0,
+ "failed": 0,
+ "verified": 0,
+ "cost_usd": 0,
+ "steps": 0,
+ "test_file": "tests/test_model_killers_r29.py",
+ "model": "claude-sonnet-5",
+ "results": [],
+ "verify": []
+}

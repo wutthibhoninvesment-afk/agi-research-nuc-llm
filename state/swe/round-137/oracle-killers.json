@@ -1,0 +1,19 @@
+{
+ "seed": 137,
+ "corpus_n": 300,
+ "programs": 318,
+ "limit": 6000,
+ "pool": 0,
+ "found": 0,
+ "by_kind": {
+  "modes": 0,
+  "frames": 0,
+  "counters": 0
+ },
+ "no_killer": 0,
+ "test_file": "tests/test_oracle_killers_r113.py",
+ "verified": 0,
+ "verify": [],
+ "seconds": 0.0,
+ "killers": []
+}

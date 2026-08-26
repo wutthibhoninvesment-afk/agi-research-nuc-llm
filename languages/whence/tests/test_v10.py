@@ -520,8 +520,13 @@ def test_ref_diff_fuzz_mode_same_on_copy_and_diff_on_sabotage():
         # rendered why-trees — a correct SAME, not a test failure). Compute
         # the expected count the same way instead of assuming every parsed
         # program qualifies.
-        # ROOT is languages/whence; harness/ is a sibling of languages/
-        harness = os.path.join(os.path.dirname(os.path.dirname(ROOT)), "harness")
+        # ROOT is languages/whence; harness/ is a sibling of languages/ in the
+        # real checkout, but this file may be running from a tempdir copy of
+        # just languages/whence (any mutation/repair run) — in that case
+        # AGI_RESEARCH_ROOT (set by harness/swe/proc.py on every test
+        # subprocess it spawns) names the real repo instead (round 149).
+        agi_root = os.environ.get("AGI_RESEARCH_ROOT") or os.path.dirname(os.path.dirname(ROOT))
+        harness = os.path.join(agi_root, "harness")
         sys.path.insert(0, harness)
         try:
             from swe.fuzz import ProgramGen

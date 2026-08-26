@@ -31,6 +31,16 @@ import signal
 import subprocess
 import time
 
+# The real, never-copied repo root (this file lives at harness/swe/proc.py,
+# 3 levels down) — every mutation/repair test run happens in a TEMPDIR copy
+# of just `languages/whence`, where `bench/ref_diff.py`'s own __file__-based
+# path math points at the tempdir instead of the real checkout (round 149:
+# found via 7/78 round-137 "kills" that were actually
+# `git -C <tempdir> show HEAD:...` / `import swe` failures inside
+# test_v10.py's ref_diff tests, misclassified as genuine mutant kills).
+# Exported so any subprocess spawned here can recover the real root.
+AGI_RESEARCH_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 
 class Capped(object):
     __slots__ = ("returncode", "output", "timed_out", "seconds")
@@ -55,10 +65,15 @@ def _kill_group(p):
 def run_capped(cmd, cwd, timeout_s, env=None):
     """Run `cmd` (stdout+stderr merged) and return a `Capped`.
     `timed_out` is True when the group had to be killed; `output` then holds
-    whatever the child wrote before the cap (may be empty)."""
+    whatever the child wrote before the cap (may be empty). Always injects
+    `AGI_RESEARCH_ROOT` (see module docstring) on top of the caller's env (or
+    the inherited one) so a test suite running from a tempdir copy of the
+    project under test can still find the real repo."""
+    full_env = dict(os.environ if env is None else env)
+    full_env["AGI_RESEARCH_ROOT"] = AGI_RESEARCH_ROOT
     t0 = time.monotonic()
     p = subprocess.Popen(cmd, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                         stdin=subprocess.DEVNULL, text=True, start_new_session=True, env=env)
+                         stdin=subprocess.DEVNULL, text=True, start_new_session=True, env=full_env)
     try:
         out, _ = p.communicate(timeout=timeout_s)
         return Capped(p.returncode, out or "", False, time.monotonic() - t0)

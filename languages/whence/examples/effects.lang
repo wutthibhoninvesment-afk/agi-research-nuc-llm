@@ -1,0 +1,50 @@
+# effects.lang — a minimal effect system (v0.14): `effects [...]` declares
+# which effectful builtins a function's OWN body may call directly, checked
+# entirely at PARSE time (unlike `: Type`/`-> Type`, which check a runtime
+# value — whether a function's text names an effectful builtin is a static
+# property, decidable before the program ever runs).
+
+# `effects []` promises "this function performs no direct effects". The
+# promise is enforced: a version of `total` that slipped a stray `print`
+# into its body would fail to PARSE, not run and misbehave.
+fn total(prices) effects [] {
+  fold(fn(acc, p) { acc + p }, 0, prices)
+}
+
+let prices = [10, 20, 30]
+check "a declared-pure function computes normally": total(prices) == 60
+
+# `effects [io]` grants the one effectful builtin that exists today
+# (`print`, tagged "io" in the parser's effect table).
+fn report(label, value) effects [io] {
+  print(label + ": " + str(value))
+  value
+}
+check "an io-declared function may print": report("total", total(prices)) == 60
+
+# Combine with a return type (v0.13) — fixed order, effects before `->`.
+fn audited_total(prices) effects [io] -> num {
+  print("auditing " + str(len(prices)) + " prices")
+  total(prices)
+}
+check "effects and a return type compose": audited_total(prices) == 60
+
+# The check is SHALLOW by design: a declaration only vouches for the
+# function's own textual body, not the whole call tree. `total` (declared
+# pure above) is free to call `fold`'s callback, and `report` above is
+# free to call `total` — a pure function calling another function is
+# never itself an "effect", only literally naming `print(...)` is.
+#
+# The escape hatch this implies is real and worth seeing rather than
+# hiding: a nested function DEFINED inside a pure body is its own closure
+# with its own (absent, hence unrestricted) declaration.
+fn strict_sum(xs) effects [] {
+  fn debug_print(x) { print("(debug) " + str(x)) }   # not `effects [io]` —
+  fold(fn(acc, x) { debug_print(x) acc + x }, 0, xs)   # unrestricted by default
+}
+check "a nested, undeclared fn may still print inside a pure outer fn":
+  strict_sum(prices) == 60
+
+print("")
+print("effects.lang: purity is a declared, checked promise about a")
+print("function's own body — not a proof about everything it calls.")

@@ -1,0 +1,29 @@
+{
+ "classes": {
+  "counter": [],
+  "budget": [],
+  "none_guard": [],
+  "error_message": [],
+  "other": []
+ },
+ "counts": {
+  "counter": 0,
+  "budget": 0,
+  "none_guard": 0,
+  "error_message": 0,
+  "other": 0
+ },
+ "class_totals": {
+  "counter": 27,
+  "budget": 57,
+  "none_guard": 124,
+  "error_message": 89,
+  "other": 979
+ },
+ "survivors": [],
+ "score_all": 1.0,
+ "score_behavioural": 1.0,
+ "behavioural_total": 1192,
+ "behavioural_killed": 1192,
+ "non_behavioural_survivors": 0
+}

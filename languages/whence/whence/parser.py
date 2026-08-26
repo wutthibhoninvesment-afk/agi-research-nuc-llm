@@ -33,6 +33,13 @@ MAX_NESTING = 60
 # interpreter never sees a "type", only ordinary Let/Call/Str nodes.
 PRIMITIVE_TYPES = frozenset(["num", "str", "bool", "list", "record", "fn", "any"])
 
+# Effect system (v0.14): builtins whose call is a directly-observable side
+# effect, mapped to the capability tag `effects [...]` names them by. Only
+# `print` (writes to the host) exists today; a future effectful builtin
+# (randomness, a clock, real I/O) slots in by adding one entry here — no
+# other code needs to change. See `Parser._check_effect_call`.
+_EFFECTFUL_BUILTINS = {"print": "io"}
+
 
 class Parser(object):
     def __init__(self, tokens):
@@ -44,6 +51,13 @@ class Parser(object):
         # forward refs — the field's spec value must already be bound at
         # the point a later shape's record literal reads it by name).
         self.shapes = {}
+        # Effect system (v0.14): stack of the nearest enclosing fn's
+        # `effects [...]` declaration while parsing its body — a frozenset
+        # (possibly empty, i.e. `effects []` = "no effects allowed"), or
+        # None for a fn with no clause (unrestricted). Empty stack (module
+        # top level, outside any fn) behaves exactly like a None top: no
+        # program written before this feature existed changes behavior.
+        self.effects_stack = []
 
     def _enter(self):
         self.nesting += 1
@@ -118,8 +132,13 @@ class Parser(object):
             self.next()
             name = self.expect("NAME").value
             params, types = self.param_list()
+            effects_spec = self.parse_effects_clause()
             ret_type = self.parse_return_type()
-            body = self.block()
+            self.effects_stack.append(effects_spec)
+            try:
+                body = self.block()
+            finally:
+                self.effects_stack.pop()
             self._apply_type_guards(body, params, types, name)
             mark_tails(body)
             return A.FnDef(tok.line, name, params, body, ret_type)
@@ -178,6 +197,72 @@ class Parser(object):
         tok = self.next()
         name = self.parse_type()
         return self._type_spec_expr(name, tok.line)
+
+    def parse_effects_clause(self):
+        """`effects [name, ...]` after a parameter list, before an optional
+        `-> Type` (v0.14, fixed order — a program that writes them the
+        other way around gets an ordinary "expected '{'" ParseError, same
+        as any other out-of-order clause in this parser). `effects` is a
+        contextual keyword like `shape`: only "NAME('effects') [" triggers
+        it, so a program that binds something called `effects` elsewhere
+        (there is none in this corpus, checked) is unaffected. Returns a
+        frozenset of declared effect names (empty for `effects []`, i.e.
+        "this function's own body may not directly call an effectful
+        builtin"), or None if the clause is absent — None means
+        unrestricted, the default, so every program written before this
+        feature existed keeps parsing identically."""
+        if not (self.at("NAME") and self.peek().value == "effects" and
+                self.peek(1).type == "["):
+            return None
+        self.next()   # 'effects'
+        self.next()   # '['
+        names = []
+        if not self.at("]"):
+            while True:
+                tok = self.expect("NAME", what="effect name")
+                names.append(tok.value)
+                if self.at(","):
+                    self.next()
+                    continue
+                break
+        self.expect("]")
+        return frozenset(names)
+
+    def _check_effect_call(self, callee, tok):
+        """Effect system (v0.14): a direct call `name(...)` to a builtin in
+        `_EFFECTFUL_BUILTINS` is checked against the nearest enclosing fn's
+        `effects [...]` declaration (`self.effects_stack[-1]`) — resolved
+        ENTIRELY at parse time, no AST node, no interpreter change, no
+        runtime cost. This is a ParseError rather than a runtime `miss`
+        (unlike a `: Type`/`-> Type` mismatch) because whether a function's
+        OWN body directly names an effectful builtin is a static property
+        of the source text, not something that depends on a runtime value —
+        the same reasoning that makes rebinding and "block must end in an
+        expression" parse errors rather than misses.
+
+        Deliberately SHALLOW, by design, not by oversight: only a call whose
+        callee is literally `A.NameRef("print")` (etc.) is checked. Passing
+        a builtin as a value (`let p = print`) or calling into a DIFFERENT
+        function that itself performs the effect is invisible to this
+        check — the declaration only vouches for the function's own
+        textual body, exactly as far as a return-type check only vouches
+        for the one settle point it's applied to. A real call-graph-aware
+        (transitive) effect system is future work, not this round's scope;
+        see SPEC.md "v0.14" for the honest limitation and an example."""
+        if callee.__class__ is not A.NameRef:
+            return
+        tag = _EFFECTFUL_BUILTINS.get(callee.name)
+        if tag is None:
+            return
+        scope = self.effects_stack[-1] if self.effects_stack else None
+        if scope is None or tag in scope:
+            return
+        declared = "effects [%s]" % ", ".join(sorted(scope)) if scope \
+            else "effects [] (no effects declared)"
+        raise ParseError(
+            "'%s' requires effect '%s', not permitted by the enclosing "
+            "function's '%s'" % (callee.name, tag, declared),
+            tok.line, tok.col)
 
     def parse_type(self):
         """A type name in annotation position: a primitive tag or a
@@ -379,6 +464,7 @@ class Parser(object):
                             continue
                         break
                 self.expect(")")
+                self._check_effect_call(expr, tok)
                 expr = A.Call(tok.line, expr, args, False)
             elif self.at("["):
                 tok = self.next()
@@ -449,8 +535,13 @@ class Parser(object):
         if tok.type == "KW" and tok.value == "fn":
             self.next()
             params, types = self.param_list()
+            effects_spec = self.parse_effects_clause()
             ret_type = self.parse_return_type()
-            body = self.block()
+            self.effects_stack.append(effects_spec)
+            try:
+                body = self.block()
+            finally:
+                self.effects_stack.pop()
             self._apply_type_guards(body, params, types, None)
             mark_tails(body)
             return A.FnExpr(tok.line, params, body, ret_type)
