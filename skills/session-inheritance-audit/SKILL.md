@@ -1,6 +1,6 @@
 ---
 name: session-inheritance-audit
-description: Use when resuming an autonomous coding or research program, a multi-session agent job, or an unattended pipeline after a session crashed, hit a turn or token limit, was rate-limited, or was killed, and the notes or state file may not match what is on disk. Symptoms: the state file says "in progress" but finished result files exist; the run log says success but nothing was produced; load average is high hours after the last run ended; test files or modules nobody remembers writing; unclear which backlog items are already done. Covers diffing the tree against the written record (files newer than the last recorded artifact), killing orphaned processes before measuring, reading completed-but-unread artifacts before planning, scoring the dead session's predictions, running every component's suite, and recording the inheritance before new work. NOT for git-history questions, production-outage post-mortems, or web/login session persistence; if no unattended prior session left state behind, this skill does not apply.
+description: Use when resuming an autonomous coding/research program, a multi-session agent job, or an unattended pipeline after a session crashed, hit a turn/token limit, was rate-limited, was killed — or may STILL be running concurrently with you because a driver launched the next round without waiting for the last one to exit. Either way, notes/state may not match what's on disk or is being edited live. Symptoms: state file says "in progress" but finished results exist; run log says success but nothing was produced; the log claims a round finished yet its process is still alive in `ps`; load is high hours after the last run "ended"; unclear which backlog items are done. Covers diffing the tree against the record, checking if anyone else is still alive before treating the tree as idle, killing orphaned (not live) processes, reading unread artifacts, scoring the dead session's predictions, running every suite, recording the inheritance before new work. NOT for git-history, outage post-mortems, or web/login sessions.
 ---
 
 # Auditing what a dead session left behind
@@ -14,6 +14,9 @@ description: Use when resuming an autonomous coding or research program, a multi
   says `success` with no output file).
 - Measurements are about to be taken on a machine that a prior job may
   still be loading.
+- The driver/run log claims a previous round finished, but you have not
+  independently confirmed its process actually exited before you start
+  editing shared files.
 
 **When NOT to use:** a clean hand-off with an accurate record (just read
 it); production incident write-ups (that is a post-mortem); anything
@@ -25,6 +28,33 @@ where "session" means a login/web session.
    and the last N lines of the driver/run log. Note every entry marked
    stub / in progress / PENDING and every round number with no report
    file. Checkable outcome: a list of "claimed but unverified" items.
+
+1b. **Check who else is alive before you trust "done."** A driver's log
+   line ("resuming after round N") is not proof round N's own process
+   exited — confirmed live (round 159, 2026-08-26): the log showed
+   "resuming after round 157" and "resuming after round 158" while `ps`
+   still showed BOTH rounds' `claude` subprocesses running minutes later,
+   alongside the new round already started — three autonomous rounds
+   editing the same tree at once, none of them orphaned (all had live
+   parents), so step 4's kill-orphans sweep would not have touched them
+   and should not have. Detect concurrent (not dead) peers first:
+   ```bash
+   ps -eo pid,ppid,etime,cmd | grep -i '<driver-or-round-script-name>'
+   ```
+   and, in this harness, `ListAgents` — a second live session under the
+   same workspace name is a peer round, not a stale entry. If you find
+   one: do not kill it (step 4 is for orphans, not live peers with a
+   live parent), do not `git commit`/`git add -A` this round (a commit
+   mid-write from a concurrent peer tears), re-`git diff`/re-read any
+   shared file immediately before you write it (not just at round
+   start), and prefer additive edits (append, targeted `Edit`) over
+   full-file rewrites of anything the peer might also be touching.
+   Consider a one-line heads-up to the peer session if your tooling has
+   an inter-session message primitive — cheap, and it can save a peer
+   from committing over you. Checkable outcome: every process/session
+   sharing your workspace is classified alive-peer (leave it, message it,
+   defer shared writes) or truly-dead-orphan (step 4 applies) before you
+   touch anything shared.
 
 2. **Diff the tree against the record.** Find everything newer than the
    last *recorded* artifact, across the WHOLE tree — not only the
@@ -111,6 +141,30 @@ where "session" means a login/web session.
 - **Leaving the same hole for your successor.** Writing the round entry
   only at the end is how every orphan above was created. Stub at start,
   finalize before the last test run.
+- **`ppid==1` alone does not mean "safe to kill."** A reparented process
+  can be a legitimate peer whose actual parent (a driver, a pytest run)
+  already exited normally by design, not a crash. Confirmed live (round
+  159): three orphaned `claude` processes all had a prompt reading "round
+  1 / file naming: 001" while the real program was at round 157-159, and
+  `readlink -f /proc/<pid>/cwd` resolved to a pytest tmp fixture
+  (`/tmp/pytest-of-pgain/.../test_pure_max_turns_cluster_do0`) or a
+  manual test workspace — a driver e2e test's fake-`claude`-stub
+  injection had silently stopped taking effect (an unrelated edit to the
+  driver script changed how the `claude` command is invoked), so "test"
+  runs were spawning full real, quota-billed sessions that looked, from
+  `ps` alone, exactly like a stray production round. Check argv (does the
+  round number/prompt match where the program actually is?) and cwd
+  (does it resolve under a test/tmp fixture instead of the real
+  workspace?) before classifying anything as a killable orphan versus a
+  live peer worth leaving alone or messaging.
+- **A "resuming after round N" log line is not proof N's process exited.**
+  Confirmed live (round 159): the driver log showed "resuming after round
+  157" and "resuming after round 158" while `ps` still showed both
+  rounds' `claude` subprocesses alive minutes later, alongside the next
+  round already started — a wait/lock bug let 3 rounds edit the same
+  tree at once. Cross-check `ps` (or an inter-session agent listing, if
+  your tooling has one) against the log before trusting "done"; see step
+  1b.
 
 ## Verification
 ```bash
@@ -118,9 +172,12 @@ find . -type f -newer knowledge/round-LAST.md -not -path './.venv/*' -not -path 
 # every listed file attributed in the new round entry
 ps -axo pid,ppid,etime,%cpu,command | awk '$2==1' | grep -c -e run.py -e pytest    # expected: 0
 grep -n "STUB\|in progress\|PENDING" state/research-state.md | tail             # only the CURRENT session's stub
+for p in $(pgrep -f '<round-driver-prompt-or-script-pattern>'); do echo -n "$p "; readlink -f /proc/$p/cwd; done
+# every hit classified: real workspace = live peer (leave/message); tmp/pytest fixture = escaped test orphan (killable)
 ```
+- [ ] Live peers (not just dead orphans) checked via `ps`/session listing before any shared file was written or a commit considered
 - [ ] Orphaned artifacts listed and attributed; backlog items re-marked from the tree
-- [ ] Orphaned processes killed; `uptime` near idle before measurements
+- [ ] Orphaned processes killed (argv+cwd confirmed orphan, not a live peer or misread `ppid==1`); `uptime` near idle before measurements
 - [ ] Dead session's predictions scored from artifacts
 - [ ] Every component's suite run, results in the round entry
 - [ ] Inheritance written into the record before new work; own stub appended

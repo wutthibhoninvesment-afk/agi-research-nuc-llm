@@ -282,12 +282,17 @@ The steps are self-contained.)
    run the full suite (they are the instrument's blind spot and there are
    few). Keep the instrument honest: the recheck stage re-runs a seeded
    sample of subset-survivors under the full suite and records
-   `subset_flips` — one flip is an instrument error to chase, not noise.
-   Implementation: `swe.coverage --by-file --out map.json`, then
-   `swe.campaign --coverage-map map.json` (`--no-subset` = order only,
-   `--subset-check N`). Checkable outcome: every kill's `killed_by` file
-   is in the map's covering set for that line (fidelity), `subset_flips`
-   is 0 or explained.
+   `subset_flips` — **check staleness before blaming the instrument: a
+   map reused against a since-edited file gave 78/78 flips, not the ~1%
+   a fresh map gives** (see Pitfalls). Guard by content hash, not
+   existence, at reuse time. Implementation: `swe.coverage --by-file --out
+   map.json`, then `swe.campaign --coverage-map map.json` (`--no-subset`
+   = order only, `--subset-check N`, `--allow-stale-map` to opt into the
+   old unchecked trust explicitly). Checkable outcome: every kill's
+   `killed_by` file is in the map's covering set for that line (fidelity),
+   `subset_flips` is 0 or explained, and a map reused after the target
+   file changes auto-downgrades to full-suite instead of trusting stale
+   line numbers.
 
 20. **Classify survivors by the code they sit in before spending anything
    on them.** Key on NAMES and one shape, not on judgement: statistics
@@ -345,6 +350,12 @@ The steps are self-contained.)
 - **Nested `in_thread` calls leak the inner worker.** An async exception
   kills the outer thread at `join`; the inner one keeps spinning at 100 %
   CPU. One thread per measurement, each with its own timeout.
+- **A by-file coverage map reused across rounds silently mis-attributes
+  coverage once the target file is edited** — it is keyed on line number,
+  not content. A map reused against a since-grown file gave a 78/78
+  subset-basis flip rate at recheck, not the single-digit rate a fresh
+  map gives; check staleness by content hash before blaming the
+  instrument (step 19).
 
 Older pitfalls (one per failure the program hit, rounds 5–107) are in
 [references/pitfalls.md](references/pitfalls.md): Fixes applied to a copy never ship; Fuzz timeouts are findings too; Non-deterministic RecursionError signature; Unbalanced bracket shrinking; Signal timers are main-thread only; Mutating the checkout in place; `ast.unparse` reflows the file; Corpus contamination through the module cache; Timeouts counted as survivors; Equivalent mutants treated as failures; Running the suite under CPU contention; Success removes your fixtures; Hot-path refactors manufacture equivalent mutants; Driving a multi-hour pipeline by hand from an agent session; `subprocess.run(timeout=)` kills the child, not its children; Campaign durations from `time.time()` across a laptop sleep; A `timeout` under parallel load counted as a kill; "corpus_n=0" is not an empty corpus; A def line is executed at import time; The CLI backend reads until the budget dies; Escaped newlines through a heredoc; Anchoring a test on a source line of another component.
@@ -385,6 +396,7 @@ python3 -m pytest -q tests/test_swe_bymap.py tests/test_swe_triage.py tests/test
 - [ ] Repair records carry `green` / `localized` / `exact` separately, and `cheated` is counted, never folded into green
 - [ ] A `max_steps` review still ends with a JSON answer (wrap-up turn traced)
 - [ ] By-file map: every test file that imports the interpreter has > 0 hits; `_durations` sums to about the traced wall time
-- [ ] Map fidelity: every kill's `killed_by` file covers the mutated line; `subset_flips` is 0 or each flip is explained as an instrument error
+- [ ] Map fidelity: every kill's `killed_by` file covers the mutated line; `subset_flips` is 0 or each flip is explained as staleness (map older than the file, check first) or a genuine instrument error
+- [ ] A reused coverage map's `_meta.file_hashes` matches the current target files, or the run explicitly passed `--allow-stale-map` / `require_fresh=False` and downgraded subset restriction accordingly
 - [ ] Triage counts sum to the survivor count; behavioural score reported next to the raw score
 - [ ] Oracle pins reproduce from a fresh pytest process (computed on a fresh thread), and `verify` shows each pinned mutant killed by the pinned file alone

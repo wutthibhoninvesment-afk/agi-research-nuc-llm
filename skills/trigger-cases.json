@@ -444,5 +444,12 @@
     "id": "sudl-neg",
     "expect": [],
     "prompt": "Our systemd service keeps restarting after every deploy. Add a health check so it only restarts when a request actually fails, instead of on every deploy."
+  },
+  {
+    "id": "sia-concurrent",
+    "expect": [
+      "session-inheritance-audit"
+    ],
+    "prompt": "The driver log says round 12 finished and round 13 already started, but 'ps' still shows round 12's claude process alive with an 8-minute uptime, and both are editing the same repo. Am I safe to start writing files, or could round 12 still be mid-edit?"
   }
 ]

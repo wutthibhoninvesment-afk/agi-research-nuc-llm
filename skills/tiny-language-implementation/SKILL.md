@@ -168,9 +168,33 @@ python3 -m pytest tests/ -q              # full suite (should be <1s)
   accumulator goes bad mid-loop diverges from a host that keeps calling the
   callback. Probe the host's behavior with 5-line scripts BEFORE writing the
   guest's apply, and encode each probe as a differential-corpus case.
+- **A grammar-directed fuzzer generating a new host syntax feature will
+  feed it straight into the hand-copied guest parser too, unless told
+  not to.** The guest lexer/parser (self-hosting, step 10) is a snapshot
+  of host syntax at whatever round it was written; it does not
+  automatically grow when the host parser does. A shared program
+  generator that emits the new construct for both host and
+  differential-guest runs turns "guest doesn't support this yet" into a
+  false divergence finding instead of an honest, tracked parity gap.
+  Give the generator's guest-facing path an explicit no-op override for
+  every host feature the guest doesn't parse yet, verify with a fuzz seed
+  that 0 guest-generated programs contain the new construct, and track
+  closing the gap as backlog — twice in this program a feature's fuzz
+  coverage (host-only) and its real guest parity landed multiple rounds
+  apart (`: Type`/`-> Type`: round 134 fuzz-only to round 158 guest
+  parity; an effect system repeated the same two-step shape one round
+  later, still open).
 - **Duplicated guest source sections drift.** If the evaluator example
   embeds the parser example's code verbatim, add a byte-identity test that
   extracts the shared section from both files and asserts equality.
+  **If that extraction is a hardcoded LINE-NUMBER slice (`lines[27:420]`),
+  growing the shared section (a new syntax feature) moves the real end
+  line without moving the constant** — the test then silently truncates
+  the slice and fails on a content mismatch that looks like drift but is
+  actually a stale boundary; update both slice bounds in the same edit
+  that adds lines to the shared section (round 158: self_host.lang's
+  `parse_whence` moved from line 420 to 485 adding `: Type`/`-> Type`
+  parsing, and the test needed both numbers bumped, not just the source).
 
 ## Verification
 - `python3 -m pytest tests/ -q` → all green, runtime < 1s.
