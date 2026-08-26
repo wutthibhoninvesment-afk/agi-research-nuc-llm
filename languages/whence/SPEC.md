@@ -710,6 +710,62 @@ that cannot end a statement.
   rejection path is covered by `tests/test_v14.py` and
   `test_examples.py::test_effects_violation_exits_2` instead.
 
+### v0.14 guest parity (round 164)
+- **`examples/self_eval.lang`/`self_host.lang`'s shared parser section now
+  recognizes and SKIPS `effects [name, ...]`** (`parse_effects_clause`/
+  `skip_effect_names`, inserted between the param list and the optional
+  `-> Type`, same fixed order as the host) — closes the PARSING half of
+  the guest-parity gap round 162 flagged when it taught the fuzzer to
+  generate the clause and had to no-op it for `GuestGen`
+  (`harness/swe/guest.py`): before this round the guest choked with
+  "unexpected token 'effects'" on any v0.14 program using the feature.
+- **The guest does not ENFORCE the declaration.** The host's
+  `_check_effect_call` is a parse-time check consulted from
+  `self.effects_stack` at every call site the recursive descent visits;
+  reproducing it on the guest would mean threading an extra "current
+  effects scope" argument through the entire expression grammar (down to
+  `parse_postfix_rest`, where a call is actually built) — a materially
+  bigger change than return-type erasure was, which only ever touched the
+  single point where a function's own param list meets its own body.
+  Left as an explicit, documented divergence rather than built partway.
+- **Verified safe for the fuzzer without full enforcement**: re-enabled
+  `GuestGen.maybe_effects` to inherit the real generator (no longer a
+  no-op) after confirming `harness/swe/guest.py`'s `BANNED` line-filter
+  already strips every line containing `print` — the ONE effectful
+  builtin that exists — from every program this generator emits, on
+  both sides of the comparison, regardless of what any `effects [...]`
+  clause says. A generated declaration is therefore always vacuously
+  satisfied through this generator; there is no live code path by which
+  the host's parse-time rejection and the guest's non-enforcement could
+  disagree. 300-sample check: 70/300 generated programs now carry an
+  `effects` clause (was 0/300 under the round-162 no-op); a 150-program
+  guest-differential campaign (seed 900) came back 0 findings.
+- **New finding, orthogonal to effects itself**: running
+  `examples/effects.lang`'s real, unmodified source through `run_src`
+  still reports `parse_error: true` — NOT because of the effects clause
+  (isolated single-statement checks of every one of the file's four
+  functions, including the `effects [io] -> num` composition and the
+  nested nested-fn nested-`print` case, all parse and evaluate correctly
+  on the guest), but because of its one stylistically multi-line
+  statement, `check "...":\n  expr` (label and expression on separate
+  lines). The guest lexer's newline-suppression is deliberately simpler
+  than the host's by design (its own header comment: "Newlines are
+  suppressed while the top of the stack is `(` `[` or `@{` — NOT inside
+  plain `{` blocks") — it has no equivalent of `whence/lexer.py`'s
+  `CONTINUES` set (a newline right after `:`/a binary operator/`=`/etc.
+  is a continuation on the host, an ordinary statement separator on the
+  guest). This was unreachable/untested before this round: `effects.lang`
+  is the first real example file with a multi-line `check` that the guest
+  has ever had a chance to attempt (every corpus program in
+  `tests/test_self_eval.py::CORPUS` is single-line by convention).
+  Confirmed by reflowing just that one `check` onto a single line: the
+  file then parses and evaluates identically on both sides. Not fixed
+  this round — it is a lexer-level design choice, not a two-line parser
+  patch, and touches every multi-line-continuation position the host
+  supports, not just `check`. Tracked as fresh backlog (see
+  research-state.md's language(C) list) rather than rushed behind this
+  round's actual deliverable.
+
 ## Builtins
 `print len range map filter fold push str num abs sqrt missed reasons note
 contains join keys merge get put has find steps at blame diverge contrast

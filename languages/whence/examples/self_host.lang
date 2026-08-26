@@ -38,7 +38,7 @@ fn is_name_cont(c) { contains(name_cont_chars, c) }
 
 let keywords = ["let", "fn", "if", "else", "check", "rescue",
                 "why", "snip", "miss", "true", "false", "and", "or", "not"]
-let two_char_ops = ["==", "!=", "<=", ">=", "@{"]
+let two_char_ops = ["==", "!=", "<=", ">=", "@{", "->"]
 let one_char_ops = "+-*/%()[]{},:.=<>"
 
 # index of the first char at/after i that fails pred (mirrors meta.lang)
@@ -287,9 +287,13 @@ fn parse_primary(toks, pos) {
   else if k.t == "kw" and k.v == "if" { parse_if(toks, pos) }
   else if is_op(toks, pos, "{") { parse_block(toks, pos) }
   else if k.t == "kw" and k.v == "fn" and is_op(toks, pos + 1, "(") {
-    let ps = parse_params(toks, pos + 1, [])
-    let body = parse_block(toks, ps.pos)
-    @{node: @{kind: "fnexpr", params: ps.params, body: body.node}, pos: body.pos}
+    let ps = parse_params(toks, pos + 1, [], [])
+    let ep = parse_effects_clause(toks, ps.pos)
+    let rt = parse_typed_suffix(toks, ep, "->")
+    let body0 = parse_block(toks, rt.pos)
+    @{node: @{kind: "fnexpr", params: ps.params, ret_type: rt.type,
+              body: apply_type_guards(body0.node, ps.params, ps.types)},
+      pos: body0.pos}
   }
   else { miss ("unexpected token '" + str(k.v) + "' at line " + str(k.line)) }
 }
@@ -321,16 +325,121 @@ fn parse_record_lit(toks, pos, acc, seen) {
 }
 
 # ---- params, blocks, if -----------------------------------------------------
-fn parse_params(toks, pos, acc) {
+# Type annotations (v0.12/v0.13 guest parity, round 158): `: TAG` on a
+# param, `-> TAG` after the param list — primitive tags only (num str bool
+# list record fn any); the guest has no `shape` support, so a shape name is
+# simply an "unknown type" miss like any other bad tag, same total-error
+# discipline as every other parse failure in this file.
+let guest_primitive_types = ["num", "str", "bool", "list", "record", "fn", "any"]
+
+fn expect_type_name(toks, pos) {
+  let k = t_at(toks, pos)
+  let name = if k.t == "kw" and k.v == "fn" { "fn" }
+    else if k.t == "name" { k.v } else { "" }
+  if name == "" { miss ("expected a type name at line " + str(k.line)) }
+  else if not contains(guest_primitive_types, name) {
+    miss ("unknown type '" + name + "'")
+  }
+  else { @{type: name, pos: pos + 1} }
+}
+
+# optional `TRIGGER TAG` (`:` for a param, `->` for a return type); absent
+# is `@{type: "", pos: pos}` unchanged — "" is the same no-annotation
+# sentinel `guest_tag` already uses for "no __tag field".
+fn parse_typed_suffix(toks, pos, trigger) {
+  if is_op(toks, pos, trigger) { expect_type_name(toks, pos + 1) }
+  else { @{type: "", pos: pos} }
+}
+
+fn parse_params(toks, pos, acc, tacc) {
   let after_paren = if len(acc) == 0 { expect_op(toks, pos, "(") } else { pos }
-  if is_op(toks, after_paren, ")") { @{params: acc, pos: after_paren + 1} }
+  if is_op(toks, after_paren, ")") { @{params: acc, types: tacc, pos: after_paren + 1} }
   else {
     let nm = expect_name(toks, after_paren)
     let dup = contains(acc, nm.name)
     let acc2 = push(acc, nm.name)
+    let tr = parse_typed_suffix(toks, nm.pos, ":")
+    let tacc2 = push(tacc, tr.type)
     if dup { miss ("duplicate parameter '" + nm.name + "'") }
-    else if is_op(toks, nm.pos, ",") { parse_params(toks, nm.pos + 1, acc2) }
-    else { @{params: acc2, pos: expect_op(toks, nm.pos, ")")} }
+    else if is_op(toks, tr.pos, ",") { parse_params(toks, tr.pos + 1, acc2, tacc2) }
+    else { @{params: acc2, types: tacc2, pos: expect_op(toks, tr.pos, ")")} }
+  }
+}
+
+# ---- return-type erasure (v0.13 guest parity, round 158) -------------------
+# Mirrors whence/parser.py's `_apply_type_guards`: prepend one
+# `let <param> = typed(<param>, spec, label)` per annotated parameter to the
+# body's statement list, PURE parser-level desugaring — no evaluator
+# involvement, so an untyped function's body is byte-identical to before
+# this feature (guards is [] and apply_type_guards returns block_node
+# unchanged, exactly like the host returning early when `not any(types)`).
+fn spec_node(tag) { @{kind: "str", value: tag} }
+fn name_node(n) { @{kind: "name", value: n} }
+fn call_node(callee, cargs) { @{kind: "call", func: name_node(callee), args: cargs} }
+
+fn build_guards(params, types, i, acc) {
+  if i >= len(params) { acc }
+  else {
+    let tname = types[i]
+    let acc2 = if tname == "" { acc }
+      else {
+        let label = "parameter '" + params[i] + "'"
+        let call = call_node("typed", [name_node(params[i]), spec_node(tname), spec_node(label)])
+        push(acc, @{kind: "let", name: params[i], value: call})
+      }
+    build_guards(params, types, i + 1, acc2)
+  }
+}
+
+fn apply_type_guards(block_node, params, types) {
+  let guards = build_guards(params, types, 0, [])
+  if len(guards) == 0 { block_node }
+  else { @{kind: "block", stmts: guards + block_node.stmts} }
+}
+
+# ---- effects clause skip (guest parity, round 164) --------------------------
+# `effects [name, ...]` sits between the param list and an optional
+# `-> Type` (v0.14, SPEC.md; fixed order — same as the host). This function
+# recognizes and SKIPS the clause so v0.14 programs PARSE on the guest —
+# round 162 taught the fuzzer to generate `effects [...]` and had to no-op
+# it for `GuestGen` (`harness/swe/guest.py`) because this file choked on
+# the bare NAME('effects') token with "unexpected token 'effects'".
+#
+# The guest does NOT enforce the declaration. The host's
+# `_check_effect_call` is a parse-time check threaded through
+# `self.effects_stack`, consulted at EVERY call site the recursive descent
+# visits (from `parse_stmt`/`parse_primary` down through
+# `parse_postfix_rest`) — reproducing it here would mean threading an
+# extra "current effects scope" argument through every one of those
+# functions, a materially bigger change than return-type erasure was
+# (that one only ever touched the single point where a function's own
+# param list meets its own body — no threading through the whole
+# expression grammar). Skip-and-parse closes the gap that actually blocked
+# guest interpretation of otherwise-valid v0.14 source (`examples/
+# effects.lang` itself never violates its own declarations, so it agrees
+# with the host guest-vs-host either way); staying permissive where the
+# host would reject is a known, deliberate, documented divergence, same
+# category as the guest-provenance/why differences already listed at the
+# top of this file. `harness/swe/guest.py`'s `GuestGen.maybe_effects`
+# override stays a no-op for the FUZZER specifically: the grammar's
+# `EFFECT_TAG_SETS` deliberately includes `[]`/`[net]` to fuzz the REJECT
+# path (`harness/swe/fuzz.py`), and a guest that parses-but-doesn't-enforce
+# would silently diverge (host ParseError vs. guest success) on exactly
+# those generated programs — real reject-path fuzz coverage needs the full
+# threaded check, not this.
+fn parse_effects_clause(toks, pos) {
+  let k = t_at(toks, pos)
+  if k.t == "name" and k.v == "effects" and is_op(toks, pos + 1, "[") {
+    skip_effect_names(toks, pos + 2)
+  } else { pos }
+}
+
+fn skip_effect_names(toks, pos) {
+  if is_op(toks, pos, "]") { pos + 1 }
+  else {
+    let nm = expect_name(toks, pos)
+    if is_op(toks, nm.pos, ",") { skip_effect_names(toks, nm.pos + 1) }
+    else { expect_op(toks, nm.pos, "]") }
   }
 }
 
@@ -379,9 +488,13 @@ fn parse_stmt(toks, pos) {
   }
   else if is_kw(toks, pos, "fn") and is_ntype(toks, pos + 1, "name") {
     let nm = expect_name(toks, pos + 1)
-    let ps = parse_params(toks, nm.pos, [])
-    let body = parse_block(toks, ps.pos)
-    @{node: @{kind: "fndef", name: nm.name, params: ps.params, body: body.node}, pos: body.pos}
+    let ps = parse_params(toks, nm.pos, [], [])
+    let ep = parse_effects_clause(toks, ps.pos)
+    let rt = parse_typed_suffix(toks, ep, "->")
+    let body0 = parse_block(toks, rt.pos)
+    @{node: @{kind: "fndef", name: nm.name, params: ps.params, ret_type: rt.type,
+              body: apply_type_guards(body0.node, ps.params, ps.types)},
+      pos: body0.pos}
   }
   else if is_kw(toks, pos, "check") {
     let k = t_at(toks, pos + 1)

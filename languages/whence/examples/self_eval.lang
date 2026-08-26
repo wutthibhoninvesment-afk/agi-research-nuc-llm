@@ -65,7 +65,7 @@ fn is_name_cont(c) { contains(name_cont_chars, c) }
 
 let keywords = ["let", "fn", "if", "else", "check", "rescue",
                 "why", "snip", "miss", "true", "false", "and", "or", "not"]
-let two_char_ops = ["==", "!=", "<=", ">=", "@{"]
+let two_char_ops = ["==", "!=", "<=", ">=", "@{", "->"]
 let one_char_ops = "+-*/%()[]{},:.=<>"
 
 # index of the first char at/after i that fails pred (mirrors meta.lang)
@@ -314,9 +314,13 @@ fn parse_primary(toks, pos) {
   else if k.t == "kw" and k.v == "if" { parse_if(toks, pos) }
   else if is_op(toks, pos, "{") { parse_block(toks, pos) }
   else if k.t == "kw" and k.v == "fn" and is_op(toks, pos + 1, "(") {
-    let ps = parse_params(toks, pos + 1, [])
-    let body = parse_block(toks, ps.pos)
-    @{node: @{kind: "fnexpr", params: ps.params, body: body.node}, pos: body.pos}
+    let ps = parse_params(toks, pos + 1, [], [])
+    let ep = parse_effects_clause(toks, ps.pos)
+    let rt = parse_typed_suffix(toks, ep, "->")
+    let body0 = parse_block(toks, rt.pos)
+    @{node: @{kind: "fnexpr", params: ps.params, ret_type: rt.type,
+              body: apply_type_guards(body0.node, ps.params, ps.types)},
+      pos: body0.pos}
   }
   else { miss ("unexpected token '" + str(k.v) + "' at line " + str(k.line)) }
 }
@@ -348,16 +352,121 @@ fn parse_record_lit(toks, pos, acc, seen) {
 }
 
 # ---- params, blocks, if -----------------------------------------------------
-fn parse_params(toks, pos, acc) {
+# Type annotations (v0.12/v0.13 guest parity, round 158): `: TAG` on a
+# param, `-> TAG` after the param list — primitive tags only (num str bool
+# list record fn any); the guest has no `shape` support, so a shape name is
+# simply an "unknown type" miss like any other bad tag, same total-error
+# discipline as every other parse failure in this file.
+let guest_primitive_types = ["num", "str", "bool", "list", "record", "fn", "any"]
+
+fn expect_type_name(toks, pos) {
+  let k = t_at(toks, pos)
+  let name = if k.t == "kw" and k.v == "fn" { "fn" }
+    else if k.t == "name" { k.v } else { "" }
+  if name == "" { miss ("expected a type name at line " + str(k.line)) }
+  else if not contains(guest_primitive_types, name) {
+    miss ("unknown type '" + name + "'")
+  }
+  else { @{type: name, pos: pos + 1} }
+}
+
+# optional `TRIGGER TAG` (`:` for a param, `->` for a return type); absent
+# is `@{type: "", pos: pos}` unchanged — "" is the same no-annotation
+# sentinel `guest_tag` already uses for "no __tag field".
+fn parse_typed_suffix(toks, pos, trigger) {
+  if is_op(toks, pos, trigger) { expect_type_name(toks, pos + 1) }
+  else { @{type: "", pos: pos} }
+}
+
+fn parse_params(toks, pos, acc, tacc) {
   let after_paren = if len(acc) == 0 { expect_op(toks, pos, "(") } else { pos }
-  if is_op(toks, after_paren, ")") { @{params: acc, pos: after_paren + 1} }
+  if is_op(toks, after_paren, ")") { @{params: acc, types: tacc, pos: after_paren + 1} }
   else {
     let nm = expect_name(toks, after_paren)
     let dup = contains(acc, nm.name)
     let acc2 = push(acc, nm.name)
+    let tr = parse_typed_suffix(toks, nm.pos, ":")
+    let tacc2 = push(tacc, tr.type)
     if dup { miss ("duplicate parameter '" + nm.name + "'") }
-    else if is_op(toks, nm.pos, ",") { parse_params(toks, nm.pos + 1, acc2) }
-    else { @{params: acc2, pos: expect_op(toks, nm.pos, ")")} }
+    else if is_op(toks, tr.pos, ",") { parse_params(toks, tr.pos + 1, acc2, tacc2) }
+    else { @{params: acc2, types: tacc2, pos: expect_op(toks, tr.pos, ")")} }
+  }
+}
+
+# ---- return-type erasure (v0.13 guest parity, round 158) -------------------
+# Mirrors whence/parser.py's `_apply_type_guards`: prepend one
+# `let <param> = typed(<param>, spec, label)` per annotated parameter to the
+# body's statement list, PURE parser-level desugaring — no evaluator
+# involvement, so an untyped function's body is byte-identical to before
+# this feature (guards is [] and apply_type_guards returns block_node
+# unchanged, exactly like the host returning early when `not any(types)`).
+fn spec_node(tag) { @{kind: "str", value: tag} }
+fn name_node(n) { @{kind: "name", value: n} }
+fn call_node(callee, cargs) { @{kind: "call", func: name_node(callee), args: cargs} }
+
+fn build_guards(params, types, i, acc) {
+  if i >= len(params) { acc }
+  else {
+    let tname = types[i]
+    let acc2 = if tname == "" { acc }
+      else {
+        let label = "parameter '" + params[i] + "'"
+        let call = call_node("typed", [name_node(params[i]), spec_node(tname), spec_node(label)])
+        push(acc, @{kind: "let", name: params[i], value: call})
+      }
+    build_guards(params, types, i + 1, acc2)
+  }
+}
+
+fn apply_type_guards(block_node, params, types) {
+  let guards = build_guards(params, types, 0, [])
+  if len(guards) == 0 { block_node }
+  else { @{kind: "block", stmts: guards + block_node.stmts} }
+}
+
+# ---- effects clause skip (guest parity, round 164) --------------------------
+# `effects [name, ...]` sits between the param list and an optional
+# `-> Type` (v0.14, SPEC.md; fixed order — same as the host). This function
+# recognizes and SKIPS the clause so v0.14 programs PARSE on the guest —
+# round 162 taught the fuzzer to generate `effects [...]` and had to no-op
+# it for `GuestGen` (`harness/swe/guest.py`) because this file choked on
+# the bare NAME('effects') token with "unexpected token 'effects'".
+#
+# The guest does NOT enforce the declaration. The host's
+# `_check_effect_call` is a parse-time check threaded through
+# `self.effects_stack`, consulted at EVERY call site the recursive descent
+# visits (from `parse_stmt`/`parse_primary` down through
+# `parse_postfix_rest`) — reproducing it here would mean threading an
+# extra "current effects scope" argument through every one of those
+# functions, a materially bigger change than return-type erasure was
+# (that one only ever touched the single point where a function's own
+# param list meets its own body — no threading through the whole
+# expression grammar). Skip-and-parse closes the gap that actually blocked
+# guest interpretation of otherwise-valid v0.14 source (`examples/
+# effects.lang` itself never violates its own declarations, so it agrees
+# with the host guest-vs-host either way); staying permissive where the
+# host would reject is a known, deliberate, documented divergence, same
+# category as the guest-provenance/why differences already listed at the
+# top of this file. `harness/swe/guest.py`'s `GuestGen.maybe_effects`
+# override stays a no-op for the FUZZER specifically: the grammar's
+# `EFFECT_TAG_SETS` deliberately includes `[]`/`[net]` to fuzz the REJECT
+# path (`harness/swe/fuzz.py`), and a guest that parses-but-doesn't-enforce
+# would silently diverge (host ParseError vs. guest success) on exactly
+# those generated programs — real reject-path fuzz coverage needs the full
+# threaded check, not this.
+fn parse_effects_clause(toks, pos) {
+  let k = t_at(toks, pos)
+  if k.t == "name" and k.v == "effects" and is_op(toks, pos + 1, "[") {
+    skip_effect_names(toks, pos + 2)
+  } else { pos }
+}
+
+fn skip_effect_names(toks, pos) {
+  if is_op(toks, pos, "]") { pos + 1 }
+  else {
+    let nm = expect_name(toks, pos)
+    if is_op(toks, nm.pos, ",") { skip_effect_names(toks, nm.pos + 1) }
+    else { expect_op(toks, nm.pos, "]") }
   }
 }
 
@@ -406,9 +515,13 @@ fn parse_stmt(toks, pos) {
   }
   else if is_kw(toks, pos, "fn") and is_ntype(toks, pos + 1, "name") {
     let nm = expect_name(toks, pos + 1)
-    let ps = parse_params(toks, nm.pos, [])
-    let body = parse_block(toks, ps.pos)
-    @{node: @{kind: "fndef", name: nm.name, params: ps.params, body: body.node}, pos: body.pos}
+    let ps = parse_params(toks, nm.pos, [], [])
+    let ep = parse_effects_clause(toks, ps.pos)
+    let rt = parse_typed_suffix(toks, ep, "->")
+    let body0 = parse_block(toks, rt.pos)
+    @{node: @{kind: "fndef", name: nm.name, params: ps.params, ret_type: rt.type,
+              body: apply_type_guards(body0.node, ps.params, ps.types)},
+      pos: body0.pos}
   }
   else if is_kw(toks, pos, "check") {
     let k = t_at(toks, pos + 1)
@@ -505,7 +618,7 @@ fn reify(b, k) {
 let builtin_names = ["print", "len", "range", "map", "filter", "fold", "push",
                      "str", "num", "abs", "sqrt", "missed", "reasons", "note",
                      "contains", "join", "keys", "merge", "get", "put", "has",
-                     "find"]
+                     "find", "typed"]
 
 # host builtins whose first step is `_propagate` (a miss argument yields
 # a "builtin"-op miss before the builtin looks at anything)
@@ -514,7 +627,7 @@ let propagating = ["len", "range", "num", "abs", "sqrt", "contains", "join",
 let arities = @{print: 1, len: 1, range: -1, map: 2, filter: 2, fold: 3,
                 push: 2, str: 1, num: 1, abs: 1, sqrt: 1, missed: 1,
                 reasons: 1, note: 2, contains: 2, join: 2, keys: 1,
-                merge: 2, get: 2, put: 3, has: 2, find: 2}
+                merge: 2, get: 2, put: 3, has: 2, find: 2, typed: 3}
 
 fn new_store() {
   let f0 = fold(fn(fr, n) {
@@ -557,6 +670,23 @@ fn is_callable(v) {
   let t = guest_tag(v)
   t == "closure" or t == "builtin"
 }
+
+# Round 156: mirrors the host's `show_payload` rendering of a callable
+# (`Closure`/`Builtin` in whence/values.py, "<fn %s>"/"<fn>"/"<builtin %s>")
+# so guest-built miss REASONS and op-LABELS that name a function read
+# identically to the host's for the same program — required wherever a
+# guest miss message embeds `str(callee)` (`get`/`.field` on a callable),
+# since the host never falls through to a plain record dump the way an
+# un-mirrored `str()` on the closure's underlying `@{__tag: "closure", ...}`
+# record would.
+fn show_callable(v) {
+  if is_closure(v) {
+    let n = get(v, "name")
+    if n == "(anonymous)" { "<fn>" } else { "<fn " + n + ">" }
+  }
+  else if is_builtin_ref(v) { "<builtin " + get(v, "name") + ">" }
+  else { str(v) }
+}
 fn is_num(v) { not missed(v) and not missed(v + 0) }
 fn is_record(v) { not missed(v) and not is_callable(v) and not missed(keys(v)) }
 # The host's deep_eq misses on a function at ANY depth ([odd] == [odd] and
@@ -585,7 +715,12 @@ fn eval(node, env, st) {
   }
   else if k == "list" {
     let r = eval_items(node.items, 0, [], env, st)
-    @{v: mkb(r.v, "list", r.v), st: r.st}
+    # Round 156: the op tag must carry the item count to match the host's
+    # real label ("list %d items", interp.py's `f_list`) — a bare "list"
+    # tag (found by hand-probing the same why-shape-agreement property the
+    # get()/field fixes above target, not yet by the guest fuzzer itself)
+    # diverged for every list literal, not just an edge case.
+    @{v: mkb(r.v, "list " + str(len(r.v)) + " items", r.v), st: r.st}
   }
   else if k == "record" {
     let r = eval_pairs(node.pairs, 0, @{}, env, st)
@@ -600,7 +735,8 @@ fn eval(node, env, st) {
   else if k == "field" { eval_field(node, env, st) }
   else if k == "fnexpr" {
     @{v: mkb(@{__tag: "closure", name: "(anonymous)", params: node.params,
-               body: node.body, env: env}, "fn (anonymous)", []),
+               body: node.body, ret_type: node.ret_type, env: env},
+             "fn (anonymous)", []),
       st: st}
   }
   else { @{v: mkb(miss ("unknown node kind '" + str(k) + "'"), "eval", []), st: st} }
@@ -627,6 +763,29 @@ fn eval_pairs(pairs, i, acc, env, st) {
 # semantics (misses, strictness, overflow, merge-of-reasons) come for free;
 # the result box records the operator and both operand boxes ----------------
 fn is_str(v) { not missed(v) and not missed(v + "") }
+
+# ---- structural types (v0.12/v0.13 guest parity, round 158) ----------------
+# `guest_kind` mirrors the host's `_kind` (interp.py): the primitive tag a
+# value reports itself as, same order (bool before num — a host bool IS an
+# int; callable checked before record, since a closure/builtin ref is
+# itself a record under the hood, see `guest_tag`). Primitive tags only —
+# the guest has no `shape` records, so `guest_type_ok`'s spec is always a
+# plain string; anything else (a record spec, i.e. a shape) simply never
+# matches, same as an unrecognised primitive name would.
+fn guest_kind(v) {
+  if missed(v) { "miss" }
+  else if is_bool(v) { "bool" }
+  else if is_num(v) { "num" }
+  else if is_str(v) { "str" }
+  else if is_list(v) { "list" }
+  else if is_callable(v) { "fn" }
+  else if is_record(v) { "record" }
+  else { "value" }
+}
+
+fn guest_type_ok(v, spec) {
+  is_str(spec) and (spec == "any" or guest_kind(v) == spec)
+}
 
 # raw_deep_eq mirrors the host's OWN deep_eq (interp.py): recurse only while
 # both sides have the SAME shape at the position being compared (bool/bool,
@@ -802,7 +961,8 @@ fn exec_stmt(stmt, env, st) {
   }
   else if k == "fndef" {
     let c = mkb(@{__tag: "closure", name: stmt.name, params: stmt.params,
-                  body: stmt.body, env: env}, "fn " + stmt.name, [])
+                  body: stmt.body, ret_type: stmt.ret_type, env: env},
+                "fn " + stmt.name, [])
     @{v: c, st: frame_bind(st, env[0], stmt.name, c)}
   }
   else if k == "check" {
@@ -846,7 +1006,27 @@ fn apply_closure(f, args, st) {
     let a = alloc(st)
     let st2 = bind_params(a.st, a.fid, c.params, args, 0)
     let r = eval(c.body, [a.fid] + c.env, st2)
-    @{v: mkb(r.v.v, "call " + c.name, [r.v]), st: r.st}
+    let checked = check_ret(r.v, c.ret_type, c.name)
+    @{v: mkb(checked.v, "call " + c.name, [checked]), st: r.st}
+  }
+}
+
+# Return-type check (v0.13 guest parity, round 158): mirrors the host's
+# `_check_ret` exactly — a no-op when the closure has no `-> Type` or the
+# settled body result is ALREADY a miss (decision 2: a function that
+# already failed does not also get a "wrong return type" gloss), otherwise
+# a fresh origin miss (op "typed <label>", ONE input, the settled result) —
+# the same node shape `typed()` itself produces on a mismatch. The ordinary
+# "call <name>" wrap in `apply_closure` above always runs afterward around
+# whichever box this returns, exactly like the host's `Prov("call", ...,
+# result, ...)` always wrapping whatever `_check_ret` handed back.
+fn check_ret(box, ret_type, fn_name) {
+  if ret_type == "" or missed(box.v) { box }
+  else if guest_type_ok(box.v, ret_type) { box }
+  else {
+    let label = "return value of " + fn_name
+    let reason = label + " expected " + ret_type + ", got " + guest_kind(box.v)
+    mkb(miss reason, "typed " + label, [box])
   }
 }
 
@@ -937,6 +1117,29 @@ fn apply_builtin(name, args, st) {
     }
     else { guest_find(args[0], (args[1]).v, 0, st) }
   }
+  else if name == "typed" {
+    # v0.12/v0.13 guest parity (round 158): the erasure `apply_type_guards`
+    # builds calls this. Same contract as the host `typed` builtin: a miss
+    # value/spec/label propagates FIRST (decision 2, before inspecting the
+    # spec at all — mirrors host `_propagate`), a match is a PURE pass-
+    # through (the original box, no new node — like `get`'s success case
+    # below), a mismatch is a fresh origin miss with exactly ONE input.
+    let value = args[0]
+    let spec = args[1]
+    let label = args[2]
+    if missed(value.v) or missed(spec.v) or missed(label.v) {
+      @{v: mkb(miss "typed: a propagated miss", "builtin typed", args), st: st}
+    }
+    else if not is_str(label.v) or not is_str(spec.v) {
+      @{v: mkb(miss "typed: spec and label must be strings", "typed", args),
+        st: st}
+    }
+    else if guest_type_ok(value.v, spec.v) { @{v: value, st: st} }
+    else {
+      let reason = label.v + " expected " + spec.v + ", got " + guest_kind(value.v)
+      @{v: mkb(miss reason, "typed " + reason, [value]), st: st}
+    }
+  }
   else if name == "get" {
     # host mirroring (round 24): only KEY-side trouble is get's own node;
     # record-side misses (missed record, non-record, absent field) are
@@ -961,8 +1164,14 @@ fn apply_builtin(name, args, st) {
       # this branch used to derive its own "get" node naming BOTH args as
       # inputs, an op/arity host `_field` never produces for any object,
       # callable or not.
-      @{v: mkb(miss ("cannot access ." + nm + " on " + str((args[0]).v)),
-               "field", [args[0]]),
+      # Round 156: the op tag itself must also carry the reason, matching
+      # host's Prov.label() == "op + ' ' + detail" (interp.py's `_field`,
+      # non-record branch defaults `detail` to the reason string itself).
+      # A bare "field" tag here made the guest's op-label diverge from the
+      # host's even though the miss VALUE's reason text was already
+      # correct — caught by this test's own final `g - h == set()` line.
+      let reason = "cannot access ." + nm + " on " + show_callable((args[0]).v)
+      @{v: mkb(miss reason, "field " + reason, [args[0]]),
         st: st}
     }
     else {
@@ -1106,8 +1315,8 @@ fn eval_index(node, env, st) {
 fn eval_field(node, env, st) {
   let o = eval(node.obj, env, st)
   if is_callable((o.v).v) {
-    @{v: mkb(miss ("cannot access ." + node.name + " on a function"),
-             "field ." + node.name, [o.v]),
+    let reason = "cannot access ." + node.name + " on " + show_callable((o.v).v)
+    @{v: mkb(miss reason, "field " + reason, [o.v]),
       st: o.st}
   }
   else {
@@ -1226,6 +1435,27 @@ check "len of a guest closure misses": missed(gv("fn f(x) { x }\nlen(f)"))
 check "keys of a guest closure misses": missed(gv("fn f(x) { x }\nkeys(f)"))
 check "field access on a guest closure misses": missed(gv("fn f(x) { x }\nf.params"))
 check "merge with a guest closure misses": missed(gv("fn f(x) { x }\nmerge(@{a: 1}, f)"))
+
+# --- structural types: guest parity (v0.12/v0.13, round 158) -----------------
+check "guest typed param accepts a matching value":
+  gv("fn f(a: num) { a + 1 }\nf(3)") == 4
+check "guest typed param rejects a mismatched value":
+  missed(gv("fn f(a: num) { a + 1 }\nf(\"x\")"))
+check "guest return type accepts a matching value":
+  gv("fn f(a) -> num { a + 1 }\nf(3)") == 4
+check "guest return type rejects a mismatched value":
+  missed(gv("fn f() -> num { \"oops\" }\nf()"))
+check "guest anonymous fn honors both param and return types":
+  gv("let g = fn(a: str) -> str { a + \"!\" }\ng(\"hi\")") == "hi!"
+check "guest 'any' type always matches": gv("fn f(a: any) { a }\nf(\"x\")") == "x"
+check "guest param guard is shadowable, matching the host's documented rule":
+  gv("fn f(a: num) { let a = \"hi\"\na }\nf(1)") == "hi"
+check "guest param guard runs before a rebind that reads it":
+  missed(gv("fn f(a: num) { let a = a\na }\nf(\"x\")"))
+check "guest unknown type annotation is a parse-time miss":
+  missed((run_src("fn f(a: Bogus) { a }\nf(1)")).v)
+check "guest return type is not re-checked over an already-missed body":
+  missed(gv("fn f() -> num { 1 / 0 }\nf()"))
 
 # ==== GUEST-LEVEL PROVENANCE (self-hosting round 5) ==========================
 # A guest value is its provenance node. The library can read the box graph

@@ -2,7 +2,7 @@
 Whence, differentially tested against the host.
 
 Layout of the checks:
-  - the example itself runs (43 in-language checks, exit 0)
+  - the example itself runs (76 in-language checks, exit 0)
   - the parser section is byte-identical to self_host.lang's (they must not
     drift apart silently)
   - a corpus of programs is evaluated BOTH by the host interpreter and by
@@ -99,6 +99,15 @@ CORPUS = [
     'fn f(x) { x }\nlet result = f.params',                       # miss both (r17)
     'fn f(x) { x }\nlet result = merge(@{a: 1}, f)',              # miss both (r17)
     'fn f(x) { x }\nlet result = get(f, "params")',               # miss both (r17)
+    'fn f(a: num) { a + 1 }\nlet result = f(3)',                  # round 158
+    'fn f(a: num) { a + 1 }\nlet result = f("x")',                # miss both
+    'fn f(a) -> num { a + 1 }\nlet result = f(3)',
+    'fn f() -> num { "oops" }\nlet result = f()',                 # miss both
+    'let g = fn(a: str) -> str { a + "!" }\nlet result = g("hi")',
+    'fn f(a: any) { a }\nlet result = f("x")',
+    'fn f(a) effects [] { a + 1 }\nlet result = f(3)',            # round 164
+    'fn f(a) effects [io] -> num { a + 1 }\nlet result = f(3)',
+    'let g = fn(a, b) effects [net, io] { a + b }\nlet result = g(2, 3)',
 ]
 
 
@@ -134,15 +143,17 @@ def test_example_runs_green():
     r = subprocess.run([sys.executable, os.path.join(ROOT, "run.py"), EXAMPLE],
                        capture_output=True, text=True)
     assert r.returncode == 0, r.stdout + r.stderr
-    assert "66 passed, 0 failed" in r.stdout
+    assert "76 passed, 0 failed" in r.stdout
     assert "all in Whence" in r.stdout
 
 
 def test_parser_section_matches_self_host():
-    # the guest lexer+parser is self_host.lang lines 28..420, verbatim;
-    # if one file changes, the other must change with it
+    # the guest lexer+parser is self_host.lang lines 28..533, verbatim;
+    # if one file changes, the other must change with it (round 158: grew
+    # from 420 to 485 lines adding `: Type`/`-> Type` guest parity; round
+    # 164: 485 to 533 adding `effects [...]` clause skipping)
     host_lines = open(SELF_HOST).read().splitlines()
-    section = "\n".join(host_lines[27:420])
+    section = "\n".join(host_lines[27:533])
     assert section.startswith("# ---- character classes")
     assert section.rstrip().endswith(
         "fn parse_whence(src) { parse_program(lex_all(src)) }")
@@ -264,14 +275,44 @@ def test_get_of_a_callable_mirrors_field_not_a_bespoke_get_node():
     602001893): `guest ops: ['get', 'literal']` vs `host ops: ['field',
     'fn', 'let', 'record']` — the guest invented an op and leaked the key
     argument's own `literal` node into the tree, neither of which the host
-    derivation for the same program ever produces."""
+    derivation for the same program ever produces.
+
+    Round 156: a bare "field" op tag (round 150's own fix) still diverged
+    from the host, because `Prov.label()` is "op + ' ' + detail" and
+    `_field`'s non-record branch defaults `detail` to the reason string
+    itself (`mk_miss`'s `detail if detail else reason` fallback) — so the
+    host's real label for this node is the full
+    "field cannot access .b on <fn adder>", not bare "field". Fixed by
+    folding the (already-correct) miss reason into the op tag too, via a
+    new `show_callable` guest helper mirroring `whence/values.py`'s
+    `show_payload` rendering of a `Closure` (`str()` on the raw guest
+    closure record would otherwise dump its `@{__tag: "closure", ...}`
+    fields instead of "<fn adder>")."""
     src = ('fn adder(a) { fn(b) { a + b } }\n'
            'let result = @{c: get(adder, "b")}')
     h = host_labels(host_eval(src))
     g = guest_labels(guest_box(src))
-    assert "field" in g, sorted(g)
+    assert "field cannot access .b on <fn adder>" in g, sorted(g)
+    assert "field" not in g, sorted(g)   # the op alone, undecorated, is not a real host label
     assert "get" not in g, sorted(g)
     assert "literal" not in g, sorted(g)   # the key "b" is not a derivation input
+    assert g - h == set(), "guest invented ops the host never used: %s (guest=%s host=%s)" % (
+        sorted(g - h), sorted(g), sorted(h))
+
+
+def test_dot_field_access_on_callable_mirrors_host_label():
+    """The `.field` DOT-SYNTAX path (`eval_field`, a different guest
+    function from `get()` above) hits the exact same host `_field`
+    non-record branch and must produce the identical label. This was a
+    second, previously-untested instance of the same gap the `get()` test
+    above closes: `eval_field`'s callable branch had a hardcoded
+    "on a function" string (no callee name at all), which never matched a
+    real host label for a NAMED closure — fixed the same round, via the
+    same `show_callable` helper."""
+    src = 'fn adder(a) { fn(b) { a + b } }\nlet result = @{c: adder.b}'
+    h = host_labels(host_eval(src))
+    g = guest_labels(guest_box(src))
+    assert "field cannot access .b on <fn adder>" in g, sorted(g)
     assert g - h == set(), "guest invented ops the host never used: %s (guest=%s host=%s)" % (
         sorted(g - h), sorted(g), sorted(h))
 

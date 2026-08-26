@@ -60,20 +60,49 @@ class GuestGen(ProgramGen):
     probes. Guest interpretation costs ~2ms per guest call (round 14), so
     iteration counts stay two orders of magnitude below the host fuzzer's.
 
-    `typed_params`/`maybe_ret_type` are overridden to a no-op (round 134):
-    `self_eval.lang`'s hand-copied lexer/parser predates v0.12/v0.13 and
-    does not tokenize `->` or erase `: Type` at parse time, so a generated
-    annotation would fail on the GUEST side alone — a guest-parity gap
-    (`self_eval.lang` doesn't implement `shape`/`typed` either, per
-    round-132's P4), not a host bug. Same shape as `bench/ref_diff.py`'s
-    NEWSYNTAX handling: a feature gap and a divergence are different
-    things, and only one of them is a finding."""
+    `typed_params`/`maybe_ret_type` used to be overridden to a no-op (round
+    134): `self_eval.lang`'s hand-copied lexer/parser predated v0.12/v0.13
+    and did not tokenize `->` or erase `: Type` at parse time, so a
+    generated annotation would fail on the GUEST side alone — a guest-
+    parity gap, not a host bug. Round 158 closed that gap (self_host.lang
+    + self_eval.lang's shared parser section now parses `: TAG`/`-> TAG`,
+    primitive tags only, and self_eval.lang's evaluator gained a `typed`
+    builtin + a return-type check mirroring the host's `_check_ret`), so
+    `GuestGen` now inherits `ProgramGen`'s real `typed_params`/
+    `maybe_ret_type` unchanged — type-guarded programs are guest-safe like
+    everything else this generator produces. Shapes remain unsupported on
+    the guest side (`self_eval.lang` still doesn't implement `shape`), but
+    the fuzzer never generates a shape name as a type tag (`TYPE_TAGS` is
+    primitives only), so that gap is out of scope for this generator by
+    construction, not worked around here.
 
-    def typed_params(self, params):
-        return ", ".join(params)
+    `maybe_effects` (round 162: `ProgramGen` gained `effects [...]`
+    generation for the v0.14 effect system, round 146) used to be
+    overridden to a no-op here, one host-round earlier in its own parity
+    arc than type annotations were at round 134 — `self_eval.lang`/
+    `self_host.lang`'s shared parser section had no `effects` contextual
+    keyword at all, so a generated clause would not fail closed the way an
+    unknown type tag does: the guest parser read `effects` as an ordinary
+    NAME token, then choked on the literal `[` where it expected `->` or
+    `{`. Round 164 closed that PARSING gap (both files' shared parser
+    section now recognizes and skips `effects [name, ...]`), so `GuestGen`
+    now inherits `ProgramGen`'s real `maybe_effects` unchanged.
 
-    def maybe_ret_type(self):
-        return ""
+    The guest still does not ENFORCE a declaration (no threaded
+    `effects_stack` — see the parser section's own `parse_effects_clause`
+    docstring for why that is a materially bigger change than the erasure
+    return-type annotations got). That is safe to leave unenforced here
+    specifically because `BANNED` above already strips every line
+    containing `print` — the ONE effectful builtin (`_EFFECTFUL_BUILTINS`
+    in `whence/parser.py`) — from every program this generator emits,
+    on BOTH sides of the comparison, regardless of what any `effects [...]`
+    clause says. A generated declaration is therefore always vacuously
+    satisfied (there is no call left in the body for it to restrict), so
+    there is no way for the host's parse-time rejection and the guest's
+    silent non-enforcement to disagree through this generator. Shapes
+    remain unsupported on the guest side for the same reason `typed_params`
+    stays inherited unchanged (see above) — out of scope for this
+    generator by construction, not worked around here."""
 
     def template(self):
         r = self.r

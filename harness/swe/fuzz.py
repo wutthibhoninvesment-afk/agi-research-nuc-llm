@@ -67,6 +67,18 @@ STEP_NAMES = ["let x", "literal", "call", "arg", "note k", "+", "let a", "if",
 # exactly what needs exercising against fast/direct/trampoline + tail calls.
 TYPE_TAGS = ("num", "str", "bool", "list", "record", "fn", "any")
 
+# v0.14 backlog (closed round 162): the grammar generated no `effects [...]`
+# clauses either, so the parse-time effect check (round 146) was only ever
+# exercised by the hand-written corpus (`examples/effects.lang`,
+# `tests/test_v14.py`). `io` is the only builtin ever registered as
+# effectful; `net` is deliberately never registered, so it fuzzes the
+# "declared but unrelated tag does not grant" path alongside the real one.
+# A generated body is free to call `print` directly (it's an ordinary
+# BUILTIN_ARITY entry `call()` can pick) inside an `effects []` function,
+# which is a real host ParseError — already a normal, handled fuzzer
+# outcome (every existing seed already produces plenty from other causes).
+EFFECT_TAG_SETS = ("[]", "[io]", "[net]", "[io, net]")
+
 
 class ProgramGen(object):
     def __init__(self, seed, stress_rate=0.5, max_depth=4):
@@ -168,8 +180,8 @@ class ProgramGen(object):
             params = [self.fresh("p") for _ in range(arity)]
             self.fns.append((name, arity))    # visible inside body: recursion
             body = self.body(params)
-            return "fn %s(%s)%s %s" % (name, self.typed_params(params),
-                                       self.maybe_ret_type(), body)
+            return "fn %s(%s)%s%s %s" % (name, self.typed_params(params),
+                                         self.maybe_effects(), self.maybe_ret_type(), body)
         if p < 0.9:
             return 'check "%s": %s' % (self.fresh("c"), self.expr(0, []))
         return self.expr(0, [])
@@ -186,6 +198,15 @@ class ProgramGen(object):
         """` -> TAG` 25% of the time, else ''."""
         if self.r.random() < 0.25:
             return " -> %s" % self.r.choice(TYPE_TAGS)
+        return ""
+
+    def maybe_effects(self):
+        """` effects [...]` 30% of the time, BEFORE `-> Type` (fixed order
+        per SPEC v0.14 — the other order is an ordinary out-of-order parse
+        error, already covered by the grammar's general malformed-syntax
+        rate)."""
+        if self.r.random() < 0.3:
+            return " effects %s" % self.r.choice(EFFECT_TAG_SETS)
         return ""
 
     def body(self, local):
@@ -233,9 +254,9 @@ class ProgramGen(object):
         if p < 0.4:
             n = r.randint(0, 2)
             params = [self.fresh("q") for _ in range(n)]
-            return "fn(%s)%s { %s }" % (self.typed_params(params),
-                                        self.maybe_ret_type(),
-                                        self.expr(depth + 1, local + params))
+            return "fn(%s)%s%s { %s }" % (self.typed_params(params), self.maybe_effects(),
+                                          self.maybe_ret_type(),
+                                          self.expr(depth + 1, local + params))
         if p < 0.7 and self.fns:
             return r.choice(self.fns)[0]
         if p < 0.85:
