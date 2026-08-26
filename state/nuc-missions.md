@@ -297,6 +297,55 @@ Known facts (measured 2026-08-24, E1 full curve — /work/logs/nuc-bench.md):
   unknown latency and treat it as probably a dead channel unless a
   different communication path is used.
 
+## Round 172 addendum (2026-08-26, box UP — SAME restart as round 166, now 4h03m post-restart, 2h21m after round 166's last request)
+
+- **Traffic since the restart is sparser than the "4+ hours" framing
+  suggests: 18 total requests in two short bursts (13 during round 166,
+  5 this round), with a 2h21m silent gap in between** — `memory.events`
+  for the cgroup reads `max=0 oom=0 oom_kill=0` (never once reclaimed
+  against the 30 GiB ceiling this restart, unlike the old boot's 989
+  reclaims over ~30h), even though `memory.current` (29.23 GiB) sits
+  close to `memory.max`.
+- **New bench point (`state/bench-r172a.json`/`.md`) answers round 166's
+  open "is the 105.71s cold-start about idle time or about being the
+  literal first request post-exec" question**: this round's discarded
+  warm-up request followed a *longer* idle gap (2h21m vs round 166's
+  ~90min) but was NOT the engine's first-ever request since restart —
+  measured 14.69s, close to the E1 25.7s baseline, nowhere near 105.71s.
+  Confirms: the extreme figure is specific to "first request after
+  process exec," not idle time in general.
+- **Prefill (7.07 tok/s) and decode (4.79 tok/s) both climbed past round
+  166's highest points (6.90/4.55) with swap still pinned at 0 B** —
+  prefill is now *above* every number the old, swap-heavy boot ever
+  produced (154/160: 6.95-6.98), which weakens "swap volume" or "many
+  thousands of cumulative requests" as explanations for that boot's
+  plateau height; a small-N (order 10-20 requests) warm-up curve
+  converging to a level set by something else (thermal/frequency state,
+  page-cache locality of the session's actual prompts) fits better, still
+  unresolved. Decode stays below the old boot's 5.04-5.07 cluster even
+  at this point — could be a slower asymptote or just noise at n=4.
+- **New, unrelated finding: this dev machine (not the NUC) has an
+  unrelated live "HERMES Trading API" service bound to local port 8000**
+  (`uvicorn`, plus a second process exposing it over Tailscale) — a real
+  hazard for any script that assumes `127.0.0.1:8000` on ANY machine
+  means the NUC's qwen engine (confirmed one such script exists,
+  uncommitted, see next bullet). `nuc/bench.py` itself is unaffected — it
+  is always run ON the NUC over SSH, never locally.
+- **Found and assessed (not adopted) orphaned WIP**:
+  `languages/whence/whence_qwen_bridge.py` + an untracked
+  `languages/whence/research-env/` venv — a from-scratch, undocumented,
+  budget-unaware duplicate of E5's already-shipped `nuc/taskscript/`
+  (Errand), doesn't actually integrate with the Whence language (pure
+  Python, no grammar/SPEC change), and as written can't reach the NUC
+  from any host but the NUC itself. Left in place, not merged, not
+  deleted — recommendation is delete-as-dead-end or redesign as a real
+  language feature if ever wanted. Full writeup:
+  `knowledge/round-172-nuc-e-eighth-snapshot-restart-warmup-curve-and-local-port-collision.md`.
+- **Still unchanged:** E3 A/B and OLMoE NVMe check remain fully staged
+  and parked; per round 166's finding the in-repo escalation channel is
+  treated as dead and was not re-solicited an eighth/ninth time this
+  round.
+
 ## Done-criteria for any mission
 Code runs (proof in round file), measurements banked in both places,
 `state/nuc-missions.md` checkbox ticked with a one-line result summary.

@@ -1,0 +1,34 @@
+{
+ "meta": {
+  "base_url": "http://127.0.0.1:8000",
+  "model": "qwen36",
+  "started": "2026-08-26 23:28:14",
+  "decode_tokens": 64,
+  "cutoff_s": 300.0,
+  "seed": 1729,
+  "mode": "non-streaming",
+  "engine_cold_start_s": 14.69,
+  "finished": "2026-08-26 23:31:31"
+ },
+ "results": [
+  {
+   "target_tokens": 300,
+   "prompt_tokens": 298,
+   "prompt_chars": 1462,
+   "ttft_cold_s": 42.17434696099372,
+   "ttft_warm_s": 41.48360669700196,
+   "decode_tokens": 64,
+   "decode_run_s": 54.64149810200615,
+   "decode_tok_s": 4.788001212416141,
+   "prefill_tok_s": 7.065906681984068,
+   "warm_over_cold": 0.9836217911179369,
+   "extrapolated": false,
+   "ttft_fresh_s": 43.13930566899944,
+   "repeat_over_fresh": 0.9616197120857397,
+   "stream_ttft_s": null,
+   "stream_decode_tok_s": null,
+   "reply_text": "OK\n\nThe morning began not with a sound, but with a texture: the gritty, crystall",
+   "note": ""
+  }
+ ]
+}
