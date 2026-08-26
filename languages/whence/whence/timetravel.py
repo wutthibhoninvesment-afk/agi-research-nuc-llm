@@ -1,17 +1,24 @@
-"""Time-Travel Debugging System for Whence v0.7.
+"""Host-side time-travel debugging helper (round 132 finding, not a Whence
+language feature). `TimeTravelDebugger` is a plain Python class for
+inspecting `Env.vars` snapshots while developing the interpreter itself —
+it is NEVER wired into `Interpreter` and exposes no Whence builtins.
 
-Adds checkpoint-based time-travel capabilities to the interpreter:
-  - snap(name):     Take a named snapshot of all variable bindings
-  - rewind(name):   Restore state from a saved checkpoint
-  - timeline():     List all checkpoints with metadata
-  - diff_snap(a,b): Compare differences between two snapshots
-  - trace(value):   Full provenance tree of any value
-
-Architecture:
-  - Snapshots store deep copies of env.vars (structural sharing via immutability)
-  - Rewinding clears future checkpoints (time paradox prevention)
-  - Memory-efficient: only reference counts increase on shared nodes
-  - Safety: each snap creates independent scope; rewinding restores exact state
+An earlier commit outside the round process ("Time-Travel Debugger v0.7
+complete!", 8637795) shipped this class alongside `install_timetravel_
+builtins` and a SPEC section claiming five new guest-language builtins
+(`snap`/`rewind`/`timeline`/`diff_snap`/`trace`). Neither was ever reachable:
+nothing called `install_timetravel_builtins`, and had it been wired in it
+would still have been broken — it wrote to `interp.builtins[...]` instead of
+the real per-process `_BUILTIN_TABLE` singleton dispatch table (interp.py),
+called a nonexistent `Interpreter.miss()`, and assumed raw Python values
+where Whence's builtin convention is `fn(interp, args, line)` over
+`Prov`-wrapped values. `install_timetravel_builtins` was deleted in round
+138 rather than fixed: rewinding `env.vars` in place is also a poor match
+for Whence's actual design (decision 3, no assignment/no mutation of
+bindings) — a real "time travel" feature belongs on TOP of the existing
+`at`/`steps`/`blame` provenance builtins, not as a mutable checkpoint
+stack. `tests/test_timetravel.py` exercises this class directly as a
+Python utility; that part was always real.
 """
 
 
@@ -173,73 +180,3 @@ class TimeTravelDebugger:
             return "Value does not carry provenance (not a Prov node)"
         
         return render_why(value, max_depth=10, max_nodes=200)
-
-
-# --- Integration hooks for Interpreter ---
-
-def install_timetravel_builtins(interp):
-    """Attach time-travel methods as builtins to an interpreter instance.
-    
-    Adds 5 new Whence language builtins:
-      snap(name) → "snap('name') ✓"
-      rewind(name) → Prov with message or Miss on failure  
-      timeline() → formatted list of checkpoints
-      diff_snap(a,b) → diff report or Miss
-      trace(value) → provenance tree or Miss
-      
-    Args:
-        interp: Interpreter instance to modify
-    """
-    ttd = TimeTravelDebugger()
-    
-    # Store debugger reference on interpreter for env access
-    interp._timetravel_db = ttd
-    
-    def snap_builtin(interp_inst, args, line):
-        """snap(string name) builtin."""
-        if not args:
-            return interp.miss("snap requires a string", line)
-        name = args[0]
-        if not isinstance(name, str):
-            return interp.miss("snap argument must be string", line)
-        return ttd.snapshot(interp_inst.top_level)
-    
-    def rewind_builtin(interp_inst, args, line):
-        """rewind(string name) builtin."""
-        if not args:
-            return interp.miss("rewind requires a string", line)
-        name = args[0]
-        if not isinstance(name, str):
-            return interp.miss("rewind argument must be string", line)
-        return ttd.rewind(interp_inst.top_level, name)
-    
-    def timeline_builtin(interp_inst, args, line):
-        """timeline() builtin - no arguments needed."""
-        return ttd.timeline()
-    
-    def diff_snap_builtin(interp_inst, args, line):
-        """diff_snap(string a, string b) builtin."""
-        if len(args) < 2:
-            return interp.miss("diff_snap requires two strings", line)
-        a, b = args[0], args[1]
-        if not isinstance(a, str) or not isinstance(b, str):
-            return interp.miss("arguments must be strings", line)
-        return ttd.diff_snap(a, b)
-    
-    def trace_builtin(interp_inst, args, line):
-        """trace(value) builtin - shows provenance tree."""
-        if not args:
-            return interp.miss("trace requires a value", line)
-        return ttd.trace(args[0])
-    
-    # Register builtins using Whence's Builtin class
-    from whence.values import Builtin
-    
-    interp.builtins['snap'] = Builtin('snap', arity=1, fn=snap_builtin)
-    interp.builtins['rewind'] = Builtin('rewind', arity=1, fn=rewind_builtin)
-    interp.builtins['timeline'] = Builtin('timeline', arity=0, fn=timeline_builtin)
-    interp.builtins['diff_snap'] = Builtin('diff_snap', arity=2, fn=diff_snap_builtin)
-    interp.builtins['trace'] = Builtin('trace', arity=1, fn=trace_builtin)
-    
-    # Mark which builtins require special handling during eval
-    interp.timetravel_enabled = True

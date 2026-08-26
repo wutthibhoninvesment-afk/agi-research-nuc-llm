@@ -155,9 +155,31 @@ def main():
                         ref_raised.setdefault(r, []).append((k, mode))
                     continue
                 if type(n_) is str:
-                    bad += 1
-                    print("DIFF program %d %s: timed out under the new tree only" % (k, mode))
-                    continue
+                    # A lone SIGALRM cap is wall-clock, not CPU time: under
+                    # concurrent load (another campaign's subprocesses on
+                    # the same box) the SAME program can cross `seconds` on
+                    # one interpreter and not the other purely from
+                    # scheduling noise, with no real behavioural difference
+                    # (round 144 finding — this produced exactly the
+                    # "reliably fails in-suite, reliably passes standalone"
+                    # symptom round 137 flagged and could not root-cause).
+                    # Retry once at 4x budget before calling it a genuine
+                    # hang: noise clears comfortably at 4x, but an actual
+                    # introduced infinite loop or exponential blowup does
+                    # not become fast just because it is given more time.
+                    n_ = run_capped(new_i, new_v, src, mkw, a.timeout * 4)
+                    if n_ == "timeout":
+                        bad += 1
+                        print("DIFF program %d %s: timed out under the new "
+                              "tree only (confirmed at 4x budget)" % (k, mode))
+                        continue
+                    if type(n_) is str:
+                        bad += 1
+                        print("DIFF program %d %s: %s escaped the new "
+                              "tree on retry" % (k, mode, n_))
+                        continue
+                    # retry succeeded within budget: fall through to the
+                    # normal comparison below, same as any other pair
                 ro, rc, rt, rk = r
                 no, nc, nt, nk = n_
                 diffs = []
@@ -191,7 +213,20 @@ def main():
             src = f.read()
         for mode in a.modes.split(","):
             mkw = MODES[mode]
-            ro, rc, rt, rk = run(ref_i, ref_v, src, mkw)
+            try:
+                ro, rc, rt, rk = run(ref_i, ref_v, src, mkw)
+            except Exception as e:
+                if type(e).__name__ != "ParseError":
+                    raise
+                # An example may use syntax the reference package predates
+                # (round 132: `-> Type` on shapes.lang, unparseable under
+                # HEAD's pre-v0.13 lexer/parser) — that is the expected
+                # shape of "we shipped a new feature", not a divergence to
+                # crash over; report it and move on instead of comparing.
+                print("NEWSYNTAX %-18s %-6s (reference package cannot "
+                      "parse this file's current syntax)" %
+                      (os.path.basename(path), mode))
+                continue
             no, nc, nt, nk = run(new_i, new_v, src, mkw)
             diffs = []
             if ro != no:

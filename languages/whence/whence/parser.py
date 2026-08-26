@@ -118,10 +118,11 @@ class Parser(object):
             self.next()
             name = self.expect("NAME").value
             params, types = self.param_list()
+            ret_type = self.parse_return_type()
             body = self.block()
             self._apply_type_guards(body, params, types, name)
             mark_tails(body)
-            return A.FnDef(tok.line, name, params, body)
+            return A.FnDef(tok.line, name, params, body, ret_type)
         if tok.type == "KW" and tok.value == "check":
             self.next()
             label = self.expect("STRING", what="a string label after 'check'").value
@@ -162,6 +163,21 @@ class Parser(object):
                 break
         self.expect(")")
         return params, types
+
+    def parse_return_type(self):
+        """`-> Type` after a parameter list (v0.13), optional. Returns the
+        same kind of spec-expression `_type_spec_expr` builds for a param
+        (an `A.Str` for a primitive tag, an `A.NameRef` for a shape), or
+        None — the interpreter resolves it to a runtime spec ONCE per
+        Closure at creation time (`_closure_ret`), never touching the
+        body's AST, so tail position is exactly as `mark_tails` already
+        computes it (see `_apply_type_guards`'s docstring: THAT is param
+        types' whole cost story; a return type has none of its own)."""
+        if not self.at("->"):
+            return None
+        tok = self.next()
+        name = self.parse_type()
+        return self._type_spec_expr(name, tok.line)
 
     def parse_type(self):
         """A type name in annotation position: a primitive tag or a
@@ -433,10 +449,11 @@ class Parser(object):
         if tok.type == "KW" and tok.value == "fn":
             self.next()
             params, types = self.param_list()
+            ret_type = self.parse_return_type()
             body = self.block()
             self._apply_type_guards(body, params, types, None)
             mark_tails(body)
-            return A.FnExpr(tok.line, params, body)
+            return A.FnExpr(tok.line, params, body, ret_type)
         raise ParseError("unexpected %r" % (tok.value,), tok.line, tok.col)
 
     def if_expr(self):

@@ -1,0 +1,36 @@
+case: gte-near
+model: haiku
+arm: None
+fired: ['generator-trampoline-evaluator']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+I'll check if there's a relevant skill for this interpreter restructuring task.
+
+SKILLS=generator-trampoline-evaluator
+
+The core fix is a **trampolined evaluator**: convert your recursive methods to generators that *yield requests* instead of making recursive calls. A single driver loop processes these requests iteratively, using an explicit stack instead of Python's call stack.
+
+**Quick overview:**
+
+1. **Generator-based eval**: Replace `v = self.eval(node.left, env)` with `v = yield (node.left, env)`. The generator receives the result via `send()`.
+
+2. **Three request types**:
+   - `(node, env)` tuple → evaluate a node
+   - `_Call(fn, args, line)` object → call a guest function  
+   - Bare generator → other work
+
+3. **Single driver loop** (shown in the skill) that maintains an explicit stack of generators, sends results back with `.send()`, and pops when each generator finishes.
+
+4. **Guest depth becomes a language-level counter**, not a host recursion limit. In your call handler: check `if self.depth >= self.max_depth`, increment on entry, decrement in a `finally` block.
+
+5. **Leaf nodes stay fast**: Literals and names don't need generators—evaluate them inline in the driver.
+
+This approach handles 5000+ guest recursion depth while staying well under Python's limit. The skill also covers optional optimizations (tail-call elimination, compiling call-free subtrees to closures, direct mode with frame budgeting) that can cut 20–35% of the trampoline overhead.
+
+Show me your evaluator's entry point and main compound eval methods, and I can help you convert them to generators.

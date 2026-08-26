@@ -1,0 +1,18 @@
+# answer_live_r124.errand — round 124 live E5 check: one qwen-lane task through
+# the SSH tunnel (Mac :8600 -> NUC :8080), no olmoe lane (not deployed on the box
+# this round). Same lane numbers as triage.errand's qwen lane (E1 curve, fixed
+# 2.4s dispatch overhead), url swapped for the local tunnel endpoint.
+lane qwen { url "http://127.0.0.1:8600" model "qwen36-tools" prefill e1 decode 3.3 fixed 2.4s tools yes ctx 32768 }
+
+budget turn { time 4m }
+
+task answer(text) on qwen within turn retry 1 backoff 5s {
+  system "You are a terse engineering assistant. Reply in at most 60 words"
+  user   "This is a bug report:\n{text}"
+  reply  90
+  expect nonempty
+}
+
+flow ask(text) within turn {
+  emit answer(text)
+}

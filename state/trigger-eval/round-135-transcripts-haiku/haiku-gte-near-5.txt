@@ -1,0 +1,23 @@
+case: gte-near
+model: haiku
+arm: None
+fired: []
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+The core issue is that guest recursion maps 1:1 to Python's call stack. You have three main approaches:
+
+1. **Trampolining** (recommended for tree-walkers): The evaluator returns a "thunk" (a function or object representing the next step) instead of recursing directly. Your main eval loop processes thunks until done. This preserves your recursive evaluator structure while handling arbitrary depth. The tradeoff: you need to refactor tail calls to return thunks, which is moderately invasive.
+
+2. **Explicit stack** (simpler refactor): Replace recursion with an explicit stack data structure that holds pending evaluation frames. You iterate over the stack instead of recursing. More straightforward to reason about but requires converting your whole evaluator to work with explicit stack frames.
+
+3. **Bytecode + loop** (most scalable): Compile to bytecode and run a stack-based VM. Overkill if you just need to handle 5000 frames, but eliminates the problem entirely.
+
+For a Python tree-walker, I'd lean toward **trampolining** — it's the lightest architectural change that scales past Python's limit without rewriting as a stack machine.
+
+Do you have the evaluator code I should look at? I can show what the trampolining refactor looks like for your specific case.

@@ -196,6 +196,16 @@ skills — that duplicates their triggers and adds an indirection hop.
   turns). A soft qualifier ("in the harness this was distilled from") is
   not enough; say "not bundled with this skill — don't open these paths",
   or bundle the file.
+- **Chasing one haiku miss past diminishing returns** — a single near-case
+  collision between two skills took 5 rounds and 5 distinct edits (symptom
+  rewrite, NOT-for on the loser, NOT-for on the winner, shared-noun removal,
+  a confirming re-probe) to move 0/6 → 1/6, never a flip. After 3
+  same-mechanism edits with zero measured movement on the target case,
+  stop editing that case — it is a small-model base-rate property, not a
+  fixable description defect; widen the haiku band instead and redirect
+  the probe budget. See the reference's "When to stop editing a
+  description" for the mechanism order that actually moves a number
+  (shared-noun removal, tried last, was the only one that worked).
 
 ## Verification
 ```bash

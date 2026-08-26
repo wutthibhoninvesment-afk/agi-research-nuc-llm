@@ -1,0 +1,15 @@
+case: gte-mid
+model: haiku
+arm: None
+fired: ['tiny-language-implementation']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+I'll check if there's a relevant skill for building interpreters and adding language features.
+
+SKILLS=tiny-language-implementation

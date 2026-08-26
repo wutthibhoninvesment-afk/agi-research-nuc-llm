@@ -1,0 +1,25 @@
+case: gte-near
+model: haiku
+arm: None
+fired: []
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=NONE
+
+The core issue is that tree-walking interpreters recurse on guest program recursion—Python's 1000-depth limit becomes the bottleneck. Three approaches, from simplest to most robust:
+
+1. **Explicit stack + trampolining** — Convert recursive calls to return "instructions" that the top-level eval loop executes. Each guest recursive call becomes a stack push, not a Python call. This keeps your AST-walking structure but removes the Python recursion.
+
+2. **Stack-based VM** — Compile the AST to bytecode (function calls → `CALL` opcode, returns → `RET`, etc.) and interpret with an explicit stack. More work upfront but scales indefinitely and usually faster too.
+
+3. **Increase the limit cautiously** — `sys.setrecursionlimit(10000)` works if you're certain your interpreter's own depth is shallow and your stack can handle it, but it's fragile if the interpreter grows.
+
+**Recommendation**: Start with trampolining if your interpreter is already written. It's a mechanical refactor (swap recursive calls for returning "what to do next") and keeps your current structure. If you're building from scratch or performance matters, go straight to bytecode.
+
+Which approach fits your interpreter's current shape? And how deep does the interpreter itself recurse (AST depth, not guest program depth)?

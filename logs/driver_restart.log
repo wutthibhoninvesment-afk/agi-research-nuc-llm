@@ -1,2 +1,37 @@
 [2026-08-25 22:27:32] === driver started; resuming after round 121 ===
 [2026-08-25 22:27:32] round 122 track=language(C) start
+[2026-08-25 22:50:31] round 122: non-success status=error:err
+[2026-08-25 22:51:16] round 123 track=skills(B) start
+[2026-08-25 23:06:38] round 123: non-success status=error:err
+[2026-08-25 23:07:23] round 124 track=NUC-integration(E) start
+[2026-08-25 23:28:59] round 124: non-success status=error:err
+[2026-08-25 23:29:44] round 125 track=SWE-loop(D) start
+[2026-08-25 23:47:31] round 125: non-success status=error:err
+[2026-08-25 23:48:17] round 126 track=language(C) start
+[2026-08-26 00:02:52] round 126: non-success status=error:err
+[2026-08-26 00:03:37] round 127 track=harness(A) start
+[2026-08-26 00:41:59] round 127: non-success status=error:err
+[2026-08-26 00:42:44] round 128 track=language(C) start
+[2026-08-26 00:56:18] round 128: non-success status=error:err
+[2026-08-26 00:57:03] round 129 track=skills(B) start
+[2026-08-26 01:05:48] round 129: success
+[2026-08-26 01:06:33] round 130 track=NUC-integration(E) start
+[2026-08-26 01:30:07] round 130: non-success status=error:err
+[2026-08-26 01:30:52] round 131 track=SWE-loop(D) start
+[2026-08-26 01:45:09] round 131: non-success status=error:err
+[2026-08-26 01:45:54] round 132 track=language(C) start
+[2026-08-26 07:53:58] round 132: non-success status=error:err
+[2026-08-26 07:54:43] round 133 track=harness(A) start
+[2026-08-26 08:08:48] round 133: non-success status=error:err
+[2026-08-26 08:09:33] round 134 track=language(C) start
+[2026-08-26 08:32:53] round 134: non-success status=error:err
+[2026-08-26 08:33:38] round 135 track=skills(B) start
+[2026-08-26 08:48:53] round 135: non-success status=error:err
+[2026-08-26 08:49:38] round 136 track=NUC-integration(E) start
+[2026-08-26 08:58:51] round 136: success
+[2026-08-26 08:59:36] round 137 track=SWE-loop(D) start
+[2026-08-26 09:15:48] round 137: non-success status=error:err
+[2026-08-26 09:16:33] round 138 track=language(C) start
+[2026-08-26 09:27:33] round 138: non-success status=error:err
+[2026-08-26 09:28:18] round 139 track=harness(A) start
+[2026-08-26 09:40:52] round 139: success

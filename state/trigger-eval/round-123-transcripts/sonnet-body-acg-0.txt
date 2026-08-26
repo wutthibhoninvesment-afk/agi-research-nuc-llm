@@ -1,0 +1,575 @@
+case: body-acg
+model: sonnet
+arm: None
+fired: ['agent-completion-guards']
+distractors: []
+foreign: []
+error: None
+reads: ['/private/var/folders/_6/3xh6ssk928jcqvpbw1p5kjh80000gn/T/trigger-eval-44pjp7v_/.claude/skills/agent-completion-guards/SKILL.md']
+reads_failed: []
+bash: []
+
+--- transcript ---
+This task matches the agent-completion-guards skill exactly, so I'll load it first.
+
+Since this environment gives me no filesystem write access, I'll hand you the complete implementation and test suite directly — drop these into your harness. I've traced every test by hand against the logic (no execution available here), so please run `pytest -q` locally to confirm before trusting it in production.
+
+## `harness/guards.py`
+
+```python
+from __future__ import annotations
+
+import json
+import re
+import uuid
+from dataclasses import dataclass, field
+from typing import Any, Callable, Optional
+
+STOP_COMPLETED = "completed"
+STOP_REJECTED = "rejected"
+
+
+# ---------------------------------------------------------------- schema ---
+
+@dataclass
+class ToolSpec:
+    name: str
+    parameters: dict[str, type]
+    required: set[str]
+    read_only: bool = False  # a.k.a. parallel_safe
+
+
+@dataclass
+class GuardContext:
+    tools: dict[str, ToolSpec]
+    tool_call_hint: str  # backend's exact call syntax, quoted verbatim in nudges
+
+
+@dataclass
+class ToolCall:
+    name: str
+    arguments: Optional[dict[str, Any]]
+
+
+@dataclass
+class Rejection:
+    guard_name: str
+    reason: str
+    nudge: str
+    recovered_call: Optional[ToolCall] = None
+
+
+class Guard:
+    name = "base"
+
+    def check(self, text: str, ctx: GuardContext) -> Optional[Rejection]:
+        raise NotImplementedError
+
+
+# ------------------------------------------------------------- detection ---
+
+_PY_CALL_RE = re.compile(r"^([A-Za-z_][A-Za-z0-9_.]*)\(([^()]*)\)\s*$")
+_BARE_MENTION_RE = re.compile(r"tool[ _]call\s*:\s*([A-Za-z_][A-Za-z0-9_.]*)", re.IGNORECASE)
+_INVOKE_TAG_RE = re.compile(r"<invoke\s+name=[\"']([A-Za-z_][A-Za-z0-9_.]*)[\"']", re.IGNORECASE)
+_TOOL_CALL_TAG_RE = re.compile(r"<tool_call>(.*?)</tool_call>", re.IGNORECASE | re.DOTALL)
+
+
+def _find_json_objects(text: str) -> list[dict]:
+    """Every top-level {...} in text, in order. A botched call's corrected
+    retry often appears later in the same reply, so callers should take the
+    first object whose shape matches, not just objs[0]."""
+    decoder = json.JSONDecoder()
+    objs = []
+    i, n = 0, len(text)
+    while i < n:
+        idx = text.find("{", i)
+        if idx == -1:
+            break
+        try:
+            obj, end = decoder.raw_decode(text, idx)
+            if isinstance(obj, dict):
+                objs.append(obj)
+            i = end
+        except json.JSONDecodeError:
+            i = idx + 1
+    return objs
+
+
+def _split_top_level_commas(s: str) -> list[str]:
+    parts, cur, depth, quote = [], [], 0, None
+    for ch in s:
+        if quote:
+            cur.append(ch)
+            if ch == quote:
+                quote = None
+            continue
+        if ch in "\"'":
+            quote = ch
+            cur.append(ch)
+        elif ch in "([{":
+            depth += 1
+            cur.append(ch)
+        elif ch in ")]}":
+            depth -= 1
+            cur.append(ch)
+        elif ch == "," and depth == 0:
+            parts.append("".join(cur))
+            cur = []
+        else:
+            cur.append(ch)
+    if cur:
+        parts.append("".join(cur))
+    return parts
+
+
+def _parse_py_args(argstr: str) -> Optional[dict[str, str]]:
+    """None means unparseable (e.g. a positional arg) — never guess."""
+    argstr = argstr.strip()
+    if not argstr:
+        return {}
+    args: dict[str, str] = {}
+    for seg in _split_top_level_commas(argstr):
+        m = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$", seg.strip(), re.DOTALL)
+        if not m:
+            return None
+        k, v = m.group(1), m.group(2).strip()
+        if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
+            v = v[1:-1]
+        args[k] = v
+    return args
+
+
+class ProseToolCallGuard(Guard):
+    name = "prose_tool_call"
+
+    def check(self, text: str, ctx: GuardContext) -> Optional[Rejection]:
+        call = self._detect(text, ctx)
+        if call is None:
+            return None
+        return self._reject(text, ctx, call)
+
+    def _detect(self, text: str, ctx: GuardContext) -> Optional[ToolCall]:
+        stripped = text.strip()
+        if not stripped:
+            return None
+
+        candidates = [stripped]
+        lines = [l for l in stripped.splitlines() if l.strip()]
+        if lines:
+            candidates.append(lines[-1].strip())
+        for cand in candidates:
+            m = _PY_CALL_RE.match(cand)
+            if m and m.group(1) in ctx.tools:
+                return ToolCall(m.group(1), _parse_py_args(m.group(2)))
+
+        m = _BARE_MENTION_RE.search(stripped)
+        if m and m.group(1) in ctx.tools:
+            return ToolCall(m.group(1), {})
+
+        m = _INVOKE_TAG_RE.search(stripped)
+        if m and m.group(1) in ctx.tools:
+            return ToolCall(m.group(1), {})
+
+        for tag_match in _TOOL_CALL_TAG_RE.finditer(stripped):
+            for obj in _find_json_objects(tag_match.group(1)):
+                name = obj.get("name")
+                if isinstance(name, str) and name in ctx.tools:
+                    args = obj.get("arguments") or obj.get("args") or {}
+                    return ToolCall(name, args if isinstance(args, dict) else {})
+
+        for obj in _find_json_objects(stripped):
+            keys = set(obj.keys())
+            if "name" in keys and keys <= {"name", "arguments", "args"}:
+                name = obj.get("name")
+                if isinstance(name, str) and name in ctx.tools:
+                    args = obj.get("arguments") or obj.get("args") or {}
+                    return ToolCall(name, args if isinstance(args, dict) else {})
+
+        return None
+
+    def _reject(self, text: str, ctx: GuardContext, call: ToolCall) -> Rejection:
+        recovered = _try_recover(call, ctx)
+        quoted = text if len(text) <= 400 else text[:400] + "…"
+        nudge = (
+            f"Your last reply was plain text, not a tool call — NOTHING was run:\n"
+            f"---\n{quoted}\n---\n"
+        )
+        if recovered is not None:
+            nudge += (
+                f"I ran `{call.name}` for you this once because it is read-only, "
+                f"but you must use {ctx.tool_call_hint} for every tool call from now on."
+            )
+        else:
+            nudge += f"To call a tool, use {ctx.tool_call_hint}."
+        return Rejection(self.name, f"prose call to {call.name!r}", nudge, recovered)
+
+
+class EmptyReplyGuard(Guard):
+    name = "empty_reply"
+
+    def check(self, text: str, ctx: GuardContext) -> Optional[Rejection]:
+        if text.strip():
+            return None
+        nudge = (
+            "Your last reply had no content — NOTHING was run. "
+            f"Respond with a tool call using {ctx.tool_call_hint}, or your final answer."
+        )
+        return Rejection(self.name, "empty reply", nudge, None)
+
+
+# --------------------------------------------------------------- recovery ---
+
+_SCALAR_COERCERS: dict[type, Callable[[str], Any]] = {
+    int: int,
+    float: float,
+    bool: lambda v: str(v).strip().lower() in ("true", "1", "yes"),
+    str: lambda v: v,
+}
+
+
+def _try_recover(call: ToolCall, ctx: GuardContext) -> Optional[ToolCall]:
+    spec = ctx.tools.get(call.name)
+    if spec is None or not spec.read_only:
+        return None
+    if call.arguments is None:
+        return None
+    if any(k not in spec.parameters for k in call.arguments):
+        return None
+    if not spec.required <= set(call.arguments):
+        return None
+    coerced: dict[str, Any] = {}
+    for k, v in call.arguments.items():
+        expected = spec.parameters[k]
+        if isinstance(v, expected):
+            coerced[k] = v
+            continue
+        coercer = _SCALAR_COERCERS.get(expected)
+        if coercer is None:
+            return None
+        try:
+            coerced[k] = coercer(v)
+        except (TypeError, ValueError):
+            return None
+    return ToolCall(call.name, coerced)
+
+
+# -------------------------------------------------------------- answers ---
+
+@dataclass
+class AnswerSchema:
+    required_keys: set[str]
+    validators: list[Callable[[dict], Optional[str]]] = field(default_factory=list)
+    example: dict = field(default_factory=dict)
+
+
+class AnswerFormatGuard(Guard):
+    name = "answer_format"
+
+    def __init__(self, schema: AnswerSchema):
+        self.schema = schema
+
+    def check(self, text: str, ctx: GuardContext) -> Optional[Rejection]:
+        stripped = text.strip()
+        obj = self._extract_answer(stripped)
+        if obj is None:
+            return self._reject(text, "no JSON object found in the final answer")
+        missing = self.schema.required_keys - set(obj.keys())
+        if missing:
+            return self._reject(text, f"missing required key(s): {sorted(missing)}")
+        for validator in self.schema.validators:
+            err = validator(obj)
+            if err:
+                return self._reject(text, err)
+        return None
+
+    def _extract_answer(self, text: str) -> Optional[dict]:
+        objs = _find_json_objects(text)
+        for obj in objs:
+            if self.schema.required_keys <= set(obj.keys()):
+                return obj
+        return objs[-1] if objs else None
+
+    def _reject(self, text: str, reason: str) -> Rejection:
+        example = json.dumps(self.schema.example, indent=2)
+        quoted = text if len(text) <= 400 else text[:400] + "…"
+        nudge = (
+            f"Your final answer {reason} — NOTHING was scored:\n---\n{quoted}\n---\n"
+            f"Reply with a JSON object containing {sorted(self.schema.required_keys)}, e.g.\n{example}"
+        )
+        return Rejection(self.name, reason, nudge, None)
+
+
+_KILL_ANSWER_SCHEMA = AnswerSchema(
+    required_keys={"verdict", "program"},
+    validators=[
+        lambda o: None
+        if o.get("verdict") != "killed" or o.get("program")
+        else "program must be non-empty when verdict is 'killed'"
+    ],
+    example={"verdict": "survived", "program": ""},
+)
+_ANSWER_SCHEMAS = {"kill": _KILL_ANSWER_SCHEMA}
+
+
+def answer_guard(kind: str) -> Guard:
+    return AnswerFormatGuard(_ANSWER_SCHEMAS[kind])
+
+
+def default_guards() -> list[Guard]:
+    return [EmptyReplyGuard(), ProseToolCallGuard()]
+
+
+# ------------------------------------------------------------------ loop ---
+
+@dataclass
+class GuardCheckpoint:
+    guard_rejections: int = 0     # every guard firing, recovered or not — for reporting
+    guard_recoveries: int = 0
+    guard_retries_spent: int = 0  # only nudge-only firings — this is what the bound checks
+
+
+@dataclass
+class StepResult:
+    stop_reason: Optional[str]
+    dispatched_call: Optional[ToolCall] = None
+    nudge_message: Optional[str] = None
+
+
+def run_completion_guards(
+    text: str,
+    ctx: GuardContext,
+    guards: list[Guard],
+    checkpoint: GuardCheckpoint,
+    max_guard_retries: int,
+) -> StepResult:
+    for guard in guards:
+        rejection = guard.check(text, ctx)
+        if rejection is None:
+            continue
+        checkpoint.guard_rejections += 1
+        if rejection.recovered_call is not None:
+            checkpoint.guard_recoveries += 1
+            return StepResult(None, dispatched_call=rejection.recovered_call, nudge_message=rejection.nudge)
+        checkpoint.guard_retries_spent += 1
+        if checkpoint.guard_retries_spent > max_guard_retries:
+            return StepResult(STOP_REJECTED, nudge_message=rejection.nudge)
+        return StepResult(None, nudge_message=rejection.nudge)
+    return StepResult(STOP_COMPLETED)
+
+
+def append_recovered_call(assistant_message: dict, call: ToolCall) -> str:
+    call_id = f"guard_{uuid.uuid4().hex[:12]}"
+    assistant_message.setdefault("tool_calls", []).append(
+        {"id": call_id, "name": call.name, "arguments": call.arguments}
+    )
+    if "raw_content" in assistant_message:
+        assistant_message["raw_content"].append(
+            {"type": "tool_use", "id": call_id, "name": call.name, "input": call.arguments}
+        )
+    return call_id
+
+
+def make_tool_result_message(call_id: str, content: Any) -> dict:
+    return {"role": "tool", "tool_call_id": call_id, "content": content}
+
+
+def build_guards_for_task(kind: str) -> list[Guard]:
+    return default_guards() + [answer_guard(kind)]
+```
+
+## `harness/tests/test_guards.py`
+
+```python
+from guards import (
+    GuardCheckpoint, GuardContext, ProseToolCallGuard, EmptyReplyGuard, ToolCall, ToolSpec,
+    STOP_COMPLETED, STOP_REJECTED, answer_guard, append_recovered_call, default_guards,
+    make_tool_result_message, run_completion_guards,
+)
+
+TOOLS = {
+    "search": ToolSpec("search", {"query": str}, {"query"}, read_only=True),
+    "bash": ToolSpec("bash", {"command": str}, {"command"}, read_only=False),
+    "read_file": ToolSpec("read_file", {"path": str, "start": int, "end": int}, {"path"}, read_only=True),
+}
+CTX = GuardContext(tools=TOOLS, tool_call_hint="the structured tool-use interface")
+
+# --- corpus: hand-labelled from recorded live failures + known-good answers ---
+CORPUS = [
+    ("read_file(path=a.py, start=1, end=40)", True),
+    ("tool call: search", True),
+    ('{"name": "read_file", "args": {"path": "a.py"}}', True),
+    ("", True),
+    ('<tool_call>{"name": "search", "arguments": {"query": "foo"}}</tool_call>', True),
+    ('<invoke name="search"><parameter name="query">foo</parameter></invoke>', True),
+    ("search(query=foo)", True),
+    ('{"verdict": "survived", "program": ""}', False),
+    ("The file at path a.py exists and defines a read_file helper.", False),
+    ("Based on my review, the bug is a null pointer dereference in parse.c line 42.", False),
+    ('```json\n{"verdict": "killed", "program": "def f(): return 1"}\n```', False),
+    ("I'll use the search tool to look this up next.", False),
+]
+
+
+def test_corpus_matches_hand_labels():
+    guards = default_guards()
+    for text, expect_reject in CORPUS:
+        rejected = any(g.check(text, CTX) is not None for g in guards)
+        assert rejected == expect_reject, f"mismatch for {text!r}"
+
+
+# --- shape detection ---
+
+def test_python_call_style_detected():
+    assert ProseToolCallGuard().check("read_file(path=a.py, start=1, end=40)", CTX) is not None
+
+
+def test_bare_mention_detected():
+    assert ProseToolCallGuard().check("tool call: search", CTX) is not None
+
+
+def test_json_ish_call_detected():
+    assert ProseToolCallGuard().check('{"name": "search", "arguments": {"query": "x"}}', CTX) is not None
+
+
+def test_xml_tool_call_tag_detected():
+    text = '<tool_call>{"name": "search", "arguments": {"query": "x"}}</tool_call>'
+    assert ProseToolCallGuard().check(text, CTX) is not None
+
+
+def test_xml_invoke_tag_detected():
+    assert ProseToolCallGuard().check('<invoke name="search"></invoke>', CTX) is not None
+
+
+def test_empty_reply_detected():
+    assert EmptyReplyGuard().check("   ", CTX) is not None
+
+
+def test_unregistered_name_not_flagged():
+    assert ProseToolCallGuard().check("frobnicate(x=1)", CTX) is None
+
+
+def test_ordinary_prose_not_flagged():
+    assert ProseToolCallGuard().check("The search tool would help here but I can't call it.", CTX) is None
+
+
+# --- recovery: only safe, well-formed, read-only calls get dispatched ---
+
+def test_readonly_call_recovered():
+    r = ProseToolCallGuard().check("search(query=foo)", CTX)
+    assert r.recovered_call == ToolCall("search", {"query": "foo"})
+
+
+def test_scalar_coercion():
+    r = ProseToolCallGuard().check("read_file(path=a.py, start=1, end=40)", CTX)
+    assert r.recovered_call == ToolCall("read_file", {"path": "a.py", "start": 1, "end": 40})
+
+
+def test_writeable_tool_not_recovered():
+    r = ProseToolCallGuard().check("bash(command=rm -rf x)", CTX)
+    assert r is not None and r.recovered_call is None
+
+
+def test_positional_arg_not_recovered():
+    r = ProseToolCallGuard().check("search(query=a, b)", CTX)
+    assert r is not None and r.recovered_call is None
+
+
+def test_missing_required_arg_not_recovered():
+    r = ProseToolCallGuard().check("search()", CTX)
+    assert r is not None and r.recovered_call is None
+
+
+def test_unknown_arg_not_recovered():
+    r = ProseToolCallGuard().check("search(query=foo, extra=1)", CTX)
+    assert r is not None and r.recovered_call is None
+
+
+# --- nudge content ---
+
+def test_nudge_quotes_reply_and_states_protocol():
+    text = "tool call: search"
+    r = ProseToolCallGuard().check(text, CTX)
+    assert text in r.nudge
+    assert "NOTHING was run" in r.nudge
+    assert CTX.tool_call_hint in r.nudge
+
+
+# --- bounded retries / stop reasons ---
+
+def test_bound_counts_alternating_shapes_not_just_consecutive():
+    checkpoint = GuardCheckpoint()
+    guards = default_guards()
+    texts = ["tool call: search", '{"name": "search", "arguments": {}}', "bash(command=x)"]
+    results = [run_completion_guards(t, CTX, guards, checkpoint, max_guard_retries=2) for t in texts]
+    assert results[0].stop_reason is None
+    assert results[1].stop_reason is None
+    assert results[2].stop_reason == STOP_REJECTED
+    assert checkpoint.guard_retries_spent == 3
+
+
+def test_recovered_calls_do_not_spend_retry_budget():
+    checkpoint = GuardCheckpoint()
+    guards = default_guards()
+    for _ in range(5):
+        result = run_completion_guards("search(query=foo)", CTX, guards, checkpoint, max_guard_retries=1)
+        assert result.stop_reason is None
+        assert result.dispatched_call == ToolCall("search", {"query": "foo"})
+    assert checkpoint.guard_retries_spent == 0
+    assert checkpoint.guard_recoveries == 5
+
+
+def test_resumed_checkpoint_rejects_immediately():
+    checkpoint = GuardCheckpoint(guard_retries_spent=2)  # simulates a resumed run
+    guards = default_guards()
+    result = run_completion_guards("tool call: search", CTX, guards, checkpoint, max_guard_retries=2)
+    assert result.stop_reason == STOP_REJECTED
+
+
+def test_completed_when_no_guard_fires():
+    checkpoint = GuardCheckpoint()
+    guards = default_guards()
+    result = run_completion_guards("Here is my final answer.", CTX, guards, checkpoint, max_guard_retries=2)
+    assert result.stop_reason == STOP_COMPLETED
+
+
+# --- answer-format guard ---
+
+def test_answer_guard_missing_key_rejected():
+    r = answer_guard("kill").check('{"verdict": "survived"}', CTX)
+    assert r is not None and "program" in r.nudge
+
+
+def test_answer_guard_optional_key_not_required():
+    assert answer_guard("kill").check('{"verdict": "survived", "program": ""}', CTX) is None
+
+
+def test_answer_guard_conditional_validator():
+    r = answer_guard("kill").check('{"verdict": "killed", "program": ""}', CTX)
+    assert r is not None and "non-empty" in r.reason
+
+
+def test_answer_guard_accepts_fenced_json():
+    text = '```json\n{"verdict": "killed", "program": "def f(): return 1"}\n```'
+    assert answer_guard("kill").check(text, CTX) is None
+
+
+# --- wire format for recovered calls ---
+
+def test_recovered_call_wire_format_matches_tool_result():
+    assistant_message = {"role": "assistant", "tool_calls": [], "raw_content": []}
+    call_id = append_recovered_call(assistant_message, ToolCall("search", {"query": "foo"}))
+    tool_msg = make_tool_result_message(call_id, "3 results found")
+
+    tool_use_blocks = [b for b in assistant_message["raw_content"] if b["type"] == "tool_use"]
+    assert len(tool_use_blocks) == 1
+    assert tool_use_blocks[0]["id"] == tool_msg["tool_call_id"] == assistant_message["tool_calls"][0]["id"]
+```
+
+## Design notes
+
+- **`guard_rejections`** counts every guard firing (recovered or not) for reporting "how many runs the guards saved"; **`guard_retries_spent`** only counts nudge-only firings, since a recovered call made real progress and shouldn't burn the run's budget — otherwise a chatty-but-harmless model doing five read-only `search(...)` prose calls in a row would get killed for no reason.
+- `run_completion_guards` is meant to wrap each model turn: dispatch `dispatched_call` if present (via `append_recovered_call`/`make_tool_result_message`), otherwise feed `nudge_message` back as the next user turn, and stop the loop on `STOP_REJECTED`.
+- Per the skill's pitfall list: don't run these guards on the forced wrap-up reply after `max_steps` — there's no retry turn left, so just record it as unusable.
+- `build_guards_for_task("kill")` is the wiring point for a campaign driver: `default_guards() + [answer_guard(kind)]`, with `checkpoint.guard_rejections` / `guard_recoveries` persisted into each run's result record.
+
+**Caveat**: I have no Bash/Write access in this sandbox, so `pytest -q tests/test_guards.py` hasn't actually been executed — please run it once you've placed these files to confirm.

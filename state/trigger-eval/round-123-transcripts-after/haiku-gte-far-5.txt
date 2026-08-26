@@ -1,0 +1,15 @@
+case: gte-far
+model: haiku
+arm: None
+fired: ['fuzz-mutate-kill-loop']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=fuzz-mutate-kill-loop
+
+I'll help you remove the recursion limit hack and fix the root cause. First, let me find the evaluator module and understand what's causing the deep recursion issue.

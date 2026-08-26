@@ -1,0 +1,15 @@
+case: gte-mid
+model: haiku
+arm: None
+fired: ['subprocess-cli-testing', 'tiny-language-implementation']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+I'll help you add proper tail calls to the interpreter. Let me first examine the current structure of the project and the interpreter.
+
+SKILLS=tiny-language-implementation,subprocess-cli-testing

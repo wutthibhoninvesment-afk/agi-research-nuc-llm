@@ -1,0 +1,30 @@
+case: gte-near
+model: haiku
+arm: None
+fired: ['tiny-language-implementation']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=tiny-language-implementation
+
+The recursive evaluator pattern hits Python's recursion limit because each guest call adds a Python frame. The fix is **generator-based trampolining**: convert your evaluator to an iterative state machine that yields work tasks instead of recursing.
+
+Three restructuring strategies, from simplest to most thorough:
+
+1. **Catch + convert (minimal):** Wrap guest calls in try/except, catch `RecursionError` at the call site, and return an error value instead of crashing. This gives you a 5000→error fallback but doesn't increase capacity.
+
+2. **Generator trampoline (recommended):** Replace your recursive `eval(node, env)` with an iterative one:
+   - Instead of `return eval(child)`, yield a task `('eval', child)` or `('call', fn, args)`
+   - Maintain an explicit call stack (list of continuations)
+   - Pop/execute tasks in a loop until the stack empties
+   - This costs you one Python frame per guest call, not 10–12, letting you reach guest depth ~20,000
+   - See the `generator-trampoline-evaluator` skill for the pattern
+
+3. **Explicit stack + value walkers:** Even with trampolining, any helper that *walks* guest values (structural equality, contains, hashing, serialization) still recurses. Write those with an explicit stack too, or move to iterative algorithms (BFS instead of DFS).
+
+Which option fits your need? If 5000 is a hard requirement, go with trampolining from the start — it's the proven approach for interpreters. The `generator-trampoline-evaluator` skill shows the exact pattern.

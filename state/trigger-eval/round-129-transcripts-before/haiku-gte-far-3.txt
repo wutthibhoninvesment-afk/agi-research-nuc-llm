@@ -1,0 +1,15 @@
+case: gte-far
+model: haiku
+arm: None
+fired: ['fuzz-mutate-kill-loop']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+I'll find the evaluator module and remove that recursion limit hack while ensuring deep programs still work.
+
+SKILLS=fuzz-mutate-kill-loop

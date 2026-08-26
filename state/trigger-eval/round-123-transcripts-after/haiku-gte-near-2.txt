@@ -1,0 +1,17 @@
+case: gte-near
+model: haiku
+arm: None
+fired: []
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=NONE
+
+The best approaches are **converting to a bytecode interpreter with an explicit evaluation stack** (most robust but higher effort) or **implementing trampolining with an explicit stack and returning thunks** (easier to retrofit). The tradeoff: bytecode requires rewriting the evaluator but is faster and more resilient; trampolining is closer to your current structure but still needs refactoring to return continuations instead of directly recursing.
+
+Do you want me to look at your current evaluator code and help restructure it, or would you like to discuss which approach fits your use case better?

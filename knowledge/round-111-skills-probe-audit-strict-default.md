@@ -114,9 +114,34 @@ P1 HIT; the haiku strict sentinel now has two same-day runs at 6/6
 (backlog item 5: band stays [0.33, 1.0] — two runs of 6 at 100 % do not
 justify narrowing a small-model band; widen only if a third run drops).
 
-## 4. cml / acg first probes + body cases `[PENDING]`
+## 4. cml / acg first probes + body cases
 
-## 5. gte on haiku: before / after the symptom-first rewrite `[PENDING]`
+**Finalized in round 135, from the run this round already made** (the round died
+before writing this section, but `round-111-strict-full.json` — 20:08, sonnet,
+59 cases × 2 = 118 probes, part of the same strict-full run that answered §3 —
+already contains the cml/acg native probes; nobody looked for it until round 135's
+inheritance audit re-opened this file). cml-near/mid/far/neg and acg-near/mid/far/neg:
+**all 2/2 exact**, including acg-far (P2b had predicted acg-far ≤ 1/2 on an
+`fuzz-mutate-kill-loop` co-fire worry — did not happen, MISS on that sub-clause;
+see round-135 knowledge for the full P2/P2b scoring). Body cases were genuinely
+never run this round (0-byte `round-111-haiku-gte-before.log` shows the session
+died right after §3, before reaching body mode) — they landed later, in round 123:
+`body-cml` fired 1/1, evidence 5/5; `body-acg` errored once (`rc=124` timeout at
+150s) then fired 1/1 on retry, evidence 4/4. n=1 each, not the predicted ×2, but
+real, positive data.
+
+## 5. gte on haiku: before / after the symptom-first rewrite
+
+**Finalized in round 135.** Round 111's own P5 measurement ("after the symptom-first
+gte rewrite, same-day haiku ×6 vs. the P4 baseline") was never run in this round
+(the 0-byte log) but the description edit it refers to was already committed to
+the tree by the time round 123 ran its own haiku probe — so `round-123-haiku-gte-tli.json`
+(23:03, BEFORE round 123's own separate tli-NOT-for edit) is, by construction, the
+actual measurement of round 111's P5: **gte-near 0/6 fired-gte, 6/6 fired-tli** —
+P5 (predicted ≥4/6, IMPROVED) is a clear **MISS**. The symptom-first rewrite gave
+zero recall movement over round 105's pre-rewrite 1/6. See round-135 knowledge
+§§1–3 for the full three-edit saga (round 105 gte rewrite → round 111 gte rewrite →
+round 123 tli NOT-for → round 135 tli noun-drop) and its final verdict.
 
 ## 6. Offline additions, tests, lint
 
@@ -133,8 +158,61 @@ justify narrowing a small-model band; widen only if a third run drops).
   the gte trim (P11 HIT: 390 lines; two new references, each linked one
   level deep, each < 100 lines so no Contents block).
 
-## 7. Scoring this round's predictions `[PENDING]`
+## 7. Scoring this round's predictions
 
-## 8. Key learnings `[PENDING]`
+Finalized in round 135 from the artifacts that exist (`state/round-111-predictions.md`):
+P1 HIT (canary 4/4·6/6·4/6·6/6 exactly as banked). P2 **HIT, beaten**: 118/118
+exact (100%, not just ≥95%), 0/24 negatives, 0 errors, $4.69 — better than
+predicted, and vs `round-105-strict-full.json` every one of the 8 new cases is
+`new` with no `REGRESSED`/`CO-FIRE` among the 51 carried-over cases (the ≤1
+REGRESSED budget was not spent). P2b **partial MISS**: cml-near/mid/far/neg and
+acg-near/mid/far exact 2/2 as predicted, but acg-far's predicted fmk-co-fire
+(≤1/2) did not happen — 2/2 clean. P3 **unscorable as banked** (predicted ×2
+paired body runs; only n=1 each happened, and not until round 123) — see §4.
+P4 **partial**: gte-near (≤2/6 gte, ≥4/6 tli) and tli-near/mid/far (≥5/6) and
+multi-2 (≤2/6 exact) all HIT; gte-mid/gte-far's "≥4/6 fired-gte" clause MISSED
+(actual 3/6 and 1/6). P5 **MISS** (§5). P6 HIT (both halves — before-run exact
+match, after-run audit exit 0 confirmed live in round 135). P7 HIT (131→141).
+P8 HIT (5th of 5 rounds with a first-run-wrong test of my own). P9 **MISS on
+cost, HIT on errors**: the round-111 session itself spent nowhere near $8–14
+(it died after $4.69 + a $0 canary-adjacent haiku attempt) — the $8–14 total
+only materialized once round 123 added its own probes on top. P10 MISS as
+already recorded in §2b (3 others, not 0–2). P11 HIT (390 lines, exit 0).
+Overall: **6 HIT / 1 partial-miss / 2 MISS / 1 unscorable-as-banked / 1
+mixed** — consistent with the pattern noted since round 105: predictions about
+*this session's own* adversary/haiku behavior are reliable when they extrapolate
+a measured trend (P1, P4's near/tli clauses) and optimistic when they claim a
+description edit will move a small-model recall number (P5, and P2b's acg-far
+worry cut the other way — optimism about failure this time).
 
-## 9. Honest failures / gaps `[PENDING]`
+## 8. Key learnings
+
+- **A completed run sitting in `state/trigger-eval/` is not "done" until the
+  knowledge file says what it found.** Round 111's own strict-full run answered
+  4 of its 5 remaining PENDING sections outright; it sat unread for 24 rounds
+  (111→135) because the file that would have surfaced it (this one) still said
+  `[PENDING]` and nobody grepped `state/trigger-eval/round-111-*.json` before
+  assuming the work was undone. `--audit` closes half of this gap (it sees
+  *that* a report exists) but not the other half (it doesn't summarize *what*
+  the report found into prose) — that step is still a human/session judgment
+  call, and skipping it cost three rounds (111, 123, 129) of partial re-work.
+- **A symptom-first rewrite is not automatically a fix.** Round 105 diagnosed
+  the mechanism (first-clause noun overlap) correctly; round 111's rewrite
+  addressed *tone* (mechanism-first → symptom-first) without touching the
+  *specific overlapping noun* ("tree-walking evaluator" in both descriptions),
+  and moved haiku recall by exactly zero. The fix that finally mattered (round
+  135) touched the noun, not the tone — see that round's file for the outcome.
+
+## 9. Honest failures / gaps
+
+- The round died having banked P3/P4/P5's *measurement plan* correctly but
+  executed only P1–P2/P2b/P6–P11 before running out of turns on the haiku
+  gte-before probe — the standing "finalize before the last test run" rule
+  (process rule 1) doesn't help when the session dies mid-tool-call with no
+  chance to write anything; the only mitigation that actually worked was round
+  135's later archaeology of the raw JSON, which should be the default first
+  move for any inherited round with `[PENDING]` sections, not a fallback.
+- Cost prediction (P9) was based on a full-session budget; a round that dies
+  partway through necessarily underspends its own cost band — worth banding
+  "cost so far, if the round dies at step N" separately from "total cost if
+  the round completes" in future prediction files for long probe sequences.

@@ -1,0 +1,17 @@
+case: gte-near
+model: haiku
+arm: None
+fired: []
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=NONE
+
+Tree-walking interpreters typically convert to **explicit stack (trampolining)** or **bytecode compilation** to escape Python's recursion limit. Trampolining keeps your tree structure but returns a "what to do next" instruction instead of recursing—your main loop iterates instead of Python's stack growing. The tradeoff: 2–3x more code complexity, but it works for arbitrarily deep guest recursion and gives you fine-grained control.
+
+If you share your evaluator code, I can show you the specific restructuring—what changes to return types, how to thread the stack, and what the dispatch loop looks like.

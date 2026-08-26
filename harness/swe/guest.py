@@ -58,7 +58,22 @@ def escape(src):
 class GuestGen(ProgramGen):
     """The fuzz grammar with guest-scale stress templates and payload-visible
     probes. Guest interpretation costs ~2ms per guest call (round 14), so
-    iteration counts stay two orders of magnitude below the host fuzzer's."""
+    iteration counts stay two orders of magnitude below the host fuzzer's.
+
+    `typed_params`/`maybe_ret_type` are overridden to a no-op (round 134):
+    `self_eval.lang`'s hand-copied lexer/parser predates v0.12/v0.13 and
+    does not tokenize `->` or erase `: Type` at parse time, so a generated
+    annotation would fail on the GUEST side alone — a guest-parity gap
+    (`self_eval.lang` doesn't implement `shape`/`typed` either, per
+    round-132's P4), not a host bug. Same shape as `bench/ref_diff.py`'s
+    NEWSYNTAX handling: a feature gap and a divergence are different
+    things, and only one of them is a finding."""
+
+    def typed_params(self, params):
+        return ", ".join(params)
+
+    def maybe_ret_type(self):
+        return ""
 
     def template(self):
         r = self.r

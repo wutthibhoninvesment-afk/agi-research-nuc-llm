@@ -1,0 +1,32 @@
+case: gte-near
+model: haiku
+arm: None
+fired: ['tiny-language-implementation']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=tiny-language-implementation
+
+The issue is that a plain recursive tree-walker uses ~10–12 Python stack frames per language call, so hitting Python's default recursion limit (≈1000) around guest depth 1800–2000. At 5000, you need to eliminate the recursion entirely.
+
+**Two paths forward:**
+
+1. **Quick fix (converts to error value):** Wrap your main `eval()` call in try-except to catch `RecursionError`, then convert it to your language's error type and continue:
+   ```python
+   try:
+       return eval(node, env)
+   except RecursionError:
+       return Miss("recursion depth exceeded")  # or whatever your error value is
+   ```
+   This lets the program terminate gracefully instead of crashing, but doesn't let it actually run at depth 5000.
+
+2. **Proper fix (handles arbitrary depth):** Restructure using a **generator trampoline** — replace recursive calls with a stack-based, iterative evaluator. Instead of `return eval(left) + eval(right)`, you yield frames that describe "what to do next" and let a loop process the stack. This costs roughly the same per operation but is bounded only by heap memory, not Python's call stack.
+
+There's a dedicated skill for this approach: see `/generator-trampoline-evaluator`. It shows the exact pattern for converting a recursive evaluator into one that can handle thousands of guest-level recursion depth.
+
+Which approach fits your needs — blocking at depth with an error, or supporting deep recursion properly?

@@ -92,18 +92,28 @@ class Projection:
     reply_tokens: int
     ttft_s: float
     decode_s: float
+    cold: bool = False               # True if a lane.cold_penalty was folded into ttft_s
 
     @property
     def total_s(self) -> float:
         return self.ttft_s + self.decode_s
 
 
-def project(lane: P.Lane, prompt_tokens: int, reply_tokens: int) -> Projection:
+def project(lane: P.Lane, prompt_tokens: int, reply_tokens: int, idle_s: Optional[float] = None) -> Projection:
+    """idle_s = seconds since this lane's last call, or None if never called
+    yet this run. Round-124 found a live NUC lane at ~2x its warm TTFT after
+    a >1-day idle gap but flat (no measurable penalty) at gaps up to 180s
+    (round-130) — too little data for a decay curve, so the penalty here is a
+    single declared step (lane.cold_penalty) applied when idle_s is unknown
+    or at/above lane.cold_after, not a continuous function of idle time."""
     if lane.prefill == "e1":
         ttft = qwen36_prefill_s(prompt_tokens)          # the curve already carries its 2.4 s fixed cost
     else:
         ttft = lane.fixed + prompt_tokens / float(lane.prefill)
-    return Projection(prompt_tokens, reply_tokens, ttft, reply_tokens / lane.decode)
+    cold = lane.cold_after is not None and (idle_s is None or idle_s >= lane.cold_after)
+    if cold:
+        ttft += lane.cold_penalty
+    return Projection(prompt_tokens, reply_tokens, ttft, reply_tokens / lane.decode, cold)
 
 
 # ------------------------------------------------------------------ ledger
@@ -224,6 +234,7 @@ class Interp:
         self.default_timeout_s = default_timeout_s
         self.events: list = []
         self.task_calls = 0
+        self._lane_last_call: dict[str, float] = {}   # lane name -> clock() at last non-refused attempt
 
     # -- telemetry
     def trace(self, ev: dict) -> None:
@@ -391,7 +402,10 @@ class Interp:
             prompt_tokens += self.tok.count(text)
         request = {"model": lane.model, "messages": messages, "max_tokens": task.reply,
                    "temperature": 0, "stream": False}
-        proj = project(lane, prompt_tokens, task.reply)
+        now = self.clock()
+        last = self._lane_last_call.get(lane.name)
+        idle_s = None if last is None else now - last
+        proj = project(lane, prompt_tokens, task.reply, idle_s)
         self.task_calls += 1
         ledger.calls += 1
 
@@ -416,10 +430,13 @@ class Interp:
         self.trace({"ev": "preflight", "task": task.name, "lane": lane.name, "prompt_tokens": prompt_tokens,
                     "reply_tokens": task.reply, "projected_s": round(proj.total_s, 3),
                     "ttft_s": round(proj.ttft_s, 3), "limit_s": limit_s, "ok": refusal is None,
-                    "refusal": refusal, "tokenizer": getattr(self.tok, "name", "?")})
+                    "refusal": refusal, "tokenizer": getattr(self.tok, "name", "?"),
+                    "idle_s": None if idle_s is None else round(idle_s, 3), "cold": proj.cold})
         if refusal is not None:
             return Miss([refusal], {**base, "prompt_tokens": prompt_tokens, "projected_s": round(proj.total_s, 3),
                                     "refused": True, "inputs": [why(a) for a in args]})
+
+        self._lane_last_call[lane.name] = now         # marks the lane "warm" from here for the next call
 
         # ---- attempts
         attempts: list = []

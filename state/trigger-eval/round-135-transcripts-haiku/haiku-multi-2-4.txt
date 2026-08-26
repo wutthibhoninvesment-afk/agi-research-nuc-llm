@@ -1,0 +1,13 @@
+case: multi-2
+model: haiku
+arm: None
+fired: ['generator-trampoline-evaluator']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=generator-trampoline-evaluator

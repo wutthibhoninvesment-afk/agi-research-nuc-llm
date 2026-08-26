@@ -1,0 +1,48 @@
+=== host fuzz seed 137 ===
+fuzz: 400 programs in 27.3s
+  ok           343
+  parse_error  50
+  timeout      7
+  unique crash signatures: 0
+=== host fuzz seed 138 ===
+fuzz: 400 programs in 25.8s
+  ok           325
+  parse_error  68
+  timeout      7
+  unique crash signatures: 0
+=== host fuzz seed 137 limit 6000 ===
+fuzz: 400 programs in 27.4s
+  ok           343
+  parse_error  50
+  timeout      7
+  unique crash signatures: 0
+=== oracle fuzz seed 139 ===
+oracle fuzz: 312 programs x 6 oracles in 181.5s
+  totality     ok 253  parse_error 53  timeout 6
+  fast_slow    ok 251  parse_error 53  timeout 8
+  direct       ok 253  parse_error 53  timeout 6
+  determinism  ok 251  parse_error 53  timeout 8
+  render       ok 253  parse_error 53  timeout 6
+  frames       ok 251  parse_error 53  timeout 8
+  unique finding signatures: 0
+=== oracle fuzz seed 140 ===
+oracle fuzz: 312 programs x 6 oracles in 126.5s
+  totality     ok 265  parse_error 44  timeout 3
+  fast_slow    ok 263  parse_error 44  timeout 5
+  direct       ok 264  parse_error 44  timeout 4
+  determinism  ok 263  parse_error 44  timeout 5
+  render       ok 265  parse_error 44  timeout 3
+  frames       ok 263  parse_error 44  timeout 5
+  unique finding signatures: 0
+=== guest differential seed 141 ===
+oracle fuzz: 400 programs x 1 oracles in 481.1s
+  self_eval    ok 370  mismatch 1  parse_error 16  timeout 13
+  unique finding signatures: 1
+  - mismatch | self_eval | value v1.str 'inf'-vs-'&MISS&'  (seed 141000642, 8 lines, minimized to 3)
+=== guest differential seed 142 ===
+oracle fuzz: 400 programs x 1 oracles in 443.8s
+  self_eval    ok 357  mismatch 2  parse_error 22  timeout 19
+  unique finding signatures: 2
+  - mismatch | self_eval | value v5.[1].missedness Record-vs-Miss  (seed 142000683, 12 lines, minimized to 2)
+  - mismatch | self_eval | value v6.type Record-vs-str  (seed 142000661, 12 lines, minimized to 4)
+ALL DONE

@@ -71,3 +71,23 @@ check "typed tail recursion stays one frame": count_points(50000, 0) == 50000
 check "shapeof tells values apart, even a miss": shapeof(good) == "record" and
   shapeof(good.a.x) == "num" and shapeof(validate) == "fn" and
   shapeof(broken) == "miss"
+
+# `-> Type` (v0.13): a return annotation is checked once, on the value the
+# call finally settles to — the same "typed" contract as a parameter, just
+# applied by the CALLEE instead of a leading `let`.
+fn parse_retries(s: str) -> num { num(s) }
+check "a matching return type is unaffected": parse_retries("3") == 3
+
+fn midpoint(l: Line) -> Point {
+  @{x: (l.a.x + l.b.x) / 2, y: (l.a.y + l.b.y) / 2}
+}
+check "a shape return type checks structurally": midpoint(good) == @{x: 1.5, y: 2}
+
+fn broken_midpoint(l: Line) -> Point {
+  @{x: (l.a.x + l.b.x) / 2}    # bug: forgot the y field
+}
+let bad_mid = broken_midpoint(good)
+check "a broken shape return is a miss, not a wrong answer": missed(bad_mid)
+check "the miss names the return value, not a parameter": contains(
+  reasons(bad_mid)[0], "return value of broken_midpoint expected Point")
+print(reasons(bad_mid)[0])

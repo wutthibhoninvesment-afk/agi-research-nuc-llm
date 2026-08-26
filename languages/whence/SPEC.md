@@ -1,4 +1,4 @@
-# Whence — a provenance-first language (spec v0.11, rounds 009/011/014/020/024/026/030/108/ADD_TIME_TRAVEL)
+# Whence — a provenance-first language (spec v0.13, rounds 009/011/014/020/024/026/030/108/110/122/128/132)
 
 **One idea:** every value remembers where it came from. `why x` returns the
 derivation tree of `x` as a first-class value. Failures are values too, so a
@@ -464,9 +464,173 @@ that cannot end a statement.
   634 B/iter unchanged. Reference differential v0.9 → v0.11: 39/39
   (example, mode) pairs identical with counters.
 
+## v0.12 (round 122) — structural types
+- **A type annotation is erased at parse time, not evaluated at runtime.**
+  `fn f(a: num, b: Point) { … }` desugars, in the parser, to one leading
+  `let a = typed(a, "num", "parameter 'a' of f")` per annotated parameter,
+  prepended to the body's statement list before it is returned — an
+  ordinary `Let`/`Call`/`Str` AST, exactly what a Whence programmer could
+  have written by hand. No new AST node, no interpreter change, and an
+  untyped function's body is byte-identical to v0.11 (the whole existing
+  corpus is the regression gate: 654 tests + `run.py` on every example,
+  unchanged). A mismatch is an ordinary `miss` (decision 2): it
+  propagates through the rest of the body via the SAME operator/builtin
+  propagation every other bad input already uses, `rescue` recovers it,
+  `blame` finds it. This is the whole feature's design: no new control
+  flow, no new failure mode, no exception to the "errors are values"
+  discipline — a type is just another thing a value can fail to be.
+- **Tail position is unaffected.** The guard only PREPENDS statements to
+  the body; `mark_tails` is called once, after prepending, and only ever
+  looks at the block's LAST statement — the same node it would have
+  found without any annotation. A recursive tail call through a typed
+  parameter still merges into one frame (three-way differential +
+  `peak_depth` pin in `tests/test_v12.py`). This was the one alternative
+  design ruled out: wrapping the body in `if <types ok> {…} else {miss}`
+  would have buried a genuine tail call under an `if`'s `then` branch —
+  still tail-safe by `mark_tails`'s own rule (`if` branches stay
+  candidates) — but a `-> Type` RETURN annotation has no such safe
+  shape (checking a value AFTER the body runs inherently needs the
+  result back, which costs tail position, decision 8) — so v0.12 ships
+  parameter types only; a return annotation is future work, not started.
+- **Primitive tags:** `num str bool list record fn any` — `any` always
+  matches (even so, a miss argument still propagates first: "any" is not
+  "swallow errors", decision 2). `shapeof(x)` returns the tag Whence
+  values report their true payload as, including `"miss"` — the same
+  classification `typed` uses, exposed directly (and, in a self-hosted
+  evaluator, a replacement for the hand-rolled `is_num`/`is_record`
+  helpers `self_eval.lang` has needed since round 14).
+- **`shape Name = @{field: type, …}` is sugar for `let Name = @{__shape:
+  "Name", field: <spec>, …}`** — an ordinary record, bound by an
+  ordinary `let`, so it inherits the parser's ALREADY-EXISTING duplicate-
+  name rule for free (a `shape` reaches `stmt_list`'s bound-name check as
+  an `A.Let`, indistinguishable from a hand-written one) and is itself a
+  first-class value (`Point.__shape`, `matches(r, Point)`). A field's
+  type is either a primitive tag (a string literal spec) or a
+  PREVIOUSLY-DECLARED shape name (a `NameRef` to its own bound record —
+  real value reuse, not a copy, so `shape Line = @{a: Point, b: Point}`
+  shares the exact `Point` record both `a` and `b` are checked against).
+  Shapes can only reference earlier shapes (the parser resolves a
+  signature's spec immediately, single-pass, no forward refs — an
+  `unknown type` parse error otherwise), so nested `matches` recursion
+  is bounded by declaration order and cannot cycle.
+- **Structural, not nominal: width subtyping.** A record matches a
+  `shape` when every declared field is present with a non-miss value of
+  the right (recursively checked) type; EXTRA fields are ignored. A
+  record built entirely by hand, with no relation to the shape ever
+  declared, matches it exactly as one built from it — real duck typing,
+  by design, not the round-18 guest `__tag`-spoofing leak (that was a
+  closure impersonating a callable via a magic field one level down in
+  `self_eval.lang`; here a record honestly IS what its fields say it is,
+  so matching structurally is simply correct, not a hole).
+- **`typed(value, spec, label)`** — the builtin the guard calls: pass
+  through the value UNCHANGED (no new provenance node, like `get`/
+  index) when it matches; propagate an already-miss `value`/`spec`/
+  `label` (decision 2's "misses propagate before inspection", same
+  convention as `has`/`put`); otherwise a fresh miss `"<label> expected
+  <spec-name>, got <shapeof value>"` whose `inputs` is `(value,)` — an
+  ORIGIN miss (no input of its own is a miss), so `blame(result)` finds
+  it directly and names the call that rejected the value. `matches(x,
+  spec)` is the same check as a total predicate (never itself a miss,
+  even on a miss `x`, like `missed`) for programs that want to branch on
+  shape instead of failing on it.
+- **A parameter's own guard can be shadowed, and it is documented, not
+  hidden:** `fn f(a: num) { let a = a  a }` still sees the checked value
+  (the user's `let a = a` reads the ALREADY-guarded `a`, since the guard
+  runs first and both bindings live in the same call env); `fn f(a: num)
+  { let a = 5  a }` discards the check for `a` specifically because that
+  rebind never reads the original `a` at all — the same as it would
+  discard any other prior binding it does not reference. No special-
+  casing needed or added; this is exactly what a leading `let` already
+  means.
+- **`fn` is parseable as a type tag** despite being a keyword everywhere
+  else (`fn apply(f: fn, x: num) { f(x) }`): the annotation parser
+  accepts the `fn` KEYWORD token as well as a NAME. **`shape` is a
+  CONTEXTUAL keyword, not reserved:** only the exact prefix `NAME NAME
+  "="` at the start of a statement (mirroring how `fn NAME` already
+  disambiguates a named def from an anonymous `fn(...)` literal)
+  triggers shape parsing; no other legal Whence statement starts with
+  two bare names, so a program that binds something actually called
+  `shape` is unaffected — no lexer change, no reservation.
+
+## v0.13 (round 128/132) — return type annotations
+- **`fn f(params) -> Type { body }` checks the function's RETURN value
+  against `Type`, using the exact same contract `typed()`/a parameter
+  guard already uses** — a primitive tag or a previously-declared `shape`,
+  structural width subtyping, `any` always matches. Unlike a v0.12
+  parameter guard (sugar: one leading `let` statement, re-evaluated every
+  call), a return check cannot be sugar the same way — checking a value
+  AFTER the body runs needs the settled result back, which costs tail
+  position if done as a body-wrapping `if`. So a return type is NOT an
+  AST rewrite: the parser stores the spec expression on `FnDef`/`FnExpr`
+  (`ret_type`, an `A.Str` or `A.NameRef`, same shape a param spec is),
+  resolved to a runtime `(spec, label)` pair ONCE per `Closure` at
+  creation time (`_closure_ret`/`_mk_closure` — a choke point for every
+  FnDef/FnExpr construction site: fast, direct, and all three generator-
+  mode sites), and checked at the ONE point every call path already
+  settles to a final `result` Prov before wrapping it in a `call` node
+  (`_check_ret`, called from `_call_gen`'s merged-tail-chain exit,
+  `_call_direct`, and the call-free-body fast path `_call_no_calls` —
+  THREE sites; the third was missing entirely in an early draft and was
+  the round-128 bug the three-way differential caught, see below).
+- **An untyped function pays for exactly one identity check per call**
+  (`ret_spec is None`) — no new provenance node, no guest-visible frame,
+  same "no new control flow" discipline v0.12 used. A mismatch is an
+  ordinary origin miss (decision 2), same wording/op/single-input shape
+  `typed()` itself produces (`"typed"` op, `detail` = the label), so
+  `blame`/`rescue` treat a bad return exactly like a bad parameter. A
+  `result` that is ALREADY a miss is never re-wrapped — the function's
+  own failure is not painted over with a second "wrong return type" gloss.
+- **Tail position is exactly as `mark_tails` already computes it, with one
+  subtlety: the check runs against the ORIGINALLY CALLED closure's own
+  `ret_spec`, captured before a tail loop may reassign which closure `p`
+  points to.** `a` tail-calling a differently-typed (or untyped) `b` must
+  still check the merged chain's settled result against `a`'s own
+  contract, exactly once, not once per bounce and not against whatever
+  closure the chain happens to end in
+  (`tests/test_v13.py::test_mutual_tail_call_checks_against_the_caller_not_the_callee`).
+  A typed tail-recursive function costs nothing extra per bounce: the
+  spec is resolved once at closure creation, and the check itself runs
+  once, at exit, using `peak_depth 1` regardless of iteration count
+  (20000-deep `count_down` tail loop: one check, `peak_depth == 1`).
+- **A real crash bug, found by round-128's own exploratory testing (not
+  the fuzzer, which does not generate type annotations yet):** a `->
+  Shape` naming a shape declared inside ANOTHER function's body parses
+  (the parser's `self.shapes` set is not scope-aware — a pre-existing
+  v0.12 gap shared by parameter types), but is never bound in the `env`
+  chain `_closure_ret` walks at closure-creation time. The naive
+  `env.get(name).payload` raised `AttributeError` on the `None` a missing
+  lookup returns — a real crash, violating the "never raises" discipline
+  every other Whence error path upholds by construction. Parameter types
+  don't have this crash because a param guard's spec is an ordinary
+  `A.NameRef`, walked by the everyday evaluator, which already turns a
+  missing name into a `miss` instead of raising; the return-type path had
+  no such protection because it resolves the spec directly in Python, not
+  through a Whence expression. Fixed with a `_UnboundRetType` sentinel:
+  `_check_ret` turns it into an ordinary `"not in scope"` miss, deterministic
+  across repeated calls, and it never leaks to Whence code as a Python
+  exception.
+- **Three-way differential (fast / direct / trampoline) is the gate**,
+  same as every call-path change since v0.9: byte-identical why-trees and
+  checks across all three modes for a passing return, a mismatched
+  return, a shape return, typed tail recursion, a mutual tail call, non-
+  tail recursion (every frame checked independently, no double-wrapping),
+  and the out-of-scope-shape crash case (`tests/test_v13.py`, 8
+  `assert_three_way` cases + 39 unit/parser/interpreter cases, 47 total).
+- **Not done / declined:** the fuzzer's program grammar does not generate
+  `-> Type` annotations yet (same gap v0.12 left for parameter types) —
+  standing backlog, not blocking (both features are call-boundary checks
+  with an identical, already-fuzzed-by-proxy failure shape: a `miss`
+  flowing through ordinary propagation). No new example beyond extending
+  `examples/shapes.lang` with a return-typed `midpoint`/`broken_midpoint`
+  pair (4 new checks, 12 → 16) — a dedicated flagship example was judged
+  unnecessary since the feature composes directly with v0.12's existing
+  one and the design point (return checks are call-boundary checks like
+  parameter checks) is best shown as an addition, not a separate story.
+
 ## Builtins
 `print len range map filter fold push str num abs sqrt missed reasons note
-contains join keys merge get put has find steps at blame diverge contrast`
+contains join keys merge get put has find steps at blame diverge contrast
+typed matches shapeof`
 
 ## Limits that are errors, not crashes
 - Expression nesting deeper than 60 levels (parentheses, prefix operators,
@@ -501,32 +665,33 @@ driver entries into compiled closures, `interp.direct_hits` /
 `direct_fallbacks` the direct calls and the ones the budget refused).
 
 
-## Time-Travel Debugging (v0.7+)
-
-### Built-in Functions
-- `snap(name)` — Take a named snapshot of all variable bindings
-- `rewind(name)` — Restore state from a saved checkpoint (clears forward progress)
-- `timeline()` — List all checkpoints with metadata
-- `diff_snap(a, b)` — Compare differences between two snapshots
-- `trace(value)` — Full provenance tree of any value
-
-### Architecture
-- Snapshots store deep copies of env.vars (structural sharing via immutability)
-- Rewinding clears future checkpoints (time paradox prevention)
-- Memory-efficient: only reference counts increase on shared nodes
-- Safety: each snap creates independent scope; rewinding restores exact state
-
-### Example Usage
-```whence
-let x = 42
-let y = x * 2
-snap("before_modification")
-
-let x = x + 10  // This diverges from the original x=42
-let z = x + y
-
-// Compare states
-diff_snap("before_modification", "after_modification")  // Shows what changed
-
-// View full derivation tree
-trace(x)  // Why is x = 52? See full DAG from literals
+## Time-Travel Debugging — NOT integrated (whence/timetravel.py, round 132 note)
+A `TimeTravelDebugger` Python class (checkpoint/rewind/timeline/diff over an
+`Env.vars` dict) landed in a commit outside the round process
+(`8637795`, "Time-Travel Debugger v0.7 complete!") along with a prior draft
+of this section claiming five new Whence-language builtins (`snap`,
+`rewind`, `timeline`, `diff_snap`, `trace`). **That draft was wrong: the
+builtins are not reachable from any `.lang` program.** `install_timetravel_
+builtins(interp)` exists but nothing calls it (`grep -rn install_timetravel
+whence/*.py run.py` — zero hits outside `timetravel.py` itself); no example
+uses it. Even if wired in, it would not work as written: it writes to
+`interp.builtins[...]`, but the real dispatch table is the module-level
+`_BUILTIN_TABLE` singleton (`interp.py`, built once by `_install_builtins`
+— the exact per-instance-vs-shared split round 25's oracle-caught bug was
+about); `snap_builtin` never forwards its own `name` argument to
+`ttd.snapshot()`, which instead reads a variable `_last_snap_name` that is
+never bound anywhere; and every builtin fn assumes raw Python values
+(`isinstance(name, str)`, `interp.miss(...)`) where Whence's actual builtin
+convention is `fn(interp, args, line)` with `args` as `Prov`-wrapped values
+and no `Interpreter.miss` method exists. The corrected, previously-invalid
+example (`let x = x + 10` rebinds `x` in the same block, a parse error
+under decision 3) is deleted rather than fixed, since the feature it
+demonstrated is not live. `tests/test_timetravel.py` (11 tests, green)
+exercises `TimeTravelDebugger` directly as a Python class — that part is
+real and correctly tested, just never connected to the interpreter.
+Left as a flagged backlog item, not fixed this round (see research-state.md
+round 132): either rewrite `install_timetravel_builtins` to the real
+convention and wire it into `Interpreter.__init__`, or delete the dead
+integration hook and keep `TimeTravelDebugger` as a documented pure-Python
+helper (e.g. for a future REPL) — a decision for whichever round picks it
+up, not a default to make silently.

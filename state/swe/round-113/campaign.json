@@ -18,8 +18,56 @@
    }
   },
   "recheck": {
-   "status": "running",
-   "started": "2026-08-25T22:15:23"
+   "status": "done",
+   "started": "2026-08-25T22:15:23",
+   "finished": "2026-08-25T23:11:34",
+   "info": {
+    "timeouts": 5,
+    "flips": 2,
+    "score": 0.9902,
+    "survived": 12,
+    "subset_checked": 20,
+    "subset_flips": 20
+   }
+  },
+  "coverage": {
+   "status": "done",
+   "started": "2026-08-25T23:11:34",
+   "finished": "2026-08-25T23:11:34",
+   "info": {
+    "seconds": 732.4,
+    "returncode": 0,
+    "pct": {
+     "whence/interp.py": 89.07
+    },
+    "targeted": false,
+    "from_map": true,
+    "survived_uncovered": 0,
+    "survived_covered": 12,
+    "survived_unknown": 0,
+    "killed_traced": 1214,
+    "killed_on_uncovered": 23
+   }
+  },
+  "corpus": {
+   "status": "done",
+   "started": "2026-08-25T23:11:34",
+   "finished": "2026-08-25T23:11:39",
+   "info": {
+    "survivors": 12,
+    "found": 0,
+    "no_killer": 0,
+    "test_file": "tests/test_generated_killers_r29.py"
+   }
+  },
+  "verify": {
+   "status": "done",
+   "started": "2026-08-25T23:11:39",
+   "finished": "2026-08-25T23:11:39",
+   "info": {
+    "pinned": 0,
+    "verified": 0
+   }
   }
  }
 }

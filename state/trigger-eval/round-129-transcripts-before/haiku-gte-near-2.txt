@@ -1,0 +1,15 @@
+case: gte-near
+model: haiku
+arm: None
+fired: []
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+I'd recommend **trampolining** (where recursive calls return function objects instead of making actual calls) or **replacing recursion with an explicit stack** for evaluation. Trampolining is cleaner but slower; explicit stack is faster but requires restructuring your eval loop. The tradeoff is simplicity vs performance.
+
+Before we choose, I should ask: do you want me to benchmark these approaches against your actual code to see which one fits your constraints, or would design guidance be enough? If the former, I can use the `fuzz-mutate-kill-loop` skill to measure recursion limits and test different solutions systematically. Either way, share your evaluator code and I can give more specific guidance.

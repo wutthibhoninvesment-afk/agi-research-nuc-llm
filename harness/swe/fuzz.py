@@ -58,6 +58,14 @@ STR_POOL = ["", "a", "ab", "3O", "42", " 7 ", "1_000", "nan", "inf", "-inf",
 FIELD_POOL = ["a", "b", "c", "x", "name", "v"]
 STEP_NAMES = ["let x", "literal", "call", "arg", "note k", "+", "let a", "if",
               "call go", "call even", "odd", "fold", "==", "arg acc"]
+# v0.13 backlog (SPEC "Not done"): the grammar generated no `: Type`/`-> Type`
+# annotations, so type-guard code paths (v0.12 params, v0.13 returns) were
+# only ever exercised by the hand-written corpus, never by fuzz input. No
+# `shape` names exist here (nothing declares one), so only primitive tags —
+# the values flowing through are otherwise-untyped fuzz expressions, so a
+# tag frequently WON'T match at runtime; that mismatch-as-miss path is
+# exactly what needs exercising against fast/direct/trampoline + tail calls.
+TYPE_TAGS = ("num", "str", "bool", "list", "record", "fn", "any")
 
 
 class ProgramGen(object):
@@ -160,10 +168,25 @@ class ProgramGen(object):
             params = [self.fresh("p") for _ in range(arity)]
             self.fns.append((name, arity))    # visible inside body: recursion
             body = self.body(params)
-            return "fn %s(%s) %s" % (name, ", ".join(params), body)
+            return "fn %s(%s)%s %s" % (name, self.typed_params(params),
+                                       self.maybe_ret_type(), body)
         if p < 0.9:
             return 'check "%s": %s' % (self.fresh("c"), self.expr(0, []))
         return self.expr(0, [])
+
+    def typed_params(self, params):
+        """`(a, b: num, c: str)` — each param independently gets a `: TAG`
+        30% of the time (v0.13 backlog)."""
+        r = self.r
+        return ", ".join(
+            "%s: %s" % (p, r.choice(TYPE_TAGS)) if r.random() < 0.3 else p
+            for p in params)
+
+    def maybe_ret_type(self):
+        """` -> TAG` 25% of the time, else ''."""
+        if self.r.random() < 0.25:
+            return " -> %s" % self.r.choice(TYPE_TAGS)
+        return ""
 
     def body(self, local):
         r = self.r
@@ -210,7 +233,9 @@ class ProgramGen(object):
         if p < 0.4:
             n = r.randint(0, 2)
             params = [self.fresh("q") for _ in range(n)]
-            return "fn(%s) { %s }" % (", ".join(params), self.expr(depth + 1, local + params))
+            return "fn(%s)%s { %s }" % (self.typed_params(params),
+                                        self.maybe_ret_type(),
+                                        self.expr(depth + 1, local + params))
         if p < 0.7 and self.fns:
             return r.choice(self.fns)[0]
         if p < 0.85:

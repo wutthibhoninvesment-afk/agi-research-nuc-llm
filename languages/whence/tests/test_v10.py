@@ -513,8 +513,30 @@ def test_ref_diff_fuzz_mode_same_on_copy_and_diff_on_sabotage():
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
         assert r.returncode == 0, r.stdout + r.stderr
         assert "0 (program, mode) pairs differ" in r.stdout
-        # every random program binds names with `let`: rename that op in
-        # the reference and every parsed program must differ in both modes
+        # NOT every random program binds a name with a top-level `let`
+        # (round 138 finding: e.g. a program made only of `fn`/`check`/
+        # `print` statements whose fns are never called binds nothing via
+        # `let` at all, so renaming the `let` op label changes none of its
+        # rendered why-trees — a correct SAME, not a test failure). Compute
+        # the expected count the same way instead of assuming every parsed
+        # program qualifies.
+        # ROOT is languages/whence; harness/ is a sibling of languages/
+        harness = os.path.join(os.path.dirname(os.path.dirname(ROOT)), "harness")
+        sys.path.insert(0, harness)
+        try:
+            from swe.fuzz import ProgramGen
+        finally:
+            sys.path.pop(0)
+        gen = ProgramGen(7)
+        n_with_let = 0
+        for _ in range(12):
+            src = gen.program()
+            try:
+                parse(src)
+            except Exception:
+                continue
+            if any(line.startswith("let ") for line in src.splitlines()):
+                n_with_let += 1
         p = os.path.join(pkg, "interp.py")
         src = open(p).read()
         assert src.count('"let"') >= 2
@@ -524,8 +546,87 @@ def test_ref_diff_fuzz_mode_same_on_copy_and_diff_on_sabotage():
         assert r.returncode == 1, r.stdout + r.stderr
         parsed = int(r.stdout.split(" programs parsed")[0].split()[-1])
         diffs = r.stdout.count("DIFF program")
-        assert parsed >= 5 and diffs == 2 * parsed, r.stdout
+        assert parsed >= 5 and n_with_let >= 1
+        assert diffs == 2 * n_with_let, r.stdout
         assert "why:" in r.stdout and "let " in r.stdout    # --show printed a source
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def _load_ref_diff_module():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "ref_diff_under_test", os.path.join(ROOT, "bench", "ref_diff.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_ref_diff_fuzz_transient_new_tree_timeout_is_retried_not_reported():
+    """round 144: `run_capped`'s SIGALRM cap is wall-clock, not CPU time, so
+    under concurrent load the SAME program can cross the budget on one
+    interpreter and not the other with no real behavioural difference —
+    round 137 saw exactly this ('DIFF ... timed out under the new tree
+    only', reliably in-suite alongside another campaign's subprocesses,
+    reliably absent standalone) and could not root-cause it. Simulates one
+    transient new-tree timeout in-process (no real timing involved) and
+    checks the automatic 4x retry absorbs it instead of reporting a diff."""
+    rd = _load_ref_diff_module()
+    tmp = tempfile.mkdtemp(prefix="whence_refdiff_retry_")
+    try:
+        _copy_package(tmp)
+        real_run_capped = rd.run_capped
+        timed_out_once = [False]
+
+        def fake_run_capped(interp_mod, values_mod, src, mkw, seconds):
+            if interp_mod.__name__.startswith("whence.") and not timed_out_once[0]:
+                timed_out_once[0] = True
+                return "timeout"
+            return real_run_capped(interp_mod, values_mod, src, mkw, seconds)
+
+        rd.run_capped = fake_run_capped
+        old_argv = sys.argv
+        sys.argv = ["ref_diff.py", "--ref", tmp, "--modes", "direct",
+                    "--fuzz", "7", "-n", "5", "--timeout", "5"]
+        try:
+            with pytest.raises(SystemExit) as exc:
+                rd.main()
+        finally:
+            sys.argv = old_argv
+            rd.run_capped = real_run_capped
+        assert timed_out_once[0]                # the fake actually fired
+        assert exc.value.code == 0, "a transient timeout absorbed by the " \
+            "4x retry must not be reported as a diff"
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_ref_diff_fuzz_persistent_new_tree_timeout_is_a_real_finding():
+    """The other half of the same fix: a timeout that does NOT clear at 4x
+    (a genuine hang, e.g. a regression that made some program loop forever)
+    must still be reported, not silently absorbed."""
+    rd = _load_ref_diff_module()
+    tmp = tempfile.mkdtemp(prefix="whence_refdiff_hang_")
+    try:
+        _copy_package(tmp)
+        real_run_capped = rd.run_capped
+
+        def fake_run_capped(interp_mod, values_mod, src, mkw, seconds):
+            if interp_mod.__name__.startswith("whence."):
+                return "timeout"
+            return real_run_capped(interp_mod, values_mod, src, mkw, seconds)
+
+        rd.run_capped = fake_run_capped
+        old_argv = sys.argv
+        sys.argv = ["ref_diff.py", "--ref", tmp, "--modes", "direct",
+                    "--fuzz", "7", "-n", "5", "--timeout", "5"]
+        try:
+            with pytest.raises(SystemExit) as exc:
+                rd.main()
+        finally:
+            sys.argv = old_argv
+            rd.run_capped = real_run_capped
+        assert exc.value.code == 1
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 

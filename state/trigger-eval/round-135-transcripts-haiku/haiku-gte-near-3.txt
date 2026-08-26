@@ -1,0 +1,17 @@
+case: gte-near
+model: haiku
+arm: None
+fired: []
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+The standard fix is converting from recursive interpretation to **iterative evaluation with an explicit stack** — rewrite your visitor/interpreter to use a stack data structure instead of Python call frames. This eliminates the recursion limit entirely but requires rewriting your evaluator loop.
+
+The tradeoff: it's more code and less elegant than recursion, but it's bulletproof and common in production interpreters. Alternatively, if you want to avoid rewriting, you could increase `sys.setrecursionlimit()`, but that just delays the crash and risks hitting system limits or segfaults.
+
+Do you want help converting your current evaluator to stack-based, or would you rather start with a minimal test case to validate the approach first?

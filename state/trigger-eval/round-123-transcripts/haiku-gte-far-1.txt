@@ -1,0 +1,19 @@
+case: gte-far
+model: haiku
+arm: None
+fired: ['fuzz-mutate-kill-loop', 'subprocess-cli-testing']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+I'll help you remove that recursion limit hack. Let me first find where it is and understand the context.
+
+SKILLS=NONE
+
+Let me explore the directory to find the evaluator module with the `setrecursionlimit` hack.
+
+SKILLS=fuzz-mutate-kill-loop,subprocess-cli-testing

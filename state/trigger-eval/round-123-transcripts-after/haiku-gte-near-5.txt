@@ -1,0 +1,15 @@
+case: gte-near
+model: haiku
+arm: None
+fired: []
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+The standard fix is converting from recursive evaluation to an **explicit stack interpreter**: maintain a stack of evaluation frames (instruction pointers, variable bindings, etc.) instead of relying on Python's call stack. The tradeoff is more implementation complexity but unlimited guest recursion depth. Alternatively, **trampolining** (returning thunks that loop executes) is simpler to add but slightly less efficient.
+
+Do you want to share your current evaluator structure so I can show how to convert it, or would you prefer guidance on one of those approaches?

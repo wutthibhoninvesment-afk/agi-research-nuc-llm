@@ -1,0 +1,27 @@
+case: gte-near
+model: haiku
+arm: None
+fired: []
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=NONE
+
+The standard solutions for deep recursion in interpreters are:
+
+1. **Trampolining** (recommended for straightforward conversion): Instead of `eval(node)` returning a value directly, have it return a "thunk" (instruction to continue). Your top-level loop keeps calling these thunks until one returns a final value. This converts recursion → iteration and avoids stack overflow. Cost: moderate refactor, clean semantics.
+
+2. **Explicit stack + state machine**: Replace recursion with a manual stack and a dispatch loop over node types + state. Each "frame" tracks where you are in evaluation. Higher refactor cost but no abstraction overhead.
+
+3. **Bytecode compilation**: Compile the guest program to bytecode first, then run a stack-based VM. Eliminates tree-walking entirely. Largest refactor but fastest and most scalable.
+
+4. **Increase the limit** (not recommended): `sys.setrecursionlimit()` buys you maybe 2-3x more depth before hitting hard OS limits, not a real solution at 5000 depth.
+
+**Which one?** Start with trampolining if your interpreter is still small. It's the minimum viable restructure — you keep the tree structure and mostly just change what `eval()` returns. Bytecode is the "right" architecture long-term if this is a serious project.
+
+Do you want me to implement one of these approaches, or do you have the code and want help picking which fits your structure?

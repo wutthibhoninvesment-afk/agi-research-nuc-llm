@@ -1,0 +1,26 @@
+case: gte-near
+model: haiku
+arm: None
+fired: []
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+This is a classic tree-walking interpreter limitation—each guest-level recursion becomes a Python call-stack frame. You have a few approaches, in order of complexity:
+
+**1. Iterative evaluation with an explicit stack (simplest)**  
+Replace recursive AST traversal with an explicit evaluation stack. Instead of `eval(node)` recursively calling `eval(child)`, push work items onto a stack and process them in a loop. This fully decouples guest recursion depth from Python's limit.
+
+**2. Bytecode compilation + stack VM (best long-term)**  
+Compile the AST to bytecode and run a stack-based VM. Guest code becomes loop iterations, not call frames. This is what production interpreters (CPython, V8) do and scales to arbitrary recursion depth.
+
+**3. Trampolining (middle ground)**  
+Instead of direct recursion, have eval return a thunk (closure) that the caller invokes. This defers the call, but Python's still tracking frames—marginal help.
+
+**What's your current structure?** If you show me the evaluator skeleton (even pseudocode: how `eval()` currently recurses into child nodes), I can sketch which approach fits best and walk you through the refactor. The explicit-stack approach usually takes 2–3 hours for a small interpreter; bytecode is longer but unlocks other optimizations.
+
+Does your interpreter need to handle tail calls, or can you assume guest code won't deeply nest them?

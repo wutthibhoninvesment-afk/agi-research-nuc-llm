@@ -1,0 +1,27 @@
+case: gte-near
+model: haiku
+arm: None
+fired: ['tiny-language-implementation']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+I'll check if there's guidance available for interpreter restructuring.
+
+SKILLS=tiny-language-implementation
+
+The skill identifies the core tradeoff: plain tree-walking hits ~1800 guest-recursion depth before Python's limit, but **generator trampolining** converts recursive calls to iteration and scales to 5000+ depth. The cost is complexity — you'll rewrite eval to yield control to a loop instead of using the call stack.
+
+Your options:
+
+1. **Trampoline the evaluator** (recommended if 5000-depth is a hard requirement): convert `eval(node, env)` → recursive calls into `eval(node, env)` → yields `(result, next_node, next_env)` tuples that a host loop drives. This gives you a tunable depth cap that yields your language's error value instead of crashing. Read `/generator-trampoline-evaluator` for the exact pattern.
+
+2. **Catch RecursionError at the call boundary** and convert it to an in-language error value. Simpler but still hits a wall at ~1800.
+
+3. **Increase sys.setrecursionlimit()** before running guest code. Quick bandaid, but you'll still hit limits and may destabilize the host.
+
+Which direction fits your constraints — is 5000-depth a requirement, or would hitting it cleanly with an error be acceptable?

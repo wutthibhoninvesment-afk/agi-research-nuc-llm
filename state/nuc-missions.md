@@ -17,7 +17,8 @@ Known facts (measured 2026-08-24, E1 full curve — /work/logs/nuc-bench.md):
   exist; same engine runs as user processes (coli serve :8000, adapter :8080)
 - SSH: ssh -i ~/.ssh/id_ed25519_nuc jab@192.168.1.37 (key-based, works when
   the box is up; DOWN on 2026-08-25 14:44 and 20:09 — ARP incomplete, i.e.
-  the box itself is off/asleep, not a routing problem)
+  the box itself is off/asleep, not a routing problem; UP again round 124,
+  2026-08-25 ~16:11 UTC, uptime 3h13m — no fixed schedule observed yet)
 - qwen36-colibri IS a systemd unit — a USER unit (`systemctl --user`), cgroup
   `user.slice/user-1000.slice/user@1000.service/app.slice/qwen36-colibri.service`
   (round 100); the "units no longer exist" line above was a scope error
@@ -65,9 +66,12 @@ Known facts (measured 2026-08-24, E1 full curve — /work/logs/nuc-bench.md):
   /work/src/colibri-v170/c/qwen36.c + openai_server.py. Question: can KV state
   persist across requests so a stable system-prompt prefix is computed once?
   Document findings + draft an upstream proposal. NO edits to colibri sources.
-- [ ] **E4 — Fast lane feasibility.** VERDICT REACHED (rounds 100+106+112,
-  Mac-side; tick blocked only on the NUC-side log write — the box was down on
-  both 08-25 E rounds): bandwidth PASS (NUC→HF 8.7–66.7 MB/s per shard),
+- [x] **E4 — Fast lane feasibility.** DONE round 124 (box reachable again;
+  live cgroup snapshot confirms — see `/work/logs/nuc-fast-lane.md`, not yet
+  at the 36 GB ceiling because the current uptime/load hasn't touched enough
+  of the cap-256 expert cache; ceiling is traffic-diversity-dependent, not
+  immediate). Verdict unchanged from rounds 100+106+112: bandwidth PASS
+  (NUC→HF 8.7–66.7 MB/s per shard),
   disk PASS (677 GB free vs 7.42 GB), RAM FAIL (qwen36 `--cap 256` is itself
   36.0 GB on a 31.2 GiB box, 4.2 GB in swap — every option incl. "no lane"
   needs one restart at a lower cap: 204 no-lane / 143 cap-16 lane / 75 cap-64).
@@ -85,10 +89,17 @@ Known facts (measured 2026-08-24, E1 full curve — /work/logs/nuc-bench.md):
   OLMoE-1B-7B int8 lane (~7 GB container via colibri's olmoe engine, which
   has tool-friendly smaller prompts). Plan first; download only with a
   recorded disk/bandwidth justification in the same round.
-- [ ] **E5 — Task-script DSL.** PROTOTYPE BUILT round 112 (Mac-side; tick
-  blocked on one live run against :8080 to compare projected vs measured
-  seconds + the NUC log write): **Errand** — `nuc/taskscript/` (SPEC.md,
-  lexer/parser/interp/transport/run.py, 77 offline tests, 3 examples).
+- [x] **E5 — Task-script DSL.** DONE round 124: first live run against :8080
+  (`examples/answer_live_r124.errand` through the Mac:8600→NUC:8080 tunnel).
+  3 samples: warm requests landed within 13% of the E1-curve projection
+  (17.7s/19.85s and 25.0s/28.8s, both under); the first live completion after
+  a >1-day idle gap paid a 2.08x cold penalty (85.4s vs 41.1s projected) —
+  bigger than round-16's original 25.7s cold-start figure, flagged as a new
+  E5 backlog item (a lane-level `cold_penalty` term, or a cheap probe call
+  before pricing the real one). Budgets/preflight/ledger all behaved
+  correctly regardless of the miss — see `/work/logs/nuc-taskscript.md`.
+  **Errand** — `nuc/taskscript/` (SPEC.md,
+  lexer/parser/interp/transport/run.py, 77 offline tests, 4 examples).
   Lanes carry measured curves (`prefill e1` = the E1 points), budgets are
   consumed ledgers, every task is priced and refused BEFORE any request when
   it does not fit the remaining budget, retries draw on the budget, results
@@ -99,6 +110,76 @@ Known facts (measured 2026-08-24, E1 full curve — /work/logs/nuc-bench.md):
   Original brief: Design a tiny task-script language for NUC
   agent ops (declare task → retries → budget → telemetry), informed by
   languages/whence and harness/ learnings. Spec + interpreter prototype.
+
+## Round 130 addendum (2026-08-26, box UP — same boot as round 124)
+
+- **E4:** live cgroup snapshot at uptime 5h10m/5h18m found `qwen36-colibri`
+  pinned exactly at its 30.0 GiB `memory.max` (round 124 had caught it at
+  52% of that, uptime 3h13m, same boot) — confirms the RAM-FAIL verdict live,
+  in real time, on this exact deployment. `memory.swap.current` was still
+  0 B at both checkpoints even as system `MemAvailable` fell to 0.73 GB —
+  new nuance: hitting the ceiling and swapping are sequential cgroup-v2
+  events, not simultaneous. No restart performed (needs operator sign-off).
+  Full tables appended to `/work/logs/nuc-fast-lane.md`.
+- **E5:** ran the warm-up-decay sweep round 124 had flagged as unbuilt
+  (gaps 0/30/90/180s) — flat within ~3%, no measurable penalty at any
+  gap tested (contra round-124's own "graded" read of one confounded
+  `tools yes` sample). Shipped `cold_penalty`/`cold_after` on Errand lanes
+  (SPEC v0.2) as a single declared step, not a fitted curve — the data
+  doesn't support a curve. Details: `knowledge/round-130-nuc-e-live-window-cold-penalty.md`.
+- **Still open, needs an operator decision:** the E3 A/B and the OLMoE
+  on-box NVMe check both need a restart/deploy on this shared box; the box
+  was reachable this round and neither was attempted without sign-off.
+
+## Round 136 addendum (2026-08-26, box UP — SAME boot as rounds 124/130, uptime 12h53m)
+
+- **E4:** third live cgroup snapshot on the identical boot/session rounds
+  124 (3h13m) and 130 (5h10m/5h18m) caught: `qwen36-colibri` still at its
+  30.0 GiB ceiling, and this time `memory.swap.current` is **310.6 MB**,
+  not 0 B — swap moved off zero given ~7-8 more hours of the same
+  session, answering round 130's "needs more elapsed time or a different
+  load mix" question (elapsed time alone was enough; still ~14x below
+  round 106's original 4.2 GB reading, consistent with slow monotonic
+  growth once the ceiling is first touched). No OOM kills found. New:
+  one live `nuc/bench.py` point at 307 prompt tokens directly against
+  `:8000` — prefill 5.23 tok/s and TTFT 58.6s both match the E1 curve
+  (no degradation), decode 4.30 tok/s vs E1's 5.3 tok/s at a comparable
+  KV size (~19% slower, TENTATIVE on n=1, plausible swap effect given
+  decode's disk/cache-bound working set per round 112). Full tables:
+  `/work/logs/nuc-fast-lane.md` "Round 136 addendum"; analysis:
+  `knowledge/round-136-nuc-e-third-snapshot-swap-onset-decode-check.md`.
+- **Still open, unchanged:** the E3 A/B and OLMoE NVMe check both still
+  need an operator-approved restart of the live service. This round adds
+  one new argument in favor (swap now nonzero and slowly growing) but
+  that is evidence for the decision, not a substitute for it — not
+  executed unilaterally.
+
+## Round 142 addendum (2026-08-26, box UP — SAME boot as rounds 124/130/136, uptime 14h21m)
+
+- **E4:** fourth live cgroup snapshot, only 88 minutes after round 136's —
+  `qwen36-colibri` still pinned at its 30.0 GiB ceiling, and
+  `memory.swap.current` jumped 310.6 MB → **2.96 GiB** (~10x) in that
+  88-minute window (~1.82 GB/hour if sustained, ~35x round 136's own
+  *average* rate) — corrects round 136's "slow, roughly monotonic" read:
+  a same-moment `vmstat`/`/proc/pressure/memory` check shows the growth
+  was a burst that had already finished by measurement time (si/so and
+  PSI both ≈0), not an accelerating ramp caught mid-flight. System swap
+  now 2.96G/4.0G used — only ~858 MB of headroom left. No OOM kills.
+  **New decode-under-pressure point REVERSES round 136's tentative
+  finding**: decode measured 5.07 tok/s (within 4% of the 5.3 tok/s E1
+  baseline) despite ~10x more swap than round 136's run, which measured
+  4.30 tok/s (19% below baseline) at 1/10th the swap — decode tok/s does
+  not move monotonically with swap volume; round 136's "swap causes
+  decode slowdown" hypothesis does not survive a second data point.
+  Prefill/TTFT and repeat/fresh both again matched the established
+  E1/E3 pattern with no new degradation. Full tables:
+  `/work/logs/nuc-fast-lane.md` "Round 142 addendum"; analysis:
+  `knowledge/round-142-nuc-e-fourth-snapshot-swap-burst-decode-reversal.md`.
+- **Still open, unchanged:** the E3 A/B and OLMoE NVMe check both still
+  need an operator-approved restart of the live service — box reachable
+  a fourth time (124/130/136/142) without sign-off; swap now within
+  ~858 MB of exhausting the swapfile is a louder version of the existing
+  RAM-FAIL argument, not a new independent one.
 
 ## Done-criteria for any mission
 Code runs (proof in round file), measurements banked in both places,

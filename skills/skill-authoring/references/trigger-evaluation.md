@@ -238,6 +238,50 @@ probes: 32 ok, 0 errored, exact-match 91%, negatives false-fire 0/6, cost $1.071
 5. Keep the JSON reports next to the state file; they are the evidence
    that the description works.
 
+### When to stop editing a description
+
+Not every haiku-tier miss is a fixable description defect. One near-case
+collision — `generator-trampoline-evaluator`'s `gte-near` losing to
+`tiny-language-implementation` on haiku — took 5 rounds and 4 distinct
+edit *mechanisms* before one of them moved the number at all:
+
+1. Symptom-first rewrite of the losing skill (round 105): 0/6 → 0/6.
+2. `NOT-for` clause added to the losing skill, naming the winner (round
+   111): 0/6 → 0/6.
+3. `NOT-for` clause added to the **winning** skill instead, naming the
+   loser's territory (round 123) — the collision is often bidirectional,
+   and 2 rounds of edits had only ever touched the loser's description:
+   0/6 → 0/6.
+4. Literal shared-noun removal from the winning skill's first clause
+   (round 129/135) — the winner's opening parenthetical contained
+   "tree-walking evaluator", the exact phrase the near-case prompt used
+   ("My Python tree-walking interpreter... restructure the evaluator").
+   No prior round had touched the shared vocabulary itself, only added
+   exclusion clauses after it: 0/6 → 1/6, confirmed at 1/6 again on a
+   fifth round's re-probe — a real but partial movement, not a flip.
+
+Across all 5 rounds the loser's own recall held ≥5/6 (fired-rate) to
+100%, and the strong-model probe stayed 7-8/7-8 exact throughout — the
+edits never regressed anything, they just didn't fix the haiku case
+either, until the fourth mechanism.
+
+**Stop rule:** after 3 same-mechanism edits with zero measured movement
+on the target case, treat the miss as a small-model base-rate property
+(the wording is close enough to both skills that `sonnet` reads it
+correctly but a `haiku`-tier selector can't resolve it from any phrasing
+available) and stop spending rounds on it. Before accepting that verdict,
+work through the mechanism order above — symptom-vs-mechanism ordering,
+`NOT-for` on the loser, `NOT-for` on the winner, literal shared-noun
+removal from whichever description contains the prompt's exact
+overlapping word — since only the last of these ever moved this case's
+number, and a prior round trying only the first three would have
+concluded "unfixable" one mechanism too early. Once genuinely exhausted:
+widen the haiku canary/sentinel band to the measured rate instead of
+re-editing text, and redirect the probe budget at an unmeasured skill or
+case — a fixed number of description edits per case is a real cost
+(round budget, re-probe cost, and the risk of collateral CO-FIRE damage
+to the sibling), not a free action.
+
 ### Comparing two runs — `--baseline`
 
 `--baseline PRIOR.json` compares the current run's per-case rates against

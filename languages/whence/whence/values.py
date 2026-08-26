@@ -215,13 +215,20 @@ class Record(object):
 
 
 class Closure(object):
-    __slots__ = ("name", "params", "body", "env")
+    __slots__ = ("name", "params", "body", "env", "ret_spec", "ret_label")
 
-    def __init__(self, name, params, body, env):
+    def __init__(self, name, params, body, env, ret_spec=None, ret_label=None):
         self.name = name          # None for anonymous fns
         self.params = params
         self.body = body
         self.env = env
+        # v0.13: a `-> Type` return annotation's resolved runtime spec (a
+        # primitive tag str or a shape's Record payload) + message label
+        # ("return value of f"), computed ONCE at closure creation
+        # (interp.py `_closure_ret`) — None, None for the common untyped
+        # case, so an untyped closure pays nothing beyond two extra slots.
+        self.ret_spec = ret_spec
+        self.ret_label = ret_label
 
 
 class Builtin(object):

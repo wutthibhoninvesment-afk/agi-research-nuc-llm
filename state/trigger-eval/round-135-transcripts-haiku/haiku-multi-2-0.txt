@@ -1,0 +1,15 @@
+case: multi-2
+model: haiku
+arm: None
+fired: ['generator-trampoline-evaluator', 'fuzz-mutate-kill-loop']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+I'll fix the RecursionError crashes in your interpreter and set up fuzzing to keep finding issues. Let me invoke the skills for restructuring the evaluator and running the fuzzing loop.
+
+SKILLS=generator-trampoline-evaluator,fuzz-mutate-kill-loop

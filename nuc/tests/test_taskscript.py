@@ -126,6 +126,8 @@ def test_interpolation_splitting():
     ('lane g { url "http://h" prefill 1 decode 0 }', "must be positive"),
     ('lane g { url "http://h" prefill 1 decode 1 bogus 2 }', "unknown lane key"),
     ('lane g { url "http://h" url "http://h" prefill 1 decode 1 }', "duplicate lane key"),
+    ('lane g { url "http://h" prefill 1 decode 1 cold_penalty 5s }', "needs cold_after"),
+    ('lane g { url "http://h" prefill 1 decode 1 cold_after 30s }', "needs a positive cold_penalty"),
     ('budget b { }', "declares nothing"),
     ('budget b { time 0s }', "must be positive"),
     ('budget b { time 1s time 2s }', "duplicate time"),
@@ -172,9 +174,44 @@ def test_shadowing_in_inner_block_is_allowed_but_same_block_is_not():
 def test_project_uses_e1_curve_for_qwen_and_rates_otherwise():
     p = prog("")
     q = I.project(p.lanes["qwen"], 134, 33)
-    assert q.ttft_s == pytest.approx(23.3) and q.decode_s == pytest.approx(10.0)
+    assert q.ttft_s == pytest.approx(23.3) and q.decode_s == pytest.approx(10.0) and not q.cold
     s = I.project(p.lanes["small"], 100, 20)
-    assert s.ttft_s == pytest.approx(11.0) and s.total_s == pytest.approx(21.0)
+    assert s.ttft_s == pytest.approx(11.0) and s.total_s == pytest.approx(21.0) and not s.cold
+
+
+def test_lane_cold_penalty_parses_and_requires_both_keys():
+    p = prog('lane cg { url "http://h" prefill 1 decode 1 cold_penalty 45s cold_after 10m }')
+    cg = p.lanes["cg"]
+    assert cg.cold_penalty == pytest.approx(45.0) and cg.cold_after == pytest.approx(600.0)
+    assert p.lanes["qwen"].cold_penalty == 0.0 and p.lanes["qwen"].cold_after is None  # off by default
+
+
+def test_project_applies_cold_penalty_only_when_idle_at_or_above_threshold():
+    p = prog('lane cg { url "http://h" prefill 10 decode 10 fixed 1s cold_penalty 45s cold_after 60s }')
+    cg = p.lanes["cg"]
+    never_called = I.project(cg, 100, 10, idle_s=None)
+    assert never_called.cold and never_called.ttft_s == pytest.approx(1 + 10 + 45)
+    just_used = I.project(cg, 100, 10, idle_s=59.9)
+    assert not just_used.cold and just_used.ttft_s == pytest.approx(1 + 10)
+    at_threshold = I.project(cg, 100, 10, idle_s=60.0)
+    assert at_threshold.cold and at_threshold.ttft_s == pytest.approx(1 + 10 + 45)
+
+
+def test_interp_tracks_idle_per_lane_and_prices_the_first_call_as_cold():
+    clock = FakeClock()
+    p = prog('lane cg { url "http://h" model "m" prefill 10 decode 10 fixed 0s cold_penalty 20s cold_after 30s }\n'
+             'task t() on cg within long { user "u" reply 5 }\nflow f() { emit t()\n emit t() }')
+    tr = TimedMock({"m": ["a", "b"]}, clock, seconds=0.1)
+    it = I.Interp(p, tr, clock=clock.now, sleep=clock.sleep, rng=lambda: 0.5)
+    it.run_flow("f", {})
+    pre = [e for e in it.events if e["ev"] == "preflight"]
+    assert pre[0]["idle_s"] is None and pre[0]["cold"] is True     # first-ever call: unknown warm state -> cold
+    assert pre[1]["idle_s"] == pytest.approx(0.1) and pre[1]["cold"] is False   # right back after attempt 1
+
+    clock.t += 30.0                                                # jump past cold_after with no intervening call
+    it.run_flow("f", {})                                           # third+fourth call in a fresh flow
+    pre2 = [e for e in it.events if e["ev"] == "preflight"][2:]
+    assert pre2[0]["idle_s"] == pytest.approx(30.1) and pre2[0]["cold"] is True
 
 
 def test_chars_tokenizer_estimate():

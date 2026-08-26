@@ -1,0 +1,33 @@
+{
+ "meta": {
+  "base_url": "http://127.0.0.1:8000",
+  "model": "qwen36",
+  "started": "2026-08-26 01:51:30",
+  "decode_tokens": 64,
+  "cutoff_s": 300.0,
+  "seed": 136,
+  "mode": "non-streaming",
+  "finished": "2026-08-26 01:54:59"
+ },
+ "results": [
+  {
+   "target_tokens": 300,
+   "prompt_tokens": 307,
+   "prompt_chars": 1464,
+   "ttft_cold_s": 58.64613317199837,
+   "ttft_warm_s": 44.73402105200512,
+   "decode_tokens": 64,
+   "decode_run_s": 59.390248475996486,
+   "decode_tok_s": 4.298514083977215,
+   "prefill_tok_s": 5.234786735207677,
+   "warm_over_cold": 0.7627786971190142,
+   "extrapolated": false,
+   "ttft_fresh_s": 45.349291726000956,
+   "repeat_over_fresh": 0.9864326288111999,
+   "stream_ttft_s": null,
+   "stream_decode_tok_s": null,
+   "reply_text": "OK\n\nThe morning began not with the sun, but with the salt. It hung in the air, t",
+   "note": ""
+  }
+ ]
+}

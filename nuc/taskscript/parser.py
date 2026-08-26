@@ -15,7 +15,7 @@ from urllib.parse import urlparse
 from .lexer import LexError, Token, tokenize
 
 FORBIDDEN_PORTS = (8001,)          # GLM frontier lane on pgain-nuc: one stray request evicts a 550 s KV cache
-LANE_KEYS = ("url", "model", "prefill", "decode", "fixed", "ctx", "tools")
+LANE_KEYS = ("url", "model", "prefill", "decode", "fixed", "ctx", "tools", "cold_penalty", "cold_after")
 EXPECT_KINDS = ("one_of", "contains", "nonempty", "json")
 BUILTINS = {"why": 1, "missed": 1, "len": 1, "lower": 1, "trim": 1}
 KEYWORDS = {"lane", "budget", "task", "flow", "on", "within", "retry", "backoff",
@@ -115,6 +115,8 @@ class Lane:
     ctx: Optional[int]
     tools: bool
     line: int
+    cold_penalty: float = 0.0        # extra TTFT seconds when idle_s >= cold_after (round-124 finding)
+    cold_after: Optional[float] = None   # None = the penalty is never applied (feature off by default)
 
 
 @dataclass
@@ -299,6 +301,10 @@ class Parser:
                 fields["decode"] = float(self._number("decode tokens/s"))
             elif key.value == "fixed":
                 fields["fixed"] = self._duration("fixed")
+            elif key.value == "cold_penalty":
+                fields["cold_penalty"] = self._duration("cold_penalty")
+            elif key.value == "cold_after":
+                fields["cold_after"] = self._duration("cold_after")
             elif key.value == "ctx":
                 fields["ctx"] = int(self._number("ctx tokens"))
             elif key.value == "tools":
@@ -325,8 +331,13 @@ class Parser:
                 raise ParseError(f"lane {nm.value!r}: {k} must be positive", head.line)
         if fields["prefill"] != "e1" and fields["prefill"] <= 0:
             raise ParseError(f"lane {nm.value!r}: prefill must be positive", head.line)
+        if "cold_penalty" in fields and "cold_after" not in fields:
+            raise ParseError(f"lane {nm.value!r}: cold_penalty needs cold_after (else it never applies)", head.line)
+        if "cold_after" in fields and fields.get("cold_penalty", 0.0) <= 0:
+            raise ParseError(f"lane {nm.value!r}: cold_after needs a positive cold_penalty", head.line)
         return Lane(nm.value, url, fields.get("model", nm.value), fields["prefill"], fields["decode"],
-                    fields.get("fixed", 0.0), fields.get("ctx"), fields.get("tools", False), head.line)
+                    fields.get("fixed", 0.0), fields.get("ctx"), fields.get("tools", False), head.line,
+                    fields.get("cold_penalty", 0.0), fields.get("cold_after"))
 
     # -- budget
     def budget(self) -> Budget:

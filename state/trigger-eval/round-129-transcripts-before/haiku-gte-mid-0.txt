@@ -1,0 +1,15 @@
+case: gte-mid
+model: haiku
+arm: None
+fired: ['tiny-language-implementation']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+I'll help you add proper tail call optimization to the interpreter. Let me first explore the codebase to understand its current structure.
+
+SKILLS=tiny-language-implementation

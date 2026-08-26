@@ -1,0 +1,31 @@
+case: gte-near
+model: haiku
+arm: None
+fired: ['tiny-language-implementation']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=tiny-language-implementation
+
+The issue is that plain recursive walkers cost ~10-12 Python frames per language call, giving you a guest depth of only ~1800 before hitting Python's 20k-frame limit.
+
+**Recommendation:** restructure as a **generator trampoline**. Instead of recursive `eval()` calls, make the evaluator a generator that yields work and receives continuations back. This lets guest recursion run in a loop on the host stack rather than building Python frames.
+
+See the `generator-trampoline-evaluator` skill for the pattern—it's a standard technique where:
+- Each `eval()` yields `(node, env, resume)` instead of calling itself
+- The harness loops: `result = resume(eval(node))` until done
+- Guest function calls happen in *language* frames, not Python frames, so 5000-deep guest recursion runs in ~1 Python frame
+
+Also handle these:
+- **Catch `RecursionError` at the call boundary** (not at top-level), so deep recursion converts to an error value your language can handle gracefully
+- **Write value walkers (equality, contains, serialization) with explicit stacks**, not recursion—even a trampolined evaluator can't prevent helper functions from recursing into deeply nested values
+- **Cap parser nesting explicitly** (count paren/brace depth during parse), since recursive descent parsers bottleneck before your evaluator does
+
+Make the depth cap a tunable on your CLI or interpreter constructor—`--guest-depth 5000` yields the language's error value when exceeded, rather than crashing Python.
+
+Do you have an existing interpreter structure to show, or should I walk through the trampoline pattern for your case?

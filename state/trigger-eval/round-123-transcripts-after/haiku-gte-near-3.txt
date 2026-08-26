@@ -1,0 +1,19 @@
+case: gte-near
+model: haiku
+arm: None
+fired: []
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+The root issue is that your interpreter's guest recursion uses Python's call stack—you hit Python's ~1000-depth limit before your guest program hits its own recursion semantics.
+
+The clearest fix is **convert to iterative evaluation with an explicit call stack** (trampolining). Instead of recursive `eval(node)` calls, maintain a `stack` list of pending work and loop: pop an item, evaluate it, push results back. This decouples guest recursion depth from Python's stack. The tradeoff is more complex implementation (you'll manage when to push/pop manually) but it eliminates the hard ceiling—your guest recursion limit becomes available memory, not Python's fixed limit.
+
+A quicker but incomplete band-aid is raising `sys.setrecursionlimit()`, but that just defers the crash and risks stack overflow.
+
+Do you want to see how to structure the explicit-stack approach for your interpreter, or would it help to refactor a specific piece of your evaluator first?

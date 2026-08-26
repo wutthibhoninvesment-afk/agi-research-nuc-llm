@@ -1,0 +1,96 @@
+case: body-cml
+model: sonnet
+arm: None
+fired: ['colocated-model-lane']
+distractors: []
+foreign: []
+error: None
+reads: ['/private/var/folders/_6/3xh6ssk928jcqvpbw1p5kjh80000gn/T/trigger-eval-sdoqkg6_/.claude/skills/colocated-model-lane/nuc/fast_lane.py', '/private/var/folders/_6/3xh6ssk928jcqvpbw1p5kjh80000gn/T/trigger-eval-sdoqkg6_/.claude/skills/colocated-model-lane/nuc/lane_bench.py']
+reads_failed: [{'path': '/private/var/folders/_6/3xh6ssk928jcqvpbw1p5kjh80000gn/T/trigger-eval-sdoqkg6_/.claude/skills/colocated-model-lane/nuc/fast_lane.py', 'reason': 'File does not exist. Note: your current working directory is /private/var/folders/_6/3xh6ssk928jcqvpbw1p5kjh80000gn/T/trigger-eval-sdoqkg6_.', 'denied': False}, {'path': '/private/var/folders/_6/3xh6ssk928jcqvpbw1p5kjh80000gn/T/trigger-eval-sdoqkg6_/.claude/skills/colocated-model-lane/nuc/lane_bench.py', 'reason': 'File does not exist. Note: your current working directory is /private/var/folders/_6/3xh6ssk928jcqvpbw1p5kjh80000gn/T/trigger-eval-sdoqkg6_.', 'denied': False}]
+bash: []
+
+--- transcript ---
+The bundled reference scripts (`nuc/fast_lane.py`, `nuc/lane_bench.py`) aren't present in this environment, so I can't execute them directly — but I'll give you the full procedure and the exact commands/formulas from the skill so you (or I, once pointed at the actual box/repo) can run it.
+
+## 1. Measure the engine's real footprint — not RSS
+
+`ps`/RSS understates it once you're at the ceiling, because part of the engine is already in swap.
+
+```bash
+# cgroup v2 (the authoritative numbers)
+cat /sys/fs/cgroup/<engine-slice>/memory.current
+cat /sys/fs/cgroup/<engine-slice>/memory.max
+cat /sys/fs/cgroup/<engine-slice>/memory.peak
+cat /sys/fs/cgroup/<engine-slice>/memory.swap.current
+
+# per-process cross-check
+grep -E 'VmRSS|VmSwap' /proc/<engine_pid>/status
+grep MemAvailable /proc/meminfo
+```
+
+```
+footprint = resident + swapped        # NOT resident alone
+```
+A prior run under this skill found RSS reported 31.8 GB for an engine whose real footprint (resident+swap) was 36.0 GB — a >4 GB miss that would have wrongly implied room existed. **You are already swapping, so treat every byte of `memory.swap.current` as committed, not spare.**
+
+## 2. Decide if there's room — three separate checks
+
+**a. RAM check.** `room = MemAvailable − target_margin`. If `MemAvailable` is already sub-GB and swap is active, there is *no* free RAM headroom for a full 7 GB resident lane — full stop, unless you shrink the big engine.
+
+**b. Disk check.** `disk_free ≥ 1.2 × 7 GB` (≈8.4 GB) — margin for the download plus any conversion temp files.
+
+**c. The real decision: what does the big engine give up?** A 7 GB fixed-size model (not an MoE with an adjustable expert cache) can't be "capped" the way an MoE can — so the question becomes: does the big engine have a memory.max headroom you can shrink (e.g. dropping its expert cache / KV context) to carve out 7 GB, or does the lane have to live mostly on disk and decode page-fault-bound?
+
+```bash
+python3 fast_lane.py plan --resident-gb <R> --swapped-gb <S> --cap-full <C> --ram-gib <total_ram>
+```
+This prints, per candidate lane size, the cap the *big* engine must drop to and its cost (extra decode s/tok, extra prefill s/req). **Always include the "no lane, stop swapping first" row** — if the big engine is already swapping, adding a second resident model without reclaiming that swap first will make both models slower, and that's often the actual recommendation to give.
+
+If the arithmetic says there's no clean room: the honest answer is either (1) reduce the big engine's ceiling first, or (2) accept the lane runs disk-bound (see step 5) and set expectations accordingly — don't force a squeeze that pushes the big engine into more swap.
+
+## 3. Move the weights safely
+
+- **Never `scp`/tar a multi-GB blob directly onto a saturated box.** A tar stream can't resume, and pulling with a wget default can flood page cache and threaten the engine's resident pages via reclaim pressure.
+- **Convert/prepare off-box** if any conversion step needs extra RAM the box doesn't have (e.g. loading through torch). Do it on a laptop, verify determinism:
+  ```bash
+  # convert twice, compare
+  md5sum shard-000.bin shard-last.bin   # from run 1 vs run 2 — must match
+  ```
+- **Transfer per-file, resumable, page-cache-safe**, using a sink that `fdatasync`s and drops pages (`posix_fadvise(DONTNEED)`) every ~256 MB so the transfer itself doesn't evict the engine's working set from page cache:
+  ```bash
+  python3 fast_lane.py handoff ./model_dir user@box '~/models/lane' --remote-sizes sizes.json --md5 > handoff.sh
+  ```
+  This generates an idempotent script that: checks the host is reachable first (`exit 2` if not), skips files already fully transferred, resumes partial files via `tail -c +<have+1>`, and verifies every file with `md5sum` on the box (`exit 3` on mismatch).
+- **Gate on real bandwidth to the actual source**, not a speed-test host — those can read 10–100× slower than the model's own CDN from the same box:
+  ```bash
+  curl -sSL --max-time 25 -o /dev/null -w '%{speed_download}\n' <shard-url>
+  python3 fast_lane.py gate --min-rate <slowest_shard_MBps> --disk-free-gb <free> --disk-needed-gb 7.42
+  ```
+- **Quote remote paths defensively** — `~/x` inside a single-quoted ssh command doesn't expand; use `"$HOME"/x`.
+
+## 4. After it's running: RAM-resident or disk-bound?
+
+This is the key diagnostic and it's cheap: **sys-time share of the lane's own decode**.
+
+```bash
+python3 lane_bench.py --engine ./lane_engine --snap ./lane_model \
+  --case run --n-new 200 --json bench.jsonl
+```
+Look at `resource.getrusage` user vs sys time for the process:
+- **sys/(user+sys) low (~10–20%)** → weights are resident/page-cached, decode is compute-bound → running from RAM.
+- **sys/(user+sys) > 50%**, especially approaching 80–90% → the engine is page-faulting on every read → running from disk, regardless of what `free -h` claims about "available" memory.
+
+Cross-check with the OS view while it's decoding:
+```bash
+# is the 7GB actually resident?
+grep VmRSS /proc/<lane_pid>/status
+# or watch page faults directly
+/usr/bin/time -v <invoke a decode> 2>&1 | grep -E 'Major|Minor'
+```
+Major page faults climbing during steady-state decode = disk-bound, confirming the sys-share signal.
+
+**Don't compare decode tok/s across regimes as if they're the same thing** — a rate measured right after the box just wrote the file (page cache still hot) will look artificially fast; re-measure cold (drop caches or wait, or just don't trust the first run after transfer) before deciding the lane is viable. Also measure prefill and decode separately — prefill's working set is much smaller (single layer × all tokens) and can stay page-cache-resident even when decode's (all layers × one token, i.e. the full 7 GB) does not, so a lane can be "fast" for prefill-heavy short-reply use and disk-bound for anything with a long generation.
+
+## Bottom line for your case
+
+Given you're already at `memory.max` with swap active: run step 1's cgroup measurement first — I'd bet `MemAvailable` is already thin. If so, the 7 GB lane will not fit resident without either (a) shrinking the big engine's ceiling/cache to make room, or (b) accepting it runs page-fault-bound off disk. Get the actual `memory.current`/`memory.max`/`swap.current`/`MemAvailable` numbers and I can run the `plan` arithmetic concretely.

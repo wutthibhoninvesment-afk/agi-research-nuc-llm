@@ -1,0 +1,30 @@
+case: gte-near
+model: haiku
+arm: None
+fired: ['tiny-language-implementation']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=tiny-language-implementation
+
+The issue is that a plain recursive tree-walker spends ~10–12 Python stack frames per guest call. Python's default limit is ~1000 frames, which gives you roughly 1800–2000 levels of guest recursion before hitting the wall.
+
+For 5000-deep guest recursion, you have two options:
+
+**Option 1: Short-term (catch and convert)**
+Wrap eval calls in try-except to catch `RecursionError` at the call boundary and convert it to your error-value type. This lets execution continue rather than crash, but doesn't increase the depth limit itself.
+
+**Option 2: Proper fix (generator trampoline)**
+Restructure the evaluator as a **generator trampoline**—each eval step yields a continuation instead of recursing directly. This eliminates the call stack overhead and lets you support guest recursion depths in the thousands. The skill `generator-trampoline-evaluator` has the exact pattern for this.
+
+The trampoline approach is cleaner because:
+- It naturally caps guest recursion as a tunable parameter (passed to the harness)
+- It converts depth limits to a language-level error value, not a host crash
+- Other value-walking helpers (equality, hashing, serialization) can still hit `RecursionError`, so cap those *separately* with an explicit stack
+
+**Which should you use?** If guest recursion is a real use case, go trampoline; if it's an edge case you want to survive gracefully, catching `RecursionError` at the call boundary is faster to add. The trampoline approach is the durable choice if this language gets shipped.

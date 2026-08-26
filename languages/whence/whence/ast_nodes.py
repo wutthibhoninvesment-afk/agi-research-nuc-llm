@@ -62,10 +62,14 @@ Call = _simple("Call", ["fn", "args", "tail"])       # tail: set by parser.mark_
 Index = _simple("Index", ["obj", "index"])
 FieldAccess = _simple("FieldAccess", ["obj", "name"])
 If = _simple("If", ["cond", "then", "otherwise"])    # otherwise: Block or If
-FnExpr = _simple("FnExpr", ["params", "body"])       # anonymous fn
+FnExpr = _simple("FnExpr", ["params", "body", "ret_type"])   # anonymous fn
 Block = _simple("Block", ["stmts"])
 Let = _simple("Let", ["name", "expr"])
-FnDef = _simple("FnDef", ["name", "params", "body"])
+FnDef = _simple("FnDef", ["name", "params", "body", "ret_type"])
+# ret_type: None, or the spec expr `parser._type_spec_expr` builds for a
+# `-> Type` annotation (an A.Str for a primitive tag, an A.NameRef for a
+# shape) — resolved to a runtime spec ONCE per Closure at creation time
+# (interp.py `_closure_ret`), never re-parsed or re-walked per call.
 Check = _simple("Check", ["label", "expr"])
 ExprStmt = _simple("ExprStmt", ["expr"])
 Program = _simple("Program", ["stmts"])

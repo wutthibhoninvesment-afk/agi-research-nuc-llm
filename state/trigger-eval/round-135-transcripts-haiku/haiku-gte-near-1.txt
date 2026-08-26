@@ -1,0 +1,27 @@
+case: gte-near
+model: haiku
+arm: None
+fired: []
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=NONE
+
+The main options to restructure are:
+
+1. **Trampolining** (simplest): Wrap recursive calls so the interpreter returns a thunk instead of calling directly. The main loop then iterates, invoking thunks until there's a result. This keeps Python's stack shallow while guest recursion runs in data structures.
+
+2. **Continuation-passing style**: Transform your evaluator so recursive calls become explicit continuations. Requires more refactoring but achieves the same effect—each "step" is one Python call.
+
+3. **Bytecode compilation**: Compile the guest AST to bytecode beforehand, then interpret that in a loop with an explicit stack (list). This is heavier but common for production interpreters.
+
+4. **Explicit stack in the visitor**: Replace recursive tree-walking with an explicit stack you manage (a list of nodes to visit). Overkill if trampolining works.
+
+**My recommendation**: Start with trampolining. It's the smallest change—modify your recursive calls to return a thunk (a callable or data structure representing "do this next"), then wrap your top-level evaluation in a loop that keeps invoking thunks until done. Guest code can then recurse arbitrarily deep without hitting Python's stack limit.
+
+Which approach appeals to you? If you want to implement one and then verify it doesn't regress or mask edge cases, I can help harden it with thorough testing.

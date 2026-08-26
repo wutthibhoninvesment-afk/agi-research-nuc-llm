@@ -1,0 +1,106 @@
+{
+ "total": 1263,
+ "baseline": {
+  "killed": 1228,
+  "survived": 35,
+  "score": 0.9723,
+  "seconds": 3226.4
+ },
+ "recheck": {
+  "timeouts": 4,
+  "flips": [],
+  "timeout_s": 600.0,
+  "seconds": 0.0,
+  "subset_checked": 35,
+  "subset_flips": [],
+  "subset_survivors": 35,
+  "subset_unverified": 0
+ },
+ "corrected": {
+  "killed": 1228,
+  "survived": 35,
+  "score": 0.9723
+ },
+ "corpus": {
+  "survivors": 35,
+  "found": 0,
+  "no_killer": 0,
+  "verified": 0,
+  "programs": 313
+ },
+ "live_kill": {
+  "attempted": null,
+  "killed": null,
+  "equivalent_claimed": null,
+  "failed": null,
+  "verified": null,
+  "cost_usd": null,
+  "steps": null,
+  "model": null
+ },
+ "review": {
+  "claimed": null,
+  "confirmed": null,
+  "steps": null,
+  "tool_calls": null,
+  "cost_usd": null,
+  "stop_reason": null,
+  "model": null,
+  "tool_histogram": null
+ },
+ "coverage": {
+  "pct": {
+   "whence/interp.py": 77.7
+  },
+  "targeted": false,
+  "never_executed_defs": 11,
+  "survived_covered": 35,
+  "survived_uncovered": 0,
+  "survived_unknown": 0,
+  "killed_traced": 1228,
+  "killed_on_uncovered": 25
+ },
+ "triage": {
+  "counts": {
+   "counter": 0,
+   "budget": 0,
+   "none_guard": 0,
+   "error_message": 7,
+   "other": 28
+  },
+  "score_all": 0.9723,
+  "score_behavioural": 0.9703,
+  "behavioural_total": 1179,
+  "behavioural_killed": 1144
+ },
+ "oracle_kill": {
+  "pool": 0,
+  "found": 0,
+  "by_kind": {
+   "modes": 0,
+   "frames": 0,
+   "counters": 0
+  },
+  "verified": 0,
+  "programs": 78
+ },
+ "subset": {
+  "subset_survivors": 35,
+  "subset_checked": 35,
+  "subset_flips": 0
+ },
+ "repair": {
+  "attempted": null,
+  "green": null,
+  "exact": null,
+  "localized": null,
+  "cheated": null,
+  "green_not_exact": null,
+  "cost_usd": null,
+  "steps": null,
+  "model": null
+ },
+ "tests_added": 0,
+ "projected_score": 0.9723,
+ "cost_usd": 0.0
+}

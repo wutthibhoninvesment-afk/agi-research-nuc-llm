@@ -1,0 +1,17 @@
+case: gte-far
+model: haiku
+arm: None
+fired: ['fuzz-mutate-kill-loop']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+I'll first examine the evaluator module to understand how the recursion limit hack is being used, then refactor it to remove the dependency.
+
+Let me look at the file structure and find the evaluator module.
+
+SKILLS=NONE

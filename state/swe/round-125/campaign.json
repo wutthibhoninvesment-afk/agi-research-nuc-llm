@@ -1,0 +1,114 @@
+{
+ "created": "2026-08-25T23:58:08",
+ "root": "/Users/jaby/agi-research/languages/whence",
+ "files": [
+  "whence/interp.py"
+ ],
+ "stages": {
+  "mutation": {
+   "status": "done",
+   "started": "2026-08-25T23:58:08",
+   "finished": "2026-08-26T00:52:01",
+   "info": {
+    "total": 1263,
+    "killed": 1228,
+    "survived": 35,
+    "score": 0.9723,
+    "seconds": 3226.4
+   }
+  },
+  "recheck": {
+   "status": "done",
+   "started": "2026-08-26T00:52:01",
+   "finished": "2026-08-26T00:52:14",
+   "info": {
+    "timeouts": 4,
+    "flips": 0,
+    "score": 0.9723,
+    "survived": 35,
+    "subset_checked": 35,
+    "subset_flips": 0
+   }
+  },
+  "coverage": {
+   "status": "done",
+   "started": "2026-08-26T00:52:14",
+   "finished": "2026-08-26T00:52:14",
+   "info": {
+    "seconds": 701.3,
+    "returncode": 0,
+    "pct": {
+     "whence/interp.py": 77.7
+    },
+    "targeted": false,
+    "from_map": true,
+    "survived_uncovered": 0,
+    "survived_covered": 35,
+    "survived_unknown": 0,
+    "killed_traced": 1228,
+    "killed_on_uncovered": 25
+   }
+  },
+  "corpus": {
+   "status": "done",
+   "started": "2026-08-26T00:52:14",
+   "finished": "2026-08-26T00:52:20",
+   "info": {
+    "survivors": 35,
+    "found": 0,
+    "no_killer": 0,
+    "test_file": "tests/test_generated_killers_r29.py"
+   }
+  },
+  "verify": {
+   "status": "done",
+   "started": "2026-08-26T00:52:20",
+   "finished": "2026-08-26T00:52:20",
+   "info": {
+    "pinned": 0,
+    "verified": 0
+   }
+  },
+  "triage": {
+   "status": "done",
+   "started": "2026-08-26T00:52:20",
+   "finished": "2026-08-26T00:52:20",
+   "info": {
+    "counts": {
+     "counter": 0,
+     "budget": 0,
+     "none_guard": 0,
+     "error_message": 7,
+     "other": 28
+    },
+    "score_all": 0.9723,
+    "score_behavioural": 0.9703
+   }
+  },
+  "oracle_kill": {
+   "status": "done",
+   "started": "2026-08-26T00:52:20",
+   "finished": "2026-08-26T00:52:20",
+   "info": {
+    "pool": 0,
+    "found": 0,
+    "by_kind": {
+     "modes": 0,
+     "frames": 0,
+     "counters": 0
+    },
+    "verified": 0,
+    "test_file": "tests/test_oracle_killers_r113.py"
+   }
+  },
+  "report": {
+   "status": "done",
+   "started": "2026-08-26T00:52:20",
+   "finished": "2026-08-26T00:52:20",
+   "info": {
+    "projected_score": 0.9723,
+    "tests_added": 0
+   }
+  }
+ }
+}

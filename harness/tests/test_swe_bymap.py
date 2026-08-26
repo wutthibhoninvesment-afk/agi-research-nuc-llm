@@ -202,3 +202,39 @@ def test_campaign_subset_self_check_corrects_an_instrument_error(by_file_map, tm
     fixed = [d for d in rech["mutants"] if d["id"] == l10["id"]][0]
     assert fixed["status"] == "killed" and fixed["basis"] == "full"
     assert rech["survived"] == sum(1 for d in rech["mutants"] if d["status"] == "survived")
+
+
+def test_subset_check_verifies_all_survivors_within_the_cap_not_a_sample(by_file_map, tmp_path):
+    """Round 125: round 113's `subset_check` was a SAMPLE size (default 20)
+    — with 32 subset-basis survivors and a 20-sample, 20/20 flipped to
+    killed but the other 12 were never checked and were reported as plain
+    `survived`, indistinguishable from a verified one. `clamp`'s two
+    boundary cmp mutants (`<`->`<=` on line 2, `>`->`>=` on line 4) both
+    genuinely survive test_a/test_b (neither test hits the x==lo/x==hi
+    boundary) -- a real, small, exhaustively-checkable set."""
+    root, cov = by_file_map
+    pr = PR.MapPrioritizer(cov, PR.default_test_files(root))
+    c = Campaign(str(tmp_path / "out3"), root, ("mod.py",), prioritizer=pr, coverage_map=cov,
+                 log=lambda s: None)
+    data = c.stage_mutation(workers=2, timeout_s=60.0)
+    subset_survivors = [d for d in data["mutants"]
+                        if d["status"] == "survived" and d.get("basis") == "subset"]
+    assert len(subset_survivors) >= 2          # both clamp boundary mutants
+    # cap BELOW the survivor count: some must be left explicitly unverified,
+    # never silently reported as an ordinary checked `survived`.
+    rech = c.stage_recheck(timeout_s=60.0, subset_check=1, seed=0)
+    info = rech["recheck"]
+    assert info["subset_checked"] == 1
+    assert info["subset_unverified"] == len(subset_survivors) - 1
+    flagged = [d for d in rech["mutants"] if d.get("subset_unverified")]
+    assert len(flagged) == info["subset_unverified"] > 0
+    for d in flagged:
+        assert d["status"] == "survived" and d["basis"] == "subset"
+    # a cap AT OR ABOVE the count checks every single one -- no leftovers.
+    c2 = Campaign(str(tmp_path / "out4"), root, ("mod.py",), prioritizer=pr, coverage_map=cov,
+                 log=lambda s: None)
+    c2.stage_mutation(workers=2, timeout_s=60.0)
+    rech2 = c2.stage_recheck(timeout_s=60.0, subset_check=200, seed=0)
+    assert rech2["recheck"]["subset_unverified"] == 0
+    assert rech2["recheck"]["subset_checked"] == len(subset_survivors)
+    assert not any(d.get("subset_unverified") for d in rech2["mutants"])

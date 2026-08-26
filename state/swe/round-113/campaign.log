@@ -1261,3 +1261,21 @@ subset-check killed   interp.py:430:cmp#264 (3 files -> full) 60s
 subset-check killed   interp.py:430:ifneg#85 (3 files -> full) 68s
 recheck timeout  -> timeout  interp.py:819:ifneg#103 600s
 recheck timeout  -> timeout  interp.py:819:cmp#296 600s
+recheck timeout  -> killed   interp.py:1814:bool#861 503s
+recheck timeout  -> killed   interp.py:1814:cmp#1032 572s
+recheck timeout  -> timeout  interp.py:1753:arith#1119 600s
+coverage: derived from the by-file map (full trace, 20 test files)
+whence/interp.py: 1727/1939 executable lines executed (89.1%)
+  never executed: Interpreter.eval, Interpreter._trampoline_body, _make_builtin_table.b_shapeof, _make_builtin_table.b_at, _make_builtin_table.b_blame, _make_builtin_table._diverge_records, _make_builtin_table.b_diverge, _make_builtin_table.b_contrast
+  _type_match                                8/ 18  44.4%  [1995-2024]
+  _make_builtin_table.b_print                1/  2  50.0%  [2079-2081]
+  _make_builtin_table.b_map                  6/ 11  54.5%  [2113-2124]
+  _make_builtin_table.b_has                  9/ 14  64.3%  [2349-2367]
+  _make_builtin_table                      284/431  65.9%  [2069-2580]
+  _make_builtin_table.b_filter              14/ 21  66.7%  [2127-2148]
+  _make_builtin_table.b_join                12/ 18  66.7%  [2283-2301]
+  Interpreter.call_value                     2/  3  66.7%  [429-432]
+  _make_builtin_table.b_merge                7/ 10  70.0%  [2316-2326]
+  _make_builtin_table.b_contains            13/ 18  72.2%  [2262-2280]
+  _kind                                      3/  4  75.0%  [1984-1992]
+  _make_builtin_table.register               3/  4  75.0%  [2072-2076]

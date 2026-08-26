@@ -54,8 +54,8 @@ from . import repair as RP
 from . import prioritize as PR
 from . import review as R
 from .fuzz import WHENCE_ROOT
-from .mutation import (DEFAULT_TEST_CMD, Mutant, MutationReport, generate,
-                       run_mutant)
+from .mutation import (DEFAULT_TEST_CMD, Mutant, MutationReport, _copy_project,
+                       generate, run_mutant)
 
 STAGES = ("mutation", "recheck", "coverage", "corpus", "verify", "triage", "oracle_kill",
           "live_kill", "review", "repair", "report")
@@ -153,8 +153,54 @@ class Campaign(object):
         _dump_json(self.manifest_path, self.manifest)
 
     # ------------------------------------------------------------ helpers --
+    def _snapshot_dir(self):
+        return self.path("snapshot")
+
+    def _snapshot_files(self):
+        """Freeze `self.files`' CURRENT on-disk content once, idempotently,
+        so every later stage that reconstructs Mutant objects from
+        mutation.json's ids (recheck/corpus/verify/triage/oracle_kill)
+        regenerates the SAME source `stage_mutation` assigned those ids
+        against — even if a concurrent session edits the real file while
+        this campaign runs for the next hour. Round 125: a concurrent
+        language-track edit to interp.py landed mid-campaign and every
+        `_mutants_by_id` lookup for the rest of that run silently matched
+        NOTHING (rebuild_mutants regenerates ids from the live file, which
+        had changed shape) — corpus/oracle_kill reported 0 attempted in 0.0s
+        and the recheck stage's "exhaustive" subset verification finished in
+        13s instead of the expected tens of minutes, both mis-read as "ran
+        clean" because a skipped `continue` looks identical to a genuine
+        negative result. See knowledge/round-131."""
+        snap = self._snapshot_dir()
+        for rel in self.files:
+            dst = os.path.join(snap, rel)
+            if os.path.exists(dst):
+                continue
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            shutil.copyfile(os.path.join(self.root, rel), dst)
+
+    def _original_project_dir(self):
+        """A full project copy (tests, other modules: LIVE) with `self.files`
+        pinned to the snapshot — built once per campaign, reused by every
+        stage that imports the true 'original' (unmutated) package to diff
+        mutant behaviour against. Without the pin, a mutant (built from the
+        snapshot) and a live-loaded 'original' can differ by unrelated tree
+        drift instead of by the mutation alone, producing false killers."""
+        self._snapshot_files()
+        dst = self.path("orig-proj")
+        if not os.path.isdir(dst):
+            tmp = dst + ".tmp"
+            if os.path.isdir(tmp):
+                shutil.rmtree(tmp)
+            _copy_project(self.root, tmp)
+            for rel in self.files:
+                shutil.copyfile(os.path.join(self._snapshot_dir(), rel), os.path.join(tmp, rel))
+            os.replace(tmp, dst)
+        return dst
+
     def _mutants_by_id(self, dicts):
-        ms = K.rebuild_mutants(self.root, dicts)
+        self._snapshot_files()
+        ms = K.rebuild_mutants(self._snapshot_dir(), dicts)
         return dict((m.id, m) for m in ms)
 
     def _run_mutants(self, mutants, workers, timeout_s, partial_path):
@@ -196,6 +242,11 @@ class Campaign(object):
         if adopt:
             shutil.copyfile(adopt, art)
             data = _load_json(art)
+            # best-effort: the adopted report's ids describe whatever the OTHER
+            # campaign's tree looked like, which this snapshot cannot recover;
+            # freezing now at least stops this campaign's own later stages from
+            # drifting further out from under it.
+            self._snapshot_files()
             self._mark("mutation", "done", adopted_from=os.path.abspath(adopt),
                        total=data["total"], killed=data["killed"], survived=data["survived"],
                        score=data["score"])
@@ -203,7 +254,15 @@ class Campaign(object):
         mutants = []
         for rel in self.files:
             with open(os.path.join(self.root, rel), encoding="utf-8") as f:
-                mutants.extend(generate(f.read(), rel, ops=ops))
+                src = f.read()
+            mutants.extend(generate(src, rel, ops=ops))
+            # freeze the exact text mutant ids were just derived from, BEFORE
+            # the (possibly hours-long) mutation run gives a concurrent editor
+            # a chance to change it out from under every later stage.
+            dst = os.path.join(self._snapshot_dir(), rel)
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            with open(dst, "w", encoding="utf-8") as f:
+                f.write(src)
         if limit:
             mutants = mutants[:limit]
         t0 = time.time()
@@ -228,11 +287,31 @@ class Campaign(object):
                    survived=data["survived"], score=data["score"], seconds=data["seconds"])
         return data
 
-    def stage_recheck(self, timeout_s=600.0, subset_check=20, seed=0):
-        """Timeouts re-run serially with a longer budget; and (round 113)
-        `subset_check` seeded subset-basis survivors re-run under the FULL
-        suite — the instrument self-check of covering-subset verdicts. A
-        flip there is an instrument error and is corrected in place."""
+    def stage_recheck(self, timeout_s=600.0, subset_check=200, seed=0):
+        """Timeouts re-run serially with a longer budget; and (round 113,
+        widened round 125) EVERY subset-basis survivor is re-run under the
+        FULL suite — the instrument self-check of covering-subset verdicts.
+        `subset_check` is a CAP, not a sample size: with <= subset_check
+        subset-basis survivors every one of them is verified; only a set
+        LARGER than the cap falls back to a seeded sample, and whatever is
+        left unchecked is marked `subset_unverified` (never silently
+        reported as a plain `survived`).
+
+        Round 113 sampled 20 of 32 subset-basis survivors and found
+        20/20 flipped to killed — not 1 or 2 as predicted. The cause (round
+        125 forensics) is structural, not a fluke: `whence/interp.py`
+        builds its builtin table as a process-wide lazy singleton (each
+        `@register(name, arity)` line executes exactly ONCE per pytest
+        process, whichever test happens to construct the first
+        `Interpreter`), so the by-file coverage map attributes a mutation
+        there to one arbitrary file while its effect is visible to every
+        later test in the process; separately, `tests/test_examples.py`
+        runs every example through `run.py` as a SUBPROCESS, invisible to
+        the in-process `sys.settrace` map entirely. Both mean a mutant's
+        true covering set can be strictly larger than what the map shows,
+        so `subset=True` must never trust an unverified `survived` verdict.
+        The remaining 12 of round 113's 32 were never checked at all (the
+        old sample cap of 20) — this method no longer leaves that gap."""
         art = self.path("mutation-rechecked.json")
         if self.done("recheck"):
             return _load_json(art)
@@ -241,10 +320,19 @@ class Campaign(object):
         sub_flips, sub_sample = [], []
         subset_survivors = [d for d in data["mutants"]
                             if d["status"] == "survived" and d.get("basis") == "subset"]
+        unverified = 0
         if subset_survivors and subset_check:
-            rng = random.Random(seed)
-            sub_sample = sorted(rng.sample(subset_survivors, min(subset_check, len(subset_survivors))),
-                                key=lambda d: d["id"])
+            if len(subset_survivors) <= subset_check:
+                sub_sample = sorted(subset_survivors, key=lambda d: d["id"])
+            else:
+                rng = random.Random(seed)
+                sub_sample = sorted(rng.sample(subset_survivors, subset_check),
+                                    key=lambda d: d["id"])
+                checked_ids = set(d["id"] for d in sub_sample)
+                unverified = len(subset_survivors) - len(sub_sample)
+                for d in subset_survivors:
+                    if d["id"] not in checked_ids:
+                        d["subset_unverified"] = True
             by_id = self._mutants_by_id(sub_sample)
             for d in sub_sample:
                 m = by_id.get(d["id"])
@@ -261,6 +349,9 @@ class Campaign(object):
                     d["subset_check"] = rec
                     d["detail"] = m.detail
                     d["basis"] = "full"
+                else:
+                    d["subset_check"] = {"id": m.id, "files_run": d.get("files_run"),
+                                         "after": "survived"}
         timeouts = [d for d in data["mutants"] if d["status"] == "timeout"]
         by_id = self._mutants_by_id(timeouts) if timeouts else {}
         flips = []
@@ -286,7 +377,8 @@ class Campaign(object):
         data["recheck"] = {"timeouts": len(timeouts), "flips": flips,
                            "timeout_s": timeout_s, "seconds": round(time.time() - t0, 1),
                            "subset_checked": len(sub_sample), "subset_flips": sub_flips,
-                           "subset_survivors": len(subset_survivors)}
+                           "subset_survivors": len(subset_survivors),
+                           "subset_unverified": unverified}
         _dump_json(art, data)
         self._mark("recheck", "done", timeouts=len(timeouts), flips=len(flips),
                    score=data["score"], survived=data["survived"],
@@ -369,7 +461,7 @@ class Campaign(object):
         by_id = self._mutants_by_id(survivors)
         programs = list(extra_programs) + K.corpus(seed, corpus_n, self.root,
                                                    include_examples=include_examples)
-        original = K.load_whence(self.root, "orig_camp")
+        original = K.load_whence(self._original_project_dir(), "orig_camp")
         cache = {}
         killers = []
         t0 = time.time()
@@ -450,7 +542,9 @@ class Campaign(object):
             return _load_json(art)
         self._mark("triage", "running")
         data = _load_json(self.path("mutation-rechecked.json")) or _load_json(self.path("mutation.json"))
-        srcs = dict((rel, open(os.path.join(self.root, rel), encoding="utf-8").read()) for rel in self.files)
+        self._snapshot_files()
+        srcs = dict((rel, open(os.path.join(self._snapshot_dir(), rel), encoding="utf-8").read())
+                   for rel in self.files)
         t = TR.triage(data["mutants"], srcs)
         _dump_json(art, t)
         self.log(TR.render(t))
@@ -473,7 +567,7 @@ class Campaign(object):
         survivors = [d for d in self.survivors() if d["id"] in set(pool)]
         by_id = self._mutants_by_id(survivors)
         programs = OK.corpus(seed, corpus_n, self.root)
-        original = OK.load_whence(self.root, "orig_okill")
+        original = OK.load_whence(self._original_project_dir(), "orig_okill")
         cache = {}
         kills = []
         t0 = time.time()

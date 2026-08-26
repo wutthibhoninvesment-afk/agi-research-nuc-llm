@@ -1,0 +1,12 @@
+case: tli-near
+model: haiku
+arm: None
+fired: []
+distractors: []
+foreign: []
+error: rc=124: timeout after 150s
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---

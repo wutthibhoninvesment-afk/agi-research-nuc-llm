@@ -1,0 +1,25 @@
+case: gte-near
+model: haiku
+arm: None
+fired: []
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+The main options for tree-walking interpreters hitting Python's recursion limit are:
+
+1. **Trampolined evaluation** — Return a thunk (continuation) instead of recursing; loop in the driver until done. This lets guest recursion unbind from Python stack depth.
+
+2. **Explicit stack-based interpreter** — Maintain your own call stack (list of frames) and loop over them instead of using Python's stack. More work upfront but scales easily.
+
+3. **Bytecode + VM** — Compile AST to bytecode once, then execute bytecycle (much faster too). Bytecode interpreters naturally handle deep recursion without stack pressure.
+
+4. **Tail-call optimization** — If your language supports tail recursion, detect it and convert tail calls to jumps. Effective for recursive descent patterns.
+
+For a quick fix with a tree-walker, **trampolined evaluation** is lowest lift: wrap recursive calls to return a thunk describing "what to evaluate next," then loop at the top level until evaluation terminates.
+
+Do you have the interpreter code handy? If you show me the `eval()` structure, I can sketch the actual restructuring and verify it handles your 5000-deep case without hitting Python's recursion limit.

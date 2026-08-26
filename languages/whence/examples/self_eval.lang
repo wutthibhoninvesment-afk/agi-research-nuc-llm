@@ -626,9 +626,64 @@ fn eval_pairs(pairs, i, acc, env, st) {
 # ---- operators: delegate to the HOST operator on the payloads, so its
 # semantics (misses, strictness, overflow, merge-of-reasons) come for free;
 # the result box records the operator and both operand boxes ----------------
-fn guest_eq(a, b) {
-  if holds_callable(a.v) or holds_callable(b.v) { miss "cannot compare functions" }
-  else { strip(a) == strip(b) }
+fn is_str(v) { not missed(v) and not missed(v + "") }
+
+# raw_deep_eq mirrors the host's OWN deep_eq (interp.py): recurse only while
+# both sides have the SAME shape at the position being compared (bool/bool,
+# num/num, str/str, same-length list/list, same-keyset record/record) — a
+# SHAPE MISMATCH at any level resolves to false immediately, exactly like
+# the host's stack-based walk, WITHOUT ever inspecting whether a callable
+# lurks inside the side that was never descended into. `guest_eq`'s old
+# implementation instead asked "does a callable exist ANYWHERE in either
+# operand" up front (`holds_callable`) — round 140's guest-differential
+# fuzzer found this over-fires: `0 != [adder, "-inf", 0]` compares a num to
+# a list (host: different top-level types, false immediately, the list is
+# never opened) but the guest reported a miss purely because `adder` sits
+# somewhere inside the unopened list. Only once two operands are
+# shape-identical all the way down does hitting a callable at a
+# genuinely-reached position miss, matching the host's `_OPAQUE` check
+# firing on the exact pair it pops off its stack (round 107's
+# `[odd] == [odd]` case: both lists, same length, recurses to (odd, odd),
+# both callable at that reached position -> miss, still correct here).
+fn guest_eq(a, b) { raw_deep_eq(strip(a), strip(b)) }
+
+fn raw_deep_eq(x, y) {
+  if missed(x) { x }
+  else if missed(y) { y }
+  else if is_callable(x) or is_callable(y) { miss "cannot compare functions" }
+  else if is_bool(x) or is_bool(y) {
+    if is_bool(x) and is_bool(y) { x == y } else { false }
+  }
+  else if is_num(x) and is_num(y) { x == y }
+  else if is_str(x) and is_str(y) { x == y }
+  else if is_list(x) and is_list(y) {
+    if len(x) != len(y) { false } else { raw_deep_eq_list(x, y, 0) }
+  }
+  else if is_record(x) and is_record(y) {
+    if len(keys(x)) != len(keys(y)) { false }
+    else if missed(find(fn(k) { not has(y, k) }, keys(x))) {
+      raw_deep_eq_fields(x, y, keys(x), 0)
+    }
+    else { false }
+  }
+  else { false }
+}
+
+fn raw_deep_eq_list(x, y, i) {
+  if i >= len(x) { true }
+  else {
+    let r = raw_deep_eq(x[i], y[i])
+    if missed(r) { r } else if r { raw_deep_eq_list(x, y, i + 1) } else { false }
+  }
+}
+
+fn raw_deep_eq_fields(x, y, ks, i) {
+  if i >= len(ks) { true }
+  else {
+    let k = ks[i]
+    let r = raw_deep_eq(get(x, k), get(y, k))
+    if missed(r) { r } else if r { raw_deep_eq_fields(x, y, ks, i + 1) } else { false }
+  }
 }
 
 fn apply_binop(op, a, b) {

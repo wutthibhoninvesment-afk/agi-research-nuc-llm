@@ -12,11 +12,11 @@ KEYWORDS = {
     "why", "snip", "miss", "true", "false", "and", "or", "not",
 }
 
-TWO_CHAR_OPS = ("==", "!=", "<=", ">=", "@{")
+TWO_CHAR_OPS = ("==", "!=", "<=", ">=", "@{", "->")
 ONE_CHAR_OPS = "+-*/%()[]{},:.=<>"
 
 # Token types / keyword values after which a newline is a continuation.
-CONTINUES = set("+-*/%,:=<>") | {"==", "!=", "<=", ">="}
+CONTINUES = set("+-*/%,:=<>") | {"==", "!=", "<=", ">=", "->"}
 CONTINUE_KWS = {"and", "or", "not", "rescue"}
 
 

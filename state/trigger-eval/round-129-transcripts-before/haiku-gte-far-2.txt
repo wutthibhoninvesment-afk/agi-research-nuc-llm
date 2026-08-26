@@ -1,0 +1,45 @@
+case: gte-far
+model: haiku
+arm: None
+fired: ['fuzz-mutate-kill-loop', 'subprocess-cli-testing']
+distractors: []
+foreign: ['run']
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+I'll help you remove that recursion limit hack safely. Let me start by finding the evaluator module and understanding how it's currently being used.
+
+SKILLS=fuzz-mutate-kill-loop
+
+Let me find the evaluator module and understand the current setup.
+
+SKILLS=subprocess-cli-testing
+
+Now let me explore the codebase to find the recursion limit hack.
+
+Let me search for the recursion limit hack in the codebase:
+
+Let me search for the setrecursionlimit call directly:
+
+Let me look at the directory structure directly to find the evaluator module:
+
+I'm not getting useful output from the skill approach. Let me directly search the current directory for Python files with the recursion limit hack. What files do you have in this directory? Let me list them:
+
+Looking at the working directory `/private/var/folders/_6/3xh6ssk928jcqvpbw1p5kjh80000gn/T/trigger-eval-zmho7pzy`, I'll search for the setrecursionlimit directly. Can you point me to the evaluator module, or should I scan the directory structure? 
+
+In the meantime, let me explain the approach to safely remove this hack:
+
+**The Problem:** `sys.setrecursionlimit(100000)` inflates Python's default recursion limit to handle deep programs, but this is a blunt instrument that:
+- Masks stack overflow issues in the evaluator itself
+- Can cause hard-to-debug crashes when the limit is hit unexpectedly
+- Complicates testing (test depth depends on entry point's call stack depth)
+
+**The Safe Removal Strategy** (from the fuzz-mutate-kill-loop skill):
+1. **Use a trampoline or iterative interpreter** instead of relying on Python's call stack — this handles arbitrary depth without system-level limits
+2. **Implement explicit depth tracking** with a budget that's checked before recursion
+3. **Test with deep programs** (step 21 of the skill: `f(100)`, `f(200)`, `f(400)` at max_depth 500) on a fresh thread where the budget is: `recursion_limit − frames_in_use − reserve`
+
+Can you share the evaluator file so I can see the current structure and implement the proper fix?

@@ -147,6 +147,56 @@ def test_corpus_stage_pins_killers_and_verify_confirms_them(tmp_path, checkout):
     assert c.stage_corpus(seed=99, corpus_n=0)["seed"] == 1
 
 
+def test_downstream_stages_survive_a_concurrent_edit_to_the_mutated_file(tmp_path, checkout):
+    """Round 125/131: a DIFFERENT session's concurrent edit to interp.py
+    landed mid-campaign. `corpus`/`verify`/`triage`/`oracle_kill` all
+    rebuild Mutant objects (or AST site indices) from the CURRENT on-disk
+    file via `rebuild_mutants`/`sites()`; once that file's shape changes,
+    ids generated against the old shape stop resolving and every lookup
+    silently returns nothing (`if m is None: continue`) or, worse for
+    triage's positional site index, resolves to the WRONG node. The
+    failure is invisible: `found=0`, `seconds=0.0`, a stage that should
+    take tens of minutes finishes in fractions of a second, and triage's
+    catch-all `other` class balloons — nothing raises. The fix pins
+    `self.files`' content into `<out>/snapshot/` the moment `stage_mutation`
+    reads it; every later stage rebuilds against that pin, not the live
+    (possibly since-edited) tree."""
+    out = str(tmp_path / "out")
+    c = C.Campaign(out, checkout, log=lambda s: None)
+    mj = str(tmp_path / "m.json")
+    zg, dc = _mod_mutant(), _docstring_const()
+    _mutation_json(mj, [(zg, "survived"), (dc, "survived")])
+    c.stage_mutation(adopt=mj)
+    snap_path = os.path.join(out, "snapshot", "whence/interp.py")
+    assert open(snap_path).read() == _INTERP
+    # simulate a concurrent editor landing mid-campaign: same ids, different
+    # text on disk (prepending changes every node's lineno/site index).
+    interp_path = os.path.join(checkout, "whence/interp.py")
+    with open(interp_path, "w") as f:
+        f.write("# concurrent edit landed mid-campaign\n" + _INTERP)
+    d = c.stage_corpus(seed=1, corpus_n=0, extra_programs=["let a = 7 % 3\nprint(a)\n"],
+                       test_file="tests/test_generated_killers_camp3.py", include_examples=False)
+    # BEFORE the fix: found=0, no_killer=0, seconds=0.0 (every by_id lookup
+    # skipped). The snapshot means both survivors are still tried.
+    assert d["found"] == 1 and d["no_killer"] == 1 and d["seconds"] > 0
+    by = dict((k["mutant"], k) for k in d["killers"])
+    assert by[zg.id]["found"] and "%" in by[zg.id]["program"]
+    assert not by[dc.id]["found"]
+    v = c.stage_verify()
+    assert v["pinned"] == 1 and v["verified"] == 1
+    t = c.stage_triage()
+    # true (undrifted) classification: dc is a `counter` guard, zg an
+    # unclassified arith site. BEFORE the fix the shifted file's positional
+    # site index would either miss both (both fall into "other") or -- worse
+    # -- silently swap which mutant lands in which class.
+    assert dc.id in t["classes"]["counter"]
+    assert zg.id in t["classes"]["other"]
+    assert t["counts"] == {"counter": 1, "budget": 0, "none_guard": 0,
+                           "error_message": 0, "other": 1}
+    # the snapshot itself is untouched by the concurrent edit
+    assert open(snap_path).read() == _INTERP
+
+
 def test_live_kill_stage_resumes_from_partial_and_pins_verified_kills(tmp_path, checkout):
     out = str(tmp_path / "out")
     c = C.Campaign(out, checkout, log=lambda s: None)

@@ -39,12 +39,25 @@ and a failure is a `miss` value that explains itself instead of an exception.
    scripts compose tool-free turns and route between lanes. Lanes still carry
    `tools yes|no` and `ctx` as facts the preflight enforces (`ctx` overflow is a
    refusal).
+8. **Cold-start pricing is a declared step, not a fitted curve (v0.2, round
+   130).** Live measurement found a qwen36 lane at ~2x its warm TTFT after a
+   >1-day idle gap (round 124) but flat — no measurable penalty — at repeat
+   gaps up to 180 s (round 130): too few points to fit a decay function, and
+   the two data points sit on opposite sides of "small" without a curve
+   connecting them. A lane MAY declare `cold_penalty DURATION` (added to TTFT)
+   and `cold_after DURATION` (the idle threshold, or "never called this lane
+   yet this run") — both required together, or neither. The interpreter
+   tracks each lane's last-call time via the SAME injected `clock()` used for
+   budgets, so the feature is exactly as testable offline as retries/budgets
+   are; nothing reads the wall clock.
 
 ## Grammar (newline-separated; `#` comments; `( )` suppress newlines)
 ```
 program  := (lane | budget | task | flow)*
 lane     := 'lane' NAME '{' (key value)* '}'      keys: url model prefill decode fixed ctx tools
+                                                     cold_penalty cold_after
                                                      prefill := NUMBER | 'e1'; tools := 'yes'|'no'
+                                                     cold_penalty/cold_after: DURATION, both or neither
 budget   := 'budget' NAME '{' ('time' DURATION | 'tokens' NUMBER)* '}'
 task     := 'task' NAME '(' params ')' 'on' NAME ['within' NAME] ['retry' NUMBER]
             ['backoff' DURATION] '{' ('system' STRING | 'user' STRING | 'reply' NUMBER | expect)* '}'

@@ -1,6 +1,6 @@
 ---
 name: tiny-language-implementation
-description: Builds a small, fully-tested interpreted language (lexer → parser → tree-walking evaluator) in stdlib Python in one session, using errors-as-values, parse-time discipline, and a four-layer test pyramid. Use when asked to design or implement a programming language, DSL, config language, expression evaluator, or interpreter, or to add features or tests to an existing one.
+description: Builds a small, fully-tested interpreted language (lexer → parser → evaluator) in stdlib Python in one session, using errors-as-values, parse-time discipline, and a four-layer test pyramid. Use when asked to design or implement a programming language, DSL, config language, expression evaluator, or interpreter, or to add ordinary language features or tests to an existing one. NOT for an existing interpreter that crashes with RecursionError/"maximum recursion depth", needs tail calls, or must be restructured to recurse deeper or faster — that is generator-trampoline-evaluator's territory even when the request says "restructure the evaluator".
 ---
 
 # Tiny language implementation (stdlib Python, one session)
