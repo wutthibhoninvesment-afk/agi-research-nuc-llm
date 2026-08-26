@@ -359,6 +359,42 @@ def test_summarize_turns_counts_thinking_tokens_and_tool_calls(tmp_path):
     assert s["span_s"] == pytest.approx(7.067, abs=0.01)
 
 
+def test_summarize_turns_falls_back_to_result_aggregate_thinking_tokens(tmp_path):
+    """Pins round 145's fix: real production stream-json logs (round-140
+    through round-144 on disk, verified live) never put
+    `output_tokens_details` on a per-turn `assistant` event's `usage` at
+    all — the per-turn sum is always 0 even when the round did real
+    thinking — but the final `result` event's aggregate usage DOES carry
+    the true total. Turn shape below is copied field-for-field from a real
+    `logs/round-140.json` assistant event (no `output_tokens_details`
+    key), unlike `REAL_ASSISTANT_LINE` above which was a trivial
+    ping/pong call that never exercised this gap.
+    """
+    real_shape_turn = {
+        "type": "assistant",
+        "message": {
+            "model": "claude-sonnet-5", "role": "assistant",
+            "content": [{"type": "thinking", "thinking": "", "signature": "x"}],
+            "usage": {
+                "input_tokens": 2, "cache_creation_input_tokens": 11283,
+                "cache_read_input_tokens": 26138,
+                "cache_creation": {"ephemeral_5m_input_tokens": 0, "ephemeral_1h_input_tokens": 11283},
+                "output_tokens": 2, "service_tier": "standard",
+                "inference_geo": "not_available",
+            },
+        },
+        "timestamp": "2026-08-26T02:41:01.631Z",
+    }
+    result_with_usage = dict(
+        REAL_RESULT_LINE,
+        usage={"output_tokens_details": {"thinking_tokens": 33773}},
+    )
+    p = _write_ndjson(str(tmp_path), "a.json", [REAL_INIT_LINE, real_shape_turn, result_with_usage])
+    s = summarize_turns(p)
+    assert s["assistant_turns"] == 1
+    assert s["thinking_tokens"] == 33773  # not 0 — the pre-fix bug's reading
+
+
 def test_summarize_turns_none_on_plain_json_shape(tmp_path):
     p = _write(str(tmp_path), "a.json", {"is_error": False, "subtype": "success"})
     assert summarize_turns(p) is None

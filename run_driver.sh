@@ -3,6 +3,14 @@
 # Model: sonnet-5 (waiting for fable-5 weekly limit reset ~Sunday 2026-08-30)
 set -uo pipefail
 
+# Bumped by hand whenever this file changes in a way worth being able to
+# see directly in driver.log (no cross-referencing watcher.log timestamps
+# needed). Since round 145's self-re-exec fix (see the `exec bash "$0"
+# "$@"` at the loop's end below), this now reliably reflects the ON-DISK
+# script content for every round it produced, including rounds after a
+# mid-run edit — round 139's live driver could not make that claim.
+DRIVER_VERSION="145-selfexec"
+
 WS="${DRIVER_WS:-$HOME/agi-research}"
 TIMEOUT_CMD=""
 if command -v timeout >/dev/null 2>&1; then TIMEOUT_CMD="timeout"
@@ -13,6 +21,9 @@ run_timeout() {
 LOG="$WS/logs/driver.log"
 STATE_FILE="$WS/state/round_counter"
 FINAL="$WS/state/FINAL-REPORT.md"
+# Overridable only for tests exercising the self-re-exec loop below end to
+# end without a real 45s wait per round; production always uses 45.
+LOOP_SLEEP_S="${DRIVER_LOOP_SLEEP_S:-45}"
 
 log() { echo "[$(date '+%F %T')] $*" | tee -a "$LOG"; }
 
@@ -101,7 +112,7 @@ while true; do
   echo "$ROUND" > "$STATE_FILE"
   TRACK=$(track_name "$ROUND")
   RLOG="$WS/logs/round-$(printf '%03d' "$ROUND").json"
-  log "round $ROUND track=$TRACK start"
+  log "round $ROUND track=$TRACK start (driver_version=$DRIVER_VERSION) pid=$$"
 
   PROMPT="You are running research round $ROUND of the AGI software-engineering program.
 Your track this round: $TRACK. Follow CLAUDE.md ground rules and CURRICULUM.md exactly.
@@ -197,7 +208,32 @@ update research-state.md. Be relentless and thorough — this is deep research, 
   fi
 
   # pace against 5h rolling limit: brief cool-down between rounds
-  sleep 45
+  sleep "$LOOP_SLEEP_S"
+
+  # Structural fix (round 145, per round 139's §6 backlog item): re-exec
+  # this SAME script from disk before starting the next round, instead of
+  # looping via bash's cached in-memory parse of `while ... done`. Round
+  # 139 found the live driver had been running a pre-round-127 copy of
+  # this exact loop for 12+ rounds because bash parses a compound command
+  # like this ONCE and never re-reads it — every on-disk fix from rounds
+  # 127/133 had zero live effect until an external watcher killed and
+  # relaunched the process. `exec` replaces the process image in place
+  # (same PID, per `man bash`: "no new process is created"), so a script
+  # edit landed between rounds now takes effect on the very next round
+  # with no external redeploy needed — this class of bug becomes
+  # structurally impossible rather than something a future round has to
+  # notice and fix again. Deliberately placed AFTER the loop's `continue`
+  # points (429/5xx in-round retries) so escalating-backoff state
+  # (`RATE_LIMIT_ROUND`/`RATE_LIMIT_RETRIES`) is untouched by this change —
+  # those paths never reach this line, only a fully-finished round does,
+  # and `RATE_LIMIT_ROUND`/`RATE_LIMIT_RETRIES` are unconditionally
+  # re-derived from `$ROUND` at the top of the script on the next pass
+  # anyway (see the `if [ "$RATE_LIMIT_ROUND" != "$ROUND" ]` reset above),
+  # identical to what already happens when a genuinely new round starts.
+  # `break` paths (safety valve / budget-exhausted / rate-limit-exhausted)
+  # never reach this line either, so the FINAL report step below the loop
+  # still runs exactly once, as before.
+  exec bash "$0" "$@"
 done
 
 log "=== driver stopping at round $ROUND ==="

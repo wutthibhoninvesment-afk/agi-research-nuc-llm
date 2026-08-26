@@ -210,13 +210,28 @@ def summarize_turns(path: str) -> Optional[dict]:
     sessions the driver launches). Requires `--output-format stream-json`
     (the plain-json shape has no per-turn events at all, so this returns
     None for every log on disk before round 133); walks every `type:
-    "assistant"` line, summing `thinking_tokens` and counting `tool_use`
-    content blocks, and spans the first-to-last event `timestamp` for wall
-    time. Exists to eventually answer round 127's open question — why
-    rounds 122-126 each burned all 80 turns and 24k-60k thinking tokens
-    without producing a knowledge file — with real per-turn data instead
-    of speculation; this round doesn't have a max-turns death to point it
-    at yet, so it's un-exercised on real data beyond the fixture tests.
+    "assistant"` line, counting `tool_use` content blocks and spanning the
+    first-to-last event `timestamp` for wall time.
+
+    `thinking_tokens`: round 145 found LIVE, against 5 real round-133+ logs
+    (140-144, one a genuine max-turns death with 33773 real thinking
+    tokens per the final result), that no per-turn `assistant` event's
+    `message.usage` EVER carries an `output_tokens_details` key at all —
+    every one of 150+150+... real turns across those 5 logs lacks it
+    entirely, not just zeros it. The original per-turn-sum implementation
+    (round 133) was unit-tested against a fixture claiming to be "pinned
+    verbatim from a real call" that happened to be a trivial ping/pong
+    smoke test whose thinking_tokens really was 0 — the fixture's
+    STRUCTURE (key present) was never checked against a call that actually
+    thought, so the always-0 bug passed every test while reading 0 on
+    every real production log since round 133 (driver.log rounds 140-144
+    all show `"thinking_tokens": 0` despite real extensive reasoning).
+    Fixed here by falling back to the final `type: "result"` event's
+    aggregate `usage.output_tokens_details.thinking_tokens` (verified
+    present and correct there) whenever the per-turn sum is 0 — the
+    per-turn summation itself is left in place in case a future CLI
+    version starts populating it per-turn, which would then win over the
+    coarser aggregate automatically.
     """
     try:
         with open(path) as f:
@@ -228,6 +243,7 @@ def summarize_turns(path: str) -> Optional[dict]:
     tool_calls = 0
     timestamps = []
     saw_assistant = False
+    result_thinking_tokens = None
     for line in text.splitlines():
         line = line.strip()
         if not line:
@@ -235,6 +251,10 @@ def summarize_turns(path: str) -> Optional[dict]:
         try:
             obj = json.loads(line)
         except Exception:
+            continue
+        if obj.get("type") == "result":
+            r_usage = obj.get("usage") or {}
+            result_thinking_tokens = (r_usage.get("output_tokens_details") or {}).get("thinking_tokens")
             continue
         if obj.get("type") != "assistant":
             continue
@@ -251,6 +271,8 @@ def summarize_turns(path: str) -> Optional[dict]:
             timestamps.append(ts)
     if not saw_assistant:
         return None
+    if thinking_tokens == 0 and result_thinking_tokens:
+        thinking_tokens = result_thinking_tokens
     span_s = None
     if len(timestamps) >= 2:
         try:

@@ -15,3 +15,9 @@
 [2026-08-26 09:40:58] fresh driver launched (pid 28398), now reading the CURRENT run_driver.sh from disk
 [2026-08-26 09:40:58] === driver started; resuming after round 139 ===
 [2026-08-26 09:40:58] round 140 track=language(C) start
+[2026-08-26 11:09:39] redeploy watcher started (pid 42323); waiting for round pid 39335 to exit on its own (driver pid 28398 is running a stale in-memory copy of run_driver.sh)
+[2026-08-26 11:12:44] round pid 39335 exited after 38x5s polls
+[2026-08-26 11:12:49] stale driver pid 28398 stopped
+[2026-08-26 11:12:49] fresh driver launched (pid 42972), now reading the CURRENT run_driver.sh from disk
+[2026-08-26 11:12:49] === driver started; resuming after round 145 ===
+[2026-08-26 11:12:49] round 146 track=language(C) start (driver_version=145-selfexec) pid=42972
