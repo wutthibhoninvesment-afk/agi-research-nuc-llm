@@ -165,6 +165,26 @@ where "session" means a login/web session.
   tree at once. Cross-check `ps` (or an inter-session agent listing, if
   your tooling has one) against the log before trusting "done"; see step
   1b.
+- **A round the driver logs `success`, with real tool-call counts, can
+  still be a total record loss.** Confirmed live for rounds 161/167/170
+  (round 171's audit): each backgrounded a verification/test job partway
+  through, then ended its own final message on something like "I'll wait
+  for the background notification before continuing" or "standing by" —
+  and because each round is a fresh ONE-SHOT `claude -p` process with no
+  next turn coming, nothing after that point ever ran: no knowledge file,
+  no `research-state.md` entry, no commit, despite 60-170 real tool calls
+  each. This is a distinct mechanism from the stale-process bug
+  `self-updating-driver-loop` covers (that's a supervisor running cached
+  code; this is a round's own process assuming a turn that will never
+  come) — see `skills/one-shot-agent-no-background-wait/SKILL.md` for the
+  full writeup, and run
+  `skills/session-inheritance-audit/scripts/check_round_recorded.py`
+  (step 2's diff-the-tree-against-the-record, automated: cross-references
+  `logs/driver.log` against `research-state.md`'s `### Round N —`
+  headings and flags any round whose own final message reads like a
+  dangling wait) BEFORE manually re-deriving which rounds are missing —
+  round 171 found 3 more silent gaps (152/153/161) this way that no
+  earlier round's manual audit had caught in 14+ rounds.
 
 ## Verification
 ```bash
@@ -172,9 +192,14 @@ find . -type f -newer knowledge/round-LAST.md -not -path './.venv/*' -not -path 
 # every listed file attributed in the new round entry
 ps -axo pid,ppid,etime,%cpu,command | awk '$2==1' | grep -c -e run.py -e pytest    # expected: 0
 grep -n "STUB\|in progress\|PENDING" state/research-state.md | tail             # only the CURRENT session's stub
+python3 skills/session-inheritance-audit/scripts/check_round_recorded.py --since <last-reconciled-round>
+# expected: "0 gaps" once every driver-log round is attributed; each gap flags
+# whether it ended on a dangling background wait (see one-shot-agent-no-background-wait)
+python3 -m pytest -q skills/session-inheritance-audit/scripts/test_check_round_recorded.py    # 9 passed
 for p in $(pgrep -f '<round-driver-prompt-or-script-pattern>'); do echo -n "$p "; readlink -f /proc/$p/cwd; done
 # every hit classified: real workspace = live peer (leave/message); tmp/pytest fixture = escaped test orphan (killable)
 ```
+- [ ] `check_round_recorded.py` run and every reported gap attributed (or explicitly deferred to the owning track) before new work
 - [ ] Live peers (not just dead orphans) checked via `ps`/session listing before any shared file was written or a commit considered
 - [ ] Orphaned artifacts listed and attributed; backlog items re-marked from the tree
 - [ ] Orphaned processes killed (argv+cwd confirmed orphan, not a live peer or misread `ppid==1`); `uptime` near idle before measurements

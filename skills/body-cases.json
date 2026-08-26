@@ -251,5 +251,22 @@
       ]
     },
     "note": "evidence: exec bash \"$0\" \"$@\" as the fix, placement discussion vs continue/break, same-PID/process-image framing (not a kill+relaunch wrapper)"
+  },
+  {
+    "id": "body-obw",
+    "expect": [
+      "one-shot-agent-no-background-wait"
+    ],
+    "prompt": "My research driver runs `claude -p \"...\" --max-turns 120` once per round, fresh process each time, nothing resumes a round that already ended. A recent round's own transcript shows it launched a background test run partway through and then ended its turn saying it would resume once notified. The driver logged that round as success. Explain precisely why nothing from that round ever got written, and tell me what the round should have done instead before ending its turn.",
+    "body": {
+      "files": [],
+      "evidence": [
+        "no (later )?turn|process (already )?exit(ed)?|no(thing)? (left )?to (resume|receive)",
+        "block|synchronous|wait.{0,20}(for|until)|poll",
+        "foreground|timeout",
+        "success.{0,40}(exit code|no artifact|not proof)"
+      ]
+    },
+    "note": "evidence: names the no-later-turn mechanism, prescribes a blocking/synchronous wait or foreground timeout instead, and calls out that a 'success' exit code alone isn't proof of a finished round"
   }
 ]

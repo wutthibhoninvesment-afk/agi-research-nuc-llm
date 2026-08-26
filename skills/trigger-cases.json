@@ -451,5 +451,31 @@
       "session-inheritance-audit"
     ],
     "prompt": "The driver log says round 12 finished and round 13 already started, but 'ps' still shows round 12's claude process alive with an 8-minute uptime, and both are editing the same repo. Am I safe to start writing files, or could round 12 still be mid-edit?"
+  },
+  {
+    "id": "obw-near",
+    "expect": [
+      "one-shot-agent-no-background-wait"
+    ],
+    "prompt": "Our cron job runs `claude -p \"do the round's work\" --max-turns 100` once per iteration. Three iterations in a row show the driver log marking them 'success' with 60-150 tool calls each, but no files changed and no report was written. The last line of each transcript says something like 'I'll resume once the background job finishes' or 'standing by for the notification.' What's going on and how do I stop it from happening again?"
+  },
+  {
+    "id": "obw-mid",
+    "expect": [
+      "one-shot-agent-no-background-wait"
+    ],
+    "prompt": "I have a non-interactive batch pipeline that invokes an LLM agent once per task. Every so often a task is marked done with no error, but nothing it was supposed to produce actually exists on disk. It looks like the agent kicked off a long-running check and then stopped issuing any more tool calls."
+  },
+  {
+    "id": "obw-far",
+    "expect": [
+      "one-shot-agent-no-background-wait"
+    ],
+    "prompt": "The overnight automated run finished clean, no errors, but this time absolutely nothing changed. The very end of the transcript just says the process is waiting for something to complete."
+  },
+  {
+    "id": "obw-neg",
+    "expect": [],
+    "prompt": "In my interactive Claude Code session, I want to kick off a long build in the background and keep working on something else while I wait for it to finish, then get notified when it's done."
   }
 ]
