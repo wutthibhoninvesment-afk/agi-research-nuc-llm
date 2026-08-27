@@ -268,7 +268,8 @@ that cannot end a statement.
   never measured. A fix (structural sharing for records, e.g. a persistent
   map) is a real but nontrivial interpreter change with no current
   curriculum driver; flagged as optional future backlog, not attempted this
-  round.
+  round. **Built round 204 — see "v0.16" below**: `Record` is now backed by
+  `PMap`, a persistent AVL tree, closing this gap.
 
 ## v0.6 (round 020)
 - `has(r, name)` — presence, not readability: `true` when the field exists
@@ -1031,6 +1032,96 @@ that cannot end a statement.
   dedicated `show_payload`-based test confirming confidence/sources
   render identically host-vs-guest (a check `deep_eq`-based agreement
   alone cannot make, since `deep_eq` treats them as pure metadata).
+
+## v0.16 (round 204) — persistent records (structural sharing for `Record`)
+- **The fix round 200 flagged and left as optional backlog.** `Record` was
+  a thin wrapper around a plain Python `dict`; every `put` (`b_put`,
+  `whence/interp.py`) did `fields = dict(r.payload.fields); fields[k] = v`
+  — a full shallow copy of the CURRENT store on every single call. Since
+  `derived(...)` keeps a node's `inputs` (including the superseded store)
+  reachable forever — by design, `why`/`steps` must be able to trace back
+  through it — N sequential `put`s onto a growing store costs O(N) each
+  with the store growing ~linearly in N: O(N^2) cumulative allocation by
+  construction, and every intermediate copy stays live. Round 200 measured
+  this directly (`self_host.lang`'s own 66-check test section, run through
+  `self_eval.lang`'s guest evaluator, passed 700 MB/1.2 GB `RLIMIT_AS`
+  caps by checkpoint 35/40) but declined to fix it (no curriculum driver
+  at the time, a real but nontrivial change).
+- **What was built**: `whence.values.PMap`, a persistent (immutable) AVL
+  tree keyed by string, giving `Record` the same treatment `WList` (v0.6)
+  already gives lists. `put(k, v)` returns a NEW map allocating only the
+  O(log n) nodes on the path from the root to `k`'s position —every
+  sibling subtree is the SAME object as before, shared, not copied. `get`/
+  `__contains__`/`__len__`/`items()`/`keys()` round-trip through the same
+  dict-shaped API every existing call site already used (`in`,
+  `fields[name]`, `.get(...)`, `.items()`, `set(fields)`, `sorted(fields)`,
+  `len(fields)`) — no call site needed new methods except the two that
+  used to hand-roll the copy: `b_put` now does
+  `r.payload.fields.put(name, v)` and `merge` does
+  `a.payload.fields.merged_with(b.payload.fields)` (`other` wins on
+  shared keys, same as the old `dict.update` semantics). `Record.__init__`
+  accepts either a plain dict (record literals, tests — built via
+  `PMap.from_dict`, a one-time O(k log k) cost for the literal's own small,
+  fixed field count) or an already-built `PMap` (the `put`/`merged_with`
+  fast path — stored directly, no extra copy at the `Record` layer).
+  Field order was never semantically meaningful to begin with — every
+  display site already did `sorted(p.fields.items())` and equality is
+  set-based — so `PMap`'s key-ordered iteration is not a behaviour change,
+  just a faster way to reach the same order. No delete is needed (Whence
+  records never lose a field), which keeps the AVL logic to the classic
+  insert-only rotations.
+- **Verification.** `tests/test_v16.py` (15 new tests): `PMap` unit tests
+  differential against a plain dict (including a branch-from-a-snapshot
+  case that only makes sense for a persistent structure — two divergent
+  futures from the same shared prefix, both reading back correctly);
+  `Record` integration tests (construction from a dict vs. a `PMap`,
+  `put`-chain-via-real-language-builtins, `merge` conflict semantics,
+  three-way fast/direct/slow parity on a long `put` chain, and a check
+  that a record's OWN provenance `inputs` still come from the literal's
+  DECLARED order, not `PMap`'s key order — the two are orthogonal, this
+  round only changed the latter). Full suite 865/865 (850 + 15). Whole-repo
+  differential (`bench/ref_diff.py --counters`, direct/fast/slow ×
+  every example, binding/check/output counts) against the pre-round-204
+  `HEAD`: 0 differing (file, mode) pairs — behaviour is byte-identical.
+- **`bench/pmap_scaling.py`** isolates the asymptotic claim from the
+  self-hosting harness's noisier end-to-end numbers (parsing, lexing, the
+  guest evaluator itself all mixed in there): N sequential `put`s onto a
+  record with N ~distinct keys (matching the real store-growth shape,
+  NOT a small fixed key set — repeatedly overwriting a handful of keys
+  keeps the old `dict`-copy approach linear, not quadratic, so the
+  benchmark has to grow the store to be a fair comparison), every
+  intermediate version retained in a list (mirrors provenance retention).
+  Old (`dict` copy) vs new (`PMap`), same N: 200 → 0.0035s/0.0055s,
+  400 → 0.020s/0.011s, 800 → 0.081s/0.038s, 1600 → 0.30s/0.050s,
+  3200 → 0.61s/0.116s — old grows quadratically (16x N from 200→3200,
+  ~174x time, close to the 256x a pure O(N^2) would predict), new grows
+  close to N log N (~21x time for 16x N). A 12800-point run was attempted
+  and killed by the OOM reaper (exit 137) — retaining ALL versions of a
+  dict that reaches thousands of entries is itself O(N^2) MEMORY
+  regardless of which map implementation is under it (each of the N
+  retained versions has its own O(N)-sized flat dict), a reminder that
+  this microbenchmark's "keep every version in a Python list" is a
+  deliberately pessimistic stand-in for provenance retention, not
+  something to push arbitrarily far on a memory-constrained box.
+- **A real, honestly-reported trade-off, not a pure win**: re-running
+  `bench/self_host_memscale.py` (round 200's own tool) shows the memory
+  curve is now dramatically flatter — checkpoint 20 (`self_host.lang`'s
+  real test section through the guest evaluator) peaks at 119 MB vs round
+  200's 198 MB, checkpoint 25 at 121 MB vs 259 MB — but checkpoint 30
+  TIMED OUT at the script's default 60s wall clock (elapsed was already
+  climbing: 12.4s → 14.1s → 17.7s → 25.6s → 29.8s for checkpoints
+  5/10/15/20/25, roughly 2x round 200's elapsed at the same checkpoints).
+  Root cause: a Python-level AVL node allocation (attribute reads on two
+  child pointers, height/size arithmetic, a `_pinsert` recursive call per
+  tree level) costs far more per operation in constant-factor terms than
+  a single C-level `dict.copy()` + `__setitem__`, which is exactly the
+  operation it replaced. At the store sizes this specific harness
+  actually reaches, the O(log n)-vs-O(1)-per-op difference does not (yet)
+  outweigh the constant-factor gap — this is the textbook trade-off every
+  real persistent data structure makes (Clojure's/Scala's persistent maps
+  are slower per-operation than a mutable hash map for exactly this
+  reason), not a bug in this implementation. See round 204's knowledge
+  file for the full re-run at a longer timeout and the net verdict.
 
 ## Builtins
 `print len range map filter fold push str num abs sqrt missed reasons note

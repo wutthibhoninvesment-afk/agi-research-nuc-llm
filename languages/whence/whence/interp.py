@@ -2477,9 +2477,8 @@ def _make_builtin_table():
         if not isinstance(a.payload, Record) or not isinstance(b.payload, Record):
             return mk_miss("merge needs two records", line, "merge",
                            inputs=(a, b))
-        fields = dict(a.payload.fields)
-        fields.update(b.payload.fields)
-        return derived("merge", "", line, (a, b), Record(fields))
+        merged = a.payload.fields.merged_with(b.payload.fields)
+        return derived("merge", "", line, (a, b), Record(merged))
 
     # --- records as data / self-hosting support (v0.5, round 14) --------
     # `get` and `put` make records dynamically inspectable and buildable:
@@ -2538,9 +2537,8 @@ def _make_builtin_table():
             return mk_miss("put field name must be a string, got %s" %
                            show_payload(name.payload), line, "put",
                            inputs=(r, name, v))
-        fields = dict(r.payload.fields)
-        fields[name.payload] = v
-        return derived("put", name.payload, line, (r, v), Record(fields))
+        new_map = r.payload.fields.put(name.payload, v)
+        return derived("put", name.payload, line, (r, v), Record(new_map))
 
     @register("find", 2)
     def b_find(interp, args, line):

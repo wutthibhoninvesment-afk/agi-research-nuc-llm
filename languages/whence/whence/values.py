@@ -229,11 +229,206 @@ class Guess(object):
         self.sources = tuple(out)
 
 
+_PMAP_MISSING = object()
+
+
+class _PNode(object):
+    """One node of a persistent (immutable) AVL tree, keyed by string.
+
+    No delete is needed (Whence records never lose a field), which keeps
+    the rebalancing logic to the classic insert-only cases. `size` is
+    carried per node so `len(PMap)` is O(1) rather than a full walk.
+    """
+    __slots__ = ("key", "val", "left", "right", "height", "size")
+
+    def __init__(self, key, val, left, right):
+        self.key = key
+        self.val = val
+        self.left = left
+        self.right = right
+        lh = left.height if left is not None else 0
+        rh = right.height if right is not None else 0
+        ls = left.size if left is not None else 0
+        rs = right.size if right is not None else 0
+        self.height = 1 + (lh if lh > rh else rh)
+        self.size = 1 + ls + rs
+
+
+def _pheight(n):
+    return n.height if n is not None else 0
+
+
+def _pbalance(n):
+    return _pheight(n.left) - _pheight(n.right)
+
+
+def _protate_left(n):
+    r = n.right
+    new_n = _PNode(n.key, n.val, n.left, r.left)
+    return _PNode(r.key, r.val, new_n, r.right)
+
+
+def _protate_right(n):
+    l = n.left
+    new_n = _PNode(n.key, n.val, l.right, n.right)
+    return _PNode(l.key, l.val, l.left, new_n)
+
+
+def _prebalance(n):
+    bf = _pbalance(n)
+    if bf > 1:
+        if _pbalance(n.left) < 0:
+            n = _PNode(n.key, n.val, _protate_left(n.left), n.right)
+        return _protate_right(n)
+    if bf < -1:
+        if _pbalance(n.right) > 0:
+            n = _PNode(n.key, n.val, n.left, _protate_right(n.right))
+        return _protate_left(n)
+    return n
+
+
+def _pinsert(node, key, val):
+    """Path-copying insert. Returns (new_root, is_new_key): only the O(log n)
+    nodes from the root down to `key`'s position are allocated — every
+    sibling subtree is the SAME object as before, shared, not copied."""
+    if node is None:
+        return _PNode(key, val, None, None), True
+    if key == node.key:
+        return _PNode(key, val, node.left, node.right), False
+    if key < node.key:
+        new_left, is_new = _pinsert(node.left, key, val)
+        merged = _PNode(node.key, node.val, new_left, node.right)
+    else:
+        new_right, is_new = _pinsert(node.right, key, val)
+        merged = _PNode(node.key, node.val, node.left, new_right)
+    return _prebalance(merged), is_new
+
+
+def _pget(node, key):
+    while node is not None:
+        if key == node.key:
+            return node.val
+        node = node.left if key < node.key else node.right
+    return _PMAP_MISSING
+
+
+def _pinorder(node):
+    """Iterative in-order walk (no host recursion, matches this codebase's
+    convention of never recursing on the host stack for guest-scale data)."""
+    stack = []
+    cur = node
+    while stack or cur is not None:
+        while cur is not None:
+            stack.append(cur)
+            cur = cur.left
+        cur = stack.pop()
+        yield cur.key, cur.val
+        cur = cur.right
+
+
+class PMap(object):
+    """A persistent (immutable) string-keyed map, backed by an AVL tree.
+
+    `put` returns a NEW map sharing every subtree untouched by the change —
+    O(log n) new nodes per update instead of a full O(n) copy. This is the
+    same idea `WList` (v0.6) applies to lists, now given to records: a
+    chain of N sequential `put`s costs O(N log N) total allocation with
+    every intermediate version still fully reachable (needed for `why`/
+    `steps`), instead of O(N^2) (round 200's self-hosting memory-scaling
+    finding: `dict(r.payload.fields)` copied the WHOLE current store on
+    every single `put`). Iteration/`items()` walks the tree in key order —
+    every existing Record display site already does `sorted(p.fields...)`,
+    so this is not a behaviour change, just a faster way to reach the same
+    sorted order.
+    """
+    __slots__ = ("_root",)
+
+    def __init__(self, root=None):
+        self._root = root
+
+    @staticmethod
+    def from_dict(d):
+        m = PMap()
+        for k, v in d.items():
+            m = m.put(k, v)
+        return m
+
+    def put(self, key, val):
+        new_root, _ = _pinsert(self._root, key, val)
+        return PMap(new_root)
+
+    def get(self, key, default=None):
+        v = _pget(self._root, key)
+        return default if v is _PMAP_MISSING else v
+
+    def merged_with(self, other):
+        """New map with every (key, value) of `other` layered on top of
+        `self` (matches `dict(self); .update(other)` semantics: `other`
+        wins on shared keys)."""
+        m = self
+        for k, v in other.items():
+            m = m.put(k, v)
+        return m
+
+    def __contains__(self, key):
+        return _pget(self._root, key) is not _PMAP_MISSING
+
+    def __getitem__(self, key):
+        v = _pget(self._root, key)
+        if v is _PMAP_MISSING:
+            raise KeyError(key)
+        return v
+
+    def __len__(self):
+        return self._root.size if self._root is not None else 0
+
+    def __iter__(self):
+        for k, _ in _pinorder(self._root):
+            yield k
+
+    def __bool__(self):
+        return self._root is not None
+
+    __nonzero__ = __bool__   # py2-style alias, harmless on py3
+
+    def keys(self):
+        return iter(self)
+
+    def items(self):
+        return _pinorder(self._root)
+
+    def values(self):
+        for _, v in _pinorder(self._root):
+            yield v
+
+    def to_dict(self):
+        return dict(self.items())
+
+    def __eq__(self, other):
+        if isinstance(other, PMap):
+            return self.to_dict() == other.to_dict()
+        return NotImplemented
+
+    __hash__ = None
+
+    def __repr__(self):
+        return "PMap(%r)" % (self.to_dict(),)
+
+
 class Record(object):
-    __slots__ = ("fields",)
+    __slots__ = ("_map",)
 
     def __init__(self, fields):
-        self.fields = dict(fields)  # str -> Value
+        # Accepts a PMap directly (the fast path: `put`/`merged_with`
+        # already built the new map, nothing left to copy) or any
+        # dict-like/iterable-of-pairs mapping (record literals, `@{...}`
+        # construction sites, tests) via `PMap.from_dict`.
+        self._map = fields if isinstance(fields, PMap) else PMap.from_dict(
+            fields if hasattr(fields, "items") else dict(fields))
+
+    @property
+    def fields(self):
+        return self._map
 
 
 class Closure(object):
