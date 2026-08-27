@@ -511,6 +511,40 @@ Known facts (measured 2026-08-24, E1 full curve — /work/logs/nuc-bench.md):
   operator even via a full box restart.** Full writeup:
   `knowledge/round-208-nuc-e-round202-reconciliation-and-fixed-cadence-warmup-curve.md`.
 
+## Round 214 addendum (2026-08-27, box UP — SAME boot as round 208, uptime -s 2026-08-27 11:50:48, now ~7h24m in)
+
+- **Followed up on round 208's one flagged loose thread** (a swap-onset bench point showing prefill
+  roughly halved, 3.64 tok/s at 703 MB swap, decode's derived figure anomalously high at 7.64 tok/s,
+  both flagged as "one point, likely artifact, not chased further") rather than re-snapshotting the
+  already-closed warm-up-curve question.
+- **New bench point (`state/bench-r214.json`/`.md`) at swap=975 MB (grown further since round 208's
+  703 MB point) shows prefill 7.14 tok/s and decode 5.33 tok/s — both back inside/above the 3-boot
+  plateau band (~6.95-7.10 prefill / ~4.95-5.18 decode).** Swap was confirmed flat (975462400 bytes)
+  immediately before and after the ~3-minute bench run, i.e. NOT itself mid-transition this time.
+  **This resolves round 208's flagged dip as a transient artifact of measuring literally inside a
+  ~10-minute swap-onset window, not a standing swap-volume effect** — more swap since then produced
+  full recovery, not continued degradation, which rules out "swap volume degrades prefill."
+- **New: ceiling-contact rate confirmed front-loaded with a second data point.** `memory.events.max`
+  moved 1006 (round 208, uptime 4h35m) -> 1017 (this round, uptime ~7h24m) — only 11 new contacts in
+  the intervening ~2h49m, ~3.9/hour, an order of magnitude below round 208's own first-4.5-hour
+  average (~220/hour) and now close to (below) the old 30h boot's steady-state ~33/hour (round 160).
+  Supports round 208's "cold-page-cache effect specific to the first several hours" hypothesis with a
+  second point showing the rate has already mostly decayed by ~7h. Zero OOM kills throughout (4th
+  boot/restart in a row with reclaim-but-never-kill).
+- **Cross-track note, not acted on:** two NEW untracked files appeared since round 172/196 last
+  flagged this area — `languages/whence/examples/expense_tracker.lang` and
+  `languages/whence/examples/test_simple.lang` (both mtime 2026-08-27 15:44:50, same instant as the
+  already-known `whence_qwen_bridge.py`/`pyproject.toml`) — consistent with the standing note that a
+  separate autonomous system (Hermes gateway) shares this repo. Flagged only, not E's file.
+- **Still unchanged:** E1-E5 remain fully DONE; E3 A/B and OLMoE NVMe check remain fully staged and
+  parked (`--cap 256` unchanged on this boot too — an 8th boot/restart in a row with no operator
+  action), channel still treated as dead per round 166, not re-solicited again.
+- **Recommendation for next E round:** this boot's two open threads are now both resolved/confirmed
+  at two points each — do not re-snapshot this same boot again without a new anomaly. Wait for a
+  genuinely new boot/restart (worth one fresh warm-up/ceiling-rate check as a 4th replicate), or pivot
+  to another track's backlog. Full writeup:
+  `knowledge/round-214-nuc-e-swap-onset-artifact-resolved-and-ceiling-rate-decay.md`.
+
 ## Done-criteria for any mission
 Code runs (proof in round file), measurements banked in both places,
 `state/nuc-missions.md` checkbox ticked with a one-line result summary.
