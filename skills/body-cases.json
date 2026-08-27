@@ -285,5 +285,37 @@
       ]
     },
     "note": "round 177's pitfall: guest delegation makes a new value's arithmetic transparently pass pre-existing is_*/kind probes; evidence: a dedicated is_ratio guard, patching is_num, patching the kind dispatcher, and ordering language (guard checked before/ahead of the generic probes)"
+  },
+  {
+    "id": "body-leb",
+    "expect": [
+      "llm-engine-benchmarking"
+    ],
+    "prompt": "Our llama.cpp server advertises a slot-based prompt cache. To check whether it's doing anything I'm timing two requests back to back: first a totally new 3000-token prompt (I call this t_cold), then I immediately resend that exact same prompt again (t_repeat), both with max_tokens=1, and reporting t_repeat / t_cold as the 'cache win ratio'. On a freshly-restarted server I get ratios around 0.35 (looks great); an hour into steady traffic the same experiment at the same size gives ratios around 0.9 (looks like caching stopped working) — nothing in the server config changed between the two runs. What's actually broken about this measurement, and what should I compare instead to get a ratio that means the same thing every time?",
+    "body": {
+      "files": [],
+      "evidence": [
+        "fresh",
+        "warm.?up|cold.?start|idle",
+        "confound|conflat|bias|drift|two (different |separate )?effects"
+      ]
+    },
+    "note": "llm-engine-benchmarking's pitfall: the prefix-reuse signal is repeat/fresh, not repeat/cold — t_cold mixes real cache reuse together with engine warm-up/idle drift, so the ratio swings with how long the server has been idle rather than with caching itself; evidence: recommends a fresh (differently-seeded, same-size) comparator and names the warm-up/cold-start confound explicitly"
+  },
+  {
+    "id": "body-epr",
+    "expect": [
+      "engine-prefix-reuse-audit"
+    ],
+    "prompt": "We patched our inference engine's KV cache to check, on every new request, whether the token ids of the new prompt begin with the FULL token id sequence of the previous request (prompt text as sent, verbatim) — if so, keep the old KV state and only prefill the new suffix; otherwise start cold. In an offline replay of our chat UI's raw request logs this fires constantly. In production, with our actual agent framework driving the same model, it almost never fires even on back-to-back turns of the same conversation. The agent framework re-renders the previous assistant turn before sending it back (its raw tool-call JSON becomes pretty-printed markdown, and a trailing empty <think></think> block the model always emits gets stripped) — otherwise the conversation content is unchanged. Why does 'new prompt starts with the old prompt's exact bytes' fail here, and where should the reuse point actually be anchored instead?",
+    "body": {
+      "files": [],
+      "evidence": [
+        "re-render|rerender|reformat|rewrit|strip|pretty.?print",
+        "assistant|header",
+        "prefix|diverge|common"
+      ]
+    },
+    "note": "engine-prefix-reuse-audit's pitfall: strict continuation (prompt-end snapshot) is not agent-safe because a client that re-renders the prior assistant turn breaks byte-identity every time; evidence: names the client-side re-render/strip as the cause and recommends anchoring the reuse snapshot at the assistant-turn boundary via the real longest-common-prefix, not the raw prompt end"
   }
 ]
