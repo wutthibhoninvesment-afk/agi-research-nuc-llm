@@ -357,7 +357,13 @@ fn parse_record_lit(toks, pos, acc, seen) {
 # list record fn any); the guest has no `shape` support, so a shape name is
 # simply an "unknown type" miss like any other bad tag, same total-error
 # discipline as every other parse failure in this file.
-let guest_primitive_types = ["num", "str", "bool", "list", "record", "fn", "any"]
+# v0.15 guest parity (round 176): "guess" joined the host's PRIMITIVE_TYPES
+# when the AI-native-primitives feature shipped (round 168), so `fn f(x:
+# guess)` must type-check in the guest exactly as it already does at the
+# host (verified: `typed(guess(5,0.9,"s"), "guess", "lbl")` is a pass-through,
+# `typed(5, "guess", "lbl")` misses "expected guess, got num").
+let guest_primitive_types = ["num", "str", "bool", "list", "record", "fn",
+                             "any", "guess"]
 
 fn expect_type_name(toks, pos) {
   let k = t_at(toks, pos)
@@ -579,8 +585,13 @@ fn mkb(p, o, i) { @{v: p, op: o, ins: i} }
 
 # strip: deep-unbox a guest value into a plain host-shaped value. Misses and
 # closures pass through unchanged (a closure's fields are raw, not boxed).
-fn strip(b) {
-  let p = b.v
+# `strip_raw` takes the already-unboxed payload directly (round 176: needed
+# by `raw_deep_eq`'s Guess-vs-Guess case, which recurses on `sure(x, 0)`'s
+# result — a raw payload, not a box — rather than a fresh box to strip). A
+# Guess falls through to the final `else { p }` unchanged, same as a
+# closure: it is opaque to `strip`, matching the host's own "deliberately
+# shallow" Guess design (indexing/field-access/etc. don't reach inside one).
+fn strip_raw(p) {
   if missed(p) { p }
   else if is_callable(p) { p }
   else if is_list(p) { map(strip, p) }
@@ -589,6 +600,7 @@ fn strip(b) {
   }
   else { p }
 }
+fn strip(b) { strip_raw(b.v) }
 
 # reify: box graph -> guest-visible records, threading a node budget so a
 # shared/deep history cannot blow up (the host caps render_why the same way;
@@ -618,14 +630,17 @@ fn reify(b, k) {
 let builtin_names = ["print", "len", "range", "map", "filter", "fold", "push",
                      "str", "num", "abs", "sqrt", "missed", "reasons", "note",
                      "contains", "join", "keys", "merge", "get", "put", "has",
-                     "find", "typed"]
+                     "find", "typed", "guess", "is_guess", "confidence", "sure"]
 
 # host builtins whose first step is `_propagate` (a miss argument yields
-# a "builtin"-op miss before the builtin looks at anything)
+# a "builtin"-op miss before the builtin looks at anything). `is_guess` is
+# deliberately absent — like `missed`/`matches`, it is total and never
+# itself propagates a miss (round 176, v0.15 guest parity).
 let propagating = ["len", "range", "num", "abs", "sqrt", "contains", "join",
-                   "keys", "merge", "has", "put"]
+                   "keys", "merge", "has", "put", "guess", "confidence", "sure"]
 let arities = @{print: 1, len: 1, range: -1, map: 2, filter: 2, fold: 3,
                 push: 2, str: 1, num: 1, abs: 1, sqrt: 1, missed: 1,
+                guess: 3, is_guess: 1, confidence: 1, sure: 2,
                 reasons: 1, note: 2, contains: 2, join: 2, keys: 1,
                 merge: 2, get: 2, put: 3, has: 2, find: 2, typed: 3}
 
@@ -661,8 +676,26 @@ fn lookup(st, env, name) {
 # guest_tag reads a RAW __tag string, which only genuine closures/builtin
 # refs carry — a user record's fields are boxes, and a box never == a string,
 # so the old __tag-spoofing leak is closed by boxing itself.
-fn is_bool(v) { not missed(v) and (v == true or v == false) }
-fn is_list(v) { not missed(v + []) }
+#
+# v0.15 guest parity (round 176): a guest Guess value is not a hand-rolled
+# tagged record like a closure — it is the REAL host `Guess` payload,
+# produced by delegating the `guess`/`is_guess`/`confidence`/`sure`
+# builtins straight to the host (see `apply_host_builtin`), so arithmetic
+# and comparisons on a guest Guess reuse the host's OWN `_guess_binop`/
+# `_unary` propagation for free (the guest never re-derives that machinery
+# in Whence source). The cost of that shortcut: every "does v look like a
+# T" probe below (`v + 0`, `v + []`, `v == true or v == false`) ALSO
+# succeeds for a Guess wrapping that same shape, because Guess arithmetic
+# is transparent by design — `is_num`/`is_list`/`is_bool` would otherwise
+# misreport a `guess(5, ...)` as a plain number. `is_guess_val` must be
+# checked FIRST (or these three guarded against it) everywhere a value's
+# kind is probed; `is_guess` itself is total (never misses), so this is a
+# plain delegating call, same as `missed`/`matches` elsewhere in this file.
+fn is_guess_val(v) { is_guess(v) }
+fn is_bool(v) {
+  not is_guess_val(v) and not missed(v) and (v == true or v == false)
+}
+fn is_list(v) { not is_guess_val(v) and not missed(v + []) }
 fn guest_tag(v) { (get(v, "__tag")) rescue "" }
 fn is_closure(v) { guest_tag(v) == "closure" }
 fn is_builtin_ref(v) { guest_tag(v) == "builtin" }
@@ -687,7 +720,10 @@ fn show_callable(v) {
   else if is_builtin_ref(v) { "<builtin " + get(v, "name") + ">" }
   else { str(v) }
 }
-fn is_num(v) { not missed(v) and not missed(v + 0) }
+fn is_num(v) { not is_guess_val(v) and not missed(v) and not missed(v + 0) }
+# is_record needs no Guess guard: `keys()` on a Guess cleanly misses at the
+# host ("keys needs a record, got guess ..."), same as on any other
+# non-record scalar — verified, not inferred (round 176).
 fn is_record(v) { not missed(v) and not is_callable(v) and not missed(keys(v)) }
 # The host's deep_eq misses on a function at ANY depth ([odd] == [odd] and
 # @{a: odd} == @{a: odd} are misses, not true); a top-level-only test let
@@ -762,7 +798,7 @@ fn eval_pairs(pairs, i, acc, env, st) {
 # ---- operators: delegate to the HOST operator on the payloads, so its
 # semantics (misses, strictness, overflow, merge-of-reasons) come for free;
 # the result box records the operator and both operand boxes ----------------
-fn is_str(v) { not missed(v) and not missed(v + "") }
+fn is_str(v) { not is_guess_val(v) and not missed(v) and not missed(v + "") }
 
 # ---- structural types (v0.12/v0.13 guest parity, round 158) ----------------
 # `guest_kind` mirrors the host's `_kind` (interp.py): the primitive tag a
@@ -771,9 +807,14 @@ fn is_str(v) { not missed(v) and not missed(v + "") }
 # itself a record under the hood, see `guest_tag`). Primitive tags only —
 # the guest has no `shape` records, so `guest_type_ok`'s spec is always a
 # plain string; anything else (a record spec, i.e. a shape) simply never
-# matches, same as an unrecognised primitive name would.
+# matches, same as an unrecognised primitive name would. `guess` is checked
+# right after `miss` (round 176, v0.15 guest parity) — it must come before
+# every other test below because Guess arithmetic transparently succeeds
+# (see `is_guess_val`'s docstring above), so e.g. `is_num` would otherwise
+# misfire on a Guess wrapping a number.
 fn guest_kind(v) {
   if missed(v) { "miss" }
+  else if is_guess_val(v) { "guess" }
   else if is_bool(v) { "bool" }
   else if is_num(v) { "num" }
   else if is_str(v) { "str" }
@@ -810,6 +851,21 @@ fn raw_deep_eq(x, y) {
   if missed(x) { x }
   else if missed(y) { y }
   else if is_callable(x) or is_callable(y) { miss "cannot compare functions" }
+  # v0.15 guest parity (round 176): mirrors the host `deep_eq`'s OWN
+  # Guess-vs-Guess case exactly — structural equality is about the
+  # ANSWER, not how sure either side was (confidence/sources are
+  # metadata, not identity), and ONLY when BOTH sides are a Guess; a
+  # Guess compared against a plain value here falls through to "different
+  # types" below, same as the host. `sure(_, 0)` is the guest's only way
+  # to reach a Guess's wrapped answer (no `.node`/`.sources` accessor is
+  # exposed) — threshold 0 always passes (confidence is never negative),
+  # so it is a pure unwrap, never itself a miss. This is deliberately
+  # DIFFERENT from top-level `==` (`apply_binop`, below), which wraps the
+  # comparison's own result in a NEW Guess instead of returning a plain
+  # bool — the same asymmetry the host's `_guess_binop` vs `deep_eq` has.
+  else if is_guess_val(x) and is_guess_val(y) {
+    raw_deep_eq(strip_raw(sure(x, 0)), strip_raw(sure(y, 0)))
+  }
   else if is_bool(x) or is_bool(y) {
     if is_bool(x) and is_bool(y) { x == y } else { false }
   }
@@ -846,15 +902,38 @@ fn raw_deep_eq_fields(x, y, ks, i) {
 }
 
 fn apply_binop(op, a, b) {
+  # v0.15 guest parity (round 176): `+ - * / % < <= > >=` need NO Guess
+  # handling at all — `a.v OP b.v` is genuine top-level Whence source (this
+  # whole file runs directly under the real host interpreter), so a Guess
+  # operand already gets the host's real `_guess_binop` propagation for
+  # free, for exactly the same reason `is_num`/`is_bool` above had to be
+  # guarded (arithmetic on a Guess silently succeeds). `==`/`!=` are the
+  # one exception: they deliberately do NOT delegate to the host's real
+  # `==`/`!=` for the non-Guess case (`guest_eq`/`raw_deep_eq` exist so a
+  # GUEST closure — an ordinary host record under the hood — reads as
+  # opaque instead of comparing its fields structurally, round 107/140).
+  # A Guess operand bypasses that guest-authored comparator on purpose:
+  # the host's top-level `==`/`!=` wrap the comparison's OWN result in a
+  # NEW Guess (weakest-link confidence, sources unioned, `_guess_binop`,
+  # NOT `deep_eq`), and reconstructing that by hand in Whence source is
+  # impossible anyway (no `.sources` accessor is exposed to guest code) —
+  # delegating straight to the real operator reproduces it exactly, for
+  # free, the same trick the arithmetic ops above already rely on.
   let p = if op == "+" { a.v + b.v }
     else if op == "-" { a.v - b.v }
     else if op == "*" { a.v * b.v }
     else if op == "/" { a.v / b.v }
     else if op == "%" { a.v % b.v }
-    else if op == "==" { guest_eq(a, b) }
+    else if op == "==" {
+      if is_guess_val(a.v) or is_guess_val(b.v) { a.v == b.v }
+      else { guest_eq(a, b) }
+    }
     else if op == "!=" {
-      let e = guest_eq(a, b)
-      not e
+      if is_guess_val(a.v) or is_guess_val(b.v) { a.v != b.v }
+      else {
+        let e = guest_eq(a, b)
+        not e
+      }
     }
     else if op == "<" { a.v < b.v }
     else if op == "<=" { a.v <= b.v }
@@ -1254,6 +1333,17 @@ fn apply_host_builtin(name, args) {
   # v0.6: presence check — field VALUES are boxes but has only reads keys,
   # so the host builtin applies directly (guard above keeps closures opaque)
   else if name == "has" { has(a0, (args[1]).v) }
+  # v0.15 guest parity (round 176): `guess`/`is_guess`/`confidence`/`sure`
+  # need NO closure guard the way len/keys/put/merge/has above do — the
+  # real host `guess` builtin happily wraps ANY value, including a real
+  # Closure (verified directly: `guess(some_fn, 0.9, "s")` succeeds at the
+  # host), so a guest closure record passing through unguarded matches
+  # that. `a0` is the guest box's raw `.v` (the value being guessed keeps
+  # its own full provenance chain, exactly like `note`'s first argument).
+  else if name == "guess" { guess(a0, (args[1]).v, (args[2]).v) }
+  else if name == "is_guess" { is_guess(a0) }
+  else if name == "confidence" { confidence(a0) }
+  else if name == "sure" { sure(a0, (args[1]).v) }
   else { miss ("builtin '" + name + "' is not implemented in the guest") }
 }
 
@@ -1456,6 +1546,72 @@ check "guest unknown type annotation is a parse-time miss":
   missed((run_src("fn f(a: Bogus) { a }\nf(1)")).v)
 check "guest return type is not re-checked over an already-missed body":
   missed(gv("fn f() -> num { 1 / 0 }\nf()"))
+
+# --- AI-native primitives: guest parity (v0.15, round 176) ------------------
+# `guess`/`is_guess`/`confidence`/`sure` delegate straight to the real host
+# builtins (`apply_host_builtin`), so a guest Guess IS the host's own
+# `Guess` payload — these checks exercise the guest's OWN dispatch/type-test
+# plumbing around that value, not the underlying host feature (already
+# covered by tests/test_v15.py).
+check "guest guess() wraps a value": is_guess(gv("guess(5, 0.8, \"src\")"))
+check "guest is_guess is false for a plain value": not is_guess(gv("5"))
+check "guest confidence reads back": gv("confidence(guess(5, 0.8, \"src\"))") == 0.8
+check "guest confidence misses on a non-guess":
+  missed(gv("confidence(5)"))
+check "guest sure() unwraps above threshold":
+  gv("sure(guess(5, 0.9, \"s\"), 0.5)") == 5
+check "guest sure() misses below threshold":
+  missed(gv("sure(guess(5, 0.3, \"s\"), 0.5)"))
+check "guest sure() is a no-op on a plain value": gv("sure(5, 0.9)") == 5
+check "guest guess() flattens rather than nests":
+  gv("confidence(guess(guess(5, 0.9, \"a\"), 0.4, \"b\"))") == 0.4
+# arithmetic needs zero guest-side code (`apply_binop`'s `a.v + b.v` is
+# already real top-level Whence source, so the host's own `_guess_binop`
+# fires transitively) — these pin that it actually does.
+check "guest arithmetic propagates a guess (weakest link kept)":
+  gv("sure(guess(5, 0.8, \"s\") + 1, 0)") == 6
+check "guest arithmetic on a guess keeps its confidence":
+  gv("confidence(guess(5, 0.8, \"s\") + 1)") == 0.8
+check "a genuine type error under a guess stays a plain miss":
+  missed(gv("guess(5, 0.8, \"s\") + []"))
+# is_num/is_list/is_bool/guest_kind must not mistake "arithmetic succeeds"
+# for "is that type" now that Guess arithmetic is transparent.
+check "is_num rejects a guess wrapping a number": not is_num(guess(5, 0.9, "s"))
+check "is_list rejects a guess wrapping a list":
+  not is_list(guess([1, 2], 0.9, "s"))
+check "is_bool rejects a guess wrapping a bool":
+  not is_bool(guess(true, 0.9, "s"))
+check "guest_kind reports 'guess' ahead of every other test":
+  guest_kind(guess(5, 0.9, "s")) == "guess"
+# typed()/: guess joins the guest's primitive-tag set exactly like the host.
+check "guest typed accepts a guess for spec 'guess'":
+  is_guess(gv("typed(guess(5, 0.9, \"s\"), \"guess\", \"lbl\")"))
+check "guest typed rejects a non-guess for spec 'guess'":
+  missed(gv("typed(5, \"guess\", \"lbl\")"))
+check "guest typed param annotation accepts a guess":
+  gv("fn f(a: guess) { sure(a, 0) }\nf(guess(5, 0.9, \"s\"))") == 5
+check "guest typed param annotation rejects a non-guess":
+  missed(gv("fn f(a: guess) { a }\nf(5)"))
+# top-level `==`/`!=` wrap the comparison in a NEW guess (mirrors the
+# host's `_guess_binop`, NOT `deep_eq`); a NESTED guess-vs-guess (inside a
+# list/record) instead resolves to a plain bool comparing answers only,
+# ignoring confidence — the same asymmetry the host has.
+check "top-level == between two guesses yields a new guess":
+  is_guess(gv("guess(1, 0.9, \"a\") == guess(1, 0.8, \"b\")"))
+check "top-level == confidence is the weakest link":
+  gv("confidence(guess(1, 0.9, \"a\") == guess(1, 0.8, \"b\"))") == 0.8
+check "nested guess-vs-guess equality ignores confidence":
+  gv("[guess(1, 0.9, \"a\")] == [guess(1, 0.8, \"b\")]") == true
+check "nested guess vs a plain value never matches":
+  gv("[guess(1, 0.9, \"a\")] == [1]") == false
+# deliberately shallow, same as the host: indexing/higher-order builtins/
+# control flow don't recognize a Guess, so they miss for free.
+check "indexing a guess misses":
+  missed(gv("(guess([1, 2, 3], 0.9, \"x\"))[0]"))
+check "map over a guess-wrapped list misses cleanly":
+  missed(gv("fn f(x) { x }\nmap(f, guess([1, 2], 0.9, \"s\"))"))
+check "a bare guess cannot decide an if without sure()":
+  missed(gv("if guess(true, 0.9, \"s\") { 1 } else { 2 }"))
 
 # ==== GUEST-LEVEL PROVENANCE (self-hosting round 5) ==========================
 # A guest value is its provenance node. The library can read the box graph

@@ -108,6 +108,23 @@ CORPUS = [
     'fn f(a) effects [] { a + 1 }\nlet result = f(3)',            # round 164
     'fn f(a) effects [io] -> num { a + 1 }\nlet result = f(3)',
     'let g = fn(a, b) effects [net, io] { a + b }\nlet result = g(2, 3)',
+    # AI-native primitives (v0.15 guest parity, round 176)
+    'let result = sure(guess(5, 0.8, "s") + 1, 0)',
+    'let result = guess(5, 0.8, "s") + []',                       # miss both
+    'let result = confidence(guess(5, 0.8, "s"))',
+    'let result = confidence(5)',                                 # miss both
+    'let result = sure(guess(5, 0.3, "s"), 0.5)',                  # miss both
+    'let result = is_guess(guess(5, 0.8, "s"))',
+    'let result = is_guess(5)',
+    'let result = guess(guess(5, 0.9, "a"), 0.4, "b")',
+    'let result = guess(1, 0.9, "a") == guess(1, 0.8, "b")',
+    'let result = [guess(1, 0.9, "a")] == [guess(1, 0.8, "b")]',
+    'let result = [guess(1, 0.9, "a")] == [1]',
+    'fn f(a: guess) { sure(a, 0) }\nlet result = f(guess(5, 0.9, "s"))',
+    'fn f(a: guess) { a }\nlet result = f(5)',                     # miss both
+    'let result = (guess([1, 2, 3], 0.9, "x"))[0]',                # miss both
+    'fn f(x) { x }\nlet result = map(f, guess([1, 2], 0.9, "s"))',  # miss both
+    'let result = if guess(true, 0.9, "s") { 1 } else { 2 }',      # miss both
 ]
 
 
@@ -143,17 +160,18 @@ def test_example_runs_green():
     r = subprocess.run([sys.executable, os.path.join(ROOT, "run.py"), EXAMPLE],
                        capture_output=True, text=True)
     assert r.returncode == 0, r.stdout + r.stderr
-    assert "76 passed, 0 failed" in r.stdout
+    assert "102 passed, 0 failed" in r.stdout
     assert "all in Whence" in r.stdout
 
 
 def test_parser_section_matches_self_host():
-    # the guest lexer+parser is self_host.lang lines 28..533, verbatim;
+    # the guest lexer+parser is self_host.lang lines 28..539, verbatim;
     # if one file changes, the other must change with it (round 158: grew
     # from 420 to 485 lines adding `: Type`/`-> Type` guest parity; round
-    # 164: 485 to 533 adding `effects [...]` clause skipping)
+    # 164: 485 to 533 adding `effects [...]` clause skipping; round 176:
+    # 533 to 539 adding "guess" to the shared primitive-tag list)
     host_lines = open(SELF_HOST).read().splitlines()
-    section = "\n".join(host_lines[27:533])
+    section = "\n".join(host_lines[27:539])
     assert section.startswith("# ---- character classes")
     assert section.rstrip().endswith(
         "fn parse_whence(src) { parse_program(lex_all(src)) }")
@@ -178,6 +196,29 @@ def test_differential_corpus_covers_misses():
     miss_srcs = [src for src in CORPUS if isinstance(
         host_eval(src).payload, Miss)]
     assert len(miss_srcs) >= 12, len(miss_srcs)
+
+
+def test_guess_confidence_and_sources_agree_host_vs_guest():
+    # deep_eq's Guess-vs-Guess case deliberately compares the ANSWER only
+    # (interp.py: "confidence/sources are metadata, not identity"), so
+    # test_differential_host_vs_guest's payloads_agree() would pass even if
+    # the guest silently produced the WRONG confidence or sources — it goes
+    # through the same code path as any other list/record member compare.
+    # This test checks the one thing deep_eq can't: render both sides with
+    # the real host `show_payload` (confidence/sources are baked into the
+    # string, "guess %.2g (%s): %s") and require an exact match.
+    from whence.values import show_payload
+    cases = [
+        'let result = guess(5, 0.8, "s") + 1',            # single source
+        'let result = guess(1, 0.9, "a") == guess(1, 0.8, "b")',  # union + min
+        'let result = guess(guess(5, 0.9, "a"), 0.4, "b")',       # flatten
+        'let result = sure(guess(5, 0.9, "s"), 0.5)',             # unwrapped
+    ]
+    guest = guest_eval_all(cases)
+    for src, g in zip(cases, guest):
+        h = host_eval(src)
+        assert show_payload(h.payload) == show_payload(g.payload), (
+            src, show_payload(h.payload), show_payload(g.payload))
 
 
 def test_guest_check_report():

@@ -330,7 +330,13 @@ fn parse_record_lit(toks, pos, acc, seen) {
 # list record fn any); the guest has no `shape` support, so a shape name is
 # simply an "unknown type" miss like any other bad tag, same total-error
 # discipline as every other parse failure in this file.
-let guest_primitive_types = ["num", "str", "bool", "list", "record", "fn", "any"]
+# v0.15 guest parity (round 176): "guess" joined the host's PRIMITIVE_TYPES
+# when the AI-native-primitives feature shipped (round 168), so `fn f(x:
+# guess)` must type-check in the guest exactly as it already does at the
+# host (verified: `typed(guess(5,0.9,"s"), "guess", "lbl")` is a pass-through,
+# `typed(5, "guess", "lbl")` misses "expected guess, got num").
+let guest_primitive_types = ["num", "str", "bool", "list", "record", "fn",
+                             "any", "guess"]
 
 fn expect_type_name(toks, pos) {
   let k = t_at(toks, pos)

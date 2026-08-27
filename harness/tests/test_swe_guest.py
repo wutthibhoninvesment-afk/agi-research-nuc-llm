@@ -63,26 +63,36 @@ def test_guest_safe_strips_banned_lines():
     assert G.guest_safe(src) == "let a = 1\nlet c = a + 1\n"
 
 
-def test_generator_never_leaks_guess_family_to_guest_output():
+def test_generator_now_includes_guess_family_in_guest_output(pkg, harness):
     # v0.15 (round 168) added `guess`/`is_guess`/`confidence`/`sure` to the
-    # shared BUILTIN_ARITY table (round 174); self_eval.lang's `arities`/
-    # `apply_builtin` tables have no entries for any of them yet, so
-    # GuestGen bans the names outright (guest.py's BANNED regex) instead of
-    # a per-method no-op override — unlike `: Type`/`effects [...]`, a
+    # shared BUILTIN_ARITY table (round 174), but self_eval.lang had no
+    # runtime support yet, so GuestGen banned the names outright (a
     # `guess(...)` call is always a droppable expression-level line, never
-    # syntax baked into a function signature. Confirm the addition is
-    # actually exercised (not dead code the guest ban makes moot) by
-    # checking the base ProgramGen — used unfiltered by the host-only
-    # fuzzer — does generate these calls, while GuestGen's own filtered
-    # output never lets one through.
+    # syntax baked into a function signature like `: Type`/`effects [...]`,
+    # so a blanket ban was the correct-scoped fix at the time). Round 176
+    # gave self_eval.lang real Guess support (delegates straight to the
+    # host builtins), closing that gap — this test replaces the old
+    # never-leaks assertion with its mirror image: the guest generator DOES
+    # emit these calls now, at close to the same rate as the unfiltered
+    # host-only generator, and the oracle finds zero real mismatches
+    # fuzzing them (the actual exercise-under-fuzz round 174 could not do).
     from swe.fuzz import ProgramGen
     guess_re = re.compile(r"\b(guess|is_guess|confidence|sure)\(")
     raw_hits = sum(1 for i in range(300)
                    if guess_re.search(ProgramGen(i, stress_rate=0.0).program()))
     assert raw_hits >= 15, raw_hits
+    guest_hits = 0
+    mismatches = []
     for i in range(300):
         src = G.generate_guest_program(i)
-        assert not guess_re.search(src), (i, src)
+        if not guess_re.search(src):
+            continue
+        guest_hits += 1
+        o = outcome(pkg, harness, src)
+        if o.kind == "mismatch":
+            mismatches.append((i, o.detail))
+    assert guest_hits >= 10, guest_hits
+    assert not mismatches, mismatches[:3]
 
 
 def test_escape_roundtrip(pkg, harness):
@@ -111,6 +121,12 @@ AGREE_CASES = [
     "fn f(x) { x }\nlet p = has(f, \"body\")\nlet saved = p rescue false\n",
     "let e = fold(fn(a, i) { put(a, \"k\" + str(i), i) }, @{}, range(4))\n"
     "let g = get(e, \"k2\")\nlet h = has(e, \"k9\")\n",
+    # round 164: `effects [...]` now parses on the guest (skip-and-ignore,
+    # not enforced) — these never violate their own declaration, so
+    # non-enforcement is invisible and both sides must still agree
+    "fn f(a) effects [] { a + 1 }\nlet v = f(3)\n",
+    "fn f(a) effects [io] -> num { a + 1 }\nlet v = f(3)\n",
+    "let g = fn(a, b) effects [net, io] { a + b }\nlet v = g(2, 3)\n",
 ]
 
 
@@ -341,6 +357,40 @@ def test_new_templates_reach_has_put_and_are_guest_safe(pkg):
         if "put(" in src:
             seen_put += 1
     assert seen_has >= 5 and seen_put >= 5, (seen_has, seen_put)
+
+
+def test_generator_now_emits_effects_clauses():
+    # round 164 closed the round-162 no-op: GuestGen inherits ProgramGen's
+    # real maybe_effects again once self_eval.lang/self_host.lang's shared
+    # parser section could skip-parse the clause. Generated effects clauses
+    # never survive the BANNED filter's own print-stripping with a live
+    # print call left in the body (see GuestGen's docstring), so this must
+    # still produce guest-safe, unbanned source.
+    seen_effects = 0
+    for seed in range(4000, 4100):
+        src = G.generate_guest_program(seed)
+        assert not G.BANNED.search(src.split("let __result")[0]), seed
+        if "effects" in src:
+            seen_effects += 1
+    assert seen_effects >= 10, seen_effects
+
+
+def test_generated_effects_programs_agree(pkg, harness):
+    # pull actual GENERATOR output (not hand-written cases) through the
+    # real oracle until an effects-bearing program turns up, confirming the
+    # parse-skip mechanism works on genuinely random shapes, not just the
+    # three hand-picked AGREE_CASES entries above.
+    found = 0
+    for seed in range(4000, 4200):
+        src = G.generate_guest_program(seed)
+        if "effects" not in src:
+            continue
+        found += 1
+        o = outcome(pkg, harness, src)
+        assert o.kind == "ok", (seed, src, o.detail)
+        if found >= 8:
+            break
+    assert found >= 8, found
 
 
 def test_campaign_smoke():

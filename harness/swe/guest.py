@@ -38,17 +38,13 @@ DEPTH_SENTINEL = "&DEPTHMISS&"
 GUEST_ORACLE = "self_eval"
 LIB_MARKER = "# ==== SELF-TESTS"
 
-# provenance builtins the guest evaluator does not (and cannot yet) mirror,
-# plus the v0.15 (round 168) `guess`/confidence family (round 174 backlog
-# note in SPEC.md): self_eval.lang's `arities`/`apply_builtin` tables have
-# no entries for `guess`/`is_guess`/`confidence`/`sure` yet, and (unlike
-# `: Type`/`effects [...]`, which are syntax baked into every function
-# signature and needed a `ProgramGen` no-op override instead) a call to
-# one of these is always a droppable expression-level line, so banning the
-# names here is the correct-scoped fix, not a workaround.
-BANNED = re.compile(
-    r"\b(why|snip|steps|at|blame|diverge|contrast|print"
-    r"|guess|is_guess|confidence|sure)\b")
+# provenance builtins the guest evaluator does not (and cannot yet) mirror.
+# `guess`/`is_guess`/`confidence`/`sure` (v0.15, round 168) are NO LONGER
+# banned as of round 176: self_eval.lang's `arities`/`apply_builtin` tables
+# now delegate all four straight to the real host builtins (a guest Guess
+# IS the host's own `Guess` payload), so the guest-differential fuzzer can
+# generate them like any other builtin call.
+BANNED = re.compile(r"\b(why|snip|steps|at|blame|diverge|contrast|print)\b")
 
 
 def guest_safe(src):
@@ -228,6 +224,19 @@ def agree(V, h, g):
     if isinstance(h, V.Miss) or isinstance(g, V.Miss):
         ok = isinstance(h, V.Miss) and isinstance(g, V.Miss)
         return ok, "" if ok else "missedness %s-vs-%s" % (type(h).__name__, type(g).__name__)
+    # v0.15 guest parity (round 176): a guest Guess IS the host's own
+    # `Guess` payload (self_eval.lang delegates `guess`/`sure`/etc. straight
+    # to the real builtins, see its `apply_host_builtin`), so this compares
+    # confidence/sources exactly (not just the wrapped answer, unlike
+    # `deep_eq`'s own Guess-vs-Guess case, which the guest's `raw_deep_eq`
+    # mirrors separately for NESTED comparisons — this oracle wants the
+    # stronger check since it is specifically hunting for guest bugs).
+    if isinstance(h, V.Guess) or isinstance(g, V.Guess):
+        ok = (isinstance(h, V.Guess) and isinstance(g, V.Guess) and
+              h.confidence == g.confidence and h.sources == g.sources)
+        if not ok:
+            return False, "guess %s-vs-%s" % (type(h).__name__, type(g).__name__)
+        return agree(V, h.node.payload, g.node.payload)
     if _is_host_fn(V, h):
         ok = _is_guest_fn(V, g) or _is_host_fn(V, g)
         return ok, "" if ok else "fn-vs-%s" % type(g).__name__

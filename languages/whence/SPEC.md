@@ -899,17 +899,54 @@ that cannot end a statement.
   else, so a `Guess` operand reaches the exact same `_guess_binop` call
   regardless of which path evaluated it, with no separate fast-path
   copy to keep in sync).
-- **Guest parity: not started, explicitly out of scope this round** —
-  same staged pattern as every prior feature (`: Type`/`-> Type` took
-  from round 122/126 to round 158; `effects` from round 146 to round 164).
-  `self_eval.lang`/`self_host.lang`'s hand-copied parser has no `guess`
-  builtin at all yet; `harness/swe/fuzz.py`'s grammar does not generate
-  `guess(...)` calls either (tracked as fresh backlog, see
-  research-state.md's language(C) list — the fuzzer gap this time is
-  DAY ONE, not discovered N rounds later, because this round's own
-  standing-checklist review caught it before committing, unlike the `:
-  Type`/`effects` precedents where the gap sat for 8 and 16 rounds
-  respectively before anyone looked for it).
+- **Guest parity: shipped round 176** (was "not started" through round
+  168-174; see the subsection below) — the fastest a feature has closed
+  its guest-parity gap yet (`: Type`/`-> Type` took from round 122/126 to
+  round 158; `effects` from round 146 to round 164).
+
+### v0.15 guest parity (round 176)
+- **A guest Guess IS the host's own `Guess` payload, not a hand-rolled
+  tagged record.** `self_eval.lang`'s `apply_host_builtin` delegates
+  `guess`/`is_guess`/`confidence`/`sure` straight to the real host
+  builtins (the guest passes its already-unboxed `.v` payload through),
+  so arithmetic/comparison on a guest Guess reuses the host's own
+  `_guess_binop`/`_unary` propagation for free — no Whence-source
+  reimplementation of weakest-link confidence or source-unioning was
+  needed or possible (the guest has no accessor for a Guess's raw
+  `.sources`/`.node`).
+- **The cost of that shortcut: every "does v look like a T" probe
+  (`is_num`/`is_list`/`is_bool`/`is_str`) had to be Guess-guarded first**,
+  because Guess arithmetic is transparent by design — `guess(5, .9, "s") +
+  0` succeeds, so `is_num` would otherwise misreport a Guess-wrapped
+  number as a plain num. `is_guess_val` is checked before all four, and
+  `guest_kind` checks it immediately after `missed`.
+- **`==`/`!=` on a bare guest Guess bypass the guest's own `guest_eq`
+  comparator on purpose** and delegate to the host's real `==`/`!=`
+  (which return a NEW Guess wrapping the boolean, per the host's own
+  `==`-vs-`deep_eq` asymmetry) — every other operator needs no guest-side
+  change at all, since `a.v OP b.v` in `apply_binop` is already real
+  top-level Whence source running under the true host interpreter.
+  `raw_deep_eq` gained its own separate Guess-vs-Guess case (compares the
+  unwrapped answer via `sure(_, 0)` only, ignoring confidence/sources —
+  mirroring the host `deep_eq`'s own case, used when a Guess sits inside a
+  container rather than at top level).
+- **`"guess"` joined `guest_primitive_types`** (both `self_eval.lang` and
+  `self_host.lang`, which must stay byte-identical in their shared
+  parser section — `test_parser_section_matches_self_host` pins the line
+  range) so `fn f(x: guess)` type-checks on the guest exactly as it does
+  on the host.
+- **`harness/swe/guest.py`'s guest-differential fuzzer/oracle gained
+  matching support**: the `BANNED` line-filter no longer strips
+  `guess`/`is_guess`/`confidence`/`sure` calls (they were banned
+  outright when this feature shipped with zero guest support, round
+  168/174), and the `agree()` comparator gained a Guess-vs-Guess case
+  that checks confidence/sources exactly (a stronger check than
+  `deep_eq`'s answer-only comparison, deliberately — this oracle is
+  hunting for guest bugs, not backing a utility function). A 300-sample
+  differential fuzz run found 0 mismatches; `test_self_eval.py` gained a
+  dedicated `show_payload`-based test confirming confidence/sources
+  render identically host-vs-guest (a check `deep_eq`-based agreement
+  alone cannot make, since `deep_eq` treats them as pure metadata).
 
 ## Builtins
 `print len range map filter fold push str num abs sqrt missed reasons note
