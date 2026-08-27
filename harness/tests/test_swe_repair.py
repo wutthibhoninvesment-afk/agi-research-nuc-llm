@@ -159,9 +159,23 @@ def test_run_repair_under_a_policy_scores_exact_and_writes_artifacts(tmp_path):
     assert os.path.exists(os.path.join(out, tag + ".trace.jsonl"))
     assert os.path.exists(os.path.join(out, tag + ".diff"))
     s = RP.summarize(res)
-    assert s == {"attempted": 1, "green": 1, "exact": 1, "localized": 1, "cheated": 0,
-                 "green_not_exact": 0, "cost_usd": s["cost_usd"], "steps": r["steps"],
-                 "by_op": {"cmp": {"attempted": 1, "green": 1, "exact": 1, "localized": 1}}}
+    assert s == {"attempted": 1, "green": 1, "exact": 1, "ast_exact": 1, "localized": 1,
+                 "cheated": 0, "green_not_exact": 0, "cost_usd": s["cost_usd"], "steps": r["steps"],
+                 "by_op": {"cmp": {"attempted": 1, "green": 1, "exact": 1, "ast_exact": 1,
+                                   "localized": 1}}}
+
+
+def test_summarize_ast_exact_survives_a_repair_blocked_from_green(tmp_path):
+    # round 155/161/179: an AST-exact fix that never went green (blocked by
+    # an unrelated harness bug, not a wrong repair) must not read as
+    # indistinguishable from a genuinely failed attempt — `exact` (the
+    # combined outcome class) stays 0, `ast_exact` (the per-record signal
+    # alone) is 1.
+    recs = [{"op": "cmp", "green": False, "exact": True, "localized": True,
+             "outcome": "localized_not_green", "cost_usd": 0.1, "steps": 3}]
+    s = RP.summarize(recs)
+    assert s["exact"] == 0 and s["ast_exact"] == 1
+    assert s["by_op"]["cmp"]["exact"] == 0 and s["by_op"]["cmp"]["ast_exact"] == 1
 
 
 def test_killed_pool_and_stratified_sample(tmp_path):

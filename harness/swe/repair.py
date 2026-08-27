@@ -311,17 +311,28 @@ def run_repair(make_llm, mutants, root=WHENCE_ROOT, out_dir=None, max_steps=25,
 
 
 def summarize(recs):
+    """`exact` here means the outcome CLASS "exact" (AST-exact fix AND a
+    green suite) — a mutant whose diff is a byte-for-byte-equivalent fix but
+    whose suite run is blocked by something unrelated (round 155/round 161:
+    a since-fixed harness environment bug denied every one of round 137's
+    5/6 semantically-correct repairs a green run) reads as 0 here, same as a
+    genuinely wrong fix. `ast_exact` is the weaker, always-available signal
+    (`rec["exact"]` alone) that distinguishes the two — check it before
+    reading a "0 exact" repair summary as "the LLM found nothing usable"."""
     n = len(recs)
     by_op = {}
     for r in recs:
-        b = by_op.setdefault(r["op"], {"attempted": 0, "green": 0, "exact": 0, "localized": 0})
+        b = by_op.setdefault(r["op"], {"attempted": 0, "green": 0, "exact": 0,
+                                       "ast_exact": 0, "localized": 0})
         b["attempted"] += 1
         b["green"] += bool(r["green"])
         b["exact"] += bool(r["exact"] and r["green"])
+        b["ast_exact"] += bool(r["exact"])
         b["localized"] += bool(r["localized"])
     return {"attempted": n,
             "green": sum(1 for r in recs if r["green"]),
             "exact": sum(1 for r in recs if r["exact"] and r["green"]),
+            "ast_exact": sum(1 for r in recs if r["exact"]),
             "localized": sum(1 for r in recs if r["localized"]),
             "cheated": sum(1 for r in recs if r["outcome"] == "cheated"),
             "green_not_exact": sum(1 for r in recs if r["green"] and not r["exact"]),

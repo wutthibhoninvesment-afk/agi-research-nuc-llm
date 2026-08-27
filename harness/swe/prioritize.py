@@ -101,22 +101,36 @@ class MapPrioritizer(object):
     """Order and (optionally) restrict the suite from a by-file coverage
     map (`coverage.collect(by_file=True)` / `coverage.load`)."""
 
-    def __init__(self, cov_map, test_files, subset=True, durations=None):
+    def __init__(self, cov_map, test_files, subset=True, durations=None, root=None,
+                 require_fresh=True):
         from . import coverage as CV
         self.CV = CV
         self.map = cov_map
         self.test_files = list(test_files)
-        self.subset = subset
         self.durations = dict(durations if durations is not None else (cov_map.get("_durations") or {}))
         self.exclude_id = None
+        self.stale = []
+        # A by-file map is LINE-KEYED: reusing one collected against an
+        # earlier commit for `subset=True` RESTRICTION (not just ordering)
+        # answers "which files cover line N" with whatever code used to be
+        # at line N, silently. Round 113 (20/20 false survivors) and round
+        # 137 (78/78) both paid a full-suite recheck for exactly this
+        # reason. `require_fresh` (default on) auto-downgrades to
+        # ordering-only the moment the target file's on-disk hash doesn't
+        # match what the map recorded at collection time — a map with no
+        # recorded hash at all (anything saved before this check existed)
+        # counts as stale, since freshness was never verified for it either.
+        if subset and require_fresh and root is not None:
+            self.stale = CV.stale_files(cov_map, root)
+        self.subset = subset and not self.stale
 
     @classmethod
-    def from_file(cls, path, root, subset=True):
+    def from_file(cls, path, root, subset=True, require_fresh=True):
         from . import coverage as CV
         cov = CV.load(path)
         if not CV.is_by_file(cov):
             raise ValueError("%s is not a by-file coverage map (collect with by_file=True)" % path)
-        return cls(cov, default_test_files(root), subset=subset)
+        return cls(cov, default_test_files(root), subset=subset, root=root, require_fresh=require_fresh)
 
     def _cost(self, f):
         return self.durations.get(f, float("inf"))

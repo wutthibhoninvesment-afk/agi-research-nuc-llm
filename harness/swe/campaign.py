@@ -110,6 +110,13 @@ class Campaign(object):
         os.makedirs(self.out, exist_ok=True)
         self.root = os.path.realpath(root)
         self.files = tuple(files)
+        # stage_coverage's "derive the % + triage from the reused by-file
+        # map, no second run" shortcut is the SAME staleness hazard
+        # MapPrioritizer guards against (a line-keyed map from an earlier
+        # commit answers for whatever code used to be at line N) — computed
+        # once here so both consumers of self.coverage_map agree.
+        self.coverage_map_stale = (CV.stale_files(coverage_map, self.root)
+                                   if coverage_map is not None else [])
         self.test_cmd = list(test_cmd)
         self.log = log or (lambda s: print(s, flush=True))
         self.manifest_path = self.path("campaign.json")
@@ -396,13 +403,17 @@ class Campaign(object):
         self._mark("coverage", "running")
         data = _load_json(self.path("mutation-rechecked.json")) or _load_json(self.path("mutation.json"))
         interest = None
-        if self.coverage_map is not None:
+        if self.coverage_map is not None and not self.coverage_map_stale:
             # a full by-file map already exists (round 113): collapse it —
             # no second run, and a FULL (not targeted) coverage picture
             cov = CV.collapse(self.coverage_map)
             self.log("coverage: derived from the by-file map (full trace, %d test files)"
                      % len(self.coverage_map.get("_durations") or {}))
         else:
+            if self.coverage_map is not None:
+                self.log("coverage: by-file map is stale for %s -- ignoring it, running fresh "
+                         "(round 137: a stale map here misclassifies killed-on-uncovered too)"
+                         % ", ".join(self.coverage_map_stale))
             if targeted and data:
                 interest = CV.interest_from_mutants(data["mutants"], killed_sample, seed)
                 self.log("coverage: targeted run over %s lines of interest"
@@ -418,7 +429,8 @@ class Campaign(object):
         info = {"seconds": cov["_meta"]["seconds"], "returncode": cov["_meta"]["returncode"],
                 "pct": dict((sm["file"], sm["pct"]) for sm in summaries)}
         info["targeted"] = interest is not None
-        info["from_map"] = self.coverage_map is not None
+        info["from_map"] = self.coverage_map is not None and not self.coverage_map_stale
+        info["map_stale"] = list(self.coverage_map_stale)
         if tri:
             info.update(survived_uncovered=tri["survived_uncovered"],
                         survived_covered=tri["survived_covered"],
@@ -730,7 +742,8 @@ class Campaign(object):
         _dump_json(art, data)
         sm = data["summary"]
         self._mark("repair", "done", attempted=sm["attempted"], green=sm["green"],
-                   exact=sm["exact"], localized=sm["localized"], cost_usd=sm["cost_usd"])
+                   exact=sm["exact"], ast_exact=sm["ast_exact"], localized=sm["localized"],
+                   cost_usd=sm["cost_usd"])
         return data
 
     def stage_report(self):
@@ -774,7 +787,7 @@ class Campaign(object):
                 "subset_checked": rech["recheck"]["subset_checked"],
                 "subset_flips": len(rech["recheck"]["subset_flips"])},
             "repair": dict((k, (repair.get("summary") or {}).get(k)) for k in
-                           ("attempted", "green", "exact", "localized", "cheated",
+                           ("attempted", "green", "exact", "ast_exact", "localized", "cheated",
                             "green_not_exact", "cost_usd", "steps")),
             "tests_added": new_pins,
             "projected_score": round((killed + new_pins) / total, 4) if total else None,
@@ -892,9 +905,15 @@ def _okill_row(o):
 def _repair_row(r):
     if not r or r.get("attempted") is None:
         return "n/a"
-    return ("%s attempted: %s green, %s exact, %s localized, %s green-not-exact, %s cheated, $%s, %s steps (%s)"
-            % (r["attempted"], r["green"], r["exact"], r["localized"], r["green_not_exact"],
-               r["cheated"], r["cost_usd"], r["steps"], r.get("model")))
+    # "exact" = the outcome CLASS (AST-exact fix AND green); "ast_exact" is
+    # the weaker per-record signal alone -- a fix can be ast_exact without
+    # being exact if something unrelated (e.g. an environment bug, see
+    # harness/swe/repair.py::summarize's docstring) blocks the suite from
+    # going green, and that gap is invisible unless both numbers are shown.
+    return ("%s attempted: %s green, %s exact (%s ast-exact), %s localized, %s green-not-exact, "
+            "%s cheated, $%s, %s steps (%s)"
+            % (r["attempted"], r["green"], r["exact"], r.get("ast_exact", r["exact"]), r["localized"],
+               r["green_not_exact"], r["cheated"], r["cost_usd"], r["steps"], r.get("model")))
 
 
 def load_programs(path):
@@ -923,6 +942,11 @@ def main(argv=None):
     ap.add_argument("--coverage-map", help="by-file coverage JSON (swe.coverage --by-file): kill-first "
                     "order from real coverage, covering-subset verdicts, and the coverage stage derived from it")
     ap.add_argument("--no-subset", action="store_true", help="with --coverage-map: order only, run the full suite")
+    ap.add_argument("--allow-stale-map", action="store_true",
+                    help="with --coverage-map: keep subset restriction even if the on-disk file's "
+                    "hash no longer matches the map's collection-time hash (DANGEROUS -- see "
+                    "coverage.stale_files' docstring; rounds 113/137 both burned a full-suite "
+                    "recheck for exactly this)")
     ap.add_argument("--subset-check", type=int, default=20,
                     help="recheck: subset-basis survivors re-run under the full suite (instrument self-check)")
     ap.add_argument("--recheck-timeout", type=float, default=600.0)
@@ -957,7 +981,13 @@ def main(argv=None):
     cov_map = None
     if a.coverage_map:
         cov_map = CV.load(a.coverage_map)
-        pr = PR.MapPrioritizer(cov_map, PR.default_test_files(a.root), subset=not a.no_subset)
+        pr = PR.MapPrioritizer(cov_map, PR.default_test_files(a.root), subset=not a.no_subset,
+                               root=a.root, require_fresh=not a.allow_stale_map)
+        if pr.stale:
+            print("WARNING: --coverage-map %s is stale for %s (on-disk hash differs from "
+                  "collection time) -- subset restriction DISABLED, falling back to "
+                  "order-only (pass --allow-stale-map to force it back on)"
+                  % (a.coverage_map, ", ".join(pr.stale)))
     c = Campaign(a.out, a.root, files, prioritizer=pr, coverage_map=cov_map)
     if a.force:
         c.force([s.strip() for s in a.force.split(",") if s.strip()])

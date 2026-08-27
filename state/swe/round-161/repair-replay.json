@@ -1,0 +1,290 @@
+{
+  "interp.py:2395:not#713": {
+    "round-137-original": {
+      "changed_files": [
+        "whence/interp.py"
+      ],
+      "diff": "--- injected/whence/interp.py\n+++ repaired/whence/interp.py\n@@ -1989,7 +1989,7 @@\n         if m:\n             return m\n         xs, sep = args\n-        if not isinstance(xs.payload, WList) or not not isinstance(sep.payload, str):\n+        if not isinstance(xs.payload, WList) or not isinstance(sep.payload, str):\n             return mk_miss('join needs (list, string)', line, 'join', inputs=(xs, sep))\n         parts = []\n         for x in xs.payload:\n",
+      "test_edits": [],
+      "site": [
+        1992,
+        1992
+      ],
+      "touched": [
+        [
+          1992,
+          1992
+        ]
+      ],
+      "localized": true,
+      "parses": true,
+      "exact": true,
+      "tests_green": false,
+      "pytest_tail": "ort ProgramGen\nE           ModuleNotFoundError: No module named 'swe'\n\nbench/ref_diff.py:105: ModuleNotFoundError\n=========================== short test summary info ============================\nFAILED tests/test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage\nFAILED tests/test_v10.py::test_ref_diff_fuzz_mode_same_on_copy_and_diff_on_sabotage\nFAILED tests/test_v10.py::test_ref_diff_fuzz_transient_new_tree_timeout_is_retried_not_reported\nFAILED tests/test_v10.py::test_ref_diff_fuzz_persistent_new_tree_timeout_is_a_real_finding\n4 failed, 775 passed in 122.48s (0:02:02)\n[exit 1]",
+      "green": false,
+      "outcome": "localized_not_green",
+      "mutant": "interp.py:2395:not#713",
+      "source": "round-137-original",
+      "diff_applied": true
+    },
+    "round-149-recheck": {
+      "changed_files": [
+        "whence/interp.py"
+      ],
+      "diff": "--- injected/whence/interp.py\n+++ repaired/whence/interp.py\n@@ -1989,7 +1989,7 @@\n         if m:\n             return m\n         xs, sep = args\n-        if not isinstance(xs.payload, WList) or not not isinstance(sep.payload, str):\n+        if not isinstance(xs.payload, WList) or not isinstance(sep.payload, str):\n             return mk_miss('join needs (list, string)', line, 'join', inputs=(xs, sep))\n         parts = []\n         for x in xs.payload:\n",
+      "test_edits": [],
+      "site": [
+        1992,
+        1992
+      ],
+      "touched": [
+        [
+          1992,
+          1992
+        ]
+      ],
+      "localized": true,
+      "parses": true,
+      "exact": true,
+      "tests_green": false,
+      "pytest_tail": "ort ProgramGen\nE           ModuleNotFoundError: No module named 'swe'\n\nbench/ref_diff.py:105: ModuleNotFoundError\n=========================== short test summary info ============================\nFAILED tests/test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage\nFAILED tests/test_v10.py::test_ref_diff_fuzz_mode_same_on_copy_and_diff_on_sabotage\nFAILED tests/test_v10.py::test_ref_diff_fuzz_transient_new_tree_timeout_is_retried_not_reported\nFAILED tests/test_v10.py::test_ref_diff_fuzz_persistent_new_tree_timeout_is_a_real_finding\n4 failed, 775 passed in 179.74s (0:02:59)\n[exit 1]",
+      "green": false,
+      "outcome": "localized_not_green",
+      "mutant": "interp.py:2395:not#713",
+      "source": "round-149-recheck",
+      "diff_applied": true
+    }
+  },
+  "interp.py:1910:ifneg#37": {
+    "round-137-original": {
+      "changed_files": [
+        "whence/interp.py"
+      ],
+      "diff": "--- injected/whence/interp.py\n+++ repaired/whence/interp.py\n@@ -1580,7 +1580,7 @@\n     node per run of identical decisions (v0.4). `runs` is None exactly\n     when merged == 1 (a loop that never re-entered).\"\"\"\n     value = result.value\n-    if not merged == 1:\n+    if merged == 1:\n         return Prov('call', name, line, result, _LAZY, value)\n     ifs = [result]\n     for run in runs:\n",
+      "test_edits": [],
+      "site": [
+        1583,
+        1583
+      ],
+      "touched": [
+        [
+          1583,
+          1583
+        ]
+      ],
+      "localized": true,
+      "parses": true,
+      "exact": true,
+      "tests_green": false,
+      "pytest_tail": "ort ProgramGen\nE           ModuleNotFoundError: No module named 'swe'\n\nbench/ref_diff.py:105: ModuleNotFoundError\n=========================== short test summary info ============================\nFAILED tests/test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage\nFAILED tests/test_v10.py::test_ref_diff_fuzz_mode_same_on_copy_and_diff_on_sabotage\nFAILED tests/test_v10.py::test_ref_diff_fuzz_transient_new_tree_timeout_is_retried_not_reported\nFAILED tests/test_v10.py::test_ref_diff_fuzz_persistent_new_tree_timeout_is_a_real_finding\n4 failed, 775 passed in 151.44s (0:02:31)\n[exit 1]",
+      "green": false,
+      "outcome": "localized_not_green",
+      "mutant": "interp.py:1910:ifneg#37",
+      "source": "round-137-original",
+      "diff_applied": true
+    },
+    "round-149-recheck": {
+      "changed_files": [
+        "whence/interp.py"
+      ],
+      "diff": "--- injected/whence/interp.py\n+++ repaired/whence/interp.py\n@@ -1580,7 +1580,7 @@\n     node per run of identical decisions (v0.4). `runs` is None exactly\n     when merged == 1 (a loop that never re-entered).\"\"\"\n     value = result.value\n-    if not merged == 1:\n+    if merged == 1:\n         return Prov('call', name, line, result, _LAZY, value)\n     ifs = [result]\n     for run in runs:\n",
+      "test_edits": [],
+      "site": [
+        1583,
+        1583
+      ],
+      "touched": [
+        [
+          1583,
+          1583
+        ]
+      ],
+      "localized": true,
+      "parses": true,
+      "exact": true,
+      "tests_green": false,
+      "pytest_tail": "ort ProgramGen\nE           ModuleNotFoundError: No module named 'swe'\n\nbench/ref_diff.py:105: ModuleNotFoundError\n=========================== short test summary info ============================\nFAILED tests/test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage\nFAILED tests/test_v10.py::test_ref_diff_fuzz_mode_same_on_copy_and_diff_on_sabotage\nFAILED tests/test_v10.py::test_ref_diff_fuzz_transient_new_tree_timeout_is_retried_not_reported\nFAILED tests/test_v10.py::test_ref_diff_fuzz_persistent_new_tree_timeout_is_a_real_finding\n4 failed, 775 passed in 114.14s (0:01:54)\n[exit 1]",
+      "green": false,
+      "outcome": "localized_not_green",
+      "mutant": "interp.py:1910:ifneg#37",
+      "source": "round-149-recheck",
+      "diff_applied": true
+    }
+  },
+  "interp.py:1638:arith#1045": {
+    "round-137-original": {
+      "changed_files": [
+        "whence/interp.py"
+      ],
+      "diff": "--- injected/whence/interp.py\n+++ repaired/whence/interp.py\n@@ -1350,7 +1350,7 @@\n         if isinstance(p, Closure):\n             name = p.name or '<fn>'\n             if len(args) != len(p.params):\n-                return mk_miss('%s expects %d args, got %d' * (name, len(p.params), len(args)), line, 'call', name, inputs=tuple(args))\n+                return mk_miss('%s expects %d args, got %d' % (name, len(p.params), len(args)), line, 'call', name, inputs=tuple(args))\n             if self.depth >= self.max_depth:\n                 return mk_miss('recursion too deep in %s (depth %d)' % (name, self.depth), line, 'call', name, inputs=tuple(args))\n             ret_spec, ret_label = (p.ret_spec, p.ret_label)\n",
+      "test_edits": [],
+      "site": [
+        1353,
+        1353
+      ],
+      "touched": [
+        [
+          1353,
+          1353
+        ]
+      ],
+      "localized": true,
+      "parses": true,
+      "exact": true,
+      "tests_green": false,
+      "pytest_tail": "ort ProgramGen\nE           ModuleNotFoundError: No module named 'swe'\n\nbench/ref_diff.py:105: ModuleNotFoundError\n=========================== short test summary info ============================\nFAILED tests/test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage\nFAILED tests/test_v10.py::test_ref_diff_fuzz_mode_same_on_copy_and_diff_on_sabotage\nFAILED tests/test_v10.py::test_ref_diff_fuzz_transient_new_tree_timeout_is_retried_not_reported\nFAILED tests/test_v10.py::test_ref_diff_fuzz_persistent_new_tree_timeout_is_a_real_finding\n4 failed, 775 passed in 210.55s (0:03:30)\n[exit 1]",
+      "green": false,
+      "outcome": "localized_not_green",
+      "mutant": "interp.py:1638:arith#1045",
+      "source": "round-137-original",
+      "diff_applied": true
+    }
+  },
+  "interp.py:1773:bool#895": {
+    "round-137-original": {
+      "changed_files": [],
+      "diff": "",
+      "test_edits": [],
+      "site": [
+        1454,
+        1454
+      ],
+      "touched": [],
+      "localized": false,
+      "parses": true,
+      "exact": false,
+      "tests_green": false,
+      "pytest_tail": "ort ProgramGen\nE           ModuleNotFoundError: No module named 'swe'\n\nbench/ref_diff.py:105: ModuleNotFoundError\n=========================== short test summary info ============================\nFAILED tests/test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage\nFAILED tests/test_v10.py::test_ref_diff_fuzz_mode_same_on_copy_and_diff_on_sabotage\nFAILED tests/test_v10.py::test_ref_diff_fuzz_transient_new_tree_timeout_is_retried_not_reported\nFAILED tests/test_v10.py::test_ref_diff_fuzz_persistent_new_tree_timeout_is_a_real_finding\n4 failed, 775 passed in 224.13s (0:03:44)\n[exit 1]",
+      "green": false,
+      "outcome": "failed",
+      "mutant": "interp.py:1773:bool#895",
+      "source": "round-137-original",
+      "diff_applied": false
+    },
+    "round-149-recheck": {
+      "changed_files": [],
+      "diff": "",
+      "test_edits": [],
+      "site": [
+        1454,
+        1454
+      ],
+      "touched": [],
+      "localized": false,
+      "parses": true,
+      "exact": false,
+      "tests_green": false,
+      "pytest_tail": "05: ModuleNotFoundError\n=========================== short test summary info ============================\nFAILED tests/test_fuzz_regressions.py::test_diverge_on_deep_equal_values_is_not_quadratic\nFAILED tests/test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage\nFAILED tests/test_v10.py::test_ref_diff_fuzz_mode_same_on_copy_and_diff_on_sabotage\nFAILED tests/test_v10.py::test_ref_diff_fuzz_transient_new_tree_timeout_is_retried_not_reported\nFAILED tests/test_v10.py::test_ref_diff_fuzz_persistent_new_tree_timeout_is_a_real_finding\n5 failed, 774 passed in 151.27s (0:02:31)\n[exit 1]",
+      "green": false,
+      "outcome": "failed",
+      "mutant": "interp.py:1773:bool#895",
+      "source": "round-149-recheck",
+      "diff_applied": false
+    }
+  },
+  "interp.py:1748:cmp#164": {
+    "round-137-original": {
+      "changed_files": [],
+      "diff": "",
+      "test_edits": [],
+      "site": [
+        1427,
+        1427
+      ],
+      "touched": [],
+      "localized": false,
+      "parses": true,
+      "exact": false,
+      "tests_green": false,
+      "pytest_tail": "t_typed_return_tail_recursion_mismatch_after_many_bounces\nFAILED tests/test_v13.py::test_mutual_tail_call_checks_against_the_caller_not_the_callee\nFAILED tests/test_v13.py::test_mutual_tail_call_passes_when_the_settled_value_matches\nFAILED tests/test_v13.py::test_non_tail_recursion_checks_every_frame_independently\nFAILED tests/test_v13.py::test_three_way_typed_return_tail_recursion - Assert...\nFAILED tests/test_v13.py::test_three_way_mutual_tail_call_return_check - Asse...\nFAILED tests/test_v13.py::test_three_way_non_tail_recursion_return_check - As...\n312 failed, 467 passed in 38.62s\n[exit 1]",
+      "green": false,
+      "outcome": "failed",
+      "mutant": "interp.py:1748:cmp#164",
+      "source": "round-137-original",
+      "diff_applied": false
+    },
+    "round-149-recheck": {
+      "changed_files": [
+        "whence/interp.py"
+      ],
+      "diff": "--- injected/whence/interp.py\n+++ repaired/whence/interp.py\n@@ -1424,7 +1424,7 @@\n     divisors, int-vs-float overflow) goes to `binop`, which builds the\n     byte-identical node \u2014 the closure never decides a miss itself, so the\n     two paths cannot disagree on wording.\"\"\"\n-    if op != '+':\n+    if op == '+':\n \n         def f_add(env):\n             l = lf(env)\n",
+      "test_edits": [],
+      "site": [
+        1427,
+        1427
+      ],
+      "touched": [
+        [
+          1427,
+          1427
+        ]
+      ],
+      "localized": true,
+      "parses": true,
+      "exact": true,
+      "tests_green": false,
+      "pytest_tail": "ort ProgramGen\nE           ModuleNotFoundError: No module named 'swe'\n\nbench/ref_diff.py:105: ModuleNotFoundError\n=========================== short test summary info ============================\nFAILED tests/test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage\nFAILED tests/test_v10.py::test_ref_diff_fuzz_mode_same_on_copy_and_diff_on_sabotage\nFAILED tests/test_v10.py::test_ref_diff_fuzz_transient_new_tree_timeout_is_retried_not_reported\nFAILED tests/test_v10.py::test_ref_diff_fuzz_persistent_new_tree_timeout_is_a_real_finding\n4 failed, 775 passed in 289.11s (0:04:49)\n[exit 1]",
+      "green": false,
+      "outcome": "localized_not_green",
+      "mutant": "interp.py:1748:cmp#164",
+      "source": "round-149-recheck",
+      "diff_applied": true
+    }
+  },
+  "interp.py:2233:const#451": {
+    "round-137-original": {
+      "changed_files": [
+        "whence/interp.py"
+      ],
+      "diff": "--- injected/whence/interp.py\n+++ repaired/whence/interp.py\n@@ -1858,7 +1858,7 @@\n             out.append((yield _Call(fn, [x], line)))\n         return derived('map', '', line, (xs,), wlist(out))\n \n-    @register('filter', 3)\n+    @register('filter', 2)\n     def b_filter(interp, args, line):\n         m = _propagate('filter', args, line)\n         if m:\n",
+      "test_edits": [],
+      "site": [
+        1861,
+        1861
+      ],
+      "touched": [
+        [
+          1861,
+          1861
+        ]
+      ],
+      "localized": true,
+      "parses": true,
+      "exact": true,
+      "tests_green": false,
+      "pytest_tail": "ort ProgramGen\nE           ModuleNotFoundError: No module named 'swe'\n\nbench/ref_diff.py:105: ModuleNotFoundError\n=========================== short test summary info ============================\nFAILED tests/test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage\nFAILED tests/test_v10.py::test_ref_diff_fuzz_mode_same_on_copy_and_diff_on_sabotage\nFAILED tests/test_v10.py::test_ref_diff_fuzz_transient_new_tree_timeout_is_retried_not_reported\nFAILED tests/test_v10.py::test_ref_diff_fuzz_persistent_new_tree_timeout_is_a_real_finding\n4 failed, 775 passed in 303.11s (0:05:03)\n[exit 1]",
+      "green": false,
+      "outcome": "localized_not_green",
+      "mutant": "interp.py:2233:const#451",
+      "source": "round-137-original",
+      "diff_applied": true
+    },
+    "round-149-recheck": {
+      "changed_files": [
+        "whence/interp.py"
+      ],
+      "diff": "--- injected/whence/interp.py\n+++ repaired/whence/interp.py\n@@ -1858,7 +1858,7 @@\n             out.append((yield _Call(fn, [x], line)))\n         return derived('map', '', line, (xs,), wlist(out))\n \n-    @register('filter', 3)\n+    @register('filter', 2)\n     def b_filter(interp, args, line):\n         m = _propagate('filter', args, line)\n         if m:\n",
+      "test_edits": [],
+      "site": [
+        1861,
+        1861
+      ],
+      "touched": [
+        [
+          1861,
+          1861
+        ]
+      ],
+      "localized": true,
+      "parses": true,
+      "exact": true,
+      "tests_green": false,
+      "pytest_tail": "ort ProgramGen\nE           ModuleNotFoundError: No module named 'swe'\n\nbench/ref_diff.py:105: ModuleNotFoundError\n=========================== short test summary info ============================\nFAILED tests/test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage\nFAILED tests/test_v10.py::test_ref_diff_fuzz_mode_same_on_copy_and_diff_on_sabotage\nFAILED tests/test_v10.py::test_ref_diff_fuzz_transient_new_tree_timeout_is_retried_not_reported\nFAILED tests/test_v10.py::test_ref_diff_fuzz_persistent_new_tree_timeout_is_a_real_finding\n4 failed, 775 passed in 113.20s (0:01:53)\n[exit 1]",
+      "green": false,
+      "outcome": "localized_not_green",
+      "mutant": "interp.py:2233:const#451",
+      "source": "round-149-recheck",
+      "diff_applied": true
+    }
+  }
+}

@@ -26,6 +26,7 @@ is reported as such rather than hidden.
 
 import ast
 import dis
+import hashlib
 import json
 import os
 import subprocess
@@ -145,14 +146,22 @@ sys.exit(int(rc))
 
 def executable_lines(source, filename="<file>"):
     """Line numbers that carry bytecode (recursively through nested code
-    objects) — the denominator for a coverage percentage."""
+    objects) — the denominator for a coverage percentage.
+
+    Python 3.11+ gives the module-level RESUME instruction line 0 (no
+    source line precedes it) — not a real line, so it's excluded here
+    along with the `None` findlinestarts can report on older Pythons for
+    the same "no attributable line" reason. Left unfiltered, line 0 read
+    as a phantom "line" every file has, off-by-one-inflating every
+    coverage denominator on any 3.11+ host."""
     code = compile(source, filename, "exec")
     lines = set()
     stack = [code]
     while stack:
         c = stack.pop()
         for _, ln in dis.findlinestarts(c):
-            lines.add(ln)
+            if ln:
+                lines.add(ln)
         for const in c.co_consts:
             if isinstance(const, types.CodeType):
                 stack.append(const)
@@ -217,7 +226,8 @@ def collect(root, rel_paths, pytest_args=("-q", "-p", "no:cacheprovider", "tests
     tail = "\n".join(p.output.strip().splitlines()[-3:])
     cov["_meta"] = {"root": root, "files": list(rel_paths), "pytest_args": list(pytest_args),
                     "returncode": p.returncode, "seconds": round(secs, 1), "pytest_tail": tail,
-                    "targeted": interest is not None, "by_file": bool(by_file)}
+                    "targeted": interest is not None, "by_file": bool(by_file),
+                    "file_hashes": dict((rel, _file_hash(real)) for real, rel in targets.items())}
     if interest is not None:
         cov["_interest"] = dict((rel, interest_real[real]) for real, rel in targets.items())
     return cov
@@ -282,6 +292,51 @@ def collapse(cov):
     out["_meta"] = meta
     if "_interest" in cov:
         out["_interest"] = cov["_interest"]
+    return out
+
+
+def _file_hash(path):
+    """sha256 of a file's bytes, or None if it can't be read (moved/deleted
+    since collection) — a mismatch either way means the map is untrustworthy
+    for line-keyed lookups against that file."""
+    try:
+        with open(path, "rb") as f:
+            return hashlib.sha256(f.read()).hexdigest()
+    except OSError:
+        return None
+
+
+def stale_files(cov, root):
+    """Rel paths in `cov` whose ON-DISK content (under `root`) no longer
+    matches the hash recorded at collection time — a by-file map is
+    LINE-KEYED, so if the target file has since grown/shrunk/moved lines
+    (a later commit inserted or deleted code above the mutated line), the
+    map's "file X covers line N" answer names whatever USED to be at line N,
+    not the current code there.
+
+    Round 113 (20/20) and round 137 (78/78) both burned a full-suite recheck
+    of every single subset-basis "survived" mutant because a stale map from
+    an earlier round was reused for `MapPrioritizer(subset=True)` restriction
+    (not just test-file ORDERING, which is line-count-agnostic and safe to
+    reuse stale): `whence/interp.py` grew ~2580 -> 2687 lines between round
+    125 (the map's source) and round 137 (the map's use), and mutants below
+    the growth point kept a ~0-2% baseline false-survival rate while mutants
+    above it hit 18-73% by line-number bucket — the map's line 1968 named
+    whatever code occupied line 1968 in the OLD file, not the new one.
+    A map with no `_meta.file_hashes` at all (every map saved before this
+    fix) is treated as unverifiable and returned as stale for every file —
+    the safe default when freshness was never recorded."""
+    meta = cov.get("_meta") or {}
+    hashes = meta.get("file_hashes")
+    out = []
+    for rel in meta.get("files") or []:
+        if hashes is None:
+            out.append(rel)
+            continue
+        want = hashes.get(rel)
+        got = _file_hash(os.path.join(root, rel))
+        if want is None or got is None or want != got:
+            out.append(rel)
     return out
 
 

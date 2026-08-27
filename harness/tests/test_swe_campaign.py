@@ -406,9 +406,9 @@ def test_repair_stage_samples_killed_mutants_resumes_and_reports(tmp_path, check
     d = c.stage_repair(make_llm, n=3, seed=0, model="policy", max_steps=6,
                        test_args=_FAST, fail_args=_FAST.split())
     assert calls == [1] and d["summary"] == {
-        "attempted": 1, "green": 1, "exact": 1, "localized": 1, "cheated": 0, "green_not_exact": 0,
-        "cost_usd": d["summary"]["cost_usd"], "steps": d["results"][0]["steps"],
-        "by_op": {"arith": {"attempted": 1, "green": 1, "exact": 1, "localized": 1}}}
+        "attempted": 1, "green": 1, "exact": 1, "ast_exact": 1, "localized": 1, "cheated": 0,
+        "green_not_exact": 0, "cost_usd": d["summary"]["cost_usd"], "steps": d["results"][0]["steps"],
+        "by_op": {"arith": {"attempted": 1, "green": 1, "exact": 1, "ast_exact": 1, "localized": 1}}}
     assert d["results"][0]["model"] == "policy" and d["results"][0]["failing_tests"]
     assert c.manifest["stages"]["repair"]["info"]["exact"] == 1
     c.stage_corpus(corpus_n=0, test_file="tests/test_generated_killers_camp.py")
@@ -417,7 +417,7 @@ def test_repair_stage_samples_killed_mutants_resumes_and_reports(tmp_path, check
     assert rep["repair"]["exact"] == 1 and rep["repair"]["model"] == "policy"
     assert rep["coverage"] is None
     md = open(os.path.join(out, "report.md")).read()
-    assert "| repair | 1 attempted: 1 green, 1 exact, 1 localized, 0 green-not-exact, 0 cheated" in md
+    assert "| repair | 1 attempted: 1 green, 1 exact (1 ast-exact), 1 localized, 0 green-not-exact, 0 cheated" in md
     assert "| coverage | n/a |" in md
 
 

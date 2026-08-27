@@ -1,6 +1,7 @@
 """Round 113: by-file coverage map, MapPrioritizer, covering-subset verdicts
 and the campaign's subset self-check."""
 import json
+import os
 
 import pytest
 
@@ -202,6 +203,72 @@ def test_campaign_subset_self_check_corrects_an_instrument_error(by_file_map, tm
     fixed = [d for d in rech["mutants"] if d["id"] == l10["id"]][0]
     assert fixed["status"] == "killed" and fixed["basis"] == "full"
     assert rech["survived"] == sum(1 for d in rech["mutants"] if d["status"] == "survived")
+
+
+def test_stale_files_empty_for_a_map_just_collected_against_the_same_tree(tmp_path):
+    root = make_project(tmp_path)
+    cov = CV.collect(root, ["mod.py"], by_file=True)
+    assert cov["_meta"]["file_hashes"] == {"mod.py": CV._file_hash(str(tmp_path / "proj" / "mod.py"))}
+    assert CV.stale_files(cov, root) == []
+
+
+def test_stale_files_flags_a_file_whose_content_changed_since_collection(tmp_path):
+    root = make_project(tmp_path)
+    cov = CV.collect(root, ["mod.py"], by_file=True)
+    mod_path = os.path.join(root, "mod.py")
+    original = open(mod_path).read()
+    # simulates a later commit inserting lines above the mutated code -- every
+    # line number below the map's hits now names DIFFERENT code (round 137's
+    # exact failure: whence/interp.py grew ~2580 -> 2687 lines between the
+    # map's collection round and its reuse three rounds later)
+    open(mod_path, "w").write("# inserted line\n" + original)
+    assert CV.stale_files(cov, root) == ["mod.py"]
+
+
+def test_stale_files_treats_a_map_with_no_recorded_hashes_as_unverifiable(tmp_path):
+    root = make_project(tmp_path)
+    cov = CV.collect(root, ["mod.py"], by_file=True)
+    cov["_meta"] = dict(cov["_meta"])
+    cov["_meta"].pop("file_hashes", None)   # every map saved before this fix looks like this
+    assert CV.stale_files(cov, root) == ["mod.py"]
+
+
+def test_map_prioritizer_auto_disables_subset_for_a_stale_map(tmp_path):
+    root = make_project(tmp_path)
+    cov = CV.collect(root, ["mod.py"], by_file=True)
+    mod_path = os.path.join(root, "mod.py")
+    original = open(mod_path).read()
+    open(mod_path, "w").write("# inserted line\n" + original)
+    # no root= -> freshness unverifiable by construction, old (dangerous) default kept
+    pr_no_root = PR.MapPrioritizer(cov, PR.default_test_files(root))
+    assert pr_no_root.subset is True and pr_no_root.stale == []
+    # root= given -> staleness detected, subset auto-disabled
+    pr = PR.MapPrioritizer(cov, PR.default_test_files(root), root=root)
+    assert pr.subset is False and pr.stale == ["mod.py"]
+    m10 = [m for m in generate(MOD, "mod.py") if m.lineno == 10][0]
+    assert pr.files_for(m10) == (["tests/test_b.py", "tests/test_a.py"], "full")
+    # explicit override restores the old (dangerous) all-trust behaviour
+    pr_forced = PR.MapPrioritizer(cov, PR.default_test_files(root), root=root, require_fresh=False)
+    assert pr_forced.subset is True and pr_forced.stale == []
+
+
+def test_campaign_ignores_a_stale_map_for_both_subset_and_the_coverage_stage(tmp_path):
+    root = make_project(tmp_path)
+    cov = CV.collect(root, ["mod.py"], by_file=True)
+    mod_path = os.path.join(root, "mod.py")
+    original = open(mod_path).read()
+    open(mod_path, "w").write("# inserted line\n" + original)
+    pr = PR.MapPrioritizer(cov, PR.default_test_files(root), root=root)
+    out = str(tmp_path / "out5")
+    c = Campaign(out, root, ("mod.py",), prioritizer=pr, coverage_map=cov, log=lambda s: None)
+    assert c.coverage_map_stale == ["mod.py"]
+    data = c.stage_mutation(workers=2, timeout_s=60.0)
+    assert data["mutants"] and all(d["basis"] == "full" for d in data["mutants"])
+    c.stage_recheck(timeout_s=60.0)
+    c.stage_coverage()
+    man = json.load(open(os.path.join(out, "campaign.json")))
+    info = man["stages"]["coverage"]["info"]
+    assert info["from_map"] is False and info["map_stale"] == ["mod.py"]
 
 
 def test_subset_check_verifies_all_survivors_within_the_cap_not_a_sample(by_file_map, tmp_path):
