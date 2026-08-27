@@ -207,6 +207,28 @@ class Miss(object):
         self.reasons = tuple(out)
 
 
+class Guess(object):
+    """An uncertain value (v0.15, AI-native primitives): `node` is a real
+    Prov holding the underlying answer, `confidence` is a float in [0, 1],
+    `sources` are deduped, ordered labels for what produced/contributed to
+    it. Mirrors `Miss` on purpose: where a Miss says "no answer, and here
+    is why," a Guess says "an answer, but not a certain one, and here is
+    how sure." Never nests (`guess(guess(x, ...), ...)` merges into one,
+    same discipline as `merge_miss` never wrapping a Miss around a Miss)."""
+    __slots__ = ("node", "confidence", "sources")
+
+    def __init__(self, node, confidence, sources):
+        seen = set()
+        out = []
+        for s in sources:
+            if s not in seen:
+                seen.add(s)
+                out.append(s)
+        self.node = node
+        self.confidence = confidence
+        self.sources = tuple(out)
+
+
 class Record(object):
     __slots__ = ("fields",)
 
@@ -300,6 +322,10 @@ def _show(p, limit, nest):
             (", …" if len(head) < len(items) else "") + "}"
     if isinstance(p, Miss):
         return "miss"
+    if isinstance(p, Guess):
+        return "guess %.2g (%s): %s" % (
+            p.confidence, ", ".join(p.sources),
+            show_payload(p.node.payload, limit and 12, nest + 1))
     if isinstance(p, Closure):
         return "<fn %s>" % p.name if p.name else "<fn>"
     if isinstance(p, Builtin):

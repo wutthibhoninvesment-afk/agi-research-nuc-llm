@@ -50,6 +50,7 @@ BUILTIN_ARITY = {
     "get": 2, "put": 3, "has": 2, "find": 2,
     "steps": (1, 2), "at": 2, "blame": 1, "diverge": (1, 2),
     "contrast": (1, 2),
+    "guess": 3, "is_guess": 1, "confidence": 1, "sure": 2,
 }
 BINOPS = ["+", "-", "*", "/", "%", "==", "!=", "<", "<=", ">", ">=", "and", "or"]
 STR_POOL = ["", "a", "ab", "3O", "42", " 7 ", "1_000", "nan", "inf", "-inf",
@@ -78,6 +79,22 @@ TYPE_TAGS = ("num", "str", "bool", "list", "record", "fn", "any")
 # which is a real host ParseError — already a normal, handled fuzzer
 # outcome (every existing seed already produces plenty from other causes).
 EFFECT_TAG_SETS = ("[]", "[io]", "[net]", "[io, net]")
+
+# v0.15 backlog (SPEC "guest parity: not started"): `guess`/`is_guess`/
+# `confidence`/`sure` are ORDINARY builtin calls (no new syntax, unlike
+# `: Type`/`effects [...]`), so they join `BUILTIN_ARITY` and `call()`
+# picks them like any other builtin — exercising `_guess_binop`'s
+# weakest-link-confidence path, the "genuine type error stays a miss"
+# path, and `sure()`'s threshold both ways against fast/direct/trampoline.
+# `GuestGen` (guest.py) bans these four names from ever reaching a guest-
+# safe program instead of overriding a generator method to a no-op
+# (`self_eval.lang`'s `arities`/`apply_builtin` tables have no entry for
+# any of them yet) — the same BANNED-line mechanism already used for the
+# provenance builtins, which fits here because a `guess(...)` call is
+# always a droppable expression-level line, never syntax baked into every
+# function signature the way `: Type`/`effects` were.
+GUESS_CONFIDENCES = ("0.9", "0.5", "0.1", "0.0", "1.0", "1.5", "-0.2", '"bad"')
+GUESS_SOURCES = ('"model"', '"sampled"', "42")
 
 
 class ProgramGen(object):
@@ -312,6 +329,14 @@ class ProgramGen(object):
             args = [self.expr(depth + 1, local),
                     r.choice(['"%s"' % r.choice(FIELD_POOL),
                               self.expr(depth + 1, local)])]
+        elif name == "guess":
+            # confidence/source pools mix valid and invalid so both the
+            # success path and the "confidence/source must be a str/num
+            # in [0, 1]" propagated-miss path fire.
+            args = [self.expr(depth + 1, local), r.choice(GUESS_CONFIDENCES),
+                    r.choice(GUESS_SOURCES)]
+        elif name == "sure":
+            args = [self.expr(depth + 1, local), r.choice(GUESS_CONFIDENCES)]
         else:
             args = [self.expr(depth + 1, local) for _ in range(n)]
         return "%s(%s)" % (name, ", ".join(args[:n] if n <= len(args) else args + [self.literal()]))

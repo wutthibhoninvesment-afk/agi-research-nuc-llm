@@ -1,11 +1,12 @@
 """swe.fuzz: generator determinism, oracle classification, shrinker."""
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from swe.fuzz import (ProgramGen, run_program, signature, shrink, ddmin_lines,
-                      _minimize_ints, fuzz, WHENCE_ROOT)
+                      _minimize_ints, fuzz, WHENCE_ROOT, GUESS_CONFIDENCES)
 from tests.synthetic_crash import install as install_crash, CRASH_PROGRAM
 
 
@@ -28,6 +29,31 @@ def test_generated_programs_mostly_parse():
         except (LexError, ParseError):
             pass
     assert ok >= 50, ok   # the grammar-directed generator should rarely misparse
+
+
+def test_generator_now_emits_guess_family_calls():
+    # v0.15 (round 168) backlog closed round 174: `guess`/`is_guess`/
+    # `confidence`/`sure` joined BUILTIN_ARITY so the grammar-directed
+    # fuzzer, not just the hand-written corpus (tests/test_v15.py), reaches
+    # `_guess_binop`'s weakest-link path against fast/direct/trampoline.
+    guess_re = re.compile(r"\b(guess|is_guess|confidence|sure)\(")
+    seen = sum(1 for i in range(200)
+               if guess_re.search(ProgramGen(i).program()))
+    assert seen >= 15, seen
+
+
+def test_guess_and_sure_builtins_are_total_under_fuzz_confidences():
+    # GUESS_CONFIDENCES mixes valid (str, num-out-of-range) and invalid
+    # confidences deliberately (see fuzz.py's comment) so both the success
+    # path and the "confidence must be a num in [0, 1]" miss path are real,
+    # exercised host behaviour, not just generator output that happens to
+    # parse — every one of them must still be a TOTAL, non-crashing run.
+    for conf in GUESS_CONFIDENCES:
+        src = ('let g = guess(1, %s, "model")\n'
+               'let s = sure(g, 0.5) rescue -1\n'
+               'print(str(is_guess(g)) + str(confidence(g) rescue -1))\n') % conf
+        o = run_program(src)
+        assert o.kind == "ok", (conf, o)
 
 
 def test_oracle_classifies_ok_parse_error_and_crash(monkeypatch):

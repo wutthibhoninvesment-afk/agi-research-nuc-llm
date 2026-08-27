@@ -1,0 +1,82 @@
+# guess.lang — AI-native primitives (v0.15): `guess` models an UNCERTAIN
+# value, symmetric to how `miss` already models an ABSENT one. Where a
+# miss is "no answer, and here is why," a guess is "an answer, but here
+# is how sure" — the defining shape of an LLM's own output.
+
+let a = guess(10, 0.9, "model")
+check "a guess carries its underlying value": sure(a, 0) == 10
+check "is_guess tells a guess apart from a plain value": is_guess(a) and
+  not is_guess(10)
+check "confidence reads the score back": confidence(a) == 0.9
+check "shapeof names it, alongside every other kind": shapeof(a) == "guess"
+
+# Arithmetic threads THROUGH a guess automatically — you do not have to
+# unwrap it before every use, only before you need a definite answer.
+let sum = a + 5
+check "arithmetic on a guess yields a guess": is_guess(sum)
+check "...with the arithmetic actually performed": sure(sum, 0) == 15
+check "...at the SAME confidence, one guessed input": confidence(sum) == 0.9
+
+# Confidence is WEAKEST-LINK (min), not averaged and not decayed per step:
+# a chain is only as sure as its least certain input, however long it is.
+let b = guess(4, 0.6, "sampled")
+let combined = a + b            # 0.9 and 0.6 -> 0.6, the weaker of the two
+check "combined confidence is the min, not the average": confidence(combined) == 0.6
+check "the underlying arithmetic is still exact": sure(combined, 0) == 14
+
+let chained = a + a + a + a + a  # five 0.9-confidence terms
+check "five terms at 0.9 stay at 0.9, not 0.9^5": confidence(chained) == 0.9
+check "and the sum is exact": sure(chained, 0) == 50
+
+# A genuine type error stays a miss — a confidence score vouches for
+# certainty in a VALID computation, it cannot launder an invalid one.
+let bad = guess("x", 0.9, "model") + 5
+check "adding a guessed string to a number is still just wrong": missed(bad)
+check "not a guess about being wrong": not is_guess(bad)
+
+# `sure(v, threshold)` is the one way out: pass-through above threshold,
+# a miss below it, and a no-op on anything that was never uncertain.
+check "sure() above threshold hands back the plain value": sure(a, 0.5) == 10
+let too_unsure = sure(a, 0.95)
+check "sure() below threshold is an ordinary miss": missed(too_unsure)
+check "...naming the shortfall": contains(reasons(too_unsure)[0],
+  "guess confidence 0.9 below threshold 0.95")
+check "sure() on an already-definite value is a no-op": sure(42, 0.99) == 42
+
+# guess(guess(x, ...), ...) FLATTENS rather than nests — one Guess, not a
+# tower of them — same discipline `miss` already has for `miss`-of-`miss`.
+let nested = guess(guess(7, 0.8, "first"), 0.5, "second")
+check "nesting flattens to one guess": sure(nested, 0) == 7
+check "...at the weaker of the two confidences": confidence(nested) == 0.5
+
+# Comparing a guess uses the SAME propagation rule as arithmetic: the
+# result is itself a guess about the comparison, not a bare boolean —
+# you must commit before you can be sure of an equality involving one.
+let cmp = (a == guess(10, 0.9, "model"))
+check "comparing two guesses yields a guess, not a bare bool": is_guess(cmp)
+check "...whose underlying answer is still correct": sure(cmp, 0) == true
+
+# But INSIDE a container, equality asks "same answer?", not "how sure?" —
+# deliberately different from the bare-value rule above, because this
+# path backs `contains`/`find`, where confidence isn't the question.
+let listed = [guess(1, 0.9, "m")] == [guess(1, 0.9, "m")]
+check "list equality ignores confidence, compares the answer": listed == true
+check "...even at different confidences": [guess(1, 0.9, "m")] == [guess(1, 0.1, "other")]
+
+# Deliberately shallow: indexing, field access, and calling a guess are
+# NOT unwrapped automatically. `sure()` first, same as any other
+# wrong-shape value — this costs nothing, it falls out of the interpreter
+# already being total by construction.
+let wrapped_list = guess([1, 2, 3], 0.9, "model")
+check "indexing a guess is an ordinary miss, not a crash": missed(wrapped_list[0])
+check "sure() first, then it indexes fine": sure(wrapped_list, 0)[0] == 1
+
+# `: guess` is a real type contract, checked structurally like any other.
+fn needs_guess(g: guess) { confidence(g) }
+check "a typed parameter accepts an actual guess": needs_guess(a) == 0.9
+check "...and rejects a plain value": missed(needs_guess(10))
+
+print("")
+print("a guess of " + str(sure(chained, 0)) + " at confidence " +
+      str(confidence(chained)) + " from " + str(len(reasons(too_unsure))) +
+      " miss reason(s) below threshold")

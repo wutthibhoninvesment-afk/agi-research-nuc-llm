@@ -31,7 +31,12 @@ MAX_NESTING = 60
 # name besides a previously declared `shape`. Erased entirely at parse
 # time into `typed(...)` guard calls (see `_apply_type_guards`) — the
 # interpreter never sees a "type", only ordinary Let/Call/Str nodes.
-PRIMITIVE_TYPES = frozenset(["num", "str", "bool", "list", "record", "fn", "any"])
+# "guess" (v0.15) joins the primitive set so a parameter/return contract
+# can require an UNCOMMITTED value ("this must still carry a confidence
+# score, call it yourself") the same way it can require a "num" or "str" —
+# `_kind` in interp.py maps a `Guess` payload to this same string.
+PRIMITIVE_TYPES = frozenset(
+    ["num", "str", "bool", "list", "record", "fn", "guess", "any"])
 
 # Effect system (v0.14): builtins whose call is a directly-observable side
 # effect, mapped to the capability tag `effects [...]` names them by. Only

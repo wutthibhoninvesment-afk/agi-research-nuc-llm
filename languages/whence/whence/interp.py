@@ -52,7 +52,8 @@ from types import GeneratorType
 from . import ast_nodes as A
 from .parser import parse
 from .values import (
-    Value, Prov, MergedProv, Miss, Record, Closure, Builtin, Explanation,
+    Value, Prov, MergedProv, Miss, Guess, Record, Closure, Builtin,
+    Explanation,
     _slot,
     WList, wlist,
     show_payload, full_show, leaf, derived, mk_miss, merge_miss, render_why,
@@ -157,6 +158,13 @@ def _stack_depth():
 def _unary(op, v, line):
     if isinstance(v.value, Miss):
         return merge_miss(op, "", line, (v,))
+    if isinstance(v.value, Guess):
+        g = v.value
+        result = _unary(op, g.node, line)
+        if isinstance(result.value, Miss):
+            return result       # a genuine type error is not uncertain
+        return Prov(op, "guess", line, _slot((v,)), _LAZY,
+                   Guess(result, g.confidence, g.sources))
     if op == "-":
         if _is_num(v.value):
             return derived("-", "negate", line, (v,), -v.value)
@@ -1562,6 +1570,8 @@ class Interpreter(object):
         # general path: at least one operand is not a number
         if isinstance(l, Miss) or isinstance(r, Miss):
             return merge_miss(op, "", line, (left, right))
+        if isinstance(l, Guess) or isinstance(r, Guess):
+            return self._guess_binop(op, left, right, line)
         provs = (left, right)
 
         if op in ("==", "!="):
@@ -1594,6 +1604,34 @@ class Interpreter(object):
                            inputs=provs)
 
         raise AssertionError("unknown binary op %r" % op)
+
+    def _guess_binop(self, op, left, right, line):
+        """A binary op with at least one Guess operand (v0.15): unwrap to
+        the underlying nodes, compute AS IF both sides were certain, then
+        rewrap the result — confidence is the WEAKEST-LINK minimum across
+        every Guess operand (not an average: a chain is only as sure as
+        its least certain input), sources are the union. A result that is
+        a genuine type/value error (e.g. adding a guessed string to a
+        number) stays a plain miss, unchanged — a Guess only vouches for
+        confidence in an otherwise-valid computation; it does not make an
+        invalid one valid, so type errors are never laundered into
+        uncertainty. `==`/`!=` fall through this same path (not
+        `deep_eq`), so comparing a certain value against a guessed one
+        yields a GUESS about the comparison, not a plain bool — you must
+        `sure()` a guess before you can be sure of a comparison against
+        it, symmetric with any other operator."""
+        ln, lc, ls = ((left.value.node, left.value.confidence,
+                      left.value.sources) if isinstance(left.value, Guess)
+                     else (left, None, ()))
+        rn, rc, rs = ((right.value.node, right.value.confidence,
+                      right.value.sources) if isinstance(right.value, Guess)
+                     else (right, None, ()))
+        result = self.binop(op, ln, rn, line)
+        if isinstance(result.value, Miss):
+            return result
+        confidence = min(c for c in (lc, rc) if c is not None)
+        return Prov(op, "guess", line, _slot((left, right)), _LAZY,
+                   Guess(result, confidence, ls + rs))
 
     def eval_Call(self, node, env):
         compile_fast = self.compile_fast
@@ -1964,6 +2002,15 @@ def deep_eq(l, r, memo=None):
                 return False
             for k in l.fields:
                 stack.append((l.fields[k].payload, r.fields[k].payload))
+        elif isinstance(l, Guess) and isinstance(r, Guess):
+            # structural equality is about the ANSWER, not how sure either
+            # side was (confidence/sources are metadata, not identity) —
+            # deliberately different from top-level `==` on a bare guess,
+            # which goes through `_guess_binop` instead of `deep_eq` and
+            # DOES carry confidence into its result (see that method's
+            # docstring). `contains`/`find`/nested `==` on a list or
+            # record of guesses reach this path, not that one.
+            stack.append((l.node.payload, r.node.payload))
         else:
             return False  # different types
     if memo is not None:
@@ -2000,14 +2047,16 @@ def _propagate(name, args, line):
 _KIND_ORDER = (
     (Miss, "miss"), (bool, "bool"), ((int, float), "num"), (str, "str"),
     (WList, "list"), (Record, "record"), ((Closure, Builtin), "fn"),
+    (Guess, "guess"),
 )
 
 
 def _kind(payload):
     """The runtime shape of a payload as a Whence-visible string: one of
-    `num str bool list record fn miss`, or `"value"` for the two payloads
-    with no Whence type tag (`why`'s Explanation; nothing else escapes to
-    user code). `bool` before `(int, float)`: Python bools are ints."""
+    `num str bool list record fn guess miss`, or `"value"` for the two
+    payloads with no Whence type tag (`why`'s Explanation; nothing else
+    escapes to user code). `bool` before `(int, float)`: Python bools are
+    ints."""
     for types, name in _KIND_ORDER:
         if isinstance(payload, types):
             return name
@@ -2563,6 +2612,101 @@ def _make_builtin_table():
         # Total: works on misses too (returns "miss"), like `missed`.
         v = args[0]
         return derived("shapeof", "", line, args, _kind(v.payload))
+
+    # --- AI-native primitives: `guess` (v0.15) ---------------------------
+    # `guess(value, confidence, source)` wraps an otherwise-ordinary value
+    # as UNCOMMITTED: "here is an answer, but not a certain one." Mirrors
+    # `miss` on purpose (see values.py's `Guess` docstring) — where a miss
+    # is absence with a reason, a guess is presence with a confidence.
+    # Binary/unary ops propagate a Guess operand automatically
+    # (`Interpreter._guess_binop`/`_unary`, values.py `Guess`): the result
+    # is itself a Guess at the WEAKEST-LINK (minimum) confidence of every
+    # Guess operand involved, unless the underlying computation is a
+    # genuine type error, which stays an ordinary miss (a Guess vouches
+    # for confidence, not validity). `sure(v, threshold)` is the one way
+    # to leave this world: it commits to a threshold and either hands back
+    # the plain underlying value (confidence high enough — pass-through,
+    # no new node, same convention as a passing `typed`) or a miss naming
+    # the shortfall. A non-Guess value is always "sure": `sure` is a
+    # universal escape hatch, not a guess-only operation, so ordinary code
+    # can call it defensively without checking `is_guess` first.
+    #
+    # Deliberately shallow, same discipline as v0.12-14: indexing/field
+    # access/calling a Guess-wrapped container or function is NOT
+    # unwrapped automatically — `_index`/`_field`/call dispatch simply
+    # don't recognize a Guess as a list/record/callable, so they produce
+    # an ordinary "cannot index/access/call" miss via `show_payload`,
+    # for free, with zero code added to those paths. `and`/`or`/`if`
+    # likewise require a definite `true`/`false` (`_logic_left`,
+    # `_logic_right`, `_if_bad` are unmodified) — a Guess must be resolved
+    # with `sure()` before it can decide control flow. Only the two places
+    # a v0.15 value can flow through *without* being resolved are the
+    # arithmetic/comparison/logical-negation operators themselves.
+
+    @register("guess", 3)
+    def b_guess(interp, args, line):
+        m = _propagate("guess", args, line)
+        if m:
+            return m
+        value, conf, source = args
+        c = conf.payload
+        if not _is_num(c) or not (0 <= c <= 1):
+            return mk_miss("guess confidence must be a number between 0 "
+                           "and 1, got %s" % show_payload(c), line, "guess",
+                           inputs=(value, conf, source))
+        if not isinstance(source.payload, str):
+            return mk_miss("guess source must be a string, got %s" %
+                           show_payload(source.payload), line, "guess",
+                           inputs=(value, conf, source))
+        if isinstance(value.payload, Guess):
+            # flatten rather than nest, same discipline as merge_miss
+            # never wrapping a Miss around a Miss
+            g = value.payload
+            confidence = min(g.confidence, c)
+            sources = g.sources + (source.payload,)
+            node = g.node
+        else:
+            confidence, sources, node = c, (source.payload,), value
+        return Prov("guess", source.payload, line, _slot((value, conf, source)),
+                   _LAZY, Guess(node, confidence, sources))
+
+    @register("is_guess", 1)
+    def b_is_guess(interp, args, line):
+        # Total, like `matches`/`missed`: never itself a miss.
+        return derived("is_guess", "", line, args,
+                       isinstance(args[0].payload, Guess))
+
+    @register("confidence", 1)
+    def b_confidence(interp, args, line):
+        m = _propagate("confidence", args, line)
+        if m:
+            return m
+        v = args[0]
+        if not isinstance(v.payload, Guess):
+            return mk_miss("confidence: not a guess, got %s" %
+                           show_payload(v.payload), line, "confidence",
+                           inputs=(v,))
+        return derived("confidence", "", line, (v,), v.payload.confidence)
+
+    @register("sure", 2)
+    def b_sure(interp, args, line):
+        m = _propagate("sure", args, line)
+        if m:
+            return m
+        v, threshold = args
+        t = threshold.payload
+        if not _is_num(t) or not (0 <= t <= 1):
+            return mk_miss("sure threshold must be a number between 0 "
+                           "and 1, got %s" % show_payload(t), line, "sure",
+                           inputs=(v, threshold))
+        if not isinstance(v.payload, Guess):
+            return v      # already certain: sure() is a no-op escape hatch
+        g = v.payload
+        if g.confidence >= t:
+            return g.node   # pass-through: no new node, mirrors `typed`
+        return mk_miss("guess confidence %.2g below threshold %.2g (%s)" %
+                       (g.confidence, t, ", ".join(g.sources)), line, "sure",
+                       inputs=(v,))
 
     # --- provenance as data (round 4) -----------------------------------
     # These are total: they work on misses (that is the point) and accept

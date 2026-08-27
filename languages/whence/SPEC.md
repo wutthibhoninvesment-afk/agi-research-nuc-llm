@@ -1,4 +1,4 @@
-# Whence — a provenance-first language (spec v0.14, rounds 009/011/014/020/024/026/030/108/110/122/128/132/146)
+# Whence — a provenance-first language (spec v0.15, rounds 009/011/014/020/024/026/030/108/110/122/128/132/146/164/168)
 
 **One idea:** every value remembers where it came from. `why x` returns the
 derivation tree of `x` as a first-class value. Failures are values too, so a
@@ -766,10 +766,155 @@ that cannot end a statement.
   research-state.md's language(C) list) rather than rushed behind this
   round's actual deliverable.
 
+## v0.15 (round 168) — AI-native primitives: `guess`/confidence
+- **The curriculum's last open "advanced feature" slot** (structural types
+  v0.12, return types v0.13, effects v0.14 all shipped; round 146 itself
+  flagged AI-native primitives as unscoped). Scope decided this round:
+  model **uncertainty** — an LLM's defining property, "an answer, but not
+  a guaranteed one" — as a first-class value, symmetric to how `miss`
+  already models **absence**. Where a `miss` is "no answer, and here is
+  why," a `guess` is "an answer, but here is how sure": `guess(value,
+  confidence, source)` wraps any value with a confidence in `[0, 1]` and a
+  free-text source label (`"model"`, `"sampled"`, whatever the caller's
+  own provenance for the number is — Whence does not itself talk to a
+  model; it gives a caller who does somewhere a value shape to report the
+  result *in*).
+- **New payload type, not a tagged record.** `shape`/structural types
+  (v0.12) could have modeled this as `@{__tag: "guess", value: v,
+  confidence: c}` with zero interpreter change — and that was seriously
+  considered, then rejected: a tagged record is INERT. `record + record`
+  is already a miss regardless of tags, so `guess(3, 0.9, "m") + 1` would
+  have to be written point-free (`sure(g, 0.5) + 1`) every single time,
+  which defeats the actual point of an AI-native primitive — that
+  uncertainty should be threadable through ordinary arithmetic like `miss`
+  already threads through it, not something you must manually unwrap
+  before every use. That threading is the one thing a plain record cannot
+  give you without operator overloading Whence does not have, so `Guess`
+  is a real `values.py` class (mirroring `Miss`'s own shape exactly:
+  `__slots__`, a dedup-and-order constructor for `sources`/`Miss.reasons`)
+  and the interpreter's binary/unary op dispatch was extended, in exactly
+  the two places that dispatch is centralized (see below).
+- **Propagation rule: WEAKEST-LINK confidence (`min`), not an average.**
+  `Interpreter._guess_binop` (`interp.py`) unwraps any Guess operand to
+  its underlying node, computes the op AS IF both sides were certain via
+  a plain recursive `self.binop(...)` call, then rewraps the result in a
+  fresh `Guess` at `min()` of every contributing confidence, with sources
+  unioned (deduped, ordered, mirrors `Miss.reasons`). A chain of five
+  0.9-confidence additions is a 0.9-confidence sum, not a 0.59-confidence
+  one (`0.9**5`) or a 0.9-confidence one via averaging that hides how many
+  guesses actually went in — `min` is the only combinator under which "an
+  answer is only as certain as its LEAST certain input" holds regardless
+  of chain length, the same reason a `miss` chain does not need a decay
+  function either. `_unary` (`-`/`not`) gets the identical treatment,
+  recursing once on the unwrapped node.
+- **A genuine type error stays a miss, never becomes an uncertain
+  success.** `guess("x", 0.9, "model") + 5` computes `"x" + 5` on the
+  unwrapped operands first; that is `mk_miss("cannot add str and num",
+  ...)` under ordinary rules, and `_guess_binop` checks for exactly this
+  (`isinstance(result.value, Miss)`) and returns it UNCHANGED rather than
+  wrapping it in a `Guess` — a confidence score vouches for how sure you
+  are of a valid answer, it cannot launder an invalid computation into a
+  low-confidence one. Symmetric with `_check_ret` (v0.13) "a result that
+  is already a miss propagates unchanged, before any inspection."
+- **`==`/`!=` on a bare Guess go through `_guess_binop` too, not
+  `deep_eq` — a genuinely different rule from structural equality
+  elsewhere.** `1 == guess(1, 0.9, "model")` unwraps, computes `1 == 1`
+  (True, certain), then rewraps: the RESULT is `guess(true, 0.9,
+  "model")`, a Guess about whether they are equal, not a plain `true`.
+  You cannot get a bare boolean out of comparing against an uncertain
+  value without resolving the uncertainty first (`sure(...)` — see
+  below) — the same discipline that already applies to arithmetic,
+  applied to comparison for consistency, not because it was free. This is
+  DELIBERATELY asymmetric with what happens when a Guess sits *inside* a
+  container: `[guess(1, 0.9, "m")] == [guess(1, 0.9, "m")]` reaches
+  `deep_eq` for the outer list-vs-list compare (neither top-level operand
+  IS a Guess, both are lists), which recurses into elements and hits a
+  new `deep_eq` case comparing two Guesses' underlying values only,
+  IGNORING confidence/source — because `deep_eq` backs `contains`/`find`/
+  structural-equality-as-a-utility, where "are these the same answer" is
+  the useful question, not "how sure was each side." Two different
+  questions, two different answers, both documented in `interp.py` at
+  their respective call sites (`_guess_binop`'s docstring, `deep_eq`'s new
+  `elif isinstance(l, Guess) and isinstance(r, Guess)` branch) precisely
+  because the asymmetry is easy to mistake for a bug if it isn't spelled
+  out.
+- **`sure(v, threshold)` is the one way out, and a universal escape
+  hatch, not a guess-only operation.** `sure` on a plain (non-Guess) value
+  is a no-op pass-through — ordinary code can call `sure(x, 0.8)`
+  defensively without checking `is_guess(x)` first, the same "total,
+  works on anything" discipline `missed`/`matches`/`shapeof` already
+  have. On a Guess: confidence `>=` threshold returns the ORIGINAL
+  underlying node, pass-through, no new provenance step (mirrors `typed`'s
+  own "no new node on a match" convention exactly) — so `sure()`ing a
+  guess back down to a definite value is truly transparent, not lossy;
+  below threshold is `mk_miss("guess confidence C below threshold T
+  (sources)", ...)`, an ordinary miss that then propagates like any other.
+- **Deliberately shallow, same discipline as v0.12–14 — costs ZERO extra
+  code, not merely undocumented:** indexing (`_index`), field access
+  (`_field`), and call dispatch do not recognize `Guess` as a
+  list/record/callable, so `guess([1,2], 0.9, "m")[0]` is an ordinary
+  "cannot index guess 0.9 (\"m\"): [1, 2]" miss — `sure()` first, same as
+  any other wrong-shape value — for FREE, because those functions already
+  fall through to their existing "unrecognized payload" miss branch via
+  `show_payload` (which gained a `Guess` case for exactly this reason,
+  `values.py::_show`). `and`/`or`/`if` are equally untouched
+  (`_logic_left`, `_logic_right`, `_if_bad`): a Guess is not a `bool`, so
+  those already-existing "needs true/false, got %s" misses fire
+  unmodified, `show_payload` again doing the rendering work. Only
+  arithmetic, comparison, and unary negation/`not` were actually touched;
+  everything else "supports" Guess only in the sense that it fails
+  helpfully instead of crashing, which every payload type already got for
+  free from the total-by-construction interpreter.
+- **`shapeof`/`typed`/`matches` integration is one line each.** `_kind`
+  (`interp.py`) gained `(Guess, "guess")` in `_KIND_ORDER`, and
+  `PRIMITIVE_TYPES` (`parser.py`) gained `"guess"` — so `fn f(a: guess) {
+  ... }` is a real, working type contract ("this parameter must still
+  carry a confidence score; committing it is the callee's job"), erased
+  by the existing v0.12 machinery with no new code path.
+- **New builtins** (all in `interp.py`'s builtin table, `guess`/
+  `is_guess`/`confidence`/`sure`): `guess(value, confidence, source)`
+  (arity 3, propagates a miss `value`/`confidence`/`source`; validates
+  confidence is a num in `[0, 1]` and source is a str; a `guess` of an
+  already-`Guess` value FLATTENS rather than nests — `min` of the two
+  confidences, sources unioned — the same "never wrap a Miss around a
+  Miss" discipline `merge_miss` already has for the sibling type);
+  `is_guess(v)` (arity 1, total, mirrors `matches`); `confidence(v)`
+  (arity 1, a miss "not a guess" on anything else); `sure(v, threshold)`
+  (arity 2, described above).
+- **New example `examples/guess.lang`** and `tests/test_v15.py`
+  (mirroring `test_v14.py`'s structure): weakest-link confidence through
+  a chain of arithmetic, a genuine type error staying a miss even with
+  guessed operands, `sure()`'s pass-through-on-success/miss-on-shortfall
+  both ways, the non-Guess-is-always-sure no-op, `guess`-of-`guess`
+  flattening, `is_guess`/`confidence`/`shapeof`/`typed` integration, the
+  `==`-vs-`deep_eq` asymmetry pinned explicitly both ways (bare compare
+  vs. compare-inside-a-list), and `assert_three_way` cases confirming fast
+  /direct/trampoline agree byte-for-byte on Guess-carrying programs (no
+  reason to expect disagreement — `_guess_binop`/`_unary` sit in the
+  SHARED dispatch both the generator and fast/direct-compiled paths
+  eventually call through, the same reason v0.14 needed zero interpreter
+  change at all worked out in v0.15's favor here too, just one level
+  removed: the compiled `f_add`/`f_sub`/… closures inline only the
+  int/float/str hot paths and fall through to `binop()` for anything
+  else, so a `Guess` operand reaches the exact same `_guess_binop` call
+  regardless of which path evaluated it, with no separate fast-path
+  copy to keep in sync).
+- **Guest parity: not started, explicitly out of scope this round** —
+  same staged pattern as every prior feature (`: Type`/`-> Type` took
+  from round 122/126 to round 158; `effects` from round 146 to round 164).
+  `self_eval.lang`/`self_host.lang`'s hand-copied parser has no `guess`
+  builtin at all yet; `harness/swe/fuzz.py`'s grammar does not generate
+  `guess(...)` calls either (tracked as fresh backlog, see
+  research-state.md's language(C) list — the fuzzer gap this time is
+  DAY ONE, not discovered N rounds later, because this round's own
+  standing-checklist review caught it before committing, unlike the `:
+  Type`/`effects` precedents where the gap sat for 8 and 16 rounds
+  respectively before anyone looked for it).
+
 ## Builtins
 `print len range map filter fold push str num abs sqrt missed reasons note
 contains join keys merge get put has find steps at blame diverge contrast
-typed matches shapeof`
+typed matches shapeof guess is_guess confidence sure`
 
 ## Limits that are errors, not crashes
 - Expression nesting deeper than 60 levels (parentheses, prefix operators,

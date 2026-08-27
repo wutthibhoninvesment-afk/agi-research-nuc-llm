@@ -63,6 +63,28 @@ def test_guest_safe_strips_banned_lines():
     assert G.guest_safe(src) == "let a = 1\nlet c = a + 1\n"
 
 
+def test_generator_never_leaks_guess_family_to_guest_output():
+    # v0.15 (round 168) added `guess`/`is_guess`/`confidence`/`sure` to the
+    # shared BUILTIN_ARITY table (round 174); self_eval.lang's `arities`/
+    # `apply_builtin` tables have no entries for any of them yet, so
+    # GuestGen bans the names outright (guest.py's BANNED regex) instead of
+    # a per-method no-op override — unlike `: Type`/`effects [...]`, a
+    # `guess(...)` call is always a droppable expression-level line, never
+    # syntax baked into a function signature. Confirm the addition is
+    # actually exercised (not dead code the guest ban makes moot) by
+    # checking the base ProgramGen — used unfiltered by the host-only
+    # fuzzer — does generate these calls, while GuestGen's own filtered
+    # output never lets one through.
+    from swe.fuzz import ProgramGen
+    guess_re = re.compile(r"\b(guess|is_guess|confidence|sure)\(")
+    raw_hits = sum(1 for i in range(300)
+                   if guess_re.search(ProgramGen(i, stress_rate=0.0).program()))
+    assert raw_hits >= 15, raw_hits
+    for i in range(300):
+        src = G.generate_guest_program(i)
+        assert not guess_re.search(src), (i, src)
+
+
 def test_escape_roundtrip(pkg, harness):
     # a program full of string escapes must survive embedding into run_src
     src = ('let s = "a\\nb" + "\\"q\\"" + "back\\\\slash"\n'

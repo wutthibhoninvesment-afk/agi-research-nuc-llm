@@ -38,8 +38,17 @@ DEPTH_SENTINEL = "&DEPTHMISS&"
 GUEST_ORACLE = "self_eval"
 LIB_MARKER = "# ==== SELF-TESTS"
 
-# provenance builtins the guest evaluator does not (and cannot yet) mirror
-BANNED = re.compile(r"\b(why|snip|steps|at|blame|diverge|contrast|print)\b")
+# provenance builtins the guest evaluator does not (and cannot yet) mirror,
+# plus the v0.15 (round 168) `guess`/confidence family (round 174 backlog
+# note in SPEC.md): self_eval.lang's `arities`/`apply_builtin` tables have
+# no entries for `guess`/`is_guess`/`confidence`/`sure` yet, and (unlike
+# `: Type`/`effects [...]`, which are syntax baked into every function
+# signature and needed a `ProgramGen` no-op override instead) a call to
+# one of these is always a droppable expression-level line, so banning the
+# names here is the correct-scoped fix, not a workaround.
+BANNED = re.compile(
+    r"\b(why|snip|steps|at|blame|diverge|contrast|print"
+    r"|guess|is_guess|confidence|sure)\b")
 
 
 def guest_safe(src):
