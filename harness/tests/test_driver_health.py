@@ -30,6 +30,8 @@ from harness.driver_health import (
     round_status_text,
     round_succeeded,
     summarize_turns,
+    tally_by_track,
+    track_name_for_round,
 )
 
 HERE = os.path.dirname(__file__)
@@ -721,3 +723,66 @@ def test_cli_likely_timeout_kill_subcommand(tmp_path):
 def test_cli_likely_timeout_kill_bad_arity():
     assert main(["likely_timeout_kill"]) == 2
     assert main(["likely_timeout_kill", "a.json"]) == 2
+
+
+def test_track_name_for_round_matches_run_driver_sh_cycle():
+    # Pins run_driver.sh's `track_name()` bash function (round % 6) against
+    # rounds actually seen in logs/driver.log, so a future edit to either
+    # side is caught by a red test instead of silent drift between the two
+    # copies of the same mapping.
+    assert track_name_for_round(211) == "harness(A)"    # round % 6 == 1
+    assert track_name_for_round(217) == "harness(A)"
+    assert track_name_for_round(206) == "language(C)"   # round % 6 == 2
+    assert track_name_for_round(216) == "language(C)"   # round % 6 == 0
+    assert track_name_for_round(207) == "skills(B)"      # round % 6 == 3
+    assert track_name_for_round(208) == "NUC-integration(E)"  # round % 6 == 4
+    assert track_name_for_round(209) == "SWE-loop(D)"    # round % 6 == 5
+
+
+def test_track_name_for_round_language_c_gets_two_of_six_slots():
+    counts = {}
+    for r in range(1, 61):
+        counts.setdefault(track_name_for_round(r), 0)
+        counts[track_name_for_round(r)] += 1
+    assert counts["language(C)"] == 20  # 2 of every 6 rounds
+    for track in ("harness(A)", "skills(B)", "NUC-integration(E)", "SWE-loop(D)"):
+        assert counts[track] == 10  # 1 of every 6 rounds
+
+
+def test_tally_by_track_counts_max_turns_and_interrupted_per_track(tmp_path):
+    # round 206 (language(C)): a real max-turns death.
+    maxturns = _write_ndjson(str(tmp_path), "round-206.json", [
+        REAL_INIT_LINE, REAL_ASSISTANT_LINE,
+        dict(REAL_RESULT_LINE, is_error=True, subtype="error_max_turns"),
+    ])
+    # round 210 (language(C)): killed with no result event at all.
+    interrupted = _write_ndjson(str(tmp_path), "round-210.json", [REAL_INIT_LINE, REAL_ASSISTANT_LINE])
+    # round 211 (harness(A)): clean success.
+    clean = _write_ndjson(str(tmp_path), "round-211.json", [REAL_INIT_LINE, REAL_ASSISTANT_LINE, REAL_RESULT_LINE])
+
+    tally = tally_by_track([maxturns, interrupted, clean])
+    assert tally["language(C)"] == {"total": 2, "max_turns": 1, "interrupted": 1}
+    assert tally["harness(A)"] == {"total": 1, "max_turns": 0, "interrupted": 0}
+    assert "skills(B)" not in tally  # no rounds passed in for that track
+
+
+def test_tally_by_track_skips_unparseable_paths(tmp_path):
+    clean = _write_ndjson(str(tmp_path), "round-211.json", [REAL_INIT_LINE, REAL_ASSISTANT_LINE, REAL_RESULT_LINE])
+    tally = tally_by_track([clean, "not-a-round-file.json", "logs/driver.log"])
+    assert tally == {"harness(A)": {"total": 1, "max_turns": 0, "interrupted": 0}}
+
+
+def test_tally_by_track_zero_padded_filenames():
+    # `logs/round-NNN.json` uses %03d padding in production (e.g. round-007.json).
+    assert tally_by_track([]) == {}
+
+
+def test_cli_tally_subcommand(tmp_path):
+    p = _write_ndjson(str(tmp_path), "round-207.json", [REAL_INIT_LINE, REAL_ASSISTANT_LINE, REAL_RESULT_LINE])
+    out = subprocess.run(
+        [sys.executable, "-m", "harness.driver_health", "tally", p],
+        cwd=os.path.join(HERE, "..", ".."),
+        capture_output=True, text=True, timeout=10,
+    )
+    assert out.returncode == 0, out.stderr
+    assert json.loads(out.stdout) == {"skills(B)": {"total": 1, "max_turns": 0, "interrupted": 0}}

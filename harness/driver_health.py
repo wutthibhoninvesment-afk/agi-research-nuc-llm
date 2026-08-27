@@ -440,6 +440,68 @@ def summarize_turns(path: str) -> Optional[dict]:
     }
 
 
+_TRACK_BY_MOD6 = {
+    1: "harness(A)",
+    2: "language(C)",
+    3: "skills(B)",
+    4: "NUC-integration(E)",
+    5: "SWE-loop(D)",
+    0: "language(C)",
+}
+
+
+def track_name_for_round(round_num: int) -> str:
+    """Pure port of `run_driver.sh`'s `track_name()` bash function — the
+    6-way round-robin curriculum assignment (round % 6: 1=harness(A),
+    2=language(C), 3=skills(B), 4=NUC-integration(E), 5=SWE-loop(D),
+    0=language(C), so language(C) gets 2 of every 6 slots). Kept only so
+    `tally_by_track` below can bucket historical `logs/round-NNN.json` files
+    by track without re-invoking the shell script; if `run_driver.sh`'s
+    mapping ever changes this needs the matching edit (there is no single
+    source of truth to import from — bash and Python can't share one file
+    here — so `test_driver_health.py` pins known rounds from `driver.log`
+    directly as a drift check).
+    """
+    return _TRACK_BY_MOD6[round_num % 6]
+
+
+def tally_by_track(paths: List[str]) -> dict:
+    """Bucket a set of `logs/round-NNN.json` paths by track and count
+    total/max_turns/interrupted per track.
+
+    Built for the max-turns re-tally this project's backlog has asked for
+    every ~10 rounds since the 120->135 raise (rounds 205, 211, 217) — round
+    217 used this over `logs/round-{152..216}.json` and found every
+    max-turns death on record (8/8: rounds 155/168/179/182/203/204/206/216)
+    landed in language(C) or SWE-loop(D) — ZERO in the three lighter tracks
+    (harness(A)/skills(B)/NUC-integration(E), 32 round-starts combined) even
+    once. That's a real, reusable finding, not a one-off — the next re-tally
+    would otherwise redo the same manual grep+arithmetic from scratch. Round
+    number is parsed from each path's filename (`round-NNN.json` or
+    `round-0NN.json`), not read from log content, since track isn't stored
+    in the JSON itself; paths that don't match are silently skipped (e.g. a
+    non-round file passed by mistake) rather than raising, since this is a
+    reporting tool, not a correctness-critical path.
+    """
+    import re
+
+    out: dict = {}
+    for p in paths:
+        m = re.search(r"round-0*(\d+)\.json$", p)
+        if not m:
+            continue
+        round_num = int(m.group(1))
+        track = track_name_for_round(round_num)
+        bucket = out.setdefault(track, {"total": 0, "max_turns": 0, "interrupted": 0})
+        bucket["total"] += 1
+        if is_max_turns(p):
+            bucket["max_turns"] += 1
+        turns = summarize_turns(p)
+        if turns and turns.get("interrupted"):
+            bucket["interrupted"] += 1
+    return out
+
+
 def full_event_span_s(path: str) -> Optional[float]:
     """First-to-last timestamp span across ALL events in a stream-json log,
     not just `type: "assistant"` ones (contrast `summarize_turns`'s
@@ -637,6 +699,9 @@ def main(argv: List[str]) -> int:
             return 2
         s = summarize_turns(argv[1])
         print(json.dumps(s) if s is not None else "n/a")
+        return 0
+    if argv[:1] == ["tally"]:
+        print(json.dumps(tally_by_track(argv[1:]), sort_keys=True))
         return 0
     if argv[:1] == ["likely_timeout_kill"]:
         if len(argv) not in (3, 4):
