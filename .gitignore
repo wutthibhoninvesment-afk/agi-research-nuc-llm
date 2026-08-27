@@ -12,9 +12,11 @@ build/
 # Claude Code
 .claude/worktrees/
 
-# Generated logs  
+# Generated logs
 logs/*.json
 logs/driver.log
+logs/driver_bg.log
+logs/driver_direct.log
 logs/round-*.json
 logs/nuc-llm-tunnel*
 
@@ -31,6 +33,17 @@ nuc/fast_lane/olmoe_merged/
 nuc/fast_lane/colibri-c/olmoe
 nuc/.venv/
 harness/.venv/
+
+# Round 175 (harness A): local install artifacts for this NUC host's
+# `claude` CLI + Python venvs — reproducible from package.json/
+# package-lock.json/pyproject.toml, not source, and 100s of MB each.
+.venv/
+node_modules/
+languages/whence/.venv/
+languages/whence/research-env/
+
+# Driver single-instance lock (round 157) — a live lock file, not state.
+state/.driver.lock
 
 # Evaluation transcripts
 state/trigger-eval/round-*/transcripts/

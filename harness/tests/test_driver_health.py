@@ -398,6 +398,26 @@ def test_summarize_turns_falls_back_to_result_aggregate_thinking_tokens(tmp_path
     assert s["thinking_tokens"] == 33773  # not 0 — the pre-fix bug's reading
 
 
+def test_summarize_turns_marks_interrupted_when_no_result_event(tmp_path):
+    """Round 163's fix, found live on round-162's own log: a session
+    killed mid-round (SIGKILL/OOM/outer timeout) never writes a `result`
+    event, so the round-145 result-aggregate fallback has nothing to fall
+    back to and `thinking_tokens` reads 0 — indistinguishable from the
+    pre-145 bug by the number alone. `interrupted=True` names the real
+    cause so a future round doesn't misread this as a fix regression.
+    """
+    p = _write_ndjson(str(tmp_path), "a.json", [REAL_INIT_LINE, REAL_ASSISTANT_LINE])
+    s = summarize_turns(p)
+    assert s["interrupted"] is True
+    assert s["thinking_tokens"] == 0
+
+
+def test_summarize_turns_not_interrupted_on_clean_result(tmp_path):
+    p = _write_ndjson(str(tmp_path), "a.json", [REAL_INIT_LINE, REAL_ASSISTANT_LINE, REAL_RESULT_LINE])
+    s = summarize_turns(p)
+    assert s["interrupted"] is False
+
+
 def test_summarize_turns_none_on_plain_json_shape(tmp_path):
     p = _write(str(tmp_path), "a.json", {"is_error": False, "subtype": "success"})
     assert summarize_turns(p) is None

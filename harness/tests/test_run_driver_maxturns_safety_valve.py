@@ -73,6 +73,11 @@ def test_pure_max_turns_cluster_does_not_stop_but_a_real_failure_after_it_does(t
     env["DRIVER_WS"] = ws
     env["DRIVER_TEST_WS"] = ws
     env["DRIVER_LOOP_SLEEP_S"] = "0"
+    # Round 157: see test_run_driver_selfexec.py's identical comment —
+    # production invokes `claude` through a local wrapper script that
+    # doesn't exist in this tmp_path copy; redirect to the bare `claude`
+    # name so PATH resolves it to this test's stub.
+    env["DRIVER_CLAUDE_CMD"] = "claude"
     env["PYTHONPATH"] = REPO_ROOT + os.pathsep + env.get("PYTHONPATH", "")
 
     proc = subprocess.Popen(

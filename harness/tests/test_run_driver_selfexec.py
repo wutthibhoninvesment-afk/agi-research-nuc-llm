@@ -81,6 +81,12 @@ def test_selfexec_picks_up_mid_run_edit_without_restart(tmp_path):
     env["DRIVER_WS"] = ws
     env["DRIVER_TEST_WS"] = ws
     env["DRIVER_LOOP_SLEEP_S"] = "0"
+    # Round 157: production now runs `claude` through a local wrapper
+    # script (this host has no global `claude`); point the driver back at
+    # a bare `claude` so it resolves through this test's PATH-prepended
+    # stub dir instead of a `./claude-wrapper.sh` that doesn't exist in
+    # the copied tmp_path workspace.
+    env["DRIVER_CLAUDE_CMD"] = "claude"
     env["PYTHONPATH"] = REPO_ROOT + os.pathsep + env.get("PYTHONPATH", "")
 
     proc = subprocess.Popen(

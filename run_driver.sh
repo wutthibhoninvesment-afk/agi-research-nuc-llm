@@ -2,6 +2,19 @@
 # AGI research driver — runs Claude Code rounds until weekly limit.
 # Model: sonnet-5 (waiting for fable-5 weekly limit reset ~Sunday 2026-08-30)
 set -uo pipefail
+# Path setup for Claude Code (this NUC host has no global `claude`; it's
+# installed locally under node_modules/.bin — see claude-wrapper.sh).
+# Round 157: this used to CLOBBER $PATH with a fixed list instead of
+# extending the inherited one, silently dropping any directory a caller
+# had put on PATH before invoking this script — including the fake-
+# `claude` stub dir both e2e driver tests prepend to PATH before launching
+# their `bash run_driver.sh` subprocess. Fixed to APPEND rather than even
+# prepend: node_modules/.bin should be a fallback source for `claude`, not
+# take priority over whatever the caller already resolved it to — a
+# prepend still shadowed the tests' PATH-stub `claude` with the real one
+# (confirmed live: both tests hung the full 45s until this changed to
+# append).
+export PATH="$PATH:/home/pgain/agi-research-nuc-llm/node_modules/.bin"
 
 # Bumped by hand whenever this file changes in a way worth being able to
 # see directly in driver.log (no cross-referencing watcher.log timestamps
@@ -9,9 +22,30 @@ set -uo pipefail
 # "$@"` at the loop's end below), this now reliably reflects the ON-DISK
 # script content for every round it produced, including rounds after a
 # mid-run edit — round 139's live driver could not make that claim.
-DRIVER_VERSION="151-maxturns-not-quota"
+DRIVER_VERSION="157-nuc-migration-fix"
 
-WS="${DRIVER_WS:-$HOME/agi-research}"
+# Round 157: a manual post-migration edit (made outside any round,
+# between the Mac->NUC sync commit c768d90 and round 154) hardcoded this
+# to the new absolute path, which silently dropped the `DRIVER_WS`
+# override both `test_run_driver_selfexec.py` and
+# `test_run_driver_maxturns_safety_valve.py` rely on to run the real
+# driver against a disposable tmp_path instead of the production
+# workspace — both went from passing to failing (confirmed: they still
+# ran, but timed out, because $WS pointed at the live tree with no
+# fake-`claude` stub reachable at the copied script's relative path). The
+# override existed before the migration (`WS="${DRIVER_WS:-$HOME/agi-
+# research}"`) and just needed its *default* updated, not removing.
+WS="${DRIVER_WS:-/home/pgain/agi-research-nuc-llm}"
+# Round 157: same story as WS above, for the `claude` invocation itself.
+# This host has no global `claude` on PATH, so production needs the local
+# wrapper (`claude-wrapper.sh`: activates .venv, prepends node_modules/
+# .bin, then execs the real CLI) — but the two e2e driver tests inject a
+# fake `claude` via a PATH-prepended stub dir, and a hardcoded
+# `./claude-wrapper.sh` call skips PATH lookup entirely (it's a relative
+# path) and fails outright in the tests' tmp_path copy, which has no
+# wrapper script at all. Overridable so tests can point this back at a
+# bare `claude` and hit their PATH stub, same as before the migration.
+CLAUDE_CMD="${DRIVER_CLAUDE_CMD:-./claude-wrapper.sh}"
 TIMEOUT_CMD=""
 if command -v timeout >/dev/null 2>&1; then TIMEOUT_CMD="timeout"
 elif command -v gtimeout >/dev/null 2>&1; then TIMEOUT_CMD="gtimeout"; fi
@@ -98,6 +132,30 @@ if [ "${DRIVER_SOURCE_ONLY:-0}" = "1" ]; then
   return 0 2>/dev/null || exit 0
 fi
 
+# Single-instance guard (round 157): two `bash run_driver.sh` processes
+# racing on the same $STATE_FILE is a real, OBSERVED live bug, not a
+# hypothetical — round 157's own session (this one) caught driver.log
+# showing round 158 start while round 157's `claude` session was still
+# running, then round 159 start 45s later (production's default
+# LOOP_SLEEP_S, ruling out a test artifact) — a second, independent
+# `bash run_driver.sh` invocation reading round_counter mid-round,
+# incrementing it, and launching its OWN session with nothing waiting for
+# the prior round to finish. `flock -n` on a fixed lock file makes any
+# second concurrent invocation exit immediately instead of racing. fd 9
+# stays open (and the lock held) across the self-exec near the bottom of
+# this file's loop — `exec` preserves already-open file descriptors that
+# aren't close-on-exec, and bash's `exec N>file` redirection doesn't set
+# close-on-exec — so the lock covers the driver's entire lifetime, not
+# just one round, with no gap between rounds for a second process to slip
+# through.
+mkdir -p "$WS/state" 2>/dev/null
+LOCK_FILE="$WS/state/.driver.lock"
+exec 9>"$LOCK_FILE"
+if ! flock -n 9; then
+  log "another run_driver.sh instance already holds $LOCK_FILE — exiting without racing it"
+  exit 0
+fi
+
 cd "$WS"
 
 ROUND=$(cat "$STATE_FILE" 2>/dev/null || echo 0)
@@ -129,13 +187,13 @@ update research-state.md. Be relentless and thorough — this is deep research, 
   # latest_rate_limit_reset_epoch`); (3) per-turn `assistant` events let
   # `driver_health.summarize_turns` answer round 127's open "why did
   # 122-126 burn all 80 turns" question with real data next time it happens.
-  run_timeout 2400 claude -p "$PROMPT" \
+  run_timeout 2400 $CLAUDE_CMD -p "$PROMPT" \
     --model claude-sonnet-5 \
     --dangerously-skip-permissions \
     --allowedTools "Read,Edit,Write,Bash,Glob,Grep" \
     --output-format stream-json \
     --verbose \
-    --max-turns 80 \
+    --max-turns 120 \
     > "$RLOG" 2>&1
   RC=$?
 
@@ -234,7 +292,7 @@ update research-state.md. Be relentless and thorough — this is deep research, 
     # WEEKLY limit is reached", but a max-turns death is a WORKLOAD signal,
     # not a quota one. Confirmed live: rounds 146+147 (then again 149+150
     # on a second restart) each did 140-160 real turns of substantive work
-    # before hitting `--max-turns 80`, tripped this exact valve, and were
+    # before hitting `--max-turns 120`, tripped this exact valve, and were
     # taken at face value as "weekly limit reached" — producing a
     # premature `state/FINAL-REPORT.md` and two manual restarts. Only
     # stop here when the cluster is NOT entirely max-turns deaths (a real
@@ -283,7 +341,7 @@ log "=== driver stopping at round $ROUND ==="
 
 # Final consolidation round (cheap, one shot)
 if [ ! -f "$FINAL" ]; then
-  run_timeout 900 claude -p "The research budget is exhausted. Read all files in state/ and knowledge/
+  run_timeout 900 $CLAUDE_CMD -p "The research budget is exhausted. Read all files in state/ and knowledge/
 and write state/FINAL-REPORT.md: summary of every round, what was built, key learnings per track,
 what remains. Make it comprehensive." \
     --model claude-sonnet-5 \
@@ -295,3 +353,4 @@ fi
 
 touch "$WS/state/DONE"
 log "=== driver finished ==="
+

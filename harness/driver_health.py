@@ -364,6 +364,22 @@ def summarize_turns(path: str) -> Optional[dict]:
     per-turn summation itself is left in place in case a future CLI
     version starts populating it per-turn, which would then win over the
     coarser aggregate automatically.
+
+    `interrupted`: round 163 found LIVE (round-162's own log: 220
+    assistant turns / 136 tool calls / 38 minutes of real work, a
+    thoroughly substantial round) that the round-145 fallback above has a
+    gap of its own — it fixes the case where a `result` event exists but
+    lacks per-turn thinking data, but does nothing when the process is
+    killed (SIGKILL/OOM/outer `timeout`) before it ever WRITES a `result`
+    event at all, which is exactly what round 162's log shows (ends
+    mid-tool-call, no `type:"result"` line anywhere in the file). In that
+    case `result_thinking_tokens` stays `None` and `thinking_tokens`
+    reads 0 — visually IDENTICAL to the pre-145 always-0 bug this same
+    field exists to detect, with no way to tell them apart from the
+    number alone. `interrupted=True` names the cause directly so a future
+    round scoring a `thinking_tokens: 0` reading (as round-145's own P3
+    prediction asks a future round to do) checks this flag before
+    concluding the fix regressed.
     """
     try:
         with open(path) as f:
@@ -375,6 +391,7 @@ def summarize_turns(path: str) -> Optional[dict]:
     tool_calls = 0
     timestamps = []
     saw_assistant = False
+    saw_result = False
     result_thinking_tokens = None
     for line in text.splitlines():
         line = line.strip()
@@ -385,6 +402,7 @@ def summarize_turns(path: str) -> Optional[dict]:
         except Exception:
             continue
         if obj.get("type") == "result":
+            saw_result = True
             r_usage = obj.get("usage") or {}
             result_thinking_tokens = (r_usage.get("output_tokens_details") or {}).get("thinking_tokens")
             continue
@@ -418,6 +436,7 @@ def summarize_turns(path: str) -> Optional[dict]:
         "thinking_tokens": thinking_tokens,
         "tool_calls": tool_calls,
         "span_s": span_s,
+        "interrupted": not saw_result,
     }
 
 
