@@ -118,6 +118,95 @@ def test_end_to_end_reports_gap_for_unrecorded_round(tmp_path):
     assert "dangling background wait" in rc.stdout
 
 
+def test_gap_reports_interrupted_true_when_no_result_event(tmp_path):
+    driver_log = tmp_path / "driver.log"
+    _write_driver_log(str(driver_log), [
+        "[t] round 1 track=skills(B) start (driver_version=x) pid=1",
+        "[t] round 1: non-success status=?",
+    ])
+    state = tmp_path / "state.md"
+    state.write_text("# empty\n")
+    knowledge = tmp_path / "knowledge"
+    knowledge.mkdir()
+    logs_dir = tmp_path / "logs"
+    logs_dir.mkdir()
+    _write_ndjson(str(logs_dir / "round-1.json"), [
+        {"type": "assistant", "message": {"usage": {}, "content": [
+            {"type": "text", "text": "working..."}]}},
+        # killed mid-flight: no "type": "result" line ever written
+    ])
+
+    rc = subprocess.run(
+        [sys.executable, SCRIPT,
+         "--driver-log", str(driver_log),
+         "--state", str(state),
+         "--knowledge-dir", str(knowledge),
+         "--round-logs-dir", str(logs_dir)],
+        capture_output=True, text=True,
+    )
+    assert rc.returncode == 1
+    assert "round 1" in rc.stdout
+    assert "interrupted=True" in rc.stdout
+
+
+def test_gap_reports_interrupted_false_when_result_event_present(tmp_path):
+    driver_log = tmp_path / "driver.log"
+    _write_driver_log(str(driver_log), [
+        "[t] round 1 track=skills(B) start (driver_version=x) pid=1",
+        "[t] round 1: success",
+    ])
+    state = tmp_path / "state.md"
+    state.write_text("# empty\n")
+    knowledge = tmp_path / "knowledge"
+    knowledge.mkdir()
+    logs_dir = tmp_path / "logs"
+    logs_dir.mkdir()
+    _write_ndjson(str(logs_dir / "round-1.json"), [
+        {"type": "assistant", "message": {"usage": {}, "content": [
+            {"type": "text", "text": "done"}]}},
+        {"type": "result", "usage": {}},
+    ])
+
+    rc = subprocess.run(
+        [sys.executable, SCRIPT,
+         "--driver-log", str(driver_log),
+         "--state", str(state),
+         "--knowledge-dir", str(knowledge),
+         "--round-logs-dir", str(logs_dir)],
+        capture_output=True, text=True,
+    )
+    assert rc.returncode == 1
+    assert "interrupted=False" in rc.stdout
+
+
+def test_gap_reports_interrupted_none_when_round_log_missing(tmp_path):
+    driver_log = tmp_path / "driver.log"
+    _write_driver_log(str(driver_log), [
+        "[t] round 1 track=skills(B) start (driver_version=x) pid=1",
+        "[t] round 1: non-success status=?",
+    ])
+    state = tmp_path / "state.md"
+    state.write_text("# empty\n")
+
+    rc = subprocess.run(
+        [sys.executable, SCRIPT,
+         "--driver-log", str(driver_log),
+         "--state", str(state),
+         "--knowledge-dir", str(tmp_path / "knowledge_missing"),
+         "--round-logs-dir", str(tmp_path / "logs_missing")],
+        capture_output=True, text=True,
+    )
+    assert rc.returncode == 1
+    assert "interrupted=None" in rc.stdout
+
+
+def test_summarize_turns_import_resolves_to_real_harness_module():
+    # Guards against the sys.path bootstrap in check_round_recorded.py
+    # silently falling back to the None stub (which would make every
+    # `interrupted` column read None even when harness/ is present).
+    assert m._summarize_turns is not None
+
+
 def test_end_to_end_clean_when_every_round_recorded(tmp_path):
     driver_log = tmp_path / "driver.log"
     _write_driver_log(str(driver_log), [

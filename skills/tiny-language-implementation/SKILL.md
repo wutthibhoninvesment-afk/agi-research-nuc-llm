@@ -184,6 +184,30 @@ python3 -m pytest tests/ -q              # full suite (should be <1s)
   apart (`: Type`/`-> Type`: round 134 fuzz-only to round 158 guest
   parity; an effect system repeated the same two-step shape one round
   later, still open).
+- **When the guest evaluator is itself written IN the host language and
+  runs as literal host source (self-hosting), a new builtin's guest support
+  can be a straight delegation, not a reimplementation — but every existing
+  "what type is this value" probe must be re-audited for it.** Round 176's
+  Whence guest (`self_eval.lang`) added guest support for `guess`/
+  `is_guess`/`confidence`/`sure` (an uncertainty-carrying value with
+  weakest-link confidence propagation through arithmetic) by having the
+  guest's `apply_host_builtin` call straight through to the REAL host
+  builtins — the guest program is executing as genuine top-level host
+  source, so `a.v + b.v` on a wrapped value already gets the host's own
+  propagation semantics for free, no guest-side reimplementation needed.
+  This was expected going in to be "a materially bigger lift" than the
+  guest's earlier `: Type`/`effects` parity work (both of which only
+  needed parse-time clause-skipping) — the delegation shortcut closed it
+  in one round instead. The cost: every guest helper that asks "is this
+  value a number/bool/list" (`is_num`, `is_bool`, `is_list`, a `kind`
+  dispatcher) was written before the new value existed, and the new
+  value's arithmetic transparently succeeds on those same probes (`missed
+  (guess(5,...) + 0)` is false, so a naive `is_num` misreports a guess as a
+  plain number) — each such probe needs an explicit `is_<newthing>(v)`
+  guard added FIRST, or every downstream dispatch that assumes "arithmetic
+  succeeds implies plain number" silently misclassifies the new value.
+  Grep every `is_*`/`kind`/`show`-style probe in the guest for this before
+  declaring delegation-based parity done, don't just add the new builtins.
 - **Duplicated guest source sections drift.** If the evaluator example
   embeds the parser example's code verbatim, add a byte-identity test that
   extracts the shared section from both files and asserts equality.

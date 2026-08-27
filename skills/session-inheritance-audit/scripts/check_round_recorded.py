@@ -34,6 +34,22 @@ import os
 import re
 import sys
 
+# Repo root is three levels up from this script (scripts/ ->
+# session-inheritance-audit/ -> skills/ -> root) — added so
+# `harness.driver_health` is importable regardless of the caller's cwd, not
+# just when run from the repo root like the path defaults below assume.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.dirname(os.path.abspath(__file__)))))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+try:
+    from harness.driver_health import summarize_turns as _summarize_turns
+except ImportError:
+    # Skill may be copied somewhere without the harness/ package (e.g. a
+    # promoted ~/.hermes/skills/ copy per CURRICULUM.md's endgame) — the
+    # `interrupted` column just degrades to None rather than crashing.
+    _summarize_turns = None
+
 DRIVER_START_RE = re.compile(r"round (\d+) track=(\S+) start")
 DRIVER_STATUS_RE = re.compile(r"round (\d+): (success|non-success)(?:\s+status=(\S+))?")
 STATE_ENTRY_RE = re.compile(r"^### Round (\d+) [—-]", re.MULTILINE)
@@ -144,12 +160,18 @@ def main():
             continue  # recorded — the knowledge file is a softer signal
         round_log = os.path.join(args.round_logs_dir, "round-%d.json" % n)
         dangling = ended_on_dangling_wait(round_log)
+        interrupted = None
+        if _summarize_turns is not None:
+            summary = _summarize_turns(round_log)
+            if summary is not None:
+                interrupted = summary.get("interrupted")
         gaps.append({
             "round": n,
             "track": info.get("track"),
             "status": info.get("status"),
             "has_knowledge_file": in_knowledge,
             "ended_on_dangling_wait": dangling,
+            "interrupted": interrupted,
         })
 
     if not gaps:
@@ -164,10 +186,11 @@ def main():
         if g["ended_on_dangling_wait"]:
             flag = "  <-- ended on a dangling background wait (see " \
                    "one-shot-agent-no-background-wait)"
-        print("  round %s track=%s status=%s knowledge_file=%s%s" % (
-            g["round"], g["track"], g["status"], g["has_knowledge_file"],
-            flag,
-        ))
+        print("  round %s track=%s status=%s knowledge_file=%s "
+              "interrupted=%s%s" % (
+                  g["round"], g["track"], g["status"], g["has_knowledge_file"],
+                  g["interrupted"], flag,
+              ))
     return 1
 
 

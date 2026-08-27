@@ -185,6 +185,39 @@ where "session" means a login/web session.
   dangling wait) BEFORE manually re-deriving which rounds are missing —
   round 171 found 3 more silent gaps (152/153/161) this way that no
   earlier round's manual audit had caught in 14+ rounds.
+- **Neither `status=success` nor `interrupted=true` alone tells you whether
+  a gap round's work survived — check the tree either way.** The driver's
+  turn-summary JSON (`logs/driver.log`, computed by
+  `harness/driver_health.py::summarize_turns`) sets `interrupted=true` when
+  the round's log has no final `type:"result"` event — i.e. the process was
+  killed (timeout/SIGKILL) mid-flight, distinct from the dangling-wait
+  mechanism above (which exits cleanly, `interrupted=false`, `status=
+  success`, and STILL loses everything). But `interrupted=true` is not
+  itself "work lost": round 174 (`interrupted=true`, killed right after its
+  own finalize steps) still committed a full, tested feature and wrote its
+  knowledge file, while rounds 173 and 176 (also `interrupted=true`) were
+  killed mid-work and left real, substantial, uncommitted diffs with
+  neither (confirmed round 177 — see its knowledge file). Use
+  `interrupted` only as a fast triage hint for WHERE to look first (a
+  `true` reading with no knowledge file is worth reading the diff of before
+  assuming it's trivial), never as a verdict on its own — step 2's tree
+  diff is still mandatory. `check_round_recorded.py` (updated round 177)
+  now surfaces this field per gap so you don't have to import
+  `driver_health` by hand to get it.
+- **A round killed mid-flight can leave its OWN log file still being
+  written after the driver already computed and logged its turn summary.**
+  Confirmed live (round 177): re-running `summarize_turns` on
+  `logs/round-169.json` and `logs/round-176.json` well after the fact
+  read MORE assistant turns/tool calls and a much larger `span_s` (round
+  176: 197→199 turns, 1669.166s→3332.166s) than what the driver itself
+  logged at the time — a write-lag race between the driver's health check
+  and the killed process's stdout finishing its flush to disk. Only 2 of
+  the 5 `interrupted=true` rounds sampled (163/164/169/173/174/176) showed
+  it, so it isn't universal; flagged for harness(A) to root-cause (not
+  fixed here — reading a round's OWN log file is safe any time after that
+  round's process has fully exited, confirmed via `ps`/mtime stability,
+  so this doesn't block auditing, it only means driver.log's own printed
+  numbers can undercount for a currently- or recently-interrupted round).
 
 ## Verification
 ```bash
@@ -195,7 +228,9 @@ grep -n "STUB\|in progress\|PENDING" state/research-state.md | tail             
 python3 skills/session-inheritance-audit/scripts/check_round_recorded.py --since <last-reconciled-round>
 # expected: "0 gaps" once every driver-log round is attributed; each gap flags
 # whether it ended on a dangling background wait (see one-shot-agent-no-background-wait)
-python3 -m pytest -q skills/session-inheritance-audit/scripts/test_check_round_recorded.py    # 9 passed
+# and whether the driver log's own `interrupted` flag was set (killed mid-flight —
+# a fast triage hint, not a verdict; read the diff either way, see pitfalls above)
+python3 -m pytest -q skills/session-inheritance-audit/scripts/test_check_round_recorded.py    # 13 passed
 for p in $(pgrep -f '<round-driver-prompt-or-script-pattern>'); do echo -n "$p "; readlink -f /proc/$p/cwd; done
 # every hit classified: real workspace = live peer (leave/message); tmp/pytest fixture = escaped test orphan (killable)
 ```
