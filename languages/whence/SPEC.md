@@ -1211,6 +1211,58 @@ that cannot end a statement.
   round's or round 204's changes applied — see
   `knowledge/round-206-whence-v16-guest-steps-parity.md` §5.
 
+## v0.16.2 (round 210, landed by round 212) — closing both seed-152/seed-4002 guest divergences
+- **Seed-152 (`why_shape`)**: `self_eval.lang`'s `eval_unary` "miss" branch
+  unconditionally kept the reason operand as a why-input
+  (`mkb(miss r.v.v, "miss", [r.v])`) for every `miss <expr>`. The real host
+  (`interp.py`'s `_miss_lit`) only keeps that input when the reason is
+  itself a miss (propagation) or a valid string; a non-string, non-miss
+  reason (e.g. `miss 1`) discards the operand and produces a fresh 0-input
+  miss node. The guest's unconditional version invented a `"literal"` op
+  the host derivation never has for that third case. Fixed to match the
+  host's own three-way branch (`if missed(r.v.v) or is_str(r.v.v) { ... }
+  else { mkb(miss r.v.v, "miss", []) }`); pinned with a dedicated why-shape
+  op-walk test (`tests/test_self_hosting.py::
+  test_guest_miss_unary_why_shape_matches_host_for_all_three_reason_kinds`)
+  since a plain value-level `check` in `self_eval.lang` itself cannot see
+  an input-COUNT difference, only a value difference.
+- **Seed-4002 (`effects`)**: guest recursion deep enough to reach the
+  HOST's own recursion-depth guard mid-chain — inside `self_eval.lang`'s
+  own `eval`/`exec_stmt`/`apply`/`apply_closure` recursion, not the guest
+  program's own call depth as such — got back a bare miss where that
+  chain's own code unconditionally expects an `@{v:.., st:..}` store
+  record, corrupting the WHOLE guest store into a miss and cascading false
+  "unbound name" failures through every later statement. Fixed with a
+  guest-level function-CALL depth ceiling, `GUEST_MAX_DEPTH = 400`, tracked
+  as `st.gd` (threaded through `new_store`/`alloc`/`apply_closure`'s
+  return) and checked ONLY in `apply_closure` — the single choke point
+  every GUEST call passes through (`self_eval.lang`'s own internal
+  statement-sequencing recursion never reaches `apply_closure`, so it's
+  unaffected). Picked with a wide safety margin under the host's own
+  effective ceiling (~1300 guest levels at ~15 host frames/guest call): no
+  example or self-hosting corpus this project has ever run comes close to
+  400 real guest-level call frames. Past the ceiling, `apply_closure`
+  returns a well-formed miss (blaming the over-deep call by name and
+  depth) with the CALLER's own still-good store untouched, instead of
+  silently corrupting the store.
+- **Verification**: full `languages/whence` suite 867/867 (was 866 + this
+  round's 1 new test); `tests/test_self_eval.py`'s example-run count
+  updated 102→103 (`self_eval.lang`'s own self-test corpus gained one
+  check: `"guest miss with non-string reason still misses"`). The wider
+  `harness/tests/test_swe_guest.py` differential suite: 44/44 (was 2
+  failures pre-fix). Both flagged seeds directly re-probed via
+  `swe.guest.oracle_self_eval` — seed 152 and seed 4002 both now return
+  `ok` (were `mismatch`). A fresh 100-program guest-fuzz campaign (seed
+  401, `swe.guest` CLI): 0 unique finding signatures.
+- **History note**: round 210 built and tested this fix but was killed
+  mid-flight (the recurring outer-driver-timeout pattern — see
+  `research-state.md`'s harness(A) entry) before it could commit or write
+  a knowledge file. Round 212 found it sitting as an unstaged, uncommitted
+  diff, re-verified everything from a clean read of the diff (not by
+  trusting any prior round's own narration, per this session's standing
+  discipline), and landed it. See
+  `knowledge/round-212-whence-r210-reconciliation-seed152-seed4002-closure.md`.
+
 ## Builtins
 `print len range map filter fold push str num abs sqrt missed reasons note
 contains join keys merge get put has find steps at blame diverge contrast
