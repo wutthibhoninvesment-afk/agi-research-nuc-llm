@@ -143,7 +143,8 @@ def generate(source, rel_path, ops=None):
 
 def _copy_project(project_root, dst):
     shutil.copytree(project_root, dst, ignore=shutil.ignore_patterns(
-        "__pycache__", ".pytest_cache", "*.pyc"))
+        "__pycache__", ".pytest_cache", "*.pyc",
+        ".venv", "research-env", "*.egg-info", ".git"))
 
 
 def run_mutant(m, project_root, test_cmd, timeout_s=120.0):

@@ -59,7 +59,16 @@ exec(CANONICAL_HELPER_SRC, _ns)
 canonical = _ns["canonical"]
 
 
-class _Timeout(Exception):
+class _Timeout(BaseException):
+    """Raised by the SIGALRM handler below. Deliberately NOT an `Exception`
+    subclass (like `KeyboardInterrupt`/`SystemExit`): `canonical()`'s own
+    `except Exception` (it must report a guest crash as behaviour too) would
+    otherwise swallow this mid-flight, turning a clean timeout into a
+    nondeterministic partial-output "crash" whose captured `out` depends on
+    exactly which bytecode was executing when the alarm fired -- round 203
+    caught this making `find_killer` report a different, flaky killer on
+    every run for a slow example (`tco.lang`, `~2-3s` in-process, right at
+    the 2s budget) that has nothing to do with the mutant under test."""
     pass
 
 
@@ -104,6 +113,17 @@ def behaviour(pkg, src, timeout_s=2.0, max_depth=500):
         signal.signal(signal.SIGALRM, old)
 
 
+_HEAVY_EXAMPLES = {
+    "deep.lang",   # 15k recursion
+    "meta.lang",   # round-203: ~11-18s in-process, 5-9x behaviour()'s 2s SIGALRM
+                   # budget -- guaranteed to time out (now a clean, cheap
+                   # `_Timeout`/BaseException skip, see below) so it never
+                   # contributes a differential signal; excluded purely so a
+                   # corpus sweep doesn't pay 11-18s per mutant for nothing.
+    "tco.lang",    # round-203: same reasoning, ~14s in-process (sum_to(100000)).
+}
+
+
 def corpus(seed=0, n=300, root=WHENCE_ROOT, include_examples=True):
     """Programs to diff on: fuzz programs (light on stress templates so they
     run fast) plus the checked-in examples."""
@@ -111,7 +131,7 @@ def corpus(seed=0, n=300, root=WHENCE_ROOT, include_examples=True):
     if include_examples:
         ex_dir = os.path.join(root, "examples")
         for name in sorted(os.listdir(ex_dir)):
-            if name.endswith(".lang") and name != "deep.lang":   # deep.lang: 15k recursion
+            if name.endswith(".lang") and name not in _HEAVY_EXAMPLES:
                 with open(os.path.join(ex_dir, name), encoding="utf-8") as f:
                     progs.append(f.read())
     for i in range(n):
