@@ -219,6 +219,48 @@ python3 -m pytest tests/ -q              # full suite (should be <1s)
   that adds lines to the shared section (round 158: self_host.lang's
   `parse_whence` moved from line 420 to 485 adding `: Type`/`-> Type`
   parsing, and the test needed both numbers bumped, not just the source).
+- **A self-hosted guest evaluator's builtin dispatch has two independent
+  gates — name resolution, then arity/type dispatch — and a builtin
+  missing from the FIRST gate fails as "unbound name", which reads like an
+  unrelated bug.** If guest calls resolve by looking the callee name up in
+  an environment/name table (seeded with builtin-ref bindings once at
+  store-init time) before the dispatcher ever runs, a builtin that already
+  exists at the host level — even with delegation code already written for
+  it elsewhere in the guest evaluator — can still be completely
+  unreachable from guest programs if its name was simply never added to
+  that table. The symptom is "unbound name 'x' (line N)" thrown from the
+  guest's OWN lookup helper, not an arity mismatch and not the generic
+  "not implemented in the guest" stub a missing-dispatch-branch bug would
+  produce — don't debug it as either of those. Confirmed twice on the same
+  interpreter (Whence rounds 206/218): a whole builtin family (`steps`,
+  then `at`/`blame`/`diverge`/`contrast`) sat outside `self_eval.lang`'s
+  `builtin_names`/`arities` tables even though nothing else about them was
+  guest-incompatible. The fix each time was three additive lines — the
+  name in the name table, its arity, one dispatch branch delegating
+  straight to the real host builtin using the guest box's already-real
+  host-value payload (see the delegation pitfall above) — closing a
+  years-old gap in under an hour once diagnosed. Decide whether the new
+  dispatch branch belongs on the "propagating" (miss argument
+  short-circuits) or "total" (must still run on a miss, e.g. to inspect
+  the miss's own history) side by reading the HOST's own totality comment
+  for that builtin family, not by guessing or waiting for a test to fail —
+  round 206 caught that `steps` needed to stay total from the host
+  docstring alone, before writing any test.
+- **A host builtin that returns a raw, unboxed record can silently break
+  guest code that assumes every value is wrapped.** If guest values are
+  boxed for metadata (see the provenance-boxing step above) but a builtin
+  you just delegated to returns the host's own internal record shape
+  (fields the box format doesn't have, no wrapper field guest code expects
+  first), then guest code that reads through it — indexing into the
+  result, then field-accessing an element — mismatches the expected shape
+  and reads as a miss, not a clear type error. Confirmed in Whence
+  (round 218): `steps(x)[0].op` misses because `steps` returns a list of
+  bare host `Record`s but the guest's list-element passthrough path
+  expects every element to already be a `{v, op, ins}` box. This is a
+  second, independent gap from the name-resolution one above — closing
+  name resolution does not by itself fix representational mismatches in
+  what a delegated builtin hands back; don't assume "it resolves and
+  dispatches now" also means "every consumer of its result is compatible."
 
 ## Verification
 - `python3 -m pytest tests/ -q` → all green, runtime < 1s.

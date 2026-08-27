@@ -274,7 +274,7 @@
     "expect": [
       "tiny-language-implementation"
     ],
-    "prompt": "My tiny language's guest evaluator is itself written as literal host source (self-hosted) — a new `Ratio` value type's arithmetic already works for guest programs because it delegates straight through to the host's real `Ratio` implementation, no reimplementation needed. But `is_num(r)` and the `kind(r)` dispatcher (both written before `Ratio` existed) now silently misreport a `Ratio`-wrapped number as a plain number, because delegated arithmetic on it succeeds just like a real number's would. Fix the guest's type-probe functions so `Ratio` values are classified correctly, and explain exactly why they broke in the first place.",
+    "prompt": "My tiny language's guest evaluator is itself written as literal host source (self-hosted) \u2014 a new `Ratio` value type's arithmetic already works for guest programs because it delegates straight through to the host's real `Ratio` implementation, no reimplementation needed. But `is_num(r)` and the `kind(r)` dispatcher (both written before `Ratio` existed) now silently misreport a `Ratio`-wrapped number as a plain number, because delegated arithmetic on it succeeds just like a real number's would. Fix the guest's type-probe functions so `Ratio` values are classified correctly, and explain exactly why they broke in the first place.",
     "body": {
       "files": [],
       "evidence": [
@@ -291,7 +291,7 @@
     "expect": [
       "llm-engine-benchmarking"
     ],
-    "prompt": "Our llama.cpp server advertises a slot-based prompt cache. To check whether it's doing anything I'm timing two requests back to back: first a totally new 3000-token prompt (I call this t_cold), then I immediately resend that exact same prompt again (t_repeat), both with max_tokens=1, and reporting t_repeat / t_cold as the 'cache win ratio'. On a freshly-restarted server I get ratios around 0.35 (looks great); an hour into steady traffic the same experiment at the same size gives ratios around 0.9 (looks like caching stopped working) — nothing in the server config changed between the two runs. What's actually broken about this measurement, and what should I compare instead to get a ratio that means the same thing every time?",
+    "prompt": "Our llama.cpp server advertises a slot-based prompt cache. To check whether it's doing anything I'm timing two requests back to back: first a totally new 3000-token prompt (I call this t_cold), then I immediately resend that exact same prompt again (t_repeat), both with max_tokens=1, and reporting t_repeat / t_cold as the 'cache win ratio'. On a freshly-restarted server I get ratios around 0.35 (looks great); an hour into steady traffic the same experiment at the same size gives ratios around 0.9 (looks like caching stopped working) \u2014 nothing in the server config changed between the two runs. What's actually broken about this measurement, and what should I compare instead to get a ratio that means the same thing every time?",
     "body": {
       "files": [],
       "evidence": [
@@ -300,14 +300,14 @@
         "confound|conflat|bias|drift|two (different |separate )?effects"
       ]
     },
-    "note": "llm-engine-benchmarking's pitfall: the prefix-reuse signal is repeat/fresh, not repeat/cold — t_cold mixes real cache reuse together with engine warm-up/idle drift, so the ratio swings with how long the server has been idle rather than with caching itself; evidence: recommends a fresh (differently-seeded, same-size) comparator and names the warm-up/cold-start confound explicitly"
+    "note": "llm-engine-benchmarking's pitfall: the prefix-reuse signal is repeat/fresh, not repeat/cold \u2014 t_cold mixes real cache reuse together with engine warm-up/idle drift, so the ratio swings with how long the server has been idle rather than with caching itself; evidence: recommends a fresh (differently-seeded, same-size) comparator and names the warm-up/cold-start confound explicitly"
   },
   {
     "id": "body-epr",
     "expect": [
       "engine-prefix-reuse-audit"
     ],
-    "prompt": "We patched our inference engine's KV cache to check, on every new request, whether the token ids of the new prompt begin with the FULL token id sequence of the previous request (prompt text as sent, verbatim) — if so, keep the old KV state and only prefill the new suffix; otherwise start cold. In an offline replay of our chat UI's raw request logs this fires constantly. In production, with our actual agent framework driving the same model, it almost never fires even on back-to-back turns of the same conversation. The agent framework re-renders the previous assistant turn before sending it back (its raw tool-call JSON becomes pretty-printed markdown, and a trailing empty <think></think> block the model always emits gets stripped) — otherwise the conversation content is unchanged. Why does 'new prompt starts with the old prompt's exact bytes' fail here, and where should the reuse point actually be anchored instead?",
+    "prompt": "We patched our inference engine's KV cache to check, on every new request, whether the token ids of the new prompt begin with the FULL token id sequence of the previous request (prompt text as sent, verbatim) \u2014 if so, keep the old KV state and only prefill the new suffix; otherwise start cold. In an offline replay of our chat UI's raw request logs this fires constantly. In production, with our actual agent framework driving the same model, it almost never fires even on back-to-back turns of the same conversation. The agent framework re-renders the previous assistant turn before sending it back (its raw tool-call JSON becomes pretty-printed markdown, and a trailing empty <think></think> block the model always emits gets stripped) \u2014 otherwise the conversation content is unchanged. Why does 'new prompt starts with the old prompt's exact bytes' fail here, and where should the reuse point actually be anchored instead?",
     "body": {
       "files": [],
       "evidence": [
@@ -334,5 +334,21 @@
       ]
     },
     "note": "session-inheritance-audit's step-1b generalization (round 201, evidenced by round 198's real finding): 'who else is alive' covers ANY process sharing the filesystem, not only peer rounds of the same driver -- ps-grepping only the driver's own process name misses an entirely separate autonomous agent writing unattributed files; evidence: names the driver-name-only ps check as insufficient, calls for checking for other processes/agents, uses file-birth-time-vs-process-start correlation as evidence, and recommends flagging/leaving such files alone rather than fixing them as this program's own bug"
+  },
+  {
+    "id": "body-tliname",
+    "expect": [
+      "tiny-language-implementation"
+    ],
+    "prompt": "My interpreter is self-hosted: the guest evaluator is itself real host-language source, and every guest value is a box carrying real host provenance. I just added a new host builtin, `median`, and wired it up in the guest evaluator's dispatch chain exactly the way I fixed a similar builtin last week -- I found the big if-chain that unwraps a guest box's payload and calls straight through to the real host implementation, added an arity entry, and added a branch for `median`. But guest programs calling `median(xs)` still fail, and the error is not an arity mismatch and not the generic 'not implemented in the guest' message my dispatch code would produce on a miss -- it's 'unbound name median (line 812)', thrown from what looks like the guest's own variable-lookup routine, before my new dispatch branch ever gets a chance to run. What am I still missing, and why does this look like a completely different class of bug than the dispatch branch I just wrote?",
+    "body": {
+      "files": [],
+      "evidence": [
+        "(builtin.?names|name.?table|name.?list|environment|lookup.?table).{0,120}(add|regist|seed|includ|miss(ing)?)",
+        "(before|prior to|precedes|first|separate from).{0,40}(dispatch|arity)|two (separate |independent )?(gates|steps|stages|checks)",
+        "(arity|dispatch).{0,50}(is|was)?.{0,10}(not the (problem|issue|bug)|fine|correct|already (works|correct))|unbound name.{0,40}(resolution|lookup)"
+      ]
+    },
+    "note": "tiny-language-implementation's round-206/218 pitfall: a self-hosted guest evaluator resolves callee names against an environment/name table BEFORE the dispatch if-chain ever runs, so a builtin missing from that table fails as 'unbound name' even with correct delegation dispatch code already written -- a materially different bug class than an arity/dispatch miss; evidence: names the missing name-table/builtin_names registration, states resolution happens before/separately from dispatch, and explicitly rules out arity/dispatch as the actual cause. Round 219 live-probed 6 total runs across two batches (repeats=3 each): first batch 3/3 exact fire, evidence 8/9 (the one miss was a too-narrow evidence-regex distance window, widened 60->120 chars after reading the transcript); second batch (same prompt, after the regex widen) only 1/3 fired -- in 2/3 the model answered correctly from general architectural reasoning WITHOUT invoking the Skill tool at all, despite body mode's explicit system-prompt instruction to invoke a matching skill first. Pooled: 4/6 (67%) exact fire. This is recorded as a genuine, not-chased-further finding (round 141's stop-rule) rather than edited again: the scenario, once its symptom is stated precisely (unbound-name error firing before dispatch code runs), is apparently derivable by a capable model from first principles some of the time, so this case's fire rate is a real, softer signal than the other body cases in this file, not a regex or wording defect to keep chasing."
   }
 ]
