@@ -1123,6 +1123,94 @@ that cannot end a statement.
   reason), not a bug in this implementation. See round 204's knowledge
   file for the full re-run at a longer timeout and the net verdict.
 
+## v0.16.1 (round 206) — guest parity: `steps` in `self_eval.lang`
+- **The bug round 204 found and flagged.** Getting further into
+  `self_host.lang`'s test section than any previous round (its own
+  checkpoint 47, `parse_whence(...)` on a small recursive function, then
+  `check "guest AST is itself a real Whence value with its own history":
+  not missed(p7) and len(steps(p7)) > 0`) failed under the deep
+  guest-EVALUATOR level (`self_eval.lang`'s `run_src`) — but passed fine
+  when the SAME `parse_whence`/`steps` call ran at the shallower
+  direct/host level (self_eval.lang's own functions executed directly by
+  the host, no `run_src` involved: 743 real steps). The two levels
+  disagreeing pointed at `run_src`'s own machinery, not `parse_whence`.
+- **Root cause, once isolated with a 12-second targeted repro (library
+  text + ONE `steps(p7)` call, skipping the other 46 checkpoint-47
+  checkpoints' cost) instead of replaying the whole slow checkpoint**:
+  `steps` was never in `self_eval.lang`'s `builtin_names` list at all — so
+  a guest program calling `steps(...)` failed at NAME RESOLUTION
+  (`lookup`'s "unbound name 'steps'"), never even reaching `apply_builtin`/
+  `apply_host_builtin`'s dispatch tables. This is a materially different
+  failure than "arity mismatch" or "not implemented in the guest" (the
+  two outcomes `apply_builtin`/`apply_host_builtin` are actually built to
+  produce for a recognized-but-unsupported name) — the whole "provenance
+  as data" (round 4) builtin family (`steps`, `at`, `blame`, `diverge`,
+  `contrast`) was simply invisible to the guest's own name resolver,
+  because no prior self-hosting round's test corpus had ever called one
+  of them from GUEST-evaluated code before checkpoint 47 existed.
+- **The fix**: add `"steps"` to `builtin_names` (so `new_store()` seeds a
+  real builtin-ref binding for it) and `steps: -1` to `arities` (reusing
+  the same "1 or 2 args" sentinel `range` already uses, matching the
+  host's own `@register("steps", (1, 2))`), then delegate straight to the
+  REAL host `steps` builtin in `apply_host_builtin`:
+  `else if name == "steps" { if len(args) == 1 { steps(a0) } else { steps(a0, (args[1]).v) } }`.
+  This is the exact same "free delegation" trick round 176 used for
+  `guess`/`is_guess`/`confidence`/`sure`: `a0` (`args[0].v`, the guest
+  box's own payload) is not a synthetic guest structure — it is a REAL
+  host Whence value, because every guest `put`/`merge`/record-literal
+  self_eval.lang's own evaluator performs to build the guest AST is
+  itself a real host builtin call with real host provenance. `steps`
+  walking `a0` therefore reflects genuine (if much larger — see below)
+  history, for free, with zero guest-side reimplementation of
+  `walk_steps`. Deliberately NOT added to the `propagating` list: like
+  `is_guess`, `steps` (and `blame`) are explicitly TOTAL on the host
+  (`interp.py`'s own comment: "these are total: they work on misses —
+  that is the point") — an argument miss must reach the real `steps` call
+  so it can walk the MISS's own history, not get short-circuited into a
+  generic "builtin"-op miss first.
+- **Why `at`/`blame`/`diverge`/`contrast` are NOT fixed alongside this**:
+  same family, same fix shape, but nothing in the current test corpus
+  exercises them from guest code, so shipping untested guest dispatch for
+  them would violate this project's own testing discipline. Flagged as
+  the natural, narrowly-scoped follow-up if a future round's self-hosting
+  work needs one of them.
+- **Why the differential fuzzer's `BANNED` list keeps `steps` banned even
+  though the guest now supports it** (unlike `guess`/`confidence`, which
+  round 176 DID unban): `harness/swe/guest.py`'s oracle compares bare
+  PAYLOAD values between host-direct and guest-mediated execution, and
+  `len(steps(x))` (or `steps(x)` itself) is a direct readout of
+  provenance GRAPH SIZE — which legitimately, permanently differs between
+  the two execution modes, because `self_eval.lang`'s own interpreter
+  loop adds many more real host Prov nodes per guest operation (every
+  guest `put`/`merge`/field-access is itself an additional real host
+  builtin call) than a host directly evaluating the same expression would.
+  A Guess's confidence float or a `sure()` boolean outcome does not have
+  this problem (provenance-shape-independent); a step COUNT does. Unbanning
+  it would manufacture false "divergence" findings on nearly any
+  nontrivial fuzzed program — not a language bug, an inherent, permanent
+  cost of self-hosting layering (documented alongside `guest.py`'s
+  existing `depth_skew`/miss-reason-wording exemptions).
+- **Verification**: `tests/test_self_hosting.py` gained the exact
+  self_host.lang check (line 651-652) as a 5th assertion inside
+  `test_guest_evaluator_executes_self_host_library` (now passes), plus a
+  new `test_guest_steps_two_arg_pattern_and_total_on_miss` covering the
+  2-arg pattern-filter form and the miss-is-total guarantee — neither was
+  exercised anywhere before this round. Full suite 866/866 (865 + 1 new
+  test function). Host fuzz (seed 401, n=300), oracle campaign (seed 402,
+  n=200 × 6 oracles), and guest-differential campaign (seed 403, n=150,
+  `steps` still banned so unaffected by construction) all clean: 0 unique
+  finding signatures. `bench/ref_diff.py --counters` re-run against the
+  pre-round-206 tree. **Also confirmed, NOT caused by this round** (two
+  pre-existing `harness/tests/test_swe_guest.py` failures found while
+  running the wider suite, isolated against a clean git-HEAD copy of
+  `languages/whence` before attributing): seed 4002's `effects`-guest
+  divergence (flagged since round 167/171, still open) and a NEW-to-this-
+  investigation seed-152 `why_shape` guest divergence on a `guess`-family
+  program (`guest-only ops: ['literal']` vs `host ops: ['let', 'list',
+  'miss']`) both reproduce identically on `HEAD` with none of this
+  round's or round 204's changes applied — see
+  `knowledge/round-206-whence-v16-guest-steps-parity.md` §5.
+
 ## Builtins
 `print len range map filter fold push str num abs sqrt missed reasons note
 contains join keys merge get put has find steps at blame diverge contrast

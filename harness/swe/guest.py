@@ -44,6 +44,25 @@ LIB_MARKER = "# ==== SELF-TESTS"
 # now delegate all four straight to the real host builtins (a guest Guess
 # IS the host's own `Guess` payload), so the guest-differential fuzzer can
 # generate them like any other builtin call.
+#
+# `steps` gained the SAME straight-to-host delegation in round 206 (closing
+# a real guest-parity gap self_host.lang's own test corpus found — see
+# knowledge/round-206-whence-v16-guest-steps-parity.md) but STAYS banned
+# here on purpose, unlike guess/confidence: this oracle compares bare
+# PAYLOAD values, and `len(steps(x))`/`steps(x)` IS a direct readout of the
+# provenance GRAPH SIZE, which legitimately differs between host-direct
+# eval and self_eval.lang-mediated eval of the "same" program — self_eval's
+# own interpreter loop adds many more real host Prov nodes per guest
+# operation (every guest `put`/`merge`/field-access is itself a real,
+# additional host builtin call) than a host directly evaluating the same
+# expression would. Unlike a Guess's confidence float or a boolean sure()
+# outcome (provenance-shape-independent), a step COUNT would diverge for
+# nearly any nontrivial fuzzed program — not a language bug, an inherent
+# property of what self-hosting layering costs, exactly the "expected
+# architectural difference, not a finding" class `depth_skew` and miss-
+# reason-wording already carve out above. `at`/`blame`/`diverge`/`contrast`
+# are the same family (steps-shaped output) and stay banned for the
+# identical reason, on top of not having guest support built yet at all.
 BANNED = re.compile(r"\b(why|snip|steps|at|blame|diverge|contrast|print)\b")
 
 

@@ -111,6 +111,15 @@ def test_guest_evaluator_executes_self_host_library():
         'check "parses without error": not missed(p1)',
         'let p2 = parse_whence("fn go(n) { if n == 0 { 0 } else { go(n - 1) } }")',
         'check "recursive fn body parses": not missed(p2)',
+        # round 206: self_host.lang's own line 651-652 check, at the guest-
+        # EVALUATOR level specifically — `steps` was entirely unimplemented
+        # in self_eval.lang's guest builtin table (not even a name-
+        # resolution hit) until this round, so this failed with "unbound
+        # name 'steps'" for every prior self-hosting round (192/198/200/
+        # 204) that got deep enough to reach it (round 204's own
+        # bench/self_host_memscale.py at checkpoint 47).
+        'check "guest AST is itself a real Whence value with its own history":\n'
+        '  not missed(p2) and len(steps(p2)) > 0',
     ])
     inner_src = lib_section + "\n" + inner_checks + "\n"
     prog = eval_lib + 'let __r = run_src("%s")\n' % escape(inner_src)
@@ -119,7 +128,39 @@ def test_guest_evaluator_executes_self_host_library():
     rec = env.get("__r").payload
     assert rec.fields["parse_error"].payload is False
     checks = rec.fields["checks"].payload
-    assert len(checks) == 4
+    assert len(checks) == 5
+    failed = [c.payload.fields["label"].payload for c in checks
+              if c.payload.fields["pass"].payload is not True]
+    assert not failed, failed
+
+
+def test_guest_steps_two_arg_pattern_and_total_on_miss():
+    # round 206: beyond the 1-arg form pinned above, self_eval.lang's guest
+    # `steps` dispatch (`arities.steps = -1`, mirroring host's `(1, 2)`)
+    # also accepts a 2-arg pattern-filter form, and must stay TOTAL (work
+    # on a miss argument) like the real host builtin does — neither shape
+    # is exercised by self_host.lang's own test corpus, so this is the only
+    # coverage for them.
+    eval_lib = eval_library_source()
+    lib_section = self_host_library_section()
+    inner_checks = "\n".join([
+        'let p = parse_whence("fn go(n) { if n == 0 { 0 } else { go(n - 1) } }")',
+        'let all_steps = steps(p)',
+        'let go_steps = steps(p, "call go")',
+        'check "2-arg pattern form narrows, never widens":\n'
+        '  len(go_steps) <= len(all_steps)',
+        'let bad = miss "deliberately broken"',
+        'check "steps is total: a miss has its own (short) history too":\n'
+        '  len(steps(bad)) > 0',
+    ])
+    inner_src = lib_section + "\n" + inner_checks + "\n"
+    prog = eval_lib + 'let __r = run_src("%s")\n' % escape(inner_src)
+
+    env = Interpreter().run(prog)
+    rec = env.get("__r").payload
+    assert rec.fields["parse_error"].payload is False
+    checks = rec.fields["checks"].payload
+    assert len(checks) == 2
     failed = [c.payload.fields["label"].payload for c in checks
               if c.payload.fields["pass"].payload is not True]
     assert not failed, failed

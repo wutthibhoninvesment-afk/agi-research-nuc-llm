@@ -652,19 +652,26 @@ fn reify(b, k) {
 let builtin_names = ["print", "len", "range", "map", "filter", "fold", "push",
                      "str", "num", "abs", "sqrt", "missed", "reasons", "note",
                      "contains", "join", "keys", "merge", "get", "put", "has",
-                     "find", "typed", "guess", "is_guess", "confidence", "sure"]
+                     "find", "typed", "guess", "is_guess", "confidence", "sure",
+                     "steps"]
 
 # host builtins whose first step is `_propagate` (a miss argument yields
 # a "builtin"-op miss before the builtin looks at anything). `is_guess` is
 # deliberately absent — like `missed`/`matches`, it is total and never
-# itself propagates a miss (round 176, v0.15 guest parity).
+# itself propagates a miss (round 176, v0.15 guest parity). `steps` is
+# ALSO deliberately absent for the same reason: interp.py's own comment
+# above `b_steps` says "these are total: they work on misses (that is the
+# point)" — walking a failed value's own history is provenance-as-data's
+# whole purpose, so a miss argument must reach the real host `steps` call
+# below, not get shortcut into a generic "builtin"-op miss first (round 206).
 let propagating = ["len", "range", "num", "abs", "sqrt", "contains", "join",
                    "keys", "merge", "has", "put", "guess", "confidence", "sure"]
 let arities = @{print: 1, len: 1, range: -1, map: 2, filter: 2, fold: 3,
                 push: 2, str: 1, num: 1, abs: 1, sqrt: 1, missed: 1,
                 guess: 3, is_guess: 1, confidence: 1, sure: 2,
                 reasons: 1, note: 2, contains: 2, join: 2, keys: 1,
-                merge: 2, get: 2, put: 3, has: 2, find: 2, typed: 3}
+                merge: 2, get: 2, put: 3, has: 2, find: 2, typed: 3,
+                steps: -1}
 
 fn new_store() {
   let f0 = fold(fn(fr, n) {
@@ -1397,6 +1404,23 @@ fn apply_host_builtin(name, args) {
   else if name == "guess" { guess(a0, (args[1]).v, (args[2]).v) }
   else if name == "is_guess" { is_guess(a0) }
   else if name == "confidence" { confidence(a0) }
+  # v0.16 guest parity (round 206): `steps` walks the REAL host provenance
+  # already sitting on `a0` — every guest value's `.v` is a genuine host
+  # Whence value built through real host `put`/`merge`/record-literal calls
+  # as self_eval.lang's own evaluator runs, so it already carries real
+  # history for free (same free-delegation trick as `guess`/`is_guess`/
+  # `confidence` above, round 176). Found by self_host.lang's own test
+  # section (line 651-652, checkpoint 47) calling `steps` on a guest AST at
+  # the deep guest-EVALUATOR level for the first time — `steps` was never
+  # in `builtin_names` at all, so guest code calling it failed at NAME
+  # RESOLUTION ("unbound name 'steps'"), never even reaching this dispatch
+  # (see knowledge/round-206-whence-v16-guest-steps-parity.md). `at`/
+  # `blame`/`diverge`/`contrast` are the same "provenance as data" (round
+  # 4) family and share this exact gap — flagged as follow-up backlog,
+  # not fixed here (no test in the current corpus exercises them yet).
+  else if name == "steps" {
+    if len(args) == 1 { steps(a0) } else { steps(a0, (args[1]).v) }
+  }
   else { miss ("builtin '" + name + "' is not implemented in the guest") }
 }
 
