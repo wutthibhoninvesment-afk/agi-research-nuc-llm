@@ -138,3 +138,25 @@ def test_default_round_timeout_is_3300_and_override_env_var_wins():
         ["bash", "-c", src], cwd=REPO_ROOT, capture_output=True, text=True, check=True, env=env,
     ).stdout.strip()
     assert override_out == "42", override_out
+
+
+def test_default_max_turns_is_135_and_override_env_var_wins():
+    """Round 205: `--max-turns` (the CLI's own graceful stop, distinct from
+    the wall-clock TIMEOUT_S above) was hardcoded to 120 since round 151 —
+    six real rounds (155/168/179/182/203/204) hit it and lost 120-132 tool
+    calls of uncommitted work each time, 203/204 back to back for the first
+    time. Raised to 135 (see run_driver.sh's own round-205 comment for the
+    per-tool-call-rate headroom math against the 3300s wall clock) and made
+    overridable, same DRIVER_SOURCE_ONLY convention as TIMEOUT_S above."""
+    src = "DRIVER_SOURCE_ONLY=1 . " + DRIVER_SRC + "; echo \"$MAX_TURNS\""
+    default_out = subprocess.run(
+        ["bash", "-c", src], cwd=REPO_ROOT, capture_output=True, text=True, check=True,
+    ).stdout.strip()
+    assert default_out == "135", default_out
+
+    env = dict(os.environ)
+    env["DRIVER_MAX_TURNS"] = "17"
+    override_out = subprocess.run(
+        ["bash", "-c", src], cwd=REPO_ROOT, capture_output=True, text=True, check=True, env=env,
+    ).stdout.strip()
+    assert override_out == "17", override_out

@@ -22,7 +22,7 @@ export PATH="$PATH:/home/pgain/agi-research-nuc-llm/node_modules/.bin"
 # "$@"` at the loop's end below), this now reliably reflects the ON-DISK
 # script content for every round it produced, including rounds after a
 # mid-run edit — round 139's live driver could not make that claim.
-DRIVER_VERSION="187-timeout-kill-after"
+DRIVER_VERSION="205-max-turns-135"
 
 # Round 157: a manual post-migration edit (made outside any round,
 # between the Mac->NUC sync commit c768d90 and round 154) hardcoded this
@@ -74,8 +74,9 @@ FINAL="$WS/state/FINAL-REPORT.md"
 # end without a real 45s wait per round; production always uses 45.
 LOOP_SLEEP_S="${DRIVER_LOOP_SLEEP_S:-45}"
 # Round 181: wall-clock backstop for the whole `claude -p` invocation below
-# (belt-and-suspenders against a genuine hang; `--max-turns 120` is meant to
-# be the PRIMARY, graceful stopgap — it writes a real `type:"result"` event
+# (belt-and-suspenders against a genuine hang; `--max-turns` (135 as of
+# round 205, was 120) is meant to be the PRIMARY, graceful stopgap — it
+# writes a real `type:"result"` event
 # so driver_health.summarize_turns can read real thinking-token/turn data
 # and the round still gets classified as `error:max_turns`, not silently
 # discarded). Was a hardcoded 2400 since round 133; round 181 found LIVE,
@@ -116,6 +117,35 @@ LOOP_SLEEP_S="${DRIVER_LOOP_SLEEP_S:-45}"
 # next ~20-25 rounds. Overridable so tests can inject a tiny value instead
 # of waiting 55 real minutes to prove the kill path still works.
 TIMEOUT_S="${DRIVER_ROUND_TIMEOUT_S:-3300}"
+
+# Round 205: `--max-turns 120` (below) is meant to be the PRIMARY, graceful
+# stopgap ahead of the wall-clock `TIMEOUT_S` guillotine above — a max-turns
+# death still writes a real `type:"result"` event (`error_max_turns`), so
+# driver_health can classify it and the round's own thinking/tool-call data
+# survives, unlike a wall-clock `interrupted=true` kill which leaves no
+# `result` event at all. Flagged as a possible raise since round 145 (a
+# comment in the invocation below); round 205 found LIVE that this stopped
+# being hypothetical: `logs/driver.log` now shows SIX max-turns deaths
+# (rounds 155, 168, 179, 182, 203, 204), each discarding 120-132 real tool
+# calls of substantive work with no commit — and 203/204 were BACK TO BACK,
+# the first time two consecutive rounds both hit it. Every one of the six is
+# a heavy track (SWE-loop(D) campaigns, language(C) self-hosting) that ran
+# well under the 3300s wall-clock cap (1173-2776s) — turn budget, not wall
+# time, was the actual binding constraint, so there was slack to spend.
+# Raised the default by 15 turns (120 -> 135), sized conservatively against
+# the WORST observed per-tool-call rate in that six-round sample (round 203:
+# 120 tool calls / 2776.258s = 23.14 s/call) so even that slowest round would
+# land at ~3123s, ~177s inside the 3300s wall-clock ceiling rather than
+# trading one graceful-death mechanism for the worse ungraceful one. A
+# bigger raise was deliberately NOT taken: pushing the binding constraint
+# from max-turns to wall-clock for the heaviest rounds would undo round
+# 181's own P1 finding (this round re-tallied it CLOSED: interrupted rate
+# fell from a 28% baseline to 17.4% at n=23, rounds 182-204) by converting
+# max-turns' graceful, result-event-preserving deaths back into the
+# no-result-event `interrupted` kind for exactly the rounds most likely to
+# need the extra turns. Overridable, same convention as
+# DRIVER_ROUND_TIMEOUT_S/DRIVER_KILL_AFTER_S/DRIVER_WS.
+MAX_TURNS="${DRIVER_MAX_TURNS:-135}"
 
 log() { echo "[$(date '+%F %T')] $*" | tee -a "$LOG"; }
 
@@ -251,7 +281,7 @@ update research-state.md. Be relentless and thorough — this is deep research, 
     --allowedTools "Read,Edit,Write,Bash,Glob,Grep" \
     --output-format stream-json \
     --verbose \
-    --max-turns 120 \
+    --max-turns "$MAX_TURNS" \
     > "$RLOG" 2>&1
   RC=$?
 
