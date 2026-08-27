@@ -55,7 +55,7 @@ import sys
 import time
 import traceback
 
-from .fuzz import ProgramGen, WHENCE_ROOT, shrink, _whence_frames
+from .fuzz import ProgramGen, WHENCE_ROOT, shrink, list_example_files, _whence_frames
 from .killers import load_whence, _Timeout, _alarm
 
 ORACLE_NAMES = ("totality", "fast_slow", "direct", "determinism", "render",
@@ -472,8 +472,8 @@ def example_programs(root=WHENCE_ROOT, skip=("deep.lang", "meta.lang")):
     """The checked-in examples (the slow ones skipped) as extra corpus."""
     ex_dir = os.path.join(root, "examples")
     out = []
-    for name in sorted(os.listdir(ex_dir)):
-        if name.endswith(".lang") and name not in skip:
+    for name in list_example_files(root):
+        if name not in skip:
             with open(os.path.join(ex_dir, name), encoding="utf-8") as f:
                 out.append(f.read())
     return out

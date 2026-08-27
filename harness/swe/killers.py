@@ -26,7 +26,7 @@ import sys
 import tempfile
 import time
 
-from .fuzz import ProgramGen, shrink, WHENCE_ROOT
+from .fuzz import ProgramGen, shrink, list_example_files, WHENCE_ROOT
 from .mutation import Mutant, _copy_project
 
 CANONICAL_HELPER_SRC = '''
@@ -152,8 +152,8 @@ def corpus(seed=0, n=300, root=WHENCE_ROOT, include_examples=True):
     progs = []
     if include_examples:
         ex_dir = os.path.join(root, "examples")
-        for name in sorted(os.listdir(ex_dir)):
-            if name.endswith(".lang") and name not in _HEAVY_EXAMPLES:
+        for name in list_example_files(root):
+            if name not in _HEAVY_EXAMPLES:
                 with open(os.path.join(ex_dir, name), encoding="utf-8") as f:
                     progs.append(f.read())
     for i in range(n):

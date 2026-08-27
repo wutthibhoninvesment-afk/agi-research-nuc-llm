@@ -22,12 +22,43 @@ Pieces:
 import os
 import random
 import signal
+import subprocess
 import sys
 import time
 import traceback
 
 WHENCE_ROOT = os.path.normpath(os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "..", "..", "languages", "whence"))
+
+
+def list_example_files(root=WHENCE_ROOT):
+    """Names of the CURATED `examples/*.lang` corpus, sorted.
+
+    `examples/` is not exclusively ours: a separate autonomous process
+    sharing this repo (the Hermes gateway, see
+    `project_hermes_gateway_shares_the_repo`) has dropped its own untracked
+    `.lang` files into this same directory before, and a plain
+    `os.listdir` has no way to tell those apart from the real corpus. Using
+    `git ls-files` instead means only committed, curated examples ever
+    enter differential-testing corpora — new example files a language(C)
+    round adds show up automatically once committed, and any file another
+    process drops in (or removes) stays invisible until it's actually
+    ours. Falls back to a plain listdir (old behaviour) if `git` itself is
+    unavailable or `root` isn't inside a git checkout at all.
+    """
+    ex_dir = os.path.join(root, "examples")
+    try:
+        out = subprocess.run(
+            ["git", "ls-files", "examples"], cwd=root,
+            capture_output=True, text=True, timeout=10, check=True)
+        names = sorted(
+            line.split("/", 1)[1] for line in out.stdout.splitlines()
+            if line.startswith("examples/") and line.endswith(".lang"))
+        if names:
+            return names
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        pass
+    return sorted(n for n in os.listdir(ex_dir) if n.endswith(".lang"))
 
 
 def _import_whence(root=WHENCE_ROOT):
