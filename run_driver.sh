@@ -22,7 +22,7 @@ export PATH="$PATH:/home/pgain/agi-research-nuc-llm/node_modules/.bin"
 # "$@"` at the loop's end below), this now reliably reflects the ON-DISK
 # script content for every round it produced, including rounds after a
 # mid-run edit — round 139's live driver could not make that claim.
-DRIVER_VERSION="181-round-timeout-3300"
+DRIVER_VERSION="187-timeout-kill-after"
 
 # Round 157: a manual post-migration edit (made outside any round,
 # between the Mac->NUC sync commit c768d90 and round 154) hardcoded this
@@ -49,8 +49,23 @@ CLAUDE_CMD="${DRIVER_CLAUDE_CMD:-./claude-wrapper.sh}"
 TIMEOUT_CMD=""
 if command -v timeout >/dev/null 2>&1; then TIMEOUT_CMD="timeout"
 elif command -v gtimeout >/dev/null 2>&1; then TIMEOUT_CMD="gtimeout"; fi
+# Round 187: round 185 caught the outer `timeout` (below, wrapping the whole
+# `claude -p` invocation) NOT killing a hung round promptly even after its
+# deadline — a live Bash tool call inside the round (a self-hosted Whence
+# guest-harness recursion test, SWE-loop(D) territory, unrelated to this
+# fix) hung with zero output for ~48 minutes; the plain `timeout 3300`
+# forwarded SIGTERM at the deadline but round 185's own log shows the
+# process didn't actually die until ~1235s (20m35s) later — busting round
+# 181's own "~936s max post-deadline delay" assumption that sized the 3300s
+# default in the first place. Plain GNU/BSD `timeout` has no forced-kill
+# fallback unless told to: without `--kill-after`, a SIGTERM-ignoring (or
+# merely slow-to-unwind) descendant can make `timeout` wait indefinitely.
+# `--kill-after` sends SIGKILL if the command is still alive this long after
+# the initial SIGTERM, bounding the overrun instead of leaving it open-
+# ended. Same override convention as DRIVER_ROUND_TIMEOUT_S/DRIVER_WS/etc.
+KILL_AFTER_S="${DRIVER_KILL_AFTER_S:-120}"
 run_timeout() {
-  if [ -n "$TIMEOUT_CMD" ]; then "$TIMEOUT_CMD" "$@"; else shift; "$@"; fi
+  if [ -n "$TIMEOUT_CMD" ]; then "$TIMEOUT_CMD" --kill-after="$KILL_AFTER_S" "$@"; else shift; "$@"; fi
 }
 LOG="$WS/logs/driver.log"
 STATE_FILE="$WS/state/round_counter"
@@ -87,8 +102,16 @@ LOOP_SLEEP_S="${DRIVER_LOOP_SLEEP_S:-45}"
 # itself was not prompt. Raised to 3300 (900s more headroom, matching the
 # largest observed post-deadline kill delay) so more organically-slow-but-
 # still-progressing rounds reach `--max-turns 120`'s own clean stop instead
-# of the wall-clock guillotine. Unverified prediction for a future round to
-# score: this should measurably reduce (not necessarily eliminate — a
+# of the wall-clock guillotine. UPDATE (round 187): the 936s max held for
+# only 4 more rounds — round 185 hung on a genuinely stuck Bash tool call
+# (zero output for ~48min, nowhere near a slow-but-progressing test run)
+# and its own log shows a ~1235s post-deadline kill-completion delay, busting
+# the 936s assumption this 3300s default was sized against. Round 187 added
+# `--kill-after` (see `KILL_AFTER_S` below) to bound this going forward
+# instead of raising the wall-clock timeout again, which would only recreate
+# the same open-ended-wait problem at a larger number. Original text below,
+# now PARTIALLY scored (see round 187's knowledge file for the full
+# writeup): this should measurably reduce (not necessarily eliminate — a
 # round can still be genuinely stuck) the `interrupted=true` rate over the
 # next ~20-25 rounds. Overridable so tests can inject a tiny value instead
 # of waiting 55 real minutes to prove the kill path still works.
