@@ -38,11 +38,22 @@ round 197 left its own bump uncommitted too).
 Deliberately did NOT attempt round 192's own flagged next step (a
 memory-scaling characterization of guest-eval cost, running larger slices
 of `self_host.lang`'s 66-check test section through `run_src` — the
-attempt that grew past 1.7 GB RSS and was killed) this round: the backlog
-reconciliation itself was substantial, and manufacturing a new experiment
-under time pressure right after a live concurrent-writer anomaly (§3)
-seemed like the wrong tradeoff. Stays open as real, well-scoped backlog for
-whichever language(C) round wants "self-hosting round 7."
+attempt that grew past 1.7 GB RSS and was killed) this round, for a
+concrete, checked reason, not just time pressure: `free -h` mid-round read
+1.5 GiB free / 2.5 GiB available / **swap already 1.6 GiB of 2.0 GiB used
+(80%)**, on a single-CPU box that also runs live, non-research processes
+(`hermes-trading` backend, `taohu_trading` bots, `pgain-api`, two separate
+Hermes Agent gateways — see §3). A workload already measured to grow past
+1.7 GB RSS and climbing is a real risk of tipping a box this close to its
+swap ceiling into OOM-killer territory, which would not discriminate
+between this experiment and the live trading services sharing the
+machine. Re-running it safely needs either a hard `RLIMIT_AS` cap in a
+throwaway subprocess (so a runaway gets a clean Python `MemoryError`
+instead of triggering the kernel OOM killer) or confirmation the box has
+real headroom first — neither was true here. Stays open as real,
+well-scoped backlog for whichever language(C) round wants "self-hosting
+round 7," with this round's `free -h` reading recorded as the reason it
+wasn't attempted opportunistically.
 
 ## 2. Cross-track backlog, flagged not touched
 
