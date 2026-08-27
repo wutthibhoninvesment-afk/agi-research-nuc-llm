@@ -665,17 +665,19 @@ let builtin_names = ["print", "len", "range", "map", "filter", "fold", "push",
                      "str", "num", "abs", "sqrt", "missed", "reasons", "note",
                      "contains", "join", "keys", "merge", "get", "put", "has",
                      "find", "typed", "guess", "is_guess", "confidence", "sure",
-                     "steps"]
+                     "steps", "at", "blame", "diverge", "contrast"]
 
 # host builtins whose first step is `_propagate` (a miss argument yields
 # a "builtin"-op miss before the builtin looks at anything). `is_guess` is
 # deliberately absent — like `missed`/`matches`, it is total and never
-# itself propagates a miss (round 176, v0.15 guest parity). `steps` is
-# ALSO deliberately absent for the same reason: interp.py's own comment
-# above `b_steps` says "these are total: they work on misses (that is the
-# point)" — walking a failed value's own history is provenance-as-data's
-# whole purpose, so a miss argument must reach the real host `steps` call
-# below, not get shortcut into a generic "builtin"-op miss first (round 206).
+# itself propagates a miss (round 176, v0.15 guest parity). `steps`/`at`/
+# `blame`/`diverge`/`contrast` are ALSO deliberately absent for the same
+# reason: interp.py's own comment above `b_steps` says "these are total:
+# they work on misses (that is the point)" — walking a failed value's own
+# history is provenance-as-data's whole purpose, so a miss argument must
+# reach the real host call below, not get shortcut into a generic
+# "builtin"-op miss first (round 206 for `steps`; round 218 extends the
+# same reasoning to the rest of the provenance-as-data family below).
 let propagating = ["len", "range", "num", "abs", "sqrt", "contains", "join",
                    "keys", "merge", "has", "put", "guess", "confidence", "sure"]
 let arities = @{print: 1, len: 1, range: -1, map: 2, filter: 2, fold: 3,
@@ -683,7 +685,7 @@ let arities = @{print: 1, len: 1, range: -1, map: 2, filter: 2, fold: 3,
                 guess: 3, is_guess: 1, confidence: 1, sure: 2,
                 reasons: 1, note: 2, contains: 2, join: 2, keys: 1,
                 merge: 2, get: 2, put: 3, has: 2, find: 2, typed: 3,
-                steps: -1}
+                steps: -1, at: 2, blame: 1, diverge: -1, contrast: -1}
 
 # round 210: guest-level function-CALL depth ceiling, checked only in
 # apply_closure (see the module-doc comment above and apply_closure's own
@@ -1462,12 +1464,30 @@ fn apply_host_builtin(name, args) {
   # the deep guest-EVALUATOR level for the first time — `steps` was never
   # in `builtin_names` at all, so guest code calling it failed at NAME
   # RESOLUTION ("unbound name 'steps'"), never even reaching this dispatch
-  # (see knowledge/round-206-whence-v16-guest-steps-parity.md). `at`/
-  # `blame`/`diverge`/`contrast` are the same "provenance as data" (round
-  # 4) family and share this exact gap — flagged as follow-up backlog,
-  # not fixed here (no test in the current corpus exercises them yet).
+  # (see knowledge/round-206-whence-v16-guest-steps-parity.md).
   else if name == "steps" {
     if len(args) == 1 { steps(a0) } else { steps(a0, (args[1]).v) }
+  }
+  # v0.16.4 guest parity (round 218): `at`/`blame`/`diverge`/`contrast` are
+  # the same "provenance as data" (round 4) family as `steps` above and
+  # share the identical free-delegation fix — `a0`'s real host provenance
+  # is already there for free, so each just calls straight through to the
+  # real host builtin of the same name. Round 206 flagged this as follow-up
+  # backlog specifically because nothing in the corpus exercised them yet
+  # ("evaluate-before-authoring"); `harness/tests/test_self_hosting.py`'s
+  # new `test_guest_{at,blame,diverge,contrast}_...` tests (round 218) are
+  # that exercising code, written first to make the gap real before fixing
+  # it, mirroring `steps`'s own two-arg-pattern test (round 206). None of
+  # these four are in `propagating` — like `steps`, they are host-documented
+  # as TOTAL (must work on a miss argument, e.g. `blame` walking a failed
+  # value's own origin chain is the whole point).
+  else if name == "at" { at(a0, (args[1]).v) }
+  else if name == "blame" { blame(a0) }
+  else if name == "diverge" {
+    if len(args) == 1 { diverge(a0) } else { diverge(a0, (args[1]).v) }
+  }
+  else if name == "contrast" {
+    if len(args) == 1 { contrast(a0) } else { contrast(a0, (args[1]).v) }
   }
   else { miss ("builtin '" + name + "' is not implemented in the guest") }
 }

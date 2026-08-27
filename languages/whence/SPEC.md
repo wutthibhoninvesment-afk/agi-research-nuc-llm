@@ -1311,6 +1311,85 @@ that cannot end a statement.
   `languages/whence` suite reconfirmed green post-change (unaffected by
   construction, since no interpreter or example file was touched).
 
+## v0.16.4 (round 218) — guest parity: `at`/`blame`/`diverge`/`contrast` in `self_eval.lang`
+- **Closes the follow-up backlog round 206 explicitly flagged and declined
+  to build**: `at`/`blame`/`diverge`/`contrast` are the same "provenance as
+  data" (round 4) builtin family as `steps`, share the exact same gap —
+  never in `self_eval.lang`'s `builtin_names`, so guest code calling one
+  failed at NAME RESOLUTION before ever reaching `apply_builtin`/
+  `apply_host_builtin`'s dispatch tables — and get the identical fix.
+  Round 206 explicitly declined to build them alongside `steps` because
+  nothing in the test corpus exercised them from guest code yet
+  ("evaluate-before-authoring"); `self_host.lang`'s own source still calls
+  none of them, so this round wrote the exercising tests FIRST (making the
+  gap real, per the same discipline) before fixing it.
+- **The fix**: add `"at"`, `"blame"`, `"diverge"`, `"contrast"` to
+  `builtin_names`, arities `at: 2, blame: 1, diverge: -1, contrast: -1`
+  (matching the host's own `@register` arities — `diverge`/`contrast` reuse
+  the `-1` "1 or 2 args" sentinel `steps`/`range` already use), then
+  delegate straight to the real host builtin of the same name in
+  `apply_host_builtin`, exactly `steps`'s own free-delegation shape:
+  `a0` (`args[0].v`) is already a real host Whence value with real host
+  provenance (every guest `put`/`merge`/record-literal call
+  `self_eval.lang`'s own evaluator performs is a real host builtin call),
+  so `at`/`blame`/`diverge`/`contrast` walking it costs zero guest-side
+  reimplementation. None of the four were added to `propagating` — like
+  `steps`, host `interp.py` documents this whole family as TOTAL (a miss
+  argument must reach the real builtin so it can walk the miss's own
+  history, not get short-circuited into a generic "builtin"-op miss).
+- **A real representational wrinkle found while writing the tests, left
+  unfixed as out-of-scope**: indexing into a `steps(...)`/`blame(...)`
+  result list from GUEST code and then field-accessing an element (e.g.
+  `steps(x)[0].op`) returns a MISS, not the expected step-record field —
+  `eval_index`'s `is_list((o.v).v)` branch passes list elements through
+  UNBOXED (bare host `Record`s shaped `{op, detail, line, show, depth,
+  inputs, count, value}`), but every other guest field-access path expects
+  the `{v, op, ins}` "guest box" shape, so `.op` looks for a `v` field that
+  isn't there. Round 206's own `test_guest_steps_two_arg_pattern_and_total_
+  on_miss` had already sidestepped this by only ever comparing `len(...)`
+  of two step lists, never indexing an element — this round's tests follow
+  the same discipline for the same reason, and do not fix the underlying
+  boxing mismatch (a real design question — should `_step_record`'s guest-
+  visible list elements get `mkb`-wrapped? — with no corpus need yet to
+  force an answer either way). Flagged as backlog if a future round's
+  guest code actually needs to introspect individual step records.
+- **A second wrinkle, informing the tests' design**: the REAL host
+  provenance reachable from a guest value under `run_src` reflects
+  `self_eval.lang`'s OWN internal call chain (its parameter names like
+  `arg p`, its own eval helpers), not the guest program's syntax — e.g.
+  `diverge(1 + 2, 1 + 2)` (the identical literal, evaluated twice) still
+  reports one origin, because the two evaluations run through different
+  internal paths inside `self_eval.lang` itself, not because the GUEST
+  values differ. Confirmed empirically before writing any assertion (see
+  the round-218 knowledge file for the raw numbers). Test assertions below
+  therefore avoid exact-pattern-match and same-vs-different-divergence-
+  count claims, and instead pin only properties true regardless of that
+  internal noise.
+- **Why the differential fuzzer's `BANNED` list needs no change**:
+  `harness/swe/guest.py`'s `BANNED` regex already listed `at`, `blame`,
+  `diverge`, `contrast` alongside `steps`, `why`, `snip`, `print` — banned
+  from the START (well before any of them had a working guest dispatch),
+  for the identical "graph size legitimately, permanently differs between
+  host-direct and guest-mediated execution" reason round 206 documented
+  for `steps`. Confirmed unaffected by this round's change (still banned,
+  by construction, from the fuzzed/oracle/guest-differential campaigns).
+- **Verification**: `tests/test_self_hosting.py` gained two new tests —
+  `test_guest_at_blame_diverge_contrast_dispatch_to_real_host_builtins`
+  (proves the real host builtin runs, via the real "no step named ..."
+  miss wording `at` produces on a not-found search — a pre-fix guest call
+  would instead hit the generic "not implemented in the guest" stub
+  message, so seeing the real host wording is a genuine differential
+  proof, not just "didn't crash") and
+  `test_guest_at_blame_diverge_contrast_total_on_miss_arguments` (pins
+  `at`'s specific total-vs-propagating split: its VALUE argument being a
+  miss still gets a real search, but its PATTERN argument being a miss
+  DOES propagate via `merge_miss`, matching host `b_at`; `diverge`/
+  `contrast` stay total on either side). Full `languages/whence` suite
+  869/869 (867 + 2 new test functions); `tests/test_self_hosting.py` alone
+  7/7 (was 5/5). `harness/tests/test_swe_guest.py`'s two pre-existing,
+  unrelated divergences (seed-152/seed-4002) closed by round 210/212 stay
+  closed — reconfirmed, not touched by this round.
+
 ## Builtins
 `print len range map filter fold push str num abs sqrt missed reasons note
 contains join keys merge get put has find steps at blame diverge contrast

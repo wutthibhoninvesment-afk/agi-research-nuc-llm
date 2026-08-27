@@ -166,6 +166,91 @@ def test_guest_steps_two_arg_pattern_and_total_on_miss():
     assert not failed, failed
 
 
+def test_guest_at_blame_diverge_contrast_dispatch_to_real_host_builtins():
+    # round 218: closes the follow-up backlog round 206's own knowledge file
+    # flagged when it fixed `steps`'s guest-parity gap -- `at`/`blame`/
+    # `diverge`/`contrast` are the same "provenance as data" (round 4)
+    # family, share the identical NAME-RESOLUTION gap (never in
+    # `builtin_names`, so guest code calling them failed before dispatch
+    # was ever reached), and get the identical free-delegation fix. This
+    # test is the exercising code that makes the gap real per the corpus's
+    # own "evaluate-before-authoring" convention -- self_host.lang's own
+    # source still calls none of these four, so without a test like this
+    # nothing in the corpus would ever exercise the fix.
+    #
+    # Real host-derivation "labels" seen here are self_eval.lang's OWN
+    # internal call chain (its parameter names, its own eval helpers), not
+    # anything about the guest program's syntax -- confirmed empirically:
+    # `diverge(1 + 2, 1 + 2)` (same literal, twice) still reports one
+    # origin, because the two evaluations run through different internal
+    # call paths inside self_eval.lang itself. So assertions below avoid
+    # exact-pattern-match / same-vs-different-divergence-count claims and
+    # instead pin properties true regardless of that internal noise: the
+    # real host MISS WORDING for a not-found `at` search (the pre-fix guest
+    # stub returned a completely different "not implemented in the guest"
+    # message, so seeing the real host wording proves the real builtin
+    # ran), and non-empty/positive-length results proving each builtin
+    # actually walked real provenance rather than crashing or silently
+    # falling through to the catch-all stub.
+    eval_lib = eval_library_source()
+    inner_checks = "\n".join([
+        'let bad = miss "deliberate"',
+        'check "blame finds at least its own origin miss": len(blame(bad)) >= 1',
+        'let missing = at(bad, "nonexistent-pattern-xyz")',
+        'check "at reaches the real host builtin, not the guest stub":\n'
+        '  contains(str(missing), "no step named")',
+        'check "diverge finds at least one origin for two different literals":\n'
+        '  len(diverge(1 + 2, 1 + 3)) >= 1',
+        'check "contrast renders a non-empty report":\n'
+        '  len(contrast(1 + 2, 1 + 3)) > 0',
+    ])
+    inner_src = inner_checks + "\n"
+    prog = eval_lib + 'let __r = run_src("%s")\n' % escape(inner_src)
+
+    env = Interpreter().run(prog)
+    rec = env.get("__r").payload
+    assert rec.fields["parse_error"].payload is False
+    checks = rec.fields["checks"].payload
+    assert len(checks) == 4
+    failed = [c.payload.fields["label"].payload for c in checks
+              if c.payload.fields["pass"].payload is not True]
+    assert not failed, failed
+
+
+def test_guest_at_blame_diverge_contrast_total_on_miss_arguments():
+    # round 218: host interp.py documents this whole family as TOTAL (works
+    # on a miss argument -- walking a failed value's own history is the
+    # point, matching `steps`'s own total-on-miss test above). Pins each
+    # builtin's specific total-vs-propagating shape: `at`'s VALUE argument
+    # being a miss still gets searched for real (not short-circuited), but
+    # its PATTERN argument being a miss DOES propagate (`merge_miss`, per
+    # host `b_at`); `diverge`/`contrast` still produce a real, non-empty
+    # result when one side of the comparison is a miss.
+    eval_lib = eval_library_source()
+    inner_checks = "\n".join([
+        'let bad = miss "deliberate"',
+        'check "at is total on its value argument: still a real search":\n'
+        '  contains(str(at(bad, "nonexistent-pattern-xyz")), "no step named")',
+        'check "at propagates when its PATTERN argument is a miss":\n'
+        '  missed(at(1 + 2, bad))',
+        'check "diverge is total: a miss on one side still returns real origins":\n'
+        '  len(diverge(bad, 1 + 2)) >= 1',
+        'check "contrast is total: a miss on one side still renders":\n'
+        '  len(contrast(bad, 1 + 2)) > 0',
+    ])
+    inner_src = inner_checks + "\n"
+    prog = eval_lib + 'let __r = run_src("%s")\n' % escape(inner_src)
+
+    env = Interpreter().run(prog)
+    rec = env.get("__r").payload
+    assert rec.fields["parse_error"].payload is False
+    checks = rec.fields["checks"].payload
+    assert len(checks) == 4
+    failed = [c.payload.fields["label"].payload for c in checks
+              if c.payload.fields["pass"].payload is not True]
+    assert not failed, failed
+
+
 def test_effects_lang_runs_under_the_guest_round_164_backlog_closed():
     # round 164 (SPEC.md "v0.14 guest parity") found run_src(effects.lang)
     # reported parse_error precisely because of one multi-line `check
