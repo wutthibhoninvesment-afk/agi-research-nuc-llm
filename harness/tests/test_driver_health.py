@@ -16,11 +16,13 @@ from harness.driver_health import (
     classify_round_log,
     count_consecutive_failures,
     exact_reset_wait_seconds,
+    full_event_span_s,
     has_real_ratelimit_signal,
     is_5xx,
     is_max_turns,
     is_rate_limit,
     latest_rate_limit_reset_epoch,
+    likely_timeout_kill,
     load_round_result,
     main,
     rate_limit_backoff_seconds,
@@ -580,3 +582,142 @@ def test_cli_is_max_turns_and_all_max_turns_and_ratelimit_signal(tmp_path):
     assert run("all_max_turns", mt, mt, mt) == "yes"
     assert run("all_max_turns", mt, ok, mt) == "no"
     assert run("ratelimit_signal", ok) == "no"
+
+
+# --- full_event_span_s / likely_timeout_kill (round 211) -------------------
+#
+# Round 210's own log (no `result` event) is the motivating case: driver.log
+# shows a ~3301s wall-clock gap between its "start" and "turn summary" lines
+# (essentially the full 3300s `DRIVER_ROUND_TIMEOUT_S`), but
+# `summarize_turns`'s `span_s` — which only walks `type: "assistant"`
+# timestamps — read 3174.154, ~123s short, because non-assistant events
+# (system/tool_progress/user) preceded the first assistant turn and trailed
+# the last one. `full_event_span_s` fixes that by spanning every timestamped
+# event regardless of type; `likely_timeout_kill` uses it to tell a
+# near-ceiling kill apart from a genuine early crash.
+
+def test_full_event_span_s_uses_all_timestamped_events_not_just_assistant(tmp_path):
+    system_no_ts = {"type": "system", "subtype": "init"}  # no timestamp, like REAL_INIT_LINE
+    first = dict(REAL_ASSISTANT_LINE, timestamp="2026-08-27T17:22:04.850Z")
+    # a non-assistant event with a timestamp LATER than the last assistant
+    # turn — this is what round 210's real log looked like (a
+    # `task_updated`/`killed` system event right before the final,
+    # truncated assistant message).
+    late_system = {"type": "system", "subtype": "task_updated",
+                   "timestamp": "2026-08-27T18:17:00.000Z"}
+    last_assistant = dict(REAL_ASSISTANT_LINE, timestamp="2026-08-27T18:17:01.596Z")
+    p = _write_ndjson(str(tmp_path), "a.json", [system_no_ts, first, late_system, last_assistant])
+    span = full_event_span_s(p)
+    assert span == pytest.approx(3296.746, abs=0.01)
+    # summarize_turns's own span_s (assistant-only) is the SAME here since
+    # the latest timestamp happens to also be an assistant event — the
+    # divergence only shows up when a later NON-assistant event trails the
+    # last assistant one, which is exactly what round 210 had and this
+    # fixture's `late_system` (with an earlier timestamp than the final
+    # assistant line) does not reproduce; see the dedicated regression test
+    # below for the real shape.
+
+
+def test_full_event_span_s_can_exceed_assistant_only_span(tmp_path):
+    first = dict(REAL_ASSISTANT_LINE, timestamp="2026-08-27T17:22:04.850Z")
+    last_assistant = dict(REAL_ASSISTANT_LINE, timestamp="2026-08-27T18:15:00.000Z")
+    # a trailing non-assistant event (e.g. a killed-background-task
+    # notification) with a LATER timestamp than the final assistant turn —
+    # this is round 210's actual shape.
+    trailing_system = {"type": "system", "subtype": "task_updated",
+                        "timestamp": "2026-08-27T18:17:01.000Z"}
+    p = _write_ndjson(str(tmp_path), "a.json", [first, last_assistant, trailing_system])
+    s = summarize_turns(p)
+    full_span = full_event_span_s(p)
+    assert s["span_s"] < full_span
+    assert full_span == pytest.approx(3296.15, abs=0.01)
+
+
+def test_full_event_span_s_none_below_two_timestamps(tmp_path):
+    p = _write_ndjson(str(tmp_path), "a.json", [{"type": "system", "subtype": "init"}])
+    assert full_event_span_s(p) is None
+
+
+def test_full_event_span_s_none_on_missing_file(tmp_path):
+    assert full_event_span_s(os.path.join(str(tmp_path), "nope.json")) is None
+
+
+def test_likely_timeout_kill_true_when_span_near_ceiling(tmp_path):
+    first = dict(REAL_ASSISTANT_LINE, timestamp="2026-08-27T17:22:04.850Z")
+    last = dict(REAL_ASSISTANT_LINE, timestamp="2026-08-27T18:17:01.596Z")
+    p = _write_ndjson(str(tmp_path), "a.json", [first, last])  # no result event
+    assert likely_timeout_kill(p, timeout_s=3300) is True
+
+
+def test_likely_timeout_kill_false_when_span_well_under_ceiling(tmp_path):
+    first = dict(REAL_ASSISTANT_LINE, timestamp="2026-08-27T17:22:04.850Z")
+    last = dict(REAL_ASSISTANT_LINE, timestamp="2026-08-27T17:22:14.850Z")  # 10s later
+    p = _write_ndjson(str(tmp_path), "a.json", [first, last])  # no result event, died early
+    assert likely_timeout_kill(p, timeout_s=3300) is False
+
+
+def test_likely_timeout_kill_none_when_span_unavailable(tmp_path):
+    # Fewer than 2 timestamped events (e.g. a round that dies before its
+    # first assistant turn even lands) — not enough data to claim EITHER
+    # a crash or a timeout kill, so this reads None ("unknown"), not a
+    # silent default to "genuine crash".
+    p = _write_ndjson(str(tmp_path), "a.json", [{"type": "system", "subtype": "init"}])
+    assert likely_timeout_kill(p, timeout_s=3300) is None
+
+
+def test_likely_timeout_kill_respects_custom_margin(tmp_path):
+    first = dict(REAL_ASSISTANT_LINE, timestamp="2026-08-27T17:22:04.850Z")
+    last = dict(REAL_ASSISTANT_LINE, timestamp="2026-08-27T18:00:04.850Z")  # 2280s later
+    p = _write_ndjson(str(tmp_path), "a.json", [first, last])
+    # 2280s is 1020s short of a 3300s ceiling: outside the default 180s
+    # margin (False) but inside a wider, explicitly-passed 1200s margin.
+    assert likely_timeout_kill(p, timeout_s=3300) is False
+    assert likely_timeout_kill(p, timeout_s=3300, margin_s=1200) is True
+
+
+def test_reproduces_actual_round_210_no_result_near_ceiling_kill(tmp_path):
+    """Regression pin: round 210's real log (`logs/round-210.json`, first
+    event 2026-08-27T17:22:04.850Z, last event 2026-08-27T18:17:01.596Z, no
+    `result` line anywhere) against this driver's real 3300s
+    `DRIVER_ROUND_TIMEOUT_S` default — must read as a likely timeout kill,
+    not a "?" genuine-crash guess, per round 211's investigation.
+    """
+    system_no_ts = {"type": "system", "subtype": "init"}
+    first_assistant = dict(REAL_ASSISTANT_LINE, timestamp="2026-08-27T17:22:04.850Z")
+    trailing_task_killed = {"type": "system", "subtype": "task_updated",
+                             "timestamp": "2026-08-27T18:17:00.000Z"}
+    last_assistant = dict(REAL_ASSISTANT_LINE, timestamp="2026-08-27T18:17:01.596Z")
+    events = [system_no_ts, first_assistant, trailing_task_killed, last_assistant]
+    p = _write_ndjson(str(tmp_path), "round-210.json", events)
+    assert all(e.get("type") != "result" for e in events)
+    assert likely_timeout_kill(p, timeout_s=3300) is True
+
+
+def test_cli_likely_timeout_kill_subcommand(tmp_path):
+    near_ceiling = _write_ndjson(str(tmp_path), "near.json", [
+        dict(REAL_ASSISTANT_LINE, timestamp="2026-08-27T17:22:04.850Z"),
+        dict(REAL_ASSISTANT_LINE, timestamp="2026-08-27T18:17:01.596Z"),
+    ])
+    early_crash = _write_ndjson(str(tmp_path), "early.json", [
+        dict(REAL_ASSISTANT_LINE, timestamp="2026-08-27T17:22:04.850Z"),
+        dict(REAL_ASSISTANT_LINE, timestamp="2026-08-27T17:22:14.850Z"),
+    ])
+
+    def run(*args):
+        out = subprocess.run(
+            [sys.executable, "-m", "harness.driver_health"] + list(args),
+            cwd=os.path.join(HERE, "..", ".."),
+            capture_output=True, text=True, timeout=10,
+        )
+        assert out.returncode == 0, out.stderr
+        return out.stdout.strip()
+
+    assert run("likely_timeout_kill", near_ceiling, "3300") == "yes"
+    assert run("likely_timeout_kill", early_crash, "3300") == "no"
+    # explicit MARGIN_S arg wired through
+    assert run("likely_timeout_kill", early_crash, "3300", "3290") == "yes"
+
+
+def test_cli_likely_timeout_kill_bad_arity():
+    assert main(["likely_timeout_kill"]) == 2
+    assert main(["likely_timeout_kill", "a.json"]) == 2

@@ -109,9 +109,14 @@ def test_tiny_round_timeout_kills_a_hung_round_instead_of_waiting_for_it(tmp_pat
         log_text = f.read()
 
     assert "round 1 track=" in log_text, log_text
+    # Round 211: the stub only ever emits ONE timestamped event before
+    # hanging, so `likely_timeout_kill` can't compute a span (needs >= 2)
+    # and the driver logs the honest "can't tell" message rather than
+    # guessing crash vs. timeout-kill — see driver_health.likely_timeout_kill.
     assert (
-        "round 1: file populated but no result entry — assuming Claude "
-        "crash, skipping to next round"
+        "round 1: file populated but no result entry (too little "
+        "timestamped data to tell a crash from a timeout kill), skipping "
+        "to next round"
     ) in log_text, log_text
     # Killed by the tiny timeout, not by its own 30s sleep completing.
     round1_rlog = os.path.join(ws, "logs", "round-001.json")

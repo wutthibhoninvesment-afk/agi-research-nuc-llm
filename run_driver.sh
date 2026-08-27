@@ -22,7 +22,7 @@ export PATH="$PATH:/home/pgain/agi-research-nuc-llm/node_modules/.bin"
 # "$@"` at the loop's end below), this now reliably reflects the ON-DISK
 # script content for every round it produced, including rounds after a
 # mid-run edit — round 139's live driver could not make that claim.
-DRIVER_VERSION="205-max-turns-135"
+DRIVER_VERSION="211-crash-vs-timeout-kill"
 
 # Round 157: a manual post-migration edit (made outside any round,
 # between the Mac->NUC sync commit c768d90 and round 154) hardcoded this
@@ -376,7 +376,24 @@ update research-state.md. Be relentless and thorough — this is deep research, 
   _HAS_RESULT=$(grep -c '"type":"result"' "$RLOG" 2>/dev/null)
   _HAS_RESULT="${_HAS_RESULT:-0}"
   if [ "$_HAS_RESULT" -eq 0 ] && [ -s "$RLOG" ]; then
-    log "round $ROUND: file populated but no result entry — assuming Claude crash, skipping to next round"
+    # Round 211: this branch's message said "assuming Claude crash" since
+    # round 150, but the comment on TIMEOUT_S above already documents that
+    # a no-result log is produced by TWO distinct causes with an identical
+    # on-disk shape — a genuine process crash, AND a round killed by our
+    # OWN outer `timeout $TIMEOUT_S` (confirmed live: round 210's log has
+    # no result event, and its full first-to-last event span, 3296.7s, is
+    # within 3s of this driver's own 3300s ceiling — almost certainly our
+    # timeout firing, not a crash). Both causes get the same treatment
+    # (skip, don't count as a failure) so nothing behavioral changes here —
+    # this only makes the log line say which is more likely, so a future
+    # round auditing driver.log doesn't have to hand-compute the span vs.
+    # $TIMEOUT_S itself to tell them apart, the way round 211 had to.
+    _TIMEOUT_VERDICT=$(python3 -m harness.driver_health likely_timeout_kill "$RLOG" "$TIMEOUT_S" 2>/dev/null || echo unknown)
+    case "$_TIMEOUT_VERDICT" in
+      yes) log "round $ROUND: file populated but no result entry (span near the ${TIMEOUT_S}s ceiling — likely our own outer-timeout kill, not a crash), skipping to next round" ;;
+      no)  log "round $ROUND: file populated but no result entry (span well under the ${TIMEOUT_S}s ceiling — likely a genuine crash), skipping to next round" ;;
+      *)   log "round $ROUND: file populated but no result entry (too little timestamped data to tell a crash from a timeout kill), skipping to next round" ;;
+    esac
     sleep "$LOOP_SLEEP_S"
     continue
   fi

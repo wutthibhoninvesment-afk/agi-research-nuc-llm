@@ -118,9 +118,14 @@ def test_kill_after_force_kills_a_sigterm_ignoring_round(tmp_path):
         log_text = f.read()
 
     assert "round 1 track=" in log_text, log_text
+    # Round 211: the stub only ever emits ONE timestamped event before
+    # hanging, so `likely_timeout_kill` can't compute a span (needs >= 2)
+    # and the driver logs the honest "can't tell" message rather than
+    # guessing crash vs. timeout-kill — see driver_health.likely_timeout_kill.
     assert (
-        "round 1: file populated but no result entry — assuming Claude "
-        "crash, skipping to next round"
+        "round 1: file populated but no result entry (too little "
+        "timestamped data to tell a crash from a timeout kill), skipping "
+        "to next round"
     ) in log_text, log_text
     # The stub never reached its own 120s natural-completion marker —
     # it was SIGKILLed by --kill-after well before that.

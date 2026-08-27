@@ -440,6 +440,84 @@ def summarize_turns(path: str) -> Optional[dict]:
     }
 
 
+def full_event_span_s(path: str) -> Optional[float]:
+    """First-to-last timestamp span across ALL events in a stream-json log,
+    not just `type: "assistant"` ones (contrast `summarize_turns`'s
+    `span_s`, which only walks assistant-event timestamps).
+
+    Round 211 found LIVE, on round 210's own log (`status=?`/`interrupted:
+    true`, no `result` event), that these two spans can diverge — and
+    root-caused WHY, rather than just observing the gap. driver.log's own
+    "turn summary" line for round 210 recorded `assistant_turns: 200`,
+    `span_s: 3174.154`; re-reading the SAME file after the round had fully
+    finished shows 201 assistant events and `summarize_turns`'s own
+    (assistant-only) span at 3296.746 — a full extra assistant turn simply
+    wasn't on disk yet at the moment `run_driver.sh` ran its summary call.
+    This is a real write/read race, not an event-type artifact: the file's
+    mtime (18:17:01.597972957Z) lands right on top of that 201st event's
+    own embedded timestamp (18:17:01.596Z), meaning the process's last,
+    still-in-flight assistant-message chunk was flushed to disk at
+    essentially the same instant `run_driver.sh` read the file immediately
+    after the outer `timeout`'s `RC=$?` — a coin-flip on which happens
+    first. Using ALL event types (not just assistant) makes this
+    classification more ROBUST to that exact race in practice: a
+    background-tool-call "killed" notification (`type: "system"`,
+    `subtype: "task_updated"`) landed at 18:17:00.000ish — cheap CLI
+    bookkeeping, not model-generated content, so far less likely to be the
+    one write still in flight at kill time — putting `full_event_span_s`
+    within seconds of the true kill point even if computed at the exact
+    same racy moment `summarize_turns`'s 3174.154 was. This function exists
+    so a caller trying to tell "genuinely crashed early" apart from "died
+    right at our own wall-clock ceiling" isn't misled by a race that can
+    make the LAST assistant-only event look artificially early.
+    """
+    events = load_round_events(path)
+    if not events:
+        return None
+    timestamps = [e.get("timestamp") for e in events if e.get("timestamp")]
+    if len(timestamps) < 2:
+        return None
+    try:
+        t0 = datetime.fromisoformat(timestamps[0].replace("Z", "+00:00"))
+        t1 = datetime.fromisoformat(timestamps[-1].replace("Z", "+00:00"))
+    except Exception:
+        return None
+    return (t1 - t0).total_seconds()
+
+
+def likely_timeout_kill(path: str, timeout_s: float, margin_s: float = 180.0) -> Optional[bool]:
+    """True/False iff a round log with NO `result` event (see run_driver.sh's
+    "file populated but no result entry — assuming Claude crash" branch)
+    looks like it was actually killed by the driver's own outer wall-clock
+    `timeout $DRIVER_ROUND_TIMEOUT_S` rather than a genuine process crash;
+    `None` when there isn't enough timestamped data to tell either way
+    (fewer than 2 timestamped events — too little to trust a claim in
+    either direction, so callers should report "unknown" rather than
+    silently defaulting to "genuine crash").
+
+    That branch's log message has said "assuming Claude crash" since round
+    150, but its own comment (run_driver.sh, round 181) already documents
+    that the branch covers BOTH causes — a real crash AND a timeout-killed
+    round produce an identical on-disk shape (file has events, no `result`
+    line) and were never actually distinguished. Round 211 confirmed round
+    210 was the timeout-kill case (full_event_span_s ~3296.7s against a
+    3300s ceiling — the round ran essentially the whole budget and was cut
+    off, not a crash at some arbitrary earlier point).
+
+    `margin_s` (default 180s) absorbs CLI startup latency before the first
+    stream-json event is written (observed a few seconds to ~2 minutes) —
+    a genuine early crash (e.g. a few hundred seconds in) reads False; a
+    round whose last event lands within `margin_s` of the ceiling reads
+    True. Not exact (a crash that happens to occur late in a long round
+    would also read True), but far better than treating every no-result
+    log identically.
+    """
+    span = full_event_span_s(path)
+    if span is None:
+        return None
+    return span >= (timeout_s - margin_s)
+
+
 def resolved_wait_seconds(path: str, attempt: int, now: Optional[float] = None) -> int:
     """The wait the driver should actually sleep before retrying: the
     CLI's own exact reset time if this round's log captured one, else the
@@ -559,6 +637,14 @@ def main(argv: List[str]) -> int:
             return 2
         s = summarize_turns(argv[1])
         print(json.dumps(s) if s is not None else "n/a")
+        return 0
+    if argv[:1] == ["likely_timeout_kill"]:
+        if len(argv) not in (3, 4):
+            print("usage: driver_health.py likely_timeout_kill ROUND_LOG TIMEOUT_S [MARGIN_S]", file=sys.stderr)
+            return 2
+        margin = float(argv[3]) if len(argv) == 4 else 180.0
+        verdict = likely_timeout_kill(argv[1], float(argv[2]), margin_s=margin)
+        print("unknown" if verdict is None else ("yes" if verdict else "no"))
         return 0
     print(count_consecutive_failures(argv))
     return 0
