@@ -1263,6 +1263,54 @@ that cannot end a statement.
   discipline), and landed it. See
   `knowledge/round-212-whence-r210-reconciliation-seed152-seed4002-closure.md`.
 
+## v0.16.3 (round 216) — self-hosting round 8: `steps`'s real memory cost, first full 66/66-check completion
+- **Falsified hypothesis, kept in the record on purpose**: `bench/
+  self_host_memscale.py` (round 200/204's fresh-subprocess, `RLIMIT_AS`-
+  capped memory-scaling tool) reran under the default 700 MB cap and
+  failed at checkpoint 50 with `MEMORY_ERROR` at ~703 MB, where round 204's
+  own table reported 310 MB for the identical checkpoint. First hypothesis
+  — round 210/212's `GUEST_MAX_DEPTH` depth-guard fix added two extra
+  `merge` calls per guest closure call (entry/exit `st.gd` bookkeeping),
+  plausibly ~doubling retained store versions — was tested with a
+  controlled A/B (identical host `interp.py`/`values.py`, `self_eval.lang`
+  swapped between its pre-/post-round-210 versions) and **refuted**: both
+  versions failed within 0.2 MB of each other (701.7 MB vs 701.5 MB) at
+  checkpoint 50, ruling out the depth guard as the cause.
+- **Real cause, found by testing one commit further back**: swapping in
+  the TRUE round-204-era `self_eval.lang` (pre-round-206, before `steps`
+  had a working guest builtin) reproduced round 204's own historical
+  numbers almost exactly (checkpoint 45: 234.4 MB vs round 204's 234 MB;
+  checkpoint 50: 310.3 MB vs round 204's 310 MB). The difference is round
+  206's `steps` guest-parity fix: `self_host.lang`'s checkpoint-47 check
+  (`len(steps(p2)) > 0`) failed with a cheap, immediate "unbound name"
+  miss before round 206 — round 204's own checkpoint-47-and-later readings
+  never actually exercised a working `steps` call. Once `steps` really
+  runs (round 206 onward), it walks the FULL host-level provenance graph
+  reachable from its argument, exactly as round 206's own writeup
+  predicted ("much larger... for free, with zero guest-side
+  reimplementation") but never quantified: a one-time jump from 282.7 MB
+  (checkpoint 46) to 690.3 MB (checkpoint 47), after which growth resumes
+  the same roughly-linear per-check slope as before.
+- **Not a regression to fix** — `steps` genuinely working (vs. silently
+  failing name resolution) is round 206's whole point; the memory cost is
+  an honest, expected consequence of a real provenance walk over
+  guest-multiplied host nodes, the same "not a pure win, but a real
+  trade-off" framing round 204 used for `PMap`'s own elapsed-time cost.
+- **New milestone**: with the cap raised to 1200 MB (round 216, informed
+  by this measurement — see `bench/self_host_memscale.py`'s updated
+  module docstring for the full curve and reasoning), the complete
+  66-check `self_host.lang` test section now runs end-to-end through the
+  deep guest-EVALUATOR level (`run_src`) for the FIRST TIME ever: 66/66
+  checks passing, 1072 MB peak, ~112-122 s (two independent runs). Every
+  prior round (192/198/200/204) either killed the run early or hit the
+  wall-clock/memory ceiling before completion.
+- **Verification**: no host code (`interp.py`/`values.py`) or guest code
+  (`self_eval.lang`/`self_host.lang`) changed this round — this is a
+  measurement-and-tooling round only (`bench/self_host_memscale.py`'s
+  default cap/timeout and docstring updated to match reality). Full
+  `languages/whence` suite reconfirmed green post-change (unaffected by
+  construction, since no interpreter or example file was touched).
+
 ## Builtins
 `print len range map filter fold push str num abs sqrt missed reasons note
 contains join keys merge get put has find steps at blame diverge contrast

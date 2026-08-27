@@ -17,11 +17,40 @@ Whence code runs. RLIMIT_AS is enforced by the kernel at mmap/brk time, so
 the process can never map more virtual (and therefore resident) memory than
 the cap regardless of what else the box is doing — a hit degrades to a
 clean Python MemoryError in the one subprocess, not a system-wide OOM
-sweep. Default cap is 700 MB, comfortably inside this run's own headroom
-(`free -h` at launch: ~2.4 GiB "available", 369 MiB actually free, swap at
-82%) with margin to spare.
+sweep.
 
-usage: python3 bench/self_host_memscale.py [--cap-mb 700] [--timeout 60]
+Round 204 set the default cap to 700 MB and reported the full 66-check
+section landing comfortably under it through checkpoint 60 (436 MB), with
+checkpoint 66 itself blocked only by wall-clock time, not memory. **That
+700 MB figure went stale one round later and is no longer a safe default**:
+round 206 gave `self_eval.lang` a real, working guest-level `steps` builtin
+(self_host.lang checkpoint 47's own check calls it) — before round 206 the
+same call failed immediately with a cheap "unbound name" miss, so round
+204's own checkpoint-47-and-later readings never actually exercised it.
+Once `steps` really runs, it walks the FULL host-level provenance graph
+reachable from its argument (round 206's own writeup: "much larger... for
+free, with zero guest-side reimplementation") — a one-time ~400 MB jump
+right at checkpoint 47 (round 216 measurement: 282 MB at checkpoint 46,
+690 MB at checkpoint 47), after which growth resumes the same roughly-
+linear per-check slope as before. Round 216 confirmed this with a
+controlled A/B (identical host code, `self_eval.lang` swapped between its
+pre-/post-round-206 versions) before trusting it, and raised the default
+cap to 1200 MB accordingly — comfortably above the round 216 measurement of
+the FULL 66-check section actually completing end-to-end for the first
+time (1072 MB peak, 66/66 checks passing, ~112 s). Re-check this default
+against `free -h`'s "available" figure before raising it further; this
+script's own safety property (a capped subprocess degrades to a clean
+MemoryError, never a system-wide OOM) does not extend to choosing a cap
+bigger than the box can actually back.
+
+Checkpoint 66's own elapsed time is noisy under real box contention (round
+216 saw it range from 112 s to a 150 s timeout across consecutive runs a
+few minutes apart, same code, same cap) — the default 240 s timeout leaves
+real margin, matching round 204's own "time is the safer failure mode"
+framing (a TIMEOUT here is inconclusive, not a failure; rerun rather than
+concluding the workload regressed).
+
+usage: python3 bench/self_host_memscale.py [--cap-mb 1200] [--timeout 240]
                                            [--checkpoints 5,10,20,...]
 """
 import os
@@ -136,7 +165,7 @@ def probe(inner_src, eval_lib, cap_bytes, timeout):
 
 
 def main(argv):
-    cap_mb, timeout = 700, 60
+    cap_mb, timeout = 1200, 240
     checkpoints = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 66]
     i = 0
     while i < len(argv):
