@@ -251,6 +251,62 @@ def test_guest_at_blame_diverge_contrast_total_on_miss_arguments():
     assert not failed, failed
 
 
+def test_guest_steps_blame_diverge_element_field_access():
+    # round 222: round 218's own knowledge file flagged a fresh, narrower
+    # gap it deliberately left open -- `eval_index`'s list-passthrough
+    # branch (self_eval.lang) assumes every host list handed back across
+    # the guest boundary already has its elements in the guest `{v, op,
+    # ins}` box shape, which is true for guest-BUILT lists but false for
+    # `steps`/`blame`/`diverge`'s elements: the host's `_step_record`
+    # (interp.py) is a real host Record with fields op/detail/line/show/
+    # depth/inputs/count/value, none individually boxed, because host-level
+    # field access never needed the guest's box convention. Before this
+    # round, `steps(x)[0].op` failed guest-side with "miss: no field 'v'
+    # (record has: count, depth, detail, inputs, line, op, show, value)" --
+    # every check below indexes an element AND reads a field off it (not
+    # just `len(...)` of the list, which is all rounds 206/218 exercised),
+    # so this is real exercising code for the fix, not a retroactive pin.
+    # `diverge`'s elements nest a SECOND, structurally different unboxed
+    # record shape (`kind`/`a`/`b`[/`which`]) one level down, with `a`/`b`
+    # themselves raw `_step_record`s -- the last two checks below are the
+    # only coverage of that nested case.
+    eval_lib = eval_library_source()
+    inner_checks = "\n".join([
+        'let x = 1 + 2',
+        'let s = steps(x)',
+        'check "steps element .op reads back, not a miss, after indexing":\n'
+        '  not missed(s[0].op)',
+        'check "steps element .op is the real first-walked step label":\n'
+        '  s[0].op == "let"',
+        'check "steps element descriptive fields are all readable":\n'
+        '  not missed(s[0].detail) and not missed(s[0].line) and\n'
+        '  not missed(s[0].depth) and not missed(s[0].inputs) and\n'
+        '  not missed(s[0].count) and not missed(s[0].value)',
+        'let bl = blame(miss "deliberate")',
+        'check "blame element .value reads back and is itself a miss":\n'
+        '  missed(bl[0].value)',
+        'let d = diverge(1 + 2, 1 + 3)',
+        'check "diverge element .kind reads back, not a miss":\n'
+        '  not missed(d[0].kind)',
+        'let d2 = diverge([1 + 2, 1 + 3, 1 + 4])',
+        'check "n-way diverge element .which is the real diverging run index":\n'
+        '  d2[0].which == 1',
+        'check "diverge element .a/.b are step-shaped: their own .op reads back":\n'
+        '  not missed(d[0].a.op) and not missed(d[0].b.op)',
+    ])
+    inner_src = inner_checks + "\n"
+    prog = eval_lib + 'let __r = run_src("%s")\n' % escape(inner_src)
+
+    env = Interpreter().run(prog)
+    rec = env.get("__r").payload
+    assert rec.fields["parse_error"].payload is False
+    checks = rec.fields["checks"].payload
+    assert len(checks) == 7
+    failed = [c.payload.fields["label"].payload for c in checks
+              if c.payload.fields["pass"].payload is not True]
+    assert not failed, failed
+
+
 def test_effects_lang_runs_under_the_guest_round_164_backlog_closed():
     # round 164 (SPEC.md "v0.14 guest parity") found run_src(effects.lang)
     # reported parse_error precisely because of one multi-line `check

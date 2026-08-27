@@ -1197,6 +1197,38 @@ fn bind_params(st, fid, params, args, i) {
   }
 }
 
+# round 218 shipped guest DISPATCH for steps/blame/diverge but left their
+# LIST ELEMENTS unboxed (flagged as backlog: "steps(x)[0].op reads as a
+# miss"). The host's `_step_record` (interp.py) reifies one provenance node
+# as a real host Record with fields op/detail/line/show/depth/inputs/count/
+# value — none of them individually boxed, because at the HOST level that
+# is correct (host field access reads a Record's fields directly, no box
+# convention). Every guest-visible record must instead follow line ~618's
+# box invariant (every field a box), the same way `reify_node` above builds
+# guest `why` records field-by-field — so a raw `_step_record` result has to
+# be re-boxed field-by-field before a guest program can read `.op`/`.detail`
+# /etc on it. `mkb(..., "step", [])` for each field: no real derivation
+# happened INSIDE the bridge (the op/detail/etc are host bookkeeping, not
+# computed guest values), so an empty `ins` and a fixed "step" op label
+# mirror how `range`/`key`/`reason` elements are labelled just below.
+fn box_step_record(rec) {
+  @{op: mkb(rec.op, "step", []), detail: mkb(rec.detail, "step", []),
+    line: mkb(rec.line, "step", []), show: mkb(rec.show, "step", []),
+    depth: mkb(rec.depth, "step", []), inputs: mkb(rec.inputs, "step", []),
+    count: mkb(rec.count, "step", []), value: mkb(rec.value, "step", [])}
+}
+
+# `diverge`'s items are a DIFFERENT host Record shape (`kind`/`a`/`b`, plus
+# `which` for the n-way form) whose `a`/`b` fields are themselves raw
+# `_step_record`s nested one level down — the same gap, one level deeper.
+fn box_diverge_record(rec) {
+  let base = @{kind: mkb(rec.kind, "diverge", []),
+               a: mkb(box_step_record(rec.a), "step", []),
+               b: mkb(box_step_record(rec.b), "step", [])}
+  if has(rec, "which") { put(base, "which", mkb(rec.which, "diverge", [])) }
+  else { base }
+}
+
 # ---- builtins: delegate to the host on payloads wherever the argument is
 # not a guest function; higher-order builtins re-implement the loop with
 # guest apply so callbacks receive boxes (pass-through provenance).
@@ -1383,6 +1415,15 @@ fn apply_builtin(name, args, st) {
       else if name == "range" { map(fn(x) { mkb(x, "range", []) }, p) }
       else if name == "keys" { map(fn(x) { mkb(x, "key", []) }, p) }
       else if name == "reasons" { map(fn(x) { mkb(x, "reason", []) }, p) }
+      # round 222: box steps/blame's step-record elements (see
+      # box_step_record above) so guest code can read `.op`/`.detail`/etc,
+      # not just `len(...)` of the list, the same gap this round closed.
+      else if name == "steps" or name == "blame" {
+        map(fn(x) { mkb(box_step_record(x), "step", []) }, p)
+      }
+      else if name == "diverge" {
+        map(fn(x) { mkb(box_diverge_record(x), "diverge", []) }, p)
+      }
       else { p }
     # a PROPAGATED miss — a miss among the arguments the host checks first
     # (`_propagate`) — is the host's merge_miss("builtin", name): op
