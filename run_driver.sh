@@ -22,7 +22,7 @@ export PATH="$PATH:/home/pgain/agi-research-nuc-llm/node_modules/.bin"
 # "$@"` at the loop's end below), this now reliably reflects the ON-DISK
 # script content for every round it produced, including rounds after a
 # mid-run edit — round 139's live driver could not make that claim.
-DRIVER_VERSION="157-nuc-migration-fix"
+DRIVER_VERSION="181-round-timeout-3300"
 
 # Round 157: a manual post-migration edit (made outside any round,
 # between the Mac->NUC sync commit c768d90 and round 154) hardcoded this
@@ -58,6 +58,41 @@ FINAL="$WS/state/FINAL-REPORT.md"
 # Overridable only for tests exercising the self-re-exec loop below end to
 # end without a real 45s wait per round; production always uses 45.
 LOOP_SLEEP_S="${DRIVER_LOOP_SLEEP_S:-45}"
+# Round 181: wall-clock backstop for the whole `claude -p` invocation below
+# (belt-and-suspenders against a genuine hang; `--max-turns 120` is meant to
+# be the PRIMARY, graceful stopgap — it writes a real `type:"result"` event
+# so driver_health.summarize_turns can read real thinking-token/turn data
+# and the round still gets classified as `error:max_turns`, not silently
+# discarded). Was a hardcoded 2400 since round 133; round 181 found LIVE,
+# from `logs/driver.log`'s last 25 rounds, that this was too tight and had
+# become the DOMINANT cause of `interrupted=true`/`status=?` round deaths
+# (7 of 25, 28%): every one of the 18 non-interrupted rounds in that window
+# finished in <=2067s wall time, while EVERY interrupted round's wall time
+# (driver.log's own "start" to "turn summary" timestamps) was >=2401s — a
+# clean gap with zero overlap, and zero counterexamples (no round died
+# `interrupted` for any other reason, e.g. OOM/crash, in this whole
+# window). Each of those 7 rounds had done 127-220 real assistant turns of
+# substantive work (edited files, ran tests) before being killed mid-flight
+# with NO `result` event — exactly the "real work, no knowledge file, no
+# research-state entry" backlog pattern rounds 144/157/159/162/165/171/175
+# each independently found and had to reconcile after the fact for OTHER
+# causes (one-shot no-background-wait, forgetfulness); this is a mechanical
+# root cause for a meaningful share of those incidents that none of those
+# reconciliation rounds identified. Also found: the outer `timeout` does
+# NOT always kill within its nominal window — observed kill-completion
+# delay ranged from ~1s to 936s past the deadline (likely an in-flight Bash
+# tool subprocess, e.g. a slow test run, not torn down instantly by the
+# forwarded SIGTERM) — so 2400 was doubly too tight: some rounds were
+# killed before reaching their own graceful cutoff, AND the actual kill
+# itself was not prompt. Raised to 3300 (900s more headroom, matching the
+# largest observed post-deadline kill delay) so more organically-slow-but-
+# still-progressing rounds reach `--max-turns 120`'s own clean stop instead
+# of the wall-clock guillotine. Unverified prediction for a future round to
+# score: this should measurably reduce (not necessarily eliminate — a
+# round can still be genuinely stuck) the `interrupted=true` rate over the
+# next ~20-25 rounds. Overridable so tests can inject a tiny value instead
+# of waiting 55 real minutes to prove the kill path still works.
+TIMEOUT_S="${DRIVER_ROUND_TIMEOUT_S:-3300}"
 
 log() { echo "[$(date '+%F %T')] $*" | tee -a "$LOG"; }
 
@@ -187,7 +222,7 @@ update research-state.md. Be relentless and thorough — this is deep research, 
   # latest_rate_limit_reset_epoch`); (3) per-turn `assistant` events let
   # `driver_health.summarize_turns` answer round 127's open "why did
   # 122-126 burn all 80 turns" question with real data next time it happens.
-  run_timeout 2400 $CLAUDE_CMD -p "$PROMPT" \
+  run_timeout "$TIMEOUT_S" $CLAUDE_CMD -p "$PROMPT" \
     --model claude-sonnet-5 \
     --dangerously-skip-permissions \
     --allowedTools "Read,Edit,Write,Bash,Glob,Grep" \
@@ -266,7 +301,27 @@ update research-state.md. Be relentless and thorough — this is deep research, 
   # entries, Claude Code likely crashed before sending its final response. Skip this round
   # and move on instead of treating it as a genuine failure (which could trigger false
   # weekly-limit detection via the 3-consecutive-failures check below).
-  _HAS_RESULT=$(grep -c '"type":"result"' "$RLOG" 2>/dev/null || echo 0)
+  #
+  # Round 181: found LIVE, while testing the round-timeout fix above, that this NEVER
+  # actually fired for the one case it exists for. `grep -c PATTERN FILE` prints "0" to
+  # stdout on a clean no-match AND exits 1 (grep's exit status distinguishes "found
+  # nothing" from "found something", not success/failure) — so the old `|| echo 0`
+  # fallback ALSO ran on every no-match, appending a SECOND "0" on its own line.
+  # `_HAS_RESULT` ended up as the two-line string "0\n0", which fails `[ ... -eq 0 ]`
+  # with "integer expression expected" (a silent, discarded error under `set -uo
+  # pipefail` — no `-e`) and skips this whole if-block. Net effect: every crashed/
+  # timeout-killed round (see the DRIVER_ROUND_TIMEOUT_S comment above — the exact
+  # rounds this branch is FOR) fell through to the 3-consecutive-failures counter
+  # below as a genuine counted failure instead of being exempted, silently
+  # reintroducing round 151's "false weekly-limit stop on a workload cluster, not a
+  # quota exhaustion" risk for crash/timeout clusters specifically (never observed
+  # live only because no 3 crash-kills have happened back-to-back yet). Fixed by not
+  # invoking a fallback command at all on the common "ran fine, 0 matches" path —
+  # `${_HAS_RESULT:-0}` only substitutes when grep produced NO stdout at all (e.g. the
+  # file itself is unreadable), which is the actual error case the `|| echo 0` was
+  # meant to guard against.
+  _HAS_RESULT=$(grep -c '"type":"result"' "$RLOG" 2>/dev/null)
+  _HAS_RESULT="${_HAS_RESULT:-0}"
   if [ "$_HAS_RESULT" -eq 0 ] && [ -s "$RLOG" ]; then
     log "round $ROUND: file populated but no result entry — assuming Claude crash, skipping to next round"
     sleep "$LOOP_SLEEP_S"
