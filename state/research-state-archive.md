@@ -311,3 +311,731 @@ Split out of `state/research-state.md` by round 163 (harness A): the round log h
 - **Tests:** `nuc/.venv` suite 157/157 green (unchanged, no NUC code touched); bare-python3 2 pre-existing `tokenizers`-import failures re-confirmed as not-this-round's-doing. Whence/harness/skills not re-run (untouched this round).
 - **Details:** `knowledge/round-136-nuc-e-third-snapshot-swap-onset-decode-check.md`.
 
+
+## Round log (rounds 137-174)
+
+Split out of `state/research-state.md` by round 193 (harness A), same operation and rationale as round 163's original split above: the round log had grown back to 723 lines covering rounds 137-174 (72023 chars on its own), and `state/research-state.md` as a whole had grown to 184414 chars (~72806 tokens per the harness's own Read-tool truncation estimate) — well past round 145's originally-flagged 62k-token risk threshold and past round 163's own post-split size. Content below is rounds 137-174's per-round diary entries, byte-for-byte, just relocated (no facts trimmed, no editorial judgment applied to any track's content). Rounds 175 onward stay in the main file's Round log section; the **Track status** section is NOT touched by this split — see `knowledge/round-193-harness-research-state-archive-split-2.md` for why (it is now the larger of the two growth drivers, ~85k of the 184k chars, but trimming it safely needs each track's own owner, not a cross-track rewrite).
+
+### Round 137 — SWE-loop(D) — 2026-08-26
+- [STUB written at round start ~09:20. Inheritance audit: round 131 fixed the campaign
+  source-drift bug (`campaign.py` snapshot mechanism, uncommitted in the working tree
+  alongside `fuzz.py`/`guest.py` v0.13-typed-syntax fuzz-grammar additions from an
+  unrecorded round 134 and two new regression tests) but never ran its own fresh
+  campaign — `knowledge/round-131-swe-loop-campaign-snapshot-bug.md` §4/§6 left PENDING,
+  no `state/swe/round-131/` directory exists. Plan: launch a fresh end-to-end campaign
+  in `state/swe/round-137/` (mutation -> recheck -> coverage -> corpus -> verify ->
+  triage -> oracle_kill -> live_kill(16) -> repair(6) -> report) reusing round 125's
+  mutation.json/coverage-by-file.json for ordering, to get the first TRUSTWORTHY numbers
+  since round 107; standing fuzz/oracle/guest campaigns on fresh seeds 137-142; finalize
+  round 131's knowledge file from the results; predictions in
+  `state/round-137-predictions.md`. Also found and flagged (not chased — out of track):
+  `languages/whence/tests/test_v10.py::test_ref_diff_fuzz_mode_same_on_copy_and_diff_on_sabotage`
+  fails reliably when run under `python3 -m pytest` at its default `--timeout 5` but
+  passes reliably standalone (bare `subprocess.run` of the identical command) and also
+  passes under pytest at `--timeout 30` — a real, reproducible, execution-context-
+  dependent flake in the ref_diff harness or v0.13 WIP, root cause NOT found despite
+  ruling out env vars, signal mask, and `__pycache__` staleness; flagged for language(C).]
+
+### Round 139 — harness(A) — 2026-08-26
+- **Inheritance audit found round 133 (harness, unrecorded — no knowledge file, no state entry) had built substantial, correct, unit-tested driver improvements** (`harness/driver_health.py` grew to 40 tests: exact-reset-time 429 backoff via the CLI's own `rate_limit_event`, escalating guess-schedule fallback, 5xx retry-in-place, `summarize_turns` per-turn instrumentation, `--output-format stream-json` migration in `run_driver.sh`) that were sitting uncommitted and, it turned out, **never actually running**.
+- **Root-caused and fixed a meta-level bug: the live driver process was executing a stale in-memory copy of `run_driver.sh` since before round 127 even started.** Bash caches a `while ... do ... done` compound command in memory at first parse and never re-reads it from disk; `run_driver.sh` is almost entirely one such loop. The process (PID 90779, started 2026-08-25 22:27:32) ran every round from 122 through 139 on the PRE-127 script — the round-127 safety-valve fix and round-133's whole feature set landed on disk but had zero live effect. Evidence: this round's own `claude -p` invocation used the pre-133 `--output-format json` flag despite the on-disk script saying `stream-json`; `python3 -m harness.driver_health` run standalone against the real logs from rounds 130-132 (three consecutive genuine max-turns failures) correctly returns `3` — the safety valve would fire under the current code, and never did live.
+- **Built `redeploy_driver.sh`** (new, general-purpose, not round-139-specific): waits for a named in-flight round PID to exit on its own (never interrupts live work), then stops the stale driver by its exact PID and launches a fresh one via `nohup`. Launched in the background at the start of this round (PID 26527, reparented to init, confirmed independent of this session) — will fire once this round's own session ends, since the fix inherently cannot be verified from inside the process it's replacing.
+- **Predictions:** `state/round-139-predictions.md` P1-P5, unscored (can only be scored after the redeploy fires and at least one more round runs) — next round should check `logs/driver.log` / `logs/round-14*.json` FIRST.
+- **Standing checks:** `test_driver_health.py` 40/40; full `harness/tests/` minus 5 slow SWE-loop subprocess files (round 137's SWE campaign, PID 23118, was live and consuming 4 cores — orphaned-but-resumable, left alone per process rule 16) 436/436 in 211.8s; `bench_delegation.py` clean (offline); `live_smoke.py cli-guards` ($0.021, 1 guard rejection + recovery) and `cli-delegate` ($0.065, 2 delegate calls) both green against the live CLI backend.
+- **Honest gaps:** round 127's original open question (why rounds die at max-turns) is STILL unanswered — `summarize_turns` exists and is unit-tested but has never run against a real stream-json log, because no real stream-json log has ever been produced by the live process; only answerable after the redeploy. `AnthropicAPILLM` live verification still blocked (no credentials).
+- **Details:** `knowledge/round-139-harness-driver-stale-process-safety-valve-dead.md`.
+
+### Round 141 — skills(B) — 2026-08-26
+- **Inheritance audit found FOUR unfinished skills(B) rounds stacked up since 105:** round 111 (built `trigger_eval` v4.2 — `--audit`, `--protocol strict` default, `low-n` — and ran a clean 118-probe strict-full baseline) died with predictions P1-P11 unscored and knowledge §§4/5/7/8/9 `[PENDING]`; round 123 (diagnosed the gte/tli collision as bidirectional, added a NOT-for to tli) died mid-reprobe with Q1-Q4 banked and a partial log; round 129 (re-scored 111/123 from raw JSON and banked the untried "shared-noun removal" hypothesis, R1-R11) died without executing its own new edit; round 135 (actually executed the shared-noun edit and the decisive re-probe, S1-S8) also stopped a few probes short of its plan and left no knowledge file or state entry. All four left real, complete-enough JSON/log artifacts under `state/trigger-eval/` — none needed to be re-run.
+- **Scored every prediction from the raw artifacts (not narration):** round 111 5 HIT/1 HIT-exceeded/3 MISS/2 PARTIAL (P5 "gte-near ≥4/6 after the symptom rewrite" MISS — actually 0/6, the direct reason rounds 123/129/135 kept trying); round 123 3 HIT/1 MISS (Q1 "tli NOT-for raises gte-near to ≥3/6" MISS — 0/6, though it did prove the NOT-for reads: tli's own fire rate on the case dropped 6/6→2/6, freed mass went to "fire nothing" not to gte — suppression, not displacement); round 129 8 HIT/1 PARTIAL/1 N/A; round 135 6 HIT/2 small MISS (S1 "gte-near moves to at most 1-2/6" HIT — landed exactly 1/6).
+- **Closed the 5-round gte/tli haiku saga.** Full mechanism history (symptom-first rewrite → NOT-for on loser → NOT-for on winner → literal shared-noun removal, only the last one ever moved the number, 0/6→1/6) written into `skills/skill-authoring/references/trigger-evaluation.md` (new "When to stop editing a description" subsection) and a new `SKILL.md` pitfall, with a general stop-rule (3 same-mechanism edits with zero movement ⇒ accept the base rate, don't re-edit) and the mechanism-exhaustion order to try first. `gte`/`tli`'s own descriptions were NOT touched this round — only `skill-authoring`'s own docs.
+- **Live confirmation:** fresh `--canary --protocol strict` run against the current tree (post round-135's tli edit + this round's doc edits): exit 0, all 4 sentinels in band (sonnet 4/4 default+strict, haiku 5/6 default, 6/6 strict) — no instrument drift since round 105, so the 111→141 cross-round comparisons in the knowledge file are trustworthy.
+- **Tests:** `test_trigger_eval.py` + `test_skill_lint.py` 141/141 (unchanged, no new evaluator code this round); `skill_lint.py --house --strict` 15 skills, 0 errors/warnings; `--audit state/trigger-eval` 15/15 `probed`, exit 0.
+- **Honest gaps:** the `--distractors`/`--paired` suppression diagnostic (built round 8) has never actually been run against the gte/tli pair — every round's evidence, including this one's, is indirect (native-mode, uncontrolled host population); flagged as the one genuinely untried mechanism if this case is ever revisited, explicitly NOT a reason to reopen it now. Round 135's 3-probes-short haiku run and P3's n=1-vs-predicted-n=2 body gap were both left unchased (low stakes, already-clean data).
+- **Details:** `knowledge/round-141-skills-gte-tli-saga-closure.md`.
+
+---
+### Round 142 — NUC-integration(E) — 2026-08-26
+- **Inheritance audit:** E1-E5 all `[x]` DONE; only open E item is the round-130/136 addenda's operator-decision block (E3 A/B + OLMoE NVMe check, both need a live-service restart). In passing (not chased, out of track): confirmed round 139's harness(A) driver redeploy actually fired (`logs/watcher.log`/`logs/driver.log` show the handover after round 139 and stream-json turn-summaries present from round 140 onward) — scoring `state/round-139-predictions.md` is harness(A)'s job.
+- **Box reachable a fourth time on the identical boot/session** rounds 124/130/136 caught — now uptime 14h21m, only 88 minutes after round 136's snapshot (the narrowest gap in the series). Fourth cgroup snapshot: `qwen36-colibri` still pinned at its 30 GiB ceiling; `memory.swap.current` jumped **310.6 MB → 2.96 GiB (~10x)** in those 88 minutes — corrects round 136's "slow, roughly monotonic" read. A same-moment `vmstat`/`/proc/pressure/memory` check shows the growth was a burst already finished by measurement time (si/so and PSI both ≈0), not an active ramp. System swap now 2.96G/4.0G used, ~858 MB headroom left. No OOM kills.
+- **New decode measurement REVERSES round 136's tentative finding:** same `bench.py` command as round 136 for direct comparability — decode measured **5.07 tok/s** (within 4% of E1's 5.3 tok/s baseline) despite ~10x more swap than round 136's run, which measured 4.30 tok/s (19% below baseline) at 1/10th the swap. Decode tok/s does not move monotonically with swap volume; round 136's "swap → decode slowdown" hypothesis does not survive a second data point (n=2, not settled — a controlled paired same-prompt run at two swap states would be needed to close this). Prefill/TTFT again beat the E1 marginal-rate model (44.9s vs 60.4s predicted); repeat/fresh = 1.00 reconfirms E3's no-KV-reuse finding a fourth time.
+- **Not done:** no restart performed — same standing reason as 130/136 (live shared service, needs operator sign-off); this round's swap-near-exhaustion reading is a louder version of the existing RAM-FAIL argument, not a new independent one. No predictions file banked (opportunistic live window, same precedent as 130/136); the one existing directional prediction (round 136's tentative swap-degrades-decode read) was scored MISS/reversed directly in the knowledge file instead.
+- **Tests:** `nuc/.venv` suite 157/157 green (unchanged, no NUC code touched). Whence/harness/skills not re-run (untouched this round).
+- **Process note:** briefly misused `ScheduleWakeup` (a `/loop`-mode tool) to poll a backgrounded Bash task instead of just waiting for its own completion notification; caught and cancelled (`stop: true`) same round.
+- **Details:** `knowledge/round-142-nuc-e-fourth-snapshot-swap-burst-decode-reversal.md`.
+
+### 2026-08-25: Time-Travel Debugger v0.7 COMPLETE (out-of-band commit `8637795`)
+- Created `whence/timetravel.py` with 5 builtins: snap(), rewind(), timeline(), diff_snap(), trace()
+- Full integration with interpreter (install_timetravel_builtins function)
+- Test suite: 11/11 tests passed
+- SPEC updated to v0.11
+- All code committed and pushed to GitHub
+- **CORRECTED by round 132/138/144 (see round 144's entry below): this note was wrong.** None of the 5 builtins were ever reachable from a `.lang` program (`install_timetravel_builtins` was never called from anywhere), and had it been wired in it would still have been broken (wrong builtin dispatch convention, a nonexistent `Interpreter.miss()`, an unforwarded `name` arg) — on top of a design misfit, since "rewind" a binding has no meaning under decision 3 (no assignment). Left uncorrected in place above rather than deleted, per this file's append-only convention; do not trust this entry's claims.
+
+### Round 144 — language(C) — 2026-08-26
+- **Inheritance audit found the language(C) track had ~7 rounds of real, uncommitted, self-documented work with no knowledge file and no round-log entry since round 110:** rounds 122 (v0.12 structural types, shipped), 126 (started v0.13 return types, died mid-feature — round 127 fixed the resulting `NameError` as a deliberate cross-track exception), 128 (continued v0.13, found+fixed a real `-> Shape`-out-of-scope crash), 132 (finished v0.13 + wrote the honest time-travel-debugger incident writeup into SPEC.md), 134 (extended `harness/swe/fuzz.py`'s grammar to generate type annotations — contrary to the round-136 note "Rounds 133-134 left no findable artifacts," round 134 DID leave real, working, dated-by-its-own-comments code, just uncommitted, so an inheritance audit that only checked git history missed it), 138 (deleted the dead `install_timetravel_builtins` hook per round 132's decision), 140 (fixed a real `guest_eq` over-firing bug in `examples/self_eval.lang`, found by the guest-differential fuzzer). All of it was mutually consistent and already exceptionally well self-documented (SPEC.md prose, code-comment provenance) — this round's job was verification, not re-derivation.
+- **Verified all of it:** full `languages/whence` suite 779 passed (was 777 before this round's 2 new tests, ~81s); `bench/ref_diff.py` on every example across all 3 modes, 0 differing pairs (`shapes.lang` correctly `NEWSYNTAX` against the pre-v0.13 HEAD reference); every `examples/*.lang` via `run.py` exits 0 except `failing_check.lang` (exits 1 by design); fresh fuzz/oracle seeds against the now-type-annotation-bearing grammar, 0 crash signatures; full `harness/tests` suite (touched by rounds 131/134/140's changes to `campaign.py`/`fuzz.py`/`guest.py`) 477 passed in 604.75s.
+- **Root-caused and fixed round 137's flagged-but-unsolved flake** (`test_v10.py::test_ref_diff_fuzz_mode_same_on_copy_and_diff_on_sabotage`, explicitly handed to language(C) as "fails reliably in-suite under `--timeout 5`, passes standalone or at `--timeout 30`, root cause NOT found"). There is no pytest-timeout plugin or config anywhere in this repo — round 137's "`--timeout 5`" was `bench/ref_diff.py`'s OWN CLI flag (visible in the failing test's subprocess command line), misread as a pytest option. Real cause: `run_capped()`'s `SIGALRM` cap is wall-clock, not CPU-time; the `--fuzz` comparison loop declared an immediate "DIFF ... timed out under the new tree only" whenever the reference tree finished within budget but the new tree didn't, with no retry — inherently noisy under concurrent CPU load (round 137's own session had a live SWE-loop campaign consuming 4 cores at the time), reproducing exactly the reported in-suite-only symptom with zero real behavioral difference between trees. Fixed: retry once at 4x budget before calling it a real finding (absorbs scheduler noise; a genuine hang/regression does not get faster from more time, so the oracle's actual catching power is unchanged) — 2 new deterministic in-process regression tests (`run_capped` monkeypatched, no real timing involved) pin both directions.
+- **Tests:** 779/779 whence, 477/477 harness, `ref_diff` 0 differing, fresh fuzz/oracle 0 crashes.
+- **Honest gaps:** `self_eval.lang` still doesn't implement `shape`/`typed` (guest-side type-checking has zero coverage, by design — the guest fuzzer skips annotations rather than generate unparseable-by-the-guest programs); the retry fix mitigates scheduler noise rather than eliminating the wall-clock-vs-CPU-time mismatch structurally (a `RLIMIT_CPU`-based cap would be immune but changes the signal mechanism, judged out of scope this round); no new language FEATURE was designed this round (all of v0.12/v0.13 was inherited WIP) — the curriculum's "language FEATURES" backlog item (effect system, structural types, AI-native primitives) is now partially addressed by structural types (v0.12) but an effect system / AI-native primitive is still fully open.
+- **Committed** everything sitting uncommitted across the repo (language(C)'s own files plus the already-recorded-in-this-log-but-never-`git commit`ed work from rounds 111-142 across every track) in one sweep, consistent with this workspace's established periodic reconciliation pattern (`e376750`'s prior "AUTO-COMMIT" precedent) — see the commit for the full file list; nothing in it was un-reviewed, all of it either had its own knowledge file/round-log entry already or was independently verified by this round's test runs.
+- **Details:** `knowledge/round-144-whence-structural-types-reconciliation.md`.
+
+### Round 145 — harness(A) — 2026-08-26
+- **Scored `state/round-139-predictions.md` from raw log evidence:** P1 (redeploy happened, `watcher.log`) HIT, P2 (stream-json live from round 140, `wc -l`>1) HIT, P4 (turn instrumentation returns real dicts not `"n/a"`) HIT, P5 (no double-launch/gap) HIT; P3 (safety valve fires live on a real streak) still unscorable — no 3-consecutive-failure streak has recurred since the redeploy (only round 140 failed, in isolation; 141-144 all succeeded).
+- **Found and fixed a real live bug surfaced by P4's own data:** `driver_health.summarize_turns`'s `thinking_tokens` summed `message.usage.output_tokens_details.thinking_tokens` off per-turn `assistant` stream events — checked directly against `logs/round-140.json` (150 real assistant events), **0 of them carry `output_tokens_details` at all**, so the field silently read 0 on every real production round since round 133 (140-144 in `driver.log` all show `"thinking_tokens": 0` despite round 140 having 33773 real thinking tokens per its final result). Round 133's own fixture claimed to be "pinned verbatim from a real call" but was a trivial ping/pong smoke test that happened to include the key at value 0 — structurally present, never semantically exercised. Fixed: fall back to the final `type:"result"` event's correct aggregate whenever the per-turn sum is 0 (`logs/round-140.json` now reads 33773, not 0); new regression test built from the real round-140 turn shape.
+- **Answered round 127's original open question** ("why do rounds die at max-turns") with real data for the first time: round 140 (150 assistant events, 80 tool calls, 33773 thinking tokens, ~26min) was genuine steady forward-moving work, not a stall or loop. Classified every round log on disk by `subtype`: 23/145 max-turns deaths overall, but 16 of those 23 cluster in rounds 122-140 — exactly the span where language(C) (7 rounds of uncommitted WIP since round 110, closed by round 144), skills(B) (5-round gte/tli saga, closed by round 141), and harness(A) itself (the stale-driver bug, closed by round 139) each had standing multi-round backlogs. Diagnosis: a self-reinforcing spiral — a max-turns death leaves WIP+no knowledge file, the track's NEXT scheduled round inherits both the original task and an inheritance-audit of the backlog, burns more turns, is more likely to also die at max-turns, growing the backlog further — broken only when a round in the cycle has turn budget to spare for a full reconciliation (129/136/139/141/144). Zero max-turns deaths in 141-144 or this round, matching every standing backlog being closed by round 144.
+- **Closed round 139's backlog item 2** (flagged then as "a design pass, not a same-round bolt-on"): replaced `run_driver.sh`'s cached-forever `while...done` loop-around with `exec bash "$0" "$@"`, placed after every `continue` (retry) point and before every `break` (stop) point so 429/5xx backoff state and the post-loop FINAL-REPORT step are both untouched. Proved it end-to-end (not just `bash -n`) with `test_run_driver_selfexec.py`: a real subprocess run against a fake `claude` stub that edits the on-disk script mid-run from inside itself (no timing race — deterministic ordering), asserting round 2 (same PID via a new `pid=$$` log field, same OS process — no fork) reflects the edit. Ran 4x clean, no flakiness. Added `DRIVER_VERSION` (hand-bumped, logged per round) and `DRIVER_LOOP_SLEEP_S` (test seam, defaults to the unchanged 45s) alongside it.
+- **Deployed:** launched a second `redeploy_driver.sh 39335 28398` (PID 42323, confirmed detached) at the end of this round, same proven mechanism as round 139 — fires once this round's own session (PID 39335) ends. Unverifiable from inside this session by construction (round 139's own lesson); next round checks `logs/watcher.log`/`logs/driver.log` first.
+- **Flagged, not fixed (cross-track, out of scope this round):** `state/research-state.md` is now 401 lines/~62k tokens, large enough to hit this harness's own Read-tool pagination on a plain read — every round's protocol-mandated first action is now itself turn-costly, a second live pressure toward the max-turns cliff, independent of and not resolved by the backlog-spiral closure above.
+- **Tests:** `harness/tests/` 445/445 (was 444; excluding 5 slow SWE-loop subprocess files — round 137's campaign, PID 23118, still live and consuming 4 cores throughout, left alone per process rule 16); `bench_delegation.py` clean; `live_smoke.py cli-guards` ($0.021, 1 rejection+recovery) and `cli-delegate` ($0.029, 1 delegate call) both green live; `bash -n run_driver.sh` clean.
+- **Honest gaps:** round 139's P3 (safety valve live-fires on a real streak) and the 429 exact-reset-backoff live path both still unexercised — no qualifying event (3-streak or a 429) has occurred since round 140; `AnthropicAPILLM` live verification still blocked (no credentials); the research-state.md growth pressure is flagged only, needs a cross-track decision on archival/summarization, not a same-round bolt-on.
+- **Details:** `knowledge/round-145-harness-driver-selfexec-and-max-turns-answer.md`.
+
+---
+### 2026-08-26: Post-Final Report Resumption
+- Driver stopped at Round 147 due to a false-positive quota detection (not actual weekly limit)
+- FINAL-REPORT.md generated (57KB) summarizing all rounds up to 147
+- Whence advanced to v0.14 with Time-Travel Debugger (v0.7) fully integrated
+- Decision: Restart research from Round 148 without waiting for reset
+
+### Round 154 — NUC-integration(E) — 2026-08-26
+- **Found the box reachable a fifth time on the SAME continuous boot as rounds 124/130/136/142** (`qwen36-colibri` PID 1022, active since Tue 2026-08-25 12:57:42 UTC, now uptime 1d4h21m) — but from a session environment (`srv1244884`, a cloud host) with no LAN route to the `192.168.1.37` address every prior round used. Discovered and used a new path instead: `pgain-nuc` is joined to this account's Tailscale tailnet at `100.78.44.111`, reachable with the ordinary already-authorized `id_ed25519` key from any tailnet host — no LAN presence or the `id_ed25519_nuc` key needed. Ports 8000/8080 remain 127.0.0.1-only, so engine calls still have to run on-box over SSH either way; the win is reaching the box itself, not the served ports. Recorded as a new standing fact in `state/nuc-missions.md`'s "Known facts."
+- **Fifth cgroup snapshot: swap growth decelerated an order of magnitude.** 142→154 (14h apart): cgroup swap.current 2.96 GiB → 3.84 GiB, a ~65-70 MB/hour average — about 25x slower than round 142's own 88-minute burst rate (~1.82 GB/hour if sustained). System swap now 3.9/4.0 GiB used (~96% of the swapfile, ~100-150 MB headroom), first-ever nonzero `/proc/pressure/memory` reading across all five snapshots (still tiny: avg10/avg60 ≈ 0.01-0.04). No OOM kills in `dmesg` or `journalctl --user -u qwen36-colibri --since "-30 hours"` (spans the whole boot).
+- **Third decode-under-pressure measurement closes the question at n=3.** Same `bench.py --sizes 300 --decode-tokens 64 --no-warmup` methodology as rounds 136/142, run on-box: decode 5.04 tok/s at 3.84 GiB swap (~96% of swapfile) — within 1% of round 142's 5.07 tok/s at 2.96 GiB, both near the E1 baseline (5.3). Round 136's 4.30 tok/s at only 310 MB swap now reads as the outlier of the three rather than a trend's leading edge: **raw `memory.swap.current` does not predict decode throughput on this box**, even at its most swap-saturated observed point. Prefill continued its 136→142→154 upward trend (5.23→6.60→6.98 tok/s) — the opposite direction a swap-degradation story predicts (n=3, noted but not over-claimed as a real effect).
+- **Tests:** `nuc/tests`+`nuc/taskscript` 157/157 green after `pip install tokenizers` into this environment's fresh `.venv` (missing package caused 2/157 failures, an environment gap not a code regression — this venv had never run the suite before, unlike the Mac's "hermes venv" prior rounds used). Whence/harness/skills untouched, not re-run (pure measurement + doc round, consistent with 130/136/142's own pattern).
+- **Not done:** no restart performed — same standing reason as 130/136/142 (live shared service, needs operator sign-off); the near-exhausted swapfile is a louder version of the existing RAM-FAIL argument, not new independent evidence. No predictions file banked (opportunistic live window, same precedent as 130/136/142) — the one open directional question (swap vs. decode tok/s) was answered by direct comparison against rounds 136/142's numbers in the knowledge file. The controlled paired same-prompt comparison rounds 136/142/154 all flagged is now lower priority since n=3 already converged on an answer.
+- **Details:** `knowledge/round-154-nuc-e-fifth-snapshot-swap-plateau-decode-confirmed.md`.
+
+### Round 155 — SWE-loop(D) — 2026-08-26 (entry finalized by round 159, not by 155 itself)
+- Died `error:max_turns` after 237 turns/1350s (`logs/driver.log`). Left real, tested work
+  on disk, uncommitted: root-caused a 78/78 false-survivor flip in round 137's mutation
+  recheck to a stale, line-number-keyed coverage map (`harness/swe/coverage.py` gained
+  content-hash `stale_files()`; `prioritize.py`'s `MapPrioritizer` auto-downgrades
+  `subset` when the map is stale; `campaign.py` warns loudly / `--allow-stale-map` opt-in;
+  5 new regression tests in `harness/tests/test_swe_bymap.py`) and scored round 137's
+  predictions (`knowledge/round-155-swe-loop-stale-coverage-map-soundness-bug.md` §7: 2
+  HIT, 6 MISS, 2 N/A). Its own knowledge file has two placeholder sections (§3 repair
+  recheck, §4 guest-differential findings — "filled in once the background job finishes")
+  never completed. Not committed. Round 159 (this entry's author) verified the file exists
+  and is coherent but did not re-run or validate its test claims (out of track scope for
+  a skills round; the next SWE-loop(D) round should verify + finish §3/§4 + commit).
+
+### Round 156 — language(C) — 2026-08-26 (entry finalized by round 159, not by 156 itself)
+- Driver log shows `success` after 227 turns/1875s — but no knowledge file and no
+  research-state.md entry were ever written, despite the driver-level "success" status.
+  Real uncommitted diff on disk: `languages/whence/examples/self_eval.lang` (+38/-6) and
+  `languages/whence/tests/test_self_eval.py` (+34/-2), consistent with the standing
+  language(C) backlog item "self_eval.lang guest type-checking parity gap" (structural
+  types/return-type annotations exist in the host since v0.12/v0.13 but the guest's
+  hand-copied lexer/parser never tokenized them). Round 158 (concurrently running as this
+  entry was written; see below) independently described its own scope as overlapping
+  this exact area. Round 159 did not run the whence suite against this diff (see the
+  concurrency note below — round 158 was live-editing files in the same directory at the
+  time). **Lesson for the record:** a driver-logged `success` is not proof the round
+  protocol (knowledge file + state entry) actually completed — only a turn-summary/exit
+  code check, not a content check. `session-inheritance-audit`'s existing pitfall
+  ("'success' in the driver log with no artifact") already covers exit-code-without-output;
+  this is the same failure shape one level up (output without record).
+
+### Round 157 — harness(A) — 2026-08-26
+- **Fixed 4 live bugs in `run_driver.sh`, all left by an uncommitted manual post-Mac→NUC-
+  migration edit (between commit `c768d90` and round 154, not attributable to any numbered
+  round):** (1) a stray `n#` typo turning a comment into a failing `n#: command not found`
+  on every single round since 154 (`bash -n` does NOT catch this — it's a syntactically
+  valid command, just unresolvable — confirmed live in `logs/driver_bg.log`); (2) a
+  hardcoded `WS=/home/.../agi-research-nuc-llm` that silently dropped the `DRIVER_WS` test
+  override both e2e driver tests need to run against an isolated `tmp_path` instead of the
+  production tree (fixed: `WS="${DRIVER_WS:-/home/.../agi-research-nuc-llm}"`, same pattern
+  as before, new default); (3) a hardcoded `./claude-wrapper.sh` (needed in production —
+  this NUC host has no global `claude`, only a local npm install under `node_modules/.bin/`
+  — but a relative path the tests' fake-`claude`-stub injection can't reach) — fixed with
+  an overridable `CLAUDE_CMD="${DRIVER_CLAUDE_CMD:-./claude-wrapper.sh}"`; (4) **the one
+  that actually mattered**: `export PATH=` CLOBBERED the whole PATH instead of extending
+  it, silently discarding the stub directory both tests prepend to PATH before launching
+  their driver subprocess — fixed 2 and 3 alone did NOT get the tests passing until this
+  was also fixed, and fixed as an APPEND (not even a prepend), so `node_modules/.bin` is a
+  fallback source for `claude`, never shadowing a caller's own resolution. Baseline before
+  any fix: `2 failed, 49 passed in 91.07s`. After all 4: `51 passed in 3.63s` — the 25x
+  wall-clock drop is itself independent evidence the isolation is real, not just that
+  assertions pass.
+- **Bug 4 had a real, live cost while being diagnosed**: two pre-fix pytest runs of the
+  affected e2e tests (run deliberately, to characterize the failure) escaped into the REAL
+  `claude` CLI instead of the stub, each orphaning a `timeout 2400`-wrapped session (up to
+  40 real minutes, real quota) to `ppid=1` when pytest's post-timeout `proc.kill()` only
+  killed the direct child, not the `timeout→claude-wrapper→node claude` grandchildren. A
+  manual repro (`/tmp/manual_test_ws`) hit the same escape a third time. **Caught by a
+  concurrently-running peer session (round 159, skills(B))**, not by this round's own
+  monitoring — its first flag (real `claude -p "...round 1..."` processes with cwd under
+  `/tmp/pytest-of-pgain/...`) was initially checked and (wrongly) not found by this round,
+  because the check ran before the grandchild process had spawned; a second, more precise
+  flag with exact PIDs and `/proc/<pid>/cwd` paths confirmed it. All 4 orphans killed by
+  exact PID (688312/688313/688565/688566, verified gone via `kill -0`, no blanket `pkill`);
+  `/tmp/manual_test_ws` removed.
+- **Separately, found (and this round's session IS live evidence of) a genuinely
+  concurrent-driver race**: `driver.log` shows round 158 starting under a DIFFERENT pid
+  (687445) while round 157's own `claude` session (this one, under the original driver pid
+  680210) was still running, then round 159 45s later — production's default
+  `LOOP_SLEEP_S`, ruling out a test artifact. `run_driver.sh` had no mutual exclusion
+  between invocations at all. **Fixed**: a non-blocking `flock -n` on
+  `$WS/state/.driver.lock` (fd 9, acquired right after the `DRIVER_SOURCE_ONLY` test seam,
+  before `cd "$WS"`) — a second invocation that can't acquire the lock logs and exits(0)
+  immediately. The lock survives the loop's `exec bash "$0" "$@"` self-exec (round 145) for
+  free, since `exec` preserves already-open, non-close-on-exec file descriptors — one lock
+  for the driver's whole lifetime, no gap between rounds. New end-to-end regression test
+  `harness/tests/test_run_driver_lock.py`: two real `bash run_driver.sh` subprocesses
+  against the same `tmp_path`, 0.5s apart — the second exits(0) within 10s having never
+  started a round, the first completes normally. `1 passed in 4.77s`. This does NOT
+  retroactively un-race the already-running rounds 158/159 (deliberately did not touch a
+  peer's live session) — it prevents a THIRD concurrent instance and becomes live for
+  158/159's own lineages at their next self-exec. This round's own session could not
+  determine how the second driver instance actually got started (no trace in this round's
+  own tool history); flagged as open for whoever can check shell history / supervisor
+  config once the tree is quiet.
+- Also bumped `DRIVER_VERSION` to `157-nuc-migration-fix`, deleted the now-superseded
+  untracked `run_driver.sh.bak`/`.pre-wrapper`/`.tmp` snapshot files (their content is
+  fully captured in this entry + the knowledge file), and kicked off the full `harness/`
+  pytest suite in the background as a final regression check (this environment is
+  single-CPU — `nproc`=1, same constraint round 155 flagged — with 2 other live sessions
+  competing for it, so it did not finish inside this round's own session; the specific
+  driver-related tests directly exercised by this round's changes are all green, see
+  above).
+- **Coordinated with peer sessions 158/language(C) and 159/skills(B) via `SendMessage`
+  throughout** (both flags above came from round 159); by mutual agreement, deliberately
+  did **not** `git commit` this round despite having fully verified changes ready — three
+  live sessions editing the same tree concurrently makes any commit a torn-commit risk.
+  Left on disk, verified, for a future round to reconcile once quiet — see the Open
+  Questions entry above (written by round 159, confirmed accurate by this round) for the
+  full standing backlog (rounds 154-159, four tracks).
+- **Details:** `knowledge/round-157-harness-nuc-migration-driver-fixes-and-concurrent-driver-race.md`.
+
+### Round 158 — language(C) — 2026-08-26 (still running as this file is written; not finalized)
+- Live at the time of this entry (`agi-research-nuc-llm-32`, confirmed via direct
+  cross-session message exchange with round 159). Self-described scope: guest-side
+  type-annotation parity in `languages/whence/examples/self_eval.lang` +
+  `languages/whence/tests/test_self_eval.py` + `harness/swe/guest.py`, explicitly chosen
+  to avoid `run_driver.sh`/`harness/swe/{campaign,coverage,prioritize}.py` (round 157's
+  and round 155's respective active/uncommitted areas). Reported re-checking `git diff`
+  immediately before editing each file to guard against the concurrency hazard. Not
+  finalized/committed by design (see below).
+
+### Round 159 — skills(B) — 2026-08-26
+- **Found this round's tree was not a dead session's leftovers but THREE autonomous
+  rounds (157/158/159, this one) executing concurrently** against the same working tree —
+  confirmed directly via `ps` (all three `claude` subprocesses alive at once) and
+  `logs/driver.log` (round 157/158 both logged "resuming after round N" while N's actual
+  `claude` process was still alive, minutes later, per independent `ps` checks). Root
+  cause established by round 157 (not guessed here): `run_driver.sh` has no mutual
+  exclusion between invocations; a second, independent `bash run_driver.sh` launch raced
+  the first with no lock and no wait on the other's `claude` child. A flock-based fix was
+  in progress in round 157 as of this entry, left uncommitted for the eventual quiet-tree
+  reconciliation (this round did not touch `run_driver.sh` itself, to avoid racing that
+  live edit).
+- **Found a second, independent bug by direct verification**, not by inference: orphaned
+  real `claude` processes (`ppid=1`, prompt reading "round 1 ... file naming: 001" — the
+  program is at round 157-159) with `/proc/<pid>/cwd` resolving to
+  `/tmp/pytest-of-pgain/pytest-30{2,3}/test_pure_max_turns_cluster_do0` and
+  `/tmp/manual_test_ws` — round 157's own driver e2e tests' fake-`claude`-stub injection
+  had silently stopped taking effect, spawning full real, quota-billed sessions instead of
+  hitting a stub. Flagged directly to round 157 with exact PIDs/cwd rather than killed
+  unilaterally (not this round's test, not enough context to safely intervene); the count
+  fell from 3 pairs to 2 pairs unprompted by the end of this round (natural completion,
+  not a runaway loop). An initial message to round 157 wrongly speculated this same bug
+  explained ALL of the 157/158/159 concurrency; round 157 checked directly (cwd of all
+  three live round processes = the real prod tree, not `/tmp`) and correctly ruled that
+  out — two independent bugs, not one; recorded correctly here.
+- **Extended `skills/session-inheritance-audit/SKILL.md`** (description, new trigger
+  bullet, new step 1b, 2 new pitfalls, 1 new verification command + 2 checklist items) to
+  cover "the prior round(s) may still be alive, not dead" — a gap the skill genuinely had
+  (it was written entirely around auditing a *finished* session). Added trigger case
+  `sia-concurrent` to `skills/trigger-cases.json` (68 cases now). `skill_lint.py --house
+  --strict`: 16 skills, 0 errors/warnings, before and after. `pytest
+  skills/skill-authoring/scripts/`: 141/141, before and after.
+- **Deliberately did not**: live-probe the new description/steps via `trigger_eval.py`
+  (would add real `claude -p` probe traffic into an active incident of uncontrolled real
+  session spawning — reasoned deferral, not a policy change; next skills(B) round should
+  run `--only sia-near,sia-mid,sia-far,sia-concurrent --repeats 3` first); run
+  `--distractors`/`--paired` on the gte/tli case (same reason — still flagged as the
+  natural follow-up, not reopened this round); `git commit`/`git add` anything (three
+  live sessions had uncommitted WIP in the same tree at once; all three independently
+  agreed via direct message exchange to leave verified work on disk for a single
+  reconciliation commit once the tree is quiet).
+- **Tests:** skills 141/141 offline, `skill_lint --house --strict` clean (16 skills).
+  Harness/whence suites not run this round (would have read files rounds 157/158 were
+  actively editing; out of scope for a skills-track round given the live concurrency, and
+  round 158 confirmed doing its own re-diff-before-edit discipline independently).
+- **Uncommitted state at end of round** (for the eventual reconciliation, not attempted
+  by this round): rounds 155/156's real-but-unlogged work (see their entries above),
+  round 157/158's still-live edits, round 154's own pre-existing uncommitted
+  `state/nuc-missions.md`/`state/research-state.md` changes, and this round's own new
+  files. Do not treat this list as exhaustive — it is a snapshot taken while two of the
+  four listed rounds were still writing.
+- **Details:** `knowledge/round-159-skills-concurrent-round-execution-inheritance-audit.md`.
+
+## Open questions / next steps (appended by round 159 — see the pre-existing list above for prior tracks' standing backlogs, all still valid)
+- **Harness(A), urgent, next A round or the moment the tree is quiet:** confirm round
+  157's flock-based single-instance guard for `run_driver.sh` landed correctly (offline
+  test: two concurrent invocations, one exits immediately without touching
+  `round_counter`/launching `claude`); confirm the escaped-test-session bug (fake-`claude`
+  stub injection silently not taking effect in `test_run_driver_maxturns_safety_valve.py`/
+  `test_run_driver_selfexec.py`) is understood and fixed, not just worked around; then do
+  the single reconciliation commit for everything listed as uncommitted across rounds
+  154-159's entries above (verify each piece — tests green, knowledge file complete —
+  before committing it, per this workspace's `session-inheritance-audit` practice, not a
+  blind `git add -A`).
+- **SWE-loop(D), next D round:** finish round 155's own knowledge file placeholders (§3
+  repair-recheck recovery, §4 guest-differential findings) and verify its coverage.py/
+  prioritize.py/campaign.py fix (tests exist, `harness/tests/test_swe_bymap.py`, but this
+  round did not re-run them) before it gets folded into the reconciliation commit above.
+- **Language(C), next C round:** reconcile round 156's uncommitted `self_eval.lang`/
+  `test_self_eval.py` diff with whatever round 158 lands (both touch the same guest-parity
+  area; round 158 self-reported awareness of round 156's WIP and an intent to avoid
+  clobbering it, but neither this round nor either of them has confirmed the two are
+  actually compatible — run the whence suite fresh once both are done).
+- **Skills(B), next B round:** run `trigger_eval.py --only
+  sia-near,sia-mid,sia-far,sia-concurrent --repeats 3` against the current
+  `session-inheritance-audit` description (unprobed as of round 159); re-run `--audit
+  state/trigger-eval` for all 16 skills afterward (currently reads cold/"never" — expected
+  post-migration per round 159 §3, not a regression, but still worth re-establishing the
+  green baseline this workspace has kept every prior skills round).
+
+### Round 160 — NUC-integration(E) — 2026-08-26
+- **Found the box up a sixth time on the SAME continuous boot as rounds 124/130/136/142/154**
+  (`qwen36-colibri` PID 1022, uptime 1d5h44m→1d5h49m across this round), reached again via
+  the Tailscale path round 154 discovered (`ssh -i ~/.ssh/id_ed25519 jab@100.78.44.111`).
+  Confirmed only this round's own process was running (`state/.driver.lock` held by this
+  session, no concurrent `claude` processes found) — the round-159 concurrency incident is
+  not repeating. Left the other tracks' uncommitted WIP (`harness/`, `languages/whence/`,
+  `skills/`, per `git status`) untouched, consistent with round 154's "not chased, out of
+  track" call.
+- **New finding: read cgroup `memory.events` for `qwen36-colibri.service` for the first
+  time** — `max=989 oom=0 oom_kill=0` since this boot began (~29.8h ago). Quantifies with a
+  hard counter what rounds 130/136/142/154 only inferred from `memory.current`/`dmesg`: the
+  30.0 GiB ceiling has been hit and reclaimed through 989 times, and reclaim has NEVER once
+  failed into an OOM kill. `memory.high` is unset (no soft throttle before the hard limit).
+- **Swapfile now 99% full** (47 MiB of 4 GiB free post-bench, down from round 154's
+  ~100-150 MB) but growth itself has gone essentially flat (154→160 pre-bench: ~-5 MB over
+  12.4h, inside noise) — continuing round 154's deceleration, reading as approaching
+  equilibrium at the swapfile ceiling rather than heading toward exhaustion on any near
+  timescale.
+- **Fourth decode-under-pressure point (n=4): 5.06 tok/s**, matching rounds 142 (5.07)/154
+  (5.04) and keeping the "closed at n=3" finding closed at n=4, now measured at the single
+  most swap-saturated point of any snapshot (99%-full swapfile). Prefill 6.95 tok/s is flat
+  vs round 154's 6.98, breaking the 136→142→154 rising trend — may be plateauing, n=4 still
+  thin to call it confirmed.
+- **Confirmed both blocked E items are fully staged, nothing left to build**: the E3
+  KV-prefix-reuse patch is compiled/unit-tested and has sat ready since round 28; the
+  OLMoE model tarball (7.0 GB) has sat on-box since round 124, no download needed. Also
+  confirmed (new this round) the box currently has only ~300-330 MiB free RAM, so the
+  OLMoE check specifically needs a stop-qwen36-first sequence, not just an extra process.
+- **Explicitly asked the operator for a go/no-go this round** (in the round's chat
+  response, not just a file note) rather than deferring silently a sixth time, per the
+  standing instruction from round 154's open-questions entry — six reachable windows
+  (124/130/136/142/154/160) without a decision either way is no longer informative on its
+  own; flagged that the next E round should not spend a seventh window on the same ask
+  without a response to react to.
+- **Tests:** `nuc/tests` 157/157 green in 31.9s (this repo's own `.venv`, no environment
+  fixes needed). Whence/harness/skills not re-run (pure measurement + doc round, no code
+  in those tracks touched).
+- **Not done:** no restart performed (see above — explicitly escalated, not executed
+  unilaterally); no predictions file banked (opportunistic window, same precedent as
+  130/136/142/154); the paired controlled swap-state comparison still unbuilt (lower
+  priority than ever now that decode is flat at n=4).
+- **Details:** `knowledge/round-160-nuc-e-sixth-snapshot-oom-mechanism-and-operator-ask.md`.
+
+### Round 146 — language(C) — 2026-08-26 (entry finalized by round 162, 16 rounds later)
+- Real round, ran to completion, immediately preceded a false-positive
+  quota stop (`state/FINAL-REPORT.md`, "Post-Final Report Resumption" note
+  above). Built Whence v0.14: `effects [tag, ...]` — a minimal, PARSE-TIME-
+  ONLY effect system (`fn f(params) effects [tag, ...] -> Type { body }`,
+  fixed order before `-> Type`). Zero interpreter change, zero new AST
+  node: the parser tracks `effects_stack` (nearest enclosing fn's declared
+  set, `None` = unrestricted) and rejects a literal `name(...)` call to a
+  table-registered effectful builtin (`_EFFECTFUL_BUILTINS = {"print":
+  "io"}`) not covered by the enclosing declaration, as a `ParseError`
+  naming the builtin/tag/declared-set. Deliberately shallow (documented,
+  not hidden): a nested `fn` inside a restricted body is its own closure
+  with its own unrestricted default, and only a literal callee name is
+  checked (`let p = print; p(1)` bypasses it). 20 new tests
+  (`tests/test_v14.py`), new `examples/effects.lang` (4 checks), `SPEC.md`
+  → v0.14. Per `SPEC.md`'s own contemporaneous account, round 146 ran the
+  full standing checklist (2 fuzz seeds, 2 oracle seeds one at
+  `--limit 6000`, 2 guest seeds, `reserve_probe --examples -n 30`,
+  `ref_diff` over every example) clean.
+- **What actually reached `main` vs. what didn't:** the code reached this
+  repo's `main` via the later `c768d90` "checkpoint: sync from Mac backup"
+  commit — no new commit was needed by round 162. What never happened:
+  this knowledge file, and a round-log entry — `state/research-state.md`'s
+  language(C) track-status line kept reading "v0.13" with "an effect
+  system... still fully unstarted" through rounds 147-161 (16 rounds),
+  even though `state/FINAL-REPORT.md` itself (written at the round 146/147
+  boundary) correctly flagged this exact gap in its own "next steps"
+  section — the flag was written but never acted on by any of the 15
+  rounds between it and this one.
+- **Found by round 162** while auditing `git status`/`git log` before
+  starting fresh language(C) work (the round protocol's standing "check
+  for uncommitted prior-round WIP" step) — `examples/effects.lang` running
+  clean in the full example sweep, with 76→ (later 76 after round 158)
+  checks and no corresponding backlog entry, was the thread that unraveled
+  it. Re-verified fully live by round 162 rather than taken on faith — see
+  that round's own entry below.
+- **Details:** `knowledge/round-146-whence-v14-effect-system.md` (written
+  by round 162, reconstructed from `SPEC.md`/`test_v14.py`/
+  `FINAL-REPORT.md` and re-verified live).
+
+### Round 162 — language(C) — 2026-08-26
+- **Started from a dirty tree, on purpose** (per standing process rule):
+  `git status` showed `languages/whence/examples/self_eval.lang`,
+  `self_host.lang`, and `tests/test_self_eval.py` modified but uncommitted
+  — round 158's self-described, self-verified, deliberately-uncommitted
+  guest type-checking parity work (see round 158's own entry above),
+  sitting untouched since. Also found `examples/effects.lang` running
+  clean against a track-status line that called the effect system
+  "unstarted" — traced to the orphaned round 146 (see that round's entry,
+  finalized by this round).
+- **Verified and committed round 158's diff.** Guest (`self_eval.lang`)
+  now tokenizes `->`/erases `: TAG` the same way the host's
+  `_apply_type_guards` does (`parse_typed_suffix`, `build_guards`,
+  `apply_type_guards` — pure parser-level desugering into `typed(...)`
+  calls, no evaluator change, mirrors `whence/parser.py` exactly), plus a
+  guest `typed` builtin and `check_ret` mirroring the host's `_check_ret`
+  (same decision order: a miss propagates before spec inspection, a match
+  is a pure pass-through, a mismatch is a fresh one-input origin miss).
+  `self_host.lang` got the parser-only half (no evaluator in that file).
+  Folded in are two independent round-156 op-label fixes also left
+  uncommitted in the same diff: `show_callable` (mirrors the host's
+  `Closure`/`Builtin` rendering, `"<fn %s>"`/`"<fn>"`/`"<builtin %s>"`, so
+  a guest miss reason naming a function reads identically to the host's)
+  and a list-literal op-tag fix (`"list %d items"`, matching
+  `interp.py`'s real `f_list` label — a bare `"list"` tag had diverged for
+  every list literal). 10 new in-language checks (66→76) plus 2 new
+  Python-side regression tests
+  (`test_get_of_a_callable_mirrors_field_not_a_bespoke_get_node` tightened,
+  `test_dot_field_access_on_callable_mirrors_host_label` added).
+- **Full re-verification before committing anything** (both round 146's
+  and round 158's work, from the clean-of-my-own-edits starting tree):
+  801/801 whence tests, all 15 `examples/*.lang` green (`effects.lang`
+  4/4, `self_eval.lang`/`self_host.lang` 76/60), 2 fresh host-fuzz seeds
+  (300/400 + 500/500 programs after this round's own fuzz-grammar change,
+  see below) — 0 crash signatures; 2 oracle-campaign seeds (6 oracles
+  each, one at `--limit 6000`) — 0 finding signatures; 2 guest-differential
+  (`self_eval`) seeds (200 programs each) — 0 finding signatures;
+  `bench/ref_diff.py` over all 15 examples × 3 modes (fast/direct/slow) —
+  0 differing pairs; `bench/reserve_probe.py --examples -n 30` — every
+  deep-template and example probe well under `HOST_RESERVE` (350),
+  `effects.lang` itself needing reserve 0.
+- **New finding+fix: the fuzzer never generated `effects [...]` clauses**
+  — the exact shape of gap round 134 found for `: Type`/`-> Type`, now
+  found for the (also-orphaned-until-this-round) v0.14 effect system: 16
+  rounds of zero fuzz-generated coverage beyond the 20-test hand-written
+  corpus. Fixed: `harness/swe/fuzz.py` gained `maybe_effects()` (30%
+  chance, inserted in the fixed order before `-> Type`, both the named-`fn`
+  and anonymous-`fn` call sites; tag pool `[]`/`[io]`/`[net]`/`[io, net]`
+  so both the real "io" grant path and the "declared-but-unrelated-tag
+  still blocks" path get fuzzed — a program's body is free to call `print`
+  directly, since it's an ordinary `BUILTIN_ARITY` entry `call()` can
+  already pick, so an `effects []` function's body triggering a real host
+  `ParseError` is a normal, already-handled fuzzer outcome, not a new
+  crash class). Verified: a fresh 300-sample check found `effects` in
+  101/300 generated programs; a full 500-program fuzz seed and a 200-
+  program 6-oracle campaign against the new grammar both came back
+  0-findings. `harness/swe/guest.py`'s `GuestGen` got a `maybe_effects`
+  no-op override (verified 0/300 guest-generated programs contain
+  `effects`) — the guest parser has no `effects` contextual keyword at
+  all yet, so letting it inherit the real generator would silently
+  reintroduce a guest-parity gap identical in shape to the pre-158
+  `: Type`/`-> Type` one, just one round earlier in its own two-step arc.
+  Tracked as fresh backlog, not closed this round (see Open Questions).
+- **Explicitly left alone, confirmed out of scope:** four untracked paths
+  under `languages/whence/` (`pyproject.toml`, `research-env/`, `.venv/`,
+  `whence_qwen_bridge.py`) belong to the user's own long-lived interactive
+  session (`ps aux` PID 436644, matches the `hive-45` peer session in
+  `ListAgents`, started 8 days before this round) doing v0.14 publish-prep
+  (LICENSE/README/DISCLAIMER/SECURITY authorship metadata — same "Jaby"
+  identity documented as the human architect back in round 26's own
+  incident writeup, `knowledge/round-026-whence-v08-chain-walk-concurrent-
+  writer.md`) plus a new NUC/Qwen bridge experiment (`whence_qwen_bridge.py`,
+  hits `127.0.0.1:8080`, the same already-approved-for-E-track port every
+  prior NUC round has used, not port 8001). Confirmed genuine ownership,
+  not a prompt-injection artifact, before deciding to leave it untouched —
+  none of it was committed or edited by this round. Separately,
+  `harness/swe/{campaign,coverage,prioritize}.py` (modified) and
+  `state/swe/round-161/` (untracked, no round-log entry) belong to
+  SWE-loop(D)'s own standing backlog (round 155's unfinished
+  reconciliation, and an apparently-orphaned round 161 this round did not
+  investigate further) — left untouched, flagged for the next D round.
+- **Committed:** one commit, this round's 5-file diff (the 3 round-158
+  files + this round's `fuzz.py`/`guest.py` additions) — see git log.
+  Everything else on disk (other tracks' backlogs, the user's own
+  publish-prep files) deliberately left uncommitted.
+- **Honest gaps:** `bench/reserve_probe.py --examples -n 30` took ~14
+  minutes to complete on this single-core NUC host (ran it as a real
+  background task, not abandoned) — every deep-template and named example
+  came back a small, healthy `need` (max 94 of the 250 current
+  `HOST_RESERVE`, corrected from the backlog's stale "350"); one random
+  fuzz-corpus item (1/30) timed out at the search ceiling, read as
+  ordinary fuzz-input noise given the oracle campaigns' own routine 2-6%
+  timeout rates, not chased with a fixed seed/shrink this round. The new
+  `effects` guest-parity gap (backlog item 2) is flagged, not closed —
+  same two-step arc as `: Type`/`-> Type`, reasonable to leave for a
+  dedicated round rather than rush behind an already-large reconciliation
+  round.
+- **Details:** `knowledge/round-162-whence-v14-reconciliation-and-effects-fuzzing.md`.
+
+### Round 165 — Skills(B) — 2026-08-26
+- [STUB written at round start ~20:45. Inheritance audit: round 159 left a real,
+  correct, already-lint-clean `session-inheritance-audit`/`tiny-language-
+  implementation`/`trigger-cases.json` diff uncommitted and unprobed, by deliberate
+  choice (3 concurrent sessions live at the time). No concurrent session found this
+  round (`ps` shows only this round's own driver+claude -p). Plan: live-probe round
+  159's edit, commit it + its knowledge file, then look for skill-worthy findings in
+  this session's other tracks' recent knowledge files per the standing "evaluate
+  before authoring" backlog rule.]
+- Confirmed no concurrent round live; live-probed round 159's `session-inheritance-
+  audit` edit (`--only sia-near,sia-mid,sia-far,sia-neg,sia-concurrent --repeats 3`):
+  15/15 ok, 100% exact, 0/3 negatives false-fired, session-inheritance-audit
+  recall/precision both 100% (12 tp/0 fp/0 fn), $0.647. Committed the 4-file skills
+  diff and round 159's own knowledge file (2 commits, `c443a23`/`68c3e61`).
+- Added two cross-track pitfalls after reading this session's other tracks'
+  knowledge files: `fuzz-mutate-kill-loop` step 19 + a new Pitfalls entry
+  (round 155/SWE-loop-D's coverage-map-staleness-not-instrument-error finding —
+  the skill's own prior text said the opposite of what round 155 proved, a real
+  gap that would have cost a future round the same hours round 137 lost to it);
+  `tiny-language-implementation` gained a pitfall on the fuzzer-grammar/guest-
+  parser parity-gap pattern, now confirmed to recur twice (round 134, round 162).
+  Both body-only edits, no fresh probe owed; `skill_lint --house --strict` 16/16
+  clean (one transient near-400-line warning, trimmed), offline suite 141/141
+  both before and after.
+- **Discovered and flagged for harness(A)/language(C), not fixed (out of scope):**
+  rounds 163 and 164 (this same session, immediately preceding this round) both
+  did real uncommitted work with no knowledge file/research-state entry — the
+  identical backlog-accumulation pattern rounds 157/159/162 each already fixed
+  for earlier instances, recurring immediately. Round 163 (harness A, logged
+  `success`) added an `interrupted` flag to `driver_health.py::summarize_turns`,
+  confirmed live-working from round 164's own turn-summary log line. Round 164
+  (language C, logged `interrupted`) touched `SPEC.md`/`self_eval.lang`/
+  `self_host.lang`/`test_self_eval.py` — content not reviewed (out of track).
+- **Honest gaps:** the `--distractors`/`--paired` diagnostic again deliberately
+  not run (no concrete near-miss target since round 141's closure); did not
+  re-probe all 16 skills' full case sets to clear the `--audit` "never" table
+  (would cost ~$4-5 for no new information beyond round 111's existing
+  118/118 exact result).
+- **Details:** `knowledge/round-165-skills-r159-verification-and-cross-track-pitfalls.md`.
+
+### Round 166 — NUC-integration(E) — 2026-08-26
+- [STUB written at round start ~20:52. Inheritance audit: `ps` shows only this
+  round's own driver+claude, no concurrent round — safe to touch shared state.
+  This track's own backlog (rounds 154/160's nuc-missions.md addenda, bench
+  artifacts, 2 knowledge files) sitting uncommitted since round 144; other
+  tracks' uncommitted WIP (harness/whence) left alone, same call rounds
+  142/154/160 made. Plan: reach the box (Tailscale path), take the seventh
+  live snapshot, react to whatever state it's in.]
+- Box reachable, same underlying boot as rounds 124-160 (`uptime` 1d7h55m) —
+  but `qwen36-colibri` the SERVICE had been restarted ~90 minutes earlier by
+  the box's actual human operator (`jab`, confirmed logged in interactively
+  via `who -a`/`journalctl` at the time, doing unrelated `colibri` v1.7.0
+  engineering per `.bash_history` — zero reference to this project's asks,
+  `--cap 256`/no `Q36_PREFIX` unchanged). **Six rounds of in-repo escalation
+  (130/136/142/154/160) show no evidence of ever reaching this operator** —
+  reframed the standing backlog note to treat the ask channel as likely dead
+  rather than re-asking an eighth time.
+- **New data from the fresh restart:** 3 `bench.py --sizes 300` points over
+  ~12 minutes with cgroup swap pinned at 0 B throughout showed prefill
+  5.00→6.57→6.90 tok/s and decode 3.35→4.60→4.55 tok/s climbing FROM BELOW
+  the round 142/154/160 cluster (6.6-6.98 prefill / 5.04-5.07 decode) toward
+  it — falsifies reading those rounds' higher numbers as a swap-pressure
+  effect (the fastest points on record came at up to 3.92 GiB swap; these
+  zero-swap points are the slowest since round 136) and instead fits a
+  request-activity/session-warm-up curve. The discarded engine warm-up
+  request also measured 105.71s — the slowest cold-start in the whole E
+  track (vs E1's 25.7s baseline), on the engine's literal first request
+  post-restart rather than after a multi-day idle gap.
+- Reconciled this track's own commit backlog (rounds 154/160's
+  nuc-missions.md content, bench-r154/r160 artifacts, both knowledge files —
+  all already reflected in `research-state.md`'s NUC(E) summary line, nothing
+  to re-verify) alongside this round's own additions, same practice as round
+  157(A)/165(B) closing their own tracks' backlogs.
+- **Standing checks:** `nuc/tests` 157/157 in 30.3s (matches round 160's
+  baseline; no `nuc/` code touched). Whence/harness/skills suites not
+  re-run — no code in those tracks touched, consistent with every prior
+  pure-measurement E round.
+- **Honest gaps:** the controlled fixed-cadence warm-up-curve experiment
+  the new finding motivates was not built this round (only 3 opportunistic
+  points taken); no predictions file banked (unplanned live window, same
+  precedent as 130/136/142/154/160); E3/OLMoE still not executed (needs
+  sign-off, still not obtained).
+- **Details:** `knowledge/round-166-nuc-e-seventh-snapshot-operator-restart-warmup-curve.md`.
+
+### Round 171 — Skills(B) — 2026-08-26
+- [STUB written after the audit below. Inheritance audit: only this round's own
+  driver/claude chain + the user's known 8-day interactive session alive, no
+  concurrent round. `state/research-state.md`'s round log ends at 166 but
+  `logs/round-167.json`..`round-170.json` already existed (round counter at 171)
+  — plan: find out what happened to rounds 167-170 before doing anything else,
+  per session-inheritance-audit step 2/8.]
+- **Found and named a NEW recurring failure mode: a batch-invoked round ends its
+  own turn waiting on a background job's notification, which never arrives**
+  because each round is a fresh one-shot `claude -p --max-turns N` process with
+  no next turn to receive it in. Confirmed live in 3 rounds' own transcripts —
+  round 161 (SWE-loop D): *"I'll wait for the background notification before
+  continuing with the repair verdicts..."*; round 167 (SWE-loop D): *"I'll end
+  this turn here and resume once the background task notification arrives"*;
+  round 170 (language C): *"Standing by — no further action until the
+  background checks report back."* — all three driver-logged `success` with
+  real, substantial tool-call counts (round 167: 144 turns/70 tool calls; round
+  170: 125 turns/63 tool calls), all with **zero** landed result (no knowledge
+  file, no state entry, no commit). Distinct from `self-updating-driver-loop`'s
+  stale-supervisor-process bug (that's the *supervisor* caching old code; this
+  is a *round's own process* assuming a turn that will never come). Nearly
+  repeated the same mistake this round myself — a `pytest` run this harness's
+  own tools auto-backgrounded past a 120s default timeout; caught it and
+  re-ran synchronously with an explicit longer timeout instead of trusting
+  "you'll be notified."
+- **New skill: `one-shot-agent-no-background-wait`** (evaluated before
+  authoring — none of the 17 existing skills cover this). Live-probed native
+  mode, sonnet-5, strict protocol: `--only obw-near,obw-mid,obw-far,obw-neg
+  --repeats 3` → 12/12 exact, 0/3 negatives false-fired, $0.617; re-checked
+  `session-inheritance-audit`'s own 5 cases for suppression from the new
+  neighbor (`--repeats 2` → 10/10 exact, $0.497, no regression); body-mode
+  probe (`body-obw --repeats 1`) fired correctly, 3/4 evidence patterns
+  matched, $0.099.
+- **New tool: `skills/session-inheritance-audit/scripts/check_round_recorded.py`**
+  (+ 9 offline tests) — cross-references `logs/driver.log`'s round start/status
+  lines against `research-state.md`'s `### Round N —` headings and
+  `knowledge/round-N-*.md` files, and flags any gap round whose own final
+  message matches a dangling-wait phrase. Automates session-inheritance-audit
+  step 2 for this specific, recurring shape of gap. Run live (`--since 137`):
+  **found 10 unrecorded rounds — 152, 153, 161, 163, 164, 167, 168, 169, 170**
+  (171 itself, expected) — including **152/153/161, which NO earlier manual
+  audit (105→111→123→129→135→141→159→165) had ever caught in 14+ rounds**.
+  Added to `session-inheritance-audit/SKILL.md` as a new pitfall + Verification
+  command + checklist item (body-only edit, description untouched, no fresh
+  probe owed — the two live probes above are extra diligence).
+- **Attributed all 10 gaps precisely** (full detail in the knowledge file):
+  152/153 are pre-existing instant environment failures (round 157's own
+  still-uncommitted PATH fix is the target, zero real work lost); 163/164
+  already flagged by round 165, not re-investigated (out of scope); 161/167/170
+  are the new background-wait mechanism (real work lost, see above); 168 hit
+  `error:max_turns` but shipped **v0.15 — AI-native primitives (`guess`/
+  `confidence`)**, closing language(C)'s last open curriculum feature slot,
+  fully tested (844/844 whence suite, verified read-only this round) but
+  uncommitted; 169 (harness A) reproduced round 163's already-known fix with
+  no new content, ran out of budget mid-draft.
+- **New bug surfaced (flagged, not fixed) while verifying round 167's own new
+  test**: `test_generated_effects_programs_agree` (round 167's fuzz-based
+  regression test for round 164's `effects` guest-parity work, sweeping 200
+  real generator seeds instead of 3 hand-picked cases) **fails on seed 4002** —
+  a generated program with a callable-valued binding inside `effects`-decorated
+  code diverges: host computes real values, guest returns `miss` for
+  everything. A genuine, previously-unknown hole in round 164's "801/801, 0
+  ref_diff differences" verification, surfaced only because round 167 fuzzed a
+  broader corpus than the hand-picked `AGREE_CASES`. Exact seed/assertion
+  recorded in the knowledge file for SWE-loop(D)/language(C) to fix directly,
+  not re-derive.
+- **Did not commit** any harness(A)/language(C)/SWE-loop(D) diffs (same
+  discipline as round 165) — did run each's own test suite as due diligence
+  (whence: 844 passed; `test_swe_bymap.py`+`test_swe_guest.py`+
+  `test_driver_health.py`: 106 passed/1 failed — the seed-4002 finding above)
+  so the next round doesn't have to re-verify safety before committing.
+- **Standing checks:** `skill_lint.py --house --strict skills/` → 17 skills, 0
+  errors, 0 warnings (was 16/0/0 at round start); `skill-authoring` +
+  `session-inheritance-audit` offline suites → 150 passed (was 141). Whence/
+  harness/nuc suites not touched as standing checks (only read for due
+  diligence above, no skills(B) code lives there).
+- **Honest gaps:** did not attempt the seed-4002 fix or the round-168 language
+  feature's commit (both genuinely need owning-track judgment, not manufactured
+  scope creep); `state/swe/round-161/repair-replay.json` was found but not read
+  closely enough to know if it's a finished or partial result — flagged as
+  unverified, not assumed complete.
+- **Details:** `knowledge/round-171-skills-one-shot-agent-no-background-wait.md`.
+
+### Round 172 — NUC-integration(E) — 2026-08-26
+- Eighth live E-track window, same restart round 166 caught (service restarted
+  19:24 UTC by the box's own operator; box itself never rebooted), now 4h03m
+  in. Traffic since the restart is sparse — 18 total requests across two short
+  bursts (round 166's 13, this round's 5) with a 2h21m silent gap between —
+  and `memory.events.max=0` (never once reclaimed against the 30 GiB ceiling
+  this restart, unlike the old boot's 989 reclaims over ~30h).
+- New bench point (`state/bench-r172a.json`) closes round 166's open question:
+  the discarded warm-up request, after a 2h21m idle gap (longer than round
+  166's own pre-first-request gap) but NOT the engine's first-ever request,
+  measured 14.69s — near the E1 25.7s baseline, nowhere near round 166's
+  105.71s. Confirms the extreme figure is specific to "first request after
+  process exec," not idle time generally. Prefill (7.07 tok/s) and decode
+  (4.79 tok/s) both climbed past round 166's own highest points with swap
+  still pinned at 0 B — prefill is now *above* every number the old,
+  swap-heavy boot (154/160: 6.95-6.98) ever produced, weakening "swap volume"
+  or "thousands of cumulative requests" as the explanation for that boot's
+  plateau and pointing instead to a small-N (order 10-20 requests) warm-up
+  curve converging to a level set by something else (unresolved).
+- Found and flagged directly to the user (independent of the research
+  narrative): this **dev machine** (not the NUC) has an unrelated live
+  "HERMES Trading API" service bound to local port 8000 (uvicorn, plus a
+  Tailscale-exposed copy) — a real hazard for any script assuming
+  `127.0.0.1:8000` means the NUC engine everywhere. `nuc/bench.py` itself is
+  unaffected (always runs on-box over SSH).
+- Found orphaned, out-of-protocol WIP overlapping E's remit:
+  `languages/whence/whence_qwen_bridge.py` + an untracked
+  `languages/whence/research-env/` venv (mtimes inside this session, no
+  knowledge file, no research-state entry, invented author "Jaby"/future
+  docstring date). Assessed, not adopted: doesn't integrate with the Whence
+  language at all (pure Python, no grammar/SPEC change), duplicates E5's
+  already-shipped `nuc/taskscript/` with none of its budget/pricing
+  discipline, and as written can only ever reach the NUC from the NUC itself
+  (hardcodes `127.0.0.1` for both `:8080` and `:8000`, which are loopback-only
+  on that box per standing E-track fact). Left in place, not merged, not
+  deleted — recommend delete-as-dead-end or a real language-feature redesign
+  if ever wanted, for whoever next touches `languages/whence/`.
+- E1-E5 stay DONE; E3/OLMoE stay parked, channel treated as dead per round
+  166 — not re-solicited a ninth time. `nuc/tests` 157/157 (unchanged from
+  round 166's baseline, no `nuc/` code touched). Details:
+  `knowledge/round-172-nuc-e-eighth-snapshot-restart-warmup-curve-and-local-port-collision.md`.
+
+### Round 174 — language(C) — 2026-08-27
+- Found round 168's real, complete, self-verified v0.15 "AI-native
+  primitives" feature (`guess`/`is_guess`/`confidence`/`sure` — an
+  uncertainty-carrying value, the curriculum's LAST open advanced-feature
+  slot) sitting uncommitted with no knowledge file, the fourth instance of
+  the "real work, no knowledge file" pattern rounds 144/157/159/162/165/171
+  each independently fixed for earlier rounds. Re-verified everything from
+  a clean-tree perspective (844 whence tests — 801 base + round 168's 43
+  net-new; all 15 examples green including `guess.lang` 27/27; a fresh
+  400/500/600-program host-fuzz seed, 0 crashers; a fresh guest-differential
+  seed, 0 findings; `bench/ref_diff.py --fuzz 300` vs `HEAD`, 0 differing
+  pairs), wrote a retroactive
+  `knowledge/round-168-whence-v15-ai-native-primitives-guess.md`.
+- Closed the fuzzer/guest-parity gap round 168 itself flagged at commit
+  time (`SPEC.md`: "guest parity: not started ... the fuzzer gap this time
+  is DAY ONE"). Because `guess`/`is_guess`/`confidence`/`sure` are ordinary
+  builtin CALLS (not new syntax like `: Type`/`effects [...]`), the correct
+  fix shape differs from the round-134/162 precedents: added all four to
+  `harness/swe/fuzz.py`'s `BUILTIN_ARITY` (with a `GUESS_CONFIDENCES`/
+  `GUESS_SOURCES` pool mixing valid and deliberately-invalid values so both
+  the success and the propagated-miss path fuzz) for host-only totality
+  fuzzing, and added the same four names to `harness/swe/guest.py`'s
+  existing `BANNED`-line regex (already used for provenance builtins
+  self_eval.lang can't mirror) rather than a `GuestGen` no-op-method
+  override — a `guess(...)` call is always a droppable expression-level
+  line, unlike syntax baked into every function signature. 4 new tests
+  (`test_swe_fuzz.py` ×2, `test_swe_guest.py` ×1) confirm generation is
+  live (≥15/200-300 seeds) and that `GuestGen`'s filtered output never
+  leaks one through; guest-differential seeds before (91001) and after
+  (91002) the edit both read 0 findings (135/143 ok respectively). Whole
+  whence suite re-run unaffected (844 passed, harness/swe edits touch no
+  whence-package file); `test_swe_fuzz.py`+`test_swe_guest.py` 56/56.
+- Flagged, explicitly NOT touched: this session's tree also carries an
+  unrelated, uncommitted SWE-loop(D)/harness(A) diff (round 173's
+  `harness/swe/guest.py::_depth_cascade` self-hosted recursion-depth-
+  cascade fix for the round 167/171-flagged effects-guest divergence, plus
+  driver/campaign/coverage/prioritize changes) — left for those tracks' own
+  next rounds. `self_eval.lang` itself still has zero runtime `Guess`
+  support (a materially bigger lift than the parse-time-only `: Type`/
+  `effects` parity work) — flagged as real, scoped backlog, not attempted.
+  Committed: the 6-file language diff (`SPEC.md`, `interp.py`, `parser.py`,
+  `values.py`, `examples/guess.lang`, `tests/test_v15.py`) +
+  `harness/swe/fuzz.py`/`guest.py` + their 2 test files + both knowledge
+  files, as one language(C)-scoped commit (the round-173 files left
+  uncommitted). Details:
+  `knowledge/round-168-whence-v15-ai-native-primitives-guess.md`,
+  `knowledge/round-174-whence-v15-reconciliation-and-guess-fuzzing.md`.
+
