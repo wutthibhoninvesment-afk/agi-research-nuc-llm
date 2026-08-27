@@ -321,6 +321,21 @@ def find_oracle_killer(mutant, programs, original_pkg, project_root, orig_cache=
             del sys.modules[k]
 
 
+_HEAVY_EXAMPLES = {
+    "deep.lang", "meta.lang",
+    "self_eval.lang",  # round-209: probe()'s three `modes` sub-runs (direct/
+                       # trampoline/slow) each carry their own 5.0s default
+                       # `timeout_s`, so a single self_eval.lang probe costs
+                       # 3+ full interpreter passes over an ~800-line guest
+                       # library; measured 5/5 "timeout" at the real default
+                       # budget (~10.6-11.5s wall each, all guaranteed, no
+                       # boundary jitter) -- same "wasted seconds, no signal"
+                       # reasoning killers.py already applies to meta/tco.
+                       # (shapes.lang is comfortably "ok" here, 5/5 at ~9-10s
+                       # -- slow, not flaky, deliberately left in.)
+}
+
+
 def corpus(seed=0, n=60, root=WHENCE_ROOT, include_examples=True):
     """Deep probes + examples + a light fuzz corpus (the value-comparing
     corpus already ran; this one exists for the modes/frames/counters
@@ -329,7 +344,7 @@ def corpus(seed=0, n=60, root=WHENCE_ROOT, include_examples=True):
     if include_examples:
         ex_dir = os.path.join(root, "examples")
         for name in sorted(os.listdir(ex_dir)):
-            if name.endswith(".lang") and name not in ("deep.lang", "meta.lang"):
+            if name.endswith(".lang") and name not in _HEAVY_EXAMPLES:
                 with open(os.path.join(ex_dir, name), encoding="utf-8") as f:
                     progs.append(f.read())
     for i in range(n):

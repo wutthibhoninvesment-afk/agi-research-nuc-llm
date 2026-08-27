@@ -121,6 +121,28 @@ _HEAVY_EXAMPLES = {
                    # contributes a differential signal; excluded purely so a
                    # corpus sweep doesn't pay 11-18s per mutant for nothing.
     "tco.lang",    # round-203: same reasoning, ~14s in-process (sum_to(100000)).
+    "self_eval.lang",  # round-209: ~3.2s in-process (round-204's v0.16 PMap
+                   # change made record-heavy programs ~2x slower, per that
+                   # round's own note) -- same "guaranteed timeout, wasted
+                   # seconds" reasoning as meta.lang/tco.lang above.
+    "shapes.lang", # round-209: NOT a "guaranteed timeout" case like the three
+                   # above -- measured at 1.97-2.16s across 8 in-process runs,
+                   # i.e. it straddles behaviour()'s 2.0s SIGALRM budget. That
+                   # makes it a genuine flakiness source, not just wasted
+                   # time: find_killer() caches the ORIGINAL's behaviour once
+                   # per program and compares every mutant against that cached
+                   # value, so whenever the original's one-shot run happens to
+                   # land just under 2.0s ("ok") and a later mutant run for
+                   # the SAME program lands just over (pure scheduling jitter,
+                   # the mutants examined here don't touch timing-relevant
+                   # code), find_killer() reports a spurious kill --
+                   # `{"kind": "timeout"} != {"kind": "ok", ...}` -- with no
+                   # real behavioural difference behind it. Confirmed live:
+                   # this is what made test_review_stage_and_report's
+                   # `no_killer == 1` assertion flaky (occasionally 0) --
+                   # the test's only survivor is a `peak_depth` const mutant
+                   # that shapes.lang cannot actually distinguish from the
+                   # original.
 }
 
 
