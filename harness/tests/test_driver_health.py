@@ -695,6 +695,41 @@ def test_reproduces_actual_round_210_no_result_near_ceiling_kill(tmp_path):
     assert likely_timeout_kill(p, timeout_s=3300) is True
 
 
+def test_reproduces_actual_round_222_no_result_near_ceiling_kill(tmp_path):
+    """Regression pin: round 222's real log (`logs/round-222.json`, first
+    assistant 2026-08-27T22:17:52.506Z, last assistant 2026-08-27T23:07:46.457Z,
+    last event overall a `type: "user"` tool-result at 23:12:49.969Z, no
+    `result` line anywhere) — a SECOND real counterexample for round 211's
+    classifier, found by round 223 while landing round 222's uncommitted
+    work. Distinct from round 210's fixture in two ways worth pinning
+    separately rather than treating as a duplicate: (1) the trailing event
+    is `type: "user"` (a tool_result flowing back from a backgrounded Bash
+    wait on a slow pytest run — round 222 died mid-wait on exactly the kind
+    of dangling background call skills(B)'s round 171 named for the
+    IN-session turn-ending mechanism, except here it's the driver's OWN
+    outer timeout that fired, not the CLI ending its turn), not round 210's
+    `system`/`task_updated`; (2) the assistant-only vs. full-event span gap
+    is much larger here (303.5s vs. round 210's ~123s) because the dangling
+    wait's tool_result took over 5 minutes to land after the last assistant
+    text, so this is also a stronger real-world demonstration of why
+    `full_event_span_s` (not `summarize_turns`'s assistant-only span) is the
+    right primitive for this classifier.
+    """
+    first_assistant = dict(REAL_ASSISTANT_LINE, timestamp="2026-08-27T22:17:52.506Z")
+    last_assistant = dict(REAL_ASSISTANT_LINE, timestamp="2026-08-27T23:07:46.457Z")
+    trailing_tool_result = {"type": "user", "message": {"role": "user", "content": []},
+                             "timestamp": "2026-08-27T23:12:49.969Z"}
+    events = [first_assistant, last_assistant, trailing_tool_result]
+    p = _write_ndjson(str(tmp_path), "round-222.json", events)
+    assert all(e.get("type") != "result" for e in events)
+    s = summarize_turns(p)
+    full_span = full_event_span_s(p)
+    assert s["span_s"] == pytest.approx(2993.951, abs=0.01)
+    assert full_span == pytest.approx(3297.463, abs=0.01)
+    assert full_span - s["span_s"] == pytest.approx(303.512, abs=0.01)
+    assert likely_timeout_kill(p, timeout_s=3300) is True
+
+
 def test_cli_likely_timeout_kill_subcommand(tmp_path):
     near_ceiling = _write_ndjson(str(tmp_path), "near.json", [
         dict(REAL_ASSISTANT_LINE, timestamp="2026-08-27T17:22:04.850Z"),
