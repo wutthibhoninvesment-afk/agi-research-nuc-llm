@@ -268,5 +268,22 @@
       ]
     },
     "note": "evidence: names the no-later-turn mechanism, prescribes a blocking/synchronous wait or foreground timeout instead, and calls out that a 'success' exit code alone isn't proof of a finished round"
+  },
+  {
+    "id": "body-tliguard",
+    "expect": [
+      "tiny-language-implementation"
+    ],
+    "prompt": "My tiny language's guest evaluator is itself written as literal host source (self-hosted) — a new `Ratio` value type's arithmetic already works for guest programs because it delegates straight through to the host's real `Ratio` implementation, no reimplementation needed. But `is_num(r)` and the `kind(r)` dispatcher (both written before `Ratio` existed) now silently misreport a `Ratio`-wrapped number as a plain number, because delegated arithmetic on it succeeds just like a real number's would. Fix the guest's type-probe functions so `Ratio` values are classified correctly, and explain exactly why they broke in the first place.",
+    "body": {
+      "files": [],
+      "evidence": [
+        "is_ratio",
+        "is_num",
+        "kind",
+        "before|first|earlier|precede"
+      ]
+    },
+    "note": "round 177's pitfall: guest delegation makes a new value's arithmetic transparently pass pre-existing is_*/kind probes; evidence: a dedicated is_ratio guard, patching is_num, patching the kind dispatcher, and ordering language (guard checked before/ahead of the generic probes)"
   }
 ]
