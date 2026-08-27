@@ -1,0 +1,33 @@
+{
+ "meta": {
+  "base_url": "http://127.0.0.1:8000",
+  "model": "qwen36",
+  "started": "2026-08-27 13:51:11",
+  "decode_tokens": 64,
+  "cutoff_s": 300.0,
+  "seed": 202011,
+  "mode": "non-streaming",
+  "finished": "2026-08-27 13:54:12"
+ },
+ "results": [
+  {
+   "target_tokens": 300,
+   "prompt_tokens": 300,
+   "prompt_chars": 1458,
+   "ttft_cold_s": 42.44494584200038,
+   "ttft_warm_s": 42.08494709899969,
+   "decode_tokens": 64,
+   "decode_run_s": 54.469341130999965,
+   "decode_tok_s": 5.08704744351747,
+   "prefill_tok_s": 7.067979332963176,
+   "warm_over_cold": 0.9915184544152614,
+   "extrapolated": false,
+   "ttft_fresh_s": 42.32838226799959,
+   "repeat_over_fresh": 0.994248890320008,
+   "stream_ttft_s": null,
+   "stream_decode_tok_s": null,
+   "reply_text": "OK\n\nThe morning did not break so much as it bled into existence, a slow, grey se",
+   "note": ""
+  }
+ ]
+}

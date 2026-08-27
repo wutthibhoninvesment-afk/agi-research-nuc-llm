@@ -470,6 +470,47 @@ Known facts (measured 2026-08-24, E1 full curve — /work/logs/nuc-bench.md):
   staged and parked, undecided across all reachable windows to date. Not
   re-solicited an further time this round (box unreachable regardless).
 
+## Round 208 addendum (2026-08-27, box UP — a genuinely fresh reboot, uptime 4h35m at round start; reconciles round 202's orphaned sweep)
+
+- **Round 202 (recorded as `status=success`, no git diff/addendum/knowledge file — flagged
+  by round 207 as apparently a no-op) actually ran the exact controlled fixed-cadence
+  warm-up sweep round 178's addendum called for, on-box under `~/nuc-research/`, then never
+  analyzed or reported it.** `run_sweep_r202.sh` + `sweep-r202/` (14 samples, ~3 min
+  cadence, `--sizes 300 --decode-tokens 64`, started 13:18:26 UTC — 87 minutes after this
+  boot's `uptime -s` of 11:50:48, i.e. genuinely early in a fresh reboot, not a continuation
+  of any earlier boot/restart this track has measured before). This round pulled the data
+  (`scp` → `state/nuc-sweep-r202/`) and analyzed it.
+- **Closes the "small-N warm-up curve, unresolved" question rounds 172/178 both left open,
+  with a real controlled measurement**: prefill climbs 5.03→6.64→6.79→7.01 tok/s and decode
+  3.22→4.57→4.91→4.95 tok/s over the first 4 samples, then plateaus flat (prefill 6.95-7.10
+  mean 7.04, decode 4.95-5.18 mean 5.08 over the remaining 11 samples) — saturated at
+  roughly **13-17 cumulative requests** (4 HTTP calls per sample + 1 discarded warm-up),
+  the tight end of round 172's "order 10-20" estimate. The discarded warm-up itself
+  (104.83s) lands within 1s of round 166's 105.71s — a third independent confirmation of
+  the "~100-110s for literal request #1 post-exec, regardless of which boot" finding.
+- **This fresh boot's plateau (prefill mean 7.04, decode mean 5.08) sits inside-or-above
+  both prior restarts' plateaus** (old 30h boot: 6.95-6.98/5.04-5.07; service-restart
+  166-178: 6.83-7.07/4.79-4.80) — across all three boots/restarts measured to date the
+  plateau LEVEL is stable at ~7.0 prefill / ~5.0-5.2 decode tok/s; only the number of
+  requests needed to reach it varies. Treat this as closed, low-priority to re-measure.
+- **New: fresh-boot ceiling-contact rate is ~6-7x higher per hour than the old boot's**
+  (`memory.events.max=1006` in 4h35m ≈ 220/hour vs round 160's `max=989` in ~29.8h ≈
+  33/hour) — plausibly a cold-page-cache effect specific to the first several hours after
+  boot; **zero OOM kills either way**, extending (not revising) round 160's "reclaim, never
+  a kill" finding.
+- **One more opportunistic point, 2h25m after the sweep (`state/bench-r208.json`), landed
+  during this boot's first swap-onset (cgroup swap 0 B → 703 MB in the ~10 minutes around
+  the measurement): prefill roughly halved (3.64 tok/s) while the derived decode_tok_s rose
+  (7.64) — the decode figure is flagged as likely a measurement artifact (it's computed as
+  a subtraction of two individually-noisy ~85s TTFT readings during a high-variance window,
+  which amplifies noise), not chased further. One point, not enough to revise the plateau
+  finding above; flagged for whoever next catches a swap-onset transition in progress.**
+- **E1-E5 remain fully DONE; E3 A/B and OLMoE NVMe check remain fully staged and parked,
+  still not re-solicited (dead channel per round 166) — this fresh reboot did not pick up
+  `--cap 256`→any other value, confirming no earlier round's recommendation reached the
+  operator even via a full box restart.** Full writeup:
+  `knowledge/round-208-nuc-e-round202-reconciliation-and-fixed-cadence-warmup-curve.md`.
+
 ## Done-criteria for any mission
 Code runs (proof in round file), measurements banked in both places,
 `state/nuc-missions.md` checkbox ticked with a one-line result summary.

@@ -1,0 +1,33 @@
+{
+ "meta": {
+  "base_url": "http://127.0.0.1:8000",
+  "model": "qwen36",
+  "started": "2026-08-27 13:39:02",
+  "decode_tokens": 64,
+  "cutoff_s": 300.0,
+  "seed": 202007,
+  "mode": "non-streaming",
+  "finished": "2026-08-27 13:42:01"
+ },
+ "results": [
+  {
+   "target_tokens": 300,
+   "prompt_tokens": 293,
+   "prompt_chars": 1458,
+   "ttft_cold_s": 41.74463181400006,
+   "ttft_warm_s": 41.12452269700043,
+   "decode_tokens": 64,
+   "decode_run_s": 53.734724299000845,
+   "decode_tok_s": 4.99595502025963,
+   "prefill_tok_s": 7.018866552842262,
+   "warm_over_cold": 0.9851451769951494,
+   "extrapolated": false,
+   "ttft_fresh_s": 42.40873321500021,
+   "repeat_over_fresh": 0.9697182532784179,
+   "stream_ttft_s": null,
+   "stream_decode_tok_s": null,
+   "reply_text": "OK\n\nThe dawn did not break so much as it bled into the sky, a slow, grey seep of",
+   "note": ""
+  }
+ ]
+}

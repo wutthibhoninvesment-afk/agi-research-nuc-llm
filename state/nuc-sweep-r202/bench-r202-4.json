@@ -1,0 +1,33 @@
+{
+ "meta": {
+  "base_url": "http://127.0.0.1:8000",
+  "model": "qwen36",
+  "started": "2026-08-27 13:29:53",
+  "decode_tokens": 64,
+  "cutoff_s": 300.0,
+  "seed": 202004,
+  "mode": "non-streaming",
+  "finished": "2026-08-27 13:32:57"
+ },
+ "results": [
+  {
+   "target_tokens": 300,
+   "prompt_tokens": 301,
+   "prompt_chars": 1461,
+   "ttft_cold_s": 42.95356536700001,
+   "ttft_warm_s": 42.24719811900013,
+   "decode_tokens": 64,
+   "decode_run_s": 54.96296634200007,
+   "decode_tok_s": 4.954478478622101,
+   "prefill_tok_s": 7.007567298039702,
+   "warm_over_cold": 0.9835550962541852,
+   "extrapolated": false,
+   "ttft_fresh_s": 43.07937016999949,
+   "repeat_over_fresh": 0.9806828176058413,
+   "stream_ttft_s": null,
+   "stream_decode_tok_s": null,
+   "reply_text": "OK\n\nThe morning mist clung to the riverbanks like a second skin, heavy and grey,",
+   "note": ""
+  }
+ ]
+}

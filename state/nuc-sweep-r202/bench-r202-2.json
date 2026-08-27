@@ -1,0 +1,33 @@
+{
+ "meta": {
+  "base_url": "http://127.0.0.1:8000",
+  "model": "qwen36",
+  "started": "2026-08-27 13:23:38",
+  "decode_tokens": 64,
+  "cutoff_s": 300.0,
+  "seed": 202002,
+  "mode": "non-streaming",
+  "finished": "2026-08-27 13:26:46"
+ },
+ "results": [
+  {
+   "target_tokens": 300,
+   "prompt_tokens": 302,
+   "prompt_chars": 1460,
+   "ttft_cold_s": 45.51109526300024,
+   "ttft_warm_s": 42.46062921599969,
+   "decode_tokens": 64,
+   "decode_run_s": 56.2342526780003,
+   "decode_tok_s": 4.573959798872654,
+   "prefill_tok_s": 6.63574449823274,
+   "warm_over_cold": 0.9329731348065241,
+   "extrapolated": false,
+   "ttft_fresh_s": 44.17753640899991,
+   "repeat_over_fresh": 0.9611361942616055,
+   "stream_ttft_s": null,
+   "stream_decode_tok_s": null,
+   "reply_text": "OK\n\nThe morning mist clung to the grey rivers like a shroud, heavy and silent, o",
+   "note": ""
+  }
+ ]
+}

@@ -1,0 +1,33 @@
+{
+ "meta": {
+  "base_url": "http://127.0.0.1:8000",
+  "model": "qwen36",
+  "started": "2026-08-27 13:36:01",
+  "decode_tokens": 64,
+  "cutoff_s": 300.0,
+  "seed": 202006,
+  "mode": "non-streaming",
+  "finished": "2026-08-27 13:39:02"
+ },
+ "results": [
+  {
+   "target_tokens": 300,
+   "prompt_tokens": 298,
+   "prompt_chars": 1465,
+   "ttft_cold_s": 42.40555454399964,
+   "ttft_warm_s": 41.83081525700072,
+   "decode_tokens": 64,
+   "decode_run_s": 54.39336447699952,
+   "decode_tok_s": 5.0149057246842785,
+   "prefill_tok_s": 7.027381275978781,
+   "warm_over_cold": 0.9864466036777664,
+   "extrapolated": false,
+   "ttft_fresh_s": 41.655065898999965,
+   "repeat_over_fresh": 1.0042191592836966,
+   "stream_ttft_s": null,
+   "stream_decode_tok_s": null,
+   "reply_text": "OK\n\nThe morning mist clung to the surface of the river like a shroud, heavy and ",
+   "note": ""
+  }
+ ]
+}

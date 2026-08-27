@@ -1,0 +1,33 @@
+{
+ "meta": {
+  "base_url": "http://127.0.0.1:8000",
+  "model": "qwen36",
+  "started": "2026-08-27 13:57:10",
+  "decode_tokens": 64,
+  "cutoff_s": 300.0,
+  "seed": 202013,
+  "mode": "non-streaming",
+  "finished": "2026-08-27 14:00:10"
+ },
+ "results": [
+  {
+   "target_tokens": 300,
+   "prompt_tokens": 301,
+   "prompt_chars": 1463,
+   "ttft_cold_s": 42.406606646999535,
+   "ttft_warm_s": 42.13375612500022,
+   "decode_tokens": 64,
+   "decode_run_s": 54.560512313999425,
+   "decode_tok_s": 5.069705966853264,
+   "prefill_tok_s": 7.097950621363786,
+   "warm_over_cold": 0.9935658487303506,
+   "extrapolated": false,
+   "ttft_fresh_s": 40.525609884000005,
+   "repeat_over_fresh": 1.039682221824751,
+   "stream_ttft_s": null,
+   "stream_decode_tok_s": null,
+   "reply_text": "OK\n\nThe morning did not break so much as it bled into the sky, a pale, watery gr",
+   "note": ""
+  }
+ ]
+}

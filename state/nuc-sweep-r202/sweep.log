@@ -1,0 +1,297 @@
+[warmup] 102 tok, 104.83s (discarded; engine cold start)
+[300] prompt 1459 chars (fit slope=0.2222 b=15.0)
+[300] cold: 298 tok, TTFT 59.23s (queue 0.00s) -> 5.03 tok/s
+[300] warm: TTFT 41.50s  warm/cold=0.70
+[300] fresh: 288 tok, TTFT 45.51s  repeat/fresh=0.91
+[300] decode run: 64 tok in 61.06s -> 3.22 tok/s; reply='OK\n\nThe morning did not break so much as'
+# NUC bench — TTFT / prefill / decode
+
+- base_url: http://127.0.0.1:8000
+- model: qwen36
+- started: 2026-08-27 13:18:26
+- decode_tokens: 64
+- cutoff_s: 300.0
+- seed: 202001
+- mode: non-streaming
+- engine_cold_start_s: 104.83
+- finished: 2026-08-27 13:23:38
+
+| target | prompt tok | TTFT cold (s) | prefill tok/s | TTFT repeat (s) | TTFT fresh (s) | repeat/fresh | decode tok/s | decode run (s) | note |
+|---|---|---|---|---|---|---|---|---|---|
+| 300 | 298 | 59.2 | 5.03 | 41.5 | 45.5 | 0.91 | 3.22 | 61.1 |  |
+
+sample 1 seed=202001 start=2026-08-27T13:18:26Z end=2026-08-27T13:23:38Z
+[300] prompt 1460 chars (fit slope=0.2222 b=15.0)
+[300] cold: 302 tok, TTFT 45.51s (queue 0.00s) -> 6.64 tok/s
+[300] warm: TTFT 42.46s  warm/cold=0.93
+[300] fresh: 302 tok, TTFT 44.18s  repeat/fresh=0.96
+[300] decode run: 64 tok in 56.23s -> 4.57 tok/s; reply='OK\n\nThe morning mist clung to the grey r'
+# NUC bench — TTFT / prefill / decode
+
+- base_url: http://127.0.0.1:8000
+- model: qwen36
+- started: 2026-08-27 13:23:38
+- decode_tokens: 64
+- cutoff_s: 300.0
+- seed: 202002
+- mode: non-streaming
+- finished: 2026-08-27 13:26:46
+
+| target | prompt tok | TTFT cold (s) | prefill tok/s | TTFT repeat (s) | TTFT fresh (s) | repeat/fresh | decode tok/s | decode run (s) | note |
+|---|---|---|---|---|---|---|---|---|---|
+| 300 | 302 | 45.5 | 6.64 | 42.5 | 44.2 | 0.96 | 4.57 | 56.2 |  |
+
+sample 2 seed=202002 start=2026-08-27T13:23:38Z end=2026-08-27T13:26:46Z
+[300] prompt 1459 chars (fit slope=0.2222 b=15.0)
+[300] cold: 305 tok, TTFT 44.94s (queue 0.00s) -> 6.79 tok/s
+[300] warm: TTFT 42.89s  warm/cold=0.95
+[300] fresh: 299 tok, TTFT 43.33s  repeat/fresh=0.99
+[300] decode run: 64 tok in 55.72s -> 4.91 tok/s; reply='OK\n\nThe morning arrived not with a shout'
+# NUC bench — TTFT / prefill / decode
+
+- base_url: http://127.0.0.1:8000
+- model: qwen36
+- started: 2026-08-27 13:26:46
+- decode_tokens: 64
+- cutoff_s: 300.0
+- seed: 202003
+- mode: non-streaming
+- finished: 2026-08-27 13:29:53
+
+| target | prompt tok | TTFT cold (s) | prefill tok/s | TTFT repeat (s) | TTFT fresh (s) | repeat/fresh | decode tok/s | decode run (s) | note |
+|---|---|---|---|---|---|---|---|---|---|
+| 300 | 305 | 44.9 | 6.79 | 42.9 | 43.3 | 0.99 | 4.91 | 55.7 |  |
+
+sample 3 seed=202003 start=2026-08-27T13:26:46Z end=2026-08-27T13:29:53Z
+[300] prompt 1461 chars (fit slope=0.2222 b=15.0)
+[300] cold: 301 tok, TTFT 42.95s (queue 0.00s) -> 7.01 tok/s
+[300] warm: TTFT 42.25s  warm/cold=0.98
+[300] fresh: 299 tok, TTFT 43.08s  repeat/fresh=0.98
+[300] decode run: 64 tok in 54.96s -> 4.95 tok/s; reply='OK\n\nThe morning mist clung to the riverb'
+# NUC bench — TTFT / prefill / decode
+
+- base_url: http://127.0.0.1:8000
+- model: qwen36
+- started: 2026-08-27 13:29:53
+- decode_tokens: 64
+- cutoff_s: 300.0
+- seed: 202004
+- mode: non-streaming
+- finished: 2026-08-27 13:32:57
+
+| target | prompt tok | TTFT cold (s) | prefill tok/s | TTFT repeat (s) | TTFT fresh (s) | repeat/fresh | decode tok/s | decode run (s) | note |
+|---|---|---|---|---|---|---|---|---|---|
+| 300 | 301 | 43.0 | 7.01 | 42.2 | 43.1 | 0.98 | 4.95 | 55.0 |  |
+
+sample 4 seed=202004 start=2026-08-27T13:29:53Z end=2026-08-27T13:32:57Z
+[300] prompt 1462 chars (fit slope=0.2222 b=15.0)
+[300] cold: 307 tok, TTFT 43.59s (queue 0.00s) -> 7.04 tok/s
+[300] warm: TTFT 43.03s  warm/cold=0.99
+[300] fresh: 299 tok, TTFT 42.33s  repeat/fresh=1.02
+[300] decode run: 64 tok in 55.53s -> 5.04 tok/s; reply='OK\n\nThe morning light did not break so m'
+# NUC bench — TTFT / prefill / decode
+
+- base_url: http://127.0.0.1:8000
+- model: qwen36
+- started: 2026-08-27 13:32:57
+- decode_tokens: 64
+- cutoff_s: 300.0
+- seed: 202005
+- mode: non-streaming
+- finished: 2026-08-27 13:36:01
+
+| target | prompt tok | TTFT cold (s) | prefill tok/s | TTFT repeat (s) | TTFT fresh (s) | repeat/fresh | decode tok/s | decode run (s) | note |
+|---|---|---|---|---|---|---|---|---|---|
+| 300 | 307 | 43.6 | 7.04 | 43.0 | 42.3 | 1.02 | 5.04 | 55.5 |  |
+
+sample 5 seed=202005 start=2026-08-27T13:32:57Z end=2026-08-27T13:36:01Z
+[300] prompt 1465 chars (fit slope=0.2222 b=15.0)
+[300] cold: 298 tok, TTFT 42.41s (queue 0.00s) -> 7.03 tok/s
+[300] warm: TTFT 41.83s  warm/cold=0.99
+[300] fresh: 295 tok, TTFT 41.66s  repeat/fresh=1.00
+[300] decode run: 64 tok in 54.39s -> 5.01 tok/s; reply='OK\n\nThe morning mist clung to the surfac'
+# NUC bench — TTFT / prefill / decode
+
+- base_url: http://127.0.0.1:8000
+- model: qwen36
+- started: 2026-08-27 13:36:01
+- decode_tokens: 64
+- cutoff_s: 300.0
+- seed: 202006
+- mode: non-streaming
+- finished: 2026-08-27 13:39:02
+
+| target | prompt tok | TTFT cold (s) | prefill tok/s | TTFT repeat (s) | TTFT fresh (s) | repeat/fresh | decode tok/s | decode run (s) | note |
+|---|---|---|---|---|---|---|---|---|---|
+| 300 | 298 | 42.4 | 7.03 | 41.8 | 41.7 | 1.00 | 5.01 | 54.4 |  |
+
+sample 6 seed=202006 start=2026-08-27T13:36:01Z end=2026-08-27T13:39:02Z
+[300] prompt 1458 chars (fit slope=0.2222 b=15.0)
+[300] cold: 293 tok, TTFT 41.74s (queue 0.00s) -> 7.02 tok/s
+[300] warm: TTFT 41.12s  warm/cold=0.99
+[300] fresh: 295 tok, TTFT 42.41s  repeat/fresh=0.97
+[300] decode run: 64 tok in 53.73s -> 5.0 tok/s; reply='OK\n\nThe dawn did not break so much as it'
+# NUC bench — TTFT / prefill / decode
+
+- base_url: http://127.0.0.1:8000
+- model: qwen36
+- started: 2026-08-27 13:39:02
+- decode_tokens: 64
+- cutoff_s: 300.0
+- seed: 202007
+- mode: non-streaming
+- finished: 2026-08-27 13:42:01
+
+| target | prompt tok | TTFT cold (s) | prefill tok/s | TTFT repeat (s) | TTFT fresh (s) | repeat/fresh | decode tok/s | decode run (s) | note |
+|---|---|---|---|---|---|---|---|---|---|
+| 300 | 293 | 41.7 | 7.02 | 41.1 | 42.4 | 0.97 | 5.00 | 53.7 |  |
+
+sample 7 seed=202007 start=2026-08-27T13:39:02Z end=2026-08-27T13:42:01Z
+[300] prompt 1459 chars (fit slope=0.2222 b=15.0)
+[300] cold: 304 tok, TTFT 43.00s (queue 0.00s) -> 7.07 tok/s
+[300] warm: TTFT 42.59s  warm/cold=0.99
+[300] fresh: 298 tok, TTFT 41.90s  repeat/fresh=1.02
+[300] decode run: 64 tok in 54.75s -> 5.18 tok/s; reply='OK\n\nThe morning mist clung to the surfac'
+# NUC bench — TTFT / prefill / decode
+
+- base_url: http://127.0.0.1:8000
+- model: qwen36
+- started: 2026-08-27 13:42:01
+- decode_tokens: 64
+- cutoff_s: 300.0
+- seed: 202008
+- mode: non-streaming
+- finished: 2026-08-27 13:45:03
+
+| target | prompt tok | TTFT cold (s) | prefill tok/s | TTFT repeat (s) | TTFT fresh (s) | repeat/fresh | decode tok/s | decode run (s) | note |
+|---|---|---|---|---|---|---|---|---|---|
+| 300 | 304 | 43.0 | 7.07 | 42.6 | 41.9 | 1.02 | 5.18 | 54.7 |  |
+
+sample 8 seed=202008 start=2026-08-27T13:42:01Z end=2026-08-27T13:45:03Z
+[300] prompt 1459 chars (fit slope=0.2222 b=15.0)
+[300] cold: 312 tok, TTFT 44.87s (queue 0.00s) -> 6.95 tok/s
+[300] warm: TTFT 43.85s  warm/cold=0.98
+[300] fresh: 294 tok, TTFT 41.56s  repeat/fresh=1.06
+[300] decode run: 64 tok in 56.04s -> 5.17 tok/s; reply='OK\n\nThe morning light did not break so m'
+# NUC bench — TTFT / prefill / decode
+
+- base_url: http://127.0.0.1:8000
+- model: qwen36
+- started: 2026-08-27 13:45:03
+- decode_tokens: 64
+- cutoff_s: 300.0
+- seed: 202009
+- mode: non-streaming
+- finished: 2026-08-27 13:48:09
+
+| target | prompt tok | TTFT cold (s) | prefill tok/s | TTFT repeat (s) | TTFT fresh (s) | repeat/fresh | decode tok/s | decode run (s) | note |
+|---|---|---|---|---|---|---|---|---|---|
+| 300 | 312 | 44.9 | 6.95 | 43.8 | 41.6 | 1.06 | 5.17 | 56.0 |  |
+
+sample 9 seed=202009 start=2026-08-27T13:45:03Z end=2026-08-27T13:48:09Z
+[300] prompt 1458 chars (fit slope=0.2222 b=15.0)
+[300] cold: 300 tok, TTFT 42.61s (queue 0.00s) -> 7.04 tok/s
+[300] warm: TTFT 42.11s  warm/cold=0.99
+[300] fresh: 299 tok, TTFT 42.33s  repeat/fresh=0.99
+[300] decode run: 64 tok in 54.41s -> 5.12 tok/s; reply='OK\n\nThe morning did not break so much as'
+# NUC bench — TTFT / prefill / decode
+
+- base_url: http://127.0.0.1:8000
+- model: qwen36
+- started: 2026-08-27 13:48:09
+- decode_tokens: 64
+- cutoff_s: 300.0
+- seed: 202010
+- mode: non-streaming
+- finished: 2026-08-27 13:51:11
+
+| target | prompt tok | TTFT cold (s) | prefill tok/s | TTFT repeat (s) | TTFT fresh (s) | repeat/fresh | decode tok/s | decode run (s) | note |
+|---|---|---|---|---|---|---|---|---|---|
+| 300 | 300 | 42.6 | 7.04 | 42.1 | 42.3 | 0.99 | 5.12 | 54.4 |  |
+
+sample 10 seed=202010 start=2026-08-27T13:48:09Z end=2026-08-27T13:51:11Z
+[300] prompt 1458 chars (fit slope=0.2222 b=15.0)
+[300] cold: 300 tok, TTFT 42.44s (queue 0.00s) -> 7.07 tok/s
+[300] warm: TTFT 42.08s  warm/cold=0.99
+[300] fresh: 298 tok, TTFT 42.33s  repeat/fresh=0.99
+[300] decode run: 64 tok in 54.47s -> 5.09 tok/s; reply='OK\n\nThe morning did not break so much as'
+# NUC bench — TTFT / prefill / decode
+
+- base_url: http://127.0.0.1:8000
+- model: qwen36
+- started: 2026-08-27 13:51:11
+- decode_tokens: 64
+- cutoff_s: 300.0
+- seed: 202011
+- mode: non-streaming
+- finished: 2026-08-27 13:54:12
+
+| target | prompt tok | TTFT cold (s) | prefill tok/s | TTFT repeat (s) | TTFT fresh (s) | repeat/fresh | decode tok/s | decode run (s) | note |
+|---|---|---|---|---|---|---|---|---|---|
+| 300 | 300 | 42.4 | 7.07 | 42.1 | 42.3 | 0.99 | 5.09 | 54.5 |  |
+
+sample 11 seed=202011 start=2026-08-27T13:51:11Z end=2026-08-27T13:54:12Z
+[300] prompt 1461 chars (fit slope=0.2222 b=15.0)
+[300] cold: 293 tok, TTFT 41.35s (queue 0.00s) -> 7.09 tok/s
+[300] warm: TTFT 41.02s  warm/cold=0.99
+[300] fresh: 298 tok, TTFT 41.86s  repeat/fresh=0.98
+[300] decode run: 64 tok in 53.33s -> 5.12 tok/s; reply='OK\n\nThe sky was the color of a bruised p'
+# NUC bench — TTFT / prefill / decode
+
+- base_url: http://127.0.0.1:8000
+- model: qwen36
+- started: 2026-08-27 13:54:12
+- decode_tokens: 64
+- cutoff_s: 300.0
+- seed: 202012
+- mode: non-streaming
+- finished: 2026-08-27 13:57:10
+
+| target | prompt tok | TTFT cold (s) | prefill tok/s | TTFT repeat (s) | TTFT fresh (s) | repeat/fresh | decode tok/s | decode run (s) | note |
+|---|---|---|---|---|---|---|---|---|---|
+| 300 | 293 | 41.4 | 7.09 | 41.0 | 41.9 | 0.98 | 5.12 | 53.3 |  |
+
+sample 12 seed=202012 start=2026-08-27T13:54:12Z end=2026-08-27T13:57:10Z
+[300] prompt 1463 chars (fit slope=0.2222 b=15.0)
+[300] cold: 301 tok, TTFT 42.41s (queue 0.00s) -> 7.10 tok/s
+[300] warm: TTFT 42.13s  warm/cold=0.99
+[300] fresh: 289 tok, TTFT 40.53s  repeat/fresh=1.04
+[300] decode run: 64 tok in 54.56s -> 5.07 tok/s; reply='OK\n\nThe morning did not break so much as'
+# NUC bench — TTFT / prefill / decode
+
+- base_url: http://127.0.0.1:8000
+- model: qwen36
+- started: 2026-08-27 13:57:10
+- decode_tokens: 64
+- cutoff_s: 300.0
+- seed: 202013
+- mode: non-streaming
+- finished: 2026-08-27 14:00:10
+
+| target | prompt tok | TTFT cold (s) | prefill tok/s | TTFT repeat (s) | TTFT fresh (s) | repeat/fresh | decode tok/s | decode run (s) | note |
+|---|---|---|---|---|---|---|---|---|---|
+| 300 | 301 | 42.4 | 7.10 | 42.1 | 40.5 | 1.04 | 5.07 | 54.6 |  |
+
+sample 13 seed=202013 start=2026-08-27T13:57:10Z end=2026-08-27T14:00:10Z
+[300] prompt 1462 chars (fit slope=0.2222 b=15.0)
+[300] cold: 298 tok, TTFT 42.09s (queue 0.00s) -> 7.08 tok/s
+[300] warm: TTFT 41.74s  warm/cold=0.99
+[300] fresh: 302 tok, TTFT 42.42s  repeat/fresh=0.98
+[300] decode run: 64 tok in 53.94s -> 5.17 tok/s; reply='OK\n\nThe morning did not break so much as'
+# NUC bench — TTFT / prefill / decode
+
+- base_url: http://127.0.0.1:8000
+- model: qwen36
+- started: 2026-08-27 14:00:10
+- decode_tokens: 64
+- cutoff_s: 300.0
+- seed: 202014
+- mode: non-streaming
+- finished: 2026-08-27 14:03:10
+
+| target | prompt tok | TTFT cold (s) | prefill tok/s | TTFT repeat (s) | TTFT fresh (s) | repeat/fresh | decode tok/s | decode run (s) | note |
+|---|---|---|---|---|---|---|---|---|---|
+| 300 | 298 | 42.1 | 7.08 | 41.7 | 42.4 | 0.98 | 5.17 | 53.9 |  |
+
+sample 14 seed=202014 start=2026-08-27T14:00:10Z end=2026-08-27T14:03:10Z
+SWEEP_DONE

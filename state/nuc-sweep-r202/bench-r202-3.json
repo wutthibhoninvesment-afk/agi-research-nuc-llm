@@ -1,0 +1,33 @@
+{
+ "meta": {
+  "base_url": "http://127.0.0.1:8000",
+  "model": "qwen36",
+  "started": "2026-08-27 13:26:46",
+  "decode_tokens": 64,
+  "cutoff_s": 300.0,
+  "seed": 202003,
+  "mode": "non-streaming",
+  "finished": "2026-08-27 13:29:53"
+ },
+ "results": [
+  {
+   "target_tokens": 300,
+   "prompt_tokens": 305,
+   "prompt_chars": 1459,
+   "ttft_cold_s": 44.93697977099964,
+   "ttft_warm_s": 42.886948168000345,
+   "decode_tokens": 64,
+   "decode_run_s": 55.72068806199968,
+   "decode_tok_s": 4.908935393762879,
+   "prefill_tok_s": 6.787283025122966,
+   "warm_over_cold": 0.9543798534426139,
+   "extrapolated": false,
+   "ttft_fresh_s": 43.32589880900014,
+   "repeat_over_fresh": 0.9898686316252807,
+   "stream_ttft_s": null,
+   "stream_decode_tok_s": null,
+   "reply_text": "OK\n\nThe morning arrived not with a shout, but with a grey hush, a sleepy blanket",
+   "note": ""
+  }
+ ]
+}

@@ -1,0 +1,33 @@
+{
+ "meta": {
+  "base_url": "http://127.0.0.1:8000",
+  "model": "qwen36",
+  "started": "2026-08-27 16:28:40",
+  "decode_tokens": 64,
+  "cutoff_s": 300.0,
+  "seed": 208001,
+  "mode": "non-streaming",
+  "finished": "2026-08-27 16:35:44"
+ },
+ "results": [
+  {
+   "target_tokens": 300,
+   "prompt_tokens": 305,
+   "prompt_chars": 1464,
+   "ttft_cold_s": 83.84868988800008,
+   "ttft_warm_s": 86.00395312300024,
+   "decode_tokens": 64,
+   "decode_run_s": 94.25535042200136,
+   "decode_tok_s": 7.635070487713223,
+   "prefill_tok_s": 3.637504657584993,
+   "warm_over_cold": 1.0257041969037206,
+   "extrapolated": false,
+   "ttft_fresh_s": 74.00178651600072,
+   "repeat_over_fresh": 1.1621875250863627,
+   "stream_ttft_s": null,
+   "stream_decode_tok_s": null,
+   "reply_text": "OK\n\nThe morning began not with a sound, but with a color\u2014a vast, expansive grey ",
+   "note": ""
+  }
+ ]
+}
