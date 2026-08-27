@@ -237,6 +237,38 @@ that cannot end a statement.
   3.8 GB budget — a first real data point on how guest-level tree-walking
   cost compounds on a non-synthetic program, not pursued further this
   round.
+- **Self-hosting round 7 (round 200)** turned that single data point into a
+  curve and a root cause, safely: each probe runs in a fresh subprocess with
+  `resource.setrlimit(RLIMIT_AS, cap)` set before any Whence code runs
+  (`bench/self_host_memscale.py`), so a runaway hits a clean, immediate
+  Python `MemoryError` inside that one subprocess — enforced by the kernel
+  at allocation time, independent of what else is running — instead of
+  risking the kernel OOM-killer picking an unrelated victim on a
+  memory-tight box shared with live trading services (round 198's stated
+  reason for not attempting this live). Growing `self_host.lang`'s own
+  66-check test section one checkpoint at a time through `run_src`: 5
+  checks 112 MB, 10 → 113 MB, 15 → 126 MB, 20 → 198 MB, 25 → 259 MB, 30 →
+  366 MB, 31 → **738 MB** — one added statement (a `parse_whence` call on a
+  three-branch if/else program) roughly doubled peak RSS. Root cause,
+  confirmed by reading the interpreter, not guessed: the guest store is a
+  Whence record threaded through every step (see above), and `put`
+  (`whence/interp.py` `b_put`) does `fields = dict(r.payload.fields)` — a
+  full shallow copy of the CURRENT store on every single update, no
+  structural sharing (unlike lists, v0.6). Worse, every `derived(...)`
+  result keeps its `inputs` — including the prior, now-superseded store
+  copy — alive forever via the provenance graph (`why`/`steps` must be able
+  to trace back through it, by design), so old copies are never collected.
+  N sequential `put`s each costing O(current store size) is quadratic
+  cumulative cost by construction; a guest program with many top-level
+  statements (`self_host.lang`'s test section, not the library, is exactly
+  this shape — one `put` per statement onto an ever-growing store) is the
+  worst case. This is a quantified explanation for round 192's "1.7 GB and
+  still climbing," not a new bug — the store-copying cost was already named
+  as `self_eval.lang`'s bottleneck as far back as round 010's summary, just
+  never measured. A fix (structural sharing for records, e.g. a persistent
+  map) is a real but nontrivial interpreter change with no current
+  curriculum driver; flagged as optional future backlog, not attempted this
+  round.
 
 ## v0.6 (round 020)
 - `has(r, name)` — presence, not readability: `true` when the field exists
