@@ -159,7 +159,23 @@ def committed_per_git_log(round_num, repo_root="."):
     own text said the diff had been committed. `git log` is the only source
     that cannot be fooled by a round's own narration — grep it, don't trust
     the prose, even when the prose is sitting on disk in a place that looks
-    authoritative."""
+    authoritative.
+
+    One more false-positive shape, found live for round 197 (round 213):
+    a LATER round's own housekeeping commit can mention round N purely to
+    explain that round N itself failed to commit anything — e.g. round
+    198's `3eaf50a "...covers rounds 197-198, left uncommitted by round
+    197"` — which is the exact opposite of evidence that round N landed.
+    The bare substring match above reads that as `True`. `_NOT_COMMITTED_RE`
+    excludes a line from counting as evidence when it explicitly says round
+    N is the one who LEFT something uncommitted; if that is the only
+    matching line, the verdict correctly falls through to `False`. This is
+    deliberately narrow (matches only "left uncommitted by round N") rather
+    than a general sentiment classifier — a phrase like round 155's own
+    "land ...fix, uncommitted since round 155" describes a *different*
+    round (201) actually landing round 155's real work and must stay
+    `True`; that phrasing doesn't match `_NOT_COMMITTED_RE` so it isn't
+    affected."""
     try:
         out = subprocess.run(
             ["git", "-C", repo_root, "log", "--all", "--oneline"],
@@ -170,7 +186,11 @@ def committed_per_git_log(round_num, repo_root="."):
     if out.returncode != 0:
         return None
     pattern = re.compile(r"round\s+%d\b" % round_num, re.IGNORECASE)
-    return any(pattern.search(line) for line in out.stdout.splitlines())
+    not_committed_pattern = re.compile(
+        r"left\s+uncommitted\s+by\s+round\s+%d\b" % round_num, re.IGNORECASE)
+    matches = [line for line in out.stdout.splitlines() if pattern.search(line)]
+    evidence = [line for line in matches if not not_committed_pattern.search(line)]
+    return bool(evidence)
 
 
 def main():

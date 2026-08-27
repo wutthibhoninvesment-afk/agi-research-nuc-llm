@@ -226,6 +226,42 @@ def test_committed_per_git_log_true_when_subject_mentions_round(tmp_path):
     assert m.committed_per_git_log(1840, str(tmp_path)) is False
 
 
+def test_committed_per_git_log_false_for_left_uncommitted_by_mention(tmp_path):
+    # A LATER round's housekeeping commit can mention round N purely to
+    # explain that round N itself failed to commit anything (round 197,
+    # found live round 213) — the opposite of evidence round N landed.
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t.com"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=tmp_path, check=True)
+    (tmp_path / "a.txt").write_text("x")
+    subprocess.run(["git", "add", "a.txt"], cwd=tmp_path, check=True)
+    subprocess.run(
+        ["git", "commit", "-q", "-m",
+         "Round 198: bump round_counter to 198 "
+         "(covers rounds 197-198, left uncommitted by round 197)"],
+        cwd=tmp_path, check=True)
+    assert m.committed_per_git_log(197, str(tmp_path)) is False
+    # round 198 itself IS the commit's own leading round number — stays True.
+    assert m.committed_per_git_log(198, str(tmp_path)) is True
+
+
+def test_committed_per_git_log_true_when_a_later_round_actually_lands_it(tmp_path):
+    # Contrast case: "uncommitted since round N" where the commit's main
+    # verb is landing round N's real work (round 155, landed by round 201)
+    # must NOT be swept up by the narrower exclusion above.
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t.com"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=tmp_path, check=True)
+    (tmp_path / "a.txt").write_text("x")
+    subprocess.run(["git", "add", "a.txt"], cwd=tmp_path, check=True)
+    subprocess.run(
+        ["git", "commit", "-q", "-m",
+         "Round 201 (skills B): land SWE-loop(D)'s stale-coverage-map fix, "
+         "uncommitted since round 155"],
+        cwd=tmp_path, check=True)
+    assert m.committed_per_git_log(155, str(tmp_path)) is True
+
+
 def test_gap_reports_git_committed_false_and_flags_unverified_claim(tmp_path):
     driver_log = tmp_path / "driver.log"
     _write_driver_log(str(driver_log), [

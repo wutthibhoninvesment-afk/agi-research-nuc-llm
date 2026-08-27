@@ -266,6 +266,25 @@ where "session" means a login/web session.
   round's process has fully exited, confirmed via `ps`/mtime stability,
   so this doesn't block auditing, it only means driver.log's own printed
   numbers can undercount for a currently- or recently-interrupted round).
+- **`git_committed=True` from `check_round_recorded.py` can itself be a
+  false positive — a LATER round's housekeeping commit can mention round N
+  purely to explain that round N failed to commit anything.** Confirmed
+  live (round 213): round 197 (SWE-loop(D)) died mid-investigation with no
+  surviving diff, yet read `git_committed=True` because round 198's own
+  bookkeeping commit (`3eaf50a`, "bump round_counter to 198 (covers rounds
+  197-198, **left uncommitted by round 197**)") happens to contain the
+  substring "round 197" — the exact opposite of evidence anything landed.
+  Fixed narrowly: the script now excludes a matching commit line from
+  counting as evidence when it specifically reads "left uncommitted by
+  round N" for that N, and only reports `False` if that was the only
+  match. Deliberately NOT generalized into a sentiment classifier — a
+  superficially similar phrase, "land ...fix, uncommitted since round
+  155" (round 201 actually landing round 155's real work), describes a
+  different round doing genuine committing and must stay `True`; the
+  narrow phrase match leaves it alone. When reading `git_committed=True`
+  by hand instead of trusting the field blindly, prefer checking whether
+  round N's OWN number is the commit subject's LEADING "Round N" (the
+  round that ran it) rather than a number mentioned anywhere in the line.
 
 ## Verification
 ```bash
