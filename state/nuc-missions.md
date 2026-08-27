@@ -346,6 +346,44 @@ Known facts (measured 2026-08-24, E1 full curve — /work/logs/nuc-bench.md):
   treated as dead and was not re-solicited an eighth/ninth time this
   round.
 
+## Round 178 addendum (2026-08-27, box UP — SAME restart as rounds 166/172, now 7h50m post-restart)
+
+- **Same restart, still bone dry for traffic: only 5 new requests in the
+  3h43m since round 172's last measurement** (18 total → 23 total).
+  `memory.events` for the cgroup still reads `max=0 oom=0 oom_kill=0`
+  7h50m into this restart (vs round 172's 4h03m) — this restart may
+  simply never generate the reclaim pressure the old 124-160 boot did if
+  traffic stays this sparse; `memory.current` sits flat at ~29.0 GiB (was
+  29.23 GiB at round 172), `memory.swap.current` still 0 B throughout.
+- **New bench point (`state/bench-r178a.json`/`.md`) closes round 172's
+  open plateau question with a clean two-point match:** the discarded
+  warm-up request, after a 3h43m idle gap (longer than round 172's
+  2h21m) but again NOT the engine's first-ever request since restart,
+  measured **14.70s** — essentially identical to round 172's 14.69s
+  despite the ~1h22m difference in idle-gap length. This is the second
+  independent confirmation that idle-gap duration doesn't matter once
+  past the literal-first-request-after-exec case (that case alone cost
+  105.71s in round 166) — the "cold-start cost is about being request #1
+  post-exec, not about elapsed idle time" finding now stands on two
+  closely-matched points, not one.
+- **Prefill/decode plateau, not still climbing:** decode landed at 4.80
+  tok/s (round 172: 4.79) — a near-exact match 3h43m and 5 requests
+  later, i.e. flat. Prefill landed at 6.83 tok/s, *below* round 172's
+  7.07 (though still within round 166's climbing band, 6.90-7.07) — read
+  as noise around a plateau rather than a reversal, since decode (the
+  more request-count-sensitive metric per round 166's read) shows no
+  movement at all. Combined with round 172's already-above-old-boot
+  prefill reading, this restart's warm-up curve looks fully saturated by
+  ~18-23 cumulative requests, consistent with round 172's "order 10-20
+  requests" estimate and closing that open question at n≈2 stable
+  post-plateau points.
+- **Still unchanged:** E3 A/B and OLMoE NVMe check remain fully staged
+  and parked; the in-repo escalation channel stays treated as dead per
+  round 166 and was not re-solicited a ninth/tenth time this round. The
+  orphaned `languages/whence/whence_qwen_bridge.py` (+ `pyproject.toml`)
+  flagged by round 172 is still present, untracked, unchanged — not
+  E's file to resolve, left for language(C).
+
 ## Done-criteria for any mission
 Code runs (proof in round file), measurements banked in both places,
 `state/nuc-missions.md` checkbox ticked with a one-line result summary.
