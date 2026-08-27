@@ -165,13 +165,18 @@ def test_example_runs_green():
 
 
 def test_parser_section_matches_self_host():
-    # the guest lexer+parser is self_host.lang lines 28..539, verbatim;
+    # the guest lexer+parser is self_host.lang lines 28..561, verbatim;
     # if one file changes, the other must change with it (round 158: grew
     # from 420 to 485 lines adding `: Type`/`-> Type` guest parity; round
     # 164: 485 to 533 adding `effects [...]` clause skipping; round 176:
-    # 533 to 539 adding "guess" to the shared primitive-tag list)
+    # 533 to 539 adding "guess" to the shared primitive-tag list; round 192:
+    # 539 to 561 adding the token-continuation half of the newline-
+    # suppression rule (`suppressed()` was bracket-depth-only, missing the
+    # host's CONTINUES/CONTINUE_KWS check — found by running self_eval.lang's
+    # guest evaluator ON self_host.lang's own source, the first genuine
+    # "evaluator interprets the parser" self-hosting run)
     host_lines = open(SELF_HOST).read().splitlines()
-    section = "\n".join(host_lines[27:539])
+    section = "\n".join(host_lines[27:561])
     assert section.startswith("# ---- character classes")
     assert section.rstrip().endswith(
         "fn parse_whence(src) { parse_program(lex_all(src)) }")
@@ -356,6 +361,56 @@ def test_dot_field_access_on_callable_mirrors_host_label():
     assert "field cannot access .b on <fn adder>" in g, sorted(g)
     assert g - h == set(), "guest invented ops the host never used: %s (guest=%s host=%s)" % (
         sorted(g - h), sorted(g), sorted(h))
+
+
+def test_sure_on_a_plain_value_is_a_pass_through_not_a_bespoke_node():
+    """Round 192->194: the guest-differential why-shape fuzzer (seed 9205,
+    `harness/swe/guest.py`) found `sure([], 0.0)` — a plain, non-Guess
+    value, threshold irrelevant — diverging: guest-only op `literal` vs
+    host ops `{let, list}`. `sure`'s host implementation (interp.py
+    `b_sure`) is a PASS-THROUGH when its value was never a Guess ("already
+    certain: sure() is a no-op escape hatch") — no new provenance node at
+    all, so the host derivation for `let v = sure([], 0.0)` is exactly the
+    same two nodes as `let v = []` (`let` + the list literal's own `list`
+    node). Before this round `sure` fell through to `apply_builtin`'s
+    generic catch-all, which unconditionally wraps a fresh "sure" box
+    (labelled "literal" once reified — the box's raw payload, an empty
+    list, has no host-mirroring op of its own to report), regardless of
+    whether the host itself created a node. Fixed with a dedicated
+    `apply_builtin` branch mirroring `typed`'s existing pass-through
+    shape."""
+    cases = [
+        'let result = @{c: sure([], 0.0)}',                  # list, seed 9205027725
+        'let result = @{c: sure((@{} rescue 0), 1.0)}',       # record, seed 9205027720
+        'let result = @{c: sure(5, 0.9)}',                    # num
+        'let result = @{c: sure("s", 0.0)}',                  # str
+    ]
+    for src in cases:
+        h = host_labels(host_eval(src))
+        g = guest_labels(guest_box(src))
+        assert "sure" not in g, (src, sorted(g))
+        assert g - h == set(), (
+            "guest invented ops the host never used: %s (src=%r guest=%s host=%s)"
+            % (sorted(g - h), src, sorted(g), sorted(h)))
+
+
+def test_sure_below_threshold_and_bad_threshold_still_derive_a_sure_node():
+    # the two branches that DO create a real host "sure" node (a genuine
+    # Guess below threshold, and an invalid threshold) must still show up
+    # as a "sure"-headed label on both sides — only the plain-value
+    # pass-through above should vanish. Full label text is NOT required to
+    # match (guest.py's own module docstring: "miss REASON wordings differ
+    # between host and guest" by design) — only the bare leading op token,
+    # the same granularity the why-shape oracle itself checks.
+    cases = [
+        'let result = @{c: sure(guess(5, 0.2, "s"), 0.9)}',   # below threshold
+        'let result = @{c: sure(5, 7)}',                      # bad threshold
+    ]
+    for src in cases:
+        h = host_labels(host_eval(src))
+        g = guest_labels(guest_box(src))
+        assert any(l.split(" ")[0] == "sure" for l in h), (src, sorted(h))
+        assert any(l.split(" ")[0] == "sure" for l in g), (src, sorted(g))
 
 
 def guest_origin(rec):

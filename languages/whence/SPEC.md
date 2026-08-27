@@ -203,6 +203,40 @@ that cannot end a statement.
   miss *wordings* may differ (arity/callable messages), `==` on records
   containing closures compares structurally in the guest, and a guest
   record with a `__tag` field can spoof a callable (open-record leak).
+- **Self-hosting round 6 (round 192)** ran the guest evaluator ON the guest
+  lexer/parser's own real source for the first time — not a hand-picked
+  corpus snippet, `self_host.lang`'s actual ~680-line file, feeding
+  `self_eval.lang`'s `run_src` two full levels of tree-walking
+  interpretation deep. This found a real bug the fuzzer had 20+ rounds to
+  catch and never did: `self_host.lang`'s hand-copied `suppressed()`
+  newline-continuation check only implemented HALF of `whence/lexer.py`'s
+  rule (bracket depth), missing the other half — a newline right after a
+  token that "cannot end a statement" (an operator, `=`, `:`, `,`, or
+  `and`/`or`/`not`/`rescue`) is ALSO a continuation, independent of
+  brackets. `self_host.lang`'s own multi-line `check "label":\n  expr`
+  style (and `effects.lang`'s, see below) round-trips fine under the HOST
+  but was an unconditional `parse_error` under the GUEST — invisible to
+  every fuzz run because the fuzzer's printer never emits a bare trailing
+  operator/colon/keyword followed by a real newline. Fixed with a
+  `last_continues(acc)` helper (checks the last emitted token's `t`/`v`
+  against a `continue_ops`/`continue_kws` list) OR'd into `suppressed`,
+  mirrored byte-identically in both `self_host.lang` and `self_eval.lang`'s
+  shared parser section (`test_parser_section_matches_self_host` pins the
+  line range, now 27..561). Confirmed at both levels: the guest parser
+  called directly on the full source (`tests/test_self_hosting.py::
+  test_guest_parser_parses_its_own_full_source`, pins 154 top-level
+  statements) and the guest EVALUATOR interpreting the parser as guest
+  closures (`test_guest_evaluator_executes_self_host_library`). As a side
+  effect this also closes round 164's old backlog item — `effects.lang`'s
+  own `check "...":\n  expr` line was the exact same bug, and now parses
+  and evaluates cleanly under the guest (`test_effects_lang_runs_under_the_
+  guest_round_164_backlog_closed`). A full run of `self_host.lang`'s ENTIRE
+  66-check test section through `run_src` (guest-evaluating the guest's own
+  full test suite, not just its library) was attempted and abandoned: RSS
+  passed 1.7 GB and was still climbing after 3 minutes on this machine's
+  3.8 GB budget — a first real data point on how guest-level tree-walking
+  cost compounds on a non-synthetic program, not pursued further this
+  round.
 
 ## v0.6 (round 020)
 - `has(r, name)` — presence, not readability: `true` when the field exists
@@ -930,6 +964,24 @@ that cannot end a statement.
   unwrapped answer via `sure(_, 0)` only, ignoring confidence/sources —
   mirroring the host `deep_eq`'s own case, used when a Guess sits inside a
   container rather than at top level).
+- **Round 194 fixed a guest parity bug the round-176 work above shipped**,
+  found by the why-shape differential fuzzer (seed 9205): `sure([], 0.0)` —
+  a plain, non-Guess value, threshold irrelevant — diverged, guest op
+  `literal` vs host ops `{let, list}`. The host's `sure` (`b_sure`) is a
+  PASS-THROUGH when its value was never a Guess ("already certain: `sure`
+  is a no-op escape hatch") — no new provenance node at all, so `let v =
+  sure([], 0.0)` derives exactly the same two nodes as `let v = []`. Before
+  this fix `sure` fell to `apply_builtin`'s generic catch-all, which always
+  synthesizes a fresh "sure" box regardless of whether the host did.
+  `sure` moved out of the generic `guess`/`is_guess`/`confidence`/`sure`
+  delegation group (that group's own no-closure-guard comment was corrected
+  accordingly) into its own `apply_builtin` branch with an explicit
+  pass-through case, mirroring `typed`'s existing shape. The Guess-ABOVE-
+  threshold pass-through case (unwraps to `g.node` on the host) is
+  deliberately NOT special-cased — no fuzzer finding on that path yet, and
+  a Guess arriving already-flattened (re-guessed, or threaded through a
+  function parameter) has no local guest box to point at; left as real,
+  narrower backlog rather than built ahead of evidence.
 - **`"guess"` joined `guest_primitive_types`** (both `self_eval.lang` and
   `self_host.lang`, which must stay byte-identical in their shared
   parser section — `test_parser_section_matches_self_host` pins the line

@@ -54,12 +54,34 @@ fn slice(s, i, j) { if i >= j { "" } else { s[i] + slice(s, i + 1, j) } }
 # the stack is "(" "[" or "@{" — NOT inside plain "{" blocks, so a block body
 # still statement-separates on newlines even nested inside a call's parens
 # (`map(fn(x) { x * 2\n x }, xs)` keeps the block's internal newline).
+# SECOND suppression path, found only by self-hosting round 6 (round 192):
+# a newline is ALSO a continuation right after a token that "cannot end a
+# statement" — an operator, `=`, `:`, `,`, or `and`/`or`/`not`/`rescue` —
+# independent of bracket depth (whence/lexer.py's own `CONTINUES`/
+# `CONTINUE_KWS`, module docstring). This guest lexer had only the
+# bracket-depth half of the rule; every hand-written example that splits a
+# `check "label":` across two lines (self_host.lang's OWN test section,
+# lines 556-557) round-trips fine under the HOST but was an unconditional
+# parse_error under the guest — invisible to 20+ rounds of guest-differential
+# fuzzing because the fuzzer's printer never emits a bare trailing operator/
+# colon/keyword followed by a real newline (see round-192 knowledge file).
 fn top_of(stack) { if len(stack) == 0 { "" } else { stack[len(stack) - 1] } }
 fn pop_last(xs) { list_slice(xs, 0, len(xs) - 1) }
 fn list_slice(xs, i, j) { if i >= j { [] } else { [xs[i]] + list_slice(xs, i + 1, j) } }
-fn suppressed(stack) {
+let continue_ops = ["+", "-", "*", "/", "%", ",", ":", "=", "<", ">",
+                     "==", "!=", "<=", ">=", "->"]
+let continue_kws = ["and", "or", "not", "rescue"]
+fn last_continues(acc) {
+  if len(acc) == 0 { false }
+  else {
+    let last = acc[len(acc) - 1]
+    (last.t == "op" and contains(continue_ops, last.v)) or
+      (last.t == "kw" and contains(continue_kws, last.v))
+  }
+}
+fn suppressed(stack, acc) {
   let t = top_of(stack)
-  t == "(" or t == "[" or t == "@{"
+  t == "(" or t == "[" or t == "@{" or last_continues(acc)
 }
 
 fn lex_str_body(s, i, acc) {
@@ -87,7 +109,7 @@ fn lex(s, i, stack, acc, line) {
   else if s[i] == "#" { lex(s, scan_while(s, i, fn(c) { c != "\n" }), stack, acc, line) }
   else if s[i] == "\n" {
     let last_is_nl = len(acc) > 0 and acc[len(acc) - 1].t == "nl"
-    if suppressed(stack) or last_is_nl or len(acc) == 0 {
+    if suppressed(stack, acc) or last_is_nl or len(acc) == 0 {
       lex(s, i + 1, stack, acc, line + 1)
     } else {
       lex(s, i + 1, stack, push(acc, @{t: "nl", v: "\n", line: line}), line + 1)
@@ -559,6 +581,24 @@ check "lexer newline NOT suppressed inside a block nested in parens":
   contains(map(fn(t) { t.t }, lex_all("f(fn(x) { x\nx })")), "nl")
 check "lexer record-open pushes bracket": (lex_all("@{"))[0].v == "@{"
 check "lexer bad character reported": contains(str((lex_all("`"))[0].v), "unexpected character")
+
+# round 192: token-continuation suppression (mirrors whence/lexer.py's
+# CONTINUES/CONTINUE_KWS, independent of bracket depth entirely)
+check "newline after a binary op is a continuation, no brackets involved":
+  not contains(map(fn(t) { t.t }, lex_all("1 +\n2")), "nl")
+let plus_split = parse_whence("1 +\n2")
+check "...and it still parses as one statement, not two":
+  not missed(plus_split) and len(plus_split.stmts) == 1 and
+    ((plus_split.stmts[0]).expr).op == "+"
+check "newline after ':' is a continuation (check-label style)":
+  not contains(map(fn(t) { t.t }, lex_all("check \"x\":\n  1 == 1")), "nl")
+check "newline after '=' is a continuation (let style)":
+  not contains(map(fn(t) { t.t }, lex_all("let x =\n5")), "nl")
+check "newline after 'and'/'or'/'not'/'rescue' is a continuation":
+  not contains(map(fn(t) { t.t }, lex_all("true and\nfalse")), "nl") and
+  not contains(map(fn(t) { t.t }, lex_all("1 rescue\n2")), "nl")
+check "newline after a NAME (ordinary statement end) is still a separator":
+  contains(map(fn(t) { t.t }, lex_all("x\ny")), "nl")
 
 # ---- tests: parser, structural -------------------------------------------
 fn body_expr(block) { (block.stmts[len(block.stmts) - 1]).expr }
