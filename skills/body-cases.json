@@ -317,5 +317,22 @@
       ]
     },
     "note": "engine-prefix-reuse-audit's pitfall: strict continuation (prompt-end snapshot) is not agent-safe because a client that re-renders the prior assistant turn breaks byte-identity every time; evidence: names the client-side re-render/strip as the cause and recommends anchoring the reuse snapshot at the assistant-turn boundary via the real longest-common-prefix, not the raw prompt end"
+  },
+  {
+    "id": "body-sia-external-agent",
+    "expect": [
+      "session-inheritance-audit"
+    ],
+    "prompt": "I'm picking up an autonomous coding driver's workspace after its last round crashed. `ps aux | grep -i claude` (the driver's own process name) shows nothing running, so I concluded the tree is idle and started editing. Then I noticed two new files in an output folder nobody on this project wrote: they call helper functions that don't exist anywhere in our own codebase and use a comment style nothing else here uses. Their file-creation timestamps line up almost exactly with when an unrelated `nightly-sync` service account process (completely separate from the coding driver, but running on the same box with write access to this checkout) started. Was grepping for the driver's own process name enough to call the tree idle, and what should I actually have checked first?",
+    "body": {
+      "files": [],
+      "evidence": [
+        "grep(ping)?.{0,30}(driver|claude).{0,30}(alone|only|not enough|isn't enough|insufficient)|only (checked|checks) (the )?driver",
+        "(other|another|separate|different).{0,20}(process|agent|service)",
+        "(birth|creation|start).{0,15}time.{0,30}(correlat|line up|match|coincide)|timestamp.{0,20}(correlat|line up|match)",
+        "flag|leave (it |them )?alone|not (this|your|the driver'?s?) (program'?s?|track'?s?) (bug|responsibility|job)|don'?t fix"
+      ]
+    },
+    "note": "session-inheritance-audit's step-1b generalization (round 201, evidenced by round 198's real finding): 'who else is alive' covers ANY process sharing the filesystem, not only peer rounds of the same driver -- ps-grepping only the driver's own process name misses an entirely separate autonomous agent writing unattributed files; evidence: names the driver-name-only ps check as insufficient, calls for checking for other processes/agents, uses file-birth-time-vs-process-start correlation as evidence, and recommends flagging/leaving such files alone rather than fixing them as this program's own bug"
   }
 ]

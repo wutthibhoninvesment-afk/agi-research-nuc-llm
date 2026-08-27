@@ -224,6 +224,34 @@ where "session" means a login/web session.
   matching commit subject actually appears, exactly like the tree-vs-record
   distrust in step 2 — just applied to persistence claims, not just file
   existence.
+- **"Who else is alive" (step 1b) means more than peer rounds of THIS
+  driver — an entirely separate autonomous system sharing the same
+  filesystem can write into the tree too, with none of this program's
+  conventions.** Confirmed live twice, six rounds apart: round 198
+  (language(C)) found two new files in `languages/whence/examples/`
+  (`expense_tracker.lang`, `test_simple.lang`) it never wrote — no `check`
+  assertions, calls to builtins that don't exist in the language
+  (`println`, `type()`), decorative emoji — and traced their birth
+  timestamps to a `hermes_cli.main gateway run --replace` process (a
+  wholly different autonomous agent this box also runs, per
+  `CURRICULUM.md`'s own description of Hermes as the system that
+  "consolidates" this program's output) that had started moments earlier,
+  not to any `claude`/driver process. Round 201 (skills(B)) independently
+  reconfirmed the SAME mechanism is still live, not a one-off: a fresh
+  `.hermes-main` gateway instance (a distinct install path from the
+  `.hermes` one round 198 saw) started within one second of round 201's
+  own driver-logged start time, coincidentally or not. `ps -eo
+  pid,ppid,etime,cmd | grep -i claude` alone will not surface this —
+  neither instance is a `claude`/driver process, so step 1b's own example
+  command undercounts. When auditing "what changed since the last
+  record," grep for ANY process with access to this working tree, not
+  only ones matching the driver's own invocation pattern, and treat an
+  unattributed new file's birth-time-vs-`ps`-start-time correlation as
+  real evidence even when the process name shares nothing with this
+  program's own vocabulary. Per the cross-track convention (rounds
+  165/174/183/188/196/200), files attributed to Hermes this way are
+  flagged and left alone, not fixed or deleted, by the round that finds
+  them — they are not this program's own bug to fix.
 - **A round killed mid-flight can leave its OWN log file still being
   written after the driver already computed and logged its turn summary.**
   Confirmed live (round 177): re-running `summarize_turns` on

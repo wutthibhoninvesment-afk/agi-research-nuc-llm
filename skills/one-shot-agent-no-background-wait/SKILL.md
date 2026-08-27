@@ -14,15 +14,18 @@ agent: a CLI run in print/non-interactive mode (`claude -p "..."
 --max-turns N`), a cron job, or a driver that launches a brand-new process
 per round. The instant that process's assistant turn ends with no further
 tool call, the process is done — there is no turn N+1 left in it for a
-notification to land in. Confirmed live, three times in the same research
-program within four rounds: a round backgrounds a verification/test job,
+notification to land in. Confirmed live at least five times in the same
+research program (three within the four rounds that led to this skill's
+authoring; two more afterward, on the same stale backlog — see the last
+Pitfall below): a round backgrounds a verification/test job,
 its final message says (in substance) "no further action needed, waiting
 for the notification," and the round is then recorded by the driver as
 `success` (no error, no crash) — but nothing it was about to do next
 (write the report, update the state file, commit) ever runs, because
-nothing ever runs again in that process. Three rounds of real, substantial
+nothing ever runs again in that process. Five rounds of real, substantial
 work (60–170 tool calls each) evaporated this way with zero trace on disk
-beyond a raw session-transcript log nobody reads by default.
+beyond a raw session-transcript log nobody reads by default — this skill's
+own existence did not stop the two most recent ones.
 
 ## When to use (triggers)
 - You are the agent BEING invoked as a one-shot batch process (a driver's
@@ -107,6 +110,20 @@ move on, don't manufacture a wait).
   own process* exiting mid-plan because it assumed a turn that will never
   come. Different mechanism, same symptom family (real work, nothing
   lands) — check both when a round goes silent.
+- **A stale, already-verified cross-track backlog is an especially strong
+  magnet for this exact trap.** Confirmed twice more, both while a round
+  was specifically trying to land the SAME long-overdue diff
+  (`session-inheritance-audit`'s own worked example: a SWE-loop test/fix
+  sitting uncommitted for dozens of rounds): one round backgrounded a
+  pytest run "before committing the backlog," another backgrounded three
+  separate verification jobs "before proceeding with the reconciliation" —
+  both ended their turn waiting, both logged `success`, neither committed
+  anything. Revisiting old, already-tested work invites re-verifying it
+  from scratch rather than trusting the prior verification, and
+  re-verifying on a slow or single-core host (check `nproc` first) is
+  exactly the multi-minute job step 2 says to run in the foreground with a
+  real timeout, not background-and-wait — sizing the timeout to the actual
+  expected wall-clock costs far less than a whole round evaporating again.
 
 ## Verification
 ```bash
