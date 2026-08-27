@@ -21,10 +21,18 @@ one command with a non-zero exit code when something is missing.
 
 Usage:
     python3 check_round_recorded.py [--driver-log PATH] [--state PATH]
-        [--knowledge-dir DIR] [--round-logs-dir DIR] [--since N]
+        [--knowledge-dir DIR] [--round-logs-dir DIR] [--repo-root DIR]
+        [--since N]
 
 Exit codes: 0 = every round the driver log shows starting also has a
 research-state.md entry; 1 = at least one gap found; 2 = usage/IO problem.
+
+Each reported gap also carries `git_committed` (True/False/None): a
+best-effort `git log --all --oneline` grep for "round N" in a commit
+subject. This catches a round whose OWN text (a knowledge file, a state
+file addendum) claims it ran `git commit` when the tool call never
+actually landed — confirmed live twice (rounds 182 and 184, neither killed
+mid-flight; see `committed_per_git_log`'s docstring below).
 """
 
 import argparse
@@ -32,6 +40,7 @@ import glob
 import json
 import os
 import re
+import subprocess
 import sys
 
 # Repo root is three levels up from this script (scripts/ ->
@@ -135,12 +144,45 @@ def ended_on_dangling_wait(round_log_path):
     return any(p in last for p in DANGLING_WAIT_PHRASES)
 
 
+def committed_per_git_log(round_num, repo_root="."):
+    """Best-effort check: does any commit's subject line mention this round
+    number (e.g. "Round 184 (...")? Returns True/False, or None if git or a
+    repo isn't available (e.g. a bare tmp-dir test fixture) — a round can
+    write real, disk-persisted prose CLAIMING it ran `git commit` (a state
+    file addendum, a knowledge file's own opening note) without the commit
+    tool call ever actually landing. Confirmed live twice, independently:
+    round 182 (language(C), see knowledge/round-188-*.md) and round 184
+    (NUC-integration(E), see this round's own knowledge file) both ended
+    cleanly (driver log: round 182 status=error:max_turns/interrupted=false,
+    round 184 status=success/interrupted=false — NEITHER was killed
+    mid-flight) yet left real, tested diffs sitting uncommitted while their
+    own text said the diff had been committed. `git log` is the only source
+    that cannot be fooled by a round's own narration — grep it, don't trust
+    the prose, even when the prose is sitting on disk in a place that looks
+    authoritative."""
+    try:
+        out = subprocess.run(
+            ["git", "-C", repo_root, "log", "--all", "--oneline"],
+            capture_output=True, text=True, timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if out.returncode != 0:
+        return None
+    pattern = re.compile(r"round\s+%d\b" % round_num, re.IGNORECASE)
+    return any(pattern.search(line) for line in out.stdout.splitlines())
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--driver-log", default="logs/driver.log")
     ap.add_argument("--state", default="state/research-state.md")
     ap.add_argument("--knowledge-dir", default="knowledge")
     ap.add_argument("--round-logs-dir", default="logs")
+    ap.add_argument("--repo-root", default=".",
+                     help="repo root to run `git log` against for the "
+                          "commit cross-check (best-effort; degrades to "
+                          "git_committed=None if not a git repo)")
     ap.add_argument("--since", type=int, default=0,
                      help="ignore rounds numbered below this")
     args = ap.parse_args()
@@ -172,6 +214,7 @@ def main():
             "has_knowledge_file": in_knowledge,
             "ended_on_dangling_wait": dangling,
             "interrupted": interrupted,
+            "git_committed": committed_per_git_log(n, args.repo_root),
         })
 
     if not gaps:
@@ -182,14 +225,18 @@ def main():
     print("check_round_recorded: %d round(s) ran per the driver log with "
           "NO research-state.md entry:" % len(gaps))
     for g in gaps:
-        flag = ""
+        flags = []
         if g["ended_on_dangling_wait"]:
-            flag = "  <-- ended on a dangling background wait (see " \
-                   "one-shot-agent-no-background-wait)"
+            flags.append("ended on a dangling background wait (see "
+                          "one-shot-agent-no-background-wait)")
+        if g["git_committed"] is False:
+            flags.append("NOT in git log — any claim in this round's own "
+                          "text that it committed is unverified/false")
+        flag = ("  <-- " + "; ".join(flags)) if flags else ""
         print("  round %s track=%s status=%s knowledge_file=%s "
-              "interrupted=%s%s" % (
+              "interrupted=%s git_committed=%s%s" % (
                   g["round"], g["track"], g["status"], g["has_knowledge_file"],
-                  g["interrupted"], flag,
+                  g["interrupted"], g["git_committed"], flag,
               ))
     return 1
 

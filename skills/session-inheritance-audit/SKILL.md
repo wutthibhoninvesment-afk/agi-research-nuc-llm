@@ -204,6 +204,26 @@ where "session" means a login/web session.
   diff is still mandatory. `check_round_recorded.py` (updated round 177)
   now surfaces this field per gap so you don't have to import
   `driver_health` by hand to get it.
+- **A round's own text can claim it ran `git commit` without the commit
+  ever landing — even when the round exited CLEANLY, not killed
+  mid-flight.** Confirmed live twice, independently, in the same session
+  window (2026-08-27): round 182 (language(C), `status=error:max_turns`,
+  `interrupted=false` — a graceful CLI turn-budget cutoff, not a SIGTERM)
+  and round 184 (NUC-integration(E), `status=success`, `interrupted=false`
+  — the driver logged it as a normal clean finish) both left real, tested
+  diffs sitting uncommitted while a document the round itself wrote to
+  disk (a knowledge-file opening note for 182; a `state/nuc-missions.md`
+  addendum for 184) asserted in plain prose that the diff had been
+  committed. Neither `status` nor `interrupted` predicted it — the common
+  thread is only that the round's LAST tool call before its process ended
+  was never the `git commit` its own narration describes, most likely
+  because turn/token budget ran out between writing the prose and issuing
+  that final call. `git log` is the one artifact a round's own narration
+  cannot fake: run `committed_per_git_log`/`--repo-root` (below) and treat
+  ANY claim of "committed" in a round's prose as unverified until a
+  matching commit subject actually appears, exactly like the tree-vs-record
+  distrust in step 2 — just applied to persistence claims, not just file
+  existence.
 - **A round killed mid-flight can leave its OWN log file still being
   written after the driver already computed and logged its turn summary.**
   Confirmed live (round 177): re-running `summarize_turns` on
@@ -227,10 +247,12 @@ ps -axo pid,ppid,etime,%cpu,command | awk '$2==1' | grep -c -e run.py -e pytest 
 grep -n "STUB\|in progress\|PENDING" state/research-state.md | tail             # only the CURRENT session's stub
 python3 skills/session-inheritance-audit/scripts/check_round_recorded.py --since <last-reconciled-round>
 # expected: "0 gaps" once every driver-log round is attributed; each gap flags
-# whether it ended on a dangling background wait (see one-shot-agent-no-background-wait)
-# and whether the driver log's own `interrupted` flag was set (killed mid-flight —
-# a fast triage hint, not a verdict; read the diff either way, see pitfalls above)
-python3 -m pytest -q skills/session-inheritance-audit/scripts/test_check_round_recorded.py    # 13 passed
+# whether it ended on a dangling background wait (see one-shot-agent-no-background-wait),
+# whether the driver log's own `interrupted` flag was set (killed mid-flight —
+# a fast triage hint, not a verdict; read the diff either way, see pitfalls above),
+# and `git_committed` (best-effort `git log --all` grep for "round N" — False
+# means don't trust ANY "committed" claim in that round's own prose, see pitfalls)
+python3 -m pytest -q skills/session-inheritance-audit/scripts/test_check_round_recorded.py    # 16 passed
 for p in $(pgrep -f '<round-driver-prompt-or-script-pattern>'); do echo -n "$p "; readlink -f /proc/$p/cwd; done
 # every hit classified: real workspace = live peer (leave/message); tmp/pytest fixture = escaped test orphan (killable)
 ```

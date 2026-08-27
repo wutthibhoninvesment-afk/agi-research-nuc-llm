@@ -207,6 +207,57 @@ def test_summarize_turns_import_resolves_to_real_harness_module():
     assert m._summarize_turns is not None
 
 
+def test_committed_per_git_log_none_when_not_a_repo(tmp_path):
+    assert m.committed_per_git_log(184, str(tmp_path)) is None
+
+
+def test_committed_per_git_log_true_when_subject_mentions_round(tmp_path):
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t.com"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=tmp_path, check=True)
+    (tmp_path / "a.txt").write_text("x")
+    subprocess.run(["git", "add", "a.txt"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "Round 184 (NUC E): did stuff"],
+                    cwd=tmp_path, check=True)
+    assert m.committed_per_git_log(184, str(tmp_path)) is True
+    # A different round number, and a round number that is a substring of
+    # another (1840 must not match \b184), both read False, not True.
+    assert m.committed_per_git_log(183, str(tmp_path)) is False
+    assert m.committed_per_git_log(1840, str(tmp_path)) is False
+
+
+def test_gap_reports_git_committed_false_and_flags_unverified_claim(tmp_path):
+    driver_log = tmp_path / "driver.log"
+    _write_driver_log(str(driver_log), [
+        "[t] round 184 track=NUC-integration(E) start (driver_version=x) pid=1",
+        "[t] round 184: success",
+    ])
+    state = tmp_path / "state.md"
+    state.write_text("# empty\n")
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t.com"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=repo, check=True)
+    (repo / "b.txt").write_text("x")
+    subprocess.run(["git", "add", "b.txt"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "unrelated prior work"],
+                    cwd=repo, check=True)
+
+    rc = subprocess.run(
+        [sys.executable, SCRIPT,
+         "--driver-log", str(driver_log),
+         "--state", str(state),
+         "--knowledge-dir", str(tmp_path / "knowledge_missing"),
+         "--round-logs-dir", str(tmp_path / "logs_missing"),
+         "--repo-root", str(repo)],
+        capture_output=True, text=True,
+    )
+    assert rc.returncode == 1
+    assert "git_committed=False" in rc.stdout
+    assert "NOT in git log" in rc.stdout
+
+
 def test_end_to_end_clean_when_every_round_recorded(tmp_path):
     driver_log = tmp_path / "driver.log"
     _write_driver_log(str(driver_log), [
