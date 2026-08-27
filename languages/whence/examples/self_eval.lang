@@ -46,8 +46,20 @@
 # tail-loop/if nodes (host v0.3/v0.4 compressions); `why` output is capped at
 # 300 nodes. The old `__tag` spoofing leak is CLOSED by boxing: a user
 # record's fields are boxes, and a box never equals the raw string "closure".
-# Guest recursion spends host frames (~15 per guest call), so guest depth
-# tops out around max_depth/15.
+# Guest recursion spends host frames (~15 per guest call). Before round
+# 210, "tops out around max_depth/15" meant the HOST's OWN recursion-depth
+# guard would eventually intercept a call deep inside self_eval.lang's own
+# eval/exec_stmt/apply/apply_closure chain and hand back a bare miss where
+# that chain's own code unconditionally expects an `@{v:.., st:..}` record
+# — corrupting the STORE itself into a miss and cascading "unbound name"
+# failures through every later statement (round 210 root-caused this from
+# fuzz seed 4002, open since round 167/171/174). `GUEST_MAX_DEPTH` (below)
+# now caps actual guest-level function-call depth at `apply_closure`, the
+# one function through which every GUEST call (not self_eval.lang's own
+# internal statement-sequencing recursion, which never reaches
+# apply_closure) passes — comfortably below where the host's own guard
+# could ever fire, so a too-deep guest recursion now degrades gracefully
+# (a well-formed miss, original store intact) instead of corrupting.
 #
 # The lexer + parser below are self_host.lang's, verbatim (kept in sync by
 # tests/test_self_eval.py::test_parser_section_matches_self_host).
@@ -673,11 +685,22 @@ let arities = @{print: 1, len: 1, range: -1, map: 2, filter: 2, fold: 3,
                 merge: 2, get: 2, put: 3, has: 2, find: 2, typed: 3,
                 steps: -1}
 
+# round 210: guest-level function-CALL depth ceiling, checked only in
+# apply_closure (see the module-doc comment above and apply_closure's own
+# comment below for why this is the right, and only needed, choke point).
+# Picked with a wide safety margin under host max_depth/~15 (~1300): no
+# example or self-hosting test corpus this project has ever run comes
+# close to 400 real guest-level call frames, and even a legitimate,
+# intentionally-deep guest recursion test should prefer a graceful guest
+# miss at a small, predictable depth over silently depending on exactly
+# where the host's own guard happens to land.
+let GUEST_MAX_DEPTH = 400
+
 fn new_store() {
   let f0 = fold(fn(fr, n) {
       put(fr, n, mkb(@{__tag: "builtin", name: n}, "builtin " + n, []))
     }, @{}, builtin_names)
-  @{frames: put(@{}, "f0", f0), next: 1, checks: []}
+  @{frames: put(@{}, "f0", f0), next: 1, checks: [], gd: 0}
 }
 
 fn alloc(st) {
@@ -1021,7 +1044,16 @@ fn eval_unary(node, env, st) {
   let op = node.op
   let b = if op == "-" { mkb(0 - r.v.v, "-", [r.v]) }
     else if op == "not" { mkb(not r.v.v, "not", [r.v]) }
-    else if op == "miss" { mkb(miss r.v.v, "miss", [r.v]) }
+    # host `_miss_lit` (interp.py) only keeps the reason box as an input
+    # when the reason is itself a miss (propagation) or a valid string
+    # (the normal case); a non-string, non-miss reason (e.g. `miss 1`)
+    # discards the operand entirely and yields a fresh 0-input miss node
+    # (round 210 fix: this branch used to ALWAYS keep [r.v], inventing a
+    # "literal" op the host derivation never has for that third case).
+    else if op == "miss" {
+      if missed(r.v.v) or is_str(r.v.v) { mkb(miss r.v.v, "miss", [r.v]) }
+      else { mkb(miss r.v.v, "miss", []) }
+    }
     else if op == "why" { (reify(r.v, 300)).r }
     else if op == "snip" { mkb(r.v.v, "snipped", []) }
     else { mkb(miss ("unknown unary '" + op + "'"), "unary", []) }
@@ -1110,12 +1142,28 @@ fn apply_closure(f, args, st) {
                    str(len(args))),
              "call " + c.name, args),
       st: st}
+  } else if st.gd >= GUEST_MAX_DEPTH {
+    # round 210: bail out BEFORE recursing into eval(c.body, ...) — the
+    # store returned is `st`, the CALLER's own, still-good store, so
+    # nothing downstream cascades (see new_store's GUEST_MAX_DEPTH
+    # comment and the module-doc comment above for the corruption this
+    # replaces: without this guard, a deep-enough guest recursion could
+    # reach the HOST's own recursion-depth guard mid-chain, which hands
+    # back a bare miss where this function's OWN "eval(...).st" below
+    # unconditionally expects a record — replacing the whole store with
+    # a miss and turning every later name lookup into a false "unbound
+    # name", not just the over-deep call's own result).
+    @{v: mkb(miss ("guest recursion too deep in " + c.name +
+                   " (guest depth " + str(st.gd) + ")"),
+             "call " + c.name, args),
+      st: st}
   } else {
-    let a = alloc(st)
+    let a = alloc(merge(st, @{gd: st.gd + 1}))
     let st2 = bind_params(a.st, a.fid, c.params, args, 0)
     let r = eval(c.body, [a.fid] + c.env, st2)
     let checked = check_ret(r.v, c.ret_type, c.name)
-    @{v: mkb(checked.v, "call " + c.name, [checked]), st: r.st}
+    @{v: mkb(checked.v, "call " + c.name, [checked]),
+      st: merge(r.st, @{gd: st.gd})}
   }
 }
 
@@ -1575,6 +1623,11 @@ check "guest == on functions misses": missed(gv("fn f(x) { x }\nf == f"))
 check "guest short-circuit and skips the right":
   gv("false and num(\"3O\") == 1") == false
 check "guest miss literal": missed(gv("miss \"deliberate\""))
+# round 210: a non-string reason still misses (value unchanged); the fix
+# only changes the why-SHAPE (miss node keeps 0 inputs, not 1) — see the
+# dedicated why-op-walk test in tests/test_self_hosting.py, since a plain
+# value-level check here can't see the input-count difference.
+check "guest miss with non-string reason still misses": missed(gv("miss 1"))
 check "guest miss argument still runs the body (host does too)":
   gv("fn f(a) { 7 }\nf(num(\"3O\"))") == 7
 

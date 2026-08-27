@@ -185,3 +185,47 @@ def test_effects_lang_runs_under_the_guest_round_164_backlog_closed():
     failed = [c.payload.fields["label"].payload for c in checks
               if c.payload.fields["pass"].payload is not True]
     assert not failed, failed
+
+
+def test_guest_miss_unary_why_shape_matches_host_for_all_three_reason_kinds():
+    # round 210: harness/swe/guest.py's why-shape fuzzer (round 20's
+    # containment probe: every guest-reified `why` op must appear in the
+    # real host derivation's op set) found a real mirroring bug at seed 152
+    # -- flagged in round 206's knowledge file, not fixed there. Root
+    # cause: self_eval.lang's `eval_unary` "miss" branch unconditionally
+    # kept the operand as a why-input (`mkb(miss r.v.v, "miss", [r.v])`),
+    # but the host's own `_miss_lit` (interp.py) only keeps it when the
+    # reason is a miss (propagate) or a valid string -- a non-string,
+    # non-miss reason (e.g. `miss 1`) discards the operand and yields a
+    # fresh 0-input miss node. The guest's old unconditional behaviour
+    # invented a "literal" op the host derivation never has for that third
+    # case. This test pins host/guest op-set containment directly for all
+    # three reason shapes (was previously only exercised indirectly, and
+    # not at all for the non-string case, by the differential fuzzer).
+    from whence import values as VAL
+
+    eval_lib = eval_library_source()
+    cases = {
+        "string reason": 'miss "deliberate"',
+        "non-string reason (the bug)": "miss 1",
+        "miss reason (propagate)": 'miss (miss "inner")',
+    }
+    for label, expr in cases.items():
+        host_env = Interpreter().run("let v = %s\n" % expr)
+        host_box = host_env.get("v")
+        host_ops = set(node.op for node, _ in VAL.walk_steps(host_box))
+
+        inner_src = (
+            'let v = %s\n'
+            'fn __opwalk(acc, n) { fold(__opwalk, push(acc, n.op), n.ins) }\n'
+            'let __ops = __opwalk([], why v)\n'
+            '__ops\n') % expr
+        prog = eval_lib + 'let __r = run_src("%s")\n' % escape(inner_src)
+        genv = Interpreter().run(prog)
+        rec = genv.get("__r").payload
+        assert rec.fields["parse_error"].payload is False, label
+        guest_ops = set(e.payload.split(" ")[0] for e in rec.fields["v"].payload)
+
+        extra = guest_ops - host_ops
+        assert not extra, (label, "guest-only ops", sorted(extra),
+                            "host ops", sorted(host_ops))

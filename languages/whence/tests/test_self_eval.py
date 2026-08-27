@@ -160,7 +160,7 @@ def test_example_runs_green():
     r = subprocess.run([sys.executable, os.path.join(ROOT, "run.py"), EXAMPLE],
                        capture_output=True, text=True)
     assert r.returncode == 0, r.stdout + r.stderr
-    assert "102 passed, 0 failed" in r.stdout
+    assert "103 passed, 0 failed" in r.stdout
     assert "all in Whence" in r.stdout
 
 
