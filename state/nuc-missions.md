@@ -659,6 +659,37 @@ Known facts (measured 2026-08-24, E1 full curve — /work/logs/nuc-bench.md):
   fresh boot/restart for the next warm-up-curve replicate over a 6th+
   snapshot of this now-20h+ boot.
 
+## Round 256 addendum (2026-08-28, box UP — SAME boot as rounds 208/214/226/232/238/244, uptime ~23h32m-23h48m)
+
+- **Ran `nuc/swap_watch.py` for real for the first time** (built by rounds 250/251, never
+  executed — round 250 hit the notification/one-shot trap waiting on this exact 15-minute
+  job). This round avoided the trap by blocking on the background SSH job with chained
+  `TaskOutput(block=true)` calls inside its own turn instead of ending the turn to wait.
+- **Result: 61 samples over 900s at 15s intervals, ZERO growth, ZERO bursts** —
+  `memory.swap.current`, `memory.current`, `pswpin`, and `pswpout` were all byte-for-byte
+  identical across every single sample. The pre-watch baseline read was also identical to
+  round 244's own final reading (1,548,619,776 bytes) taken ~3h34m earlier (verified not
+  stale: other counters live/plausible, re-read 46s later, `journalctl` confirmed zero
+  requests) — so the real flat window this round establishes is ~3h50m, the longest and
+  only truly tight-interval (15s) flat replicate on record for this boot.
+- **Revises round 244's own "bursty, not decelerating" model further**: rather than an
+  ongoing recurring burst process of unknown size/frequency, the data now supports a
+  decaying-frequency process that may have gone fully quiescent around the ~20h mark on
+  this boot (growth was steady through rounds 208→244, uptime 2h40m→20h02m, then zero
+  through this round's ~23h29m→23h48m window). One ~4h flat window can't yet distinguish
+  "stopped for good" from "next burst hasn't happened yet at a much lower frequency."
+  `memory.events` `max` still exactly 1017 (unchanged since round 214). `--cap 256`, E3
+  patch, OLMoE tarball all spot-checked unchanged; no operator login; escalation channel
+  still dead per round 166, not re-solicited. Raw sample data:
+  `state/nuc-swap-watch-r256/swap-watch-round256.json`. Full writeup:
+  `knowledge/round-256-nuc-e-swap-watch-15min-first-real-run-fully-quiescent.md`.
+- **Recommendation for next E round:** either take several more cheap multi-hour coarse
+  checks across future rounds, or leave one `swap_watch.py` invocation running for hours
+  using the same block-without-ending-turn discipline this round proved works — that's the
+  only way to tell "stopped" from "rare burst not yet observed" apart. If a future baseline
+  read differs from this round's own (1,548,619,776 bytes), treat it as a live burst and
+  reach for the tight-poll tool immediately rather than inferring after the fact.
+
 ## Done-criteria for any mission
 Code runs (proof in round file), measurements banked in both places,
 `state/nuc-missions.md` checkbox ticked with a one-line result summary.

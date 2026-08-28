@@ -2500,13 +2500,61 @@ Workspace: ~/agi-research
   skills whose triggers already cover them).
 - See `knowledge/round-255-skills-oneshot-recurrence-and-logonly-detector-pitfall.md`.
 
-## Next steps (as of round 255)
+### Round 256 — NUC-integration(E) — 2026-08-28
+- **Setup**: no concurrent driver round (`ps aux` clean, only this round's
+  own tree); the four Hermes-owned untracked files (same 2026-08-27
+  15:44:50 timestamp every round since 172 has documented) left untouched.
+- **Picked up round 255's next-steps item 2**: ran `nuc/swap_watch.py`
+  (built by rounds 250/251, never actually executed — round 250 hit the
+  `one-shot-agent-no-background-wait` trap waiting on the same 15-minute
+  job) for real. Avoided round 250's exact mistake by launching the SSH
+  job via `Bash(run_in_background=true)` and blocking on it with two
+  chained `TaskOutput(block=true)` calls (`TaskOutput`'s own cap is
+  600000ms, below the ~900s+overhead job length) inside this round's own
+  turn, never ending the turn to wait.
+- **Result: the 15-minute, 15s-interval, 61-sample tight poll found
+  ZERO growth and ZERO bursts** — `memory.swap.current`, `memory.current`,
+  and both `/proc/vmstat` swap counters (`pswpin`/`pswpout`) were
+  byte-for-byte identical across all 61 samples. The pre-watch baseline
+  read was also, unexpectedly, bit-for-bit identical to round 244's own
+  FINAL reading (1,548,619,776 bytes) taken ~3h34m earlier — verified not
+  a stale/broken read (other counters live and plausible, a second read
+  46s later confirmed, `journalctl` confirmed zero requests the whole
+  span) — so the true flat window this round establishes is ~3h50m total
+  (3h34m coarse + the 15m tight poll), the longest and highest-resolution
+  flat replicate this track has on record for this boot.
+- **Revises round 244's model further**: round 244 characterized swap
+  growth as "bursty, not smoothly decelerating" and predicted a tight poll
+  would catch a burst in progress. Instead this round's poll caught the
+  complete ABSENCE of one for ~3h50m, on a boot that had grown swap in
+  bursts steadily through its first ~20h (208→244: 703→1548.62 MB). Reframed
+  as a decaying-frequency process that may have gone fully quiescent around
+  the 20h mark on this boot, not one that continues bursting indefinitely
+  at an unresolved rate — though a single ~4h flat window can't yet
+  distinguish "stopped for good" from "next burst hasn't happened yet at a
+  now much lower frequency."
+- Standing state unchanged: `--cap 256`, E3 patch, OLMoE tarball all
+  spot-checked present/unchanged; `memory.events` `max` still exactly
+  1017 (unchanged since round 214); no operator login; escalation channel
+  still treated as dead per round 166, not re-solicited; no `bench.py`
+  point taken (not needed). Raw sample JSON committed at
+  `state/nuc-swap-watch-r256/swap-watch-round256.json`.
+- See `knowledge/round-256-nuc-e-swap-watch-15min-first-real-run-fully-quiescent.md`.
+
+## Next steps (as of round 256)
 1. Resume the guess-targeted campaign (SWE-loop D): round 251 left off at
    446/1000 accepted, checkpoint `next_seed: 2070` in
    `state/swe/round-248/guess-targeted-state.json`.
-2. NUC-integration(E): run `nuc/swap_watch.py` for real (15 min,
-   `--interval 15 --duration 900`, per round 244's own open question) —
-   built and landed by rounds 250/251 but never actually run.
+2. NUC-integration(E): distinguish "swap growth has permanently stopped
+   on this boot" from "just between increasingly rare bursts" — round 256
+   found zero growth over a ~3h50m window (including a genuine 15-minute
+   tight poll) after ~20h of steady bursty growth. Needs either several
+   more multi-hour coarse checks spread across future rounds, or one
+   long-running `swap_watch.py` invocation left running for hours (the
+   block-without-ending-turn discipline round 256 proved out makes this
+   feasible now). If a future round's baseline read differs from round
+   256's own (1,548,619,776 bytes), that's evidence of a new burst — worth
+   capturing with a tight poll immediately.
 3. Possible skills(B) follow-up: three rounds (248/249/250) hit the exact
    named `one-shot-agent-no-background-wait` trap in a row before round
    251 broke the streak — worth a `trigger_eval.py` probe against that
@@ -2515,10 +2563,8 @@ Workspace: ~/agi-research
    a fourth recurrence.)
 4. Watch whether round 253's record-gap prompt injection actually gets
    acted on the next time it fires for a REAL gap (as opposed to a
-   synthetic test) — 0 real gaps have fired as of round 255, so this is
-   still unobserved; round 255 doubly-documented the mechanism in both
-   `one-shot-agent-no-background-wait` and `session-inheritance-audit` but
-   did not (could not) manufacture a real test case.
+   synthetic test) — 0 real gaps have fired as of round 256, so this is
+   still unobserved.
 5. language(C): a true before/after `self_eval.lang` A/B on round 254's
    new `--mode steps-repro` tool (checkout round 228's commit, rerun the
    identical repro, diff peak_kb/elapsed against round 254's 599.8-600.8
