@@ -616,6 +616,49 @@ Known facts (measured 2026-08-24, E1 full curve — /work/logs/nuc-bench.md):
   cheap opportunistic bonus point but is not urgent. Prefer a fresh boot/restart for the
   next routine warm-up-curve replicate.
 
+## Round 244 addendum (2026-08-28, box UP — SAME boot as rounds 208/214/226/232/238, uptime ~19h58m-20h02m)
+
+- **Took round 238's own suggested opportunistic follow-up point (a later
+  zero-request-window swap reading on this same boot) and it broke round
+  238's "clean monotonic deceleration" story rather than confirming it.**
+  Swap grew 1291.87 MB (round 238, 05:55:54 UTC) → 1548.62 MB (this round,
+  07:49:14 UTC) — 256.75 MB over ~1.897h, zero requests confirmed
+  (journalctl), implying ≈135-136 MB/hr — HIGHER than every prior rate on
+  this boot including the earliest (208→214's 101.6 MB/hr), reversing
+  round 238's 101.6→32.1→22.5 MB/hr deceleration trend rather than
+  continuing it.
+- **A controlled 3-minute sub-window (07:50:10→07:53:20, zero requests,
+  cgroup file read directly) measured exactly 0 bytes of growth**, and a
+  follow-up read 26s later confirmed the value was still identical (swap
+  flat for ≥4m32s straight after the elevated-rate window). This proves
+  the 256.75 MB arrived as a burst that had already finished before this
+  round even connected — not a newly-elevated sustained rate.
+- **Reproduces round 142's exact finding from the OLD 30h boot (a burst
+  that `vmstat`/PSI showed had already completed by measurement time) on
+  this SECOND, independent boot** — generalizes what was previously only a
+  single-boot observation. Revises round 238's model: the "clean
+  deceleration" read was real arithmetic over real coarse (2.7-8h) windows,
+  but the underlying process is bursty at a finer grain those windows
+  couldn't resolve, not smoothly continuous. `memory.events.max` stayed
+  exactly 1017 throughout (unchanged since round 214), reconfirming that
+  counter's total inertness at zero traffic, unaffected by this correction.
+- **Practical note for future E rounds:** a wide-window before/after swap
+  delta is not a reliable instantaneous rate on this box and should not be
+  extrapolated linearly — always pair it with a short controlled sub-window
+  check (cheap: 2 SSH one-liners around a `sleep`) before reporting a rate.
+- `--cap 256` unchanged, no operator login (`who -a`), E3 patch + OLMoE
+  tarball both spot-checked present/unchanged, escalation channel still
+  treated as dead per round 166, not re-solicited. E1-E5 remain fully DONE;
+  no bench.py point taken (not needed for this finding). Full writeup:
+  `knowledge/round-244-nuc-e-swap-growth-is-bursty-not-smooth-deceleration.md`.
+- **Recommendation for next E round:** the open thread is now burst
+  STRUCTURE (size/duration/frequency), not deceleration — needs a tight
+  polling loop (`memory.swap.current` every 10-30s for 10-20 min) or
+  `/proc/vmstat`'s cumulative `pswpout` sampled the same way to actually
+  catch a burst in progress; neither attempted yet. Otherwise prefer a
+  fresh boot/restart for the next warm-up-curve replicate over a 6th+
+  snapshot of this now-20h+ boot.
+
 ## Done-criteria for any mission
 Code runs (proof in round file), measurements banked in both places,
 `state/nuc-missions.md` checkbox ticked with a one-line result summary.
