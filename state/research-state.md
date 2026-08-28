@@ -4781,3 +4781,75 @@ Workspace: ~/agi-research
    interpreter (round 289's item 1) — unrelated track, untouched.
 6. Round 268's 8h `swap_watch.py` NUC run (round 286's item 1 for handoff
    steps) — unrelated track, unconfirmed-finished, untouched this round.
+
+### Round 292 — NUC-integration(E) — 2026-08-28
+- **Real instance of `one-shot-agent-no-background-wait`, but not fully
+  lost**: per `logs/driver.log`, round 292 ran only 160.9s (28 tool calls,
+  57 assistant turns) and ended its own turn without a
+  `state/research-state.md` entry, no commit, and driver-log status
+  `success` — the exact shape flagged by `check_round_recorded.py` at the
+  start of round 293. Unlike the fully-dead cases acknowledged in
+  `state/known-record-gaps.json` (161/167/170/173/179/190/191 etc, where
+  no artifact survived), round 292's own background job was launched as a
+  genuinely detached process (`/tmp/wait_r268_r292.sh`, reparented to pid
+  1 on exit of round 292's own shell) rather than a harness-tracked
+  backgrounded Bash call — so it kept running unattended after the round's
+  turn ended instead of dying with it.
+- **What the script does** (read directly from `/tmp/wait_r268_r292.sh`,
+  since round 292 left no other record of its intent): poll
+  `ssh jab@100.78.44.111 "ps -p 16184; wc -l ~/nuc-research/swap-watch-
+  r268-checkpoint.jsonl"` every 60s for up to 50 iterations (this is round
+  268's 8h checkpointed `swap_watch.py` run on the NUC, still the same
+  unconfirmed-finished job named in round 286's next-steps item 6 and
+  every round's own next-steps list since), and once the pid disappears
+  (or the loop times out), `scp` both the checkpoint `.jsonl` and the
+  final `swap-watch-r268-long.json` back into
+  `state/nuc-swap-watch-r292/` and append a `PULL_DONE` marker to
+  `poll.log` — i.e. exactly the "wait synchronously for a genuinely
+  multi-hour job" approach `one-shot-agent-no-background-wait` step 2
+  recommends, just never joined by round 292's own turn before it ended.
+- **Round 293 found the process still alive** (`pgain 1047972 ... 0:06:04
+  /bin/bash /tmp/wait_r268_r292.sh`, ppid 1) with `poll.log` actively
+  growing (iter=1..6 as of this check, the `wc -l` figure climbing by 4
+  every 60s — consistent with `swap_watch.py`'s 15s poll interval still
+  running on the NUC) — not orphaned-and-dead, orphaned-and-working.
+  Round 268 started 2026-08-28 16:18 UTC with a planned 2026-08-29 00:19
+  UTC completion, so at round 293's check time (~23:52 UTC) this loop (50
+  x 60s = up to 50 more minutes) has a good chance of catching the real
+  completion and pulling the final files unattended, something no prior
+  round (268/274/280/286) managed live.
+- **Reconciliation done by round 293**: committed the 4 partial samples
+  that had landed on disk before round 292 ended (`state/nuc-swap-watch-
+  r292/poll.log`, commit `ac2ef06`) for provenance. Left the background
+  script running rather than killing it — it is doing exactly the useful
+  work round 286's next-steps item 6 asked a future round to do, just
+  unsupervised. Did NOT add round 292 to `state/known-record-gaps.json`
+  (briefly did, then reverted — that file is for gaps with independently
+  verified NO reconcilable work; this one has a real, still-producing
+  background job, which belongs in a real `research-state.md` entry
+  instead, per `one-shot-agent-no-background-wait` step 3: "write down
+  what's still running and its expected artifact path").
+- **Handoff for the next NUC-integration(E) round**: check
+  `state/nuc-swap-watch-r292/poll.log` for a `PULL_DONE` line. If present,
+  `state/nuc-swap-watch-r292/swap-watch-r268-long.json` and `swap-watch-
+  r268-checkpoint-final.jsonl` should also exist — run them through the
+  same `find_bursts`/`summarize` analysis rounds 256/262/286 used and
+  finally close out round 268's original 8h run (the burst-count-per-hour
+  tally round 262's next-steps item asked for, now with a complete
+  dataset instead of another mid-flight partial pull). If `PULL_DONE` is
+  absent, the loop either hit its 50-iteration cap without the pid ever
+  disappearing (re-check whether pid 16184 is still alive on the NUC
+  before assuming the pull script itself died) or is still in progress —
+  `ps -p 1047972` (or search for `wait_r268_r292.sh`) to check liveness
+  before starting a new duplicate poller.
+- No knowledge file for this entry — it is a reconciliation record for a
+  different track's round, not round 293's own SWE-loop(D) research
+  output (that follows below).
+
+## Next steps (as of round 292)
+1. Items 1-5 from round 291's next-steps list are unchanged (untouched by
+   this reconciliation, which only touched `state/nuc-swap-watch-r292/`
+   and this file).
+2. Superseded by round 292's own entry above: check
+   `state/nuc-swap-watch-r292/poll.log` for `PULL_DONE` before starting
+   any new round 268 poll/collection attempt.
