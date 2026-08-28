@@ -1691,3 +1691,38 @@ exercise it directly as a Python class, real and unaffected by the
 deletion. A real "time travel" language feature, if ever wanted, belongs
 on top of the existing provenance builtins (`at`/`steps`/`blame`), not as
 a mutable checkpoint stack — nothing has needed it since.
+
+## Self-hosting round 9 (round 254) — `bench/self_host_memscale.py --mode steps-repro`
+Round 228 root-caused `steps()`'s enormous guest-level cost (any
+`steps()` call, on any value, once self_host.lang's function library has
+been loaded via `self_eval.lang`'s `run_src`, walks the ENTIRE
+store-threaded interpretation trace, not just the target value's own
+derivation) but explicitly declined to re-run the 13-checkpoint,
+multi-GB sweep `bench/self_host_memscale.py` needs to find a fresh
+absolute-MB replacement for its now-stale 1200 MB default, judging the
+risk/cost not worth it on this specific shared, contended host. Round
+254 re-checked that judgment call with fresh numbers (`free -h`: 675 MB
+physically free, 2.1 GB "available", swap already 70% full — less
+headroom than round 227/228 had) and made the same call again, for the
+same reason: a capped subprocess can't trigger a system-wide OOM sweep,
+but a multi-GB resident probe still pages everything else on a 3.8 GB
+box through swap while it runs, a real cost to this host's other live,
+unrelated services (trading bots, Hermes gateways).
+Instead of the full sweep, promoted round 228's own ad hoc minimal
+isolation repro (library load + one trivial `steps(miss ...)` call, no
+self_host.lang test-section checks, no `parse_whence` call — strictly
+less prior work than checkpoint 5) into a permanent, reusable tool mode:
+`bench/self_host_memscale.py --mode steps-repro`, with its own
+safe-by-default cap/timeout (600 MB / 120 s — chosen to sit comfortably
+inside this run's own 2.1 GB "available" figure, unlike the full sweep's
+1200 MB default). Measured live, twice, via a real subprocess (not
+guessed): **`MEMORY_ERROR` at peak_kb≈600,000 (~600 MB) in 85–89
+seconds**, both runs. This is a strictly cheaper and safer confirmation
+of round 228's finding (which reached >1.35 GB, still climbing, after
+291 s uncapped) — the cost has not shrunk, and if anything has grown
+further, since rounds 234/236/246/252 each added more guest-parity
+dispatch code to `self_eval.lang` that becomes part of every `st` trace
+`steps()` walks. A full re-sweep for a fresh absolute-MB number for the
+13-checkpoint table still needs round 228's own order-3000-4000 MB /
+600 s treatment, on a host that isn't mid-contention — not this one,
+not this round. See `knowledge/round-254-whence-self-hosting-round9-steps-repro-tool.md`.

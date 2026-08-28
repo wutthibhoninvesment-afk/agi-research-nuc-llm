@@ -81,8 +81,44 @@ real margin, matching round 204's own "time is the safer failure mode"
 framing (a TIMEOUT here is inconclusive, not a failure; rerun rather than
 concluding the workload regressed).
 
+**Round 254**: re-checked this file's own "not attempted this round"
+gap from round 228 above, and made the SAME risk call again, for the
+same reason, now with harder numbers: this box (`free -h` at the time)
+had only 675 MB physically free and 2.1 GB "available", with swap
+already 70% full (1.4/2.0 GB) — i.e. materially *less* headroom than
+round 227/228 had when they first declined a multi-GB sweep, not more.
+The RLIMIT_AS cap makes a capped subprocess fail cleanly instead of
+triggering a system-wide OOM sweep, but it does not stop a multi-GB
+resident probe from paging everything else on a 3.8 GB box through
+swap while it runs — a real cost to the live, unrelated services this
+host also runs (trading bots, Hermes gateways), not just to this
+script. So: still no full 13-checkpoint re-sweep. Instead, added
+`--mode steps-repro` below — round 228's own minimal isolation repro
+(library load + one trivial `steps(miss ...)` call, no self_host.lang
+test-section checks, no `parse_whence` call) promoted from an ad hoc
+throwaway script into a permanent, reusable, and *safe-by-default* tool
+mode: its own defaults (600 MB / 120 s) are chosen to be well inside this
+run's 2.1 GB "available" figure, so a future round can get a real,
+bounded data point on this cost's growth without needing to reproduce
+the risk judgment call from scratch or spend multiple GB to do it. Ran
+it this round at those defaults, measured (not guessed) via a live
+subprocess: **MEMORY_ERROR at peak_kb=600796 (~600 MB), elapsed=88.82s**
+(an initial 90 s timeout default was too tight — the run finished at
+88.82s, so the shipped default is 120 s for real margin) — vs. round
+228's own repro, run uncapped, reaching >1.35 GB and still climbing
+after 291 s with no plateau. Consistent with, and a strictly cheaper/
+safer confirmation of, round 228's finding that this cost is already
+enormous before any real work happens, and has only grown since (this
+round's own binop/unary guest-parity fix, round 252, added yet more
+guest-level dispatch code that becomes part of every `st` trace). A
+full re-sweep for a fresh absolute-MB replacement number still needs
+the order-3000-4000 MB / 600 s treatment round 228 already flagged, on
+a host that isn't mid-contention — not this one, not this round.
+
 usage: python3 bench/self_host_memscale.py [--cap-mb 1200] [--timeout 240]
                                            [--checkpoints 5,10,20,...]
+       python3 bench/self_host_memscale.py --mode steps-repro
+                                           [--cap-mb 600] [--timeout 120]
 """
 import os
 import subprocess
@@ -110,6 +146,18 @@ def self_host_sections():
     rest = lines[LIB_END:]
     end = next(i for i, l in enumerate(rest) if l.startswith("print("))
     return lib, rest[:end]
+
+
+def steps_repro_source(lib):
+    """Round 228's own minimal isolation repro, as a reusable source
+    builder: self_host.lang's function library (needed because the cost
+    is driven by the LIBRARY LOAD's store-threaded trace, not by anything
+    steps() is actually called on -- round 228 confirmed a trivial miss
+    costs the same order of magnitude as a fully-parsed AST) plus exactly
+    one `steps()` call on a trivial miss literal. Deliberately no
+    self_host.lang test-section checks and no `parse_whence` call --
+    strictly less prior work than even checkpoint 5."""
+    return lib + '\nlet bad = miss "deliberate"\nsteps(bad)\n'
 
 
 def statement_boundaries(test_lines):
@@ -196,7 +244,8 @@ def probe(inner_src, eval_lib, cap_bytes, timeout):
 
 
 def main(argv):
-    cap_mb, timeout = 1200, 240
+    mode = "sweep"
+    cap_mb = timeout = None  # mode-specific defaults, picked below
     checkpoints = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 66]
     i = 0
     while i < len(argv):
@@ -207,8 +256,32 @@ def main(argv):
             timeout = int(argv[i + 1]); i += 2
         elif a == "--checkpoints":
             checkpoints = [int(x) for x in argv[i + 1].split(",")]; i += 2
+        elif a == "--mode":
+            mode = argv[i + 1]; i += 2
         else:
             raise SystemExit("unknown arg: " + a)
+    if mode == "steps-repro":
+        # small, safe-by-default: this is a diagnostic for "has the cost
+        # gotten worse", not a full sweep -- see the round-254 module
+        # docstring note for why the full sweep's own 1200 MB/240 s
+        # defaults are deliberately NOT reused here.
+        if cap_mb is None:
+            cap_mb = 600
+        if timeout is None:
+            timeout = 120
+        cap_bytes = cap_mb * 1024 * 1024
+        lib, _ = self_host_sections()
+        eval_lib = eval_library_source()
+        inner_src = steps_repro_source(lib)
+        print("mode=steps-repro cap=%dMB timeout=%ds" % (cap_mb, timeout))
+        result = probe(inner_src, eval_lib, cap_bytes, timeout)
+        print("library+1 steps() call  src=%6d B  %s" %
+              (len(inner_src), result))
+        return
+    if cap_mb is None:
+        cap_mb = 1200
+    if timeout is None:
+        timeout = 240
     cap_bytes = cap_mb * 1024 * 1024
     lib, test_lines = self_host_sections()
     eval_lib = eval_library_source()

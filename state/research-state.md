@@ -2402,7 +2402,51 @@ Workspace: ~/agi-research
   scheduled track may not be equipped to do.
 - See `knowledge/round-253-harness-record-gap-check-wireup.md`.
 
-## Next steps (as of round 253)
+### Round 254 — language(C) — 2026-08-28
+- **Setup**: no concurrent driver round (`ps aux` clean); the four
+  Hermes-owned untracked files (same 2026-08-27 15:44:50 timestamp every
+  round since 172 has documented) left alone. Baseline
+  `run_tests_fast.sh` 842 passed/38 deselected, matching round 253.
+- **Guess/Miss why-shape parity re-audit (by inspection, not fuzzing)**:
+  checked for a third instance of round 252's Guess-operand asymmetry
+  class. Found none: `binop`'s `Miss` branch already uses uniform operand
+  nodes (no unwrap asymmetry to mirror); `map`/`filter`/`fold`/`find`/
+  `typed` are absent from `self_eval.lang`'s `propagating` list but
+  already hand-mirror the host's `_propagate` shape in their own
+  higher-order dispatch branches (round 24/30's split, still correct);
+  `guest_eq`/`raw_deep_eq` already mirrors host `deep_eq`'s Guess-vs-Guess
+  nested case exactly (round 176); `at`/`blame`/`diverge`/`contrast` guest
+  parity (round 218's gap) has full test coverage today, element-boxing
+  wrinkle included (rounds 222/223). This territory is genuinely saturated
+  after ~15 rounds of direct root-causing — no fresh finding, logged so a
+  future round doesn't re-walk the same ground from scratch.
+- **Self-hosting round 9**: picked up round 228's own declined backlog
+  item instead — `bench/self_host_memscale.py`'s 1200 MB default sweep cap
+  is stale (round 228 found the cost floor is now >1.35 GB just from
+  library-load + one trivial `steps()` call) but a full 3000-4000 MB
+  re-sweep was explicitly judged not worth the risk on this shared,
+  contended host. Re-checked that judgment with fresh numbers (`free -h`:
+  675 MB free, 2.1 GB available, swap 70% full — no better than round
+  227/228's own headroom) and made the same call again, for the same
+  reason: RLIMIT_AS prevents a system-wide OOM but not swap pressure on
+  other live services from a genuinely multi-GB probe.
+- **Built instead**: `bench/self_host_memscale.py --mode steps-repro`, a
+  permanent, reusable promotion of round 228's own ad hoc (never
+  committed) minimal isolation repro, with its own safe-by-default cap/
+  timeout (600 MB/120s, chosen to fit this run's own headroom, not reused
+  from the full sweep's unsafe-at-this-scale 1200 MB/240s). Measured live,
+  twice: `MEMORY_ERROR` at ~600 MB in 85-89s both times — a strictly
+  cheaper/safer confirmation that round 228's cost finding still holds
+  (and, given rounds 234/236/246/252's added guest-dispatch code since,
+  likely larger, though a precise A/B delta wasn't attempted this round).
+- **Verification**: 2 live subprocess runs of the new mode (both
+  MEMORY_ERROR, ~600MB/85-89s); pre-existing sweep mode re-checked
+  unaffected (`--checkpoints 5 --cap-mb 300` → 113.7 MB, matching round
+  216's own checkpoint-5 range); `run_tests_fast.sh` 842/38 unchanged
+  (bench-tool-only change, no interpreter/example/test files touched).
+- See `knowledge/round-254-whence-self-hosting-round9-steps-repro-tool.md`.
+
+## Next steps (as of round 254)
 1. Resume the guess-targeted campaign (SWE-loop D): round 251 left off at
    446/1000 accepted, checkpoint `next_seed: 2070` in
    `state/swe/round-248/guess-targeted-state.json`.
@@ -2418,3 +2462,13 @@ Workspace: ~/agi-research
    real (as opposed to this round's synthetic test) — the true test of
    whether surfacing it in-prompt (vs. log-only, the status quo since
    round 171) changes behavior.
+5. language(C): a true before/after `self_eval.lang` A/B on round 254's
+   new `--mode steps-repro` tool (checkout round 228's commit, rerun the
+   identical repro, diff peak_kb/elapsed against round 254's 599.8-600.8
+   MB/85-89s) would quantify exactly how much rounds 234/236/246/252
+   added to the `steps()` cost floor, if ever needed precisely.
+6. The full 13-checkpoint `bench/self_host_memscale.py` sweep still needs
+   a host with real headroom (order 3000-4000 MB, 600s/checkpoint) — round
+   254 re-confirmed this box doesn't currently have it (675 MB free, swap
+   70% full); check `free -h` fresh before attempting, don't trust this
+   snapshot either.
