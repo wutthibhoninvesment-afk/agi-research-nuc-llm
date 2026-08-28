@@ -379,29 +379,53 @@ def check_one(seed, max_depth=3, max_stmts=4):
 # never needed to compute, since v0.14.2 has no notion of a function
 # "returning" anything.
 #
+# Round 287 (SWE-loop D): folded v0.14.6's `field_return_alias_scopes`
+# (round 282/284) into this SAME generator/oracle rather than writing a
+# third one — v0.14.6 is a fourth stack pushed/popped in lockstep with the
+# other three at the EXACT same three call sites (verified directly
+# against `whence/parser.py` line-by-line before writing a single line of
+# generator code: `stmt_list` line ~204/232, the named-fn push/pop
+# ~345/353, and the anonymous-`FnExpr` push/pop ~934/942 — all four
+# `.append`/`.pop` calls appear together at each site, no exceptions), and
+# its resolution (`_resolve_effectful_field_return`) is a direct textual
+# mirror of `_resolve_effectful_field`, just walking
+# `field_return_alias_scopes` instead. Round 281's own "can't simply be
+# extended in place" reasoning was about ADDING return/field tracking to a
+# generator (`AliasEffectsGen`) that had NEITHER — that reasoning does not
+# apply here, since `ExtendedEffectGen` already carries the exact
+# `return_alias_scopes` and `field_alias_scopes` machinery this fourth
+# stack composes with (`_check_effect_call`'s own v0.14.6 branch is
+# LITERALLY `box.run()(1)`, the `postfix()` loop's field-access callee
+# check — v0.14.4's `_resolve_effectful_field` — immediately followed, on
+# the SAME name, by v0.14.3's own return-chain check but resolved through
+# `_resolve_effectful_field_return` instead of `_resolve_effectful_
+# return`). See `record_call_field_return_chain`'s own docstring for the
+# two-application ordering this mirrors.
+#
 # Design, same discipline as `AliasEffectsGen`'s own docstring: a SECOND,
 # independently written implementation of `Parser._resolve_effectful_
 # alias`/`_resolve_effectful_return`/`_resolve_effectful_field`/
-# `_check_effect_call`/`_if_tail_alias_tag`/`stmt_list`'s docstrings
-# (read, not copied), predicting the parse verdict incrementally in the
-# same left-to-right, single-pass order the spec documents — not a
-# fixed-point analysis, not a call into `whence.parser` itself.
+# `_resolve_effectful_field_return`/`_check_effect_call`/
+# `_if_tail_alias_tag`/`stmt_list`'s docstrings (read, not copied),
+# predicting the parse verdict incrementally in the same left-to-right,
+# single-pass order the spec documents — not a fixed-point analysis, not a
+# call into `whence.parser` itself.
 
 class ExtendedEffectGen(object):
-    """Generates (source, verdict) pairs covering v0.14.2/3/4/5 together
-    (the three later features build on frames v0.14.2 already pushes, so
+    """Generates (source, verdict) pairs covering v0.14.2/3/4/5/6 together
+    (the later features build on frames v0.14.2 already pushes, so
     exercising them in isolation from v0.14.2's own alias tracking would
     both duplicate work and miss real interactions, e.g. a `let g = alias`
     rename copying BOTH the alias tag and the return tag in one step —
     `Parser.statement`'s NameRef branch, line ~234).
 
-    Mirrors three parallel stacks (`alias_scopes`, `return_alias_scopes`,
-    `field_alias_scopes`), pushed/popped together at every frame boundary,
-    exactly matching the real parser's own three call sites (`gen_frame`
-    below plays the role of one `stmt_list` invocation; the fn-statement
-    and fn-expression generators each push/pop a params frame the same way
-    `Parser.statement`'s fn case and `Parser.primary`'s anonymous-fn case
-    both do).
+    Mirrors four parallel stacks (`alias_scopes`, `return_alias_scopes`,
+    `field_alias_scopes`, `field_return_alias_scopes`), pushed/popped
+    together at every frame boundary, exactly matching the real parser's
+    own three call sites (`gen_frame` below plays the role of one
+    `stmt_list` invocation; the fn-statement and fn-expression generators
+    each push/pop a params frame the same way `Parser.statement`'s fn case
+    and `Parser.primary`'s anonymous-fn case both do).
     """
 
     def __init__(self, seed, max_depth=3, max_stmts=4):
@@ -414,6 +438,7 @@ class ExtendedEffectGen(object):
         self.alias_scopes = []
         self.return_alias_scopes = []
         self.field_alias_scopes = []
+        self.field_return_alias_scopes = []
         self.effects_stack = []
 
     def fresh(self, prefix="v"):
@@ -442,6 +467,17 @@ class ExtendedEffectGen(object):
                 return fields.get(field) if fields else None
         return None
 
+    def resolve_field_return(self, name, field):
+        """Mirror of `_resolve_effectful_field_return`, exactly as
+        `resolve_field` mirrors `_resolve_effectful_field`: same
+        innermost-first, first-frame-wins walk on `name`, over
+        `field_return_alias_scopes` instead."""
+        for scope in reversed(self.field_return_alias_scopes):
+            if name in scope:
+                fields = scope[name]
+                return fields.get(field) if fields else None
+        return None
+
     def resolve_effects_scope(self, own_spec):
         if own_spec is not None:
             return own_spec
@@ -460,6 +496,52 @@ class ExtendedEffectGen(object):
             for name, fields in scope.items():
                 if fields:
                     out.extend((name, f) for f, t in fields.items() if t is not None)
+        return out
+
+    def known_field_return_names(self):
+        out = []
+        for scope in self.field_return_alias_scopes:
+            for name, fields in scope.items():
+                if fields:
+                    out.extend((name, f) for f, t in fields.items() if t is not None)
+        return out
+
+    def any_field_return_carrier_names(self):
+        """`known_field_return_names()` widened to include (box, field)
+        pairs whose CORRECTLY-resolved field-return tag is None — the
+        field-access analogue of `any_return_carrier_names()`, needed for
+        the same reason: a mistracked `_resolve_effectful_field_return`
+        that unsoundly turns a None into a real tag is only observable if
+        something later actually calls THROUGH that specific (box, field)
+        pair, and the narrower non-None-filtered pool can never select a
+        pair whose correct tag is None."""
+        out = []
+        for scope in self.field_return_alias_scopes:
+            for name, fields in scope.items():
+                if fields:
+                    out.extend((name, f) for f in fields)
+        return out
+
+    def outer_field_return_box_pairs(self):
+        """(box, field) pairs for OUTER-frame box bindings carrying a
+        field-return-carrier field slot (any tag value — the widened
+        `any_...` form), excluding any box name already rebound in the
+        CURRENT frame — the field-return analogue of `outer_visible_
+        names`'s own "no rebind, only a true first-time shadow" rule.
+        Feeds `_stmt_shadow_box_call_field_return` below: picking the
+        right box purely by chance out of `outer_visible_names()` (as
+        plain `_stmt_shadow_let` does) and THEN happening to make a
+        follow-up call through that exact name is a compound-rare event —
+        measured at roughly 1-in-15000 generated programs — so that
+        statement targets this pool directly instead."""
+        current = self.field_return_alias_scopes[-1]
+        seen = set()
+        out = []
+        for scope in self.field_return_alias_scopes[:-1]:
+            for name, fields in scope.items():
+                if fields and name not in current and name not in seen:
+                    seen.add(name)
+                    out.extend((name, f) for f in fields)
         return out
 
     def any_visible_name(self):
@@ -531,10 +613,33 @@ class ExtendedEffectGen(object):
     def record_call_field(self, boxname, field):
         self.check_effect(self.resolve_field(boxname, field), "%s.%s" % (boxname, field))
 
-    def bind(self, name, alias_tag, return_tag, field_dict):
+    def record_call_field_return_chain(self, boxname, field):
+        """Models `boxname.field()(...)` — TWO applications, exactly
+        mirroring `record_call_return_chain` but for the field-access
+        case: `postfix()`'s loop runs `_check_effect_call` once per `(`
+        it consumes, left to right. The FIRST `(` (closing `boxname.field`
+        into a `Call`) checks `boxname.field` itself as an ordinary
+        FieldAccess callee — v0.14.4's `_resolve_effectful_field` — via
+        `record_call_field` below. Only if that doesn't already raise does
+        the SECOND `(` (the call-result application) run its own check,
+        this time through `_resolve_effectful_field_return` — v0.14.6's
+        new branch in `_check_effect_call`. A bare `check_effect(self.
+        resolve_field_return(...))` alone would silently skip the first
+        check, which is unobservable for a field drawn from `known_field_
+        return_names()`'s own callers (never also a direct field alias —
+        the two dicts are built from disjoint concerns per field) but
+        wrong for the wider `any_field_return_carrier_names()` pool."""
+        self.record_call_field(boxname, field)
+        if self.done:
+            return
+        self.check_effect(self.resolve_field_return(boxname, field),
+                           "%s.%s()" % (boxname, field))
+
+    def bind(self, name, alias_tag, return_tag, field_dict, field_return_dict):
         self.alias_scopes[-1][name] = alias_tag
         self.return_alias_scopes[-1][name] = return_tag
         self.field_alias_scopes[-1][name] = field_dict
+        self.field_return_alias_scopes[-1][name] = field_return_dict
 
     # -- generation -------------------------------------------------
     _EXPR_MARK = "\x00EXPR\x00"
@@ -561,6 +666,7 @@ class ExtendedEffectGen(object):
         self.alias_scopes.append({})
         self.return_alias_scopes.append({})
         self.field_alias_scopes.append({})
+        self.field_return_alias_scopes.append({})
         try:
             lines = []
             tail_tag = None
@@ -587,6 +693,7 @@ class ExtendedEffectGen(object):
             self.alias_scopes.pop()
             self.return_alias_scopes.pop()
             self.field_alias_scopes.pop()
+            self.field_return_alias_scopes.pop()
 
     def gen_cond(self):
         return self.r.choice(["true", "false", "1 < 2", "2 < 1"])
@@ -633,26 +740,36 @@ class ExtendedEffectGen(object):
         aliases, returns, fields = (self.known_alias_names(), self.known_return_names(),
                                      self.known_field_names())
         choice = r.random()
-        if choice < 0.25 and aliases:
+        if choice < 0.2 and aliases:
             name = r.choice(aliases)
             self.record_call_direct(name)
             return self._mk_expr("%s(0)" % name), None
-        if choice < 0.45:
+        if choice < 0.35:
             self.record_call_direct("print")
             return self._mk_expr("print(0)"), None
-        if choice < 0.55 and returns:
+        if choice < 0.45 and returns:
             fname = r.choice(returns)
             self.record_call_return_chain(fname)
             return self._mk_expr("%s()(0)" % fname), None
         carriers = self.any_return_carrier_names()
-        if choice < 0.65 and carriers:
+        if choice < 0.55 and carriers:
             fname = r.choice(carriers)
             self.record_call_return_chain(fname)
             return self._mk_expr("%s()(0)" % fname), None
-        if choice < 0.75 and fields:
+        if choice < 0.65 and fields:
             boxname, field = r.choice(fields)
             self.record_call_field(boxname, field)
             return self._mk_expr("%s.%s(0)" % (boxname, field)), None
+        field_returns = self.known_field_return_names()
+        if choice < 0.75 and field_returns:
+            boxname, field = r.choice(field_returns)
+            self.record_call_field_return_chain(boxname, field)
+            return self._mk_expr("%s.%s()(0)" % (boxname, field)), None
+        field_return_carriers = self.any_field_return_carrier_names()
+        if choice < 0.85 and field_return_carriers:
+            boxname, field = r.choice(field_return_carriers)
+            self.record_call_field_return_chain(boxname, field)
+            return self._mk_expr("%s.%s()(0)" % (boxname, field)), None
         return self._mk_expr(str(r.randint(0, 9))), None
 
     def gen_one_stmt(self, depth):
@@ -666,8 +783,14 @@ class ExtendedEffectGen(object):
             choices += ["call_return_chain_any"] * 3
         if self.known_field_names():
             choices += ["call_field"]
+        if self.known_field_return_names():
+            choices += ["call_field_return_chain"] * 3
+        if self.any_field_return_carrier_names():
+            choices += ["call_field_return_chain_any"] * 3
         if self.outer_visible_names():
             choices += ["shadow_let"]
+        if self.outer_field_return_box_pairs():
+            choices += ["shadow_box_call_field_return"] * 4
         if depth < self.max_depth:
             choices += ["nested_fn", "nested_block", "let_fn_expr"]
             if self.outer_alias_names() or self.outer_return_names():
@@ -679,15 +802,18 @@ class ExtendedEffectGen(object):
 
     def _stmt_let_builtin_alias(self, depth):
         name = self.fresh("a")
-        self.bind(name, EFFECTFUL.get("print"), None, None)
+        self.bind(name, EFFECTFUL.get("print"), None, None, None)
         return "let %s = print" % name
 
     def _stmt_let_alias_chain(self, depth):
         # NameRef RHS (`Parser.statement`, ~line 234): copies BOTH the
-        # alias tag AND the return tag forward under the new name.
+        # alias tag AND the return tag forward under the new name — but
+        # NOT either field dict (parser lines 254-255: both explicitly
+        # reset to None for a rename, same as every other non-RecordLit
+        # RHS shape).
         src = self.r.choice(self.known_alias_names())
         name = self.fresh("a")
-        self.bind(name, self.resolve_alias(src), self.resolve_return(src), None)
+        self.bind(name, self.resolve_alias(src), self.resolve_return(src), None, None)
         return "let %s = %s" % (name, src)
 
     def _stmt_let_call_return(self, depth):
@@ -696,7 +822,7 @@ class ExtendedEffectGen(object):
         # `get` was tracked to return; NOT itself a return-carrier.
         fname = self.r.choice(self.known_return_names())
         name = self.fresh("a")
-        self.bind(name, self.resolve_return(fname), None, None)
+        self.bind(name, self.resolve_return(fname), None, None, None)
         return "let %s = %s()" % (name, fname)
 
     def _stmt_let_fn_expr(self, depth):
@@ -710,6 +836,7 @@ class ExtendedEffectGen(object):
         self.alias_scopes.append(dict.fromkeys(params))
         self.return_alias_scopes.append(dict.fromkeys(params))
         self.field_alias_scopes.append(dict.fromkeys(params))
+        self.field_return_alias_scopes.append(dict.fromkeys(params))
         try:
             body_lines, body_tag = self.gen_frame(depth + 1, self.r.randint(1, self.max_stmts), True)
         finally:
@@ -717,45 +844,62 @@ class ExtendedEffectGen(object):
             self.alias_scopes.pop()
             self.return_alias_scopes.pop()
             self.field_alias_scopes.pop()
+            self.field_return_alias_scopes.pop()
         effects_txt = "" if own_spec is None else " effects [%s]" % ", ".join(sorted(own_spec))
         header = "fn(%s)%s {" % (", ".join(params), effects_txt)
         src = header + "\n  " + "\n  ".join(self._strip_marks(body_lines)) + "\n}"
-        self.bind(name, None, body_tag, None)
+        self.bind(name, None, body_tag, None, None)
         return "let %s = %s" % (name, src)
 
     def _stmt_let_record(self, depth):
         # `let box = @{f1: name1, f2: 5, ...}` (~line 253-270): only
         # bare-NameRef field VALUES are tracked; other field shapes are
-        # simply absent from the dict (not recorded as None).
+        # simply absent from the dict (not recorded as None). v0.14.6
+        # (~line 295-306): `field_dict`/`field_return_dict` are built from
+        # the EXACT same set of bare-NameRef field values, just resolved
+        # through `resolve_alias`/`resolve_return` respectively — never a
+        # different key set between the two dicts.
         r = self.r
         name = self.fresh("box")
         pool = self.any_visible_name()
         aliases = self.known_alias_names()
+        returns = self.known_return_names()
         parts = []
         field_dict = {}
+        field_return_dict = {}
         for i in range(1, r.randint(1, 3) + 1):
             fname = "f%d" % i
             src_name = None
-            if aliases and r.random() < 0.5:
+            # `returns` checked FIRST and with a high draw probability:
+            # `known_return_names()` non-empty at all is already rare
+            # (measured ~0.7% of `_stmt_let_record` calls this round —
+            # needs an earlier fn/closure whose tail happens to resolve a
+            # real return tag), so once available it should be taken, or
+            # the field-return-carrier shape (the whole point of this
+            # statement, v0.14.6) would almost never get generated at all.
+            if returns and r.random() < 0.85:
+                src_name = r.choice(returns)
+            elif aliases and r.random() < 0.4:
                 src_name = r.choice(aliases)
             elif pool and r.random() < 0.7:
                 src_name = r.choice(pool)
             if src_name is not None:
                 parts.append("%s: %s" % (fname, src_name))
                 field_dict[fname] = self.resolve_alias(src_name)
+                field_return_dict[fname] = self.resolve_return(src_name)
             else:
                 parts.append("%s: %d" % (fname, r.randint(0, 9)))
-        self.bind(name, None, None, field_dict)
+        self.bind(name, None, None, field_dict, field_return_dict)
         return "let %s = @{%s}" % (name, ", ".join(parts))
 
     def _stmt_let_plain(self, depth):
         name = self.fresh("v")
-        self.bind(name, None, None, None)
+        self.bind(name, None, None, None, None)
         return "let %s = %d" % (name, self.r.randint(0, 9))
 
     def _stmt_shadow_let(self, depth):
         name = self.r.choice(self.outer_visible_names())
-        self.bind(name, None, None, None)
+        self.bind(name, None, None, None, None)
         return "let %s = %d" % (name, self.r.randint(0, 9))
 
     def _stmt_call(self, depth):
@@ -782,11 +926,53 @@ class ExtendedEffectGen(object):
         self.record_call_field(boxname, field)
         return self._mk_expr("%s.%s(0)" % (boxname, field))
 
+    def _stmt_call_field_return_chain(self, depth):
+        boxname, field = self.r.choice(self.known_field_return_names())
+        self.record_call_field_return_chain(boxname, field)
+        return self._mk_expr("%s.%s()(0)" % (boxname, field))
+
+    def _stmt_call_field_return_chain_any(self, depth):
+        boxname, field = self.r.choice(self.any_field_return_carrier_names())
+        self.record_call_field_return_chain(boxname, field)
+        return self._mk_expr("%s.%s()(0)" % (boxname, field))
+
+    def _stmt_shadow_box_call_field_return(self, depth):
+        """Deliberately targets `resolve_field_return`'s (and the real
+        `_resolve_effectful_field_return`'s) shadowing edge: shadow an
+        OUTER box that carries a real field-return-carrier field with a
+        fresh all-None binding in THIS frame, then immediately call
+        `box.field()(...)` through that SAME name — first-frame-wins must
+        resolve the fresh (always-None) shadow, never fall through to the
+        outer box's real fact. Packs the `let`-shadow and the follow-up
+        call into ONE statement slot (two program lines) so the scenario
+        is reliably reachable — see `outer_field_return_box_pairs`'s own
+        docstring for why leaving this to chance (a generic `shadow_let`
+        happening to pick this exact box, AND a later independent
+        statement happening to call through it) is impractically rare.
+
+        Biased 80-of-the-time toward a pair whose OUTER (about-to-be-
+        shadowed) tag actually resolves non-None: `outer_field_return_
+        box_pairs()` itself is unfiltered (any tag value, matching the
+        `any_...` convention elsewhere), but a shadow-then-fallthrough bug
+        is only OBSERVABLE when the outer fact being wrongly recovered is
+        a real tag — shadowing a field whose own correct value is already
+        None makes the buggy and correct resolutions agree by coincidence.
+        Still leaves 20% on the unfiltered pool so the None/None case
+        (correctness, not just bug-detection) stays covered too."""
+        r = self.r
+        pairs = self.outer_field_return_box_pairs()
+        real_pairs = [(n, f) for (n, f) in pairs if self.resolve_field_return(n, f) is not None]
+        name, field = (r.choice(real_pairs) if real_pairs and r.random() < 0.8
+                       else r.choice(pairs))
+        self.bind(name, None, None, None, None)
+        self.record_call_field_return_chain(name, field)
+        return self._mk_expr("let %s = %d\n%s.%s()(0)" % (name, r.randint(0, 9), name, field))
+
     def _stmt_nested_block(self, depth):
         name = self.fresh("blk")
         inner_lines, _ = self.gen_frame(depth + 1, self.r.randint(1, 3), True)
         body = "{ " + "\n    ".join(self._strip_marks(inner_lines)) + " }"
-        self.bind(name, None, None, None)
+        self.bind(name, None, None, None, None)
         return "let %s = %s" % (name, body)
 
     def _stmt_nested_fn(self, depth):
@@ -800,17 +986,19 @@ class ExtendedEffectGen(object):
     def _gen_fn_stmt(self, depth, name, shadow_precheck=False):
         r = self.r
         if shadow_precheck:
-            self.bind(name, None, None, None)
+            self.bind(name, None, None, None, None)
         else:
             self.alias_scopes[-1][name] = None
             self.return_alias_scopes[-1][name] = None
             self.field_alias_scopes[-1][name] = None
+            self.field_return_alias_scopes[-1][name] = None
         params = [self.fresh("p") for _ in range(r.randint(0, 2))]
         own_spec = r.choice(EFFECT_TAG_SETS)
         self.effects_stack.append(self.resolve_effects_scope(own_spec))
         self.alias_scopes.append(dict.fromkeys(params))
         self.return_alias_scopes.append(dict.fromkeys(params))
         self.field_alias_scopes.append(dict.fromkeys(params))
+        self.field_return_alias_scopes.append(dict.fromkeys(params))
         try:
             body_lines, body_tag = self.gen_frame(depth + 1, r.randint(1, self.max_stmts), True)
         finally:
@@ -818,6 +1006,7 @@ class ExtendedEffectGen(object):
             self.alias_scopes.pop()
             self.return_alias_scopes.pop()
             self.field_alias_scopes.pop()
+            self.field_return_alias_scopes.pop()
         self.return_alias_scopes[-1][name] = body_tag
         effects_txt = "" if own_spec is None else " effects [%s]" % ", ".join(sorted(own_spec))
         header = "fn %s(%s)%s {" % (name, ", ".join(params), effects_txt)
@@ -831,11 +1020,13 @@ class ExtendedEffectGen(object):
         self.alias_scopes[-1][name] = None
         self.return_alias_scopes[-1][name] = None
         self.field_alias_scopes[-1][name] = None
+        self.field_return_alias_scopes[-1][name] = None
         own_spec = r.choice(EFFECT_TAG_SETS)
         self.effects_stack.append(self.resolve_effects_scope(own_spec))
         self.alias_scopes.append({shadow_name: None})
         self.return_alias_scopes.append({shadow_name: None})
         self.field_alias_scopes.append({shadow_name: None})
+        self.field_return_alias_scopes.append({shadow_name: None})
         try:
             body_lines, body_tag = self.gen_frame(depth + 1, r.randint(1, self.max_stmts), True)
         finally:
@@ -843,6 +1034,7 @@ class ExtendedEffectGen(object):
             self.alias_scopes.pop()
             self.return_alias_scopes.pop()
             self.field_alias_scopes.pop()
+            self.field_return_alias_scopes.pop()
         self.return_alias_scopes[-1][name] = body_tag
         effects_txt = "" if own_spec is None else " effects [%s]" % ", ".join(sorted(own_spec))
         header = "fn %s(%s)%s {" % (name, shadow_name, effects_txt)

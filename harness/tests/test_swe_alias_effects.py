@@ -8,6 +8,7 @@ against a deliberately mutated copy of the real check.
 """
 import os
 import random
+import re
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -94,12 +95,16 @@ def test_oracle_detects_injected_shadowing_bug():
     assert mismatches > 0, "mutated shadowing bug went undetected — oracle has no teeth"
 
 
-# =========================================== v0.14.3/4/5 (round 281) ======
-# `ExtendedEffectGen` covers the three effect-alias features `AliasEffectsGen`
+# ========================================= v0.14.3/4/5/6 (rounds 281/287) ==
+# `ExtendedEffectGen` covers the effect-alias features `AliasEffectsGen`
 # doesn't: return-value aliasing (v0.14.3), record-field aliasing (v0.14.4),
-# and if/else-tail combination (v0.14.5) — see `alias_effects.py`'s own
-# module comment for why these needed a genuinely new generator, not just
-# more `AliasEffectsGen` seeds.
+# if/else-tail combination (v0.14.5) — round 281 — and, since round 287,
+# the field-RETURN chain (v0.14.6, `box.field()(...)` where `box.field` is
+# itself a tracked return-carrier) — see `alias_effects.py`'s own module
+# comment for why v0.14.3/4/5 needed a genuinely new generator, and its
+# `record_call_field_return_chain`/`_stmt_shadow_box_call_field_return`
+# docstrings for why v0.14.6 folded into this SAME generator instead of a
+# third one.
 
 def test_extended_generator_produces_both_verdicts():
     oks = errs = 0
@@ -122,14 +127,35 @@ def test_extended_generated_programs_are_well_formed_source():
             pass  # expected for many seeds; only a non-ParseError escape is a bug
 
 
+def test_extended_generator_reaches_field_return_chain_shape():
+    """Round 287: a coverage guard, not a correctness check — confirms the
+    v0.14.6 `box.field()(...)` shape (a TWO-application call whose callee
+    is a field access) is actually reachable from the generator at a real
+    rate, not just theoretically wired up. A future refactor that
+    accidentally starved `known_field_return_names()`/`any_field_return_
+    carrier_names()` (e.g. by changing `_stmt_let_record`'s draw
+    probabilities) would silently make `test_extended_targeted_campaign_
+    no_mismatches` below vacuous for this one shape without this guard."""
+    pat = re.compile(r"\.\w+\(\)\(")
+    hits = 0
+    n = 4000
+    for seed in range(n):
+        src, _ = ExtendedEffectGen(seed, max_depth=4, max_stmts=5).gen_program()
+        if pat.search(src):
+            hits += 1
+    assert hits > n * 0.1, (hits, n)
+
+
 def test_extended_targeted_campaign_no_mismatches():
-    """The real regression: 3000 generated programs spanning return/field/
-    if-tail alias shapes (plus their interaction with v0.14.2's own direct
-    aliasing) against the real parser, compared to the independent
-    oracle's prediction."""
+    """The real regression: 5000 generated programs spanning return/field/
+    if-tail/field-return-chain alias shapes (plus their interaction with
+    v0.14.2's own direct aliasing) against the real parser, compared to the
+    independent oracle's prediction. Bumped from round 281's original 3000
+    to 5000 when round 287 folded the v0.14.6 field-return-chain shape into
+    this same generator, to keep per-shape sample size comparable."""
     rng = random.Random(281269)
     mismatches = []
-    for _ in range(3000):
+    for _ in range(5000):
         seed = rng.randrange(10 ** 9)
         depth = rng.choice([2, 3, 3, 4, 5])
         stmts = rng.choice([2, 3, 4, 5, 6])
@@ -240,3 +266,52 @@ def test_extended_oracle_detects_injected_if_tail_unsound_match_bug():
     finally:
         P.Parser._if_tail_alias_tag = orig
     assert mismatches > 0, "mutated if-tail unsound-match bug went undetected"
+
+
+# ==================================================== v0.14.6 (round 287) ==
+
+def test_extended_oracle_detects_injected_field_return_shadowing_bug():
+    """Mutation test 4/4: same shadowing-revert bug class as test 2/3
+    (`_resolve_effectful_field`'s own None-sentinel shadowing), now for
+    `_resolve_effectful_field_return` — v0.14.6's fourth stack,
+    `field_return_alias_scopes`. Only observable when a box carrying a
+    REAL (non-None) field-return tag in an OUTER frame gets shadowed by an
+    all-None rebinding in an INNER frame and then something in that inner
+    frame calls THROUGH the shadowed name (`box.field()(...)`) — the buggy
+    resolver incorrectly falls through past the falsy inner dict to
+    recover the outer frame's real tag. This is a rarer compound event
+    than test 2/3's own field-alias case (needs a record field bound
+    SPECIFICALLY to a return-carrier name, itself uncommon — see
+    `_stmt_let_record`'s own comment on `known_return_names()` being
+    non-empty at all only ~0.7% of the time it's called): even with
+    `ExtendedEffectGen._stmt_shadow_box_call_field_return` deliberately
+    targeting this exact scenario (see its own docstring), the measured
+    hit rate this round was ~0.017% (5/30000 in a manual scaling check) —
+    N=60000 here for comfortable headroom (~10 expected hits, P(zero hits
+    by chance) well under 1%)."""
+    sys.path.insert(0, WHENCE_ROOT)
+    from whence import parser as P
+
+    def buggy_resolve(self, name, field):
+        for scope in reversed(self.field_return_alias_scopes):
+            if name in scope and scope[name]:
+                fields = scope[name]
+                v = fields.get(field)
+                if v is not None:
+                    return v
+        return None
+
+    orig = P.Parser._resolve_effectful_field_return
+    P.Parser._resolve_effectful_field_return = buggy_resolve
+    try:
+        rng = random.Random(287555)
+        mismatches = 0
+        for _ in range(60000):
+            seed = rng.randrange(10 ** 9)
+            depth = rng.choice([3, 4, 4, 5, 5])
+            stmts = rng.choice([3, 4, 5, 6, 7])
+            _, _, _, mismatch = check_one_ext(seed, max_depth=depth, max_stmts=stmts)
+            mismatches += mismatch
+    finally:
+        P.Parser._resolve_effectful_field_return = orig
+    assert mismatches > 0, "mutated field-return shadowing bug went undetected"

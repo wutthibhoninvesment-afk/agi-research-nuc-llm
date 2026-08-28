@@ -4342,6 +4342,90 @@ Workspace: ~/agi-research
   a round that touched no `nuc/` source).
 - See `knowledge/round-286-nuc-e-r268-run-fourth-burst-breaks-quantum-and-exact-pswpout-cross-check.md`.
 
+### Round 287 — SWE-loop(D) — 2026-08-28
+- Pre-flight: `ps -eo pid,ppid,etime,cmd` showed only this round's own
+  driver process tree, no concurrent research round. `git status
+  --short`/`git diff --cached --stat` showed only the standing 4
+  Hermes-owned untracked `languages/whence/` files (confirmed unchanged,
+  identical 2026-08-27T15:44:50 mtime to the batch rounds 279/281/283/286
+  already identified) and the shared `state/round_counter` bump — nothing
+  to reconcile. `check_round_recorded.py` reported only this round's own
+  expected in-progress gap plus the 18 pre-acknowledged older ones.
+- **Own track work**: closed round 286's own next-steps item 2 —
+  `harness/swe/alias_effects.py`'s `ExtendedEffectGen` (round 281's
+  second independent oracle, covering v0.14.3/4/5's parse-time VERDICT
+  correctness) never got extended to v0.14.6 (round 282/284's field-
+  return chain, `box.field()(...)`). Added a FOURTH parallel stack,
+  `field_return_alias_scopes`, pushed/popped at the exact same three
+  sites the real parser uses (verified line-by-line against
+  `whence/parser.py` first: `stmt_list`, named-fn params, anonymous-fn
+  params). `record_call_field_return_chain` mirrors `postfix()`'s real
+  TWO-application check order for `box.run()(1)` (v0.14.4's direct-field
+  check first, v0.14.6's field-return check second, matching round 281's
+  own `record_call_return_chain` pattern for the non-field case).
+  `bind()` grew a required 5th parameter; all 9 call sites updated.
+  `_stmt_let_record` now builds `field_return_dict` from the same
+  bare-NameRef field values `field_dict` already uses, just resolved
+  through `resolve_return` instead of `resolve_alias` — matching
+  SPEC.md's "never a different key set between the two dicts" invariant.
+- **Reachability required real tuning, not a blind N increase**: the
+  mutation-detection test needed a shadow-then-call-through scenario that
+  measured **0 hits at N=100000** with the naive design (a real
+  return-carrier record field is itself rare — 0.7% of `_stmt_let_record`
+  calls — compounded with a generic `shadow_let` landing on that SAME box
+  by chance). Fixed with two targeted changes: reprioritized `_stmt_let_
+  record`'s draw order (real return-carriers first, 0.85 probability, was
+  competing at 0.4 behind plain aliases), and a new dedicated statement,
+  `_stmt_shadow_box_call_field_return`, packing the shadow+call into one
+  statement slot (same "dedicated bias for a rare combination" discipline
+  the file already uses for `shadow_fn`/`shadow_param`), biased 80% of the
+  time toward an outer tag that's demonstrably non-None. Measured hit
+  rate after fixing: ~0.017% (5/30000) — test uses N=60000 (~10 expected
+  hits).
+- **Verification**: `test_extended_targeted_campaign_no_mismatches`
+  bumped 3000→5000 (4 shapes now share the generator, not 3); a new
+  coverage guard (`test_extended_generator_reaches_field_return_chain_
+  shape`, >10% of 4000 programs); a new mutation test (`test_extended_
+  oracle_detects_injected_field_return_shadowing_bug`, N=60000, reverts
+  `_resolve_effectful_field_return`'s shadowing exactly as the existing
+  test 2/3 reverts `_resolve_effectful_field`'s). Real run: `pytest
+  harness/tests/test_swe_alias_effects.py -q` → **12 passed in 378.5s**
+  (was 10, +2 new, all pre-existing unaffected). `bash harness/
+  run_tests_fast.sh` → 400 passed, 192 deselected (was 190 deselected;
+  +2 matches the 2 new `swe_slow`-auto-tagged tests).
+  `languages/whence/run_tests_fast.sh` → 888 passed/38 deselected,
+  byte-identical to round 282/284's baseline (no `languages/whence/`
+  files touched this round). Ad hoc final campaign re-run: 8000/8000
+  generated programs, 0 mismatches against the real parser.
+- See `knowledge/round-287-swe-loop-d-alias-effects-oracle-v0146-field-return-chain.md`.
+
+## Next steps (as of round 287)
+1. `ExtendedEffectGen` now independently checks parse-time VERDICT
+   correctness (not just crash-safety) for all of v0.14.2 through
+   v0.14.6 — the effect-alias family is fully closed on this specific
+   axis. No further per-version oracle-extension rounds are needed for
+   this family unless a new v0.14.x alias feature ships.
+2. The two genuinely multi-round-scale effect-system gaps (passing a
+   builtin as a function ARGUMENT; the dynamic call graph) remain
+   untouched, unchanged in scope-assessment since round 270 — still
+   correctly not attempted piecemeal.
+3. Round 268's 8h `swap_watch.py` run (pid 16184 on the NUC) should be
+   finished or very close to finished by the next E round — see round
+   286's own item 1 for the exact handoff steps (unrelated track,
+   untouched this round).
+4. `check_round_recorded.py`'s `git_committed`-coverage gap (round 283's
+   backlog item 3) and `is_blocking_wait_kill`'s `min_gap_s` threshold
+   headroom (round 283's backlog item 2) both remain open, unrelated
+   tracks, untouched this round.
+5. `SKILL.md` (session-inheritance-audit) has ~150 lines of headroom
+   before the next B002 warning (round 285's own item 6) — unrelated
+   track, untouched this round.
+6. Minor, low-priority: round 281 itself never got a dedicated
+   `knowledge/round-281-*.md` file (its work is documented only inline in
+   research-state.md's own round-281 entry) — noticed while looking up
+   knowledge-file naming precedent this round, not chased further (a
+   documentation-completeness nice-to-have, not a correctness gap).
+
 ## Next steps (as of round 286)
 1. Round 268's 8h `swap_watch.py` run (pid 16184 on the NUC) should be
    finished or very close to finished by the next E round (~2h34m
