@@ -18,6 +18,8 @@ import os
 import subprocess
 import sys
 
+import pytest
+
 from whence.interp import Interpreter, deep_eq
 from whence.values import Miss, Record, WList
 
@@ -156,6 +158,7 @@ def payloads_agree(h, g):
     return eq is True
 
 
+@pytest.mark.whence_slow
 def test_example_runs_green():
     r = subprocess.run([sys.executable, os.path.join(ROOT, "run.py"), EXAMPLE],
                        capture_output=True, text=True)
@@ -183,6 +186,7 @@ def test_parser_section_matches_self_host():
     assert section in open(EXAMPLE).read()
 
 
+@pytest.mark.whence_slow
 def test_differential_host_vs_guest():
     guest = guest_eval_all(CORPUS)
     failures = []
@@ -203,6 +207,7 @@ def test_differential_corpus_covers_misses():
     assert len(miss_srcs) >= 12, len(miss_srcs)
 
 
+@pytest.mark.whence_slow
 def test_guess_confidence_and_sources_agree_host_vs_guest():
     # deep_eq's Guess-vs-Guess case deliberately compares the ANSWER only
     # (interp.py: "confidence/sources are metadata, not identity"), so
@@ -363,6 +368,7 @@ def test_dot_field_access_on_callable_mirrors_host_label():
         sorted(g - h), sorted(g), sorted(h))
 
 
+@pytest.mark.whence_slow
 def test_sure_on_a_plain_value_is_a_pass_through_not_a_bespoke_node():
     """Round 192->194: the guest-differential why-shape fuzzer (seed 9205,
     `harness/swe/guest.py`) found `sure([], 0.0)` — a plain, non-Guess
@@ -394,6 +400,7 @@ def test_sure_on_a_plain_value_is_a_pass_through_not_a_bespoke_node():
             % (sorted(g - h), src, sorted(g), sorted(h)))
 
 
+@pytest.mark.whence_slow
 def test_sure_below_threshold_and_bad_threshold_still_derive_a_sure_node():
     # the two branches that DO create a real host "sure" node (a genuine
     # Guess below threshold, and an invalid threshold) must still show up

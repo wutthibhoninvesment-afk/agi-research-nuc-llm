@@ -73,6 +73,7 @@ def test_usage_exits_2():
     assert "usage" in r.stderr
 
 
+@pytest.mark.whence_slow
 def test_deep():
     r = run_example("deep.lang")
     assert r.returncode == 0
@@ -88,6 +89,7 @@ def test_history():
     assert "14 passed, 0 failed" in r.stdout
 
 
+@pytest.mark.whence_slow
 def test_meta_self_hosting_subset():
     r = run_example("meta.lang")
     assert r.returncode == 0
@@ -102,6 +104,7 @@ def test_self_hosting_real_syntax():
     assert "guest lexer+parser for real Whence syntax" in r.stdout
 
 
+@pytest.mark.whence_slow
 def test_max_depth_flag():
     r2 = subprocess.run([sys.executable, RUN, "--max-depth", "100",
                          os.path.join(ROOT, "examples", "deep.lang")],
@@ -113,6 +116,7 @@ def test_max_depth_flag():
     assert bad.returncode == 2 and "usage" in bad.stderr
 
 
+@pytest.mark.whence_slow
 def test_tco():
     r = run_example("tco.lang")
     assert r.returncode == 0, r.stdout
@@ -130,6 +134,7 @@ def test_diverge():
     assert "checks: 16 passed, 0 failed" in r.stdout
 
 
+@pytest.mark.whence_slow
 def test_shapes():
     r = run_example("shapes.lang")
     assert r.returncode == 0, r.stdout

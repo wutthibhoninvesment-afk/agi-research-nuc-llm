@@ -1,6 +1,8 @@
 """Whence v0.3: structural-sharing lists, fold node, filtered steps,
 tail calls with merged call nodes, and `diverge`."""
 
+import pytest
+
 from whence.interp import Interpreter
 from whence.values import Miss, Record, WList, wlist, leaf, Prov, diverge
 
@@ -129,6 +131,7 @@ def test_steps_filter_rejects_non_string():
 LOOP = "fn go(i, acc) { if i == 0 { acc } else { go(i - 1, acc + i) } }\n"
 
 
+@pytest.mark.whence_slow
 def test_tail_loop_does_not_consume_depth():
     interp, v = result(LOOP + "let result = go(100000, 0)", max_depth=50)
     assert v.payload == 5000050000
@@ -166,6 +169,7 @@ def test_non_tail_recursion_still_makes_one_node_per_call():
     assert interp.peak_depth == 4
 
 
+@pytest.mark.whence_slow
 def test_mutual_tail_recursion_merges_under_both_names():
     src = ("fn even(n) { if n == 0 { true } else { odd(n - 1) } }\n"
            "fn odd(n) { if n == 0 { false } else { even(n - 1) } }\n"

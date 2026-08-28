@@ -1,4 +1,4 @@
-# Whence — a provenance-first language (spec v0.15, rounds 009/011/014/020/024/026/030/108/110/122/128/132/146/164/168)
+# Whence — a provenance-first language (spec v0.16.6, rounds 009/011/014/020/024/026/030/108/110/122/128/132/146/164/168/204/206/210/216/218/222/224)
 
 **One idea:** every value remembers where it came from. `why x` returns the
 derivation tree of `x` as a first-class value. Failures are values too, so a

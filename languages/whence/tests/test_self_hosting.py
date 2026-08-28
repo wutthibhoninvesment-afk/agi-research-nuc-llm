@@ -80,6 +80,8 @@ raw measurements and the isolation experiments that found this.
 import os
 import sys
 
+import pytest
+
 from whence.interp import Interpreter
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -110,6 +112,7 @@ def escape(s):
               .replace("\n", "\\n").replace("\t", "\\t"))
 
 
+@pytest.mark.whence_slow
 def test_guest_parser_parses_its_own_full_source():
     # self_eval.lang's copy of parse_whence, called directly (host-level,
     # same cost class as running self_host.lang itself), fed self_host.lang's
@@ -131,6 +134,7 @@ def test_guest_parser_parses_its_own_full_source():
     assert env.get("__nstmts").payload == 154
 
 
+@pytest.mark.whence_slow
 def test_guest_evaluator_executes_self_host_library():
     # The real claim: self_eval's `run_src` (parse + EVAL, guest-side)
     # loads self_host.lang's library as guest closures and runs check
@@ -173,6 +177,7 @@ def test_guest_evaluator_executes_self_host_library():
     assert not failed, failed
 
 
+@pytest.mark.whence_slow
 def test_guest_steps_two_arg_pattern_and_total_on_miss():
     # round 206: beyond the 1-arg form pinned above, self_eval.lang's guest
     # `steps` dispatch (`arities.steps = -1`, mirroring host's `(1, 2)`)
@@ -223,6 +228,7 @@ def test_guest_steps_two_arg_pattern_and_total_on_miss():
     assert not failed, failed
 
 
+@pytest.mark.whence_slow
 def test_guest_at_blame_diverge_contrast_dispatch_to_real_host_builtins():
     # round 218: closes the follow-up backlog round 206's own knowledge file
     # flagged when it fixed `steps`'s guest-parity gap -- `at`/`blame`/
@@ -274,6 +280,7 @@ def test_guest_at_blame_diverge_contrast_dispatch_to_real_host_builtins():
     assert not failed, failed
 
 
+@pytest.mark.whence_slow
 def test_guest_at_blame_diverge_contrast_total_on_miss_arguments():
     # round 218: host interp.py documents this whole family as TOTAL (works
     # on a miss argument -- walking a failed value's own history is the
@@ -308,6 +315,7 @@ def test_guest_at_blame_diverge_contrast_total_on_miss_arguments():
     assert not failed, failed
 
 
+@pytest.mark.whence_slow
 def test_guest_steps_blame_diverge_element_field_access():
     # round 222: round 218's own knowledge file flagged a fresh, narrower
     # gap it deliberately left open -- `eval_index`'s list-passthrough
@@ -495,6 +503,7 @@ def test_effects_lang_runs_under_the_guest_round_164_backlog_closed():
     assert not failed, failed
 
 
+@pytest.mark.whence_slow
 def test_guest_miss_unary_why_shape_matches_host_for_all_three_reason_kinds():
     # round 210: harness/swe/guest.py's why-shape fuzzer (round 20's
     # containment probe: every guest-reified `why` op must appear in the
@@ -539,6 +548,7 @@ def test_guest_miss_unary_why_shape_matches_host_for_all_three_reason_kinds():
                             "host ops", sorted(host_ops))
 
 
+@pytest.mark.whence_slow
 def test_guest_sure_why_shape_matches_host_exactly_including_flattening():
     # Round 194 fixed `sure()`'s plain-value pass-through (a non-Guess is
     # always a no-op escape hatch) but left the two Guess-CARRYING cases
@@ -597,6 +607,7 @@ def test_guest_sure_why_shape_matches_host_exactly_including_flattening():
         assert guest_ops == host_ops, (label, "guest", guest_ops, "host", host_ops)
 
 
+@pytest.mark.whence_slow
 def test_guest_guess_is_guess_confidence_why_shape_matches_host_exactly():
     # Round 234 hand-verified `sure()`'s why-shape by direct construction and
     # fixed two real bugs, but never added "sure"/"guess" to

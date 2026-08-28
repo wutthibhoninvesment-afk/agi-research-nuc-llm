@@ -423,6 +423,7 @@ def _snapshot(src, **mkw):
 
 
 @pytest.mark.parametrize("name", ["meta.lang", "self_eval.lang"])
+@pytest.mark.whence_slow
 def test_three_way_on_big_examples(name):
     with open(os.path.join(ROOT, "examples", name)) as f:
         src = f.read()
@@ -503,6 +504,7 @@ def test_ref_diff_counters_flag_catches_a_mode_only_change():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+@pytest.mark.whence_slow
 def test_ref_diff_fuzz_mode_same_on_copy_and_diff_on_sabotage():
     tmp = tempfile.mkdtemp(prefix="whence_refdiff_")
     try:

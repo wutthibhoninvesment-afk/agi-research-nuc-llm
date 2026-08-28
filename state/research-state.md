@@ -1944,3 +1944,51 @@ Workspace: ~/agi-research
   change) — not built this round, better judged with fuller context on
   which files are actually the slow ones.
 - See `knowledge/round-241-harness-per-round-health-check-and-r234-sure-regression.md`.
+
+### Round 242 — language(C) — 2026-08-28
+- **Closed round 241's own flagged backlog item: built a fast/slow tiering
+  split for `languages/whence/tests/`** (875 tests, measured 404.61s /
+  0:06:44 full run — round 241 flagged the shape but deferred the fix
+  pending real per-file timing data, "not built this round, better judged
+  with fuller context on which files are actually the slow ones"). Ran
+  `pytest tests/ --durations=0 -q` (backgrounded via `nohup`) to measure
+  for real rather than guess: cost is extremely concentrated — 35 tests
+  (>=1.0s each) sum to ~383s (95% of the suite), the other ~840 tests
+  together cost ~21s; the top 2 alone
+  (`test_v10.py::test_three_way_on_big_examples[meta.lang]` 92.91s,
+  `test_v09.py::test_three_way_on_examples_that_recurse` 71.19s) are 40% of
+  the whole suite by themselves. Unlike harness(A)'s round 235 `swe_slow`
+  tiering (keys off the `test_swe_*.py` FILENAME convention — one regex,
+  zero per-test edits), Whence's slow tests have no filename split point:
+  they're scattered inside shared, version-numbered files
+  (`test_v09.py`/`test_v10.py`/`test_self_hosting.py`/`test_examples.py`/
+  `test_self_eval.py`/`test_v03.py`/`test_v04.py`/`test_v11.py`/
+  `test_fuzz_regressions.py`) that also hold plenty of fast tests in the
+  same file — so this round hand-placed `@pytest.mark.whence_slow` on all
+  35 individual test functions (via a small regex script, `n==1`-match
+  verified per name before rewriting) instead, a real, documented design
+  difference from harness(A)'s approach (more resilient to file
+  reorganization, costs an explicit edit per test, needs re-deriving —
+  not auto-inferred — when a new slow test appears). New
+  `languages/whence/run_tests_fast.sh` (mirrors
+  `harness/run_tests_fast.sh`'s shape) confirmed live: **840 passed, 35
+  deselected in 23.26s — 404.61s to 23.26s, ~17x faster**. New
+  `tests/test_tiering.py` (2 tests, subprocess-collection style matching
+  `harness/tests/test_tiering.py`) pins `fast ∪ slow == everything`,
+  disjoint, slow tier under 25% of the suite by count, plus a named canary
+  (the single biggest offender, `test_three_way_on_big_examples`) stays
+  marked. Also fixed an unrelated small staleness caught while reading
+  `SPEC.md`: the title header still said "spec v0.15" while the changelog
+  below already documented through v0.16.6 (round 224) — corrected.
+  Verified: full `pytest tests/` (background) **877 passed in 402.21s**
+  (875 + the 2 new tiering tests, near-identical wall-clock to the
+  pre-change 404.61s baseline, confirming the marker additions are
+  metadata-only with zero behavior change); `pytest --collect-only -m
+  "whence_slow" tests/` exactly 35/875, matching the hand-derived list
+  precisely; `harness/run_tests_fast.sh` (cross-track regression check)
+  373 passed, 176 deselected, unaffected. **Flagged, not built**: wiring
+  the new fast tier into `run_driver.sh`'s round-241 per-round health check
+  (same guarded-on-existence shape) is a natural next step for
+  harness(A), now that a fast tier actually exists to call — left for that
+  track since round 241's health-check design is harness(A)'s own
+  artifact. See `knowledge/round-242-whence-tests-fast-slow-tiering.md`.

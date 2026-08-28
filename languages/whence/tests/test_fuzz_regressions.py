@@ -143,6 +143,7 @@ def test_diverge_of_a_value_with_itself_is_identity_fast():
     assert render_contrast(d1, d1) == "no divergence"
 
 
+@pytest.mark.whence_slow
 def test_diverge_on_deep_equal_values_is_not_quadratic():
     """Before v0.4.1 `same_payload` re-ran a full structural compare at every
     node pair: nest(800) vs nest(800) took 26s. Relative timing: 8x the depth

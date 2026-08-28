@@ -234,6 +234,7 @@ def test_peak_depth_and_depth_miss_unchanged_by_the_load_once_rewrite():
 
 # --- the bench drivers ------------------------------------------------------
 
+@pytest.mark.whence_slow
 def test_minof_runs_a_bench_in_a_fresh_process():
     out = subprocess.run([sys.executable, os.path.join(ROOT, "bench", "minof.py"),
                           "-n", "1", "fib20 direct"], capture_output=True,
@@ -241,6 +242,7 @@ def test_minof_runs_a_bench_in_a_fresh_process():
     assert out.startswith("fib20 direct") and "us/call" in out and "result=6765" in out
 
 
+@pytest.mark.whence_slow
 def test_reserve_probe_finds_a_need_below_the_current_reserve():
     sys.path.insert(0, os.path.join(ROOT, "bench"))
     import reserve_probe as RP

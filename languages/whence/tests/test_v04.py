@@ -120,6 +120,7 @@ def test_render_shows_merged_if_count():
     assert "if took else-branch ×3" in tree
 
 
+@pytest.mark.whence_slow
 def test_tail_loop_retains_under_850_bytes_per_iteration():
     def measure(n):
         gc.collect()
@@ -285,6 +286,7 @@ def test_fast_closure_captures_env_per_evaluation():
     assert v.payload == 33
 
 
+@pytest.mark.whence_slow
 def test_fast_path_speeds_up_a_tail_loop():
     """Relative, so it holds on a loaded machine: the same loop with the
     fast path off must be clearly slower (absolute numbers: bench/)."""

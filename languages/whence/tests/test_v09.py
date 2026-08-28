@@ -172,6 +172,7 @@ def test_three_way_depth_miss_and_counters():
     assert runs["direct"][0].host_budget() > 0
 
 
+@pytest.mark.whence_slow
 def test_three_way_on_examples_that_recurse():
     for name in ("tco.lang", "history.lang", "blame.lang", "diverge.lang",
                  "checks_demo.lang", "sales.lang"):
@@ -190,6 +191,7 @@ def test_three_way_on_examples_that_recurse():
                     (name, mode, n)
 
 
+@pytest.mark.whence_slow
 def test_self_host_lexer_regression_multi_frame_builtin_tail():
     # the shape that exposed the v0.7 leftover: 13 merged frames, the last
     # one `push(acc, eof)` — every mode must show the final `if` wrapping
@@ -209,6 +211,7 @@ def test_self_host_lexer_regression_multi_frame_builtin_tail():
 
 # --- the budget --------------------------------------------------------------
 
+@pytest.mark.whence_slow
 def test_deep_recursion_under_default_limit_falls_back_to_trampoline():
     interp, env, _ = run(COUNT + "let result = count(15000)\n")
     assert env.get("result").payload == 15000
@@ -217,6 +220,7 @@ def test_deep_recursion_under_default_limit_falls_back_to_trampoline():
     assert interp.host_budget() > 0
 
 
+@pytest.mark.whence_slow
 def test_budget_is_load_bearing():
     class Unbounded(Interpreter):
         def exec_stmt(self, stmt, env):
@@ -230,6 +234,7 @@ def test_budget_is_load_bearing():
     assert env.get("result").payload == 5000
 
 
+@pytest.mark.whence_slow
 def test_runs_inside_a_deep_host_stack():
     def deep(n, thunk):
         if n == 0:
@@ -372,6 +377,7 @@ def test_call_value_public_api_before_and_after_a_run():
 
 # --- CLI ----------------------------------------------------------------------
 
+@pytest.mark.whence_slow
 def test_cli_no_direct_flag_gives_identical_output():
     exe = os.path.join(ROOT, "run.py")
     ex = os.path.join(ROOT, "examples", "tco.lang")
