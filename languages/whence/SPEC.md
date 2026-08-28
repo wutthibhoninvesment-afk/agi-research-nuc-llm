@@ -558,7 +558,15 @@ that cannot end a statement.
   candidates) — but a `-> Type` RETURN annotation has no such safe
   shape (checking a value AFTER the body runs inherently needs the
   result back, which costs tail position, decision 8) — so v0.12 ships
-  parameter types only; a return annotation is future work, not started.
+  parameter types only. **Stale-note correction (round 240): this used to
+  say "a return annotation is future work, not started" — true when this
+  section was written (round 122) but closed the very next version; see
+  `## v0.13 (round 128/132) — return type annotations` below, which even
+  has its own round-234 stale-note correction for a different paragraph.
+  This is the same "prose describing a resolved question as still open"
+  bug class rounds 230/234/236 already found and fixed elsewhere in this
+  file/repo, just one section closer to the root this time — the very
+  bullet that originally posed the question, not a later summary of it.**
 - **Primitive tags:** `num str bool list record fn any` — `any` always
   matches (even so, a miss argument still propagates first: "any" is not
   "swallow errors", decision 2). `shapeof(x)` returns the tag Whence

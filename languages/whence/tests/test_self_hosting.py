@@ -415,6 +415,65 @@ def test_guest_matches_shapeof_dispatch_and_callable_guard():
     assert not failed, failed
 
 
+def test_guest_matches_structural_record_spec_does_not_crash_the_host():
+    # Round 240: the test above (round 224) only ever probed `matches`/
+    # `shapeof` with a plain STRING spec ("num"/"str"/"fn"/"any") — never a
+    # STRUCTURAL Record spec (v0.12's `shape`-style width-subtyping check).
+    # self_eval.lang's own comment above the `matches` dispatch predicted
+    # this would just "mismatch every nested check" (a guest record's field
+    # values are `{v, op, ins}` boxes, not raw values, so recursing into
+    # them the way the host's `_type_match` does for a real, unboxed shape
+    # record would compare the WRONG thing) — a real but survivable
+    # semantic gap. Direct probing (before writing this test, or the fix)
+    # found it is actually worse: `_type_match`'s recursion hits a box
+    # (a Record with no `.value` attribute) where it expects a Prov, and
+    # raises an uncaught `AttributeError` from *host* Python code — a
+    # "never raises" discipline violation, not just a wrong answer. Fixed
+    # by deep-`strip()`-ing both the value and the spec (when the spec is
+    # not a plain string) before delegating to the real host `matches`, so
+    # both sides reach `_type_match` in the plain, unboxed shape it already
+    # assumes. This test is the regression gate for that fix: every case
+    # here previously raised `AttributeError` out of `Interpreter().run()`
+    # before the fix (confirmed by hand before writing the fix, per this
+    # skill's "evaluate before authoring" discipline), not just returned
+    # the wrong boolean.
+    eval_lib = eval_library_source()
+    inner_checks = "\n".join([
+        'let PointSpec = @{x: "num", y: "num"}',
+        'let p = @{x: 1, y: 2}',
+        'check "structural spec matches a record with the right fields":\n'
+        '  matches(p, PointSpec)',
+        'check "structural spec rejects a record missing a field":\n'
+        '  not matches(@{x: 1}, PointSpec)',
+        'check "structural spec rejects a record with a wrong-typed field":\n'
+        '  not matches(@{x: 1, y: "nope"}, PointSpec)',
+        'let Nested = @{a: PointSpec, tag: "str"}',
+        'let good = @{a: @{x: 1, y: 2}, tag: "hi"}',
+        'let bad = @{a: @{x: 1, y: "oops"}, tag: "hi"}',
+        'check "nested structural spec matches recursively":\n'
+        '  matches(good, Nested)',
+        'check "nested structural spec rejects a deep mismatch":\n'
+        '  not matches(bad, Nested)',
+        'check "matches with a miss spec is false, not itself a miss":\n'
+        '  matches(1, miss "x") == false',
+        'check "matches with a non-str/non-record spec is false":\n'
+        '  matches(1, 5) == false',
+        'check "matches with a plain string spec still works (fast path)":\n'
+        '  matches(1, "num")',
+    ])
+    inner_src = inner_checks + "\n"
+    prog = eval_lib + 'let __r = run_src("%s")\n' % escape(inner_src)
+
+    env = Interpreter().run(prog)   # pre-fix: raised AttributeError here
+    rec = env.get("__r").payload
+    assert rec.fields["parse_error"].payload is False
+    checks = rec.fields["checks"].payload
+    assert len(checks) == 8
+    failed = [c.payload.fields["label"].payload for c in checks
+              if c.payload.fields["pass"].payload is not True]
+    assert not failed, failed
+
+
 def test_effects_lang_runs_under_the_guest_round_164_backlog_closed():
     # round 164 (SPEC.md "v0.14 guest parity") found run_src(effects.lang)
     # reported parse_error precisely because of one multi-line `check

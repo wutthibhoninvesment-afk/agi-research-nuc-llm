@@ -1609,18 +1609,37 @@ fn apply_host_builtin(name, args) {
   # fields, so it never sees the guest's `{v, op, ins}` box wrapper on a
   # nested field. `matches` is likewise safe for a plain STRING spec
   # against a non-callable value (`_type_match` for a str spec is the same
-  # non-recursive `_kind(payload) == spec` check) -- but a STRUCTURAL
-  # Record spec (nested field types) against a non-callable guest record
-  # would recurse into `payload.fields` and see each field's box wrapper
-  # instead of its raw value, mismatching every nested check. Real,
-  # narrower, deliberately unfixed caveat (same "evaluate before
-  # authoring" discipline as `at()`'s internal-noise property, SPEC.md
-  # v0.16.5): no corpus need yet for guest code to `matches`/`typed` a
-  # structural shape against a record built entirely inside `run_src`.
+  # non-recursive `_kind(payload) == spec` check) -- but round 240 found
+  # (before this fix existed, by direct probing per "evaluate before
+  # authoring") that a STRUCTURAL Record spec against a non-callable guest
+  # record does NOT just "mismatch every nested check" as this comment used
+  # to predict: it CRASHES the host with an uncaught `AttributeError`
+  # (`_type_match` recurses into `payload.fields[fname].value` expecting a
+  # str-or-Record, but gets the field's `{v, op, ins}` BOX -- a Record with
+  # no `.value` attribute -- one level in, and a WList once the recursion
+  # reaches a box's own `ins` list two levels in). A "never raises"
+  # violation is a strictly worse bug than a semantic mismatch, so this is
+  # fixed rather than left as backlog: `strip()` (defined near the top of
+  # this file) deep-unboxes a guest box into a plain host-shaped value
+  # (real Prov-wrapped fields via `put`, no `{v,op,ins}` wrapper anywhere),
+  # which is exactly the shape `_type_match`'s recursion already assumes.
+  # Both the value AND the spec need stripping -- a structural spec built
+  # by guest code (e.g. `@{x: "num", y: "num"}`) is itself a guest record
+  # with boxed field values, same as any other guest record. The plain-
+  # string-spec fast path is UNCHANGED (still `matches(a0, spec)` directly,
+  # zero extra cost) since a str spec never recurses into fields regardless
+  # of whether the value's own fields are boxed. `strip()` is also safe as
+  # a no-op on a miss spec (falls through unchanged, matching host
+  # `_is_miss(spec)` -> False) and on any non-Record/non-str spec (a
+  # number, bool, etc. -- also falls through unchanged, matching host's
+  # `not isinstance(spec.payload, (str, Record))` -> False guard) — so one
+  # `else` branch below covers every remaining case correctly, not just
+  # the Record-spec case that motivated it.
   else if name == "matches" {
     let spec = (args[1]).v
     if is_callable(a0) { is_str(spec) and (spec == "any" or spec == "fn") }
-    else { matches(a0, spec) }
+    else if is_str(spec) { matches(a0, spec) }
+    else { matches(strip(args[0]), strip(args[1])) }
   }
   else if name == "shapeof" {
     if is_callable(a0) { "fn" } else { shapeof(a0) }
