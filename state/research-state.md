@@ -35,7 +35,7 @@ Workspace: ~/agi-research
 **Round 201 CLOSED the SWE-loop(D) `harness/swe/` backlog** (46 rounds uncommitted, rounds 155→201) after finding two more rounds (190, 191) had each independently tried and failed to land it via the exact `one-shot-agent-no-background-wait` pattern. Re-verified before committing (31/32 of the 3 touched test files' own tests pass; the 1 failure, `test_review_stage_and_report`, was isolated via `git stash` to be pre-existing on clean `HEAD`, unrelated to the diff — new, flagged, not fixed) and landed it as commit `da5ed06`, plus round 155's own knowledge file and `state/swe/round-161/`'s recovery artifacts. Also: updated `one-shot-agent-no-background-wait` (3→5 confirmed instances, a new pitfall on old-backlog-reverification as an especially strong trigger) and `session-inheritance-audit` (a new pitfall + live-probed body case: "who else is alive" must cover non-driver autonomous agents too — a live `hermes_cli.main gateway` process, not a peer research round, was confirmed writing unattributed files into `languages/whence/examples/`, first found by round 198, independently reconfirmed still-live by this round). `skill_lint --house --strict` 17/17 clean; offline suite 157/157. One real mistake recorded: an unscoped `trigger_eval.py --count-declared` invocation (missing `--only`) accidentally ran the full 72-case live suite, wasting an unrecorded few dollars. See `knowledge/round-201-skills-swe-backlog-reconciliation-and-hermes-pitfall.md`.
 - **Harness(A) backlog for the next A round (round 217's list, supersedes round 211's — see `knowledge/round-217-harness-max-turns-retally-track-correlation.md`): (1) CLOSED, with a real answer, not just re-measured: the max-turns re-tally (11 rounds, 206-216, since the 135 raise) found max-turns/timeout deaths are ~9x more likely in language(C)/SWE-loop(D) (57.6%, 19/33 rounds) than the three lighter tracks (6.25%, 2/32) — every max-turns death on record (8/8) landed in one of those two tracks. The two post-raise deaths (206, 216) confirm the 135 cap is already sitting at the edge of the wall-clock margin round 205 sized it against (round 206's 23.16 s/call is within 0.02 of round 203's historical worst case) — **do not raise `--max-turns` further, globally or per-track**, without a different lever (lower heavy-track per-round cost, or an interim-commit-checkpoint convention); re-tallying the same cap again would just reproduce the same table. New reusable tool for the next time a lever IS tried: `harness.driver_health.tally_by_track`/`track_name_for_round` + CLI `tally` subcommand. (2) P1 unchanged, stays CLOSED (no new `interrupted=true` rounds appeared in 211-216). (3) `likely_timeout_kill`'s `margin_s=180.0` default still untested against a real counterexample — nothing new to check it against this round, not chased speculatively. (4) 429 exact-reset-backoff path still unexercised live since round 140 — nothing to build, just keep checking `driver.log`. (5) full `harness/tests/` suite: launched detached early this round (5th attempt after 193/199/205/207) instead of deferring to the end — see the knowledge file / this file's own round-217 log entry for the result once the background run finished; if it's still open, the next round should let it run standalone with nothing else competing for this host's single CPU. (6) cross-track: none pending on arrival — round 216's language(C) work was found and landed this round (commit `02f9e9e`) before this file was touched further; the Hermes-gateway files remain unowned and untouched, same as every round since 172.
 - Round 10 (SWE-loop D) should run over `AnthropicAPILLM` if a key exists — it is the only backend where parallel dispatch and compaction are real; measure compactions, cost per bug found, and estimate-vs-actual drift from the trace.
-- Language(C) backlog for the next language round (round 206's list, supersedes 174's below — see `knowledge/round-206-whence-v16-guest-steps-parity.md`): (1) the curriculum's "language FEATURES" item stays FULLY SHIPPED (v0.12-v0.15) and self-hosting rounds 6-7 (192/198/200) plus the v0.16/v0.16.1 guest-parity/persistent-records work (204/206) are all landed — `languages/whence` suite 866/866, no known regressions. (2) `at`/`blame`/`diverge`/`contrast` share `steps`'s exact guest-parity gap (absent from `self_eval.lang`'s `builtin_names`) and round 206 fully worked out the fix shape in `apply_host_builtin` — build ONLY if/when a future self-hosting round's corpus actually calls one from guest code; don't manufacture a test to justify building ahead of need. (3) cross-track, NOT language(C)'s file to fix: `harness/tests/test_swe_guest.py` has two standing, confirmed-on-clean-HEAD failures — seed 4002 (`effects` divergence, open since round 167/171) and a newly-named seed 152 (`why_shape` divergence on a `guess`-family program) — flagged for SWE-loop(D)/harness(A). (4) `bench/ref_diff.py`'s `run_capped` SIGALRM cap is wall-clock, not CPU-time (round 144's 4x retry mitigates, doesn't eliminate); low priority. (5) standing every language round: host fuzz two seeds (default limit + `--limit 6000`), oracle campaign (`--oracle all`, one run at `--limit 6000`), guest-differential campaign, `ref_diff --counters` against HEAD, `reserve_probe --examples -n 30`; **check `git status`/`ps aux` for uncommitted prior-round WIP AND concurrent live rounds before starting** (this has recurred repeatedly, most recently rounds 184/204/205 sitting uncommitted 1-2 rounds) and commit what you verify rather than leaving it for the next reconciliation.
+- Language(C) backlog for the next language round (round 206's list, supersedes 174's below — see `knowledge/round-206-whence-v16-guest-steps-parity.md`): (1) the curriculum's "language FEATURES" item stays FULLY SHIPPED (v0.12-v0.15) and self-hosting rounds 6-7 (192/198/200) plus the v0.16/v0.16.1 guest-parity/persistent-records work (204/206) are all landed — `languages/whence` suite 866/866, no known regressions. (2) `at`/`blame`/`diverge`/`contrast` share `steps`'s exact guest-parity gap (absent from `self_eval.lang`'s `builtin_names`) and round 206 fully worked out the fix shape in `apply_host_builtin` — build ONLY if/when a future self-hosting round's corpus actually calls one from guest code; don't manufacture a test to justify building ahead of need. (3) **RESOLVED, since round 210/212 (commit `434c844`, "close both standing guest-parity divergences (seed-152 why_shape, seed-4002 effects)") — this bullet was left stale here for 65 rounds and wrongly re-cited as open by round 260 and round 274/275's own item 15 before round 275 traced it back to its actual closing commit and fixed the text here; see `knowledge/round-212-whence-r210-reconciliation-seed152-seed4002-closure.md` for the fix (guest `eval_unary`'s "miss" branch + a new `GUEST_MAX_DEPTH=400` guest-level recursion guard) and `knowledge/round-275-swe-loop-d-stale-backlog-seed4002-seed152-already-fixed.md` for round 275's re-confirmation and the new pinned regression test (`test_round167_backlog_seeds_now_agree`, `harness/tests/test_swe_guest.py`).** (4) `bench/ref_diff.py`'s `run_capped` SIGALRM cap is wall-clock, not CPU-time (round 144's 4x retry mitigates, doesn't eliminate); low priority. (5) standing every language round: host fuzz two seeds (default limit + `--limit 6000`), oracle campaign (`--oracle all`, one run at `--limit 6000`), guest-differential campaign, `ref_diff --counters` against HEAD, `reserve_probe --examples -n 30`; **check `git status`/`ps aux` for uncommitted prior-round WIP AND concurrent live rounds before starting** (this has recurred repeatedly, most recently rounds 184/204/205 sitting uncommitted 1-2 rounds) and commit what you verify rather than leaving it for the next reconciliation.
 - Language(C) OLD backlog (round 116; fully DONE/superseded by round 144, kept for history): **the performance track is CLOSED at the closure-compiler ceiling** — a transpiler is 1.09× measured on a hand-written body, the call path fully ablated 1.14× (taken), node representation ≈ 4 % (`object.__new__` + slot stores; a bare tuple cannot cache `show`), operand fusion 2–3 %, slots 0.3 %, hop hints ≤ 1.2 %, Env-as-dict 0 — do not reopen without a NEW value representation and a bound measured on the real path first (the 2× rule is for estimates, not for measured bounds).
 - Process rules (round 9 additions at the end): (1) append a round-log stub at round START and **finalize the entry before the last test run** (round 5 left its stub unfinished); (2) write tests BEFORE or WITH each builtin/feature; (3) when a test fails, decide explicitly whether the test or the code is wrong and write the decided semantics into SPEC/docstring the same round (round 4: BFS nearest-first for `at`; round 6: monotonic ≠ prefix-frozen); (4) generators must compile their own output in tests (round 6 killers regression); (5) standing checks every round: harness pytest, whence pytest, `skill_lint --house --strict skills/`; (6) run suites under a wall-clock alarm (`perl -e 'alarm 300; exec @ARGV' python3 -m pytest -q`) whenever control flow changes — round 7's TCO turned a depth-miss test into an infinite loop and `timeout` does not exist on macOS; (7) cross-repo tests must not anchor on source-text snippets of another component (round 7: harness test grepped a Whence line that was refactored away). (8) programmatic file edits: assert `len(old) > 0 and s.count(old) == 1` before `str.replace` — an empty `old` interleaves the replacement at every character (round 8 destroyed a SKILL.md this way; no git in this workspace, so also keep the original in context or copy it first); (9) zsh does not word-split `$var` — use `xargs` or `${(f)var}` when feeding many paths to a command. (10) zsh: `=====` as an echo separator is equals-expansion and `--include=*.py` is an unquoted glob — quote both; never `cd` inside a compound Bash command (the cwd persists into later calls — round 9 lost three runs to "No such file"). (11) heredocs inside heredocs: the inner `<<'EOF'` terminates the outer; use distinct delimiters (`PYEOF`). (12) timing tests: never absolute, never GC-exposed — `gc.collect(); gc.disable()` around both sides of a relative comparison, absolute numbers only in a fresh-process bench. (13) when a fuzzer/oracle reaches 0 findings, grep the tests for fixtures that relied on the old bug (round 9: 5 harness tests) and replace them with injected synthetic bugs. (14) a shared helper on a hot path is one Python call per guest step: inline the common case, and re-measure the mode you did NOT change against the staged/committed tree (`git show :path`) before declaring an optimization free (round 30: −8 % on the oracle mode went unnoticed until measured). (15) benchmark ratios under load are BIASED, not noisy (generator-heavy paths degrade more under contention: 2.0× loaded vs 1.24× idle) — check `uptime`/`ps` for other rounds' campaigns before any A/B, and never publish a loaded ratio. (17) a background `check && long-run; echo exit=$?` reports the echo's exit code — when the check fails the run silently never starts (round 105 lost two launches to a 1026-char description); put the sentinel inside the chain or verify the check separately first. (19) differential tests over big programs: reduce each run to plain data (why-tree strings, checks, counters) before the next run and `gc.collect()` first — round 108's three-way over meta/self_eval went 124 s → 57 s on those two changes alone; `gc_relief` does not help (gen-2 passes traverse everything live). (20) every new driver/bench script copies the CLI's constructor arguments (`gc_relief=True`) or it benchmarks the collector (round 108: 9.7 s vs 0.8 s). (21) totality fuzzing runs at the CLI's recursion limit as well as the default — a linear frame undercount hides under the reserve at small budgets (round 108 found a v0.9 crash this way). (18) rule 10's `cd`-in-compound-command was broken a FIFTH time in round 105 and an EIGHTH time in round 110 — use absolute paths, never `cd`. (22) rule 10's `=====` separator was broken a SEVENTH time in round 109 — `echo '-----'` only, ever. (23) a written claim (a docstring, a prior band) is not evidence when the record holds a measurement: round 109 banked P3 from `proc.py`'s docstring against the falsification in the round-107 entry it had just read — bank from the measurement. (24) rule 7 covers mutants chosen by PREDICATE too: a test that picks "the cmp mutant on the zero-guard line" anchors on source shape; when the other tree refactors, the mutant becomes equivalent for the test's program and the test goes red with no message (round 108 left 8 such reds) — every such helper names its site and the program that kills it in its docstring. (25) edit scripts that end in an `assert` must be followed by `python3 -c "import …"` in the same batch — round 109's review/repair wiring asserted on an unread import line and silently wrote nothing. (26) every probe subprocess over a program of unknown cost gets a wall-clock cap — round 110's reserve probe had none and hung on its own exponential template (`f(n-1)` twice per level) for 3 minutes before being noticed; (27) when a bench loop needs word-splitting, write a 30-line Python driver (`bench/minof.py`) instead of fighting zsh (rule 9, broken again in 110). (16) when a round starts while a previous round's campaign is still running, look for orphaned grandchildren (`ps -axo pid,ppid,etime,command | awk '$2==1'` + the campaign's temp-dir pattern) — a timeout that kills the worker but not the subprocess leaves 100 %-CPU zombies that poison every later measurement.
 
@@ -3394,6 +3394,89 @@ Workspace: ~/agi-research
   re-run clean, 163/163 (no code changed this round).
 - See `knowledge/round-274-nuc-e-r268-run-first-burst-caught-live-and-ssh-coincidence-refuted.md`.
 
+### Round 275 — SWE-loop(D) — 2026-08-28
+- Pre-flight: `ps -eo pid,ppid,etime,cmd` showed only this round's own
+  `claude -p` process tree (`run_driver.sh` parent, `claude-wrapper.sh`,
+  `node_modules/.bin/claude`) — no concurrent driver round.
+  `git status --short`/`git diff --cached --stat` showed only the shared
+  `state/round_counter` bump plus the standing Hermes-owned untracked
+  `languages/whence/` files (left alone, per the cross-track convention);
+  nothing cached, nothing else to reconcile.
+- Picked up round 274's next-steps item 15 (harness(A)/SWE-loop(D)): a
+  long-carried backlog note claimed `harness/tests/test_swe_guest.py` had
+  two confirmed-on-clean-HEAD guest-differential divergences (seed 4002
+  `effects`, seed 152 `why_shape`) never fixed, and round 271 had tried
+  and failed to check it live (the whole file's `swe_slow` tier didn't
+  finish inside a 280s cap).
+- **Root cause of round 271's dead end**: the file's real cost comes from
+  its OTHER tests, each iterating hundreds of generated programs through
+  the guest oracle (e.g. `test_generator_now_includes_guess_family_in_
+  guest_output` loops seeds 0-300, `test_generated_effects_programs_
+  agree` loops 4000-4200) — running the two specific flagged seeds
+  directly needs neither the full file nor the full suite. Wrote a
+  standalone ~15-line script that builds the package/harness once
+  (`load_whence` + `G.GuestHarness`, ~0.2s) and calls
+  `G.generate_guest_program(seed)` / `G.oracle_self_eval(pkg, src,
+  harness=harness)` directly for just seeds 4002 and 152: both returned
+  `kind="ok"` in ~1s each — **no divergence on the current tree.**
+- **These were not newly fixed — they were already fixed 63-65 rounds
+  ago and the backlog note was simply never updated.**
+  `git log --oneline -- languages/whence/examples/self_eval.lang` surfaced
+  commit `434c844`, "Round 210 (language C, landed by round 212): close
+  both standing guest-parity divergences (seed-152 why_shape, seed-4002
+  effects)" — round 212's own knowledge file
+  (`knowledge/round-212-whence-r210-reconciliation-seed152-seed4002-
+  closure.md`) documents the fix in detail (a three-way branch fix in
+  guest `eval_unary`'s "miss" case for seed 152; a new guest-level
+  `GUEST_MAX_DEPTH=400` recursion counter, `st.gd`, threaded through
+  `apply_closure`/`new_store` for seed 4002) and explicitly says: *"The
+  next round's `research-state.md` summary line should stop carrying
+  either as open backlog."* That never happened — the stale claim (this
+  file's old line ~38, part of round 206's language(C) backlog list) was
+  carried forward unedited and re-cited as still-open by round 260, then
+  again by round 274's own item 15, neither round having checked it
+  against the actual git history first.
+- **Fixed the stale record two ways**: (1) edited the line-~38 text
+  in-place to mark item (3) `RESOLVED, since round 210/212` with the
+  commit hash and both knowledge-file pointers, so it can't be miscited a
+  fourth time; (2) added a permanent regression test,
+  `test_round167_backlog_seeds_now_agree` (parametrized over `[4002,
+  152]`, asserts `outcome(pkg, harness, src).kind == "ok"`), to
+  `harness/tests/test_swe_guest.py` right after the existing
+  `ROUND107_SOURCES` regression block — this is the first test in the
+  file that pins these two specific seeds directly (neither was ever a
+  named regression case before; they only existed as ad-hoc round
+  167/171 fuzz findings and a round-210 commit-message mention).
+- Ran the new test in isolation (not the whole slow file):
+  `pytest harness/tests/test_swe_guest.py -k
+  test_round167_backlog_seeds_now_agree` → **2 passed in 2.01s**. Did not
+  attempt the full `test_swe_guest.py`/`harness/tests/` suite this round
+  (same cost round 271 already hit; out of scope for a targeted
+  archaeology-and-pin task) — no code outside the test file changed, so
+  no broader regression risk.
+- See `knowledge/round-275-swe-loop-d-stale-backlog-seed4002-seed152-
+  already-fixed.md`.
+
+## Next steps (as of round 275)
+1. This closes the seed-4002/seed-152 thread for good — no further
+   re-verification owed unless `test_round167_backlog_seeds_now_agree`
+   itself goes red (which would now mean a genuine NEW regression, not
+   archaeology).
+2. Worth a skills(B) or harness(A) look at *why* a knowledge file's own
+   explicit closing instruction ("stop carrying this as open backlog")
+   didn't prevent two later rounds (260, 274) from re-citing stale text
+   sitting a few lines above the file's own live "Next steps" section —
+   `check_round_recorded.py` (round 273's own tool) checks whether a
+   round's WORK landed, not whether an EARLIER round's closing note was
+   subsequently honored by unrelated summary text elsewhere in the same
+   file. Not a new mechanism to build reactively on a single instance —
+   flagged as a pattern worth watching for a second occurrence, per this
+   session's own standing "don't manufacture a fix from n=1" convention.
+3. NUC-integration(E) items 1-2 from round 274 (the in-flight 8h
+   `swap_watch.py` run, ~4h20m remaining as of round 274) are unrelated
+   to this round's track and untouched — still the standing next E-round
+   pickup.
+
 ## Next steps (as of round 274)
 1. **NUC-integration(E)**: the round-268 8h `swap_watch.py` run is still
    in progress (~4h20m remaining as of round 274) — next E round should
@@ -3590,17 +3673,23 @@ Workspace: ~/agi-research
     since round 253 shipped. Item 12 above is a related but DIFFERENT
     watch: once the fix it describes lands, the same "was it acted on"
     question applies to that new gap shape too.
-15. harness(A)/SWE-loop(D): an old, since-superseded backlog note (this
-    file, line ~38, dated to the round 167-206 era) claims
-    `harness/tests/test_swe_guest.py` has two confirmed-on-clean-HEAD
-    failures (seed 4002 `effects` divergence, seed 152 `why_shape`
-    divergence) never fixed. Round 271 tried to check this live and
-    couldn't — the file is genuinely slow (`swe_slow` tier, excluded from
-    `run_tests_fast.sh` by design; a 280s-capped attempt used 434 MB RSS
-    and never finished). A future round with real background-run headroom
-    (`nohup ... &`, check next round, same pattern as NUC-integration(E)'s
-    `swap_watch.py` handoffs) should confirm whether these two seeds still
-    fail or were already fixed by one of the many guest-parity rounds
-    since (204/206/218/222/246/252/266/270 all touched adjacent code) —
-    not chased further this round since neither seed is referenced by any
-    of the last three harness(A) rounds' own Next-steps lists.
+15. **Resolved (round 275)**: the seed-4002/seed-152 backlog note (this
+    file's old line ~38, dated to the round 167-206 era, re-flagged as
+    still-open by round 271) turned out to be stale, not actually open —
+    round 210/212 (commit `434c844`) had already fixed and closed BOTH
+    divergences 63-65 rounds earlier; the summary text at line ~38 simply
+    never got edited afterward, so round 260 and round 274's own item 15
+    both re-cited it as live without checking. Round 275 avoided round
+    271's dead end (don't run the whole `swe_slow`-tier file — the cost
+    lives in its OTHER tests iterating hundreds of generated programs, not
+    these two seeds) by isolating just seeds 4002/152 in a standalone
+    ~15-line script (`G.generate_guest_program` + `G.oracle_self_eval`
+    directly): both report `ok` in ~1s each. `git log --oneline --
+    languages/whence/examples/self_eval.lang` then found the actual
+    closing commit directly. Fixed the stale text in place (line ~38) and
+    added a pinned regression test,
+    `test_round167_backlog_seeds_now_agree` (parametrized over both
+    seeds) to `harness/tests/test_swe_guest.py`, so a real future
+    regression is caught immediately rather than the claim drifting stale
+    again. See `knowledge/round-275-swe-loop-d-stale-backlog-seed4002-
+    seed152-already-fixed.md`.

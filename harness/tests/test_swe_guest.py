@@ -436,3 +436,24 @@ ROUND107_SOURCES = [
 def test_round107_guest_divergences_fixed(pkg, src):
     out = G.oracle_self_eval(pkg, src)
     assert out.kind == "ok", out.detail
+
+
+# Round 275: research-state.md carried a standing backlog note (dated to
+# the round 167-171 era) claiming seed 4002 (`effects`) and seed 152
+# (`why_shape`, a `guess`-family program) were confirmed-on-clean-HEAD
+# divergences, never fixed. Round 271 tried to re-check it and couldn't
+# (the file's real cost lives in its OTHER tests iterating hundreds of
+# generated programs; this file's own presence was mistaken for the
+# bottleneck). Round 275 isolated just these two seeds with a standalone
+# script (~1s each, not the whole suite) and found both now report "ok" —
+# already fixed by one of the many guest-parity rounds since 171 (204,
+# 206, 218, 222, 246, 252, 266, 270, 272 all touched adjacent effects/
+# guess-family code; no single round's commit message names either seed,
+# so the exact fixing commit is not identifiable after the fact). Pinned
+# here so a future regression is caught immediately instead of waiting
+# for the next archaeology round.
+@pytest.mark.parametrize("seed", [4002, 152])
+def test_round167_backlog_seeds_now_agree(pkg, harness, seed):
+    src = G.generate_guest_program(seed)
+    o = outcome(pkg, harness, src)
+    assert o.kind == "ok", (seed, o.detail)
