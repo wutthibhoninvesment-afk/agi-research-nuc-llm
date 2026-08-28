@@ -368,14 +368,31 @@ ORACLES = {"totality": oracle_totality, "fast_slow": oracle_fast_slow,
            "render": oracle_render, "frames": oracle_frames}
 
 
-def run_oracle(name, pkg, src, timeout_s=3.0, max_depth=500, root=WHENCE_ROOT):
-    """Run one oracle under a wall-clock budget; crashes become outcomes."""
+def run_oracle(name, pkg, src, timeout_s=3.0, max_depth=500, root=WHENCE_ROOT, **kwargs):
+    """Run one oracle under a wall-clock budget; crashes become outcomes.
+
+    Round 289: `**kwargs` forwards oracle-specific keyword args (e.g.
+    guest.py's `oracle_self_eval(..., harness=..., why_probe=...)`) through
+    to `fn`. Before this, any caller that needed one of those — most
+    concretely, a shared `GuestHarness` reused across several programs in a
+    loop, to avoid re-parsing the ~800-line self_eval.lang library each time
+    — had no way to reach it through `run_oracle` and was structurally
+    forced to call the oracle function directly instead, silently losing
+    the SIGALRM timeout below. Round 185's own round did exactly that (a
+    one-off `python3 -c` exploring `GUEST_ORACLE` mismatches with a shared
+    `harness=h`, calling `G.oracle_self_eval(pkg, src, harness=h)` bare) and
+    hung for 2912s on a self-recursive guest program (`fn f6() { let t7 =
+    f6() ... }`, no base case) — consuming nearly the entire round budget
+    on one Bash call with no `timeout` param set, confirmed reproducible by
+    round 289 with a 6s bash `timeout` wrapper (exit 124, never returned).
+    Reproduced in a controlled way in
+    `test_run_oracle_kwargs_bounds_a_shared_harness_hang`."""
     fn = ORACLES[name]
     old = signal.signal(signal.SIGALRM, _alarm)
     signal.setitimer(signal.ITIMER_REAL, timeout_s)
     t0 = time.time()
     try:
-        o = fn(pkg, src, max_depth=max_depth)
+        o = fn(pkg, src, max_depth=max_depth, **kwargs)
     except _Timeout:
         o = OracleOutcome("timeout", name, "exceeded %.1fs" % timeout_s)
     except RecursionError as e:

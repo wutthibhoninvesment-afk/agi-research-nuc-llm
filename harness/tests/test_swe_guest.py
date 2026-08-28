@@ -287,6 +287,53 @@ def test_run_oracle_path_works(pkg):
     assert o.kind == "ok", o.detail
 
 
+def test_run_oracle_forwards_kwargs_to_the_oracle_fn(pkg, harness):
+    # round 289: `run_oracle` used to call `fn(pkg, src, max_depth=...)`
+    # only — no way to also pass an oracle-specific kwarg like guest.py's
+    # `harness=`. Confirms the forwarded `harness=` is the SAME shared
+    # instance (not silently ignored / rebuilt), by mutating it first the
+    # way `test_injected_arith_bug_fires` does.
+    h = _broken_harness(pkg, 'if op == "-" { a.v - b.v }',
+                        'if op == "-" { a.v + b.v }')
+    src = ('let v = 10 - 3\nlet __result = @{v: (v rescue "&MISS&")}\n')
+    o = O.run_oracle(G.GUEST_ORACLE, load_dict_with_root(pkg), src,
+                     timeout_s=8.0, max_depth=2000, harness=h)
+    assert o.kind == "mismatch", o.detail
+
+
+def test_run_oracle_kwargs_bounds_a_shared_harness_hang(pkg):
+    """Round 185's own root cause, now fixable: a one-off script explored
+    `GUEST_ORACLE` mismatches with ONE `GuestHarness` shared across several
+    programs (avoiding a re-parse of the ~800-line self_eval.lang library
+    per program) — a need `run_oracle`'s old signature had no hook for,
+    forcing a bare `G.oracle_self_eval(pkg, src, harness=h)` call that
+    skips `run_oracle`'s SIGALRM timeout entirely. That round's own
+    self-recursive guest program (`fn f6() { let t7 = f6() ... }`, no base
+    case) then ran for 2912s before the OUTER driver process timeout
+    finally killed it.
+
+    Round 289 manually re-ran that exact program bare (no `run_oracle`) and
+    found its duration is genuinely load-dependent, not a fixed hang: one
+    run exceeded a 6s bash `timeout` wrapper (exit 124), another completed
+    in 7.8s — both consistent with round 185's true cause (the guest
+    interpreter, built via `harness_for`/`GuestHarness.__init__` with no
+    `max_depth` passed, recurses to `DEFAULT_MAX_DEPTH` = 20000 through the
+    self-hosted, doubly-interpreted evaluator before the depth Miss even
+    fires, not a true infinite loop) but too timing-dependent to assert on
+    directly in a test. This test instead monkeypatches `eval_program` to
+    block deterministically, isolating the actual fix under test — that
+    `run_oracle`'s new `**kwargs` forwarding lets a caller reach `harness=`
+    at all, so `run_oracle`'s existing SIGALRM wrapper can bound whatever
+    that shared harness ends up doing, real recursion or not."""
+    import time
+    h = G.GuestHarness(WHENCE_ROOT, pkg)
+    h.eval_program = lambda src: time.sleep(30)
+    src = ('let v = 6 * 7\nlet __result = @{v: (v rescue "&MISS&")}\n')
+    o = O.run_oracle(G.GUEST_ORACLE, load_dict_with_root(pkg), src,
+                     timeout_s=0.5, max_depth=2000, harness=h)
+    assert o.kind == "timeout", o.detail
+
+
 def test_guest_harness_cache_evicted_after_a_mid_call_exception(pkg):
     """Round 149: `run_oracle`'s SIGALRM can fire at ANY point inside
     `h.eval_program`, which mutates the long-lived, CACHED `GuestHarness`

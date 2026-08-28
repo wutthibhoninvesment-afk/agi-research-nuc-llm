@@ -834,10 +834,10 @@ def test_is_blocking_wait_kill_respects_custom_min_gap(tmp_path):
     first = _tool_use_assistant("2026-08-27T22:17:52.506Z", "Bash")
     last = _tool_use_assistant("2026-08-27T23:07:46.457Z", "TaskOutput")
     trailing_user = {"type": "user", "message": {"role": "user", "content": []},
-                      "timestamp": "2026-08-27T23:07:56.457Z"}  # only 10s gap
+                      "timestamp": "2026-08-27T23:07:46.957Z"}  # only 0.5s gap
     p = _write_ndjson(str(tmp_path), "a.json", [first, last, trailing_user])
-    assert is_blocking_wait_kill(p) is False  # 10s < default 100s floor
-    assert is_blocking_wait_kill(p, min_gap_s=5.0) is True
+    assert is_blocking_wait_kill(p) is False  # 0.5s < default 1.0s floor
+    assert is_blocking_wait_kill(p, min_gap_s=0.1) is True
 
 
 def test_reproduces_actual_round_278_taskoutput_block_kill_fourth_instance(tmp_path):
@@ -870,6 +870,59 @@ def test_reproduces_actual_round_278_taskoutput_block_kill_fourth_instance(tmp_p
     assert last_assistant_tool_use(p) == "TaskOutput"
     assert is_blocking_wait_kill(p) is True
     assert likely_timeout_kill(p, timeout_s=3300) is True
+
+
+def test_is_blocking_wait_kill_true_for_the_smallest_known_real_gap(tmp_path):
+    """Round 289: full-history re-check (logs/round-{152..288}.json, not
+    just the 5 previously examined) found round 192's real log has the
+    IDENTICAL "tool result landed, no further turn" shape as 222/263/278,
+    just with a 9.214s gap — an ordinary-speed Bash call, not a hang. Under
+    the pre-289 default (min_gap_s=100.0) this read False, silently
+    grouping a structurally-identical instance with round 224's genuinely
+    different "still generating" shape. Pinned so the corrected default
+    (1.0) doesn't regress back to that misclassification.
+    """
+    first = _tool_use_assistant("2026-08-27T08:16:57.870Z", "Read")
+    last = _tool_use_assistant("2026-08-27T09:11:42.515Z", "Bash")
+    trailing_user = {"type": "user", "message": {"role": "user", "content": []},
+                      "timestamp": "2026-08-27T09:11:51.729Z"}
+    p = _write_ndjson(str(tmp_path), "round-192.json", [first, last, trailing_user])
+    assert blocking_wait_gap_s(p) == pytest.approx(9.214, abs=0.01)
+    assert is_blocking_wait_kill(p) is True
+
+
+def test_is_blocking_wait_kill_true_for_round_174s_mid_continuum_gap(tmp_path):
+    """Round 289: another of the 4 rounds (162/173/174/192) the pre-289
+    100s default silently misclassified — same shape, 27.771s gap."""
+    first = _tool_use_assistant("2026-08-27T00:17:48.847Z", "Read")
+    last = _tool_use_assistant("2026-08-27T00:57:14.603Z", "Bash")
+    trailing_user = {"type": "user", "message": {"role": "user", "content": []},
+                      "timestamp": "2026-08-27T00:57:42.374Z"}
+    p = _write_ndjson(str(tmp_path), "round-174.json", [first, last, trailing_user])
+    assert blocking_wait_gap_s(p) == pytest.approx(27.771, abs=0.01)
+    assert is_blocking_wait_kill(p) is True
+
+
+def test_is_blocking_wait_kill_true_for_round_185s_extreme_gap(tmp_path):
+    """Round 289: round 185's real log is the most extreme instance found
+    in the full-history re-check — a 2912.156s gap (48.5 minutes), nearly
+    the round's entire budget, spent inside a SINGLE Bash tool call with no
+    `timeout` param set: a one-off `python3 -c` script exploring
+    `swe.guest.oracle_self_eval` mismatches with a shared `GuestHarness`
+    across several test cases, one of which was a self-recursive guest
+    program (`fn f6() { let t7 = f6() ... }`, no base case). Unlike
+    162/173/174/192/278 etc., this magnitude IS worth a second look at the
+    underlying tool call — see `harness/swe/oracles.py`'s `run_oracle`
+    (round 289: now accepts `**kwargs`, closing the exact gap that forced
+    this script to bypass `run_oracle`'s SIGALRM timeout in the first
+    place)."""
+    first = _tool_use_assistant("2026-08-27T05:50:46.615Z", "Read")
+    last = _tool_use_assistant("2026-08-27T06:17:45.744Z", "Bash")
+    trailing_user = {"type": "user", "message": {"role": "user", "content": []},
+                      "timestamp": "2026-08-27T07:06:17.900Z"}
+    p = _write_ndjson(str(tmp_path), "round-185.json", [first, last, trailing_user])
+    assert blocking_wait_gap_s(p) == pytest.approx(2912.156, abs=0.01)
+    assert is_blocking_wait_kill(p) is True
 
 
 def test_cli_blocking_wait_gap_and_is_blocking_wait_kill_subcommands(tmp_path):

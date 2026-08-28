@@ -616,9 +616,12 @@ def likely_timeout_kill(path: str, timeout_s: float, margin_s: float = 180.0) ->
 
 def blocking_wait_gap_s(path: str) -> Optional[float]:
     """`full_event_span_s(path) - summarize_turns(path)["span_s"]` — how much
-    of a round's wall clock was spent AFTER the model stopped generating
-    (assistant timestamps), waiting on a still-in-flight tool call, versus
-    the round's own genuine text/thinking span.
+    of a round's wall clock landed AFTER the model's last assistant
+    timestamp. For every nonzero-gap real instance found so far (round 289:
+    12 of 17 checked), this is the time between issuing the last tool call
+    and that tool's OWN result event arriving — the tool did return; see
+    `is_blocking_wait_kill`'s docstring for why "still waiting on it" is not
+    an accurate description of that shape.
 
     Promotes a diagnosis manually re-derived by hand three separate times
     (round 265 on round 263: 338.59s; round 223 on round 222: 303.512s;
@@ -672,17 +675,42 @@ def last_assistant_tool_use(path: str) -> Optional[str]:
     return None
 
 
-def is_blocking_wait_kill(path: str, min_gap_s: float = 100.0) -> Optional[bool]:
-    """True iff an `interrupted` round's death looks like the "dangling
-    tool wait" mechanism rounds 222 (round 223's diagnosis), 263 (round
-    265's), and 278 (round 283's) all shared: the driver's outer wall-clock
-    `timeout` fired while genuinely, synchronously blocked on a tool
-    result (`blocking_wait_gap_s(path) >= min_gap_s`), rather than the
-    round still actively generating at the moment of the kill (round 224:
-    gap == 0.0, reads False here). `min_gap_s` defaults to 100s — well
-    above CLI/event-flush jitter (round 210's write-race gap was ~0, not
-    a blocking wait) and well below the smallest confirmed instance
-    (round 278's 207.193s).
+def is_blocking_wait_kill(path: str, min_gap_s: float = 1.0) -> Optional[bool]:
+    """True iff an `interrupted` round's last-event shape is "tool result
+    landed, no further turn" rather than "still working when the wall
+    clock fell" (round 224/210's shape: gap == 0.0, reads False here).
+
+    Round 289 corrected the mechanism this was originally documented as
+    (round 223 on 222, round 265 on 263, round 283 on 278): re-reading
+    those same three logs' raw events shows each one's LAST event overall
+    is a `type: "user"` tool-result that DID arrive — not a dangling
+    `tool_use` the driver's `timeout` cut off mid-flight. The round wasn't
+    stuck waiting forever; its last tool call (of whatever duration)
+    finished, and there simply wasn't wall-clock budget left for one more
+    assistant turn. `blocking_wait_gap_s` in that shape is dominated by how
+    long that specific last tool happened to take — informative when
+    anomalously large (round 185, found this round: 2912.156s, a Bash
+    subprocess with no `timeout` param evaluating a self-recursive guest
+    program with no base case), unremarkable when it's an ordinary command
+    duration (round 192: 9.214s for a ordinary Bash call).
+
+    Round 289 also extended the analysis back to round 152 (previously only
+    5 logs — 210/222/224/263/278 — had ever been checked) and found the
+    full, real gap distribution is a SMOOTH continuum from 9.214s (round
+    192) to 2912.156s (round 185), not two clusters separated by a wide
+    margin as originally believed — the prior 100s default sat in the
+    middle of that continuum, meaning rounds 162 (87.79s), 173 (88.91s),
+    174 (27.77s), and 192 (9.21s) — 4 of the then-17 known real instances —
+    were silently misclassified `False` under it despite sharing the exact
+    same "result landed, no further turn" event shape as the confirmed
+    instances. There is no evidence of a genuine intermediate mechanism at
+    those magnitudes: every nonzero-gap instance found (12/17 real
+    `interrupted` rounds checked) has the identical structural shape, only
+    varying in how long the last tool took. `min_gap_s` now defaults to
+    1.0s — still comfortably above float/CLI jitter around exact 0.0, and
+    below every confirmed nonzero gap on record (smallest: 9.214s) — so the
+    boolean now tracks the real structural split (`gap > 0` vs `gap == 0`)
+    instead of an arbitrary magnitude cutoff partway through one continuum.
 
     Returns None (not False) when the round was not `interrupted` at all,
     or when `blocking_wait_gap_s` itself can't be computed — a clean
