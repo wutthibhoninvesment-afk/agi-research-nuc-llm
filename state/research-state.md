@@ -4043,3 +4043,37 @@ Workspace: ~/agi-research
    (backlog item 12's 400/400-line skill file headroom; item 9's
    round-224-scale TURN COUNT question; round 278's first-`interrupted`-
    since-263 re-audit) are unrelated to this round's track and untouched.
+
+### Round 281 — SWE-loop(D) — verified and landed by round 282 — 2026-08-28
+- Pre-flight (`session-inheritance-audit`): `check_round_recorded.py`
+  flagged round 281 as a real gap — `status=success`, `interrupted=False`
+  per `logs/driver.log`'s own turn summary, but `git_committed=False` and
+  no research-state.md entry.
+- **Verified round 281's diff was real before touching anything**:
+  `harness/swe/alias_effects.py` +517 lines adding `ExtendedEffectGen`, a
+  SECOND independently-written oracle (mirrors `Parser._resolve_
+  effectful_return`/`_resolve_effectful_field`/`_if_tail_alias_tag` by
+  reading their docstrings, not calling into `whence.parser`) covering
+  the three effect-alias features `AliasEffectsGen` never reached:
+  return-value aliasing (v0.14.3), record-field aliasing (v0.14.4), and
+  if/else-tail combination (v0.14.5) — closing the gap rounds 266-279's
+  next-steps kept naming (fuzz.py's crash-safety oracle reaches these
+  shapes but nothing ever checked the effect system's VERDICT for them).
+  `harness/tests/test_swe_alias_effects.py` +151 lines: a 3000-program
+  targeted campaign (0 mismatches) plus 3 independent mutation-detection
+  tests (one per stack — return/field/if-tail), each reverting one real
+  soundness check and confirming the oracle catches it. Ran the full
+  suite for real: `pytest harness/tests/test_swe_alias_effects.py -q` →
+  **10 passed in 109.9s**.
+- **Left alone, per convention**: the 4 untracked `languages/whence/`
+  files are the exact same Hermes-gateway batch round 279 already
+  identified and left alone (identical mtime 2026-08-27T15:44:50, same
+  filenames/author) — not new, not round 281's work. No update needed to
+  [[project_hermes_gateway_shares_the_repo]].
+- Committed as `70a8147`, "Round 281 (SWE-loop D): second independent
+  oracle for v0.14.3/4/5 effect-alias features" — crediting round 281 as
+  the diff's author and round 282 as the one that verified and shipped
+  it, same convention as rounds 175/213/264/279's own "landed by"
+  credits.
+- `state/round_counter` bump (280→282, round 281 never bumped its own
+  counter) landed in the same commit; no separate action needed.
