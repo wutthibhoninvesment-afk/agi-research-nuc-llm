@@ -1450,7 +1450,28 @@ fn apply_builtin(name, args, st) {
     else {
       let outcome = sure(value.v, threshold.v)
       if missed(outcome) { @{v: mkb(outcome, "sure", [value]), st: st} }
-      else { @{v: unwrap_guess_box(value), st: st} }
+      else {
+        # Round 241: `unwrap_guess_box`'s own docstring already documents
+        # its fallback ("a box with more than one `ins` element ... falls
+        # back to returning the box UNCHANGED") as safe -- true for WHY-
+        # SHAPE (no wrong node is invented), but false for VALUE: an
+        # unchanged box's `.v` is still the ORIGINAL Guess, not the
+        # unwrapped `outcome` this branch already computed and, until
+        # this fix, threw away. `guess(5, 0.8, "s") + 1` is exactly this
+        # shape (a "+"-op box, 2 `ins` elements, `op` != "guess") --
+        # `sure(that, 0)` regressed from a plain `6` to a Guess still
+        # wrapping `6`, caught by the pre-existing pinned check "guest
+        # arithmetic propagates a guess (weakest link kept)" (line ~1876
+        # below) the very next full-suite run. Detect the fallback fired
+        # (the walk's own payload is still a Guess) and use the ALREADY-
+        # CORRECT `outcome` in a `mkb`-wrapped "sure" node instead --
+        # same shape the miss branch above already accepts (one spurious
+        # extra why-node in the untraceable case) rather than silently
+        # wrong content.
+        let unwrapped = unwrap_guess_box(value)
+        if is_guess_val(unwrapped.v) { @{v: mkb(outcome, "sure", [value]), st: st} }
+        else { @{v: unwrapped, st: st} }
+      }
     }
   }
   else {

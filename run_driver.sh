@@ -22,7 +22,7 @@ export PATH="$PATH:/home/pgain/agi-research-nuc-llm/node_modules/.bin"
 # "$@"` at the loop's end below), this now reliably reflects the ON-DISK
 # script content for every round it produced, including rounds after a
 # mid-run edit — round 139's live driver could not make that claim.
-DRIVER_VERSION="211-crash-vs-timeout-kill"
+DRIVER_VERSION="241-per-round-health-check"
 
 # Round 157: a manual post-migration edit (made outside any round,
 # between the Mac->NUC sync commit c768d90 and round 154) hardcoded this
@@ -349,6 +349,36 @@ update research-state.md. Be relentless and thorough — this is deep research, 
     fi
   fi
 
+  # Round 241: cheap per-round harness health check, flagged as backlog
+  # item 2 by round 235 ("consider whether driver_health.py or
+  # run_driver.sh itself should invoke run_tests_fast.sh automatically").
+  # Runs the fast core-harness smoke suite (round 235: 370 tests, ~34-45s,
+  # vs. 30+ min for the full `harness/tests/` suite including SWE-loop(D)'s
+  # real-interpreter campaigns) once every round, regardless of which
+  # track ran or whether it succeeded — this catches a round that broke
+  # the agent-harness core itself (agent loop, tool registry, driver,
+  # retry/backoff, driver_health) even though only round-level `success`/
+  # `status` is otherwise ever recorded. Diagnostic-only by design, same
+  # as round 211's `likely_timeout_kill` classifier: logs PASS/FAIL, never
+  # blocks or stops the driver — a driver that can't proceed past its own
+  # test suite failing would be strictly worse than one that just notes
+  # it and moves on, since a broken test can itself be the NEXT round's
+  # legitimate fix target. Guarded on the script's existence (not a new
+  # env var) so both e2e driver tests below (`test_run_driver_*.py`) that
+  # copy only `run_driver.sh` itself into a bare tmp_path workspace — with
+  # no `harness/` tree at all — no-op here exactly like every other
+  # `$WS`-relative path in this script already does when its target is
+  # absent, instead of needing yet another DRIVER_* override to suppress
+  # a ~35-45s real pytest subprocess inside a 45s-timeout test.
+  HEALTH_SCRIPT="$WS/harness/run_tests_fast.sh"
+  if [ -f "$HEALTH_SCRIPT" ]; then
+    HEALTH_LOG="$WS/logs/health_round_${ROUND}.log"
+    if bash "$HEALTH_SCRIPT" > "$HEALTH_LOG" 2>&1; then
+      log "round $ROUND: health-check PASS ($(tail -n 1 "$HEALTH_LOG" | tr -d '\r'))"
+    else
+      log "round $ROUND: health-check FAIL — $(tail -n 5 "$HEALTH_LOG" | tr '\n' ' ')"
+    fi
+  fi
 
   # Safety valve (round 150+): if the log file exists but contains ZERO "type":"result""
   # entries, Claude Code likely crashed before sending its final response. Skip this round
