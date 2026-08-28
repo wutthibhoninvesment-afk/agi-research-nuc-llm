@@ -1390,6 +1390,144 @@ that cannot end a statement.
   unrelated divergences (seed-152/seed-4002) closed by round 210/212 stay
   closed — reconfirmed, not touched by this round.
 
+## v0.16.5 (round 222, landed by round 223) — guest parity: `steps`/`blame`/`diverge` list-element field access in `self_eval.lang`
+- **Closes the "real representational wrinkle" v0.16.4 found and explicitly
+  left as backlog**: guest code that indexes a `steps(...)`/`blame(...)`/
+  `diverge(...)` result list and reads a field off an element (e.g.
+  `steps(x)[0].op`) read as a miss ("no field 'v' (record has: count,
+  depth, detail, inputs, line, op, show, value)") even though `steps(x)`
+  itself and `len(steps(x))` both worked. Root cause: `eval_index`'s
+  `is_list((o.v).v)` branch passes list elements through UNBOXED — correct
+  for guest-*built* lists (their elements are already `{v, op, ins}` boxes,
+  since guest expressions always produce boxes), wrong for these three
+  builtins' elements, which are raw host `Record`s (`_step_record`'s
+  `{op, detail, line, show, depth, inputs, count, value}` for
+  `steps`/`blame`; a second, structurally different `{kind, a, b[, which]}`
+  shape for `diverge`, whose `a`/`b` nest a `_step_record` one level down)
+  — correct at the HOST level, where field access reads a `Record`
+  directly with no box convention, but never boxed for guest consumption.
+- **The fix**: `box_step_record(rec)` in `self_eval.lang` re-boxes each of
+  the 8 `_step_record` fields individually (`mkb(rec.op, "step", [])` etc.
+  — a fixed `"step"` op label and empty `ins`, since no real guest-visible
+  derivation happened inside the bridge; mirrors how `range`/`key`/
+  `reason` list elements are already labelled a few lines above).
+  `box_diverge_record(rec)` handles the second shape by boxing `kind`/
+  `which` directly and calling `box_step_record` on the nested `a`/`b`.
+  Both wired into the same post-`apply_host_builtin` list-mapping branch
+  `range`/`keys`/`reasons` already used (`else if name == "steps" or
+  name == "blame" { map(fn(x) { mkb(box_step_record(x), "step", []) }, p) }`
+  and the `diverge` analogue).
+- **Note: `at`'s single-node result and `contrast`'s string result need no
+  equivalent fix.** `contrast`'s payload is always a string (a rendered
+  report), never a list of records, so no boxing question arises.
+  `at(v, pattern)` returns a single history node rather than a list, so
+  `eval_index`'s list-passthrough branch never applies to it; whether a
+  successful `at()` match's own payload is guest-box-shaped depends on
+  *where inside `self_eval.lang`'s own internal call chain* the match
+  landed (see v0.16.4's "internal noise" note below) — not a new gap this
+  round found or fixed. Confirmed empirically while investigating this fix
+  (round 224): `at(x, "let x")` against a guest `let x = @{...}` record
+  literal returns a MISS (`missed(found)` is `True`), the same "doesn't
+  find the guest-syntax match" property v0.16.4 already documented for
+  `diverge(1+2, 1+2)` — so `found.a` reading as a miss afterward is a miss
+  propagating through field access as designed, not a boxing defect.
+- **Verification**: new test
+  `test_guest_steps_blame_diverge_element_field_access` (`tests/
+  test_self_hosting.py`) indexes an element AND reads multiple fields off
+  it for all three builtins (not just `len(...)`, which is all v0.16.1/
+  v0.16.4's own tests exercised) — every field read a miss pre-fix, so
+  this is real exercising code, not a retroactive pin. `tests/
+  test_self_hosting.py` 43/43 (was 41). Full `languages/whence` suite
+  green. `harness/swe/guest.py`'s `BANNED` regex needs no change (already
+  excludes `steps`/`at`/`blame`/`diverge`/`contrast` from the fuzzed
+  differential corpus, unaffected by construction).
+- Round 222 built and tested this but was killed by the driver's own outer
+  wall-clock timeout mid-round (`tool_calls=87`, well under the max-turns
+  cap — a genuine wall-clock kill, not a crash or a turn-budget death) and
+  left it uncommitted with no knowledge file; round 223 (harness A track)
+  verified fresh from a clean read and landed it as commit `8c6aeeb`; round
+  224 backfilled this SPEC.md section, which neither round's own track
+  mandate covered (223 was harness work, 222 never reached documentation
+  before being killed). See `knowledge/round-223-harness-round222-landing-
+  and-second-timeout-kill-counterexample.md` §1 for the landing detail and
+  `knowledge/round-224-whence-matches-shapeof-guest-parity.md` for this
+  round's own verification.
+
+## v0.16.6 (round 224) — guest parity: `matches`/`shapeof` in `self_eval.lang`
+- **A fresh instance of the same gap class rounds 206/218 already found and
+  fixed for the rest of the "introspection" builtin surface, found by
+  auditing `self_eval.lang`'s `builtin_names` against the host's full
+  `## Builtins` list below** (not flagged by any prior round, since neither
+  builtin is exercised by `self_host.lang`'s own source or by the
+  differential fuzzer's generator grammar — `harness/swe/fuzz.py` never
+  emits a `matches`/`shapeof` call, so this gap was entirely invisible to
+  every regression campaign run to date): `matches`/`shapeof` (v0.12
+  structural types) were never added to `builtin_names` at all, so guest
+  code calling either failed at NAME RESOLUTION ("unbound name"), never
+  reaching `apply_builtin`/`apply_host_builtin`'s dispatch tables.
+- **The fix**: `"matches"`/`"shapeof"` added to `builtin_names` and
+  `arities` (`matches: 2, shapeof: 1`, matching the host's own `@register`
+  arities), dispatched in `apply_host_builtin` via the same free-delegation
+  trick `steps`/`at`/`blame`/`diverge`/`contrast` already use — both are
+  TOTAL (host `b_matches`/`b_shapeof` are documented "like `missed`: never
+  itself a miss") and return scalar payloads (a bool / a kind string), so
+  no list-of-records post-processing is needed the way `steps`/`blame`/
+  `diverge` (v0.16.5 above) required.
+- **One real wrinkle found empirically, before writing any test, that pure
+  free-delegation would have missed**: a GUEST closure is an ordinary
+  tagged `Record` under the hood (`self_eval.lang`'s own `is_callable`
+  guard, used a few branches above to keep `len`/`keys`/`put`/`merge`/
+  `has` opaque on functions), not a real host `Closure`/`Builtin` Python
+  object — so undguarded delegation to host `shapeof`/`matches` reports
+  `"record"` for a guest function's shape, never `"fn"`. Unlike the
+  `len`/`keys` guard (where the right guest answer is a miss — "of a
+  function" makes no sense), `shapeof`'s entire job IS reporting shape, so
+  silently mislabelling a function as a record would be a real,
+  user-visible correctness bug in the fix itself, not a cosmetic gap left
+  for later. Fixed with an explicit `is_callable(a0)` branch ahead of the
+  delegation (`shapeof`: `"fn"` outright; `matches`: `is_str(spec) and
+  (spec == "any" or spec == "fn")`), the same split `typed`'s own
+  `guest_type_ok` already uses for its own callable case two branches
+  above — found by testing every `_KIND_ORDER` shape (`num`/`str`/`bool`/
+  `list`/`record`/`miss`/`guess`/`fn`) individually rather than assuming
+  scalar delegation would just work once dispatch was wired up.
+- **A narrower, deliberately unfixed caveat, documented rather than
+  chased**: `matches`/`shapeof` free-delegate to the real host builtin for
+  every NON-callable case, which keeps the full v0.12 feature surface
+  reachable (including a STRUCTURAL `Record` spec, e.g. matching a shape's
+  nested field types) — `typed`'s own guest implementation, by contrast,
+  only ever supports a plain string spec (`guest_type_ok`'s `is_str(spec)`
+  guard has no Record-spec branch at all, and no round has ever needed to
+  lift that). A structural Record spec matched against a guest RECORD
+  value would still misbehave the same way `typed` already doesn't
+  support: `_type_match` would recurse into the guest record's own
+  `payload.fields`, landing on each field's `{v, op, ins}` box wrapper
+  instead of its raw value, and every nested check would see the wrong
+  shape. Real, same "evaluate before authoring" discipline as `at()`'s
+  internal-noise caveat (v0.16.5) and `typed`'s own pre-existing scope
+  limit — no corpus need yet for guest code to structurally `matches` a
+  record built entirely inside `run_src`.
+- **Verification**: new test
+  `test_guest_matches_shapeof_dispatch_and_callable_guard` (`tests/
+  test_self_hosting.py`) — 15 checks covering every `_KIND_ORDER` shape for
+  `shapeof`, the total-on-miss property and an `"any"`/mismatching-spec
+  pair for `matches`, and the callable-guard branch for both builtins
+  explicitly (not just name resolution succeeding). `tests/
+  test_self_hosting.py` 44/44 (was 43). Full `languages/whence` suite
+  green (871/871: 869 baseline + round 222's own +1 landed by round 223,
+  +1 this round). `harness/swe/guest.py`'s `BANNED` regex needs no
+  addition for these two — unlike `steps`/`at`/`blame`/`diverge`/
+  `contrast`, `matches`/`shapeof` report a value's own SHAPE, a property
+  that is identical between host-direct and guest-mediated execution of
+  the same program (a number's kind doesn't depend on which internal call
+  chain computed it), so there is no "legitimate but noisy divergence"
+  concern to suppress — confirmed moot in practice since the fuzzer's
+  generator grammar never emits either builtin anyway. Fresh regression
+  campaigns re-run this round before AND after the fix (fuzz seed 501,
+  oracles seed 503, guest seed 502): 0 unique finding signatures in all
+  three, both passes.
+- See `knowledge/round-224-whence-matches-shapeof-guest-parity.md`.
+
 ## Builtins
 `print len range map filter fold push str num abs sqrt missed reasons note
 contains join keys merge get put has find steps at blame diverge contrast

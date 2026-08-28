@@ -665,7 +665,8 @@ let builtin_names = ["print", "len", "range", "map", "filter", "fold", "push",
                      "str", "num", "abs", "sqrt", "missed", "reasons", "note",
                      "contains", "join", "keys", "merge", "get", "put", "has",
                      "find", "typed", "guess", "is_guess", "confidence", "sure",
-                     "steps", "at", "blame", "diverge", "contrast"]
+                     "steps", "at", "blame", "diverge", "contrast",
+                     "matches", "shapeof"]
 
 # host builtins whose first step is `_propagate` (a miss argument yields
 # a "builtin"-op miss before the builtin looks at anything). `is_guess` is
@@ -685,7 +686,8 @@ let arities = @{print: 1, len: 1, range: -1, map: 2, filter: 2, fold: 3,
                 guess: 3, is_guess: 1, confidence: 1, sure: 2,
                 reasons: 1, note: 2, contains: 2, join: 2, keys: 1,
                 merge: 2, get: 2, put: 3, has: 2, find: 2, typed: 3,
-                steps: -1, at: 2, blame: 1, diverge: -1, contrast: -1}
+                steps: -1, at: 2, blame: 1, diverge: -1, contrast: -1,
+                matches: 2, shapeof: 1}
 
 # round 210: guest-level function-CALL depth ceiling, checked only in
 # apply_closure (see the module-doc comment above and apply_closure's own
@@ -1529,6 +1531,54 @@ fn apply_host_builtin(name, args) {
   }
   else if name == "contrast" {
     if len(args) == 1 { contrast(a0) } else { contrast(a0, (args[1]).v) }
+  }
+  # v0.16.6 guest parity (round 224): `matches`/`shapeof` (v0.12 structural
+  # types) were never in `builtin_names` at all -- guest code calling
+  # either failed at NAME RESOLUTION ("unbound name"), never even reaching
+  # this dispatch, the same gap class rounds 206/218/222 already found and
+  # fixed for the rest of the builtin surface. Both are TOTAL (never
+  # propagate a miss argument -- host `b_matches`/`b_shapeof` are
+  # documented "like missed: never itself a miss") and return SCALAR
+  # payloads (a bool / a kind string), so the free-delegation trick mostly
+  # applies with no post-processing needed (unlike `steps`/`blame`/
+  # `diverge`, nothing here returns a list of records to box). One real
+  # wrinkle found empirically before writing any test: a GUEST closure is
+  # an ordinary tagged Record under the hood (see the `is_callable` guard
+  # a few branches above, for `len`/`keys`/`put`/`merge`/`has`), not a
+  # real host `Closure`/`Builtin` object, so undguarded delegation reports
+  # "record" for a guest function's shape, never "fn" -- `shapeof`/
+  # `matches` are the two builtins in this whole family whose entire job
+  # is reporting shape, so silently mislabelling a function as a record
+  # would be a real, user-visible correctness bug, not a cosmetic gap.
+  # Guarded with the SAME `is_callable`/`guest_kind` split `typed`'s own
+  # `guest_type_ok` already uses one branch above, rather than reusing
+  # `guest_type_ok`/`guest_kind` outright: those two only support a plain
+  # STRING spec (`is_str(spec) and (spec == "any" or guest_kind(v) ==
+  # spec)`), a narrower feature slice sufficient for `typed`'s param-guard
+  # call sites; `matches`/`shapeof` are general-purpose builtins meant to
+  # be called directly by user code, so the non-callable case still
+  # delegates to the real host `matches`/`shapeof` to keep the FULL
+  # v0.12 feature surface (including structural Record specs) reachable.
+  # `shapeof` is safe on any non-callable guest value: host `_kind` only
+  # inspects the top-level payload type, never recurses into record
+  # fields, so it never sees the guest's `{v, op, ins}` box wrapper on a
+  # nested field. `matches` is likewise safe for a plain STRING spec
+  # against a non-callable value (`_type_match` for a str spec is the same
+  # non-recursive `_kind(payload) == spec` check) -- but a STRUCTURAL
+  # Record spec (nested field types) against a non-callable guest record
+  # would recurse into `payload.fields` and see each field's box wrapper
+  # instead of its raw value, mismatching every nested check. Real,
+  # narrower, deliberately unfixed caveat (same "evaluate before
+  # authoring" discipline as `at()`'s internal-noise property, SPEC.md
+  # v0.16.5): no corpus need yet for guest code to `matches`/`typed` a
+  # structural shape against a record built entirely inside `run_src`.
+  else if name == "matches" {
+    let spec = (args[1]).v
+    if is_callable(a0) { is_str(spec) and (spec == "any" or spec == "fn") }
+    else { matches(a0, spec) }
+  }
+  else if name == "shapeof" {
+    if is_callable(a0) { "fn" } else { shapeof(a0) }
   }
   else { miss ("builtin '" + name + "' is not implemented in the guest") }
 }

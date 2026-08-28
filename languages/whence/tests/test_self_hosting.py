@@ -307,6 +307,57 @@ def test_guest_steps_blame_diverge_element_field_access():
     assert not failed, failed
 
 
+def test_guest_matches_shapeof_dispatch_and_callable_guard():
+    # round 224: `matches`/`shapeof` (v0.12 structural types) were never in
+    # self_eval.lang's `builtin_names` at all -- guest code calling either
+    # failed at NAME RESOLUTION ("unbound name"), never even reaching
+    # `apply_builtin`/`apply_host_builtin`'s dispatch tables, the same gap
+    # class rounds 206 (`steps`) and 218 (`at`/`blame`/`diverge`/`contrast`)
+    # already found and fixed for the rest of this builtin family. Both are
+    # TOTAL and return scalar payloads, so free delegation to the real host
+    # builtin applies -- EXCEPT for a callable value, where undguarded
+    # delegation reports "record" (a guest closure is an ordinary tagged
+    # Record under the hood, not a real host `Closure` object) instead of
+    # "fn"; checks below cover both the plain-delegation path (every other
+    # kind) and the callable-guard path explicitly, not just name
+    # resolution succeeding.
+    eval_lib = eval_library_source()
+    inner_checks = "\n".join([
+        'check "matches a num spec against a num": matches(1, "num")',
+        'check "matches a str spec against a num is false": not matches(1, "str")',
+        'check "matches any always matches": matches([1, 2], "any")',
+        'check "matches is total: a miss argument is just false, not itself a miss":\n'
+        '  matches(miss "x", "num") == false',
+        'check "shapeof a number": shapeof(1) == "num"',
+        'check "shapeof a list": shapeof([1, 2]) == "list"',
+        'check "shapeof a record": shapeof(@{a: 1}) == "record"',
+        'check "shapeof a miss": shapeof(miss "x") == "miss"',
+        'check "shapeof a string": shapeof("hi") == "str"',
+        'check "shapeof a bool": shapeof(true) == "bool"',
+        'check "shapeof a guess": shapeof(guess(1, 0.5, "s")) == "guess"',
+        'let f = fn(x) { x }',
+        'check "shapeof a guest closure reports fn, not record (the callable guard)":\n'
+        '  shapeof(f) == "fn"',
+        'check "matches fn spec against a guest closure (the callable guard)":\n'
+        '  matches(f, "fn")',
+        'check "matches fn spec against a non-callable value is false":\n'
+        '  not matches(1, "fn")',
+        'check "matches any still matches a guest closure":\n'
+        '  matches(f, "any")',
+    ])
+    inner_src = inner_checks + "\n"
+    prog = eval_lib + 'let __r = run_src("%s")\n' % escape(inner_src)
+
+    env = Interpreter().run(prog)
+    rec = env.get("__r").payload
+    assert rec.fields["parse_error"].payload is False
+    checks = rec.fields["checks"].payload
+    assert len(checks) == 15
+    failed = [c.payload.fields["label"].payload for c in checks
+              if c.payload.fields["pass"].payload is not True]
+    assert not failed, failed
+
+
 def test_effects_lang_runs_under_the_guest_round_164_backlog_closed():
     # round 164 (SPEC.md "v0.14 guest parity") found run_src(effects.lang)
     # reported parse_error precisely because of one multi-line `check
