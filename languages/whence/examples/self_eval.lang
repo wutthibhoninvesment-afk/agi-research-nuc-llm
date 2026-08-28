@@ -1555,12 +1555,31 @@ fn apply_host_builtin(name, args) {
   # closure guard the way len/keys/put/merge/has above do — the real host
   # `guess` builtin happily wraps ANY value, including a real Closure
   # (verified directly: `guess(some_fn, 0.9, "s")` succeeds at the host),
-  # so a guest closure record passing through unguarded matches that. `a0`
-  # is the guest box's raw `.v` (the value being guessed keeps its own
-  # full provenance chain, exactly like `note`'s first argument). `sure`
+  # so a guest closure record passing through unguarded matches that. `sure`
   # moved to its own branch in `apply_builtin` (round 194) — it needs a
   # pass-through case this generic-wrapping helper can't express.
-  else if name == "guess" { guess(a0, (args[1]).v, (args[2]).v) }
+  #
+  # Round 251 fix: this branch used to pass the bare `a0` (`args[0].v`)
+  # straight to the host `guess` builtin, on the theory that "the value
+  # being guessed keeps its own full provenance chain, exactly like
+  # `note`'s first argument." That holds for a SCALAR argument (a literal
+  # box's `.v` already IS the raw host value, no guest boxing beneath it)
+  # but not for a LIST/RECORD argument: a compound guest box's `.v` is a
+  # host list/record of NESTED GUEST BOXES (`eval`'s "list"/"record" cases
+  # build `mkb(r.v, ..., r.v)` from the ITEM boxes, not their unwrapped
+  # values), so `guess([1,2,3], ...)` wrapped a list of `@{op,v,ins}`
+  # Records instead of a list of plain ints — a real guest-differential
+  # fuzz finding (`harness/swe/guest.py`'s targeted Guess-carrying
+  # campaign, minimized to `guess([1,2,3], 0.5, "m")`). `strip()` (used
+  # already by `print`/`str`/`contains`/`join` above) is the existing,
+  # already-correct fix for exactly this shape: identity on scalars,
+  # closures, and Guesses (all opaque to `strip_raw`, matching the old
+  # behaviour exactly there), recursive `map(strip, ...)` /
+  # field-by-field unwrap on lists/records. Verified this changes nothing
+  # for every existing guess-shape case
+  # (`test_guest_guess_is_guess_confidence_why_shape_matches_host_exactly`,
+  # all scalar-valued) while fixing the list/record case.
+  else if name == "guess" { guess(strip(args[0]), (args[1]).v, (args[2]).v) }
   else if name == "is_guess" { is_guess(a0) }
   else if name == "confidence" { confidence(a0) }
   # v0.16 guest parity (round 206): `steps` walks the REAL host provenance

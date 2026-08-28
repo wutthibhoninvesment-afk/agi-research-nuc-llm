@@ -1,0 +1,19 @@
+{
+ "next_seed": 2070,
+ "scanned": 2070,
+ "accepted": 446,
+ "counts": {
+  "ok": 363,
+  "parse_error": 22,
+  "timeout": 59,
+  "mismatch": 2
+ },
+ "marker_counts": {
+  "guess(": 243,
+  "is_guess(": 124,
+  "confidence(": 128,
+  "sure(": 125
+ },
+ "target": 700,
+ "elapsed_this_run_s": 483.48361563682556
+}

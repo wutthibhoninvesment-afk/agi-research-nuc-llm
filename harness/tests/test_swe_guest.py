@@ -127,6 +127,20 @@ AGREE_CASES = [
     "fn f(a) effects [] { a + 1 }\nlet v = f(3)\n",
     "fn f(a) effects [io] -> num { a + 1 }\nlet v = f(3)\n",
     "let g = fn(a, b) effects [net, io] { a + b }\nlet v = g(2, 3)\n",
+    # round 251: `guess()` given a LIST/RECORD value used to leak the guest's
+    # own internal @{op,v,ins} boxes as the Guess's payload elements instead
+    # of plain host values — found by a targeted guest-fuzz campaign
+    # specifically generating Guess-carrying programs (round 234's own
+    # flagged-but-never-run backlog item), minimized to
+    # `guess([1,2,3], 0.5, "m")`. Root cause: `apply_host_builtin`'s "guess"
+    # branch passed the bare `a0` (`args[0].v`) straight to the host
+    # builtin — correct for a scalar (a literal box's `.v` already IS the
+    # raw value) but wrong for a compound value, whose `.v` is a host
+    # list/record of nested guest boxes, not unwrapped payloads. Fixed with
+    # `strip(args[0])` (self_eval.lang), the same recursive unwrap already
+    # used by `print`/`str`/`contains`/`join` in the same function.
+    "let v = guess([1, 2, 3], 0.5, \"m\")\n",
+    "let v = guess(@{a: 1, b: 2}, 0.5, \"m\")\n",
 ]
 
 
