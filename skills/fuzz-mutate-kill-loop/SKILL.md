@@ -341,24 +341,24 @@ The steps are self-contained.)
   `setprofile`). Re-arm `sys.settrace`/`threading.settrace` at every
   `runtest_logstart`, and read the per-file hit counts before trusting a
   map: a 23 s test file with 0 hits is the instrument, not the file.
-- **Counter pins that depend on the caller's stack depth.** Direct-mode
-  statistics change with the entry depth (budget = limit − frames in
-  use − reserve); the same program gave `direct_hits` 186 from the harness
-  and a different number from a deeper call site. Measure on a fresh
-  thread (step 21) — verified identical from the main thread and from
-  150 frames deep.
-- **Nested `in_thread` calls leak the inner worker.** An async exception
-  kills the outer thread at `join`; the inner one keeps spinning at 100 %
-  CPU. One thread per measurement, each with its own timeout.
-- **A by-file coverage map reused across rounds silently mis-attributes
-  coverage once the target file is edited** — it is keyed on line number,
-  not content. A map reused against a since-grown file gave a 78/78
-  subset-basis flip rate at recheck, not the single-digit rate a fresh
-  map gives; check staleness by content hash before blaming the
-  instrument (step 19).
+- **A probe's own filter (coverage map, vocabulary gate, banned-name
+  regex, directory-as-corpus) silently outlives the reason it was built —
+  confirmed 6+ times, one class, not isolated bugs.** Once its
+  precondition stops holding, the probe keeps silently passing or
+  admitting garbage, indistinguishable from "nothing to check": a
+  by-file coverage map reused after the target file is edited gives a
+  78/78 subset-basis flip rate at recheck (check by content hash, step
+  19); a why-vocab allowlist excluded four newly-delegated builtins for
+  60+ rounds, and STILL missed one of the four the very next round that
+  specifically re-checked the other three; an untracked corpus dir
+  silently absorbs files from an unrelated process (step 2); a
+  banned-name comment can drift the other way and describe an
+  enforcement the code already dropped. Updating every filter gating on
+  a changed name/path is a required third step alongside a
+  differential-support change and its hand-verified test.
 
-Older pitfalls (one per failure the program hit, rounds 5–107) are in
-[references/pitfalls.md](references/pitfalls.md): Fixes applied to a copy never ship; Fuzz timeouts are findings too; Non-deterministic RecursionError signature; Unbalanced bracket shrinking; Signal timers are main-thread only; Mutating the checkout in place; `ast.unparse` reflows the file; Corpus contamination through the module cache; Timeouts counted as survivors; Equivalent mutants treated as failures; Running the suite under CPU contention; Success removes your fixtures; Hot-path refactors manufacture equivalent mutants; Driving a multi-hour pipeline by hand from an agent session; `subprocess.run(timeout=)` kills the child, not its children; Campaign durations from `time.time()` across a laptop sleep; A `timeout` under parallel load counted as a kill; "corpus_n=0" is not an empty corpus; A def line is executed at import time; The CLI backend reads until the budget dies; Escaped newlines through a heredoc; Anchoring a test on a source line of another component.
+Older pitfalls (one per failure the program hit, rounds 5–113) are in
+[references/pitfalls.md](references/pitfalls.md): Fixes applied to a copy never ship; Fuzz timeouts are findings too; Non-deterministic RecursionError signature; Unbalanced bracket shrinking; Signal timers are main-thread only; Mutating the checkout in place; `ast.unparse` reflows the file; Corpus contamination through the module cache; Timeouts counted as survivors; Equivalent mutants treated as failures; Running the suite under CPU contention; Success removes your fixtures; Hot-path refactors manufacture equivalent mutants; Driving a multi-hour pipeline by hand from an agent session; `subprocess.run(timeout=)` kills the child, not its children; Campaign durations from `time.time()` across a laptop sleep; A `timeout` under parallel load counted as a kill; "corpus_n=0" is not an empty corpus; A def line is executed at import time; The CLI backend reads until the budget dies; Escaped newlines through a heredoc; Anchoring a test on a source line of another component; Counter pins that depend on the caller's stack depth; Nested `in_thread` calls leak the inner worker.
 
 ## Verification
 ```bash

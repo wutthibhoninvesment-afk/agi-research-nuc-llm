@@ -82,3 +82,12 @@ round-113 pitfalls stay inline in SKILL.md.
   + r)"` matched a different line after the refactor. Anchor on a marker
   comment or a unique string literal, and state in the test what behaviour
   the mutant must change.
+- **Counter pins that depend on the caller's stack depth.** Direct-mode
+  statistics change with the entry depth (budget = limit − frames in
+  use − reserve); the same program gave `direct_hits` 186 from the harness
+  and a different number from a deeper call site. Measure on a fresh
+  thread (step 21) — verified identical from the main thread and from
+  150 frames deep.
+- **Nested `in_thread` calls leak the inner worker.** An async exception
+  kills the outer thread at `join`; the inner one keeps spinning at 100 %
+  CPU. One thread per measurement, each with its own timeout.

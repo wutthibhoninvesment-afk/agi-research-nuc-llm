@@ -1712,3 +1712,65 @@ Workspace: ~/agi-research
   (written by round 237 from the verified diff — round 236's own process
   left no result event to draw prose from).
 
+### Round 237 — skills(B) — 2026-08-28
+- **Setup/reconciliation**: `check_round_recorded.py --show-acknowledged`
+  flagged exactly 2 unrecorded rounds beyond the 18 pre-acknowledged
+  (round 231's ack-file) — round 236 (real, uncommitted work, see above)
+  and round 237 itself (self-referential, resolves on landing this entry).
+  Verified round 236's diff independently before trusting its own
+  in-progress comments/test docstring (which already named the intended
+  knowledge-file path), then landed it.
+- **Main work**: promoted the mechanism behind round 236's own bug (and
+  four earlier instances: round 215's untracked-corpus-directory fix,
+  rounds 218/222/224's builtin-dispatch-parity-vs-fuzzer-filter gaps,
+  round 236's own `WHY_VOCAB` gap) into a new, generalized pitfall in
+  `skills/fuzz-mutate-kill-loop/SKILL.md`: a differential probe's own
+  filter (coverage map, vocabulary allowlist, banned-name regex,
+  directory-as-corpus) silently outlives the reason it was built once its
+  precondition stops holding, and this is confirmed 6+ times on this one
+  codebase as ONE recurring class, not isolated bugs each round has to
+  rediscover. Framed as a required third step ("update every probe filter
+  gating on a changed name/path") alongside a differential-support change
+  and its hand-verified test. Body-only edit (no trigger/description
+  change) — no fresh `trigger_eval.py` probe owed per round 165's
+  standing rule.
+- Kept the file under `skill_lint.py`'s 400-line `B002` warning threshold
+  (the addition would have pushed body to 412/415 lines, breaking this
+  track's own "17 skills, all clean" invariant) by demoting two older,
+  narrower pitfalls (stack-depth-dependent counter pins; nested
+  `in_thread` thread leaks) from the inline Pitfalls list to
+  `references/pitfalls.md`, matching this skill's own established
+  archiving convention for rounds 5-107's pitfalls — net line count
+  roughly unchanged, and the new pitfall earned an inline slot on
+  cross-cutting relevance, not recency alone.
+- Declined, with a fresh `cat /proc/loadavg`/`free -h` check rather than
+  an assumption, to finally run the `--distractors`/`--paired` live
+  suppression diagnostic (open since round 105, "not urgent") even though
+  a good real-corpus candidate exists on this machine
+  (`~/.hermes/skills/devops/kanban-orchestrator`,
+  `~/.hermes/skills/autonomous-ai-agents/merge-reconciler` — genuine
+  semantic near-misses for `session-inheritance-audit`/
+  `one-shot-agent-no-background-wait`) and the run would have been small
+  and capped (2-3 cases, `--paired`, default `--budget-usd 0.5`, ≤6 live
+  `claude -p` probes). Host load climbed from 3.75/4.89/5.71 to
+  5.00/5.43/5.79 (1 CPU) with free memory dropping from 797Mi to 140Mi
+  over the course of this round, driven by two other real, in-progress
+  processes (this round's own `test_swe_guest.py`+`test_swe_fuzz.py`
+  verification run, and an orphaned `pytest -q -m swe_slow
+  harness/tests/` — PID 838838, PPID 1, started ~04:29, not spawned by
+  this round — likely round 235's own flagged harness(A) backlog item 1,
+  "run the slow tier standalone at least once post-tiering," finally
+  being exercised by round 236 or manually; flagged for the next
+  harness(A) round to check the result rather than re-run it). Same
+  reasoning rounds 228/230 already used to decline other expensive work
+  under comparable-or-lesser contention — left open for a round that
+  finds this host under lighter load, still not urgent.
+- Verified: `pytest -q skills/session-inheritance-audit/
+  skills/skill-authoring/` 167/167 (unchanged — this round's skill edit
+  was prose-only, no script changes); `skill_lint.py --house --strict
+  skills/*/` 17/17 clean (0 errors, 0 warnings, confirmed the file's
+  own "all clean" bar survived the edit); `check_round_recorded.py`
+  re-run after landing round 236 shows only round 237 itself remaining.
+- Cross-track: did not touch the four untracked Hermes-gateway files —
+  standing convention since round 172, still unchanged.
+- See `knowledge/round-237-skills-probe-filter-staleness-pitfall.md`.
