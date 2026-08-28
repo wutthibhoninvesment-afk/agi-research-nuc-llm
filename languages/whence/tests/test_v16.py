@@ -148,6 +148,56 @@ def test_pmap_differential_fuzz_vs_dict():
     assert m.to_dict() == d                     # the original path is untouched
 
 
+def test_pmap_stays_avl_balanced_under_ascending_insertion():
+    """Round 233's mutation campaign (`harness/swe/mutation.py` against the
+    lines above, never a mutation-testing target before — the default
+    campaign only covers `interp.py`) found PMap's whole reason for existing
+    — O(log n), not O(n), per `put` — had NO test coverage: every existing
+    PMap test only checks CONTENT (`to_dict()`/`get`/`len`), which cannot
+    tell a correctly-rebalanced AVL tree apart from an unbalanced BST with
+    the identical keys/values, because rotations change tree SHAPE, not the
+    key->value mapping. Confirmed by construction: monkeypatching
+    `_prebalance` to a no-op and inserting ascending keys (the classic BST
+    worst case) still produces byte-identical `to_dict()` results, but blows
+    the host recursion stack (`_pinsert` recurses on descent) well under
+    4000 keys — a catastrophic regression every prior PMap test would have
+    missed entirely.
+
+    This test inspects the private `_root`/`.left`/`.right` chain directly
+    (there is no public shape-introspection API, and none should be added
+    just for this) to assert the one thing content tests structurally
+    cannot: real tree height stays near log2(n), not linear in n. Keys are
+    zero-padded so string order matches insertion order 0..n-1 — the same
+    worst case above, not `PMap`'s existing tests' small random-churn
+    universe (12 keys, random order), which is already close to its own
+    best case for ANY binary search tree, balanced or not, and so cannot
+    exercise this failure mode regardless of scale."""
+    import math
+
+    def real_height(node):
+        if node is None:
+            return 0
+        return 1 + max(real_height(node.left), real_height(node.right))
+
+    n = 4000
+    width = len(str(n))
+    m = PMap()
+    for i in range(n):
+        m = m.put("key_%0*d" % (width, i), i)
+    h = real_height(m._root)
+    # A correct AVL tree's height is bounded by ~1.44*log2(n+2) (Knuth);
+    # measured here at ~1.0-1.2*log2(n). A disabled/broken rebalancer on
+    # this ascending input degenerates toward height n (and in practice
+    # crashes with RecursionError well before n=4000, see the docstring).
+    # 2x log2(n) sits comfortably above real AVL noise and comfortably
+    # below any real regression, which needs orders of magnitude, not a
+    # marginal miss, to relax `_prebalance`'s triggering condition (see
+    # this round's own knowledge file for the surviving-mutant data this
+    # bound was calibrated against).
+    bound = 2 * math.log2(n + 1)
+    assert h <= bound, (h, bound, n)
+
+
 # --- Record integration: identical behaviour, new representation ------
 
 def test_record_from_plain_dict_unchanged_api():

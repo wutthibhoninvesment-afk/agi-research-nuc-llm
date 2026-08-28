@@ -145,27 +145,49 @@ def test_diverge_of_a_value_with_itself_is_identity_fast():
 
 def test_diverge_on_deep_equal_values_is_not_quadratic():
     """Before v0.4.1 `same_payload` re-ran a full structural compare at every
-    node pair: nest(800) vs nest(800) took 26s. Relative, gc-paused timing:
-    8x the depth must cost well under 8x quadratic (64x)."""
+    node pair: nest(800) vs nest(800) took 26s. Relative timing: 8x the depth
+    must cost well under 8x quadratic (64x) — a real regression of that shape
+    reproduces at 100x+ (see the 26s/nest(800) baseline above vs. today's
+    sub-0.1s), so this only needs to reject "back to O(n^2)", not pin an exact
+    exponent.
+
+    Round 233 found this flaky on this host at the original `20 *` threshold
+    with a single untimed 3-rep sum: measuring the SAME code 30 times gave
+    ratios from 2.4 to 65.5 (18/30 "failures"). Root cause was the
+    measurement, not `diverge`: the very first `diverge()` call of the whole
+    process happened inside the `small` timing window, so `small` sometimes
+    paid a one-time warm-up cost (CPython's specializing adaptive
+    interpreter, page-in, etc.) that `big` never paid — inflating `t_small`
+    and swinging the ratio in both directions. An untimed warm-up call before
+    timing either side, plus min-of-9 instead of a single 3-rep sum, cuts the
+    same 30-trial spread to 7.1-32.5 — still consistently above 8x (this
+    implementation is mildly superlinear, ~n^1.5, not the old bug's ~n^2),
+    which is why the threshold below is 40x (60 trials measured this way:
+    max 31.5) rather than tightened to match the old code's nominal 20x."""
     import gc
     import time
     from whence.values import diverge
+
+    def best_of(pair, reps=9):
+        gc.collect()
+        gc.disable()
+        try:
+            times = []
+            for _ in range(reps):
+                t0 = time.perf_counter()
+                assert diverge(*pair) == []
+                times.append(time.perf_counter() - t0)
+        finally:
+            gc.enable()
+        return min(times)
+
     small = _nest_pair(200)
     big = _nest_pair(1600)
-    gc.collect()
-    gc.disable()
-    try:
-        t0 = time.perf_counter()
-        for _ in range(3):
-            assert diverge(*small) == []
-        t_small = time.perf_counter() - t0
-        t0 = time.perf_counter()
-        for _ in range(3):
-            assert diverge(*big) == []
-        t_big = time.perf_counter() - t0
-    finally:
-        gc.enable()
-    assert t_big < 20 * max(t_small, 1e-3), (t_small, t_big)
+    diverge(*small)   # untimed warm-up: let both sides pay any one-time cost
+    diverge(*big)      # before either is on the clock, not just `small`
+    t_small = best_of(small)
+    t_big = best_of(big)
+    assert t_big < 40 * max(t_small, 1e-4), (t_small, t_big)
 
 
 def test_diverge_still_finds_a_value_origin_deep_inside():
