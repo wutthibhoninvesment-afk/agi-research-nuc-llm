@@ -44,9 +44,24 @@ subject. This catches a round whose OWN text (a knowledge file, a state
 file addendum) claims it ran `git commit` when the tool call never
 actually landed — confirmed live twice (rounds 182 and 184, neither killed
 mid-flight; see `committed_per_git_log`'s docstring below).
+
+Round 273 added a THIRD, structurally distinct gap shape:
+`recorded_but_uncommitted_rounds` flags a round with a research-state.md
+heading AND a knowledge file — so nothing else in this file would ever
+flag it — whose knowledge file itself never landed in git (checked via
+`_file_ever_tracked`'s file-presence lookup, NOT `committed_per_git_log`'s
+subject-line text match — the latter false-flagged 3 real, safely
+committed rounds in the live repo the first time this was tried; see
+`_file_ever_tracked`'s own docstring). Confirmed live for round 266 (found
+by round 267's manual `git status` audit, not by this script): round 266's
+heading and knowledge file were both written to disk before the round
+died, so `main`'s per-round loop treated it as fully `in_state` and never
+checked git for it at all. See `recorded_but_uncommitted_rounds`'s own
+docstring below.
 """
 
 import argparse
+import functools
 import glob
 import json
 import os
@@ -166,13 +181,21 @@ def recorded_rounds(state_path, archive_paths=()):
     return rounds
 
 
-def knowledge_rounds(knowledge_dir):
-    out = set()
+def _knowledge_file_paths(knowledge_dir):
+    """Return {round_num: [path, ...]} for every knowledge/round-N-*.md
+    file found. Factored out of `knowledge_rounds` (round 273) so
+    `recorded_but_uncommitted_rounds` can check each round's actual FILE
+    for git presence instead of re-deriving just the round-number set."""
+    out = {}
     for path in glob.glob(os.path.join(knowledge_dir, "round-*.md")):
         m = re.search(r"round-(\d+)-", os.path.basename(path))
         if m:
-            out.add(int(m.group(1)))
+            out.setdefault(int(m.group(1)), []).append(path)
     return out
+
+
+def knowledge_rounds(knowledge_dir):
+    return set(_knowledge_file_paths(knowledge_dir))
 
 
 def ended_on_dangling_wait(round_log_path):
@@ -253,7 +276,37 @@ def committed_per_git_log(round_num, repo_root="."):
     isn't "by", so that phrasing doesn't match `_NOT_EVIDENCE_RE` and
     isn't affected, nor is round 221's own "landing round 220" (no "by"
     at all — round 221 really did land round 220's work in that same
-    commit)."""
+    commit).
+
+    Round 273: the actual `git log` invocation is memoized per `repo_root`
+    (`_cached_git_log_lines`) because round 273's new
+    `recorded_but_uncommitted_rounds` check can call this function once per
+    RECORDED round (potentially the whole history) instead of only once per
+    unrecorded gap as before — without caching, a single script run would
+    re-run `git log --all --oneline` from scratch for every one of those
+    rounds even though the output cannot change mid-run."""
+    lines = _cached_git_log_lines(repo_root)
+    if lines is None:
+        return None
+    pattern = re.compile(r"round\s+%d\b" % round_num, re.IGNORECASE)
+    not_evidence_pattern = re.compile(
+        r"\bby\s+round\s+%d\b" % round_num, re.IGNORECASE)
+    matches = [line for line in lines if pattern.search(line)]
+    evidence = [line for line in matches if not not_evidence_pattern.search(line)]
+    return bool(evidence)
+
+
+@functools.lru_cache(maxsize=None)
+def _cached_git_log_lines(repo_root):
+    """Return `git log --all --oneline` output as a tuple of lines for
+    `repo_root`, or None if git/the repo isn't available. Memoized because
+    `committed_per_git_log` can now be called many times per script run
+    (once per recorded round, not just once per gap) with the same
+    `repo_root` and an unchanging answer each time — see that function's
+    docstring. Cache is keyed on `repo_root` alone, which is safe within a
+    single process because nothing in this script commits to the repo it is
+    inspecting; a caller that commits mid-run (no test here does) would need
+    `_cached_git_log_lines.cache_clear()` first."""
     try:
         out = subprocess.run(
             ["git", "-C", repo_root, "log", "--all", "--oneline"],
@@ -263,12 +316,111 @@ def committed_per_git_log(round_num, repo_root="."):
         return None
     if out.returncode != 0:
         return None
-    pattern = re.compile(r"round\s+%d\b" % round_num, re.IGNORECASE)
-    not_evidence_pattern = re.compile(
-        r"\bby\s+round\s+%d\b" % round_num, re.IGNORECASE)
-    matches = [line for line in out.stdout.splitlines() if pattern.search(line)]
-    evidence = [line for line in matches if not not_evidence_pattern.search(line)]
-    return bool(evidence)
+    return tuple(out.stdout.splitlines())
+
+
+@functools.lru_cache(maxsize=None)
+def _cached_tracked_paths(repo_root):
+    """Return a frozenset of every path (repo-root-relative, forward
+    slashes, matching `git`'s own output convention) that has ever
+    appeared in any commit's tree, via ONE `git log --all --name-only
+    --pretty=format:` call — or None if git/the repo isn't available.
+
+    Memoized per `repo_root` for the same reason as `_cached_git_log_lines`:
+    `_file_ever_tracked` can be called once per recorded round (potentially
+    the whole history) and the answer cannot change mid-run. Doing this as
+    ONE call up front rather than one `git log -- <path>` subprocess PER
+    candidate file (an earlier draft of this check) keeps the per-round
+    driver overhead flat as the round count keeps growing, instead of
+    O(rounds) subprocess spawns."""
+    try:
+        out = subprocess.run(
+            ["git", "-C", repo_root, "log", "--all", "--name-only",
+             "--pretty=format:"],
+            capture_output=True, text=True, timeout=30,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if out.returncode != 0:
+        return None
+    return frozenset(line.strip() for line in out.stdout.splitlines()
+                      if line.strip())
+
+
+def _file_ever_tracked(path, repo_root="."):
+    """True if `path` appears in ANY commit's tree (per
+    `_cached_tracked_paths`); False if git ran cleanly and found nothing;
+    None if git/the repo isn't available (degrade-gracefully convention
+    shared with `committed_per_git_log`).
+
+    Deliberately checks the FILE'S OWN presence rather than grepping commit
+    SUBJECT lines for "round N" the way `committed_per_git_log` does —
+    confirmed live (round 273) that subject-line matching alone produces
+    false positives here: round 166's commit ("seventh live window ...
+    backlog reconciliation") landed round 154's and round 160's own
+    knowledge files without ever mentioning either round number in its
+    subject, and round 164's commit landed round 162's file under the text
+    "retroactive round-146/162 knowledge files" — a HYPHEN
+    ("round-162"), not the space `committed_per_git_log`'s `round\\s+N\\b`
+    pattern requires. All three are genuinely, safely committed; a first
+    draft of `recorded_but_uncommitted_rounds` built on
+    `committed_per_git_log` alone flagged all three as false gaps before
+    this function replaced it. `path` is converted to repo-relative before
+    the lookup so it resolves correctly regardless of whether the caller
+    passed an absolute path or one relative to a different cwd than
+    `repo_root`."""
+    tracked = _cached_tracked_paths(repo_root)
+    if tracked is None:
+        return None
+    rel = os.path.relpath(os.path.abspath(path), os.path.abspath(repo_root))
+    return rel.replace(os.sep, "/") in tracked
+
+
+def recorded_but_uncommitted_rounds(driver_rounds, state_rounds,
+                                     knowledge_dir="knowledge", repo_root=".",
+                                     since=0):
+    """Return sorted round numbers with BOTH a research-state.md heading AND
+    a knowledge/round-N-*.md file (so `main`'s existing `if in_state:
+    continue` skips them entirely, and every other check in this file would
+    call them fully recorded) whose knowledge file(s) still never landed in
+    git — see `_file_ever_tracked` for why file presence, not commit-
+    subject text, is what this checks.
+
+    This is a THIRD gap shape, distinct from `missing_round_numbers` (no
+    driver-log line at all) and the main per-round loop (no research-
+    state.md heading). Confirmed live: round 266's heading and knowledge
+    file were both written to disk before the round died, so the `git
+    commit` its own text implied had happened was never checked — round 267
+    only found the real, uncommitted diff via a manual `git status` audit,
+    not this script (see round 267's own knowledge file, and the
+    "detector that only writes its finding to a log file is never read"
+    pitfall in SKILL.md for why an unchecked gap shape is as bad as no
+    detector at all).
+
+    A round with NO knowledge file matching its number is skipped here (not
+    this check's shape — `in_state and not in_knowledge` already falls
+    through the main loop's own gap reporting instead). A round where git
+    itself is unavailable (`_file_ever_tracked` returns None for every one
+    of its files, no True) is also skipped rather than falsely flagged —
+    unverifiable is not the same as missing.
+
+    Only considers rounds `driver_rounds` actually has a log line for, same
+    as every other check here — a round missing from driver.log entirely is
+    `missing_round_numbers`'s shape, not this one."""
+    paths_by_round = _knowledge_file_paths(knowledge_dir)
+    out = []
+    for n in sorted(driver_rounds):
+        if n < since or n not in state_rounds:
+            continue
+        paths = paths_by_round.get(n)
+        if not paths:
+            continue
+        results = [_file_ever_tracked(p, repo_root) for p in paths]
+        if any(r is True for r in results):
+            continue
+        if all(r is False for r in results):
+            out.append(n)
+    return out
 
 
 def load_acknowledged_gaps(path):
@@ -347,6 +499,13 @@ def main():
     seq_ack_hits = [(n, acknowledged[n]) for n in seq_gaps if n in acknowledged]
     seq_unacked = [n for n in seq_gaps if n not in acknowledged]
 
+    uncommitted_gaps = recorded_but_uncommitted_rounds(
+        driver_rounds, state_rounds, args.knowledge_dir, args.repo_root,
+        args.since)
+    uncommitted_ack_hits = [(n, acknowledged[n]) for n in uncommitted_gaps
+                             if n in acknowledged]
+    uncommitted_unacked = [n for n in uncommitted_gaps if n not in acknowledged]
+
     gaps = []
     ack_hits = []
     for n in sorted(driver_rounds):
@@ -378,14 +537,17 @@ def main():
         else:
             gaps.append(g)
 
-    if args.show_acknowledged and (ack_hits or seq_ack_hits):
+    if args.show_acknowledged and (ack_hits or seq_ack_hits or uncommitted_ack_hits):
         print("check_round_recorded: %d round(s) are known gaps, already "
               "verified and acknowledged in %s (not counted below):"
-              % (len(ack_hits) + len(seq_ack_hits), args.ack_file))
+              % (len(ack_hits) + len(seq_ack_hits) + len(uncommitted_ack_hits),
+                 args.ack_file))
         for g, reason in ack_hits:
             print("  round %s: %s" % (g["round"], reason))
         for n, reason in seq_ack_hits:
             print("  round %s (sequence gap): %s" % (n, reason))
+        for n, reason in uncommitted_ack_hits:
+            print("  round %s (recorded but uncommitted): %s" % (n, reason))
 
     if seq_unacked:
         print("check_round_recorded: %d round-number sequence gap(s) in "
@@ -395,8 +557,16 @@ def main():
               "missing_round_numbers docstring): %s"
               % (len(seq_unacked), ", ".join(str(n) for n in seq_unacked)))
 
-    if not gaps and not seq_unacked:
-        n_ack = len(ack_hits) + len(seq_ack_hits)
+    if uncommitted_unacked:
+        print("check_round_recorded: %d round(s) have a research-state.md "
+              "entry AND a knowledge file (so nothing else here flags them) "
+              "but never actually landed in git — see "
+              "recorded_but_uncommitted_rounds docstring: %s"
+              % (len(uncommitted_unacked),
+                 ", ".join(str(n) for n in uncommitted_unacked)))
+
+    if not gaps and not seq_unacked and not uncommitted_unacked:
+        n_ack = len(ack_hits) + len(seq_ack_hits) + len(uncommitted_ack_hits)
         suffix = (" (%d pre-acknowledged, see %s)" % (n_ack, args.ack_file)
                    if n_ack else "")
         print("check_round_recorded: every driver-log round has a "

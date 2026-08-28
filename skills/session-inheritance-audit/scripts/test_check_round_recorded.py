@@ -369,6 +369,231 @@ def test_gap_reports_git_committed_false_and_flags_unverified_claim(tmp_path):
     assert "NOT in git log" in rc.stdout
 
 
+def test_recorded_but_uncommitted_rounds_flags_recorded_round_with_no_commit(tmp_path):
+    # Round 266/267's exact shape: a research-state.md heading AND a
+    # knowledge file both exist (so `main`'s `if in_state: continue` would
+    # normally skip it entirely) but the file itself never landed in git.
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    knowledge = repo / "knowledge"
+    knowledge.mkdir()
+    (knowledge / "round-266-foo.md").write_text("x")  # never `git add`ed
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t.com"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=repo, check=True)
+    (repo / "a.txt").write_text("x")
+    subprocess.run(["git", "add", "a.txt"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "unrelated prior work"],
+                    cwd=repo, check=True)
+
+    driver_rounds = {266: {"track": "language(C)", "status": "success"}}
+    state_rounds = {266}
+    assert m.recorded_but_uncommitted_rounds(
+        driver_rounds, state_rounds, str(knowledge), str(repo)) == [266]
+
+
+def test_recorded_but_uncommitted_rounds_clean_when_file_committed(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    knowledge = repo / "knowledge"
+    knowledge.mkdir()
+    (knowledge / "round-266-foo.md").write_text("x")
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t.com"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=repo, check=True)
+    subprocess.run(["git", "add", "."], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "unrelated subject text"],
+                    cwd=repo, check=True)
+
+    driver_rounds = {266: {"track": "language(C)", "status": "success"}}
+    state_rounds = {266}
+    # No "round 266" anywhere in the commit subject — proves this check
+    # verifies FILE presence, not subject-line text (unlike
+    # committed_per_git_log), matching round 154/160/162's real shape.
+    assert m.recorded_but_uncommitted_rounds(
+        driver_rounds, state_rounds, str(knowledge), str(repo)) == []
+
+
+def test_recorded_but_uncommitted_rounds_ignores_round_missing_knowledge_file(tmp_path):
+    # in_state=True but has_knowledge_file=False is a softer signal per the
+    # main loop's own comment — not this check's shape even with no commit.
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    knowledge = repo / "knowledge"
+    knowledge.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t.com"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=repo, check=True)
+    (repo / "a.txt").write_text("x")
+    subprocess.run(["git", "add", "a.txt"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "unrelated"], cwd=repo, check=True)
+
+    driver_rounds = {266: {"track": "language(C)", "status": "success"}}
+    state_rounds = {266}
+    assert m.recorded_but_uncommitted_rounds(
+        driver_rounds, state_rounds, str(knowledge), str(repo)) == []
+
+
+def test_recorded_but_uncommitted_rounds_skips_when_git_unavailable(tmp_path):
+    # Not a git repo at all -> _file_ever_tracked returns None for every
+    # path; unverifiable must not be treated as "definitely missing".
+    knowledge = tmp_path / "knowledge"
+    knowledge.mkdir()
+    (knowledge / "round-266-foo.md").write_text("x")
+    driver_rounds = {266: {"track": "language(C)", "status": "success"}}
+    state_rounds = {266}
+    assert m.recorded_but_uncommitted_rounds(
+        driver_rounds, state_rounds, str(knowledge), str(tmp_path)) == []
+
+
+def test_file_ever_tracked_true_for_committed_file(tmp_path):
+    (tmp_path / "a.txt").write_text("x")
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t.com"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "add", "a.txt"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "add a"], cwd=tmp_path, check=True)
+    assert m._file_ever_tracked(str(tmp_path / "a.txt"), str(tmp_path)) is True
+
+
+def test_file_ever_tracked_false_for_untracked_file(tmp_path):
+    (tmp_path / "a.txt").write_text("x")
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t.com"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "add", "a.txt"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "add a"], cwd=tmp_path, check=True)
+    (tmp_path / "b.txt").write_text("y")  # never added/committed
+    assert m._file_ever_tracked(str(tmp_path / "b.txt"), str(tmp_path)) is False
+
+
+def test_file_ever_tracked_none_when_not_a_repo(tmp_path):
+    (tmp_path / "a.txt").write_text("x")
+    assert m._file_ever_tracked(str(tmp_path / "a.txt"), str(tmp_path)) is None
+
+
+def test_end_to_end_flags_recorded_but_uncommitted_round(tmp_path):
+    driver_log = tmp_path / "driver.log"
+    _write_driver_log(str(driver_log), [
+        "[t] round 266 track=language(C) start (driver_version=x) pid=1",
+        "[t] round 266: success",
+    ])
+    state = tmp_path / "state.md"
+    state.write_text("### Round 266 — language(C) — 2026-08-28\n- ok\n")
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t.com"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=repo, check=True)
+    (repo / "b.txt").write_text("x")
+    subprocess.run(["git", "add", "b.txt"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "unrelated prior work"],
+                    cwd=repo, check=True)
+    # knowledge/ lives INSIDE the repo (matching real usage, where
+    # --knowledge-dir and --repo-root are both relative to the same
+    # checkout) but the file itself is never `git add`ed/committed.
+    knowledge = repo / "knowledge"
+    knowledge.mkdir()
+    (knowledge / "round-266-foo.md").write_text("x")
+
+    rc = subprocess.run(
+        [sys.executable, SCRIPT,
+         "--driver-log", str(driver_log),
+         "--state", str(state),
+         "--archive", str(tmp_path / "no-archive.md"),
+         "--ack-file", str(tmp_path / "no-ack.json"),
+         "--knowledge-dir", str(knowledge),
+         "--round-logs-dir", str(tmp_path / "logs_missing"),
+         "--repo-root", str(repo)],
+        capture_output=True, text=True,
+    )
+    # The main per-round loop's own `if in_state: continue` would otherwise
+    # make round 266 invisible — it has both a heading and a knowledge file.
+    assert rc.returncode == 1
+    assert "recorded but uncommitted" in rc.stdout or "never actually landed in git" in rc.stdout
+    assert "266" in rc.stdout
+
+
+def test_end_to_end_acknowledged_uncommitted_gap_suppressed_by_default(tmp_path):
+    driver_log = tmp_path / "driver.log"
+    _write_driver_log(str(driver_log), [
+        "[t] round 266 track=language(C) start (driver_version=x) pid=1",
+        "[t] round 266: success",
+    ])
+    state = tmp_path / "state.md"
+    state.write_text("### Round 266 — language(C) — 2026-08-28\n- ok\n")
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t.com"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=repo, check=True)
+    (repo / "b.txt").write_text("x")
+    subprocess.run(["git", "add", "b.txt"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "unrelated prior work"],
+                    cwd=repo, check=True)
+    knowledge = repo / "knowledge"
+    knowledge.mkdir()
+    (knowledge / "round-266-foo.md").write_text("x")
+    ack = tmp_path / "ack.json"
+    ack.write_text(json.dumps({"266": "verified, real work landed by round 267"}))
+
+    rc = subprocess.run(
+        [sys.executable, SCRIPT,
+         "--driver-log", str(driver_log),
+         "--state", str(state),
+         "--archive", str(tmp_path / "no-archive.md"),
+         "--ack-file", str(ack),
+         "--knowledge-dir", str(knowledge),
+         "--round-logs-dir", str(tmp_path / "logs_missing"),
+         "--repo-root", str(repo)],
+        capture_output=True, text=True,
+    )
+    assert rc.returncode == 0
+    assert "0 gaps" in rc.stdout
+
+    rc_shown = subprocess.run(
+        [sys.executable, SCRIPT,
+         "--driver-log", str(driver_log),
+         "--state", str(state),
+         "--archive", str(tmp_path / "no-archive.md"),
+         "--ack-file", str(ack),
+         "--show-acknowledged",
+         "--knowledge-dir", str(knowledge),
+         "--round-logs-dir", str(tmp_path / "logs_missing"),
+         "--repo-root", str(repo)],
+        capture_output=True, text=True,
+    )
+    assert rc_shown.returncode == 0
+    assert ("round 266 (recorded but uncommitted): verified, real work "
+            "landed by round 267") in rc_shown.stdout
+
+
+def test_cached_git_log_lines_reused_across_calls_same_repo(tmp_path):
+    # Two committed_per_git_log calls against the same repo_root must not
+    # re-run `git log` from scratch the second time — the memoization
+    # round 273 added for recorded_but_uncommitted_rounds's higher call
+    # volume. Verified by mutating the repo AFTER the first call and
+    # confirming the second call still reflects the STALE cached answer
+    # (proof the subprocess didn't actually re-run), then clearing the
+    # cache and confirming it picks up the new commit.
+    m._cached_git_log_lines.cache_clear()
+    repo = tmp_path
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t.com"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=repo, check=True)
+    (repo / "a.txt").write_text("x")
+    subprocess.run(["git", "add", "a.txt"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "unrelated"], cwd=repo, check=True)
+
+    assert m.committed_per_git_log(300, str(repo)) is False
+    subprocess.run(["git", "commit", "-q", "--allow-empty", "-m", "Round 300: real work"],
+                    cwd=repo, check=True)
+    # Stale cache: still reads False even though a matching commit now exists.
+    assert m.committed_per_git_log(300, str(repo)) is False
+    m._cached_git_log_lines.cache_clear()
+    assert m.committed_per_git_log(300, str(repo)) is True
+
+
 def test_end_to_end_clean_when_every_round_recorded(tmp_path):
     driver_log = tmp_path / "driver.log"
     _write_driver_log(str(driver_log), [

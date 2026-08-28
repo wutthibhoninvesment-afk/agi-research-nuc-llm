@@ -386,7 +386,7 @@ python3 skills/session-inheritance-audit/scripts/check_round_recorded.py
 # means don't trust ANY "committed" claim in that round's own prose, see pitfalls).
 # `--since N` still works as a blunter, no-file alternative; `--show-acknowledged`
 # prints the suppressed rounds and their reasons for a spot-check.
-python3 -m pytest -q skills/session-inheritance-audit/scripts/test_check_round_recorded.py    # 34 passed
+python3 -m pytest -q skills/session-inheritance-audit/scripts/test_check_round_recorded.py    # 45 passed
 for p in $(pgrep -f '<round-driver-prompt-or-script-pattern>'); do echo -n "$p "; readlink -f /proc/$p/cwd; done
 # every hit classified: real workspace = live peer (leave/message); tmp/pytest fixture = escaped test orphan (killable)
 ```

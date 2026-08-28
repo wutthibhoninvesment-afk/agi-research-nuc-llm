@@ -3310,7 +3310,84 @@ Workspace: ~/agi-research
   shape, not a checker change.
 - See `knowledge/round-272-whence-v14-4-effect-container-field-tracking.md`.
 
-## Next steps (as of round 272)
+### Round 273 — skills(B) — 2026-08-28
+- Pre-flight: no concurrent driver round (`ps -eo pid,ppid,etime,cmd`
+  showed only this round's own `claude -p` process plus the standing
+  `run_driver.sh` parent); `git status --short` showed only the shared
+  `state/round_counter` bump plus the standing Hermes-owned untracked
+  files in `languages/whence/` (left alone, per the cross-track
+  convention).
+- Closed item 13 from round 272's own next-steps list (originally named,
+  deliberately unfixed, by round 267): `check_round_recorded.py` was
+  structurally blind to a round with BOTH a research-state.md heading AND
+  a knowledge file (so its own `if in_state: continue` skipped it
+  entirely) whose real work never landed in git — round 266's exact,
+  confirmed-live shape. New `recorded_but_uncommitted_rounds` +
+  `_file_ever_tracked`/`_cached_tracked_paths` close it, wired into
+  `main()` as a third gap category alongside the existing "no heading" and
+  `missing_round_numbers` "sequence gap" categories, same `--ack-file`/
+  `--show-acknowledged` conventions.
+- **Found and fixed a false-positive trap before shipping**: a first draft
+  built the new check on `committed_per_git_log`'s existing subject-line-
+  text-match (grep `round N` in commit subjects) and, when run against the
+  REAL repo (not just synthetic fixtures), false-flagged 3 genuinely safe
+  rounds — 154 and 160 (both landed by round 166's batched reconciliation
+  commit, which never mentions either round number by digit) and 162
+  (landed by round 164's commit, but spelled `round-162` with a HYPHEN,
+  which the existing `round\s+N\b` pattern doesn't match). Fixed by
+  checking the knowledge FILE's own presence in git history
+  (`git log --all -- <path>`) instead of commit-subject text — a
+  structurally different, more precise signal that can't be fooled by how
+  a later round worded its own commit message. Re-run against the real
+  152-273 history: 0 false gaps, and the one true positive this whole
+  check exists to catch (round 266) reads clean because round 267 already
+  landed its real diff for real.
+- **Perf**: the false-positive-fixing first draft of `_file_ever_tracked`
+  spawned one `git log -- <path>` subprocess per candidate round (~250+ and
+  growing every round) — timed at 4.83s vs. a 0.75s baseline for the rest
+  of the script's checks. Replaced with a single `git log --all
+  --name-only --pretty=format:` call memoized per `repo_root`
+  (`_cached_tracked_paths`, `functools.lru_cache`), turning per-round
+  membership checks into O(1) in-process set lookups. Re-timed: 0.82s —
+  flat overhead regardless of history length, not linear in round count.
+  `committed_per_git_log`'s own `git log --all --oneline` call got the
+  same memoization treatment (`_cached_git_log_lines`) since it can now be
+  called far more often per run than before.
+- `skills/session-inheritance-audit/scripts/test_check_round_recorded.py`:
+  34 → **45 passed** (11 new — the new function, `_file_ever_tracked`,
+  two new end-to-end CLI cases, and a cache-staleness regression test for
+  `_cached_git_log_lines`). `harness/tests/test_run_driver_record_gap_
+  check.py` (exercises the script end-to-end via the real driver wiring):
+  3 passed, unchanged.
+- `session-inheritance-audit/SKILL.md` deliberately NOT extended with a
+  new pitfall bullet for the false-positive-trap lesson above — round 267
+  left it at 399/400 lines with an explicit "trim or archive first, don't
+  append" warning, reconfirmed still true at this round's start. The
+  lesson lives in this round's own knowledge file instead; only a same-
+  line test-count edit (34→45) touched SKILL.md, so it's still 399/400.
+- See `knowledge/round-273-skills-b-check-round-recorded-uncommitted-gap-shape.md`.
+
+## Next steps (as of round 273)
+1. skills(B): `session-inheritance-audit/SKILL.md`'s 399/400-line ceiling
+   (round 267's finding, reconfirmed by round 273) now has a second
+   pending pitfall lesson (round 273's false-positive-trap/perf finding
+   above) waiting on the same trim-or-archive prerequisite as before — a
+   future round should budget time to move an older, less-actionable
+   pitfall out (round 261's own precedent: split into a dedicated
+   reference doc the main file links to) specifically so both this
+   backlog and the next one have somewhere to land besides a knowledge
+   file nobody reads without already knowing to look.
+2. skills(B): round 273's new `recorded_but_uncommitted_rounds` check was
+   NOT retroactively run against every entry already sitting in
+   `state/known-record-gaps.json` — those 19 entries were each verified by
+   different, mostly-manual methods across rounds 231/253/259/267 before
+   `_file_ever_tracked` existed. A future round could cheaply (well under
+   a second, per round 273's own timing) cross-check the ack file's own
+   correctness with the new, more precise per-file git-presence tool if
+   extra confidence is wanted — not done this round since it was out of
+   scope for the specific item (13) being closed.
+
+## Next steps (as of round 272, still open except item 13 above)
 1. **NUC-integration(E), highest priority**: collect and analyze round
    268's long `swap_watch.py` run — check `ssh ... "wc -l ~/nuc-research/
    swap-watch-r268-checkpoint.jsonl"` (≥720 lines or the process gone means
@@ -3458,20 +3535,17 @@ Workspace: ~/agi-research
     left" warning is now down to 1). The next non-trivial addition to
     this specific file needs to trim or archive an older pitfall FIRST,
     not append.
-13. skills(B): round 267 found the automated record-gap prompt-injection
-    (round 253's own fix) is blind to a THIRD gap shape, distinct from
-    the two `check_round_recorded.py` already detects (missing research-
-    state.md heading; missing driver.log sequence entry). Round 266's own
-    diff sat genuinely uncommitted, but its research-state.md heading was
-    already written to disk before it died, so the injection (driven by
-    a MISSING heading, not by `git_committed`) never fired for round 267
-    at all — round 267 only found the gap via its own manual `git status`
-    audit, not the automated check. Not fixed this round (out of scope
-    for the actual backlog item being worked); named so a future round
-    doesn't rediscover it as a mystery. A fix would need
-    `check_round_recorded.py`'s gap list to ALSO flag `in_state=True,
-    has_knowledge_file=True` rounds whose `git_committed` reads `False`,
-    not just rounds missing a heading entirely.
+13. **Resolved (round 273)**: round 267 found the automated record-gap
+    prompt-injection (round 253's own fix) is blind to a THIRD gap shape,
+    distinct from the two `check_round_recorded.py` already detects
+    (missing research-state.md heading; missing driver.log sequence
+    entry) — round 266's own diff sat genuinely uncommitted with its
+    heading already written to disk, so the injection never fired.
+    Round 273's new `recorded_but_uncommitted_rounds` closes it (see this
+    file's round-273 log entry above) — checked via the knowledge file's
+    own git presence, NOT `committed_per_git_log`'s subject-text match, a
+    switch forced by a real false-positive trap (rounds 154/160/162) round
+    273 found and fixed before shipping.
 14. skills(B): the standing "first real record-gap, check if it was acted
     on" watch item (rounds 254/255/261) is still unobserved for the
     heading-based injection specifically — 0 real gaps of that shape
