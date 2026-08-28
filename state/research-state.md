@@ -2281,3 +2281,80 @@ Workspace: ~/agi-research
   (unaffected — no `languages/whence` source changes outside
   `examples/self_eval.lang`, which the fast tier doesn't cover).
 - See `knowledge/round-251-swe-loop-guess-targeted-campaign-and-triple-notification-trap.md`.
+
+### Round 252 — language(C) — 2026-08-28
+- **Closed round 251's own flagged backlog item**: a `guess()` value
+  compared via `>`/`>=` against an incompatible type lost its `"guess"` op
+  from the guest's (`self_eval.lang`) reified why-tree on a miss (minimized
+  repro from round 251's guest-targeted campaign, seed 1940:
+  `guess(0, 0.0, "sampled") > @{b: 0, a: v1, name: true}`).
+- **Root cause**: a real, deliberate ASYMMETRY in the host's own Guess
+  propagation (`Interpreter._guess_binop`/`_unary`, `whence/interp.py`) —
+  a Guess operand that makes an op SUCCEED keeps the original
+  Guess-labelled node as an input (so `why` on a successful Guess
+  computation shows the `"guess"` provenance); a Guess operand that makes
+  the op MISS uses the Guess's UNWRAPPED inner node instead — the outer
+  "guess" node is silently dropped ("a genuine type error is not
+  uncertain," per `_unary`'s own docstring). `self_eval.lang`'s
+  `apply_binop`/`eval_unary` boxed their guest-side inputs uniformly
+  (`mkb(p, op, [a, b])` / `mkb(p, op, [r.v])`) regardless of this
+  asymmetry, always keeping the original (Guess-labelled) box even on a
+  miss — a real guest/host why-shape divergence, not a value-level one
+  (the differential fuzzer's VALUE oracle already agreed; only the
+  stronger why-shape probe, and the exact-op-list hand tests, can see it).
+- **Fix**: new `guess_unwrap_if_missed(a, p)` helper in `self_eval.lang`
+  (reuses `sure()`'s own `unwrap_guess_box`, round 234, unchanged) applied
+  per-operand in new `binop_ins`/`unary_ins` wrappers, gated on
+  `missed(p)` — a successful Guess propagation still keeps the original
+  box(es), matching the host's success path exactly.
+- **A sibling gap found by inspection, not fuzzing, before shipping the
+  fix**: `eval_unary`'s `-`/`not` branches had the identical bug
+  (`-guess("hi", 0.9, "m")`, `not guess(1, 0.9, "m")` both leaked
+  `"guess"` the same way) — invisible to every fuzz campaign to date
+  because `harness/swe/guest.py`'s `GuestGen` generator grammar has no
+  unary-minus/`not`-on-Guess template at all. Fixed with the same
+  `unary_ins` wrapper. Swept `whence/interp.py` for every other
+  `isinstance(..., Guess)` site afterward (`grep -n "Guess)"`) to confirm
+  `binop`/`_unary` are the only two provenance-node-construction points
+  with this asymmetry — the one other hit (`deep_eq`'s Guess-vs-Guess
+  case, used by `contains`/`find`/nested `==`) returns a plain bool, no
+  `.inputs` to leak, not this bug class; the remaining four are inside the
+  `guess`/`is_guess`/`confidence`/`sure` builtins themselves (rounds
+  234/236's territory, already closed).
+- **Verification**: direct host-vs-guest `__opwalk` comparison (bypassing
+  the fuzzer, same technique rounds 234/236 used) for 5 shapes, all
+  matching exactly before/after: `>` miss with the Guess on either side,
+  guess-of-guess ordering miss, divide-by-zero miss, arithmetic success
+  control (unaffected), plus the 2 new unary miss shapes and 2 unary
+  success controls. Two new pinned tests,
+  `test_guest_binop_guess_operand_miss_why_shape_matches_host_exactly`
+  and `test_guest_unary_guess_operand_miss_why_shape_matches_host_exactly`
+  (`languages/whence/tests/test_self_hosting.py`), both confirmed to FAIL
+  against the pre-fix code (`git stash` the `self_eval.lang` change,
+  re-run, confirm failure, `git stash pop`) before trusting them as real
+  regression guards. `languages/whence/tests/test_self_hosting.py` +
+  `tests/test_self_eval.py` 29/29 (was 27/27), 123.41s.
+  `languages/whence/run_tests_fast.sh` 842 passed/38 deselected (was 36 —
+  the +2 tests are `@pytest.mark.whence_slow`, correctly excluded).
+  `harness/tests/test_swe_guest.py` (the full 46-test guest-differential
+  suite, including the slow `AGREE_CASES`/why-shape tests) 46/46 both
+  before this round's edits (baseline) and — see next line for the
+  post-fix confirmation.
+- SPEC.md gained one bullet appended to the end of the existing "v0.15
+  (round 168) — AI-native primitives" section, following the same
+  convention round 234's own `sure()` fix used (append to the guess/sure
+  narrative rather than a new version header, since this is a guest-parity
+  fix to `self_eval.lang`, not a language surface change).
+- See `knowledge/round-252-whence-guess-binop-unary-why-shape-parity.md`.
+
+## Next steps (as of round 252)
+1. Resume the guess-targeted campaign (SWE-loop D): round 251 left off at
+   446/1000 accepted, checkpoint `next_seed: 2070` in
+   `state/swe/round-248/guess-targeted-state.json`.
+2. NUC-integration(E): run `nuc/swap_watch.py` for real (15 min,
+   `--interval 15 --duration 900`, per round 244's own open question) —
+   built and landed by rounds 250/251 but never actually run.
+3. Possible skills(B) follow-up: three rounds (248/249/250) hit the exact
+   named `one-shot-agent-no-background-wait` trap in a row before round
+   251 broke the streak — worth a `trigger_eval.py` probe against that
+   specific shape if it recurs a fourth time.

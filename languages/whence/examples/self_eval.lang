@@ -984,6 +984,36 @@ fn raw_deep_eq_fields(x, y, ks, i) {
   }
 }
 
+# Round 252: closes round 251's `guess()`-vs-`>` why-vocab gap. The host's
+# own `_guess_binop`/`_unary` (interp.py) are ASYMMETRIC: when an op with a
+# Guess operand SUCCEEDS, the node it returns uses the ORIGINAL operand
+# node(s) as inputs (the outer "guess"-labeled node included); when it
+# MISSES (e.g. ordering a Guess against an incompatible type, or negating a
+# Guess-wrapped string), the node it returns is whatever the plain
+# `binop()`/`_unary()` built from the Guess's UNWRAPPED inner node
+# (`Guess.node`) instead — the outer "guess" node is silently dropped, so
+# the host's own why-tree for that miss never mentions "guess" at all
+# (verified directly against the host: `guess(0, 0.0, "sampled") > @{...}`'s
+# miss node has inputs `(literal 0, record ...)`, no "guess" node anywhere;
+# same for `-guess("hi", 0.9, "m")`, `not guess(1, 0.9, "m")`). Both
+# `apply_binop` and `eval_unary` boxed their inputs uniformly (`[a, b]` /
+# `[r.v]`), which didn't mirror that asymmetry: a miss on a Guess operand
+# leaked a "guess" op into the guest's why-tree the host's real derivation
+# never has — round 251's minimized repro (`apply_binop`'s `>` case); the
+# matching `eval_unary` gap (found this round, checking the sibling code
+# path for the same class of bug) was never fuzzed since the differential
+# generator's grammar has no unary-minus-on-Guess/not-on-Guess template.
+# Fixed by reusing the SAME `unwrap_guess_box` helper `sure()` already
+# relies on (round 234) to reconstruct the guest box for a Guess's `.node`,
+# applied to whichever operand(s) are Guess-valued, but ONLY when the
+# result missed; a succeeding Guess propagation keeps the original box(es)
+# unchanged, same as the host's success path.
+fn guess_unwrap_if_missed(a, p) {
+  if missed(p) and is_guess_val(a.v) { unwrap_guess_box(a) } else { a }
+}
+fn binop_ins(a, b, p) { [guess_unwrap_if_missed(a, p), guess_unwrap_if_missed(b, p)] }
+fn unary_ins(a, p) { [guess_unwrap_if_missed(a, p)] }
+
 fn apply_binop(op, a, b) {
   # v0.15 guest parity (round 176): `+ - * / % < <= > >=` need NO Guess
   # handling at all — `a.v OP b.v` is genuine top-level Whence source (this
@@ -1023,7 +1053,7 @@ fn apply_binop(op, a, b) {
     else if op == ">" { a.v > b.v }
     else if op == ">=" { a.v >= b.v }
     else { miss ("unknown operator '" + op + "'") }
-  mkb(p, op, [a, b])
+  mkb(p, op, binop_ins(a, b, p))
 }
 
 fn eval_binary(node, env, st) {
@@ -1073,8 +1103,14 @@ fn eval_or(node, env, st) {
 fn eval_unary(node, env, st) {
   let r = eval(node.operand, env, st)
   let op = node.op
-  let b = if op == "-" { mkb(0 - r.v.v, "-", [r.v]) }
-    else if op == "not" { mkb(not r.v.v, "not", [r.v]) }
+  let b = if op == "-" {
+      let p = 0 - r.v.v
+      mkb(p, "-", unary_ins(r.v, p))
+    }
+    else if op == "not" {
+      let p = not r.v.v
+      mkb(p, "not", unary_ins(r.v, p))
+    }
     # host `_miss_lit` (interp.py) only keeps the reason box as an input
     # when the reason is itself a miss (propagation) or a valid string
     # (the normal case); a non-string, non-miss reason (e.g. `miss 1`)

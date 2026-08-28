@@ -1086,6 +1086,38 @@ that cannot end a statement.
   dedicated `show_payload`-based test confirming confidence/sources
   render identically host-vs-guest (a check `deep_eq`-based agreement
   alone cannot make, since `deep_eq` treats them as pure metadata).
+- **Round 251's guest-targeted campaign (seed 1940) found a fresh gap in the
+  same why-shape family, and round 252 closed it (plus a sibling it
+  exposed)**: `binop`/`_unary`'s host-side Guess handling
+  (`Interpreter._guess_binop`/`_unary`, `whence/interp.py`) is ASYMMETRIC —
+  a Guess operand that makes the op SUCCEED keeps the ORIGINAL operand
+  node(s) as the result's inputs (the outer "guess"-labelled node
+  included), but a Guess operand that makes the op MISS (ordering a Guess
+  against an incompatible type, dividing by zero, negating a Guess-wrapped
+  string, `not` on a Guess-wrapped number, …) uses whatever the plain
+  op-without-Guess-handling built from the Guess's UNWRAPPED inner node
+  (`Guess.node`) instead — the outer "guess" node is silently dropped, so
+  the host's own why-tree for that miss never mentions "guess" at all.
+  `self_eval.lang`'s `apply_binop`/`eval_unary` boxed their inputs
+  uniformly (`mkb(p, op, [a, b])` / `mkb(p, op, [r.v])`) regardless of this
+  asymmetry, leaking a "guess" op into the guest's why-tree for a
+  miss that the host's real derivation never has. Fixed with a shared
+  `guess_unwrap_if_missed(a, p)` helper (reusing `sure()`'s own
+  `unwrap_guess_box`, round 234) applied per-operand, but ONLY when the
+  result missed — a succeeding Guess propagation keeps the original box(es)
+  unchanged, matching the host's success path exactly. The unary half
+  (`-`/`not` on a Guess) was never fuzzed (the differential generator's
+  grammar has no unary-on-Guess template) and was found by checking the
+  sibling code path for the same bug class once the binop finding was
+  root-caused, not by a fresh campaign finding. Verified with exact op-LIST
+  equality (not just containment) across 9 shapes: `>` miss with the Guess
+  on either side, guess-of-guess ordering miss, divide-by-zero miss, a
+  success control (original boxes kept), unary `-` on a Guess-string miss,
+  unary `not` on a Guess-num miss, and two unary success controls
+  (`test_guest_binop_guess_operand_miss_why_shape_matches_host_exactly`,
+  `test_guest_unary_guess_operand_miss_why_shape_matches_host_exactly`,
+  `tests/test_self_hosting.py`). See
+  `knowledge/round-252-whence-guess-binop-unary-why-shape-parity.md`.
 
 ## v0.16 (round 204) — persistent records (structural sharing for `Record`)
 - **The fix round 200 flagged and left as optional backlog.** `Record` was

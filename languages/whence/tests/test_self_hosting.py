@@ -665,6 +665,115 @@ def test_guest_guess_is_guess_confidence_why_shape_matches_host_exactly():
 
 
 @pytest.mark.whence_slow
+def test_guest_binop_guess_operand_miss_why_shape_matches_host_exactly():
+    # Round 251's guest-targeted campaign (seed 1940) found a real
+    # divergence rounds 234/236's own hand-verification never exercised:
+    # `guess`/`is_guess`/`confidence` are free-delegation builtins whose
+    # *own* op-list matches host exactly (the test directly above), but
+    # `apply_binop` (the guest's `> < <= >= + - * / %` dispatch, a
+    # DIFFERENT function from the one three builtins delegate through)
+    # unconditionally boxed a binop's inputs as `[a, b]` -- the ORIGINAL
+    # operand boxes. The host's own `_guess_binop` (interp.py) is
+    # asymmetric: it keeps the original nodes only when the op SUCCEEDS; on
+    # a miss (e.g. ordering a Guess against an incompatible type, or a
+    # divide-by-zero with a Guess numerator) it returns whatever the plain
+    # `binop()` built from the Guess's UNWRAPPED inner node instead -- the
+    # outer "guess"-labelled node is silently dropped, so a miss's own
+    # why-tree never mentions "guess" at all. `apply_binop`'s uniform boxing
+    # missed that asymmetry, leaking a "guess" op into the guest's why-tree
+    # for a comparison/arithmetic MISS that the host's real derivation never
+    # has -- round 251's minimized repro (`guess(0, 0.0, "sampled") >
+    # @{...}`) is the first case below. Fixed via a new `binop_ins` helper
+    # that reuses `sure()`'s own `unwrap_guess_box` (round 234) to
+    # reconstruct the Guess-operand's unwrapped box, but ONLY when the
+    # result missed -- a succeeding Guess propagation (last case below)
+    # keeps the original boxes unchanged, same as the host's success path.
+    from whence import values as VAL
+
+    eval_lib = eval_library_source()
+    cases = {
+        "guess vs record, ordering miss (round 251 seed 1940)": (
+            'let g = guess(0, 0.0, "sampled")\n'
+            'let r = (g > @{b: 0, a: 1, name: true})\n'),
+        "record vs guess, ordering miss (Guess on the RIGHT)": (
+            'let g = guess(0, 0.0, "sampled")\n'
+            'let r = (@{b: 0, a: 1, name: true} > g)\n'),
+        "guess divide-by-zero miss": (
+            'let g = guess(5, 0.8, "m")\nlet r = (g / 0)\n'),
+        "guess-of-guess, ordering miss": (
+            'let inner = guess(0, 0.9, "a")\n'
+            'let g = guess(inner, 0.5, "b")\n'
+            'let r = (g > @{x: 1})\n'),
+        "guess arithmetic success (control: original boxes kept)": (
+            'let g = guess(5, 0.9, "m")\nlet r = (g + 1)\n'),
+    }
+    for label, src in cases.items():
+        host_env = Interpreter().run(src)
+        host_box = host_env.get("r")
+        host_ops = [n.op for n, _ in VAL.walk_steps(host_box)]
+
+        inner_src = (
+            src +
+            'fn __opwalk(acc, n) { fold(__opwalk, push(acc, n.op), n.ins) }\n'
+            'let __ops = __opwalk([], why r)\n'
+            '__ops\n')
+        prog = eval_lib + 'let __r = run_src("%s")\n' % escape(inner_src)
+        genv = Interpreter().run(prog)
+        rec = genv.get("__r").payload
+        assert rec.fields["parse_error"].payload is False, label
+        guest_ops = [e.payload.split(" ")[0] for e in rec.fields["v"].payload]
+
+        assert guest_ops == host_ops, (label, "guest", guest_ops, "host", host_ops)
+
+
+@pytest.mark.whence_slow
+def test_guest_unary_guess_operand_miss_why_shape_matches_host_exactly():
+    # Sibling gap to the binop test directly above, found by checking
+    # `eval_unary` (self_eval.lang) for the same asymmetry class as
+    # `apply_binop` once round 251's binop finding was root-caused: the
+    # host's `_unary` (interp.py) has the identical success/miss asymmetry
+    # `_guess_binop` does (keep the original Guess-labelled node on success,
+    # substitute the Guess's UNWRAPPED inner node on a miss), and
+    # `eval_unary`'s own `mkb(0 - r.v.v, "-", [r.v])` / `mkb(not r.v.v,
+    # "not", [r.v])` boxed their one input uniformly, same bug shape as
+    # `apply_binop`'s `[a, b]`. Never caught by any fuzz campaign: the
+    # differential generator's grammar has no unary-minus/not-on-Guess
+    # template. Fixed by the same `unary_ins` helper (built on the shared
+    # `guess_unwrap_if_missed`, refactored out of the binop fix's own
+    # `binop_ins`).
+    from whence import values as VAL
+
+    eval_lib = eval_library_source()
+    cases = {
+        "unary minus on guess-string (type miss)": (
+            'let g = guess("hi", 0.9, "m")\nlet r = -g\n'),
+        "unary not on guess-num (type miss)": (
+            'let g = guess(1, 0.9, "m")\nlet r = not g\n'),
+        "unary minus on guess-num (control: success keeps original box)": (
+            'let g = guess(1, 0.9, "m")\nlet r = -g\n'),
+        "unary not on guess-bool (control: success keeps original box)": (
+            'let g = guess(true, 0.9, "m")\nlet r = not g\n'),
+    }
+    for label, src in cases.items():
+        host_env = Interpreter().run(src)
+        host_box = host_env.get("r")
+        host_ops = [n.op for n, _ in VAL.walk_steps(host_box)]
+
+        inner_src = (
+            src +
+            'fn __opwalk(acc, n) { fold(__opwalk, push(acc, n.op), n.ins) }\n'
+            'let __ops = __opwalk([], why r)\n'
+            '__ops\n')
+        prog = eval_lib + 'let __r = run_src("%s")\n' % escape(inner_src)
+        genv = Interpreter().run(prog)
+        rec = genv.get("__r").payload
+        assert rec.fields["parse_error"].payload is False, label
+        guest_ops = [e.payload.split(" ")[0] for e in rec.fields["v"].payload]
+
+        assert guest_ops == host_ops, (label, "guest", guest_ops, "host", host_ops)
+
+
+@pytest.mark.whence_slow
 def test_guest_matches_shapeof_typed_why_shape_matches_host_exactly():
     # Round 224 (`matches`/`shapeof`) and round 158 (`typed`) gave these
     # three builtins guest DISPATCH parity, and round 240 hardened
