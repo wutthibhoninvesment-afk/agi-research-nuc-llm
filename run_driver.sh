@@ -22,7 +22,7 @@ export PATH="$PATH:/home/pgain/agi-research-nuc-llm/node_modules/.bin"
 # "$@"` at the loop's end below), this now reliably reflects the ON-DISK
 # script content for every round it produced, including rounds after a
 # mid-run edit — round 139's live driver could not make that claim.
-DRIVER_VERSION="247-whence-health-check"
+DRIVER_VERSION="253-record-gap-check"
 
 # Round 157: a manual post-migration edit (made outside any round,
 # between the Mac->NUC sync commit c768d90 and round 154) hardcoded this
@@ -258,13 +258,57 @@ while true; do
   echo "$ROUND" > "$STATE_FILE"
   TRACK=$(track_name "$ROUND")
   RLOG="$WS/logs/round-$(printf '%03d' "$ROUND").json"
+
+  # Round 253: automated record-gap check, closing round 171/195's own
+  # long-standing backlog item — `check_round_recorded.py` (skills(B)'s
+  # round 171 detector for "a round ran real turns, got logged as success,
+  # and still left zero trace in state/research-state.md/knowledge/git" —
+  # confirmed live 3x MORE in a row as recently as rounds 248/249/250, the
+  # exact `one-shot-agent-no-background-wait` mechanism the detector was
+  # built to name) has existed since round 171 but "still requires a
+  # human/round to actually RUN it" (round 171/195's own words) — nobody
+  # unilaterally wired it into the driver's own loop because that's
+  # harness(A)'s file to touch, not skills(B)'s. Deliberately run BEFORE
+  # this round's own "start" line is logged below: `check_round_recorded.py`
+  # reads driver.log's `round N track=... start` lines as its signal that
+  # round N ran, so logging this round's OWN start line first would make
+  # every round flag itself as an unrecorded gap before it had done
+  # anything (confirmed by hand: a bare run at this exact point in round
+  # 253's own session flagged round 253 itself, zero real gaps otherwise).
+  # Guarded on the script's existence, same never-blocks/diagnostic
+  # convention as the two run_tests_fast.sh checks below — a tmp_path e2e
+  # test workspace with no `skills/` tree at all no-ops here exactly like
+  # those do for their own missing scripts. Findings are BOTH logged (for
+  # driver.log-reading rounds, the existing convention) AND appended to
+  # this round's own prompt (below) — logging alone reproduces the same
+  # "requires someone to go read it" gap the backlog item named in the
+  # first place; putting it directly in front of the round that's about to
+  # start is what actually closes the loop.
+  RECORD_CHECK_SCRIPT="$WS/skills/session-inheritance-audit/scripts/check_round_recorded.py"
+  ROUND_GAP_NOTE=""
+  if [ -f "$RECORD_CHECK_SCRIPT" ]; then
+    RECORD_CHECK_OUT=$(python3 "$RECORD_CHECK_SCRIPT" 2>&1)
+    RECORD_CHECK_RC=$?
+    if [ "$RECORD_CHECK_RC" -eq 0 ]; then
+      log "round $ROUND: record-check PASS ($(echo "$RECORD_CHECK_OUT" | tr -d '\r'))"
+    elif [ "$RECORD_CHECK_RC" -eq 1 ]; then
+      log "round $ROUND: record-check FOUND gap(s) — $(echo "$RECORD_CHECK_OUT" | tr '\n' ' ')"
+      ROUND_GAP_NOTE="
+
+NOTE (automated record-gap check, run before this round started — see skills/session-inheritance-audit/SKILL.md): the round(s) below ran per logs/driver.log but have no state/research-state.md entry yet. Before starting your own track's work, check whether their real work (uncommitted diffs, orphaned background processes from a dangling wait) needs to be verified and landed, per the standing cross-track convention:
+$RECORD_CHECK_OUT"
+    else
+      log "round $ROUND: record-check errored (rc=$RECORD_CHECK_RC) — $(echo "$RECORD_CHECK_OUT" | tr '\n' ' ')"
+    fi
+  fi
+
   log "round $ROUND track=$TRACK start (driver_version=$DRIVER_VERSION) pid=$$"
 
   PROMPT="You are running research round $ROUND of the AGI software-engineering program.
 Your track this round: $TRACK. Follow CLAUDE.md ground rules and CURRICULUM.md exactly.
 Round number for file naming: $(printf '%03d' "$ROUND").
 First: read state/research-state.md. Then do the work, test it, write the knowledge file,
-update research-state.md. Be relentless and thorough — this is deep research, spend the tokens."
+update research-state.md. Be relentless and thorough — this is deep research, spend the tokens.$ROUND_GAP_NOTE"
 
   # Run with sonnet-5 (fable-5 hit weekly limit; resets ~Sunday 2026-08-30).
   # stream-json (needs --verbose) instead of json: (1) the final `result`
