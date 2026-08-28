@@ -151,6 +151,35 @@ class ProgramGen(object):
         # only — no semantic oracle here, just "does it ever escape as
         # something other than LexError/ParseError").
         self.alias_names = []
+        # v0.14.3/v0.14.4/v0.14.5 fuzz-coverage gap (rounds 266/270/272/276,
+        # closed round 278): `alias_names` above only reaches the DIRECT-
+        # alias shape (v0.14.2). The other three shipped effect-tracking
+        # shapes need their own generated forms:
+        #   return_alias_fns  -- 0-arity-callable (name, arity) pairs whose
+        #                        body's own tail resolves to an effectful
+        #                        alias (a bare alias NameRef, or an
+        #                        if/else(-if) tail where every arm does --
+        #                        see `_return_alias_body`), so `call()`/
+        #                        `statement()` can exercise
+        #                        `_resolve_effectful_return`'s "call it"
+        #                        and "chain a call on it" shapes (v0.14.3)
+        #                        and, via `_return_alias_body`'s if/else
+        #                        form, the if-tail shape (v0.14.5).
+        #   field_alias_boxes -- (box_name, field_name) pairs bound as
+        #                        `let box = @{field: <alias>, ...}`, so
+        #                        `call()` can exercise
+        #                        `_resolve_effectful_field`'s `box.field(
+        #                        ...)` shape (v0.14.4).
+        # Before this round, `harness/swe/fuzz.py`'s `ProgramGen` never
+        # emitted any of these three shapes at all (confirmed by grep, each
+        # of rounds 266/270/272/276) — every v0.14.3/4/5 test came only
+        # from `tests/test_v14.py`'s hand-written corpus, zero differential-
+        # fuzz coverage. This is still crash-fuzz coverage only, same as
+        # `alias_names` above -- no semantic oracle checks WHICH tag a
+        # shape resolves to, only that generating it never escapes as
+        # anything other than LexError/ParseError.
+        self.return_alias_fns = []
+        self.field_alias_boxes = []
 
     # names ---------------------------------------------------------------
     def fresh(self, prefix="v"):
@@ -163,6 +192,52 @@ class ProgramGen(object):
         if not pool or r.random() < 0.04:
             return r.choice(["zz", "undefined_name", "q"])
         return r.choice(pool)
+
+    def _alias_source(self):
+        """A bare NameRef `Parser._resolve_effectful_alias` recognizes as
+        effectful right now: `print` itself or any name already tracked as
+        a direct alias. Deliberately excludes `return_alias_fns` names — a
+        bare fn NAME used as a tail (not a call) resolves through
+        `alias_scopes`, where a named fn is always bound to `None`
+        (`parser.py` `statement()`'s named-fn branch sets it explicitly),
+        never through `return_alias_scopes`."""
+        return self.r.choice(["print"] + self.alias_names)
+
+    def _return_alias_body(self, params):
+        """v0.14.3/v0.14.5 fuzz coverage: a fn body whose tail is a bare
+        alias NameRef, or an if/else(-if chain) tail where every arm is
+        one — the two shapes `_resolve_effectful_return`/
+        `_if_tail_alias_tag` track. `params[0]` (when present) becomes the
+        `if` condition so the CALL SITE's own argument decides which arm
+        actually runs; ~20% of the time one arm gets a non-alias value
+        instead (a literal), exercising the "not every arm agrees, stays
+        untracked" path structurally (no semantic check here of which tag
+        it resolves to — see `__init__`'s docstring on this whole family)."""
+        r = self.r
+        tail = self._alias_source()
+        if not params or r.random() < 0.4:
+            return "{ %s }" % tail
+        cond = params[0]
+        other = self._alias_source() if r.random() < 0.8 else self.literal()
+        if r.random() < 0.6:
+            return "{ if %s { %s } else { %s } }" % (cond, tail, other)
+        mid = self._alias_source() if r.random() < 0.8 else self.literal()
+        return "{ if %s == 0 { %s } else if %s == 1 { %s } else { %s } }" % (
+            cond, tail, cond, mid, other)
+
+    def _field_alias_record(self):
+        """v0.14.4 fuzz coverage: a record literal with one bare-NameRef
+        field aliasing an effectful builtin (or an existing alias) plus 0-2
+        ordinary fields, mirroring the hand-written corpus's `@{run: print,
+        other: 5}`. Returns `(source_text, alias_field_name)`."""
+        r = self.r
+        alias_field = r.choice(FIELD_POOL)
+        pairs = ["%s: %s" % (alias_field, self._alias_source())]
+        others = r.sample([f for f in FIELD_POOL if f != alias_field], r.randint(0, 2))
+        for fname in others:
+            pairs.append("%s: %s" % (fname, self.expr(1, [])))
+        r.shuffle(pairs)
+        return "@{%s}" % ", ".join(pairs), alias_field
 
     # program -------------------------------------------------------------
     def program(self):
@@ -244,6 +319,19 @@ class ProgramGen(object):
             elif aq < 0.1:
                 e = r.choice(self.alias_names)   # chain through a prior alias
                 self.alias_names.append(name)
+            elif aq < 0.14 and self.return_alias_fns:
+                # v0.14.3 fuzz coverage: `let p = get_x()` -- p becomes an
+                # ordinary effectful-VALUE alias (parser.py `statement()`'s
+                # `A.Call` branch), so a later `call()` can call `p(...)`
+                # exactly as any other tracked alias.
+                fn_name, fn_arity = r.choice(self.return_alias_fns)
+                e = "%s(%s)" % (fn_name, ", ".join(self.expr(1, []) for _ in range(fn_arity)))
+                self.alias_names.append(name)
+            elif aq < 0.18:
+                # v0.14.4 fuzz coverage: `let box = @{field: print, ...}`.
+                lit, field = self._field_alias_record()
+                e = lit
+                self.field_alias_boxes.append((name, field))
             else:
                 e = self.expr(0, [])
             self.scope.append(name)
@@ -253,7 +341,13 @@ class ProgramGen(object):
             arity = r.randint(0, 3)
             params = [self.fresh("p") for _ in range(arity)]
             self.fns.append((name, arity))    # visible inside body: recursion
-            body = self.body(params)
+            # v0.14.3/v0.14.5 fuzz coverage: ~8% of fns get a return-alias
+            # body instead of an ordinary one (see `_return_alias_body`).
+            if r.random() < 0.08:
+                body = self._return_alias_body(params)
+                self.return_alias_fns.append((name, arity))
+            else:
+                body = self.body(params)
             return "fn %s(%s)%s%s %s" % (name, self.typed_params(params),
                                          self.maybe_effects(), self.maybe_ret_type(), body)
         if p < 0.9:
@@ -350,6 +444,19 @@ class ProgramGen(object):
 
     def call(self, depth, local):
         r = self.r
+        if self.field_alias_boxes and r.random() < 0.06:
+            # v0.14.4 fuzz coverage: `box.field(...)` through a tracked
+            # record-literal field alias (`_resolve_effectful_field`).
+            box_name, field_name = r.choice(self.field_alias_boxes)
+            return "%s.%s(%s)" % (box_name, field_name, self.expr(depth + 1, local))
+        if self.return_alias_fns and r.random() < 0.06:
+            # v0.14.3 fuzz coverage: `get_x()(...)` -- a chained call
+            # directly on a call whose CALLEE resolves via
+            # `_resolve_effectful_return`, no intermediate `let` needed
+            # (`_check_effect_call`'s `Call`-callee branch).
+            fn_name, fn_arity = r.choice(self.return_alias_fns)
+            inner = "%s(%s)" % (fn_name, ", ".join(self.expr(depth + 1, local) for _ in range(fn_arity)))
+            return "%s(%s)" % (inner, self.expr(depth + 1, local))
         if self.alias_names and r.random() < 0.08:
             # Call THROUGH a tracked alias rather than `print` directly —
             # the one shape v0.14.2's effect check treats identically to a
@@ -419,7 +526,20 @@ class ProgramGen(object):
             names = r.sample(FIELD_POOL, r.randint(0, 3))
             return "@{%s}" % ", ".join("%s: %s" % (nm, self.expr(d, local)) for nm in names)
         if p < 0.42:
-            return "%s%s" % (r.choice(["-", "not "]), self.expr(d, local))
+            if r.random() < 0.5:
+                return "-%s" % self.expr(d, local)
+            # Pre-existing generator/grammar mismatch, exposed (not caused)
+            # by this round's RNG-sequence changes above: SPEC.md's own
+            # documented precedence table ("rescue, or, and, not,
+            # comparisons, ...") puts `not` BELOW comparisons/arithmetic,
+            # so an unparenthesized `not EXPR` used as the operand of any
+            # binop/index/field access other than `and`/`or` (e.g. `1 >=
+            # not "a"`) is a genuine ParseError -- `parser.py`'s
+            # `comparison`/`additive`/`multiplicative`/`unary` chain never
+            # calls back up to `not_expr`. Explicit parens make it a
+            # primary instead, valid at any precedence level (`(1 >= (not
+            # "a"))` parses fine, confirmed directly against the parser).
+            return "(not %s)" % self.expr(d, local)
         if p < 0.60:
             return "(%s %s %s)" % (self.expr(d, local), r.choice(BINOPS), self.expr(d, local))
         if p < 0.66:
