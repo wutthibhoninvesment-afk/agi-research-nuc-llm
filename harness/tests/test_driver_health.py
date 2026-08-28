@@ -18,6 +18,7 @@ from harness.driver_health import (
     exact_reset_wait_seconds,
     full_event_span_s,
     has_real_ratelimit_signal,
+    heavy_light_fail_rates,
     is_5xx,
     is_max_turns,
     is_rate_limit,
@@ -821,3 +822,65 @@ def test_cli_tally_subcommand(tmp_path):
     )
     assert out.returncode == 0, out.stderr
     assert json.loads(out.stdout) == {"skills(B)": {"total": 1, "max_turns": 0, "interrupted": 0}}
+
+
+def test_heavy_light_fail_rates_splits_and_sums_correctly(tmp_path):
+    # round 206 (language(C), HEAVY): max-turns death.
+    maxturns = _write_ndjson(str(tmp_path), "round-206.json", [
+        REAL_INIT_LINE, REAL_ASSISTANT_LINE,
+        dict(REAL_RESULT_LINE, is_error=True, subtype="error_max_turns"),
+    ])
+    # round 209 (SWE-loop(D), HEAVY): interrupted (no result event).
+    interrupted = _write_ndjson(str(tmp_path), "round-209.json", [REAL_INIT_LINE, REAL_ASSISTANT_LINE])
+    # round 211 (harness(A), LIGHT): clean success.
+    clean_a = _write_ndjson(str(tmp_path), "round-211.json", [REAL_INIT_LINE, REAL_ASSISTANT_LINE, REAL_RESULT_LINE])
+    # round 207 (skills(B), LIGHT): clean success.
+    clean_b = _write_ndjson(str(tmp_path), "round-207.json", [REAL_INIT_LINE, REAL_ASSISTANT_LINE, REAL_RESULT_LINE])
+
+    out = heavy_light_fail_rates([maxturns, interrupted, clean_a, clean_b])
+    assert out["heavy"] == {"total": 2, "fail": 2, "rate": 1.0}
+    assert out["light"] == {"total": 2, "fail": 0, "rate": 0.0}
+    assert out["ratio"] is None  # light's rate is 0 — a finite ratio would be misleading
+
+
+def test_heavy_light_fail_rates_computes_a_finite_ratio_when_light_has_failures(tmp_path):
+    # round 168 (language(C), HEAVY): max-turns death.
+    maxturns = _write_ndjson(str(tmp_path), "round-168.json", [
+        REAL_INIT_LINE, REAL_ASSISTANT_LINE,
+        dict(REAL_RESULT_LINE, is_error=True, subtype="error_max_turns"),
+    ])
+    clean_heavy = _write_ndjson(str(tmp_path), "round-174.json", [REAL_INIT_LINE, REAL_ASSISTANT_LINE, REAL_RESULT_LINE])
+    # round 169 (harness(A), LIGHT): interrupted.
+    light_interrupted = _write_ndjson(str(tmp_path), "round-169.json", [REAL_INIT_LINE, REAL_ASSISTANT_LINE])
+    clean_light = _write_ndjson(str(tmp_path), "round-171.json", [REAL_INIT_LINE, REAL_ASSISTANT_LINE, REAL_RESULT_LINE])
+
+    out = heavy_light_fail_rates([maxturns, clean_heavy, light_interrupted, clean_light])
+    assert out["heavy"] == {"total": 2, "fail": 1, "rate": 0.5}
+    assert out["light"] == {"total": 2, "fail": 1, "rate": 0.5}
+    assert out["ratio"] == pytest.approx(1.0)
+
+
+def test_heavy_light_fail_rates_empty_input():
+    assert heavy_light_fail_rates([]) == {
+        "heavy": {"total": 0, "fail": 0, "rate": 0.0},
+        "light": {"total": 0, "fail": 0, "rate": 0.0},
+        "ratio": None,
+    }
+
+
+def test_cli_heavy_light_subcommand(tmp_path):
+    p = _write_ndjson(str(tmp_path), "round-206.json", [
+        REAL_INIT_LINE, REAL_ASSISTANT_LINE,
+        dict(REAL_RESULT_LINE, is_error=True, subtype="error_max_turns"),
+    ])
+    out = subprocess.run(
+        [sys.executable, "-m", "harness.driver_health", "heavy_light", p],
+        cwd=os.path.join(HERE, "..", ".."),
+        capture_output=True, text=True, timeout=10,
+    )
+    assert out.returncode == 0, out.stderr
+    assert json.loads(out.stdout) == {
+        "heavy": {"total": 1, "fail": 1, "rate": 1.0},
+        "light": {"total": 0, "fail": 0, "rate": 0.0},
+        "ratio": None,
+    }

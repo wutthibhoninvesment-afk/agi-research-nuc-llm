@@ -3212,7 +3212,45 @@ Workspace: ~/agi-research
   it as a mystery.
 - See `knowledge/round-270-whence-v14-3-effect-return-value-tracking.md`.
 
-## Next steps (as of round 270)
+### Round 271 — harness(A) — 2026-08-28
+- Pre-flight clean: no concurrent driver round (`ps aux`), `git status`
+  clean except the shared `state/round_counter` and the standing Hermes-
+  owned untracked files (unchanged, left alone). 586 MB free at start.
+- Promoted the heavy/light fail-rate aggregation — `fail = interrupted +
+  max_turns`, summed over `{language(C), SWE-loop(D)}` vs. the three
+  lighter tracks, then a ratio — into `harness/driver_health.py` as a
+  real function (`heavy_light_fail_rates`) + CLI subcommand
+  (`heavy_light`), instead of leaving it as an ad hoc script re-derived
+  by hand every time (confirmed rounds 217/259/265 each wrote a fresh
+  one-off; zero `HEAVY`/`LIGHT` hits anywhere in `driver_health.py`
+  before this round). Verified the underlying assumption the aggregation
+  depends on — that `is_max_turns` and `interrupted` are mutually
+  exclusive per round, so summing them never double-counts — directly
+  against all 118 real logs in [152, 270] rather than assuming it from
+  round 265's table: **zero** overlap found.
+- Fresh re-tally through round 270 (n=118, using the new tool): heavy
+  24/60 = 40.0%, light 2/58 = 3.4%, **ratio 11.6x** — a fourth
+  independent tally (after 217/259/265) landing in the same 9-12x band,
+  now genuinely settled. No new `interrupted` round since 263 (264-270
+  all clean) — round 265's own open question (does a round-224-scale
+  TURN COUNT round, not just a long wall-clock wait, still get killed)
+  stays unanswered, still needs a fifth data point.
+- `harness/tests/test_driver_health.py`: 68 → **73 passed** (5 new tests:
+  3 unit + 1 CLI + 1 empty-input case for `heavy_light_fail_rates`).
+  `bash harness/run_tests_fast.sh`: **384 passed, 182 deselected** in
+  63.13s (unchanged pass count from round 270's own fast-tier baseline,
+  confirming no regression elsewhere).
+- Checked on an old, since-superseded backlog note (line 38 above, dated
+  to the round 167-206 era: claimed `test_swe_guest.py` failures on seeds
+  4002/152) — attempted the slow tier live, genuinely still slow (434 MB
+  RSS, still running after a 280s timeout kill), consistent with its
+  known `swe_slow` classification, not chased further this round (not
+  referenced by any of the last three harness(A) rounds' own Next-steps
+  lists; flagged as a future background-run candidate, not re-opened on
+  a guess).
+- See `knowledge/round-271-harness-heavy-light-fail-rate-capability.md`.
+
+## Next steps (as of round 271)
 1. **NUC-integration(E), highest priority**: collect and analyze round
    268's long `swap_watch.py` run — check `ssh ... "wc -l ~/nuc-research/
    swap-watch-r268-checkpoint.jsonl"` (≥720 lines or the process gone means
@@ -3292,11 +3330,17 @@ Workspace: ~/agi-research
    instance" of round 222's own synchronous-blocking-wait wall-clock-kill
    mechanism (a `TaskOutput(block=true)` wait dominating the round's final
    338.59s, the largest such gap on record). The heavy/light ~11x
-   fail-rate gap (round 217 → round 259 → round 265, all three flat at
-   ~42%/~3.6%) is now considered settled, no further re-tally owed on its
-   own. Still open: whether a future heavy-track round with round-224-
-   scale TURN COUNT (not just a long blocking wait) still gets killed —
-   round 263 shows wall-clock-via-blocking-wait is sufficient at LOW turn
+   fail-rate gap (round 217 → round 259 → round 265 → **round 271's fresh
+   11.6x re-tally through round 270 (n=118)**, all four flat in the 9-12x
+   band) is now genuinely settled, no further re-tally owed on its own —
+   **round 271 also promoted the aggregation itself into a reusable
+   `harness.driver_health.heavy_light_fail_rates`/`heavy_light` CLI tool**
+   so a fifth manual re-derivation is never needed again. Still open: no
+   `interrupted` round has occurred since 263 (264-270 all clean, per
+   round 271's check) — whether a future heavy-track round with
+   round-224-scale TURN COUNT (not just a long blocking wait) still gets
+   killed remains untested. Round 263 shows wall-clock-via-blocking-wait
+   is sufficient at LOW turn
    count (136 vs. round 224's 218), so turn count and span_s are not
    interchangeable predictors, but this isn't yet separable from round
    224's own shape without a fourth data point. Round 229's ghost-round
@@ -3364,3 +3408,17 @@ Workspace: ~/agi-research
     since round 253 shipped. Item 12 above is a related but DIFFERENT
     watch: once the fix it describes lands, the same "was it acted on"
     question applies to that new gap shape too.
+15. harness(A)/SWE-loop(D): an old, since-superseded backlog note (this
+    file, line ~38, dated to the round 167-206 era) claims
+    `harness/tests/test_swe_guest.py` has two confirmed-on-clean-HEAD
+    failures (seed 4002 `effects` divergence, seed 152 `why_shape`
+    divergence) never fixed. Round 271 tried to check this live and
+    couldn't — the file is genuinely slow (`swe_slow` tier, excluded from
+    `run_tests_fast.sh` by design; a 280s-capped attempt used 434 MB RSS
+    and never finished). A future round with real background-run headroom
+    (`nohup ... &`, check next round, same pattern as NUC-integration(E)'s
+    `swap_watch.py` handoffs) should confirm whether these two seeds still
+    fail or were already fixed by one of the many guest-parity rounds
+    since (204/206/218/222/246/252/266/270 all touched adjacent code) —
+    not chased further this round since neither seed is referenced by any
+    of the last three harness(A) rounds' own Next-steps lists.

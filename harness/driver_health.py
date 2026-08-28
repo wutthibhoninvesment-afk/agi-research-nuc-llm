@@ -502,6 +502,40 @@ def tally_by_track(paths: List[str]) -> dict:
     return out
 
 
+_HEAVY_TRACKS = frozenset({"language(C)", "SWE-loop(D)"})
+
+
+def heavy_light_fail_rates(paths: List[str]) -> dict:
+    """Aggregate `tally_by_track`'s per-track buckets into the two-way
+    HEAVY (language(C)+SWE-loop(D)) vs. LIGHT (harness(A)+skills(B)+
+    NUC-integration(E)) split this project's backlog has re-derived by
+    hand at least three separate times (rounds 217, 259, 265 — each one a
+    fresh ad hoc script summing `interrupted+max_turns` over the two
+    track groups and computing a ratio) without ever promoting the
+    aggregation itself into this module. `fail` per track is
+    `interrupted + max_turns` (a round log is never both at once: a
+    max-turns death produces a real `type:"result"` event with
+    `subtype:"error_max_turns"`, while `interrupted` specifically means
+    NO such event exists — see `summarize_turns`/`is_max_turns`), matching
+    the exact definition round 265's own Finding 3 table used. Returns
+    `{"heavy": {...}, "light": {...}, "ratio": float|None}` where each
+    inner dict has `total`/`fail`/`rate` and `ratio` is
+    `heavy["rate"] / light["rate"]` (`None` if light's rate is 0, since a
+    finite ratio would misleadingly imply light's true rate is nonzero).
+    """
+    tally = tally_by_track(paths)
+    heavy = {"total": 0, "fail": 0}
+    light = {"total": 0, "fail": 0}
+    for track, d in tally.items():
+        bucket = heavy if track in _HEAVY_TRACKS else light
+        bucket["total"] += d["total"]
+        bucket["fail"] += d["interrupted"] + d["max_turns"]
+    for bucket in (heavy, light):
+        bucket["rate"] = (bucket["fail"] / bucket["total"]) if bucket["total"] else 0.0
+    ratio = (heavy["rate"] / light["rate"]) if light["rate"] else None
+    return {"heavy": heavy, "light": light, "ratio": ratio}
+
+
 def full_event_span_s(path: str) -> Optional[float]:
     """First-to-last timestamp span across ALL events in a stream-json log,
     not just `type: "assistant"` ones (contrast `summarize_turns`'s
@@ -702,6 +736,9 @@ def main(argv: List[str]) -> int:
         return 0
     if argv[:1] == ["tally"]:
         print(json.dumps(tally_by_track(argv[1:]), sort_keys=True))
+        return 0
+    if argv[:1] == ["heavy_light"]:
+        print(json.dumps(heavy_light_fail_rates(argv[1:]), sort_keys=True))
         return 0
     if argv[:1] == ["likely_timeout_kill"]:
         if len(argv) not in (3, 4):
