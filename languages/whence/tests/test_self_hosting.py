@@ -489,7 +489,10 @@ def test_effects_lang_runs_under_the_guest_round_164_backlog_closed():
     # explicitly deferred the fix as backlog rather than build it behind
     # that round's actual feature. Round 192's fix (the same one the two
     # tests above pin) closes it: the whole file, verbatim, now parses AND
-    # evaluates cleanly under the guest, all 4 of its own checks passing.
+    # evaluates cleanly under the guest, all of its own checks passing (4
+    # at round 192; +1 for round 266's own `log_total`/alias check, the
+    # guest evaluator does not enforce `effects [...]` at all so this is
+    # just one more ordinary check to it).
     eval_lib = eval_library_source()
     effects_src = open(EFFECTS).read()
     prog = eval_lib + 'let __r = run_src("%s")\n' % escape(effects_src)
@@ -497,7 +500,7 @@ def test_effects_lang_runs_under_the_guest_round_164_backlog_closed():
     rec = env.get("__r").payload
     assert rec.fields["parse_error"].payload is False
     checks = rec.fields["checks"].payload
-    assert len(checks) == 4
+    assert len(checks) == 5
     failed = [c.payload.fields["label"].payload for c in checks
               if c.payload.fields["pass"].payload is not True]
     assert not failed, failed

@@ -1,5 +1,5 @@
-"""v0.14 (round 146) / v0.14.1 (round 264): `effects [...]` — a minimal,
-parse-time effect system.
+"""v0.14 (round 146) / v0.14.1 (round 264) / v0.14.2 (round 266):
+`effects [...]` — a minimal, parse-time effect system.
 
 Design (see SPEC.md "v0.14"/"v0.14.1"): unlike `: Type`/`-> Type` (v0.12/
 v0.13, both runtime checks against a runtime VALUE), whether a function's
@@ -32,24 +32,40 @@ node, no Closure field, and no interpreter change at all. `effects [io,
   as-is to keep pinning "an explicit declaration on a nested fn is
   independent of the enclosing scope").
 
+- **v0.14.2: a name bound via a direct `let alias = <effectful-builtin-or-
+  already-tracked-alias>` is now tracked**, and a call THROUGH that alias
+  is checked exactly as calling the builtin directly would be
+  (`test_indirect_call_via_variable_is_now_checked`, chaining through two
+  hops per `test_alias_chain_through_two_hops_is_checked`). Correctly
+  respects shadowing: a `let`/`fn`/parameter that reuses the alias's name
+  in an inner (or the enclosing param) scope blocks the lookup from
+  falling through to the outer alias (`test_local_let_shadows_outer_
+  alias`, `test_nested_fn_name_shadows_outer_alias`, `test_param_named_
+  like_outer_alias_shadows_it`). Visible across lexical nesting the same
+  way `effects [...]` itself is (`test_alias_defined_in_outer_scope_
+  visible_to_nested_fn`) but still a single left-to-right parse pass, so
+  an alias `let` written AFTER the call it would cover is not detected
+  (`test_alias_defined_after_call_site_is_not_detected`).
+
 Still deliberately SHALLOW by design, not oversight (mirrors the `-> Type`
 precedent of checking one settle point, not full call-graph composition):
 the declaration only vouches for the function's OWN textual body, resolved
 lexically, not through arbitrary calls.
-  - Passing a builtin as a value (`let p = print`) and calling THAT is
-    invisible to the check, since only a literal `name(...)` callee is
-    inspected (`test_indirect_call_via_variable_is_not_checked`) — this
-    needs value-flow analysis, not lexical scoping, and stays open.
+  - Passing a builtin as a FUNCTION ARGUMENT, returning it from a call, or
+    storing it in a list/record field and calling it back out are all
+    still invisible to the check — only a direct `let alias = <name>` hop
+    is tracked (v0.14.2), not general value flow through data structures.
   - Calling a DIFFERENT, unrestricted top-level function that itself
     performs the effect is still untouched by the caller's own
-    declaration — only LEXICAL nesting is tracked, not the dynamic call
-    graph (`test_effects_empty_still_allows_non_print_calls` calls a
-    genuinely pure `double`, but the same shape would allow calling an
-    impure sibling too; not separately pinned since it follows directly
-    from "declaration only vouches for the function's own textual body").
+    declaration — only LEXICAL nesting and direct aliasing are tracked,
+    not the dynamic call graph (`test_effects_empty_still_allows_non_
+    print_calls` calls a genuinely pure `double`, but the same shape would
+    allow calling an impure sibling too; not separately pinned since it
+    follows directly from "declaration only vouches for the function's
+    own textual body").
 Both remaining gaps are honest, tested limitations, not bugs — a full
-call-graph-aware effect system is future work (see research-state.md's
-language backlog).
+call-graph-aware (and fully data-flow-sensitive) effect system is future
+work (see research-state.md's language backlog).
 """
 
 import os
@@ -189,17 +205,133 @@ def test_deeply_nested_fn_without_own_clause_inherits_through_two_levels():
             '}\n')
 
 
-def test_indirect_call_via_variable_is_not_checked():
-    """`let p = print` then `p(1)`: the callee at the call site is the
-    NameRef `p`, not `print`, so the effect table lookup misses and the
-    call is allowed even inside `effects []` — a real, documented gap in
-    this shallow design, not a bug."""
+def test_indirect_call_via_variable_is_now_checked():
+    """v0.14.2 (round 266): `let p = print` then `p(1)` inside `effects []`
+    is now a ParseError — `p` is tracked as a direct alias of `print`
+    (`Parser._resolve_effectful_alias`), so calling through it is checked
+    exactly as calling `print` directly would be. This was the exact gap
+    `test_indirect_call_via_variable_is_not_checked` used to pin before
+    this round; renamed since the assertion flipped."""
+    with pytest.raises(ParseError) as ei:
+        parse(
+            'fn f() effects [] {\n'
+            '  let p = print\n'
+            '  p(1)\n'
+            '}\n')
+    assert "'p' requires effect 'io'" in str(ei.value)
+
+
+def test_aliased_print_still_allowed_when_effect_is_granted():
+    """The alias check is per-tag like a direct call: an alias of `print`
+    inside `effects [io]` is fine, same as calling `print` directly would
+    be."""
     all_ok(
-        'fn f() effects [] {\n'
+        'fn f() effects [io] {\n'
         '  let p = print\n'
         '  p(1)\n'
         '}\n'
         'check "ok": f() == 1\n')
+
+
+def test_alias_chain_through_two_hops_is_checked():
+    """`let q = p` where `p` is itself already a tracked alias chains
+    transitively — `_resolve_effectful_alias` re-resolves through the
+    alias_scopes stack, not just one hop deep."""
+    with pytest.raises(ParseError) as ei:
+        parse(
+            'fn f() effects [] {\n'
+            '  let p = print\n'
+            '  let q = p\n'
+            '  q(1)\n'
+            '}\n')
+    assert "'q' requires effect 'io'" in str(ei.value)
+
+
+def test_local_let_shadows_outer_alias():
+    """A `let p = <non-alias>` in an INNER block shadows an outer alias of
+    the same name — `alias_scopes` records the shadow explicitly (`None`)
+    rather than letting the lookup fall through to the outer frame, so this
+    inner `p(1)` is an ordinary call to a plain local value, not a checked
+    alias."""
+    all_ok(
+        'fn f() effects [] {\n'
+        '  let p = print\n'
+        '  {\n'
+        '    let p = 5\n'
+        '    p\n'
+        '  }\n'
+        '}\n'
+        'check "ok": f() == 5\n')
+
+
+def test_nested_fn_name_shadows_outer_alias():
+    """A nested `fn p(...)` shadows an outer alias `p`, same as a `let`
+    would (the fn's own name occupies its OWN block's alias frame) — a
+    separate inner block is needed here since Whence has no rebinding, so
+    `p` can't be bound twice by `let` then `fn` in the SAME block."""
+    all_ok(
+        'fn f() effects [] {\n'
+        '  let p = print\n'
+        '  {\n'
+        '    fn p() { 9 }\n'
+        '    p()\n'
+        '  }\n'
+        '}\n'
+        'check "ok": f() == 9\n')
+
+
+def test_param_named_like_outer_alias_shadows_it():
+    """A parameter shares its fn's body-block alias scope tree one level
+    out (params live in a parent Env of the body block at runtime,
+    `interp.py`'s `_call_gen`/`eval_Block`) — calling a param named the
+    same as an outer alias reaches the param, not the alias."""
+    all_ok(
+        'fn f() effects [] {\n'
+        '  let p = print\n'
+        '  fn g(p) { p() }\n'
+        '  g(fn() { 7 })\n'
+        '}\n'
+        'check "ok": f() == 7\n')
+
+
+def test_alias_defined_in_outer_scope_visible_to_nested_fn():
+    """An alias bound in an OUTER scope is visible (still on the
+    `alias_scopes` stack) while parsing a nested fn's body, same as any
+    other lexically-scoped fact this system tracks — not just same-block
+    aliasing."""
+    with pytest.raises(ParseError) as ei:
+        parse(
+            'let p = print\n'
+            'fn f() effects [] {\n'
+            '  fn inner() { p(1) }\n'
+            '  inner()\n'
+            '}\n')
+    assert "'p' requires effect 'io'" in str(ei.value)
+
+
+def test_alias_defined_after_call_site_is_not_detected():
+    """Order-dependent, like the rest of this single left-to-right parse
+    pass: an alias `let` occurring AFTER the call it would have covered is
+    invisible to it — `alias_scopes[-1]` doesn't have the entry yet at the
+    time the call is checked. A real, documented, narrow gap, not a bug
+    (mirrors `_resolve_effects_scope`'s own textual-order dependence for
+    nested-fn inheritance)."""
+    all_ok(
+        'fn f() effects [] {\n'
+        '  let g = fn() { p(1) }\n'
+        '  let p = print\n'
+        '  1\n'
+        '}\n'
+        'check "ok": f() == 1\n')
+
+
+def test_three_way_aliased_print_inside_effects_empty():
+    assert_three_way(
+        'fn f() effects [] {\n'
+        '  let p = print\n'
+        '  1\n'
+        '}\n'
+        'let result = f()\n')
 
 
 # --- outer restriction still applies to the outer function's OWN body ------

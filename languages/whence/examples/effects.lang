@@ -49,6 +49,25 @@ fn strict_sum(xs) effects [] {
 check "a nested fn may still print, but only via its OWN explicit effects [io]":
   strict_sum(prices) == 60
 
+# v0.14.2: passing an effectful builtin AS A VALUE and calling it back out
+# is now tracked too — `let logger = print` makes `logger` a direct alias
+# of `print`, checked against the enclosing scope exactly as `print(...)`
+# itself would be. `log_total` below is `effects [io]`, so the alias call
+# is granted, same as a direct call would be.
+fn log_total(prices) effects [io] {
+  let logger = print
+  logger("logged total: " + str(total(prices)))
+  total(prices)
+}
+check "an aliased builtin is checked the same as calling it directly":
+  log_total(prices) == 60
+# Writing `let logger = print` inside `total`'s own `effects []` body
+# instead would be a ParseError at `logger(...)`, not a silent escape —
+# the alias is checked at the point it is CALLED, not where it is bound.
+# Still shallow, on purpose: passing `print` as a function ARGUMENT,
+# returning it, or storing it in a list/record and calling it back out are
+# all still invisible to this check (see SPEC.md "v0.14.2").
+
 print("")
 print("effects.lang: purity is a declared, checked promise about a")
 print("function's own body — not a proof about everything it calls.")

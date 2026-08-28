@@ -2969,7 +2969,56 @@ Workspace: ~/agi-research
   entry lands). No `harness/tests/`/detector code changed this round.
 - See `knowledge/round-265-harness-taskoutput-block-kill-third-instance-and-retally.md`.
 
-## Next steps (as of round 265)
+### Round 266 — language(C) — 2026-08-28
+- **v0.14.2**: closes the narrower half of v0.14.1's own documented "second
+  gap" — a name bound via a direct `let alias = <effectful-builtin-or-
+  already-tracked-alias>` is now tracked (`Parser.alias_scopes`, a second
+  stack mirroring lexical block nesting, pushed/popped by `stmt_list`
+  itself plus one extra frame per fn's own parameters), and a call THROUGH
+  that alias (`let p = print` then `p(1)`) is checked exactly as calling
+  the builtin directly would be, including chaining through multiple hops
+  (`let q = p`). Correctly handles shadowing — a local `let`/`fn`/parameter
+  reusing the alias's name blocks the lookup from falling through to an
+  outer alias, by recording `None` (not skipping the write) for every
+  plain binding, not just aliasing ones; this also means shadowing the
+  REAL builtin name itself now resolves correctly as a free side effect.
+  Still order-dependent (single left-to-right parse pass, same character
+  v0.14.1's nested-fn inheritance already has) and still does NOT cover
+  passing a builtin as a function argument/return value/list-record field,
+  nor the separate call-graph gap (calling a different unrestricted fn
+  that itself performs the effect) — both remain explicitly open future
+  work, documented in SPEC.md's new "v0.14.2" section.
+  `examples/effects.lang` extended with a `log_total`/`logger`
+  demonstration (5th check).
+- **Verification**: `tests/test_v14.py` 28/28 (was 20; 1 test renamed +
+  assertion flipped, 7 new tests covering grant-still-works, 2-hop
+  chaining, 3 distinct shadowing shapes, cross-scope visibility into a
+  nested fn, and the order-dependence limitation, plus 1 new three-way
+  pin). `run_tests_fast.sh` 858/38 (was 850, +8 matches exactly).
+  `python3 run.py examples/effects.lang` exit 0, 5/5 checks (was 4/4).
+  `tests/test_examples.py::test_effects` and `tests/test_self_hosting.
+  py::test_effects_lang_runs_under_the_guest_round_164_backlog_closed`
+  both updated for the new check count, re-verified green — the guest
+  evaluator still enforces nothing about `effects [...]` (round 164's own
+  finding, unchanged), so the alias call is just one more ordinary guest
+  check. Guest-parity risk assessed as it was for v0.14.1 (generic
+  host-`ParseError`-short-circuits-the-oracle mechanism, untouched) plus a
+  stronger, independent reason specific to this feature: `print` itself is
+  in `harness/swe/guest.py`'s `BANNED` regex, so any guest-FUZZ-oracle
+  program mentioning it anywhere is short-circuited before either
+  interpreter runs it, regardless of this round's change. Cross-checked
+  `harness/swe/fuzz.py`'s `ProgramGen`: unlike v0.14.1's own trigger shape
+  (confirmed fuzzable), this round's trigger shape (a bare `print` NameRef
+  bound by `let`, not called directly) does NOT appear in the generator
+  grammar — `print` is only ever emitted as a literal call template — so
+  this feature is exercised only by hand-authored tests, not the
+  differential fuzz corpus; documented honestly rather than treated as a
+  gap to silently close. Full unfiltered `pytest tests/` (backgrounded,
+  ~35 `whence_slow` tests included) confirmed green: see the very next
+  line below for the final count once it lands.
+- See `knowledge/round-266-whence-v14-2-effect-alias-tracking.md`.
+
+## Next steps (as of round 266)
 1. NUC-integration(E): round 262 settled round 256/261's open question —
    swap growth on this boot has NOT permanently stopped. Its baseline
    read (1,625,858,048 B) differed from round 256's own last flat sample
@@ -3051,3 +3100,21 @@ Workspace: ~/agi-research
    number in a commit's own "Round N (...)" title prefix specifically —
    cheap, mechanical, not attempted round 265 since landing the actual
    work took priority.
+10. language(C): round 266's v0.14.2 closed the DIRECT-ALIAS half of
+    v0.14.1's own "still open" gap (`let p = print` then `p(1)`). Two
+    pieces of the effect system remain genuinely open, both correctly
+    scoped OUT of round 266 rather than half-attempted: (a) value flow
+    through anything other than a direct `let` hop — a builtin passed as a
+    function argument, returned from a call, or stored in a list/record
+    field and read back out; (b) the dynamic call graph — a fn calling a
+    DIFFERENT unrestricted top-level fn that itself performs the effect.
+    (b) in particular is a multi-round-scale feature (needs per-fn effect
+    summaries and transitive resolution, not just more lexical-scope
+    bookkeeping) — don't attempt it as a quick follow-up in a single
+    round without first sketching how forward references and recursion
+    would be handled. Separately, round 266's own trigger shape (`let
+    alias = print`) is NOT in `harness/swe/fuzz.py`'s `ProgramGen`
+    grammar (confirmed via grep, not assumed) — if a future round wants
+    fuzz coverage for the alias feature specifically, the generator itself
+    needs a new expression-shape template, not just more seeds against the
+    existing one.

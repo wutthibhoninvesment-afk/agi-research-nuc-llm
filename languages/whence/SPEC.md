@@ -1,4 +1,4 @@
-# Whence — a provenance-first language (spec v0.16.6 + v0.14.1, rounds 009/011/014/020/024/026/030/108/110/122/128/132/146/164/168/204/206/210/216/218/222/224/264)
+# Whence — a provenance-first language (spec v0.16.6 + v0.14.2, rounds 009/011/014/020/024/026/030/108/110/122/128/132/146/164/168/204/206/210/216/218/222/224/264/266)
 
 **One idea:** every value remembers where it came from. `why x` returns the
 derivation tree of `x` as a first-class value. Failures are values too, so a
@@ -906,6 +906,10 @@ that cannot end a statement.
   top-level fn that itself performs the effect — only LEXICAL nesting is
   tracked now, not the dynamic call graph. A full call-graph-aware
   (transitive) effect system closing both remains future work.
+  **Partially closed by v0.14.2 (round 266, below)**: the direct-alias
+  case (`let p = print` then `p(1)`) specifically is now tracked; passing
+  a builtin through a function argument, return value, or a list/record
+  field, and the separate call-graph gap, both remain open.
 - **Verification:** `tests/test_v14.py` 20/20 (was 18; one test rewritten
   from `all_ok` to `pytest.raises(ParseError)` since its own assertion
   flipped, two new tests added: a granting-scope inheritance case and a
@@ -930,6 +934,99 @@ that cannot end a statement.
   generate exactly this shape (a clause-less anonymous `fn(...)` 70% of
   the time, nestable inside an `effects [...]`-declared outer fn via
   `expr`/`fnlike`), confirming this isn't a theoretical-only path.
+
+## v0.14.2 (round 266) — effect system: direct builtin aliases are tracked
+- **Closes the FIRST HALF of v0.14.1's own "still open" gap**: "passing a
+  builtin as a value (`let p = print`) and calling THAT is still invisible
+  to the check" (SPEC.md "v0.14.1", above). Closed for the direct-alias
+  case only — `let p = print` then `p(1)` is now checked exactly as
+  `print(1)` would be — by tracking, at parse time, which currently
+  in-scope names are a direct alias of an effectful builtin.
+- **Mechanism:** `Parser.alias_scopes` — a stack of dicts, one per lexical
+  block scope (pushed/popped by `stmt_list` itself, so every `{...}`,
+  including a bare block-as-expression, an `if` arm, and a fn body, gets
+  its own frame), name -> tag-or-`None`. A `let NAME = <expr>` statement
+  records `alias_scopes[-1][NAME] = tag` where `tag` is whatever
+  `_resolve_effectful_alias(expr.name)` returns if `expr` is a bare
+  `NameRef` (`None` for any other expression shape). `_resolve_effectful_
+  alias(name)` walks the stack innermost-first and returns the FIRST
+  frame's value for `name` if any frame has an entry at all — falling back
+  to `_EFFECTFUL_BUILTINS` only if NO scope frame mentions `name`.
+  `_check_effect_call` now calls this instead of indexing
+  `_EFFECTFUL_BUILTINS` directly, so a checked call is "callee resolves to
+  an effect tag", not "callee's literal name is `print`".
+- **Shadowing is handled correctly, not just aliasing**: recording `None`
+  (not skipping the entry) for every plain `let`/`fn`/parameter binding —
+  not only ones that happen to alias a builtin — means a local `let p = 5`
+  correctly BLOCKS the lookup from falling through to an outer alias `p`,
+  rather than misidentifying the shadowed local as the alias. A named
+  `fn NAME(...)` statement similarly stakes `None` into the ENCLOSING
+  scope's frame for its own name (same slot a `let` would occupy) before
+  parsing its params/body, so `fn p() {...}` shadows an outer alias `p`
+  too. A fn's OWN parameters get a separate frame, pushed between the
+  enclosing scope and the body block's own `stmt_list` frame — mirroring
+  the real runtime Env layering (`interp.py`: `_call_gen`'s `call_env`
+  holds params, `eval_Block`'s own `inner` is a CHILD of that for the
+  body's own `let`s) — so a parameter also correctly shadows an outer
+  alias of the same name.
+- **Chains transitively**: `let q = p` where `p` is itself a tracked alias
+  re-resolves through `_resolve_effectful_alias`, so `q` becomes an alias
+  of whatever `p` ultimately aliases, any number of hops deep.
+- **Order-dependent, like the rest of this single left-to-right parse
+  pass** (the same character `_resolve_effects_scope`'s nested-fn
+  inheritance already has): only an alias `let` that appears TEXTUALLY
+  BEFORE the call it would cover, in a currently-open scope, is detected.
+  A `let` written after the call site it would have covered (e.g. inside
+  a closure defined and stored before the alias exists, never invoked
+  before the alias binding executes) is invisible — this is a
+  single-pass static analysis, not a whole-program fixed point.
+- **Still open, unaffected by this round** (the SECOND half of the same
+  v0.14.1 gap, plus the pre-existing one): passing the builtin as a
+  FUNCTION ARGUMENT, returning it from a call, or storing it in a
+  list/record field and calling it back out are all still invisible —
+  only a direct `let alias = <name-or-alias>` hop is tracked, not general
+  value flow through data structures or other bindings (`for`/pattern
+  bindings, if Whence ever gains them). Calling into a DIFFERENT,
+  unrestricted top-level function that itself performs the effect is
+  ALSO still untouched by the caller's own declaration — only lexical
+  nesting and direct aliasing are tracked, not the dynamic call graph. A
+  full call-graph-aware (transitive, data-flow-sensitive) effect system
+  closing both remains future work.
+- **Verification:** `tests/test_v14.py` 28/28 (was 20; one test renamed
+  from `test_indirect_call_via_variable_is_not_checked` to `..._is_now_
+  checked` since its own assertion flipped from `all_ok` to
+  `pytest.raises(ParseError)`, 7 new tests added: grant-still-works,
+  two-hop chaining, `let`-shadowing, nested-`fn`-name-shadowing,
+  parameter-shadowing, cross-scope visibility into a nested fn, and the
+  order-dependence limitation, plus one new three-way differential pin).
+  `languages/whence/run_tests_fast.sh` 858 passed/38 deselected (was 850;
+  +8 = this round's own net test delta). `examples/effects.lang` extended
+  with a `log_total`/`logger` demonstration (an `effects [io]` fn calling
+  `print` through a `let logger = print` alias) and re-run directly: all 5
+  checks pass (was 4).
+- **Guest parity needed no change, for a different and STRONGER reason
+  than v0.14.1's**: `print` itself is in `harness/swe/guest.py`'s
+  `BANNED` regex — any guest-oracle program that so much as MENTIONS
+  `print` anywhere before its own `__result` scrub line is short-circuited
+  to a `parse_error`-labeled outcome before the host or guest ever runs it
+  (`oracle_self_eval`'s own `BANNED.search` check, ahead of even calling
+  `O._parse`), because the guest evaluator does not mirror `print`'s
+  host-visible output at all. This is unaffected by, and unrelated to,
+  the generic "a host `ParseError` short-circuits before any host-vs-guest
+  comparison" mechanism v0.14.1 relied on — `print`-mentioning programs
+  never reach that comparison for an entirely separate, pre-existing
+  reason. Cross-checked against `harness/swe/fuzz.py`'s `ProgramGen`:
+  unlike v0.14.1's nested-clause-less-fn shape (confirmed fuzzable), this
+  round's own trigger shape — a bare `print` NameRef assigned by a `let`,
+  rather than called directly — does **not** appear anywhere in the
+  generator grammar (`print(...)` is always emitted as a literal call
+  template, e.g. `"print(%s)"`, never as a bare value); this feature is
+  exercised only by `tests/test_v14.py`'s hand-authored cases, not
+  cross-validated against the differential fuzz corpus. Documented here
+  rather than treated as a gap to close, since fixing it would mean
+  teaching the GENERATOR a new expression shape, not the effect checker
+  itself, and no other host-only parse-time feature in this codebase has
+  ever required generator changes to be considered adequately tested.
 
 ## v0.15 (round 168) — AI-native primitives: `guess`/confidence
 - **The curriculum's last open "advanced feature" slot** (structural types
