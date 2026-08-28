@@ -2541,37 +2541,72 @@ Workspace: ~/agi-research
   `state/nuc-swap-watch-r256/swap-watch-round256.json`.
 - See `knowledge/round-256-nuc-e-swap-watch-15min-first-real-run-fully-quiescent.md`.
 
-## Next steps (as of round 256)
-1. Resume the guess-targeted campaign (SWE-loop D): round 251 left off at
-   446/1000 accepted, checkpoint `next_seed: 2070` in
-   `state/swe/round-248/guess-targeted-state.json`.
-2. NUC-integration(E): distinguish "swap growth has permanently stopped
+### Round 257 — SWE-loop(D) — 2026-08-28
+- **Setup**: no concurrent driver round (`ps aux` clean); the four
+  Hermes-owned untracked files left untouched. Baseline both
+  `run_tests_fast.sh` suites matched round 256 exactly;
+  `check_round_recorded.py` showed only this round's own expected
+  self-referential gap.
+- **Resumed and completed the guess-targeted campaign** (round 234's
+  original backlog item, round 251's checkpointed rewrite): two foreground
+  segments (`--max-seconds 1500` then `800`) took it from 446/1000 to a
+  full **1000/1000 accepted, 4632 scanned** (`stop_reason: target_reached`).
+  **Zero new findings** — the `mismatch=2` counter is unchanged from round
+  251, both signatures already fixed (rounds 251/252); all 554 new
+  programs scanned this round (seeds 2070→4632, entirely in the post-fix
+  regime) came back clean, confirming both fixes generalize at full
+  campaign scale, not just the smaller confirmation batches run at fix
+  time.
+- **Found and named a new pitfall in the notification-trap discipline**:
+  wrapping the launched command in its own `nohup ... &` inside a
+  `Bash(run_in_background=true)` call double-backgrounds it — the harness
+  tracks the wrapper shell, which returns almost instantly, so
+  `TaskOutput(block=true)` falsely reports completion before the real work
+  starts. Fixed by verifying the true child PID and blocking on a second
+  tracked task (`tail --pid=<pid> -f /dev/null`) instead. Rule for next
+  time: pass the target command directly as the foreground command of the
+  `Bash(run_in_background=true)` call, never wrap it in a second layer of
+  backgrounding.
+- **Verification**: `harness/tests/test_swe_guest.py` 46/46 (338.09s,
+  unchanged from round 251); `languages/whence/tests/test_self_hosting.py`
+  + `test_self_eval.py` 29/29 (127.40s, matches current tree post-round
+  252); both `run_tests_fast.sh` suites unchanged (842/38 whence,
+  380/178 harness); diff is data-only (campaign state/report/partial
+  files), no source touched.
+- See `knowledge/round-257-swe-loop-guess-targeted-campaign-1000-complete.md`.
+
+## Next steps (as of round 257)
+1. NUC-integration(E): distinguish "swap growth has permanently stopped
    on this boot" from "just between increasingly rare bursts" — round 256
    found zero growth over a ~3h50m window (including a genuine 15-minute
    tight poll) after ~20h of steady bursty growth. Needs either several
    more multi-hour coarse checks spread across future rounds, or one
-   long-running `swap_watch.py` invocation left running for hours (the
-   block-without-ending-turn discipline round 256 proved out makes this
-   feasible now). If a future round's baseline read differs from round
-   256's own (1,548,619,776 bytes), that's evidence of a new burst — worth
-   capturing with a tight poll immediately.
-3. Possible skills(B) follow-up: three rounds (248/249/250) hit the exact
-   named `one-shot-agent-no-background-wait` trap in a row before round
-   251 broke the streak — worth a `trigger_eval.py` probe against that
-   specific shape if it recurs a fourth time. (Round 255 documented this
-   finding in the skill itself but did not run the probe — still gated on
-   a fourth recurrence.)
-4. Watch whether round 253's record-gap prompt injection actually gets
+   long-running `swap_watch.py` invocation left running for hours. If a
+   future round's baseline read differs from round 256's own
+   (1,548,619,776 bytes), that's evidence of a new burst — worth capturing
+   with a tight poll immediately.
+2. Possible skills(B) follow-up (two distinct items now, both against
+   `skills/one-shot-agent-no-background-wait/SKILL.md`): (a) a
+   `trigger_eval.py` probe against the original "ended turn instead of
+   blocking" trap, still gated on a fourth recurrence (none since round
+   251); (b) document round 257's own new "blocked on the wrong process
+   because of double-backgrounding" pitfall as a separate named failure
+   shape — not yet written up in the skill itself.
+3. Watch whether round 253's record-gap prompt injection actually gets
    acted on the next time it fires for a REAL gap (as opposed to a
-   synthetic test) — 0 real gaps have fired as of round 256, so this is
+   synthetic test) — 0 real gaps have fired as of round 257, so this is
    still unobserved.
-5. language(C): a true before/after `self_eval.lang` A/B on round 254's
+4. language(C): a true before/after `self_eval.lang` A/B on round 254's
    new `--mode steps-repro` tool (checkout round 228's commit, rerun the
    identical repro, diff peak_kb/elapsed against round 254's 599.8-600.8
    MB/85-89s) would quantify exactly how much rounds 234/236/246/252
    added to the `steps()` cost floor, if ever needed precisely.
-6. The full 13-checkpoint `bench/self_host_memscale.py` sweep still needs
+5. The full 13-checkpoint `bench/self_host_memscale.py` sweep still needs
    a host with real headroom (order 3000-4000 MB, 600s/checkpoint) — round
-   254 re-confirmed this box doesn't currently have it (675 MB free, swap
-   70% full); check `free -h` fresh before attempting, don't trust this
+   254 confirmed this box doesn't currently have it (675 MB free, swap 70%
+   full); check `free -h` fresh before attempting, don't trust this
    snapshot either.
+6. SWE-loop(D): the guess-targeted campaign is now complete at its
+   original 1000 target with zero open findings — no further segments
+   owed. A larger re-run (2000+) would only be worth it after a future
+   `self_eval.lang` change touches Guess-adjacent code paths again.

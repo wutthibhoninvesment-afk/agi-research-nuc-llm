@@ -126,6 +126,26 @@ move on, don't manufacture a wait).
   exactly the multi-minute job step 2 says to run in the foreground with a
   real timeout, not background-and-wait — sizing the timeout to the actual
   expected wall-clock costs far less than a whole round evaporating again.
+- **Blocking correctly on the wrong process — double-backgrounding.**
+  Confirmed live at round 257: launching the target command as
+  `Bash(run_in_background=true)` running `nohup real_command ... & echo
+  $!` (i.e., adding your OWN `&`/`nohup` backgrounding *inside* a call the
+  harness is already backgrounding) makes the harness's tracked task
+  follow the wrapper shell, not the detached grandchild. The wrapper shell
+  returns almost instantly once it forks the child (that's what `&` does),
+  so `TaskOutput(block=true)` reports `completed, exit_code=0` within a
+  second or two — a false "done" long before the real job has done any
+  work. This is NOT the classic trap (the round didn't end its turn on a
+  dangling wait) but produces the same net loss if unnoticed: the round
+  believes a job finished and moves on while it's actually still running,
+  contending for resources, unsupervised. Tell: the "completed" output is
+  suspiciously thin (e.g. just an echoed PID, no progress/results) for a
+  job that should take minutes. Fix: never wrap the target command in its
+  own backgrounding syntax inside a `run_in_background=true` call — pass
+  it directly as the foreground command. If the command must self-detach
+  for an unrelated reason, verify the real PID and block on THAT
+  (`tail --pid=<pid> -f /dev/null` as a second tracked background task)
+  rather than trusting the wrapper's own return.
 - **The skill existing in `skills/` does not stop the trap — nothing forces
   a one-shot round to actually consult it before backgrounding a job.**
   Confirmed live three rounds in a row (248/249/250, 2026-08-28, well after

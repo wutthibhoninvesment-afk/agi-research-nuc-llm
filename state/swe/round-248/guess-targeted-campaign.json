@@ -1,22 +1,22 @@
 {
- "target": 700,
- "accepted": 446,
- "scanned": 2070,
- "acceptance_rate": 0.21545893719806763,
- "seconds_this_run": 483.4852063655853,
- "stop_reason": "max_seconds",
- "complete": false,
+ "target": 1000,
+ "accepted": 1000,
+ "scanned": 4632,
+ "acceptance_rate": 0.2158894645941278,
+ "seconds_this_run": 347.6892395019531,
+ "stop_reason": "target_reached",
+ "complete": true,
  "counts": {
-  "ok": 363,
-  "parse_error": 22,
-  "timeout": 59,
+  "ok": 823,
+  "parse_error": 54,
+  "timeout": 121,
   "mismatch": 2
  },
  "marker_counts": {
-  "guess(": 243,
-  "is_guess(": 124,
-  "confidence(": 128,
-  "sure(": 125
+  "guess(": 552,
+  "is_guess(": 288,
+  "confidence(": 283,
+  "sure(": 271
  },
  "findings": {
   "mismatch|self_eval|value v8.[0].type int-vs-Record": {

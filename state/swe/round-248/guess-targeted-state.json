@@ -1,19 +1,19 @@
 {
- "next_seed": 2070,
- "scanned": 2070,
- "accepted": 446,
+ "next_seed": 4632,
+ "scanned": 4632,
+ "accepted": 1000,
  "counts": {
-  "ok": 363,
-  "parse_error": 22,
-  "timeout": 59,
+  "ok": 823,
+  "parse_error": 54,
+  "timeout": 121,
   "mismatch": 2
  },
  "marker_counts": {
-  "guess(": 243,
-  "is_guess(": 124,
-  "confidence(": 128,
-  "sure(": 125
+  "guess(": 552,
+  "is_guess(": 288,
+  "confidence(": 283,
+  "sure(": 271
  },
- "target": 700,
- "elapsed_this_run_s": 483.48361563682556
+ "target": 1000,
+ "elapsed_this_run_s": 347.68838024139404
 }
