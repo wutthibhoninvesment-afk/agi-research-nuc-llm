@@ -152,3 +152,50 @@ def test_both_health_checks_run_independently_when_both_scripts_present(tmp_path
     ws = str(tmp_path)
     assert os.path.isfile(os.path.join(ws, "logs", "health_round_1.log"))
     assert os.path.isfile(os.path.join(ws, "logs", "whence_health_round_1.log"))
+
+
+def test_both_health_checks_run_concurrently_not_sequentially(tmp_path):
+    # Round 277: the two checks must overlap in wall time, not run back to
+    # back. Deliberately does NOT assert on total driver-process wall time
+    # (tried first, see this round's own knowledge file — on this host,
+    # under real memory pressure, the handful of unrelated `python3 -m
+    # harness.driver_health ...` calls the rest of a round already makes
+    # (ratelimit_signal/summary/success/status/is5xx/is429/the final
+    # 3-failure tally) cost enough cumulative process-startup time on
+    # their own to blow past a tight total-wall-time ceiling even when the
+    # two checks themselves genuinely ran in parallel — a false failure
+    # unrelated to the property under test). Instead each stub records its
+    # own start timestamp (`date +%s.%N`, monotonic-enough for a same-host
+    # sub-second comparison) to a file before sleeping 2s; a strictly
+    # sequential implementation (the pre-round-277 shape: `if bash
+    # "$SCRIPT" ...; then ...` run twice in a row) starts the second
+    # script only after the first's full 2s sleep completes, so the two
+    # start timestamps would be ~2s apart. A concurrent one (both
+    # backgrounded, then waited on) starts them within milliseconds of
+    # each other regardless of any unrelated overhead elsewhere in the
+    # round. 1.0s ceiling leaves a wide margin below the 2s sleep while
+    # comfortably above realistic same-host scheduling jitter.
+    ws = str(tmp_path)
+    os.makedirs(os.path.join(ws, "state"), exist_ok=True)
+    _make_script(
+        ws, "harness", "run_tests_fast.sh",
+        f'date +%s.%N > "{ws}/state/health_start"\nsleep 2\necho "1 passed in 2.00s"\nexit 0',
+    )
+    _make_script(
+        ws, os.path.join("languages", "whence"),
+        "run_tests_fast.sh",
+        f'date +%s.%N > "{ws}/state/whence_start"\nsleep 2\necho "1 passed in 2.00s"\nexit 0',
+    )
+    log_text = _run_driver(tmp_path)
+    assert "round 1: health-check PASS (1 passed in 2.00s)" in log_text, log_text
+    assert "round 1: whence-health-check PASS (1 passed in 2.00s)" in log_text, log_text
+
+    with open(os.path.join(ws, "state", "health_start")) as f:
+        health_start = float(f.read().strip())
+    with open(os.path.join(ws, "state", "whence_start")) as f:
+        whence_start = float(f.read().strip())
+    gap = abs(health_start - whence_start)
+    assert gap < 1.0, (
+        f"health/whence checks started {gap:.2f}s apart — looks "
+        "sequential, not concurrent"
+    )

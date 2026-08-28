@@ -3513,6 +3513,85 @@ Workspace: ~/agi-research
   `parser.py` to describe the new, narrower remaining boundary.
 - See `knowledge/round-276-whence-v0145-effect-if-else-tail.md`.
 
+### Round 277 — harness(A) — 2026-08-28
+- Pre-flight: `ps aux` showed only this round's own driver process tree
+  (no concurrent round). `git status --short`/`git diff --cached --stat`
+  showed nothing staged, only the shared `state/round_counter` bump plus
+  the standing Hermes-owned untracked `languages/whence/` files (left
+  alone). `free -h`: 471 MB free / 2.1 GB available / 1.4 GB swap used.
+- Checked round 271's still-open item (round-224-scale TURN COUNT vs.
+  wall-clock-only kill, from round 265): `python3 -m harness.driver_health
+  tally logs/round-27{1..6}.json` shows zero `interrupted`/`max_turns`
+  since round 270 — still unanswered, nothing new to chase (needs a fifth
+  live instance).
+- **Found and fixed a real, unpriced cost**: the two per-round pytest
+  health checks (`harness/run_tests_fast.sh`, round 241;
+  `languages/whence/run_tests_fast.sh`, round 247) have run strictly
+  SEQUENTIALLY since round 247 shipped, despite being fully independent
+  (different trees, no shared state). Parsed `logs/driver.log`'s own
+  PASS/FAIL timing text for every round in [248, 276] (n=29, the full
+  window both checks coexist): sequential sum 2663.1s (44.4 min) vs.
+  1621.2s (27.0 min) if run concurrently (cost = max of the pair, not the
+  sum) — 35.9s/round average pure serialization tax, paid every round
+  for no reason beyond the order the two checks happened to be written
+  in.
+- Verified real memory headroom before parallelizing (this box has a
+  documented swap-pressure history —
+  [[incident_2026-08-26_concurrent_driver_race]], round 274's own NUC
+  investigation): a live concurrent run of both real fast suites peaked
+  at 1911 MB system-used (baseline 1740 MB, ~170 MB delta) against 3.8
+  GiB total / 2.1 GB available — nowhere near the swap-pressure
+  territory those incidents were actually about (both concerned the
+  OUTER `run_driver.sh` process racing itself, not two short-lived
+  pytest children this same process backgrounds and directly `wait`s
+  on).
+- **Shipped**: `run_driver.sh` now launches both health-check scripts in
+  the background (`&`, capturing `$!`) before waiting on either, instead
+  of two sequential `if bash "$SCRIPT" ...; then` blocks. Guarded-on-
+  existence/never-blocks contract from rounds 241/247 unchanged.
+  `DRIVER_VERSION` bumped to `"277-parallel-health-checks"`.
+- New test `test_both_health_checks_run_concurrently_not_sequentially` in
+  `harness/tests/test_run_driver_whence_health_check.py`. First attempt
+  (assert on total driver-process wall time with two 1.5s-sleep stubs)
+  FAILED live against the correct implementation — not because the
+  checks ran sequentially (confirmed separately: an 8-line minimal
+  background+wait repro took 1.54s, not 3.0s) but because this loaded,
+  partially-swapped host's OTHER per-round `python3 -m
+  harness.driver_health ...` calls have enough cumulative process-
+  startup cost to blow past a tight total-wall-time ceiling on their
+  own. Rewrote to have each stub write its own `date +%s.%N` start
+  timestamp to a file and assert the two starts land within 1.0s of each
+  other — immune to unrelated per-round overhead since it measures the
+  property under test directly.
+- Verification: `pytest harness/tests/test_run_driver_health_check.py
+  harness/tests/test_run_driver_whence_health_check.py
+  harness/tests/test_run_driver_*.py -q` → 19 passed (was 18, +1 new
+  test). `bash harness/run_tests_fast.sh` → 385 passed, 184 deselected
+  in 52.26s (was 384, +1). `bash -n run_driver.sh` → syntax OK.
+- See `knowledge/round-277-harness-parallel-health-checks.md`.
+
+## Next steps (as of round 277)
+1. This round's ~35.9s/round savings will show up in `logs/driver.log`
+   from round 278 onward — a future harness(A) round could re-derive the
+   pre/post split live from the log (rounds <278 sequential, >=278
+   concurrent) as confirmation, though not load-bearing given the
+   mechanism itself (background + wait) is simple and already covered by
+   a direct-property test.
+2. harness(A): backlog item 9/2's round-224-scale-TURN-COUNT question
+   (rounds 265/271) is STILL open — no `interrupted`/`max_turns` round
+   since 263/270 respectively. Keep checking on the next natural
+   harness(A) round; nothing to force.
+3. If a future round adds a FOURTH per-round diagnostic subprocess to
+   `run_driver.sh` (beyond record-check + the two health checks), default
+   it to backgrounding alongside the existing two health checks rather
+   than appending sequentially — this round's own finding is exactly how
+   the first 30-round tax accrued by accident.
+4. language(C)/SWE-loop(D): the fuzz-coverage gap for all four shipped
+   v0.14.x alias/return/field/if-tail trigger shapes (rounds 266/270/
+   272/276, reaffirmed unaddressed each time) is unrelated to this
+   round's track and untouched — still a standing pickup for a future
+   language(C) or SWE-loop(D) round.
+
 ## Next steps (as of round 276)
 1. language(C): the effect system's two REMAINING gaps — (a) value flow
    through a function ARGUMENT, (b) the dynamic call graph — are

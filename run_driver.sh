@@ -22,7 +22,7 @@ export PATH="$PATH:/home/pgain/agi-research-nuc-llm/node_modules/.bin"
 # "$@"` at the loop's end below), this now reliably reflects the ON-DISK
 # script content for every round it produced, including rounds after a
 # mid-run edit — round 139's live driver could not make that claim.
-DRIVER_VERSION="253-record-gap-check"
+DRIVER_VERSION="277-parallel-health-checks"
 
 # Round 157: a manual post-migration edit (made outside any round,
 # between the Mac->NUC sync commit c768d90 and round 154) hardcoded this
@@ -414,16 +414,6 @@ update research-state.md. Be relentless and thorough — this is deep research, 
   # `$WS`-relative path in this script already does when its target is
   # absent, instead of needing yet another DRIVER_* override to suppress
   # a ~35-45s real pytest subprocess inside a 45s-timeout test.
-  HEALTH_SCRIPT="$WS/harness/run_tests_fast.sh"
-  if [ -f "$HEALTH_SCRIPT" ]; then
-    HEALTH_LOG="$WS/logs/health_round_${ROUND}.log"
-    if bash "$HEALTH_SCRIPT" > "$HEALTH_LOG" 2>&1; then
-      log "round $ROUND: health-check PASS ($(tail -n 1 "$HEALTH_LOG" | tr -d '\r'))"
-    else
-      log "round $ROUND: health-check FAIL — $(tail -n 5 "$HEALTH_LOG" | tr '\n' ' ')"
-    fi
-  fi
-
   # Round 247: same shape, second track. Round 242 (language C) built
   # `languages/whence/run_tests_fast.sh` (840/875 tests, ~23s, vs. 404s+ for
   # the full whence suite) and flagged, but did not wire in, this exact
@@ -435,10 +425,54 @@ update research-state.md. Be relentless and thorough — this is deep research, 
   # harness check above — a tmp_path e2e test workspace with no
   # `languages/` tree at all (every existing test_run_driver_*.py test)
   # no-ops here exactly as it already does for the harness check.
+  #
+  # Round 277: run the two checks CONCURRENTLY instead of back-to-back —
+  # they've been independent since round 247 shipped (different trees,
+  # different pytest processes, no shared state) but were still launched
+  # strictly sequentially, an accident of each being appended after the
+  # other rather than a real ordering requirement. Measured live from
+  # `logs/driver.log` (rounds 248-276, n=29, the full window where both
+  # checks coexist): summed sequential cost 2663.1s (44.4 min) vs. 1621.2s
+  # (27.0 min) for the same 29 pairs run concurrently (cost = max of the
+  # pair, not the sum) — 35.9s/round average, ~17.4 minutes of pure
+  # serialization tax already spent in that one window alone, compounding
+  # every round hereafter for free to remove. Checked memory headroom
+  # before landing this, not assumed safe: a live concurrent run of both
+  # fast suites on this box peaked at 1911 MB system-used (baseline 1740
+  # MB, ~170 MB delta) against 3.8 GiB total / 2.1 GiB available — nowhere
+  # near the swap-pressure territory of
+  # [[incident_2026-08-26_concurrent_driver_race]]/round 274's own NUC
+  # swap-burst investigation, both of which concerned the OUTER
+  # `run_driver.sh` process racing itself, not two short-lived pytest
+  # children this same process backgrounds and waits on directly. `wait
+  # "$PID"` (a specific, still-known job) returns that job's own exit
+  # status even if it finished before the wait call — no race with the
+  # other job's completion, and `HEALTH_PID`/`WHENCE_PID` default to ""
+  # (not unset) so `[ -n "$HEALTH_PID" ]` never trips `set -u` when a
+  # script is absent.
+  HEALTH_SCRIPT="$WS/harness/run_tests_fast.sh"
   WHENCE_HEALTH_SCRIPT="$WS/languages/whence/run_tests_fast.sh"
+  HEALTH_PID=""
+  WHENCE_PID=""
+  if [ -f "$HEALTH_SCRIPT" ]; then
+    HEALTH_LOG="$WS/logs/health_round_${ROUND}.log"
+    bash "$HEALTH_SCRIPT" > "$HEALTH_LOG" 2>&1 &
+    HEALTH_PID=$!
+  fi
   if [ -f "$WHENCE_HEALTH_SCRIPT" ]; then
     WHENCE_HEALTH_LOG="$WS/logs/whence_health_round_${ROUND}.log"
-    if bash "$WHENCE_HEALTH_SCRIPT" > "$WHENCE_HEALTH_LOG" 2>&1; then
+    bash "$WHENCE_HEALTH_SCRIPT" > "$WHENCE_HEALTH_LOG" 2>&1 &
+    WHENCE_PID=$!
+  fi
+  if [ -n "$HEALTH_PID" ]; then
+    if wait "$HEALTH_PID"; then
+      log "round $ROUND: health-check PASS ($(tail -n 1 "$HEALTH_LOG" | tr -d '\r'))"
+    else
+      log "round $ROUND: health-check FAIL — $(tail -n 5 "$HEALTH_LOG" | tr '\n' ' ')"
+    fi
+  fi
+  if [ -n "$WHENCE_PID" ]; then
+    if wait "$WHENCE_PID"; then
       log "round $ROUND: whence-health-check PASS ($(tail -n 1 "$WHENCE_HEALTH_LOG" | tr -d '\r'))"
     else
       log "round $ROUND: whence-health-check FAIL — $(tail -n 5 "$WHENCE_HEALTH_LOG" | tr '\n' ' ')"
