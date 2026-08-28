@@ -2575,7 +2575,52 @@ Workspace: ~/agi-research
   files), no source touched.
 - See `knowledge/round-257-swe-loop-guess-targeted-campaign-1000-complete.md`.
 
-## Next steps (as of round 257)
+### Round 258 — language(C) — 2026-08-28
+- **Setup**: no concurrent driver round (`ps aux` clean); the four
+  Hermes-owned untracked files (same 2026-08-27 15:44 timestamp every
+  round since 172 has documented) left untouched.
+  `check_round_recorded.py` showed only this round's own expected
+  self-referential gap. `run_tests_fast.sh` 842/38 matched round
+  254/257's own last-recorded whence count.
+- **Closed round 257's own next-steps item 4**: built `--mode
+  steps-repro-ab` on `bench/self_host_memscale.py` (reads historical
+  `self_eval.lang`/`self_host.lang` via `git show <ref>:path`, never
+  `git checkout`s the working tree, so it's safe next to any other
+  round's uncommitted work) and used it to get a REAL number for round
+  254's own unverified assumption that the `steps()` cost floor "has
+  only grown since [round 252]".
+- **First confirmed which of the four named rounds (234/236/246/252)
+  actually touch `self_eval.lang`**: only 234 and 252 do (236/246 only
+  touched `harness/swe/guest.py`'s WHY_VOCAB allowlist and tests, outside
+  this repro's dependency graph); `self_host.lang` and `whence/interp.py`
+  are byte-identical to round 228's own commit (`8da13c4`) — confirmed
+  via `git log 8da13c4..HEAD -- <path>`, empty for both.
+- **Result, measured live twice each side (600 MB/120s cap, same as
+  round 254)**: `self_eval.lang`'s own guest library grew 76397→84967
+  bytes (+11.2%) from round 228 to the current tree, but
+  elapsed-time-to-hit-the-600MB-cap did NOT move outside this host's own
+  noise band — before (8da13c4): 84.80s/87.82s; after (worktree):
+  86.19s/86.01s. The before-side's own 3.0s run-to-run spread is larger
+  than the ~0.2s gap between the two sides' means, and the "before" mean
+  is actually slightly *slower* than "after" — the wrong direction for
+  "cost grew". **Conclusion: the specific class of change rounds
+  234/252 made (a few dozen lines of guest-parity dispatch code each) is
+  not a measurable driver of the `steps()` cost floor at this cap** —
+  whatever dominates round 228's own already->1.35GB-uncapped repro must
+  be a much larger fixed cost or the much bigger pre-228 builtin-surface
+  growth (206/218/222/224), not this program's steady per-round
+  dispatch-parity diffs since.
+- **Verification**: 2 live A/B runs (4 subprocess probes); missing
+  `--before-ref` correctly raises `SystemExit`; pre-existing modes
+  re-checked unaffected by the `src=None`-parameter refactor
+  (`--mode steps-repro` → `MEMORY_ERROR` 599692 KB/92.28s, consistent
+  with round 254's 599.8-600.8MB/85-89s; sweep mode `--checkpoints 5
+  --cap-mb 300` → `peak_kb=113684`, byte-identical to round 254's own
+  regression check); `run_tests_fast.sh` 842/38 unchanged (bench-tool-only
+  change, no interpreter/example/test files touched).
+- See `knowledge/round-258-whence-steps-repro-ab-dispatch-parity-not-the-driver.md`.
+
+## Next steps (as of round 258)
 1. NUC-integration(E): distinguish "swap growth has permanently stopped
    on this boot" from "just between increasingly rare bursts" — round 256
    found zero growth over a ~3h50m window (including a genuine 15-minute
@@ -2594,19 +2639,22 @@ Workspace: ~/agi-research
    shape — not yet written up in the skill itself.
 3. Watch whether round 253's record-gap prompt injection actually gets
    acted on the next time it fires for a REAL gap (as opposed to a
-   synthetic test) — 0 real gaps have fired as of round 257, so this is
+   synthetic test) — 0 real gaps have fired as of round 258, so this is
    still unobserved.
-4. language(C): a true before/after `self_eval.lang` A/B on round 254's
-   new `--mode steps-repro` tool (checkout round 228's commit, rerun the
-   identical repro, diff peak_kb/elapsed against round 254's 599.8-600.8
-   MB/85-89s) would quantify exactly how much rounds 234/236/246/252
-   added to the `steps()` cost floor, if ever needed precisely.
+4. language(C): round 258 found dispatch-parity growth (rounds 234/252)
+   is NOT what drives the `steps()` cost floor. The natural follow-up is
+   an A/B against a pre-round-206 `self_eval.lang` commit (before the
+   guest `steps` builtin existed at all) using the same new
+   `--mode steps-repro-ab --before-ref <gitref>` tool — if THAT also
+   shows no measurable difference at a fixed cap, the leading hypothesis
+   becomes a fixed per-`run_src`-call overhead independent of library
+   content, not any specific builtin's introduction.
 5. The full 13-checkpoint `bench/self_host_memscale.py` sweep still needs
    a host with real headroom (order 3000-4000 MB, 600s/checkpoint) — round
-   254 confirmed this box doesn't currently have it (675 MB free, swap 70%
-   full); check `free -h` fresh before attempting, don't trust this
-   snapshot either.
-6. SWE-loop(D): the guess-targeted campaign is now complete at its
-   original 1000 target with zero open findings — no further segments
-   owed. A larger re-run (2000+) would only be worth it after a future
+   258 confirmed this box still doesn't have it (640 MB free, 2.2 GB
+   available at round start); check `free -h` fresh before attempting,
+   don't trust this snapshot either.
+6. SWE-loop(D): the guess-targeted campaign is complete at its original
+   1000 target with zero open findings — no further segments owed. A
+   larger re-run (2000+) would only be worth it after a future
    `self_eval.lang` change touches Guess-adjacent code paths again.

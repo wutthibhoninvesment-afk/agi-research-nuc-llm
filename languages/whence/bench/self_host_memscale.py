@@ -115,9 +115,41 @@ full re-sweep for a fresh absolute-MB replacement number still needs
 the order-3000-4000 MB / 600 s treatment round 228 already flagged, on
 a host that isn't mid-contention — not this one, not this round.
 
+**Round 258**: added `--mode steps-repro-ab` (reads historical
+self_eval.lang/self_host.lang via `git show <ref>:path`, no `git
+checkout`, so it's safe to run against a dirty or concurrently-used
+tree) and used it to answer round 254's own open question -- "has only
+grown since [round 252]" -- with a real before/after number instead of
+an assumption. Compared round 228's own commit (8da13c4, before rounds
+234/240/241/251/252 grew self_eval.lang's guest-parity dispatch code)
+against the current worktree, same 600 MB/120 s steps-repro settings,
+run twice each for noise: eval_lib grew 76397 -> 84967 bytes (+11.2%,
+rounds 234/252 are the only ones of the four in round 257's next-steps
+item 4 that actually touch self_eval.lang; 236/246 only touched
+harness/swe/guest.py's WHY_VOCAB allowlist and tests, confirmed via
+`git log --oneline 8da13c4..HEAD -- examples/self_eval.lang`), but
+elapsed-time-to-hit-the-600MB-cap did NOT move outside this host's own
+noise band: before = 84.80s/87.82s (peak 604564/605412 KB), after =
+86.19s/86.01s (peak 599676/599816 KB) -- a <2s spread on each side,
+overlapping. **Conclusion: this specific class of change (a few dozen
+lines of guest-parity dispatch code per round) is not a measurable
+driver of the steps() cost floor at this cap** -- whatever dominates
+enough to make round 228's own minimal repro already exceed 1.35 GB
+uncapped must be fixed cost (library-load-time store-threading itself,
+or growth from the much larger pre-228 rounds named in this docstring's
+own round-216 paragraph: 206/218/222/224), not the marginal per-round
+dispatch additions this program has been making since. Confirms
+`self_host.lang` itself is unchanged since round 228 too (`git log
+8da13c4..HEAD -- examples/self_host.lang` empty), so the identical
+`src=22908 B` inner-source byte count on both sides in every run is an
+internal consistency check the tool passed, not a coincidence.
+
 usage: python3 bench/self_host_memscale.py [--cap-mb 1200] [--timeout 240]
                                            [--checkpoints 5,10,20,...]
        python3 bench/self_host_memscale.py --mode steps-repro
+                                           [--cap-mb 600] [--timeout 120]
+       python3 bench/self_host_memscale.py --mode steps-repro-ab
+                                           --before-ref <gitref> [--after-ref <gitref>]
                                            [--cap-mb 600] [--timeout 120]
 """
 import os
@@ -131,14 +163,17 @@ MARKER = "# ==== SELF-TESTS"
 LIB_START, LIB_END = 27, 561  # same slice as tests/test_self_hosting.py
 
 
-def eval_library_source():
-    src = open(EXAMPLE).read()
+def eval_library_source(src=None):
+    if src is None:
+        src = open(EXAMPLE).read()
     assert MARKER in src
     return src.split(MARKER)[0]
 
 
-def self_host_sections():
-    lines = open(SELF_HOST).read().splitlines(keepends=True)
+def self_host_sections(src=None):
+    if src is None:
+        src = open(SELF_HOST).read()
+    lines = src.splitlines(keepends=True)
     lib = "".join(lines[LIB_START:LIB_END])
     assert lib.startswith("# ---- character classes")
     # test section: everything after the library up to (excluding) the
@@ -146,6 +181,25 @@ def self_host_sections():
     rest = lines[LIB_END:]
     end = next(i for i, l in enumerate(rest) if l.startswith("print("))
     return lib, rest[:end]
+
+
+def git_show(ref, abspath):
+    """Contents of abspath as it existed at git ref `ref`, regardless of
+    what's currently checked out -- lets steps-repro-ab compare historical
+    self_eval.lang/self_host.lang states without a `git checkout` (which
+    would disturb this round's own working tree and any concurrent round
+    sharing it -- see state/research-state.md's "check for concurrent
+    rounds" and "check cached diff" lessons)."""
+    toplevel = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"], cwd=ROOT,
+        capture_output=True, text=True, check=True).stdout.strip()
+    relpath = os.path.relpath(abspath, toplevel)
+    r = subprocess.run(["git", "show", "%s:%s" % (ref, relpath)],
+                        cwd=toplevel, capture_output=True, text=True)
+    if r.returncode != 0:
+        raise SystemExit("git show %s:%s failed -- %s" %
+                          (ref, relpath, r.stderr.strip()))
+    return r.stdout
 
 
 def steps_repro_source(lib):
@@ -246,6 +300,7 @@ def probe(inner_src, eval_lib, cap_bytes, timeout):
 def main(argv):
     mode = "sweep"
     cap_mb = timeout = None  # mode-specific defaults, picked below
+    before_ref = after_ref = None
     checkpoints = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 66]
     i = 0
     while i < len(argv):
@@ -258,8 +313,41 @@ def main(argv):
             checkpoints = [int(x) for x in argv[i + 1].split(",")]; i += 2
         elif a == "--mode":
             mode = argv[i + 1]; i += 2
+        elif a == "--before-ref":
+            before_ref = argv[i + 1]; i += 2
+        elif a == "--after-ref":
+            after_ref = argv[i + 1]; i += 2
         else:
             raise SystemExit("unknown arg: " + a)
+    if mode == "steps-repro-ab":
+        # A/B the steps-repro cost floor between two git refs' own
+        # self_eval.lang/self_host.lang, WITHOUT `git checkout` (reads
+        # historical content via `git show <ref>:path` instead) -- safe to
+        # run with other work uncommitted or in flight in this same tree.
+        if cap_mb is None:
+            cap_mb = 600
+        if timeout is None:
+            timeout = 120
+        if before_ref is None:
+            raise SystemExit("--mode steps-repro-ab requires --before-ref <gitref>")
+        cap_bytes = cap_mb * 1024 * 1024
+        print("mode=steps-repro-ab cap=%dMB timeout=%ds before=%s after=%s" %
+              (cap_mb, timeout, before_ref, after_ref or "<worktree>"))
+        variants = [("before(%s)" % before_ref, before_ref)]
+        variants.append(("after(%s)" % (after_ref or "worktree"), after_ref))
+        for label, ref in variants:
+            if ref is None:
+                eval_src, host_src = None, None
+            else:
+                eval_src = git_show(ref, EXAMPLE)
+                host_src = git_show(ref, SELF_HOST)
+            lib, _ = self_host_sections(host_src)
+            eval_lib = eval_library_source(eval_src)
+            inner_src = steps_repro_source(lib)
+            result = probe(inner_src, eval_lib, cap_bytes, timeout)
+            print("%-20s src=%6d B  eval_lib=%7d B  %s" %
+                  (label, len(inner_src), len(eval_lib), result))
+        return
     if mode == "steps-repro":
         # small, safe-by-default: this is a diagnostic for "has the cost
         # gotten worse", not a full sweep -- see the round-254 module
