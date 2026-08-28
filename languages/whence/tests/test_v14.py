@@ -888,6 +888,139 @@ def test_three_way_field_return_chain():
         'let result = f()\n')
 
 
+# --- v0.14.7: container-field value flow through a NESTED record literal ---
+# --- (`outer.box.run(...)`) -------------------------------------------------
+
+def test_nested_field_call_via_record_literal_is_checked():
+    """`let outer = @{box: @{run: print}}` then `outer.box.run(1)` inside
+    `effects []` is now a ParseError — `outer`'s `box` field is itself a
+    nested record literal whose `run` field is tracked as a direct alias of
+    `print` (`Parser._resolve_effectful_field_nested`), so calling through
+    the two-field chain is checked exactly as `box.run(1)` (v0.14.4) would
+    be for a `box` bound directly."""
+    with pytest.raises(ParseError) as ei:
+        parse(
+            'let outer = @{box: @{run: print}}\n'
+            'fn f() effects [] {\n'
+            '  outer.box.run(1)\n'
+            '}\n')
+    assert "'outer.box.run' requires effect 'io'" in str(ei.value)
+
+
+def test_nested_field_call_via_record_literal_granted_when_effect_allowed():
+    all_ok(
+        'let outer = @{box: @{run: print}}\n'
+        'fn f() effects [io] {\n'
+        '  outer.box.run(1)\n'
+        '}\n'
+        'check "ok": f() == 1\n')
+
+
+def test_non_effectful_nested_field_is_not_flagged():
+    """A nested field whose value is a bare-NameRef alias of something NOT
+    effectful resolves to `None`, same as the single-hop case
+    (`test_non_effectful_field_is_not_flagged`)."""
+    all_ok(
+        'fn f() effects [] {\n'
+        '  let helper = fn(x) { x + 1 }\n'
+        '  let outer = @{box: @{run: print, calc: helper}}\n'
+        '  outer.box.calc(5)\n'
+        '}\n'
+        'check "ok": f() == 6\n')
+
+
+def test_inner_record_of_same_name_shadows_outer_nested_field_alias():
+    """An inner block's OWN `let outer = @{...}` shadows an outer record of
+    the same name for the nested-field fact too, the same discipline
+    v0.14.4/v0.14.6 already established for the single-hop dicts."""
+    all_ok(
+        'fn f() effects [] {\n'
+        '  let outer = @{box: @{run: print}}\n'
+        '  {\n'
+        '    let helper = fn(x) { x + 1 }\n'
+        '    let outer = @{box: @{run: helper}}\n'
+        '    outer.box.run(5)\n'
+        '  }\n'
+        '}\n'
+        'check "ok": f() == 6\n')
+
+
+def test_param_named_like_outer_nested_field_alias_shadows_it():
+    """A parameter shares its fn's body-block nested-field-alias scope tree
+    one level out, same as the other four stacks already do — a param
+    named `outer` shadows an outer record-tracked `outer` of the same
+    name, so a call through the PARAM's own (real, runtime) fields is
+    checked on its own terms, not the outer record's."""
+    all_ok(
+        'fn identity_run(x) { x + 1 }\n'
+        'fn f() effects [] {\n'
+        '  let outer = @{box: @{run: print}}\n'
+        '  fn g(outer) {\n'
+        '    outer.box.run(1)\n'
+        '  }\n'
+        '  g(@{box: @{run: identity_run}})\n'
+        '}\n'
+        'check "ok": f() == 2\n')
+
+
+def test_nested_field_of_a_non_literal_outer_binding_is_not_tracked():
+    """Deliberately narrow, like the rest of this feature family: only an
+    OUTER record built directly by a `let name = @{...}` LITERAL is
+    tracked — one returned from a call is invisible, the same "single
+    left-to-right pass" limit `test_field_of_a_non_literal_binding_is_not_
+    tracked` already pins for the single-hop case."""
+    all_ok(
+        'fn make_outer() { @{box: @{run: print}} }\n'
+        'fn f() effects [] {\n'
+        '  let outer = make_outer()\n'
+        '  outer.box.run(1)\n'
+        '}\n'
+        'check "ok": f() == 1\n')
+
+
+def test_nested_field_where_middle_field_is_not_itself_a_record_literal():
+    """`outer.box.run(...)` structurally matches the v0.14.7 chain shape
+    even when `box`'s own value was never a nested record literal at all
+    (here, a bare NameRef) — `nested_field_alias_scopes` simply never
+    populated a `box` key for `outer` in that case, so the lookup falls
+    through to `None`, same "field absent, not an error" behavior every
+    resolver in this family already has. Parses cleanly (no ParseError);
+    `f` is deliberately never called, since `box`'s runtime value (`print`)
+    has no `run` field to actually invoke — this test pins the parse-time
+    lookup only, not a runtime claim."""
+    parse(
+        'fn f() effects [] {\n'
+        '  let outer = @{box: print}\n'
+        '  outer.box.run(1)\n'
+        '}\n')
+
+
+def test_nested_field_value_that_is_itself_a_call_is_not_tracked():
+    """Only a bare-NameRef inner-field value is inspected within a tracked
+    nested literal — an inner field whose value is itself a call is left
+    at `None`, the same "one hop, no recursion" discipline
+    `test_field_value_that_is_itself_a_call_is_not_tracked` already pins
+    for the single-hop case."""
+    all_ok(
+        'fn get_printer() effects [] {\n'
+        '  print\n'
+        '}\n'
+        'fn f() effects [] {\n'
+        '  let outer = @{box: @{run: get_printer()}}\n'
+        '  outer.box.run(1)\n'
+        '}\n'
+        'check "ok": f() == 1\n')
+
+
+def test_three_way_nested_field_call():
+    assert_three_way(
+        'let outer = @{box: @{run: print}}\n'
+        'fn f() effects [io] {\n'
+        '  outer.box.run(1)\n'
+        '}\n'
+        'let result = f()\n')
+
+
 # --- outer restriction still applies to the outer function's OWN body ------
 
 def test_effects_empty_still_allows_non_print_calls():

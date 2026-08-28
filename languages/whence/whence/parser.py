@@ -123,6 +123,29 @@ class Parser(object):
         # branch for a `Call` whose own callee is a `FieldAccess`. See
         # `_resolve_effectful_field_return`.
         self.field_return_alias_scopes = []
+        # Effect system (v0.14.7): a FIFTH stack, same shape and push/pop
+        # sites as the other four, tracking a fifth fact per name: "is this
+        # name bound to a record literal that itself has a field whose OWN
+        # value is a NESTED record literal, and if so, which of THAT inner
+        # literal's fields are themselves effectful aliases?" — one hop
+        # deeper than `field_alias_scopes`, closing the specific slice of
+        # v0.14.4's own documented gap ("a field whose value is itself a
+        # ... nested-record[/shape] is invisible") for a literal directly
+        # nested inside a literal. `let outer = @{box: @{run: print}}` then
+        # `outer.box.run(1)` — a TWO-FIELD chain reaching all the way down
+        # to a bare-NameRef effectful alias — is now checked exactly as
+        # `box.run(1)` (v0.14.4) would be, for a `box` bound one level
+        # further out. Each frame maps name -> either `None` (not tracked)
+        # or a dict `{outer_field: {inner_field: tag-or-None}}`, built once,
+        # at the outer `let`, only for a field whose value is ITSELF an
+        # `A.RecordLit` (any other field shape — a bare NameRef, a call, a
+        # number — is simply absent from this dict, the same "one hop, no
+        # recursion" discipline every prior version in this family applies
+        # to its own new shape; that field may of course still populate
+        # `field_alias_scopes`/`field_return_alias_scopes` on its own merits
+        # if it happens to be a bare NameRef instead). See
+        # `_resolve_effectful_field_nested`.
+        self.nested_field_alias_scopes = []
 
     def _enter(self):
         self.nesting += 1
@@ -202,6 +225,7 @@ class Parser(object):
         self.return_alias_scopes.append({})
         self.field_alias_scopes.append({})
         self.field_return_alias_scopes.append({})
+        self.nested_field_alias_scopes.append({})
         try:
             self.skip_newlines()
             while not self.at(end):
@@ -230,6 +254,7 @@ class Parser(object):
             self.return_alias_scopes.pop()
             self.field_alias_scopes.pop()
             self.field_return_alias_scopes.pop()
+            self.nested_field_alias_scopes.pop()
 
     def statement(self):
         tok = self.peek()
@@ -253,6 +278,7 @@ class Parser(object):
                 self.return_alias_scopes[-1][name] = self._resolve_effectful_return(expr.name)
                 self.field_alias_scopes[-1][name] = None
                 self.field_return_alias_scopes[-1][name] = None
+                self.nested_field_alias_scopes[-1][name] = None
             elif expr.__class__ is A.Call and expr.fn.__class__ is A.NameRef:
                 # v0.14.3 (round 270): `let p = get_printer()` — closes part
                 # of v0.14.2's own "returning it from a call" gap. `p` is an
@@ -262,6 +288,7 @@ class Parser(object):
                 self.return_alias_scopes[-1][name] = None
                 self.field_alias_scopes[-1][name] = None
                 self.field_return_alias_scopes[-1][name] = None
+                self.nested_field_alias_scopes[-1][name] = None
             elif expr.__class__ is A.FnExpr:
                 # v0.14.3: `let g = fn() {...}` — `g` is a callable, not
                 # itself an effectful value; its return fact comes straight
@@ -271,6 +298,7 @@ class Parser(object):
                 self.return_alias_scopes[-1][name] = expr.body.tail_alias_tag
                 self.field_alias_scopes[-1][name] = None
                 self.field_return_alias_scopes[-1][name] = None
+                self.nested_field_alias_scopes[-1][name] = None
             elif expr.__class__ is A.RecordLit:
                 # v0.14.4 (round 272): `let box = @{run: print, other: 5}`
                 # — closes the CONTAINER-FIELD slice of v0.14.3's own still-
@@ -304,11 +332,31 @@ class Parser(object):
                     for fname, fexpr in expr.pairs
                     if fexpr.__class__ is A.NameRef
                 }
+                # v0.14.7: a THIRD dict, this time keyed only on fields
+                # whose OWN value is ANOTHER record literal — `let outer =
+                # @{box: @{run: print}}` — one hop deeper than
+                # `field_alias_scopes` above, resolving that inner
+                # literal's own bare-NameRef fields the exact same way a
+                # top-level record literal's fields already are. A field
+                # absent here (its value wasn't itself a record literal)
+                # is simply not a key in this dict, `.get` falling through
+                # to `None` in `_resolve_effectful_field_nested` the same
+                # way every other resolver in this family already does.
+                self.nested_field_alias_scopes[-1][name] = {
+                    fname: {
+                        inner_fname: self._resolve_effectful_alias(inner_fexpr.name)
+                        for inner_fname, inner_fexpr in fexpr.pairs
+                        if inner_fexpr.__class__ is A.NameRef
+                    }
+                    for fname, fexpr in expr.pairs
+                    if fexpr.__class__ is A.RecordLit
+                }
             else:
                 self.alias_scopes[-1][name] = None
                 self.return_alias_scopes[-1][name] = None
                 self.field_alias_scopes[-1][name] = None
                 self.field_return_alias_scopes[-1][name] = None
+                self.nested_field_alias_scopes[-1][name] = None
             return A.Let(tok.line, name, expr)
         if tok.type == "KW" and tok.value == "fn" and self.peek(1).type == "NAME":
             self.next()
@@ -326,10 +374,11 @@ class Parser(object):
             # own body, since nothing can call it before its own statement
             # finishes parsing.
             self.return_alias_scopes[-1][name] = None
-            # v0.14.4/v0.14.6: a fn name is never a record-literal binding
-            # either, in either dict.
+            # v0.14.4/v0.14.6/v0.14.7: a fn name is never a record-literal
+            # binding either, in any of the three field dicts.
             self.field_alias_scopes[-1][name] = None
             self.field_return_alias_scopes[-1][name] = None
+            self.nested_field_alias_scopes[-1][name] = None
             params, types = self.param_list()
             effects_spec = self.parse_effects_clause()
             ret_type = self.parse_return_type()
@@ -343,6 +392,7 @@ class Parser(object):
             self.return_alias_scopes.append(dict.fromkeys(params))
             self.field_alias_scopes.append(dict.fromkeys(params))
             self.field_return_alias_scopes.append(dict.fromkeys(params))
+            self.nested_field_alias_scopes.append(dict.fromkeys(params))
             try:
                 body = self.block()
             finally:
@@ -351,6 +401,7 @@ class Parser(object):
                 self.return_alias_scopes.pop()
                 self.field_alias_scopes.pop()
                 self.field_return_alias_scopes.pop()
+                self.nested_field_alias_scopes.pop()
             # v0.14.3 (round 270): now that the body is fully parsed and
             # `body.tail_alias_tag` is resolved (computed by `block()`/
             # `stmt_list` while the body's own frames were still open),
@@ -561,6 +612,29 @@ class Parser(object):
                 return fields.get(field) if fields else None
         return None
 
+    def _resolve_effectful_field_nested(self, name, outer_field, inner_field):
+        """v0.14.7: does `name.outer_field.inner_field`, AS CURRENTLY IN
+        SCOPE, resolve to an effectful builtin — because `name` was bound
+        to a record literal whose `outer_field` value was ITSELF a nested
+        record literal, and THAT inner literal's `inner_field` value was a
+        tracked bare-NameRef alias? One hop deeper than
+        `_resolve_effectful_field`, over `nested_field_alias_scopes`: same
+        innermost-first, first-frame-wins walk on `name`, then a `.get
+        (outer_field)` into the winning frame's dict (missing, or `name`
+        not tracked at all, both fall out to `None`), then a further `.get
+        (inner_field)` on WHATEVER that returns — `.get` on `None` would
+        raise, so the outer lookup result is guarded exactly the same way
+        `_resolve_effectful_field`/`_resolve_effectful_field_return` guard
+        their own single `.get`."""
+        for scope in reversed(self.nested_field_alias_scopes):
+            if name in scope:
+                outer = scope[name]
+                if not outer:
+                    return None
+                inner = outer.get(outer_field)
+                return inner.get(inner_field) if inner else None
+        return None
+
     def _check_effect_call(self, callee, tok):
         """Effect system (v0.14/v0.14.2/v0.14.3/v0.14.4): a direct call
         `name(...)` where `name` resolves (`_resolve_effectful_alias`) to an
@@ -603,17 +677,24 @@ class Parser(object):
         the gap v0.14.4's own docstring named ("a field whose value is
         itself a call/alias chain is invisible") for the specific case
         where that field value is a bare-NameRef return-carrier rather than
-        a direct alias. Passing a builtin as a FUNCTION ARGUMENT is *still*
-        completely untouched — genuine value-flow-through-data-structures
-        questions v0.14.4/v0.14.6 narrow but do not fully close.
+        a direct alias. So, now, is a NESTED field call `outer.box.run(...)`
+        where `outer` was bound to a record literal whose `box` field is
+        ITSELF a nested record literal, and THAT literal's `run` field is a
+        tracked bare-NameRef alias — v0.14.7, `_resolve_effectful_field_
+        nested`, one hop deeper than v0.14.4's own single-field case, the
+        same "field value is a record literal" shape v0.14.4's own docstring
+        named as invisible ("a nested-record[/shape]") but did not touch.
+        Passing a builtin as a FUNCTION ARGUMENT is *still* completely
+        untouched — genuine value-flow-through-data-structures questions
+        v0.14.4/v0.14.6/v0.14.7 narrow but do not fully close.
         Calling into a DIFFERENT function that itself performs the effect is
         *also* still untouched by the caller's own declaration — only
         LEXICAL nesting and direct/return/field aliasing are tracked, not
         the dynamic call graph. A real call-graph-aware (transitive) effect
         system tracking effects through arbitrary data flow is future work,
         not this round's scope; see SPEC.md "v0.14"/"v0.14.1"/"v0.14.2"/
-        "v0.14.3"/"v0.14.4"/"v0.14.6" for the honest remaining limitations
-        and examples.
+        "v0.14.3"/"v0.14.4"/"v0.14.6"/"v0.14.7" for the honest remaining
+        limitations and examples.
         `self.effects_stack[-1]` is already the fn's fully RESOLVED scope by
         the time this runs — a nested fn with no clause of its own
         inherited its enclosing scope in `_resolve_effects_scope` at push
@@ -633,6 +714,16 @@ class Parser(object):
               callee.fn.obj.__class__ is A.NameRef):
             tag = self._resolve_effectful_field_return(callee.fn.obj.name, callee.fn.name)
             display = "%s.%s()" % (callee.fn.obj.name, callee.fn.name)
+        elif (callee.__class__ is A.FieldAccess and
+              callee.obj.__class__ is A.FieldAccess and
+              callee.obj.obj.__class__ is A.NameRef):
+            # v0.14.7: a NESTED field call, `outer.box.run(...)` — the
+            # callee's own `.obj` is itself a `FieldAccess`, not a bare
+            # NameRef, one level of container nesting deeper than the
+            # v0.14.4 branch just above.
+            tag = self._resolve_effectful_field_nested(
+                callee.obj.obj.name, callee.obj.name, callee.name)
+            display = "%s.%s.%s" % (callee.obj.obj.name, callee.obj.name, callee.name)
         else:
             return
         if tag is None:
@@ -932,6 +1023,7 @@ class Parser(object):
             self.return_alias_scopes.append(dict.fromkeys(params))
             self.field_alias_scopes.append(dict.fromkeys(params))
             self.field_return_alias_scopes.append(dict.fromkeys(params))
+            self.nested_field_alias_scopes.append(dict.fromkeys(params))
             try:
                 body = self.block()
             finally:
@@ -940,6 +1032,7 @@ class Parser(object):
                 self.return_alias_scopes.pop()
                 self.field_alias_scopes.pop()
                 self.field_return_alias_scopes.pop()
+                self.nested_field_alias_scopes.pop()
             self._apply_type_guards(body, params, types, None)
             mark_tails(body)
             return A.FnExpr(tok.line, params, body, ret_type)

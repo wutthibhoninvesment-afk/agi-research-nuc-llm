@@ -1379,6 +1379,98 @@ that cannot end a statement.
   mystery, same as v0.14.2/v0.14.3/v0.14.4/v0.14.5 each did for their own
   new shape.
 
+## v0.14.7 (round 288) — effect system: CONTAINER-FIELD value flow through a NESTED record literal
+
+- **Closes the specific slice of v0.14.4's own documented gap named but not
+  touched**: "a field whose value is itself a ... nested-record[/shape] is
+  invisible" — closed here for the case where the OUTER field's value is
+  itself another record literal, one level deeper than v0.14.4's own
+  single-hop case. `let outer = @{box: @{run: print}}` then
+  `outer.box.run(1)` — a TWO-FIELD access chain reaching all the way down
+  to a bare-NameRef effectful alias — is now checked exactly as `box.run
+  (1)` (v0.14.4) would be for a `box` bound directly by the enclosing
+  `let`.
+- **Mechanism**: `Parser.nested_field_alias_scopes` — a FIFTH stack, the
+  exact same shape and three push/pop sites as the other four
+  (`stmt_list`, and both fn-parameter scopes). Built at the same `let name
+  = @{...}` LITERAL site `field_alias_scopes`/`field_return_alias_scopes`
+  already inspect, but keyed only on fields whose OWN value is ANOTHER
+  `A.RecordLit` — for each such field, the inner literal's own
+  bare-NameRef fields are resolved through `_resolve_effectful_alias` the
+  exact same way a top-level literal's fields already are, producing a
+  dict-of-dicts: `{outer_field: {inner_field: tag-or-None}}`.
+  `_resolve_effectful_field_nested(name, outer_field, inner_field)`
+  mirrors the other four resolvers' innermost-first, first-frame-wins walk
+  on `name`, then two chained `.get`s (each individually guarded against a
+  missing or `None` intermediate result, the same way
+  `_resolve_effectful_field`/`_resolve_effectful_field_return` guard their
+  own single `.get`).
+- **`_check_effect_call` gained a fifth branch**: a callee that is an
+  `A.FieldAccess` whose own `.obj` is ITSELF an `A.FieldAccess` (rather
+  than a bare NameRef, the shape v0.14.4's branch already covers) whose
+  own `.obj` is a NameRef — i.e. the `outer.box.run` shape — resolves
+  through `_resolve_effectful_field_nested`, sitting alongside the
+  existing four branches, all five feeding the same `effects_stack`-
+  comparison logic unchanged. This is a genuinely NEW branch, not a
+  generalization of the existing field branch, because the existing
+  branch's guard (`callee.obj.__class__ is A.NameRef`) is a class check —
+  mutually exclusive with the new branch's guard by construction, so
+  there is no ordering hazard between the two.
+- **Shadowing is handled correctly, the same discipline v0.14.2/v0.14.3/
+  v0.14.4/v0.14.5/v0.14.6 established**: every `let`/named-`fn`/parameter
+  binding writes an explicit entry into ALL FIVE stacks (even `None`)
+  (`test_inner_record_of_same_name_shadows_outer_nested_field_alias`,
+  `test_param_named_like_outer_nested_field_alias_shadows_it`).
+- **Still deliberately narrow, same mold as v0.14.4/v0.14.6, and does NOT
+  generalize to arbitrary depth**: only an OUTER record built directly by
+  a `let`-LITERAL is tracked
+  (`test_nested_field_of_a_non_literal_outer_binding_is_not_tracked`); the
+  nesting stops at exactly ONE additional hop — a THIRD level
+  (`a.b.c.run(...)`) is not tracked by this stack at all, the callee shape
+  simply does not match the new branch's guard (`callee.obj.obj.__class__
+  is A.NameRef` requires the chain to bottom out in a bare name exactly
+  two `.field` hops up). A middle field whose value was never itself a
+  record literal correctly leaves the chain untracked
+  (`test_nested_field_where_middle_field_is_not_itself_a_record_literal`);
+  an inner field whose value is itself a call is also untracked, the same
+  "bare NameRef only" rule every level of this family applies
+  (`test_nested_field_value_that_is_itself_a_call_is_not_tracked`).
+  Passing a builtin as a FUNCTION ARGUMENT and the dynamic call graph
+  remain completely untouched, unchanged from v0.14.4/v0.14.5/v0.14.6's
+  own "still open" notes — this round is a deeper nesting of an EXISTING
+  building block (container fields), not a step toward either of those
+  two genuinely multi-round-scale items.
+- **Verification**: `tests/test_v14.py` 67/67 (was 58; 9 new tests: the
+  nested-field call itself [checked + granted], a non-effectful nested
+  field is not flagged, inner-record shadowing at the outer name, param-
+  name shadowing [with a real nested record passed at runtime], the
+  non-literal-outer-binding boundary, the middle-field-not-a-literal
+  boundary, a call-valued inner field is not tracked, one new three-way
+  differential pin). `languages/whence/run_tests_fast.sh` 897 passed/38
+  deselected (was 888; +9 matches `test_v14.py`'s own net delta exactly,
+  no other file's count moved). Full unfiltered `pytest tests/` also run
+  this round (`parser.stmt_list`/`statement` sit on every block-parse
+  path, not just effects-declared code): **935 passed in 382.40s**, zero
+  regressions.
+- **Guest parity**: same reasoning as v0.14.2 through v0.14.6, for the
+  same underlying cause — `print` is in `harness/swe/guest.py`'s `BANNED`
+  regex, so any guest-oracle fuzz program mentioning it anywhere is
+  short-circuited to `parse_error` before either interpreter runs it; not
+  something this round needed to re-verify.
+- **Fuzz coverage — same honest gap as v0.14.2 through v0.14.6, for the
+  same reason**: `harness/swe/fuzz.py`'s `ProgramGen` never emits a record
+  literal whose field value is itself ANOTHER record literal at all (let
+  alone one with a bare-NameRef `print` field nested inside it) — this
+  round's own trigger shape is exercised only by `tests/test_v14.py`'s
+  hand-authored cases, not the differential fuzz corpus. Fixing it needs a
+  new GENERATOR expression shape (a nested `@{...}` as a field value), not
+  a checker change — named here so a future round doesn't rediscover it as
+  a mystery, same as every prior round in this family. `harness/swe/
+  alias_effects.py`'s `ExtendedEffectGen` (round 281/287's independent
+  parse-time-VERDICT oracle) also does not yet cover this shape — a
+  natural next SWE-loop(D) round, same size/shape as round 287's own
+  v0.14.6 extension.
+
 ## v0.15 (round 168) — AI-native primitives: `guess`/confidence
 - **The curriculum's last open "advanced feature" slot** (structural types
   v0.12, return types v0.13, effects v0.14 all shipped; round 146 itself

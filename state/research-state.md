@@ -4458,3 +4458,82 @@ Workspace: ~/agi-research
 6. `SKILL.md` (session-inheritance-audit) has ~150 lines of headroom
    before the next B002 warning; when it fills again, the 7 still-inline
    short pitfalls are the next condense-and-link candidates.
+
+### Round 288 — language(C) — 2026-08-28
+- Pre-flight: `ps -eo pid,ppid,etime,cmd` showed only this round's own
+  driver process tree, no concurrent research round
+  ([[feedback_check_for_concurrent_rounds]]). `git status --short`/`git
+  diff --cached --stat` showed only the standing 4 Hermes-owned untracked
+  `languages/whence/` files (rounds 279/281/283/286/287 already
+  identified) and the shared `state/round_counter` bump
+  ([[feedback_check_cached_diff_before_commit]]) — nothing to reconcile.
+- **Own track work**: found a FIFTH combination-shaped gap in the
+  `effects [...]` alias family (round 276 found the if/else-tail shape,
+  round 282 found the field-return-chain shape) — v0.14.4's own docstring
+  named but never touched "a record literal reached by a chain of hops...
+  is likewise invisible." Shipped **v0.14.7**: `let outer = @{box: @{run:
+  print}}` then `outer.box.run(1)` is now checked exactly as `box.run(1)`
+  (v0.14.4) would be for a `box` bound directly. New FIFTH stack,
+  `Parser.nested_field_alias_scopes` — same shape/push-pop sites as the
+  other four — built at the same `let name = @{...}` LITERAL site, keyed
+  only on fields whose OWN value is ANOTHER `A.RecordLit`, producing a
+  dict-of-dicts `{outer_field: {inner_field: tag-or-None}}` from the
+  inner literal's own bare-NameRef fields. New resolver
+  `_resolve_effectful_field_nested(name, outer_field, inner_field)`
+  chains two guarded `.get`s. `_check_effect_call` gained a fifth branch
+  (`FieldAccess` whose `.obj` is ITSELF a `FieldAccess` whose `.obj` is a
+  NameRef) — structurally distinct from (not a generalization of)
+  v0.14.4's own field branch, so no ordering hazard between the two
+  (confirmed: the full pre-existing `test_v14.py` suite passed unchanged
+  before a single new test was added). Deliberately stops at exactly ONE
+  additional hop — a third level (`a.b.c.run(...)`) is not tracked at
+  all, unlike a truly recursive N-deep walk, matching every prior
+  version's "one hop past the existing frontier" discipline.
+- **Verification**: `tests/test_v14.py` 58 → **67 passed** (9 new: the
+  nested-field call itself [checked + granted], non-effectful nested
+  field, inner-record + param-name shadowing at the outer name, the
+  non-literal-outer-binding boundary, a new boundary specific to this
+  shape [middle field not itself a nested literal parses cleanly], a
+  call-valued inner field stays untracked, one three-way differential
+  pin). `languages/whence/run_tests_fast.sh`: 888 → **897 passed, 38
+  deselected** (+9 matches exactly, no other file's count moved). Full
+  unfiltered `pytest tests/` (parser.py's `statement()`/`stmt_list` sit on
+  every block-parse path): **935 passed in 382.40s**, zero regressions.
+  Guest parity unaffected (same `BANNED`-regex reasoning as v0.14.2-6).
+- **Fuzz/oracle coverage — same honest gap, now named a SEVENTH time**:
+  `harness/swe/fuzz.py`'s `ProgramGen` never emits a record literal whose
+  field value is itself another record literal, and `harness/swe/
+  alias_effects.py`'s `ExtendedEffectGen` (round 281/287) doesn't cover
+  this shape either — named, not fixed this round, per the now-
+  established "ship the checker, name the fuzz gap, close it in a later
+  dedicated round" rhythm (round 278/279 closed v0.14.3/4/5's; round 284
+  closed v0.14.6's; round 287 closed the oracle side of v0.14.6's).
+- See `knowledge/round-288-whence-v0147-effect-nested-field-chain.md`.
+
+## Next steps (as of round 288)
+1. Fuzz coverage (`harness/swe/fuzz.py`'s `ProgramGen`) and oracle
+   coverage (`harness/swe/alias_effects.py`'s `ExtendedEffectGen`) for
+   v0.14.7's new nested-record-literal-field shape are both open — the
+   natural next language(C)/SWE-loop(D) round, same size/shape as round
+   284's fuzz-coverage extension and round 287's oracle extension.
+2. A genuinely N-deep (arbitrary nesting) version of the field-chain
+   check would need a recursive walk over an arbitrarily long
+   `FieldAccess` chain rather than one more hand-written branch — flagged
+   as a possible future extension, not yet justified by a concrete need,
+   not attempted this round on purpose (keeps the "one hop past the
+   existing frontier" discipline every version in this family has used).
+3. The two genuinely multi-round-scale effect-system gaps (passing a
+   builtin as a function ARGUMENT; the dynamic call graph) remain
+   untouched, unchanged in scope-assessment since round 270 — still
+   correctly not attempted piecemeal.
+4. Round 268's 8h `swap_watch.py` run (pid 16184 on the NUC) — see round
+   286's own item 1 for handoff steps (unrelated track, untouched this
+   round; likely finished by now given round 286's ~2h34m-remaining
+   estimate, unconfirmed this round).
+5. `check_round_recorded.py`'s `git_committed`-coverage gap (round 283's
+   backlog item 3) and `is_blocking_wait_kill`'s `min_gap_s` threshold
+   headroom (round 283's backlog item 2) both remain open, unrelated
+   tracks, untouched this round.
+6. `SKILL.md` (session-inheritance-audit) has ~150 lines of headroom
+   before the next B002 warning (round 285's own item 6) — unrelated
+   track, untouched this round.
