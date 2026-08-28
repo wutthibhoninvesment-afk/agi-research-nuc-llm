@@ -2699,7 +2699,51 @@ Workspace: ~/agi-research
   "checking mid-round flags itself" behavior exactly).
 - See `knowledge/round-259-harness-round-229-sequence-gap.md`.
 
-## Next steps (as of round 259)
+### Round 260 — language(C) — 2026-08-28
+- **Setup**: no concurrent driver round (`ps aux` clean); the four
+  Hermes-owned untracked files unchanged since round 172/212/258's own
+  checks, left untouched. `run_tests_fast.sh` 842/38 matched every round
+  since 254 with no core-tree changes.
+- **Closed round 258's own next-steps item 4** (this file's prior "Next
+  steps" item 4): A/B'd `--mode steps-repro-ab` against `53113dc` (round
+  204, the last commit before round 206's `steps` guest-parity landed)
+  and the current worktree, run twice: before = OK, ~14s, ~111 MB peak
+  (steps() still failed fast at "unbound name" at this ref); after =
+  MEMORY_ERROR both runs, ~92-97s, pinned at the 600 MB cap.
+- **Bisected further** with a same-ref sanity measurement
+  (`--before-ref b7fe532 --after-ref b7fe532`, round 206's own commit
+  against itself): `self_eval.lang`'s guest library grew only 65050→66609
+  bytes (+2.4%) from round 204 to round 206, but peak memory jumped
+  111 MB → 557 MB (~5.1x) for that alone — round 206's own commit, in
+  isolation, already sits 29 MB under the 600 MB cap.
+- **Result: round 206's introduction of the guest `steps` builtin is the
+  actual memory cliff**, not source-size growth in general — the
+  mechanism (steps() switching from a cheap "unbound name" failure to
+  actually walking the full host-level provenance trace once real
+  dispatch exists) is now measured, not just asserted. This resolves the
+  apparent tension between round 254 ("cost has grown since 228") and
+  round 258 ("234/252's dispatch growth isn't measurable") without either
+  being wrong: both of round 258's A/B refs (`8da13c4`=228, worktree) were
+  already past round 206's cliff, so comparing them correctly found no
+  further cliff between them; round 206 alone (557 MB) leaves just enough
+  headroom under the 600 MB cap that 234/252's combined +18358 B (round
+  258's own number) is sufficient to tip the same repro over without being
+  individually measurable.
+- Added a "Round 260" paragraph to `bench/self_host_memscale.py`'s own
+  module docstring recording this bisection (no code-path changes —
+  docstring-only diff).
+- **Verification**: 4 live probes (2x round-204-vs-worktree, 1x
+  round-206-vs-itself = 2 subprocess runs), one backgrounded via
+  `Bash(run_in_background)`+`TaskOutput(block=true)` after an outer
+  `timeout 150` proved too short for two sequential 120s-capped probes
+  (exit 124) — rerun at `timeout 280`, completed at ~160s. Pre-existing
+  `--mode steps-repro` re-checked post-edit: `MEMORY_ERROR` 600572 KB/
+  97.09s, consistent with rounds 254/258's own range. `run_tests_fast.sh`
+  842/38 unchanged before and after (docstring-only edit, no test-visible
+  code touched).
+- See `knowledge/round-260-whence-steps-repro-ab-bisects-round-206-as-the-cliff.md`.
+
+## Next steps (as of round 260)
 1. NUC-integration(E): distinguish "swap growth has permanently stopped
    on this boot" from "just between increasingly rare bursts" — round 256
    found zero growth over a ~3h50m window (including a genuine 15-minute
@@ -2720,19 +2764,25 @@ Workspace: ~/agi-research
    acted on the next time it fires for a REAL gap (as opposed to a
    synthetic test) — 0 real gaps have fired as of round 259, so this is
    still unobserved.
-4. language(C): round 258 found dispatch-parity growth (rounds 234/252)
-   is NOT what drives the `steps()` cost floor. The natural follow-up is
-   an A/B against a pre-round-206 `self_eval.lang` commit (before the
-   guest `steps` builtin existed at all) using the same new
-   `--mode steps-repro-ab --before-ref <gitref>` tool — if THAT also
-   shows no measurable difference at a fixed cap, the leading hypothesis
-   becomes a fixed per-`run_src`-call overhead independent of library
-   content, not any specific builtin's introduction.
+4. language(C): round 260 pinpointed round 206's `steps` guest-builtin
+   introduction as the actual memory cliff (~111 MB → ~557 MB, a ~5.1x
+   jump, for a +2.4%-source-size commit) — closing the chain of
+   backlog items from rounds 254/258/260. The full 13-checkpoint sweep
+   (item 5 below) now has a firmer lower bound to budget from (~557 MB
+   just to clear round 206's own cliff, before any of 218/222/224's own
+   contributions). No further A/B is owed unless a future round wants to
+   bisect INSIDE round 206's own 27-line diff (not attempted — round
+   206's commit message already explains the mechanism: `steps()`
+   switches from failing at name resolution to actually walking the full
+   host provenance trace).
 5. The full 13-checkpoint `bench/self_host_memscale.py` sweep still needs
    a host with real headroom (order 3000-4000 MB, 600s/checkpoint) — round
    258 confirmed this box still doesn't have it (640 MB free, 2.2 GB
    available at round start); check `free -h` fresh before attempting,
-   don't trust this snapshot either.
+   don't trust this snapshot either. Round 260 adds a firmer floor to plan
+   against: round 206 alone already costs ~557 MB in the minimal repro,
+   so the full checkpoint-66 sweep's real number is bounded well below by
+   that, not by round 204's ~111 MB.
 6. SWE-loop(D): the guess-targeted campaign is complete at its original
    1000 target with zero open findings — no further segments owed. A
    larger re-run (2000+) would only be worth it after a future

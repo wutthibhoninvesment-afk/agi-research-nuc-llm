@@ -144,6 +144,39 @@ dispatch additions this program has been making since. Confirms
 `src=22908 B` inner-source byte count on both sides in every run is an
 internal consistency check the tool passed, not a coincidence.
 
+**Round 260**: closed round 258's own backlog item 1 -- an A/B against a
+pre-round-206 commit, to test whether round 206's *introduction* of the
+guest `steps` builtin (not the smaller per-round dispatch-parity diffs
+since, which round 258 already showed are in the noise) is the real
+cost-floor driver. Ran `--mode steps-repro-ab --before-ref 53113dc`
+(round 204, the last commit before round 206) against the current
+worktree, twice for noise: before = OK, 14.04s/14.51s, peak_kb=
+111076/111068 (~111 MB, comfortably finishes -- `steps()` on an unbound
+name still failed with a cheap "unbound name" miss at this ref, exactly
+as round 206's own commit message describes); after = MEMORY_ERROR both
+runs, elapsed 91.98s/97.11s, peak_kb=600196/600708 (pinned at the 600 MB
+cap, as expected once a run is capped). A third probe bisected further,
+comparing round 206's own commit (b7fe532) against itself (`--before-ref
+b7fe532 --after-ref b7fe532`, a same-ref sanity measurement, not a
+diff): eval_lib=66609 B (+1559 B / +2.4% over round 204's 65050 B --
+just the new dispatch branch's own code, nothing else), OK both runs,
+elapsed 79.58s/80.32s, peak_kb=570848/570852 (~557 MB). **So round 206's
+own +1559-byte diff alone moves the cost floor from ~111 MB to ~557 MB
+(a ~5.1x jump) with almost no source growth** -- conclusively locating
+the cost driver in `steps()` actually *executing* (walking the full
+host-level provenance trace once real dispatch replaces the old
+unbound-name failure) rather than in source size at all, and explaining
+why round 258's before/after (both already past round 206) saw no
+signal: both sides of that comparison were already on the far side of
+this cliff. Round 206's own ~557 MB figure sits close enough to the
+600 MB default cap that the later rounds' combined +18358 B growth
+(234/252, per round 258) is enough to tip the same repro over the cap
+without needing to be individually measurable against the noise floor --
+resolving the apparent tension between round 258 ("not a measurable
+driver") and round 254 ("has only grown since [206]") without either
+being wrong: 206 is the cliff, 234/252 are the last few MB that push an
+already-near-the-cap workload over it.
+
 usage: python3 bench/self_host_memscale.py [--cap-mb 1200] [--timeout 240]
                                            [--checkpoints 5,10,20,...]
        python3 bench/self_host_memscale.py --mode steps-repro
