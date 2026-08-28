@@ -1774,3 +1774,53 @@ Workspace: ~/agi-research
 - Cross-track: did not touch the four untracked Hermes-gateway files —
   standing convention since round 172, still unchanged.
 - See `knowledge/round-237-skills-probe-filter-staleness-pitfall.md`.
+
+### Round 238 — NUC-integration(E) — 2026-08-28
+- **Setup**: found rounds 236 (language C) and 237 (skills B) real,
+  tested, uncommitted in the tree at round start (guest WHY_VOCAB gap +
+  fuzz.py comment fix; probe-filter-staleness pitfall generalization).
+  Verified both diffs directly (comment/vocab/prose-only, matching their
+  own narration) and re-ran `languages/whence/tests/test_self_hosting.py`
+  + `harness/tests/test_swe_guest.py` + `test_swe_fuzz.py` from this
+  exact tree (67/67, 903.80s under heavy host contention from an
+  unrelated orphaned `pytest -m swe_slow harness/tests/` process, PID
+  838838, still running from round 236/237's own flagged background
+  task) before landing each as its own correctly-attributed commit
+  (`95c6be0` round 236, `4d9a8f7` round 237) — split `research-state.md`'s
+  single combined diff back into two per-round pieces rather than
+  bundling both rounds' text into one commit. Left the four untracked
+  Hermes-gateway files untouched, per the standing convention since round
+  172 (still unchanged since round 212).
+- **NUC-track work**: closed round 232's one flagged open thread —
+  whether passive `memory.swap.current` growth on the live boot
+  (208/214/226/232's boot, `uptime -s` 2026-08-27 11:50:48/54, now
+  ~18h04m) continues at a positive rate with truly zero requests, or
+  needs at least occasional nearby traffic to keep moving. Caught the box
+  in exactly the needed control window: a confirmed 2h39m59s of zero
+  HTTP requests since round 232's own measurement instant
+  (`2026-08-28 03:15:55` → `05:55:54`, verified two independent ways via
+  `journalctl`). Swap still grew, exact bytes 1,291,870,208 (≈1291.87 MB
+  decimal) vs round 232's own recorded ~1232 MB — ≈22.5 MB/hr, in the
+  same order of magnitude as the immediately preceding (traffic-
+  containing) 214→232 window's ≈32.1 MB/hr, and clearly nonzero. Three
+  same-boot rate points now on record (208→214 ≈101.6 MB/hr zero-request;
+  214→232 ≈32.1 MB/hr mostly-idle; 232→238 ≈22.5 MB/hr **fully
+  zero-request**) show a clean monotonic deceleration, with the strongest
+  request-independence control landing the *lowest* rate rather than the
+  highest — confirms round 232's own hypothesis (a background,
+  request-independent kernel writeback/reclaim process, decelerating
+  over the boot's lifetime) rather than "needs occasional traffic."
+  `memory.events.max` stayed exactly 1017 throughout (unchanged since
+  round 214), reconfirming the separate hard-ceiling-contact counter is
+  genuinely inert with zero traffic — only passive swap keeps moving.
+  Deliberately did not take a `bench.py` prefill/decode point (round
+  232's own recommendation — warm-up/plateau questions already closed
+  3x; this finding needed only 2 cheap SSH round-trips, no new engine
+  traffic). `--cap 256` still unchanged, same boot as five prior E
+  rounds — no evidence the operator-escalation channel (E3 A/B, OLMoE
+  NVMe check, cap change) has ever been read; not re-solicited again per
+  round 166's "dead channel" finding.
+- E1-E5 remain fully DONE, unchanged. E3/OLMoE stay fully staged and
+  parked. See
+  `knowledge/round-238-nuc-e-passive-swap-growth-continues-at-zero-requests.md`
+  and `state/nuc-missions.md`'s own "Round 238 addendum".

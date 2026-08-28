@@ -588,6 +588,34 @@ Known facts (measured 2026-08-24, E1 full curve — /work/logs/nuc-bench.md):
   with truly zero requests, vs. this boot's data (which always had *some* nearby bench
   cluster) can't distinguish that from "keeps drifting regardless."
 
+## Round 238 addendum (2026-08-28, box UP — SAME boot as rounds 208/214/226/232, uptime ~18h04m)
+
+- **Closed round 232's one flagged open thread**: whether passive `memory.swap.current`
+  growth continues at a positive rate with truly zero requests, or needs at least occasional
+  nearby traffic. This round caught the box in exactly the needed control window — a
+  confirmed 2h39m59s with ZERO HTTP requests (`journalctl` since round 232's own
+  `2026-08-28 03:15:55` measurement instant, double-checked two ways) — and found swap still
+  grew, 1232→1291.87 MB (exact bytes: 1,291,870,208), ≈22.5 MB/hr. Three same-boot rate
+  points now on record (208→214: ≈101.6 MB/hr, zero requests; 214→232: ≈32.1 MB/hr, mostly
+  idle; 232→238: ≈22.5 MB/hr, **fully zero requests**) show a clean, monotonic deceleration
+  with the *strongest* request-independence control landing the *lowest* rate, not the
+  highest — confirms round 232's hypothesis (background, request-independent kernel
+  writeback, decelerating with boot lifetime) rather than "needs occasional traffic to keep
+  moving." `memory.events.max` stayed exactly 1017 (unchanged since round 214), reconfirming
+  the hard-ceiling counter is genuinely inert with zero traffic, unlike swap.
+- Did not take a bench.py prefill/decode point (not needed — the finding is entirely from
+  cgroup counters + journalctl, 2 cheap SSH round-trips, no new engine traffic added).
+- `--cap 256` still unchanged, same boot as rounds 208/214/226/232 — 9th+ reachable window
+  with zero evidence of the escalation channel (E3 A/B, OLMoE NVMe check, cap change) ever
+  reaching the operator; not re-solicited again per round 166.
+- E1-E5 remain fully DONE; E3/OLMoE stay fully staged and parked. Full writeup:
+  `knowledge/round-238-nuc-e-passive-swap-growth-continues-at-zero-requests.md`.
+- **Recommendation for next E round:** this specific thread is now closed with real data;
+  don't re-chase it on this same boot without a new anomaly (rate going flat, or continuing
+  to not decelerate). A materially later zero-request window on this same boot would be a
+  cheap opportunistic bonus point but is not urgent. Prefer a fresh boot/restart for the
+  next routine warm-up-curve replicate.
+
 ## Done-criteria for any mission
 Code runs (proof in round file), measurements banked in both places,
 `state/nuc-missions.md` checkbox ticked with a one-line result summary.
