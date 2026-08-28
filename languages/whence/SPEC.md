@@ -1,4 +1,4 @@
-# Whence — a provenance-first language (spec v0.16.6, rounds 009/011/014/020/024/026/030/108/110/122/128/132/146/164/168/204/206/210/216/218/222/224)
+# Whence — a provenance-first language (spec v0.16.6 + v0.14.1, rounds 009/011/014/020/024/026/030/108/110/122/128/132/146/164/168/204/206/210/216/218/222/224/264)
 
 **One idea:** every value remembers where it came from. `why x` returns the
 derivation tree of `x` as a first-class value. Failures are values too, so a
@@ -854,9 +854,82 @@ that cannot end a statement.
   file then parses and evaluates identically on both sides. Not fixed
   this round — it is a lexer-level design choice, not a two-line parser
   patch, and touches every multi-line-continuation position the host
-  supports, not just `check`. Tracked as fresh backlog (see
-  research-state.md's language(C) list) rather than rushed behind this
-  round's actual deliverable.
+  supports, not just `check`. Tracked as fresh backlog at the time; closed
+  by round 192 (`test_effects_lang_runs_under_the_guest_round_164_
+  backlog_closed`, confirmed still closed by round 230's re-check) —
+  this paragraph previously read "tracked as fresh backlog" past that
+  fix, corrected here (round 264).
+
+## v0.14.1 (round 264) — effect system: nested fns inherit lexically
+- **Closes the first of v0.14's two documented "deliberately SHALLOW"
+  gaps** (see the two bullets above): "a nested `fn` defined inside a
+  restricted body is a separate closure with its own (absent, hence
+  unrestricted) declaration" — a clause-less nested fn could print freely
+  even lexically inside an `effects []` function, an escape hatch v0.14
+  called out and `examples/effects.lang`'s `strict_sum` demonstrated on
+  purpose. Closed by making a fn with NO clause of its own **inherit its
+  nearest enclosing fn's already-resolved effect scope** instead of
+  defaulting to unrestricted — pure lexical scoping, not a call-graph
+  analysis.
+- **Mechanism:** `Parser._resolve_effects_scope(own_spec)` — `own_spec`
+  (the fn's own `parse_effects_clause()` result, `None` if absent) wins
+  if not `None`; otherwise the CURRENT top of `self.effects_stack` is
+  reused. Both push sites (`fn name(...)` statements and anonymous
+  `fn(...) {...}` expressions) call this before pushing, so `_check_
+  effect_call` itself needed no change — `effects_stack[-1]` is already
+  the fn's fully resolved scope by the time any call inside its body is
+  checked. Because inheritance only ever reads an ALREADY-pushed frame,
+  a top-level fn (`effects_stack` empty) with no clause still resolves to
+  `None` (unrestricted) exactly as before — no behavior change for any
+  program that never nests an `effects`-relevant fn.
+- **An explicit clause on the nested fn still always overrides the
+  inherited scope, in either direction** — narrower, broader, or
+  unrelated — the same "one settle point, explicit always wins" rule
+  return types (v0.13) already established. This is why
+  `test_nested_undeclared_fn_escapes_outer_purity` (an inner fn that
+  explicitly declares its OWN `effects [io]` inside an outer `effects
+  []`) is unchanged and still passes: it was never testing the
+  clause-LESS case this round closes, only that an explicit declaration
+  is independent of its lexical parent.
+- **`examples/effects.lang`'s `strict_sum` updated to match**: its nested
+  `debug_print` (previously clause-less, printing "for free" inside a
+  pure outer fn) now declares its own `effects [io]` explicitly — the
+  file's own comment rewritten to demonstrate the new default
+  (inheritance) alongside the still-available explicit opt-out, instead
+  of celebrating the now-closed implicit escape.
+- **Still open, unaffected by this round** (the second v0.14 gap):
+  passing a builtin as a value (`let p = print`) and calling THAT is
+  still invisible to the check — `_check_effect_call` only inspects a
+  literal `NameRef` callee, and this is fundamentally a value-flow
+  question, not a lexical-scoping one, so it needs a different mechanism
+  entirely. Also still open: a fn calling a DIFFERENT, unrestricted
+  top-level fn that itself performs the effect — only LEXICAL nesting is
+  tracked now, not the dynamic call graph. A full call-graph-aware
+  (transitive) effect system closing both remains future work.
+- **Verification:** `tests/test_v14.py` 20/20 (was 18; one test rewritten
+  from `all_ok` to `pytest.raises(ParseError)` since its own assertion
+  flipped, two new tests added: a granting-scope inheritance case and a
+  two-level inheritance-chains-transitively case).
+  `languages/whence/run_tests_fast.sh` 850 passed/38 deselected (was 842
+  before landing round 263's own lexer mutation-testing work in a
+  separate commit first; +8 = round 263's own +7 lexer tests +1 net from
+  this round's test_v14.py changes). Full `pytest tests/` (background,
+  no `-m` filter) **888 passed in 819.79s**. `examples/effects.lang`
+  re-run directly: all 4 checks pass, output unchanged in spirit (the
+  nested "(debug)" prints still happen, now via an explicit clause).
+  Guest parity needed NO change and was re-verified, not just assumed:
+  `harness/swe/guest.py`'s guest evaluator (`self_eval.lang`) never
+  enforced `effects [...]` at all — round 164's own header comment says
+  so explicitly ("skip-and-ignore, not enforce") — so this is a HOST-only
+  parse-time change; a program the host newly rejects surfaces as the
+  already-handled `parse_error` oracle outcome
+  (`harness/swe/guest.py::oracle_self_eval` returns early on a host
+  `ParseError`, never reaching the host-vs-guest value comparison, so it
+  cannot manufacture a false differential mismatch) — cross-checked
+  directly against `harness/swe/fuzz.py`'s `ProgramGen`, which DOES
+  generate exactly this shape (a clause-less anonymous `fn(...)` 70% of
+  the time, nestable inside an `effects [...]`-declared outer fn via
+  `expr`/`fnlike`), confirming this isn't a theoretical-only path.
 
 ## v0.15 (round 168) — AI-native primitives: `guess`/confidence
 - **The curriculum's last open "advanced feature" slot** (structural types

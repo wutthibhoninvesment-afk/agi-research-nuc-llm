@@ -56,12 +56,17 @@ class Parser(object):
         # forward refs — the field's spec value must already be bound at
         # the point a later shape's record literal reads it by name).
         self.shapes = {}
-        # Effect system (v0.14): stack of the nearest enclosing fn's
-        # `effects [...]` declaration while parsing its body — a frozenset
-        # (possibly empty, i.e. `effects []` = "no effects allowed"), or
-        # None for a fn with no clause (unrestricted). Empty stack (module
-        # top level, outside any fn) behaves exactly like a None top: no
-        # program written before this feature existed changes behavior.
+        # Effect system (v0.14/v0.14.1): stack of the nearest enclosing fn's
+        # RESOLVED `effects [...]` scope while parsing its body — a
+        # frozenset (possibly empty, i.e. `effects []` = "no effects
+        # allowed"), or None (unrestricted). "Resolved" means a fn with its
+        # own clause pushes exactly that; a fn with NO clause of its own
+        # pushes the CURRENT top of this same stack (`_resolve_effects_
+        # scope`), i.e. lexical inheritance, not always None. Empty stack
+        # (module top level, outside any fn) still behaves exactly like a
+        # None top: no program written before v0.14 existed changes
+        # behavior, since inheritance only ever reads an already-pushed
+        # frame.
         self.effects_stack = []
 
     def _enter(self):
@@ -139,7 +144,7 @@ class Parser(object):
             params, types = self.param_list()
             effects_spec = self.parse_effects_clause()
             ret_type = self.parse_return_type()
-            self.effects_stack.append(effects_spec)
+            self.effects_stack.append(self._resolve_effects_scope(effects_spec))
             try:
                 body = self.block()
             finally:
@@ -233,6 +238,23 @@ class Parser(object):
         self.expect("]")
         return frozenset(names)
 
+    def _resolve_effects_scope(self, own_spec):
+        """v0.14.1 (round 264): a fn with NO clause of its own (`own_spec is
+        None`) lexically inherits the nearest enclosing fn's OWN resolved
+        scope, rather than defaulting to unrestricted — closing the
+        "nested fn escapes outer purity" gap v0.14 shipped as a documented,
+        deliberate limitation (see SPEC.md "v0.14.1"). A fn WITH its own
+        clause (empty or not) always uses exactly that clause, ignoring the
+        enclosing scope entirely — an explicit declaration is still the one
+        settle point that fully determines a function's own contract, the
+        same "explicit always wins" rule v0.13 return types use. Top-level
+        fns (module scope, `effects_stack` empty) are unaffected either
+        way: `own_spec is None` there resolves to `None` (unrestricted),
+        exactly as before this round."""
+        if own_spec is not None:
+            return own_spec
+        return self.effects_stack[-1] if self.effects_stack else None
+
     def _check_effect_call(self, callee, tok):
         """Effect system (v0.14): a direct call `name(...)` to a builtin in
         `_EFFECTFUL_BUILTINS` is checked against the nearest enclosing fn's
@@ -252,8 +274,14 @@ class Parser(object):
         check — the declaration only vouches for the function's own
         textual body, exactly as far as a return-type check only vouches
         for the one settle point it's applied to. A real call-graph-aware
-        (transitive) effect system is future work, not this round's scope;
-        see SPEC.md "v0.14" for the honest limitation and an example."""
+        (transitive) effect system tracking effects THROUGH an arbitrary
+        call (not just lexical nesting) is future work, not this round's
+        scope; see SPEC.md "v0.14"/"v0.14.1" for the honest remaining
+        limitation and an example. `self.effects_stack[-1]` is already the
+        fn's fully RESOLVED scope by the time this runs — a nested fn with
+        no clause of its own inherited its enclosing scope in
+        `_resolve_effects_scope` at push time (v0.14.1, round 264), so this
+        method itself needed no change to pick that up."""
         if callee.__class__ is not A.NameRef:
             return
         tag = _EFFECTFUL_BUILTINS.get(callee.name)
@@ -542,7 +570,7 @@ class Parser(object):
             params, types = self.param_list()
             effects_spec = self.parse_effects_clause()
             ret_type = self.parse_return_type()
-            self.effects_stack.append(effects_spec)
+            self.effects_stack.append(self._resolve_effects_scope(effects_spec))
             try:
                 body = self.block()
             finally:
