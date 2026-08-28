@@ -43,6 +43,37 @@ script's own safety property (a capped subprocess degrades to a clean
 MemoryError, never a system-wide OOM) does not extend to choosing a cap
 bigger than the box can actually back.
 
+**Round 228: the 1200 MB cap is now stale again and this script has NOT
+been re-run to find its replacement — treat any run against the current
+`self_eval.lang` as likely to MemoryError at or before checkpoint 47.**
+Round 227 measured a real but modest (~27%) tax from round 224's own 2
+new dispatch branches (`matches`/`shapeof`) at matched CPU-time
+checkpoints, using an isolated repro rather than this script (this host's
+contention made a real run of this script itself impractical that
+round). Round 228 went one step further with a DIFFERENT isolated repro
+(no self_host.lang test-section checks at all, just the library load
+plus a single trivial `steps(miss "x")` call — strictly less prior work
+than even checkpoint 46) and found that alone reaches >1.35 GB RSS and is
+still climbing near-linearly with no plateau after 5 minutes of
+wall-clock, on a 1-CPU host — already exceeding this file's documented
+checkpoint-47 number (690 MB) and closing in on its full-66-check number
+(1072 MB) using a fraction of the prior work. Root cause (see
+`tests/test_self_hosting.py`'s module docstring for the full writeup):
+`steps()` walks self_eval.lang's ENTIRE store-threaded interpretation
+trace once the library is loaded, not just the target value's own
+derivation, so its cost tracks cumulative dispatch-table/library growth
+across every round that adds a guest-parity builtin (206, 218, 222,
+224 all compound here), not just the round that most recently touched
+this file. A full re-sweep needs a materially higher cap (order 3000-
+4000 MB, not the current 1200 MB) and longer per-checkpoint timeout
+(order 600s, not 240s) — not attempted this round: repeating a multi-GB,
+multi-minute-per-checkpoint probe across all 13 checkpoints on this
+specific shared, heavily-contended host was judged not worth the
+risk/cost for a number that will go stale again the next time this
+builtin surface grows. Whoever next touches this file should re-derive
+fresh rather than trust either the 700 MB, 1200 MB, or any number implied
+above.
+
 Checkpoint 66's own elapsed time is noisy under real box contention (round
 216 saw it range from 112 s to a 150 s timeout across consecutive runs a
 few minutes apart, same code, same cap) — the default 240 s timeout leaves
