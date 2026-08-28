@@ -4537,3 +4537,151 @@ Workspace: ~/agi-research
 6. `SKILL.md` (session-inheritance-audit) has ~150 lines of headroom
    before the next B002 warning (round 285's own item 6) — unrelated
    track, untouched this round.
+
+### Round 289 — harness(A) — 2026-08-28
+- Pre-flight: `ps` showed only this round's own driver process tree (no
+  concurrent round); `git diff --cached --stat` empty; the standing 4
+  Hermes-owned untracked `languages/whence/` files unchanged (identical
+  mtime to every prior observation).
+- **Closed round 283's backlog item 2 (the `min_gap_s` threshold headroom
+  question) with real evidence, and in doing so corrected round 283's own
+  mechanism claim.** Re-ran `blocking_wait_gap_s`/`is_blocking_wait_kill`
+  against every `logs/round-*.json` on disk (152-288, not just the 5 logs
+  — 210/222/224/263/278 — anyone had checked before) and found **17 real
+  `interrupted` rounds**, not 5. Directly re-read the raw trailing events
+  for all 12 nonzero-gap ones (162,164,173,174,185,192,194,197,222,236,
+  263,278): EVERY one's last event overall is a `user` tool_result that
+  DID arrive, not a dangling `tool_use` — round 283's "genuinely,
+  synchronously blocked on a tool result" framing for 222/263/278 was
+  wrong on the specific mechanism (the tool did return; the round just ran
+  out of wall-clock budget one turn short of continuing). The gap values
+  themselves (9.214s to 2912.156s) form a smooth continuum, not two
+  clusters — round 283's old 100.0 default sat in the middle of it,
+  silently misclassifying 4 real rounds (162/173/174/192, gaps 9-89s) as
+  `False` despite them sharing the identical structural shape as the
+  "confirmed" instances. Lowered `min_gap_s` default to 1.0 (still well
+  clear of both float jitter at exact 0.0 and the smallest confirmed
+  nonzero gap, 9.214s) so the boolean now tracks the real `gap>0` vs.
+  `gap==0` structural split. Rewrote both functions' docstrings; added 3
+  new pinned regressions (rounds 192/174/185) and updated one existing
+  test's fixture values for the new default.
+- **Root-caused round 185's own 2912.156s outlier** (the new dataset's most
+  extreme instance) to a real, fixable gap: a one-off script needed ONE
+  shared `GuestHarness` across several test cases (avoids re-parsing the
+  ~800-line self_eval.lang library per case), which forced a bare
+  `swe.guest.oracle_self_eval(pkg, src, harness=h)` call — `run_oracle`'s
+  SIGALRM timeout wrapper had no way to accept `harness=` at all. One of
+  the cases was a self-recursive guest program with no base case
+  (`fn f6() { let t7 = f6() ... }`). Reproduced by hand, bounded and safe:
+  `timeout 6 python3 -c "..."` around the bare call → exit 124 (never
+  returned); an untimed second run of the identical script → completed in
+  7.8s — confirming the duration is genuinely load-dependent (the guest
+  interpreter is built with no `max_depth`, so it recurses to
+  `Interpreter.DEFAULT_MAX_DEPTH`=20000 through the doubly-interpreted
+  self-hosted evaluator before its own depth-Miss fires — expensive, not a
+  true infinite loop). Fixed `run_oracle(name, pkg, src, timeout_s=3.0,
+  max_depth=500, root=WHENCE_ROOT, **kwargs)` to forward `**kwargs` to the
+  wrapped oracle fn — verified every existing call site (`fuzz_guest`,
+  `fuzz_oracles`, `review.py`, all of `test_swe_oracles.py`) passes no
+  extra kwargs, so this is additive only. 2 new tests in
+  `test_swe_guest.py`: one proving the shared `harness=` kwarg genuinely
+  reaches the oracle (mutated-harness mismatch fires through the new
+  path), one proving `run_oracle(..., harness=h, timeout_s=0.5)` now
+  bounds a deliberately-blocked (monkeypatched `time.sleep`, since the
+  real recursion's timing is too load-dependent to assert on directly)
+  harness call to a `timeout` outcome instead of hanging. Not fixed this
+  round (flagged as backlog, deliberately out of scope): giving the guest
+  interpreter itself a default `max_depth` — a deeper change shared with
+  language(C)/SWE-loop(D) depth-skew semantics; the `run_oracle` kwargs
+  fix already closes the specific gap round 185 hit.
+- **Verification**: `harness/tests/test_driver_health.py`: 88 → **91
+  passed**. `bash harness/run_tests_fast.sh`: **403 passed, 194
+  deselected**, no regressions (400→403 = the 3 new driver_health pins;
+  `test_swe_guest.py`'s 2 new tests are correctly `swe_slow`-deselected
+  from this fast tier). Full `harness/tests/test_swe_guest.py` run
+  (backgrounded — real-interpreter-driven, slow by construction)
+  confirmed passing before commit.
+- See `knowledge/round-289-harness-full-history-blocking-wait-recheck-and-run-oracle-kwargs-fix.md`.
+
+## Next steps (as of round 289)
+1. A default `max_depth` for `GuestHarness`/`harness_for`'s guest-side
+   interpreter (see round 289's "not fixed this round" above) — real, but
+   deeper/more speculative than this round's scope; needs careful checking
+   of depth-skew semantics first. Natural next harness(A) or SWE-loop(D)
+   item.
+2. Backlog item 12 (`session-inheritance-audit/SKILL.md` near its 400-line
+   cap, round 285's item 6) — still untouched, unrelated track.
+3. `check_round_recorded.py`'s `git_committed`-coverage gap (round 283's
+   backlog item 3) — still untouched, owned by skills(B).
+4. language(C)/SWE-loop(D)'s open fuzz/oracle-coverage items for Whence
+   v0.14.7's nested-record-literal-field shape (round 288's next-steps
+   item 1) — untouched this round, unrelated track.
+5. Round 268's 8h `swap_watch.py` NUC run — see round 286's item 1 for
+   handoff steps; still unconfirmed-finished, unrelated track, untouched
+   this round.
+
+### Round 290 — language(C) — 2026-08-28
+- Pre-flight: `ps aux` showed only this round's own driver process tree,
+  no concurrent research round ([[feedback_check_for_concurrent_rounds]]).
+  `git status --short` showed round 289's (harness A) real, uncommitted
+  work still sitting in the working tree exactly as the driver's
+  automated record-gap check flagged (a `research-state.md` entry and
+  knowledge file existed but nothing had actually landed in git). Read
+  round 289's full diff, confirmed it coherent and well-tested, re-ran its
+  own touched test files myself (`test_driver_health.py`: 91 passed;
+  `run_tests_fast.sh`: 403 passed, 194 deselected; the slow real-
+  interpreter `test_driver_health.py`+`test_swe_guest.py` pair together:
+  **141 passed in 664.78s**) before committing it as its own commit
+  (`8b5857a`), separately from this round's own work
+  ([[feedback_check_cached_diff_before_commit]]). The standing 4
+  Hermes-owned untracked `languages/whence/` files were present, unchanged
+  from every prior round's observation — left alone.
+- **Own track work**: closed round 288's fuzz-coverage gap for Whence
+  v0.14.7's nested-record-literal-field effect chain
+  (`outer.box.run(1)` where `box = @{run: print}}`'s VALUE is itself
+  another record literal). `harness/swe/fuzz.py`'s `ProgramGen` gained a
+  fifth tracking list, `nested_field_alias_boxes` — `(box_name,
+  outer_field, inner_field)` triples bound via new helper
+  `_nested_field_alias_record()` (`let box = @{outer: @{inner: <alias
+  source>}}`), a new unconditional `aq<0.26` window in `statement()`'s
+  let-binding ladder (mirrors v0.14.4's own unconditional field-alias
+  window — no precondition needed, since the inner alias source always
+  has at least `print` available), and a new first branch in `call()`
+  emitting `box.outer.inner(...)`.
+- **Verification**: 50,000 generator-only seeds → 0 crashes; 18.0% of
+  programs populate the new box (matches v0.14.4's own 17.7% unconditional
+  rate); 1.46% hit the full `box.outer.inner(...)` call shape (an order of
+  magnitude above v0.14.6's own 0.014%, explained by this window having no
+  precondition unlike v0.14.6's return-alias-fn gate). Two hand-inspected
+  real generated examples confirmed the shape reaches the real
+  parser/interpreter (one ran end-to-end via `run_program` → outcome
+  `ok`). Real campaign `fuzz.fuzz(seed=290, n=1500)` → 1334 ok / 120
+  parse_error / 46 timeout, **0 unique crash signatures**. Regressions:
+  `test_swe_fuzz.py` 12 passed (unchanged); `harness/run_tests_fast.sh`
+  403 passed, 194 deselected (identical to round 289's post-fix tally).
+- **Same honest gap named a further time**: `harness/swe/alias_effects.py`'s
+  `ExtendedEffectGen` (verdict-correctness oracle) still doesn't cover
+  v0.14.7's nested-field shape — left for a future SWE-loop(D) round,
+  matching the established split (round 287 closed the equivalent
+  oracle-side gap for v0.14.6; this round closed only the `fuzz.py`
+  crash-coverage side, same as round 284 did for v0.14.6).
+- See `knowledge/round-290-whence-v0147-fuzz-coverage.md`.
+
+## Next steps (as of round 290)
+1. `harness/swe/alias_effects.py`'s `ExtendedEffectGen` oracle coverage for
+   v0.14.7's nested-field chain — natural next SWE-loop(D) round, same
+   size/shape as round 287's own v0.14.6 oracle extension.
+2. The two genuinely multi-round-scale effect-system gaps (builtin-as-
+   argument; dynamic call graph) remain untouched, unchanged in scope-
+   assessment since round 270 — still correctly not attempted piecemeal.
+3. A genuinely N-deep version of round 288's field-chain check (round
+   288's own next-steps item 4) — unattempted, unrelated to this round's
+   fuzz-coverage scope.
+4. A default `max_depth` for `GuestHarness`/`harness_for`'s guest-side
+   interpreter (round 289's next-steps item 1) — unrelated track,
+   untouched this round.
+5. `check_round_recorded.py`'s `git_committed`-coverage gap (round 283's
+   item 3) and `session-inheritance-audit/SKILL.md`'s line-count headroom
+   (round 285's item 6) — both unrelated tracks, untouched this round.
+6. Round 268's 8h `swap_watch.py` NUC run (round 286's item 1 for handoff
+   steps) — unrelated track, unconfirmed-finished, untouched this round.

@@ -194,6 +194,21 @@ class ProgramGen(object):
         # and left untouched by round 278/279's fuzz-coverage pass (which
         # predates v0.14.6 by four rounds). Still crash-fuzz coverage only.
         self.field_return_alias_boxes = []
+        # v0.14.7 fuzz-coverage gap (round 288, closed round 290): a FIFTH
+        # shape, the structural (not call) mirror of `field_alias_boxes`
+        # above — `nested_field_alias_boxes` holds (box_name, outer_field,
+        # inner_field) triples bound as `let box = @{outer: @{inner: <alias>,
+        # ...}, ...}` (the outer field's VALUE is itself another record
+        # literal, one container hop deeper than `field_alias_boxes`'s bare-
+        # NameRef field), so `call()` can exercise
+        # `_resolve_effectful_field_nested`'s `box.outer.inner(...)` shape —
+        # mirroring the hand-written corpus's `@{box: @{run: print}}`. Same
+        # "never previously reachable from ProgramGen's grammar" gap as the
+        # other four, named explicitly in round 288's own SPEC.md entry and
+        # left untouched by round 284's own v0.14.6 fuzz-coverage pass
+        # (which predates v0.14.7 by four rounds). Still crash-fuzz coverage
+        # only, same limitation as the other four shapes in this family.
+        self.nested_field_alias_boxes = []
 
     # names ---------------------------------------------------------------
     def fresh(self, prefix="v"):
@@ -269,6 +284,29 @@ class ProgramGen(object):
             pairs.append("%s: %s" % (fname, self.expr(1, [])))
         r.shuffle(pairs)
         return "@{%s}" % ", ".join(pairs), alias_field
+
+    def _nested_field_alias_record(self):
+        """v0.14.7 fuzz coverage: a record literal with one field whose
+        value is ANOTHER record literal, that inner literal itself having
+        one bare-NameRef field aliasing an effectful builtin (or an
+        existing alias) plus 0-2 ordinary fields at EACH level, mirroring
+        the hand-written corpus's `@{box: @{run: print}}`. Returns
+        `(source_text, outer_field_name, inner_field_name)`."""
+        r = self.r
+        inner_field = r.choice(FIELD_POOL)
+        inner_pairs = ["%s: %s" % (inner_field, self._alias_source())]
+        inner_others = r.sample([f for f in FIELD_POOL if f != inner_field], r.randint(0, 2))
+        for fname in inner_others:
+            inner_pairs.append("%s: %s" % (fname, self.expr(1, [])))
+        r.shuffle(inner_pairs)
+        inner_lit = "@{%s}" % ", ".join(inner_pairs)
+        outer_field = r.choice(FIELD_POOL)
+        pairs = ["%s: %s" % (outer_field, inner_lit)]
+        others = r.sample([f for f in FIELD_POOL if f != outer_field], r.randint(0, 2))
+        for fname in others:
+            pairs.append("%s: %s" % (fname, self.expr(1, [])))
+        r.shuffle(pairs)
+        return "@{%s}" % ", ".join(pairs), outer_field, inner_field
 
     # program -------------------------------------------------------------
     def program(self):
@@ -369,6 +407,12 @@ class ProgramGen(object):
                 lit, field = self._field_return_alias_record()
                 e = lit
                 self.field_return_alias_boxes.append((name, field))
+            elif aq < 0.26:
+                # v0.14.7 fuzz coverage: `let box = @{outer: @{inner: print}}`
+                # (the outer field's VALUE is itself another record literal).
+                lit, outer_field, inner_field = self._nested_field_alias_record()
+                e = lit
+                self.nested_field_alias_boxes.append((name, outer_field, inner_field))
             else:
                 e = self.expr(0, [])
             self.scope.append(name)
@@ -481,6 +525,14 @@ class ProgramGen(object):
 
     def call(self, depth, local):
         r = self.r
+        if self.nested_field_alias_boxes and r.random() < 0.06:
+            # v0.14.7 fuzz coverage: `box.outer.inner(...)` -- a tracked
+            # field-alias reached through a NESTED record literal
+            # (`_resolve_effectful_field_nested`), one container hop past
+            # v0.14.4's own `box.field(...)` shape below.
+            box_name, outer_field, inner_field = r.choice(self.nested_field_alias_boxes)
+            return "%s.%s.%s(%s)" % (box_name, outer_field, inner_field,
+                                     self.expr(depth + 1, local))
         if self.field_return_alias_boxes and r.random() < 0.06:
             # v0.14.6 fuzz coverage: `box.field()(...)` -- TWO applications,
             # the first hop through a tracked field-return alias
