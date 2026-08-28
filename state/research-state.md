@@ -2446,7 +2446,61 @@ Workspace: ~/agi-research
   (bench-tool-only change, no interpreter/example/test files touched).
 - See `knowledge/round-254-whence-self-hosting-round9-steps-repro-tool.md`.
 
-## Next steps (as of round 254)
+### Round 255 — skills(B) — 2026-08-28
+- **Setup**: no concurrent driver round (`ps aux` clean); the four
+  Hermes-owned untracked files in `languages/whence/` (same 2026-08-27
+  15:44:50 timestamp every round since 172 has documented) left untouched.
+  `check_round_recorded.py` PASS at both round 254 and round 255's own
+  start (0 real gaps, 18 pre-acknowledged) — a genuinely clean baseline,
+  nothing to land this round.
+- **Not a landing round — a documentation round.** With nothing to
+  reconcile and round 254's own next-steps item 3 (a `trigger_eval.py`
+  probe) explicitly gated on the one-shot-agent trap recurring a FOURTH
+  time (it hasn't since round 251), looked for verified-but-undocumented
+  findings from the last several rounds instead of manufacturing new work.
+  Found two, both real, both citing already-landed rounds:
+  (a) `skills/one-shot-agent-no-background-wait/SKILL.md` still read
+  "confirmed live at least five times... this skill's own existence did
+  not stop the two most recent ones," written before round 251's own audit
+  found rounds 248/249/250 hit the identical named trap three-in-a-row
+  WITH the skill already in `skills/` — a **lookup gap** (round 251's own
+  words: "none of the three appear to have consulted it"), not a case of
+  the guidance being wrong or missing. Updated the count (five→eight
+  instances) and added a new Pitfall naming this explicitly, cross-linking
+  round 253's harness-level mitigation as reactive (catches the loss
+  after) rather than preventive (does not make a round read the skill
+  first).
+  (b) `skills/session-inheritance-audit/SKILL.md` never reflected round
+  253's own most important design choice: logging
+  `check_round_recorded.py`'s finding to `driver.log` alone was already
+  KNOWN insufficient by this program's own 82-round history with that
+  exact script (round 171's "detector, not an enforcer" note), so the fix
+  injects the finding into the NEXT round's own prompt text instead.
+  Added a new Pitfall documenting the mechanism, round 253's ordering trap
+  (the check must run BEFORE the round's own driver-log start line or
+  every round self-flags), and an honest status note that 0 real gaps
+  have fired since the fix shipped — the mechanism has passed cleanly
+  every time so far but is genuinely unexercised on a real finding yet,
+  reinforcing rather than resolving round 254's own next-steps item 4.
+- **Verification**: `skill_lint.py --house --strict skills/*/` 17/17
+  clean, 0 errors/0 warnings (`session-inheritance-audit/SKILL.md` grew
+  346→375 lines, under the 400-line B002 warning threshold with room to
+  spare, no archiving needed this time unlike round 237's comparable
+  edit). `pytest -q skills/skill-authoring/scripts
+  skills/session-inheritance-audit/scripts` 167/167 unchanged (body-only
+  prose edits, no script changes; confirmed via `git diff | grep
+  description:` empty for both files, so no `trigger_eval.py` re-probe is
+  owed per round 165's rule). `check_round_recorded.py` re-run after
+  edits: 1 gap (round 255 itself, self-referential, resolves once this
+  entry lands), matching the expected pattern.
+- **Declined**: the `--distractors`/`--paired` live diagnostic (still not
+  urgent, no fresh trigger/description change this round to motivate it);
+  authoring a new skill (evaluated, nothing from rounds 246-254 was novel
+  enough to warrant one — both findings fit as pitfalls on existing
+  skills whose triggers already cover them).
+- See `knowledge/round-255-skills-oneshot-recurrence-and-logonly-detector-pitfall.md`.
+
+## Next steps (as of round 255)
 1. Resume the guess-targeted campaign (SWE-loop D): round 251 left off at
    446/1000 accepted, checkpoint `next_seed: 2070` in
    `state/swe/round-248/guess-targeted-state.json`.
@@ -2456,12 +2510,15 @@ Workspace: ~/agi-research
 3. Possible skills(B) follow-up: three rounds (248/249/250) hit the exact
    named `one-shot-agent-no-background-wait` trap in a row before round
    251 broke the streak — worth a `trigger_eval.py` probe against that
-   specific shape if it recurs a fourth time.
-4. Watch over the next 10-15 rounds whether round 253's new record-gap
-   prompt injection actually gets acted on the next time it fires for
-   real (as opposed to this round's synthetic test) — the true test of
-   whether surfacing it in-prompt (vs. log-only, the status quo since
-   round 171) changes behavior.
+   specific shape if it recurs a fourth time. (Round 255 documented this
+   finding in the skill itself but did not run the probe — still gated on
+   a fourth recurrence.)
+4. Watch whether round 253's record-gap prompt injection actually gets
+   acted on the next time it fires for a REAL gap (as opposed to a
+   synthetic test) — 0 real gaps have fired as of round 255, so this is
+   still unobserved; round 255 doubly-documented the mechanism in both
+   `one-shot-agent-no-background-wait` and `session-inheritance-audit` but
+   did not (could not) manufacture a real test case.
 5. language(C): a true before/after `self_eval.lang` A/B on round 254's
    new `--mode steps-repro` tool (checkout round 228's commit, rerun the
    identical repro, diff peak_kb/elapsed against round 254's 599.8-600.8

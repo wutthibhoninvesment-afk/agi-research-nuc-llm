@@ -314,6 +314,35 @@ where "session" means a login/web session.
   don't copy an existing entry's confidence for a new round number) —
   this file is meant to save re-verification work, not encode assumed
   innocence for anything the driver happens to flag next.
+- **A detector that only writes its finding to a log file is, in
+  practice, never read.** `check_round_recorded.py` existed since round
+  171 as "a detector, not an enforcer... still requires a human/round to
+  actually RUN it" — true for 82 rounds, during which the exact mechanism
+  it detects (see `one-shot-agent-no-background-wait`) recurred at least
+  three more times (rounds 248/249/250) with nobody running it in
+  between. Round 253 (harness A) finally wired it into `run_driver.sh`
+  itself, once per round — but logging the result to `driver.log` alone
+  reproduces the identical "nobody reads it" gap the detector was built
+  to close, since `driver.log` is exactly the kind of artifact step 2
+  above says gets diffed only by an audit that already suspects something
+  is wrong. The fix that actually changes behavior is appending any
+  finding directly into the NEXT round's own prompt text, not just the
+  log — the one channel a fresh one-shot process is guaranteed to read
+  before doing anything else. **Ordering trap found before shipping**: the
+  check must run BEFORE the round's own `log "round $ROUND track=$TRACK
+  start ..."` line, because `check_round_recorded.py` treats that exact
+  line as evidence a round ran — checking after it makes every round
+  flag itself as an unreconciled gap before it has done anything (round
+  253 hit this live: a bare manual mid-round run flagged round 253
+  itself). Whether the in-prompt injection actually gets acted on the
+  first time it fires for a real gap (as opposed to round 253's own
+  synthetic test) is still unobserved as of round 255 — 0 gaps have
+  occurred since it shipped, so the mechanism has PASSED cleanly every
+  time so far but has not yet been exercised for real. The general
+  lesson generalizes past this one script: any audit/lint/detector step
+  in an autonomous pipeline that reports only to a log a human happens to
+  read is functionally a no-op for a fully autonomous loop; it must
+  either block the pipeline or feed its own next input.
 
 ## Verification
 ```bash

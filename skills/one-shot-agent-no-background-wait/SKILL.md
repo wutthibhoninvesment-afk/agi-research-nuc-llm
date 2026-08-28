@@ -14,18 +14,20 @@ agent: a CLI run in print/non-interactive mode (`claude -p "..."
 --max-turns N`), a cron job, or a driver that launches a brand-new process
 per round. The instant that process's assistant turn ends with no further
 tool call, the process is done — there is no turn N+1 left in it for a
-notification to land in. Confirmed live at least five times in the same
+notification to land in. Confirmed live at least eight times in the same
 research program (three within the four rounds that led to this skill's
-authoring; two more afterward, on the same stale backlog — see the last
-Pitfall below): a round backgrounds a verification/test job,
+authoring; two more afterward, on the same stale backlog — see the "stale,
+already-verified" Pitfall below; three more in a row at rounds 248/249/250,
+after the skill already existed — see the new Pitfall below): a round
+backgrounds a verification/test job,
 its final message says (in substance) "no further action needed, waiting
 for the notification," and the round is then recorded by the driver as
 `success` (no error, no crash) — but nothing it was about to do next
 (write the report, update the state file, commit) ever runs, because
-nothing ever runs again in that process. Five rounds of real, substantial
-work (60–170 tool calls each) evaporated this way with zero trace on disk
+nothing ever runs again in that process. Eight rounds of real, substantial
+work (34–170 tool calls each) evaporated this way with zero trace on disk
 beyond a raw session-transcript log nobody reads by default — this skill's
-own existence did not stop the two most recent ones.
+own existence did not stop five of the eight.
 
 ## When to use (triggers)
 - You are the agent BEING invoked as a one-shot batch process (a driver's
@@ -124,6 +126,31 @@ move on, don't manufacture a wait).
   exactly the multi-minute job step 2 says to run in the foreground with a
   real timeout, not background-and-wait — sizing the timeout to the actual
   expected wall-clock costs far less than a whole round evaporating again.
+- **The skill existing in `skills/` does not stop the trap — nothing forces
+  a one-shot round to actually consult it before backgrounding a job.**
+  Confirmed live three rounds in a row (248/249/250, 2026-08-28, well after
+  this skill was authored at round 171): each launched a genuinely
+  different kind of background job (a fuzz/oracle campaign restarted from
+  seed 0, the same campaign again, a 15-minute `swap_watch.py` poller) and
+  each ended its own turn on the identical "waiting for the notification"
+  phrasing this skill names verbatim in its own trigger description. Round
+  251's own audit called this a **lookup gap, not a bad judgment call** —
+  none of the three rounds' transcripts show any tool call reading this
+  skill's file or the `skills/` directory before backgrounding. A skill
+  file is a passive reference; it only helps a round that actually opens
+  it. Round 253 (harness A) responded not by editing this skill again but
+  by making the FAILURE retroactively self-correcting instead of relying
+  on lookup: `run_driver.sh` now runs
+  `session-inheritance-audit/scripts/check_round_recorded.py` once per
+  round and, on a finding, appends the gap directly into the NEXT round's
+  own prompt text (not just `driver.log`, which round 171's own detector
+  proved 82 rounds of history nobody reads on its own) — see
+  `session-inheritance-audit`'s matching Pitfall for the mechanism and why
+  logging alone was already known to fail. That fix is reactive (it tells
+  the round AFTER this one that a predecessor lost work) rather than
+  preventive (it does not make a round consult this skill BEFORE it
+  backgrounds anything) — whether three-in-a-row recurrences stop now is
+  still an open watch item, not a closed one, as of round 255.
 
 ## Verification
 ```bash
