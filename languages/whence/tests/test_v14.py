@@ -1,5 +1,6 @@
 """v0.14 (round 146) / v0.14.1 (round 264) / v0.14.2 (round 266) /
-v0.14.3 (round 270): `effects [...]` — a minimal, parse-time effect system.
+v0.14.3 (round 270) / v0.14.4 (round 272): `effects [...]` — a minimal,
+parse-time effect system.
 
 Design (see SPEC.md "v0.14"/"v0.14.1"): unlike `: Type`/`-> Type` (v0.12/
 v0.13, both runtime checks against a runtime VALUE), whether a function's
@@ -74,24 +75,46 @@ node, no Closure field, and no interpreter change at all. `effects [io,
   invisible to this specific check
   (`test_return_tag_only_sees_a_bare_name_tail`).
 
+- **v0.14.4: a name bound via a direct `let name = @{...}` RECORD LITERAL
+  is now tracked field-by-field**, closing the CONTAINER-FIELD clause of
+  v0.14.3's own still-open gap — `Parser.field_alias_scopes`, a THIRD
+  per-block-frame stack, same push/pop sites as the other two, mapping a
+  tracked name to a `{field: tag-or-None}` dict built once at the `let`
+  from each field value that is itself a bare NameRef. `let box = @{run:
+  print}` then `box.run(1)` is now checked exactly as `let p = print;
+  p(1)` (v0.14.2) would be (`test_field_call_via_record_literal_is_
+  checked`). A field whose value isn't effectful resolves to `None`, no
+  false positive (`test_non_effectful_field_is_not_flagged`). Shadowing is
+  correct here too: an inner record of the SAME name blocks the lookup
+  from falling through to an outer one
+  (`test_inner_record_of_same_name_shadows_outer_field_alias`), and a
+  parameter named like an outer record shadows it exactly as a param
+  already shadows an outer direct/return alias
+  (`test_param_named_like_outer_field_alias_shadows_it`). Deliberately
+  narrower than it could be, same mold as v0.14.3: only a record built
+  directly by a `let`-LITERAL is tracked, not one returned from a call
+  (`test_field_of_a_non_literal_binding_is_not_tracked`); only a BARE-NAME
+  field value is inspected, not one that is itself a call
+  (`test_field_value_that_is_itself_a_call_is_not_tracked`).
+
 Still deliberately SHALLOW by design, not oversight (mirrors the `-> Type`
 precedent of checking one settle point, not full call-graph composition):
 the declaration only vouches for the function's OWN textual body, resolved
 lexically, not through arbitrary calls.
-  - Passing a builtin as a FUNCTION ARGUMENT, or storing it in a
-    list/record field and calling it back out, are both still invisible to
-    the check — only a direct `let alias = <name>` hop (v0.14.2) and a
-    direct-call return (v0.14.3, bare-name tail only) are tracked, not
-    general value flow through data structures or through an `if`'s own
+  - Passing a builtin as a FUNCTION ARGUMENT remains completely invisible
+    to the check — only a direct `let alias = <name>` hop (v0.14.2), a
+    direct-call return (v0.14.3, bare-name tail only), and a literal-record
+    field (v0.14.4, bare-name field value only) are tracked, not general
+    value flow through arbitrary data structures or through an `if`'s own
     tail position.
   - Calling a DIFFERENT, unrestricted top-level function that itself
     performs the effect is still untouched by the caller's own
-    declaration — only LEXICAL nesting and direct/return aliasing are
-    tracked, not the dynamic call graph (`test_effects_empty_still_allows_
-    non_print_calls` calls a genuinely pure `double`, but the same shape
-    would allow calling an impure sibling too; not separately pinned since
-    it follows directly from "declaration only vouches for the function's
-    own textual body").
+    declaration — only LEXICAL nesting and direct/return/field aliasing
+    are tracked, not the dynamic call graph (`test_effects_empty_still_
+    allows_non_print_calls` calls a genuinely pure `double`, but the same
+    shape would allow calling an impure sibling too; not separately pinned
+    since it follows directly from "declaration only vouches for the
+    function's own textual body").
 Both remaining gaps are honest, tested limitations, not bugs — a full
 call-graph-aware (and fully data-flow-sensitive) effect system is future
 work (see research-state.md's language backlog).
@@ -505,6 +528,123 @@ def test_three_way_aliased_print_inside_effects_empty():
         'fn f() effects [] {\n'
         '  let p = print\n'
         '  1\n'
+        '}\n'
+        'let result = f()\n')
+
+
+# --- v0.14.4 (round 272): container-field flow through a record literal ----
+# --- closes the CONTAINER-FIELD slice of v0.14.3's own "stored in a list/
+# --- record field" gap: `let box = @{run: print}` then `box.run(1)`.
+
+def test_field_call_via_record_literal_is_checked():
+    """`let box = @{run: print}` then `box.run(1)` inside `effects []` is
+    now a ParseError — `box`'s `run` field is tracked as a direct alias of
+    `print` (`Parser._resolve_effectful_field`), so calling through it is
+    checked exactly as calling `print` directly would be."""
+    with pytest.raises(ParseError) as ei:
+        parse(
+            'let box = @{run: print}\n'
+            'fn f() effects [] {\n'
+            '  box.run(1)\n'
+            '}\n')
+    assert "'box.run' requires effect 'io'" in str(ei.value)
+
+
+def test_field_call_via_record_literal_granted_when_effect_allowed():
+    all_ok(
+        'let box = @{run: print}\n'
+        'fn f() effects [io] {\n'
+        '  box.run(1)\n'
+        '}\n'
+        'check "ok": f() == 1\n')
+
+
+def test_non_effectful_field_is_not_flagged():
+    """A field whose value is a bare-NameRef alias of something NOT
+    effectful (a plain `let`-bound fn, not `print` or a tracked alias of
+    it) resolves to `None` — calling it inside `effects []` is not
+    restricted, same as calling any other ordinary value would be."""
+    all_ok(
+        'fn f() effects [] {\n'
+        '  let helper = fn(x) { x + 1 }\n'
+        '  let box = @{run: print, calc: helper}\n'
+        '  box.calc(5)\n'
+        '}\n'
+        'check "ok": f() == 6\n')
+
+
+def test_inner_record_of_same_name_shadows_outer_field_alias():
+    """An inner block's OWN `let box = @{...}` shadows an outer record of
+    the same name — `field_alias_scopes` records the shadow explicitly, so
+    the inner `box.run(...)` resolves against the INNER record's fields,
+    not the outer one, even when both bind a field named `run`."""
+    all_ok(
+        'fn f() effects [] {\n'
+        '  let box = @{run: print}\n'
+        '  {\n'
+        '    let helper = fn(x) { x + 1 }\n'
+        '    let box = @{run: helper}\n'
+        '    box.run(5)\n'
+        '  }\n'
+        '}\n'
+        'check "ok": f() == 6\n')
+
+
+def test_param_named_like_outer_field_alias_shadows_it():
+    """A parameter shares its fn's body-block field-alias scope tree one
+    level out, same as `alias_scopes`/`return_alias_scopes` already do — a
+    param named `box` shadows an outer record-tracked `box` of the same
+    name, so a call through the PARAM's own (real, runtime) fields is
+    checked on its own terms, not the outer record's."""
+    all_ok(
+        'fn identity_run(x) { x + 1 }\n'
+        'fn f() effects [] {\n'
+        '  let box = @{run: print}\n'
+        '  fn g(box) {\n'
+        '    box.run(1)\n'
+        '  }\n'
+        '  g(@{run: identity_run})\n'
+        '}\n'
+        'check "ok": f() == 2\n')
+
+
+def test_field_of_a_non_literal_binding_is_not_tracked():
+    """Deliberately narrow, like the rest of this feature family: only a
+    record built directly by a `let name = @{...}` LITERAL is tracked —
+    one returned from a call (even one that itself returns a literal
+    record with an effectful field) is invisible to this check. An
+    honest, documented gap, not a bug — the same "single left-to-right
+    pass, no whole-program analysis" limit v0.14.2/v0.14.3 already have."""
+    all_ok(
+        'fn make_box() { @{run: print} }\n'
+        'fn f() effects [] {\n'
+        '  let box = make_box()\n'
+        '  box.run(1)\n'
+        '}\n'
+        'check "ok": f() == 1\n')
+
+
+def test_field_value_that_is_itself_a_call_is_not_tracked():
+    """Only a BARE-NameRef field value is inspected when a record literal
+    is parsed — a field whose value is itself a call (even one returning
+    `print`) is left at `None`, the same narrow "one hop, no recursion"
+    discipline v0.14.3 applied to a fn's tail statement."""
+    all_ok(
+        'fn get_printer() effects [] {\n'
+        '  print\n'
+        '}\n'
+        'fn f() effects [] {\n'
+        '  let box = @{run: get_printer()}\n'
+        '  box.run(1)\n'
+        '}\n'
+        'check "ok": f() == 1\n')
+
+
+def test_three_way_field_call_via_record_literal():
+    assert_three_way(
+        'let box = @{run: print}\n'
+        'fn f() effects [io] {\n'
+        '  box.run(1)\n'
         '}\n'
         'let result = f()\n')
 

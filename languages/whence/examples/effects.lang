@@ -92,6 +92,27 @@ check "a builtin RETURNED from a call is checked the same as a direct alias":
 # `if`, a function argument, or a list/record field are all still
 # invisible (see SPEC.md "v0.14.3").
 
+
+# v0.14.4: storing an effectful alias in a RECORD LITERAL field is now
+# tracked too — `logger_box` below binds a `run` field directly to `print`
+# (a bare NameRef, not a call), and `log_total3`'s `logger_box.run(...)`
+# picks up that fact exactly as `let logger = print; logger(...)` would.
+let logger_box = @{run: print}
+fn log_total3(prices) effects [io] {
+  logger_box.run("logged total (via record field): " + str(total(prices)))
+  total(prices)
+}
+check "a builtin stored in a record field is checked the same as a direct alias":
+  log_total3(prices) == 60
+# Writing `log_total3` as `effects []` instead would be a ParseError at
+# `logger_box.run(...)`, same as the direct-alias case above. Still
+# shallow: this only recognizes a record built directly by a `let`
+# LITERAL, with a bare-name field value — one returned from a call, or a
+# field whose value is itself a call, are both still invisible (see
+# SPEC.md "v0.14.4"). Passing `print` as a function ARGUMENT remains
+# invisible too, the one shape of the "argument/return/container field"
+# trio still fully open.
+
 print("")
 print("effects.lang: purity is a declared, checked promise about a")
 print("function's own body — not a proof about everything it calls.")

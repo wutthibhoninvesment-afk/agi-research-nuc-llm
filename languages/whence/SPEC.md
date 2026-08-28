@@ -915,6 +915,11 @@ that cannot end a statement.
   get()` or `get()(1)`) is now tracked too; a function ARGUMENT, a
   list/record field, a tail hidden behind an `if`, and the call-graph gap
   all remain open.
+  **Further partially closed by v0.14.4 (round 272, below)**: a
+  literal-record field case (`let box = @{run: print}` then `box.run(1)`)
+  is now tracked too; a function ARGUMENT, a non-literal or call-valued
+  record field, a tail hidden behind an `if`, and the call-graph gap all
+  remain open.
 - **Verification:** `tests/test_v14.py` 20/20 (was 18; one test rewritten
   from `all_ok` to `pytest.raises(ParseError)` since its own assertion
   flipped, two new tests added: a granting-scope inheritance case and a
@@ -1000,7 +1005,12 @@ that cannot end a statement.
   ALSO still untouched by the caller's own declaration — only lexical
   nesting and direct aliasing are tracked, not the dynamic call graph. A
   full call-graph-aware (transitive, data-flow-sensitive) effect system
-  closing both remains future work.
+  closing both remains future work. **Further partially closed by v0.14.4
+  (round 272, below)**: the "storing it in a record field" clause is now
+  tracked too, for the narrow case where the record is a `let`-bound
+  LITERAL and the field's own value is a bare name — a function ARGUMENT,
+  a non-literal or call-valued record field, and a tail hidden behind an
+  `if` all remain invisible.
 - **Verification:** `tests/test_v14.py` 28/28 (was 20; one test renamed
   from `test_indirect_call_via_variable_is_not_checked` to `..._is_now_
   checked` since its own assertion flipped from `all_ok` to
@@ -1135,6 +1145,79 @@ that cannot end a statement.
   the same one v0.14.2 already documented and left open for the identical
   reason (fixing it needs a new GENERATOR expression shape, not a checker
   change).
+
+## v0.14.4 (round 272) — effect system: CONTAINER-FIELD value flow through a record literal
+
+- **Closes the CONTAINER-FIELD slice of v0.14.3's own "still open" gap**:
+  "storing it in a list/record field and reading it back out" remains
+  invisible in general, but is now closed for the specific shape where the
+  record is built directly by a `let name = @{...}` LITERAL and the field
+  in question was assigned a bare NameRef. `let box = @{run: print}` then
+  `box.run(1)` is now checked exactly as `let p = print; p(1)` (v0.14.2)
+  would be.
+- **Mechanism**: `Parser.field_alias_scopes` — a THIRD stack, the exact
+  same shape and push/pop sites as `alias_scopes`/`return_alias_scopes`
+  (one frame per lexical block: `stmt_list` itself, and both fn-parameter
+  scopes), tracking a third fact per name: "is this name bound to a record
+  literal, and if so, which of its fields are themselves effectful
+  aliases?" Each frame maps a name to either `None` (not a tracked record
+  binding) or a dict `{field: tag-or-None}`, built once, at the `let`, by
+  resolving each field VALUE that is a bare `NameRef` through the existing
+  `_resolve_effectful_alias`. `_resolve_effectful_field(name, field)`
+  mirrors the other two resolvers exactly: innermost-first, first-frame-
+  wins walk on `name`, then a plain `.get(field)` within the winning
+  frame's dict.
+- **`_check_effect_call` gained a third branch**: a callee that is an
+  `A.FieldAccess` whose own `.obj` is a NameRef resolves through
+  `_resolve_effectful_field` — sitting alongside the existing direct-name
+  and chained-call-return branches, all three feeding the same
+  `effects_stack`-comparison logic unchanged.
+- **Shadowing is handled correctly, the same discipline v0.14.2/v0.14.3
+  established**: every `let`/named-`fn`/parameter binding writes an
+  explicit entry into ALL THREE stacks (even `None`) — an inner `let box =
+  @{run: helper}` (non-effectful) correctly shadows an outer, effectful
+  `box` of the same name; a parameter named `box` shadows an outer
+  record-tracked `box` the same way a parameter already shadows an outer
+  direct/return alias.
+- **Deliberately narrower than it could be, by design, same mold as
+  v0.14.3**: only a record built directly by a `let`-LITERAL is tracked —
+  one returned from a call (even one whose own body tail-returns a literal
+  record with an effectful field) is invisible; a record literal reached
+  by a chain of hops (merged, copied, mutated) is likewise invisible. Only
+  a BARE-NameRef field value is inspected within a tracked literal — a
+  field whose value is itself a call (even one returning `print`) resolves
+  to `None`, the same "one hop, no recursion" limit v0.14.3 applied to a
+  fn's tail statement.
+- **Still open, unaffected by this round**: passing a builtin as a
+  FUNCTION ARGUMENT remains completely invisible — the one shape of
+  v0.14.3's own three-way "still open" list (argument / return / container
+  field) this round did not touch, correctly left open per
+  `state/research-state.md`'s own reasoning for why it doesn't fit the
+  same single-pass mold (a fn body is parsed once, independent of its call
+  sites; the fact would need per-call-site specialization or an unsound
+  over-approximation). The dynamic call graph is also still untouched —
+  see `state/research-state.md`'s language backlog for why it's sized as
+  multi-round-scale, not a quick follow-up.
+- **Verification**: `tests/test_v14.py` 45/45 (was 37; 8 new tests: field
+  call via record literal [checked + granted], a non-effectful field is
+  not flagged, inner-record-of-same-name shadowing, param-name shadowing
+  [with a real record passed at runtime], a non-literal binding is not
+  tracked, a call-valued field is not tracked, one new three-way
+  differential pin). `languages/whence/run_tests_fast.sh` 875 passed/38
+  deselected (was 867; +8 matches the net new-test delta exactly, no other
+  file's count moved).
+- **Guest parity**: same reasoning as v0.14.2/v0.14.3, for the same
+  underlying cause — `print` is in `harness/swe/guest.py`'s `BANNED`
+  regex, so any guest-oracle fuzz program mentioning it anywhere is
+  short-circuited to `parse_error` before either interpreter runs it; not
+  something this round needed to re-verify.
+- **Fuzz coverage — same honest gap as v0.14.2/v0.14.3, for the same
+  reason**: `harness/swe/fuzz.py`'s `ProgramGen` never emits a record
+  literal whose field value is a bare `print` NameRef — this round's own
+  trigger shape is consequently exercised only by `tests/test_v14.py`'s
+  hand-authored cases, not the differential fuzz corpus. Fixing it needs a
+  new GENERATOR expression shape, not a checker change — named here so a
+  future round doesn't rediscover it as a mystery.
 
 ## v0.15 (round 168) — AI-native primitives: `guess`/confidence
 - **The curriculum's last open "advanced feature" slot** (structural types

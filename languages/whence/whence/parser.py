@@ -96,6 +96,17 @@ class Parser(object):
         # silently drift out of frame-for-frame sync. See
         # `_resolve_effectful_return`.
         self.return_alias_scopes = []
+        # Effect system (v0.14.4, round 272): a THIRD stack, same shape and
+        # push/pop sites as the other two, tracking a third fact per name:
+        # "is this name bound to a record literal, and if so, which of ITS
+        # fields are themselves effectful aliases?" (`let box = @{run:
+        # print}` then `box.run(1)`). Each frame maps name -> either `None`
+        # (not a record-literal binding, or one this pass doesn't track) or
+        # a dict `{field: tag-or-None}` resolved once, at the `let`, from
+        # each field VALUE that is itself a bare `NameRef` — the same "bare
+        # name only, no recursion into deeper shapes" discipline v0.14.3
+        # applied to a fn's tail statement. See `_resolve_effectful_field`.
+        self.field_alias_scopes = []
 
     def _enter(self):
         self.nesting += 1
@@ -162,6 +173,7 @@ class Parser(object):
         # `self.return_alias_scopes`'s own comment in `__init__`.
         self.alias_scopes.append({})
         self.return_alias_scopes.append({})
+        self.field_alias_scopes.append({})
         try:
             self.skip_newlines()
             while not self.at(end):
@@ -185,6 +197,7 @@ class Parser(object):
         finally:
             self.alias_scopes.pop()
             self.return_alias_scopes.pop()
+            self.field_alias_scopes.pop()
 
     def statement(self):
         tok = self.peek()
@@ -206,6 +219,7 @@ class Parser(object):
                 # exactly the same value, just under a new name.
                 self.alias_scopes[-1][name] = self._resolve_effectful_alias(expr.name)
                 self.return_alias_scopes[-1][name] = self._resolve_effectful_return(expr.name)
+                self.field_alias_scopes[-1][name] = None
             elif expr.__class__ is A.Call and expr.fn.__class__ is A.NameRef:
                 # v0.14.3 (round 270): `let p = get_printer()` — closes part
                 # of v0.14.2's own "returning it from a call" gap. `p` is an
@@ -213,6 +227,7 @@ class Parser(object):
                 # fact) — whatever `get_printer` was tracked to return.
                 self.alias_scopes[-1][name] = self._resolve_effectful_return(expr.fn.name)
                 self.return_alias_scopes[-1][name] = None
+                self.field_alias_scopes[-1][name] = None
             elif expr.__class__ is A.FnExpr:
                 # v0.14.3: `let g = fn() {...}` — `g` is a callable, not
                 # itself an effectful value; its return fact comes straight
@@ -220,9 +235,29 @@ class Parser(object):
                 # while that body's own frames were still open.
                 self.alias_scopes[-1][name] = None
                 self.return_alias_scopes[-1][name] = expr.body.tail_alias_tag
+                self.field_alias_scopes[-1][name] = None
+            elif expr.__class__ is A.RecordLit:
+                # v0.14.4 (round 272): `let box = @{run: print, other: 5}`
+                # — closes the CONTAINER-FIELD slice of v0.14.3's own still-
+                # open "stored in a list/record field" gap. `box` itself is
+                # not an effectful value or a callable, but a later
+                # `box.FIELD(...)` call needs to resolve through here (see
+                # `_check_effect_call`'s new `FieldAccess` branch). Only a
+                # bare-`NameRef` field VALUE is inspected — a field whose
+                # value is itself a call/alias-chain/nested-record is left
+                # at `None`, the same narrow "one hop, no recursion into a
+                # nested shape" discipline v0.14.3 used for a fn's tail.
+                self.alias_scopes[-1][name] = None
+                self.return_alias_scopes[-1][name] = None
+                self.field_alias_scopes[-1][name] = {
+                    fname: self._resolve_effectful_alias(fexpr.name)
+                    for fname, fexpr in expr.pairs
+                    if fexpr.__class__ is A.NameRef
+                }
             else:
                 self.alias_scopes[-1][name] = None
                 self.return_alias_scopes[-1][name] = None
+                self.field_alias_scopes[-1][name] = None
             return A.Let(tok.line, name, expr)
         if tok.type == "KW" and tok.value == "fn" and self.peek(1).type == "NAME":
             self.next()
@@ -240,6 +275,8 @@ class Parser(object):
             # own body, since nothing can call it before its own statement
             # finishes parsing.
             self.return_alias_scopes[-1][name] = None
+            # v0.14.4: a fn name is never a record-literal binding either.
+            self.field_alias_scopes[-1][name] = None
             params, types = self.param_list()
             effects_spec = self.parse_effects_clause()
             ret_type = self.parse_return_type()
@@ -251,12 +288,14 @@ class Parser(object):
             # as one.
             self.alias_scopes.append(dict.fromkeys(params))
             self.return_alias_scopes.append(dict.fromkeys(params))
+            self.field_alias_scopes.append(dict.fromkeys(params))
             try:
                 body = self.block()
             finally:
                 self.effects_stack.pop()
                 self.alias_scopes.pop()
                 self.return_alias_scopes.pop()
+                self.field_alias_scopes.pop()
             # v0.14.3 (round 270): now that the body is fully parsed and
             # `body.tail_alias_tag` is resolved (computed by `block()`/
             # `stmt_list` while the body's own frames were still open),
@@ -410,40 +449,63 @@ class Parser(object):
                 return scope[name]
         return None
 
+    def _resolve_effectful_field(self, name, field):
+        """v0.14.4 (round 272): does `name.field`, AS CURRENTLY IN SCOPE,
+        resolve to an effectful builtin — because `name` was bound (`let
+        name = @{..., field: <effectful-name-or-alias>, ...}`) to a record
+        literal whose `field` value was a tracked bare-NameRef alias?
+        Mirror of `_resolve_effectful_alias`/`_resolve_effectful_return`,
+        over `field_alias_scopes`: same innermost-first, first-frame-wins
+        walk on `name` itself; the field lookup within the winning frame's
+        dict is a plain `.get` (missing field, or `name` not a tracked
+        record binding at all, both fall out to `None` the same way)."""
+        for scope in reversed(self.field_alias_scopes):
+            if name in scope:
+                fields = scope[name]
+                return fields.get(field) if fields else None
+        return None
+
     def _check_effect_call(self, callee, tok):
-        """Effect system (v0.14/v0.14.2/v0.14.3): a direct call `name(...)`
-        where `name` resolves (`_resolve_effectful_alias`) to an effectful
-        builtin — either `name` IS that builtin, or `name` is a tracked
-        alias of it — is checked against the nearest enclosing fn's
+        """Effect system (v0.14/v0.14.2/v0.14.3/v0.14.4): a direct call
+        `name(...)` where `name` resolves (`_resolve_effectful_alias`) to an
+        effectful builtin — either `name` IS that builtin, or `name` is a
+        tracked alias of it — is checked against the nearest enclosing fn's
         `effects [...]` declaration (`self.effects_stack[-1]`). So is a
         CHAINED call `f()(...)` where `f`'s own tracked return fact
         (`_resolve_effectful_return`) says calling `f()` yields such a
         value — v0.14.3, round 270, e.g. `get_printer()(1)` where
         `get_printer`'s body tail-returns `print` (or a tracked alias of
-        it). All of this is resolved ENTIRELY at parse time, no AST node,
-        no interpreter change, no runtime cost. This is a ParseError rather
-        than a runtime `miss` (unlike a `: Type`/`-> Type` mismatch) because
-        whether a function's OWN body directly names an effectful builtin
-        is a static property of the source text, not something that depends
-        on a runtime value — the same reasoning that makes rebinding and
-        "block must end in an expression" parse errors rather than misses.
+        it). So, now, is a FIELD call `box.run(...)` where `box` was bound
+        to a record literal whose `run` field is itself a tracked alias —
+        v0.14.4, round 272, `_resolve_effectful_field`. All of this is
+        resolved ENTIRELY at parse time, no AST node, no interpreter change,
+        no runtime cost. This is a ParseError rather than a runtime `miss`
+        (unlike a `: Type`/`-> Type` mismatch) because whether a function's
+        OWN body directly names an effectful builtin is a static property of
+        the source text, not something that depends on a runtime value —
+        the same reasoning that makes rebinding and "block must end in an
+        expression" parse errors rather than misses.
 
         Still deliberately SHALLOW, by design, not by oversight, even after
-        v0.14.3's return-value tracking: `_resolve_effectful_return` only
+        v0.14.4's container-field tracking: `_resolve_effectful_return` only
         ever sees a fn body whose TAIL STATEMENT is a bare NameRef — a tail
         that is itself an `if`/nested block (whose OWN tail might resolve)
         is not recursed into, unlike `mark_tails`'s structural walk (see
-        `stmt_list`'s docstring). Passing a builtin as a FUNCTION ARGUMENT,
-        or storing it in a list/record field and reading it back out, are
-        both still completely invisible — genuine value-flow-through-data-
-        structures questions v0.14.3 does not attempt. Calling into a
-        DIFFERENT function that itself performs the effect is *also* still
-        untouched by the caller's own declaration — only LEXICAL nesting and
-        direct/return aliasing are tracked, not the dynamic call graph. A
-        real call-graph-aware (transitive) effect system tracking effects
-        through arbitrary data flow is future work, not this round's scope;
-        see SPEC.md "v0.14"/"v0.14.1"/"v0.14.2"/"v0.14.3" for the honest
-        remaining limitations and examples.
+        `stmt_list`'s docstring). `_resolve_effectful_field` only ever sees
+        a record LITERAL bound directly by a `let`, with a bare-NameRef
+        field value — a record built any other way (returned from a call,
+        merged, mutated, or one whose field value is itself a call/alias
+        chain) is invisible, and passing a builtin as a FUNCTION ARGUMENT is
+        *still* completely untouched — genuine value-flow-through-data-
+        structures questions v0.14.4 narrows but does not fully close.
+        Calling into a DIFFERENT function that itself performs the effect is
+        *also* still untouched by the caller's own declaration — only
+        LEXICAL nesting and direct/return/field aliasing are tracked, not
+        the dynamic call graph. A real call-graph-aware (transitive) effect
+        system tracking effects through arbitrary data flow is future work,
+        not this round's scope; see SPEC.md "v0.14"/"v0.14.1"/"v0.14.2"/
+        "v0.14.3"/"v0.14.4" for the honest remaining limitations and
+        examples.
         `self.effects_stack[-1]` is already the fn's fully RESOLVED scope by
         the time this runs — a nested fn with no clause of its own
         inherited its enclosing scope in `_resolve_effects_scope` at push
@@ -455,6 +517,9 @@ class Parser(object):
         elif callee.__class__ is A.Call and callee.fn.__class__ is A.NameRef:
             tag = self._resolve_effectful_return(callee.fn.name)
             display = "%s()" % callee.fn.name
+        elif callee.__class__ is A.FieldAccess and callee.obj.__class__ is A.NameRef:
+            tag = self._resolve_effectful_field(callee.obj.name, callee.name)
+            display = "%s.%s" % (callee.obj.name, callee.name)
         else:
             return
         if tag is None:
@@ -752,12 +817,14 @@ class Parser(object):
             self.effects_stack.append(self._resolve_effects_scope(effects_spec))
             self.alias_scopes.append(dict.fromkeys(params))
             self.return_alias_scopes.append(dict.fromkeys(params))
+            self.field_alias_scopes.append(dict.fromkeys(params))
             try:
                 body = self.block()
             finally:
                 self.effects_stack.pop()
                 self.alias_scopes.pop()
                 self.return_alias_scopes.pop()
+                self.field_alias_scopes.pop()
             self._apply_type_guards(body, params, types, None)
             mark_tails(body)
             return A.FnExpr(tok.line, params, body, ret_type)
