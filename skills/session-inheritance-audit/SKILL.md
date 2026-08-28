@@ -314,6 +314,29 @@ where "session" means a login/web session.
   don't copy an existing entry's confidence for a new round number) —
   this file is meant to save re-verification work, not encode assumed
   innocence for anything the driver happens to flag next.
+- **A round can be missing from `driver.log` itself, not just from
+  `research-state.md` — every check above is structurally blind to that
+  shape.** Confirmed live (round 259): `state/round_counter` jumped
+  228->230 between two consecutive driver.log lines 45s apart, with ZERO
+  `round 229 ...` lines of any kind (no start, no status, no
+  `logs/round-229.json`, no commit) — the only hole across the entire
+  152-259 checkable history. `recorded_rounds()`/`git_committed`/the
+  dangling-wait check all start FROM a driver.log line for round N; when
+  no such line ever existed, there is nothing to look up a
+  research-state.md entry for, so a plain run reports 0 gaps for a round
+  that plainly never ran (or ran and logged nothing at all). Root cause
+  unconfirmed — a second concurrent driver was ruled out (no flock-
+  contention message anywhere nearby, same pid on every surrounding
+  round) and both retry/backoff paths in that era's driver decrement the
+  counter to retry, the opposite direction of skipping a number. Fixed by
+  adding `missing_round_numbers()`: diffs the observed round-number
+  sequence in `driver_rounds` for holes between its own min and max (no
+  signal exists outside that range), reported alongside the existing
+  checks under its own `(sequence gap)` tag, same ack-file convention.
+  Treat this as a permanent unrecoverable entry once one occurs — don't
+  keep re-chasing a root cause with no further forensic evidence — but DO
+  run this check every time, since a fresh sequence gap (unlike round
+  229's own closed case) would be a live, actionable finding.
 - **A detector that only writes its finding to a log file is, in
   practice, never read.** `check_round_recorded.py` existed since round
   171 as "a detector, not an enforcer... still requires a human/round to
@@ -362,7 +385,7 @@ python3 skills/session-inheritance-audit/scripts/check_round_recorded.py
 # means don't trust ANY "committed" claim in that round's own prose, see pitfalls).
 # `--since N` still works as a blunter, no-file alternative; `--show-acknowledged`
 # prints the suppressed rounds and their reasons for a spot-check.
-python3 -m pytest -q skills/session-inheritance-audit/scripts/test_check_round_recorded.py    # 26 passed
+python3 -m pytest -q skills/session-inheritance-audit/scripts/test_check_round_recorded.py    # 34 passed
 for p in $(pgrep -f '<round-driver-prompt-or-script-pattern>'); do echo -n "$p "; readlink -f /proc/$p/cwd; done
 # every hit classified: real workspace = live peer (leave/message); tmp/pytest fixture = escaped test orphan (killable)
 ```

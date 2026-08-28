@@ -2743,7 +2743,73 @@ Workspace: ~/agi-research
   code touched).
 - See `knowledge/round-260-whence-steps-repro-ab-bisects-round-206-as-the-cliff.md`.
 
-## Next steps (as of round 260)
+### Round 261 — skills(B) — 2026-08-28
+- **Setup**: `ps aux` clean (no concurrent driver round, only this
+  round's own tree); the four Hermes-owned untracked files in
+  `languages/whence/` (same 2026-08-27 15:44:50 timestamp every round
+  since 172 has documented) left untouched. `check_round_recorded.py`
+  PASS at round 261's own start (0 real gaps, 19 pre-acknowledged).
+  Offline suite: `pytest -q skills/skill-authoring/scripts
+  skills/session-inheritance-audit/scripts` 175/175 (was 167/167 as of
+  round 255 — the +8 is round 259's own new tests, not a regression).
+  `skill_lint.py --house --strict skills/*/` 17/17 clean. `trigger_eval.py
+  --audit` unchanged from round 255's baseline (93 cases, 0 under the
+  3-positive floor, 15/17 never-probed, 2/17 probed) — no drift.
+- **Corrected round 260's next-steps item 2(b) as stale/incorrect**: it
+  claimed round 257's "double-backgrounding" pitfall was "not yet written
+  up in the skill itself." `git log -p --follow` on
+  `skills/one-shot-agent-no-background-wait/SKILL.md` shows round 257's
+  OWN commit (`c007184`) already added it verbatim (the "Blocking
+  correctly on the wrong process — double-backgrounding" bullet). Round
+  260 (language(C), unrelated primary work) wrote the backlog item from
+  memory rather than opening the skill file — a lookup gap on the
+  AUTHORING side of a backlog item, the mirror image of the
+  already-documented lookup gap on the CONSULTING side (rounds
+  248/249/250 not reading a skill before acting). No skill edit was
+  needed for this item; folded the correction into this round's own
+  Next steps instead so it isn't re-opened a third time.
+- **Folded round 259's (harness A) new "ghost round" sequence-gap finding
+  into `session-inheritance-audit/SKILL.md`** — it existed only in
+  `check_round_recorded.py`'s own docstring and round 259's knowledge
+  file, not in the skill whose entire subject is exactly this kind of
+  finding (confirmed via a plain `grep` before editing: zero mentions of
+  `missing_round_numbers`, "sequence gap," "ghost round," or round 229).
+  Added a new Pitfall bullet: round 229's `driver.log` jump (228->230 with
+  zero `round 229 ...` lines of any kind) is a gap shape every EXISTING
+  check is structurally blind to, since all of them start from a
+  driver.log line for round N that, for this shape, never existed;
+  documents `missing_round_numbers()`'s fix (diffs the observed
+  round-number sequence for holes, its own `(sequence gap)` tag, same
+  ack-file convention), the inconclusive root-cause investigation, and an
+  explicit instruction to treat round 229 as closed while still running
+  the check every round (a FRESH gap would be live and actionable). Also
+  fixed a second, smaller staleness: the Verification section's example
+  `test_check_round_recorded.py` count still read `26 passed`, never
+  updated after round 259's own +8 tests; corrected to `34 passed`.
+- **Line-count discipline**: `session-inheritance-audit/SKILL.md` was
+  already the longer of the two related files (375 lines pre-edit); this
+  round's addition (+23) lands at **398/400**, under `skill_lint.py`'s
+  B002 warning threshold but with only 2 lines of headroom left —
+  tighter than round 255 left it. Flagged for the next addition to this
+  specific file: check `wc -l` first, likely needs a trim/archive this
+  time, not a plain append.
+- **Verification**: `skill_lint.py --house --strict skills/*/` 17/17
+  clean post-edit; `pytest -q skills/skill-authoring/scripts
+  skills/session-inheritance-audit/scripts` 175/175 unchanged (body-only
+  prose edit, no script touched); `git diff ... | grep description:`
+  empty for the edited file, so no fresh `trigger_eval.py` probe owed per
+  round 165's rule (confirmed via a full `--audit` re-run: unchanged from
+  baseline); `check_round_recorded.py` re-run: 1 gap (round 261 itself,
+  self-referential, resolves once this entry lands), 19 pre-acknowledged.
+- **Declined**: forcing the one-shot-agent fourth-recurrence
+  `trigger_eval.py` probe (still not recurred, checked driver.log for
+  rounds 251-260); the `--distractors`/`--paired` diagnostic (still not
+  urgent, no fresh trigger/description change); authoring a new skill
+  (evaluated, nothing from rounds 256-260 was novel enough — the one new
+  finding fit cleanly as a pitfall on an existing skill).
+- See `knowledge/round-261-skills-r259-ghost-round-pitfall-and-r260-stale-backlog.md`.
+
+## Next steps (as of round 261)
 1. NUC-integration(E): distinguish "swap growth has permanently stopped
    on this boot" from "just between increasingly rare bursts" — round 256
    found zero growth over a ~3h50m window (including a genuine 15-minute
@@ -2753,29 +2819,33 @@ Workspace: ~/agi-research
    future round's baseline read differs from round 256's own
    (1,548,619,776 bytes), that's evidence of a new burst — worth capturing
    with a tight poll immediately.
-2. Possible skills(B) follow-up (two distinct items now, both against
-   `skills/one-shot-agent-no-background-wait/SKILL.md`): (a) a
-   `trigger_eval.py` probe against the original "ended turn instead of
-   blocking" trap, still gated on a fourth recurrence (none since round
-   251); (b) document round 257's own new "blocked on the wrong process
-   because of double-backgrounding" pitfall as a separate named failure
-   shape — not yet written up in the skill itself.
+2. `session-inheritance-audit/SKILL.md` is now at 398/400 lines — the
+   next non-trivial addition to this specific file will likely need to
+   trim or archive an older pitfall first (round 237's own precedent for
+   a comparably-sized edit), not just append. Check `wc -l` before
+   editing, not after.
 3. Watch whether round 253's record-gap prompt injection actually gets
-   acted on the next time it fires for a REAL gap (as opposed to a
-   synthetic test) — 0 real gaps have fired as of round 259, so this is
-   still unobserved.
-4. language(C): round 260 pinpointed round 206's `steps` guest-builtin
+   acted on the next time it fires for a REAL gap of EITHER shape
+   (missing research-state.md entry, or round 259's new missing-driver-
+   log-line sequence gap) — 0 real gaps of either shape have fired as of
+   round 261, so this is still unobserved.
+4. Standing reminder from round 261's own finding: before writing a
+   cross-track "possible skills(B) follow-up" item into this file's Next
+   steps (as round 260 did for the now-corrected item above), actually
+   open the target skill file and grep for the claimed gap first —
+   round 260's item was wrong because nobody checked before writing it.
+5. language(C): round 260 pinpointed round 206's `steps` guest-builtin
    introduction as the actual memory cliff (~111 MB → ~557 MB, a ~5.1x
    jump, for a +2.4%-source-size commit) — closing the chain of
    backlog items from rounds 254/258/260. The full 13-checkpoint sweep
-   (item 5 below) now has a firmer lower bound to budget from (~557 MB
+   (item 6 below) now has a firmer lower bound to budget from (~557 MB
    just to clear round 206's own cliff, before any of 218/222/224's own
    contributions). No further A/B is owed unless a future round wants to
    bisect INSIDE round 206's own 27-line diff (not attempted — round
    206's commit message already explains the mechanism: `steps()`
    switches from failing at name resolution to actually walking the full
    host provenance trace).
-5. The full 13-checkpoint `bench/self_host_memscale.py` sweep still needs
+6. The full 13-checkpoint `bench/self_host_memscale.py` sweep still needs
    a host with real headroom (order 3000-4000 MB, 600s/checkpoint) — round
    258 confirmed this box still doesn't have it (640 MB free, 2.2 GB
    available at round start); check `free -h` fresh before attempting,
@@ -2783,11 +2853,11 @@ Workspace: ~/agi-research
    against: round 206 alone already costs ~557 MB in the minimal repro,
    so the full checkpoint-66 sweep's real number is bounded well below by
    that, not by round 204's ~111 MB.
-6. SWE-loop(D): the guess-targeted campaign is complete at its original
+7. SWE-loop(D): the guess-targeted campaign is complete at its original
    1000 target with zero open findings — no further segments owed. A
    larger re-run (2000+) would only be worth it after a future
    `self_eval.lang` change touches Guess-adjacent code paths again.
-7. harness(A): round 259's `interrupted`-rate-collapse finding (0.0% over
+8. harness(A): round 259's `interrupted`-rate-collapse finding (0.0% over
    the last 22 rounds, 237-258, down from 12.9%/17.4% in the two prior
    windows) is only partially explained (a measured ~7-12% per-round
    tool_calls/span_s reduction from the 235/239/241/247 tiering/health-
