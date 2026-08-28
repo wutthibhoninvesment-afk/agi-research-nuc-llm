@@ -178,6 +178,48 @@ probe. The fix is the same as for any far miss — add the case's
 vocabulary to the description — and it is verifiable: after the edit the
 same paired probe should verdict `ok`.
 
+**First live run (round 243, sonnet, native/strict) — closes the item this
+diagnostic sat open since round 105 having never been run on a real
+collision.** Two experiments, both `ok` (no suppression, no displacement),
+but for different and informative reasons:
+
+1. `sia-concurrent` (the `session-inheritance-audit` case that most
+   resembles a genuine multi-agent-collision scenario — "the driver log
+   says round 12 finished... both are editing the same repo") staged
+   against two real, independently-authored near-miss skills from this
+   host's Hermes install (`~/.hermes/skills/autonomous-ai-agents/
+   merge-reconciler`, `~/.hermes/skills/devops/kanban-orchestrator` —
+   both plausible on multi-agent/concurrent-editing vocabulary alone):
+   plain 4/4, staged 4/4, gap 0, the staged distractors never fired even
+   once across 4 runs. A genuine negative — these two skills' descriptions
+   do not actually contest `session-inheritance-audit` for this case
+   despite the surface-level topical overlap.
+2. **Positive-control check** (needed because a diagnostic that only ever
+   reports `ok` on real corpora is indistinguishable from an insensitive
+   instrument): staged an intentionally adversarial distractor — a
+   hand-paraphrased near-duplicate of `session-inheritance-audit` itself
+   (different name, `session-recovery-audit`, description rewritten
+   sentence-by-sentence with the same symptom list and scope) — against
+   `sia-near`/`sia-mid`/`sia-concurrent`. Result: still `ok` across all
+   three cases (4/4 plain, 4/4 staged each) — but NOT because the
+   distractor was ignored: it co-fired in 10/12 probes. Sonnet's native
+   Skill-tool selection is not forced-exclusive the way `SUPPRESSED`'s
+   "the selector fires neither" framing implicitly assumes — faced with
+   two skills whose descriptions are near-paraphrases of each other, it
+   called both rather than picking one, so the expected skill's own fire
+   rate never dropped. This does not contradict the historical
+   round-21/round-8 suppression finding cited above (a different skill,
+   different distractor, likely a genuinely weaker probe model or a
+   sharper semantic fork) — it shows the failure mode is real but not
+   universal, and that a strong model with two near-identical
+   descriptions tends toward "invoke both" over "invoke neither." Net
+   effect: the experiment-1 `ok` verdict is trustworthy (the instrument
+   demonstrably still logs `staged-distractor` fires when they happen —
+   see the 10/12 count — it just didn't find them costing the expected
+   skill anything), even though this specific round never produced a
+   `SUPPRESSED`/`DISPLACED` verdict to confirm detection end-to-end
+   against a live model. See `knowledge/round-243-skills-distractors-paired-diagnostic-first-live-run.md`.
+
 ## Instrument drift — canary
 
 The benchmark's substrate is the live host: its skill population and the
