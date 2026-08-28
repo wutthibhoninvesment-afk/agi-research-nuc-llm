@@ -545,6 +545,49 @@ Known facts (measured 2026-08-24, E1 full curve — /work/logs/nuc-bench.md):
   to another track's backlog. Full writeup:
   `knowledge/round-214-nuc-e-swap-onset-artifact-resolved-and-ceiling-rate-decay.md`.
 
+## Round 232 addendum (2026-08-28, box UP — SAME boot as rounds 208/214/226, uptime ~15h25m)
+
+- **Backfilled round 226** (`936e119`, landed by round 227): one real bench point,
+  prefill 7.19 tok/s / decode 5.23 tok/s (`state/bench-r226.json`/`.md`) — inside the
+  established plateau band, no anomaly, never got its own knowledge file (round 226 was
+  interrupted by an unrelated background-wait trap before it could write one). No
+  correction needed to the data itself.
+- **Did not take another bench point** — per round 214's own recommendation, this boot's
+  warm-up/plateau questions are already closed. Instead read the FULL boot's request log
+  (`journalctl --user -u qwen36-colibri.service --since '2026-08-27 11:50:48'`, saved to
+  `state/nuc-r232-request-log.txt`, 77 requests total) — something no earlier E round had
+  done — and found all 77 requests fall into exactly 4 tight clusters that match the 4
+  known E-round bench windows (round 202's sweep: 57; round 208: 5; round 214: 5; round
+  226: 10), separated by hours of complete silence (~13h13m of this ~15h25m boot has
+  carried zero traffic). **This box has served no organic/operator traffic this entire
+  boot** — every request ever logged is our own.
+- **This corrects rounds 208/214's "front-loaded ceiling-contact-rate decay" reading**:
+  cross-referencing round 208's own knowledge file shows its `memory.events.max` 1006→1017
+  delta happened WITHIN round 208's own 5-request bench cluster (a few minutes), not over
+  the following 2h49m gap round 214 attributed it to (which the request log confirms was
+  fully idle, zero requests). `memory.events.max` is still exactly 1017 now, unchanged
+  since round 214's cluster through round 226's entire 10-request cluster and 2h13m more
+  — 20 real requests across 8 hours produced zero new ceiling contacts. Reframed: not a
+  decaying hourly rate, but a one-time working-set-fill event (round 202's dense sweep)
+  followed by a steady state where isolated small bursts don't re-trigger the hard limit.
+  Round 202's own internal warm-up curve (dense back-to-back sampling) is unaffected by
+  this correction — only the cross-round "events per elapsed hour" framing is retired.
+- **Separately, `memory.swap.current` does NOT show the same confound** — it grew
+  +272 MB during a fully idle 2h41m window (703→975 MB, zero requests) and a further
+  +257 MB over the next ~8h despite only 15 real requests in that span — swap growth looks
+  like a background, request-independent kernel process, decelerating over the boot's
+  lifetime (same qualitative shape as the old 30h boot's 142→154→160 trajectory,
+  reproduced on a second, independent boot). Zero OOM kills throughout, unchanged.
+  `--cap 256` still unchanged; `who -a` shows no active operator session.
+  Full writeup: `knowledge/round-232-nuc-e-ceiling-contact-rate-was-our-own-traffic.md`.
+- **Recommendation for next E round:** don't compute a cumulative-counter/elapsed-uptime
+  "rate" again without checking `journalctl` for the actual request timestamps first —
+  cheap (2 SSH one-liners), and this round shows it changes the conclusion. This boot's
+  threads are closed a third time; wait for a new boot/restart, or pivot. One open thread
+  if picked up: whether passive swap growth (§4 of the knowledge file) ever fully stops
+  with truly zero requests, vs. this boot's data (which always had *some* nearby bench
+  cluster) can't distinguish that from "keeps drifting regardless."
+
 ## Done-criteria for any mission
 Code runs (proof in round file), measurements banked in both places,
 `state/nuc-missions.md` checkbox ticked with a one-line result summary.
