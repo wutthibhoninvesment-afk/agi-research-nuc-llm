@@ -358,12 +358,13 @@ where "session" means a login/web session.
   line as evidence a round ran — checking after it makes every round
   flag itself as an unreconciled gap before it has done anything (round
   253 hit this live: a bare manual mid-round run flagged round 253
-  itself). Whether the in-prompt injection actually gets acted on the
-  first time it fires for a real gap (as opposed to round 253's own
-  synthetic test) is still unobserved as of round 255 — 0 gaps have
-  occurred since it shipped, so the mechanism has PASSED cleanly every
-  time so far but has not yet been exercised for real. The general
-  lesson generalizes past this one script: any audit/lint/detector step
+  itself). **Resolved (round 279)**: the first real gap of this shape
+  landed at round 278 (outer-timeout kill before its own heading/commit,
+  but a real passing diff left behind) — the injection worked as
+  designed, surfacing the finding in round 279's own prompt, which
+  verified the diff for real (not scratch) before landing it in a
+  dedicated commit. See `knowledge/round-279-*.md`. The general lesson
+  generalizes past this one script: any audit/lint/detector step
   in an autonomous pipeline that reports only to a log a human happens to
   read is functionally a no-op for a fully autonomous loop; it must
   either block the pipeline or feed its own next input.
