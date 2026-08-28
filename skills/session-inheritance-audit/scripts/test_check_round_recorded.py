@@ -89,7 +89,10 @@ def test_end_to_end_archived_round_is_not_flagged_as_a_gap(tmp_path):
          "--state", str(state),
          "--archive", str(archive),
          "--knowledge-dir", str(tmp_path / "knowledge_missing"),
-         "--round-logs-dir", str(tmp_path / "logs_missing")],
+         "--round-logs-dir", str(tmp_path / "logs_missing"),
+         # not a git repo -> working_tree_status degrades to None/[],
+         # isolating this test from the real checkout's own dirty tree.
+         "--repo-root", str(tmp_path)],
         capture_output=True, text=True,
     )
     assert rc.returncode == 0
@@ -536,6 +539,14 @@ def test_end_to_end_acknowledged_uncommitted_gap_suppressed_by_default(tmp_path)
     (knowledge / "round-266-foo.md").write_text("x")
     ack = tmp_path / "ack.json"
     ack.write_text(json.dumps({"266": "verified, real work landed by round 267"}))
+    # round-266-foo.md is deliberately, permanently uncommitted here (that's
+    # what recorded_but_uncommitted_rounds is testing) — separately allowlist
+    # it in the dirty-tree check too, exactly as a real user would once the
+    # round-based ack above already covers the exact same file.
+    # git reports a wholly-untracked directory as one line for the
+    # directory itself ("?? knowledge/"), not per-file inside it.
+    standing = tmp_path / "standing.json"
+    standing.write_text(json.dumps({"paths": ["knowledge/"]}))
 
     rc = subprocess.run(
         [sys.executable, SCRIPT,
@@ -545,7 +556,8 @@ def test_end_to_end_acknowledged_uncommitted_gap_suppressed_by_default(tmp_path)
          "--ack-file", str(ack),
          "--knowledge-dir", str(knowledge),
          "--round-logs-dir", str(tmp_path / "logs_missing"),
-         "--repo-root", str(repo)],
+         "--repo-root", str(repo),
+         "--standing-dirty-file", str(standing)],
         capture_output=True, text=True,
     )
     assert rc.returncode == 0
@@ -560,7 +572,8 @@ def test_end_to_end_acknowledged_uncommitted_gap_suppressed_by_default(tmp_path)
          "--show-acknowledged",
          "--knowledge-dir", str(knowledge),
          "--round-logs-dir", str(tmp_path / "logs_missing"),
-         "--repo-root", str(repo)],
+         "--repo-root", str(repo),
+         "--standing-dirty-file", str(standing)],
         capture_output=True, text=True,
     )
     assert rc_shown.returncode == 0
@@ -608,7 +621,8 @@ def test_end_to_end_clean_when_every_round_recorded(tmp_path):
          "--driver-log", str(driver_log),
          "--state", str(state),
          "--knowledge-dir", str(tmp_path / "knowledge_missing"),
-         "--round-logs-dir", str(tmp_path)],
+         "--round-logs-dir", str(tmp_path),
+         "--repo-root", str(tmp_path)],
         capture_output=True, text=True,
     )
     assert rc.returncode == 0
@@ -689,7 +703,8 @@ def test_end_to_end_acknowledged_gap_shown_with_flag(tmp_path):
          "--ack-file", str(ack),
          "--show-acknowledged",
          "--knowledge-dir", str(tmp_path / "knowledge_missing"),
-         "--round-logs-dir", str(tmp_path / "logs_missing")],
+         "--round-logs-dir", str(tmp_path / "logs_missing"),
+         "--repo-root", str(tmp_path)],
         capture_output=True, text=True,
     )
     # All gaps acknowledged -> clean exit, but --show-acknowledged still
@@ -781,7 +796,8 @@ def test_end_to_end_acknowledged_sequence_gap_suppressed_by_default(tmp_path):
          "--archive", str(tmp_path / "no-archive.md"),
          "--ack-file", str(ack),
          "--knowledge-dir", str(tmp_path / "knowledge_missing"),
-         "--round-logs-dir", str(tmp_path / "logs_missing")],
+         "--round-logs-dir", str(tmp_path / "logs_missing"),
+         "--repo-root", str(tmp_path)],
         capture_output=True, text=True,
     )
     assert rc.returncode == 0
@@ -796,7 +812,8 @@ def test_end_to_end_acknowledged_sequence_gap_suppressed_by_default(tmp_path):
          "--ack-file", str(ack),
          "--show-acknowledged",
          "--knowledge-dir", str(tmp_path / "knowledge_missing"),
-         "--round-logs-dir", str(tmp_path / "logs_missing")],
+         "--round-logs-dir", str(tmp_path / "logs_missing"),
+         "--repo-root", str(tmp_path)],
         capture_output=True, text=True,
     )
     assert rc_shown.returncode == 0
@@ -828,3 +845,158 @@ def test_real_repo_acknowledges_round_229_sequence_gap():
     for line in rc.stdout.splitlines():
         if "round-number sequence gap(s)" in line:
             assert "229" not in line
+
+
+def _init_repo(path):
+    subprocess.run(["git", "init", "-q"], cwd=path, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t.com"], cwd=path, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=path, check=True)
+
+
+def test_working_tree_status_none_when_not_a_repo(tmp_path):
+    assert m.working_tree_status(str(tmp_path)) is None
+
+
+def test_working_tree_status_empty_for_clean_repo(tmp_path):
+    _init_repo(tmp_path)
+    (tmp_path / "a.txt").write_text("x")
+    subprocess.run(["git", "add", "a.txt"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "add a"], cwd=tmp_path, check=True)
+    assert m.working_tree_status(str(tmp_path)) == []
+
+
+def test_working_tree_status_reports_modified_and_untracked(tmp_path):
+    _init_repo(tmp_path)
+    (tmp_path / "a.txt").write_text("x")
+    subprocess.run(["git", "add", "a.txt"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "add a"], cwd=tmp_path, check=True)
+    (tmp_path / "a.txt").write_text("y")           # modified
+    (tmp_path / "b.txt").write_text("z")            # untracked
+    status = {path: code for code, path in m.working_tree_status(str(tmp_path))}
+    assert status["a.txt"] == " M"
+    assert status["b.txt"] == "??"
+
+
+def test_load_standing_dirty_paths_missing_file_returns_empty_set(tmp_path):
+    assert m.load_standing_dirty_paths(str(tmp_path / "nope.json")) == set()
+
+
+def test_load_standing_dirty_paths_reads_paths_key(tmp_path):
+    p = tmp_path / "standing.json"
+    p.write_text(json.dumps({
+        "_comment": "ignored",
+        "paths": ["state/round_counter", "languages/whence/pyproject.toml"],
+    }))
+    assert m.load_standing_dirty_paths(str(p)) == {
+        "state/round_counter", "languages/whence/pyproject.toml",
+    }
+
+
+def test_load_standing_dirty_paths_malformed_json_returns_empty_set(tmp_path):
+    p = tmp_path / "standing.json"
+    p.write_text("{not valid json")
+    assert m.load_standing_dirty_paths(str(p)) == set()
+
+
+def test_unattributed_dirty_paths_skips_git_unavailable(tmp_path):
+    assert m.unattributed_dirty_paths(str(tmp_path), {"a.txt"}) == []
+
+
+def test_unattributed_dirty_paths_filters_standing_paths(tmp_path):
+    _init_repo(tmp_path)
+    (tmp_path / "state").mkdir()
+    (tmp_path / "state" / "round_counter").write_text("1")
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=tmp_path, check=True)
+    (tmp_path / "state" / "round_counter").write_text("2")  # standing, filtered
+    (tmp_path / "leftover.py").write_text("x")               # real, unattributed
+    result = m.unattributed_dirty_paths(str(tmp_path), {"state/round_counter"})
+    assert result == [("??", "leftover.py")]
+
+
+def test_unattributed_dirty_paths_empty_when_only_standing_dirty(tmp_path):
+    _init_repo(tmp_path)
+    (tmp_path / "a.txt").write_text("x")
+    subprocess.run(["git", "add", "a.txt"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "add a"], cwd=tmp_path, check=True)
+    (tmp_path / "a.txt").write_text("y")
+    assert m.unattributed_dirty_paths(str(tmp_path), {"a.txt"}) == []
+
+
+def test_end_to_end_flags_unattributed_dirty_tree(tmp_path):
+    # Reproduces round 282/283's actual shape: a commit whose subject
+    # correctly names round N exists, but a real, separate leftover diff
+    # (not the knowledge file/heading pair recorded_but_uncommitted_rounds
+    # already covers) still sits uncommitted in the tree.
+    driver_log = tmp_path / "driver.log"
+    _write_driver_log(str(driver_log), [
+        "[t] round 282 track=language(C) start (driver_version=x) pid=1",
+        "[t] round 282: success",
+    ])
+    state = tmp_path / "state.md"
+    state.write_text("### Round 282 — language(C) — 2026-08-28\n- ok\n")
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    (repo / "a.txt").write_text("x")
+    subprocess.run(["git", "add", "a.txt"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "Round 282 (language C): land round 281"],
+                    cwd=repo, check=True)
+    # round 282's OWN new feature never got committed:
+    (repo / "feature.py").write_text("real leftover diff")
+
+    rc = subprocess.run(
+        [sys.executable, SCRIPT,
+         "--driver-log", str(driver_log),
+         "--state", str(state),
+         "--archive", str(tmp_path / "no-archive.md"),
+         "--ack-file", str(tmp_path / "no-ack.json"),
+         "--knowledge-dir", str(tmp_path / "knowledge_missing"),
+         "--round-logs-dir", str(tmp_path / "logs_missing"),
+         "--standing-dirty-file", str(tmp_path / "no-standing.json"),
+         "--repo-root", str(repo)],
+        capture_output=True, text=True,
+    )
+    # committed_per_git_log(282) reads True (a real commit names round 282)
+    # even though feature.py — round 282's own leftover work — is still
+    # dirty; the new check must surface it anyway.
+    assert m.committed_per_git_log(282, str(repo)) is True
+    assert rc.returncode == 1
+    assert "unattributed" in rc.stdout
+    assert "feature.py" in rc.stdout
+
+
+def test_end_to_end_standing_dirty_file_suppresses_known_noise(tmp_path):
+    driver_log = tmp_path / "driver.log"
+    _write_driver_log(str(driver_log), [
+        "[t] round 5 track=skills(B) start (driver_version=x) pid=1",
+        "[t] round 5: success",
+    ])
+    state = tmp_path / "state.md"
+    state.write_text("### Round 5 — Skills(B) — 2026-01-01\n- ok\n")
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    (repo / "a.txt").write_text("x")
+    subprocess.run(["git", "add", "a.txt"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=repo, check=True)
+    (repo / "a.txt").write_text("y")  # a bump to an allowlisted path only
+
+    standing = tmp_path / "standing.json"
+    standing.write_text(json.dumps({"paths": ["a.txt"]}))
+
+    rc = subprocess.run(
+        [sys.executable, SCRIPT,
+         "--driver-log", str(driver_log),
+         "--state", str(state),
+         "--archive", str(tmp_path / "no-archive.md"),
+         "--ack-file", str(tmp_path / "no-ack.json"),
+         "--knowledge-dir", str(tmp_path / "knowledge_missing"),
+         "--round-logs-dir", str(tmp_path / "logs_missing"),
+         "--standing-dirty-file", str(standing),
+         "--repo-root", str(repo)],
+        capture_output=True, text=True,
+    )
+    assert rc.returncode == 0
+    assert "0 gaps" in rc.stdout
+    assert "unattributed" not in rc.stdout

@@ -1,0 +1,10 @@
+{
+  "_comment": "Repo-relative paths that PERMANENTLY show up in `git status --porcelain` and must never count as evidence of a round's own uncommitted work, read by check_round_recorded.py's unattributed_dirty_paths (round 291, closing round 283's backlog item 3 — the git_committed-coverage gap). Two distinct sources so far: (1) state/round_counter, the shared bookkeeping file every round bumps early in its own run, so it is always ` M` mid-round by design (see feedback_check_for_concurrent_rounds); (2) the four files a wholly separate autonomous system (the Hermes gateway, see skills/session-inheritance-audit/SKILL.md's 'hermes-not-a-driver-process' pitfall) leaves permanently untracked under languages/whence/ — confirmed unchanged across dozens of rounds (152, 172, 198, 201, and every round since; most recently round 288/289/290). Add a new path here ONLY after independently confirming it recurs across multiple rounds' `git status` with no round ever attributing or committing it — a real one-off leftover diff belongs in git via `git add`+`git commit`, not in this allowlist.",
+  "paths": [
+    "state/round_counter",
+    "languages/whence/examples/expense_tracker.lang",
+    "languages/whence/examples/test_simple.lang",
+    "languages/whence/pyproject.toml",
+    "languages/whence/whence_qwen_bridge.py"
+  ]
+}

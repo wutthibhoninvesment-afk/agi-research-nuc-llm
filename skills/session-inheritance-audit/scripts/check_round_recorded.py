@@ -58,6 +58,25 @@ heading and knowledge file were both written to disk before the round
 died, so `main`'s per-round loop treated it as fully `in_state` and never
 checked git for it at all. See `recorded_but_uncommitted_rounds`'s own
 docstring below.
+
+Round 291 added a FOURTH, structurally distinct gap shape:
+`unattributed_dirty_paths` flags any path `git status --porcelain` reports
+right now that isn't on the permanent allowlist (`state/known-standing-
+dirty-paths.json`) — the automated form of round 283's own still-open
+backlog item 3 (`committed_per_git_log`'s "coverage gap"): a commit whose
+SUBJECT names round N is not proof round N's ENTIRE diff landed. Confirmed
+live for round 282 (found by round 283's manual `git status --short`, not
+by this script at the time): round 282 committed the "land round 281" half
+of its own round but left its own new v0.14.6 feature (three modified
+files, one new knowledge file) genuinely uncommitted while
+`committed_per_git_log(282)` still read `True`, because SOME commit that
+round did make correctly named "Round 282" in its subject. Unlike the
+other three checks here, this one is not keyed to any specific round
+number — it is the raw working-tree signal every one of rounds 265/283 had
+to read by hand before landing a predecessor's leftover work, turned into
+one automatable, round-agnostic cross-check instead of something every
+future round must remember to run itself. See `unattributed_dirty_paths`'s
+own docstring below.
 """
 
 import argparse
@@ -458,6 +477,85 @@ def load_acknowledged_gaps(path):
     return out
 
 
+def working_tree_status(repo_root="."):
+    """Return a list of (status_code, path) pairs from `git status
+    --porcelain` for `repo_root` (paths repo-root-relative, forward
+    slashes, matching git's own convention), or None if git/the repo isn't
+    available — same degrade-gracefully convention as
+    `committed_per_git_log`/`_file_ever_tracked`.
+
+    This is the raw signal round 283 read BY HAND (`git status --short`)
+    before landing round 282's leftover work, because `committed_per_git_
+    log`'s own per-round check has a real, structural blind spot: a commit
+    whose SUBJECT names round N is not proof round N's ENTIRE diff landed
+    (see this module's own docstring, "Round 291 added a FOURTH..."). A
+    rename line (`R  old -> new`) keeps only the destination path — the
+    only status shape `git status --porcelain` emits with an embedded
+    separator instead of one bare path per line. A wholly untracked
+    DIRECTORY (no committed file inside it yet) reports as one line for
+    the directory itself (`?? some/new/dir/`), not one line per file
+    inside it — an allowlist entry for that case needs the directory path
+    (trailing slash and all), not any individual file path underneath it.
+    """
+    try:
+        out = subprocess.run(
+            ["git", "-C", repo_root, "status", "--porcelain"],
+            capture_output=True, text=True, timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if out.returncode != 0:
+        return None
+    result = []
+    for line in out.stdout.splitlines():
+        if not line:
+            continue
+        code, path = line[:2], line[3:]
+        if " -> " in path:
+            path = path.split(" -> ", 1)[1]
+        result.append((code, path))
+    return result
+
+
+def load_standing_dirty_paths(path):
+    """Return a set of repo-relative paths from a JSON file
+    (`{"paths": [...]}`, plus an ignored `_comment` key) that are
+    PERMANENTLY expected to show up in `git status --porcelain` and must
+    never count as evidence of a round's own uncommitted work — the shared
+    round counter every round bumps early in its own run (`state/round_
+    counter`) and the handful of files a wholly separate autonomous system
+    (the Hermes gateway; see this file's own "hermes-not-a-driver-process"
+    pitfall in SKILL.md) leaves permanently untracked under `languages/
+    whence/`. Missing/malformed file degrades to an empty set (same
+    convention as `load_acknowledged_gaps`) rather than an error."""
+    if not os.path.exists(path):
+        return set()
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return set()
+    paths = data.get("paths", []) if isinstance(data, dict) else data
+    return {p for p in paths if isinstance(p, str)}
+
+
+def unattributed_dirty_paths(repo_root=".", standing_paths=frozenset()):
+    """Return the (status_code, path) pairs from `working_tree_status` that
+    are NOT in `standing_paths` — the automatable half of round 283's
+    still-open `git_committed`-coverage gap (see `working_tree_status`'s
+    own docstring). Returns `[]` (not `None`) both when git is unavailable
+    and when the tree is fully clean/standing-only — every caller here
+    treats both as "nothing to flag," the same degrade-gracefully
+    convention every other check in this file already uses; `working_tree_
+    status`'s own `None` is only meaningful to a caller that needs to
+    distinguish "clean" from "couldn't check," and nothing downstream of
+    this function does."""
+    status = working_tree_status(repo_root)
+    if not status:
+        return []
+    return [(code, path) for code, path in status if path not in standing_paths]
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--driver-log", default="logs/driver.log")
@@ -486,10 +584,19 @@ def main():
     ap.add_argument("--show-acknowledged", action="store_true",
                      help="also print acknowledged gaps (suppressed from "
                           "the exit-code-bearing list by default)")
+    ap.add_argument("--standing-dirty-file",
+                     default="state/known-standing-dirty-paths.json",
+                     help="JSON allowlist of repo-relative paths that "
+                          "permanently show up in `git status --porcelain` "
+                          "(the shared round counter, files a separate "
+                          "autonomous system leaves untracked) and must "
+                          "never count as an unattributed dirty-tree gap. "
+                          "Missing file degrades to an empty allowlist.")
     args = ap.parse_args()
     archive_paths = (args.archive if args.archive is not None
                       else ["state/research-state-archive.md"])
     acknowledged = load_acknowledged_gaps(args.ack_file)
+    standing_dirty = load_standing_dirty_paths(args.standing_dirty_file)
 
     driver_rounds = parse_driver_log(args.driver_log)
     state_rounds = recorded_rounds(args.state, archive_paths)
@@ -505,6 +612,8 @@ def main():
     uncommitted_ack_hits = [(n, acknowledged[n]) for n in uncommitted_gaps
                              if n in acknowledged]
     uncommitted_unacked = [n for n in uncommitted_gaps if n not in acknowledged]
+
+    dirty_paths = unattributed_dirty_paths(args.repo_root, standing_dirty)
 
     gaps = []
     ack_hits = []
@@ -565,7 +674,19 @@ def main():
               % (len(uncommitted_unacked),
                  ", ".join(str(n) for n in uncommitted_unacked)))
 
-    if not gaps and not seq_unacked and not uncommitted_unacked:
+    if dirty_paths:
+        print("check_round_recorded: working tree has %d uncommitted, "
+              "unattributed change(s) RIGHT NOW — the automated form of "
+              "round 283's `git_committed`-coverage gap: a commit whose "
+              "subject names round N is not proof round N's ENTIRE diff "
+              "landed. Inspect and attribute each path (a real leftover "
+              "diff needs `git add`+`git commit`; a file a separate system "
+              "permanently leaves behind belongs in --standing-dirty-file "
+              "[%s] instead):" % (len(dirty_paths), args.standing_dirty_file))
+        for code, path in dirty_paths:
+            print("  %s %s" % (code, path))
+
+    if not gaps and not seq_unacked and not uncommitted_unacked and not dirty_paths:
         n_ack = len(ack_hits) + len(seq_ack_hits) + len(uncommitted_ack_hits)
         suffix = (" (%d pre-acknowledged, see %s)" % (n_ack, args.ack_file)
                    if n_ack else "")

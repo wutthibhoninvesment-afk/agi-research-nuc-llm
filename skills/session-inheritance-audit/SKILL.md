@@ -192,6 +192,13 @@ where "session" means a login/web session.
   `_NOT_EVIDENCE_RE` now excludes the whole "by round N" family. Full
   mechanism:
   [references/pitfall-history.md#git-committed-by-round-n-false-positive](references/pitfall-history.md#git-committed-by-round-n-false-positive).
+- **`git_committed=True` can also be true while a round's OWN work is
+  still uncommitted** — a real, correctly-titled commit for round N exists,
+  it just doesn't cover ALL of round N's diff (confirmed live, round 282).
+  `check_round_recorded.py` now also runs a round-agnostic `git status
+  --porcelain` cross-check (`unattributed_dirty_paths`) that catches this
+  regardless of what any per-round field says. Full mechanism:
+  [references/pitfall-history.md#git-committed-true-partial-diff-coverage](references/pitfall-history.md#git-committed-true-partial-diff-coverage).
 - **`check_round_recorded.py`'s gap list rots into mostly-noise once
   `research-state.md` starts archiving its own old entries.** A plain run
   once flagged 32 rounds, most already explained elsewhere in prose or
@@ -232,8 +239,12 @@ python3 skills/session-inheritance-audit/scripts/check_round_recorded.py
 # a fast triage hint, not a verdict; read the diff either way, see pitfalls above),
 # and `git_committed` (best-effort `git log --all` grep for "round N" — False
 # means don't trust ANY "committed" claim in that round's own prose, see pitfalls).
-# `--since N` still works as a blunter, no-file alternative; `--show-acknowledged`
-# prints the suppressed rounds and their reasons for a spot-check.
+# Also runs a round-agnostic `git status --porcelain` cross-check (round 291):
+# any path not on the `state/known-standing-dirty-paths.json` allowlist prints
+# as "unattributed" — real, uncommitted work `git_committed=True` alone can miss
+# (see pitfalls). `--since N` still works as a blunter, no-file alternative;
+# `--show-acknowledged` prints the suppressed rounds and their reasons for a
+# spot-check.
 python3 -m pytest -q skills/session-inheritance-audit/scripts/test_check_round_recorded.py    # 45 passed
 for p in $(pgrep -f '<round-driver-prompt-or-script-pattern>'); do echo -n "$p "; readlink -f /proc/$p/cwd; done
 # every hit classified: real workspace = live peer (leave/message); tmp/pytest fixture = escaped test orphan (killable)

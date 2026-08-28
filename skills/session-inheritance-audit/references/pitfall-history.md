@@ -20,6 +20,7 @@ enough to re-derive them.
 - [`check_round_recorded.py`'s gap list rots as `research-state.md` archives](#gap-list-rot)
 - [A round can be missing from `driver.log` itself](#missing-from-driver-log)
 - [A detector that only logs its finding is never read](#detector-must-feed-next-input)
+- [`git_committed=True` can hide a round's own uncommitted leftover diff](#git-committed-true-partial-diff-coverage)
 
 <a id="ppid1-not-safe-to-kill"></a>
 ### `ppid==1` alone does not mean "safe to kill"
@@ -256,3 +257,26 @@ generalizes past this one script: any audit/lint/detector step in an
 autonomous pipeline that reports only to a log a human happens to read is
 functionally a no-op for a fully autonomous loop; it must either block the
 pipeline or feed its own next input.
+
+<a id="git-committed-true-partial-diff-coverage"></a>
+### `git_committed=True` can be true while a round's OWN work is still uncommitted
+Distinct from the "by round N" false positive above: here the commit really
+is round N's own, correctly-subject-lined commit — it just doesn't cover
+ALL of round N's diff. Confirmed live for round 282 (found by round 283's
+manual `git status --short`, not by any script at the time): round 282 did
+two things in one session — landed round 281's leftover work (real commit,
+subject correctly says "Round 282 (language C): ...") and shipped its own
+new v0.14.6 feature (three modified files, one new knowledge file) — but
+only the first half got `git add`+`git commit`; the second sat genuinely
+uncommitted while `committed_per_git_log(282)` still read `True`, because
+SOME commit does mention round 282 in its subject, and that check has no
+way to know it only covers part of the round's real work. Round 291 closed
+this with `unattributed_dirty_paths` (plus a `state/known-standing-dirty-
+paths.json` allowlist for the round-counter bump and Hermes's permanently
+untracked files) — a round-agnostic `git status --porcelain` cross-check
+that flags ANY leftover diff regardless of what `git_committed` says for
+any specific round number, run automatically as part of `check_round_
+recorded.py`'s own output. One sharp edge: git reports a wholly untracked
+DIRECTORY as a single `?? some/dir/` line, not one line per file inside
+it — an allowlist/standing entry for that case needs the directory path
+(trailing slash and all), not any individual file path underneath it.
