@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
 from dataclasses import asdict, dataclass, field
@@ -93,28 +94,48 @@ class Burst:
         return (self.delta_bytes / 1e6) / (self.duration_s / 3600.0)
 
 
-def collect(unit: str, slice_path: str, interval_s: float, duration_s: float) -> list:
+def collect(unit: str, slice_path: str, interval_s: float, duration_s: float,
+            checkpoint_path: str | None = None) -> list:
+    """Poll swap/mem/vmstat counters until duration_s elapses.
+
+    If checkpoint_path is given, each sample is appended as one JSON line and
+    flushed+fsynced immediately, so a run interrupted mid-flight (box reboot,
+    OOM, session loss) leaves recoverable partial data on disk rather than
+    losing everything — the final `--out` JSON is otherwise only written once,
+    at the very end, which is fine for the short (<20 min) polls this script
+    was originally built for but not for a genuinely multi-hour unattended run.
+    """
     cg = cgroup_dir(unit, slice_path)
     swap_path = f"{cg}/memory.swap.current"
     mem_path = f"{cg}/memory.current"
     samples = []
     seq = 0
     t_start = time.time()
-    while True:
-        now = time.time()
-        vmstat = read_vmstat_counters()
-        samples.append(Sample(
-            seq=seq,
-            t_unix=now,
-            swap_bytes=read_int_file(swap_path),
-            mem_current_bytes=read_int_file(mem_path),
-            pswpin_pages=vmstat.get("pswpin", -1),
-            pswpout_pages=vmstat.get("pswpout", -1),
-        ))
-        seq += 1
-        if now - t_start >= duration_s:
-            break
-        time.sleep(interval_s)
+    ckpt_f = open(checkpoint_path, "a") if checkpoint_path else None
+    try:
+        while True:
+            now = time.time()
+            vmstat = read_vmstat_counters()
+            sample = Sample(
+                seq=seq,
+                t_unix=now,
+                swap_bytes=read_int_file(swap_path),
+                mem_current_bytes=read_int_file(mem_path),
+                pswpin_pages=vmstat.get("pswpin", -1),
+                pswpout_pages=vmstat.get("pswpout", -1),
+            )
+            samples.append(sample)
+            if ckpt_f is not None:
+                ckpt_f.write(json.dumps(asdict(sample)) + "\n")
+                ckpt_f.flush()
+                os.fsync(ckpt_f.fileno())
+            seq += 1
+            if now - t_start >= duration_s:
+                break
+            time.sleep(interval_s)
+    finally:
+        if ckpt_f is not None:
+            ckpt_f.close()
     return samples
 
 
@@ -178,10 +199,15 @@ def main(argv=None) -> int:
     p.add_argument("--duration", type=float, default=900.0, help="total watch time, seconds")
     p.add_argument("--burst-threshold-bytes", type=int, default=DEFAULT_BURST_THRESHOLD_BYTES)
     p.add_argument("--out", default=None, help="write JSON here (default: stdout)")
+    p.add_argument("--checkpoint", default=None,
+                    help="append each sample as a JSON line here as it's collected "
+                         "(recommended for runs longer than ~20 min, so an "
+                         "interruption doesn't lose all samples)")
     args = p.parse_args(argv)
 
     try:
-        samples = collect(args.unit, args.slice_path, args.interval, args.duration)
+        samples = collect(args.unit, args.slice_path, args.interval, args.duration,
+                           checkpoint_path=args.checkpoint)
     except OSError as e:
         raise SwapWatchError(f"failed reading cgroup/vmstat files: {e}") from e
 

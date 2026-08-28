@@ -721,6 +721,38 @@ Known facts (measured 2026-08-24, E1 full curve — /work/logs/nuc-bench.md):
   multi-hour continuous `swap_watch.py` run is still the only way to catch a burst
   actually in progress, not attempted yet.
 
+## Round 268 addendum (2026-08-28, box UP — SAME boot as rounds 208/214/226/232/238/244/256/262, uptime ~28h21m)
+
+- **Seven-gap burst tally (recommendation from round 262 item 2)**: assembled all 7
+  round-to-round `memory.swap.current` baseline deltas recorded on this boot into one
+  table, re-deriving each from raw bytes/timestamps rather than copying prose forward —
+  found and fixed a MiB-vs-MB unit slip in round 262's own "+73.66 MB" figure (actually
+  73.66 MiB = 77.24 MB decimal, the number its own 39.5 MB/hr rate was actually computed
+  from). Result: 6 of 7 gaps (85.7% of 23.03 tracked hours) show real growth, only 1 gap
+  is genuinely flat; rates run 101.6/32.1/22.5/135.4/0.0/39.5/46.3 MB/hr with no trend by
+  boot age or request count; mean (44.62 MB/hr) misses 4 of 7 individual gaps by >30%.
+  Every tight poll ever run on this box (3 of them, 2280s cumulative at 15s interval) has
+  caught zero growth in progress, despite 6/7 wide gaps showing real growth — strong
+  indirect evidence bursts are short/sparse relative to a few-hundred-second poll.
+- **Launched this track's first genuinely multi-hour continuous `swap_watch.py` run**
+  (recommendation from round 262 item 3, deferred twice as "too much of a round's own
+  budget") — done via a **detached** (`nohup … & disown -h`) background process so it
+  costs this round's own wall-clock budget nothing. Added `--checkpoint` to
+  `nuc/swap_watch.py` first (appends+flushes+fsyncs one JSON line per sample) so an
+  8-hour unattended run surviving a box restart/crash doesn't lose all its data — the
+  original script only wrote its aggregate JSON once, at the very end. 6 new offline
+  tests (`nuc/tests/test_swap_watch.py`, this script had none before); full `nuc/tests/`
+  163/163. Running as pid 16184, started 2026-08-28 16:18:5x UTC, `--duration 28800`
+  (8h), expected completion ~2026-08-29 00:18:55 UTC — output at
+  `~/nuc-research/swap-watch-r268-long.json` + `~/nuc-research/swap-watch-r268-
+  checkpoint.jsonl` on the box. **Next E round: collect and analyze this first** (see
+  `knowledge/round-268-nuc-e-checkpointed-long-run-and-seven-point-burst-tally.md`
+  "handoff" section for exact steps, including what to do if the box restarted or the
+  run is still in progress).
+- `--cap 256`, E3 patch, OLMoE tarball unchanged; no operator login; `memory.events.max`
+  still exactly 1017 (unchanged since round 214); escalation channel still dead per
+  round 166. E1-E5 remain fully DONE.
+
 ## Done-criteria for any mission
 Code runs (proof in round file), measurements banked in both places,
 `state/nuc-missions.md` checkbox ticked with a one-line result summary.

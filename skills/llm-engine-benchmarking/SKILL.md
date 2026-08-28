@@ -104,6 +104,15 @@ or for quality evaluation.
   at launch (`nohup cmd > log 2>&1 < /dev/null &`), verify the process with a
   separate `ssh -n` check, and never make the round's control flow wait on
   the launching call returning (this killed round 10 and re-bit round 16).
+- A detached job meant to outlive the launching session by hours (a
+  multi-hour poller left running unattended) must not hold its only result
+  in memory until one final write at the end — a box restart, OOM, or lost
+  network mid-run then loses 100% of the data, not just the tail. Give it a
+  second output path that appends+flushes+fsyncs one line per sample as
+  collected (JSONL checkpoint alongside the normal one-shot JSON `--out`);
+  the checkpoint is what a later round recovers from if the process never
+  reaches its own end (`nuc/swap_watch.py --checkpoint`, added round 268
+  before launching its first genuinely multi-hour — 8h — unattended run).
 - Sanity-check the table before publishing: decode rate should fall (mildly)
   with prompt size and prefill rate should not jump around by >2×. A number
   that violates monotonicity is usually the measurement method breaking, not
