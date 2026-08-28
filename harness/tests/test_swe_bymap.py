@@ -86,6 +86,24 @@ def test_by_file_map_survives_a_test_that_disables_tracing(tmp_path):
 def by_file_map(tmp_path_factory):
     root = make_project(tmp_path_factory.mktemp("bymap"))
     cov = CV.collect(root, ["mod.py"], by_file=True)
+    # Round 239: the real wall-clock `_durations` below (test_a's near-zero
+    # cost vs. test_b's `time.sleep(0.05)` floor, under full-line tracing)
+    # sit only ~5-10ms apart, and a contended host's scheduling jitter flips
+    # that ordering live: round 235's orphaned `swe_slow` tier rerun
+    # recorded test_a=0.058s > test_b=0.053s (`/tmp/swe_slow_tier_round235.log`,
+    # `test_by_file_collect_keys_hits_by_test_file_and_records_durations` +
+    # `test_map_prioritizer_orders_covering_cheapest_first_and_restricts`
+    # both failed from the same flipped comparison). Re-collect a few extra
+    # times and keep the MINIMUM duration per file: jitter only adds delay,
+    # it never subtracts, so the true floor (a few ms vs. test_b's ~50ms
+    # sleep) surfaces in at least one rerun even under load. Same fix shape
+    # as round 233's `diverge` min-of-N flake fix.
+    durs = dict(cov["_durations"])
+    for _ in range(4):
+        extra = CV.collect(root, ["mod.py"], by_file=True)
+        for k, v in extra["_durations"].items():
+            durs[k] = min(durs.get(k, v), v)
+    cov["_durations"] = durs
     return root, cov
 
 
