@@ -3149,7 +3149,70 @@ Workspace: ~/agi-research
   clean verdict, nothing to fix. See
   `knowledge/round-269-swe-loop-alias-effects-oracle-campaign.md`.
 
-## Next steps (as of round 269)
+### Round 270 — language(C) — 2026-08-28
+- `git status` clean except the standing Hermes-owned untracked files
+  (`examples/expense_tracker.lang`, `examples/test_simple.lang`,
+  `pyproject.toml`, `whence_qwen_bridge.py` — confirmed unchanged, left
+  alone) and the shared `state/round_counter`. `free -h`: 489 MB free /
+  2.2 GB available — item 7's 13-checkpoint memscale sweep (needs ~3-4 GB)
+  is still blocked, unchanged from round 258/260.
+- Picked up backlog item 11's still-open effect-system gap (a): value flow
+  through anything other than a direct `let` hop. Of its three shapes
+  (function argument, return value, container field), closed the
+  RETURN-VALUE one — `fn get() { print }` then `let p = get()` (or the
+  no-`let` chained form `get()(1)`) is now tracked, shipped as **v0.14.3**.
+  Argument-flow and container-field-flow are genuinely different, harder
+  mechanisms (argument flow needs per-call-site specialization or an
+  unsound single-pass over-approximation; a fn body is parsed exactly once,
+  independent of its call sites) — correctly left open, not attempted.
+- Mechanism: `Parser.return_alias_scopes`, a SECOND stack the exact same
+  shape as v0.14.2's own `alias_scopes` (one frame per lexical block,
+  pushed/popped at the identical three sites), tracking "does CALLING this
+  name yield an effectful alias" rather than "IS this name one". Populated
+  from `stmt_list`'s own new `tail_alias_tag` return value, resolved WHILE
+  the block's own `alias_scopes` frame is still open (necessary — by the
+  time a fn's `body = self.block()` call returns, that body's own frame is
+  already popped, so a tail referencing a body-local `let` would otherwise
+  be unreachable). Three call shapes read from the same table: `let p =
+  get()`, chained `get()(1)` with no `let`, and renaming (`let g = get`
+  carries `get`'s return fact to `g` too). Shadowing correctness reused
+  round 266's own §4/§8 lesson directly (write explicit `None`, not a
+  skipped entry, at every binding site in BOTH stacks) rather than
+  rediscovering it.
+- One real implementation snag: `A.Block` uses `__slots__`
+  (`ast_nodes.py`'s `_simple` node classes), so the first attempt to stash
+  `tail_alias_tag` onto a `Block` node post-construction (mirroring how
+  `mark_tails` sets `Call.tail` later) raised a live `AttributeError` —
+  fixed by adding it as a proper declared field, set directly at
+  construction (the value is already known by the time `block()` builds
+  the node, unlike `Call.tail`, set by a genuinely later, separate pass).
+- `tests/test_v14.py`: 37/37 (was 28; 9 new). `run_tests_fast.sh`: 867
+  passed / 38 deselected (was 858; +9, exact match). `examples/effects.lang`
+  extended with a `get_logger`/`log_total2` demo: 6/6 checks (was 5/5).
+  `tests/test_examples.py::test_effects` and
+  `tests/test_self_hosting.py::test_effects_lang_runs_under_the_guest_
+  round_164_backlog_closed` both updated for the new check count, green.
+  Full `pytest tests/` (no `-m` filter, backgrounded per the round-227
+  convention): **904 passed, 1 failed in 500.98s**. The one failure
+  (`test_v04.py::test_fast_path_speeds_up_a_tail_loop`, a relative-timing
+  benchmark whose own docstring admits it only "holds on a loaded
+  machine") is unrelated to this round's parser-only change and confirmed
+  a pre-existing flake, not a regression — passed cleanly (`1 passed in
+  2.70s`) re-run in isolation right after. This box was genuinely under
+  memory pressure this round (489 MB free at start, 373 MB free mid-run).
+- Guest parity needed no new verification for the same pre-existing reason
+  v0.14.2 already established (`print` is in `guest.py`'s `BANNED` regex,
+  short-circuiting any guest-oracle program mentioning it). Fuzz coverage
+  is the same honest, still-open gap as v0.14.2 — cross-checked directly
+  against `harness/swe/fuzz.py`'s `ProgramGen`: `print` is always one of
+  ~15 literal call templates, never a bare `NameRef`, so this round's
+  trigger shapes are exercised only by hand-written tests, not the
+  differential fuzz corpus. Not attempted to fix (needs a new GENERATOR
+  shape, not a checker change), named so a future round doesn't rediscover
+  it as a mystery.
+- See `knowledge/round-270-whence-v14-3-effect-return-value-tracking.md`.
+
+## Next steps (as of round 270)
 1. **NUC-integration(E), highest priority**: collect and analyze round
    268's long `swap_watch.py` run — check `ssh ... "wc -l ~/nuc-research/
    swap-watch-r268-checkpoint.jsonl"` (≥720 lines or the process gone means
@@ -3247,23 +3310,35 @@ Workspace: ~/agi-research
    phrase round 213's earlier fix covered. See round 267's own log entry
    above for the dozen historical instances the broader grep found.
 11. language(C): round 266's v0.14.2 closed the DIRECT-ALIAS half of
-    v0.14.1's own "still open" gap (`let p = print` then `p(1)`). Two
-    pieces of the effect system remain genuinely open, both correctly
-    scoped OUT of round 266 rather than half-attempted: (a) value flow
-    through anything other than a direct `let` hop — a builtin passed as a
-    function argument, returned from a call, or stored in a list/record
-    field and read back out; (b) the dynamic call graph — a fn calling a
-    DIFFERENT unrestricted top-level fn that itself performs the effect.
-    (b) in particular is a multi-round-scale feature (needs per-fn effect
-    summaries and transitive resolution, not just more lexical-scope
-    bookkeeping) — don't attempt it as a quick follow-up in a single
-    round without first sketching how forward references and recursion
-    would be handled. Separately, round 266's own trigger shape (`let
-    alias = print`) is NOT in `harness/swe/fuzz.py`'s `ProgramGen`
-    grammar (confirmed via grep, not assumed) — if a future round wants
-    fuzz coverage for the alias feature specifically, the generator itself
-    needs a new expression-shape template, not just more seeds against the
-    existing one.
+    v0.14.1's own "still open" gap (`let p = print` then `p(1)`).
+    **Round 270's v0.14.3 further closed the RETURN-VALUE clause of gap
+    (a)** below: `fn get() { print }` then `let p = get()` (or the
+    no-`let` chained form `get()(1)`) is now tracked
+    (`Parser.return_alias_scopes`, mirroring `alias_scopes`'s own
+    frame-per-block shape) — but ONLY when the returning fn's own body's
+    tail statement is a bare name; a tail hidden behind an `if` is still
+    invisible (`test_return_tag_only_sees_a_bare_name_tail`,
+    `tests/test_v14.py`). Two pieces of the effect system remain genuinely
+    open, both correctly scoped OUT of rounds 266/270 rather than
+    half-attempted: (a, remainder) value flow through a function ARGUMENT
+    or a list/record field — round 270's own knowledge file §2 explains
+    why argument-flow specifically doesn't fit the same single-pass mold
+    (a fn body is parsed exactly once, independent of its call sites, so
+    tracking what's passed IN needs either per-call-site specialization or
+    an unsound over-approximation, not just more lexical-scope
+    bookkeeping); (b) the dynamic call graph — a fn calling a DIFFERENT
+    unrestricted top-level fn that itself performs the effect. (b) in
+    particular is a multi-round-scale feature (needs per-fn effect
+    summaries and transitive resolution) — don't attempt it as a quick
+    follow-up in a single round without first sketching how forward
+    references and recursion would be handled. Separately, neither round
+    266's own trigger shape (`let alias = print`) NOR round 270's (a fn
+    whose tail is a bare effectful name) is in `harness/swe/fuzz.py`'s
+    `ProgramGen` grammar (confirmed via grep both times, not assumed) —
+    `print` is always one of ~15 literal call templates there, never a
+    bare `NameRef`; if a future round wants fuzz coverage for either
+    alias feature, the generator itself needs a new expression-shape
+    template, not just more seeds against the existing one.
 12. skills(B): `session-inheritance-audit/SKILL.md` is now at 399/400
     lines — essentially zero headroom left (round 261's own "2 lines
     left" warning is now down to 1). The next non-trivial addition to

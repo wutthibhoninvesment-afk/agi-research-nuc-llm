@@ -1,5 +1,5 @@
-"""v0.14 (round 146) / v0.14.1 (round 264) / v0.14.2 (round 266):
-`effects [...]` — a minimal, parse-time effect system.
+"""v0.14 (round 146) / v0.14.1 (round 264) / v0.14.2 (round 266) /
+v0.14.3 (round 270): `effects [...]` — a minimal, parse-time effect system.
 
 Design (see SPEC.md "v0.14"/"v0.14.1"): unlike `: Type`/`-> Type` (v0.12/
 v0.13, both runtime checks against a runtime VALUE), whether a function's
@@ -47,21 +47,50 @@ node, no Closure field, and no interpreter change at all. `effects [io,
   an alias `let` written AFTER the call it would cover is not detected
   (`test_alias_defined_after_call_site_is_not_detected`).
 
+- **v0.14.3: a fn whose body's own TAIL STATEMENT is a bare name resolving
+  to an effectful alias is now tracked as a "return fact"** —
+  `Parser.return_alias_scopes`, the exact same per-block-frame shape as
+  `alias_scopes` (v0.14.2), pushed/popped at the identical three sites, but
+  recording "does CALLING this name yield an effectful alias" rather than
+  "IS this name one". Closes the "returning it from a call" clause of
+  v0.14.2's own still-open gap, for this one narrow shape:
+  `let p = get_printer()` now propagates `get_printer`'s tracked return
+  fact to `p` (`test_return_value_via_let_is_checked`), and a call chained
+  straight onto the return with no intermediate `let` is checked too —
+  `get_printer()(1)` (`test_chained_call_on_return_value_is_checked`).
+  Renaming a fn (`let g = get_printer`, no call) carries its return fact
+  forward along with its direct-alias one
+  (`test_renamed_fn_carries_its_return_fact`); the same tracking applies to
+  an anonymous `fn(...) {...}` bound by `let`
+  (`test_anon_fn_bound_by_let_return_value_is_checked`). Shadowing is
+  correct here too, for the same reason v0.14.2's own alias_scopes needed
+  it: an inner, differently-behaved fn of the SAME name blocks the lookup
+  from falling through to an outer one
+  (`test_inner_fn_of_the_same_name_shadows_the_outer_return_fact`).
+  Deliberately narrower than it could be: only a BARE-NAME tail is
+  inspected, not one recursed through an `if`/nested block the way
+  `mark_tails` structurally walks tail position — a fn whose tail is itself
+  an `if` (even one whose every arm returns the same effectful name) is
+  invisible to this specific check
+  (`test_return_tag_only_sees_a_bare_name_tail`).
+
 Still deliberately SHALLOW by design, not oversight (mirrors the `-> Type`
 precedent of checking one settle point, not full call-graph composition):
 the declaration only vouches for the function's OWN textual body, resolved
 lexically, not through arbitrary calls.
-  - Passing a builtin as a FUNCTION ARGUMENT, returning it from a call, or
-    storing it in a list/record field and calling it back out are all
-    still invisible to the check — only a direct `let alias = <name>` hop
-    is tracked (v0.14.2), not general value flow through data structures.
+  - Passing a builtin as a FUNCTION ARGUMENT, or storing it in a
+    list/record field and calling it back out, are both still invisible to
+    the check — only a direct `let alias = <name>` hop (v0.14.2) and a
+    direct-call return (v0.14.3, bare-name tail only) are tracked, not
+    general value flow through data structures or through an `if`'s own
+    tail position.
   - Calling a DIFFERENT, unrestricted top-level function that itself
     performs the effect is still untouched by the caller's own
-    declaration — only LEXICAL nesting and direct aliasing are tracked,
-    not the dynamic call graph (`test_effects_empty_still_allows_non_
-    print_calls` calls a genuinely pure `double`, but the same shape would
-    allow calling an impure sibling too; not separately pinned since it
-    follows directly from "declaration only vouches for the function's
+    declaration — only LEXICAL nesting and direct/return aliasing are
+    tracked, not the dynamic call graph (`test_effects_empty_still_allows_
+    non_print_calls` calls a genuinely pure `double`, but the same shape
+    would allow calling an impure sibling too; not separately pinned since
+    it follows directly from "declaration only vouches for the function's
     own textual body").
 Both remaining gaps are honest, tested limitations, not bugs — a full
 call-graph-aware (and fully data-flow-sensitive) effect system is future
@@ -323,6 +352,152 @@ def test_alias_defined_after_call_site_is_not_detected():
         '  1\n'
         '}\n'
         'check "ok": f() == 1\n')
+
+
+# --- v0.14.3 (round 270): return-value flow through a direct call --------
+
+def test_return_value_via_let_is_checked():
+    """`fn get_printer() { print }` tail-returns the builtin itself (not a
+    call — `print` here is a bare NameRef, so nothing is CALLED yet).
+    `let p = get_printer()` now (v0.14.3) propagates that fact to `p`,
+    exactly as `let p = print` (v0.14.2) would — closing the "returning it
+    from a call" clause of v0.14.2's own still-open gap, for the narrow
+    case where the returning fn's body's own tail statement is a bare
+    name."""
+    with pytest.raises(ParseError) as ei:
+        parse(
+            'fn get_printer() effects [] {\n'
+            '  print\n'
+            '}\n'
+            'fn f() effects [] {\n'
+            '  let p = get_printer()\n'
+            '  p(1)\n'
+            '}\n')
+    assert "'p' requires effect 'io'" in str(ei.value)
+
+
+def test_return_value_via_let_granted_when_effect_allowed():
+    all_ok(
+        'fn get_printer() effects [] {\n'
+        '  print\n'
+        '}\n'
+        'fn f() effects [io] {\n'
+        '  let p = get_printer()\n'
+        '  p(1)\n'
+        '}\n'
+        'check "ok": f() == 1\n')
+
+
+def test_chained_call_on_return_value_is_checked():
+    """No intermediate `let` needed: `get_printer()(1)` is checked directly
+    — `_check_effect_call`'s new branch recognizes a `Call` callee whose own
+    `fn` is a NameRef with a tracked return fact."""
+    with pytest.raises(ParseError) as ei:
+        parse(
+            'fn get_printer() effects [] {\n'
+            '  print\n'
+            '}\n'
+            'fn f() effects [] {\n'
+            '  get_printer()(1)\n'
+            '}\n')
+    assert "'get_printer()' requires effect 'io'" in str(ei.value)
+
+
+def test_chained_call_on_return_value_granted_when_effect_allowed():
+    all_ok(
+        'fn get_printer() effects [] {\n'
+        '  print\n'
+        '}\n'
+        'fn f() effects [io] {\n'
+        '  get_printer()(1)\n'
+        '}\n'
+        'check "ok": f() == 1\n')
+
+
+def test_renamed_fn_carries_its_return_fact():
+    """`let g = get_printer` (no call — a plain rename) carries BOTH of
+    `get_printer`'s own tracked facts to `g`, not just the direct-alias one:
+    `g` is still exactly the same function value under a new name, so
+    `g()`'s return is checked exactly as `get_printer()`'s would be."""
+    with pytest.raises(ParseError) as ei:
+        parse(
+            'fn get_printer() effects [] {\n'
+            '  print\n'
+            '}\n'
+            'fn f() effects [] {\n'
+            '  let g = get_printer\n'
+            '  let p = g()\n'
+            '  p(1)\n'
+            '}\n')
+    assert "'p' requires effect 'io'" in str(ei.value)
+
+
+def test_anon_fn_bound_by_let_return_value_is_checked():
+    """The same tracking applies to an anonymous `fn(...) {...}` bound by a
+    `let` — its `body.tail_alias_tag` (resolved by `block()`/`stmt_list`
+    while the anon fn's own frames were open) is read straight off the
+    `A.FnExpr` at the `let` site, no named-`fn`-statement machinery
+    needed."""
+    with pytest.raises(ParseError) as ei:
+        parse(
+            'let get_printer2 = fn() effects [] { print }\n'
+            'fn f() effects [] {\n'
+            '  let p = get_printer2()\n'
+            '  p(1)\n'
+            '}\n')
+    assert "'p' requires effect 'io'" in str(ei.value)
+
+
+def test_inner_fn_of_the_same_name_shadows_the_outer_return_fact():
+    """Shadowing correctness (the same class of bug v0.14.2's own §4 fixed,
+    now for `return_alias_scopes`): a DIFFERENT, non-effectful-returning
+    `get_printer` declared in an inner scope must block the lookup from
+    falling through to the outer, effectful-returning one of the same
+    name — not just for `alias_scopes`, but for the parallel
+    `return_alias_scopes` stack too, which is pushed/popped at the
+    identical frame boundaries."""
+    all_ok(
+        'fn get_printer() effects [] {\n'
+        '  print\n'
+        '}\n'
+        'fn f() effects [] {\n'
+        '  fn inner_user() {\n'
+        '    fn get_printer() { 5 }\n'
+        '    let p = get_printer()\n'
+        '    p\n'
+        '  }\n'
+        '  inner_user()\n'
+        '}\n'
+        'check "ok": f() == 5\n')
+
+
+def test_return_tag_only_sees_a_bare_name_tail():
+    """Deliberately narrow, like the rest of this feature family: only a
+    fn body whose tail statement is a BARE NameRef is inspected — a tail
+    that is itself an `if` (even one whose own two arms both tail-return
+    `print`) is not recursed into, unlike `mark_tails`'s fuller structural
+    walk. An honest, documented gap, not a bug."""
+    all_ok(
+        'fn get_printer() effects [] {\n'
+        '  if true { print } else { print }\n'
+        '}\n'
+        'fn f() effects [] {\n'
+        '  let p = get_printer()\n'
+        '  p(1)\n'
+        '}\n'
+        'check "ok": f() == 1\n')
+
+
+def test_three_way_return_value_via_let_inside_effects_io():
+    assert_three_way(
+        'fn get_printer() effects [] {\n'
+        '  print\n'
+        '}\n'
+        'fn f() effects [io] {\n'
+        '  let p = get_printer()\n'
+        '  p(1)\n'
+        '}\n'
+        'let result = f()\n')
 
 
 def test_three_way_aliased_print_inside_effects_empty():

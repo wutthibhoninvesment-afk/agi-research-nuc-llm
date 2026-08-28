@@ -910,6 +910,11 @@ that cannot end a statement.
   case (`let p = print` then `p(1)`) specifically is now tracked; passing
   a builtin through a function argument, return value, or a list/record
   field, and the separate call-graph gap, both remain open.
+  **Further partially closed by v0.14.3 (round 270, below)**: the
+  bare-name-tail return-value case (`fn get() { print }` then `let p =
+  get()` or `get()(1)`) is now tracked too; a function ARGUMENT, a
+  list/record field, a tail hidden behind an `if`, and the call-graph gap
+  all remain open.
 - **Verification:** `tests/test_v14.py` 20/20 (was 18; one test rewritten
   from `all_ok` to `pytest.raises(ParseError)` since its own assertion
   flipped, two new tests added: a granting-scope inheritance case and a
@@ -986,7 +991,11 @@ that cannot end a statement.
   list/record field and calling it back out are all still invisible —
   only a direct `let alias = <name-or-alias>` hop is tracked, not general
   value flow through data structures or other bindings (`for`/pattern
-  bindings, if Whence ever gains them). Calling into a DIFFERENT,
+  bindings, if Whence ever gains them). **Partially closed by v0.14.3
+  (round 270, below)**: the "returning it from a call" clause specifically
+  is now tracked, for the narrow case where the returning fn's own body
+  tail-returns a bare name — a function ARGUMENT, a list/record field, and
+  a tail hidden behind an `if` all remain invisible. Calling into a DIFFERENT,
   unrestricted top-level function that itself performs the effect is
   ALSO still untouched by the caller's own declaration — only lexical
   nesting and direct aliasing are tracked, not the dynamic call graph. A
@@ -1027,6 +1036,105 @@ that cannot end a statement.
   teaching the GENERATOR a new expression shape, not the effect checker
   itself, and no other host-only parse-time feature in this codebase has
   ever required generator changes to be considered adequately tested.
+
+## v0.14.3 (round 270) — effect system: RETURN-value flow through a direct call
+
+- **Closes one narrow clause of v0.14.2's own "still open" gap**: "passing
+  the builtin ... returning it from a call ... [is] still invisible" —
+  closed for the specific shape where the RETURNING function's own body's
+  tail statement is a bare name resolving to an effectful alias.
+  `fn get_printer() effects [] { print }` doesn't itself perform the "io"
+  effect (naming `print` in tail position isn't calling it), but
+  `let p = get_printer()` now propagates the fact that `p` holds an
+  effectful alias, checked exactly as `let p = print` (v0.14.2) would be.
+- **Mechanism**: `Parser.return_alias_scopes` — a SECOND stack, the exact
+  same shape as `alias_scopes` (one frame per lexical block, pushed/popped
+  at the identical three sites: `stmt_list` itself, and both fn-parameter
+  scopes), tracking a different fact per name: "does CALLING this name
+  yield an effectful alias" rather than "IS this name one". Populated from
+  `stmt_list`'s own new `tail_alias_tag` return value — computed while the
+  block's own `alias_scopes` frame is still open, so it can resolve a tail
+  statement referencing either a parameter or a body-local `let`, not just
+  the fn's own params — stashed onto the real `Block.tail_alias_tag` field
+  (`ast_nodes.py`; set at construction, unlike `Call.tail`, which
+  `mark_tails` sets in a separate later pass, since `stmt_list` has already
+  fully resolved this by the time `block()` constructs the node). A named
+  `fn NAME(...)` statement writes `return_alias_scopes[-1][NAME] = None` as
+  a placeholder BEFORE parsing its own params/body (shadow-safety and
+  self-recursion-safety, mirroring `alias_scopes[-1][NAME] = None`'s
+  identical role in v0.14.2), then overwrites it with `body.tail_alias_tag`
+  once the body is fully parsed and its own frames popped, back in the
+  ENCLOSING scope's frame. `_resolve_effectful_return(name)` walks the
+  stack innermost-first, same as `_resolve_effectful_alias`, with no
+  `_EFFECTFUL_BUILTINS` fallback (this fact only ever comes from a
+  user-written fn body's own tail, never a builtin itself).
+- **Three call shapes all read from the same table**: (1) `let p =
+  get_printer()` — the `let`-handling code recognizes an `A.Call` expr
+  whose own callee is a NameRef with a tracked return fact, and propagates
+  it into `p`'s `alias_scopes` entry (an ordinary alias from here on,
+  needing no new logic at the `p(...)` call site). (2) `get_printer()(1)` —
+  chained, no intermediate `let` — `_check_effect_call` gained a second
+  branch: a `Call` callee whose own `fn` is a NameRef resolves through
+  `_resolve_effectful_return` directly. (3) `let g = get_printer` (a plain
+  RENAME, no call) now carries BOTH of `get_printer`'s facts to `g` — its
+  direct-alias status (already true in v0.14.2, was `None` here since a fn
+  name is never itself an alias) AND its return fact, so `g()`'s result is
+  checked exactly as `get_printer()`'s would be. The same propagation
+  applies to a `let`-bound anonymous `fn(...) {...}` — its own
+  `body.tail_alias_tag`, already resolved by `block()`, is read directly at
+  the `let` site (`expr.__class__ is A.FnExpr`), no separate named-fn
+  machinery needed.
+- **Shadowing is handled correctly, the same class of bug v0.14.2's own
+  design note (§4 of `knowledge/round-266-...md`) warned about**: every
+  `let`/named-`fn`/parameter binding writes an explicit entry into BOTH
+  stacks (even `None`), not just the ones that happen to carry a fact — an
+  inner, differently-behaved `fn get_printer() { 5 }` correctly shadows an
+  outer, effectful-returning `get_printer` of the same name, blocking the
+  lookup rather than falling through to the stale outer fact.
+- **Deliberately narrower than it could be, by design**: only a fn body
+  whose tail statement is a BARE NameRef is inspected — a tail that is
+  itself an `if` (even one whose every arm tail-returns the same effectful
+  name) is not recursed into, unlike `mark_tails`'s fuller structural walk
+  of tail position (that one needs no scope context at all, since it only
+  ever flips a boolean; this one does, so it can't simply run as a
+  after-the-fact pass over the finished AST — it has to observe the
+  `alias_scopes`/`return_alias_scopes` frames while they're still open,
+  which only `stmt_list` itself can do without threading parser state
+  through a second AST walker).
+- **Still open, unaffected by this round**: passing a builtin as a FUNCTION
+  ARGUMENT, or storing it in a list/record field and reading it back out,
+  remain completely invisible — genuine value-flow-through-data-structures
+  questions this round does not attempt. The dynamic call graph (calling a
+  DIFFERENT, unrestricted function that itself performs the effect) is also
+  still untouched. A full call-graph-aware, fully data-flow-sensitive
+  effect system closing all of these remains future work — see
+  `state/research-state.md`'s language backlog for why the call-graph half
+  specifically is sized as multi-round-scale, not a quick follow-up.
+- **Verification**: `tests/test_v14.py` 37/37 (was 28; 9 new tests: return
+  value via `let` [checked + granted], chained call with no `let` [checked
+  + granted], renamed-fn fact propagation, `let`-bound anon fn, the
+  same-name shadowing case, the bare-name-tail-only limitation, and one new
+  three-way differential pin). `languages/whence/run_tests_fast.sh` 867
+  passed/38 deselected (was 858; +9 matches the net new-test delta
+  exactly). `examples/effects.lang` extended with a `get_logger`/
+  `log_total2` demonstration; `python3 run.py examples/effects.lang` → exit
+  0, 6/6 checks pass (was 5/5). `tests/test_examples.py::test_effects` and
+  `tests/test_self_hosting.py::test_effects_lang_runs_under_the_guest_
+  round_164_backlog_closed` both updated for the new check count (6, was 5)
+  and re-verified green — the guest evaluator still does not enforce
+  `effects [...]` at all (round 164's own finding, unchanged), so this is
+  purely one more ordinary check passing through it, same reasoning as
+  round 266's own guest-parity note.
+- **Fuzz coverage — same honest gap as v0.14.2, for the same reason**:
+  `harness/swe/fuzz.py`'s `ProgramGen` never emits a bare `print` NameRef in
+  tail position (or anywhere) — `print(...)` is always one of its literal
+  call templates (`"print(%s)"` and variants). This round's own trigger
+  shapes (a fn whose tail is a bare effectful name, then calling that fn's
+  result) are consequently exercised only by `tests/test_v14.py`'s
+  hand-authored cases, not the differential fuzz corpus — not a new gap,
+  the same one v0.14.2 already documented and left open for the identical
+  reason (fixing it needs a new GENERATOR expression shape, not a checker
+  change).
 
 ## v0.15 (round 168) — AI-native primitives: `guess`/confidence
 - **The curriculum's last open "advanced feature" slot** (structural types

@@ -64,9 +64,33 @@ check "an aliased builtin is checked the same as calling it directly":
 # Writing `let logger = print` inside `total`'s own `effects []` body
 # instead would be a ParseError at `logger(...)`, not a silent escape —
 # the alias is checked at the point it is CALLED, not where it is bound.
-# Still shallow, on purpose: passing `print` as a function ARGUMENT,
-# returning it, or storing it in a list/record and calling it back out are
-# all still invisible to this check (see SPEC.md "v0.14.2").
+# Still shallow, on purpose: passing `print` as a function ARGUMENT, or
+# storing it in a list/record and calling it back out, are still invisible
+# to this check (see SPEC.md "v0.14.2").
+
+# v0.14.3: RETURNING an effectful alias from a call is now tracked too —
+# `get_logger` below hands out `print` itself (a bare NameRef in tail
+# position, not a call), and `log_total2`'s `let logger = get_logger()`
+# picks up that fact exactly as `let logger = print` would have.
+fn get_logger() effects [] {
+  print
+}
+fn log_total2(prices) effects [io] {
+  let logger = get_logger()
+  logger("logged total (via factory): " + str(total(prices)))
+  total(prices)
+}
+check "a builtin RETURNED from a call is checked the same as a direct alias":
+  log_total2(prices) == 60
+# A call chained straight onto the return, with no intermediate `let`, is
+# checked too: `get_logger()(...)` — not separately demonstrated here since
+# it would print the same line again; see `tests/test_v14.py`'s
+# `test_chained_call_on_return_value_is_checked`. Writing `log_total2` as
+# `effects []` instead would be a ParseError at `logger(...)`, same as the
+# direct-alias case above. Still shallow: this only recognizes a fn whose
+# body's own TAIL STATEMENT is a bare name — one returned from inside an
+# `if`, a function argument, or a list/record field are all still
+# invisible (see SPEC.md "v0.14.3").
 
 print("")
 print("effects.lang: purity is a declared, checked promise about a")

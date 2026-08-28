@@ -63,7 +63,7 @@ Index = _simple("Index", ["obj", "index"])
 FieldAccess = _simple("FieldAccess", ["obj", "name"])
 If = _simple("If", ["cond", "then", "otherwise"])    # otherwise: Block or If
 FnExpr = _simple("FnExpr", ["params", "body", "ret_type"])   # anonymous fn
-Block = _simple("Block", ["stmts"])
+Block = _simple("Block", ["stmts", "tail_alias_tag"])  # tail_alias_tag: set by parser.block (v0.14.3)
 Let = _simple("Let", ["name", "expr"])
 FnDef = _simple("FnDef", ["name", "params", "body", "ret_type"])
 # ret_type: None, or the spec expr `parser._type_spec_expr` builds for a

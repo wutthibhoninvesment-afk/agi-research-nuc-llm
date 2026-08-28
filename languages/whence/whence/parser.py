@@ -78,6 +78,24 @@ class Parser(object):
         # instead of the lookup falling through to it. See
         # `_resolve_effectful_alias`.
         self.alias_scopes = []
+        # Effect system (v0.14.3, round 270): a SECOND stack, the exact same
+        # shape as `alias_scopes` (one frame per lexical block, pushed and
+        # popped at the identical three call sites: `stmt_list` itself, and
+        # both fn-parameter scopes), but tracking a different fact per name:
+        # "does CALLING this name — a named `fn` statement, or a `let NAME =
+        # fn(...) {...}` binding — yield a value that is itself an effectful
+        # alias?" (the mirror image of `alias_scopes`, which tracks "IS this
+        # name directly an effectful value"). Populated only from a fn's own
+        # textual TAIL statement (`stmt_list`'s `tail_tag` return value,
+        # resolved while that body's own frames are still open — see
+        # `stmt_list`'s docstring). Kept as a genuinely separate stack rather
+        # than folded into `alias_scopes`'s own dict values so the two,
+        # already-tested v0.14.2 read/write sites don't need to change shape;
+        # every push/pop of `alias_scopes` below has a `return_alias_scopes`
+        # counterpart right next to it, on purpose, so the two can never
+        # silently drift out of frame-for-frame sync. See
+        # `_resolve_effectful_return`.
+        self.return_alias_scopes = []
 
     def _enter(self):
         self.nesting += 1
@@ -117,19 +135,33 @@ class Parser(object):
 
     # --- statements ----------------------------------------------------
     def parse_program(self):
-        stmts = self.stmt_list(end="EOF")
+        stmts, _ = self.stmt_list(end="EOF")
         tok = self.expect("EOF")
         return A.Program(1, stmts)
 
     def stmt_list(self, end):
-        """Parse statements until `end` token type; check duplicate bindings."""
+        """Parse statements until `end` token type; check duplicate bindings.
+        Returns `(stmts, tail_alias_tag)` — the second value (v0.14.3, round
+        270) is the effect tag (or None) the LAST statement resolves to via
+        `_resolve_effectful_alias`, if that statement is a bare `NameRef`
+        expression, resolved while THIS block's own `alias_scopes` frame is
+        still on the stack (i.e. sees this block's own `let`s, not just
+        outer ones). Only a bare-name tail is inspected — a tail that is
+        itself an `if`/nested block is not recursed into, unlike
+        `mark_tails`'s fuller structural walk (that one needs no scope
+        context at all, since it only ever sets a boolean; this one does,
+        so it can't simply run after the fact). `block()` consumes this to
+        learn what a fn body's own RETURN value aliases."""
         stmts = []
         bound = {}
-        # v0.14.2: one alias-tracking frame per block scope, pushed/popped
-        # around this same statement run so `let`s here can be looked up by
-        # nested blocks (still on the stack while a nested block is being
-        # parsed) but never leak to a SIBLING block once this one is done.
+        # v0.14.2/v0.14.3: one alias-tracking frame (each) per block scope,
+        # pushed/popped around this same statement run so `let`s here can be
+        # looked up by nested blocks (still on the stack while a nested block
+        # is being parsed) but never leak to a SIBLING block once this one is
+        # done. The two stacks are pushed/popped together, always — see
+        # `self.return_alias_scopes`'s own comment in `__init__`.
         self.alias_scopes.append({})
+        self.return_alias_scopes.append({})
         try:
             self.skip_newlines()
             while not self.at(end):
@@ -144,9 +176,15 @@ class Parser(object):
                     bound[name] = s.line
                 stmts.append(s)
                 self.skip_newlines()
-            return stmts
+            tail = stmts[-1] if stmts else None
+            tail_tag = (
+                self._resolve_effectful_alias(tail.expr.name)
+                if isinstance(tail, A.ExprStmt) and tail.expr.__class__ is A.NameRef
+                else None)
+            return stmts, tail_tag
         finally:
             self.alias_scopes.pop()
+            self.return_alias_scopes.pop()
 
     def statement(self):
         tok = self.peek()
@@ -155,14 +193,36 @@ class Parser(object):
             name = self.expect("NAME").value
             self.expect("=")
             expr = self.expression()
-            # v0.14.2: record whether `name` is now a direct alias of an
-            # effectful builtin (or of an already-tracked alias) — `None`
-            # if not, which still occupies the slot so this `let` correctly
-            # shadows any outer alias of the same name (see
-            # `_resolve_effectful_alias`).
-            self.alias_scopes[-1][name] = (
-                self._resolve_effectful_alias(expr.name)
-                if expr.__class__ is A.NameRef else None)
+            # v0.14.2/v0.14.3: record whether `name` is now a direct alias
+            # of an effectful builtin (`alias_scopes`) and/or a callable
+            # whose CALL RESULT is one (`return_alias_scopes`) — `None` in
+            # whichever slot doesn't apply still occupies it, so this `let`
+            # correctly shadows any outer fact of the same name in EITHER
+            # stack (see `_resolve_effectful_alias`/`_resolve_effectful_
+            # return`).
+            if expr.__class__ is A.NameRef:
+                # Renaming (`let g = get_printer`, no call): `g` carries
+                # BOTH of the source name's own facts forward — it is still
+                # exactly the same value, just under a new name.
+                self.alias_scopes[-1][name] = self._resolve_effectful_alias(expr.name)
+                self.return_alias_scopes[-1][name] = self._resolve_effectful_return(expr.name)
+            elif expr.__class__ is A.Call and expr.fn.__class__ is A.NameRef:
+                # v0.14.3 (round 270): `let p = get_printer()` — closes part
+                # of v0.14.2's own "returning it from a call" gap. `p` is an
+                # ordinary effectful-VALUE alias now (not itself a callable
+                # fact) — whatever `get_printer` was tracked to return.
+                self.alias_scopes[-1][name] = self._resolve_effectful_return(expr.fn.name)
+                self.return_alias_scopes[-1][name] = None
+            elif expr.__class__ is A.FnExpr:
+                # v0.14.3: `let g = fn() {...}` — `g` is a callable, not
+                # itself an effectful value; its return fact comes straight
+                # off the body `block()` already resolved (`tail_alias_tag`)
+                # while that body's own frames were still open.
+                self.alias_scopes[-1][name] = None
+                self.return_alias_scopes[-1][name] = expr.body.tail_alias_tag
+            else:
+                self.alias_scopes[-1][name] = None
+                self.return_alias_scopes[-1][name] = None
             return A.Let(tok.line, name, expr)
         if tok.type == "KW" and tok.value == "fn" and self.peek(1).type == "NAME":
             self.next()
@@ -170,6 +230,16 @@ class Parser(object):
             # A named fn is never itself an alias, but it DOES shadow an
             # outer alias of the same name for the rest of this scope.
             self.alias_scopes[-1][name] = None
+            # v0.14.3: also stake a placeholder in the ENCLOSING return-fact
+            # frame BEFORE parsing params/body — shadows an outer return-fact
+            # of the same name (mirrors the `alias_scopes` line above) and
+            # keeps a directly-recursive call inside this fn's OWN body from
+            # ever seeing a stale outer fact under its own name. Overwritten
+            # with the real, resolved tag once the body is fully parsed,
+            # below — `None` here is never observable from outside this fn's
+            # own body, since nothing can call it before its own statement
+            # finishes parsing.
+            self.return_alias_scopes[-1][name] = None
             params, types = self.param_list()
             effects_spec = self.parse_effects_clause()
             ret_type = self.parse_return_type()
@@ -180,11 +250,20 @@ class Parser(object):
             # so a param shadows an outer alias but is never itself treated
             # as one.
             self.alias_scopes.append(dict.fromkeys(params))
+            self.return_alias_scopes.append(dict.fromkeys(params))
             try:
                 body = self.block()
             finally:
                 self.effects_stack.pop()
                 self.alias_scopes.pop()
+                self.return_alias_scopes.pop()
+            # v0.14.3 (round 270): now that the body is fully parsed and
+            # `body.tail_alias_tag` is resolved (computed by `block()`/
+            # `stmt_list` while the body's own frames were still open),
+            # record what CALLING `name()` yields — back in the frame this
+            # fn's own NAME lives in (the enclosing scope, now that the
+            # params frame is popped), overwriting the placeholder above.
+            self.return_alias_scopes[-1][name] = body.tail_alias_tag
             self._apply_type_guards(body, params, types, name)
             mark_tails(body)
             return A.FnDef(tok.line, name, params, body, ret_type)
@@ -317,41 +396,67 @@ class Parser(object):
                 return scope[name]
         return _EFFECTFUL_BUILTINS.get(name)
 
+    def _resolve_effectful_return(self, name):
+        """v0.14.3 (round 270): does CALLING `name` — a `fn` statement's own
+        name, or a `let`-bound anonymous fn — yield an effectful alias?
+        Mirror of `_resolve_effectful_alias`, over `return_alias_scopes`
+        instead of `alias_scopes`: same innermost-first, first-frame-wins
+        walk. No `_EFFECTFUL_BUILTINS` fallback here — this fact only ever
+        comes from a user-written fn body's own TAIL position (`stmt_list`'s
+        `tail_tag`), never a builtin itself (a builtin isn't "called" to
+        produce another builtin)."""
+        for scope in reversed(self.return_alias_scopes):
+            if name in scope:
+                return scope[name]
+        return None
+
     def _check_effect_call(self, callee, tok):
-        """Effect system (v0.14/v0.14.2): a direct call `name(...)` where
-        `name` resolves (`_resolve_effectful_alias`) to an effectful
+        """Effect system (v0.14/v0.14.2/v0.14.3): a direct call `name(...)`
+        where `name` resolves (`_resolve_effectful_alias`) to an effectful
         builtin — either `name` IS that builtin, or `name` is a tracked
         alias of it — is checked against the nearest enclosing fn's
-        `effects [...]` declaration (`self.effects_stack[-1]`) — resolved
-        ENTIRELY at parse time, no AST node, no interpreter change, no
-        runtime cost. This is a ParseError rather than a runtime `miss`
-        (unlike a `: Type`/`-> Type` mismatch) because whether a function's
-        OWN body directly names an effectful builtin is a static property
-        of the source text, not something that depends on a runtime value —
-        the same reasoning that makes rebinding and "block must end in an
-        expression" parse errors rather than misses.
+        `effects [...]` declaration (`self.effects_stack[-1]`). So is a
+        CHAINED call `f()(...)` where `f`'s own tracked return fact
+        (`_resolve_effectful_return`) says calling `f()` yields such a
+        value — v0.14.3, round 270, e.g. `get_printer()(1)` where
+        `get_printer`'s body tail-returns `print` (or a tracked alias of
+        it). All of this is resolved ENTIRELY at parse time, no AST node,
+        no interpreter change, no runtime cost. This is a ParseError rather
+        than a runtime `miss` (unlike a `: Type`/`-> Type` mismatch) because
+        whether a function's OWN body directly names an effectful builtin
+        is a static property of the source text, not something that depends
+        on a runtime value — the same reasoning that makes rebinding and
+        "block must end in an expression" parse errors rather than misses.
 
         Still deliberately SHALLOW, by design, not by oversight, even after
-        v0.14.2's alias tracking: only a direct `let alias = <name-or-
-        alias>` hop is followed. Passing a builtin as a FUNCTION ARGUMENT,
-        returning it from a call, or storing it in a list/record field and
-        calling it back out are all still invisible — those are genuine
-        value-flow-through-data-structures questions, not "is this name a
-        plain alias" ones. Calling into a DIFFERENT function that itself
-        performs the effect is *also* still untouched by the caller's own
-        declaration — only LEXICAL nesting and direct aliasing are tracked,
-        not the dynamic call graph. A real call-graph-aware (transitive)
-        effect system tracking effects through arbitrary data flow is
-        future work, not this round's scope; see SPEC.md "v0.14"/"v0.14.1"/
-        "v0.14.2" for the honest remaining limitations and examples.
+        v0.14.3's return-value tracking: `_resolve_effectful_return` only
+        ever sees a fn body whose TAIL STATEMENT is a bare NameRef — a tail
+        that is itself an `if`/nested block (whose OWN tail might resolve)
+        is not recursed into, unlike `mark_tails`'s structural walk (see
+        `stmt_list`'s docstring). Passing a builtin as a FUNCTION ARGUMENT,
+        or storing it in a list/record field and reading it back out, are
+        both still completely invisible — genuine value-flow-through-data-
+        structures questions v0.14.3 does not attempt. Calling into a
+        DIFFERENT function that itself performs the effect is *also* still
+        untouched by the caller's own declaration — only LEXICAL nesting and
+        direct/return aliasing are tracked, not the dynamic call graph. A
+        real call-graph-aware (transitive) effect system tracking effects
+        through arbitrary data flow is future work, not this round's scope;
+        see SPEC.md "v0.14"/"v0.14.1"/"v0.14.2"/"v0.14.3" for the honest
+        remaining limitations and examples.
         `self.effects_stack[-1]` is already the fn's fully RESOLVED scope by
         the time this runs — a nested fn with no clause of its own
         inherited its enclosing scope in `_resolve_effects_scope` at push
         time (v0.14.1, round 264), so this method itself needed no change
         to pick that up."""
-        if callee.__class__ is not A.NameRef:
+        if callee.__class__ is A.NameRef:
+            tag = self._resolve_effectful_alias(callee.name)
+            display = callee.name
+        elif callee.__class__ is A.Call and callee.fn.__class__ is A.NameRef:
+            tag = self._resolve_effectful_return(callee.fn.name)
+            display = "%s()" % callee.fn.name
+        else:
             return
-        tag = self._resolve_effectful_alias(callee.name)
         if tag is None:
             return
         scope = self.effects_stack[-1] if self.effects_stack else None
@@ -361,7 +466,7 @@ class Parser(object):
             else "effects [] (no effects declared)"
         raise ParseError(
             "'%s' requires effect '%s', not permitted by the enclosing "
-            "function's '%s'" % (callee.name, tag, declared),
+            "function's '%s'" % (display, tag, declared),
             tok.line, tok.col)
 
     def parse_type(self):
@@ -455,7 +560,7 @@ class Parser(object):
 
     def block(self):
         open_tok = self.expect("{", what="'{'")
-        stmts = self.stmt_list(end="}")
+        stmts, tail_tag = self.stmt_list(end="}")
         close = self.expect("}")
         if not stmts:
             raise ParseError("block must contain at least one expression",
@@ -463,7 +568,14 @@ class Parser(object):
         if not isinstance(stmts[-1], A.ExprStmt):
             raise ParseError("block must end with an expression",
                              close.line, close.col)
-        return A.Block(open_tok.line, stmts)
+        # v0.14.3 (round 270): `tail_alias_tag` is a real `Block` field (see
+        # ast_nodes.py), set directly at construction since — unlike `Call.
+        # tail` (set later by `mark_tails`, a separate structural pass) —
+        # `stmt_list` has already fully resolved it by the time we get here.
+        # Consumed only by whichever fn-parsing code just called `block()`,
+        # to learn what effect tag (if any) this body's own RETURN value
+        # aliases.
+        return A.Block(open_tok.line, stmts, tail_tag)
 
     # --- expressions (precedence low -> high) --------------------------
     def expression(self):
@@ -639,11 +751,13 @@ class Parser(object):
             ret_type = self.parse_return_type()
             self.effects_stack.append(self._resolve_effects_scope(effects_spec))
             self.alias_scopes.append(dict.fromkeys(params))
+            self.return_alias_scopes.append(dict.fromkeys(params))
             try:
                 body = self.block()
             finally:
                 self.effects_stack.pop()
                 self.alias_scopes.pop()
+                self.return_alias_scopes.pop()
             self._apply_type_guards(body, params, types, None)
             mark_tails(body)
             return A.FnExpr(tok.line, params, body, ret_type)

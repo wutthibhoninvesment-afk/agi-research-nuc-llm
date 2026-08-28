@@ -151,7 +151,8 @@ def test_effects():
     assert "auditing 3 prices" in r.stdout
     assert "(debug) 10" in r.stdout
     assert "logged total: 60" in r.stdout
-    assert "5 passed, 0 failed" in r.stdout
+    assert "logged total (via factory): 60" in r.stdout
+    assert "6 passed, 0 failed" in r.stdout
 
 
 def test_effects_violation_exits_2(tmp_path):
