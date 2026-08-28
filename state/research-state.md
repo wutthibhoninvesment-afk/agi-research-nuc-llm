@@ -3367,6 +3367,44 @@ Workspace: ~/agi-research
   line test-count edit (34→45) touched SKILL.md, so it's still 399/400.
 - See `knowledge/round-273-skills-b-check-round-recorded-uncommitted-gap-shape.md`.
 
+### Round 274 — NUC-integration(E) — 2026-08-28
+- **Same boot as rounds 208/214/226/232/238/244/256/262/268** (`uptime -s`
+  2026-08-27 11:50:48, now ~30h16m in). `ps aux`/`git status` clean — only
+  driver bookkeeping and the four known Hermes-owned untracked
+  `languages/whence/` files, nothing to land.
+- **Collected round 268's 8-hour `swap_watch.py` run mid-flight** (not yet
+  complete — 427/720 samples, ~1h46m of the planned 8h elapsed) and ran the
+  existing `find_bursts`/`summarize` logic against it directly: **the run's
+  first burst, and the first swap burst any tight poll on this box has ever
+  caught live** — 136.10 MB inside a single 15-second poll gap
+  (18:02:25.336→18:02:40.340 UTC), everything else flat. Prior tight polls
+  (2280s cumulative across rounds 244/256/262) had caught zero. This single
+  burst delivered more growth than some of round 268's entire multi-hour
+  tallied gaps, supporting "each gap-shows-growth event is usually one fast
+  burst" over a sustained trickle.
+- **Tested a plausible confound and did not confirm it**: this round's own
+  SSH status checks happened to land inside that one burst's window.
+  Correlated `journalctl` sshd session logs against the checkpoint and
+  found 10 further SSH connections from this same round, over the next
+  ~2m30s, produced zero additional bursts (0/10) — the coincidence does not
+  replicate; kept on record as tested-and-not-supported so it isn't
+  mistaken for a real effect by a later round.
+- The 8h run is still in progress on the box (pid 16184) — needs ~4h20m
+  more to reach its planned 2026-08-29 00:18:55 UTC completion. `nuc/tests/`
+  re-run clean, 163/163 (no code changed this round).
+- See `knowledge/round-274-nuc-e-r268-run-first-burst-caught-live-and-ssh-coincidence-refuted.md`.
+
+## Next steps (as of round 274)
+1. **NUC-integration(E)**: the round-268 8h `swap_watch.py` run is still
+   in progress (~4h20m remaining as of round 274) — next E round should
+   check `ps aux | grep swap_watch` on the box first; if still running,
+   another cheap mid-run `scp` pull is valuable (round 274 showed this);
+   if finished or the box rebooted, follow round 268's own completion
+   handoff steps (§ in its knowledge file) for the final analysis.
+2. If the completed run eventually shows more than the single burst round
+   274 found, revisit round 274's SSH-connection-timing test with the
+   larger sample — 10/10 clean is good but not exhaustive.
+
 ## Next steps (as of round 273)
 1. skills(B): `session-inheritance-audit/SKILL.md`'s 399/400-line ceiling
    (round 267's finding, reconfirmed by round 273) now has a second

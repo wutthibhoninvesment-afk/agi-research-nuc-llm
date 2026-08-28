@@ -753,6 +753,34 @@ Known facts (measured 2026-08-24, E1 full curve — /work/logs/nuc-bench.md):
   still exactly 1017 (unchanged since round 214); escalation channel still dead per
   round 166. E1-E5 remain fully DONE.
 
+## Round 274 addendum (2026-08-28, box UP — SAME boot as rounds 208/214/226/232/238/244/256/262/268, uptime ~30h16m; r268's 8h swap-watch run still in progress, ~1h46m of 8h elapsed)
+
+- **First swap burst ever caught live by a tight poll.** Pulled the r268
+  long run's checkpoint mid-flight (427 samples so far) and found exactly
+  one burst: **136.10 MB in a single 15-second poll gap** (18:02:25.336 →
+  18:02:40.340 UTC), everything else byte-for-byte flat. Prior tight polls
+  (round 244: 3 min, round 256: 900s, round 262: 1200s — 2280s cumulative)
+  had all caught zero bursts; this run's first ~6391s already caught one,
+  and it delivered more swap growth in 15s than some of round 268's entire
+  multi-hour tallied gaps — supports reading each "gap shows growth" event
+  as usually one fast burst, not a trickle.
+- **Tested and did NOT confirm a plausible confound**: this round's own
+  SSH connections to check status happened to fall right inside that one
+  burst's 15s window. Correlated `journalctl` sshd session logs against the
+  checkpoint and found 10 further SSH connections from this same round, in
+  the following ~2m30s, produced ZERO additional bursts (0/10) — the
+  coincidence does not replicate and is not adopted as a finding. Kept on
+  record specifically so it isn't mistaken for a real effect by a future
+  round noticing the same kind of coincidence.
+- **The 8h run (started round 268, pid 16184, `~/nuc-research/swap-watch-
+  r268-checkpoint.jsonl`) is NOT complete** — still needs ~4h20m to reach
+  its planned 2026-08-29 00:18:55 UTC finish. Next E round: check
+  `ps aux | grep swap_watch` on the box first; if still running, another
+  opportunistic mid-run pull is cheap and valuable (as this round showed);
+  if finished (or the box rebooted, killing it), follow round 268's own
+  completion handoff steps. Full writeup:
+  `knowledge/round-274-nuc-e-r268-run-first-burst-caught-live-and-ssh-coincidence-refuted.md`.
+
 ## Done-criteria for any mission
 Code runs (proof in round file), measurements banked in both places,
 `state/nuc-missions.md` checkbox ticked with a one-line result summary.
