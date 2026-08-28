@@ -1,6 +1,6 @@
 import pytest
 
-from whence.lexer import tokenize, LexError
+from whence.lexer import tokenize, LexError, Token
 
 
 def types(src):
@@ -99,3 +99,84 @@ def test_newline_after_operator_or_colon_continues_line():
 def test_newline_after_value_still_separates():
     toks = tokenize("let a = 1\nlet b = 2")
     assert [t.type for t in toks if t.type == "NEWLINE"] == ["NEWLINE"]
+
+
+def test_newline_after_keyword_value_still_separates():
+    # test_newline_after_value_still_separates above only exercises a NUMBER
+    # as the line-ending token. suppressed()'s `last.type == "KW" and
+    # last.value in CONTINUE_KWS` check is easy to over-broaden into
+    # "any KW ends a continuation" (e.g. `and`/`bool`-mutating the guard),
+    # which this NUMBER-ending case can't catch since a KW never appears
+    # there. `true`/`false`/`miss` are ordinary VALUE keywords, not
+    # continuation keywords (and/or/not/rescue) -- a newline right after one
+    # must still separate statements.
+    toks = tokenize("let a = true\nlet b = 2")
+    assert [t.type for t in toks if t.type == "NEWLINE"] == ["NEWLINE"]
+    assert [(t.type, t.value) for t in toks] == [
+        ("KW", "let"), ("NAME", "a"), ("=", "="), ("KW", "true"),
+        ("NEWLINE", "\n"), ("KW", "let"), ("NAME", "b"), ("=", "="),
+        ("NUMBER", 2), ("EOF", None)]
+
+
+def test_comment_at_eof_with_no_trailing_newline():
+    # the comment-skip loop's `while i < n and src[i] != "\n": i += 1` bound
+    # must stop exactly at `i == n`, not read one past it, when the source
+    # ends inside a comment with no final newline.
+    toks = tokenize("let x = 1\n# trailing comment, no newline after")
+    assert [t.type for t in toks] == ["KW", "NAME", "=", "NUMBER", "NEWLINE", "EOF"]
+
+
+def test_number_immediately_followed_by_dot_at_eof():
+    # a NUMBER whose digit run ends exactly at end-of-source must not probe
+    # past the string when checking for a following float '.': the digit
+    # loop leaves i == n, so the float-lookahead's own `i < n` guard is what
+    # keeps `src[i]` in bounds.
+    toks = tokenize("let x = 1\n5.")
+    assert [(t.type, t.value) for t in toks] == [
+        ("KW", "let"), ("NAME", "x"), ("=", "="), ("NUMBER", 1),
+        ("NEWLINE", "\n"), ("NUMBER", 5), (".", "."), ("EOF", None)]
+
+
+def test_unterminated_string_ending_in_backslash_at_eof_raises_lexerror():
+    # a string that never closes and whose very last source character is a
+    # bare backslash must still raise the controlled LexError, not crash
+    # with an IndexError from probing src[i + 1] past the end of the source.
+    with pytest.raises(LexError, match="unterminated string"):
+        tokenize('"\\')
+
+
+def test_token_repr():
+    # Token.__repr__ is never exercised by tokenize() itself or by any other
+    # test (it's a debug-only path); pin it directly so it isn't silently
+    # dead code the suite can't tell apart from a broken one.
+    assert repr(Token("NUMBER", 5, 3, 7)) == "Token(NUMBER, 5, 3:7)"
+
+
+def test_positions_after_string_and_op_tokens_on_one_line():
+    # test_positions above only checks two tokens near the start of a line.
+    # `col` is advanced by a separate `col += N` at each of: entering a
+    # string's first char, every ordinary string char, a 2-char escape
+    # sequence, the closing quote, a two-char op, and a one-char op -- each
+    # is independently capable of drifting by a fixed amount that only shows
+    # up in a LATER same-line token's column (a trailing newline resets col
+    # to 1 and hides it). One line exercising all six col-tracking sites,
+    # cross-checked by hand. (The escape-sequence site, line 134's
+    # `col += 2`, is a 7th col-drift mutation-testing gap this round found
+    # that round 245's original 19-survivor report didn't list -- an
+    # earlier draft of this same test used a plain "ab" string with no
+    # escape sequence in it, which structurally can't reach line 134 at
+    # all; confirmed as a real kill by direct in-process token-stream
+    # diffing against the mutant, no subprocess/pytest involved.)
+    toks = tokenize('12 "a\\nb" == c + (1)\n')
+    assert [(t.type, t.value, t.line, t.col) for t in toks] == [
+        ("NUMBER", 12, 1, 1),
+        ("STRING", "a\nb", 1, 4),
+        ("==", "==", 1, 11),
+        ("NAME", "c", 1, 14),
+        ("+", "+", 1, 16),
+        ("(", "(", 1, 18),
+        ("NUMBER", 1, 1, 19),
+        (")", ")", 1, 20),
+        ("NEWLINE", "\n", 1, 21),
+        ("EOF", None, 2, 1),
+    ]

@@ -1,0 +1,173 @@
+[
+ {
+  "id": "lexer.py:40:arith#14",
+  "line": 40,
+  "op": "arith",
+  "description": "Mod -> Mult",
+  "fast_tier_status": "survived",
+  "seconds": 38.2,
+  "detail": ""
+ },
+ {
+  "id": "lexer.py:144:ifneg#27",
+  "line": 144,
+  "op": "ifneg",
+  "description": "negate if-condition",
+  "fast_tier_status": "killed",
+  "seconds": 38.7,
+  "detail": "FAILED tests/test_generated_killers.py::test_kill_values_py_275_const_71 - as...\nFAILED tests/test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage\n7 failed, 835 passed, 38 deselected in 36.79s"
+ },
+ {
+  "id": "lexer.py:58:const#33",
+  "line": 58,
+  "op": "const",
+  "description": "False -> True",
+  "fast_tier_status": "survived",
+  "seconds": 40.4,
+  "detail": ""
+ },
+ {
+  "id": "lexer.py:61:bool#35",
+  "line": 61,
+  "op": "bool",
+  "description": "And -> Or",
+  "fast_tier_status": "survived",
+  "seconds": 38.3,
+  "detail": ""
+ },
+ {
+  "id": "lexer.py:96:arith#46",
+  "line": 96,
+  "op": "arith",
+  "description": "Sub -> Add",
+  "fast_tier_status": "survived",
+  "seconds": 34.4,
+  "detail": ""
+ },
+ {
+  "id": "lexer.py:116:const#52",
+  "line": 116,
+  "op": "const",
+  "description": "1 -> 2",
+  "fast_tier_status": "survived",
+  "seconds": 39.2,
+  "detail": ""
+ },
+ {
+  "id": "lexer.py:144:cmp#57",
+  "line": 144,
+  "op": "cmp",
+  "description": "Eq -> NotEq",
+  "fast_tier_status": "killed",
+  "seconds": 38.7,
+  "detail": "FAILED tests/test_generated_killers.py::test_kill_values_py_275_const_71 - as...\nFAILED tests/test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage\n7 failed, 835 passed, 38 deselected in 37.52s"
+ },
+ {
+  "id": "lexer.py:148:const#59",
+  "line": 148,
+  "op": "const",
+  "description": "2 -> 3",
+  "fast_tier_status": "survived",
+  "seconds": 39.3,
+  "detail": ""
+ },
+ {
+  "id": "lexer.py:159:const#63",
+  "line": 159,
+  "op": "const",
+  "description": "1 -> 2",
+  "fast_tier_status": "survived",
+  "seconds": 37.7,
+  "detail": ""
+ },
+ {
+  "id": "lexer.py:67:cmp#68",
+  "line": 67,
+  "op": "cmp",
+  "description": "Lt -> LtE",
+  "fast_tier_status": "survived",
+  "seconds": 37.9,
+  "detail": ""
+ },
+ {
+  "id": "lexer.py:90:cmp#76",
+  "line": 90,
+  "op": "cmp",
+  "description": "Lt -> LtE",
+  "fast_tier_status": "survived",
+  "seconds": 36.1,
+  "detail": ""
+ },
+ {
+  "id": "lexer.py:91:const#77",
+  "line": 91,
+  "op": "const",
+  "description": "1 -> 2",
+  "fast_tier_status": "survived",
+  "seconds": 37.3,
+  "detail": ""
+ },
+ {
+  "id": "lexer.py:138:const#89",
+  "line": 138,
+  "op": "const",
+  "description": "1 -> 2",
+  "fast_tier_status": "survived",
+  "seconds": 34.4,
+  "detail": ""
+ },
+ {
+  "id": "lexer.py:155:ifneg#92",
+  "line": 155,
+  "op": "ifneg",
+  "description": "negate if-condition",
+  "fast_tier_status": "killed",
+  "seconds": 36.0,
+  "detail": "FAILED tests/test_self_hosting.py::test_guest_matches_structural_record_spec_does_not_crash_the_host\nFAILED tests/test_self_hosting.py::test_effects_lang_runs_under_the_guest_round_164_backlog_closed\n13 failed, 829 passed, 38 deselected in 34.52s"
+ },
+ {
+  "id": "lexer.py:90:arith#94",
+  "line": 90,
+  "op": "arith",
+  "description": "Add -> Sub",
+  "fast_tier_status": "survived",
+  "seconds": 36.7,
+  "detail": ""
+ },
+ {
+  "id": "lexer.py:124:const#101",
+  "line": 124,
+  "op": "const",
+  "description": "1 -> 2",
+  "fast_tier_status": "survived",
+  "seconds": 41.5,
+  "detail": ""
+ },
+ {
+  "id": "lexer.py:127:cmp#102",
+  "line": 127,
+  "op": "cmp",
+  "description": "GtE -> Gt",
+  "fast_tier_status": "survived",
+  "seconds": 41.0,
+  "detail": ""
+ },
+ {
+  "id": "lexer.py:127:arith#109",
+  "line": 127,
+  "op": "arith",
+  "description": "Add -> Sub",
+  "fast_tier_status": "survived",
+  "seconds": 41.0,
+  "detail": ""
+ },
+ {
+  "id": "lexer.py:127:const#112",
+  "line": 127,
+  "op": "const",
+  "description": "1 -> 2",
+  "fast_tier_status": "survived",
+  "seconds": 39.3,
+  "detail": ""
+ }
+]

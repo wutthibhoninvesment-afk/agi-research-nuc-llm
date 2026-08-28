@@ -1,0 +1,146 @@
+[
+ {
+  "id": "lexer.py:40:arith#14",
+  "line": 40,
+  "op": "arith",
+  "description": "Mod -> Mult",
+  "status": "same-on-all-tried",
+  "n_diffs": 0,
+  "first_diff": null
+ },
+ {
+  "id": "lexer.py:58:const#33",
+  "line": 58,
+  "op": "const",
+  "description": "False -> True",
+  "status": "same-on-all-tried",
+  "n_diffs": 0,
+  "first_diff": null
+ },
+ {
+  "id": "lexer.py:61:bool#35",
+  "line": 61,
+  "op": "bool",
+  "description": "And -> Or",
+  "status": "DIFFERS",
+  "n_diffs": 9,
+  "first_diff": "example:deep.lang"
+ },
+ {
+  "id": "lexer.py:96:arith#46",
+  "line": 96,
+  "op": "arith",
+  "description": "Sub -> Add",
+  "status": "DIFFERS",
+  "n_diffs": 40,
+  "first_diff": "example:blame.lang"
+ },
+ {
+  "id": "lexer.py:116:const#52",
+  "line": 116,
+  "op": "const",
+  "description": "1 -> 2",
+  "status": "DIFFERS",
+  "n_diffs": 19,
+  "first_diff": "example:blame.lang"
+ },
+ {
+  "id": "lexer.py:148:const#59",
+  "line": 148,
+  "op": "const",
+  "description": "2 -> 3",
+  "status": "DIFFERS",
+  "n_diffs": 22,
+  "first_diff": "example:blame.lang"
+ },
+ {
+  "id": "lexer.py:159:const#63",
+  "line": 159,
+  "op": "const",
+  "description": "1 -> 2",
+  "status": "DIFFERS",
+  "n_diffs": 41,
+  "first_diff": "example:blame.lang"
+ },
+ {
+  "id": "lexer.py:67:cmp#68",
+  "line": 67,
+  "op": "cmp",
+  "description": "Lt -> LtE",
+  "status": "DIFFERS",
+  "n_diffs": 1,
+  "first_diff": "snippet:comment_no_trailing_newline"
+ },
+ {
+  "id": "lexer.py:90:cmp#76",
+  "line": 90,
+  "op": "cmp",
+  "description": "Lt -> LtE",
+  "status": "DIFFERS",
+  "n_diffs": 1,
+  "first_diff": "snippet:number_dot_no_digit_at_eof"
+ },
+ {
+  "id": "lexer.py:91:const#77",
+  "line": 91,
+  "op": "const",
+  "description": "1 -> 2",
+  "status": "same-on-all-tried",
+  "n_diffs": 0,
+  "first_diff": null
+ },
+ {
+  "id": "lexer.py:138:const#89",
+  "line": 138,
+  "op": "const",
+  "description": "1 -> 2",
+  "status": "DIFFERS",
+  "n_diffs": 19,
+  "first_diff": "example:blame.lang"
+ },
+ {
+  "id": "lexer.py:90:arith#94",
+  "line": 90,
+  "op": "arith",
+  "description": "Add -> Sub",
+  "status": "DIFFERS",
+  "n_diffs": 1,
+  "first_diff": "snippet:number_dot_no_digit_at_eof"
+ },
+ {
+  "id": "lexer.py:124:const#101",
+  "line": 124,
+  "op": "const",
+  "description": "1 -> 2",
+  "status": "DIFFERS",
+  "n_diffs": 19,
+  "first_diff": "example:blame.lang"
+ },
+ {
+  "id": "lexer.py:127:cmp#102",
+  "line": 127,
+  "op": "cmp",
+  "description": "GtE -> Gt",
+  "status": "DIFFERS",
+  "n_diffs": 1,
+  "first_diff": "snippet:string_backslash_at_absolute_eof"
+ },
+ {
+  "id": "lexer.py:127:arith#109",
+  "line": 127,
+  "op": "arith",
+  "description": "Add -> Sub",
+  "status": "DIFFERS",
+  "n_diffs": 1,
+  "first_diff": "snippet:string_backslash_at_absolute_eof"
+ },
+ {
+  "id": "lexer.py:127:const#112",
+  "line": 127,
+  "op": "const",
+  "description": "1 -> 2",
+  "status": "same-on-all-tried",
+  "n_diffs": 0,
+  "first_diff": null
+ }
+]
