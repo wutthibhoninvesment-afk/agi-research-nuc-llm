@@ -662,3 +662,90 @@ def test_guest_guess_is_guess_confidence_why_shape_matches_host_exactly():
         guest_ops = [e.payload.split(" ")[0] for e in rec.fields["v"].payload]
 
         assert guest_ops == host_ops, (label, "guest", guest_ops, "host", host_ops)
+
+
+@pytest.mark.whence_slow
+def test_guest_matches_shapeof_typed_why_shape_matches_host_exactly():
+    # Round 224 (`matches`/`shapeof`) and round 158 (`typed`) gave these
+    # three builtins guest DISPATCH parity, and round 240 hardened
+    # `matches`'s structural-Record-spec path against a host crash -- but
+    # none of the three rounds checked their WHY-SHAPE against the
+    # differential fuzzer's `why_shape_probe`, and none of the three names
+    # were ever added to `harness/swe/guest.py`'s `WHY_VOCAB` -- the exact
+    # gap rounds 234/236 already found and closed for `sure`/`guess`/
+    # `is_guess`/`confidence`. Before adding these three to the vocabulary
+    # too, hand-verify their op-list shape the same way rounds 234/236's
+    # own tests do, across every dispatch path each builtin has:
+    #   - `shapeof`: the plain `_kind` delegation (one case per
+    #     `_KIND_ORDER` bucket touched by round 224's own dispatch test)
+    #     AND the `is_callable` guard branch (a guest closure -- the one
+    #     path that does NOT call the real host `shapeof` at all, so it
+    #     was the most likely place for a divergence to hide).
+    #   - `matches`: the plain-string-spec fast path, the total-on-miss
+    #     property, the `is_callable` guard branch, and (round 240's own
+    #     fix) the `strip()`-based structural-Record-spec path -- the
+    #     riskiest case, since `strip()` rebuilds guest data via real
+    #     `put`/`get`/`keys` host calls rather than preserving the
+    #     original literal's own provenance, so it was the one case going
+    #     in expected to show "internal noise" (the same class round
+    #     224/230 already documented for `at()`/`diverge()`), not a clean
+    #     match.
+    #   - `typed`: the pass-through-on-match case (host returns the
+    #     original value unchanged, no new node -- this checks the guest
+    #     does the same, not just that it returns the right VALUE), the
+    #     fresh-single-input-miss-on-mismatch case, and the propagated-
+    #     miss case (op "builtin", matching host's own `_propagate`).
+    # All 15 cases below were run by hand against both evaluators before
+    # writing this test (see the round-246 knowledge file) and every one
+    # matches exactly, including the structural-spec case -- `strip()`'s
+    # `put`-based reconstruction turned out not to leak into the outer
+    # `matches` node's own `op`/`ins` (those are forced to `"matches"`/
+    # `args` by `apply_host_builtin`'s generic wrapper regardless of which
+    # internal branch computed the payload), so there was no "internal
+    # noise" caveat to carve out here after all -- an assumption that
+    # would have been wrong to encode into the assertions without checking.
+    from whence import values as VAL
+
+    eval_lib = eval_library_source()
+    cases = {
+        "shapeof num": 'let r = shapeof(1)\n',
+        "shapeof list": 'let r = shapeof([1, 2])\n',
+        "shapeof record": 'let r = shapeof(@{a: 1})\n',
+        "shapeof miss": 'let r = shapeof(miss "x")\n',
+        "shapeof guest closure (callable guard)": (
+            'let f = fn(x) { x }\nlet r = shapeof(f)\n'),
+        "matches num spec, true": 'let r = matches(1, "num")\n',
+        "matches str spec against a num, false": 'let r = matches(1, "str")\n',
+        "matches any": 'let r = matches([1, 2], "any")\n',
+        "matches is total: a miss argument is just false": (
+            'let r = matches(miss "x", "num")\n'),
+        "matches fn spec against a guest closure (callable guard)": (
+            'let f = fn(x) { x }\nlet r = matches(f, "fn")\n'),
+        "matches structural record spec, pass": (
+            'let Spec = @{x: "num", y: "num"}\n'
+            'let p = @{x: 1, y: 2}\nlet r = matches(p, Spec)\n'),
+        "matches structural record spec, fail": (
+            'let Spec = @{x: "num", y: "num"}\n'
+            'let p = @{x: 1, y: "no"}\nlet r = matches(p, Spec)\n'),
+        "typed pass-through on match (no new node)": (
+            'let r = typed(1 + 2, "num", "x")\n'),
+        "typed fresh miss on mismatch": 'let r = typed(1, "str", "x")\n',
+        "typed propagated miss": 'let r = typed(miss "z", "num", "x")\n',
+    }
+    for label, src in cases.items():
+        host_env = Interpreter().run(src)
+        host_box = host_env.get("r")
+        host_ops = [n.op for n, _ in VAL.walk_steps(host_box)]
+
+        inner_src = (
+            src +
+            'fn __opwalk(acc, n) { fold(__opwalk, push(acc, n.op), n.ins) }\n'
+            'let __ops = __opwalk([], why r)\n'
+            '__ops\n')
+        prog = eval_lib + 'let __r = run_src("%s")\n' % escape(inner_src)
+        genv = Interpreter().run(prog)
+        rec = genv.get("__r").payload
+        assert rec.fields["parse_error"].payload is False, label
+        guest_ops = [e.payload.split(" ")[0] for e in rec.fields["v"].payload]
+
+        assert guest_ops == host_ops, (label, "guest", guest_ops, "host", host_ops)

@@ -2086,3 +2086,54 @@ Workspace: ~/agi-research
   sampling to catch a burst in progress, not yet attempted. See
   `knowledge/round-244-nuc-e-swap-growth-is-bursty-not-smooth-deceleration.md`
   and `state/nuc-missions.md`'s own "Round 244 addendum".
+
+### Round 245 — SWE-loop(D) — 2026-08-28 (died error:max_turns, no research-state entry until now)
+- Died `error:max_turns` (143 tool_calls, 1134.731s) before committing or
+  writing a knowledge file. Left real, completed work: the first-ever
+  mutation campaign against `whence/lexer.py` (117 mutants, 98 killed, 19
+  survived, 809.1s), via a new `state/swe/round-245/run_lexer_mutation.py` +
+  `lexer-mutation.json`. Landed by round 246 (see below) as a light-touch
+  cross-track courtesy — survivor triage left open for the next
+  SWE-loop(D) round.
+
+### Round 246 — language(C) — 2026-08-28
+- **Setup**: found round 245's orphaned mutation-campaign artifacts (see
+  above), verified them by re-deriving the mutant list from the current
+  `whence/lexer.py` (exact match, 117), and landed them in a separate
+  commit before starting this round's own track work. Four untracked
+  Hermes-gateway files and four `logs/health_round_24{2,3,4,5}.log` files
+  confirmed unchanged, left untouched per the standing cross-track
+  convention.
+- **Own work: closed the `matches`/`shapeof`/`typed` guest why-vocab gap**
+  — the same shape rounds 234/236 already found and fixed for `sure`/
+  `guess`/`is_guess`/`confidence`: guest dispatch parity had landed
+  (rounds 158/224) but `harness/swe/guest.py`'s `WHY_VOCAB` allowlist was
+  never told about the `"matches"`/`"shapeof"`/`"typed"` op tokens, so the
+  differential fuzzer's why-shape probe could not see either evaluator
+  omit or invent one of their op nodes. Hand-verified (evaluate-before-
+  authoring) 15 shapes across every dispatch path each builtin has —
+  including `shapeof`/`matches`'s `is_callable` guard branch (a guest
+  closure, the one path that skips the real host builtin) and `matches`'s
+  `strip()`-based structural-Record-spec path (round 240's own fix,
+  expected going in to leak "internal noise" the way `at()`/`diverge()`
+  do, per round 224/230 — turned out NOT to, since `apply_host_builtin`'s
+  generic wrapper always forces the top-level op to the builtin's own
+  name regardless of which internal branch computed the payload; a
+  prediction refuted by direct construction rather than left unchecked).
+  All 15 matched exactly. New test
+  `test_guest_matches_shapeof_typed_why_shape_matches_host_exactly`
+  (`languages/whence/tests/test_self_hosting.py`, `@pytest.mark.
+  whence_slow`) pins this; added the three names to `WHY_VOCAB`. No
+  `SPEC.md` change (test/harness-only fix, same as round 236's own
+  precedent) and no `fuzz.py` comment-staleness fix needed (checked
+  directly: no comment anywhere claims these three are guest-unsupported
+  or banned).
+- **Verification**: `tests/test_self_hosting.py` 13/13 (was 12/12, new
+  test isolated 1/1 in 7.01s, full file 97.13s);
+  `languages/whence/run_tests_fast.sh` 842 passed/36 deselected/34.76s
+  (878 total collected, +1 matches expectation); full `languages/whence`
+  `pytest tests/` (background) **878 passed in 795.89s**; cross-track
+  regression check `harness/tests/test_swe_guest.py`+`test_swe_fuzz.py`
+  (background) **56/56 passed in 704.20s**, confirming the `WHY_VOCAB`
+  addition surfaces no new differential findings.
+- See `knowledge/round-246-whence-matches-shapeof-typed-why-vocab-and-r245-landing.md`.

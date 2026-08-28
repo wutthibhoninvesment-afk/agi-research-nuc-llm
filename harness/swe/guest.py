@@ -333,12 +333,27 @@ def _depth_missed(V, p):
 # including guess-of-guess flattening and three miss-producing edge cases —
 # 12 shapes total, all exact matches) before adding them here too. See
 # `knowledge/round-236-whence-guess-sure-why-vocab-and-fuzz-comment-staleness.md`.
+#
+# `matches`/`shapeof`/`typed` (round 246) join this set the same way: all
+# three are free-delegation builtins (round 224 for `matches`/`shapeof`,
+# round 158 for `typed`) whose top-level `Prov.op` is forced to the
+# builtin's own name (or `"builtin"` on a propagated-miss argument) by
+# `apply_host_builtin`'s generic wrapper — or, for `typed`'s on-match case,
+# is a pure pass-through of the original value's own node, no new op at
+# all — regardless of which internal branch computed the payload. Round
+# 246 hand-verified 15 shapes (op-LIST equality) covering every dispatch
+# path each of the three has, including `shapeof`/`matches`'s
+# `is_callable` guard branch (a guest closure, the one path that does NOT
+# call the real host builtin) and `matches`'s `strip()`-based structural-
+# Record-spec path (round 240) — all 15 exact matches, no divergence
+# found. See `knowledge/round-246-whence-matches-shapeof-typed-why-vocab.md`.
 WHY_VOCAB = frozenset([
     "let", "arg", "call", "if", "literal", "list", "record", "index",
     "field", "fold", "map", "filter", "find", "push", "len", "range", "num",
     "str", "abs", "sqrt", "missed", "reasons", "note", "contains", "join",
     "keys", "merge", "get", "put", "has", "builtin", "fn", "miss", "rescue",
     "key", "reason", "guess", "is_guess", "confidence", "sure",
+    "matches", "shapeof", "typed",
     "+", "-", "*", "/", "%", "==", "!=", "<", "<=", ">", ">=",
     "and", "or", "not",
 ])
