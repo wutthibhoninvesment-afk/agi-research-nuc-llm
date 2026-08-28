@@ -262,6 +262,25 @@ python3 -m pytest tests/ -q              # full suite (should be <1s)
   what a delegated builtin hands back; don't assume "it resolves and
   dispatches now" also means "every consumer of its result is compatible."
 
+- **A scope-mirroring static analysis (parse-time effect/alias/purity
+  checks) must record NON-matches explicitly, not just skip the write when
+  there's nothing interesting to say.** If a per-scope tracking dict is
+  only ever written to when a binding IS the thing you're tracking (e.g.
+  "this name aliases a known effectful builtin"), then an ordinary,
+  unrelated local binding that reuses the same name in an inner scope
+  writes nothing — and a lookup that walks outward from the inner scope
+  finds nothing there either, so it falls through to an OUTER scope's
+  stale match and misidentifies the unrelated local as the tracked thing.
+  This is the same bug shape as a cache that only writes on a hit and
+  never on an explicit miss: a later lookup can't tell "never computed"
+  from "computed and irrelevant here." Fix: write `None`/a sentinel for
+  every binding in the tracked namespace — not just interesting ones — so
+  an inner scope's entry, present but empty, correctly blocks fallthrough
+  to an outer scope's real match (Whence round 266, v0.14.2's
+  `alias_scopes`: a `let p = print` then an unrelated inner `let p = 5`
+  would otherwise let a `p(...)` call in the inner block wrongly resolve
+  to the outer `print` alias).
+
 ## Verification
 - `python3 -m pytest tests/ -q` → all green, runtime < 1s.
 - Every example runs with documented exit code; the deliberately-failing one
