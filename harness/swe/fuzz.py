@@ -180,6 +180,20 @@ class ProgramGen(object):
         # anything other than LexError/ParseError.
         self.return_alias_fns = []
         self.field_alias_boxes = []
+        # v0.14.6 fuzz-coverage gap (round 282, closed round 284): a FOURTH
+        # shape, the field-access mirror of `return_alias_fns` above —
+        # `field_return_alias_boxes` holds (box_name, field_name) pairs
+        # bound as `let box = @{field: <return_alias_fn name>, ...}` (the
+        # field VALUE is a bare NameRef naming one of `return_alias_fns`,
+        # not a call), so `call()` can exercise
+        # `_resolve_effectful_field_return`'s `box.field()(...)` shape —
+        # TWO applications, exactly `get_printer()(1)` (v0.14.3) with the
+        # first hop routed through a field instead of a bare name. Same
+        # "never previously reachable from ProgramGen's grammar" gap as the
+        # other three, named explicitly in round 282's own SPEC.md entry
+        # and left untouched by round 278/279's fuzz-coverage pass (which
+        # predates v0.14.6 by four rounds). Still crash-fuzz coverage only.
+        self.field_return_alias_boxes = []
 
     # names ---------------------------------------------------------------
     def fresh(self, prefix="v"):
@@ -233,6 +247,23 @@ class ProgramGen(object):
         r = self.r
         alias_field = r.choice(FIELD_POOL)
         pairs = ["%s: %s" % (alias_field, self._alias_source())]
+        others = r.sample([f for f in FIELD_POOL if f != alias_field], r.randint(0, 2))
+        for fname in others:
+            pairs.append("%s: %s" % (fname, self.expr(1, [])))
+        r.shuffle(pairs)
+        return "@{%s}" % ", ".join(pairs), alias_field
+
+    def _field_return_alias_record(self):
+        """v0.14.6 fuzz coverage: a record literal with one bare-NameRef
+        field naming a `return_alias_fns` entry (not calling it — the field
+        VALUE is the fn name itself, mirroring the hand-written corpus's
+        `@{run: get_printer}`) plus 0-2 ordinary fields. Caller must check
+        `self.return_alias_fns` is non-empty first. Returns
+        `(source_text, field_name)`."""
+        r = self.r
+        fn_name, _fn_arity = r.choice(self.return_alias_fns)
+        alias_field = r.choice(FIELD_POOL)
+        pairs = ["%s: %s" % (alias_field, fn_name)]
         others = r.sample([f for f in FIELD_POOL if f != alias_field], r.randint(0, 2))
         for fname in others:
             pairs.append("%s: %s" % (fname, self.expr(1, [])))
@@ -332,6 +363,12 @@ class ProgramGen(object):
                 lit, field = self._field_alias_record()
                 e = lit
                 self.field_alias_boxes.append((name, field))
+            elif aq < 0.22 and self.return_alias_fns:
+                # v0.14.6 fuzz coverage: `let box = @{field: get_x, ...}`
+                # (the field VALUE names a return-alias fn, not a call).
+                lit, field = self._field_return_alias_record()
+                e = lit
+                self.field_return_alias_boxes.append((name, field))
             else:
                 e = self.expr(0, [])
             self.scope.append(name)
@@ -444,6 +481,15 @@ class ProgramGen(object):
 
     def call(self, depth, local):
         r = self.r
+        if self.field_return_alias_boxes and r.random() < 0.06:
+            # v0.14.6 fuzz coverage: `box.field()(...)` -- TWO applications,
+            # the first hop through a tracked field-return alias
+            # (`_resolve_effectful_field_return`), exactly `get_x()(1)`
+            # (v0.14.3) with the callee routed through a field instead of a
+            # bare name.
+            box_name, field_name = r.choice(self.field_return_alias_boxes)
+            inner = "%s.%s()" % (box_name, field_name)
+            return "%s(%s)" % (inner, self.expr(depth + 1, local))
         if self.field_alias_boxes and r.random() < 0.06:
             # v0.14.4 fuzz coverage: `box.field(...)` through a tracked
             # record-literal field alias (`_resolve_effectful_field`).
