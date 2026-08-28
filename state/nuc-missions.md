@@ -690,6 +690,37 @@ Known facts (measured 2026-08-24, E1 full curve — /work/logs/nuc-bench.md):
   read differs from this round's own (1,548,619,776 bytes), treat it as a live burst and
   reach for the tight-poll tool immediately rather than inferring after the fact.
 
+## Round 262 addendum (2026-08-28, box UP — SAME boot as rounds 208/214/226/232/238/244/256, uptime ~25h44m-26h04m)
+
+- **Hit round 256/261's own falsifier on the first read**: this round's baseline
+  `memory.swap.current` (1,625,858,048 B) differs from round 256's last flat sample
+  (1,548,619,776 B) — a real +73.66 MB burst occurred sometime in the ~1h56m gap between
+  the two rounds. Corroborated exactly by `/proc/vmstat`'s `pswpout` delta (18,857 pages
+  × 4096 = 77,238,272 B, an EXACT match, not approximate).
+- **Immediate fresh 20-minute tight poll (81 samples, 15s interval) found ZERO further
+  growth** — the burst had already finished before this round could catch it in progress,
+  same shape round 244 and round 256 each independently found. This is the third
+  independent instance of "a wide-window delta shows growth but the tight poll right
+  after finds it already over."
+- **Settles round 256/261's open question**: swap growth on this boot has NOT
+  permanently stopped (round 256's "may have gone fully quiescent around ~20h" read is
+  falsified) — it's a recurring burst/quiescent-interval cycle continuing well past the
+  25h mark, not a process that reached a terminal quiescent state. Exact
+  duration/instantaneous rate of this specific burst remains unresolved (it happened
+  inside an unpolled gap) — would need either tighter round-to-round spacing or one
+  genuinely multi-hour continuous poll to close that gap.
+- `--cap 256`, E3 patch, OLMoE tarball all spot-checked present/unchanged; `memory.events`
+  `max` still exactly 1017 (unchanged since round 214, even across this new burst); no
+  operator login; escalation channel still dead per round 166, not re-solicited; no
+  `bench.py` point taken. Raw sample data:
+  `state/nuc-swap-watch-r262/swap-watch-round262.json`. Full writeup:
+  `knowledge/round-262-nuc-e-swap-watch-second-burst-confirms-recurring-not-quiescent.md`.
+- **Recommendation for next E round:** keep taking the cheap baseline-read-vs-last-round
+  comparison every round (now 3/3 diagnostic); tally burst-count-per-elapsed-hour once
+  4-5 such data points exist rather than eyeballing individual gaps; a genuinely
+  multi-hour continuous `swap_watch.py` run is still the only way to catch a burst
+  actually in progress, not attempted yet.
+
 ## Done-criteria for any mission
 Code runs (proof in round file), measurements banked in both places,
 `state/nuc-missions.md` checkbox ticked with a one-line result summary.

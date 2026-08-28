@@ -1,0 +1,667 @@
+{
+  "unit": "qwen36-colibri.service",
+  "interval_s": 15.0,
+  "duration_s": 1200.0,
+  "burst_threshold_bytes": 1048576,
+  "samples": [
+    {
+      "seq": 0,
+      "t_unix": 1787924174.334433,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16341,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 1,
+      "t_unix": 1787924189.334738,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16341,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 2,
+      "t_unix": 1787924204.3355627,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16341,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 3,
+      "t_unix": 1787924219.3363695,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16341,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 4,
+      "t_unix": 1787924234.3371172,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16341,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 5,
+      "t_unix": 1787924249.3379579,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16341,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 6,
+      "t_unix": 1787924264.3387632,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16341,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 7,
+      "t_unix": 1787924279.3395295,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16341,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 8,
+      "t_unix": 1787924294.3405163,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16341,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 9,
+      "t_unix": 1787924309.3413172,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16341,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 10,
+      "t_unix": 1787924324.342109,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 11,
+      "t_unix": 1787924339.343048,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 12,
+      "t_unix": 1787924354.3441021,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 13,
+      "t_unix": 1787924369.3449028,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 14,
+      "t_unix": 1787924384.345851,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 15,
+      "t_unix": 1787924399.3468165,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 16,
+      "t_unix": 1787924414.3478634,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 17,
+      "t_unix": 1787924429.3487601,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 18,
+      "t_unix": 1787924444.3498259,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 19,
+      "t_unix": 1787924459.3508222,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 20,
+      "t_unix": 1787924474.351691,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 21,
+      "t_unix": 1787924489.3526654,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 22,
+      "t_unix": 1787924504.353607,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 23,
+      "t_unix": 1787924519.354414,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 24,
+      "t_unix": 1787924534.3551822,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 25,
+      "t_unix": 1787924549.3561234,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 26,
+      "t_unix": 1787924564.357056,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 27,
+      "t_unix": 1787924579.3580208,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 28,
+      "t_unix": 1787924594.3589175,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 29,
+      "t_unix": 1787924609.359766,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 30,
+      "t_unix": 1787924624.3607256,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 31,
+      "t_unix": 1787924639.361668,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 32,
+      "t_unix": 1787924654.3625906,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 33,
+      "t_unix": 1787924669.3633823,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 34,
+      "t_unix": 1787924684.364487,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 35,
+      "t_unix": 1787924699.365512,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 36,
+      "t_unix": 1787924714.3665159,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 37,
+      "t_unix": 1787924729.3674936,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 38,
+      "t_unix": 1787924744.368288,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 39,
+      "t_unix": 1787924759.3693473,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 40,
+      "t_unix": 1787924774.3701653,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 41,
+      "t_unix": 1787924789.3710785,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 42,
+      "t_unix": 1787924804.3721504,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 43,
+      "t_unix": 1787924819.3730125,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 44,
+      "t_unix": 1787924834.3739855,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 45,
+      "t_unix": 1787924849.3749485,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 46,
+      "t_unix": 1787924864.3758974,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 47,
+      "t_unix": 1787924879.3767529,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 48,
+      "t_unix": 1787924894.3775342,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 49,
+      "t_unix": 1787924909.3784118,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 50,
+      "t_unix": 1787924924.3792038,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 51,
+      "t_unix": 1787924939.3801463,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 52,
+      "t_unix": 1787924954.3810902,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 53,
+      "t_unix": 1787924969.3821297,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 54,
+      "t_unix": 1787924984.382965,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 55,
+      "t_unix": 1787924999.383826,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 56,
+      "t_unix": 1787925014.3847747,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 57,
+      "t_unix": 1787925029.3857255,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 58,
+      "t_unix": 1787925044.3867888,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 59,
+      "t_unix": 1787925059.3876855,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 60,
+      "t_unix": 1787925074.3886564,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 61,
+      "t_unix": 1787925089.3898132,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 62,
+      "t_unix": 1787925104.3907578,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 63,
+      "t_unix": 1787925119.391542,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 64,
+      "t_unix": 1787925134.3923407,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 65,
+      "t_unix": 1787925149.3932114,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 66,
+      "t_unix": 1787925164.394003,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 67,
+      "t_unix": 1787925179.394916,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 68,
+      "t_unix": 1787925194.3958051,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 69,
+      "t_unix": 1787925209.3965242,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 70,
+      "t_unix": 1787925224.3973606,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 71,
+      "t_unix": 1787925239.3982542,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 72,
+      "t_unix": 1787925254.3991597,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 73,
+      "t_unix": 1787925269.4001064,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 74,
+      "t_unix": 1787925284.4009974,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 75,
+      "t_unix": 1787925299.401821,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 76,
+      "t_unix": 1787925314.4027903,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 77,
+      "t_unix": 1787925329.403764,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 78,
+      "t_unix": 1787925344.4047282,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 79,
+      "t_unix": 1787925359.405676,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    },
+    {
+      "seq": 80,
+      "t_unix": 1787925374.406602,
+      "swap_bytes": 1625858048,
+      "mem_current_bytes": 30889619456,
+      "pswpin_pages": 16342,
+      "pswpout_pages": 419113
+    }
+  ],
+  "bursts": [],
+  "summary": {
+    "n_samples": 81,
+    "span_s": 1200.0721688270569,
+    "total_delta_bytes": 0,
+    "wide_window_rate_mb_per_hr": 0.0,
+    "n_bursts": 0,
+    "flat_inter_sample_gaps": 80,
+    "burst_sizes_bytes": [],
+    "burst_durations_s": []
+  }
+}

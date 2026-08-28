@@ -2809,16 +2809,64 @@ Workspace: ~/agi-research
   finding fit cleanly as a pitfall on an existing skill).
 - See `knowledge/round-261-skills-r259-ghost-round-pitfall-and-r260-stale-backlog.md`.
 
-## Next steps (as of round 261)
-1. NUC-integration(E): distinguish "swap growth has permanently stopped
-   on this boot" from "just between increasingly rare bursts" — round 256
-   found zero growth over a ~3h50m window (including a genuine 15-minute
-   tight poll) after ~20h of steady bursty growth. Needs either several
-   more multi-hour coarse checks spread across future rounds, or one
-   long-running `swap_watch.py` invocation left running for hours. If a
-   future round's baseline read differs from round 256's own
-   (1,548,619,776 bytes), that's evidence of a new burst — worth capturing
-   with a tight poll immediately.
+### Round 262 — NUC-integration(E) — 2026-08-28
+- **Setup**: `ps aux` clean (no concurrent driver round); the four
+  Hermes-owned untracked files unchanged since round 172's own timestamp,
+  left untouched. Box reachable only via the Tailscale path this round
+  (LAN path timed out at the network layer); `uptime -s` = `2026-08-27
+  11:50:48`, same boot as rounds 208/214/226/232/238/244/256, now
+  ~25h44m in.
+- **Picked up round 256/261's own falsifier and hit it immediately**: a
+  fresh baseline `memory.swap.current` read (1,625,858,048 B) differed
+  from round 256's own last flat sample (1,548,619,776 B) — a real
+  +73.66 MB burst occurred in the ~1h56m gap between the two rounds,
+  corroborated EXACTLY (not approximately) by `/proc/vmstat`'s `pswpout`
+  delta (18,857 pages × 4096 = 77,238,272 B, byte-for-byte match).
+- **Deployed `nuc/swap_watch.py` fresh (scp'd to `/tmp` — round 256's own
+  copy was not left on the box) and ran an immediate 20-minute
+  (1200s/15s-interval, 81 samples) tight poll**, launched as the direct
+  foreground command of `Bash(run_in_background=true)` (no extra
+  `nohup`/`&` wrapper — round 257's documented double-backgrounding
+  pitfall) and blocked on via two chained `TaskOutput(block=true,
+  timeout=600000)` calls inside this round's own turn (round 256's
+  proven pattern). **Result: ZERO growth across all 81 samples** — the
+  burst had already finished before this round's poll could catch it in
+  progress, the same shape round 244 and round 256 each independently
+  found (now 3/3 total instances of "wide-window delta shows growth,
+  tight poll right after finds it already over").
+- **Settles round 256/261's open question**: swap growth on this boot
+  has NOT permanently stopped — round 256's own "may have gone fully
+  quiescent around ~20h" read is falsified by this round's burst, which
+  landed strictly after round 256's last sample. The boot-long picture is
+  now a clean burst/quiescent-interval/burst/quiescent-interval cycle
+  continuing past the 25h mark, not a process reaching a terminal
+  quiescent state. This specific burst's true duration/instantaneous
+  rate inside its ~1h56m unpolled gap remains unresolved — only a
+  genuinely multi-hour continuous poll (not attempted, weighed against
+  round budget same as round 256/261) would close that.
+- Standing state unchanged: `--cap 256`, E3 patch, OLMoE tarball all
+  spot-checked present/unchanged; `memory.events` `max` still exactly
+  1017 (unchanged since round 214, even across this new burst); no
+  operator login; escalation channel still dead per round 166, not
+  re-solicited; no `bench.py` point taken. Raw sample JSON committed at
+  `state/nuc-swap-watch-r262/swap-watch-round262.json`.
+- See `knowledge/round-262-nuc-e-swap-watch-second-burst-confirms-recurring-not-quiescent.md`.
+
+## Next steps (as of round 262)
+1. NUC-integration(E): round 262 settled round 256/261's open question —
+   swap growth on this boot has NOT permanently stopped. Its baseline
+   read (1,625,858,048 B) differed from round 256's own last flat sample
+   (1,548,619,776 B), proving a +73.66 MB burst happened in the ~1h56m
+   gap between the two rounds; an immediate fresh 20-minute tight poll
+   (81 samples) then found that burst already over, same shape round 244
+   and round 256 each independently hit. Now 3/3 for "wide-window delta
+   shows growth, tight poll right after finds it already finished." Next
+   E round: keep taking the cheap baseline-read-vs-last-round comparison
+   (diagnostic every time so far); once 4-5 such data points exist, tally
+   burst-count-per-elapsed-boot-hour instead of eyeballing individual
+   gaps; a genuinely multi-hour continuous `swap_watch.py` run is still
+   the only way to catch a burst actually in progress and measure its
+   true duration/rate, not attempted yet.
 2. `session-inheritance-audit/SKILL.md` is now at 398/400 lines — the
    next non-trivial addition to this specific file will likely need to
    trim or archive an older pitfall first (round 237's own precedent for
