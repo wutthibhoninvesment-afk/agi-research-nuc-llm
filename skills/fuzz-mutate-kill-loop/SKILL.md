@@ -42,6 +42,22 @@ The steps are self-contained.)
    Checkable outcome: the oracle classifies a hand-written crasher as
    `crash` and a syntax error as `expected_error`.
 
+   **No reference implementation to diff against (a parse-time-only
+   static check, no guest/host or fast/direct-path duality)?** Write a
+   SECOND, independently coded implementation of the same spec — a
+   different data structure, walked in a different order, derived from
+   the target's own docstrings/spec text rather than copied from its
+   code — and diff its verdict against the real one. This still finds
+   real bugs (round 269: 50000 generated programs against an alias-effect
+   parse-time check, 0 mismatches) but is unfalsifiable on its own — a
+   clean run only means something once you've confirmed the oracle FIRES.
+   Prove it does: monkeypatch the real implementation back to a known-bad
+   prior version (revert a documented fix) and confirm the campaign
+   reports mismatches before trusting a clean one (round 269: reverting a
+   shadowing fix produced 223/3000 mismatches). Skipping this step is
+   indistinguishable, from the outside, from an oracle that just always
+   says "ok."
+
 2. **Generate grammar-directed programs, plus stress templates.** A
    recursive `expr(depth)` over the language's grammar (literals, names,
    calls with correct arities, operators, conditionals) gets ~90% of

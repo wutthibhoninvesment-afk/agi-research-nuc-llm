@@ -141,6 +141,16 @@ class ProgramGen(object):
         self.counter = 0
         self.scope = []       # top-level bound names
         self.fns = []         # (name, arity) of top-level fns
+        # v0.14.2 backlog (round 257/269): names bound as a direct alias of
+        # `print` (`let x = print`), so `call()` can occasionally call
+        # THROUGH one instead of only ever calling `print` directly — the
+        # one grammar shape `Parser.alias_scopes` tracks that this fuzzer
+        # could not previously reach at all (round 269's own dedicated,
+        # ORACLED campaign in `harness/swe/alias_effects.py` is the real
+        # bug-finding tool for this feature; this is crash-fuzz coverage
+        # only — no semantic oracle here, just "does it ever escape as
+        # something other than LexError/ParseError").
+        self.alias_names = []
 
     # names ---------------------------------------------------------------
     def fresh(self, prefix="v"):
@@ -224,7 +234,18 @@ class ProgramGen(object):
         p = r.random()
         if p < 0.55:
             name = self.fresh()
-            e = self.expr(0, [])
+            # v0.14.2: 10% of ordinary `let`s bind a direct alias instead —
+            # of `print` itself, or (if one already exists) of a prior
+            # alias, so multi-hop chains show up too (see `__init__`).
+            aq = r.random()
+            if aq < 0.05 or (aq < 0.1 and not self.alias_names):
+                e = "print"
+                self.alias_names.append(name)
+            elif aq < 0.1:
+                e = r.choice(self.alias_names)   # chain through a prior alias
+                self.alias_names.append(name)
+            else:
+                e = self.expr(0, [])
             self.scope.append(name)
             return "let %s = %s" % (name, e)
         if p < 0.75:
@@ -329,6 +350,11 @@ class ProgramGen(object):
 
     def call(self, depth, local):
         r = self.r
+        if self.alias_names and r.random() < 0.08:
+            # Call THROUGH a tracked alias rather than `print` directly —
+            # the one shape v0.14.2's effect check treats identically to a
+            # direct call (`Parser._resolve_effectful_alias`).
+            return "%s(%s)" % (r.choice(self.alias_names), self.expr(depth + 1, local))
         if self.fns and r.random() < 0.35:
             name, arity = r.choice(self.fns)
             if r.random() < 0.1:

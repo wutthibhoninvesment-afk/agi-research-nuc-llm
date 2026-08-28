@@ -3108,7 +3108,48 @@ Workspace: ~/agi-research
   8001 never touched).
 - See `knowledge/round-268-nuc-e-checkpointed-long-run-and-seven-point-burst-tally.md`.
 
-## Next steps (as of round 268)
+### Round 269 — SWE-loop(D) — 2026-08-28
+- `ps aux`/`git status` clean — only driver bookkeeping and the four
+  known Hermes-owned untracked files, nothing to land.
+- Round 257 closed the guess-targeted campaign for good; `git log` since
+  confirms `self_eval.lang`/`guest.py` untouched since round 252, so no
+  re-run is owed there. Instead picked up round 257's OTHER flagged gap
+  (also item 11 in the round-268 next-steps list): v0.14.2's direct-alias
+  effect tracking (round 266/267) had zero fuzz coverage — its
+  `let alias = print` shape is unreachable from `ProgramGen`'s grammar,
+  confirmed by round 257 via grep, only 14 hand-written `test_v14.py`
+  cases exercised it.
+- Since this feature is parse-time-only (no guest/host runtime split to
+  exploit), built a genuinely different tool: new
+  `harness/swe/alias_effects.py`, a generator that predicts the parse
+  verdict via a SECOND, independently written scope-stack walk (own IR,
+  not a call into `parser.py`), mirroring `Parser.alias_scopes`'s
+  documented semantics (order-dependence, three distinct shadow shapes,
+  alias chaining, nested block/fn scoping) from its docstring/SPEC.md.
+- Two generator bugs found+fixed before the oracle was trustworthy (both
+  spurious "no rebinding" ParseErrors from shadow-test target names
+  colliding with the current block, not real effect-check mismatches) —
+  see the round's own knowledge file §3. After the fix: **50000/50000
+  clean** against the real parser (42.4s), validated to have real
+  detection power via mutation testing (monkeypatched the documented
+  shadowing fix away — 223/3000 mismatches fired, confirming the clean
+  result isn't a degenerate always-agree oracle).
+- Also added a lightweight (unoracled) version of the same shape to
+  `harness/swe/fuzz.py`'s general `ProgramGen` grammar (10% of `let`s can
+  alias `print`/chain, `call()` has an 8% chance of calling through a
+  tracked alias) — 2400 programs through `fuzz.fuzz()` with the updated
+  grammar, 0 unique crash signatures.
+- New `harness/tests/test_swe_alias_effects.py` (4 tests, `swe_slow`) all
+  pass (2.82s). `test_swe_fuzz.py` 12/12 unaffected.
+  `languages/whence/run_tests_fast.sh` 858/38 (matches round 267's
+  baseline exactly). `harness/run_tests_fast.sh` 380 passed/182 deselected
+  (182 = round 257's 178 + this round's 4 new `swe_slow` tests, 380
+  passed unchanged — no regression).
+- No `whence/` source files touched — a pure test-coverage round with a
+  clean verdict, nothing to fix. See
+  `knowledge/round-269-swe-loop-alias-effects-oracle-campaign.md`.
+
+## Next steps (as of round 269)
 1. **NUC-integration(E), highest priority**: collect and analyze round
    268's long `swap_watch.py` run — check `ssh ... "wc -l ~/nuc-research/
    swap-watch-r268-checkpoint.jsonl"` (≥720 lines or the process gone means
@@ -3167,6 +3208,21 @@ Workspace: ~/agi-research
    1000 target with zero open findings — no further segments owed. A
    larger re-run (2000+) would only be worth it after a future
    `self_eval.lang` change touches Guess-adjacent code paths again.
+   **Resolved (round 269), different feature**: round 257's own flagged
+   gap (v0.14.2 direct-alias effect tracking had zero fuzz coverage, its
+   `let alias = print` shape unreachable from `ProgramGen`'s grammar) is
+   now closed — new `harness/swe/alias_effects.py` (independent
+   ground-truth oracle, not a guest differential, since the feature is
+   parse-time only) ran 50000 generated programs against the real parser
+   with zero mismatches, validated to have real detection power via a
+   mutation test (223/3000 mismatches with an injected shadowing bug). No
+   further segments owed on THIS feature either, unless
+   `Parser.alias_scopes`/`_resolve_effectful_alias` changes again — see
+   round 269's own knowledge file backlog item 2 for the two still-open,
+   deliberately-out-of-scope effect-system gaps (argument/return/
+   container value flow; dynamic call graph) that would need the oracle
+   itself extended before any future round implementing either could
+   trust a clean campaign result against the new surface.
 9. harness(A): round 259's `interrupted`-rate-collapse finding (0.0% over
    237-258) is now SUPERSEDED by round 265's fresh tally — round 263 broke
    the streak (1/28 = 3.6% over 237-264), root-caused as the "third
