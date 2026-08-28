@@ -13,6 +13,7 @@ import pytest
 from harness.driver_health import (
     RATE_LIMIT_BACKOFF_SCHEDULE,
     all_max_turns,
+    blocking_wait_gap_s,
     classify_round_log,
     count_consecutive_failures,
     exact_reset_wait_seconds,
@@ -20,8 +21,10 @@ from harness.driver_health import (
     has_real_ratelimit_signal,
     heavy_light_fail_rates,
     is_5xx,
+    is_blocking_wait_kill,
     is_max_turns,
     is_rate_limit,
+    last_assistant_tool_use,
     latest_rate_limit_reset_epoch,
     likely_timeout_kill,
     load_round_result,
@@ -729,6 +732,180 @@ def test_reproduces_actual_round_222_no_result_near_ceiling_kill(tmp_path):
     assert full_span == pytest.approx(3297.463, abs=0.01)
     assert full_span - s["span_s"] == pytest.approx(303.512, abs=0.01)
     assert likely_timeout_kill(p, timeout_s=3300) is True
+
+
+# --- blocking_wait_gap_s / last_assistant_tool_use / is_blocking_wait_kill
+# (round 283) ---------------------------------------------------------------
+#
+# Promotes a diagnosis manually re-derived by hand three times (round 223 on
+# round 222, round 265 on round 263, round 283 on round 278) into reusable
+# primitives: does an `interrupted` round's wall clock end with the model
+# genuinely still generating (round 224: last event IS an assistant tool_use
+# call, zero trailing events, gap == 0.0) or synchronously blocked on a
+# still-in-flight tool result (rounds 222/263/278: trailing tool_progress/
+# system/user events after the last assistant timestamp, gap > 100s)?
+
+def _tool_use_assistant(timestamp, tool_name):
+    return {
+        "type": "assistant",
+        "message": {
+            "model": "claude-sonnet-5", "role": "assistant",
+            "content": [{"type": "tool_use", "id": "toolu_x", "name": tool_name, "input": {}}],
+            "usage": {"output_tokens": 4, "output_tokens_details": {"thinking_tokens": 0}},
+        },
+        "timestamp": timestamp,
+    }
+
+
+def test_blocking_wait_gap_s_zero_when_last_event_is_the_assistant_tool_use(tmp_path):
+    # Round 224's real shape: the tool_use call is the LAST event in the
+    # entire log, no trailing tool_progress/system/user at all.
+    first = _tool_use_assistant("2026-08-27T23:51:45.115Z", "Read")
+    last = _tool_use_assistant("2026-08-28T00:46:40.971Z", "Bash")
+    p = _write_ndjson(str(tmp_path), "a.json", [first, last])
+    assert blocking_wait_gap_s(p) == pytest.approx(0.0, abs=1e-9)
+
+
+def test_blocking_wait_gap_s_positive_with_trailing_non_assistant_events(tmp_path):
+    first = _tool_use_assistant("2026-08-27T22:17:52.506Z", "Bash")
+    last = _tool_use_assistant("2026-08-27T23:07:46.457Z", "TaskOutput")
+    tick = {"type": "tool_progress"}
+    trailing_user = {"type": "user", "message": {"role": "user", "content": []},
+                      "timestamp": "2026-08-27T23:12:49.969Z"}
+    p = _write_ndjson(str(tmp_path), "a.json", [first, last, tick, tick, trailing_user])
+    gap = blocking_wait_gap_s(p)
+    assert gap == pytest.approx(303.512, abs=0.01)
+
+
+def test_blocking_wait_gap_s_none_when_span_unavailable(tmp_path):
+    p = _write_ndjson(str(tmp_path), "a.json", [{"type": "system", "subtype": "init"}])
+    assert blocking_wait_gap_s(p) is None
+
+
+def test_blocking_wait_gap_s_none_on_missing_file(tmp_path):
+    assert blocking_wait_gap_s(os.path.join(str(tmp_path), "nope.json")) is None
+
+
+def test_last_assistant_tool_use_reads_the_final_assistant_events_tool(tmp_path):
+    first = _tool_use_assistant("2026-08-27T22:17:52.506Z", "Bash")
+    last = _tool_use_assistant("2026-08-27T23:07:46.457Z", "TaskOutput")
+    p = _write_ndjson(str(tmp_path), "a.json", [first, last])
+    assert last_assistant_tool_use(p) == "TaskOutput"
+
+
+def test_last_assistant_tool_use_none_for_text_only_final_turn(tmp_path):
+    p = _write_ndjson(str(tmp_path), "a.json", [
+        _tool_use_assistant("2026-08-27T22:17:52.506Z", "Bash"),
+        dict(REAL_ASSISTANT_LINE, timestamp="2026-08-27T23:07:46.457Z"),
+    ])
+    assert last_assistant_tool_use(p) is None
+
+
+def test_last_assistant_tool_use_none_when_no_assistant_events(tmp_path):
+    p = _write_ndjson(str(tmp_path), "a.json", [{"type": "system", "subtype": "init"}])
+    assert last_assistant_tool_use(p) is None
+
+
+def test_is_blocking_wait_kill_true_for_the_222_263_278_shape(tmp_path):
+    first = _tool_use_assistant("2026-08-27T22:17:52.506Z", "Bash")
+    last = _tool_use_assistant("2026-08-27T23:07:46.457Z", "TaskOutput")
+    trailing_user = {"type": "user", "message": {"role": "user", "content": []},
+                      "timestamp": "2026-08-27T23:12:49.969Z"}
+    p = _write_ndjson(str(tmp_path), "a.json", [first, last, trailing_user])  # no result event
+    assert is_blocking_wait_kill(p) is True
+
+
+def test_is_blocking_wait_kill_false_for_the_224_shape(tmp_path):
+    first = _tool_use_assistant("2026-08-27T23:51:45.115Z", "Read")
+    last = _tool_use_assistant("2026-08-28T00:46:40.971Z", "Bash")
+    p = _write_ndjson(str(tmp_path), "a.json", [first, last])  # no result event, no trailing events
+    assert is_blocking_wait_kill(p) is False
+
+
+def test_is_blocking_wait_kill_none_when_not_interrupted(tmp_path):
+    p = _write_ndjson(str(tmp_path), "a.json", [
+        dict(REAL_ASSISTANT_LINE, timestamp="2026-08-27T22:17:52.506Z"),
+        REAL_RESULT_LINE,
+    ])
+    assert is_blocking_wait_kill(p) is None
+
+
+def test_is_blocking_wait_kill_respects_custom_min_gap(tmp_path):
+    first = _tool_use_assistant("2026-08-27T22:17:52.506Z", "Bash")
+    last = _tool_use_assistant("2026-08-27T23:07:46.457Z", "TaskOutput")
+    trailing_user = {"type": "user", "message": {"role": "user", "content": []},
+                      "timestamp": "2026-08-27T23:07:56.457Z"}  # only 10s gap
+    p = _write_ndjson(str(tmp_path), "a.json", [first, last, trailing_user])
+    assert is_blocking_wait_kill(p) is False  # 10s < default 100s floor
+    assert is_blocking_wait_kill(p, min_gap_s=5.0) is True
+
+
+def test_reproduces_actual_round_278_taskoutput_block_kill_fourth_instance(tmp_path):
+    """Regression pin: round 278's real log (`logs/round-278.json`, first
+    assistant 2026-08-28T18:52:23.511Z, last assistant
+    2026-08-28T19:43:51.256Z — a `TaskOutput` call with `block: true` — last
+    event overall a `type: "user"` tool-result at 19:47:18.449Z, no
+    `result` line anywhere) — a FOURTH real instance of the same mechanism
+    round 223 first named on round 222 and round 265 confirmed on round
+    263, found while re-tallying `interrupted` rounds per round 279's own
+    next-steps item 4. Distinct gap size (207.193s) from both prior
+    instances (303.512s, 338.59s) but the same qualitative shape: last
+    assistant event is a `TaskOutput(block=true)` call, several untimestamped
+    `tool_progress` ticks follow, then a single trailing `user` event lands
+    after the driver's own wall-clock ceiling already fired.
+    """
+    first_assistant = dict(REAL_ASSISTANT_LINE, timestamp="2026-08-28T18:52:23.511Z")
+    last_assistant = _tool_use_assistant("2026-08-28T19:43:51.256Z", "TaskOutput")
+    ticks = [{"type": "tool_progress"} for _ in range(6)]
+    trailing_tool_result = {"type": "user", "message": {"role": "user", "content": []},
+                             "timestamp": "2026-08-28T19:47:18.449Z"}
+    events = [first_assistant, last_assistant] + ticks + [trailing_tool_result]
+    p = _write_ndjson(str(tmp_path), "round-278.json", events)
+    assert all(e.get("type") != "result" for e in events)
+    s = summarize_turns(p)
+    full_span = full_event_span_s(p)
+    assert s["span_s"] == pytest.approx(3087.745, abs=0.01)
+    assert full_span == pytest.approx(3294.938, abs=0.01)
+    assert blocking_wait_gap_s(p) == pytest.approx(207.193, abs=0.01)
+    assert last_assistant_tool_use(p) == "TaskOutput"
+    assert is_blocking_wait_kill(p) is True
+    assert likely_timeout_kill(p, timeout_s=3300) is True
+
+
+def test_cli_blocking_wait_gap_and_is_blocking_wait_kill_subcommands(tmp_path):
+    first = _tool_use_assistant("2026-08-27T22:17:52.506Z", "Bash")
+    last = _tool_use_assistant("2026-08-27T23:07:46.457Z", "TaskOutput")
+    trailing_user = {"type": "user", "message": {"role": "user", "content": []},
+                      "timestamp": "2026-08-27T23:12:49.969Z"}
+    blocked = _write_ndjson(str(tmp_path), "blocked.json", [first, last, trailing_user])
+    generating = _write_ndjson(str(tmp_path), "generating.json", [
+        _tool_use_assistant("2026-08-27T23:51:45.115Z", "Read"),
+        _tool_use_assistant("2026-08-28T00:46:40.971Z", "Bash"),
+    ])
+
+    def run(*args):
+        out = subprocess.run(
+            [sys.executable, "-m", "harness.driver_health"] + list(args),
+            cwd=os.path.join(HERE, "..", ".."),
+            capture_output=True, text=True, timeout=10,
+        )
+        assert out.returncode == 0, out.stderr
+        return out.stdout.strip()
+
+    assert float(run("blocking_wait_gap", blocked)) == pytest.approx(303.512, abs=0.01)
+    assert float(run("blocking_wait_gap", generating)) == pytest.approx(0.0, abs=1e-9)
+    assert run("is_blocking_wait_kill", blocked) == "yes"
+    assert run("is_blocking_wait_kill", generating) == "no"
+    # explicit MIN_GAP_S arg wired through
+    assert run("is_blocking_wait_kill", blocked, "1000") == "no"
+
+
+def test_cli_blocking_wait_gap_bad_arity():
+    assert main(["blocking_wait_gap"]) == 2
+
+
+def test_cli_is_blocking_wait_kill_bad_arity():
+    assert main(["is_blocking_wait_kill", "a", "b", "c"]) == 2
 
 
 def test_cli_likely_timeout_kill_subcommand(tmp_path):

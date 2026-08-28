@@ -614,6 +614,89 @@ def likely_timeout_kill(path: str, timeout_s: float, margin_s: float = 180.0) ->
     return span >= (timeout_s - margin_s)
 
 
+def blocking_wait_gap_s(path: str) -> Optional[float]:
+    """`full_event_span_s(path) - summarize_turns(path)["span_s"]` — how much
+    of a round's wall clock was spent AFTER the model stopped generating
+    (assistant timestamps), waiting on a still-in-flight tool call, versus
+    the round's own genuine text/thinking span.
+
+    Promotes a diagnosis manually re-derived by hand three separate times
+    (round 265 on round 263: 338.59s; round 223 on round 222: 303.512s;
+    round 283 on round 278: 207.193s — each requiring pulling both spans
+    and subtracting by hand) into a reusable primitive, same rationale
+    round 271 gave for promoting `heavy_light_fail_rates`. A near-zero gap
+    (round 224: 0.0s exactly) means the round was still actively
+    generating right up to the wall-clock kill — see `last_assistant_tool_use`
+    and `is_blocking_wait_kill` for turning this into a same/different-
+    mechanism verdict.
+
+    Returns None if either underlying span is unavailable (see
+    `full_event_span_s`/`summarize_turns`), rather than a possibly-
+    misleading 0 or negative number.
+    """
+    full_span = full_event_span_s(path)
+    turns = summarize_turns(path)
+    if full_span is None or not turns or turns.get("span_s") is None:
+        return None
+    return full_span - turns["span_s"]
+
+
+def last_assistant_tool_use(path: str) -> Optional[str]:
+    """Name of the `tool_use` block in the LAST `type: "assistant"` event of
+    a round log — e.g. "TaskOutput" or "Bash" — or None if that event
+    carries no tool_use (plain text/thinking) or the log has no assistant
+    events at all.
+
+    On its own this does NOT distinguish the two known kill shapes — round
+    224's final event was ALSO a tool_use (`Bash`, catting a background
+    task's output file), same as rounds 222/263/278 — the real
+    discriminator is `blocking_wait_gap_s`/`is_blocking_wait_kill`: round
+    224's tool_use event was the very LAST event in the entire log (killed
+    the instant it was emitted, before a single trailing `tool_progress`
+    tick), while 222/263/278 each have a run of trailing non-assistant
+    events (ticks, then eventually a `user` tool-result) after their last
+    assistant event, producing a real gap. Use this function to report
+    WHAT the round was calling when killed, not whether it was blocked.
+    """
+    events = load_round_events(path)
+    if not events:
+        return None
+    for event in reversed(events):
+        if event.get("type") != "assistant":
+            continue
+        content = event.get("message", {}).get("content", [])
+        for block in content:
+            if isinstance(block, dict) and block.get("type") == "tool_use":
+                return block.get("name")
+        return None
+    return None
+
+
+def is_blocking_wait_kill(path: str, min_gap_s: float = 100.0) -> Optional[bool]:
+    """True iff an `interrupted` round's death looks like the "dangling
+    tool wait" mechanism rounds 222 (round 223's diagnosis), 263 (round
+    265's), and 278 (round 283's) all shared: the driver's outer wall-clock
+    `timeout` fired while genuinely, synchronously blocked on a tool
+    result (`blocking_wait_gap_s(path) >= min_gap_s`), rather than the
+    round still actively generating at the moment of the kill (round 224:
+    gap == 0.0, reads False here). `min_gap_s` defaults to 100s — well
+    above CLI/event-flush jitter (round 210's write-race gap was ~0, not
+    a blocking wait) and well below the smallest confirmed instance
+    (round 278's 207.193s).
+
+    Returns None (not False) when the round was not `interrupted` at all,
+    or when `blocking_wait_gap_s` itself can't be computed — a clean
+    round or one with too little data isn't evidence either way.
+    """
+    turns = summarize_turns(path)
+    if not turns or not turns.get("interrupted"):
+        return None
+    gap = blocking_wait_gap_s(path)
+    if gap is None:
+        return None
+    return gap >= min_gap_s
+
+
 def resolved_wait_seconds(path: str, attempt: int, now: Optional[float] = None) -> int:
     """The wait the driver should actually sleep before retrying: the
     CLI's own exact reset time if this round's log captured one, else the
@@ -746,6 +829,21 @@ def main(argv: List[str]) -> int:
             return 2
         margin = float(argv[3]) if len(argv) == 4 else 180.0
         verdict = likely_timeout_kill(argv[1], float(argv[2]), margin_s=margin)
+        print("unknown" if verdict is None else ("yes" if verdict else "no"))
+        return 0
+    if argv[:1] == ["blocking_wait_gap"]:
+        if len(argv) != 2:
+            print("usage: driver_health.py blocking_wait_gap ROUND_LOG", file=sys.stderr)
+            return 2
+        gap = blocking_wait_gap_s(argv[1])
+        print("n/a" if gap is None else gap)
+        return 0
+    if argv[:1] == ["is_blocking_wait_kill"]:
+        if len(argv) not in (2, 3):
+            print("usage: driver_health.py is_blocking_wait_kill ROUND_LOG [MIN_GAP_S]", file=sys.stderr)
+            return 2
+        min_gap = float(argv[2]) if len(argv) == 3 else 100.0
+        verdict = is_blocking_wait_kill(argv[1], min_gap_s=min_gap)
         print("unknown" if verdict is None else ("yes" if verdict else "no"))
         return 0
     print(count_consecutive_failures(argv))
