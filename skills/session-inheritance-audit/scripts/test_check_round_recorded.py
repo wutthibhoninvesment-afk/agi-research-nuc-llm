@@ -315,6 +315,28 @@ def test_committed_per_git_log_true_when_a_later_round_actually_lands_it(tmp_pat
     assert m.committed_per_git_log(155, str(tmp_path)) is True
 
 
+def test_committed_per_git_log_false_for_landed_by_mention(tmp_path):
+    # Round 267's own finding: round 263's commit message credits round
+    # 264 as the one who WILL land round 263 ("landed by round 264") —
+    # this must not read as evidence that round 264's own work is already
+    # committed here, mirroring the 197/198 "left uncommitted by" shape
+    # but with a different verb ("landed" instead of "left uncommitted").
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t.com"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=tmp_path, check=True)
+    (tmp_path / "a.txt").write_text("x")
+    subprocess.run(["git", "add", "a.txt"], cwd=tmp_path, check=True)
+    subprocess.run(
+        ["git", "commit", "-q", "-m",
+         "Round 263 (SWE-loop D, landed by round 264): triage and kill "
+         "round 245's lexer.py mutation survivors"],
+        cwd=tmp_path, check=True)
+    # Round 264 has no dedicated commit of its own yet — must read False.
+    assert m.committed_per_git_log(264, str(tmp_path)) is False
+    # Round 263's own leading round number is real evidence — stays True.
+    assert m.committed_per_git_log(263, str(tmp_path)) is True
+
+
 def test_gap_reports_git_committed_false_and_flags_unverified_claim(tmp_path):
     driver_log = tmp_path / "driver.log"
     _write_driver_log(str(driver_log), [

@@ -226,16 +226,34 @@ def committed_per_git_log(round_num, repo_root="."):
     explain that round N itself failed to commit anything — e.g. round
     198's `3eaf50a "...covers rounds 197-198, left uncommitted by round
     197"` — which is the exact opposite of evidence that round N landed.
-    The bare substring match above reads that as `True`. `_NOT_COMMITTED_RE`
-    excludes a line from counting as evidence when it explicitly says round
-    N is the one who LEFT something uncommitted; if that is the only
-    matching line, the verdict correctly falls through to `False`. This is
-    deliberately narrow (matches only "left uncommitted by round N") rather
-    than a general sentiment classifier — a phrase like round 155's own
-    "land ...fix, uncommitted since round 155" describes a *different*
-    round (201) actually landing round 155's real work and must stay
-    `True`; that phrasing doesn't match `_NOT_COMMITTED_RE` so it isn't
-    affected."""
+    The bare substring match above reads that as `True`.
+
+    Round 213's original fix only excluded the exact phrase "left
+    uncommitted by round N". Round 267 found a second instance of the same
+    underlying shape, live in the real repo, that phrasing was too narrow
+    to catch: round 264's own work sat genuinely uncommitted while round
+    263's commit message — `dab7050 "Round 263 (SWE-loop D, landed by
+    round 264): ..."` — happened to contain the substring "round 264" in
+    its own "landed by" credit clause. `committed_per_git_log(264)` read
+    `True` from that line alone before any round-264 commit existed (see
+    round 264's own research-state.md entry). Grepping the full history
+    for `by round N` (any N) turns up a DOZEN structurally identical lines —
+    "landed by round N", "reconciled by round N" — spanning rounds
+    210/212, 217/218, 222/223, 224/227, 226/227, 263/264, plus the
+    original 197/198 — every one crediting round N as the ACTOR that
+    handled some OTHER round's leftover work, never as evidence that round
+    N's own work is IN this commit. `_NOT_EVIDENCE_RE` below generalizes
+    round 213's fix from that one exact phrase to the whole family: any
+    "by round N" mention is excluded from counting as evidence FOR round
+    N, regardless of which verb precedes "by". This is still deliberately
+    narrow (anchored on the preposition "by") rather than a general
+    sentiment classifier — a phrase like round 155's own "land ...fix,
+    uncommitted SINCE round 155" describes a *different* round (201)
+    actually landing round 155's real work and must stay `True`; "since"
+    isn't "by", so that phrasing doesn't match `_NOT_EVIDENCE_RE` and
+    isn't affected, nor is round 221's own "landing round 220" (no "by"
+    at all — round 221 really did land round 220's work in that same
+    commit)."""
     try:
         out = subprocess.run(
             ["git", "-C", repo_root, "log", "--all", "--oneline"],
@@ -246,10 +264,10 @@ def committed_per_git_log(round_num, repo_root="."):
     if out.returncode != 0:
         return None
     pattern = re.compile(r"round\s+%d\b" % round_num, re.IGNORECASE)
-    not_committed_pattern = re.compile(
-        r"left\s+uncommitted\s+by\s+round\s+%d\b" % round_num, re.IGNORECASE)
+    not_evidence_pattern = re.compile(
+        r"\bby\s+round\s+%d\b" % round_num, re.IGNORECASE)
     matches = [line for line in out.stdout.splitlines() if pattern.search(line)]
-    evidence = [line for line in matches if not not_committed_pattern.search(line)]
+    evidence = [line for line in matches if not not_evidence_pattern.search(line)]
     return bool(evidence)
 
 

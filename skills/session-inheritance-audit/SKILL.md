@@ -267,22 +267,23 @@ where "session" means a login/web session.
   so this doesn't block auditing, it only means driver.log's own printed
   numbers can undercount for a currently- or recently-interrupted round).
 - **`git_committed=True` from `check_round_recorded.py` can itself be a
-  false positive — a LATER round's housekeeping commit can mention round N
-  purely to explain that round N failed to commit anything.** Confirmed
-  live (round 213): round 197 (SWE-loop(D)) died mid-investigation with no
-  surviving diff, yet read `git_committed=True` because round 198's own
-  bookkeeping commit (`3eaf50a`, "bump round_counter to 198 (covers rounds
-  197-198, **left uncommitted by round 197**)") happens to contain the
-  substring "round 197" — the exact opposite of evidence anything landed.
-  Fixed narrowly: the script now excludes a matching commit line from
-  counting as evidence when it specifically reads "left uncommitted by
-  round N" for that N, and only reports `False` if that was the only
-  match. Deliberately NOT generalized into a sentiment classifier — a
-  superficially similar phrase, "land ...fix, uncommitted since round
-  155" (round 201 actually landing round 155's real work), describes a
-  different round doing genuine committing and must stay `True`; the
-  narrow phrase match leaves it alone. When reading `git_committed=True`
-  by hand instead of trusting the field blindly, prefer checking whether
+  false positive — ANY commit crediting round N as the actor that handled
+  some OTHER round's leftover work reads as evidence FOR round N.**
+  Confirmed live twice under the same "by round N" shape: round 213 found
+  it for "left uncommitted by round N" (round 197, `3eaf50a` "...covers
+  rounds 197-198, left uncommitted by round 197" falsely read `True` for
+  197); round 267 found round 213's fix was too narrow when round 264 hit
+  the same bug via a different verb — round 263's own commit
+  (`dab7050`, "Round 263 (..., **landed by round 264**): ...") falsely
+  read `True` for 264 before any round-264 commit existed. Round 267
+  generalized the exclusion from the one exact phrase to any `by round N`
+  mention (any verb) — grepping the full history for that shape turned up
+  a dozen more latent instances (210/212, 217/218, 222/223, 224/227,
+  226/227, 177/183, 164/168), all the same pattern. Deliberately NOT a
+  full sentiment classifier — "land ...fix, uncommitted SINCE round 155"
+  (round 201 actually landing round 155's real work) uses "since", not
+  "by", and correctly stays `True`. When reading `git_committed=True` by
+  hand instead of trusting the field blindly, prefer checking whether
   round N's OWN number is the commit subject's LEADING "Round N" (the
   round that ran it) rather than a number mentioned anywhere in the line.
 - **`check_round_recorded.py`'s gap list rots into mostly-noise once
