@@ -111,19 +111,24 @@ TYPE_TAGS = ("num", "str", "bool", "list", "record", "fn", "any")
 # outcome (every existing seed already produces plenty from other causes).
 EFFECT_TAG_SETS = ("[]", "[io]", "[net]", "[io, net]")
 
-# v0.15 backlog (SPEC "guest parity: not started"): `guess`/`is_guess`/
-# `confidence`/`sure` are ORDINARY builtin calls (no new syntax, unlike
-# `: Type`/`effects [...]`), so they join `BUILTIN_ARITY` and `call()`
-# picks them like any other builtin — exercising `_guess_binop`'s
+# `guess`/`is_guess`/`confidence`/`sure` are ORDINARY builtin calls (no new
+# syntax, unlike `: Type`/`effects [...]`), so they join `BUILTIN_ARITY` and
+# `call()` picks them like any other builtin — exercising `_guess_binop`'s
 # weakest-link-confidence path, the "genuine type error stays a miss"
 # path, and `sure()`'s threshold both ways against fast/direct/trampoline.
-# `GuestGen` (guest.py) bans these four names from ever reaching a guest-
-# safe program instead of overriding a generator method to a no-op
-# (`self_eval.lang`'s `arities`/`apply_builtin` tables have no entry for
-# any of them yet) — the same BANNED-line mechanism already used for the
-# provenance builtins, which fits here because a `guess(...)` call is
-# always a droppable expression-level line, never syntax baked into every
-# function signature the way `: Type`/`effects` were.
+# STALE until round 236, this comment used to say `GuestGen` (guest.py)
+# bans these four names because self_eval.lang had no guest support for
+# them yet — that was true when this section was first written (v0.15,
+# guest parity "not started") but has been false since round 176, which
+# gave `self_eval.lang`'s `arities`/`apply_builtin` tables free-delegation
+# entries for all four (a guest Guess literally IS the host's own `Guess`
+# payload). `GuestGen` never banned them via the BANNED-line mechanism at
+# all — see `guest.py`'s own `BANNED` regex and its accurate round-176
+# comment, which this one failed to match for 60 rounds (158-217 or so, a
+# comment-only instance of the exact staleness class rounds 230/234 found
+# and fixed in SPEC.md prose; nothing here needed a code fix, only this
+# text). `call()` already generates guess/is_guess/confidence/sure freely
+# for BOTH the host-only and guest-safe generators today.
 GUESS_CONFIDENCES = ("0.9", "0.5", "0.1", "0.0", "1.0", "1.5", "-0.2", '"bad"')
 GUESS_SOURCES = ('"model"', '"sampled"', "42")
 

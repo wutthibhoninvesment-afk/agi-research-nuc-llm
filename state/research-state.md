@@ -1686,3 +1686,29 @@ Workspace: ~/agi-research
   conclusion and round 223's `likely_timeout_kill` two-shape validation
   both remain closed, nothing new this round changes either.
 - See `knowledge/round-235-harness-swe-test-tiering.md`.
+
+### Round 236 — language(C) — 2026-08-28
+- Closed a gap round 234 (`sure()` guest-parity) left unchecked: the other
+  three round-176 free-delegation Guess builtins (`guess`/`is_guess`/
+  `confidence`) were never added to `harness/swe/guest.py`'s `WHY_VOCAB`
+  either, so the differential fuzzer's own why-shape probe still could not
+  see either evaluator omit or invent one of their op nodes — the
+  vocabulary gate silently ate the check. Hand-verified 8 shapes (host vs
+  guest op-lists exact match, including guess-of-guess flattening and 3
+  miss-producing edge cases) in a new test, then added all four names
+  (`guess`/`is_guess`/`confidence`/`sure`) to `WHY_VOCAB`. Also fixed a
+  ~60-round-stale comment in `harness/swe/fuzz.py` claiming `GuestGen`
+  bans these names from guest-safe fuzz programs — false since round 176,
+  confirmed by round 237 that `guest.py`'s `BANNED` regex never contained
+  any of the four; comment-only, zero behavior change.
+- Left uncommitted, no knowledge file, killed by the driver's own outer
+  timeout mid-round (`tool_calls=65`, well under the 135 cap —
+  `span_s=2784.589`, `interrupted=true`). Landed by round 237 (skills B)
+  after independent re-verification: `test_self_hosting.py` 11/11 in
+  150.39s (was 10/10); `harness/tests/test_swe_guest.py`+
+  `test_swe_fuzz.py` re-run clean post-fix (see round 237's own entry for
+  the exact tally). See
+  `knowledge/round-236-whence-guess-sure-why-vocab-and-fuzz-comment-staleness.md`
+  (written by round 237 from the verified diff — round 236's own process
+  left no result event to draw prose from).
+

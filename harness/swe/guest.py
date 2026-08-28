@@ -320,12 +320,25 @@ def _depth_missed(V, p):
 # the host never performed is a mirroring bug.
 
 # ops whose host `Prov.op` is a stable single token the guest mirrors
+#
+# `guess`/`is_guess`/`confidence`/`sure` (round 236) join this set: all four
+# are free-delegation builtins (round 176 for the first three, round 234 for
+# `sure`'s two Guess-carrying cases) that call the real host builtin on real
+# host-provenance arguments, so their `Prov.op` is exactly `"guess"`/
+# `"is_guess"`/`"confidence"`/`"sure"` on both sides by construction — round
+# 234 hand-verified `sure` across 6 shapes (op-LIST equality, not just this
+# containment check) but never added the tokens here, so the probe still
+# could not see either evaluator omit or invent one on a real fuzz run; round
+# 236 hand-verified the other three (`guess` itself, `is_guess`, `confidence`,
+# including guess-of-guess flattening and three miss-producing edge cases —
+# 12 shapes total, all exact matches) before adding them here too. See
+# `knowledge/round-236-whence-guess-sure-why-vocab-and-fuzz-comment-staleness.md`.
 WHY_VOCAB = frozenset([
     "let", "arg", "call", "if", "literal", "list", "record", "index",
     "field", "fold", "map", "filter", "find", "push", "len", "range", "num",
     "str", "abs", "sqrt", "missed", "reasons", "note", "contains", "join",
     "keys", "merge", "get", "put", "has", "builtin", "fn", "miss", "rescue",
-    "key", "reason",
+    "key", "reason", "guess", "is_guess", "confidence", "sure",
     "+", "-", "*", "/", "%", "==", "!=", "<", "<=", ">", ">=",
     "and", "or", "not",
 ])

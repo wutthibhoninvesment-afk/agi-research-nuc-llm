@@ -536,3 +536,59 @@ def test_guest_sure_why_shape_matches_host_exactly_including_flattening():
         guest_ops = [e.payload.split(" ")[0] for e in rec.fields["v"].payload]
 
         assert guest_ops == host_ops, (label, "guest", guest_ops, "host", host_ops)
+
+
+def test_guest_guess_is_guess_confidence_why_shape_matches_host_exactly():
+    # Round 234 hand-verified `sure()`'s why-shape by direct construction and
+    # fixed two real bugs, but never added "sure"/"guess" to
+    # `harness/swe/guest.py`'s `WHY_VOCAB` -- so even after that fix, the
+    # differential fuzzer's why-shape probe still could not see EITHER
+    # evaluator omit or invent a "guess"/"sure" node on a real fuzz run (the
+    # vocabulary gate runs before the containment check). Round 236 closes
+    # that: before trusting `guess`/`is_guess`/`confidence` (the three
+    # siblings round 234 didn't examine -- it only looked at `sure`) enough
+    # to add them to the probe's vocabulary too, this test hand-verifies
+    # their op-list shape the same way round 234's own test above does,
+    # across a case for each builtin plus guess-of-guess flattening and
+    # three miss-producing edge cases (bad confidence, bad source, and
+    # `confidence` on a non-Guess) -- all are free-delegation builtins
+    # (round 176 for these three, same mechanism as round 234's `sure`
+    # fix), so an exact match here is the expected, not merely hoped-for,
+    # outcome; this test exists to CATCH a future regression, not because
+    # any of these 8 shapes were found broken.
+    from whence import values as VAL
+
+    eval_lib = eval_library_source()
+    cases = {
+        "guess direct": (
+            'let g = guess(1 + 2, 0.9, "m")\nlet r = g\n'),
+        "is_guess on guess": (
+            'let g = guess(1 + 2, 0.9, "m")\nlet r = is_guess(g)\n'),
+        "is_guess on plain value": (
+            'let g = 1 + 2\nlet r = is_guess(g)\n'),
+        "confidence on guess": (
+            'let g = guess(1 + 2, 0.9, "m")\nlet r = confidence(g)\n'),
+        "guess-of-guess flattening": (
+            'let inner = guess(1 + 2, 0.9, "a")\n'
+            'let g = guess(inner, 0.8, "b")\nlet r = g\n'),
+        "guess bad confidence (miss)": 'let r = guess(1 + 2, 1.5, "m")\n',
+        "guess bad source (miss)": 'let r = guess(1 + 2, 0.5, 42)\n',
+        "confidence on non-guess (miss)": 'let r = confidence(1 + 2)\n',
+    }
+    for label, src in cases.items():
+        host_env = Interpreter().run(src)
+        host_box = host_env.get("r")
+        host_ops = [n.op for n, _ in VAL.walk_steps(host_box)]
+
+        inner_src = (
+            src +
+            'fn __opwalk(acc, n) { fold(__opwalk, push(acc, n.op), n.ins) }\n'
+            'let __ops = __opwalk([], why r)\n'
+            '__ops\n')
+        prog = eval_lib + 'let __r = run_src("%s")\n' % escape(inner_src)
+        genv = Interpreter().run(prog)
+        rec = genv.get("__r").payload
+        assert rec.fields["parse_error"].payload is False, label
+        guest_ops = [e.payload.split(" ")[0] for e in rec.fields["v"].payload]
+
+        assert guest_ops == host_ops, (label, "guest", guest_ops, "host", host_ops)
