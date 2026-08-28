@@ -157,12 +157,23 @@ class Parser(object):
         `_resolve_effectful_alias`, if that statement is a bare `NameRef`
         expression, resolved while THIS block's own `alias_scopes` frame is
         still on the stack (i.e. sees this block's own `let`s, not just
-        outer ones). Only a bare-name tail is inspected — a tail that is
-        itself an `if`/nested block is not recursed into, unlike
-        `mark_tails`'s fuller structural walk (that one needs no scope
-        context at all, since it only ever sets a boolean; this one does,
-        so it can't simply run after the fact). `block()` consumes this to
-        learn what a fn body's own RETURN value aliases."""
+        outer ones).
+
+        v0.14.5 (round 276): a tail that is itself an `if`/`else` is now
+        ALSO inspected, via `_if_tail_alias_tag` — but only structurally,
+        after the fact: `then`/`otherwise` are each already-fully-parsed
+        `A.Block`s (or, for an `else if` chain, another already-parsed
+        `A.If`) by the time this stmt_list's own tail is examined, and each
+        such nested block already resolved its OWN `tail_alias_tag` while
+        ITS OWN `alias_scopes` frame was open (this same method, called
+        recursively by `block()` while parsing `then`/`otherwise`). So no
+        scope context is needed here at all — unlike a bare-NameRef tail,
+        which must be resolved through `_resolve_effectful_alias` while
+        still inside this frame, an `if` tail only needs to compare
+        ALREADY-RESOLVED child tags, exactly the "no scope context needed"
+        shape `mark_tails`'s own boolean structural walk already has. Any
+        other tail shape (a `Call`, etc.) still resolves to `None`,
+        unchanged."""
         stmts = []
         bound = {}
         # v0.14.2/v0.14.3: one alias-tracking frame (each) per block scope,
@@ -189,10 +200,13 @@ class Parser(object):
                 stmts.append(s)
                 self.skip_newlines()
             tail = stmts[-1] if stmts else None
-            tail_tag = (
-                self._resolve_effectful_alias(tail.expr.name)
-                if isinstance(tail, A.ExprStmt) and tail.expr.__class__ is A.NameRef
-                else None)
+            tail_expr = tail.expr if isinstance(tail, A.ExprStmt) else None
+            if tail_expr is not None and tail_expr.__class__ is A.NameRef:
+                tail_tag = self._resolve_effectful_alias(tail_expr.name)
+            elif tail_expr is not None and tail_expr.__class__ is A.If:
+                tail_tag = self._if_tail_alias_tag(tail_expr)
+            else:
+                tail_tag = None
             return stmts, tail_tag
         finally:
             self.alias_scopes.pop()
@@ -435,6 +449,33 @@ class Parser(object):
                 return scope[name]
         return _EFFECTFUL_BUILTINS.get(name)
 
+    def _if_tail_alias_tag(self, if_node):
+        """v0.14.5 (round 276): does an `if`/`else` USED AS A TAIL STATEMENT
+        resolve to an effectful alias — because EVERY arm, all the way
+        through any `else if` chain, resolves to the exact same tag?
+        `if_node.then` is always an already-parsed `A.Block` (`block()`
+        always returns one); `if_node.otherwise` is either another
+        already-parsed `A.Block` (a plain `else { ... }`) or an already-
+        parsed `A.If` (an `else if ...` chain — recursed into here, purely
+        structurally, no scope needed since each arm's own `tail_alias_tag`
+        was already resolved correctly by `stmt_list` while THAT arm's own
+        `alias_scopes` frame was open). Requires an exact match, not just
+        "not None" — `if c { print } else { 5 }` correctly resolves to
+        `None` (5 is not effectful), same as `if c { print } else {
+        get_logger() }` does when `get_logger` returns a DIFFERENT
+        effect tag (or isn't tracked as returning one at all) — an
+        approximate or majority match would be unsound (a caller in an
+        `effects [io]` scope could then call a branch that actually
+        performs an untracked, undeclared effect)."""
+        then_tag = if_node.then.tail_alias_tag
+        otherwise = if_node.otherwise
+        else_tag = (self._if_tail_alias_tag(otherwise)
+                    if otherwise.__class__ is A.If
+                    else otherwise.tail_alias_tag)
+        if then_tag is not None and then_tag == else_tag:
+            return then_tag
+        return None
+
     def _resolve_effectful_return(self, name):
         """v0.14.3 (round 270): does CALLING `name` — a `fn` statement's own
         name, or a `let`-bound anonymous fn — yield an effectful alias?
@@ -487,10 +528,13 @@ class Parser(object):
         expression" parse errors rather than misses.
 
         Still deliberately SHALLOW, by design, not by oversight, even after
-        v0.14.4's container-field tracking: `_resolve_effectful_return` only
-        ever sees a fn body whose TAIL STATEMENT is a bare NameRef — a tail
-        that is itself an `if`/nested block (whose OWN tail might resolve)
-        is not recursed into, unlike `mark_tails`'s structural walk (see
+        v0.14.5's if/else-tail tracking: `_resolve_effectful_return` sees a
+        fn body whose TAIL STATEMENT is a bare NameRef, or an `if`/`else`
+        (any `else if` chain length) whose every arm agrees on the exact
+        same tag (`stmt_list`'s docstring, `_if_tail_alias_tag`) — but nests
+        no further than that one `if`: a tail that is itself a `Call`, or
+        an `if` nested one level deeper INSIDE a non-tail statement, is
+        still invisible, unlike `mark_tails`'s fuller structural walk (see
         `stmt_list`'s docstring). `_resolve_effectful_field` only ever sees
         a record LITERAL bound directly by a `let`, with a bare-NameRef
         field value — a record built any other way (returned from a call,

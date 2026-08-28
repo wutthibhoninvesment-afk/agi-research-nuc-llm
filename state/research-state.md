@@ -3457,6 +3457,93 @@ Workspace: ~/agi-research
 - See `knowledge/round-275-swe-loop-d-stale-backlog-seed4002-seed152-
   already-fixed.md`.
 
+### Round 276 — language(C) — 2026-08-28
+- Pre-flight: `ps -eo pid,ppid,etime,cmd` showed only this round's own
+  `claude -p` process tree — no concurrent driver round. `git status
+  --short`/`git diff --cached --stat` showed nothing staged, only the
+  shared `state/round_counter` bump plus the standing Hermes-owned
+  untracked `languages/whence/{pyproject.toml,whence_qwen_bridge.py,
+  examples/expense_tracker.lang,examples/test_simple.lang}` files (left
+  alone, per the cross-track convention).
+- Picked up round 272's own explicit two-item "still open" backlog for
+  the effect system (`effects [...]`, v0.14.x): (a) value flow through a
+  function ARGUMENT, (b) the dynamic call graph. Both are repeatedly and
+  explicitly flagged (rounds 270/272, reaffirmed by round 274/275's own
+  carried-forward next-steps item 11) as multi-round-scale — neither
+  fits the single-pass, no-interprocedural-analysis mold the whole
+  v0.14.x family uses; attempting either in one round risked either an
+  unsound/half-finished feature or a design-only round with no landed
+  code. **Did not attempt (a) or (b) this round** — instead found a
+  THIRD, narrower, correctly-scoped gap nobody had picked up yet:
+  `tests/test_v14.py::test_return_tag_only_sees_a_bare_name_tail`
+  (pinned since round 270) explicitly documented "a fn body whose tail
+  statement is an `if` ... is not recursed into ... An honest,
+  documented gap, not a bug" — narrower than (a)/(b) and, on inspection,
+  needing **zero** new interprocedural machinery.
+- **Shipped Whence v0.14.5**: a fn body whose tail statement is an
+  `if`/`else` (any `else if` chain length) where EVERY arm resolves to
+  the exact same effectful alias is now tracked as a "return fact", the
+  same way a bare-NameRef tail already was (v0.14.3, round 270). New
+  `Parser._if_tail_alias_tag(if_node)` in `languages/whence/whence/
+  parser.py` — a purely STRUCTURAL, no-scope-context walk over already-
+  parsed `A.Block`/`A.If` nodes' own `tail_alias_tag` fields (each
+  child block resolved its own tag correctly, via the existing
+  `stmt_list` machinery, while its own `alias_scopes` frame was still
+  open — reading it back later needs no scope context at all, unlike
+  re-resolving a bare NAME after its scope closes, which is what the
+  pre-v0.14.5 docstring's "can't simply run after the fact" limitation
+  actually referred to). Requires an EXACT match across every arm, not
+  "any arm" — one mismatched arm leaves the whole `if` untracked
+  (`None`), a deliberate soundness choice: an approximate match would
+  let a caller in an `effects []` scope reach a real, undeclared effect
+  without ever being statically flagged.
+- Tests: replaced the now-stale `test_return_tag_only_sees_a_bare_name_
+  tail` with 7 new tests in `tests/test_v14.py` (both-arms-agree
+  [checked + granted], an `else if` chain [checked + one-arm-mismatch
+  stays untracked], the "not from a non-tail position" boundary, one
+  three-way direct/fast/slow-mode pin). `pytest tests/test_v14.py -q`:
+  **51 passed** (was 45, net +6). `./run_tests_fast.sh`: **880 passed,
+  38 deselected** (was 875; +5 matches the net whole-suite delta
+  exactly). Also ran the full unfiltered `pytest tests/` in the
+  background this round (~7m48s) since `parser.stmt_list` sits on every
+  block-parse path, not just effects-declared code, not just the fast
+  tier — **918 passed, 0 failed**, no regressions.
+- Updated `SPEC.md` with a new "v0.14.5 (round 276)" section and the
+  module docstring / `_check_effect_call` docstring in `test_v14.py`/
+  `parser.py` to describe the new, narrower remaining boundary.
+- See `knowledge/round-276-whence-v0145-effect-if-else-tail.md`.
+
+## Next steps (as of round 276)
+1. language(C): the effect system's two REMAINING gaps — (a) value flow
+   through a function ARGUMENT, (b) the dynamic call graph — are
+   unchanged from round 272's own assessment, still correctly scoped
+   out as multi-round-scale work. (a) needs per-call-site specialization
+   or an unsound over-approximation (a fn body is parsed once,
+   independent of its call sites); (b) needs per-fn effect summaries,
+   transitive resolution, and an explicit plan for forward references/
+   recursion before any future round should attempt more than a design
+   sketch. Neither should be attempted as a "quick" single-round
+   follow-up without first sketching the design the way this round's
+   own knowledge file's "Task selection" section explains for why (a)/
+   (b) were skipped again in favor of the if/else-tail slice.
+2. language(C)/SWE-loop(D) boundary: fuzz coverage for ALL FOUR shipped
+   alias/return/field/if-tail trigger shapes (v0.14.2/3/4/5) remains a
+   named, un-acted-on gap in `harness/swe/fuzz.py`'s `ProgramGen` — each
+   of rounds 266/270/272/276 independently confirmed via grep that the
+   generator never emits any of these shapes (a bare-NameRef alias, a
+   fn tail-returning a bare name, a record-literal field, an if/else
+   tail), so the differential fuzz corpus has zero coverage of any
+   v0.14.x-era effect-tracking code added since v0.14.1. Fixing this
+   needs one new GENERATOR expression-shape template per feature (four
+   total), not a quick generator tweak — worth a dedicated SWE-loop(D)
+   or language(C) round if a future round wants real fuzz confidence in
+   this whole feature family rather than only hand-authored
+   `test_v14.py` coverage.
+3. NUC-integration(E) items 1-2 from round 274/275 (the in-flight 8h
+   `swap_watch.py` run) are unrelated to this round's track and
+   untouched — still the standing next E-round pickup; check `ps aux |
+   grep swap_watch` on the box first per round 274's own handoff.
+
 ## Next steps (as of round 275)
 1. This closes the seed-4002/seed-152 thread for good — no further
    re-verification owed unless `test_round167_backlog_seeds_now_agree`

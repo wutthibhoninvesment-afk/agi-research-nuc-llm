@@ -1219,6 +1219,87 @@ that cannot end a statement.
   new GENERATOR expression shape, not a checker change — named here so a
   future round doesn't rediscover it as a mystery.
 
+## v0.14.5 (round 276) — effect system: IF/ELSE-tail value flow through a direct call
+
+- **Closes the "if" half of v0.14.3's own documented gap**: a fn body
+  whose TAIL STATEMENT is an `if`/`else` (any `else if` chain length),
+  where EVERY arm resolves to the exact same effectful alias, is now
+  tracked as a "return fact" the same way a bare-NameRef tail already was
+  — `let get_printer = fn(cond) { if cond { print } else { print } }`
+  then `let p = get_printer(true); p(1)` is now checked exactly as
+  `let p = print; p(1)` (v0.14.2) would be. `test_return_tag_only_sees_a_
+  bare_name_tail` (the test that pinned this as an honest, open gap since
+  round 270) is replaced by
+  `test_return_tag_sees_an_if_else_tail_when_both_arms_agree` and five
+  companions covering the granted case, an `else if` chain, and two
+  "one arm disagrees, stays untracked" cases.
+- **Mechanism, and why it needed no new stack**: `Parser._if_tail_alias_
+  tag(if_node)` is a purely STRUCTURAL, post-hoc walk — `if_node.then` is
+  always an already-parsed `A.Block` (`block()` always returns one), and
+  `if_node.otherwise` is either another already-parsed `A.Block` (a plain
+  `else { ... }`) or an already-parsed `A.If` (an `else if ...` chain,
+  recursed into). Each such child block ALREADY resolved its own
+  `tail_alias_tag` correctly, via `stmt_list`, while ITS OWN `alias_
+  scopes` frame was open (the exact same code path v0.14.3 uses for a
+  bare-NameRef tail) — by the time the ENCLOSING `stmt_list` looks at its
+  own tail (now possibly an `A.If`), those child facts are just plain
+  already-computed field reads, no scope context needed, the same "no
+  scope context needed" shape `mark_tails`'s own boolean structural walk
+  already has. This is why the previous three rounds' "can't simply run
+  after the fact" limitation (`stmt_list`'s own docstring, pre-v0.14.5)
+  didn't actually block this specific shape once looked at carefully: the
+  blocker was re-resolving a BARE NAME after its scope closed, not
+  reading an ALREADY-RESOLVED per-block field.
+- **Sound, not approximate, by construction**: `_if_tail_alias_tag`
+  requires every arm's tag to be identical, not merely non-None — one
+  arm resolving to a different tag, or to `None` (a plain value, or an
+  untracked callable), makes the whole `if` resolve to `None`
+  (`test_return_tag_if_else_tail_needs_every_arm_to_agree`,
+  `test_return_tag_else_if_chain_one_mismatched_arm_is_not_tracked`). An
+  "any arm matches" rule would be UNSOUND: a caller in an `effects [io]`
+  scope could then reach a branch performing a real, undeclared effect
+  without ever being flagged — exactly the kind of false-negative-that-
+  looks-like-a-false-positive-fix this feature family has avoided at
+  every step (v0.14.2's shadowing discipline, v0.14.4's exact-field-match
+  requirement).
+- **Still deliberately narrow**: the recursion only ever starts from the
+  enclosing block's own TAIL statement — an `if` bound to a `let` first
+  and referenced afterward is not inspected
+  (`test_return_tag_only_sees_a_tail_if_else_not_a_deeper_nested_one`),
+  matching the "one hop from the tail, no general data-flow" discipline
+  v0.14.3/v0.14.4 already established. The two gaps v0.14.4 left fully
+  open — passing a builtin as a FUNCTION ARGUMENT, and the dynamic call
+  graph — are both still completely untouched by this round; neither fits
+  the same single-pass, no-interprocedural-analysis mold this whole
+  feature family relies on (see `state/research-state.md`'s language
+  backlog for why both are sized as multi-round-scale work, not a quick
+  follow-up).
+- **Verification**: `tests/test_v14.py` 51/51 (was 45; net +6: one old
+  test documenting the now-closed gap replaced by six new ones — both-
+  arms-agree [checked + granted], an `else if` chain [checked + one-arm-
+  mismatch-stays-untracked], one new three-way differential pin, and the
+  "not from a non-tail position" boundary case).
+  `languages/whence/run_tests_fast.sh` 880 passed/38 deselected (was 875;
+  +5 is net-new across the whole suite, matching `test_v14.py`'s own net
+  delta exactly — no other file's count moved). Full unfiltered
+  `pytest tests/` also run this round (parser.py's `stmt_list` is on
+  every block-parse path, not just effects-declared code) — no
+  regressions.
+- **Guest parity**: same reasoning as v0.14.2/v0.14.3/v0.14.4, for the
+  same underlying cause — `print` is in `harness/swe/guest.py`'s
+  `BANNED` regex, so any guest-oracle fuzz program mentioning it anywhere
+  is short-circuited to `parse_error` before either interpreter runs it;
+  not something this round needed to re-verify.
+- **Fuzz coverage — same honest gap as v0.14.2/v0.14.3/v0.14.4, for the
+  same reason**: `harness/swe/fuzz.py`'s `ProgramGen` never emits a fn
+  body whose tail is an `if`/`else` with a bare `print` NameRef in every
+  arm — this round's own trigger shape is exercised only by
+  `tests/test_v14.py`'s hand-authored cases, not the differential fuzz
+  corpus. Fixing it needs a new GENERATOR expression shape, not a checker
+  change — named here so a future round doesn't rediscover it as a
+  mystery (the fourth round in a row to note this same class of gap for
+  its own new shape).
+
 ## v0.15 (round 168) — AI-native primitives: `guess`/confidence
 - **The curriculum's last open "advanced feature" slot** (structural types
   v0.12, return types v0.13, effects v0.14 all shipped; round 146 itself

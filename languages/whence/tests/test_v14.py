@@ -1,6 +1,6 @@
 """v0.14 (round 146) / v0.14.1 (round 264) / v0.14.2 (round 266) /
-v0.14.3 (round 270) / v0.14.4 (round 272): `effects [...]` — a minimal,
-parse-time effect system.
+v0.14.3 (round 270) / v0.14.4 (round 272) / v0.14.5 (round 276):
+`effects [...]` — a minimal, parse-time effect system.
 
 Design (see SPEC.md "v0.14"/"v0.14.1"): unlike `: Type`/`-> Type` (v0.12/
 v0.13, both runtime checks against a runtime VALUE), whether a function's
@@ -68,12 +68,36 @@ node, no Closure field, and no interpreter change at all. `effects [io,
   it: an inner, differently-behaved fn of the SAME name blocks the lookup
   from falling through to an outer one
   (`test_inner_fn_of_the_same_name_shadows_the_outer_return_fact`).
-  Deliberately narrower than it could be: only a BARE-NAME tail is
-  inspected, not one recursed through an `if`/nested block the way
-  `mark_tails` structurally walks tail position — a fn whose tail is itself
-  an `if` (even one whose every arm returns the same effectful name) is
-  invisible to this specific check
-  (`test_return_tag_only_sees_a_bare_name_tail`).
+  Deliberately narrower than it could be, at the time: only a BARE-NAME
+  tail was inspected, not one recursed through an `if`/nested block the way
+  `mark_tails` structurally walks tail position — closed for the `if`/`else`
+  case by v0.14.5 below.
+
+- **v0.14.5: a fn whose body's own TAIL STATEMENT is an `if`/`else` (any
+  `else if` chain length) where EVERY arm resolves to the exact same
+  effectful alias is now tracked too** — `Parser._if_tail_alias_tag`,
+  called from the same `stmt_list` tail-resolution site v0.14.3 added,
+  needs no NEW scope-tracking stack: `then`/`otherwise` are each already-
+  parsed `A.Block`s (or, for an `else if` chain, another already-parsed
+  `A.If`) whose own `tail_alias_tag` was already correctly resolved by
+  their OWN `stmt_list` call, while THEIR OWN `alias_scopes` frame was
+  open — so comparing them is a purely structural, no-scope-needed walk,
+  the same shape `mark_tails`'s own boolean walk already has
+  (`test_return_tag_sees_an_if_else_tail_when_both_arms_agree`,
+  `test_return_tag_if_else_tail_granted_when_effect_allowed`, chained
+  through an `else if` per
+  `test_return_tag_sees_through_an_else_if_chain_when_every_arm_agrees`).
+  Requires an EXACT match on every arm, not "any arm" or a majority — one
+  mismatched arm (a plain value, or a different/untracked callable) leaves
+  the whole `if` untracked, `None`, same as before
+  (`test_return_tag_if_else_tail_needs_every_arm_to_agree`,
+  `test_return_tag_else_if_chain_one_mismatched_arm_is_not_tracked`) — an
+  approximate match would be UNSOUND (a caller could invoke a branch that
+  performs a real, undeclared effect and never get flagged). Deliberately
+  still narrow: this only ever starts from the enclosing BLOCK's own tail
+  statement — an `if` bound to a `let` first, then referenced, is not
+  inspected (`test_return_tag_only_sees_a_tail_if_else_not_a_deeper_
+  nested_one`).
 
 - **v0.14.4: a name bound via a direct `let name = @{...}` RECORD LITERAL
   is now tracked field-by-field**, closing the CONTAINER-FIELD clause of
@@ -103,9 +127,10 @@ the declaration only vouches for the function's OWN textual body, resolved
 lexically, not through arbitrary calls.
   - Passing a builtin as a FUNCTION ARGUMENT remains completely invisible
     to the check — only a direct `let alias = <name>` hop (v0.14.2), a
-    direct-call return (v0.14.3, bare-name tail only), and a literal-record
-    field (v0.14.4, bare-name field value only) are tracked, not general
-    value flow through arbitrary data structures or through an `if`'s own
+    direct-call return (v0.14.3/v0.14.5: a bare-name tail, or an `if`/`else`
+    tail whose every arm agrees), and a literal-record field (v0.14.4,
+    bare-name field value only) are tracked, not general value flow through
+    arbitrary data structures, nor through an `if` that isn't itself in
     tail position.
   - Calling a DIFFERENT, unrestricted top-level function that itself
     performs the effect is still untouched by the caller's own
@@ -494,18 +519,114 @@ def test_inner_fn_of_the_same_name_shadows_the_outer_return_fact():
         'check "ok": f() == 5\n')
 
 
-def test_return_tag_only_sees_a_bare_name_tail():
-    """Deliberately narrow, like the rest of this feature family: only a
-    fn body whose tail statement is a BARE NameRef is inspected — a tail
-    that is itself an `if` (even one whose own two arms both tail-return
-    `print`) is not recursed into, unlike `mark_tails`'s fuller structural
-    walk. An honest, documented gap, not a bug."""
+def test_return_tag_sees_an_if_else_tail_when_both_arms_agree():
+    """v0.14.5 (round 276): closes the "if" half of round 270's own
+    documented gap — a fn body whose tail statement is an `if`/`else` where
+    BOTH arms bare-NameRef-tail-return `print` is now tracked exactly as a
+    bare-NameRef tail would be (`Parser._if_tail_alias_tag`, purely
+    structural over each arm's own already-resolved `tail_alias_tag`, no
+    interprocedural analysis)."""
+    with pytest.raises(ParseError) as ei:
+        parse(
+            'fn get_printer(cond) {\n'
+            '  if cond { print } else { print }\n'
+            '}\n'
+            'fn f() effects [] {\n'
+            '  let p = get_printer(true)\n'
+            '  p(1)\n'
+            '}\n')
+    assert "'p' requires effect 'io'" in str(ei.value)
+
+
+def test_return_tag_if_else_tail_granted_when_effect_allowed():
     all_ok(
-        'fn get_printer() effects [] {\n'
-        '  if true { print } else { print }\n'
+        'fn get_printer(cond) {\n'
+        '  if cond { print } else { print }\n'
+        '}\n'
+        'fn f() effects [io] {\n'
+        '  let p = get_printer(true)\n'
+        '  p(1)\n'
+        '}\n'
+        'check "ok": f() == 1\n')
+
+
+def test_return_tag_if_else_tail_needs_every_arm_to_agree():
+    """Not a majority or "any arm" match — EVERY arm must resolve to the
+    exact same tag. One branch tail-returning `print` and the other a
+    plain value (or a different, untracked callable) leaves the whole
+    `if` untracked (`None`), the same way a mismatched `: Type` guard on
+    only one branch wouldn't be silently upgraded either — an approximate
+    match would be unsound, not just imprecise."""
+    all_ok(
+        'fn get_printer(cond) {\n'
+        '  if cond { print } else { 5 }\n'
         '}\n'
         'fn f() effects [] {\n'
-        '  let p = get_printer()\n'
+        '  let p = get_printer(true)\n'
+        '  p(1)\n'
+        '}\n'
+        'check "ok": f() == 1\n')
+
+
+def test_return_tag_sees_through_an_else_if_chain_when_every_arm_agrees():
+    """`_if_tail_alias_tag` recurses through an `else if ...` chain of any
+    length (`if_node.otherwise` is itself an `A.If`, not an `A.Block`,
+    for every arm but the last) — all three arms here tail-return `print`,
+    so the whole chain resolves to `"io"`."""
+    with pytest.raises(ParseError) as ei:
+        parse(
+            'fn get_printer(n) {\n'
+            '  if n == 1 { print } else if n == 2 { print } else { print }\n'
+            '}\n'
+            'fn f() effects [] {\n'
+            '  let p = get_printer(1)\n'
+            '  p(1)\n'
+            '}\n')
+    assert "'p' requires effect 'io'" in str(ei.value)
+
+
+def test_return_tag_else_if_chain_one_mismatched_arm_is_not_tracked():
+    all_ok(
+        'fn get_printer(n) {\n'
+        '  if n == 1 { print } else if n == 2 { 5 } else { print }\n'
+        '}\n'
+        'fn f() effects [] {\n'
+        '  let p = get_printer(1)\n'
+        '  p(1)\n'
+        '}\n'
+        'check "ok": f() == 1\n')
+
+
+def test_three_way_if_else_return_value_via_let_inside_effects_io():
+    """v0.14.5 is entirely parse-time (no AST node, no Closure field, no
+    interpreter change), so it can't diverge across the direct/fast/slow
+    execution modes — pinned anyway, the same way v0.14.3/v0.14.4 each
+    pinned one `assert_three_way` case for their own new trigger shape."""
+    assert_three_way(
+        'fn get_printer(cond) {\n'
+        '  if cond { print } else { print }\n'
+        '}\n'
+        'fn f() effects [io] {\n'
+        '  let p = get_printer(true)\n'
+        '  p(1)\n'
+        '}\n'
+        'let result = f()\n')
+
+
+def test_return_tag_only_sees_a_tail_if_else_not_a_deeper_nested_one():
+    """Still deliberately narrow: the `if`/`else` recursion only ever
+    starts from the BLOCK'S OWN tail statement — an `if` that is nested one
+    level deeper (not itself in tail position, e.g. bound to a `let` first)
+    is not inspected, matching the same "one hop from the tail, no general
+    data-flow" discipline the rest of this feature family uses. An honest,
+    documented gap, not a bug."""
+    all_ok(
+        'fn get_printer(cond) {\n'
+        '  let chosen = if cond { print } else { print }\n'
+        '  chosen\n'
+        '}\n'
+        'fn f() effects [] {\n'
+        '  let p = get_printer(true)\n'
         '  p(1)\n'
         '}\n'
         'check "ok": f() == 1\n')

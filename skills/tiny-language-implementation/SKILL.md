@@ -281,6 +281,33 @@ python3 -m pytest tests/ -q              # full suite (should be <1s)
   would otherwise let a `p(...)` call in the inner block wrongly resolve
   to the outer `print` alias).
 
+- **Extending a scope-mirroring static analysis to recurse into a branch
+  construct (`if`/`else`, `match`) often needs NO new scope-context
+  plumbing — check whether the branch is itself a block whose own fact
+  was already resolved while ITS scope was still open, before assuming
+  you need to re-derive it after the fact.** It's tempting to conclude
+  "a tail that is itself an `if` can't be inspected the same way a bare
+  name can, because by the time we look at it the branch's own scope has
+  closed" — true only if you'd need to re-run the ORIGINAL resolution
+  (e.g. re-look-up a bare name against scopes that no longer exist). If
+  each branch is its own block, parsed via the same recursive `block()`/
+  `stmt_list()` that already computes and STORES a per-block fact (e.g.
+  a `tail_alias_tag` field) while that block's own frame was open, then
+  reading that already-resolved field back later is a purely structural,
+  scope-free walk — the same shape a separate boolean-only structural
+  pass (e.g. tail-call marking) already has. Confirmed in Whence (round
+  276, v0.14.5): a fn body whose tail is `if c { print } else { print }`
+  was flagged three rounds earlier as "can't simply run after the fact"
+  and left as a documented, un-revisited gap — it turned out to need
+  zero new stacks, just reading `if_node.then.tail_alias_tag` and
+  `if_node.otherwise.tail_alias_tag` (recursing through an `else if`
+  chain) and requiring an EXACT match across every arm, not "any arm",
+  to stay sound (an approximate match would create a false negative that
+  looks like a fix but is actually unsound). Before writing off a branch
+  construct as "needs interprocedural analysis," check whether the
+  per-block fact you need is already sitting on the AST node from an
+  earlier pass.
+
 ## Verification
 - `python3 -m pytest tests/ -q` → all green, runtime < 1s.
 - Every example runs with documented exit code; the deliberately-failing one
