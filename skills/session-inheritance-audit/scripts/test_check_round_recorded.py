@@ -51,6 +51,51 @@ def test_recorded_rounds_missing_file_returns_empty(tmp_path):
     assert m.recorded_rounds(str(tmp_path / "nope.md")) == set()
 
 
+def test_recorded_rounds_unions_archive_headings(tmp_path):
+    state = tmp_path / "state.md"
+    state.write_text("### Round 175 — Skills(B) — 2026-08-27\n- ok\n")
+    archive = tmp_path / "archive.md"
+    archive.write_text(
+        "### Round 5 — harness(A) — 2026-08-24\n- old\n\n"
+        "### Round 160 — NUC-integration(E) — 2026-08-26\n- old\n"
+    )
+    assert m.recorded_rounds(str(state), [str(archive)]) == {5, 160, 175}
+
+
+def test_recorded_rounds_skips_missing_archive_path(tmp_path):
+    state = tmp_path / "state.md"
+    state.write_text("### Round 1 — Skills(B) — 2026-01-01\n- ok\n")
+    assert m.recorded_rounds(
+        str(state), [str(tmp_path / "nope-archive.md")]
+    ) == {1}
+
+
+def test_end_to_end_archived_round_is_not_flagged_as_a_gap(tmp_path):
+    # A round whose heading was relocated to the archive file (not deleted,
+    # not duplicated) must not read as an unrecorded gap forever after.
+    driver_log = tmp_path / "driver.log"
+    _write_driver_log(str(driver_log), [
+        "[t] round 5 track=harness(A) start (driver_version=x) pid=1",
+        "[t] round 5: success",
+    ])
+    state = tmp_path / "state.md"
+    state.write_text("# state\n(round 5 archived below)\n")
+    archive = tmp_path / "archive.md"
+    archive.write_text("### Round 5 — harness(A) — 2026-08-24\n- did stuff\n")
+
+    rc = subprocess.run(
+        [sys.executable, SCRIPT,
+         "--driver-log", str(driver_log),
+         "--state", str(state),
+         "--archive", str(archive),
+         "--knowledge-dir", str(tmp_path / "knowledge_missing"),
+         "--round-logs-dir", str(tmp_path / "logs_missing")],
+        capture_output=True, text=True,
+    )
+    assert rc.returncode == 0
+    assert "0 gaps" in rc.stdout
+
+
 def test_knowledge_rounds_matches_round_ddd_prefix(tmp_path):
     (tmp_path / "round-005-foo.md").write_text("x")
     (tmp_path / "round-012-bar-baz.md").write_text("x")
@@ -108,6 +153,8 @@ def test_end_to_end_reports_gap_for_unrecorded_round(tmp_path):
         [sys.executable, SCRIPT,
          "--driver-log", str(driver_log),
          "--state", str(state),
+         "--archive", str(tmp_path / "no-archive.md"),
+         "--ack-file", str(tmp_path / "no-ack.json"),
          "--knowledge-dir", str(knowledge),
          "--round-logs-dir", str(logs_dir)],
         capture_output=True, text=True,
@@ -140,6 +187,8 @@ def test_gap_reports_interrupted_true_when_no_result_event(tmp_path):
         [sys.executable, SCRIPT,
          "--driver-log", str(driver_log),
          "--state", str(state),
+         "--archive", str(tmp_path / "no-archive.md"),
+         "--ack-file", str(tmp_path / "no-ack.json"),
          "--knowledge-dir", str(knowledge),
          "--round-logs-dir", str(logs_dir)],
         capture_output=True, text=True,
@@ -171,6 +220,8 @@ def test_gap_reports_interrupted_false_when_result_event_present(tmp_path):
         [sys.executable, SCRIPT,
          "--driver-log", str(driver_log),
          "--state", str(state),
+         "--archive", str(tmp_path / "no-archive.md"),
+         "--ack-file", str(tmp_path / "no-ack.json"),
          "--knowledge-dir", str(knowledge),
          "--round-logs-dir", str(logs_dir)],
         capture_output=True, text=True,
@@ -192,6 +243,8 @@ def test_gap_reports_interrupted_none_when_round_log_missing(tmp_path):
         [sys.executable, SCRIPT,
          "--driver-log", str(driver_log),
          "--state", str(state),
+         "--archive", str(tmp_path / "no-archive.md"),
+         "--ack-file", str(tmp_path / "no-ack.json"),
          "--knowledge-dir", str(tmp_path / "knowledge_missing"),
          "--round-logs-dir", str(tmp_path / "logs_missing")],
         capture_output=True, text=True,
@@ -312,4 +365,88 @@ def test_end_to_end_clean_when_every_round_recorded(tmp_path):
         capture_output=True, text=True,
     )
     assert rc.returncode == 0
+    assert "0 gaps" in rc.stdout
+
+
+def test_load_acknowledged_gaps_missing_file_returns_empty(tmp_path):
+    assert m.load_acknowledged_gaps(str(tmp_path / "nope.json")) == {}
+
+
+def test_load_acknowledged_gaps_parses_int_keys_and_skips_comment(tmp_path):
+    p = tmp_path / "ack.json"
+    p.write_text(json.dumps({
+        "_comment": "not a round number",
+        "152": "no surviving diff, see research-state.md",
+        "185": "classified as a timeout kill by round 211",
+    }))
+    acks = m.load_acknowledged_gaps(str(p))
+    assert acks == {
+        152: "no surviving diff, see research-state.md",
+        185: "classified as a timeout kill by round 211",
+    }
+
+
+def test_load_acknowledged_gaps_malformed_json_returns_empty(tmp_path):
+    p = tmp_path / "ack.json"
+    p.write_text("{not valid json")
+    assert m.load_acknowledged_gaps(str(p)) == {}
+
+
+def test_end_to_end_acknowledged_gap_suppressed_by_default(tmp_path):
+    driver_log = tmp_path / "driver.log"
+    _write_driver_log(str(driver_log), [
+        "[t] round 1 track=skills(B) start (driver_version=x) pid=1",
+        "[t] round 1: success",
+        "[t] round 2 track=harness(A) start (driver_version=x) pid=1",
+        "[t] round 2: success",
+    ])
+    state = tmp_path / "state.md"
+    state.write_text("# empty\n")
+    ack = tmp_path / "ack.json"
+    ack.write_text(json.dumps({"1": "verified no surviving diff"}))
+
+    rc = subprocess.run(
+        [sys.executable, SCRIPT,
+         "--driver-log", str(driver_log),
+         "--state", str(state),
+         "--archive", str(tmp_path / "no-archive.md"),
+         "--ack-file", str(ack),
+         "--knowledge-dir", str(tmp_path / "knowledge_missing"),
+         "--round-logs-dir", str(tmp_path / "logs_missing")],
+        capture_output=True, text=True,
+    )
+    # Round 1 is acknowledged and must not appear in the gap list or count;
+    # round 2 is a genuine, unacknowledged gap and must still be reported.
+    assert rc.returncode == 1
+    assert "round 1" not in rc.stdout
+    assert "round 2" in rc.stdout
+    assert "1 more pre-acknowledged" in rc.stdout
+
+
+def test_end_to_end_acknowledged_gap_shown_with_flag(tmp_path):
+    driver_log = tmp_path / "driver.log"
+    _write_driver_log(str(driver_log), [
+        "[t] round 1 track=skills(B) start (driver_version=x) pid=1",
+        "[t] round 1: success",
+    ])
+    state = tmp_path / "state.md"
+    state.write_text("# empty\n")
+    ack = tmp_path / "ack.json"
+    ack.write_text(json.dumps({"1": "verified no surviving diff"}))
+
+    rc = subprocess.run(
+        [sys.executable, SCRIPT,
+         "--driver-log", str(driver_log),
+         "--state", str(state),
+         "--archive", str(tmp_path / "no-archive.md"),
+         "--ack-file", str(ack),
+         "--show-acknowledged",
+         "--knowledge-dir", str(tmp_path / "knowledge_missing"),
+         "--round-logs-dir", str(tmp_path / "logs_missing")],
+        capture_output=True, text=True,
+    )
+    # All gaps acknowledged -> clean exit, but --show-acknowledged still
+    # prints the suppressed round and its reason for a human to spot-check.
+    assert rc.returncode == 0
+    assert "round 1: verified no surviving diff" in rc.stdout
     assert "0 gaps" in rc.stdout

@@ -98,12 +98,29 @@ def parse_driver_log(path):
     return rounds
 
 
-def recorded_rounds(state_path):
-    if not os.path.exists(state_path):
-        return set()
-    with open(state_path) as f:
-        text = f.read()
-    return {int(m.group(1)) for m in STATE_ENTRY_RE.finditer(text)}
+def recorded_rounds(state_path, archive_paths=()):
+    """Union of `### Round N —` headings in `state_path` and every path in
+    `archive_paths` (missing archive files are skipped, not an error).
+
+    `research-state.md` periodically archives its own oldest round-log
+    entries to `state/research-state-archive.md` to keep a plain `Read` of
+    the live file from truncating (done for rounds 1-136 by round 163, then
+    137-174 by round 193) — the heading text itself is moved verbatim, not
+    duplicated or summarized. A caller that only reads `state_path` treats
+    every archived round as an unrecorded gap forever after, even though it
+    was recorded and then relocated for file-size reasons alone. Confirmed
+    live (round 231): a plain run flagged 32 rounds; 13 of them (154-174
+    minus a few genuine gaps) had a heading sitting in the archive file the
+    whole time.
+    """
+    rounds = set()
+    for path in (state_path,) + tuple(archive_paths):
+        if not os.path.exists(path):
+            continue
+        with open(path) as f:
+            text = f.read()
+        rounds |= {int(m.group(1)) for m in STATE_ENTRY_RE.finditer(text)}
+    return rounds
 
 
 def knowledge_rounds(knowledge_dir):
@@ -193,10 +210,53 @@ def committed_per_git_log(round_num, repo_root="."):
     return bool(evidence)
 
 
+def load_acknowledged_gaps(path):
+    """Return {round_num: reason} from a JSON file mapping round numbers
+    (as string keys) to a one-line reason they're a known, already-verified
+    non-gap (e.g. no surviving diff, or reconciled in research-state.md
+    prose without ever getting its own `### Round N —` heading).
+
+    Without this, every round that runs this script re-flags and has to
+    re-verify the SAME historical rounds from scratch — confirmed live
+    (round 231): a fresh run flagged 32 rounds; after fixing the archive
+    gap (see `recorded_rounds`) 18 remained, and every one of them was
+    already independently explained somewhere in research-state.md's own
+    prose (named in the 'Recurring pattern' list, or individually as for
+    rounds 185/186/190/191) — just never with a matching heading. Missing
+    or malformed files degrade to "nothing acknowledged" (an empty dict),
+    matching this script's existing degrade-gracefully convention for
+    optional inputs (see `_summarize_turns`, `committed_per_git_log`).
+    """
+    if not os.path.exists(path):
+        return {}
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    out = {}
+    for k, v in data.items():
+        if k.startswith("_"):
+            continue
+        try:
+            out[int(k)] = v
+        except ValueError:
+            continue
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--driver-log", default="logs/driver.log")
     ap.add_argument("--state", default="state/research-state.md")
+    ap.add_argument("--archive", action="append", default=None,
+                     help="additional file(s) to scan for `### Round N —` "
+                          "headings alongside --state (e.g. an archive the "
+                          "state file periodically moves old entries into); "
+                          "repeatable, missing paths are skipped silently. "
+                          "Defaults to state/research-state-archive.md alone "
+                          "when omitted; passing this flag replaces that "
+                          "default rather than adding to it.")
     ap.add_argument("--knowledge-dir", default="knowledge")
     ap.add_argument("--round-logs-dir", default="logs")
     ap.add_argument("--repo-root", default=".",
@@ -205,13 +265,25 @@ def main():
                           "git_committed=None if not a git repo)")
     ap.add_argument("--since", type=int, default=0,
                      help="ignore rounds numbered below this")
+    ap.add_argument("--ack-file", default="state/known-record-gaps.json",
+                     help="JSON file of round -> reason for rounds already "
+                          "verified as known, non-actionable gaps (missing "
+                          "file degrades to none acknowledged, not an "
+                          "error). See load_acknowledged_gaps docstring.")
+    ap.add_argument("--show-acknowledged", action="store_true",
+                     help="also print acknowledged gaps (suppressed from "
+                          "the exit-code-bearing list by default)")
     args = ap.parse_args()
+    archive_paths = (args.archive if args.archive is not None
+                      else ["state/research-state-archive.md"])
+    acknowledged = load_acknowledged_gaps(args.ack_file)
 
     driver_rounds = parse_driver_log(args.driver_log)
-    state_rounds = recorded_rounds(args.state)
+    state_rounds = recorded_rounds(args.state, archive_paths)
     know_rounds = knowledge_rounds(args.knowledge_dir)
 
     gaps = []
+    ack_hits = []
     for n in sorted(driver_rounds):
         if n < args.since:
             continue
@@ -227,7 +299,7 @@ def main():
             summary = _summarize_turns(round_log)
             if summary is not None:
                 interrupted = summary.get("interrupted")
-        gaps.append({
+        g = {
             "round": n,
             "track": info.get("track"),
             "status": info.get("status"),
@@ -235,15 +307,29 @@ def main():
             "ended_on_dangling_wait": dangling,
             "interrupted": interrupted,
             "git_committed": committed_per_git_log(n, args.repo_root),
-        })
+        }
+        if n in acknowledged:
+            ack_hits.append((g, acknowledged[n]))
+        else:
+            gaps.append(g)
+
+    if args.show_acknowledged and ack_hits:
+        print("check_round_recorded: %d round(s) are known gaps, already "
+              "verified and acknowledged in %s (not counted below):"
+              % (len(ack_hits), args.ack_file))
+        for g, reason in ack_hits:
+            print("  round %s: %s" % (g["round"], reason))
 
     if not gaps:
+        suffix = (" (%d pre-acknowledged, see %s)" % (len(ack_hits), args.ack_file)
+                   if ack_hits else "")
         print("check_round_recorded: every driver-log round has a "
-              "research-state.md entry (0 gaps)")
+              "research-state.md entry (0 gaps)%s" % suffix)
         return 0
 
     print("check_round_recorded: %d round(s) ran per the driver log with "
-          "NO research-state.md entry:" % len(gaps))
+          "NO research-state.md entry (%d more pre-acknowledged, see %s):"
+          % (len(gaps), len(ack_hits), args.ack_file))
     for g in gaps:
         flags = []
         if g["ended_on_dangling_wait"]:

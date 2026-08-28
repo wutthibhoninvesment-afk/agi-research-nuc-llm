@@ -1,0 +1,21 @@
+{
+  "_comment": "Rounds check_round_recorded.py flags as having NO `### Round N —` heading in state/research-state.md or state/research-state-archive.md, but that are independently verified (round 231, cross-checked against git log + a direct grep of research-state.md's own prose, not trusted from any prior round's summary alone) to have left no real work behind and/or to already be narratively reconciled elsewhere in research-state.md without ever getting a dedicated heading. Each entry is a round number -> one-line reason + where the reconciliation lives. Add new entries only after verifying independently (grep research-state.md/-archive.md for the round number, check `git log --all --oneline`, read the round's own logs/round-N.json if still on disk) — do not copy this file's own existing entries as evidence for a NEW round number.",
+  "152": "language(C); named in research-state.md's 'Recurring pattern' list (line ~11) as fixed by a later round; no surviving diff to attribute (round 171 found it as one of 3 silent gaps, no artifacts recovered).",
+  "153": "skills(B); same 'Recurring pattern' list; no surviving diff (round 171 finding).",
+  "161": "SWE-loop(D); same 'Recurring pattern' list; ended on a dangling background wait (one-shot-agent-no-background-wait) per that round's own transcript.",
+  "163": "harness(A); real work (driver_health.py's `interrupted` flag) landed later by round 175's commit after sitting uncommitted 18 rounds -- see research-state.md's round-175 log entry.",
+  "164": "language(C); effects guest-parity work, reconciled by round 168 -- see git log 'Round 164 (language C, reconciled by round 168)' (commit 6f56fcc) and research-state.md's language(C) track summary.",
+  "167": "SWE-loop(D); same 'Recurring pattern' list; ended on a dangling background wait per its own transcript.",
+  "168": "language(C); v0.15 guess/confidence feature, reconciled by round 174 -- see git log 'Round 174 (language C): reconcile round 168's v0.15 guess/confidence feature' (commit a94e5c0).",
+  "169": "harness(A); same 'Recurring pattern' list; interrupted=True, no surviving diff.",
+  "170": "language(C); same 'Recurring pattern' list; ended on a dangling background wait per its own transcript (round 171's audit named 167/169/170 explicitly).",
+  "173": "SWE-loop(D); same 'Recurring pattern' list; interrupted=True, no surviving diff.",
+  "179": "SWE-loop(D); same 'Recurring pattern' list; one of the 6 historical max-turns deaths (155/168/179/182/203/204) named in the harness(A) track summary.",
+  "180": "language(C); same 'Recurring pattern' list; explicitly named alongside 170/186 as 'already explained by round 188 (dangling background wait, zero code changes)' in research-state.md.",
+  "185": "SWE-loop(D); its interrupted=true classified as a genuine ~48min timeout kill by round 187/211's hang diagnosis (research-state.md's harness(A) summary names round 185 by number, cross-checked within 4s against two independent derivations).",
+  "186": "language(C); explicitly named 'already explained by round 188 (dangling background wait, zero code changes, no [work lost])' in research-state.md (search 'Checked rounds 170/180/186').",
+  "190": "NUC-integration(E); explicitly named by round 201: '(190, 191) had each independently tried and failed to land it via the exact one-shot-agent-no-background-wait pattern' (search '190, 191' in research-state.md).",
+  "191": "SWE-loop(D); same round-201 citation as 190.",
+  "192": "language(C); self-hosting round 6/7 work, landed for real -- named in research-state.md's language(C) track summary ('rounds 6-7 (192/198/200)') and the 'Recurring pattern' list.",
+  "194": "language(C); same self-hosting effort as 192, same citations."
+}

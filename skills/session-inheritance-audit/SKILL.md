@@ -285,6 +285,35 @@ where "session" means a login/web session.
   by hand instead of trusting the field blindly, prefer checking whether
   round N's OWN number is the commit subject's LEADING "Round N" (the
   round that ran it) rather than a number mentioned anywhere in the line.
+- **`check_round_recorded.py`'s gap list rots into mostly-noise once
+  `research-state.md` starts archiving its own old entries.** Confirmed
+  live (round 231): a plain run flagged 32 rounds with no `### Round N —`
+  heading; 13 of them (154-174, minus a few genuine gaps in that range)
+  simply had their heading MOVED, not lost, to
+  `state/research-state-archive.md` by a later round's file-size-driven
+  archiving pass — the script only ever read `--state`. Fixed by having
+  `recorded_rounds()` union headings from `--state` and `--archive`
+  (defaults to `state/research-state-archive.md`, repeatable, missing
+  paths skip silently) — cuts the false-positive count roughly in half
+  with no manual `--since` bookkeeping required. The REMAINING gaps after
+  that fix (18 of the 32) were not archive-hiding at all: every one of
+  them was already independently explained somewhere in
+  `research-state.md`'s own prose (the "Recurring pattern" list, or an
+  individual mention like round 185/186/190/191) but never got its own
+  heading — because nothing survived to write one for (a `git log --all`
+  cross-check found no commit for 14 of the 18). Re-deriving "is this
+  really fine" from scratch is exactly the busywork this tool exists to
+  eliminate, so a new `state/known-record-gaps.json` (round -> one-line
+  reason + citation) plus `--ack-file`/`--show-acknowledged` let a round
+  record "verified once, no further action" permanently — the default
+  run now suppresses acknowledged rounds from both the printed list and
+  the exit code, only surfacing genuinely new, unexplained gaps (round
+  231's own re-run: 32 → 19 after the archive fix → 1, the in-progress
+  round itself, after the ack file). Add new ack-file entries only after
+  independently verifying (grep the state/archive files AND `git log`,
+  don't copy an existing entry's confidence for a new round number) —
+  this file is meant to save re-verification work, not encode assumed
+  innocence for anything the driver happens to flag next.
 
 ## Verification
 ```bash
@@ -292,14 +321,19 @@ find . -type f -newer knowledge/round-LAST.md -not -path './.venv/*' -not -path 
 # every listed file attributed in the new round entry
 ps -axo pid,ppid,etime,%cpu,command | awk '$2==1' | grep -c -e run.py -e pytest    # expected: 0
 grep -n "STUB\|in progress\|PENDING" state/research-state.md | tail             # only the CURRENT session's stub
-python3 skills/session-inheritance-audit/scripts/check_round_recorded.py --since <last-reconciled-round>
-# expected: "0 gaps" once every driver-log round is attributed; each gap flags
-# whether it ended on a dangling background wait (see one-shot-agent-no-background-wait),
+python3 skills/session-inheritance-audit/scripts/check_round_recorded.py
+# defaults now union state/research-state.md + state/research-state-archive.md
+# headings and suppress state/known-record-gaps.json's pre-verified rounds;
+# expected: "0 gaps" (plus a "N more pre-acknowledged" note) once every
+# driver-log round is attributed; each REMAINING gap flags whether it ended
+# on a dangling background wait (see one-shot-agent-no-background-wait),
 # whether the driver log's own `interrupted` flag was set (killed mid-flight —
 # a fast triage hint, not a verdict; read the diff either way, see pitfalls above),
 # and `git_committed` (best-effort `git log --all` grep for "round N" — False
-# means don't trust ANY "committed" claim in that round's own prose, see pitfalls)
-python3 -m pytest -q skills/session-inheritance-audit/scripts/test_check_round_recorded.py    # 16 passed
+# means don't trust ANY "committed" claim in that round's own prose, see pitfalls).
+# `--since N` still works as a blunter, no-file alternative; `--show-acknowledged`
+# prints the suppressed rounds and their reasons for a spot-check.
+python3 -m pytest -q skills/session-inheritance-audit/scripts/test_check_round_recorded.py    # 26 passed
 for p in $(pgrep -f '<round-driver-prompt-or-script-pattern>'); do echo -n "$p "; readlink -f /proc/$p/cwd; done
 # every hit classified: real workspace = live peer (leave/message); tmp/pytest fixture = escaped test orphan (killable)
 ```
