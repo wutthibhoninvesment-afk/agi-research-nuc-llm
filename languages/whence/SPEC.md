@@ -683,16 +683,33 @@ that cannot end a statement.
   tail recursion (every frame checked independently, no double-wrapping),
   and the out-of-scope-shape crash case (`tests/test_v13.py`, 8
   `assert_three_way` cases + 39 unit/parser/interpreter cases, 47 total).
-- **Not done / declined:** the fuzzer's program grammar does not generate
-  `-> Type` annotations yet (same gap v0.12 left for parameter types) —
-  standing backlog, not blocking (both features are call-boundary checks
-  with an identical, already-fuzzed-by-proxy failure shape: a `miss`
-  flowing through ordinary propagation). No new example beyond extending
-  `examples/shapes.lang` with a return-typed `midpoint`/`broken_midpoint`
-  pair (4 new checks, 12 → 16) — a dedicated flagship example was judged
-  unnecessary since the feature composes directly with v0.12's existing
-  one and the design point (return checks are call-boundary checks like
-  parameter checks) is best shown as an addition, not a separate story.
+- **Stale-note correction (round 234):** this bullet used to say the
+  fuzzer's program grammar did not generate `: Type`/`-> Type` annotations
+  yet and called it a "standing backlog, not blocking." That was true when
+  this section was first written (round 128/132) but was closed shortly
+  after and this paragraph was never updated — round 134 (verified round
+  144) added `TYPE_TAGS`/`typed_params()`/`maybe_ret_type()` to
+  `harness/swe/fuzz.py`, wired into every generated `fn` (30%/param and
+  25% chance respectively), so both param and return guards have been
+  exercised by every fuzz/oracle campaign run since. The guest side closed
+  later still: `harness/swe/guest.py`'s `GuestGen` overrode both hooks to
+  a no-op until round 158 taught `self_eval.lang`/`self_host.lang`'s
+  shared parser section to tokenize `: TAG`/`-> TAG` and gave the guest
+  evaluator its own `typed` builtin + return-type check — `GuestGen` now
+  inherits the real (non-no-op) grammar unchanged (see `guest.py`'s own
+  `GuestGen` docstring for the two-round arc). What genuinely remains
+  out of scope, by construction rather than oversight: `TYPE_TAGS` is
+  primitive tags only (`num str bool list record fn any`), so no fuzzed
+  program ever names a `shape` as a type spec on either the host or guest
+  side — `self_eval.lang` still has no `shape` support at all (round
+  144/224's own SPEC notes on `typed`/`matches` guest parity, above and
+  below, cover this same limit from the builtin-dispatch side). No new
+  example beyond extending `examples/shapes.lang` with a return-typed
+  `midpoint`/`broken_midpoint` pair (4 new checks, 12 → 16) — a dedicated
+  flagship example was judged unnecessary since the feature composes
+  directly with v0.12's existing one and the design point (return checks
+  are call-boundary checks like parameter checks) is best shown as an
+  addition, not a separate story.
 
 ## v0.14 (round 146) — effect system
 - **The curriculum's remaining "advanced feature" slot (after v0.12
@@ -1010,11 +1027,40 @@ that cannot end a statement.
   delegation group (that group's own no-closure-guard comment was corrected
   accordingly) into its own `apply_builtin` branch with an explicit
   pass-through case, mirroring `typed`'s existing shape. The Guess-ABOVE-
-  threshold pass-through case (unwraps to `g.node` on the host) is
-  deliberately NOT special-cased — no fuzzer finding on that path yet, and
+  threshold pass-through case (unwraps to `g.node` on the host) was left
+  NOT special-cased at the time — no fuzzer finding on that path yet, and
   a Guess arriving already-flattened (re-guessed, or threaded through a
-  function parameter) has no local guest box to point at; left as real,
-  narrower backlog rather than built ahead of evidence.
+  function parameter) has no local guest box to point at.
+- **Round 234 closed that gap, plus a second one found alongside it, by
+  direct construction rather than waiting on the fuzzer**: `sure`/`guess`
+  are absent from `harness/swe/guest.py`'s `WHY_VOCAB`, and the ops the
+  old code DID leak that are in that vocabulary (`literal`) already
+  legitimately appear elsewhere in the host derivation — so the
+  differential fuzzer's containment-only probe could never have caught
+  either gap regardless of run count, a real, now-understood blind spot
+  in the probe design, not bad luck. Fixed:
+  - **below threshold**: host `mk_miss(..., inputs=(v,))` keeps only the
+    VALUE's own derivation, never the threshold's; the old guest code
+    wrapped with both, one spurious extra `literal` leaf every time.
+  - **above threshold**: new `unwrap_guess_box` (`self_eval.lang`, next
+    to `is_guess_val`) reconstructs the box for `g.node` purely from
+    guest box structure — no new host accessor needed. It walks
+    single-input wrapper boxes (`let NAME`/`arg NAME`/a plain `call`
+    result all thread their one real value through unchanged) down to
+    the box whose op is literally `"guess"`, takes ITS first argument
+    (exactly what `b_guess` stored as `.node`), and repeats if that
+    argument is itself still a Guess (mirrors `b_guess`'s own
+    guess-of-guess flattening). A box with more than one `ins` element
+    (a real `call`/`if`/tail-loop merge) falls back to returning the box
+    unchanged — the same imperfect-but-safe behaviour this file used
+    everywhere before this round, not a new failure mode.
+  - Verified with a stronger check than containment: exact op-LIST
+    equality (not just "no guest-only tokens") across six shapes — direct
+    above/below threshold, a `let`-chain, a function-parameter hop (both
+    above and below threshold), and guess-of-guess flattening — all six
+    match host and guest token-for-token
+    (`test_guest_sure_why_shape_matches_host_exactly_including_flattening`,
+    `tests/test_self_hosting.py`). See `knowledge/round-234-whence-guest-sure-why-shape-parity-and-spec-staleness.md`.
 - **`"guess"` joined `guest_primitive_types`** (both `self_eval.lang` and
   `self_host.lang`, which must stay byte-identical in their shared
   parser section — `test_parser_section_matches_self_host` pins the line

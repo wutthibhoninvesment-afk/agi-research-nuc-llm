@@ -478,3 +478,61 @@ def test_guest_miss_unary_why_shape_matches_host_for_all_three_reason_kinds():
         extra = guest_ops - host_ops
         assert not extra, (label, "guest-only ops", sorted(extra),
                             "host ops", sorted(host_ops))
+
+
+def test_guest_sure_why_shape_matches_host_exactly_including_flattening():
+    # Round 194 fixed `sure()`'s plain-value pass-through (a non-Guess is
+    # always a no-op escape hatch) but left the two Guess-CARRYING cases
+    # -- above-threshold pass-through (host: `g.node`, bypassing every
+    # later `let`/`guess` wrapper) and below-threshold miss (host:
+    # `mk_miss(..., inputs=(v,))`, the VALUE's own derivation only, never
+    # the threshold's) -- deliberately unfixed, reasoning there was no
+    # fuzzer finding on that path yet. Round 234 found both gaps are real
+    # by direct construction: `sure`/`guess` are absent from
+    # `harness/swe/guest.py`'s `WHY_VOCAB`, and the tokens the old guest
+    # code DID leak that ARE in that vocabulary ("literal") already
+    # legitimately appear elsewhere in the host derivation -- so the
+    # differential fuzzer's containment-only probe could never have
+    # caught either gap regardless of how long it ran. This test compares
+    # the exact host/guest op LIST (not just set containment) across five
+    # shapes, including two the guest's own fix has to trace through
+    # (a `let`-chain and a function-parameter hop) and one that mirrors
+    # the host's own guess-of-guess flattening.
+    from whence import values as VAL
+
+    eval_lib = eval_library_source()
+    cases = {
+        "direct, above threshold": (
+            'let g = guess(1 + 2, 0.9, "m")\nlet r = sure(g, 0.5)\n'),
+        "direct, below threshold": (
+            'let g = guess(1 + 2, 0.9, "m")\nlet r = sure(g, 0.95)\n'),
+        "let-chain, above threshold": (
+            'let g = guess(1 + 2, 0.9, "m")\n'
+            'let h = g\nlet r = sure(h, 0.5)\n'),
+        "fn-param, above threshold": (
+            'fn commit(x) { sure(x, 0.5) }\n'
+            'let g = guess(1 + 2, 0.9, "m")\nlet r = commit(g)\n'),
+        "fn-param, below threshold": (
+            'fn commit(x) { sure(x, 0.5) }\n'
+            'let g = guess(1 + 2, 0.4, "m")\nlet r = commit(g)\n'),
+        "guess-of-guess flattening, above threshold": (
+            'let inner = guess(1 + 2, 0.9, "a")\n'
+            'let g = guess(inner, 0.8, "b")\nlet r = sure(g, 0.5)\n'),
+    }
+    for label, src in cases.items():
+        host_env = Interpreter().run(src)
+        host_box = host_env.get("r")
+        host_ops = [n.op for n, _ in VAL.walk_steps(host_box)]
+
+        inner_src = (
+            src +
+            'fn __opwalk(acc, n) { fold(__opwalk, push(acc, n.op), n.ins) }\n'
+            'let __ops = __opwalk([], why r)\n'
+            '__ops\n')
+        prog = eval_lib + 'let __r = run_src("%s")\n' % escape(inner_src)
+        genv = Interpreter().run(prog)
+        rec = genv.get("__r").payload
+        assert rec.fields["parse_error"].payload is False, label
+        guest_ops = [e.payload.split(" ")[0] for e in rec.fields["v"].payload]
+
+        assert guest_ops == host_ops, (label, "guest", guest_ops, "host", host_ops)

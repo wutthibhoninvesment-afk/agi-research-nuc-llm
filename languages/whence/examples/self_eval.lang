@@ -748,6 +748,33 @@ fn lookup(st, env, name) {
 # kind is probed; `is_guess` itself is total (never misses), so this is a
 # plain delegating call, same as `missed`/`matches` elsewhere in this file.
 fn is_guess_val(v) { is_guess(v) }
+
+# Round 234: `sure(g, t)` above-threshold pass-through needs the box for
+# `g.node` -- the host's `Guess.node` field (interp.py's `b_guess`), set
+# ONCE at `guess()` construction time to the RAW pre-wrap argument node,
+# untouched by any later `let`/`guess` wrapper. The guest has no accessor
+# for a Guess's raw `.node` (same reason it has none for `.sources`, see
+# the v0.15 guest-parity note above) -- but the box for that exact same
+# node is still reachable by walking the GUEST's own box structure: a
+# `let NAME`/`arg NAME` box threads its one real value through unchanged
+# (single `ins` element), so descending through a chain of those reaches
+# whichever box actually called `guess(...)`; that box's OWN first
+# argument is exactly what `b_guess` stored as `.node`. Repeating the walk
+# when that argument is ITSELF still a Guess mirrors `b_guess`'s own
+# guess-of-guess flattening (`node = g.node` of the INNER Guess, not the
+# inner "guess" node). A box with more than one `ins` element (a real
+# `call`/`if`/tail-loop merge) is not safely traceable this way -- falls
+# back to returning the box UNCHANGED, i.e. the same imperfect-but-safe
+# generic wrapping this file used everywhere before this round, not a new
+# failure mode.
+fn unwrap_guess_box(box) {
+  if box.op == "guess" {
+    let inner = (box.ins)[0]
+    if is_guess_val(inner.v) { unwrap_guess_box(inner) } else { inner }
+  }
+  else if len(box.ins) == 1 { unwrap_guess_box((box.ins)[0]) }
+  else { box }
+}
 fn is_bool(v) {
   not is_guess_val(v) and not missed(v) and (v == true or v == false)
 }
@@ -1387,14 +1414,28 @@ fn apply_builtin(name, args, st) {
   # showed a guest-only "literal" op the host derivation for the same
   # program never produces (host: {let, list} — the empty-list literal's
   # own node, untouched by a no-op `sure`). Mirrors `typed`'s pass-through
-  # success case above. The Guess-ABOVE-threshold branch is also a
-  # pass-through on the host (unwraps to `g.node`) but is deliberately
-  # NOT special-cased here — the fuzzer has not produced a finding on
-  # that path yet, and reconstructing the right guest box for `g.node`
-  # needs more care (a Guess arriving already-flattened, e.g. re-guessed
-  # or threaded through a function parameter, has no local guest box to
-  # point at); left as real, narrower backlog rather than built ahead of
-  # evidence (see the round-194 knowledge file).
+  # success case above. Round 194 left the Guess-carrying cases (both the
+  # above-threshold pass-through AND, it turns out, the below-threshold
+  # miss) deliberately unfixed pending an actual finding: `sure`/`guess`
+  # are not in `harness/swe/guest.py`'s `WHY_VOCAB`, so the why-shape
+  # containment probe cannot see either op token, and both gaps' other
+  # extra/missing tokens ("literal") already legitimately appear
+  # elsewhere in the host derivation, so even the vocabulary tokens that
+  # ARE tracked pass the containment check by accident. Round 234
+  # confirmed both gaps are real by direct construction (op-walking
+  # `let g = guess(1 + 2, 0.9, "m"); let r = sure(g, T)` by hand for T on
+  # both sides of 0.9 -- see the round-234 knowledge file for the full
+  # op-list repro) and fixed both:
+  # - below threshold: host `mk_miss(..., inputs=(v,))` keeps only the
+  #   VALUE's own derivation, never the threshold's -- the old guest
+  #   code wrapped with `ins: args` (value AND threshold), one spurious
+  #   extra "literal" leaf for the threshold's own literal node.
+  # - above threshold: `unwrap_guess_box` (defined above, next to
+  #   `is_guess_val`) reconstructs the box for `g.node` -- the host's
+  #   `Guess.node`, set once at `guess()` construction time to the RAW
+  #   pre-wrap argument, bypassing every later `let`/`guess` wrapper --
+  #   purely from guest box structure, with a safe do-nothing fallback
+  #   for shapes it cannot trace through (see its own docstring above).
   else if name == "sure" {
     let value = args[0]
     let threshold = args[1]
@@ -1406,7 +1447,11 @@ fn apply_builtin(name, args, st) {
                      str(strip(threshold))), "sure", args), st: st}
     }
     else if not is_guess_val(value.v) { @{v: value, st: st} }
-    else { @{v: mkb(sure(value.v, threshold.v), "sure", args), st: st} }
+    else {
+      let outcome = sure(value.v, threshold.v)
+      if missed(outcome) { @{v: mkb(outcome, "sure", [value]), st: st} }
+      else { @{v: unwrap_guess_box(value), st: st} }
+    }
   }
   else {
     let p = apply_host_builtin(name, args)
