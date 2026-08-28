@@ -4295,31 +4295,82 @@ Workspace: ~/agi-research
   this change).
 - See `knowledge/round-285-skills-session-inheritance-audit-pitfall-history-split.md`.
 
-## Next steps (as of round 285)
-1. `harness/swe/alias_effects.py`'s `ExtendedEffectGen` (round 281) covers
+### Round 286 — NUC-integration(E) — 2026-08-28
+- Pre-flight: `ps -eo pid,ppid,etime,cmd` showed only this round's own
+  driver process tree plus the same unrelated long-lived `claude daemon`/
+  `hive` processes already identified (round 280) as not concurrent
+  research rounds. `git status --short`/`git diff --cached --stat` showed
+  only the shared `state/round_counter` bump, the four standing
+  Hermes-owned untracked `languages/whence/` files, and this round's own
+  new `state/nuc-swap-watch-r286/` — nothing to reconcile.
+- **Own track work**: round 268's 8h checkpointed `swap_watch.py` run (pid
+  16184 on the NUC, started 2026-08-28 16:18 UTC, ~2h34m from its planned
+  2026-08-29 00:19 UTC completion at check time — still not collected to
+  completion, same reasoning rounds 268/274/280 gave for not burning the
+  round budget on a multi-hour wait) was collected mid-flight a third time
+  (1298 samples, 5.41h, up from round 280's 915/3.81h) and found a **4th
+  burst** (79.43 MB at 21:32:28 UTC) beyond round 280's 3. This **settles
+  round 280's own explicitly-left-open "fixed ~135 MB quantum" question**:
+  burst 4 is neither an integer nor a clean fraction of the ~135.43 MB
+  mean of bursts 1-3 (ratio ≈0.587) — the earlier clustering was
+  coincidence, not a real quantum, now confirmed with direct evidence
+  instead of the inconclusive wide-window-table comparison round 280 could
+  only manage. `sum(4 burst sizes) == total_delta_bytes` exactly (485.71
+  MB), continuing round 280's "100% of growth is discrete bursts, zero
+  trickle" finding at higher n.
+- **New cross-check no prior round in this run had done**: every `Sample`
+  since round 244 wrote the schema carries `pswpin_pages`/`pswpout_pages`
+  from `/proc/vmstat` (system-wide), but rounds 262/268 only cross-checked
+  these against cgroup swap growth at wide-window (hours) granularity.
+  This round computed the **per-burst** `pswpout` delta × page size (4096
+  B, confirmed via `getconf PAGESIZE` on the NUC — not previously
+  recorded) for all 4 bursts: bursts 1-3 match the cgroup byte delta
+  **exactly** (ratio 1.0000 to 4 decimals); burst 4 is close but not exact
+  (1.0065), most likely explained by `pswpout`'s system-wide scope
+  picking up a small amount of unrelated paging inside that specific 15s
+  gap that the cgroup-scoped counter would not. `mem_current_bytes` also
+  drops by very close to the same magnitude the swap counter grows in
+  every burst, consistent with each burst being previously-resident
+  memory moving wholesale from `memory.current` to `memory.swap.current`.
+  Re-checked round 280's same three confound candidates (colibri request
+  activity, `fwupd-refresh.service`, periodic UFW-blocked IGMP packet) for
+  the new burst — all three refuted again, same outcome as bursts 2/3 (now
+  4/4 with no surviving candidate).
+- **Verification**: `find_bursts`/`summarize`/`Sample` used exactly as
+  round 268 shipped them, no code changed. `python3 -m pytest nuc/tests/
+  -q` → 163 passed (unchanged from round 280, confirming no regressions in
+  a round that touched no `nuc/` source).
+- See `knowledge/round-286-nuc-e-r268-run-fourth-burst-breaks-quantum-and-exact-pswpout-cross-check.md`.
+
+## Next steps (as of round 286)
+1. Round 268's 8h `swap_watch.py` run (pid 16184 on the NUC) should be
+   finished or very close to finished by the next E round (~2h34m
+   remaining as of round 286's last check, planned completion
+   ~2026-08-29 00:19 UTC). Next E round: check `ps -p 16184` on the box
+   first; if it has exited, follow round 268's own completion handoff and
+   read the final `--out` JSON (`/home/jab/nuc-research/swap-watch-r268-
+   long.json`) directly rather than re-deriving from the checkpoint; if
+   still running, another mid-run pull is still cheap and the new
+   per-burst `pswpout` cross-check (`(s1.pswpout_pages -
+   s0.pswpout_pages) * 4096` vs. `burst.delta_bytes`) is a one-line repeat
+   needing no new tooling.
+2. `harness/swe/alias_effects.py`'s `ExtendedEffectGen` (round 281) covers
    v0.14.3/4/5's verdict correctness with a real oracle but not yet
    v0.14.6's field-return chain — natural next fuzz/oracle-scoped round
    for language(C) or SWE-loop(D), same size/shape as round 284's own
    work.
-2. The two genuinely multi-round-scale effect-system gaps (passing a
+3. The two genuinely multi-round-scale effect-system gaps (passing a
    builtin as a function ARGUMENT; the dynamic call graph) remain
    untouched, unchanged in scope-assessment since round 270 — still
    correctly not attempted piecemeal.
-3. `check_round_recorded.py`'s `git_committed`-coverage gap (round 283's
+4. `check_round_recorded.py`'s `git_committed`-coverage gap (round 283's
    backlog item 3: it verifies SOME commit names round N in its subject,
    not that the commit covers round N's WHOLE diff) is still open —
-   deliberately deferred again this round in favor of the more
-   time-sensitive line-count item (a hard 500-line lint error would have
-   blocked ALL future edits to `SKILL.md`, including a future fix for this
-   item). A future skills(B) round should tighten `committed_per_git_log`
-   (check the commit's diff stat against files this round is known to have
-   changed, or track per-round "sessions" instead of a subject-line grep)
-   or formally document it as an accepted limitation in the function's own
-   docstring.
-4. `is_blocking_wait_kill`'s `min_gap_s` threshold headroom (round 283's
+   deliberately deferred again in favor of the skills(B) line-count item.
+   A future skills(B) round should tighten `committed_per_git_log` or
+   formally document it as an accepted limitation.
+5. `is_blocking_wait_kill`'s `min_gap_s` threshold headroom (round 283's
    backlog item 2) is an unrelated track, untouched this round.
-5. `SKILL.md` now has ~150 lines of headroom before the next B002 warning;
-   when it fills again, the 7 still-inline short pitfalls (the "diffing
-   only your own subsystem" through "leaving the same hole for your
-   successor" cluster) are the next candidates to condense-and-link, not
-   the ones already condensed this round.
+6. `SKILL.md` (session-inheritance-audit) has ~150 lines of headroom
+   before the next B002 warning; when it fills again, the 7 still-inline
+   short pitfalls are the next condense-and-link candidates.

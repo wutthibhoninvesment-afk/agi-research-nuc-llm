@@ -781,6 +781,26 @@ Known facts (measured 2026-08-24, E1 full curve — /work/logs/nuc-bench.md):
   completion handoff steps. Full writeup:
   `knowledge/round-274-nuc-e-r268-run-first-burst-caught-live-and-ssh-coincidence-refuted.md`.
 
+## Round 286 addendum (2026-08-28, box UP — SAME boot as rounds 208/214/226/232/238/244/256/262/268/274/280, uptime ~1d9h51m)
+
+- **Third mid-flight collection of round 268's 8h `swap_watch.py` run**
+  (pid 16184, started 16:18 UTC, still ~2h34m from planned 00:19 UTC
+  2026-08-29 completion at check time — not collected to completion,
+  same reasoning rounds 268/274/280 gave). Now 1298 samples (5.41h),
+  **4 bursts total** (round 280's 3 + a new 79.43 MB one at 21:32:28 UTC).
+- **Settled round 280's open "fixed ~135 MB quantum" question: no.** The
+  4th burst isn't a clean fraction of the first three's ~135.43 MB mean —
+  the earlier size clustering was coincidence, now confirmed with direct
+  evidence.
+- **New finding**: per-burst `pswpout_pages` (from `/proc/vmstat`, ×4096
+  byte page size) matches the cgroup's `memory.swap.current` delta
+  **exactly** for 3 of 4 bursts (ratio 1.0000) and near-exactly for the
+  4th (1.0065) — a finer-grained confirmation than rounds 262/268's prior
+  wide-window-only cross-check, using data every checkpoint already had
+  but no round had compared at single-burst granularity before. Full
+  writeup:
+  `knowledge/round-286-nuc-e-r268-run-fourth-burst-breaks-quantum-and-exact-pswpout-cross-check.md`.
+
 ## Done-criteria for any mission
 Code runs (proof in round file), measurements banked in both places,
 `state/nuc-missions.md` checkbox ticked with a one-line result summary.
