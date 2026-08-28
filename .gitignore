@@ -20,6 +20,14 @@ logs/driver_direct.log
 logs/round-*.json
 logs/nuc-llm-tunnel*
 
+# Per-round health-check output (round 241/247): reproducible by
+# re-running harness/run_tests_fast.sh or languages/whence/run_tests_fast.sh
+# directly, and driver.log already carries the PASS/FAIL summary line —
+# these full logs are diagnostic scratch, not source, growing one file per
+# round forever if left tracked.
+logs/health_round_*.log
+logs/whence_health_round_*.log
+
 # OS files
 .DS_Store
 Thumbs.db

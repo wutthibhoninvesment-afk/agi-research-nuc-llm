@@ -1,0 +1,154 @@
+"""End-to-end test for run_driver.sh's round-247 whence health check.
+
+Round 242 (language C) built `languages/whence/run_tests_fast.sh` (the
+same fast/slow-tiered shape round 235's `harness/run_tests_fast.sh`
+already used) and flagged, but deliberately did not wire in, an obvious
+follow-on: have `run_driver.sh` run it once per round too, alongside
+round 241's own `harness/run_tests_fast.sh` health check. This round
+builds that follow-on.
+
+Same discipline as `test_run_driver_health_check.py`: real `bash
+run_driver.sh` subprocesses (no unit-level shortcut), a real `claude`
+PATH stub, and a controlled fake `languages/whence/run_tests_fast.sh`
+planted in the tmp_path workspace. Covers: (1) the script absent
+entirely — the shape every OTHER `test_run_driver_*.py` file's tmp_path
+workspace already uses, proving their silence on this feature is real
+no-op behaviour; (2) present and passing; (3) present and failing; (4)
+both the harness AND whence health scripts present together, to prove
+the two checks are independent and neither's log line clobbers the
+other's.
+"""
+
+import os
+import shutil
+import stat
+import subprocess
+
+import pytest
+
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+DRIVER_SRC = os.path.join(REPO_ROOT, "run_driver.sh")
+
+# Same two-round shape as test_run_driver_health_check.py: round 1 succeeds,
+# round 2's status text contains "limit" so the outer driver stops cleanly
+# right after, keeping the real `bash run_driver.sh` subprocess well inside
+# the 45s wait.
+CLAUDE_STUB = r"""#!/usr/bin/env bash
+set -euo pipefail
+WS="$DRIVER_TEST_WS"
+COUNT_FILE="$WS/state/call_count"
+N=$(( $(cat "$COUNT_FILE" 2>/dev/null || echo 0) + 1 ))
+echo "$N" > "$COUNT_FILE"
+
+if [ "$N" -eq 1 ]; then
+  echo '{"type":"result","is_error":false,"subtype":"success","num_turns":1,"result":"ok","api_error_status":null,"total_cost_usd":0.01}'
+else
+  echo '{"type":"result","is_error":true,"subtype":"error_test","num_turns":1,"result":"test budget limit reached","api_error_status":"test_limit","total_cost_usd":0.01}'
+fi
+"""
+
+
+def _make_stub_bin(tmp_path):
+    bin_dir = os.path.join(str(tmp_path), "bin")
+    os.makedirs(bin_dir, exist_ok=True)
+    stub_path = os.path.join(bin_dir, "claude")
+    with open(stub_path, "w") as f:
+        f.write(CLAUDE_STUB)
+    st = os.stat(stub_path)
+    os.chmod(stub_path, st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+    return bin_dir
+
+
+def _make_script(ws, rel_dir, name, body):
+    target_dir = os.path.join(ws, rel_dir)
+    os.makedirs(target_dir, exist_ok=True)
+    script_path = os.path.join(target_dir, name)
+    with open(script_path, "w") as f:
+        f.write("#!/usr/bin/env bash\n" + body + "\n")
+    st = os.stat(script_path)
+    os.chmod(script_path, st.st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+    return script_path
+
+
+def _run_driver(tmp_path):
+    ws = str(tmp_path)
+    os.makedirs(os.path.join(ws, "state"), exist_ok=True)
+    os.makedirs(os.path.join(ws, "logs"), exist_ok=True)
+    driver_copy = os.path.join(ws, "run_driver.sh")
+    shutil.copyfile(DRIVER_SRC, driver_copy)
+    os.chmod(driver_copy, 0o755)
+
+    bin_dir = _make_stub_bin(tmp_path)
+    env = dict(os.environ)
+    env["PATH"] = bin_dir + os.pathsep + env["PATH"]
+    env["DRIVER_WS"] = ws
+    env["DRIVER_TEST_WS"] = ws
+    env["DRIVER_LOOP_SLEEP_S"] = "0"
+    env["DRIVER_CLAUDE_CMD"] = "claude"
+    env["PYTHONPATH"] = REPO_ROOT + os.pathsep + env.get("PYTHONPATH", "")
+
+    proc = subprocess.Popen(
+        ["bash", driver_copy], cwd=REPO_ROOT, env=env,
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+    try:
+        proc.wait(timeout=45)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait(timeout=5)
+        pytest.fail("driver did not stop within 45s — stub's round-2 "
+                    "'limit' status should have triggered a clean break")
+
+    driver_log = os.path.join(ws, "logs", "driver.log")
+    with open(driver_log) as f:
+        return f.read()
+
+
+def test_whence_health_check_skipped_when_script_absent(tmp_path):
+    # No languages/ tree at all — the exact shape every other
+    # test_run_driver_*.py file's tmp_path workspace already uses. Proves
+    # that shape's silence on this feature is real no-op behaviour
+    # (guarded on the script's existence), not an untested assumption.
+    log_text = _run_driver(tmp_path)
+    assert ": whence-health-check" not in log_text, log_text
+
+
+def test_whence_health_check_pass_logged_when_script_succeeds(tmp_path):
+    _make_script(
+        str(tmp_path), os.path.join("languages", "whence"),
+        "run_tests_fast.sh", 'echo "840 passed, 35 deselected in 23.26s"\nexit 0',
+    )
+    log_text = _run_driver(tmp_path)
+    assert "round 1: whence-health-check PASS (840 passed, 35 deselected in 23.26s)" in log_text, log_text
+
+
+def test_whence_health_check_fail_logged_when_script_fails(tmp_path):
+    _make_script(
+        str(tmp_path), os.path.join("languages", "whence"),
+        "run_tests_fast.sh",
+        'echo "1 failed, 839 passed in 23.00s"\necho "FAILED tests/test_x.py::test_y"\nexit 1',
+    )
+    log_text = _run_driver(tmp_path)
+    assert "round 1: whence-health-check FAIL" in log_text, log_text
+    assert "FAILED tests/test_x.py::test_y" in log_text, log_text
+
+
+def test_both_health_checks_run_independently_when_both_scripts_present(tmp_path):
+    # Round 241's harness/run_tests_fast.sh check and this round's whence
+    # one must not clobber each other's log line or log file — both
+    # PASS/FAIL lines must appear, each with its own tail-of-output.
+    _make_script(
+        str(tmp_path), "harness", "run_tests_fast.sh",
+        'echo "373 passed, 176 deselected in 33.54s"\nexit 0',
+    )
+    _make_script(
+        str(tmp_path), os.path.join("languages", "whence"),
+        "run_tests_fast.sh", 'echo "840 passed, 35 deselected in 23.26s"\nexit 0',
+    )
+    log_text = _run_driver(tmp_path)
+    assert "round 1: health-check PASS (373 passed, 176 deselected in 33.54s)" in log_text, log_text
+    assert "round 1: whence-health-check PASS (840 passed, 35 deselected in 23.26s)" in log_text, log_text
+
+    ws = str(tmp_path)
+    assert os.path.isfile(os.path.join(ws, "logs", "health_round_1.log"))
+    assert os.path.isfile(os.path.join(ws, "logs", "whence_health_round_1.log"))

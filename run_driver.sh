@@ -22,7 +22,7 @@ export PATH="$PATH:/home/pgain/agi-research-nuc-llm/node_modules/.bin"
 # "$@"` at the loop's end below), this now reliably reflects the ON-DISK
 # script content for every round it produced, including rounds after a
 # mid-run edit — round 139's live driver could not make that claim.
-DRIVER_VERSION="241-per-round-health-check"
+DRIVER_VERSION="247-whence-health-check"
 
 # Round 157: a manual post-migration edit (made outside any round,
 # between the Mac->NUC sync commit c768d90 and round 154) hardcoded this
@@ -377,6 +377,27 @@ update research-state.md. Be relentless and thorough — this is deep research, 
       log "round $ROUND: health-check PASS ($(tail -n 1 "$HEALTH_LOG" | tr -d '\r'))"
     else
       log "round $ROUND: health-check FAIL — $(tail -n 5 "$HEALTH_LOG" | tr '\n' ' ')"
+    fi
+  fi
+
+  # Round 247: same shape, second track. Round 242 (language C) built
+  # `languages/whence/run_tests_fast.sh` (840/875 tests, ~23s, vs. 404s+ for
+  # the full whence suite) and flagged, but did not wire in, this exact
+  # follow-on — "round 241's health-check design is harness(A)'s own
+  # artifact" (round 242's own knowledge file §6). Separate log line
+  # ("whence-health-check", not "health-check") and separate per-round log
+  # file so the two checks never collide or overwrite each other; same
+  # guarded-on-existence, diagnostic-only, never-blocks design as the
+  # harness check above — a tmp_path e2e test workspace with no
+  # `languages/` tree at all (every existing test_run_driver_*.py test)
+  # no-ops here exactly as it already does for the harness check.
+  WHENCE_HEALTH_SCRIPT="$WS/languages/whence/run_tests_fast.sh"
+  if [ -f "$WHENCE_HEALTH_SCRIPT" ]; then
+    WHENCE_HEALTH_LOG="$WS/logs/whence_health_round_${ROUND}.log"
+    if bash "$WHENCE_HEALTH_SCRIPT" > "$WHENCE_HEALTH_LOG" 2>&1; then
+      log "round $ROUND: whence-health-check PASS ($(tail -n 1 "$WHENCE_HEALTH_LOG" | tr -d '\r'))"
+    else
+      log "round $ROUND: whence-health-check FAIL — $(tail -n 5 "$WHENCE_HEALTH_LOG" | tr '\n' ' ')"
     fi
   fi
 
