@@ -25,7 +25,18 @@ Usage:
         [--since N]
 
 Exit codes: 0 = every round the driver log shows starting also has a
-research-state.md entry; 1 = at least one gap found; 2 = usage/IO problem.
+research-state.md entry, AND driver.log's own round-number sequence has no
+holes; 1 = at least one gap found (either shape); 2 = usage/IO problem.
+
+Round 259 added a second, structurally distinct gap shape:
+`missing_round_numbers` flags a round number that `run_driver.sh`'s own
+counter (`state/round_counter`) consumed but that never logged so much as
+a `round N track=... start` line in `logs/driver.log` — confirmed live for
+round 229 (root cause unconfirmed). Every other check in this file starts
+from `parse_driver_log`'s output, so a round with NO driver-log line at
+all is invisible to them; this is the one check that looks at driver.log's
+own round-number sequence instead of cross-referencing it against
+something else.
 
 Each reported gap also carries `git_committed` (True/False/None): a
 best-effort `git log --all --oneline` grep for "round N" in a commit
@@ -96,6 +107,38 @@ def parse_driver_log(path):
                 detail = m.group(3) or m.group(2)
                 rounds[n]["status"] = detail
     return rounds
+
+
+def missing_round_numbers(driver_rounds, since=0):
+    """Return sorted round numbers with NO `round N track=... start` (or
+    status) line anywhere in driver.log, despite sitting strictly between
+    two round numbers that DO have one — a structurally different gap
+    shape than everything else this script checks (a round WITH a
+    driver-log entry but no research-state.md entry). `parse_driver_log`
+    can only ever report a round it found a log line for; a round number
+    that gets consumed by `run_driver.sh`'s own counter
+    (`state/round_counter`) but never logs even its own start line is
+    invisible to every other function here — there is nothing to look up
+    a research-state.md entry FOR.
+
+    Confirmed live: round 229 (round_counter jumped 228->230 between two
+    consecutive driver.log lines 45s apart, with zero `round 229 ...`
+    lines of any kind, no `logs/round-229.json`, and no lock-contention
+    message anywhere in driver.log for that window — root cause
+    unconfirmed; see `knowledge/round-259-*.md`). This is the only such
+    gap across the full 152-259 history on record as of round 259.
+
+    Only checks the RANGE actually present in `driver_rounds` (there is
+    no signal at all below its own minimum or above its own maximum, so
+    nothing to compare against there); honors `since` as a post-filter,
+    same "ignore rounds numbered below this" semantics the rest of this
+    script already uses.
+    """
+    nums = sorted(driver_rounds)
+    if not nums:
+        return []
+    lo, hi = nums[0], nums[-1]
+    return [n for n in range(lo, hi + 1) if n not in driver_rounds and n >= since]
 
 
 def recorded_rounds(state_path, archive_paths=()):
@@ -282,6 +325,10 @@ def main():
     state_rounds = recorded_rounds(args.state, archive_paths)
     know_rounds = knowledge_rounds(args.knowledge_dir)
 
+    seq_gaps = missing_round_numbers(driver_rounds, args.since)
+    seq_ack_hits = [(n, acknowledged[n]) for n in seq_gaps if n in acknowledged]
+    seq_unacked = [n for n in seq_gaps if n not in acknowledged]
+
     gaps = []
     ack_hits = []
     for n in sorted(driver_rounds):
@@ -313,19 +360,33 @@ def main():
         else:
             gaps.append(g)
 
-    if args.show_acknowledged and ack_hits:
+    if args.show_acknowledged and (ack_hits or seq_ack_hits):
         print("check_round_recorded: %d round(s) are known gaps, already "
               "verified and acknowledged in %s (not counted below):"
-              % (len(ack_hits), args.ack_file))
+              % (len(ack_hits) + len(seq_ack_hits), args.ack_file))
         for g, reason in ack_hits:
             print("  round %s: %s" % (g["round"], reason))
+        for n, reason in seq_ack_hits:
+            print("  round %s (sequence gap): %s" % (n, reason))
 
-    if not gaps:
-        suffix = (" (%d pre-acknowledged, see %s)" % (len(ack_hits), args.ack_file)
-                   if ack_hits else "")
+    if seq_unacked:
+        print("check_round_recorded: %d round-number sequence gap(s) in "
+              "driver.log itself — a round number was consumed but never "
+              "logged even a start/status line (a different shape than "
+              "the research-state.md checks below; see "
+              "missing_round_numbers docstring): %s"
+              % (len(seq_unacked), ", ".join(str(n) for n in seq_unacked)))
+
+    if not gaps and not seq_unacked:
+        n_ack = len(ack_hits) + len(seq_ack_hits)
+        suffix = (" (%d pre-acknowledged, see %s)" % (n_ack, args.ack_file)
+                   if n_ack else "")
         print("check_round_recorded: every driver-log round has a "
               "research-state.md entry (0 gaps)%s" % suffix)
         return 0
+
+    if not gaps:
+        return 1
 
     print("check_round_recorded: %d round(s) ran per the driver log with "
           "NO research-state.md entry (%d more pre-acknowledged, see %s):"

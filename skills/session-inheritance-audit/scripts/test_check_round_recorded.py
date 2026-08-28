@@ -450,3 +450,134 @@ def test_end_to_end_acknowledged_gap_shown_with_flag(tmp_path):
     assert rc.returncode == 0
     assert "round 1: verified no surviving diff" in rc.stdout
     assert "0 gaps" in rc.stdout
+
+
+def test_missing_round_numbers_empty_for_contiguous_rounds():
+    driver_rounds = {5: {}, 6: {}, 7: {}}
+    assert m.missing_round_numbers(driver_rounds) == []
+
+
+def test_missing_round_numbers_empty_for_no_rounds():
+    assert m.missing_round_numbers({}) == []
+
+
+def test_missing_round_numbers_finds_a_single_hole():
+    # The real round-229 shape: 228 and 230 both have driver.log lines,
+    # 229 has none at all.
+    driver_rounds = {228: {}, 230: {}}
+    assert m.missing_round_numbers(driver_rounds) == [229]
+
+
+def test_missing_round_numbers_finds_multiple_holes():
+    driver_rounds = {10: {}, 15: {}}
+    assert m.missing_round_numbers(driver_rounds) == [11, 12, 13, 14]
+
+
+def test_missing_round_numbers_respects_since():
+    driver_rounds = {10: {}, 15: {}, 20: {}}
+    assert m.missing_round_numbers(driver_rounds, since=13) == [13, 14, 16, 17, 18, 19]
+
+
+def test_end_to_end_reports_sequence_gap_and_exits_nonzero(tmp_path):
+    driver_log = tmp_path / "driver.log"
+    _write_driver_log(str(driver_log), [
+        "[t] round 228 track=language(C) start (driver_version=x) pid=1",
+        "[t] round 228: success",
+        "[t] round 230 track=language(C) start (driver_version=x) pid=1",
+        "[t] round 230: success",
+    ])
+    state = tmp_path / "state.md"
+    state.write_text(
+        "### Round 228 — language(C) — 2026-08-28\n- ok\n"
+        "### Round 230 — language(C) — 2026-08-28\n- ok\n"
+    )
+    rc = subprocess.run(
+        [sys.executable, SCRIPT,
+         "--driver-log", str(driver_log),
+         "--state", str(state),
+         "--archive", str(tmp_path / "no-archive.md"),
+         "--ack-file", str(tmp_path / "no-ack.json"),
+         "--knowledge-dir", str(tmp_path / "knowledge_missing"),
+         "--round-logs-dir", str(tmp_path / "logs_missing")],
+        capture_output=True, text=True,
+    )
+    # Both 228 and 230 are fully recorded (no research-state.md gap), but
+    # 229 itself never logged anything at all — a hole in driver.log's own
+    # round-number sequence, invisible to the research-state.md-based
+    # check, still nonzero exit.
+    assert rc.returncode == 1
+    assert "sequence gap" in rc.stdout
+    assert "229" in rc.stdout
+    assert "0 gaps" not in rc.stdout
+
+
+def test_end_to_end_acknowledged_sequence_gap_suppressed_by_default(tmp_path):
+    driver_log = tmp_path / "driver.log"
+    _write_driver_log(str(driver_log), [
+        "[t] round 228 track=language(C) start (driver_version=x) pid=1",
+        "[t] round 228: success",
+        "[t] round 230 track=language(C) start (driver_version=x) pid=1",
+        "[t] round 230: success",
+    ])
+    state = tmp_path / "state.md"
+    state.write_text(
+        "### Round 228 — language(C) — 2026-08-28\n- ok\n"
+        "### Round 230 — language(C) — 2026-08-28\n- ok\n"
+    )
+    ack = tmp_path / "ack.json"
+    ack.write_text(json.dumps({"229": "sequence gap, root cause unconfirmed"}))
+
+    rc = subprocess.run(
+        [sys.executable, SCRIPT,
+         "--driver-log", str(driver_log),
+         "--state", str(state),
+         "--archive", str(tmp_path / "no-archive.md"),
+         "--ack-file", str(ack),
+         "--knowledge-dir", str(tmp_path / "knowledge_missing"),
+         "--round-logs-dir", str(tmp_path / "logs_missing")],
+        capture_output=True, text=True,
+    )
+    assert rc.returncode == 0
+    assert "0 gaps" in rc.stdout
+    assert "1 pre-acknowledged" in rc.stdout
+
+    rc_shown = subprocess.run(
+        [sys.executable, SCRIPT,
+         "--driver-log", str(driver_log),
+         "--state", str(state),
+         "--archive", str(tmp_path / "no-archive.md"),
+         "--ack-file", str(ack),
+         "--show-acknowledged",
+         "--knowledge-dir", str(tmp_path / "knowledge_missing"),
+         "--round-logs-dir", str(tmp_path / "logs_missing")],
+        capture_output=True, text=True,
+    )
+    assert rc_shown.returncode == 0
+    assert "round 229 (sequence gap): sequence gap, root cause unconfirmed" in rc_shown.stdout
+
+
+def test_real_repo_acknowledges_round_229_sequence_gap():
+    # Guards the live artifact this round shipped alongside the code
+    # change: a fresh run against the REAL repo's driver.log/ack-file must
+    # show round 229 as a pre-acknowledged sequence gap, not a live,
+    # unacknowledged one — this is the actual case that motivated
+    # missing_round_numbers, not just a synthetic fixture. Deliberately
+    # does NOT assert an overall 0-gap/0-exit-code outcome: the round
+    # CURRENTLY running (its own research-state.md entry not written yet)
+    # will itself transiently read as an unrelated, unacknowledged
+    # research-state.md gap every time this test runs mid-round — that's
+    # expected and out of scope here (see run_driver.sh's own comment on
+    # why the record-gap check runs before a round's start line is
+    # logged); only the sequence-gap handling for round 229 specifically
+    # is under test.
+    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
+    rc = subprocess.run(
+        [sys.executable, SCRIPT, "--show-acknowledged"],
+        capture_output=True, text=True, cwd=repo_root,
+    )
+    assert "round 229 (sequence gap):" in rc.stdout
+    # Round 229 must not appear in the live, unacknowledged sequence-gap
+    # line even if OTHER unrelated gaps make the overall exit code 1.
+    for line in rc.stdout.splitlines():
+        if "round-number sequence gap(s)" in line:
+            assert "229" not in line
