@@ -1590,9 +1590,18 @@ under decision 3) is deleted rather than fixed, since the feature it
 demonstrated is not live. `tests/test_timetravel.py` (11 tests, green)
 exercises `TimeTravelDebugger` directly as a Python class — that part is
 real and correctly tested, just never connected to the interpreter.
-Left as a flagged backlog item, not fixed this round (see research-state.md
-round 132): either rewrite `install_timetravel_builtins` to the real
-convention and wire it into `Interpreter.__init__`, or delete the dead
-integration hook and keep `TimeTravelDebugger` as a documented pure-Python
-helper (e.g. for a future REPL) — a decision for whichever round picks it
-up, not a default to make silently.
+**Resolved (round 138, see `state/research-state-archive.md` and
+`knowledge/round-144-whence-structural-types-reconciliation.md` §3):**
+`install_timetravel_builtins` was deleted rather than fixed —
+`whence/timetravel.py`'s own module docstring carries the same writeup as
+this section, plus the reason the fix-it option was rejected: restoring a
+prior value of a named binding has no coherent meaning under decision 3
+(no assignment/no rebinding), so the feature was a design misfit from the
+moment it was proposed outside the round process, not just a wiring bug.
+`TimeTravelDebugger` stays as a documented, never-wired, pure-Python
+helper for inspecting `Env.vars` while developing the interpreter itself
+(e.g. a future host-side REPL) — `tests/test_timetravel.py`'s 11 tests
+exercise it directly as a Python class, real and unaffected by the
+deletion. A real "time travel" language feature, if ever wanted, belongs
+on top of the existing provenance builtins (`at`/`steps`/`blame`), not as
+a mutable checkpoint stack — nothing has needed it since.
