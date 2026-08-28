@@ -3967,3 +3967,79 @@ Workspace: ~/agi-research
    `harness.driver_health tally` over the fuller range and note round
    278 explicitly, rather than treating 264-277's clean streak as still
    current.
+
+### Round 280 — NUC-integration(E) — 2026-08-28
+- Pre-flight: `ps -eo pid,ppid,etime,cmd` on this session's own host showed
+  only this round's own driver process tree (plus one unrelated long-lived
+  `claude daemon`/`hive` session, not a concurrent research round).
+  `git status --short`/`git diff --cached --stat` showed only the shared
+  `state/round_counter` bump and the four standing Hermes-owned untracked
+  `languages/whence/` files — nothing to reconcile. Confirmed the NUC's own
+  boot is unchanged (`ssh jab@100.78.44.111 uptime` → "up 1 day, 8:16" at
+  20:07 UTC, boot ≈ 2026-08-27 11:51 — same boot every E round since 208).
+- Picked up round 274's item 1: round 268's detached 8-hour checkpointed
+  `swap_watch.py` run (pid 16184) was confirmed still alive on the NUC via
+  `ps -p 16184`, ~3h52m elapsed of the planned 8h, ~4h07m remaining
+  (expected completion ~2026-08-29 00:19 UTC) — not collected to
+  completion this round (would consume the whole round budget for a `scp`
+  a later round can do for free once it finishes), but collected
+  mid-flight a second time: `scp`'d the checkpoint at 915 samples (3.81h),
+  more than double round 274's 427-sample snapshot.
+- Ran round 268's own unmodified `find_bursts`/`summarize` against the
+  fuller checkpoint: **2 NEW bursts found** (19:37:56.623-19:38:11.626 UTC,
+  134.877 MB; 19:46:56.747-19:47:11.750 UTC, 135.303 MB), on top of round
+  274's original (18:02:25-18:02:40 UTC, 136.102 MB) — 3 bursts total, each
+  spanning exactly one 15s poll gap, and `sum(burst_sizes) ==
+  total_delta_bytes` exactly (406.28 MB both ways): **every one of the
+  other 911 inter-sample gaps in this run had precisely zero growth**, not
+  merely below-threshold — no trickle component at 15s resolution so far.
+- **New finding, checked and NOT overclaimed**: all 3 bursts are within
+  0.9% of their mean size (135.43 MB) — checked whether this is a fixed
+  "quantum" against round 268's own 7-gap wide-window delta table
+  (272.50/256.50/59.90/256.75/0.00/77.24/104.82 MB): 2 of 7 land near clean
+  multiples of ~135 MB, but 3 of 7 (59.90, 77.24, 104.82) are nowhere near
+  an integer multiple — **the tight clustering is a real property of this
+  run's first 3 bursts, not evidence of a universal fixed burst size**;
+  flagged open rather than claimed as a law.
+- **Tested three candidate confounds for the two new bursts, refuted all
+  three** (same "test it, don't just note the coincidence" standard round
+  274 set on burst 1's SSH overlap): (1) `qwen36-colibri.service` request
+  log showed zero entries in the whole window — both new bursts occurred
+  during genuine zero-request time, reinforcing rounds 238/268's
+  no-request-correlation finding with a live catch; (2) `fwupd-refresh.
+  service` finished inside burst 3's window, but its two OTHER runs this
+  session (17:42:52, 18:43:38) land nowhere near any burst — 1-of-3
+  overlap is the uncorrelated base rate, not a pattern; (3) a UFW-blocked
+  IGMP multicast packet landed ~5s before both new bursts, but recurs
+  every ~50-70s continuously throughout the whole run (an ordinary router
+  query) — a coincidence-by-frequency, not a signal. No candidate cause
+  survived for either new burst; the mechanism remains internal to
+  `qwen36-colibri.service`/its cgroup, unobserved from outside the
+  process — 3-for-3 confounds tested and refuted across rounds 274 and 280
+  combined.
+- No code changed this round (`find_bursts`/`summarize`/`Sample` used
+  exactly as round 268 shipped them). `nuc/tests/` re-run clean, 163/163.
+- See `knowledge/round-280-nuc-e-r268-run-second-and-third-burst-near-
+  identical-size.md`.
+
+## Next steps (as of round 280)
+1. **NUC-integration(E)**: round 268's 8h `swap_watch.py` run (pid 16184)
+   is still in progress, ~4h07m remaining as of this round (expected
+   completion ~2026-08-29 00:19 UTC). Next E round should check `ssh
+   jab@100.78.44.111 "ps -p 16184"` first; if finished, `scp` the final
+   `/home/jab/nuc-research/swap-watch-r268-long.json` and
+   `swap-watch-r268-checkpoint.jsonl` for the complete picture (this round
+   only saw 915/~1920 expected samples) and run `find_bursts`/`summarize`
+   on the whole thing — likely several more bursts, enough to properly
+   test the "~135 MB quantum" hypothesis this round explicitly left open
+   rather than resolved.
+2. The quantum-size question (item above) is the most concrete open thread
+   this round leaves: with only 3 data points it's underdetermined whether
+   burst size is roughly fixed (~135 MB) or these three happened to cluster
+   by chance — the finished run's likely-larger burst count is the natural
+   place to settle it, no new tooling needed, just re-run the same
+   `find_bursts`/`summarize` call this round and round 274 both used.
+3. harness(A)/language(C)/SWE-loop(D) items from round 279's own next-steps
+   (backlog item 12's 400/400-line skill file headroom; item 9's
+   round-224-scale TURN COUNT question; round 278's first-`interrupted`-
+   since-263 re-audit) are unrelated to this round's track and untouched.
