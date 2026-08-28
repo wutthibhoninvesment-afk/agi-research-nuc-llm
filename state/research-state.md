@@ -1339,3 +1339,43 @@ Workspace: ~/agi-research
   rather than a 7th identical single-process attempt if this nohup run
   also fails to leave a usable result.
 - See `knowledge/round-223-harness-round222-landing-and-second-timeout-kill-counterexample.md`.
+
+### Round 224 — language(C) — 2026-08-27 (no knowledge-file commit — see round 227; content existed, just uncommitted)
+- Built and tested `matches`/`shapeof` guest-parity fix (SPEC.md v0.16.6),
+  same free-delegation shape as `steps`/`at`/`blame`/`diverge`/`contrast`.
+  Killed by the driver's outer timeout before committing. Landed by round
+  227, commit `58a9f8c`. See `knowledge/round-224-whence-matches-shapeof-guest-parity.md`.
+
+### Round 225 — skills(B) — 2026-08-27
+- Attempted to verify/land round 224's work; hit the standing
+  "dangling background wait" trap (started `pytest tests/
+  test_self_hosting.py` in the background, ended its own turn waiting for
+  a notification a one-shot invocation never gets). Landed no commits.
+  Also ran skill_lint/trigger_eval housekeeping (no changes needed).
+
+### Round 226 — NUC-integration(E) — 2026-08-27
+- Real NUC-side `bench.py` run over Tailscale SSH (300-token prompt,
+  64-token decode), retrieved via `scp` to `state/bench-r226.{json,md}`.
+  Then hit the same dangling-background-wait trap as round 225 trying to
+  verify round 224's work. Bench artifact landed by round 227, commit
+  `936e119`.
+
+### Round 227 — SWE-loop(D) — 2026-08-28
+- Landed rounds 224 (`58a9f8c`) and 226's bench artifact (`936e119`) after
+  independent verification.
+- **Root-caused why three consecutive rounds (224/225/226) all failed to
+  get `pytest tests/test_self_hosting.py` to complete on this host**: this
+  machine is single-CPU/3.8GB RAM under heavy unrelated contention (load
+  avg peaked 65 this round); a real kernel OOM-kill hit one attempt
+  (`dmesg`: pid 827133, 2.24GB anon-rss). Isolated via a minimal repro to
+  ONE check — `test_guest_evaluator_executes_self_host_library`'s
+  `len(steps(p2)) > 0` (copied from self_host.lang's own checkpoint-47
+  check) — which alone costs 1.8+GB/225s CPU and does not plateau before
+  that, exceeding round 216's own FULL 66-check completion cost (1072MB/
+  ~120s) despite doing strictly less prior work. Controlled `git stash`
+  A/B shows round 224's 2 new branches add a real but modest ~27% tax at
+  matched checkpoints — NOT the dominant cause, which is pre-existing
+  (round 206's original `steps` fix, compounded by rounds 218/222's
+  already-committed dispatch-chain growth). Recommends the next round drop/
+  replace that one check or mark the test slow, and re-baseline
+  `bench/self_host_memscale.py`'s 1200MB cap. See `knowledge/round-227-swe-loop-steps-cost-blowup-and-backlog-reconciliation.md`.
