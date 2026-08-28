@@ -770,6 +770,124 @@ def test_three_way_field_call_via_record_literal():
         'let result = f()\n')
 
 
+# --- v0.14.6: RETURN-value flow through a field call (`box.run()(...)`) ----
+
+def test_field_return_chain_is_checked():
+    """`let box = @{run: get_printer}` then `box.run()(1)` inside
+    `effects []` is now a ParseError — `box`'s `run` field is tracked
+    (`Parser._resolve_effectful_field_return`) as a return-carrier (calling
+    it yields `get_printer`'s own tracked return fact), so the SECOND
+    application is checked exactly as `get_printer()(1)` (v0.14.3) would
+    be. The FIRST application (`box.run()` itself) is a plain call on an
+    ordinary callable value, not flagged on its own."""
+    with pytest.raises(ParseError) as ei:
+        parse(
+            'fn get_printer() effects [] {\n'
+            '  print\n'
+            '}\n'
+            'fn f() effects [] {\n'
+            '  let box = @{run: get_printer}\n'
+            '  box.run()(1)\n'
+            '}\n')
+    assert "'box.run()' requires effect 'io'" in str(ei.value)
+
+
+def test_field_return_chain_granted_when_effect_allowed():
+    all_ok(
+        'fn get_printer() effects [] {\n'
+        '  print\n'
+        '}\n'
+        'fn f() effects [io] {\n'
+        '  let box = @{run: get_printer}\n'
+        '  box.run()(1)\n'
+        '}\n'
+        'check "ok": f() == 1\n')
+
+
+def test_field_return_chain_and_field_direct_alias_are_independent():
+    """A single record literal can carry BOTH a direct-alias field
+    (v0.14.4) and a return-carrier field (v0.14.6) at once — the two dicts
+    (`field_alias_scopes`/`field_return_alias_scopes`) are built from the
+    same bare-NameRef field values but resolved independently, so tracking
+    one never affects the other."""
+    with pytest.raises(ParseError) as ei:
+        parse(
+            'fn get_printer() effects [] {\n'
+            '  print\n'
+            '}\n'
+            'fn f() effects [io] {\n'
+            '  let box = @{direct: print, chained: get_printer}\n'
+            '  box.direct(1)\n'
+            '  box.chained()(2)\n'
+            '}\n'
+            'fn g() effects [] {\n'
+            '  let box = @{direct: print, chained: get_printer}\n'
+            '  box.chained()(2)\n'
+            '}\n')
+    assert "'box.chained()' requires effect 'io'" in str(ei.value)
+
+
+def test_field_return_chain_field_value_that_is_not_a_return_carrier():
+    """A field whose bare-NameRef value is an ordinary (non-return-tracked)
+    fn resolves to `None` in `field_return_alias_scopes` — calling through
+    it twice is not restricted, same as `test_non_effectful_field_is_not_
+    flagged` for the single-hop case."""
+    all_ok(
+        'fn f() effects [] {\n'
+        '  fn make_adder() { fn(x) { x + 1 } }\n'
+        '  let box = @{run: make_adder}\n'
+        '  box.run()(5)\n'
+        '}\n'
+        'check "ok": f() == 6\n')
+
+
+def test_field_return_chain_of_a_non_literal_binding_is_not_tracked():
+    """Same "one hop, literal-binding-only" discipline as `test_field_of_a_
+    non_literal_binding_is_not_tracked`: a record returned from a call
+    (even one whose own field is a return-carrier) is invisible."""
+    all_ok(
+        'fn get_printer() effects [] {\n'
+        '  print\n'
+        '}\n'
+        'fn make_box() { @{run: get_printer} }\n'
+        'fn f() effects [] {\n'
+        '  let box = make_box()\n'
+        '  box.run()(1)\n'
+        '}\n'
+        'check "ok": f() == 1\n')
+
+
+def test_inner_record_of_same_name_shadows_outer_field_return_alias():
+    """An inner block's OWN `let box = @{...}` shadows an outer record of
+    the same name for the return-carrier fact too, the same way v0.14.4
+    already established for the direct-alias fact."""
+    all_ok(
+        'fn get_printer() effects [] {\n'
+        '  print\n'
+        '}\n'
+        'fn f() effects [] {\n'
+        '  let box = @{run: get_printer}\n'
+        '  {\n'
+        '    fn make_adder() { fn(x) { x + 1 } }\n'
+        '    let box = @{run: make_adder}\n'
+        '    box.run()(5)\n'
+        '  }\n'
+        '}\n'
+        'check "ok": f() == 6\n')
+
+
+def test_three_way_field_return_chain():
+    assert_three_way(
+        'fn get_printer() effects [] {\n'
+        '  print\n'
+        '}\n'
+        'let box = @{run: get_printer}\n'
+        'fn f() effects [io] {\n'
+        '  box.run()(1)\n'
+        '}\n'
+        'let result = f()\n')
+
+
 # --- outer restriction still applies to the outer function's OWN body ------
 
 def test_effects_empty_still_allows_non_print_calls():

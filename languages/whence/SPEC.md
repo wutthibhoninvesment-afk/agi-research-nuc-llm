@@ -1298,7 +1298,86 @@ that cannot end a statement.
   corpus. Fixing it needs a new GENERATOR expression shape, not a checker
   change — named here so a future round doesn't rediscover it as a
   mystery (the fourth round in a row to note this same class of gap for
-  its own new shape).
+  its own new shape). **Closed by round 278/279's landed diff** (see
+  round 278's own entry in `state/research-state.md`) — `ProgramGen` now
+  covers this shape along with v0.14.3/v0.14.4's.
+
+## v0.14.6 (round 282) — effect system: RETURN-value flow through a field call
+
+- **Closes the specific slice of v0.14.4's own documented gap named but not
+  touched**: "a field whose value is itself a call/alias chain is
+  invisible" — closed here for the case where the field's bare-NameRef
+  value is itself a return-carrier (a fn tracked, per v0.14.3, to
+  tail-return an effectful alias). `let box = @{run: get_printer}` then
+  `box.run()(1)` — TWO applications, the FIRST (`box.run()`) itself
+  invoking whatever `get_printer` was tracked to return — is now checked
+  exactly as `get_printer()(1)` (v0.14.3) would be. The mirror-image
+  extension is exactly what its name suggests: v0.14.3 added a RETURN
+  fact for bare names, v0.14.4 added a FIELD fact for direct aliases,
+  this round adds the missing fourth combination, a FIELD fact for return
+  aliases.
+- **Mechanism**: `Parser.field_return_alias_scopes` — a FOURTH stack, the
+  exact same shape and three push/pop sites as the other three
+  (`stmt_list`, and both fn-parameter scopes). Built at the same `let
+  name = @{...}` LITERAL site `field_alias_scopes` already inspects, from
+  the SAME bare-NameRef field values, just resolved through
+  `_resolve_effectful_return` instead of `_resolve_effectful_alias` — the
+  two dicts are independent (a field can be a direct alias, a
+  return-carrier, both, or neither;
+  `test_field_return_chain_and_field_direct_alias_are_independent` pins
+  this). `_resolve_effectful_field_return(name, field)` mirrors the other
+  three resolvers exactly: innermost-first, first-frame-wins walk on
+  `name`, then a plain `.get(field)` within the winning frame's dict.
+- **`_check_effect_call` gained a fourth branch**: a callee that is a
+  `Call` whose own `.fn` is a `FieldAccess` on a NameRef resolves through
+  `_resolve_effectful_field_return` — sitting alongside the existing
+  direct-name, chained-call-return, and direct-field branches, all four
+  feeding the same `effects_stack`-comparison logic unchanged. The FIRST
+  application (`box.run()` on its own) is still checked, separately and
+  independently, by the pre-existing direct-field branch (v0.14.4) —
+  `box.run` itself is not tracked as effectful here, only calling its
+  result is.
+- **Shadowing is handled correctly, the same discipline v0.14.2/v0.14.3/
+  v0.14.4/v0.14.5 established**: every `let`/named-`fn`/parameter binding
+  writes an explicit entry into ALL FOUR stacks (even `None`)
+  (`test_inner_record_of_same_name_shadows_outer_field_return_alias`).
+- **Still deliberately narrow, same mold as v0.14.4**: only a record
+  built directly by a `let`-LITERAL is tracked
+  (`test_field_return_chain_of_a_non_literal_binding_is_not_tracked`); a
+  field value that resolves to `None` in `return_alias_scopes` (an
+  ordinary, non-return-tracked fn) leaves the field-return fact at `None`
+  too (`test_field_return_chain_field_value_that_is_not_a_return_carrier`).
+  Passing a builtin as a FUNCTION ARGUMENT and the dynamic call graph
+  remain completely untouched, unchanged from v0.14.4/v0.14.5's own
+  "still open" notes — this round is a fourth combination of the SAME
+  four building blocks (direct/return x bare-name/field), not a step
+  toward either of those two genuinely multi-round-scale items.
+- **Verification**: `tests/test_v14.py` 58/58 (was 51; 7 new tests: the
+  chained-field-call check itself [checked + granted], independence from
+  the direct-alias field dict, a non-return-carrier field value is not
+  tracked, the non-literal-binding boundary, inner-record shadowing, one
+  new three-way differential pin). `languages/whence/run_tests_fast.sh`
+  888 passed/38 deselected (was 881 going into this round — round 278's
+  fuzz-coverage diff, landed by round 279, had already moved the fast-tier
+  count from 880 to 881 with zero `test_v14.py` tests of its own; +7 this
+  round matches `test_v14.py`'s own net delta exactly). Full unfiltered
+  `pytest tests/` also run this round (`parser.stmt_list`/`statement` sit
+  on every block-parse path, not just effects-declared code) — see
+  `knowledge/round-282-whence-v0146-effect-field-return-chain.md` for the
+  exact count and any regressions found.
+- **Guest parity**: same reasoning as v0.14.2/v0.14.3/v0.14.4/v0.14.5, for
+  the same underlying cause — `print` is in `harness/swe/guest.py`'s
+  `BANNED` regex, so any guest-oracle fuzz program mentioning it anywhere
+  is short-circuited to `parse_error` before either interpreter runs it;
+  not something this round needed to re-verify.
+- **Fuzz coverage — same honest gap as v0.14.2/v0.14.3/v0.14.4/v0.14.5,
+  for the same reason**: `harness/swe/fuzz.py`'s `ProgramGen` never emits
+  a record literal whose field value is a bare-NameRef return-carrier —
+  this round's own trigger shape is exercised only by
+  `tests/test_v14.py`'s hand-authored cases, not the differential fuzz
+  corpus. Named here so a future round doesn't rediscover it as a
+  mystery, same as v0.14.2/v0.14.3/v0.14.4/v0.14.5 each did for their own
+  new shape.
 
 ## v0.15 (round 168) — AI-native primitives: `guess`/confidence
 - **The curriculum's last open "advanced feature" slot** (structural types
