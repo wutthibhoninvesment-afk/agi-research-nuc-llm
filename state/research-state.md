@@ -8739,8 +8739,15 @@ Workspace: ~/agi-research
   payoff for per-path digests over one folded hash.
 - Verification: `test_slowtier.py` + `test_snapshot_race.py` **47 passed in
   9.44s** (round 341: 24 in `test_slowtier.py`). `test_swe_review.py` re-run
-  through the ledger after the fix: **passed 141.1s**; tier now **5
-  conclusive, 28% recall, 0 failing**. `harness/run_tests_fast.sh` **464
+  through the ledger after the fix: **passed 141.1s**. A second slice with the
+  round's remaining time took round 341's item 1 head on —
+  **`test_swe_repair.py` passed 102.3s**, the pin round 341 called "sound and
+  unexecuted", now executed — plus `test_swe_proc.py` 23.1s,
+  `test_swe_regiontools.py` 0.8s, `test_swe_killers.py` 39.2s,
+  `test_swe_fuzz.py` 141.8s, all stable/stable. **Tier at round end: 10 of 18
+  conclusive, 56% recall, 0 failing**, from round 341's measured 0% — in one
+  round, with the remaining 8 files honestly `unknown` rather than assumed
+  green. `harness/run_tests_fast.sh` **464
   passed, 267 deselected in 45.60s**. Accounting corrected mid-round against
   `--collect-only` after a first draft got it wrong: round 338's 417 baseline
   PREDATES `test_slowtier.py`, which round 341 created (25 tests) without ever
@@ -8756,14 +8763,14 @@ Workspace: ~/agi-research
   verified then committed as `4af6963` (see the round 342 entry above).
 
 ## Next steps (as of round 343)
-1. **Next slice: 9 files still `unknown`, and two of them are the expensive
+1. **Next slice: 8 files still `unknown`, and two of them are the expensive
    ones round 341 named** — `test_swe_alias_effects.py` (873s) and
    `test_swe_campaign.py` (~917s). `test_swe_repair.py`, the third, is DONE
    (passed 102.3s this round), so round 341's item 1 is half-closed: its pin
    argument for `repair` is now executed, its argument for `campaign` still
    is not. The planner reaches files in cost order on real data now — at a
-   900s budget it returns `test_swe_prioritize.py, test_swe_killers.py,
-   test_swe_coverage.py`, so the two 900s-class files need `--only` or a
+   900s budget it returns `test_swe_prioritize.py, test_swe_coverage.py,
+   test_swe_equivalence.py`, so the two 900s-class files need `--only` or a
    budget above ~1800s. harness(A) or SWE-loop(D).
 2. **Whether `run_driver.sh` should call `slowtier.py run` with a small
    budget each round** — round 341's item 4, unchanged and still deliberate:

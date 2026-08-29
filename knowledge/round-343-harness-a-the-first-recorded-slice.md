@@ -53,8 +53,8 @@ being precise about the shape: round 338 did nothing wrong by its own
 standards. It ran the health check the program prescribes, and the health
 check answered honestly about the tier it covers. The defect was that nothing
 reported the tier it does *not* cover. Round 341's `0% recall` line and this
-round's `28% recall` line are the fix — not because they are green, but
-because they are a number.
+round's closing `56% recall` line are the fix — not because either is green,
+but because both are a number.
 
 ## 2. Why the digest had to change before the slice could run
 
@@ -280,8 +280,11 @@ failing** — from round 341's measured 0%, in one round, with every remaining
 file honestly reported as `unknown` rather than assumed green.
 
 And the planner now works on real data rather than a size prior — asked for
-the next slice it returns `test_swe_prioritize.py, test_swe_killers.py,
-test_swe_coverage.py` at a 900s budget, in cost order.
+the next slice it returns `test_swe_prioritize.py, test_swe_coverage.py,
+test_swe_equivalence.py` at a 900s budget, in cost order. The two
+900s-class files (`alias_effects`, `campaign`) need `--only` or a budget
+above ~1800s, which is the planner correctly refusing to blow a small budget
+on one file.
 
 **`harness/run_tests_fast.sh`**: **464 passed, 267 deselected in 45.60s**.
 
