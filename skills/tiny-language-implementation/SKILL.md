@@ -135,6 +135,11 @@ python3 -m pytest tests/ -q              # full suite (should be <1s)
 - Rendering derivation/AST trees: cap BOTH depth and node count, and mark
   shared (DAG) nodes on re-encounter, or a fold over 10k items prints forever.
 - subprocess example tests: use `sys.executable`, not `"python3"`.
+- Verifying `bench/ref_diff.py --counters` (or any per-file differential
+  report) via a backgrounded run piped through `tail`: this can silently
+  drop files with no error (confirmed twice, rounds 296/300) — redirect to
+  a real file instead; see `one-shot-agent-no-background-wait`'s matching
+  Pitfall for the full mechanism and the confirmed workaround.
 
 - **Value walkers recurse even when the evaluator does not.** Trampolining
   the evaluator (see `generator-trampoline-evaluator`) lets programs build

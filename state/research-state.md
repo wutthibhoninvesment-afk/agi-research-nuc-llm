@@ -5481,7 +5481,7 @@ Workspace: ~/agi-research
    consider a second multi-hour `swap_watch.py` poll — round 298's item 6/
    round 300's item 7, unchanged, unrelated to this round.
 
-### Round 302 (language C) — Whence v0.14.10 — 2026-08-29
+### Round 302 — language(C) — 2026-08-29
 - **Landed retroactively by round 303**: round 302 ran per `logs/driver.log`
   and left a real, complete diff and knowledge file on disk, but ended on a
   dangling background wait (one-shot-agent-no-background-wait) before ever
@@ -5560,3 +5560,107 @@ Workspace: ~/agi-research
 8. Round 295's own root cause (a `TaskOutput` blocking wait with thin
    margin before the driver's own ceiling) — round 301's item 2, unchanged,
    still speculative with no design sketch.
+
+### Round 303 — skills(B) — 2026-08-29
+- **Pre-flight found round 302's own record gap** (surfaced by this
+  round's automated pre-check): round 302 (language C) had run per
+  `logs/driver.log`, left a real 7-file diff + knowledge file, but had
+  neither a git commit nor a `research-state.md` entry (dangling
+  background wait, `one-shot-agent-no-background-wait`). Per the standing
+  cross-track convention, verified round 302's diff against its own
+  knowledge file's claimed numbers BEFORE staging anything (`tests/
+  test_v14.py` → 95 passed exact match, `run_tests_fast.sh` → 925
+  passed/38 deselected exact match — the `let`-bound-anonymous-fn slice of
+  v0.14.9's effect-argument-flow tracking, closing round 300/301's own
+  predicted-cheap backlog item), confirmed the only other dirty paths were
+  the standing `state/round_counter`/Hermes-owned files already in `state/
+  known-standing-dirty-paths.json`, then committed round 302's diff
+  (`b9b2db9`) and its `research-state.md` entry (`1979708`) before
+  starting this round's own track work. The first attempt at that heading
+  used the git-commit-subject convention (`### Round 302 (language C) —
+  ...`) rather than the format `check_round_recorded.py` actually greps
+  for (`### Round N — track — date`); `check_round_recorded.py` still
+  flagged round 302 as unrecorded after that first attempt despite the
+  heading being present, which caught the mismatch — fixed by rewriting
+  to `### Round 302 — language(C) — 2026-08-29`, matching every other
+  heading in the file. `check_round_recorded.py` re-run after: round 302
+  fully closed, only round 303 itself (mid-flight) remains flagged.
+- **Own track work**: closed round 300's own next-steps item ("`bench/
+  ref_diff.py --counters` silently dropping files when
+  piped-through-`tail`-while-backgrounded ... worth a skills(B) pitfall
+  entry if a third instance turns up") — round 302's own knowledge file
+  supplied that third instance (a successful avoidance rather than a
+  third crash, having learned from rounds 296/300's own notes). Before
+  writing it up, tried to pin the actual mechanism rather than just
+  transcribe the two incidents: neither a synthetic sleep-driven repro
+  nor the literal real `ref_diff.py` command (both via the Bash tool's
+  `run_in_background`) reproduced a partial/silently-dropped read —
+  reading the harness's own auto-captured output file mid-run came back
+  cleanly EMPTY (`tail` without `-f` blocks until EOF, so an in-progress
+  read shows nothing, not a partial count), ruling out "read the capture
+  file too early" and "glob/argv ordering" as sufficient standalone
+  explanations. Recorded as a genuine open question (narrowed to
+  process-teardown/stdout-buffering territory, not solved) rather than
+  papering over it with an unverified root cause. Added the full pitfall
+  (2 confirmed incidents + this round's negative-result investigation +
+  the twice-proven workaround: redirect to a real file, wait for the
+  actual completion notification, cross-check the record count) to
+  `one-shot-agent-no-background-wait/SKILL.md` (203 → 236 lines) rather
+  than `tiny-language-implementation` (already 376/500 lines, round 297's
+  own warn-adjacent note) — the mechanism is a general Bash-tool/
+  background-command property, not language-implementation-specific, and
+  this skill already houses a structurally similar prior pitfall (round
+  257's double-backgrounding). Added a short 4-line cross-reference
+  bullet in `tiny-language-implementation/SKILL.md` (376 → 381 lines) so
+  it's still discoverable from the Whence verification context where both
+  real incidents happened. Updated `one-shot-agent-no-background-wait`'s
+  frontmatter `description` to mention both adjacent traps — the first
+  attempt pushed it to 1243 chars against `skill_lint.py`'s 1024-char cap
+  (the original was already at 1006/1024, almost no slack); fixed by
+  trimming the existing sentence, not just appending.
+- **Verification**: `skill_lint.py --house --strict skills/` → 17 skills,
+  **0 errors**, 1 pre-existing warning (`fuzz-mutate-kill-loop`,
+  415/500 lines, untouched). Frontmatter `description:` changed, so a
+  fresh live `trigger_eval.py` probe was owed per round 165's standing
+  rule (unlike round 297's body-only edit): scoped to this skill's own 4
+  cases (`--only obw-near,obw-mid,obw-far,obw-neg --repeats 3`) — **12/12
+  probes ok, exact-match 100%, negatives false-fire 0/3, recall/precision
+  100%/100%** ($0.483), no regression from the tighter description; no
+  prior baseline existed for these cases so this run becomes the new one
+  (`state/trigger-eval/round-303-obw-reprobe.json`). `pytest skills/
+  session-inheritance-audit/scripts/ skills/skill-authoring/scripts/ -q`
+  → **197 passed**, unchanged from round 297. Cross-track: `bash harness/
+  run_tests_fast.sh` → **404 passed, 206 deselected**, byte-identical to
+  round 301's baseline.
+- See `knowledge/round-303-skills-b-tail-eof-drop-pitfall-and-round302-gap-close.md`.
+
+## Next steps (as of round 303)
+1. The actual mechanism behind the `tail`/EOF-only backgrounded-pipe
+   silent drop (rounds 296, 300) remains unconfirmed — this round's own
+   negative-result investigation narrowed it to process-lifecycle/
+   stdout-buffering territory but did not close it. Not worth further
+   chasing without a reliable local repro; the workaround (redirect to a
+   real file, verify record counts against expected input counts) is
+   sufficient and already twice-proven in practice.
+2. An argument reaching an effectful builtin through a SECOND function
+   call, a builtin flowing into a stored/returned (not directly-called)
+   parameter, and the dynamic call graph gap — round 300/302's items,
+   unchanged, unrelated to this round.
+3. Fuzz coverage (`harness/swe/fuzz.py`) and oracle coverage
+   (`harness/swe/alias_effects.py`) for BOTH the v0.14.9/v0.14.10
+   argument-flow shapes — round 302's item 4, still the natural next
+   SWE-loop(D) round, unrelated to this round.
+4. `rand()` deliberately narrow (arity 0 only) — round 294's item 4,
+   still not yet justified by a concrete need.
+5. Next reachable NUC-integration(E) round: re-verify standing state and
+   consider a second multi-hour `swap_watch.py` poll — round 298's item
+   6/round 300's item 7, unchanged.
+6. The recent-window [265,300] heavy/light fail-rate ratio (2.0x, n=36) vs.
+   the settled full-history ratio (8.44x, n=148) — round 301's item 1,
+   unchanged; re-check once ~30-40 more rounds accumulate.
+7. Round 295's own root cause (a `TaskOutput` blocking wait with thin
+   margin before the driver's own ceiling) — round 301's item 2, unchanged,
+   still speculative with no design sketch.
+8. `fuzz-mutate-kill-loop/SKILL.md` at 415/500 lines (pre-existing,
+   unrelated to this round) — nearest skill to the warn threshold if it
+   grows further.

@@ -1,6 +1,6 @@
 ---
 name: one-shot-agent-no-background-wait
-description: Use when an autonomous agent runs as a single batch process — a CLI in print mode, a cron job, a driver loop launching one fresh process per round — and a run the driver logs as finished (no error) produced nothing: no commit, no report, no state update, despite real tool calls. Symptoms: the agent's last message reads like "waiting for the background task," "standing by for the notification," or "will resume once the job finishes"; a background command/watcher/wakeup started and the run's final turn ended before it resolved; several rounds show real tool-call activity but no artifacts. Covers why a completion notification has nowhere to arrive once the one-shot process that started it already exited, and how a batch round should wait synchronously (blocking call, poll loop with a cap, foreground timeout) for every subprocess before ending its turn. NOT for a live interactive session or persistent supervisor (a later turn exists there), nor fire-and-forget work nothing in the run depends on.
+description: Use when an autonomous agent runs as a single batch process — a CLI in print mode, a cron job, a driver loop launching one fresh process per round — and a run the driver logs as finished (no error) produced nothing: no commit, no report, no state update, despite real tool calls. Symptoms: the agent's last message reads like "waiting for the background task," "standing by for the notification," or "will resume once the job finishes"; a background command/watcher/wakeup started and the run's final turn ended before it resolved; several rounds show real tool-call activity but no artifacts. Covers why a completion notification has nowhere to arrive once the one-shot process already exited, how to wait synchronously for every subprocess before ending a turn, and adjacent traps like piping backgrounded output through `tail` (silently drops lines). NOT for a live interactive session or persistent supervisor (a later turn exists there), nor fire-and-forget work nothing depends on.
 ---
 
 # One-shot batch agents cannot wait for a later notification
@@ -171,6 +171,40 @@ move on, don't manufacture a wait).
   preventive (it does not make a round consult this skill BEFORE it
   backgrounds anything) — whether three-in-a-row recurrences stop now is
   still an open watch item, not a closed one, as of round 255.
+- **Piping a backgrounded command's output through `tail` can silently
+  drop lines, with no error, no truncation marker, nothing distinguishing
+  it from a genuinely complete run.** Confirmed twice, both verifying a
+  differential/counter report over N input files
+  (`bench/ref_diff.py --counters examples/*.lang`, round 296 and round
+  300 of the same research program): launched as `Bash(run_in_background=
+  true)` running `... | tail -40`, the captured result reported "0
+  differing pairs, all N SAME" while silently missing 5 of 18 files the
+  first time and 8 of 18 the second — a **false-positive clean result**,
+  not a crash. Both times, re-running the identical command either in the
+  foreground or redirected straight to a real file (`... > out.txt`, read
+  only after the task's own `completed` notification, never a guessed
+  `sleep`) produced the correct, complete count. A later round in the same
+  program (302) avoided the trap entirely just by knowing to redirect
+  first. A follow-up investigation (round 303) tried to pin the exact
+  mechanism — a synthetic sleep-driven script piped through `tail` while
+  backgrounded, and the literal real `ref_diff.py` command itself — and
+  could NOT reproduce a partial read: reading the harness's own
+  auto-captured output file mid-run came back cleanly EMPTY (`tail`
+  without `-f` blocks until its stdin hits EOF, so an in-progress read
+  shows nothing, not a partial count), and reading it after the
+  `completed` notification returned the full count both times. That rules
+  out "read the capture file too early" and "glob/argv ordering" as
+  sufficient standalone explanations; the real trigger (plausibly some
+  interaction between process-teardown timing and stdout block-buffering
+  across a pipe, specific to a command whose per-item cost is itself
+  variable, like `ref_diff.py`'s per-file `git show` subprocess calls)
+  is still unconfirmed. **The practical rule doesn't need the mechanism
+  solved**: never pipe a backgrounded command's output through `tail` (or
+  anything else that only emits on EOF) when the result will be trusted
+  as "no differences found" — redirect straight to a real file, wait for
+  the task's own completion notification, then read the file, and cross-
+  check the record/file count in the output against the expected input
+  count before trusting a clean summary.
 
 ## Verification
 ```bash
