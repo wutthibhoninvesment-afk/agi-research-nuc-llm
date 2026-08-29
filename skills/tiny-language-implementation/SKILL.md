@@ -175,44 +175,15 @@ python3 -m pytest tests/ -q              # full suite (should be <1s)
   guest's apply, and encode each probe as a differential-corpus case.
 - **A grammar-directed fuzzer generating a new host syntax feature will
   feed it straight into the hand-copied guest parser too, unless told
-  not to.** The guest lexer/parser (self-hosting, step 10) is a snapshot
-  of host syntax at whatever round it was written; it does not
-  automatically grow when the host parser does. A shared program
-  generator that emits the new construct for both host and
-  differential-guest runs turns "guest doesn't support this yet" into a
-  false divergence finding instead of an honest, tracked parity gap.
-  Give the generator's guest-facing path an explicit no-op override for
-  every host feature the guest doesn't parse yet, verify with a fuzz seed
-  that 0 guest-generated programs contain the new construct, and track
-  closing the gap as backlog — twice in this program a feature's fuzz
-  coverage (host-only) and its real guest parity landed multiple rounds
-  apart (`: Type`/`-> Type`: round 134 fuzz-only to round 158 guest
-  parity; an effect system repeated the same two-step shape one round
-  later, still open).
-- **When the guest evaluator is itself written IN the host language and
-  runs as literal host source (self-hosting), a new builtin's guest support
-  can be a straight delegation, not a reimplementation — but every existing
-  "what type is this value" probe must be re-audited for it.** Round 176's
-  Whence guest (`self_eval.lang`) added guest support for `guess`/
-  `is_guess`/`confidence`/`sure` (an uncertainty-carrying value with
-  weakest-link confidence propagation through arithmetic) by having the
-  guest's `apply_host_builtin` call straight through to the REAL host
-  builtins — the guest program is executing as genuine top-level host
-  source, so `a.v + b.v` on a wrapped value already gets the host's own
-  propagation semantics for free, no guest-side reimplementation needed.
-  This was expected going in to be "a materially bigger lift" than the
-  guest's earlier `: Type`/`effects` parity work (both of which only
-  needed parse-time clause-skipping) — the delegation shortcut closed it
-  in one round instead. The cost: every guest helper that asks "is this
-  value a number/bool/list" (`is_num`, `is_bool`, `is_list`, a `kind`
-  dispatcher) was written before the new value existed, and the new
-  value's arithmetic transparently succeeds on those same probes (`missed
-  (guess(5,...) + 0)` is false, so a naive `is_num` misreports a guess as a
-  plain number) — each such probe needs an explicit `is_<newthing>(v)`
-  guard added FIRST, or every downstream dispatch that assumes "arithmetic
-  succeeds implies plain number" silently misclassifies the new value.
-  Grep every `is_*`/`kind`/`show`-style probe in the guest for this before
-  declaring delegation-based parity done, don't just add the new builtins.
+  not to** — the guest lexer/parser is a syntax snapshot that doesn't grow
+  with the host parser; twice in this program a feature's fuzz coverage and
+  real guest parity landed multiple rounds apart. Full mechanism:
+  [references/pitfall-history.md#host-feature-fuzzer-guest-parity-gap](references/pitfall-history.md#host-feature-fuzzer-guest-parity-gap).
+- **When the guest evaluator is itself written IN the host language
+  (self-hosting), a new builtin's guest support can be a straight
+  delegation, not a reimplementation** — but every existing "what type is
+  this value" probe must be re-audited for it (round 176). Full mechanism:
+  [references/pitfall-history.md#guest-evaluator-in-host-language-delegation](references/pitfall-history.md#guest-evaluator-in-host-language-delegation).
 - **Duplicated guest source sections drift.** If the evaluator example
   embeds the parser example's code verbatim, add a byte-identity test that
   extracts the shared section from both files and asserts equality.
@@ -227,199 +198,69 @@ python3 -m pytest tests/ -q              # full suite (should be <1s)
 - **A self-hosted guest evaluator's builtin dispatch has two independent
   gates — name resolution, then arity/type dispatch — and a builtin
   missing from the FIRST gate fails as "unbound name", which reads like an
-  unrelated bug.** If guest calls resolve by looking the callee name up in
-  an environment/name table (seeded with builtin-ref bindings once at
-  store-init time) before the dispatcher ever runs, a builtin that already
-  exists at the host level — even with delegation code already written for
-  it elsewhere in the guest evaluator — can still be completely
-  unreachable from guest programs if its name was simply never added to
-  that table. The symptom is "unbound name 'x' (line N)" thrown from the
-  guest's OWN lookup helper, not an arity mismatch and not the generic
-  "not implemented in the guest" stub a missing-dispatch-branch bug would
-  produce — don't debug it as either of those. Confirmed twice on the same
-  interpreter (Whence rounds 206/218): a whole builtin family (`steps`,
-  then `at`/`blame`/`diverge`/`contrast`) sat outside `self_eval.lang`'s
-  `builtin_names`/`arities` tables even though nothing else about them was
-  guest-incompatible. The fix each time was three additive lines — the
-  name in the name table, its arity, one dispatch branch delegating
-  straight to the real host builtin using the guest box's already-real
-  host-value payload (see the delegation pitfall above) — closing a
-  years-old gap in under an hour once diagnosed. Decide whether the new
-  dispatch branch belongs on the "propagating" (miss argument
-  short-circuits) or "total" (must still run on a miss, e.g. to inspect
-  the miss's own history) side by reading the HOST's own totality comment
-  for that builtin family, not by guessing or waiting for a test to fail —
-  round 206 caught that `steps` needed to stay total from the host
-  docstring alone, before writing any test.
+  unrelated bug** (confirmed twice, Whence rounds 206/218). Full mechanism:
+  [references/pitfall-history.md#self-hosted-dispatch-two-gates](references/pitfall-history.md#self-hosted-dispatch-two-gates).
 - **A host builtin that returns a raw, unboxed record can silently break
-  guest code that assumes every value is wrapped.** If guest values are
-  boxed for metadata (see the provenance-boxing step above) but a builtin
-  you just delegated to returns the host's own internal record shape
-  (fields the box format doesn't have, no wrapper field guest code expects
-  first), then guest code that reads through it — indexing into the
-  result, then field-accessing an element — mismatches the expected shape
-  and reads as a miss, not a clear type error. Confirmed in Whence
-  (round 218): `steps(x)[0].op` misses because `steps` returns a list of
-  bare host `Record`s but the guest's list-element passthrough path
-  expects every element to already be a `{v, op, ins}` box. This is a
-  second, independent gap from the name-resolution one above — closing
-  name resolution does not by itself fix representational mismatches in
-  what a delegated builtin hands back; don't assume "it resolves and
-  dispatches now" also means "every consumer of its result is compatible."
+  guest code that assumes every value is wrapped** — a second, independent
+  gap from the name-resolution one above (round 218). Full mechanism:
+  [references/pitfall-history.md#host-builtin-raw-unboxed-record](references/pitfall-history.md#host-builtin-raw-unboxed-record).
 
 - **A scope-mirroring static analysis (parse-time effect/alias/purity
   checks) must record NON-matches explicitly, not just skip the write when
-  there's nothing interesting to say.** If a per-scope tracking dict is
-  only ever written to when a binding IS the thing you're tracking (e.g.
-  "this name aliases a known effectful builtin"), then an ordinary,
-  unrelated local binding that reuses the same name in an inner scope
-  writes nothing — and a lookup that walks outward from the inner scope
-  finds nothing there either, so it falls through to an OUTER scope's
-  stale match and misidentifies the unrelated local as the tracked thing.
-  This is the same bug shape as a cache that only writes on a hit and
-  never on an explicit miss: a later lookup can't tell "never computed"
-  from "computed and irrelevant here." Fix: write `None`/a sentinel for
-  every binding in the tracked namespace — not just interesting ones — so
-  an inner scope's entry, present but empty, correctly blocks fallthrough
-  to an outer scope's real match (Whence round 266, v0.14.2's
-  `alias_scopes`: a `let p = print` then an unrelated inner `let p = 5`
-  would otherwise let a `p(...)` call in the inner block wrongly resolve
-  to the outer `print` alias).
-
+  there's nothing interesting to say** — the same bug shape as a cache that
+  only writes on a hit, letting an inner scope fall through to an outer
+  scope's stale match (Whence round 266). Full mechanism:
+  [references/pitfall-history.md#scope-mirroring-must-record-non-matches](references/pitfall-history.md#scope-mirroring-must-record-non-matches).
 - **Extending a scope-mirroring static analysis to recurse into a branch
   construct (`if`/`else`, `match`) often needs NO new scope-context
-  plumbing — check whether the branch is itself a block whose own fact
-  was already resolved while ITS scope was still open, before assuming
-  you need to re-derive it after the fact.** It's tempting to conclude
-  "a tail that is itself an `if` can't be inspected the same way a bare
-  name can, because by the time we look at it the branch's own scope has
-  closed" — true only if you'd need to re-run the ORIGINAL resolution
-  (e.g. re-look-up a bare name against scopes that no longer exist). If
-  each branch is its own block, parsed via the same recursive `block()`/
-  `stmt_list()` that already computes and STORES a per-block fact (e.g.
-  a `tail_alias_tag` field) while that block's own frame was open, then
-  reading that already-resolved field back later is a purely structural,
-  scope-free walk — the same shape a separate boolean-only structural
-  pass (e.g. tail-call marking) already has. Confirmed in Whence (round
-  276, v0.14.5): a fn body whose tail is `if c { print } else { print }`
-  was flagged three rounds earlier as "can't simply run after the fact"
-  and left as a documented, un-revisited gap — it turned out to need
-  zero new stacks, just reading `if_node.then.tail_alias_tag` and
-  `if_node.otherwise.tail_alias_tag` (recursing through an `else if`
-  chain) and requiring an EXACT match across every arm, not "any arm",
-  to stay sound (an approximate match would create a false negative that
-  looks like a fix but is actually unsound). Before writing off a branch
-  construct as "needs interprocedural analysis," check whether the
-  per-block fact you need is already sitting on the AST node from an
-  earlier pass.
-
+  plumbing** — check whether the branch is itself a block whose own fact
+  was already resolved while ITS scope was still open (Whence round 276).
+  Full mechanism:
+  [references/pitfall-history.md#scope-mirroring-branch-construct-extension](references/pitfall-history.md#scope-mirroring-branch-construct-extension).
 - **A scope-mirroring analysis can be extended hop-by-hop to track a value
   across function-call boundaries with the SAME repeatable recipe every
   time — but the recipe has a hard edge, and knowing where that edge is
   matters as much as the recipe itself.** Validated identically across
-  four consecutive rounds of the same feature family (Whence v0.14.9:
-  param called directly; v0.14.10: the anonymous-fn variant; v0.14.11: a
-  same-body rename of the param, then called; v0.14.12: the param
-  returned across a call boundary, then called by the caller) — each
-  landed in its own round with zero rework of the others: (1) add ONE new
-  scope-stack, pushed/popped at the IDENTICAL per-block/per-fn-definition
-  sites every EXISTING stack in the family already uses (never invent a
-  new push/pop site); (2) write a resolver that combines a fact recorded
-  ONCE at the callee's own definition (independent of any call site) with
-  the ACTUAL arguments at ONE specific call site, to decide whether that
-  one call site is sound; (3) once the resolved fact lands in the
-  ordinary alias-tracking table the check-site code already reads, the
-  actual verdict dispatch needs ZERO new branches — the same
-  fact-producer/fact-consumer split makes 3 of the 4 rounds land with no
-  changes to their own readers at all. Keep each hop deliberately narrow
-  (bare-NameRef only, no widening to `if`/`else` tails, no crossing into
-  an ancestor fn's own frames — see the next pitfall) and pin its boundary
-  with an explicit negative test, not prose. The recipe's limit is just as
-  load-bearing: three consecutive rounds (302, 306, 308) independently
-  re-confirmed the SAME two remaining gaps — an argument reaching the
-  target through a SECOND function call, and a dynamic call graph (a
-  different, unrestricted fn performing the effect) — are NOT another
-  one-hop slice, because both need the verdict to depend on WHICH call
-  site you're checking (per-call-site specialization) rather than only on
-  the callee's own definition, or else an unsound over-approximation.
-  Don't spend a round trying to force either into this recipe without a
-  real design sketch first — every round in this family that considered
-  it said so explicitly rather than attempting a partial fix.
+  four consecutive rounds (Whence v0.14.9-v0.14.12); a fact recorded once
+  at the callee's own definition, combined with one call site's actual
+  arguments, needs zero new dispatch branches once it lands in the
+  ordinary alias table. The edge: three rounds (302/306/308) confirmed a
+  SECOND function call and a dynamic call graph are NOT another one-hop
+  slice, because both need the verdict to depend on WHICH call site,
+  never over-approximate. Full mechanism (incl. how round 312 closed the
+  first edge case and round 314 hit the second):
+  [references/pitfall-history.md#hop-by-hop-value-flow-recipe](references/pitfall-history.md#hop-by-hop-value-flow-recipe).
 - **A flat scope-stack that spans every open block AND fn (not just the
   currently-open one) can let an ENCLOSING fn's own recorded fact leak
-  into an INNER fn's check via a coincidental name collision.** If a
-  resolver for a hop-tracking stack (the recipe above) walks the whole
-  stack innermost-first with no lower bound, and an inner fn happens to
-  redeclare a name the resolver would otherwise still find further out,
-  the walk can attribute a call inside the inner fn to the OUTER fn's own
-  tracked value — one that isn't even among the inner fn's own declared
-  parameters. Fix by locating the currently-open fn's own params frame by
-  IDENTITY inside the base scope stack first, and bounding the hop-stack
-  walk to that index and everything pushed after it, never crossing into
-  an ancestor fn's own frames (Whence round 306, v0.14.11's
-  `_resolve_param_alias`). Write the specific cross-fn-boundary
-  misattribution case as its own test — it's easy for this to look
-  harmless (the misattributed name is dead data a later step never
-  visits) rather than prove it can't ever flip a verdict.
+  into an INNER fn's check via a coincidental name collision** — bound the
+  hop-stack walk to the current fn's own frame index forward (Whence round
+  306). Full mechanism:
+  [references/pitfall-history.md#flat-scope-stack-cross-fn-leak](references/pitfall-history.md#flat-scope-stack-cross-fn-leak).
 - **Adding a genuinely nondeterministic builtin (`rand`, a clock, real I/O)
   to a total, differentially-tested language breaks every oracle that
   assumes a program's behavior is a pure function of its source text —
   fix this by making the builtin REPRODUCIBLE, not by special-casing the
-  oracles.** A three-way differential (three independently-constructed
-  interpreters), a guest/host self-hosting comparison, and a fast/slow
-  reference-diff bench all silently assume re-running the same source
-  yields the same result; a builtin that draws from OS entropy breaks
-  that assumption for every one of them at once, and the fix looks like
-  it needs a special case in each. Instead give the interpreter its own
-  seeded stream at construction time (`Interpreter(seed=0)` →
-  `self._rng = random.Random(seed)`, a per-instance field, not a module-
-  global) and have the builtin draw from `interp._rng` — two interpreters
-  built at the same seed then draw the identical sequence, so every
-  oracle that already compares two interpreters' output keeps working
-  with ZERO code changes, because "same input source" now really does
-  imply "same output" again (the seed is part of the input). This is a
-  deliberate divergence from mainstream languages (most seed `random()`
-  from OS entropy by default) — the same value judgment deterministic-
-  replay execution environments make, and the only choice under which
-  real randomness and full-determinism testing coexist without a special
-  case anywhere (Whence round 294, v0.14.8's `rand()`: `Interpreter.
-  __init__(..., seed=0)`, `whence/interp.py`'s `rand` node reading
-  `interp._rng.random()`). Decide this BEFORE writing the builtin, not
-  after an oracle starts flaking — retrofitting a seed onto an already-
-  shipped entropy-backed builtin means every prior recorded oracle run
-  is now unreproducible.
-
+  oracles** (Whence round 294: a per-instance seeded RNG, not a module
+  global). Full mechanism:
+  [references/pitfall-history.md#deterministic-nondeterministic-builtin](references/pitfall-history.md#deterministic-nondeterministic-builtin).
 - **When a differential/self-hosting comparison's two sides are built by
   two different code paths, an unstated default-value MISMATCH between
-  them silently reclassifies real bugs as expected divergence instead of
-  causing a visible failure.** If the comparison already has a named
-  exemption bucket for "one side legitimately has a lower resource
-  ceiling than the other" (e.g. a guest evaluator paying more host
-  frames per guest call than the direct host path, so it can exhaust a
-  depth/step budget the host doesn't), then giving each side's builder
-  its own independent default for that ceiling — one defaulting to
-  `None` (resolves to the interpreter's own unrelated top-level default,
-  e.g. 20000) and the other defaulting to a much lower, deliberately-
-  chosen comparison value (e.g. 2000) — silently WIDENS that exemption:
-  a real mismatch that would surface as a genuine divergence between a
-  depth-2000 host and a depth-2000 guest instead gets swallowed as
-  "expected depth skew" between a depth-2000 host and an unrelated
-  depth-20000 guest. This is a coverage gap, not a crash or a false
-  positive, so nothing in a green test suite flags it — it only shows up
-  as "this class of bug can no longer be found," which is easy to miss
-  for many rounds. Confirmed in Whence's SWE-loop harness (round 289
-  flagged it, round 295 fixed it): `GuestHarness.__init__` defaulted
-  `max_depth=None` while `oracle_self_eval`'s own host-side default was
-  `2000`; the fix was making the guest builder take the SAME `max_depth`
-  the host side already uses as an explicit, threaded parameter (and
-  keying any cache on `(pkg, max_depth)`, not just `pkg`, so two
-  different depths for the same package never silently share one
-  cached instance) rather than letting each side pick its own default.
-  When auditing a differential harness, grep both builder call sites for
-  every parameter that has a *named* exemption bucket in the comparison
-  logic and confirm both sides pass the same value — an exemption bucket
-  existing at all is evidence a mismatch has bitten this comparison
-  before.
+  them silently reclassifies real bugs as expected divergence** instead of
+  a visible failure — a coverage gap a green suite can't flag (Whence
+  rounds 289/295). Full mechanism:
+  [references/pitfall-history.md#differential-harness-default-value-mismatch](references/pitfall-history.md#differential-harness-default-value-mismatch).
+- **A "gap" a design sketch describes can actually be the analysis
+  family's own founding, deliberately-tested boundary — the only reliable
+  way to tell the two apart is to implement the sketch in full and run the
+  WHOLE suite, not to re-read the sketch a second time.** Whence round 314
+  implemented the dynamic-call-graph design sketch named above in full
+  (mechanically identical in shape to every prior hop in the recipe) and
+  it broke 7 already-tested, deliberately-designed programs plus 1
+  diagnostic regression — not a bug in the new code, but proof the sketch
+  silently collapsed two questions the family had always kept separate.
+  Reverted in full; closed as by-design, not fixed as a bug. Full
+  mechanism and the generalizable checklist:
+  [references/pitfall-history.md#dynamic-call-graph-founding-boundary](references/pitfall-history.md#dynamic-call-graph-founding-boundary).
 
 ## Verification
 - `python3 -m pytest tests/ -q` → all green, runtime < 1s.
