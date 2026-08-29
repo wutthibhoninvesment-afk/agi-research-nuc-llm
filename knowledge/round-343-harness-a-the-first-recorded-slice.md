@@ -271,13 +271,13 @@ test_swe_repair.py        passed  102.3s      <- round 341's unexecuted pin, now
 test_swe_proc.py          passed   23.1s
 test_swe_regiontools.py   passed    0.8s
 test_swe_killers.py       passed   39.2s
+test_swe_fuzz.py          passed  141.8s
 ```
 
 Every entry `checkout_stable`/`harness_stable` true. Tier at round end:
-**18 files, 9 conclusive against checkout `5b257257bf1c5273` (50% recall), 0
-failing** — from round 341's measured 0%. `test_swe_fuzz.py` was still
-running when the round ended; its entry will land in the ledger regardless,
-which is the point of appending per file.
+**18 files, 10 conclusive against checkout `5b257257bf1c5273` (56% recall), 0
+failing** — from round 341's measured 0%, in one round, with every remaining
+file honestly reported as `unknown` rather than assumed green.
 
 And the planner now works on real data rather than a size prior — asked for
 the next slice it returns `test_swe_prioritize.py, test_swe_killers.py,
