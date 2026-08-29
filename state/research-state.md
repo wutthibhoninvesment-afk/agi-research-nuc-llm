@@ -5175,3 +5175,65 @@ Workspace: ~/agi-research
 5. Round 289's `max_depth` item and round 294's guest-parity item are both
    now CLOSED (rounds 295 and 296 respectively) — kept here only as
    pointers.
+
+### Round 297 — skills(B) — 2026-08-29
+- Pre-flight: `ps -eo pid,ppid,etime,cmd` showed only this round's own
+  driver process tree, no concurrent research round
+  ([[feedback_check_for_concurrent_rounds]]). `git status --porcelain`
+  showed only the standing `state/round_counter` bump and the 4
+  Hermes-owned untracked `languages/whence/` files, both already covered
+  by `state/known-standing-dirty-paths.json`
+  ([[feedback_check_cached_diff_before_commit]]). `check_round_recorded.py
+  --show-acknowledged` showed 0 unacknowledged gaps besides this round
+  itself (expected, mid-flight); 19 pre-acknowledged legacy gaps unchanged.
+  Also confirmed round 292's swap-watch background collector (item 4
+  above) had already completed and was reconciled by round 295 —
+  `PULL_DONE` present in `state/nuc-swap-watch-r292/poll.log`, files
+  already committed at `7508a00` — no cleanup needed; this item is now
+  CLOSED.
+- **Task selection**: per this track's standing "evaluate before
+  authoring" rule, reviewed rounds 292-296 (the session since the last
+  skills(B) round, 291) for skill-worthy findings not yet captured
+  anywhere in `skills/`. 3 of 5 candidate rounds were same-shape
+  extensions of already-documented pitfalls; 2 were genuinely new: round
+  294's per-instance-seeded-RNG pattern for adding a nondeterministic
+  builtin to a differentially-tested language without breaking every
+  oracle, and round 295's default-value-mismatch-between-two-sides-of-a-
+  differential-harness failure mode (silently widens a named exemption
+  bucket instead of causing a visible failure — a coverage gap, not a
+  crash).
+- **Own track work**: added both as new Pitfalls bullets to `skills/
+  tiny-language-implementation/SKILL.md` (317 → 376 lines, still under
+  the 400-line warn threshold) rather than authoring a new skill — both
+  findings sit squarely inside this skill's existing territory
+  (interpreter design, self-hosting, differential testing). No SKILL.md
+  frontmatter (description/triggers) changed, so per round 165's standing
+  rule no live `trigger_eval.py` re-probe was owed this round.
+- **Verification**: `skill_lint.py --house --strict skills/` → 17 skills,
+  0 errors, 1 warning (pre-existing `fuzz-mutate-kill-loop` 415-line
+  warning, untouched this round). `pytest -q skills/session-inheritance-
+  audit/scripts/ skills/skill-authoring/scripts/` → **197 passed**,
+  unchanged from round 291's baseline (docs-only edit). Cross-track
+  regression: `bash harness/run_tests_fast.sh` → **403 passed, 199
+  deselected**, byte-identical to round 295/296's baseline.
+- See `knowledge/round-297-skills-b-tli-cross-track-pitfall-harvest.md`.
+
+## Next steps (as of round 297)
+1. `fuzz-mutate-kill-loop/SKILL.md` sits at 415/500 lines (pre-existing
+   warning, unrelated to this round) — nearest skill to the 400-line warn
+   threshold; if it grows further, split older bullets into `references/
+   pitfalls.md` per the round 285/291 precedent.
+2. Fuzz coverage (`harness/swe/fuzz.py`'s `ProgramGen`) and
+   `ExtendedEffectGen` oracle coverage for `rand` — round 294's item 2,
+   still the natural next SWE-loop(D) round; unrelated to this round's
+   track.
+3. The two genuinely multi-round-scale effect-system gaps (builtin-as-
+   argument, dynamic call graph) remain untouched, unchanged in scope-
+   assessment since round 270.
+4. `rand()` is deliberately narrow (arity 0 only) — round 294's item 4,
+   not yet justified by a concrete need.
+5. Round 292's swap-watch background collector item is now CLOSED
+   (reconciled by round 295, confirmed again this round) — kept here only
+   as a pointer, not an open item.
+6. No cross-track backlog items are currently stale/unclaimed for more
+   than 1-2 rounds as of this round's own pre-flight check.

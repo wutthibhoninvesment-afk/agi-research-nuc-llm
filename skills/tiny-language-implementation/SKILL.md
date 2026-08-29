@@ -308,6 +308,66 @@ python3 -m pytest tests/ -q              # full suite (should be <1s)
   per-block fact you need is already sitting on the AST node from an
   earlier pass.
 
+- **Adding a genuinely nondeterministic builtin (`rand`, a clock, real I/O)
+  to a total, differentially-tested language breaks every oracle that
+  assumes a program's behavior is a pure function of its source text —
+  fix this by making the builtin REPRODUCIBLE, not by special-casing the
+  oracles.** A three-way differential (three independently-constructed
+  interpreters), a guest/host self-hosting comparison, and a fast/slow
+  reference-diff bench all silently assume re-running the same source
+  yields the same result; a builtin that draws from OS entropy breaks
+  that assumption for every one of them at once, and the fix looks like
+  it needs a special case in each. Instead give the interpreter its own
+  seeded stream at construction time (`Interpreter(seed=0)` →
+  `self._rng = random.Random(seed)`, a per-instance field, not a module-
+  global) and have the builtin draw from `interp._rng` — two interpreters
+  built at the same seed then draw the identical sequence, so every
+  oracle that already compares two interpreters' output keeps working
+  with ZERO code changes, because "same input source" now really does
+  imply "same output" again (the seed is part of the input). This is a
+  deliberate divergence from mainstream languages (most seed `random()`
+  from OS entropy by default) — the same value judgment deterministic-
+  replay execution environments make, and the only choice under which
+  real randomness and full-determinism testing coexist without a special
+  case anywhere (Whence round 294, v0.14.8's `rand()`: `Interpreter.
+  __init__(..., seed=0)`, `whence/interp.py`'s `rand` node reading
+  `interp._rng.random()`). Decide this BEFORE writing the builtin, not
+  after an oracle starts flaking — retrofitting a seed onto an already-
+  shipped entropy-backed builtin means every prior recorded oracle run
+  is now unreproducible.
+
+- **When a differential/self-hosting comparison's two sides are built by
+  two different code paths, an unstated default-value MISMATCH between
+  them silently reclassifies real bugs as expected divergence instead of
+  causing a visible failure.** If the comparison already has a named
+  exemption bucket for "one side legitimately has a lower resource
+  ceiling than the other" (e.g. a guest evaluator paying more host
+  frames per guest call than the direct host path, so it can exhaust a
+  depth/step budget the host doesn't), then giving each side's builder
+  its own independent default for that ceiling — one defaulting to
+  `None` (resolves to the interpreter's own unrelated top-level default,
+  e.g. 20000) and the other defaulting to a much lower, deliberately-
+  chosen comparison value (e.g. 2000) — silently WIDENS that exemption:
+  a real mismatch that would surface as a genuine divergence between a
+  depth-2000 host and a depth-2000 guest instead gets swallowed as
+  "expected depth skew" between a depth-2000 host and an unrelated
+  depth-20000 guest. This is a coverage gap, not a crash or a false
+  positive, so nothing in a green test suite flags it — it only shows up
+  as "this class of bug can no longer be found," which is easy to miss
+  for many rounds. Confirmed in Whence's SWE-loop harness (round 289
+  flagged it, round 295 fixed it): `GuestHarness.__init__` defaulted
+  `max_depth=None` while `oracle_self_eval`'s own host-side default was
+  `2000`; the fix was making the guest builder take the SAME `max_depth`
+  the host side already uses as an explicit, threaded parameter (and
+  keying any cache on `(pkg, max_depth)`, not just `pkg`, so two
+  different depths for the same package never silently share one
+  cached instance) rather than letting each side pick its own default.
+  When auditing a differential harness, grep both builder call sites for
+  every parameter that has a *named* exemption bucket in the comparison
+  logic and confirm both sides pass the same value — an exemption bucket
+  existing at all is evidence a mismatch has bitten this comparison
+  before.
+
 ## Verification
 - `python3 -m pytest tests/ -q` → all green, runtime < 1s.
 - Every example runs with documented exit code; the deliberately-failing one
