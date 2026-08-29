@@ -164,7 +164,7 @@ def test_example_runs_green():
     r = subprocess.run([sys.executable, os.path.join(ROOT, "run.py"), EXAMPLE],
                        capture_output=True, text=True)
     assert r.returncode == 0, r.stdout + r.stderr
-    assert "103 passed, 0 failed" in r.stdout
+    assert "105 passed, 0 failed" in r.stdout
     assert "all in Whence" in r.stdout
 
 
@@ -206,6 +206,37 @@ def test_differential_corpus_covers_misses():
     miss_srcs = [src for src in CORPUS if isinstance(
         host_eval(src).payload, Miss)]
     assert len(miss_srcs) >= 12, len(miss_srcs)
+
+
+def test_return_type_guard_label_agrees_host_vs_guest():
+    # Round 326's own dedicated pin, isolated from the broader corpus sweep
+    # (payloads_agree() above deliberately exempts miss REASON text — see
+    # this file's module docstring). An anonymous fn's failed `-> Type`
+    # check must say just "return value" on BOTH sides (the host's
+    # `_closure_ret` only appends " of %s" when the closure has a name,
+    # i.e. never for an `A.FnExpr`); a NAMED fn's must say "return value of
+    # <name>" on both sides. Before round 326's fix, the guest's
+    # `check_ret` unconditionally appended "of " + fn_name, so the
+    # anonymous case read "return value of (anonymous)" on the guest vs.
+    # plain "return value" on the host — invisible until now because
+    # self_eval.lang's own pre-existing "guest anonymous fn honors both
+    # param and return types" check only ever exercised the SUCCESS path.
+    anon_src = 'let g = fn() -> num { "oops" }\nlet result = g()'
+    named_src = 'fn g() -> num { "oops" }\nlet result = g()'
+
+    h_anon, h_named = host_eval(anon_src), host_eval(named_src)
+    assert isinstance(h_anon.payload, Miss) and isinstance(h_named.payload, Miss)
+    assert h_anon.payload.reasons[0].startswith(
+        "return value expected num, got str")
+    assert h_named.payload.reasons[0].startswith(
+        "return value of g expected num, got str")
+
+    g_anon, g_named = guest_eval_all([anon_src, named_src])
+    assert isinstance(g_anon.payload, Miss) and isinstance(g_named.payload, Miss)
+    assert g_anon.payload.reasons[0].startswith(
+        "return value expected num, got str")
+    assert g_named.payload.reasons[0].startswith(
+        "return value of g expected num, got str")
 
 
 @pytest.mark.whence_slow

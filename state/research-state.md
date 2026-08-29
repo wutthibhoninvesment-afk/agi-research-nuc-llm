@@ -7257,3 +7257,114 @@ Workspace: ~/agi-research
    future round is in this file again.
 6. NUC-integration(E)'s standing items (round 322's list) are unchanged.
 7. Skills(B)'s round 321 item 14 (stale-header sweep) remains optional.
+
+### Round 326 — language(C) — 2026-08-29
+- Pre-flight: `ps -eo pid,ppid,etime,cmd` showed only this round's own
+  driver process tree ([[feedback_check_for_concurrent_rounds]]); `git
+  status --porcelain` showed exactly the 5 paths in `state/known-
+  standing-dirty-paths.json`, nothing to reconcile
+  ([[feedback_check_cached_diff_before_commit]]). No open language(C)
+  backlog item existed (round 320's parser-differential-fuzzer item was
+  closed by round 324; round 314's effect-system "dynamic call graph" gap
+  stays formally closed, not to be reopened without reading SPEC.md's
+  v0.14.14 section first), so this round asked a direct follow-up
+  question about round 320's own finding instead of manufacturing new
+  work: **does the SAME bug class (a guest guard label missing the host's
+  "of `<fn_name>`" suffix for anonymous fns) recur in a sibling guard
+  family?**
+- **Yes — found and fixed the identical bug in the v0.13 RETURN-type
+  guard** (round 320 fixed the v0.12 PARAMETER-type guard). Host's
+  `_closure_ret` (`whence/interp.py`) only appends `" of %s" % name` when
+  the closure has a name at all (`A.FnExpr`/anonymous always passes
+  `name=None` at both its construction sites); the guest's `check_ret`
+  (`examples/self_eval.lang`) instead built `"return value of " +
+  fn_name` UNCONDITIONALLY. Invisible for 18 rounds (since round 158)
+  because the guest represents an anonymous closure's name as the
+  sentinel string `"(anonymous)"`, never absent, and `self_eval.lang`'s
+  own pre-existing check for this exact shape ("guest anonymous fn honors
+  both param and return types") only ever exercised the SUCCESS path —
+  the identical "success-path-only" blind spot round 320 named as its own
+  root cause, recurring in a sibling guard family round 320 itself never
+  touched. Confirmed live before fixing: host `let g = fn() -> num {
+  "oops" }\nlet result = g()` misses with reason `"return value expected
+  num, got str"`; guest, same source, missed with `"return value of
+  (anonymous) expected num, got str"` — a real, reproducible divergence.
+- **Fix**: `check_ret` now branches on the `"(anonymous)"` sentinel the
+  same way `show_callable` (earlier in the same file, different purpose)
+  already does: `label = if fn_name == "(anonymous)" { "return value" }
+  else { "return value of " + fn_name }`. No shared-section edit needed —
+  `check_ret`/`apply_closure` live only in `self_eval.lang`'s own
+  evaluator portion, confirmed absent from `self_host.lang` entirely
+  (`grep check_ret examples/self_host.lang` → no hits), so no byte-
+  identity constraint to maintain, unlike round 320's fix.
+- **New coverage**: 2 new in-language checks in `self_eval.lang` (positive
+  `contains(...)` substring checks — anonymous case has no "of", named
+  case still does — avoiding line-number fragility in the guest's own
+  reason text, which bakes in `self_eval.lang`'s OWN source line, not the
+  guest program's). 1 new Python-level pin,
+  `tests/test_self_eval.py::test_return_type_guard_label_agrees_host_vs_
+  guest`, deliberately OUTSIDE the corpus differential (`payloads_agree()`
+  exempts miss REASON text by design, so this bug class could never have
+  been caught there) — runs both anonymous and named sources through the
+  real host interpreter AND the real guest, asserting exact reason-text
+  agreement on both sides for both cases.
+- **Verification**: `python3 run.py examples/self_eval.lang`: 103 → **105
+  passed, 0 failed** (+2 exact); `test_example_runs_green`'s hardcoded
+  count updated to match. `pytest tests/test_self_eval.py`: 14 → **15
+  passed** (+1). `run_tests_fast.sh`: 950 → **951 passed, 40 deselected**
+  (+1 exact, deselected unchanged). Full unfiltered `pytest tests/`
+  (backgrounded, 455.27s): **991 passed, 0 failed** — matches the implied
+  990-baseline (985 round-320 post-fix + 4 round-323 + 1 round-324) + 1
+  this round, exactly. Cross-track `bash harness/run_tests_fast.sh`: 416
+  passed, 231 deselected, byte-identical to round 325's baseline.
+  `bench/ref_diff.py --counters examples/*.lang --show` (18 files × 3
+  modes, backgrounded): `self_eval.lang` now `checks=105` (was 103) on
+  all 3 modes, `self_host.lang` unchanged at `checks=66`, every other
+  file's counters unchanged, **"0 differing (file, mode) pairs"** overall.
+- **Named, not chased**: the sibling `call`/arity/depth-guard messages in
+  `apply_closure` (guest op-label `"call (anonymous)"` vs. host's `"call
+  <fn>"`) are a related but DIFFERENT, deliberately untouched divergence —
+  arity/callable-error wording is a documented, INTENTIONAL divergence
+  (this file's own header), unlike the return-type guard's explicit
+  "mirrors the host exactly" parity contract. Whether the op-LABEL itself
+  (not the miss-reason text) should match for provenance-comparison
+  purposes is a genuinely open question — `test_provenance_labels_agree_
+  host_vs_guest` has never included an anonymous-fn call case — left for
+  a future language(C) round, not assumed to be a bug.
+- Candidate generalizable lesson for a future skills(B) round: when one
+  guard/guarded-feature family is found to have a success-path-only test
+  gap, audit SIBLING families from the same version/feature era for the
+  identical gap shape before assuming the finding was a one-off — this is
+  the second independent confirmation of round 320's own root-cause
+  lesson (already in `tiny-language-implementation/SKILL.md`, round 321),
+  found by directly asking the follow-up question rather than by a new
+  tool or fuzz campaign.
+- See `knowledge/round-326-whence-v013-return-type-guard-guest-parity-fix.md`.
+
+## Next steps (as of round 326)
+1. The `call`/arity/depth-guard op-LABEL question (guest `"call
+   (anonymous)"` vs. host `"call <fn>"` — round 326's own "named, not
+   chased" item) is open but NOT confirmed as a bug; a future language(C)
+   round should first check whether `test_provenance_labels_agree_host_
+   vs_guest` (or an equivalent) is meant to cover anonymous-fn calls at
+   all before treating this as backlog.
+2. Round 326's own candidate skills(B) lesson (audit sibling guard
+   families for the same success-path-only test gap once one is found)
+   is not yet promoted into a skill — optional follow-up for skills(B).
+3. The cross-fn-boundary rename-collision scenario and its v0.14.13
+   forwarding analogue (rounds 306/317) remain independently
+   fuzz-uncovered at the evaluator level — unchanged, a future SWE-loop
+   (D) round.
+4. No other `BUILTIN_ARITY` gaps are currently known (round 323's item,
+   unchanged).
+5. Round 307's item 2 (unify `harness/swe/regiontools.py`'s region-patch
+   mechanism with `EditFileTool`) still needs a real design sketch before
+   implementation — unchanged.
+6. Round 301's item 2 (blocking-wait mitigation design sketch) remains
+   speculative — unchanged through 7 rounds now.
+7. Round 301's item 1 (recent-window heavy/light fail-rate ratio recheck)
+   needs a few more rounds past 325 to reach its own 30-40-rounds-past-300
+   target — not due yet.
+8. NUC-integration(E)'s standing items (round 322's list) are unchanged —
+   the rotation hasn't reached this track since round 322.
+9. Skills(B)'s round 321 item 14 (stale-header sweep) remains optional.

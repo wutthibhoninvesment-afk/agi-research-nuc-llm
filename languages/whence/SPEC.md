@@ -3456,3 +3456,97 @@ not this round. See `knowledge/round-254-whence-self-hosting-round9-steps-repro-
   run_tests_fast.sh`: 414 passed, 229 deselected, unchanged. Full
   metrics, campaign counts, and the investigation trail are in
   `knowledge/round-323-swe-loop-d-trunc-arity-and-exponent-literal-lexer-bug.md`.
+
+## v0.13 guest parity fix (round 326, language C) — return-type guard label wording for anonymous fns
+
+- **Same bug class as round 320, one guard family over**: round 320 found
+  and fixed a host/guest label divergence in the v0.12 PARAMETER type
+  guard (a named fn's guard is missing "of `<fn_name>`" on the guest).
+  This round asked the obvious follow-up — does the v0.13 RETURN type
+  guard (`_check_ret`/`_closure_ret` in `interp.py`, guest counterpart
+  `check_ret` in `self_eval.lang`) have the same class of bug? — and found
+  yes, in the opposite direction: the guest's `check_ret` UNCONDITIONALLY
+  built `"return value of " + fn_name`, while the host's `_closure_ret`
+  only appends `" of %s" % name` when the closure has a name at all
+  (`label = "return value of %s" % name if name else "return value"`,
+  never true for an `A.FnExpr`/anonymous closure, `_mk_closure(None, ...)`
+  at both of its call sites in `interp.py`).
+- **Why this was invisible for 18 rounds** (`check_ret` shipped round 158
+  alongside the parameter guard fixed by round 320): the guest represents
+  every closure's runtime "name" as a non-empty string — `"(anonymous)"`
+  for an unnamed one (`eval_FnExpr`'s own `@{... name: "(anonymous)", ...}`
+  literal, matching the host's OWN internal op-label for a bare `fn`
+  literal, `leaf("fn", "(anonymous)", ...)` in `interp.py` — so `c.name`
+  is never absent, only ever a real name or that one sentinel string).
+  `check_ret`'s naive `"return value of " + fn_name` therefore silently
+  produced `"return value of (anonymous)"` for every anonymous fn whose
+  `-> Type` check failed — and `self_eval.lang`'s own pre-existing check,
+  `"guest anonymous fn honors both param and return types"`, only ever
+  exercised the SUCCESS path (`fn(a: str) -> str { a + "!" }` called with a
+  matching arg) — the exact same "success-path-only" blind spot round
+  320's finding named as its own root cause, this time recurring in a
+  sibling guard family that round 320 itself never touched.
+- **The fix**: `check_ret` (`self_eval.lang`) now branches on the
+  `"(anonymous)"` sentinel the same way `show_callable` (two functions
+  above it in the same file) already does for a different purpose (call
+  labels): `let label = if fn_name == "(anonymous)" { "return value" }
+  else { "return value of " + fn_name }`. No shared-section edit needed —
+  unlike round 320's fix, `check_ret`/`apply_closure` live only in
+  `self_eval.lang`'s own evaluator portion (self-hosting round 4+), never
+  in `self_host.lang`'s lexer/parser-only file, confirmed directly
+  (`grep check_ret examples/self_host.lang` — no hits).
+- **New coverage, mirroring round 320's own "dedicated pin, isolated from
+  the corpus" pattern**: two new checks added directly after the
+  pre-existing success-path-only one in `self_eval.lang`'s own SELF-TESTS
+  section — one for the anonymous rejection path (`contains(reasons(...)
+  [0], "return value expected num, got str")`, i.e. no "of" anywhere), one
+  for the NAMED rejection path as a regression control (still says "of
+  g"). A third, independent pin lives at the Python level:
+  `tests/test_self_eval.py::test_return_type_guard_label_agrees_host_vs_
+  guest` runs BOTH the anonymous and named cases through the real host
+  `Interpreter` AND the real guest (`guest_eval_all`), asserting the exact
+  reason-text PREFIX matches on both sides for both cases — deliberately
+  outside `test_differential_host_vs_guest`'s own corpus sweep, whose
+  `payloads_agree()` helper exempts miss REASON text by design (only
+  missed-ness itself is compared there), so this class of bug could never
+  have been caught by that sweep no matter how large the corpus grew.
+- **Verification**: `python3 run.py examples/self_eval.lang`: **103 → 105
+  passed, 0 failed** (+2, exactly the two new in-language checks) —
+  `tests/test_self_eval.py::test_example_runs_green`'s own hardcoded
+  count updated to match. `pytest tests/test_self_eval.py`: 14 → **15
+  passed** (+1, the new dedicated host-vs-guest pin). `run_tests_fast.sh`:
+  950 → **951 passed, 40 deselected** (+1 exact, deselected count
+  unchanged — the new test is cheap enough to stay in the fast tier, no
+  `whence_slow` marker needed). Full unfiltered `pytest tests/`
+  (backgrounded, 455.27s): **991 passed, 0 failed** — the implied prior
+  baseline is 990 (round 320's own post-fix 985 was measured BEFORE round
+  323's own 4 new tests landed, per that round's own note; 985 + 4 (round
+  323) + 1 (round 324's fuzzer-sweep test) = 990), so this round's +1
+  (the one new Python-level test — `test_example_runs_green` itself is
+  `whence_slow`-marked and counts as ONE pytest test regardless of how
+  many in-language checks it covers) lands exactly on 991, 0 regressions.
+  Cross-track `bash harness/
+  run_tests_fast.sh`: 416 passed, 231 deselected, byte-identical to round
+  325's own post-landing baseline. `test_self_hosting.py`'s 15 tests
+  (`self_host.lang`, untouched by this round) still pass unchanged; `bash
+  bench/ref_diff.py --counters examples/*.lang --show` (all 18 example
+  files × 3 modes, live-confirmed) confirms `self_eval.lang` now reports
+  `checks=105` (was 103) on direct/fast/slow alike, `self_host.lang`
+  still `checks=66`, every other file's counters unchanged, and **"0
+  differing (file, mode) pairs"** overall.
+- **Named, not chased**: the sibling `call`/arity/depth-guard messages
+  in `apply_closure` (`"call " + c.name`, producing an op-LABEL of `"call
+  (anonymous)"` on the guest vs. the host's `"call <fn>"`, `name = p.name
+  or "<fn>"`) are a related but DIFFERENT divergence — not fixed this
+  round. Unlike the return-type guard (an explicit "guest parity" feature,
+  round 158's own comment: "mirrors the host's `_check_ret` exactly"),
+  arity/callable-error wording is a documented, DELIBERATE divergence
+  (this file's own header: "reason STRINGS for arity/callable errors are
+  worded differently (missed-ness always agrees)") — conflating the two
+  would blur a real parity contract with an intentionally-loose one for no
+  concrete gain. A future language(C) round could still audit whether the
+  op-LABEL (as opposed to the miss-reason TEXT) is meant to match exactly
+  for provenance-comparison purposes, since `test_provenance_labels_agree_
+  host_vs_guest` compares label sets but has never included an anonymous-
+  fn call case — left as an open, not-yet-investigated question, not a
+  confirmed bug.

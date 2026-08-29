@@ -1247,11 +1247,21 @@ fn apply_closure(f, args, st) {
 # "call <name>" wrap in `apply_closure` above always runs afterward around
 # whichever box this returns, exactly like the host's `Prov("call", ...,
 # result, ...)` always wrapping whatever `_check_ret` handed back.
+#
+# round 326: `fn_name` is ALWAYS a non-empty string here ("(anonymous)" for
+# an unnamed closure, per `eval_FnExpr`'s own `name: "(anonymous)"` above),
+# so the label must not unconditionally append "of " + fn_name the way an
+# earlier version of this function did — the host's own `_closure_ret`
+# (interp.py) only adds the " of %s" suffix when the closure's `name` is
+# non-None, i.e. NEVER for an `A.FnExpr` (anonymous), and always for an
+# `A.FnDef` (named). Mirrored here by treating the "(anonymous)" sentinel
+# the same way `show_callable` above already does.
 fn check_ret(box, ret_type, fn_name) {
   if ret_type == "" or missed(box.v) { box }
   else if guest_type_ok(box.v, ret_type) { box }
   else {
-    let label = "return value of " + fn_name
+    let label = if fn_name == "(anonymous)" { "return value" }
+                else { "return value of " + fn_name }
     let reason = label + " expected " + ret_type + ", got " + guest_kind(box.v)
     mkb(miss reason, "typed " + label, [box])
   }
@@ -1934,6 +1944,12 @@ check "guest return type rejects a mismatched value":
   missed(gv("fn f() -> num { \"oops\" }\nf()"))
 check "guest anonymous fn honors both param and return types":
   gv("let g = fn(a: str) -> str { a + \"!\" }\ng(\"hi\")") == "hi!"
+check "guest anonymous fn return-type miss label has no 'of' suffix (round 326)":
+  contains(reasons((run_src("let g = fn() -> num { \"oops\" }\ng()")).v)[0],
+           "return value expected num, got str")
+check "guest NAMED fn return-type miss label still has the 'of' suffix (round 326)":
+  contains(reasons((run_src("fn g() -> num { \"oops\" }\ng()")).v)[0],
+           "return value of g expected num, got str")
 check "guest 'any' type always matches": gv("fn f(a: any) { a }\nf(\"x\")") == "x"
 check "guest param guard is shadowable, matching the host's documented rule":
   gv("fn f(a: num) { let a = \"hi\"\na }\nf(1)") == "hi"
