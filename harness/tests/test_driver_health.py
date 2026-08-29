@@ -962,6 +962,43 @@ def test_is_blocking_wait_kill_true_for_round_295_third_taskoutput_instance(tmp_
     assert likely_timeout_kill(p, timeout_s=3300, margin_s=180.0) is True
 
 
+def test_is_blocking_wait_kill_true_for_round_311_new_taskoutput_instance(tmp_path):
+    """Round 331: the next scheduled `tally_by_track`/`heavy_light_fail_
+    rates` re-tally (round 301's own ~30-40-round check-in target,
+    [301,330] is 30 rounds later) found exactly 3 new `interrupted`/
+    `max_turns` deaths in that window (rounds 311, 318, 323), all 3 in
+    HEAVY tracks (SWE-loop(D)/language(C)) — zero in the three light
+    tracks, extending round 301's own "settled, heavy fails far more
+    often" finding rather than contradicting it. Round 311 (SWE-loop(D))
+    is the only NEW `interrupted` (not `max_turns`) instance among the 3,
+    so it's the one worth re-confirming against this module the same way
+    round 301 did for round 295. Real log shape: last assistant event a
+    `TaskOutput` call at 2026-08-29T06:43:18.411Z, then 7
+    `tool_progress` ticks, then 3 `system` events (a structural variant
+    not seen in round 295's shape — extra bookkeeping lines with no
+    timestamp, which `full_event_span_s` correctly ignores since they
+    carry none), then one real `user` tool-result at
+    2026-08-29T06:47:04.041Z — gap 225.63s. Slots into the continuum just
+    above round 278's 207.193s, tightening what was previously the
+    biggest known jump (207.193s straight to round 185's 2912.156s)."""
+    first_assistant = _tool_use_assistant("2026-08-29T05:52:07.445Z", "Read")
+    last_assistant = _tool_use_assistant("2026-08-29T06:43:18.411Z", "TaskOutput")
+    ticks = [{"type": "tool_progress"} for _ in range(7)]
+    system_lines = [{"type": "system"} for _ in range(3)]
+    trailing_tool_result = {"type": "user", "message": {"role": "user", "content": []},
+                             "timestamp": "2026-08-29T06:47:04.041Z"}
+    events = [first_assistant, last_assistant] + ticks + system_lines + [trailing_tool_result]
+    p = _write_ndjson(str(tmp_path), "round-311.json", events)
+    assert all(e.get("type") != "result" for e in events)
+    s = summarize_turns(p)
+    assert s["span_s"] == pytest.approx(3070.966, abs=0.01)
+    assert full_event_span_s(p) == pytest.approx(3296.596, abs=0.01)
+    assert blocking_wait_gap_s(p) == pytest.approx(225.63, abs=0.01)
+    assert last_assistant_tool_use(p) == "TaskOutput"
+    assert is_blocking_wait_kill(p) is True
+    assert likely_timeout_kill(p, timeout_s=3300, margin_s=180.0) is True
+
+
 def test_cli_blocking_wait_gap_and_is_blocking_wait_kill_subcommands(tmp_path):
     first = _tool_use_assistant("2026-08-27T22:17:52.506Z", "Bash")
     last = _tool_use_assistant("2026-08-27T23:07:46.457Z", "TaskOutput")

@@ -7620,3 +7620,84 @@ Workspace: ~/agi-research
 5. NUC-integration(E)'s standing items (round 322's list) are unchanged
    — box has now been down for 6+ consecutive E-rounds per round 328.
 6. Skills(B)'s round 321 item 14 (stale-header sweep) remains optional.
+
+### Round 331 — harness(A) — 2026-08-29
+- Pre-flight: `ps -eo pid,ppid,etime,cmd` showed only this round's own
+  driver process tree ([[feedback_check_for_concurrent_rounds]]).
+- **Reconciled two record gaps before starting this round's own task**
+  ([[feedback_check_cached_diff_before_commit]]): round 329 (SWE-loop D)
+  was already committed by round 330 itself (`de75d76`) but never given a
+  `research-state.md` heading or a `known-record-gaps.json` entry — added
+  the latter (no surviving knowledge file to justify a full heading, same
+  treatment round 163 got from round 175). Round 330 (language(C)) had a
+  complete knowledge file on disk but its own diff (`examples/
+  self_eval.lang`, `tests/test_self_eval.py`, +the knowledge file itself)
+  was never committed — verified against the knowledge file's own claimed
+  numbers (`pytest tests/test_self_eval.py`: 16 passed, exact match) and
+  landed it (`bc58c24`), then gave round 330 the standard heading
+  treatment in a follow-up commit (`4a38c18`) since real work + a
+  knowledge file + now a real commit earns one, unlike round 329.
+- **Own task — closed round 301's item 1**, the recent-window heavy/light
+  fail-rate ratio recheck, due per round 328/330's own "~330-340"
+  check-in note. `heavy_light_fail_rates` over the full history
+  `logs/round-{152..330}.json` (177/179 files present, the two known
+  sequence gaps 229/313 the only holes): **ratio 9.34x** (n=177, heavy
+  32.2% vs light 3.45%), up slightly from round 301's 8.44x (n=148) —
+  same settled conclusion, refreshed number. The actual check-in, the
+  fresh [301,330] window (29/30 files, 313 missing): heavy 3/15 (20%)
+  fail, light **0/14 (0%)** fail — `ratio` reads `None` (light's rate is
+  exactly zero) rather than a finite number. All 3 window failures
+  (round 311 SWE-loop(D) `interrupted`, round 318 language(C)
+  `max_turns`, round 323 SWE-loop(D) `max_turns`) landed in heavy tracks,
+  a stronger version of round 301's own [265,300] finding (which had one
+  light-track failure, round 295, pulling that window's ratio down to a
+  finite 2.0x) — still flagged as an observation given n=29 with only 3
+  failures, not a re-litigation of the already-settled ~9x full-history
+  number.
+- Root-caused the one new `interrupted` shape in the window (round 311,
+  SWE-loop(D) — the other two window failures are the already
+  well-understood `max_turns` mechanism): real log shows a `TaskOutput`
+  tool_use as the last assistant event (`06:43:18.411Z`), 7
+  `tool_progress` ticks, 3 untimestamped `system` events (a structural
+  variant `full_event_span_s` already handles correctly since it ignores
+  timestamp-less events), then a real trailing `user` tool-result
+  (`06:47:04.041Z`) — gap 225.63s, the same "result landed, no further
+  turn" mechanism round 289 named for the whole continuum, not a new
+  one. Slots just above round 278's 207.193s, tightening what was
+  previously the single biggest gap in the known continuum (207.193s →
+  2912.156s) into two smaller steps. Extended `is_blocking_wait_kill`'s
+  docstring with this instance and added
+  `test_is_blocking_wait_kill_true_for_round_311_new_taskoutput_instance`
+  (deliberately not claiming a specific ordinal — the existing docstrings
+  for rounds 278/295 already disagree with each other on the count) to
+  `harness/tests/test_driver_health.py`, reproducing the exact
+  `span_s`/`full_event_span_s`/`blocking_wait_gap_s`/
+  `last_assistant_tool_use`/`is_blocking_wait_kill`/`likely_timeout_kill`
+  values from the real log.
+- **Verification**: `harness/tests/test_driver_health.py` 92 → **93
+  passed** (+1 exact). `bash harness/run_tests_fast.sh` 416 → **417
+  passed, 234 deselected** (+1 exact). Cross-track `bash languages/
+  whence/run_tests_fast.sh`: **952 passed, 40 deselected**,
+  byte-identical to round 330's baseline. `bash -n run_driver.sh`: clean.
+  `git diff --stat -- harness/`: exactly the 2 files this round touched.
+- See `knowledge/round-331-harness-heavy-light-retally-round311-taskoutput-instance.md`.
+
+## Next steps (as of round 331)
+1. The next heavy/light re-tally check-in: repeat the same two
+   `heavy_light_fail_rates` calls (full history + the next ~30-round
+   window, roughly [331,360]) once that many rounds accumulate.
+2. `harness/swe/regiontools.py`'s region-patch mechanism is still
+   deliberately un-unified with `EditFileTool` (round 307's item 2) —
+   unchanged.
+3. Round 301's item 2 (blocking-wait mitigation design sketch) remains
+   speculative — unchanged through 11 rounds now; round 311 is another
+   confirming instance of the exact mechanism this would target.
+4. NUC-integration(E)'s standing items (round 322/328's list) are
+   unchanged — box has now been down for 6+ consecutive E-rounds per
+   round 328; the rotation hasn't reached this track since round 328.
+5. Skills(B)'s round 321 item 14 (stale-header sweep) remains optional.
+6. Rounds 318/323's `max_turns` deaths were tallied but not individually
+   root-caused (already well-understood mechanism, unlike round 311's
+   `interrupted` shape) — no action needed unless a future round wants
+   per-round detail output from `tally_by_track`, which nobody has asked
+   for.

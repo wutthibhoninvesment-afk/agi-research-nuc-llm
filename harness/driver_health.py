@@ -721,6 +721,16 @@ def is_blocking_wait_kill(path: str, min_gap_s: float = 1.0) -> Optional[bool]:
     zero-gap), `min_gap_s=1.0` still correctly tracks the structural split
     with no new intermediate mechanism found.
 
+    Round 331 (the next scheduled re-tally, per round 301's own ~30-40-
+    round check-in target) found one more real `interrupted` round in the
+    [301,330] window: round 311 (SWE-loop(D)), gap 225.63s, also a
+    `TaskOutput(block=true, ...)` call — same mechanism again. It slots
+    the continuum's previously-widest jump (207.193s at round 278 straight
+    to 2912.156s at round 185) much tighter, landing just above 278's
+    value — 19 real `interrupted` rounds checked total now (14
+    nonzero-gap, 5 zero-gap), still one smooth continuum, still no new
+    intermediate mechanism.
+
     Returns None (not False) when the round was not `interrupted` at all,
     or when `blocking_wait_gap_s` itself can't be computed — a clean
     round or one with too little data isn't evidence either way.
