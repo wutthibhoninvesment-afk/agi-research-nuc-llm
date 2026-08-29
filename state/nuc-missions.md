@@ -914,6 +914,60 @@ Known facts (measured 2026-08-24, E1 full curve — /work/logs/nuc-bench.md):
   (`--cap 256`, E3 patch, OLMoE tarball, `memory.events` max, operator
   login, escalation channel) again NOT re-verified — box down throughout.
 
+## Round 340 addendum (2026-08-29, box DOWN entire round — EIGHTH consecutive down window, same continuous outage as rounds 298/304/310/316/322/328/334)
+
+- **Three live checks** (17:15:30, 17:15:41, 17:38:03 UTC), all unreachable;
+  tailscale `LastSeen` still byte-identical to every check since round 298
+  (`2026-08-29T02:10:00.1Z`). Confirmed outage **15h25m14s** and open. The
+  17:15:41 record is a duplicate probe 11s after the first — an operator
+  slip, kept rather than deleted and annotated as such in its `notes`.
+- **Built `gap_continuity` / `continuity_report` / `max_unobserved_streak_s`**
+  in `nuc/reachability_check.py` (+ a `continuity` CLI subcommand). Round 334
+  showed each streak's *span* was a lower bound; this round found the same
+  error one level up — `n_streaks` is a lower bound on the number of state
+  TRANSITIONS, because the box can flip and flip back between two
+  same-verdict checks. Each intra-streak gap is now classified `full` /
+  `reboot_only` / `none` against named evidence, fail-closed.
+- **Both outages are now PROVABLY continuous**, not merely asserted: for
+  adjacent down checks at t1<t2, a `LastSeen <= t1` read at t2 proves the
+  peer was never seen on the tailnet in (t1,t2]. That covers all 11 down
+  gaps — including 184->196, whose earlier record predates the field. The
+  "one continuous outage since 02:10" line every round since 298 has written
+  in prose is finally a computed claim.
+- **The finding that reframes this file's own history: 69% of the log's
+  97h04m41s span is unwitnessed, and a COMPLETE 14h00m00s outage could have
+  happened between rounds 142 and 154** (2026-08-26 03:19Z -> 17:19Z) leaving
+  no trace anywhere. Not measured-imprecisely — no record of existing at all.
+  No up gap in this log is witnessed, and none can be by any probe.
+- **Consequence for this file's record claim.** Rounds 322/328/334 each wrote
+  that the current outage is the longest this track has measured while their
+  own elapsed (8h/9h/10h49m) was still SHORTER than that hidden 14h
+  competitor. The claim was not wrong, it was unsupported. It became
+  supportable at `2026-08-29T16:13:07Z` (first down check + 14h00m), so
+  round 340 is the first round that can make it: new
+  `definitely_longest_including_unobserved: true`, margin 1h25m14s.
+- **`boot_utc` is deliberately NOT a witness** (`reboot_only`):
+  `/proc/uptime` is CLOCK_BOOTTIME-based and keeps counting across suspend,
+  so an unchanged boot time cannot exclude a suspend/resume — this box's own
+  documented failure mode (round 184's ARP-incomplete finding). Verifying
+  that on the box is on the return checklist.
+- **Built, tested offline, NOT run live: `parse_boot_history` /
+  `boot_history_probe`** for `journalctl --list-boots -o json`. It is the
+  only source that can witness an up gap at all, because the box writes it
+  continuously rather than being sampled — and it retroactively witnesses
+  gaps arbitrarily far back. Closes the reboot half of the blind spot;
+  the suspend half stays open by construction and is pinned as a test.
+  **First action on the first up check: run it and save the output** — its
+  value is highest the first time, and journal retention means waiting
+  loses data permanently.
+- 72 new tests (`nuc/tests/` 276 -> 348); 35 hand-designed mutants, 35
+  killed. Full writeup:
+  `knowledge/round-340-nuc-e-gap-continuity-and-the-unobserved-outage.md`.
+- **Still open, unchanged**: the second multi-hour `swap_watch_launch.py`
+  poll (round 304's ask) remains unlaunched an EIGHTH time; standing state
+  (`--cap 256`, E3 patch, OLMoE tarball, `memory.events` max, operator
+  login, escalation channel) again NOT re-verified — box down throughout.
+
 ## Done-criteria for any mission
 Code runs (proof in round file), measurements banked in both places,
 `state/nuc-missions.md` checkbox ticked with a one-line result summary.

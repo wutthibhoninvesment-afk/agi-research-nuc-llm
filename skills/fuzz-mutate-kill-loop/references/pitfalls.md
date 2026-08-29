@@ -150,3 +150,47 @@ reproduced verbatim; SKILL.md keeps the one-line rule and points here.
   cap). The pitfall was already in this file and had been read; applying it
   is a separate act. When a new tool shells out to commands it did not write,
   treat the process-group cap as a required feature, not a hardening pass.
+- **A mutation harness that rewrites a source file in a loop can test the
+  PREVIOUS mutant.** CPython validates a cached `.pyc` against
+  `(source mtime truncated to whole seconds, source size)` — nothing else, no
+  content hash. Two mutants that happen to produce a file of the same size,
+  written inside the same second, therefore share a cache key, and the second
+  one runs against the first one's bytecode with its own mutation never
+  executed. Round 340 hit this for real: M33 and M34 both produced 62272 bytes
+  at mtime `…657.15` and `…657.91`, and M34 was reported SURVIVED. Run in
+  isolation it was killed immediately. The failure is **one-directional** — a
+  stale cache re-runs the previous mutant, so it can only ever manufacture a
+  false SURVIVED, never a false KILLED — which is exactly why it is easy to
+  miss: it does not corrupt a clean run, it fabricates work for you to do
+  chasing a survivor that is not one. Purge every `__pycache__` under the
+  target tree once at start AND spawn each run with
+  `PYTHONDONTWRITEBYTECODE=1`; the two together are cheap and neither alone is
+  sufficient (the env var stops new caches forming, not a pre-existing one
+  being read). Symptom to watch for: a survivor that dies the moment you
+  reproduce it by hand.
+- **Diagnose a survivor before writing a test for it: some are invalid
+  mutants, not test gaps.** Round 340's four survivors split three ways.
+  M26/M30/M33 were genuinely missing assertions (a boot-history gap that
+  neither covers nor straddles the window; a fixture whose index order
+  happened to agree with its time order, making the sort assertion vacuous; a
+  probe failure case that paired a bad exit code only with empty stdout, so
+  the returncode check was unobservable). M27 was an **invalid mutant** — its
+  injection point sat after an unconditional `return` in a branch above it, so
+  the mutated line was unreachable for the verdict it was meant to affect; the
+  fix was to move the mutation, not to add a test. And M23 was a true
+  **equivalent mutant** (an alias replaced by an equal literal): no behavioural
+  difference exists to detect, so it was retired and replaced with M23b, which
+  mutates the set's *contents* — the drift the alias actually exists to
+  prevent. Writing a test for an invalid or equivalent mutant adds a test that
+  pins nothing.
+- **`assert A is B` on module-level constants is not a test.** CPython
+  deduplicates equal constants within one module's constant pool, so two
+  separate `("down", "ambiguous")` literals in the same file *are* the same
+  object and the identity assertion passes whether the intended aliasing
+  exists or not — verified directly: `compile()` such a module and `co_consts`
+  holds one tuple. Round 340 wrote exactly that assertion to pin "these two
+  rules must never drift apart", and a mutant replacing the alias with an
+  equal literal survived. Assert the shared property **behaviourally** instead
+  (here: for every verdict, the gap rule and the bounds rule agree on whether
+  LastSeen applies), which also catches the drift that matters — a change to
+  the set's contents — rather than to its identity.

@@ -30,6 +30,8 @@ Usage:
         (current streak's verdict + elapsed time as of now)
     python3 nuc/reachability_check.py bounds
         (per-streak [confirmed, max-possible] span brackets)
+    python3 nuc/reachability_check.py continuity
+        (per-gap witness analysis: is each streak really unbroken?)
 """
 from __future__ import annotations
 
@@ -343,6 +345,18 @@ def _parse_ts(ts: str) -> datetime:
     return datetime.strptime(text, TS_FORMAT_NO_Z).replace(tzinfo=timezone.utc)
 
 
+def _fmt_ts(dt: datetime) -> str:
+    """Inverse of `_parse_ts` for the canonical form this module writes.
+
+    Deliberately drops any sub-second part: every timestamp this function
+    is applied to is a `checked_at_utc` (already whole-second) being echoed
+    back into a human-readable note, and rendering "2026-08-29T02:13:07Z"
+    rather than "...07+00:00" keeps those notes in the same shape as every
+    other timestamp in the log.
+    """
+    return dt.strftime(TS_FORMAT)
+
+
 def _streak_span_seconds(streak: dict) -> float:
     return (_parse_ts(streak["end"]) - _parse_ts(streak["start"])).total_seconds()
 
@@ -554,6 +568,493 @@ def longest_completed_streak_bounds(records: list, verdict: str) -> dict | None:
     return max(matching, key=lambda b: b["confirmed_span_s"])
 
 
+# Verdict classes for which `tailscale_last_seen_utc` carries the meaning
+# `gap_continuity` needs ("the last instant the peer was demonstrably
+# alive"). Same set as `_LAST_SEEN_BOUNDS_START` and deliberately aliased
+# to it rather than re-typed: the two rules ask different questions (when
+# did the streak START vs was the streak CONTINUOUS) but they are only
+# sound for the verdicts where LastSeen means "not seen since", so if that
+# set ever changes it must change for both at once.
+_LAST_SEEN_WITNESSES_GAP = _LAST_SEEN_BOUNDS_START
+
+# Witness strengths, weakest first. Only "full" counts as witnessed.
+WITNESS_NONE = "none"
+WITNESS_REBOOT_ONLY = "reboot_only"
+WITNESS_FULL = "full"
+
+_BOOT_UTC_SUSPEND_CAVEAT = (
+    "boot_utc unchanged rules out a REBOOT inside this gap, not an outage: "
+    "/proc/uptime's first field is CLOCK_BOOTTIME-based and keeps counting "
+    "across suspend, so a box that slept and woke reports the same boot "
+    "time. Suspend is this box's own documented failure mode (round 184: "
+    "ARP incomplete => 'the box itself is off/asleep, not a routing "
+    "problem'), so this is explicitly NOT counted as a witness."
+)
+
+
+def _gap_witness(verdict: str, earlier: dict, later: dict,
+                 t1: datetime, t2: datetime, boots: list | None = None) -> dict:
+    """Classify ONE gap between two adjacent same-verdict records.
+
+    Returns `{strength, source, note, missed_excursion}` where
+    `missed_excursion` is either None or a dict describing POSITIVE
+    evidence that the box changed state inside the gap (as opposed to the
+    ordinary case, which is merely an absence of evidence that it did not).
+
+    Fails closed: any datum that is missing, contradictory, or whose
+    meaning is not established for this verdict yields `WITNESS_NONE`. A
+    continuity claim is exactly the kind of thing that is cheap to assert
+    and expensive to be wrong about, so the default answer is "we do not
+    know", and only two named rules can move off it.
+    """
+    if verdict in _LAST_SEEN_WITNESSES_GAP:
+        last_seen = later.get("tailscale_last_seen_utc")
+        if not last_seen:
+            return {"strength": WITNESS_NONE, "source": None,
+                    "note": "no tailscale_last_seen_utc on the later record",
+                    "missed_excursion": None}
+        seen_dt = _parse_ts(last_seen)
+        if seen_dt <= t1:
+            # The peer was last seen alive at or before the EARLIER check,
+            # as reported by a read taken at the LATER one. So it was not
+            # seen on the tailnet at any instant in (t1, t2] -- the gap
+            # cannot hide an up excursion tailscale would have noticed.
+            # Note this is strictly more general than "LastSeen unchanged
+            # across the two records": it needs no LastSeen at all on the
+            # earlier record, which is what lets it witness the 184->196
+            # gap, whose earlier record predates the field.
+            return {"strength": WITNESS_FULL, "source": "tailscale_last_seen",
+                    "note": ("peer last seen %s, at or before the earlier check "
+                             "%s => not seen on the tailnet during the gap"
+                             % (last_seen, _fmt_ts(t1))),
+                    "missed_excursion": None}
+        if t1 < seen_dt < t2:
+            # Positive evidence of a MISSED EXCURSION: something saw the
+            # peer alive strictly inside a span this log calls one
+            # continuous outage. Reported, never silently dropped -- the
+            # whole point of the field is that it can contradict us.
+            return {"strength": WITNESS_NONE, "source": None,
+                    "note": "tailscale saw the peer alive INSIDE this down gap",
+                    "missed_excursion": {
+                        "kind": "tailscale_last_seen_inside_gap",
+                        "verdict": verdict,
+                        "from_utc": _fmt_ts(t1), "to_utc": _fmt_ts(t2),
+                        "evidence_utc": last_seen,
+                        "evidence_field": "tailscale_last_seen_utc",
+                        "from_round": earlier.get("round"),
+                        "to_round": later.get("round"),
+                    }}
+        # seen_dt >= t2: the peer was seen alive at or after a check that
+        # called it down. Round 334's `streak_bounds` drops this same shape
+        # rather than clamping it; so does this, for the same reason -- it
+        # implies more transitions than one gap can represent.
+        return {"strength": WITNESS_NONE, "source": None,
+                "note": ("contradictory: tailscale_last_seen %s is at or after "
+                         "the later down check itself" % last_seen),
+                "missed_excursion": None}
+
+    # --- up streaks ---
+    # The box's own boot history is consulted FIRST: it is the only source
+    # here that was recorded continuously rather than sampled, so when it
+    # has something to say it strictly dominates `boot_utc`, which is two
+    # endpoint samples of the same underlying fact.
+    if boots:
+        from_history = _boot_history_witness(t1, t2, boots, earlier, later, verdict)
+        if from_history is not None:
+            return from_history
+    # LastSeen is deliberately NOT consulted here. On an up record it means
+    # "seen alive during this streak", which is evidence about the streak's
+    # interior, not about whether the interior was unbroken -- the same
+    # asymmetry round 334 encoded in `_LAST_SEEN_BOUNDS_START`.
+    b1, b2 = earlier.get("boot_utc"), later.get("boot_utc")
+    if not b1 or not b2:
+        return {"strength": WITNESS_NONE, "source": None,
+                "note": "boot_utc missing on one or both endpoints",
+                "missed_excursion": None}
+    d1, d2 = _parse_ts(b1), _parse_ts(b2)
+    if d2 > d1:
+        return {"strength": WITNESS_NONE, "source": None,
+                "note": "the box rebooted inside this up gap",
+                "missed_excursion": {
+                    "kind": "boot_utc_advanced_inside_gap",
+                    "verdict": verdict,
+                    "from_utc": _fmt_ts(t1), "to_utc": _fmt_ts(t2),
+                    "evidence_utc": b2,
+                    "evidence_field": "boot_utc",
+                    "from_round": earlier.get("round"),
+                    "to_round": later.get("round"),
+                }}
+    if d2 < d1:
+        return {"strength": WITNESS_NONE, "source": None,
+                "note": ("contradictory: boot_utc moved backwards, %s -> %s"
+                         % (b1, b2)),
+                "missed_excursion": None}
+    return {"strength": WITNESS_REBOOT_ONLY, "source": "boot_utc_unchanged",
+            "note": _BOOT_UTC_SUSPEND_CAVEAT, "missed_excursion": None}
+
+
+# --------------------------------------------------------------------------
+# Round 340: witnesses that come from the BOX's own continuous records
+# rather than from our probes.
+#
+# `gap_continuity` shows the ceiling of the probe-based approach: a down gap
+# can be witnessed (tailscale's LastSeen is itself a continuously-maintained
+# record) but an UP gap cannot, because nothing we sample at check time says
+# anything about the interval between checks. No cadence fixes that -- every
+# cadence leaves gaps, and halving the gap only halves the blind spot.
+#
+# The way out is evidence the box generates while we are not looking.
+# `journalctl --list-boots` is exactly that: each boot carries the timestamp
+# of its first and last journal entry, so the box's own log says when it was
+# running and, by subtraction, when it was not -- retroactively, for gaps
+# arbitrarily far in the past.
+#
+# What it CAN witness: reboots and power-offs. A gap fully inside one boot's
+# [first_entry, last_entry] is a gap the box spent running and logging.
+# What it CANNOT witness: SUSPEND. A suspend/resume keeps the same boot_id
+# and leaves the boot's first/last entries straddling it, so this source
+# reports a suspended box as continuously up. That matters here specifically
+# because suspend is the failure mode round 184 inferred for this box, so
+# `boot_history` closes the reboot half of the blind spot and leaves the
+# suspend half open. Naming that here rather than shipping it as "the fix"
+# is the point -- see `knowledge/round-340-*` for the deferred design of the
+# suspend half (it needs the box's real journal to pick a signal, and the
+# box has been down for 15h).
+# --------------------------------------------------------------------------
+
+def parse_boot_history(text: str) -> list:
+    """Parse `journalctl --list-boots -o json` into normalised boot records.
+
+    Output rows carry `index`, `boot_id`, `first_entry_utc`,
+    `last_entry_utc`. systemd emits `first_entry`/`last_entry` as
+    MICROSECONDS since the epoch, as a JSON number on some versions and a
+    decimal string on others; both are accepted, and a row missing either
+    endpoint is dropped rather than guessed at (a boot whose journal was
+    rotated away cannot bound anything, and inventing an endpoint for it
+    would manufacture a witness).
+
+    Empty input, `[]`, and unparseable JSON all yield `[]`: this parser
+    feeds a witness rule, and the fail-closed default for a witness rule is
+    "no evidence", never an exception that a caller might catch and treat
+    as one.
+    """
+    text = (text or "").strip()
+    if not text:
+        return []
+    try:
+        rows = json.loads(text)
+    except (ValueError, TypeError):
+        return []
+    if not isinstance(rows, list):
+        return []
+    out = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        first = _usec_to_utc(row.get("first_entry"))
+        last = _usec_to_utc(row.get("last_entry"))
+        if first is None or last is None or first > last:
+            continue
+        out.append({
+            "index": row.get("index"),
+            "boot_id": row.get("boot_id"),
+            "first_entry_utc": first,
+            "last_entry_utc": last,
+        })
+    out.sort(key=lambda b: b["first_entry_utc"])
+    return out
+
+
+def _usec_to_utc(value) -> str | None:
+    """Microseconds-since-epoch (int or decimal string) -> canonical UTC.
+
+    Truncates to whole seconds, matching `format_duration_s` and `_fmt_ts`:
+    every other timestamp in this module is whole-second, and a boot record
+    that rounded UP could push `last_entry_utc` past an instant the box was
+    demonstrably not logging.
+    """
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        usec = int(value)
+    except (TypeError, ValueError):
+        return None
+    if usec <= 0:
+        return None
+    return _fmt_ts(datetime.fromtimestamp(usec // 1_000_000, tz=timezone.utc))
+
+
+def boot_history_probe(ssh_target: str = DEFAULT_SSH_TARGET,
+                       ssh_key: str = DEFAULT_SSH_KEY,
+                       connect_timeout: int = DEFAULT_CONNECT_TIMEOUT_S,
+                       runner=None) -> list:
+    """Read the box's boot history over ssh. Returns [] on ANY failure.
+
+    Same discipline as round 334's `boot_probe`: a separate ssh call rather
+    than extra output bolted onto `ssh_probe` (whose strict `== "UP"` stdout
+    check IS the up verdict), and every failure mode -- unreachable,
+    non-zero exit, empty or unparseable output, journal storage set to
+    volatile so only the current boot is listed -- degrades to "no
+    witnesses", never to an exception or a fabricated one.
+
+    NOT RUN LIVE as of round 340: the box has been unreachable since
+    2026-08-29T02:10Z. `runner` is injectable precisely so the parse and
+    witness logic could be built and tested in full while it is down.
+    """
+    run = runner or (lambda cmd: subprocess.run(cmd, capture_output=True,
+                                                text=True, timeout=connect_timeout + 20))
+    cmd = ["ssh", "-i", ssh_key, "-o", "BatchMode=yes",
+           "-o", f"ConnectTimeout={connect_timeout}",
+           "-o", "StrictHostKeyChecking=accept-new",
+           ssh_target, "journalctl --list-boots -o json"]
+    try:
+        proc = run(cmd)
+    except Exception:
+        return []
+    if getattr(proc, "returncode", 1) != 0:
+        return []
+    return parse_boot_history(getattr(proc, "stdout", "") or "")
+
+
+def _boot_history_witness(t1: datetime, t2: datetime, boots: list,
+                          earlier: dict, later: dict, verdict: str) -> dict | None:
+    """Witness an UP-streak gap from the box's own boot history, or report
+    the excursion it proves. Returns None when the history says nothing.
+
+    Two outcomes, and the asymmetry between them is the whole value:
+
+    - Some boot's [first_entry, last_entry] fully covers [t1, t2] => the box
+      was running and logging across the entire gap. A FULL witness, from a
+      continuous record, for an interval nobody probed.
+    - A boot boundary falls strictly inside [t1, t2] => the box demonstrably
+      stopped and restarted inside a span this log calls one unbroken up
+      streak. That is a missed excursion WITH EXACT BOUNDS -- the outage ran
+      from the earlier boot's last entry to the later boot's first entry --
+      which is strictly more than any probe-based rule can ever produce.
+
+    Anything else (history too short, gap straddling a boot we have no
+    record of) returns None and leaves the existing rules to answer.
+    """
+    for b in boots:
+        if _parse_ts(b["first_entry_utc"]) <= t1 and t2 <= _parse_ts(b["last_entry_utc"]):
+            return {"strength": WITNESS_FULL, "source": "boot_history",
+                    "note": ("boot %s logged continuously from %s to %s, "
+                             "covering this gap"
+                             % (b.get("boot_id"), b["first_entry_utc"],
+                                b["last_entry_utc"])),
+                    "missed_excursion": None}
+    for prev, nxt in zip(boots, boots[1:]):
+        down_from = _parse_ts(prev["last_entry_utc"])
+        down_to = _parse_ts(nxt["first_entry_utc"])
+        if t1 < down_to and down_from < t2:
+            return {"strength": WITNESS_NONE, "source": "boot_history",
+                    "note": ("the box stopped logging %s and resumed %s, "
+                             "inside this gap"
+                             % (prev["last_entry_utc"], nxt["first_entry_utc"])),
+                    "missed_excursion": {
+                        "kind": "boot_history_gap_inside_up_streak",
+                        "verdict": verdict,
+                        "from_utc": _fmt_ts(t1), "to_utc": _fmt_ts(t2),
+                        "evidence_utc": nxt["first_entry_utc"],
+                        "evidence_field": "boot_history",
+                        "outage_from_utc": prev["last_entry_utc"],
+                        "outage_to_utc": nxt["first_entry_utc"],
+                        "from_round": earlier.get("round"),
+                        "to_round": later.get("round"),
+                    }}
+    return None
+
+
+def gap_continuity(records: list, boots: list | None = None) -> list:
+    """Per-streak continuity analysis: is each streak actually unbroken?
+
+    Round 334 bracketed each streak's DURATION. This is the adjacent
+    question it left open, and the same class of error one level up:
+    `summarize_log`'s `n_streaks` is a LOWER bound on the number of state
+    transitions, exactly as `confirmed_span_s` was a lower bound on
+    duration. Every record here is a probe fired at a moment the driver's
+    round rotation picked, never the box; between two same-verdict checks
+    the box can flip and flip back, and the log renders that as one
+    unbroken streak with no hint that it might not be.
+
+    So each intra-streak gap is classified:
+
+      WITNESS_FULL         some datum rules out a round-trip excursion
+                           inside the gap
+      WITNESS_REBOOT_ONLY  a reboot is ruled out; an outage is not
+                           (see `_BOOT_UTC_SUSPEND_CAVEAT`)
+      WITNESS_NONE         no evidence either way -- an entire outage of
+                           up to `gap_s` could have happened here
+
+    and `witnessed` means `WITNESS_FULL` alone. The per-streak
+    `max_unwitnessed_gap_s` is the headline number: the longest excursion
+    this log could be hiding inside a streak it reports as continuous.
+
+    Transition gaps (last check of one streak -> first check of the next)
+    are NOT counted here: those are the boundaries round 334's
+    `streak_bounds` already brackets, and double-counting them as
+    continuity ignorance would mix two different unknowns.
+    """
+    streaks = _build_streaks(records)
+    out = []
+    for s in streaks:
+        recs = s["records"]
+        gaps = []
+        for earlier, later in zip(recs, recs[1:]):
+            t1, t2 = _parse_ts(earlier["checked_at_utc"]), _parse_ts(later["checked_at_utc"])
+            gap_s = (t2 - t1).total_seconds()
+            w = _gap_witness(s["verdict"], earlier, later, t1, t2, boots)
+            gaps.append({
+                "from_round": earlier.get("round"),
+                "to_round": later.get("round"),
+                "from_utc": earlier["checked_at_utc"],
+                "to_utc": later["checked_at_utc"],
+                "gap_s": gap_s,
+                "gap_human": format_duration_s(gap_s),
+                "witnessed": w["strength"] == WITNESS_FULL,
+                "witness_strength": w["strength"],
+                "witness_source": w["source"],
+                "witness_note": w["note"],
+            })
+        unwitnessed = [g for g in gaps if not g["witnessed"]]
+        worst = max(unwitnessed, key=lambda g: g["gap_s"], default=None)
+        out.append({
+            "verdict": s["verdict"],
+            "start_round": s["start_round"],
+            "end_round": s["end_round"],
+            "n_checks": len(recs),
+            "n_gaps": len(gaps),
+            "witnessed_gap_count": len(gaps) - len(unwitnessed),
+            "unwitnessed_gap_count": len(unwitnessed),
+            "unwitnessed_total_s": sum(g["gap_s"] for g in unwitnessed),
+            "unwitnessed_total_human": format_duration_s(
+                sum(g["gap_s"] for g in unwitnessed)),
+            "max_unwitnessed_gap_s": None if worst is None else worst["gap_s"],
+            "max_unwitnessed_gap_human": (None if worst is None
+                                          else worst["gap_human"]),
+            "max_unwitnessed_gap_from_round": None if worst is None else worst["from_round"],
+            "max_unwitnessed_gap_to_round": None if worst is None else worst["to_round"],
+            "max_unwitnessed_gap_from_utc": None if worst is None else worst["from_utc"],
+            "max_unwitnessed_gap_to_utc": None if worst is None else worst["to_utc"],
+            # A single-check streak has no gaps at all, so it is trivially
+            # continuous in the only sense this function can speak to. Said
+            # explicitly because `all([])` being True is exactly the kind of
+            # vacuous truth a reader is right to distrust.
+            "continuous_confirmed": len(unwitnessed) == 0,
+            "missed_excursions": [w for w in
+                                  (_gap_witness(s["verdict"], e, l,
+                                                _parse_ts(e["checked_at_utc"]),
+                                                _parse_ts(l["checked_at_utc"]),
+                                                boots)["missed_excursion"]
+                                   for e, l in zip(recs, recs[1:]))
+                                  if w is not None],
+            "gaps": gaps,
+        })
+    return out
+
+
+def continuity_report(records: list, boots: list | None = None) -> dict:
+    """Whole-log rollup of `gap_continuity`, plus the two numbers that
+    change how this track's own history should be read.
+
+    `max_unobserved_outage_s` -- the longest unwitnessed gap inside any UP
+    streak -- is an upper bound on an outage the log could have missed in
+    its entirety. Any claim of the form "this is the longest outage we have
+    ever seen" has to clear it, not just clear the outages we did see.
+    Its mirror, `max_unobserved_uptime_s`, is the same bound for an
+    up excursion hiding inside a reported outage.
+
+    `transition_count_upper_bound` is None whenever any gap is unwitnessed,
+    for round 334's reason: an unwitnessed gap admits arbitrarily many
+    round trips, so there is genuinely no upper bound, and printing one
+    would be inventing it.
+
+    The three time buckets (`witnessed_total_s`, `unwitnessed_total_s`,
+    `transition_gap_total_s`) partition the log's whole span exactly --
+    `test_continuity_report_time_buckets_partition_the_log_span` pins it,
+    which is what makes `unwitnessed_fraction` a fraction of something real
+    rather than of a denominator chosen to flatter it.
+    """
+    ordered = sorted(records, key=_sort_key)
+    streaks = gap_continuity(ordered, boots)
+    all_gaps = [g for s in streaks for g in s["gaps"]]
+    unwitnessed = [g for g in all_gaps if not g["witnessed"]]
+    unwitnessed_total = sum(g["gap_s"] for g in unwitnessed)
+    witnessed_total = sum(g["gap_s"] for g in all_gaps) - unwitnessed_total
+    span_s = (0.0 if len(ordered) < 2 else
+              (_parse_ts(ordered[-1]["checked_at_utc"])
+               - _parse_ts(ordered[0]["checked_at_utc"])).total_seconds())
+    transition_total = span_s - witnessed_total - unwitnessed_total
+
+    def _worst(verdict_filter):
+        cands = [g for s in streaks if verdict_filter(s["verdict"])
+                 for g in s["gaps"] if not g["witnessed"]]
+        return max(cands, key=lambda g: g["gap_s"], default=None)
+
+    # An outage can only hide inside a streak we called UP, and vice versa.
+    hidden_outage = _worst(lambda v: v == "up")
+    hidden_uptime = _worst(lambda v: v != "up")
+    any_unwitnessed = bool(unwitnessed)
+    return {
+        "n_records": len(ordered),
+        "n_streaks": len(streaks),
+        "n_gaps": len(all_gaps),
+        "witnessed_gap_count": len(all_gaps) - len(unwitnessed),
+        "unwitnessed_gap_count": len(unwitnessed),
+        "log_span_s": span_s,
+        "log_span_human": format_duration_s(span_s),
+        "witnessed_total_s": witnessed_total,
+        "witnessed_total_human": format_duration_s(witnessed_total),
+        "unwitnessed_total_s": unwitnessed_total,
+        "unwitnessed_total_human": format_duration_s(unwitnessed_total),
+        "transition_gap_total_s": transition_total,
+        "transition_gap_total_human": format_duration_s(transition_total),
+        "unwitnessed_fraction": (None if span_s <= 0
+                                 else unwitnessed_total / span_s),
+        "max_unobserved_outage_s": None if hidden_outage is None else hidden_outage["gap_s"],
+        "max_unobserved_outage_human": (None if hidden_outage is None
+                                        else hidden_outage["gap_human"]),
+        "max_unobserved_outage_window": (None if hidden_outage is None else {
+            "from_round": hidden_outage["from_round"],
+            "to_round": hidden_outage["to_round"],
+            "from_utc": hidden_outage["from_utc"],
+            "to_utc": hidden_outage["to_utc"],
+        }),
+        "max_unobserved_uptime_s": None if hidden_uptime is None else hidden_uptime["gap_s"],
+        "max_unobserved_uptime_human": (None if hidden_uptime is None
+                                        else hidden_uptime["gap_human"]),
+        "confirmed_transitions": max(0, len(streaks) - 1),
+        "transition_count_upper_bound": (None if any_unwitnessed
+                                         else max(0, len(streaks) - 1)),
+        "all_streaks_confirmed_continuous": not any_unwitnessed,
+        "missed_excursions": [m for s in streaks for m in s["missed_excursions"]],
+        "streaks": [{k: v for k, v in s.items() if k != "gaps"} for s in streaks],
+    }
+
+
+def max_unobserved_streak_s(records: list, verdict: str,
+                            boots: list | None = None) -> dict | None:
+    """The longest streak of `verdict` that could exist in this log without
+    ever having been observed -- i.e. the largest unwitnessed gap inside a
+    streak of the OPPOSITE verdict, since that is the only place such a
+    streak could hide.
+
+    Returns the gap dict (so the caller can name the window), or None if
+    every opposite-verdict gap is witnessed. `verdict="up"` deliberately
+    treats "ambiguous" as a place an up excursion could hide, matching
+    `continuity_report`'s `!= "up"` split rather than inventing a third
+    rule for a verdict class the real log has never contained.
+    """
+    streaks = gap_continuity(records, boots)
+    if verdict == "up":
+        cands = [g for s in streaks if s["verdict"] != "up"
+                 for g in s["gaps"] if not g["witnessed"]]
+    else:
+        cands = [g for s in streaks if s["verdict"] == "up"
+                 for g in s["gaps"] if not g["witnessed"]]
+    return max(cands, key=lambda g: g["gap_s"], default=None)
+
+
 def current_streak_duration(records: list, now_fn=now_utc_iso) -> dict | None:
     """How long the box has held its LATEST observed verdict, measured
     against `now_fn()` rather than only the last two checks' own
@@ -617,6 +1118,20 @@ def current_streak_duration(records: list, now_fn=now_utc_iso) -> dict | None:
     prior_bounds = longest_completed_streak_bounds(ordered, verdict)
     prior_max_s = None if prior_bounds is None else prior_bounds["max_possible_span_s"]
     definite_margin_s = None if prior_max_s is None else elapsed_s - prior_max_s
+    # Round 340: the third competitor, and the one no prior round compared
+    # against -- a streak of this same verdict that the log never observed
+    # at all, hiding inside an unwitnessed gap of the opposite verdict.
+    hidden = max_unobserved_streak_s(ordered, verdict)
+    hidden_s = None if hidden is None else hidden["gap_s"]
+    unobserved_margin_s = None if hidden_s is None else elapsed_s - hidden_s
+    if prior_max_s is None or hidden_s is None:
+        # Abstain rather than guess: an unbounded prior record or an
+        # unbounded hidden competitor means the question "is this the
+        # longest" has no answer the log can support, and False would read
+        # as "we checked and it is not".
+        longest_including_unobserved = None
+    else:
+        longest_including_unobserved = elapsed_s > prior_max_s and elapsed_s > hidden_s
     return {
         "verdict": verdict,
         "streak_start_utc": start,
@@ -659,6 +1174,21 @@ def current_streak_duration(records: list, now_fn=now_utc_iso) -> dict | None:
             None if definite_margin_s is None
             else format_duration_s(abs(definite_margin_s))
         ),
+        # --- round 340: the unobserved competitor ---
+        "max_unobserved_same_verdict_streak_s": hidden_s,
+        "max_unobserved_same_verdict_streak_human": (
+            None if hidden_s is None else format_duration_s(hidden_s)
+        ),
+        "max_unobserved_same_verdict_streak_window": (None if hidden is None else {
+            "from_round": hidden["from_round"], "to_round": hidden["to_round"],
+            "from_utc": hidden["from_utc"], "to_utc": hidden["to_utc"],
+        }),
+        "unobserved_margin_s": unobserved_margin_s,
+        "unobserved_margin_human": (
+            None if unobserved_margin_s is None
+            else format_duration_s(abs(unobserved_margin_s))
+        ),
+        "definitely_longest_including_unobserved": longest_including_unobserved,
     }
 
 
@@ -688,6 +1218,18 @@ def main(argv=None) -> int:
     bp.add_argument("--verdict", default=None,
                     help="only report streaks with this verdict (e.g. down)")
 
+    gp = sub.add_parser("continuity",
+                        help="per-gap witness analysis: is each streak really unbroken?")
+    gp.add_argument("--log-path", default=DEFAULT_LOG_PATH)
+    gp.add_argument("--verdict", default=None,
+                    help="only report streaks with this verdict (e.g. up)")
+    gp.add_argument("--gaps", action="store_true",
+                    help="include the per-gap detail, not just the rollup")
+    gp.add_argument("--boot-history", default=None,
+                    help="path to saved `journalctl --list-boots -o json` output "
+                         "from the box; witnesses up-streak gaps from the box's "
+                         "own continuous record instead of our probes")
+
     args = p.parse_args(argv)
 
     if args.mode == "check":
@@ -710,6 +1252,23 @@ def main(argv=None) -> int:
         if args.verdict:
             bounds = [b for b in bounds if b["verdict"] == args.verdict]
         print(json.dumps({"n_streaks": len(bounds), "streaks": bounds}, indent=2))
+        return 0
+
+    if args.mode == "continuity":
+        records = load_log(args.log_path)
+        boots = (parse_boot_history(Path(args.boot_history).read_text())
+                 if args.boot_history else None)
+        report = continuity_report(records, boots)
+        report["boot_history_boots"] = 0 if not boots else len(boots)
+        if args.gaps:
+            detail = gap_continuity(records, boots)
+            if args.verdict:
+                detail = [s for s in detail if s["verdict"] == args.verdict]
+            report["streaks"] = detail
+        elif args.verdict:
+            report["streaks"] = [s for s in report["streaks"]
+                                 if s["verdict"] == args.verdict]
+        print(json.dumps(report, indent=2))
         return 0
 
     records = load_log(args.log_path)

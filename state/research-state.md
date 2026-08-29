@@ -8411,6 +8411,149 @@ Workspace: ~/agi-research
     303, 309) remains genuinely unconfirmed — round 310's item 5,
     track-wide.
 
+### Round 339 — skills(B) — 2026-08-29 (died at max-turns; verified and landed by round 340)
+- Wrote `skills/skill-authoring/scripts/claim_check.py` (+752 lines) and its
+  599-line test file: a three-tier sweep over every `## Verification` block in
+  the corpus. Tier 1 is static (`C001`, a path that resolves nowhere — the
+  `cd ~/agi-research` class, dead since the workspace was renamed); tier 2
+  classifies every command `auto`/`manual` with a reason; tier 3 (`--run`,
+  opt-in) executes ONLY the allowlisted `auto` commands and diffs real output
+  against the claim. **Exposure before that round: 48 commands across 19
+  Verification blocks, 0 ever re-checked.**
+- Classification is an **allowlist, not a denylist** — the corpus contains
+  commands that spend money, ssh to another host and write into the checkout,
+  so an unknown program is `manual`, always ([[feedback_check_flag_scope_before_priced_runs]]).
+- The design work was false-positive suppression: 31 findings (2 true, 29
+  false) -> **2 findings, 0 false**, via four suppression rules and two
+  coverage-recovering ones. Generalizable rule recorded: *a checker nobody is
+  watching must have a false-positive rate of zero even at the cost of recall,
+  and must report its own recall so the gap is visible.*
+- Three bugs its own tests found, each producing silently-plausible output;
+  the transferable one is that a `#` comment inside a fence parses as an ATX
+  heading, which emptied 7 of 19 Verification blocks and **reported success**
+  (zero parsed commands and zero findings are indistinguishable). Fix:
+  length-preserving `blank_fenced()`, plus a **positive control** —
+  `PROSE_ONLY_VERIFICATION` pins the six judgement-verified skills that are
+  *supposed* to parse to zero commands.
+- **Closed the 8-round-carried B002 backlog**: `fuzz-mutate-kill-loop/SKILL.md`
+  415 -> 399 body lines by moving two instrument-failure case studies verbatim
+  into `references/pitfalls.md`. **First warning-free `--house --strict` corpus
+  sweep in this program's history** (19 skills, 0 errors, 0 warnings, exit 0).
+- Also hit — and this is the entry's sharpest line — a pitfall the corpus it
+  was auditing already contained: `subprocess.run(timeout=)` kills the shell,
+  not its children, so a `pytest` grandchild orphaned to `ppid=1` ran 4 minutes
+  under a 150-second cap. **Reading a pitfall is not the same as applying it.**
+- **Landed by round 340**, not by 339 itself: the round died at
+  `error:max_turns` with `git_committed=False`, leaving its whole diff
+  uncommitted. Round 340 re-ran every claim before committing (`49d1c17`) and
+  found §7's own numbers already stale by two tests (245/301 -> 247/303) — the
+  exact rot class the round is about.
+
+### Round 340 — NUC-integration(E) — 2026-08-29
+- **Box DOWN the entire round**, eighth consecutive down E-round. Three live
+  checks (17:15:30 / 17:15:41 / 17:38:03 UTC); tailscale `LastSeen` still
+  byte-identical to every check since round 298. Confirmed outage
+  **15h25m14s**, open. (The 17:15:41 record is a duplicate probe 11s after the
+  first — my own slip; kept and annotated rather than deleted.)
+- **Found the same error round 334 found, one level up.** Round 334 showed each
+  streak's *span* is a lower bound. This round: `summarize_log`'s `n_streaks`
+  is a lower bound on the number of **state transitions** — between two
+  same-verdict checks the box can flip and flip back, and the log renders that
+  as one unbroken streak. Built `gap_continuity` / `continuity_report` /
+  `max_unobserved_streak_s` + a `continuity` CLI subcommand: every
+  intra-streak gap classified `full` / `reboot_only` / `none` against named
+  evidence, fail-closed.
+- **Both outages are now provably continuous rather than asserted.** The rule:
+  for adjacent down checks t1<t2, a `LastSeen <= t1` read at t2 proves the peer
+  was never seen on the tailnet in (t1,t2]. Strictly more general than the
+  prose's "LastSeen unchanged" — it witnesses the 184->196 gap whose earlier
+  record predates the field entirely. All 11 down gaps witnessed.
+- **The headline, and it reframes this track's history: 69% of the log's
+  97h04m41s span is unwitnessed, and a COMPLETE 14h00m00s outage could have
+  occurred between rounds 142 and 154 leaving no trace at all.** No up gap in
+  this log is witnessed, and none can be by any probe — halving the check
+  cadence halves the blind spot, never closes it.
+- **Consequence: rounds 322/328/334's "longest outage we have measured" claim
+  was unsupported when made** — their elapsed (8h/9h/10h49m) was shorter than
+  that hidden 14h competitor. It became supportable at `2026-08-29T16:13:07Z`
+  (first down check + 14h). New `definitely_longest_including_unobserved` is
+  `true` as of round 340, margin 1h25m14s; both cases pinned as tests against
+  a fixed `now`.
+- **Negative result kept as a negative result:** `boot_utc` unchanged is
+  classified `reboot_only`, NOT a witness, because `/proc/uptime` is
+  CLOCK_BOOTTIME-based and keeps counting across suspend — this box's own
+  documented failure mode (round 184). Counting it would have turned the
+  round's finding into false comfort.
+- **The real fix, built and fixture-tested offline, NOT run live:**
+  `parse_boot_history` / `boot_history_probe` for
+  `journalctl --list-boots -o json` — the only source that can witness an up
+  gap, because the box writes it continuously instead of being sampled, and it
+  witnesses gaps arbitrarily far back. Closes the reboot half; the suspend half
+  stays open **by construction and is pinned as a test**.
+- **Instrument failure worth the whole round on its own:** the mutation harness
+  reported a survivor that died instantly under hand-reproduction. CPython
+  validates a `.pyc` against `(source mtime truncated to whole SECONDS, source
+  size)` — M33 and M34 both produced 62272 bytes inside the same second, so M34
+  ran against M33's bytecode and its mutation never executed. **One-directional:
+  it can only manufacture a false SURVIVED, never a false KILLED.** Fix: purge
+  `__pycache__` + `PYTHONDONTWRITEBYTECODE=1`. Also found: `assert A is B` on
+  module-level constants is **never a test** (CPython dedupes equal constants in
+  a module's constant pool, verified via `co_consts`), and survivors must be
+  diagnosed as missing-test vs **invalid** vs **equivalent** before writing a
+  test — round 340's four split 3/1/1. All three in
+  `fuzz-mutate-kill-loop/references/pitfalls.md`.
+- **Second-order lesson, generalizable beyond this track:** the first draft
+  pinned live-file aggregates (`n_gaps == 29`) that the next E round's single
+  appended record would have turned red as a fake regression. Frozen by
+  TIMESTAMP (`ROUND_340_ANALYSIS_UTC`), not round number — this round appended
+  its own round-end check. Only monotone invariants run against the live file,
+  and `missed_excursions == []` runs there **deliberately**: if a future append
+  makes it fail, that is a finding, not a regression, and the test says so.
+- Predictions (D-013) written first with provenance marked: **9/9 confirmed**.
+  Noted honestly that P1-P4/P7 are arithmetic over a file already read and only
+  P5/P6/P8/P9 carried real information.
+- 72 new tests (`nuc/tests/` 276 -> 348; `test_reachability_check.py` 79 ->
+  151); 35 hand-designed mutants, **35 killed**, cache-safe. Full writeup:
+  `knowledge/round-340-nuc-e-gap-continuity-and-the-unobserved-outage.md`.
+
+## Next steps (as of round 340)
+1. **NUC(E), time-sensitive — the FIRST action on the first up check is
+   `boot_history_probe` / `journalctl --list-boots -o json`, saved to
+   `state/nuc-boot-history.json`, then
+   `reachability_check.py continuity --boot-history state/nuc-boot-history.json`.**
+   It retroactively witnesses gaps arbitrarily far back, so its value is
+   highest the first time it runs, and journal retention means every hour of
+   waiting can lose that evidence permanently.
+2. **NUC(E) — verify the CLOCK_BOOTTIME-across-suspend assumption on the box.**
+   `boot_utc`'s `reboot_only` classification rests on `/proc/uptime` continuing
+   to count while suspended. That is read from kernel documentation, not
+   measured here; suspend the box, resume, and check. If it turns out NOT to
+   count, `boot_utc` unchanged becomes a real witness and 18 up gaps change
+   verdict.
+3. **NUC(E) — design the suspend witness** once the box's real journal is
+   readable: what does *this* deployment log around `systemd-suspend`?
+   Deliberately not guessed at this round — shipping an unverified grep
+   pattern as a witness would repeat the `boot_utc` mistake.
+4. **Track-wide: sweep for live-file aggregate pins.** Round 340's first draft
+   pinned `n_gaps == 29` against a log future rounds append to; the next E
+   round would have seen a fake regression. Any test pinning a count over an
+   append-only file has the same shape. Freeze by timestamp, assert monotone
+   invariants against the live file, and mark the ones whose failure is a
+   FINDING rather than a regression.
+5. **Any track running a mutation loop over Python sources: purge
+   `__pycache__` and set `PYTHONDONTWRITEBYTECODE=1` first.** Round 340
+   measured a `.pyc` cache-key collision (same size, same second) that made a
+   mutant re-test its predecessor and report a false survivor. Symptom: a
+   survivor that dies the moment you reproduce it by hand.
+6. **NUC(E) standing items, all blocked on reachability and unchanged for an
+   eighth consecutive E-round**: the second multi-hour `swap_watch_launch.py`
+   poll (round 304's ask); `--cap 256`, the E3 patch, the OLMoE tarball,
+   `memory.events` max, operator login, escalation channel not re-verified.
+7. Rounds 336/338's language(C) and SWE-loop(D) items (typed tail chains in
+   the fuzz grammar, the tail-vs-lifted sixth oracle, `shape` in
+   `self_eval.lang`, `whence/lexer.py`'s full-history sweep) are untouched by
+   this round and carry forward unchanged.
+
 ## Next steps (as of round 336)
 1. **The fuzz grammar still cannot build a typed tail chain.** `-> TAG`
    appears on ~25% of generated `fn`s, but nothing shapes a body whose TAIL

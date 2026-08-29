@@ -7,6 +7,7 @@ never touch the network or depend on the real box's live state -- the real
 live check lives in the round's own knowledge file, run manually.
 """
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -833,6 +834,32 @@ def _real_log_records():
     return rc.load_log(str(REAL_LOG))
 
 
+# The instant round 340 ran its continuity analysis. Everything at or before
+# it is frozen history for these tests; everything after is future data.
+ROUND_340_ANALYSIS_UTC = "2026-08-29T17:15:41Z"
+
+
+def _real_log_through_round(_last_round=340):
+    """The real log as it stood when round 340 analysed it.
+
+    Frozen by TIMESTAMP, not by round number: round 340 itself appended a
+    round-end check after this point, and a round-number filter would have
+    swept it back in and broken every aggregate pinned below.
+
+    Every assertion below that pins a whole-log AGGREGATE (gap counts,
+    unwitnessed totals, which streaks exist) must run against a frozen
+    prefix, not the live file: the next E round appends a record and turns
+    an exact aggregate into a failing test that looks like a regression and
+    is really just arithmetic. Round 334's own real-log tests got away with
+    exact pins because they only ever pinned CLOSED history (outage 1),
+    which can never move again. This helper generalises that discipline to
+    the rest of the log -- pin the frozen prefix exactly, and assert only
+    monotone invariants against the live file.
+    """
+    return [r for r in _real_log_records()
+            if r["checked_at_utc"] <= ROUND_340_ANALYSIS_UTC]
+
+
 def test_real_log_first_outage_bracket_is_pinned():
     """Outage 1 (rounds 184-196) is closed history -- its bracket can never
     legitimately move again, so pin every number of it. Round 322/328 quoted
@@ -953,3 +980,772 @@ def test_real_log_up_streak_after_the_reboot_starts_at_the_boot_not_the_check():
     assert up["earliest_possible_start_source"] == "boot_utc"
     assert up["confirmed_span_human"] == "32h23m22s"
     assert up["max_possible_span_human"] == "38h22m19s"
+
+
+# ==========================================================================
+# Round 340: gap continuity -- is a streak we report as unbroken actually
+# unbroken? `summarize_log`'s n_streaks is a LOWER bound on the number of
+# state transitions in exactly the way round 334 showed `confirmed_span_s`
+# is a lower bound on duration.
+# ==========================================================================
+
+def _rec(ts, verdict, rnd=None, last_seen=None, boot=None):
+    r = {"checked_at_utc": ts, "verdict": verdict, "round": rnd}
+    if last_seen is not None:
+        r["tailscale_last_seen_utc"] = last_seen
+    if boot is not None:
+        r["boot_utc"] = boot
+    return r
+
+
+# --- the down-side witness rule -------------------------------------------
+
+def test_gap_witnessed_when_last_seen_precedes_the_earlier_down_check():
+    """The core rule. A LastSeen read at t2 that points at or before t1
+    means the peer was not seen on the tailnet at any instant in (t1, t2],
+    so no up excursion can hide in the gap."""
+    recs = [_rec("2026-01-01T10:00:00Z", "down", 1),
+            _rec("2026-01-01T14:00:00Z", "down", 2, last_seen="2026-01-01T09:30:00Z")]
+    gap = rc.gap_continuity(recs)[0]["gaps"][0]
+    assert gap["witnessed"] is True
+    assert gap["witness_strength"] == rc.WITNESS_FULL
+    assert gap["witness_source"] == "tailscale_last_seen"
+    assert gap["gap_human"] == "4h00m00s"
+    # The note names both timestamps in the log's own canonical form, so a
+    # reader can check the rule by eye without re-deriving it.
+    assert "2026-01-01T09:30:00Z" in gap["witness_note"]
+    assert "2026-01-01T10:00:00Z" in gap["witness_note"]
+
+
+def test_gap_witness_needs_no_last_seen_on_the_EARLIER_record():
+    """Strictly more general than "LastSeen unchanged across both records",
+    and this generality is not hypothetical: the real 184->196 gap's earlier
+    record predates the field entirely, and is still fully witnessed by the
+    later record alone."""
+    recs = [_rec("2026-01-01T10:00:00Z", "down", 1),
+            _rec("2026-01-01T14:00:00Z", "down", 2, last_seen="2026-01-01T08:00:00Z")]
+    assert rc.gap_continuity(recs)[0]["gaps"][0]["witnessed"] is True
+
+
+def test_gap_witnessed_when_last_seen_lands_exactly_on_the_earlier_check():
+    """Boundary: `<= t1` is the rule, not `< t1`. A peer last seen at the
+    very instant of the earlier check was still not seen strictly inside
+    the gap, so the gap is witnessed."""
+    recs = [_rec("2026-01-01T10:00:00Z", "down", 1),
+            _rec("2026-01-01T14:00:00Z", "down", 2, last_seen="2026-01-01T10:00:00Z")]
+    assert rc.gap_continuity(recs)[0]["gaps"][0]["witnessed"] is True
+
+
+def test_gap_unwitnessed_when_the_later_record_has_no_last_seen():
+    """Fails closed. Absent evidence is not evidence of continuity, and
+    this is the shape every backfilled coarse record has."""
+    recs = [_rec("2026-01-01T10:00:00Z", "down", 1),
+            _rec("2026-01-01T14:00:00Z", "down", 2)]
+    gap = rc.gap_continuity(recs)[0]["gaps"][0]
+    assert gap["witnessed"] is False
+    assert gap["witness_strength"] == rc.WITNESS_NONE
+    assert "no tailscale_last_seen_utc" in gap["witness_note"]
+
+
+def test_last_seen_strictly_inside_a_down_gap_is_a_reported_missed_excursion():
+    """Positive evidence that contradicts us must be surfaced, not dropped.
+    A LastSeen inside a span the log calls one continuous outage means the
+    box WAS alive in there and this log's streak count is wrong."""
+    recs = [_rec("2026-01-01T10:00:00Z", "down", 1),
+            _rec("2026-01-01T14:00:00Z", "down", 2, last_seen="2026-01-01T12:00:00Z")]
+    streak = rc.gap_continuity(recs)[0]
+    assert streak["gaps"][0]["witnessed"] is False
+    assert len(streak["missed_excursions"]) == 1
+    m = streak["missed_excursions"][0]
+    assert m["kind"] == "tailscale_last_seen_inside_gap"
+    assert m["evidence_utc"] == "2026-01-01T12:00:00Z"
+    assert (m["from_round"], m["to_round"]) == (1, 2)
+    assert rc.continuity_report(recs)["missed_excursions"] == [m]
+
+
+def test_last_seen_at_or_after_the_later_down_check_is_contradictory_not_a_witness():
+    """Mirrors round 334's `streak_bounds` rule: a LastSeen at/after a check
+    that called the box down implies more transitions than one gap can
+    represent. Dropped with a named reason, never clamped into a witness."""
+    recs = [_rec("2026-01-01T10:00:00Z", "down", 1),
+            _rec("2026-01-01T14:00:00Z", "down", 2, last_seen="2026-01-01T14:00:00Z")]
+    gap = rc.gap_continuity(recs)[0]["gaps"][0]
+    assert gap["witnessed"] is False
+    assert "contradictory" in gap["witness_note"]
+    assert rc.gap_continuity(recs)[0]["missed_excursions"] == []
+
+
+def test_ambiguous_streaks_use_the_same_last_seen_rule_as_down():
+    recs = [_rec("2026-01-01T10:00:00Z", "ambiguous", 1),
+            _rec("2026-01-01T14:00:00Z", "ambiguous", 2, last_seen="2026-01-01T09:00:00Z")]
+    assert rc.gap_continuity(recs)[0]["gaps"][0]["witnessed"] is True
+
+
+@pytest.mark.parametrize("verdict", ["up", "down", "ambiguous"])
+def test_both_last_seen_rules_agree_on_which_verdicts_they_apply_to(verdict):
+    """`_LAST_SEEN_WITNESSES_GAP` is aliased to `_LAST_SEEN_BOUNDS_START` so
+    the two rules can never drift apart on which verdicts LastSeen means
+    "not seen since" for. This asserts that BEHAVIOURALLY, per verdict.
+
+    The obvious version -- `assert A is B` -- is not a test at all: CPython
+    deduplicates equal constants inside one module's constant pool, so two
+    separate `("down", "ambiguous")` literals ARE the same object and the
+    identity assertion passes whether the alias exists or not. It was
+    written that way here first and a mutant that replaced the alias with an
+    equal literal survived, which is how the hole was found. Verified
+    directly: `compile()`ing a module with two such literals yields exactly
+    one tuple in `co_consts`."""
+    same_last_seen = "2026-01-01T09:00:00Z"
+    gap_uses_it = rc.gap_continuity([
+        _rec("2026-01-01T10:00:00Z", verdict, 1),
+        _rec("2026-01-01T14:00:00Z", verdict, 2, last_seen=same_last_seen),
+    ])[0]["gaps"][0]["witness_source"] == "tailscale_last_seen"
+    bounds_uses_it = rc.streak_bounds([
+        _rec("2026-01-01T00:00:00Z", "other", 0),
+        _rec("2026-01-01T10:00:00Z", verdict, 1, last_seen=same_last_seen),
+        _rec("2026-01-01T14:00:00Z", verdict, 2, last_seen=same_last_seen),
+    ])[1]["earliest_possible_start_source"] == "tailscale_last_seen"
+    assert gap_uses_it == bounds_uses_it, verdict
+    assert gap_uses_it is (verdict in ("down", "ambiguous"))
+
+
+# --- the up-side rule, and why it is deliberately NOT a witness -----------
+
+def test_boot_utc_unchanged_is_reboot_only_and_does_not_count_as_witnessed():
+    """The round's sharpest negative result. `/proc/uptime`'s first field is
+    CLOCK_BOOTTIME-based and keeps counting across suspend, so an unchanged
+    boot time excludes a REBOOT but not a suspend/resume -- and suspend is
+    this box's own documented failure mode. Recording it as `reboot_only`
+    rather than `full` is what stops the tool offering false comfort."""
+    recs = [_rec("2026-01-01T10:00:00Z", "up", 1, boot="2026-01-01T08:00:00Z"),
+            _rec("2026-01-01T14:00:00Z", "up", 2, boot="2026-01-01T08:00:00Z")]
+    gap = rc.gap_continuity(recs)[0]["gaps"][0]
+    assert gap["witness_strength"] == rc.WITNESS_REBOOT_ONLY
+    assert gap["witness_source"] == "boot_utc_unchanged"
+    assert gap["witnessed"] is False           # <- the load-bearing assertion
+    assert "suspend" in gap["witness_note"]
+    assert rc.continuity_report(recs)["unwitnessed_gap_count"] == 1
+
+
+def test_boot_utc_advancing_inside_an_up_streak_is_a_missed_excursion():
+    """Two up checks straddling a reboot: the box demonstrably went down and
+    came back, and the log renders it as one unbroken up streak."""
+    recs = [_rec("2026-01-01T10:00:00Z", "up", 1, boot="2026-01-01T08:00:00Z"),
+            _rec("2026-01-01T14:00:00Z", "up", 2, boot="2026-01-01T13:00:00Z")]
+    streak = rc.gap_continuity(recs)[0]
+    assert streak["gaps"][0]["witnessed"] is False
+    assert streak["missed_excursions"][0]["kind"] == "boot_utc_advanced_inside_gap"
+    assert streak["missed_excursions"][0]["evidence_utc"] == "2026-01-01T13:00:00Z"
+
+
+def test_boot_utc_moving_backwards_is_contradictory_not_an_excursion():
+    """A boot time that goes backwards is a clock or parsing fault, not a
+    state change. Reported as contradictory; asserting an excursion from it
+    would be inventing a transition out of an instrument error."""
+    recs = [_rec("2026-01-01T10:00:00Z", "up", 1, boot="2026-01-01T09:00:00Z"),
+            _rec("2026-01-01T14:00:00Z", "up", 2, boot="2026-01-01T08:00:00Z")]
+    streak = rc.gap_continuity(recs)[0]
+    gap = streak["gaps"][0]
+    assert "contradictory" in gap["witness_note"]
+    assert streak["missed_excursions"] == []
+    # An instrument fault earns NO witness credit, not even the weak kind:
+    # the reported strength is the evidence a reader acts on, and labelling
+    # a backwards clock `reboot_only` would claim we had ruled a reboot out.
+    assert gap["witness_strength"] == rc.WITNESS_NONE
+    assert gap["witness_source"] is None
+    assert gap["witnessed"] is False
+
+
+def test_up_gap_with_boot_utc_on_only_one_endpoint_is_unwitnessed():
+    """A boot-time witness needs both endpoints; one is the shape the real
+    log has (exactly one record carries boot_utc)."""
+    for a, b in (("2026-01-01T08:00:00Z", None), (None, "2026-01-01T08:00:00Z")):
+        recs = [_rec("2026-01-01T10:00:00Z", "up", 1, boot=a),
+                _rec("2026-01-01T14:00:00Z", "up", 2, boot=b)]
+        gap = rc.gap_continuity(recs)[0]["gaps"][0]
+        assert gap["witness_strength"] == rc.WITNESS_NONE
+        assert "boot_utc missing" in gap["witness_note"]
+
+
+def test_last_seen_is_never_read_as_a_witness_on_an_up_streak():
+    """Round 334's asymmetry, carried forward: on an up record LastSeen
+    means "seen alive during this streak", which says nothing about whether
+    the interior was unbroken. A LastSeen that WOULD witness a down gap must
+    leave an up gap unwitnessed."""
+    recs = [_rec("2026-01-01T10:00:00Z", "up", 1),
+            _rec("2026-01-01T14:00:00Z", "up", 2, last_seen="2026-01-01T09:00:00Z")]
+    gap = rc.gap_continuity(recs)[0]["gaps"][0]
+    assert gap["witnessed"] is False
+    assert gap["witness_source"] is None
+
+
+# --- structure ------------------------------------------------------------
+
+def test_transition_gaps_are_not_counted_as_continuity_ignorance():
+    """The gap between the last check of one streak and the first of the
+    next is a TRANSITION, already bracketed by round 334's `streak_bounds`.
+    Counting it here too would mix two different unknowns and double-count
+    the same seconds."""
+    recs = [_rec("2026-01-01T10:00:00Z", "up", 1),
+            _rec("2026-01-01T11:00:00Z", "up", 2),
+            _rec("2026-01-01T20:00:00Z", "down", 3),
+            _rec("2026-01-01T21:00:00Z", "down", 4, last_seen="2026-01-01T19:00:00Z")]
+    rep = rc.continuity_report(recs)
+    assert rep["n_gaps"] == 2                      # not 3
+    assert rep["transition_gap_total_s"] == 9 * 3600.0
+    assert rep["unwitnessed_total_s"] == 3600.0    # the up gap only
+
+
+def test_continuity_report_time_buckets_partition_the_log_span():
+    """witnessed + unwitnessed + transition == the whole span, exactly.
+    This is what makes `unwitnessed_fraction` a fraction of something real
+    rather than of a denominator picked to flatter the number."""
+    recs = _real_log_records()
+    rep = rc.continuity_report(recs)
+    assert (rep["witnessed_total_s"] + rep["unwitnessed_total_s"]
+            + rep["transition_gap_total_s"]) == pytest.approx(rep["log_span_s"])
+    assert rep["unwitnessed_fraction"] == pytest.approx(
+        rep["unwitnessed_total_s"] / rep["log_span_s"])
+
+
+def test_single_check_streak_is_trivially_continuous_with_zero_gaps():
+    recs = [_rec("2026-01-01T10:00:00Z", "up", 1),
+            _rec("2026-01-01T20:00:00Z", "down", 2)]
+    streaks = rc.gap_continuity(recs)
+    assert [s["n_gaps"] for s in streaks] == [0, 0]
+    assert all(s["continuous_confirmed"] for s in streaks)
+    assert rc.continuity_report(recs)["n_gaps"] == 0
+
+
+def test_empty_and_single_record_logs_do_not_crash():
+    assert rc.gap_continuity([]) == []
+    empty = rc.continuity_report([])
+    assert empty["n_gaps"] == 0 and empty["log_span_s"] == 0.0
+    assert empty["unwitnessed_fraction"] is None
+    assert empty["confirmed_transitions"] == 0
+    one = rc.continuity_report([_rec("2026-01-01T10:00:00Z", "up", 1)])
+    assert one["n_streaks"] == 1 and one["n_gaps"] == 0
+    assert one["all_streaks_confirmed_continuous"] is True
+
+
+def test_records_are_time_ordered_before_gaps_are_measured():
+    """Gaps must never come out negative just because the caller handed the
+    log in file order that happens not to be sorted."""
+    recs = [_rec("2026-01-01T14:00:00Z", "down", 2, last_seen="2026-01-01T09:00:00Z"),
+            _rec("2026-01-01T10:00:00Z", "down", 1)]
+    gap = rc.gap_continuity(recs)[0]["gaps"][0]
+    assert gap["gap_s"] == 4 * 3600.0
+    assert (gap["from_round"], gap["to_round"]) == (1, 2)
+
+
+def test_transition_count_upper_bound_is_none_while_any_gap_is_unwitnessed():
+    """Round 334's discipline applied to a count instead of a span: an
+    unwitnessed gap admits arbitrarily many round trips, so there is
+    genuinely no upper bound and printing one would be inventing it."""
+    unwit = [_rec("2026-01-01T10:00:00Z", "up", 1),
+             _rec("2026-01-01T14:00:00Z", "up", 2)]
+    rep = rc.continuity_report(unwit)
+    assert rep["confirmed_transitions"] == 0
+    assert rep["transition_count_upper_bound"] is None
+    assert rep["all_streaks_confirmed_continuous"] is False
+    wit = [_rec("2026-01-01T10:00:00Z", "down", 1),
+           _rec("2026-01-01T14:00:00Z", "down", 2, last_seen="2026-01-01T09:00:00Z"),
+           _rec("2026-01-01T20:00:00Z", "up", 3)]
+    rep2 = rc.continuity_report(wit)
+    assert rep2["confirmed_transitions"] == 1
+    assert rep2["transition_count_upper_bound"] == 1
+    assert rep2["all_streaks_confirmed_continuous"] is True
+
+
+# --- where a hidden streak can hide --------------------------------------
+
+def test_a_hidden_outage_can_only_live_inside_an_up_streaks_gap():
+    """The asymmetry that makes `max_unobserved_outage_s` meaningful: an
+    outage hides in an up gap, an up excursion hides in a down gap. A log
+    whose down gaps are all witnessed still admits a hidden outage."""
+    recs = [_rec("2026-01-01T10:00:00Z", "up", 1),
+            _rec("2026-01-02T00:00:00Z", "up", 2),
+            _rec("2026-01-02T04:00:00Z", "down", 3),
+            _rec("2026-01-02T06:00:00Z", "down", 4, last_seen="2026-01-02T03:00:00Z")]
+    rep = rc.continuity_report(recs)
+    assert rep["max_unobserved_outage_s"] == 14 * 3600.0
+    assert rep["max_unobserved_outage_human"] == "14h00m00s"
+    assert rep["max_unobserved_outage_window"]["from_round"] == 1
+    assert rep["max_unobserved_uptime_s"] is None
+
+
+def test_max_unobserved_streak_s_looks_at_the_opposite_verdicts_gaps():
+    recs = [_rec("2026-01-01T10:00:00Z", "up", 1),
+            _rec("2026-01-01T18:00:00Z", "up", 2),
+            _rec("2026-01-02T04:00:00Z", "down", 3),
+            _rec("2026-01-02T09:00:00Z", "down", 4)]
+    down_hidden = rc.max_unobserved_streak_s(recs, "down")
+    assert down_hidden["gap_s"] == 8 * 3600.0        # inside the up streak
+    up_hidden = rc.max_unobserved_streak_s(recs, "up")
+    assert up_hidden["gap_s"] == 5 * 3600.0          # inside the down streak
+    assert rc.max_unobserved_streak_s(recs[:2], "up") is None
+
+
+# --- the record claim, third competitor ----------------------------------
+
+def test_status_abstains_on_the_unobserved_comparison_when_nothing_can_hide():
+    """`definitely_longest_including_unobserved` is None, not True, when the
+    log offers no hidden competitor at all -- True would read as "we checked
+    a real alternative and beat it"."""
+    recs = [_rec("2026-01-01T10:00:00Z", "down", 1),
+            _rec("2026-01-01T12:00:00Z", "down", 2, last_seen="2026-01-01T09:00:00Z")]
+    st = rc.current_streak_duration(recs, now_fn=lambda: "2026-01-01T13:00:00Z")
+    assert st["max_unobserved_same_verdict_streak_s"] is None
+    assert st["definitely_longest_including_unobserved"] is None
+
+
+def test_status_record_claim_fails_against_a_longer_hidden_outage():
+    """An outage that beats every outage we SAW can still lose to one we
+    could have missed. This is the case rounds 322/328/334 were actually in
+    and had no way to see."""
+    recs = [
+        _rec("2026-01-01T00:00:00Z", "up", 1),
+        _rec("2026-01-02T00:00:00Z", "up", 2),          # 24h unwitnessed up gap
+        _rec("2026-01-02T02:00:00Z", "down", 3, last_seen="2026-01-02T01:00:00Z"),
+        _rec("2026-01-02T03:00:00Z", "down", 4, last_seen="2026-01-02T01:00:00Z"),
+        _rec("2026-01-02T04:00:00Z", "up", 5),
+        _rec("2026-01-02T06:00:00Z", "down", 6, last_seen="2026-01-02T05:00:00Z"),
+    ]
+    st = rc.current_streak_duration(recs, now_fn=lambda: "2026-01-02T16:00:00Z")
+    assert st["verdict"] == "down"
+    assert st["exceeds_longest_completed"] is True          # beats what we saw
+    assert st["definitely_exceeds_longest_completed"] is True
+    assert st["max_unobserved_same_verdict_streak_s"] == 24 * 3600.0
+    assert st["definitely_longest_including_unobserved"] is False   # ...but not this
+    assert st["unobserved_margin_s"] == -14 * 3600.0
+    assert st["unobserved_margin_human"] == "14h00m00s"     # magnitude; sign is the field
+
+
+def test_status_record_claim_succeeds_once_elapsed_passes_the_hidden_bound():
+    """Same log, run later: the claim becomes supportable at a computable
+    instant rather than whenever someone asserts it."""
+    recs = [
+        _rec("2026-01-01T00:00:00Z", "up", 1),
+        _rec("2026-01-02T00:00:00Z", "up", 2),
+        _rec("2026-01-02T02:00:00Z", "down", 3, last_seen="2026-01-02T01:00:00Z"),
+        _rec("2026-01-02T03:00:00Z", "down", 4, last_seen="2026-01-02T01:00:00Z"),
+        _rec("2026-01-02T04:00:00Z", "up", 5),
+        _rec("2026-01-02T06:00:00Z", "down", 6, last_seen="2026-01-02T05:00:00Z"),
+    ]
+    st = rc.current_streak_duration(recs, now_fn=lambda: "2026-01-03T07:00:00Z")
+    assert st["elapsed_s"] == 25 * 3600.0
+    assert st["definitely_longest_including_unobserved"] is True
+    assert st["unobserved_margin_s"] == 3600.0
+
+
+def test_status_bracket_fields_from_round_334_are_untouched():
+    """A regression guard on the round-334 contract: adding the unobserved
+    competitor must not move any pre-existing field's value."""
+    recs = _real_log_through_round(340)
+    st = rc.current_streak_duration(recs, now_fn=lambda: "2026-08-29T17:21:00Z")
+    assert st["elapsed_s"] == 54473.0
+    assert st["elapsed_human"] == "15h07m53s"
+    assert st["longest_completed_same_verdict_streak_s"] == 18880.0
+    assert st["definitely_exceeds_longest_completed"] is True
+    assert st["definite_margin_human"] == "8h05m26s"
+    assert st["earliest_possible_start_source"] == "tailscale_last_seen"
+
+
+# --- the real log ---------------------------------------------------------
+
+def test_real_log_every_down_gap_is_witnessed_and_every_up_gap_is_not():
+    """The headline split, pinned. It is not a coincidence: LastSeen is the
+    only continuity witness this log has, and it is only meaningful on a
+    down record."""
+    for s in rc.gap_continuity(_real_log_through_round(340)):
+        for g in s["gaps"]:
+            assert g["witnessed"] is (s["verdict"] == "down"), (s["verdict"], g)
+    # The up half is an invariant, not a fact about the current data, so it
+    # holds against the LIVE log too and will keep holding as the box comes
+    # back and up checks resume: `check()` now records boot_utc on every up
+    # record, and boot_utc unchanged is `reboot_only`, never `full`.
+    for s in rc.gap_continuity(_real_log_records()):
+        if s["verdict"] == "up":
+            assert not any(g["witnessed"] for g in s["gaps"]), s
+
+
+def test_real_log_both_outages_are_provably_continuous():
+    """The prose claim every round since 298 has made -- "one continuous
+    outage" -- is now computed rather than asserted. Outage 1 too, which no
+    round ever claimed because nothing could check it."""
+    downs = [s for s in rc.gap_continuity(_real_log_through_round(340))
+             if s["verdict"] == "down"]
+    assert [s["start_round"] for s in downs] == [184, 298]
+    assert all(s["continuous_confirmed"] for s in downs)
+    assert all(s["unwitnessed_total_s"] == 0 for s in downs)
+
+
+def test_real_log_neither_up_streak_is_provably_continuous():
+    ups = [s for s in rc.gap_continuity(_real_log_through_round(340))
+           if s["verdict"] == "up"]
+    assert [s["start_round"] for s in ups] == [124, 202]
+    assert not any(s["continuous_confirmed"] for s in ups)
+    assert [s["max_unwitnessed_gap_human"] for s in ups] == ["14h00m00s", "8h01m00s"]
+
+
+def test_real_log_worst_blind_spot_is_the_r142_to_r154_gap():
+    """The number that reframes this track's whole history: a complete
+    14-hour outage could have happened between rounds 142 and 154 and left
+    no trace anywhere in this log."""
+    rep = rc.continuity_report(_real_log_through_round(340))
+    assert rep["max_unobserved_outage_s"] == 50400.0
+    assert rep["max_unobserved_outage_human"] == "14h00m00s"
+    assert rep["max_unobserved_outage_window"] == {
+        "from_round": 142, "to_round": 154,
+        "from_utc": "2026-08-26T03:19:00Z", "to_utc": "2026-08-26T17:19:00Z",
+    }
+    # Against the live log the bound can only ever grow (a new up gap could
+    # be worse; an old one cannot shrink). A future round that finds this
+    # number has gone UP has found a new worst blind spot and owes the
+    # `definitely_longest_including_unobserved` claim a re-check.
+    live = rc.continuity_report(_real_log_records())
+    assert live["max_unobserved_outage_s"] >= 50400.0
+
+
+def test_real_log_two_thirds_of_the_span_is_unwitnessed():
+    rep = rc.continuity_report(_real_log_through_round(340))
+    assert rep["n_gaps"] == 29
+    assert (rep["witnessed_gap_count"], rep["unwitnessed_gap_count"]) == (11, 18)
+    assert rep["unwitnessed_total_human"] == "67h26m22s"
+    assert 0.68 < rep["unwitnessed_fraction"] < 0.71
+
+
+def test_real_log_has_no_detected_missed_excursions():
+    """Zero here is a real result, not a vacuous one: the two rules CAN
+    fire (`test_last_seen_strictly_inside_a_down_gap...`,
+    `test_boot_utc_advancing_inside_an_up_streak...` both do), and on this
+    log neither does."""
+    assert rc.continuity_report(_real_log_through_round(340))["missed_excursions"] == []
+    # Deliberately also run against the LIVE log. If a future append ever
+    # makes this fail, that is a FINDING, not a regression: the log would be
+    # carrying positive evidence that a streak it reports as unbroken was
+    # broken. The round that sees it red should investigate the excursion,
+    # not relax the assertion.
+    assert rc.continuity_report(_real_log_records())["missed_excursions"] == []
+
+
+def test_real_log_current_outage_now_clears_the_hidden_competitor():
+    """Round 340 is the first round in which the "longest outage this track
+    has measured" claim is supportable. Pinned against a FIXED `now` so the
+    test asserts the round-340 finding rather than drifting with the clock:
+    the crossing instant is first-down-check 02:13:07Z + the 14h00m hidden
+    bound = 2026-08-29T16:13:07Z, and round 334's own last check (13:02:44Z)
+    is 3h10m23s short of it."""
+    recs = _real_log_through_round(340)
+    at_340 = rc.current_streak_duration(recs, now_fn=lambda: "2026-08-29T17:21:00Z")
+    assert at_340["max_unobserved_same_verdict_streak_s"] == 50400.0
+    assert at_340["definitely_longest_including_unobserved"] is True
+    assert at_340["unobserved_margin_human"] == "1h07m53s"
+    at_334 = rc.current_streak_duration(recs, now_fn=lambda: "2026-08-29T13:02:44Z")
+    assert at_334["exceeds_longest_completed"] is True            # what 334 reported
+    assert at_334["definitely_exceeds_longest_completed"] is True
+    assert at_334["definitely_longest_including_unobserved"] is False  # unsupported
+    assert at_334["unobserved_margin_human"] == "3h10m23s"
+
+
+# --- CLI ------------------------------------------------------------------
+
+def test_cli_continuity_prints_the_rollup_without_per_gap_detail(capsys):
+    assert rc.main(["continuity", "--log-path", str(REAL_LOG)]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["n_gaps"] >= 29        # 29 at round 340; grows with the log
+    assert "gaps" not in out["streaks"][0]
+
+
+def test_cli_continuity_gaps_flag_includes_the_per_gap_detail(capsys):
+    assert rc.main(["continuity", "--log-path", str(REAL_LOG), "--gaps",
+                    "--verdict", "up"]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert [s["verdict"] for s in out["streaks"]] == ["up", "up"]
+    assert all("gaps" in s for s in out["streaks"])
+    # the rollup counts stay whole-log even when the streak list is filtered
+    assert out["n_gaps"] >= 29
+
+
+def test_cli_continuity_verdict_filter_without_gaps_flag(capsys):
+    assert rc.main(["continuity", "--log-path", str(REAL_LOG),
+                    "--verdict", "down"]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert [s["verdict"] for s in out["streaks"]] == ["down", "down"]
+    assert all("gaps" not in s for s in out["streaks"])
+
+
+# ==========================================================================
+# Round 340: witnesses from the BOX's own continuous record.
+# `journalctl --list-boots -o json` is the only source available here that
+# was written while nobody was probing, so it is the only one that can
+# witness an UP-streak gap at all. Built and tested entirely offline -- the
+# box has been unreachable since 2026-08-29T02:10Z.
+# ==========================================================================
+
+# Real shape of `journalctl --list-boots -o json`: microseconds since the
+# epoch. 2026-08-26T00:00:00Z = 1787788800; times below are that + offsets.
+def _usec(iso):
+    import datetime as _dt
+    return int(_dt.datetime.strptime(iso, "%Y-%m-%dT%H:%M:%SZ")
+               .replace(tzinfo=_dt.timezone.utc).timestamp()) * 1_000_000
+
+
+BOOT_JSON_TWO_BOOTS = json.dumps([
+    {"index": -1, "boot_id": "aaa", "first_entry": _usec("2026-08-25T12:00:00Z"),
+     "last_entry": _usec("2026-08-26T06:00:00Z")},
+    {"index": 0, "boot_id": "bbb", "first_entry": _usec("2026-08-26T09:00:00Z"),
+     "last_entry": _usec("2026-08-27T00:00:00Z")},
+])
+
+
+def test_parse_boot_history_normalises_microseconds_to_utc():
+    boots = rc.parse_boot_history(BOOT_JSON_TWO_BOOTS)
+    assert [b["boot_id"] for b in boots] == ["aaa", "bbb"]
+    assert boots[0]["first_entry_utc"] == "2026-08-25T12:00:00Z"
+    assert boots[0]["last_entry_utc"] == "2026-08-26T06:00:00Z"
+    assert boots[1]["first_entry_utc"] == "2026-08-26T09:00:00Z"
+
+
+def test_parse_boot_history_accepts_decimal_string_timestamps():
+    """systemd emits these as JSON numbers on some versions and decimal
+    strings on others; the box's version is unknown (it is down), so both
+    parse."""
+    text = json.dumps([{"index": 0, "boot_id": "s",
+                        "first_entry": str(_usec("2026-08-26T09:00:00Z")),
+                        "last_entry": str(_usec("2026-08-26T10:00:00Z"))}])
+    boots = rc.parse_boot_history(text)
+    assert boots[0]["first_entry_utc"] == "2026-08-26T09:00:00Z"
+
+
+def test_parse_boot_history_sorts_by_first_entry_not_by_index():
+    """`index` is systemd's own relative numbering (0 = current, negative =
+    older) and is not something the witness rules should have to trust; the
+    rules pair ADJACENT boots, so ordering must come from the timestamps."""
+    rows = json.loads(BOOT_JSON_TWO_BOOTS)
+    boots = rc.parse_boot_history(json.dumps(list(reversed(rows))))
+    assert [b["boot_id"] for b in boots] == ["aaa", "bbb"]
+
+
+@pytest.mark.parametrize("text", [
+    "", "   ", "not json", "{}", "[]", "null", '[{"index": 0}]',
+    '[{"first_entry": 0, "last_entry": 0}]',
+    '[{"first_entry": "x", "last_entry": "y"}]',
+    '[{"first_entry": null, "last_entry": 1787788800000000}]',
+    '["a string, not an object"]',
+])
+def test_parse_boot_history_fails_closed_on_anything_unusable(text):
+    """A witness parser's failure mode must be "no evidence", never an
+    exception a caller might catch and treat as one."""
+    assert rc.parse_boot_history(text) == []
+
+
+def test_parse_boot_history_drops_a_boot_whose_entries_are_inverted():
+    text = json.dumps([{"index": 0, "boot_id": "bad",
+                        "first_entry": _usec("2026-08-26T10:00:00Z"),
+                        "last_entry": _usec("2026-08-26T09:00:00Z")}])
+    assert rc.parse_boot_history(text) == []
+
+
+def test_boot_history_witnesses_an_up_gap_no_probe_rule_can_reach():
+    """The point of the whole source: an up gap that `boot_utc` can only
+    call `reboot_only` becomes a FULL witness, because the box's own journal
+    ran across it."""
+    recs = [_rec("2026-08-25T18:00:00Z", "up", 1),
+            _rec("2026-08-26T04:00:00Z", "up", 2)]
+    boots = rc.parse_boot_history(BOOT_JSON_TWO_BOOTS)
+    assert rc.gap_continuity(recs)[0]["gaps"][0]["witnessed"] is False
+    gap = rc.gap_continuity(recs, boots)[0]["gaps"][0]
+    assert gap["witnessed"] is True
+    assert gap["witness_source"] == "boot_history"
+    assert "aaa" in gap["witness_note"]
+    assert rc.continuity_report(recs, boots)["all_streaks_confirmed_continuous"] is True
+
+
+def test_boot_history_finds_a_missed_outage_with_exact_bounds():
+    """Strictly more than any probe rule can produce: not just "an outage
+    could have hidden here" but "one did, from 06:00 to 09:00"."""
+    recs = [_rec("2026-08-26T05:00:00Z", "up", 1),
+            _rec("2026-08-26T12:00:00Z", "up", 2)]
+    boots = rc.parse_boot_history(BOOT_JSON_TWO_BOOTS)
+    streak = rc.gap_continuity(recs, boots)[0]
+    assert streak["gaps"][0]["witnessed"] is False
+    m = streak["missed_excursions"][0]
+    assert m["kind"] == "boot_history_gap_inside_up_streak"
+    assert m["outage_from_utc"] == "2026-08-26T06:00:00Z"
+    assert m["outage_to_utc"] == "2026-08-26T09:00:00Z"
+
+
+def test_boot_history_covering_only_part_of_a_gap_witnesses_nothing():
+    """Partial coverage is not coverage. The gap starts before boot `aaa`'s
+    first entry, so nothing rules out an outage in the uncovered head."""
+    recs = [_rec("2026-08-25T06:00:00Z", "up", 1),
+            _rec("2026-08-26T04:00:00Z", "up", 2)]
+    boots = rc.parse_boot_history(json.dumps(json.loads(BOOT_JSON_TWO_BOOTS)[:1]))
+    gap = rc.gap_continuity(recs, boots)[0]["gaps"][0]
+    assert gap["witnessed"] is False
+    assert gap["witness_source"] is None
+
+
+def test_boot_history_with_only_the_current_boot_witnesses_nothing_earlier():
+    """The real deployment risk: journald `Storage=volatile` lists only the
+    current boot, so the history says nothing about any older gap. It must
+    degrade to the existing rules, not to a false witness."""
+    boots = rc.parse_boot_history(json.dumps(json.loads(BOOT_JSON_TWO_BOOTS)[1:]))
+    recs = [_rec("2026-08-25T18:00:00Z", "up", 1),
+            _rec("2026-08-26T04:00:00Z", "up", 2)]
+    assert rc.gap_continuity(recs, boots)[0]["gaps"][0]["witnessed"] is False
+
+
+def test_boot_history_is_not_applied_to_down_streaks():
+    """A down streak already has a real witness (LastSeen). Letting boot
+    history speak there too would mean claiming the box was logging during
+    an interval we observed it unreachable at both ends -- a contradiction
+    to investigate, not a witness to record."""
+    recs = [_rec("2026-08-25T18:00:00Z", "down", 1),
+            _rec("2026-08-26T04:00:00Z", "down", 2)]
+    boots = rc.parse_boot_history(BOOT_JSON_TWO_BOOTS)
+    gap = rc.gap_continuity(recs, boots)[0]["gaps"][0]
+    assert gap["witnessed"] is False
+    assert gap["witness_source"] is None
+
+
+def test_boot_history_beats_boot_utc_when_both_apply():
+    """`boot_utc` is two endpoint samples of the fact the journal records
+    continuously, so the continuous source wins and the gap is FULL rather
+    than reboot_only."""
+    recs = [_rec("2026-08-25T18:00:00Z", "up", 1, boot="2026-08-25T12:00:00Z"),
+            _rec("2026-08-26T04:00:00Z", "up", 2, boot="2026-08-25T12:00:00Z")]
+    boots = rc.parse_boot_history(BOOT_JSON_TWO_BOOTS)
+    assert rc.gap_continuity(recs)[0]["gaps"][0]["witness_strength"] == rc.WITNESS_REBOOT_ONLY
+    assert rc.gap_continuity(recs, boots)[0]["gaps"][0]["witness_strength"] == rc.WITNESS_FULL
+
+
+def test_boot_history_cannot_see_a_suspend_and_the_tests_say_so():
+    """The documented hole, pinned as a test so it cannot be quietly
+    forgotten: a suspend/resume keeps one boot_id and leaves the boot's
+    first/last entries straddling it, so this source reports a suspended box
+    as continuously up. Suspend is the failure mode round 184 inferred for
+    THIS box, so `boot_history` closes the reboot half of the blind spot
+    only. If a future round adds a suspend-aware source, this test should be
+    the one it has to change."""
+    recs = [_rec("2026-08-25T18:00:00Z", "up", 1),
+            _rec("2026-08-26T04:00:00Z", "up", 2)]
+    # one boot, journal continuous across a hypothetical 20:00-02:00 suspend
+    boots = rc.parse_boot_history(json.dumps(json.loads(BOOT_JSON_TWO_BOOTS)[:1]))
+    assert rc.gap_continuity(recs, boots)[0]["gaps"][0]["witnessed"] is True
+
+
+def test_boot_history_witnesses_shrink_the_real_logs_blind_spot():
+    """End to end on the real log: a fabricated history covering the
+    r142->r154 gap removes exactly that gap from the unwitnessed set and
+    drops `max_unobserved_outage_s` to the next-worst gap. The number is
+    hypothetical (the box is down and no real history has been read); the
+    MECHANISM is what this pins."""
+    recs = _real_log_through_round(340)
+    before = rc.continuity_report(recs)
+    boots = rc.parse_boot_history(json.dumps([
+        {"index": 0, "boot_id": "covers-the-blind-spot",
+         "first_entry": _usec("2026-08-26T00:00:00Z"),
+         "last_entry": _usec("2026-08-26T20:00:00Z")}]))
+    after = rc.continuity_report(recs, boots)
+    assert before["max_unobserved_outage_human"] == "14h00m00s"
+    assert after["max_unobserved_outage_human"] == "8h01m00s"
+    assert after["unwitnessed_gap_count"] < before["unwitnessed_gap_count"]
+    assert after["witnessed_total_s"] > before["witnessed_total_s"]
+    # and the record claim gets a much wider margin as a direct consequence
+    st = rc.current_streak_duration(recs, now_fn=lambda: "2026-08-29T17:21:00Z")
+    assert st["unobserved_margin_human"] == "1h07m53s"
+
+
+# --- the probe (not run live; the box is down) ---------------------------
+
+class _FakeProc:
+    def __init__(self, returncode=0, stdout=""):
+        self.returncode, self.stdout, self.stderr = returncode, stdout, ""
+
+
+def test_boot_history_probe_parses_a_successful_ssh_read():
+    seen = []
+
+    def runner(cmd):
+        seen.append(cmd)
+        return _FakeProc(0, BOOT_JSON_TWO_BOOTS)
+
+    boots = rc.boot_history_probe(runner=runner)
+    assert [b["boot_id"] for b in boots] == ["aaa", "bbb"]
+    assert seen[0][0] == "ssh"
+    assert seen[0][-1] == "journalctl --list-boots -o json"
+    # its own ssh call, never bolted onto ssh_probe's strict `== "UP"` check
+    assert "echo" not in " ".join(seen[0])
+
+
+@pytest.mark.parametrize("proc", [
+    _FakeProc(255, ""), _FakeProc(1, "denied"), _FakeProc(0, ""),
+    _FakeProc(0, "not json"), _FakeProc(0, "[]"),
+])
+def test_boot_history_probe_returns_empty_on_every_failure_mode(proc):
+    assert rc.boot_history_probe(runner=lambda cmd: proc) == []
+
+
+def test_boot_history_probe_swallows_a_raising_runner():
+    def boom(cmd):
+        raise subprocess.TimeoutExpired(cmd, 1)
+    assert rc.boot_history_probe(runner=boom) == []
+
+
+def test_cli_continuity_accepts_a_saved_boot_history_file(tmp_path, capsys):
+    hist = tmp_path / "boots.json"
+    hist.write_text(json.dumps([
+        {"index": 0, "boot_id": "covers-the-blind-spot",
+         "first_entry": _usec("2026-08-26T00:00:00Z"),
+         "last_entry": _usec("2026-08-26T20:00:00Z")}]))
+    assert rc.main(["continuity", "--log-path", str(REAL_LOG),
+                    "--boot-history", str(hist)]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["boot_history_boots"] == 1
+    assert out["max_unobserved_outage_human"] != "14h00m00s"
+
+
+def test_cli_continuity_without_boot_history_reports_zero_boots(capsys):
+    assert rc.main(["continuity", "--log-path", str(REAL_LOG)]) == 0
+    assert json.loads(capsys.readouterr().out)["boot_history_boots"] == 0
+
+
+def test_boot_history_that_neither_covers_nor_straddles_the_gap_says_nothing():
+    """The third outcome, and the one a mutation run found missing: a gap
+    that falls entirely AFTER the last boot's last entry is neither covered
+    by a boot nor straddling a boot boundary. The rule must return None and
+    hand back to the existing rules -- not witness, and not invent an
+    excursion out of a boot boundary that is nowhere near the gap."""
+    recs = [_rec("2026-08-27T02:00:00Z", "up", 1),
+            _rec("2026-08-27T04:00:00Z", "up", 2)]
+    boots = rc.parse_boot_history(BOOT_JSON_TWO_BOOTS)   # boundary is 08-26 06:00-09:00
+    streak = rc.gap_continuity(recs, boots)[0]
+    assert streak["gaps"][0]["witnessed"] is False
+    assert streak["gaps"][0]["witness_source"] is None
+    assert streak["missed_excursions"] == []
+
+
+def test_parse_boot_history_orders_by_time_even_when_index_is_absent():
+    """`index` is optional and its numbering convention differs between
+    systemd versions (0/-1/-2 newest-first on some, 1..N oldest-first on
+    others), so the ordering the witness rules depend on must come from the
+    timestamps alone. With `index` absent entirely, an index-keyed sort is a
+    no-op and leaves the input order untouched -- which is what this feeds
+    it, reversed."""
+    rows = [{k: v for k, v in row.items() if k != "index"}
+            for row in json.loads(BOOT_JSON_TWO_BOOTS)]
+    boots = rc.parse_boot_history(json.dumps(list(reversed(rows))))
+    assert [b["first_entry_utc"] for b in boots] == [
+        "2026-08-25T12:00:00Z", "2026-08-26T09:00:00Z"]
+
+
+def test_boot_history_probe_discards_output_from_a_failed_ssh():
+    """ssh can exit non-zero having already emitted usable-looking output
+    (a partial read, a connection dropped mid-stream). The returncode check
+    is what makes that unusable output unused -- and it is only observable
+    with a mutant that pairs a bad exit code with GOOD stdout, which is why
+    the earlier all-empty-stdout parametrisation could not see it."""
+    proc = _FakeProc(255, BOOT_JSON_TWO_BOOTS)
+    assert rc.boot_history_probe(runner=lambda cmd: proc) == []
