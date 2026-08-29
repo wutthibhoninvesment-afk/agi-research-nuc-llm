@@ -595,7 +595,14 @@ that cannot end a statement.
   Shapes can only reference earlier shapes (the parser resolves a
   signature's spec immediately, single-pass, no forward refs — an
   `unknown type` parse error otherwise), so nested `matches` recursion
-  is bounded by declaration order and cannot cycle.
+  is bounded by declaration order and cannot cycle. **Round 342 (v0.18)
+  finished the sentence this bullet opens with:** "it inherits the
+  parser's ALREADY-EXISTING duplicate-name rule for free" was true of
+  DUPLICATES and false of SCOPE — a shape name was visible to annotations
+  file-wide while its binding was block-scoped like any other `let`. Since
+  v0.18 a field type (and any other annotation) must name a shape that is
+  previously declared AND still in scope; see `## v0.18` below, including
+  what that made legal as well as what it made an error.
 - **Structural, not nominal: width subtyping.** A record matches a
   `shape` when every declared field is present with a non-miss value of
   the right (recursively checked) type; EXTRA fields are ignored. A
@@ -795,6 +802,15 @@ that cannot end a statement.
   `_check_ret` turns it into an ordinary `"not in scope"` miss, deterministic
   across repeated calls, and it never leaks to Whence code as a Python
   exception.
+  **Stale-note correction (round 342): "the parser's `self.shapes` set is
+  not scope-aware", four lines up, is no longer true and is kept for
+  history.** v0.18 gave the parser the value namespace's own scope rule
+  (decision 28), so the program this bullet is about is now a parse error
+  at the annotation, and `_UnboundRetType` is unreachable from source text
+  — kept anyway as the defensive floor under `_closure_ret`'s direct
+  Python lookup, and exercised directly by
+  `test_unbound_ret_type_sentinel_is_still_the_defensive_floor`. See
+  `## v0.18` below.
 - **Three-way differential (fast / direct / trampoline) is the gate**,
   same as every call-path change since v0.9: byte-identical why-trees and
   checks across all three modes for a passing return, a mismatched
@@ -3770,12 +3786,15 @@ not this round. See `knowledge/round-254-whence-self-hosting-round9-steps-repro-
   `Parser` keeps `self.shapes`, a dict `shape_def()` writes into and
   `parse_type()` reads. Whence has no mutation. Threading a shapes
   accumulator through the guest parser would not have been enough either:
-  the host's set is deliberately NOT scope-aware (a `shape` declared
-  inside a function body is visible to later annotations at every level —
-  that is exactly the case `_UnboundRetType` exists for), so every one of
-  the guest parser's ~25 functions would have had to RETURN the
-  accumulator as well as take it, including the whole expression parser,
-  because an anonymous `fn(a: Point)` can carry an annotation.
+  every one of the guest parser's ~25 functions would have had to RETURN
+  the accumulator as well as take it, including the whole expression
+  parser, because an anonymous `fn(a: Point)` can carry an annotation.
+  (**Round 342 correction:** this sentence originally rested on "the
+  host's set is deliberately NOT scope-aware ... that is exactly the case
+  `_UnboundRetType` exists for", which v0.18 has since made false. The
+  threading argument survives unchanged — it never depended on the table
+  being flat — and decision 27 itself is unchanged, with a third premise
+  added; see `## v0.18`.)
   `shapes_declared_before(toks, p)` replaces all of that with a pure
   function. It is exact, not approximate, and rests on two premises that
   are pinned as tests rather than assumed:
@@ -3863,3 +3882,128 @@ not this round. See `knowledge/round-254-whence-self-hosting-round9-steps-repro-
   interpreting the guest PARSER — two full levels down. Shared-section
   bounds moved 27:574 -> **27:697** in both the sync test and
   `test_self_hosting.py`'s `LIB_END`.
+
+## v0.18 (round 342, language C) — type names are value names: `shape` becomes block-scoped
+
+- **The defect in one sentence: a `shape` is a `let` (v0.12's own first
+  bullet says so), so its name obeys decision 3 at RUN time — bound in the
+  block it is written in, shadowable, gone when that block closes — while
+  the PARSER kept one flat file-global `self.shapes` dict and accepted the
+  name in any annotation anywhere later in the file.** The two namespaces
+  had different scope rules for the same name. Round 128 met this as a
+  crash (`_UnboundRetType`, below), fixed the crash, and left the cause;
+  round 338 had to port the flat table into the self-hosted parser and
+  wrote the asymmetry down as a premise (decision 27); round 338's own
+  next-steps item 3 asked whether the parser should be scope-aware
+  instead. It should.
+- **What the missing scope rule cost, measured rather than argued.** One
+  mistake — naming a shape whose block has closed — reached run time by
+  three different routes and produced three different outcomes, none of
+  them at the annotation:
+
+  | annotation | pre-v0.18 outcome |
+  |---|---|
+  | `fn f() -> L { … }` | every call misses `return value of f: type 'L' is not in scope here` (the `_UnboundRetType` path) |
+  | `fn f(p: L) { … }` | every call misses `unbound name 'L'` — different wording for the identical mistake, because a param guard is an ordinary `A.NameRef` walked by the everyday evaluator |
+  | `shape W = @{i: L}` | **no miss at all**: `W` is built with a miss-valued `i` field, and only something that later reads `W.i` — or a `matches(x, W)` that quietly answers `false` — ever notices |
+
+  v0.18 makes all three one parse error at the annotation's own line and
+  column: `type 'L' is not in scope here`, the same sentence the `->`
+  route used to produce per call.
+- **Decision 28 (new): the type namespace IS the value namespace, so it has
+  exactly one scope rule — decision 3's.** `Parser.self.shapes` becomes
+  `self.shape_scopes`, a stack of frames pushed and popped by `stmt_list`
+  alongside the seven alias-tracking stacks already there (one frame per
+  block, frame 0 = the module; `block()` and `parse_program` are its only
+  two callers, so a frame is exactly a `{ … }`). `parse_type` looks up
+  innermost-out — the same walk the desugared `let`'s `NameRef` will do
+  at run time, which is the whole point. Three consequences, each one an
+  ordinary `let`'s behaviour arriving for `shape`:
+  1. an annotation naming a shape whose block has closed is refused where
+     it is written;
+  2. **sibling blocks may each declare the same shape name** (nothing is
+     shadowed — the blocks never see each other);
+  3. **an inner block may shadow an outer shape name**, and the inner
+     annotation means the inner shape while an outer annotation still
+     means the outer one (pinned both ways, host and guest).
+  (2) and (3) were parse errors before v0.18 — "shape 'S' is already
+  declared" — for no reason other than the table being flat.
+- **Two messages, because they are two different mistakes.** A name never
+  declared anywhere is still `unknown type 'Nope'` (a typo); a name whose
+  declaration exists but is out of scope is `type 'L' is not in scope
+  here`. `self.shapes_seen` — every completed declaration, never popped —
+  exists only to tell them apart and decides nothing about acceptance.
+  The declaration's LINE was deliberately left out of the message: the
+  guest reproduces host wording exactly and that comparison is what
+  `test_shape_declaration_errors_agree_host_vs_guest_by_wording` measures
+  (round 338), so a diagnostic the guest would have to reconstruct from
+  the token stream — with its own edge cases around incomplete
+  declarations — buys less than the differential it would put at risk.
+- **The same-block duplicate check is kept, scoped, and reworded** to
+  `shape 'P' is already declared in this block`. It is now strictly
+  redundant: a `shape` reaches `stmt_list`'s general no-rebinding check as
+  an `A.Let`, which would catch it one statement later. It is kept because
+  it fires first with the more specific sentence, and because that
+  sentence is one of the host/guest wording witnesses round 338 built.
+- **`_UnboundRetType` is now unreachable from source text, and stays.**
+  `_closure_ret` resolves a `-> Shape` spec directly in Python, not
+  through a Whence expression, so a `None` lookup there would raise rather
+  than miss — the sentinel is the floor under that, and the floor is worth
+  keeping even when the parser above it is sound.
+  `test_unbound_ret_type_sentinel_is_still_the_defensive_floor` calls
+  `_check_ret` with the sentinel directly, since no program can reach it.
+  The guest's mirror (`__unbound_ret`) is kept for the same reason.
+- **Annotations are static; expressions stay dynamic.** `matches(r, L)`
+  naming an out-of-scope `L` is unchanged: there `L` is an ordinary
+  expression, so it is an ordinary unbound-name miss, and `matches` — a
+  total builtin — answers `false`. Only `parse_type` positions (parameter
+  type, return type, shape field type) got a scope rule, because only they
+  are annotations the parser resolves.
+- **Guest parity landed the same round, and decision 27 grew a third
+  premise.** `shapes_declared_before` (round 338) becomes
+  `shapes_before(toks, limit, want, …)` answering three questions —
+  `"any"` (declared anywhere earlier, mirroring `shapes_seen`), `"scope"`
+  (visible here, mirroring "any frame"), `"block"` (declared in the very
+  block this position sits in, mirroring "the top frame"). The new premise
+  is that **the host's frame stack is exactly the bracket structure**, so
+  the guest can replay it from the tokens alone: `shape_rel_depth` scans
+  from the declaration's closing `}` to the use, counting `{` and `@{` up
+  and `}` down, and returns the depth RELATIVE to the declaration, or -1
+  if the declaring block closed on the way. `>= 0` is "in scope"; `== 0`
+  is "same block". Including `@{` in the count is safe and not an
+  approximation: a record literal is balanced, so it shifts every position
+  inside it by the same constant, and only DIFFERENCES of depth are ever
+  compared — which matters, because an annotation really can appear
+  inside a record literal (`@{f: fn(a: P) { a }}`) and a `shape` really can
+  be declared inside a block inside one.
+- **The capture hazard v0.18 makes nameable (pre-existing, deliberately not
+  fixed).** Once the parser has an opinion about WHICH declaration an
+  annotation names, the run time can be seen to disagree with it. A param
+  guard is a prepended `let p = typed(p, <NameRef>, …)` re-evaluated on
+  every call, so its spec resolves in the CALL env; a return spec is
+  resolved once, at closure creation, in the DEFINING env (`_closure_ret`).
+  A block's env is one dict later statements keep adding to — that is what
+  makes mutual recursion work — so a binding added AFTER the annotation is
+  still visible to a later call. The sharpest witness, pinned as
+  `test_one_signature_can_mean_two_different_shapes`:
+
+  ```
+  shape P = @{x: num}
+  fn g() {
+    fn h(p: P) -> P { p }      # param P and return P are DIFFERENT shapes
+    shape P = @{y: str}
+    …
+  }
+  ```
+
+  `h(@{x: 1, y: "a"})` passes; `h(@{y: "a"})` satisfies the param (the
+  inner `P`) and misses on the RETURN (the outer one); `h(@{x: 1})` does
+  the reverse. Two facts settle what to do about it: (a) it is NOT about
+  shapes — a plain `let P = 3` in the same position captures the guard
+  identically (`typed spec must be a type name or a shape, got 3`), so
+  forbidding shape shadowing would not close it; (b) closing it properly
+  means resolving a param spec at closure creation like a return spec,
+  i.e. moving param checks from prepended body statements to the call
+  boundary — all three call paths, and a changed why-tree for every typed
+  function. That is a v0.19-sized change and is named as one, not
+  smuggled in here.

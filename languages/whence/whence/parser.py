@@ -56,11 +56,27 @@ class Parser(object):
         self.tokens = tokens
         self.pos = 0
         self.nesting = 0
-        # name -> [(field, type_name), …], in declaration order; a shape
-        # may only reference shapes declared earlier (single pass, no
-        # forward refs — the field's spec value must already be bound at
-        # the point a later shape's record literal reads it by name).
-        self.shapes = {}
+        # v0.18 (round 342): the type namespace is the VALUE namespace, so
+        # it obeys the value namespace's scope rule. One frame per block,
+        # pushed/popped by `stmt_list` alongside the alias stacks below —
+        # frame 0 is the module. Each frame maps name -> [(field,
+        # type_name), …] in declaration order; a shape may only reference
+        # shapes declared earlier (single pass, no forward refs — the
+        # field's spec value must already be bound at the point a later
+        # shape's record literal reads it by name).
+        #
+        # Before v0.18 this was ONE flat file-global dict, which made
+        # `parse_type` accept a name whose desugared `let` binding was not
+        # lexically visible at the use site; the three ways that went wrong
+        # at runtime instead of at the annotation are catalogued in SPEC.md
+        # § v0.18.
+        self.shape_scopes = []
+        # every shape name whose declaration COMPLETED anywhere earlier in
+        # the file, never popped. Diagnostics only: it is what separates
+        # "unknown type 'L'" (never declared) from "type 'L' is not in
+        # scope here" (declared, in a block that has closed). Nothing about
+        # acceptance is decided here — `_shape_in_scope` decides that.
+        self.shapes_seen = set()
         # Effect system (v0.14/v0.14.1): stack of the nearest enclosing fn's
         # RESOLVED `effects [...]` scope while parsing its body — a
         # frozenset (possibly empty, i.e. `effects []` = "no effects
@@ -341,6 +357,7 @@ class Parser(object):
         # is being parsed) but never leak to a SIBLING block once this one is
         # done. The two stacks are pushed/popped together, always — see
         # `self.return_alias_scopes`'s own comment in `__init__`.
+        self.shape_scopes.append({})
         self.alias_scopes.append({})
         self.return_alias_scopes.append({})
         self.field_alias_scopes.append({})
@@ -376,6 +393,7 @@ class Parser(object):
                 tail_param = None
             return stmts, tail_tag, tail_param
         finally:
+            self.shape_scopes.pop()
             self.alias_scopes.pop()
             self.return_alias_scopes.pop()
             self.field_alias_scopes.pop()
@@ -1402,9 +1420,14 @@ class Parser(object):
                 self.direct_param_calls_stack[-1].add(resolved_param)
 
     def parse_type(self):
-        """A type name in annotation position: a primitive tag or a
-        `shape` declared earlier in this file (single pass, no forward
-        refs — see `self.shapes`)."""
+        """A type name in annotation position: a primitive tag, or a
+        `shape` declared earlier AND still in scope here (single pass, no
+        forward refs — see `self.shape_scopes`). v0.18 (round 342) added
+        the "in scope" half: before it, any shape declared anywhere earlier
+        in the FILE was accepted, including one whose block had closed, and
+        the failure surfaced at run time as one of three different misses
+        (or, for a nested shape's own field spec, as a silently
+        miss-valued field) instead of here."""
         tok = self.peek()
         if tok.type == "KW" and tok.value == "fn":
             self.next()
@@ -1414,9 +1437,26 @@ class Parser(object):
             name = tok.value
         else:
             raise ParseError("expected a type name", tok.line, tok.col)
-        if name not in PRIMITIVE_TYPES and name not in self.shapes:
+        if name not in PRIMITIVE_TYPES and not self._shape_in_scope(name):
+            if name in self.shapes_seen:
+                # declared, but its block has closed: the same sentence the
+                # runtime used to produce for the `-> Shape` half of this
+                # case (interp's `_UnboundRetType`), now said once, here,
+                # for every annotation position.
+                raise ParseError("type '%s' is not in scope here" % name,
+                                 tok.line, tok.col)
             raise ParseError("unknown type '%s'" % name, tok.line, tok.col)
         return name
+
+    def _shape_in_scope(self, name):
+        """Is `name` a shape declared in this block or an enclosing one?
+        Innermost-out, exactly like the value lookup the desugared `let`
+        will do at runtime — that correspondence is the whole point (v0.18,
+        decision 28)."""
+        for frame in reversed(self.shape_scopes):
+            if name in frame:
+                return True
+        return False
 
     def _type_spec_expr(self, type_name, line):
         """The AST expression a `typed`/`matches` call reads its spec
@@ -1463,9 +1503,16 @@ class Parser(object):
         if name in PRIMITIVE_TYPES:
             raise ParseError("'%s' is a reserved type name" % name,
                              name_tok.line, name_tok.col)
-        if name in self.shapes:
-            raise ParseError("shape '%s' is already declared" % name,
-                             name_tok.line, name_tok.col)
+        if self.shape_scopes and name in self.shape_scopes[-1]:
+            # THIS block only (v0.18): a shape in an enclosing block is
+            # shadowed, not redeclared, exactly as a `let` of the same name
+            # would be. Redundant with `stmt_list`'s general no-rebinding
+            # check (a shape reaches it as an ordinary `A.Let`) and kept
+            # deliberately: it fires first, with the more specific message,
+            # and that message is a host/guest wording witness — see
+            # SPEC.md § v0.18.
+            raise ParseError("shape '%s' is already declared in this block"
+                             % name, name_tok.line, name_tok.col)
         self.expect("=")
         self.expect("@{", what="'@{' after shape name")
         fields = []
@@ -1487,7 +1534,12 @@ class Parser(object):
                     continue
                 break
         self.expect("}")
-        self.shapes[name] = fields
+        # registered only now, after `expect("}")` — that is what makes
+        # `shape Foo = @{x: Foo}` an "unknown type", and the guest's
+        # token-stream reconstruction of this table depends on it
+        # (decision 27, SPEC.md § round 338).
+        self.shape_scopes[-1][name] = fields
+        self.shapes_seen.add(name)
         return A.Let(tok.line, name, A.RecordLit(tok.line, pairs))
 
     def block(self):

@@ -413,20 +413,20 @@ fn parse_record_lit(toks, pos, acc, seen) {
 let guest_primitive_types = ["num", "str", "bool", "list", "record", "fn",
                              "any", "guess"]
 
-# ---- `shape` declarations (v0.12 guest parity, round 338) ------------------
-# The host parser carries MUTABLE state for this: `self.shapes` is a dict
-# that `shape_def()` writes a name into once that declaration finishes, and
-# `parse_type()` accepts any name already in it. Whence has no mutation, and
-# threading a shapes accumulator down would not be enough — the host's set is
-# deliberately NOT scope-aware (a `shape` declared inside a function body is
-# visible to later annotations at every level; SPEC v0.13's `_UnboundRetType`
-# note is precisely about that), so every one of the ~25 parser functions
-# would need to RETURN the accumulator as well as take it.
+# ---- `shape` declarations (v0.12 guest parity, round 338; scoped in v0.18,
+# ---- round 342) ------------------------------------------------------------
+# The host parser carries MUTABLE state for this: `shape_def()` writes a name
+# into a scope frame once that declaration finishes, and `parse_type()`
+# accepts any name visible from the frame stack. Whence has no mutation, and
+# threading a shapes accumulator down would not be enough either: an
+# annotation can appear inside an anonymous `fn(a: Point)` anywhere an
+# expression can, so every one of the ~25 parser functions would have to
+# RETURN the accumulator as well as take it, the whole expression parser
+# included.
 #
 # The guest recovers the state from the TOKEN STREAM instead. The host is
-# strictly left-to-right, so at any token position p its `self.shapes` holds
-# exactly the shapes whose declaration COMPLETED before p — which makes it a
-# pure function of (toks, p), no threading at all. Two details make that
+# strictly left-to-right, so at any token position p its shape table is a
+# pure function of (toks, p), no threading at all. Three details make that
 # exact rather than merely close:
 #   * the three tokens must be ADJACENT (`shape` NAME `=`), which is what the
 #     host's own `peek(1)`/`peek(2)` require — they do not skip newlines, so
@@ -435,12 +435,24 @@ let guest_primitive_types = ["num", "str", "bool", "list", "record", "fn",
 #     adjacently inside any legal Whence expression, a match can only be at
 #     statement start, exactly where the host tests for it;
 #   * the declaration must have CLOSED before p (`shape_close` below), which
-#     is what rejects `shape Foo = @{x: Foo}` — the host has not yet run
-#     `self.shapes[name] = fields` while it is parsing its own field types.
-# Cost: `shapes_declared_before` is only ever reached for a name that is NOT
-# a primitive tag, so every program written before this round — including
-# every program `harness/swe/fuzz.py` emits, whose TYPE_TAGS are primitives
-# only — pays exactly nothing for it.
+#     is what rejects `shape Foo = @{x: Foo}` — the host has not yet
+#     registered the name while it is parsing its own field types;
+#   * (v0.18) the BLOCK the declaration sits in must not have closed before p
+#     either. The host pushes one frame per `stmt_list`, i.e. one per `{`;
+#     the guest replays exactly that from the brackets themselves
+#     (`shape_rel_depth`), counting `{` and `@{` up and `}` down. A record
+#     literal's `@{ … }` is balanced, so including it shifts every position
+#     inside it by the same constant and never changes an answer — only
+#     differences of depth are ever compared.
+# `shape_rel_depth` returns the block depth at `limit` RELATIVE to a
+# declaration that ended just before `i`, or -1 if the declaring block itself
+# closed on the way. So `>= 0` is "still in scope at p" and `== 0` is
+# "declared in the very block p sits in" — which is the pair the host reads
+# off `self.shape_scopes` as "any frame" vs. "the top frame".
+# Cost: `shapes_before` is only ever reached for a name that is NOT a
+# primitive tag, so every program written before round 338 — including every
+# program `harness/swe/fuzz.py` emits, whose TYPE_TAGS are primitives only —
+# pays exactly nothing for it.
 fn is_shape_head(toks, i) {
   let k = t_at(toks, i)
   k.t == "name" and k.v == "shape" and is_ntype(toks, i + 1, "name") and
@@ -462,13 +474,44 @@ fn shape_close(toks, pos, depth) {
   else { shape_close(toks, pos + 1, depth) }
 }
 
-fn shapes_declared_before(toks, limit, i, acc) {
+fn shape_rel_depth(toks, i, limit, rel) {
+  if i >= limit { rel }
+  else {
+    let k = t_at(toks, i)
+    if k.t == "eof" { rel }
+    else if k.t == "op" and (k.v == "@{" or k.v == "{") {
+      shape_rel_depth(toks, i + 1, limit, rel + 1)
+    }
+    else if k.t == "op" and k.v == "}" and rel == 0 { 0 - 1 }
+    else if k.t == "op" and k.v == "}" {
+      shape_rel_depth(toks, i + 1, limit, rel - 1)
+    }
+    else { shape_rel_depth(toks, i + 1, limit, rel) }
+  }
+}
+
+# `want` picks which of the three questions this scan answers:
+#   "any"   — declared anywhere earlier in the file. Diagnostics only: it is
+#             what separates "unknown type" (a typo) from "not in scope here"
+#             (a real declaration in a block that has closed). Mirrors the
+#             host's `shapes_seen`.
+#   "scope" — visible at `limit` (host: any frame of `shape_scopes`).
+#   "block" — declared in the very block `limit` sits in (host: the TOP
+#             frame), which is what makes a redeclaration an error while a
+#             shadowing declaration one block in is fine.
+fn shapes_before(toks, limit, want, i, acc) {
   if i + 2 >= limit { acc }
   else {
-    let acc2 = if is_shape_head(toks, i) and shape_close(toks, i + 3, 0) < limit {
-      push(acc, (t_at(toks, i + 1)).v)
-    } else { acc }
-    shapes_declared_before(toks, limit, i + 1, acc2)
+    let close = if is_shape_head(toks, i) { shape_close(toks, i + 3, 0) }
+      else { limit }
+    let rel = if close < limit and want != "any" {
+      shape_rel_depth(toks, close + 1, limit, 0)
+    } else { 0 }
+    let keep = close < limit and
+      (want == "any" or (want == "scope" and rel >= 0) or
+       (want == "block" and rel == 0))
+    let acc2 = if keep { push(acc, (t_at(toks, i + 1)).v) } else { acc }
+    shapes_before(toks, limit, want, i + 1, acc2)
   }
 }
 
@@ -480,8 +523,11 @@ fn expect_type_name(toks, pos) {
   else if contains(guest_primitive_types, name) {
     @{type: name, spec: spec_node(name), pos: pos + 1}
   }
-  else if contains(shapes_declared_before(toks, pos, 0, []), name) {
+  else if contains(shapes_before(toks, pos, "scope", 0, []), name) {
     @{type: name, spec: name_node(name), pos: pos + 1}
+  }
+  else if contains(shapes_before(toks, pos, "any", 0, []), name) {
+    miss ("type '" + name + "' is not in scope here")
   }
   else { miss ("unknown type '" + name + "'") }
 }
@@ -671,8 +717,8 @@ fn parse_shape_def(toks, pos) {
   if contains(guest_primitive_types, nm.name) {
     miss ("'" + nm.name + "' is a reserved type name")
   }
-  else if contains(shapes_declared_before(toks, pos, 0, []), nm.name) {
-    miss ("shape '" + nm.name + "' is already declared")
+  else if contains(shapes_before(toks, pos, "block", 0, []), nm.name) {
+    miss ("shape '" + nm.name + "' is already declared in this block")
   }
   else {
     @{node: @{kind: "let", name: nm.name,
@@ -2385,19 +2431,46 @@ check "an anonymous fn's shape return says just \"return value\"":
   contains(reasons(gv("shape P = @{x: num}\nlet f = fn() -> P { 5 }\nf()"))[0],
            "return value expected P, got num")
 
-# The host needs an `_UnboundRetType` sentinel because its parser is not
-# scope-aware: `L` is DECLARED before `f` in the token stream, so `-> L`
-# parses, but `L` is only ever BOUND inside g's call frame. On the host a
-# naive lookup raised AttributeError there (SPEC v0.13); the guest cannot
-# crash the same way (its `lookup` misses), so what is mirrored is the
-# MESSAGE — without it an unbound shape would read as an ordinary mismatch
-# against a miss-valued spec.
-check "a shape declared in another body parses but is not in scope":
+# v0.18 (round 342): a shape whose BLOCK has closed is refused at the
+# annotation, by the parser, in both parsers. Until v0.18 the host accepted
+# `-> L` here (its shape table was one flat file-global dict) and needed an
+# `_UnboundRetType` sentinel to turn the resulting unbound lookup into a
+# miss instead of an AttributeError at run time; the guest mirrored that
+# message. Both sentinels still exist and are still exercised (host:
+# `test_unbound_ret_type_sentinel_is_still_the_defensive_floor`; guest:
+# `__unbound_ret` below), but no source text reaches either any more.
+check "a shape declared in another body is out of scope, not a type":
   missed(gv("fn g() { shape L = @{x: num}\n1 }\nfn f() -> L { 1 }\nf()"))
-check "...and says so in the host's own words":
+check "...and says so in the host's own words, at the annotation":
   contains(reasons(gv("fn g() { shape L = @{x: num}\n1 }\n" +
                       "fn f() -> L { 1 }\nf()"))[0],
-           "return value of f: type 'L' is not in scope here")
+           "type 'L' is not in scope here")
+check "the same for a PARAMETER type — one sentence, not two":
+  contains(reasons(gv("fn g() { shape L = @{x: num}\n1 }\n" +
+                      "fn f(p: L) { p }\nf(1)"))[0],
+           "type 'L' is not in scope here")
+check "and for a later shape's own FIELD type":
+  contains(reasons(gv("fn g() { shape L = @{x: num}\n1 }\n" +
+                      "shape W = @{i: L}\n1"))[0],
+           "type 'L' is not in scope here")
+check "a name never declared at all is still 'unknown type', not 'not in scope'":
+  contains(reasons(gv("fn f(p: Nope) { p }\nf(1)"))[0], "unknown type 'Nope'")
+
+# The other half of scoping: a block-local shape is a perfectly good type
+# INSIDE its own block, sibling blocks may each declare the same name, and
+# an inner block may shadow an outer one — all three exactly as an ordinary
+# `let` behaves, which is the point (a `shape` IS a `let`).
+check "a block-local shape works inside its own block":
+  gv("fn mk() { shape L = @{x: num}\nfn f(p: L) -> L { p }\n(f(@{x: 7})).x }\nmk()") == 7
+check "sibling blocks may each declare the same shape name":
+  gv("fn a() { shape S = @{x: num}\nfn f(p: S) { p.x }\nf(@{x: 1}) }\n" +
+     "fn b() { shape S = @{y: num}\nfn g(p: S) { p.y }\ng(@{y: 2}) }\na() + b()") == 3
+check "an inner block may shadow an outer shape name":
+  gv("shape S = @{x: num}\n" +
+     "fn inner() { shape S = @{y: num}\nfn g(p: S) { p.y }\ng(@{y: 5}) }\ninner()") == 5
+check "redeclaring in the SAME block is still refused":
+  contains(reasons(gv("shape P = @{x: num}\nshape P = @{y: num}\n1"))[0],
+           "shape 'P' is already declared in this block")
 
 # Nothing above changes what an untyped or primitive-typed program does.
 check "untyped guest code is unaffected":

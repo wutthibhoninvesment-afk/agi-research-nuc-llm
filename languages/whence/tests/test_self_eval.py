@@ -167,12 +167,12 @@ def test_example_runs_green():
     r = subprocess.run([sys.executable, os.path.join(ROOT, "run.py"), EXAMPLE],
                        capture_output=True, text=True)
     assert r.returncode == 0, r.stdout + r.stderr
-    assert "123 passed, 0 failed" in r.stdout
+    assert "130 passed, 0 failed" in r.stdout
     assert "all in Whence" in r.stdout
 
 
 def test_parser_section_matches_self_host():
-    # the guest lexer+parser is self_host.lang lines 28..697, verbatim;
+    # the guest lexer+parser is self_host.lang lines 28..743, verbatim;
     # if one file changes, the other must change with it (round 158: grew
     # from 420 to 485 lines adding `: Type`/`-> Type` guest parity; round
     # 164: 485 to 533 adding `effects [...]` clause skipping; round 176:
@@ -186,9 +186,11 @@ def test_parser_section_matches_self_host():
     # parity for the host's post-round-323 exponent-literal grammar); round
     # 338: 574 to 697 adding the `shape` statement (`is_shape_head` /
     # `shape_close` / `shapes_declared_before` / `parse_shape_fields` /
-    # `parse_shape_def`, plus spec-NODE type annotations)
+    # `parse_shape_def`, plus spec-NODE type annotations); round 342:
+    # 697 to 743 making the shape table SCOPED (`shape_rel_depth` plus one
+    # `shapes_before` replacing `shapes_declared_before`, v0.18)
     host_lines = open(SELF_HOST).read().splitlines()
-    section = "\n".join(host_lines[27:697])
+    section = "\n".join(host_lines[27:743])
     assert section.startswith("# ---- character classes")
     assert section.rstrip().endswith(
         "fn parse_whence(src) { parse_program(lex_all(src)) }")
@@ -731,6 +733,23 @@ SHAPE_VALUE_CASES = [
     # untyped and primitive-typed code is untouched by any of this
     ('fn add(a, b) { a + b }\nlet result = add(1, 2)', 3),
     ('fn t(a: num) -> num { a * 2 }\nlet result = t(21)', 42),
+    # v0.18 (round 342): shapes are block-scoped, exactly like the `let`
+    # each one desugars to. All three of these were REFUSED or broken
+    # before it — the first worked, the second and third were "shape 'S'
+    # is already declared" parse errors on both sides.
+    ('fn mk() { shape L = @{x: num}\nfn f(p: L) -> L { p }\n'
+     '(f(@{x: 7})).x }\nlet result = mk()', 7),
+    ('fn a() { shape S = @{x: num}\nfn f(p: S) { p.x }\nf(@{x: 1}) }\n'
+     'fn b() { shape S = @{y: num}\nfn g(p: S) { p.y }\ng(@{y: 2}) }\n'
+     'let result = a() + b()', 3),
+    ('shape S = @{x: num}\n'
+     'fn inner() { shape S = @{y: num}\nfn g(p: S) { p.y }\ng(@{y: 5}) }\n'
+     'let result = inner()', 5),
+    # and the inner declaration really is a DIFFERENT shape, not the outer
+    # one seen twice: the outer annotation still wants `x`
+    ('shape S = @{x: num}\n'
+     'fn inner() { shape S = @{y: num}\n1 }\n'
+     'fn outer(p: S) { p.x }\nlet result = outer(@{x: 2})', 2),
 ]
 
 SHAPE_MISS_CASES = [
@@ -738,12 +757,12 @@ SHAPE_MISS_CASES = [
     'let result = mag(@{x: 3})',
     'shape P = @{x: num}\nfn mk() -> P { @{y: 1} }\nlet result = mk()',
     'shape P = @{x: num}\nlet f = fn() -> P { 5 }\nlet result = f()',
-    # the not-scope-aware case: `L` was DECLARED earlier in the token stream
-    # (so both parsers accept `-> L`) but is only ever BOUND inside g's call
-    # frame. This is what the host needs `_UnboundRetType` for — a naive
-    # `env.get(name).payload` raised AttributeError there (SPEC v0.13).
-    'fn g() { shape L = @{x: num}\n1 }\nfn f() -> L { 1 }\nlet result = f()',
 ]
+# round 342 (v0.18): the out-of-scope `-> L` case used to live here, as a
+# RUN-time miss on both sides (host: the `_UnboundRetType` sentinel; guest:
+# `__unbound_ret`). It is now a PARSE error on both sides and has moved to
+# SHAPE_PARSE_ERRORS below, together with the parameter and shape-field
+# annotations that used to fail two other ways from the same mistake.
 
 # (source, the host's exact reason with its `(line N)` suffix removed)
 SHAPE_PARSE_ERRORS = [
@@ -753,10 +772,21 @@ SHAPE_PARSE_ERRORS = [
     ('shape num = @{x: num}\nlet result = 1',
      "'num' is a reserved type name"),
     ('shape P = @{x: num}\nshape P = @{y: num}\nlet result = 1',
-     "shape 'P' is already declared"),
+     "shape 'P' is already declared in this block"),
     ('shape P = @{x: num, x: str}\nlet result = 1', "duplicate field 'x'"),
     ('fn f(a: Nope) { a }\nlet result = 1', "unknown type 'Nope'"),
     ('fn f() -> Nope { 1 }\nlet result = 1', "unknown type 'Nope'"),
+    # v0.18 (round 342): a shape whose BLOCK has closed. All three
+    # annotation positions are one `parse_type` and now give one sentence;
+    # before v0.18 the host accepted all three and produced three different
+    # RUN-time outcomes (a `_UnboundRetType` miss, an "unbound name" miss,
+    # and a silently miss-valued shape field).
+    ('fn g() { shape L = @{x: num}\n1 }\nfn f() -> L { 1 }\nlet result = 1',
+     "type 'L' is not in scope here"),
+    ('fn g() { shape L = @{x: num}\n1 }\nfn f(p: L) { p }\nlet result = 1',
+     "type 'L' is not in scope here"),
+    ('fn g() { shape L = @{x: num}\n1 }\nshape W = @{i: L}\nlet result = 1',
+     "type 'L' is not in scope here"),
 ]
 
 LINE_SUFFIX = re.compile(r" \(line \d+\)")
@@ -812,12 +842,12 @@ def test_shape_misses_agree_host_vs_guest_including_the_wording():
         elif guest_reason(h.payload) != guest_reason(g.payload):
             bad.append((src, h.payload.reasons[0], g.payload.reasons[0]))
     assert bad == [], bad
-    # and the two messages this round is actually about, spelled out
+    # and the message round 338 was actually about, spelled out
     h_ret = host_eval(SHAPE_MISS_CASES[1]).payload
     assert guest_reason(h_ret) == "return value of mk expected P, got record"
-    h_unbound = host_eval(SHAPE_MISS_CASES[3]).payload
-    assert guest_reason(h_unbound) == \
-        "return value of f: type 'L' is not in scope here"
+    # its companion — the out-of-scope `-> L` miss — is gone from this list
+    # since v0.18 (round 342): the annotation no longer parses, so the pair
+    # is checked by wording in `SHAPE_PARSE_ERRORS` instead.
 
 
 @pytest.mark.whence_slow

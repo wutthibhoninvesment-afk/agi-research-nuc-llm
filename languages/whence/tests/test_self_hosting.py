@@ -97,7 +97,7 @@ EXAMPLE = os.path.join(ROOT, "examples", "self_eval.lang")
 SELF_HOST = os.path.join(ROOT, "examples", "self_host.lang")
 EFFECTS = os.path.join(ROOT, "examples", "effects.lang")
 MARKER = "# ==== SELF-TESTS"
-LIB_START, LIB_END = 27, 697  # self_host.lang lines 28..697 (0-indexed slice)
+LIB_START, LIB_END = 27, 743  # self_host.lang lines 28..743 (0-indexed slice)
 
 
 def eval_library_source():
@@ -139,10 +139,13 @@ def test_guest_parser_parses_its_own_full_source():
     # 332: +8 -- the new `exp_end` helper fn plus 7 new lexer/parser
     # checkpoint checks for exponent-literal guest parity; round 338: +33 --
     # the five `shape` parser functions, seven `let`s binding parsed ASTs to
-    # inspect, and 21 new checkpoint checks); pin the exact count so a
+    # inspect, and 21 new checkpoint checks; round 342: +6 -- one net new
+    # parser function for the v0.18 SCOPED shape table, `shape_rel_depth`
+    # plus `shapes_before` replacing `shapes_declared_before`, and 5 new
+    # checkpoint checks); pin the exact count so a
     # silent structural regression (e.g. two statements merging into one)
     # fails loudly even though `__ok` alone would not catch it.
-    assert env.get("__nstmts").payload == 195
+    assert env.get("__nstmts").payload == 201
 
 
 @pytest.mark.whence_slow
@@ -183,6 +186,19 @@ def test_guest_evaluator_executes_self_host_library():
         '    ((p3.stmts[1]).ret_type).value == "P"',
         'check "while an undeclared type name is still refused":\n'
         '  missed(parse_whence("fn f(a: Nope) { a }\\nlet z = 1"))',
+        # round 342: the v0.18 SCOPE half of the same machinery, at the same
+        # depth. `shape_rel_depth` replays the host's per-block frame stack
+        # from the bracket tokens alone, so this is it running under
+        # store-passing, two levels down.
+        'check "a shape whose block has closed is refused":\n'
+        '  missed(parse_whence("fn g() { shape L = @{x: num}\\n1 }\\n'
+        'fn f(p: L) { p }\\nlet z = 1"))',
+        'check "while the same shape inside its own block is a real type":\n'
+        '  not missed(parse_whence("fn g() { shape L = @{x: num}\\n'
+        'fn f(p: L) { p }\\nf(@{x: 1}) }\\nlet z = 1"))',
+        'check "and a sibling block may declare the name again":\n'
+        '  not missed(parse_whence("fn a() { shape S = @{x: num}\\n1 }\\n'
+        'fn b() { shape S = @{y: num}\\n1 }\\nlet z = 1"))',
     ])
     # round 228: this test used to also assert
     # `not missed(p2) and len(steps(p2)) > 0` here (added round 206, when
@@ -200,7 +216,7 @@ def test_guest_evaluator_executes_self_host_library():
     rec = env.get("__r").payload
     assert rec.fields["parse_error"].payload is False
     checks = rec.fields["checks"].payload
-    assert len(checks) == 8
+    assert len(checks) == 11
     failed = [c.payload.fields["label"].payload for c in checks
               if c.payload.fields["pass"].payload is not True]
     assert not failed, failed

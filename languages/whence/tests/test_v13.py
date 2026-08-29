@@ -302,41 +302,190 @@ def test_non_tail_recursion_checks_every_frame_independently():
                for x in reasons)
 
 
-# --- the crash bug: an out-of-scope shape name --------------------------------
+# --- the out-of-scope shape name: a crash (round 128), then a miss, --------
+# --- and since v0.18 (round 342) a parse error at the annotation itself ----
+#
+# Round 128 found a CRASH here and fixed the crash. What it left in place
+# was the cause: the parser's shape table was file-global, so an annotation
+# naming a shape whose block had closed was ACCEPTED, and the three ways
+# that then went wrong were all deferred to run time and all different
+# (`-> Local`: a `_UnboundRetType` miss per call; `p: Local`: an "unbound
+# name" miss per call, different wording for the identical mistake; and a
+# later shape's own FIELD spec: a silently miss-valued field, no miss at
+# all until something read it). v0.18 makes the annotation itself the
+# error, once, at parse time, with one sentence for all three.
 
-def test_return_type_naming_an_out_of_scope_local_shape_is_a_miss_not_a_crash():
-    src = ('fn make() { shape Local = @{x: num} 1 }\n'
-          'fn f() -> Local { @{x: 1} }\n'
-          'let r = f()\n')
-    interp, env, out = run(src)     # must not raise
-    r = env.get("r")
-    assert isinstance(r.value, Miss)
-    assert "not in scope" in r.value.reasons[0]
-    assert "Local" in r.value.reasons[0]
+SRC_OUT_OF_SCOPE_RET = ('fn make() { shape Local = @{x: num} 1 }\n'
+                        'fn f() -> Local { @{x: 1} }\n'
+                        'let r = f()\n')
+SRC_OUT_OF_SCOPE_PARAM = ('fn make() { shape Local = @{x: num} 1 }\n'
+                          'fn g(p: Local) { p }\n'
+                          'let r = g(@{x: 1})\n')
+SRC_OUT_OF_SCOPE_FIELD = ('fn make() { shape Local = @{x: num} 1 }\n'
+                          'shape Wrap = @{inner: Local}\n'
+                          'let r = 1\n')
 
 
-def test_out_of_scope_shape_return_type_every_call_misses_the_same_way():
-    src = ('fn make() { shape Local = @{x: num} 1 }\n'
-          'fn f() -> Local { @{x: 1} }\n'
-          'let a = f()\nlet b = f()\n')
+@pytest.mark.parametrize("src", [SRC_OUT_OF_SCOPE_RET,
+                                 SRC_OUT_OF_SCOPE_PARAM,
+                                 SRC_OUT_OF_SCOPE_FIELD])
+def test_out_of_scope_shape_in_any_annotation_position_is_one_parse_error(src):
+    """v0.18: return type, parameter type and a shape's own field type are
+    three routes into the same `parse_type`, and all three now refuse an
+    out-of-scope shape identically. Before v0.18 they produced three
+    DIFFERENT run-time outcomes from the same mistake."""
+    with pytest.raises(ParseError) as e:
+        parse(src)
+    assert "type 'Local' is not in scope here" in str(e.value)
+
+
+def test_out_of_scope_is_worded_differently_from_never_declared():
+    """The two are genuinely different mistakes — a typo vs. a scope error —
+    and `shapes_seen` exists only to tell them apart."""
+    with pytest.raises(ParseError) as never:
+        parse('fn f() -> Nope { 1 }\nlet r = 1\n')
+    assert "unknown type 'Nope'" in str(never.value)
+    with pytest.raises(ParseError) as closed:
+        parse(SRC_OUT_OF_SCOPE_RET)
+    assert "not in scope here" in str(closed.value)
+
+
+def test_the_error_points_at_the_annotation_not_the_declaration():
+    # line 2 is `fn f() -> Local ...`; the shape is declared on line 1.
+    with pytest.raises(ParseError) as e:
+        parse(SRC_OUT_OF_SCOPE_RET)
+    assert e.value.line == 2
+
+
+def test_a_local_shape_is_still_usable_inside_its_own_block():
+    """The expressiveness v0.18 must NOT cost: a shape declared in a block
+    is a perfectly good type for annotations in that same block, param and
+    return alike. This is the case round 128 could not distinguish from
+    the broken one."""
+    all_ok('fn make() {\n'
+           '  shape Local = @{x: num}\n'
+           '  fn f(p: Local) -> Local { p }\n'
+           '  check "local shape works": (f(@{x: 1})).x == 1\n'
+           '  1\n'
+           '}\n'
+           'let r = make()\n')
+
+
+def test_sibling_blocks_may_each_declare_the_same_shape_name():
+    """A `let` may; before v0.18 a `shape` could not, because the table was
+    one flat file-global dict. Nothing is shadowed here — the two blocks
+    never see each other."""
+    all_ok('fn a() {\n'
+           '  shape S = @{x: num}\n'
+           '  fn f(p: S) { p.x }\n'
+           '  f(@{x: 1})\n'
+           '}\n'
+           'fn b() {\n'
+           '  shape S = @{y: str}\n'
+           '  fn g(p: S) { p.y }\n'
+           '  g(@{y: "ok"})\n'
+           '}\n'
+           'check "sibling a": a() == 1\n'
+           'check "sibling b": b() == "ok"\n')
+
+
+def test_an_inner_block_may_shadow_an_outer_shape_name():
+    all_ok('shape S = @{x: num}\n'
+           'fn inner() {\n'
+           '  shape S = @{y: str}\n'
+           '  fn g(p: S) { p.y }\n'
+           '  g(@{y: "ok"})\n'
+           '}\n'
+           'fn outer(p: S) { p.x }\n'
+           'check "inner annotation means the inner shape": inner() == "ok"\n'
+           'check "outer annotation still means the outer one": '
+           'outer(@{x: 2}) == 2\n')
+
+
+def test_redeclaring_a_shape_in_the_SAME_block_is_still_an_error():
+    with pytest.raises(ParseError, match="already declared in this block"):
+        parse('shape P = @{x: num}\nshape P = @{y: num}\nlet r = 1\n')
+    with pytest.raises(ParseError, match="already declared in this block"):
+        parse('fn f() {\n  shape P = @{x: num}\n  shape P = @{y: num}\n'
+              '  1\n}\nlet r = 1\n')
+
+
+def test_unbound_ret_type_sentinel_is_still_the_defensive_floor():
+    """`_UnboundRetType` is unreachable from source text after v0.18 (the
+    parser refuses the only annotation that could produce it), and is kept
+    anyway: `_closure_ret` resolves a spec directly in Python, not through
+    a Whence expression, so a `None` lookup there would raise rather than
+    miss. Exercised directly, since no program can reach it."""
+    from whence.interp import _UnboundRetType, _check_ret
+    from whence.values import leaf
+    v = leaf("literal", "1", 1, 1)
+    out = _check_ret(v, _UnboundRetType("Local"), "return value of f", 7)
+    assert isinstance(out.value, Miss)
+    assert out.value.reasons[0].startswith(
+        "return value of f: type 'Local' is not in scope here")
+    # and a miss in still propagates unchanged, ahead of the sentinel
+    m = _check_ret(mk_miss_for_test(), _UnboundRetType("Local"), "lbl", 7)
+    assert list(m.value.reasons) == ["boom (line 1)"]
+
+
+def mk_miss_for_test():
+    from whence.interp import mk_miss
+    return mk_miss("boom", 1, "literal", "x")
+
+
+# --- the LATE-BINDING hazard v0.18 makes nameable (pre-existing, unfixed) ---
+#
+# v0.18 gives the parser an opinion about WHICH declaration an annotation
+# names. The runtime has its own, and they can disagree: a param guard is a
+# prepended `let p = typed(p, <NameRef>, …)` re-evaluated on every call, so
+# its spec resolves in the CALL env — while a return spec is resolved once,
+# at closure creation (`_closure_ret`), in the DEFINING env. A block env is
+# one mutable dict that later statements keep adding to (that is what makes
+# mutual recursion work, see `f_block`), so a binding added AFTER the
+# annotation is still visible to a later call.
+#
+# These two tests pin the behaviour as it is, deliberately. They are not
+# claims that it is right — see SPEC.md § v0.18 "the capture hazard" and
+# the round-342 knowledge file for the fix direction (resolve a param spec
+# at closure creation too, i.e. move param checks to the call boundary,
+# which is a v0.19-sized interpreter change: it touches all three call
+# paths and every typed function's why-tree).
+
+def test_a_param_spec_is_late_bound_and_a_later_let_captures_it():
+    src = ('shape P = @{x: num}\n'
+           'fn g() {\n'
+           '  fn h(p: P) { p.x }\n'
+           '  let P = 3\n'
+           '  h(@{x: 1})\n'
+           '}\n'
+           'let r = g()\n')
     interp, env, out = run(src)
-    strip_line = lambda r: r.split(" (line")[0]
-    a_reasons = [strip_line(r) for r in env.get("a").value.reasons]
-    b_reasons = [strip_line(r) for r in env.get("b").value.reasons]
-    assert a_reasons == b_reasons
-
-
-def test_param_type_naming_the_same_out_of_scope_shape_already_missed_safely():
-    # the pre-existing (v0.12) param-type side of the identical scoping
-    # gap: it already degrades to a miss via the ordinary NameRef walk,
-    # so this is a regression pin, not a new fix.
-    src = ('fn make() { shape Local = @{x: num} 1 }\n'
-          'fn g(p: Local) { p }\n'
-          'let r = g(@{x: 1})\n')
-    interp, env, out = run(src)     # must not raise
     r = env.get("r")
     assert isinstance(r.value, Miss)
-    assert "unbound name 'Local'" in r.value.reasons[0]
+    # the annotation named the shape; the guard found the number
+    assert "typed spec must be a type name or a shape, got 3" \
+        in r.value.reasons[0]
+
+
+def test_one_signature_can_mean_two_different_shapes():
+    """The sharpest witness: `fn h(p: P) -> P` where the param `P` and the
+    return `P` are different shapes, proved by which values pass. The param
+    guard resolves the INNER `P` (bound in g's env by the time h is called);
+    the return spec was resolved at closure creation, when only the OUTER
+    `P` existed."""
+    all_ok('shape P = @{x: num}\n'
+           'fn g() {\n'
+           '  fn h(p: P) -> P { p }\n'
+           '  shape P = @{y: str}\n'
+           '  check "a value satisfying BOTH passes": '
+           'not missed(h(@{x: 1, y: "a"}))\n'
+           '  check "inner-only satisfies the param, misses the RETURN":\n'
+           '    contains(reasons(h(@{y: "a"}))[0], "return value")\n'
+           '  check "outer-only satisfies the return, misses the PARAM":\n'
+           '    contains(reasons(h(@{x: 1}))[0], "parameter \'p\'")\n'
+           '  1\n'
+           '}\n'
+           'let r = g()\n')
 
 
 # --- three-way differential (fast / direct / slow) ---------------------------
@@ -383,11 +532,20 @@ def test_three_way_non_tail_recursion_return_check():
         'let result = weird(5)\n')
 
 
-def test_three_way_unbound_shape_return_type_does_not_crash_any_mode():
+def test_three_way_block_local_shape_return_type():
+    # v0.18 (round 342): this case used to be the out-of-scope crash probe
+    # (`fn f() -> Local` OUTSIDE make's body), which is now a parse error
+    # and so cannot be run in any mode. What is worth three-way coverage is
+    # the case that survived the change: a shape declared in a block, used
+    # as a return type inside that same block, resolved once per closure
+    # creation — i.e. once per call of the enclosing function.
     assert_three_way(
-        'fn make() { shape Local = @{x: num} 1 }\n'
-        'fn f() -> Local { @{x: 1} }\n'
-        'let result = f()\n')
+        'fn make(n) {\n'
+        '  shape Local = @{x: num}\n'
+        '  fn f(v) -> Local { @{x: v} }\n'
+        '  (f(n)).x\n'
+        '}\n'
+        'let result = make(3) + make(4)\n')
 
 
 # ============================================ round 335 (SWE-loop D) ========
