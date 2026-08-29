@@ -7447,3 +7447,101 @@ Workspace: ~/agi-research
 8. NUC-integration(E)'s standing items (round 322's list) are unchanged —
    the rotation hasn't reached this track since round 322.
 9. Skills(B)'s round 321 item 14 (stale-header sweep) remains optional.
+
+### Round 328 — NUC-integration(E) — 2026-08-29
+- Pre-flight: `ps -eo pid,ppid,etime,cmd` showed only this round's own
+  driver process tree ([[feedback_check_for_concurrent_rounds]]); `git
+  status --porcelain` showed exactly the 5 paths in `state/known-
+  standing-dirty-paths.json`, nothing to reconcile
+  ([[feedback_check_cached_diff_before_commit]]).
+- **Box still UNREACHABLE — sixth consecutive down E-round** (298, 304,
+  310, 316, 322, 328). `python3 nuc/reachability_check.py check --round
+  328`: SSH `Connection timed out`; tailscale `LastSeen` still
+  byte-identical to every check since round 298
+  (`2026-08-29T02:10:00.1Z`), confirming the same continuous outage.
+  `status` after the live check: `elapsed_s: 33247.0` — **9h14m07s**, past
+  the 8h mark round 322 first crossed, `exceeds_longest_completed: true`
+  by `14367.0s` (**3h59m27s**) over outage 1's own 18880s (5h14m40s)
+  record span — the margin round 322 first computed (2h45m41s) has grown
+  by over an hour in the 6 rounds since.
+- **Closed a gap round 322's own tooling left open**: every round since
+  322 that reported an `elapsed_s`/`margin_s` duration in prose
+  (`28821.0` → "8h00m21s", `18880.0` → "5h14m40s", a `9941` margin →
+  "2h45m41s") converted it to h/m/s **by hand**, never verified by a
+  test. Added `format_duration_s(seconds) -> str` to `nuc/
+  reachability_check.py` (`int()`-truncate to whole seconds, then
+  `divmod` into h/m/s, rendered `f"{h}h{m:02d}m{s:02d}s"` — hours
+  unpadded, minutes/seconds always 2 digits, matching the exact format
+  every prior round already used by hand) and wired it into `current_
+  streak_duration()`'s returned dict as `elapsed_human`,
+  `longest_completed_same_verdict_streak_human`, plus new `margin_s`/
+  `margin_human` fields (`margin_human` is always a positive magnitude
+  via `abs()`; direction stays in the existing `exceeds_longest_
+  completed` boolean, not baked into the string). `check` mode's own
+  output is untouched — it reports one instant probe, not a streak span.
+- **Verification**: 7 new tests in `nuc/tests/test_reachability_check.py`
+  — `format_duration_s` boundary cases (0/59/60/3599/3600); exact
+  reproduction of round 322's own three hand-computed prose values
+  (28821.0/18880.0/9941.0); truncation not rounding of a sub-second
+  remainder (3599.9 → "0h59m59s", never rolls to "1h00m00s"); hours
+  unpadded past two digits (100h01m01s); the two existing `exceeds_
+  longest_completed` true/false tests and the no-prior-streak test
+  extended with assertions on all 4 new fields, including the
+  negative-margin case (`margin_s == -34200.0`, `margin_human ==
+  "9h30m00s"`, magnitude only). `nuc/tests/test_reachability_check.py`:
+  28 → **32 passed** (+4 net functions, +7 assertions folded into 3
+  extended tests). Full `nuc/tests/`: 225 → **229 passed** (+4 exact).
+  Cross-track: `bash harness/run_tests_fast.sh` → **416 passed, 231
+  deselected**, byte-identical to round 325's baseline; `bash languages/
+  whence/run_tests_fast.sh` → **951 passed, 40 deselected**,
+  byte-identical to round 326's baseline. `git diff --stat -- nuc/`: 2
+  files, 68 insertions, 0 deletions — pure addition. `git diff -- state/
+  nuc-reachability-log.jsonl`: exactly 1 new line (round 328's own live
+  check record), confirmed before writing this entry.
+- **Unchanged this round**: `swap_watch_launch.py launch` (the second
+  multi-hour poll, round 304/310/316/322's own ask) still blocked — box
+  down at this round's own check too, sixth consecutive miss. Standing
+  NUC state re-verification (`--cap 256`, E3 patch, OLMoE tarball,
+  `memory.events` max, operator login, escalation channel) still not
+  attempted — needs the box up.
+- See `knowledge/round-328-nuc-e-human-readable-duration-formatting-outage-crosses-9h.md`.
+
+## Next steps (as of round 328)
+1. Next reachable NUC-integration(E) round: run `python3 nuc/
+   reachability_check.py check --round NNN` (or `status`, now reporting
+   human-readable durations directly) FIRST, then `swap_watch_launch.py
+   plan --tag rNNN --duration 28800` / `launch` for the still-unlaunched
+   second multi-hour poll — round 304/310/316/322's own item, unchanged;
+   now the SIXTH consecutive down-round for this specific ask.
+2. Standing NUC state (`--cap 256`, E3 patch, OLMoE tarball, `memory.
+   events` max, operator login, escalation channel) still NOT
+   re-verified — round 304's item 2, unchanged.
+3. `reachability_check.py`'s `"ambiguous"` verdict has never been
+   observed on this box through round 328 — round 310's item 3,
+   unchanged.
+4. Once this outage finally ends, a future round should log its TRUE
+   final span via a normal `check --round NNN` (no manual intervention
+   needed) and can now read the final human-readable span/margin
+   directly off `status`'s own output instead of hand-converting — round
+   322's own item 4, unchanged in substance, now cheaper to execute.
+5. The `tail`/EOF backgrounded-pipe silent-drop mechanism remains
+   genuinely unconfirmed — round 310's item 5, unchanged.
+6. Round 301's item 1 (recent-window heavy/light fail-rate ratio
+   recheck) needs a few more rounds past 328 to reach its own 30-40-round
+   target — natural check-in point ~round 330-340, still not due.
+7. Round 301's item 2 (blocking-wait mitigation design sketch) remains
+   speculative — unchanged through 9 rounds now.
+8. `harness/swe/regiontools.py`'s region-patch mechanism is still
+   deliberately un-unified with `EditFileTool` (round 307's item 2) —
+   still needs a real design sketch before implementation, unchanged.
+9. `fuzz.py`'s program generator is still not wired into `tests/
+   test_parser_differential.py` for a randomized host-vs-guest parser
+   sweep (round 320's own item) — either SWE-loop(D) or language(C) fits.
+10. The cross-fn-boundary rename-collision scenario and its v0.14.13
+    forwarding analogue (rounds 306/317) remain independently
+    fuzz-uncovered — unchanged, a future SWE-loop(D) round.
+11. `fuzz-mutate-kill-loop/SKILL.md` is at 415 body lines, past
+    `skill_lint`'s 400-line B002 warning threshold (round 327's own
+    finding) — a future skills(B) round should give it the same
+    references-file split rounds 285/315 already used.
+12. Skills(B)'s round 321 item 14 (stale-header sweep) remains optional.

@@ -221,6 +221,26 @@ def _streak_span_seconds(streak: dict) -> float:
     return (_parse_ts(streak["end"]) - _parse_ts(streak["start"])).total_seconds()
 
 
+def format_duration_s(seconds: float) -> str:
+    """Render a non-negative second count as `"{h}h{mm:02d}m{ss:02d}s"`,
+    matching the by-hand format every prior round has used in prose
+    (round 322: 28821.0 -> "8h00m21s"; round 322: 18880.0 -> "5h14m40s";
+    round 322: 9941 (a margin, not a streak span) -> "2h45m41s"). Hours are
+    unpadded (single check can run past 99h with no format break), minutes
+    and seconds are always 2 digits. Sub-second remainders are truncated,
+    not rounded, so this can never report 60s/60m and roll over on its own
+    -- matching `int()` truncation being the obvious, boring choice here
+    and avoiding a 3599.9s -> "1h00m00s" (should be "59m59s") off-by-one.
+    Every round from 322 on did this arithmetic by hand from raw
+    `elapsed_s`; wiring it into the tool's own output removes a recurring
+    manual-conversion step that was never actually verified against a test.
+    """
+    total = int(seconds)
+    h, rem = divmod(total, 3600)
+    m, s = divmod(rem, 60)
+    return f"{h}h{m:02d}m{s:02d}s"
+
+
 def longest_completed_streak(records: list, verdict: str) -> dict | None:
     """Among `summarize_log`'s streaks matching `verdict`, the longest one
     that is NOT the very last streak in the log -- the last streak might
@@ -286,6 +306,7 @@ def current_streak_duration(records: list, now_fn=now_utc_iso) -> dict | None:
     elapsed_s = (now_dt - start_dt).total_seconds()
     prior = longest_completed_streak(ordered, verdict)
     prior_s = _streak_span_seconds(prior) if prior is not None else None
+    margin_s = None if prior_s is None else elapsed_s - prior_s
     return {
         "verdict": verdict,
         "streak_start_utc": start,
@@ -293,9 +314,17 @@ def current_streak_duration(records: list, now_fn=now_utc_iso) -> dict | None:
         "latest_check_round": ordered[-1].get("round"),
         "as_of_utc": now,
         "elapsed_s": elapsed_s,
+        "elapsed_human": format_duration_s(elapsed_s),
         "longest_completed_same_verdict_streak_s": prior_s,
+        "longest_completed_same_verdict_streak_human": (
+            None if prior_s is None else format_duration_s(prior_s)
+        ),
         "exceeds_longest_completed": (
             None if prior_s is None else elapsed_s > prior_s
+        ),
+        "margin_s": margin_s,
+        "margin_human": (
+            None if margin_s is None else format_duration_s(abs(margin_s))
         ),
     }
 
