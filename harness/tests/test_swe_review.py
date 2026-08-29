@@ -1,14 +1,17 @@
 """Oracle-gated review / kill / fix tasks (swe.review), offline under PolicyLLM."""
+import atexit
 import json
 import os
+import shutil
 import sys
+import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import swe.review as R
 import swe.killers as K
 from swe.fuzz import WHENCE_ROOT
-from swe.mutation import generate
+from swe.mutation import generate, _copy_project
 from swe.policy import PolicyLLM, call, say
 from agentloop import Agent, AgentConfig
 
@@ -33,8 +36,14 @@ def test_oracle_tool_reports_every_oracle_and_fired_list():
     r = t.run("let a = 1 + 1\nprint(a)\n")
     d = json.loads(r.output)
     assert r.ok and d["_fired"] == []
-    # round 110 added the sixth oracle (`frames`, the frame-charge oracle); round 112 re-pinned the set
-    assert set(d) == {"totality", "fast_slow", "direct", "determinism", "render", "frames", "_fired"}
+    # round 110 added the sixth oracle (`frames`, the frame-charge oracle); round 112 re-pinned the set.
+    # Round 343 added `tail_transparency`: round 337 built it in `swe/oracles.py`
+    # and never re-pinned HERE, so this assertion has been red since round 338
+    # landed that work. Nobody saw it because `run_tests_fast.sh` deselects the
+    # slow tier — which is precisely the blind spot `swe/slowtier.py` exists to
+    # close, and this is the first failure its first recorded slice found.
+    assert set(d) == {"totality", "fast_slow", "direct", "determinism", "render",
+                      "frames", "tail_transparency", "_fired"}
     assert all(d[k]["kind"] == "ok" for k in ("totality", "fast_slow", "direct", "determinism", "render"))
     d2 = json.loads(t.run("let a = (\n", oracles="totality,fast_slow").output)
     assert set(d2) == {"totality", "fast_slow", "_fired"}
@@ -83,7 +92,23 @@ def test_review_task_runs_end_to_end_under_a_policy():
 
 # ----------------------------------------------------------------- kill --
 
-_INTERP_LINES = open(os.path.join(WHENCE_ROOT, "whence/interp.py"), encoding="utf-8").read().splitlines()
+# Round 343: same snapshot-vs-live-reread race as round 341's two fixes (and
+# round 343's `test_swe_oraclekill.py`). `_INTERP_LINES` is read at IMPORT and
+# every mutant below is selected from it by LINE NUMBER, while
+# `MutantDiffTool(WHENCE_ROOT, m)` / `run_kill(..., WHENCE_ROOT, ...)` re-read
+# the live checkout when the mutant is applied. Round 341's item 3 named this
+# file; the pin is the fix it prescribed.
+#
+# `test_the_real_checkout_is_untouched` (below) deliberately keeps reading the
+# LIVE root: its whole claim is that the fix workspace did not write through
+# to `languages/whence/`, and pinning it would make it assert about a copy —
+# the one place in this file where "live" is the point.
+_PIN_TMP = tempfile.mkdtemp(prefix="review-pin-")
+PINNED_ROOT = os.path.join(_PIN_TMP, "proj")
+_copy_project(WHENCE_ROOT, PINNED_ROOT)
+atexit.register(lambda: shutil.rmtree(_PIN_TMP, ignore_errors=True))
+_INTERP_LINES = open(os.path.join(PINNED_ROOT, "whence/interp.py"),
+                     encoding="utf-8").read().splitlines()
 
 
 def _mutant(pred):
@@ -106,7 +131,7 @@ def _mod_mutant():
 def test_mutant_diff_tool_and_score_kill_on_a_real_mutant():
     # `x % y` -> `x * y` in the `%` closure: 7 % 3 prints 21 on the mutant
     m = _mod_mutant()
-    tool = R.MutantDiffTool(WHENCE_ROOT, m)
+    tool = R.MutantDiffTool(PINNED_ROOT, m)
     try:
         d = json.loads(tool.run("let a = 7 % 3\nprint(a)\n").output)
         assert d["differs"] is True and d["original"]["out"] == ["1"]
@@ -133,7 +158,7 @@ def test_run_kill_pins_a_test_and_reports_cost(tmp_path):
         lambda obs, st: say('```json\n' + json.dumps({"verdict": "killed", "program": prog}) + '\n```'),
     ]
     test_file = str(tmp_path / "test_model_killers.py")
-    res = R.run_kill(lambda: PolicyLLM(list(steps)), [m], WHENCE_ROOT, str(tmp_path),
+    res = R.run_kill(lambda: PolicyLLM(list(steps)), [m], PINNED_ROOT, str(tmp_path),
                      max_steps=5, test_file=test_file)
     assert len(res) == 1 and res[0]["outcome"] == "killed"
     assert res[0]["mutant_diff_calls"] == 1 and res[0]["steps"] == 2
@@ -147,7 +172,7 @@ def test_run_kill_pins_a_test_and_reports_cost(tmp_path):
 
 def test_kill_prompt_shows_the_mutant_diff():
     m = _mutant(lambda m: m.op == "ifneg")
-    registry, prompt, tool = R.kill_task(WHENCE_ROOT, m)
+    registry, prompt, tool = R.kill_task(PINNED_ROOT, m)
     try:
         assert "```diff" in prompt and "-" in prompt and m.id in prompt
         # round 29 swapped ReadFileTool/SearchTool for the region tools
@@ -174,9 +199,9 @@ def test_edit_file_tool_requires_unique_non_empty_match(tmp_path):
 def test_fix_task_is_sandboxed_to_a_copy_and_scored_by_oracle_and_tests():
     finding = {"program": HUGE + "print(huge / 3)\n", "oracle": "totality",
                "detail": "OverflowError"}
-    registry, prompt, ws = R.fix_task(finding, WHENCE_ROOT)
+    registry, prompt, ws = R.fix_task(finding, PINNED_ROOT)
     try:
-        assert ws.dst != WHENCE_ROOT and os.path.isfile(os.path.join(ws.dst, "whence/interp.py"))
+        assert ws.dst != PINNED_ROOT and os.path.isfile(os.path.join(ws.dst, "whence/interp.py"))
         assert ws.changed_files() == [] and ws.diff() == ""
         # a "fix" that only adds a comment: files changed, oracle already silent
         # (the real checkout is fixed), tests skipped -> counted as fixed
@@ -195,7 +220,10 @@ def test_fix_task_is_sandboxed_to_a_copy_and_scored_by_oracle_and_tests():
         assert rec["oracle_silent"] is False and rec["fixed"] is False
         assert rec["oracle_after"]["totality"] == "crash"
         # the real checkout is untouched
-        real = open(os.path.join(WHENCE_ROOT, "whence/interp.py")).read()
+        # the workspace's OWN root is untouched (round 343: the claim is
+        # no write-through, and the root a workspace is made from is the
+        # root it could write through TO)
+        real = open(os.path.join(PINNED_ROOT, "whence/interp.py")).read()
         assert "# touched" not in real and "except OverflowError" in real
     finally:
         ws.cleanup()
@@ -208,7 +236,7 @@ def test_run_fix_end_to_end_under_a_policy(tmp_path):
         lambda obs, st: call("edit_file", path="whence/interp.py", old="import gc\n", new="import gc  # r11\n"),
         lambda obs, st: say('```json\n{"root_cause": "none", "files": ["whence/interp.py"], "summary": "noop"}\n```'),
     ]
-    rec = R.run_fix(lambda: PolicyLLM(list(steps)), finding, WHENCE_ROOT, str(tmp_path),
+    rec = R.run_fix(lambda: PolicyLLM(list(steps)), finding, PINNED_ROOT, str(tmp_path),
                     max_steps=6, run_tests=False)
     assert rec["fixed"] is True and rec["changed_files"] == ["whence/interp.py"]
     assert rec["answer"]["summary"] == "noop" and rec["tool_calls"] == 2

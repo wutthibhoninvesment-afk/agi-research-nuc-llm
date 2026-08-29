@@ -141,6 +141,13 @@ def _status_over(tmp_path, entries, files, digest="D"):
         (tests / f).write_text("")
     p = str(tmp_path / "l.jsonl")
     for e in entries:
+        # Round 343: these entries are about SUBJECT staleness, so stamp them
+        # with the harness digest they would really have been written with.
+        # Without it every one classifies `unstamped` and the tests below stop
+        # testing what they were written to test — a schema change silently
+        # neutering the suite that guards it.
+        e.setdefault("dep_digests",
+                     ST.dep_digests(e["file"], tests_dir=str(tests)))
         ST.append_entry(p, e)
     return ST.status(ledger_path=p, tests_dir=str(tests), digest=digest)
 
@@ -348,3 +355,173 @@ def test_fast_health_check_still_returns_pytests_own_exit_code():
                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     assert none.returncode == 5, (none.returncode, none.stdout[-2000:])
     assert b"slow tier:" in none.stdout, none.stdout[-2000:]
+
+
+# ------------------------------------------------------- harness deps (343) --
+#
+# Round 341's item 2: `checkout_digest` stamps the SUBJECT, so an entry stayed
+# `fresh_pass` after the test file — or the `swe/` module under it — was
+# rewritten. Round 343 adds a per-file dependency digest.
+
+def test_dep_closure_is_the_test_plus_its_transitive_swe_imports():
+    d = ST.harness_deps("test_swe_coverage.py")
+    assert "tests/test_swe_coverage.py" in d
+    assert "tests/conftest.py" in d                  # pytest loads it regardless
+    assert "swe/coverage.py" in d
+    assert "swe/proc.py" in d                        # transitive: coverage imports it
+    assert "swe/__init__.py" in d                    # executed on package import
+    assert "swe/campaign.py" not in d                # not reachable from this test
+
+
+def test_dep_closure_follows_relative_and_function_scope_imports():
+    """`swe/` uses both (`from . import killers as K`; `swe/coverage.py:499`
+    imports `.fuzz` inside a function). A closure that missed either would
+    under-report and call a stale result fresh."""
+    d = set(ST.harness_deps("test_swe_equivalence.py"))
+    assert "swe/killers.py" in d                     # `from .killers import ...`
+    assert "swe/coverage.py" in d and "swe/triage.py" in d   # `from . import X as Y`
+    assert "swe/fuzz.py" in d                        # function-scope in coverage.py
+
+
+def test_closures_differ_per_file_which_is_the_whole_point():
+    """A single digest over `harness/swe/` + `harness/tests/` — the literal
+    shape round 341 proposed — would invalidate all 18 files on any harness
+    edit. On a one-CPU box where the tier costs ~76 minutes and a round's
+    budget is minutes, recall would reset faster than rounds could raise it.
+    Per-file closures are what make the ledger able to accumulate at all."""
+    small = ST.harness_deps("test_swe_proc.py")
+    big = ST.harness_deps("test_swe_campaign.py")
+    assert len(small) < len(big)
+    assert set(small) < set(big) or "swe/proc.py" in big     # nested, not disjoint
+    # slowtier.py is imported by no slow test, so editing IT invalidates none
+    assert not any("slowtier" in p for p in big)
+
+
+def test_a_blind_scan_falls_back_to_the_whole_package(tmp_path, monkeypatch):
+    """Fail-closed floor: a `test_swe_*.py` resolving to NO swe module means
+    the scan is blind (every slow test exists to exercise that package), so
+    the closure widens to everything rather than narrowing to nothing."""
+    td = tmp_path / "tests"
+    td.mkdir()
+    (td / "test_swe_blind.py").write_text("import os\n")     # no swe import
+    d = ST.harness_deps("test_swe_blind.py", tests_dir=str(td))
+    assert "swe/fuzz.py" in d and "swe/campaign.py" in d
+
+
+def test_an_unparsable_dependency_falls_back_rather_than_crashing(tmp_path):
+    td = tmp_path / "tests"
+    td.mkdir()
+    (td / "test_swe_broken.py").write_text("import swe.fuzz\ndef f(:\n")
+    d = ST.harness_deps("test_swe_broken.py", tests_dir=str(td))
+    assert "swe/fuzz.py" in d and "swe/campaign.py" in d      # whole package
+
+
+def test_moved_deps_names_the_file_not_just_the_fact():
+    """Round 341 asked for 'subject moved' and 'test moved' to stay
+    distinguishable. Storing a digest PER PATH answers a sharper question:
+    which one."""
+    entry = {"dep_digests": {"swe/fuzz.py": "aaa", "tests/t.py": "bbb"}}
+    assert ST.moved_deps(entry, {"swe/fuzz.py": "aaa", "tests/t.py": "bbb"}) == []
+    assert ST.moved_deps(entry, {"swe/fuzz.py": "zzz", "tests/t.py": "bbb"}) \
+        == ["swe/fuzz.py"]
+    # an appeared/vanished dependency is a change to WHAT the test exercises
+    assert ST.moved_deps(entry, {"swe/fuzz.py": "aaa"}) == ["tests/t.py"]
+    assert ST.moved_deps(entry, dict(entry["dep_digests"], **{"swe/new.py": "c"})) \
+        == ["swe/new.py"]
+
+
+def _entry(**kw):
+    e = {"file": "test_swe_x.py", "outcome": "passed", "checkout_digest": "D",
+         "checkout_stable": True, "harness_stable": True,
+         "dep_digests": {"swe/fuzz.py": "aaa"}}
+    e.update(kw)
+    return e
+
+
+def test_classify_rejects_a_pass_whose_harness_moved():
+    cur = {"swe/fuzz.py": "aaa"}
+    assert ST.classify(_entry(), "D", cur) == "fresh_pass"
+    assert ST.classify(_entry(), "D", {"swe/fuzz.py": "zzz"}) == "stale_harness"
+    assert "stale_harness" not in ST.CONCLUSIVE
+
+
+def test_classify_rejects_a_pre_343_entry_as_unstamped():
+    """Fail-closed rule 5: an entry written before the harness was stamped
+    says nothing about which harness produced it, and absence of evidence
+    is not evidence (rule 1's own principle, applied to a schema change)."""
+    old = _entry()
+    del old["dep_digests"]
+    assert ST.classify(old, "D", {"swe/fuzz.py": "aaa"}) == "unstamped"
+    assert "unstamped" not in ST.CONCLUSIVE
+    # ...and the round-341 caller, which passes no dep map, is unaffected
+    assert ST.classify(old, "D") == "fresh_pass"
+
+
+def test_a_harness_that_moved_mid_run_is_raced_like_the_checkout():
+    """Rule 3 generalised: a result computed while its inputs moved is not
+    evidence, whichever input moved."""
+    assert ST.classify(_entry(harness_stable=False), "D", {"swe/fuzz.py": "aaa"}) \
+        == "raced"
+    # absent field defaults to stable, so round-341 entries are not all raced
+    e = _entry(); del e["harness_stable"]
+    assert ST.classify(e, "D", {"swe/fuzz.py": "aaa"}) == "fresh_pass"
+
+
+def test_run_slice_stamps_both_digests_and_detects_a_harness_race(tmp_path):
+    """The harness-race path, exercised the way round 340 exercised the
+    subject race: mutate a real dependency from inside the injected runner,
+    so the before/after scan straddles a genuine edit."""
+    led = str(tmp_path / "l.jsonl")
+    td = tmp_path / "tests"
+    td.mkdir()
+    (td / "test_swe_fake.py").write_text("import swe.proc\n")
+    (td / "conftest.py").write_text("# c\n")
+    target = os.path.join(ST.HARNESS_ROOT, "swe", "proc.py")
+    original = open(target, "rb").read()
+
+    calls = []
+
+    def runner(f):
+        calls.append(f)
+        with open(target, "ab") as fh:               # a concurrent round, in effect
+            fh.write(b"\n# round-343 transient\n")
+        return {"returncode": 0, "timed_out": False, "tail": "ok"}
+
+    try:
+        [e] = ST.run_slice(["test_swe_fake.py"], ledger_path=led, runner=runner,
+                           clock=lambda: 1.0, tests_dir=str(td))
+    finally:
+        with open(target, "wb") as fh:
+            fh.write(original)
+    assert calls == ["test_swe_fake.py"]
+    assert e["outcome"] == "passed" and e["schema"] == 2
+    assert e["checkout_stable"] is True               # whence never moved
+    assert e["harness_stable"] is False               # but swe/proc.py did
+    assert "swe/proc.py" in e["dep_digests"]
+    assert ST.classify(e, e["checkout_digest"], e["dep_digests"]) == "raced"
+
+
+def test_status_rows_carry_the_dep_count_and_the_moved_list(tmp_path):
+    led = str(tmp_path / "l.jsonl")
+    st = ST.status(ledger_path=led)
+    row = [r for r in st["rows"] if r["file"] == "test_swe_proc.py"][0]
+    assert row["state"] == "unknown" and row["n_deps"] >= 3
+    assert row["moved_deps"] == []                   # no entry -> nothing moved
+
+
+def test_plan_prefers_the_cheapest_unmeasured_file_not_the_alphabetical_one():
+    """With an empty ledger every estimate is `default_s`, so round 341's
+    key degenerated to alphabetical and spent a whole first budget on
+    `test_swe_alias_effects.py` (873 s measured, round 341) covering one
+    file. The size prior is a TIE-break only."""
+    st = ST.status(ledger_path=os.path.join(str(os.devnull), "absent"))
+    picked = ST.plan(st, 900.0)
+    assert picked and picked[0] != "test_swe_alias_effects.py"
+    assert len(picked) > 1
+
+
+def test_a_real_measurement_always_beats_the_size_prior():
+    rows = [{"file": "big.py", "state": "unknown", "finished_at": None, "seconds": 5.0},
+            {"file": "aaa.py", "state": "unknown", "finished_at": None, "seconds": None}]
+    picked = ST.plan({"rows": rows}, 900.0, default_s=300.0)
+    assert picked[0] == "big.py"                     # measured 5s beats prior 300s

@@ -1,16 +1,44 @@
 """Round 113: oracle killers (modes / frames / counters) against injected
 mutants of the real checkout. Each helper names its site by CODE SHAPE and
 the program that kills it (process rule 24)."""
+import atexit
 import os
+import shutil
+import tempfile
 
 import pytest
 
 from swe import oraclekill as OK
 from swe.killers import load_whence
-from swe.mutation import generate
+from swe.mutation import generate, _copy_project
 
-ROOT = OK.WHENCE_ROOT
-SRC = open(os.path.join(ROOT, "whence", "interp.py"), encoding="utf-8").read()
+# Round 343: the same snapshot-vs-live-reread race round 341 fixed in
+# `test_swe_campaign.py` / `test_swe_repair.py`. `SRC` is read ONCE at import
+# and every mutant below is derived from it (including by LINE NUMBER —
+# `SRC.splitlines()[m.lineno - 1]`), while `ROOT` pointed at the live
+# `languages/whence/` checkout that `load_whence` and `find_oracle_killer`
+# re-read later. On this box that tree is committed every 30-90 minutes by a
+# language(C) round, and this file's own runtime is minutes — so the two reads
+# can straddle an edit and the mutant gets applied to a source it was not
+# generated from.
+#
+# Round 341's item 3 listed four files to sweep and this one was not among
+# them: its snapshot is spelled `SRC = open(os.path.join(ROOT, ...))` with the
+# root ALIASED through `OK.WHENCE_ROOT`, so neither `_INTERP =` nor
+# `open(os.path.join(WHENCE_ROOT` matched it. See
+# `tests/test_snapshot_race.py`, which finds this shape structurally instead.
+#
+# Fix is round 341's: one immutable copy taken at import, with
+# `whence/interp.py` byte-identical to `SRC` by construction.
+_SRC_LIVE = open(os.path.join(OK.WHENCE_ROOT, "whence", "interp.py"),
+                 encoding="utf-8").read()
+_PIN_TMP = tempfile.mkdtemp(prefix="oraclekill-pin-")
+ROOT = os.path.join(_PIN_TMP, "proj")
+_copy_project(OK.WHENCE_ROOT, ROOT)
+with open(os.path.join(ROOT, "whence", "interp.py"), "w", encoding="utf-8") as _f:
+    _f.write(_SRC_LIVE)
+atexit.register(lambda: shutil.rmtree(_PIN_TMP, ignore_errors=True))
+SRC = _SRC_LIVE
 DEEP = OK.DEEP_PROBES[2]        # f(400): non-tail recursion, budget fallback at ~190 direct levels
 MID = OK.DEEP_PROBES[0]         # f(100): 400 host frames, inside the reserve at limit 1000
 

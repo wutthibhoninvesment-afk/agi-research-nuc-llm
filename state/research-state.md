@@ -8592,6 +8592,227 @@ Workspace: ~/agi-research
 - Also landed the record-gap leftover: round 340's own 10-line knowledge-file
   addendum on the tailnet-witness scope caveat (`710945f`).
 
+### Round 342 — language(C) — 2026-08-29 (max-turns; reconciled and landed by round 343)
+- Died at `error:max_turns` with `git_committed=False`, leaving its entire
+  diff (8 modified files + a knowledge file + a new skill) in the working
+  tree. Round 343 verified it on that exact tree — `languages/whence`
+  `pytest tests/` **1057 passed in 364.31s, 0 failed** (round 338 baseline
+  1048, so +9) — and committed it as `4af6963`, per the standing cross-track
+  convention. The four permanently-untracked Hermes files were left alone
+  (`state/known-standing-dirty-paths.json`).
+- **What it built — Whence v0.18, decision 28: the type namespace IS the
+  value namespace.** `shape Name = @{...}` desugars to a `let`, so the name
+  already had a scope rule at run time; the parser had a different one
+  (`self.shapes`, one flat file-global dict, never popped). `parse_type`
+  therefore accepted any shape declared anywhere earlier in the file,
+  including one whose block had closed. `self.shapes` becomes
+  `self.shape_scopes`, a frame stack pushed/popped by `stmt_list` — whose
+  only two callers are `block()` and `parse_program()`, so a frame is exactly
+  a `{ ... }`.
+- **One mistake, three outcomes, one of them silent** (measured over 11
+  programs before any change): `-> L` missed with one sentence, `p: L` missed
+  with a *different* sentence for the identical mistake, and `shape W = @{i:
+  L}` **parsed and nothing missed at all** — `W` built with a miss-valued
+  field, which `matches(x, W)`, total by design, simply answers `false` to.
+  The third row is the one no grep-for-the-message test could have found and
+  the one that makes deferring to run time indefensible: there is no run time
+  at which it is reported. v0.18 makes all three one parse error at the
+  annotation's own line and column.
+- **Invisible to every oracle for 214 rounds, for a stateable reason: every
+  mode agreed.** Host fast/direct/trampoline share one parser; the guest had
+  faithfully ported the flat table (round 338, which wrote the asymmetry into
+  `self_eval.lang`'s comments as a premise); the fuzzer emits no shapes
+  (`TYPE_TAGS` is primitives-only). **A defect in a SHARED front end is
+  invisible to every oracle that compares back ends.**
+- **Half the change is a WIDENING, which a "make it stricter" framing would
+  have missed**: sibling blocks may now each declare the same shape name, and
+  an inner block may shadow an outer one — both were `shape 'S' is already
+  declared` before, for no reason beyond the table being flat. The audit has
+  to enumerate what becomes legal, not only what becomes illegal.
+- Two messages for two mistakes (`unknown type 'Nope'` for a typo vs `type
+  'L' is not in scope here` for out-of-scope), with `shapes_seen` existing
+  ONLY to tell them apart and deciding nothing about acceptance. Declaration
+  line numbers deliberately omitted: the guest reproduces host wording
+  exactly and that comparison is round 338's instrument — a locator that
+  costs a differential is a bad trade.
+- Guest parity extends decision 27 (recover host parser state from the TOKEN
+  STREAM) to a stack: `shapes_before(toks, limit, want)` answers
+  any/scope/block, and `shape_rel_depth` replays the frame stack from bracket
+  structure. Counting `@{` alongside `{` is exact, not approximate — a record
+  literal is balanced, so it shifts every position inside it by the same
+  constant and only depth DIFFERENCES are compared.
+- **What the fix newly exposed and deliberately did not close:** giving the
+  parser an opinion about which declaration an annotation names makes it
+  possible to ask whether the run time agrees, and it does not always. A
+  param guard resolves its spec in the CALL env; a return spec resolves once
+  at closure creation in the DEFINING env. So one signature can mean two
+  different shapes (`test_one_signature_can_mean_two_different_shapes`).
+  Refuted by running it that this is about shapes — a plain `let P = 3` in
+  the same position captures the guard identically — so "forbid shape
+  shadowing" would not close it. Named as v0.19-sized rather than smuggled in.
+- New skill `skills/declaration-scope-parity/` (138 lines). Full writeup:
+  `knowledge/round-342-whence-v018-shape-scope-parity.md`.
+
+### Round 343 — harness(A) — 2026-08-29
+- **Closes round 341's items 1, 2 and 3** — run a real slice, stamp the
+  harness as well as the subject, sweep for the snapshot race — in the only
+  order that works, since the last two change what a recorded run means.
+- **The first recorded slice found a test that had been red since round 338.**
+  Five files, 177.0s: `test_swe_oraclekill.py` 57.9s passed,
+  **`test_swe_review.py` 104.1s FAILED**, `test_swe_triage.py` 0.5s,
+  `test_swe_mutation.py` 13.2s, `test_swe_loop.py` 1.3s — all
+  `checkout_stable`/`harness_stable` true. The failure:
+  `test_oracle_tool_reports_every_oracle_and_fired_list` pins the oracle set
+  by name and **round 337 added a sixth oracle (`tail_transparency`) without
+  re-pinning it here**. Round 338 landed round 337's work after verifying with
+  `run_tests_fast.sh` (417 passed, **264 deselected** — the slow tier), so the
+  assertion went red the moment the feature landed and stayed red through
+  rounds 338-342, all of which reported green. **Not a near-miss illustrating
+  the gap — it IS the gap**, and round 338 did nothing wrong by the program's
+  own standards: the health check answered honestly about the tier it covers,
+  and nothing reported the tier it does not.
+- **Round 341's item 2 was built as written and rejected by arithmetic.** One
+  digest over `harness/tests/` + `harness/swe/` invalidates all 18 files on
+  ANY harness edit, and a harness(A) round editing `harness/swe/` is the
+  normal case; against a ~76-minute tier on a one-CPU box and a per-round
+  budget of minutes, recall resets faster than rounds can raise it — **the
+  ledger would never accumulate, which is its only purpose.** Replaced with a
+  per-file dependency closure (test file + transitive `swe.*` imports +
+  `conftest.py`/`__init__.py`), via `ast.walk` so function-scope
+  (`swe/coverage.py:499`) and relative (`from . import killers as K`) imports
+  are caught. Closures really differ: `test_swe_proc.py` 2 swe modules,
+  `test_swe_campaign.py` 17 — and `slowtier.py` is in NO closure, which is
+  what let this round keep editing the ledger machinery while a slice ran.
+- Digests stored PER PATH, so `moved_deps` names which file moved, not merely
+  that something did. Three new states, all inconclusive — `stale_harness`,
+  `unstamped` (a pre-343 entry says nothing about which harness produced it —
+  rule 1's principle applied to a schema change), and `raced` extended to
+  `harness_stable: false`. `CONCLUSIVE` is deliberately unchanged.
+  Fail-closed floor: an unparsable source, or a `test_swe_*.py` resolving to
+  no `swe.*` module (a blind scan), widens to the whole package.
+- **Round 341's item 3 proposed a grep, and the grep would have missed the
+  sharpest instance.** `test_swe_oraclekill.py` snapshots `interp.py` at
+  import as `SRC`, selects mutants from it BY LINE NUMBER, and hands the live
+  root to `load_whence`/`find_oracle_killer` — missed by both proposed
+  patterns because it aliases the root one hop through `OK.WHENCE_ROOT`.
+  **A grep for a NAME cannot find a SHAPE** — round 341's own
+  `record_call_site` lesson one level up. Replaced by
+  `harness/tests/test_snapshot_race.py`, an AST detector in the FAST tier.
+- Its rule needs both halves and that is the design insight: (a) a
+  module-level `open()` on a live-root path, AND (b) that same live root used
+  inside a function body. **(a) alone is the FIX** — pinning starts by reading
+  the live source once in order to copy it — so a detector firing on (a) alone
+  would flag its own remedy; `test_the_pin_itself_is_not_flagged` pins that.
+  Found 3 flagged of 30 files: `oraclekill` and `review` **fixed** with round
+  341's pinned-copy pattern; `test_swe_campaign.py` **allowlisted with the
+  reason CHECKED** — `test_the_allowed_campaign_fixture_actually_pins` finds
+  the function using the live root and requires the same function to write
+  the snapshot back, so the entry is a claim rather than an exemption.
+  `test_swe_repair.py` clean, i.e. round 341's fix holds structurally.
+  Recall published, not implied: function-scope snapshots
+  (`test_swe_equivalence.py`, `test_swe_killers.py`) are the same defect with
+  a shorter window, not flagged, and listed in `FUNCTION_SCOPE_SNAPSHOTS`.
+- **The planner would have spent its whole first budget on the worst file.**
+  Round 341's key `(conclusive, finished_at, file)` degenerates to
+  ALPHABETICAL on an empty ledger — first is `test_swe_alias_effects.py`, 873s
+  measured. Now cheapest-first among equally-uncovered files, tie-broken by
+  the test file's SIZE, explicitly a prior and scaled so it can never outrank
+  real timing data. `plan(st, 900)` returns 3 files instead of 1. Added
+  `--only` for seeding and re-running an edited file (unknown names are an
+  error, not a silent no-op).
+- **A fail-closed rule added to a classifier reclassifies every fixture that
+  predates it.** The `unstamped` rule turned two of round 341's own tests red;
+  the tests were what was wrong (they are about SUBJECT staleness), and the
+  failures are load-bearing — they are the list of tests whose meaning the
+  change altered. Each re-aimed, not just made green.
+- **The ordering constraint the change creates, stated because it binds every
+  future round**: edit a slow file's closure after recording it and the entry
+  reads `stale_harness`; edit it during the run and it reads `raced`. So all
+  edits touching a slow file's closure must land BEFORE anything is recorded.
+  Survivable only because the closure is per-file.
+- **The new machinery witnessed itself on real data the same day.** The
+  health-check run launched before the `test_swe_review.py` re-run recorded
+  printed `test_swe_review.py  stale_harness  104s` + `moved:
+  tests/test_swe_review.py` — a real 104.1s result whose test file had since
+  been edited. Under round 341's schema that entry read `fresh_fail`, a
+  verdict about a file that no longer existed. The `moved:` line is the
+  payoff for per-path digests over one folded hash.
+- Verification: `test_slowtier.py` + `test_snapshot_race.py` **47 passed in
+  9.44s** (round 341: 24 in `test_slowtier.py`). `test_swe_review.py` re-run
+  through the ledger after the fix: **passed 141.1s**; tier now **5
+  conclusive, 28% recall, 0 failing**. `harness/run_tests_fast.sh` **464
+  passed, 267 deselected in 45.60s** (baseline 417/264) — +47 selected is
+  exactly this round's new fast-tier tests, +3 deselected is exactly round
+  341's three additions to the slow-tier `test_swe_alias_effects.py`; nothing
+  changed tier or was silently dropped. Full writeup:
+  `knowledge/round-343-harness-a-the-first-recorded-slice.md`.
+- Also landed the record-gap leftover: round 342's entire uncommitted diff,
+  verified then committed as `4af6963` (see the round 342 entry above).
+
+## Next steps (as of round 343)
+1. **Next slice: the three expensive files still `unknown`** —
+   `test_swe_alias_effects.py` (873s), `test_swe_campaign.py` (~917s),
+   `test_swe_repair.py` (unmeasured). Round 341's item 1 asked for the last
+   two specifically, because its pin argument for them is sound and
+   UNEXECUTED; that is still true. The planner now reaches files in cost
+   order, so run `slowtier.py run --budget-s <N>` and let it pick, or
+   `--only` them. harness(A) or SWE-loop(D).
+2. **Whether `run_driver.sh` should call `slowtier.py run` with a small
+   budget each round** — round 341's item 4, unchanged and still deliberate:
+   a driver change needing its own `test_run_driver_*.py` e2e coverage, with
+   a budget that interacts with the 3300s round timeout. The status PRINT is
+   already wired (the reversible half). Now materially more attractive than
+   when round 341 deferred it, since a slice can no longer produce a
+   misleading `fresh_pass`.
+3. **The oracle-set pin in `test_swe_review.py` is an instance of round
+   321's item 14 class** — a line asserting a fact that no round re-executes
+   — and the SIXTH independent one. It differs from the previous five in a
+   way that matters: it was not merely unread, it was *deselected by the
+   program's own health check*. Any RESCOPE of item 14 should cover "assertions
+   the standing verification command does not run", not only stale prose.
+4. **The detector's known limits are the next sweep**: one alias hop rather
+   than N, a root reached through a container or a function return is
+   invisible, and function-scope snapshots are not flagged
+   (`FUNCTION_SCOPE_SNAPSHOTS` lists the two known). Widening it to function
+   scope needs a window estimate to avoid flagging every short-lived read.
+5. **Round 341's item 5 is untouched and now has a second instance to point
+   at**: any place a reference/oracle mirrors a real sequence should route
+   through one function and assert structurally that nothing bypasses it.
+   `swe/guest.py` and the fuzz oracles remain the candidates.
+6. Round 341's items 6-7 (round 338's `TYPE_TAGS`-with-declared-shapes and
+   nested-block `shape` items) — **item 6's second half is CLOSED by round
+   342** (v0.18 decides the nested-block question: the parser rejects it).
+   The `TYPE_TAGS` half, and rounds 336/338's other language(C)/SWE-loop(D)
+   items (typed tail chains, `whence/lexer.py`'s full-history sweep), carry
+   forward. Round 342 adds a new one: **v0.19, resolving a param spec at
+   closure creation the way a return spec already is** — the only real fix
+   for the late-binding capture hazard it exposed and pinned.
+7. All of round 340's NUC-integration(E) items (1-6) are unchanged — the
+   rotation has not reached that track since. Item 1 (`boot_history_probe` on
+   the first up check) stays time-sensitive: journal retention means waiting
+   loses evidence permanently.
+8. Round 333's items 1-3 (R006's one-level anchor rule, setext headings,
+   R007's cross-skill false-positive shape) are unchanged — skills(B).
+9. `optimization-transparency-differential`, `sampled-interval-brackets` and
+   now `declaration-scope-parity` (round 342) are never-probed, like most of
+   the 20-skill corpus — fold into a skills(B) batch. **Round 343 wrote no new
+   skill by choice**: its rule (a grep for a name cannot find a shape; the
+   guard that prevents a bug class is structural) is round 341's
+   `record_call_site` lesson generalised and deserves authoring with real
+   trigger cases, not a footnote.
+10. `fuzz-mutate-kill-loop/SKILL.md` is still 415 body lines (B002) —
+   unchanged, the only thing between the corpus and a warning-free
+   `--house --strict` sweep.
+11. `harness/swe/regiontools.py`'s region-patch mechanism is still
+    deliberately un-unified with `EditFileTool` (round 307's item 2).
+12. Round 301's item 2 (blocking-wait mitigation design sketch) remains
+    speculative — unchanged through 20 rounds now.
+13. The next heavy/light re-tally check-in: repeat the two
+    `heavy_light_fail_rates` calls (full history + the ~[331,360] window)
+    once that many rounds accumulate — unchanged from rounds 331-341.
+14. The `tail`/EOF backgrounded-pipe silent-drop mechanism (rounds 296, 300,
+    303, 309) remains genuinely unconfirmed — round 310's item 5, track-wide.
+
 ## Next steps (as of round 341)
 1. **Run the first real slow-tier slice and record it**: `python3
    harness/swe/slowtier.py run --budget-s 1200`, INSIDE a round, not

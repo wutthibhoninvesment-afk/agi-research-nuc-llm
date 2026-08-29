@@ -42,6 +42,7 @@ Fail-closed rules, all three load-bearing (cf. round 340's `gap_continuity`):
 Everything here is offline-testable: `run_slice` takes an injectable
 `runner`, so no test in `test_slowtier.py` shells out to pytest.
 """
+import ast
 import hashlib
 import json
 import os
@@ -55,6 +56,14 @@ REPO_ROOT = os.path.dirname(HARNESS_ROOT)
 TESTS_DIR = os.path.join(HARNESS_ROOT, "tests")
 DEFAULT_LEDGER = os.path.join(REPO_ROOT, "state", "slow-tier-ledger.jsonl")
 DEFAULT_WHENCE = os.path.join(REPO_ROOT, "languages", "whence")
+SWE_DIR = os.path.join(HARNESS_ROOT, "swe")
+
+#: Loaded by pytest for every file in `harness/tests/` whatever it imports,
+#: so a change to one can change any slow file's outcome. `conftest.py` is
+#: also the file that DEFINES the slow tier (`test_swe_` -> `swe_slow`), so
+#: an entry that survived a conftest edit could be evidence about a
+#: differently-drawn tier.
+_ALWAYS_LOADED = ("tests/conftest.py", "tests/__init__.py")
 
 # Mirrors `swe.mutation._copy_project`'s own ignore list — the digest must
 # cover exactly what a test's scratch copy would see, and nothing that is
@@ -111,6 +120,176 @@ def slow_tier_files(tests_dir=TESTS_DIR):
                   if n.startswith("test_swe_") and n.endswith(".py"))
 
 
+# -------------------------------------------------------------- harness deps --
+#
+# Round 341's item 2, and a deliberate refinement of how it was worded.
+#
+# The problem is real: `checkout_digest` covers the SUBJECT (the whence
+# checkout), so an entry written against `test_swe_alias_effects.py` stays
+# `fresh_pass` after that very test file — or the `swe/` module it exercises —
+# is rewritten. Round 341's own 873-second run is the case: three tests were
+# appended to the file after collection, and rule 2 would still have called
+# the result fresh.
+#
+# Round 341 proposed "a SECOND digest field over `harness/tests/` +
+# `harness/swe/`". Building it that way was tried here and rejected by
+# arithmetic. One digest over both directories means ANY harness edit
+# invalidates ALL 18 files at once — and a harness(A) round that edits
+# `harness/swe/` is the normal case, not the exception. The tier takes ~76
+# minutes on this one-CPU box against a per-round budget in the low hundreds
+# of seconds, so a whole-directory digest would reset recall to 0% faster than
+# any sequence of rounds could raise it. The ledger would never accumulate,
+# which is the module's entire purpose. Precision is not a nicety here; it is
+# what makes the mechanism able to work at all.
+#
+# So the digest is per-file and covers exactly what can change that file's
+# outcome: the test file itself, the transitive closure of its `swe.*`
+# imports, and the files pytest loads for every test regardless
+# (`_ALWAYS_LOADED`). `ast.walk` catches function-scope imports too — several
+# `swe/` modules have them (`swe/coverage.py:499`, `swe/equivalence.py:200`).
+#
+# Fail-closed where the scan can fail: a file that will not parse, or a
+# `test_swe_*.py` that resolves to NO `swe.*` module at all (which would mean
+# the scan is blind, since every slow test exists to exercise that package),
+# falls back to the whole `swe/` package. Precision is the optimisation;
+# over-broad is the floor.
+
+
+class DepScanFailed(Exception):
+    """Raised internally when a source will not parse; callers fall back."""
+
+
+def _module_rel(mod):
+    """`swe.fuzz` -> harness-relative `swe/fuzz.py`; None if not ours."""
+    parts = mod.split(".")
+    if not parts or parts[0] != "swe":
+        return None
+    cand = os.path.join(*parts) + ".py"
+    if os.path.exists(os.path.join(HARNESS_ROOT, cand)):
+        return cand.replace(os.sep, "/")
+    pkg = os.path.join(os.path.join(*parts), "__init__.py")
+    if os.path.exists(os.path.join(HARNESS_ROOT, pkg)):
+        return pkg.replace(os.sep, "/")
+    return None
+
+
+def _swe_imports(full_path, inside_swe):
+    """Every `swe.*` module name imported by one source file.
+
+    `inside_swe` says whether the file lives in the `swe` package, which is
+    what a relative import (`from . import killers`, `from .fuzz import X`)
+    resolves against — the package is flat, so level is always 1 there.
+    """
+    try:
+        with open(full_path, encoding="utf-8") as f:
+            tree = ast.parse(f.read(), full_path)
+    except (IOError, OSError, SyntaxError, ValueError):
+        raise DepScanFailed(full_path)
+    mods = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for a in node.names:
+                if a.name.split(".")[0] == "swe":
+                    mods.add(a.name)
+        elif isinstance(node, ast.ImportFrom):
+            if node.level and inside_swe:
+                base = "swe" + ("." + node.module if node.module else "")
+                if node.module:
+                    mods.add(base)
+                else:
+                    # `from . import killers as K` — each NAME is a module.
+                    for a in node.names:
+                        mods.add("swe." + a.name)
+            elif not node.level and node.module \
+                    and node.module.split(".")[0] == "swe":
+                mods.add(node.module)
+                # `from swe import killers` names modules, not attributes.
+                if node.module == "swe":
+                    for a in node.names:
+                        mods.add("swe." + a.name)
+    return mods
+
+
+def _all_swe_rels():
+    out = []
+    for dirpath, dirnames, names in os.walk(SWE_DIR):
+        dirnames[:] = [d for d in dirnames if d not in _IGNORED_DIRS]
+        for n in sorted(names):
+            if n.endswith(".py"):
+                rel = os.path.relpath(os.path.join(dirpath, n), HARNESS_ROOT)
+                out.append(rel.replace(os.sep, "/"))
+    return sorted(out)
+
+
+def harness_deps(test_file, tests_dir=TESTS_DIR):
+    """Harness-relative paths whose content can change `test_file`'s outcome.
+
+    Returns a sorted list. Falls back to the whole `swe/` package (plus the
+    always-loaded files and the test itself) when the static scan cannot be
+    trusted — see this section's header.
+    """
+    test_rel = os.path.relpath(os.path.join(tests_dir, test_file),
+                               HARNESS_ROOT).replace(os.sep, "/")
+    base = set(_ALWAYS_LOADED) | {test_rel}
+    base = set(p for p in base
+               if os.path.exists(os.path.join(HARNESS_ROOT, p)))
+    try:
+        seen, queue = set(), list(_swe_imports(
+            os.path.join(tests_dir, test_file), inside_swe=False))
+        while queue:
+            mod = queue.pop()
+            if mod in seen:
+                continue
+            seen.add(mod)
+            rel = _module_rel(mod)
+            if rel is None:
+                continue
+            base.add(rel)
+            # A submodule's package `__init__.py` is executed on import.
+            parts = mod.split(".")
+            for i in range(1, len(parts)):
+                pkg = _module_rel(".".join(parts[:i]))
+                if pkg:
+                    base.add(pkg)
+            queue.extend(_swe_imports(os.path.join(HARNESS_ROOT, rel),
+                                      inside_swe=True))
+        if not any(p.startswith("swe/") for p in base):
+            raise DepScanFailed(test_file)          # blind scan -> fall back
+    except DepScanFailed:
+        base |= set(_all_swe_rels())
+    return sorted(base)
+
+
+def dep_digests(test_file, tests_dir=TESTS_DIR, deps=None):
+    """`{harness-relative path: sha256[:16]}` for each dependency.
+
+    Stored per entry rather than folded into one hash so a later round can
+    say WHICH file moved, not merely that something did — the difference
+    between "the test changed" and "the module under it changed", which is
+    the distinction round 341 asked for.
+    """
+    deps = harness_deps(test_file, tests_dir) if deps is None else deps
+    out = {}
+    for rel in deps:
+        try:
+            with open(os.path.join(HARNESS_ROOT, rel), "rb") as f:
+                out[rel] = hashlib.sha256(f.read()).hexdigest()[:16]
+        except (IOError, OSError):
+            out[rel] = "<missing>"
+    return out
+
+
+def moved_deps(entry, current):
+    """Paths whose digest differs between a ledger `entry` and `current`.
+
+    A dependency that APPEARED or VANISHED counts as moved: the import graph
+    itself changing is a change to what the test exercises.
+    """
+    old = (entry or {}).get("dep_digests") or {}
+    return sorted(set(k for k in set(old) | set(current)
+                      if old.get(k) != current.get(k)))
+
+
 # ------------------------------------------------------------------ ledger --
 
 def append_entry(path, entry):
@@ -155,14 +334,30 @@ def latest_by_file(entries):
 
 # ------------------------------------------------------------------ status --
 
-def classify(entry, digest):
-    """The fail-closed state machine. See this module's docstring."""
+def classify(entry, digest, cur_dep_digests=None):
+    """The fail-closed state machine. See this module's docstring.
+
+    `cur_dep_digests` is the current `dep_digests` mapping for this file
+    (round 343, rules 4-6). Passing None evaluates only rules 1-3 — the
+    round-341 behaviour, kept so a caller holding an entry but no tests
+    directory can still classify the subject half.
+    """
     if entry is None:
         return "unknown"
     if not entry.get("checkout_stable", False):
         return "raced"
+    if not entry.get("harness_stable", True):
+        return "raced"
     if entry.get("checkout_digest") != digest:
         return "stale_checkout"
+    if cur_dep_digests is not None:
+        if entry.get("dep_digests") is None:
+            # Rule 5: written before the harness was stamped at all. Its
+            # pass is about an unknown harness, which is not this one until
+            # something proves it is.
+            return "unstamped"
+        if moved_deps(entry, cur_dep_digests):
+            return "stale_harness"
     if entry.get("outcome") == "passed":
         return "fresh_pass"
     if entry.get("outcome") == "failed":
@@ -170,7 +365,9 @@ def classify(entry, digest):
     return "unknown"
 
 
-#: States that are genuine evidence about the CURRENT checkout.
+#: States that are genuine evidence about the CURRENT checkout AND the
+#: current harness. Round 343 widened what "current" has to mean; the tuple
+#: itself is unchanged, which is the point — every new state is inconclusive.
 CONCLUSIVE = ("fresh_pass", "fresh_fail")
 
 
@@ -181,13 +378,18 @@ def status(ledger_path=DEFAULT_LEDGER, tests_dir=TESTS_DIR, whence_root=DEFAULT_
     rows = []
     for f in slow_tier_files(tests_dir):
         e = best.get(f)
+        cur = dep_digests(f, tests_dir)
         rows.append({
             "file": f,
-            "state": classify(e, digest),
+            "state": classify(e, digest, cur),
             "outcome": (e or {}).get("outcome"),
             "finished_at": (e or {}).get("finished_at"),
             "seconds": (e or {}).get("seconds"),
             "checkout_digest": (e or {}).get("checkout_digest"),
+            "n_deps": len(cur),
+            # Named, not counted: "which file moved" is the whole reason
+            # the digests are stored per path (round 341's item 2).
+            "moved_deps": moved_deps(e, cur) if e is not None else [],
         })
     covered = [r for r in rows if r["state"] in CONCLUSIVE]
     return {
@@ -202,7 +404,20 @@ def status(ledger_path=DEFAULT_LEDGER, tests_dir=TESTS_DIR, whence_root=DEFAULT_
     }
 
 
-def plan(st, budget_s, default_s=300.0):
+def _size_prior(test_file, tests_dir=TESTS_DIR):
+    """Bytes of the test file, scaled to a fraction of a second.
+
+    Only a TIE-break among unmeasured files (see `plan`). Deliberately tiny
+    relative to `default_s` so it can never reorder a file that has a real
+    measurement against one that does not.
+    """
+    try:
+        return os.path.getsize(os.path.join(tests_dir, test_file)) / 1e6
+    except (IOError, OSError):
+        return 0.0
+
+
+def plan(st, budget_s, default_s=300.0, tests_dir=TESTS_DIR):
     """Which files to run next, in order, inside `budget_s`.
 
     Order: never-conclusive first (worst evidence first), then oldest
@@ -215,7 +430,18 @@ def plan(st, budget_s, default_s=300.0):
     """
     def key(r):
         conclusive = r["state"] in CONCLUSIVE
-        return (1 if conclusive else 0, r["finished_at"] or 0, r["file"])
+        # Round 343: among files with equally bad evidence, cheapest first.
+        # With an EMPTY ledger every estimate is `default_s`, so round 341's
+        # `(conclusive, finished_at, file)` key degenerated to ALPHABETICAL —
+        # which spends the very first budget a round ever grants on
+        # `test_swe_alias_effects.py` (873 s measured, round 341) and covers
+        # exactly one file. Falling back to the test file's own SIZE is a
+        # prior, not a measurement, and it is only ever a TIE-break: any
+        # file with a real `seconds` uses that. Named as a prior in
+        # `plan_reasons` so nobody reads it as timing data.
+        return (1 if conclusive else 0, r["finished_at"] or 0,
+                r["seconds"] or (default_s + _size_prior(r["file"], tests_dir)),
+                r["file"])
 
     ordered = sorted(st["rows"], key=key)
     picked, spent = [], 0.0
@@ -260,7 +486,8 @@ def pytest_runner(test_file, tests_dir=TESTS_DIR, timeout_s=3000):
 
 
 def run_slice(files, ledger_path=DEFAULT_LEDGER, whence_root=DEFAULT_WHENCE,
-              runner=pytest_runner, clock=time.time, log=None):
+              runner=pytest_runner, clock=time.time, log=None,
+              tests_dir=TESTS_DIR):
     """Run each file, recording one ledger entry apiece.
 
     The digest is read BEFORE and AFTER each file. If it moved, the entry
@@ -272,11 +499,17 @@ def run_slice(files, ledger_path=DEFAULT_LEDGER, whence_root=DEFAULT_WHENCE,
     written = []
     for f in files:
         before = checkout_digest(whence_root)
+        deps = harness_deps(f, tests_dir)
+        deps_before = dep_digests(f, tests_dir, deps)
         t0 = clock()
         r = runner(f)
         t1 = clock()
         after = checkout_digest(whence_root)
+        # Re-scan the closure rather than reusing `deps`: an import added
+        # mid-run changes WHICH files matter, and that is itself a race.
+        deps_after = dep_digests(f, tests_dir)
         stable = (before == after)
+        harness_stable = (deps_before == deps_after)
         outcome = ("timeout" if r.get("timed_out") else
                    "passed" if r.get("returncode") == 0 else "failed")
         entry = {
@@ -288,12 +521,16 @@ def run_slice(files, ledger_path=DEFAULT_LEDGER, whence_root=DEFAULT_WHENCE,
             "checkout_digest": before,
             "checkout_digest_after": after,
             "checkout_stable": stable,
+            "dep_digests": deps_before,
+            "harness_stable": harness_stable,
+            "schema": 2,
             "tail": r.get("tail", "")[-800:],
         }
         append_entry(ledger_path, entry)
         written.append(entry)
-        log("%-34s %-8s %6.1fs%s" % (f, outcome, entry["seconds"],
-                                     "" if stable else "  [CHECKOUT CHANGED MID-RUN]"))
+        flags = ("" if stable else "  [CHECKOUT CHANGED MID-RUN]") \
+            + ("" if harness_stable else "  [HARNESS CHANGED MID-RUN]")
+        log("%-34s %-8s %6.1fs%s" % (f, outcome, entry["seconds"], flags))
     return written
 
 
@@ -310,6 +547,11 @@ def report_text(st):
         lines.append("  %-34s %-14s %s%s"
                      % (r["file"], r["state"],
                         ("%.0fs" % r["seconds"]) if r["seconds"] else "-", age))
+        if r["state"] == "stale_harness":
+            moved = r["moved_deps"]
+            lines.append("      moved: %s%s"
+                         % (", ".join(moved[:4]),
+                            "" if len(moved) <= 4 else " (+%d more)" % (len(moved) - 4)))
     if st["n_conclusive"] < st["n_files"]:
         lines.append("  NOTE: %d file(s) are NOT evidence about this checkout."
                      % (st["n_files"] - st["n_conclusive"]))
@@ -322,12 +564,25 @@ def main(argv=None):
     ap.add_argument("cmd", choices=["status", "plan", "run"])
     ap.add_argument("--ledger", default=DEFAULT_LEDGER)
     ap.add_argument("--budget-s", type=float, default=900.0)
+    ap.add_argument("--only", default=None,
+                    help="comma-separated slow-tier files to run instead of "
+                         "the planner's pick (seeding, or re-running a file a "
+                         "round just edited). Unknown names are an error, not "
+                         "a silent no-op.")
     a = ap.parse_args(argv)
     st = status(ledger_path=a.ledger)
     if a.cmd == "status":
         print(report_text(st))
         return 1 if st["n_failing"] else 0
-    picked = plan(st, a.budget_s)
+    if a.only:
+        known = set(slow_tier_files())
+        picked = [f.strip() for f in a.only.split(",") if f.strip()]
+        bad = [f for f in picked if f not in known]
+        if bad:
+            print("not slow-tier files: %s" % ", ".join(bad), file=sys.stderr)
+            return 2
+    else:
+        picked = plan(st, a.budget_s)
     if a.cmd == "plan":
         print("\n".join(picked) or "(nothing to run)")
         return 0
