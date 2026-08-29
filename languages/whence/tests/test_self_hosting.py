@@ -1,6 +1,6 @@
 """Self-hosting round 6 (round 192): does the guest EVALUATOR (self_eval.lang,
 running under the host) correctly run the guest LEXER+PARSER (self_host.lang),
-on self_host.lang's own real, ~680-line source — not a hand-picked corpus
+on self_host.lang's own real, ~950-line source — not a hand-picked corpus
 snippet?
 
 Two levels are tested, cheapest first:
@@ -14,13 +14,13 @@ Two levels are tested, cheapest first:
 
   2. `test_guest_evaluator_executes_self_host_library`: the real, deeper
      claim — self_eval.lang's `run_src` (parse AND eval, guest-side) loads
-     self_host.lang's ~530-line library section as GUEST closures and
+     self_host.lang's ~670-line library section as GUEST closures and
      EXECUTES check statements that call into them recursively. This is two
      full levels of tree-walking interpretation (host -> self_eval.eval ->
      self_host's own `lex`/`parse_expr` etc, now guest data) and is
-     deliberately kept small (a handful of checks, not all 66 of
+     deliberately kept small (a handful of checks, not all 94 of
      self_host.lang's own) because the cost is real: an attempt to run
-     self_host.lang's FULL 66-check test section through run_src grew past
+     self_host.lang's FULL test section through run_src grew past
      1.7 GB RSS and was still climbing after 3 minutes on this machine's
      3.8 GB budget before being killed — a genuine, first-measured data
      point on how guest-level tree-walking cost compounds on a real (not
@@ -46,7 +46,7 @@ interpreter (host-level) up to that point, and self_eval.lang is a
 STORE-PASSING evaluator: its `st` argument is threaded through virtually
 every internal call as a real (not spurious) dataflow input, so it
 legitimately appears in the `ins` chain of whatever value comes out.
-Once self_host.lang's ~530-line library has been loaded (defining ~40
+Once self_host.lang's ~670-line library has been loaded (defining ~45
 guest functions), `st`'s own provenance graph encodes the ENTIRE
 host-level trace of interpreting all of that — and `steps()` walks the
 full DAG reachable from its argument, so it walks that whole trace, NOT
@@ -75,6 +75,14 @@ guest value instead of a `parse_whence(...)`-produced AST — proving guest
 loaded at all (0.6-3s / <40 MB instead of minutes / gigabytes, verified
 empirically before and after). See the round-228 knowledge file for the
 raw measurements and the isolation experiments that found this.
+
+Round 338 re-measured the four line/check counts above, which had gone stale
+(the library section is 670 lines, not 530; self_host.lang is 948 lines and
+94 checks, not ~680 and 66) — the "any line asserting a number that no round
+re-executes" class research-state.md has carried since round 321. They are
+prose scale-setters, not assertions; the numbers the SUITE enforces are
+`LIB_START`/`LIB_END`, the 195-statement pin, and the 8-check pin, all of
+which this round did re-execute.
 """
 
 import os
@@ -89,7 +97,7 @@ EXAMPLE = os.path.join(ROOT, "examples", "self_eval.lang")
 SELF_HOST = os.path.join(ROOT, "examples", "self_host.lang")
 EFFECTS = os.path.join(ROOT, "examples", "effects.lang")
 MARKER = "# ==== SELF-TESTS"
-LIB_START, LIB_END = 27, 574  # self_host.lang lines 28..574 (0-indexed slice)
+LIB_START, LIB_END = 27, 697  # self_host.lang lines 28..697 (0-indexed slice)
 
 
 def eval_library_source():
@@ -127,12 +135,14 @@ def test_guest_parser_parses_its_own_full_source():
     ok = env.get("__ok").payload
     assert ok is True, (env.get("__ast").payload.reasons
                          if not ok else None)
-    # self_host.lang currently parses to 162 top-level statements (round
+    # self_host.lang currently parses to 195 top-level statements (round
     # 332: +8 -- the new `exp_end` helper fn plus 7 new lexer/parser
-    # checkpoint checks for exponent-literal guest parity); pin the exact
-    # count so a silent structural regression (e.g. two statements merging
-    # into one) fails loudly even though `__ok` alone would not catch it.
-    assert env.get("__nstmts").payload == 162
+    # checkpoint checks for exponent-literal guest parity; round 338: +33 --
+    # the five `shape` parser functions, seven `let`s binding parsed ASTs to
+    # inspect, and 21 new checkpoint checks); pin the exact count so a
+    # silent structural regression (e.g. two statements merging into one)
+    # fails loudly even though `__ok` alone would not catch it.
+    assert env.get("__nstmts").payload == 195
 
 
 @pytest.mark.whence_slow
@@ -155,6 +165,24 @@ def test_guest_evaluator_executes_self_host_library():
         'check "parses without error": not missed(p1)',
         'let p2 = parse_whence("fn go(n) { if n == 0 { 0 } else { go(n - 1) } }")',
         'check "recursive fn body parses": not missed(p2)',
+        # round 338: the `shape` statement, exercised at the guest-EVAL
+        # level. This is the strictest place it can be tested — the guest
+        # evaluator is INTERPRETING the guest parser, so `shape_close` and
+        # `shapes_declared_before` (which recover the host parser's mutable
+        # `self.shapes` by scanning the token stream, and are the only new
+        # scanning work the round added) run under store-passing rather
+        # than as ordinary host Whence.
+        'let p3 = parse_whence("shape P = @{x: num}\\n'
+        'fn f(a: P) -> P { a }\\nlet z = 1")',
+        'check "a shape declaration parses two levels down": not missed(p3)',
+        'check "and desugars to a let binding a record literal":\n'
+        '  (p3.stmts[0]).kind == "let" and (p3.stmts[0]).name == "P" and\n'
+        '    ((p3.stmts[0]).value).kind == "record"',
+        'check "and a shape name is accepted in annotation position":\n'
+        '  ((p3.stmts[1]).ret_type).kind == "name" and\n'
+        '    ((p3.stmts[1]).ret_type).value == "P"',
+        'check "while an undeclared type name is still refused":\n'
+        '  missed(parse_whence("fn f(a: Nope) { a }\\nlet z = 1"))',
     ])
     # round 228: this test used to also assert
     # `not missed(p2) and len(steps(p2)) > 0` here (added round 206, when
@@ -172,7 +200,7 @@ def test_guest_evaluator_executes_self_host_library():
     rec = env.get("__r").payload
     assert rec.fields["parse_error"].payload is False
     checks = rec.fields["checks"].payload
-    assert len(checks) == 4
+    assert len(checks) == 8
     failed = [c.payload.fields["label"].payload for c in checks
               if c.payload.fields["pass"].payload is not True]
     assert not failed, failed

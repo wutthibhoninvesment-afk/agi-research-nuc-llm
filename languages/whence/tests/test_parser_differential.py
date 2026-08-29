@@ -15,9 +15,20 @@ parser's node shape). This file closes that gap: canonicalize both a real
 host `A.*` AST and the guest's `@{kind: ..., ...}` record AST into the SAME
 plain-tuple shape, and assert they are equal, field for field, across a
 real corpus (every node kind the shared grammar supports, plus every
-`examples/*.lang` file that does not use `shape` — the guest parser has no
-`shape` support at all, a pre-existing, already-documented limitation, not
-a target of this file).
+`examples/*.lang` file the guest parser can read).
+
+**Round 338**: this paragraph used to end "...plus every `examples/*.lang`
+file that does not use `shape` — the guest parser has no `shape` support at
+all, a pre-existing, already-documented limitation, not a target of this
+file." That limitation is gone: the shared parser section now implements the
+`shape` statement, so `shapes.lang` — a real 93-line structural-typing
+program — joined the corpus, and the `SHAPE:` arm of `canon_host_type`
+below, previously unreachable by construction, is now reached on both
+sides. This file's OWN failure is how that round learned its change altered
+the guest AST's public `ret_type` shape (a spec NODE now, mirroring the
+host's `_type_spec_expr`, where it used to be a bare tag string): both tests
+here went red on a change whose in-language checks were all green, which is
+precisely the layer round 320 built this file for.
 
 **Round 320 finding, fixed the same round**: this tool immediately found a
 real, previously-undocumented divergence — `self_host.lang`/`self_eval.lang`'s
@@ -73,6 +84,11 @@ REAL_EXAMPLE_FILES = [
     "hello.lang", "tco.lang", "checks_demo.lang", "failing_check.lang",
     "sales.lang", "history.lang", "provenance.lang", "blame.lang",
     "effects.lang", "guess.lang", "diverge.lang", "deep.lang", "meta.lang",
+    # round 338: the guest parser learned `shape`, so the one real example
+    # this corpus had to skip is now in it — and it is the densest source
+    # available for the new code (7 shape declarations, nested shape
+    # fields, shape params, `-> Shape` returns, and a typed tail loop).
+    "shapes.lang",
 ]
 
 # Synthetic snippets covering every node kind the shared grammar builds
@@ -104,6 +120,19 @@ SYNTHETIC = [
     'fn chain(a) { a.b.c[0](1, 2) }',
     'fn multi_if(x) { if x == 1 { "a" } else if x == 2 { "b" } else { "c" } }',
     'fn needs_guess(g: guess) { confidence(g) }',   # guess.lang's real shape
+    # round 338: `shape` declarations and shape-typed annotations. The
+    # desugaring (`let Name = @{__shape: "Name", ...}`) has to agree node
+    # for node, and a shape-typed field/param/return has to canonicalize to
+    # `SHAPE:<name>` on BOTH sides — a guest that emitted a copy of the
+    # shape record instead of a NameRef would diverge right here.
+    'shape P = @{x: num, y: num}',
+    'shape P = @{}\nlet m = matches(@{q: 1}, P)',
+    'shape P = @{x: num}\nshape L = @{a: P, b: P}',
+    'shape P = @{x: num}\nfn mag(p: P) { p.x }',
+    'shape P = @{x: num}\nfn mk() -> P { @{x: 1} }',
+    'shape P = @{x: num}\nlet f = fn(a: P) -> P { a }',
+    'shape P = @{x: num}\nfn both(a: P, b: num) -> P { a }',
+    'let shape = 5\nlet z = shape + 1',           # contextual, not reserved
 ]
 
 
@@ -127,10 +156,13 @@ def _corpus():
 
 def canon_host_type(spec):
     """host `ret_type`: None, an A.Str (primitive tag), or an A.NameRef (a
-    shape name) -> the SAME plain-string shape the guest's `ret_type` field
-    already is ("" for none, the tag name otherwise; the guest can never
-    produce a shape name at all, so that arm is unreachable by this file's
-    own corpus, by construction, not by omission)."""
+    shape name) -> a plain string ("" for none, the tag name for a
+    primitive, "SHAPE:<name>" for a shape).
+
+    Round 338: the "SHAPE:" arm used to be documented as unreachable by this
+    corpus by construction, because the guest had no `shape` at all. It is
+    now reached on both sides (see `canon_guest_type`), which is the whole
+    point of `shapes.lang` joining `REAL_EXAMPLE_FILES` above."""
     if spec is None:
         return ""
     if isinstance(spec, A.Str):
@@ -138,6 +170,28 @@ def canon_host_type(spec):
     if isinstance(spec, A.NameRef):
         return "SHAPE:" + spec.name
     raise AssertionError("unexpected ret_type node %r" % (spec,))
+
+
+def canon_guest_type(prov):
+    """guest `ret_type` -> the same plain string `canon_host_type` produces.
+
+    Before round 338 the guest stored a bare tag STRING here and this was a
+    plain `.value` read. It now stores the spec NODE the parser built —
+    `@{kind: "str", value: tag}` or `@{kind: "name", value: Name}` —
+    mirroring the host's `_type_spec_expr`, so that a shape annotation is a
+    NameRef reading one shared binding rather than a copy of the record.
+    "" is still the no-annotation sentinel."""
+    payload = prov.value
+    if isinstance(payload, str):
+        assert payload == "", payload
+        return ""
+    fields = payload.fields
+    kind = fields["kind"].value
+    if kind == "str":
+        return fields["value"].value
+    if kind == "name":
+        return "SHAPE:" + fields["value"].value
+    raise AssertionError("unexpected guest ret_type node %r" % (payload,))
 
 
 def canon_host(node):
@@ -256,15 +310,15 @@ def canon_guest(prov):
         return ("if", canon_guest(f["cond"]), canon_guest(f["then"]),
                  canon_guest(f["otherwise"]))
     if kind == "fnexpr":
-        return ("fnexpr", _guest_list(f["params"], _unwrap), f["ret_type"].value,
-                 canon_guest(f["body"]))
+        return ("fnexpr", _guest_list(f["params"], _unwrap),
+                 canon_guest_type(f["ret_type"]), canon_guest(f["body"]))
     if kind == "block":
         return ("block", _guest_list(f["stmts"], canon_guest))
     if kind == "let":
         return ("let", f["name"].value, canon_guest(f["value"]))
     if kind == "fndef":
         return ("fndef", f["name"].value, _guest_list(f["params"], _unwrap),
-                 f["ret_type"].value, canon_guest(f["body"]))
+                 canon_guest_type(f["ret_type"]), canon_guest(f["body"]))
     if kind == "check":
         return ("check", f["label"].value, canon_guest(f["expr"]))
     if kind == "exprstmt":
@@ -436,3 +490,30 @@ def test_host_and_guest_parsers_agree_on_fuzzer_generated_programs():
             failures.append((src[:80], h, g))
     assert not failures, "\n".join(
         "%r:\n  host:  %r\n  guest: %r" % f for f in failures)
+
+
+def test_corpus_actually_reaches_the_shape_arm():
+    """Coverage guard for round 338, mirroring `test_swe_fuzz.py`'s
+    `test_generator_now_emits_*` idiom: the two differential tests above
+    would still pass if `shapes.lang` and every synthetic `shape` snippet
+    quietly left the corpus, because agreement on a corpus that exercises
+    nothing is free. `canon_host_type`'s "SHAPE:" arm was unreachable by
+    construction for 18 rounds; pin that it is now reached, and reached in
+    both the real-example and synthetic halves, so neither can be dropped
+    without a failure."""
+    from_synthetic = sum(repr(canon_host(parse(src))).count("SHAPE:")
+                         for src in SYNTHETIC)
+    from_examples = sum(
+        repr(canon_host(parse(open(os.path.join(EXAMPLES_DIR, f)).read())
+                        )).count("SHAPE:")
+        for f in REAL_EXAMPLE_FILES)
+    assert from_synthetic >= 3, from_synthetic
+    assert from_examples >= 2, from_examples
+    # and a shape-typed PARAMETER canonicalizes as a NameRef inside the
+    # erased guard, not as a "SHAPE:" tag — the two spellings are different
+    # by design (`_type_spec_expr` builds the same NameRef for both, but a
+    # param guard puts it in ARGUMENT position). Pinned so the guard above
+    # is not silently satisfied by param annotations alone.
+    param_only = canon_host(parse('shape P = @{x: num}\nfn mag(p: P) { p.x }'))
+    assert "SHAPE:" not in repr(param_only), param_only
+    assert "('name', 'P')" in repr(param_only), param_only

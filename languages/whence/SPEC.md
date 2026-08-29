@@ -820,9 +820,16 @@ that cannot end a statement.
   out of scope, by construction rather than oversight: `TYPE_TAGS` is
   primitive tags only (`num str bool list record fn any`), so no fuzzed
   program ever names a `shape` as a type spec on either the host or guest
-  side — `self_eval.lang` still has no `shape` support at all (round
-  144/224's own SPEC notes on `typed`/`matches` guest parity, above and
-  below, cover this same limit from the builtin-dispatch side). No new
+  side (round 144/224's own SPEC notes on `typed`/`matches` guest parity,
+  above and below, cover this same limit from the builtin-dispatch side).
+  **Stale-note correction (round 338):** this bullet used to continue
+  "— `self_eval.lang` still has no `shape` support at all". That was true
+  when written and is now false — see "v0.12/v0.13 guest parity (round
+  338)" at the end of this file, which added the `shape` statement to the
+  shared guest parser and `-> Shape` resolution to the guest evaluator.
+  `TYPE_TAGS` being primitives-only still stands, so the fuzzer still
+  emits no shape; after round 338 that is a GENERATOR choice, not a guest
+  limitation. No new
   example beyond extending `examples/shapes.lang` with a return-typed
   `midpoint`/`broken_midpoint` pair (4 new checks, 12 → 16) — a dedicated
   flagship example was judged unnecessary since the feature composes
@@ -3739,3 +3746,120 @@ not this round. See `knowledge/round-254-whence-self-hosting-round9-steps-repro-
   330's new `test_self_eval.py` pin), exactly; this round adds 0 new
   pytest test nodes. Cross-track `bash harness/run_tests_fast.sh`: **417
   passed, 234 deselected**, byte-identical to round 331's own baseline.
+
+## v0.12/v0.13 guest parity (round 338, language C) — `shape` in the self-hosted parser and evaluator
+- **The last piece of structural-type parity, open since v0.12 shipped in
+  round 128.** Round 335's next-steps item 2 (carried unchanged by round
+  336 as its item 4) named it: `self_eval.lang`/`self_host.lang`'s shared
+  parser section had no `shape` statement at all, and `expect_type_name`
+  accepted primitive tags only. The v0.12 section above already recorded
+  the consequence from the other side — "`TYPE_TAGS` is primitive tags
+  only, so no fuzzed program ever names a `shape` as a type spec on
+  either the host or guest side — `self_eval.lang` still has no `shape`
+  support at all". That sentence is now **stale and superseded by this
+  section**; the guest half is closed. (`TYPE_TAGS` is still primitives
+  only, so the FUZZER still emits no shape — after this round that is a
+  generator choice, not a guest limitation.)
+- **What "no support" actually looked like.** `shape` is a contextual
+  keyword, so the guest lexer tokenized `shape Point` as two ordinary
+  NAME tokens and the guest parser reached the `=` with nothing to do
+  with it. Every `shape` program failed with the SAME reason —
+  `"unexpected token '=' at line 1"` — no matter what was wrong with it.
+- **Decision 27 (new): the guest recovers the host's mutable parser state
+  from the TOKEN STREAM rather than threading an accumulator.** The host
+  `Parser` keeps `self.shapes`, a dict `shape_def()` writes into and
+  `parse_type()` reads. Whence has no mutation. Threading a shapes
+  accumulator through the guest parser would not have been enough either:
+  the host's set is deliberately NOT scope-aware (a `shape` declared
+  inside a function body is visible to later annotations at every level —
+  that is exactly the case `_UnboundRetType` exists for), so every one of
+  the guest parser's ~25 functions would have had to RETURN the
+  accumulator as well as take it, including the whole expression parser,
+  because an anonymous `fn(a: Point)` can carry an annotation.
+  `shapes_declared_before(toks, p)` replaces all of that with a pure
+  function. It is exact, not approximate, and rests on two premises that
+  are pinned as tests rather than assumed:
+  1. **Adjacency.** The three tokens `shape` NAME `=` must be adjacent,
+     which is what the host's own `peek(1)`/`peek(2)` require — neither
+     skips a NEWLINE. Verified against the host: `shape\nPoint = @{x:
+     num}` is `"unexpected '=' at line 2"` there, and a miss on the guest.
+     And since NAME NAME never occurs adjacently inside any legal Whence
+     expression, a match can only ever be at statement start — exactly
+     where the host tests for it.
+  2. **Completion.** The declaration's closing `}` must come before `p`
+     (`shape_close`), because the host runs `self.shapes[name] = fields`
+     only after `expect("}")`. This is what rejects `shape Foo = @{x:
+     Foo}`, which the host also rejects ("unknown type 'Foo'") while it
+     is still parsing that shape's own field types.
+  The cost is O(tokens) per NON-PRIMITIVE type name, and zero otherwise:
+  the primitive-tag branch is tested first, so every program written
+  before this round — and every program the fuzzer emits today — pays
+  nothing. Both scan functions are tail-recursive, so v0.3 tail merging
+  keeps them to one frame.
+- **Type annotations now carry a spec NODE, not a type-name string.**
+  `expect_type_name` returns `spec: @{kind: "str", value: tag}` for a
+  primitive and `spec: @{kind: "name", value: Name}` for a shape,
+  mirroring the host's `_type_spec_expr` exactly. The NameRef, rather
+  than a copy of the shape record, is what makes `shape Line = @{a:
+  Point, b: Point}` read the ONE binding `Point` names on both sides —
+  pinned by `L.a.__shape == "P"` surviving on the guest.
+- **Parameter guards needed no evaluator change at all.** A guard is
+  `let p = typed(p, <spec>, label)`, and round 335 had already taught the
+  guest `typed` to accept a RECORD spec (via `guest_spec_match`). So the
+  whole `: Shape` half of this round is parser-only — a statement as much
+  about round 335 as about this one.
+- **`-> Shape` is the half that did need the evaluator.** The guest now
+  mirrors `_closure_ret`: `resolve_ret_spec` resolves the annotation ONCE
+  at closure-creation time, never per call (round 336's tail-transparency
+  work depends on a typed tail-recursive function costing nothing per
+  bounce, and this preserves that). A primitive resolves to its own plain
+  string, so an unannotated or primitive-annotated closure's record is
+  behaviourally unchanged; a shape resolves through the environment to
+  the shape's own record value.
+- **The guest needs `_UnboundRetType` too, for the host's exact reason.**
+  `fn g() { shape L = @{x: num}  1 }  fn f() -> L { 1 }` parses on both
+  sides (L was declared earlier in the token stream) while L's binding
+  only ever lives inside g's call frame. On the host a naive
+  `env.get(name).payload` raised `AttributeError` (see the v0.13 section
+  above); the guest's `lookup` misses rather than raising, so there is no
+  crash to mirror — what had to be mirrored is the MESSAGE, since an
+  unbound shape would otherwise read as an ordinary mismatch against a
+  miss-valued spec. The guest tags it `@{__unbound_ret: name}` and
+  `check_ret` renders the host's own wording, `"<label>: type '<name>' is
+  not in scope here"`.
+- **A differential blind spot, measured rather than argued.** The
+  host-vs-guest corpus differential (`payloads_agree`) deliberately
+  exempts miss REASONS, because guest wordings differ by design. That
+  exemption is what hid this gap for 210 rounds: on the pre-338 guest,
+  all six `shape` DECLARATION-error programs miss on both sides, so a
+  missed-ness-only comparison rates all six "agree" — while the guest is
+  in fact reporting one single reason for six different host errors.
+  Over a 32-program case list the pre-round guest scores **14/32
+  agreeing** and this one **32/32**; **6 of those 14 are blind ones**.
+  So the reason WORDING is where the information is, and
+  `test_shape_declaration_errors_agree_host_vs_guest_by_wording` pins it.
+- **The one divergence, pinned as pre-existing rather than asserted
+  away.** Every reason comparison strips a `(line N)` suffix: the guest
+  AST carries no line numbers, so the host attaches `self_eval.lang`'s
+  OWN line to a miss the guest constructs. This is documented in the
+  example's header and predates this round —
+  `test_shape_line_divergence_is_pre_existing_not_new` exhibits the
+  identical divergence on a PRIMITIVE `-> num` return, unchanged since
+  round 158. Recorded, not stripped quietly.
+- **Verification**: `python3 run.py examples/self_host.lang`: 73 -> **94
+  passed, 0 failed** (+21 exact). `python3 run.py examples/self_eval.lang`:
+  105 -> **123 passed, 0 failed** (+18 exact). 5 new pytest tests in
+  `tests/test_self_eval.py`; run inside a pristine package copy with the
+  PRE-round `self_eval.lang`/`self_host.lang` dropped in, **3 of the 5
+  fail** — real regression guards. The other two pass on both builds
+  deliberately and are labelled as such: one pins the adjacency premise
+  (the pre-round guest also refused that program, for a different
+  reason), the other IS the pre-existing-divergence record. The two
+  deepest self-hosting tests were extended rather than duplicated:
+  `test_guest_parser_parses_its_own_full_source` (162 -> **195**
+  top-level statements), and `test_guest_evaluator_executes_self_host_
+  library` (4 -> **8** inner checks), which runs the new
+  `shapes_declared_before`/`shape_close` scans under the guest EVALUATOR
+  interpreting the guest PARSER — two full levels down. Shared-section
+  bounds moved 27:574 -> **27:697** in both the sync test and
+  `test_self_hosting.py`'s `LIB_END`.

@@ -109,11 +109,16 @@ class GuestGen(ProgramGen):
     builtin + a return-type check mirroring the host's `_check_ret`), so
     `GuestGen` now inherits `ProgramGen`'s real `typed_params`/
     `maybe_ret_type` unchanged — type-guarded programs are guest-safe like
-    everything else this generator produces. Shapes remain unsupported on
-    the guest side (`self_eval.lang` still doesn't implement `shape`), but
-    the fuzzer never generates a shape name as a type tag (`TYPE_TAGS` is
-    primitives only), so that gap is out of scope for this generator by
-    construction, not worked around here.
+    everything else this generator produces. Round 338 (language C) closed
+    the remaining piece: `self_eval.lang`/`self_host.lang`'s shared parser
+    section now implements the `shape` statement, and the guest evaluator
+    resolves `-> Shape` at closure-creation time like the host's
+    `_closure_ret`. The fuzzer still never generates a shape name as a
+    type tag (`TYPE_TAGS` is primitives only), so nothing here changes —
+    but that is now a GENERATOR choice rather than a guest limitation, and
+    teaching `TYPE_TAGS` about declared shapes is a real, newly-unblocked
+    option for a future round rather than something out of scope by
+    construction.
 
     `maybe_effects` (round 162: `ProgramGen` gained `effects [...]`
     generation for the v0.14 effect system, round 146) used to be

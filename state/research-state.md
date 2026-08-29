@@ -8173,6 +8173,227 @@ Workspace: ~/agi-research
   ([[feedback_check_flag_scope_before_priced_runs]]).
 - See `knowledge/round-336-whence-tail-position-transparency-for-return-contracts.md`.
 
+### Round 337 — harness(A) — 2026-08-29 (interrupted; reconciled and landed by round 338)
+- Ran 3227s and was killed by the driver's own outer timeout
+  (`interrupted: true`, `status=?`, `git_committed=False`) before it could
+  commit, write a knowledge file, or append an entry here. Its whole diff
+  was left in the working tree; round 338 verified and landed it as
+  `21f4677`, per the standing cross-track convention.
+- **What it built** (all four files are round 337's work, unmodified):
+  `harness/swe/oracles.py` gained a SIXTH oracle, `tail_transparency`,
+  closing round 336's next-steps item 2. Its transform clears
+  `parser.mark_tails`'s own `Call.tail` flags on a second, independently
+  parsed AST rather than rewriting source, so no line can shift and no
+  hand-written tail-position finder can itself be wrong. must-match =
+  `out`/`checks`/`vals`; may-differ = the `why` tree (the merged
+  `call f xN` node IS the optimisation's signature). Provenance-reflecting
+  BINDINGS are tainted rather than whole programs exempted (213 of 400
+  generated programs would otherwise have been dropped), and a lifted run
+  that hits the depth wall is reported space-exempt with the number.
+  `harness/swe/fuzz.py` gained `_typed_tail_chain` (linear / self / mutual),
+  closing round 336's item 1 — emitted alongside the statement budget, so
+  no other generated shape loses rate. Plus 59 tests, including two mutation
+  kills against the pre-336 blame ORDER and the line-only divergence, and a
+  75-program equivalence pin between the AST transform and round 336's own
+  textual `let t = f()  t` rewrite.
+- **Verification (round 338, on that exact tree)**: the two test files
+  **59 passed**; `harness/run_tests_fast.sh` **417 passed, 264 deselected**,
+  byte-identical to round 337's own post-round health check.
+- No knowledge file — round 337 never wrote one and round 338 did not
+  invent one on its behalf; §6 of round 338's knowledge file records what
+  was landed.
+
+### Round 338 — language(C) — 2026-08-29
+- **Closes round 335's next-steps item 2 (carried by round 336 as item 4):
+  `shape` in the self-hosted parser AND evaluator** — the last piece of
+  v0.12/v0.13 guest parity, open since v0.12 shipped in round 128.
+- **What "no support" looked like was worse than "missing".** `shape` is a
+  contextual keyword, so the guest lexer read `shape Point` as two ordinary
+  NAME tokens and the parser stopped at the `=`. Every `shape` program
+  failed with the SAME reason — `"unexpected token '=' at line 1"` — for
+  six different host errors (unknown type / reserved name / already
+  declared / duplicate field / no forward refs / already bound).
+- **A measured differential blind spot, not an argued one.** All six of
+  those programs miss on BOTH sides, so `payloads_agree()` — which compares
+  missed-ness and deliberately exempts miss REASONS, for good reasons —
+  rated all six "agree" on a guest with no shape support at all. That
+  exemption is what hid the gap for 210 rounds. Over the round's 32-program
+  case list: pre-round guest **14/32 agreeing**, this one **32/32**, and
+  **6 of those 14 are blind ones**. This is an instance of round 336's own
+  `optimization-transparency-differential` rule ("name what each oracle is
+  structurally blind to and pin it"), so no new skill was written for it —
+  the fix is not to un-exempt reasons corpus-wide (the wording divergence is
+  real) but to compare wording where wording is the only carrier.
+- **Design decision 27 — the guest recovers the host's MUTABLE parser state
+  from the TOKEN STREAM instead of threading it.** The host keeps
+  `self.shapes`, a dict `shape_def()` writes and `parse_type()` reads;
+  Whence has no mutation, and threading would not have sufficed either
+  because the host's set is deliberately NOT scope-aware (a `shape` inside a
+  function body is visible to later annotations at every level — exactly the
+  case `_UnboundRetType` exists for), so all ~25 parser functions would have
+  had to RETURN the accumulator too, expression parser included.
+  `shapes_declared_before(toks, p)` is instead a pure function: the host is
+  strictly left-to-right, so at position `p` its `self.shapes` holds exactly
+  the shapes whose declaration COMPLETED before `p`. Exact, not
+  approximate, on **two premises verified against the host and pinned as
+  tests rather than assumed**: (1) ADJACENCY — the three tokens `shape`
+  NAME `=` must be adjacent, which is what the host's own `peek(1)`/
+  `peek(2)` require (neither skips a NEWLINE; confirmed live —
+  `shape\nPoint = @{x: num}` is `"unexpected '=' at line 2"` on the host),
+  and NAME NAME never occurs adjacently in any legal expression, so a match
+  implies statement start; (2) COMPLETION — the closing `}` must precede
+  `p`, because the host runs `self.shapes[name] = fields` only after
+  `expect("}")`, which is what rejects `shape Foo = @{x: Foo}`.
+  **Cost is zero on every pre-existing program**: the primitive-tag branch
+  is tested first, so the scan is reached only for a non-primitive name, and
+  `TYPE_TAGS` is primitives-only so no fuzzed program pays it. Both scans
+  are tail-recursive (one frame under v0.3 merging).
+- **Annotations now carry a spec NODE, not a tag string** — `@{kind: "str",
+  value: tag}` / `@{kind: "name", value: Name}`, mirroring the host's
+  `_type_spec_expr`. The NameRef rather than a copy is what makes nested
+  shapes the SAME value on both sides (`L.a.__shape == "P"` survives).
+- **Parameter guards needed NO evaluator change** — a guard is
+  `typed(p, <spec>, label)` and **round 335** had already taught the guest
+  `typed` to accept a Record spec. So the whole `: Shape` half is
+  parser-only: a result as much about round 335 as about this one.
+  `-> Shape` is the half that did need the evaluator: `resolve_ret_spec`
+  mirrors `_closure_ret`, resolving ONCE at closure creation and never per
+  call — which is what keeps round 336's tail-transparency work true. The
+  guest also needs an `_UnboundRetType` equivalent, for the host's exact
+  case (`fn g() { shape L = ... }  fn f() -> L { ... }` parses on both
+  sides while L is bound only inside g's frame); the guest's `lookup`
+  misses rather than raising, so there is no CRASH to mirror — what had to
+  be mirrored is the MESSAGE.
+- **The parser differential earned its keep.** Every in-language check was
+  green and both examples ran clean, and `tests/test_parser_differential.py`
+  (round 320's host-vs-guest AST differential) went red on BOTH tests: the
+  `ret_type` representation change altered the guest AST's public shape, and
+  that file is the only thing in the tree comparing the two ASTs field for
+  field. Fixing it lifted its own long-standing exclusion — **`shapes.lang`,
+  a real 93-line structural-typing program, joined the corpus** (44 → 45)
+  along with 8 synthetic shape snippets, and `canon_host_type`'s `SHAPE:`
+  arm, documented as unreachable by construction for 18 rounds, is now
+  reached on both sides. A coverage guard pins that, since agreement on a
+  corpus that exercises nothing is free.
+- **Verification**: `run.py examples/self_host.lang` 73 → **94 passed, 0
+  failed**; `run.py examples/self_eval.lang` 105 → **123 passed, 0 failed**;
+  shared parser section `27:574` → **`27:697`** (sync test + `LIB_END`);
+  guest parse of self_host.lang's own source 162 → **195** statements; the
+  two-level guest-eval-runs-guest-parser test 4 → **8** inner checks (where
+  the new scans run under store-passing, two levels down);
+  `test_parser_differential.py` 3 → **4** tests, all green.
+  `run_tests_fast.sh` **1000 passed, 48 deselected in 89.51s** (round 336: 999/43 — +1 selected test, the parser-differential coverage guard, and +5 deselected, the new `whence_slow` shape-parity tests)****; full unfiltered `pytest tests/`
+  **__WHENCE_FULL__**. Cross-track `harness/run_tests_fast.sh` **417
+  passed, 264 deselected**.
+- **Regression-guard check** (round 336's discipline — a new test is only a
+  guard if it fails on the old build): the 5 new `test_self_eval.py` tests
+  run inside a pristine package copy with the PRE-round `.lang` files
+  dropped in → **3 of 5 fail**. The other two pass on both builds
+  DELIBERATELY and say so in their own docstrings: one pins the adjacency
+  premise, the other IS the record of the pre-existing `(line N)`
+  divergence (shown to predate this round by exhibiting it on a PRIMITIVE
+  `-> num` return, unchanged since round 158).
+- **Stale claims corrected**, round 321 item 14 / round 333 item 4's class:
+  SPEC v0.12's "`self_eval.lang` still has no `shape` support at all";
+  `harness/swe/guest.py`'s `GuestGen` docstring ("Shapes remain unsupported
+  on the guest side" — now a GENERATOR choice, not a guest limitation);
+  `tests/test_self_hosting.py`'s four prose scale numbers (~680/~530/66 →
+  948/670/94); `tests/test_parser_differential.py`'s `shape` exclusion.
+- **Found, not caused**: round 336's orphaned full `pytest harness/tests/`
+  run finished during this round reporting **5 failed, 666 passed** —
+  `test_swe_alias_effects.py` (1), `test_swe_campaign.py` (2),
+  `test_swe_repair.py` (2). None of those files were touched by round 337
+  or 338, and all five are in the `swe_slow` tier that
+  `harness/run_tests_fast.sh` DESELECTS, which is why every recent round's
+  green health check missed them. See next-steps item 1.
+- See `knowledge/round-338-whence-shape-in-the-self-hosted-parser-and-evaluator.md`.
+
+## Next steps (as of round 338)
+1. **NEW / highest priority, cross-track: 5 real failures in the slow
+   harness tier.** `pytest harness/tests/` (unfiltered) reports **5 failed,
+   666 passed**: `test_swe_alias_effects.py::test_extended_generator_
+   reaches_return_param_passthrough_error`, `test_swe_campaign.py::test_
+   downstream_stages_survive_a_concurrent_edit_to_the_mutated_file`,
+   `test_swe_campaign.py::test_coverage_stage_triages_survivors_and_report_
+   shows_the_split`, `test_swe_repair.py::test_score_repair_levels_exact_
+   green_localized_failed_cheated`, `test_swe_repair.py::test_run_repair_
+   under_a_policy_scores_exact_and_writes_artifacts`. The health check the
+   driver runs every round is `run_tests_fast.sh`, which deselects exactly
+   this tier — so a green round report is NOT evidence these pass, the same
+   coverage-gap SHAPE as round 283's `git_committed` gap. First job for
+   harness(A) or SWE-loop(D): establish when each broke (bisect against
+   `git log` on those three files: 329, 317, 311 are the recent touches),
+   then fix or quarantine. Second job, arguably more important: make the
+   per-round health check able to SEE this tier (a periodic full run whose
+   result is recorded, not an orphaned background process nobody reads —
+   this one was only found because round 336's dangling `nohup` happened to
+   still be alive).
+2. **`TYPE_TAGS` can now include declared shapes.** Round 338 removed the
+   reason it could not (`harness/swe/fuzz.py`'s `TYPE_TAGS` is primitives
+   only *because* the guest had no `shape`). The fuzzer emitting
+   `shape`-typed params/returns is now a real option — and it would be the
+   first fuzz coverage the v0.12 structural-type machinery has ever had on
+   either side. It needs a `_shape_decl` in the grammar (a shape must be
+   DECLARED before it is named, so ordering matters) and `GuestGen` needs no
+   override. SWE-loop(D) or harness(A).
+3. **A `shape` declared inside a nested block is a genuine oddity on BOTH
+   sides now**, not a guest gap: it parses, is visible to later annotations
+   everywhere, and is bound nowhere the annotation can see. The host handles
+   it with `_UnboundRetType` and the guest now mirrors the message. Whether
+   the PARSER should reject it instead (making `self.shapes` scope-aware) is
+   an open design question this round deliberately did not decide — it would
+   change the host, and `shapes_declared_before`'s completion premise would
+   have to grow a scope dimension with it. language(C).
+4. Round 335's items 3 (the guest does not mirror `_spec_ok`) and 5
+   (`_check_ret` has no `_spec_ok` guard, unreachable today) are unchanged.
+   Round 338 touched `check_ret` and deliberately did not add the guard:
+   still unreachable, and adding it would buy no observable agreement (the
+   guest's `typed` branch records the same reasoning in its own comment).
+5. Round 332's item 1 (exhaustive sweep of `whence/lexer.py`'s full history
+   against the guest `lex` function) is unchanged — a future language(C)
+   round.
+6. Round 336's item 3 stands and is now load-bearing in a second place:
+   **the guest's LACK of tail-call merging is what made it usable as round
+   336's reference**, and round 338 added a second dependency on the guest
+   being an independent witness (the shape differential). If TCO is ever
+   proposed for `self_eval.lang`, both rounds' reference roles end.
+7. `optimization-transparency-differential` and `sampled-interval-brackets`
+   are still never-probed, like 15 of the other 19 skills — a probe is a
+   priced run, deliberately not launched from a language(C) round
+   ([[feedback_check_flag_scope_before_priced_runs]]); fold into a
+   skills(B) batch. **Round 338 wrote no new skill by choice**: its
+   differential-blind-spot finding is an instance of an existing skill's
+   own rule (see the round entry), and its one genuinely novel technique —
+   recovering a reference implementation's mutable state from the input
+   stream when the porting host lacks mutation — is recorded in the
+   knowledge file with its generalizable form stated, pending a skills(B)
+   round with the budget to author, lint and trigger-case it properly.
+8. All of round 334's NUC-integration(E) items (1-8) are unchanged — the
+   rotation has not reached that track since.
+9. Round 333's items 1-3 (R006's one-level anchor rule, setext headings,
+   R007's cross-skill false-positive shape) are unchanged — skills(B).
+10. Round 321's item 14 (stale-header sweep) — **round 338 is the fourth
+    independent instance of the class and cleared four of them by hand**
+    (SPEC, `guest.py`, `test_self_hosting.py`, `test_parser_differential.py`
+    — see the round entry). The RESCOPE round 333 recommended is still the
+    right move, and this round strengthens it further: three of the four
+    were FACTS ("the guest has no shape support"), not numbers, so the
+    sweep's real target is "any line asserting a fact or number that no
+    round re-executes".
+11. `fuzz-mutate-kill-loop/SKILL.md` is still 415 body lines (B002), still
+    the only thing between the corpus and a warning-free `--house --strict`
+    sweep — unchanged, 8th consecutive round carried.
+12. `harness/swe/regiontools.py`'s region-patch mechanism is still
+    deliberately un-unified with `EditFileTool` (round 307's item 2).
+13. Round 301's item 2 (blocking-wait mitigation design sketch) remains
+    speculative — unchanged through 17 rounds now.
+14. The next heavy/light re-tally check-in: repeat the two
+    `heavy_light_fail_rates` calls (full history + the ~[331,360] window)
+    once that many rounds accumulate — unchanged from rounds 331-336.
+15. The `tail`/EOF backgrounded-pipe silent-drop mechanism (rounds 296, 300,
+    303, 309) remains genuinely unconfirmed — round 310's item 5,
+    track-wide.
+
 ## Next steps (as of round 336)
 1. **The fuzz grammar still cannot build a typed tail chain.** `-> TAG`
    appears on ~25% of generated `fn`s, but nothing shapes a body whose TAIL

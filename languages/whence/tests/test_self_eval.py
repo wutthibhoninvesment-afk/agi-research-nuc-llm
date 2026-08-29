@@ -15,12 +15,15 @@ corpus case, so the ~800-line library is parsed and loaded a single time.
 """
 
 import os
+import re
 import subprocess
 import sys
 
 import pytest
 
 from whence.interp import Interpreter, deep_eq
+from whence.lexer import LexError
+from whence.parser import ParseError
 from whence.values import Miss, Record, WList
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -164,12 +167,12 @@ def test_example_runs_green():
     r = subprocess.run([sys.executable, os.path.join(ROOT, "run.py"), EXAMPLE],
                        capture_output=True, text=True)
     assert r.returncode == 0, r.stdout + r.stderr
-    assert "105 passed, 0 failed" in r.stdout
+    assert "123 passed, 0 failed" in r.stdout
     assert "all in Whence" in r.stdout
 
 
 def test_parser_section_matches_self_host():
-    # the guest lexer+parser is self_host.lang lines 28..574, verbatim;
+    # the guest lexer+parser is self_host.lang lines 28..697, verbatim;
     # if one file changes, the other must change with it (round 158: grew
     # from 420 to 485 lines adding `: Type`/`-> Type` guest parity; round
     # 164: 485 to 533 adding `effects [...]` clause skipping; round 176:
@@ -180,9 +183,12 @@ def test_parser_section_matches_self_host():
     # guest evaluator ON self_host.lang's own source, the first genuine
     # "evaluator interprets the parser" self-hosting run); round 332:
     # 561 to 574 adding the `exp_end` exponent-literal-scan helper (guest
-    # parity for the host's post-round-323 exponent-literal grammar)
+    # parity for the host's post-round-323 exponent-literal grammar); round
+    # 338: 574 to 697 adding the `shape` statement (`is_shape_head` /
+    # `shape_close` / `shapes_declared_before` / `parse_shape_fields` /
+    # `parse_shape_def`, plus spec-NODE type annotations)
     host_lines = open(SELF_HOST).read().splitlines()
-    section = "\n".join(host_lines[27:574])
+    section = "\n".join(host_lines[27:697])
     assert section.startswith("# ---- character classes")
     assert section.rstrip().endswith(
         "fn parse_whence(src) { parse_program(lex_all(src)) }")
@@ -666,3 +672,198 @@ def test_tail_chain_return_miss_blames_the_same_function_on_both_sides():
         rows.append((src, want, blamed_fn(h.payload), blamed_fn(g.payload)))
     bad = [r for r in rows if not (r[1] == r[2] == r[3])]
     assert bad == [], bad
+
+
+# --- `shape` guest parity (round 338) ----------------------------------------
+#
+# Until this round the guest had no `shape` support at all: `expect_type_name`
+# accepted primitive tags only, and `shape` at statement start was not a
+# statement, so the guest parser stopped at the `=` with "unexpected token
+# '='". Round 335's next-steps item 2 (carried by round 336 as item 4) asked
+# for it as the last piece of v0.12/v0.13 guest parity.
+#
+# WHY THESE TESTS COMPARE REASON WORDINGS AND NOT JUST MISSED-NESS. The
+# corpus differential above (`payloads_agree`) deliberately exempts miss
+# REASONS, because guest wordings differ by design. That exemption is exactly
+# what hid this gap: on the PRE-338 guest all six declaration-error programs
+# in SHAPE_PARSE_ERRORS below miss on both sides, so a missed-ness-only
+# comparison rates all six "agree" — while the guest is in fact reporting one
+# single reason, "unexpected token '=' at line 1", for six different host
+# errors, because it never recognised the statement at all. Measured, not
+# assumed: the full case list below scores 14/32 agreeing against the
+# pre-round guest and 32/32 against this one, and 6 of those 14 are these
+# blind ones. So the reason WORDING is the observable that carries the
+# information here, and these tests pin it (modulo the `(line N)` suffix,
+# which is the guest's one genuinely-documented provenance divergence —
+# `test_shape_line_divergence_is_pre_existing` below shows it predates this
+# round by exhibiting it on a PRIMITIVE return type).
+
+SHAPE_VALUE_CASES = [
+    # (source, expected host+guest payload)
+    ('shape P = @{x: num, y: num}\nfn mag(p: P) { p.x + p.y }\n'
+     'let result = mag(@{x: 3, y: 4})', 7),
+    # width subtyping: extra fields are ignored, on both sides
+    ('shape P = @{x: num, y: num}\nfn mag(p: P) { p.x + p.y }\n'
+     'let result = mag(@{x: 3, y: 4, z: 9})', 7),
+    ('shape P = @{x: num}\nlet result = matches(@{x: 1}, P)', True),
+    ('shape P = @{x: num}\nlet result = matches(@{x: "s"}, P)', False),
+    # a shape IS an ordinary runtime record (host `shape_def`'s whole point)
+    ('shape P = @{x: num}\nlet result = P.__shape', "P"),
+    # an empty shape matches anything record-shaped
+    ('shape P = @{}\nlet result = matches(@{q: 1}, P)', True),
+    # nested shapes: `L.a` must BE `P`, not a structural copy of it — the
+    # host builds a NameRef, so the same binding is read, and the guest has
+    # to as well or `L.a.__shape` would not survive
+    ('shape P = @{x: num}\nshape L = @{a: P}\nlet result = L.a.__shape', "P"),
+    ('shape P = @{x: num}\nshape L = @{a: P}\n'
+     'let result = matches(@{a: @{x: 1}}, L)', True),
+    ('shape P = @{x: num}\nshape L = @{a: P}\n'
+     'let result = matches(@{a: @{x: "s"}}, L)', False),
+    ('shape P = @{x: num, y: num}\nshape L = @{a: P, b: P}\n'
+     'fn dx(l: L) { l.b.x - l.a.x }\n'
+     'let result = dx(@{a: @{x: 0, y: 0}, b: @{x: 3, y: 4}})', 3),
+    # `-> Shape` return types
+    ('shape P = @{x: num}\nfn mk() -> P { @{x: 1} }\nlet result = mk().x', 1),
+    ('shape P = @{x: num}\nlet f = fn(a: P) { a.x }\nlet result = f(@{x: 7})', 7),
+    # `shape` is a CONTEXTUAL keyword on both sides, never reserved
+    ('let shape = 5\nlet result = shape + 1', 6),
+    ('let result = @{shape: 3}.shape', 3),
+    # untyped and primitive-typed code is untouched by any of this
+    ('fn add(a, b) { a + b }\nlet result = add(1, 2)', 3),
+    ('fn t(a: num) -> num { a * 2 }\nlet result = t(21)', 42),
+]
+
+SHAPE_MISS_CASES = [
+    'shape P = @{x: num, y: num}\nfn mag(p: P) { p.x + p.y }\n'
+    'let result = mag(@{x: 3})',
+    'shape P = @{x: num}\nfn mk() -> P { @{y: 1} }\nlet result = mk()',
+    'shape P = @{x: num}\nlet f = fn() -> P { 5 }\nlet result = f()',
+    # the not-scope-aware case: `L` was DECLARED earlier in the token stream
+    # (so both parsers accept `-> L`) but is only ever BOUND inside g's call
+    # frame. This is what the host needs `_UnboundRetType` for — a naive
+    # `env.get(name).payload` raised AttributeError there (SPEC v0.13).
+    'fn g() { shape L = @{x: num}\n1 }\nfn f() -> L { 1 }\nlet result = f()',
+]
+
+# (source, the host's exact reason with its `(line N)` suffix removed)
+SHAPE_PARSE_ERRORS = [
+    ('shape Foo = @{x: Foo}\nlet result = 1', "unknown type 'Foo'"),
+    ('shape A = @{b: B}\nshape B = @{x: num}\nlet result = 1',
+     "unknown type 'B'"),
+    ('shape num = @{x: num}\nlet result = 1',
+     "'num' is a reserved type name"),
+    ('shape P = @{x: num}\nshape P = @{y: num}\nlet result = 1',
+     "shape 'P' is already declared"),
+    ('shape P = @{x: num, x: str}\nlet result = 1', "duplicate field 'x'"),
+    ('fn f(a: Nope) { a }\nlet result = 1', "unknown type 'Nope'"),
+    ('fn f() -> Nope { 1 }\nlet result = 1', "unknown type 'Nope'"),
+]
+
+LINE_SUFFIX = re.compile(r" \(line \d+\)")
+
+
+def guest_reason(payload):
+    assert isinstance(payload, Miss), payload
+    return LINE_SUFFIX.sub("", payload.reasons[0])
+
+
+def host_parse_error(src):
+    """The host raises on a bad `shape`; the guest returns a miss (it is a
+    Whence program, and a parse failure is an ordinary value there). Both
+    are the same event, so normalise the host side to the guest's shape."""
+    try:
+        Interpreter().run(src)
+    except (ParseError, LexError) as e:
+        return str(e).split(" at line ")[0]
+    return None
+
+
+@pytest.mark.whence_slow
+def test_shape_values_agree_host_vs_guest():
+    sources = [src for src, _ in SHAPE_VALUE_CASES]
+    guest = guest_eval_all(sources)
+    bad = []
+    for (src, want), g in zip(SHAPE_VALUE_CASES, guest):
+        h = host_eval(src)
+        assert h is not None, src
+        if not (deep_eq(h.payload, g.payload) is True):
+            bad.append((src, h.payload, g.payload))
+        elif h.payload != want or type(h.payload) is not type(want):
+            # pinning the literal too, so a case that agrees for the wrong
+            # reason (both sides missing, both sides 0) cannot pass quietly
+            bad.append((src, "expected %r" % (want,), h.payload))
+    assert bad == [], bad
+
+
+@pytest.mark.whence_slow
+def test_shape_misses_agree_host_vs_guest_including_the_wording():
+    """Stronger than `payloads_agree`: the reason TEXT must match too, not
+    just missed-ness. The `-> Shape` mismatch message goes through the
+    host's `_type_match` `desc` (the shape's `__shape` name, not "record")
+    and the guest's `guest_spec_name`; the unbound case goes through the
+    host's `_UnboundRetType` branch and the guest's `__unbound_ret`
+    sentinel. Both wordings are reproduced exactly."""
+    guest = guest_eval_all(SHAPE_MISS_CASES)
+    bad = []
+    for src, g in zip(SHAPE_MISS_CASES, guest):
+        h = host_eval(src)
+        if not isinstance(h.payload, Miss) or not isinstance(g.payload, Miss):
+            bad.append((src, h.payload, g.payload))
+        elif guest_reason(h.payload) != guest_reason(g.payload):
+            bad.append((src, h.payload.reasons[0], g.payload.reasons[0]))
+    assert bad == [], bad
+    # and the two messages this round is actually about, spelled out
+    h_ret = host_eval(SHAPE_MISS_CASES[1]).payload
+    assert guest_reason(h_ret) == "return value of mk expected P, got record"
+    h_unbound = host_eval(SHAPE_MISS_CASES[3]).payload
+    assert guest_reason(h_unbound) == \
+        "return value of f: type 'L' is not in scope here"
+
+
+@pytest.mark.whence_slow
+def test_shape_declaration_errors_agree_host_vs_guest_by_wording():
+    """The six-way blind spot described in this section's header. Every one
+    of these misses on BOTH sides even on the pre-338 guest, so only the
+    wording distinguishes a guest that understands `shape` from one that
+    stopped at the `=`."""
+    sources = [src for src, _ in SHAPE_PARSE_ERRORS]
+    guest = guest_eval_all(sources)
+    bad = []
+    for (src, want), g in zip(SHAPE_PARSE_ERRORS, guest):
+        assert host_parse_error(src) == want, (src, host_parse_error(src))
+        if guest_reason(g.payload) != want:
+            bad.append((src, want, g.payload.reasons[0]))
+    assert bad == [], bad
+
+
+@pytest.mark.whence_slow
+def test_shape_needs_three_adjacent_tokens_on_both_sides():
+    """`shapes_declared_before` matches `shape` NAME `=` ADJACENTLY, which
+    is what the host's own `peek(1)`/`peek(2)` require — neither skips a
+    NEWLINE. So `shape` alone on a line is NOT a declaration anywhere, and
+    both sides refuse the same program. This is the load-bearing premise of
+    recovering the host's mutable `self.shapes` from the token stream: were
+    the host to skip newlines here, the guest's scan would over-accept."""
+    src = 'shape\nP = @{x: num}\nlet result = 1'
+    assert host_parse_error(src) == "unexpected '='"
+    g, = guest_eval_all([src])
+    assert isinstance(g.payload, Miss), g.payload
+    assert "unexpected token '='" in g.payload.reasons[0]
+
+
+@pytest.mark.whence_slow
+def test_shape_line_divergence_is_pre_existing_not_new():
+    """Every reason comparison above strips a `(line N)` suffix, because the
+    guest AST carries no line numbers and the host attaches self_eval.lang's
+    OWN line to a miss the guest constructs (this file's module docstring
+    and the example's header both document it). Pinned as pre-existing
+    rather than asserted away: the identical divergence appears on a
+    PRIMITIVE `-> num` return, which has behaved this way since round 158."""
+    src = 'fn t(a: num) -> num { "x" }\nlet result = t(1)'
+    h = host_eval(src)
+    g, = guest_eval_all([src])
+    assert h.payload.reasons[0] == "return value of t expected num, got str (line 2)"
+    assert LINE_SUFFIX.sub("", g.payload.reasons[0]) == \
+        "return value of t expected num, got str"
+    assert LINE_SUFFIX.search(g.payload.reasons[0]) is not None
+    assert g.payload.reasons[0] != h.payload.reasons[0]

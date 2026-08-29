@@ -326,7 +326,7 @@ fn parse_primary(toks, pos) {
     let ep = parse_effects_clause(toks, ps.pos)
     let rt = parse_typed_suffix(toks, ep, "->")
     let body0 = parse_block(toks, rt.pos)
-    @{node: @{kind: "fnexpr", params: ps.params, ret_type: rt.type,
+    @{node: @{kind: "fnexpr", params: ps.params, ret_type: rt.spec,
               body: apply_type_guards(body0.node, ps.params, ps.types, "")},
       pos: body0.pos}
   }
@@ -361,10 +361,11 @@ fn parse_record_lit(toks, pos, acc, seen) {
 
 # ---- params, blocks, if -----------------------------------------------------
 # Type annotations (v0.12/v0.13 guest parity, round 158): `: TAG` on a
-# param, `-> TAG` after the param list — primitive tags only (num str bool
-# list record fn any); the guest has no `shape` support, so a shape name is
-# simply an "unknown type" miss like any other bad tag, same total-error
-# discipline as every other parse failure in this file.
+# param, `-> TAG` after the param list. Round 338 closed the last gap: a
+# type name is now the same TWO things the host's `parse_type` accepts — a
+# primitive tag (num str bool list record fn any guess) or a `shape`
+# DECLARED EARLIER IN THIS FILE. Anything else is still an "unknown type"
+# miss, the same total-error discipline as every other parse failure here.
 # v0.15 guest parity (round 176): "guess" joined the host's PRIMITIVE_TYPES
 # when the AI-native-primitives feature shipped (round 168), so `fn f(x:
 # guess)` must type-check in the guest exactly as it already does at the
@@ -373,23 +374,91 @@ fn parse_record_lit(toks, pos, acc, seen) {
 let guest_primitive_types = ["num", "str", "bool", "list", "record", "fn",
                              "any", "guess"]
 
+# ---- `shape` declarations (v0.12 guest parity, round 338) ------------------
+# The host parser carries MUTABLE state for this: `self.shapes` is a dict
+# that `shape_def()` writes a name into once that declaration finishes, and
+# `parse_type()` accepts any name already in it. Whence has no mutation, and
+# threading a shapes accumulator down would not be enough — the host's set is
+# deliberately NOT scope-aware (a `shape` declared inside a function body is
+# visible to later annotations at every level; SPEC v0.13's `_UnboundRetType`
+# note is precisely about that), so every one of the ~25 parser functions
+# would need to RETURN the accumulator as well as take it.
+#
+# The guest recovers the state from the TOKEN STREAM instead. The host is
+# strictly left-to-right, so at any token position p its `self.shapes` holds
+# exactly the shapes whose declaration COMPLETED before p — which makes it a
+# pure function of (toks, p), no threading at all. Two details make that
+# exact rather than merely close:
+#   * the three tokens must be ADJACENT (`shape` NAME `=`), which is what the
+#     host's own `peek(1)`/`peek(2)` require — they do not skip newlines, so
+#     `shape` on its own line is NOT a declaration on either side (the host
+#     says "unexpected '=' at line 2"), and since NAME NAME never occurs
+#     adjacently inside any legal Whence expression, a match can only be at
+#     statement start, exactly where the host tests for it;
+#   * the declaration must have CLOSED before p (`shape_close` below), which
+#     is what rejects `shape Foo = @{x: Foo}` — the host has not yet run
+#     `self.shapes[name] = fields` while it is parsing its own field types.
+# Cost: `shapes_declared_before` is only ever reached for a name that is NOT
+# a primitive tag, so every program written before this round — including
+# every program `harness/swe/fuzz.py` emits, whose TYPE_TAGS are primitives
+# only — pays exactly nothing for it.
+fn is_shape_head(toks, i) {
+  let k = t_at(toks, i)
+  k.t == "name" and k.v == "shape" and is_ntype(toks, i + 1, "name") and
+    is_op(toks, i + 2, "=")
+}
+
+# index of the `}` closing the record literal that starts at `pos`; `depth`
+# starts at 0 so the opening `@{` is what raises it to 1. A malformed
+# declaration just runs to eof and reports that index — the real parse below
+# is what turns it into a message.
+fn shape_close(toks, pos, depth) {
+  let k = t_at(toks, pos)
+  if k.t == "eof" { pos }
+  else if k.t == "op" and (k.v == "@{" or k.v == "{") {
+    shape_close(toks, pos + 1, depth + 1)
+  }
+  else if k.t == "op" and k.v == "}" and depth <= 1 { pos }
+  else if k.t == "op" and k.v == "}" { shape_close(toks, pos + 1, depth - 1) }
+  else { shape_close(toks, pos + 1, depth) }
+}
+
+fn shapes_declared_before(toks, limit, i, acc) {
+  if i + 2 >= limit { acc }
+  else {
+    let acc2 = if is_shape_head(toks, i) and shape_close(toks, i + 3, 0) < limit {
+      push(acc, (t_at(toks, i + 1)).v)
+    } else { acc }
+    shapes_declared_before(toks, limit, i + 1, acc2)
+  }
+}
+
 fn expect_type_name(toks, pos) {
   let k = t_at(toks, pos)
   let name = if k.t == "kw" and k.v == "fn" { "fn" }
     else if k.t == "name" { k.v } else { "" }
   if name == "" { miss ("expected a type name at line " + str(k.line)) }
-  else if not contains(guest_primitive_types, name) {
-    miss ("unknown type '" + name + "'")
+  else if contains(guest_primitive_types, name) {
+    @{type: name, spec: spec_node(name), pos: pos + 1}
   }
-  else { @{type: name, pos: pos + 1} }
+  else if contains(shapes_declared_before(toks, pos, 0, []), name) {
+    @{type: name, spec: name_node(name), pos: pos + 1}
+  }
+  else { miss ("unknown type '" + name + "'") }
 }
 
 # optional `TRIGGER TAG` (`:` for a param, `->` for a return type); absent
-# is `@{type: "", pos: pos}` unchanged — "" is the same no-annotation
+# is `@{type: "", spec: "", pos: pos}` — "" is the same no-annotation
 # sentinel `guest_tag` already uses for "no __tag field".
+#
+# `spec` (round 338) is the AST node a `typed()` guard reads its spec FROM,
+# mirroring the host's `_type_spec_expr` exactly: a `str` node holding the
+# tag for a primitive, a `name` node for a shape. A NameRef, not a copy of
+# the shape record, is what makes nested shapes the SAME value on both sides
+# — `shape Line = @{a: Point, b: Point}` reads the one binding `Point` names.
 fn parse_typed_suffix(toks, pos, trigger) {
   if is_op(toks, pos, trigger) { expect_type_name(toks, pos + 1) }
-  else { @{type: "", pos: pos} }
+  else { @{type: "", spec: "", pos: pos} }
 }
 
 fn parse_params(toks, pos, acc, tacc) {
@@ -400,7 +469,7 @@ fn parse_params(toks, pos, acc, tacc) {
     let dup = contains(acc, nm.name)
     let acc2 = push(acc, nm.name)
     let tr = parse_typed_suffix(toks, nm.pos, ":")
-    let tacc2 = push(tacc, tr.type)
+    let tacc2 = push(tacc, tr.spec)
     if dup { miss ("duplicate parameter '" + nm.name + "'") }
     else if is_op(toks, tr.pos, ",") { parse_params(toks, tr.pos + 1, acc2, tacc2) }
     else { @{params: acc2, types: tacc2, pos: expect_op(toks, tr.pos, ")")} }
@@ -418,14 +487,20 @@ fn spec_node(tag) { @{kind: "str", value: tag} }
 fn name_node(n) { @{kind: "name", value: n} }
 fn call_node(callee, cargs) { @{kind: "call", func: name_node(callee), args: cargs} }
 
+# `types` holds SPEC NODES (round 338), not type-name strings: the node
+# `expect_type_name` already built, so a shape guard reads `Point` by name
+# and a primitive guard is the string literal it always was. "" is still the
+# no-annotation sentinel, and `<record> == ""` is an ordinary host `false`
+# (deep_eq resolves a type mismatch at the top level without descending), so
+# the unannotated fast path is unchanged.
 fn build_guards(params, types, i, acc, suffix) {
   if i >= len(params) { acc }
   else {
-    let tname = types[i]
-    let acc2 = if tname == "" { acc }
+    let spec = types[i]
+    let acc2 = if spec == "" { acc }
       else {
         let label = "parameter '" + params[i] + "'" + suffix
-        let call = call_node("typed", [name_node(params[i]), spec_node(tname), spec_node(label)])
+        let call = call_node("typed", [name_node(params[i]), spec, spec_node(label)])
         push(acc, @{kind: "let", name: params[i], value: call})
       }
     build_guards(params, types, i + 1, acc2, suffix)
@@ -520,6 +595,53 @@ fn parse_stmt_list(toks, pos, end, acc, bound) {
   }
 }
 
+# `shape Name = @{field: type, …}` is PURE SUGAR (host `shape_def`): it
+# desugars to `let Name = @{__shape: "Name", field: <spec>, …}` and reaches
+# `parse_stmt_list` as an ordinary `let` node, so the no-rebinding rule
+# applies to a shape name for free and the shape is an ordinary runtime
+# record that `matches(x, Name)` and nested shape fields read by name.
+#
+# The three declaration-time errors are the host's three, in the host's
+# order — reserved primitive name, already-declared shape, duplicate field.
+# Whence evaluates `let` bindings eagerly, so `fields` below is computed
+# before the two name tests are reached; that costs nothing and cannot
+# reorder a message, because a miss is a VALUE here (the reserved/duplicate
+# branches simply never read it) and the success branch propagates whatever
+# `fields` became, exactly like every other parse failure in this file.
+fn parse_shape_fields(toks, pos, acc, seen) {
+  if is_op(toks, pos, "}") { @{pairs: acc, pos: pos + 1} }
+  else {
+    let f = expect_name(toks, pos)
+    let dup = contains(seen, f.name)
+    let after_colon = expect_op(toks, f.pos, ":")
+    let ft = expect_type_name(toks, after_colon)
+    let acc2 = push(acc, @{name: f.name, value: ft.spec})
+    let seen2 = push(seen, f.name)
+    if dup { miss ("duplicate field '" + f.name + "'") }
+    else if is_op(toks, ft.pos, ",") { parse_shape_fields(toks, ft.pos + 1, acc2, seen2) }
+    else { @{pairs: acc2, pos: expect_op(toks, ft.pos, "}")} }
+  }
+}
+
+fn parse_shape_def(toks, pos) {
+  let nm = expect_name(toks, pos + 1)
+  let after_eq = expect_op(toks, nm.pos, "=")
+  let after_brace = expect_op(toks, after_eq, "@{")
+  let head = @{name: "__shape", value: spec_node(nm.name)}
+  let fields = parse_shape_fields(toks, after_brace, [head], [])
+  if contains(guest_primitive_types, nm.name) {
+    miss ("'" + nm.name + "' is a reserved type name")
+  }
+  else if contains(shapes_declared_before(toks, pos, 0, []), nm.name) {
+    miss ("shape '" + nm.name + "' is already declared")
+  }
+  else {
+    @{node: @{kind: "let", name: nm.name,
+              value: @{kind: "record", pairs: fields.pairs}},
+      pos: fields.pos}
+  }
+}
+
 fn parse_stmt(toks, pos) {
   if is_kw(toks, pos, "let") {
     let nm = expect_name(toks, pos + 1)
@@ -533,7 +655,7 @@ fn parse_stmt(toks, pos) {
     let ep = parse_effects_clause(toks, ps.pos)
     let rt = parse_typed_suffix(toks, ep, "->")
     let body0 = parse_block(toks, rt.pos)
-    @{node: @{kind: "fndef", name: nm.name, params: ps.params, ret_type: rt.type,
+    @{node: @{kind: "fndef", name: nm.name, params: ps.params, ret_type: rt.spec,
               body: apply_type_guards(body0.node, ps.params, ps.types, " of " + nm.name)},
       pos: body0.pos}
   }
@@ -544,6 +666,7 @@ fn parse_stmt(toks, pos) {
     let e = parse_expr(toks, after_colon)
     @{node: @{kind: "check", label: label, expr: e.node}, pos: e.pos}
   }
+  else if is_shape_head(toks, pos) { parse_shape_def(toks, pos) }
   else {
     let e = parse_expr(toks, pos)
     @{node: @{kind: "exprstmt", expr: e.node}, pos: e.pos}
@@ -749,5 +872,77 @@ check "the if/else in hello.lang round-trips structurally":
   ((hello_ast.stmts[9]).value).kind == "if" and
     ((hello_ast.stmts[9]).value).cond.op == ">" and
     (((((hello_ast.stmts[9]).value).then).stmts[0]).expr).value == "big"
+
+# ---- tests: `shape` declarations (v0.12 guest parity, round 338) --------
+# The claim is that the guest desugars `shape` EXACTLY as the host's
+# `shape_def` does — to a plain `let` binding a record whose first field is
+# `__shape` — so the shape is an ordinary runtime value and every rule that
+# already applies to a `let` name applies to it for free.
+let sh_ast = parse_whence("shape Point = @{x: num, y: num}\nlet p = 1")
+let sh_rec = (sh_ast.stmts[0]).value
+check "a shape declaration parses": not missed(sh_ast)
+check "a shape desugars to an ordinary let":
+  (sh_ast.stmts[0]).kind == "let" and (sh_ast.stmts[0]).name == "Point"
+check "the bound value is a record literal": sh_rec.kind == "record"
+check "__shape comes first and names the shape":
+  ((sh_rec.pairs)[0]).name == "__shape" and
+    (((sh_rec.pairs)[0]).value).value == "Point"
+check "a primitive field type becomes a str spec node":
+  ((sh_rec.pairs)[1]).name == "x" and (((sh_rec.pairs)[1]).value).kind == "str"
+check "an empty shape still carries __shape":
+  len((((parse_whence("shape E = @{}\nlet p = 1")).stmts[0]).value).pairs) == 1
+
+# A shape-typed FIELD is a NameRef, never a copy: `shape L = @{a: P}` must
+# read the one binding `P` names, which is what makes nested shapes compose
+# structurally instead of snapshotting P at declaration time (host
+# `_type_spec_expr`).
+let sh_nest = parse_whence("shape P = @{x: num}\nshape L = @{a: P}\nlet q = 1")
+let sh_field = ((((sh_nest.stmts[1]).value).pairs)[1]).value
+check "a shape-typed field becomes a name node, not a copy":
+  sh_field.kind == "name" and sh_field.value == "P"
+
+# Annotation position: the spec node a guard reads its type FROM.
+let sh_guard = parse_whence("shape P = @{x: num}\nfn f(a: P) { a }\nlet z = 1")
+let sh_spec = (((((sh_guard.stmts[1]).body).stmts[0]).value).args)[1]
+check "a parameter guard reads a shape by name":
+  sh_spec.kind == "name" and sh_spec.value == "P"
+let sh_ret = parse_whence("shape P = @{x: num}\nfn f() -> P { 1 }\nlet z = 1")
+check "a return annotation carries a name node for a shape":
+  ((sh_ret.stmts[1]).ret_type).kind == "name" and
+    ((sh_ret.stmts[1]).ret_type).value == "P"
+check "a return annotation carries a str node for a primitive":
+  ((((parse_whence("fn f() -> num { 1 }\nlet z = 1")).stmts[0]).ret_type).kind
+   == "str")
+check "an unannotated fn still has the empty-string sentinel":
+  (((parse_whence("fn f() { 1 }\nlet z = 1")).stmts[0]).ret_type) == ""
+
+# The five declaration-time rejections, in the host's own order, plus the
+# two that were already there before shapes existed.
+check "a shape cannot reference itself":
+  missed(parse_whence("shape P = @{x: P}\nlet z = 1"))
+check "no forward references between shapes":
+  missed(parse_whence("shape A = @{b: B}\nshape B = @{x: num}\nlet z = 1"))
+check "a primitive tag cannot be redeclared as a shape":
+  missed(parse_whence("shape num = @{x: num}\nlet z = 1"))
+check "a shape cannot be declared twice":
+  missed(parse_whence("shape P = @{x: num}\nshape P = @{y: num}\nlet z = 1"))
+check "duplicate shape fields are rejected":
+  missed(parse_whence("shape P = @{x: num, x: str}\nlet z = 1"))
+check "a shape name cannot be rebound, like any other let":
+  missed(parse_whence("shape P = @{x: num}\nlet P = 1\nlet z = 1"))
+check "an unknown type name is still rejected":
+  missed(parse_whence("fn f(a: Nope) { a }\nlet z = 1"))
+
+# `shape` stays a CONTEXTUAL keyword: only three ADJACENT tokens trigger it,
+# which is exactly what the host's peek(1)/peek(2) require (neither skips a
+# newline). Both halves matter — the first keeps old programs working, the
+# second is the premise that lets `shapes_declared_before` recover the
+# host's mutable parser state from the token stream alone.
+check "`shape` is contextual, not reserved":
+  not missed(parse_whence("let shape = 5\nlet z = shape + 1"))
+check "a field may be called shape":
+  not missed(parse_whence("let r = @{shape: 3}\nlet z = r.shape"))
+check "`shape` needs three adjacent tokens":
+  missed(parse_whence("shape\nP = @{x: num}\nlet z = 1"))
 
 print("self_host.lang: guest lexer+parser for real Whence syntax, all checks above passed")
