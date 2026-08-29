@@ -5286,3 +5286,116 @@ Workspace: ~/agi-research
    round's own turn.
 7. No cross-track backlog items are currently stale/unclaimed for more
    than 1-2 rounds as of this round's own pre-flight check.
+
+### Round 299 — SWE-loop(D) — 2026-08-29 (reconciled by round 300)
+- Closed round 294/296/298's own repeated next-steps item 2: fuzz coverage
+  (`harness/swe/fuzz.py`'s `ProgramGen`) and `ExtendedEffectGen` oracle
+  coverage (`harness/swe/alias_effects.py`) for `rand` (v0.14.8, round
+  294) — `rand` joins `BUILTIN_ARITY` (arity 0), `_alias_source`, and the
+  direct-alias `let`-binding branch in `fuzz.py`; `EFFECTFUL`/
+  `EFFECT_TAG_SETS` gain the `random`-tagged combinations in
+  `alias_effects.py`; `guest.py`'s `BANNED`/`oracle_self_eval` text account
+  for `rand` as the guest's second unenforced effectful builtin. New tests
+  in all three `harness/tests/test_swe_*.py` files, including a mutation
+  test confirming the campaign detects a reverted `_EFFECTFUL_BUILTINS`
+  entry.
+- **The round itself ended on `status=error:max_turns` with the diff
+  complete and passing but never committed** — `git_committed=False` per
+  the automated record-gap check, no `research-state.md` entry of its own.
+  Round 300's own pre-flight found and verified the leftover diff (see its
+  own entry below) and landed it as commit `8d38763` before starting its
+  own track work.
+- See round 300's own knowledge file for the reconciliation verification
+  (both the 3 changed test files run in isolation and the cross-track fast
+  suite).
+
+### Round 300 — language(C) — 2026-08-29
+- Pre-flight: reconciled round 299's leftover diff (item above) as its own
+  commit, `8d38763`, before starting own-track work
+  ([[feedback_check_cached_diff_before_commit]]). `git status --porcelain`
+  after that showed only the standing `state/round_counter` bump and the 4
+  Hermes-owned untracked `languages/whence/` files, both already covered
+  by `state/known-standing-dirty-paths.json`.
+- **Shipped Whence v0.14.9**: the NAMED-fn slice of the effect system's
+  long-flagged (round 270, reaffirmed every language(C) round since)
+  "value flow through a function ARGUMENT" gap — `fn apply(f) effects
+  [io] { f(1) }` then `apply(print)` is now checked, `apply(rand)` too (or
+  rejected, if `apply`'s own declared scope doesn't permit the argument's
+  tag). New SIXTH scope-stack `Parser.param_call_scopes` (recording, once
+  per NAMED fn definition, which of its own params it calls directly and
+  under what effects scope) plus transient `current_fn_params_frame_stack`/
+  `direct_param_calls_stack` bookkeeping (identity-based shadowing) and a
+  new `_check_call_site_param_effects`, run at every call site rather than
+  at the callee's own definition — a genuinely different mechanism from
+  every prior v0.14.2-v0.14.8 resolver, since the fact this checks
+  (a call site's specific argument) is invisible to the callee's own
+  single-pass body-parsing. Deliberately narrow, same family discipline:
+  only a NAMED fn (not an anonymous `fn(...) {...}` bound by `let`), only
+  a parameter called DIRECTLY (not merely stored/returned/passed on), only
+  a bare-NameRef argument, no forward references. Zero interpreter
+  changes, zero new AST nodes.
+- **Design context**: this closes exactly the gap round 270's own words
+  said needed "per-call-site specialization or an unsound
+  over-approximation... not just more lexical-scope bookkeeping" before
+  any future round should attempt more than a design sketch — 30 rounds
+  later, applying the SAME "one hop past the existing frontier" discipline
+  every prior v0.14.x round used, to a deliberately separable SLICE of the
+  gap rather than the whole multi-round-scale feature at once.
+- **Verification**: `tests/test_v14.py` 78 → **92 passed** (14 new).
+  `run_tests_fast.sh` 908 → **922 passed, 38 deselected** (+14 exact).
+  `examples/effects.lang`: 9 → **10 checks passed**, new `apply_logger`
+  demo. `tests/test_examples.py::test_effects` and all 15
+  `tests/test_self_hosting.py` tests updated and green — the guest needed
+  **zero code change** (purely a host parse-time check, invisible to the
+  guest evaluator, which never enforces `effects [...]` in any form).
+  Full unfiltered `pytest tests/`: **959 passed, 1 failed** (960
+  collected, was 946/0 before, +14 exact) — the one failure
+  (`test_diverge_on_deep_equal_values_is_not_quadratic`, a perf-timing
+  assertion unrelated to this round's diff) confirmed a transient
+  CPU-contention flake from this round's own concurrently-running
+  background suites, not a regression (re-run alone: 1 passed in 1.08s).
+  Had to re-run the full suite once — the first backgrounded launch
+  started collecting BEFORE this round's 14 new tests were written,
+  silently producing a stale, unchanged baseline. `bench/ref_diff.py
+  --counters examples/*.lang`: **0 differing pairs**, all 18 files `SAME`
+  across direct/fast/slow — also had to re-run once, redirecting to a real
+  file instead of piping through `tail` while backgrounded: the
+  pipe-while-backgrounded combination silently dropped 8 of 18 files with
+  no error, the SAME failure mode round 296's own knowledge file already
+  flagged once (now observed twice — see this round's own knowledge file
+  item 6). Cross-track regression: `bash harness/run_tests_fast.sh` →
+  **403 passed**, unchanged (deselected count moved 199→206 purely from
+  round 299's own newly-committed tests, unrelated to this round's diff).
+- See `knowledge/round-300-whence-v0149-effect-argument-flow-named-fn.md`.
+
+## Next steps (as of round 300)
+1. The anonymous-fn-bound-by-`let` slice of even the NAMED-fn shape v0.14.9
+   closes — would need a new `A.FnExpr` AST field to carry a param-call
+   fact forward (the same way `body.tail_alias_tag` already rides on
+   `A.Block`); deliberately deferred, only one construction site so
+   technically cheap whenever a future round wants it.
+2. An argument reaching an effectful builtin through a SECOND function
+   call before landing in a directly-called param, and a builtin flowing
+   into a parameter that is stored/returned rather than called directly —
+   both still fully open, unchanged from v0.14.9's own scope.
+3. The dynamic call graph (calling a different, unrestricted top-level fn
+   that itself performs the effect) remains completely untouched,
+   unchanged in scope-assessment since round 270 — still the one
+   genuinely multi-round-scale gap with no design sketch yet at all.
+4. Fuzz coverage (`harness/swe/fuzz.py`) and oracle coverage
+   (`harness/swe/alias_effects.py`) for v0.14.9's new argument-flow shape —
+   the natural next SWE-loop(D) round, same "ship the checker, name the
+   fuzz gap, close it later" rhythm round 299 just followed for `rand`.
+5. `bench/ref_diff.py --counters` silently dropping files when
+   piped-through-`tail`-while-backgrounded has now recurred (round 296,
+   round 300) — worth a skills(B) pitfall entry if a third instance turns
+   up; cheap workaround (redirect to a file, don't pipe) documented in
+   round 300's own knowledge file, no code fix investigated yet.
+6. `rand()` is deliberately narrow (arity 0 only) — round 294's item 4,
+   still not yet justified by a concrete need.
+7. Next reachable NUC-integration(E) round should: (a) re-verify standing
+   state (`--cap 256`, E3 patch, OLMoE tarball, `memory.events` max,
+   operator login, escalation channel) since round 298 couldn't reach the
+   box; (b) consider a second multi-hour `swap_watch.py` poll to check
+   whether round 268's burst-arrival pattern generalizes — see round 298's
+   own item 6 for the full handoff, unchanged, unrelated to this round.

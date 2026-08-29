@@ -509,6 +509,16 @@ def test_effects_lang_runs_under_the_guest_round_164_backlog_closed():
     # same order, so both agree exactly given the same seed -- the file now
     # evaluates cleanly under the guest with every check, including both of
     # `rand`'s own, passing.
+    #
+    # v0.14.9 (round 300) added one more check (`apply_logger`, a builtin
+    # passed as a directly-called function ARGUMENT) but needed NO guest
+    # change at all: unlike `rand`, this is a purely HOST PARSE-TIME static
+    # check (`Parser.param_call_scopes`/`_check_call_site_param_effects`)
+    # -- the guest never re-runs the host's own effects checker at all (it
+    # already doesn't enforce `effects [...]` in any form), and calling a
+    # parameter as a function is ordinary Whence semantics the guest
+    # already supports with no special-casing. `apply_logger(print,
+    # prices)` is just one more ordinary call to the guest evaluator.
     eval_lib = eval_library_source()
     effects_src = open(EFFECTS).read()
     prog = eval_lib + 'let __r = run_src("%s")\n' % escape(effects_src)
@@ -516,7 +526,7 @@ def test_effects_lang_runs_under_the_guest_round_164_backlog_closed():
     rec = env.get("__r").payload
     assert rec.fields["parse_error"].payload is False
     checks = rec.fields["checks"].payload
-    assert len(checks) == 9
+    assert len(checks) == 10
     failed = [c.payload.fields["label"].payload for c in checks
               if c.payload.fields["pass"].payload is not True]
     assert not failed, failed

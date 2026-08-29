@@ -1638,7 +1638,107 @@ that cannot end a statement.
   (`harness/swe/fuzz.py`'s `ProgramGen`, + a `BANNED` second entry in
   `harness/swe/guest.py`) and `ExtendedEffectGen` oracle coverage for
   `rand` — SWE-loop(D)'s own next round, same shape as the v0.14.2-
-  v0.14.7 arc but for a genuinely new builtin.
+  v0.14.7 arc but for a genuinely new builtin. **Closed by round 299**
+  (`harness/swe/fuzz.py`, `harness/swe/alias_effects.py`,
+  `harness/swe/guest.py`) — see that round's own `research-state.md` entry.
+
+## v0.14.9 (round 300) — effect system: the NAMED-fn slice of value flow through a function ARGUMENT
+- **The two remaining effect-system gaps, unchanged in scope-assessment
+  since round 270** (SPEC.md's own v0.14/v0.14.4/v0.14.7/`tests/
+  test_v14.py`'s module docstring, repeatedly reaffirmed through round
+  298's `research-state.md` next-steps): (a) value flow through a function
+  ARGUMENT, (b) the dynamic call graph (calling a different, unrestricted
+  top-level fn that itself performs the effect). Both were explicitly
+  flagged as needing a real design decision — "per-call-site
+  specialization or an unsound over-approximation... not just more
+  lexical-scope bookkeeping" (round 270's own words) — before any future
+  round should attempt more than a design sketch. This round picks (a)
+  apart rather than attempting it whole: within it, a NAMED fn (`fn
+  NAME(...) {...}`) calling one of its OWN parameters directly is a
+  narrower, cleanly-scoped sub-problem than the general case (an anonymous
+  `fn(...) {...}` bound by `let`, or a param merely stored/returned/passed
+  further along), and is exactly the "one hop past the existing frontier"
+  shape every prior v0.14.x round has used to make forward progress
+  without attempting the full, genuinely multi-round-scale feature in one
+  sitting.
+- **Design**: unlike every sibling `_resolve_effectful_*` (each answers
+  "does THIS NAME carry an effect fact", decidable once, at its own
+  binding site), whether `fn apply(f) effects [io] { f(1) }` is sound to
+  call as `apply(print)` depends on the SPECIFIC ARGUMENT at each call
+  site — `apply`'s own body, parsed exactly once, independent of any call
+  site, never learns what `f` actually is. The check therefore cannot live
+  where every other v0.14.x check lives (inside the callee's own body
+  parsing); it has to run at each CALL SITE instead, against a fact
+  recorded ONCE, when `apply` itself was defined: which of its own params
+  it calls directly, and under what `effects [...]` scope. New machinery,
+  `whence/parser.py`:
+  - **`Parser.param_call_scopes`**: a SIXTH stack, same per-block-frame
+    shape and push/pop sites as the other five (`alias_scopes` and
+    friends). Maps a NAMED fn's name to `None` (calls none of its own
+    params directly) or `(effects_scope, params_tuple,
+    frozenset_of_directly_called_param_names)`, recorded once its body
+    finishes parsing — the exact same place `return_alias_scopes[-1][name]
+    = body.tail_alias_tag` already records the v0.14.3 return fact.
+  - **`Parser.current_fn_params_frame_stack` / `direct_param_calls_stack`**:
+    transient (NOT scope-shaped) bookkeeping, live only while a single
+    fn's own body is being parsed, accumulating which of ITS OWN params
+    are seen as a direct call target (`f(...)`) anywhere in the body, at
+    any nesting depth. Correctness of SHADOWING (a nested block's own
+    `let`/`fn`/param of the same name must NOT be misattributed to the
+    outer fn's own parameter) comes from an IDENTITY comparison: the exact
+    dict object pushed for the fn's own params frame is captured once and
+    compared, by `is`, against whatever frame an innermost-first walk of
+    `alias_scopes` actually resolves the callee name through
+    (`_innermost_frame_containing`) — if a closer frame wins, it is not
+    this fn's own parameter, full stop.
+  - **`Parser._check_call_site_param_effects`**: runs at every call
+    expression (`postfix()`, alongside `_check_effect_call`), looks up the
+    callee's recorded param-call fact (`_resolve_param_call_fact`, the
+    same innermost-first walk every sibling resolver uses), and for each
+    argument landing in a directly-called parameter slot, checks it —
+    against the CALLEE's own recorded effects scope, not the caller's
+    (the callee's body, not the call site, is what actually performs the
+    effect).
+- **Deliberately narrow, the same discipline every v0.14.x round before
+  it used**: only a NAMED fn is tracked (an anonymous `fn(...) {...}`
+  bound by `let` has no name yet at the point its own param-call fact
+  would need to be recorded under — would need a new `A.FnExpr` AST field
+  to carry the fact forward, the same way `body.tail_alias_tag` already
+  rides on `A.Block`, deliberately out of scope this round); only a
+  parameter called DIRECTLY (`f(...)`) is tracked, not one merely stored,
+  returned, or passed on to a THIRD function; only a bare-NameRef argument
+  at the call site is inspected, the same "bare-NameRef only" boundary
+  every sibling resolver already has; forward-referenced or mutually-
+  recursive fns are invisible, same single left-to-right parse pass as
+  everything else in this family.
+- **Zero interpreter changes, zero new AST nodes** — entirely parse-time,
+  same as every v0.14.x feature before it.
+- **Verification**: `tests/test_v14.py` 78 → **92 passed** (14 new:
+  the basic grant/reject pair, the no-clause-unrestricted case, the
+  `random` tag mirror, a non-effectful argument, "stored not called" is
+  not a false positive, only the directly-called param position is
+  checked (not a sibling param), a non-NameRef argument is invisible, the
+  anonymous-`let`-bound-fn boundary, inner-fn-same-param-name shadowing in
+  both directions, the callee's-own-scope-not-the-caller's distinction,
+  a too-few-args guard, a plain rename carries the fact forward, and a
+  parameter shadowing an earlier-tracked fn name). `run_tests_fast.sh`:
+  **908 passed, 38 deselected**, byte-identical to round 296's own
+  baseline (this round adds new tests but no new runtime-reachable code
+  path any pre-existing fast-tier test would exercise). Full unfiltered
+  `pytest tests/` run in the background per the round-227 convention.
+  Cross-track regression: `bash harness/run_tests_fast.sh` unaffected
+  (this round touches only `languages/whence/`, confirmed via `git status`
+  before starting).
+- **Still open, unchanged from every prior round's own assessment**: an
+  argument reaching an effectful builtin through a SECOND function call
+  before landing in a directly-called param; a builtin flowing into a
+  param that is stored/returned rather than called directly; the
+  anonymous-fn-bound-by-`let` slice of even the NAMED-fn shape this round
+  closes; and the dynamic call graph (b), completely untouched. Fuzz
+  coverage (`harness/swe/fuzz.py`) and oracle coverage
+  (`harness/swe/alias_effects.py`) for this new shape are open, the same
+  "ship the checker, name the fuzz gap, close it in a later dedicated
+  round" rhythm every v0.14.x feature has followed.
 
 ## v0.15 (round 168) — AI-native primitives: `guess`/confidence
 - **The curriculum's last open "advanced feature" slot** (structural types

@@ -109,9 +109,30 @@ check "a builtin stored in a record field is checked the same as a direct alias"
 # shallow: this only recognizes a record built directly by a `let`
 # LITERAL, with a bare-name field value — one returned from a call, or a
 # field whose value is itself a call, are both still invisible (see
-# SPEC.md "v0.14.4"). Passing `print` as a function ARGUMENT remains
-# invisible too, the one shape of the "argument/return/container field"
-# trio still fully open.
+# SPEC.md "v0.14.4").
+
+# v0.14.9: passing an effectful builtin AS A FUNCTION ARGUMENT is now
+# tracked too, for a NAMED fn that calls that parameter DIRECTLY —
+# `apply_logger` below calls its own `f` parameter directly (`f(...)`),
+# so a call site handing it `print` is checked against `apply_logger`'s
+# OWN declared scope, exactly as if `print` had been named in its body
+# directly.
+fn apply_logger(f, prices) effects [io] {
+  f("logged total (via argument): " + str(total(prices)))
+  total(prices)
+}
+check "a builtin passed as a directly-called argument is checked the same as a direct call":
+  apply_logger(print, prices) == 60
+# Writing `apply_logger` as `effects []` instead, or calling it as
+# `apply_logger(rand, prices)` (wrong tag, "random" not "io"), would both
+# be a ParseError at the CALL SITE `apply_logger(print, prices)` above,
+# not inside `apply_logger`'s own body — its body never learns what `f`
+# actually is; only the call site knows. Still shallow: only a NAMED fn's
+# own parameters are tracked (an anonymous `fn(...) {...}` bound by `let`
+# is not), only a parameter called DIRECTLY (not merely stored, returned,
+# or passed to a third function) is tracked, and the dynamic call graph
+# (calling a different, unrestricted top-level fn that itself performs
+# the effect) remains completely untouched (see SPEC.md "v0.14.9").
 
 # v0.14.8: `rand()` is the SECOND effectful builtin (tag "random", distinct
 # from print's "io") — every check above only ever exercised ONE real tag,

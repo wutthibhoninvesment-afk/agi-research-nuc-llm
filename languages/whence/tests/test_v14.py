@@ -159,6 +159,38 @@ work (see research-state.md's language backlog).
   own claim ("a future effectful builtin ... slots in by adding one entry
   here — no other code needs to change") literally true: `_check_effect_
   call` and every `_resolve_effectful_*` helper needed zero changes.
+
+- **v0.14.9 (round 300): the NAMED-fn slice of the FUNCTION-ARGUMENT gap.**
+  Every prior round in this family answered "does THIS NAME, resolved once
+  at its own scope, carry an effect fact" — decidable the moment its
+  binding site is parsed. Whether `fn apply(f) effects [io] { f(1) }` is
+  sound to call as `apply(print)` depends on the SPECIFIC ARGUMENT at each
+  call site, not on anything `apply`'s own body (parsed exactly once,
+  independent of any call site) can ever resolve about `f` — a genuinely
+  different shape from every sibling resolver, needing a check that runs
+  at the CALL SITE, not at the callee's own definition
+  (`Parser.param_call_scopes`, `_check_call_site_param_effects`).
+  `apply`'s own definition records, once, which of its params it calls
+  directly (`f`) and its own resolved effects scope (`[io]`); each later
+  call site re-checks whichever argument lands in a directly-called
+  parameter slot against THAT recorded scope —
+  `test_argument_passed_to_a_directly_called_param_is_checked`,
+  `test_argument_passed_to_a_directly_called_param_is_rejected_when_not_
+  permitted`. Deliberately narrow, the same "one hop, bare NameRef,
+  textually before" discipline the whole family already uses: only a NAMED
+  fn's own params are tracked, not an anonymous `fn(...) {...}` bound by
+  `let` (`test_anon_fn_bound_by_let_param_call_is_not_tracked`); only a
+  param called DIRECTLY in the body, not one merely stored or passed on
+  (`test_param_only_stored_not_called_is_not_tracked`); only a bare-NameRef
+  argument at the call site, not one that is itself a call or a field
+  access (`test_non_namerefarg_to_a_directly_called_param_is_not_tracked`);
+  shadowing is correct, both for a nested fn re-using the same param name
+  (`test_inner_fn_with_same_param_name_is_checked_against_its_own_scope`)
+  and for the fact this uses `apply`'s OWN declared scope, not the CALLER's
+  (`test_check_uses_callees_own_scope_not_the_callers`). Two genuine
+  gaps remain, explicitly still open: an argument reaching an effectful
+  builtin through a SECOND function call first, and the still-untouched
+  dynamic call graph.
 """
 
 import os
@@ -1174,3 +1206,177 @@ def test_three_way_rand_matches_across_direct_fast_slow():
     match byte-for-byte, the same standing three-way contract every other
     builtin here already satisfies."""
     assert_three_way('fn f() effects [random] { rand() }\nlet result = f()\n')
+
+
+# ============================================== v0.14.9 (round 300) ======
+
+def test_argument_passed_to_a_directly_called_param_is_checked():
+    all_ok(
+        'fn apply(f) effects [io] { f(1) }\n'
+        'apply(print)\n'
+        'check "ok": true\n')
+
+
+def test_argument_passed_to_a_directly_called_param_is_rejected_when_not_permitted():
+    with pytest.raises(ParseError) as ei:
+        parse('fn silent(f) effects [] { f(1) }\nsilent(print)\n')
+    msg = str(ei.value)
+    assert "'silent'" in msg and "requires" not in msg  # different wording from _check_effect_call
+    assert "effect 'io'" in msg and "not permitted" in msg
+
+
+def test_argument_passed_to_a_directly_called_param_with_no_effects_clause_is_unrestricted():
+    """No `effects [...]` clause at all on the callee (unrestricted, the
+    default) — same "None means unrestricted" convention as every other
+    check in this family."""
+    all_ok(
+        'fn apply(f) { f(1) }\n'
+        'apply(print)\n'
+        'check "ok": true\n')
+
+
+def test_random_tag_argument_is_checked_same_as_io():
+    all_ok(
+        'fn apply(f) effects [random] { f() }\n'
+        'apply(rand)\n'
+        'check "ok": true\n')
+    with pytest.raises(ParseError) as ei:
+        parse('fn apply(f) effects [io] { f() }\napply(rand)\n')
+    assert "effect 'random'" in str(ei.value)
+
+
+def test_non_effectful_argument_to_a_directly_called_param_is_unaffected():
+    all_ok(
+        'fn apply(f) effects [] { f(1) }\n'
+        'fn double(x) { x * 2 }\n'
+        'apply(double)\n'
+        'check "ok": true\n')
+
+
+def test_param_only_stored_not_called_is_not_tracked():
+    """`f` is never called directly in `store`'s own body — merely bound to
+    a local name — so it never enters `param_call_scopes`' own recorded
+    fact for `store`, and this parses fine even though `store` itself
+    declares `effects []`."""
+    all_ok(
+        'fn store(f) effects [] { let x = f\n1 }\n'
+        'store(print)\n'
+        'check "ok": true\n')
+
+
+def test_only_the_directly_called_param_position_is_checked():
+    """Two params, only one (`a`) called directly — an effectful argument
+    passed for the OTHER, uncalled param (`b`) is invisible; the exact
+    same argument passed for `a` is checked."""
+    all_ok(
+        'fn combo(a, b) effects [] { a(1) }\n'
+        'combo(5, print)\n'
+        'check "ok": true\n')
+    with pytest.raises(ParseError):
+        parse('fn combo(a, b) effects [] { a(1) }\ncombo(print, 5)\n')
+
+
+def test_non_namerefarg_to_a_directly_called_param_is_not_tracked():
+    """The argument itself must be a bare NameRef — a call expression
+    result (or any other expression shape) landing in a directly-called
+    param slot is invisible, the same "bare-NameRef only" boundary every
+    sibling resolver in this family already has."""
+    all_ok(
+        'fn get_printer() { print }\n'
+        'fn apply(f) effects [] { f(1) }\n'
+        'apply(get_printer())\n'
+        'check "ok": true\n')
+
+
+def test_anon_fn_bound_by_let_param_call_is_not_tracked():
+    """Deliberately out of scope for v0.14.9: an anonymous `fn(...) {...}`
+    bound by `let` has no name at the point its own params/body are
+    parsed, so there is nowhere to record a param-call fact under — this
+    parses without error even though, were `g` a NAMED fn, it would be
+    rejected (see `test_argument_passed_to_a_directly_called_param_is_
+    rejected_when_not_permitted` for the named-fn mirror image)."""
+    all_ok(
+        'let g = fn(f) effects [] { f(1) }\n'
+        'g(print)\n'
+        'check "ok": true\n')
+
+
+def test_inner_fn_with_same_param_name_is_checked_against_its_own_scope():
+    """A nested named fn's own parameter of the SAME name as the outer
+    fn's own parameter correctly shadows it — the inner fn's own recorded
+    fact (and own effects scope) governs, not the outer's, the same
+    shadowing discipline every other stack in this family already has."""
+    with pytest.raises(ParseError) as ei:
+        parse(
+            'fn helper(f) effects [io] {\n'
+            '  fn inner(f) effects [] { f(2) }\n'
+            '  inner(print)\n'
+            '}\n')
+    assert "'inner'" in str(ei.value)
+    # The mirror image: inner's own scope PERMITS it, even though it is
+    # nested inside a differently-scoped outer fn.
+    all_ok(
+        'fn helper(f) effects [] {\n'
+        '  fn inner(f) effects [io] { f(2) }\n'
+        '  inner(print)\n'
+        '}\n'
+        'check "ok": true\n')
+
+
+def test_check_uses_callees_own_scope_not_the_callers():
+    """The check is against `apply`'s OWN declared effects scope, not the
+    CALLING scope's — `apply`'s body, not the call site, is what actually
+    executes `f(1)`. An unrestricted top-level call site may freely call
+    `apply(print)` as long as `apply` ITSELF permits `io`, and a
+    restricted call site may NOT call `apply(print)` merely because ITS
+    OWN scope permits `io`, if `apply` itself does not."""
+    all_ok(
+        'fn apply(f) effects [io] { f(1) }\n'
+        'apply(print)\n'
+        'check "ok": true\n')
+    with pytest.raises(ParseError) as ei:
+        parse(
+            'fn apply(f) effects [] { f(1) }\n'
+            'fn caller() effects [io] { apply(print) }\n'
+            'caller()\n')
+    assert "'apply'" in str(ei.value)
+
+
+def test_call_site_check_does_not_fire_for_a_normal_unrelated_call():
+    """A plain call to a NAMED fn that happens to be tracked (calls one of
+    its own params directly) but is invoked with no arguments in the
+    relevant position at all, or fewer args than params, does not crash or
+    false-positive — `_check_call_site_param_effects`'s own `i >=
+    len(args)` guard."""
+    all_ok(
+        'fn apply(f) effects [] { 1 }\n'
+        'fn make_it() { fn inner(f) effects [] { f(1) } inner }\n'
+        'check "ok": true\n')
+
+
+def test_renamed_fn_carries_its_param_call_fact_forward():
+    """`let g = apply` (no call) carries `apply`'s own recorded param-call
+    fact forward under the new name `g`, the same way v0.14.3 already
+    carries the return fact forward on a plain rename."""
+    all_ok(
+        'fn apply(f) effects [io] { f(1) }\n'
+        'let g = apply\n'
+        'g(print)\n'
+        'check "ok": true\n')
+    with pytest.raises(ParseError):
+        parse(
+            'fn silent(f) effects [] { f(1) }\n'
+            'let g = silent\n'
+            'g(print)\n')
+
+
+def test_param_named_like_a_tracked_fn_shadows_its_param_call_fact():
+    """A parameter reusing the name of an earlier-tracked fn correctly
+    shadows it (the same shadowing convention `_resolve_param_call_fact`'s
+    innermost-first walk gives every other resolver in this family) — a
+    call through the shadowing parameter is an ordinary, untracked call,
+    not a re-check of the outer fn's own recorded fact."""
+    all_ok(
+        'fn apply(f) effects [] { f(1) }\n'
+        'fn outer(apply) effects [] { 1 }\n'
+        'check "ok": true\n')
