@@ -559,3 +559,60 @@ class TestLiveCorpusAnchors(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestSiblingSkillLinks(unittest.TestCase):
+    """R002/R003/R004 police BUNDLED references, not links to other skills.
+
+    Round 345: `skill-authoring/SKILL.md` linking
+    `../citation-registry-integrity/SKILL.md` tripped R002 for having no ToC,
+    which is advice about progressive-disclosure files and meaningless for a
+    sibling skill.
+    """
+
+    def setUp(self):
+        self.root = tempfile.mkdtemp(prefix="lint-sib-")
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.root, ignore_errors=True)
+
+    def _skill(self, name, body, refs=None):
+        d = make_skill(self.root, dirname=name, body=body)
+        if refs:
+            os.makedirs(os.path.join(d, "references"), exist_ok=True)
+            for rn, rt in refs.items():
+                with open(os.path.join(d, "references", rn), "w",
+                          encoding="utf-8") as f:
+                    f.write(rt)
+        return d
+
+    def test_a_long_sibling_skill_needs_no_toc(self):
+        self._skill("other", "# Other\n" + "line\n" * 150)
+        me = self._skill("mine", "see [other](../other/SKILL.md)")
+        self.assertNotIn("R002", codes(skill_lint.lint_skill(me)))
+
+    def test_a_long_bundled_reference_still_needs_a_toc(self):
+        me = self._skill("mine", "see [r](references/r.md)",
+                         refs={"r.md": "# R\n" + "line\n" * 150})
+        self.assertIn("R002", codes(skill_lint.lint_skill(me)))
+
+    def test_a_sibling_skills_own_links_do_not_count_against_depth(self):
+        self._skill("other", "see [deep](references/d.md)",
+                    refs={"d.md": "# D\n"})
+        me = self._skill("mine", "see [other](../other/SKILL.md)")
+        self.assertNotIn("R003", codes(skill_lint.lint_skill(me)))
+
+    def test_a_broken_sibling_link_is_still_an_error(self):
+        # The exemption is about R002/R003/R004 only. R001 must still fire,
+        # or the exemption becomes a way to smuggle in dead links.
+        me = self._skill("mine", "see [gone](../nope/SKILL.md)")
+        self.assertIn("R001", codes(skill_lint.lint_skill(me)))
+
+    def test_is_sibling_skill_excludes_the_file_itself(self):
+        p = os.path.join(self.root, "a", "SKILL.md")
+        self.assertFalse(skill_lint.is_sibling_skill(p, p))
+        self.assertTrue(skill_lint.is_sibling_skill(
+            os.path.join(self.root, "b", "SKILL.md"), p))
+        self.assertFalse(skill_lint.is_sibling_skill(
+            os.path.join(self.root, "a", "references", "x.md"), p))

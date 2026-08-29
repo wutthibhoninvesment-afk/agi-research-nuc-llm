@@ -186,6 +186,26 @@ def local_md_links(text, base_dir):
             yield target, path
 
 
+def is_sibling_skill(target_path, md_path):
+    """True if a link points at ANOTHER skill's SKILL.md.
+
+    R002/R003/R004 all police *bundled references* — the progressive-
+    disclosure files a skill ships in its own `references/` directory. A
+    pointer to a sibling skill is navigation, not bundled content, and the
+    three rules are wrong about it in three different ways: it needs no ToC
+    (R002), its own onward links are its business and not this skill's
+    depth budget (R003), and shared vocabulary between two related skills is
+    not duplicated content to be deleted (R004).
+
+    Round 345 hit R002 on exactly this: `skill-authoring/SKILL.md` linking
+    `../citation-registry-integrity/SKILL.md`. R006 anchor resolution is
+    deliberately NOT filtered here — a fragment into a sibling skill still
+    has to resolve, or the link lands the reader at the top of the file.
+    """
+    return (os.path.basename(target_path) == "SKILL.md"
+            and os.path.normpath(target_path) != os.path.normpath(md_path))
+
+
 def _rel(path, skill_dir):
     """`path` relative to the skill dir, forward-slashed, for messages."""
     return os.path.relpath(path, skill_dir).replace(os.sep, "/")
@@ -407,7 +427,8 @@ def lint_skill(skill_dir, house=False):
             os.path.join(skill_dir, target.split("#")[0]))
         if not os.path.exists(target_path):
             err("R001", f"linked file does not exist: {target}")
-        elif target_path.endswith(".md"):
+        elif target_path.endswith(".md") and not is_sibling_skill(
+                target_path, md_path):
             try:
                 with open(target_path, encoding="utf-8") as f:
                     ref_lines = f.read().split("\n")
@@ -424,6 +445,8 @@ def lint_skill(skill_dir, house=False):
     skill_chunks = None
     for target, target_path in local_md_links(body, skill_dir):
         if not os.path.isfile(target_path):
+            continue
+        if is_sibling_skill(target_path, md_path):
             continue
         try:
             with open(target_path, encoding="utf-8") as f:

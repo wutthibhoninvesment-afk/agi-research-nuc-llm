@@ -198,7 +198,7 @@ default run now suppresses acknowledged rounds from both the printed list
 and the exit code, only surfacing genuinely new, unexplained gaps (round
 231's own re-run: 32 → 19 after the archive fix → 1, the in-progress round
 itself, after the ack file). Add new ack-file entries only after
-independently verifying (grep the state/archive files AND `git log`, don't
+independently verifying (grep `state/research-state.md` and `state/research-state-archive.md` AND `git log`, don't
 copy an existing entry's confidence for a new round number) — this file is
 meant to save re-verification work, not encode assumed innocence for
 anything the driver happens to flag next.

@@ -162,6 +162,31 @@ skills — that duplicates their triggers and adds an indirection hop.
      `UNQUANTIFIED` — it can only ever be checked for its exit code, so a
      silent count drift never surfaces.
 
+9. **Check that every identifier the corpus CITES is actually DEFINED**
+   (script bundled with this skill — run it, don't read it). Step 8 covers
+   claims that rot; this covers *pointers* that never resolved. A skill that
+   says "rule B002" or "SPEC decision 29" promises the reader a lookup, and a
+   dangling identifier renders as ordinary prose — no broken link, no error,
+   nothing to notice.
+   ```bash
+   python3 skills/skill-authoring/scripts/xref_check.py
+   # expected: "0 NEW", exit 0 — new dangling citations only
+   python3 skills/skill-authoring/scripts/xref_check.py --show-acknowledged
+   # what state/known-dangling-citations.json is currently covering, and who owns it
+   ```
+   Two authoring rules follow, and they apply to the SKILL.md you are writing
+   right now:
+   - **Cite a rule code only if a script emits it.** `R006`, `C001`, `B002`
+     are checkable because `xref_check.py` derives the registry from the
+     `"CODE"` string literals in `skills/*/scripts/*.py`. Inventing a
+     plausible-looking code for prose is how that family stops being
+     trustworthy.
+   - **An illustrative path in prose is still a path.** Write
+     `skills/<name>/SKILL.md`, not a realistic-looking directory that
+     happens not to exist. The full rationale, the registry-vs-definition
+     rule and the scope model live in
+     [citation-registry-integrity](../citation-registry-integrity/SKILL.md).
+
 ## Pitfalls
 - **Second-person or first-person descriptions** ("You can use this to…",
   "I can help…") — inconsistent point-of-view inside the system prompt
@@ -267,23 +292,40 @@ skills — that duplicates their triggers and adds an indirection hop.
   description" for the mechanism order that actually moves a number
   (shared-noun removal, tried last, was the only one that worked).
 
+- **A checker that can never go green gets uninstalled.** Two of this
+  corpus's checks found real debt owned by someone else on their first run.
+  Without a baseline file the check exits non-zero forever, somebody stops
+  reading it, and the next genuine regression lands unseen — the same
+  failure the check existed to prevent. Ship the baseline (keyed by
+  identifier, never file:line) in the same commit as the checker, with an
+  owner named per entry.
+
 ## Verification
 Every command below is repo-root-relative; run them from the repo root. (An
 absolute `cd ~/agi-research` used to open this block and had been dead since
 the workspace was renamed — see `claim_check.py`'s C001.)
 ```bash
 python3 -m unittest discover -s skills/skill-authoring/scripts -v
-# expected: Ran 247 tests, OK  (skill_lint + trigger_eval + claim_check, offline)
+# expected: Ran 316 tests, OK  (skill_lint + trigger_eval + claim_check
+#           + xref_check, offline). Re-derived round 345; was 247 before
+#           test_xref_check.py, so a lower count in an older report is not
+#           evidence of a regression. (Re-derived TWICE in round 345: the
+#           first figure, 311, was stale within the hour because the same
+#           round then added 5 tests. Re-derive this LAST.)
 python3 skills/skill-authoring/scripts/skill_lint.py --house skills/<name>/
 # expected: 1 skill(s), 0 error(s), 0 warning(s), exit 0   <- the bar for a new skill
 python3 skills/skill-authoring/scripts/skill_lint.py --house --strict skills/
-# expected: 19 skill(s), 0 error(s), 0 warning(s), exit 0. Warning-free since
+# expected: 21 skill(s), 0 error(s), 0 warning(s), exit 0. Warning-free since
 # round 339 split fuzz-mutate-kill-loop under the 400-line B002 threshold;
 # before that a known B002 made --strict exit 1, so a pre-339 report saying
 # "exit 1" is not evidence of a regression.
 python3 skills/skill-authoring/scripts/claim_check.py skills/
-# expected: 19 skill(s), 0 stale claim(s), exit 0 (static; --run also executes
+# expected: 21 skill(s), 0 stale claim(s), exit 0 (static; --run also executes
 # the `auto` commands and diffs their output against these very claims)
+python3 skills/skill-authoring/scripts/xref_check.py
+# expected: "0 NEW", exit 0. 28 citations are pre-acknowledged in
+# state/known-dangling-citations.json (two registry gaps owned by language(C)
+# and by the operator); --show-acknowledged lists them.
 ```
 - [ ] Description states what AND when, third person, symptom-vocabulary
       trigger phrases included

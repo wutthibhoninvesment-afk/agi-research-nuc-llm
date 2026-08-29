@@ -60,7 +60,7 @@ where "session" means a login/web session.
    last *recorded* artifact, across the WHOLE tree — not only the
    subsystem you own:
    ```bash
-   find . -type f -newer knowledge/round-LAST.md \
+   find . -type f -newer knowledge/round-<LAST>.md \
      -not -path './.venv/*' -not -path './.git/*' -not -path '*/__pycache__/*'
    git status --short     # if the workspace is a repo
    ```
@@ -225,7 +225,7 @@ where "session" means a login/web session.
 
 ## Verification
 ```bash
-find . -type f -newer knowledge/round-LAST.md -not -path './.venv/*' -not -path './.git/*' | wc -l
+find . -type f -newer knowledge/round-<LAST>.md -not -path './.venv/*' -not -path './.git/*' | wc -l
 # every listed file attributed in the new round entry
 ps -axo pid,ppid,etime,%cpu,command | awk '$2==1' | grep -c -e run.py -e pytest    # expected: 0
 grep -n "STUB\|in progress\|PENDING" state/research-state.md | tail             # only the CURRENT session's stub

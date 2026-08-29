@@ -376,7 +376,7 @@ def _depth_missed(V, p):
 # `is_callable` guard branch (a guest closure, the one path that does NOT
 # call the real host builtin) and `matches`'s `strip()`-based structural-
 # Record-spec path (round 240) — all 15 exact matches, no divergence
-# found. See `knowledge/round-246-whence-matches-shapeof-typed-why-vocab.md`.
+# found. See `knowledge/round-246-whence-matches-shapeof-typed-why-vocab-and-r245-landing.md`.
 # `trunc` (v0.17, round 318) joined this set round 323 for tabular
 # completeness with `abs`/`sqrt`/`num` -- NOT because a round-20-style
 # mislabelling bug was demonstrated for it. Investigated directly: in

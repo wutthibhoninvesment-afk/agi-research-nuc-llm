@@ -1,0 +1,8 @@
+{
+  "_comment": "Repo-relative paths that AUTHORITATIVE prose legitimately names while the path does not exist, read by skills/skill-authoring/scripts/xref_check.py's X004 rule (round 345). Same idiom, and the same discipline, as state/known-standing-dirty-paths.json: an explicit, reviewable allowlist beats a heuristic that silently guesses which absences are intentional. Two kinds so far: (1) a file whose ABSENCE is the thing the prose is documenting (logs/round-229.json, the ghost round); (2) a planned artifact a next-step instructs a future round to CREATE or FETCH, named before it exists. Add a path here ONLY with a reason, and ONLY after confirming the prose is correct as written — a genuinely stale reference belongs fixed in the prose, not listed here.",
+  "paths": {
+    "logs/round-229.json": "Round 229 is the documented 'ghost round' — it appears in no driver log. Three passages in research-state.md and session-inheritance-audit/references/pitfall-history.md are ABOUT that absence; the file existing would falsify them.",
+    "state/nuc-boot-history.json": "Planned output. research-state.md's next-steps item 1 instructs the next reachable NUC(E) round to create it via boot_history_probe; it cannot exist until the box is up.",
+    "nuc/fast_lane/olmoe_merged": "Planned input. The OLMoE tarball is a standing NUC(E) item, never fetched (box down for 8+ consecutive E-rounds); PLAN-E4.md names it as the argument of a command to run once it is."
+  }
+}

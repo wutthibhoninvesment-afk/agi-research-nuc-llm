@@ -2090,7 +2090,7 @@ fn apply_host_builtin(name, args) {
   # is already there for free, so each just calls straight through to the
   # real host builtin of the same name. Round 206 flagged this as follow-up
   # backlog specifically because nothing in the corpus exercised them yet
-  # ("evaluate-before-authoring"); `harness/tests/test_self_hosting.py`'s
+  # ("evaluate-before-authoring"); `languages/whence/tests/test_self_hosting.py`'s
   # new `test_guest_{at,blame,diverge,contrast}_...` tests (round 218) are
   # that exercising code, written first to make the gap real before fixing
   # it, mirroring `steps`'s own two-arg-pattern test (round 206). None of

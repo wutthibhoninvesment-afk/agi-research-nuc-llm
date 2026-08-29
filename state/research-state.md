@@ -8901,6 +8901,175 @@ Workspace: ~/agi-research
     long run is indistinguishable from a hung one. Not the same mechanism, but
     the same symptom, and worth ruling out first next time.
 
+### Round 344 — language(C) — 2026-08-29 (outer-timeout kill; reconciled and landed by round 345)
+- Ran 3283.81s against a 3300s ceiling, `interrupted=true`, no knowledge file,
+  nothing committed — the recurring pattern (rounds 144/157/.../337/340/342).
+  Round 345 verified the 13-file diff from a clean read and landed it as
+  `6132f1f`.
+- **Whence v0.19 — parameter contracts.** A parameter annotation stops being
+  erased into a prepended `let p = typed(p, spec, label)` and is carried on
+  the AST node (`FnDef.param_types` / `FnExpr.param_types`), resolved by the
+  same `_closure_spec` at the same moment as `ret_type`. `_check_ret` becomes
+  `_check_contract` and serves both ends of the contract; `_check_params`
+  applies the parameter half in declaration order on all three call paths
+  (`_call_direct`, `_call_fast`, `_call_gen`) and is re-read on every
+  tail-chain hop, because it guards the closure being ENTERED — the
+  deliberate opposite of `ret_spec`'s captured-once rule.
+- Behaviour deliberately preserved from the v0.12 guards it replaces: the
+  checked value REPLACES the binding, and a FAILING check binds the miss and
+  still runs the body rather than aborting the call.
+- Verified by round 345 on this checkout: `run_tests_fast.sh` 464 passed /
+  267 deselected; `pytest languages/whence/tests/` **1069 passed**.
+- **NOT landed, because round 344 never wrote it: SPEC.md has no `## v0.19`
+  section, and `ast_nodes.py` cites "SPEC decision 29", which does not
+  exist.** Left dangling rather than invented — see round 345's entry, which
+  found this was one instance of a class.
+
+### Round 345 — skills(B) — 2026-08-29
+- **Built `skills/skill-authoring/scripts/xref_check.py`** — third tool in the
+  corpus-integrity family. `skill_lint.py` (333) checks a link fragment
+  resolves; `claim_check.py` (339) checks a Verification claim is still true;
+  this checks that an identifier a document CITES is one some registry
+  DEFINES. New skill `skills/citation-registry-integrity/SKILL.md`.
+- **The finding. SPEC.md's canonical decision list has 13 entries; the tree
+  cites decisions 27, 28 and 29 at 17 authoritative sites, and decisions
+  14-26 were never minted at all — the namespace jumps.** 27 (round 338) and
+  28 (round 342) are defined only in research-state.md round entries; **29
+  (round 344) is defined nowhere.** Separately, `D-013` is cited 28 times as
+  a house rule that CURRICULUM.md says lives in `CLAUDE.md`; **`CLAUDE.md`'s
+  `## Ground rules` heading exists and has nothing under it, in all three
+  commits that have ever touched the file** — the body predates this repo's
+  git history and was lost in the Mac->NUC migration. A fourth family, lint
+  rule codes, came out clean (20 citations, 0 dangling) and is now pinned.
+- **Why the class rots:** minting an ID is free and inline; appending to the
+  registry is a separate edit to another file, and it is the step dropped
+  when a round ends early. Nothing ever fails — a dangling identifier renders
+  as ordinary prose. So the citation set grows monotonically and the registry
+  does not. This is round 321's item-14 class again, widened once more: not a
+  stale NUMBER or PRACTICE, but a stale POINTER.
+- **The one design idea: a definition is an entry in a DECLARED registry, and
+  nothing else.** The tool never guesses whether a line looks definitional.
+  A definition-sniffing heuristic would have matched `## D-013 prediction
+  ledger` in `nuc/nuc-bench-final.md` and reported the family clean — a false
+  negative, which for an unwatched checker is strictly worse than a false
+  positive. Declaring the registry is also what makes the result exact: the
+  registry was found, read, and is `empty`, so all 28 citations dangle. The
+  tool prints a registry STATUS (`no-doc`/`no-section`/`empty`/`ok`) because
+  those are three different bugs with three different owners.
+- **Three file scopes**, because a citation's meaning depends on when it was
+  written: *authoritative* (errors), *historical* (`knowledge/`, the archive,
+  banked predictions — 81 findings, correct-as-of-writing, never errors), and
+  *frozen* (`state/swe/` holds a whole second copy of SPEC.md).
+- **X004's false-positive fight: 340 findings -> 66, every survivor real.**
+  Dominant FP was a token truncated by its own delimiter — a 72-column hard
+  wrap splitting a path across a line break, or a `*` outside the character
+  class stopping the match before the placeholder rule could see the glob.
+  Rule: checkable only if the character immediately AFTER the match ends a
+  path, and a newline is not one. Plus prefix recovery, two impossibility
+  rules (you cannot descend into a regular file; `<top>/<top>` is prose), and
+  two exemptions printed as a named blind spot with a count.
+- **Four genuinely broken references fixed:** `harness/swe/guest.py` cited a
+  knowledge file renamed since round 246; `self_eval.lang` put
+  `test_self_hosting.py` under `harness/tests/`; two SKILL.md placeholders
+  written outside the house `<...>` convention; and one reference to an
+  "archive" directory under `state/` that has never existed (the archive is a
+  single file). NB: naming that last one literally here made the checker
+  flag THIS entry — prose about a path that does not exist is still prose
+  about a path that does not exist.
+- **Shipped the baseline with the checker.** Two families are debt this round
+  does not own, so `state/known-dangling-citations.json` records the four
+  identifiers with a reason and a named OWNER, keyed `CODE:identifier` and
+  never file:line (line numbers churn, and a regenerated baseline is a rubber
+  stamp). A test asserts no entry outlives its finding. Without it the tool
+  exits 1 forever, gets muted, and the next real regression lands unseen —
+  the exact failure it exists to prevent, one level up.
+- **Deliberately NOT fixed:** SPEC decisions 27/28/29 (language C's
+  namespace) and `CLAUDE.md`'s ground rules (the operator's governance file).
+  Transcribing a definition that already exists is repair; writing the
+  missing one is authorship.
+- **Four test failures on first run, three of them real tool bugs:** frozen-
+  directory matching was substring-based (an unrelated nested `state/swe`
+  was silently excluded); **X002's registry returned ordinals while its
+  citations are strings, so populating `## Ground rules` would NOT have
+  cleared the family** — the tool was unsatisfiable by the very fix it
+  demanded, caught by a test that checks the FIX rather than the finding; and
+  X001's scope made the historical tier unreachable. A fourth bug found no
+  test: `lstrip("./")` strips leading dots as a CHARACTER CLASS, un-freezing
+  `.venv` and pulling 1441 vendored files into the sweep — caught only by the
+  scanned-file count jumping 1425 -> 2868 between two runs.
+- **`skill_lint.py`: R002/R003/R004 no longer fire on a link to a sibling
+  skill.** They police BUNDLED references and are wrong about a sibling in
+  three ways (needs no ToC, its onward links are not this skill's depth
+  budget, shared vocabulary is not duplicated content). R001 still fires on a
+  broken sibling link; R006 anchor resolution deliberately unfiltered. Closes
+  the R002/R003/R004 half of round 333's item 3.
+- **Mutation kill: 28/28 first pass**, target restored byte-identical. Better
+  than the predicted 20-24/24 because the tests were written AFTER fighting
+  each false-positive class empirically, so every design decision already had
+  a dedicated test.
+- **The tool caught its own documentation, twice within the hour**: the new
+  skill's pitfall named an illustrative path that does not exist, and
+  `skill-authoring/SKILL.md`'s re-derived `Ran 311 tests` was stale before the
+  round ended (now 316, with a note to re-derive it last).
+- Verification: skills scripts **316 tests OK**; `skill_lint --house --strict
+  skills/` 21 skills 0/0; `claim_check skills/` 0 stale; `xref_check` 0 NEW /
+  28 pre-acknowledged, exit 0; `run_tests_fast.sh` 464 passed; `pytest
+  languages/whence/tests/` 1069 passed.
+- **Prediction ledger: P 8/10, 1 unscorable.** Two misses, one badly: P3
+  predicted 60-85% of `knowledge/`'s wikilink occurrences dangle, actual 5% —
+  an OCCURRENCE rate reasoned from a DISTINCT-count intuition (91 occurrences
+  were only 8 distinct slugs, ~11 repeats each). P4 then left its scope
+  unpinned and scores HIT or MISS depending on the reading. Both folded into
+  `prediction-banking/SKILL.md` step 2 as a new rule.
+- Trigger cases `cri-near/mid/far` + `neg-15` authored, **not probed** (a
+  probe is a priced live run).
+- See `knowledge/round-345-skills-b-citation-registry-integrity.md`.
+
+## Next steps (as of round 345)
+1. **language(C) — reconcile the decision namespace.** SPEC.md's list ends at
+   13 while 27/28/29 are cited 17 times. Append 27 and 28 by TRANSCRIBING the
+   definitions that already exist in `research-state.md` (lines 8227, 8603),
+   and write 29 as part of the `## v0.19` section round 344 never got to.
+   Then delete the matching entries from
+   `state/known-dangling-citations.json` — a test fails if an entry outlives
+   its finding, so this cannot be half-done. Decide explicitly whether 14-26
+   are reserved, retired, or simply a numbering accident, and say so in SPEC.
+2. **language(C) — SPEC has no `## v0.19` section at all.** Round 344's
+   parameter contracts are shipped, tested and landed (`6132f1f`) with no
+   spec text. Everything needed is in the code comments and `test_v12.py`'s
+   eight new tests.
+3. **Operator decision, not a round's — `CLAUDE.md`'s `## Ground rules` is
+   empty** and has been for this repo's whole git history, while `D-013` is
+   cited 28 times and CURRICULUM.md points at that section. Either populate
+   it (the content of D-013 is consistently stated across its citation sites
+   and could be transcribed) or retire the `D-NNN` scheme. Round 345
+   deliberately did neither: reconstructing the rules that govern every
+   future round from their own citations is not a research round's call.
+4. **skills(B) — the `skills/*/scripts/` blind spot in `xref_check.py`.** 10
+   files are exempt because the checkers quote the rot they detect. Real rot
+   there is invisible. A per-line opt-out marker was rejected as
+   disproportionate; revisit if a second directory ever needs the exemption.
+5. **skills(B) — 17 skills remain never-probed**, now including
+   `citation-registry-integrity` and `optimization-transparency-differential`
+   and `sampled-interval-brackets`. Unchanged in character since round 334
+   (15 of 18). A probe is a priced run; fold several into one batch rather
+   than paying the setup cost per skill.
+6. **Track-wide — X004 recall is 3412 checked / 770 skipped (18%).** The
+   skipped set is dominated by hard-wrapped paths, which is a property of
+   this corpus's 72-column prose, not of the rule. If that number matters
+   later, the fix is a line-joining pre-pass over markdown, not loosening
+   PATH_TERMINATORS.
+7. Round 341's item 11 asked skills(B) to author its two generalisable rules
+   (single-sided ablation cannot see an incomplete mirror; a result computed
+   while its inputs moved is not evidence) as a proper skill. **Still open** —
+   round 345 spent its budget on the citation class it found instead, and the
+   rules remain recorded only in round 341's knowledge file.
+8. Rounds 336/338's language(C) and SWE-loop(D) items (typed tail chains in
+   the fuzz grammar, the tail-vs-lifted sixth oracle, `whence/lexer.py`'s
+   full-history sweep) are untouched and carry forward unchanged.
+9. All of round 340's NUC-integration(E) items (1-6 below) are unchanged —
+   the rotation has not reached that track since.
+
 ## Next steps (as of round 340)
 1. **NUC(E), time-sensitive — the FIRST action on the first up check is
    `boot_history_probe` / `journalctl --list-boots -o json`, saved to

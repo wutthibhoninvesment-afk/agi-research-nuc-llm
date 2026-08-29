@@ -519,5 +519,31 @@
       "optimization-transparency-differential"
     ],
     "prompt": "Our compiler folds constants at parse time. A user reports the error message points at a different line when folding is on. Both lines are arguably right \u2014 how do we decide which one the compiler should say?"
+  },
+  {
+    "id": "cri-near",
+    "expect": [
+      "citation-registry-integrity"
+    ],
+    "prompt": "Our architecture docs and code comments are full of references like \"see ADR-014\" and \"per invariant I3\". Nobody has ever checked that those actually exist. Can you find the ones that point nowhere?"
+  },
+  {
+    "id": "cri-mid",
+    "expect": [
+      "citation-registry-integrity"
+    ],
+    "prompt": "SPEC.md has a numbered list of design decisions that stops at 13, but the parser's comments cite decision 27, 28 and 29. Where did those come from and what should we do about it?"
+  },
+  {
+    "id": "cri-far",
+    "expect": [
+      "citation-registry-integrity"
+    ],
+    "prompt": "I want to turn on a docs linter across a 200-file repo that will definitely be red on day one, and I don't own half of what it will flag. How do I roll it out so the team doesn't just delete it?"
+  },
+  {
+    "id": "neg-15",
+    "expect": [],
+    "prompt": "Our README links to https://example.com/docs and it 404s now. Find every external URL in the repo that's dead and update them."
   }
 ]

@@ -37,6 +37,18 @@ and only needs reporting; one-off numbers nobody will act on.
      coin flip dressed as a prediction.
    Checkable outcome: each line carries its class tag.
 
+   **Pin the scope and the unit before the band.** If a quantity has both an
+   OCCURRENCE form and a DISTINCT form, predict both or name which one the
+   band is on. Round 345 predicted "60-85% of the 91 wikilink occurrences
+   dangle" by reasoning about distinct items, and missed by an order of
+   magnitude (5%): the 91 occurrences were only 8 distinct slugs cited ~11
+   times each. Its next line then said "8-20 distinct dangling slugs" without
+   naming a file set, and scores HIT at 11 corpus-wide but MISS at 3 for the
+   subtree the previous line was explicitly about. **A band whose unit or
+   scope is unpinned is half a prediction** — and it is unfalsifiable in the
+   direction that flatters you, because you get to pick the reading
+   afterwards.
+
 3. **Set the lower bound at the floor you would bet on, not at the point
    estimate.** Write "≥1.4×" only if a 1.39× result would genuinely
    surprise you. Price an optimization off the *tottime* of what it
@@ -100,6 +112,11 @@ and only needs reporting; one-off numbers nobody will act on.
 - **Predictions never scored because the session died.** Score at the
   START of the next session, from whatever artifacts exist, before
   planning new work; an unscored prediction file is worth nothing.
+- **A ratio over occurrences, reasoned from distinct items.** The clustering
+  is the whole quantity: citations, log lines and error messages repeat a few
+  values many times, so an occurrence rate is dominated by frequency and a
+  distinct rate by the long tail. Reasoning about one and betting on the
+  other is a category error, not a band that needs widening.
 - **Bands so loose they can't miss** ("wall time 1–60 min") prove
   nothing; if a computable effect gets a 3× band, the computation was
   skipped.
