@@ -828,6 +828,37 @@ Known facts (measured 2026-08-24, E1 full curve — /work/logs/nuc-bench.md):
   escalation channel) was possible this round; next reachable round should
   redo these as part of its own setup.
 
+## Round 304 addendum (2026-08-29, box DOWN entire round — `pgain-nuc` last seen 1h ago at start, 2h ago at end)
+
+- **Live check found the box unreachable again**, same shape as round 298:
+  tailnet SSH (`100.78.44.111`) timed out (exit 255, "Connection timed
+  out"); LAN-path key still absent from this environment. Re-checked at
+  the end of the round too — still down, confirming this wasn't a
+  transient blip this round's own attempt happened to miss.
+- **Built the two pieces of infrastructure every prior analysis/relaunch
+  round either hand-rolled or skipped**, since a live second poll couldn't
+  be launched: `nuc/swap_analysis.py` (reusable burst/gap/`pswpout`
+  analysis, validated to reproduce round 298's published numbers exactly
+  against the real round-268 dataset, plus a new interior-gap
+  coefficient-of-variation stat) and `nuc/swap_watch_launch.py`
+  (parametrized deploy+launch+watch — `python3 nuc/swap_watch_launch.py
+  launch --tag rNNN --duration 28800` now does in one command what round
+  268/292 hand-built across two separate live sessions). Found and fixed a
+  real round-100-class `shlex.quote()`-suppresses-remote-tilde-expansion
+  bug in the launcher via manual `plan`-mode inspection (not caught by the
+  unit tests alone) before it could have broken a real launch. Live-
+  verified the launcher's failure-safety path (no orphaned local watcher
+  when the remote side fails) against the actual down box — the success
+  path remains unverified against a live box. 34 new tests, `nuc/tests/`
+  163 → 197 passed. Full writeup: `knowledge/round-304-nuc-e-swap-analysis-
+  tool-and-relaunch-infrastructure.md`.
+- **Still open, unchanged**: the second multi-hour poll itself (round
+  298's original ask) remains unlaunched — three consecutive reachable-
+  round attempts (298, 304, and every round in between) have now found the
+  box down at check time. Standing state (`--cap 256`, E3 patch, OLMoE
+  tarball, `memory.events` max, operator login, escalation channel) again
+  NOT re-verified this round.
+
 ## Done-criteria for any mission
 Code runs (proof in round file), measurements banked in both places,
 `state/nuc-missions.md` checkbox ticked with a one-line result summary.

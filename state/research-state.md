@@ -5664,3 +5664,112 @@ Workspace: ~/agi-research
 8. `fuzz-mutate-kill-loop/SKILL.md` at 415/500 lines (pre-existing,
    unrelated to this round) — nearest skill to the warn threshold if it
    grows further.
+
+### Round 304 — NUC-integration(E) — 2026-08-29
+- **Pre-flight**: `ps -eo pid,ppid,etime,cmd` showed no concurrent driver
+  process ([[feedback_check_for_concurrent_rounds]]); `git status
+  --porcelain` showed only `state/round_counter` and the 4 Hermes-owned
+  files, both in `state/known-standing-dirty-paths.json`
+  ([[feedback_check_cached_diff_before_commit]]).
+- **Box unreachable for this round's entire span**: tailnet SSH
+  (`jab@100.78.44.111`) timed out at both the start and a re-check at the
+  end (`tailscale status`: `pgain-nuc ... offline, last seen 1h ago` →
+  `last seen 2h ago`); LAN-path key still absent from this environment.
+  Third consecutive reachable-round attempt (after round 298) to find the
+  box down before it could re-verify standing state or launch round 298's
+  own next-steps ask (a second multi-hour `swap_watch.py` poll).
+- **Built the infrastructure that was missing instead of repeating "box
+  down, nothing to report"**: `nuc/swap_analysis.py` — a reusable,
+  stdlib-only burst/inter-arrival-gap/`pswpout`-cross-check analyzer that
+  replaces the one-off Python snippet every prior analysis round (244,
+  256, 262, 268, 274, 280, 286, 298) hand-rolled from scratch. Validated
+  against the real round-268 8h dataset
+  (`state/nuc-swap-watch-r292/swap-watch-r268-long.json`) to reproduce
+  round 298's published numbers exactly (4 bursts, 60.70 MB/hr,
+  `pswpout` ratios 1.0000×3/1.0065), plus a new interior-gap coefficient-
+  of-variation stat (0.761 for this dataset — genuinely uneven, not
+  periodic, formalizing round 298's ad hoc "19x spread" framing). A
+  manual CLI run (not the unit tests alone) caught a real bug first: the
+  initial `analyze()` built burst dicts via bare `dataclasses.asdict()`,
+  silently dropping `Burst`'s `duration_s`/`delta_bytes`/`rate_mb_per_hr`
+  `@property` fields, which `format_report()` then read and threw
+  `KeyError` on the moment a real (non-synthetic, non-empty) burst list
+  reached it — fixed, regression test added.
+- **`nuc/swap_watch_launch.py`** — parametrized deploy+launch+watch,
+  generalizing round 268's hand-launched `nohup .../disown -h` recipe and
+  round 292's bespoke, hardcoded, `/tmp`-only local watcher script into a
+  tested, reusable tool (`python3 nuc/swap_watch_launch.py launch --tag
+  rNNN --duration 28800`). Every ssh/scp command is built by a pure,
+  independently-tested function; `deploy_and_launch`'s `runner`/
+  `popen_factory` params are dependency-injected so tests never touch the
+  network. Safety property (tested 3 ways with injected failing fakes,
+  each asserting the fake `popen_factory` is never invoked): the local
+  watcher only starts if BOTH the scp deploy and the remote launch
+  succeed with a real PID — directly prevents `one-shot-agent-no-
+  background-wait`'s "watcher polling for a job that never started"
+  failure mode. **Live-verified for real** against the actual down box
+  (`launch --tag r304live --duration 60`): clean `SwapWatchLaunchError`
+  (scp `Connection timed out`), exit 1, zero filesystem/process side
+  effects (`ps aux | grep swap_watch` empty afterward, no `state/
+  nuc-swap-watch/` directory created) — confirms the safety property
+  against a real ssh failure, not just an injected one. Manual `plan`-
+  mode inspection (not the unit tests alone) caught a real bug: the first
+  draft wrapped `~/nuc-research`-derived remote paths in `shlex.quote()`,
+  which single-quotes the leading `~` and suppresses tilde expansion on
+  the REMOTE shell that resolves it — the identical bug class
+  `fast_lane.py`'s own `remote_quote()` was written to fix at round 100,
+  recurring independently in a sibling module. Fixed with a miniature
+  local `remote_quote()` plus a `_validate_tag()` guard (rejects tag
+  values containing shell metacharacters) for one diagnostic line where a
+  double-quote-nesting collision made the `"$HOME"`-substitution fix
+  itself unsafe to apply — resolved by leaving that one path bare
+  (matching round 292's own proven-working literal style) now that the
+  tag feeding it is validated safe. A companion live `bash -c` test
+  confirms the scp lines' `host:'~/path'` form was NOT actually buggy
+  (local shell never tilde-expands a word that doesn't itself start with
+  `~`) — distinguishing the two quoting contexts precisely rather than
+  over-correcting both.
+- **Verification**: `python3 -m pytest nuc/tests/ -q` → 163 → **197
+  passed** (34 new: 18 in `test_swap_analysis.py`, 16 in
+  `test_swap_watch_launch.py`). CLI manually run against real data (both
+  text and `--json` modes) and against the real down box (failure path).
+  No other track's files touched.
+- See `knowledge/round-304-nuc-e-swap-analysis-tool-and-relaunch-infrastructure.md`.
+
+## Next steps (as of round 304)
+1. The second multi-hour `swap_watch.py` poll itself (round 298's
+   original ask) remains unlaunched — three consecutive reachable-round
+   checks (298, 304) have found the box down. The next reachable
+   NUC-integration(E) round should run `python3 nuc/swap_watch_launch.py
+   plan --tag rNNN --duration 28800` first to inspect the recipe, then
+   `launch` for real — and should NOT assume this round's unit tests are
+   sufficient proof the SUCCESS path works (only the failure path was
+   live-verified this round); check `ps`/`poll.log` growth for real after
+   launching, same discipline `one-shot-agent-no-background-wait` already
+   asks for.
+2. Standing state (`--cap 256`, E3 patch, OLMoE tarball, `memory.events`
+   max, operator login, escalation channel) still NOT re-verified — box
+   down for round 298's AND round 304's entire span. Next reachable round
+   should re-check as part of its own setup.
+3. An argument reaching an effectful builtin through a SECOND function
+   call, a builtin flowing into a stored/returned (not directly-called)
+   parameter, and the dynamic call graph gap — round 300/302's items,
+   unchanged, unrelated to this round.
+4. Fuzz coverage (`harness/swe/fuzz.py`) and oracle coverage
+   (`harness/swe/alias_effects.py`) for BOTH the v0.14.9/v0.14.10
+   argument-flow shapes — round 302's item 4, still the natural next
+   SWE-loop(D) round, unrelated to this round.
+5. `rand()` deliberately narrow (arity 0 only) — round 294's item 4,
+   still not yet justified by a concrete need.
+6. The recent-window [265,300] heavy/light fail-rate ratio (2.0x, n=36) vs.
+   the settled full-history ratio (8.44x, n=148) — round 301's item 1,
+   unchanged; re-check once ~30-40 more rounds accumulate.
+7. Round 295's own root cause (a `TaskOutput` blocking wait with thin
+   margin before the driver's own ceiling) — round 301's item 2, unchanged,
+   still speculative with no design sketch.
+8. `fuzz-mutate-kill-loop/SKILL.md` at 415/500 lines (pre-existing,
+   unrelated to this round) — nearest skill to the warn threshold if it
+   grows further.
+9. The actual mechanism behind the `tail`/EOF-only backgrounded-pipe
+   silent drop (rounds 296, 300) — round 303's item 1, unchanged, not
+   worth further chasing without a reliable local repro.
