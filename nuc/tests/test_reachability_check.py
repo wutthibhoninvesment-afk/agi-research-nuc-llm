@@ -279,3 +279,78 @@ def test_current_streak_duration_unsorted_input_still_uses_latest_by_timestamp()
     assert result["verdict"] == "down"
     assert result["streak_start_round"] == 2
     assert result["elapsed_s"] == 1800.0
+
+
+def test_longest_completed_streak_none_when_only_streak_is_the_logs_last():
+    records = [
+        {"checked_at_utc": "2026-08-29T00:00:00Z", "round": 1, "verdict": "up"},
+        {"checked_at_utc": "2026-08-29T01:00:00Z", "round": 2, "verdict": "up"},
+    ]
+    # the only streak in the log is also its LAST streak -- always excluded
+    # as potentially-still-ongoing, regardless of verdict.
+    assert rc.longest_completed_streak(records, "up") is None
+    assert rc.longest_completed_streak(records, "down") is None
+
+
+def test_longest_completed_streak_excludes_the_logs_own_last_streak():
+    records = [
+        {"checked_at_utc": "2026-08-29T00:00:00Z", "round": 1, "verdict": "down"},
+        {"checked_at_utc": "2026-08-29T01:00:00Z", "round": 2, "verdict": "down"},
+        {"checked_at_utc": "2026-08-29T02:00:00Z", "round": 3, "verdict": "up"},
+        {"checked_at_utc": "2026-08-29T10:00:00Z", "round": 4, "verdict": "down"},
+    ]
+    # the trailing "down" streak (round 4 alone, 8h elapsed if measured against
+    # "now") is the log's own last streak -- it must never count as "completed"
+    # even though it is numerically longer than the real completed one.
+    result = rc.longest_completed_streak(records, "down")
+    assert result["start_round"] == 1
+    assert result["end_round"] == 2
+
+
+def test_longest_completed_streak_picks_the_longest_among_multiple_completed():
+    records = [
+        {"checked_at_utc": "2026-08-29T00:00:00Z", "round": 1, "verdict": "down"},
+        {"checked_at_utc": "2026-08-29T00:30:00Z", "round": 2, "verdict": "down"},
+        {"checked_at_utc": "2026-08-29T01:00:00Z", "round": 3, "verdict": "up"},
+        {"checked_at_utc": "2026-08-29T03:00:00Z", "round": 4, "verdict": "down"},
+        {"checked_at_utc": "2026-08-29T05:00:00Z", "round": 5, "verdict": "down"},
+        {"checked_at_utc": "2026-08-29T06:00:00Z", "round": 6, "verdict": "up"},
+    ]
+    result = rc.longest_completed_streak(records, "down")
+    assert result["start_round"] == 4
+    assert result["end_round"] == 5
+
+
+def test_current_streak_duration_exceeds_longest_completed_true():
+    records = [
+        {"checked_at_utc": "2026-08-29T00:00:00Z", "round": 1, "verdict": "down"},
+        {"checked_at_utc": "2026-08-29T01:00:00Z", "round": 2, "verdict": "down"},
+        {"checked_at_utc": "2026-08-29T02:00:00Z", "round": 3, "verdict": "up"},
+        {"checked_at_utc": "2026-08-29T03:00:00Z", "round": 4, "verdict": "down"},
+    ]
+    result = rc.current_streak_duration(records, now_fn=lambda: "2026-08-29T10:00:00Z")
+    assert result["longest_completed_same_verdict_streak_s"] == 3600.0
+    assert result["elapsed_s"] == 7 * 3600.0
+    assert result["exceeds_longest_completed"] is True
+
+
+def test_current_streak_duration_exceeds_longest_completed_false():
+    records = [
+        {"checked_at_utc": "2026-08-29T00:00:00Z", "round": 1, "verdict": "down"},
+        {"checked_at_utc": "2026-08-29T10:00:00Z", "round": 2, "verdict": "down"},
+        {"checked_at_utc": "2026-08-29T11:00:00Z", "round": 3, "verdict": "up"},
+        {"checked_at_utc": "2026-08-29T12:00:00Z", "round": 4, "verdict": "down"},
+    ]
+    result = rc.current_streak_duration(records, now_fn=lambda: "2026-08-29T12:30:00Z")
+    assert result["longest_completed_same_verdict_streak_s"] == 36000.0
+    assert result["elapsed_s"] == 1800.0
+    assert result["exceeds_longest_completed"] is False
+
+
+def test_current_streak_duration_no_prior_completed_streak_gives_none_comparison():
+    records = [
+        {"checked_at_utc": "2026-08-29T00:00:00Z", "round": 1, "verdict": "down"},
+    ]
+    result = rc.current_streak_duration(records, now_fn=lambda: "2026-08-29T01:00:00Z")
+    assert result["longest_completed_same_verdict_streak_s"] is None
+    assert result["exceeds_longest_completed"] is None

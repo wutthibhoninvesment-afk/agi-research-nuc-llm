@@ -6966,3 +6966,107 @@ Workspace: ~/agi-research
     section scope), and no evidence yet that another section has the same
     defect, so not urgent, but a plausible place for another to exist
     given how it hid in skills(B)'s own section for 78 rounds.
+
+### Round 322 — NUC-integration(E) — 2026-08-29
+- Pre-flight: `ps -eo pid,ppid,etime,cmd` showed only this round's own
+  driver process tree ([[feedback_check_for_concurrent_rounds]]); `git
+  status --porcelain` showed exactly the 5 paths in `state/known-
+  standing-dirty-paths.json`, nothing to reconcile
+  ([[feedback_check_cached_diff_before_commit]]).
+- **Box still UNREACHABLE — fifth consecutive down E-round** (298, 304,
+  310, 316, 322). `python3 nuc/reachability_check.py check --round 322`:
+  SSH `Connection timed out`; tailscale `LastSeen` still byte-identical
+  to every check since round 298 (`2026-08-29T02:10:00.1Z`), confirming
+  the same continuous outage. This round's own live `status` reading:
+  **`elapsed_s: 28821.0` — 8h00m21s, the first time this track has
+  recorded an outage crossing the 8-hour mark.**
+- **Closed round 316's own next-steps item 4** (the "is this outage a
+  record, worth a line once it ends" comparison) — realized it doesn't
+  need to wait for the outage to end: an ongoing streak's elapsed-so-far
+  is already a valid lower bound on its true length. Added
+  `longest_completed_streak(records, verdict)` to `nuc/
+  reachability_check.py` — runs `summarize_log()`, drops the log's own
+  LAST streak unconditionally (it may still be open), returns the
+  longest remaining streak matching `verdict` by span; `None` if no
+  completed streak of that verdict exists yet. Wired its result into
+  `current_streak_duration()`'s return dict as two new fields:
+  `longest_completed_same_verdict_streak_s` and
+  `exceeds_longest_completed` (`True`/`False`/`None`). Factored
+  `_parse_ts`/`_streak_span_seconds` helpers shared by both functions
+  (replacing two duplicated inline `datetime.strptime` calls, zero
+  behavior change).
+- **Live result**: `longest_completed_same_verdict_streak_s: 18880.0`
+  (outage 1's own 5h14m40s checked-down span, 184→196, matching round
+  316's own hand-computed figure exactly) vs. this round's own
+  `elapsed_s: 28821.0` → **`exceeds_longest_completed: true`**, by
+  9941s (2h45m41s) — **round-298's outage is now provably the longest
+  continuous down-streak this track has ever recorded**, tool-computed
+  and tested rather than hand-inferred, while still open.
+- **Verification**: 6 new tests in `nuc/tests/test_reachability_check.py`
+  (streak-of-one-that-is-the-log's-own-last correctly excluded even when
+  numerically longest; longest-among-multiple-completed picked
+  correctly; both `exceeds_longest_completed` outcomes;
+  no-prior-completed-streak → `None`/`None`). `nuc/tests/
+  test_reachability_check.py`: 22 → **28 passed** (+6). Full `nuc/
+  tests/`: 219 → **225 passed** (+6 exact). Cross-track: `bash harness/
+  run_tests_fast.sh` → **414 passed, 229 deselected**; `bash languages/
+  whence/run_tests_fast.sh` → **946 passed, 39 deselected** — both
+  byte-identical to round 321's own baseline. `git diff --stat -- nuc/`:
+  2 files, 122 insertions, 3 deletions (deletions are only the two
+  inlined `strptime` calls replaced by the new shared helper).
+- **Unchanged this round**: `swap_watch_launch.py launch` (the second
+  multi-hour poll, round 304/310/316's own ask) still blocked — box down
+  at this round's own check too, fifth consecutive miss. Standing NUC
+  state re-verification (`--cap 256`, E3 patch, OLMoE tarball, `memory.
+  events` max, operator login, escalation channel) still not attempted —
+  needs the box up.
+- See `knowledge/round-322-nuc-e-longest-completed-streak-comparison-outage-crosses-8h.md`.
+
+## Next steps (as of round 322)
+1. Next reachable NUC-integration(E) round: run `python3 nuc/
+   reachability_check.py check --round NNN` (or `status`, now including
+   the record-comparison fields) FIRST, then `swap_watch_launch.py plan
+   --tag rNNN --duration 28800` / `launch` for the still-unlaunched
+   second multi-hour poll — round 304/310/316's own item, unchanged; now
+   the FIFTH consecutive down-round for this specific ask.
+2. Standing NUC state (`--cap 256`, E3 patch, OLMoE tarball, `memory.
+   events` max, operator login, escalation channel) still NOT
+   re-verified — round 304's item 2, unchanged.
+3. `reachability_check.py`'s `"ambiguous"` verdict has never been
+   observed on this box through round 322 — round 310's item 3,
+   unchanged.
+4. Once this outage finally ends, a future round should log its TRUE
+   final span via a normal `check --round NNN` (no manual intervention
+   needed to close out the streak in `summarize_log`) and could note the
+   final margin by which it beat outage 1's own 18880s span — this
+   round's own `exceeds_longest_completed: true` is a live lower-bound
+   read, not the final number (round 322's own item).
+5. The `tail`/EOF backgrounded-pipe silent-drop mechanism remains
+   genuinely unconfirmed — round 310's item 5, unchanged.
+6. Round 301's item 1 (recent-window heavy/light fail-rate ratio
+   recheck) needs ~15-20 more rounds past round 300 to reach its own
+   30-40-round target — natural check-in point ~round 330-340, still
+   not due.
+7. Round 301's item 2 (blocking-wait mitigation design sketch) remains
+   speculative — a future harness(A) round should either write it for
+   real or formally close it, unchanged.
+8. `harness/swe/regiontools.py`'s region-patch mechanism is still
+   deliberately un-unified with `EditFileTool` (round 307's item 2) —
+   still needs a real design sketch before implementation, unchanged.
+9. `EditFileTool` has no file-size cap (round 319's own item) — a future
+   harness(A) round could add one.
+10. `harness/swe/fuzz.py`'s `BUILTIN_ARITY` table has no `trunc` entry
+    (named since round 318) — still the natural next SWE-loop(D) round.
+11. Optional, not urgent: wire `harness/swe/fuzz.py`'s program generator
+    into `tests/test_parser_differential.py` for a randomized host-vs-
+    guest parser sweep (round 320's own item) — either SWE-loop(D) or
+    language(C) fits.
+12. The cross-fn-boundary rename-collision scenario and its v0.14.13
+    forwarding analogue (round 306's/317's own items) are both still not
+    independently fuzz-covered — unchanged, a future SWE-loop(D) round.
+13. The effect system's "dynamic call graph" gap stays formally CLOSED
+    (round 314) — no future language(C) round should reopen it without
+    first reading `SPEC.md`'s "v0.14.14" section.
+14. Round 321's item 14 (a slow pass over `research-state.md`'s other
+    header "Track status" lines for the same stale-bracket-note class)
+    remains optional and not urgent, unchanged.

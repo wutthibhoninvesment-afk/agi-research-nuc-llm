@@ -213,6 +213,35 @@ def summarize_log(records: list) -> dict:
     }
 
 
+def _parse_ts(ts: str) -> datetime:
+    return datetime.strptime(ts, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+
+
+def _streak_span_seconds(streak: dict) -> float:
+    return (_parse_ts(streak["end"]) - _parse_ts(streak["start"])).total_seconds()
+
+
+def longest_completed_streak(records: list, verdict: str) -> dict | None:
+    """Among `summarize_log`'s streaks matching `verdict`, the longest one
+    that is NOT the very last streak in the log -- the last streak might
+    still be ongoing (its "end" is just "whenever the last check happened
+    to run", exactly the gap `current_streak_duration` exists to cover for
+    the CURRENT streak). Excluding it here means this only ever compares
+    against streaks the log has already seen END (a real verdict flip
+    logged afterwards), never against itself mid-flight.
+
+    Returns None if there is no completed streak of that verdict yet (e.g.
+    `verdict` has only ever appeared as the log's own still-open final
+    streak, or never at all).
+    """
+    summary = summarize_log(records)
+    completed = summary["streaks"][:-1] if summary["streaks"] else []
+    matching = [s for s in completed if s["verdict"] == verdict]
+    if not matching:
+        return None
+    return max(matching, key=_streak_span_seconds)
+
+
 def current_streak_duration(records: list, now_fn=now_utc_iso) -> dict | None:
     """How long the box has held its LATEST observed verdict, measured
     against `now_fn()` rather than only the last two checks' own
@@ -225,6 +254,14 @@ def current_streak_duration(records: list, now_fn=now_utc_iso) -> dict | None:
     rather than stopping at the last check's own timestamp the way
     `summarize_log`'s streak `end` field deliberately does (that field
     also serves backfilled/historical streaks where "now" is meaningless).
+
+    Also reports whether the CURRENT streak already exceeds the longest
+    COMPLETED streak of the same verdict the log has ever seen
+    (`longest_completed_streak`) -- round 316's own next-steps flagged this
+    comparison as "worth a line... once this outage finally ends", but an
+    ongoing streak's elapsed-so-far is already a real lower bound on its
+    true length, so it can be compared against completed history right
+    now rather than waiting for a verdict flip that may be rounds away.
 
     Returns None for an empty log. Walks the sorted log backwards from the
     most recent record, extending the streak start back through every
@@ -244,15 +281,22 @@ def current_streak_duration(records: list, now_fn=now_utc_iso) -> dict | None:
         start = rec["checked_at_utc"]
         start_round = rec.get("round")
     now = now_fn()
-    start_dt = datetime.strptime(start, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
-    now_dt = datetime.strptime(now, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    start_dt = _parse_ts(start)
+    now_dt = _parse_ts(now)
+    elapsed_s = (now_dt - start_dt).total_seconds()
+    prior = longest_completed_streak(ordered, verdict)
+    prior_s = _streak_span_seconds(prior) if prior is not None else None
     return {
         "verdict": verdict,
         "streak_start_utc": start,
         "streak_start_round": start_round,
         "latest_check_round": ordered[-1].get("round"),
         "as_of_utc": now,
-        "elapsed_s": (now_dt - start_dt).total_seconds(),
+        "elapsed_s": elapsed_s,
+        "longest_completed_same_verdict_streak_s": prior_s,
+        "exceeds_longest_completed": (
+            None if prior_s is None else elapsed_s > prior_s
+        ),
     }
 
 
