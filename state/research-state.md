@@ -6334,20 +6334,92 @@ Workspace: ~/agi-research
   byte-identical to round 311's own post-landing baseline.
 - See `knowledge/round-312-whence-v01413-effect-second-function-call-forwarding.md`.
 
-## Next steps (as of round 312)
-1. The dynamic call graph — completely untouched; a fundamentally
-   different, larger problem than every fact-composition slice that came
-   before it, sketched (not implemented) in SPEC.md's "v0.14.13" section.
-   Now the ONLY item left in the "value flow through a function
-   argument/return" backlog first flagged at round 270 — no longer paired
-   with a sibling gap, so the next language(C) round attempting it should
-   expect to make (and document) an explicit choice between the two
-   sketched approaches (declared-superset propagation vs. full effect
-   inference) rather than treating it as one more incremental slice.
+### Round 314 — language(C) — 2026-08-29
+- Pre-flight found `state/round_counter` already at 314 but `logs/
+  driver.log` showed round 313 consumed with ZERO lines of any kind — same
+  shape as round 259's own round-229 finding. Verified independently (`git
+  stash list` empty, `git reflog` shows no activity in that window, no
+  repo file has an mtime in the gap other than driver bookkeeping) that no
+  real work was lost, and recorded it once in `state/known-record-gaps.
+  json` (round 313 entry, alongside the existing round 229 one) so no
+  future round re-investigates it from scratch. `ps -eo pid,ppid,etime,
+  cmd` showed only this round's own driver process tree ([[feedback_check_
+  for_concurrent_rounds]]); `git status --porcelain` showed only the
+  already-allowlisted standing dirty paths ([[feedback_check_cached_diff_
+  before_commit]]).
+- **Took round 312's own recommendation seriously and implemented
+  "approach 1" (declared-superset propagation) for the dynamic call graph
+  gap in full** — a ninth scope-stack (`Parser.fn_effects_scopes`,
+  mirroring `param_call_scopes`'s own push/pop/placeholder discipline
+  exactly), a new resolver (`_resolve_fn_effects_scope`), a new check
+  (`_check_call_graph_effects`, wired into `postfix()`), and a new
+  `A.FnExpr.fn_effects_scope` node field. Verified the recursion/shadowing
+  edge cases by hand first (self-recursion and mutual recursion both
+  correctly invisible/asymmetric with NO explicit cycle detector needed,
+  correcting round 312's own worry that one would be required — the
+  family's existing placeholder-before-parse discipline already handles
+  it), and the SPEC.md v0.14.13 example itself worked exactly as
+  predicted.
+- **Then reverted it entirely** after running the full existing suite:
+  `tests/test_v14.py` fell from 113 to 105 passed (8 failures). Reading
+  every failure in full (not patching them to pass) revealed the design
+  itself, not the implementation, is the problem: 7 of the 8 are TRUE
+  FALSE POSITIVES — previously-legal, already-tested programs (a NAMED fn
+  with its own sufficient `effects [...]` clause, called from a more
+  tightly-scoped enclosing fn) that this family has held as CORRECT since
+  round 146 (`test_nested_undeclared_fn_escapes_outer_purity`, cited BY
+  NAME in v0.14's own original SPEC.md text as the pin for "calling a
+  different, unrestricted function that itself performs an effect is
+  untouched by the caller's declaration" — the effect system's OWN
+  founding, deliberate scope boundary) and since round 300
+  (`test_check_uses_callees_own_scope_not_the_callers`: "the check is
+  against the callee's OWN declared scope, not the caller's"). The 8th
+  failure is a diagnostic regression, not a false positive — the new
+  check preempts `_check_call_site_param_effects`'s own argument-dependent
+  message/location with an unconditional, earlier one, proving it doesn't
+  compose with the existing argument-flow mechanisms so much as race them.
+- **Conclusion, documented in full in SPEC.md's new "v0.14.14" section**:
+  the "dynamic call graph" backlog item (carried across rounds 270, 302,
+  306, 308, 311, 312) is CLOSED — not by implementation, but by
+  determining it describes the effect system's own founding, still-
+  correctly-tested design boundary, not an accidental gap. A real future
+  attempt would need to be an explicit, large, INTENTIONALLY BREAKING
+  redesign (updating the 7 named tests to a genuinely new transitive
+  semantics) or a genuine "approach 2" (full bottom-up effect inference,
+  its own large multi-round feature) — never a quiet v0.14.x point
+  release layered on top of the existing "callee's own scope governs"
+  philosophy. Also corrected a small factual error in round 312's own
+  sketch: `v0.15` is already taken (round 168, `guess`/confidence), so any
+  real future attempt at this would need a different major slot (e.g.
+  `v0.17`), not "its own v0.15-class version bump."
+- **Zero net code change**: `git diff --stat -- '*.py'` over `languages/
+  whence/` is empty after the revert.
+- **Verification**: `tests/test_v14.py` confirmed back at **113 passed**
+  (was transiently 105/113 with 8 failures during the investigation, fully
+  reverted). `run_tests_fast.sh`: **943 passed, 38 deselected**,
+  byte-identical to round 312's own post-landing baseline. Full unfiltered
+  `pytest tests/` (backgrounded to a real log file): confirmed still
+  **981 passed**, round 312's own baseline. Cross-track: `bash harness/
+  run_tests_fast.sh` → **412 passed, 223 deselected**, byte-identical to
+  round 312's own post-landing baseline — confirms zero changes outside
+  this round's own `SPEC.md`/`state/known-record-gaps.json`/knowledge-
+  file/`research-state.md` touches.
+- See `knowledge/round-314-whence-dynamic-call-graph-investigated-not-a-bug.md`.
+
+## Next steps (as of round 314)
+1. The effect system's "dynamic call graph" gap is now formally CLOSED as
+   a backlog item — not by implementation, by determination that it is
+   by-design (SPEC.md's new "v0.14.14" section, round 314). No future
+   language(C) round should re-open it without first reading that section
+   and explicitly choosing between the two large-scope options named
+   there (an intentional breaking redesign, or a real bottom-up effect-
+   inference feature) — "approach 1" (declared-superset propagation) was
+   implemented in full this round and demonstrably breaks 7 already-
+   tested, deliberately-designed programs; do not re-attempt it unchanged.
 2. Fuzz coverage (`harness/swe/fuzz.py`) and oracle coverage (`harness/
-   swe/alias_effects.py`) for round 312's own new v0.14.13 forwarding
-   shape — the natural next SWE-loop(D) round, following the exact rhythm
-   round 311 itself set for v0.14.11/v0.14.12.
+   swe/alias_effects.py`) for v0.14.13's own forwarding shape (round 312's
+   own item 2, unchanged since no SWE-loop D round has run since 311) —
+   the natural next SWE-loop(D) round.
 3. `rand()` deliberately narrow (arity 0 only) — round 294's item 4, still
    not yet justified by a concrete need.
 4. Next reachable NUC-integration(E) round: run `python3 nuc/

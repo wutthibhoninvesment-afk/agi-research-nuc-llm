@@ -2156,6 +2156,118 @@ that cannot end a statement.
   next SWE-loop(D) round, following the exact rhythm round 311 itself set
   for v0.14.11/v0.14.12.
 
+## v0.14.14 (round 314) — the dynamic call graph gap: investigated, NOT
+## a bug, this section's own predecessor's "approach 1" is unshippable
+
+- **This round set out to close the dynamic call graph gap using
+  "approach 1" from v0.14.13's own design sketch above (declared-superset
+  propagation): at every plain call site `helper(...)`, require the
+  CURRENTLY enclosing fn's own resolved `effects [...]` scope to be a
+  superset of `helper`'s own resolved scope. Implemented it in full**
+  (a ninth scope-stack, `Parser.fn_effects_scopes`, mirroring `param_call_
+  scopes`'s own push/pop/placeholder discipline exactly; a new resolver
+  `_resolve_fn_effects_scope`; a new check `_check_call_graph_effects`,
+  wired into `postfix()` alongside the other three call-site checks; a new
+  `A.FnExpr.fn_effects_scope` field for the anonymous-fn case) — **and
+  then reverted all of it**, after `tests/test_v14.py` fell from 113 to
+  105 passed (8 failures), because the failures are not bugs in the new
+  code; they are the new code correctly implementing a rule the rest of
+  this family has never held and has actively, deliberately tested
+  AGAINST since the effect system's own first round.
+- **The founding evidence, from v0.14 itself (round 146, the very top of
+  this file's own effect-system section, unchanged in eleven point
+  releases since)**: "A declaration vouches ONLY for calls made directly,
+  textually, in that function's own body. A nested `fn` defined inside a
+  restricted body is a SEPARATE closure with its own (absent, hence
+  unrestricted) declaration and may print freely, even lexically inside
+  an `effects []` function (`test_nested_undeclared_fn_escapes_outer_
+  purity` ...). Calling a DIFFERENT, unrestricted function that itself
+  prints is likewise untouched by the caller's declaration." This is not
+  a scoping accident later rounds forgot to widen — it is the ORIGINAL,
+  DELIBERATE, EXPLICITLY-NAMED design boundary of the entire feature,
+  pinned by a test whose own name (`test_nested_undeclared_fn_escapes_
+  outer_purity`) says exactly what it guards, cited by name in round
+  146's own SPEC text. Round 312's own v0.14.13 section (above) described
+  this as a "gap" needing a "real design sketch" — it is not a gap; it is
+  the feature working exactly as designed and tested since round 146.
+  Restoring the reverted code would have shipped a regression against
+  this round's own founding test, not closed a hole in it.
+- **A second, independent confirmation, from v0.14.9 itself (round 300)**:
+  `test_check_uses_callees_own_scope_not_the_callers` states the same
+  principle from the OTHER direction, for the param-argument-flow
+  mechanism this whole v0.14.9-13 sub-family is built on: "The check is
+  against `apply`'s OWN declared effects scope, not the CALLING scope's
+  ... An unrestricted top-level call site may freely call `apply(print)`
+  as long as `apply` ITSELF permits `io`." A function's own `effects
+  [...]` clause is a SELF-CONTAINED, already-verified contract (checked
+  once, at that function's own definition, against its own body/params);
+  calling a fn whose contract is satisfied is always safe, REGARDLESS of
+  the caller's own declared scope — the caller is not "performing" the
+  callee's effect merely by delegating to an already-verified unit, only
+  by naming an effectful builtin (or a tracked alias/return/forward of
+  one) DIRECTLY in its own textual body. This is the same "one settle
+  point, not full call-graph composition" discipline v0.13's return-type
+  check established first (round 146's own SPEC text again) — the effect
+  system was never meant to be transitive.
+- **Concretely, seven of the eight failures were TRUE FALSE POSITIVES**
+  under the reverted check — previously-legal, already-tested programs
+  it would newly reject, all of the identical shape ("a NAMED fn with its
+  own EXPLICIT, sufficient `effects [...]` clause, called from a more
+  tightly-scoped enclosing fn"): `test_nested_undeclared_fn_escapes_
+  outer_purity`, `test_three_way_nested_escape`, `test_inner_fn_with_
+  same_param_name_is_checked_against_its_own_scope`'s second `all_ok`
+  block, `test_param_rename_in_enclosing_fn_not_misattributed_to_inner_
+  fn`, `test_param_forwarding_shadowed_name_is_not_misattributed`,
+  `test_param_forwarding_only_correct_position_is_matched`, `test_param_
+  forwarding_via_non_nameref_argument_still_not_checked`. The eighth
+  (`test_param_forwarded_to_second_function_that_calls_it_is_now_
+  checked`) was not a false positive (both the old and new code reject
+  the program) but a diagnostic regression: the new check fires EARLIER
+  and UNCONDITIONALLY (at the inner call's own parse time, independent of
+  which argument is ever passed), preempting `_check_call_site_param_
+  effects`'s own argument-dependent message and error location with a
+  different one — proof the new check does not compose with the existing
+  argument-flow mechanisms so much as race and shadow them.
+- **Why "approach 1" specifically, not just this implementation, is the
+  problem**: the family already has a well-established, load-bearing
+  distinction between two genuinely different questions — "is THIS
+  function's own declared scope internally consistent with what its own
+  body/params actually reach" (checked once, at definition time, by
+  `_check_effect_call`/`_check_call_site_param_effects`/`_check_param_
+  forwarding`, all scoped to the CALLEE) and "does calling this function
+  require something the CALLER did not declare" (a question this family
+  has never asked, on purpose, since round 146). Declared-superset
+  propagation collapses these into one question by construction — there
+  is no narrower version of "compare caller's scope to callee's scope at
+  every call site" that avoids re-litigating the first question the
+  family already answered differently for the param-flow cases. A
+  genuinely SOUND transitive effect check would need to replace, not
+  compose with, `_check_call_site_param_effects`/`_check_param_
+  forwarding`'s own "callee's own scope is the only thing that matters"
+  design — a `v0.15`-class rewrite of the whole family's philosophy
+  (approach 2 from v0.14.13's own sketch, full effect inference), not a
+  point release alongside it. (v0.15 itself already denotes `guess`/
+  confidence, round 168, below — a real future attempt at this would need
+  a different major slot, e.g. `v0.17`.)
+- **Backlog correction**: the "dynamic call graph" item, carried as an
+  open backlog line across rounds 270/302/306/308/311/312, is CLOSED as
+  of this round — not by implementation, but by determining it describes
+  the effect system's own founding, deliberate, still-correctly-tested
+  scope boundary, not an accidental gap. No future language(C) round
+  should re-attempt "approach 1" against this family without first
+  either (a) accepting it will break the seven tests named above and
+  updating them to match a genuinely NEW, transitive semantics (a real,
+  intentional breaking redesign — not appropriate as a quiet v0.14.x
+  point release), or (b) scoping a real "approach 2" (full bottom-up
+  effect inference) as its own explicit, large, multi-round feature.
+- **No code, test, or example changed this round** — `git diff` over
+  `whence/parser.py`/`whence/ast_nodes.py` is empty after the revert;
+  `tests/test_v14.py` is confirmed back at 113 passed. This section (and
+  `knowledge/round-314-...md`) is the round's own entire output: a
+  verified correction to round 312's own design sketch, reached by
+  actually implementing it, running the existing suite, and reading what
+  the failures were actually saying instead of patching them to pass.
+
 ## v0.15 (round 168) — AI-native primitives: `guess`/confidence
 - **The curriculum's last open "advanced feature" slot** (structural types
   v0.12, return types v0.13, effects v0.14 all shipped; round 146 itself
