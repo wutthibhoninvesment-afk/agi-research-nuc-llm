@@ -33,10 +33,10 @@ LOG_PATH = "state/nuc-reachability-log.jsonl"
 
 
 def rec(round_, checked_at, verdict, notes, precision="coarse",
-        last_seen=None, ssh_reachable=None):
+        last_seen=None, ssh_reachable=None, boot_utc=None):
     if ssh_reachable is None:
         ssh_reachable = (verdict == "up")
-    return {
+    out = {
         "checked_at_utc": checked_at,
         "round": round_,
         "track": "NUC-integration(E)",
@@ -52,6 +52,13 @@ def rec(round_, checked_at, verdict, notes, precision="coarse",
         "precision": precision,
         "notes": notes,
     }
+    # `boot_utc` (round 334) is emitted ONLY when a row actually has one, so
+    # re-running this script still reproduces the 24 boot-time-less rows
+    # byte-for-byte as they already sit in the log. `streak_bounds` reads it
+    # with `.get()`, so absence and null are equivalent to every consumer.
+    if boot_utc is not None:
+        out["boot_utc"] = boot_utc
+    return out
 
 
 RECORDS = [
@@ -79,8 +86,10 @@ RECORDS = [
         "fresh reboot; uptime -s = 2026-08-27T11:50:48Z (round's own stated "
         "boot time, used verbatim); checked_at = sweep start timestamp, also "
         "stated verbatim -- bounds the round-184/196 outage end to between "
-        "10:54:40 (still down) and 11:50:48 (already booted)",
-        precision="precise"),
+        "10:54:40 (still down) and 11:50:48 (already booted); round 334 "
+        "promoted that boot time out of this prose into the boot_utc field, "
+        "where streak_bounds actually reads it",
+        precision="precise", boot_utc="2026-08-27T11:50:48Z"),
     rec(208, "2026-08-27T16:25:48Z", "up", "same boot (11:50:48), uptime 4h35m"),
     rec(214, "2026-08-27T19:14:48Z", "up", "same boot, uptime ~7h24m"),
     rec(232, "2026-08-28T03:15:48Z", "up", "same boot, uptime ~15h25m"),

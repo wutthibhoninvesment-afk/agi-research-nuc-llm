@@ -184,6 +184,27 @@
     "prompt": "Random-program testing of my interpreter keeps finding RecursionError crashes on deeply nested input. Fix the root cause and keep the fuzzing loop going."
   },
   {
+    "id": "sib-near",
+    "expect": [
+      "sampled-interval-brackets"
+    ],
+    "prompt": "Our status page computes each outage's duration by subtracting the first failing health-check timestamp from the last one. We poll every 15 minutes, so those numbers must be low. Make the reporting honest."
+  },
+  {
+    "id": "sib-mid",
+    "expect": [
+      "sampled-interval-brackets"
+    ],
+    "prompt": "The incident review says the database was unreachable for 5h14m, but the postmortem doc says 6h. Both are derived from the same monitoring log. Which one is right and how do we stop this disagreement recurring?"
+  },
+  {
+    "id": "sib-far",
+    "expect": [
+      "sampled-interval-brackets"
+    ],
+    "prompt": "We want to claim last night was the longest downtime we've ever had, but we only find out a host is down when the hourly cron probe runs. Can we actually prove it beat the previous record?"
+  },
+  {
     "id": "neg-1",
     "expect": [],
     "prompt": "Write a bash script that renames all .jpeg files in a folder to .jpg."

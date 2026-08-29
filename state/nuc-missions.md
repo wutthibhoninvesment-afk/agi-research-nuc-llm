@@ -885,6 +885,35 @@ Known facts (measured 2026-08-24, E1 full curve — /work/logs/nuc-bench.md):
   login) not re-verified — box down throughout. Full writeup:
   `knowledge/round-310-nuc-e-reachability-log-tool-and-outage-tally.md`.
 
+## Round 334 addendum (2026-08-29, box DOWN entire round — SEVENTH consecutive down window, same continuous outage as rounds 298/304/310/316/322/328)
+
+- **Live checks at round start (12:47:54 UTC) and round end (13:02:44 UTC)
+  both found the box unreachable**; tailscale's `LastSeen` for `pgain-nuc`
+  is still byte-identical to every check since round 298
+  (`2026-08-29T02:10:00.1Z`), so this remains one continuous outage, now
+  10h49m+ of *confirmed* down time and still open.
+- **Record-gap note**: rounds 316, 322 and 328 added no addendum here —
+  each was a down-round whose only live observation was already appended
+  to `state/nuc-reachability-log.jsonl` by `reachability_check.py check`,
+  which round 310 built expressly to replace per-round prose snapshots.
+  That log, not this file, is now the authoritative reachability record;
+  this file keeps the mission checklist and the round-level narrative.
+  Nothing was lost — the three missing addenda's content is all in the log.
+- **Built `streak_bounds`** in `nuc/reachability_check.py` (+ a `bounds`
+  CLI subcommand): every duration this track has ever quoted for an outage
+  is a check-to-check span, i.e. a strict LOWER bound, and nothing bounded
+  it from above. The bracket now reports both, sourced from real evidence
+  (`tailscale_last_seen` on the start side, a new `boot_utc` field on the
+  end side) with the two ignorance windows broken out separately. Concrete
+  effect on this file's own history: outage 1 (rounds 184-196), quoted as
+  "5h14m40s" ever since, could really have run to **7h02m26s**. 47 new
+  tests, `nuc/tests/` 229 → 276 passed. Full writeup:
+  `knowledge/round-334-nuc-e-outage-span-brackets.md`.
+- **Still open, unchanged**: the second multi-hour `swap_watch_launch.py`
+  poll (round 304's ask) remains unlaunched a SEVENTH time; standing state
+  (`--cap 256`, E3 patch, OLMoE tarball, `memory.events` max, operator
+  login, escalation channel) again NOT re-verified — box down throughout.
+
 ## Done-criteria for any mission
 Code runs (proof in round file), measurements banked in both places,
 `state/nuc-missions.md` checkbox ticked with a one-line result summary.
