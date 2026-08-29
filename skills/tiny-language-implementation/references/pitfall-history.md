@@ -22,6 +22,7 @@ enough to re-derive them.
 - [A differential harness's two builders silently drifting on an unstated default](#differential-harness-default-value-mismatch)
 - [A "gap" a design sketch describes can be the family's own founding, deliberately-tested boundary](#dynamic-call-graph-founding-boundary)
 - [A self-hosted guest parser can byte-match the host on every success path while silently diverging on a rejection path](#parser-differential-rejection-path-gap)
+- [Once one guard family has a success-path-only test gap, audit SIBLING guard families from the same era before assuming it was a one-off](#sibling-guard-family-audit)
 
 <a id="host-feature-fuzzer-guest-parity-gap"></a>
 ### A grammar-directed fuzzer generating a new host syntax feature will feed it straight into the hand-copied guest parser too, unless told not to
@@ -345,3 +346,47 @@ verified," check whether the existing corpus's error/miss programs
 actually reach every field that differs only on the rejection path, or
 build the whole-tree sweep instead of adding one more hand-picked
 assertion (Whence round 320, `tests/test_parser_differential.py`).
+
+<a id="sibling-guard-family-audit"></a>
+### Once one guard family is found to have a success-path-only test gap, audit SIBLING guard families from the same version/feature era for the IDENTICAL gap shape before assuming the finding was a one-off
+Round 320's fix (previous pitfall) closed exactly one guard family: the
+v0.12 PARAMETER-type guard's guest label was missing the host's `" of
+<fn_name>"` suffix for named functions. Round 326 asked the direct
+follow-up question the fix itself never asked — "does the SAME bug
+class recur in a SIBLING guard family?" — instead of treating round
+320 as closed and moving to unrelated backlog. It does: the v0.13
+RETURN-type guard has the mirror-image bug. Host `_closure_ret`
+(`whence/interp.py`) only appends `" of %s" % name` when the closure
+has a name at all (`name=None` for every anonymous fn); guest
+`check_ret` (`examples/self_eval.lang`) built `"return value of " +
+fn_name` UNCONDITIONALLY, using the guest's `"(anonymous)"` sentinel
+string as `fn_name` instead of ever omitting the suffix. Invisible for
+18 rounds (since round 158) for the exact same reason as round 320's
+finding: the one example that exercises this shape only ever calls it
+on the SUCCESS path, and no corpus program ever failed an anonymous
+closure's return-type check to expose the REJECTION-path label text.
+Confirmed live before fixing: host `let g = fn() -> num { "oops"
+}\nlet result = g()` misses with `"return value expected num, got
+str"`; guest, same source, missed with `"return value of (anonymous)
+expected num, got str"` — a real, reproducible divergence, fixed by
+branching on the `"(anonymous)"` sentinel the same way an existing
+sibling helper (`show_callable`) already does.
+
+The generalizable lesson: a fix for one instance of a bug SHAPE (not
+just one bug) doesn't imply the shape was unique to where it was
+found. When a family of near-identical guarded features shares a
+version/feature era (here: v0.12 and v0.13's typed-parameter and
+typed-return guards, added in adjacent rounds with near-identical
+success-path-only guest implementations), a test gap discovered in
+one member is evidence — not proof, but a strong prior — that sibling
+members were built the same way and may carry the identical gap. This
+costs nothing extra to check: no new tool, no new fuzz campaign, just
+grepping the guest source for the sibling family's own guard-label
+helper and asking the same "does this omit the anonymous case?"
+question that closed the first instance. Do this as the LAST step of
+closing any test-gap bug that came from a whole-tree/rejection-path
+differential (see the pitfall above) or any other instrument that
+found a bug by exhaustive sweep rather than by someone naming the
+scenario in advance — those are exactly the bug shapes most likely to
+recur silently in a sibling feature (Whence round 326, `check_ret`
+mirroring round 320's `build_guards` fix in `_apply_type_guards`).

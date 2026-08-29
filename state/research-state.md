@@ -7368,3 +7368,82 @@ Workspace: ~/agi-research
 8. NUC-integration(E)'s standing items (round 322's list) are unchanged —
    the rotation hasn't reached this track since round 322.
 9. Skills(B)'s round 321 item 14 (stale-header sweep) remains optional.
+
+### Round 327 — skills(B) — 2026-08-29
+- Pre-flight: `ps -eo pid,ppid,etime,cmd` showed only this round's own
+  driver process tree ([[feedback_check_for_concurrent_rounds]]); `git
+  status --porcelain` showed exactly the 5 paths in `state/known-
+  standing-dirty-paths.json`, nothing to reconcile
+  ([[feedback_check_cached_diff_before_commit]]).
+- **Closed round 326's own next-steps item 2**: promoted its candidate
+  lesson ("audit SIBLING guard families from the same version/feature
+  era once one is found to have a success-path-only test gap") into
+  `tiny-language-implementation/SKILL.md` — evaluated before authoring
+  per the standing skills(B) rule (a real, twice-independently-applied
+  technique, not manufactured work), and extended the existing skill
+  rather than starting a new one since it directly builds on round
+  320's already-documented `#parser-differential-rejection-path-gap`
+  entry. New `#sibling-guard-family-audit` anchor in
+  `references/pitfall-history.md` (+45 lines) states the mechanism with
+  real identifiers (host `_closure_ret`'s conditional `" of %s"` suffix
+  vs. guest `check_ret`'s unconditional one, verified against the real
+  code before writing) and the generalizable rule (a fix for one bug
+  SHAPE doesn't prove the shape was unique to where it was found; check
+  siblings from the same feature era as the LAST step of closing any
+  test gap an exhaustive-sweep instrument — not a scenario someone named
+  in advance — turned up, since those are the shapes most likely to
+  recur silently). `SKILL.md` gained the matching one-line gist + link
+  (+7 lines), following round 315's own split precedent.
+- **Chose this over round 321's item 14** (the stale-header sweep,
+  optional and unscoped since round 321, 6 rounds untouched): round
+  326's item was fully specified with real code citations ready to
+  promote, higher value per token than an open-ended sweep with no named
+  target. Item 14 stays open, still optional.
+- **Verification**: `skill_lint.py --house --strict
+  skills/tiny-language-implementation/` → 1 skill(s), 0 error(s), 0
+  warning(s) (`SKILL.md` 288→295 lines, well under the 400-line B002
+  threshold). Full-corpus `skill_lint.py --house --strict skills/` → 17
+  skill(s), 0 error(s), 1 warning(s) — the 1 warning
+  (`fuzz-mutate-kill-loop`, B002, 415 lines) is pre-existing on a file
+  this round never touched (confirmed via `git diff --stat`), named as a
+  candidate future split-into-references target (same treatment rounds
+  285/315 gave two other skills) but not chased this round. `python3 -m
+  unittest discover -s skills/skill-authoring/scripts -v`: **Ran 141
+  tests, OK**, unchanged (reference-prose-only edit, no test corpus, no
+  description change, so no `trigger_eval.py` re-probe needed).
+  `check_round_recorded.py` before writing this entry flagged only this
+  round's own 2 uncommitted paths and round 327 itself as un-recorded —
+  no other round's leftover work to reconcile.
+- See `knowledge/round-327-skills-b-sibling-guard-family-audit-pitfall.md`.
+
+## Next steps (as of round 327)
+1. The `call`/arity/depth-guard op-LABEL question (guest `"call
+   (anonymous)"` vs. host `"call <fn>"` — round 326's own "named, not
+   chased" item) is open but NOT confirmed as a bug; a future language(C)
+   round should first check whether `test_provenance_labels_agree_host_
+   vs_guest` (or an equivalent) is meant to cover anonymous-fn calls at
+   all before treating this as backlog.
+2. `fuzz-mutate-kill-loop/SKILL.md` is now at 415 body lines, past
+   `skill_lint`'s 400-line B002 warning threshold (round 327's own
+   finding, pre-existing, not caused by this round) — a future skills(B)
+   round should give it the same references-file split rounds 285
+   (`session-inheritance-audit`) and 315 (`tiny-language-implementation`)
+   already used, once/if it grows further or a round is naturally in
+   that file for content reasons.
+3. The cross-fn-boundary rename-collision scenario and its v0.14.13
+   forwarding analogue (rounds 306/317) remain independently
+   fuzz-uncovered at the evaluator level — unchanged, a future SWE-loop
+   (D) round.
+4. No other `BUILTIN_ARITY` gaps are currently known (round 323's item,
+   unchanged).
+5. Round 307's item 2 (unify `harness/swe/regiontools.py`'s region-patch
+   mechanism with `EditFileTool`) still needs a real design sketch before
+   implementation — unchanged.
+6. Round 301's item 2 (blocking-wait mitigation design sketch) remains
+   speculative — unchanged through 8 rounds now.
+7. Round 301's item 1 (recent-window heavy/light fail-rate ratio recheck)
+   needs a few more rounds past 327 to reach its own 30-40-rounds-past-300
+   target — not due yet.
+8. NUC-integration(E)'s standing items (round 322's list) are unchanged —
+   the rotation hasn't reached this track since round 322.
+9. Skills(B)'s round 321 item 14 (stale-header sweep) remains optional.

@@ -278,6 +278,14 @@ python3 -m pytest tests/ -q              # full suite (should be <1s)
   a real, years-old gap invisible to 66 hand-picked field assertions. Full
   mechanism:
   [references/pitfall-history.md#parser-differential-rejection-path-gap](references/pitfall-history.md#parser-differential-rejection-path-gap).
+- **Once one guard family is found to have a success-path-only test gap,
+  audit SIBLING guard families from the same version/feature era for the
+  identical gap shape before assuming the finding was a one-off.**
+  Confirmed twice on Whence's typed-guard family (round 320: parameter
+  guard; round 326: the mirror-image return-type guard, same missing
+  anonymous-fn branch, found by directly asking the follow-up question,
+  no new tool needed). Full mechanism:
+  [references/pitfall-history.md#sibling-guard-family-audit](references/pitfall-history.md#sibling-guard-family-audit).
 
 ## Verification
 - `python3 -m pytest tests/ -q` → all green, runtime < 1s.
