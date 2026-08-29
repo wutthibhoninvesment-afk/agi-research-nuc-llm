@@ -50,3 +50,38 @@
 1890]
 2026-08-29T00:12:30Z iter=26 status=[  16184
 1895]
+2026-08-29T00:13:31Z iter=27 status=[  16184
+1899]
+2026-08-29T00:14:33Z iter=28 status=[  16184
+1903]
+2026-08-29T00:15:34Z iter=29 status=[  16184
+1907]
+2026-08-29T00:16:36Z iter=30 status=[  16184
+1911]
+2026-08-29T00:17:37Z iter=31 status=[  16184
+1915]
+2026-08-29T00:18:38Z iter=32 status=[  16184
+1919]
+2026-08-29T00:19:40Z iter=33 status=[1921]
+2026-08-29T00:20:42Z iter=34 status=[1921]
+2026-08-29T00:21:43Z iter=35 status=[1921]
+2026-08-29T00:22:45Z iter=36 status=[1921]
+2026-08-29T00:23:47Z iter=37 status=[1921]
+2026-08-29T00:24:50Z iter=38 status=[1921]
+2026-08-29T00:25:52Z iter=39 status=[1921]
+2026-08-29T00:26:54Z iter=40 status=[1921]
+2026-08-29T00:27:57Z iter=41 status=[1921]
+2026-08-29T00:28:59Z iter=42 status=[1921]
+2026-08-29T00:30:02Z iter=43 status=[1921]
+2026-08-29T00:31:04Z iter=44 status=[1921]
+2026-08-29T00:32:08Z iter=45 status=[1921]
+2026-08-29T00:33:11Z iter=46 status=[1921]
+2026-08-29T00:34:13Z iter=47 status=[1921]
+2026-08-29T00:35:15Z iter=48 status=[1921]
+2026-08-29T00:36:17Z iter=49 status=[1921]
+2026-08-29T00:37:19Z iter=50 status=[1921]
+ 00:38:22 up 1 day, 12:47,  2 users,  load average: 0.00, 0.02, 0.00
+-rw-rw-r--  1 jab jab 290411 Aug 29 00:19 swap-watch-r268-checkpoint.jsonl
+-rw-rw-r--  1 jab jab 382086 Aug 29 00:19 swap-watch-r268-long.json
+-rw-rw-r--  1 jab jab      0 Aug 28 16:18 swap-watch-r268-long.log
+PULL_DONE
