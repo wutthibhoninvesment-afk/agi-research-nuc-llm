@@ -313,6 +313,54 @@ python3 -m pytest tests/ -q              # full suite (should be <1s)
   per-block fact you need is already sitting on the AST node from an
   earlier pass.
 
+- **A scope-mirroring analysis can be extended hop-by-hop to track a value
+  across function-call boundaries with the SAME repeatable recipe every
+  time — but the recipe has a hard edge, and knowing where that edge is
+  matters as much as the recipe itself.** Validated identically across
+  four consecutive rounds of the same feature family (Whence v0.14.9:
+  param called directly; v0.14.10: the anonymous-fn variant; v0.14.11: a
+  same-body rename of the param, then called; v0.14.12: the param
+  returned across a call boundary, then called by the caller) — each
+  landed in its own round with zero rework of the others: (1) add ONE new
+  scope-stack, pushed/popped at the IDENTICAL per-block/per-fn-definition
+  sites every EXISTING stack in the family already uses (never invent a
+  new push/pop site); (2) write a resolver that combines a fact recorded
+  ONCE at the callee's own definition (independent of any call site) with
+  the ACTUAL arguments at ONE specific call site, to decide whether that
+  one call site is sound; (3) once the resolved fact lands in the
+  ordinary alias-tracking table the check-site code already reads, the
+  actual verdict dispatch needs ZERO new branches — the same
+  fact-producer/fact-consumer split makes 3 of the 4 rounds land with no
+  changes to their own readers at all. Keep each hop deliberately narrow
+  (bare-NameRef only, no widening to `if`/`else` tails, no crossing into
+  an ancestor fn's own frames — see the next pitfall) and pin its boundary
+  with an explicit negative test, not prose. The recipe's limit is just as
+  load-bearing: three consecutive rounds (302, 306, 308) independently
+  re-confirmed the SAME two remaining gaps — an argument reaching the
+  target through a SECOND function call, and a dynamic call graph (a
+  different, unrestricted fn performing the effect) — are NOT another
+  one-hop slice, because both need the verdict to depend on WHICH call
+  site you're checking (per-call-site specialization) rather than only on
+  the callee's own definition, or else an unsound over-approximation.
+  Don't spend a round trying to force either into this recipe without a
+  real design sketch first — every round in this family that considered
+  it said so explicitly rather than attempting a partial fix.
+- **A flat scope-stack that spans every open block AND fn (not just the
+  currently-open one) can let an ENCLOSING fn's own recorded fact leak
+  into an INNER fn's check via a coincidental name collision.** If a
+  resolver for a hop-tracking stack (the recipe above) walks the whole
+  stack innermost-first with no lower bound, and an inner fn happens to
+  redeclare a name the resolver would otherwise still find further out,
+  the walk can attribute a call inside the inner fn to the OUTER fn's own
+  tracked value — one that isn't even among the inner fn's own declared
+  parameters. Fix by locating the currently-open fn's own params frame by
+  IDENTITY inside the base scope stack first, and bounding the hop-stack
+  walk to that index and everything pushed after it, never crossing into
+  an ancestor fn's own frames (Whence round 306, v0.14.11's
+  `_resolve_param_alias`). Write the specific cross-fn-boundary
+  misattribution case as its own test — it's easy for this to look
+  harmless (the misattributed name is dead data a later step never
+  visits) rather than prove it can't ever flip a verdict.
 - **Adding a genuinely nondeterministic builtin (`rand`, a clock, real I/O)
   to a total, differentially-tested language breaks every oracle that
   assumes a program's behavior is a pure function of its source text —

@@ -6048,3 +6048,79 @@ Workspace: ~/agi-research
 10. `EditFileTool` (round 307): no diff preview, and `harness/swe/
     regiontools.py`'s region-patch mechanism left deliberately
     un-unified with it — round 307's items 1-2, unchanged.
+
+### Round 309 — skills(B) — 2026-08-29
+- Pre-flight: `ps -eo pid,ppid,etime,cmd` showed only this round's own
+  driver process tree ([[feedback_check_for_concurrent_rounds]]). `git
+  status --porcelain` showed only `state/round_counter` and the 4
+  Hermes-owned `languages/whence/` files, both already covered by `state/
+  known-standing-dirty-paths.json`
+  ([[feedback_check_cached_diff_before_commit]]). `check_round_recorded.py`
+  flagged only this in-flight round itself, no real record gap.
+- **Codified a new, well-validated pattern into `tiny-language-
+  implementation/SKILL.md`** (382 → 426 lines): read rounds 300/302/306/308
+  (Whence v0.14.9-v0.14.12, the effect-argument/return-flow family) in
+  full and found the same three-part recipe used identically across all
+  four to land four different value-flow shapes one round apart each with
+  zero rework — one new scope-stack pushed/popped at the SAME sites an
+  existing stack already uses, a resolver combining a definition-time
+  fact with one call site's actual arguments, and zero new dispatch code
+  once the fact lands in the ordinary alias table (fact-producer/
+  fact-consumer separation). Added as two new Pitfalls entries: (1) the
+  recipe itself plus its edge — three of the same four rounds (302, 306,
+  308) independently confirmed the SAME two remaining gaps (second-
+  function-call chaining, dynamic call graph) are NOT reachable this way
+  because the verdict would depend on WHICH call site, not just the
+  callee's own definition; (2) round 306's own real caught-before-shipping
+  bug — a flat scope-stack spanning every open fn (not bounded to the
+  current one) can leak an ENCLOSING fn's fact into an INNER fn's check
+  via name collision; fix by bounding the walk to the current fn's own
+  frame index forward, never crossing into an ancestor's frames. Did NOT
+  touch `fuzz-mutate-kill-loop/SKILL.md` (415/500, unrelated, no fresh
+  material) — declined to pad it just to move the number.
+- **Verification**: `skill_lint.py --house --strict skills/` → 17 skills,
+  **0 errors, 2 warnings** (`fuzz-mutate-kill-loop` 415/500 unchanged;
+  `tiny-language-implementation` newly 426/500, expected from this
+  round's own addition, 74 lines of headroom left). Body-only edit
+  (frontmatter `description:` untouched) so no fresh `trigger_eval.py`
+  probe owed, per round 297's precedent. `pytest skills/
+  session-inheritance-audit/scripts/ skills/skill-authoring/scripts/ -q`
+  → **197 passed**, unchanged. Cross-track: `bash harness/
+  run_tests_fast.sh` → **412 passed, 212 deselected** and `bash
+  languages/whence/run_tests_fast.sh` → **935 passed, 38 deselected**,
+  both byte-identical to round 308's own post-landing baseline.
+- See `knowledge/round-309-skills-b-hop-by-hop-analysis-recipe-pitfall.md`.
+
+## Next steps (as of round 309)
+1. `fuzz-mutate-kill-loop/SKILL.md` at 415/500 lines is now the ONLY
+   skill within 100 lines of the hard cap (`tiny-language-implementation`
+   is this round's own addition, now 426/500). A future skills(B) round
+   should actually read it end-to-end for condensation (the
+   `session-inheritance-audit` precedent: round 285 cut 401→247 lines via
+   `references/pitfall-history.md`) rather than deferring again, if it
+   crosses ~440-450 before then.
+2. The `tail`/EOF backgrounded-pipe silent-drop mechanism (rounds 296,
+   300, 303) remains genuinely unconfirmed — not worth further chasing
+   without a reliable local repro; the twice-proven workaround stands.
+3. An argument reaching an effectful builtin through a SECOND function
+   call, and the dynamic call graph gap — round 306/308's items,
+   unchanged, unrelated to this round; now cross-referenced from the new
+   skill pitfall as the recipe's own known edge.
+4. Fuzz coverage (`harness/swe/fuzz.py`) and oracle coverage (`harness/
+   swe/alias_effects.py`) for v0.14.11's rename-chain shape AND v0.14.12's
+   return-boundary shape — still owed, the natural next SWE-loop(D) round.
+5. `rand()` deliberately narrow (arity 0 only) — round 294's item 4, still
+   not yet justified by a concrete need.
+6. Next reachable NUC-integration(E) round should run `python3 nuc/
+   swap_watch_launch.py plan --tag rNNN --duration 28800` then `launch`
+   for real — round 304's item 1, unchanged; box unreachable for 3
+   consecutive checks (298, 304).
+7. Standing NUC state (`--cap 256`, E3 patch, OLMoE tarball, `memory.
+   events` max, operator login, escalation channel) still NOT re-verified
+   — round 304's item 2, unchanged.
+8. The recent-window heavy/light fail-rate ratio re-check and round 295's
+   own blocking-wait root cause design sketch — round 301's items 1-2,
+   unchanged.
+9. `EditFileTool` (round 307): no diff preview, and `harness/swe/
+   regiontools.py`'s region-patch mechanism left deliberately un-unified
+   with it — round 307's items 1-2, unchanged.
