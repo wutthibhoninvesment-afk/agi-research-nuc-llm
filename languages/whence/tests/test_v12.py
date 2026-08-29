@@ -328,3 +328,103 @@ def test_three_way_typed_tail_recursion():
         '  if n == 0 { acc } else { count(n - 1, acc + 1) }\n'
         '}\n'
         'let result = count(3000, 0)\n')
+
+
+# ============================================ round 335 (SWE-loop D) ========
+# A hand-built record is a first-class structural spec (SPEC v0.12,
+# "structural, not nominal"), and `typed`/`matches` accept one directly.
+# `_type_match` documented "every other field maps to a nested spec — a str
+# or ... another Record" as an invariant, but only the PARSER enforced it
+# (`parse_type` rejects `shape Bad = @{x: 5}`); nothing checked the fields
+# of a hand-built spec, so the recursion reached `spec.fields` on an int and
+# raised `AttributeError` straight out of the interpreter. Found by the
+# fuzz-grammar totality sweep that round 335 ran when `matches`/`shapeof`/
+# `typed` finally joined `harness/swe/fuzz.py`'s `BUILTIN_ARITY`.
+
+MALFORMED_SPECS = ['@{a: 5}', '@{a: [1]}', '@{a: true}', '@{a: fn(x){x}}',
+                   '@{a: miss "b"}', '@{a: @{b: 5}}', '@{a: guess(1,0.5,"m")}']
+
+
+@pytest.mark.parametrize("spec", MALFORMED_SPECS)
+def test_matches_with_a_malformed_record_spec_is_false_not_a_crash(spec):
+    # `matches` is documented total: "never itself a miss, even on a miss or
+    # a malformed spec (both simply do not match)". That has to hold at
+    # every depth, not only at the top level.
+    interp, env, out = run('let r = matches(@{a: 1}, %s)\n' % spec)
+    assert env.get("r").value is False
+
+
+@pytest.mark.parametrize("spec", MALFORMED_SPECS)
+def test_typed_with_a_malformed_record_spec_is_the_spec_miss(spec):
+    interp, env, out = run('let r = typed(@{a: 1}, %s, "L")\n' % spec)
+    r = env.get("r")
+    assert isinstance(r.value, Miss)
+    assert r.value.reasons[0].startswith(
+        "typed spec must be a type name or a shape"), r.value.reasons
+
+
+def test_a_well_formed_hand_built_record_spec_still_matches():
+    # the fix must not narrow the documented duck-typing promise
+    interp, env, out = run(
+        'let ok = matches(@{a: 1, b: "s"}, @{a: "num"})\n'
+        'let nested = matches(@{a: @{b: 1}}, @{a: @{b: "num"}})\n'
+        'let named = matches(@{x: 1}, @{__shape: "Pt", x: "num"})\n'
+        'let no = matches(@{a: "s"}, @{a: "num"})\n'
+        'let passed = typed(@{a: 1}, @{a: "num"}, "L")\n')
+    assert env.get("ok").value is True
+    assert env.get("nested").value is True
+    assert env.get("named").value is True
+    assert env.get("no").value is False
+    passed = env.get("passed").value
+    assert {k: n.value for k, n in passed.fields.items()} == {"a": 1}
+
+
+def test_malformed_spec_reaches_a_parameter_guard_through_a_shadowed_shape():
+    # `parse_type` only checks that the NAME was declared as a shape; the
+    # runtime spec is whatever that name is bound to where the guard runs.
+    # A parameter shadowing it makes a caller-supplied value the type spec —
+    # the crash was reachable from ordinary data, not just a literal call.
+    interp, env, out = run(
+        'shape Pt = @{x: num}\n'
+        'fn outer(Pt) {\n'
+        '  fn f(p: Pt) { p }\n'
+        '  f(@{x: 1})\n'
+        '}\n'
+        'let r = outer(@{x: [1]})\n')
+    r = env.get("r")
+    assert isinstance(r.value, Miss)
+    assert r.value.reasons[0].startswith(
+        "typed spec must be a type name or a shape")
+
+
+def test_a_non_string_shape_name_renders_as_a_whence_value():
+    # `name_node.value` goes straight into a user-visible miss message. A
+    # hand-built spec can put anything under `__shape`; rendering a Record
+    # through `%s` leaked the Python repr INCLUDING the heap address, so the
+    # same program produced a different message on every run — the
+    # determinism / fast_slow / direct oracles all fired on it.
+    for spec, want in [('@{__shape: 5, a: "num"}', "expected 5"),
+                       ('@{__shape: [1, 2], a: "num"}', "expected [1, 2]"),
+                       ('@{__shape: @{q: 1}, a: "num"}', "expected @{q: 1}")]:
+        interp, env, out = run('let r = typed(@{a: "z"}, %s, "L")\n' % spec)
+        reason = env.get("r").value.reasons[0]
+        assert want in reason, (spec, reason)
+        assert "object at 0x" not in reason, reason
+
+
+def test_the_repr_leak_is_stable_across_two_runs_of_the_same_source():
+    src = 'let r = typed(@{a: "z"}, @{__shape: @{q: 1}, a: "num"}, "L")\n'
+    a = run(src)[1].get("r").value.reasons[0]
+    b = run(src)[1].get("r").value.reasons[0]
+    assert a == b
+
+
+def test_three_way_hand_built_and_malformed_record_specs():
+    # a real call so `direct` mode actually engages (assert_three_way's
+    # own precondition), with the specs flowing through a parameter
+    assert_three_way(
+        'fn probe(v, spec) { [matches(v, spec), missed(typed(v, spec, "L"))] }\n'
+        'let good = probe(@{a: 1}, @{a: "num"})\n'
+        'let bad = probe(@{a: 1}, @{a: 5})\n'
+        'let named = probe(@{a: "z"}, @{__shape: @{q: 1}, a: "num"})\n'
+        'let result = [good, bad, named]\n')

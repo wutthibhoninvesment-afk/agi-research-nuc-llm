@@ -659,6 +659,10 @@ class Interpreter(object):
         names = None
         merged = 1
         runs = None
+        # v0.13/round 335: the `-> Type` contracts of any DIFFERENTLY-typed
+        # closures this tail loop enters below, checked after `ret_spec`'s
+        # own — see `_check_chain_rets`. None until one actually appears.
+        chain_rets = None
         call_line = line
         try:
             while True:
@@ -695,6 +699,7 @@ class Interpreter(object):
                     runs = []
                 _merge_ifs(runs, tc.ifs)
                 p = fn2.value
+                chain_rets = _note_chain_ret(chain_rets, p, ret_spec)
                 params = p.params
                 nargs = len(args)
                 name2 = p.name or "<fn>"
@@ -740,6 +745,8 @@ class Interpreter(object):
             self.depth = depth - 1
             self._hleft = hleft
         result = _check_ret(result, ret_spec, ret_label, line)
+        if chain_rets is not None:
+            result = _check_chain_rets(result, chain_rets, line)
         if runs is None:      # the common case: one frame, nothing deferred
             return Prov("call", name, line, result, _LAZY, result.value)
         return _finish_call(name, line, result, runs, names, merged)
@@ -1698,6 +1705,7 @@ class Interpreter(object):
                 self.peak_depth = self.depth
             names = None      # allocated on the first tail iteration (v0.6):
             merged = 1        # the common non-loop call never needs them
+            chain_rets = None  # round 335, see `_call_direct`'s own comment
             # v0.4: consecutive identical `if` decisions (same `if` node,
             # same branch) of a tail loop merge into one node whose inputs
             # are the individual conditions: [if_node, which, [cond, ...]].
@@ -1734,6 +1742,7 @@ class Interpreter(object):
                         runs = []
                     _merge_ifs(runs, tc.ifs)
                     p = fn2.value
+                    chain_rets = _note_chain_ret(chain_rets, p, ret_spec)
                     name2 = p.name or "<fn>"
                     if len(args) != len(p.params):
                         result = mk_miss(
@@ -1754,6 +1763,8 @@ class Interpreter(object):
             finally:
                 self.depth -= 1
             result = _check_ret(result, ret_spec, ret_label, line)
+            if chain_rets is not None:
+                result = _check_chain_rets(result, chain_rets, line)
             if runs is None:  # the common case: one frame, nothing merged
                 return Prov("call", name, line, result, _LAZY, result.value)
             return _finish_call(name, line, result, runs, names, merged)
@@ -2071,6 +2082,40 @@ def _kind(payload):
     return "value"
 
 
+def _spec_ok(spec):
+    """Whether `spec` is a usable `typed`/`matches` type spec ALL THE WAY
+    DOWN: a primitive tag string, or a Record whose every non-`__shape`
+    field value is itself a usable spec.
+
+    `_type_match` states this as its own precondition. The PARSER enforces
+    it for a DECLARED shape (`parse_type` accepts only a primitive tag or
+    an earlier shape name, so `shape Bad = @{x: 5}` is a parse error), but
+    `typed`/`matches` also accept a hand-built record as a spec by design
+    — SPEC's "structural, not nominal": "a record built entirely by hand,
+    with no relation to the shape ever declared, matches it exactly as one
+    built from it". Nothing ever checked the FIELDS of such a record, so
+    `matches(@{a: 1}, @{a: 5})` recursed into `5`, reached `spec.fields`
+    on an int, and raised `AttributeError` straight out of the interpreter
+    — a totality violation in a builtin whose own contract is "never
+    itself a miss" (round 335; reachable from a parameter guard too, via a
+    `shape` name shadowed by an ordinary `let` or a parameter).
+
+    Both callers already rejected a malformed spec at the TOP level, each
+    with its own policy (`matches` -> false, `typed` -> its own miss); this
+    just makes that check mean what it says instead of stopping one level
+    down. Recursion is bounded: records are immutable and built bottom-up,
+    so a spec record cannot contain itself.
+    """
+    if isinstance(spec, str):
+        return True
+    if not isinstance(spec, Record):
+        return False
+    for fname, node in spec.fields.items():
+        if fname != "__shape" and not _spec_ok(node.value):
+            return False
+    return True
+
+
 def _type_match(payload, spec):
     """Structural type test (v0.12): `spec` is a Python str (a primitive
     tag, `"any"` always matching) or a Whence Record (a `shape`'s payload:
@@ -2088,7 +2133,20 @@ def _type_match(payload, spec):
             return True, "any"
         return _kind(payload) == spec, spec
     name_node = spec.fields.get("__shape")
-    name = name_node.value if name_node is not None else "record"
+    if name_node is None:
+        name = "record"
+    else:
+        # `shape Name = …` always binds a Str here, but a HAND-BUILT spec
+        # record can carry any payload under `__shape`, and `name` goes
+        # straight into a user-visible miss message. Rendering a non-str
+        # through `%s` leaked the Python repr — including the object's heap
+        # ADDRESS, which made the message differ between two runs of the
+        # same program and tripped the determinism/fast_slow/direct oracles
+        # (round 335). `show_payload` is this project's one renderer for
+        # exactly this job.
+        name = name_node.value
+        if not isinstance(name, str):
+            name = show_payload(name)
     if not isinstance(payload, Record):
         return False, name
     have = payload.fields
@@ -2101,6 +2159,59 @@ def _type_match(payload, spec):
         if not ok:
             return False, name
     return True, name
+
+
+def _note_chain_ret(chain_rets, p, ret_spec):
+    """Record a tail-entered closure's own `-> Type` contract, unless it is
+    the originally-called closure's (already checked) or one already
+    recorded. Deliberately identity-based: within one run every mode sees
+    the same Closure/spec objects, and a Str spec is the AST node's own
+    string, shared across runs of the same AST — so the three-way
+    fast/direct/trampoline differential and the determinism oracle all see
+    the same list, in the same order. `p.ret_spec is None` (an untyped
+    callee, the overwhelmingly common case) exits on the first test."""
+    rs = p.ret_spec
+    if rs is None or rs is ret_spec:
+        return chain_rets
+    if chain_rets is None:
+        return [(rs, p.ret_label)]
+    for spec, _ in chain_rets:
+        if spec is rs:
+            return chain_rets
+    chain_rets.append((rs, p.ret_label))
+    return chain_rets
+
+
+def _check_chain_rets(result, chain_rets, line):
+    """Apply the `-> Type` contracts of every OTHER closure a merged tail
+    chain entered, after the originally-called closure's own check has
+    already run (round 335).
+
+    v0.13 captured `ret_spec`/`ret_label` from the originally-called
+    closure so a tail loop reassigning `p` could not make the check adopt
+    the chain's LAST contract instead of the caller's own. That half is
+    right and unchanged. What it missed is that a tail-called closure's own
+    contract then went unchecked ENTIRELY: `fn f() -> num { "s" }` misses
+    when called as `let q = f()` but returned the raw `"s"` when called in
+    tail position from any other function, so whether a declared return
+    type is enforced depended on the SYNTACTIC POSITION of a call site in
+    someone else's body. `tests/test_v13.py`'s own mutual-tail-call test
+    only ever covered the mirror case (typed caller, UNtyped callee), so
+    this direction had never been exercised.
+
+    In a tail call the callee's result IS the caller's result, so every
+    contract along the chain applies to that one settled value. The
+    caller's runs first (unchanged wording and ordering for every case
+    that already worked); a miss from it propagates through the rest
+    untouched, since `_check_ret` returns an already-missed result as-is.
+    `chain_rets` is None for every call that never tail-called a
+    DIFFERENTLY-typed closure — which includes every untyped program and
+    every typed self-recursive tail loop, so the per-bounce cost stays the
+    one identity check v0.13 promised.
+    """
+    for spec, label in chain_rets:
+        result = _check_ret(result, spec, label, line)
+    return result
 
 
 def _check_ret(result, ret_spec, ret_label, line):
@@ -2637,7 +2748,11 @@ def _make_builtin_table():
             return mk_miss("typed label must be a string, got %s" %
                            show_payload(label.payload), line, "typed",
                            inputs=(value, spec, label))
-        if not isinstance(spec.payload, (str, Record)):
+        if not _spec_ok(spec.payload):
+            # `_spec_ok`, not a bare isinstance: a record spec whose own
+            # FIELDS are not specs is just as unusable as a numeric one,
+            # and used to crash `_type_match` instead of missing here
+            # (round 335).
             return mk_miss("typed spec must be a type name or a shape, "
                            "got %s" % show_payload(spec.payload), line,
                            "typed", inputs=(value, spec, label))
@@ -2653,8 +2768,10 @@ def _make_builtin_table():
         # Total, like `missed`: never itself a miss, even on a miss or a
         # malformed spec (both simply do not match).
         value, spec = args
-        if _is_miss(value) or _is_miss(spec) or \
-                not isinstance(spec.payload, (str, Record)):
+        if _is_miss(value) or _is_miss(spec) or not _spec_ok(spec.payload):
+            # `_spec_ok` (round 335): a malformed spec "simply does not
+            # match" at every depth, not only at the top level — see this
+            # branch's own comment above and `_spec_ok`'s docstring.
             return derived("matches", "", line, args, False)
         ok, _ = _type_match(value.payload, spec.payload)
         return derived("matches", "", line, args, ok)

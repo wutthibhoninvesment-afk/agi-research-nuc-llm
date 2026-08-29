@@ -388,3 +388,149 @@ def test_three_way_unbound_shape_return_type_does_not_crash_any_mode():
         'fn make() { shape Local = @{x: num} 1 }\n'
         'fn f() -> Local { @{x: 1} }\n'
         'let result = f()\n')
+
+
+# ============================================ round 335 (SWE-loop D) ========
+# The docstring above, SPEC.md's own v0.13 bullet, and
+# `test_mutual_tail_call_checks_against_the_caller_not_the_callee` all say
+# the check must use the ORIGINALLY CALLED closure's ret_spec, "not
+# whatever closure a tail loop bounces through along the way". That half
+# was right. What nobody checked is the OTHER direction: the closure the
+# chain bounces THROUGH has a contract of its own, and dropping the
+# caller's spec on the floor is not the same thing as dropping the
+# callee's. The existing mutual-tail-call tests only ever used an UNTYPED
+# callee, so `fn f() -> num { "s" }` — a function that misses correctly
+# when called as `let q = f()` — silently returned the raw `"s"` whenever
+# some other function happened to call it in TAIL position. Whether a
+# declared return type was enforced at all depended on the syntactic
+# position of a call site in someone ELSE's body.
+#
+# Fix (`_note_chain_ret` / `_check_chain_rets`, interp.py): every DISTINCT
+# ret_spec the tail loop enters is recorded and checked after the
+# originally-called closure's own, so every contract along the chain
+# applies to the one settled value it all shares. The caller's still runs
+# first — an already-missed result passes through `_check_ret` untouched,
+# so every case that already worked keeps its exact wording and ordering.
+
+
+def test_untyped_caller_does_not_erase_the_tail_callees_own_contract():
+    src = ('fn f() -> num { "s" }\n'
+           'fn outer() { f() }\n'
+           'let r = outer()\n')
+    interp, env, out = run(src)
+    r = env.get("r")
+    assert isinstance(r.value, Miss), r.value
+    assert r.value.reasons[0].startswith("return value of f expected num")
+
+
+def test_the_same_callee_misses_identically_out_of_tail_position():
+    # the point of the bug: these two must not disagree
+    tail = run('fn f() -> num { "s" }\nfn outer() { f() }\nlet r = outer()\n')
+    lifted = run('fn f() -> num { "s" }\n'
+                 'fn outer() { let q = f()  q }\n'
+                 'let r = outer()\n')
+    a, b = tail[1].get("r").value, lifted[1].get("r").value
+    assert isinstance(a, Miss) and isinstance(b, Miss)
+    assert a.reasons[0].split(" (line")[0] == b.reasons[0].split(" (line")[0]
+
+
+def test_nested_fn_and_fnexpr_tail_calls_keep_their_return_contracts():
+    for src, want in [
+        ('fn outer() { fn f() -> num { "s" }  f() }\nlet r = outer()\n',
+         "return value of f expected num"),
+        ('fn outer() { let f = fn() -> num { "s" }  f() }\nlet r = outer()\n',
+         "return value expected num"),
+    ]:
+        interp, env, out = run(src)
+        r = env.get("r")
+        assert isinstance(r.value, Miss), (src, r.value)
+        assert r.value.reasons[0].startswith(want), (src, r.value.reasons)
+
+
+def test_typed_caller_still_wins_when_both_contracts_are_violated():
+    # ordering is deliberate and unchanged: the originally-called closure's
+    # contract is checked first, and `_check_ret` returns an already-missed
+    # result untouched, so the caller names itself exactly as before.
+    src = ('fn f() -> str { "s" }\n'
+           'fn outer() -> num { f() }\n'
+           'let r = outer()\n')
+    interp, env, out = run(src)
+    assert env.get("r").value.reasons[0].startswith(
+        "return value of outer expected num")
+
+
+def test_a_callee_only_violation_is_reported_against_the_callee():
+    src = ('fn f() -> num { "s" }\n'
+           'fn outer() -> str { f() }\n'   # outer's own contract is satisfied
+           'let r = outer()\n')
+    interp, env, out = run(src)
+    assert env.get("r").value.reasons[0].startswith(
+        "return value of f expected num")
+
+
+def test_every_contract_in_a_three_hop_chain_applies():
+    src = ('fn c() -> bool { "s" }\n'
+           'fn b() -> num { c() }\n'
+           'fn a() { b() }\n'
+           'let r = a()\n')
+    interp, env, out = run(src)
+    r = env.get("r")
+    assert isinstance(r.value, Miss)
+    # `b`'s spec is recorded first (chain order), and first failure wins
+    assert r.value.reasons[0].startswith("return value of b expected num")
+
+
+def test_a_satisfied_chain_passes_through_unchanged():
+    src = ('fn c() -> str { "s" }\n'
+           'fn b() -> any { c() }\n'
+           'fn a() { b() }\n'
+           'let r = a()\n')
+    interp, env, out = run(src)
+    assert env.get("r").value == "s"
+
+
+def test_typed_self_tail_recursion_still_records_nothing_extra():
+    # the whole per-bounce cost story: a self-recursive typed tail loop
+    # bounces through the SAME closure, so `p.ret_spec is ret_spec` holds
+    # every time and no chain list is ever allocated. Behaviour and depth
+    # are the pin; `_note_chain_ret`'s identity test is the mechanism.
+    src = ('fn cd(n) -> num { if n <= 0 { 0 } else { cd(n - 1) } }\n'
+           'let r = cd(2000)\n')
+    interp, env, out = run(src, max_depth=50)
+    assert env.get("r").value == 0
+    assert interp.peak_depth == 1
+
+
+def test_mutual_typed_tail_loop_checks_once_not_once_per_bounce():
+    # `a` and `b` bounce ~5 times; both declare `-> num`; the settled value
+    # is a str. Exactly one "typed" origin miss, not one per bounce.
+    src = ('fn a(n) -> num { if n <= 0 { "s" } else { b(n - 1) } }\n'
+           'fn b(n) -> num { a(n) }\n'
+           'let r = a(4)\n')
+    interp, env, out = run(src, max_depth=50)
+    r = env.get("r")
+    assert isinstance(r.value, Miss)
+    assert len(r.value.reasons) == 1, r.value.reasons
+    assert r.value.reasons[0].startswith("return value of a expected num")
+
+
+def test_three_way_untyped_caller_typed_tail_callee():
+    assert_three_way(
+        'fn f() -> num { "s" }\n'
+        'fn outer() { f() }\n'
+        'let result = outer()\n')
+
+
+def test_three_way_three_hop_typed_tail_chain():
+    assert_three_way(
+        'fn c() -> bool { "s" }\n'
+        'fn b() -> num { c() }\n'
+        'fn a() { b() }\n'
+        'let result = a()\n')
+
+
+def test_three_way_mutual_typed_tail_loop():
+    assert_three_way(
+        'fn a(n) -> num { if n <= 0 { "s" } else { b(n - 1) } }\n'
+        'fn b(n) -> num { a(n) }\n'
+        'let result = a(60)\n')

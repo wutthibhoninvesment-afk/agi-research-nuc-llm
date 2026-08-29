@@ -166,6 +166,28 @@ AGREE_CASES = [
     # used by `print`/`str`/`contains`/`join` in the same function.
     "let v = guess([1, 2, 3], 0.5, \"m\")\n",
     "let v = guess(@{a: 1, b: 2}, 0.5, \"m\")\n",
+    # round 335: `matches`/`shapeof`/`typed` joined `BUILTIN_ARITY`, so
+    # `GuestGen` emits them now too (nothing bans them -- self_eval.lang has
+    # dispatched all three since rounds 158/224). The `typed` branch of the
+    # guest's `apply_builtin` required `is_str(spec)`, so every RECORD spec
+    # -- a first-class, hand-buildable structural spec on the host, SPEC
+    # v0.12's "a record built entirely by hand ... matches it exactly as one
+    # built from it" -- came back a miss on the guest while the host passed
+    # the value straight through. Round 240 had already fixed exactly this
+    # for `matches` (via `strip()`); the `typed` branch was never revisited.
+    # The first case below is the minimized divergence; the rest pin the
+    # neighbourhood (mismatch, nesting, `__shape` naming, and the why-shape
+    # probe's own guest-only-`record`-op finding for a NON-record value).
+    "let v = typed(@{a: 1}, @{a: \"num\"}, \"L\")\n",
+    "let v = typed(@{a: 1, b: 2}, @{a: \"num\"}, \"L\")\n",
+    "let v = typed(@{a: @{b: 1}}, @{a: @{b: \"num\"}}, \"L\")\n",
+    "let v = typed(@{x: 1}, @{__shape: \"Pt\", x: \"num\"}, \"L\")\n",
+    "let v = typed(@{a: \"s\"}, @{a: \"num\"}, \"L\")\n",
+    "let v = missed(typed(1, @{a: \"num\"}, \"L\"))\n",
+    "let v = str(typed(@{a: 1}, @{a: \"num\"}, \"L\"))\n",
+    "let a = matches(@{a: 1}, @{a: \"num\"})\nlet b = matches(@{a: 1}, @{a: 5})\n",
+    "let a = shapeof(@{a: 1})\nlet b = shapeof(fn(x) { x })\nlet c = shapeof(num(\"x\"))\n",
+    "fn f(x) { typed(x, @{a: \"num\"}, \"p\") }\nlet v = f(@{a: 1})\nlet w = f(3)\n",
 ]
 
 
@@ -570,3 +592,50 @@ def test_round167_backlog_seeds_now_agree(pkg, harness, seed):
     src = G.generate_guest_program(seed)
     o = outcome(pkg, harness, src)
     assert o.kind == "ok", (seed, o.detail)
+
+
+# =========================================================== round 335 ==
+
+def test_generator_now_emits_the_shape_builtins_into_guest_programs():
+    """The mirror of `test_generator_now_includes_guess_family_in_guest_
+    output`: `matches`/`shapeof`/`typed` joined the shared `BUILTIN_ARITY`
+    table this round and are NOT banned for the guest (unlike `print`/
+    `rand`), so they must actually reach guest-safe programs -- and the
+    oracle must find zero mismatches on them."""
+    from swe.fuzz import ProgramGen
+    pat = re.compile(r"\b(matches|shapeof|typed)\(")
+    raw_hits = sum(1 for i in range(300)
+                   if pat.search(ProgramGen(i, stress_rate=0.0).program()))
+    assert raw_hits >= 30, raw_hits
+    guest_hits = sum(1 for i in range(300)
+                     if pat.search(G.generate_guest_program(i)))
+    assert guest_hits >= 20, guest_hits
+
+
+def test_no_shape_declaration_reaches_the_guest_generator():
+    """`GuestGen` inherits `ProgramGen`'s grammar; the guest parser has no
+    `shape` support at all, so a generated declaration would be a one-sided
+    parse failure. The grammar reaches structural typing through record
+    SPEC VALUES instead -- this is the guard on that design choice."""
+    pat = re.compile(r"(^|\n)\s*shape\s")
+    for i in range(200):
+        assert not pat.search(G.generate_guest_program(i)), i
+
+
+def test_record_spec_agreement_over_a_generated_batch(pkg, harness):
+    """The regression campaign for this round's `self_eval.lang` fix, run
+    over generated programs rather than only the hand-picked cases above:
+    every guest program that calls one of the three must agree."""
+    pat = re.compile(r"\b(matches|shapeof|typed)\(")
+    checked = 0
+    mismatches = []
+    for i in range(250):
+        src = G.generate_guest_program(i)
+        if not pat.search(src):
+            continue
+        checked += 1
+        o = outcome(pkg, harness, src)
+        if o.kind == "mismatch":
+            mismatches.append((i, o.detail[:300]))
+    assert checked >= 15, checked
+    assert not mismatches, mismatches[:3]

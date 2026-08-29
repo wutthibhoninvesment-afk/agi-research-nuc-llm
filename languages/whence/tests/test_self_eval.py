@@ -540,3 +540,63 @@ def test_boxes_are_well_formed_and_stripped_output_has_none():
         elif isinstance(p, Record):
             assert set(p.fields) != {"v", "op", "ins"}, "leaked box"
             stack.extend(f.payload for f in p.fields.values())
+
+
+# ==================================== round 335 (SWE-loop D) ===============
+# `typed`'s guest branch (`apply_builtin`, self_eval.lang) required
+# `is_str(spec)`, on the stated assumption that "the guest has no `shape`
+# records, so a record spec simply never matches". That conflates a shape
+# DECLARATION (which the guest parser indeed has none of) with a spec
+# VALUE: a hand-built record IS a legal structural spec on the host by
+# design (SPEC v0.12, "structural, not nominal"), and an ordinary record
+# literal is something any guest program can write. Round 240 had already
+# found and fixed exactly this for `matches`; the `typed` branch was never
+# revisited. Found by the guest-differential oracle the moment round 335
+# put `matches`/`shapeof`/`typed` into `harness/swe/fuzz.py`'s
+# `BUILTIN_ARITY`; minimized to `typed(@{a: 1}, @{a: "num"}, "L")`.
+
+RECORD_SPEC_CASES = [
+    'let result = typed(@{a: 1}, @{a: "num"}, "L")',              # passes
+    'let result = typed(@{a: 1, b: "s"}, @{a: "num"}, "L")',      # width
+    'let result = typed(@{a: @{b: 1}}, @{a: @{b: "num"}}, "L")',  # nested
+    'let result = typed(@{x: 1}, @{__shape: "Pt", x: "num"}, "L")',
+    'let result = typed(@{a: "s"}, @{a: "num"}, "L")',            # mismatch
+    'let result = typed(1, @{a: "num"}, "L")',                    # not a record
+    'let result = typed(@{}, @{a: "num"}, "L")',                  # missing field
+    'let result = typed(fn(x) { x }, @{a: "num"}, "L")',          # callable
+    'let result = typed(@{a: 1}, @{a: 5}, "L")',                  # malformed spec
+    'let result = matches(@{a: 1}, @{a: "num"})',
+    'let result = matches(@{a: 1}, @{a: 5})',
+    'let result = shapeof(@{a: 1})',
+]
+
+
+def test_record_spec_typed_agrees_host_vs_guest():
+    guests = guest_eval_all(RECORD_SPEC_CASES)
+    for src, g in zip(RECORD_SPEC_CASES, guests):
+        h = host_eval(src)
+        assert payloads_agree(h, g), (src, h.payload, g.payload)
+
+
+def test_the_minimized_divergence_is_a_pass_through_on_both_sides():
+    # the exact bug: the host passed the record through untouched, the
+    # guest returned a miss. Assert the VALUE, not just agreement, so a
+    # future regression that breaks BOTH sides identically still fails.
+    src = 'let result = typed(@{a: 1}, @{a: "num"}, "L")'
+    h = host_eval(src)
+    g = guest_eval_all([src])[0]
+    assert isinstance(h.payload, Record) and not isinstance(h.payload, Miss)
+    assert {k: n.payload for k, n in h.payload.fields.items()} == {"a": 1}
+    assert isinstance(g.payload, Record)
+    assert {k: n.payload for k, n in g.payload.fields.items()} == {"a": 1}
+
+
+def test_record_spec_mismatch_keeps_only_the_value_as_a_guest_input():
+    # the why-shape half of the same bug: the reject branch kept all THREE
+    # args as inputs, so the spec record's own `record` op showed up as a
+    # guest-only op the host's single-input `typed` miss never has.
+    rec = guest_box('let result = typed(1, @{a: "num"}, "L")')
+    labels = guest_labels(rec)
+    assert "record" not in labels, sorted(labels)
+    h = host_eval('let result = typed(1, @{a: "num"}, "L")')
+    assert "record" not in host_labels(h), sorted(host_labels(h))

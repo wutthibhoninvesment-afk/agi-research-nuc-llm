@@ -6,7 +6,8 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from swe.fuzz import (ProgramGen, run_program, signature, shrink, ddmin_lines,
-                      _minimize_ints, fuzz, WHENCE_ROOT, GUESS_CONFIDENCES)
+                      _minimize_ints, fuzz, WHENCE_ROOT, GUESS_CONFIDENCES,
+                      BUILTIN_ARITY, SPEC_POOL, TYPED_LABELS)
 from tests.synthetic_crash import install as install_crash, CRASH_PROGRAM
 
 
@@ -395,3 +396,113 @@ def test_param_forwarding_reports_parse_error_not_crash():
         'fn outer(f) effects [] { inner(f) }\n'
         'outer(print)\n')
     assert denied.kind == "parse_error", denied
+
+
+# =========================================================== round 335 ==
+# `matches`/`shapeof`/`typed` (v0.12, rounds 122-128) joined `BUILTIN_ARITY`
+# this round -- the last three of `interp._make_builtin_table()`'s 36
+# registered builtins the generator could not reach. Found by running the
+# re-diff round 323's own next-steps item 3 asked for ("re-diff
+# BUILTIN_ARITY's keys against whence/interp.py's actual registered
+# builtins before assuming there are no gaps"). Both bugs the totality
+# sweep below then found were real and are fixed in `whence/interp.py`.
+
+SHAPE_BUILTINS = ("matches", "shapeof", "typed")
+
+
+def test_builtin_arity_covers_every_registered_host_builtin():
+    """The check itself, kept as a test so the next builtin added to
+    `whence/interp.py` fails HERE instead of silently going un-fuzzed for
+    another few hundred rounds. `trunc` went 5 rounds unnoticed; these
+    three went ~200."""
+    sys.path.insert(0, WHENCE_ROOT)
+    from whence import interp as _interp     # noqa: PLC0415
+    registered = set(n for n, _ in _interp._make_builtin_table())
+    assert set(BUILTIN_ARITY) == registered, {
+        "unfuzzed": sorted(registered - set(BUILTIN_ARITY)),
+        "not a builtin": sorted(set(BUILTIN_ARITY) - registered)}
+
+
+def test_generator_now_emits_the_shape_builtins():
+    """Coverage guard, mirroring `test_generator_now_emits_trunc_calls`."""
+    for name in SHAPE_BUILTINS:
+        pat = re.compile(r"\b%s\(" % name)
+        seen = sum(1 for i in range(200) if pat.search(ProgramGen(i).program()))
+        assert seen >= 8, (name, seen)
+
+
+def test_generator_emits_no_shape_declaration():
+    """The grammar deliberately reaches the whole structural-typing engine
+    through hand-built record SPECS, never a `shape` statement: the guest
+    parser has no `shape` support at all, and both `swe/guest.py` and
+    `languages/whence/tests/test_parser_differential.py` consume this same
+    generator on the assumption that it never emits one."""
+    pat = re.compile(r"(^|\n)\s*shape\s")
+    for i in range(300):
+        assert not pat.search(ProgramGen(i).program()), i
+
+
+def test_shape_builtins_are_total_under_fuzz_inputs():
+    """The regression for round 335's own two `interp.py` fixes, driven
+    across the value/spec/label matrix the generator can now produce.
+
+    `matches(@{a: 1}, @{a: 5})` used to be an uncaught host
+    `AttributeError`: `_type_match` recursed into a nested field spec
+    assuming a str-or-Record and got an int. A hand-built record spec is
+    documented, first-class Whence (SPEC v0.12's "structural, not
+    nominal"), so this needed no contrivance at all -- and `matches` is
+    documented TOTAL, "never itself a miss, even on ... a malformed spec".
+    """
+    values = ["5", "-5", "3.7", "0", '"abc"', '""', "true", "[1, 2]", "[]",
+              "@{a: 1}", "@{}", "@{a: @{b: 1}}", "fn(x) { x }", 'miss "no"',
+              "len(1)", 'guess(1, 0.5, "m")', "range(3)"]
+    for v in values:
+        assert run_program("let x = shapeof(%s)\nprint(str(x))\n" % v).kind == "ok", v
+        for s in SPEC_POOL:
+            src = ("let a = matches(%s, %s)\n"
+                   "let b = typed(%s, %s, \"L\") rescue -1\n"
+                   "print(str([a, b]))\n") % (v, s, v, s)
+            o = run_program(src)
+            assert o.kind == "ok", (v, s, o.kind, o.exc_type, o.message)
+
+
+def test_typed_label_pool_covers_the_non_string_label_miss():
+    """`TYPED_LABELS` exists so the host's own "typed label must be a
+    string" branch -- unreachable from a parameter guard, which always
+    builds a `A.Str` label -- is fuzzed too."""
+    for label in TYPED_LABELS:
+        o = run_program('let x = typed(1, "num", %s) rescue -1\n'
+                        'print(str(x))\n' % label)
+        assert o.kind == "ok", (label, o.kind, o.message)
+
+
+def test_a_non_string_shape_name_does_not_leak_a_python_repr():
+    """`SPEC_POOL`'s `@{__shape: 5, a: "num"}` entry earns its place: a
+    non-str `__shape` used to render through `%s` into the miss message,
+    leaking the payload's Python repr and, for a Record/WList, its HEAP
+    ADDRESS -- so two runs of one program disagreed and the determinism,
+    fast_slow and direct oracles all fired. This is the fuzz-side pin;
+    `languages/whence/tests/test_v12.py` holds the semantic one."""
+    src = ('let r = typed(@{a: "z"}, @{__shape: @{q: 1}, a: "num"}, "L")\n'
+           'print(join(reasons(r), "|"))\n')
+    first = run_program(src)
+    second = run_program(src)
+    assert first.kind == "ok" and second.kind == "ok"
+    assert first.out == second.out, (first.out, second.out)
+    assert "object at 0x" not in "".join(first.out), first.out
+
+
+def test_shape_builtin_programs_stay_total_end_to_end():
+    """400 generated programs: total, never a crash -- the same invariant
+    every other shape in this module polices. ~66/400 (16.5%) actually
+    contain one of the three calls at this stress rate, measured; the floor
+    below is set under that so ordinary RNG drift cannot flake it."""
+    pat = re.compile(r"\b(matches|shapeof|typed)\(")
+    seen = 0
+    for i in range(400):
+        src = ProgramGen(i, stress_rate=0.15).program()
+        if pat.search(src):
+            seen += 1
+        o = run_program(src, timeout_s=2.0)
+        assert o.kind != "crash", (i, o.exc_type, o.message)
+    assert seen >= 40, seen

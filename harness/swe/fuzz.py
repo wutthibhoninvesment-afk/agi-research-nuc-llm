@@ -90,6 +90,20 @@ BUILTIN_ARITY = {
     # needed, so this is a pure table addition — round 299 (SWE-loop D),
     # closing round 294's own next-steps item 2.
     "rand": 0,
+    # v0.12 (rounds 122-128), added to this table round 335 -- the LAST
+    # three registered `whence/interp.py` builtins the generator could not
+    # reach. Found by re-diffing this table's keys against
+    # `interp._make_builtin_table()` (36 names), exactly the check round
+    # 323's own next-steps item 3 asked the next SWE-loop(D) round to run
+    # before assuming there were no gaps left. All three are ORDINARY
+    # calls, not new syntax: a `shape` DECLARATION stays out of this
+    # grammar (the guest parser has none -- see `swe/guest.py` and
+    # `languages/whence/tests/test_parser_differential.py`, which consumes
+    # this generator), but a type SPEC is a first-class VALUE, so a
+    # hand-built record literal reaches the whole structural-matching
+    # engine without any `shape` statement (SPEC v0.12: "a record built
+    # entirely by hand ... matches it exactly as one built from it").
+    "matches": 2, "shapeof": 1, "typed": 3,
     # v0.17 (round 318): `trunc(x)`, arity 1 -- a plain numeric builtin,
     # architecturally identical to the pre-existing `abs`/`sqrt` entries
     # (miss on a non-numeric argument, otherwise a total, pure derive of
@@ -152,6 +166,23 @@ EFFECT_TAG_SETS = ("[]", "[io]", "[net]", "[io, net]", "[random]",
 # and fixed in SPEC.md prose; nothing here needed a code fix, only this
 # text). `call()` already generates guess/is_guess/confidence/sure freely
 # for BOTH the host-only and guest-safe generators today.
+# Round 335: type specs as VALUES, for `matches`/`typed`. Mixes tags that
+# match, tags that never match a generated value, structural record specs
+# (plain, `__shape`-named, and nested), MALFORMED record specs (a field
+# whose value is not itself a spec -- the shape that crashed `_type_match`
+# with an uncaught `AttributeError` before round 335 fixed it), and
+# outright non-specs, so the match path, the mismatch path and `typed`'s
+# own "spec must be a type name or a shape" miss all fire.
+SPEC_POOL = ['"num"', '"str"', '"bool"', '"list"', '"record"', '"fn"',
+             '"any"', '"miss"', '"guess"', '"nosuch"', '""',
+             '@{a: "num"}', '@{a: "num", b: "str"}', '@{x: "num"}',
+             '@{__shape: "Pt", x: "num"}', '@{a: @{b: "num"}}',
+             '@{a: 5}', '@{a: [1]}', '@{__shape: 5, a: "num"}',
+             '5', 'true', '[1]', '@{}']
+# `typed`'s third argument. A non-string is the host's own "typed label
+# must be a string" miss, a path nothing else in this grammar reaches.
+TYPED_LABELS = ['"lbl"', '"parameter \'a\' of f"', '""', '5', 'true']
+
 GUESS_CONFIDENCES = ("0.9", "0.5", "0.1", "0.0", "1.0", "1.5", "-0.2", '"bad"')
 GUESS_SOURCES = ('"model"', '"sampled"', "42")
 
@@ -782,6 +813,24 @@ class ProgramGen(object):
             return self.some_name(local)
         return self.expr(depth + 1, local)
 
+    def recordlike(self, depth, local):
+        """A record-ish expression, the record mirror of `listlike` above
+        (round 335): a literal with plausible field names, a bound name, or
+        an ordinary expression. Used to feed `matches`/`typed` a value a
+        STRUCTURAL spec can actually match."""
+        r = self.r
+        p = r.random()
+        if p < 0.5:
+            names = r.sample(FIELD_POOL, r.randint(0, 3))
+            return "@{%s}" % ", ".join(
+                "%s: %s" % (nm, self.expr(depth + 1, local)) for nm in names)
+        if p < 0.7:
+            return "@{a: %s, b: %s}" % (r.choice(["1", '"s"', "true", "[1]"]),
+                                        r.choice(["2", '"t"', "false"]))
+        if p < 0.85:
+            return self.some_name(local)
+        return self.expr(depth + 1, local)
+
     def call(self, depth, local):
         r = self.r
         if self.nested_field_alias_boxes and r.random() < 0.06:
@@ -897,6 +946,16 @@ class ProgramGen(object):
                     r.choice(GUESS_SOURCES)]
         elif name == "sure":
             args = [self.expr(depth + 1, local), r.choice(GUESS_CONFIDENCES)]
+        elif name in ("matches", "typed"):
+            # Bias the VALUE toward a record: a structural spec can only
+            # ever MATCH a record, and a generic `expr()` produces one
+            # rarely enough (~5%) that the pass path would be near-dead.
+            args = [self.recordlike(depth, local) if r.random() < 0.4
+                    else self.expr(depth + 1, local),
+                    self.expr(depth + 1, local) if r.random() < 0.15
+                    else r.choice(SPEC_POOL)]
+            if name == "typed":
+                args.append(r.choice(TYPED_LABELS))
         else:
             args = [self.expr(depth + 1, local) for _ in range(n)]
         return "%s(%s)" % (name, ", ".join(args[:n] if n <= len(args) else args + [self.literal()]))

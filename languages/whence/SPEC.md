@@ -608,6 +608,35 @@ that cannot end a statement.
   spec)` is the same check as a total predicate (never itself a miss,
   even on a miss `x`, like `missed`) for programs that want to branch on
   shape instead of failing on it.
+- **Correction (round 335, SWE-loop D): the spec is now validated ALL THE
+  WAY DOWN, and a non-string `__shape` no longer leaks a Python repr.**
+  `_type_match`'s docstring always claimed "every other field maps to a
+  nested spec — a str or … another Record" as an invariant, and it holds
+  for a DECLARED shape (`parse_type` rejects `shape Bad = @{x: 5}` at
+  parse time). But the width-subtyping bullet above is explicit that a
+  hand-built record is a legal spec, and `typed`/`matches` only ever
+  checked the TOP level of one — so `matches(@{a: 1}, @{a: 5})` recursed
+  into `5`, reached `spec.fields` on an int, and raised `AttributeError`
+  straight out of the interpreter: a "never raises" violation in a builtin
+  whose own contract is "never itself a miss". Reachable from a parameter
+  guard too, not only a literal call: `parse_type` checks only that the
+  NAME was declared as a shape, so a `let` or a PARAMETER shadowing it
+  makes an arbitrary runtime value the spec (`fn outer(Pt) { fn f(p: Pt)
+  { p }  f(@{x: 1}) }`). Fixed with `_spec_ok`, a recursive validator both
+  builtins now use in place of their one-level `isinstance` check —
+  `matches` still answers `false` for a malformed spec (its documented
+  "simply does not match"), `typed` still answers its own `"typed spec
+  must be a type name or a shape"` miss, each now meaning what it said.
+  Separately, `_type_match` rendered a spec's `__shape` field through
+  `%s`: a hand-built `@{__shape: @{q: 1}, …}` put the payload's Python
+  repr, heap address and all, into a user-visible miss message, so the
+  same program produced a different message on every run and the
+  determinism / fast_slow / direct oracles all fired on it. Non-strings
+  now render through `show_payload`, like every other value the language
+  shows. Both found by the totality sweep round 335 ran when
+  `matches`/`shapeof`/`typed` finally joined `harness/swe/fuzz.py`'s
+  `BUILTIN_ARITY` — the last three registered builtins the fuzzer could
+  not reach (`tests/test_v12.py`, 14 new cases).
 - **A parameter's own guard can be shadowed, and it is documented, not
   hidden:** `fn f(a: num) { let a = a  a }` still sees the checked value
   (the user's `let a = a` reads the ALREADY-guarded `a`, since the guard
@@ -667,6 +696,28 @@ that cannot end a statement.
   spec is resolved once at closure creation, and the check itself runs
   once, at exit, using `peak_depth 1` regardless of iteration count
   (20000-deep `count_down` tail loop: one check, `peak_depth == 1`).
+- **Correction (round 335, SWE-loop D): the bullet above is right about
+  the CALLER's contract and was silently wrong about the CALLEE's.**
+  Capturing `ret_spec` before the tail loop reassigns `p` stops the check
+  adopting whatever contract the chain ends in — good — but nothing then
+  checked that closure's own contract at all. `fn f() -> num { "s" }`
+  missed when called as `let q = f()` and returned the raw `"s"` when any
+  other function called it in TAIL position, so whether a declared return
+  type was enforced depended on the syntactic position of a call site in
+  someone else's body. `test_mutual_tail_call_checks_against_the_caller_
+  not_the_callee` only ever covered the mirror case (typed caller,
+  UNTYPED callee), which is why ~200 rounds of three-way differentials
+  never saw it. In a tail call the callee's result IS the caller's result,
+  so every contract along the chain applies to that one settled value:
+  `_note_chain_ret` records each DISTINCT `ret_spec` the loop enters and
+  `_check_chain_rets` applies them after the originally-called closure's
+  own, which still runs first (an already-missed result passes through
+  `_check_ret` untouched, so every case that already worked keeps its
+  exact wording and ordering, including the test above). The per-bounce
+  cost claim is unchanged: a self-recursive typed tail loop bounces
+  through the SAME closure, `p.ret_spec is ret_spec` holds, and no list is
+  ever allocated (`tests/test_v13.py`, 12 new cases including three
+  `assert_three_way`).
 - **A real crash bug, found by round-128's own exploratory testing (not
   the fuzzer, which does not generate type annotations yet):** a `->
   Shape` naming a shape declared inside ANOTHER function's body parses

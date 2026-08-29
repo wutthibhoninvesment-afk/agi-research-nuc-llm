@@ -905,9 +905,15 @@ fn is_str(v) { not is_guess_val(v) and not missed(v) and not missed(v + "") }
 # value reports itself as, same order (bool before num — a host bool IS an
 # int; callable checked before record, since a closure/builtin ref is
 # itself a record under the hood, see `guest_tag`). Primitive tags only —
-# the guest has no `shape` records, so `guest_type_ok`'s spec is always a
-# plain string; anything else (a record spec, i.e. a shape) simply never
-# matches, same as an unrecognised primitive name would. `guess` is checked
+# the guest has no `shape` DECLARATIONS, so `guest_type_ok`'s own spec is
+# always a plain string. STALE until round 335 as to what follows from
+# that: this used to add "anything else (a record spec, i.e. a shape)
+# simply never matches, same as an unrecognised primitive name would",
+# which confuses a shape DECLARATION with a spec VALUE -- a hand-built
+# record IS a legal structural spec on the host and guest programs write
+# record literals freely. `guest_spec_match` (below `guest_type_ok`) is
+# the branch that handles one; `guest_type_ok` itself keeps the plain-
+# string contract this comment describes. `guess` is checked
 # right after `miss` (round 176, v0.15 guest parity) — it must come before
 # every other test below because Guess arithmetic transparently succeeds
 # (see `is_guess_val`'s docstring above), so e.g. `is_num` would otherwise
@@ -926,6 +932,52 @@ fn guest_kind(v) {
 
 fn guest_type_ok(v, spec) {
   is_str(spec) and (spec == "any" or guest_kind(v) == spec)
+}
+
+# Round 335: `guest_type_ok` above (and `guest_kind`'s comment) assume a
+# spec is ALWAYS a plain string, "anything else (a record spec, i.e. a
+# shape) simply never matches". That is true of a `shape` DECLARATION --
+# the guest parser has none -- but not of a spec VALUE: `typed`/`matches`
+# accept an ordinary hand-built record as a structural spec on the host by
+# design (SPEC v0.12: "a record built entirely by hand, with no relation to
+# the shape ever declared, matches it exactly as one built from it"), and
+# an ordinary record literal is something guest programs write freely.
+# Round 240 already found and fixed exactly this for `matches`
+# (`apply_host_builtin`, via `strip()`); the `typed` branch of
+# `apply_builtin` was never revisited and still rejected every Record spec
+# outright, so `typed(@{a: 1}, @{a: "num"}, "L")` passed the record
+# through on the host and missed on the guest -- a real value divergence,
+# plus a guest-only `record` op in the why-shape (the reject branch keeps
+# all three args as inputs, the host's mismatch keeps only the value).
+#
+# `guest_spec_match` is the shared test both now go through. Same three
+# cases, same order, same reasoning as the `matches` branch: a callable
+# only ever matches a STRING spec (a guest closure is an ordinary
+# `@{__tag: "closure", ...}` record under the hood, so a structural spec
+# would otherwise match its internals -- round 18's tag-spoofing shape);
+# a string spec keeps the cheap non-recursive `guest_type_ok` path
+# unchanged; anything else delegates to the real host `matches` over
+# `strip()`ped operands, which is exactly `_type_match` with the guest's
+# `{v, op, ins}` boxes removed from both sides.
+fn guest_spec_match(vbox, specbox) {
+  let v = vbox.v
+  let spec = specbox.v
+  if is_callable(v) { is_str(spec) and (spec == "any" or spec == "fn") }
+  else if is_str(spec) { guest_type_ok(v, spec) }
+  else { matches(strip(vbox), strip(specbox)) }
+}
+
+# The name a mismatch message calls the spec, mirroring host `_type_match`'s
+# own `desc`: a string spec names itself, a record spec names its `__shape`
+# when that field holds a string and "record" otherwise. Needed because the
+# old message built `label + " expected " + spec + ...` by string concat,
+# which is itself a MISS when `spec` is a record.
+fn guest_spec_name(spec) {
+  if is_str(spec) { spec }
+  else {
+    let n = get(spec, "__shape")
+    if is_str(n) { n } else { "record" }
+  }
 }
 
 # raw_deep_eq mirrors the host's OWN deep_eq (interp.py): recurse only while
@@ -1426,13 +1478,24 @@ fn apply_builtin(name, args, st) {
     if missed(value.v) or missed(spec.v) or missed(label.v) {
       @{v: mkb(miss "typed: a propagated miss", "builtin typed", args), st: st}
     }
-    else if not is_str(label.v) or not is_str(spec.v) {
+    # Round 335: a RECORD spec is legal too (host: `isinstance(spec.payload,
+    # (str, Record))`) -- see `guest_spec_match` above. The host rejects a
+    # record whose own FIELDS are not specs with this same "must be a type
+    # name or a shape" miss while the guest lets it fall through to a
+    # no-match miss below; both sides miss, and miss WORDINGS are an
+    # explicit exemption of the differential oracle (`_both_exempt_strings`,
+    # round 17), so mirroring the host's `_spec_ok` walk here would buy no
+    # observable agreement -- deliberately not done, recorded rather than
+    # left to be rediscovered.
+    else if not is_str(label.v) or
+            not (is_str(spec.v) or is_record(spec.v)) {
       @{v: mkb(miss "typed: spec and label must be strings", "typed", args),
         st: st}
     }
-    else if guest_type_ok(value.v, spec.v) { @{v: value, st: st} }
+    else if guest_spec_match(value, spec) { @{v: value, st: st} }
     else {
-      let reason = label.v + " expected " + spec.v + ", got " + guest_kind(value.v)
+      let reason = label.v + " expected " + guest_spec_name(strip(spec)) +
+                   ", got " + guest_kind(value.v)
       @{v: mkb(miss reason, "typed " + reason, [value]), st: st}
     }
   }
