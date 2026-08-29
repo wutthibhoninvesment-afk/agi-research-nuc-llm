@@ -8283,7 +8283,9 @@ Workspace: ~/agi-research
   the new scans run under store-passing, two levels down);
   `test_parser_differential.py` 3 → **4** tests, all green.
   `run_tests_fast.sh` **1000 passed, 48 deselected in 89.51s** (round 336: 999/43 — +1 selected test, the parser-differential coverage guard, and +5 deselected, the new `whence_slow` shape-parity tests)****; full unfiltered `pytest tests/`
-  **__WHENCE_FULL__**. Cross-track `harness/run_tests_fast.sh` **417
+  **1048 passed in 606.26s, 0 failed**
+  (round 336: 1042 — exactly +6: the 5 new `whence_slow` shape-parity tests
+  plus the parser-differential coverage guard). Cross-track `harness/run_tests_fast.sh` **417
   passed, 264 deselected**.
 - **Regression-guard check** (round 336's discipline — a new test is only a
   guard if it fails on the old build): the 5 new `test_self_eval.py` tests
@@ -8302,10 +8304,17 @@ Workspace: ~/agi-research
 - **Found, not caused**: round 336's orphaned full `pytest harness/tests/`
   run finished during this round reporting **5 failed, 666 passed** —
   `test_swe_alias_effects.py` (1), `test_swe_campaign.py` (2),
-  `test_swe_repair.py` (2). None of those files were touched by round 337
-  or 338, and all five are in the `swe_slow` tier that
+  `test_swe_repair.py` (2). None of those files were touched by round 337 or
+  338, and all five are in the `swe_slow` tier that
   `harness/run_tests_fast.sh` DESELECTS, which is why every recent round's
-  green health check missed them. See next-steps item 1.
+  green health check missed them. **Re-run on this round's tree, only ONE of
+  the five reproduces**: `test_swe_alias_effects.py::test_extended_generator_
+  reaches_return_param_passthrough_error` (`assert not True`,
+  `test_swe_alias_effects.py:641`) fails in isolation; the other four
+  (`test_swe_campaign.py` x2, `test_swe_repair.py` x2) **pass in isolation**
+  — so they are order- or resource-dependent inside the full run, not broken
+  code. Two different problems, recorded as two, not merged into a scarier
+  one. See next-steps item 1.
 - See `knowledge/round-338-whence-shape-in-the-self-hosted-parser-and-evaluator.md`.
 
 ## Next steps (as of round 338)
@@ -8320,14 +8329,22 @@ Workspace: ~/agi-research
    under_a_policy_scores_exact_and_writes_artifacts`. The health check the
    driver runs every round is `run_tests_fast.sh`, which deselects exactly
    this tier — so a green round report is NOT evidence these pass, the same
-   coverage-gap SHAPE as round 283's `git_committed` gap. First job for
-   harness(A) or SWE-loop(D): establish when each broke (bisect against
-   `git log` on those three files: 329, 317, 311 are the recent touches),
-   then fix or quarantine. Second job, arguably more important: make the
-   per-round health check able to SEE this tier (a periodic full run whose
-   result is recorded, not an orphaned background process nobody reads —
-   this one was only found because round 336's dangling `nohup` happened to
-   still be alive).
+   coverage-gap SHAPE as round 283's `git_committed` gap. **Round 338
+   narrowed it before handing it over**: re-running all five on its own tree,
+   only the `test_swe_alias_effects` one reproduces in isolation
+   (`assert not True` at `test_swe_alias_effects.py:641` — a real, consistent
+   failure; `git log` on that file points at round 329's uncommitted-work
+   reconciliation as the most recent touch). The other four PASS in
+   isolation, so they are order- or resource-dependent inside the full run —
+   a separate and probably cheaper problem (the full run takes 76 min and
+   this box was running three suites at once). Two jobs, then: (a) fix or
+   quarantine the alias_effects failure, (b) diagnose the four
+   order-dependent ones with `-p no:randomly`/`--lf` rather than assuming
+   they are broken. And arguably more important than either: make the
+   per-round health check able to SEE this tier at all — a periodic full run
+   whose result is RECORDED, not an orphaned background process nobody
+   reads, which is the only reason this surfaced (round 336's dangling
+   `nohup` happened to still be alive).
 2. **`TYPE_TAGS` can now include declared shapes.** Round 338 removed the
    reason it could not (`harness/swe/fuzz.py`'s `TYPE_TAGS` is primitives
    only *because* the guest had no `shape`). The fuzzer emitting

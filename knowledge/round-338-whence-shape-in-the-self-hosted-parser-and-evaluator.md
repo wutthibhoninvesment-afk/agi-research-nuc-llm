@@ -182,6 +182,8 @@ differential tests agreeing on a corpus that exercises nothing is free.
 | two-level guest-eval-runs-guest-parser checks | 4 | **8** |
 | `test_parser_differential.py` | 3 tests, no shapes | **4 tests, corpus 44 -> 45 incl. `shapes.lang`** |
 | host-vs-guest 32-case list | — | **32/32 agree** (pre-round guest: 14/32) |
+| `run_tests_fast.sh` | 999 / 43 desel | **1000 passed, 48 deselected** |
+| full `pytest tests/` | 1042 passed | **1048 passed in 606.26s, 0 failed** |
 
 **Regression-guard check** (round 336's discipline: a new test is only a
 guard if it fails on the old build). The 5 new `test_self_eval.py` tests
@@ -230,10 +232,25 @@ byte-identical to round 337's own post-round health check.
 ## 7. Found, not caused: 5 failures in the slow harness tier
 
 Round 336's orphaned full `pytest harness/tests/` run (started 14:28,
-finished 76:17 into this round) reported **5 failed, 666 passed** — in
-`test_swe_alias_effects.py`, `test_swe_campaign.py` (x2) and
+finished 1:16:17 later, during this round) reported **5 failed, 666
+passed** — in `test_swe_alias_effects.py`, `test_swe_campaign.py` (x2) and
 `test_swe_repair.py` (x2). None of those files were touched by round 337 or
 this round, and all five sit in the `swe_slow` tier that
 `harness/run_tests_fast.sh` deselects, which is why every recent round's
-green health check missed them. Not this round's track; recorded with a
-next-steps item so it is not rediscovered a third time.
+green health check missed them.
+
+**Re-run on this round's tree, only ONE of the five reproduces.**
+`test_swe_alias_effects.py::test_extended_generator_reaches_return_param_
+passthrough_error` fails in isolation (`assert not True`, line 641) — a
+real, consistent failure. The other four **pass in isolation** (`1 failed,
+4 passed in 503.78s`), so they are order- or resource-dependent inside the
+full run, not broken code. Worth stating as two findings rather than one:
+"5 failing tests" would have been the more alarming and less true summary.
+
+Not this round's track. Recorded with a next-steps item, and with the
+observation that matters more than either failure: **the per-round health
+check cannot see this tier at all.** `run_tests_fast.sh` deselects it by
+design, and the only reason any of this surfaced is that round 336's
+dangling `nohup` happened to still be alive when round 338 started. That is
+the same coverage-gap shape as round 283's `git_committed` gap — a green
+signal that is silent about a whole region rather than wrong about it.
