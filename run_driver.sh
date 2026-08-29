@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # AGI research driver — runs Claude Code rounds until weekly limit.
-# Model: sonnet-5 (waiting for fable-5 weekly limit reset ~Sunday 2026-08-30)
+# Model: claude-opus-5 (long-term research driver)
 set -uo pipefail
 # Path setup for Claude Code (this NUC host has no global `claude`; it's
 # installed locally under node_modules/.bin — see claude-wrapper.sh).
@@ -320,7 +320,7 @@ update research-state.md. Be relentless and thorough — this is deep research, 
   # `driver_health.summarize_turns` answer round 127's open "why did
   # 122-126 burn all 80 turns" question with real data next time it happens.
   run_timeout "$TIMEOUT_S" $CLAUDE_CMD -p "$PROMPT" \
-    --model claude-sonnet-5 \
+    --model claude-opus-5 \
     --dangerously-skip-permissions \
     --allowedTools "Read,Edit,Write,Bash,Glob,Grep" \
     --output-format stream-json \
@@ -598,7 +598,7 @@ if [ ! -f "$FINAL" ]; then
   run_timeout 900 $CLAUDE_CMD -p "The research budget is exhausted. Read all files in state/ and knowledge/
 and write state/FINAL-REPORT.md: summary of every round, what was built, key learnings per track,
 what remains. Make it comprehensive." \
-    --model claude-sonnet-5 \
+    --model claude-opus-5 \
     --dangerously-skip-permissions \
     --allowedTools "Read,Write,Bash,Glob,Grep" \
     --max-turns 30 > "$WS/logs/final-report.json" 2>&1
