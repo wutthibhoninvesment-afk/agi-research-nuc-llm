@@ -925,6 +925,43 @@ def test_is_blocking_wait_kill_true_for_round_185s_extreme_gap(tmp_path):
     assert is_blocking_wait_kill(p) is True
 
 
+def test_is_blocking_wait_kill_true_for_round_295_third_taskoutput_instance(tmp_path):
+    """Round 301: round 295 (harness(A) itself — only the 2nd harness(A)
+    round ever to land `interrupted`, after round 169) is the first new
+    real instance since round 289's full-history re-check stopped at round
+    288. Re-reading its actual log confirms the identical structural shape
+    (last assistant event a `TaskOutput` call — `{"block": true, "timeout":
+    500000}`, exactly the mechanism round 265 named for round 263 — then a
+    run of `tool_progress`/`task_notification`/`background_tasks_changed`/
+    `task_updated` ticks, then one real `user` tool-result at the very end,
+    45.460 into the following minute), not a dangling wait or a fresh
+    mechanism. Gap is 44.642s — falls between round 174's 27.771s and round
+    162's 87.791s in the existing continuum, reconfirming (not just
+    repeating) that `min_gap_s=1.0` and `likely_timeout_kill`'s
+    `margin_s=180.0` both still classify a genuinely new data point
+    correctly, closing backlog item 3 from round 217's list ("margin_s=180
+    default still untested against a real counterexample since it was
+    set") with an actual new confirming instance rather than leaving it
+    perpetually flagged untested.
+    """
+    first_assistant = dict(REAL_ASSISTANT_LINE, timestamp="2026-08-29T00:35:50.705Z")
+    last_assistant = _tool_use_assistant("2026-08-29T01:30:00.818Z", "TaskOutput")
+    ticks = [{"type": "tool_progress"} for _ in range(4)]
+    trailing_tool_result = {"type": "user", "message": {"role": "user", "content": []},
+                             "timestamp": "2026-08-29T01:30:45.460Z"}
+    events = [first_assistant, last_assistant] + ticks + [trailing_tool_result]
+    p = _write_ndjson(str(tmp_path), "round-295.json", events)
+    assert all(e.get("type") != "result" for e in events)
+    s = summarize_turns(p)
+    full_span = full_event_span_s(p)
+    assert s["span_s"] == pytest.approx(3250.113, abs=0.01)
+    assert full_span == pytest.approx(3294.755, abs=0.01)
+    assert blocking_wait_gap_s(p) == pytest.approx(44.642, abs=0.01)
+    assert last_assistant_tool_use(p) == "TaskOutput"
+    assert is_blocking_wait_kill(p) is True
+    assert likely_timeout_kill(p, timeout_s=3300, margin_s=180.0) is True
+
+
 def test_cli_blocking_wait_gap_and_is_blocking_wait_kill_subcommands(tmp_path):
     first = _tool_use_assistant("2026-08-27T22:17:52.506Z", "Bash")
     last = _tool_use_assistant("2026-08-27T23:07:46.457Z", "TaskOutput")

@@ -712,6 +712,15 @@ def is_blocking_wait_kill(path: str, min_gap_s: float = 1.0) -> Optional[bool]:
     boolean now tracks the real structural split (`gap > 0` vs `gap == 0`)
     instead of an arbitrary magnitude cutoff partway through one continuum.
 
+    Round 301 checked the one real `interrupted` round to land since 289's
+    analysis (round 295, gap 44.642s — a `TaskOutput(block=true,
+    timeout=500000)` call, the exact mechanism round 265 named for round
+    263) and confirmed it slots into the SAME continuum (between round
+    174's 27.771s and round 162's 87.791s) with the identical event shape
+    — 18 real `interrupted` rounds checked total now (13 nonzero-gap, 5
+    zero-gap), `min_gap_s=1.0` still correctly tracks the structural split
+    with no new intermediate mechanism found.
+
     Returns None (not False) when the round was not `interrupted` at all,
     or when `blocking_wait_gap_s` itself can't be computed — a clean
     round or one with too little data isn't evidence either way.
