@@ -5,6 +5,7 @@ import unittest
 
 from agentloop import (
     BashTool,
+    EditFileTool,
     ListDirTool,
     ReadFileTool,
     SearchTool,
@@ -77,6 +78,65 @@ class SandboxedToolTests(unittest.TestCase):
         res = WriteFileTool(self.root).run(path="../evil.txt", content="x")
         self.assertFalse(res.ok)
         self.assertFalse(os.path.exists(os.path.join(self.root, "..", "evil.txt")))
+
+    # -- edit_file ------------------------------------------------------------
+
+    def test_edit_replaces_unique_match(self):
+        self.write("f.txt", "hello world\ngoodbye world\n")
+        res = EditFileTool(self.root).run(path="f.txt", old_string="hello world",
+                                          new_string="hi world")
+        self.assertTrue(res.ok)
+        self.assertIn("replaced 1 occurrence in f.txt", res.output)
+        with open(os.path.join(self.root, "f.txt")) as f:
+            self.assertEqual(f.read(), "hi world\ngoodbye world\n")
+
+    def test_edit_missing_file_is_failed_result_not_exception(self):
+        res = EditFileTool(self.root).run(path="nope.txt", old_string="a", new_string="b")
+        self.assertFalse(res.ok)
+        self.assertIn("no such file", res.output)
+
+    def test_edit_zero_matches_fails_without_touching_file(self):
+        self.write("f.txt", "hello world\n")
+        res = EditFileTool(self.root).run(path="f.txt", old_string="not present",
+                                          new_string="x")
+        self.assertFalse(res.ok)
+        self.assertIn("not found", res.output)
+        with open(os.path.join(self.root, "f.txt")) as f:
+            self.assertEqual(f.read(), "hello world\n")
+
+    def test_edit_ambiguous_match_rejected_without_replace_all(self):
+        self.write("f.txt", "x\nx\nx\n")
+        res = EditFileTool(self.root).run(path="f.txt", old_string="x", new_string="y")
+        self.assertFalse(res.ok)
+        self.assertIn("found 3 times", res.output)
+        with open(os.path.join(self.root, "f.txt")) as f:
+            self.assertEqual(f.read(), "x\nx\nx\n")   # unchanged: no partial edit
+
+    def test_edit_replace_all_rewrites_every_occurrence(self):
+        self.write("f.txt", "x\nx\nx\n")
+        res = EditFileTool(self.root).run(path="f.txt", old_string="x", new_string="y",
+                                          replace_all=True)
+        self.assertTrue(res.ok)
+        self.assertIn("replaced 3 occurrences in f.txt", res.output)
+        with open(os.path.join(self.root, "f.txt")) as f:
+            self.assertEqual(f.read(), "y\ny\ny\n")
+
+    def test_edit_identical_strings_rejected_as_noop(self):
+        self.write("f.txt", "same\n")
+        res = EditFileTool(self.root).run(path="f.txt", old_string="same", new_string="same")
+        self.assertFalse(res.ok)
+        self.assertIn("identical", res.output)
+
+    def test_edit_empty_old_string_rejected(self):
+        self.write("f.txt", "content\n")
+        res = EditFileTool(self.root).run(path="f.txt", old_string="", new_string="x")
+        self.assertFalse(res.ok)
+        self.assertIn("non-empty", res.output)
+
+    def test_edit_rejects_escape(self):
+        res = EditFileTool(self.root).run(path="../evil.txt", old_string="a", new_string="b")
+        self.assertFalse(res.ok)
+        self.assertIn("escapes sandbox", res.output)
 
     # -- list_dir -----------------------------------------------------------
 

@@ -18,6 +18,7 @@ from agentloop import (  # noqa: E402
     AgentConfig,
     BashTool,
     ContextBudget,
+    EditFileTool,
     EvalTask,
     MockLLM,
     ReadFileTool,
@@ -50,6 +51,12 @@ def main() -> int:
                       content="created after noticing the read error\n"),
             text_turn("recovered from missing file"),
         ],
+        "edit-existing-file": [
+            tool_turn("write_file", path="config.txt", content="mode=draft\n"),
+            tool_turn("edit_file", path="config.txt", old_string="mode=draft",
+                      new_string="mode=final"),
+            text_turn("flipped config.txt to final mode"),
+        ],
         "use-scratchpad": [
             tool_turn("scratchpad", op="append", note="demo ran in %s" % workspace),
             text_turn("noted the workspace path"),
@@ -68,7 +75,7 @@ def main() -> int:
 
     def make_agent(task: EvalTask) -> Agent:
         registry = ToolRegistry([
-            ReadFileTool(workspace), WriteFileTool(workspace),
+            ReadFileTool(workspace), WriteFileTool(workspace), EditFileTool(workspace),
             BashTool(workspace), ScratchpadTool(pad),
         ])
         trace = TraceLogger(path=os.path.join(trace_dir, task.name + ".jsonl"))
@@ -92,6 +99,8 @@ def main() -> int:
                  lambda r, ws: file_has(ws, "greeting.txt", "hello, demo")),
         EvalTask("recover-from-error", "Read a file; if missing, create recovered.txt.",
                  lambda r, ws: file_has(ws, "recovered.txt", "noticing")),
+        EvalTask("edit-existing-file", "Write config.txt in draft mode, then edit it to final mode.",
+                 lambda r, ws: file_has(ws, "config.txt", "mode=final")),
         EvalTask("use-scratchpad", "Save a note about this run.",
                  lambda r, ws: ("demo ran" in pad.read_all(), "pad has note")),
         EvalTask("long-run-compaction", "Run six noisy commands, then write compacted.txt.",

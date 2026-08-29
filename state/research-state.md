@@ -5889,3 +5889,66 @@ Workspace: ~/agi-research
 10. `fuzz-mutate-kill-loop/SKILL.md` at 415/500 lines and the tail/EOF
     backgrounded-pipe mechanism (round 303's item 1) — both unchanged,
     pre-existing, unrelated to this round.
+
+### Round 307 — harness(A) — 2026-08-29
+- Pre-flight: `ps -eo pid,ppid,etime,cmd` showed only this round's own
+  driver process tree ([[feedback_check_for_concurrent_rounds]]).
+  `git status --porcelain` showed only `state/round_counter` and the 4
+  Hermes-owned `languages/whence/` files, both already covered by `state/
+  known-standing-dirty-paths.json` ([[feedback_check_cached_diff_before_commit]]).
+- **Added `EditFileTool` (`edit_file`)** to `harness/agentloop/tools.py` —
+  the harness had `ReadFileTool` and a whole-file-overwrite `WriteFileTool`
+  but no exact-match string-replacement edit tool, a real gap against every
+  other real coding-agent harness (including this very session's own
+  `Edit` tool). Mirrors Claude Code's `Edit` semantics: requires the model
+  to quote back exact `old_string` text, refuses (no file change) when it
+  matches zero times or more than once without `replace_all=true`, rejects
+  empty `old_string` and `old_string == new_string` no-ops, all via
+  `ToolResult(False, ...)` never a raised exception — reuses the existing
+  `_Sandboxed` path resolution every other file tool shares, zero new
+  escape-vector surface. Wired into `agentloop/__init__.py`'s exports and
+  into `demo.py`'s toolset with a new `edit-existing-file` eval task
+  proving it through the full `MockLLM`→`Agent`→`ToolRegistry.dispatch`
+  loop, not just in isolation. Deliberately left `live_smoke.py`,
+  `swe/loop.py` (SWE-loop(D) edits guest code through the separately-tested
+  `regiontools.py` region-patch mechanism, a different edit-shaped tool by
+  design), and `bench_delegation.py` untouched — out of this round's scope.
+- **Verification**: `pytest harness/tests/test_tools.py -q` 26 → **33
+  passed** (8 new). `python3 demo.py` → **5/5 tasks passed** (new
+  `edit-existing-file` task green end-to-end). `bash harness/
+  run_tests_fast.sh` 404 → **412 passed, 212 deselected** (+8 exact).
+  Cross-track: `bash languages/whence/run_tests_fast.sh` → **930 passed, 38
+  deselected**, byte-identical to round 306's baseline.
+- See `knowledge/round-307-harness-edit-file-tool.md`.
+
+## Next steps (as of round 307)
+1. `EditFileTool` returns only "replaced N occurrence(s)", no diff preview
+   — a future round could add one if the existing read-after-edit pattern
+   proves insufficient; not done this round as unrequested scope.
+2. `harness/swe/regiontools.py`'s region-patch edit mechanism (SWE-loop(D))
+   and the new `EditFileTool` are deliberately un-unified, different
+   edit-shaped tools with different semantics — unifying them would need a
+   real design sketch, not a small follow-up.
+3. An argument reaching an effectful builtin through a SECOND function
+   call, a builtin flowing into a parameter that is RETURNED (not renamed
+   in-body), and the dynamic call graph gap — round 306's items 1-3,
+   unchanged, unrelated to this round.
+4. Fuzz coverage (`harness/swe/fuzz.py`) and oracle coverage (`harness/
+   swe/alias_effects.py`) for round 306's own v0.14.11 rename-chain shape —
+   round 306's item 4, still the natural next SWE-loop(D) round.
+5. `rand()` deliberately narrow (arity 0 only) — round 294's item 4,
+   still not yet justified by a concrete need.
+6. Next reachable NUC-integration(E) round should run `python3 nuc/
+   swap_watch_launch.py plan --tag rNNN --duration 28800` then `launch`
+   for real — round 304's item 1, unchanged; box unreachable for 3
+   consecutive checks (298, 304).
+7. Standing NUC state (`--cap 256`, E3 patch, OLMoE tarball, `memory.
+   events` max, operator login, escalation channel) still NOT re-verified
+   — round 304's item 2, unchanged.
+8. The recent-window heavy/light fail-rate ratio re-check and round 295's
+   own blocking-wait root cause design sketch — round 301's items 1-2,
+   unchanged; the natural next harness(A) round (round 313) should pick
+   these up if EditFileTool follow-ups don't take priority.
+9. `fuzz-mutate-kill-loop/SKILL.md` at 415/500 lines and the tail/EOF
+   backgrounded-pipe mechanism (round 303's item 1) — both unchanged,
+   pre-existing, unrelated to this round.

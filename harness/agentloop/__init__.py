@@ -3,6 +3,7 @@
 Layers (each independently testable):
     llm.py       LLM interface, message types, MockLLM / FlakyLLM for offline tests
     tools.py     Tool protocol, ToolRegistry, sandboxed file/bash/search tools
+                 (edit_file: exact-match replace, round 307)
     memory.py    Scratchpad memory backed by a file, exposed as a tool
     truncate.py  Head+tail observation truncation
     retry.py     Exponential backoff with injectable sleep/rng
@@ -33,6 +34,7 @@ from .tools import (
     ToolResult,
     ReadFileTool,
     WriteFileTool,
+    EditFileTool,
     ListDirTool,
     BashTool,
     SearchTool,
@@ -57,7 +59,7 @@ __all__ = [
     "LLM", "MockLLM", "FlakyLLM", "AssistantTurn", "ToolCall",
     "RetryableLLMError", "FatalLLMError",
     "Tool", "ToolRegistry", "ToolResult",
-    "ReadFileTool", "WriteFileTool", "ListDirTool", "BashTool", "SearchTool",
+    "ReadFileTool", "WriteFileTool", "EditFileTool", "ListDirTool", "BashTool", "SearchTool",
     "SandboxViolation",
     "Scratchpad", "ScratchpadTool",
     "truncate_observation",

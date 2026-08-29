@@ -185,6 +185,64 @@ class WriteFileTool(Tool):
         return ToolResult(True, "wrote %d chars to %s" % (len(content), path))
 
 
+class EditFileTool(Tool):
+    """Exact-match string replacement, mirroring Claude Code's own Edit tool.
+
+    Exists because WriteFileTool requires resending the ENTIRE file to change
+    one line — expensive in tokens, and a race against any edit the model
+    forgot it already made earlier in the same turn. edit_file instead
+    demands the model quote back the exact text it wants changed, and REFUSES
+    to guess: an old_string that doesn't appear, or that appears more than
+    once without replace_all, comes back as a failed ToolResult (never a
+    silent wrong-occurrence edit) so the model can re-read and re-quote."""
+
+    name = "edit_file"
+    description = ("Replace an exact substring in a UTF-8 text file. old_string must "
+                   "match exactly once in the file unless replace_all is set; a "
+                   "0-match or (without replace_all) multi-match old_string fails "
+                   "with no file change, so first read_file and quote back exact text.")
+    params = {
+        "path": {"type": "string", "description": "path relative to workspace root"},
+        "old_string": {"type": "string", "description": "exact text to find (non-empty)"},
+        "new_string": {"type": "string", "description": "text to replace it with"},
+        "replace_all": {"type": "boolean", "description": "replace every occurrence instead of requiring exactly one; default false"},
+    }
+    required = ["path", "old_string", "new_string"]
+
+    def __init__(self, root: str):
+        self._sb = _Sandboxed(root)
+
+    def run(self, path: str, old_string: str, new_string: str,
+            replace_all: bool = False) -> ToolResult:
+        try:
+            abs_path = self._sb.resolve(path)
+        except SandboxViolation as e:
+            return ToolResult(False, str(e))
+        if not os.path.isfile(abs_path):
+            return ToolResult(False, "no such file: %s" % path)
+        if not old_string:
+            return ToolResult(False, "old_string must be non-empty")
+        if old_string == new_string:
+            return ToolResult(False, "old_string and new_string are identical: no-op edit")
+        with open(abs_path, "r", encoding="utf-8", errors="replace") as f:
+            content = f.read()
+        count = content.count(old_string)
+        if count == 0:
+            return ToolResult(False, "old_string not found in %s (read_file it first and "
+                              "quote the exact text)" % path)
+        if count > 1 and not replace_all:
+            return ToolResult(False, "old_string found %d times in %s; either quote more "
+                              "surrounding context to make it unique, or set replace_all=true"
+                              % (count, path))
+        new_content = content.replace(old_string, new_string) if replace_all \
+            else content.replace(old_string, new_string, 1)
+        with open(abs_path, "w", encoding="utf-8") as f:
+            f.write(new_content)
+        n = count if replace_all else 1
+        return ToolResult(True, "replaced %d occurrence%s in %s"
+                          % (n, "" if n == 1 else "s", path))
+
+
 class ListDirTool(Tool):
     name = "list_dir"
     parallel_safe = True
