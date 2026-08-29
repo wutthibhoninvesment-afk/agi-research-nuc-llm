@@ -902,3 +902,121 @@ def test_extended_oracle_detects_injected_missing_param_forwarding_bug():
     finally:
         P.Parser._check_param_forwarding = orig
     assert mismatches > 0, "mutated missing-param-forwarding bug went undetected"
+
+
+# ============================================ round 329 (SWE-loop D) ======
+# Closes round 311/317's own "still open" items 2/3: a rename (v0.14.11) or
+# a forward (v0.14.13) recorded in an ENCLOSING fn's own body must never
+# leak into an UNRELATED, INNER fn's own param-call fact merely because
+# that inner fn's OWN param happens to share the rename/forward SOURCE
+# param's name (not the rename/forward TARGET — the shape round 306's own
+# hand-written `test_param_rename_in_enclosing_fn_not_misattributed_to_
+# inner_fn`/`test_param_forwarding_shadowed_name_is_not_misattributed`
+# already cover via the base identity check firing first). `_resolve_
+# param_alias`'s own boundary guard (`Parser._resolve_param_alias`'s
+# docstring) is what prevents this — reasoned about in prose since round
+# 306 but never independently exercised under fuzzing until the two new
+# dedicated shadow-style statements below, `_stmt_nested_fn_rename_
+# collision`/`_stmt_nested_fn_forward_collision`, following `_stmt_shadow_
+# tracked_fn_call`'s own pattern (round 311/317's own explicit pointer).
+
+def test_extended_generator_reaches_nested_fn_rename_collision():
+    """Coverage guard, not a correctness check — confirms `_stmt_nested_
+    fn_rename_collision` (the SOLE producer of this shape) actually fires
+    at a real rate. Measured ~39% (2336/6000) in this round's own manual
+    scaling check — high because it only needs `current_fn_own_params()`
+    non-empty and depth budget, both common preconditions."""
+    from swe.alias_effects import ExtendedEffectGen as G
+    orig = G._stmt_nested_fn_rename_collision
+    hits = [0]
+
+    def wrapped(self, depth):
+        hits[0] += 1
+        return orig(self, depth)
+    G._stmt_nested_fn_rename_collision = wrapped
+    try:
+        n = 6000
+        for seed in range(n):
+            G(seed, max_depth=4, max_stmts=5).gen_program()
+    finally:
+        G._stmt_nested_fn_rename_collision = orig
+    assert hits[0] > n * 0.1, hits[0]
+
+
+def test_extended_generator_reaches_nested_fn_forward_collision():
+    """Coverage guard, not a correctness check — confirms `_stmt_nested_
+    fn_forward_collision` (the SOLE producer of this shape) actually fires
+    at a real rate — rarer than the rename version above (needs BOTH
+    `current_fn_own_params()` AND `known_param_call_names()` non-empty,
+    same compound-precondition reasoning `_stmt_call_forward_own_param`'s
+    own docstring gives for its own pool). Measured ~4.2% (249/6000) in
+    this round's own manual scaling check."""
+    from swe.alias_effects import ExtendedEffectGen as G
+    orig = G._stmt_nested_fn_forward_collision
+    hits = [0]
+
+    def wrapped(self, depth):
+        hits[0] += 1
+        return orig(self, depth)
+    G._stmt_nested_fn_forward_collision = wrapped
+    try:
+        n = 6000
+        for seed in range(n):
+            G(seed, max_depth=4, max_stmts=5).gen_program()
+    finally:
+        G._stmt_nested_fn_forward_collision = orig
+    assert hits[0] > n * 0.01, hits[0]
+
+
+def test_extended_oracle_detects_injected_cross_fn_boundary_alias_leak_bug():
+    """Mutation test: revert `_resolve_param_alias`'s own cross-fn
+    boundary restriction (the walk BOTH `_check_effect_call`'s v0.14.11
+    branch and `_check_param_forwarding`'s v0.14.13 branch fall back
+    through, via `_resolve_current_fn_param`) to a NAIVE, unbounded walk
+    across the ENTIRE `param_alias_scopes` list — round 306's own
+    knowledge file names this exact risk in prose (the worked example in
+    `_resolve_param_alias`'s own docstring) but neither of the two
+    existing `_resolve_param_alias` mutation tests in this file pins it:
+    one neutralizes the resolver ENTIRELY (`test_extended_oracle_detects_
+    injected_missing_param_alias_bug`), the other narrows it to a SINGLE
+    frame within the SAME fn body (`test_extended_oracle_detects_injected_
+    param_alias_single_frame_bug`, breaking a same-fn nested-block rename
+    chain) — neither removes the CROSS-FN boundary specifically. Verified
+    empirically (a standalone experiment against the real parser, this
+    round's own knowledge file) that this exact mutation flips a real
+    program from `ok` to a false-positive `error_param` rejection:
+        fn outer(p) effects [] {
+          let g = p
+          fn inner(p) effects [] { g(1) }
+          inner(print)
+        }
+        outer(print)
+    Exercised by BOTH new statements above in a single campaign run (the
+    rename collision through `_check_effect_call`'s own leading block, the
+    forward collision through `_check_param_forwarding`'s `_resolve_
+    current_fn_param` fallback) — both funnel through this one resolver.
+    Measured 334/4000 mismatches (~8.4%) in this round's own manual
+    scaling check; N=6000 here for comfortable headroom."""
+    sys.path.insert(0, WHENCE_ROOT)
+    from whence import parser as P
+
+    def naive_resolve_param_alias(self, name):
+        for scope in reversed(self.param_alias_scopes):
+            if name in scope:
+                return scope[name]
+        return None
+
+    orig = P.Parser._resolve_param_alias
+    P.Parser._resolve_param_alias = naive_resolve_param_alias
+    try:
+        rng = random.Random(329001)
+        mismatches = 0
+        for _ in range(6000):
+            seed = rng.randrange(10 ** 9)
+            depth = rng.choice([3, 4, 4, 5, 5])
+            stmts = rng.choice([3, 4, 5, 6, 7])
+            _, _, _, mismatch = check_one_ext(seed, max_depth=depth, max_stmts=stmts)
+            mismatches += mismatch
+    finally:
+        P.Parser._resolve_param_alias = orig
+    assert mismatches > 0, "mutated cross-fn-boundary alias-leak bug went undetected"

@@ -1322,6 +1322,10 @@ class ExtendedEffectGen(object):
                 choices += ["shadow_fn"]
             if self.known_alias_names() or self.known_return_names():
                 choices += ["shadow_param"]
+            if self.current_fn_own_params():
+                choices += ["nested_fn_rename_collision"] * 2
+                if self.known_param_call_names():
+                    choices += ["nested_fn_forward_collision"] * 2
         kind = r.choice(choices)
         return getattr(self, "_stmt_" + kind)(depth)
 
@@ -1857,6 +1861,208 @@ class ExtendedEffectGen(object):
         if not self.done:
             self.record_param_forwarding(callee, arg_infos)
         lines.append("%s(%s)" % (callee, ", ".join(args)))
+        return self._mk_expr("\n".join(lines))
+
+    def _gen_collision_helper_frame(self, pname, body_fn):
+        """Shared scaffold for `_stmt_nested_fn_rename_collision`/`_stmt_
+        nested_fn_forward_collision` below: opens a nested fn whose OWN
+        sole param is deliberately `pname` itself (an ENCLOSING fn's own
+        param name, NEVER the caller's rename/forward-source fresh name),
+        runs `body_fn()` with that params frame on top of every stack
+        (the exact same 10-stack push/pop `_gen_fn_stmt`/`_stmt_shadow_
+        param` already use), and returns `(effects_txt, own_effects_
+        scope, called_params, body_text)` so the two callers can each
+        pass `own_effects_scope`/`called_params` straight to `_finish_
+        collision_helper` to register their own helper name into the
+        OUTER frame (they differ only in what `body_fn` puts inside the
+        helper's own body, not in the scaffold itself)."""
+        r = self.r
+        own_spec = r.choice(EFFECT_TAG_SETS)
+        own_effects_scope = self.resolve_effects_scope(own_spec)
+        self.effects_stack.append(own_effects_scope)
+        params_alias_frame = {pname: None}
+        self.alias_scopes.append(params_alias_frame)
+        self.return_alias_scopes.append({pname: None})
+        self.field_alias_scopes.append({pname: None})
+        self.field_return_alias_scopes.append({pname: None})
+        self.nested_field_alias_scopes.append({pname: None})
+        self.param_call_scopes.append({pname: None})
+        self.param_alias_scopes.append({})
+        self.return_param_scopes.append({pname: None})
+        self.current_fn_params_frame_stack.append(params_alias_frame)
+        self.direct_param_calls_stack.append(set())
+        try:
+            body_text = body_fn()
+        finally:
+            self.effects_stack.pop()
+            self.alias_scopes.pop()
+            self.return_alias_scopes.pop()
+            self.field_alias_scopes.pop()
+            self.field_return_alias_scopes.pop()
+            self.nested_field_alias_scopes.pop()
+            self.param_call_scopes.pop()
+            self.param_alias_scopes.pop()
+            self.return_param_scopes.pop()
+            self.current_fn_params_frame_stack.pop()
+            called_params = self.direct_param_calls_stack.pop()
+        effects_txt = "" if own_spec is None else " effects [%s]" % ", ".join(sorted(own_spec))
+        return effects_txt, own_effects_scope, called_params, body_text
+
+    def _finish_collision_helper(self, helper, pname, own_effects_scope, called_params):
+        """Registers `helper` (a nested fn built by `_gen_collision_
+        helper_frame` above) into the CURRENTLY-open OUTER frame's own
+        scopes, the same per-name bookkeeping `_gen_fn_stmt`/`_stmt_
+        shadow_param` do after their own try/finally — factored out here
+        since both collision statements below need the identical
+        sequence for their own helper name."""
+        self.return_alias_scopes[-1][helper] = None
+        self.param_call_scopes[-1][helper] = (
+            (own_effects_scope, (pname,), frozenset(called_params))
+            if called_params else None)
+        self.return_param_scopes[-1][helper] = None
+        self.field_alias_scopes[-1][helper] = None
+        self.field_return_alias_scopes[-1][helper] = None
+        self.nested_field_alias_scopes[-1][helper] = None
+        self.param_alias_scopes[-1][helper] = None
+
+    def _stmt_nested_fn_rename_collision(self, depth):
+        """v0.14.11's own cross-fn-boundary collision, independently
+        fuzzed for the first time (round 306's own knowledge file names
+        this exact risk in prose — `_resolve_param_alias`'s boundary
+        guard — but round 306's own hand-written regression test,
+        `test_param_rename_in_enclosing_fn_not_misattributed_to_inner_
+        fn`, gives `inner` a param ALSO literally named `g` (the rename
+        TARGET), which the base identity check already resolves safely
+        BEFORE `_resolve_param_alias` is ever consulted — round 306's own
+        text says so explicitly. Round 311/317's own "still open" item 2
+        names the genuinely untested shape: a nested fn whose OWN param
+        collides, by NAME ONLY, with the rename's SOURCE param (`p`, not
+        `g`) — the identity check does NOT fire for THIS collision, so
+        it is `_resolve_param_alias`'s own boundary restriction, not the
+        base case, doing all the work.
+
+        Verified empirically (a standalone monkeypatch of `Parser._
+        resolve_param_alias` back to an unbounded, whole-`param_alias_
+        scopes`-list walk) that this EXACT shape flips a real program
+        from accepted to a false-positive `error_param` rejection
+        without the boundary guard:
+            fn outer(p) effects [] {
+              let g = p
+              fn inner(p) effects [] { g(1) }
+              inner(print)
+            }
+            outer(print)
+        `inner`'s own param `p` is a DIFFERENT binding from `outer`'s
+        (mere string-name reuse); `g(1)` inside `inner`'s body always
+        calls the CLOSURE-captured `g` (i.e. `outer`'s own `p`), which
+        is a completely separate, deliberately UNCHECKED "value flow
+        across a call boundary" gap (unrelated to this mechanism) — so
+        `inner(print)` must be accepted regardless of what `inner`'s
+        OWN unrelated `p` receives.
+
+        Packs the rename, the nested fn, and the follow-up call biased
+        toward an effectful argument into ONE statement slot (three
+        program shapes) — same compound-rarity reasoning `_stmt_shadow_
+        tracked_fn_call`'s own docstring already gives: no combination
+        of independent existing statements would ever produce a nested
+        fn's own param colliding with an ENCLOSING rename's SOURCE name
+        by chance, since `fresh()` guarantees GLOBAL uniqueness for
+        every OTHER name this generator ever invents."""
+        r = self.r
+        pname = r.choice(self.current_fn_own_params())
+        gname = self.fresh("a")
+        target = self._resolve_param_identity_then_alias(pname)
+        self.bind(gname, None, None, None, None, None, None, target, None)
+        lines = ["let %s = %s" % (gname, pname)]
+
+        def body_fn():
+            self.record_call_direct(gname)
+            return "%s(0)" % gname
+
+        effects_txt, own_effects_scope, called_params, body_text = \
+            self._gen_collision_helper_frame(pname, body_fn)
+        helper = self.fresh("f")
+        self._finish_collision_helper(helper, pname, own_effects_scope, called_params)
+        lines.append("fn %s(%s)%s {\n  %s\n}" % (helper, pname, effects_txt, body_text))
+
+        builtin, _ = self._random_effectful_builtin()
+        arg_infos = [(True, builtin)]
+        self.record_call_direct(helper)
+        if not self.done:
+            self.check_call_site_param_effects(helper, arg_infos)
+        lines.append("%s(%s)" % (helper, builtin))
+        return self._mk_expr("\n".join(lines))
+
+    def _stmt_nested_fn_forward_collision(self, depth):
+        """v0.14.13's own analogue of `_stmt_nested_fn_rename_collision`
+        above — `_check_param_forwarding` resolves its own argument via
+        `_resolve_current_fn_param`, which falls back to the SAME
+        `_resolve_param_alias` boundary guard (its own docstring:
+        "`_resolve_current_fn_param` covers both [identity and a
+        same-body rename chain]"), so the identical cross-fn-boundary
+        collision risk applies one mechanism over. Round 311/317's own
+        "still open" item 3 names this as item 2's natural companion,
+        unbuilt until now.
+
+        Verified empirically the same way as the rename version above:
+            fn inner(g) effects [io] { g(1) }
+            fn outer(p) effects [] {
+              let f = p
+              fn helper(p) effects [] { inner(f) }
+              helper(print)
+            }
+            outer(print)
+        Under an unbounded `_resolve_param_alias`, `helper`'s own
+        forward of the closure-captured `f` (really `outer`'s `p`) into
+        `inner`'s own called position gets misattributed to `helper`'s
+        OWN unrelated `p`, and `helper(print)` is wrongly rejected;
+        correctly bounded, `helper`'s own `param_call_scopes` entry
+        stays empty and the call is accepted."""
+        r = self.r
+        pname = r.choice(self.current_fn_own_params())
+        fname = self.fresh("a")
+        target = self._resolve_param_identity_then_alias(pname)
+        self.bind(fname, None, None, None, None, None, None, target, None)
+        lines = ["let %s = %s" % (fname, pname)]
+
+        callee = r.choice(self.known_param_call_names())
+        fact = self.resolve_param_call_fact(callee)
+        if fact is None:
+            # Same shadow-fallback reasoning `_stmt_call_forward_own_
+            # param`'s own docstring already gives for this exact pool
+            # (`known_param_call_names()` is a raw multi-frame scan, not
+            # itself shadow-aware).
+            self.record_call_direct(callee)
+            lines.append("%s(0)" % callee)
+            return self._mk_expr("\n".join(lines))
+        _effects_scope, params, called_params_callee = fact
+        called_positions = [i for i, cparam in enumerate(params) if cparam in called_params_callee]
+        target_idx = r.choice(called_positions)
+        call_args = [fname if i == target_idx else str(r.randint(0, 9))
+                     for i in range(len(params))]
+
+        def body_fn():
+            self.record_call_direct(callee)
+            arg_infos = [(True, fname) if i == target_idx else (False, None)
+                         for i in range(len(params))]
+            if not self.done:
+                self.check_call_site_param_effects(callee, arg_infos)
+            if not self.done:
+                self.record_param_forwarding(callee, arg_infos)
+            return "%s(%s)" % (callee, ", ".join(call_args))
+
+        effects_txt, own_effects_scope, called_params, body_text = \
+            self._gen_collision_helper_frame(pname, body_fn)
+        helper = self.fresh("f")
+        self._finish_collision_helper(helper, pname, own_effects_scope, called_params)
+        lines.append("fn %s(%s)%s {\n  %s\n}" % (helper, pname, effects_txt, body_text))
+
+        builtin, _ = self._random_effectful_builtin()
+        arg_infos_outer = [(True, builtin)]
+        self.record_call_direct(helper)
+        if not self.done:
+            self.check_call_site_param_effects(helper, arg_infos_outer)
+        lines.append("%s(%s)" % (helper, builtin))
         return self._mk_expr("\n".join(lines))
 
     def _stmt_let_call_return_param_passthrough(self, depth):
