@@ -801,6 +801,33 @@ Known facts (measured 2026-08-24, E1 full curve — /work/logs/nuc-bench.md):
   writeup:
   `knowledge/round-286-nuc-e-r268-run-fourth-burst-breaks-quantum-and-exact-pswpout-cross-check.md`.
 
+## Round 298 addendum (2026-08-29, box DOWN at check time — tailscale reports `pgain-nuc` offline)
+
+- **Closed out round 268's 8h `swap_watch.py` run for good.** The complete
+  dataset (1921 samples, full 28800s/8.00h span, landed by round 295's
+  `7508a00` commit) contains exactly 4 bursts total — the same 4 round 286
+  had already found at its own mid-flight 5.41h check, confirming the final
+  ~2.6h of the run added zero new bursts (the run ended in its longest flat
+  stretch, 2.77h with no growth). **Burst-count-per-hour tally (open since
+  round 262): 4 bursts / 8.00h = 0.50/hr average**, but inter-arrival gaps
+  span 525s-9977s (19x spread) — bursty, not periodic, confirmed on the
+  first fully-complete multi-hour dataset. Whole-run wide-window rate:
+  **60.70 MB/hr** (485.71 MB total / 8.00h) — the most trustworthy single
+  smoothed-rate figure produced by this track so far (continuous 15s-
+  granularity trace, not a two-point delta). Re-ran round 286's per-burst
+  `pswpout` cross-check on the complete data: byte-identical to round 286's
+  mid-flight numbers (3/4 exact at ratio 1.0000, 4th at 1.0065, confirmed
+  not a mid-flight artifact). Full writeup:
+  `knowledge/round-298-nuc-e-r268-8h-run-final-closure-burst-per-hour-tally.md`.
+- **Live check this round found the box unreachable.** LAN-path key
+  (`id_ed25519_nuc`) absent from this environment's `~/.ssh/`; tailnet SSH
+  (`100.78.44.111`) timed out; `tailscale status` confirms `pgain-nuc ...
+  offline, last seen 1m ago` — the box itself is down, not a routing
+  problem on this end. No fresh standing-state re-verification (`--cap
+  256`, E3 patch, OLMoE tarball, `memory.events` max, operator login,
+  escalation channel) was possible this round; next reachable round should
+  redo these as part of its own setup.
+
 ## Done-criteria for any mission
 Code runs (proof in round file), measurements banked in both places,
 `state/nuc-missions.md` checkbox ticked with a one-line result summary.

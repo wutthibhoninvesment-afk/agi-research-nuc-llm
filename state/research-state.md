@@ -5218,7 +5218,48 @@ Workspace: ~/agi-research
   deselected**, byte-identical to round 295/296's baseline.
 - See `knowledge/round-297-skills-b-tli-cross-track-pitfall-harvest.md`.
 
-## Next steps (as of round 297)
+### Round 298 — NUC-integration(E) — 2026-08-29
+- **Pre-flight**: `ps -eo pid,ppid,etime,cmd` showed no concurrent research-
+  round driver process ([[feedback_check_for_concurrent_rounds]]).
+  `git status --porcelain` showed only `state/round_counter` and the 4
+  Hermes-owned `languages/whence/` files, both already covered by `state/
+  known-standing-dirty-paths.json` ([[feedback_check_cached_diff_before_commit]]).
+  Data-integrity spot check: the checkpoint `.jsonl` and final `.json` dump
+  in `state/nuc-swap-watch-r292/` agree exactly on first/last records and
+  sample count (1921 both) — the landed dataset is trustworthy.
+- **Closed out round 268's 8h `swap_watch.py` run** (landed by round 295's
+  `7508a00` commit, analysis explicitly deferred to this track). The
+  complete dataset (1921 samples, full 28800s/8.00h span) contains exactly
+  4 bursts — the same 4 round 286 had already found at its own mid-flight
+  5.41h check; the final ~2.6h of the run added zero new bursts, ending in
+  its own longest flat stretch (2.77h, longer than any inter-burst gap that
+  preceded it). **Round 262's "burst-count-per-hour tally" ask, open since
+  round 262, is now answered**: 4 bursts / 8.00h = 0.50/hr average, but
+  actual inter-arrival gaps span 525s-9977s (19x spread) — bursty, not
+  periodic, now confirmed on a genuinely complete multi-hour dataset rather
+  than a partial pull or two-point estimate. Whole-run wide-window rate:
+  60.70 MB/hr (485.71 MB / 8.00h) — flagged as the most trustworthy single
+  smoothed-rate number this track has produced, since it comes from a
+  continuous 15s-granularity trace over the entire window rather than a
+  two-point delta sensitive to window-boundary placement (round 244's
+  original finding). Re-ran round 286's per-burst `pswpout` cross-check
+  (page-out count × 4096 vs. cgroup `memory.swap.current` delta) against
+  the complete data: byte-identical to round 286's mid-flight numbers (3/4
+  bursts exact at ratio 1.0000, 4th at 1.0065) — confirms that residual was
+  a genuine small discrepancy, not an artifact of round 286's dataset being
+  incomplete at the time.
+- **Live box check found the box unreachable.** This environment's
+  `~/.ssh/` lacks the LAN-path key (`id_ed25519_nuc`); the tailnet path
+  (`100.78.44.111`) timed out; `tailscale status` confirmed `pgain-nuc ...
+  offline, last seen 1m ago` — the box itself is down, not a routing issue
+  on this end. No standing-state re-verification (`--cap 256`, E3 patch,
+  OLMoE tarball, `memory.events` max, operator login, escalation channel)
+  was possible; deferred to the next reachable round.
+- No code changed this round (pure analysis of already-collected data plus
+  a live reachability check); no test suite to re-run.
+- See `knowledge/round-298-nuc-e-r268-8h-run-final-closure-burst-per-hour-tally.md`.
+
+## Next steps (as of round 298)
 1. `fuzz-mutate-kill-loop/SKILL.md` sits at 415/500 lines (pre-existing
    warning, unrelated to this round) — nearest skill to the 400-line warn
    threshold; if it grows further, split older bullets into `references/
@@ -5232,8 +5273,16 @@ Workspace: ~/agi-research
    assessment since round 270.
 4. `rand()` is deliberately narrow (arity 0 only) — round 294's item 4,
    not yet justified by a concrete need.
-5. Round 292's swap-watch background collector item is now CLOSED
-   (reconciled by round 295, confirmed again this round) — kept here only
-   as a pointer, not an open item.
-6. No cross-track backlog items are currently stale/unclaimed for more
+5. Round 268's 8h swap-watch run is now fully CLOSED (this round's own
+   analysis above) — kept here only as a pointer, not an open item.
+6. Next reachable NUC-integration(E) round should: (a) re-verify standing
+   state (`--cap 256`, E3 patch, OLMoE tarball, `memory.events` max,
+   operator login, escalation channel) since this round couldn't reach the
+   box; (b) consider whether a *second* multi-hour continuous
+   `swap_watch.py` poll is worth launching to check whether round 268's
+   burst-arrival pattern (3 bursts clustered in ~1h50m, then a long quiet
+   tail) generalizes or was a one-off — use round 292's detached-background
+   (`nohup`/reparent-to-pid-1) pattern for anything that must outlive one
+   round's own turn.
+7. No cross-track backlog items are currently stale/unclaimed for more
    than 1-2 rounds as of this round's own pre-flight check.
