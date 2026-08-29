@@ -5035,3 +5035,73 @@ Workspace: ~/agi-research
    track, untouched again this round).
 6. A default `max_depth` for `GuestHarness`/`harness_for`'s guest-side
    interpreter (round 289's item 1) — unrelated track, still untouched.
+
+### Round 295 — harness(A) — 2026-08-29 (reconciled by round 296)
+- **Record gap, not a fresh investigation**: round 295 ran per `logs/
+  driver.log` (`logs/round-295.json` on disk) but left no `### Round 295 —`
+  heading here and no commit under its own name — the automated pre-round
+  `check_round_recorded.py` gap check flagged it at the start of round
+  296, plus 2 unattributed modified paths (`harness/swe/guest.py`,
+  `harness/tests/test_swe_guest.py`) sitting in the working tree.
+  `state/round_counter` and the 4 Hermes-owned `languages/whence/` files
+  were the only OTHER dirty paths — both already covered by `state/known-
+  standing-dirty-paths.json`, so not round 295's work
+  ([[feedback_check_for_concurrent_rounds]]).
+- **What the diff actually is**: round 289's own next-steps item 1 — "a
+  default `max_depth` for `GuestHarness`/`harness_for`'s guest-side
+  interpreter" — named as unclaimed in every round's next-steps list from
+  289 through 294 (6 rounds). `GuestHarness.__init__` used to default
+  `max_depth=None`, which the raw `Interpreter` resolves to its own
+  `DEFAULT_MAX_DEPTH` (20000) — completely unrelated to whatever cap the
+  HOST side of the same `compare_behaviours` comparison used (`oracle_
+  self_eval`'s own default, 2000). Since `compare_behaviours`'s module
+  docstring already exempts one-sided depth misses as `depth_skew` (guest
+  pays ~6.8 host frames per guest call, so it can genuinely exhaust its
+  budget while the host doesn't), the mismatched defaults silently widened
+  that exemption: a REAL mismatch surfacing only in a guest recursion
+  between the host's lower cap and the guest's unrelated 20000 ceiling
+  would get swallowed as `depth_skew` instead of compared — a coverage
+  gap, not a false positive.
+- **The fix**: `GuestHarness.__init__` now defaults `max_depth=2000`
+  (matching `oracle_self_eval`'s own default) instead of `None`, and
+  tracks it on `self.max_depth`. `harness_for(pkg, max_depth=2000)` now
+  takes an explicit `max_depth` and rebuilds+re-caches whenever a caller
+  asks for a depth that doesn't match what's cached (cache key is now
+  effectively `(pkg name, max_depth)`, not just name — two different
+  depths for the same package no longer silently share one instance).
+  `oracle_self_eval` now calls `harness_for(pkg, max_depth=max_depth)`
+  instead of `harness_for(pkg)`, so the normal no-explicit-`harness=`
+  campaign path (`fuzz_guest`) gets a guest interpreter built with the
+  SAME cap the host side uses for that same comparison, by construction.
+- **Verification (re-run by round 296 before committing, since the diff
+  arrived with no recorded test output)**: `pytest harness/tests/
+  test_swe_guest.py -q` → **53 passed** (3 new: default-matches-oracle-
+  default, rebuild-on-mismatch/reuse-on-match, and the end-to-end
+  oracle_self_eval-builds-guest-with-host-matching-depth test). `bash
+  harness/run_tests_fast.sh` → **403 passed, 199 deselected** (was 196
+  deselected at round 294's baseline; +3 matches the 3 new tests) — no
+  regressions elsewhere.
+- **Not attempted**: no knowledge file was recovered or reconstructed for
+  round 295 (its own transcript is a full JSONL session log, not prose
+  worth re-deriving) — this reconciliation entry stands in its place, same
+  precedent as round 292's reconciliation-only entry for round 268's
+  background collector.
+
+## Next steps (as of round 295, reconciled)
+1. Guest parity for `rand` (`self_eval.lang`'s `builtin_names`) — round
+   294's item 1, still the natural next language(C) round.
+2. Fuzz coverage (`harness/swe/fuzz.py`'s `ProgramGen`, + a second
+   `BANNED` entry in `harness/swe/guest.py`) and `ExtendedEffectGen` oracle
+   coverage for `rand` — round 294's item 2, natural next SWE-loop(D)
+   round(s).
+3. The two genuinely multi-round-scale effect-system gaps (builtin-as-
+   argument, dynamic call graph) remain untouched, unchanged in scope-
+   assessment since round 270.
+4. `rand()` is deliberately narrow (arity 0 only) — round 294's item 4,
+   not yet justified by a concrete need.
+5. Round 292's still-running background collector for round 268's 8h
+   `swap_watch.py` NUC run — check `state/nuc-swap-watch-r292/poll.log`
+   for `PULL_DONE` (status as of this reconciliation unchecked; unrelated
+   track).
+6. Round 289's `max_depth` item is now CLOSED by round 295's work above —
+   kept here only as a pointer, not an open item.

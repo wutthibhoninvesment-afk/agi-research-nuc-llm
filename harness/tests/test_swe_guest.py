@@ -373,6 +373,47 @@ def test_guest_harness_cache_evicted_after_a_mid_call_exception(pkg):
     assert G._HARNESSES[d["name"]] is not h1
 
 
+def test_harness_for_default_max_depth_matches_oracle_default():
+    """Round 289's flagged gap: `harness_for` used to build with
+    `max_depth=None`, resolving to the raw interpreter's `DEFAULT_MAX_DEPTH`
+    (20000) regardless of whatever cap the HOST side of the SAME comparison
+    used (`oracle_self_eval`'s own default, 2000). Round 295's fix: both
+    default to the same value."""
+    d = load_whence(WHENCE_ROOT, "guest_depth_default_test")
+    h = G.harness_for(d)
+    assert h.max_depth == 2000
+    assert h.interp.max_depth == 2000
+
+
+def test_harness_for_rebuilds_on_a_different_max_depth_and_reuses_on_a_match():
+    """The cache used to be keyed on package name alone; a caller asking
+    for a different `max_depth` than whatever happened to be cached would
+    silently get the WRONG depth cap. Now a mismatched request rebuilds,
+    and a matching one reuses the same instance."""
+    d = load_whence(WHENCE_ROOT, "guest_depth_rebuild_test")
+    h1 = G.harness_for(d, max_depth=500)
+    assert h1.interp.max_depth == 500
+    h2 = G.harness_for(d, max_depth=1500)
+    assert h2 is not h1
+    assert h2.interp.max_depth == 1500
+    h3 = G.harness_for(d, max_depth=1500)
+    assert h3 is h2
+
+
+def test_oracle_self_eval_builds_guest_with_host_matching_max_depth():
+    """The actual mechanism under test: with no explicit `harness=`
+    override (the normal `fuzz_guest` campaign path), `oracle_self_eval`'s
+    own `max_depth` argument — which bounds the HOST-side run — now also
+    bounds the cached GUEST harness it builds, instead of the guest always
+    getting the interpreter's unrelated 20000 default. Before round 295,
+    this asymmetry meant a genuine mismatch surfacing only in a guest
+    recursion between the host's (lower) cap and 20000 would be silently
+    swallowed as an exempt `depth_skew`, not compared."""
+    d = load_whence(WHENCE_ROOT, "guest_depth_symmetry_test")
+    G.oracle_self_eval(d, "let v = 1\n", max_depth=777)
+    assert G._HARNESSES[d["name"]].interp.max_depth == 777
+
+
 # ------------------------------------------------------ why-shape probe --
 
 def test_why_probe_fires_on_injected_mirror_bug(pkg):

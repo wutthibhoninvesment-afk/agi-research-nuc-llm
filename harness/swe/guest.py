@@ -20,7 +20,13 @@ Exemptions, by design (documented in self_eval.lang's header):
   - depth skew: the guest pays ~6.8 host frames per guest call, so a
     program can exhaust max_depth under one evaluator only. A one-sided
     miss whose reasons mention the depth budget is `depth_skew`, not a
-    finding.
+    finding. Round 295: `harness_for`/`oracle_self_eval` now build the
+    guest's own interpreter with the SAME `max_depth` the host side uses
+    (both default 2000) rather than the guest silently getting the raw
+    interpreter's `DEFAULT_MAX_DEPTH` (20000) regardless of the host's own
+    cap — the exemption above is for real, unavoidable interpretation
+    overhead, not a caller-facing asymmetry that widens which mismatches it
+    swallows.
 
 Everything else that differs is a real divergence between the language and
 its self-hosted definition — exactly the bug class no other oracle sees.
@@ -416,7 +422,7 @@ class GuestHarness(object):
     long-lived env (the library is ~800 lines; re-parsing it per program
     would dominate the campaign)."""
 
-    def __init__(self, root=WHENCE_ROOT, pkg=None, lib_source=None, max_depth=None):
+    def __init__(self, root=WHENCE_ROOT, pkg=None, lib_source=None, max_depth=2000):
         self.root = root
         self.pkg = pkg or load_whence(root, "guesthost")
         name = self.pkg["name"]
@@ -426,6 +432,7 @@ class GuestHarness(object):
             with open(os.path.join(root, "examples", "self_eval.lang"), encoding="utf-8") as f:
                 lib_source = f.read().split(LIB_MARKER)[0]
         self.swallowed = []
+        self.max_depth = max_depth
         kwargs = {"out": self.swallowed.append}
         if max_depth is not None:
             kwargs["max_depth"] = max_depth
@@ -450,11 +457,30 @@ class GuestHarness(object):
 _HARNESSES = {}
 
 
-def harness_for(pkg):
+def harness_for(pkg, max_depth=2000):
+    """Round 289 flagged this as always building with `max_depth=None` (the
+    interpreter's own `DEFAULT_MAX_DEPTH` = 20000), regardless of whatever
+    `max_depth` the HOST side of the same comparison uses — an asymmetry
+    that widens `compare_behaviours`' one-sided-depth-miss exemption into a
+    real coverage gap: a genuine mismatch that only manifests in a guest
+    recursion whose host-side counterpart Misses under its own (lower,
+    caller-supplied) cap but whose SELF-HOSTED cost (~6.8 host frames per
+    guest call, see module docstring) still fits under the guest's
+    unrelated, much higher 20000 default would be silently exempted as
+    `depth_skew` instead of compared. Defaulting this to 2000 — the same
+    default `oracle_self_eval`/`fuzz_guest` already use for the HOST side —
+    and having `oracle_self_eval` (below) pass its own `max_depth` through
+    when it builds the cached harness closes that gap for the normal,
+    no-explicit-`harness=` campaign path; a caller needing a specific depth
+    still gets a fresh harness built for it (the cache key now includes
+    `max_depth`, so two different depths for the same package never share
+    a cached instance)."""
     key = pkg["name"]
-    if key not in _HARNESSES:
-        _HARNESSES[key] = GuestHarness(pkg.get("root", WHENCE_ROOT), pkg)
-    return _HARNESSES[key]
+    cached = _HARNESSES.get(key)
+    if cached is None or cached.max_depth != max_depth:
+        cached = GuestHarness(pkg.get("root", WHENCE_ROOT), pkg, max_depth=max_depth)
+        _HARNESSES[key] = cached
+    return cached
 
 
 def compare_behaviours(V, host_env_vars, host_checks, guest_rec):
@@ -513,7 +539,7 @@ def oracle_self_eval(pkg, src, max_depth=2000, harness=None, why_probe=True):
     model can submit a plain program). Round 20: when values agree, the
     why-shape probe re-runs the guest with an op-collecting walk and flags
     guest-reified derivation ops the host derivation never performed."""
-    h = harness or harness_for(pkg)
+    h = harness or harness_for(pkg, max_depth=max_depth)
     V = h.V
     if BANNED.search(src.split("let __result")[0]):
         return O.OracleOutcome(
