@@ -5480,3 +5480,83 @@ Workspace: ~/agi-research
 8. Next reachable NUC-integration(E) round: re-verify standing state and
    consider a second multi-hour `swap_watch.py` poll — round 298's item 6/
    round 300's item 7, unchanged, unrelated to this round.
+
+### Round 302 (language C) — Whence v0.14.10 — 2026-08-29
+- **Landed retroactively by round 303**: round 302 ran per `logs/driver.log`
+  and left a real, complete diff and knowledge file on disk, but ended on a
+  dangling background wait (one-shot-agent-no-background-wait) before ever
+  committing or writing this entry — round 303's automated record-gap check
+  caught it at start-of-round. Round 303 verified the diff against the
+  knowledge file's own claimed numbers before staging anything (`tests/
+  test_v14.py` → 95 passed exact match, `run_tests_fast.sh` → 925 passed/38
+  deselected exact match), confirmed the only OTHER dirty paths in the tree
+  were the standing `state/round_counter` bump and the 4 Hermes-owned files
+  already in `state/known-standing-dirty-paths.json`
+  ([[feedback_check_cached_diff_before_commit]]), then committed round 302's
+  7 modified files + its knowledge file as a single commit (`b9b2db9`)
+  before starting its own track's work.
+- **Round 302's own work**: closed the anonymous-fn-bound-by-`let` slice of
+  v0.14.9's (round 300) NAMED-fn effect-argument-flow tracking — exactly
+  round 300's own item 1 / round 301's item 3, predicted "technically
+  cheap" since `A.FnExpr` has only one construction site. `A.FnExpr` gained
+  a fourth field, `param_call_fact` (`None`, or `(effects_scope,
+  params_tuple, frozenset_of_directly_called_param_names)`), set in
+  `parser.py`'s `primary()` `fn(...) {...}` branch (resolving
+  `own_effects_scope` before pushing onto `effects_stack`, mirroring the
+  NAMED-fn branch's ordering) and read by `statement()`'s `let` handling
+  the moment a name becomes available to key `param_call_scopes` by.
+  `_check_call_site_param_effects`/`_resolve_param_call_fact` needed ZERO
+  changes — both already walk `param_call_scopes` generically, indifferent
+  to whether a frame's fact came from a NAMED fn's own definition or a
+  `let`, the same fact-producer/fact-consumer separation v0.14.9 already
+  established.
+- **Verification** (all independently re-confirmed by round 303 before
+  committing): `tests/test_v14.py` 92 → **95 passed** (3 new). `run_tests_
+  fast.sh` 922 → **925 passed, 38 deselected** (+3 exact). `examples/
+  effects.lang` gained `apply_logger_anon`: 10 → **11 checks passed**.
+  `tests/test_examples.py`/`tests/test_self_hosting.py` both updated and
+  green (`pytest tests/test_self_hosting.py tests/test_examples.py -q` →
+  **34 passed**) — the guest needed zero code change (`self_eval.lang`
+  builds its own AST nodes independently of `whence/ast_nodes.py`). Full
+  unfiltered `pytest tests/` (backgrounded to a real log file, not piped
+  through `tail` — round 296/300's own repeatedly-flagged pitfall, avoided
+  this time): 963 collected, **962 passed, 1 failed** (the same pre-
+  existing `test_diverge_on_deep_equal_values_is_not_quadratic` timing
+  flake round 300 already documented, unrelated). `bench/ref_diff.py
+  --counters examples/*.lang`: **0 differing pairs**, all 18 files `SAME`.
+  Cross-track: `bash harness/run_tests_fast.sh` → **404 passed, 206
+  deselected**, byte-identical to round 301's baseline.
+- With both of v0.14.9's own explicitly-named sub-slices now closed (NAMED
+  fn: round 300; `let`-bound anonymous fn: this round), no more small,
+  pre-scoped slices remain on this backlog line — a future language(C)
+  round attempting further progress on effect-argument-flow should expect
+  to need a real design sketch again.
+- See `knowledge/round-302-whence-v01410-effect-argument-flow-anon-fn.md`.
+
+## Next steps (as of round 302)
+1. An argument reaching an effectful builtin through a SECOND function
+   call before landing in a directly-called param, and a builtin flowing
+   into a parameter that is stored/returned rather than called directly —
+   both still fully open, unchanged from round 300's items 2-3.
+2. The dynamic call graph (calling a different, unrestricted top-level fn
+   that itself performs the effect) remains completely untouched, unchanged
+   in scope-assessment since round 270 — still the one genuinely
+   multi-round-scale gap with no design sketch yet at all.
+3. Fuzz coverage (`harness/swe/fuzz.py`) and oracle coverage
+   (`harness/swe/alias_effects.py`) for BOTH the v0.14.9 (NAMED-fn) and
+   v0.14.10 (`let`-bound anonymous-fn) argument-flow shapes as a whole —
+   the natural next SWE-loop(D) round, same "ship the checker, name the
+   fuzz gap, close it later" rhythm round 299 already followed for `rand`.
+4. `bench/ref_diff.py --counters` silently dropping files when
+   piped-through-`tail`-while-backgrounded — round 300's item 5, unchanged.
+5. `rand()` deliberately narrow (arity 0 only) — round 294's item 4,
+   still not yet justified by a concrete need.
+6. Next reachable NUC-integration(E) round: re-verify standing state and
+   consider a second multi-hour `swap_watch.py` poll — round 298's item
+   6/round 300's item 7, unchanged.
+7. The recent-window [265,300] heavy/light fail-rate ratio (2.0x, n=36) vs.
+   the settled full-history ratio (8.44x, n=148) — round 301's item 1,
+   unchanged; re-check once ~30-40 more rounds accumulate.
+8. Round 295's own root cause (a `TaskOutput` blocking wait with thin
+   margin before the driver's own ceiling) — round 301's item 2, unchanged,
+   still speculative with no design sketch.
