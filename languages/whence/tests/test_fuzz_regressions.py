@@ -210,3 +210,38 @@ def test_deep_eq_memo_does_not_change_semantics():
     assert deep_eq(c, d, memo) is False                             # memo never fakes equality
     assert val("let result = [f] == [f]\nfn f(x) { x }\n" if False else
                "fn f(x) { x }\nlet result = ([f] == [f] rescue \"miss\")") == "miss"
+
+
+def test_fold_type_error_keeps_the_accumulator_in_its_provenance():
+    """Round 347 (SWE-loop D), found by the `self_eval` guest differential.
+
+    `fold`'s "needs a list" miss built its inputs as `(fn, xs)`, silently
+    dropping the accumulator. Every other builtin in the table makes a
+    wrong-argument miss out of ALL its arguments — `put` (r, name, v),
+    `typed` (value, spec, label), `guess` (value, conf, source),
+    `map`/`filter`/`find`/`push` both of theirs — so `fold` was the only
+    one whose failure could not explain where a value the caller supplied
+    had come from, in a language whose whole point is that it can.
+
+    `self_eval.lang` passed all three (`mkb(miss ..., "fold", args)`) while
+    carefully mirroring the SUCCESS node's `(final accumulator, list)` two
+    lines below, so the guest was right and the host was the odd one out;
+    the divergence surfaced as a `why_shape` mismatch on a program whose
+    accumulator was `str("1_000")` — a `str` op present in the guest tree
+    and absent from the host's.
+    """
+    it, env = run('let acc = str("1_000")\n'
+                  'let r = fold(fn(a, x) { a }, acc, 0)\n')
+    r = env.vars["r"]
+    assert isinstance(r.payload, Miss)
+    fold_node = r.prov.inputs[0]        # under the `let r` binding node
+    assert fold_node.op == "fold", fold_node.op
+    kids = fold_node.inputs
+    assert len(kids) == 3, [k.op for k in kids]
+    ops = [k.op for k in kids]
+    assert ops == ["fn", "let", "literal"], ops
+    # and the accumulator's own origin -- the `str` call -- is now
+    # reachable from the failed fold, which is what the guest tree had and
+    # the host tree did not
+    acc_node = kids[1]
+    assert [k.op for k in acc_node.inputs] == ["str"], acc_node.inputs

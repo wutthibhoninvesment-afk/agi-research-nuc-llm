@@ -209,20 +209,20 @@ class GuestGen(ProgramGen):
         self.scope.append("strv")
         return ['let strv = join(map(str, range(%d)), "-")' % k]
 
-    def program(self):
-        """Base recipe, but banned constructs are filtered per STATEMENT
-        (a multi-line `fn` body must be dropped whole; line-level stripping
-        would leave dangling fragments that parse on neither side)."""
-        r = self.r
-        stmts = []
-        if r.random() < self.stress_rate:
-            stmts.extend(self.template())
-        for _ in range(r.randint(2, 7)):
-            stmts.append(self.statement())
-        probes = r.sample(self.scope, min(len(self.scope), 3)) if self.scope else []
-        for name in probes:
-            stmts.append(self.probe(name))
-        return "\n".join(s for s in stmts if not BANNED.search(s)) + "\n"
+    def keep_stmt(self, stmt):
+        """Banned constructs are filtered per STATEMENT (a multi-line `fn`
+        body must be dropped whole; line-level stripping would leave
+        dangling fragments that parse on neither side).
+
+        Round 347: this used to be a whole copy of `ProgramGen.program`
+        with the filter inlined into its final `join`. That fork is what
+        kept round 337's `_typed_tail_chain` out of the guest differential
+        for ten rounds — the base recipe grew a statement kind and the copy
+        did not. `ProgramGen.program` now calls `keep_stmt` on every
+        statement, so a subclass says WHICH statements survive and never
+        WHICH ones exist. See `ProgramGen.keep_stmt`'s own docstring and
+        the structural test that pins it."""
+        return not BANNED.search(stmt)
 
     def probe(self, name):
         r = self.r

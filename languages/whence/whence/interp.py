@@ -2598,8 +2598,20 @@ def _make_builtin_table():
             return m
         fn, acc, xs = args
         if not isinstance(xs.payload, WList):
+            # `acc` belongs in the inputs (round 347). Every other builtin
+            # in this table makes a wrong-argument miss out of ALL its
+            # arguments — `put` (r, name, v), `typed` (value, spec, label),
+            # `guess` (value, conf, source), `map`/`filter`/`find`/`push`
+            # both of theirs — and `fold` alone dropped its accumulator, so
+            # `blame`/`steps` on a failed fold could not reach the
+            # provenance of a value the caller had supplied. Found by the
+            # `self_eval` guest differential: `self_eval.lang` passes all
+            # three here (`mkb(miss ..., "fold", args)`) while carefully
+            # mirroring the SUCCESS node's `(final accumulator, list)` two
+            # lines below, so the guest was right and the host was the odd
+            # one out. See knowledge/round-347-*.md.
             return mk_miss("fold needs a list, got %s" % show_payload(xs.payload),
-                           line, "fold", inputs=(fn, xs))
+                           line, "fold", inputs=(fn, acc, xs))
         n = 0
         for x in xs.payload:
             acc = yield _Call(fn, [acc, x], line)

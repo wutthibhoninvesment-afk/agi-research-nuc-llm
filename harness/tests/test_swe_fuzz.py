@@ -478,15 +478,119 @@ def test_generator_now_emits_the_shape_builtins():
         assert seen >= 50, (name, seen)   # 5.1-5.9% measured, floor at half
 
 
-def test_generator_emits_no_shape_declaration():
-    """The grammar deliberately reaches the whole structural-typing engine
-    through hand-built record SPECS, never a `shape` statement: the guest
-    parser has no `shape` support at all, and both `swe/guest.py` and
-    `languages/whence/tests/test_parser_differential.py` consume this same
-    generator on the assumption that it never emits one."""
-    pat = re.compile(r"(^|\n)\s*shape\s")
-    for i in range(300):
-        assert not pat.search(ProgramGen(i).program()), i
+def test_generator_emits_shape_declarations():
+    """Round 347 inverted `test_generator_emits_no_shape_declaration`.
+
+    That test pinned "the grammar never emits a `shape` statement" and
+    gave the reason: "the guest parser has no `shape` support at all".
+    Round 338 gave `self_eval.lang`/`self_host.lang` the `shape` statement
+    and `swe/guest.py`'s docstring recorded that the restriction had become
+    "a GENERATOR choice rather than a guest limitation" — but this test,
+    `fuzz.py`'s own comment, and `TYPE_TAGS`'s comment all still asserted
+    the old reason, so the choice was never revisited. Measured before the
+    change: 0 of 400 generated programs contained the word `shape`, which
+    left `_closure_spec`'s NameRef branch, both of `_check_contract`'s
+    pre-`_type_match` guards and the guest's `resolve_spec` reachable only
+    from the hand-written corpus.
+
+    Floor at half the measured rate, per
+    `test_generator_now_emits_the_shape_builtins`'s own sample-size note.
+    """
+    corpus = [ProgramGen(i).program() for i in range(2000)]
+    decl = re.compile(r"(^|\n)shape S\d+ = @\{")
+    ann = re.compile(r"(->|:) S\d+\b")
+    shadow = re.compile(r"\{ let S\d+ =")
+    n_decl = sum(1 for s in corpus if decl.search(s))
+    n_ann = sum(1 for s in corpus if ann.search(s))
+    n_shadow = sum(1 for s in corpus if shadow.search(s))
+    assert n_decl >= 150, n_decl        # ~31% measured
+    assert n_ann >= 90, n_ann           # ~19% measured
+    assert n_shadow >= 55, n_shadow     # ~12% measured
+
+
+def test_declared_shape_annotations_are_total():
+    """Every program the new shape recipes can produce stays total: a
+    shape annotation is a MISS when it does not match, never a host
+    exception. The `not _spec_ok` branch (`_shadowed_shape_stmt`) is the
+    one this most needs to hold for — round 344 measured it raising
+    `AttributeError: 'int' object has no attribute 'fields'` straight out
+    of the interpreter before it added the guard."""
+    from swe.fuzz import SHADOW_BINDINGS
+    for bind in SHADOW_BINDINGS:
+        for ann in ("fn g() -> S1 { 1 }\n  g()",
+                    "fn g(q: S1) { q }\n  g(1)"):
+            src = ("shape S1 = @{a: num}\n"
+                   "fn h() { let S1 = %s\n  %s }\n"
+                   "let r = h()\n"
+                   "print(str(r))\n") % (bind, ann)
+            o = run_program(src)
+            assert o.kind == "ok", (bind, ann, o.kind, o.exc_type, o.message)
+            assert "object at 0x" not in "".join(o.out), o.out
+
+
+def test_shape_witnesses_really_satisfy_their_shape():
+    """`_witness_for` exists so the annotation SUCCESS path is not dead —
+    the branch where `_check_contract` returns its input unchanged and
+    leaves no node in the why-tree at all. If a witness stopped matching,
+    every generated shape annotation would quietly become a miss and the
+    coverage would look identical from the outside."""
+    for seed in range(60):
+        g = ProgramGen(seed)
+        for _ in range(3):
+            g._shape_decl()
+        for name in g.shape_names():
+            src = ("\n".join("shape %s = @{%s}" % (
+                       n, ", ".join("%s: %s" % (f, t) for f, t in fs))
+                   for n, fs in g.shapes) +
+                   "\nlet w = %s\n"
+                   "fn f(p: %s) { p }\n"
+                   "let r = f(w)\n"
+                   "print(missed(r))\n" % (g._witness_for(name), name))
+            o = run_program(src)
+            assert o.kind == "ok", (seed, name, o.kind, o.message)
+            assert list(o.out) == ["false"], (seed, name, g.shapes, o.out)
+
+
+def test_program_recipe_has_no_subclass_fork():
+    """Structural guard (round 347): no subclass of `ProgramGen` anywhere
+    under `harness/` may define its own `program`.
+
+    `GuestGen` used to carry a hand-copied `program`, so every recipe the
+    base gained afterwards silently missed the guest differential. Round
+    337's `_typed_tail_chain` went in that way and was invisible to the
+    guest for ten rounds (0 of 400 guest programs contained one, measured
+    round 347); round 347's shape declarations would have been the second
+    instance the same day. Subclasses now override `keep_stmt`, which
+    answers "keep this statement?" and cannot answer "which statements
+    exist?".
+
+    Asserted over the AST rather than by grep, for round 343's reason: a
+    grep for a NAME cannot find a SHAPE, and the shape is "a class whose
+    bases include ProgramGen and whose body defines program"."""
+    import ast as _ast
+    harness_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    offenders, subclasses = [], []
+    for dirpath, _dirs, files in os.walk(harness_dir):
+        if "__pycache__" in dirpath:
+            continue
+        for fn in files:
+            if not fn.endswith(".py"):
+                continue
+            path = os.path.join(dirpath, fn)
+            with open(path, encoding="utf-8") as fh:
+                tree = _ast.parse(fh.read(), path)
+            for node in _ast.walk(tree):
+                if not isinstance(node, _ast.ClassDef):
+                    continue
+                bases = [b.id for b in node.bases if isinstance(b, _ast.Name)]
+                if "ProgramGen" not in bases:
+                    continue
+                subclasses.append(node.name)
+                for item in node.body:
+                    if isinstance(item, _ast.FunctionDef) and item.name == "program":
+                        offenders.append("%s.%s (%s)" % (node.name, item.name, path))
+    assert subclasses, "no ProgramGen subclass found -- the guard would be vacuous"
+    assert not offenders, offenders
 
 
 def test_shape_builtins_are_total_under_fuzz_inputs():

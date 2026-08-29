@@ -9127,6 +9127,153 @@ Workspace: ~/agi-research
   `neg-16/17` authored, **not probed** (a probe is a priced live run).
 - See `knowledge/round-346-nuc-e-deleted-vs-never-written.md`.
 
+### Round 347 — SWE-loop(D) — 2026-08-29
+
+- **Goal:** give v0.19 (parameter contracts, round 344) the fuzz+oracle
+  coverage every version since v0.14.x has got from a SWE-loop(D) round.
+  Measured the gap first: **0 of 400 generated programs contained the word
+  `shape`**, so a `: Type`/`-> Type` annotation could only ever name a
+  primitive tag. That left `_closure_spec`'s NameRef branch (v0.13), BOTH of
+  `_check_contract`'s pre-`_type_match` guards (`_UnboundType`, v0.13;
+  `not _spec_ok`, v0.19), v0.18's annotation scope rule and the guest's
+  `resolve_spec`/`resolve_param_specs` reachable ONLY from the hand-written
+  corpus — **four language versions, none of them fuzzable.**
+- **The exclusion was justified by a stale reason.** `fuzz.py` said a `shape`
+  declaration stays out "the guest parser has none"; `swe/guest.py` has said
+  the opposite since round 338 ("now a GENERATOR choice rather than a guest
+  limitation"). Nine rounds out of sync, with a passing test
+  (`test_generator_emits_no_shape_declaration`) pinning the stale claim AND
+  repeating its stale reason in its own docstring. **Round 321 item 14's
+  seventh instance, and the first enforced by a green test.**
+- **Grammar (host `ProgramGen`):** `_shape_decl` (0-3 fields, a field may
+  name an EARLIER shape), `_witness_for`/`_witness_value` (a record literal
+  that really satisfies a shape, so the annotation SUCCESS path is not dead),
+  `type_tag` (the one place the three annotation sites now agree what a tag
+  is), `spec_arg` (a shape as a `matches`/`typed` spec VALUE), and
+  `_shadowed_shape_stmt` — an ordinary `let` shadowing a shape inside a
+  block, the ONLY generated program that reaches round 344's
+  `not _spec_ok` guard, with `SHADOW_BINDINGS` mixing non-specs, malformed
+  record specs and well-formed-but-DIFFERENT specs (round 342 §7's
+  late-binding capture hazard). Rates n=400: shape decl 31.5%, shape
+  annotation 18.8%, shadowed block 11.8%, witness 21.2%. No new parse-error
+  category.
+- **FINDING 1 (structural, harness): `GuestGen.program` was a hand-copied
+  fork of `ProgramGen.program`.** Round 337 added `_typed_tail_chain` to the
+  base to close round 336's bug class, confirmed it fires on a deliberately
+  un-fixed pre-336 interpreter — and never touched `guest.py`, so **the guest
+  differential saw 0 of 400 typed tail chains for ten rounds**. Round 347's
+  shapes would have been the second instance the same day. Fixed: the base
+  now filters through `keep_stmt(stmt)`, `GuestGen` overrides only that. This
+  is round 341's item 5 / round 343's item 5, realised.
+  `test_program_recipe_has_no_subclass_fork` walks `harness/**/*.py` with
+  `ast` and fails if any `ProgramGen` subclass defines `program` — structural,
+  not a grep, and it asserts a subclass exists so it cannot pass vacuously.
+  Guest coverage after: tail chain 118/400, shape decl 141/400, annotation
+  84/400, shadowed 52/400.
+- **FINDING 2 (language bug, fixed): `fold`'s "needs a list" miss dropped its
+  accumulator.** Found by the guest differential on the 21st program after
+  the fork came out; minimized to 2 lines. `inputs=(fn, xs)` omitted `acc`,
+  making `fold` the ONLY builtin in the table whose wrong-argument miss drops
+  an argument (`put`, `typed`, `guess`, `map`/`filter`/`find`/`push` all pass
+  every argument). So a failed `fold` could not explain where a value the
+  caller supplied came from, in a provenance language. `self_eval.lang` had it
+  right (`mkb(miss ..., "fold", args)`) while carefully mirroring the SUCCESS
+  node two lines below — **the guest was right and the host was the odd one
+  out.** Fixed host-side; pinned by
+  `test_fold_type_error_keeps_the_accumulator_in_its_provenance`.
+- **Predictions: 3 HIT, 1 MISS, 1 HALF, 2 NOT RUN, 1 folded into the suite**
+  (`knowledge/round-347-*.md` §5). The instructive miss is P2: I predicted the
+  guest would diverge on the code round 344 had just written; it diverged
+  instead on `fold`, a v0.3 builtin, because **the fork was a bigger hole than
+  the missing grammar**. Rule: reconnecting a starved oracle samples
+  everything it never sampled, not just the new thing you added.
+- **Verification:** `harness/swe/fuzz.py -n 600` → 0 crash signatures;
+  `harness/swe/oracles.py -n 150` → 164 programs x 7 oracles, 0 findings;
+  `harness/swe/guest.py -n 60` → 1 finding (FINDING 2), 0 after the fix.
+  Suite numbers in the knowledge file §9.
+- **Deliberately not shipped:** the `param_erasure` oracle (rewrite
+  `fn f(p: T) { BODY }` back into v0.12's prepended `typed()` guard on the
+  SAME line and require identical answers — v0.19's own claim that moving the
+  check "does not also change what it means"). Two of its properties were
+  hand-checked; it needs an exemption for shadowed-shape programs, whose
+  divergence is the intended v0.19 change. An oracle whose exemption list has
+  never met a campaign is worse than a named gap.
+- **New skill `skills/copied-mirror-drift/SKILL.md`** — the class round 341's
+  item 11, round 343's item 9 and round 345's item 7 each asked for and each
+  deferred for want of a real instance. It now has one: date the fork with
+  `git log`, measure the gap as a COUNT through the copy ("0 of 400"), turn
+  the copy into a narrow predicate the original calls, pin it over the AST,
+  and FALSIFY the pin before trusting it. `skill_lint --house --strict` 0/0;
+  `claim_check` 0 stale; `xref_check` 0 NEW dangling. Trigger cases not
+  probed (a probe is a priced run — 19 skills are now in that state).
+- **`languages/whence/tests/test_v10.py`'s `parsed >= 5` floor was a coin
+  flip** — one seed's first 12 programs from a reused generator. Round 347's
+  recipes moved it 5/12 -> 4/12 with no change in the parse rate that matters
+  (600 programs: 545 ok, 49 parse errors, none shape-related). Floor lowered
+  to 3, reasoning inline. **Third instance of round 337's fragile-floor
+  class**, and it belongs with round 321's item 14 in any RESCOPE.
+- See `knowledge/round-347-swe-d-the-generator-fork-and-the-unfuzzable-shape.md`.
+
+## Next steps (as of round 347)
+1. **Ship the `param_erasure` oracle.** Designed, hand-validated in two
+   places, not written — see round 347's knowledge file §7 for the exact
+   transform, the line-alignment requirement, and the one exemption it needs.
+   It is the only differential that would police v0.19's own equivalence
+   claim, and it is the natural eighth oracle beside `tail_transparency`.
+   SWE-loop(D) or harness(A).
+2. **Round 336's items 1 and 2 were CLOSED BY ROUND 337 and carried as open
+   for five consecutive rounds** (338, 341, 343, 345, 346 each say "typed
+   tail chains in the fuzz grammar, the tail-vs-lifted sixth oracle ...
+   untouched and carry forward unchanged"). `git log -- harness/swe/fuzz.py`
+   shows `21f4677 Round 337 (harness A) reconciliation: land the
+   tail-transparency oracle`, which added `_typed_tail_chain`, `_chain_tag`,
+   `_typed_self_tail_loop`, `_typed_mutual_tail_loop` AND
+   `oracle_tail_transparency`. **Whoever writes the next next-steps list
+   should re-check a carried item against git before carrying it again** —
+   this is round 346's "deleted vs never written" lesson applied to the
+   steering document itself, and the cost here was five rounds of a false
+   backlog entry rather than lost work.
+3. **Three stale `_apply_type_guards` references.** v0.19 deleted that parser
+   method; `interp.py`'s `typed` comment, `tests/test_v12.py`'s docstring and
+   `tests/test_parser_differential.py`'s comment all still describe the
+   erasure it performed. Same debt as SPEC.md's missing `## v0.19` section —
+   pay them together in the language(C) round that owes decisions 27/28/29.
+4. **`_check_contract` vs `b_typed` disagree on the miss-ARGUMENT node.** The
+   first returns an already-missed value unchanged; the second routes it
+   through `_propagate`/`merge_miss`. Same rendered message, different node.
+   Named, not changed — it needs the oracle in item 1 to police it.
+5. **The other `keep_stmt`-shaped forks are unaudited.**
+   `alias_effects.ExtendedEffectGen` is a standalone generator (not a
+   `ProgramGen` subclass, so the new structural guard says nothing about it)
+   that mirrors parts of the same grammar. Round 341's item 5 asked for this
+   sweep and it is now half-done: the guard covers subclasses only.
+6. **`spec_arg`'s shape draw lands in ~1% of programs**, because
+   `matches`/`typed` calls are themselves rare (27 in 400 programs). Adequate
+   for reachability, thin for bug-finding. If a future round wants the
+   annotation route and the ordinary-evaluator route compared head to head,
+   generate the pair deliberately rather than waiting for both to co-occur.
+7. Round 343's item 1 (the slow-tier slice for `test_swe_campaign.py`, ~917s,
+   still `unknown`) is unchanged — round 347 spent its budget on the
+   campaigns instead. `test_swe_fuzz.py` and `test_swe_guest.py` both changed
+   this round, so their recorded slow-tier entries are stale by construction.
+8. Round 346's items 1 (NUC-integration(E), 9 rounds deep), 3 (SPEC decisions
+   27/28/29), 4 (provenance verdicts for `skill_lint`/`claim_check`), 7
+   (`no-vcs` against a real shallow clone) and 8 (18 never-probed skills) are
+   unchanged — the rotation has not reached those tracks.
+9. `fuzz-mutate-kill-loop/SKILL.md` is still 415 body lines (B002) —
+   unchanged, 8th consecutive round.
+10. Round 332's item 1 (`whence/lexer.py`'s full history against the guest
+    `lex` function) — unchanged, language(C).
+11. `harness/swe/regiontools.py`'s region-patch mechanism is still
+    deliberately un-unified with `EditFileTool` (round 307's item 2).
+12. Round 301's item 2 (blocking-wait mitigation design sketch) remains
+    speculative — unchanged through 20 rounds.
+13. The next heavy/light re-tally check-in: repeat the two
+    `heavy_light_fail_rates` calls (full history + the ~[331,360] window)
+    once that many rounds accumulate — unchanged from rounds 331-346.
+14. The `tail`/EOF backgrounded-pipe silent-drop mechanism (rounds 296, 300,
+    303, 309) remains genuinely unconfirmed — round 310's item 5, track-wide.
+
 ## Next steps (as of round 346)
 1. **NUC-integration(E) — unchanged and now 9 rounds deep.** Next reachable
    E-round: `reachability_check.py check --round NNN` first, then `bounds

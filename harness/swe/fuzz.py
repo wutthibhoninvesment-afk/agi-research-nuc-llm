@@ -96,13 +96,19 @@ BUILTIN_ARITY = {
     # `interp._make_builtin_table()` (36 names), exactly the check round
     # 323's own next-steps item 3 asked the next SWE-loop(D) round to run
     # before assuming there were no gaps left. All three are ORDINARY
-    # calls, not new syntax: a `shape` DECLARATION stays out of this
-    # grammar (the guest parser has none -- see `swe/guest.py` and
-    # `languages/whence/tests/test_parser_differential.py`, which consumes
-    # this generator), but a type SPEC is a first-class VALUE, so a
+    # calls, not new syntax. Round 323 also recorded why a `shape`
+    # DECLARATION stayed out of this grammar -- "the guest parser has
+    # none" -- and that a type SPEC is a first-class VALUE anyway, so a
     # hand-built record literal reaches the whole structural-matching
     # engine without any `shape` statement (SPEC v0.12: "a record built
     # entirely by hand ... matches it exactly as one built from it").
+    # The guest-parser half of that has been FALSE since round 338, which
+    # taught `self_eval.lang`/`self_host.lang` the `shape` statement, and
+    # `swe/guest.py`'s own docstring has said so ("that is now a GENERATOR
+    # choice rather than a guest limitation") for nine rounds while this
+    # comment still gave the old reason. Round 347 closes it: `_shape_decl`
+    # below declares real shapes and `type_tag` puts their names in
+    # `p: Type`/`-> Type` annotations.
     "matches": 2, "shapeof": 1, "typed": 3,
     # v0.17 (round 318): `trunc(x)`, arity 1 -- a plain numeric builtin,
     # architecturally identical to the pre-existing `abs`/`sqrt` entries
@@ -127,7 +133,59 @@ STEP_NAMES = ["let x", "literal", "call", "arg", "note k", "+", "let a", "if",
 # the values flowing through are otherwise-untyped fuzz expressions, so a
 # tag frequently WON'T match at runtime; that mismatch-as-miss path is
 # exactly what needs exercising against fast/direct/trampoline + tail calls.
+# The parenthesis two lines up stopped being true in round 347:
+# `_shape_decl` declares shapes and `type_tag` draws from these tags AND
+# from their names, so an annotation now also reaches
+# `interp._closure_spec`'s NameRef branch (a shape looked up in the
+# DEFINING env) instead of only its `A.Str` branch.
 TYPE_TAGS = ("num", "str", "bool", "list", "record", "fn", "any")
+
+# Round 347 (SWE-loop D). v0.12 gave annotations a shape NAME as well as a
+# primitive tag; v0.13 resolved a `-> Shape` once at closure creation;
+# v0.18 (round 342) made the type namespace obey the value namespace's
+# scope rule; v0.19 (round 344) moved the PARAMETER half onto the same
+# `_closure_spec` at the same moment. Not one of those four changes could
+# be fuzzed, because 0 of 400 generated programs contained the word
+# `shape` (measured round 347) — so `_closure_spec`'s NameRef branch, both
+# of `_check_contract`'s pre-`_type_match` guards, and the guest's
+# mirroring `resolve_spec`/`resolve_param_specs` were reachable ONLY from
+# the hand-written corpus.
+#
+# Field types a generated `shape` may declare. Primitives only here; a
+# shape field naming an EARLIER shape is drawn separately in
+# `_shape_decl`, because "may only reference shapes declared earlier"
+# (parser.py's `shape_scopes` comment) is a property of the declaration
+# ORDER, not of this pool.
+SHAPE_FIELD_TAGS = ("num", "str", "bool", "list", "record", "fn", "any")
+# Literal source that really SATISFIES each primitive tag, so
+# `_witness_for` can build a record a declared shape actually matches.
+# Without witnesses every shape annotation would be a miss and the success
+# path — the branch where `_check_contract` returns its input unchanged and
+# leaves no node in the why-tree at all — would be dead, the same "the pass
+# path would be near-dead" reasoning `call()` already applies to
+# `matches`/`typed`.
+SHAPE_WITNESS_LITERALS = {
+    "num": ("1", "0.5", "-3"),
+    "str": ('"3O"', '""'),
+    "bool": ("true", "false"),
+    "list": ("[]", "[1, 2]"),
+    "record": ("@{}", "@{a: 1}"),
+    "fn": ("fn(a) { a }",),
+    "any": ("1", '"3O"', "true", "[]"),
+}
+# What an ordinary `let` shadowing a shape name inside a block binds
+# instead (`_shadowed_shape_stmt`). Three outcomes on purpose: a non-spec
+# (`3`, `"3O"`, `true`, `[1]`, a closure) reaches `_check_contract`'s
+# `not _spec_ok` guard — round 344 measured that exact program raising
+# `AttributeError` straight out of the interpreter before it added the
+# guard; a malformed record spec (`@{a: 5}`) reaches the same guard through
+# `_spec_ok`'s recursive half (round 335); and a WELL-FORMED but different
+# spec (`@{a: "num"}`, `"str"`) reaches neither guard — it is the
+# late-binding capture hazard round 342 §7 pinned, where the answer depends
+# entirely on whether the spec was resolved in the DEFINING env (v0.19,
+# correct) or in the CALLING env (v0.12-v0.18).
+SHADOW_BINDINGS = ('3', '"3O"', 'true', '[1]', 'fn(a) { a }', '@{a: 5}',
+                   '@{a: "num"}', '"str"', '"nosuch"')
 
 # Round 336 (language C) found that a `-> Type` contract reached through a
 # TAIL call was blamed outermost-first, and reported the OUTER call's line
@@ -349,6 +407,20 @@ class ProgramGen(object):
         # chained call with no intermediate `let`, in `call()` itself,
         # mirroring `return_alias_fns`'s own chained-call shape.
         self.return_param_fns = []
+        # v0.12/v0.13/v0.18/v0.19 fuzz-coverage gap (round 347): declared
+        # shapes, as `(name, ((field, tag), ...))` in DECLARATION order —
+        # the order is what makes a later shape's field able to name an
+        # earlier one (parser.py `shape_scopes`: "single pass, no forward
+        # refs"). Consumed by `type_tag` (annotations), `spec_arg`
+        # (`matches`/`typed` spec VALUES), `_witness_for` (a record literal
+        # that really satisfies one) and `_shadowed_shape_stmt` (an
+        # ordinary `let` shadowing one inside a block). Every entry is
+        # declared at TOP LEVEL by `program()` before any statement is
+        # generated, which is what makes an annotation naming one always in
+        # scope for `parse_type` — v0.18 rejects a name whose declaring
+        # block has closed, and a mid-program declaration would make that
+        # rejection a routine ParseError rather than a rare one.
+        self.shapes = []
 
     # names ---------------------------------------------------------------
     def fresh(self, prefix="v"):
@@ -544,6 +616,16 @@ class ProgramGen(object):
     def program(self):
         r = self.r
         lines = []
+        # (round 347) shape declarations come FIRST, before the template
+        # and before any statement, so every annotation `type_tag` later
+        # emits names a shape whose declaring block (the module) is still
+        # open — see `self.shapes`'s own comment for why a mid-program
+        # declaration would turn v0.18's scope rejection into noise.
+        # Emitted alongside the statement budget rather than out of it,
+        # the same accounting round 337 measured for `_typed_tail_chain`.
+        if r.random() < 0.35:
+            for _ in range(r.randint(1, 2)):
+                lines.extend(self._shape_decl())
         if r.random() < self.stress_rate:
             lines.extend(self.template())
         # v0.13 fuzz coverage (round 337, closing round 336's item 1): a
@@ -564,7 +646,29 @@ class ProgramGen(object):
         probes = r.sample(self.scope, min(len(self.scope), 3)) if self.scope else []
         for name in probes:
             lines.append(self.probe(name))
-        return "\n".join(lines) + "\n"
+        return "\n".join(s for s in lines if self.keep_stmt(s)) + "\n"
+
+    def keep_stmt(self, stmt):
+        """Whether one generated STATEMENT survives into the program.
+        Always true here.
+
+        The only extension point `program` has, and the reason it has one
+        (round 347): `GuestGen` used to carry its own hand-copied `program`
+        so it could drop guest-unsafe statements, and that fork silently
+        skipped every recipe the base gained afterwards. Round 337's typed
+        tail chain was added to the base and NEVER reached the guest
+        differential — 0 of 400 generated guest programs contained one, ten
+        rounds later — and round 347's shape declarations would have been
+        the second instance on the same day they were written. A predicate
+        cannot drift that way: a subclass that answers "keep this?" cannot
+        also decide WHAT is generated.
+
+        `test_swe_fuzz.py`'s `test_program_recipe_has_no_subclass_fork`
+        asserts structurally (over the AST, not by grep) that no subclass
+        of `ProgramGen` anywhere under `harness/` defines `program` — the
+        guard round 341's item 5 and round 343's item 5 both asked for,
+        applied to the first case that actually needed it."""
+        return True
 
     def template(self):
         r = self.r
@@ -618,6 +722,134 @@ class ProgramGen(object):
         self.scope.append("chain")
         return ["let chain = 1" + " + 1" * k]
 
+    # shapes (round 347) --------------------------------------------------
+    def shape_names(self):
+        return [s for s, _ in self.shapes]
+
+    def _shape_decl(self):
+        """One `shape S7 = @{a: num, b: S3}` line, plus (60%) a witness
+        binding that really satisfies it.
+
+        0-3 fields: the 0-field case (`shape S = @{}`) is deliberate — it
+        desugars to `@{__shape: "S"}`, whose non-`__shape` field set is
+        empty, so `_spec_ok` is vacuously true and `_type_match` accepts
+        ANY record. That is the widest possible shape and the one most
+        likely to make a generated annotation PASS.
+
+        A field may name an earlier shape (25%), which is the only way a
+        generated program reaches `_spec_ok`'s recursive half and
+        `_type_match`'s nested-record branch through a real declaration
+        rather than through `SPEC_POOL`'s hand-built `@{a: @{b: "num"}}`.
+        """
+        r = self.r
+        name = self.fresh("S")
+        fields, used = [], set()
+        for _ in range(r.randint(0, 3)):
+            f = r.choice(FIELD_POOL)
+            if f in used:
+                continue        # a duplicate field is a ParseError, not a
+                                # program shape worth spending a slot on
+            used.add(f)
+            if self.shapes and r.random() < 0.25:
+                tag = r.choice(self.shape_names())
+            else:
+                tag = r.choice(SHAPE_FIELD_TAGS)
+            fields.append((f, tag))
+        lines = ["shape %s = @{%s}" % (
+            name, ", ".join("%s: %s" % (f, t) for f, t in fields))]
+        self.shapes.append((name, tuple(fields)))
+        if r.random() < 0.6:
+            w = self.fresh("w")
+            lines.append("let %s = %s" % (w, self._witness_for(name)))
+            self.scope.append(w)
+        return lines
+
+    def _witness_for(self, shape_name, depth=0):
+        """A record literal that satisfies `shape_name` exactly.
+
+        Terminates without a depth argument in principle (a shape may only
+        reference EARLIER shapes, so the reference graph is a DAG on
+        declaration order), but the cap is kept: `_shape_decl` is the only
+        producer today and a future one that allows self-reference would
+        otherwise hang the generator rather than fail a test."""
+        fields = dict(self.shapes)[shape_name]
+        return "@{%s}" % ", ".join(
+            "%s: %s" % (f, self._witness_value(t, depth)) for f, t in fields)
+
+    def _witness_value(self, tag, depth):
+        if tag in SHAPE_WITNESS_LITERALS:
+            return self.r.choice(SHAPE_WITNESS_LITERALS[tag])
+        if depth >= 4:
+            return "@{}"
+        return self._witness_for(tag, depth + 1)
+
+    def type_tag(self):
+        """A tag for a `p: Type` / `-> Type` annotation: a primitive, or
+        (35%, once any shape is declared) a declared shape NAME.
+
+        The one place the three annotation sites — `typed_params`,
+        `maybe_ret_type` and `_chain_tag` — agree on what a "tag" is, so a
+        future tag kind reaches all three at once. Before round 347 each
+        drew `r.choice(TYPE_TAGS)` for itself."""
+        r = self.r
+        if self.shapes and r.random() < 0.35:
+            return r.choice(self.shape_names())
+        return r.choice(TYPE_TAGS)
+
+    def spec_arg(self, depth, local):
+        """The spec ARGUMENT of a generated `matches`/`typed` call. A
+        declared shape name (25%) reaches the same runtime record the
+        annotation path resolves to, but through the ordinary evaluator —
+        so `_spec_ok`/`_type_match` see it with no `_closure_spec` in
+        front of them, and a divergence between the two routes shows up as
+        a `matches(x, S)` that disagrees with `fn f(p: S)`."""
+        r = self.r
+        if self.shapes and r.random() < 0.25:
+            return r.choice(self.shape_names())
+        if r.random() < 0.15:
+            return self.expr(depth + 1, local)
+        return r.choice(SPEC_POOL)
+
+    def _shadowed_shape_stmt(self):
+        """An ordinary `let` shadowing a declared shape name INSIDE a
+        block, with an annotated `fn` defined after it in that same block:
+
+            fn sh3() { let S1 = 3
+              fn sg4() -> S1 { 1 }
+              sg4() }
+            let sr5 = sh3()
+
+        v0.18's parser accepts the annotation — `S1`'s declaring block (the
+        module) has not closed, and `shape_scopes` tracks shape
+        DECLARATIONS, not the ordinary `let` that shadows one — so the
+        program's fate is decided at runtime by `_closure_spec`, which
+        resolves `S1` in the DEFINING env: the block's, where it is 3.
+
+        This is the ONLY generated shape that reaches `_check_contract`'s
+        `not _spec_ok(spec)` guard. Round 335 wrote that guard off as
+        "unreachable today"; round 344 measured the AttributeError it
+        actually raised, in all three evaluation modes, for both FnDef and
+        FnExpr, tail and non-tail. Both halves of the contract are
+        generated (`-> S` and `p: S`) because v0.19 routes them through the
+        same `_closure_spec` and the same `_check_contract`, and a shape
+        that only ever exercised one end could not show a divergence
+        between them."""
+        r = self.r
+        sname = r.choice(self.shape_names())
+        outer, inner, res = self.fresh("sh"), self.fresh("sg"), self.fresh("sr")
+        bind = r.choice(SHADOW_BINDINGS)
+        if r.random() < 0.5:
+            body = "fn %s() -> %s { 1 }\n  %s()" % (inner, sname, inner)
+        else:
+            q = self.fresh("q")
+            body = "fn %s(%s: %s) { %s }\n  %s(%s)" % (
+                inner, q, sname, q, inner,
+                r.choice(["1", '"3O"', "@{}", "@{a: 1}", self._witness_for(sname)]))
+        self.fns.append((outer, 0))
+        self.scope.append(res)
+        return ("fn %s() { let %s = %s\n  %s }\nlet %s = %s()"
+                % (outer, sname, bind, body, res, outer))
+
     def _chain_tag(self, term_tag):
         """A `-> Type` annotation for one link of a typed tail chain, drawn
         against `term_tag` (the tag the chain's terminal literal really
@@ -635,6 +867,13 @@ class ProgramGen(object):
             return "any"
         if q < 0.55:
             return term_tag
+        if self.shapes and r.random() < 0.3:
+            # (round 347) a declared shape as the violated tag: a chain
+            # link whose contract can only ever be missed by the terminal
+            # LITERAL, but whose spec had to be resolved through
+            # `_closure_spec`'s NameRef branch first — the tail-chain
+            # mirror of `type_tag`'s own shape draw.
+            return r.choice(self.shape_names())
         return r.choice([t for t in TAIL_CHAIN_TAGS if t != term_tag])
 
     def _typed_tail_chain(self):
@@ -715,6 +954,14 @@ class ProgramGen(object):
 
     def statement(self):
         r = self.r
+        # (round 347) the shadowed-shape block: rare on purpose. It is the
+        # only generated program that reaches `_check_contract`'s
+        # `not _spec_ok` guard, but it costs a whole statement and every
+        # other shape in this grammar loses rate proportionally, so it is
+        # held near the floor at which a 200-program campaign still sees
+        # several.
+        if self.shapes and r.random() < 0.08:
+            return self._shadowed_shape_stmt()
         p = r.random()
         if p < 0.55:
             name = self.fresh()
@@ -858,17 +1105,20 @@ class ProgramGen(object):
         return self.expr(0, [])
 
     def typed_params(self, params):
-        """`(a, b: num, c: str)` — each param independently gets a `: TAG`
-        30% of the time (v0.13 backlog)."""
+        """`(a, b: num, c: Pt)` — each param independently gets a `: TAG`
+        30% of the time (v0.13 backlog), the tag drawn by `type_tag` so a
+        declared shape name can appear here as well as a primitive (round
+        347, v0.19's own half of the contract)."""
         r = self.r
         return ", ".join(
-            "%s: %s" % (p, r.choice(TYPE_TAGS)) if r.random() < 0.3 else p
+            "%s: %s" % (p, self.type_tag()) if r.random() < 0.3 else p
             for p in params)
 
     def maybe_ret_type(self):
-        """` -> TAG` 25% of the time, else ''."""
+        """` -> TAG` 25% of the time, else ''. Tag via `type_tag`, so a
+        declared shape name can appear (round 347)."""
         if self.r.random() < 0.25:
-            return " -> %s" % self.r.choice(TYPE_TAGS)
+            return " -> %s" % self.type_tag()
         return ""
 
     def maybe_effects(self):
@@ -1084,8 +1334,7 @@ class ProgramGen(object):
             # rarely enough (~5%) that the pass path would be near-dead.
             args = [self.recordlike(depth, local) if r.random() < 0.4
                     else self.expr(depth + 1, local),
-                    self.expr(depth + 1, local) if r.random() < 0.15
-                    else r.choice(SPEC_POOL)]
+                    self.spec_arg(depth, local)]
             if name == "typed":
                 args.append(r.choice(TYPED_LABELS))
         else:
