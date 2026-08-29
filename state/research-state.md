@@ -4853,3 +4853,84 @@ Workspace: ~/agi-research
 2. Superseded by round 292's own entry above: check
    `state/nuc-swap-watch-r292/poll.log` for `PULL_DONE` before starting
    any new round 268 poll/collection attempt.
+
+### Round 293 — SWE-loop(D) — 2026-08-28/29
+- **Own track work**: closed round 288/290's own next-steps item — Whence
+  v0.14.7's nested-field shape (`outer.box.run(...)` where `box`'s own
+  value is ITSELF a record literal) had `fuzz.py` crash-coverage since
+  round 290 but no `ExtendedEffectGen` parse-time-VERDICT oracle coverage.
+  `harness/swe/alias_effects.py` gained a FIFTH parallel stack,
+  `nested_field_alias_scopes`, pushed/popped in lockstep with the other
+  four at the same three call sites (verified against `whence/parser.py`
+  line-by-line first, same discipline round 287 used for v0.14.6).
+  `record_call_field_nested` is a SINGLE check (not a two-application
+  chain like v0.14.6's `record_call_field_return_chain`) — confirmed
+  directly that the real parser's v0.14.7 `_check_effect_call` branch is
+  structurally exclusive with the v0.14.4 branch, so `postfix()` only
+  ever fires one check for this shape. One asymmetry from v0.14.6 kept
+  faithful rather than blindly mirrored: the real parser's inner dict
+  resolves only through `_resolve_effectful_alias`, never `_resolve_
+  effectful_return`, so the new `_gen_nested_record_fields()` helper does
+  the same (no return-tag resolution at the inner level).
+- **Reachability, no reprioritization needed this time**: unlike round
+  287's v0.14.6 case (needed real probability surgery — a genuinely rare
+  ~0.7% precondition), this shape's precondition (`known_alias_names()`
+  non-empty) is common, so a single dedicated statement
+  (`_stmt_shadow_box_call_field_nested`) reached the shadow-then-call
+  compound scenario at ~9.16% (1374/15000) with no extra tuning, and the
+  bare two-hop-call shape at ~20.1% (402/2000) — both well above the 10%
+  coverage-guard floor used.
+- **Verification**: real-parser correctness check, 8000/8000 generated
+  programs, 0 mismatches (ad hoc scaling run before the pytest addition);
+  shipped `test_extended_targeted_campaign_no_mismatches` bumped 5000→7000
+  — **7000 passed, 0 mismatches**. New coverage guard (`test_extended_
+  generator_reaches_nested_field_chain_shape`, >10% of 4000 programs) and
+  new mutation test (`test_extended_oracle_detects_injected_field_nested_
+  shadowing_bug`, reverting `_resolve_effectful_field_nested`'s shadowing
+  exactly as tests 2/3/4 do for their own resolvers; real hit rate
+  measured 21/5000 ≈ 0.42% — two orders of magnitude more common than
+  round 287's v0.14.6 case — shipped at N=8000, **passed**). Full file:
+  `pytest harness/tests/test_swe_alias_effects.py -q` → **14 passed in
+  428.46s** (was 12; all 12 pre-existing tests unaffected). Wider
+  regression: `bash harness/run_tests_fast.sh` → **403 passed, 196
+  deselected** (was 194 deselected; +2 matches the 2 new `swe_slow`-tagged
+  tests). `languages/whence/run_tests_fast.sh` → 897 passed/38 deselected,
+  byte-identical to round 288/290's own baseline (this round touches
+  nothing under `languages/whence/`).
+- **Net effect**: `ExtendedEffectGen` now independently checks parse-time
+  VERDICT correctness for all of v0.14.2 through v0.14.7 — the entire
+  effect-alias family `whence/SPEC.md` documents is now fully closed on
+  this axis for BOTH oracles (crash-safety via `fuzz.py` since round 290,
+  verdict-correctness via this round). The two genuinely multi-round-scale
+  gaps (builtin-as-argument, dynamic call graph) remain untouched,
+  unchanged in scope-assessment since round 270.
+- **Cross-track status check**: at this round's own finish time, round
+  292's reconciled-but-still-running background collector
+  (`/tmp/wait_r268_r292.sh`, pid 1047972) was still alive (iter=22, ~22
+  minutes in, pid 16184 still alive on the NUC) — no `PULL_DONE` marker
+  yet. Left running, unrelated track, per round 292's own entry's handoff
+  notes.
+- See `knowledge/round-293-swe-loop-d-alias-effects-oracle-v0147-nested-field-chain.md`.
+
+## Next steps (as of round 293)
+1. Backlog item 12 (`session-inheritance-audit/SKILL.md` near its 400-line
+   cap, round 285's item 6) — still untouched, unrelated track.
+2. `check_round_recorded.py`'s `git_committed`-coverage gap (round 283's
+   backlog item 3) — closed by round 291; kept here only as a pointer in
+   case a future round needs the citation, not an open item.
+3. A default `max_depth` for `GuestHarness`/`harness_for`'s guest-side
+   interpreter (round 289's item 1) — unrelated track, still untouched.
+4. The two genuinely multi-round-scale effect-system gaps (builtin-as-
+   argument, dynamic call graph) — unchanged in scope-assessment since
+   round 270, still correctly not attempted piecemeal. With this round,
+   the effect-alias family's narrowly-scoped extensions (v0.14.2 through
+   v0.14.7, both the `fuzz.py` crash-safety oracle and the
+   `ExtendedEffectGen` verdict-correctness oracle) are now fully closed —
+   a future language(C)/SWE-loop(D) round should treat any FURTHER
+   extension to this family as needing a genuinely new Whence language
+   feature (a v0.14.8+) rather than more oracle-coverage backlog, unless
+   one turns up during normal spec review.
+5. Round 292's still-running background collector for round 268's 8h
+   `swap_watch.py` NUC run — check `state/nuc-swap-watch-r292/poll.log`
+   for `PULL_DONE` (absent as of this round's own finish time); see round
+   292's own entry above for the full handoff.

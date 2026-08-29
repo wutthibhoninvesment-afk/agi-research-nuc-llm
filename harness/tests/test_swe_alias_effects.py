@@ -147,15 +147,17 @@ def test_extended_generator_reaches_field_return_chain_shape():
 
 
 def test_extended_targeted_campaign_no_mismatches():
-    """The real regression: 5000 generated programs spanning return/field/
-    if-tail/field-return-chain alias shapes (plus their interaction with
-    v0.14.2's own direct aliasing) against the real parser, compared to the
-    independent oracle's prediction. Bumped from round 281's original 3000
-    to 5000 when round 287 folded the v0.14.6 field-return-chain shape into
-    this same generator, to keep per-shape sample size comparable."""
+    """The real regression: 7000 generated programs spanning return/field/
+    if-tail/field-return-chain/nested-field alias shapes (plus their
+    interaction with v0.14.2's own direct aliasing) against the real
+    parser, compared to the independent oracle's prediction. Bumped from
+    round 281's original 3000 to 5000 when round 287 folded the v0.14.6
+    field-return-chain shape into this same generator, and to 7000 when
+    round 293 folded v0.14.7's nested-field shape in too, to keep
+    per-shape sample size comparable."""
     rng = random.Random(281269)
     mismatches = []
-    for _ in range(5000):
+    for _ in range(7000):
         seed = rng.randrange(10 ** 9)
         depth = rng.choice([2, 3, 3, 4, 5])
         stmts = rng.choice([2, 3, 4, 5, 6])
@@ -315,3 +317,78 @@ def test_extended_oracle_detects_injected_field_return_shadowing_bug():
     finally:
         P.Parser._resolve_effectful_field_return = orig
     assert mismatches > 0, "mutated field-return shadowing bug went undetected"
+
+
+# ==================================================== v0.14.7 (round 293) ==
+# `ExtendedEffectGen` closes the last named gap in the effect-alias family:
+# v0.14.7's NESTED field shape (`outer.box.run(...)` where `box`'s own
+# value is ITSELF a record literal — round 288). See `alias_effects.py`'s
+# own module comment (the "Round 293" paragraph) for why this folded into
+# the SAME generator/oracle rather than a new one, and for the one genuine
+# asymmetry versus the v0.14.6 case it otherwise mirrors: the real parser's
+# `nested_field_alias_scopes` inner dict is built via `_resolve_effectful_
+# alias` only, never `_resolve_effectful_return`.
+
+def test_extended_generator_reaches_nested_field_chain_shape():
+    """Coverage guard, not a correctness check — confirms the v0.14.7
+    `outer.box.run(0)` shape (a two-hop `FieldAccess` chain callee) is
+    actually reachable from the generator at a real rate. Measured ~20%
+    (402/2000) in this round's own manual scaling check, well above the
+    same 10% floor `test_extended_generator_reaches_field_return_chain_
+    shape` uses for the v0.14.6 shape."""
+    pat = re.compile(r"\.\w+\.\w+\(")
+    hits = 0
+    n = 4000
+    for seed in range(n):
+        src, _ = ExtendedEffectGen(seed, max_depth=4, max_stmts=5).gen_program()
+        if pat.search(src):
+            hits += 1
+    assert hits > n * 0.1, (hits, n)
+
+
+def test_extended_oracle_detects_injected_field_nested_shadowing_bug():
+    """Mutation test 5/5: same shadowing-revert bug class as tests 2/3/4
+    (`_resolve_effectful_field`/`_resolve_effectful_field_return`'s own
+    None-sentinel shadowing), now for `_resolve_effectful_field_nested` —
+    v0.14.7's fifth stack, `nested_field_alias_scopes`. Only observable
+    when a box carrying a REAL (non-None) nested-field tag in an OUTER
+    frame gets shadowed by an all-None rebinding in an INNER frame and
+    then something in that inner frame calls THROUGH the shadowed name
+    (`box.outer_field.inner_field(0)`) — the buggy resolver incorrectly
+    falls through past the falsy inner dict to recover the outer frame's
+    real tag. Unlike test 4/4's v0.14.6 case (a genuinely rare compound
+    event needing reprioritized draw probabilities to become testable at
+    all, ~0.017%), this shape's precondition (`known_alias_names()`
+    non-empty) is common from the start: measured ~0.42% (21/5000) in this
+    round's own manual scaling check with
+    `ExtendedEffectGen._stmt_shadow_box_call_field_nested` deliberately
+    targeting the scenario — N=8000 here for comfortable headroom (~34
+    expected hits, P(zero hits by chance) negligible)."""
+    sys.path.insert(0, WHENCE_ROOT)
+    from whence import parser as P
+
+    def buggy_resolve(self, name, outer_field, inner_field):
+        for scope in reversed(self.nested_field_alias_scopes):
+            if name in scope and scope[name]:
+                outer = scope[name]
+                inner = outer.get(outer_field)
+                if inner:
+                    v = inner.get(inner_field)
+                    if v is not None:
+                        return v
+        return None
+
+    orig = P.Parser._resolve_effectful_field_nested
+    P.Parser._resolve_effectful_field_nested = buggy_resolve
+    try:
+        rng = random.Random(293555)
+        mismatches = 0
+        for _ in range(8000):
+            seed = rng.randrange(10 ** 9)
+            depth = rng.choice([3, 4, 4, 5, 5])
+            stmts = rng.choice([3, 4, 5, 6, 7])
+            _, _, _, mismatch = check_one_ext(seed, max_depth=depth, max_stmts=stmts)
+            mismatches += mismatch
+    finally:
+        P.Parser._resolve_effectful_field_nested = orig
+    assert mismatches > 0, "mutated nested-field shadowing bug went undetected"

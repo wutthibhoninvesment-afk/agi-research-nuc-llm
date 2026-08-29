@@ -410,6 +410,39 @@ def check_one(seed, max_depth=3, max_stmts=4):
 # predicting the parse verdict incrementally in the same left-to-right,
 # single-pass order the spec documents — not a fixed-point analysis, not a
 # call into `whence.parser` itself.
+#
+# Round 293 (SWE-loop D): folded v0.14.7's `nested_field_alias_scopes`
+# (round 288, the container-field-value-flow-through-a-NESTED-record-
+# literal shape, `outer.box.run(...)` where `box`'s own value is ITSELF a
+# record literal) into this SAME generator/oracle, closing the gap round
+# 288/289/290/291's own next-steps lists repeatedly named. Verified against
+# `whence/parser.py` line-by-line first: `nested_field_alias_scopes` is a
+# FIFTH stack pushed/popped at the identical three call sites the other
+# four already use (`stmt_list` ~226/255, the named-fn push/pop ~379-395/
+# 402-404, the anonymous-`FnExpr` push/pop), and `_check_effect_call`'s
+# v0.14.7 branch is structurally distinct from (not composed with) the
+# v0.14.4 branch — a callee whose own `.obj` is a `FieldAccess` can never
+# also match the v0.14.4 branch's `callee.obj.__class__ is A.NameRef`
+# guard (confirmed directly in round 288's own knowledge file and
+# `_check_effect_call`'s docstring) — so `record_call_field_nested` below
+# is a single check, unlike `record_call_field_return_chain`'s two-
+# application chain. One genuine difference from `field_return_alias_
+# scopes`: the real parser's `nested_field_alias_scopes` construction
+# resolves its INNER dict via `_resolve_effectful_alias` only (parser.py's
+# v0.14.7 `let`-branch comment) — there is no second, `_resolve_effectful_
+# return`-based inner dict the way `field_alias_scopes`/`field_return_
+# alias_scopes` form an independent pair — so `_gen_nested_record_fields`
+# below mirrors that asymmetry rather than reusing `_stmt_let_record`'s
+# own `returns`-then-`aliases`-then-`pool` cascade unchanged. Unlike round
+# 287's v0.14.6 case (a genuinely rare compound event, ~0.047%, needing a
+# dedicated statement AND reprioritized draw probabilities to become
+# testable at all — see `_stmt_shadow_box_call_field_return`'s own
+# docstring), this shape's inner precondition (`known_alias_names()`
+# non-empty) is common from the start, so a single dedicated statement
+# (`_stmt_shadow_box_call_field_nested`, mirroring the v0.14.6 one's
+# shape) was sufficient without extra reprioritization — measured directly
+# before sizing the mutation test below, ~9% of generated programs (not
+# ~0.05%).
 
 class ExtendedEffectGen(object):
     """Generates (source, verdict) pairs covering v0.14.2/3/4/5/6 together
@@ -439,6 +472,7 @@ class ExtendedEffectGen(object):
         self.return_alias_scopes = []
         self.field_alias_scopes = []
         self.field_return_alias_scopes = []
+        self.nested_field_alias_scopes = []
         self.effects_stack = []
 
     def fresh(self, prefix="v"):
@@ -476,6 +510,24 @@ class ExtendedEffectGen(object):
             if name in scope:
                 fields = scope[name]
                 return fields.get(field) if fields else None
+        return None
+
+    def resolve_field_nested(self, name, outer_field, inner_field):
+        """Mirror of `_resolve_effectful_field_nested`: same innermost-
+        first, first-frame-wins walk on `name` over `nested_field_alias_
+        scopes`, then a `.get(outer_field)` into the winning frame's dict,
+        then a further guarded `.get(inner_field)` on WHATEVER that
+        returns (missing/falsy at either level, or `name` not tracked at
+        all, all fall out to `None` the same way `_resolve_effectful_
+        field`/`_resolve_effectful_field_return` guard their own single
+        `.get`)."""
+        for scope in reversed(self.nested_field_alias_scopes):
+            if name in scope:
+                outer = scope[name]
+                if not outer:
+                    return None
+                inner = outer.get(outer_field)
+                return inner.get(inner_field) if inner else None
         return None
 
     def resolve_effects_scope(self, own_spec):
@@ -542,6 +594,60 @@ class ExtendedEffectGen(object):
                 if fields and name not in current and name not in seen:
                     seen.add(name)
                     out.extend((name, f) for f in fields)
+        return out
+
+    def known_nested_field_names(self):
+        """(boxname, outer_field, inner_field) triples whose resolved
+        v0.14.7 tag is non-None — the two-hop-deeper analogue of
+        `known_field_names()`, over `nested_field_alias_scopes`."""
+        out = []
+        for scope in self.nested_field_alias_scopes:
+            for name, outer in scope.items():
+                if not outer:
+                    continue
+                for outer_field, inner in outer.items():
+                    if not inner:
+                        continue
+                    out.extend((name, outer_field, inner_field)
+                                for inner_field, tag in inner.items() if tag is not None)
+        return out
+
+    def any_nested_field_carrier_names(self):
+        """`known_nested_field_names()` widened to include triples whose
+        CORRECTLY-resolved tag is None — the nested-field analogue of
+        `any_field_return_carrier_names()`, needed for the same reason: a
+        mistracked `_resolve_effectful_field_nested` that unsoundly turns
+        a None into a real tag is only observable if something later
+        actually calls THROUGH that specific (box, outer_field,
+        inner_field) triple."""
+        out = []
+        for scope in self.nested_field_alias_scopes:
+            for name, outer in scope.items():
+                if not outer:
+                    continue
+                for outer_field, inner in outer.items():
+                    if inner:
+                        out.extend((name, outer_field, inner_field) for inner_field in inner)
+        return out
+
+    def outer_nested_field_box_triples(self):
+        """(box, outer_field, inner_field) triples for OUTER-frame box
+        bindings carrying a nested-field-carrier slot (any tag value),
+        excluding any box name already rebound in the CURRENT frame — the
+        nested-field analogue of `outer_field_return_box_pairs()`, feeding
+        `_stmt_shadow_box_call_field_nested` below for the same
+        compound-rarity reason that statement's own docstring explains."""
+        current = self.nested_field_alias_scopes[-1]
+        seen = set()
+        out = []
+        for scope in self.nested_field_alias_scopes[:-1]:
+            for name, outer in scope.items():
+                if not outer or name in current or name in seen:
+                    continue
+                seen.add(name)
+                for outer_field, inner in outer.items():
+                    if inner:
+                        out.extend((name, outer_field, inner_field) for inner_field in inner)
         return out
 
     def any_visible_name(self):
@@ -635,11 +741,29 @@ class ExtendedEffectGen(object):
         self.check_effect(self.resolve_field_return(boxname, field),
                            "%s.%s()" % (boxname, field))
 
-    def bind(self, name, alias_tag, return_tag, field_dict, field_return_dict):
+    def record_call_field_nested(self, boxname, outer_field, inner_field):
+        """Models `boxname.outer_field.inner_field(...)` — v0.14.7's
+        NESTED field call. Unlike `record_call_field_return_chain`, this
+        is a SINGLE check, not a two-application chain: round 288/289's
+        own `_check_effect_call` docstring/verification confirmed the
+        v0.14.7 branch (`callee.obj.__class__ is A.FieldAccess and
+        callee.obj.obj.__class__ is A.NameRef`) is mutually exclusive with
+        every other branch by construction (a `FieldAccess` callee whose
+        own `.obj` is itself a `FieldAccess` can never also match the
+        v0.14.4 branch's `callee.obj.__class__ is A.NameRef` guard), and
+        `postfix()` only calls `_check_effect_call` once per `(` — there
+        is exactly one `(` in `outer.box.run(...)`, so exactly one check
+        fires, unlike `box.field()(...)`'s two."""
+        self.check_effect(self.resolve_field_nested(boxname, outer_field, inner_field),
+                           "%s.%s.%s" % (boxname, outer_field, inner_field))
+
+    def bind(self, name, alias_tag, return_tag, field_dict, field_return_dict,
+             nested_field_dict):
         self.alias_scopes[-1][name] = alias_tag
         self.return_alias_scopes[-1][name] = return_tag
         self.field_alias_scopes[-1][name] = field_dict
         self.field_return_alias_scopes[-1][name] = field_return_dict
+        self.nested_field_alias_scopes[-1][name] = nested_field_dict
 
     # -- generation -------------------------------------------------
     _EXPR_MARK = "\x00EXPR\x00"
@@ -667,6 +791,7 @@ class ExtendedEffectGen(object):
         self.return_alias_scopes.append({})
         self.field_alias_scopes.append({})
         self.field_return_alias_scopes.append({})
+        self.nested_field_alias_scopes.append({})
         try:
             lines = []
             tail_tag = None
@@ -694,6 +819,7 @@ class ExtendedEffectGen(object):
             self.return_alias_scopes.pop()
             self.field_alias_scopes.pop()
             self.field_return_alias_scopes.pop()
+            self.nested_field_alias_scopes.pop()
 
     def gen_cond(self):
         return self.r.choice(["true", "false", "1 < 2", "2 < 1"])
@@ -770,6 +896,16 @@ class ExtendedEffectGen(object):
             boxname, field = r.choice(field_return_carriers)
             self.record_call_field_return_chain(boxname, field)
             return self._mk_expr("%s.%s()(0)" % (boxname, field)), None
+        nested_fields = self.known_nested_field_names()
+        if choice < 0.92 and nested_fields:
+            boxname, outer_field, inner_field = r.choice(nested_fields)
+            self.record_call_field_nested(boxname, outer_field, inner_field)
+            return self._mk_expr("%s.%s.%s(0)" % (boxname, outer_field, inner_field)), None
+        nested_field_carriers = self.any_nested_field_carrier_names()
+        if choice < 0.97 and nested_field_carriers:
+            boxname, outer_field, inner_field = r.choice(nested_field_carriers)
+            self.record_call_field_nested(boxname, outer_field, inner_field)
+            return self._mk_expr("%s.%s.%s(0)" % (boxname, outer_field, inner_field)), None
         return self._mk_expr(str(r.randint(0, 9))), None
 
     def gen_one_stmt(self, depth):
@@ -787,10 +923,16 @@ class ExtendedEffectGen(object):
             choices += ["call_field_return_chain"] * 3
         if self.any_field_return_carrier_names():
             choices += ["call_field_return_chain_any"] * 3
+        if self.known_nested_field_names():
+            choices += ["call_field_nested"] * 3
+        if self.any_nested_field_carrier_names():
+            choices += ["call_field_nested_any"] * 3
         if self.outer_visible_names():
             choices += ["shadow_let"]
         if self.outer_field_return_box_pairs():
             choices += ["shadow_box_call_field_return"] * 4
+        if self.outer_nested_field_box_triples():
+            choices += ["shadow_box_call_field_nested"] * 4
         if depth < self.max_depth:
             choices += ["nested_fn", "nested_block", "let_fn_expr"]
             if self.outer_alias_names() or self.outer_return_names():
@@ -802,18 +944,18 @@ class ExtendedEffectGen(object):
 
     def _stmt_let_builtin_alias(self, depth):
         name = self.fresh("a")
-        self.bind(name, EFFECTFUL.get("print"), None, None, None)
+        self.bind(name, EFFECTFUL.get("print"), None, None, None, None)
         return "let %s = print" % name
 
     def _stmt_let_alias_chain(self, depth):
         # NameRef RHS (`Parser.statement`, ~line 234): copies BOTH the
         # alias tag AND the return tag forward under the new name — but
-        # NOT either field dict (parser lines 254-255: both explicitly
-        # reset to None for a rename, same as every other non-RecordLit
-        # RHS shape).
+        # NOT any of the three field dicts (parser lines 254-255/359: all
+        # explicitly reset to None for a rename, same as every other
+        # non-RecordLit RHS shape).
         src = self.r.choice(self.known_alias_names())
         name = self.fresh("a")
-        self.bind(name, self.resolve_alias(src), self.resolve_return(src), None, None)
+        self.bind(name, self.resolve_alias(src), self.resolve_return(src), None, None, None)
         return "let %s = %s" % (name, src)
 
     def _stmt_let_call_return(self, depth):
@@ -822,7 +964,7 @@ class ExtendedEffectGen(object):
         # `get` was tracked to return; NOT itself a return-carrier.
         fname = self.r.choice(self.known_return_names())
         name = self.fresh("a")
-        self.bind(name, self.resolve_return(fname), None, None, None)
+        self.bind(name, self.resolve_return(fname), None, None, None, None)
         return "let %s = %s()" % (name, fname)
 
     def _stmt_let_fn_expr(self, depth):
@@ -837,6 +979,7 @@ class ExtendedEffectGen(object):
         self.return_alias_scopes.append(dict.fromkeys(params))
         self.field_alias_scopes.append(dict.fromkeys(params))
         self.field_return_alias_scopes.append(dict.fromkeys(params))
+        self.nested_field_alias_scopes.append(dict.fromkeys(params))
         try:
             body_lines, body_tag = self.gen_frame(depth + 1, self.r.randint(1, self.max_stmts), True)
         finally:
@@ -845,11 +988,42 @@ class ExtendedEffectGen(object):
             self.return_alias_scopes.pop()
             self.field_alias_scopes.pop()
             self.field_return_alias_scopes.pop()
+            self.nested_field_alias_scopes.pop()
         effects_txt = "" if own_spec is None else " effects [%s]" % ", ".join(sorted(own_spec))
         header = "fn(%s)%s {" % (", ".join(params), effects_txt)
         src = header + "\n  " + "\n  ".join(self._strip_marks(body_lines)) + "\n}"
-        self.bind(name, None, body_tag, None, None)
+        self.bind(name, None, body_tag, None, None, None)
         return "let %s = %s" % (name, src)
+
+    def _gen_nested_record_fields(self):
+        """Build 1-2 inner fields for a NESTED record literal (`@{g1:
+        <src>, ...}`) used as an OUTER record-literal field's own VALUE
+        (`let outer = @{box: @{g1: <src>}}`) — v0.14.7. Mirrors
+        `_stmt_let_record`'s own field loop, but only ever resolves
+        through `resolve_alias`: the real parser's `nested_field_alias_
+        scopes` construction (parser.py's `let`-branch v0.14.7 comment)
+        keys the inner dict via `self._resolve_effectful_alias(inner_
+        fexpr.name)` ONLY — unlike the outer `field_alias_scopes`/
+        `field_return_alias_scopes` pair, there is no second `resolve_
+        return`-based dict at the inner level."""
+        r = self.r
+        aliases = self.known_alias_names()
+        pool = self.any_visible_name()
+        parts = []
+        inner_dict = {}
+        for i in range(1, r.randint(1, 2) + 1):
+            gname = "g%d" % i
+            src_name = None
+            if aliases and r.random() < 0.6:
+                src_name = r.choice(aliases)
+            elif pool and r.random() < 0.5:
+                src_name = r.choice(pool)
+            if src_name is not None:
+                parts.append("%s: %s" % (gname, src_name))
+                inner_dict[gname] = self.resolve_alias(src_name)
+            else:
+                parts.append("%s: %d" % (gname, r.randint(0, 9)))
+        return parts, inner_dict
 
     def _stmt_let_record(self, depth):
         # `let box = @{f1: name1, f2: 5, ...}` (~line 253-270): only
@@ -858,7 +1032,12 @@ class ExtendedEffectGen(object):
         # (~line 295-306): `field_dict`/`field_return_dict` are built from
         # the EXACT same set of bare-NameRef field values, just resolved
         # through `resolve_alias`/`resolve_return` respectively — never a
-        # different key set between the two dicts.
+        # different key set between the two dicts. v0.14.7 (~line 335-353):
+        # a THIRD dict, `nested_field_dict`, keyed only on fields whose OWN
+        # value is ANOTHER record literal — mutually exclusive with the
+        # other two by AST construction (a field's value is either a bare
+        # NameRef or a RecordLit, never both), so this branch `continue`s
+        # past the NameRef-only logic below rather than composing with it.
         r = self.r
         name = self.fresh("box")
         pool = self.any_visible_name()
@@ -867,8 +1046,14 @@ class ExtendedEffectGen(object):
         parts = []
         field_dict = {}
         field_return_dict = {}
+        nested_field_dict = {}
         for i in range(1, r.randint(1, 3) + 1):
             fname = "f%d" % i
+            if r.random() < 0.35:
+                inner_parts, inner_dict = self._gen_nested_record_fields()
+                parts.append("%s: @{%s}" % (fname, ", ".join(inner_parts)))
+                nested_field_dict[fname] = inner_dict
+                continue
             src_name = None
             # `returns` checked FIRST and with a high draw probability:
             # `known_return_names()` non-empty at all is already rare
@@ -889,17 +1074,17 @@ class ExtendedEffectGen(object):
                 field_return_dict[fname] = self.resolve_return(src_name)
             else:
                 parts.append("%s: %d" % (fname, r.randint(0, 9)))
-        self.bind(name, None, None, field_dict, field_return_dict)
+        self.bind(name, None, None, field_dict, field_return_dict, nested_field_dict)
         return "let %s = @{%s}" % (name, ", ".join(parts))
 
     def _stmt_let_plain(self, depth):
         name = self.fresh("v")
-        self.bind(name, None, None, None, None)
+        self.bind(name, None, None, None, None, None)
         return "let %s = %d" % (name, self.r.randint(0, 9))
 
     def _stmt_shadow_let(self, depth):
         name = self.r.choice(self.outer_visible_names())
-        self.bind(name, None, None, None, None)
+        self.bind(name, None, None, None, None, None)
         return "let %s = %d" % (name, self.r.randint(0, 9))
 
     def _stmt_call(self, depth):
@@ -936,6 +1121,16 @@ class ExtendedEffectGen(object):
         self.record_call_field_return_chain(boxname, field)
         return self._mk_expr("%s.%s()(0)" % (boxname, field))
 
+    def _stmt_call_field_nested(self, depth):
+        boxname, outer_field, inner_field = self.r.choice(self.known_nested_field_names())
+        self.record_call_field_nested(boxname, outer_field, inner_field)
+        return self._mk_expr("%s.%s.%s(0)" % (boxname, outer_field, inner_field))
+
+    def _stmt_call_field_nested_any(self, depth):
+        boxname, outer_field, inner_field = self.r.choice(self.any_nested_field_carrier_names())
+        self.record_call_field_nested(boxname, outer_field, inner_field)
+        return self._mk_expr("%s.%s.%s(0)" % (boxname, outer_field, inner_field))
+
     def _stmt_shadow_box_call_field_return(self, depth):
         """Deliberately targets `resolve_field_return`'s (and the real
         `_resolve_effectful_field_return`'s) shadowing edge: shadow an
@@ -964,15 +1159,37 @@ class ExtendedEffectGen(object):
         real_pairs = [(n, f) for (n, f) in pairs if self.resolve_field_return(n, f) is not None]
         name, field = (r.choice(real_pairs) if real_pairs and r.random() < 0.8
                        else r.choice(pairs))
-        self.bind(name, None, None, None, None)
+        self.bind(name, None, None, None, None, None)
         self.record_call_field_return_chain(name, field)
         return self._mk_expr("let %s = %d\n%s.%s()(0)" % (name, r.randint(0, 9), name, field))
+
+    def _stmt_shadow_box_call_field_nested(self, depth):
+        """v0.14.7 analogue of `_stmt_shadow_box_call_field_return`:
+        shadow an OUTER box that carries a real nested-field-carrier slot
+        with a fresh all-None binding in THIS frame, then immediately call
+        `box.outer_field.inner_field(...)` through that SAME name —
+        first-frame-wins must resolve the fresh shadow, never fall through
+        to the outer box's real fact. Same 80/20 real-tag bias and same
+        one-slot-packs-two-lines shape as that statement, for the same
+        compound-rarity reason (see `outer_nested_field_box_triples`'s own
+        docstring)."""
+        r = self.r
+        triples = self.outer_nested_field_box_triples()
+        real_triples = [(n, of, iff) for (n, of, iff) in triples
+                         if self.resolve_field_nested(n, of, iff) is not None]
+        name, outer_field, inner_field = (r.choice(real_triples)
+                                           if real_triples and r.random() < 0.8
+                                           else r.choice(triples))
+        self.bind(name, None, None, None, None, None)
+        self.record_call_field_nested(name, outer_field, inner_field)
+        return self._mk_expr("let %s = %d\n%s.%s.%s(0)" %
+                              (name, r.randint(0, 9), name, outer_field, inner_field))
 
     def _stmt_nested_block(self, depth):
         name = self.fresh("blk")
         inner_lines, _ = self.gen_frame(depth + 1, self.r.randint(1, 3), True)
         body = "{ " + "\n    ".join(self._strip_marks(inner_lines)) + " }"
-        self.bind(name, None, None, None, None)
+        self.bind(name, None, None, None, None, None)
         return "let %s = %s" % (name, body)
 
     def _stmt_nested_fn(self, depth):
@@ -986,12 +1203,13 @@ class ExtendedEffectGen(object):
     def _gen_fn_stmt(self, depth, name, shadow_precheck=False):
         r = self.r
         if shadow_precheck:
-            self.bind(name, None, None, None, None)
+            self.bind(name, None, None, None, None, None)
         else:
             self.alias_scopes[-1][name] = None
             self.return_alias_scopes[-1][name] = None
             self.field_alias_scopes[-1][name] = None
             self.field_return_alias_scopes[-1][name] = None
+            self.nested_field_alias_scopes[-1][name] = None
         params = [self.fresh("p") for _ in range(r.randint(0, 2))]
         own_spec = r.choice(EFFECT_TAG_SETS)
         self.effects_stack.append(self.resolve_effects_scope(own_spec))
@@ -999,6 +1217,7 @@ class ExtendedEffectGen(object):
         self.return_alias_scopes.append(dict.fromkeys(params))
         self.field_alias_scopes.append(dict.fromkeys(params))
         self.field_return_alias_scopes.append(dict.fromkeys(params))
+        self.nested_field_alias_scopes.append(dict.fromkeys(params))
         try:
             body_lines, body_tag = self.gen_frame(depth + 1, r.randint(1, self.max_stmts), True)
         finally:
@@ -1007,6 +1226,7 @@ class ExtendedEffectGen(object):
             self.return_alias_scopes.pop()
             self.field_alias_scopes.pop()
             self.field_return_alias_scopes.pop()
+            self.nested_field_alias_scopes.pop()
         self.return_alias_scopes[-1][name] = body_tag
         effects_txt = "" if own_spec is None else " effects [%s]" % ", ".join(sorted(own_spec))
         header = "fn %s(%s)%s {" % (name, ", ".join(params), effects_txt)
@@ -1021,12 +1241,14 @@ class ExtendedEffectGen(object):
         self.return_alias_scopes[-1][name] = None
         self.field_alias_scopes[-1][name] = None
         self.field_return_alias_scopes[-1][name] = None
+        self.nested_field_alias_scopes[-1][name] = None
         own_spec = r.choice(EFFECT_TAG_SETS)
         self.effects_stack.append(self.resolve_effects_scope(own_spec))
         self.alias_scopes.append({shadow_name: None})
         self.return_alias_scopes.append({shadow_name: None})
         self.field_alias_scopes.append({shadow_name: None})
         self.field_return_alias_scopes.append({shadow_name: None})
+        self.nested_field_alias_scopes.append({shadow_name: None})
         try:
             body_lines, body_tag = self.gen_frame(depth + 1, r.randint(1, self.max_stmts), True)
         finally:
@@ -1035,6 +1257,7 @@ class ExtendedEffectGen(object):
             self.return_alias_scopes.pop()
             self.field_alias_scopes.pop()
             self.field_return_alias_scopes.pop()
+            self.nested_field_alias_scopes.pop()
         self.return_alias_scopes[-1][name] = body_tag
         effects_txt = "" if own_spec is None else " effects [%s]" % ", ".join(sorted(own_spec))
         header = "fn %s(%s)%s {" % (name, shadow_name, effects_txt)
