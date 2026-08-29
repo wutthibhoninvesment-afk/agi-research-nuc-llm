@@ -174,3 +174,51 @@ def test_campaign_groups_crashes_by_signature(tmp_path):
     assert sum(camp.counts.values()) == 40
     for sig, cr in camp.crashers.items():
         assert signature(run_program(cr.src)) == sig
+
+
+# ============================================ v0.14.9/10 (round 305) ======
+# `param_call_fns` (fuzz.py's own "Round 305" `__init__` comment) closes the
+# crash-fuzz-coverage half of round 300/302's own "passing a builtin as a
+# function ARGUMENT" gap — `ProgramGen`'s generic grammar never previously
+# called a bare local PARAM as a function at all, so this shape (a fn body
+# calling one of its own params directly, then a call site passing an
+# effectful name for exactly that param) was unreachable before this round.
+
+def test_generator_now_emits_param_call_shape():
+    """Coverage guard, mirroring `test_generator_now_emits_rand_calls`:
+    confirms the `pN(...)` call-your-own-param shape is actually reachable
+    at a real rate, not just theoretically wired into `param_call_fns`.
+    Measured ~21% (42/200) in this round's own manual scaling check."""
+    pat = re.compile(r"\bp\d+\(")
+    seen = sum(1 for i in range(200) if pat.search(ProgramGen(i).program()))
+    assert seen >= 15, seen
+
+
+def test_param_call_shape_is_total_under_fuzz():
+    """The real regression for this shape: 800 generated programs (a mix
+    of NAMED-fn and `let`-bound-anonymous-fn param-call bodies, plus call
+    sites deliberately targeting the tracked param position with an
+    effectful argument) must all stay TOTAL — `ok`, `parse_error`,
+    `lex_error`, or `timeout`, never `crash` — the same invariant this
+    module's whole docstring polices for every other shape."""
+    for i in range(800):
+        o = run_program(ProgramGen(i, stress_rate=0.15).program(), timeout_s=2.0)
+        assert o.kind != "crash", (i, o.exc_type, o.message)
+
+
+def test_param_call_argument_check_reports_parse_error_not_crash():
+    """A hand-written grant/deny pair (mirrors `tests/test_v14.py`'s own
+    `test_argument_passed_to_a_directly_called_param_is_{checked,rejected_
+    when_not_permitted}`): the GRANTED case must run clean, the DENIED case
+    must be a clean `parse_error`, not a crash — confirming the new check's
+    own ParseError path is exercised as a normal, expected outcome by the
+    fuzz harness's oracle, not something that would be misclassified."""
+    granted = run_program(
+        'fn apply(f) effects [io] { f(1) }\napply(print)\ncheck "ok": true\n')
+    assert granted.kind == "ok", granted
+    denied = run_program(
+        'fn silent(f) effects [] { f(1) }\nsilent(print)\n')
+    assert denied.kind == "parse_error", denied
+    denied_anon = run_program(
+        'let g = fn(f) effects [] { f(1) }\ng(print)\n')
+    assert denied_anon.kind == "parse_error", denied_anon

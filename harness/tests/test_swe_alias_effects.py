@@ -147,17 +147,18 @@ def test_extended_generator_reaches_field_return_chain_shape():
 
 
 def test_extended_targeted_campaign_no_mismatches():
-    """The real regression: 7000 generated programs spanning return/field/
-    if-tail/field-return-chain/nested-field alias shapes (plus their
-    interaction with v0.14.2's own direct aliasing) against the real
+    """The real regression: 9000 generated programs spanning return/field/
+    if-tail/field-return-chain/nested-field/param-call alias shapes (plus
+    their interaction with v0.14.2's own direct aliasing) against the real
     parser, compared to the independent oracle's prediction. Bumped from
     round 281's original 3000 to 5000 when round 287 folded the v0.14.6
-    field-return-chain shape into this same generator, and to 7000 when
-    round 293 folded v0.14.7's nested-field shape in too, to keep
-    per-shape sample size comparable."""
+    field-return-chain shape into this same generator, to 7000 when round
+    293 folded v0.14.7's nested-field shape in too, and to 9000 when round
+    305 folded v0.14.9/v0.14.10's param-call shape in, to keep per-shape
+    sample size comparable."""
     rng = random.Random(281269)
     mismatches = []
-    for _ in range(7000):
+    for _ in range(9000):
         seed = rng.randrange(10 ** 9)
         depth = rng.choice([2, 3, 3, 4, 5])
         stmts = rng.choice([2, 3, 4, 5, 6])
@@ -472,3 +473,102 @@ def test_extended_oracle_detects_injected_missing_rand_builtin_bug():
         P._EFFECTFUL_BUILTINS.clear()
         P._EFFECTFUL_BUILTINS.update(orig)
     assert mismatches > 0, "mutated missing-rand-builtin bug went undetected"
+
+
+# ================================================ v0.14.9/10 (round 305) ==
+# `ExtendedEffectGen` gains a SIXTH stack, `param_call_scopes`, mirroring
+# `Parser.param_call_scopes`/`_check_call_site_param_effects` (round
+# 300/302) — the long-flagged "passing a builtin as a function ARGUMENT"
+# gap, for both a NAMED fn (v0.14.9) and a `let`-bound anonymous fn
+# (v0.14.10). Unlike every prior addition in this family (each a new
+# per-NAME resolver, decidable the moment a binding site is parsed), this
+# is the first PER-CALL-SITE check: the verdict depends on the specific
+# ARGUMENT at a given call, not just on the callee's own name — see
+# `alias_effects.py`'s own module comment for the full design writeup and
+# `check_call_site_param_effects`'s docstring for the mirrored mechanism.
+# Closes round 300/302's own next-steps item ("fuzz coverage ... and
+# oracle coverage ... for BOTH the v0.14.9/v0.14.10 argument-flow shapes").
+
+def test_extended_generator_reaches_param_call_argument_error():
+    """Coverage guard, not a correctness check — confirms the v0.14.9/10
+    call-site argument-flow shape (`_check_call_site_param_effects`)
+    actually produces `error_param` verdicts at a real rate, not just
+    theoretically wired into `param_call_scopes`. Measured ~2.8%
+    (85/3000) in this round's own manual scaling check."""
+    rng = random.Random(305001)
+    param_errors = 0
+    n = 4000
+    for _ in range(n):
+        seed = rng.randrange(10 ** 9)
+        depth = rng.choice([2, 3, 3, 4, 5])
+        stmts = rng.choice([2, 3, 4, 5, 6])
+        _, expected, _, mismatch = check_one_ext(seed, max_depth=depth, max_stmts=stmts)
+        assert not mismatch
+        if expected[0] == "error_param":
+            param_errors += 1
+    assert param_errors > n * 0.015, param_errors
+
+
+def test_extended_oracle_detects_injected_param_call_shadowing_bug():
+    """Mutation test 6/6: same shadowing-revert bug class as the five
+    tests above (`_resolve_param_call_fact`'s own None-sentinel
+    shadowing), now for the SIXTH stack, `param_call_scopes`. Reachable via
+    `_stmt_shadow_tracked_fn_call`'s dedicated scenario: shadow an outer
+    tracked fn's real fact with a fresh all-None rebinding, then
+    immediately call through the SAME name with an effectful argument in
+    the tracked param position — correct behaviour is `ok` (the shadow
+    correctly hides the outer fact); a resolver that lets `None` fall
+    through to the outer frame's real fact instead raises. Measured ~2.5%
+    (149/6000) in this round's own manual scaling check."""
+    sys.path.insert(0, WHENCE_ROOT)
+    from whence import parser as P
+
+    def buggy_resolve(self, name):
+        for scope in reversed(self.param_call_scopes):
+            if name in scope and scope[name] is not None:
+                return scope[name]
+        return None
+
+    orig = P.Parser._resolve_param_call_fact
+    P.Parser._resolve_param_call_fact = buggy_resolve
+    try:
+        rng = random.Random(305002)
+        mismatches = 0
+        for _ in range(6000):
+            seed = rng.randrange(10 ** 9)
+            depth = rng.choice([3, 4, 4, 5, 5])
+            stmts = rng.choice([3, 4, 5, 6, 7])
+            _, _, _, mismatch = check_one_ext(seed, max_depth=depth, max_stmts=stmts)
+            mismatches += mismatch
+    finally:
+        P.Parser._resolve_param_call_fact = orig
+    assert mismatches > 0, "mutated param-call shadowing bug went undetected"
+
+
+def test_extended_oracle_detects_injected_missing_param_call_check_bug():
+    """Mutation test: neutralize `_check_call_site_param_effects` entirely
+    (a no-op, simulating the whole round 300/302 feature vanishing — e.g.
+    a dropped call in `postfix()`) and confirm the campaign fires. Unlike
+    the shadowing-revert test above (which targets the scope-stack WALK),
+    this is the one mutation specific to the check EXISTING at all — the
+    same role `test_extended_oracle_detects_injected_missing_rand_builtin_
+    bug` plays for `rand`. Without this, a clean campaign run would be
+    unfalsifiable evidence that the call-site check fires at all. Measured
+    ~2.8% (84/3000) in this round's own manual scaling check."""
+    sys.path.insert(0, WHENCE_ROOT)
+    from whence import parser as P
+
+    orig = P.Parser._check_call_site_param_effects
+    P.Parser._check_call_site_param_effects = lambda self, callee, args, tok: None
+    try:
+        rng = random.Random(305003)
+        mismatches = 0
+        for _ in range(3000):
+            seed = rng.randrange(10 ** 9)
+            depth = rng.choice([2, 3, 3, 4, 5])
+            stmts = rng.choice([2, 3, 4, 5, 6])
+            _, _, _, mismatch = check_one_ext(seed, max_depth=depth, max_stmts=stmts)
+            mismatches += mismatch
+    finally:
+        P.Parser._check_call_site_param_effects = orig
+    assert mismatches > 0, "mutated missing-param-call-check bug went undetected"

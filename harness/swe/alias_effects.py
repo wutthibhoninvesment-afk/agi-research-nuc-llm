@@ -514,6 +514,22 @@ class ExtendedEffectGen(object):
         self.field_return_alias_scopes = []
         self.nested_field_alias_scopes = []
         self.effects_stack = []
+        # v0.14.9/v0.14.10 (round 305): a SIXTH stack, `param_call_scopes`,
+        # mirroring `Parser.param_call_scopes` — see this class's own
+        # "Round 299" comment block above for why this needed a genuinely
+        # different kind of extension from every prior round's own addition
+        # (a per-CALL-SITE check, not a per-NAME resolver). `current_fn_
+        # params_frame_stack`/`direct_param_calls_stack` mirror the real
+        # parser's identically-named attributes exactly: the first tracks
+        # the SAME dict object pushed onto `alias_scopes` for the
+        # currently-open fn's own params frame (identity, not a copy,
+        # matters for `_innermost_frame_containing`'s comparison — see
+        # `whence/parser.py`'s own `current_fn_params_frame_stack`
+        # docstring); the second accumulates, per currently-open fn, which
+        # of ITS OWN params its body calls directly.
+        self.param_call_scopes = []
+        self.current_fn_params_frame_stack = []
+        self.direct_param_calls_stack = []
 
     def fresh(self, prefix="v"):
         self.counter += 1
@@ -586,6 +602,27 @@ class ExtendedEffectGen(object):
         if own_spec is not None:
             return own_spec
         return self.effects_stack[-1] if self.effects_stack else None
+
+    def resolve_param_call_fact(self, name):
+        """Mirror of `Parser._resolve_param_call_fact`: same innermost-
+        first, first-frame-wins walk on `name`, over `param_call_scopes`
+        instead of `return_alias_scopes`. Returns `None` or `(effects_
+        scope, params_tuple, frozenset_of_called_param_names)`."""
+        for scope in reversed(self.param_call_scopes):
+            if name in scope:
+                return scope[name]
+        return None
+
+    def _innermost_frame_containing(self, name):
+        """Mirror of `Parser._innermost_frame_containing`: the exact frame
+        OBJECT (not a copy) in `alias_scopes` an innermost-first walk would
+        resolve `name` through, for an identity comparison against
+        `current_fn_params_frame_stack[-1]` — `None` if `name` isn't bound
+        in any open scope at all."""
+        for scope in reversed(self.alias_scopes):
+            if name in scope:
+                return scope
+        return None
 
     # -- name-visibility helpers ------------------------------------
     def known_alias_names(self):
@@ -735,6 +772,38 @@ class ExtendedEffectGen(object):
         can never select it, since its own correct tag is None."""
         return [n for scope in self.return_alias_scopes for n in scope]
 
+    def known_param_call_names(self):
+        """Names currently visible (any frame) with a recorded, non-None
+        `param_call_scopes` fact — a NAMED fn or `let`-bound anonymous fn
+        that directly calls at least one of its own params. Candidates for
+        `_stmt_call_tracked_fn` below, the statement that actually
+        exercises `_check_call_site_param_effects`'s verdict."""
+        return [n for scope in self.param_call_scopes for n, f in scope.items() if f is not None]
+
+    def outer_param_call_names(self):
+        """`outer_visible_names()` (names bound in an OUTER frame, not yet
+        rebound in the CURRENT one) filtered to ones that CURRENTLY resolve
+        a non-None param-call fact — same "filter through the real resolve
+        walk, not a raw scope scan" pattern `outer_alias_names()`/
+        `outer_return_names()` already use, so what this returns is
+        guaranteed still resolvable (no closer, already-open frame has
+        re-shadowed it to `None`). Feeds `_stmt_shadow_tracked_fn_call`
+        below: a FRESH binding in the CURRENT frame must then correctly
+        shadow it, so a call through the shadowed name is NOT checked
+        against the outer fact."""
+        return [n for n in self.outer_visible_names() if self.resolve_param_call_fact(n) is not None]
+
+    def current_fn_own_params(self):
+        """The param names of the CURRENTLY-open innermost fn (NAMED or
+        anonymous) being generated, straight off `current_fn_params_frame_
+        stack[-1]` — candidates for `_stmt_call_own_param` below, the
+        statement that actually populates `direct_param_calls_stack` (a fn
+        body can only ever be OBSERVED to call one of its own params
+        directly if something inside it actually does)."""
+        if not self.current_fn_params_frame_stack:
+            return []
+        return list(self.current_fn_params_frame_stack[-1].keys())
+
     # -- effect-check side, mirrors `_check_effect_call` -----------------
     def check_effect(self, tag, display):
         if self.done or tag is None:
@@ -746,7 +815,69 @@ class ExtendedEffectGen(object):
         self.verdict = ("error", display, tag)
 
     def record_call_direct(self, name):
+        # v0.14.9 (round 305): mirrors `_check_effect_call`'s own
+        # unconditional param-tracking step, which runs BEFORE (and
+        # regardless of) the ordinary tag branch below for every call whose
+        # callee is a bare NameRef — real `_check_effect_call` does this
+        # for EVERY such call, not just ones this oracle specifically
+        # targets at a tracked fn (see `_track_direct_param_call`'s own
+        # docstring for why this is a safe no-op for the other callers of
+        # this method).
+        self._track_direct_param_call(name)
         self.check_effect(self.resolve_alias(name), name)
+
+    def _track_direct_param_call(self, name):
+        """Mirror of `_check_effect_call`'s v0.14.9 addition: if `name`
+        resolves (innermost-first) to the SAME frame object currently on
+        top of `current_fn_params_frame_stack` — i.e. `name` is one of the
+        CURRENTLY-open fn's own params, not a nested block's/fn's own
+        shadow of that name — record that this fn's body calls it
+        directly. A no-op whenever `name` is a builtin, a tracked alias, or
+        any other name that never resolves to the top params frame — which
+        is every existing caller of `record_call_direct` except this
+        round's own `_stmt_call_own_param`, since no other pool in this
+        generator ever draws a bare, untagged param name (a param's own
+        alias tag is always `None`, so it can never appear in
+        `known_alias_names()`/`EFFECTFUL` — the pools every OTHER caller of
+        `record_call_direct` draws from)."""
+        if not self.current_fn_params_frame_stack:
+            return
+        owning_frame = self._innermost_frame_containing(name)
+        if owning_frame is self.current_fn_params_frame_stack[-1]:
+            self.direct_param_calls_stack[-1].add(name)
+
+    def check_call_site_param_effects(self, callee_name, arg_infos):
+        """Mirror of `Parser._check_call_site_param_effects`: `arg_infos`
+        is a list of `(is_nameref, name_or_None)` pairs, one per positional
+        argument, matching `args[i].__class__ is A.NameRef` in the real
+        parser — this oracle never constructs an actual AST, so the
+        generator itself records whether each argument text it emitted was
+        a bare name. A no-op if a violation was ALREADY found by the
+        ordinary `_check_effect_call`-mirroring step (`record_call_direct`)
+        on this SAME call — exactly mirroring `postfix()`'s own sequencing
+        (`_check_effect_call` raises and `_check_call_site_param_effects`
+        is simply never reached), via the same `self.done` latch every
+        other `record_*` method already checks first."""
+        if self.done:
+            return
+        fact = self.resolve_param_call_fact(callee_name)
+        if fact is None:
+            return
+        effects_scope, params, called_params = fact
+        for i, pname in enumerate(params):
+            if i >= len(arg_infos) or pname not in called_params:
+                continue
+            is_nameref, argname = arg_infos[i]
+            if not is_nameref:
+                continue
+            tag = self.resolve_alias(argname)
+            if tag is None:
+                continue
+            if effects_scope is None or tag in effects_scope:
+                continue
+            self.done = True
+            self.verdict = ("error_param", argname, tag, callee_name, pname)
+            return
 
     def record_call_return(self, fname):
         self.check_effect(self.resolve_return(fname), "%s()" % fname)
@@ -810,12 +941,13 @@ class ExtendedEffectGen(object):
                            "%s.%s.%s" % (boxname, outer_field, inner_field))
 
     def bind(self, name, alias_tag, return_tag, field_dict, field_return_dict,
-             nested_field_dict):
+             nested_field_dict, param_call_fact=None):
         self.alias_scopes[-1][name] = alias_tag
         self.return_alias_scopes[-1][name] = return_tag
         self.field_alias_scopes[-1][name] = field_dict
         self.field_return_alias_scopes[-1][name] = field_return_dict
         self.nested_field_alias_scopes[-1][name] = nested_field_dict
+        self.param_call_scopes[-1][name] = param_call_fact
 
     # -- generation -------------------------------------------------
     _EXPR_MARK = "\x00EXPR\x00"
@@ -844,6 +976,7 @@ class ExtendedEffectGen(object):
         self.field_alias_scopes.append({})
         self.field_return_alias_scopes.append({})
         self.nested_field_alias_scopes.append({})
+        self.param_call_scopes.append({})
         try:
             lines = []
             tail_tag = None
@@ -872,6 +1005,7 @@ class ExtendedEffectGen(object):
             self.field_alias_scopes.pop()
             self.field_return_alias_scopes.pop()
             self.nested_field_alias_scopes.pop()
+            self.param_call_scopes.pop()
 
     def gen_cond(self):
         return self.r.choice(["true", "false", "1 < 2", "2 < 1"])
@@ -986,6 +1120,13 @@ class ExtendedEffectGen(object):
             choices += ["shadow_box_call_field_return"] * 4
         if self.outer_nested_field_box_triples():
             choices += ["shadow_box_call_field_nested"] * 4
+        if self.known_param_call_names():
+            choices += ["call_tracked_fn"] * 3
+            choices += ["let_rename_tracked"]
+        if self.outer_param_call_names():
+            choices += ["shadow_tracked_fn_call"] * 2
+        if self.current_fn_own_params():
+            choices += ["call_own_param"] * 2
         if depth < self.max_depth:
             choices += ["nested_fn", "nested_block", "let_fn_expr"]
             if self.outer_alias_names() or self.outer_return_names():
@@ -1006,10 +1147,31 @@ class ExtendedEffectGen(object):
         # alias tag AND the return tag forward under the new name — but
         # NOT any of the three field dicts (parser lines 254-255/359: all
         # explicitly reset to None for a rename, same as every other
-        # non-RecordLit RHS shape).
+        # non-RecordLit RHS shape). v0.14.9 (round 305): also copies the
+        # param-call fact forward — in practice always `None` here (`src`
+        # is drawn from `known_alias_names()`, and a fn name's own alias
+        # tag is always `None`, so it can never ALSO appear in that pool),
+        # but included for fidelity; `_stmt_let_rename_tracked` below is
+        # the statement that actually exercises a NON-None carry-forward.
         src = self.r.choice(self.known_alias_names())
         name = self.fresh("a")
-        self.bind(name, self.resolve_alias(src), self.resolve_return(src), None, None, None)
+        self.bind(name, self.resolve_alias(src), self.resolve_return(src), None, None, None,
+                  self.resolve_param_call_fact(src))
+        return "let %s = %s" % (name, src)
+
+    def _stmt_let_rename_tracked(self, depth):
+        """`let h = g` where `g` is itself a tracked NAMED/anonymous fn
+        (`known_param_call_names()`) — the fuzz-able form of `tests/
+        test_v14.py`'s `test_renamed_fn_carries_its_param_call_fact_
+        forward`/`test_anon_fn_bound_by_let_param_call_fact_carries_
+        through_a_rename`: `h` carries `g`'s own recorded param-call fact
+        forward (along with its alias/return facts, same NameRef-RHS
+        branch as `_stmt_let_alias_chain` above), so a LATER call through
+        `h` is checked exactly as one through `g` would be."""
+        src = self.r.choice(self.known_param_call_names())
+        name = self.fresh("a")
+        self.bind(name, self.resolve_alias(src), self.resolve_return(src), None, None, None,
+                  self.resolve_param_call_fact(src))
         return "let %s = %s" % (name, src)
 
     def _stmt_let_call_return(self, depth):
@@ -1024,16 +1186,29 @@ class ExtendedEffectGen(object):
     def _stmt_let_fn_expr(self, depth):
         # `let g = fn(...) {...}` (~line 245-252): `g` is a callable, not
         # itself an effectful value; its return fact is the body's tail.
+        # v0.14.10 (round 305): also records `g`'s own param-call fact —
+        # `primary()`'s anonymous-`fn` branch has no NAME yet to key
+        # `param_call_scopes` by while the body is open, so the real
+        # parser carries it on the `A.FnExpr` node itself
+        # (`param_call_fact`) and this `let` is the first point that reads
+        # it back off; this oracle mirrors that by simply computing the
+        # SAME fact locally (own_effects_scope/params/called_params) the
+        # instant the body finishes, since it never builds an actual node.
         name = self.fresh("g")
         n_params = self.r.randint(0, 2)
         params = [self.fresh("p") for _ in range(n_params)]
         own_spec = self.r.choice(EFFECT_TAG_SETS)
-        self.effects_stack.append(self.resolve_effects_scope(own_spec))
-        self.alias_scopes.append(dict.fromkeys(params))
+        own_effects_scope = self.resolve_effects_scope(own_spec)
+        self.effects_stack.append(own_effects_scope)
+        params_alias_frame = dict.fromkeys(params)
+        self.alias_scopes.append(params_alias_frame)
         self.return_alias_scopes.append(dict.fromkeys(params))
         self.field_alias_scopes.append(dict.fromkeys(params))
         self.field_return_alias_scopes.append(dict.fromkeys(params))
         self.nested_field_alias_scopes.append(dict.fromkeys(params))
+        self.param_call_scopes.append(dict.fromkeys(params))
+        self.current_fn_params_frame_stack.append(params_alias_frame)
+        self.direct_param_calls_stack.append(set())
         try:
             body_lines, body_tag = self.gen_frame(depth + 1, self.r.randint(1, self.max_stmts), True)
         finally:
@@ -1043,10 +1218,16 @@ class ExtendedEffectGen(object):
             self.field_alias_scopes.pop()
             self.field_return_alias_scopes.pop()
             self.nested_field_alias_scopes.pop()
+            self.param_call_scopes.pop()
+            self.current_fn_params_frame_stack.pop()
+            called_params = self.direct_param_calls_stack.pop()
         effects_txt = "" if own_spec is None else " effects [%s]" % ", ".join(sorted(own_spec))
         header = "fn(%s)%s {" % (", ".join(params), effects_txt)
         src = header + "\n  " + "\n  ".join(self._strip_marks(body_lines)) + "\n}"
-        self.bind(name, None, body_tag, None, None, None)
+        param_call_fact = (
+            (own_effects_scope, tuple(params), frozenset(called_params))
+            if called_params else None)
+        self.bind(name, None, body_tag, None, None, None, param_call_fact)
         return "let %s = %s" % (name, src)
 
     def _gen_nested_record_fields(self):
@@ -1258,21 +1439,27 @@ class ExtendedEffectGen(object):
     def _gen_fn_stmt(self, depth, name, shadow_precheck=False):
         r = self.r
         if shadow_precheck:
-            self.bind(name, None, None, None, None, None)
+            self.bind(name, None, None, None, None, None, None)
         else:
             self.alias_scopes[-1][name] = None
             self.return_alias_scopes[-1][name] = None
             self.field_alias_scopes[-1][name] = None
             self.field_return_alias_scopes[-1][name] = None
             self.nested_field_alias_scopes[-1][name] = None
+            self.param_call_scopes[-1][name] = None
         params = [self.fresh("p") for _ in range(r.randint(0, 2))]
         own_spec = r.choice(EFFECT_TAG_SETS)
-        self.effects_stack.append(self.resolve_effects_scope(own_spec))
-        self.alias_scopes.append(dict.fromkeys(params))
+        own_effects_scope = self.resolve_effects_scope(own_spec)
+        self.effects_stack.append(own_effects_scope)
+        params_alias_frame = dict.fromkeys(params)
+        self.alias_scopes.append(params_alias_frame)
         self.return_alias_scopes.append(dict.fromkeys(params))
         self.field_alias_scopes.append(dict.fromkeys(params))
         self.field_return_alias_scopes.append(dict.fromkeys(params))
         self.nested_field_alias_scopes.append(dict.fromkeys(params))
+        self.param_call_scopes.append(dict.fromkeys(params))
+        self.current_fn_params_frame_stack.append(params_alias_frame)
+        self.direct_param_calls_stack.append(set())
         try:
             body_lines, body_tag = self.gen_frame(depth + 1, r.randint(1, self.max_stmts), True)
         finally:
@@ -1282,7 +1469,13 @@ class ExtendedEffectGen(object):
             self.field_alias_scopes.pop()
             self.field_return_alias_scopes.pop()
             self.nested_field_alias_scopes.pop()
+            self.param_call_scopes.pop()
+            self.current_fn_params_frame_stack.pop()
+            called_params = self.direct_param_calls_stack.pop()
         self.return_alias_scopes[-1][name] = body_tag
+        self.param_call_scopes[-1][name] = (
+            (own_effects_scope, tuple(params), frozenset(called_params))
+            if called_params else None)
         effects_txt = "" if own_spec is None else " effects [%s]" % ", ".join(sorted(own_spec))
         header = "fn %s(%s)%s {" % (name, ", ".join(params), effects_txt)
         return header + "\n  " + "\n  ".join(self._strip_marks(body_lines)) + "\n}"
@@ -1297,13 +1490,26 @@ class ExtendedEffectGen(object):
         self.field_alias_scopes[-1][name] = None
         self.field_return_alias_scopes[-1][name] = None
         self.nested_field_alias_scopes[-1][name] = None
+        self.param_call_scopes[-1][name] = None
         own_spec = r.choice(EFFECT_TAG_SETS)
-        self.effects_stack.append(self.resolve_effects_scope(own_spec))
-        self.alias_scopes.append({shadow_name: None})
+        own_effects_scope = self.resolve_effects_scope(own_spec)
+        self.effects_stack.append(own_effects_scope)
+        # v0.14.9 (round 305): `shadow_name` is now `name`'s own SOLE
+        # param — `current_fn_own_params()`/`_stmt_call_own_param` can
+        # therefore reach it (calling a param that happens to reuse an
+        # outer tracked name), and if the body does, `name` ITSELF becomes
+        # a genuine param-call-tracked fn — exactly `test_param_named_
+        # like_a_tracked_fn_shadows_its_param_call_fact`'s shape, reachable
+        # under fuzzing instead of only hand-written.
+        params_alias_frame = {shadow_name: None}
+        self.alias_scopes.append(params_alias_frame)
         self.return_alias_scopes.append({shadow_name: None})
         self.field_alias_scopes.append({shadow_name: None})
         self.field_return_alias_scopes.append({shadow_name: None})
         self.nested_field_alias_scopes.append({shadow_name: None})
+        self.param_call_scopes.append({shadow_name: None})
+        self.current_fn_params_frame_stack.append(params_alias_frame)
+        self.direct_param_calls_stack.append(set())
         try:
             body_lines, body_tag = self.gen_frame(depth + 1, r.randint(1, self.max_stmts), True)
         finally:
@@ -1313,10 +1519,114 @@ class ExtendedEffectGen(object):
             self.field_alias_scopes.pop()
             self.field_return_alias_scopes.pop()
             self.nested_field_alias_scopes.pop()
+            self.param_call_scopes.pop()
+            self.current_fn_params_frame_stack.pop()
+            called_params = self.direct_param_calls_stack.pop()
         self.return_alias_scopes[-1][name] = body_tag
+        self.param_call_scopes[-1][name] = (
+            (own_effects_scope, (shadow_name,), frozenset(called_params))
+            if called_params else None)
         effects_txt = "" if own_spec is None else " effects [%s]" % ", ".join(sorted(own_spec))
         header = "fn %s(%s)%s {" % (name, shadow_name, effects_txt)
         return header + "\n  " + "\n  ".join(self._strip_marks(body_lines)) + "\n}"
+
+    def _stmt_call_own_param(self, depth):
+        """Calls one of the CURRENTLY-open fn's own params directly
+        (`paramname(0)`) — the statement that actually populates
+        `direct_param_calls_stack`, since no other statement in this
+        generator ever draws a bare, untagged param name (see
+        `_track_direct_param_call`'s own docstring)."""
+        name = self.r.choice(self.current_fn_own_params())
+        self.record_call_direct(name)
+        return self._mk_expr("%s(0)" % name)
+
+    def _stmt_call_tracked_fn(self, depth):
+        """Calls a tracked NAMED/anonymous fn (`known_param_call_names()`)
+        with one argument per its own recorded param — for a position the
+        fn calls directly, 70% of the time supplies an effectful bare name
+        (a builtin, or an existing alias) instead of a plain literal, so
+        both the GRANTED and DENIED paths of `_check_call_site_param_
+        effects` get real coverage, not just the "never triggers" case.
+        The one statement that actually exercises the round 300/302
+        feature's own VERDICT correctness — every other addition in this
+        round's own diff exists to make ONE of its preconditions
+        (a tracked fact existing, a param actually called, a shadow to
+        test) reachable at all."""
+        r = self.r
+        name = r.choice(self.known_param_call_names())
+        # `known_param_call_names()` scans every open frame directly (the
+        # same "not itself shadow-aware" convention `known_alias_names()`/
+        # `known_return_names()` already use) — a CLOSER frame may since
+        # have shadowed this exact name with a fresh `None` fact. Re-
+        # resolve (innermost-first, the real walk) rather than trust the
+        # pool: if shadowed, there is genuinely nothing to check here (the
+        # correct, sound outcome), so fall back to an ordinary untracked
+        # call, the same way `record_call_direct`/`check_effect` already
+        # treat a `None`-resolving name as a safe no-op everywhere else.
+        fact = self.resolve_param_call_fact(name)
+        if fact is None:
+            self.record_call_direct(name)
+            return self._mk_expr("%s(0)" % name)
+        effects_scope, params, called_params = fact
+        args = []
+        arg_infos = []
+        for i, pname in enumerate(params):
+            if pname in called_params and r.random() < 0.7:
+                if r.random() < 0.5:
+                    builtin, _ = self._random_effectful_builtin()
+                    args.append(builtin)
+                    arg_infos.append((True, builtin))
+                else:
+                    aliases = self.known_alias_names()
+                    if aliases:
+                        aname = r.choice(aliases)
+                        args.append(aname)
+                        arg_infos.append((True, aname))
+                    else:
+                        args.append(str(r.randint(0, 9)))
+                        arg_infos.append((False, None))
+            else:
+                args.append(str(r.randint(0, 9)))
+                arg_infos.append((False, None))
+        self.record_call_direct(name)
+        if not self.done:
+            self.check_call_site_param_effects(name, arg_infos)
+        return self._mk_expr("%s(%s)" % (name, ", ".join(args)))
+
+    def _stmt_shadow_tracked_fn_call(self, depth):
+        """Shadow an OUTER tracked fn (real, non-None param-call fact) with
+        a fresh all-None rebinding in THIS frame, then immediately call
+        `name(...)` through that SAME name — first-frame-wins must resolve
+        the fresh (always-None) shadow, never fall through to the outer
+        fn's own real fact. Packs the `let`-shadow and the follow-up call
+        into ONE statement slot (two program lines), same reason as
+        `_stmt_shadow_box_call_field_return`'s own docstring: leaving this
+        to chance (a generic `shadow_let` happening to pick this exact
+        name, AND a later independent statement happening to call it) is
+        impractically rare. Biased toward filling CALLED-param positions
+        with an effectful builtin so a resolver bug that leaks past the
+        shadow (recovers the outer fact instead of the correct `None`) is
+        actually OBSERVABLE as a wrong `error_param` verdict, not silently
+        masked by every position happening to be non-effectful."""
+        r = self.r
+        name = r.choice(self.outer_param_call_names())
+        effects_scope, params, called_params = self.resolve_param_call_fact(name)
+        args = []
+        arg_infos = []
+        for pname in params:
+            if pname in called_params and r.random() < 0.8:
+                builtin, _ = self._random_effectful_builtin()
+                args.append(builtin)
+                arg_infos.append((True, builtin))
+            else:
+                args.append(str(r.randint(0, 9)))
+                arg_infos.append((False, None))
+        self.bind(name, None, None, None, None, None, None)
+        self.record_call_direct(name)
+        if not self.done:
+            self.check_call_site_param_effects(name, arg_infos)
+        call_src = "%s(%s)" % (name, ", ".join(args))
+        return self._mk_expr("let %s = %d\n%s" % (name, r.randint(0, 9), call_src))
 
 
 def check_one_ext(seed, max_depth=3, max_stmts=4):
@@ -1331,8 +1641,22 @@ def check_one_ext(seed, max_depth=3, max_stmts=4):
         actual = ("error", str(e))
     if expected[0] == "ok":
         mismatch = actual[0] != "ok"
-    else:
+    elif expected[0] == "error":
         _, display, tag = expected
         mismatch = not (actual[0] == "error" and
                          ("'%s' requires effect '%s'" % (display, tag)) in actual[1])
+    else:
+        # v0.14.9/v0.14.10 (round 305): `_check_call_site_param_effects`'s
+        # OWN error message shape is deliberately different wording from
+        # `_check_effect_call`'s (`Parser._check_call_site_param_effects`'s
+        # own docstring), so it needs its own substring match, same
+        # discipline as the "error" branch above — a distinguishing
+        # PREFIX of the real message, not the full string (the real
+        # message's tail, `... is not permitted by 'NAME''s own 'DECLARED'`,
+        # is redundant with what this substring already pins down).
+        assert expected[0] == "error_param"
+        _, arg_name, tag, callee_name, pname = expected
+        mismatch = not (actual[0] == "error" and
+                         ("argument '%s' (effect '%s') passed to '%s' for parameter '%s'"
+                          % (arg_name, tag, callee_name, pname)) in actual[1])
     return src, expected, actual, mismatch

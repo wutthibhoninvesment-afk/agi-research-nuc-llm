@@ -223,6 +223,35 @@ class ProgramGen(object):
         # (which predates v0.14.7 by four rounds). Still crash-fuzz coverage
         # only, same limitation as the other four shapes in this family.
         self.nested_field_alias_boxes = []
+        # v0.14.9/v0.14.10 fuzz-coverage gap (rounds 300/302, closed round
+        # 305): `param_call_fns` holds `(name, arity, called_index)` triples
+        # for a NAMED fn (`fn NAME(...) {...}`) or a `let`-bound anonymous
+        # fn (`let NAME = fn(...) {...}`) whose body calls ONE of its own
+        # params directly (`Parser.param_call_scopes`/`_check_call_site_
+        # param_effects`) — a call site can then pass `print`/`rand`/an
+        # existing alias for EXACTLY that param position (`call()` below)
+        # so the ACTUAL new check (round 300/302's own "closes the
+        # long-flagged builtin-as-function-ARGUMENT gap") fires its
+        # ParseError path under fuzzing, not only via `tests/test_v14.py`'s
+        # hand-written corpus. Confirmed by grep first, the same discipline
+        # every earlier addition in this family already uses: `call()`'s
+        # existing branches only ever call a name from `self.fns`
+        # (top-level fn names), a tracked alias, or a builtin — `some_name`
+        # includes local PARAMS as plain VALUES but nothing in `call()`/
+        # `expr()` ever calls a bare local param AS a function, so this
+        # exact shape (a param used as a callee inside its own fn's body)
+        # was genuinely unreachable before this round, the same "never
+        # previously reachable from ProgramGen's grammar" gap named by
+        # every one of the five entries above. Unlike those five (each a
+        # new ALIAS-TRACKING shape resolved by NAME alone), this is the
+        # first CALL-SITE-dependent check in the family — the verdict
+        # depends on the ARGUMENT at each individual call site, not just on
+        # the callee's own name — so this is still crash-fuzz coverage only
+        # (no oracle here checks WHICH verdict is correct for a given
+        # call site; that lives in `harness/swe/alias_effects.py`'s
+        # `ExtendedEffectGen`, extended the same round for exactly this
+        # reason).
+        self.param_call_fns = []
 
     # names ---------------------------------------------------------------
     def fresh(self, prefix="v"):
@@ -322,6 +351,23 @@ class ProgramGen(object):
             pairs.append("%s: %s" % (fname, self.expr(1, [])))
         r.shuffle(pairs)
         return "@{%s}" % ", ".join(pairs), outer_field, inner_field
+
+    def _param_call_body(self, params):
+        """v0.14.9/v0.14.10 fuzz coverage: a fn body that calls ONE of its
+        own params directly (`f(1)`), mirroring the hand-written corpus's
+        `fn apply(f) effects [io] { f(1) }`. `params` must be non-empty.
+        Returns `(source_text, called_param_index)` — the caller registers
+        `(name, arity, called_param_index)` in `self.param_call_fns` so
+        `call()` below knows exactly which argument POSITION to target
+        with an effectful name."""
+        r = self.r
+        idx = r.randrange(len(params))
+        called = params[idx]
+        stmts = []
+        for _ in range(r.randint(0, 1)):
+            stmts.append("let %s = %s" % (self.fresh("t"), self.expr(1, params)))
+        stmts.append("%s(%s)" % (called, self.expr(1, params)))
+        return "{ " + "\n  ".join(stmts) + " }", idx
 
     # program -------------------------------------------------------------
     def program(self):
@@ -429,6 +475,19 @@ class ProgramGen(object):
                 lit, outer_field, inner_field = self._nested_field_alias_record()
                 e = lit
                 self.nested_field_alias_boxes.append((name, outer_field, inner_field))
+            elif aq < 0.30:
+                # v0.14.10 fuzz coverage: `let g = fn(f) effects [...] {
+                # f(1) }` -- the `let`-bound-anonymous-fn analogue of the
+                # NAMED-fn `param_call_fns` shape below (see `__init__`'s
+                # own docstring): `A.FnExpr.param_call_fact` tracks the
+                # exact same "calls one of its own params directly" fact,
+                # just carried on the node instead of keyed by a `fn NAME`
+                # statement. `call()` doesn't care which of the two shapes
+                # produced an entry -- both just consume `param_call_fns`.
+                params = [self.fresh("p") for _ in range(r.randint(1, 2))]
+                body, idx = self._param_call_body(params)
+                e = "fn(%s)%s %s" % (self.typed_params(params), self.maybe_effects(), body)
+                self.param_call_fns.append((name, len(params), idx))
             else:
                 e = self.expr(0, [])
             self.scope.append(name)
@@ -440,7 +499,14 @@ class ProgramGen(object):
             self.fns.append((name, arity))    # visible inside body: recursion
             # v0.14.3/v0.14.5 fuzz coverage: ~8% of fns get a return-alias
             # body instead of an ordinary one (see `_return_alias_body`).
-            if r.random() < 0.08:
+            # v0.14.9 fuzz coverage: ~10% of fns WITH at least one param
+            # instead get a body that calls that param directly (see
+            # `_param_call_body`), registered in `self.param_call_fns` so
+            # `call()` below can target it with an effectful argument.
+            if arity and r.random() < 0.1:
+                body, idx = self._param_call_body(params)
+                self.param_call_fns.append((name, arity, idx))
+            elif r.random() < 0.08:
                 body = self._return_alias_body(params)
                 self.return_alias_fns.append((name, arity))
             else:
@@ -576,6 +642,23 @@ class ProgramGen(object):
             # the one shape v0.14.2's effect check treats identically to a
             # direct call (`Parser._resolve_effectful_alias`).
             return "%s(%s)" % (r.choice(self.alias_names), self.expr(depth + 1, local))
+        if self.param_call_fns and r.random() < 0.06:
+            # v0.14.9/v0.14.10 fuzz coverage: call a tracked fn (NAMED or
+            # `let`-bound anonymous, both land in the same `param_call_fns`
+            # pool — see `__init__`'s own docstring) passing `print`/`rand`/
+            # an existing alias for the EXACT argument position its body
+            # calls directly, so `_check_call_site_param_effects` (round
+            # 300/302) actually fires its own ParseError path some of the
+            # time, not just the ordinary per-callee effects check every
+            # other call in this method already exercises.
+            fn_name, arity, idx = r.choice(self.param_call_fns)
+            args = []
+            for i in range(arity):
+                if i == idx and r.random() < 0.7:
+                    args.append(self._alias_source())
+                else:
+                    args.append(self.expr(depth + 1, local))
+            return "%s(%s)" % (fn_name, ", ".join(args))
         if self.fns and r.random() < 0.35:
             name, arity = r.choice(self.fns)
             if r.random() < 0.1:
