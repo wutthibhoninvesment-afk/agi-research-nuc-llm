@@ -252,6 +252,39 @@ class ProgramGen(object):
         # `ExtendedEffectGen`, extended the same round for exactly this
         # reason).
         self.param_call_fns = []
+        # v0.14.11 fuzz-coverage gap (round 306, closed round 311): a
+        # rename-chain VARIANT of `param_call_fns`'s own body shape — a fn
+        # body that calls one of its own params THROUGH a `let`-rename
+        # (`let g = f\n g(1)`) instead of directly (`f(1)`), mirroring the
+        # hand-written corpus's `let g = f\n g(1)` (`Parser.param_alias_
+        # scopes`/`_resolve_param_alias`). Deliberately reuses the SAME
+        # `param_call_fns` list (not a new one) and the SAME `call()`
+        # consumer (line ~645 below) — the external, call-site-observable
+        # shape is IDENTICAL either way (`fn_name(args)` with an effectful
+        # arg at the tracked position), `call()`'s own consumer never
+        # needed to know HOW the fn's body arrived at "calls this param",
+        # the same fact-producer/fact-consumer separation `alias_effects.
+        # py`'s own `ExtendedEffectGen` docstring names for this whole
+        # family. Still crash-fuzz coverage only, same limitation as
+        # `param_call_fns` above (no oracle here checks WHICH verdict is
+        # correct for a given call site — that lives in `harness/swe/
+        # alias_effects.py`'s `ExtendedEffectGen`, extended the same round
+        # for exactly this reason).
+        #
+        # v0.14.12 fuzz-coverage gap (round 308, closed round 311):
+        # `return_param_fns` holds `(name, arity, returned_index)` triples
+        # for a NAMED fn or `let`-bound anonymous fn whose body's own TAIL
+        # directly returns one of its own params, unchanged (`fn apply(f)
+        # { f }`), mirroring the hand-written corpus's `apply`
+        # (`Parser.return_param_scopes`/`_resolve_return_param_
+        # passthrough`). Two consumption shapes, both crash-fuzz only:
+        # (1) `let g = apply(print)` in the `let`-statement branch below,
+        # reusing `alias_names`/`call()`'s existing alias-call consumer
+        # unchanged (same fact-producer/fact-consumer reuse as `param_
+        # call_fns`'s rename variant above); (2) `apply(print)(1)`, a
+        # chained call with no intermediate `let`, in `call()` itself,
+        # mirroring `return_alias_fns`'s own chained-call shape.
+        self.return_param_fns = []
 
     # names ---------------------------------------------------------------
     def fresh(self, prefix="v"):
@@ -369,6 +402,47 @@ class ProgramGen(object):
         stmts.append("%s(%s)" % (called, self.expr(1, params)))
         return "{ " + "\n  ".join(stmts) + " }", idx
 
+    def _param_rename_call_body(self, params):
+        """v0.14.11 fuzz coverage: a fn body that renames one of its own
+        params (`let g = f`, 30% of the time a SECOND rename hop, `let h =
+        g`) then calls THROUGH the rename (`h(1)`) rather than the param
+        directly — mirrors the hand-written corpus's `let g = f\\n g(1)`
+        (`_resolve_param_alias`). Same `(source_text, called_param_index)`
+        contract as `_param_call_body` above — see `__init__`'s own
+        docstring for why `call()`'s existing `param_call_fns` consumer
+        needs no change at all to reach this variant too."""
+        r = self.r
+        idx = r.randrange(len(params))
+        called = params[idx]
+        rename1 = self.fresh("g")
+        stmts = ["let %s = %s" % (rename1, called)]
+        call_name = rename1
+        if r.random() < 0.3:
+            rename2 = self.fresh("g")
+            stmts.append("let %s = %s" % (rename2, call_name))
+            call_name = rename2
+        stmts.append("%s(%s)" % (call_name, self.expr(1, params)))
+        return "{ " + "\n  ".join(stmts) + " }", idx
+
+    def _return_param_body(self, params):
+        """v0.14.12 fuzz coverage: a fn body whose tail is a bare NameRef
+        to ONE of its own params, unchanged (`fn apply(f) { f }`),
+        mirroring the hand-written corpus's `apply`
+        (`Parser.return_param_scopes`/`_resolve_return_param_
+        passthrough`). `params` must be non-empty. Returns `(source_text,
+        returned_param_index)` — the caller registers `(name, arity,
+        returned_param_index)` in `self.return_param_fns` so `call()`/the
+        `let`-statement branch below know exactly which argument POSITION
+        a later call site should target with an effectful name."""
+        r = self.r
+        idx = r.randrange(len(params))
+        returned = params[idx]
+        stmts = []
+        for _ in range(r.randint(0, 1)):
+            stmts.append("let %s = %s" % (self.fresh("t"), self.expr(1, params)))
+        stmts.append(returned)
+        return "{ " + "\n  ".join(stmts) + " }", idx
+
     # program -------------------------------------------------------------
     def program(self):
         r = self.r
@@ -484,10 +558,46 @@ class ProgramGen(object):
                 # just carried on the node instead of keyed by a `fn NAME`
                 # statement. `call()` doesn't care which of the two shapes
                 # produced an entry -- both just consume `param_call_fns`.
+                # v0.14.11 fuzz coverage (round 311): half the time the
+                # body calls THROUGH a rename instead of directly (see
+                # `_param_rename_call_body`) -- `param_call_fns`'s own
+                # consumer is unchanged either way (see `__init__`'s
+                # docstring).
                 params = [self.fresh("p") for _ in range(r.randint(1, 2))]
-                body, idx = self._param_call_body(params)
+                if r.random() < 0.5:
+                    body, idx = self._param_call_body(params)
+                else:
+                    body, idx = self._param_rename_call_body(params)
                 e = "fn(%s)%s %s" % (self.typed_params(params), self.maybe_effects(), body)
                 self.param_call_fns.append((name, len(params), idx))
+            elif aq < 0.34:
+                # v0.14.12 fuzz coverage (round 311): `let g = fn(f) {f}`
+                # -- the `let`-bound-anonymous-fn analogue of the NAMED-fn
+                # `return_param_fns` shape below, same "node carries the
+                # fact forward" reasoning `param_call_fns`'s own v0.14.10
+                # entry above already uses.
+                params = [self.fresh("p") for _ in range(r.randint(1, 2))]
+                body, idx = self._return_param_body(params)
+                e = "fn(%s)%s %s" % (self.typed_params(params), self.maybe_effects(), body)
+                self.return_param_fns.append((name, len(params), idx))
+            elif aq < 0.38 and self.return_param_fns:
+                # v0.14.12 fuzz coverage (round 311): `let g = apply(print)`
+                # -- calls a return_param-tracked fn, passing an effectful
+                # arg at the exact RETURNED param's own position, so `g`
+                # itself becomes an ordinary tracked alias
+                # (`_resolve_return_param_passthrough`) that a later
+                # `call()` can call through exactly like any other `alias_
+                # names` entry -- reuses that existing consumer unchanged
+                # (see `__init__`'s own docstring).
+                fn_name, fn_arity, ridx = r.choice(self.return_param_fns)
+                cargs = []
+                for i in range(fn_arity):
+                    if i == ridx and r.random() < 0.7:
+                        cargs.append(self._alias_source())
+                    else:
+                        cargs.append(self.expr(1, []))
+                e = "%s(%s)" % (fn_name, ", ".join(cargs))
+                self.alias_names.append(name)
             else:
                 e = self.expr(0, [])
             self.scope.append(name)
@@ -499,16 +609,26 @@ class ProgramGen(object):
             self.fns.append((name, arity))    # visible inside body: recursion
             # v0.14.3/v0.14.5 fuzz coverage: ~8% of fns get a return-alias
             # body instead of an ordinary one (see `_return_alias_body`).
-            # v0.14.9 fuzz coverage: ~10% of fns WITH at least one param
-            # instead get a body that calls that param directly (see
-            # `_param_call_body`), registered in `self.param_call_fns` so
-            # `call()` below can target it with an effectful argument.
+            # v0.14.9/v0.14.11 fuzz coverage: ~10% of fns WITH at least one
+            # param instead get a body that calls that param directly, or
+            # (round 311) through a rename (see `_param_call_body`/
+            # `_param_rename_call_body`), registered in `self.param_call_
+            # fns` so `call()` below can target it with an effectful
+            # argument. v0.14.12 fuzz coverage (round 311): ~8% instead get
+            # a body that returns a param unchanged (see `_return_param_
+            # body`), registered in `self.return_param_fns` above.
             if arity and r.random() < 0.1:
-                body, idx = self._param_call_body(params)
+                if r.random() < 0.5:
+                    body, idx = self._param_call_body(params)
+                else:
+                    body, idx = self._param_rename_call_body(params)
                 self.param_call_fns.append((name, arity, idx))
             elif r.random() < 0.08:
                 body = self._return_alias_body(params)
                 self.return_alias_fns.append((name, arity))
+            elif arity and r.random() < 0.08:
+                body, idx = self._return_param_body(params)
+                self.return_param_fns.append((name, arity, idx))
             else:
                 body = self.body(params)
             return "fn %s(%s)%s%s %s" % (name, self.typed_params(params),
@@ -636,6 +756,23 @@ class ProgramGen(object):
             # (`_check_effect_call`'s `Call`-callee branch).
             fn_name, fn_arity = r.choice(self.return_alias_fns)
             inner = "%s(%s)" % (fn_name, ", ".join(self.expr(depth + 1, local) for _ in range(fn_arity)))
+            return "%s(%s)" % (inner, self.expr(depth + 1, local))
+        if self.return_param_fns and r.random() < 0.06:
+            # v0.14.12 fuzz coverage (round 311): `apply(print)(1)` -- a
+            # chained call with NO intermediate `let`, the callee's INNER
+            # application passing an effectful arg at the RETURNED param's
+            # own position (`_check_effect_call`'s own `Call`-callee
+            # branch, `_resolve_return_param_passthrough`) -- the argument-
+            # DEPENDENT analogue of `return_alias_fns`'s own chained-call
+            # shape just above.
+            fn_name, fn_arity, ridx = r.choice(self.return_param_fns)
+            cargs = []
+            for i in range(fn_arity):
+                if i == ridx and r.random() < 0.7:
+                    cargs.append(self._alias_source())
+                else:
+                    cargs.append(self.expr(depth + 1, local))
+            inner = "%s(%s)" % (fn_name, ", ".join(cargs))
             return "%s(%s)" % (inner, self.expr(depth + 1, local))
         if self.alias_names and r.random() < 0.08:
             # Call THROUGH a tracked alias rather than `print` directly —

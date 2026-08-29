@@ -147,18 +147,20 @@ def test_extended_generator_reaches_field_return_chain_shape():
 
 
 def test_extended_targeted_campaign_no_mismatches():
-    """The real regression: 9000 generated programs spanning return/field/
-    if-tail/field-return-chain/nested-field/param-call alias shapes (plus
-    their interaction with v0.14.2's own direct aliasing) against the real
-    parser, compared to the independent oracle's prediction. Bumped from
-    round 281's original 3000 to 5000 when round 287 folded the v0.14.6
-    field-return-chain shape into this same generator, to 7000 when round
-    293 folded v0.14.7's nested-field shape in too, and to 9000 when round
-    305 folded v0.14.9/v0.14.10's param-call shape in, to keep per-shape
-    sample size comparable."""
+    """The real regression: 11000 generated programs spanning return/field/
+    if-tail/field-return-chain/nested-field/param-call/param-rename/
+    return-param-passthrough alias shapes (plus their interaction with
+    v0.14.2's own direct aliasing) against the real parser, compared to the
+    independent oracle's prediction. Bumped from round 281's original 3000
+    to 5000 when round 287 folded the v0.14.6 field-return-chain shape into
+    this same generator, to 7000 when round 293 folded v0.14.7's
+    nested-field shape in too, to 9000 when round 305 folded v0.14.9/
+    v0.14.10's param-call shape in, and to 11000 this round (311) when
+    v0.14.11's param-rename-chain and v0.14.12's return-param-passthrough
+    shapes were folded in, to keep per-shape sample size comparable."""
     rng = random.Random(281269)
     mismatches = []
-    for _ in range(9000):
+    for _ in range(11000):
         seed = rng.randrange(10 ** 9)
         depth = rng.choice([2, 3, 3, 4, 5])
         stmts = rng.choice([2, 3, 4, 5, 6])
@@ -572,3 +574,203 @@ def test_extended_oracle_detects_injected_missing_param_call_check_bug():
     finally:
         P.Parser._check_call_site_param_effects = orig
     assert mismatches > 0, "mutated missing-param-call-check bug went undetected"
+
+
+# =========================================== v0.14.11/v0.14.12 (round 311) ==
+# Fuzz + oracle coverage for round 306's v0.14.11 (a param `let`-renamed
+# inside the SAME open fn body, then called through the rename — closes
+# HALF of v0.14.9's own "stored" gap) and round 308's v0.14.12 (a param
+# RETURNED directly by the callee's own body, so the CALLER ends up holding
+# the alias — closes the OTHER half). Named as the "natural next SWE-loop(D)
+# round" by research-state.md's next-steps since round 306, unchanged
+# through rounds 308/309/310. `ExtendedEffectGen` gained two new stacks
+# (`param_alias_scopes`, `return_param_scopes`) and three new statements
+# (`_stmt_let_rename_own_param`, `_stmt_let_call_return_param_passthrough`,
+# `_stmt_call_return_param_passthrough_chain`) mirroring `Parser.param_
+# alias_scopes`/`_resolve_param_alias` and `Parser.return_param_scopes`/
+# `_resolve_return_param_fact`/`_resolve_return_param_passthrough` — see
+# `alias_effects.py`'s own docstrings on each for the exact real-parser
+# line-by-line mirror.
+
+
+def test_extended_generator_reaches_param_rename_chain_shape():
+    """Coverage guard, not a correctness check — confirms the v0.14.11
+    `let g = p\n g(1)` rename-then-call shape is actually reachable at a
+    real rate. Measured ~24% (957/4000) in this round's own manual scaling
+    check — `_stmt_let_rename_own_param` is the ONLY producer of this
+    shape (see its own docstring), so a future regression that starved
+    `current_fn_own_params()` would silently make the mutation tests below
+    vacuous without this guard."""
+    rng = random.Random(311101)
+    pat = re.compile(r"let a\d+ = p\d+\n")
+    hits = 0
+    n = 4000
+    for _ in range(n):
+        seed = rng.randrange(10 ** 9)
+        depth = rng.choice([2, 3, 3, 4, 5])
+        stmts = rng.choice([2, 3, 4, 5, 6])
+        src, _, _, mismatch = check_one_ext(seed, max_depth=depth, max_stmts=stmts)
+        assert not mismatch
+        if pat.search(src):
+            hits += 1
+    assert hits > n * 0.05, hits
+
+
+def test_extended_generator_reaches_return_param_passthrough_error():
+    """Coverage guard, not a correctness check — confirms v0.14.12's
+    argument-DEPENDENT passthrough (`apply(print)` then a later call
+    through the result) actually produces a distinguishing `error`
+    verdict (a display ending in `"()"`, the `%s()` chained-call/let-call
+    shape `record_call_return`-family verdicts always use) at a real
+    rate, not just theoretically wired into `return_param_scopes`.
+    Measured ~0.45% (18/4000) in this round's own manual scaling check —
+    rarer than v0.14.11's rename shape since it additionally needs the
+    RIGHT argument position to land an effectful name AND the enclosing
+    scope to actually deny it; N=20000 here for comfortable headroom
+    (~90 expected hits)."""
+    rng = random.Random(311102)
+    hits = 0
+    n = 20000
+    for _ in range(n):
+        seed = rng.randrange(10 ** 9)
+        depth = rng.choice([2, 3, 3, 4, 5])
+        stmts = rng.choice([2, 3, 4, 5, 6])
+        _, expected, _, mismatch = check_one_ext(seed, max_depth=depth, max_stmts=stmts)
+        assert not mismatch
+        if expected[0] == "error" and expected[1].endswith("()"):
+            hits += 1
+    assert hits > n * 0.001, hits
+
+
+def test_extended_oracle_detects_injected_missing_param_alias_bug():
+    """Mutation test 1/4: neutralize `_resolve_param_alias` entirely (a
+    no-op returning `None` always, simulating the whole v0.14.11 feature
+    vanishing — the same "feature missing entirely" role `test_extended_
+    oracle_detects_injected_missing_param_call_check_bug` plays for
+    v0.14.9/10). Measured ~0.75% (30/4000) in this round's own manual
+    scaling check."""
+    sys.path.insert(0, WHENCE_ROOT)
+    from whence import parser as P
+
+    orig = P.Parser._resolve_param_alias
+    P.Parser._resolve_param_alias = lambda self, name: None
+    try:
+        rng = random.Random(311011)
+        mismatches = 0
+        for _ in range(4000):
+            seed = rng.randrange(10 ** 9)
+            depth = rng.choice([2, 3, 3, 4, 5])
+            stmts = rng.choice([2, 3, 4, 5, 6])
+            _, _, _, mismatch = check_one_ext(seed, max_depth=depth, max_stmts=stmts)
+            mismatches += mismatch
+    finally:
+        P.Parser._resolve_param_alias = orig
+    assert mismatches > 0, "mutated missing-param-alias bug went undetected"
+
+
+def test_extended_oracle_detects_injected_param_alias_single_frame_bug():
+    """Mutation test 2/4: weaken `_resolve_param_alias`'s own multi-hop
+    walk (`for scope in reversed(self.param_alias_scopes[boundary:])`) to
+    inspect ONLY the frame AT the boundary index, not everything pushed
+    after it — breaks a rename chain that crosses a NESTED block boundary
+    (`let g = p` in the fn's own top-level body, then `g` read back as a
+    NESTED block's/fn's own TAIL, reached via `gen_tail_stmt`'s `any_
+    visible_name()` pool, not a dedicated statement). Measured ~1.7%
+    (138/8000) in this round's own manual scaling check."""
+    sys.path.insert(0, WHENCE_ROOT)
+    from whence import parser as P
+
+    def buggy_resolve(self, name):
+        if not self.current_fn_params_frame_stack:
+            return None
+        top_params_frame = self.current_fn_params_frame_stack[-1]
+        boundary = None
+        for i in range(len(self.alias_scopes) - 1, -1, -1):
+            if self.alias_scopes[i] is top_params_frame:
+                boundary = i
+                break
+        if boundary is None:
+            return None
+        return self.param_alias_scopes[boundary].get(name)
+
+    orig = P.Parser._resolve_param_alias
+    P.Parser._resolve_param_alias = buggy_resolve
+    try:
+        rng = random.Random(311021)
+        mismatches = 0
+        for _ in range(8000):
+            seed = rng.randrange(10 ** 9)
+            depth = rng.choice([3, 4, 4, 5, 5])
+            stmts = rng.choice([3, 4, 5, 6, 7])
+            _, _, _, mismatch = check_one_ext(seed, max_depth=depth, max_stmts=stmts)
+            mismatches += mismatch
+    finally:
+        P.Parser._resolve_param_alias = orig
+    assert mismatches > 0, "mutated single-frame param-alias bug went undetected"
+
+
+def test_extended_oracle_detects_injected_missing_return_param_passthrough_bug():
+    """Mutation test 3/4: neutralize `_resolve_return_param_passthrough`
+    entirely (a no-op returning `None` always, simulating the whole
+    v0.14.12 feature vanishing), same role as test 1/4 above for the
+    SECOND new mechanism this round. Measured ~1.1% (89/8000) in this
+    round's own manual scaling check."""
+    sys.path.insert(0, WHENCE_ROOT)
+    from whence import parser as P
+
+    orig = P.Parser._resolve_return_param_passthrough
+    P.Parser._resolve_return_param_passthrough = lambda self, fn_name, args: None
+    try:
+        rng = random.Random(311012)
+        mismatches = 0
+        for _ in range(8000):
+            seed = rng.randrange(10 ** 9)
+            depth = rng.choice([2, 3, 3, 4, 5])
+            stmts = rng.choice([2, 3, 4, 5, 6])
+            _, _, _, mismatch = check_one_ext(seed, max_depth=depth, max_stmts=stmts)
+            mismatches += mismatch
+    finally:
+        P.Parser._resolve_return_param_passthrough = orig
+    assert mismatches > 0, "mutated missing-return-param-passthrough bug went undetected"
+
+
+def test_extended_oracle_detects_injected_return_param_passthrough_wrong_index_bug():
+    """Mutation test 4/4: `_resolve_return_param_passthrough` always
+    inspects argument position 0, ignoring `tail_param_name`'s own actual
+    index in `params_tuple` — observable only when the RETURNED param is
+    NOT the fn's own first param (so the wrong-vs-right argument actually
+    differ). Rarer than the other three mutations (needs a returned param
+    at a non-zero position AND the wrong position to disagree with the
+    right one on effect-tag-or-not); measured ~0.19% (15/8000) in this
+    round's own manual scaling check — N=15000 here for comfortable
+    headroom (~28 expected hits)."""
+    sys.path.insert(0, WHENCE_ROOT)
+    from whence import parser as P
+
+    def buggy_passthrough(self, fn_name, args):
+        fact = self._resolve_return_param_fact(fn_name)
+        if fact is None:
+            return None
+        params_tuple, tail_param_name = fact
+        idx = 0
+        if idx >= len(args):
+            return None
+        arg = args[idx]
+        if arg.__class__.__name__ != "NameRef":
+            return None
+        return self._resolve_effectful_alias(arg.name)
+
+    orig = P.Parser._resolve_return_param_passthrough
+    P.Parser._resolve_return_param_passthrough = buggy_passthrough
+    try:
+        rng = random.Random(311031)
+        mismatches = 0
+        for _ in range(15000):
+            seed = rng.randrange(10 ** 9)
+            depth = rng.choice([2, 3, 3, 4, 5])
+            stmts = rng.choice([2, 3, 4, 5, 6])
+            _, _, _, mismatch = check_one_ext(seed, max_depth=depth, max_stmts=stmts)
+            mismatches += mismatch
+    finally:
+        P.Parser._resolve_return_param_passthrough = orig
+    assert mismatches > 0, "mutated wrong-index return-param-passthrough bug went undetected"

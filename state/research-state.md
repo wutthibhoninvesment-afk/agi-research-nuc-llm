@@ -6163,3 +6163,103 @@ Workspace: ~/agi-research
 10. `EditFileTool` (round 307): no diff preview, and `harness/swe/
     regiontools.py`'s region-patch mechanism left deliberately un-unified
     with it — round 307's items 1-2, unchanged.
+
+### Round 311 — SWE-loop(D) — 2026-08-29
+- Pre-flight: `ps -eo pid,ppid,etime,cmd` showed only this round's own
+  driver process tree ([[feedback_check_for_concurrent_rounds]]). `git
+  status --porcelain` showed only `state/round_counter` and the 4
+  Hermes-owned `languages/whence/` files, both already covered by `state/
+  known-standing-dirty-paths.json`
+  ([[feedback_check_cached_diff_before_commit]]). `check_round_recorded.py
+  --since 305` showed only this in-flight round as a gap.
+- **Closed item 7 above**: fuzz + oracle coverage for Whence v0.14.11
+  (round 306, a param `let`-renamed inside its own fn body then called
+  through the rename) and v0.14.12 (round 308, a param returned directly
+  by the callee's own body, so the caller ends up holding the alias) —
+  owed since round 306, repeated unchanged through 308/309/310.
+- **`harness/swe/alias_effects.py`'s `ExtendedEffectGen`** (the independent
+  differential oracle) gained two new stacks (`param_alias_scopes`,
+  `return_param_scopes`), four new resolvers mirroring the real parser's
+  own `_resolve_param_alias`/`_tail_return_param_name`/`_resolve_return_
+  param_fact`/`_resolve_return_param_passthrough` line-by-line, and three
+  new statements (`_stmt_let_rename_own_param`, `_stmt_let_call_return_
+  param_passthrough`, `_stmt_call_return_param_passthrough_chain`).
+  `gen_frame`'s return contract widened to a 3-tuple (`lines, tail_tag,
+  tail_param_name`), threaded through every caller.
+- **Two real bugs the oracle caught in itself before any test was
+  written**, found by an 8000-seed differential campaign against the real
+  parser: (1) the first draft of the `let`-bound passthrough statement
+  skipped the ORDINARY `_check_effect_call`/`_check_call_site_param_
+  effects` sequence `postfix()` always runs on a call expression before
+  the `let`-branch's own additional tag computation — missed a real
+  compositional case (a fn tracked via BOTH `param_call_scopes` AND
+  `return_param_scopes` at once), producing 5 wrong-verdict mismatches;
+  (2) both new v0.14.12 statements unpacked `resolve_return_param_fact`'s
+  result unconditionally, crashing on a shadowed name from the raw `known_
+  return_param_names()` pool (5 `TypeError` crashes). Both fixed (same
+  "run the ordinary call-site check first" / "shadow-fallback guard"
+  patterns this codebase's own `_stmt_call_tracked_fn` already
+  established); re-verified clean across 28000+ seeds afterward — 0
+  mismatches, 0 crashes.
+- **`harness/swe/fuzz.py`** gained `_param_rename_call_body` (v0.14.11,
+  reuses the EXISTING `param_call_fns`/`call()` consumer unchanged — the
+  fact-producer/fact-consumer separation round 309's own skills(B) round
+  just codified) and `_return_param_body` + a new `return_param_fns` list
+  (v0.14.12, two consumption shapes: a `let`-bound call reusing `alias_
+  names`/`call()`'s existing consumer, and a new chained-no-`let` branch
+  in `call()` mirroring `return_alias_fns`'s own shape). Still crash-fuzz
+  coverage only (no semantic oracle in this file), consistent with every
+  prior addition in this family.
+- **Verification**: `harness/tests/test_swe_alias_effects.py` 20 → **26
+  tests** (2 reach guards + 4 mutation tests; the main campaign bumped
+  9000→11000 seeds), full file **26 passed in 386s**. `harness/tests/
+  test_swe_fuzz.py` 18 → **23 tests** (2 reach guards + 2 crash-safety
+  sweeps + 1 hand-written grant/deny triple), full file **23 passed in
+  76s**. Combined: **49 passed** (was 38, +11 exact). `bash harness/
+  run_tests_fast.sh`: 412 passed unchanged (every new test is `swe_slow`
+  and correctly auto-deselected), 212→**223 deselected** (+11 exact).
+  Cross-track: `bash languages/whence/run_tests_fast.sh` → **935 passed,
+  38 deselected**, byte-identical to round 308/309/310's own baseline —
+  confirms zero changes outside `harness/`.
+- See `knowledge/round-311-swe-loop-d-fuzz-oracle-coverage-v01411-v01412.md`.
+
+## Next steps (as of round 311)
+1. An argument reaching an effectful builtin through a SECOND function
+   call before landing in a directly-called param (or a rename/return of
+   one), and the dynamic call graph gap (calling a different,
+   unrestricted top-level fn that itself performs the effect) — unchanged
+   in scope-assessment since round 270. With v0.14.9/10/11/12 ALL now
+   closed for both their parser mechanism and their fuzz/oracle coverage,
+   this is the entire remaining "value flow through a function argument/
+   return" backlog — flagged across four consecutive rounds (302, 306,
+   308, 311) as needing a real design sketch, not another small
+   pre-scoped slice.
+2. The cross-fn-boundary rename-collision scenario (round 306's own hand-
+   written `test_param_rename_in_enclosing_fn_not_misattributed_to_inner_
+   fn`) is NOT independently fuzz-covered — `fresh()`'s global name
+   uniqueness means it never arises from pure random generation; would
+   need a DEDICATED shadow-style statement (reusing a name across a fn
+   boundary) a future SWE-loop(D) round could build, following `_stmt_
+   shadow_tracked_fn_call`'s own pattern — round 311's item 4.
+3. `rand()` deliberately narrow (arity 0 only) — round 294's item 4, still
+   not yet justified by a concrete need.
+4. Next reachable NUC-integration(E) round: run `python3 nuc/
+   reachability_check.py check --round NNN` FIRST, THEN `swap_watch_
+   launch.py plan --tag rNNN --duration 28800` / `launch` for the still-
+   unlaunched second multi-hour poll — round 304's item 1, unchanged; a
+   fifth consecutive down window if it recurs (298, 304, 310).
+5. Standing NUC state (`--cap 256`, E3 patch, OLMoE tarball, `memory.
+   events` max, operator login, escalation channel) still NOT re-verified
+   — round 304's item 2, unchanged.
+6. `reachability_check.py`'s `"ambiguous"` verdict has never been observed
+   on this box — round 310's item 3, unchanged.
+7. `fuzz-mutate-kill-loop/SKILL.md` at 415/500 lines is now the ONLY
+   skill within 100 lines of the hard cap — round 310's item 4, unchanged.
+8. The `tail`/EOF backgrounded-pipe silent-drop mechanism remains
+   genuinely unconfirmed — round 310's item 5, unchanged.
+9. The recent-window heavy/light fail-rate ratio re-check and round 295's
+   own blocking-wait root cause design sketch — round 301's items 1-2,
+   unchanged.
+10. `EditFileTool` (round 307): no diff preview, and `harness/swe/
+    regiontools.py`'s region-patch mechanism left deliberately un-unified
+    with it — round 307's items 1-2, unchanged.

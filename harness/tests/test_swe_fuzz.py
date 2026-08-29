@@ -222,3 +222,71 @@ def test_param_call_argument_check_reports_parse_error_not_crash():
     denied_anon = run_program(
         'let g = fn(f) effects [] { f(1) }\ng(print)\n')
     assert denied_anon.kind == "parse_error", denied_anon
+
+
+# ========================================= v0.14.11/v0.14.12 (round 311) ===
+
+def test_generator_now_emits_param_rename_call_shape():
+    """Coverage guard, mirroring `test_generator_now_emits_param_call_
+    shape`: confirms the v0.14.11 rename-then-call shape (`let gN = pM`
+    immediately followed by a call through `gN`) is actually reachable at
+    a real rate from `ProgramGen`'s own grammar, not just theoretically
+    wired into `_param_rename_call_body`."""
+    pat = re.compile(r"let g\d+ = p\d+\n")
+    seen = sum(1 for i in range(400) if pat.search(ProgramGen(i).program()))
+    assert seen >= 15, seen
+
+
+def test_param_rename_call_shape_is_total_under_fuzz():
+    """The real regression for this shape: 800 generated programs (a mix
+    of NAMED-fn and `let`-bound-anonymous-fn bodies that call one of their
+    own params through a rename, plus call sites deliberately targeting
+    the tracked param position with an effectful argument) must all stay
+    TOTAL, never `crash`."""
+    for i in range(800):
+        o = run_program(ProgramGen(i, stress_rate=0.15).program(), timeout_s=2.0)
+        assert o.kind != "crash", (i, o.exc_type, o.message)
+
+
+def test_generator_now_emits_return_param_shape():
+    """Coverage guard: confirms the v0.14.12 `fn apply(f) { f }`-shaped
+    body (a bare-param tail) is actually reachable from `ProgramGen`'s own
+    grammar, not just theoretically wired into `_return_param_body`/
+    `return_param_fns`."""
+    seen = 0
+    for i in range(400):
+        g = ProgramGen(i)
+        g.program()
+        if g.return_param_fns:
+            seen += 1
+    assert seen >= 10, seen
+
+
+def test_return_param_shape_is_total_under_fuzz():
+    """The real regression for this shape: 800 generated programs (a mix
+    of NAMED-fn and `let`-bound-anonymous-fn bodies that return one of
+    their own params unchanged, plus both consumption shapes -- a `let`-
+    bound call and a no-`let` chained call -- deliberately targeting the
+    returned param's own position with an effectful argument) must all
+    stay TOTAL, never `crash`."""
+    for i in range(800):
+        o = run_program(ProgramGen(i, stress_rate=0.15).program(), timeout_s=2.0)
+        assert o.kind != "crash", (i, o.exc_type, o.message)
+
+
+def test_return_param_passthrough_reports_parse_error_not_crash():
+    """A hand-written grant/deny pair mirroring `tests/test_v14.py`'s own
+    v0.14.12 corpus: the GRANTED case must run clean, the DENIED case must
+    be a clean `parse_error`, not a crash -- both the `let`-bound and the
+    no-`let` chained-call consumption shapes."""
+    granted = run_program(
+        'fn apply(f) { f }\nfn user() effects [io] { let g = apply(print)\n g(1) }\n'
+        'user()\ncheck "ok": true\n')
+    assert granted.kind == "ok", granted
+    denied = run_program(
+        'fn apply(f) { f }\nfn user() effects [] { let g = apply(print)\n g(1) }\n'
+        'user()\n')
+    assert denied.kind == "parse_error", denied
+    denied_chain = run_program(
+        'fn apply(f) { f }\nfn user() effects [] { apply(print)(1) }\nuser()\n')
+    assert denied_chain.kind == "parse_error", denied_chain
