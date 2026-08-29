@@ -519,6 +519,14 @@ def test_effects_lang_runs_under_the_guest_round_164_backlog_closed():
     # parameter as a function is ordinary Whence semantics the guest
     # already supports with no special-casing. `apply_logger(print,
     # prices)` is just one more ordinary call to the guest evaluator.
+    #
+    # v0.14.10 (round 302) added one more check (`apply_logger_anon`, the
+    # same shape but a `let`-bound ANONYMOUS fn instead of a NAMED one) --
+    # same reasoning, same zero guest change: the new `A.FnExpr.param_call_
+    # fact` field is read entirely by the HOST parser (`statement()`'s own
+    # `let` handling), never by the guest evaluator, which has no notion of
+    # this field at all and simply evaluates `fn(...) {...}` the same way
+    # it always has.
     eval_lib = eval_library_source()
     effects_src = open(EFFECTS).read()
     prog = eval_lib + 'let __r = run_src("%s")\n' % escape(effects_src)
@@ -526,7 +534,7 @@ def test_effects_lang_runs_under_the_guest_round_164_backlog_closed():
     rec = env.get("__r").payload
     assert rec.fields["parse_error"].payload is False
     checks = rec.fields["checks"].payload
-    assert len(checks) == 10
+    assert len(checks) == 11
     failed = [c.payload.fields["label"].payload for c in checks
               if c.payload.fields["pass"].payload is not True]
     assert not failed, failed

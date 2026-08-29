@@ -354,16 +354,16 @@ class Parser(object):
                 self.field_alias_scopes[-1][name] = None
                 self.field_return_alias_scopes[-1][name] = None
                 self.nested_field_alias_scopes[-1][name] = None
-                # v0.14.9: deliberately NOT tracked — an anonymous fn bound
-                # by `let` has no NAME at the point its own params/body are
-                # parsed (`primary()`'s `fn(...) {...}` branch), so there is
-                # nowhere to record a per-param-call fact until AFTER this
-                # `let` already knows `name` — closing this specific slice
-                # would need a new `A.FnExpr` field to carry the fact
-                # forward (the same way `body.tail_alias_tag` already rides
-                # on `A.Block`), deliberately out of scope for this round;
-                # see `_check_call_site_param_effects`'s own docstring.
-                self.param_call_scopes[-1][name] = None
+                # v0.14.10 (round 302): `primary()`'s `fn(...) {...}` branch
+                # has no NAME to record a per-param-call fact under while
+                # the anonymous fn's own body is being parsed, so it carries
+                # the fact forward on the node itself (`expr.param_call_
+                # fact`, set right before `A.FnExpr` is constructed) — NOW,
+                # the moment this `let` learns `name`, is the first point
+                # anywhere to key `param_call_scopes` by it. Exactly the
+                # v0.14.9 NAMED-fn slice's own fact shape, just sourced from
+                # the node instead of a scope-stack lookup.
+                self.param_call_scopes[-1][name] = expr.param_call_fact
             elif expr.__class__ is A.RecordLit:
                 # v0.14.4 (round 272): `let box = @{run: print, other: 5}`
                 # — closes the CONTAINER-FIELD slice of v0.14.3's own still-
@@ -891,7 +891,12 @@ class Parser(object):
         system's long-flagged "passing a builtin as a function ARGUMENT"
         gap (`test_v14.py`'s own module docstring, unchanged since v0.14;
         `research-state.md`'s language(C) track backlog, unchanged since
-        round 270).
+        round 270). v0.14.10 (round 302) extends the SAME mechanism to a
+        `let`-bound anonymous fn too — see `A.FnExpr.param_call_fact` and
+        the `A.FnExpr` branch in `statement()`'s own `let` handling; nothing
+        in THIS method changed, since `_resolve_param_call_fact` already
+        walks `param_call_scopes` generically, indifferent to whether the
+        recorded fact came from a NAMED fn's own definition or a `let`.
 
         Why this needs a genuinely DIFFERENT mechanism from every other
         resolver in this family, not just one more stack: every other
@@ -911,12 +916,15 @@ class Parser(object):
         Deliberately narrow, the same "one hop, textually before, bare
         NameRef only" discipline the whole v0.14.x family already uses for
         every other shape:
-          - Only a call whose callee is a bare NameRef to a NAMED fn (`fn
-            NAME(...) {...}`) is checked — an anonymous `fn(...) {...}`
-            bound by `let` is not (see the `A.FnExpr` branch in
-            `statement()`'s own `let` handling for why: no name exists yet
-            at the point its own param-call fact would need to be
-            recorded under).
+          - Only a call whose callee is a bare NameRef to a name with a
+            recorded param-call fact is checked — either a NAMED fn (`fn
+            NAME(...) {...}`) or, as of v0.14.10, a `let NAME = fn(...)
+            {...}`-bound anonymous fn. A fn used any OTHER way (called
+            inline without ever being bound to a name, passed straight
+            through as someone else's argument, stored in a container) has
+            no name to key `param_call_scopes` by and is still invisible —
+            not a new gap, the same "nothing to check without SOME name"
+            boundary every resolver in this family already has.
           - Only an ARGUMENT that is itself a bare NameRef resolving via
             `_resolve_effectful_alias` is inspected — an argument that is
             itself a call, a field access, or any other expression shape
@@ -1257,7 +1265,13 @@ class Parser(object):
             params, types = self.param_list()
             effects_spec = self.parse_effects_clause()
             ret_type = self.parse_return_type()
-            self.effects_stack.append(self._resolve_effects_scope(effects_spec))
+            # v0.14.10 (round 302): resolved BEFORE pushing onto
+            # `effects_stack` (not read back off it after popping), same
+            # ordering the NAMED-fn branch above uses, so it survives the
+            # `finally` below to be recorded on the returned `A.FnExpr`
+            # node itself afterward.
+            own_effects_scope = self._resolve_effects_scope(effects_spec)
+            self.effects_stack.append(own_effects_scope)
             params_alias_frame = dict.fromkeys(params)
             self.alias_scopes.append(params_alias_frame)
             self.return_alias_scopes.append(dict.fromkeys(params))
@@ -1268,10 +1282,7 @@ class Parser(object):
             # v0.14.9: pushed for shadowing/tracking consistency inside this
             # anonymous fn's own body (e.g. a NAMED fn declared inside it
             # gets a correctly fn-scoped `current_fn_params_frame_stack`
-            # top), but the popped `called_params` set below is discarded —
-            # an anonymous `fn(...) {...}` bound by `let` has no name at
-            # this point to record a param-call fact UNDER (see the
-            # `A.FnExpr` branch in `statement()`'s own `let` handling).
+            # top).
             self.current_fn_params_frame_stack.append(params_alias_frame)
             self.direct_param_calls_stack.append(set())
             try:
@@ -1285,10 +1296,23 @@ class Parser(object):
                 self.nested_field_alias_scopes.pop()
                 self.param_call_scopes.pop()
                 self.current_fn_params_frame_stack.pop()
-                self.direct_param_calls_stack.pop()
+                called_params = self.direct_param_calls_stack.pop()
             self._apply_type_guards(body, params, types, None)
             mark_tails(body)
-            return A.FnExpr(tok.line, params, body, ret_type)
+            # v0.14.10 (round 302): unlike the NAMED-fn branch above (which
+            # has a name to key `param_call_scopes[-1]` by the moment its
+            # body finishes), an anonymous fn has none yet — the fact is
+            # carried on the NODE itself instead, mirroring how
+            # `body.tail_alias_tag` already rides on `A.Block`. Whichever
+            # statement ends up binding this `A.FnExpr` (only `let ... =
+            # fn(...) {...}` does anything with it; an anonymous fn used any
+            # other way, e.g. called immediately or passed inline, has
+            # nowhere to attach a name-keyed fact to and the field is simply
+            # never read) decides what to do with `param_call_fact`.
+            param_call_fact = (
+                (own_effects_scope, tuple(params), frozenset(called_params))
+                if called_params else None)
+            return A.FnExpr(tok.line, params, body, ret_type, param_call_fact)
         raise ParseError("unexpected %r" % (tok.value,), tok.line, tok.col)
 
     def if_expr(self):

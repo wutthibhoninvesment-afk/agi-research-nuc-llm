@@ -1740,6 +1740,84 @@ that cannot end a statement.
   "ship the checker, name the fuzz gap, close it in a later dedicated
   round" rhythm every v0.14.x feature has followed.
 
+## v0.14.10 (round 302) — effect system: the anonymous-fn-bound-by-`let` slice of value flow through a function ARGUMENT
+- **Closes v0.14.9's own explicitly-named remaining slice** ("only a NAMED
+  fn is tracked... would need a new `A.FnExpr` AST field to carry the fact
+  forward, the same way `body.tail_alias_tag` already rides on `A.Block`,
+  deliberately out of scope this round" — v0.14.9's own words, unchanged
+  through round 301's next-steps): `let g = fn(f) effects [io] { f(1) }`
+  then `g(print)` is now checked, exactly as if `g` were a NAMED fn.
+- **Design**: `Parser.primary()`'s `fn(...) {...}` branch already pushes
+  and pops the same `current_fn_params_frame_stack`/`direct_param_calls_
+  stack` bookkeeping the NAMED-fn branch uses (needed regardless, for
+  shadowing/tracking consistency of anything declared INSIDE the anonymous
+  fn's own body) — but through v0.14.9, the popped `called_params` set at
+  that site was simply discarded, because there was no NAME yet to key
+  `Parser.param_call_scopes` by while the anonymous fn's own params/body
+  were being parsed. v0.14.10 does exactly what v0.14.9's own text
+  predicted: a new `A.FnExpr` field, `param_call_fact` — `None`, or
+  `(effects_scope, params_tuple, frozenset_of_directly_called_param_
+  names)`, the identical shape `param_call_scopes` already stores for a
+  NAMED fn — set once, right before the `A.FnExpr` node is constructed,
+  the same way `A.Block.tail_alias_tag` is already set once `stmt_list`
+  finishes resolving a block's own tail (v0.14.3). `statement()`'s own
+  `let` handling (the `expr.__class__ is A.FnExpr` branch) then does the
+  one thing v0.14.9 left as a placeholder: `self.param_call_scopes[-1][name]
+  = expr.param_call_fact` instead of unconditionally `None` — the first
+  point anywhere a NAME exists to key the fact by. `_check_call_site_param_
+  effects` and `_resolve_param_call_fact` themselves needed **zero
+  changes** — both already resolve through `param_call_scopes` generically,
+  via the same innermost-first scope-stack walk every sibling resolver in
+  this family uses, indifferent to whether a given frame's fact originated
+  from a NAMED fn's own definition or a `let`-bound anonymous one.
+- **`A.FnExpr` gains a new field, `param_call_fact`** — the ONLY AST
+  change this round makes (still zero interpreter changes, zero new node
+  TYPES): `whence/interp.py`'s `eval_FnExpr` reads `node.params`/
+  `node.body`/`node.ret_type` by name already, so the new field is inert
+  to it, and `A.FnExpr` has exactly one construction site in the codebase
+  (`primary()`'s own `fn(...) {...}` branch), so updating its call needed
+  no downstream ripple.
+- **Deliberately still narrow**, unchanged from v0.14.9's own remaining
+  boundaries: only a parameter called DIRECTLY (`f(...)`) is tracked, not
+  one merely stored, returned, or passed to a THIRD function; only a
+  bare-NameRef argument at the call site is inspected; forward-referenced
+  or mutually-recursive fns are invisible; a fn expression used any way
+  OTHER than `let NAME = fn(...) {...}` — called immediately without ever
+  being bound to a name, passed straight through as someone else's
+  argument, stored directly in a container/record field without an
+  intervening `let` — still has no name to key `param_call_scopes` by and
+  remains untracked. This is not a new gap: it is the same "nothing to
+  check without SOME name" boundary this whole family has always had (a
+  bare builtin passed inline, `total(fn(x){x})`, was never checkable
+  either, for the identical reason).
+- **Verification**: `tests/test_v14.py` 92 → **95 passed** (3 new: the
+  basic grant/reject pair for a `let`-bound anonymous fn — inverting what
+  had been `test_anon_fn_bound_by_let_param_call_is_not_tracked` into
+  `test_anon_fn_bound_by_let_param_call_is_now_checked` — plus the
+  no-clause-unrestricted case, the fact carrying forward through a plain
+  rename, and shadowing by a same-named parameter).
+  `examples/effects.lang` gained one new demo (`apply_logger_anon`, the
+  `let`-bound mirror of v0.14.9's `apply_logger`): checks 10 → **11
+  passed, 0 failed**. `tests/test_examples.py::test_effects` and `tests/
+  test_self_hosting.py`'s guest-parity pin both updated to 11 checks — the
+  guest needed **zero code change**, confirming the same "purely a host
+  parse-time field, invisible to the guest evaluator" property v0.14.9
+  already established (`self_eval.lang` builds its own record-shaped AST
+  nodes entirely independently of the host's `whence/ast_nodes.py`, so a
+  new host-only field on `A.FnExpr` is simply never visible to it).
+  `run_tests_fast.sh`: 922 → **925 passed, 38 deselected** (+3 exact).
+- **Still open, unchanged from v0.14.9's own remaining assessment**: an
+  argument reaching an effectful builtin through a SECOND function call
+  before landing in a directly-called param; a builtin flowing into a
+  param that is stored/returned rather than called directly; the dynamic
+  call graph (calling a different, unrestricted top-level fn that itself
+  performs the effect), completely untouched. Fuzz coverage
+  (`harness/swe/fuzz.py`) and oracle coverage
+  (`harness/swe/alias_effects.py`) for the v0.14.9/v0.14.10
+  argument-flow shape overall remain open, the same "ship the checker,
+  name the fuzz gap, close it in a later dedicated round" rhythm every
+  v0.14.x feature has followed.
+
 ## v0.15 (round 168) — AI-native primitives: `guess`/confidence
 - **The curriculum's last open "advanced feature" slot** (structural types
   v0.12, return types v0.13, effects v0.14 all shipped; round 146 itself

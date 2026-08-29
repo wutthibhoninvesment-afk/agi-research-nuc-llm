@@ -154,7 +154,8 @@ def test_effects():
     assert "logged total (via factory): 60" in r.stdout
     assert "logged total (via record field): 60" in r.stdout
     assert "logged total (via argument): 60" in r.stdout
-    assert "10 passed, 0 failed" in r.stdout
+    assert "logged total (via anon-fn argument): 60" in r.stdout
+    assert "11 passed, 0 failed" in r.stdout
 
 
 def test_effects_violation_exits_2(tmp_path):

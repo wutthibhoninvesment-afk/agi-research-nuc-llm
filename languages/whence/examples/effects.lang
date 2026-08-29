@@ -127,12 +127,28 @@ check "a builtin passed as a directly-called argument is checked the same as a d
 # `apply_logger(rand, prices)` (wrong tag, "random" not "io"), would both
 # be a ParseError at the CALL SITE `apply_logger(print, prices)` above,
 # not inside `apply_logger`'s own body — its body never learns what `f`
-# actually is; only the call site knows. Still shallow: only a NAMED fn's
-# own parameters are tracked (an anonymous `fn(...) {...}` bound by `let`
-# is not), only a parameter called DIRECTLY (not merely stored, returned,
-# or passed to a third function) is tracked, and the dynamic call graph
-# (calling a different, unrestricted top-level fn that itself performs
-# the effect) remains completely untouched (see SPEC.md "v0.14.9").
+# actually is; only the call site knows. Still shallow: only a parameter
+# called DIRECTLY (not merely stored, returned, or passed to a third
+# function) is tracked, and the dynamic call graph (calling a different,
+# unrestricted top-level fn that itself performs the effect) remains
+# completely untouched (see SPEC.md "v0.14.9").
+
+# v0.14.10: the SAME check now applies to a `let`-bound ANONYMOUS fn too,
+# not only a NAMED one — `apply_logger_anon` below is `fn(...) {...}`
+# bound by `let`, not `fn NAME(...) {...}`, and calling its own `f`
+# parameter directly is tracked exactly the same way.
+let apply_logger_anon = fn(f, prices) effects [io] {
+  f("logged total (via anon-fn argument): " + str(total(prices)))
+  total(prices)
+}
+check "a builtin passed to a let-bound anonymous fn's directly-called argument is checked too":
+  apply_logger_anon(print, prices) == 60
+# Writing `apply_logger_anon` as `effects []` instead would be a
+# ParseError at the CALL SITE above, same as the NAMED-fn case. A fn
+# expression used any OTHER way — called immediately without ever being
+# bound to a name, or passed straight through as someone else's argument —
+# still has no name to check against, and remains untracked (see SPEC.md
+# "v0.14.10").
 
 # v0.14.8: `rand()` is the SECOND effectful builtin (tag "random", distinct
 # from print's "io") — every check above only ever exercised ONE real tag,

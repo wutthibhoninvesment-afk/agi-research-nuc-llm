@@ -62,7 +62,12 @@ Call = _simple("Call", ["fn", "args", "tail"])       # tail: set by parser.mark_
 Index = _simple("Index", ["obj", "index"])
 FieldAccess = _simple("FieldAccess", ["obj", "name"])
 If = _simple("If", ["cond", "then", "otherwise"])    # otherwise: Block or If
-FnExpr = _simple("FnExpr", ["params", "body", "ret_type"])   # anonymous fn
+FnExpr = _simple("FnExpr", ["params", "body", "ret_type", "param_call_fact"])
+# anonymous fn; param_call_fact: None, or (effects_scope, params_tuple,
+# frozenset_of_directly_called_param_names) — set by parser.py (v0.14.10,
+# round 302), same shape `Parser.param_call_scopes` stores for a NAMED fn
+# (v0.14.9, round 300), carried on the node itself since an anonymous fn has
+# no name to key a scope-stack dict by until its enclosing `let` sees it.
 Block = _simple("Block", ["stmts", "tail_alias_tag"])  # tail_alias_tag: set by parser.block (v0.14.3)
 Let = _simple("Let", ["name", "expr"])
 FnDef = _simple("FnDef", ["name", "params", "body", "ret_type"])

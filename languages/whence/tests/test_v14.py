@@ -178,8 +178,8 @@ work (see research-state.md's language backlog).
   `test_argument_passed_to_a_directly_called_param_is_rejected_when_not_
   permitted`. Deliberately narrow, the same "one hop, bare NameRef,
   textually before" discipline the whole family already uses: only a NAMED
-  fn's own params are tracked, not an anonymous `fn(...) {...}` bound by
-  `let` (`test_anon_fn_bound_by_let_param_call_is_not_tracked`); only a
+  fn's own params are tracked — at the time; an anonymous `fn(...) {...}`
+  bound by `let` was NOT, closed by v0.14.10 below — only a
   param called DIRECTLY in the body, not one merely stored or passed on
   (`test_param_only_stored_not_called_is_not_tracked`); only a bare-NameRef
   argument at the call site, not one that is itself a call or a field
@@ -191,6 +191,38 @@ work (see research-state.md's language backlog).
   gaps remain, explicitly still open: an argument reaching an effectful
   builtin through a SECOND function call first, and the still-untouched
   dynamic call graph.
+
+- **v0.14.10 (round 302): the anonymous-fn-bound-by-`let` slice of
+  v0.14.9's own FUNCTION-ARGUMENT gap.** `Parser.primary()`'s
+  `fn(...) {...}` branch already pushed/popped the same
+  `current_fn_params_frame_stack`/`direct_param_calls_stack` bookkeeping
+  v0.14.9's NAMED-fn branch uses, but discarded the popped `called_params`
+  set — there was no NAME yet to key `param_call_scopes` by while the
+  anonymous fn's own body was being parsed. Now the fact rides on the
+  returned `A.FnExpr` node itself instead (`param_call_fact`, a new field,
+  mirroring how `body.tail_alias_tag` already rides on `A.Block` since
+  v0.14.3), and `statement()`'s own `let` handling picks it up the moment
+  it learns the binding's name — the first point anywhere a name exists to
+  key `param_call_scopes[-1]` by
+  (`test_anon_fn_bound_by_let_param_call_is_now_checked`).
+  `_check_call_site_param_effects` itself needed ZERO changes: it already
+  resolves through `param_call_scopes` generically via
+  `_resolve_param_call_fact`, indifferent to whether a fact originated from
+  a NAMED fn's own definition or a `let`-bound anonymous one. The fact
+  carries forward through a plain rename, same as every other alias kind in
+  this family
+  (`test_anon_fn_bound_by_let_param_call_fact_carries_through_a_rename`),
+  and is correctly shadowed by a same-named parameter
+  (`test_param_named_like_an_anon_fn_bound_name_shadows_its_param_call_
+  fact`). Still deliberately narrow: a fn expression used any OTHER way —
+  called immediately without ever being bound to a name, passed straight
+  through as someone else's argument, stored in a container/record field —
+  has no name to key `param_call_scopes` by and remains untracked, not a
+  new gap but the same "nothing to check without SOME name" boundary this
+  whole family already has. Every other v0.14.9 gap (a SECOND function call
+  before reaching the effectful builtin, a builtin flowing into a
+  stored/returned rather than directly-called param, the dynamic call
+  graph) remains completely untouched, unchanged in scope.
 """
 
 import os
@@ -1288,16 +1320,57 @@ def test_non_namerefarg_to_a_directly_called_param_is_not_tracked():
         'check "ok": true\n')
 
 
-def test_anon_fn_bound_by_let_param_call_is_not_tracked():
-    """Deliberately out of scope for v0.14.9: an anonymous `fn(...) {...}`
-    bound by `let` has no name at the point its own params/body are
-    parsed, so there is nowhere to record a param-call fact under — this
-    parses without error even though, were `g` a NAMED fn, it would be
-    rejected (see `test_argument_passed_to_a_directly_called_param_is_
-    rejected_when_not_permitted` for the named-fn mirror image)."""
+def test_anon_fn_bound_by_let_param_call_is_now_checked():
+    """v0.14.10 (round 302) closes the gap v0.14.9 deliberately left open:
+    the anonymous `fn(...) {...}`'s own `param_call_fact` (computed while
+    its body was still open, exactly like the NAMED-fn case) now rides on
+    the `A.FnExpr` node itself and is picked up the moment the enclosing
+    `let` learns `g`'s name — the same grant/reject pair as `test_argument_
+    passed_to_a_directly_called_param_is_{checked,rejected_when_not_
+    permitted}`, just sourced from a `let`-bound anonymous fn instead of a
+    NAMED one."""
+    all_ok(
+        'let g = fn(f) effects [io] { f(1) }\n'
+        'g(print)\n'
+        'check "ok": true\n')
+    with pytest.raises(ParseError) as ei:
+        parse('let g = fn(f) effects [] { f(1) }\ng(print)\n')
+    msg = str(ei.value)
+    assert "effect 'io'" in msg and "not permitted" in msg
+
+
+def test_anon_fn_bound_by_let_with_no_effects_clause_is_unrestricted():
+    all_ok(
+        'let g = fn(f) { f(1) }\n'
+        'g(print)\n'
+        'check "ok": true\n')
+
+
+def test_anon_fn_bound_by_let_param_call_fact_carries_through_a_rename():
+    """`let h = g` (no call) carries the anonymous fn's OWN recorded
+    param-call fact forward under the new name `h` too — the exact same
+    "resolved via a generic scope-stack walk, indifferent to WHERE the fact
+    originally came from" property `test_renamed_fn_carries_its_param_
+    call_fact_forward` already pins for a NAMED fn."""
+    all_ok(
+        'let g = fn(f) effects [io] { f(1) }\n'
+        'let h = g\n'
+        'h(print)\n'
+        'check "ok": true\n')
+    with pytest.raises(ParseError):
+        parse(
+            'let g = fn(f) effects [] { f(1) }\n'
+            'let h = g\n'
+            'h(print)\n')
+
+
+def test_param_named_like_an_anon_fn_bound_name_shadows_its_param_call_fact():
+    """Mirror of `test_param_named_like_a_tracked_fn_shadows_its_param_
+    call_fact` for a `let`-bound anonymous fn's own tracked name: a
+    parameter reusing `g`'s name correctly shadows the outer fact."""
     all_ok(
         'let g = fn(f) effects [] { f(1) }\n'
-        'g(print)\n'
+        'fn outer(g) effects [] { 1 }\n'
         'check "ok": true\n')
 
 
