@@ -89,7 +89,7 @@ EXAMPLE = os.path.join(ROOT, "examples", "self_eval.lang")
 SELF_HOST = os.path.join(ROOT, "examples", "self_host.lang")
 EFFECTS = os.path.join(ROOT, "examples", "effects.lang")
 MARKER = "# ==== SELF-TESTS"
-LIB_START, LIB_END = 27, 561  # self_host.lang lines 28..561 (0-indexed slice)
+LIB_START, LIB_END = 27, 574  # self_host.lang lines 28..574 (0-indexed slice)
 
 
 def eval_library_source():
@@ -127,11 +127,12 @@ def test_guest_parser_parses_its_own_full_source():
     ok = env.get("__ok").payload
     assert ok is True, (env.get("__ast").payload.reasons
                          if not ok else None)
-    # self_host.lang currently parses to 154 top-level statements; pin the
-    # exact count so a silent structural regression (e.g. two statements
-    # merging into one) fails loudly even though `__ok` alone would not
-    # catch it.
-    assert env.get("__nstmts").payload == 154
+    # self_host.lang currently parses to 162 top-level statements (round
+    # 332: +8 -- the new `exp_end` helper fn plus 7 new lexer/parser
+    # checkpoint checks for exponent-literal guest parity); pin the exact
+    # count so a silent structural regression (e.g. two statements merging
+    # into one) fails loudly even though `__ok` alone would not catch it.
+    assert env.get("__nstmts").payload == 162
 
 
 @pytest.mark.whence_slow

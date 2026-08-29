@@ -47,6 +47,18 @@ fn scan_while(s, i, pred) {
 }
 fn slice(s, i, j) { if i >= j { "" } else { s[i] + slice(s, i + 1, j) } }
 
+# mirrors whence/lexer.py's post-round-323 exponent scan (round 332): only
+# consumes "e"/"E" + optional sign + digits when a full, valid exponent
+# follows, so a bare trailing e/E that starts a NAME ("5experiment") is
+# left untouched, exactly like the host.
+fn exp_end(s, j) {
+  if j < len(s) and (s[j] == "e" or s[j] == "E") {
+    let k = j + 1
+    let k2 = if k < len(s) and (s[k] == "+" or s[k] == "-") { k + 1 } else { k }
+    if k2 < len(s) and is_digit(s[k2]) { scan_while(s, k2, is_digit) } else { j }
+  } else { j }
+}
+
 # ---- lexer ------------------------------------------------------------------
 # bracket stack: a list of "(" "[" "@{" "{" strings, pushed on open, popped on
 # ANY close (matching whence/lexer.py's `brackets` — it does not check which
@@ -119,7 +131,8 @@ fn lex(s, i, stack, acc, line) {
   else if is_digit(s[i]) {
     let j0 = scan_while(s, i, is_digit)
     let has_frac = j0 + 1 < len(s) and s[j0] == "." and is_digit(s[j0 + 1])
-    let j = if has_frac { scan_while(s, j0 + 1, is_digit) } else { j0 }
+    let j1 = if has_frac { scan_while(s, j0 + 1, is_digit) } else { j0 }
+    let j = exp_end(s, j1)
     lex(s, j, stack, push(acc, @{t: "num", v: num(slice(s, i, j)), line: line}), line)
   }
   else if is_name_start(s[i]) {
@@ -571,6 +584,27 @@ check "lexer number": lx[3].t == "num" and lx[3].v == 1
 check "lexer eof": lx[len(lx) - 1].t == "eof"
 
 check "lexer float": (lex_all("3.5"))[0].v == 3.5
+
+# round 332: guest parity for the host's post-round-323 exponent-literal
+# grammar (whence/lexer.py) -- the guest lexer previously had no exponent
+# handling at all, so "1e5" silently split into NUMBER(1) NAME("e5"),
+# invisible until this round's own host-vs-guest parser-differential fuzz
+# sweep would have caught it had the fuzzer's own STR_POOL ever emitted a
+# raw exponent literal (it doesn't -- same blind spot round 323's own
+# knowledge file names for the host bug it fixed).
+check "lexer exponent literal": (lex_all("1e5"))[0].v == 100000.0
+check "lexer negative exponent": (lex_all("1e-3"))[0].v == 0.001
+check "lexer uppercase exponent": (lex_all("2.5E2"))[0].v == 250.0
+check "lexer positive-signed exponent": (lex_all("1e+2"))[0].v == 100.0
+check "lexer bare trailing e is not consumed as an exponent":
+  len(lex_all("5e")) == 3 and (lex_all("5e"))[0].v == 5 and
+    (lex_all("5e"))[1].t == "name" and (lex_all("5e"))[1].v == "e"
+check "lexer digit-then-name boundary unaffected by exponent scan":
+  len(lex_all("5experiment")) == 3 and (lex_all("5experiment"))[0].v == 5 and
+    (lex_all("5experiment"))[1].v == "experiment"
+check "parser handles an exponent literal end-to-end":
+  not missed(parse_whence("let x = 1e3"))
+
 check "lexer string with escape": (lex_all("\"a\\nb\""))[0].v == "a\nb"
 check "lexer two-char op": (lex_all("=="))[0].v == "=="
 check "lexer comment stripped": len(lex_all("# hi\n1")) == 2   # NUMBER EOF, no leading nl

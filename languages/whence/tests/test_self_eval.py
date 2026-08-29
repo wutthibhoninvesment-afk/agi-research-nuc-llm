@@ -169,7 +169,7 @@ def test_example_runs_green():
 
 
 def test_parser_section_matches_self_host():
-    # the guest lexer+parser is self_host.lang lines 28..561, verbatim;
+    # the guest lexer+parser is self_host.lang lines 28..574, verbatim;
     # if one file changes, the other must change with it (round 158: grew
     # from 420 to 485 lines adding `: Type`/`-> Type` guest parity; round
     # 164: 485 to 533 adding `effects [...]` clause skipping; round 176:
@@ -178,9 +178,11 @@ def test_parser_section_matches_self_host():
     # suppression rule (`suppressed()` was bracket-depth-only, missing the
     # host's CONTINUES/CONTINUE_KWS check — found by running self_eval.lang's
     # guest evaluator ON self_host.lang's own source, the first genuine
-    # "evaluator interprets the parser" self-hosting run)
+    # "evaluator interprets the parser" self-hosting run); round 332:
+    # 561 to 574 adding the `exp_end` exponent-literal-scan helper (guest
+    # parity for the host's post-round-323 exponent-literal grammar)
     host_lines = open(SELF_HOST).read().splitlines()
-    section = "\n".join(host_lines[27:561])
+    section = "\n".join(host_lines[27:574])
     assert section.startswith("# ---- character classes")
     assert section.rstrip().endswith(
         "fn parse_whence(src) { parse_program(lex_all(src)) }")

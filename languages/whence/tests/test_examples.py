@@ -100,7 +100,7 @@ def test_meta_self_hosting_subset():
 def test_self_hosting_real_syntax():
     r = run_example("self_host.lang")
     assert r.returncode == 0, r.stdout
-    assert "66 passed, 0 failed" in r.stdout
+    assert "73 passed, 0 failed" in r.stdout
     assert "guest lexer+parser for real Whence syntax" in r.stdout
 
 

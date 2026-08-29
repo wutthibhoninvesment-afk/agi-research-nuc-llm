@@ -3550,3 +3550,81 @@ not this round. See `knowledge/round-254-whence-self-hosting-round9-steps-repro-
   host_vs_guest` compares label sets but has never included an anonymous-
   fn call case — left as an open, not-yet-investigated question, not a
   confirmed bug.
+
+## v0.17.1 guest parity fix (round 332, language C) — exponent-literal lexing
+
+- **Closes a real, previously-undocumented host/guest divergence**: round
+  323 (SWE-loop D) taught the HOST lexer (`whence/lexer.py`) to consume a
+  trailing `[eE][+-]?[0-9]+` exponent suffix onto a numeric literal
+  (`1e5` -> `100000.0`), fixing an inconsistency between `SPEC.md`'s own
+  documented number grammar (which `num(text)`'s STRING-parsing path,
+  `interp.py`'s `_NUM_RE`, already honored) and the raw SOURCE-literal
+  grammar, which previously had no exponent handling at all. That fix
+  landed only in `whence/lexer.py` — the GUEST lexer
+  (`self_host.lang`/`self_eval.lang`'s byte-identical shared `lex`
+  function) was never revisited, so `1e5` as a guest source literal still
+  silently split into `NUMBER(1)` followed by `NAME("e5")`, nine rounds
+  after the host fix landed. Found by direct reading of the guest's
+  digit-scanning branch (no exponent lookahead at all), the same
+  "feasibility check first, not fuzz-and-hope" discipline round 324 used
+  wiring `fuzz.py` into the parser-differential file — not found BY that
+  fuzzer, since (per round 323's own knowledge file) no fuzz corpus in
+  this project has ever emitted a raw exponent-literal SOURCE token.
+- **The fix**: a new guest helper `exp_end(s, j)`, added to BOTH
+  `self_host.lang` and `self_eval.lang` at the identical point in their
+  byte-identical shared lexer section (right after `slice`, mirroring
+  `test_self_eval.py::test_parser_section_matches_self_host`'s
+  substring-identity requirement) — same lookahead the host's
+  `lexer.py` uses: only consumes `e`/`E` + optional sign + digits when a
+  FULL, valid exponent follows, otherwise leaves the position untouched
+  (so `5e`/`5experiment` still lex as `NUMBER(5)` `NAME("e"/"experiment")`,
+  exactly like the host). The digit-lexing branch's own `let j = ...`
+  now threads through `exp_end` before slicing the literal's text and
+  handing it to the (pre-existing, unmodified) `num(...)` builtin, which
+  already parses an exponent-bearing string correctly via `_NUM_RE` — no
+  change needed there, only to where the guest lexer's own token
+  boundary `j` stops.
+- **New coverage**: 7 new checkpoint checks added to `self_host.lang`'s
+  own lexer test section, right after the pre-existing `"lexer float"`
+  check — basic/negative/uppercase/explicit-positive exponent literals,
+  the two "bare trailing e is NOT consumed" boundary cases
+  (`"5e"`, `"5experiment"`), and one end-to-end `parse_whence` sanity
+  check. Also added one new entry to `tests/test_parser_differential.py`'s
+  hand-picked `SYNTHETIC` corpus (`'let e = 1e5 + 1e-3 - 2.5E2'`),
+  exercising the full host-vs-guest AST-shape comparison (`canon_host`/
+  `canon_guest`'s `"num"` case already carries the literal's parsed
+  VALUE, so this also catches a one-sided fix, not just a one-sided
+  crash). `self_eval.lang`'s own SELF-TESTS section was left untouched —
+  it tests the EVALUATOR, not the lexer, and self_host.lang already
+  covers the lexer directly; the two files still share the fix because
+  it lives in their shared library section, confirmed by
+  `test_parser_section_matches_self_host`.
+- **Bookkeeping updates this fix required**: `self_host.lang` now parses
+  to 162 top-level statements (was 154; +1 for `exp_end`, +7 for the new
+  checks) — `tests/test_self_hosting.py::test_guest_parser_parses_its_
+  own_full_source`'s pin updated. The shared library section grew from
+  `self_host.lang` lines 28..561 to 28..574 (both `LIB_START, LIB_END` in
+  `test_self_hosting.py` and the hard-coded slice in
+  `test_self_eval.py::test_parser_section_matches_self_host` updated
+  together, since a length mismatch between them would silently pass the
+  substring check on a truncated section). `self_host.lang` direct-run
+  checkpoint count: 66 -> 73 passed (`tests/test_examples.py::test_self_
+  hosting_real_syntax`'s hardcoded string updated to match).
+  `self_eval.lang` unaffected (still 105 passed) — it never had its own
+  lexer checkpoints.
+- **Verification**: `python3 run.py examples/self_host.lang`: 66 -> **73
+  passed, 0 failed** (+7 exact). `python3 run.py examples/self_eval.lang`:
+  unchanged, **105 passed, 0 failed**. `pytest tests/test_self_hosting.py
+  tests/test_self_eval.py`: **32 passed** (all green, including the two
+  updated pins). `pytest tests/test_parser_differential.py -m
+  whence_slow`: **2 passed, 1 deselected** (the new SYNTHETIC entry adds
+  an assertion inside an existing test, not a new test node).
+  `run_tests_fast.sh`: **952 passed, 40 deselected**, pytest test-node
+  count unchanged from round 331 (all new coverage lives as in-language
+  `check`s or corpus entries inside existing test functions). Full
+  unfiltered `pytest tests/` (backgrounded, 388.45s): **992 passed, 0
+  failed** — matches the implied 991-baseline (round 326's own post-fix
+  count, unchanged since by any full-suite-affecting round) + 1 (round
+  330's new `test_self_eval.py` pin), exactly; this round adds 0 new
+  pytest test nodes. Cross-track `bash harness/run_tests_fast.sh`: **417
+  passed, 234 deselected**, byte-identical to round 331's own baseline.

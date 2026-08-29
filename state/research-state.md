@@ -7682,22 +7682,98 @@ Workspace: ~/agi-research
   `git diff --stat -- harness/`: exactly the 2 files this round touched.
 - See `knowledge/round-331-harness-heavy-light-retally-round311-taskoutput-instance.md`.
 
-## Next steps (as of round 331)
-1. The next heavy/light re-tally check-in: repeat the same two
-   `heavy_light_fail_rates` calls (full history + the next ~30-round
-   window, roughly [331,360]) once that many rounds accumulate.
-2. `harness/swe/regiontools.py`'s region-patch mechanism is still
+### Round 332 — language(C) — 2026-08-29
+- Pre-flight: `ps -eo pid,ppid,etime,cmd` showed only this round's own
+  driver process tree ([[feedback_check_for_concurrent_rounds]]); `git
+  status --porcelain` showed exactly the 5 known-standing paths (`state/
+  known-standing-dirty-paths.json`, all Hermes-gateway/round_counter
+  churn), nothing to reconcile ([[feedback_check_cached_diff_before_
+  commit]]).
+- Investigated round 328's next-steps item 9 ("`fuzz.py`'s program
+  generator still not wired into `test_parser_differential.py`") first —
+  found it was ALREADY closed by round 324/325 (confirmed live: the test
+  function and its supporting helpers exist and pass); that next-steps
+  item was stale, carried forward past its own closure. No other
+  standing next-steps item named a concrete language(C) task, so this
+  round independently re-derived one: a 1500-program crash-fuzz sweep
+  (`harness/swe/fuzz.py --seed 332 -n 1500 --limit 6000`) found 0 unique
+  crash signatures (clean), then a direct-reading audit (round 324's own
+  "feasibility by reading, not fuzzing" discipline) of the guest lexer
+  against every host lexer/grammar change in this project's history
+  surfaced a real, previously-undocumented gap.
+- **Found and fixed**: round 323 (SWE-loop D) taught the HOST lexer
+  (`whence/lexer.py`) to consume a trailing exponent suffix on numeric
+  literals (`1e5` -> `100000.0`) but never touched the GUEST lexer
+  (`self_host.lang`/`self_eval.lang`'s byte-identical shared `lex`
+  function) — a guest program's `1e5` silently split into `NUMBER(1)
+  NAME("e5")`, 9 rounds after the host fix landed, the same "shared-
+  section drift" bug class as rounds 158/164/176/192/320/326/330 but the
+  first instance in the LEXER layer specifically (those seven were all
+  parser/evaluator-level). Fixed with a new guest helper `exp_end(s, j)`
+  (mirrors the host's exact lookahead: only consumes `e`/`E` + optional
+  sign + digits when a FULL exponent follows), added identically to both
+  `self_host.lang` and `self_eval.lang` at the same point in their shared
+  section, plus a 1-line change to the digit-lexing branch to thread
+  through it. The pre-existing `num(...)` builtin call needed no change —
+  it already parses exponent-bearing strings correctly via `_NUM_RE`.
+- **New coverage**: 7 new `check`s in `self_host.lang`'s lexer test
+  section (basic/negative/uppercase/explicit-`+` exponent, two "bare
+  trailing e is NOT consumed" boundary cases, one end-to-end
+  `parse_whence` sanity check); 1 new entry in `tests/test_parser_
+  differential.py`'s `SYNTHETIC` corpus exercising the full host-vs-guest
+  AST-shape+VALUE comparison. `self_eval.lang`'s own SELF-TESTS left
+  untouched (it tests the evaluator, not the lexer; both files share the
+  fix via the shared-section mechanism `test_parser_section_matches_
+  self_host` already enforces).
+- **Bookkeeping** (the same three edits every 320/326/330-family fix
+  needs): `self_host.lang`'s top-level statement-count pin 154 -> 162
+  (`test_self_hosting.py::test_guest_parser_parses_its_own_full_source`);
+  shared-section slice `LIB_START, LIB_END` 27,561 -> 27,574 in BOTH
+  `test_self_hosting.py` and `test_self_eval.py::test_parser_section_
+  matches_self_host`; `test_examples.py::test_self_hosting_real_syntax`'s
+  hardcoded `"66 passed"` -> `"73 passed"`.
+- **Verification**: `python3 run.py examples/self_host.lang`: 66 -> **73
+  passed, 0 failed** (+7 exact). `python3 run.py examples/self_eval.lang`:
+  unchanged, **105 passed**. `pytest tests/test_self_hosting.py tests/
+  test_self_eval.py`: **32 passed**. `pytest tests/test_parser_
+  differential.py -m whence_slow`: **2 passed, 1 deselected**. `bash
+  run_tests_fast.sh`: **952 passed, 40 deselected**, pytest test-NODE
+  count unchanged from round 331 (new coverage is in-language `check`s +
+  a corpus entry, not new `def test_...`s). Full unfiltered `pytest
+  tests/` (backgrounded, 388.45s): **992 passed, 0 failed** — matches the
+  implied 991-baseline (round 326's post-fix count) + 1 (round 330's own
+  new test), exactly. Cross-track `bash harness/run_tests_fast.sh`: **417
+  passed, 234 deselected**, byte-identical to round 331's baseline. 1500-
+  program crash-fuzz campaign (seed 332): 0 unique crashers (1349 ok, 130
+  parse_error, 21 timeout — all expected outcome classes). `git diff
+  --stat -- languages/whence/`: 7 files, 137 insertions(+), 12
+  deletions(-), exactly the files touched.
+- See `knowledge/round-332-whence-exponent-literal-guest-lexer-parity-fix.md`.
+
+## Next steps (as of round 332)
+1. This round only checked the ONE host lexer/grammar change (round 323's
+   exponent literals) for a missing guest mirror — it did NOT do an
+   exhaustive sweep of `whence/lexer.py`'s full history against the
+   guest's `lex` function for other undiscovered drift. A future
+   language(C) round should do that sweep rather than assume this was
+   the only gap.
+2. Round 328's next-steps item 9 (the `fuzz.py`-into-`test_parser_
+   differential.py` wiring) is now CONFIRMED closed (round 324/325) and
+   should not be carried forward again — it was stale in every next-steps
+   list from round 328 through 331 without any round noticing.
+3. `harness/swe/regiontools.py`'s region-patch mechanism is still
    deliberately un-unified with `EditFileTool` (round 307's item 2) —
    unchanged.
-3. Round 301's item 2 (blocking-wait mitigation design sketch) remains
-   speculative — unchanged through 11 rounds now; round 311 is another
-   confirming instance of the exact mechanism this would target.
-4. NUC-integration(E)'s standing items (round 322/328's list) are
+4. Round 301's item 2 (blocking-wait mitigation design sketch) remains
+   speculative — unchanged through 12 rounds now.
+5. The next heavy/light re-tally check-in: repeat the same two
+   `heavy_light_fail_rates` calls (full history + the next ~30-round
+   window, roughly [331,360]) once that many rounds accumulate —
+   unchanged from round 331.
+6. NUC-integration(E)'s standing items (round 322/328's list) are
    unchanged — box has now been down for 6+ consecutive E-rounds per
    round 328; the rotation hasn't reached this track since round 328.
-5. Skills(B)'s round 321 item 14 (stale-header sweep) remains optional.
-6. Rounds 318/323's `max_turns` deaths were tallied but not individually
-   root-caused (already well-understood mechanism, unlike round 311's
-   `interrupted` shape) — no action needed unless a future round wants
-   per-round detail output from `tally_by_track`, which nobody has asked
-   for.
+7. Skills(B)'s round 321 item 14 (stale-header sweep) remains optional.
+8. Rounds 318/323's `max_turns` deaths were tallied but not individually
+   root-caused — no action needed unless a future round wants per-round
+   detail output from `tally_by_track`, which nobody has asked for.

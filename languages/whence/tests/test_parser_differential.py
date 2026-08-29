@@ -82,6 +82,7 @@ REAL_EXAMPLE_FILES = [
 # own finding directly (not just via `guess.lang`'s real-world instance).
 SYNTHETIC = [
     'let x = 1 + 2 * 3 - 4 / 2',
+    'let e = 1e5 + 1e-3 - 2.5E2',   # round 332: exponent-literal guest parity
     'let s = "hi" + "there"',
     'let b = true and false or not true',
     'let r = (miss "why") rescue 5',
