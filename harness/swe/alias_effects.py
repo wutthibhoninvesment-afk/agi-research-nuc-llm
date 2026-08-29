@@ -35,9 +35,20 @@ import sys
 WHENCE_ROOT = os.path.normpath(os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "..", "..", "languages", "whence"))
 
-EFFECTFUL = {"print": "io"}
+# v0.14.8 (round 294) added `rand`/"random" as a SECOND entry in the real
+# parser's own `_EFFECTFUL_BUILTINS` — this dict is this module's
+# independent mirror of that same ground truth, so it gains the identical
+# second entry (round 299). `AliasEffectsGen` below stays frozen to its own
+# documented v0.14.2 scope and never emits "rand" as source text, so the
+# new entry is simply inert there — `ExtendedEffectGen` (round 299) is the
+# one that actually exercises it, mirroring how `EFFECT_TAG_SETS` below is
+# already shared plumbing between both generators without either being
+# forced to use every combination it offers.
+EFFECTFUL = {"print": "io", "rand": "random"}
 EFFECT_TAG_SETS = (None, frozenset(), frozenset(["io"]), frozenset(["net"]),
-                   frozenset(["io", "net"]))
+                   frozenset(["io", "net"]), frozenset(["random"]),
+                   frozenset(["io", "random"]), frozenset(["net", "random"]),
+                   frozenset(["io", "net", "random"]))
 RESERVED = {"effects", "shape", "check", "let", "fn", "if", "else", "rescue",
             "true", "false", "and", "or", "not", "why", "snip"}
 
@@ -443,6 +454,35 @@ def check_one(seed, max_depth=3, max_stmts=4):
 # shape) was sufficient without extra reprioritization — measured directly
 # before sizing the mutation test below, ~9% of generated programs (not
 # ~0.05%).
+#
+# Round 299 (SWE-loop D): v0.14.8 (round 294) added `rand` as a SECOND
+# effectful builtin (tag "random", arity 0) — a genuinely different kind of
+# extension from every prior round's own addition to this generator/oracle:
+# rounds 281/287/293 each added a new ALIAS-TRACKING SHAPE (a new stack, a
+# new `_resolve_effectful_*` mirror) for the SAME one builtin, `print`.
+# `rand` is the opposite axis — the SAME five already-shipped shapes, but a
+# SECOND source name that can flow through every one of them. No new stack,
+# no new `resolve_*`/`record_call_*` method is needed: `known_alias_names()`,
+# `_stmt_let_record`'s field-alias/field-return-alias pools, and every other
+# helper already operate on whatever tag a tracked name resolves to, not on
+# the name's own identity — verified directly, the same discipline every
+# prior round's own comment uses, by reading `_check_effect_call` and all
+# five `_resolve_effectful_*` methods in `whence/parser.py` line-by-line
+# first: none of them special-case `print` by name, only by the tag
+# `_EFFECTFUL_BUILTINS.get(name)` returns. The only three places in THIS
+# generator that hardcoded the literal string `"print"` instead of drawing
+# from a name pool are `_stmt_let_builtin_alias` (the ONE place a fresh
+# alias is ever bound directly to a builtin, not a chain), `_stmt_call`
+# (the direct, non-aliased call statement), and `gen_plain_tail_expr`'s own
+# direct-call branch (the fn-tail mirror of `_stmt_call`) — all three now
+# pick between `print`/`rand` instead of hardcoding `print`, and every
+# downstream consumer (alias chains, field literals, field-return literals,
+# nested-field literals, if/else-tail combination) picks up "random"-tagged
+# names for free through the exact same pools it already used for
+# "io"-tagged ones. `EFFECT_TAG_SETS` above gained the four `random`-
+# inclusive combinations so the GRANTED path (not just the always-denied
+# "declared io/net only" path) gets exercised for `rand` specifically, the
+# same reason `[io, net]` exists there already for `print`.
 
 class ExtendedEffectGen(object):
     """Generates (source, verdict) pairs covering v0.14.2/3/4/5/6 together
@@ -480,6 +520,18 @@ class ExtendedEffectGen(object):
         name = "%s%d" % (prefix, self.counter)
         assert name not in RESERVED
         return name
+
+    def _random_effectful_builtin(self):
+        """Round 299: `print`/`rand`, picked uniformly, for the three call
+        sites (`_stmt_let_builtin_alias`, `_stmt_call`, `gen_plain_tail_
+        expr`'s own direct-call branch) that reference a builtin BY NAME
+        rather than through a tracked-alias pool. Returns `(name,
+        call_text)` — `rand` is arity 0 (`rand()`) where `print` is arity 1
+        (`print(0)`), but this split is purely cosmetic: `whence/parser.py`
+        has no arity check at all (only `whence/interp.py` does, at
+        runtime), so parse-time verdict correctness never depends on
+        argument count here."""
+        return self.r.choice((("print", "print(0)"), ("rand", "rand()")))
 
     # -- resolution: mirrors the three Parser._resolve_effectful_* ------
     def resolve_alias(self, name):
@@ -871,8 +923,9 @@ class ExtendedEffectGen(object):
             self.record_call_direct(name)
             return self._mk_expr("%s(0)" % name), None
         if choice < 0.35:
-            self.record_call_direct("print")
-            return self._mk_expr("print(0)"), None
+            builtin, call_text = self._random_effectful_builtin()
+            self.record_call_direct(builtin)
+            return self._mk_expr(call_text), None
         if choice < 0.45 and returns:
             fname = r.choice(returns)
             self.record_call_return_chain(fname)
@@ -944,8 +997,9 @@ class ExtendedEffectGen(object):
 
     def _stmt_let_builtin_alias(self, depth):
         name = self.fresh("a")
-        self.bind(name, EFFECTFUL.get("print"), None, None, None, None)
-        return "let %s = print" % name
+        builtin, _ = self._random_effectful_builtin()
+        self.bind(name, EFFECTFUL.get(builtin), None, None, None, None)
+        return "let %s = %s" % (name, builtin)
 
     def _stmt_let_alias_chain(self, depth):
         # NameRef RHS (`Parser.statement`, ~line 234): copies BOTH the
@@ -1088,8 +1142,9 @@ class ExtendedEffectGen(object):
         return "let %s = %d" % (name, self.r.randint(0, 9))
 
     def _stmt_call(self, depth):
-        self.record_call_direct("print")
-        return self._mk_expr("print(0)")
+        builtin, call_text = self._random_effectful_builtin()
+        self.record_call_direct(builtin)
+        return self._mk_expr(call_text)
 
     def _stmt_call_alias(self, depth):
         name = self.r.choice(self.known_alias_names())

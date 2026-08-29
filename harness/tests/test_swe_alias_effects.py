@@ -392,3 +392,83 @@ def test_extended_oracle_detects_injected_field_nested_shadowing_bug():
     finally:
         P.Parser._resolve_effectful_field_nested = orig
     assert mismatches > 0, "mutated nested-field shadowing bug went undetected"
+
+
+# ==================================================== v0.14.8 (round 299) ==
+# `rand` (v0.14.8, round 294) is a SECOND effectful builtin — unlike every
+# prior round's own addition here (a new alias-tracking SHAPE for the same
+# one builtin, `print`), this is the same five already-shipped shapes
+# gaining a second SOURCE name. No new stack, no new `resolve_*`/
+# `record_call_*` method — see `alias_effects.py`'s own "Round 299" module
+# comment for why. Closes round 294/296's own next-steps item ("`ExtendedEffectGen`
+# oracle coverage for `rand`").
+
+def test_extended_generator_reaches_rand_source():
+    """Coverage guard, not a correctness check — confirms `rand` (not just
+    `print`) is actually reachable as a direct call/alias source at a real
+    rate, not just theoretically wired into `EFFECTFUL`/
+    `_random_effectful_builtin`. Measured ~82% (2468/3000) in this round's
+    own manual scaling check, well above the 10% floor used elsewhere in
+    this file."""
+    pat = re.compile(r"\brand\b")
+    hits = 0
+    n = 3000
+    for seed in range(n):
+        src, _ = ExtendedEffectGen(seed, max_depth=4, max_stmts=5).gen_program()
+        if pat.search(src):
+            hits += 1
+    assert hits > n * 0.1, (hits, n)
+
+
+def test_extended_targeted_campaign_reaches_random_tag_error():
+    """A narrower correctness check than `test_extended_targeted_campaign_
+    no_mismatches` above: confirms the campaign doesn't just avoid
+    mismatches by accident (e.g. every `rand` call happening to land where
+    it's granted) — some real fraction of the predicted verdicts are
+    specifically `("error", ..., "random")`, exercising the DENIED path for
+    the new tag, not only the granted one."""
+    rng = random.Random(299555)
+    random_denials = 0
+    n = 3000
+    for _ in range(n):
+        seed = rng.randrange(10 ** 9)
+        depth = rng.choice([2, 3, 3, 4, 5])
+        stmts = rng.choice([2, 3, 4, 5, 6])
+        _, expected, _, mismatch = check_one_ext(seed, max_depth=depth, max_stmts=stmts)
+        assert not mismatch
+        if expected[0] == "error" and expected[2] == "random":
+            random_denials += 1
+    assert random_denials > n * 0.02, random_denials
+
+
+def test_extended_oracle_detects_injected_missing_rand_builtin_bug():
+    """Mutation test: revert the real parser's `_EFFECTFUL_BUILTINS` to its
+    pre-v0.14.8 state (missing the `rand` entry entirely — e.g. a dropped
+    merge conflict or an incomplete revert) and confirm the campaign fires.
+    Unlike the five shadowing-revert mutation tests above (which target the
+    scope-stack WALK, tag-agnostic by construction — `_check_effect_call`
+    and every `_resolve_effectful_*` helper are already generic over the
+    tag, per `alias_effects.py`'s own module comment), this is the one
+    mutation actually specific to `rand` as a SECOND registered builtin:
+    the dict entry itself is the only place the real parser's tag mapping
+    lives. Without this, a clean run of `test_extended_targeted_campaign_
+    no_mismatches` would be unfalsifiable evidence that `rand` specifically
+    (as opposed to the shared machinery) is being checked at all."""
+    sys.path.insert(0, WHENCE_ROOT)
+    from whence import parser as P
+
+    orig = dict(P._EFFECTFUL_BUILTINS)
+    del P._EFFECTFUL_BUILTINS["rand"]
+    try:
+        rng = random.Random(299556)
+        mismatches = 0
+        for _ in range(2000):
+            seed = rng.randrange(10 ** 9)
+            depth = rng.choice([3, 4, 4, 5, 5])
+            stmts = rng.choice([3, 4, 5, 6, 7])
+            _, _, _, mismatch = check_one_ext(seed, max_depth=depth, max_stmts=stmts)
+            mismatches += mismatch
+    finally:
+        P._EFFECTFUL_BUILTINS.clear()
+        P._EFFECTFUL_BUILTINS.update(orig)
+    assert mismatches > 0, "mutated missing-rand-builtin bug went undetected"

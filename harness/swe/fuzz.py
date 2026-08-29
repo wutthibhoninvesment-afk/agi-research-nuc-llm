@@ -82,6 +82,13 @@ BUILTIN_ARITY = {
     "steps": (1, 2), "at": 2, "blame": 1, "diverge": (1, 2),
     "contrast": (1, 2),
     "guess": 3, "is_guess": 1, "confidence": 1, "sure": 2,
+    # v0.14.8 (round 294): `rand()`, arity 0 — the ONLY zero-arity entry in
+    # this table. `call()`'s generic fallback path (`n = ar` when `ar` is a
+    # plain int, `args = [self.expr(...) for _ in range(n)]`) already
+    # produces `range(0)` == `[]` and `args[:0] == []` with no special case
+    # needed, so this is a pure table addition — round 299 (SWE-loop D),
+    # closing round 294's own next-steps item 2.
+    "rand": 0,
 }
 BINOPS = ["+", "-", "*", "/", "%", "==", "!=", "<", "<=", ">", ">=", "and", "or"]
 STR_POOL = ["", "a", "ab", "3O", "42", " 7 ", "1_000", "nan", "inf", "-inf",
@@ -102,14 +109,21 @@ TYPE_TAGS = ("num", "str", "bool", "list", "record", "fn", "any")
 # v0.14 backlog (closed round 162): the grammar generated no `effects [...]`
 # clauses either, so the parse-time effect check (round 146) was only ever
 # exercised by the hand-written corpus (`examples/effects.lang`,
-# `tests/test_v14.py`). `io` is the only builtin ever registered as
-# effectful; `net` is deliberately never registered, so it fuzzes the
-# "declared but unrelated tag does not grant" path alongside the real one.
-# A generated body is free to call `print` directly (it's an ordinary
-# BUILTIN_ARITY entry `call()` can pick) inside an `effects []` function,
-# which is a real host ParseError — already a normal, handled fuzzer
-# outcome (every existing seed already produces plenty from other causes).
-EFFECT_TAG_SETS = ("[]", "[io]", "[net]", "[io, net]")
+# `tests/test_v14.py`). Through v0.14.7, `io` (`print`) was the only
+# builtin ever registered as effectful; v0.14.8 (round 294) added `rand`
+# (tag "random"). `net` is still deliberately never registered to any
+# builtin, so it fuzzes the "declared but unrelated tag does not grant"
+# path alongside the two real ones. A generated body is free to call
+# `print`/`rand` directly (both ordinary `BUILTIN_ARITY` entries `call()`
+# can pick) inside an `effects []` function, which is a real host
+# ParseError — already a normal, handled fuzzer outcome (every existing
+# seed already produces plenty from other causes). Round 299 added the
+# four `random`-inclusive combinations below so this corpus also generates
+# clauses that DO grant `rand`'s own tag (unlike the `net`-only combos,
+# which deliberately never grant anything real) — the same reason
+# `[io, net]` already existed for `print`.
+EFFECT_TAG_SETS = ("[]", "[io]", "[net]", "[io, net]", "[random]",
+                   "[io, random]", "[net, random]", "[io, net, random]")
 
 # `guess`/`is_guess`/`confidence`/`sure` are ORDINARY builtin calls (no new
 # syntax, unlike `: Type`/`effects [...]`), so they join `BUILTIN_ARITY` and
@@ -224,13 +238,14 @@ class ProgramGen(object):
 
     def _alias_source(self):
         """A bare NameRef `Parser._resolve_effectful_alias` recognizes as
-        effectful right now: `print` itself or any name already tracked as
-        a direct alias. Deliberately excludes `return_alias_fns` names — a
+        effectful right now: `print` or `rand` (v0.14.8, round 294; added
+        here round 299) themselves, or any name already tracked as a direct
+        alias of either. Deliberately excludes `return_alias_fns` names — a
         bare fn NAME used as a tail (not a call) resolves through
         `alias_scopes`, where a named fn is always bound to `None`
         (`parser.py` `statement()`'s named-fn branch sets it explicitly),
         never through `return_alias_scopes`."""
-        return self.r.choice(["print"] + self.alias_names)
+        return self.r.choice(["print", "rand"] + self.alias_names)
 
     def _return_alias_body(self, params):
         """v0.14.3/v0.14.5 fuzz coverage: a fn body whose tail is a bare
@@ -379,11 +394,12 @@ class ProgramGen(object):
         if p < 0.55:
             name = self.fresh()
             # v0.14.2: 10% of ordinary `let`s bind a direct alias instead —
-            # of `print` itself, or (if one already exists) of a prior
-            # alias, so multi-hop chains show up too (see `__init__`).
+            # of `print`/`rand` itself (round 299 added `rand` alongside
+            # `print` here), or (if one already exists) of a prior alias,
+            # so multi-hop chains show up too (see `__init__`).
             aq = r.random()
             if aq < 0.05 or (aq < 0.1 and not self.alias_names):
-                e = "print"
+                e = r.choice(["print", "rand"])
                 self.alias_names.append(name)
             elif aq < 0.1:
                 e = r.choice(self.alias_names)   # chain through a prior alias

@@ -56,6 +56,55 @@ def test_guess_and_sure_builtins_are_total_under_fuzz_confidences():
         assert o.kind == "ok", (conf, o)
 
 
+# ==================================================== v0.14.8 (round 299) ==
+# `rand()` (v0.14.8, round 294) joined `BUILTIN_ARITY` (round 299) as the
+# ONLY arity-0 entry, and `_alias_source`/`statement`'s own direct-builtin-
+# alias branch now pick between `print`/`rand` — closing round 294's own
+# next-steps item 2, the crash-fuzz-coverage half of the gap (the parse-
+# time VERDICT-correctness half lives in `harness/swe/alias_effects.py`'s
+# `ExtendedEffectGen`, see `test_swe_alias_effects.py`).
+
+def test_generator_now_emits_rand_calls():
+    """Mirrors `test_generator_now_emits_guess_family_calls` above: a
+    coverage guard confirming `rand` is actually reachable from the
+    grammar-directed generator (bare `rand()`/`rand(x)` calls, or a
+    `let x = rand` alias later called through), not just theoretically
+    wired into `BUILTIN_ARITY`."""
+    rand_re = re.compile(r"\brand\b")
+    seen = sum(1 for i in range(200) if rand_re.search(ProgramGen(i).program()))
+    assert seen >= 15, seen
+
+
+def test_rand_builtin_is_total_and_seed_reproducible_under_fuzz():
+    """`rand()` must be TOTAL (never raises) like every other builtin, and
+    — since v0.14.8 made it a REPRODUCIBLE draw from a per-`Interpreter`
+    seeded stream rather than true entropy, specifically so the fuzzer's
+    own differential oracles keep working — two fresh runs of the exact
+    same source at the same default seed must agree exactly, not just both
+    merely succeed."""
+    from swe.fuzz import _import_whence
+    Interpreter, _, _, _, full_show = _import_whence()
+    src = ('let a = rand()\n'
+           'let b = rand()\n'
+           'print(str(a) + "," + str(b))\n')
+    o1 = run_program(src)
+    o2 = run_program(src)
+    assert o1.kind == "ok" and o2.kind == "ok", (o1, o2)
+    v1 = full_show(Interpreter().run(src))
+    v2 = full_show(Interpreter().run(src))
+    assert v1 == v2, (v1, v2)
+
+
+def test_effect_tag_sets_now_include_random_combinations():
+    """Round 299: `EFFECT_TAG_SETS` gained four `random`-inclusive
+    combinations alongside the pre-existing `io`/`net` ones, so a generated
+    `effects [...]` clause can actually GRANT `rand`'s own tag, not just
+    the always-denied `net`-only path."""
+    from swe.fuzz import EFFECT_TAG_SETS
+    assert EFFECT_TAG_SETS == ("[]", "[io]", "[net]", "[io, net]", "[random]",
+                                "[io, random]", "[net, random]", "[io, net, random]")
+
+
 def test_oracle_classifies_ok_parse_error_and_crash(monkeypatch):
     assert run_program("let x = 1 + 2\nprint(x)\n").kind == "ok"
     assert run_program("let x = \n").kind == "parse_error"

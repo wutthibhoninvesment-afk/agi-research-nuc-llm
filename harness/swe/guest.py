@@ -69,7 +69,16 @@ LIB_MARKER = "# ==== SELF-TESTS"
 # reason-wording already carve out above. `at`/`blame`/`diverge`/`contrast`
 # are the same family (steps-shaped output) and stay banned for the
 # identical reason, on top of not having guest support built yet at all.
-BANNED = re.compile(r"\b(why|snip|steps|at|blame|diverge|contrast|print)\b")
+#
+# `print` (and, since round 299, `rand` — v0.14.8, round 294, the SECOND
+# effectful builtin) are banned for a THIRD, unrelated reason from the rest
+# of this list: not a provenance/execution gap at all (both have real guest
+# dispatch — see `GuestGen`'s own docstring below, the "does not ENFORCE a
+# declaration" paragraph) but the guest's total non-enforcement of `effects
+# [...]` declarations, which would otherwise let an effects-restricted
+# program's `rand()`/`print()` call raise on the host and silently succeed
+# on the guest.
+BANNED = re.compile(r"\b(why|snip|steps|at|blame|diverge|contrast|print|rand)\b")
 
 
 def guest_safe(src):
@@ -123,16 +132,26 @@ class GuestGen(ProgramGen):
     docstring for why that is a materially bigger change than the erasure
     return-type annotations got). That is safe to leave unenforced here
     specifically because `BANNED` above already strips every line
-    containing `print` — the ONE effectful builtin (`_EFFECTFUL_BUILTINS`
-    in `whence/parser.py`) — from every program this generator emits,
-    on BOTH sides of the comparison, regardless of what any `effects [...]`
-    clause says. A generated declaration is therefore always vacuously
-    satisfied (there is no call left in the body for it to restrict), so
-    there is no way for the host's parse-time rejection and the guest's
-    silent non-enforcement to disagree through this generator. Shapes
-    remain unsupported on the guest side for the same reason `typed_params`
-    stays inherited unchanged (see above) — out of scope for this
-    generator by construction, not worked around here."""
+    containing `print` OR `rand` — BOTH effectful builtins
+    (`_EFFECTFUL_BUILTINS` in `whence/parser.py`; `rand`, v0.14.8 round 294,
+    joined `BANNED` at round 299) — from every program this generator
+    emits, on BOTH sides of the comparison, regardless of what any `effects
+    [...]` clause says. Banning `rand` here is NOT about execution support
+    — `self_eval.lang`'s `apply_host_builtin` has dispatched `rand()`
+    straight to the real host builtin since round 296, exactly as it
+    already did for `print` — it is the same enforcement-gap reasoning as
+    `print`'s own ban: an effects-restricted guest program calling `rand()`
+    would raise a ParseError on the host side but silently execute (and,
+    unlike a since-round-296-supported call, produce a REAL, non-miss
+    value) on the guest side, a genuine one-sided divergence through this
+    exact gap were `rand` left un-banned. A generated declaration is
+    therefore always vacuously satisfied for both builtins (there is no
+    call left in the body for it to restrict), so there is no way for the
+    host's parse-time rejection and the guest's silent non-enforcement to
+    disagree through this generator. Shapes remain unsupported on the
+    guest side for the same reason `typed_params` stays inherited
+    unchanged (see above) — out of scope for this generator by
+    construction, not worked around here."""
 
     def template(self):
         r = self.r
@@ -545,7 +564,8 @@ def oracle_self_eval(pkg, src, max_depth=2000, harness=None, why_probe=True):
         return O.OracleOutcome(
             "parse_error", GUEST_ORACLE,
             "not guest-safe: uses a provenance builtin (why/snip/steps/at/"
-            "blame/diverge/contrast/print) the guest evaluator does not mirror")
+            "blame/diverge/contrast) or an effectful builtin (print/rand) "
+            "the guest evaluator does not mirror the effects check for")
     try:
         program = O._parse(pkg, src)
     except (pkg["LexError"], pkg["ParseError"]) as e:

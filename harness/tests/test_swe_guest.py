@@ -95,6 +95,31 @@ def test_generator_now_includes_guess_family_in_guest_output(pkg, harness):
     assert not mismatches, mismatches[:3]
 
 
+# ==================================================== v0.14.8 (round 299) ==
+# `rand` joined `BUILTIN_ARITY` (round 299, `harness/swe/fuzz.py`) as
+# Whence's second effectful builtin (v0.14.8, round 294) — UNLIKE `guess`/
+# `is_guess`/`confidence`/`sure` above, this one stays banned on purpose:
+# `BANNED`'s own comment explains why (the guest's total non-enforcement of
+# `effects [...]` declarations, not an execution-support gap — `self_eval.
+# lang` has dispatched `rand()` straight to the host builtin since round
+# 296, exactly like `print`).
+
+def test_generator_can_emit_rand_but_it_stays_banned():
+    """The mirror image of `test_generator_emits_no_banned_tokens`: confirms
+    the ban is actually EXERCISED, not vacuously true because the shared
+    grammar never happens to produce `rand` text in the first place. The
+    unfiltered host-only generator must emit `rand` at a real rate; the
+    guest-filtered generator (same seeds) must never let it through."""
+    from swe.fuzz import ProgramGen
+    rand_re = re.compile(r"\brand\b")
+    raw_hits = sum(1 for i in range(200)
+                   if rand_re.search(ProgramGen(i, stress_rate=0.0).program()))
+    assert raw_hits >= 15, raw_hits
+    for i in range(200):
+        src = G.generate_guest_program(i)
+        assert not rand_re.search(src.split("let __result")[0]), (i, src)
+
+
 def test_escape_roundtrip(pkg, harness):
     # a program full of string escapes must survive embedding into run_src
     src = ('let s = "a\\nb" + "\\"q\\"" + "back\\\\slash"\n'
