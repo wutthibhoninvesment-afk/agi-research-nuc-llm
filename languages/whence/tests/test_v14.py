@@ -143,6 +143,22 @@ lexically, not through arbitrary calls.
 Both remaining gaps are honest, tested limitations, not bugs — a full
 call-graph-aware (and fully data-flow-sensitive) effect system is future
 work (see research-state.md's language backlog).
+
+- **v0.14.8 (round 294): the SECOND effectful builtin.** Every alias-
+  tracking round from v0.14.2 through v0.14.7 exercised `_EFFECTFUL_
+  BUILTINS` with exactly one real entry (`print`/"io"); the "per-tag, not
+  merely was-a-clause-present" property was pinned only against a
+  hypothetical, unused tag name (`test_effects_unrelated_tag_still_blocks_
+  print`'s "network"). `rand` (arity 0, a float in `[0.0, 1.0)`, tag
+  "random") is a genuinely new capability — the interpreter's own
+  `random.Random` stream, seeded (default a fixed constant, 0, not OS
+  entropy) so a program's use of "randomness" stays fully REPRODUCIBLE
+  run to run, the same property `Interpreter`'s three independently-
+  constructed direct/fast/slow instances (`assert_three_way`) already
+  depend on for every other builtin. Confirms the v0.14 design comment's
+  own claim ("a future effectful builtin ... slots in by adding one entry
+  here — no other code needs to change") literally true: `_check_effect_
+  call` and every `_resolve_effectful_*` helper needed zero changes.
 """
 
 import os
@@ -150,7 +166,9 @@ import sys
 
 import pytest
 
+from whence.interp import Interpreter
 from whence.parser import parse, ParseError
+from whence.values import Miss
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from test_v09 import run, val, assert_three_way  # noqa: E402
@@ -1058,3 +1076,101 @@ def test_three_way_nested_escape():
         '  inner()\n'
         '}\n'
         'let result = outer()\n')
+
+
+# --- v0.14.8 (round 294): `rand` — the second effectful builtin ------------
+
+def test_rand_returns_a_number_in_unit_range():
+    interp, env, out = run('let r = rand()\n')
+    r = env.get("r").payload
+    assert isinstance(r, float)
+    assert 0.0 <= r < 1.0
+
+
+def test_rand_rejects_arguments():
+    interp, env, out = run('let m = rand(1)\n')
+    miss = env.get("m").payload
+    assert isinstance(miss, Miss)
+    assert "rand expects 0 args, got 1" in miss.reasons[0]
+
+
+def test_rand_is_deterministic_for_the_default_seed():
+    """Two fresh Interpreters, both left at the default seed (0), draw the
+    IDENTICAL sequence — reproducibility, not OS entropy, is the whole
+    design point (SPEC.md "v0.14.8"): the three-way differential below
+    (three SEPARATE Interpreter instances for one program) could never
+    agree otherwise."""
+    def draws():
+        interp = Interpreter(out=lambda s: None)
+        env = interp.run('let a = rand()\nlet b = rand()\nlet c = rand()\n')
+        return [env.get(n).payload for n in ("a", "b", "c")]
+    first, second = draws(), draws()
+    assert first == second
+    assert len(set(first)) == 3, "three degenerate/equal draws is suspicious"
+
+
+def test_rand_default_seed_pinned_value():
+    """A real regression pin, not just an invariant: `random.Random`'s
+    algorithm (version 2, the default since Python 3.2) is a documented,
+    stable pure-Python algorithm for a given integer seed — not derived
+    from host entropy — so this exact value is safe to hardcode."""
+    interp = Interpreter(out=lambda s: None)
+    env = interp.run('let a = rand()\n')
+    assert env.get("a").payload == pytest.approx(0.8444218515250481)
+
+
+def test_rand_seed_argument_changes_the_stream():
+    env_a = Interpreter(out=lambda s: None, seed=1).run('let a = rand()\n')
+    env_b = Interpreter(out=lambda s: None, seed=2).run('let a = rand()\n')
+    assert env_a.get("a").payload != env_b.get("a").payload
+
+
+def test_effects_empty_blocks_rand():
+    with pytest.raises(ParseError) as ei:
+        parse('fn f() effects [] { rand() }\n')
+    assert "'rand'" in str(ei.value) and "'random'" in str(ei.value)
+
+
+def test_effects_random_allows_rand():
+    all_ok(
+        'fn f() effects [random] { rand() }\n'
+        'check "ok": f() >= 0 and f() < 1\n')
+
+
+def test_effects_random_tag_is_independent_of_io_tag():
+    """The two-real-tag mirror of `test_effects_unrelated_tag_still_blocks_
+    print` (which only ever proved per-tag distinctness against a
+    hypothetical, unused "network" tag): `io` does not also grant "random",
+    and `random` does not grant "io" back, in EITHER direction, now that
+    both are real, live capabilities."""
+    with pytest.raises(ParseError) as ei:
+        parse('fn f() effects [io] { rand() }\n')
+    assert "requires effect 'random'" in str(ei.value)
+    with pytest.raises(ParseError) as ei2:
+        parse('fn f() effects [random] { print(1) }\n')
+    assert "requires effect 'io'" in str(ei2.value)
+
+
+def test_effects_io_and_random_together_allow_both():
+    all_ok(
+        'fn f() effects [io, random] { print(rand()) }\n'
+        'check "ok": f() >= 0 and f() < 1\n')
+
+
+def test_aliased_rand_is_checked_same_as_aliased_print():
+    """The new builtin reuses `_resolve_effectful_alias` with zero code
+    change — confirmed live, not just by reading the source."""
+    with pytest.raises(ParseError):
+        parse('fn f() effects [] {\n  let r = rand\n  r()\n}\n')
+    all_ok(
+        'fn f() effects [random] {\n  let r = rand\n  r()\n}\n'
+        'check "ok": f() >= 0 and f() < 1\n')
+
+
+def test_three_way_rand_matches_across_direct_fast_slow():
+    """The critical end-to-end check for the v0.14.8 design decision: three
+    INDEPENDENTLY-CONSTRUCTED Interpreters (direct/fast/slow, each at the
+    same default seed) must draw the identical value for `render_why` to
+    match byte-for-byte, the same standing three-way contract every other
+    builtin here already satisfies."""
+    assert_three_way('fn f() effects [random] { rand() }\nlet result = f()\n')

@@ -1471,6 +1471,112 @@ that cannot end a statement.
   natural next SWE-loop(D) round, same size/shape as round 287's own
   v0.14.6 extension.
 
+## v0.14.8 (round 294) — effect system: the second effectful builtin, `rand`
+- **Every alias-tracking round from v0.14.2 through v0.14.7 exercised
+  `_EFFECTFUL_BUILTINS` (`parser.py`) with exactly ONE real entry**
+  (`print`/"io"); the "per-tag, not merely was-a-clause-present" property
+  (`test_effects_unrelated_tag_still_blocks_print`) was only ever pinned
+  against a hypothetical, unused tag name ("network"), never a second REAL
+  capability. Round 293's own next-steps explicitly named the choice this
+  round faced: the two genuinely multi-round-scale alias-tracking gaps
+  (builtin-as-argument, dynamic call graph) are "unchanged in scope-
+  assessment since round 270, still correctly not attempted piecemeal", so
+  any further extension to the effect-alias family should be "a genuinely
+  new Whence language feature (v0.14.8+)... unless one turns up during
+  normal spec review". A normal spec review of `parser.py`'s own v0.14
+  design comment turned exactly that up: "`_EFFECTFUL_BUILTINS = {"print":
+  "io"}` is the one place a future effectful builtin (randomness, a clock,
+  real I/O) would register its tag; nothing else would need to change" —
+  an anticipated extension point, sitting unclaimed since round 146.
+- **`rand()` (arity 0) draws a float in `[0.0, 1.0)`** from the
+  `Interpreter`'s own `random.Random` instance, tagged `"random"` (distinct
+  from `print`'s `"io"`) in `_EFFECTFUL_BUILTINS = {"print": "io", "rand":
+  "random"}`. Built as a `leaf` node (no input provenance, exactly like a
+  literal) — `whence/interp.py`'s `b_rand`.
+- **The one real design decision this round makes, and the reason it took
+  real thought rather than being a one-line addition**: an actually-
+  nondeterministic builtin is fundamentally at odds with THREE existing,
+  load-bearing pieces of this project's own testing methodology — the
+  three-way differential (`assert_three_way`, three SEPARATE `Interpreter`
+  instances for direct/fast/slow that must agree byte-for-byte on
+  `render_why`), the guest/host oracle campaigns, and `bench/ref_diff.py`'s
+  reference comparison — all of which assume a Whence PROGRAM's behavior
+  is a pure function of its source text. **Resolution: `rand()` is
+  reproducible, not unpredictable.** `Interpreter.__init__` gained a
+  `seed=0` parameter; `self._rng = random.Random(seed)` is a per-instance
+  stream, not process-global entropy. Two fresh `Interpreter()` instances
+  (the default seed, 0, unless overridden) draw the IDENTICAL sequence
+  (`test_rand_is_deterministic_for_the_default_seed`), so the three-way
+  differential's three independently-constructed interpreters agree on
+  `rand()`'s value exactly as they already agree on everything else
+  (`test_three_way_rand_matches_across_direct_fast_slow`) — no special-
+  casing needed anywhere in the differential harness itself. This is a
+  genuine departure from mainstream languages (most seed `random()` from OS
+  entropy by default, favoring unpredictability); Whence favors
+  reproducibility instead, the same value judgment sandboxed/deterministic-
+  replay execution environments make, and the only value judgment under
+  which "randomness" and "the entire test suite assumes determinism" can
+  coexist without a special case. `run.py` gained a `--seed N` CLI flag
+  (default 0) so a real user CAN vary the stream deliberately; the REPL and
+  every existing embedder that doesn't pass `seed=` keep the reproducible
+  default unchanged.
+- **Confirms the v0.14 design comment's own claim literally true**: adding
+  the second entry to `_EFFECTFUL_BUILTINS` needed ZERO other code changes
+  — `_check_effect_call` and every `_resolve_effectful_alias`/`_resolve_
+  effectful_return`/`_resolve_effectful_field`/`_resolve_effectful_field_
+  return`/`_resolve_effectful_field_nested` helper (v0.14.2 through
+  v0.14.7) already operate purely on the tag a name resolves to, generic
+  since the day each was written. `test_aliased_rand_is_checked_same_as_
+  aliased_print` exercises this live: `let r = rand; effects [] { r() }`
+  is rejected, `effects [random] { let r = rand; r() }` is granted, through
+  the SAME `_resolve_effectful_alias` v0.14.2 wrote for `print`.
+- **Per-tag distinctness, now proven with two real capabilities, not one
+  real + one hypothetical**: `effects [io]` does not grant `"random"` (so
+  `rand()` is still rejected), and `effects [random]` does not grant
+  `"io"` back (so `print(...)` is still rejected) — `test_effects_random_
+  tag_is_independent_of_io_tag`, the two-real-tag mirror of `test_effects_
+  unrelated_tag_still_blocks_print`. `effects [io, random]` grants both
+  (`test_effects_io_and_random_together_allow_both`).
+- **`examples/effects.lang` gained two checks** (7 → 9) demonstrating the
+  unrestricted top-level case and `effects [random]` granting the new tag
+  — no rejected-case example, the same reason v0.14's own file gives none
+  (a `ParseError` aborts the whole file before any `check` runs; the
+  rejection paths are pinned by `tests/test_v14.py` instead).
+- **Verification**: `tests/test_v14.py` 78/78 (was 67; 11 new tests: return-
+  type/arity/determinism/seed-argument for `rand` itself, the empty-scope
+  rejection, the granting case, the two-real-tag independence check in
+  BOTH directions, the io+random-together case, the aliased-`rand` reuse
+  check, one new three-way differential pin). `languages/whence/
+  run_tests_fast.sh` 908 passed/38 deselected (was 897; +11 matches
+  exactly, no other file's count moved). `bash harness/run_tests_fast.sh`
+  (the unrelated SWE-loop(D) track's own suite, run as a cross-track
+  regression check since this round touches `parser.py`/`interp.py`
+  neither alias_effects.py nor fuzz.py inspect directly) — **403 passed,
+  196 deselected, byte-identical to round 293's own baseline**.
+- **Guest parity — NOT done this round, by design, matching every prior
+  v0.14.x feature's own arc** (v0.14 itself landed round 146, guest parity
+  round 164; v0.14.1 round 264 still has no guest-side inheritance change
+  needed since the guest never enforced `effects [...]` at all): `self_
+  eval.lang`'s own `builtin_names` list has no entry for `rand` yet, so a
+  guest program calling it fails at NAME RESOLUTION, the same gap class
+  rounds 206 (`steps`)/218 (`at`/`blame`/`diverge`/`contrast`)/224
+  (`matches`/`shapeof`) each found and fixed for their own builtin.
+  `tests/test_self_hosting.py::test_effects_lang_runs_under_the_guest_
+  round_164_backlog_closed` updated to expect exactly `rand`'s own two new
+  checks failing under the guest (an unbound-name miss propagates through
+  both), every pre-existing check unaffected — the file still parses
+  cleanly (a bare `rand()` call is an ordinary `Call` node to the guest
+  parser, no different from any other name).
+- **Fuzz/oracle coverage — also NOT done this round, same reasoning**:
+  `harness/swe/fuzz.py`'s `ProgramGen` and `harness/swe/alias_effects.py`'s
+  `ExtendedEffectGen` both only know about `print`; teaching either
+  generator that `rand` is a second effectful builtin (and, for the fuzzer,
+  that `harness/swe/guest.py`'s `BANNED` line-filter needs a second entry so
+  guest-differential campaigns keep vacuously satisfying declarations the
+  same way they do for `print`) is future SWE-loop(D) work, not this
+  round's (language(C)'s) own scope — the same track split every prior
+  v0.14.x feature has followed.
+
 ## v0.15 (round 168) — AI-native primitives: `guess`/confidence
 - **The curriculum's last open "advanced feature" slot** (structural types
   v0.12, return types v0.13, effects v0.14 all shipped; round 146 itself
@@ -2228,9 +2334,9 @@ that cannot end a statement.
 - See `knowledge/round-224-whence-matches-shapeof-guest-parity.md`.
 
 ## Builtins
-`print len range map filter fold push str num abs sqrt missed reasons note
-contains join keys merge get put has find steps at blame diverge contrast
-typed matches shapeof guess is_guess confidence sure`
+`print rand len range map filter fold push str num abs sqrt missed reasons
+note contains join keys merge get put has find steps at blame diverge
+contrast typed matches shapeof guess is_guess confidence sure`
 
 ## Limits that are errors, not crashes
 - Expression nesting deeper than 60 levels (parentheses, prefix operators,

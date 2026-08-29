@@ -153,7 +153,7 @@ def test_effects():
     assert "logged total: 60" in r.stdout
     assert "logged total (via factory): 60" in r.stdout
     assert "logged total (via record field): 60" in r.stdout
-    assert "7 passed, 0 failed" in r.stdout
+    assert "9 passed, 0 failed" in r.stdout
 
 
 def test_effects_violation_exits_2(tmp_path):

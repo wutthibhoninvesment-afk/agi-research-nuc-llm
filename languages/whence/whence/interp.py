@@ -46,6 +46,7 @@ trampoline's: `_call_direct` shares the tail-loop bookkeeping with
 import gc
 import inspect
 import math
+import random
 import sys
 from types import GeneratorType
 
@@ -325,9 +326,16 @@ class Interpreter(object):
     HOST_RESERVE = 250
 
     def __init__(self, out=None, max_depth=DEFAULT_MAX_DEPTH, max_iter=None,
-                 fast=True, gc_relief=False, direct=True):
+                 fast=True, gc_relief=False, direct=True, seed=0):
         self.out_lines = []
         self._out = out if out is not None else self.out_lines.append
+        # v0.14.8: `rand()`'s own stream, seeded (default a fixed constant,
+        # not OS entropy) so that a fresh Interpreter run of the same source
+        # reproduces the same sequence of draws — the three-way differential
+        # (direct/fast/slow, each a SEPARATE Interpreter instance) and the
+        # guest/host campaigns both depend on full determinism across
+        # independent runs of one program; see SPEC.md "v0.14.8".
+        self._rng = random.Random(seed)
         self.checks = []   # dicts: label, line, ok, note, why (why only on fail)
         self.globals = Env()
         self.depth = 0            # current Whence call depth
@@ -2235,6 +2243,14 @@ def _make_builtin_table():
     def b_print(interp, args, line):
         interp._out(full_show(args[0].payload))
         return args[0]  # pass-through: print(x) is x
+
+    @register("rand", 0)
+    def b_rand(interp, args, line):
+        # v0.14.8: the second effectful builtin (tag "random", distinct
+        # from print's "io") — a float in [0.0, 1.0) drawn from this
+        # Interpreter's own seeded stream (`interp._rng`), a leaf (no
+        # input provenance) exactly like a literal.
+        return leaf("rand", "", line, interp._rng.random())
 
     @register("len", 1)
     def b_len(interp, args, line):

@@ -2,7 +2,7 @@
 """Whence — a provenance-first language. Run a program, stdin, or the REPL.
 
 Usage:
-    python3 run.py [--max-depth N] [--max-iter N] [--no-direct] examples/hello.lang
+    python3 run.py [--max-depth N] [--max-iter N] [--no-direct] [--seed N] examples/hello.lang
     python3 run.py -                        # program from stdin
     python3 run.py                          # REPL (interactive terminal only)
 
@@ -21,7 +21,7 @@ from whence.interp import Interpreter                # noqa: E402
 from whence.values import full_show                  # noqa: E402
 
 USAGE = ("usage: run.py [--max-depth N] [--max-iter N] [--no-direct] "
-         "<file.lang | ->\n"
+         "[--seed N] <file.lang | ->\n"
          "       run.py    (no arguments on an interactive terminal: REPL)")
 
 # v0.9: direct mode runs guest calls by host recursion under a frame budget
@@ -92,6 +92,7 @@ def main(argv):
     max_depth = None
     max_iter = None
     direct = True
+    seed = 0
     path = None
     i = 0
     while i < len(args):
@@ -99,7 +100,7 @@ def main(argv):
         if a == "--no-direct":
             direct = False
             i += 1
-        elif a in ("--max-depth", "--max-iter"):
+        elif a in ("--max-depth", "--max-iter", "--seed"):
             if i + 1 >= len(args):
                 print(USAGE, file=sys.stderr)
                 return 2
@@ -110,8 +111,10 @@ def main(argv):
                 return 2
             if a == "--max-depth":
                 max_depth = n
-            else:
+            elif a == "--max-iter":
                 max_iter = n
+            else:
+                seed = n
             i += 2
         elif a in ("-h", "--help"):
             print(USAGE)
@@ -140,7 +143,7 @@ def main(argv):
             return 2
 
     kwargs = {"out": print, "gc_relief": True, "max_iter": max_iter,
-              "direct": direct}
+              "direct": direct, "seed": seed}
     if max_depth is not None:
         kwargs["max_depth"] = max_depth
     if direct and sys.getrecursionlimit() < CLI_RECURSION_LIMIT:

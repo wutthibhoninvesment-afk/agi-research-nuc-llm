@@ -39,11 +39,16 @@ PRIMITIVE_TYPES = frozenset(
     ["num", "str", "bool", "list", "record", "fn", "guess", "any"])
 
 # Effect system (v0.14): builtins whose call is a directly-observable side
-# effect, mapped to the capability tag `effects [...]` names them by. Only
-# `print` (writes to the host) exists today; a future effectful builtin
-# (randomness, a clock, real I/O) slots in by adding one entry here — no
-# other code needs to change. See `Parser._check_effect_call`.
-_EFFECTFUL_BUILTINS = {"print": "io"}
+# effect, mapped to the capability tag `effects [...]` names them by.
+# `print` (writes to the host, tag "io") was the only entry through v0.14.7.
+# v0.14.8 (round 294) added the second: `rand` (draws from the interpreter's
+# own seeded stream, tag "random") — the exact slot-in this comment
+# anticipated back at v0.14 ("a future effectful builtin ... slots in by
+# adding one entry here — no other code needs to change"), confirmed true:
+# `_check_effect_call` and every `_resolve_effectful_*` helper below were
+# already generic over the tag, needing no change at all. See
+# `Parser._check_effect_call`.
+_EFFECTFUL_BUILTINS = {"print": "io", "rand": "random"}
 
 
 class Parser(object):

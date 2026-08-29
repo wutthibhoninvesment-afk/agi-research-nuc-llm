@@ -113,6 +113,28 @@ check "a builtin stored in a record field is checked the same as a direct alias"
 # invisible too, the one shape of the "argument/return/container field"
 # trio still fully open.
 
+# v0.14.8: `rand()` is the SECOND effectful builtin (tag "random", distinct
+# from print's "io") — every check above only ever exercised ONE real tag,
+# so `effects [network]` blocking `print` (tests/test_v14.py) was proof the
+# check is per-tag only against a hypothetical second tag. `rand()` draws a
+# float in [0.0, 1.0) from this Interpreter's own seeded stream (default
+# seed 0) — reproducible run to run, unlike most languages' random(), which
+# keeps it usable by the SAME differential/three-way testing every other
+# builtin here already depends on.
+let r = rand()
+check "rand() returns a number in [0, 1)": r >= 0 and r < 1
+
+fn roll() effects [random] {
+  rand()
+}
+check "effects [random] grants the new tag, same as [io] grants print":
+  roll() >= 0 and roll() < 1
+# `effects [io]` (or any OTHER tag) does not also grant "random", and
+# `effects [random]` does not grant "io" back — a ParseError aborts the
+# whole file, so neither rejected direction can be shown here without
+# losing every check above; both are pinned instead by
+# tests/test_v14.py's `test_effects_random_tag_is_independent_of_io_tag`.
+
 print("")
 print("effects.lang: purity is a declared, checked promise about a")
 print("function's own body — not a proof about everything it calls.")
