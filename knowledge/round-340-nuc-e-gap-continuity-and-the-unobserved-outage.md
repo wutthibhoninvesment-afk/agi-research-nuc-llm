@@ -65,7 +65,16 @@ a computed claim.
 
 For adjacent down checks at `t1 < t2`, a `tailscale_last_seen` on the **later**
 record with `LastSeen <= t1` proves the peer was not seen on the tailnet at any
-instant in `(t1, t2]`. The gap cannot hide an up excursion.
+instant in `(t1, t2]`. The gap cannot hide an up excursion **that tailscale
+would have noticed**.
+
+That qualifier is not a weakness here, and it is worth being explicit about
+rather than leaving implicit. A box that was powered on but off the tailnet
+would be invisible to this rule — but it is equally invisible to the `verdict`
+itself, which is *defined* as ssh-over-tailnet reachability. So the witness is
+exactly as strong as the thing it is witnessing, no stronger: "continuously
+down" here means "continuously not reachable the way this track reaches it",
+which is the only sense in which any record in this log has ever meant it.
 
 This is strictly more general than the "LastSeen unchanged across both records"
 reasoning the prose used, and the generality is not decorative: the real
