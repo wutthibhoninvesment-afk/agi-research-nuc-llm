@@ -659,9 +659,10 @@ class Interpreter(object):
         names = None
         merged = 1
         runs = None
-        # v0.13/round 335: the `-> Type` contracts of any DIFFERENTLY-typed
-        # closures this tail loop enters below, checked after `ret_spec`'s
-        # own — see `_check_chain_rets`. None until one actually appears.
+        # v0.13/round 335/336: the `-> Type` contracts of the closures
+        # this tail loop enters below, checked innermost-first BEFORE
+        # `ret_spec`'s own — see `_check_chain_rets`. None until a TYPED
+        # closure is actually entered.
         chain_rets = None
         call_line = line
         try:
@@ -699,7 +700,7 @@ class Interpreter(object):
                     runs = []
                 _merge_ifs(runs, tc.ifs)
                 p = fn2.value
-                chain_rets = _note_chain_ret(chain_rets, p, ret_spec)
+                chain_rets = _note_chain_ret(chain_rets, p, call_line)
                 params = p.params
                 nargs = len(args)
                 name2 = p.name or "<fn>"
@@ -744,9 +745,13 @@ class Interpreter(object):
         finally:
             self.depth = depth - 1
             self._hleft = hleft
-        result = _check_ret(result, ret_spec, ret_label, line)
+        # round 336: inside-out — the chain's contracts (innermost first,
+        # each at its own tail-call line), THEN the originally-called
+        # closure's own, exactly as the same program behaves with every
+        # call lifted out of tail position. See `_check_chain_rets`.
         if chain_rets is not None:
-            result = _check_chain_rets(result, chain_rets, line)
+            result = _check_chain_rets(result, chain_rets)
+        result = _check_ret(result, ret_spec, ret_label, line)
         if runs is None:      # the common case: one frame, nothing deferred
             return Prov("call", name, line, result, _LAZY, result.value)
         return _finish_call(name, line, result, runs, names, merged)
@@ -1742,7 +1747,7 @@ class Interpreter(object):
                         runs = []
                     _merge_ifs(runs, tc.ifs)
                     p = fn2.value
-                    chain_rets = _note_chain_ret(chain_rets, p, ret_spec)
+                    chain_rets = _note_chain_ret(chain_rets, p, call_line)
                     name2 = p.name or "<fn>"
                     if len(args) != len(p.params):
                         result = mk_miss(
@@ -1762,9 +1767,10 @@ class Interpreter(object):
                         names.append(name2)
             finally:
                 self.depth -= 1
-            result = _check_ret(result, ret_spec, ret_label, line)
+            # round 336: inside-out, see `_call_direct`'s twin comment
             if chain_rets is not None:
-                result = _check_chain_rets(result, chain_rets, line)
+                result = _check_chain_rets(result, chain_rets)
+            result = _check_ret(result, ret_spec, ret_label, line)
             if runs is None:  # the common case: one frame, nothing merged
                 return Prov("call", name, line, result, _LAZY, result.value)
             return _finish_call(name, line, result, runs, names, merged)
@@ -2161,55 +2167,99 @@ def _type_match(payload, spec):
     return True, name
 
 
-def _note_chain_ret(chain_rets, p, ret_spec):
-    """Record a tail-entered closure's own `-> Type` contract, unless it is
-    the originally-called closure's (already checked) or one already
-    recorded. Deliberately identity-based: within one run every mode sees
-    the same Closure/spec objects, and a Str spec is the AST node's own
-    string, shared across runs of the same AST — so the three-way
-    fast/direct/trampoline differential and the determinism oracle all see
-    the same list, in the same order. `p.ret_spec is None` (an untyped
-    callee, the overwhelmingly common case) exits on the first test."""
+def _note_chain_ret(chain_rets, p, line):
+    """Record a tail-entered closure's own `-> Type` contract as
+    `[spec, label, line]`, where `line` is the line of the TAIL CALL that
+    entered it — exactly the line the same call would carry if it were
+    lifted out of tail position with a `let`.
+
+    Round 336 (language C) rewrote round 335's version, which recorded
+    `(spec, label)` only, skipped anything whose spec was the originally
+    called closure's, and kept the FIRST occurrence of a repeated spec.
+    All three choices blamed the wrong closure, because
+    `_check_chain_rets` now walks the chain from the INSIDE OUT (see its
+    docstring): what must survive a repeat is the INNERMOST entry, so a
+    recurring spec is moved to the end with its label and line refreshed.
+
+    Kept from round 335, and load-bearing: `p.ret_spec is None` (an
+    untyped callee, the overwhelmingly common case) exits on the first
+    test, so an untyped program never allocates. Also deliberately
+    identity-based — within one run every mode sees the same Closure/spec
+    objects, and a `Str` spec is the AST node's own string, shared across
+    runs of the same AST, so the three-way fast/direct/trampoline
+    differential and the determinism oracle all see the same list in the
+    same order. Unlike round 335's version the identity test is now a pure
+    OPTIMISATION, never a semantic: two `-> num` closures whose specs are
+    NOT the same object simply get two entries, and checking the same
+    contract twice cannot change which check fails first."""
     rs = p.ret_spec
-    if rs is None or rs is ret_spec:
+    if rs is None:
         return chain_rets
     if chain_rets is None:
-        return [(rs, p.ret_label)]
-    for spec, _ in chain_rets:
-        if spec is rs:
+        return [[rs, p.ret_label, line]]
+    last = chain_rets[-1]
+    if last[0] is rs:                     # incl. every self-recursive bounce
+        last[1] = p.ret_label
+        last[2] = line
+        return chain_rets
+    for i in range(len(chain_rets) - 1):
+        if chain_rets[i][0] is rs:
+            ent = chain_rets.pop(i)
+            ent[1] = p.ret_label
+            ent[2] = line
+            chain_rets.append(ent)
             return chain_rets
-    chain_rets.append((rs, p.ret_label))
+    chain_rets.append([rs, p.ret_label, line])
     return chain_rets
 
 
-def _check_chain_rets(result, chain_rets, line):
-    """Apply the `-> Type` contracts of every OTHER closure a merged tail
-    chain entered, after the originally-called closure's own check has
-    already run (round 335).
+def _check_chain_rets(result, chain_rets):
+    """Apply the `-> Type` contracts of the closures a merged tail chain
+    entered, INNERMOST FIRST, before the originally-called closure's own
+    check (round 336; round 335 added the checks, this round fixed their
+    order and their line attribution). A self-recursive loop records the
+    originally-called closure here too — the outer `_check_ret` then sees
+    an already-settled result and passes it through, so the miss carries
+    the INNERMOST frame's line, exactly as non-tail recursion does.
 
-    v0.13 captured `ret_spec`/`ret_label` from the originally-called
-    closure so a tail loop reassigning `p` could not make the check adopt
-    the chain's LAST contract instead of the caller's own. That half is
-    right and unchanged. What it missed is that a tail-called closure's own
-    contract then went unchecked ENTIRELY: `fn f() -> num { "s" }` misses
-    when called as `let q = f()` but returned the raw `"s"` when called in
-    tail position from any other function, so whether a declared return
-    type is enforced depended on the SYNTACTIC POSITION of a call site in
-    someone else's body. `tests/test_v13.py`'s own mutual-tail-call test
-    only ever covered the mirror case (typed caller, UNtyped callee), so
-    this direction had never been exercised.
+    History, because the order is the whole point. v0.13 captured
+    `ret_spec`/`ret_label` from the originally-called closure so a tail
+    loop reassigning `p` could not make the check adopt the chain's LAST
+    contract instead of the caller's own — right, and unchanged. Round 335
+    found the other half: the closures the loop bounced THROUGH had their
+    contracts dropped entirely, so `fn f() -> num { "s" }` missed when
+    called as `let q = f()` and returned the raw `"s"` when any other
+    function called it in tail position. It fixed WHETHER each contract
+    runs and left WHICH ONE IS BLAMED still depending on tail position:
+    it checked the caller's contract first and the chain's in entry
+    order, i.e. outermost-first — the exact REVERSE of what the same
+    program does with each call lifted out of tail position by a `let`.
 
-    In a tail call the callee's result IS the caller's result, so every
-    contract along the chain applies to that one settled value. The
-    caller's runs first (unchanged wording and ordering for every case
-    that already worked); a miss from it propagates through the rest
-    untouched, since `_check_ret` returns an already-missed result as-is.
-    `chain_rets` is None for every call that never tail-called a
-    DIFFERENTLY-typed closure — which includes every untyped program and
-    every typed self-recursive tail loop, so the per-bounce cost stays the
-    one identity check v0.13 promised.
+    Round 336's rule, and the invariant the tests pin: **a tail call is a
+    space optimisation, never a semantic one** (decision 8: tail calls
+    merge, they do not forget). In a tail chain `a -> b -> c` the settled
+    value is returned by `c` to `b` to `a`, so `c`'s contract is tested
+    first, and the first failure wins — identical to the lifted program,
+    identical to how non-tail recursion has always behaved
+    (`test_non_tail_recursion_checks_every_frame_independently`), and
+    identical to what `examples/self_eval.lang`, Whence's own definition
+    of Whence, has always computed: the guest evaluator has no tail-call
+    merging at all, so `apply_closure`'s `check_ret` per frame IS the
+    inside-out order. On five of the seven probe programs round 336 ran,
+    the host blamed a different function than the guest did; the
+    guest-differential oracle could not see it because miss WORDINGS are
+    an explicit exemption of that oracle (round 17).
+
+    Each entry carries its own tail-call line for the same reason, so a
+    chain miss points at the call that produced the bad value rather than
+    at the outermost call site.
+
+    `chain_rets` is None for every call that never tail-called a TYPED
+    closure — which includes every untyped program — so nothing is
+    allocated there at all.
     """
-    for spec, label in chain_rets:
+    for i in range(len(chain_rets) - 1, -1, -1):
+        spec, label, line = chain_rets[i]
         result = _check_ret(result, spec, label, line)
     return result
 

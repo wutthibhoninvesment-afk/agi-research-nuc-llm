@@ -405,12 +405,20 @@ def test_three_way_unbound_shape_return_type_does_not_crash_any_mode():
 # declared return type was enforced at all depended on the syntactic
 # position of a call site in someone ELSE's body.
 #
-# Fix (`_note_chain_ret` / `_check_chain_rets`, interp.py): every DISTINCT
-# ret_spec the tail loop enters is recorded and checked after the
-# originally-called closure's own, so every contract along the chain
-# applies to the one settled value it all shares. The caller's still runs
-# first — an already-missed result passes through `_check_ret` untouched,
-# so every case that already worked keeps its exact wording and ordering.
+# Fix (`_note_chain_ret` / `_check_chain_rets`, interp.py): every ret_spec
+# the tail loop enters is recorded and checked, so every contract along
+# the chain applies to the one settled value it all shares.
+#
+# Round 336 (language C) took round 335's own next-steps item 4 — "the
+# chain-order choice is a semantics decision worth a second opinion" — and
+# settled it the other way: see the `--- round 336` section at the bottom
+# of this file. Round 335 ran the caller's contract FIRST and the chain's
+# in entry order (outermost-first) because that preserved every
+# pre-existing message; round 336 runs them INNERMOST-FIRST, each at its
+# own tail-call line, because that is what the same program does with
+# every call lifted out of tail position, and what
+# `examples/self_eval.lang` — Whence's own definition of Whence, which has
+# no tail-call merging at all — has always computed.
 
 
 def test_untyped_caller_does_not_erase_the_tail_callees_own_contract():
@@ -424,14 +432,19 @@ def test_untyped_caller_does_not_erase_the_tail_callees_own_contract():
 
 
 def test_the_same_callee_misses_identically_out_of_tail_position():
-    # the point of the bug: these two must not disagree
+    # the point of the bug: these two must not disagree. Round 335 could
+    # only compare the wording (it stripped the line, because the tail
+    # form reported the OUTER call site); round 336 records each chain
+    # entry's own tail-call line, so the two forms — laid out line for
+    # line — now agree byte for byte, line number included.
     tail = run('fn f() -> num { "s" }\nfn outer() { f() }\nlet r = outer()\n')
     lifted = run('fn f() -> num { "s" }\n'
                  'fn outer() { let q = f()  q }\n'
                  'let r = outer()\n')
     a, b = tail[1].get("r").value, lifted[1].get("r").value
     assert isinstance(a, Miss) and isinstance(b, Miss)
-    assert a.reasons[0].split(" (line")[0] == b.reasons[0].split(" (line")[0]
+    assert a.reasons == b.reasons
+    assert a.reasons[0].endswith("(line 2)"), a.reasons
 
 
 def test_nested_fn_and_fnexpr_tail_calls_keep_their_return_contracts():
@@ -447,10 +460,14 @@ def test_nested_fn_and_fnexpr_tail_calls_keep_their_return_contracts():
         assert r.value.reasons[0].startswith(want), (src, r.value.reasons)
 
 
-def test_typed_caller_still_wins_when_both_contracts_are_violated():
-    # ordering is deliberate and unchanged: the originally-called closure's
-    # contract is checked first, and `_check_ret` returns an already-missed
-    # result untouched, so the caller names itself exactly as before.
+def test_only_the_caller_violated_names_the_caller():
+    # `f`'s own contract is SATISFIED ("s" is a str); only `outer`'s is
+    # violated, so `outer` names itself under either ordering. (Round 335
+    # called this test "typed caller still wins when both contracts are
+    # violated" — a misnomer: only one of the two is violated here. The
+    # genuinely-both-violated case is
+    # `test_both_contracts_violated_names_the_inner_one` below, and it is
+    # the one round 336 changed.)
     src = ('fn f() -> str { "s" }\n'
            'fn outer() -> num { f() }\n'
            'let r = outer()\n')
@@ -476,8 +493,12 @@ def test_every_contract_in_a_three_hop_chain_applies():
     interp, env, out = run(src)
     r = env.get("r")
     assert isinstance(r.value, Miss)
-    # `b`'s spec is recorded first (chain order), and first failure wins
-    assert r.value.reasons[0].startswith("return value of b expected num")
+    # round 336: the chain is checked INSIDE OUT, so the innermost
+    # violated contract wins — `c`, which is what the same program says
+    # with the calls lifted out of tail position, and what the guest
+    # evaluator has always said. (Round 335 asserted `b` here, on the
+    # opposite ordering; that is the decision this round reversed.)
+    assert r.value.reasons[0].startswith("return value of c expected bool")
 
 
 def test_a_satisfied_chain_passes_through_unchanged():
@@ -489,11 +510,14 @@ def test_a_satisfied_chain_passes_through_unchanged():
     assert env.get("r").value == "s"
 
 
-def test_typed_self_tail_recursion_still_records_nothing_extra():
-    # the whole per-bounce cost story: a self-recursive typed tail loop
-    # bounces through the SAME closure, so `p.ret_spec is ret_spec` holds
-    # every time and no chain list is ever allocated. Behaviour and depth
-    # are the pin; `_note_chain_ret`'s identity test is the mechanism.
+def test_typed_self_tail_recursion_keeps_exactly_one_chain_entry():
+    # the per-bounce cost story: a self-recursive typed tail loop bounces
+    # through the SAME closure, so `_note_chain_ret`'s `last[0] is rs`
+    # fast path hits every time and the one-element chain list is
+    # allocated once, never grown. Behaviour and depth are the pin.
+    # (Round 335 named this "...still_records_nothing_extra"; round 336
+    # drops the `rs is ret_spec` skip, so one entry IS now recorded and
+    # the old name would assert something false.)
     src = ('fn cd(n) -> num { if n <= 0 { 0 } else { cd(n - 1) } }\n'
            'let r = cd(2000)\n')
     interp, env, out = run(src, max_depth=50)
@@ -534,3 +558,239 @@ def test_three_way_mutual_typed_tail_loop():
         'fn a(n) -> num { if n <= 0 { "s" } else { b(n - 1) } }\n'
         'fn b(n) -> num { a(n) }\n'
         'let result = a(60)\n')
+
+
+# --- round 336 (language C): tail position is a SPACE optimisation only ------
+#
+# Round 335 closed "is the callee's contract checked at all"; it left open,
+# as its own next-steps item 4, "which contract is blamed when more than
+# one is violated" — it applied the caller's first and the chain's in
+# ENTRY order, i.e. outermost-first, and said so explicitly: "both
+# statements are true; the current order was chosen because it preserves
+# every pre-existing message."
+#
+# Round 336 settles it against three independent references, all of which
+# say INNERMOST-FIRST:
+#
+#   1. The same program with each call lifted out of tail position by a
+#      `let`. A tail call is decision 8's space optimisation ("tail calls
+#      merge, they do not forget"); nothing in the spec licenses it to
+#      change which function is blamed.
+#   2. Non-tail recursion, which has behaved this way since v0.13
+#      (`test_non_tail_recursion_checks_every_frame_independently`): the
+#      innermost frame's own check fires first and the miss propagates.
+#   3. `examples/self_eval.lang` — Whence's own definition of Whence. The
+#      guest evaluator has NO tail-call merging: `apply_closure` recurses
+#      into `eval(c.body, ...)` and runs `check_ret` per frame, so its
+#      order is inside-out by construction. On five of the seven chain
+#      programs round 336 probed, the host blamed a different function
+#      than the guest did. The guest-differential oracle could not see it
+#      because miss WORDINGS are an explicit exemption of that oracle
+#      (round 17) — see `tests/test_self_eval.py`'s own round-336 case,
+#      which compares them anyway.
+#
+# The same rule fixes line attribution: each chain entry now carries the
+# line of the TAIL CALL that entered it, so a chain miss points at the
+# call that produced the bad value, exactly as the lifted program does.
+
+
+def test_both_contracts_violated_names_the_inner_one():
+    # the genuinely-both-violated case, and the one behaviour round 336
+    # reversed: `f` returns a num, violating its own `-> str`, and `outer`
+    # demands bool. Round 335 named `outer`; the lifted form, non-tail
+    # recursion and the guest all name `f`.
+    src = ('fn f() -> str { 1 }\n'
+           'fn outer() -> bool { f() }\n'
+           'let r = outer()\n')
+    interp, env, out = run(src)
+    assert env.get("r").value.reasons[0].startswith(
+        "return value of f expected str")
+
+
+def test_chain_miss_carries_the_tail_call_line_not_the_outer_call_line():
+    src = ('fn c() -> bool { 1 }\n'      # line 1
+           'fn b() -> str { c() }\n'     # line 2: the call to `c`
+           'fn a() { b() }\n'            # line 3: the call to `b`
+           'let r = a()\n')              # line 4: the call to `a`
+    reasons = reasons_of(run(src)[1], "r")
+    assert reasons[0] == "return value of c expected bool, got num (line 2)"
+
+
+def test_the_originally_called_closure_is_still_checked_last():
+    # nothing in the chain is violated, so `a`'s own contract is what
+    # fails — proving the outermost check still runs, after the others.
+    src = ('fn c() -> num { 1 }\n'
+           'fn b() -> num { c() }\n'
+           'fn a() -> str { b() }\n'
+           'let r = a()\n')
+    reasons = reasons_of(run(src)[1], "r")
+    assert reasons[0] == "return value of a expected str, got num (line 4)"
+
+
+def test_a_repeated_spec_blames_its_innermost_occurrence():
+    # exercises `_note_chain_ret`'s move-to-end path: `num` is entered at
+    # `b` and again, further in, at `d`, with a passing `any` between. The
+    # backwards walk must reach `d`'s entry first, not `b`'s.
+    src = ('fn d() -> num { "s" }\n'
+           'fn c() -> any { d() }\n'
+           'fn b() -> num { c() }\n'
+           'fn a() { b() }\n'
+           'let r = a()\n')
+    reasons = reasons_of(run(src)[1], "r")
+    assert reasons[0] == "return value of d expected num, got str (line 2)"
+
+
+def test_two_closures_sharing_a_spec_object_blame_the_inner_one():
+    # `b` and `c` both say `-> num`; their spec is the SAME interned
+    # Python str, which is exactly the case round 335's identity dedup
+    # silently collapsed onto the OUTER label.
+    src = ('fn c() -> num { "s" }\n'
+           'fn b() -> num { c() }\n'
+           'fn a() { b() }\n'
+           'let r = a()\n')
+    reasons = reasons_of(run(src)[1], "r")
+    assert reasons[0] == "return value of c expected num, got str (line 2)"
+
+
+def test_a_chain_member_sharing_the_callers_spec_is_still_recorded():
+    # round 335 skipped any chain spec identical to the originally-called
+    # closure's (`rs is ret_spec`), so this blamed `a`. Same contract,
+    # different origin: `c` is the function that produced the bad value.
+    src = ('fn c() -> num { "s" }\n'
+           'fn b() { c() }\n'
+           'fn a() -> num { b() }\n'
+           'let r = a()\n')
+    reasons = reasons_of(run(src)[1], "r")
+    assert reasons[0] == "return value of c expected num, got str (line 2)"
+
+
+def test_self_recursive_tail_loop_blames_the_recursive_call_site():
+    # the innermost frame IS the one that returned the bad value, so the
+    # line is the recursive call's, not the outer call's — the same line
+    # non-tail recursion has always reported.
+    src = ('fn cd(n) -> num { if n <= 0 { "s" } else { cd(n - 1) } }\n'
+           'let r = cd(3)\n')
+    reasons = reasons_of(run(src, max_depth=50)[1], "r")
+    assert reasons == ("return value of cd expected num, got str (line 1)",)
+
+
+# --- the exhaustive tail-vs-lifted differential ------------------------------
+#
+# The oracle round 335 wrote for ONE program
+# (`test_the_same_callee_misses_identically_out_of_tail_position`), driven
+# over every chain the grammar can build at this size. Both forms are laid
+# out line for line, so agreement includes the line number.
+
+_CHAIN_RETS = (None, "num", "str", "bool", "any")
+_CHAIN_TERMS = ('1', '"s"', 'true')
+
+
+def chain_pair(specs, term):
+    """(tail form, lifted form) of an n-hop chain `f0 -> f1 -> ... -> term`,
+    line for line: `let t = <call>  t` fits on one line, so a `-> Type`
+    miss must report the same line number under both."""
+    tail, lifted = [], []
+    last = len(specs) - 1
+    for i, sp in enumerate(specs):
+        ann = "" if sp is None else " -> %s" % sp
+        body = term if i == last else "f%d()" % (i + 1)
+        tail.append("fn f%d()%s { %s }" % (i, ann, body))
+        lifted.append("fn f%d()%s { %s }" % (
+            i, ann, body if i == last else "let t = %s  t" % body))
+    end = "\nlet r = f0()\n"
+    return "\n".join(tail) + end, "\n".join(lifted) + end
+
+
+def outcome(src, **kw):
+    v = run(src, **kw)[1].get("r")
+    p = v.value
+    return ("MISS",) + tuple(p.reasons) if isinstance(p, Miss) else ("VAL", p)
+
+
+def chain_specs(n):
+    out = [()]
+    for _ in range(n):
+        out = [s + (r,) for s in out for r in _CHAIN_RETS]
+    return out
+
+
+def run_chain_differential(hops, **kw):
+    n = 0
+    for specs in chain_specs(hops):
+        for term in _CHAIN_TERMS:
+            tail_src, lifted_src = chain_pair(specs, term)
+            assert outcome(tail_src, **kw) == outcome(lifted_src, **kw), \
+                (specs, term, tail_src, lifted_src)
+            n += 1
+    return n
+
+
+@pytest.mark.parametrize("hops", [2, 3])
+def test_tail_and_lifted_chains_agree_exhaustively(hops):
+    # 75 + 375 programs; the 4-hop tier (1875 more) is the slow test below
+    assert run_chain_differential(hops) == 3 * 5 ** hops
+
+
+def test_tail_and_lifted_mutual_loops_agree():
+    # a chain that REVISITS a closure, which is what makes
+    # `_note_chain_ret`'s move-to-end path load-bearing
+    n = 0
+    for sa in _CHAIN_RETS:
+        for sb in _CHAIN_RETS:
+            for term in _CHAIN_TERMS:
+                for k in (1, 3):
+                    srcs = []
+                    for call in (lambda c: c, lambda c: "let t = %s  t" % c):
+                        ann = lambda s: "" if s is None else " -> %s" % s
+                        srcs.append(
+                            "fn a(k)%s { if k <= 0 { %s } else { %s } }\n"
+                            "fn b(k)%s { %s }\n"
+                            "let r = a(%d)\n" % (ann(sa), term,
+                                                 call("b(k - 1)"), ann(sb),
+                                                 call("a(k)"), k))
+                    assert outcome(srcs[0], max_depth=50) == \
+                        outcome(srcs[1], max_depth=50), (sa, sb, term, k)
+                    n += 1
+    assert n == 150
+
+
+@pytest.mark.whence_slow
+def test_tail_and_lifted_four_hop_chains_agree_in_every_mode():
+    for mode in ({}, {"direct": False}, {"fast": False}):
+        assert run_chain_differential(4, **mode) == 3 * 5 ** 4
+
+
+@pytest.mark.whence_slow
+def test_every_mode_agrees_on_three_hop_chains():
+    # the three-way differential over the same family: `assert_three_way`
+    # is too slow to run 375 times, so this compares outcomes directly and
+    # leaves why-tree equality to the named `assert_three_way` cases below.
+    for specs in chain_specs(3):
+        for term in _CHAIN_TERMS:
+            for src in chain_pair(specs, term):
+                got = {outcome(src), outcome(src, direct=False),
+                       outcome(src, fast=False)}
+                assert len(got) == 1, (src, got)
+
+
+def test_three_way_inside_out_three_hop_chain():
+    assert_three_way(
+        'fn c() -> bool { "s" }\n'
+        'fn b() -> num { c() }\n'
+        'fn a() { b() }\n'
+        'let result = a()\n')
+
+
+def test_three_way_repeated_spec_chain():
+    assert_three_way(
+        'fn d() -> num { "s" }\n'
+        'fn c() -> any { d() }\n'
+        'fn b() -> num { c() }\n'
+        'fn a() { b() }\n'
+        'let result = a()\n')
+
+
+def test_three_way_self_recursive_typed_tail_loop_line():
+    assert_three_way(
+        'fn cd(n) -> num { if n <= 0 { "s" } else { cd(n - 1) } }\n'
+        'let result = cd(30)\n', max_depth=50)

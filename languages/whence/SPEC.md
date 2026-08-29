@@ -60,6 +60,14 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    default; `max_iter` (`run.py --max-iter N`) turns a too-long one into a
    miss. A call under `let`, `rescue`, an operator, an argument, `why`,
    `snip` or `check` is not a tail and still costs a frame.
+   **Tail position changes space, never meaning (round 336).** Lifting any
+   tail call out of tail position with a `let` must not change the value,
+   the miss, which `-> Type` contract is blamed, or the line the miss
+   reports — only the frame count. `tests/test_v13.py`'s
+   `test_tail_and_lifted_chains_agree_exhaustively` drives the whole
+   `f0 -> f1 -> …` family (every combination of return annotations up to
+   4 hops, plus loops that revisit a closure) through both forms, laid out
+   line for line, and requires byte equality.
 9. **Full history is the default, and it is affordable (v0.3).** Lists are
    immutable views over a shared append-only buffer: `push(xs, x)` and
    `xs + ys` extend in place when `xs` is the buffer's tip and copy
@@ -696,6 +704,9 @@ that cannot end a statement.
   spec is resolved once at closure creation, and the check itself runs
   once, at exit, using `peak_depth 1` regardless of iteration count
   (20000-deep `count_down` tail loop: one check, `peak_depth == 1`).
+  *(Cost caveat, round 336: "nothing extra per bounce" is no longer
+  literally true — see the round-336 bullet below. `peak_depth 1` and
+  "checked once, at exit" are unchanged.)*
 - **Correction (round 335, SWE-loop D): the bullet above is right about
   the CALLER's contract and was silently wrong about the CALLEE's.**
   Capturing `ret_spec` before the tail loop reassigns `p` stops the check
@@ -717,7 +728,56 @@ that cannot end a statement.
   cost claim is unchanged: a self-recursive typed tail loop bounces
   through the SAME closure, `p.ret_spec is ret_spec` holds, and no list is
   ever allocated (`tests/test_v13.py`, 12 new cases including three
-  `assert_three_way`).
+  `assert_three_way`). *(Round 336 reversed the ordering claim in this
+  bullet — "the caller's, which still runs first" and "every case that
+  already worked keeps its exact wording and ordering" are both stale, as
+  is the no-allocation claim for a typed self-recursive loop. Read the
+  next bullet, not this one, for the current rule.)*
+- **Correction to the correction (round 336, language C): the ORDER round
+  335 chose was still tail-position-dependent, and it is now inside-out.**
+  Round 335 fixed *whether* a tail-entered closure's contract runs and
+  left *which one is blamed* depending on syntactic position: it applied
+  the originally-called closure's contract first and the chain's in ENTRY
+  order — outermost-first, the exact reverse of the same program with
+  every call lifted out of tail position by a `let`. Its own next-steps
+  item 4 flagged this as "a semantics decision worth a second opinion from
+  language(C)". Three independent references all say innermost-first, and
+  the language now follows them:
+    1. the lifted program (decision 8's new transparency rule);
+    2. non-tail recursion, which has behaved this way since v0.13
+       (`test_non_tail_recursion_checks_every_frame_independently`): the
+       innermost frame's own check fires first and the miss propagates;
+    3. `examples/self_eval.lang`, Whence's own definition of Whence. The
+       guest evaluator has NO tail-call merging, so `apply_closure`
+       recurses into `eval(c.body, …)` and runs `check_ret` once per real
+       frame — inside-out by construction. On five of seven probe chains
+       the host blamed a different function than the guest did; the
+       guest-differential oracle could not see it because miss WORDINGS
+       are an explicit exemption of that oracle (round 17).
+  `_check_chain_rets` now walks the recorded chain backwards BEFORE
+  `_check_ret` applies the originally-called closure's own contract, and
+  each entry carries the line of the TAIL CALL that entered it, so a
+  chain miss points at the call that produced the bad value rather than
+  at the outermost call site. `_note_chain_ret`'s spec-identity test
+  became a pure optimisation rather than a semantic: a recurring spec is
+  moved to the end of the list with its label and line refreshed (the
+  innermost occurrence is the one that must be blamed), and round 335's
+  `rs is ret_spec` skip — which silently handed a chain member's blame to
+  the originally-called closure — is gone. Scale of the change:
+  **1740 of 2325 tail/lifted chain pairs disagreed before, 0 after**
+  (1128 of them in the miss text itself, the rest line-only); the mutual-
+  recursion family went 96/150 → 0/150. All three evaluation modes shared
+  the bug identically, which is why ~200 rounds of three-way differentials
+  never saw it — `test_every_mode_agrees_on_three_hop_chains` passes on
+  both the old and the new interpreter, deliberately, as the record of
+  what that oracle cannot see. Cost: the untyped fast path
+  (`p.ret_spec is None`) is untouched, and a typed self-recursive tail
+  loop now allocates one 1-element list per call and refreshes its line
+  per bounce instead of allocating nothing. Measured end to end at 40k
+  iterations, interleaved across builds, the delta is below this host's
+  noise floor — the UNTYPED control, whose code path is byte-identical
+  between the two builds, itself varied 5.4% run to run, more than any
+  typed or mutual delta.
 - **A real crash bug, found by round-128's own exploratory testing (not
   the fuzzer, which does not generate type annotations yet):** a `->
   Shape` naming a shape declared inside ANOTHER function's body parses

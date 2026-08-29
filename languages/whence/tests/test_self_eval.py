@@ -600,3 +600,69 @@ def test_record_spec_mismatch_keeps_only_the_value_as_a_guest_input():
     assert "record" not in labels, sorted(labels)
     h = host_eval('let result = typed(1, @{a: "num"}, "L")')
     assert "record" not in host_labels(h), sorted(host_labels(h))
+
+
+# --- round 336: host/guest agreement on WHICH contract a tail chain blames ---
+#
+# The corpus differential above compares payloads and exempts miss REASON
+# wordings by design (they differ between host and guest — see the module
+# docstring). That exemption is what hid round 336's bug for ~200 rounds:
+# in a merged tail chain the host blamed the OUTERMOST violated `-> Type`
+# contract while the guest — which has no tail-call merging at all, so
+# `apply_closure` runs `check_ret` once per real frame, inside out —
+# blamed the innermost. Both sides missed, so the oracle said `ok`.
+#
+# These cases deliberately break the exemption for one narrow, well-defined
+# slice: the "return value of <fn>" prefix of a `-> Type` miss, which the
+# guest's `check_ret` builds with the same wording the host's `_check_ret`
+# does. Nothing else about the reason string is compared.
+
+RET_CHAIN_CASES = [
+    # (source, the function both sides must blame)
+    ('fn f() -> num { "s" }\n'
+     'fn outer() { f() }\n'
+     'let result = outer()\n', "f"),
+    ('fn c() -> bool { 1 }\n'
+     'fn b() -> str { c() }\n'
+     'fn a() -> list { b() }\n'
+     'let result = a()\n', "c"),
+    ('fn c() -> bool { 1 }\n'
+     'fn b() -> str { c() }\n'
+     'fn a() { b() }\n'
+     'let result = a()\n', "c"),
+    ('fn c() -> num { "s" }\n'
+     'fn b() -> num { c() }\n'
+     'fn a() { b() }\n'
+     'let result = a()\n', "c"),
+    ('fn c() -> num { "s" }\n'
+     'fn b() { c() }\n'
+     'fn a() -> num { b() }\n'
+     'let result = a()\n', "c"),
+    ('fn a(n) -> num { if n <= 0 { "s" } else { b(n - 1) } }\n'
+     'fn b(n) -> num { a(n) }\n'
+     'let result = a(4)\n', "a"),
+    ('fn d() -> num { "s" }\n'
+     'fn c() -> any { d() }\n'
+     'fn b() -> num { c() }\n'
+     'fn a() { b() }\n'
+     'let result = a()\n', "d"),
+]
+
+
+def blamed_fn(miss):
+    assert isinstance(miss, Miss), miss
+    first = miss.reasons[0]
+    assert first.startswith("return value of "), first
+    return first[len("return value of "):].split(" ")[0]
+
+
+@pytest.mark.whence_slow
+def test_tail_chain_return_miss_blames_the_same_function_on_both_sides():
+    sources = [src for src, _ in RET_CHAIN_CASES]
+    guest = guest_eval_all(sources)
+    rows = []
+    for (src, want), g in zip(RET_CHAIN_CASES, guest):
+        h = host_eval(src)
+        rows.append((src, want, blamed_fn(h.payload), blamed_fn(g.payload)))
+    bad = [r for r in rows if not (r[1] == r[2] == r[3])]
+    assert bad == [], bad

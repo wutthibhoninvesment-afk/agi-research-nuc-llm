@@ -498,5 +498,26 @@
     "id": "obw-neg",
     "expect": [],
     "prompt": "In my interactive Claude Code session, I want to kick off a long build in the background and keep working on something else while I wait for it to finish, then get notified when it's done."
+  },
+  {
+    "id": "otd-near",
+    "expect": [
+      "optimization-transparency-differential"
+    ],
+    "prompt": "Our interpreter has tail-call elimination. I want to prove it can't change any observable behaviour, not just that the return values match. How would you test that?"
+  },
+  {
+    "id": "otd-mid",
+    "expect": [
+      "optimization-transparency-differential"
+    ],
+    "prompt": "We have a test that compares the cached and uncached code paths, but it strips the timestamps and request ids out of both before diffing. That feels like cheating. Is it?"
+  },
+  {
+    "id": "otd-far",
+    "expect": [
+      "optimization-transparency-differential"
+    ],
+    "prompt": "Our compiler folds constants at parse time. A user reports the error message points at a different line when folding is on. Both lines are arguably right \u2014 how do we decide which one the compiler should say?"
   }
 ]
