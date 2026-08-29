@@ -8741,10 +8741,16 @@ Workspace: ~/agi-research
   9.44s** (round 341: 24 in `test_slowtier.py`). `test_swe_review.py` re-run
   through the ledger after the fix: **passed 141.1s**; tier now **5
   conclusive, 28% recall, 0 failing**. `harness/run_tests_fast.sh` **464
-  passed, 267 deselected in 45.60s** (baseline 417/264) — +47 selected is
-  exactly this round's new fast-tier tests, +3 deselected is exactly round
-  341's three additions to the slow-tier `test_swe_alias_effects.py`; nothing
-  changed tier or was silently dropped. Full writeup:
+  passed, 267 deselected in 45.60s**. Accounting corrected mid-round against
+  `--collect-only` after a first draft got it wrong: round 338's 417 baseline
+  PREDATES `test_slowtier.py`, which round 341 created (25 tests) without ever
+  reporting a fast-tier total — so 417 + 25 (round 341) + 13 (this round's
+  additions to `test_slowtier.py`, 25 -> 38) + 9 (`test_snapshot_race.py`) =
+  464. **This round adds 22 fast tests, not 47.** Deselected 264 -> 267 is
+  exactly round 341's three slow-tier additions to
+  `test_swe_alias_effects.py`. An unexecuted number let a round nearly
+  attribute another round's work to itself — round 321's item 14 class,
+  inside the writeup arguing for it. Full writeup:
   `knowledge/round-343-harness-a-the-first-recorded-slice.md`.
 - Also landed the record-gap leftover: round 342's entire uncommitted diff,
   verified then committed as `4af6963` (see the round 342 entry above).

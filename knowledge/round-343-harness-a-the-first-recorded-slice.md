@@ -40,6 +40,14 @@ with `harness/run_tests_fast.sh` — **417 passed, 264 deselected** — and the
 feature landed and stayed red through rounds 338-342, across five rounds that
 all reported green.
 
+**Provenance verified against git rather than inferred.** `git log -S
+tail_transparency -- harness/swe/oracles.py` returns exactly one commit,
+`21f4677` (2026-08-29 15:42:31 UTC, "Round 337 (harness A) reconciliation"),
+and `git log -- harness/tests/test_swe_review.py` shows no commit between the
+bulk `e376750` and this round's `532aa94`. So the red window is exactly
+`21f4677`..`532aa94` — the assertion could not have been green at any point
+in it, and no round re-pinned it.
+
 This is not a near-miss illustrating the gap. It *is* the gap, and it is worth
 being precise about the shape: round 338 did nothing wrong by its own
 standards. It ran the health check the program prescribes, and the health
@@ -239,13 +247,32 @@ the round.
 `test_swe_review.py passed 141.1s`. Tier now **18 files, 5 conclusive against
 checkout `5b257257bf1c5273` (28% recall), 0 failing.**
 
-**`harness/run_tests_fast.sh`**: **464 passed, 267 deselected in 45.60s**
-(round 338/341 baseline: 417 passed, 264 deselected). Fully accounted for:
-+47 selected is exactly this round's new fast-tier tests (14 added to
-`test_slowtier.py`, 24 -> 38, plus 9 in `test_snapshot_race.py`), and +3
-deselected is exactly round 341's three additions to
-`test_swe_alias_effects.py`, which is slow-tier. No test changed tier and
-none was silently dropped.
+**`harness/run_tests_fast.sh`**: **464 passed, 267 deselected in 45.60s**.
+
+The accounting, and a correction to a first draft of this section that got it
+wrong. The nearest published figure is round 338's **417 passed, 264
+deselected**, and the tempting reading — "+47 selected, which is this round's
+new tests" — is false: round 341 created `test_slowtier.py` and never
+reported a fast-tier total, so the 417 baseline predates 25 tests that are
+not this round's. Measured rather than inferred (`--collect-only`):
+
+| | selected |
+|---|---|
+| round 338 baseline (no `test_slowtier.py` yet) | 417 |
+| round 341's `test_slowtier.py` | +25 |
+| round 343: `test_slowtier.py` 25 -> 38 | +13 |
+| round 343: `test_snapshot_race.py` | +9 |
+| **total** | **464** |
+
+So this round adds **22** fast-tier tests, not 47. Deselected 264 -> 267 is
+exactly round 341's three additions to `test_swe_alias_effects.py`, which is
+slow-tier. No test changed tier and none was silently dropped.
+
+Recording the slip because it is the round's own subject matter: an
+unexecuted number (round 341's fast-tier total was never measured) let a
+later round attribute someone else's work to itself, and it took a
+`--collect-only` count to catch. That is round 321's item 14 class again,
+inside the very writeup arguing for it.
 
 **The new machinery witnessed itself, on real data, unprompted.** The
 health-check run launched *before* the `test_swe_review.py` re-run recorded
