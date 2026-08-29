@@ -1453,3 +1453,117 @@ def test_param_named_like_a_tracked_fn_shadows_its_param_call_fact():
         'fn apply(f) effects [] { f(1) }\n'
         'fn outer(apply) effects [] { 1 }\n'
         'check "ok": true\n')
+
+
+# ======================================== v0.14.11 (round 306) ============
+# Closes HALF of v0.14.9's own explicitly-named remaining "a builtin
+# flowing into a param that is stored ... rather than called directly"
+# gap: a param `let`-renamed WITHIN THE SAME OPEN FN BODY, then called
+# through the new name, is now recognized exactly as calling the param
+# directly would be — via a new `_resolve_param_alias` walk, a fallback to
+# `_check_effect_call`'s own existing identity check (unchanged). The
+# OTHER half — a param RETURNED to a caller, who then holds the alias
+# instead of the fn's own body calling it — is a value-flow-ACROSS-A-
+# RETURN-BOUNDARY question and remains fully open (see the negative case
+# at the end of this section).
+
+def test_param_renamed_inside_body_then_called_is_now_checked():
+    """`fn apply(f) effects [io] { let g = f\\n g(1) }` — `g` is a pure
+    rename of `apply`'s own param `f`, so calling `g(1)` counts as `apply`
+    calling `f` directly, exactly as `f(1)` itself already would. Same
+    grant/deny pair shape as `test_argument_passed_to_a_directly_called_
+    param_is_{checked,rejected_when_not_permitted}`, just with one extra
+    `let`-rename hop between the param and the call."""
+    all_ok(
+        'fn apply(f) effects [io] {\n'
+        '  let g = f\n'
+        '  g(1)\n'
+        '}\n'
+        'apply(print)\n'
+        'check "ok": true\n')
+    with pytest.raises(ParseError) as ei:
+        parse(
+            'fn apply(f) effects [] {\n'
+            '  let g = f\n'
+            '  g(1)\n'
+            '}\n'
+            'apply(print)\n')
+    msg = str(ei.value)
+    assert "effect 'io'" in msg and "not permitted" in msg
+
+
+def test_param_rename_chain_through_two_hops_is_checked():
+    """`let g = f` then `let h = g` — the rename fact chains through a
+    SECOND hop within the same body, the same "chain through two hops"
+    shape `test_alias_chain_through_two_hops_is_checked` already pins for
+    v0.14.2's own ordinary alias tracking."""
+    all_ok(
+        'fn apply(f) effects [io] {\n'
+        '  let g = f\n'
+        '  let h = g\n'
+        '  h(1)\n'
+        '}\n'
+        'apply(print)\n'
+        'check "ok": true\n')
+    with pytest.raises(ParseError):
+        parse(
+            'fn apply(f) effects [] {\n'
+            '  let g = f\n'
+            '  let h = g\n'
+            '  h(1)\n'
+            '}\n'
+            'apply(print)\n')
+
+
+def test_param_rename_shadowed_by_nested_block_is_not_misattributed():
+    """A nested block's own rebinding of the SAME name the rename used
+    correctly shadows it — a call through the shadowing name afterward is
+    an ordinary, untracked call, not a false re-check of `apply`'s own
+    param-call fact. Mirrors `test_param_named_like_a_tracked_fn_shadows_
+    its_param_call_fact`'s shadowing shape, one level down."""
+    all_ok(
+        'fn apply(f) effects [] {\n'
+        '  let g = f\n'
+        '  if true {\n'
+        '    let g = 5\n'
+        '    g\n'
+        '  } else {\n'
+        '    0\n'
+        '  }\n'
+        '}\n'
+        'apply(print)\n'
+        'check "ok": true\n')
+
+
+def test_param_rename_in_enclosing_fn_not_misattributed_to_inner_fn():
+    """A param rename recorded in an ENCLOSING fn's own body must never
+    leak into a DIFFERENT, inner fn's own param-call fact, even via a
+    coincidental name collision — `outer`'s `g` (a rename of its own
+    param `p`) is a completely different name from `inner`'s OWN param,
+    also called `g`; `inner`'s call must be checked against `inner`'s own
+    declared scope, not `outer`'s, and must not spuriously add `p` (which
+    isn't even one of `inner`'s own params) to `inner`'s tracked set."""
+    all_ok(
+        'fn outer(p) effects [] {\n'
+        '  let g = p\n'
+        '  fn inner(g) effects [io] { g(1) }\n'
+        '  inner(print)\n'
+        '}\n'
+        'outer(print)\n'
+        'check "ok": true\n')
+
+
+def test_param_returned_then_called_by_caller_is_still_not_checked():
+    """The OTHER half of the "stored/returned" gap, deliberately still
+    open: `apply`'s own param `f` is returned (not called inside `apply`'s
+    own body at all), so the CALLER ends up holding the alias and calling
+    it itself — a value-flow-ACROSS-A-RETURN-BOUNDARY question, a
+    genuinely different mechanism from the same-body rename this round
+    closes. `apply` itself calls nothing directly, so it has no recorded
+    param-call fact at all, and the caller's own unrestricted call to
+    `g(1)` is simply never checked against anything."""
+    all_ok(
+        'fn apply(f) { f }\n'
+        'let g = apply(print)\n'
+        'g(1)\n'
+        'check "ok": true\n')

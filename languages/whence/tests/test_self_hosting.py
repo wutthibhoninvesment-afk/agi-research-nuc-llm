@@ -527,6 +527,14 @@ def test_effects_lang_runs_under_the_guest_round_164_backlog_closed():
     # `let` handling), never by the guest evaluator, which has no notion of
     # this field at all and simply evaluates `fn(...) {...}` the same way
     # it always has.
+    #
+    # v0.14.11 (round 306) added one more check (`apply_logger_renamed`, a
+    # param `let`-renamed inside its own fn's body, then called through the
+    # new name) -- same zero-guest-change reasoning again: the new
+    # `Parser.param_alias_scopes` stack and `_resolve_param_alias` walk are
+    # entirely HOST parse-time bookkeeping (no new AST field at all this
+    # time), invisible to the guest evaluator, which just sees one more
+    # ordinary `let` and one more ordinary call.
     eval_lib = eval_library_source()
     effects_src = open(EFFECTS).read()
     prog = eval_lib + 'let __r = run_src("%s")\n' % escape(effects_src)
@@ -534,7 +542,7 @@ def test_effects_lang_runs_under_the_guest_round_164_backlog_closed():
     rec = env.get("__r").payload
     assert rec.fields["parse_error"].payload is False
     checks = rec.fields["checks"].payload
-    assert len(checks) == 11
+    assert len(checks) == 12
     failed = [c.payload.fields["label"].payload for c in checks
               if c.payload.fields["pass"].payload is not True]
     assert not failed, failed

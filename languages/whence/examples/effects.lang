@@ -150,6 +150,26 @@ check "a builtin passed to a let-bound anonymous fn's directly-called argument i
 # still has no name to check against, and remains untracked (see SPEC.md
 # "v0.14.10").
 
+# v0.14.11: a parameter RENAMED by a `let` inside the SAME function body,
+# then called through the new name, is now recognized as calling that
+# parameter directly too — `apply_logger_renamed` below never calls `f`
+# by that name at all, only through `g`, one `let`-rename hop later.
+fn apply_logger_renamed(f, prices) effects [io] {
+  let g = f
+  g("logged total (via renamed argument): " + str(total(prices)))
+  total(prices)
+}
+check "a builtin passed to a param that is renamed, then called through the rename, is still checked":
+  apply_logger_renamed(print, prices) == 60
+# Writing `apply_logger_renamed` as `effects []` instead would still be a
+# ParseError at the CALL SITE above, exactly as if `g` were `f` itself.
+# Still shallow, in a DIFFERENT direction than v0.14.9/v0.14.10's own
+# boundary: only a rename WITHIN THE SAME OPEN FN BODY is tracked — a
+# parameter RETURNED to a caller (so the caller, not this fn's own body,
+# ends up holding and calling the alias) remains untracked, a genuinely
+# different value-flow-ACROSS-A-RETURN-BOUNDARY question (see SPEC.md
+# "v0.14.11").
+
 # v0.14.8: `rand()` is the SECOND effectful builtin (tag "random", distinct
 # from print's "io") — every check above only ever exercised ONE real tag,
 # so `effects [network]` blocking `print` (tests/test_v14.py) was proof the

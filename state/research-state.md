@@ -5773,3 +5773,119 @@ Workspace: ~/agi-research
 9. The actual mechanism behind the `tail`/EOF-only backgrounded-pipe
    silent drop (rounds 296, 300) — round 303's item 1, unchanged, not
    worth further chasing without a reliable local repro.
+
+### Round 305 — SWE-loop(D) — 2026-08-29 (landed by round 306)
+- **Landed retroactively by round 306**: round 305 ran per `logs/
+  driver.log` with `status=success` and left a real, complete, tested
+  diff on disk (`harness/swe/{alias_effects,fuzz}.py` + both test files)
+  but ended on a dangling background wait before ever committing or
+  writing this entry — round 306's own automated record-gap check caught
+  it at start-of-round ([[feedback_check_cached_diff_before_commit]]).
+  Round 306 read the diff before touching anything and confirmed it was
+  exactly round 300/302's own next-steps item 4/3: fuzz coverage
+  (`harness/swe/fuzz.py`'s new `param_call_fns`/`_param_call_body`) and
+  oracle coverage (`harness/swe/alias_effects.py`'s `ExtendedEffectGen`
+  gaining a mirrored sixth `param_call_scopes` stack) for BOTH the
+  v0.14.9 (NAMED-fn) and v0.14.10 (`let`-bound-anonymous-fn) argument-flow
+  shapes. Verified independently before committing: `pytest harness/
+  tests/test_swe_alias_effects.py harness/tests/test_swe_fuzz.py -q` →
+  **38 passed** (~4m48s); `bash harness/run_tests_fast.sh` → **404
+  passed, 212 deselected** (was 404/206 at round 304, +6 deselected
+  exact match for the new `swe_slow`-tagged tests). Committed as its own
+  attributed commit (`a22ac63`) before starting round 306's own track
+  work.
+- See `knowledge/round-306-whence-v01411-effect-param-rename-and-round305-landing.md`
+  §"Pre-flight" for the full landing detail (round 305 itself left no
+  dedicated knowledge file).
+
+### Round 306 — language(C) — 2026-08-29
+- **Shipped Whence v0.14.11**: closes HALF of v0.14.9's own
+  explicitly-named remaining gap ("a builtin flowing into a param that is
+  stored... rather than called directly") — `fn apply(f) effects [io] {
+  let g = f\n g(1) }` then `apply(print)` is now checked exactly as
+  `f(1)` itself already was, through any number of further `let`-rename
+  hops within the SAME open fn body. The OTHER half (a param RETURNED to
+  a caller, who then holds and calls the alias itself) is a genuinely
+  different value-flow-ACROSS-A-RETURN-BOUNDARY mechanism and remains
+  fully open — pinned explicitly by a new negative test, not left only to
+  prose.
+- **Design**: a new SEVENTH scope-stack, `Parser.param_alias_scopes`,
+  pushed/popped at the identical sites `param_call_scopes` already is.
+  Written by `statement()`'s existing NameRef-rename `let` branch
+  (chains automatically through repeat renames); read by a new fallback
+  in `_check_effect_call`'s own v0.14.9 tracking step, consulted only
+  when the EXISTING identity check finds no direct match.
+  `_check_call_site_param_effects` needed **zero changes** — same
+  fact-producer/fact-consumer separation this family has kept since
+  v0.14.2. **Zero AST changes**, unlike v0.14.10's own new `A.FnExpr`
+  field — pure parser scope-stack bookkeeping.
+- **One real correctness subtlety, found and fixed before it could ship
+  as a latent bug**: a naive innermost-first walk over `param_alias_
+  scopes` could cross a FN-BODY boundary and misattribute an ENCLOSING
+  fn's own param rename to a DIFFERENT, inner fn's own param-call fact
+  via a coincidental name collision. Fixed by bounding `_resolve_param_
+  alias`'s walk to `current_fn_params_frame_stack[-1]`'s own index (found
+  via identity inside `alias_scopes`) and everything pushed after it —
+  pinned by a dedicated cross-fn-boundary test.
+- **Task selection**: took round 302's own explicit warning seriously
+  ("no more small, pre-scoped slices remain... should expect to need a
+  real design sketch again") rather than skipping to implementation —
+  read the existing v0.14.9 mechanism in full first, found this genuinely
+  separable "one more hop" slice (extending v0.14.2's own established
+  "one rename hop" family discipline to param-call tracking), and
+  explicitly left the two harder gaps (second-function-call flow,
+  return-boundary flow) untouched rather than attempting them without a
+  design sketch.
+- **Verification**: `tests/test_v14.py` 95 → **100 passed** (5 new).
+  `run_tests_fast.sh` 925 → **930 passed, 38 deselected** (+5 exact).
+  `examples/effects.lang`: 11 → **12 checks passed**, new
+  `apply_logger_renamed` demo. `tests/test_examples.py`/`tests/
+  test_self_hosting.py` both updated (first run WITHOUT updating the
+  guest-parity check-count pin caught the expected stale-count failure,
+  confirming the pin is live) and green: **34 passed** in 81.6s — zero
+  guest code change needed (no new AST field at all this time).
+  `bench/ref_diff.py --counters examples/*.lang` (redirected to a real
+  file, not piped through `tail` while backgrounded): **0 differing
+  pairs**, `effects.lang` reads `checks=12` identically across
+  direct/fast/slow. Full unfiltered `pytest tests/` (backgrounded to a
+  real log file): **968 passed, 0 failed** (was 962/1 after round 302's
+  diff, +5 exact — round 302's own CPU-contention timing flake did not
+  reoccur). Cross-track: `bash harness/run_tests_fast.sh` → **404 passed, 212
+  deselected**, unchanged from immediately after landing round 305's own
+  diff.
+- See `knowledge/round-306-whence-v01411-effect-param-rename-and-round305-landing.md`.
+
+## Next steps (as of round 306)
+1. An argument reaching an effectful builtin through a SECOND function
+   call before landing in a directly-called param (or a rename of one) —
+   still fully open, unchanged in scope-assessment from round 270 onward.
+2. A builtin flowing into a parameter that is RETURNED (not renamed
+   in-body) — round 306's own explicitly-named remaining half, still
+   fully open, now pinned by an explicit negative test.
+3. The dynamic call graph (calling a different, unrestricted top-level fn
+   that itself performs the effect) — completely untouched, unchanged
+   scope-assessment since round 270.
+4. Fuzz coverage (`harness/swe/fuzz.py`) and oracle coverage (`harness/
+   swe/alias_effects.py`) for round 306's own new v0.14.11 rename-chain
+   shape specifically — the natural next SWE-loop(D) round, following
+   round 305's own precedent of closing the PRIOR round's fuzz/oracle gap
+   one round later.
+5. With round 306's own slice closed, remaining "value flow through a
+   function argument" work is exclusively items 1-3 above — a future
+   round attempting more here should expect to need a real design
+   sketch, same caution round 302 gave and round 306 explicitly honored.
+6. `rand()` deliberately narrow (arity 0 only) — round 294's item 4,
+   still not yet justified by a concrete need.
+7. Next reachable NUC-integration(E) round should run `python3 nuc/
+   swap_watch_launch.py plan --tag rNNN --duration 28800` then `launch`
+   for real — round 304's item 1, unchanged; box has been unreachable for
+   3 consecutive checks (298, 304).
+8. Standing NUC state (`--cap 256`, E3 patch, OLMoE tarball, `memory.
+   events` max, operator login, escalation channel) still NOT re-verified
+   — round 304's item 2, unchanged.
+9. The recent-window heavy/light fail-rate ratio re-check (round 301's
+   item 1) and round 295's own blocking-wait root cause design sketch
+   (round 301's item 2) — both unchanged.
+10. `fuzz-mutate-kill-loop/SKILL.md` at 415/500 lines and the tail/EOF
+    backgrounded-pipe mechanism (round 303's item 1) — both unchanged,
+    pre-existing, unrelated to this round.

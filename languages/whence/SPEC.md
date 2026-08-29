@@ -1816,7 +1816,84 @@ that cannot end a statement.
   (`harness/swe/alias_effects.py`) for the v0.14.9/v0.14.10
   argument-flow shape overall remain open, the same "ship the checker,
   name the fuzz gap, close it in a later dedicated round" rhythm every
-  v0.14.x feature has followed.
+  v0.14.x feature has followed. **Closed by round 305 (landed by round
+  306) — see below.**
+
+## v0.14.11 (round 306) — effect system: a param renamed inside its own fn body, then called through the rename
+
+- **Closes HALF of v0.14.9's own explicitly-named remaining gap** ("a
+  builtin flowing into a param that is stored... rather than called
+  directly", unchanged through v0.14.10's own next-steps): `fn apply(f)
+  effects [io] { let g = f\n g(1) }` then `apply(print)` is now checked
+  exactly as `f(1)` itself already was — including through any number of
+  further rename hops within the SAME open fn body (`let h = g` then
+  `h(1)` too). The OTHER half of that gap — a param RETURNED to a
+  caller, who then holds and calls the alias itself, rather than the
+  fn's own body calling it — is a genuinely different, still fully open
+  value-flow-ACROSS-A-RETURN-BOUNDARY mechanism (see the negative case in
+  `tests/test_v14.py`'s `test_param_returned_then_called_by_caller_is_
+  still_not_checked`).
+- **Design**: a new, SEVENTH scope-stack, `Parser.param_alias_scopes`,
+  pushed/popped at the identical three sites `param_call_scopes` already
+  is (`stmt_list`'s per-block frame, plus the params-frame push at each
+  of the two fn-definition sites). Each frame maps a name to either
+  `None` or the ORIGINAL PARAM NAME (a key of `current_fn_params_frame_
+  stack[-1]`) it is currently a pure `let`-rename of — set by a new
+  branch in `statement()`'s own `let` handling (the existing `expr.
+  __class__ is A.NameRef` rename branch): if the RHS resolves, by
+  identity, to the currently-open fn's own params frame, record the RHS
+  name directly; otherwise recurse through the new `_resolve_param_alias`
+  resolver, so a rename-of-a-rename chains automatically. A new fallback
+  in `_check_effect_call`'s own existing v0.14.9 tracking step — reached
+  only when the EXISTING identity check (the base case, `f(1)` itself)
+  finds no match — calls `_resolve_param_alias(callee.name)` and, if it
+  resolves, records the ORIGINAL param name (not the rename) into
+  `direct_param_calls_stack`, so `_check_call_site_param_effects`'s later
+  per-call-site check sees no difference between calling `f` directly and
+  calling it through any number of renames. **Zero AST changes** — unlike
+  v0.14.10's own `A.FnExpr.param_call_fact` field, this is pure parser
+  scope-stack bookkeeping, exactly like v0.14.9's own original mechanism.
+- **The one genuine correctness subtlety this design had to get right**:
+  `_resolve_param_alias` must never cross a FN-BODY boundary — a rename
+  recorded in an ENCLOSING fn's own scope must not leak into a DIFFERENT,
+  inner fn's own param-call fact, even via a coincidental name collision
+  (`fn outer(p) { let g = p\n fn inner(g) effects [io] { g(1) } }` must
+  check `inner`'s call against `inner`'s OWN param `g`, and must NOT
+  spuriously attribute it to `outer`'s unrelated `p`, which isn't even
+  one of `inner`'s own params). Fixed by locating `current_fn_params_
+  frame_stack[-1]`'s own identity inside `alias_scopes` and bounding the
+  `param_alias_scopes` walk to that index and everything pushed after it
+  — pinned by `test_param_rename_in_enclosing_fn_not_misattributed_to_
+  inner_fn`.
+- **Deliberately still narrow**, same family discipline: only a rename
+  WITHIN THE SAME OPEN FN BODY is tracked (a rename inside a nested
+  block still counts, since `param_alias_scopes` is pushed/popped at the
+  same per-block granularity as every sibling stack); a RETURNED param is
+  still invisible (see above); an argument reaching an effectful builtin
+  through a SECOND function call, and the dynamic call graph (calling a
+  different, unrestricted top-level fn that itself performs the effect),
+  remain completely untouched, unchanged in scope from every prior
+  v0.14.x round's own assessment.
+- **Verification**: `tests/test_v14.py` 95 → **100 passed** (5 new: the
+  basic grant/reject pair, a two-hop rename chain, a nested-block
+  shadowing case, the cross-fn-boundary misattribution guard, and the
+  explicit negative case pinning the still-open "returned" half).
+  `examples/effects.lang` gained one new demo (`apply_logger_renamed`):
+  checks 11 → **12 passed, 0 failed**. `tests/test_examples.py::
+  test_effects` and `tests/test_self_hosting.py`'s guest-parity pin both
+  updated to 12 checks — the guest needed **zero code change**, the same
+  "purely a host parse-time mechanism, invisible to the guest evaluator"
+  property v0.14.9/v0.14.10 already established, this time even more
+  directly since there is no new AST field at all to be inert to.
+  `run_tests_fast.sh`: 925 → **930 passed, 38 deselected** (+5 exact).
+  `pytest tests/test_examples.py tests/test_self_hosting.py`: 34 passed.
+- **Still open**: everything named above under "deliberately still
+  narrow"; fuzz coverage (`harness/swe/fuzz.py`) and oracle coverage
+  (`harness/swe/alias_effects.py`) for this round's own new rename-chain
+  shape specifically (round 305's fuzz/oracle work, landed alongside this
+  round, covers only the v0.14.9/v0.14.10 direct-call shapes, not this
+  round's rename extension) — the natural next SWE-loop(D) round, same
+  "ship the checker, name the fuzz gap, close it later" rhythm.
 
 ## v0.15 (round 168) — AI-native primitives: `guess`/confidence
 - **The curriculum's last open "advanced feature" slot** (structural types
