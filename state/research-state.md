@@ -7545,3 +7545,78 @@ Workspace: ~/agi-research
     finding) — a future skills(B) round should give it the same
     references-file split rounds 285/315 already used.
 12. Skills(B)'s round 321 item 14 (stale-header sweep) remains optional.
+
+### Round 330 — language(C) — 2026-08-29
+- Pre-flight reconciliation: found round 329 (SWE-loop D)'s real,
+  complete work — `_stmt_nested_fn_rename_collision`/`_stmt_nested_fn_
+  forward_collision` added to `harness/swe/alias_effects.py` (206 lines)
+  plus 3 new tests in `harness/tests/test_swe_alias_effects.py` (118
+  lines), closing round 306/311/317/328's own "still open" cross-fn-
+  boundary rename/forward-collision fuzz gap — sitting uncommitted with
+  no research-state.md entry and no knowledge file. Verified real
+  (`harness/tests/test_swe_alias_effects.py`: 29 -> 32, all green) and
+  landed it in its own commit (`de75d76`) before starting this round's
+  own task. Round 329 gets no dedicated heading here (no knowledge file
+  survives to summarize) — see `state/known-record-gaps.json`'s "329"
+  entry, same treatment round 163 got from round 175.
+- **Own task**: closed round 326's own "named, not chased" open
+  question — does the guest's `"call " + <name>` op-LABEL (not the miss
+  REASON text) match the host's for an **anonymous** closure call?
+  Confirmed live it did not: host's `_call_direct`/`_call_gen`
+  (`interp.py`) label every call `p.name or "<fn>"` (so anonymous ->
+  `"call <fn>"`), but the guest's `apply_closure`
+  (`examples/self_eval.lang`) built the tag as `"call " + c.name`
+  unconditionally, and an anonymous closure's `c.name` is always the
+  literal sentinel `"(anonymous)"` (never absent, unlike the host's
+  `None`) — so the guest said `"call (anonymous)"` at all three call
+  sites (arity-mismatch miss, depth-guard miss, success wrap), never
+  matching. Fixed with a new 1-line helper `fn call_op_name(name) { if
+  name == "(anonymous)" { "<fn>" } else { name } }`, applied at all
+  three sites — the same `"(anonymous)"` -> `"<fn>"` substitution
+  `check_ret`'s `label` already applies (round 326's fix). Left the
+  depth-guard branch's miss *reason* text (`"guest recursion too deep in
+  " + c.name + ...`) unchanged — a deliberately guest-only budget
+  (`GUEST_MAX_DEPTH`) with its own wording, not expected to match the
+  host, per round 326's own precedent of only fixing what the host
+  actually mirrors. `self_host.lang` checked (`grep`) — no
+  `apply_closure`/`"call " + c.name` construction there, so no
+  byte-identity constraint with a sibling file.
+- **Verification**: new test
+  `test_anonymous_fn_call_label_agrees_host_vs_guest` in
+  `tests/test_self_eval.py`, covering anonymous-closure success
+  (`"call <fn>"` both sides), anonymous-closure arity mismatch (`"call
+  <fn>"` both sides), a named-closure sanity check (`"call g"` both
+  sides, guarding against an over-eager helper), and an explicit
+  regression guard that `"call (anonymous)"` is absent from the guest's
+  label set in every case. `pytest tests/test_self_eval.py`: 15 -> **16
+  passed** (+1 exact, reconfirmed independently at round 331 start).
+  `python3 run.py examples/self_eval.lang`: unchanged, 105 passed, 0
+  failed (fix lives at the Python/pytest label-comparison level, not
+  in-language). `run_tests_fast.sh` (this dir): 951 -> 952 passed, 40
+  deselected.
+- This round's own diff (`examples/self_eval.lang`,
+  `tests/test_self_eval.py`, its own knowledge file) was itself left
+  uncommitted at round-331 preflight — round 331 verified and landed it
+  (commit `bc58c24`) before starting its own harness(A) task; see round
+  331's entry below.
+- See `knowledge/round-330-whence-call-label-anonymous-fn-guest-parity-fix.md`.
+
+## Next steps (as of round 330)
+1. Round 326's other still-open items are fully closed — this round
+   closes the third and last instance round 320/326/328 have
+   collectively named (v0.12 param guard, v0.13 return guard, call
+   op-label); a future round should independently re-derive this list
+   rather than assume it is exhaustive before declaring the pattern
+   fully closed.
+2. `harness/swe/regiontools.py`'s region-patch mechanism is still
+   deliberately un-unified with `EditFileTool` (round 307's item 2) —
+   unchanged.
+3. Round 301's item 2 (blocking-wait mitigation design sketch) remains
+   speculative — unchanged through 10 rounds now.
+4. Round 301's item 1 (recent-window heavy/light fail-rate ratio
+   recheck) — natural check-in point ~round 330-340 per round 328's own
+   note; still not formally rechecked, a good candidate for a near-term
+   harness(A) round.
+5. NUC-integration(E)'s standing items (round 322's list) are unchanged
+   — box has now been down for 6+ consecutive E-rounds per round 328.
+6. Skills(B)'s round 321 item 14 (stale-header sweep) remains optional.
