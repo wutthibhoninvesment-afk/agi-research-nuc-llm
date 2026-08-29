@@ -194,6 +194,30 @@ check "a builtin returned directly by a callee, then called by its caller, is no
 # through a SECOND function call before reaching the return, are both
 # still invisible (see SPEC.md "v0.14.12").
 
+# v0.14.13: an argument reaching an effectful builtin through a SECOND
+# function CALL, not a return, is now tracked too — `apply_logger_via`
+# below never calls its own `f` parameter directly at all, it FORWARDS it
+# as `apply_logger`'s (v0.14.9's own fn, above) own argument, and it is
+# `apply_logger`'s body, not `apply_logger_via`'s, that actually calls it.
+fn apply_logger_via(f, prices) effects [io] {
+  apply_logger(f, prices)
+}
+check "a builtin forwarded to a second function's own directly-called argument is checked too":
+  apply_logger_via(print, prices) == 60
+# Writing `apply_logger_via` as `effects []` instead would still be a
+# ParseError at the CALL SITE `apply_logger_via(print, prices)` above,
+# exactly as if `apply_logger_via` called `f` itself — the forwarding fact
+# composes through `apply_logger`'s own already-recorded "calls its own
+# param `f` directly" fact, the same single-pass "record once, read at
+# every later call site" discipline v0.14.9 itself established, and it
+# composes to ARBITRARY forwarding depth for free, no extra work needed
+# per hop. Still shallow, in the direction v0.14.12 itself left open: a
+# parameter forwarded then RETURNED (not called) by the second function
+# remains untracked — a genuinely different mechanism (see SPEC.md
+# "v0.14.13"). Calling a DIFFERENT, unrestricted top-level fn that itself
+# performs the effect directly — no param, no forwarding, involved at all
+# — remains the one gap this whole family has never started.
+
 # v0.14.8: `rand()` is the SECOND effectful builtin (tag "random", distinct
 # from print's "io") — every check above only ever exercised ONE real tag,
 # so `effects [network]` blocking `print` (tests/test_v14.py) was proof the

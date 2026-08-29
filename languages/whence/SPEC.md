@@ -1975,6 +1975,187 @@ that cannot end a statement.
   natural next SWE-loop(D) round, following the exact same rhythm round
   305 itself set for v0.14.11.
 
+## v0.14.13 (round 312) — effect system: an argument forwarded through a SECOND function call, then called directly
+
+- **Closes the FIRST of the two gaps named across four consecutive
+  language(C) rounds (302, 306, 308, 311) as needing "a real design
+  sketch, not another small pre-scoped slice"**: an argument reaching an
+  effectful builtin through a SECOND function call, before landing in a
+  directly-called param. `fn inner(g) effects [io] { g(1) }` then `fn
+  outer(f) effects [] { inner(f) }`: `outer`'s own body never calls `f`
+  directly (or through a same-body rename/return — v0.14.9/11/12's own
+  mechanisms), it FORWARDS `f` as `inner`'s own argument, and it is
+  `inner`'s body, not `outer`'s, that actually calls it. `outer(print)`
+  was invisible to every prior check, even though calling `outer` actually
+  performs io.
+- **The design insight that makes this tractable without a whole new
+  fixed-point/interprocedural analysis**: `Parser.param_call_scopes`
+  already records, for EVERY named fn (or `let`-bound anonymous one),
+  "which of my own params does my body call directly" (v0.14.9) — a fact
+  fully resolved by the time that fn's OWN body finishes parsing, strictly
+  BEFORE any caller of it can be parsed (single left-to-right pass,
+  forward refs already invisible everywhere else in this family). So when
+  `outer`'s body itself calls `inner(f)`, checking whether `f` (or a
+  same-body rename of it) lands in one of `inner`'s own DIRECTLY-called
+  param positions is enough: if it does, `outer` ITSELF now also counts as
+  "calling `f` directly" for the purposes of `outer`'s OWN `param_call_
+  scopes` entry — recorded into the exact same `direct_param_calls_
+  stack[-1]` v0.14.9's leading block already populates. `_check_call_
+  site_param_effects` needed **zero changes**: it already walks
+  `_resolve_param_call_fact("outer")` generically, indifferent to whether
+  `f`'s membership in `outer`'s own `called_params` came from a direct
+  call, a same-body rename, or (now) a one-level-removed forward.
+- **This composes to ARBITRARY depth for free** — the same "record once,
+  read at every later call site" discipline `param_call_scopes` already
+  relies on for everything else in this family: if `innermost(h) effects
+  [io] { h(1) }`, `inner(g) effects [io] { innermost(g) }`, `outer(f)
+  effects [io] { inner(f) }` are declared in that (bottom-up) textual
+  order, `inner`'s own `param_call_scopes` entry already reflects the
+  forward through `innermost` by the time `outer`'s body is parsed, so
+  `outer`'s own forward-through-`inner` check transitively picks it up
+  too — no explicit recursion needed, single-pass composition does it
+  automatically (`test_param_forwarding_composes_transitively_through_
+  three_hops`). Declaration order still matters exactly as much as it
+  already does everywhere else: a forward reference, or a genuinely
+  (mutually) recursive chain, is invisible, unchanged in scope from every
+  prior v0.14.x round.
+- **Design**: a new method, `_check_param_forwarding(callee, args, tok)`,
+  called from `postfix()` alongside `_check_effect_call`/`_check_call_
+  site_param_effects` at every call expression. For a callee with a
+  recorded `param_call_fact`, it walks each of the target fn's own
+  DIRECTLY-called param positions; if the argument AT that position
+  resolves (identity, or a same-body rename chain) to one of the
+  CURRENTLY open fn's own params, that param is added to the CURRENT fn's
+  own `direct_param_calls_stack[-1]` — the exact same set v0.14.9's
+  leading block populates for a truly direct call, v0.14.11's for a
+  same-body rename. **Zero new scope-stack**, unlike every prior addition
+  in this family (v0.14.4/6/7/9/11/12 each added a new stack) — this is
+  pure composition of a fact this family already computes.
+  `_resolve_current_fn_param(name)` is a new shared helper, factored out
+  of the identical "innermost-first frame-identity check, else fall back
+  to `_resolve_param_alias`" logic that was duplicated between `_check_
+  effect_call`'s own leading v0.14.9 block and `_tail_return_param_name`
+  (v0.14.12) — this round's own new forwarding check is a third caller,
+  applied to a call's ARGUMENTS instead of its callee or a block's tail.
+- **Deliberately still narrow**, the same "one hop, bare NameRef only"
+  discipline as every sibling check: only a call whose callee is a bare
+  NameRef with a recorded `param_call_fact` is inspected; only an
+  ARGUMENT that is itself a bare NameRef (or a same-body rename chain of
+  one) is checked (`test_param_forwarding_via_non_nameref_argument_
+  still_not_checked`); a param that is FORWARDED then RETURNED (or
+  renamed, or forwarded a second time) by the callee, not called, remains
+  invisible — v0.14.12's `return_param_scopes` and this mechanism are
+  still two genuinely separate mechanisms, not unified
+  (`test_param_forwarding_does_not_disturb_returned_param_mechanism`).
+  Shadowing is correct (`test_param_forwarding_shadowed_name_is_not_
+  misattributed`), and only the correct positional argument is matched
+  (`test_param_forwarding_only_correct_position_is_matched`).
+- **The dynamic call graph — the OTHER named gap, and now the ONLY one
+  left — is a fundamentally different, larger problem, not touched by
+  this round.** This is worth stating precisely, since it is easy to
+  conflate with the gap just closed: `_check_param_forwarding` composes a
+  DATA-FLOW fact (which of my params reach a directly-called sink) across
+  one function-call hop, transitively, for free — but every fact in this
+  entire v0.14.x family, from v0.14 (round 146) onward, has been
+  DELIBERATELY shallow in exactly one further sense, stated in v0.14's own
+  original design comment above and never revisited since: **a `effects
+  [...]` declaration vouches ONLY for that function's own textual body —
+  calling a DIFFERENT, unrestricted function that itself performs an
+  effect DIRECTLY (no param, no forwarding, no aliasing of any kind
+  involved) is untouched by the caller's own declaration.** `fn helper()
+  effects [io] { print(1) }` then `fn outer() effects [] { helper() }` —
+  `outer`'s own body never mentions `print`, `f`, or ANY tracked alias at
+  all; it just calls `helper`, an ordinary, unrestricted call this
+  parser's `_check_effect_call` has never inspected the CALLEE's own
+  effects scope for (only whether the callee itself IS, or resolves to,
+  an effectful alias). Running `outer()` does perform io (via `helper`),
+  yet `outer`'s own `effects []` never gets checked against it.
+  - **Why this is NOT the same shape as v0.14.13's own forwarding
+    fix, and could not be closed the same way**: `_check_param_
+    forwarding`'s whole design rests on `param_call_scopes` recording a
+    fact ABOUT A SPECIFIC PARAMETER — "if you call me with an effectful
+    value in this slot, that effect fires." `helper()` above takes NO
+    parameters at all; its effect is UNCONDITIONAL, baked into its own
+    body, not data-dependent on anything the caller supplies. There is no
+    per-parameter fact to compose here — the only fact that could possibly
+    make `outer() effects []` reject `helper()` is "does `helper`'s own
+    resolved effects scope contain an effect `outer`'s own declared scope
+    does not" — a comparison between TWO FUNCTIONS' OWN DECLARED SCOPES,
+    not between a scope and a specific argument's tracked tag. Every other
+    check in this family (`_check_effect_call`, `_check_call_site_param_
+    effects`, `_check_param_forwarding`) ultimately bottoms out at
+    "compare ONE effect tag against ONE scope"; this would be the family's
+    first check comparing scope-against-scope.
+  - **What a real design would need, sketched honestly (not implemented,
+    not this round's scope)**: two structurally different approaches exist.
+    1. **Declared-superset propagation** (closer to this family's existing
+       "declared, not inferred" philosophy): at the point a NAMED fn's own
+       `effects [...]` clause is resolved, additionally require its scope
+       to be a superset of every OTHER named fn it calls DIRECTLY (not
+       through a param — an ordinary `helper()` call where `helper` is a
+       plain NameRef resolving to a fn definition with ITS OWN already-
+       resolved scope). Bottom-up declaration order (the same constraint
+       already binding every fact in this family) makes a single left-
+       to-right pass sufficient for a strict call DAG — by the time
+       `outer`'s own clause is resolved, `helper`'s is already known.
+       Recursive or mutually-recursive fns break this (`helper` calling
+       `outer` calling `helper`) and would need real fixed-point
+       iteration over the call graph — a genuinely bigger algorithmic
+       class than anything else in v0.14.x, all of which is single-pass.
+    2. **Full effect inference** (NOT declared, INFERRED bottom-up per fn,
+       closer to Hindley-Milner-style type inference than anything in
+       this family): drop the requirement that a fn's `effects [...]`
+       clause be validated against its OWN body at all, and instead
+       compute the TIGHTEST possible effect set for every fn automatically
+       from its transitive call graph, using the explicit clause (where
+       present) only as a additional assertion checked against the
+       inferred result. This is a substantially larger feature — a
+       different point in the design space from "effects are declared,
+       checked against local facts" to "effects are computed" — and would
+       likely warrant its own top-level version bump (`v0.15`-class), not
+       a `v0.14.x` point release, given how much of this family's own
+       design (declared scope as ground truth, no inference) it would
+       have to revisit.
+    Recommendation for whichever future round takes this on: approach (1)
+    is the natural next step if the goal stays "extend this existing
+    family," since it reuses the same single-pass, declaration-order
+    discipline every other v0.14.x fact already assumes, and only needs
+    ONE new comparison (scope-vs-scope at a plain call site) plus an
+    explicit call-graph-cycle detector (to correctly refuse — not
+    silently approve, not crash — a recursive/mutual pair, the one case
+    single-pass composition cannot resolve). Approach (2) is a genuinely
+    separate, much larger research question and should not be scoped
+    into a single round without first being explicitly chosen over (1).
+- **Verification**: `tests/test_v14.py` 105 → **113 passed** (8 new: the
+  direct grant/deny pair, a 3-hop transitive-composition pair, a
+  let-bound-anonymous-fn-target case, a rename-before-forward case, a
+  shadow-safety case, a positional-correctness case, a non-NameRef-
+  argument negative case, and a restated regression pin for the
+  still-open return-boundary-via-second-call gap).
+  `examples/effects.lang`: 13 → **14 checks passed**, new
+  `apply_logger_via` demo (forwards `f` into `apply_logger`'s own
+  directly-called argument). `tests/test_examples.py::test_effects`/
+  `tests/test_self_hosting.py`'s guest-parity pin both updated to 14 —
+  **zero guest code change**, the fifth round in a row (v0.14.9/10/11/
+  12/13) this family has been purely host parse-time bookkeeping (no new
+  AST field at all this round, unlike v0.14.10's `A.FnExpr.param_call_
+  fact` or v0.14.12's `A.Block.tail_param_name`). `run_tests_fast.sh`:
+  935 → **943 passed, 38 deselected** (+8 exact). Full `pytest tests/`:
+  973 → **981 passed, 0 failed** (+8 exact, matching `test_v14.py`'s own
+  net test-count change one-for-one). `bench/ref_diff.py --counters
+  examples/*.lang`: 0 differing pairs, `effects.lang` reads `checks=14`
+  identically across direct/fast/slow. Cross-track: `bash harness/
+  run_tests_fast.sh` unchanged from round 311's own post-landing
+  baseline.
+- **Still open**: the dynamic call graph (sketched above, deliberately
+  NOT attempted this round — a fundamentally different, larger feature
+  than every fact-composition slice that came before it, needing its own
+  future round with the approach choice made explicit); fuzz coverage
+  (`harness/swe/fuzz.py`) and oracle coverage (`harness/swe/alias_
+  effects.py`) for this round's own new forwarding shape — the natural
+  next SWE-loop(D) round, following the exact rhythm round 311 itself set
+  for v0.14.11/v0.14.12.
+
 ## v0.15 (round 168) — AI-native primitives: `guess`/confidence
 - **The curriculum's last open "advanced feature" slot** (structural types
   v0.12, return types v0.13, effects v0.14 all shipped; round 146 itself

@@ -544,6 +544,14 @@ def test_effects_lang_runs_under_the_guest_round_164_backlog_closed():
     # bookkeeping (the new `A.Block.tail_param_name` field is read only by
     # the host parser, never by the guest evaluator), which just sees one
     # more ordinary fn definition, `let`, and call.
+    #
+    # v0.14.13 (round 312) added one more check (`apply_logger_via`, an
+    # argument FORWARDED to a second function call whose own body calls it
+    # directly) -- same zero-guest-change reasoning a fourth time: the new
+    # `_check_param_forwarding` method and shared `_resolve_current_fn_
+    # param` helper are entirely HOST parse-time bookkeeping (no new AST
+    # field at all, same as v0.14.11), invisible to the guest evaluator,
+    # which just sees one more ordinary fn definition and call.
     eval_lib = eval_library_source()
     effects_src = open(EFFECTS).read()
     prog = eval_lib + 'let __r = run_src("%s")\n' % escape(effects_src)
@@ -551,7 +559,7 @@ def test_effects_lang_runs_under_the_guest_round_164_backlog_closed():
     rec = env.get("__r").payload
     assert rec.fields["parse_error"].payload is False
     checks = rec.fields["checks"].payload
-    assert len(checks) == 13
+    assert len(checks) == 14
     failed = [c.payload.fields["label"].payload for c in checks
               if c.payload.fields["pass"].payload is not True]
     assert not failed, failed

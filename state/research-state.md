@@ -6263,3 +6263,110 @@ Workspace: ~/agi-research
 10. `EditFileTool` (round 307): no diff preview, and `harness/swe/
     regiontools.py`'s region-patch mechanism left deliberately un-unified
     with it — round 307's items 1-2, unchanged.
+
+### Round 312 — language(C) — 2026-08-29
+- Pre-flight found round 311's own work fully documented (a complete
+  `### Round 311` section already in this file, plus its knowledge file)
+  but never `git commit`-ted — verified the staged diff matched round
+  311's own documented summary exactly and landed it as its own commit
+  before starting this round's own work
+  ([[feedback_check_cached_diff_before_commit]]). `ps -eo pid,ppid,etime,
+  cmd` showed only this round's own driver process tree
+  ([[feedback_check_for_concurrent_rounds]]).
+- **Shipped Whence v0.14.13**: closes the FIRST of the two gaps named
+  across FOUR consecutive language(C) rounds (302, 306, 308, 311) as
+  needing "a real design sketch, not another small pre-scoped slice" — an
+  argument reaching an effectful builtin through a SECOND function call,
+  before landing in a directly-called param. `fn inner(g) effects [io] {
+  g(1) }` then `fn outer(f) effects [] { inner(f) }`: `outer`'s own body
+  never calls `f` directly, it FORWARDS `f` as `inner`'s own argument, and
+  it is `inner`'s body that actually calls it. `outer(print)` was
+  invisible to every prior check even though calling it performs io.
+- **Design insight**: `Parser.param_call_scopes` already records, per fn,
+  "which of my own params do I call directly" (v0.14.9), fully resolved
+  before any caller can be parsed (single left-to-right pass). New method
+  `_check_param_forwarding` (called from `postfix()` alongside the two
+  existing effect checks) composes this EXISTING fact across one more
+  call boundary: if a forwarded argument lands in the target fn's own
+  directly-called param position, the CURRENT fn now also counts as
+  "calling it directly" — recorded into the same `direct_param_calls_
+  stack[-1]` v0.14.9 already populates. `_check_call_site_param_effects`
+  needed **zero changes**. **Zero new scope-stack** — the first addition
+  in this family needing none (every v0.14.4-12 addition added at least
+  one). New shared helper `_resolve_current_fn_param` deduplicates
+  identical logic that was copy-pasted between `_check_effect_call`'s own
+  v0.14.9 block and `_tail_return_param_name` (v0.14.12); this round's
+  own new check is a third caller.
+- **Composes to ARBITRARY depth for free**: a 3-hop chain
+  (`innermost`→`inner`→`outer`, declared bottom-up) is caught with zero
+  extra code, verified both by manual parser probes and a dedicated test
+  — the same single-pass "record once, read at every later call site"
+  discipline this family already relies on for everything else.
+- **The dynamic call graph — the OTHER named gap, now the ONLY one left**
+  — is a fundamentally different, larger problem, NOT touched this round:
+  it needs the family's first ever scope-vs-scope comparison (an
+  unconditional effect with no parameter involved at all), not a
+  per-argument data-flow composition like this round's own fix. Wrote a
+  full honest design sketch in SPEC.md's new "v0.14.13" section (analysis
+  only, deliberately not implemented): two structurally different
+  approaches — (1) declared-superset propagation with explicit call-graph
+  cycle detection, staying close to this family's existing "declared, not
+  inferred" philosophy; (2) full bottom-up effect inference, a
+  substantially larger feature likely warranting its own `v0.15`-class
+  version bump rather than a `v0.14.x` point release. Recommended (1) as
+  the natural next step if a future round stays within this family.
+- **Verification**: `tests/test_v14.py` 105 → **113 passed** (8 new: grant/
+  deny pair, 3-hop transitive composition, let-bound-anon-fn target,
+  rename-before-forward, shadow safety, positional correctness, non-
+  NameRef-argument negative case, restated return-boundary regression
+  pin). `examples/effects.lang`: 13 → **14 checks passed**, new
+  `apply_logger_via` demo. `tests/test_examples.py`/`tests/
+  test_self_hosting.py` both updated to 14 — **zero guest code change**,
+  the fifth round in a row (v0.14.9-13) this family has been purely host
+  parse-time bookkeeping, no new AST field at all this round.
+  `bench/ref_diff.py --counters examples/*.lang` (redirected to a real
+  file): **0 differing pairs**, `effects.lang` reads `checks=14`
+  identically across direct/fast/slow. `run_tests_fast.sh`: 935 → **943
+  passed, 38 deselected** (+8 exact). Full unfiltered `pytest tests/`
+  (backgrounded to a real log file): 973 → **981 passed, 0 failed** (+8
+  exact, matching `test_v14.py`'s own delta one-for-one). Cross-track:
+  `bash harness/run_tests_fast.sh` → **412 passed, 223 deselected**,
+  byte-identical to round 311's own post-landing baseline.
+- See `knowledge/round-312-whence-v01413-effect-second-function-call-forwarding.md`.
+
+## Next steps (as of round 312)
+1. The dynamic call graph — completely untouched; a fundamentally
+   different, larger problem than every fact-composition slice that came
+   before it, sketched (not implemented) in SPEC.md's "v0.14.13" section.
+   Now the ONLY item left in the "value flow through a function
+   argument/return" backlog first flagged at round 270 — no longer paired
+   with a sibling gap, so the next language(C) round attempting it should
+   expect to make (and document) an explicit choice between the two
+   sketched approaches (declared-superset propagation vs. full effect
+   inference) rather than treating it as one more incremental slice.
+2. Fuzz coverage (`harness/swe/fuzz.py`) and oracle coverage (`harness/
+   swe/alias_effects.py`) for round 312's own new v0.14.13 forwarding
+   shape — the natural next SWE-loop(D) round, following the exact rhythm
+   round 311 itself set for v0.14.11/v0.14.12.
+3. `rand()` deliberately narrow (arity 0 only) — round 294's item 4, still
+   not yet justified by a concrete need.
+4. Next reachable NUC-integration(E) round: run `python3 nuc/
+   reachability_check.py check --round NNN` FIRST, THEN `swap_watch_
+   launch.py plan --tag rNNN --duration 28800` / `launch` for the still-
+   unlaunched second multi-hour poll — round 304's item 1, unchanged; a
+   sixth consecutive down window if it recurs (298, 304, 310).
+5. Standing NUC state (`--cap 256`, E3 patch, OLMoE tarball, `memory.
+   events` max, operator login, escalation channel) still NOT re-verified
+   — round 304's item 2, unchanged.
+6. `reachability_check.py`'s `"ambiguous"` verdict has never been observed
+   on this box — round 310's item 3, unchanged.
+7. `fuzz-mutate-kill-loop/SKILL.md` at 415/500 lines is now the ONLY
+   skill within 100 lines of the hard cap — round 310's item 4, unchanged.
+8. The `tail`/EOF backgrounded-pipe silent-drop mechanism remains
+   genuinely unconfirmed — round 310's item 5, unchanged.
+9. The recent-window heavy/light fail-rate ratio re-check and round 295's
+   own blocking-wait root cause design sketch — round 301's items 1-2,
+   unchanged.
+10. `EditFileTool` (round 307): no diff preview, and `harness/swe/
+    regiontools.py`'s region-patch mechanism left deliberately un-unified
+    with it — round 307's items 1-2, unchanged.

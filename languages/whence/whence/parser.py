@@ -1006,14 +1006,22 @@ class Parser(object):
         checked itself, only for producing `g`'s own fact. Still narrow:
         only a bare-NameRef tail (no `if`/`else`) is tracked, and an
         argument passed through a SECOND function call before reaching a
-        return is still invisible — that gap, alongside calling into a
-        DIFFERENT function that itself performs the effect, remains fully
-        open. Only LEXICAL nesting and direct/return/field/argument/param-
-        rename/return-param aliasing are tracked, not the dynamic call
-        graph. A real call-graph-aware (transitive) effect system tracking
-        effects through arbitrary data flow is future work, not this
-        round's scope; see SPEC.md "v0.14"/"v0.14.1"/"v0.14.2"/"v0.14.3"/
-        "v0.14.4"/"v0.14.6"/"v0.14.7"/"v0.14.9"/"v0.14.11"/"v0.14.12" for
+        RETURN is still invisible (`Parser.return_param_scopes`'s own
+        remaining scope statement) — a genuinely separate shape from the
+        one v0.14.13 (round 312) closes just below (`_check_param_
+        forwarding`): an argument passed through a second function call
+        before reaching a DIRECT CALL. Calling into a DIFFERENT,
+        unrestricted top-level function that itself performs the effect —
+        the dynamic call graph — remains the one gap this whole family has
+        never started; see `_check_param_forwarding`'s own docstring and
+        SPEC.md's "v0.14.13" section for why it is a fundamentally larger
+        problem than every fact-composition slice that came before it.
+        Only LEXICAL nesting and direct/return/field/argument/param-
+        rename/return-param/forwarding aliasing are tracked, not the
+        dynamic call graph. A real call-graph-aware (transitive) effect
+        system tracking effects through arbitrary data flow remains future
+        work; see SPEC.md "v0.14"/"v0.14.1"/"v0.14.2"/"v0.14.3"/"v0.14.4"/
+        "v0.14.6"/"v0.14.7"/"v0.14.9"/"v0.14.11"/"v0.14.12"/"v0.14.13" for
         the honest remaining limitations and examples.
         `self.effects_stack[-1]` is already the fn's fully RESOLVED scope by
         the time this runs — a nested fn with no clause of its own
@@ -1025,29 +1033,16 @@ class Parser(object):
         # is unknown at parse time), so the ordinary branch below always
         # sees `tag is None` for one. Record, for the CURRENTLY innermost
         # enclosing fn (`current_fn_params_frame_stack[-1]`), that this
-        # exact call target is one of ITS OWN params, called directly —
-        # but ONLY if `callee.name` resolves (innermost-first, exactly the
-        # way every other resolver in this family already walks) to THAT
-        # SAME frame object, not a closer one: a nested block's own `let`/
-        # `fn`/param of the same name correctly shadows the outer fn's own
-        # parameter, so a call through it is correctly NOT attributed here
-        # (`test_v14.py`'s existing shadowing tests for the other five
-        # stacks all have this same shape).
-        if callee.__class__ is A.NameRef and self.current_fn_params_frame_stack:
-            owning_frame = self._innermost_frame_containing(callee.name)
-            if owning_frame is self.current_fn_params_frame_stack[-1]:
-                self.direct_param_calls_stack[-1].add(callee.name)
-            else:
-                # v0.14.11 (round 306): not the param itself directly, but
-                # perhaps a `let`-renamed alias of it (one or more hops,
-                # within this same fn body) — see `_resolve_param_alias`.
-                # Recorded under the ORIGINAL param name (what `_resolve_
-                # param_alias` returns), not `callee.name` itself, since
-                # `direct_param_calls_stack`/`param_call_scopes` are keyed
-                # by the fn's own declared param names.
-                aliased_param = self._resolve_param_alias(callee.name)
-                if aliased_param is not None:
-                    self.direct_param_calls_stack[-1].add(aliased_param)
+        # exact call target is one of ITS OWN params, called directly — or,
+        # since v0.14.11, a `let`-renamed alias of one (any number of hops,
+        # within this same fn body) — via the shared `_resolve_current_fn_
+        # param` helper (factored out in v0.14.13; see its own docstring
+        # for the frame-identity boundary that keeps a nested shadow from
+        # being misattributed).
+        if callee.__class__ is A.NameRef:
+            resolved_param = self._resolve_current_fn_param(callee.name)
+            if resolved_param is not None:
+                self.direct_param_calls_stack[-1].add(resolved_param)
         if callee.__class__ is A.NameRef:
             tag = self._resolve_effectful_alias(callee.name)
             display = callee.name
@@ -1162,26 +1157,37 @@ class Parser(object):
                 return scope[name]
         return None
 
+    def _resolve_current_fn_param(self, name):
+        """v0.14.13 (round 312): does `name`, AS CURRENTLY IN SCOPE, refer
+        to one of the CURRENTLY open fn's own params — directly, or
+        through a same-body rename chain (`_resolve_param_alias`)? Factored
+        out of two call sites that had this exact "innermost-first frame-
+        identity check, else fall back to `_resolve_param_alias`" shape
+        duplicated: `_check_effect_call`'s own leading v0.14.9 block (a
+        call's CALLEE) and `_tail_return_param_name` (v0.14.12, a block's
+        TAIL expression). `_check_param_forwarding` (v0.14.13) is now a
+        third caller, applied to a call's own ARGUMENTS. `None` at module
+        top level (`current_fn_params_frame_stack` empty) and for any name
+        not currently a param/rename of one — including a param of an
+        ENCLOSING (not the innermost open) fn, the same boundary
+        `_resolve_param_alias` itself already enforces, so a nested
+        shadow is never misattributed."""
+        if not self.current_fn_params_frame_stack:
+            return None
+        owning_frame = self._innermost_frame_containing(name)
+        if owning_frame is self.current_fn_params_frame_stack[-1]:
+            return name
+        return self._resolve_param_alias(name)
+
     def _tail_return_param_name(self, tail_expr):
         """v0.14.12 (round 308): does this bare-`NameRef` TAIL expression
         name one of the CURRENTLY open fn's own params — directly, or
-        through a same-body rename chain (`_resolve_param_alias`)? Called
-        from `stmt_list` exactly where `tail_alias_tag` itself is computed,
-        while the relevant scopes are still open. The identity check
-        mirrors `_check_effect_call`'s own leading v0.14.9 block exactly
-        (innermost-first, comparing FRAME OBJECTS so a nested shadow is
-        never misattributed), just applied to a tail position instead of a
-        call's callee. `None` at module top level (`current_fn_params_
-        frame_stack` empty) and for any name not currently a param/rename
-        of one — including a param of an ENCLOSING (not the innermost open)
-        fn, the same boundary `_resolve_param_alias` itself already
-        enforces."""
-        if not self.current_fn_params_frame_stack:
-            return None
-        owning_frame = self._innermost_frame_containing(tail_expr.name)
-        if owning_frame is self.current_fn_params_frame_stack[-1]:
-            return tail_expr.name
-        return self._resolve_param_alias(tail_expr.name)
+        through a same-body rename chain? Called from `stmt_list` exactly
+        where `tail_alias_tag` itself is computed, while the relevant
+        scopes are still open. Thin wrapper over `_resolve_current_fn_
+        param` (factored out in v0.14.13) applied to a tail position's own
+        name."""
+        return self._resolve_current_fn_param(tail_expr.name)
 
     def _check_call_site_param_effects(self, callee, args, tok):
         """v0.14.9 (round 300): closes the NAMED-fn slice of the effect
@@ -1245,12 +1251,24 @@ class Parser(object):
             direct return], no propagation ACROSS a call boundary"
             discipline v0.14.2's own docstring uses for `let alias =
             print`.
-          - The two other remaining gaps — an argument that flows through
-            a SECOND function call before reaching an effectful builtin,
-            and the dynamic call graph (calling a different, unrestricted
-            top-level fn that itself performs the effect) — are still
-            completely untouched, unchanged in scope from every prior
-            v0.14.x round's own assessment.
+          - An argument that flows through a SECOND function call before
+            landing in a directly-called param — `outer(f) { inner(f) }`
+            where `inner(g) { g(1) }` — is now ALSO checked, but by a
+            genuinely SEPARATE mechanism (`_check_param_forwarding`,
+            v0.14.13, round 312), not by this method: it augments
+            `outer`'s OWN `direct_param_calls_stack` while `outer`'s body
+            is being parsed, so `outer`'s own `param_call_scopes` entry
+            already reflects the forward by the time THIS method runs at
+            `outer(print)`'s own call site — no changes needed here at
+            all, same "one resolver produces the fact, this method just
+            consumes it generically" shape as every fact source above.
+            The one remaining gap — the dynamic call graph (calling a
+            different, unrestricted top-level fn that itself performs the
+            effect DIRECTLY, no param involved at all) — is still
+            completely untouched; see `_check_param_forwarding`'s own
+            docstring for why it needs a fundamentally different design,
+            not just one more fact-composition slice like this family's
+            other additions.
           - Forward-referenced or mutually-recursive fns are invisible the
             same way `_resolve_effectful_alias`'s own docstring says an
             alias defined AFTER its call site is: `param_call_scopes` only
@@ -1293,6 +1311,95 @@ class Parser(object):
                 % (arg.name, tag, callee.name, pname, callee.name,
                    callee.name, declared),
                 tok.line, tok.col)
+
+    def _check_param_forwarding(self, callee, args, tok):
+        """v0.14.13 (round 312): closes the FIRST of the two remaining
+        "value flow through a function argument" gaps named across four
+        consecutive language(C) rounds (302, 306, 308, 311) as needing "a
+        real design sketch" — an argument reaching an effectful builtin
+        through a SECOND function call, e.g. `fn inner(g) effects [io] {
+        g(1) }` then `fn outer(f) effects [io] { inner(f) }`: `outer`'s own
+        body never calls `f` directly (or through a same-body rename/
+        return — v0.14.9/11/12's own mechanisms), it FORWARDS `f` as
+        `inner`'s own argument, and it is `inner`'s body, not `outer`'s,
+        that actually calls it. `outer(print)` was invisible to every
+        prior check.
+
+        The design insight that makes this tractable WITHOUT a whole new
+        fixed-point/interprocedural analysis: `Parser.param_call_scopes`
+        already records, for EVERY named fn (or `let`-bound anonymous
+        one), "which of my own params does my body call directly"
+        (v0.14.9) — a fact fully resolved by the time that fn's OWN body
+        finishes parsing, strictly BEFORE any caller of it can be parsed
+        (single left-to-right pass, forward refs already invisible
+        everywhere else in this family — see `_resolve_effectful_alias`'s
+        own docstring). So when `outer`'s body itself calls `inner(f)`,
+        checking whether `f` (or a same-body rename of it —
+        `_resolve_current_fn_param` covers both) lands in one of `inner`'s
+        own DIRECTLY-called param positions is enough: if it does, `outer`
+        ITSELF now also counts as "calling `f` directly" for the purposes
+        of `outer`'s OWN `param_call_scopes` entry — recorded into the
+        exact same `direct_param_calls_stack[-1]` v0.14.9's leading block
+        already populates. `_check_call_site_param_effects` at
+        `outer(print)`'s own call site needs ZERO changes: it already
+        walks `_resolve_param_call_fact("outer")` generically, indifferent
+        to whether `f`'s membership in `outer`'s own `called_params` came
+        from a direct call, a same-body rename, or (now) a one-level-
+        removed forward.
+
+        This composes to ARBITRARY depth for free, the same "record once,
+        read at every later call site" discipline `param_call_scopes`
+        already relies on for everything else: if `innermost(h) effects
+        [io] { h(1) }`, `inner(g) effects [io] { innermost(g) }`,
+        `outer(f) effects [io] { inner(f) }` are declared in that
+        (bottom-up) textual order, `inner`'s own `param_call_scopes` entry
+        already reflects the forward through `innermost` by the time
+        `outer`'s body is parsed, so `outer`'s own forward-through-`inner`
+        check transitively picks it up too — no explicit recursion is
+        needed here, single-pass composition does it automatically.
+        Declaration order still matters exactly as much as it already does
+        everywhere else: a forward reference, or a genuinely (mutually)
+        recursive chain, is invisible, unchanged in scope from every prior
+        v0.14.x round.
+
+        Deliberately still narrow, the same "one hop, bare NameRef only"
+        discipline as every sibling check: only a call whose callee is a
+        bare NameRef with a recorded `param_call_fact` is inspected (a fn
+        used any other way has nothing to key off); only an ARGUMENT that
+        is itself a bare NameRef (or a same-body rename chain of one) is
+        checked (an argument that is itself a call, field access, or any
+        other expression shape is invisible); a param that is FORWARDED
+        then RETURNED (or renamed, or forwarded a second time) by the
+        callee, not called, remains invisible — v0.14.12's `return_param_
+        scopes` and this method are still two genuinely separate
+        mechanisms, not unified (see `test_param_passed_through_a_second_
+        function_before_return_is_still_not_checked`, unchanged by this
+        round: that shape is a RETURN, not a direct call, so it is outside
+        this method's own scope).
+
+        The dynamic call graph gap named alongside this one since round
+        270 (calling a different, unrestricted top-level fn that itself
+        performs an effect DIRECTLY — no param, no argument, involved at
+        all) is a fundamentally different, larger problem this method does
+        NOT touch: see SPEC.md's "v0.14.13" section for why it needs a
+        real interprocedural effect-propagation design, not a bounded
+        fact-composition slice like this one, and remains this family's
+        one deliberately-unstarted gap."""
+        if callee.__class__ is not A.NameRef:
+            return
+        fact = self._resolve_param_call_fact(callee.name)
+        if fact is None:
+            return
+        _effects_scope, params, called_params = fact
+        for i, pname in enumerate(params):
+            if i >= len(args) or pname not in called_params:
+                continue
+            arg = args[i]
+            if arg.__class__ is not A.NameRef:
+                continue
+            resolved_param = self._resolve_current_fn_param(arg.name)
+            if resolved_param is not None:
+                self.direct_param_calls_stack[-1].add(resolved_param)
 
     def parse_type(self):
         """A type name in annotation position: a primitive tag or a
@@ -1503,6 +1610,7 @@ class Parser(object):
                 self.expect(")")
                 self._check_effect_call(expr, tok)
                 self._check_call_site_param_effects(expr, args, tok)
+                self._check_param_forwarding(expr, args, tok)
                 expr = A.Call(tok.line, expr, args, False)
             elif self.at("["):
                 tok = self.next()

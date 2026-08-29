@@ -1686,3 +1686,192 @@ def test_param_returned_via_if_else_tail_is_still_not_checked():
         'let g = apply(print)\n'
         'g(1)\n'
         'check "ok": true\n')
+
+
+# ======================================== v0.14.13 (round 312) ============
+# Closes the FIRST of the two gaps named across four consecutive
+# language(C) rounds (302, 306, 308, 311) as needing "a real design
+# sketch, not another small pre-scoped slice": an argument reaching an
+# effectful builtin through a SECOND function call, before landing in a
+# directly-called param — `outer`'s own body FORWARDS its param `f` as
+# `inner`'s own argument, and it is `inner`'s body, not `outer`'s own,
+# that calls it directly. Composes to arbitrary depth for free by reusing
+# `param_call_scopes`'s existing single-pass "record once, read at every
+# later call site" discipline — see `_check_param_forwarding`'s own
+# docstring in parser.py. The OTHER gap — the dynamic call graph, calling
+# a different, unrestricted top-level fn that itself performs an effect
+# DIRECTLY, no param involved at all — is a fundamentally different,
+# larger problem NOT touched by this round; see SPEC.md's "v0.14.13"
+# section for the honest design-sketch writeup of why.
+
+
+def test_param_forwarded_to_second_function_that_calls_it_is_now_checked():
+    """v0.14.13 (round 312): `outer`'s own body never calls its param `f`
+    directly — it FORWARDS `f` as `inner`'s own argument, and `inner`'s
+    body is what actually calls it. Before this round, `outer`'s own
+    `param_call_scopes` fact had NOTHING in it (outer calls none of its
+    OWN params directly), so `outer(print)` was invisible to every
+    existing check even though calling it does perform io. Same grant/
+    deny pair shape as `test_argument_passed_to_a_directly_called_param_
+    is_{checked,rejected_when_not_permitted}`, just with one extra
+    function-call hop between the param and the effectful call."""
+    all_ok(
+        'fn inner(g) effects [io] {\n'
+        '  g(1)\n'
+        '}\n'
+        'fn outer(f) effects [io] {\n'
+        '  inner(f)\n'
+        '}\n'
+        'outer(print)\n'
+        'check "ok": true\n')
+    with pytest.raises(ParseError) as ei:
+        parse(
+            'fn inner(g) effects [io] {\n'
+            '  g(1)\n'
+            '}\n'
+            'fn outer(f) effects [] {\n'
+            '  inner(f)\n'
+            '}\n'
+            'outer(print)\n')
+    msg = str(ei.value)
+    assert "effect 'io'" in msg and "not permitted" in msg
+
+
+def test_param_forwarding_composes_transitively_through_three_hops():
+    """The forwarding fact composes to ARBITRARY depth for free — no
+    explicit recursion needed, just the same single-pass "record once,
+    read at every later call site" discipline `param_call_scopes` already
+    relies on for everything else. `innermost`, `inner`, `outer` are
+    declared bottom-up (the same declaration-order constraint every
+    resolver in this family already has), so `inner`'s own forward-
+    through-`innermost` fact is already resolved by the time `outer`'s
+    own forward-through-`inner` check runs."""
+    all_ok(
+        'fn innermost(h) effects [io] {\n'
+        '  h(1)\n'
+        '}\n'
+        'fn inner(g) effects [io] {\n'
+        '  innermost(g)\n'
+        '}\n'
+        'fn outer(f) effects [io] {\n'
+        '  inner(f)\n'
+        '}\n'
+        'outer(print)\n'
+        'check "ok": true\n')
+    with pytest.raises(ParseError):
+        parse(
+            'fn innermost(h) effects [io] {\n'
+            '  h(1)\n'
+            '}\n'
+            'fn inner(g) effects [io] {\n'
+            '  innermost(g)\n'
+            '}\n'
+            'fn outer(f) effects [] {\n'
+            '  inner(f)\n'
+            '}\n'
+            'outer(print)\n')
+
+
+def test_param_forwarding_through_let_bound_anonymous_fn_is_checked():
+    """The forwarding target need not be a NAMED fn — a `let`-bound
+    anonymous fn's own `param_call_fact` (v0.14.10, round 302) is walked
+    by `_resolve_param_call_fact` exactly the same generic way, so
+    forwarding to one is checked identically."""
+    with pytest.raises(ParseError):
+        parse(
+            'let inner = fn(g) effects [io] {\n'
+            '  g(1)\n'
+            '}\n'
+            'fn outer(f) effects [] {\n'
+            '  inner(f)\n'
+            '}\n'
+            'outer(print)\n')
+
+
+def test_param_forwarding_rename_hop_before_forward_is_still_checked():
+    """The forwarded argument need not be the bare param itself — a
+    same-body rename of it (`let g = f` then `inner(g)`) is resolved by
+    the shared `_resolve_current_fn_param` helper exactly the same way
+    the callee-identity check already is."""
+    with pytest.raises(ParseError):
+        parse(
+            'fn inner(g) effects [io] {\n'
+            '  g(1)\n'
+            '}\n'
+            'fn outer(f) effects [] {\n'
+            '  let renamed = f\n'
+            '  inner(renamed)\n'
+            '}\n'
+            'outer(print)\n')
+
+
+def test_param_forwarding_shadowed_name_is_not_misattributed():
+    """A nested fn's own param of the SAME name as an outer forwarded
+    rename must not be misattributed — mirrors `test_param_rename_in_
+    enclosing_fn_not_misattributed_to_inner_fn`'s own shape, now for the
+    forwarding mechanism: `helper`'s own local `let f = 5` shadows
+    `outer`'s param `f`, so `inner(f)` inside `helper` forwards the
+    SHADOWING local, not `outer`'s own param."""
+    all_ok(
+        'fn inner(g) effects [io] {\n'
+        '  g(1)\n'
+        '}\n'
+        'fn outer(f) effects [] {\n'
+        '  fn helper() effects [] {\n'
+        '    let f = 5\n'
+        '    inner(f)\n'
+        '  }\n'
+        '  helper()\n'
+        '}\n'
+        'outer(print)\n'
+        'check "ok": true\n')
+
+
+def test_param_forwarding_only_correct_position_is_matched():
+    """Only the argument at the target fn's own DIRECTLY-called param
+    POSITION is inspected — an unrelated param at a different position is
+    not conflated, mirroring `test_only_the_directly_called_param_
+    position_is_checked`'s own positional discipline."""
+    all_ok(
+        'fn inner(unused, g) effects [io] {\n'
+        '  g(1)\n'
+        '}\n'
+        'fn outer(f) effects [] {\n'
+        '  inner(f, 5)\n'
+        '}\n'
+        'outer(print)\n'
+        'check "ok": true\n')
+
+
+def test_param_forwarding_via_non_nameref_argument_still_not_checked():
+    """Deliberately still narrow, same "bare NameRef only" boundary as
+    every sibling check: an argument that is itself a CALL (not a bare
+    name) is invisible here — `id(f)`'s own result is not tracked as `f`
+    itself, so `outer` gains no forwarding fact from it at all."""
+    all_ok(
+        'fn inner(g) effects [io] {\n'
+        '  g(1)\n'
+        '}\n'
+        'fn outer(f) effects [] {\n'
+        '  fn id(x) { x }\n'
+        '  inner(id(f))\n'
+        '}\n'
+        'outer(print)\n'
+        'check "ok": true\n')
+
+
+def test_param_forwarding_does_not_disturb_returned_param_mechanism():
+    """v0.14.12's own return-boundary mechanism (a param FORWARDED then
+    RETURNED, never called) remains a genuinely separate, still-fully-
+    open gap, unaffected by this round's own forwarding-then-CALLED
+    mechanism — unchanged regression pin for `test_param_passed_through_
+    a_second_function_before_return_is_still_not_checked`, restated here
+    under this round's own test name for discoverability."""
+    all_ok(
+        'fn identity(x) { x }\n'
+        'fn apply(f) {\n'
+        '  identity(f)\n'
+        '}\n'
+        'let g = apply(print)\n'
+        'g(1)\n'
+        'check "ok": true\n')
