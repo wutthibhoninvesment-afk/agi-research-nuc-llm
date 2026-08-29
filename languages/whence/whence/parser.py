@@ -28,9 +28,14 @@ COMPARE_OPS = ("==", "!=", "<", "<=", ">", ">=")
 MAX_NESTING = 60
 
 # Structural types (v0.12): the primitive tags a `: Type` annotation may
-# name besides a previously declared `shape`. Erased entirely at parse
-# time into `typed(...)` guard calls (see `_apply_type_guards`) — the
-# interpreter never sees a "type", only ordinary Let/Call/Str nodes.
+# name besides a previously declared `shape`. Resolved at parse time to a
+# spec EXPRESSION (`_type_spec_expr`) carried on the FnDef/FnExpr node —
+# `param_types` for parameters (v0.19, `_param_contracts`), `ret_type` for
+# a `-> Type` — so the interpreter never sees a "type", only an `A.Str`
+# tag or an `A.NameRef` to a shape binding, resolved once per closure.
+# v0.12-v0.18 erased a PARAMETER annotation further, into a prepended
+# `typed(...)` guard statement; SPEC decision 29 explains why it no
+# longer is.
 # "guess" (v0.15) joins the primitive set so a parameter/return contract
 # can require an UNCOMMITTED value ("this must still carry a confidence
 # score, call it yourself") the same way it can require a "num" or "str" —
@@ -674,9 +679,10 @@ class Parser(object):
             self.return_param_scopes[-1][name] = (
                 (tuple(params), body.tail_param_name)
                 if body.tail_param_name else None)
-            self._apply_type_guards(body, params, types, name)
+            param_types = self._param_contracts(body, params, types, name)
             mark_tails(body)
-            return A.FnDef(tok.line, name, params, body, ret_type)
+            return A.FnDef(tok.line, name, params, body, ret_type,
+                           param_types)
         if tok.type == "KW" and tok.value == "check":
             self.next()
             label = self.expect("STRING", what="a string label after 'check'").value
@@ -725,8 +731,10 @@ class Parser(object):
         None — the interpreter resolves it to a runtime spec ONCE per
         Closure at creation time (`_closure_ret`), never touching the
         body's AST, so tail position is exactly as `mark_tails` already
-        computes it (see `_apply_type_guards`'s docstring: THAT is param
-        types' whole cost story; a return type has none of its own)."""
+        computes it. Since v0.19 a PARAMETER spec is resolved at the same
+        moment by the same code (`_param_contracts` / `_closure_params`),
+        so the two halves of a contract no longer differ in cost, timing,
+        or the environment they name their shape in."""
         if not self.at("->"):
             return None
         tok = self.next()
@@ -1467,27 +1475,40 @@ class Parser(object):
             return A.Str(line, type_name)
         return A.NameRef(line, type_name)
 
-    def _apply_type_guards(self, body, params, types, fn_name):
-        """Prepend one `let <param> = typed(<param>, <spec>, <label>)` per
-        annotated parameter to the body's statement list (v0.12). This is
-        the WHOLE feature's runtime cost: an untyped function's body is
-        untouched, byte-identical to v0.11. A typed one is ordinary sugar
-        over the existing miss/propagation machinery — no interpreter
-        change, no new AST node, no effect on tail position (mark_tails
-        only ever looks at the LAST statement, and this only prepends)."""
+    def _param_contracts(self, body, params, types, fn_name):
+        """v0.19 (round 344): the parameter half of a function's type
+        contract, as a value carried on the FnDef/FnExpr node — `None` when
+        no parameter is annotated, else a tuple of
+        `(index, param_name, spec_expr, label)`.
+
+        v0.12-v0.18 instead PREPENDED one `let <param> = typed(<param>,
+        <spec>, <label>)` statement per annotated parameter to the body, so
+        the spec expression was re-evaluated in the CALL env on every call
+        while a `-> Type` spec (v0.13) was resolved once, in the DEFINING
+        env, at closure creation. One signature could therefore name two
+        different shapes with one name (round 342 §7 pinned it). This
+        returns the same information the guards carried, in the same shape
+        `ret_type` already uses, so `interp._closure_params` can resolve it
+        with the same `_closure_spec` at the same moment as `ret_type`
+        (SPEC decision 29).
+
+        `body` is still the argument (not just `body.line`) because the
+        LINE an annotation's miss is reported at is unchanged from v0.12 —
+        the body's opening line, not the call site's — and keeping the
+        parameter makes that continuity explicit rather than incidental.
+        An unannotated function returns `None` here and its body is
+        byte-identical to v0.11's, exactly as before."""
         if not any(t is not None for t in types):
-            return
+            return None
         suffix = " of %s" % fn_name if fn_name else ""
-        guards = []
-        for pname, tname in zip(params, types):
+        line = body.line
+        out = []
+        for i, (pname, tname) in enumerate(zip(params, types)):
             if tname is None:
                 continue
-            spec = self._type_spec_expr(tname, body.line)
-            label = A.Str(body.line, "parameter '%s'%s" % (pname, suffix))
-            call = A.Call(body.line, A.NameRef(body.line, "typed"),
-                         [A.NameRef(body.line, pname), spec, label], False)
-            guards.append(A.Let(body.line, pname, call))
-        body.stmts[0:0] = guards
+            out.append((i, pname, self._type_spec_expr(tname, line),
+                        "parameter '%s'%s" % (pname, suffix)))
+        return tuple(out)
 
     def shape_def(self):
         """`shape Name = @{field: type, …}` — pure sugar for `let Name =
@@ -1771,7 +1792,7 @@ class Parser(object):
                 self.return_param_scopes.pop()
                 self.current_fn_params_frame_stack.pop()
                 called_params = self.direct_param_calls_stack.pop()
-            self._apply_type_guards(body, params, types, None)
+            param_types = self._param_contracts(body, params, types, None)
             mark_tails(body)
             # v0.14.10 (round 302): unlike the NAMED-fn branch above (which
             # has a name to key `param_call_scopes[-1]` by the moment its
@@ -1786,7 +1807,8 @@ class Parser(object):
             param_call_fact = (
                 (own_effects_scope, tuple(params), frozenset(called_params))
                 if called_params else None)
-            return A.FnExpr(tok.line, params, body, ret_type, param_call_fact)
+            return A.FnExpr(tok.line, params, body, ret_type,
+                            param_call_fact, param_types)
         raise ParseError("unexpected %r" % (tok.value,), tok.line, tok.col)
 
     def if_expr(self):

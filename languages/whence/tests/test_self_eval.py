@@ -167,12 +167,12 @@ def test_example_runs_green():
     r = subprocess.run([sys.executable, os.path.join(ROOT, "run.py"), EXAMPLE],
                        capture_output=True, text=True)
     assert r.returncode == 0, r.stdout + r.stderr
-    assert "130 passed, 0 failed" in r.stdout
+    assert "135 passed, 0 failed" in r.stdout
     assert "all in Whence" in r.stdout
 
 
 def test_parser_section_matches_self_host():
-    # the guest lexer+parser is self_host.lang lines 28..743, verbatim;
+    # the guest lexer+parser is self_host.lang lines 28..750, verbatim;
     # if one file changes, the other must change with it (round 158: grew
     # from 420 to 485 lines adding `: Type`/`-> Type` guest parity; round
     # 164: 485 to 533 adding `effects [...]` clause skipping; round 176:
@@ -188,9 +188,12 @@ def test_parser_section_matches_self_host():
     # `shape_close` / `shapes_declared_before` / `parse_shape_fields` /
     # `parse_shape_def`, plus spec-NODE type annotations); round 342:
     # 697 to 743 making the shape table SCOPED (`shape_rel_depth` plus one
-    # `shapes_before` replacing `shapes_declared_before`, v0.18)
+    # `shapes_before` replacing `shapes_declared_before`, v0.18); round 344:
+    # 743 to 750, `build_param_contracts` replacing `build_guards`/
+    # `apply_type_guards` so a parameter annotation rides on the fn NODE
+    # instead of being desugared into the body (v0.19)
     host_lines = open(SELF_HOST).read().splitlines()
-    section = "\n".join(host_lines[27:743])
+    section = "\n".join(host_lines[27:750])
     assert section.startswith("# ---- character classes")
     assert section.rstrip().endswith(
         "fn parse_whence(src) { parse_program(lex_all(src)) }")

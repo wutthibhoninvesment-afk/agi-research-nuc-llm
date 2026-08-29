@@ -112,11 +112,18 @@ def test_return_type_does_not_touch_the_runtime_param_list():
 
 
 def test_return_type_composes_with_param_types():
+    """Since v0.19 (round 344) BOTH halves of a contract ride on the node
+    and neither touches the body — the two `param_types`/`ret_type` fields
+    hold the same kind of spec expression and are resolved by the same
+    `_closure_spec` at the same moment."""
     prog = parse("fn f(a: num) -> num { a }\n")
     fn = prog.stmts[0]
     kinds = [s.__class__.__name__ for s in fn.body.stmts]
-    assert kinds == ["Let", "ExprStmt"]      # the param guard is untouched
+    assert kinds == ["ExprStmt"]             # the body is untouched, both ways
     assert fn.ret_type.value == "num"
+    assert [(i, n, sp.value, lab)
+            for i, n, sp, lab in fn.param_types] == [
+        (0, "a", "num", "parameter 'a' of f")]
 
 
 # --- interpreter: pass / mismatch, every primitive tag -----------------------
@@ -410,21 +417,26 @@ def test_redeclaring_a_shape_in_the_SAME_block_is_still_an_error():
               '  1\n}\nlet r = 1\n')
 
 
-def test_unbound_ret_type_sentinel_is_still_the_defensive_floor():
-    """`_UnboundRetType` is unreachable from source text after v0.18 (the
-    parser refuses the only annotation that could produce it), and is kept
-    anyway: `_closure_ret` resolves a spec directly in Python, not through
+def test_unbound_type_sentinel_is_still_the_defensive_floor():
+    """`_UnboundType` (named `_UnboundRetType` until v0.19 gave the param
+    half the same floor) is unreachable from source text after v0.18 — the
+    parser refuses the only annotation that could produce it — and is kept
+    anyway: `_closure_spec` resolves a spec directly in Python, not through
     a Whence expression, so a `None` lookup there would raise rather than
-    miss. Exercised directly, since no program can reach it."""
-    from whence.interp import _UnboundRetType, _check_ret
+    miss. Exercised directly, since no program can reach it, and now at
+    BOTH ends, since one sentinel serves both."""
+    from whence.interp import _UnboundType, _check_contract
     from whence.values import leaf
     v = leaf("literal", "1", 1, 1)
-    out = _check_ret(v, _UnboundRetType("Local"), "return value of f", 7)
+    out = _check_contract(v, _UnboundType("Local"), "return value of f", 7)
     assert isinstance(out.value, Miss)
     assert out.value.reasons[0].startswith(
         "return value of f: type 'Local' is not in scope here")
+    param = _check_contract(v, _UnboundType("Local"), "parameter 'p' of f", 7)
+    assert param.value.reasons[0].startswith(
+        "parameter 'p' of f: type 'Local' is not in scope here")
     # and a miss in still propagates unchanged, ahead of the sentinel
-    m = _check_ret(mk_miss_for_test(), _UnboundRetType("Local"), "lbl", 7)
+    m = _check_contract(mk_miss_for_test(), _UnboundType("Local"), "lbl", 7)
     assert list(m.value.reasons) == ["boom (line 1)"]
 
 
@@ -433,25 +445,29 @@ def mk_miss_for_test():
     return mk_miss("boom", 1, "literal", "x")
 
 
-# --- the LATE-BINDING hazard v0.18 makes nameable (pre-existing, unfixed) ---
+# --- the LATE-BINDING hazard v0.18 made nameable, CLOSED by v0.19 ----------
 #
-# v0.18 gives the parser an opinion about WHICH declaration an annotation
-# names. The runtime has its own, and they can disagree: a param guard is a
-# prepended `let p = typed(p, <NameRef>, …)` re-evaluated on every call, so
-# its spec resolves in the CALL env — while a return spec is resolved once,
-# at closure creation (`_closure_ret`), in the DEFINING env. A block env is
-# one mutable dict that later statements keep adding to (that is what makes
+# v0.18 (round 342) gave the PARSER an opinion about which declaration an
+# annotation names. The runtime had its own and they could disagree: a
+# param guard was a prepended `let p = typed(p, <NameRef>, …)` re-evaluated
+# on every call, so its spec resolved in the CALL env — while a return spec
+# was resolved once, at closure creation, in the DEFINING env. A block env
+# is one mutable dict later statements keep adding to (that is what makes
 # mutual recursion work, see `f_block`), so a binding added AFTER the
-# annotation is still visible to a later call.
+# annotation was still visible to a later call, and one signature could
+# name two different shapes with one name.
 #
-# These two tests pin the behaviour as it is, deliberately. They are not
-# claims that it is right — see SPEC.md § v0.18 "the capture hazard" and
-# the round-342 knowledge file for the fix direction (resolve a param spec
-# at closure creation too, i.e. move param checks to the call boundary,
-# which is a v0.19-sized interpreter change: it touches all three call
-# paths and every typed function's why-tree).
+# v0.19 (round 344) resolves BOTH halves with the same `_closure_spec`, in
+# the same env, at the same moment, and applies the parameter half at the
+# call boundary (`_check_params`) instead of inside the body. These tests
+# are the same programs round 342 pinned the hazard with, now asserting
+# that the two ends agree — kept in their original form on purpose, so the
+# closure of the hazard is witnessed by the very cases that exhibited it.
 
-def test_a_param_spec_is_late_bound_and_a_later_let_captures_it():
+def test_a_param_spec_is_resolved_where_the_annotation_is_written():
+    """Round 342's witness (a): a `let P = 3` AFTER the annotation used to
+    capture the guard, because the guard ran in the call env. It no longer
+    does — `P` means the shape the parser resolved it to."""
     src = ('shape P = @{x: num}\n'
            'fn g() {\n'
            '  fn h(p: P) { p.x }\n'
@@ -461,28 +477,150 @@ def test_a_param_spec_is_late_bound_and_a_later_let_captures_it():
            'let r = g()\n')
     interp, env, out = run(src)
     r = env.get("r")
-    assert isinstance(r.value, Miss)
-    # the annotation named the shape; the guard found the number
-    assert "typed spec must be a type name or a shape, got 3" \
-        in r.value.reasons[0]
+    assert not isinstance(r.value, Miss), r.value.reasons
+    assert r.value == 1
+    # pre-v0.19 this was `typed spec must be a type name or a shape, got 3`
+    assert_three_way(src, names=("r",))
 
 
-def test_one_signature_can_mean_two_different_shapes():
-    """The sharpest witness: `fn h(p: P) -> P` where the param `P` and the
-    return `P` are different shapes, proved by which values pass. The param
-    guard resolves the INNER `P` (bound in g's env by the time h is called);
-    the return spec was resolved at closure creation, when only the OUTER
-    `P` existed."""
+def test_a_shadowing_let_BEFORE_the_fn_is_what_the_two_ends_now_AGREE_on():
+    """The mirror case, and the one that shows what v0.19 does and does not
+    close. `let P = 3` placed BEFORE `fn h` is already bound when the
+    closure is created, so `_closure_spec` — an ordinary `env.get` — finds
+    the number, and every call misses `typed spec must be a type name or a
+    shape, got 3`.
+
+    That is unchanged for a PARAMETER (it is what round 342 measured and
+    reported as §7(a)). What changed is the RETURN half: before v0.19 the
+    identical program with `-> P` instead of `p: P` raised
+    `AttributeError: 'int' object has no attribute 'fields'` out of
+    `_type_match`, in all three evaluation modes — `_check_ret` had no
+    `_spec_ok` guard and round 335 recorded that as "unreachable today".
+    Both ends now produce the same total, ordinary miss with the same
+    sentence.
+
+    The residual this pins is NOT the late-binding hazard (that is closed
+    above): it is that the PARSER resolves `P` in the type namespace, where
+    an ordinary `let` never appears, while the interpreter resolves it in
+    the value namespace, where it shadows. The parser therefore accepts an
+    annotation the run time can never satisfy. See SPEC.md v0.19 "what is
+    left open"."""
+    def probe(annot):
+        src = ('shape P = @{x: num}\n'
+               'fn g() {\n'
+               '  let P = 3\n'
+               '  %s\n'
+               '  let out = h(@{x: 1})\n'
+               '  out\n'
+               '}\n'
+               'let r = g()\n' % annot)
+        interp, env, out = run(src)
+        r = env.get("r")
+        assert isinstance(r.value, Miss), (annot, r.value)
+        return r.value.reasons[0]
+
+    param = probe("fn h(p: P) { p.x }")
+    ret = probe("fn h(q) -> P { q }")
+    assert param.startswith("typed spec must be a type name or a shape, got 3")
+    assert ret.startswith("typed spec must be a type name or a shape, got 3")
+    # One mistake, one sentence, both ends — but not one LINE, and that is
+    # deliberate: a parameter contract is reported at the SIGNATURE\'s own
+    # line (line 4 here, exactly where v0.12\'s prepended guard put it and
+    # where the annotation is written), a return contract at the CALL\'s
+    # (line 5), which is round 336\'s rule — a tail chain needs each
+    # entry\'s own call line to say WHICH call it is blaming. v0.19
+    # deliberately did not disturb either; a parameter miss carries the
+    # offending argument as its input, and that node has the call line.
+    assert param.rsplit(" (line ", 1)[0] == ret.rsplit(" (line ", 1)[0]
+    assert param.endswith("(line 4)") and ret.endswith("(line 5)")
+
+
+def test_a_non_spec_return_type_no_longer_crashes_the_interpreter():
+    """Round 344's own finding, isolated: three ways to make a `-> P`
+    resolve to something `_type_match` cannot walk, each of which raised
+    AttributeError straight out of the interpreter before v0.19 added the
+    `_spec_ok` guard to `_check_contract`. Every mode, both FnDef and
+    FnExpr, tail and non-tail position — the crash was in the one shared
+    checker, so nothing about the call path mattered."""
+    bads = [("let P = 3", "3"),
+            ("let P = miss \"nope\"", "miss"),
+            ("let P = @{a: 5}", "@{a: 5}")]   # a record whose FIELD is not a spec
+    forms = ['fn h() -> P { 1 }\n  let out = h()\n  out',      # non-tail
+             'fn h() -> P { 1 }\n  h()',                       # tail
+             'let h = fn() -> P { 1 }\n  let out = h()\n  out']  # FnExpr
+    for binding, shown in bads:
+        for form in forms:
+            src = ('shape P = @{x: num}\n'
+                   'fn g() {\n  %s\n  %s\n}\n'
+                   'let r = g()\n' % (binding, form))
+            for kw in ({"direct": False}, {}, {"fast": False, "direct": False}):
+                interp, env, out = run(src, **kw)
+                r = env.get("r")
+                assert isinstance(r.value, Miss), (binding, form, kw)
+                assert r.value.reasons[0].startswith(
+                    "typed spec must be a type name or a shape, got %s" % shown), \
+                    (binding, form, kw, r.value.reasons)
+
+
+def test_a_non_spec_param_type_says_the_same_thing_as_the_return_half():
+    """The parameter twin of the test above: the SAME three bad specs, the
+    SAME three forms, reached through `_check_params` instead of the return
+    path — and, because both go through `_check_contract`, the same
+    sentence. This is the property v0.19 exists to create; asserting it as
+    a string equality is what would break if either end grew its own copy
+    of the check again."""
+    for binding, shown in [("let P = 3", "3"),
+                           ("let P = miss \"nope\"", "miss"),
+                           ("let P = @{a: 5}", "@{a: 5}")]:
+        src = ('shape P = @{x: num}\n'
+               'fn g() {\n  %s\n  fn h(p: P) { p }\n  let out = h(@{x: 1})\n'
+               '  out\n}\n'
+               'let r = g()\n' % binding)
+        for kw in ({"direct": False}, {}, {"fast": False, "direct": False}):
+            interp, env, out = run(src, **kw)
+            r = env.get("r")
+            assert isinstance(r.value, Miss), (binding, kw)
+            assert r.value.reasons[0].startswith(
+                "typed spec must be a type name or a shape, got %s" % shown), \
+                (binding, kw, r.value.reasons)
+
+
+def test_one_signature_now_means_exactly_one_shape():
+    """Round 342's sharpest witness (b): `fn h(p: P) -> P` where the param
+    `P` and the return `P` used to be DIFFERENT shapes, proved then by
+    which values passed. Both ends now name the shape the parser resolved
+    — the OUTER `P` — so the three probes that distinguished them agree."""
     all_ok('shape P = @{x: num}\n'
            'fn g() {\n'
            '  fn h(p: P) -> P { p }\n'
            '  shape P = @{y: str}\n'
-           '  check "a value satisfying BOTH passes": '
+           '  check "a value satisfying the OUTER P passes": '
+           'not missed(h(@{x: 1}))\n'
+           '  check "one satisfying both still passes": '
            'not missed(h(@{x: 1, y: "a"}))\n'
-           '  check "inner-only satisfies the param, misses the RETURN":\n'
-           '    contains(reasons(h(@{y: "a"}))[0], "return value")\n'
-           '  check "outer-only satisfies the return, misses the PARAM":\n'
-           '    contains(reasons(h(@{x: 1}))[0], "parameter \'p\'")\n'
+           '  check "the inner-only value now misses on the PARAMETER":\n'
+           '    contains(reasons(h(@{y: "a"}))[0], "parameter \'p\' of h")\n'
+           '  check "and it is the PARAMETER, not the return, that is blamed":\n'
+           '    not contains(reasons(h(@{y: "a"}))[0], "return value")\n'
+           '  1\n'
+           '}\n'
+           'let r = g()\n')
+
+
+def test_the_inner_shape_wins_when_it_is_declared_first():
+    """The completing case: move the inner `shape P` ABOVE the annotation
+    and the parser resolves to it (v0.18 decision 28: an inner block may
+    shadow an outer shape name), so both halves now mean the INNER shape.
+    Same file, opposite verdicts, decided entirely by the annotation's own
+    lexical position — which is the property v0.19 buys."""
+    all_ok('shape P = @{x: num}\n'
+           'fn g() {\n'
+           '  shape P = @{y: str}\n'
+           '  fn h(p: P) -> P { p }\n'
+           '  check "the INNER P is what the signature means": '
+           'not missed(h(@{y: "a"}))\n'
+           '  check "and the outer one no longer satisfies it":\n'
+           '    contains(reasons(h(@{x: 1}))[0], "parameter \'p\' of h")\n'
            '  1\n'
            '}\n'
            'let r = g()\n')

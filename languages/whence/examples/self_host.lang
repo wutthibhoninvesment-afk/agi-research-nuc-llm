@@ -327,7 +327,8 @@ fn parse_primary(toks, pos) {
     let rt = parse_typed_suffix(toks, ep, "->")
     let body0 = parse_block(toks, rt.pos)
     @{node: @{kind: "fnexpr", params: ps.params, ret_type: rt.spec,
-              body: apply_type_guards(body0.node, ps.params, ps.types, "")},
+              param_types: build_param_contracts(ps.params, ps.types, 0, [], ""),
+              body: body0.node},
       pos: body0.pos}
   }
   else { miss ("unexpected token '" + str(k.v) + "' at line " + str(k.line)) }
@@ -522,41 +523,45 @@ fn parse_params(toks, pos, acc, tacc) {
   }
 }
 
-# ---- return-type erasure (v0.13 guest parity, round 158) -------------------
-# Mirrors whence/parser.py's `_apply_type_guards`: prepend one
-# `let <param> = typed(<param>, spec, label)` per annotated parameter to the
-# body's statement list, PURE parser-level desugaring — no evaluator
-# involvement, so an untyped function's body is byte-identical to before
-# this feature (guards is [] and apply_type_guards returns block_node
-# unchanged, exactly like the host returning early when `not any(types)`).
+# ---- parameter contracts (v0.19 guest parity, round 344) -------------------
+# Mirrors whence/parser.py's `_param_contracts`. From v0.12 (round 122) to
+# v0.18 this was `apply_type_guards`, which PREPENDED one
+# `let <param> = typed(<param>, spec, label)` statement per annotated
+# parameter to the body — pure parser-level desugaring, no evaluator
+# involvement at all. v0.19 carries the same four facts on the fn NODE
+# instead, so the EVALUATOR resolves a parameter's spec in the DEFINING env
+# at closure-creation time, exactly where and when it already resolves a
+# `-> Type` (`resolve_param_specs` / `check_contract` below, SPEC decision
+# 29). The desugaring had to go for the spec to move: a statement inside
+# the body can only ever be evaluated in the CALL env.
 fn spec_node(tag) { @{kind: "str", value: tag} }
 fn name_node(n) { @{kind: "name", value: n} }
-fn call_node(callee, cargs) { @{kind: "call", func: name_node(callee), args: cargs} }
 
 # `types` holds SPEC NODES (round 338), not type-name strings: the node
-# `expect_type_name` already built, so a shape guard reads `Point` by name
-# and a primitive guard is the string literal it always was. "" is still the
-# no-annotation sentinel, and `<record> == ""` is an ordinary host `false`
-# (deep_eq resolves a type mismatch at the top level without descending), so
-# the unannotated fast path is unchanged.
-fn build_guards(params, types, i, acc, suffix) {
+# `expect_type_name` already built, so a shape contract reads `Point` by
+# name and a primitive one is the string literal it always was. "" is still
+# the no-annotation sentinel, and `<record> == ""` is an ordinary host
+# `false` (deep_eq resolves a type mismatch at the top level without
+# descending), so the unannotated fast path is unchanged — `[]` out, one
+# comparison per parameter, nothing attached to the node.
+#
+# `index` is the parameter's POSITION. The host drops it after parsing
+# (`_closure_params` looks its bindings up by name, since a host call env
+# is a dict); the guest keeps it because `bind_params` below walks
+# parameters positionally, so position is the cheaper key on this side.
+# Both spellings answer the same question, which is why the canonical form
+# in tests/test_parser_differential.py compares the index too.
+fn build_param_contracts(params, types, i, acc, suffix) {
   if i >= len(params) { acc }
   else {
     let spec = types[i]
     let acc2 = if spec == "" { acc }
       else {
-        let label = "parameter '" + params[i] + "'" + suffix
-        let call = call_node("typed", [name_node(params[i]), spec, spec_node(label)])
-        push(acc, @{kind: "let", name: params[i], value: call})
+        push(acc, @{index: i, name: params[i], spec: spec,
+                    label: "parameter '" + params[i] + "'" + suffix})
       }
-    build_guards(params, types, i + 1, acc2, suffix)
+    build_param_contracts(params, types, i + 1, acc2, suffix)
   }
-}
-
-fn apply_type_guards(block_node, params, types, suffix) {
-  let guards = build_guards(params, types, 0, [], suffix)
-  if len(guards) == 0 { block_node }
-  else { @{kind: "block", stmts: guards + block_node.stmts} }
 }
 
 # ---- effects clause skip (guest parity, round 164) --------------------------
@@ -702,7 +707,9 @@ fn parse_stmt(toks, pos) {
     let rt = parse_typed_suffix(toks, ep, "->")
     let body0 = parse_block(toks, rt.pos)
     @{node: @{kind: "fndef", name: nm.name, params: ps.params, ret_type: rt.spec,
-              body: apply_type_guards(body0.node, ps.params, ps.types, " of " + nm.name)},
+              param_types: build_param_contracts(ps.params, ps.types, 0, [],
+                                                 " of " + nm.name),
+              body: body0.node},
       pos: body0.pos}
   }
   else if is_kw(toks, pos, "check") {
@@ -947,11 +954,23 @@ let sh_field = ((((sh_nest.stmts[1]).value).pairs)[1]).value
 check "a shape-typed field becomes a name node, not a copy":
   sh_field.kind == "name" and sh_field.value == "P"
 
-# Annotation position: the spec node a guard reads its type FROM.
+# Annotation position: the spec node a parameter contract reads its type
+# FROM. v0.19 (round 344): it rides on the fn NODE, in `param_types`, not
+# on a `let a = typed(a, P, "…")` statement prepended to the body — see
+# `build_param_contracts`. The body is now byte-identical to an
+# unannotated one, which is the last of the four checks below.
 let sh_guard = parse_whence("shape P = @{x: num}\nfn f(a: P) { a }\nlet z = 1")
-let sh_spec = (((((sh_guard.stmts[1]).body).stmts[0]).value).args)[1]
-check "a parameter guard reads a shape by name":
-  sh_spec.kind == "name" and sh_spec.value == "P"
+let sh_pt = ((sh_guard.stmts[1]).param_types)[0]
+check "a parameter contract reads a shape by name":
+  (sh_pt.spec).kind == "name" and (sh_pt.spec).value == "P"
+check "a parameter contract carries index, name and label":
+  sh_pt.index == 0 and sh_pt.name == "a" and
+    sh_pt.label == "parameter 'a' of f"
+check "an unannotated fn carries no parameter contracts":
+  len(((parse_whence("fn f(a) { a }\nlet z = 1")).stmts[0]).param_types) == 0
+check "an annotated fn's body is left alone, no prepended guard":
+  len(((sh_guard.stmts[1]).body).stmts) == 1 and
+    ((((sh_guard.stmts[1]).body).stmts)[0]).kind == "exprstmt"
 let sh_ret = parse_whence("shape P = @{x: num}\nfn f() -> P { 1 }\nlet z = 1")
 check "a return annotation carries a name node for a shape":
   ((sh_ret.stmts[1]).ret_type).kind == "name" and

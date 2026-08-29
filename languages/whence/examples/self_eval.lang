@@ -366,7 +366,8 @@ fn parse_primary(toks, pos) {
     let rt = parse_typed_suffix(toks, ep, "->")
     let body0 = parse_block(toks, rt.pos)
     @{node: @{kind: "fnexpr", params: ps.params, ret_type: rt.spec,
-              body: apply_type_guards(body0.node, ps.params, ps.types, "")},
+              param_types: build_param_contracts(ps.params, ps.types, 0, [], ""),
+              body: body0.node},
       pos: body0.pos}
   }
   else { miss ("unexpected token '" + str(k.v) + "' at line " + str(k.line)) }
@@ -561,41 +562,45 @@ fn parse_params(toks, pos, acc, tacc) {
   }
 }
 
-# ---- return-type erasure (v0.13 guest parity, round 158) -------------------
-# Mirrors whence/parser.py's `_apply_type_guards`: prepend one
-# `let <param> = typed(<param>, spec, label)` per annotated parameter to the
-# body's statement list, PURE parser-level desugaring — no evaluator
-# involvement, so an untyped function's body is byte-identical to before
-# this feature (guards is [] and apply_type_guards returns block_node
-# unchanged, exactly like the host returning early when `not any(types)`).
+# ---- parameter contracts (v0.19 guest parity, round 344) -------------------
+# Mirrors whence/parser.py's `_param_contracts`. From v0.12 (round 122) to
+# v0.18 this was `apply_type_guards`, which PREPENDED one
+# `let <param> = typed(<param>, spec, label)` statement per annotated
+# parameter to the body — pure parser-level desugaring, no evaluator
+# involvement at all. v0.19 carries the same four facts on the fn NODE
+# instead, so the EVALUATOR resolves a parameter's spec in the DEFINING env
+# at closure-creation time, exactly where and when it already resolves a
+# `-> Type` (`resolve_param_specs` / `check_contract` below, SPEC decision
+# 29). The desugaring had to go for the spec to move: a statement inside
+# the body can only ever be evaluated in the CALL env.
 fn spec_node(tag) { @{kind: "str", value: tag} }
 fn name_node(n) { @{kind: "name", value: n} }
-fn call_node(callee, cargs) { @{kind: "call", func: name_node(callee), args: cargs} }
 
 # `types` holds SPEC NODES (round 338), not type-name strings: the node
-# `expect_type_name` already built, so a shape guard reads `Point` by name
-# and a primitive guard is the string literal it always was. "" is still the
-# no-annotation sentinel, and `<record> == ""` is an ordinary host `false`
-# (deep_eq resolves a type mismatch at the top level without descending), so
-# the unannotated fast path is unchanged.
-fn build_guards(params, types, i, acc, suffix) {
+# `expect_type_name` already built, so a shape contract reads `Point` by
+# name and a primitive one is the string literal it always was. "" is still
+# the no-annotation sentinel, and `<record> == ""` is an ordinary host
+# `false` (deep_eq resolves a type mismatch at the top level without
+# descending), so the unannotated fast path is unchanged — `[]` out, one
+# comparison per parameter, nothing attached to the node.
+#
+# `index` is the parameter's POSITION. The host drops it after parsing
+# (`_closure_params` looks its bindings up by name, since a host call env
+# is a dict); the guest keeps it because `bind_params` below walks
+# parameters positionally, so position is the cheaper key on this side.
+# Both spellings answer the same question, which is why the canonical form
+# in tests/test_parser_differential.py compares the index too.
+fn build_param_contracts(params, types, i, acc, suffix) {
   if i >= len(params) { acc }
   else {
     let spec = types[i]
     let acc2 = if spec == "" { acc }
       else {
-        let label = "parameter '" + params[i] + "'" + suffix
-        let call = call_node("typed", [name_node(params[i]), spec, spec_node(label)])
-        push(acc, @{kind: "let", name: params[i], value: call})
+        push(acc, @{index: i, name: params[i], spec: spec,
+                    label: "parameter '" + params[i] + "'" + suffix})
       }
-    build_guards(params, types, i + 1, acc2, suffix)
+    build_param_contracts(params, types, i + 1, acc2, suffix)
   }
-}
-
-fn apply_type_guards(block_node, params, types, suffix) {
-  let guards = build_guards(params, types, 0, [], suffix)
-  if len(guards) == 0 { block_node }
-  else { @{kind: "block", stmts: guards + block_node.stmts} }
 }
 
 # ---- effects clause skip (guest parity, round 164) --------------------------
@@ -741,7 +746,9 @@ fn parse_stmt(toks, pos) {
     let rt = parse_typed_suffix(toks, ep, "->")
     let body0 = parse_block(toks, rt.pos)
     @{node: @{kind: "fndef", name: nm.name, params: ps.params, ret_type: rt.spec,
-              body: apply_type_guards(body0.node, ps.params, ps.types, " of " + nm.name)},
+              param_types: build_param_contracts(ps.params, ps.types, 0, [],
+                                                 " of " + nm.name),
+              body: body0.node},
       pos: body0.pos}
   }
   else if is_kw(toks, pos, "check") {
@@ -1041,6 +1048,7 @@ fn eval(node, env, st) {
   else if k == "fnexpr" {
     @{v: mkb(@{__tag: "closure", name: "(anonymous)", params: node.params,
                body: node.body, ret_spec: resolve_ret_spec(node.ret_type, env, st),
+               param_specs: resolve_param_specs(node.param_types, env, st, 0, []),
                env: env},
              "fn (anonymous)", []),
       st: st}
@@ -1408,7 +1416,10 @@ fn exec_stmt(stmt, env, st) {
   else if k == "fndef" {
     let c = mkb(@{__tag: "closure", name: stmt.name, params: stmt.params,
                   body: stmt.body,
-                  ret_spec: resolve_ret_spec(stmt.ret_type, env, st), env: env},
+                  ret_spec: resolve_ret_spec(stmt.ret_type, env, st),
+                  param_specs: resolve_param_specs(stmt.param_types, env, st,
+                                                   0, []),
+                  env: env},
                 "fn " + stmt.name, [])
     @{v: c, st: frame_bind(st, env[0], stmt.name, c)}
   }
@@ -1480,7 +1491,7 @@ fn apply_closure(f, args, st) {
       st: st}
   } else {
     let a = alloc(merge(st, @{gd: st.gd + 1}))
-    let st2 = bind_params(a.st, a.fid, c.params, args, 0)
+    let st2 = bind_params(a.st, a.fid, c.params, args, 0, c.param_specs)
     let r = eval(c.body, [a.fid] + c.env, st2)
     let checked = check_ret(r.v, c.ret_spec, c.name)
     @{v: mkb(checked.v, "call " + op_name, [checked]),
@@ -1534,12 +1545,35 @@ fn apply_closure(f, args, st) {
 # had to be mirrored is the MESSAGE, since an unbound shape would otherwise
 # fall through to `guest_spec_match` and read as an ordinary mismatch
 # against a miss-valued spec.
-fn resolve_ret_spec(ret_type, env, st) {
-  if ret_type == "" { "" }
-  else if ret_type.kind == "str" { ret_type.value }
+# One spec, one resolution step, used by BOTH halves of a contract (v0.19)
+# — the guest's `_closure_spec`. Splitting it out is the point of the
+# round: two copies of this lookup, one for `-> Type` at closure creation
+# and one for `p: Type` in the call env, are exactly what let one
+# signature's `P` name two different shapes (round 342 §7).
+fn resolve_spec(spec_node_v, env, st) {
+  if spec_node_v == "" { "" }
+  else if spec_node_v.kind == "str" { spec_node_v.value }
   else {
-    let b = lookup(st, env, ret_type.value)
-    if missed(b) { @{__unbound_ret: ret_type.value} } else { b }
+    let b = lookup(st, env, spec_node_v.value)
+    if missed(b) { @{__unbound_ret: spec_node_v.value} } else { b }
+  }
+}
+
+fn resolve_ret_spec(ret_type, env, st) { resolve_spec(ret_type, env, st) }
+
+# v0.19: the PARAMETER half, resolved in the same env at the same moment,
+# by the same `resolve_spec`. `param_types` is the parser's own list of
+# `@{index, name, spec, label}` records; this replaces `spec` with its
+# resolved value and drops the node. `[]` in, `[]` out — an unannotated
+# function pays one comparison at closure creation and nothing per call.
+fn resolve_param_specs(param_types, env, st, i, acc) {
+  if i >= len(param_types) { acc }
+  else {
+    let pt = param_types[i]
+    resolve_param_specs(param_types, env, st, i + 1,
+                        push(acc, @{index: pt.index, name: pt.name,
+                                    spec: resolve_spec(pt.spec, env, st),
+                                    label: pt.label}))
   }
 }
 
@@ -1547,22 +1581,74 @@ fn resolve_ret_spec(ret_type, env, st) {
 # is a total miss, the same `rescue`d shape `guest_tag` above already uses.
 fn unbound_ret_name(spec) { (get(spec, "__unbound_ret")) rescue "" }
 
+# Mirror of the host's `_spec_ok` (interp.py), which `_type_match` names as
+# its own PRECONDITION. Round 335 added it to `typed`/`matches` on the host
+# and recorded "the guest does not mirror `_spec_ok`" as open; round 344
+# closes that, because v0.19 makes the malformed-spec case REACHABLE from
+# an ordinary annotation on both sides — `shape P = @{x: num}` shadowed by
+# a plain `let P = 3` in the block a function is defined in resolves the
+# annotation's `P` to `3`.
+#
+# Operates on a STRIPPED (box-free) value, like `guest_spec_match`'s own
+# `matches(strip(...), strip(...))` delegation, so the field walk sees the
+# same raw records the host's `_spec_ok` walks. No separate callable arm is
+# needed: `is_record` already excludes callables (a guest closure is an
+# ordinary `@{__tag: "closure", ...}` record under the hood, so without
+# that exclusion this would walk its internals and call it a usable spec —
+# round 18's tag-spoofing shape), which is the same protection
+# `guest_spec_match` gets from testing `is_callable` first.
+fn guest_spec_ok(spec) {
+  if is_str(spec) { true }
+  else if not is_record(spec) { false }
+  else { guest_spec_fields_ok(spec, keys(spec), 0) }
+}
+
+fn guest_spec_fields_ok(spec, ks, i) {
+  if i >= len(ks) { true }
+  else if ks[i] == "__shape" { guest_spec_fields_ok(spec, ks, i + 1) }
+  else if not guest_spec_ok(get(spec, ks[i])) { false }
+  else { guest_spec_fields_ok(spec, ks, i + 1) }
+}
+
+# The host renders the offending spec with `show_payload`, which answers a
+# bare "miss" for a miss; the guest's `str` renders a miss with its reasons
+# and line, so a miss is special-cased here rather than left to differ.
+# Every other payload agrees between the two (the same assumption
+# `apply`'s "is not callable" message already runs on).
+fn show_spec(spec) { if missed(spec) { "miss" } else { str(spec) } }
+
+# The early-out is repeated here rather than left to `check_contract`
+# alone: without it every call of every function would pay the
+# "return value of " + fn_name concatenation, and the overwhelmingly
+# common case is a function with no `-> Type` at all.
 fn check_ret(box, ret_spec, fn_name) {
   if ret_spec == "" or missed(box.v) { box }
   else {
     let label = if fn_name == "(anonymous)" { "return value" }
                 else { "return value of " + fn_name }
-    let ub = unbound_ret_name(ret_spec)
-    let ok = if ub != "" { false }
-      else if is_str(ret_spec) { guest_type_ok(box.v, ret_spec) }
-      else { guest_spec_match(box, ret_spec) }
+    check_contract(box, ret_spec, label)
+  }
+}
+
+fn check_contract(box, spec, label) {
+  if spec == "" or missed(box.v) { box }
+  else {
+    let ub = unbound_ret_name(spec)
+    let bad_spec = ub == "" and not is_str(spec) and
+                   not guest_spec_ok(strip(spec))
+    let ok = if ub != "" or bad_spec { false }
+      else if is_str(spec) { guest_type_ok(box.v, spec) }
+      else { guest_spec_match(box, spec) }
     if ok { box }
     else {
       let reason = if ub != "" {
           label + ": type '" + ub + "' is not in scope here"
+        } else if bad_spec {
+          "typed spec must be a type name or a shape, got " +
+            show_spec(strip(spec))
         } else {
-          let sname = if is_str(ret_spec) { ret_spec }
-                      else { guest_spec_name(strip(ret_spec)) }
+          let sname = if is_str(spec) { spec }
+                      else { guest_spec_name(strip(spec)) }
           label + " expected " + sname + ", got " + guest_kind(box.v)
         }
       mkb(miss reason, "typed " + label, [box])
@@ -1570,12 +1656,38 @@ fn check_ret(box, ret_spec, fn_name) {
   }
 }
 
-fn bind_params(st, fid, params, args, i) {
+# v0.19 (round 344): the parameter half of a function's type contract is
+# applied HERE, as each argument crosses the call boundary, mirroring the
+# host's `_check_params` (interp.py) — not by a `let p = typed(p, ...)`
+# statement the parser prepended to the body, which is what v0.12-v0.18
+# did on both sides. Two properties are inherited from those guards
+# deliberately, so that moving the check does not also change its meaning:
+# the checked box REPLACES the binding (and for a PASSING check
+# `check_contract` returns its input unchanged, so a satisfied parameter
+# contract leaves no trace in the why-tree, exactly as a satisfied
+# `-> Type` already left none); and a FAILING check binds the miss and the
+# body still runs, so a function that never reads a badly-typed parameter
+# still returns normally.
+#
+# `param_spec_at` is a linear scan rather than an index into `param_specs`,
+# because `param_specs` holds only the ANNOTATED parameters (`fn f(a, b:
+# num)` has one entry, at index 1) — the same list `build_param_contracts`
+# built, resolved. "" is its "this parameter is unannotated" answer, the
+# same sentinel `ret_spec` uses for "no `-> Type`".
+fn param_spec_at(pspecs, i, j) {
+  if j >= len(pspecs) { "" }
+  else if (pspecs[j]).index == i { pspecs[j] }
+  else { param_spec_at(pspecs, i, j + 1) }
+}
+
+fn bind_params(st, fid, params, args, i, pspecs) {
   if i >= len(params) { st }
   else {
-    let w = mkb((args[i]).v, "arg " + params[i], [args[i]])
+    let w0 = mkb((args[i]).v, "arg " + params[i], [args[i]])
+    let pc = param_spec_at(pspecs, i, 0)
+    let w = if pc == "" { w0 } else { check_contract(w0, pc.spec, pc.label) }
     bind_params(frame_bind(st, fid, params[i], w), fid,
-                params, args, i + 1)
+                params, args, i + 1, pspecs)
   }
 }
 
@@ -2471,6 +2583,38 @@ check "an inner block may shadow an outer shape name":
 check "redeclaring in the SAME block is still refused":
   contains(reasons(gv("shape P = @{x: num}\nshape P = @{y: num}\n1"))[0],
            "shape 'P' is already declared in this block")
+
+# v0.19 (round 344): both halves of a contract — `p: T` and `-> T` — are
+# resolved by ONE `resolve_spec`, in the DEFINING env, at closure creation,
+# and the parameter half is applied at the call boundary (`bind_params`)
+# rather than by a `let p = typed(p, ...)` statement the parser prepends to
+# the body. The four checks below are the guest's own version of the
+# host's `test_v13.py` v0.19 family; every one of them ran differently
+# before this round.
+check "a `let` AFTER the annotation no longer captures the spec":
+  gv("shape P = @{x: num}\n" +
+     "fn g() { fn h(p: P) { p.x }\nlet P = 3\nh(@{x: 1}) }\ng()") == 1
+check "one signature means ONE shape — the outer P, at both ends":
+  contains(reasons(gv("shape P = @{x: num}\n" +
+                      "fn g() { fn h(p: P) -> P { p }\nshape P = @{y: str}\n" +
+                      "h(@{y: \"a\"}) }\ng()"))[0],
+           "parameter 'p' of h expected P, got record")
+check "...and the inner shape wins when IT is the one in scope":
+  (gv("shape P = @{x: num}\n" +
+      "fn g() { shape P = @{y: str}\nfn h(p: P) -> P { p }\n" +
+      "h(@{y: \"a\"}) }\ng()")).y == "a"
+# The `_spec_ok` floor (round 335 left it open on both sides; v0.19 makes
+# it reachable from an ordinary annotation, so both sides grew it). On the
+# host the RETURN half of this raised AttributeError out of the
+# interpreter before round 344.
+check "a name that is in the type namespace but not a spec at run time":
+  contains(reasons(gv("shape P = @{x: num}\n" +
+                      "fn g() { let P = 3\nfn h(p: P) { p }\nh(@{x: 1}) }\ng()"))[0],
+           "typed spec must be a type name or a shape, got 3")
+check "...and the RETURN half says the identical sentence":
+  contains(reasons(gv("shape P = @{x: num}\n" +
+                      "fn g() { let P = 3\nfn h(q) -> P { q }\nlet o = h(1)\no }\ng()"))[0],
+           "typed spec must be a type name or a shape, got 3")
 
 # Nothing above changes what an untyped or primitive-typed program does.
 check "untyped guest code is unaffected":

@@ -97,7 +97,7 @@ EXAMPLE = os.path.join(ROOT, "examples", "self_eval.lang")
 SELF_HOST = os.path.join(ROOT, "examples", "self_host.lang")
 EFFECTS = os.path.join(ROOT, "examples", "effects.lang")
 MARKER = "# ==== SELF-TESTS"
-LIB_START, LIB_END = 27, 743  # self_host.lang lines 28..743 (0-indexed slice)
+LIB_START, LIB_END = 27, 750  # self_host.lang lines 28..750 (0-indexed slice)
 
 
 def eval_library_source():
@@ -142,10 +142,13 @@ def test_guest_parser_parses_its_own_full_source():
     # inspect, and 21 new checkpoint checks; round 342: +6 -- one net new
     # parser function for the v0.18 SCOPED shape table, `shape_rel_depth`
     # plus `shapes_before` replacing `shapes_declared_before`, and 5 new
-    # checkpoint checks); pin the exact count so a
+    # checkpoint checks; round 344: +1 net -- v0.19 drops three parser
+    # functions (`call_node`, `build_guards`, `apply_type_guards`) for one
+    # (`build_param_contracts`), and the parameter-annotation checkpoint
+    # goes from one check to four); pin the exact count so a
     # silent structural regression (e.g. two statements merging into one)
     # fails loudly even though `__ok` alone would not catch it.
-    assert env.get("__nstmts").payload == 201
+    assert env.get("__nstmts").payload == 202
 
 
 @pytest.mark.whence_slow

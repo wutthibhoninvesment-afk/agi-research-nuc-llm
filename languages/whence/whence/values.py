@@ -432,9 +432,11 @@ class Record(object):
 
 
 class Closure(object):
-    __slots__ = ("name", "params", "body", "env", "ret_spec", "ret_label")
+    __slots__ = ("name", "params", "body", "env", "ret_spec", "ret_label",
+                 "param_specs")
 
-    def __init__(self, name, params, body, env, ret_spec=None, ret_label=None):
+    def __init__(self, name, params, body, env, ret_spec=None, ret_label=None,
+                 param_specs=None):
         self.name = name          # None for anonymous fns
         self.params = params
         self.body = body
@@ -446,6 +448,16 @@ class Closure(object):
         # case, so an untyped closure pays nothing beyond two extra slots.
         self.ret_spec = ret_spec
         self.ret_label = ret_label
+        # v0.19 (round 344): the PARAMETER half of the same contract, in
+        # the same form and resolved at the same moment (interp.py
+        # `_closure_params`) — None when no parameter is annotated, else a
+        # tuple of `(param_name, spec, label)`. Before v0.19 this half
+        # lived as `let p = typed(p, <spec expr>, <label>)` statements the
+        # parser prepended to the BODY, so its spec was re-resolved in the
+        # CALL env on every call while the return half was resolved once in
+        # the DEFINING env — one signature could name two different shapes
+        # with one name. See SPEC decision 29.
+        self.param_specs = param_specs
 
 
 class Builtin(object):

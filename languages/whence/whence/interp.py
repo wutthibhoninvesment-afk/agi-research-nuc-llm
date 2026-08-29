@@ -628,6 +628,13 @@ class Interpreter(object):
         # v0.13: captured from the ORIGINALLY called closure, before a tail
         # loop below may reassign `p` — see _call_gen's identical comment.
         ret_spec, ret_label = p.ret_spec, p.ret_label
+        # v0.19: the PARAMETER half, by contrast, belongs to whichever
+        # closure the loop is entering RIGHT NOW (it guards that closure's
+        # own arguments), so it is re-read beside `params` on every switch
+        # — the exact opposite of `ret_spec`'s "captured once" rule, and
+        # for the same reason: a contract is checked where its own values
+        # cross the boundary.
+        pspecs = p.param_specs
         nargs = len(args)
         if nargs != len(params):
             name = p.name or "<fn>"
@@ -684,6 +691,8 @@ class Interpreter(object):
                     for pn, arg in zip(params, args):
                         vs[pn] = Prov("arg", pn, call_line, arg, _LAZY,
                                       arg.value)
+                if pspecs is not None:
+                    _check_params(vs, pspecs)
                 result = bd(call_env)
                 if type(result) is not _TailCall:
                     break
@@ -702,6 +711,7 @@ class Interpreter(object):
                 p = fn2.value
                 chain_rets = _note_chain_ret(chain_rets, p, call_line)
                 params = p.params
+                pspecs = p.param_specs
                 nargs = len(args)
                 name2 = p.name or "<fn>"
                 if nargs != len(params):
@@ -751,7 +761,7 @@ class Interpreter(object):
         # call lifted out of tail position. See `_check_chain_rets`.
         if chain_rets is not None:
             result = _check_chain_rets(result, chain_rets)
-        result = _check_ret(result, ret_spec, ret_label, line)
+        result = _check_contract(result, ret_spec, ret_label, line)
         if runs is None:      # the common case: one frame, nothing deferred
             return Prov("call", name, line, result, _LAZY, result.value)
         return _finish_call(name, line, result, runs, names, merged)
@@ -793,7 +803,7 @@ class Interpreter(object):
 
         v0.13 bug fix (round 128): this is a THIRD place a call settles to
         its final result (besides `_call_gen`/`_call_direct`, both fixed in
-        round 127) and it was missing the `_check_ret` call entirely — a
+        round 127) and it was missing the `_check_contract` call entirely — a
         `-> Type` annotation on any call-free-bodied function silently
         never checked, found by the three-way differential (`fast` mode
         disables `_call_direct`, so every such call routes through here)."""
@@ -821,10 +831,12 @@ class Interpreter(object):
             vs = call_env.vars
             for pname, arg in zip(p.params, args):
                 vs[pname] = Prov("arg", pname, line, arg, _LAZY, arg.value)
+            if p.param_specs is not None:
+                _check_params(vs, p.param_specs)
             v = bf(call_env)
         finally:
             self.depth -= 1
-        v = _check_ret(v, p.ret_spec, p.ret_label, line)
+        v = _check_contract(v, p.ret_spec, p.ret_label, line)
         return Prov("call", name, line, v, _LAZY, v.value)
 
     def _tail_inline(self, node, env):
@@ -1070,8 +1082,10 @@ class Interpreter(object):
             return f_name
         if t is A.FnExpr:
             params, body, rt = node.params, node.body, node.ret_type
+            pts = node.param_types
             return lambda env: leaf("fn", "(anonymous)", line,
-                                    _mk_closure(None, params, body, env, rt))
+                                    _mk_closure(None, params, body, env, rt,
+                                                pts))
         if t is A.Call:
             ff = sub(node.fn)
             gs = [sub(a) for a in node.args]
@@ -1270,7 +1284,8 @@ class Interpreter(object):
                         inner.vars[stmt.name] = result
                     elif ts is A.FnDef:
                         clo = _mk_closure(stmt.name, stmt.params, stmt.body,
-                                         inner, stmt.ret_type)
+                                         inner, stmt.ret_type,
+                                         stmt.param_types)
                         inner.define(stmt.name,
                                      leaf("fn", stmt.name, stmt.line, clo))
                         result = None
@@ -1430,7 +1445,7 @@ class Interpreter(object):
             return wrapped
         if isinstance(stmt, A.FnDef):
             clo = _mk_closure(stmt.name, stmt.params, stmt.body, env,
-                             stmt.ret_type)
+                             stmt.ret_type, stmt.param_types)
             env.define(stmt.name, leaf("fn", stmt.name, stmt.line, clo))
             return None
         if isinstance(stmt, A.Check):
@@ -1461,7 +1476,7 @@ class Interpreter(object):
     def eval_FnExpr(self, node, env):
         return leaf("fn", "(anonymous)", node.line,
                     _mk_closure(None, node.params, node.body, env,
-                               node.ret_type))
+                               node.ret_type, node.param_types))
 
     # --- compound expressions (generators) ------------------------------
     def eval_ListLit(self, node, env):
@@ -1537,7 +1552,7 @@ class Interpreter(object):
                 inner.define(stmt.name, result)
             elif ts is A.FnDef:
                 clo = _mk_closure(stmt.name, stmt.params, stmt.body, inner,
-                                 stmt.ret_type)
+                                 stmt.ret_type, stmt.param_types)
                 inner.define(stmt.name, leaf("fn", stmt.name, stmt.line, clo))
                 result = None
             else:
@@ -1705,6 +1720,7 @@ class Interpreter(object):
             # `-> Type` is a contract on what THIS call returns to ITS
             # caller, checked once the whole merged tail chain settles.
             ret_spec, ret_label = p.ret_spec, p.ret_label
+            pspecs = p.param_specs           # v0.19, see _call_direct
             self.depth += 1
             if self.depth > self.peak_depth:
                 self.peak_depth = self.depth
@@ -1723,6 +1739,8 @@ class Interpreter(object):
                     for pname, arg in zip(p.params, args):
                         vs[pname] = Prov("arg", pname, call_line, arg, _LAZY,
                                          arg.value)
+                    if pspecs is not None:
+                        _check_params(vs, pspecs)
                     result = yield (p.body, call_env)
                     if type(result) is not _TailCall:
                         break
@@ -1748,6 +1766,7 @@ class Interpreter(object):
                     _merge_ifs(runs, tc.ifs)
                     p = fn2.value
                     chain_rets = _note_chain_ret(chain_rets, p, call_line)
+                    pspecs = p.param_specs                       # v0.19
                     name2 = p.name or "<fn>"
                     if len(args) != len(p.params):
                         result = mk_miss(
@@ -1770,7 +1789,7 @@ class Interpreter(object):
             # round 336: inside-out, see `_call_direct`'s twin comment
             if chain_rets is not None:
                 result = _check_chain_rets(result, chain_rets)
-            result = _check_ret(result, ret_spec, ret_label, line)
+            result = _check_contract(result, ret_spec, ret_label, line)
             if runs is None:  # the common case: one frame, nothing merged
                 return Prov("call", name, line, result, _LAZY, result.value)
             return _finish_call(name, line, result, runs, names, merged)
@@ -2218,7 +2237,7 @@ def _check_chain_rets(result, chain_rets):
     entered, INNERMOST FIRST, before the originally-called closure's own
     check (round 336; round 335 added the checks, this round fixed their
     order and their line attribution). A self-recursive loop records the
-    originally-called closure here too — the outer `_check_ret` then sees
+    originally-called closure here too — the outer `_check_contract` then sees
     an already-settled result and passes it through, so the miss carries
     the INNERMOST frame's line, exactly as non-tail recursion does.
 
@@ -2260,93 +2279,185 @@ def _check_chain_rets(result, chain_rets):
     """
     for i in range(len(chain_rets) - 1, -1, -1):
         spec, label, line = chain_rets[i]
-        result = _check_ret(result, spec, label, line)
+        result = _check_contract(result, spec, label, line)
     return result
 
 
-def _check_ret(result, ret_spec, ret_label, line):
-    """Check a closure's return value against its `-> Type` annotation
-    (v0.13) at the one point every call path (fast, direct, generator)
-    settles to a final `result` Prov before wrapping it in a `call` node.
-    Mirrors the `typed` builtin's own contract exactly, because a return
-    check IS a `typed` check — just applied by the callee's contract
-    instead of a leading `let`: `ret_spec is None` (no `-> Type`, the
-    common case) is a no-op; a `result` that is already a miss propagates
-    UNCHANGED (decision 2 — misses propagate before inspection, so a
-    function that already failed does not also get a "wrong return type"
-    gloss painted over its own miss); otherwise a structural mismatch
-    becomes a fresh origin miss — same wording, same "typed" op tag, same
-    single-input shape `typed()` itself returns — so `blame` on a bad
-    return finds the same kind of node a bad parameter would have."""
-    if ret_spec is None or _is_miss(result):
+def _check_params(vs, param_specs):
+    """Apply the parameter half of a contract (v0.19) to a call env's
+    freshly bound `vars`, in declaration order, in place.
+
+    Two deliberate properties, both inherited from the v0.12 guards this
+    replaces rather than newly chosen, so that moving the check does not
+    also change what it means:
+
+      - the checked value REPLACES the binding, so the body sees the
+        contract's verdict — which for a passing check is the identical
+        `arg` Prov node (`_check_contract` returns its input unchanged),
+        i.e. a satisfied parameter contract leaves no trace in the why-tree
+        at all, exactly as a satisfied `-> Type` already left none;
+      - a FAILING check binds the miss and the body still runs. It does not
+        short-circuit the call. A function that never reads a badly-typed
+        parameter therefore still returns normally — the same outcome the
+        prepended `let p = typed(p, …)` guard produced, and the reason this
+        round is about WHICH shape a name means, not about when a call
+        aborts. Changing that is a separate decision with its own corpus
+        cost, deliberately not smuggled in here.
+
+    Each entry carries its own `line` — the function body's opening line,
+    exactly the line the prepended guard's `A.Let`/`A.Call` nodes carried.
+    A parameter miss is reported where the contract is WRITTEN, not where
+    the call is made; the offending argument is right there in the miss's
+    inputs, carrying its own call-site line. (A RETURN contract is reported
+    at the call's line instead — round 336's rule, so a tail chain can say
+    which of its hops it is blaming. The two ends deliberately keep their
+    own line rules; v0.19 unified the CHECK, not the blame location.)"""
+    for pname, spec, label, line in param_specs:
+        v = vs[pname]
+        checked = _check_contract(v, spec, label, line)
+        if checked is not v:
+            vs[pname] = checked
+
+
+def _check_contract(result, spec, label, line):
+    """Check one half of a function's type contract — a `-> Type` return
+    annotation (v0.13) or a `p: Type` parameter annotation (v0.19) — at
+    the one point every call path (fast, direct, generator) has the value
+    in hand. ONE function for both ends, because they are one rule:
+    `spec is None` (unannotated, the common case) is a no-op; a value that
+    is already a miss propagates UNCHANGED (decision 2 — misses propagate
+    before inspection, so a call that already failed does not also get a
+    "wrong type" gloss painted over its own miss); otherwise a structural
+    mismatch becomes a fresh origin miss — same wording, same "typed" op
+    tag, same single-input shape `typed()` itself returns — so `blame` on a
+    bad return finds the same kind of node a bad parameter does.
+
+    Two guard branches sit ahead of `_type_match`, which documents
+    `_spec_ok(spec)` as its PRECONDITION and raises AttributeError when it
+    is violated:
+
+      - `_UnboundType`: the annotation named a shape with no binding at
+        closure-creation time (see the sentinel's own docstring);
+      - `not _spec_ok(spec)`: the name resolved to something that is not a
+        usable spec — a number, a miss, a record whose own fields are not
+        specs. Round 335 added this guard to `typed`/`matches` and recorded
+        `_check_ret` (this function's name then) as "has no `_spec_ok`
+        guard, unreachable today". That
+        was wrong, and round 344 measured it: an ordinary `let P = 3`
+        shadowing a shape name inside a block makes `fn h() -> P { 1 }`
+        raise `AttributeError: 'int' object has no attribute 'fields'`
+        straight out of the interpreter, in all three evaluation modes, for
+        both FnDef and FnExpr, tail and non-tail — a totality violation in
+        a language whose decision 2 says the answer to a bad input is a
+        miss. The wording matches `typed`'s own for the same condition."""
+    if spec is None or _is_miss(result):
         return result
-    if isinstance(ret_spec, _UnboundRetType):
+    if isinstance(spec, _UnboundType):
         return mk_miss("%s: type '%s' is not in scope here" %
-                       (ret_label, ret_spec.name), line, "typed", ret_label,
+                       (label, spec.name), line, "typed", label,
                        inputs=(result,))
-    ok, desc = _type_match(result.value, ret_spec)
+    if not _spec_ok(spec):
+        return mk_miss("typed spec must be a type name or a shape, got %s" %
+                       show_payload(spec), line, "typed", label,
+                       inputs=(result,))
+    ok, desc = _type_match(result.value, spec)
     if ok:
         return result
     return mk_miss("%s expected %s, got %s" %
-                   (ret_label, desc, _kind(result.value)), line,
-                   "typed", ret_label, inputs=(result,))
+                   (label, desc, _kind(result.value)), line,
+                   "typed", label, inputs=(result,))
 
 
-class _UnboundRetType(object):
-    """Sentinel `ret_spec` (v0.13): the `-> Shape` named a shape that is not
-    bound in `env` at closure-creation time. Unreachable for a MODULE-level
-    shape (the parser's `self.shapes` already rejects any name not declared
-    earlier in the file — decision: no forward refs), but the parser is not
-    scope-aware, so `fn g() { shape Local = @{…} 1 }  fn f() -> Local { … }`
-    parses (`Local` was seen) while `Local`'s binding lives only inside
-    `g`'s call env, never at the scope `f` is defined in. The equivalent
-    PARAM-type gap degrades safely on its own, because a param guard's spec
-    is an ordinary `A.NameRef` walked by the everyday evaluator, which
-    already turns a missing name into a miss instead of raising; a naive
-    `env.get(name).payload` for the return-type path has no such
-    protection and raised AttributeError on `None` (found by round-128
-    exploratory testing, never hit by the existing corpus/fuzzer because
-    nothing generates nested shape declarations yet). Never leaks to
-    Whence code — `_check_ret` turns it into an ordinary miss, same as
-    every other kind of type mismatch."""
+class _UnboundType(object):
+    """Sentinel resolved spec (v0.13 for `-> Type`, v0.19 for `p: Type`):
+    the annotation named a shape that is not bound in `env` at
+    closure-creation time. Since v0.18 the parser is scope-aware, so no
+    source text reaches it — `parse_type` refuses an annotation naming a
+    shape whose block has closed, at the annotation's own line. It is kept
+    as the floor under `_closure_spec`, which resolves a spec directly in
+    Python rather than through a Whence expression: a `None` binding there
+    would RAISE rather than miss (round 128 found exactly that
+    AttributeError), and a floor is worth keeping even when the parser
+    above it is sound. Never leaks to Whence code — `_check_contract`
+    turns it into an ordinary miss, same as every other type mismatch.
+
+    (v0.12-v0.18 the PARAM half degraded on its own, because a param
+    guard's spec was an ordinary `A.NameRef` walked by the everyday
+    evaluator, which already turns a missing name into a miss. v0.19
+    resolves it in Python like the return half, so it needs — and now
+    shares — the same floor.)"""
     __slots__ = ("name",)
 
     def __init__(self, name):
         self.name = name
 
 
+def _closure_spec(spec_expr, env):
+    """The runtime spec for ONE type annotation, resolved ONCE at Closure
+    creation: a primitive tag is already a string; a shape name is looked
+    up in the DEFINING env exactly once. The shared half of `_closure_ret`
+    and `_closure_params` — which is the whole point of v0.19, since two
+    copies of this three-line lookup are what let one signature's `P` mean
+    two different shapes (round 342 §7)."""
+    if spec_expr.__class__ is A.Str:
+        return spec_expr.value
+    binding = env.get(spec_expr.name)
+    return binding.payload if binding is not None \
+        else _UnboundType(spec_expr.name)
+
+
 def _closure_ret(name, ret_type, env):
     """(spec, label) for a FnDef/FnExpr's `-> Type` annotation, resolved
     ONCE at Closure creation (v0.13) — never per call, and never touching
     the body's AST, which is why it costs a typed tail-recursive function
-    nothing per bounce (unlike a param guard, which is a real statement
-    re-executed every call). `ret_type` is None, or the spec expr
+    nothing per bounce. `ret_type` is None, or the spec expr
     `parser._type_spec_expr` built (`A.Str` for a primitive tag, `A.NameRef`
-    for a shape); a shape resolves through `env` exactly once, matching
-    `_type_spec_expr`'s own rationale — shapes are bound once, so this
-    cannot go stale. None, None (the common case) costs one attribute
-    read and an identity check."""
+    for a shape). None, None (the common case) costs one attribute read and
+    an identity check."""
     if ret_type is None:
         return None, None
-    if ret_type.__class__ is A.Str:
-        spec = ret_type.value
-    else:
-        binding = env.get(ret_type.name)
-        spec = binding.payload if binding is not None \
-            else _UnboundRetType(ret_type.name)
     label = "return value of %s" % name if name else "return value"
-    return spec, label
+    return _closure_spec(ret_type, env), label
 
 
-def _mk_closure(name, params, body, env, ret_type):
-    """`Closure(...)` with its `-> Type` return spec resolved (v0.13) — the
-    one choke point every FnDef/FnExpr construction site (fast, direct,
-    and the three generator-mode sites) goes through, so closures for the
-    same function built by any execution mode agree byte-for-byte on
-    ret_spec/ret_label (required for the fast/direct/trampoline three-way
-    differential)."""
+def _closure_params(param_types, env, line):
+    """v0.19: the resolved parameter half of the contract — None (the
+    common case: no annotated parameter) or a tuple of
+    `(param_name, spec, label, line)`, resolved by the SAME `_closure_spec`
+    in the SAME env at the SAME moment as `_closure_ret`'s.
+
+    The index `parser._param_contracts` records is deliberately dropped
+    here: every call path binds parameters by NAME into the call env's
+    `vars` dict, so a name is what the check needs, and carrying an index
+    as well would create a second way to say the same thing. It is kept on
+    the AST node because that is where a positional consumer wants it, and
+    `self_eval.lang`'s own `bind_params` — which walks parameters by
+    position — is that consumer.
+
+    `line` (the function body's opening line, the same one v0.12's
+    prepended guard carried) is folded into each entry rather than read off
+    `closure.body.line` at the call sites. That is not tidiness: those
+    sites are the hot path, and an UNANNOTATED closure must pay exactly one
+    `is not None` test per call and nothing else — reading `p.body.line`
+    unconditionally cost the untyped case a measurable attribute lookup per
+    call for a value only the typed case can use."""
+    if param_types is None:
+        return None
+    return tuple((pname, _closure_spec(spec_expr, env), label, line)
+                 for _i, pname, spec_expr, label in param_types)
+
+
+def _mk_closure(name, params, body, env, ret_type, param_types):
+    """`Closure(...)` with BOTH halves of its type contract resolved
+    (v0.13 return, v0.19 parameters) — the one choke point every
+    FnDef/FnExpr construction site (fast, direct, and the three
+    generator-mode sites) goes through, so closures for the same function
+    built by any execution mode agree byte-for-byte on
+    ret_spec/ret_label/param_specs (required for the fast/direct/trampoline
+    three-way differential)."""
     spec, label = _closure_ret(name, ret_type, env)
-    return Closure(name, params, body, env, spec, label)
+    return Closure(name, params, body, env, spec, label,
+                   _closure_params(param_types, env, body.line))
 
 
 def _history_root(v):

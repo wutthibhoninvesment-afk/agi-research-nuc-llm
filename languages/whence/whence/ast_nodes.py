@@ -62,7 +62,8 @@ Call = _simple("Call", ["fn", "args", "tail"])       # tail: set by parser.mark_
 Index = _simple("Index", ["obj", "index"])
 FieldAccess = _simple("FieldAccess", ["obj", "name"])
 If = _simple("If", ["cond", "then", "otherwise"])    # otherwise: Block or If
-FnExpr = _simple("FnExpr", ["params", "body", "ret_type", "param_call_fact"])
+FnExpr = _simple("FnExpr", ["params", "body", "ret_type", "param_call_fact",
+                            "param_types"])
 # anonymous fn; param_call_fact: None, or (effects_scope, params_tuple,
 # frozenset_of_directly_called_param_names) — set by parser.py (v0.14.10,
 # round 302), same shape `Parser.param_call_scopes` stores for a NAMED fn
@@ -78,11 +79,20 @@ Block = _simple("Block", ["stmts", "tail_alias_tag", "tail_param_name"])
 # back one of its own params unchanged" — the fact a CALL SITE needs to
 # propagate an argument's own effect tag across the RETURN boundary.
 Let = _simple("Let", ["name", "expr"])
-FnDef = _simple("FnDef", ["name", "params", "body", "ret_type"])
+FnDef = _simple("FnDef", ["name", "params", "body", "ret_type",
+                          "param_types"])
 # ret_type: None, or the spec expr `parser._type_spec_expr` builds for a
 # `-> Type` annotation (an A.Str for a primitive tag, an A.NameRef for a
 # shape) — resolved to a runtime spec ONCE per Closure at creation time
 # (interp.py `_closure_ret`), never re-parsed or re-walked per call.
+# param_types (v0.19, round 344): None when no parameter is annotated, else a
+# tuple of `(index, param_name, spec_expr, label)` — the SAME spec-expr shape
+# `ret_type` uses, resolved by the SAME `_closure_spec` at the SAME moment
+# (interp.py `_closure_params`). Before v0.19 a parameter annotation was
+# erased into a `let p = typed(p, spec, label)` statement PREPENDED to the
+# body, which resolved its spec in the CALL env on every call; carrying it on
+# the node instead is what lets a parameter contract and a return contract
+# mean the same thing (SPEC decision 29).
 Check = _simple("Check", ["label", "expr"])
 ExprStmt = _simple("ExprStmt", ["expr"])
 Program = _simple("Program", ["stmts"])

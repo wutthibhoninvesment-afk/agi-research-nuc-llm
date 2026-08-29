@@ -194,6 +194,38 @@ def canon_guest_type(prov):
     raise AssertionError("unexpected guest ret_type node %r" % (payload,))
 
 
+def canon_host_params(param_types):
+    """host `param_types` (v0.19, round 344): None, or a tuple of
+    `(index, name, spec_expr, label)` -> a tuple of
+    `(index, name, canon_host_type(spec), label)`, `()` for None.
+
+    This arm did not exist before round 344 and its absence would have been
+    a real coverage hole, not a neutral omission: v0.12-v0.18 a parameter
+    annotation was ERASED INTO THE BODY, so the differential saw it for
+    free as a `('let', p, ('call', ('name','typed'), …))` statement. v0.19
+    moved it onto the node, and a canonical form that skipped the new field
+    would have compared two ASTs while silently ignoring the entire
+    parameter half of every type contract."""
+    if param_types is None:
+        return ()
+    return tuple((i, name, canon_host_type(spec), label)
+                 for i, name, spec, label in param_types)
+
+
+def canon_guest_params(prov):
+    """guest `param_types` -> the same tuple `canon_host_params` produces.
+    The guest keeps the parameter's INDEX for its own positional
+    `bind_params` walk, which is why the index is compared rather than
+    dropped: the two implementations agree on position, name, spec AND
+    message label, not merely on how many annotations there were."""
+    return tuple(
+        (r.value.fields["index"].value,
+         r.value.fields["name"].value,
+         canon_guest_type(r.value.fields["spec"]),
+         r.value.fields["label"].value)
+        for r in prov.value.buf)
+
+
 def canon_host(node):
     t = type(node)
     if t is A.Program:
@@ -238,7 +270,7 @@ def canon_host(node):
         # `param_call_fact` (v0.14.9+ effect-system bookkeeping) likewise
         # excluded: parser-internal, no guest equivalent, not source shape.
         return ("fnexpr", tuple(node.params), canon_host_type(node.ret_type),
-                 canon_host(node.body))
+                 canon_host_params(node.param_types), canon_host(node.body))
     if t is A.Block:
         # `tail_alias_tag`/`tail_param_name` excluded for the same reason.
         return ("block", tuple(canon_host(s) for s in node.stmts))
@@ -246,7 +278,8 @@ def canon_host(node):
         return ("let", node.name, canon_host(node.expr))
     if t is A.FnDef:
         return ("fndef", node.name, tuple(node.params),
-                 canon_host_type(node.ret_type), canon_host(node.body))
+                 canon_host_type(node.ret_type),
+                 canon_host_params(node.param_types), canon_host(node.body))
     if t is A.Check:
         return ("check", node.label, canon_host(node.expr))
     if t is A.ExprStmt:
@@ -311,14 +344,16 @@ def canon_guest(prov):
                  canon_guest(f["otherwise"]))
     if kind == "fnexpr":
         return ("fnexpr", _guest_list(f["params"], _unwrap),
-                 canon_guest_type(f["ret_type"]), canon_guest(f["body"]))
+                 canon_guest_type(f["ret_type"]),
+                 canon_guest_params(f["param_types"]), canon_guest(f["body"]))
     if kind == "block":
         return ("block", _guest_list(f["stmts"], canon_guest))
     if kind == "let":
         return ("let", f["name"].value, canon_guest(f["value"]))
     if kind == "fndef":
         return ("fndef", f["name"].value, _guest_list(f["params"], _unwrap),
-                 canon_guest_type(f["ret_type"]), canon_guest(f["body"]))
+                 canon_guest_type(f["ret_type"]),
+                 canon_guest_params(f["param_types"]), canon_guest(f["body"]))
     if kind == "check":
         return ("check", f["label"].value, canon_guest(f["expr"]))
     if kind == "exprstmt":
@@ -362,15 +397,23 @@ def test_host_and_guest_parsers_agree_on_ast_shape():
         "%r:\n  host:  %r\n  guest: %r" % f for f in failures)
 
 
-def test_named_fn_typed_param_guard_label_includes_enclosing_fn_name():
+def test_named_fn_param_contract_label_includes_enclosing_fn_name():
     """Round 320's own dedicated pin, isolated from the broader sweep
-    above: a NAMED function's typed-parameter guard label must say which
-    function the parameter belongs to (`"parameter 'g' of needs_guess"`),
-    matching the host's own `_apply_type_guards` wording exactly — checked
-    on both sides independently, not just via the canonical-form diff."""
+    above: a NAMED function's typed-parameter label must say which function
+    the parameter belongs to (`"parameter 'g' of needs_guess"`), matching
+    the host's own `_param_contracts` wording exactly — checked on both
+    sides independently, not just via the canonical-form diff.
+
+    v0.19 (round 344) moved where the label LIVES: it used to be the third
+    argument of a `typed(...)` call the parser prepended to the body, and
+    is now the `label` field of a `param_types` entry on the fn node. The
+    claim is unchanged and so is the string."""
     src = "fn needs_guess(g: guess) { confidence(g) }"
-    host_label = parse(src).stmts[0].body.stmts[0].expr.args[2].value
-    assert host_label == "parameter 'g' of needs_guess"
+    host = parse(src).stmts[0]
+    assert [(i, n, sp.value, lab) for i, n, sp, lab in host.param_types] == [
+        (0, "g", "guess", "parameter 'g' of needs_guess")]
+    # ...and nothing was prepended to the body to carry it
+    assert [st.__class__.__name__ for st in host.body.stmts] == ["ExprStmt"]
 
     guest_ast = guest_parse_all([src])[0]
 
@@ -378,38 +421,39 @@ def test_named_fn_typed_param_guard_label_includes_enclosing_fn_name():
         return prov.value.fields[name]
 
     fndef = field(guest_ast, "stmts").value.buf[0]
-    guard_let = field(field(fndef, "body"), "stmts").value.buf[0]
-    call = field(guard_let, "value")
-    guest_label = field(call, "args").value.buf[2]
-    assert field(guest_label, "value").value == "parameter 'g' of needs_guess"
+    entry = field(fndef, "param_types").value.buf[0]
+    assert field(entry, "label").value == "parameter 'g' of needs_guess"
+    assert field(entry, "index").value == 0
+    assert field(entry, "name").value == "g"
+    assert field(field(entry, "spec"), "value").value == "guess"
+    assert len(field(field(fndef, "body"), "stmts").value.buf) == 1
 
     # an ANONYMOUS fn's typed param must stay suffix-free on both sides —
     # confirms the fix is scoped to NAMED fns only, matching the host's own
     # `fn_name is None` -> `suffix = ""` branch.
     anon_src = "let g = fn(x: num) { x }"
-    host_anon_label = parse(anon_src).stmts[0].expr.body.stmts[0].expr.args[2].value
-    assert host_anon_label == "parameter 'x'"
+    host_anon = parse(anon_src).stmts[0].expr
+    assert host_anon.param_types[0][3] == "parameter 'x'"
     guest_anon_ast = guest_parse_all([anon_src])[0]
     anon_let = field(guest_anon_ast, "stmts").value.buf[0]
     anon_fnexpr = field(anon_let, "value")
-    anon_guard = field(field(anon_fnexpr, "body"), "stmts").value.buf[0]
-    anon_call = field(anon_guard, "value")
-    anon_label = field(anon_call, "args").value.buf[2]
-    assert field(anon_label, "value").value == "parameter 'x'"
+    anon_entry = field(anon_fnexpr, "param_types").value.buf[0]
+    assert field(anon_entry, "label").value == "parameter 'x'"
 
 
-# ===================================================== round 324 (language C) =
-# Round 320's own next-steps item, repeated unchanged through 321-323: "wire
-# `harness/swe/fuzz.py`'s program generator into this file for a randomized
-# host-vs-guest parser sweep" instead of relying only on the hand-picked
-# SYNTHETIC list and curated `examples/*.lang` corpus above. `ProgramGen`'s
-# own grammar (`literal`/`some_name`/list/record literals, unary `-`/`not`/
-# `why`/`snip`/`miss`, binary ops, `if`, `call`, index, field access,
-# `rescue`, `fnexpr`) was confirmed by direct reading to be a strict SUBSET
-# of the node kinds `canon_host`/`canon_guest` above already handle (it never
-# emits a `shape` declaration or a `matches`/`shapeof`/`typed` builtin call —
-# the one construct this file's own module docstring already documents as
-# out of scope) — so no new node-kind coverage is needed to wire it in.
+def test_an_unannotated_fn_has_an_empty_contract_list_on_both_sides():
+    """The two sides spell "no annotated parameter" differently — the host
+    uses `None` (an identity check skips `_closure_params` entirely), the
+    guest uses `[]` (a `len` check does the same job) — and
+    `canon_host_params`/`canon_guest_params` map both to `()`. Pinned so
+    that the canonical agreement above cannot be satisfied by one side
+    quietly emitting contracts the other does not."""
+    src = "fn f(a, b) { a }"
+    assert parse(src).stmts[0].param_types is None
+    guest = guest_parse_all([src])[0]
+    fndef = guest.value.fields["stmts"].value.buf[0]
+    assert len(fndef.value.fields["param_types"].value.buf) == 0
+    assert canon_host(parse(src)) == canon_guest(guest)
 
 
 def _agi_root():
@@ -509,11 +553,16 @@ def test_corpus_actually_reaches_the_shape_arm():
         for f in REAL_EXAMPLE_FILES)
     assert from_synthetic >= 3, from_synthetic
     assert from_examples >= 2, from_examples
-    # and a shape-typed PARAMETER canonicalizes as a NameRef inside the
-    # erased guard, not as a "SHAPE:" tag — the two spellings are different
-    # by design (`_type_spec_expr` builds the same NameRef for both, but a
-    # param guard puts it in ARGUMENT position). Pinned so the guard above
-    # is not silently satisfied by param annotations alone.
+    # and a shape-typed PARAMETER now canonicalizes through the SAME
+    # "SHAPE:" tag as a return type, because v0.19 (round 344) gives both
+    # halves of a contract the same representation — a `param_types` entry
+    # whose `spec` is the identical spec expression `ret_type` holds.
+    # Before v0.19 a param annotation appeared as a NameRef in ARGUMENT
+    # position inside an erased `typed(...)` guard, so this line asserted
+    # the opposite. Pinned so the shape-arm guard above cannot be silently
+    # satisfied by param annotations alone, and so that the two spellings
+    # cannot drift apart again.
     param_only = canon_host(parse('shape P = @{x: num}\nfn mag(p: P) { p.x }'))
-    assert "SHAPE:" not in repr(param_only), param_only
-    assert "('name', 'P')" in repr(param_only), param_only
+    assert "(0, 'p', 'SHAPE:P', \"parameter 'p' of mag\")" in repr(param_only), \
+        param_only
+    assert from_synthetic >= 3 and from_examples >= 2

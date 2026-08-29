@@ -55,14 +55,39 @@ def test_untyped_param_list_unchanged():
     assert [s.__class__.__name__ for s in fn.body.stmts] == ["ExprStmt"]
 
 
-def test_typed_param_prepends_exactly_one_let_per_annotation():
+def test_typed_param_records_exactly_one_contract_per_annotation():
+    """v0.19 (round 344) moved the parameter half of a contract OFF the
+    body and onto the node. v0.12-v0.18 this test read
+    `["Let", "Let", "ExprStmt"]` off `fn.body.stmts`, because the parser
+    prepended one `let p = typed(p, spec, label)` per annotation; the body
+    of an annotated function is now byte-identical to an unannotated one,
+    and the same four facts (position, name, spec, label) live in
+    `fn.param_types`. Both halves are asserted: what IS on the node, and
+    what is no longer in the body."""
     prog = parse("fn f(a: num, b, c: str) { a }\n")
     fn = prog.stmts[0]
     assert fn.params == ["a", "b", "c"]      # runtime param names untouched
-    kinds = [s.__class__.__name__ for s in fn.body.stmts]
-    assert kinds == ["Let", "Let", "ExprStmt"]
-    assert fn.body.stmts[0].name == "a"
-    assert fn.body.stmts[1].name == "c"      # b (untyped) gets no guard
+    assert [s.__class__.__name__ for s in fn.body.stmts] == ["ExprStmt"]
+    assert [(i, n, spec.value, label)
+            for i, n, spec, label in fn.param_types] == [
+        (0, "a", "num", "parameter 'a' of f"),
+        (2, "c", "str", "parameter 'c' of f"),   # b (untyped) is skipped
+    ]
+    # the INDEX is the parameter's own position, not its position among the
+    # annotated ones — `c` is param 2 even though it is contract 1.
+    assert [i for i, _n, _s, _l in fn.param_types] == [0, 2]
+
+
+def test_an_unannotated_fn_carries_no_param_types_at_all():
+    """The `None` (not `()`) sentinel is the whole cost story for an
+    unannotated function: `_mk_closure` -> `_closure_params` returns None
+    on an identity check, and every call path skips `_check_params` on
+    `is not None`. An empty tuple would work too and would cost a loop
+    setup per call, so the distinction is pinned."""
+    assert parse("fn f(a, b) { a }\n").stmts[0].param_types is None
+    assert parse("let g = fn(a) { a }\n").stmts[0].expr.param_types is None
+    # ...and a `-> Type` alone does not create one either
+    assert parse("fn f(a) -> num { 1 }\n").stmts[0].param_types is None
 
 
 def test_anonymous_fn_guard_label_has_no_function_name():
@@ -106,7 +131,7 @@ def test_shape_is_a_contextual_keyword_not_reserved():
 
 def test_fn_keyword_usable_as_a_type_tag():
     prog = parse("fn f(g: fn) { g }\n")
-    assert prog.stmts[0].body.stmts[0].__class__.__name__ == "Let"
+    assert prog.stmts[0].param_types[0][2].value == "fn"
 
 
 # --- typed / matches / shapeof: every primitive tag -------------------------
@@ -428,3 +453,104 @@ def test_three_way_hand_built_and_malformed_record_specs():
         'let bad = probe(@{a: 1}, @{a: 5})\n'
         'let named = probe(@{a: "z"}, @{__shape: @{q: 1}, a: "num"})\n'
         'let result = [good, bad, named]\n')
+
+
+# ============================================ round 344 (language C, v0.19) ==
+# A parameter contract is no longer a `let p = typed(p, spec, label)`
+# statement the parser prepends to the body: it rides on the fn node
+# (`param_types`), is resolved once at closure creation in the DEFINING env
+# (`_closure_params`, the same `_closure_spec` a `-> Type` uses), and is
+# applied at the call boundary (`_check_params`). SPEC decision 29.
+#
+# The tests below are about what that MOVE changes at run time, as opposed
+# to `test_v13.py`'s family, which is about which shape a name means.
+
+def test_a_satisfied_param_contract_leaves_no_node_in_the_why_tree():
+    """v0.12-v0.18 a passing annotation still cost a `let a` node, because
+    the guard was a real `Let` statement whose result was rebound. It costs
+    nothing now — `_check_contract` returns its input UNCHANGED on a pass,
+    and `_check_params` writes back only when the box actually changed. So
+    the why-tree of a typed function that is called correctly is now
+    byte-identical to the untyped version of the same function, which is
+    the property `-> Type` has had since v0.13."""
+    from whence.values import render_why
+    typed_i, typed_env, _ = run('fn f(a: num) { a + 1 }\nlet result = f(2)\n')
+    plain_i, plain_env, _ = run('fn f(a) { a + 1 }\nlet result = f(2)\n')
+    assert render_why(typed_env.get("result")) == \
+        render_why(plain_env.get("result"))
+    assert "let a" not in render_why(typed_env.get("result"))
+
+
+def test_a_failing_param_contract_still_runs_the_body():
+    """Deliberately preserved from the prepended-guard era: a failing check
+    binds the miss and the call proceeds, so a function that never READS a
+    badly-typed parameter still returns normally. Whether it should
+    short-circuit is a separate decision with its own corpus cost; pinning
+    it here means changing it later has to be a choice, not a side effect."""
+    assert val('fn f(a: num) { 42 }\nlet result = f("x")\n').value == 42
+    # ...and one that does read it gets an ordinary propagating miss
+    r = val('fn f(a: num) { a + 1 }\nlet result = f("x")\n')
+    assert isinstance(r.value, Miss)
+    assert r.value.reasons[0].startswith("parameter 'a' of f expected num")
+
+
+def test_a_miss_argument_propagates_instead_of_being_glossed():
+    """The other inherited-from-`_check_ret` rule, newly applied to the
+    parameter end (decision 2): an argument that is ALREADY a miss passes
+    through untouched. v0.12-v0.18 the guard was a real `typed(...)` call,
+    so `_propagate` wrapped it in a `builtin typed` node with all three
+    operands as inputs; the reason text was the same but the shape was not.
+    A call that already failed does not also get a wrong-type gloss."""
+    from whence.values import render_why
+    r = val('fn f(a: num) { a }\nlet result = f(miss "boom")\n')
+    assert isinstance(r.value, Miss)
+    assert list(r.value.reasons) == ["boom (line 2)"]
+    assert "typed" not in render_why(r)
+
+
+def test_a_tail_chain_checks_the_params_of_the_closure_it_ENTERS():
+    """`ret_spec` is captured ONCE from the originally called closure (a
+    return contract is a promise to THIS call's caller, round 336); a
+    parameter contract is the opposite — it guards the arguments of
+    whichever closure the tail loop is entering right now, so `param_specs`
+    is re-read beside `params` on every switch. Mutual recursion between a
+    typed and an untyped function is what tells the two rules apart: `b`'s
+    contract must fire on the value `a` tail-calls it with, in the merged
+    frame, with no host frame of its own."""
+    src = ('fn a(n) { if n == 0 { "done" } else { b(n) } }\n'
+           'fn b(n: num) { a(n - 1) }\n'
+           'let result = a(3)\n')
+    interp, env, _ = run(src)
+    assert env.get("result").value == "done"
+    assert interp.tail_calls > 0            # it really is a merged tail loop
+    bad = ('fn a(n) { if n == 0 { "done" } else { b(n) } }\n'
+           'fn b(n: num) { a(n - 1) }\n'
+           'let result = a("3")\n')
+    r = val(bad)
+    assert isinstance(r.value, Miss)
+    assert any("parameter 'n' of b expected num, got str" in x
+               for x in r.value.reasons), r.value.reasons
+    assert_three_way(src)
+    assert_three_way(bad)
+
+
+def test_three_way_param_contract_resolved_in_the_defining_env():
+    """The v0.19 resolution rule under the three-way differential: all
+    three evaluation modes build closures through the one `_mk_closure`
+    choke point, so they must agree on `param_specs` byte for byte."""
+    assert_three_way(
+        'shape P = @{x: num}\n'
+        'fn g() {\n'
+        '  fn h(p: P) -> P { p }\n'
+        '  shape P = @{y: str}\n'
+        '  [missed(h(@{x: 1})), missed(h(@{y: "a"}))]\n'
+        '}\n'
+        'let result = g()\n')
+
+
+def test_three_way_param_contract_on_a_mutually_recursive_tail_chain():
+    assert_three_way(
+        'shape P = @{x: num}\n'
+        'fn up(r: P, n) { if n == 0 { r.x } else { down(r, n) } }\n'
+        'fn down(r, n: num) { up(r, n - 1) }\n'
+        'let result = up(@{x: 9}, 40)\n')

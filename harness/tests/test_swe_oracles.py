@@ -263,7 +263,7 @@ def test_tail_transparency_fires_on_round_335_outermost_first_blame_order():
 
     def outermost_first(result, chain_rets):
         for spec, label, line in chain_rets:      # round 336 walks this backwards
-            result = m._check_ret(result, spec, label, line)
+            result = m._check_contract(result, spec, label, line)
         return result
     m._check_chain_rets = outermost_first
     try:
@@ -295,7 +295,7 @@ def test_tail_transparency_fires_on_a_line_only_divergence():
         line0 = chain_rets[0][2]                  # the OUTERMOST hop's line
         for i in range(len(chain_rets) - 1, -1, -1):
             spec, label, _ = chain_rets[i]
-            result = m._check_ret(result, spec, label, line0)
+            result = m._check_contract(result, spec, label, line0)
         return result
     m._check_chain_rets = outer_line
     try:
