@@ -548,6 +548,16 @@ class ExtendedEffectGen(object):
         # or `(params_tuple, tail_param_name)` — a fn whose body's own tail
         # directly returns one of its own params, unchanged.
         self.return_param_scopes = []
+        # v0.14.13 (round 312, oracle/fuzz coverage round 317): mirrors
+        # `Parser._check_param_forwarding` — needs NO new stack, unlike
+        # every stack-adding round above. An argument flowing through a
+        # SECOND function call before landing in a directly-called param
+        # (`outer(f) { inner(f) }` where `inner` already tracks calling its
+        # own first param) is pure composition of `param_call_scopes`,
+        # which this generator already has: `record_param_forwarding`
+        # below reads `resolve_param_call_fact` and writes straight into
+        # `direct_param_calls_stack[-1]`, the same set `_track_direct_
+        # param_call` already populates.
 
     def fresh(self, prefix="v"):
         self.counter += 1
@@ -994,6 +1004,44 @@ class ExtendedEffectGen(object):
             self.verdict = ("error_param", argname, tag, callee_name, pname)
             return
 
+    def record_param_forwarding(self, callee_name, arg_infos):
+        """Mirror of `Parser._check_param_forwarding` (v0.14.13, round 312):
+        for a callee with a recorded `param_call_fact`, walk each of ITS OWN
+        directly-called param positions; if the argument AT that position
+        (`arg_infos`, same `(is_nameref, name_or_None)` contract as `check_
+        call_site_param_effects` above) resolves — identity, or a same-body
+        rename chain, `_resolve_param_identity_then_alias` covers both — to
+        one of the CURRENTLY open fn's own params, that param is added to
+        the CURRENT fn's own `direct_param_calls_stack[-1]`, the exact same
+        set `_track_direct_param_call` already populates for a truly direct
+        call or a same-body rename. A no-op whenever `current_fn_params_
+        frame_stack` is empty (module top level, nothing to attribute the
+        forward TO) — `_resolve_param_identity_then_alias` itself already
+        returns `None` in that case, same guard every other caller of it
+        relies on. Deliberately does NOT itself call `check_effect`/set
+        `self.verdict` — this method only PRODUCES a fact for the CURRENT
+        fn's own `param_call_scopes` entry (finalized once its body finishes
+        parsing, in `_gen_fn_stmt`/`_stmt_shadow_param`); the GRANTED/DENIED
+        verdict at a LATER call site through that fn is exercised generically
+        by the EXISTING `check_call_site_param_effects` consumer, exactly
+        mirroring how `_check_call_site_param_effects` needed zero changes
+        in the real parser."""
+        if self.done:
+            return
+        fact = self.resolve_param_call_fact(callee_name)
+        if fact is None:
+            return
+        _effects_scope, params, called_params = fact
+        for i, pname in enumerate(params):
+            if i >= len(arg_infos) or pname not in called_params:
+                continue
+            is_nameref, argname = arg_infos[i]
+            if not is_nameref:
+                continue
+            resolved_param = self._resolve_param_identity_then_alias(argname)
+            if resolved_param is not None:
+                self.direct_param_calls_stack[-1].add(resolved_param)
+
     def record_call_return(self, fname):
         self.check_effect(self.resolve_return(fname), "%s()" % fname)
 
@@ -1263,6 +1311,8 @@ class ExtendedEffectGen(object):
         if self.current_fn_own_params():
             choices += ["call_own_param"] * 2
             choices += ["let_rename_own_param"] * 2
+            if self.known_param_call_names():
+                choices += ["call_forward_own_param"] * 2
         if self.known_return_param_names():
             choices += ["let_call_return_param_passthrough"] * 3
             choices += ["call_return_param_passthrough_chain"] * 3
@@ -1744,6 +1794,69 @@ class ExtendedEffectGen(object):
             call_name = name2
         self.record_call_direct(call_name)
         lines.append("%s(0)" % call_name)
+        return self._mk_expr("\n".join(lines))
+
+    def _stmt_call_forward_own_param(self, depth):
+        """v0.14.13 (round 312): calls a tracked fn (`known_param_call_
+        names()`) passing one of the CURRENTLY-open fn's own params — or,
+        30% of the time, a same-body RENAME of one (`let g = p` first,
+        mirroring `_stmt_let_rename_own_param` above, since `_resolve_
+        param_identity_then_alias` covers both shapes) — at a position the
+        CALLEE itself calls directly, so THIS fn (not the callee) also ends
+        up "calling that param directly" via `record_param_forwarding`
+        (`outer(f) { inner(f) }` where `inner` already calls its own first
+        param). Requires BOTH `current_fn_own_params()` (something to
+        forward) and `known_param_call_names()` (somewhere to forward it
+        TO) non-empty.
+
+        Deliberately does NOT need a new external-verdict statement — the
+        same "fact producer, existing consumer" reasoning `_stmt_let_
+        rename_own_param`'s own docstring already gives for v0.14.11: once
+        the forwarded param lands in the CURRENTLY-open fn's own `param_
+        call_scopes` entry (once ITS OWN body finishes parsing, in `_gen_
+        fn_stmt`/`_stmt_shadow_param`), a LATER call through THAT fn's own
+        name is checked by the EXISTING `_stmt_call_tracked_fn`/`_stmt_
+        shadow_tracked_fn_call` exactly as any other tracked fact would be
+        — this statement's only job is to make the forward fact exist at
+        all, mirroring `outer`'s own `param_call_scopes` entry gaining `f`
+        with zero changes needed at `outer(print)`'s own later call site."""
+        r = self.r
+        pname = r.choice(self.current_fn_own_params())
+        lines = []
+        fwd_name = pname
+        if r.random() < 0.3:
+            fwd_name = self.fresh("a")
+            target = self._resolve_param_identity_then_alias(pname)
+            self.bind(fwd_name, None, None, None, None, None, None, target, None)
+            lines.append("let %s = %s" % (fwd_name, pname))
+        callee = r.choice(self.known_param_call_names())
+        fact = self.resolve_param_call_fact(callee)
+        if fact is None:
+            # `known_param_call_names()` is a raw multi-frame scan, same
+            # shadow-fallback reasoning as `_stmt_call_tracked_fn`'s own
+            # docstring: a CLOSER frame may since have shadowed this exact
+            # name with a fresh `None` fact.
+            self.record_call_direct(callee)
+            lines.append("%s(0)" % callee)
+            return self._mk_expr("\n".join(lines))
+        _effects_scope, params, called_params = fact
+        called_positions = [i for i, cparam in enumerate(params) if cparam in called_params]
+        target_idx = r.choice(called_positions)
+        args = []
+        arg_infos = []
+        for i in range(len(params)):
+            if i == target_idx:
+                args.append(fwd_name)
+                arg_infos.append((True, fwd_name))
+            else:
+                args.append(str(r.randint(0, 9)))
+                arg_infos.append((False, None))
+        self.record_call_direct(callee)
+        if not self.done:
+            self.check_call_site_param_effects(callee, arg_infos)
+        if not self.done:
+            self.record_param_forwarding(callee, arg_infos)
+        lines.append("%s(%s)" % (callee, ", ".join(args)))
         return self._mk_expr("\n".join(lines))
 
     def _stmt_let_call_return_param_passthrough(self, depth):

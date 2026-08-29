@@ -147,20 +147,22 @@ def test_extended_generator_reaches_field_return_chain_shape():
 
 
 def test_extended_targeted_campaign_no_mismatches():
-    """The real regression: 11000 generated programs spanning return/field/
+    """The real regression: 13000 generated programs spanning return/field/
     if-tail/field-return-chain/nested-field/param-call/param-rename/
-    return-param-passthrough alias shapes (plus their interaction with
-    v0.14.2's own direct aliasing) against the real parser, compared to the
-    independent oracle's prediction. Bumped from round 281's original 3000
-    to 5000 when round 287 folded the v0.14.6 field-return-chain shape into
-    this same generator, to 7000 when round 293 folded v0.14.7's
-    nested-field shape in too, to 9000 when round 305 folded v0.14.9/
-    v0.14.10's param-call shape in, and to 11000 this round (311) when
-    v0.14.11's param-rename-chain and v0.14.12's return-param-passthrough
-    shapes were folded in, to keep per-shape sample size comparable."""
+    return-param-passthrough/param-forwarding alias shapes (plus their
+    interaction with v0.14.2's own direct aliasing) against the real
+    parser, compared to the independent oracle's prediction. Bumped from
+    round 281's original 3000 to 5000 when round 287 folded the v0.14.6
+    field-return-chain shape into this same generator, to 7000 when round
+    293 folded v0.14.7's nested-field shape in too, to 9000 when round 305
+    folded v0.14.9/v0.14.10's param-call shape in, to 11000 when round 311
+    folded v0.14.11's param-rename-chain and v0.14.12's return-param-
+    passthrough shapes in, and to 13000 this round (317) when v0.14.13's
+    param-forwarding shape was folded in, to keep per-shape sample size
+    comparable."""
     rng = random.Random(281269)
     mismatches = []
-    for _ in range(11000):
+    for _ in range(13000):
         seed = rng.randrange(10 ** 9)
         depth = rng.choice([2, 3, 3, 4, 5])
         stmts = rng.choice([2, 3, 4, 5, 6])
@@ -774,3 +776,129 @@ def test_extended_oracle_detects_injected_return_param_passthrough_wrong_index_b
     finally:
         P.Parser._resolve_return_param_passthrough = orig
     assert mismatches > 0, "mutated wrong-index return-param-passthrough bug went undetected"
+
+
+# =================================== v0.14.13 (round 312, coverage 317) ====
+# `ExtendedEffectGen` closes the fuzz/oracle-coverage half of round 312's
+# v0.14.13 (an argument forwarded through a SECOND function call, before
+# landing in a directly-called param — `fn inner(g) effects [io] { g(1) }`
+# then `fn outer(f) effects [io] { inner(f) }`, `outer(print)`). Named as
+# the "natural next SWE-loop(D) round" by research-state.md's next-steps
+# since round 312, unchanged through rounds 314/315/316. Needs NO new
+# stack (see `ExtendedEffectGen.__init__`'s own "v0.14.13" comment) — a
+# single new method, `record_param_forwarding` (mirror of `Parser._check_
+# param_forwarding`), and one new statement, `_stmt_call_forward_own_
+# param`, that is the SOLE producer of this shape (see its own docstring:
+# no other statement ever places a bare, untagged own-param as an argument
+# to ANOTHER tracked fn's call). Deliberately does NOT need a new
+# external-verdict statement, mirroring round 311's own v0.14.11 precedent:
+# once the forwarded fact lands in `param_call_scopes`, the EXISTING
+# `_stmt_call_tracked_fn`/`_stmt_shadow_tracked_fn_call` already exercise
+# the granted/denied verdict generically.
+
+def test_extended_generator_reaches_param_forwarding_fact():
+    """Coverage guard, not a correctness check — confirms `record_param_
+    forwarding` actually mutates `direct_param_calls_stack` (the forwarded
+    param fact lands) at a real rate, not just theoretically wired into
+    `_stmt_call_forward_own_param`. A source-text regex can't distinguish
+    this shape from an ordinary tracked-alias call site — the forwarded
+    argument is a bare `pN`/`aN` name, textually identical to any other
+    bare-name argument (e.g. `_stmt_call_tracked_fn`'s own alias args) — so
+    this uses a counting wrapper around the oracle's own method instead,
+    the same instrumentation idea the mutation tests below already use,
+    just applied to the UNMUTATED method to measure reachability rather
+    than detect a bug. Measured ~2.9% (145/5000) in this round's own manual
+    scaling check."""
+    from swe.alias_effects import ExtendedEffectGen as G
+    orig = G.record_param_forwarding
+    effective = [0]
+
+    def wrapped(self, callee_name, arg_infos):
+        before = set(self.direct_param_calls_stack[-1]) if self.direct_param_calls_stack else set()
+        orig(self, callee_name, arg_infos)
+        after = set(self.direct_param_calls_stack[-1]) if self.direct_param_calls_stack else set()
+        if after != before:
+            effective[0] += 1
+    G.record_param_forwarding = wrapped
+    try:
+        n = 5000
+        for seed in range(n):
+            G(seed, max_depth=4, max_stmts=5).gen_program()
+    finally:
+        G.record_param_forwarding = orig
+    assert effective[0] > n * 0.01, effective[0]
+
+
+def test_extended_generator_reaches_param_forwarding_denial():
+    """A narrower correctness check than the campaign above: confirms a
+    program where `record_param_forwarding` actually added a fact SOMETIMES
+    also ends in the DENIED `error_param` verdict through that SAME
+    forwarded param at a LATER call site — not just the ok-composes-fine
+    path — the same "measure the real denial rate, don't just avoid
+    mismatches by accident" discipline `test_extended_targeted_campaign_
+    reaches_random_tag_error` already uses for v0.14.8. Measured ~2.3%
+    effective (186/8000), ~0.44% denied-after-forward (35/8000) in this
+    round's own manual scaling check."""
+    from swe.alias_effects import ExtendedEffectGen as G
+    orig = G.record_param_forwarding
+    cur_effective = [False]
+
+    def wrapped(self, callee_name, arg_infos):
+        before = set(self.direct_param_calls_stack[-1]) if self.direct_param_calls_stack else set()
+        orig(self, callee_name, arg_infos)
+        after = set(self.direct_param_calls_stack[-1]) if self.direct_param_calls_stack else set()
+        if after != before:
+            cur_effective[0] = True
+    G.record_param_forwarding = wrapped
+    try:
+        n = 8000
+        effective_programs = 0
+        denied_after_forward = 0
+        for seed in range(n):
+            cur_effective[0] = False
+            gen = G(seed, max_depth=4, max_stmts=5)
+            _, verdict = gen.gen_program()
+            if cur_effective[0]:
+                effective_programs += 1
+                if verdict[0] == "error_param":
+                    denied_after_forward += 1
+    finally:
+        G.record_param_forwarding = orig
+    assert effective_programs > n * 0.01, effective_programs
+    assert denied_after_forward > n * 0.002, (effective_programs, denied_after_forward)
+
+
+def test_extended_oracle_detects_injected_missing_param_forwarding_bug():
+    """Mutation test: neutralize `_check_param_forwarding` entirely (a
+    no-op, simulating the whole v0.14.13 feature vanishing — the same
+    "feature missing entirely" role `test_extended_oracle_detects_injected_
+    missing_param_call_check_bug`/`test_extended_oracle_detects_injected_
+    missing_return_param_passthrough_bug` play for their own rounds' new
+    mechanism. Unlike those two, v0.14.13 adds no new resolver with its own
+    scope-stack walk to test shadowing on (see `ExtendedEffectGen.__init__`'s
+    own "v0.14.13" comment: pure composition of the ALREADY-shadow-tested
+    `param_call_scopes`/`resolve_param_call_fact`), so this is the ONLY
+    mutation this new mechanism needs. Rarer than the other "missing check"
+    mutations in this file (needs the forward to be the fn's OWN SOLE
+    source of a called-param fact, not merely redundant with an ordinary
+    direct call/rename inside the same body, AND a later call site to
+    independently land an effectful arg at exactly that position) —
+    measured 18/50000 (~0.036%) in this round's own manual scaling check;
+    N=50000 here for comfortable headroom."""
+    sys.path.insert(0, WHENCE_ROOT)
+    from whence import parser as P
+
+    orig = P.Parser._check_param_forwarding
+    P.Parser._check_param_forwarding = lambda self, callee, args, tok: None
+    try:
+        rng = random.Random(317010)
+        mismatches = 0
+        for _ in range(50000):
+            seed = rng.randrange(10 ** 9)
+            depth = rng.choice([2, 3, 3, 4, 5])
+            stmts = rng.choice([2, 3, 4, 5, 6])
+            _, _, _, mismatch = check_one_ext(seed, max_depth=depth, max_stmts=stmts)
+            mismatches += mismatch
+    finally:
+        P.Parser._check_param_forwarding = orig
+    assert mismatches > 0, "mutated missing-param-forwarding bug went undetected"

@@ -424,6 +424,39 @@ class ProgramGen(object):
         stmts.append("%s(%s)" % (call_name, self.expr(1, params)))
         return "{ " + "\n  ".join(stmts) + " }", idx
 
+    def _param_forward_body(self, params, target_name, target_arity, target_called_idx):
+        """v0.14.13 fuzz coverage: a fn body that FORWARDS one of its own
+        params as the argument at ANOTHER already-tracked fn's own
+        called-param position (`fn outer(f) { inner(f) }` where `inner` is
+        drawn from `self.param_call_fns`), instead of calling a param
+        directly/through a rename/returning one — mirrors the hand-written
+        corpus's `fn inner(g) effects [io] { g(1) }` / `fn outer(f)
+        effects [io] { inner(f) }` pair (`_check_param_forwarding`).
+        `params` must be non-empty; `(target_name, target_arity,
+        target_called_idx)` is one entry already drawn from `self.param_
+        call_fns` by the caller. Returns `(source_text, forwarded_param_
+        index)` — the OWN param position used as the forwarded argument,
+        NOT `target_called_idx` (that identifies a position in the
+        TARGET's own params, a different fn entirely) — the caller
+        registers `(name, arity, forwarded_param_index)` into `self.
+        param_call_fns` ITSELF (the SAME list, not a new one), since THIS
+        fn now also "calls that param directly" by composition, exactly
+        the same fact-producer/fact-consumer reuse `_param_rename_call_
+        body`'s own docstring already explains for the rename variant —
+        `call()`'s existing `param_call_fns` consumer needs no changes at
+        all to reach a call through a FORWARDING fn either."""
+        r = self.r
+        idx = r.randrange(len(params))
+        forwarded = params[idx]
+        args = []
+        for i in range(target_arity):
+            args.append(forwarded if i == target_called_idx else self.expr(1, params))
+        stmts = []
+        for _ in range(r.randint(0, 1)):
+            stmts.append("let %s = %s" % (self.fresh("t"), self.expr(1, params)))
+        stmts.append("%s(%s)" % (target_name, ", ".join(args)))
+        return "{ " + "\n  ".join(stmts) + " }", idx
+
     def _return_param_body(self, params):
         """v0.14.12 fuzz coverage: a fn body whose tail is a bare NameRef
         to ONE of its own params, unchanged (`fn apply(f) { f }`),
@@ -562,9 +595,17 @@ class ProgramGen(object):
                 # body calls THROUGH a rename instead of directly (see
                 # `_param_rename_call_body`) -- `param_call_fns`'s own
                 # consumer is unchanged either way (see `__init__`'s
-                # docstring).
+                # docstring). v0.14.13 fuzz coverage (round 317): a THIRD
+                # option, ~34% of the time when a target already exists --
+                # the body FORWARDS one of its own params into an already-
+                # tracked fn's own called-param position instead of calling/
+                # renaming/returning it (see `_param_forward_body`) -- same
+                # unchanged `param_call_fns` consumer either way.
                 params = [self.fresh("p") for _ in range(r.randint(1, 2))]
-                if r.random() < 0.5:
+                if self.param_call_fns and r.random() < 0.34:
+                    target = r.choice(self.param_call_fns)
+                    body, idx = self._param_forward_body(params, *target)
+                elif r.random() < 0.5:
                     body, idx = self._param_call_body(params)
                 else:
                     body, idx = self._param_rename_call_body(params)
@@ -616,9 +657,16 @@ class ProgramGen(object):
             # fns` so `call()` below can target it with an effectful
             # argument. v0.14.12 fuzz coverage (round 311): ~8% instead get
             # a body that returns a param unchanged (see `_return_param_
-            # body`), registered in `self.return_param_fns` above.
+            # body`), registered in `self.return_param_fns` above. v0.14.13
+            # fuzz coverage (round 317): the SAME ~10% bucket, a THIRD
+            # option forwarding one of its own params into an already-
+            # tracked fn's own called-param position instead (see `_param_
+            # forward_body`).
             if arity and r.random() < 0.1:
-                if r.random() < 0.5:
+                if self.param_call_fns and r.random() < 0.34:
+                    target = r.choice(self.param_call_fns)
+                    body, idx = self._param_forward_body(params, *target)
+                elif r.random() < 0.5:
                     body, idx = self._param_call_body(params)
                 else:
                     body, idx = self._param_rename_call_body(params)

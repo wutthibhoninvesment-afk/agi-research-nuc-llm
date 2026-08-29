@@ -290,3 +290,74 @@ def test_return_param_passthrough_reports_parse_error_not_crash():
     denied_chain = run_program(
         'fn apply(f) { f }\nfn user() effects [] { apply(print)(1) }\nuser()\n')
     assert denied_chain.kind == "parse_error", denied_chain
+
+
+# ==================================== v0.14.13 (round 312, coverage 317) ===
+# No new list -- `_param_forward_body` reuses `self.param_call_fns` itself
+# (see its own docstring), closing the crash-fuzz-coverage half of round
+# 312's v0.14.13 gap: an argument forwarded through a SECOND function call,
+# before landing in a directly-called param (`_check_param_forwarding`).
+# `ProgramGen`'s generic grammar never
+# previously placed a bare local PARAM as an ARGUMENT to another tracked
+# fn's call at all -- every existing consumer of a param only ever called it
+# directly (`_param_call_body`) or through a same-body rename (`_param_
+# rename_call_body`), so this specific "hand it to someone else who calls
+# it" shape was genuinely unreachable before this round.
+
+def test_generator_now_emits_param_forward_shape():
+    """Coverage guard, mirroring `test_generator_now_emits_param_rename_
+    call_shape`: confirms `_param_forward_body` is actually reachable at a
+    real rate, not just theoretically wired in. A source-text regex can't
+    distinguish a forwarded argument (a bare `pN` name passed to a tracked
+    fn's call) from any other bare-name argument, so this instruments
+    `ProgramGen._param_forward_body` itself with a counting wrapper instead
+    -- the same reasoning `test_swe_alias_effects.py`'s own `test_extended_
+    generator_reaches_param_forwarding_fact` already gives for the oracle
+    side. Measured 25/6000 (~0.42%) in this round's own manual scaling
+    check -- rarer than the other shapes in this file since it needs an
+    EARLIER fn already registered in `self.param_call_fns` before the 34%
+    draw is even offered."""
+    from swe.fuzz import ProgramGen as G
+    orig = G._param_forward_body
+    seen = [0]
+
+    def wrapped(self, params, *target):
+        seen[0] += 1
+        return orig(self, params, *target)
+    G._param_forward_body = wrapped
+    try:
+        n = 6000
+        for i in range(n):
+            G(i).program()
+    finally:
+        G._param_forward_body = orig
+    assert seen[0] >= 10, seen[0]
+
+
+def test_param_forward_shape_is_total_under_fuzz():
+    """The real regression for this shape: 800 generated programs (a mix of
+    NAMED-fn and `let`-bound-anonymous-fn bodies that forward one of their
+    own params into an already-tracked fn's own called-param position, plus
+    call sites deliberately targeting the (now doubly-tracked) fn with an
+    effectful argument) must all stay TOTAL, never `crash`."""
+    for i in range(800):
+        o = run_program(ProgramGen(i, stress_rate=0.15).program(), timeout_s=2.0)
+        assert o.kind != "crash", (i, o.exc_type, o.message)
+
+
+def test_param_forwarding_reports_parse_error_not_crash():
+    """A hand-written grant/deny pair mirroring `tests/test_v14.py`'s own
+    `test_param_forwarded_to_second_function_that_calls_it_is_now_checked`:
+    the GRANTED case must run clean, the DENIED case must be a clean
+    `parse_error`, not a crash -- `outer`'s own body never calls `f`
+    directly, it forwards it to `inner`, which does."""
+    granted = run_program(
+        'fn inner(g) effects [io] { g(1) }\n'
+        'fn outer(f) effects [io] { inner(f) }\n'
+        'outer(print)\ncheck "ok": true\n')
+    assert granted.kind == "ok", granted
+    denied = run_program(
+        'fn inner(g) effects [io] { g(1) }\n'
+        'fn outer(f) effects [] { inner(f) }\n'
+        'outer(print)\n')
+    assert denied.kind == "parse_error", denied

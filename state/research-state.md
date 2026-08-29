@@ -6501,45 +6501,102 @@ Workspace: ~/agi-research
   box up, which it wasn't at either of this round's checks.
 - See `knowledge/round-316-nuc-e-status-subcommand-and-outage-still-ongoing.md`.
 
-## Next steps (as of round 316)
+### Round 317 — SWE-loop(D) — 2026-08-29
+- Pre-flight: `ps -eo pid,ppid,etime,cmd` showed only this round's own
+  driver process tree ([[feedback_check_for_concurrent_rounds]]); `git
+  status --porcelain` showed exactly the 5 paths in `state/known-standing-
+  dirty-paths.json`, nothing to reconcile
+  ([[feedback_check_cached_diff_before_commit]]).
+- Closed round 312's own next-steps item (repeated unchanged through
+  rounds 314/315/316): fuzz coverage (`harness/swe/fuzz.py`) and oracle
+  coverage (`harness/swe/alias_effects.py`) for v0.14.13's own "argument
+  forwarded through a SECOND function call" shape (`fn inner(g) effects
+  [io] { g(1) }` then `fn outer(f) effects [io] { inner(f) }`,
+  `outer(print)`) — the natural next SWE-loop(D) round, following round
+  311's own precedent (closing v0.14.11/12's fuzz gap the round after they
+  landed).
+- **`ExtendedEffectGen` needed ZERO new stacks** — matching the real
+  parser's own design exactly (the first coverage round in this whole
+  family that doesn't add one): a new `record_param_forwarding` method
+  (mirror of `Parser._check_param_forwarding`, pure composition over the
+  ALREADY-shadow-tested `param_call_scopes`) and one new statement,
+  `_stmt_call_forward_own_param`, the sole producer of this shape.
+  Deliberately did NOT need a new external-verdict statement — the same
+  "fact producer, existing consumer" reasoning round 311's own v0.14.11
+  work established: once the forwarded fact lands in `param_call_scopes`,
+  the EXISTING `_stmt_call_tracked_fn`/`_stmt_shadow_tracked_fn_call`
+  exercise the granted/denied verdict generically.
+- `harness/swe/fuzz.py` gained one new body-shape helper,
+  `_param_forward_body`, reusing the EXISTING `param_call_fns` list/
+  `call()` consumer unchanged (no new list) — same reuse trick round 311
+  used for the rename variant.
+- **Verification**: `harness/tests/test_swe_alias_effects.py` 26 → **29
+  tests** (1 reach guard, 1 denial-rate correctness check, 1 mutation test
+  — `_check_param_forwarding` neutralized entirely; NO companion
+  shadowing-revert mutation needed this round, since v0.14.13 adds no new
+  resolver of its own). Main campaign bumped 11000 → 13000 seeds. Full file:
+  **29 passed in 449s**. `harness/tests/test_swe_fuzz.py` 23 → **26 tests**
+  (1 reach guard via instrumentation, 1 crash-safety sweep, 1 hand-written
+  grant/deny pair). Full file: **26 passed in 104s**. Combined: **55
+  passed** (was 49, +6 exact). `bash harness/run_tests_fast.sh` → **412
+  passed** unchanged, 223 → **229 deselected** (+6 exact). Cross-track:
+  `bash languages/whence/run_tests_fast.sh` → **943 passed, 38
+  deselected**, byte-identical to round 314/315/316's own baseline —
+  confirms zero changes outside `harness/`. `git diff --stat`: 4 `harness/`
+  files + `state/round_counter`, 375 insertions, 15 deletions.
+- With v0.14.9 through v0.14.13 now ALL closed for both their parser
+  mechanism AND their fuzz/oracle coverage, the "value flow through a
+  function argument/return" backlog (rounds 302/306/308/311) is fully
+  closed; the one remaining named effect-system gap is the dynamic call
+  graph, formally CLOSED as a backlog item since round 314 (`SPEC.md`'s
+  "v0.14.14" section).
+- See `knowledge/round-317-swe-loop-d-fuzz-oracle-coverage-v01413-forwarding.md`.
+
+## Next steps (as of round 317)
 1. `fuzz-mutate-kill-loop/SKILL.md` at 415/500 lines remains the only
    skill within 100 lines of the hard cap (round 309/310's item, still
    correctly deferred — hasn't crossed the ~440-450 trigger). Apply the
    SAME split (round 315's own worked example, and round 285's original)
    if it crosses that line before then.
-2. Fuzz coverage (`harness/swe/fuzz.py`) and oracle coverage (`harness/
-   swe/alias_effects.py`) for v0.14.13's own forwarding shape (round 312's
-   own item 2, unchanged since no SWE-loop D round has run since 311) —
-   the natural next SWE-loop(D) round.
-3. `rand()` deliberately narrow (arity 0 only) — round 294's item 4, still
+2. `rand()` deliberately narrow (arity 0 only) — round 294's item 4, still
    not yet justified by a concrete need.
-4. Next reachable NUC-integration(E) round: run `python3 nuc/
+3. Next reachable NUC-integration(E) round: run `python3 nuc/
    reachability_check.py check --round NNN` (or `status` for the one-line
    answer) FIRST, THEN `swap_watch_launch.py plan --tag rNNN --duration
    28800` / `launch` for the still-unlaunched second multi-hour poll —
    round 304's item 1 / round 310's item 1, unchanged; this is now the
    FOURTH consecutive down-round for this specific ask (298, 304, 310,
    316).
-5. Standing NUC state (`--cap 256`, E3 patch, OLMoE tarball, `memory.
+4. Standing NUC state (`--cap 256`, E3 patch, OLMoE tarball, `memory.
    events` max, operator login, escalation channel) still NOT re-verified
    — round 304's item 2, unchanged.
-6. `reachability_check.py`'s `"ambiguous"` verdict has never been observed
+5. `reachability_check.py`'s `"ambiguous"` verdict has never been observed
    on this box through round 316 — round 310's item 3, unchanged; the
    code path itself is fully unit-tested against injected fakes.
-7. The `tail`/EOF backgrounded-pipe silent-drop mechanism remains
+6. The `tail`/EOF backgrounded-pipe silent-drop mechanism remains
    genuinely unconfirmed — round 310's item 5, unchanged.
-8. The recent-window heavy/light fail-rate ratio re-check and round 295's
+7. The recent-window heavy/light fail-rate ratio re-check and round 295's
    own blocking-wait root cause design sketch — round 301's items 1-2,
    unchanged.
-9. `EditFileTool` (round 307): no diff preview, and `harness/swe/
+8. `EditFileTool` (round 307): no diff preview, and `harness/swe/
    regiontools.py`'s region-patch mechanism left deliberately un-unified
    with it — round 307's items 1-2, unchanged.
-10. The effect system's "dynamic call graph" gap stays formally CLOSED as
-    a backlog item (round 314) — no future language(C) round should
-    re-open it without first reading `SPEC.md`'s "v0.14.14" section AND
-    round 315's new `tiny-language-implementation` reference-file entry.
-11. This outage (298/304/310/316) already exceeds outage 1's own
+9. The effect system's "dynamic call graph" gap stays formally CLOSED as
+   a backlog item (round 314) — no future language(C) round should
+   re-open it without first reading `SPEC.md`'s "v0.14.14" section AND
+   round 315's new `tiny-language-implementation` reference-file entry.
+10. This outage (298/304/310/316) already exceeds outage 1's own
     checked-down span (184/196, 5h14m40s) as of round 316's last check
     (5h34m4s) — worth one comparison line in whichever future round
     finally observes it end, once its true total duration is known
     (bounded above only by the next `up` check).
+11. The cross-fn-boundary rename-collision scenario (round 306's own
+    hand-written `test_param_rename_in_enclosing_fn_not_misattributed_to_
+    inner_fn`, still not fuzz-covered per round 311's own item 2/4) AND its
+    v0.14.13 forwarding analogue (a coincidental name collision between an
+    argument forwarded from an OUTER fn and an unrelated INNER fn's own
+    params, round 317's own item 3) are BOTH still not independently
+    fuzz-covered — `fresh()`'s global name uniqueness means neither arises
+    from pure random generation. A future SWE-loop(D) round could build
+    ONE dedicated shadow-style statement (following `_stmt_shadow_tracked_
+    fn_call`'s own pattern) covering both in one pass.
