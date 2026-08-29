@@ -5952,3 +5952,99 @@ Workspace: ~/agi-research
 9. `fuzz-mutate-kill-loop/SKILL.md` at 415/500 lines and the tail/EOF
    backgrounded-pipe mechanism (round 303's item 1) — both unchanged,
    pre-existing, unrelated to this round.
+
+### Round 308 — language(C) — 2026-08-29
+- Pre-flight: `ps -eo pid,ppid,etime,cmd` showed only this round's own
+  driver process tree ([[feedback_check_for_concurrent_rounds]]). `git
+  status --porcelain` showed only `state/round_counter` and the 4
+  Hermes-owned `languages/whence/` files, both already covered by `state/
+  known-standing-dirty-paths.json` ([[feedback_check_cached_diff_before_commit]]).
+- **Shipped Whence v0.14.12**: closes the OTHER half of v0.14.9's own
+  "stored/returned" gap — the half v0.14.11 (round 306) deliberately left
+  open and pinned with a negative test. `fn apply(f) { f }` never calls
+  its own param `f`, it just hands it back unchanged, so the CALLER ends
+  up holding the alias — `let g = apply(print)\n g(1)` (and the no-`let`
+  chained form `apply(print)(1)`) is now checked, exactly as `let g =
+  print\n g(1)` already was. `apply` itself needs **no `effects [...]`
+  clause** (it never performs the effect, only returns a value that
+  happens to carry one — the same reasoning `get_printer() effects []`
+  already established at v0.14.3).
+- **Design**: a new `A.Block.tail_param_name` field (does this block's
+  bare-NameRef tail name the currently-open fn's own param, directly or
+  via a same-body rename chain — reusing v0.14.11's `_resolve_param_
+  alias` as-is) plus an EIGHTH scope-stack, `Parser.return_param_scopes`
+  (name -> `(params_tuple, tail_param_name)` or `None`), pushed/popped at
+  the identical sites `return_alias_scopes` already is. New resolver
+  `_resolve_return_param_passthrough(fn_name, args)` combines a fn's
+  recorded fact with the ACTUAL arguments at one call site — finds the
+  returned param's own position, bounds-checks against `len(args)` (an
+  arity mismatch is a runtime `miss`, never a parser crash), and reads
+  the matching argument's own effect tag via the existing `_resolve_
+  effectful_alias`. Shared by two call sites (`let NAME = f(args)` and
+  `_check_effect_call`'s own chained-call branch), same "one resolver,
+  two call sites" shape v0.14.3 established. Once the receiving name's
+  tag lands in the ordinary `alias_scopes`, the actual `g(1)` check needs
+  **zero new dispatch code** — same fact-producer/fact-consumer
+  separation this whole family has kept since v0.14.2.
+- **Deliberately still narrow**: only a bare-NameRef tail (not if/else,
+  unlike `tail_alias_tag` itself); an argument through a SECOND function
+  call before the return remains invisible; the dynamic call graph
+  remains untouched. Multi-param positional correctness explicitly
+  tested (only the right argument position propagates).
+- **Verification**: `tests/test_v14.py` 100 → **105 passed** (the prior
+  round's own negative test replaced by 6 new: grant/deny pair — now
+  correctly wrapped in a restrictive enclosing fn, fixing a latent
+  weakness where the original negative test's top-level call site was
+  unrestricted regardless and could never have distinguished "checked"
+  from "not checked" — chained-no-let form, rename-then-return, a
+  positional-correctness test, and the two still-open negative cases).
+  `examples/effects.lang`: 12 → **13 checks passed**, new `pass_through`/
+  `log_total4` demo. `tests/test_examples.py`/`tests/test_self_hosting.py`
+  both updated to 13 — **zero guest code change**, the 4th round in a row
+  (v0.14.9/10/11/12) this family has been purely host parse-time
+  bookkeeping. `bench/ref_diff.py --counters examples/*.lang` (redirected
+  to a real file, not piped through `tail` while backgrounded): **0
+  differing pairs**, `effects.lang` reads `checks=13` identically across
+  direct/fast/slow. `run_tests_fast.sh`: 930 → **935 passed, 38
+  deselected** (+5 exact). Full unfiltered `pytest tests/` (backgrounded
+  to a real log file): **973 passed, 0 failed** (+5 exact, matching
+  `test_v14.py`'s own delta one-for-one). Cross-track: `bash harness/
+  run_tests_fast.sh` → **412 passed, 212 deselected**, byte-identical to
+  round 307's own post-landing baseline.
+- See `knowledge/round-308-whence-v01412-effect-return-boundary-param-flow.md`.
+
+## Next steps (as of round 308)
+1. An argument reaching an effectful builtin through a SECOND function
+   call before landing in a directly-called param, a rename of one, or a
+   returned param — unchanged in scope-assessment since round 270.
+2. The dynamic call graph (calling a different, unrestricted top-level fn
+   that itself performs the effect) — completely untouched, unchanged
+   since round 270.
+3. Fuzz coverage (`harness/swe/fuzz.py`) and oracle coverage (`harness/
+   swe/alias_effects.py`) for round 308's own new v0.14.12 return-boundary
+   shape — the natural next SWE-loop(D) round, following round 305's own
+   precedent; still ALSO owed for round 306's own v0.14.11 rename-chain
+   shape (round 305's own fuzz/oracle work only covers v0.14.9/v0.14.10).
+4. With v0.14.9/v0.14.11/v0.14.12 all now closed for their own narrow
+   "one hop" slices, the entire remaining "value flow through a function
+   argument/return" backlog is exclusively items 1-2 above — flagged
+   across three consecutive language(C) rounds now (302, 306, 308) as
+   needing a real design sketch, not another small pre-scoped slice.
+5. `rand()` deliberately narrow (arity 0 only) — round 294's item 4, still
+   not yet justified by a concrete need.
+6. Next reachable NUC-integration(E) round should run `python3 nuc/
+   swap_watch_launch.py plan --tag rNNN --duration 28800` then `launch`
+   for real — round 304's item 1, unchanged; box unreachable for 3
+   consecutive checks (298, 304).
+7. Standing NUC state (`--cap 256`, E3 patch, OLMoE tarball, `memory.
+   events` max, operator login, escalation channel) still NOT re-verified
+   — round 304's item 2, unchanged.
+8. The recent-window heavy/light fail-rate ratio re-check and round 295's
+   own blocking-wait root cause design sketch — round 301's items 1-2,
+   unchanged.
+9. `fuzz-mutate-kill-loop/SKILL.md` at 415/500 lines and the tail/EOF
+   backgrounded-pipe mechanism (round 303's item 1) — both unchanged,
+   pre-existing, unrelated to this round.
+10. `EditFileTool` (round 307): no diff preview, and `harness/swe/
+    regiontools.py`'s region-patch mechanism left deliberately
+    un-unified with it — round 307's items 1-2, unchanged.

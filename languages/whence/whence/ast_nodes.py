@@ -68,7 +68,15 @@ FnExpr = _simple("FnExpr", ["params", "body", "ret_type", "param_call_fact"])
 # round 302), same shape `Parser.param_call_scopes` stores for a NAMED fn
 # (v0.14.9, round 300), carried on the node itself since an anonymous fn has
 # no name to key a scope-stack dict by until its enclosing `let` sees it.
-Block = _simple("Block", ["stmts", "tail_alias_tag"])  # tail_alias_tag: set by parser.block (v0.14.3)
+Block = _simple("Block", ["stmts", "tail_alias_tag", "tail_param_name"])
+# tail_alias_tag: set by parser.block (v0.14.3). tail_param_name: set by
+# parser.block (v0.14.12, round 308) — None, or the name of one of the
+# CURRENTLY open fn's own params (directly, or via a same-body `let`-rename
+# chain — see `Parser._tail_return_param_name`) that this block's own tail
+# statement is a bare `NameRef` to. Lets `Parser._resolve_return_param_fact`
+# learn, once, at a fn's own definition, "does calling this fn just hand
+# back one of its own params unchanged" — the fact a CALL SITE needs to
+# propagate an argument's own effect tag across the RETURN boundary.
 Let = _simple("Let", ["name", "expr"])
 FnDef = _simple("FnDef", ["name", "params", "body", "ret_type"])
 # ret_type: None, or the spec expr `parser._type_spec_expr` builds for a

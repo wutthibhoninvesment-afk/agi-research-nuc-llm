@@ -1553,17 +1553,136 @@ def test_param_rename_in_enclosing_fn_not_misattributed_to_inner_fn():
         'check "ok": true\n')
 
 
-def test_param_returned_then_called_by_caller_is_still_not_checked():
-    """The OTHER half of the "stored/returned" gap, deliberately still
-    open: `apply`'s own param `f` is returned (not called inside `apply`'s
-    own body at all), so the CALLER ends up holding the alias and calling
-    it itself — a value-flow-ACROSS-A-RETURN-BOUNDARY question, a
-    genuinely different mechanism from the same-body rename this round
-    closes. `apply` itself calls nothing directly, so it has no recorded
-    param-call fact at all, and the caller's own unrestricted call to
-    `g(1)` is simply never checked against anything."""
+def test_param_returned_directly_then_called_by_caller_is_now_checked():
+    """v0.14.12 (round 308): the OTHER half of the "stored/returned" gap
+    v0.14.11 left fully open — `apply`'s own param `f` is RETURNED (not
+    called inside `apply`'s own body at all), so the CALLER ends up
+    holding the alias and calling it itself. `apply` needs NO `effects
+    [...]` clause of its own (it never itself calls the builtin, only
+    hands it back untouched — the same reasoning `fn get_printer()
+    effects []` already established for v0.14.3's own return-value
+    tracking); the check fires at the CALLER's own `g(1)`, against the
+    CALLER's own declared scope."""
     all_ok(
-        'fn apply(f) { f }\n'
+        'fn apply(f) {\n'
+        '  f\n'
+        '}\n'
+        'fn caller() effects [io] {\n'
+        '  let g = apply(print)\n'
+        '  g(1)\n'
+        '}\n'
+        'caller()\n'
+        'check "ok": true\n')
+    with pytest.raises(ParseError) as ei:
+        parse(
+            'fn apply(f) {\n'
+            '  f\n'
+            '}\n'
+            'fn caller() effects [] {\n'
+            '  let g = apply(print)\n'
+            '  g(1)\n'
+            '}\n'
+            'caller()\n')
+    msg = str(ei.value)
+    assert "'g' requires effect 'io'" in msg and "not permitted" in msg
+
+
+def test_param_returned_directly_chained_call_with_no_let_is_now_checked():
+    """Same shape, no intermediate `let` at all — `apply(print)(1)`,
+    mirroring `test_chained_call_on_return_value_is_checked`'s own v0.14.3
+    "no let needed" pattern, now for an argument-dependent return fact
+    instead of a fixed one."""
+    with pytest.raises(ParseError) as ei:
+        parse(
+            'fn apply(f) {\n'
+            '  f\n'
+            '}\n'
+            'fn caller() effects [] {\n'
+            '  apply(print)(1)\n'
+            '}\n'
+            'caller()\n')
+    assert "'apply()' requires effect 'io'" in str(ei.value)
+    all_ok(
+        'fn apply(f) {\n'
+        '  f\n'
+        '}\n'
+        'fn caller() effects [io] {\n'
+        '  apply(print)(1)\n'
+        '}\n'
+        'caller()\n'
+        'check "ok": true\n')
+
+
+def test_param_renamed_then_returned_is_now_checked():
+    """The tail need not be the bare param itself — a same-body rename
+    (`let g = f\\n g`, v0.14.11's own `_resolve_param_alias`) still counts
+    as directly returning `f`, via `_tail_return_param_name`'s reuse of
+    that exact resolver."""
+    with pytest.raises(ParseError):
+        parse(
+            'fn apply(f) {\n'
+            '  let g = f\n'
+            '  g\n'
+            '}\n'
+            'fn caller() effects [] {\n'
+            '  let h = apply(print)\n'
+            '  h(1)\n'
+            '}\n'
+            'caller()\n')
+
+
+def test_returned_param_at_correct_position_is_matched_not_conflated():
+    """`apply`'s SECOND param is the one returned — only the argument at
+    THAT position (not the first) is what flows to the caller's alias,
+    mirroring `test_only_the_directly_called_param_position_is_checked`'s
+    own positional discipline for the sibling (directly-called) mechanism."""
+    all_ok(
+        'fn apply(unused, f) {\n'
+        '  f\n'
+        '}\n'
+        'fn caller() effects [] {\n'
+        '  let g = apply(print, 5)\n'
+        '  g\n'
+        '}\n'
+        'caller()\n'
+        'check "ok": true\n')
+    with pytest.raises(ParseError):
+        parse(
+            'fn apply(unused, f) {\n'
+            '  f\n'
+            '}\n'
+            'fn caller() effects [] {\n'
+            '  let g = apply(5, print)\n'
+            '  g(1)\n'
+            '}\n'
+            'caller()\n')
+
+
+def test_param_passed_through_a_second_function_before_return_is_still_not_checked():
+    """Still fully open, unchanged in scope from v0.14.9 onward: an
+    argument flowing through a SECOND function call before reaching a
+    return is invisible — `identity`'s own tail is a `Call` (`identity(f)`
+    inlined into `apply`'s body), not a bare `NameRef`, so `apply` itself
+    has no recorded return-param fact at all."""
+    all_ok(
+        'fn identity(x) { x }\n'
+        'fn apply(f) {\n'
+        '  identity(f)\n'
+        '}\n'
+        'let g = apply(print)\n'
+        'g(1)\n'
+        'check "ok": true\n')
+
+
+def test_param_returned_via_if_else_tail_is_still_not_checked():
+    """Still open: unlike `tail_alias_tag` (widened to if/else tails by
+    v0.14.5), `tail_param_name` is deliberately NOT — an if/else tail
+    returning a param on every arm is invisible to this round's own
+    mechanism."""
+    all_ok(
+        'fn apply(f) {\n'
+        '  if true { f } else { f }\n'
+        '}\n'
         'let g = apply(print)\n'
         'g(1)\n'
         'check "ok": true\n')

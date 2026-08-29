@@ -170,6 +170,30 @@ check "a builtin passed to a param that is renamed, then called through the rena
 # different value-flow-ACROSS-A-RETURN-BOUNDARY question (see SPEC.md
 # "v0.14.11").
 
+# v0.14.12: the RETURN-BOUNDARY half v0.14.11 left open is now tracked too
+# — `pass_through` below never calls its own `f` parameter at all, it just
+# hands it straight back; the CALLER (`log_total4`) ends up holding the
+# result and calling it itself.
+fn pass_through(f) {
+  f
+}
+fn log_total4(prices) effects [io] {
+  let logger = pass_through(print)
+  logger("logged total (via return-boundary argument): " + str(total(prices)))
+  total(prices)
+}
+check "a builtin returned directly by a callee, then called by its caller, is now checked":
+  log_total4(prices) == 60
+# `pass_through` itself needs NO `effects [...]` clause — it never calls
+# the builtin, only hands it back untouched, the same reasoning
+# `get_printer() effects []` already established for v0.14.3's own
+# return-value tracking (above). Writing `log_total4` as `effects []`
+# instead would be a ParseError at `logger(...)` above, not inside
+# `pass_through`'s own body. Still shallow: only a bare-NameRef TAIL is
+# tracked — an if/else tail returning a param, or an argument flowing
+# through a SECOND function call before reaching the return, are both
+# still invisible (see SPEC.md "v0.14.12").
+
 # v0.14.8: `rand()` is the SECOND effectful builtin (tag "random", distinct
 # from print's "io") — every check above only ever exercised ONE real tag,
 # so `effects [network]` blocking `print` (tests/test_v14.py) was proof the

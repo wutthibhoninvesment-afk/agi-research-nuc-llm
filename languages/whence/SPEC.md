@@ -1895,6 +1895,86 @@ that cannot end a statement.
   round's rename extension) — the natural next SWE-loop(D) round, same
   "ship the checker, name the fuzz gap, close it later" rhythm.
 
+## v0.14.12 (round 308) — effect system: a param RETURNED directly across a return boundary
+
+- **Closes the OTHER half of v0.14.9's own explicitly-named "stored/
+  returned" gap** — the half v0.14.11 (round 306) deliberately left fully
+  open and pinned with a negative test: `fn apply(f) { f }` never calls its
+  own param `f` at all, it just hands it back unchanged, so the CALLER ends
+  up holding the alias itself. `let g = apply(print)\n g(1)` is now
+  checked, exactly as `let g = print\n g(1)` already was — and so is the
+  no-`let` chained form `apply(print)(1)`. `apply` itself needs **no
+  `effects [...]` clause** — it never performs the effect, only returns a
+  value that happens to carry one, the same reasoning `fn get_printer()
+  effects []` already established for v0.14.3's own fixed return-value
+  tracking. The check still fires exactly where it always has, at the
+  CALLER's own `g(1)`, against the CALLER's own declared scope.
+- **Design**: an EIGHTH scope-stack, `Parser.return_param_scopes`, pushed/
+  popped at the identical sites `return_alias_scopes` already is
+  (`stmt_list`'s per-block frame, plus the params-frame push at each of the
+  two fn-definition sites). Each frame maps a name to `None` or
+  `(params_tuple, tail_param_name)` — deliberately NOT the fn's own effects
+  scope (unlike `param_call_scopes`), since `apply`'s own declaration is
+  irrelevant to this check. Two new pieces make the fact argument-
+  dependent, unlike every other fact in this family:
+  - `A.Block` gained a THIRD field, `tail_param_name`, computed by
+    `stmt_list` at the exact same point `tail_alias_tag` already is: for a
+    bare-`NameRef` tail, does it name the currently-open fn's own param —
+    directly (`_innermost_frame_containing`, the same identity check
+    `_check_effect_call`'s own v0.14.9 block uses) or via a same-body
+    rename chain (`_resolve_param_alias`, reused as-is from v0.14.11)? New
+    helper `_tail_return_param_name` does exactly this, called from
+    `stmt_list` right next to the existing `tail_tag` computation.
+  - New resolver `_resolve_return_param_passthrough(fn_name, args)`
+    combines a fn's own recorded fact (`_resolve_return_param_fact`, the
+    `return_param_scopes` mirror of `_resolve_effectful_return`) with the
+    ACTUAL arguments at a specific call site: finds the returned param's
+    own position in the fn's param list, checks whether the argument AT
+    that position is a bare NameRef resolving to an effectful alias, and
+    if so returns that tag. Shared by the two places that need it —
+    `statement()`'s own `let NAME = Call(...)` branch (as a fallback when
+    `_resolve_effectful_return` itself misses, i.e. the callee never
+    tail-returns a builtin directly, only one of its own params) and
+    `_check_effect_call`'s own chained-call branch (`apply(print)(1)`,
+    no intermediate `let`) — the same "one new resolver, two call sites"
+    shape v0.14.3's own `_resolve_effectful_return` already established.
+  - Once `g`'s own tag is recorded in the ordinary `alias_scopes` this way,
+    `g(1)` itself needs **zero new dispatch code** — it is checked by
+    `_check_effect_call`'s existing, unmodified bare-`NameRef` branch, the
+    same one every other alias in this family already goes through.
+- **Deliberately still narrow**, same family discipline: only a bare-
+  NameRef tail is tracked — unlike `tail_alias_tag` (widened to if/else
+  tails by v0.14.5), `tail_param_name` is NOT (`test_param_returned_via_
+  if_else_tail_is_still_not_checked`); an argument flowing through a
+  SECOND function call before reaching the return remains invisible
+  (`test_param_passed_through_a_second_function_before_return_is_still_
+  not_checked`, `identity(f)` inlined into `apply`'s own tail is a `Call`,
+  not a bare `NameRef`); and the dynamic call graph (calling a different,
+  unrestricted top-level fn that itself performs the effect) remains
+  completely untouched.
+- **Verification**: `tests/test_v14.py` 100 → **105 passed** (the prior
+  round's own negative test, `test_param_returned_then_called_by_caller_
+  is_still_not_checked`, is now REPLACED — not merely updated — by 6 new
+  tests: the direct grant/deny pair, the no-`let` chained form, a rename-
+  then-return variant, a multi-param positional-correctness check, and the
+  two still-open negative cases named above). `examples/effects.lang`
+  gained one new demo (`pass_through`/`log_total4`): checks 12 → **13
+  passed, 0 failed**. `tests/test_examples.py::test_effects` and
+  `tests/test_self_hosting.py`'s guest-parity pin both updated to 13
+  checks — the guest needed **zero code change**, the third round in a row
+  (v0.14.9/10/11/12) this exact family has been purely host parse-time
+  bookkeeping invisible to the guest evaluator. `run_tests_fast.sh`: 930 →
+  **935 passed, 38 deselected** (+5 exact). Full `pytest tests/`: 968 →
+  **973 passed, 0 failed** (+5 exact, matching `test_v14.py`'s own net
+  test-count change one-for-one — no other file's test count moved).
+- **Still open**: everything named above under "deliberately still
+  narrow"; fuzz coverage (`harness/swe/fuzz.py`) and oracle coverage
+  (`harness/swe/alias_effects.py`) for this round's own new return-
+  boundary shape specifically (still uncovered by round 305's fuzz/oracle
+  work, which only reaches the v0.14.9/v0.14.10 direct-call shapes) — the
+  natural next SWE-loop(D) round, following the exact same rhythm round
+  305 itself set for v0.14.11.
+
 ## v0.15 (round 168) — AI-native primitives: `guess`/confidence
 - **The curriculum's last open "advanced feature" slot** (structural types
   v0.12, return types v0.13, effects v0.14 all shipped; round 146 itself

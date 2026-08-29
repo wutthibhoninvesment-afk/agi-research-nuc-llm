@@ -215,13 +215,52 @@ class Parser(object):
         # misattributed to a DIFFERENT, inner fn's own param-call fact,
         # even if a coincidental name collision would otherwise make the
         # naive innermost-first walk cross into it. The OTHER half of the
-        # "stored" gap — a param renamed inside `apply`'s body and then
-        # RETURNED, so a caller ends up holding the alias instead of
-        # `apply` calling it directly itself — is a value-flow-ACROSS-A-
-        # RETURN-BOUNDARY question, a genuinely different (and harder)
-        # mechanism, still fully open; see `_check_effect_call`'s own
-        # docstring for the honest updated scope statement.
+        # "stored" gap — a param RETURNED (directly, not necessarily
+        # renamed first), so a caller ends up holding the alias instead of
+        # `apply` calling it directly itself — was a value-flow-ACROSS-A-
+        # RETURN-BOUNDARY question, a genuinely different mechanism from
+        # this stack; v0.14.12 (round 308) closes the direct-bare-tail
+        # slice of it via `return_param_scopes` below — see
+        # `_check_effect_call`'s own docstring for the honest updated
+        # scope statement.
         self.param_alias_scopes = []
+        # v0.14.12 (round 308): an EIGHTH stack, same shape and push/pop
+        # sites as `return_alias_scopes` (`stmt_list`'s per-block frame,
+        # plus the params-frame push at each of the two fn-definition
+        # sites) — closes the OTHER half of v0.14.9's own explicitly-named
+        # "stored/returned" gap that v0.14.11 left fully open: a param
+        # RETURNED directly by the callee's own body (not called inside
+        # it at all), so the CALLER ends up holding the alias itself. `fn
+        # apply(f) { f }` then `let g = apply(print)\n g(1)` is now
+        # checked, exactly as `let g = print\n g(1)` already was — because
+        # `apply`'s own body's TAIL is a bare `NameRef` to one of `apply`'s
+        # own params (`_tail_return_param_name`, called from `stmt_list`
+        # the same way `_resolve_effectful_alias` already is for
+        # `tail_alias_tag`), so the `let` binding `g` can look up WHICH
+        # argument `apply` was actually called with at THIS call site and
+        # carry ITS effect fact forward onto `g` — an argument-dependent
+        # return fact, unlike `return_alias_scopes`'s own fixed one.
+        # Each frame maps a name to either `None` (not a tracked fn, or one
+        # whose tail doesn't directly return one of its own params) or
+        # `(params_tuple, tail_param_name)` — deliberately NOT the fn's own
+        # effects scope (unlike `param_call_scopes`): `apply` itself never
+        # CALLS the builtin, only hands it back untouched, so `apply`'s own
+        # `effects [...]` clause is irrelevant to this check (the same
+        # reasoning `get_printer() effects []` already established in
+        # v0.14.3 — returning an effectful value is not itself performing
+        # the effect). The actual check still happens where it always has:
+        # at `g(1)`'s own call site, via `_check_effect_call`'s ordinary
+        # `alias_scopes` lookup, once `g`'s tag is recorded there — this
+        # stack only supplies the missing fact needed to compute that tag
+        # in the first place. See `_resolve_return_param_fact`,
+        # `_resolve_return_param_passthrough`. Deliberately still narrow,
+        # same family discipline: only a bare-NameRef TAIL (no if/else
+        # nesting, unlike `tail_alias_tag`'s own v0.14.5 widening) is
+        # tracked, and only ONE hop of call (an argument flowing through a
+        # SECOND function call before reaching the return is still
+        # invisible) — see `_check_effect_call`'s own docstring for the
+        # honest updated scope statement.
+        self.return_param_scopes = []
 
     def _enter(self):
         self.nesting += 1
@@ -261,18 +300,23 @@ class Parser(object):
 
     # --- statements ----------------------------------------------------
     def parse_program(self):
-        stmts, _ = self.stmt_list(end="EOF")
+        stmts, _, _ = self.stmt_list(end="EOF")
         tok = self.expect("EOF")
         return A.Program(1, stmts)
 
     def stmt_list(self, end):
         """Parse statements until `end` token type; check duplicate bindings.
-        Returns `(stmts, tail_alias_tag)` — the second value (v0.14.3, round
-        270) is the effect tag (or None) the LAST statement resolves to via
-        `_resolve_effectful_alias`, if that statement is a bare `NameRef`
-        expression, resolved while THIS block's own `alias_scopes` frame is
-        still on the stack (i.e. sees this block's own `let`s, not just
-        outer ones).
+        Returns `(stmts, tail_alias_tag, tail_param_name)` — the second value
+        (v0.14.3, round 270) is the effect tag (or None) the LAST statement
+        resolves to via `_resolve_effectful_alias`, if that statement is a
+        bare `NameRef` expression, resolved while THIS block's own
+        `alias_scopes` frame is still on the stack (i.e. sees this block's
+        own `let`s, not just outer ones). The third value (v0.14.12, round
+        308) is, for that SAME bare-NameRef tail, whether it names one of
+        the currently-open fn's own params (directly or via a same-body
+        rename chain — `_tail_return_param_name`) — `None` for every other
+        tail shape, including an `if`/`else` tail (unlike `tail_alias_tag`,
+        deliberately not widened to that shape this round).
 
         v0.14.5 (round 276): a tail that is itself an `if`/`else` is now
         ALSO inspected, via `_if_tail_alias_tag` — but only structurally,
@@ -304,6 +348,7 @@ class Parser(object):
         self.nested_field_alias_scopes.append({})
         self.param_call_scopes.append({})
         self.param_alias_scopes.append({})
+        self.return_param_scopes.append({})
         try:
             self.skip_newlines()
             while not self.at(end):
@@ -322,11 +367,14 @@ class Parser(object):
             tail_expr = tail.expr if isinstance(tail, A.ExprStmt) else None
             if tail_expr is not None and tail_expr.__class__ is A.NameRef:
                 tail_tag = self._resolve_effectful_alias(tail_expr.name)
+                tail_param = self._tail_return_param_name(tail_expr)
             elif tail_expr is not None and tail_expr.__class__ is A.If:
                 tail_tag = self._if_tail_alias_tag(tail_expr)
+                tail_param = None
             else:
                 tail_tag = None
-            return stmts, tail_tag
+                tail_param = None
+            return stmts, tail_tag, tail_param
         finally:
             self.alias_scopes.pop()
             self.return_alias_scopes.pop()
@@ -335,6 +383,7 @@ class Parser(object):
             self.nested_field_alias_scopes.pop()
             self.param_call_scopes.pop()
             self.param_alias_scopes.pop()
+            self.return_param_scopes.pop()
 
     def statement(self):
         tok = self.peek()
@@ -377,12 +426,27 @@ class Parser(object):
                     self.param_alias_scopes[-1][name] = expr.name
                 else:
                     self.param_alias_scopes[-1][name] = self._resolve_param_alias(expr.name)
+                # v0.14.12 (round 308): a renamed fn's own "returns one of
+                # its params" fact carries forward too, same reasoning as
+                # every other fact above.
+                self.return_param_scopes[-1][name] = self._resolve_return_param_fact(expr.name)
             elif expr.__class__ is A.Call and expr.fn.__class__ is A.NameRef:
                 # v0.14.3 (round 270): `let p = get_printer()` — closes part
                 # of v0.14.2's own "returning it from a call" gap. `p` is an
                 # ordinary effectful-VALUE alias now (not itself a callable
                 # fact) — whatever `get_printer` was tracked to return.
-                self.alias_scopes[-1][name] = self._resolve_effectful_return(expr.fn.name)
+                tag = self._resolve_effectful_return(expr.fn.name)
+                if tag is None:
+                    # v0.14.12 (round 308): `get_printer`'s own FIXED return
+                    # fact missed it (it never tail-returns a builtin
+                    # itself) — but if `expr.fn.name` is tracked as a fn
+                    # that hands back one of ITS OWN params directly (`fn
+                    # apply(f) { f }`), the ARGUMENT actually passed at
+                    # THIS call site (`expr.args`) may itself carry an
+                    # effect fact — argument-dependent, unlike every other
+                    # fact this branch already forwards.
+                    tag = self._resolve_return_param_passthrough(expr.fn.name, expr.args)
+                self.alias_scopes[-1][name] = tag
                 self.return_alias_scopes[-1][name] = None
                 self.field_alias_scopes[-1][name] = None
                 self.field_return_alias_scopes[-1][name] = None
@@ -393,6 +457,9 @@ class Parser(object):
                 # v0.14.11: a call's RESULT is never itself a pure rename of
                 # one of the currently-open fn's own params.
                 self.param_alias_scopes[-1][name] = None
+                # v0.14.12: nor is it itself a fn with its own "returns a
+                # param" fact — `p` is a VALUE, not a callable.
+                self.return_param_scopes[-1][name] = None
             elif expr.__class__ is A.FnExpr:
                 # v0.14.3: `let g = fn() {...}` — `g` is a callable, not
                 # itself an effectful value; its return fact comes straight
@@ -416,6 +483,17 @@ class Parser(object):
                 # v0.14.11: a freshly-defined (anonymous or not) fn is never
                 # itself a rename of one of the currently-open fn's params.
                 self.param_alias_scopes[-1][name] = None
+                # v0.14.12 (round 308): same node-carried-fact shape as
+                # `param_call_fact` just above, sourced from `expr.body.
+                # tail_param_name` (set by `block()`/`stmt_list` while the
+                # anonymous fn's own params frame was still open) instead of
+                # a scope-stack lookup — an anonymous fn has no name to key
+                # `return_param_scopes` by until this exact `let` gives it
+                # one, mirroring `tail_alias_tag`'s own `return_alias_
+                # scopes[-1][name] = expr.body.tail_alias_tag` line above.
+                self.return_param_scopes[-1][name] = (
+                    (tuple(expr.params), expr.body.tail_param_name)
+                    if expr.body.tail_param_name else None)
             elif expr.__class__ is A.RecordLit:
                 # v0.14.4 (round 272): `let box = @{run: print, other: 5}`
                 # — closes the CONTAINER-FIELD slice of v0.14.3's own still-
@@ -472,6 +550,8 @@ class Parser(object):
                 self.param_call_scopes[-1][name] = None
                 # v0.14.11: nor is it ever a rename of a param.
                 self.param_alias_scopes[-1][name] = None
+                # v0.14.12: nor does it ever hand back one of a fn's params.
+                self.return_param_scopes[-1][name] = None
             else:
                 self.alias_scopes[-1][name] = None
                 self.return_alias_scopes[-1][name] = None
@@ -480,6 +560,7 @@ class Parser(object):
                 self.nested_field_alias_scopes[-1][name] = None
                 self.param_call_scopes[-1][name] = None
                 self.param_alias_scopes[-1][name] = None
+                self.return_param_scopes[-1][name] = None
             return A.Let(tok.line, name, expr)
         if tok.type == "KW" and tok.value == "fn" and self.peek(1).type == "NAME":
             self.next()
@@ -507,6 +588,9 @@ class Parser(object):
             self.param_call_scopes[-1][name] = None
             # v0.14.11: a fn's own NAME is never a rename of a param either.
             self.param_alias_scopes[-1][name] = None
+            # v0.14.12: same placeholder discipline as `param_call_scopes` —
+            # overwritten once the body is fully parsed, below.
+            self.return_param_scopes[-1][name] = None
             params, types = self.param_list()
             effects_spec = self.parse_effects_clause()
             ret_type = self.parse_return_type()
@@ -528,6 +612,7 @@ class Parser(object):
             self.nested_field_alias_scopes.append(dict.fromkeys(params))
             self.param_call_scopes.append(dict.fromkeys(params))
             self.param_alias_scopes.append({})
+            self.return_param_scopes.append(dict.fromkeys(params))
             # v0.14.9: `params_alias_frame` is the SAME object just pushed
             # onto `alias_scopes` above (not a copy) — see
             # `current_fn_params_frame_stack`'s own `__init__` comment for
@@ -545,6 +630,7 @@ class Parser(object):
                 self.nested_field_alias_scopes.pop()
                 self.param_call_scopes.pop()
                 self.param_alias_scopes.pop()
+                self.return_param_scopes.pop()
                 self.current_fn_params_frame_stack.pop()
                 called_params = self.direct_param_calls_stack.pop()
             # v0.14.3 (round 270): now that the body is fully parsed and
@@ -562,6 +648,14 @@ class Parser(object):
             self.param_call_scopes[-1][name] = (
                 (own_effects_scope, tuple(params), frozenset(called_params))
                 if called_params else None)
+            # v0.14.12 (round 308): record whether `name`'s own body just
+            # hands back one of ITS OWN params directly, same overwrite-the-
+            # placeholder timing as `return_alias_scopes` just above — `body.
+            # tail_param_name` was resolved by `stmt_list` while this fn's
+            # own params frame was still open.
+            self.return_param_scopes[-1][name] = (
+                (tuple(params), body.tail_param_name)
+                if body.tail_param_name else None)
             self._apply_type_guards(body, params, types, name)
             mark_tails(body)
             return A.FnDef(tok.line, name, params, body, ret_type)
@@ -735,6 +829,53 @@ class Parser(object):
                 return scope[name]
         return None
 
+    def _resolve_return_param_fact(self, name):
+        """v0.14.12 (round 308): does `name`, AS CURRENTLY IN SCOPE, refer to
+        a fn whose body's own TAIL directly returns one of ITS OWN params
+        (see `_tail_return_param_name`)? Mirror of `_resolve_effectful_
+        return`, over `return_param_scopes` instead of `return_alias_scopes`:
+        same innermost-first, first-frame-wins walk. Returns `None` (nothing
+        to check) or `(params_tuple, tail_param_name)` — the fn's own full
+        param list (needed to find which ARGUMENT position at a call site
+        corresponds to `tail_param_name`) and the specific param name its
+        body hands back unchanged. See `_resolve_return_param_passthrough`,
+        which combines this fact with an actual call's arguments."""
+        for scope in reversed(self.return_param_scopes):
+            if name in scope:
+                return scope[name]
+        return None
+
+    def _resolve_return_param_passthrough(self, fn_name, args):
+        """v0.14.12 (round 308): if `fn_name` is a tracked "returns one of
+        its own params directly" fn (`_resolve_return_param_fact`), and the
+        ARGUMENT at that param's own position in `args` is itself a bare
+        `NameRef` resolving to an effectful alias, return that alias's tag —
+        the effect fact CALLING `fn_name(args...)` actually yields, argument-
+        dependent unlike every fact `_resolve_effectful_return` itself
+        tracks. `None` whenever any link in that chain is missing: `fn_name`
+        isn't tracked, `args` is too short for the returned param's own
+        position (a parse-time arity mismatch is a separate, later runtime
+        `miss` — this resolver never raises over it), or the matching
+        argument isn't a bare-NameRef effectful alias. Shared by both call
+        sites that need it: a `let`-bound call result (`statement()`'s own
+        `A.Call` branch) and an immediately chained call (`_check_effect_
+        call`'s own `A.Call` callee branch, e.g. `apply(print)(1)` with no
+        intermediate `let` at all)."""
+        fact = self._resolve_return_param_fact(fn_name)
+        if fact is None:
+            return None
+        params_tuple, tail_param_name = fact
+        try:
+            idx = params_tuple.index(tail_param_name)
+        except ValueError:
+            return None
+        if idx >= len(args):
+            return None
+        arg = args[idx]
+        if arg.__class__ is not A.NameRef:
+            return None
+        return self._resolve_effectful_alias(arg.name)
+
     def _resolve_effectful_field(self, name, field):
         """v0.14.4 (round 272): does `name.field`, AS CURRENTLY IN SCOPE,
         resolve to an effectful builtin — because `name` was bound (`let
@@ -849,20 +990,31 @@ class Parser(object):
         v0.14.11 (round 306) closes HALF of one further gap: a param
         `let`-renamed inside the SAME fn body (`let g = f\n g(1)`, any
         number of further rename hops) is now recognized as still calling
-        `f` directly, via `_resolve_param_alias` — a param RETURNED to
-        the caller (so the caller, not `apply` itself, ends up holding
-        the alias) is a value-flow-ACROSS-A-RETURN-BOUNDARY question, a
-        genuinely different mechanism, and remains fully open, alongside
-        an argument passed through a SECOND function before reaching an
-        effectful builtin. Calling into a DIFFERENT function that itself
-        performs the effect is *also* still untouched by the caller's own
-        declaration — only LEXICAL nesting and direct/return/field/
-        argument/param-rename aliasing are tracked, not the dynamic call
+        `f` directly, via `_resolve_param_alias`. v0.14.12 (round 308)
+        closes the OTHER half: a param RETURNED directly by the callee's
+        own body (`fn apply(f) { f }`), so the CALLER ends up holding the
+        alias itself (`let g = apply(print)\n g(1)`), is now ALSO tracked
+        — a genuinely separate, argument-DEPENDENT mechanism
+        (`Parser.return_param_scopes`, `_resolve_return_param_passthrough`)
+        from every fact this method's own dispatch below inspects: whether
+        `g(1)` is checkable depends on WHICH argument `apply` was actually
+        called with (`print` here), not just on `apply`'s own body, so the
+        fact-computation happens at the CALL SITE (the `let`, or an
+        immediately chained call handled right in the branch below), and
+        by the time `g(1)` itself is reached, `g` is already an ordinary
+        tracked alias — no new dispatch branch needed for the call being
+        checked itself, only for producing `g`'s own fact. Still narrow:
+        only a bare-NameRef tail (no `if`/`else`) is tracked, and an
+        argument passed through a SECOND function call before reaching a
+        return is still invisible — that gap, alongside calling into a
+        DIFFERENT function that itself performs the effect, remains fully
+        open. Only LEXICAL nesting and direct/return/field/argument/param-
+        rename/return-param aliasing are tracked, not the dynamic call
         graph. A real call-graph-aware (transitive) effect system tracking
         effects through arbitrary data flow is future work, not this
         round's scope; see SPEC.md "v0.14"/"v0.14.1"/"v0.14.2"/"v0.14.3"/
-        "v0.14.4"/"v0.14.6"/"v0.14.7"/"v0.14.9"/"v0.14.11" for the honest
-        remaining limitations and examples.
+        "v0.14.4"/"v0.14.6"/"v0.14.7"/"v0.14.9"/"v0.14.11"/"v0.14.12" for
+        the honest remaining limitations and examples.
         `self.effects_stack[-1]` is already the fn's fully RESOLVED scope by
         the time this runs — a nested fn with no clause of its own
         inherited its enclosing scope in `_resolve_effects_scope` at push
@@ -901,6 +1053,15 @@ class Parser(object):
             display = callee.name
         elif callee.__class__ is A.Call and callee.fn.__class__ is A.NameRef:
             tag = self._resolve_effectful_return(callee.fn.name)
+            if tag is None:
+                # v0.14.12 (round 308): `apply(print)(1)` — no intermediate
+                # `let` at all, so `apply`'s own FIXED return fact
+                # (`_resolve_effectful_return`, always None here since
+                # `apply` never tail-returns a builtin ITSELF, only one of
+                # its own params) misses it; the argument-DEPENDENT
+                # passthrough fact does not.
+                tag = self._resolve_return_param_passthrough(
+                    callee.fn.name, callee.args)
             display = "%s()" % callee.fn.name
         elif callee.__class__ is A.FieldAccess and callee.obj.__class__ is A.NameRef:
             tag = self._resolve_effectful_field(callee.obj.name, callee.name)
@@ -1001,6 +1162,27 @@ class Parser(object):
                 return scope[name]
         return None
 
+    def _tail_return_param_name(self, tail_expr):
+        """v0.14.12 (round 308): does this bare-`NameRef` TAIL expression
+        name one of the CURRENTLY open fn's own params — directly, or
+        through a same-body rename chain (`_resolve_param_alias`)? Called
+        from `stmt_list` exactly where `tail_alias_tag` itself is computed,
+        while the relevant scopes are still open. The identity check
+        mirrors `_check_effect_call`'s own leading v0.14.9 block exactly
+        (innermost-first, comparing FRAME OBJECTS so a nested shadow is
+        never misattributed), just applied to a tail position instead of a
+        call's callee. `None` at module top level (`current_fn_params_
+        frame_stack` empty) and for any name not currently a param/rename
+        of one — including a param of an ENCLOSING (not the innermost open)
+        fn, the same boundary `_resolve_param_alias` itself already
+        enforces."""
+        if not self.current_fn_params_frame_stack:
+            return None
+        owning_frame = self._innermost_frame_containing(tail_expr.name)
+        if owning_frame is self.current_fn_params_frame_stack[-1]:
+            return tail_expr.name
+        return self._resolve_param_alias(tail_expr.name)
+
     def _check_call_site_param_effects(self, callee, args, tok):
         """v0.14.9 (round 300): closes the NAMED-fn slice of the effect
         system's long-flagged "passing a builtin as a function ARGUMENT"
@@ -1048,12 +1230,21 @@ class Parser(object):
           - A PARAMETER the callee's body calls DIRECTLY (`f(...)`), OR
             through a `let`-rename of it WITHIN THE SAME BODY (`let g =
             f\n g(1)`, any number of further hops — v0.14.11, round 306,
-            `_resolve_param_alias`), is checked — a parameter RETURNED
-            (so a CALLER, not the fn's own body, ends up holding it) or
-            passed further along to ANOTHER function is still invisible,
-            the exact same "one hop [now: one hop OR a same-body rename
-            chain], no propagation ACROSS a call boundary" discipline
-            v0.14.2's own docstring uses for `let alias = print`.
+            `_resolve_param_alias`), is checked BY THIS METHOD — a
+            parameter RETURNED (so a CALLER, not the fn's own body, ends
+            up holding it) is still invisible HERE, but is no longer a
+            total gap: `Parser.return_param_scopes`/`_resolve_return_
+            param_passthrough` (v0.14.12, round 308) is a genuinely
+            SEPARATE mechanism covering exactly that returned-param shape,
+            checked at the point the caller's own alias is created (the
+            `let`, or a chained call), not by this method. A parameter
+            passed further along to ANOTHER function (not called, not
+            renamed, not returned — just forwarded as someone else's own
+            argument) remains fully invisible everywhere, the exact same
+            "one hop [now: one hop OR a same-body rename chain, OR a
+            direct return], no propagation ACROSS a call boundary"
+            discipline v0.14.2's own docstring uses for `let alias =
+            print`.
           - The two other remaining gaps — an argument that flows through
             a SECOND function call before reaching an effectful builtin,
             and the dynamic call graph (calling a different, unrestricted
@@ -1194,7 +1385,7 @@ class Parser(object):
 
     def block(self):
         open_tok = self.expect("{", what="'{'")
-        stmts, tail_tag = self.stmt_list(end="}")
+        stmts, tail_tag, tail_param = self.stmt_list(end="}")
         close = self.expect("}")
         if not stmts:
             raise ParseError("block must contain at least one expression",
@@ -1209,7 +1400,7 @@ class Parser(object):
         # Consumed only by whichever fn-parsing code just called `block()`,
         # to learn what effect tag (if any) this body's own RETURN value
         # aliases.
-        return A.Block(open_tok.line, stmts, tail_tag)
+        return A.Block(open_tok.line, stmts, tail_tag, tail_param)
 
     # --- expressions (precedence low -> high) --------------------------
     def expression(self):
@@ -1399,6 +1590,7 @@ class Parser(object):
             self.nested_field_alias_scopes.append(dict.fromkeys(params))
             self.param_call_scopes.append(dict.fromkeys(params))
             self.param_alias_scopes.append({})
+            self.return_param_scopes.append(dict.fromkeys(params))
             # v0.14.9: pushed for shadowing/tracking consistency inside this
             # anonymous fn's own body (e.g. a NAMED fn declared inside it
             # gets a correctly fn-scoped `current_fn_params_frame_stack`
@@ -1416,6 +1608,7 @@ class Parser(object):
                 self.nested_field_alias_scopes.pop()
                 self.param_call_scopes.pop()
                 self.param_alias_scopes.pop()
+                self.return_param_scopes.pop()
                 self.current_fn_params_frame_stack.pop()
                 called_params = self.direct_param_calls_stack.pop()
             self._apply_type_guards(body, params, types, None)

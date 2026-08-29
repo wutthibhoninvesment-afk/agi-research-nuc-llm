@@ -535,6 +535,15 @@ def test_effects_lang_runs_under_the_guest_round_164_backlog_closed():
     # entirely HOST parse-time bookkeeping (no new AST field at all this
     # time), invisible to the guest evaluator, which just sees one more
     # ordinary `let` and one more ordinary call.
+    #
+    # v0.14.12 (round 308) added one more check (`pass_through`/`log_total4`,
+    # a param RETURNED directly by its callee, then called through the
+    # alias its CALLER ends up holding) -- same zero-guest-change reasoning
+    # a third time: the new `Parser.return_param_scopes` stack and
+    # `_resolve_return_param_passthrough` walk are entirely HOST parse-time
+    # bookkeeping (the new `A.Block.tail_param_name` field is read only by
+    # the host parser, never by the guest evaluator), which just sees one
+    # more ordinary fn definition, `let`, and call.
     eval_lib = eval_library_source()
     effects_src = open(EFFECTS).read()
     prog = eval_lib + 'let __r = run_src("%s")\n' % escape(effects_src)
@@ -542,7 +551,7 @@ def test_effects_lang_runs_under_the_guest_round_164_backlog_closed():
     rec = env.get("__r").payload
     assert rec.fields["parse_error"].payload is False
     checks = rec.fields["checks"].payload
-    assert len(checks) == 12
+    assert len(checks) == 13
     failed = [c.payload.fields["label"].payload for c in checks
               if c.payload.fields["pass"].payload is not True]
     assert not failed, failed
