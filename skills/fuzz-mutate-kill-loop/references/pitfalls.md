@@ -1,7 +1,16 @@
-# Pitfalls met by this program's fuzz → mutate → kill rounds (5–107)
+# Pitfalls met by this program's fuzz → mutate → kill rounds (5–338)
 
-Each entry: what happened, and the rule it left behind. The three
-round-113 pitfalls stay inline in SKILL.md.
+Each entry: what happened, and the rule it left behind.
+
+## Contents
+
+- [Rounds 5–107](#rounds-5107) — one bullet per failure the campaign hit.
+- [Instrument failures moved out of SKILL.md](#instrument-failures-moved-out-of-skillmd)
+  — the two long case studies (trace-hook loss, stale probe filters) that
+  lived inline until SKILL.md crossed the 400-line warning.
+- [Later additions](#later-additions) — pitfalls found after the split.
+
+## Rounds 5–107
 
 - **Fixes applied to a copy never ship.** Round 5 hardened
   `/tmp/whence-copy`; the checkout never changed. Run the checkout's own
@@ -91,3 +100,53 @@ round-113 pitfalls stay inline in SKILL.md.
 - **Nested `in_thread` calls leak the inner worker.** An async exception
   kills the outer thread at `join`; the inner one keeps spinning at 100 %
   CPU. One thread per measurement, each with its own timeout.
+
+## Instrument failures moved out of SKILL.md
+
+Both entries below were inline Pitfalls bullets in SKILL.md until round 339
+split them out (SKILL.md was 415 body lines, over `skill_lint.py`'s 400-line
+B002 warning, and had been carried as known debt for eight rounds). They are
+reproduced verbatim; SKILL.md keeps the one-line rule and points here.
+
+- **A `RecursionError` inside the trace hook silently removes the tracer.**
+  CPython drops `sys.settrace` for the thread when the trace function
+  raises; a suite that lowers the recursion limit for one test
+  (`setrecursionlimit(200)`) then reports zero coverage for every later
+  file (round 113: `test_v10.py`/`test_v11.py` invisible, and the first
+  hypothesis — a `settrace(None)` in the tests — was wrong; they use
+  `setprofile`). Re-arm `sys.settrace`/`threading.settrace` at every
+  `runtest_logstart`, and read the per-file hit counts before trusting a
+  map: a 23 s test file with 0 hits is the instrument, not the file.
+- **A probe's own filter (coverage map, vocabulary gate, banned-name
+  regex, directory-as-corpus) silently outlives the reason it was built —
+  confirmed 6+ times, one class, not isolated bugs.** Once its
+  precondition stops holding, the probe keeps silently passing or
+  admitting garbage, indistinguishable from "nothing to check": a
+  by-file coverage map reused after the target file is edited gives a
+  78/78 subset-basis flip rate at recheck (check by content hash, step
+  19); a why-vocab allowlist excluded four newly-delegated builtins for
+  60+ rounds, and STILL missed one of the four the very next round that
+  specifically re-checked the other three; an untracked corpus dir
+  silently absorbs files from an unrelated process (step 2); a
+  banned-name comment can drift the other way and describe an
+  enforcement the code already dropped. Updating every filter gating on
+  a changed name/path is a required third step alongside a
+  differential-support change and its hand-verified test.
+
+## Later additions
+
+- **A mutation harness must isolate itself from its own mutants.** Round 339
+  mutated a tool's timeout path to `start_new_session=False`, so the tool's
+  `os.killpg(os.getpgid(child))` targeted the harness's OWN process group:
+  SIGKILL took out the test runner, the harness and the shell above it. SIGKILL
+  is uncatchable, so the harness's `finally:` restore never ran and it left the
+  source file mutated on disk — the one outcome "always copy / always restore"
+  is supposed to prevent. Spawn each test run with `start_new_session=True`
+  whenever the code under mutation touches process lifecycle, and `grep` the
+  source for the mutation marker after any run that ended abnormally.
+- **Second confirmation, round 339: `subprocess.run(timeout=)` really does
+  leave grandchildren running**, this time in a SKILL.md-Verification sweep
+  that shelled out to `pytest` (`ppid=1`, still going at 4 min under a 150 s
+  cap). The pitfall was already in this file and had been read; applying it
+  is a separate act. When a new tool shells out to commands it did not write,
+  treat the process-group cap as a required feature, not a hardening pass.

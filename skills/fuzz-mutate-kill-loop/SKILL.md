@@ -15,16 +15,14 @@ description: Use when asked to find bugs in an evaluator, parser, compiler or pu
 - A model *is* available and you want it to review a crasher — hand it the
   minimized reproducer, not the 12-line fuzz program.
 
-**When NOT to use:** code whose behaviour is dominated by I/O or wall clock
-(mutants that only change logging, timeouts or retries survive for the wrong
-reason), or suites slower than ~10s per run (mutation cost is `mutants ×
-suite time`; shard or sample first).
+**When NOT to use:** behaviour dominated by I/O or wall clock (mutants that
+only change logging, timeouts or retries survive for the wrong reason), or
+suites slower than ~10s per run (cost is `mutants × suite time`; shard first).
 
 ## Steps
 
-(`harness/swe/*.py` paths named below live in the workspace this skill was
-distilled from — **not bundled with this skill**; don't try to open them.
-The steps are self-contained.)
+(`harness/swe/*.py` paths below live in the workspace this skill was distilled
+from — **not bundled here**; don't open them. The steps are self-contained.)
 
 0. **Check that the last round's fixes are in the checkout, not a copy.**
    `grep` the checkout for the exception names / regex constants the
@@ -348,33 +346,19 @@ The steps are self-contained.)
    mutation.json --write tests/test_oracle_killers_rNNN.py`.
 
 ## Pitfalls
-- **A `RecursionError` inside the trace hook silently removes the tracer.**
-  CPython drops `sys.settrace` for the thread when the trace function
-  raises; a suite that lowers the recursion limit for one test
-  (`setrecursionlimit(200)`) then reports zero coverage for every later
-  file (round 113: `test_v10.py`/`test_v11.py` invisible, and the first
-  hypothesis — a `settrace(None)` in the tests — was wrong; they use
-  `setprofile`). Re-arm `sys.settrace`/`threading.settrace` at every
-  `runtest_logstart`, and read the per-file hit counts before trusting a
-  map: a 23 s test file with 0 hits is the instrument, not the file.
-- **A probe's own filter (coverage map, vocabulary gate, banned-name
-  regex, directory-as-corpus) silently outlives the reason it was built —
-  confirmed 6+ times, one class, not isolated bugs.** Once its
-  precondition stops holding, the probe keeps silently passing or
-  admitting garbage, indistinguishable from "nothing to check": a
-  by-file coverage map reused after the target file is edited gives a
-  78/78 subset-basis flip rate at recheck (check by content hash, step
-  19); a why-vocab allowlist excluded four newly-delegated builtins for
-  60+ rounds, and STILL missed one of the four the very next round that
-  specifically re-checked the other three; an untracked corpus dir
-  silently absorbs files from an unrelated process (step 2); a
-  banned-name comment can drift the other way and describe an
-  enforcement the code already dropped. Updating every filter gating on
-  a changed name/path is a required third step alongside a
-  differential-support change and its hand-verified test.
+- **Trust the instrument before the result.** This program's two longest
+  case studies are both instrument failures that read as "nothing to
+  check": a `RecursionError` inside the trace hook makes CPython drop
+  `sys.settrace` for that thread (every later file reports zero coverage),
+  and a probe's own filter — coverage map, vocabulary gate, banned-name
+  regex, directory-as-corpus — outlives its precondition and keeps silently
+  passing (6+ times, one class). Re-arm the tracer at every
+  `runtest_logstart` and read per-file hit counts before trusting a map (a
+  23 s file with 0 hits is the instrument); when a name or path changes,
+  updating every filter gating on it is a required third step. Both in full in
+  [references/pitfalls.md](references/pitfalls.md#instrument-failures-moved-out-of-skillmd).
 
-Older pitfalls (one per failure the program hit, rounds 5–113) are in
-[references/pitfalls.md](references/pitfalls.md): Fixes applied to a copy never ship; Fuzz timeouts are findings too; Non-deterministic RecursionError signature; Unbalanced bracket shrinking; Signal timers are main-thread only; Mutating the checkout in place; `ast.unparse` reflows the file; Corpus contamination through the module cache; Timeouts counted as survivors; Equivalent mutants treated as failures; Running the suite under CPU contention; Success removes your fixtures; Hot-path refactors manufacture equivalent mutants; Driving a multi-hour pipeline by hand from an agent session; `subprocess.run(timeout=)` kills the child, not its children; Campaign durations from `time.time()` across a laptop sleep; A `timeout` under parallel load counted as a kill; "corpus_n=0" is not an empty corpus; A def line is executed at import time; The CLI backend reads until the budget dies; Escaped newlines through a heredoc; Anchoring a test on a source line of another component; Counter pins that depend on the caller's stack depth; Nested `in_thread` calls leak the inner worker.
+Older pitfalls, one per failure, rounds 5–113 — [references/pitfalls.md](references/pitfalls.md): Fixes applied to a copy never ship; Fuzz timeouts are findings too; Non-deterministic RecursionError signature; Unbalanced bracket shrinking; Signal timers are main-thread only; Mutating the checkout in place; `ast.unparse` reflows the file; Corpus contamination through the module cache; Timeouts counted as survivors; Equivalent mutants treated as failures; Running the suite under CPU contention; Success removes your fixtures; Hot-path refactors manufacture equivalent mutants; Driving a multi-hour pipeline by hand from an agent session; `subprocess.run(timeout=)` kills the child, not its children; Campaign durations from `time.time()` across a laptop sleep; A `timeout` under parallel load counted as a kill; "corpus_n=0" is not an empty corpus; A def line is executed at import time; The CLI backend reads until the budget dies; Escaped newlines through a heredoc; Anchoring a test on a source line of another component; Counter pins that depend on the caller's stack depth; Nested `in_thread` calls leak the inner worker; plus (round 339) a mutation harness that must isolate itself from its own mutants.
 
 ## Verification
 ```bash

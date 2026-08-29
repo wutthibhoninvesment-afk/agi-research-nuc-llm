@@ -135,6 +135,33 @@ skills — that duplicates their triggers and adds an indirection hop.
    how to read each report live there, not in this file; cases written
    without them measure string matching instead of selection.
 
+8. **Make the Verification block re-derivable, then re-derive it** (script
+   bundled with this skill — run it, don't read it). A Verification block is
+   a set of factual claims (`# expected: Ran 165 tests`, `8 passed`, `exit
+   0`) that nothing ever re-executes, so it rots invisibly: this corpus has
+   now been caught five times, most bluntly with a `cd ~/agi-research` that
+   had been dead since the workspace was renamed, silently making every
+   command under it unrunnable.
+   ```bash
+   python3 skills/skill-authoring/scripts/claim_check.py skills/
+   # expected: "0 stale claim(s)", exit 0 — static, safe anywhere
+   python3 skills/skill-authoring/scripts/claim_check.py --run --timeout 150 skills/
+   # opt-in: executes only the commands it classifies `auto` and diffs
+   # their real output against the claim
+   ```
+   `--list` prints the auto/manual verdict per command with its reason;
+   classification **fails closed**, so a command whose program is not on the
+   allowlist is never executed — the corpus contains commands that spend
+   money, ssh to another host and write into the checkout, and a denylist
+   would eventually guess one of those wrong. Two authoring rules follow
+   from what it can and cannot check:
+   - Prefer a claim that cannot rot over one that is merely correct today.
+     A repo-relative `cd languages/whence` is checkable and portable; an
+     absolute `cd ~/project` is neither.
+   - State a NUMBER, not "all passed". A claim with no number is reported
+     `UNQUANTIFIED` — it can only ever be checked for its exit code, so a
+     silent count drift never surfaces.
+
 ## Pitfalls
 - **Second-person or first-person descriptions** ("You can use this to…",
   "I can help…") — inconsistent point-of-view inside the system prompt
@@ -161,6 +188,24 @@ skills — that duplicates their triggers and adds an indirection hop.
   hyphens by eye — run the linter (R006); it found one already-rotted
   entry in this skill's own ToC whose three sibling `(`--flag`)` entries
   were all correct.
+- **A Verification block is documentation, so it rots like documentation.**
+  It reads as evidence — exact commands, exact numbers — but nothing
+  re-executes it, so every number in it is only as fresh as the last round
+  that happened to run that command by hand. Five confirmed instances in
+  this corpus, and the two worst were not numbers: `cd ~/agi-research`
+  survived the workspace being renamed, silently making every command in
+  two blocks unrunnable, and a `--strict` sweep claiming `exit 0` had been
+  false for ~24 rounds. Both are `claim_check.py` C001/C002 findings now
+  (step 8), and the live-corpus test in `test_claim_check.py` is what makes
+  the next one a test failure rather than an audit somebody remembers.
+- **Fenced `#` comments are not headings, and treating them as such empties
+  the section silently.** A tool that slices `## Verification` … next
+  heading must blank fenced blocks first: `# 1. Bracket invariants…` inside
+  a bash fence matches `^#{1,6}\s+` exactly. Written naively this emptied 7
+  of 19 Verification blocks in this corpus and reported *success* — zero
+  parsed commands and zero findings are indistinguishable. Any corpus sweep
+  needs a positive-control assertion ("these N skills, and only these,
+  parse to zero commands"), not just "no findings".
 - **Describing the mechanism instead of the symptom** — a description that
   says "snapshot strings computed eagerly" does not fire on "display
   strings dominate the profile"; users describe what they *see*, so the
@@ -223,16 +268,22 @@ skills — that duplicates their triggers and adds an indirection hop.
   (shared-noun removal, tried last, was the only one that worked).
 
 ## Verification
+Every command below is repo-root-relative; run them from the repo root. (An
+absolute `cd ~/agi-research` used to open this block and had been dead since
+the workspace was renamed — see `claim_check.py`'s C001.)
 ```bash
-cd ~/agi-research
 python3 -m unittest discover -s skills/skill-authoring/scripts -v
-# expected: Ran 165 tests, OK  (test_skill_lint.py + test_trigger_eval.py, offline)
+# expected: Ran 247 tests, OK  (skill_lint + trigger_eval + claim_check, offline)
 python3 skills/skill-authoring/scripts/skill_lint.py --house skills/<name>/
 # expected: 1 skill(s), 0 error(s), 0 warning(s), exit 0   <- the bar for a new skill
 python3 skills/skill-authoring/scripts/skill_lint.py --house --strict skills/
-# expected: 0 error(s). The corpus sweep is NOT warning-free: one known
-# B002 (fuzz-mutate-kill-loop, 415 lines, split deliberately deferred)
-# makes --strict exit 1. Compare against that baseline, not against zero.
+# expected: 19 skill(s), 0 error(s), 0 warning(s), exit 0. Warning-free since
+# round 339 split fuzz-mutate-kill-loop under the 400-line B002 threshold;
+# before that a known B002 made --strict exit 1, so a pre-339 report saying
+# "exit 1" is not evidence of a regression.
+python3 skills/skill-authoring/scripts/claim_check.py skills/
+# expected: 19 skill(s), 0 stale claim(s), exit 0 (static; --run also executes
+# the `auto` commands and diffs their output against these very claims)
 ```
 - [ ] Description states what AND when, third person, symptom-vocabulary
       trigger phrases included

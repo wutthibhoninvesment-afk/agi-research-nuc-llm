@@ -120,9 +120,14 @@ open them. Everything needed is inlined in the steps below.
 ## Verification
 Run the reference suite; it should be fast and green:
 ```
-cd harness && python3 -m pytest -q
-# expected: 148 passed in ~6s (the 5s is the SWE-loop mutation tests; the
-# agent/adapter/context tests alone finish in <1s)
+cd harness && python3 -m pytest -q tests/test_agent.py tests/test_adapters.py \
+    tests/test_context.py tests/test_evals.py tests/test_sim.py
+# expected: 48 passed in <1s   <- the agent/adapter/context core this skill is
+# about. The UNFILTERED `python3 -m pytest -q` in harness/ is a different
+# thing entirely now: it is the whole workspace's slow tier (tens of minutes,
+# SWE-loop campaigns included) and is deliberately NOT asserted here — a
+# number nobody re-derives is exactly the claim-rot this repo keeps finding
+# (this line used to say "148 passed in ~6s").
 python3 demo.py   # expected: eval report: 4/4 passed (100%), exit 0
 ```
 A suite following this skill that takes >1s or ever flakes means a real

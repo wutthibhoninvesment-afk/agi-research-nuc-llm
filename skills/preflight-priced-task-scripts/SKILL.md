@@ -108,7 +108,7 @@ python3 nuc/taskscript/run.py S.errand FLOW k=v --transport http --tokenizer qwe
 
 ## Verification
 ```bash
-perl -e 'alarm 300; exec @ARGV' nuc/.venv/bin/python -m pytest -q nuc/tests/test_taskscript.py   # 77 passed
+perl -e 'alarm 300; exec @ARGV' python3 -m pytest -q nuc/tests/test_taskscript.py   # 82 passed
 python3 nuc/taskscript/run.py nuc/taskscript/examples/nuc_mini_probe.errand probe 'question=x' | head -1  # micro tier refused: x
 printf 'lane g { url "http://127.0.0.1:8001" prefill 1 decode 1 }\n' > /tmp/bad.errand; python3 nuc/taskscript/run.py /tmp/bad.errand f; echo $?   # 2
 ```

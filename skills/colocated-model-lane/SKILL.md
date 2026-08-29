@@ -132,7 +132,7 @@ python3 nuc/fast_lane.py handoff ./olmoe_merged jab@box '~/models/olmoe' --key ~
 
 ## Verification
 ```bash
-perl -e 'alarm 300; exec @ARGV' python3 -m pytest -q nuc/tests           # 155 passed (incl. taskscript)
+perl -e 'alarm 300; exec @ARGV' python3 -m pytest -q nuc/tests           # 276 passed (incl. taskscript)
 python3 nuc/fast_lane.py handoff ./olmoe_merged jab@box '~/m' | grep -c "'~"   # expected: 0
 python3 nuc/fast_lane.py handoff ./olmoe_merged jab@box '~/m' | grep -c 8001   # expected: 0
 ```

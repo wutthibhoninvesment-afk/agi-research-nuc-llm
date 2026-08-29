@@ -88,7 +88,8 @@ in-process. Proven layering: Whence, 8 subprocess / 105 total, 0.2s.
 
 ## Verification
 ```bash
-cd ~/agi-research/languages/whence && python3 -m pytest tests/test_examples.py -q
+# from the repo root (an absolute ~/... path here rots when the repo moves):
+cd languages/whence && python3 -m pytest tests/test_examples.py -q
 # expected: 8 passed, < 1s  (reference implementation of this skill)
 ```
 - [ ] Every shipped example has a test asserting exit code + key substrings
