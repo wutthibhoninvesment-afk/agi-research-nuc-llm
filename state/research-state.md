@@ -9025,6 +9025,183 @@ Workspace: ~/agi-research
   probe is a priced live run).
 - See `knowledge/round-345-skills-b-citation-registry-integrity.md`.
 
+### Round 346 — NUC-integration(E) — 2026-08-29
+- **First: landed round 345.** Its 17-file diff had a research-state entry and
+  a knowledge file but was never committed. Every claim re-verified from a
+  clean read before landing (`c52b9ba`): 316 skills-script tests, lint 21/0/0,
+  claim_check 0 stale, xref_check exit 0, harness 464 passed, whence 1069
+  passed.
+- **Box `down`, 9th consecutive E-round** (round 340 was the eighth).
+  Streak 298→346, 13 checks,
+  confirmed span **19h38m06s and ongoing**, start bracketed to **±3m06s** by
+  `tailscale_last_seen`. `ambiguous` still unobserved (round 310's item 3);
+  `swap_watch_launch.py` blocked a 9th time; `boot_probe`'s live path still
+  unverified (3 E-rounds since it was built in round 334).
+- **The finding: `CLAUDE.md`'s ground rules were in git the whole time.**
+  Round 345 reported `## Ground rules` empty "in all three commits that have
+  ever touched the file — the body predates this repo's git history". It does
+  not. `ee30654` (the initial clean commit) is **42 lines and contains the
+  full body**; `e376750` (AUTO-COMMIT v4) deleted 36 lines of it. Destroyed
+  and now restored: the 7 numbered ground rules incl. the track-rotation
+  table, the whole **`## Track E — NUC integration: HARD RULES`** section
+  (read-only paths, the **never-touch-port-8001** prohibition, allowed write
+  paths, the unit-restart rule, the endpoint list, **D-013's definition**, the
+  two-SSH-failures rule), and `## What "done" means`.
+- **Why it matters more than the empty section:** "authorship, operator's
+  call" is a TERMINAL classification — it routes an item outside the loop and
+  parks it. Repair is ten minutes. One `git log` separated the two, and
+  nothing in the pipeline ran it. Round 345's stopping rule ("transcribing a
+  definition that already exists is repair; writing the missing one is
+  authorship") was right; it answered "does it already exist?" from the
+  working tree, where **an absent thing offers no hint it was ever present**.
+- **`xref_check.py --provenance`** (new). For every dangling id, ask the
+  registry document's own history whether it was EVER defined. Registry
+  verdicts `ok`/`ids-deleted`/`body-deleted`/`never-populated`/`no-vcs`; per-id
+  `resurrectable`/`elsewhere-in-doc`/`never-defined`. **Two dangling families,
+  identical symptom, opposite verdict:** X002's `D-013` was recoverable in
+  minutes; X001's decisions 27/28/29 (69 citations) are absent from **all 46
+  revisions** of SPEC.md, so that one really is authorship and really is
+  language(C)'s. Round 345 had grouped both as "debt this round does not own".
+- **Three bugs the ground truth caught, all the same shape — right question,
+  wrong source.** (1) `ids_in()` answered "was this ever populated": the
+  `ee30654` section holds 7 rules and zero `D-NNN`, so an ids-only reading
+  called it never-populated. Split out `has_body()`. (2) The registry
+  declaration was **mis-pointed** — `D-013` lived under `## Track E`, not the
+  declared `## Ground rules` — so a correctly-scoped search found nothing;
+  added `locate_in_document()` and the `elsewhere-in-doc` verdict (text
+  recoverable AND pointer wrong = two fixes). (3) The probe read **HEAD** for
+  "is it populated now", so it reported `body-deleted` about a file already
+  repaired on disk — the state it is in every time anyone uses it. Working
+  tree for *now*, git for *ever*.
+- **Live testing is what found all three.** These tests build real git repos
+  in `tempfile` and shell out to real `git`; injected runners are kept only
+  for failure paths a real repo cannot produce. Round 334's `boot_probe` is
+  the mirror image — fully unit-tested against a fake, live path unverified
+  for 8 rounds. A fake runner tests the parser; only the real thing tests the
+  command.
+- **Latent bug fixed:** `_section_body()` treated `#` comment lines inside
+  fenced code blocks as headings, so a fenced example inside a registry
+  section would end it early and the registry would read SHORT with no
+  symptom. Now fence-aware (backtick/tilde, indented, unterminated→EOF). A
+  repo-wide empty-section scan went 40+ → **2**, both benign (hard-wrapped
+  two-line headings in CURRICULUM.md and SPEC.md).
+- **Restoration discipline.** `## Ground rules` is **byte-identical** to
+  `ee30654` (diff-verified). Track E verbatim in every RULE; **4 coordinates**
+  changed, each because the tree already records the correction — tailnet-first
+  connect line and `192.168.1.42`→`.37` (nuc-missions round 154; and
+  `~/.ssh/id_ed25519_nuc` **does not exist on this host**), `qwen36-colibri` is
+  a *user* unit (round 100), both ports loopback-only, and "(Mac)" dropped.
+  No rule added, removed or reworded. A provenance note in the file names both
+  commits and lists all four changes. **Operator: those four are the only
+  places this round exercised judgement, each reversible with one `git show`.**
+- **Effect: X002 `empty` → `ok`, 50 citations, 0 dangling — family closed.**
+  Corpus authoritative dangling **33 → 18**, all pre-acknowledged. Removed
+  `X002:D-013` from `state/known-dangling-citations.json`; round 345's guard
+  test (no baseline entry may outlive its finding) went red the moment the fix
+  landed, exactly as designed. That entry's stated reason was false for the
+  whole of its short life — **a baseline entry is a claim**.
+- **Mutation: 22 hand-designed mutants, 18/22 (82%) first pass, 22/22 (100%)
+  after strengthening four tests**; target restored byte-identical. All four
+  survivors were weak tests, and one was **vacuous**: its fixture added an
+  unrelated earlier commit, but `git log -- <path>` already filters those, so
+  there was never a failing `git show` to survive — two mutants lived on that
+  one bad fixture. The real fixture is a DELETION commit. A test can assert
+  the right thing about a scenario it never constructs, and only mutation
+  finds it.
+- Verification: skills scripts **364 passed** (was 316); `nuc/tests/` **348
+  passed**; `harness/run_tests_fast.sh` **464 passed, 267 deselected**;
+  `languages/whence/tests/` **1069 passed** (untouched); `skill_lint --house
+  --strict skills/` **22 skills 0/0**; `claim_check skills/` 0 stale;
+  `xref_check` 0 NEW / 18 pre-acknowledged, exit 0; `--provenance` exit 0.
+- **Predictions: 7 HIT, 1 MISS** (`state/round-346-predictions.md`). The MISS
+  is P3 — I predicted SPEC's decisions 14–26 were also recoverable, reasoning
+  that a truncating migration was proven in this tree. It was, but only in
+  `CLAUDE.md`; SPEC grew monotonically across all 46 revisions. That negative
+  is what makes X001 real authorship. P7 hit on outcome but was **wrong on
+  mechanism** (restoring alone would not have closed the family — the
+  declaration had to be widened too); P4 and P6 hit at the low bound and are
+  recorded as such rather than argued upward.
+- New skill `skills/deleted-vs-never-written/SKILL.md`; corrected
+  `skills/citation-registry-integrity/SKILL.md`, which had carried round 345's
+  false claim into a reusable skill. Trigger cases `dvnw-near/mid/far` +
+  `neg-16/17` authored, **not probed** (a probe is a priced live run).
+- See `knowledge/round-346-nuc-e-deleted-vs-never-written.md`.
+
+## Next steps (as of round 346)
+1. **NUC-integration(E) — unchanged and now 9 rounds deep.** Next reachable
+   E-round: `reachability_check.py check --round NNN` first, then `bounds
+   --verdict down`, then `swap_watch_launch.py plan/launch` — still the
+   never-launched second multi-hour poll. `boot_probe`'s LIVE path must be
+   sanity-checked on the first up-round (does `cat /proc/uptime` over ssh
+   parse, is the derived `boot_utc` plausible against `uptime -s`) before its
+   bracket is trusted. Round 346 is direct evidence for why: a probe's live
+   path failed three times on first contact with reality despite full
+   unit-test coverage.
+2. **Operator review invited, not required — `CLAUDE.md` restoration.** Round
+   346 restored the governing sections from `ee30654`. `## Ground rules` is
+   byte-identical; Track E's four coordinate changes are listed in the file's
+   own provenance note and in §4 of the knowledge file. If any of the four is
+   wrong, `git show ee30654:CLAUDE.md` is the source of truth. Round 345's
+   item 3 ("operator decision, not a round's") is **closed** — the premise it
+   rested on was false.
+3. **language(C) — SPEC decisions 27/28/29, now with evidence.** Round 346
+   confirms these were never defined in any of 46 revisions, so this is
+   authorship, not transcription — but 27 and 28 have definitions in
+   `research-state.md` round entries (lines ~8227, ~8603) that can be
+   transcribed; 29 must be written as part of the missing `## v0.19` section.
+   Deleting the matching `state/known-dangling-citations.json` entries is part
+   of the fix, not a follow-up (a test fails if an entry outlives its finding).
+   Unchanged from round 345's items 1-2 except that the classification is now
+   measured rather than assumed.
+4. **Every checker that reports a container as `empty`/`missing` should carry
+   a provenance verdict.** `xref_check` now does. `skill_lint` and
+   `claim_check` have the same shape of finding and do not. Not obviously
+   worth a round on its own; fold into the next skills(B) round that touches
+   either.
+5. **`--provenance` covers declared registries only.** The repo-wide
+   empty-section scan that scored P4 was a one-off script and is deliberately
+   NOT shipped — it found nothing outstanding, so it would be a checker with
+   no known job. The technique is in `skills/deleted-vs-never-written`. Ship
+   it only if a second instance of the class appears.
+6. **`git log -S` is in the skill but not the tool.** For an exact token it is
+   far faster than reading revisions; the tool reads revisions because it must
+   also serve the ordinal case, where there is no token to search for. Worth
+   a fast path if provenance ever gets slow.
+7. **Never exercised: `no-vcs` against a real shallow clone.** Handled and
+   unit-tested via a non-repo directory, but a `--depth 1` checkout is the
+   realistic case (CI) and has not been tried.
+8. **18 skills remain never-probed**, now including
+   `deleted-vs-never-written`. Unchanged in character since round 334; a probe
+   is a priced run, fold several into one batch.
+9. Round 345's items 4 (the `skills/*/scripts/` blind spot in `xref_check`) and
+   6 (X004's 777 skipped paths, dominated by 72-column hard wraps) are
+   unchanged.
+10. Round 321's item 14 (stale-header sweep), as rescoped by round 333 to "any
+    line asserting a number that no round re-executes", is unchanged — but
+    round 346 hit it again, harder: **four** numbers in
+    `skill-authoring/SKILL.md`'s Verification block went stale inside this
+    single round ("Ran 316 tests", `skill_lint` "21 skill(s)", `claim_check`
+    "21 skill(s)", and `xref_check`'s "28 citations ... two registry gaps"),
+    all re-derived last. Third independent instance of the class, and the
+    first where the stale line was a COUNT OF ACCEPTED DEBT — which is worse
+    than a stale test count, because it describes what a reader is supposed
+    to tolerate. Worth noting for whoever scopes the sweep: `claim_check`
+    already parses these blocks and could check integer claims it emitted
+    itself, which would cover most of the class without a new tool.
+11. `fuzz-mutate-kill-loop/SKILL.md` is still 415 body lines (B002) —
+    unchanged, 7th consecutive skills(B) round.
+12. Round 332's item 1 (exhaustive sweep of `whence/lexer.py`'s history
+    against the guest `lex` function) — unchanged, language(C).
+13. `harness/swe/regiontools.py`'s region-patch mechanism is still deliberately
+    un-unified with `EditFileTool` (round 307's item 2) — unchanged.
+14. Round 301's item 2 (blocking-wait mitigation design sketch) remains
+    speculative — unchanged through 19 rounds.
+15. The next heavy/light re-tally check-in: repeat the two
+    `heavy_light_fail_rates` calls (full history + the ~[331,360] window) once
+    that many rounds accumulate — unchanged from rounds 331-345.
+16. The `tail`/EOF backgrounded-pipe silent-drop mechanism (rounds 296, 300,
+    303, 309) remains genuinely unconfirmed — round 310's item 5, track-wide.
+
 ## Next steps (as of round 345)
 1. **language(C) — reconcile the decision namespace.** SPEC.md's list ends at
    13 while 27/28/29 are cited 17 times. Append 27 and 28 by TRANSCRIBING the

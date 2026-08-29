@@ -306,26 +306,34 @@ absolute `cd ~/agi-research` used to open this block and had been dead since
 the workspace was renamed — see `claim_check.py`'s C001.)
 ```bash
 python3 -m unittest discover -s skills/skill-authoring/scripts -v
-# expected: Ran 316 tests, OK  (skill_lint + trigger_eval + claim_check
-#           + xref_check, offline). Re-derived round 345; was 247 before
-#           test_xref_check.py, so a lower count in an older report is not
-#           evidence of a regression. (Re-derived TWICE in round 345: the
-#           first figure, 311, was stale within the hour because the same
-#           round then added 5 tests. Re-derive this LAST.)
+# expected: Ran 364 tests, OK  (skill_lint + trigger_eval + claim_check
+#           + xref_check, offline). Re-derived round 346; was 316 in round
+#           345 and 247 before test_xref_check.py, so a lower count in an
+#           older report is not evidence of a regression. (Round 345
+#           re-derived this TWICE: its first figure, 311, was stale within
+#           the hour because the same round then added 5 tests. Round 346
+#           added 48 more. Re-derive this LAST.)
 python3 skills/skill-authoring/scripts/skill_lint.py --house skills/<name>/
 # expected: 1 skill(s), 0 error(s), 0 warning(s), exit 0   <- the bar for a new skill
 python3 skills/skill-authoring/scripts/skill_lint.py --house --strict skills/
-# expected: 21 skill(s), 0 error(s), 0 warning(s), exit 0. Warning-free since
+# expected: 22 skill(s), 0 error(s), 0 warning(s), exit 0. Warning-free since
 # round 339 split fuzz-mutate-kill-loop under the 400-line B002 threshold;
 # before that a known B002 made --strict exit 1, so a pre-339 report saying
 # "exit 1" is not evidence of a regression.
 python3 skills/skill-authoring/scripts/claim_check.py skills/
-# expected: 21 skill(s), 0 stale claim(s), exit 0 (static; --run also executes
+# expected: 22 skill(s), 0 stale claim(s), exit 0 (static; --run also executes
 # the `auto` commands and diffs their output against these very claims)
 python3 skills/skill-authoring/scripts/xref_check.py
-# expected: "0 NEW", exit 0. 28 citations are pre-acknowledged in
-# state/known-dangling-citations.json (two registry gaps owned by language(C)
-# and by the operator); --show-acknowledged lists them.
+# expected: "0 NEW", exit 0. 18 citations are pre-acknowledged in
+# state/known-dangling-citations.json — ONE registry gap, owned by
+# language(C); --show-acknowledged lists them. (Round 345 said 28 across two
+# gaps; round 346 closed the second by restoring CLAUDE.md's rule sections
+# from git, so a report saying 28 is older, not a regression.)
+python3 skills/skill-authoring/scripts/xref_check.py --provenance
+# expected: exit 0. Every dangling id labelled RESURRECTABLE (with the commit
+# to transcribe from) or "Writing it is authorship" — run this BEFORE filing
+# any registry gap as someone else's decision. See
+# skills/deleted-vs-never-written/SKILL.md.
 ```
 - [ ] Description states what AND when, third person, symptom-vocabulary
       trigger phrases included

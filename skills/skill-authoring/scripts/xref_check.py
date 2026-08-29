@@ -75,6 +75,7 @@ import argparse
 import json
 import os
 import re
+import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -198,12 +199,60 @@ def ordinal_registry(repo_root, doc, heading):
     return ids, ("ok" if ids else "empty")
 
 
+def _headings(heading):
+    """Normalise a spec's heading to a list.
+
+    A registry may legitimately span more than one section of its document.
+    `D-013` is a HOUSE rule but the operator filed it under the Track E hard
+    rules, while `## Ground rules` is where a general one would go -- so the
+    house-rule registry is both sections, and declaring only one is what let
+    round 345 read a populated document as an empty registry. Union, not
+    first-match: an id is defined if ANY declared section defines it, and a
+    reader should not have to know which.
+    """
+    return [heading] if isinstance(heading, str) else list(heading)
+
+
+FENCE_RE = re.compile(r"^[ \t]*(```|~~~)", re.M)
+
+
+def _fenced_spans(text):
+    """[(start, end)] of fenced code blocks, so a `# comment` inside one is
+    not mistaken for a heading.
+
+    Latent rather than live when this was written -- none of the three
+    declared registry sections contains a fence -- but it is this round's
+    own failure mode one level down: a `#`-commented shell line inside a
+    fenced example would END the section early and the registry would read
+    SHORT, with no symptom except citations that dangle for no visible
+    reason. Closed while the cost is one regex.
+    """
+    spans, open_at = [], None
+    for m in FENCE_RE.finditer(text):
+        if open_at is None:
+            open_at = m.start()
+        else:
+            spans.append((open_at, m.end()))
+            open_at = None
+    if open_at is not None:          # unterminated fence: to end of document
+        spans.append((open_at, len(text)))
+    return spans
+
+
+def _headings_outside_fences(text):
+    spans = _fenced_spans(text)
+    for m in ANY_HEADING_RE.finditer(text):
+        if any(a <= m.start() < b for a, b in spans):
+            continue
+        yield m
+
+
 def _section_body(text, heading):
     """Body of the section whose heading text matches `heading`, up to the
     next heading of the SAME OR SHALLOWER level. Returns None if absent."""
     start = None
     level = None
-    for m in ANY_HEADING_RE.finditer(text):
+    for m in _headings_outside_fences(text):
         if start is None:
             if m.group(2).strip().lower() == heading.strip().lower():
                 start, level = m.end(), len(m.group(1))
@@ -238,10 +287,13 @@ def token_registry(repo_root, doc, heading, id_re):
             text = f.read()
     except OSError:
         return set(), "no-doc"
-    section = _section_body(text, heading)
-    if section is None:
+    sections = [s for s in (_section_body(text, h) for h in _headings(heading))
+                if s is not None]
+    if not sections:
         return set(), "no-section"
-    ids = set(id_re.findall(section))
+    ids = set()
+    for section in sections:
+        ids.update(id_re.findall(section))
     return ids, ("ok" if ids else "empty")
 
 
@@ -269,6 +321,278 @@ def emitted_code_registry(repo_root):
 
 
 # --------------------------------------------------------------------------
+# Registry provenance (round 346)
+# --------------------------------------------------------------------------
+# The sweep answers "is this citation resolvable TODAY". It deliberately does
+# not answer the question a reader asks next, which is the one that decides
+# who fixes it:
+#
+#     the registry is empty -- do I go and GET the text, or WRITE it?
+#
+# Those are different jobs with different owners and different risk.
+# Transcribing a definition that already exists is repair, and any round may
+# do it. Inventing the definition of a rule that governs every future round
+# is authorship, and it is the operator's call. Round 345 had exactly this
+# decision in front of it for `CLAUDE.md § Ground rules`, judged it
+# authorship, and deferred -- reasonably, given what it knew. It was
+# actually repair: the section's body is in this repo's git history at the
+# initial commit `ee30654` and was destroyed by `e376750`. One `git log` on
+# the registry document separates the two cases, and nothing was running it.
+#
+# So: for every id the sweep reports as dangling, ask the registry's own
+# file history whether that id was EVER defined. `resurrectable` names the
+# commit to transcribe from; `never-defined` is real authorship.
+#
+# Read-only. `git log` / `git show` only, no writes, no network.
+
+GIT_SEP = "\x1f"
+
+
+class RegistrySpec:
+    """Where a registry lives, in enough detail to read it out of history.
+
+    `kind` is 'ordinal' or 'token', mirroring the two registry readers --
+    the distinction that round 345's section 3.2 bug proved is load-bearing
+    (an ordinal registry yields ints, a token registry yields strings, and
+    comparing one to the other silently never matches).
+    """
+
+    def __init__(self, doc, heading, kind, id_re=None):
+        if kind not in ("ordinal", "token"):
+            raise ValueError("kind must be 'ordinal' or 'token': %r" % kind)
+        if kind == "token" and id_re is None:
+            raise ValueError("a token registry needs an id_re")
+        self.doc = doc
+        self.headings = _headings(heading)
+        self.heading = " + ".join(self.headings)
+        self.kind = kind
+        self.id_re = id_re
+
+    def ids_in(self, text):
+        """Ids defined by this registry inside `text`, a whole document.
+
+        Returns (ids, status) with the same four statuses the live readers
+        use, so a historical revision and the working tree are described in
+        exactly one vocabulary.
+        """
+        sections = [s for s in (_section_body(text, h)
+                                for h in self.headings) if s is not None]
+        if not sections:
+            return set(), "no-section"
+        ids = set()
+        for section in sections:
+            if self.kind == "ordinal":
+                ids.update(int(m.group(1))
+                           for m in ORDINAL_ITEM_RE.finditer(section))
+            else:
+                ids.update(self.id_re.findall(section))
+        return ids, ("ok" if ids else "empty")
+
+    def has_body(self, text):
+        """Does the declared section have ANY prose, ids or not?
+
+        Split from `ids_in` because the first live run proved they are
+        different questions. `CLAUDE.md § Ground rules` held seven numbered
+        house rules at `ee30654` and none of them contained a `D-NNN` token,
+        so an ids-only reading called the section "never populated" -- of a
+        section whose 7-item body a later commit deleted. Reporting that as
+        `never-populated` would have told a reader "there is nothing to
+        recover" about text that is sitting in git.
+        """
+        return any((_section_body(text, h) or "").strip()
+                   for h in self.headings)
+
+    def locate_in_document(self, text):
+        """{id: heading} for every id of this family ANYWHERE in `text`.
+
+        The registry declaration can simply point at the wrong section, and
+        that failure is invisible to a reader of the current file: the
+        section is empty either way. Searching the whole document separates
+        "the definition is gone" from "the definition is filed elsewhere",
+        which have different fixes -- transcribe, versus correct the
+        pointer and then transcribe.
+        """
+        if self.kind == "ordinal":
+            pat, conv = ORDINAL_ITEM_RE, int
+        else:
+            pat, conv = self.id_re, str
+        heads = [(m.start(), m.group(2).strip())
+                 for m in _headings_outside_fences(text)]
+        found = {}
+        for m in pat.finditer(text):
+            head = None
+            for off, title in heads:
+                if off < m.start():
+                    head = title
+                else:
+                    break
+            found.setdefault(conv(m.group(1)), head)
+        return found
+
+
+def _git(repo_root, argv, runner=subprocess.run):
+    """One git invocation. Returns (ok, stdout). Never raises: an absent
+    git, a non-repo directory and a path unknown to the index are all just
+    "no history available", which the caller reports as `no-vcs` rather
+    than crashing a checker that is otherwise pure file reads."""
+    try:
+        res = runner(["git", "-C", repo_root] + argv,
+                     capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.SubprocessError):
+        return False, ""
+    if res.returncode != 0:
+        return False, ""
+    return True, res.stdout
+
+
+def file_revisions(repo_root, doc, max_commits=200, runner=subprocess.run):
+    """[(sha, author_date_iso)] for `doc`, newest first. [] if unavailable.
+
+    `--follow` is deliberately NOT used. It guesses at renames, and a wrong
+    guess here would attribute someone else's section body to this registry
+    -- inventing a definition, which is the one failure mode this whole
+    family exists to prevent. A registry that moved between paths is
+    reported as having a short history, which is honest.
+    """
+    ok, out = _git(repo_root,
+                   ["log", "--format=%%H%s%%aI" % GIT_SEP,
+                    "--max-count=%d" % max_commits, "--", doc],
+                   runner=runner)
+    if not ok:
+        return []
+    revs = []
+    for line in out.splitlines():
+        if GIT_SEP not in line:
+            continue
+        sha, _, date = line.partition(GIT_SEP)
+        if sha.strip():
+            revs.append((sha.strip(), date.strip()))
+    return revs
+
+
+def registry_history(repo_root, spec, max_commits=200, runner=subprocess.run):
+    """Per-revision reading of one registry, newest first.
+
+    Each element is {'sha', 'date', 'status', 'ids'}. A revision in which
+    the document did not exist, or could not be decoded, is skipped rather
+    than recorded as empty -- "absent" and "present but empty" are the very
+    distinction this tool sells, and quietly folding one into the other in
+    the history reader would undo it.
+    """
+    out = []
+    for sha, date in file_revisions(repo_root, spec.doc, max_commits, runner):
+        ok, text = _git(repo_root, ["show", "%s:%s" % (sha, spec.doc)],
+                        runner=runner)
+        if not ok:
+            continue
+        ids, status = spec.ids_in(text)
+        out.append({"sha": sha, "date": date, "status": status,
+                    "ids": ids, "body": spec.has_body(text),
+                    "elsewhere": spec.locate_in_document(text)})
+    return out
+
+
+def provenance(repo_root, spec, dangling_ids, max_commits=200,
+               runner=subprocess.run):
+    """Was each dangling id EVER defined by this registry?
+
+    Returns a dict with a registry-level `verdict` and a per-id verdict.
+
+    Registry verdicts, ordered by how much there is to recover:
+      ok               -- populated in the working tree; nothing to recover
+      ids-deleted      -- the section defined ids in an ancestor and does
+                          not now. The strongest case: transcribe.
+      body-deleted     -- the section had prose in an ancestor and is empty
+                          now, but never defined ids of this family under
+                          THIS heading. Something was destroyed and is
+                          recoverable, but the registry declaration may also
+                          be pointing at the wrong section -- read the
+                          per-id verdicts before acting.
+      never-populated  -- no revision ever had a body here. AUTHORSHIP.
+      no-vcs           -- no history readable (not a repo, no git, untracked)
+
+    Per-id verdicts:
+      resurrectable    -- defined under the declared heading in some
+                          ancestor. Transcribing it is repair.
+      elsewhere-in-doc -- the id is defined in the document's history but
+                          under a DIFFERENT heading. The text is recoverable
+                          AND the registry declaration is wrong. Two fixes.
+      never-defined    -- absent from every revision. Authorship.
+
+    Registry verdict and id verdicts are computed independently on purpose:
+    a registry can read `ok` and still be missing a specific id that was
+    deleted out of an otherwise healthy list, which no amount of looking at
+    the current file reveals.
+    """
+    hist = registry_history(repo_root, spec, max_commits, runner)
+    # "Is it populated NOW" is a question about the WORKING TREE, not about
+    # HEAD. They differ for exactly as long as a fix is uncommitted, which
+    # is precisely when someone is running this. Reading `hist[0]` for the
+    # current state made the probe report `body-deleted` about a file that
+    # had already been repaired on disk -- the same mistake as the first
+    # draft, one level along: asking the right question of the wrong source.
+    cur_ids, cur_status, cur_body = set(), "no-doc", False
+    try:
+        with open(os.path.join(repo_root, spec.doc), encoding="utf-8") as f:
+            cur_text = f.read()
+    except (OSError, UnicodeDecodeError):
+        cur_text = None
+    if cur_text is not None:
+        cur_ids, cur_status = spec.ids_in(cur_text)
+        cur_body = spec.has_body(cur_text)
+
+    result = {"doc": spec.doc, "heading": spec.heading, "kind": spec.kind,
+              "revisions": len(hist), "verdict": None, "last_populated": None,
+              "last_body": None, "current_status": cur_status, "ids": {}}
+    if not hist:
+        result["verdict"] = "no-vcs"
+        for ident in dangling_ids:
+            result["ids"][ident] = {"verdict": "unknown", "sha": None,
+                                    "date": None, "heading": None}
+        return result
+
+    with_ids = [r for r in hist if r["ids"]]
+    with_body = [r for r in hist if r["body"]]
+    if cur_ids:
+        result["verdict"] = "ok"
+    elif with_ids:
+        result["verdict"] = "ids-deleted"
+    elif with_body and not cur_body:
+        result["verdict"] = "body-deleted"
+    else:
+        # Either no revision ever had a body here, or a body is present and
+        # simply is not this registry. Same actionable state -- there is
+        # nothing to transcribe -- so one verdict rather than a fifth that
+        # nobody would know what to do with.
+        result["verdict"] = "never-populated"
+    if with_ids:
+        result["last_populated"] = {"sha": with_ids[0]["sha"],
+                                    "date": with_ids[0]["date"],
+                                    "n_entries": len(with_ids[0]["ids"])}
+    if with_body:
+        result["last_body"] = {"sha": with_body[0]["sha"],
+                               "date": with_body[0]["date"]}
+
+    for ident in dangling_ids:
+        hit = next((r for r in hist if ident in r["ids"]), None)
+        if hit is not None:
+            result["ids"][ident] = {"verdict": "resurrectable",
+                                    "sha": hit["sha"], "date": hit["date"],
+                                    "heading": hit["elsewhere"].get(
+                                        ident, spec.heading)}
+            continue
+        other = next((r for r in hist if ident in r["elsewhere"]), None)
+        if other is not None:
+            result["ids"][ident] = {"verdict": "elsewhere-in-doc",
+                                    "sha": other["sha"], "date": other["date"],
+                                    "heading": other["elsewhere"][ident]}
+            continue
+        result["ids"][ident] = {"verdict": "never-defined", "sha": None,
+                                "date": None, "heading": None}
+    return result
+
+
+# --------------------------------------------------------------------------
 # Families
 # --------------------------------------------------------------------------
 # A family binds three things: how a CITATION is spelled, which files may
@@ -277,7 +601,7 @@ def emitted_code_registry(repo_root):
 
 class Family:
     def __init__(self, code, name, cite_re, registry, registry_desc,
-                 scope_re=None, normalise=str):
+                 scope_re=None, normalise=str, provenance=None):
         self.code = code
         self.name = name
         self.cite_re = cite_re
@@ -285,10 +609,27 @@ class Family:
         self.registry_desc = registry_desc
         self.scope_re = scope_re            # which rel paths may cite this
         self.normalise = normalise
+        # Where this registry LIVES as a versioned file, so its history can
+        # be read. `None` means the registry is not a tracked document and
+        # a dangling id in it can never be resurrected -- X003's registry is
+        # derived from live code, so "what did it used to be" is not a
+        # question about a file. Keeping this explicit rather than inferring
+        # it from `registry` is what stops the probe from silently reporting
+        # `no-vcs` for a family that simply has no document.
+        self.provenance = provenance        # RegistrySpec | None
 
     def applies_to(self, rel):
         return self.scope_re is None or self.scope_re.match(rel)
 
+
+# Both sections of CLAUDE.md that carry numbered house rules. Round 345 read
+# only the first and concluded the registry had never been populated; round
+# 346's provenance probe found `D-013` defined under the second at `ee30654`.
+# Adding a section here is how a future house rule filed somewhere new gets
+# recognised -- the alternative, sniffing the whole document for `D-NNN`,
+# would make any prose mention a definition.
+HOUSE_RULE_SECTIONS = ("Ground rules",
+                       "Track E — NUC integration: HARD RULES")
 
 FAMILIES = [
     Family(
@@ -310,6 +651,9 @@ FAMILIES = [
         scope_re=re.compile(
             r"^(languages/whence/|knowledge/|state/research-state)"),
         normalise=int,
+        provenance=RegistrySpec(
+            "languages/whence/SPEC.md",
+            "Anti-mainstream design decisions", "ordinal"),
     ),
     Family(
         "X002", "house rule",
@@ -317,9 +661,11 @@ FAMILIES = [
         # CURRICULUM.md line 45: "Hard rules in CLAUDE.md: ... predictions
         # before measurements (D-013)". So the registry is declared by the
         # curriculum itself; this tool just takes it at its word.
-        lambda root: token_registry(root, "CLAUDE.md", "Ground rules",
+        lambda root: token_registry(root, "CLAUDE.md", HOUSE_RULE_SECTIONS,
                                     re.compile(r"\b(D-\d{3})\b")),
-        "CLAUDE.md § Ground rules",
+        "CLAUDE.md § Ground rules + § Track E — NUC integration: HARD RULES",
+        provenance=RegistrySpec("CLAUDE.md", HOUSE_RULE_SECTIONS, "token",
+                                re.compile(r"\b(D-\d{3})\b")),
     ),
     Family(
         "X003", "lint rule code",
@@ -327,6 +673,11 @@ FAMILIES = [
         emitted_code_registry,
         'string literals in skills/*/scripts/*.py',
         scope_re=re.compile(r"^skills/.*\.md$"),
+        # No RegistrySpec: this registry is the union of literals across many
+        # scripts, not a section of one document, so "what did it say before"
+        # has no single file to ask. Reported as `not-a-document`, never as
+        # `no-vcs` -- the tree IS versioned, the registry just is not a file.
+        provenance=None,
     ),
 ]
 
@@ -692,6 +1043,69 @@ def report(findings, stats, show_historical, baseline=None,
     return 1 if new else 0
 
 
+def report_provenance(repo_root, only=None, max_commits=200,
+                      runner=subprocess.run, out=None):
+    """Print, for every family, whether its dangling ids are recoverable.
+
+    Runs the ordinary sweep first, because the question is only meaningful
+    about ids that actually dangle RIGHT NOW -- resurrecting an id nothing
+    cites is busywork, and an id that resolves needs no owner. Exit code is
+    0: this reports on debt, it does not gate on it. `--strict` on the main
+    sweep is the gate.
+    """
+    pr = (lambda s: print(s, file=out)) if out is not None else print
+    _, stats = sweep(repo_root, only=only)
+    n_res = n_auth = 0
+    pr("xref_check provenance: can each dangling citation be recovered "
+       "from git, or must it be written?")
+    for fam in FAMILIES:
+        dang = sorted(stats["dangling_ids"][fam.code], key=str)
+        if fam.provenance is None:
+            pr("  %s %-22s registry not-a-document (%s)"
+               % (fam.code, fam.name, fam.registry_desc))
+            if dang:
+                pr("      %d dangling id(s), none recoverable from a file: %s"
+                   % (len(dang), ", ".join(str(d) for d in dang)))
+            continue
+        info = provenance(repo_root, fam.provenance, dang, max_commits,
+                          runner=runner)
+        lp, lb = info["last_populated"], info["last_body"]
+        detail = ""
+        if lp:
+            detail = ("; last defined ids %s @ %s (%d entr%s)"
+                      % (lp["date"][:10], lp["sha"][:7], lp["n_entries"],
+                         "y" if lp["n_entries"] == 1 else "ies"))
+        elif lb:
+            detail = ("; last had a body %s @ %s, but never ids of this "
+                      "family" % (lb["date"][:10], lb["sha"][:7]))
+        pr("  %s %-22s registry %-16s %s (%d revision(s)%s)"
+           % (fam.code, fam.name, info["verdict"], info["doc"],
+              info["revisions"], detail))
+        for ident in dang:
+            v = info["ids"][ident]
+            if v["verdict"] == "resurrectable":
+                n_res += 1
+                pr("      %-8s RESURRECTABLE -- defined under the declared "
+                   "heading at %s (%s). Transcribing it is repair."
+                   % (ident, v["sha"][:7], v["date"][:10]))
+            elif v["verdict"] == "elsewhere-in-doc":
+                n_res += 1
+                pr("      %-8s RESURRECTABLE -- but under %r, not the "
+                   "declared %r, at %s (%s). The text is recoverable AND "
+                   "the registry declaration is mis-pointed: two fixes."
+                   % (ident, v["heading"], info["heading"], v["sha"][:7],
+                      v["date"][:10]))
+            elif v["verdict"] == "never-defined":
+                n_auth += 1
+                pr("      %-8s never-defined in %d revision(s). Writing it "
+                   "is authorship." % (ident, info["revisions"]))
+            else:
+                pr("      %-8s unknown (no readable history)" % ident)
+    pr("xref_check provenance: %d dangling id(s) recoverable by transcription, "
+       "%d require authorship" % (n_res, n_auth))
+    return 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("paths", nargs="*",
@@ -708,6 +1122,12 @@ def main(argv=None):
     ap.add_argument("--historical", action="store_true",
                     help="also print findings from dated records "
                          "(knowledge/, the archive, prediction files)")
+    ap.add_argument("--provenance", action="store_true",
+                    help="instead of the sweep report, ask git whether each "
+                         "dangling id was EVER defined (repair vs authorship)")
+    ap.add_argument("--max-commits", type=int, default=200,
+                    help="history depth per registry document for "
+                         "--provenance (default: 200)")
     args = ap.parse_args(argv)
 
     repo_root = os.path.abspath(args.repo_root)
@@ -723,6 +1143,10 @@ def main(argv=None):
                 print("no such path: %s" % p, file=sys.stderr)
                 return 2
             only.add(os.path.relpath(ap_, repo_root).replace(os.sep, "/"))
+
+    if args.provenance:
+        return report_provenance(repo_root, only=only,
+                                 max_commits=args.max_commits)
 
     findings, stats = sweep(repo_root, only=only, want_list=args.list)
     if args.list:

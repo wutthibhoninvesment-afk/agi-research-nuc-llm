@@ -24,8 +24,18 @@ prose, its parser, its AST module, its value module and two test files cited
 decisions **27, 28 and 29**, seventeen times. Decisions **14 through 26 were
 never minted at all** — the namespace jumped. Separately, a "house rule
 D-013" was cited 22 times, and the curriculum file said the house rules lived
-in a `## Ground rules` section that existed and was **empty**, and had been
-in every commit that touched the file.
+in a `## Ground rules` section that existed and was **empty**.
+
+That second case has a sequel worth knowing before you copy this skill's
+reasoning. The empty section was written up as unrecoverable — "the body
+predates this repo's git history" — and filed as the operator's decision.
+It was wrong: the body was present at the initial commit and destroyed by a
+later bulk commit, and the identifier was defined under a DIFFERENT heading
+in the same file, so a search correctly scoped to the declared registry
+found nothing. Restoring it was transcription. **Before classifying a
+dangling family as "needs authorship", run the provenance check** —
+`xref_check.py --provenance`, and see [[deleted-vs-never-written]]
+(`skills/deleted-vs-never-written/SKILL.md`) for the general technique.
 
 ## Trigger conditions
 

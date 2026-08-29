@@ -545,5 +545,36 @@
     "id": "neg-15",
     "expect": [],
     "prompt": "Our README links to https://example.com/docs and it 404s now. Find every external URL in the repo that's dead and update them."
+  },
+  {
+    "id": "dvnw-near",
+    "expect": [
+      "deleted-vs-never-written"
+    ],
+    "prompt": "Our CONTRIBUTING.md has a '## Release process' heading with nothing under it. Everyone cites 'the release process' in review comments. I guess nobody ever wrote it \u2014 can you draft one?"
+  },
+  {
+    "id": "dvnw-mid",
+    "expect": [
+      "deleted-vs-never-written"
+    ],
+    "prompt": "The code reads a config key BUILD_PROFILE that isn't defined in any of our config files or docs. Before I go ask the platform team to spec it out, is there any way to tell whether it used to be documented?"
+  },
+  {
+    "id": "dvnw-far",
+    "expect": [
+      "deleted-vs-never-written"
+    ],
+    "prompt": "Writing up an audit finding: the coding-standards doc our lint config points at is an empty stub, and it predates our git history, so reconstructing the standards is going to need a decision from engineering leadership. Sanity-check my reasoning before I send this."
+  },
+  {
+    "id": "neg-16",
+    "expect": [],
+    "prompt": "A test started failing sometime in the last two weeks and I can't tell which change did it. Help me narrow down the commit."
+  },
+  {
+    "id": "neg-17",
+    "expect": [],
+    "prompt": "I lost about an hour of edits when my editor crashed \u2014 the changes were never committed. Anything I can do to get them back?"
   }
 ]

@@ -968,6 +968,39 @@ Known facts (measured 2026-08-24, E1 full curve — /work/logs/nuc-bench.md):
   (`--cap 256`, E3 patch, OLMoE tarball, `memory.events` max, operator
   login, escalation channel) again NOT re-verified — box down throughout.
 
+## Round 346 addendum (2026-08-29, box DOWN entire round — NINTH consecutive down window, same continuous outage as rounds 298/304/310/316/322/328/334/340)
+
+- `reachability_check.py check --round 346`: `down`, ssh rc 255 (connect to
+  `100.78.44.111` port 22 timed out), tailscale offline, `last_seen`
+  `2026-08-29T02:10:00.1Z`, `boot_utc` null. Streak 298→346, 13 checks,
+  **confirmed span 19h38m06s, ongoing, start bracketed to ±3m06s**.
+- Consequently unchanged, ninth time: the second multi-hour
+  `swap_watch_launch.py` poll is still unlaunched; standing state (`--cap
+  256`, E3 patch, OLMoE tarball, `memory.events` max, operator login,
+  escalation channel) NOT re-verified; `boot_probe` and `boot_history_probe`
+  live paths still unrun.
+- **Change affecting this file's authority.** `CLAUDE.md`'s
+  `## Track E — NUC integration: HARD RULES` section had been missing from
+  the working tree since commit `e376750` and was restored this round from
+  `ee30654`. Every RULE is verbatim (read-only paths, the port-8001
+  prohibition, allowed write paths, the unit-restart rule, the endpoint list,
+  **D-013**, the two-SSH-failures rule). Four COORDINATES were reconciled
+  against this file, which round 346 treated as the live record and which
+  `CLAUDE.md` now explicitly defers to:
+  - connect line leads with the tailnet path
+    `ssh -i ~/.ssh/id_ed25519 jab@100.78.44.111` (round 154 above); the LAN
+    address is `192.168.1.37`, not the `192.168.1.42` the original carried.
+    **Note for a future up-round: `~/.ssh/id_ed25519_nuc` does not exist on
+    this host** — the only key present is `id_ed25519`, so the LAN command as
+    written above and in CURRICULUM.md would fail on key path alone. Not
+    fixed here because it has never been tested from this host; verify on the
+    first up-round and correct both files then.
+  - `qwen36-colibri` noted as a USER unit (round 100 above).
+  - both engine ports noted 127.0.0.1-only (round 154 above).
+  - the results-path bullet drops "(Mac)"; the driver runs on the NUC host.
+- If any of those four is wrong, `git show ee30654:CLAUDE.md` is the source.
+  Full writeup: `knowledge/round-346-nuc-e-deleted-vs-never-written.md`.
+
 ## Done-criteria for any mission
 Code runs (proof in round file), measurements banked in both places,
 `state/nuc-missions.md` checkbox ticked with a one-line result summary.

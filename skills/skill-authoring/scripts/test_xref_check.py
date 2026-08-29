@@ -4,9 +4,11 @@ Fully offline. Every unit test builds a throwaway repo under tempfile; the
 live-corpus tests at the bottom only READ this checkout.
 """
 
+import io
 import json
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -554,3 +556,509 @@ class TestLiveCorpusPositiveControl(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# --------------------------------------------------------------------------
+# Registry provenance (round 346)
+# --------------------------------------------------------------------------
+# These build a REAL git repo and run the REAL `git` binary, rather than
+# injecting a fake runner. That is deliberate. Round 334's `boot_probe` was
+# fully unit-tested against an injected runner and its live path stayed
+# unverified for eight rounds because the box never came back up; the first
+# live run of THIS probe immediately exposed a wrong verdict that every
+# injected-runner test would have happily confirmed. A fake runner tests the
+# parser; only a real repo tests the command. The injected-runner tests below
+# are kept for the failure paths a real repo cannot easily produce.
+
+class GitRepo(object):
+    """A throwaway git repo with a real commit history."""
+
+    def __init__(self):
+        self.root = tempfile.mkdtemp(prefix="xref-git-")
+        self._run(["init", "-q", "-b", "main"])
+        self._run(["config", "user.email", "t@example.com"])
+        self._run(["config", "user.name", "T"])
+
+    def _run(self, argv):
+        return subprocess.run(["git", "-C", self.root] + argv,
+                              capture_output=True, text=True, check=True)
+
+    def commit(self, rel, text, message="c"):
+        path = os.path.join(self.root, rel)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(text)
+        self._run(["add", rel])
+        self._run(["commit", "-q", "-m", message])
+        return self._run(["rev-parse", "HEAD"]).stdout.strip()
+
+    def close(self):
+        shutil.rmtree(self.root, ignore_errors=True)
+
+
+TOKEN_RE = xref_check.re.compile(r"\b(D-\d{3})\b")
+
+
+def token_spec(doc="RULES.md", heading="Ground rules"):
+    return xref_check.RegistrySpec(doc, heading, "token", TOKEN_RE)
+
+
+def ordinal_spec(doc="SPEC.md", heading="Decisions"):
+    return xref_check.RegistrySpec(doc, heading, "ordinal")
+
+
+class TestRegistrySpec(unittest.TestCase):
+
+    def test_token_kind_requires_an_id_re(self):
+        with self.assertRaises(ValueError):
+            xref_check.RegistrySpec("a.md", "H", "token")
+
+    def test_unknown_kind_rejected(self):
+        with self.assertRaises(ValueError):
+            xref_check.RegistrySpec("a.md", "H", "sniff")
+
+    def test_ids_in_reads_the_declared_section_only(self):
+        spec = token_spec()
+        text = ("## Ground rules\nsee D-001\n\n## Other\nD-999 lives here\n")
+        ids, status = spec.ids_in(text)
+        self.assertEqual(ids, {"D-001"})
+        self.assertEqual(status, "ok")
+
+    def test_ids_in_reports_empty_vs_no_section(self):
+        spec = token_spec()
+        self.assertEqual(spec.ids_in("## Ground rules\n\n")[1], "empty")
+        self.assertEqual(spec.ids_in("## Elsewhere\nD-001\n")[1], "no-section")
+
+    def test_has_body_is_not_the_same_question_as_ids_in(self):
+        """The bug the first live run found, pinned as a test.
+
+        A section can be richly populated and define none of this family's
+        ids. Calling that `never-populated` tells a reader there is nothing
+        to recover, about text a commit deleted."""
+        spec = token_spec()
+        text = "## Ground rules\n1. Read the state file first.\n"
+        self.assertEqual(spec.ids_in(text)[0], set())
+        self.assertTrue(spec.has_body(text))
+
+    def test_has_body_false_for_empty_and_absent(self):
+        spec = token_spec()
+        self.assertFalse(spec.has_body("## Ground rules\n\n   \n"))
+        self.assertFalse(spec.has_body("## Nope\nbody\n"))
+
+    def test_locate_in_document_reports_the_owning_heading(self):
+        spec = token_spec()
+        text = ("# Top\n\n## Ground rules\nnothing here\n\n"
+                "## Track E — HARD RULES\nBanking rule D-013: predict first\n")
+        found = spec.locate_in_document(text)
+        self.assertEqual(found, {"D-013": "Track E — HARD RULES"})
+
+    def test_locate_in_document_ordinal_kind(self):
+        spec = ordinal_spec()
+        text = "## Decisions\n1. **A.** x\n\n## Appendix\n7. **G.** y\n"
+        self.assertEqual(spec.locate_in_document(text),
+                         {1: "Decisions", 7: "Appendix"})
+
+    def test_locate_in_document_id_before_any_heading(self):
+        spec = token_spec()
+        self.assertEqual(spec.locate_in_document("D-004 up top\n"),
+                         {"D-004": None})
+
+
+class TestFileRevisions(unittest.TestCase):
+
+    def setUp(self):
+        self.repo = GitRepo()
+        self.addCleanup(self.repo.close)
+
+    def test_newest_first_with_dates(self):
+        self.repo.commit("RULES.md", "v1\n")
+        self.repo.commit("RULES.md", "v2\n")
+        revs = xref_check.file_revisions(self.repo.root, "RULES.md")
+        self.assertEqual(len(revs), 2)
+        self.assertTrue(all(len(sha) == 40 for sha, _ in revs))
+        self.assertGreaterEqual(revs[0][1], revs[1][1])
+
+    def test_max_commits_bounds_the_walk(self):
+        for i in range(4):
+            self.repo.commit("RULES.md", "v%d\n" % i)
+        self.assertEqual(
+            len(xref_check.file_revisions(self.repo.root, "RULES.md",
+                                          max_commits=2)), 2)
+
+    def test_untracked_path_is_empty_not_an_error(self):
+        self.repo.commit("RULES.md", "v1\n")
+        self.assertEqual(
+            xref_check.file_revisions(self.repo.root, "ABSENT.md"), [])
+
+    def test_not_a_repo_is_empty_not_an_error(self):
+        plain = tempfile.mkdtemp(prefix="xref-norepo-")
+        self.addCleanup(shutil.rmtree, plain, True)
+        self.assertEqual(xref_check.file_revisions(plain, "RULES.md"), [])
+
+    def test_missing_git_binary_is_survivable(self):
+        def boom(*a, **k):
+            raise OSError("no git here")
+        self.assertEqual(
+            xref_check.file_revisions(self.repo.root, "RULES.md",
+                                      runner=boom), [])
+
+
+class TestProvenanceVerdicts(unittest.TestCase):
+    """One test per registry verdict, each against a real history."""
+
+    def setUp(self):
+        self.repo = GitRepo()
+        self.addCleanup(self.repo.close)
+
+    def test_ok_when_the_working_tree_still_defines_the_ids(self):
+        self.repo.commit("RULES.md", "## Ground rules\nD-013 predict first\n")
+        info = xref_check.provenance(self.repo.root, token_spec(), [])
+        self.assertEqual(info["verdict"], "ok")
+        self.assertEqual(info["last_populated"]["n_entries"], 1)
+
+    def test_ids_deleted_names_the_commit_to_transcribe_from(self):
+        good = self.repo.commit("RULES.md",
+                                "## Ground rules\nD-013 predict first\n")
+        self.repo.commit("RULES.md", "## Ground rules\n\n")
+        info = xref_check.provenance(self.repo.root, token_spec(), ["D-013"])
+        self.assertEqual(info["verdict"], "ids-deleted")
+        self.assertEqual(info["last_populated"]["sha"], good)
+        self.assertEqual(info["ids"]["D-013"]["verdict"], "resurrectable")
+        self.assertEqual(info["ids"]["D-013"]["sha"], good)
+
+    def test_body_deleted_when_the_section_had_prose_but_never_these_ids(self):
+        """`CLAUDE.md`'s real shape, reproduced from scratch."""
+        old = self.repo.commit(
+            "RULES.md",
+            "## Ground rules\n1. Read state first.\n\n"
+            "## Track E\nBanking rule D-013: predict, then measure\n")
+        self.repo.commit("RULES.md", "## Ground rules\n")
+        info = xref_check.provenance(self.repo.root, token_spec(), ["D-013"])
+        self.assertEqual(info["verdict"], "body-deleted")
+        self.assertIsNone(info["last_populated"])
+        self.assertEqual(info["last_body"]["sha"], old)
+        v = info["ids"]["D-013"]
+        self.assertEqual(v["verdict"], "elsewhere-in-doc")
+        self.assertEqual(v["heading"], "Track E")
+        self.assertEqual(v["sha"], old)
+
+    def test_never_populated_when_no_revision_ever_had_a_body(self):
+        self.repo.commit("RULES.md", "## Ground rules\n")
+        self.repo.commit("RULES.md", "## Ground rules\n\n\n")
+        info = xref_check.provenance(self.repo.root, token_spec(), ["D-013"])
+        self.assertEqual(info["verdict"], "never-populated")
+        self.assertEqual(info["ids"]["D-013"]["verdict"], "never-defined")
+
+    def test_a_live_body_that_never_held_ids_is_not_body_deleted(self):
+        """`body-deleted` must mean something was DESTROYED. A section that
+        has prose now, always had prose, and never defined ids of this
+        family is `never-populated`: there is nothing in git to transcribe,
+        and telling a reader otherwise sends them hunting for text that does
+        not exist."""
+        self.repo.commit("RULES.md", "## Ground rules\n1. Read state.\n")
+        self.repo.commit("RULES.md", "## Ground rules\n1. Read state first.\n")
+        info = xref_check.provenance(self.repo.root, token_spec(), ["D-013"])
+        self.assertEqual(info["verdict"], "never-populated")
+        self.assertIsNone(info["last_populated"])
+        self.assertEqual(info["ids"]["D-013"]["verdict"], "never-defined")
+
+    def test_no_vcs_when_there_is_no_history(self):
+        plain = tempfile.mkdtemp(prefix="xref-norepo-")
+        self.addCleanup(shutil.rmtree, plain, True)
+        info = xref_check.provenance(plain, token_spec(), ["D-013"])
+        self.assertEqual(info["verdict"], "no-vcs")
+        self.assertEqual(info["ids"]["D-013"]["verdict"], "unknown")
+
+    def test_an_ok_registry_can_still_hide_a_deleted_id(self):
+        """Registry verdict and id verdict are independent, by design."""
+        good = self.repo.commit("SPEC.md",
+                                "## Decisions\n1. **A.** x\n2. **B.** y\n")
+        self.repo.commit("SPEC.md", "## Decisions\n1. **A.** x\n")
+        info = xref_check.provenance(self.repo.root, ordinal_spec(), [2])
+        self.assertEqual(info["verdict"], "ok")
+        self.assertEqual(info["ids"][2]["verdict"], "resurrectable")
+        self.assertEqual(info["ids"][2]["sha"], good)
+
+    def test_id_never_present_anywhere_is_authorship(self):
+        self.repo.commit("SPEC.md", "## Decisions\n1. **A.** x\n")
+        info = xref_check.provenance(self.repo.root, ordinal_spec(), [27])
+        self.assertEqual(info["ids"][27]["verdict"], "never-defined")
+
+    def test_a_revision_the_file_does_not_exist_in_is_skipped(self):
+        """`git log -- path` lists the commit that DELETED the path, but
+        `git show <sha>:<path>` cannot resolve it. Skipped, not recorded as
+        an empty registry — otherwise a deletion reads as evidence that the
+        registry was empty at that commit, which is the exact confusion this
+        probe exists to remove.
+
+        NB the obvious fixture (an unrelated earlier commit) cannot test
+        this: `git log -- path` already filters those out."""
+        self.repo.commit("RULES.md", "## Ground rules\nD-013 x\n")
+        self.repo._run(["rm", "-q", "RULES.md"])
+        self.repo._run(["commit", "-q", "-m", "delete"])
+        revs = xref_check.file_revisions(self.repo.root, "RULES.md")
+        self.assertEqual(len(revs), 2, "git log should list the deletion")
+        info = xref_check.provenance(self.repo.root, token_spec(), ["D-013"])
+        self.assertEqual(info["revisions"], 1)
+        self.assertEqual(info["verdict"], "ids-deleted")
+        self.assertEqual(info["ids"]["D-013"]["verdict"], "resurrectable")
+
+
+class TestRegistryHistory(unittest.TestCase):
+
+    def setUp(self):
+        self.repo = GitRepo()
+        self.addCleanup(self.repo.close)
+
+    def test_each_revision_carries_status_ids_body_and_elsewhere(self):
+        self.repo.commit("RULES.md",
+                         "## Ground rules\nD-001 x\n\n## Extra\nD-002 y\n")
+        hist = xref_check.registry_history(self.repo.root, token_spec())
+        self.assertEqual(len(hist), 1)
+        r = hist[0]
+        self.assertEqual(r["status"], "ok")
+        self.assertEqual(r["ids"], {"D-001"})
+        self.assertTrue(r["body"])
+        self.assertEqual(r["elsewhere"],
+                         {"D-001": "Ground rules", "D-002": "Extra"})
+
+
+class TestProvenanceReport(unittest.TestCase):
+    """The CLI surface. Asserts the WORDS, because the whole point of this
+    mode is telling a reader which of two jobs they have."""
+
+    def test_report_runs_on_the_live_corpus_and_names_both_outcomes(self):
+        buf = io.StringIO()
+        rc = xref_check.report_provenance(REPO_ROOT, out=buf)
+        text = buf.getvalue()
+        self.assertEqual(rc, 0)
+        self.assertIn("X001", text)
+        self.assertIn("X002", text)
+        self.assertIn("recoverable by transcription", text)
+        self.assertIn("require authorship", text)
+
+    def test_a_not_a_document_registry_is_labelled_as_such(self):
+        buf = io.StringIO()
+        xref_check.report_provenance(REPO_ROOT, out=buf)
+        self.assertIn("not-a-document", buf.getvalue())
+
+    def test_main_accepts_the_provenance_flag(self):
+        rc = xref_check.main(["--provenance", "--repo-root", REPO_ROOT])
+        self.assertEqual(rc, 0)
+
+
+class TestEveryFamilyDeclaresItsProvenance(unittest.TestCase):
+    """A new family must decide, explicitly, whether its registry is a
+    document. Defaulting to None silently would make the probe report
+    `not-a-document` for a registry that has a perfectly good history."""
+
+    def test_document_backed_families_point_at_a_real_file(self):
+        for fam in xref_check.FAMILIES:
+            if fam.provenance is None:
+                continue
+            path = os.path.join(REPO_ROOT, fam.provenance.doc)
+            self.assertTrue(os.path.exists(path),
+                            "%s registry doc missing: %s"
+                            % (fam.code, fam.provenance.doc))
+
+    def test_spec_heading_matches_the_live_reader(self):
+        """The spec and the live registry lambda must read the SAME section.
+        If they drift, provenance answers a question about a different
+        section than the one the sweep reported dangling."""
+        for fam in xref_check.FAMILIES:
+            if fam.provenance is None:
+                continue
+            for h in fam.provenance.headings:
+                self.assertIn(h, fam.registry_desc,
+                              "%s: provenance heading %r not named in %r"
+                              % (fam.code, h, fam.registry_desc))
+
+
+class TestMultiHeadingRegistry(unittest.TestCase):
+    """A registry may span several sections of its document (round 346)."""
+
+    DOC = ("## Ground rules\n1. Read the state file.\n\n"
+           "## Track E — NUC integration: HARD RULES\n"
+           "Banking rule D-013: predict, then measure.\n\n"
+           "## Notes\nD-999 is only mentioned in passing.\n")
+
+    def setUp(self):
+        self.repo = TmpRepo()
+        self.addCleanup(self.repo.close)
+
+    def spec(self):
+        return xref_check.RegistrySpec(
+            "RULES.md",
+            ("Ground rules", "Track E — NUC integration: HARD RULES"),
+            "token", TOKEN_RE)
+
+    def test_union_across_declared_sections(self):
+        ids, status = self.spec().ids_in(self.DOC)
+        self.assertEqual(ids, {"D-013"})
+        self.assertEqual(status, "ok")
+
+    def test_an_undeclared_section_is_still_not_a_registry(self):
+        """The whole point of a DECLARED registry: `D-999` under `## Notes`
+        is prose, and widening to two sections must not widen to the file."""
+        self.assertNotIn("D-999", self.spec().ids_in(self.DOC)[0])
+
+    def test_one_missing_section_does_not_make_the_registry_absent(self):
+        text = ("## Track E — NUC integration: HARD RULES\n"
+                "Banking rule D-013: predict first.\n")
+        ids, status = self.spec().ids_in(text)
+        self.assertEqual((ids, status), ({"D-013"}, "ok"))
+
+    def test_all_sections_missing_is_no_section(self):
+        self.assertEqual(self.spec().ids_in("## Other\nD-013\n")[1],
+                         "no-section")
+
+    def test_has_body_true_if_any_declared_section_has_one(self):
+        text = ("## Ground rules\n\n"
+                "## Track E — NUC integration: HARD RULES\nsomething\n")
+        self.assertTrue(self.spec().has_body(text))
+        self.assertFalse(self.spec().has_body(
+            "## Ground rules\n\n"
+            "## Track E — NUC integration: HARD RULES\n\n"))
+
+    def test_token_registry_reader_agrees_with_the_spec(self):
+        """The live reader and the provenance spec must not drift; they are
+        two code paths over the same declaration."""
+        self.repo.write("RULES.md", self.DOC)
+        ids, status = xref_check.token_registry(
+            self.repo.root, "RULES.md",
+            ("Ground rules", "Track E — NUC integration: HARD RULES"),
+            TOKEN_RE)
+        self.assertEqual((ids, status), self.spec().ids_in(self.DOC))
+
+    def test_a_plain_string_heading_still_works(self):
+        spec = xref_check.RegistrySpec("RULES.md", "Ground rules", "token",
+                                       TOKEN_RE)
+        self.assertEqual(spec.headings, ["Ground rules"])
+
+
+class TestLiveClaudeMdRegistry(unittest.TestCase):
+    """Round 346 restored `CLAUDE.md`'s rule sections from `ee30654`. These
+    pin the properties that restoration was FOR -- a future edit that drops
+    the token, or re-empties the section, fails here rather than silently
+    re-opening 50 dangling citations."""
+
+    def registry(self):
+        fam = next(f for f in xref_check.FAMILIES if f.code == "X002")
+        return fam.registry(REPO_ROOT)
+
+    def test_the_house_rule_registry_is_populated(self):
+        ids, status = self.registry()
+        self.assertEqual(status, "ok")
+        self.assertIn("D-013", ids)
+
+    def test_the_hard_rules_that_protect_the_box_are_present(self):
+        """Not a citation check. These lines are the reason the file is
+        governance rather than documentation, and they were absent from the
+        working tree for ~200 rounds."""
+        with open(os.path.join(REPO_ROOT, "CLAUDE.md"), encoding="utf-8") as f:
+            text = f.read()
+        for needle in ("8001", "READ-ONLY on the NUC",
+                       "Allowed write paths", "PREDICTIONS before measuring"):
+            self.assertIn(needle, text, "CLAUDE.md lost: %r" % needle)
+
+    def test_provenance_now_reports_the_registry_healthy(self):
+        fam = next(f for f in xref_check.FAMILIES if f.code == "X002")
+        info = xref_check.provenance(REPO_ROOT, fam.provenance, [])
+        self.assertEqual(info["verdict"], "ok")
+
+
+class TestProvenanceReadsTheWorkingTree(unittest.TestCase):
+    """"Populated now?" is about the working tree; "ever populated?" is about
+    history. Conflating them makes the probe report `body-deleted` about a
+    file someone has already repaired on disk — which is the state it is in
+    every time a round actually uses it."""
+
+    def setUp(self):
+        self.repo = GitRepo()
+        self.addCleanup(self.repo.close)
+
+    def test_uncommitted_repair_reads_as_ok(self):
+        self.repo.commit("RULES.md",
+                         "## Ground rules\n1. Read state first.\n\n"
+                         "## Track E\nBanking rule D-013: predict first\n")
+        self.repo.commit("RULES.md", "## Ground rules\n")
+        spec = token_spec()
+        self.assertEqual(
+            xref_check.provenance(self.repo.root, spec, ["D-013"])["verdict"],
+            "body-deleted")
+        # repair on disk only -- nothing committed
+        with open(os.path.join(self.repo.root, "RULES.md"), "w",
+                  encoding="utf-8") as f:
+            f.write("## Ground rules\nBanking rule D-013: predict first\n")
+        info = xref_check.provenance(self.repo.root, spec, [])
+        self.assertEqual(info["verdict"], "ok")
+        self.assertEqual(info["current_status"], "ok")
+
+    def test_uncommitted_deletion_reads_as_deleted(self):
+        """The converse, so the test is not just asserting optimism."""
+        self.repo.commit("RULES.md", "## Ground rules\nD-013 predict first\n")
+        with open(os.path.join(self.repo.root, "RULES.md"), "w",
+                  encoding="utf-8") as f:
+            f.write("## Ground rules\n")
+        info = xref_check.provenance(self.repo.root, token_spec(), ["D-013"])
+        self.assertEqual(info["verdict"], "ids-deleted")
+        self.assertEqual(info["ids"]["D-013"]["verdict"], "resurrectable")
+
+    def test_absent_working_tree_file_with_history_is_still_recoverable(self):
+        self.repo.commit("RULES.md", "## Ground rules\nD-013 predict first\n")
+        os.remove(os.path.join(self.repo.root, "RULES.md"))
+        info = xref_check.provenance(self.repo.root, token_spec(), ["D-013"])
+        self.assertEqual(info["current_status"], "no-doc")
+        self.assertEqual(info["verdict"], "ids-deleted")
+        self.assertEqual(info["ids"]["D-013"]["verdict"], "resurrectable")
+
+
+class TestFencedCodeIsNotAHeading(unittest.TestCase):
+    """A `#`-commented line inside a fenced block must not end a section.
+    Otherwise a registry reads SHORT with no visible symptom — this round's
+    own failure mode, one level down."""
+
+    DOC = ("## Ground rules\n"
+           "Run it:\n\n"
+           "```sh\n"
+           "# expected: 0 errors\n"
+           "./check.sh\n"
+           "```\n\n"
+           "Banking rule D-013: predict, then measure.\n\n"
+           "## Next\nnot part of the section\n")
+
+    def test_section_body_spans_the_fence(self):
+        body = xref_check._section_body(self.DOC, "Ground rules")
+        self.assertIn("D-013", body)
+        self.assertNotIn("not part of the section", body)
+
+    def test_registry_reads_the_id_after_the_fence(self):
+        spec = xref_check.RegistrySpec("R.md", "Ground rules", "token",
+                                       TOKEN_RE)
+        self.assertEqual(spec.ids_in(self.DOC), ({"D-013"}, "ok"))
+
+    def test_a_comment_in_a_fence_is_not_reported_as_a_section(self):
+        heads = [m.group(2).strip()
+                 for m in xref_check._headings_outside_fences(self.DOC)]
+        self.assertEqual(heads, ["Ground rules", "Next"])
+
+    def test_tilde_fences_count_too(self):
+        doc = self.DOC.replace("```", "~~~")
+        self.assertIn("D-013", xref_check._section_body(doc, "Ground rules"))
+
+    def test_unterminated_fence_swallows_the_rest(self):
+        """Degenerate but decidable: an unclosed fence means everything after
+        it is code. Better than silently treating it as prose."""
+        doc = "## A\n```sh\n# not a heading\n"
+        heads = [m.group(2).strip()
+                 for m in xref_check._headings_outside_fences(doc)]
+        self.assertEqual(heads, ["A"])
+
+    def test_indented_fence_is_still_a_fence(self):
+        """The fence markers are indented; the line INSIDE starts at column
+        0 and is heading-shaped. Indenting the inner line too would make the
+        test pass whether or not indented fences are recognised."""
+        doc = "## A\n  ```\n# nope\n  ```\n\n## B\nx\n"
+        heads = [m.group(2).strip()
+                 for m in xref_check._headings_outside_fences(doc)]
+        self.assertEqual(heads, ["A", "B"])
