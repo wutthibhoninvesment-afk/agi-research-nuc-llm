@@ -90,6 +90,27 @@ class SandboxedToolTests(unittest.TestCase):
         with open(os.path.join(self.root, "f.txt")) as f:
             self.assertEqual(f.read(), "hi world\ngoodbye world\n")
 
+    def test_edit_success_includes_diff_preview(self):
+        self.write("f.txt", "hello world\ngoodbye world\n")
+        res = EditFileTool(self.root).run(path="f.txt", old_string="hello world",
+                                          new_string="hi world")
+        self.assertTrue(res.ok)
+        # unified-diff shape: a removed line, an added line, no a/ b/ prefix
+        # cruft (just the bare path), and the unchanged line is NOT repeated
+        # as noise beyond the diff's own context window.
+        self.assertIn("-hello world", res.output)
+        self.assertIn("+hi world", res.output)
+        self.assertNotIn("--- f.txt", res.output)  # header pair dropped
+        self.assertNotIn("+++ f.txt", res.output)
+
+    def test_edit_replace_all_diff_preview_shows_every_hunk(self):
+        self.write("f.txt", "x\ny\nx\nz\nx\n")
+        res = EditFileTool(self.root).run(path="f.txt", old_string="x", new_string="q",
+                                          replace_all=True)
+        self.assertTrue(res.ok)
+        self.assertEqual(res.output.count("-x"), 3)
+        self.assertEqual(res.output.count("+q"), 3)
+
     def test_edit_missing_file_is_failed_result_not_exception(self):
         res = EditFileTool(self.root).run(path="nope.txt", old_string="a", new_string="b")
         self.assertFalse(res.ok)

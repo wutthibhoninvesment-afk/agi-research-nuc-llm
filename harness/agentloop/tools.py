@@ -13,6 +13,7 @@ checked against the root, so "../../etc/passwd" is rejected, including
 symlink escapes (realpath is checked, not just the lexical path).
 """
 
+import difflib
 import os
 import signal
 import subprocess
@@ -185,6 +186,22 @@ class WriteFileTool(Tool):
         return ToolResult(True, "wrote %d chars to %s" % (len(content), path))
 
 
+def _diff_snippet(path: str, old_content: str, new_content: str, context: int = 2) -> str:
+    """Unified diff of just the changed hunks (no a/ b/ file-header cruft,
+    just the path once). Returns "" when there is somehow no textual
+    difference (can't happen from EditFileTool's own call site, since it
+    already rejects old_string == new_string, but kept total rather than
+    assuming that invariant holds for every future caller)."""
+    lines = list(difflib.unified_diff(
+        old_content.splitlines(keepends=True),
+        new_content.splitlines(keepends=True),
+        fromfile=path, tofile=path, n=context,
+    ))
+    if not lines:
+        return ""
+    return "".join(lines[2:])  # drop the redundant "--- path"/"+++ path" pair
+
+
 class EditFileTool(Tool):
     """Exact-match string replacement, mirroring Claude Code's own Edit tool.
 
@@ -194,7 +211,14 @@ class EditFileTool(Tool):
     demands the model quote back the exact text it wants changed, and REFUSES
     to guess: an old_string that doesn't appear, or that appears more than
     once without replace_all, comes back as a failed ToolResult (never a
-    silent wrong-occurrence edit) so the model can re-read and re-quote."""
+    silent wrong-occurrence edit) so the model can re-read and re-quote.
+
+    On success the result also carries a unified diff of just the changed
+    hunks (2 lines of context), so the model can confirm what changed
+    without spending a follow-up read_file call — the whole-file dispatch
+    still generically truncates (agent.py's max_observation_chars), so an
+    edit that touches many replace_all occurrences across a big file still
+    can't blow the context budget."""
 
     name = "edit_file"
     description = ("Replace an exact substring in a UTF-8 text file. old_string must "
@@ -239,8 +263,9 @@ class EditFileTool(Tool):
         with open(abs_path, "w", encoding="utf-8") as f:
             f.write(new_content)
         n = count if replace_all else 1
-        return ToolResult(True, "replaced %d occurrence%s in %s"
-                          % (n, "" if n == 1 else "s", path))
+        diff = _diff_snippet(path, content, new_content)
+        summary = "replaced %d occurrence%s in %s" % (n, "" if n == 1 else "s", path)
+        return ToolResult(True, summary + ("\n" + diff if diff else ""))
 
 
 class ListDirTool(Tool):

@@ -6691,3 +6691,65 @@ Workspace: ~/agi-research
     from pure random generation. A future SWE-loop(D) round could build
     ONE dedicated shadow-style statement (following `_stmt_shadow_tracked_
     fn_call`'s own pattern) covering both in one pass.
+
+### Round 319 — harness(A) — 2026-08-29
+- Pre-flight: `ps -eo pid,ppid,etime,cmd` showed only this round's own
+  driver process tree ([[feedback_check_for_concurrent_rounds]]).
+- **Landed round 318's own uncommitted diff first**: round 318
+  (language(C), Whence v0.17's `trunc`) had a research-state entry and a
+  knowledge file but its actual code (`SPEC.md`, `interp.py`, 4 test
+  files, 2 example files) had never been `git commit`-ted — confirmed the
+  working-tree diff matched round 318's own knowledge file's description,
+  ran the full Whence suite (983 passed), then committed it standalone
+  (`e9ee08b`) before starting this round's own track, per the standing
+  cross-track `check_round_recorded` convention
+  ([[feedback_check_cached_diff_before_commit]]). The 4 Hermes-owned
+  `languages/whence/` files plus `state/round_counter` were confirmed
+  against `state/known-standing-dirty-paths.json` and correctly left
+  uncommitted.
+- **Added a unified-diff preview to `EditFileTool`** (`harness/agentloop/
+  tools.py`) — closes round 307's own item 1, the only concrete
+  still-open harness(A) backlog line (round 301's items 1-2 are either
+  not-yet-ready or still speculative with no design sketch). On success,
+  `edit_file` now appends a `difflib.unified_diff(..., n=2)` snippet
+  (header pair dropped, since the summary line already names the path)
+  to its existing `"replaced N occurrence(s) in path"` message, so the
+  model can confirm what changed without a follow-up `read_file` call —
+  the same efficiency principle `EditFileTool` itself was built for in
+  round 307, applied to the read side. Failure paths unchanged (nothing
+  to diff when nothing changed). `replace_all` naturally gets one diff
+  with multiple `@@` hunks via `difflib`'s own hunk-merging, not hand-
+  rolled. Deliberately left `WriteFileTool` (whole-file overwrite has no
+  natural hunk) and `harness/swe/regiontools.py` (SWE-loop(D)'s own
+  region-patch mechanism, still un-unified per round 307's item 2)
+  untouched.
+- **Verification**: `harness/tests/test_tools.py` 35 → **37 passed** (2
+  new). `bash harness/run_tests_fast.sh` 412 → **414 passed, 229
+  deselected** (+2 exact). `python3 harness/demo.py` → **5/5 tasks
+  passed**, `edit-existing-file` still green (its eval assertion checks
+  file content, not tool text, confirmed by reading `demo.py`'s own
+  `file_has` helper first). Cross-track: `bash languages/whence/
+  run_tests_fast.sh` → **945 passed, 38 deselected**, consistent with
+  round 318's own newly-landed baseline (confirms that commit landed
+  cleanly).
+- See `knowledge/round-319-harness-edit-file-diff-preview.md`.
+
+## Next steps (as of round 319)
+1. Round 307's item 1 (`EditFileTool` diff preview) is now CLOSED.
+2. Round 307's item 2 (unifying `regiontools.py` with `EditFileTool`)
+   still needs a real design sketch before implementation — unchanged.
+3. Round 301's item 1 (recent-window heavy/light ratio recheck) needs
+   ~15-20 more rounds to reach the 30-40-round target past round 300 —
+   natural check-in point ~round 330-340, not before.
+4. Round 301's item 2 (blocking-wait mitigation design sketch) remains
+   speculative — a future harness(A) round should either write the
+   design sketch for real or formally close it the way round 318 closed
+   the `rand(lo, hi)` item, by investigating whether the premise itself
+   still holds.
+5. `EditFileTool` has no file-size cap (unlike `ReadFileTool`'s 256KB) —
+   new, small, real gap named this round; a future harness(A) round
+   could add one sized consistently with `ReadFileTool`'s own constant.
+6. `harness/swe/fuzz.py`'s `BUILTIN_ARITY` table has no `trunc` entry
+   (round 318's own item) — still the natural next SWE-loop(D) round.
+7. All other unrelated-track backlog lines (round 318's items 1, 3-5,
+   7, 9-11 above) — unchanged, not touched this round.
