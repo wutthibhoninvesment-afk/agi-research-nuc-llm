@@ -66,7 +66,10 @@ skills — that duplicates their triggers and adds an indirection hop.
    skills use a routing table (`| User wants… | Load |`). Content lives in
    SKILL.md *or* a reference, never both; an unreferenced file is invisible
    (the linter checks all three: R003 link depth, R004 duplicated chunks,
-   R005 unmentioned bundled files). Ship deterministic logic as
+   R005 unmentioned bundled files). A `#fragment` on a link is checked too
+   — R006 fails a link whose anchor no target heading or `<a id>` defines,
+   across SKILL.md *and* each reference's own `## Contents` list, and R007
+   warns on an `<a id>` nothing links to. Ship deterministic logic as
    `scripts/*.py` and say explicitly whether to **run** it or **read** it.
    Cut sediment: if a sentence doesn't change behavior, delete it — the
    model is already smart. No machine-local paths (`/Users/you/…` breaks
@@ -146,6 +149,18 @@ skills — that duplicates their triggers and adds an indirection hop.
   speculation.
 - **Vague pitfalls** — "watch out for encoding issues" changes nothing;
   name the exact failure and its mechanism or delete the line.
+- **A reference's `## Contents` list rots silently** — a `#fragment` fails
+  open: the reader lands at the top of a 400-line file and reads the wrong
+  section, with no error anywhere. Nothing surfaces it, because the *file*
+  still exists — a file-existence link check passes. Hand-slugging is the
+  usual cause and it is genuinely hard: GitHub drops the punctuation but
+  keeps one hyphen per *surviving* space and never collapses runs, so
+  ``## Fire rates (`--repeats N`)`` is `#fire-rates---repeats-n` (three)
+  while `## Instrument drift — canary` is `#instrument-drift--canary`
+  (two, the em dash dropped from between its two spaces). Do not count
+  hyphens by eye — run the linter (R006); it found one already-rotted
+  entry in this skill's own ToC whose three sibling `(`--flag`)` entries
+  were all correct.
 - **Describing the mechanism instead of the symptom** — a description that
   says "snapshot strings computed eagerly" does not fire on "display
   strings dominate the profile"; users describe what they *see*, so the
@@ -211,9 +226,13 @@ skills — that duplicates their triggers and adds an indirection hop.
 ```bash
 cd ~/agi-research
 python3 -m unittest discover -s skills/skill-authoring/scripts -v
-# expected: Ran 141 tests, OK  (test_skill_lint.py + test_trigger_eval.py, offline)
+# expected: Ran 165 tests, OK  (test_skill_lint.py + test_trigger_eval.py, offline)
+python3 skills/skill-authoring/scripts/skill_lint.py --house skills/<name>/
+# expected: 1 skill(s), 0 error(s), 0 warning(s), exit 0   <- the bar for a new skill
 python3 skills/skill-authoring/scripts/skill_lint.py --house --strict skills/
-# expected: 0 error(s), 0 warning(s), exit 0
+# expected: 0 error(s). The corpus sweep is NOT warning-free: one known
+# B002 (fuzz-mutate-kill-loop, 415 lines, split deliberately deferred)
+# makes --strict exit 1. Compare against that baseline, not against zero.
 ```
 - [ ] Description states what AND when, third person, symptom-vocabulary
       trigger phrases included

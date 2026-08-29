@@ -16,10 +16,11 @@ Official constraints enforced (platform.claude.com Agent Skills docs):
            ("anthropic", "claude"); non-empty.
     description: non-empty; <=1024 chars; no XML tags; third person;
            should state what AND when (trigger phrasing).
-    body:  under 500 lines; relative links resolve; linked references
-           should not link onward to further references (one level deep);
-           content should live in SKILL.md OR a reference, never both;
-           bundled files must be mentioned from SKILL.md (else invisible).
+    body:  under 500 lines; relative links resolve; link FRAGMENTS resolve
+           to a real anchor in the target file; linked references should not
+           link onward to further references (one level deep); content should
+           live in SKILL.md OR a reference, never both; bundled files must be
+           mentioned from SKILL.md (else invisible).
     paths: forward slashes only (Windows-style paths flagged).
 
 House format (--house; this workspace's CLAUDE.md rule 5):
@@ -183,6 +184,98 @@ def local_md_links(text, base_dir):
         path = os.path.normpath(os.path.join(base_dir, target.split("#")[0]))
         if path.endswith(".md"):
             yield target, path
+
+
+def _rel(path, skill_dir):
+    """`path` relative to the skill dir, forward-slashed, for messages."""
+    return os.path.relpath(path, skill_dir).replace(os.sep, "/")
+
+
+# --- anchors -------------------------------------------------------------
+# A link fragment (`ref.md#frag`, `#frag`) is only useful if `frag` actually
+# resolves in the target file; otherwise the reader lands at the top of a
+# possibly-400-line reference and silently reads the wrong section. Nothing
+# checked this before round 333 -- R001 stripped the fragment off and only
+# verified the FILE existed.
+#
+# Two anchor sources, matching GitHub and the common markdown renderers:
+#   1. an explicit HTML anchor:  <a id="x"></a>  /  <a name="x"></a>
+#   2. the auto-generated slug of an ATX heading
+#
+# The slug rule is github-slugger's: lowercase, trim, drop every character
+# that is not a word char / whitespace / hyphen, then replace EACH remaining
+# whitespace character with '-'. Consecutive hyphens are NOT collapsed, and
+# that detail is load-bearing -- both real corpus cases turn on it:
+#   `## Fire rates (`--repeats N`)`   -> fire-rates---repeats-n   (3 hyphens:
+#       one from the space, two from the flag; the parens/backticks vanish)
+#   `## Instrument drift - canary`    (with an em dash) ->
+#       instrument-drift--canary      (the em dash is DROPPED but both spaces
+#       around it survive as hyphens)
+# A whitespace-collapsing slugifier gets the second one wrong; a
+# hyphen-collapsing one gets both wrong.
+#
+# Known limitation: setext headings (`Foo\n===`) are not recognised as
+# anchor sources. This corpus uses ATX headings exclusively.
+EXPLICIT_ANCHOR_RE = re.compile(
+    r"""<a\s[^>]*?\b(?:id|name)\s*=\s*(?:"([^"]*)"|'([^']*)')""", re.I)
+ATX_HEADING_RE = re.compile(r"^\s{0,3}#{1,6}\s+(.*?)\s*$", re.M)
+SLUG_DROP_RE = re.compile(r"[^\w\s-]")
+CLOSING_HASHES_RE = re.compile(r"\s+#+$")
+
+
+def heading_slug(text):
+    """GitHub's heading -> anchor slug. See the note above; does NOT collapse
+    runs of whitespace or hyphens."""
+    text = CLOSING_HASHES_RE.sub("", text.strip())      # closed ATX: `## X ##`
+    return re.sub(r"\s", "-", SLUG_DROP_RE.sub("", text.lower()).strip())
+
+
+def md_anchors(text):
+    """Return (all_anchors, explicit_anchors) defined by a markdown document.
+
+    `all_anchors` is every fragment a link may legitimately target: explicit
+    <a id>/<a name> anchors plus heading slugs. Duplicate heading slugs get
+    GitHub's `-1`, `-2`, ... disambiguating suffixes. Headings inside fenced
+    code blocks are not headings.
+    """
+    explicit = {a or b for a, b in EXPLICIT_ANCHOR_RE.findall(text) if a or b}
+    all_anchors, seen = set(explicit), {}
+    for m in ATX_HEADING_RE.finditer(strip_fenced_code(text)):
+        slug = heading_slug(m.group(1))
+        if not slug:
+            continue
+        n = seen.get(slug, 0)
+        seen[slug] = n + 1
+        all_anchors.add(slug if n == 0 else "%s-%d" % (slug, n))
+    return all_anchors, explicit
+
+
+def fragment_links(text, base_dir, self_path):
+    """Yield (raw_target, absolute_target_path, fragment) for every link in
+    `text` carrying a `#fragment` whose target is this same file or a local
+    .md path. Links to non-markdown files (`script.py#L10`) have no markdown
+    anchors to check and are skipped; fenced code is ignored.
+
+    The target is NOT stat'd here -- a target that does not exist (or cannot
+    be read) is caught once, by the caller's "no anchor set" branch, so that
+    a missing file produces exactly one finding (R001) rather than two. An
+    earlier draft guarded it in both places; the second guard was
+    unreachable, and a mutation run proved it by deleting it with no test
+    failing."""
+    for m in MD_LINK_RE.finditer(strip_fenced_code(text)):
+        target = m.group(1)
+        if "://" in target or target.startswith("mailto:"):
+            continue
+        file_part, sep, frag = target.partition("#")
+        if not sep or not frag:
+            continue
+        if file_part == "":
+            path = os.path.normpath(self_path)
+        else:
+            path = os.path.normpath(os.path.join(base_dir, file_part))
+            if not path.endswith(".md"):
+                continue
+        yield target, path, frag
 
 
 def bundled_files(skill_dir):
@@ -353,6 +446,59 @@ def lint_skill(skill_dir, house=False):
             warn("R004", f"{len(dup)} paragraph/code chunk(s) of SKILL.md are "
                          f"duplicated verbatim in {target}; content should live "
                          "in exactly one place")
+
+    # --- link fragments resolve to a real anchor (R006), and every explicit
+    # anchor is actually linked (R007) ---
+    # Checked across SKILL.md AND every first-level reference it links to:
+    # the Contents/ToC lists live IN the reference files, so their own
+    # same-file fragments are exactly where anchor drift shows up (round 333
+    # found `#fire-rates--repeats-n` rotted there, in a ToC whose three
+    # sibling entries all used the correct slug).
+    anchor_cache = {}
+
+    def anchors_for(path):
+        if path not in anchor_cache:
+            try:
+                with open(path, encoding="utf-8") as f:
+                    anchor_cache[path] = md_anchors(f.read())
+            except (OSError, UnicodeDecodeError):
+                anchor_cache[path] = (None, set())
+        return anchor_cache[path]
+
+    self_path = os.path.normpath(md_path)
+    anchor_sources = [self_path]
+    for _t, p in local_md_links(body, skill_dir):
+        p = os.path.normpath(p)
+        if os.path.isfile(p) and p not in anchor_sources:
+            anchor_sources.append(p)
+
+    used_frags = {}
+    for src in anchor_sources:
+        try:
+            with open(src, encoding="utf-8") as f:
+                src_text = f.read()
+        except (OSError, UnicodeDecodeError):
+            continue
+        for raw, tgt, frag in fragment_links(
+                src_text, os.path.dirname(src) or ".", src):
+            used_frags.setdefault(tgt, set()).add(frag)
+            defined, _ = anchors_for(tgt)
+            if defined is None:
+                continue        # missing/unreadable target: R001 owns that
+            if frag in defined:
+                continue
+            where = "" if src == self_path else " (in %s)" % _rel(src, skill_dir)
+            err("R006", "link %s%s targets anchor '#%s', which %s does not "
+                        "define (no <a id>/<a name> and no heading slugging "
+                        "to it) — the reader lands at the top of the file "
+                        "instead" % (raw, where, frag, _rel(tgt, skill_dir)))
+
+    for src in anchor_sources:
+        _, explicit = anchors_for(src)
+        for name in sorted(explicit - used_frags.get(src, set())):
+            warn("R007", "anchor '<a id=\"%s\">' in %s is never linked to "
+                         "from this skill — either a link rotted away or the "
+                         "anchor outlived its entry" % (name, _rel(src, skill_dir)))
 
     # --- bundled files must be reachable from SKILL.md ---
     files = bundled_files(skill_dir)

@@ -196,10 +196,14 @@ class TestBodyChecks(unittest.TestCase):
             make_skill(self.root, body="See [ref](references/nope.md).\n"))
         self.assertIn("R001", codes(f, "ERROR"))
 
-    def test_urls_and_anchors_skipped(self):
+    def test_urls_and_anchors_skipped_by_r001(self):
+        # R001 is a FILE-existence check, so a URL and a bare fragment are
+        # both out of its scope. The fragment is not unchecked, though --
+        # since round 333 it is R006's job (see TestAnchorResolution).
         body = "See [d](https://example.com/x) and [a](#section).\n"
         f = skill_lint.lint_skill(make_skill(self.root, body=body))
         self.assertNotIn("R001", codes(f))
+        self.assertIn("R006", codes(f, "ERROR"))       # no `## Section` heading
 
     def test_existing_link_ok_and_long_ref_needs_toc(self):
         d = make_skill(self.root, body="See [ref](references/big.md).\n")
@@ -377,6 +381,180 @@ class TestReferenceHygiene(unittest.TestCase):
     def test_r005_ignores_hidden_and_cache_files(self):
         d = self._skill("1. step\n", {"scripts/__pycache__/x.pyc": "", ".DS_Store": ""})
         self.assertNotIn("R005", codes(skill_lint.lint_skill(d)))
+
+
+class TestHeadingSlug(unittest.TestCase):
+    """github-slugger semantics. The no-collapsing rule is load-bearing:
+    both real-corpus cases below decide it, in opposite directions."""
+
+    def test_real_corpus_flag_heading_keeps_every_hyphen(self):
+        # `## Fire rates (`--repeats N`)` -> one hyphen for the space plus the
+        # flag's own two. Collapsing runs of hyphens would give the wrong slug
+        # (and is exactly the typo round 333 found rotting in a live ToC).
+        self.assertEqual(skill_lint.heading_slug("Fire rates (`--repeats N`)"),
+                         "fire-rates---repeats-n")
+        self.assertEqual(skill_lint.heading_slug("Body-following (`--mode body`)"),
+                         "body-following---mode-body")
+        self.assertEqual(skill_lint.heading_slug("Probe audit (`--audit`)"),
+                         "probe-audit---audit")
+
+    def test_real_corpus_em_dash_heading_keeps_both_spaces(self):
+        # The em dash is DROPPED, but the spaces on either side of it each
+        # become a hyphen. Collapsing whitespace would give the wrong slug.
+        self.assertEqual(skill_lint.heading_slug("Instrument drift \u2014 canary"),
+                         "instrument-drift--canary")
+
+    def test_plain_and_punctuation(self):
+        self.assertEqual(skill_lint.heading_slug("Case file"), "case-file")
+        self.assertEqual(skill_lint.heading_slug("Reading the report"),
+                         "reading-the-report")
+        self.assertEqual(skill_lint.heading_slug("What's *this*, then?"),
+                         "whats-this-then")
+
+    def test_underscores_and_digits_survive(self):
+        self.assertEqual(skill_lint.heading_slug("run_tests_fast.sh v2"),
+                         "run_tests_fastsh-v2")
+
+    def test_closed_atx_hashes_stripped(self):
+        self.assertEqual(skill_lint.heading_slug("Closed ATX ##"), "closed-atx")
+
+    def test_punctuation_only_heading_slugs_to_empty(self):
+        self.assertEqual(skill_lint.heading_slug("!!!"), "")
+
+
+class TestMdAnchors(unittest.TestCase):
+    def test_explicit_and_heading_anchors(self):
+        allc, expl = skill_lint.md_anchors(
+            '# Top\n<a id="deep-dive"></a>\n## Deep dive\n')
+        self.assertEqual(expl, {"deep-dive"})
+        self.assertEqual(allc, {"top", "deep-dive"})
+
+    def test_name_attribute_and_single_quotes(self):
+        _, expl = skill_lint.md_anchors("<a name='x'></a>\n<a  id='y' >\n")
+        self.assertEqual(expl, {"x", "y"})
+
+    def test_duplicate_headings_get_github_suffixes(self):
+        allc, _ = skill_lint.md_anchors("## Dup\n## Dup\n## Dup\n")
+        self.assertEqual(allc, {"dup", "dup-1", "dup-2"})
+
+    def test_heading_inside_fence_is_not_an_anchor(self):
+        allc, _ = skill_lint.md_anchors(
+            "# Real\n\n```\n# summary: not a heading\n```\n")
+        self.assertEqual(allc, {"real"})
+
+
+class TestAnchorResolution(unittest.TestCase):
+    def setUp(self):
+        self.root = tempfile.mkdtemp()
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.root, ignore_errors=True)
+
+    def _skill(self, body, files=None):
+        d = make_skill(self.root, body=body)
+        for rel, content in (files or {}).items():
+            p = os.path.join(d, rel)
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            with open(p, "w", encoding="utf-8") as f:
+                f.write(content)
+        return d
+
+    def _msgs(self, d, code):
+        return [f.message for f in skill_lint.lint_skill(d) if f.code == code]
+
+    # --- R006 ---
+    def test_r006_same_file_fragment_missing(self):
+        d = self._skill("## Steps\n1. see [below](#nowhere)\n")
+        self.assertIn("R006", codes(skill_lint.lint_skill(d), "ERROR"))
+
+    def test_r006_same_file_fragment_resolving_to_heading_is_clean(self):
+        d = self._skill("## Steps\n1. see [below](#pitfalls)\n\n## Pitfalls\n- x\n")
+        self.assertNotIn("R006", codes(skill_lint.lint_skill(d)))
+
+    def test_r006_reference_fragment_missing(self):
+        d = self._skill("See [r](references/a.md#gone).\n\n1. step\n",
+                        {"references/a.md": "# A\n## Present\n"})
+        msgs = self._msgs(d, "R006")
+        self.assertEqual(len(msgs), 1)
+        self.assertIn("#gone", msgs[0])
+        self.assertIn("references/a.md", msgs[0])
+
+    def test_r006_reference_fragment_present_via_explicit_anchor(self):
+        d = self._skill("See [r](references/a.md#tag).\n\n1. step\n",
+                        {"references/a.md": '# A\n<a id="tag"></a>\n## Whatever\n'})
+        self.assertNotIn("R006", codes(skill_lint.lint_skill(d)))
+
+    def test_r006_reference_fragment_present_via_heading_slug(self):
+        d = self._skill("See [r](references/a.md#deep-dive).\n\n1. step\n",
+                        {"references/a.md": "# A\n## Deep dive\n"})
+        self.assertNotIn("R006", codes(skill_lint.lint_skill(d)))
+
+    def test_r006_catches_rot_in_a_references_own_toc(self):
+        # The real round-333 shape: SKILL.md's own links are all fine; the
+        # broken fragment is a same-file ToC entry INSIDE the reference.
+        d = self._skill("See [r](references/a.md#kept).\n\n1. step\n",
+                        {"references/a.md": "# A\n## Contents\n"
+                                            "- [Kept](#kept)\n- [Rotted](#renamed-away)\n"
+                                            "## Kept\n"})
+        msgs = self._msgs(d, "R006")
+        self.assertEqual(len(msgs), 1)
+        self.assertIn("#renamed-away", msgs[0])
+        self.assertIn("in references/a.md", msgs[0])
+
+    def test_r006_silent_when_target_file_missing_r001_owns_that(self):
+        d = self._skill("See [r](references/nope.md#frag).\n\n1. step\n")
+        found = codes(skill_lint.lint_skill(d))
+        self.assertIn("R001", found)
+        self.assertNotIn("R006", found)       # exactly one finding per defect
+
+    def test_r006_ignores_non_markdown_and_url_fragments(self):
+        d = self._skill("See `scripts/a.py` [line](scripts/a.py#L10) and "
+                        "[web](https://x.example/p#frag).\n\n1. step\n",
+                        {"scripts/a.py": "x = 1\n"})
+        self.assertNotIn("R006", codes(skill_lint.lint_skill(d)))
+
+    def test_r006_ignores_links_inside_code_fences(self):
+        d = self._skill("## Steps\n1. run\n\n```\n[x](#nowhere)\n```\n")
+        self.assertNotIn("R006", codes(skill_lint.lint_skill(d)))
+
+    # --- R007 ---
+    def test_r007_orphaned_explicit_anchor_warns(self):
+        d = self._skill("See [r](references/a.md).\n\n1. step\n",
+                        {"references/a.md": '# A\n<a id="orphan"></a>\n## Thing\n'})
+        msgs = self._msgs(d, "R007")
+        self.assertEqual(len(msgs), 1)
+        self.assertIn("orphan", msgs[0])
+
+    def test_r007_quiet_when_linked_from_skill_md(self):
+        d = self._skill("See [r](references/a.md#used).\n\n1. step\n",
+                        {"references/a.md": '# A\n<a id="used"></a>\n## Thing\n'})
+        self.assertNotIn("R007", codes(skill_lint.lint_skill(d)))
+
+    def test_r007_quiet_when_linked_only_from_the_references_own_toc(self):
+        d = self._skill("See [r](references/a.md).\n\n1. step\n",
+                        {"references/a.md": '# A\n## Contents\n- [T](#used)\n'
+                                            '<a id="used"></a>\n## Thing\n'})
+        self.assertNotIn("R007", codes(skill_lint.lint_skill(d)))
+
+    def test_r007_ignores_heading_slugs_only_explicit_anchors_count(self):
+        d = self._skill("1. step\n\n## An Unlinked Heading\n")
+        self.assertNotIn("R007", codes(skill_lint.lint_skill(d)))
+
+
+class TestLiveCorpusAnchors(unittest.TestCase):
+    """Regression guard on the real skills/ tree: rot an anchor in any
+    SKILL.md or first-level reference and this fails. Round 333 added it
+    after finding one already rotted (`#fire-rates--repeats-n`)."""
+
+    def test_every_fragment_in_the_real_corpus_resolves(self):
+        skills_root = os.path.normpath(os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+        dirs = skill_lint.discover_skill_dirs(skills_root)
+        self.assertGreater(len(dirs), 10, "corpus not found at %s" % skills_root)
+        bad = [str(f) for d in dirs for f in skill_lint.lint_skill(d)
+               if f.code in ("R006", "R007")]
+        self.assertEqual(bad, [])
 
 
 if __name__ == "__main__":

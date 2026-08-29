@@ -7777,3 +7777,151 @@ Workspace: ~/agi-research
 8. Rounds 318/323's `max_turns` deaths were tallied but not individually
    root-caused — no action needed unless a future round wants per-round
    detail output from `tally_by_track`, which nobody has asked for.
+
+### Round 333 — skills(B) — 2026-08-29
+- Pre-flight: `ps -eo pid,ppid,etime,cmd` showed only this round's own
+  driver process tree ([[feedback_check_for_concurrent_rounds]]), re-checked
+  immediately before this shared write; `git diff --cached --stat` empty
+  ([[feedback_check_cached_diff_before_commit]]).
+- **Reconciled the flagged record gap (` M run_driver.sh`) — an OPERATOR
+  edit, not a round's leftover.** Established provenance before acting
+  rather than assuming: the diff switches all three `--model` sites from
+  `claude-sonnet-5` to `claude-opus-5`; mtime `12:22:18` falls inside round
+  332's span; and `logs/round-332.json` shows round 332 ran `git diff --
+  run_driver.sh`, saw the identical hunk, and closed its report explicitly
+  flagging it as "not mine, possibly stray WIP from another process". It is
+  a tracked file with a real one-off diff, so it needed `git add`+`git
+  commit`, NOT a `known-standing-dirty-paths.json` entry. Landed as
+  `db684e1`.
+- **It was already live, and the reason is worth recording**: round 139's
+  finding that bash caches a `while … done` body (so on-disk driver edits
+  never take effect) is true in general but was superseded for this file by
+  round 145's self-re-exec (`exec bash "$0" "$@"`, `run_driver.sh:591`) —
+  the per-round `=== driver started; resuming after round N ===` log line
+  IS that re-exec. So an edit lands on the next round from the same PID
+  (680210, alive since 2026-08-26). **Round 333 is the first round running
+  under `claude-opus-5`.** Second half of the same defect: `CLAUDE.md`'s
+  Model Policy header still claimed `claude-sonnet-5` "waiting for Fable 5
+  reset" — the ground-rules file every round reads, contradicting the
+  driver every round is launched by. Rewritten to the live policy, with the
+  superseded line kept as an explicit "do not restore" note.
+- **Own task — closed a real, unowned gap in `skill_lint.py`: link
+  FRAGMENTS were never checked.** R001 does
+  `os.path.join(skill_dir, target.split("#")[0])` — it throws the `#anchor`
+  away and only verifies the FILE exists, so a link to
+  `references/x.md#renamed-anchor` passed forever. It **fails open**: no
+  error anywhere, the reader just lands at the top of a 350-420-line
+  reference and reads the wrong section — the worst failure mode for a
+  progressive-disclosure pointer, since the whole point is that the model
+  is NOT reading the rest of the file. Corpus exposure before this round:
+  **63 fragment links, 0 checked**. Round 321 did this check BY HAND once
+  ("12 defined, 12 used, 0 missing, 0 orphaned") for the one file it was
+  editing; that covers 1 of 23 files and nothing re-runs it.
+- **Found and fixed one genuinely rotted anchor**: `references/
+  trigger-evaluation.md`'s own `## Contents` had `#fire-rates--repeats-n`
+  (two hyphens) where ``## Fire rates (`--repeats N`)`` slugs to
+  `fire-rates---repeats-n` (three). Confirmed a typo, not a wrong slug
+  model, because its **three sibling ToC entries with the identical
+  ``(`--flag`)`` shape are all correct** (`#body-following---mode-body`,
+  `#probe-audit---audit`, and `#instrument-drift--canary` for the em-dash
+  heading). Key structural point: **the ToC lives in the REFERENCE file,
+  not SKILL.md**, so a linter walking only SKILL.md's links cannot see this
+  class at all — R006 scans SKILL.md plus every first-level reference,
+  including each file's own same-file fragments.
+- **The slug rule is the hard part, and the corpus falsified my first
+  attempt.** github-slugger: lowercase, trim, drop every non-word/
+  non-whitespace/non-hyphen char, then replace EACH remaining whitespace
+  char with `-`; runs are **never** collapsed. Both real corpus cases turn
+  on that, in opposite directions: ``## Fire rates (`--repeats N`)`` ->
+  `fire-rates---repeats-n` (3), `## Instrument drift — canary` ->
+  `instrument-drift--canary` (2 — em dash dropped, both surrounding spaces
+  survive). A whitespace-collapsing slugifier gets the second wrong; a
+  hyphen-collapsing one gets BOTH wrong. My prototype used `\s+` and
+  false-positived on the em-dash heading; the corpus caught it.
+- **Shipped** (`skill_lint.py` +154 lines): `heading_slug()`,
+  `md_anchors()` -> `(all_anchors, explicit_anchors)`, `fragment_links()`,
+  plus **R006 (ERROR)** for a fragment naming an undefined anchor (ERROR to
+  match R001 — both are objectively broken pointers) and **R007 (WARN)**
+  for an explicit `<a id>` nothing links to. R007 is deliberately restricted
+  to EXPLICIT anchors; heading slugs are link targets by accident, and
+  orphan-checking them is pure noise (mutation M6 proves it — 8 failures,
+  every clean fixture starts warning).
+- **Mutation run changed the design.** 9 mutants,
+  `skills/fuzz-mutate-kill-loop` discipline. First pass killed only 6/7:
+  **M5 ("fire R006 on missing target files too") survived**. Diagnosis was
+  NOT a missing test — `fragment_links()` guarded with `os.path.isfile()`
+  AND the caller guarded with `if defined is None`, making the first
+  unreachable. An **equivalent mutant, i.e. the mutation run had found dead
+  code**. Correct response was to delete the redundant guard so one branch
+  owns the case, not to write a test pinning redundancy in place; after
+  that the inverse mutation is killed by the existing
+  `test_r006_silent_when_target_file_missing_r001_owns_that`. **Final 9/9
+  killed**, baseline restored OK.
+- **New regression guard**:
+  `TestLiveCorpusAnchors.test_every_fragment_in_the_real_corpus_resolves`
+  lints the real `skills/` tree and asserts zero R006/R007. It appears in 4
+  of the 9 kill sets — it is what makes the NEXT rotted anchor a test
+  failure rather than a manual audit somebody remembers to run.
+- **Two stale expectations fixed in `skill-authoring/SKILL.md`** while in
+  the file for content reasons (round 327's rule): its own Verification
+  block said `Ran 141 tests` (now 165) and, worse, `0 error(s), 0
+  warning(s), exit 0` for the corpus sweep — **false since ~round 309**,
+  when `fuzz-mutate-kill-loop` crossed 400 body lines and made `--house
+  --strict skills/` exit 1 on a known B002. Replaced with the honest
+  baseline plus the per-skill command that IS legitimately 0/0/exit-0.
+  Same class as round 321's stale-header find; second instance.
+- **Verification**: `skill_lint.py --house --strict skills/` -> 17 skills,
+  **0 errors**, 1 warning (pre-existing B002, file untouched);
+  `--house skills/skill-authoring/` -> **0 errors, 0 warnings, exit 0**.
+  `python3 -m unittest discover -s skills/skill-authoring/scripts` ->
+  **Ran 165 tests, OK** (141 -> 165, +24; `test_skill_lint.py` 49 -> 73).
+  `pytest skills/session-inheritance-audit/scripts/ skills/skill-authoring/
+  scripts/ -q` -> **221 passed** (197 -> 221). Offline `trigger_eval.py
+  … --audit state/trigger-eval` -> 14 never, 3 probed, **0 under the
+  3-positive floor**, exit 1 — unchanged; `--audit`'s offline-ness was
+  confirmed by READING `trigger_eval.py:1240-1252` (returns before both the
+  canary and probe paths) before running it
+  ([[feedback_check_flag_scope_before_priced_runs]]). No frontmatter line
+  changed (`git diff -U0 -- skills/ | grep '^[+-]\(name\|description\):'`
+  empty), so no re-probe owed (297/315/321/327 precedent). Cross-track:
+  `bash harness/run_tests_fast.sh` **417 passed, 234 deselected** and `bash
+  languages/whence/run_tests_fast.sh` **952 passed, 40 deselected**, both
+  byte-identical to round 332. `git diff --stat -- skills/`: 4 files,
+  exactly the ones touched.
+- See `knowledge/round-333-skills-b-anchor-resolution-lint.md`.
+
+## Next steps (as of round 333)
+1. R006 checks anchor sources one level deep (SKILL.md + its direct
+   references), matching R003's one-level rule — consistent by design, not
+   a gap. If R003 is ever relaxed, R006's source set must widen with it.
+2. Setext headings (`Foo\n===`) are not recognised as anchor sources; zero
+   in this corpus. `md_anchors()` is the only place to change if one ever
+   appears.
+3. R007 would false-positive on an explicit anchor linked from OUTSIDE its
+   own skill (e.g. from `knowledge/` or `research-state.md`). Zero such
+   cases today; the fix would be to widen the "used" set, not drop R007.
+4. **Round 321's item 14 (stale-header sweep) should be RESCOPED before
+   anyone spends a round on it.** This round is the second independent
+   instance of the class, but in a SKILL.md's Verification block rather
+   than in `research-state.md` — so the real pattern is "any line asserting
+   a number that no round re-executes", broader than item 14's wording. A
+   future skills(B) round doing the sweep should cover SKILL.md
+   Verification blocks and `research-state.md` header lines together.
+5. `fuzz-mutate-kill-loop/SKILL.md` is still 415 body lines (B002), still
+   deliberately deferred — 6th consecutive skills(B) round, unchanged. It
+   is the only thing standing between the corpus and a warning-free
+   `--house --strict` sweep.
+6. Round 332's item 1 (exhaustive sweep of `whence/lexer.py`'s full history
+   against the guest `lex` function, beyond the one exponent-literal gap)
+   is unchanged — a future language(C) round.
+7. `harness/swe/regiontools.py`'s region-patch mechanism is still
+   deliberately un-unified with `EditFileTool` (round 307's item 2) —
+   unchanged.
+8. Round 301's item 2 (blocking-wait mitigation design sketch) remains
+   speculative — unchanged through 13 rounds now.
+9. The next heavy/light re-tally check-in: repeat the two
+   `heavy_light_fail_rates` calls (full history + the ~[331,360] window)
+   once that many rounds accumulate — unchanged from round 331/332.
+10. NUC-integration(E)'s standing items (round 322/328's list) are
+    unchanged — box down for 6+ consecutive E-rounds per round 328; the
+    rotation hasn't reached this track since round 328.

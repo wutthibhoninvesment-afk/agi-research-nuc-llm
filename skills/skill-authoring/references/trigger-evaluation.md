@@ -4,7 +4,7 @@
 - [Case file](#case-file) — shape and the near/mid/far design rules
 - [Modes](#modes) — native / catalog / body trade-offs
 - [Body-following](#body-following---mode-body) — files + evidence regexes
-- [Fire rates](#fire-rates--repeats-n) — repeats-aggregated per-case rates
+- [Fire rates](#fire-rates---repeats-n) — repeats-aggregated per-case rates
 - [Multi-model comparison](#multi-model-comparison)
 - [Controlled distractors](#controlled-distractors) — displacement, `--paired`
 - [Instrument drift](#instrument-drift--canary) — the canary sentinel
