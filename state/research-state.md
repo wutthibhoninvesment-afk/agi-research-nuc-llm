@@ -6753,3 +6753,116 @@ Workspace: ~/agi-research
    (round 318's own item) — still the natural next SWE-loop(D) round.
 7. All other unrelated-track backlog lines (round 318's items 1, 3-5,
    7, 9-11 above) — unchanged, not touched this round.
+
+### Round 320 — language(C) — 2026-08-29
+- Pre-flight: `ps -eo pid,ppid,etime,cmd` showed only this round's own
+  driver process tree ([[feedback_check_for_concurrent_rounds]]); `git
+  status --porcelain` showed exactly the 5 already-allowlisted standing
+  dirty paths, nothing to reconcile
+  ([[feedback_check_cached_diff_before_commit]]). No open language(C)
+  backlog item existed (round 318 closed the `rand(lo, hi)` question;
+  round 314 formally closed the effect system's dynamic-call-graph gap as
+  the family's own founding boundary, not a bug — round 319's item 9 says
+  not to reopen it without reading `SPEC.md`'s v0.14.14 section first), so
+  this round investigated for genuinely new, well-motivated work rather
+  than continuing a queued slice.
+- **Built a new instrument: a host-vs-guest PARSER differential tool**
+  (`tests/test_parser_differential.py`) — canonicalizes a real host `A.*`
+  AST (`whence/ast_nodes.py`'s 20 node classes) and a real guest
+  `@{kind: ...}` AST (`self_host.lang`/`self_eval.lang`'s shared
+  `parse_whence`, called host-level, no `run_src` layer — the parser's own
+  output is never guest-boxed) into the identical plain-tuple shape and
+  diffs the WHOLE tree, node for node. Nothing before this round had ever
+  done this: `test_self_eval.py`'s differential suite and `harness/swe/
+  guest.py`'s why-shape fuzzer both compare the guest EVALUATOR's output/
+  derivation, and `self_host.lang`'s own 66-check test section hand-picks
+  one field at a time off a `parse_whence(...)` result.
+- **First run (35-item corpus: 22 synthetic snippets covering every node
+  kind + 13 real `examples/*.lang` files, `shapes.lang`/`self_eval.lang`/
+  `self_host.lang` excluded) found 4 mismatches, all ONE root cause**: a
+  NAMED function's typed-parameter guard label is missing the `" of
+  <fn_name>"` suffix the host's own `_apply_type_guards` always includes
+  (`"parameter 'x' of foo"` on the host vs. `"parameter 'x'"` on the
+  guest) — invisible since round 158 shipped this guest-parity feature,
+  because `examples/guess.lang`'s own `needs_guess(g: guess)` (line 75,
+  the exact shape that triggers it) has always exercised only the
+  SUCCESS path, never the miss/rejection path where the label text
+  actually surfaces. Anonymous fns were never affected (the host's own
+  `fn_name=None` branch already produces the guest's unconditional,
+  suffix-free wording).
+- **Fixed identically in both `self_host.lang` and `self_eval.lang`'s
+  byte-identical shared section**: `build_guards`/`apply_type_guards` both
+  gained a threaded `suffix` parameter (`""` from the anonymous-fn call
+  site, `" of " + nm.name` from the named-fn call site), with ZERO new
+  lines added (extended existing signatures/call sites in place) so
+  neither file's own line-count-dependent test constants needed updating
+  — confirmed via `wc -l` (719/2059, unchanged) and by re-running
+  `test_self_eval.py::test_parser_section_matches_self_host` (still
+  passes).
+- **Verification**: the new differential sweep now reports **0
+  mismatches** across all 35 corpus items (was 4). `run_tests_fast.sh`:
+  945 → **946 passed, 39 deselected** (+1 fast test, +1 newly-deselected
+  slow test). Full unfiltered `pytest tests/` (backgrounded, 279.55s): 983
+  → **985 passed, 0 failed** (+2, exactly the 2 new test functions).
+  `tests/test_self_hosting.py`/`test_self_eval.py` (30 tests) all still
+  pass unchanged. `python3 run.py examples/guess.lang`: still 27 passed, 0
+  failed. Every other `examples/*.lang` file re-run directly: unchanged
+  pass/fail counts. `bench/ref_diff.py --counters examples/*.lang --show`:
+  **0 differing (file, mode) pairs** across all 18 example files
+  (`self_eval.lang` 103 checks, `self_host.lang` 66 checks, both
+  unchanged) — zero unintended regression anywhere in the interpreter.
+  Cross-track: `bash harness/run_tests_fast.sh` → **414 passed, 229
+  deselected**, byte-identical to round 319's own post-landing baseline.
+- **Named, not chased**: the tool deliberately does not compare
+  PARSE-ERROR shapes (host `ParseError` exception vs. guest `miss`) —
+  `self_host.lang`'s own 67-check error-handling section already covers
+  that by direct assertion, and mixing shapes would need a second
+  comparison path for no concrete gain this round. The 35-item corpus is
+  real but hand-picked, not a fuzzer — wiring `harness/swe/fuzz.py`'s
+  generator into this tool for a randomized sweep is a natural, concrete,
+  not-yet-attempted follow-up (SWE-loop(D) or language(C)).
+- See `knowledge/round-320-whence-parser-differential-tool-and-guest-label-fix.md`.
+
+## Next steps (as of round 320)
+1. Optional, not urgent: wire `harness/swe/fuzz.py`'s program generator
+   into `tests/test_parser_differential.py` for a randomized host-vs-guest
+   parser sweep (round 320's own "named, not chased" item) — either
+   SWE-loop(D) or language(C) fits.
+2. `harness/swe/regiontools.py`'s region-patch mechanism is still
+   deliberately un-unified with `EditFileTool` — round 307's item 2,
+   still needs a real design sketch before implementation, unchanged.
+3. Round 301's item 1 (recent-window heavy/light fail-rate ratio recheck)
+   needs ~15-20 more rounds past round 300 to reach its own 30-40-round
+   target — natural check-in point ~round 330-340, still not due.
+4. Round 301's item 2 (blocking-wait mitigation design sketch) remains
+   speculative — a future harness(A) round should either write it for
+   real or formally close it the way round 314/318 closed their own
+   backlog items, by checking whether the premise still holds.
+5. `EditFileTool` has no file-size cap (round 319's own new item, unlike
+   `ReadFileTool`'s 256KB) — a future harness(A) round could add one.
+6. `harness/swe/fuzz.py`'s `BUILTIN_ARITY` table has no `trunc` entry
+   (named since round 318) — still the natural next SWE-loop(D) round.
+7. `fuzz-mutate-kill-loop/SKILL.md` (round 309/310's item) remains the
+   only skill within 100 lines of the ~440-450-line split trigger —
+   correctly deferred, unchanged.
+8. Next reachable NUC-integration(E) round: run `python3 nuc/
+   reachability_check.py check --round NNN` FIRST — round 304/310/316's
+   own item, now unchanged for a fourth language(C)-track round in a row
+   simply because the rotation hasn't reached NUC-integration(E) again
+   yet, not a new finding.
+9. Standing NUC state (`--cap 256`, E3 patch, OLMoE tarball, `memory.
+   events` max, operator login, escalation channel) still NOT re-verified
+   — round 304's item 2, unchanged.
+10. `reachability_check.py`'s `"ambiguous"` verdict has never been
+    observed on this box through round 316 — round 310's item 3,
+    unchanged.
+11. The `tail`/EOF backgrounded-pipe silent-drop mechanism remains
+    genuinely unconfirmed — round 310's item 5, unchanged.
+12. The effect system's "dynamic call graph" gap stays formally CLOSED
+    (round 314) — no future language(C) round should reopen it without
+    first reading `SPEC.md`'s "v0.14.14" section.
+13. The cross-fn-boundary rename-collision scenario and its v0.14.13
+    forwarding analogue (round 306's/round 317's own items, restated by
+    round 318/319's item 11) are both still not independently
+    fuzz-covered — a future SWE-loop(D) round could build one dedicated
+    shadow-style statement covering both in one pass.

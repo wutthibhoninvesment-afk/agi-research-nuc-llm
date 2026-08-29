@@ -3238,3 +3238,110 @@ not this round. See `knowledge/round-254-whence-self-hosting-round9-steps-repro-
   fuzz/oracle/guest-differential campaigns, and `bench/ref_diff.py
   --counters` numbers are recorded in `knowledge/
   round-318-whence-v017-trunc-closes-rand-backlog.md`.
+
+## v0.12/v0.13 guest parity fix (round 320) — named-fn type-guard label wording, found by a new host-vs-guest PARSER differential tool
+- **A new self-hosting instrument, not a new language feature.** Every
+  prior self-hosting round tested the guest EVALUATOR's derivation shape
+  (`harness/swe/guest.py`'s why-shape fuzzer) or hand-picked, single-field
+  checkpoint assertions in `self_host.lang`'s own 66-check test section —
+  nothing had ever canonicalized a REAL host `A.*` AST and a REAL guest
+  `@{kind: ..., ...}` AST into the same shape and diffed them, field for
+  field, across a real corpus. Built as `tests/test_parser_differential.py`:
+  `canon_host(node)` walks `whence/ast_nodes.py`'s 20 node classes into
+  plain nested tuples (dropping parser-internal-only fields with no guest
+  equivalent — `Call.tail`, `FnExpr.param_call_fact`, `Block.
+  tail_alias_tag`/`tail_param_name` — all v0.9/v0.14.x compiler/effect-
+  system bookkeeping, not part of the SOURCE-level shape); `canon_guest
+  (prov)` walks the guest's own `Record`/`WList` output the SAME way,
+  dispatching on each node's `kind` field. Both a guest AST (from
+  `parse_whence`, called host-level via `self_eval.lang`'s own copy of the
+  shared parser section — no `run_src` evaluator layer, the same cheap
+  level `test_guest_parser_parses_its_own_full_source` (round 192) already
+  uses) and a host AST (`whence.parser.parse`) are REAL Python-level Prov/
+  Record trees, so the comparison costs nothing beyond ordinary tuple
+  equality — no bespoke guest-box unwrapping needed, the same "the
+  parser's own output is never boxed" property `steps`/`at`/`blame`
+  (rounds 206/218) already relied on for FREE delegation.
+- **First real corpus run (35 items: 22 synthetic snippets covering every
+  node kind + 13 real `examples/*.lang` files, `shapes.lang`/
+  `self_eval.lang`/`self_host.lang` excluded — see the test file's own
+  header for why) found exactly 4 divergences, ALL traceable to ONE root
+  cause**: `fn foo(x: num) { x }`, `fn bar(a: num, b: str) { a }`, `fn
+  needs_guess(g: guess) { confidence(g) }` (the exact shape `examples/
+  guess.lang` line 75 already ships), and `guess.lang`'s own full source
+  (which contains that same fn). Every OTHER corpus item — including every
+  anonymous-fn-with-typed-param variant — matched byte-for-byte on the
+  first run, meaning this is a narrow, well-isolated bug, not a sign of
+  systemic guest-parser drift.
+- **Root cause**: the v0.12 parameter-type-guard erasure (`_apply_type_
+  guards` on the host, `build_guards`/`apply_type_guards` on the guest,
+  guest parity shipped round 158) builds a `typed(param, spec, label)`
+  guard call per annotated parameter. The host's label is `"parameter
+  '%s'%s" % (pname, suffix)` with `suffix = " of %s" % fn_name if fn_name
+  else ""` — a NAMED function's (`FnDef`) guard says which function the
+  parameter belongs to (`"parameter 'x' of foo"`); an anonymous function's
+  (`FnExpr`, `fn_name=None`) guard does not (`"parameter 'x'"`). The
+  guest's `build_guards` NEVER threaded the enclosing fn's name through at
+  all — `let label = "parameter '" + params[i] + "'"`, unconditionally,
+  for both named and anonymous fns — so it silently matched the host only
+  for the anonymous case (where the host's own suffix is also empty) and
+  silently diverged for every named case, invisibly, since round 158.
+  Nothing before this round's own new tool ever compared a named typed-
+  param fn's ACTUAL LABEL STRING between host and guest — `guess.lang`'s
+  own `needs_guess` check (`"a typed parameter accepts an actual guess"`)
+  only ever exercises the SUCCESS path, where the label is never even
+  read; the label only becomes visible in a MISS's own reason text, on
+  the REJECTION path, which no existing check triggers for a named fn.
+- **The fix**: `build_guards(params, types, i, acc, suffix)` and
+  `apply_type_guards(block_node, params, types, suffix)` both gained a
+  `suffix` parameter (label built as `"parameter '" + params[i] + "'" +
+  suffix`, `build_guards`'s own recursive call threading it through
+  unchanged) — the `fnexpr` call site now passes `""` (anonymous, matches
+  the host's `fn_name=None` branch), the `fndef` call site now passes `"
+  of " + nm.name` (matches the host's `" of %s" % fn_name` branch)
+  exactly. Applied IDENTICALLY to both `self_host.lang` and `self_eval.
+  lang`'s byte-identical shared section (`test_self_eval.py::test_parser_
+  section_matches_self_host` pins the exact substring), with the SAME
+  line count in both files before and after (no new lines needed — the
+  fix only extends existing signatures/call sites in place), so neither
+  file's own line-range constants (`LIB_START`/`LIB_END` in `test_self_
+  hosting.py`, the `host_lines[27:561]` slice in `test_self_eval.py`)
+  needed updating.
+- **Verification**: the new differential sweep (`tests/test_parser_
+  differential.py::test_host_and_guest_parsers_agree_on_ast_shape`, marked
+  `whence_slow`) now reports 0 mismatches across all 35 corpus items, up
+  from 4 before the fix — re-confirmed live, not assumed, by running the
+  same tool before and after applying the edit. A dedicated non-slow pin
+  (`test_named_fn_typed_param_guard_label_includes_enclosing_fn_name`)
+  checks both the fixed named-fn case (`"parameter 'g' of needs_guess"`,
+  independently on host AND guest) and the anonymous-fn control case
+  (`"parameter 'x'"`, unchanged on both sides) directly, without going
+  through the canonical-form diff, so a future accidental revert of only
+  one side would still fail loudly even if the broader sweep were ever
+  skipped. `run_tests_fast.sh`: 945 → **946 passed, 39 deselected** (+1
+  fast test, +1 newly-deselected slow test). Full unfiltered `pytest
+  tests/` (backgrounded, 279.55s): 983 → **985 passed** (+2, exactly
+  matching the 2 new test functions, 0 failures, 0 regressions).
+  `test_self_hosting.py`/`test_self_eval.py` (30 tests, including `test_
+  guest_parser_parses_its_own_full_source`'s own 154-statement pin and
+  `test_parser_section_matches_self_host`'s byte-identity check): all 30
+  still pass unchanged, confirming the fix altered neither self_host.
+  lang's own top-level statement count nor the shared section's byte
+  identity. `python3 run.py examples/guess.lang`: still **27 passed, 0
+  failed** (the fix only changes a MISS's own reason text, which
+  `guess.lang`'s own checks never assert on verbatim). Every other
+  `examples/*.lang` file re-run directly: unchanged pass/fail counts.
+  Cross-track `bash harness/run_tests_fast.sh`: **414 passed, 229
+  deselected**, byte-identical to round 319's own post-landing baseline —
+  zero unintended change outside `languages/whence`.
+- **Named, not chased**: this tool's canonical form deliberately does not
+  attempt to compare PARSE-ERROR shapes (a host `ParseError` exception vs.
+  a guest `miss` value) — `self_host.lang`'s own hand-written error-
+  handling test section (67 checks, "tests: total error handling") already
+  covers specific error wordings for specific inputs by direct assertion,
+  and mixing that INTO a generic structural-equality sweep would need a
+  second, differently-shaped comparison path for no real gain this round.
+  A future language(C) round could extend `test_parser_differential.py`
+  with an error-corpus mode if a genuine need for it turns up (mirroring
+  how this round's own tool was itself motivated by a real, if narrow,
+  finding rather than built speculatively).

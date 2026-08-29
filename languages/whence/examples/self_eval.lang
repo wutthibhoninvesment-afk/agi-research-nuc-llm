@@ -353,7 +353,7 @@ fn parse_primary(toks, pos) {
     let rt = parse_typed_suffix(toks, ep, "->")
     let body0 = parse_block(toks, rt.pos)
     @{node: @{kind: "fnexpr", params: ps.params, ret_type: rt.type,
-              body: apply_type_guards(body0.node, ps.params, ps.types)},
+              body: apply_type_guards(body0.node, ps.params, ps.types, "")},
       pos: body0.pos}
   }
   else { miss ("unexpected token '" + str(k.v) + "' at line " + str(k.line)) }
@@ -444,22 +444,22 @@ fn spec_node(tag) { @{kind: "str", value: tag} }
 fn name_node(n) { @{kind: "name", value: n} }
 fn call_node(callee, cargs) { @{kind: "call", func: name_node(callee), args: cargs} }
 
-fn build_guards(params, types, i, acc) {
+fn build_guards(params, types, i, acc, suffix) {
   if i >= len(params) { acc }
   else {
     let tname = types[i]
     let acc2 = if tname == "" { acc }
       else {
-        let label = "parameter '" + params[i] + "'"
+        let label = "parameter '" + params[i] + "'" + suffix
         let call = call_node("typed", [name_node(params[i]), spec_node(tname), spec_node(label)])
         push(acc, @{kind: "let", name: params[i], value: call})
       }
-    build_guards(params, types, i + 1, acc2)
+    build_guards(params, types, i + 1, acc2, suffix)
   }
 }
 
-fn apply_type_guards(block_node, params, types) {
-  let guards = build_guards(params, types, 0, [])
+fn apply_type_guards(block_node, params, types, suffix) {
+  let guards = build_guards(params, types, 0, [], suffix)
   if len(guards) == 0 { block_node }
   else { @{kind: "block", stmts: guards + block_node.stmts} }
 }
@@ -560,7 +560,7 @@ fn parse_stmt(toks, pos) {
     let rt = parse_typed_suffix(toks, ep, "->")
     let body0 = parse_block(toks, rt.pos)
     @{node: @{kind: "fndef", name: nm.name, params: ps.params, ret_type: rt.type,
-              body: apply_type_guards(body0.node, ps.params, ps.types)},
+              body: apply_type_guards(body0.node, ps.params, ps.types, " of " + nm.name)},
       pos: body0.pos}
   }
   else if is_kw(toks, pos, "check") {
