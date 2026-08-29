@@ -237,6 +237,14 @@ and each one has to be re-aimed, not just made green.
 - `harness/run_tests_fast.sh` — see §8.
 - `languages/whence`: full `pytest tests/` **1057 passed in 364.31s**, run to
   verify round 342's uncommitted diff before landing it (`4af6963`).
+- **The guard fails without the fix, checked against the real file rather
+  than a synthetic one.** Round 336's discipline: a new test is only a guard
+  if it goes red when the fix is removed. Reverting `test_swe_oraclekill.py`'s
+  pin on a copy (`ROOT = OK.WHENCE_ROOT` restored) makes the detector flag it
+  and name the `original` fixture at line 49; with the pin in place it is
+  clean. `test_the_two_files_round_343_fixed_are_clean_and_still_snapshot`
+  covers the other direction — a pin that passed the guard by DELETING the
+  snapshot rather than redirecting it would fail.
 - **Round 340's item 4 (sweep for live-file aggregate pins) complied with by
   construction**, which is worth checking because this round adds an
   append-only file that future rounds write to. Every ledger path in
