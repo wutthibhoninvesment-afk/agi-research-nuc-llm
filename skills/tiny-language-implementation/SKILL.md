@@ -90,6 +90,16 @@ description: Builds a small, fully-tested interpreted language (lexer → parser
      programs error: compare payloads and missed-ness, exempt reason
      wordings; run the guest once (library + N `run_src` calls in one
      program) so the ~800-line library parses once.
+   - **Also differential-test the PARSER layer, not just the evaluator.**
+     If the guest's own parser runs at host level (no `run_src`/boxing
+     involved — it emits plain records the same way `parse_whence`'s host
+     twin emits plain AST nodes), canonicalize both sides' node kinds into
+     one shared kind↔field table (built by grepping the guest's own
+     `@{kind: ...}` literals) and diff the WHOLE tree, node for node, over
+     a corpus of hand-written per-node-kind snippets plus every shipped
+     example. This is cheap (both sides are already-real objects, zero
+     unboxing) and catches a class of bug field-by-field spot-checks miss
+     entirely — see the pitfall below.
    - **Guest-level metadata by boxing (Whence round 18: provenance):** to give
      guest values the host's per-value metadata, box every guest value as
      `{v: payload, op: label, ins: [input boxes]}` — reads (name lookup, list
@@ -261,6 +271,13 @@ python3 -m pytest tests/ -q              # full suite (should be <1s)
   Reverted in full; closed as by-design, not fixed as a bug. Full
   mechanism and the generalizable checklist:
   [references/pitfall-history.md#dynamic-call-graph-founding-boundary](references/pitfall-history.md#dynamic-call-graph-founding-boundary).
+- **A self-hosted guest parser can byte-match the host on every
+  SUCCESS-path field spot-check while silently diverging on a
+  REJECTION-path field no spot-check ever exercises.** Whence round 320's
+  first-ever whole-tree host-vs-guest AST differential (see step 10) found
+  a real, years-old gap invisible to 66 hand-picked field assertions. Full
+  mechanism:
+  [references/pitfall-history.md#parser-differential-rejection-path-gap](references/pitfall-history.md#parser-differential-rejection-path-gap).
 
 ## Verification
 - `python3 -m pytest tests/ -q` → all green, runtime < 1s.

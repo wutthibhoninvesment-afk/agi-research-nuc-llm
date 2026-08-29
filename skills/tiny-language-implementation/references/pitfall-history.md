@@ -21,6 +21,7 @@ enough to re-derive them.
 - [Make a nondeterministic builtin reproducible instead of special-casing every oracle](#deterministic-nondeterministic-builtin)
 - [A differential harness's two builders silently drifting on an unstated default](#differential-harness-default-value-mismatch)
 - [A "gap" a design sketch describes can be the family's own founding, deliberately-tested boundary](#dynamic-call-graph-founding-boundary)
+- [A self-hosted guest parser can byte-match the host on every success path while silently diverging on a rejection path](#parser-differential-rejection-path-gap)
 
 <a id="host-feature-fuzzer-guest-parity-gap"></a>
 ### A grammar-directed fuzzer generating a new host syntax feature will feed it straight into the hand-copied guest parser too, unless told not to
@@ -299,3 +300,48 @@ redesign (updating the named tests to a new transitive semantics) or a
 genuinely different mechanism (e.g. full bottom-up effect inference) scoped
 as its own feature, never a quiet point release layered on top (Whence
 SPEC.md's "v0.14.14," round 314).
+
+<a id="parser-differential-rejection-path-gap"></a>
+### A self-hosted guest parser can byte-match the host on every SUCCESS-path field spot-check while silently diverging on a REJECTION-path field no spot-check ever exercises — the fix is a canonicalized whole-tree differential across a corpus, not more spot-checks
+Through round 319, Whence had two differential instruments, both at the
+EVALUATOR layer: `test_self_eval.py` compares host-run vs. guest-run
+*values*, and `harness/swe/guest.py`'s why-shape fuzzer compares host-run
+vs. guest-run *derivation graphs*. Neither ever touches the PARSER's own
+output shape — `self_host.lang`'s own 66-check test section hand-picks
+ONE field at a time off a `parse_whence(...)` result and asserts on it
+directly, a spot-check, not a systematic sweep. Round 320 built the first
+whole-tree instrument for this layer: since a guest AST from `parse_whence`
+run at host level (no `run_src`/boxing involved) is already an ordinary
+Python `Prov`/`Record`/`WList` tree, both a real host `A.*` AST and a real
+guest `@{kind: ...}` AST canonicalize cheaply into one shared plain-tuple
+shape (built from a single `grep -n "kind:"` pass over the guest's own
+literals to get the kind↔field mapping) and diff node-for-node over a
+35-item corpus (22 hand-written per-node-kind snippets + 13 shipped
+examples).
+
+The first run found 4 mismatches, all one root cause, on code that had
+been shipping and passing since round 158: a NAMED function's typed-
+parameter guard label included `" of <fn_name>"` on the host
+(`_apply_type_guards(body, params, types, fn_name)`) but never threaded
+`fn_name` through on the guest side (`build_guards` always produced the
+bare `"parameter 'x'"` form). This was invisible for 162 rounds because
+the ONE real example that exercises this exact shape
+(`examples/guess.lang`'s `fn needs_guess(g: guess) { confidence(g) }`)
+only ever calls it on the SUCCESS path — the label text is data that only
+surfaces inside a MISS's own reason string, on the REJECTION path, which
+no existing check anywhere in the corpus ever triggered for a NAMED
+function (the anonymous-fn case was accidentally fine, since the host's
+own `fn_name=None` branch already omits the suffix on both sides).
+
+The generalizable lesson: differential coverage keyed to *values a program
+successfully produces* systematically misses fields that only exist in the
+*shape of a rejection* — error message text, guard labels, diagnostic
+wording — because a passing program never reads them and a hand-picked
+field spot-check has to know in advance which field to ask about. A
+canonicalized whole-tree diff needs no such foreknowledge: it compares
+every field of every node kind, including ones nobody thought to name.
+Before trusting a self-hosted parser/evaluator as "differentially
+verified," check whether the existing corpus's error/miss programs
+actually reach every field that differs only on the rejection path, or
+build the whole-tree sweep instead of adding one more hand-picked
+assertion (Whence round 320, `tests/test_parser_differential.py`).
