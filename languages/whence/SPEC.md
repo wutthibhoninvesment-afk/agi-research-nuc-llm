@@ -3202,6 +3202,24 @@ not this round. See `knowledge/round-254-whence-self-hosting-round9-steps-repro-
   `trunc` against them would be dead code for a state that cannot arise,
   not defensive programming for a real one (the same reasoning `abs`/
   `sqrt` already both apply by omission).
+  **CORRECTION (round 323): this audit's "any existing builtin or
+  operator" scope was one path too narrow — it never considered the
+  LEXER's own literal scan**, which builds a `NUMBER` token via a direct
+  `float(text)` call with no overflow handling at all, upstream of every
+  builtin/operator this audit examined. A source literal whose digit
+  string overflows a float (`1` + `"0" * 400` + `.5`, all one token) was
+  ALREADY reachable before this round and already became a silent `inf`
+  — never a crash itself, but `trunc(<that literal>)` then hit `int(inf)`,
+  an uncaught `OverflowError`, since `_is_num` accepts `inf`/`nan` as
+  ordinary floats. Round 323 found this via `BUILTIN_ARITY`-totality
+  fuzzing `trunc` with `1e400` (see the round's own exponent-literal fix
+  below) and fixed `b_trunc` with the identical try/except-`OverflowError`
+  idiom `b_sqrt` already uses two functions above it, plus a matching
+  `except ValueError` for `int(nan)`. `abs`/`sqrt` themselves remain safe
+  by construction (`abs` cannot raise on any float; `sqrt` already has its
+  own `OverflowError` catch for a different reason — `math.sqrt` on a
+  huge-but-finite input), so this correction is `trunc`-specific, not a
+  reopening of the wider claim.
 - **Guest parity landed the SAME round**, unlike most `v0.14.x`/`v0.16.x`
   features (which deliberately split host and guest work across rounds) —
   justified because `trunc` is a trivial free-delegation case, structurally
@@ -3345,3 +3363,96 @@ not this round. See `knowledge/round-254-whence-self-hosting-round9-steps-repro-
   with an error-corpus mode if a genuine need for it turns up (mirroring
   how this round's own tool was itself motivated by a real, if narrow,
   finding rather than built speculatively).
+
+## v0.17.1 (round 323, SWE-loop D) — lexer gains exponent literals; closes an `int(inf)` crash in `trunc`
+
+- **Task selection**: `research-state.md`'s next-steps had named `harness/
+  swe/fuzz.py`'s missing `BUILTIN_ARITY["trunc"]` entry since round 318,
+  repeated unchanged through rounds 319-322 as "the natural next SWE-loop
+  (D) round." Added it (arity 1, same generic-fallback shape as `abs`/
+  `sqrt`, no special-casing needed) and hand-drove `trunc` across the
+  input-type matrix a fuzz totality check would exercise — which is how
+  this round's own two real findings surfaced, neither one the assigned
+  task itself.
+- **Finding 1 — the lexer has never supported scientific notation on a
+  raw source literal.** `1e400` (chosen as a `trunc` totality probe
+  specifically because `harness/swe/fuzz.py`'s own `STR_POOL` already
+  lists `"1e400"`/`"1e5"` as strings, but ONLY ever feeds them to `num()`
+  as quoted content, never as raw source) silently tokenized as
+  `NUMBER(1)` followed by a bare `NAME("e400")` — a phantom extra
+  statement outside parens (`let x = 1e400` "worked" by accident: two
+  independent statements, `let x = 1` then a dangling, never-read
+  `e400` name-reference) and a flat `ParseError` inside them (`trunc
+  (1e400)`, `sqrt(1e400)`, even a bare `(1e400)`). Yet `whence/interp.py`'s
+  own `_NUM_RE` (`^([+-]?[0-9]+)(\.[0-9]+)?([eE][+-]?[0-9]+)?$`, used by
+  `num(text)`'s string parser) documents "optional exponent" as part of
+  canonical "Whence decimal syntax" — a real grammar/literal
+  inconsistency between what the LANGUAGE's own number syntax is defined
+  to be and what a LITERAL can actually spell, invisible to the fuzzer for
+  the same `STR_POOL`-only-as-string reason noted above. Fixed in
+  `whence/lexer.py`'s digit-scanning branch: after the existing optional
+  `.digits` fraction, an optional `[eE][+-]?[0-9]+` suffix is consumed —
+  but ONLY when a full valid exponent follows (sign then ≥1 digit), so a
+  bare trailing `e`/`E` that isn't a number (`5experiment`, `5e` with
+  nothing after) still lexes exactly as before (a separate `NAME` token).
+  An exponent literal is always a `float` (`1e5` is `100000.0`, matching
+  `_NUM_RE`'s own float-if-exponent-present rule); an overflowing one
+  (`1e400`) becomes Python's `inf`, matching the PRE-EXISTING convention
+  for a huge digit-string-plus-fraction literal with no exponent at all
+  (already silently `inf` before this round — see Finding 2), not
+  `num("1e400")`'s "out of range" MISS, which is a separate,
+  string-conversion-specific SPEC rule (see "Limits that are errors, not
+  crashes" above), not a literal-grammar one.
+- **Finding 2 — `trunc(<a literal that overflows to inf>)` was an
+  uncaught host `OverflowError`, a genuine (if narrow) hole in v0.17's own
+  landing audit.** That audit (see the v0.17 section above) explicitly
+  checked "every path that can produce a Whence float" — arithmetic's
+  `OverflowError` catch, `sqrt`'s own catch, `num()`'s string-parse
+  rejection — and concluded `inf`/`nan` can never reach a Whence value
+  slot, so `trunc` needed no guard. That conclusion was one path too
+  narrow: it examined every BUILTIN and OPERATOR, but not the LEXER's own
+  literal scan, which has ALWAYS built a `NUMBER` token via a bare
+  `float(text)` call with zero overflow handling — a huge digit-string-
+  plus-fraction literal (`"1" + "0" * 400 + ".5"`, one token) already
+  silently became `inf` before this round, with no arithmetic or builtin
+  involved at all, hence outside that audit's stated scope. `trunc`'s own
+  `_is_num` guard accepts `inf`/`nan` (ordinary `float` instances), so
+  `int(p)` then raised `OverflowError` (`+-inf`) or `ValueError` (`nan`,
+  reachable in principle though no current Whence path produces a real
+  NaN value). This round's exponent-literal fix (Finding 1) turned an
+  obscure 400-digit literal into a trivial `1e400`, but the crash predates
+  it and does not depend on it. Fixed with the identical idiom `b_sqrt`
+  already uses two functions above `b_trunc` in `interp.py`: wrap
+  `int(p)` in `try`/`except (OverflowError, ValueError)`, returning the
+  same `"number too large for float arithmetic"` miss text `binop`/`sqrt`
+  already use for their own overflow cases. A correction note was added
+  in place in the v0.17 section above rather than editing its original
+  claim, following this project's own established convention for
+  superseded audit claims.
+- **Verification**: `tests/test_lexer.py` gained 3 tests (one-token
+  exponent parse for `1e5`/`1E10`/`2.5e3`/`1e-2`/`1e+2`; overflow-to-`inf`
+  for `1e400`/`-1e400`, not a `LexError`; the bare-trailing-`e` no-op
+  cases `5e`/`5experiment`/`5e+`). `tests/test_interp.py::test_trunc`
+  gained a new sibling test (`trunc` of the huge-digit-literal, `1e400`,
+  and `-1e400`, all now a clean miss, not a crash). `run_tests_fast.sh`:
+  946 → **950 passed, 39 deselected** (+4, exact). Full unfiltered
+  `pytest tests/` (backgrounded, 303.28s, run BEFORE the new tests were
+  added, confirming the pre-existing suite was unaffected by the fixes
+  alone): 985 passed, 0 regressions. `harness/swe/fuzz.py`: 1500-program
+  grammar-directed campaign (seed 323) after both fixes — **0 unique
+  crashers** (1350 ok, 127 parse_error, 23 timeout — all pre-existing
+  categories, nothing new). `harness/tests/test_swe_fuzz.py` gained 2
+  tests (`trunc` reach guard mirroring `test_generator_now_emits_rand_
+  calls`; a totality sweep across `5/-5/3.7/-3.7/0/1e400/-1e400/1e5/
+  "abc"/true/[1,2]/@{a:1}`, all `ok`). `harness/swe/guest.py`'s
+  `WHY_VOCAB` gained `"trunc"` for tabular completeness with `abs`/
+  `sqrt`/`num` — investigated directly and found NOT independently
+  exploitable for this class of builtin (see the code comment at its
+  definition): every generic single-arg host-delegate's guest-side op
+  label is the literal dispatch-time NAME string, never derived from
+  which internal host builtin actually ran, unlike `range`/`keys`/
+  `reasons`/`steps`/`blame`/`diverge`'s hand-written per-element `mkb`
+  wrapping (round 20's real bug class). Cross-track `bash harness/
+  run_tests_fast.sh`: 414 passed, 229 deselected, unchanged. Full
+  metrics, campaign counts, and the investigation trail are in
+  `knowledge/round-323-swe-loop-d-trunc-arity-and-exponent-literal-lexer-bug.md`.

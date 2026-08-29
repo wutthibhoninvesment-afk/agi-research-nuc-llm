@@ -2431,7 +2431,21 @@ def _make_builtin_table():
         if not _is_num(p):
             return mk_miss("trunc of %s" % show_payload(p), line, "trunc",
                            inputs=(args[0],))
-        return derived("trunc", "", line, (args[0],), int(p))
+        # round 323: `int(p)` on a non-finite float is a host crash, not a
+        # miss — `OverflowError` for +-inf, `ValueError` ("cannot convert
+        # float NaN to integer") for nan — violating the total-evaluator
+        # invariant `_is_num` alone doesn't guard against (`nan`/`inf` are
+        # ordinary `float` instances). Previously unreachable except via a
+        # contrived huge-digit-string-plus-fraction literal (`fuzz.py`
+        # never generates one); trivially reachable now that the lexer
+        # (this round, `lexer.py`) accepts exponent literals like
+        # `1e400`. Same idiom and message as `sqrt`'s own overflow guard
+        # just above.
+        try:
+            return derived("trunc", "", line, (args[0],), int(p))
+        except (OverflowError, ValueError):
+            return mk_miss("number too large for float arithmetic", line,
+                           "trunc", inputs=(args[0],))
 
     @register("missed", 1)
     def b_missed(interp, args, line):

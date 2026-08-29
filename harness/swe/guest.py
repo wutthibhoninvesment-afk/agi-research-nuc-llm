@@ -372,12 +372,25 @@ def _depth_missed(V, p):
 # call the real host builtin) and `matches`'s `strip()`-based structural-
 # Record-spec path (round 240) — all 15 exact matches, no divergence
 # found. See `knowledge/round-246-whence-matches-shapeof-typed-why-vocab.md`.
+# `trunc` (v0.17, round 318) joined this set round 323 for tabular
+# completeness with `abs`/`sqrt`/`num` -- NOT because a round-20-style
+# mislabelling bug was demonstrated for it. Investigated directly: in
+# self_eval.lang, every generic single-arg host-delegate's `mkb(...)` op
+# label is the literal `name` string the guest's OWN dispatcher matched
+# on (`apply_builtin`'s trailing `else` branch, `let o = ... else {
+# name }`), never derived from which internal host builtin actually ran
+# -- so swapping `trunc`'s delegation body for `abs`'s (or vice versa)
+# changes the computed VALUE (already caught by the primary comparison
+# in `compare_behaviours`) but never the guest's own op LABEL, unlike
+# `range`/`keys`/`reasons`/`steps`/`blame`/`diverge`'s hand-written
+# per-ELEMENT `mkb(x, "<hardcoded>", [])` wrapping (round 20's real bug
+# class: a literal string typo independent of the call-site name).
 WHY_VOCAB = frozenset([
     "let", "arg", "call", "if", "literal", "list", "record", "index",
     "field", "fold", "map", "filter", "find", "push", "len", "range", "num",
-    "str", "abs", "sqrt", "missed", "reasons", "note", "contains", "join",
-    "keys", "merge", "get", "put", "has", "builtin", "fn", "miss", "rescue",
-    "key", "reason", "guess", "is_guess", "confidence", "sure",
+    "str", "abs", "sqrt", "trunc", "missed", "reasons", "note", "contains",
+    "join", "keys", "merge", "get", "put", "has", "builtin", "fn", "miss",
+    "rescue", "key", "reason", "guess", "is_guess", "confidence", "sure",
     "matches", "shapeof", "typed",
     "+", "-", "*", "/", "%", "==", "!=", "<", "<=", ">", ">=",
     "and", "or", "not",

@@ -105,6 +105,40 @@ def test_effect_tag_sets_now_include_random_combinations():
                                 "[io, random]", "[net, random]", "[io, net, random]")
 
 
+# =========================================================== round 323 ==
+# `trunc()` (v0.17, round 318) joined `BUILTIN_ARITY` this round, closing
+# the gap named in round 318's own next-steps item 6 (repeated in every
+# SWE-loop(D)-adjacent round's list through 322).
+
+def test_generator_now_emits_trunc_calls():
+    """Mirrors `test_generator_now_emits_rand_calls` above: a coverage
+    guard confirming `trunc` is actually reachable from the grammar-
+    directed generator, not just theoretically wired into
+    `BUILTIN_ARITY`."""
+    trunc_re = re.compile(r"\btrunc\(")
+    seen = sum(1 for i in range(200) if trunc_re.search(ProgramGen(i).program()))
+    assert seen >= 8, seen
+
+
+def test_trunc_builtin_is_total_under_fuzz_inputs():
+    """`trunc` must be TOTAL like every other builtin across the input
+    shapes the generic `call()` fallback can hand it: numbers (positive,
+    negative, already-int, huge-overflowing-exponent), and the non-numeric
+    types that should propagate to a miss instead. Also the regression
+    case for round 323's own `interp.py` fix: `trunc(1e400)` used to be an
+    uncaught host `OverflowError` (`int(inf)`), reachable ONLY via a
+    contrived huge-digit-string literal until this round's lexer fix
+    (`1e400` was previously unparseable as a single token at all -- see
+    `test_lexer.py`'s `test_exponent_literal_is_one_float_token`) made it
+    trivially reachable."""
+    cases = ["5", "-5", "3.7", "-3.7", "0", "1e400", "-1e400", "1e5",
+             '"abc"', "true", "[1, 2]", "@{a: 1}"]
+    for c in cases:
+        src = "let x = trunc(%s) rescue -999\nprint(str(x))\n" % c
+        o = run_program(src)
+        assert o.kind == "ok", (c, o.kind, o.exc_type, o.message)
+
+
 def test_oracle_classifies_ok_parse_error_and_crash(monkeypatch):
     assert run_program("let x = 1 + 2\nprint(x)\n").kind == "ok"
     assert run_program("let x = \n").kind == "parse_error"

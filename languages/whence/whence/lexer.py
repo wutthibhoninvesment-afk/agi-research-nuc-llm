@@ -91,8 +91,43 @@ def tokenize(src):
                 i += 1
                 while i < n and src[i].isdigit():
                     i += 1
+            # Optional exponent, mirroring `interp.py`'s own `_NUM_RE`
+            # ("Whence decimal syntax": sign, digits, optional fraction,
+            # optional exponent) -- SPEC.md's "Limits" section already
+            # documents that grammar for `num(text)`'s STRING parsing, but
+            # a raw SOURCE literal like `1e5` had no exponent handling at
+            # all here: it silently split into `NUMBER(1)` followed by a
+            # bare `NAME("e5")` token, an inconsistency between the
+            # documented number syntax and the actual literal grammar
+            # (found round 323, fuzzing `trunc`'s totality with `1e400` --
+            # invisible to ~318 rounds of fuzzing because `fuzz.py`'s own
+            # `STR_POOL` only ever feeds `"1e400"`/`"1e5"` through `num()`
+            # as quoted STRING content, never as a raw source literal).
+            # Only consumed when a full, valid exponent follows (optional
+            # sign then at least one digit) so a bare trailing `e`/`E` that
+            # isn't a number (the start of a NAME, e.g. `5experiment`)
+            # lexes exactly as before.
+            if i < n and src[i] in "eE":
+                j = i + 1
+                if j < n and src[j] in "+-":
+                    j += 1
+                if j < n and src[j].isdigit():
+                    while j < n and src[j].isdigit():
+                        j += 1
+                    i = j
             text = src[start:i]
-            value = float(text) if "." in text else int(text)
+            # An exponent literal is always a float (`1e5` == `100000.0`,
+            # not `100000`), matching `_NUM_RE`'s own `float(t) if
+            # (m.group(2) or m.group(3))` rule (group 3 is the exponent).
+            # An overflowing exponent (`1e400`) becomes Python's `inf`,
+            # same as the PRE-EXISTING (and already fuzz-covered, see
+            # `test_fuzz_regressions.py`) overflow path for a huge
+            # digit-string-plus-fraction literal with no exponent at all
+            # -- literal overflow silently becomes `inf`, unlike
+            # `num("1e400")`'s "out of range" MISS, which is a string-
+            # conversion-specific rule, not a literal-grammar one.
+            value = (float(text) if ("." in text or "e" in text or "E" in text)
+                     else int(text))
             col += i - start
             tokens.append(Token("NUMBER", value, line, start_col))
             continue

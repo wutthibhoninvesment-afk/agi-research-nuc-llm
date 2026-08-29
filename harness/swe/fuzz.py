@@ -76,7 +76,8 @@ def _import_whence(root=WHENCE_ROOT):
 
 BUILTIN_ARITY = {
     "print": 1, "len": 1, "range": (1, 2), "map": 2, "filter": 2, "fold": 3,
-    "push": 2, "str": 1, "num": 1, "abs": 1, "sqrt": 1, "missed": 1,
+    "push": 2, "str": 1, "num": 1, "abs": 1, "sqrt": 1, "trunc": 1,
+    "missed": 1,
     "reasons": 1, "note": 2, "contains": 2, "join": 2, "keys": 1, "merge": 2,
     "get": 2, "put": 3, "has": 2, "find": 2,
     "steps": (1, 2), "at": 2, "blame": 1, "diverge": (1, 2),
@@ -89,6 +90,14 @@ BUILTIN_ARITY = {
     # needed, so this is a pure table addition — round 299 (SWE-loop D),
     # closing round 294's own next-steps item 2.
     "rand": 0,
+    # v0.17 (round 318): `trunc(x)`, arity 1 -- a plain numeric builtin,
+    # architecturally identical to the pre-existing `abs`/`sqrt` entries
+    # (miss on a non-numeric argument, otherwise a total, pure derive of
+    # the payload; `call()`'s generic fallback `args = [self.expr(...) for
+    # _ in range(n)]` already covers it, same as `abs`/`sqrt`). Closes the
+    # gap named in round 318's own next-steps item 6 and repeated in every
+    # SWE-loop(D)-adjacent round's list since (319-322) — round 323
+    # (SWE-loop D).
 }
 BINOPS = ["+", "-", "*", "/", "%", "==", "!=", "<", "<=", ">", ">=", "and", "or"]
 STR_POOL = ["", "a", "ab", "3O", "42", " 7 ", "1_000", "nan", "inf", "-inf",

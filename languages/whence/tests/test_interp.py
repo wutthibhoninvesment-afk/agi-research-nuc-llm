@@ -327,6 +327,24 @@ def test_trunc():
     assert val("let result = abs(trunc(7)) == trunc(abs(7))") is True
 
 
+def test_trunc_of_a_non_finite_float_is_a_miss_not_a_crash():
+    # round 323: `int(p)` on +-inf/nan is a host OverflowError/ValueError,
+    # not a miss -- `_is_num` alone lets inf/nan through (they're ordinary
+    # `float` instances). Reachable via a huge digit-string-plus-fraction
+    # literal even before this round (`fuzz.py` never generates one, so
+    # untouched by ~5 rounds of fuzzing since trunc shipped, round 318);
+    # trivially reachable now that the lexer also accepts exponent
+    # literals (`1e400`), this round's other fix. Same message/idiom as
+    # `sqrt`'s own pre-existing overflow guard just above.
+    huge = "1" + "0" * 400 + ".5"
+    p = val("let result = trunc(%s)" % huge)
+    assert is_miss(p) and p.reasons == ("number too large for float arithmetic (line 1)",)
+    p2 = val("let result = trunc(1e400)")
+    assert is_miss(p2) and "number too large for float arithmetic" in p2.reasons[0]
+    p3 = val("let result = trunc(-1e400)")
+    assert is_miss(p3) and "number too large for float arithmetic" in p3.reasons[0]
+
+
 def test_contains():
     assert val('let result = contains("whence", "hen")') is True
     assert val("let result = contains([1, 2], 2)") is True

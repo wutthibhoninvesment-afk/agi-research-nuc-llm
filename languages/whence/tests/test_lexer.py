@@ -20,6 +20,39 @@ def test_number_then_dot_is_not_float():
     assert [t.type for t in toks[:3]] == ["NUMBER", ".", "NAME"]
 
 
+# round 323: exponent literals had NO lexer support at all before this
+# round -- `1e5` silently split into `NUMBER(1)` `NAME("e5")` (a phantom
+# undefined-name expression statement outside parens, a ParseError inside
+# them), even though `interp.py`'s own `_NUM_RE` documents "optional
+# exponent" as part of canonical Whence number syntax for `num(text)`'s
+# STRING parsing -- a real grammar/literal inconsistency, found while
+# totality-fuzzing `trunc`'s new `BUILTIN_ARITY` entry with `1e400`.
+def test_exponent_literal_is_one_float_token():
+    toks = tokenize("1e5 1E10 2.5e3 1e-2 1e+2")
+    assert [t.value for t in toks[:5]] == [100000.0, 1e10, 2500.0, 0.01, 100.0]
+    assert all(isinstance(t.value, float) for t in toks[:5])
+
+
+def test_exponent_overflow_becomes_inf_not_a_lex_error():
+    # matches the PRE-EXISTING convention for a huge digit-string-plus-
+    # fraction literal with no exponent at all (already silently `inf`,
+    # see test_fuzz_regressions.py) -- literal overflow is `inf`, never a
+    # host exception; `num("1e400")`'s "out of range" MISS is a separate,
+    # string-conversion-specific rule (SPEC.md "Limits that are errors").
+    toks = tokenize("1e400 -1e400")
+    assert toks[0].value == float("inf")
+    # unary minus is a separate '-' token, not part of the literal
+    assert toks[1].type == "-" and toks[2].value == float("inf")
+
+
+def test_bare_trailing_e_is_not_consumed_as_exponent():
+    # no digit after 'e'/'+'/'-' -> not an exponent, lexes exactly as
+    # before this round (NUMBER then a separate NAME/op token)
+    assert [t.type for t in tokenize("5e")[:3]] == ["NUMBER", "NAME", "EOF"]
+    assert [t.type for t in tokenize("5experiment")[:3]] == ["NUMBER", "NAME", "EOF"]
+    assert [t.type for t in tokenize("5e+")[:3]] == ["NUMBER", "NAME", "+"]
+
+
 def test_string_escapes():
     toks = tokenize('"a\\nb\\"c\\\\d"')
     assert toks[0].value == 'a\nb"c\\d'
