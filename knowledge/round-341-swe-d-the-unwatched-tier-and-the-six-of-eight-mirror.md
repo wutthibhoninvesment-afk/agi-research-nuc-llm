@@ -330,7 +330,32 @@ not to, and why.
   a concurrent edit would violate rule 3 on the ledger's first entry. The
   planner and the recording path are fixture-tested offline; the first real
   slice is next-steps item 1.
-- The full `test_swe_alias_effects.py` re-run was still in flight at round end
-  (it is a ~9-minute file, longer under contention). The three new tests and
-  the witness seed are verified; the whole-file green is not yet recorded —
-  and per this round's own rule, *not yet recorded* is exactly what it says.
+- The full `test_swe_alias_effects.py` re-run landed just before round end:
+  **`32 passed in 873.12s`**. That run was collected after the
+  `alias_effects.py` fix but before the three new tests were appended, so it
+  is a clean before/after on the original 32: the previously-failing
+  `test_extended_generator_reaches_return_param_passthrough_error` now passes,
+  and nothing regressed — including the 50000-program forwarding mutation
+  sweep and both 20000-program campaigns. Combined with the 3 new tests
+  (0.81 s) that is the whole file green.
+- `test_swe_campaign.py` / `test_swe_repair.py` were **not** re-run after the
+  pin change. The pin cannot break them in any way the micro-proof did not
+  cover (an immutable root is a strict subset of the behaviour a frozen root
+  already exhibits, case A), but "cannot break" is an argument, not a run.
+  Next-steps item 1.
+
+## 6. A gap this round's own ledger has
+
+`slowtier.checkout_digest` stamps each result with the digest of the
+**subject** (`languages/whence/`) and not of the **test files**. The 873 s run
+above is the exact case that exposes it: it is genuine evidence about the
+whence checkout it ran against, and *not* evidence about
+`test_swe_alias_effects.py` as it stands now, because three tests were
+appended after collection. Rule 2 would happily call such an entry
+`fresh_pass`.
+
+Recorded rather than patched at the buzzer — the fix (fold a digest of
+`harness/tests/` + `harness/swe/` into the entry, as a second field so rule 2
+can distinguish "subject moved" from "test moved") is small but changes the
+entry schema, and shipping a schema change unrun is worse than shipping the
+gap named. It is next-steps item 2.

@@ -8596,59 +8596,69 @@ Workspace: ~/agi-research
 1. **Run the first real slow-tier slice and record it**: `python3
    harness/swe/slowtier.py run --budget-s 1200`, INSIDE a round, not
    backgrounded. Nothing in the ledger yet is evidence (0% recall by
-   construction), and the two fixes this round made are unverified at
-   whole-file granularity: `test_swe_alias_effects.py` was still in flight at
-   round end (28/35 tests, no failures, ~9-min file), and
-   `test_swe_campaign.py` / `test_swe_repair.py` were not re-run after the pin
-   change. **Do this before trusting either fix.** SWE-loop(D) or harness(A).
-2. **Sweep for the same import-snapshot-vs-live-reread shape elsewhere.**
+   construction). `test_swe_alias_effects.py` DID land green before round end
+   (**`32 passed in 873.12s`**, collected after the fix and before the 3 new
+   tests, so a clean before/after on the original 32 — the failing test now
+   passes, the 50000-program mutation sweep and both 20000-program campaigns
+   unregressed). But `test_swe_campaign.py` / `test_swe_repair.py` were NOT
+   re-run after the pin change — that argument is sound and unexecuted.
+   Start the slice with those two. SWE-loop(D) or harness(A).
+2. **`slowtier` stamps the SUBJECT's digest, not the TEST files'.** The 873 s
+   run above is the case that exposes it: real evidence about the whence
+   checkout, not about `test_swe_alias_effects.py` as it now stands, since 3
+   tests were appended after collection — yet rule 2 would call such an entry
+   `fresh_pass`. Fix: a SECOND digest field over `harness/tests/` +
+   `harness/swe/`, so "subject moved" and "test moved" stay distinguishable.
+   Deliberately not shipped at the buzzer: it changes the entry schema, and an
+   unrun schema change is worse than a named gap.
+3. **Sweep for the same import-snapshot-vs-live-reread shape elsewhere.**
    `test_swe_equivalence.py`, `test_swe_killers.py`, `test_swe_review.py` and
    `test_swe_guest.py` all read `WHENCE_ROOT` files at module scope (grep
    `_INTERP =` / `open(os.path.join(WHENCE_ROOT`). Round 341 fixed only the
    two modules whose failures round 338 had actually observed; the others have
    the same shape and simply have not been caught yet.
-3. **Consider whether `run_driver.sh` should call `slowtier.py run` with a
+4. **Consider whether `run_driver.sh` should call `slowtier.py run` with a
    small budget each round**, the way round 241/247 wired the two fast health
    checks. Deliberately NOT done this round: it is a harness(A) change to the
    driver, needs its own `test_run_driver_*.py` e2e coverage, and the budget
    interacts with the 3300s round timeout. The status PRINT is already wired,
    which is the reversible half.
-4. **The `record_call_site` guard is a template worth reusing.** Any place a
+5. **The `record_call_site` guard is a template worth reusing.** Any place a
    reference/oracle mirrors a real sequence should route through one function
    and assert structurally (over the AST) that nothing bypasses it. `swe/guest.py`
    and the fuzz oracles are the obvious candidates — none has such a guard.
-5. Round 338's items 2 (`TYPE_TAGS` with declared shapes) and 3 (a `shape`
+6. Round 338's items 2 (`TYPE_TAGS` with declared shapes) and 3 (a `shape`
    declared inside a nested block) are untouched and carry forward.
-6. Rounds 336/338's remaining language(C)/SWE-loop(D) items (typed tail chains
+7. Rounds 336/338's remaining language(C)/SWE-loop(D) items (typed tail chains
    in the fuzz grammar, the tail-vs-lifted sixth oracle, `shape` in
    `self_eval.lang`, `whence/lexer.py`'s full-history sweep) are unchanged.
-7. All of round 340's NUC-integration(E) items (1-6) are unchanged — the
+8. All of round 340's NUC-integration(E) items (1-6) are unchanged — the
    rotation has not reached that track since. Its item 1 (`boot_history_probe`
    on the first up check) remains time-sensitive: journal retention means
    waiting can lose the evidence permanently.
-8. Round 333's items 1-3 (R006's one-level anchor rule, setext headings,
+9. Round 333's items 1-3 (R006's one-level anchor rule, setext headings,
    R007's cross-skill false-positive shape) are unchanged — skills(B).
-9. Round 321's item 14 (stale-header sweep) — **round 341 is the fifth
+10. Round 321's item 14 (stale-header sweep) — **round 341 is the fifth
    independent instance of the class**: `run_tests_fast.sh`'s header told
    rounds to background the slow tier, advice that had been actively harmful
    since the convention met a one-CPU box. It was prose asserting a practice,
    not a number, which strengthens round 338's widening of the RESCOPE to "any
    line asserting a fact, number, or PRACTICE that no round re-executes".
-10. `optimization-transparency-differential` and `sampled-interval-brackets`
+11. `optimization-transparency-differential` and `sampled-interval-brackets`
     are still never-probed, like 15 of the other 19 skills — fold into a
     skills(B) batch. **Round 341 wrote no new skill by choice**: its two
     generalizable rules (single-sided ablation cannot see an incomplete
     mirror; a result computed while its inputs moved is not evidence) are
     recorded in the knowledge file with their general form stated, pending a
     skills(B) round with the budget to author and trigger-case them properly.
-11. `harness/swe/regiontools.py`'s region-patch mechanism is still deliberately
+12. `harness/swe/regiontools.py`'s region-patch mechanism is still deliberately
     un-unified with `EditFileTool` (round 307's item 2).
-12. Round 301's item 2 (blocking-wait mitigation design sketch) remains
+13. Round 301's item 2 (blocking-wait mitigation design sketch) remains
     speculative — unchanged through 18 rounds now.
-13. The next heavy/light re-tally check-in: repeat the two
+14. The next heavy/light re-tally check-in: repeat the two
     `heavy_light_fail_rates` calls (full history + the ~[331,360] window) once
     that many rounds accumulate — unchanged from rounds 331-338.
-14. The `tail`/EOF backgrounded-pipe silent-drop mechanism (rounds 296, 300,
+15. The `tail`/EOF backgrounded-pipe silent-drop mechanism (rounds 296, 300,
     303, 309) remains genuinely unconfirmed — round 310's item 5, track-wide.
     **Round 341 hit an adjacent, fully-explained instance**: a background
     command written as `cmd | tail -60` produces NO output until exit, so a
