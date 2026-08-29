@@ -661,7 +661,8 @@ fn reify(b, k) {
 # ---- the store: every frame of every environment, one immutable record -----
 # f0 is the builtin frame; a guest builtin value is a tagged record naming
 # which host builtin it stands for.
-let builtin_names = ["print", "len", "range", "map", "filter", "fold", "push",
+let builtin_names = ["print", "rand", "len", "range", "map", "filter", "fold",
+                     "push",
                      "str", "num", "abs", "sqrt", "missed", "reasons", "note",
                      "contains", "join", "keys", "merge", "get", "put", "has",
                      "find", "typed", "guess", "is_guess", "confidence", "sure",
@@ -681,7 +682,8 @@ let builtin_names = ["print", "len", "range", "map", "filter", "fold", "push",
 # same reasoning to the rest of the provenance-as-data family below).
 let propagating = ["len", "range", "num", "abs", "sqrt", "contains", "join",
                    "keys", "merge", "has", "put", "guess", "confidence", "sure"]
-let arities = @{print: 1, len: 1, range: -1, map: 2, filter: 2, fold: 3,
+let arities = @{print: 1, rand: 0, len: 1, range: -1, map: 2, filter: 2,
+                fold: 3,
                 push: 2, str: 1, num: 1, abs: 1, sqrt: 1, missed: 1,
                 guess: 3, is_guess: 1, confidence: 1, sure: 2,
                 reasons: 1, note: 2, contains: 2, join: 2, keys: 1,
@@ -1567,6 +1569,17 @@ fn apply_host_builtin(name, args) {
     false
   }
   else if name == "print" { print(strip(args[0])) }
+  # v0.14.8 guest parity: `rand` is the first arity-0 builtin, so `a0`
+  # above (computed unconditionally as `(args[0]).v`) is a propagated
+  # host-level miss here (`args` is `[]`) rather than a real argument --
+  # harmless, since this branch never reads it. Calling the real host
+  # `rand()` builtin directly draws from the SAME running interpreter's
+  # `_rng` that a direct (non-guest) evaluation of the same program would
+  # use, so guest and host draw identical sequences given the same seed
+  # (self_eval.lang itself never calls `rand()` except here, one draw per
+  # guest-level `rand()` call, in the same order the guest program makes
+  # them).
+  else if name == "rand" { rand() }
   else if name == "len" { len(a0) }
   else if name == "str" { str(strip(args[0])) }
   else if name == "num" { num(a0) }

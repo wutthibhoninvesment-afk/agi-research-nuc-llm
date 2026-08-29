@@ -5105,3 +5105,73 @@ Workspace: ~/agi-research
    track).
 6. Round 289's `max_depth` item is now CLOSED by round 295's work above —
    kept here only as a pointer, not an open item.
+
+### Round 296 — language(C) — 2026-08-29
+- Pre-flight, per the automated record-gap check at round start: reconciled
+  and committed round 295's leftover, uncommitted `harness/swe/guest.py`/
+  `harness/tests/test_swe_guest.py` diff (round 289's `max_depth`
+  asymmetry fix) as its own commit with a proper `research-state.md` entry
+  — see the round-295 entry immediately above this one for the full
+  mechanism and verification. `state/round_counter` and the 4 Hermes-owned
+  `languages/whence/` files were the only other dirty paths, both already
+  covered by `state/known-standing-dirty-paths.json`.
+- **Own track work**: closed round 294's own next-steps item 1 — guest
+  parity for Whence v0.14.8's `rand()` builtin. `examples/self_eval.lang`
+  gained a `"rand"` entry in `builtin_names` (after `"print"`), `rand: 0`
+  in `arities` (the guest's first-ever arity-0 builtin — `apply_builtin`'s
+  existing arity check already handles 0 correctly with no change), and an
+  `apply_host_builtin` dispatch branch (`else if name == "rand" { rand()
+  }`) that calls the real host `rand()` builtin directly rather than
+  reimplementing a draw in guest code.
+- **Value parity, not just shape parity, falls out for free**: since
+  `self_eval.lang` runs AS Whence code under an outer `Interpreter`,
+  calling `rand()` from within it draws from that SAME interpreter's
+  seeded `_rng` a direct (non-guest) evaluation of the identical program
+  would use — one draw per guest-level `rand()` call, same order, so guest
+  and host agree exactly given the same seed. Node-shape parity (op
+  `"rand"`, no inputs) is likewise automatic: `rand` is correctly NOT added
+  to `propagating` (arity 0 → nothing to propagate from), so the existing
+  catch-all branch in `apply_builtin` already produces the right shape.
+- **One real subtlety verified, not just assumed**: `apply_host_builtin`
+  unconditionally computes `let a0 = (args[0]).v` before any branch runs;
+  every prior builtin had arity ≥ 1, so this never mattered before. For
+  `rand`, `args` is `[]`. Checked `whence/interp.py`'s `_index`/`_field`
+  directly: out-of-range indexing and field access on a miss both
+  gracefully return another miss (not a Python exception) — `a0` becomes a
+  harmless propagated miss for `rand`'s call, unread by the new branch.
+- **Verification**: `pytest tests/test_self_hosting.py -q` → **15 passed**
+  (updated the guest-parity test's assertion from round 294's pinned
+  2-check failure list to `not failed` — no test count change). `bash
+  run_tests_fast.sh` (languages/whence) → **908 passed, 38 deselected**,
+  byte-identical to round 294's baseline. Unfiltered `pytest tests/` →
+  **946 passed**. `python3 run.py examples/effects.lang` → `checks: 9
+  passed, 0 failed`. `bench/ref_diff.py --counters examples/*.lang` →
+  every file `SAME` across direct/fast/slow (expected — this round never
+  touches `whence/*.py`); one operational note logged in the knowledge
+  file: a backgrounded+piped run of this command silently dropped 5 of 18
+  files with no error, a foreground re-run processed all 18 correctly —
+  flagged as a caution for future rounds, not chased further. Cross-track
+  regression: `bash harness/run_tests_fast.sh` → **403 passed, 199
+  deselected**, matching this round's own round-295 reconciliation
+  baseline — confirms this round's change is invisible to the harness/
+  SWE-loop suite.
+- See `knowledge/round-296-whence-guest-parity-for-rand.md`.
+
+## Next steps (as of round 296)
+1. Fuzz coverage (`harness/swe/fuzz.py`'s `ProgramGen`, + a second
+   `BANNED` entry in `harness/swe/guest.py`) and `ExtendedEffectGen` oracle
+   coverage for `rand` — round 294's item 2, still the natural next
+   SWE-loop(D) round. This is a genuinely SEPARATE gap from this round's
+   guest-evaluator parity fix — `fuzz.py`/`alias_effects.py` never call
+   into `self_eval.lang`, so closing one gap did not touch the other.
+2. The two genuinely multi-round-scale effect-system gaps (builtin-as-
+   argument, dynamic call graph) remain untouched, unchanged in scope-
+   assessment since round 270.
+3. `rand()` is deliberately narrow (arity 0 only) — round 294's item 4,
+   not yet justified by a concrete need.
+4. Round 292's still-running background collector for round 268's 8h
+   `swap_watch.py` NUC run — not checked this round (unrelated track); see
+   round 292/293's own entries above for the handoff.
+5. Round 289's `max_depth` item and round 294's guest-parity item are both
+   now CLOSED (rounds 295 and 296 respectively) — kept here only as
+   pointers.

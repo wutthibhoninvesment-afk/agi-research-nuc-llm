@@ -1577,6 +1577,69 @@ that cannot end a statement.
   round's (language(C)'s) own scope — the same track split every prior
   v0.14.x feature has followed.
 
+### `rand` guest parity (round 296)
+- **Closes the gap the section above named**: `examples/self_eval.lang`'s
+  `builtin_names` gained a `"rand"` entry (after `"print"`, its fellow
+  effectful builtin) and its `arities` record gained `rand: 0` — the
+  guest's first-ever arity-0 builtin. `apply_builtin`'s own arity check
+  (`if ar == -1 {...} else {len(args) == ar}`) already handles 0 with no
+  change; a 0-arg call's `args` list is simply `[]`.
+  `apply_host_builtin(name, args)` dispatches `"rand"` to the real host
+  `rand()` builtin directly (`else if name == "rand" { rand() }`, next to
+  `"print"`'s own branch) rather than reimplementing a draw in guest code.
+- **Why calling the real builtin gives correct VALUE parity, not just
+  correct SHAPE**: `self_eval.lang` is itself Whence source, executed by
+  an outer `Interpreter`. When it calls `rand()` to service a guest
+  program's own `rand()` call, that draws from the SAME outer
+  interpreter's seeded `_rng` a fully direct (non-guest) evaluation of the
+  identical program would use — since `self_eval.lang`'s own code never
+  calls `rand()` except in this one dispatch branch, each guest-level
+  `rand()` call consumes exactly one draw, in the same order the guest
+  program makes them, so guest and direct-host evaluation agree exactly
+  given the same seed. No special-casing needed anywhere in the guest
+  evaluator, the same "operate purely on values, oblivious to where they
+  came from" property that let the parser-side `_EFFECTFUL_BUILTINS`
+  extension (above) need zero other code changes.
+- **Node shape parity is automatic, not hand-mirrored**: `rand`'s host
+  node (`interp.py`'s `b_rand`) is `leaf("rand", "", line, value)` — op
+  `"rand"`, empty detail, no inputs. `apply_builtin`'s existing catch-all
+  branch (the `else` after every named special case) already produces
+  exactly that shape for any builtin absent from `propagating`/the
+  node-shape-override list: `o = name` (not `"builtin"`, since `rand` is
+  correctly NOT added to `propagating` — arity 0 means there is nothing to
+  propagate from) and `ins2 = args` (`[]`). No new special-case branch was
+  needed in `apply_builtin` itself, only in `apply_host_builtin`'s
+  dispatch table.
+- **`tests/test_self_hosting.py::test_effects_lang_runs_under_the_guest_
+  round_164_backlog_closed`** updated: `examples/effects.lang`'s all 9
+  checks (including both of `rand`'s own) now pass under the guest, where
+  round 294 pinned exactly those 2 as the expected failures. Verified
+  directly with `python3 run.py examples/effects.lang` (host) and via the
+  guest harness (`Interpreter().run(eval_lib + run_src(effects_src))`) —
+  both report `checks: 9 passed, 0 failed`.
+- **Verification**: `pytest tests/test_self_hosting.py -q` → **15 passed**
+  (no count change — this fixed an existing test's assertion, added none).
+  `bash run_tests_fast.sh` → **908 passed, 38 deselected**, byte-identical
+  to round 294's own post-`rand`-landing baseline (this round touches only
+  `examples/self_eval.lang` and one test file, no interpreter code).
+  Unfiltered `pytest tests/` → **946 passed**. `bench/ref_diff.py
+  --counters examples/*.lang` (working tree `whence/` package vs git HEAD)
+  → every file, including `effects.lang` (`bindings=12 checks=9 out=11`),
+  `SAME` across direct/fast/slow — expected, since this round's diff is
+  entirely inside `self_eval.lang`, never `whence/*.py`, so the reference
+  differential (which only compares the Python package) has nothing to
+  disagree about; run anyway as the standing cross-check this project's
+  language(C) rounds always include. Cross-track regression check: `bash
+  harness/run_tests_fast.sh` → **403 passed, 199 deselected** (round 295's
+  own `GuestHarness`/`harness_for` `max_depth` fix, reconciled the same
+  round this work landed, moved the deselected count from 196; unaffected
+  by this round's own change).
+- **Still open, unchanged in scope from the section above**: fuzz coverage
+  (`harness/swe/fuzz.py`'s `ProgramGen`, + a `BANNED` second entry in
+  `harness/swe/guest.py`) and `ExtendedEffectGen` oracle coverage for
+  `rand` — SWE-loop(D)'s own next round, same shape as the v0.14.2-
+  v0.14.7 arc but for a genuinely new builtin.
+
 ## v0.15 (round 168) — AI-native primitives: `guess`/confidence
 - **The curriculum's last open "advanced feature" slot** (structural types
   v0.12, return types v0.13, effects v0.14 all shipped; round 146 itself

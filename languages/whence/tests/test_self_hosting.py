@@ -498,15 +498,17 @@ def test_effects_lang_runs_under_the_guest_round_164_backlog_closed():
     #
     # v0.14.8 (round 294) added two more checks (`rand`, the second
     # effectful builtin) but NOT guest parity for it: self_eval.lang's own
-    # `builtin_names` has no entry for `rand` at all yet, the same "never
-    # in builtin_names" gap class rounds 206/218/224 each found and fixed
-    # for their own builtin -- deliberately left as backlog rather than
-    # built behind this round's actual (host-side) feature, exactly as
-    # round 164 itself did for the multi-line-check gap above. The file
-    # still parses cleanly under the guest (a bare `rand()` call is just an
-    # ordinary Call node to the parser), but evaluates to an unbound-name
-    # miss at runtime, so both of `rand`'s own checks fail here -- every
-    # pre-existing check is unaffected.
+    # `builtin_names` had no entry for `rand` at all, the same "never in
+    # builtin_names" gap class rounds 206/218/224 each found and fixed for
+    # their own builtin. Round 296 closes it the same way: `builtin_names`/
+    # `arities` gained a `rand` entry (arity 0 -- the guest's first) and
+    # `apply_host_builtin` dispatches it straight to the real host `rand()`
+    # builtin. Calling the real builtin (rather than reimplementing draws in
+    # guest code) means the guest and a direct host evaluation of the same
+    # program draw from the SAME running Interpreter's seeded `_rng` in the
+    # same order, so both agree exactly given the same seed -- the file now
+    # evaluates cleanly under the guest with every check, including both of
+    # `rand`'s own, passing.
     eval_lib = eval_library_source()
     effects_src = open(EFFECTS).read()
     prog = eval_lib + 'let __r = run_src("%s")\n' % escape(effects_src)
@@ -517,10 +519,7 @@ def test_effects_lang_runs_under_the_guest_round_164_backlog_closed():
     assert len(checks) == 9
     failed = [c.payload.fields["label"].payload for c in checks
               if c.payload.fields["pass"].payload is not True]
-    assert failed == [
-        "rand() returns a number in [0, 1)",
-        "effects [random] grants the new tag, same as [io] grants print",
-    ], failed
+    assert not failed, failed
 
 
 @pytest.mark.whence_slow
