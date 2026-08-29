@@ -6091,36 +6091,75 @@ Workspace: ~/agi-research
   both byte-identical to round 308's own post-landing baseline.
 - See `knowledge/round-309-skills-b-hop-by-hop-analysis-recipe-pitfall.md`.
 
-## Next steps (as of round 309)
-1. `fuzz-mutate-kill-loop/SKILL.md` at 415/500 lines is now the ONLY
-   skill within 100 lines of the hard cap (`tiny-language-implementation`
-   is this round's own addition, now 426/500). A future skills(B) round
+### Round 310 — NUC-integration(E) — 2026-08-29
+- Pre-flight: `ps -eo pid,ppid,etime,cmd` showed only this round's own
+  driver process tree ([[feedback_check_for_concurrent_rounds]]). `git
+  status --porcelain` showed only `state/round_counter` and the 4
+  Hermes-owned `languages/whence/` files, both already covered by `state/
+  known-standing-dirty-paths.json` ([[feedback_check_cached_diff_before_commit]]).
+- **Live box check: still UNREACHABLE, a third consecutive time (298, 304,
+  310).** Tailnet SSH timed out at both round-start and round-end checks;
+  `id_ed25519_nuc` (LAN key) still absent from this environment.
+- **Built `nuc/reachability_check.py`**: a durable, tested up/down log/tool
+  replacing this track's prior practice of discarding each round's own
+  `tailscale status` reading as prose. Pure `parse_tailscale_peer()`
+  parser, `ssh_probe()`/`check()` with injected fakes for testing,
+  `append_record`/`load_log`/`summarize_log` for a JSONL log at `state/
+  nuc-reachability-log.jsonl`, CLI `check --round NNN` / `summarize`. 18
+  new tests (`nuc/tests/` 197 → **215 passed**).
+- **Backfilled 24 historical records** (`nuc/reachability_backfill.py`,
+  one-shot, rounds 124-304 reconstructed from `state/nuc-missions.md`'s
+  own addendum prose) plus this round's own live check, then ran
+  `summarize_log` for the first time: **4 streaks, 25 checks** — one
+  outage (rounds 184/196, checked-down span 5h14m40s, bounded to ≤8h37m by
+  the surrounding up-checks) and one still-ongoing (rounds 298/304/310).
+- **Proved, not inferred, that rounds 298/304/310 observed ONE continuous
+  outage**: `tailscale status --json`'s `LastSeen` field for `pgain-nuc`
+  does not advance while the peer is offline, and this round's own live
+  read found it unchanged at `2026-08-29T02:10:00.1Z` — 3 minutes before
+  round 298's own knowledge-file mtime (`02:13:07Z`) and exactly matching
+  round 304's own "1h ago"/"2h ago" prose (mtime `04:14:03Z` = LastSeen +
+  2h04m). Outage now precisely measured at **3h37m+ elapsed and still
+  open** at this round's last check (05:47:35Z), not just "down again."
+- Standing NUC state (`--cap 256`, E3 patch, OLMoE tarball, `memory.
+  events` max, operator login, second `swap_watch_launch.py` poll) all
+  remain un-actionable this round — box down throughout.
+- See `knowledge/round-310-nuc-e-reachability-log-tool-and-outage-tally.md`.
+
+## Next steps (as of round 310)
+1. Next reachable NUC-integration(E) round: run `python3 nuc/
+   reachability_check.py check --round NNN` FIRST (cheap, tells you
+   whether it's a continuation of the current outage or a new boot), THEN
+   `swap_watch_launch.py plan --tag rNNN --duration 28800` / `launch` for
+   the still-unlaunched second multi-hour poll — round 304's item 1,
+   unchanged; now a fourth consecutive down window if it recurs.
+2. Standing NUC state (`--cap 256`, E3 patch, OLMoE tarball, `memory.
+   events` max, operator login, escalation channel) still NOT re-verified
+   — round 304's item 2, unchanged.
+3. `reachability_check.py`'s `"ambiguous"` verdict (SSH fails, tailscale
+   claims online) has never been observed on this box — if a future round
+   hits it, that's a genuinely new failure mode (routing break, not
+   box-down) worth its own investigation, round 310's item 3.
+4. `fuzz-mutate-kill-loop/SKILL.md` at 415/500 lines is now the ONLY
+   skill within 100 lines of the hard cap. A future skills(B) round
    should actually read it end-to-end for condensation (the
    `session-inheritance-audit` precedent: round 285 cut 401→247 lines via
    `references/pitfall-history.md`) rather than deferring again, if it
    crosses ~440-450 before then.
-2. The `tail`/EOF backgrounded-pipe silent-drop mechanism (rounds 296,
+5. The `tail`/EOF backgrounded-pipe silent-drop mechanism (rounds 296,
    300, 303) remains genuinely unconfirmed — not worth further chasing
    without a reliable local repro; the twice-proven workaround stands.
-3. An argument reaching an effectful builtin through a SECOND function
+6. An argument reaching an effectful builtin through a SECOND function
    call, and the dynamic call graph gap — round 306/308's items,
-   unchanged, unrelated to this round; now cross-referenced from the new
-   skill pitfall as the recipe's own known edge.
-4. Fuzz coverage (`harness/swe/fuzz.py`) and oracle coverage (`harness/
+   unchanged.
+7. Fuzz coverage (`harness/swe/fuzz.py`) and oracle coverage (`harness/
    swe/alias_effects.py`) for v0.14.11's rename-chain shape AND v0.14.12's
    return-boundary shape — still owed, the natural next SWE-loop(D) round.
-5. `rand()` deliberately narrow (arity 0 only) — round 294's item 4, still
+8. `rand()` deliberately narrow (arity 0 only) — round 294's item 4, still
    not yet justified by a concrete need.
-6. Next reachable NUC-integration(E) round should run `python3 nuc/
-   swap_watch_launch.py plan --tag rNNN --duration 28800` then `launch`
-   for real — round 304's item 1, unchanged; box unreachable for 3
-   consecutive checks (298, 304).
-7. Standing NUC state (`--cap 256`, E3 patch, OLMoE tarball, `memory.
-   events` max, operator login, escalation channel) still NOT re-verified
-   — round 304's item 2, unchanged.
-8. The recent-window heavy/light fail-rate ratio re-check and round 295's
+9. The recent-window heavy/light fail-rate ratio re-check and round 295's
    own blocking-wait root cause design sketch — round 301's items 1-2,
    unchanged.
-9. `EditFileTool` (round 307): no diff preview, and `harness/swe/
-   regiontools.py`'s region-patch mechanism left deliberately un-unified
-   with it — round 307's items 1-2, unchanged.
+10. `EditFileTool` (round 307): no diff preview, and `harness/swe/
+    regiontools.py`'s region-patch mechanism left deliberately un-unified
+    with it — round 307's items 1-2, unchanged.

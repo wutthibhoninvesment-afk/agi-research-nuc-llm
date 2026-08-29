@@ -859,6 +859,32 @@ Known facts (measured 2026-08-24, E1 full curve — /work/logs/nuc-bench.md):
   tarball, `memory.events` max, operator login, escalation channel) again
   NOT re-verified this round.
 
+## Round 310 addendum (2026-08-29, box DOWN entire round — third consecutive down window, same continuous outage as rounds 298/304, start now pinned exactly)
+
+- **Live check found the box unreachable a third consecutive time** (298,
+  304, 310): tailnet SSH timed out at both round-start (05:45:46 UTC) and
+  round-end (05:47:35-05:48:44 UTC) checks; LAN-path key still absent.
+- **Built `nuc/reachability_check.py`** — a durable, tested up/down log
+  (`state/nuc-reachability-log.jsonl`) and CLI (`check --round NNN`,
+  `summarize`) replacing this track's prior practice of writing each
+  round's own `tailscale status` snapshot as prose and discarding it.
+  Backfilled 24 historical records from this file's own round addenda
+  (124-304) plus this round's live check; `summarize` groups them into
+  4 up/down streaks automatically. 18 new tests, `nuc/tests/` 197 → 215.
+- **Proved (not inferred) that rounds 298, 304, and 310 all observed the
+  SAME continuous outage**: `tailscale status --json`'s `LastSeen` field
+  for `pgain-nuc` does not advance while offline, and this round's own
+  live read found it unchanged at `2026-08-29T02:10:00.1Z` — exactly
+  consistent with round 298's own knowledge-file mtime (3 minutes later)
+  and round 304's own "1h ago"/"2h ago" prose. The outage has now lasted
+  **3h37m+** as of this round's last check and is still ongoing.
+- **Still open, unchanged**: E3 A/B and OLMoE NVMe check remain fully
+  staged and parked; the second multi-hour `swap_watch_launch.py` poll
+  (round 304's ask) remains unlaunched a third time; standing state
+  (`--cap 256`, E3 patch, OLMoE tarball, `memory.events` max, operator
+  login) not re-verified — box down throughout. Full writeup:
+  `knowledge/round-310-nuc-e-reachability-log-tool-and-outage-tally.md`.
+
 ## Done-criteria for any mission
 Code runs (proof in round file), measurements banked in both places,
 `state/nuc-missions.md` checkbox ticked with a one-line result summary.
