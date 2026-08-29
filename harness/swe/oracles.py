@@ -28,6 +28,20 @@ see semantic bugs:
                 `diverge(a, b)` must mirror `diverge(b, a)` (symmetry) for
                 every pair of bindings.
 
+  tail_transparency
+                (round 337) the tail-call transparency oracle. v0.3 tail
+                calls are a SPACE optimisation, so a call's ANSWER must not
+                depend on it being in tail position: the program is parsed
+                twice and `parser.mark_tails`'s own `Call.tail` flags are
+                cleared on the second AST, and `out` / `checks` / `vals`
+                must agree. Round 336 found this claim false in two ways at
+                once (outermost-first blame in a typed chain, and the outer
+                call's line rather than the tail call's own) and fixed both;
+                this drives the same transform over generated programs. The
+                `why` tree is the may-differ field and programs that reflect
+                on provenance are exempt — see the long comment above
+                `oracle_tail_transparency` for both lists.
+
   frames        (round 110) the frame-charge oracle. Direct mode charges
                 every host frame it will use (`cdepth` + 1 per call)
                 against a budget measured at `exec_stmt`; round 108's bug
@@ -59,7 +73,7 @@ from .fuzz import ProgramGen, WHENCE_ROOT, shrink, list_example_files, _whence_f
 from .killers import load_whence, _Timeout, _alarm
 
 ORACLE_NAMES = ("totality", "fast_slow", "direct", "determinism", "render",
-                "frames")
+                "frames", "tail_transparency")
 
 # Largest transient (host frames used above the charge) the frames oracle
 # tolerates. The transient is bounded by construction: a call-free subtree
@@ -295,6 +309,235 @@ def oracle_direct(pkg, src, max_depth=500):
     return OracleOutcome("mismatch" if d else "ok", "direct", d)
 
 
+# ------------------------------------------------- tail transparency (337) --
+#
+# Round 336 (language C) established the claim this oracle tests: v0.3 tail
+# calls are a SPACE optimisation ("merge, they do not forget", SPEC decision
+# 8), so a program's ANSWER must not depend on whether a call sits in tail
+# position. Round 336 found that claim false in two ways at once — a typed
+# chain blamed the outermost `-> Type` contract where the same chain lifted
+# out of tail position blamed the innermost one, and every chain check
+# reported the OUTER call's line instead of the tail call's own — and fixed
+# both. Its own differential was a hand-built family in
+# `languages/whence/tests/test_v13.py` (2325 chain programs, each written
+# out twice); its next-steps item 2 asked for the transform as a real oracle
+# so the fuzzer can drive it over programs nobody wrote.
+#
+# THE TRANSFORM. Round 336 described a SOURCE rewrite (`f()` -> `let __t =
+# f()  __t`, kept on one line so the miss line number stays comparable).
+# This oracle instead clears `Call.tail` — the flag `parser.mark_tails` set
+# — on a second, independently parsed AST. That is the same transform
+# expressed where the language itself defines tail position, and it is the
+# better one for an oracle whose whole value is being zero-false-positive:
+#   * a source rewrite needs a second, hand-written tail-position finder, and
+#     any bug in THAT reimplementation of `mark_tails` reports as an
+#     interpreter finding;
+#   * there is no rewrite, so no line can shift — the line-alignment round
+#     336 had to engineer ("a naive multi-line rewrite would force stripping
+#     the line again") holds by construction;
+#   * parse-time facts (`effects [...]`, `tail_alias_tag`, `param_call_fact`)
+#     are identical on both sides, so a divergence can only come from the
+#     runtime tail path — which is the thing under test. Round 336 confirmed
+#     independently that `effects` is exempt from this class by construction.
+# Equivalence to round 336's own textual form is not assumed: round 337
+# re-ran its exact `chain_pair` family (450 programs, hops 2-3) comparing
+# THIS transform's result against round 336's literal `let t = ...  t`
+# source, and got 450/450 on the fixed interpreter AND 450/450 on the
+# pre-fix one — agreeing on the wrong answers too, which is the stronger
+# half. Pinned in `test_swe_oracles.py`.
+#
+# MUST MATCH / MAY DIFFER, written before the first comparison:
+#   must match  `out`, `checks`, `vals` — everything the program answers.
+#               `vals` renders a Miss with its whole reason list including
+#               line numbers, so this is round 336's "identical payloads and
+#               identical miss reason tuples" at every top-level binding.
+#   may differ  `why`. The merged `call f/g xN` node IS the optimisation's
+#               documented signature; the lifted form's tree is N nested
+#               `call` nodes instead of one flat merged node, so the trees
+#               differ in SHAPE, not in one line (measured round 337 on
+#               `even`/`odd` at n=6). Comparing it would test that the
+#               optimisation did NOT happen.
+#   exempt      whole programs that REFLECT on provenance (`steps`, `at`,
+#               `blame`, `diverge`, `contrast`, `why`, `snip`), because in a
+#               provenance-first language those builtins reify the may-differ
+#               why-tree into an ordinary value, which then flows straight
+#               into the must-match fields — `print(str(steps(t)))` puts
+#               `count: 1501` in `out`. The observable set here CANNOT be
+#               split field by field.
+#   exempt      programs where the lifted run hits the depth wall the tail
+#               run was built to avoid (`peak_depth >= max_depth`, or a host
+#               `RecursionError`). That is the space optimisation working:
+#               `even(1500)` answers `true` merged and
+#               `miss: recursion too deep` unmerged.
+# Every exemption is named in `detail`, so a campaign reports the
+# distribution instead of hiding it — the convention `oracle_frames`
+# already uses for its measured excess.
+
+TAIL_ORACLE = "tail_transparency"
+
+# Builtins that read the why-tree back out as a value. A NameRef to any of
+# these anywhere in the program exempts it (deliberately coarse: shadowing
+# one of these names only costs coverage, never correctness).
+PROVENANCE_BUILTINS = frozenset(("steps", "at", "blame", "diverge", "contrast"))
+
+
+def iter_ast_nodes(root):
+    """Every AST node reachable from `root`, once each, iteratively.
+
+    Iterative on purpose: the fuzzer emits expression chains deep enough
+    (`1 + 1 + ...`, nested list literals) that a recursive walk hits the
+    host recursion limit before the interpreter does.
+    """
+    stack, seen = [root], set()
+    while stack:
+        n = stack.pop()
+        if n is None or id(n) in seen:
+            continue
+        slots = getattr(type(n), "__slots__", None)
+        if slots is None or not hasattr(n, "line"):
+            continue          # not an AST node (str, int, spec tuple, ...)
+        seen.add(id(n))
+        yield n
+        for name in slots:
+            try:
+                v = getattr(n, name)
+            except AttributeError:
+                continue      # unset slot (`Node.entry` before first call)
+            if type(v) is list or type(v) is tuple:
+                for x in v:
+                    if type(x) is list or type(x) is tuple:
+                        stack.extend(x)     # RecordLit pairs, spec tuples
+                    else:
+                        stack.append(x)
+            else:
+                stack.append(v)
+
+
+def clear_tail_flags(program):
+    """Undo `parser.mark_tails` over a whole program; return how many calls
+    were un-tailed. 0 means the program has no tail call at all, so the
+    optimisation cannot be observed and there is nothing to compare."""
+    n = 0
+    for node in iter_ast_nodes(program):
+        if type(node).__name__ == "Call" and getattr(node, "tail", False):
+            node.tail = False
+            n += 1
+    return n
+
+
+def reflects_on_provenance(node):
+    """Name of the first provenance-reflecting construct at or under `node`,
+    or "" — see the module comment on why these have to be excluded."""
+    for n in iter_ast_nodes(node):
+        cls = type(n).__name__
+        if cls == "Why":
+            return "why"
+        if cls == "Snip":
+            return "snip"
+        if cls == "NameRef" and n.name in PROVENANCE_BUILTINS:
+            return n.name
+    return ""
+
+
+def _bound_name(stmt):
+    """The top-level name a statement binds (`let x = ...` / `fn f() ...`),
+    or None."""
+    cls = type(stmt).__name__
+    if cls in ("Let", "FnDef"):
+        return stmt.name
+    return None
+
+
+def provenance_tainted_names(program):
+    """Top-level names whose VALUE could depend on the why-tree, so on
+    whether tail merging happened.
+
+    Round 337 first exempted any program containing a reflective construct
+    at all; on the round's own corpus that was 213 of 400 generated
+    programs, because `ProgramGen.probe` ends most programs with
+    `print(str(steps(v)))`. Almost always the reflection is in a probe or a
+    neighbouring binding, and the CHAIN RESULT the oracle actually wants to
+    compare is clean. So taint instead of exempt: a statement is tainted if
+    it reflects anywhere in its own subtree (including nested `fn` bodies
+    and anonymous `fn` arguments) or references an already-tainted name, and
+    it passes that taint to whatever name it binds.
+
+    Iterated to a fixpoint rather than run once in statement order: Whence
+    resolves function names at call time, so `fn a() { b() }` may precede
+    `fn b() { steps(x) }` and a single forward pass would under-taint `a`.
+    """
+    tainted = set()
+    facts = []
+    for stmt in program.stmts:
+        refs = set(n.name for n in iter_ast_nodes(stmt)
+                   if type(n).__name__ == "NameRef")
+        facts.append((_bound_name(stmt), refs, bool(reflects_on_provenance(stmt))))
+    changed = True
+    while changed:
+        changed = False
+        for name, refs, reflective in facts:
+            if name and name not in tainted and (reflective or (refs & tainted)):
+                tainted.add(name)
+                changed = True
+    return tainted
+
+
+def _answer(pkg, program, tainted, whole, max_depth=500):
+    """`(answer_dict, peak_depth)` — the must-match fields only, plus the
+    depth the run actually reached (the space-exemption signal).
+
+    `whole` is True when the program reflects on provenance NOWHERE, in
+    which case every field is comparable. Otherwise only the `vals` of
+    untainted bindings are: `out` and `checks` are ordered by EXECUTION,
+    not by statement, so a print or a check inside a function body cannot
+    be attributed back to a top-level name and dropped individually.
+    """
+    interp, env, out = _run_ast(pkg, program, max_depth=max_depth)
+    vals = dict((k, pkg["full_show"](v.payload)) for k, v in env.vars.items()
+                if k not in tainted)
+    a = {"vals": vals}
+    if whole:
+        a["out"] = out
+        a["checks"] = [[c["label"], c["ok"]] for c in interp.checks]
+    return a, interp.peak_depth
+
+
+def oracle_tail_transparency(pkg, src, max_depth=500):
+    """A call's ANSWER must not depend on it being in tail position."""
+    try:
+        program = _parse(pkg, src)
+        lifted = _parse(pkg, src)          # a second, independent AST
+    except (pkg["LexError"], pkg["ParseError"]) as e:
+        return OracleOutcome("parse_error", TAIL_ORACLE, type(e).__name__)
+    n = clear_tail_flags(lifted)
+    if n == 0:
+        return OracleOutcome("ok", TAIL_ORACLE, "no tail calls")
+    tainted = provenance_tainted_names(program)
+    whole = not reflects_on_provenance(program)
+    scope = "all fields" if whole else "untainted vals only (%d tainted)" % len(tainted)
+    a, _ = _answer(pkg, program, tainted, whole, max_depth=max_depth)
+    try:
+        b, peak = _answer(pkg, lifted, tainted, whole, max_depth=max_depth)
+    except RecursionError:
+        return OracleOutcome("ok", TAIL_ORACLE,
+                             "%d tail calls, lifted run exhausted the host "
+                             "stack (space-exempt)" % n)
+    if peak >= max_depth:
+        return OracleOutcome("ok", TAIL_ORACLE,
+                             "%d tail calls, lifted run reached depth %d >= "
+                             "max_depth %d (space-exempt)" % (n, peak, max_depth))
+    if not a["vals"] and not whole:
+        return OracleOutcome("ok", TAIL_ORACLE,
+                             "%d tail calls, every binding provenance-tainted "
+                             "(exempt)" % n)
+    d = first_difference(a, b)
+    detail = "%d tail calls, %s" % (n, scope)
+    if d:
+        return OracleOutcome("mismatch", TAIL_ORACLE,
+                             "tail vs lifted: " + d + "\n  (%s)" % detail)
+    return OracleOutcome("ok", TAIL_ORACLE, detail)
+
+
 def frame_excess(pkg, program, max_depth=500):
     """Run `program` (a parsed AST) in direct mode under a profile hook and
     return `(max_excess, guest_depth_at_max, interp)`: the largest number of
@@ -365,7 +608,8 @@ def oracle_frames(pkg, src, max_depth=500, slack=None):
 
 ORACLES = {"totality": oracle_totality, "fast_slow": oracle_fast_slow,
            "direct": oracle_direct, "determinism": oracle_determinism,
-           "render": oracle_render, "frames": oracle_frames}
+           "render": oracle_render, "frames": oracle_frames,
+           TAIL_ORACLE: oracle_tail_transparency}
 
 
 def run_oracle(name, pkg, src, timeout_s=3.0, max_depth=500, root=WHENCE_ROOT, **kwargs):

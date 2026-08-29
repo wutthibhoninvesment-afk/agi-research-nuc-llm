@@ -129,6 +129,30 @@ STEP_NAMES = ["let x", "literal", "call", "arg", "note k", "+", "let a", "if",
 # exactly what needs exercising against fast/direct/trampoline + tail calls.
 TYPE_TAGS = ("num", "str", "bool", "list", "record", "fn", "any")
 
+# Round 336 (language C) found that a `-> Type` contract reached through a
+# TAIL call was blamed outermost-first, and reported the OUTER call's line
+# rather than the tail call's own — the same chain lifted out of tail
+# position disagreed on both. Its next-steps item 1 named why no oracle
+# caught it: `-> TAG` lands on ~25% of generated `fn`s (`maybe_ret_type`),
+# but nothing ever shaped a body whose TAIL is a call to ANOTHER generated
+# typed `fn`, so a typed CHAIN — two or more `-> Type` contracts stacked
+# through tail position — was outside the grammar entirely. Round 337
+# confirmed that by running its new `tail_transparency` oracle over 400
+# generated programs against a deliberately un-fixed pre-336 interpreter:
+# zero findings, on a build with the bug still in it.
+#
+# `_typed_tail_chain` below closes that. The tags a link declares are drawn
+# against the tag of the terminal literal the chain actually returns, so
+# roughly half the links are violated on purpose and the rest exercise the
+# success path — round 336's own hand-built family kept 351 of its 2325
+# programs on the success path for the same reason.
+TAIL_CHAIN_TAGS = ("num", "str", "bool", "list")
+# (source, the tag it actually satisfies) — deliberately only the tags a
+# fuzz literal can really produce, so "declared tag != terminal tag" is a
+# genuine miss rather than an accident of an unreachable tag.
+TAIL_CHAIN_TERMINALS = (("1", "num"), ("0.5", "num"), ('"3O"', "str"),
+                        ("true", "bool"), ("[]", "list"), ("[1, 2]", "list"))
+
 # v0.14 backlog (closed round 162): the grammar generated no `effects [...]`
 # clauses either, so the parse-time effect check (round 146) was only ever
 # exercised by the hand-written corpus (`examples/effects.lang`,
@@ -522,6 +546,19 @@ class ProgramGen(object):
         lines = []
         if r.random() < self.stress_rate:
             lines.extend(self.template())
+        # v0.13 fuzz coverage (round 337, closing round 336's item 1): a
+        # typed tail chain, emitted ALONGSIDE the ordinary statement budget
+        # the way `template` above is, not as one of its statements. Round
+        # 337 first spent a statement on it and measured the cost at
+        # n=2000: every other generated shape lost ~10% of its own rate
+        # (trunc 6.4% -> 5.3%, param-call 8.0% -> 6.9%, rand 34.6% ->
+        # 31.1%, sqrt 13.5% -> 12.2%), which is just the 8% of the 2-7
+        # statement budget the branch was taking. Emitting it here costs
+        # nothing from that budget, and the chain's own `fn`s land in
+        # `self.fns` BEFORE the ordinary statements are generated, so the
+        # rest of the grammar can call and probe them too.
+        if r.random() < 0.3:
+            lines.append(self._typed_tail_chain())
         for _ in range(r.randint(2, 7)):
             lines.append(self.statement())
         probes = r.sample(self.scope, min(len(self.scope), 3)) if self.scope else []
@@ -580,6 +617,101 @@ class ProgramGen(object):
             return ["let grown = fold(fn(acc, x) { push(acc, x) }, [], range(%d))" % k]
         self.scope.append("chain")
         return ["let chain = 1" + " + 1" * k]
+
+    def _chain_tag(self, term_tag):
+        """A `-> Type` annotation for one link of a typed tail chain, drawn
+        against `term_tag` (the tag the chain's terminal literal really
+        satisfies): `None` (untyped link) 20%, `any` 15% (typed but always
+        satisfied), the terminal's own tag 20% (typed and satisfied), a
+        deliberately WRONG tag 45%. Mixing satisfied and violated links in
+        one chain is the point — round 336's defect was about WHICH of
+        several contracts gets blamed, so a chain with only one contract in
+        it cannot show it."""
+        r = self.r
+        q = r.random()
+        if q < 0.2:
+            return None
+        if q < 0.35:
+            return "any"
+        if q < 0.55:
+            return term_tag
+        return r.choice([t for t in TAIL_CHAIN_TAGS if t != term_tag])
+
+    def _typed_tail_chain(self):
+        """A whole typed tail chain as one multi-line statement (see
+        TAIL_CHAIN_TAGS above for why the grammar needed this at all).
+
+        Three shapes, all of which round 337 confirmed the new
+        `tail_transparency` oracle reports on a pre-336 interpreter and
+        stays silent on the fixed one:
+          linear   `fn a() -> T { b() }  fn b() -> U { c() }  fn c() -> V
+                   { <lit> }` — the blame-ORDER shape (round 336 blamed the
+                   outermost contract, the lifted form the innermost).
+          self     `fn f(n) -> T { if n == 0 { <lit> } else { f(n - 1) } }`
+                   — the LINE shape: same function, same contract, but the
+                   miss must name the recursive call's line, not the
+                   original call's.
+          mutual   two functions in a typed 2-cycle — the "revisiting a
+                   closure" family, where a chain entry for a spec already
+                   seen has to be refreshed rather than deduplicated away.
+        Every fn is registered in `self.fns` and the result in `self.scope`,
+        so the rest of the grammar can call and probe them like any other.
+        """
+        r = self.r
+        shape = r.random()
+        term, term_tag = r.choice(TAIL_CHAIN_TERMINALS)
+        if shape < 0.2:
+            return self._typed_self_tail_loop(term, term_tag)
+        if shape < 0.35:
+            return self._typed_mutual_tail_loop(term, term_tag)
+        hops = r.randint(2, 4)
+        names = [self.fresh("tc") for _ in range(hops)]
+        lines = []
+        for i, name in enumerate(names):
+            tag = self._chain_tag(term_tag)
+            ann = "" if tag is None else " -> %s" % tag
+            body = term if i == hops - 1 else "%s()" % names[i + 1]
+            lines.append("fn %s()%s { %s }" % (name, ann, body))
+            self.fns.append((name, 0))
+        res = self.fresh("tr")
+        lines.append("let %s = %s()" % (res, names[0]))
+        self.scope.append(res)
+        return "\n".join(lines)
+
+    def _typed_self_tail_loop(self, term, term_tag):
+        """`fn f(n) -> T { if n == 0 { <lit> } else { f(n - 1) } }` plus a
+        call. A fresh param name (not a literal `n`) so nothing the rest of
+        the grammar bound can be captured."""
+        r = self.r
+        name = self.fresh("tl")
+        p = self.fresh("p")
+        tag = self._chain_tag(term_tag)
+        ann = "" if tag is None else " -> %s" % tag
+        res = self.fresh("tr")
+        self.fns.append((name, 1))
+        self.scope.append(res)
+        return ("fn %s(%s)%s { if %s == 0 { %s } else { %s(%s - 1) } }\n"
+                "let %s = %s(%d)" % (name, p, ann, p, term, name, p,
+                                     res, name, r.randint(0, 4)))
+
+    def _typed_mutual_tail_loop(self, term, term_tag):
+        """Two typed functions in a tail 2-cycle, so the loop re-enters a
+        closure whose `-> Type` spec the chain has already recorded once."""
+        r = self.r
+        a, b = self.fresh("tm"), self.fresh("tm")
+        pa, pb = self.fresh("p"), self.fresh("p")
+        aa = self._chain_tag(term_tag)
+        ab = self._chain_tag(term_tag)
+        res = self.fresh("tr")
+        self.fns.append((a, 1))
+        self.fns.append((b, 1))
+        self.scope.append(res)
+        return ("fn %s(%s)%s { if %s == 0 { %s } else { %s(%s - 1) } }\n"
+                "fn %s(%s)%s { if %s == 0 { %s } else { %s(%s - 1) } }\n"
+                "let %s = %s(%d)" % (
+                    a, pa, "" if aa is None else " -> %s" % aa, pa, term, b, pa,
+                    b, pb, "" if ab is None else " -> %s" % ab, pb, term, a, pb,
+                    res, a, r.randint(0, 5)))
 
     def statement(self):
         r = self.r
