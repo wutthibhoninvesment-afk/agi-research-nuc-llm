@@ -6,6 +6,7 @@ zero findings on random programs is only evidence if the oracle
 demonstrably fires on an injected divergence, so half of this file runs
 against a deliberately mutated copy of the real check.
 """
+import ast
 import os
 import random
 import re
@@ -1020,3 +1021,124 @@ def test_extended_oracle_detects_injected_cross_fn_boundary_alias_leak_bug():
     finally:
         P.Parser._resolve_param_alias = orig
     assert mismatches > 0, "mutated cross-fn-boundary alias-leak bug went undetected"
+
+
+# ============================================ round 341 (SWE-loop D) ======
+# `Parser.postfix()` runs THREE checks, unconditionally and in this exact
+# order, at EVERY `(` it consumes:
+#
+#     self._check_effect_call(expr, tok)
+#     self._check_call_site_param_effects(expr, args, tok)
+#     self._check_param_forwarding(expr, args, tok)
+#
+# This oracle open-coded that sequence at EIGHT statement-generator sites.
+# When v0.14.13 (round 312) added the THIRD check, only TWO of the eight
+# copies grew it — so six statement shapes went on modelling a parser that
+# still had no forwarding at all. That is a FALSE-NEGATIVE class, which is
+# the dangerous direction for a differential oracle: the oracle predicts a
+# LATER error (or `ok`) while the real parser raises EARLIER, and the
+# campaign reports a "mismatch" whose blame points at the parser.
+#
+# Round 341 routed all eight sites through `record_call_site`, so the two
+# component checks now have exactly ONE caller each. The three tests below
+# are, in order: the witness seed, the mutation that proves the witness is
+# load-bearing, and the structural guard that makes the drift impossible
+# to reintroduce silently.
+#
+# Note what did NOT catch this: `test_extended_oracle_detects_injected_
+# missing_param_forwarding_bug` above mutates the PARSER's own
+# `_check_param_forwarding` to a no-op and passes — two of the eight sites
+# still modelled forwarding, so the oracle still diverged from the
+# crippled parser. A "the feature vanishes" mutation on ONE side cannot
+# see a mirror that is merely INCOMPLETE on the other.
+
+# (seed, max_depth, max_stmts) — the program this pins is dissected in
+# knowledge/round-341-*.md. Its shape is what makes it the witness: `f8`'s
+# ONLY source of a called-param fact is a `_stmt_call_tracked_fn`-emitted
+# forward (`g1(4, a4)`, where `g1`'s own body calls its `p3` directly),
+# and a LATER call site (`f8(rand)`) passes an effectful builtin at exactly
+# that position while `f8` declares `effects [io, net]`.
+FORWARD_MIRROR_SEED = (22192099, 5, 5)
+
+
+def test_call_site_forwarding_mirror_witness_seed():
+    """The exact program that exposed the six-of-eight drift. Found by the
+    pre-existing `test_extended_generator_reaches_return_param_passthrough_
+    error` campaign (iteration 17825 of 20000) as `assert not mismatch`,
+    which is a coverage guard's incidental catch — it had been failing in
+    the slow tier since round 312 with nobody reading the result."""
+    seed, depth, stmts = FORWARD_MIRROR_SEED
+    src, expected, actual, mismatch = check_one_ext(seed, max_depth=depth, max_stmts=stmts)
+    assert not mismatch, (expected, actual)
+    assert expected == ("error_param", "rand", "random", "f8", "a4"), expected
+    # the two lines that make it a forwarding witness rather than a direct call
+    assert "g1(4, a4)" in src, src
+    assert "f8(rand)" in src, src
+
+
+def test_oracle_detects_a_call_site_mirror_that_drops_param_forwarding():
+    """Mutation test for round 341's own fix, in the direction the bug
+    actually drifted: the shared mirror keeps `_check_effect_call` and
+    `_check_call_site_param_effects` but loses `_check_param_forwarding`,
+    exactly what six of the eight open-coded copies looked like. One
+    program, not a campaign — the witness seed is pinned precisely so this
+    costs a millisecond instead of the 20000-program sweep that originally
+    surfaced it."""
+    def mirror_without_forwarding(self, callee_name, arg_infos):
+        self.record_call_direct(callee_name)
+        if not self.done:
+            self.check_call_site_param_effects(callee_name, arg_infos)
+
+    orig = ExtendedEffectGen.record_call_site
+    ExtendedEffectGen.record_call_site = mirror_without_forwarding
+    try:
+        seed, depth, stmts = FORWARD_MIRROR_SEED
+        _, expected, _, mismatch = check_one_ext(seed, max_depth=depth, max_stmts=stmts)
+    finally:
+        ExtendedEffectGen.record_call_site = orig
+    assert mismatch, "witness seed no longer detects a dropped forwarding mirror"
+    # the crippled oracle predicts the LATER v0.14.12 passthrough error at
+    # line 21 instead of the forwarding denial at line 19 — the parser
+    # raises on whichever comes first textually, so the blame lands on the
+    # wrong feature entirely.
+    assert expected == ("error", "a10", "io"), expected
+
+
+def _self_call_attrs(node):
+    """Every `self.<attr>(...)` method call lexically inside `node`."""
+    for n in ast.walk(node):
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) \
+                and isinstance(n.func.value, ast.Name) and n.func.value.id == "self":
+            yield n.func.attr
+
+
+def test_every_emitted_call_site_goes_through_the_shared_postfix_mirror():
+    """The structural guard — the test that would have PREVENTED this bug
+    rather than found it eight rounds late. `postfix()`'s three-check
+    sequence has exactly one mirror here, so a fourth check added to the
+    real parser cannot be picked up by two sites and missed by six.
+
+    Asserted over the AST, not the text, so a docstring or comment naming
+    either method (this file and `alias_effects.py` both name them a lot)
+    can never satisfy or break it."""
+    path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "swe", "alias_effects.py")
+    with open(path, encoding="utf-8") as f:
+        tree = ast.parse(f.read())
+    cls = next(n for n in tree.body
+               if isinstance(n, ast.ClassDef) and n.name == "ExtendedEffectGen")
+    mirror = next(n for n in cls.body
+                  if isinstance(n, ast.FunctionDef) and n.name == "record_call_site")
+    # the mirror really does run all three, in postfix()'s own order
+    seq = [a for a in _self_call_attrs(mirror)
+           if a in ("record_call_direct", "check_call_site_param_effects",
+                    "record_param_forwarding")]
+    assert seq == ["record_call_direct", "check_call_site_param_effects",
+                   "record_param_forwarding"], seq
+    # and nothing else in the class reaches the last two directly
+    guarded = {"check_call_site_param_effects", "record_param_forwarding"}
+    stray = [(fn.name, attr)
+             for fn in cls.body
+             if isinstance(fn, ast.FunctionDef) and fn.name != "record_call_site"
+             for attr in _self_call_attrs(fn) if attr in guarded]
+    assert stray == [], stray

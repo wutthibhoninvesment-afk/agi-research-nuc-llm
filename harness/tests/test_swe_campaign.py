@@ -48,6 +48,19 @@ def checkout():
     tmp = tempfile.mkdtemp(prefix="camp-")
     dst = os.path.join(tmp, "whence")
     _copy_project(WHENCE_ROOT, dst)
+    # Round 341: pin `whence/interp.py` to the SAME text the module-level
+    # `_INTERP` snapshot read at IMPORT time. Without this the fixture
+    # re-reads a tree that a concurrent round may have edited in between,
+    # and every mutant id / lineno / site index derived from `_INTERP`
+    # silently stops lining up with the file the stages rebuild against —
+    # which is exactly the "order-dependent" failure round 338 recorded
+    # for `test_downstream_stages_survive_a_concurrent_edit_to_the_mutated_
+    # file` and `test_coverage_stage_triages_survivors_and_report_shows_
+    # the_split`. The SUBJECT of these tests already learned this lesson:
+    # `stage_mutation` pins `self.files` into `<out>/snapshot/` for
+    # precisely this reason (round 125/131). Its tests had not.
+    with open(os.path.join(dst, "whence/interp.py"), "w", encoding="utf-8") as f:
+        f.write(_INTERP)
     yield dst
     shutil.rmtree(tmp, ignore_errors=True)
 

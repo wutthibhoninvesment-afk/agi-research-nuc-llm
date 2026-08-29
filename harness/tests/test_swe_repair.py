@@ -1,19 +1,44 @@
 """Repair benchmark (swe.repair): injection, failure signal, three-level scoring, policy run."""
+import atexit
 import json
 import os
 import re
+import shutil
 import sys
+import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import swe.repair as RP
 from swe.fuzz import WHENCE_ROOT
-from swe.mutation import generate
+from swe.mutation import generate, _copy_project
 from swe.policy import PolicyLLM, call, say
 
 _INTERP = open(os.path.join(WHENCE_ROOT, "whence/interp.py"), encoding="utf-8").read()
 _LINES = _INTERP.splitlines()
 FAST = "-q -x tests/test_interp.py"          # ~1 s; kills the zero-guard mutant
+
+# Round 341: every test below derives its mutant from the `_INTERP` snapshot
+# read at IMPORT time, then scores a repair by diffing the workspace against
+# `root` — `InjectedWorkspace.changed_files()` and `repair._unparsed_original`
+# both RE-READ `root` at assertion time. Pointing `root` at the live checkout
+# makes those two reads disagree the moment a concurrent round edits
+# `languages/whence/`, which on this box happens every 30-90 minutes and is
+# guaranteed to land inside a 76-minute slow-tier run. Round 338 recorded the
+# result as two "order-dependent" failures; the variable is not test ORDER, it
+# is elapsed WALL-CLOCK exposure to another writer.
+#
+# So: pin one immutable copy at import, with `whence/interp.py` byte-identical
+# to `_INTERP` by construction. This is the same move `swe.campaign.
+# stage_mutation` already makes internally (`<out>/snapshot/`, round 125/131)
+# for the same reason. Not a weakening of the tests — they always MEANT "a
+# consistent checkout", and only accidentally got one.
+_PIN_TMP = tempfile.mkdtemp(prefix="repair-pin-")
+PINNED_ROOT = os.path.join(_PIN_TMP, "proj")
+_copy_project(WHENCE_ROOT, PINNED_ROOT)
+with open(os.path.join(PINNED_ROOT, "whence/interp.py"), "w", encoding="utf-8") as _f:
+    _f.write(_INTERP)
+atexit.register(lambda: shutil.rmtree(_PIN_TMP, ignore_errors=True))
 
 
 def _zero_guard():
@@ -26,7 +51,7 @@ def _zero_guard():
 
 def test_mutated_site_points_at_the_changed_line_in_the_mutant_text():
     m = _zero_guard()
-    lo, hi = RP.mutated_site(WHENCE_ROOT, m)
+    lo, hi = RP.mutated_site(PINNED_ROOT, m)
     text = m.source.splitlines()[lo - 1:hi]
     assert any("r != 0" in t for t in text)
     assert lo != m.lineno or True                     # numbering differs from the checkout (re-unparsed)
@@ -34,7 +59,7 @@ def test_mutated_site_points_at_the_changed_line_in_the_mutant_text():
 
 def test_injected_workspace_tracks_edits_against_the_injected_state():
     m = _zero_guard()
-    ws = RP.InjectedWorkspace(WHENCE_ROOT, m)
+    ws = RP.InjectedWorkspace(PINNED_ROOT, m)
     try:
         assert ws.read(m.path) == m.source
         assert ws.changed_files() == [] and ws.diff() == ""
@@ -52,7 +77,7 @@ def test_injected_workspace_tracks_edits_against_the_injected_state():
 
 def test_failing_output_captures_the_ci_signal():
     m = _zero_guard()
-    ws = RP.InjectedWorkspace(WHENCE_ROOT, m)
+    ws = RP.InjectedWorkspace(PINNED_ROOT, m)
     try:
         f = RP.failing_output(ws.dst, FAST.split(), tail_lines=25)
         assert f["returncode"] != 0 and f["failing_tests"]
@@ -73,14 +98,14 @@ def _restore(ws, replacement=None):
 def test_score_repair_levels_exact_green_localized_failed_cheated():
     m = _zero_guard()
     # 1. nothing done
-    ws = RP.InjectedWorkspace(WHENCE_ROOT, m)
+    ws = RP.InjectedWorkspace(PINNED_ROOT, m)
     try:
         r = RP.score_repair(ws, run_tests=False)
         assert r["outcome"] == "failed" and not r["localized"] and not r["exact"] and r["tests_green"] is None
     finally:
         ws.cleanup()
     # 2. exact revert
-    ws = RP.InjectedWorkspace(WHENCE_ROOT, m)
+    ws = RP.InjectedWorkspace(PINNED_ROOT, m)
     try:
         _restore(ws)
         r = RP.score_repair(ws, test_args=FAST)
@@ -89,7 +114,7 @@ def test_score_repair_levels_exact_green_localized_failed_cheated():
     finally:
         ws.cleanup()
     # 3. an equivalent but differently-shaped fix: green, localized, not exact
-    ws = RP.InjectedWorkspace(WHENCE_ROOT, m)
+    ws = RP.InjectedWorkspace(PINNED_ROOT, m)
     try:
         lo, _ = ws.site
         orig = ws.read(m.path).splitlines()[lo - 1]
@@ -100,7 +125,7 @@ def test_score_repair_levels_exact_green_localized_failed_cheated():
     finally:
         ws.cleanup()
     # 4. an edit far from the site that does not fix it
-    ws = RP.InjectedWorkspace(WHENCE_ROOT, m)
+    ws = RP.InjectedWorkspace(PINNED_ROOT, m)
     try:
         src = ws.read(m.path)
         with open(os.path.join(ws.dst, m.path), "w") as f:
@@ -110,7 +135,7 @@ def test_score_repair_levels_exact_green_localized_failed_cheated():
     finally:
         ws.cleanup()
     # 5. cheating: the suite is made green by editing the tests
-    ws = RP.InjectedWorkspace(WHENCE_ROOT, m)
+    ws = RP.InjectedWorkspace(PINNED_ROOT, m)
     try:
         with open(os.path.join(ws.dst, "tests/test_interp.py"), "w") as f:
             f.write("def test_ok():\n    pass\n")
@@ -148,7 +173,7 @@ def test_run_repair_under_a_policy_scores_exact_and_writes_artifacts(tmp_path):
     out = str(tmp_path / "out")
     os.makedirs(out)
     res = RP.run_repair(lambda: PolicyLLM([s_outline, s_read, s_edit, s_test, s_done]), [m],
-                        WHENCE_ROOT, out, max_steps=8, test_args=FAST, fail_args=FAST.split())
+                        PINNED_ROOT, out, max_steps=8, test_args=FAST, fail_args=FAST.split())
     assert len(res) == 1
     r = res[0]
     assert r["outcome"] == "exact" and r["green"] and r["localized"] and r["exact"]

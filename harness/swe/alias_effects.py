@@ -1042,6 +1042,39 @@ class ExtendedEffectGen(object):
             if resolved_param is not None:
                 self.direct_param_calls_stack[-1].add(resolved_param)
 
+    def record_call_site(self, callee_name, arg_infos):
+        """Mirror of ONE `(` in `Parser.postfix()` — the three checks the
+        real parser runs, unconditionally and in this exact order, at
+        EVERY call site it parses (`whence/parser.py`, `postfix()`):
+
+            self._check_effect_call(expr, tok)
+            self._check_call_site_param_effects(expr, args, tok)
+            self._check_param_forwarding(expr, args, tok)
+
+        The `if not self.done` guards are this generator's mirror of the
+        real parser's control flow, not an extra policy: `_check_effect_
+        call` RAISES on a violation, so the two checks after it are simply
+        never reached on that call site. Every method below already
+        re-checks `self.done` itself, so the guards are belt-and-braces —
+        they exist to make the postfix() correspondence readable at a
+        glance.
+
+        Round 341 (SWE-loop(D)) introduced this: the sequence above was
+        open-coded at eight statement-generator sites, and when v0.14.13
+        (round 312) added the THIRD check, only two of the eight copies
+        grew it. The six that did not silently under-modelled every
+        forwarded param, which is a FALSE-NEGATIVE class for a
+        differential oracle — the oracle predicts a later error (or `ok`)
+        while the real parser raises earlier. Route every emitted call
+        site through here so a future fourth check cannot drift the same
+        way. See the round 341 knowledge file for the seed that exposed
+        it (`22192099`, pinned as a test)."""
+        self.record_call_direct(callee_name)
+        if not self.done:
+            self.check_call_site_param_effects(callee_name, arg_infos)
+        if not self.done:
+            self.record_param_forwarding(callee_name, arg_infos)
+
     def record_call_return(self, fname):
         self.check_effect(self.resolve_return(fname), "%s()" % fname)
 
@@ -1855,11 +1888,7 @@ class ExtendedEffectGen(object):
             else:
                 args.append(str(r.randint(0, 9)))
                 arg_infos.append((False, None))
-        self.record_call_direct(callee)
-        if not self.done:
-            self.check_call_site_param_effects(callee, arg_infos)
-        if not self.done:
-            self.record_param_forwarding(callee, arg_infos)
+        self.record_call_site(callee, arg_infos)
         lines.append("%s(%s)" % (callee, ", ".join(args)))
         return self._mk_expr("\n".join(lines))
 
@@ -1987,9 +2016,7 @@ class ExtendedEffectGen(object):
 
         builtin, _ = self._random_effectful_builtin()
         arg_infos = [(True, builtin)]
-        self.record_call_direct(helper)
-        if not self.done:
-            self.check_call_site_param_effects(helper, arg_infos)
+        self.record_call_site(helper, arg_infos)
         lines.append("%s(%s)" % (helper, builtin))
         return self._mk_expr("\n".join(lines))
 
@@ -2042,13 +2069,9 @@ class ExtendedEffectGen(object):
                      for i in range(len(params))]
 
         def body_fn():
-            self.record_call_direct(callee)
             arg_infos = [(True, fname) if i == target_idx else (False, None)
                          for i in range(len(params))]
-            if not self.done:
-                self.check_call_site_param_effects(callee, arg_infos)
-            if not self.done:
-                self.record_param_forwarding(callee, arg_infos)
+            self.record_call_site(callee, arg_infos)
             return "%s(%s)" % (callee, ", ".join(call_args))
 
         effects_txt, own_effects_scope, called_params, body_text = \
@@ -2059,9 +2082,7 @@ class ExtendedEffectGen(object):
 
         builtin, _ = self._random_effectful_builtin()
         arg_infos_outer = [(True, builtin)]
-        self.record_call_direct(helper)
-        if not self.done:
-            self.check_call_site_param_effects(helper, arg_infos_outer)
+        self.record_call_site(helper, arg_infos_outer)
         lines.append("%s(%s)" % (helper, builtin))
         return self._mk_expr("\n".join(lines))
 
@@ -2120,9 +2141,7 @@ class ExtendedEffectGen(object):
             else:
                 args.append(str(r.randint(0, 9)))
                 arg_infos.append((False, None))
-        self.record_call_direct(fname)
-        if not self.done:
-            self.check_call_site_param_effects(fname, arg_infos)
+        self.record_call_site(fname, arg_infos)
         tag = None
         if not self.done:
             tag = self.resolve_return(fname)
@@ -2170,9 +2189,7 @@ class ExtendedEffectGen(object):
             else:
                 args.append(str(r.randint(0, 9)))
                 arg_infos.append((False, None))
-        self.record_call_direct(fname)
-        if not self.done:
-            self.check_call_site_param_effects(fname, arg_infos)
+        self.record_call_site(fname, arg_infos)
         if not self.done:
             tag = self.resolve_return(fname)
             if tag is None:
@@ -2228,9 +2245,7 @@ class ExtendedEffectGen(object):
             else:
                 args.append(str(r.randint(0, 9)))
                 arg_infos.append((False, None))
-        self.record_call_direct(name)
-        if not self.done:
-            self.check_call_site_param_effects(name, arg_infos)
+        self.record_call_site(name, arg_infos)
         return self._mk_expr("%s(%s)" % (name, ", ".join(args)))
 
     def _stmt_shadow_tracked_fn_call(self, depth):
@@ -2262,9 +2277,7 @@ class ExtendedEffectGen(object):
                 args.append(str(r.randint(0, 9)))
                 arg_infos.append((False, None))
         self.bind(name, None, None, None, None, None, None)
-        self.record_call_direct(name)
-        if not self.done:
-            self.check_call_site_param_effects(name, arg_infos)
+        self.record_call_site(name, arg_infos)
         call_src = "%s(%s)" % (name, ", ".join(args))
         return self._mk_expr("let %s = %d\n%s" % (name, r.randint(0, 9), call_src))
 
