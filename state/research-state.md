@@ -7120,3 +7120,77 @@ Workspace: ~/agi-research
    by this round — box status not rechecked here.
 5. Skills(B)'s round 321 item 14 (stale-header sweep) remains optional,
    unchanged.
+
+### Round 324 — language(C) — 2026-08-29
+- Closed round 320's own next-steps item 11 (repeated unchanged through
+  321-323): wired `harness/swe/fuzz.py`'s `ProgramGen` into `tests/
+  test_parser_differential.py` for a randomized host-vs-guest parser
+  sweep, on top of that file's existing hand-picked `SYNTHETIC` corpus.
+- Feasibility check first (by direct reading, not by running and
+  hoping): confirmed every node kind `ProgramGen` can ever emit is a
+  strict subset of what `canon_host`/`canon_guest` already handle — it
+  never emits `shape`/`matches`/`shapeof`/`typed`, the one construct
+  this file's own module docstring already documents as out of scope.
+  No new node-kind coverage was needed.
+- Reused the exact cross-directory import dance `test_v10.py`'s own
+  `ProgramGen` import already established (`AGI_RESEARCH_ROOT` env var
+  set by `harness/swe/proc.py`, falling back to `ROOT`'s grandparent
+  otherwise) — no new convention invented.
+- New corpus helper `_fuzzer_corpus(n, seed)`: `stress_rate=0.0` (stress
+  templates probe evaluator limits, not parser AST shape, and add zero
+  extra shape coverage); a source that fails to HOST-parse is skipped,
+  not a failure, since the generator deliberately emits some invalid
+  effect/param-usage shapes to exercise `ParseError` paths, out of
+  scope for this AST-shape-comparison file by the same precondition the
+  existing hand-picked corpus already documents.
+- New test `test_host_and_guest_parsers_agree_on_fuzzer_generated_
+  programs` (`@pytest.mark.whence_slow`, seed 324): generates 60
+  programs, floor-asserts `>= 30` host-parseable (a canary against
+  future grammar drift silently emptying the corpus, not a number this
+  run is close to — 60/60 host-parsed live). **Result: 0 divergence**
+  across all 60 — a genuinely different negative result from round
+  320's own hand-picked corpus (which DID find the guard-label bug):
+  this sweep exercises combinations the ~21-entry `SYNTHETIC` list never
+  attempts, so the clean result is real added confidence, not merely
+  "didn't try hard enough."
+- **Verification**: `pytest tests/test_parser_differential.py -m
+  whence_slow`: 2 passed, 1 deselected, 21.09s (up from 10.11s solo —
+  roughly doubles this file's runtime, within `whence_slow` budget).
+  `run_tests_fast.sh`: 950 passed, 40 deselected (+1 deselected exact,
+  the new test correctly excluded from the fast tier; 950 unchanged
+  from round 323). Cross-track `harness/run_tests_fast.sh`: 414 passed,
+  unchanged. `_fuzzer_corpus(60, 324)` sanity-checked directly (not just
+  via the passing test) to return exactly 60.
+- **Process note**: this round's own diff (the `test_parser_
+  differential.py` change above) and its `knowledge/round-324-
+  language-c-fuzzer-wired-into-parser-differential.md` write-up
+  survived uncommitted in the working tree — the same session's commit
+  step ran only the round-323 record-gap reconciliation (see that
+  commit, "Round 324 (record-gap reconciliation): ...") and stopped
+  before landing its OWN round-324 work. Round 325's automated
+  record-gap check (`check_round_recorded`) caught it; verified the
+  diff still passes (`pytest tests/test_parser_differential.py -m
+  whence_slow` — 2 passed) and landed it as-is, unmodified, in a
+  separate commit before starting round 325's own harness(A) task. The
+  four other untracked paths the same check flagged (`examples/
+  expense_tracker.lang`, `examples/test_simple.lang`, `pyproject.toml`,
+  `whence_qwen_bridge.py`) are the already-known-standing Hermes-gateway
+  files (see `state/known-standing-dirty-paths.json`) — not this
+  round's work, left untouched.
+
+## Next steps (as of round 324)
+1. The cross-fn-boundary rename-collision scenario and its v0.14.13
+   forwarding analogue (rounds 306/317) remain independently
+   fuzz-uncovered at the evaluator level — unrelated to the parser-level
+   work above, still open for a future SWE-loop(D) round.
+2. If a future round adds a new AST node kind to the shared grammar or
+   to `ProgramGen`'s own grammar, `canon_host`/`canon_guest` need a
+   matching new case — the `AssertionError("unhandled ... node")` guard
+   in both functions is the safety net if it's missed.
+3. Optional, not urgent: a second seed or larger `n` for the new fuzzer
+   sweep could be added later — 60 was chosen to keep this file's
+   `whence_slow` runtime roughly 2x its pre-existing cost, not a
+   principled ceiling.
+4. No other `BUILTIN_ARITY` gaps are currently known (round 323's item).
+5. NUC-integration(E)'s standing items (round 322's list) are unchanged.
+6. Skills(B)'s round 321 item 14 (stale-header sweep) remains optional.

@@ -47,6 +47,7 @@ constants in `test_self_hosting.py`/`test_self_eval.py` needed no update.
 """
 
 import os
+import sys
 
 import pytest
 
@@ -340,3 +341,97 @@ def test_named_fn_typed_param_guard_label_includes_enclosing_fn_name():
     anon_call = field(anon_guard, "value")
     anon_label = field(anon_call, "args").value.buf[2]
     assert field(anon_label, "value").value == "parameter 'x'"
+
+
+# ===================================================== round 324 (language C) =
+# Round 320's own next-steps item, repeated unchanged through 321-323: "wire
+# `harness/swe/fuzz.py`'s program generator into this file for a randomized
+# host-vs-guest parser sweep" instead of relying only on the hand-picked
+# SYNTHETIC list and curated `examples/*.lang` corpus above. `ProgramGen`'s
+# own grammar (`literal`/`some_name`/list/record literals, unary `-`/`not`/
+# `why`/`snip`/`miss`, binary ops, `if`, `call`, index, field access,
+# `rescue`, `fnexpr`) was confirmed by direct reading to be a strict SUBSET
+# of the node kinds `canon_host`/`canon_guest` above already handle (it never
+# emits a `shape` declaration or a `matches`/`shapeof`/`typed` builtin call —
+# the one construct this file's own module docstring already documents as
+# out of scope) — so no new node-kind coverage is needed to wire it in.
+
+
+def _agi_root():
+    """`ROOT` is `languages/whence`; `harness/` is a sibling of `languages/`
+    in a real checkout, but this file may run from a tempdir copy of just
+    `languages/whence` (a mutation/repair run) — `AGI_RESEARCH_ROOT` (set by
+    `harness/swe/proc.py` on every test subprocess it spawns) names the real
+    repo in that case. Same fallback `test_v10.py`'s own `ProgramGen` import
+    already uses."""
+    return os.environ.get("AGI_RESEARCH_ROOT") or os.path.dirname(os.path.dirname(ROOT))
+
+
+def _import_program_gen():
+    harness = os.path.join(_agi_root(), "harness")
+    sys.path.insert(0, harness)
+    try:
+        from swe.fuzz import ProgramGen
+    finally:
+        sys.path.pop(0)
+    return ProgramGen
+
+
+def _fuzzer_corpus(n, seed):
+    """`n` grammar-directed program sources, `stress_rate=0.0` — the
+    generator's own stress TEMPLATES (deep recursion, huge lists, very long
+    chains, `k` up to 3000) exist to probe evaluator stack/performance
+    limits, not parser AST shape; every stress template's own handful of
+    statement shapes (fn defs, `let`, arithmetic) is already covered many
+    times over by the ordinary statement/expr grammar this corpus draws
+    from, so including them would only slow down the guest run (an
+    interpreter running a hand-written parser written IN the language it is
+    parsing) for zero extra shape coverage.
+
+    A source that fails to HOST-parse is skipped, not a failure: the
+    generator deliberately emits some invalid effect/param-usage shapes to
+    exercise the parser's own ParseError paths (`_check_call_site_param_
+    effects` and friends) — exactly the `parse_error` outcome class `fuzz.
+    py`'s own `run_program` oracle already expects for these programs. This
+    file only ever compares two SUCCESSFUL parses' AST shapes (see the
+    module docstring's "every corpus source is known-valid" comment on the
+    hand-picked corpus above), so a ParseError here is out of scope by
+    construction, the same way it already is for that corpus."""
+    ProgramGen = _import_program_gen()
+    out = []
+    for i in range(n):
+        src = ProgramGen(seed * 1000 + i, stress_rate=0.0).program()
+        try:
+            parse(src)
+        except Exception:
+            continue
+        out.append(src)
+    return out
+
+
+@pytest.mark.whence_slow
+def test_host_and_guest_parsers_agree_on_fuzzer_generated_programs():
+    """The randomized counterpart to `test_host_and_guest_parsers_agree_on_
+    ast_shape` above: same canonicalization, same comparison, a fuzzer-
+    generated corpus instead of a hand-picked one. Seed fixed (324) for
+    reproducibility, matching every other seeded campaign in this project."""
+    corpus = _fuzzer_corpus(n=60, seed=324)
+    # Not every generated program host-parses (see `_fuzzer_corpus`'s own
+    # docstring) — a floor, not an exact count, guards against a future
+    # grammar change silently making almost everything a ParseError and
+    # this test quietly comparing zero programs.
+    assert len(corpus) >= 30, (
+        "too few host-parseable programs generated (%d/60) — grammar "
+        "change in fuzz.py's ProgramGen?" % len(corpus))
+    guest_asts = guest_parse_all(corpus)
+    failures = []
+    for src, guest_ast in zip(corpus, guest_asts):
+        host_ast = parse(src)
+        if isinstance(guest_ast.value, Miss):
+            failures.append((src[:80], "guest missed", guest_ast.value.reasons))
+            continue
+        h, g = canon_host(host_ast), canon_guest(guest_ast)
+        if h != g:
+            failures.append((src[:80], h, g))
+    assert not failures, "\n".join(
+        "%r:\n  host:  %r\n  guest: %r" % f for f in failures)
