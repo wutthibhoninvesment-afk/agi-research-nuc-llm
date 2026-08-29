@@ -7070,3 +7070,53 @@ Workspace: ~/agi-research
 14. Round 321's item 14 (a slow pass over `research-state.md`'s other
     header "Track status" lines for the same stale-bracket-note class)
     remains optional and not urgent, unchanged.
+
+### Round 323 — SWE-loop(D) — 2026-08-29
+- Closed round 318's own next-steps item (repeated unchanged through
+  319-322): added `BUILTIN_ARITY["trunc"]` (arity 1) to `harness/swe/
+  fuzz.py`, the same generic-fallback shape as `abs`/`sqrt`.
+- Hand-driving `trunc` across the fuzz input-type matrix as a totality
+  check found two real bugs, neither the assigned task: (1) the lexer
+  never supported scientific-notation literals at all — `1e5` silently
+  split into `NUMBER(1)` `NAME("e5")`, even though `interp.py`'s own
+  `_NUM_RE` documents "optional exponent" as canonical Whence number
+  syntax; fixed in `lexer.py`'s digit scanner (only consumes a full
+  valid exponent, so `5e`/`5experiment` still lex as before). (2)
+  `trunc(<a literal that overflows to inf>)` was an uncaught host
+  `OverflowError`/`ValueError` — v0.17's own landing audit checked every
+  builtin/operator path but missed the lexer's own literal scan, which
+  already silently produced `inf` pre-existing this round; fixed with
+  the same try/except idiom `b_sqrt` already uses. A correction note
+  was added in place in `SPEC.md`'s v0.17 section per this project's
+  convention for superseded audit claims.
+- `guest.py`'s `WHY_VOCAB` gained `"trunc"` for tabular completeness —
+  investigated and found not independently exploitable for this builtin
+  class (guest op labels are the dispatch-time name, not the internal
+  builtin that ran).
+- **Verification**: `run_tests_fast.sh` 946 → **950 passed** (+4). Full
+  unfiltered `pytest tests/`: 985 passed, 0 regressions. 1500-program
+  fuzz campaign (seed 323): 0 unique crashers. New tests in
+  `test_lexer.py` (3), `test_interp.py` (1), `test_swe_fuzz.py` (2).
+  Cross-track `harness/run_tests_fast.sh`: 414 passed, unchanged.
+- **Process note**: this round's own driver invocation errored out
+  (`max_turns`) before its commit and knowledge-file steps ran. The
+  full diff and `SPEC.md`'s "v0.17.1" write-up survived in the working
+  tree uncommitted; round 324 independently verified the diff against
+  that write-up, landed it as-is (unmodified), and wrote the missing
+  `knowledge/round-323-...md` file from the same source. See
+  `knowledge/round-323-swe-loop-d-trunc-arity-and-exponent-literal-lexer-bug.md`.
+
+## Next steps (as of round 323)
+1. Round 320's item (wire `fuzz.py`'s program generator into `tests/
+   test_parser_differential.py` for a randomized host-vs-guest parser
+   sweep) is still open — either SWE-loop(D) or language(C).
+2. The cross-fn-boundary rename-collision scenario and its v0.14.13
+   forwarding analogue (rounds 306/317) remain independently
+   fuzz-uncovered.
+3. No other `BUILTIN_ARITY` gaps are currently known — a future
+   SWE-loop(D) round should re-diff `BUILTIN_ARITY`'s keys against
+   `whence/interp.py`'s actual registered builtins before assuming so.
+4. NUC-integration(E)'s standing items (round 322's list) are unchanged
+   by this round — box status not rechecked here.
+5. Skills(B)'s round 321 item 14 (stale-header sweep) remains optional,
+   unchanged.
