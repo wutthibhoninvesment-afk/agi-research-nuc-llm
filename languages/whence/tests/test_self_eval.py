@@ -344,6 +344,41 @@ def test_provenance_labels_agree_host_vs_guest():
                 label, src, sorted(g))
 
 
+def test_anonymous_fn_call_label_agrees_host_vs_guest():
+    # Round 326 left this as an open question ("named, not chased"): does
+    # the "call <name>" op-LABEL (not the miss REASON text, which
+    # payloads_agree() deliberately exempts) match between host and guest
+    # for an ANONYMOUS closure call? test_provenance_labels_agree_host_vs_
+    # guest above never exercises this — its only call case is named
+    # ("call fib"). It did not: the host's `_call_direct`/`_call_gen`
+    # (interp.py) label every call `p.name or "<fn>"`, so an anonymous
+    # closure's call node is literally "call <fn>"; the guest's
+    # `apply_closure` (self_eval.lang) built the label as `"call " +
+    # c.name` UNCONDITIONALLY, and an anonymous closure's `c.name` is
+    # always the sentinel string "(anonymous)" (`eval_FnExpr`'s own
+    # `name: "(anonymous)"`) — so the guest said "call (anonymous)",
+    # never matching the host. Fixed by giving `apply_closure` the same
+    # "(anonymous)" -> "<fn>" substitution `check_ret`'s own `label`
+    # already applies (round 326's fix), via a new `call_op_name` helper,
+    # at all three places `apply_closure` builds this op tag: the arity-
+    # mismatch miss, the depth-guard miss, and the ordinary success wrap.
+    success_src = "let g = fn(n) { n + 1 }\nlet result = g(4)"
+    arity_src = "let g = fn(n) { n + 1 }\nlet result = g(4, 5)"
+    named_src = "fn g(n) { n + 1 }\nlet result = g(4)"
+    for src, expected in (
+        (success_src, "call <fn>"),
+        (arity_src, "call <fn>"),
+        (named_src, "call g"),
+    ):
+        h = host_labels(host_eval(src))
+        g = guest_labels(guest_box(src))
+        assert expected in h, "host lacks %r for %r (has %s)" % (
+            expected, src, sorted(h))
+        assert expected in g, "guest lacks %r for %r (has %s)" % (
+            expected, src, sorted(g))
+        assert "call (anonymous)" not in g, sorted(g)
+
+
 def test_get_of_a_callable_mirrors_field_not_a_bespoke_get_node():
     """Round 150: `get(r, name)` has EXACTLY `.field` semantics on the host
     (`b_get` delegates straight to `_field` — same op "field", same

@@ -1206,12 +1206,26 @@ fn apply(f, args, st) {
 # NOTE the host calls functions WITH miss arguments (f(miss) runs the body);
 # so does the guest: bind_params binds whatever it is given, wrapped in an
 # `arg <name>` node exactly like the host's per-param binding step.
+#
+# round 330: the "call " + <name> op-LABEL built at every return point below
+# must mirror the host's own `name = p.name or "<fn>"` (interp.py's
+# `_call_direct`/`_call_gen`) exactly, the same "(anonymous)" sentinel ->
+# "<fn>" substitution `check_ret`'s `label` already applies (round 326).
+# Closes round 326's own "named, not chased" open question: confirmed live
+# that `apply_closure`'s UNCONDITIONAL `"call " + c.name` diverged from the
+# host for an anonymous closure ("call (anonymous)" vs host's "call <fn>")
+# — a real label mismatch, not an intentional divergence like the
+# depth-guard REASON text one line below (a different guest-only budget,
+# `GUEST_MAX_DEPTH`, with its own deliberately different wording).
+fn call_op_name(name) { if name == "(anonymous)" { "<fn>" } else { name } }
+
 fn apply_closure(f, args, st) {
   let c = f.v
+  let op_name = call_op_name(c.name)
   if len(args) != len(c.params) {
     @{v: mkb(miss ("fn expects " + str(len(c.params)) + " args, got " +
                    str(len(args))),
-             "call " + c.name, args),
+             "call " + op_name, args),
       st: st}
   } else if st.gd >= GUEST_MAX_DEPTH {
     # round 210: bail out BEFORE recursing into eval(c.body, ...) — the
@@ -1226,14 +1240,14 @@ fn apply_closure(f, args, st) {
     # name", not just the over-deep call's own result).
     @{v: mkb(miss ("guest recursion too deep in " + c.name +
                    " (guest depth " + str(st.gd) + ")"),
-             "call " + c.name, args),
+             "call " + op_name, args),
       st: st}
   } else {
     let a = alloc(merge(st, @{gd: st.gd + 1}))
     let st2 = bind_params(a.st, a.fid, c.params, args, 0)
     let r = eval(c.body, [a.fid] + c.env, st2)
     let checked = check_ret(r.v, c.ret_type, c.name)
-    @{v: mkb(checked.v, "call " + c.name, [checked]),
+    @{v: mkb(checked.v, "call " + op_name, [checked]),
       st: merge(r.st, @{gd: st.gd})}
   }
 }
