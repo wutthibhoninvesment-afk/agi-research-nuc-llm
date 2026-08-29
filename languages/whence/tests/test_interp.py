@@ -307,6 +307,26 @@ def test_abs_sqrt():
     assert is_miss(p) and "negative" in p.reasons[0]
 
 
+def test_trunc():
+    # round 318 (v0.17): closes the "rand(lo, hi) not yet justified"
+    # backlog item (round 294's item 4) by fixing the real blocker -- no
+    # builtin could ever turn a float into an int, so a ranged random draw
+    # was never expressible in pure Whence at all, regardless of rand's own
+    # arity. `trunc` rounds TOWARD ZERO, like abs's own "toward zero is the
+    # origin" convention, not floor's "toward negative infinity" -- the two
+    # differ only for negative inputs.
+    assert val("let result = trunc(3.9)") == 3
+    assert val("let result = trunc(0 - 3.9)") == 0 - 3
+    assert val("let result = trunc(7)") == 7  # already an int: unchanged
+    assert val("let result = trunc(0 - 3.9) == 0 - 4") is False  # not floor
+    p = val('let result = trunc("nope")')
+    assert is_miss(p) and "trunc of" in p.reasons[0]
+    # composes predictably with abs, in both orders, for both an int and a
+    # float input -- not true of trunc/floor
+    assert val("let result = abs(trunc(0 - 3.9)) == trunc(abs(0 - 3.9))") is True
+    assert val("let result = abs(trunc(7)) == trunc(abs(7))") is True
+
+
 def test_contains():
     assert val('let result = contains("whence", "hen")') is True
     assert val("let result = contains([1, 2], 2)") is True

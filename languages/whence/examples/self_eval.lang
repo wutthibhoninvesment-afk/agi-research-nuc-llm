@@ -663,7 +663,8 @@ fn reify(b, k) {
 # which host builtin it stands for.
 let builtin_names = ["print", "rand", "len", "range", "map", "filter", "fold",
                      "push",
-                     "str", "num", "abs", "sqrt", "missed", "reasons", "note",
+                     "str", "num", "abs", "sqrt", "trunc", "missed", "reasons",
+                     "note",
                      "contains", "join", "keys", "merge", "get", "put", "has",
                      "find", "typed", "guess", "is_guess", "confidence", "sure",
                      "steps", "at", "blame", "diverge", "contrast",
@@ -680,11 +681,12 @@ let builtin_names = ["print", "rand", "len", "range", "map", "filter", "fold",
 # reach the real host call below, not get shortcut into a generic
 # "builtin"-op miss first (round 206 for `steps`; round 218 extends the
 # same reasoning to the rest of the provenance-as-data family below).
-let propagating = ["len", "range", "num", "abs", "sqrt", "contains", "join",
-                   "keys", "merge", "has", "put", "guess", "confidence", "sure"]
+let propagating = ["len", "range", "num", "abs", "sqrt", "trunc", "contains",
+                   "join", "keys", "merge", "has", "put", "guess",
+                   "confidence", "sure"]
 let arities = @{print: 1, rand: 0, len: 1, range: -1, map: 2, filter: 2,
                 fold: 3,
-                push: 2, str: 1, num: 1, abs: 1, sqrt: 1, missed: 1,
+                push: 2, str: 1, num: 1, abs: 1, sqrt: 1, trunc: 1, missed: 1,
                 guess: 3, is_guess: 1, confidence: 1, sure: 2,
                 reasons: 1, note: 2, contains: 2, join: 2, keys: 1,
                 merge: 2, get: 2, put: 3, has: 2, find: 2, typed: 3,
@@ -1585,6 +1587,7 @@ fn apply_host_builtin(name, args) {
   else if name == "num" { num(a0) }
   else if name == "abs" { abs(a0) }
   else if name == "sqrt" { sqrt(a0) }
+  else if name == "trunc" { trunc(a0) }
   else if name == "missed" { missed(a0) }
   else if name == "reasons" { reasons(a0) }
   else if name == "keys" { keys(a0) }

@@ -240,6 +240,28 @@ check "effects [random] grants the new tag, same as [io] grants print":
 # losing every check above; both are pinned instead by
 # tests/test_v14.py's `test_effects_random_tag_is_independent_of_io_tag`.
 
+# v0.17 (round 318): `trunc(x)` closes the "rand(lo, hi) not yet justified"
+# backlog item (round 294's item 4, repeated unchanged for 24 rounds) — not
+# by widening `rand`'s own arity, but by fixing what actually blocked a
+# ranged draw: no builtin could ever turn a float into an int, so
+# `num(lo + rand() * (hi - lo + 1))` was never expressible at all, no
+# matter how many arguments `rand` took. `roll_die` demonstrates the idiom
+# this unlocks: `trunc(rand() * 6) + 1` maps `rand()`'s own [0.0, 1.0)
+# range onto a uniform integer in [1, 6] — the canonical "ranged random
+# draw" every mainstream language's standard library ships as a one-liner,
+# now expressible in pure Whence via ordinary composition, not a new
+# builtin dedicated to this one case (see SPEC.md "v0.17").
+fn roll_die() effects [random] {
+  trunc(rand() * 6) + 1
+}
+let d1 = roll_die()
+let d2 = roll_die()
+let d3 = roll_die()
+check "roll_die() stays in the die's own range across several calls":
+  d1 >= 1 and d1 <= 6 and d2 >= 1 and d2 <= 6 and d3 >= 1 and d3 <= 6
+check "roll_die()'s result is a real integer, not a leftover float":
+  trunc(d1) == d1 and trunc(d2) == d2 and trunc(d3) == d3
+
 print("")
 print("effects.lang: purity is a declared, checked promise about a")
 print("function's own body — not a proof about everything it calls.")

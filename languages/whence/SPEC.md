@@ -2987,22 +2987,23 @@ that cannot end a statement.
   above — found by testing every `_KIND_ORDER` shape (`num`/`str`/`bool`/
   `list`/`record`/`miss`/`guess`/`fn`) individually rather than assuming
   scalar delegation would just work once dispatch was wired up.
-- **A narrower, deliberately unfixed caveat, documented rather than
-  chased**: `matches`/`shapeof` free-delegate to the real host builtin for
-  every NON-callable case, which keeps the full v0.12 feature surface
-  reachable (including a STRUCTURAL `Record` spec, e.g. matching a shape's
-  nested field types) — `typed`'s own guest implementation, by contrast,
-  only ever supports a plain string spec (`guest_type_ok`'s `is_str(spec)`
-  guard has no Record-spec branch at all, and no round has ever needed to
-  lift that). A structural Record spec matched against a guest RECORD
-  value would still misbehave the same way `typed` already doesn't
-  support: `_type_match` would recurse into the guest record's own
-  `payload.fields`, landing on each field's `{v, op, ins}` box wrapper
-  instead of its raw value, and every nested check would see the wrong
-  shape. Real, same "evaluate before authoring" discipline as `at()`'s
-  internal-noise caveat (v0.16.5) and `typed`'s own pre-existing scope
-  limit — no corpus need yet for guest code to structurally `matches` a
-  record built entirely inside `run_src`.
+- **A narrower caveat, flagged here but NOT left unfixed** (stale-note
+  correction, round 318): the paragraph in this spot used to predict that
+  a STRUCTURAL `Record` spec matched against a guest RECORD value would
+  "misbehave" (mismatch every nested check, since `_type_match` would
+  recurse into a `{v, op, ins}` box instead of a raw value) and left it as
+  a "no corpus need yet" backlog item. Round 240 found the real failure
+  mode was WORSE than predicted — `_type_match`'s recursion hits a box
+  with no `.value` attribute and raises an uncaught host `AttributeError`,
+  a "never raises" discipline violation, not just a wrong boolean — and
+  fixed it the same round by deep-`strip()`-ing both the value and the
+  spec (when the spec is not a plain string) before delegating to the real
+  host `matches`, so both sides reach `_type_match` in the plain, unboxed
+  shape it already assumes. `typed`'s own guest implementation is
+  unaffected (still only supports a plain string spec) since nothing has
+  ever needed to lift that separately. See `tests/test_self_hosting.py::
+  test_guest_matches_structural_record_spec_does_not_crash_the_host` and
+  `knowledge/round-240-whence-guest-matches-structural-spec-crash.md`.
 - **Verification**: new test
   `test_guest_matches_shapeof_dispatch_and_callable_guard` (`tests/
   test_self_hosting.py`) — 15 checks covering every `_KIND_ORDER` shape for
@@ -3025,9 +3026,9 @@ that cannot end a statement.
 - See `knowledge/round-224-whence-matches-shapeof-guest-parity.md`.
 
 ## Builtins
-`print rand len range map filter fold push str num abs sqrt missed reasons
-note contains join keys merge get put has find steps at blame diverge
-contrast typed matches shapeof guess is_guess confidence sure`
+`print rand len range map filter fold push str num abs sqrt trunc missed
+reasons note contains join keys merge get put has find steps at blame
+diverge contrast typed matches shapeof guess is_guess confidence sure`
 
 ## Limits that are errors, not crashes
 - Expression nesting deeper than 60 levels (parentheses, prefix operators,
@@ -3136,3 +3137,104 @@ dispatch code to `self_eval.lang` that becomes part of every `st` trace
 13-checkpoint table still needs round 228's own order-3000-4000 MB /
 600 s treatment, on a host that isn't mid-contention — not this one,
 not this round. See `knowledge/round-254-whence-self-hosting-round9-steps-repro-tool.md`.
+
+## v0.17 (round 318) — `trunc`: closes the `rand(lo, hi)` backlog by fixing the real blocker
+
+- **Round 294's own item 4** ("`rand()` is deliberately narrow, arity 0
+  only, no `rand(lo, hi)` ranged variant — a real but not yet
+  justified-by-a-concrete-need extension") had repeated unchanged in
+  `state/research-state.md`'s own next-steps list for 24 straight rounds
+  (294 through 317) without ever being investigated past that one
+  sentence. Investigating it properly (the same discipline round 314
+  applied to the dynamic-call-graph item) found the premise itself was
+  wrong: the blocker was never `rand`'s own arity. **No Whence builtin has
+  ever been able to turn a float into an int** — `num()` on an
+  already-numeric argument is a pure identity (`whence/interp.py`'s
+  `b_num`: `if _is_num(p): return args[0]`), so the obvious pure-Whence way
+  to build a ranged random draw from `rand()`'s own `[0.0, 1.0)` output,
+  `num(lo + rand() * (hi - lo + 1))`, was never expressible AT ALL — not
+  because `rand` lacked arguments, but because nothing in the language
+  could round the result down to an integer. Confirmed by reading every
+  one of the pre-existing builtins (`grep -n "^@register" whence/
+  interp.py`): none does this, and none was ever intended to (`abs`/`sqrt`
+  are the only two other purely-numeric unary builtins, neither touches
+  the int/float boundary).
+- **This reframes the real design question**: does Whence need a
+  dedicated, native `rand(lo, hi)` builtin, or does it need a general
+  float→int primitive that a `rand(lo, hi)`-shaped idiom (and any other
+  numeric code that needs one) can then compose from ordinary Whence code?
+  The second is strictly more useful for the same implementation cost — a
+  native `rand(lo, hi)` would ONLY help random-range code, while a
+  truncation primitive helps any computation that produces a float and
+  needs an integer (a random range, an average turned into a count, a
+  `sqrt` result used as an index) — so this round built the primitive, not
+  the special case, and left the ranged-random idiom to ordinary
+  user-level composition (demonstrated below), never touching `parser.py`'s
+  effect system or `_EFFECTFUL_BUILTINS` at all (`trunc` is a pure
+  function, the same class as `abs`/`sqrt`, not a third effectful
+  builtin).
+- **`trunc(x)`, arity 1, rounds TOWARD ZERO** (`int(p)`'s own Python
+  semantics applied to `p`, whether `p` is already an int or a float) —
+  `trunc(3.9)` is `3`, `trunc(-3.9)` is `-3`. **A real, named design
+  decision, not a default accepted without thought**: the alternative,
+  `floor` (round toward negative infinity), agrees with `trunc` for every
+  non-negative input — which is all `rand()`-driven code ever produces,
+  since `rand()` never returns a negative value — so the choice is
+  invisible to the very use case that motivated building this at all, and
+  is documented here precisely because a future round reading only the
+  `rand(lo, hi)` motivating example could otherwise miss that
+  `trunc(-1.5)` is `-1`, not floor's `-2`. `trunc` was chosen over `floor`
+  because it composes predictably with the existing `abs` builtin's own
+  "toward zero is the origin" convention (`abs(trunc(x)) == trunc(abs(x))`
+  for every `x`, which is not true of `abs`/`floor`), not because of any
+  `rand`-specific reasoning.
+- **Total on invalid input, like `abs`/`sqrt`, never a host exception**: a
+  non-numeric argument is `mk_miss("trunc of %s" % show_payload(p), ...)`,
+  the identical shape `abs`/`sqrt` already use for the same case. **No
+  `inf`/`nan` guard was added, unlike a first instinct might suggest**:
+  audited every path that can produce a Whence float (`binop`'s
+  arithmetic, already catching `OverflowError` into a miss before a value
+  is ever built; `b_sqrt`, already rejecting negative inputs and catching
+  its own `OverflowError`; `num()`'s string parser, already rejecting
+  `"nan"`/`"inf"`/`"infinity"` spellings and out-of-range results) and
+  confirmed a Python `float('inf')`/`float('nan')` can never reach a
+  Whence value slot through any existing builtin or operator — so guarding
+  `trunc` against them would be dead code for a state that cannot arise,
+  not defensive programming for a real one (the same reasoning `abs`/
+  `sqrt` already both apply by omission).
+- **Guest parity landed the SAME round**, unlike most `v0.14.x`/`v0.16.x`
+  features (which deliberately split host and guest work across rounds) —
+  justified because `trunc` is a trivial free-delegation case, structurally
+  identical to `abs`/`sqrt`'s own existing guest dispatch (a scalar-in,
+  scalar-out, miss-propagating, non-closure-touching builtin), not a new
+  gap-class investigation: `examples/self_eval.lang` gained `"trunc"` in
+  `builtin_names`, `propagating` (it propagates a miss argument exactly
+  like `abs`/`sqrt`, unlike the "total" provenance-as-data family), and
+  `arities` (`trunc: 1`), plus one dispatch line in `apply_host_builtin`
+  (`else if name == "trunc" { trunc(a0) }`, next to `abs`/`sqrt`'s own).
+- **The motivating idiom now works**, demonstrated in `examples/
+  effects.lang` (where `rand()` itself already lives): `fn roll_die()
+  effects [random] { trunc(rand() * 6) + 1 }` draws a uniform integer in
+  `[1, 6]` — the canonical "ranged random draw" every mainstream
+  language's standard library ships as a one-liner, now expressible in
+  pure Whence without any change to `rand`'s own arity. **This closes
+  round 294's item 4 for good, the same way round 314 closed the
+  dynamic-call-graph item — not by building the literally-requested
+  feature (`rand(lo, hi)`), but by determining what it actually needed and
+  confirming that need is now met**: a future round should not re-open
+  "give `rand` a ranged-arity variant" without first checking whether
+  `trunc`-based composition already covers the concrete case in hand.
+- **Verification**: `tests/test_interp.py::test_trunc` (new — positive,
+  negative, already-int, and non-numeric-miss cases, plus the
+  `abs(trunc(x)) == trunc(abs(x))` identity for both an int and a float
+  input) and `tests/test_self_eval.py`'s differential CORPUS gained one
+  new program (`let result = trunc(3.9) + trunc(-3.9) + trunc(9)`,
+  agreeing between host-direct and guest-mediated execution). `examples/
+  effects.lang` gained the `roll_die()` demo and two checks (9 → 11: the
+  die stays in `[1, 6]` across several calls, and `trunc` composes with
+  `rand` inside an effectful fn body the same way `print`/`rand`
+  themselves already do). Full `languages/whence` suite,
+  `run_tests_fast.sh`, cross-track `harness/run_tests_fast.sh`, host
+  fuzz/oracle/guest-differential campaigns, and `bench/ref_diff.py
+  --counters` numbers are recorded in `knowledge/
+  round-318-whence-v017-trunc-closes-rand-backlog.md`.

@@ -81,6 +81,7 @@ CORPUS = [
     'let result = num("1e400")',                                  # miss both
     'let result = abs(0 - 7) + sqrt(16)',
     'let result = sqrt(0 - 1)',                                   # miss both
+    'let result = trunc(3.9) + trunc(0 - 3.9) + trunc(9)',        # round 318
     'let result = 1 / 0',                                         # miss both
     'let result = nope + 1',                                      # miss both
     'let result = if 1 { 2 } else { 3 }',                         # miss both

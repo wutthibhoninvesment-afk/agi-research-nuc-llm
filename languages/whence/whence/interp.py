@@ -2409,6 +2409,30 @@ def _make_builtin_table():
             return mk_miss("number too large for float arithmetic", line,
                            "sqrt", inputs=(args[0],))
 
+    @register("trunc", 1)
+    def b_trunc(interp, args, line):
+        # v0.17: closes round 294's own "rand(lo, hi) not yet justified"
+        # backlog item by fixing the REAL blocker — no builtin could ever
+        # turn a float into an int, so `num(lo + rand() * (hi - lo + 1))`
+        # (the obvious pure-Whence way to build a ranged random draw from
+        # `rand()`'s own [0.0, 1.0) output) was never expressible at all;
+        # `num()` on an already-numeric value is an identity, not a round.
+        # Rounds TOWARD ZERO (`int(p)`'s own Python semantics for a float),
+        # matching `abs`'s existing "toward zero is the origin" convention
+        # rather than floor's "toward negative infinity" — the two agree
+        # for every non-negative input, which is all `rand()`-driven code
+        # ever produces, so the choice is invisible to that motivating use
+        # case; documented here since it is NOT invisible for negative
+        # inputs (`trunc(-1.5)` is `-1`, `floor(-1.5)` would be `-2`).
+        m = _propagate("trunc", args, line)
+        if m:
+            return m
+        p = args[0].payload
+        if not _is_num(p):
+            return mk_miss("trunc of %s" % show_payload(p), line, "trunc",
+                           inputs=(args[0],))
+        return derived("trunc", "", line, (args[0],), int(p))
+
     @register("missed", 1)
     def b_missed(interp, args, line):
         return derived("missed", "", line, (args[0],),

@@ -552,6 +552,15 @@ def test_effects_lang_runs_under_the_guest_round_164_backlog_closed():
     # param` helper are entirely HOST parse-time bookkeeping (no new AST
     # field at all, same as v0.14.11), invisible to the guest evaluator,
     # which just sees one more ordinary fn definition and call.
+    #
+    # v0.17 (round 318) added two more checks (`roll_die`, the ranged-
+    # random-draw idiom that closes round 294's "rand(lo, hi)" backlog item
+    # via `trunc`, a NEW builtin) -- unlike v0.14.9-13 above, this DOES need
+    # a guest change, landed the SAME round: `trunc` was added to
+    # `builtin_names`/`propagating`/`arities` and given a free-delegation
+    # dispatch line in `apply_host_builtin`, the identical shape `abs`/
+    # `sqrt` already use (scalar in, scalar out, miss-propagating, no
+    # closure guard needed).
     eval_lib = eval_library_source()
     effects_src = open(EFFECTS).read()
     prog = eval_lib + 'let __r = run_src("%s")\n' % escape(effects_src)
@@ -559,7 +568,42 @@ def test_effects_lang_runs_under_the_guest_round_164_backlog_closed():
     rec = env.get("__r").payload
     assert rec.fields["parse_error"].payload is False
     checks = rec.fields["checks"].payload
-    assert len(checks) == 14
+    assert len(checks) == 16
+    failed = [c.payload.fields["label"].payload for c in checks
+              if c.payload.fields["pass"].payload is not True]
+    assert not failed, failed
+
+
+def test_guest_trunc_dispatch_toward_zero_and_total_on_miss():
+    # round 318: `trunc` is a fresh builtin (not a pre-existing gap like
+    # `steps`/`matches`/`shapeof` above), added to host and guest the SAME
+    # round -- this is the dispatch-correctness test for that guest side,
+    # the same shape as `test_guest_matches_shapeof_dispatch_and_callable_
+    # guard` above but for a scalar-in/scalar-out numeric builtin with no
+    # callable-guard wrinkle at all (a guest closure passed to `trunc`
+    # should simply miss, the same as it would for a real host `Closure`,
+    # since `trunc` never special-cases callables the way `shapeof` does).
+    eval_lib = eval_library_source()
+    inner_checks = "\n".join([
+        'check "trunc rounds a positive float toward zero": trunc(3.9) == 3',
+        'check "trunc rounds a negative float toward zero, not down":\n'
+        '  trunc(0 - 3.9) == 0 - 3',
+        'check "trunc of an already-int value is unchanged": trunc(7) == 7',
+        'check "trunc is total-on-miss via propagation, not itself a crash":\n'
+        '  missed(trunc(miss "x"))',
+        'check "trunc of a non-number is a miss": missed(trunc("nope"))',
+        'let f = fn(x) { x }',
+        'check "trunc of a guest closure is a miss, no callable guard needed":\n'
+        '  missed(trunc(f))',
+    ])
+    inner_src = inner_checks + "\n"
+    prog = eval_lib + 'let __r = run_src("%s")\n' % escape(inner_src)
+
+    env = Interpreter().run(prog)
+    rec = env.get("__r").payload
+    assert rec.fields["parse_error"].payload is False
+    checks = rec.fields["checks"].payload
+    assert len(checks) == 6
     failed = [c.payload.fields["label"].payload for c in checks
               if c.payload.fields["pass"].payload is not True]
     assert not failed, failed
