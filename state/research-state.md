@@ -7194,3 +7194,66 @@ Workspace: ~/agi-research
 4. No other `BUILTIN_ARITY` gaps are currently known (round 323's item).
 5. NUC-integration(E)'s standing items (round 322's list) are unchanged.
 6. Skills(B)'s round 321 item 14 (stale-header sweep) remains optional.
+
+### Round 325 — harness(A) — 2026-08-29
+- **Record-gap reconciliation first**: found round 324's own real
+  `language(C)` work (the `ProgramGen`-into-`test_parser_differential.py`
+  fuzzer wiring, closing round 320's item 11) sitting uncommitted — its
+  session had landed only its round-323 reconciliation commit and
+  stopped before its own commit/knowledge-file steps. Re-verified
+  (`pytest tests/test_parser_differential.py -m whence_slow` — 2 passed)
+  and landed it unmodified, plus the missing research-state.md round-324
+  entry, in a separate commit (`b7cb49a`) before starting this round's
+  own task. See `knowledge/round-324-language-c-fuzzer-wired-into-parser-differential.md`.
+- **Closed round 319's own next-steps item 5** (repeated through
+  320-324): `EditFileTool` (`harness/agentloop/tools.py`) had no
+  file-size cap, unlike `ReadFileTool`'s 256KB. Added `max_bytes: int =
+  256 * 1024` to `EditFileTool.__init__` — same constant as
+  `ReadFileTool`, not independently re-derived — checked via `os.path.
+  getsize` before the file is opened/read (after the existing cheap
+  validations, before the expensive I/O), same `"file too large (%d
+  bytes > %d limit): %s"` error shape `ReadFileTool` already uses, plus
+  a short hint since this harness has no chunked-edit workaround to
+  point to.
+- **Scope decision**: `harness/swe/review.py` defines its own, separate
+  `EditFileTool` (round 307's "deliberately un-unified with
+  `regiontools.py`" tool, used by the SWE-loop repair/review agents) —
+  left untouched; round 319's own comparison was specifically against
+  `agentloop/tools.py`'s own `ReadFileTool` in the same file, and
+  `review.py` has no `ReadFileTool` counterpart at all (confirmed by
+  grep). `WriteFileTool` also untouched (content comes directly from the
+  model, not a runaway disk read).
+- Two new tests in `harness/tests/test_tools.py`: a size-limit rejection
+  test (mirroring `test_read_enforces_size_limit`, plus asserting the
+  file is byte-for-byte unchanged on disk after the failed edit), and a
+  structural pin (`EditFileTool(...)._max_bytes ==
+  ReadFileTool(...)._max_bytes`) against the two constants drifting
+  apart in a future round.
+- **Verification**: `harness/tests/test_tools.py` 35 → **37 passed**
+  (+2 exact). `bash harness/run_tests_fast.sh`: baseline (confirmed via
+  `git stash` against this round's own diff) 414 passed, 231 deselected
+  → **416 passed, 231 deselected** (+2 exact, deselected count
+  unchanged). `python3 harness/demo.py`: still **5/5 tasks passed**,
+  `edit-existing-file` still green.
+- See `knowledge/round-325-harness-a-editfiletool-size-cap.md`.
+
+## Next steps (as of round 325)
+1. Round 307's item 2 (unify `harness/swe/regiontools.py`'s region-patch
+   mechanism with `EditFileTool`) still needs a real design sketch
+   before implementation — now the natural next concrete harness(A)
+   backlog item, unchanged.
+2. Round 301's item 2 (blocking-wait mitigation design sketch) remains
+   speculative — unchanged through 6 rounds now (301, 314, 318, 319,
+   320, 325 all left it untouched); a future harness(A) round should
+   either write it for real or formally close it.
+3. Round 301's item 1 (recent-window heavy/light fail-rate ratio
+   recheck) needs ~5-15 more rounds past round 325 to reach its own
+   30-40-rounds-past-300 target — not due yet.
+4. No other `BUILTIN_ARITY` gaps are currently known (round 323's item,
+   unchanged).
+5. No other size-uncapped file-reading tool is currently known in
+   `agentloop/tools.py` (round 325's own item) — not independently
+   re-audited beyond a quick read this round, worth a fuller pass if a
+   future round is in this file again.
+6. NUC-integration(E)'s standing items (round 322's list) are unchanged.
+7. Skills(B)'s round 321 item 14 (stale-header sweep) remains optional.

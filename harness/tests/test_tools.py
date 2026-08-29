@@ -159,6 +159,19 @@ class SandboxedToolTests(unittest.TestCase):
         self.assertFalse(res.ok)
         self.assertIn("escapes sandbox", res.output)
 
+    def test_edit_enforces_size_limit(self):
+        self.write("big.txt", "x" * 1000)
+        res = EditFileTool(self.root, max_bytes=100).run(
+            path="big.txt", old_string="x", new_string="y")
+        self.assertFalse(res.ok)
+        self.assertIn("file too large", res.output)
+        with open(os.path.join(self.root, "big.txt")) as f:
+            self.assertEqual(f.read(), "x" * 1000)  # unchanged: no partial edit
+
+    def test_edit_default_size_limit_matches_read_file_tools(self):
+        self.assertEqual(EditFileTool(self.root)._max_bytes,
+                         ReadFileTool(self.root)._max_bytes)
+
     # -- list_dir -----------------------------------------------------------
 
     def test_list_dir_marks_directories(self):

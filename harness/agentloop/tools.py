@@ -233,8 +233,9 @@ class EditFileTool(Tool):
     }
     required = ["path", "old_string", "new_string"]
 
-    def __init__(self, root: str):
+    def __init__(self, root: str, max_bytes: int = 256 * 1024):
         self._sb = _Sandboxed(root)
+        self._max_bytes = max_bytes
 
     def run(self, path: str, old_string: str, new_string: str,
             replace_all: bool = False) -> ToolResult:
@@ -248,6 +249,11 @@ class EditFileTool(Tool):
             return ToolResult(False, "old_string must be non-empty")
         if old_string == new_string:
             return ToolResult(False, "old_string and new_string are identical: no-op edit")
+        size = os.path.getsize(abs_path)
+        if size > self._max_bytes:
+            return ToolResult(False, "file too large (%d bytes > %d limit): %s "
+                              "(read it in chunks or edit it outside the harness)"
+                              % (size, self._max_bytes, path))
         with open(abs_path, "r", encoding="utf-8", errors="replace") as f:
             content = f.read()
         count = content.count(old_string)
