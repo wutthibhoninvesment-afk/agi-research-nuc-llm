@@ -6459,7 +6459,49 @@ Workspace: ~/agi-research
   baseline.
 - See `knowledge/round-315-skills-b-tiny-language-implementation-pitfall-split.md`.
 
-## Next steps (as of round 315)
+### Round 316 — NUC-integration(E) — 2026-08-29
+- Pre-flight: `ps -eo pid,ppid,etime,cmd` showed only this round's own
+  driver process tree ([[feedback_check_for_concurrent_rounds]]);
+  `git status --porcelain` showed exactly the 5 paths in `state/
+  known-standing-dirty-paths.json`, nothing to reconcile
+  ([[feedback_check_cached_diff_before_commit]]). `check_round_recorded.py`
+  flagged only this round itself; round 315 was already landed (`597adf5`).
+- **Box still DOWN, same outage as 298/304/310**: both this round's checks
+  (07:42:24Z and 07:47:11Z) got `Connection timed out` on the tailnet SSH
+  path, and `tailscale status --json`'s `LastSeen` for `pgain-nuc` read
+  the identical `2026-08-29T02:10:00.1Z` round 310 observed 1h55m earlier
+  — proves this is still one continuous outage, not a new boot-crash
+  cycle. `summarize_log`: the down streak now spans 5 checks across 4
+  rounds (298, 304, 310, 316×2), 27 total log records, 4 streaks.
+- **Added `current_streak_duration()` + a `status` CLI subcommand to
+  `nuc/reachability_check.py`**: `summarize_log`'s per-streak `start`/
+  `end` fields are both drawn from the log's own records, so an ongoing
+  streak's "how long so far" has always required hand-subtracting two
+  timestamps (round 310 did this in prose: "3h37m35s"). The new function
+  walks the sorted log backward from the latest record while the verdict
+  keeps matching (same adjacency rule `summarize_log` already uses),
+  finds the streak's real start, and computes `elapsed_s` against an
+  injected `now_fn()` — the same DI pattern `check()` already uses, so
+  every test is deterministic/offline. `python3 nuc/reachability_check.py
+  status` now answers "is it down, and for how long" in one line:
+  live run → `{"verdict": "down", "streak_start_utc":
+  "2026-08-29T02:13:07Z", "streak_start_round": 298, "elapsed_s":
+  20057.0}` (5h34m17s), matching hand arithmetic to the second.
+- **Verification**: 4 new tests (empty log, multi-record walk-back using
+  this round's own real 298/304/310/316 shape as fixture data,
+  single-record streak, unsorted-input robustness). `nuc/tests/
+  test_reachability_check.py`: 18 → **22 passed** (+4). Full `nuc/tests/`:
+  215 → **219 passed** (+4 exact). `git diff --stat -- nuc/`: 2 files, 96
+  insertions, 0 deletions — pure addition. Cross-track: `bash harness/
+  run_tests_fast.sh` → **412 passed, 223 deselected**; `bash languages/
+  whence/run_tests_fast.sh` → **943 passed, 38 deselected** — both
+  byte-identical to round 315's own baseline.
+- Does NOT unblock the standing asks (second `swap_watch_launch.py`
+  multi-hour poll, standing-state re-verification) — both still need the
+  box up, which it wasn't at either of this round's checks.
+- See `knowledge/round-316-nuc-e-status-subcommand-and-outage-still-ongoing.md`.
+
+## Next steps (as of round 316)
 1. `fuzz-mutate-kill-loop/SKILL.md` at 415/500 lines remains the only
    skill within 100 lines of the hard cap (round 309/310's item, still
    correctly deferred — hasn't crossed the ~440-450 trigger). Apply the
@@ -6472,15 +6514,18 @@ Workspace: ~/agi-research
 3. `rand()` deliberately narrow (arity 0 only) — round 294's item 4, still
    not yet justified by a concrete need.
 4. Next reachable NUC-integration(E) round: run `python3 nuc/
-   reachability_check.py check --round NNN` FIRST, THEN `swap_watch_
-   launch.py plan --tag rNNN --duration 28800` / `launch` for the still-
-   unlaunched second multi-hour poll — round 304's item 1, unchanged; a
-   sixth consecutive down window if it recurs (298, 304, 310).
+   reachability_check.py check --round NNN` (or `status` for the one-line
+   answer) FIRST, THEN `swap_watch_launch.py plan --tag rNNN --duration
+   28800` / `launch` for the still-unlaunched second multi-hour poll —
+   round 304's item 1 / round 310's item 1, unchanged; this is now the
+   FOURTH consecutive down-round for this specific ask (298, 304, 310,
+   316).
 5. Standing NUC state (`--cap 256`, E3 patch, OLMoE tarball, `memory.
    events` max, operator login, escalation channel) still NOT re-verified
    — round 304's item 2, unchanged.
 6. `reachability_check.py`'s `"ambiguous"` verdict has never been observed
-   on this box — round 310's item 3, unchanged.
+   on this box through round 316 — round 310's item 3, unchanged; the
+   code path itself is fully unit-tested against injected fakes.
 7. The `tail`/EOF backgrounded-pipe silent-drop mechanism remains
    genuinely unconfirmed — round 310's item 5, unchanged.
 8. The recent-window heavy/light fail-rate ratio re-check and round 295's
@@ -6493,3 +6538,8 @@ Workspace: ~/agi-research
     a backlog item (round 314) — no future language(C) round should
     re-open it without first reading `SPEC.md`'s "v0.14.14" section AND
     round 315's new `tiny-language-implementation` reference-file entry.
+11. This outage (298/304/310/316) already exceeds outage 1's own
+    checked-down span (184/196, 5h14m40s) as of round 316's last check
+    (5h34m4s) — worth one comparison line in whichever future round
+    finally observes it end, once its true total duration is known
+    (bounded above only by the next `up` check).

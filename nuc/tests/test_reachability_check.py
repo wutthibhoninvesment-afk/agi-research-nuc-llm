@@ -234,3 +234,48 @@ def test_summarize_log_sorts_out_of_order_input_by_timestamp():
 def test_summarize_log_empty():
     summary = rc.summarize_log([])
     assert summary == {"n_records": 0, "n_streaks": 0, "n_down_streaks": 0, "streaks": []}
+
+
+# --- current_streak_duration --------------------------------------------------
+
+def test_current_streak_duration_empty_log_returns_none():
+    assert rc.current_streak_duration([]) is None
+
+
+def test_current_streak_duration_walks_back_through_matching_verdicts_only():
+    records = [
+        {"checked_at_utc": "2026-08-29T00:00:00Z", "round": 298, "verdict": "up"},
+        {"checked_at_utc": "2026-08-29T02:13:07Z", "round": 304, "verdict": "down"},
+        {"checked_at_utc": "2026-08-29T05:47:35Z", "round": 310, "verdict": "down"},
+        {"checked_at_utc": "2026-08-29T07:42:24Z", "round": 316, "verdict": "down"},
+    ]
+    result = rc.current_streak_duration(records, now_fn=lambda: "2026-08-29T08:12:24Z")
+    assert result["verdict"] == "down"
+    assert result["streak_start_utc"] == "2026-08-29T02:13:07Z"
+    assert result["streak_start_round"] == 304
+    assert result["latest_check_round"] == 316
+    assert result["as_of_utc"] == "2026-08-29T08:12:24Z"
+    # 08:12:24 - 02:13:07 = 5h59m17s = 21557s
+    assert result["elapsed_s"] == 21557.0
+
+
+def test_current_streak_duration_single_record_streak_start_is_that_record():
+    records = [
+        {"checked_at_utc": "2026-08-29T00:00:00Z", "round": 1, "verdict": "up"},
+        {"checked_at_utc": "2026-08-29T01:00:00Z", "round": 2, "verdict": "down"},
+    ]
+    result = rc.current_streak_duration(records, now_fn=lambda: "2026-08-29T01:30:00Z")
+    assert result["streak_start_utc"] == "2026-08-29T01:00:00Z"
+    assert result["streak_start_round"] == 2
+    assert result["elapsed_s"] == 1800.0
+
+
+def test_current_streak_duration_unsorted_input_still_uses_latest_by_timestamp():
+    records = [
+        {"checked_at_utc": "2026-08-29T02:00:00Z", "round": 2, "verdict": "down"},
+        {"checked_at_utc": "2026-08-29T00:00:00Z", "round": 1, "verdict": "up"},
+    ]
+    result = rc.current_streak_duration(records, now_fn=lambda: "2026-08-29T02:30:00Z")
+    assert result["verdict"] == "down"
+    assert result["streak_start_round"] == 2
+    assert result["elapsed_s"] == 1800.0

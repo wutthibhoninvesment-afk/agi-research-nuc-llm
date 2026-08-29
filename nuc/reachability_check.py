@@ -213,6 +213,49 @@ def summarize_log(records: list) -> dict:
     }
 
 
+def current_streak_duration(records: list, now_fn=now_utc_iso) -> dict | None:
+    """How long the box has held its LATEST observed verdict, measured
+    against `now_fn()` rather than only the last two checks' own
+    timestamps -- round 310 hand-computed this exact arithmetic in prose
+    for its own single outage ("2026-08-29T02:10:00.1Z", "3h37m35s"); every
+    round since has had to redo that subtraction by hand. This makes it a
+    reusable, tested function that also accounts for time elapsed SINCE
+    the last check, not just between checks, so an outage started three
+    checks ago and still ongoing right now reports its real elapsed time
+    rather than stopping at the last check's own timestamp the way
+    `summarize_log`'s streak `end` field deliberately does (that field
+    also serves backfilled/historical streaks where "now" is meaningless).
+
+    Returns None for an empty log. Walks the sorted log backwards from the
+    most recent record, extending the streak start back through every
+    immediately-preceding record that shares the SAME verdict class
+    (matching `summarize_log`'s own adjacency rule) -- a real transition to
+    a different verdict, or the start of the log, ends the walk.
+    """
+    if not records:
+        return None
+    ordered = sorted(records, key=_sort_key)
+    verdict = ordered[-1]["verdict"]
+    start = ordered[-1]["checked_at_utc"]
+    start_round = ordered[-1].get("round")
+    for rec in reversed(ordered):
+        if rec["verdict"] != verdict:
+            break
+        start = rec["checked_at_utc"]
+        start_round = rec.get("round")
+    now = now_fn()
+    start_dt = datetime.strptime(start, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    now_dt = datetime.strptime(now, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    return {
+        "verdict": verdict,
+        "streak_start_utc": start,
+        "streak_start_round": start_round,
+        "latest_check_round": ordered[-1].get("round"),
+        "as_of_utc": now,
+        "elapsed_s": (now_dt - start_dt).total_seconds(),
+    }
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = p.add_subparsers(dest="mode", required=True)
@@ -230,6 +273,9 @@ def main(argv=None) -> int:
     sp = sub.add_parser("summarize")
     sp.add_argument("--log-path", default=DEFAULT_LOG_PATH)
 
+    tp = sub.add_parser("status", help="current streak's verdict + elapsed time as of now")
+    tp.add_argument("--log-path", default=DEFAULT_LOG_PATH)
+
     args = p.parse_args(argv)
 
     if args.mode == "check":
@@ -239,6 +285,11 @@ def main(argv=None) -> int:
         if not args.no_append:
             append_record(record, args.log_path)
         print(json.dumps(record, indent=2))
+        return 0
+
+    if args.mode == "status":
+        records = load_log(args.log_path)
+        print(json.dumps(current_streak_duration(records), indent=2))
         return 0
 
     records = load_log(args.log_path)
