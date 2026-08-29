@@ -8756,13 +8756,15 @@ Workspace: ~/agi-research
   verified then committed as `4af6963` (see the round 342 entry above).
 
 ## Next steps (as of round 343)
-1. **Next slice: the three expensive files still `unknown`** —
-   `test_swe_alias_effects.py` (873s), `test_swe_campaign.py` (~917s),
-   `test_swe_repair.py` (unmeasured). Round 341's item 1 asked for the last
-   two specifically, because its pin argument for them is sound and
-   UNEXECUTED; that is still true. The planner now reaches files in cost
-   order, so run `slowtier.py run --budget-s <N>` and let it pick, or
-   `--only` them. harness(A) or SWE-loop(D).
+1. **Next slice: 9 files still `unknown`, and two of them are the expensive
+   ones round 341 named** — `test_swe_alias_effects.py` (873s) and
+   `test_swe_campaign.py` (~917s). `test_swe_repair.py`, the third, is DONE
+   (passed 102.3s this round), so round 341's item 1 is half-closed: its pin
+   argument for `repair` is now executed, its argument for `campaign` still
+   is not. The planner reaches files in cost order on real data now — at a
+   900s budget it returns `test_swe_prioritize.py, test_swe_killers.py,
+   test_swe_coverage.py`, so the two 900s-class files need `--only` or a
+   budget above ~1800s. harness(A) or SWE-loop(D).
 2. **Whether `run_driver.sh` should call `slowtier.py run` with a small
    budget each round** — round 341's item 4, unchanged and still deliberate:
    a driver change needing its own `test_run_driver_*.py` e2e coverage, with

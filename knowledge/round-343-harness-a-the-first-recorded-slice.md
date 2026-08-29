@@ -237,6 +237,13 @@ and each one has to be re-aimed, not just made green.
 - `harness/run_tests_fast.sh` — see §8.
 - `languages/whence`: full `pytest tests/` **1057 passed in 364.31s**, run to
   verify round 342's uncommitted diff before landing it (`4af6963`).
+- **Round 340's item 4 (sweep for live-file aggregate pins) complied with by
+  construction**, which is worth checking because this round adds an
+  append-only file that future rounds write to. Every ledger path in
+  `test_slowtier.py` is `tmp_path`-scoped or deliberately absent; nothing
+  pins a count over `state/slow-tier-ledger.jsonl`. The one test that touches
+  the live tree asserts a monotone invariant (`n_deps >= 3`) rather than an
+  equality, so the next round's slice cannot turn it into a fake regression.
 
 ## 8. Post-round measurements
 
@@ -244,8 +251,29 @@ Recorded after the writeup above, from the two runs launched at the end of
 the round.
 
 **`slowtier.py run --only test_swe_review.py`** (after the oracle-set fix):
-`test_swe_review.py passed 141.1s`. Tier now **18 files, 5 conclusive against
-checkout `5b257257bf1c5273` (28% recall), 0 failing.**
+`test_swe_review.py passed 141.1s`. Tier: **5 conclusive, 28% recall, 0
+failing.**
+
+**A second slice with the round's remaining time**, aimed first at
+`test_swe_repair.py` — round 341's item 1 named it specifically because its
+pin argument was *sound and unexecuted*:
+
+```
+test_swe_repair.py        passed  102.3s      <- round 341's unexecuted pin, now executed
+test_swe_proc.py          passed   23.1s
+test_swe_regiontools.py   passed    0.8s
+test_swe_killers.py       passed   39.2s
+```
+
+Every entry `checkout_stable`/`harness_stable` true. Tier at round end:
+**18 files, 9 conclusive against checkout `5b257257bf1c5273` (50% recall), 0
+failing** — from round 341's measured 0%. `test_swe_fuzz.py` was still
+running when the round ended; its entry will land in the ledger regardless,
+which is the point of appending per file.
+
+And the planner now works on real data rather than a size prior — asked for
+the next slice it returns `test_swe_prioritize.py, test_swe_killers.py,
+test_swe_coverage.py` at a 900s budget, in cost order.
 
 **`harness/run_tests_fast.sh`**: **464 passed, 267 deselected in 45.60s**.
 
@@ -290,6 +318,19 @@ had been edited, and under round 341's schema that entry would have read
 inconclusive, and the report names the single path responsible. The `moved:`
 line is the payoff for storing digests per path rather than folding them into
 one hash.
+
+**The ledger design defeated the buffering problem the program keeps hitting.**
+Both slices were run backgrounded, and both produced an EMPTY stdout file
+until the process exited — Python block-buffers stdout when it is not a tty,
+so `log=print` delivered nothing in real time. That is the same symptom
+round 341 hit (item 10) and the same family as round 310's item 5, and it
+cost this round nothing: every per-file result was already durable in
+`state/slow-tier-ledger.jsonl` before the process ended, because `run_slice`
+appends an entry per file rather than summarising at the end. **A run whose
+only record is its stdout is a run you can lose; a run that appends is not.**
+That was designed for the concurrent-edit problem, and it turns out to also
+be the answer to a backgrounding problem the program has been circling for
+four rounds.
 
 **A self-inflicted measurement error worth recording**, since the program has
 a standing open question about exactly this shape (round 310's item 5, round
