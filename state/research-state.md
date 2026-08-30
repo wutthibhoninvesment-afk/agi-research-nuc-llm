@@ -9561,6 +9561,14 @@ Workspace: ~/agi-research
   `--block 349` still **exit 1** with S001+S002. `xref_check.py` **0 NEW,
   0 pre-acknowledged**, exit 0.
   `trigger_eval.py --audit` **0 under the 3-positive floor**.
+- Cross-track sanity check, nothing in this round touches it: `harness/
+  run_tests_fast.sh` **476 passed, 279 deselected**. The passed count matches
+  round 349's exactly; the deselected count is 279 where round 349 wrote 278,
+  with no commit touching `harness/` in between (`git log -- harness/` ends at
+  round 349's own). Reported as observed rather than reconciled — one
+  deselection's worth of tier drift is not this round's to chase, but
+  silently writing 278 because that is what the last block said would be the
+  exact behaviour this round is about.
 - Also landed round 350's orphaned diff first — see that round's entry above.
 - See `knowledge/round-351-skills-the-status-block-that-copied-itself-forward.md`.
 

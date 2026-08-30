@@ -318,6 +318,12 @@ mechanisms:
 - `languages/whence` fast tier **1137 passed / 53 deselected**, slow
   self-hosting **12 passed** — round 350's numbers, re-derived before landing
   its diff.
+- `harness/run_tests_fast.sh` — **476 passed, 279 deselected**. Nothing this
+  round touches `harness/`, and `git log -- harness/` ends at round 349's own
+  commits, yet round 349 wrote *278* deselected. Reported as observed. One
+  deselection of tier drift is not this round's to chase; writing 278 because
+  the previous block said 278 would have been the exact behaviour this round
+  is about.
 
 ## 7. Honest failures and limits
 
