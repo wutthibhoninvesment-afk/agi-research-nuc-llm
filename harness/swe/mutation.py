@@ -198,8 +198,19 @@ def classify_mutant_run(returncode, output, cmd):
     """
     if returncode == 0:
         return "survived"
-    if is_pytest_cmd(cmd) and returncode in _PYTEST_NO_EVIDENCE:
-        return "error"
+    if returncode < 0:
+        # Signal death. A mutant that segfaults or hangs-then-gets-killed IS
+        # a behavioural difference the suite caught, whatever the runner.
+        return "killed"
+    if is_pytest_cmd(cmd):
+        # Whitelist, not blacklist. Under pytest exactly one positive code
+        # means "a test failed"; treating any OTHER code as a kill is the
+        # assumption that produced this whole defect, so an undocumented
+        # code (a plugin's own, say) is no evidence rather than a free kill.
+        return "killed" if returncode == _PYTEST_TESTS_FAILED else "error"
+    # A generic runner's exit codes carry no agreed meaning, so keep the
+    # historical any-failure-is-a-kill rule rather than guess. The baseline
+    # pre-flight in `mutation_test` is what covers these callers.
     return "killed"
 
 

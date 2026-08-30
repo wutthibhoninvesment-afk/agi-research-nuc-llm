@@ -242,3 +242,20 @@ def test_valid_score_equals_score_when_nothing_errored(tmp_path):
     assert rep.errored == []
     assert rep.valid_score == rep.score
     assert rep.as_dict()["valid_score"] == rep.as_dict()["score"]
+
+
+def test_classify_mutant_run_whitelists_rather_than_blacklists_pytest_codes():
+    """An undocumented pytest exit code is no evidence, not a free kill.
+
+    Blacklisting the known-bad codes would leave anything outside the
+    documented 0-5 table classified as a kill — which is the exact
+    assumption that produced this defect in the first place.
+    """
+    for rc in (6, 7, 42, 99):
+        assert classify_mutant_run(rc, "", PYTEST_CMD) == "error", rc
+    # ...but a generic runner keeps the historical rule, since its codes
+    # carry no agreed meaning at all.
+    for rc in (6, 42):
+        assert classify_mutant_run(rc, "", ["make", "test"]) == "killed", rc
+    # Signals kill under either runner.
+    assert classify_mutant_run(-9, "", ["make", "test"]) == "killed"
