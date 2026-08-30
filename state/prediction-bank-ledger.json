@@ -343,6 +343,14 @@
    "where": "knowledge/round-369-the-obligation-with-no-registry.md",
    "quote": "## 8. Predictions, scored",
    "remainder": "P10 is UNRESOLVED by choice: scoring rounds 362/368's banks from their own artifacts is language(C)'s owed work, and round 363 established that scoring someone else's bank from their own output is not scoring. P4 is NOT ESTABLISHED -- the scanner's 11 includes at least 3 rounds that discharged another round's bank."
+  },
+  "370": {
+   "bank": "nuc/predictions-e-round370.md",
+   "status": "scored",
+   "scored_by": 370,
+   "where": "knowledge/round-370-suspend-witness-and-the-int4-unpack.md",
+   "quote": "## 6. Predictions scored (D-013)",
+   "remainder": "P1 is NOT RUN and stays that way: the per-boot kernel-log grep across boots -1..-6 is unaffordable (journalctl -b -2 -k alone exceeds 100 s and does not finish) and is the weakest of the three suspend witnesses, so it was dropped rather than allowed to eat the round. P5b was ill-posed rather than unanswered -- with CLOCK_BOOTTIME == CLOCK_MONOTONIC on this box no measurement here can identify which clock /proc/uptime follows, and round 370 makes that question unimportant rather than answering it."
   }
  }
 }

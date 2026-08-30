@@ -101,6 +101,28 @@ consumer refused an empty list; a human reading the directory would have been.
 - **Do not compare a rollup computed over an append-only file across runs.**
   The input grew. Compare methods on ONE snapshot, and quote the snapshot's
   size next to the number.
+- **Bound the TOTAL, not only the per-item budget.** Round 370 launched a
+  7-item sweep under a 900 s outer timeout while its own inner per-item
+  timeouts allowed up to 600 s EACH — a worst case of 4200 s under a 900 s
+  cap. It was killed part-way and produced nothing. Per-item sizing and a
+  total budget are two separate numbers; deriving one and assuming the other
+  is the same mistake as using a constant, one level up. Write both down and
+  check that `n_items x per_item_max <= total`, or make the runner emit
+  partial results as it goes so a kill still leaves evidence.
+- **The most accessible item is usually the cheapest one, which makes it the
+  worst sample.** Round 370 timed the sweep on the CURRENT boot (11 s) because
+  it was the easiest to reach, and projected from it; the deep-history boots
+  cost >100 s each and never finished. Cost frequently correlates with
+  distance from whatever index/head the tool seeks from, and the item you
+  reach for first is the one nearest that head. Sample the item your proxy
+  says is worst, not the one in front of you.
+- **Killing the local client does not kill the remote work.** When round 370's
+  `ssh` was killed at its budget, the `journalctl` processes on the far side
+  kept running for another 6 minutes, drove the load average on a shared box,
+  and were then briefly misread as organic traffic by the same round. Any
+  budget enforced by killing a local process needs a matching reap on the
+  remote side — and any load/latency measured after such a kill is suspect
+  until you have confirmed nothing of yours is still running.
 
 ## Verification
 
