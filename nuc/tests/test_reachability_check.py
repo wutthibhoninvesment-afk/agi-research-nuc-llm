@@ -899,8 +899,25 @@ def test_real_log_second_outage_started_at_the_tailscale_last_seen():
     assert second["earliest_possible_start_source"] == "tailscale_last_seen"
     assert second["start_uncertainty_s"] == pytest.approx(186.9)
     assert second["start_uncertainty_human"] == "0h03m06s"
-    assert second["ongoing"] is True
-    assert second["max_possible_span_s"] is None
+    # ROUND 352: this used to assert `second["ongoing"] is True`, which was a
+    # fact about the WORLD (the box was down) written down as a property of
+    # the code. It stayed green for nine rounds only because the outage kept
+    # going, and went red the moment round 352 found the box up -- i.e. the
+    # suite treated "the outage is still running" as an invariant of the
+    # thing under test. What the test is actually about is the 3m06s
+    # LastSeen-vs-first-check disagreement on the START side, asserted above.
+    # `ongoing` is now DERIVED from the log rather than pinned, so this test
+    # says the same thing whichever state the box is in.
+    _last = sorted(_real_log_records(), key=rc._sort_key)[-1]
+    assert second["ongoing"] is (_last["verdict"] == "down")
+    # Same treatment: `max_possible_span_s is None` was only true BECAUSE the
+    # outage was open (an ongoing streak has no end bound to compute one
+    # from). The durable statement is the conditional, which holds in both
+    # states. The now-closed bracket gets its own dedicated test below.
+    if second["ongoing"]:
+        assert second["max_possible_span_s"] is None
+    else:
+        assert second["max_possible_span_s"] >= second["confirmed_span_s"]
 
 
 def test_real_log_every_bracket_is_internally_consistent():
@@ -1461,7 +1478,12 @@ def test_cli_continuity_gaps_flag_includes_the_per_gap_detail(capsys):
     assert rc.main(["continuity", "--log-path", str(REAL_LOG), "--gaps",
                     "--verdict", "up"]) == 0
     out = json.loads(capsys.readouterr().out)
-    assert [s["verdict"] for s in out["streaks"]] == ["up", "up"]
+    # ROUND 352: was `== ["up", "up"]`. Pinning the COUNT of up streaks made
+    # this test fail every time the box changes state, which is the one event
+    # it has no opinion about -- its subject is that `--verdict up` filters
+    # and `--gaps` adds per-gap detail. Both are asserted structurally now.
+    verdicts = [s["verdict"] for s in out["streaks"]]
+    assert verdicts and set(verdicts) == {"up"}
     assert all("gaps" in s for s in out["streaks"])
     # the rollup counts stay whole-log even when the streak list is filtered
     assert out["n_gaps"] >= 29
@@ -1749,3 +1771,64 @@ def test_boot_history_probe_discards_output_from_a_failed_ssh():
     the earlier all-empty-stdout parametrisation could not see it."""
     proc = _FakeProc(255, BOOT_JSON_TWO_BOOTS)
     assert rc.boot_history_probe(runner=lambda cmd: proc) == []
+
+
+def test_real_log_second_outage_is_closed_and_its_end_came_from_boot_utc():
+    """ROUND 352 -- the first up-check in nine rounds closed the 298->346
+    outage, so its END bracket is pinnable for the first time.
+
+    Its value is that ground truth arrived independently: the box's own
+    `journalctl --list-boots` (saved at
+    `state/nuc-boot-history-r352/list-boots-r352.json`) puts the previous
+    boot's last journal entry at 2026-08-29T02:10:07Z and this boot's first
+    at 2026-08-30T00:32:32Z. So the true outage is ~80545s, and the
+    `max_possible_span_s` asserted here is within a couple of seconds of it
+    while `confirmed_span_s` -- the probe-based number this track quoted for
+    nine rounds -- is 9859s (2h44m19s) SHORT. That gap is the whole argument
+    for `streak_bounds` publishing a bracket instead of a single figure.
+    """
+    bounds = [b for b in rc.streak_bounds(_real_log_records())
+              if b["verdict"] == "down"]
+    second = bounds[1]
+    assert second["ongoing"] is False
+    assert second["latest_possible_end_utc"] == "2026-08-30T00:32:27Z"
+    assert second["latest_possible_end_source"] == "boot_utc"
+    assert second["confirmed_span_s"] == pytest.approx(70686.0)
+    assert second["max_possible_span_s"] == pytest.approx(80546.9)
+    # The bracket must actually CONTAIN the journal-derived truth.
+    assert second["confirmed_span_s"] <= 80545.0 <= second["max_possible_span_s"]
+
+
+def test_boot_history_witness_closes_every_up_gap_the_probes_could_not():
+    """ROUND 352 -- first live exercise of round 340's boot-history witness,
+    against the box's real `journalctl --list-boots` output.
+
+    Round 340 built this path and could only fixture-test it. On real data it
+    does exactly what it was designed to do and the size of the effect is the
+    finding: WITHOUT the boot history every one of the 18 up-streak gaps is
+    unwitnessed (the up records predate `boot_utc`, so even the weaker
+    `boot_utc_unchanged` rule has nothing to read); WITH it, all 18 become
+    full witnesses from a record the box kept while nobody was looking.
+    """
+    records = _real_log_records()
+    boots = rc.parse_boot_history(
+        (Path(__file__).resolve().parents[2] / "state" / "nuc-boot-history-r352"
+         / "list-boots-r352.json").read_text())
+    assert len(boots) == 7
+
+    without = rc.continuity_report(records)
+    with_bh = rc.continuity_report(records, boots)
+
+    assert without["unwitnessed_gap_count"] == 18
+    assert without["max_unobserved_outage_s"] is not None
+    assert without["transition_count_upper_bound"] is None
+
+    assert with_bh["unwitnessed_gap_count"] == 0
+    assert with_bh["max_unobserved_outage_s"] is None
+    assert with_bh["transition_count_upper_bound"] == with_bh["confirmed_transitions"]
+    assert with_bh["missed_excursions"] == []
+
+    sources = {g["witness_source"]
+               for st in rc.gap_continuity(sorted(records, key=rc._sort_key), boots)
+               for g in st["gaps"] if st["verdict"] == "up"}
+    assert sources == {"boot_history"}
