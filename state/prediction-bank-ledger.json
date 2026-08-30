@@ -374,6 +374,12 @@
    "where": "knowledge/round-373-adjudicated-is-not-unattributed.md",
    "quote": "10 HIT / 0 MISS, plus one supplementary HIT",
    "remainder": "None outstanding: P1-P10 and the mid-round supplementary P11 are each scored by number in the knowledge file's section 8 table. The round records the 0-MISS result as a criticism of the BANK rather than a result about the work -- P3-P8 asked about facts already fixed in the repo's history and merely unread, i.e. retrodiction, and only P1/P2/P11 were about an unknown."
+  },
+  "374": {
+   "bank": "state/whence/round-374/PREDICTIONS.md",
+   "status": "unscored",
+   "owner": "language(C)",
+   "why": "Banked at the top of round 374 (language C) before any measurement, per D-013. Scored in the same round's knowledge file; this entry is flipped to `scored` before the round commits."
   }
  }
 }
