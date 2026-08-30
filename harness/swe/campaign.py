@@ -11,6 +11,14 @@ mutation and model kills). A round that dies leaves a manifest that says
 exactly where, and the next run picks up from there.
 
 Stages and artifacts (all under --out):
+  baseline   baseline.json (round 353): `test_cmd` run once against an
+             UNMUTATED copy of the checkout, before any mutant. A mutation
+             score is a comparison against a green baseline; against a red
+             one it is not a weak number, it is no number — and round 349
+             measured that it fails in the FLATTERING direction. Every stage
+             that runs a mutant refuses to start until this is green (pass
+             --allow-red-baseline to run anyway; the override is recorded in
+             the manifest, in baseline.json and in report.json/report.md).
   mutation   mutation.json (+ mutation.partial.jsonl per-mutant checkpoint)
              or --adopt-mutation PATH to take an existing report.
   recheck    mutation-rechecked.json — every `timeout` from the parallel run
@@ -35,7 +43,11 @@ Stages and artifacts (all under --out):
              injected as bugs; the model repairs from the failing-test
              signal; scored green / localized / exact (swe.repair).
   report     report.json + report.md: the metrics, including a projected
-             final score = (baseline kills + verified new pins) / total.
+             final score = (baseline kills + verified new pins) / total, the
+             baseline pre-flight's verdict, and (round 353) a `swe.scoreaudit`
+             re-audit of this campaign's own mutation report — so a number
+             cannot be published without the share of it that carries
+             evidence.
 """
 
 import json
@@ -53,12 +65,13 @@ from . import triage as TR
 from . import repair as RP
 from . import prioritize as PR
 from . import review as R
+from . import scoreaudit as SA
 from .fuzz import WHENCE_ROOT
-from .mutation import (DEFAULT_TEST_CMD, Mutant, MutationReport, _copy_project,
-                       generate, run_mutant)
+from .mutation import (DEFAULT_TEST_CMD, BaselineNotGreen, Mutant, MutationReport,
+                       _copy_project, baseline_check, generate, run_mutant)
 
-STAGES = ("mutation", "recheck", "coverage", "corpus", "verify", "triage", "oracle_kill",
-          "live_kill", "review", "repair", "report")
+STAGES = ("baseline", "mutation", "recheck", "coverage", "corpus", "verify", "triage",
+          "oracle_kill", "live_kill", "review", "repair", "report")
 
 
 def _now():
@@ -103,7 +116,17 @@ def pinned_test_cmd(test_file):
 
 class Campaign(object):
     def __init__(self, out, root=WHENCE_ROOT, files=("whence/interp.py",),
-                 test_cmd=DEFAULT_TEST_CMD, log=None, prioritizer=None, coverage_map=None):
+                 test_cmd=DEFAULT_TEST_CMD, log=None, prioritizer=None, coverage_map=None,
+                 allow_red_baseline=False, baseline_timeout_s=1200.0):
+        # Round 353: `allow_red_baseline` is an escape hatch for a caller whose
+        # "suite" is a deliberate fixture (the tests below drive stages with
+        # `python -c 'sys.exit(1)'`), NOT a convenience. It never suppresses
+        # the check, only the refusal, and it is recorded in the manifest, in
+        # baseline.json and in report.json/report.md so no number can be
+        # published without it.
+        self.allow_red_baseline = bool(allow_red_baseline)
+        self.baseline_timeout_s = baseline_timeout_s
+        self._baseline = None              # memo for `_require_baseline`
         self.prioritizer = prioritizer     # swe.prioritize.Prioritizer / MapPrioritizer or None
         self.coverage_map = coverage_map   # by-file coverage dict (round 113) or None
         self.out = os.path.abspath(out)
@@ -157,7 +180,96 @@ class Campaign(object):
         self._sync()
         for s in stages:
             self.manifest["stages"].pop(s, None)
+            if s == "baseline":
+                self._baseline = None      # drop the in-process memo too
         _dump_json(self.manifest_path, self.manifest)
+
+    # ------------------------------------------------------------ baseline --
+    #
+    # Round 349 (harness A) fixed mutant classification (`run_mutant` used to
+    # read EVERY non-zero exit code as a kill, so a suite that never ran
+    # scored 100%) and added `mutation.mutation_test`'s baseline pre-flight.
+    # It could not fix this entry point inside its budget and left the gap
+    # named, as its next-steps item 4:
+    #
+    #     campaign.py gets layer 1 of the mutation fix but NOT layer 2. It
+    #     imports run_mutant and never calls mutation_test ... so its mutants
+    #     are classified correctly per-run but its campaigns get no baseline
+    #     pre-flight -- a campaign started against an already-red tree still
+    #     reports every mutant killed, with no warning, in the entry point
+    #     that runs the biggest campaigns.
+    #
+    # Round 353 closes it here rather than by routing through `mutation_test`,
+    # because a campaign is checkpointed and resumable and a pre-flight that
+    # re-runs the whole suite on every resume is one nobody keeps: the
+    # baseline is its own STAGE, with its own artifact and manifest mark, so
+    # a resumed campaign pays for it once.
+    #
+    # Why this is the only check that can see the failure it is for: a single
+    # PRE-EXISTING FAILING TEST pins every mutant to pytest exit 1 with a real
+    # `FAILED <nodeid>` line. Round 349's per-mutant exit-code classification
+    # reads that as a kill and is right to -- the evidence really does say a
+    # test failed. `swe.scoreaudit`, which re-reads the same evidence after
+    # the fact, is equally blind to it by construction. Only running the
+    # UNMUTATED tree can tell the two apart, and only before the campaign.
+
+    def stage_baseline(self, timeout_s=None, force=False):
+        """Run `test_cmd` against an UNMUTATED copy of the checkout.
+
+        A mutation score is a comparison against a green baseline; without
+        one the number is not weak evidence, it is no evidence, and -- as
+        round 349's A/B measured -- it fails in the flattering direction (the
+        tree that tested nothing scored twice the tree that worked).
+        """
+        art = self.path("baseline.json")
+        if not force and self.done("baseline"):
+            return _load_json(art)
+        self._mark("baseline", "running")
+        b = baseline_check(self.root, self.test_cmd,
+                           timeout_s if timeout_s is not None else self.baseline_timeout_s)
+        b["green"] = (b["returncode"] == 0)
+        b["test_cmd"] = list(self.test_cmd)
+        b["allow_red"] = self.allow_red_baseline
+        b["checked"] = _now()
+        _dump_json(art, b)
+        # `done` ONLY when green. A red baseline must be re-checked on the
+        # next resume: the correct response to a red tree is to fix it and
+        # re-run, and a `done` mark would silently skip the re-check that
+        # would have noticed the fix.
+        self._mark("baseline", "done" if b["green"] else "red", green=b["green"],
+                   returncode=b["returncode"], seconds=b["seconds"],
+                   timed_out=b["timed_out"], allow_red=self.allow_red_baseline)
+        self.log("baseline %s: exit %s in %.1fs (%s)"
+                 % ("GREEN" if b["green"] else "RED", b["returncode"], b["seconds"],
+                    " ".join(str(x) for x in self.test_cmd)))
+        if not b["green"] and self.allow_red_baseline:
+            self.log("WARNING: baseline is RED and allow_red_baseline is set -- this "
+                     "campaign will run and every number it produces is NOT EVIDENCE.\n%s"
+                     % b["tail"])
+        self._baseline = b
+        return b
+
+    def _require_baseline(self):
+        """Memoised gate. Raises `BaselineNotGreen` unless the checkout's own
+        suite passes, or the caller explicitly accepted a red one."""
+        if self._baseline is None:
+            self._baseline = (_load_json(self.path("baseline.json"))
+                              if self.done("baseline") else None) or self.stage_baseline()
+        b = self._baseline
+        if b["green"] or self.allow_red_baseline:
+            return b
+        raise BaselineNotGreen(b["returncode"], b["tail"])
+
+    def _run_one(self, m, cmd, timeout_s):
+        """THE mutant-running call in this module.
+
+        Every stage goes through here so the gate cannot be forgotten at a
+        call site added later -- which is exactly how the gap round 349 named
+        came to exist: `mutation_test` grew the pre-flight and the five
+        `run_mutant` call sites in this file did not.
+        """
+        self._require_baseline()
+        return run_mutant(m, self.root, cmd, timeout_s)
 
     # ------------------------------------------------------------ helpers --
     def _snapshot_dir(self):
@@ -220,7 +332,7 @@ class Campaign(object):
 
         def one(m):
             cmd = pr.cmd_for(m, self.test_cmd) if pr else self.test_cmd
-            run_mutant(m, self.root, cmd, timeout_s)
+            self._run_one(m, cmd, timeout_s)
             return m
 
         with ThreadPoolExecutor(max_workers=workers) as ex:
@@ -345,7 +457,7 @@ class Campaign(object):
                 m = by_id.get(d["id"])
                 if m is None:
                     continue
-                run_mutant(m, self.root, self.test_cmd, timeout_s)
+                self._run_one(m, self.test_cmd, timeout_s)
                 self.log("subset-check %-8s %s (%d files -> full) %.0fs"
                          % (m.status, m.id, d.get("files_run", 0), m.seconds or 0))
                 if m.status != "survived":
@@ -367,7 +479,7 @@ class Campaign(object):
             m = by_id.get(d["id"])
             if m is None:
                 continue
-            run_mutant(m, self.root, self.test_cmd, timeout_s)
+            self._run_one(m, self.test_cmd, timeout_s)
             rec = {"id": m.id, "before": "timeout", "after": m.status,
                    "seconds": round(m.seconds or 0, 1), "detail": (m.detail or "")[-200:]}
             self.log("recheck %-8s -> %-8s %s %.0fs" % ("timeout", m.status, m.id, m.seconds or 0))
@@ -522,7 +634,7 @@ class Campaign(object):
             if m is None:
                 out.append({"id": i, "status": "missing"})
                 continue
-            run_mutant(m, self.root, pinned_test_cmd(test_file), timeout_s)
+            self._run_one(m, pinned_test_cmd(test_file), timeout_s)
             out.append({"id": i, "status": m.status, "seconds": round(m.seconds or 0, 1),
                         "detail": (m.detail or "")[-200:]})
             self.log("verify %-8s %s" % (m.status, i))
@@ -761,8 +873,26 @@ class Campaign(object):
         total = base.get("total", 0)
         killed = (rech or base).get("killed", 0)
         new_pins = verify.get("verified", 0) + live.get("verified", 0) + okill.get("verified", 0)
+        # Round 353: the report re-audits the campaign's OWN mutation report
+        # from the recorded per-mutant evidence, and carries the baseline
+        # pre-flight's verdict. Two independent layers, because they see
+        # different failures: `scoreaudit` catches "the suite never ran for
+        # THIS mutant" and is blind to a pre-existing failing test; the
+        # baseline catches exactly that and is blind to a per-mutant harness
+        # break. A report showing only one of them overstates what is known.
+        scored = rech or base
+        audit = SA.audit(scored, path=self.path("mutation-rechecked.json" if rech
+                                                else "mutation.json")) if scored.get("mutants") else None
+        if audit:
+            audit.pop("suspects", None)          # ids live in the audit JSON, not the report
+        baseline = _load_json(self.path("baseline.json"))
         rep = {
             "total": total,
+            "baseline_run": (dict((k, baseline.get(k)) for k in
+                                  ("green", "returncode", "seconds", "timed_out",
+                                   "allow_red", "checked"))
+                             if baseline else None),
+            "score_audit": audit,
             "baseline": {"killed": base.get("killed"), "survived": base.get("survived"),
                          "score": base.get("score"), "seconds": base.get("seconds")},
             "recheck": (rech or {}).get("recheck"),
@@ -842,6 +972,8 @@ def render_report(rep):
     lines = ["# SWE campaign report", "",
              "| metric | value |", "|---|---|",
              "| mutants | %s |" % rep["total"],
+             "| baseline pre-flight | %s |" % _baseline_row(rep.get("baseline_run")),
+             "| score audit | %s |" % _audit_row(rep.get("score_audit")),
              "| baseline score | %s (%s killed / %s survived, %s s) |"
              % (b["score"], b["killed"], b["survived"], b["seconds"]),
              "| timeout recheck flips | %s of %s timeouts |"
@@ -863,6 +995,37 @@ def render_report(rep):
              "| projected final score | %s |" % rep["projected_score"],
              "| live cost | $%s |" % rep["cost_usd"], ""]
     return "\n".join(lines)
+
+
+def _baseline_row(b):
+    """Round 353. `n/a` is not a neutral value here: it means this campaign
+    ran before the pre-flight existed, or with it forced off, so the reader
+    must not read the score below as evidence."""
+    if not b:
+        return ("**NOT RUN** -- no baseline.json; the scores below are not "
+                "evidence that the suite was working")
+    if b.get("green"):
+        return "GREEN (exit 0 in %ss, %s)" % (b.get("seconds"), b.get("checked"))
+    return ("**RED** (exit %s%s in %ss) -- allow_red=%s; every number in this "
+            "report is NOT EVIDENCE"
+            % (b.get("returncode"), ", TIMED OUT" if b.get("timed_out") else "",
+               b.get("seconds"), b.get("allow_red")))
+
+
+def _audit_row(a):
+    """Round 353: `swe.scoreaudit` over this campaign's own mutation report."""
+    if not a:
+        return "n/a"
+    c = a["counts"]
+    if a["confirmed"]:
+        return ("every kill carries its own evidence (%d evidenced, %d timeout, "
+                "%d survived); score %s confirmed"
+                % (c["evidenced_kill"], c["timeout"], c["survived"], a["audited_score"]))
+    return ("**%d of %d kills produced no verdict** (%d no-evidence, %d "
+            "unclassifiable) -- true score in [%s, %s], not %s"
+            % (a["unaudited_kills"], a["published_killed"], c["no_evidence_kill"],
+               c["unknown_kill"], a["audited_score"], a["score_upper"],
+               a["published_score"]))
 
 
 def _cov_row(c):
@@ -937,6 +1100,13 @@ def main(argv=None):
     ap.add_argument("--timeout", type=float, default=240.0)
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--adopt-mutation", help="existing mutation JSON to take as the baseline")
+    ap.add_argument("--allow-red-baseline", action="store_true",
+                    help="run even though the UNMUTATED checkout fails its own suite "
+                         "(DANGEROUS -- round 349 measured that a suite which cannot run "
+                         "scores HIGHER than one that works; the override is recorded in "
+                         "campaign.json, baseline.json and report.md)")
+    ap.add_argument("--baseline-timeout", type=float, default=1200.0,
+                    help="wall-clock cap for the one unmutated pre-flight run")
     ap.add_argument("--prioritize-from", help="previous mutation JSON/partial.jsonl: run the test files "
                     "that killed the nearest mutants first (verdict-invariant under -x)")
     ap.add_argument("--coverage-map", help="by-file coverage JSON (swe.coverage --by-file): kill-first "
@@ -988,7 +1158,9 @@ def main(argv=None):
                   "collection time) -- subset restriction DISABLED, falling back to "
                   "order-only (pass --allow-stale-map to force it back on)"
                   % (a.coverage_map, ", ".join(pr.stale)))
-    c = Campaign(a.out, a.root, files, prioritizer=pr, coverage_map=cov_map)
+    c = Campaign(a.out, a.root, files, prioritizer=pr, coverage_map=cov_map,
+                 allow_red_baseline=a.allow_red_baseline,
+                 baseline_timeout_s=a.baseline_timeout)
     if a.force:
         c.force([s.strip() for s in a.force.split(",") if s.strip()])
     extra = load_programs(a.extra_programs) if a.extra_programs else ()
@@ -996,6 +1168,11 @@ def main(argv=None):
     def after(stage):
         return a.stop_after == stage
 
+    # Explicit rather than left to the lazy gate, so `--stop-after baseline`
+    # is a usable "is this tree even fit to measure?" command on its own.
+    c.stage_baseline()
+    if after("baseline"):
+        return 0
     c.stage_mutation(workers=a.workers, timeout_s=a.timeout, limit=a.limit or None,
                      adopt=a.adopt_mutation)
     if after("mutation"):

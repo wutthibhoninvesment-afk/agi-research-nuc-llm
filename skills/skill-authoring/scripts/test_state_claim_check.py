@@ -507,9 +507,13 @@ class TestRound349Regression(unittest.TestCase):
         self.assertTrue(findings)
 
     def test_the_carry_is_visible_as_an_age(self):
+        # Round 353 widened the grammar to cross-block citations, so this
+        # fixture's item 9 now yields aged CITATION claims too. Select the
+        # body-lines claim by key rather than assuming it is the only one.
         _, report = scc.analyse(self.doc, self.tmp)
-        (rounds,) = list(report["ages"].values())
-        self.assertEqual(sorted(rounds), [346, 349])
+        body = [c for c in report["claims"] if c.kind == "body-lines"]
+        self.assertEqual(len(body), 1)
+        self.assertEqual(sorted(report["ages"][body[0].key()]), [346, 349])
 
     def test_exit_code_is_one(self):
         rc = scc.main(["--repo-root", self.tmp, self.doc])
@@ -586,6 +590,121 @@ class TestCoverageReport(unittest.TestCase):
         self.assertIn("network 1", text)
         self.assertIn("unresolved path 1", text)
         self.assertIn("0 stale", text)
+
+
+class TestCitationGrammar(unittest.TestCase):
+    """S004 -- `Round N's item K` must point at an item that exists."""
+
+    def test_singular_and_plural_and_ranges_all_extract(self):
+        cases = {"Round 336's item 2": [2],
+                 "round 349's items 2-6": [2, 3, 4, 5, 6],
+                 "Round 350's items 1-3": [1, 2, 3],
+                 "Round 301's item 2 remains speculative": [2]}
+        for text, want in cases.items():
+            item = scc.parse_items(scc.Block(1, 1, ["1. " + text]))[0]
+            cites = [c for c in scc.extract_claims(item) if c.kind == "citation"]
+            self.assertEqual(len(cites), 1, text)
+            self.assertEqual(cites[0].payload["items"], want, text)
+
+    def test_a_resolvable_citation_is_not_a_finding(self):
+        blocks = scc.find_blocks(block(10, "1. a", "2. b") + "\n" +
+                                 block(11, "1. Round 10's item 2 is unchanged"))
+        for b in blocks:
+            b.path = "x.md"
+        live = [b for b in blocks if b.round_no == 11][0]
+        item = scc.parse_items(live)[0]
+        c = [x for x in scc.extract_claims(item) if x.kind == "citation"][0]
+        self.assertEqual(scc.check_citation(c, blocks, REPO_ROOT), [])
+
+    def test_citing_an_item_number_the_cited_block_does_not_have(self):
+        blocks = scc.find_blocks(block(10, "1. a", "2. b") + "\n" +
+                                 block(11, "1. Round 10's items 1-4 are unchanged"))
+        for b in blocks:
+            b.path = "x.md"
+        live = [b for b in blocks if b.round_no == 11][0]
+        item = scc.parse_items(live)[0]
+        c = [x for x in scc.extract_claims(item) if x.kind == "citation"][0]
+        f = scc.check_citation(c, blocks, REPO_ROOT)
+        self.assertEqual(codes(f), ["S004"])
+        self.assertIn("item(s) 3, 4", f[0].message)
+
+    def test_citing_a_round_with_no_block_and_no_knowledge_next_steps(self):
+        # Round 8891 is INSIDE the fixture's window (8890-8892) and has no
+        # block: the pointer lands nowhere and that is a finding.
+        blocks = scc.find_blocks(block(8890, "1. a") + "\n" +
+                                 block(8892, "1. Round 8891's item 1 is unchanged"))
+        for b in blocks:
+            b.path = "x.md"
+        live = [b for b in blocks if b.round_no == 8892][0]
+        item = scc.parse_items(live)[0]
+        c = [x for x in scc.extract_claims(item) if x.kind == "citation"][0]
+        f = scc.check_citation(c, blocks, REPO_ROOT)
+        self.assertEqual(codes(f), ["S004"])
+        self.assertIn("resolves to nothing", f[0].message)
+
+    def test_a_citation_outside_the_documents_own_window_is_not_checked(self):
+        """Zero false positives on a FRAGMENT.
+
+        Every test fixture and every `--block` slice is a fragment of the
+        real document. A fragment covering rounds 346-349 cannot be expected
+        to contain round 301's list, so an unresolvable citation of round 301
+        says something about the fragment, not about the claim.
+        """
+        blocks = scc.find_blocks(block(8890, "1. Round 12's item 1 is unchanged"))
+        for b in blocks:
+            b.path = "x.md"
+        item = scc.parse_items(blocks[0])[0]
+        c = [x for x in scc.extract_claims(item) if x.kind == "citation"][0]
+        self.assertEqual(scc.check_citation(c, blocks, REPO_ROOT), [])
+
+    def test_a_knowledge_file_next_steps_section_resolves_the_citation(self):
+        """Round 336's items live in its knowledge file, not in a block here.
+
+        The second lookup source exists precisely because a round that dies
+        at max-turns often writes a knowledge file and no block. Without it
+        every citation of such a round would be a false positive.
+        """
+        nums, src = scc.knowledge_items(336, REPO_ROOT)
+        self.assertIsNotNone(src)
+        self.assertTrue({1, 2, 3}.issubset(nums), nums)
+
+
+class TestRound352Regression(unittest.TestCase):
+    """Round 352's item 6, verbatim, pinned as a fixture.
+
+    Round 336 wrote three next-steps items. Round 337 closed items 1 and 2
+    (`21f4677` added both `_typed_tail_chain` and `oracle_tail_transparency`).
+    Rounds 338-346 carried them as open anyway; round 347 caught that and
+    told the next writer to re-check a carried item against git. Round 352
+    carried it a sixth time and renumbered it to `Round 350's items 1-3` --
+    and round 350 has neither a next-steps block here nor a `## Next steps`
+    section in its knowledge file, so the pointer lands nowhere.
+
+    Round 353 corrected the live document, which is exactly why the text is
+    kept here: otherwise the only evidence that this check works would be a
+    sentence in a knowledge file.
+    """
+
+    TEXT = ("6. Round 350's items 1-3 (the tail-vs-lifted oracle, the "
+            "sixth-oracle\n   transform, the guest-TCO design question) are "
+            "unchanged -- SWE-loop(D) and\n   harness(A) own them; the "
+            "rotation has not reached those tracks since.")
+
+    def test_the_renumbered_citation_is_caught(self):
+        tmp = tempfile.mkdtemp(prefix="scc-352-")
+        try:
+            doc = os.path.join(tmp, "research-state.md")
+            with open(doc, "w", encoding="utf-8") as f:
+                # Two blocks so round 350 is inside the document's own
+                # window -- the real file carries 58 of them, spanning
+                # rounds 273-352.
+                f.write(block(349, "1. an item nobody cites") + "\n" +
+                        block(352, self.TEXT))
+            findings, _ = scc.analyse(doc, REPO_ROOT)
+            self.assertEqual(codes(findings), ["S004"])
+            self.assertIn("round 350 has no next-steps block", findings[0].message)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
 
 
 class TestLiveCorpus(unittest.TestCase):

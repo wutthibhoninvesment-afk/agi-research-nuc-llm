@@ -1,0 +1,4458 @@
+{
+ "reports": [
+  {
+   "path": "/home/pgain/agi-research-nuc-llm/state/swe/round-107/mutation-rechecked.json",
+   "total": 1056,
+   "published_killed": 924,
+   "published_survived": 132,
+   "published_score": 0.875,
+   "counts": {
+    "survived": 132,
+    "timeout": 8,
+    "evidenced_kill": 916,
+    "no_evidence_kill": 0,
+    "unknown_kill": 0
+   },
+   "labels": {},
+   "audited_kills": 924,
+   "unaudited_kills": 0,
+   "audited_score": 0.875,
+   "score_upper": 0.875,
+   "confirmed": true,
+   "dominant_killer": "tests/test_examples.py::test_hello",
+   "dominant_killer_share": 0.1954,
+   "suspects": []
+  },
+  {
+   "path": "/home/pgain/agi-research-nuc-llm/state/swe/round-107/mutation.json",
+   "total": 1056,
+   "published_killed": 931,
+   "published_survived": 125,
+   "published_score": 0.8816,
+   "counts": {
+    "survived": 125,
+    "timeout": 22,
+    "evidenced_kill": 909,
+    "no_evidence_kill": 0,
+    "unknown_kill": 0
+   },
+   "labels": {},
+   "audited_kills": 931,
+   "unaudited_kills": 0,
+   "audited_score": 0.8816,
+   "score_upper": 0.8816,
+   "confirmed": true,
+   "dominant_killer": "tests/test_examples.py::test_hello",
+   "dominant_killer_share": 0.1969,
+   "suspects": []
+  },
+  {
+   "path": "/home/pgain/agi-research-nuc-llm/state/swe/round-113/mutation-rechecked.json",
+   "total": 1226,
+   "published_killed": 1214,
+   "published_survived": 12,
+   "published_score": 0.9902,
+   "counts": {
+    "survived": 12,
+    "timeout": 3,
+    "evidenced_kill": 1211,
+    "no_evidence_kill": 0,
+    "unknown_kill": 0
+   },
+   "labels": {},
+   "audited_kills": 1214,
+   "unaudited_kills": 0,
+   "audited_score": 0.9902,
+   "score_upper": 0.9902,
+   "confirmed": true,
+   "dominant_killer": "tests/test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage",
+   "dominant_killer_share": 0.1115,
+   "suspects": []
+  },
+  {
+   "path": "/home/pgain/agi-research-nuc-llm/state/swe/round-113/mutation.json",
+   "total": 1226,
+   "published_killed": 1194,
+   "published_survived": 32,
+   "published_score": 0.9739,
+   "counts": {
+    "survived": 32,
+    "timeout": 5,
+    "evidenced_kill": 1189,
+    "no_evidence_kill": 0,
+    "unknown_kill": 0
+   },
+   "labels": {},
+   "audited_kills": 1194,
+   "unaudited_kills": 0,
+   "audited_score": 0.9739,
+   "score_upper": 0.9739,
+   "confirmed": true,
+   "dominant_killer": "tests/test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage",
+   "dominant_killer_share": 0.1077,
+   "suspects": []
+  },
+  {
+   "path": "/home/pgain/agi-research-nuc-llm/state/swe/round-125/mutation-rechecked.json",
+   "total": 1263,
+   "published_killed": 1228,
+   "published_survived": 35,
+   "published_score": 0.9723,
+   "counts": {
+    "survived": 35,
+    "timeout": 4,
+    "evidenced_kill": 1224,
+    "no_evidence_kill": 0,
+    "unknown_kill": 0
+   },
+   "labels": {},
+   "audited_kills": 1228,
+   "unaudited_kills": 0,
+   "audited_score": 0.9723,
+   "score_upper": 0.9723,
+   "confirmed": true,
+   "dominant_killer": "tests/test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage",
+   "dominant_killer_share": 0.1005,
+   "suspects": []
+  },
+  {
+   "path": "/home/pgain/agi-research-nuc-llm/state/swe/round-125/mutation.json",
+   "total": 1263,
+   "published_killed": 1228,
+   "published_survived": 35,
+   "published_score": 0.9723,
+   "counts": {
+    "survived": 35,
+    "timeout": 4,
+    "evidenced_kill": 1224,
+    "no_evidence_kill": 0,
+    "unknown_kill": 0
+   },
+   "labels": {},
+   "audited_kills": 1228,
+   "unaudited_kills": 0,
+   "audited_score": 0.9723,
+   "score_upper": 0.9723,
+   "confirmed": true,
+   "dominant_killer": "tests/test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage",
+   "dominant_killer_share": 0.1005,
+   "suspects": []
+  },
+  {
+   "path": "/home/pgain/agi-research-nuc-llm/state/swe/round-137/mutation-rechecked.json",
+   "total": 1276,
+   "published_killed": 1276,
+   "published_survived": 0,
+   "published_score": 1.0,
+   "counts": {
+    "survived": 0,
+    "timeout": 3,
+    "evidenced_kill": 1013,
+    "no_evidence_kill": 260,
+    "unknown_kill": 0
+   },
+   "labels": {
+    "no tests ran": 260
+   },
+   "audited_kills": 1016,
+   "unaudited_kills": 260,
+   "audited_score": 0.7962,
+   "score_upper": 1.0,
+   "confirmed": false,
+   "dominant_killer": "tests/test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage",
+   "dominant_killer_share": 0.1244,
+   "suspects": [
+    {
+     "id": "interp.py:2672:ifneg#249",
+     "line": 2672,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2677:ifneg#250",
+     "line": 2677,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:170:arith#255",
+     "line": 170,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:320:const#272",
+     "line": 320,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:320:const#273",
+     "line": 320,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:320:const#274",
+     "line": 320,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:419:cmp#283",
+     "line": 419,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:425:cmp#284",
+     "line": 425,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:727:cmp#303",
+     "line": 727,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:740:cmp#304",
+     "line": 740,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:774:cmp#306",
+     "line": 774,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:789:cmp#313",
+     "line": 789,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:808:cmp#314",
+     "line": 808,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:813:not#315",
+     "line": 813,
+     "op": "not",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:816:const#316",
+     "line": 816,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:831:cmp#317",
+     "line": 831,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:850:ifneg#321",
+     "line": 850,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:892:ifneg#329",
+     "line": 892,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_self_eval.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:922:cmp#330",
+     "line": 922,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:961:ifneg#334",
+     "line": 961,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1006:ifneg#342",
+     "line": 1006,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_generated_killers_r29.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1043:cmp#346",
+     "line": 1043,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1058:ifneg#348",
+     "line": 1058,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1214:cmp#367",
+     "line": 1214,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1359:ifneg#379",
+     "line": 1359,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1374:cmp#381",
+     "line": 1374,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1379:ifneg#382",
+     "line": 1379,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_v06.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1471:not#385",
+     "line": 1471,
+     "op": "not",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1481:cmp#387",
+     "line": 1481,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1504:ifneg#389",
+     "line": 1504,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1537:bool#392",
+     "line": 1537,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1582:cmp#400",
+     "line": 1582,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1711:ifneg#412",
+     "line": 1711,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1848:ifneg#419",
+     "line": 1848,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1910:const#422",
+     "line": 1910,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1951:ifneg#430",
+     "line": 1951,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1979:const#431",
+     "line": 1979,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2034:cmp#434",
+     "line": 2034,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2185:const#442",
+     "line": 2185,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2239:not#447",
+     "line": 2239,
+     "op": "not",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2266:const#453",
+     "line": 2266,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2281:not#455",
+     "line": 2281,
+     "op": "not",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2286:const#457",
+     "line": 2286,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2329:const#464",
+     "line": 2329,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2347:const#465",
+     "line": 2347,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2352:const#466",
+     "line": 2352,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2368:const#470",
+     "line": 2368,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2416:not#475",
+     "line": 2416,
+     "op": "not",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2442:const#480",
+     "line": 2442,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2555:bool#495",
+     "line": 2555,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2550:const#496",
+     "line": 2550,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2596:not#501",
+     "line": 2596,
+     "op": "not",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2602:cmp#502",
+     "line": 2602,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2591:const#503",
+     "line": 2591,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2608:const#504",
+     "line": 2608,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2626:ifneg#505",
+     "line": 2626,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2634:cmp#506",
+     "line": 2634,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2644:not#507",
+     "line": 2644,
+     "op": "not",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2665:cmp#508",
+     "line": 2665,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2672:not#509",
+     "line": 2672,
+     "op": "not",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:422:const#538",
+     "line": 422,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:699:ifneg#564",
+     "line": 699,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:748:arith#569",
+     "line": 748,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:850:cmp#575",
+     "line": 850,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:853:cmp#576",
+     "line": 853,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:898:ifneg#584",
+     "line": 898,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_self_eval.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:961:cmp#588",
+     "line": 961,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:964:arith#589",
+     "line": 964,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:965:cmp#590",
+     "line": 965,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:983:const#591",
+     "line": 983,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1002:bool#594",
+     "line": 1002,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1058:bool#599",
+     "line": 1058,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1061:ifneg#600",
+     "line": 1061,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1216:const#615",
+     "line": 1216,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1264:arith#620",
+     "line": 1264,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1297:ifneg#623",
+     "line": 1297,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1312:ifneg#625",
+     "line": 1312,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1318:arith#626",
+     "line": 1318,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1359:cmp#633",
+     "line": 1359,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1374:const#636",
+     "line": 1374,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1375:const#637",
+     "line": 1375,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1381:ifneg#639",
+     "line": 1381,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_v06.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1504:cmp#644",
+     "line": 1504,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1506:ifneg#645",
+     "line": 1506,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_v05.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1537:bool#647",
+     "line": 1537,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1537:bool#648",
+     "line": 1537,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1540:cmp#649",
+     "line": 1540,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1596:arith#658",
+     "line": 1596,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1636:bool#662",
+     "line": 1636,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1650:const#665",
+     "line": 1650,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1654:const#667",
+     "line": 1654,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1711:cmp#668",
+     "line": 1711,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1714:arith#669",
+     "line": 1714,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1848:bool#678",
+     "line": 1848,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1863:bool#680",
+     "line": 1863,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1882:bool#681",
+     "line": 1882,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1883:ifneg#682",
+     "line": 1883,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1951:bool#686",
+     "line": 1951,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1952:ifneg#687",
+     "line": 1952,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1954:ifneg#688",
+     "line": 1954,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1971:const#689",
+     "line": 1971,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2036:const#691",
+     "line": 2036,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2307:not#705",
+     "line": 2307,
+     "op": "not",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2556:not#720",
+     "line": 2556,
+     "op": "not",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2588:arith#724",
+     "line": 2588,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2613:arith#727",
+     "line": 2613,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2626:cmp#728",
+     "line": 2626,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2634:const#729",
+     "line": 2634,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2641:const#730",
+     "line": 2641,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2654:arith#731",
+     "line": 2654,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2632:const#732",
+     "line": 2632,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2632:const#733",
+     "line": 2632,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2665:const#734",
+     "line": 2665,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2669:const#735",
+     "line": 2669,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2682:ifneg#736",
+     "line": 2682,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2684:arith#737",
+     "line": 2684,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2685:bool#738",
+     "line": 2685,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2658:const#739",
+     "line": 2658,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2658:const#740",
+     "line": 2658,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:698:const#781",
+     "line": 698,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:699:cmp#782",
+     "line": 699,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:748:const#788",
+     "line": 748,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:812:bool#791",
+     "line": 812,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:812:const#792",
+     "line": 812,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:855:cmp#794",
+     "line": 855,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:902:ifneg#802",
+     "line": 902,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:964:const#803",
+     "line": 964,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:966:const#804",
+     "line": 966,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1002:cmp#806",
+     "line": 1002,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1002:cmp#807",
+     "line": 1002,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1008:const#810",
+     "line": 1008,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1038:ifneg#812",
+     "line": 1038,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1058:cmp#813",
+     "line": 1058,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1059:cmp#814",
+     "line": 1059,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1061:bool#815",
+     "line": 1061,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1066:const#818",
+     "line": 1066,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1219:cmp#841",
+     "line": 1219,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1297:bool#849",
+     "line": 1297,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1312:cmp#851",
+     "line": 1312,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1314:ifneg#852",
+     "line": 1314,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1342:cmp#853",
+     "line": 1342,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1347:cmp#855",
+     "line": 1347,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1510:ifneg#866",
+     "line": 1510,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_v04.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1537:cmp#867",
+     "line": 1537,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1537:cmp#868",
+     "line": 1537,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1537:cmp#869",
+     "line": 1537,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1537:cmp#870",
+     "line": 1537,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1614:const#881",
+     "line": 1614,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1661:const#883",
+     "line": 1661,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1692:ifneg#887",
+     "line": 1692,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_v07.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1698:ifneg#888",
+     "line": 1698,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_v04.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1706:ifneg#889",
+     "line": 1706,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1709:const#890",
+     "line": 1709,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1848:bool#906",
+     "line": 1848,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1849:bool#907",
+     "line": 1849,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1863:cmp#910",
+     "line": 1863,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1863:cmp#911",
+     "line": 1863,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1882:cmp#912",
+     "line": 1882,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1882:cmp#913",
+     "line": 1882,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1883:cmp#914",
+     "line": 1883,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1952:cmp#916",
+     "line": 1952,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1954:bool#917",
+     "line": 1954,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1955:ifneg#918",
+     "line": 1955,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1957:ifneg#919",
+     "line": 1957,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1981:const#920",
+     "line": 1981,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1981:const#921",
+     "line": 1981,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2173:const#925",
+     "line": 2173,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2195:const#926",
+     "line": 2195,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2334:const#939",
+     "line": 2334,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2415:const#947",
+     "line": 2415,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2417:arith#948",
+     "line": 2417,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2557:const#957",
+     "line": 2557,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2584:arith#960",
+     "line": 2584,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2597:arith#961",
+     "line": 2597,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2603:arith#962",
+     "line": 2603,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2610:const#963",
+     "line": 2610,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2637:arith#964",
+     "line": 2637,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2645:arith#965",
+     "line": 2645,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2651:const#966",
+     "line": 2651,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2673:arith#967",
+     "line": 2673,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2679:const#968",
+     "line": 2679,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2682:cmp#969",
+     "line": 2682,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:720:not#999",
+     "line": 720,
+     "op": "not",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:964:bool#1004",
+     "line": 964,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1001:not#1005",
+     "line": 1001,
+     "op": "not",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1002:const#1006",
+     "line": 1002,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1010:const#1008",
+     "line": 1010,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1038:cmp#1009",
+     "line": 1038,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1041:arith#1010",
+     "line": 1041,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1061:cmp#1011",
+     "line": 1061,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1061:cmp#1012",
+     "line": 1061,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1062:not#1013",
+     "line": 1062,
+     "op": "not",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1236:cmp#1028",
+     "line": 1236,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1297:cmp#1030",
+     "line": 1297,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1297:cmp#1031",
+     "line": 1297,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1314:cmp#1032",
+     "line": 1314,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1384:arith#1037",
+     "line": 1384,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1704:const#1053",
+     "line": 1704,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1705:const#1054",
+     "line": 1705,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1706:cmp#1055",
+     "line": 1706,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1848:bool#1085",
+     "line": 1848,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1848:bool#1086",
+     "line": 1848,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1849:cmp#1087",
+     "line": 1849,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1849:cmp#1088",
+     "line": 1849,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1850:cmp#1089",
+     "line": 1850,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1881:const#1094",
+     "line": 1881,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1953:const#1095",
+     "line": 1953,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1955:cmp#1096",
+     "line": 1955,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1957:bool#1097",
+     "line": 1957,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1962:ifneg#1099",
+     "line": 1962,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2420:const#1111",
+     "line": 2420,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2650:const#1114",
+     "line": 2650,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2678:const#1115",
+     "line": 2678,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:903:const#1146",
+     "line": 903,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:997:not#1147",
+     "line": 997,
+     "op": "not",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1003:const#1148",
+     "line": 1003,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1007:cmp#1150",
+     "line": 1007,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1187:cmp#1153",
+     "line": 1187,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1238:cmp#1156",
+     "line": 1238,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1297:const#1158",
+     "line": 1297,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1558:arith#1163",
+     "line": 1558,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1848:cmp#1177",
+     "line": 1848,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1848:cmp#1178",
+     "line": 1848,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1848:cmp#1179",
+     "line": 1848,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1848:cmp#1180",
+     "line": 1848,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1882:const#1181",
+     "line": 1882,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1882:const#1182",
+     "line": 1882,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1882:const#1183",
+     "line": 1882,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1882:const#1184",
+     "line": 1882,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1962:bool#1189",
+     "line": 1962,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1963:ifneg#1190",
+     "line": 1963,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2197:const#1192",
+     "line": 2197,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2314:const#1201",
+     "line": 2314,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2327:const#1204",
+     "line": 2327,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2350:const#1206",
+     "line": 2350,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2623:const#1208",
+     "line": 2623,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2624:const#1209",
+     "line": 2624,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2635:const#1210",
+     "line": 2635,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2635:const#1211",
+     "line": 2635,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2666:const#1212",
+     "line": 2666,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2666:const#1213",
+     "line": 2666,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2683:arith#1214",
+     "line": 2683,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:659:const#1230",
+     "line": 659,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:715:cmp#1233",
+     "line": 715,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:964:const#1234",
+     "line": 964,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1007:const#1235",
+     "line": 1007,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1187:const#1236",
+     "line": 1187,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1694:arith#1242",
+     "line": 1694,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1700:arith#1243",
+     "line": 1700,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1884:const#1244",
+     "line": 1884,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1884:const#1245",
+     "line": 1884,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1884:const#1246",
+     "line": 1884,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1886:const#1247",
+     "line": 1886,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1963:cmp#1250",
+     "line": 1963,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2418:const#1254",
+     "line": 2418,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:719:const#1260",
+     "line": 719,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1884:const#1266",
+     "line": 1884,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1884:const#1267",
+     "line": 1884,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1886:const#1268",
+     "line": 1886,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2345:const#1272",
+     "line": 2345,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    }
+   ]
+  },
+  {
+   "path": "/home/pgain/agi-research-nuc-llm/state/swe/round-137/mutation.json",
+   "total": 1276,
+   "published_killed": 1198,
+   "published_survived": 78,
+   "published_score": 0.9389,
+   "counts": {
+    "survived": 78,
+    "timeout": 5,
+    "evidenced_kill": 933,
+    "no_evidence_kill": 260,
+    "unknown_kill": 0
+   },
+   "labels": {
+    "no tests ran": 260
+   },
+   "audited_kills": 938,
+   "unaudited_kills": 260,
+   "audited_score": 0.7351,
+   "score_upper": 0.9389,
+   "confirmed": false,
+   "dominant_killer": "tests/test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage",
+   "dominant_killer_share": 0.1275,
+   "suspects": [
+    {
+     "id": "interp.py:2672:ifneg#249",
+     "line": 2672,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2677:ifneg#250",
+     "line": 2677,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:170:arith#255",
+     "line": 170,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:320:const#272",
+     "line": 320,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:320:const#273",
+     "line": 320,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:320:const#274",
+     "line": 320,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:419:cmp#283",
+     "line": 419,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:425:cmp#284",
+     "line": 425,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:727:cmp#303",
+     "line": 727,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:740:cmp#304",
+     "line": 740,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:774:cmp#306",
+     "line": 774,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:789:cmp#313",
+     "line": 789,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:808:cmp#314",
+     "line": 808,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:813:not#315",
+     "line": 813,
+     "op": "not",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:816:const#316",
+     "line": 816,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:831:cmp#317",
+     "line": 831,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:850:ifneg#321",
+     "line": 850,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:892:ifneg#329",
+     "line": 892,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_self_eval.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:922:cmp#330",
+     "line": 922,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:961:ifneg#334",
+     "line": 961,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1006:ifneg#342",
+     "line": 1006,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_generated_killers_r29.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1043:cmp#346",
+     "line": 1043,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1058:ifneg#348",
+     "line": 1058,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1214:cmp#367",
+     "line": 1214,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1359:ifneg#379",
+     "line": 1359,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1374:cmp#381",
+     "line": 1374,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1379:ifneg#382",
+     "line": 1379,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_v06.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1471:not#385",
+     "line": 1471,
+     "op": "not",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1481:cmp#387",
+     "line": 1481,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1504:ifneg#389",
+     "line": 1504,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1537:bool#392",
+     "line": 1537,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1582:cmp#400",
+     "line": 1582,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1711:ifneg#412",
+     "line": 1711,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1848:ifneg#419",
+     "line": 1848,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1910:const#422",
+     "line": 1910,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1951:ifneg#430",
+     "line": 1951,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1979:const#431",
+     "line": 1979,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2034:cmp#434",
+     "line": 2034,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2185:const#442",
+     "line": 2185,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2239:not#447",
+     "line": 2239,
+     "op": "not",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2266:const#453",
+     "line": 2266,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2281:not#455",
+     "line": 2281,
+     "op": "not",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2286:const#457",
+     "line": 2286,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2329:const#464",
+     "line": 2329,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2347:const#465",
+     "line": 2347,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2352:const#466",
+     "line": 2352,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2368:const#470",
+     "line": 2368,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2416:not#475",
+     "line": 2416,
+     "op": "not",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2442:const#480",
+     "line": 2442,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2555:bool#495",
+     "line": 2555,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2550:const#496",
+     "line": 2550,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2596:not#501",
+     "line": 2596,
+     "op": "not",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2602:cmp#502",
+     "line": 2602,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2591:const#503",
+     "line": 2591,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2608:const#504",
+     "line": 2608,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2626:ifneg#505",
+     "line": 2626,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2634:cmp#506",
+     "line": 2634,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2644:not#507",
+     "line": 2644,
+     "op": "not",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2665:cmp#508",
+     "line": 2665,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2672:not#509",
+     "line": 2672,
+     "op": "not",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:422:const#538",
+     "line": 422,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:699:ifneg#564",
+     "line": 699,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:748:arith#569",
+     "line": 748,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:850:cmp#575",
+     "line": 850,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:853:cmp#576",
+     "line": 853,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:898:ifneg#584",
+     "line": 898,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_self_eval.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:961:cmp#588",
+     "line": 961,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:964:arith#589",
+     "line": 964,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:965:cmp#590",
+     "line": 965,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:983:const#591",
+     "line": 983,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1002:bool#594",
+     "line": 1002,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1058:bool#599",
+     "line": 1058,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1061:ifneg#600",
+     "line": 1061,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1216:const#615",
+     "line": 1216,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1264:arith#620",
+     "line": 1264,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1297:ifneg#623",
+     "line": 1297,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1312:ifneg#625",
+     "line": 1312,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1318:arith#626",
+     "line": 1318,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1359:cmp#633",
+     "line": 1359,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1374:const#636",
+     "line": 1374,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1375:const#637",
+     "line": 1375,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1381:ifneg#639",
+     "line": 1381,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_v06.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1504:cmp#644",
+     "line": 1504,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1506:ifneg#645",
+     "line": 1506,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_v05.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1537:bool#647",
+     "line": 1537,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1537:bool#648",
+     "line": 1537,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1540:cmp#649",
+     "line": 1540,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1596:arith#658",
+     "line": 1596,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1636:bool#662",
+     "line": 1636,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1650:const#665",
+     "line": 1650,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1654:const#667",
+     "line": 1654,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1711:cmp#668",
+     "line": 1711,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1714:arith#669",
+     "line": 1714,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1848:bool#678",
+     "line": 1848,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1863:bool#680",
+     "line": 1863,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1882:bool#681",
+     "line": 1882,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1883:ifneg#682",
+     "line": 1883,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1951:bool#686",
+     "line": 1951,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1952:ifneg#687",
+     "line": 1952,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1954:ifneg#688",
+     "line": 1954,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1971:const#689",
+     "line": 1971,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2036:const#691",
+     "line": 2036,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2307:not#705",
+     "line": 2307,
+     "op": "not",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2556:not#720",
+     "line": 2556,
+     "op": "not",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2588:arith#724",
+     "line": 2588,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2613:arith#727",
+     "line": 2613,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2626:cmp#728",
+     "line": 2626,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2634:const#729",
+     "line": 2634,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2641:const#730",
+     "line": 2641,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2654:arith#731",
+     "line": 2654,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2632:const#732",
+     "line": 2632,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2632:const#733",
+     "line": 2632,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2665:const#734",
+     "line": 2665,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2669:const#735",
+     "line": 2669,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2682:ifneg#736",
+     "line": 2682,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2684:arith#737",
+     "line": 2684,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2685:bool#738",
+     "line": 2685,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2658:const#739",
+     "line": 2658,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2658:const#740",
+     "line": 2658,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:698:const#781",
+     "line": 698,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:699:cmp#782",
+     "line": 699,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:748:const#788",
+     "line": 748,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:812:bool#791",
+     "line": 812,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:812:const#792",
+     "line": 812,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:855:cmp#794",
+     "line": 855,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:902:ifneg#802",
+     "line": 902,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:964:const#803",
+     "line": 964,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:966:const#804",
+     "line": 966,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1002:cmp#806",
+     "line": 1002,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1002:cmp#807",
+     "line": 1002,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1008:const#810",
+     "line": 1008,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1038:ifneg#812",
+     "line": 1038,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1058:cmp#813",
+     "line": 1058,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1059:cmp#814",
+     "line": 1059,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1061:bool#815",
+     "line": 1061,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1066:const#818",
+     "line": 1066,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1219:cmp#841",
+     "line": 1219,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1297:bool#849",
+     "line": 1297,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1312:cmp#851",
+     "line": 1312,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1314:ifneg#852",
+     "line": 1314,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1342:cmp#853",
+     "line": 1342,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1347:cmp#855",
+     "line": 1347,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1510:ifneg#866",
+     "line": 1510,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_v04.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1537:cmp#867",
+     "line": 1537,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1537:cmp#868",
+     "line": 1537,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1537:cmp#869",
+     "line": 1537,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1537:cmp#870",
+     "line": 1537,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1614:const#881",
+     "line": 1614,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1661:const#883",
+     "line": 1661,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1692:ifneg#887",
+     "line": 1692,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_v07.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1698:ifneg#888",
+     "line": 1698,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_v04.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1706:ifneg#889",
+     "line": 1706,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1709:const#890",
+     "line": 1709,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1848:bool#906",
+     "line": 1848,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1849:bool#907",
+     "line": 1849,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1863:cmp#910",
+     "line": 1863,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1863:cmp#911",
+     "line": 1863,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1882:cmp#912",
+     "line": 1882,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1882:cmp#913",
+     "line": 1882,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1883:cmp#914",
+     "line": 1883,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1952:cmp#916",
+     "line": 1952,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1954:bool#917",
+     "line": 1954,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1955:ifneg#918",
+     "line": 1955,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1957:ifneg#919",
+     "line": 1957,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1981:const#920",
+     "line": 1981,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1981:const#921",
+     "line": 1981,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2173:const#925",
+     "line": 2173,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2195:const#926",
+     "line": 2195,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2334:const#939",
+     "line": 2334,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2415:const#947",
+     "line": 2415,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2417:arith#948",
+     "line": 2417,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2557:const#957",
+     "line": 2557,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2584:arith#960",
+     "line": 2584,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2597:arith#961",
+     "line": 2597,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2603:arith#962",
+     "line": 2603,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2610:const#963",
+     "line": 2610,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2637:arith#964",
+     "line": 2637,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2645:arith#965",
+     "line": 2645,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2651:const#966",
+     "line": 2651,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2673:arith#967",
+     "line": 2673,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2679:const#968",
+     "line": 2679,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2682:cmp#969",
+     "line": 2682,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:720:not#999",
+     "line": 720,
+     "op": "not",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:964:bool#1004",
+     "line": 964,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1001:not#1005",
+     "line": 1001,
+     "op": "not",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1002:const#1006",
+     "line": 1002,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1010:const#1008",
+     "line": 1010,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1038:cmp#1009",
+     "line": 1038,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1041:arith#1010",
+     "line": 1041,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1061:cmp#1011",
+     "line": 1061,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1061:cmp#1012",
+     "line": 1061,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1062:not#1013",
+     "line": 1062,
+     "op": "not",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1236:cmp#1028",
+     "line": 1236,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1297:cmp#1030",
+     "line": 1297,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1297:cmp#1031",
+     "line": 1297,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1314:cmp#1032",
+     "line": 1314,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1384:arith#1037",
+     "line": 1384,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1704:const#1053",
+     "line": 1704,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1705:const#1054",
+     "line": 1705,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1706:cmp#1055",
+     "line": 1706,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1848:bool#1085",
+     "line": 1848,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1848:bool#1086",
+     "line": 1848,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1849:cmp#1087",
+     "line": 1849,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1849:cmp#1088",
+     "line": 1849,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1850:cmp#1089",
+     "line": 1850,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1881:const#1094",
+     "line": 1881,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1953:const#1095",
+     "line": 1953,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1955:cmp#1096",
+     "line": 1955,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1957:bool#1097",
+     "line": 1957,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1962:ifneg#1099",
+     "line": 1962,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2420:const#1111",
+     "line": 2420,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2650:const#1114",
+     "line": 2650,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2678:const#1115",
+     "line": 2678,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:903:const#1146",
+     "line": 903,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:997:not#1147",
+     "line": 997,
+     "op": "not",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1003:const#1148",
+     "line": 1003,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1007:cmp#1150",
+     "line": 1007,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1187:cmp#1153",
+     "line": 1187,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1238:cmp#1156",
+     "line": 1238,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1297:const#1158",
+     "line": 1297,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1558:arith#1163",
+     "line": 1558,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1848:cmp#1177",
+     "line": 1848,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1848:cmp#1178",
+     "line": 1848,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1848:cmp#1179",
+     "line": 1848,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1848:cmp#1180",
+     "line": 1848,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1882:const#1181",
+     "line": 1882,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1882:const#1182",
+     "line": 1882,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1882:const#1183",
+     "line": 1882,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1882:const#1184",
+     "line": 1882,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1962:bool#1189",
+     "line": 1962,
+     "op": "bool",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1963:ifneg#1190",
+     "line": 1963,
+     "op": "ifneg",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2197:const#1192",
+     "line": 2197,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2314:const#1201",
+     "line": 2314,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2327:const#1204",
+     "line": 2327,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2350:const#1206",
+     "line": 2350,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2623:const#1208",
+     "line": 2623,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2624:const#1209",
+     "line": 2624,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2635:const#1210",
+     "line": 2635,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2635:const#1211",
+     "line": 2635,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2666:const#1212",
+     "line": 2666,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2666:const#1213",
+     "line": 2666,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2683:arith#1214",
+     "line": 2683,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:659:const#1230",
+     "line": 659,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:715:cmp#1233",
+     "line": 715,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:964:const#1234",
+     "line": 964,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1007:const#1235",
+     "line": 1007,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1187:const#1236",
+     "line": 1187,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1694:arith#1242",
+     "line": 1694,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1700:arith#1243",
+     "line": 1700,
+     "op": "arith",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1884:const#1244",
+     "line": 1884,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1884:const#1245",
+     "line": 1884,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1884:const#1246",
+     "line": 1884,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1886:const#1247",
+     "line": 1886,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1963:cmp#1250",
+     "line": 1963,
+     "op": "cmp",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2418:const#1254",
+     "line": 2418,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:719:const#1260",
+     "line": 719,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1884:const#1266",
+     "line": 1884,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1884:const#1267",
+     "line": 1884,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:1886:const#1268",
+     "line": 1886,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    },
+    {
+     "id": "interp.py:2345:const#1272",
+     "line": 2345,
+     "op": "const",
+     "label": "no tests ran",
+     "first_file": "tests/test_timetravel.py",
+     "files_run": 24
+    }
+   ]
+  },
+  {
+   "path": "/home/pgain/agi-research-nuc-llm/state/swe/round-233/pmap-mutation-scoped.json",
+   "total": 53,
+   "published_killed": 34,
+   "published_survived": 19,
+   "published_score": 0.6415,
+   "counts": {
+    "survived": 19,
+    "timeout": 0,
+    "evidenced_kill": 34,
+    "no_evidence_kill": 0,
+    "unknown_kill": 0
+   },
+   "labels": {},
+   "audited_kills": 34,
+   "unaudited_kills": 0,
+   "audited_score": 0.6415,
+   "score_upper": 0.6415,
+   "confirmed": true,
+   "dominant_killer": "tests/test_values.py::test_show_record_sorted",
+   "dominant_killer_share": 0.3824,
+   "suspects": []
+  },
+  {
+   "path": "/home/pgain/agi-research-nuc-llm/state/swe/round-245/lexer-mutation.json",
+   "total": 117,
+   "published_killed": 98,
+   "published_survived": 19,
+   "published_score": 0.8376,
+   "counts": {
+    "survived": 19,
+    "timeout": 4,
+    "evidenced_kill": 94,
+    "no_evidence_kill": 0,
+    "unknown_kill": 0
+   },
+   "labels": {},
+   "audited_kills": 98,
+   "unaudited_kills": 0,
+   "audited_score": 0.8376,
+   "score_upper": 0.8376,
+   "confirmed": true,
+   "dominant_killer": "tests/test_lexer.py::test_numbers",
+   "dominant_killer_share": 0.2234,
+   "suspects": []
+  },
+  {
+   "path": "/home/pgain/agi-research-nuc-llm/state/swe/round-263/lexer-mutation-final.json",
+   "total": 117,
+   "published_killed": 114,
+   "published_survived": 3,
+   "published_score": 0.9744,
+   "counts": {
+    "survived": 3,
+    "timeout": 4,
+    "evidenced_kill": 110,
+    "no_evidence_kill": 0,
+    "unknown_kill": 0
+   },
+   "labels": {},
+   "audited_kills": 114,
+   "unaudited_kills": 0,
+   "audited_score": 0.9744,
+   "score_upper": 0.9744,
+   "confirmed": true,
+   "dominant_killer": "tests/test_lexer.py::test_numbers",
+   "dominant_killer_share": 0.1909,
+   "suspects": []
+  },
+  {
+   "path": "/home/pgain/agi-research-nuc-llm/state/swe/round-263/lexer-mutation-post-fix.json",
+   "total": 117,
+   "published_killed": 113,
+   "published_survived": 4,
+   "published_score": 0.9658,
+   "counts": {
+    "survived": 4,
+    "timeout": 4,
+    "evidenced_kill": 109,
+    "no_evidence_kill": 0,
+    "unknown_kill": 0
+   },
+   "labels": {},
+   "audited_kills": 113,
+   "unaudited_kills": 0,
+   "audited_score": 0.9658,
+   "score_upper": 0.9658,
+   "confirmed": true,
+   "dominant_killer": "tests/test_lexer.py::test_numbers",
+   "dominant_killer_share": 0.1927,
+   "suspects": []
+  }
+ ],
+ "totals": {
+  "reports": 12,
+  "confirmed_reports": 10,
+  "mutants": 10046,
+  "counts": {
+   "survived": 494,
+   "timeout": 66,
+   "evidenced_kill": 8966,
+   "no_evidence_kill": 520,
+   "unknown_kill": 0
+  }
+ }
+}

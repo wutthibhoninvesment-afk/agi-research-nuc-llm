@@ -65,6 +65,28 @@ def checkout():
     shutil.rmtree(tmp, ignore_errors=True)
 
 
+def _seed_green_baseline(c, seconds=0.1):
+    """Mark this campaign's round-353 baseline pre-flight GREEN without running it.
+
+    This is byte-for-byte what a RESUMED campaign finds on disk: `stage_baseline`
+    writes `baseline.json` and marks the stage `done` only when the unmutated
+    tree passed, and `_require_baseline` reads exactly these two things. So this
+    is the resume path, not a monkeypatch.
+
+    Used by the tests BELOW the gate, whose subject is a downstream stage and
+    whose `test_cmd` is the real whence suite -- letting each of them run a
+    genuine pre-flight would add a full suite run per test to a tier that is
+    already the slow one. The gate itself is tested by the `test_baseline_*`
+    tests, which run it for real against a fixture suite.
+    """
+    C._dump_json(c.path("baseline.json"),
+                 {"returncode": 0, "timed_out": False, "seconds": seconds,
+                  "tail": "", "green": True, "test_cmd": c.test_cmd,
+                  "allow_red": False, "checked": "seeded-by-test"})
+    c._mark("baseline", "done", green=True, returncode=0, seconds=seconds,
+            timed_out=False, allow_red=False)
+
+
 def _mutation_json(path, mutants_with_status):
     ms = []
     for m, status in mutants_with_status:
@@ -120,7 +142,13 @@ def test_mutation_stage_checkpoints_per_mutant_and_resumes(tmp_path, checkout):
 def test_recheck_reruns_timeouts_serially_and_records_flips(tmp_path, checkout):
     out = str(tmp_path / "out")
     fast = [sys.executable, "-c", "import sys; sys.exit(1)"]      # the 'suite' now fails -> killed
-    c = C.Campaign(out, checkout, test_cmd=fast, log=lambda s: None)
+    # `allow_red_baseline` because this fixture "suite" fails unconditionally,
+    # which is EXACTLY the red baseline round 353's gate exists to refuse: the
+    # mutant is not what makes it fail. The escape hatch is the honest way to
+    # say "this is a fixture, not a measurement" -- and `test_a_red_baseline_
+    # refuses_to_run_a_single_mutant` below asserts what happens without it.
+    c = C.Campaign(out, checkout, test_cmd=fast, log=lambda s: None,
+                   allow_red_baseline=True)
     mj = str(tmp_path / "m.json")
     _mutation_json(mj, [(_mod_mutant(), "timeout"), (_docstring_const(), "survived")])
     c.stage_mutation(adopt=mj)
@@ -135,6 +163,7 @@ def test_recheck_reruns_timeouts_serially_and_records_flips(tmp_path, checkout):
 def test_corpus_stage_pins_killers_and_verify_confirms_them(tmp_path, checkout):
     out = str(tmp_path / "out")
     c = C.Campaign(out, checkout, log=lambda s: None)
+    _seed_green_baseline(c)
     mj = str(tmp_path / "m.json")
     zg, dc = _mod_mutant(), _docstring_const()
     _mutation_json(mj, [(zg, "survived"), (dc, "survived")])
@@ -176,6 +205,7 @@ def test_downstream_stages_survive_a_concurrent_edit_to_the_mutated_file(tmp_pat
     (possibly since-edited) tree."""
     out = str(tmp_path / "out")
     c = C.Campaign(out, checkout, log=lambda s: None)
+    _seed_green_baseline(c)
     mj = str(tmp_path / "m.json")
     zg, dc = _mod_mutant(), _docstring_const()
     _mutation_json(mj, [(zg, "survived"), (dc, "survived")])
@@ -213,6 +243,7 @@ def test_downstream_stages_survive_a_concurrent_edit_to_the_mutated_file(tmp_pat
 def test_live_kill_stage_resumes_from_partial_and_pins_verified_kills(tmp_path, checkout):
     out = str(tmp_path / "out")
     c = C.Campaign(out, checkout, log=lambda s: None)
+    _seed_green_baseline(c)
     mj = str(tmp_path / "m.json")
     zg, dc = _mod_mutant(), _docstring_const()
     _mutation_json(mj, [(zg, "survived"), (dc, "survived")])
@@ -254,6 +285,7 @@ def test_live_kill_stage_resumes_from_partial_and_pins_verified_kills(tmp_path, 
 def test_review_stage_and_report(tmp_path, checkout):
     out = str(tmp_path / "out")
     c = C.Campaign(out, checkout, log=lambda s: None)
+    _seed_green_baseline(c)
     mj = str(tmp_path / "m.json")
     zg = _mod_mutant()
     _mutation_json(mj, [(zg, "killed"), (_docstring_const(), "survived")])
@@ -332,6 +364,7 @@ def test_coverage_stage_triages_survivors_and_report_shows_the_split(tmp_path, c
     out = str(tmp_path / "out")
     logs = []
     c = C.Campaign(out, checkout, log=logs.append)
+    _seed_green_baseline(c)
     mj = str(tmp_path / "m.json")
     zg, dv = _mod_mutant(), _in_diverge()
     _mutation_json(mj, [(zg, "survived"), (dv, "survived")])
@@ -374,6 +407,7 @@ def test_coverage_stage_triages_survivors_and_report_shows_the_split(tmp_path, c
 def test_repair_stage_samples_killed_mutants_resumes_and_reports(tmp_path, checkout):
     out = str(tmp_path / "out")
     c = C.Campaign(out, checkout, log=lambda s: None)
+    _seed_green_baseline(c)
     mj = str(tmp_path / "m.json")
     zg, dc = _mod_mutant(), _docstring_const()
     ms = []
@@ -447,3 +481,122 @@ def test_manifest_marks_merge_across_processes(tmp_path, checkout):
     assert b.done("mutation") and a.done("review")
     b.force(["mutation"])
     assert not a.done("mutation") and a.done("review")
+
+
+# ------------------------------------------------------- baseline pre-flight --
+#
+# Round 353 (SWE-loop D), closing round 349's next-steps item 4: campaign.py
+# imported `run_mutant` and never `mutation_test`, so its mutants were
+# classified correctly per-run (round 349's layer 1) but its campaigns got no
+# baseline pre-flight (layer 2) -- a campaign started against an already-red
+# tree reported every mutant killed, with no warning, in the entry point that
+# runs the biggest campaigns.
+
+_OK = [sys.executable, "-c", "import sys; sys.exit(0)"]
+_RED = [sys.executable, "-c", "import sys; print('boom'); sys.exit(1)"]
+
+
+def test_baseline_stage_records_a_green_preflight_and_is_skipped_on_resume(tmp_path, checkout):
+    out = str(tmp_path / "out")
+    logs = []
+    c = C.Campaign(out, checkout, test_cmd=_OK, log=logs.append)
+    b = c.stage_baseline()
+    assert b["green"] is True and b["returncode"] == 0 and b["test_cmd"] == _OK
+    assert json.load(open(os.path.join(out, "baseline.json")))["green"] is True
+    assert c.done("baseline")
+    assert any("baseline GREEN" in s for s in logs)
+    # a second driver of the same campaign does not pay for it again
+    c2 = C.Campaign(out, checkout, test_cmd=_OK, log=lambda s: None)
+    c2.stage_baseline()
+    assert c2.manifest["stages"]["baseline"]["info"]["seconds"] == b["seconds"]
+
+
+def test_a_red_baseline_refuses_to_run_a_single_mutant(tmp_path, checkout):
+    out = str(tmp_path / "out")
+    c = C.Campaign(out, checkout, test_cmd=_RED, log=lambda s: None)
+    with pytest.raises(C.BaselineNotGreen) as e:
+        c.stage_mutation(workers=1, limit=2)
+    assert "not evidence" in str(e.value) and "boom" in str(e.value)
+    # and it refused BEFORE running anything: no report, no checkpoint
+    assert not os.path.exists(os.path.join(out, "mutation.json"))
+    assert not os.path.exists(os.path.join(out, "mutation.partial.jsonl"))
+
+
+def test_a_red_baseline_is_rechecked_on_the_next_run_not_marked_done(tmp_path, checkout):
+    """A red baseline must never be checkpointed as `done`.
+
+    The correct response to a red tree is to fix it and re-run; a `done` mark
+    would skip exactly the re-check that would have noticed the fix, and the
+    campaign would refuse forever (or, worse, be forced past with the
+    override).
+    """
+    out = str(tmp_path / "out")
+    c = C.Campaign(out, checkout, test_cmd=_RED, log=lambda s: None)
+    c.stage_baseline()
+    assert c.manifest["stages"]["baseline"]["status"] == "red"
+    assert not c.done("baseline")
+    # the tree is "fixed": a fresh driver on the same out dir re-checks
+    c2 = C.Campaign(out, checkout, test_cmd=_OK, log=lambda s: None)
+    assert c2.stage_baseline()["green"] is True and c2.done("baseline")
+
+
+def test_allow_red_baseline_runs_but_marks_every_number_not_evidence(tmp_path, checkout):
+    out = str(tmp_path / "out")
+    logs = []
+    c = C.Campaign(out, checkout, test_cmd=_RED, log=logs.append, allow_red_baseline=True)
+    d = c.stage_mutation(workers=1, limit=2)
+    assert d["total"] == 2 and d["killed"] == 2          # every mutant "killed" by the red tree
+    assert any("NOT EVIDENCE" in s for s in logs)
+    assert json.load(open(os.path.join(out, "baseline.json")))["allow_red"] is True
+    rep = c.stage_report()
+    assert rep["baseline_run"]["green"] is False and rep["baseline_run"]["allow_red"] is True
+    md = open(os.path.join(out, "report.md")).read()
+    assert "**RED**" in md and "NOT EVIDENCE" in md
+
+
+def test_every_mutant_run_in_campaign_py_goes_through_the_gate():
+    """Structural: `run_mutant(` appears exactly once in campaign.py.
+
+    The gap round 349 named came to exist because `mutation_test` grew a
+    pre-flight and campaign.py's five `run_mutant` call sites did not. A gate
+    you can forget to call at a NEW call site is the same bug waiting; this
+    is the cheap check that keeps `_run_one` the only door.
+    """
+    src = open(os.path.join(os.path.dirname(C.__file__), "campaign.py"),
+               encoding="utf-8").read()
+    assert src.count("run_mutant(m, self.root") == 1
+    body = src.split("def _run_one(")[1].split("\n    def ")[0]
+    assert "self._require_baseline()" in body and "run_mutant(m, self.root" in body
+
+
+def test_report_carries_the_score_audit_of_its_own_mutation_report(tmp_path, checkout):
+    """Round 353's second layer inside the campaign's own report.
+
+    The two layers see different failures: the baseline catches a
+    pre-existing failing test (which pins every mutant to a REAL `FAILED`
+    line, so no per-mutant analysis can see it); the audit catches a mutant
+    whose own run never produced a verdict (which a green baseline says
+    nothing about). Round 137's campaign had a green-looking pipeline and
+    260 of the second kind.
+    """
+    out = str(tmp_path / "out")
+    c = C.Campaign(out, checkout, log=lambda s: None)
+    _seed_green_baseline(c)
+    mj = str(tmp_path / "m.json")
+    zg, dc = _mod_mutant(), _docstring_const()
+    data = _mutation_json(mj, [(zg, "killed"), (dc, "killed")])
+    # one honest kill, one with round 137's exact no-evidence tail
+    data["mutants"][0]["detail"] = "FAILED tests/test_v10.py::test_x\n1 failed, 9 passed in 0.4s"
+    data["mutants"][1]["detail"] = ("no tests ran in 0.00s\nERROR: file or directory "
+                                    "not found: tests/test_timetravel_debugger.py")
+    with open(mj, "w") as f:
+        json.dump(data, f)
+    c.stage_mutation(adopt=mj)
+    rep = c.stage_report()
+    a = rep["score_audit"]
+    assert a["confirmed"] is False and a["counts"]["no_evidence_kill"] == 1
+    assert a["published_score"] == 1.0 and a["audited_score"] == 0.5
+    assert "suspects" not in a                      # ids stay out of the report blob
+    md = open(os.path.join(out, "report.md")).read()
+    assert "1 of 2 kills produced no verdict" in md and "[0.5, 1.0]" in md
+    assert "| baseline pre-flight | GREEN" in md

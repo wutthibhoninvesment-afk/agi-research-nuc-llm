@@ -1,0 +1,75 @@
+/home/pgain/agi-research-nuc-llm/state/swe/round-107/mutation-rechecked.json
+  published: 924 killed / 132 survived of 1056  score 0.875
+  CONFIRMED: every kill carries its own evidence (916 evidenced, 8 timeout); score 0.875 stands.
+  dominant killer: tests/test_examples.py::test_hello (19.5% of evidenced kills) -- a diagnostic, not a verdict; see the module docstring.
+
+/home/pgain/agi-research-nuc-llm/state/swe/round-107/mutation.json
+  published: 931 killed / 125 survived of 1056  score 0.8816
+  CONFIRMED: every kill carries its own evidence (909 evidenced, 22 timeout); score 0.8816 stands.
+  dominant killer: tests/test_examples.py::test_hello (19.7% of evidenced kills) -- a diagnostic, not a verdict; see the module docstring.
+
+/home/pgain/agi-research-nuc-llm/state/swe/round-113/mutation-rechecked.json
+  published: 1214 killed / 12 survived of 1226  score 0.9902
+  CONFIRMED: every kill carries its own evidence (1211 evidenced, 3 timeout); score 0.9902 stands.
+  dominant killer: tests/test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage (11.2% of evidenced kills) -- a diagnostic, not a verdict; see the module docstring.
+
+/home/pgain/agi-research-nuc-llm/state/swe/round-113/mutation.json
+  published: 1194 killed / 32 survived of 1226  score 0.9739
+  CONFIRMED: every kill carries its own evidence (1189 evidenced, 5 timeout); score 0.9739 stands.
+  dominant killer: tests/test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage (10.8% of evidenced kills) -- a diagnostic, not a verdict; see the module docstring.
+
+/home/pgain/agi-research-nuc-llm/state/swe/round-125/mutation-rechecked.json
+  published: 1228 killed / 35 survived of 1263  score 0.9723
+  CONFIRMED: every kill carries its own evidence (1224 evidenced, 4 timeout); score 0.9723 stands.
+  dominant killer: tests/test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage (10.1% of evidenced kills) -- a diagnostic, not a verdict; see the module docstring.
+
+/home/pgain/agi-research-nuc-llm/state/swe/round-125/mutation.json
+  published: 1228 killed / 35 survived of 1263  score 0.9723
+  CONFIRMED: every kill carries its own evidence (1224 evidenced, 4 timeout); score 0.9723 stands.
+  dominant killer: tests/test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage (10.1% of evidenced kills) -- a diagnostic, not a verdict; see the module docstring.
+
+/home/pgain/agi-research-nuc-llm/state/swe/round-137/mutation-rechecked.json
+  published: 1276 killed / 0 survived of 1276  score 1.0
+  NOT EVIDENCE: 260 of 1276 kills produced no verdict about the mutant (260 no-evidence, 0 unclassifiable).
+  true score is in [0.7962, 1.0], not 1.0.
+    no tests ran                             260
+    e.g. interp.py:2672:ifneg#249           line 2672   no tests ran
+    e.g. interp.py:2677:ifneg#250           line 2677   no tests ran
+    e.g. interp.py:170:arith#255            line 170    no tests ran
+    e.g. interp.py:320:const#272            line 320    no tests ran
+    e.g. interp.py:320:const#273            line 320    no tests ran
+  dominant killer: tests/test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage (12.4% of evidenced kills) -- a diagnostic, not a verdict; see the module docstring.
+
+/home/pgain/agi-research-nuc-llm/state/swe/round-137/mutation.json
+  published: 1198 killed / 78 survived of 1276  score 0.9389
+  NOT EVIDENCE: 260 of 1198 kills produced no verdict about the mutant (260 no-evidence, 0 unclassifiable).
+  true score is in [0.7351, 0.9389], not 0.9389.
+    no tests ran                             260
+    e.g. interp.py:2672:ifneg#249           line 2672   no tests ran
+    e.g. interp.py:2677:ifneg#250           line 2677   no tests ran
+    e.g. interp.py:170:arith#255            line 170    no tests ran
+    e.g. interp.py:320:const#272            line 320    no tests ran
+    e.g. interp.py:320:const#273            line 320    no tests ran
+  dominant killer: tests/test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage (12.8% of evidenced kills) -- a diagnostic, not a verdict; see the module docstring.
+
+/home/pgain/agi-research-nuc-llm/state/swe/round-233/pmap-mutation-scoped.json
+  published: 34 killed / 19 survived of 53  score 0.6415
+  CONFIRMED: every kill carries its own evidence (34 evidenced, 0 timeout); score 0.6415 stands.
+  dominant killer: tests/test_values.py::test_show_record_sorted (38.2% of evidenced kills) -- a diagnostic, not a verdict; see the module docstring.
+
+/home/pgain/agi-research-nuc-llm/state/swe/round-245/lexer-mutation.json
+  published: 98 killed / 19 survived of 117  score 0.8376
+  CONFIRMED: every kill carries its own evidence (94 evidenced, 4 timeout); score 0.8376 stands.
+  dominant killer: tests/test_lexer.py::test_numbers (22.3% of evidenced kills) -- a diagnostic, not a verdict; see the module docstring.
+
+/home/pgain/agi-research-nuc-llm/state/swe/round-263/lexer-mutation-final.json
+  published: 114 killed / 3 survived of 117  score 0.9744
+  CONFIRMED: every kill carries its own evidence (110 evidenced, 4 timeout); score 0.9744 stands.
+  dominant killer: tests/test_lexer.py::test_numbers (19.1% of evidenced kills) -- a diagnostic, not a verdict; see the module docstring.
+
+/home/pgain/agi-research-nuc-llm/state/swe/round-263/lexer-mutation-post-fix.json
+  published: 113 killed / 4 survived of 117  score 0.9658
+  CONFIRMED: every kill carries its own evidence (109 evidenced, 4 timeout); score 0.9658 stands.
+  dominant killer: tests/test_lexer.py::test_numbers (19.3% of evidenced kills) -- a diagnostic, not a verdict; see the module docstring.
+
+corpus: 12 report(s), 10 confirmed, 10046 mutants -- evidenced_kill 8966, no_evidence_kill 520, survived 494, timeout 66, unknown_kill 0

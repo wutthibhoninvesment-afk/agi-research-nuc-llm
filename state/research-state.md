@@ -9662,6 +9662,142 @@ Predictions written first (`nuc/predictions-e-round352.md`, D-013):
   restarted; port 8001 never contacted; `/work/**` read-only.
 - See `knowledge/round-352-nuc-e-the-box-came-back-and-the-launcher-hung.md`.
 
+### Round 353 — SWE-loop(D) — 2026-08-30
+- **Closed round 349's item 4 (the one it called "the sharpest open item
+  round 349 leaves"): `swe/campaign.py` now has a baseline pre-flight.**
+  Round 349 fixed per-mutant classification (layer 1) and added
+  `mutation.mutation_test`'s pre-flight (layer 2), but campaign.py imports
+  `run_mutant` and never `mutation_test`, so the entry point that runs the
+  biggest campaigns had no layer 2 at all. New `Campaign.stage_baseline`
+  (own artifact `baseline.json`, own manifest mark) runs `test_cmd` against
+  an UNMUTATED `_copy_project` before any mutant, and **every** mutant run
+  now goes through one gated helper, `_run_one`. Marked `done` only when
+  green, so a red tree is re-checked on the next resume instead of being
+  checkpointed as decided. `--allow-red-baseline` exists for fixture suites
+  and is recorded in the manifest, in `baseline.json` and in
+  `report.md` ("**RED** ... every number in this report is NOT EVIDENCE").
+  A structural test asserts `run_mutant(m, self.root` appears exactly once
+  in the file — the gap round 349 named exists because a pre-flight was
+  added in one place and five call sites were not, and a gate you can forget
+  at a new call site is the same bug waiting.
+- **Closed round 349's item 5 ("no historical mutation score was re-audited
+  ... prior rounds' scores predate the defect so they are probably fine, but
+  'probably' is the honest word"). It was not fine.** New
+  `harness/swe/scoreaudit.py` re-audits a recorded mutation report from
+  evidence already on disk — `Mutant.as_dict` has always stored the run's own
+  output tail for every non-survived mutant, and that text says whether a
+  TEST failed or whether pytest never collected one. Over all **12** archived
+  reports (**10,046** mutants): 8966 evidenced kills, 66 timeouts, 494
+  survived, **520 no-evidence kills**, and **0 unclassifiable** — the
+  classifier covers the entire recorded corpus with nothing defaulted.
+- **The 520 are 260 mutants, recorded twice, all in round 137.** Their stored
+  tail is `no tests ran in 0.00s / ERROR: file or directory not found:
+  tests/test_timetravel_debugger.py` — pytest exit **4**, zero tests run,
+  scored as kills by the pre-349 classifier. The named file had been renamed
+  to `tests/test_timetravel.py`; a stale coverage map fed it to the
+  prioritizer's per-mutant subset command. **Round 137's published
+  `corrected score 1.0` and `projected final score 1.0` are not a measurement
+  of 1276 mutants; they are a measurement of 1016 with 260 unknowns folded in
+  on the flattering side. The true score is in [0.7962, 1.0].** Round 137's
+  own recheck stage could not have found this: it re-runs `survived` and
+  `timeout` mutants, and all 260 were recorded `killed`. Round 155 §3 checked
+  the same 1276 records for `ModuleNotFoundError`/`ref_diff_fuzz` and found
+  zero — a different contamination, correctly cleared; this one it did not
+  look for.
+- **The interval could not be narrowed, and the gate is why.** Round 137's
+  whole tree is archived (`state/swe/round-137/orig-proj`, `interp.py`
+  `diff`-identical to the campaign snapshot), so re-running the 260 would
+  give a point. The pre-flight refused four times, for three independent,
+  already-documented, non-mutant reasons: `test_ref_diff_fuzz_mode_...` fails
+  `ModuleNotFoundError` (this snapshot predates round 149's
+  `AGI_RESEARCH_ROOT` fix); with `PYTHONPATH` supplied it then fails
+  `assert (4 >= 5)` (it asserts on TODAY's `ProgramGen` output);
+  `test_ref_diff_fuzz_transient_...` fails the same way and was invisible
+  until the first was deselected (`-x`); and
+  `test_diverge_on_deep_equal_values_is_not_quadratic` is round 233's timing
+  flake, fixed in round 233 and therefore unfixed in a round-137 snapshot.
+  Full table in `state/swe/round-353/r137-rerun-baseline-attempts.md`; the
+  re-runnable script is beside it. **A refused measurement is the gate
+  working**, and it is the answer to item 5: the recorded evidence gives the
+  interval exactly, and the archived tree cannot narrow it on this host.
+- **`state_claim_check.py` gained a third claim grammar, S004: a
+  `Round N's item K` citation must point at an item that exists.** Round 351
+  invited widening under one condition — "every new shape must have an exact
+  re-derivation, or it becomes the heuristic the tool exists to avoid" — and
+  a cross-block citation has one: the cited block either has item K or it
+  does not. Two lookup sources in a reader's own order (round N's block in
+  this document, then `knowledge/round-NNN-*.md`'s `## Next steps`, which is
+  where a max-turns round records them), and citations outside the document's
+  own round window are not checked at all, so a fragment or a `--block` slice
+  cannot false-positive.
+- **What S004 found on the live document, first run:** round 352's item 6,
+  `Round 350's items 1-3`. Round 350 has neither a next-steps block here nor
+  a `## Next steps` section in its knowledge file — the pointer lands
+  nowhere. The items are **round 336's**, and **round 337 closed items 1 and
+  2 sixteen rounds ago** (`21f4677` added both `_typed_tail_chain` and
+  `oracle_tail_transparency`). Round 347 — this same track — caught the carry
+  and wrote "whoever writes the next next-steps list should re-check a
+  carried item against git before carrying it again"; round 352 carried it
+  again and renumbered it. The renumbering is the part a machine can catch,
+  and now does. Round 352's text is pinned as a fixture
+  (`TestRound352Regression`) so correcting the live document does not delete
+  the evidence.
+- **Tests:** `tests/test_swe_scoreaudit.py` **18 passed** (new; 2 of them run
+  against the real `state/swe/` corpus, so a future campaign whose tails do
+  not classify fails there rather than defaulting into the flattering
+  bucket). `tests/test_swe_campaign.py -k "baseline or gate or score_audit or
+  manifest or checkpoints or recheck_reruns"` **10 passed, 8 deselected**
+  (307.8s; 6 of the 10 are new). `python3 -m unittest
+  test_state_claim_check` **73 tests** (was 66; +7 new).
+- See `knowledge/round-353-swe-d-a-score-of-1-0-that-measured-1016-of-1276.md`.
+
+## Next steps (as of round 353)
+1. **Re-run round 137's 260 no-evidence mutants on a host where the archived
+   suite is green.** The script and the four refused baselines are in
+   `state/swe/round-353/`. It needs a box where round 233's `diverge` timing
+   test is not load-flaky; the two `ref_diff_fuzz` failures are already
+   filtered and reasoned about. That collapses [0.7962, 1.0] to a point.
+   Nothing else in this backlog needs a second machine.
+2. **`scoreaudit` is blind to a pre-existing failing test, by construction.**
+   One red test pins every mutant to exit 1 with a real `FAILED` line, and
+   every one of those reads as an `evidenced_kill`. Only the baseline
+   pre-flight can see it, and only before the campaign — so the two layers
+   are not redundant and neither is sufficient. `dominant_killer` is a
+   diagnostic for it (highest share in the archive: 38.2%, round 233's
+   53-mutant scoped campaign) and is deliberately not a verdict.
+3. **The gate protects new campaigns only.** Nine of the twelve archived
+   reports predate it and can never acquire a baseline retroactively;
+   `report.md` now prints "**NOT RUN** — the scores below are not evidence
+   that the suite was working" when `baseline.json` is absent, which is the
+   most that can honestly be said about them.
+4. **Round 336's items 1 and 2 are CLOSED (round 337) and must not be
+   carried again** — this is the second round to have to say so (round 347
+   was the first). Item 3 was a recommendation, not a task: leave the guest
+   un-optimised so `self_eval.lang` stays an independent witness.
+5. Round 347's item 1 (**ship the `param_erasure` oracle**, the natural
+   eighth beside `tail_transparency`) is unchanged and is the largest open
+   SWE-loop(D) item. Re-derived by reading: `swe/oracles.py`'s
+   `ORACLE_NAMES` has seven entries and no `param_erasure`.
+6. Round 349's items 2, 3 and 6 are unchanged (root config-file guard;
+   `classify_health_log`'s never-observed `fail`/`unknown` verdicts; the 8
+   `test_swe_mutation.py` tests landing in `swe_slow` by filename
+   convention) — harness(A) owns them. Its items 4 and 5 are closed above.
+7. Round 351's item 5 (`claim_check.py --run` over `skills/` streams
+   nothing and cannot be sliced) is unchanged, and round 353 did not need
+   it: `state_claim_check.py` runs in under a second.
+8. `harness/swe/regiontools.py` is still deliberately un-unified with
+   `EditFileTool` (round 307's item 2). **Not re-derived this round** —
+   round 351 read it directly and nothing since has touched either file.
+9. Round 301's item 2 (blocking-wait mitigation design sketch) remains
+   speculative — 18 carries deep, and no round entry anywhere in this file
+   claims to have produced the sketch.
+10. The `tail`/EOF backgrounded-pipe silent-drop mechanism (round 310's item
+    5) remains genuinely unconfirmed; it needs a reproduction, not a carry.
+11. `languages/whence/SECURITY.md` is still uncommitted and still escalated
+    to the operator — round 349 §8 found it asserts four security controls
+    that do not exist. Re-confirmed untouched in the working tree by rounds
+    350, 351, 352 and 353. Not this track's to decide.
+
 ## Next steps (as of round 352)
 1. **Collect the 8h swap run** — remote pid 2337, due ~2026-08-30T10:25Z,
    pulled by the local watcher into `state/nuc-swap-watch-r352/`. **Check

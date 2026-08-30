@@ -256,6 +256,47 @@ COMMAND_CLAIM_RE = re.compile(
 
 BARE_INT_RE = re.compile(r"^\**(\d+)\**$")
 
+# `Round 336's item 2` / `Round 350's items 1-3` / `Round 349's items 2-6`
+#
+# Round 353 (SWE-loop D). This is the third claim grammar, added under round
+# 351's own condition for widening: "every new shape must have an exact
+# re-derivation, or it becomes the heuristic the tool exists to avoid." A
+# cross-block citation has one -- the cited block either has an item with
+# that number or it does not -- so nothing here is a judgement about whether
+# the item is still OPEN, only about whether it EXISTS. Deciding openness
+# needs a human; finding a pointer into nothing does not.
+#
+# The instance that forced it (round 352's item 6):
+#
+#   round 336  wrote items 1-3: the typed tail chain in the fuzz grammar,
+#              the tail-vs-lifted sixth oracle, the guest-TCO question.
+#   round 337  CLOSED items 1 and 2 (`21f4677` added `_typed_tail_chain`
+#              AND `oracle_tail_transparency`).
+#   338-346    carried them as open anyway.
+#   round 347  caught it, and wrote: "Whoever writes the next next-steps
+#              list should re-check a carried item against git before
+#              carrying it again."
+#   round 352  carried it again -- renumbered to "Round 350's items 1-3",
+#              and round 350 has no next-steps block and no `## Next steps`
+#              section in its knowledge file, so the pointer resolves to
+#              nothing at all.
+#
+# The renumbering is what makes this mechanically catchable where the
+# still-open question is not: a reader who follows "Round 350's items 1-3"
+# lands nowhere, and that is checkable without reading a line of prose.
+CITATION_RE = re.compile(
+    r"\b[Rr]ound (?P<round>\d{2,4})'s item(?P<plural>s)?\s+"
+    r"(?P<items>\d+(?:\s*(?:-|\u2013|and|,)\s*\d+)*)")
+
+
+def citation_numbers(text):
+    """Every item number a citation span refers to; `1-3` expands to 1,2,3."""
+    nums = [int(n) for n in re.findall(r"\d+", text)]
+    if re.search(r"-|\u2013", text) and len(nums) == 2 and nums[1] >= nums[0]:
+        return list(range(nums[0], nums[1] + 1))
+    return nums
+
+
 
 class Claim:
     """One extracted, re-derivable assertion."""
@@ -290,6 +331,10 @@ def extract_claims(item):
                          {"path": m.group("path"),
                           "n": int(m.group("n")),
                           "code": m.group("code")}))
+    for m in CITATION_RE.finditer(item.text):
+        out.append(Claim(item, "citation", m.start(), m.group(0),
+                         {"round": int(m.group("round")),
+                          "items": citation_numbers(m.group("items"))}))
     for m in COMMAND_CLAIM_RE.finditer(item.text):
         cmd = re.sub(r"\s+", " ", m.group("cmd")).strip()
         claim_text = m.group("claim").strip()
@@ -450,6 +495,87 @@ def check_command(claim, repo_root, timeout):
 # Carry-forward age
 # --------------------------------------------------------------------------
 
+KNOWLEDGE_NEXT_STEPS_RE = re.compile(r"^#{2,3}\s+Next steps\b", re.M)
+
+
+def knowledge_items(round_no, repo_root):
+    """Item numbers in `knowledge/round-NNN-*.md`'s own `## Next steps`.
+
+    The second place a round records its follow-ons. A round that dies at
+    max-turns often writes a knowledge file and never appends a next-steps
+    block to research-state.md (round 350 wrote neither), so a citation must
+    be looked up in both before it is called broken.
+    """
+    import glob
+    hits = sorted(glob.glob(os.path.join(repo_root, "knowledge",
+                                         "round-%03d-*.md" % round_no)))
+    for path in hits:
+        try:
+            with open(path, encoding="utf-8") as f:
+                text = f.read()
+        except OSError:                                   # pragma: no cover
+            continue
+        m = KNOWLEDGE_NEXT_STEPS_RE.search(text)
+        if not m:
+            continue
+        rest = text[m.end():]
+        stop = re.search(r"^#{1,3}\s", rest, re.M)
+        body = rest[:stop.start()] if stop else rest
+        nums = [int(x) for x in re.findall(r"^(\d+)\.\s", body, re.M)]
+        if nums:
+            return set(nums), os.path.relpath(path, repo_root)
+    return None, None
+
+
+def check_citation(claim, blocks, repo_root):
+    """S004 -- a `Round N's item K` pointer that resolves to nothing.
+
+    Two sources are tried, in the order a reader would: round N's own
+    next-steps block in this document, then its knowledge file's `## Next
+    steps`. Only when NEITHER exists, or when a source exists and lacks the
+    cited number, is this a finding -- so the check never guesses and never
+    comments on whether the item is still open.
+    """
+    want = claim.payload["round"]
+    nums = None
+    src = None
+    for b in blocks:
+        if b.round_no == want:
+            nums = {i.number for i in parse_items(b)}
+            src = "next-steps block for round %d (line %d)" % (want, b.first_line)
+            break
+    if nums is None:
+        nums, kpath = knowledge_items(want, repo_root)
+        if nums is not None:
+            src = kpath
+    cited = claim.payload["items"]
+    if nums is None and blocks and not (min(b.round_no for b in blocks) <= want
+                                        <= max(b.round_no for b in blocks)):
+        # Outside the document's own coverage window. `research-state.md`
+        # carries blocks for rounds 273-352, so a citation of round 307 is
+        # something this document is expected to answer; a citation of round
+        # 12 is not, and neither is anything at all in a two-block fixture.
+        # Silence here is what keeps the check zero-false-positive on a
+        # FRAGMENT of the document -- which is exactly what every test
+        # fixture, and every `--block` slice, is.
+        return []
+    if nums is None:
+        return [Finding(claim, "S004",
+                        "cites `%s` but round %d has no next-steps block in "
+                        "this document and no `## Next steps` in "
+                        "knowledge/round-%03d-*.md -- the pointer resolves to "
+                        "nothing"
+                        % (re.sub(r"\s+", " ", claim.span_text), want, want))]
+    missing = [n for n in cited if n not in nums]
+    if missing:
+        return [Finding(claim, "S004",
+                        "cites item(s) %s of round %d, but its %s has only "
+                        "item(s) %s"
+                        % (", ".join(str(n) for n in missing), want, src,
+                           ", ".join(str(n) for n in sorted(nums))))]
+    return []
+
+
 def claim_ages(live, all_blocks):
     """For each claim key, the set of round numbers whose block asserts it.
 
@@ -503,6 +629,8 @@ def analyse(path, repo_root, run=False, timeout=300, block_round=None):
             claims.append(claim)
             if claim.kind == "body-lines":
                 findings.extend(check_body_lines(claim, repo_root))
+            elif claim.kind == "citation":
+                findings.extend(check_citation(claim, blocks, repo_root))
             elif claim.kind == "command" and claim.checkable:
                 if run:
                     findings.extend(check_command(claim, repo_root, timeout))

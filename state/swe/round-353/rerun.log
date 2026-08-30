@@ -1,0 +1,20 @@
+no-evidence kills in mutation-rechecked.json: 260 of 1276
+baseline: running the unmutated archived tree ...
+baseline RED: exit 1 in 62.0s
+ABORT: a mutation score against a non-green baseline is not evidence.
+_counter()
+            for _ in range(3):
+                assert diverge(*big) == []
+            t_big = time.perf_counter() - t0
+        finally:
+            gc.enable()
+>       assert t_big < 20 * max(t_small, 1e-3), (t_small, t_big)
+E       AssertionError: (0.011530477553606033, 0.42343063466250896)
+E       assert 0.42343063466250896 < (20 * 0.011530477553606033)
+E        +  where 0.011530477553606033 = max(0.011530477553606033, 0.001)
+
+tests/test_fuzz_regressions.py:168: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_fuzz_regressions.py::test_diverge_on_deep_equal_values_is_not_quadratic
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed, 64 passed, 3 deselected in 60.85s (0:01:00)
