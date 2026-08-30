@@ -112,6 +112,20 @@ it forward as an open work item addressed to the team that owned the code.
 - **Assuming the verdict word is wrong too.** Usually it is not — the exit
   code carried it. Measure that separately, and say so: it bounds the blast
   radius and keeps the report honest.
+- **The same failure inside a TEST, where nothing will ever tell you.** A
+  log line that quotes someone else's measurement and an assertion that
+  searches a file for a substring are one mistake: evidence standing in for
+  a property nobody compared it against. Round 380 of this program found
+  two, both green, both in the file whose job was to pin a precondition:
+  `assert "detail=" not in src` stood for "no call site overrides this
+  parameter" (it is the fourth POSITIONAL parameter — 21 of 87 sites set
+  it), and `assert 'else if name == "diverge" {' in lib` stood for "this
+  code still delegates" (it kept passing after the delegation was deleted,
+  because the replacement dispatch line spells the same nine characters).
+  A failing test tells you something is wrong; a test asserting a proxy
+  tells you nothing at all, forever. Ask of every string assertion: what
+  would have to change for this to go red, and is that the same thing as
+  the property changing?
 
 ## Verification
 

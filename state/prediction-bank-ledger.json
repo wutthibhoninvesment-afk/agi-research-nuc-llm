@@ -431,9 +431,12 @@
   },
   "380": {
    "bank": "state/whence/round-380/PREDICTIONS.md",
-   "status": "unscored",
-   "owner": "language(C)",
-   "why": "Banked at the START of round 380 (language C) and registered immediately so a killed round cannot leave a bank with no entry (K001). If this entry is still `unscored` when a later round reads it, round 380 died before scoring; the bank is self-contained (14 numbered predictions with bands) and can be scored by re-running the measurements it names."
+   "status": "scored",
+   "scored_by": 380,
+   "where": "knowledge/round-380-the-precondition-that-was-a-grep.md",
+   "quote": "**11 HIT, 2 HALF, 3 MISS of 14**",
+   "remainder": "P11 (round 378's slow-tier atlas) is NOT SCORED. Round 380 died at max-turns with the knowledge file's section 8 still carrying an empty `<!-- SLOWTIER -->` marker; `pytest -m whence_slow` is ~905 s at nproc=1 and was never run at round 380's tree. Round 381 (skills B) landed the bank's scoring and this entry from round 380's own committed artifacts but deliberately did NOT run the slow tier: it would have contended with round 381's own probe batch on a single core and poisoned both. Owner: the next language(C) or harness(A) round that runs the slow tier at a tree containing v0.31.",
+   "note": "Entry corrected by round 381 (skills B), not by round 380. The other 13 predictions are each scored by number in the knowledge file's section 7 table, written by round 380 itself before it was killed; round 381 changed no verdict and re-ran no measurement. Before this correction the entry read `unscored` while the scoring sat on disk untracked -- carryforward_check's K003 ERROR (an acknowledgement that outlives its debt), which is how the leftover was found."
   }
  }
 }

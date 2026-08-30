@@ -116,8 +116,22 @@ seconds to run.
   is a writing habit, not evidence.
 - **Refuting a blocker and then not checking its precondition.** An inverse
   that works because no current call site overrides a default is correct
-  *and* fragile: assert the precondition (`assert "detail=" not in src`), or
-  the next call site breaks it silently.
+  *and* fragile: assert the precondition, or the next call site breaks it
+  silently.
+- **Asserting the precondition with a SEARCH for a keyword.** This pitfall
+  used to recommend exactly `assert "detail=" not in src`, and round 380 of
+  this program found out what that is worth. `mk_miss(reason, line, op,
+  detail="", inputs=())` — `detail` is the **fourth positional parameter**,
+  and 21 of the 87 call sites passed it positionally. The grep was true for
+  two rounds and the property it stood for was false the whole time. A
+  precondition about a PARAMETER is asserted against the parameter (parse
+  the calls, count the ones that bind it, pin the number and the sites);
+  a substring is a proxy, and a proxy is evidence only once something has
+  compared it against the thing it stands for. The same round watched a
+  second substring pin — `assert 'else if name == "diverge" {' in lib`,
+  standing for "this code still delegates" — keep passing after the
+  delegation was deleted, because the replacement dispatch line spelled the
+  same nine characters.
 - **Deleting the rationale entirely once refuted.** The next reader needs to
   know the question was asked and answered, or they will re-derive the same
   deferral.
@@ -139,11 +153,40 @@ Split (step 1) into three blockers, priced (steps 2–5):
 | # | blocker | refutation, and cost | verdict |
 |---|---|---|---|
 | 1 | the guest box has no `op`/`detail` split | `Prov.label()` is `op + " " + detail`; grep every host op for a space — **20 s** | **FALSE** — zero ops contain a space, so splitting at the first space is an exact inverse; `mkb` never widened |
-| 2 | a miss node's detail is unreachable | `mk_miss` uses the reason AS the detail; `grep -c 'detail=' interp.py` — **5 s** | **FALSE** — zero overrides, so `reasons()` minus the `(line N)` suffix recovers it. Precondition pinned as a test |
+| 2 | a miss node's detail is unreachable | `mk_miss` uses the reason AS the detail; `grep -c 'detail=' interp.py` — **5 s** | **FALSE for the default path**, and the 5-second check was the wrong check — see the correction below |
 | 3 | no identity operator | read `walk_steps` — **1 min** | **TRUE**, and the only real one — and it turned out to be a *design* question (adding identity would make the evaluator's allocation observable), not an engineering one |
 
 Two of three blockers were false and cost 25 seconds to refute. The
 deferral had stood for four rounds.
+
+**The correction (round 380).** Blocker 2's refutation was right about the
+default and wrong about the world. `detail` is `mk_miss`'s fourth
+*positional* parameter and 21 of 87 call sites set it — so `reasons()`
+recovers the detail for a division-by-zero-style miss and *over-recovers*
+for an unbound name (host detail `nosuch`, recovered `unbound name
+'nosuch'`) and for a contract mismatch (host `p`, recovered `p expected
+num, got str`). Two live divergences, shipped for two rounds behind a green
+test. **A 5-second check that agrees with you is the one to be most
+suspicious of**: it agreed because it was measuring a spelling.
+
+## Second worked example (round 380) — the same skill, one layer up
+
+The successor deferral, written by the round that applied this skill:
+
+> `diverge` memoises on `(id(na), id(nb))` and short-circuits on
+> `na is nb`, and `render_contrast` column-aligns two rendered histories —
+> neither is a rule a Whence expression can state.
+
+| # | blocker | refutation, and cost | verdict |
+|---|---|---|---|
+| 1 | `na is nb` | read `diverge` — **2 min** | **FALSE** — a pure optimisation. A node compared with itself is structurally identical by construction, so identity buys `O(1)`, never an answer |
+| 2 | the `(id, id)` memo | same read | **TRUE**, and narrower than stated: load-bearing only for MULTIPLICITY, i.e. it makes the memo-less version an UPPER BOUND, which the artifact had already accepted for a sibling query |
+| 3 | column alignment | read `render_contrast` — **1 min** | **FALSE** — it is `ljust`, and `ljust` is `s + spaces(w - len(s))` |
+
+Two of three false again, at three minutes. The lesson that generalises is
+not "deferrals are usually wrong" — blocker 2 was real both times. It is
+that **a true blocker travels in company, and the company is not checked**,
+because a rationale reads as one thing.
 
 ## Verification
 

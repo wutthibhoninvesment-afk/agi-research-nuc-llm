@@ -1,6 +1,6 @@
 # Whence — a provenance-first language
 
-*Spec level: **v0.30** (round 378). The `## vN` sections below are the
+*Spec level: **v0.31** (round 380). The `## vN` sections below are the
 authoritative version list and each names the round that built it; this
 line deliberately no longer enumerates rounds, because the enumeration it
 replaced had said "v0.16.6 + v0.14.2" since round 266 while the file went
@@ -358,6 +358,30 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    and names the number rather than returning a short list. A silently
    truncated history is the one failure here that would look like an
    answer. See § v0.30.
+39. **A stated reason for not doing something is a claim with a price, and
+   so is a test that proves a property by searching for a string (v0.31,
+   round 380).** Two of this program's own artifacts failed the same way in
+   the same round. (a) v0.30 deferred `diverge`/`contrast` — E4's remainder
+   — on the reasoning that `diverge` "decides sameness by `na is nb` and
+   memoises on `(id(na), id(nb))`" and `render_contrast` "column-aligns two
+   rendered histories", "neither a rule a Whence expression can state".
+   Priced separately, `na is nb` turned out to be a pure OPTIMISATION (a
+   node compared with itself is structurally identical by definition), the
+   memo load-bearing only for MULTIPLICITY (so the guest reports an origin
+   once per PATH — the same upper-bound relation decision 38 already
+   accepted), and column alignment to be `s + spaces(w - len(s))`. All five
+   members of the provenance family now answer from the guest's own
+   history and **exemption E4 is retired**. (b) v0.30 proved that "a miss
+   node's detail IS its reason" by asserting `"detail=" not in interp.py`.
+   `mk_miss`'s signature is `(reason, line, op, detail="", inputs=())` and
+   **21 of its 87 call sites pass a detail POSITIONALLY**. The grep was
+   true; the property was false; and the guest answered `unbound name
+   'nosuch'` where the host answered `nosuch`. The rule this mints is not
+   "check your greps": it is that **a proxy is only admissible as evidence
+   when something has compared it against the thing it stands for**, which
+   is exactly why the same round's budget sizing validated its own
+   path-count proxy against the real guest walk before quoting it. See
+   § v0.31.
 
 ## Syntax (statements are newline-separated; `#` comments)
 ```
@@ -6443,3 +6467,162 @@ in its own file (a docstring's "would dominate the campaign" overstated by
 **when a design note explains why something was not done, the explanation
 is a claim with a cost, and the cheapest ones should be re-run before the
 next round inherits them as fact.**
+
+
+## v0.31 (round 380, language C) — the exemption that was two claims, and the precondition that was a grep
+
+**Decision 39.** Round 378 closed v0.30 with a methodological rule of its
+own — *"when a design note explains why something was not done, the
+explanation is a claim with a cost"* — and left two items behind that both
+turned out to be instances of it, one of them written by that same round.
+
+### E4's remainder: `diverge` / `contrast`
+
+v0.30 fixed `steps`/`at`/`blame` and left the other two delegating, with
+this reason:
+
+> `diverge` memoises on `(id(na), id(nb))` and short-circuits on
+> `na is nb`, and `render_contrast` column-aligns two rendered histories —
+> neither is a rule a Whence expression can state.
+
+Three claims. Priced one at a time:
+
+* **`na is nb` is an optimisation, not a rule.** Comparing a node with
+  itself structurally reaches the same verdict by construction: the ops
+  match, every input pair is a child against itself, the payload is the
+  same object. Identity buys the host `O(1)` where the guest pays
+  `O(subtree)`; it buys no *answer*. Pinned live rather than argued:
+  `len(diverge(v, v))` is 0 on both sides for five shapes including a
+  miss, a nested list and a call result.
+* **The memo is load-bearing, and only for MULTIPLICITY.**
+  `origins.append` runs once per DISTINCT node pair, so a pair reachable by
+  two lockstep paths is reported once. Without identity the guest reports
+  it once per PATH. That is the *same* upper-bound relation decision 38
+  already accepted for `steps`, applied to a second query — not a new
+  concession.
+* **Column alignment is `ljust`,** and `ljust` is
+  `s + spaces(w - len(s))`.
+
+So: **option (b), a structural approximation honest about what it
+approximates.** Measured over a 15-program corpus, 12 answers agree with
+the host BYTE FOR BYTE — the `│` column rule, the `▶` origin marker, the
+`origin K of N (kind):` headers — and the other 3 differ only in the
+`(line N)` suffix of a miss reason, the language's oldest documented
+divergence. E4, which v0.29 called "the largest known guest divergence in
+the language's signature feature", is **retired**.
+
+Divergences (1)–(3) are inherited from § v0.30. Two are this feature's own,
+and both are stated as measurements:
+
+| # | divergence | measured |
+|---|---|---|
+| 4 | no `count` origin: the host merges a tail loop and reports a `step` origin when two counts differ; the guest never merges, so that clause cannot fire. It does **not** follow that the guest reports fewer origins — the unmerged runs differ in *length*, so the guest finds shape mismatches instead. | `go(5)` vs `go(7)`: host **3** origins, guest **7** |
+| 5 | every route, not the shortest: `_pair_path` is breadth-first, so the host renders the SHORTEST lockstep route to an origin, once; the guest descends once per path and renders every route, including the shortest. | a value shared at two depths: host **1** block of 5 rows, guest **3** blocks (6, 6, 5), **the host's block among them character for character** |
+
+Divergence 4's row is worth reading twice. The first draft of this table
+said the guest "under-reports exactly this one kind of origin"; the
+measurement said 7 against 3, and the comment in `self_eval.lang` now
+records that it was corrected and why. *Neither side is silent about a
+real difference* — the divergence is in WHERE and HOW MANY, not in
+WHETHER.
+
+### The precondition that was a grep
+
+v0.30's second recovery was that a miss node's `detail` *is* its reason, so
+`reasons()` can recover the half the guest's label does not carry. It
+proved that like this:
+
+```python
+assert "detail=" not in src, "a mk_miss call now overrides `detail`"
+```
+
+`mk_miss(reason, line, op, detail="", inputs=())`. `detail` is the **fourth
+positional parameter**, and 21 of the 87 `mk_miss` call sites in
+`whence/interp.py` pass it positionally — 14 `call`, 3 `name`, 4 `typed`.
+The grep is true. The property it stood for is false 21 times.
+
+It bit twice, because the guest re-implements `call` itself and delegates
+the other two:
+
+```
+let r = nosuch + 1              host detail: nosuch    guest: unbound name 'nosuch'
+let r = typed("s","num","p")    host detail: p         guest: p expected num, got str
+```
+
+A third divergence surfaced from the same investigation and is a plainer
+bug: `apply_host_builtin`'s curated inputs for `put` and `note` describe
+the host's `derived` node and were being applied to its `mk_miss` node too,
+where the host passes *every* argument. `note(1 + 2, "m")` had **3** guest
+steps where the host has **6** — the whole derivation of `1 + 2` simply
+absent from the history.
+
+Observable `steps(r)` agreement over a 56-call corpus, comparing
+`[op, detail, depth, inputs]` for every step: **45/56 → 49/56**. The seven
+that remain are one named class — a DELEGATED builtin's *success* detail
+(`note m`, `put b`, `has a`, `range 0..2`, `guess s`, `diverge 1 origins`)
+plus one input-order case in `get` — measured, recorded, not fixed.
+
+### The budget was unfalsifiable, not wrong
+
+`GUEST_STEPS_BUDGET = 5000` was v0.30's one unmeasured quantity.
+`skills/measured-budget-sizing` step 1 is *find a cheap proxy and validate
+it*: the guest walk visits a node once per root-to-node PATH, so
+`paths(n) = 1 + sum(paths(c))` over the host DAG is the same number without
+running the guest at all. Validated against the real
+`len(guest_walk_steps(...))` on a 10-program sample — and the first run
+disagreed on one case, which is how the `note` bug above was found. A proxy
+that has to be validated is a differential.
+
+Swept over all 526 top-level bindings of every parsable example:
+
+```
+                min   p50   p90   p95        p99          max
+guest paths       1     1    24    43   ~3.06e8   uncountable (24 bindings)
+```
+
+The distribution is **bimodal with nothing in the middle**. The ordinary
+mode tops out at **123** paths; the next value anywhere in the corpus is
+**71 552**. So a budget of 100 and a budget of 50 000 refuse the same
+programs to within 2 bindings of 526 (0.4 percentage points), and no value
+in `[369, 71 551]` changes a single verdict. 5000 is not a tuned number and
+it is not a wrong one: it sits in the middle of a band two and a half
+orders of magnitude wide over which the constant has **no observable
+effect**. It is kept, and it now carries its evidence plus two pins — at
+least 10x the measured corpus max, and inside the insensitive band — so a
+future example with a 6 000-path history fails a test instead of silently
+turning `steps` into a refusal.
+
+### Two corrections carried from round 210 and round 335
+
+* **`GUEST_MAX_DEPTH`'s justification.** Round 210 wrote "no example or
+  self-hosting test corpus this project has ever run comes close to 400
+  real guest-level call frames". Re-bisected from scratch: the guest
+  answers `go(399)` and refuses `go(400)`; the host answers `go(200000)`.
+  Four contracts pinned in this project's own examples demand 10 001 to
+  200 000 frames, and they went unnoticed because they are all TAIL calls,
+  which SPEC rule 8 says cost the host nothing and which the guest charges
+  one frame each. The number stays (a graceful miss at a predictable depth
+  still beats depending on where the host's guard lands); the ceiling is
+  now a **declared divergence** in `self_eval.lang`'s module header, where
+  it had never been.
+* **`show` was not in the fuzz grammar.** Round 335 closed exactly this
+  gap by diffing `BUILTIN_ARITY`'s keys against
+  `interp._make_builtin_table()` and recorded that it had. Nothing re-ran
+  the diff, so v0.29's 37th builtin re-opened it six rounds later. The diff
+  is now a test, and `examples/show.lang` gives the builtin the example it
+  never had.
+
+### The methodological rule
+
+Round 378's rule was about *reasons*. v0.31 generalises it to *evidence*:
+
+**A proxy is admissible only once something has compared it against the
+thing it stands for.** A grep for `detail=` stands for "nothing overrides
+the detail"; a substring `else if name == "diverge" {` stands for "the
+guest still delegates" (that one *also* failed this round — it kept passing
+after the delegation was deleted, because the new dispatch line spells the
+same nine characters); a path count over the host DAG stands for the guest
+walk's length. The third was validated, disagreed on one case, and found a
+bug. The first two were not, and both were quietly false. The cost of
+validating is one comparison; the cost of not validating is a test that
+reports coverage it does not have.
