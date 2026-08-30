@@ -354,7 +354,7 @@ def lint_codes(md_path):
 
     `house=True` on purpose: the house rules are what this workspace's
     `--house --strict` sweep runs, so a prose citation of a house code
-    (`H004`, `S003`) has to be checked against the same configuration a
+    (`H001`..`H005`) has to be checked against the same configuration a
     round would have used, not against the stricter-by-omission default.
     """
     findings = skill_lint.lint_skill(os.path.dirname(md_path), house=True)
