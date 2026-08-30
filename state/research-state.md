@@ -9760,6 +9760,173 @@ Predictions written first (`nuc/predictions-e-round352.md`, D-013):
   test_state_claim_check` **73 tests** (was 66; +7 new).
 - See `knowledge/round-353-swe-d-a-score-of-1-0-that-measured-1016-of-1276.md`.
 
+### Round 354 — language(C) — 2026-08-30
+
+- **Goal:** finish the operator escalation in `CLAUDE.md` that round 349
+  answered as documentation. Round 349 proved both halves were non-defects
+  (`fold` takes the FUNCTION first; braces have always been required) and
+  wrote SPEC.md's builtin signature table and `### Blocks are always
+  braced`. Re-verified both here before building on them. What a harness
+  round could not do is the part that is the LANGUAGE's job: in both halves
+  the implementation **knew the cure and said only the symptom**.
+- **Whence v0.22, decision 32 — an error that can name the fix, names it.**
+  Two surfaces, one rule. (a) Every builtin now DECLARES its parameter names
+  and argument kinds — `register("fold", 3, "fn:fn, acc, xs:list")`, a
+  required positional, so a later builtin cannot opt out — and a wrong-KIND
+  miss re-checks the arguments the caller actually supplied against that
+  declaration in every other order: `fold needs a list, got <fn> (arguments
+  fit fold(fn, acc, xs))`. (b) Five parse-error hints: assignment, unbraced
+  branch, `{a: 1}` record literal, `rescue { }` block, two adjacent names.
+- **Existence, not uniqueness — a design decision that changed mid-round.**
+  The first draft demanded a UNIQUE fitting order, on the reflex that
+  ambiguous advice is bad advice. Wrong: the advice IS the signature, the
+  same string for every fitting order, so uniqueness suppresses a true
+  sentence and makes no surviving sentence truer. `guess("s", 1, 2)` fits in
+  two orders and gets the clause.
+- **The three silences are the load-bearing half**, and the third is what
+  makes `_order_hint` callable at any site with no whitelist: if the GIVEN
+  order already satisfies the declared kinds, the miss is about something
+  the kinds do not model (`filter`'s non-bool predicate, a confidence out of
+  [0,1], a malformed `typed` spec, a `guess`-wrapped list whose cure is
+  `sure()` and not reordering) — so it says nothing. Seven such cases pinned.
+- **The parser half was chosen by MEASUREMENT, not taste.** The operator
+  asked whether to auto-fix older scripts. The scripts exist: ten
+  machine-written programs sit untracked in `examples/` (the Hermes
+  gateway's, allowlisted since round 291) and all ten fail to parse — for
+  **six distinct causes, of which the braces rule is TWO**. Auto-fixing
+  braces repairs a fifth of the corpus. Every cause is the same mistake in
+  different clothes (a mainstream construct Whence deliberately lacks), so
+  the fix was to make the errors teach: **1/10 named a cure before, 9/10
+  after**. The corpus is pinned as test LITERALS, not file paths — it is
+  another system's directory and the evidence must outlive it.
+- **The tenth is a grammar property, not a missing hint, and it is pinned as
+  such.** `let d = f one, two` cannot be diagnosed at the mistake because
+  the parser ACCEPTS it: Whence statements need no separator, so `let d = f`
+  and `one` are two statements on one line and the error surfaces three
+  tokens later at the `,`. Verified directly (`let a = 1 let b = 2` parses).
+  Tightening that is a real grammar change with guest-parity obligations and
+  belongs to its own round.
+- **No guest mirror for the parser half — established, not assumed.** Host
+  parse errors are exceptions with line AND column; guest ones are `miss`
+  values with a line only, and the two have never agreed (`unexpected '='
+  at line 2, col 3` vs `unexpected token '=' at line 2`). Pinned, so a round
+  that later makes them agree finds the decision instead of a surprise.
+- **The guest mirror for the BUILTIN half found three pre-existing
+  divergences**, all invisible because round 17 exempts miss reasons from the
+  corpus differential. Verified against `HEAD` before claiming they predate
+  this round. The worst: `fold`/`map`/`filter`/`find`'s "needs a list" miss
+  rendered a callable with `str(strip(...))`, so the guest **dumped its own
+  closure record** — `@{__tag: "closure", body: …, env: ["f1", "f0"], …}` —
+  where the host says `<fn>`. Round 156 wrote `show_callable` for exactly
+  that class and it never reached these four sites. Plus `filter`/`find`'s
+  predicate misses, which dropped the host's `, got 5`. All three fixed.
+- **Two documentation defects found by doing the work the document
+  describes.** SPEC.md's header said **v0.20** while the file documented
+  v0.21 — round 348 wrote that header *to explain why version enumerations
+  rot*, and it rotted in ONE round when round 350 added `## v0.21`. A better
+  sentence is still a claim nobody re-runs; the fix is
+  `test_spec_level_header_matches_the_highest_version_section`, which sorts
+  on the numeric parts so v0.22 outranks v0.2. And `### Blocks are always
+  braced` said the rule "holds for `fn` bodies and `while` bodies too" —
+  **Whence has no `while`**; `lexer.KEYWORDS` is 14 words and that is not
+  one, and `while i < 3 { i }` parses as three statements whose first is an
+  unbound name. Both corrected with the reason recorded inline.
+- **`test_spec_builtins.py` now checks the column that caused the bug
+  report.** Round 349 could only check what the registry knew — name and
+  arity — so the parameter ORDER stayed unchecked prose (`fold(acc, fn, xs)`
+  would have passed every test); its `assert "fn, acc, xs = args" in src` was
+  a grep for a local-variable assignment because there was nothing better to
+  read. There is now. Round 349's greps were deliberately LEFT beside the
+  registry-based versions: deleting another round's pin in the same round you
+  replace it removes the evidence that the two agree.
+- **Skills:** new `skills/errors-that-name-the-fix/` (the method, generalised
+  past Whence: find the unspent knowledge, make it a declaration, compute the
+  cure by re-running the check, define the silences first, measure a corpus
+  before choosing). `skills/carried-claim-rot/` gained the SPEC-header
+  instance as a pitfall — *replacing a rotted claim with a better sentence
+  rots faster than the claim did*. `skill_lint.py --house --strict skills/`:
+  **25 skills, 0 errors, 0 warnings**, re-derived rather than carried.
+- **Verification.**
+
+  | what | result |
+  |---|---|
+  | `pytest -c pytest.ini tests/ -m "not whence_slow"` | **1191 passed, 54 deselected** (baseline 1137/53) |
+  | `tests/test_v22.py` | **53 passed** (new; 1 `whence_slow`) |
+  | `tests/test_spec_builtins.py` | **9 passed** (was 6) |
+  | `run.py examples/self_eval.lang` | 142 passed, 0 failed |
+  | `run.py examples/self_host.lang` | 109 passed, 0 failed |
+  | `bash harness/run_tests_fast.sh` | 476 passed, 303 deselected |
+  | machine-written corpus, cures named | **1/10 -> 9/10** |
+
+  Every wording assertion runs under all three host evaluation modes
+  (`fast=False`, `direct=False`, default) and `host_reason` asserts the three
+  agree before returning — round 128's bug was one such site silently
+  missing its check.
+- **`languages/whence/SECURITY.md` untouched**, re-confirmed unchanged: it is
+  round 349 §8's operator escalation, deliberately left by rounds 349-353 and
+  by this one. It is the single entry the automated record-gap check flags,
+  and it is a deliberate escalation rather than a leftover diff.
+- See `knowledge/round-354-whence-v022-the-error-that-names-the-fix.md`.
+
+## Next steps (as of round 354)
+1. **A mandatory statement separator.** `let a = 1 let b = 2` parses today
+   and that laxity is the direct cause of the one machine-written program
+   v0.22 cannot diagnose. It touches `stmt_list` on the host AND the
+   byte-identical parser section shared by `self_host.lang`/`self_eval.lang`,
+   plus a sweep of every example and test for accidental reliance.
+   language(C), and the largest open item this round leaves.
+2. **Decision 32 generalises to USER functions.** A call to `fn f(a: num,
+   b: str)` with the arguments swapped gets a v0.19/v0.20 contract miss that
+   names the field but not the order. Decision 29 already made the two
+   contract ends one rule, so there is a single place to add it — but
+   `_check_params` binds one argument at a time and "would another order
+   fit" needs the whole list, which is a different shape. Not attempted.
+3. **Nothing proves a declared kind is never STRICTER than its handler.**
+   `_BUILTIN_SIGS` is deliberately loose in places (`range` says `num` where
+   the handler wants `int`; `typed`'s `spec` says `str|record` where
+   `_spec_ok` wants more) and the silence rule turns looseness into a no-op —
+   but a declaration tighter than its handler would suppress a legitimate
+   miss's clause forever, silently. A test that feeds each builtin a value of
+   every declared kind and asserts no kind-rejection would close it.
+4. **A differential over EVERY guest-constructed miss reason.** The three
+   divergences found this round came from comparing four messages nobody had
+   compared; the guest builds reasons at roughly two dozen sites. This is the
+   natural successor to round 350's lexer differential and would likely find
+   more. language(C).
+5. **`test_spec_builtins.py`'s round-349 source-greps are now redundant** and
+   should be dropped by a future round —
+   `test_the_function_first_asymmetry_is_read_off_the_declaration` asserts the
+   same fact against the registry. Left in place this round on purpose (see
+   the entry above).
+6. **No new `examples/*.lang` demonstrates v0.22**, and that is a real gap
+   against this track's "all examples must run" habit: every error v0.22
+   improves belongs to a program that does not run, so a demonstration would
+   have to exit nonzero. The demonstrations are in `tests/test_v22.py`
+   instead. A future round could add an example that *catches* the misses as
+   values (`reasons(fold(nums, 0, f))`) and checks the text, which would run
+   green.
+7. `harness/swe/regiontools.py` is still deliberately un-unified with
+   `EditFileTool` (round 307's item 2). **Not re-derived this round** — round
+   351 read it directly and this round touched neither file.
+8. Round 301's item 2 (blocking-wait mitigation design sketch) remains
+   speculative — 19 carries deep, and no round entry in this file claims to
+   have produced the sketch. **Not re-derived**; carried on round 353's own
+   re-derivation.
+9. Round 353's items 1, 2, 3 and 5 (re-running round 137's 260 mutants on a
+   second host; `scoreaudit`'s blindness to a pre-existing failing test; the
+   nine archived reports that can never acquire a baseline; the
+   `param_erasure` oracle) are SWE-loop(D)'s and untouched by this round.
+10. `languages/whence/SECURITY.md` is still uncommitted and still escalated
+    to the operator (round 349 §8: four asserted security controls that do
+    not exist, plus a deleted authorship attribution). Re-confirmed untouched
+    in the working tree by rounds 350, 351, 352, 353 and 354. **Fifth
+    consecutive round.** Not this track's to decide.
+11. `languages/whence/pyproject.toml` — the untracked gateway file whose
+    duplicate `[project.optional-dependencies]` table took round 348's whole
+    suite down — is currently VALID TOML again. The owning system fixed it;
+    no round did. `pytest.ini` + `-c` (round 349) is what makes the suite
+    independent of it either way, and should stay.
+
 ## Next steps (as of round 353)
 1. **Re-run round 137's 260 no-evidence mutants on a host where the archived
    suite is green.** The script and the four refused baselines are in

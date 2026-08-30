@@ -1,12 +1,17 @@
 # Whence — a provenance-first language
 
-*Spec level: **v0.20** (round 348). The `## vN` sections below are the
+*Spec level: **v0.22** (round 354). The `## vN` sections below are the
 authoritative version list and each names the round that built it; this
 line deliberately no longer enumerates rounds, because the enumeration it
 replaced had said "v0.16.6 + v0.14.2" since round 266 while the file went
 on to document v0.17, v0.18, v0.19 and v0.20 — a header asserting a number
 no round re-executes, which is the rot class round 321 item 14 named and
-round 345's `xref_check.py` was built for.*
+round 345's `xref_check.py` was built for. Round 348 wrote that sentence
+and the sentence rotted in ONE round: round 350 added `## v0.21` and left
+the header saying v0.20, so round 354 arrived to find it two levels stale.
+A better sentence was never the fix. `tests/test_v22.py::
+test_spec_level_header_matches_the_highest_version_section` is, and it is
+what keeps this line true from here on.*
 
 **One idea:** every value remembers where it came from. `why x` returns the
 derivation tree of `x` as a first-class value. Failures are values too, so a
@@ -220,6 +225,25 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    specified AGAINST. Strings and comments are untouched; they hold any
    character, because nothing about them requires the guest to enumerate
    anything.
+32. **An error that can name the fix, names it (v0.22, round 354).**
+   Decision 2 promises a failure that "can tell you *why*", and every
+   version since has read that as *name the symptom precisely*. v0.22 adds
+   the other half: where the language can compute what the author should
+   have WRITTEN, the error says that too. Two surfaces, one rule.
+   (a) A builtin whose argument is the wrong KIND re-checks the arguments
+   it was actually given against its declared signature in every other
+   order, and if any order fits, appends `(arguments fit fold(fn, acc,
+   xs))`. (b) A parse error that recognises a mainstream construct Whence
+   deliberately does not have names the Whence spelling instead:
+   assignment (`x = 2`), an unbraced branch, a `{a: 1}` record literal, a
+   `rescue { }` block, and two adjacent names. Both halves are SILENT
+   unless the cure is computed, never guessed — the builtin half says
+   nothing when the given order already satisfies the declared kinds
+   (which means the miss is about something the kinds do not model), and
+   the parser half fires only on token patterns the grammar cannot
+   otherwise produce. The evidence for the second half is measured rather
+   than assumed: of ten machine-written Whence programs that fail to
+   parse, ONE named a cure before v0.22 and NINE do after.
 
 ## Syntax (statements are newline-separated; `#` comments)
 ```
@@ -3289,10 +3313,16 @@ so precisely (`miss: fold needs a list, got <fn>`). Written the documented
 way it folds inline lambdas and named functions alike. The signature was
 never wrong; it was never written down.
 
-Argument names below are the interpreter's own (`whence/interp.py`'s
-`@register` handlers); `tests/test_spec_builtins.py` machine-checks every
-arity in this table against that registry, so the table cannot drift from
-the code the way the old list drifted from nothing.
+Argument names below are the interpreter's own, and since **v0.22** they
+are a DECLARATION rather than a reading: `register(name, arity, sig)`
+(`whence/interp.py`) records each builtin's parameter names and argument
+kinds in `_BUILTIN_SIGS`, because `_order_hint` needs them at run time —
+and `tests/test_spec_builtins.py` machine-checks this table's arities AND
+its argument lists against that same declaration. Round 349 could only
+check the two things the registry knew (the name and the arity), so the
+column that had actually caused the bug report — the parameter ORDER —
+was still unchecked prose: `fold(fn, acc, xs)` could have been written
+`fold(acc, fn, xs)` here and every test would have passed.
 
 | builtin | signature | notes |
 | --- | --- | --- |
@@ -3347,13 +3377,24 @@ an explicit `{ ... }` block. There is no single-statement form.
 
 ```
 if x > 3 { print("big") } else { print("small") }   # ok
-if x > 3 print("big")                               # error: expected '{',
-                                                    # got 'print' at line 2, col 10
+if x > 3 print("big")                               # error, v0.22 wording:
+#   expected '{', got 'print' (blocks are always braced:
+#   `if c { a } else { b }`, `fn f(x) { x }`) at line 2, col 10
 ```
 
 This is not a v0.19 tightening — it is how the grammar has always read, and
 the parser has always said so in those words. The rule holds for `fn`
-bodies and `while` bodies too.
+bodies too. *(Round 349's sentence here also said "and `while` bodies";
+Whence has no `while` — `lexer.KEYWORDS` is 14 words and that is not one of
+them, and `while i < 3 { i }` is not even a parse error: it parses as
+THREE statements — `while`, `i < 3`, `{ i }` — of which the first is an
+unbound name. Corrected round 354.)*
+
+**v0.22** appends the rule itself to the message, which is what the block
+above now shows. The operator's report also asked whether older scripts
+should be auto-fixed for this rule; see `## v0.22` for the measurement that
+answered it (of ten machine-written programs that fail to parse, the braces
+rule is two of them).
 
 ## Limits that are errors, not crashes
 - Expression nesting deeper than 60 levels (parentheses, prefix operators,
@@ -4679,3 +4720,206 @@ regression corpus, and v0.21's job was to make the guest agree with the
 host, not to relitigate what the host does. And it does not touch the
 PARSER's own host/guest parity, which has its own differential
 (`tests/test_parser_differential.py`) and its own history.
+
+## v0.22 (round 354, language C) — an error that can name the fix, names it
+
+Decision 32. Two surfaces, one rule, and both of them exist because of a
+single operator bug report against v0.19 that round 349 answered *as
+documentation* and this round finishes *as language*.
+
+### The report, and what was left of it
+
+> `fold()` returns Miss instead of calculated values when using inline
+> lambdas or external functions. … The parser requires explicit `{}` blocks
+> for all if/else branches in v0.19. Document this strictly and consider
+> auto-fixing older scripts.
+
+Round 349 established that neither half was a defect. `fold(nums, 0,
+fn(acc, x) {...})` misses because Whence's higher-order builtins take the
+FUNCTION FIRST, and the braces rule is how the grammar has always read. It
+wrote the `## Builtins` signature table and `### Blocks are always braced`,
+and it pinned both (`tests/test_spec_builtins.py`).
+
+What it could not do from the harness track is the part that is the
+language's own job. In both halves the interpreter knew the cure and said
+only the symptom:
+
+```
+fold needs a list, got <fn>                  # true. now what?
+expected '{', got 'print' at line 2, col 10  # true. now what?
+```
+
+That is decision 2's promise ("unlike NaN it can tell you *why*") read at
+half strength for twenty-two versions.
+
+### (a) The builtin half — `(arguments fit fold(fn, acc, xs))`
+
+Every builtin now declares its parameter names and argument kinds:
+
+```python
+@register("fold", 3, "fn:fn, acc, xs:list")
+@register("push", 2, "xs:list, x")
+@register("guess", 3, "value, conf:num, source:str")
+```
+
+A bare name is kind `any`; `name:tag` constrains a position to one
+`_kind()` tag and `name:a|b` to a union. `sig` is a REQUIRED positional
+argument of `register`, so a builtin added later cannot quietly opt out.
+
+When a handler rejects an argument for its kind, `_order_hint(name, args)`
+re-checks the arguments the caller actually supplied against the
+declaration in every other order. If any order fits, the reason gains a
+clause:
+
+```
+fold needs a list, got <fn> (arguments fit fold(fn, acc, xs)) (line 2)
+push needs a list, got 7 (arguments fit push(xs, x)) (line 1)
+guess confidence must be a number between 0 and 1, got "src"
+  (arguments fit guess(value, conf, source)) (line 1)
+```
+
+**EXISTENCE, not uniqueness.** The sentence claims that the arguments fit
+the signature in *some* order and then names the signature — true as soon
+as one order fits, and its text does not depend on which one. An earlier
+draft demanded a unique fitting order on the reflex that ambiguous advice
+is bad advice; but the advice IS the signature, which is the same string
+for every fitting order, so uniqueness would only have suppressed hints
+without making any surviving hint truer. `guess("s", 1, 2)` fits in two
+orders and gets the clause.
+
+**The three silences are the load-bearing half.** No clause when: there is
+no declared signature for that argument count (an ARITY error is a
+different, already-precise miss); there are fewer than two arguments; or
+**the given order already satisfies the declared kinds** — which means the
+miss is about something the kinds do not model (`filter`'s predicate
+returning a non-bool, a confidence outside [0, 1], a record that is not a
+well-formed `typed` spec) and reordering would not help. That last case is
+what stops the clause being pasted onto misses it does not explain, and it
+is why `_order_hint` is self-guarding rather than needing a whitelist of
+call sites.
+
+The clause does NOT promise the reordered call succeeds — `fold(fn, acc,
+xs)` with a callback that misses still misses. It promises exactly what was
+checked: the kinds line up that way.
+
+A `guess`-wrapped list is kind `guess`, not `list`, so
+`map(f, guess(xs, 0.9, "s"))` gets no clause. Correct: v0.15 is
+deliberately shallow and the cure there is `sure()`, not reordering.
+
+**The declaration pays for itself twice.** `tests/test_spec_builtins.py`
+now checks this document's argument NAMES against `_BUILTIN_SIGS`, not just
+its arities — and round 349's `assert "fn, acc, xs = args" in src`, a grep
+for a local-variable assignment because there was nothing better to read,
+becomes an assertion about the thing the interpreter actually uses.
+
+### (b) The parser half — five hints, chosen by measurement
+
+The operator asked whether to auto-fix older scripts for the braces rule.
+The scripts exist: ten machine-written Whence programs sit untracked in
+`examples/` (a separate system's output — `state/known-standing-dirty-
+paths.json`). All ten fail to parse. Measured before deciding:
+
+| cause | files | before v0.22 | after |
+| --- | --- | --- | --- |
+| unbraced `if`/`else`/`fn` body | 2 | bare | hint |
+| `if` without `else` | 1 | already named its cure | unchanged |
+| `x = 2` assignment | 1 | bare | hint |
+| `rescue { } catch` block | 2 | bare | hint |
+| `{a: 1}` record literal | 1 | bare | hint |
+| two adjacent names | 3 | bare | 2 hint, 1 bare |
+
+Six distinct causes; the braces rule is TWO of them. Auto-fixing braces
+would have repaired a fifth of the corpus and left the rest failing with
+errors that still named no cure. But every one of the six is the same
+underlying mistake in different clothes — the author reached for a
+mainstream construct Whence deliberately does not have — so the answer was
+to make the errors teach:
+
+```
+unexpected '=' (Whence has no assignment; a name binds once
+  — write `let name = value`) at line 2, col 3
+unexpected ':' (records are written `@{a: 1}`, not `{a: 1}`) at line 1, col 11
+unexpected 'rescue' (`rescue` is infix: `risky rescue fallback`) at line 1, col 9
+expected ], got 'Unit' (two names in a row: Whence has no juxtaposition
+  — a call is `f(x)` and text must be quoted) at line 1, col 20
+```
+
+**One of ten is still bare, and the reason is a grammar property, not a
+missing hint.** `let d = f one, two` cannot be diagnosed at the mistake
+because the parser ACCEPTS it: Whence statements need no separator, so
+`let d = f` and `one` are two complete statements on one line and the error
+surfaces three tokens later at the `,`, where the adjacency is no longer
+visible. The two juxtaposition cases that ARE hinted happen inside brackets,
+where the statement rule cannot swallow them. Pinned as a known property
+(`test_the_tenth_is_a_statement_separator_laxity_not_a_missing_hint`), not
+fixed: a mandatory statement separator is a real grammar change with its own
+guest-parity obligations and belongs to its own round.
+
+Two rules deserve their exactness noted. The `{a: 1}` case is caught by a
+two-token lookahead in `block()` — a block statement can never begin
+`NAME :` or `STRING :`, so the pattern identifies a record literal missing
+its `@` unambiguously, and without it the error lands on the `:` two tokens
+past the actual mistake. And the juxtaposition rule excepts exactly one
+word: `shape` is a SOFT keyword (`lexer.KEYWORDS` has 14 words and it is
+not one of them), so `shape Foo` is the grammar's one legal `NAME NAME`.
+
+**The parser half needs no guest mirror**, and that is established rather
+than assumed. Host parse errors are exceptions carrying line AND column;
+guest parse errors are `miss` values carrying a line only, and the two have
+never used the same words (`unexpected '=' at line 2, col 3` vs `unexpected
+token '=' at line 2`). Adding a clause to one cannot create a divergence
+where there was never an agreement — pinned by
+`test_parse_error_wording_is_not_a_guest_contract`, so a future round that
+DOES make them agree finds this decision instead of rediscovering it.
+
+### Guest parity for the builtin half, and three bugs it found
+
+`self_eval.lang` re-implements `map`/`filter`/`fold`/`find` (everything else
+is delegated to the host, which appends its own clause, so parity there is
+free). Mirroring `_order_hint` in Whence is decision 31 in the small: the
+host enumerates orderings with `itertools.permutations`, the four mirrored
+builtins take two or three arguments, and two and three arguments have two
+and six orderings, so the guest lists them. The one subtlety is that a
+guest closure IS a record under the hood, so the kind test must use the
+existing `guest_kind` (callable before record) and not `shapeof`.
+
+Writing the wording differential found **three pre-existing divergences**
+that no test could have caught, because the ordinary corpus differential
+exempts miss reasons by design (round 17):
+
+1. `fold`/`map`/`filter`/`find`'s "needs a list" miss rendered a callable
+   with `str(strip(...))`, dumping the guest's own closure record —
+   `@{__tag: "closure", body: @{…}, env: ["f1", "f0"], name: "(anonymous)",
+   …}` — where the host says `<fn>`. Round 156 wrote `show_callable`
+   for exactly this class and it never reached these four sites, so the
+   guest leaked its evaluator's internals into a message about the user's
+   program.
+2. `filter predicate must return true/false` — the guest dropped the
+   host's `, got 5`.
+3. `find predicate must return true/false` — same.
+
+All three predate this round (verified against the committed tree) and are
+fixed here.
+
+### Measured
+
+```
+languages/whence  pytest tests/            1191 passed, 54 deselected
+                                           (350/351 baseline 1137, +54)
+                  run.py examples/self_eval.lang   142 passed, 0 failed
+                  run.py examples/self_host.lang   109 passed, 0 failed
+tests/test_v22.py                          53 passed (1 whence_slow)
+machine-written corpus                     1/10 named a cure -> 9/10
+```
+
+### What this deliberately does NOT do
+
+It does not make the hint a separate value or provenance field: the clause
+rides on the miss's REASON, exactly as v0.20's field clause does, so it
+reaches `reasons`, `why`, `blame` and a failing `check` report with no new
+surface and the miss's provenance INPUTS are untouched (round 347 put
+`fold`'s accumulator back into them and this must not undo that). It does
+not add kinds to one-argument builtins, whose declaration is a name only —
+there is no other order for one argument, so a kind there would be an
+assertion nothing executes. It does not require a statement separator. And
+it does not touch `matches`, which returns a bool and has no message.

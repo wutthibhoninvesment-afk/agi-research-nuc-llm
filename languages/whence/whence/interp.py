@@ -63,6 +63,7 @@ from .values import (
 )
 import operator
 import re
+from itertools import permutations as _permutations
 
 # numeric binary operators (both operands int/float, never bool): the hot
 # path of `binop`; `/` and `%` still check for a zero divisor first
@@ -2107,6 +2108,107 @@ def _kind(payload):
     return "value"
 
 
+# --- v0.22: argument-order hints -----------------------------------------
+#
+# Round 349 answered an operator bug report against v0.19 — "`fold()` returns
+# Miss instead of calculated values when using inline lambdas or external
+# functions" — by writing SPEC.md's builtin signature table. The report was
+# a documentation gap: the call was `fold(nums, 0, fn(acc, x) {...})` and
+# Whence's higher-order builtins take the FUNCTION FIRST. The interpreter's
+# miss was already exact about the SYMPTOM (`fold needs a list, got <fn>`)
+# and still left the reader to find the CURE by reading this file.
+#
+# v0.22 closes that half at the source. Every builtin declares its parameter
+# names and its argument kinds (`register(..., sig="fn:fn, acc, xs:list")`);
+# when a wrong-kind miss is raised and SOME reordering of the arguments the
+# caller actually supplied would satisfy those kinds, the reason names the
+# signature that fits. Decision 30 (v0.20) made a type miss name the FIELD
+# that broke it; this makes an argument miss name the CALL that would work.
+
+_BUILTIN_SIGS = {}      # name -> ((param_name, kinds | None), ...)
+
+
+def _parse_sig(text):
+    """`"fn:fn, acc, xs:list"` -> `(("fn", ("fn",)), ("acc", None),
+    ("xs", ("list",)))`.
+
+    A bare name declares kind ANY (None — the position accepts anything the
+    handler accepts); `name:tag` constrains it to one `_kind()` tag and
+    `name:a|b` to a union of them. Nothing here is a type system: the tags
+    exist so a REJECTED call can be re-checked in another order, and a
+    position whose handler enforces something `_kind` cannot see (a
+    confidence in [0,1], a well-formed type spec) is deliberately left
+    `any` so the hint never claims more than it checked."""
+    out = []
+    for part in text.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if ":" in part:
+            pname, kinds = part.split(":", 1)
+            out.append((pname.strip(), tuple(k.strip()
+                                             for k in kinds.split("|"))))
+        else:
+            out.append((part, None))
+    return tuple(out)
+
+
+def _sig_fits(sig, payloads):
+    """Whether `payloads`, in this order, satisfy every declared kind."""
+    if len(sig) != len(payloads):
+        return False
+    for (_, kinds), p in zip(sig, payloads):
+        if kinds is not None and _kind(p) not in kinds:
+            return False
+    return True
+
+
+def _sig_text(name):
+    """`"fold(fn, acc, xs)"` — the declared signature, rendered."""
+    sig = _BUILTIN_SIGS.get(name)
+    if sig is None:
+        return name + "(...)"
+    return "%s(%s)" % (name, ", ".join(pname for pname, _ in sig))
+
+
+def _order_hint(name, args):
+    """The v0.22 clause — `" (arguments fit fold(fn, acc, xs))"` or `""`.
+
+    EXISTENCE, not uniqueness. The sentence claims only that the arguments
+    the caller supplied fit the declared signature in SOME order, and then
+    names that signature; that claim is true as soon as one reordering
+    fits, and its text does not depend on which one fits. (An earlier draft
+    demanded a UNIQUE fitting order, on the reflex that ambiguous advice is
+    bad advice — but the advice here is the signature, which is the same
+    string for every fitting order, so uniqueness would have suppressed
+    hints without making any surviving hint truer.)
+
+    Silent in three cases, each on purpose:
+      - no declared sig, or an argument count the sig does not cover (a
+        builtin called at the wrong ARITY is a different, already-precise
+        miss);
+      - fewer than two arguments — there is no other order;
+      - the given order already fits the declared kinds, which means this
+        miss is about something the kinds do not model (`filter`'s
+        predicate returning a non-bool, a confidence out of range), not
+        about order. This case is what keeps the clause from being pasted
+        onto misses it does not explain.
+
+    The hint does NOT promise the reordered call succeeds — `fold(fn, acc,
+    xs)` with a callback that misses still misses. It promises exactly what
+    it checked: the kinds line up that way."""
+    sig = _BUILTIN_SIGS.get(name)
+    if sig is None or len(sig) != len(args) or len(args) < 2:
+        return ""
+    payloads = [a.payload for a in args]
+    if _sig_fits(sig, payloads):
+        return ""
+    for cand in _permutations(payloads):
+        if _sig_fits(sig, cand):
+            return " (arguments fit %s)" % _sig_text(name)
+    return ""
+
+
 def _spec_ok(spec):
     """Whether `spec` is a usable `typed`/`matches` type spec ALL THE WAY
     DOWN: a primitive tag string, or a Record whose every non-`__shape`
@@ -2577,18 +2679,25 @@ def _install_builtins(env):
 def _make_builtin_table():
     table = []
 
-    def register(name, arity):
+    def register(name, arity, sig):
+        # `sig` (v0.22) is the parameter list as documented in SPEC.md's
+        # builtin table: names, plus the argument kinds an out-of-order
+        # call is re-checked against by `_order_hint`. It is REQUIRED, not
+        # optional, so a builtin added later cannot quietly opt out of the
+        # SPEC table's machine-check (`tests/test_spec_builtins.py`).
+        _BUILTIN_SIGS[name] = _parse_sig(sig)
+
         def wrap(fn):
             table.append((name, Builtin(name, arity, fn)))
             return fn
         return wrap
 
-    @register("print", 1)
+    @register("print", 1, "v")
     def b_print(interp, args, line):
         interp._out(full_show(args[0].payload))
         return args[0]  # pass-through: print(x) is x
 
-    @register("rand", 0)
+    @register("rand", 0, "")
     def b_rand(interp, args, line):
         # v0.14.8: the second effectful builtin (tag "random", distinct
         # from print's "io") — a float in [0.0, 1.0) drawn from this
@@ -2596,7 +2705,7 @@ def _make_builtin_table():
         # input provenance) exactly like a literal.
         return leaf("rand", "", line, interp._rng.random())
 
-    @register("len", 1)
+    @register("len", 1, "v")
     def b_len(interp, args, line):
         m = _propagate("len", args, line)
         if m:
@@ -2609,7 +2718,7 @@ def _make_builtin_table():
         return mk_miss("len of %s" % show_payload(p), line, "len",
                        inputs=(args[0],))
 
-    @register("range", (1, 2))
+    @register("range", (1, 2), "lo:num, hi:num")
     def b_range(interp, args, line):
         m = _propagate("range", args, line)
         if m:
@@ -2625,29 +2734,32 @@ def _make_builtin_table():
         return derived("range", "%d..%d" % (lo, hi), line,
                        tuple(args), wlist(items))
 
-    @register("map", 2)
+    @register("map", 2, "fn:fn, xs:list")
     def b_map(interp, args, line):
         m = _propagate("map", args, line)
         if m:
             return m
         fn, xs = args
         if not isinstance(xs.payload, WList):
-            return mk_miss("map needs a list, got %s" % show_payload(xs.payload),
+            return mk_miss("map needs a list, got %s%s" %
+                           (show_payload(xs.payload),
+                            _order_hint("map", args)),
                            line, "map", inputs=(fn, xs))
         out = []
         for x in xs.payload:
             out.append((yield _Call(fn, [x], line)))
         return derived("map", "", line, (xs,), wlist(out))
 
-    @register("filter", 2)
+    @register("filter", 2, "fn:fn, xs:list")
     def b_filter(interp, args, line):
         m = _propagate("filter", args, line)
         if m:
             return m
         fn, xs = args
         if not isinstance(xs.payload, WList):
-            return mk_miss("filter needs a list, got %s" %
-                           show_payload(xs.payload), line, "filter",
+            return mk_miss("filter needs a list, got %s%s" %
+                           (show_payload(xs.payload),
+                            _order_hint("filter", args)), line, "filter",
                            inputs=(fn, xs))
         out = []
         for x in xs.payload:
@@ -2663,7 +2775,7 @@ def _make_builtin_table():
                 out.append(x)
         return derived("filter", "", line, (xs,), wlist(out))
 
-    @register("fold", 3)
+    @register("fold", 3, "fn:fn, acc, xs:list")
     def b_fold(interp, args, line):
         m = _propagate("fold", args, line)
         if m:
@@ -2682,7 +2794,9 @@ def _make_builtin_table():
             # mirroring the SUCCESS node's `(final accumulator, list)` two
             # lines below, so the guest was right and the host was the odd
             # one out. See knowledge/round-347-*.md.
-            return mk_miss("fold needs a list, got %s" % show_payload(xs.payload),
+            return mk_miss("fold needs a list, got %s%s" %
+                           (show_payload(xs.payload),
+                            _order_hint("fold", args)),
                            line, "fold", inputs=(fn, acc, xs))
         n = 0
         for x in xs.payload:
@@ -2694,24 +2808,26 @@ def _make_builtin_table():
         return derived("fold", "%d items" % n, line, (acc, xs),
                        acc.payload)
 
-    @register("push", 2)
+    @register("push", 2, "xs:list, x")
     def b_push(interp, args, line):
         xs, x = args
         if _is_miss(xs):
             return merge_miss("push", "", line, args)
         if not isinstance(xs.payload, WList):
-            return mk_miss("push needs a list, got %s" % show_payload(xs.payload),
+            return mk_miss("push needs a list, got %s%s" %
+                           (show_payload(xs.payload),
+                            _order_hint("push", args)),
                            line, "push", inputs=(xs, x))
         return derived("push", "", line, (xs, x), xs.payload.push(x))
 
-    @register("str", 1)
+    @register("str", 1, "v")
     def b_str(interp, args, line):
         # Deliberately total: works on misses ("miss: ...") and explanations
         # (rendered tree) so programs can report and introspect them.
         return derived("str", "", line, (args[0],),
                        full_show(args[0].payload))
 
-    @register("num", 1)
+    @register("num", 1, "text")
     def b_num(interp, args, line):
         m = _propagate("num", args, line)
         if m:
@@ -2736,7 +2852,7 @@ def _make_builtin_table():
         return mk_miss("num of %s" % show_payload(p), line, "num",
                        inputs=(args[0],))
 
-    @register("abs", 1)
+    @register("abs", 1, "n")
     def b_abs(interp, args, line):
         m = _propagate("abs", args, line)
         if m:
@@ -2747,7 +2863,7 @@ def _make_builtin_table():
         return mk_miss("abs of %s" % show_payload(p), line, "abs",
                        inputs=(args[0],))
 
-    @register("sqrt", 1)
+    @register("sqrt", 1, "n")
     def b_sqrt(interp, args, line):
         m = _propagate("sqrt", args, line)
         if m:
@@ -2765,7 +2881,7 @@ def _make_builtin_table():
             return mk_miss("number too large for float arithmetic", line,
                            "sqrt", inputs=(args[0],))
 
-    @register("trunc", 1)
+    @register("trunc", 1, "n")
     def b_trunc(interp, args, line):
         # v0.17: closes round 294's own "rand(lo, hi) not yet justified"
         # backlog item by fixing the REAL blocker — no builtin could ever
@@ -2803,28 +2919,29 @@ def _make_builtin_table():
             return mk_miss("number too large for float arithmetic", line,
                            "trunc", inputs=(args[0],))
 
-    @register("missed", 1)
+    @register("missed", 1, "v")
     def b_missed(interp, args, line):
         return derived("missed", "", line, (args[0],),
                        isinstance(args[0].payload, Miss))
 
-    @register("reasons", 1)
+    @register("reasons", 1, "v")
     def b_reasons(interp, args, line):
         p = args[0].payload
         rs = list(p.reasons) if isinstance(p, Miss) else []
         items = [leaf("reason", "", line, r) for r in rs]
         return derived("reasons", "", line, (args[0],), wlist(items))
 
-    @register("note", 2)
+    @register("note", 2, "label:str, v")
     def b_note(interp, args, line):
         label, v = args
         if not isinstance(label.payload, str):
-            return mk_miss("note label must be a string, got %s" %
-                           show_payload(label.payload), line, "note",
+            return mk_miss("note label must be a string, got %s%s" %
+                           (show_payload(label.payload),
+                            _order_hint("note", args)), line, "note",
                            inputs=(label, v))
         return derived("note", label.payload, line, (v,), v.payload)
 
-    @register("contains", 2)
+    @register("contains", 2, "hay:str|list, needle")
     def b_contains(interp, args, line):
         hay, needle = args
         m = _propagate("contains", args, line)
@@ -2841,18 +2958,19 @@ def _make_builtin_table():
                     return derived("contains", "", line,
                                    (hay, needle), True)
             return derived("contains", "", line, (hay, needle), False)
-        return mk_miss("contains needs a string or list, got %s" %
-                       show_payload(h), line, "contains",
-                       inputs=(hay, needle))
+        return mk_miss("contains needs a string or list, got %s%s" %
+                       (show_payload(h), _order_hint("contains", args)),
+                       line, "contains", inputs=(hay, needle))
 
-    @register("join", 2)
+    @register("join", 2, "xs:list, sep:str")
     def b_join(interp, args, line):
         m = _propagate("join", args, line)
         if m:
             return m
         xs, sep = args
         if not isinstance(xs.payload, WList) or not isinstance(sep.payload, str):
-            return mk_miss("join needs (list, string)", line, "join",
+            return mk_miss("join needs (list, string)%s" %
+                           _order_hint("join", args), line, "join",
                            inputs=(xs, sep))
         parts = []
         for x in xs.payload:
@@ -2866,7 +2984,7 @@ def _make_builtin_table():
         return derived("join", "", line, (xs, sep),
                        sep.payload.join(parts))
 
-    @register("keys", 1)
+    @register("keys", 1, "r")
     def b_keys(interp, args, line):
         m = _propagate("keys", args, line)
         if m:
@@ -2878,7 +2996,7 @@ def _make_builtin_table():
         items = [leaf("key", "", line, k) for k in sorted(p.fields)]
         return derived("keys", "", line, (args[0],), wlist(items))
 
-    @register("merge", 2)
+    @register("merge", 2, "a:record, b:record")
     def b_merge(interp, args, line):
         m = _propagate("merge", args, line)
         if m:
@@ -2897,20 +3015,21 @@ def _make_builtin_table():
     # helper, same pass-through, same miss wordings); `put(r, n, v)` is
     # `merge(r, @{n: v})` with a dynamic key.
 
-    @register("get", 2)
+    @register("get", 2, "r:record, name:str")
     def b_get(interp, args, line):
         r, name = args
         if _is_miss(name):
             return merge_miss("get", "", line, (name, r))
         if not isinstance(name.payload, str):
-            return mk_miss("get field name must be a string, got %s" %
-                           show_payload(name.payload), line, "get",
+            return mk_miss("get field name must be a string, got %s%s" %
+                           (show_payload(name.payload),
+                            _order_hint("get", args)), line, "get",
                            inputs=(r, name))
         # r's own miss / non-record / absent-field cases are _field's,
         # so get(r, "a") and r.a are indistinguishable, node for node.
         return _field(r, name.payload, line)
 
-    @register("has", 2)
+    @register("has", 2, "r:record, name:str")
     def b_has(interp, args, line):
         # Presence, not readability: has(r, n) is true even when the field's
         # VALUE is a miss (get would pass that miss through). This is the
@@ -2921,17 +3040,19 @@ def _make_builtin_table():
             return m
         r, name = args
         if not isinstance(r.payload, Record):
-            return mk_miss("has needs a record, got %s" %
-                           show_payload(r.payload), line, "has",
+            return mk_miss("has needs a record, got %s%s" %
+                           (show_payload(r.payload),
+                            _order_hint("has", args)), line, "has",
                            inputs=(r, name))
         if not isinstance(name.payload, str):
-            return mk_miss("has field name must be a string, got %s" %
-                           show_payload(name.payload), line, "has",
+            return mk_miss("has field name must be a string, got %s%s" %
+                           (show_payload(name.payload),
+                            _order_hint("has", args)), line, "has",
                            inputs=(r, name))
         return derived("has", name.payload, line, (r, name),
                        name.payload in r.payload.fields)
 
-    @register("put", 3)
+    @register("put", 3, "r:record, name:str, v")
     def b_put(interp, args, line):
         r, name, v = args
         # v may itself be a miss (records hold misses, like literals do);
@@ -2940,25 +3061,28 @@ def _make_builtin_table():
         if m:
             return m
         if not isinstance(r.payload, Record):
-            return mk_miss("put needs a record, got %s" %
-                           show_payload(r.payload), line, "put",
+            return mk_miss("put needs a record, got %s%s" %
+                           (show_payload(r.payload),
+                            _order_hint("put", args)), line, "put",
                            inputs=(r, name, v))
         if not isinstance(name.payload, str):
-            return mk_miss("put field name must be a string, got %s" %
-                           show_payload(name.payload), line, "put",
+            return mk_miss("put field name must be a string, got %s%s" %
+                           (show_payload(name.payload),
+                            _order_hint("put", args)), line, "put",
                            inputs=(r, name, v))
         new_map = r.payload.fields.put(name.payload, v)
         return derived("put", name.payload, line, (r, v), Record(new_map))
 
-    @register("find", 2)
+    @register("find", 2, "fn:fn, xs:list")
     def b_find(interp, args, line):
         m = _propagate("find", args, line)
         if m:
             return m
         fn, xs = args
         if not isinstance(xs.payload, WList):
-            return mk_miss("find needs a list, got %s" %
-                           show_payload(xs.payload), line, "find",
+            return mk_miss("find needs a list, got %s%s" %
+                           (show_payload(xs.payload),
+                            _order_hint("find", args)), line, "find",
                            inputs=(fn, xs))
         for x in xs.payload:
             keep = yield _Call(fn, [x], line)
@@ -2990,15 +3114,16 @@ def _make_builtin_table():
     # property that made the erasure work in the first place: a mismatch is
     # an ordinary miss that propagates like any other bad input.
 
-    @register("typed", 3)
+    @register("typed", 3, "value, spec:str|record, label:str")
     def b_typed(interp, args, line):
         m = _propagate("typed", args, line)
         if m:
             return m
         value, spec, label = args
         if not isinstance(label.payload, str):
-            return mk_miss("typed label must be a string, got %s" %
-                           show_payload(label.payload), line, "typed",
+            return mk_miss("typed label must be a string, got %s%s" %
+                           (show_payload(label.payload),
+                            _order_hint("typed", args)), line, "typed",
                            inputs=(value, spec, label))
         if not _spec_ok(spec.payload):
             # `_spec_ok`, not a bare isinstance: a record spec whose own
@@ -3006,7 +3131,8 @@ def _make_builtin_table():
             # and used to crash `_type_match` instead of missing here
             # (round 335).
             return mk_miss("typed spec must be a type name or a shape, "
-                           "got %s" % show_payload(spec.payload), line,
+                           "got %s%s" % (show_payload(spec.payload),
+                                         _order_hint("typed", args)), line,
                            "typed", inputs=(value, spec, label))
         ok, desc = _type_match(value.payload, spec.payload)
         if ok:
@@ -3015,7 +3141,7 @@ def _make_builtin_table():
                                         spec.payload, desc), line,
                        "typed", label.payload, inputs=(value,))
 
-    @register("matches", 2)
+    @register("matches", 2, "value, spec:str|record")
     def b_matches(interp, args, line):
         # Total, like `missed`: never itself a miss, even on a miss or a
         # malformed spec (both simply do not match).
@@ -3028,7 +3154,7 @@ def _make_builtin_table():
         ok, _ = _type_match(value.payload, spec.payload)
         return derived("matches", "", line, args, ok)
 
-    @register("shapeof", 1)
+    @register("shapeof", 1, "v")
     def b_shapeof(interp, args, line):
         # Total: works on misses too (returns "miss"), like `missed`.
         v = args[0]
@@ -3064,7 +3190,7 @@ def _make_builtin_table():
     # a v0.15 value can flow through *without* being resolved are the
     # arithmetic/comparison/logical-negation operators themselves.
 
-    @register("guess", 3)
+    @register("guess", 3, "value, conf:num, source:str")
     def b_guess(interp, args, line):
         m = _propagate("guess", args, line)
         if m:
@@ -3073,11 +3199,13 @@ def _make_builtin_table():
         c = conf.payload
         if not _is_num(c) or not (0 <= c <= 1):
             return mk_miss("guess confidence must be a number between 0 "
-                           "and 1, got %s" % show_payload(c), line, "guess",
-                           inputs=(value, conf, source))
+                           "and 1, got %s%s" %
+                           (show_payload(c), _order_hint("guess", args)),
+                           line, "guess", inputs=(value, conf, source))
         if not isinstance(source.payload, str):
-            return mk_miss("guess source must be a string, got %s" %
-                           show_payload(source.payload), line, "guess",
+            return mk_miss("guess source must be a string, got %s%s" %
+                           (show_payload(source.payload),
+                            _order_hint("guess", args)), line, "guess",
                            inputs=(value, conf, source))
         if isinstance(value.payload, Guess):
             # flatten rather than nest, same discipline as merge_miss
@@ -3091,13 +3219,13 @@ def _make_builtin_table():
         return Prov("guess", source.payload, line, _slot((value, conf, source)),
                    _LAZY, Guess(node, confidence, sources))
 
-    @register("is_guess", 1)
+    @register("is_guess", 1, "v")
     def b_is_guess(interp, args, line):
         # Total, like `matches`/`missed`: never itself a miss.
         return derived("is_guess", "", line, args,
                        isinstance(args[0].payload, Guess))
 
-    @register("confidence", 1)
+    @register("confidence", 1, "v")
     def b_confidence(interp, args, line):
         m = _propagate("confidence", args, line)
         if m:
@@ -3109,7 +3237,7 @@ def _make_builtin_table():
                            inputs=(v,))
         return derived("confidence", "", line, (v,), v.payload.confidence)
 
-    @register("sure", 2)
+    @register("sure", 2, "v, threshold:num")
     def b_sure(interp, args, line):
         m = _propagate("sure", args, line)
         if m:
@@ -3118,8 +3246,9 @@ def _make_builtin_table():
         t = threshold.payload
         if not _is_num(t) or not (0 <= t <= 1):
             return mk_miss("sure threshold must be a number between 0 "
-                           "and 1, got %s" % show_payload(t), line, "sure",
-                           inputs=(v, threshold))
+                           "and 1, got %s%s" %
+                           (show_payload(t), _order_hint("sure", args)),
+                           line, "sure", inputs=(v, threshold))
         if not isinstance(v.payload, Guess):
             return v      # already certain: sure() is a no-op escape hatch
         g = v.payload
@@ -3133,7 +3262,7 @@ def _make_builtin_table():
     # These are total: they work on misses (that is the point) and accept
     # either a value or `why value`.
 
-    @register("steps", (1, 2))
+    @register("steps", (1, 2), "v, pat:str")
     def b_steps(interp, args, line):
         root = _history_root(args[0])
         if len(args) == 2:
@@ -3141,8 +3270,9 @@ def _make_builtin_table():
             if _is_miss(pat):
                 return merge_miss("steps", "", line, (pat, args[0]))
             if not isinstance(pat.payload, str):
-                return mk_miss("steps needs a string step name, got %s" %
-                               show_payload(pat.payload), line, "steps",
+                return mk_miss("steps needs a string step name, got %s%s" %
+                               (show_payload(pat.payload),
+                                _order_hint("steps", args)), line, "steps",
                                inputs=(root, pat))
             items = [_step_record(n, d, line) for n, d in walk_steps(root)
                      if matches_step(n, pat.payload)]
@@ -3153,14 +3283,15 @@ def _make_builtin_table():
         return derived("steps", "%d steps" % len(items), line, (root,),
                        wlist(items))
 
-    @register("at", 2)
+    @register("at", 2, "v, pat:str")
     def b_at(interp, args, line):
         v, pat = args
         if _is_miss(pat):
             return merge_miss("at", "", line, (pat, v))
         if not isinstance(pat.payload, str):
-            return mk_miss("at needs a string step name, got %s" %
-                           show_payload(pat.payload), line, "at",
+            return mk_miss("at needs a string step name, got %s%s" %
+                           (show_payload(pat.payload),
+                            _order_hint("at", args)), line, "at",
                            inputs=(v, pat))
         root = _history_root(v)
         node = find_step(root, pat.payload)
@@ -3170,7 +3301,7 @@ def _make_builtin_table():
                            inputs=(root, pat))
         return node
 
-    @register("blame", 1)
+    @register("blame", 1, "v")
     def b_blame(interp, args, line):
         root = _history_root(args[0])
         items = [_step_record(n, d, line) for n, d in walk_steps(root)
@@ -3194,7 +3325,7 @@ def _make_builtin_table():
                                  Record(fields)))
         return items
 
-    @register("diverge", (1, 2))
+    @register("diverge", (1, 2), "a, b")
     def b_diverge(interp, args, line):
         if len(args) == 2:
             ra, rb = _history_root(args[0]), _history_root(args[1])
@@ -3220,7 +3351,7 @@ def _make_builtin_table():
                        (len(items), len(runs.value)), line, (runs,),
                        wlist(items))
 
-    @register("contrast", (1, 2))
+    @register("contrast", (1, 2), "a, b")
     def b_contrast(interp, args, line):
         """The two histories side by side, down to each origin of
         divergence (v0.4). A string, so it can be printed or checked.

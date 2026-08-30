@@ -114,6 +114,16 @@ are the only ones nobody re-runs.
   today's finding and changes nothing about the channel. The next cycle will
   copy your corrected line forward without re-deriving it either. Only step 10
   closes it.
+- **Replacing a rotted claim with a better SENTENCE rots faster than the
+  claim did.** Whence's SPEC.md carried a stale version enumeration for ~80
+  cycles; round 348 replaced it with a header that names the level once and
+  explains, in prose, why enumerations rot. Round 350 added a new version
+  section and left the header alone. Round 354 found it two levels stale —
+  **the anti-rot sentence lasted one cycle.** An explanation of the failure
+  mode is still a claim nobody re-runs. Whatever you write in place of a
+  rotted line, ship the re-derivation next to it in the same change: here,
+  a test that parses every version heading and compares the maximum against
+  the header (sorting on the numeric parts, or v0.22 loses to v0.2).
 - **The carry count is the most seductive false comfort in the document.**
   "8th consecutive round carried" reads like diligence — somebody has been
   tracking this. It is the opposite: it is proof that the only field anybody

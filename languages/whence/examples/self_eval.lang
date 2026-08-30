@@ -1841,6 +1841,58 @@ fn box_diverge_record(rec) {
   else { base }
 }
 
+# ---- v0.22 argument-order hints (round 354) ----------------------------
+# Host parity for `_BUILTIN_SIGS` / `_sig_fits` / `_order_hint`
+# (whence/interp.py). Only the four builtins this evaluator re-implements
+# need a mirror; every other builtin is DELEGATED to the host, which
+# appends its own clause to its own miss, so parity there is free.
+#
+# Kinds are the host's `_kind()` tags and `guest_kind` above already
+# mirrors that function exactly — including "callable before record",
+# which matters here more than anywhere else: a guest closure IS a record
+# under the hood, and classifying one as "record" would make
+# `fold(nums, 0, fn(...))` look like an unfittable call and silence the
+# hint the host emits.
+#
+# The host enumerates orderings with `itertools.permutations`; two and
+# three arguments have two and six of them and the four builtins mirrored
+# here take exactly two or three, so the guest lists them. This is
+# decision 31 in the small: the rule the host implements is one the guest
+# can express, and it is expressed here rather than approximated.
+let sig_names = @{map: ["fn", "xs"], filter: ["fn", "xs"],
+                  fold: ["fn", "acc", "xs"], find: ["fn", "xs"]}
+# [] means kind `any` — the host's `None`.
+let sig_kinds = @{map: [["fn"], ["list"]], filter: [["fn"], ["list"]],
+                  fold: [["fn"], [], ["list"]], find: [["fn"], ["list"]]}
+
+fn kind_ok(kinds, v) {
+  if len(kinds) == 0 { true } else { contains(kinds, guest_kind(v)) }
+}
+fn sig_fits(kinds, vals, i) {
+  if i >= len(vals) { true }
+  else if not kind_ok(kinds[i], vals[i]) { false }
+  else { sig_fits(kinds, vals, i + 1) }
+}
+fn perm_indices(n) {
+  if n == 2 { [[0, 1], [1, 0]] }
+  else { [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]] }
+}
+fn any_perm_fits(kinds, vals, ps, i) {
+  if i >= len(ps) { false }
+  else if sig_fits(kinds, map(fn(k) { vals[k] }, ps[i]), 0) { true }
+  else { any_perm_fits(kinds, vals, ps, i + 1) }
+}
+# `vals` are unboxed guest values (`box.v`), matching the host's use of
+# `arg.payload` — the top-level shape is all a kind test can see.
+fn order_hint(name, vals) {
+  let kinds = get(sig_kinds, name)
+  if sig_fits(kinds, vals, 0) { "" }
+  else if not any_perm_fits(kinds, vals, perm_indices(len(vals)), 0) { "" }
+  else {
+    " (arguments fit " + name + "(" + join(get(sig_names, name), ", ") + "))"
+  }
+}
+
 # ---- builtins: delegate to the host on payloads wherever the argument is
 # not a guest function; higher-order builtins re-implement the loop with
 # guest apply so callbacks receive boxes (pass-through provenance).
@@ -1865,7 +1917,9 @@ fn apply_builtin(name, args, st) {
       @{v: mkb(map((args[0]).v, (args[1]).v), "builtin map", args), st: st}
     }
     else if not is_list((args[1]).v) {
-      @{v: mkb(miss ("map needs a list, got " + str(strip(args[1]))),
+      @{v: mkb(miss ("map needs a list, got "
+                     + show_callable(strip(args[1]))
+                     + order_hint("map", [(args[0]).v, (args[1]).v])),
                "map", args),
         st: st}
     }
@@ -1882,7 +1936,9 @@ fn apply_builtin(name, args, st) {
         st: st}
     }
     else if not is_list((args[1]).v) {
-      @{v: mkb(miss ("filter needs a list, got " + str(strip(args[1]))),
+      @{v: mkb(miss ("filter needs a list, got "
+                     + show_callable(strip(args[1]))
+                     + order_hint("filter", [(args[0]).v, (args[1]).v])),
                "filter", args),
         st: st}
     }
@@ -1898,7 +1954,10 @@ fn apply_builtin(name, args, st) {
         st: st}
     }
     else if not is_list((args[2]).v) {
-      @{v: mkb(miss ("fold needs a list, got " + str(strip(args[2]))),
+      @{v: mkb(miss ("fold needs a list, got "
+                     + show_callable(strip(args[2]))
+                     + order_hint("fold", [(args[0]).v, (args[1]).v,
+                                           (args[2]).v])),
                "fold", args),
         st: st}
     }
@@ -1913,7 +1972,9 @@ fn apply_builtin(name, args, st) {
       @{v: mkb(find((args[0]).v, (args[1]).v), "builtin find", args), st: st}
     }
     else if not is_list((args[1]).v) {
-      @{v: mkb(miss ("find needs a list, got " + str(strip(args[1]))),
+      @{v: mkb(miss ("find needs a list, got "
+                     + show_callable(strip(args[1]))
+                     + order_hint("find", [(args[0]).v, (args[1]).v])),
                "find", args),
         st: st}
     }
@@ -2318,7 +2379,8 @@ fn guest_filter(f, xs, i, acc, st) {
     let r = apply(f, [xs[i]], st)
     if missed((r.v).v) { @{v: (r.v).v and true, st: r.st} }
     else if not is_bool((r.v).v) {
-      @{v: miss "filter predicate must return true/false", st: r.st}
+      @{v: miss ("filter predicate must return true/false, got "
+                 + show_callable(strip(r.v))), st: r.st}
     }
     else if (r.v).v { guest_filter(f, xs, i + 1, push(acc, xs[i]), r.st) }
     else { guest_filter(f, xs, i + 1, acc, r.st) }
@@ -2341,7 +2403,8 @@ fn guest_find(f, xs, i, st) {
     let r = apply(f, [xs[i]], st)
     if missed((r.v).v) { @{v: mkb((r.v).v and true, "find", [r.v]), st: r.st} }
     else if not is_bool((r.v).v) {
-      @{v: mkb(miss "find predicate must return true/false", "find", [r.v]),
+      @{v: mkb(miss ("find predicate must return true/false, got "
+                     + show_callable(strip(r.v))), "find", [r.v]),
         st: r.st}
     }
     else if (r.v).v { @{v: xs[i], st: r.st} }

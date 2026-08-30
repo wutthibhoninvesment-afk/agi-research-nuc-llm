@@ -18,6 +18,59 @@ class ParseError(Exception):
         self.col = col
 
 
+# --- v0.22 (round 354): a parse error names the Whence spelling ------------
+#
+# Decision 32 says an error that can name the fix, names it. The builtin
+# half of that lives in `interp.py` (`_order_hint`); this is the parser
+# half, and it exists for the same reason and from the same evidence.
+#
+# The operator's v0.19 report had two halves. The second was "the parser
+# requires explicit `{}` blocks for all if/else branches ... document this
+# strictly and consider auto-fixing older scripts". Round 349 documented
+# it. Round 354 measured the scripts: the ten Whence programs a separate
+# system had left in `examples/` (all machine-written, none tracked by this
+# program) fail to parse for SIX distinct reasons, of which the braces rule
+# is TWO. Auto-fixing braces would have repaired a fifth of them and left
+# the rest failing with errors that still named no cure. Every one of the
+# six is the same mistake in different clothes — the author reached for a
+# mainstream construct Whence deliberately does not have — so the answer is
+# not to rewrite the programs but to make the error say what Whence writes
+# instead.
+#
+# Unlike the interpreter half this needs NO guest mirror: host and guest
+# parse errors are different mechanisms (an exception with line AND column
+# vs a `miss` carrying a line only) and have never agreed on wording —
+# `unexpected '=' at line 2, col 3` vs `unexpected token '=' at line 2`.
+# `tests/test_v22.py::test_parse_error_wording_is_not_a_guest_contract`
+# pins that as a deliberate, pre-existing difference rather than leaving a
+# future round to discover it as a divergence.
+_SYNTAX_HINTS = {
+    # `x = 2`. An `=` is only ever legal directly after the NAME in a
+    # `let`/`fn` header, so an `=` that reaches the primary fallback is
+    # always an attempted assignment.
+    "=": "Whence has no assignment; a name binds once "
+         "\u2014 write `let name = value`",
+    # `rescue { ... } catch ...`, the try/catch shape.
+    "rescue": "`rescue` is infix: `risky rescue fallback`",
+}
+
+_BRACE_HINT = ("blocks are always braced: `if c { a } else { b }`, "
+               "`fn f(x) { x }`")
+_RECORD_HINT = "records are written `@{a: 1}`, not `{a: 1}`"
+_JUXTAPOSE_HINT = ("two names in a row: Whence has no juxtaposition "
+                   "\u2014 a call is `f(x)` and text must be quoted")
+
+# `shape` is a SOFT keyword: the lexer emits NAME for it (only the 14 words
+# in `lexer.KEYWORDS` are KW), so `shape Foo` is the one legal NAME NAME
+# adjacency in the grammar and must not draw the juxtaposition hint.
+# `effects`, the other soft keyword, is always followed by `[`.
+_NAME_INTRODUCERS = ("shape",)
+
+
+def _with_hint(message, hint):
+    return message if hint is None else "%s (%s)" % (message, hint)
+
+
 COMPARE_OPS = ("==", "!=", "<", "<=", ">", ">=")
 
 # Recursive descent costs ~11 host frames per nesting level (60 levels ≈
@@ -311,9 +364,32 @@ class Parser(object):
         tok = self.peek()
         if not self.at(type_, value):
             want = what or (value if value is not None else type_)
-            raise ParseError("expected %s, got %r" % (want, tok.value),
-                             tok.line, tok.col)
+            raise ParseError(
+                _with_hint("expected %s, got %r" % (want, tok.value),
+                           self._expect_hint(want, tok)),
+                tok.line, tok.col)
         return self.next()
+
+    def _expect_hint(self, want, tok):
+        """v0.22: the clause `expect` appends, or None.
+
+        Two rules, both exact rather than heuristic:
+          - anything that wanted a `{` is the braced-block rule, which is
+            the half of the operator's v0.19 report round 349 could only
+            document;
+          - a NAME that failed to match, sitting immediately after another
+            NAME, is juxtaposition — an unquoted string (`[Hardware Unit]`,
+            `print(Calculating total)`) or a paren-less call (`f x`). The
+            adjacency itself is what identifies it, not the token that
+            happened to be expected, which is why this is `)`-and-`]`-proof.
+        """
+        if want == "'{'":
+            return _BRACE_HINT
+        prev = self.tokens[self.pos - 1] if self.pos > 0 else None
+        if (tok.type == "NAME" and prev is not None and prev.type == "NAME"
+                and prev.value not in _NAME_INTRODUCERS):
+            return _JUXTAPOSE_HINT
+        return None
 
     def skip_newlines(self):
         while self.at("NEWLINE"):
@@ -1565,6 +1641,21 @@ class Parser(object):
 
     def block(self):
         open_tok = self.expect("{", what="'{'")
+        # v0.22: `{a: 1}` is a BLOCK whose first statement is the name `a`,
+        # so without this the error lands on the `:` two tokens later and
+        # says "unexpected ':'" — true, useless, and three characters away
+        # from the actual mistake. A block statement can never begin
+        # `NAME :` or `STRING :` (an annotation only appears inside a
+        # parameter list; `check` takes a KEYWORD first), so these two
+        # token pairs identify a record literal missing its `@`
+        # unambiguously.
+        k = 0
+        while self.peek(k).type == "NEWLINE":
+            k += 1
+        nxt, after = self.peek(k), self.peek(k + 1)
+        if nxt.type in ("NAME", "STRING") and after.type == ":":
+            raise ParseError(_with_hint("unexpected ':'", _RECORD_HINT),
+                             after.line, after.col)
         stmts, tail_tag, tail_param = self.stmt_list(end="}")
         close = self.expect("}")
         if not stmts:
@@ -1809,7 +1900,9 @@ class Parser(object):
                 if called_params else None)
             return A.FnExpr(tok.line, params, body, ret_type,
                             param_call_fact, param_types)
-        raise ParseError("unexpected %r" % (tok.value,), tok.line, tok.col)
+        raise ParseError(
+            _with_hint("unexpected %r" % (tok.value,),
+                       _SYNTAX_HINTS.get(tok.value)), tok.line, tok.col)
 
     def if_expr(self):
         tok = self.expect("KW", "if")

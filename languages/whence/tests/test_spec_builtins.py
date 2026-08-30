@@ -16,6 +16,16 @@ a builtin without touching SPEC.md is a test failure rather than a silent
 documentation drift — the "line asserting a number that no round
 re-executes" class round 333 asked to be swept for, closed at the source
 for this one table.
+
+Round 354 closed the half round 349 could not. Round 349 checked the two
+things the registry KNEW — the name and the arity — and the column that
+had actually caused the operator's bug report, the PARAMETER ORDER, was
+still unchecked prose: `fold(fn, acc, xs)` could have been written
+`fold(acc, fn, xs)` in SPEC.md and every test here would have passed.
+v0.22 made the parameter names and kinds a declaration
+(`register(name, arity, sig)` -> `interp._BUILTIN_SIGS`) because
+`_order_hint` needs them at runtime, and the same declaration is what this
+file can now check the table's argument lists against.
 """
 
 import os
@@ -42,15 +52,21 @@ def _spec_table():
     end = text.index("### Blocks are always braced", start)
     rows = {}
     for name, sig_cell in _ROW.findall(text[start:end]):
-        arities = set()
+        spellings = []
         for called, argstr in _CALL.findall(sig_cell):
             assert called == name, (
                 "row for `%s` documents a call to `%s`" % (name, called))
             args = [a for a in (a.strip() for a in argstr.split(",")) if a]
-            arities.add(len(args))
-        assert arities, "no signature parsed for `%s` from %r" % (name, sig_cell)
-        rows[name] = arities
+            spellings.append(tuple(args))
+        assert spellings, ("no signature parsed for `%s` from %r"
+                           % (name, sig_cell))
+        rows[name] = spellings
     return rows
+
+
+def _spec_arities():
+    return dict((name, set(len(sp) for sp in spellings))
+                for name, spellings in _spec_table().items())
 
 
 def _registry_arities():
@@ -90,7 +106,7 @@ def _arity_of(entry):
 
 
 def test_spec_table_documents_every_builtin_and_no_others():
-    spec, reg = _spec_table(), _registry_arities()
+    spec, reg = _spec_arities(), _registry_arities()
     assert set(spec) == set(reg), (
         "SPEC.md's builtin table is out of sync with the registry.\n"
         "  documented but not registered: %s\n"
@@ -99,7 +115,7 @@ def test_spec_table_documents_every_builtin_and_no_others():
 
 
 def test_spec_table_arities_match_the_registry():
-    spec, reg = _spec_table(), _registry_arities()
+    spec, reg = _spec_arities(), _registry_arities()
     for name in sorted(set(spec) & set(reg)):
         assert spec[name] == reg[name], (
             "`%s`: SPEC.md documents arity %s, registry accepts %s"
@@ -166,3 +182,65 @@ def test_if_branches_require_braces_and_the_parser_says_so():
     with pytest.raises(ParseError) as ei:
         Interpreter().run('let x = 5\nif x > 3 print("big")\n')
     assert "expected '{'" in str(ei.value), str(ei.value)
+
+
+# --- v0.22 (round 354): the ARGUMENT NAMES are a declaration too -------------
+
+def _registry_sigs():
+    """name -> tuple of declared parameter names, from `interp._BUILTIN_SIGS`.
+
+    Reading `_BUILTIN_SIGS` requires the table to have been built, since
+    `register` is what fills it — same lazily-populated-cache hazard
+    `_registry_items` documents, handled the same way.
+    """
+    _registry_items()
+    return dict((name, tuple(pname for pname, _ in sig))
+                for name, sig in I._BUILTIN_SIGS.items())
+
+
+def test_spec_table_argument_names_match_the_registry():
+    """The column that caused the bug report is now the column that is
+    checked.
+
+    Only the LONGEST spelling in each row is matched. The shorter spelling
+    of an argument-count RANGE is not a prefix in general — SPEC documents
+    `range(hi)` (the declaration is `lo, hi`) and `diverge(runs)` (the
+    declaration is `a, b`) — so demanding one would force the table to lie
+    about which argument a 1-arg call binds. What the range rows DO get
+    checked for is their maximum, which is the spelling that names every
+    parameter.
+    """
+    spec, reg = _spec_table(), _registry_sigs()
+    bad = []
+    for name in sorted(set(spec) & set(reg)):
+        longest = max(spec[name], key=len)
+        if longest != reg[name]:
+            bad.append((name, longest, reg[name]))
+    assert bad == [], (
+        "SPEC.md's argument names disagree with `register(..., sig=)`:\n"
+        + "\n".join("  `%s`: SPEC says %s, registry declares %s"
+                     % (n, list(a), list(b)) for n, a, b in bad))
+
+
+def test_every_registered_builtin_declares_a_signature():
+    sigs = _registry_sigs()
+    for name, entry in _registry_items():
+        assert name in sigs, "`%s` registered with no sig" % name
+        hi = entry.arity[1] if isinstance(entry.arity, tuple) else entry.arity
+        assert len(sigs[name]) == hi, (
+            "`%s`: %d declared parameters, arity accepts up to %d"
+            % (name, len(sigs[name]), hi))
+
+
+def test_the_function_first_asymmetry_is_read_off_the_declaration():
+    """Round 349 pinned this by grepping `interp.py` for the unpacking line
+    (`"fn, acc, xs = args" in src`) because there was nothing else to read.
+    There is now: the same fact, asserted against the declaration the
+    interpreter actually uses at runtime rather than against the spelling
+    of a local-variable assignment.
+    """
+    sigs = _registry_sigs()
+    for name in ("map", "filter", "find"):
+        assert sigs[name] == ("fn", "xs"), (name, sigs[name])
+    assert sigs["fold"] == ("fn", "acc", "xs")
+    assert sigs["push"] == ("xs", "x")      # genuinely the other way round
