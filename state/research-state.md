@@ -11615,6 +11615,229 @@ warning) before committing as `8c1311a`.
   `research-state.md`.
 - See `knowledge/round-365-the-pin-that-defended-a-false-claim.md`.
 
+### Round 366 — language(C) — 2026-08-30 (interrupted; verified and landed by round 367)
+
+- **Status:** `interrupted=true`, `git_committed=false`, no research-state
+  entry of its own — flagged by `check_round_recorded.py` at round 367's
+  pre-flight. The work was complete and green; round 367 verified BEFORE
+  landing it (commit `48b8967`), not after: whence fast tier **1469 passed,
+  3 skipped, 61 deselected** (32.4 s) and slow tier **61 passed, 1472
+  deselected** (397.9 s) — **1530 passed, 3 skipped** in total, exactly the
+  "after" figure round 366's own knowledge file reports.
+- **One claim in that knowledge file is about a state that never reached
+  git**: "I committed 600000 first and my own guard test failed by three
+  iterations". No round-366 commit exists. The intermediate value is real
+  (the test did catch it) but it was never committed; the shipped constant
+  is 1000000.
+- **The finding: Whence's SPEC section "Limits that are errors, not crashes"
+  had one entry that was neither an error nor a crash — a hang.**
+  `Interpreter.max_iter` defaulted to `None` from v0.3 (round ~003) to round
+  365, so ANY non-terminating tail recursion ran forever, while the same
+  function with its recursive call lifted out of tail position by a `let`
+  returned `recursion too deep (depth 50)` in 0.07 s. That falsifies SPEC
+  rule 8's round-336 invariant — "lifting a tail call out of tail position
+  changes the frame count and nothing else" — for every non-terminating
+  program in the language. `max_depth` cannot cover it and that is not a
+  bug: a tail call spends no frame, which is what rule 8 is FOR.
+- **Why no test caught it:** `test_v13.py::
+  test_tail_and_lifted_chains_agree_exhaustively` drives the whole
+  `f0 -> f1 -> ...` family through both forms and requires byte equality —
+  and every chain it builds TERMINATES. A non-terminating one would have
+  hung the suite rather than failed it. Same shape as round 365's own
+  "the shape the differential never compared" and round 360's refusal-set
+  differential: **ask what a differential structurally cannot enumerate.**
+- **`DEFAULT_MAX_ITER = 1000000`, sized from the corpus and wrong the first
+  time.** Memory parity (a tail runaway should cost what a depth runaway
+  costs) gives ~50000 and BREAKS four of this repo's own examples — a tail
+  loop is the only loop Whence has. Uncapped `interp.peak_tail` over
+  `examples/*.lang` is 200001 / 100002 / 60005 / 50001 then a 150x gap;
+  `deep.lang` asserts the 200000 as a language property, so `10 x
+  DEFAULT_MAX_DEPTH` is a pinned contract the default must clear.
+  `skills/measured-budget-sizing`'s margin of 3 gives 600003.
+- **`interp.peak_tail` (new) is why the number could be measured at all** —
+  `tail_calls` is a run-wide TOTAL, and what `max_iter` bounds is the longest
+  SINGLE loop. A budget whose consumption is not reported can only be argued
+  about.
+- Two stale numbers retired: `DEFAULT_MAX_DEPTH`'s "~6 KB per frame" (v0.2,
+  measured 1337-2084 B) and `bench/retention.py` dividing Linux's
+  KILOBYTE-valued `ru_maxrss` by `1024**2`, so every run it ever did printed
+  "peak RSS 0 MB".
+- Also landed by round 366: round 365's dangling citation
+  (`state/swe/round-365/shape_sweep.json`, created by actually running the
+  sweep — 141 seeds, `Counter({'ok': 138, 'timeout': 2, 'mismatch': 1})`),
+  and both formerly-hanging guest seeds (31 and 224) now return `ok`.
+- See `knowledge/round-366-the-limit-that-was-neither-an-error-nor-a-crash.md`
+  and SPEC "## v0.26".
+
+### Round 367 — harness(A) — 2026-08-30
+
+- **Goal:** round 361's next-steps item 4, addressed by number to "round
+  ~367": read `state/slow-tier-ledger.jsonl` and check whether the
+  `fresh_*_scoped` states actually raise **sustained** recall, rather than
+  taking round 361's arithmetic for a result. Plus its item 5 (the
+  narrow-on-a-crashed-run fail-open edge).
+- **`harness/swe/ledgerreplay.py` (new, 19 tests).** "Sustained" is not
+  observable from a `status()` call, and the empirical route — re-run the
+  slow tier repeatedly — is ~76 min a pass. So both digest halves are
+  recomputed **from git objects** at any revision and `slowtier.classify` is
+  replayed verbatim: no worktree, nothing written, 241 commits x 19 files in
+  **57 s**. Metric fixed in writing first: **freshness lifetime** = commits
+  an entry survives from a given start, meaned over every start.
+- **`slowtier.harness_deps` grew a `sources` argument** (`WORKING_TREE` by
+  default) so the REAL import scan runs over git blobs. A second copy of the
+  scan inside the replay is `copied-mirror-drift`'s exact shape.
+- **The answer: yes, and the other half is binding by 9.9x.** Counterfactual
+  over 241 commits — mean lifetime **strict 1.78 -> scoped 2.71** over all
+  19 files (+53%), **1.75 -> 5.32 on the five with a measured scope (3.0x)**.
+  Ignore the HARNESS half and those same five live **52.78** commits. Round
+  361 added precision to the half that was not the constraint, and nothing
+  reported which half that was.
+- **In real history the mechanism has bought two files and no more.** Each
+  real entry replayed forward from where it was made: every one lives 4
+  commits under `strict`; `scoreaudit` and `triage` live **14** (i.e. to
+  HEAD) under `scoped`; `loop`, `regiontools` and `guest` gain **0**,
+  because round 362's v0.25 commit moved `whence/` and `examples/` — inside
+  every real scope. Those two rows are still the only reason `status()`
+  reports anything but zero: `coverage 0.000`, `coverage_scoped 0.105`.
+- **The ledger cannot be audited against git, and the reason is a third
+  party.** `checkout_digest` walks the FILESYSTEM, so it hashes the 15
+  untracked `.lang` files another system leaves under `languages/whence/`
+  (`state/known-standing-dirty-paths.json`) — **0 of 14 entries' digests
+  are reproducible from any commit.** Proven exactly: `git archive bb00ab8`
+  plus the untracked overlay hashes to `2c9d0227a1d4fca5`, which is
+  `test_swe_loop.py`'s recorded digest; without the overlay it is
+  `9be13cc891946a61`. With `working_overlay()`, **10 of 14** reproduce; the
+  other 4 were recorded on 08-29 at 19:2x-19:4x, before those files arrived
+  at 23:32-23:42.
+- **`blame()` turns the conclusion into work items.** Over 4508 kills:
+  **2799 (62%) are `whole-checkout`** — the 14 of 19 files that have never
+  had a scope MEASURED, which is one `slowtier run` slice, not a design
+  question — and **1154 (26%) are `harness/swe/fuzz.py` alone**, one module
+  in most slow-test closures.
+- **Round 361's motivating statistic independently reproduced.** It measured
+  "32 of 61 (52%) of digest-moving commits touch nothing under `whence/`
+  and no `run.py`". This round, different window, `.lang` included, using
+  the MEASURED scope rather than a path list: 30 of 65 move `whence/`, a
+  complement of **53.8%**.
+- **Round 361's item 5 CLOSED as fail-closed rule 10.** A run that did not
+  FINISH may not narrow. Deliberately NOT "narrow only on `passed`" — a
+  pytest run reporting `1 failed, 11 passed` imported everything, and
+  refusing it would discard `fresh_fail_scoped`, which counts in
+  `n_failing`. The discriminator is pytest's own return code (0/1 are
+  verdicts; 2/3/4/5 and a timeout's -9 are not). Applied on BOTH sides —
+  write side stamps the refusal into the scope record so every consumer
+  refuses through the single predicate `scope_is_narrowable`; read side asks
+  the same of entries already in the append-only ledger. Schema 3 -> 4.
+  **0 rows of today's `status()` change** (P7), which is the honest result.
+- **Predictions: 5 HIT, 5 MISS** (`state/harness/round-367/PREDICTIONS.md`).
+  P1/P3/P4 are ONE wrong belief scored three times — "scoping is carried
+  entirely by the two files that read nothing" — and it is false because
+  `whence/` moves on only 46% of digest-moving commits (the P5 miss, from
+  the other side). **P8 is scored MISS for being ill-posed**: it named two
+  different windows in one sentence (241 commits vs 65), and a prediction
+  that cannot be wrong is the failure D-013 exists to prevent.
+- **Honest failure worth carrying:** I wrote a bug that made the scoped
+  policy look PERFECT and nearly shipped its numbers. `RevState` read the
+  `readscope` RECORD (`{ok, dirs, opaque}`) as if it were the directory
+  list, so `scope_digests_at` digested three directories named `ok`, `dirs`
+  and `opaque` — all `<missing>`, all constant across history, i.e. a policy
+  that could never be invalidated. Nothing raised; the only symptom was that
+  the answer was too clean. Pinned by
+  `test_scope_digests_track_the_directory_not_the_record`.
+- **Round 365's item 10 CLOSED**: `tests/test_self_eval.py::
+  test_shape_needs_three_adjacent_tokens_on_both_sides` now **passes**
+  (0.17 s), resolving round 365's UNRESOLVED P5. Note that
+  `harness/pristine_check.py status` still prints `whence-slow both_failed`
+  naming that same test — a recorded verdict no round re-executes, round
+  333's rot class in a status line rather than in prose.
+- **Verification.**
+
+  | what | result |
+  |---|---|
+  | `pytest harness/tests/test_ledgerreplay.py` | **19 passed** (new) |
+  | `pytest harness/tests/test_slowtier.py` | **58 passed** (was 53) |
+  | `bash harness/run_tests_fast.sh` | **575 passed, 319 deselected** in 46.1 s (was 545) |
+  | whence fast / slow tier (round 366's diff) | 1469 + 61 = **1530 passed, 3 skipped** |
+  | `ledgerreplay` self-check | git `2eef200a2fa5d1b4` == export `2eef200a2fa5d1b4` |
+  | `corpus_check.py` | **6 checkers, 0 errors**, 1 pre-existing S005 warning |
+  | `slowtier status` after rule 10 | unchanged: 0 conclusive, 2 scoped, 10.5% |
+
+- **Skills:** new `skills/policy-replay-over-history/` (5 trigger cases,
+  `skill_lint` clean), registered in `state/known-unprobed-skills.json` with
+  an owner, because probing a description this round wrote would be scoring
+  its own paraphrase.
+- See `knowledge/round-367-the-half-that-was-binding.md`.
+
+## Next steps (as of round 367)
+
+1. **Measure a scope for the 9 slow-tier files that have never had one.**
+   This is the single largest lever in the mechanism and it is not a design
+   question: 62% of all invalidations (2799 of 4508) are `whole-checkout`,
+   which is what rule 9 correctly returns for a file with no measurement.
+   `python3 harness/swe/slowtier.py run --budget-s N` on
+   `alias_effects`, `bymap`, `campaign`, `equivalence`, `prioritize`,
+   `fuzz`, `oraclekill`, `repair`, `review`. Expect roughly half to come
+   back opaque (5 of round 361's 10 did) — that is the result, not a
+   caveat. harness(A) or SWE-loop(D).
+2. **`harness/swe/fuzz.py` is implicated in 26% of all kills** (1154 of
+   4508), because it sits in most slow-test import closures. Two possible
+   moves, and the choice needs a round that owns the module: split the parts
+   the tests actually exercise, or accept it and say so in `slowtier.py`'s
+   own docstring so the next reader does not re-derive it. Do NOT reach for
+   a measured harness read-set — an import IS a read, so measuring cannot
+   narrow this; it would take per-function precision (`swe/coverage.py`'s
+   territory).
+3. **The counterfactual sweep assumes a test's read-set is stable across the
+   window, and nothing tests that.** The cheap check: when item 1's slice
+   runs, compare each newly measured scope against round 361's for the five
+   files that already have one. If any moved, the counterfactual numbers in
+   round 367's knowledge file need a stated error bar.
+4. **`harness/pristine_check.py status` is printing a stale verdict.** It
+   reports `whence-slow both_failed` on
+   `test_shape_needs_three_adjacent_tokens_on_both_sides`, which passed in
+   0.17 s this round, and `harness-fast both_failed` on
+   `test_pristine_check.py::test_the_curated_corpus_rule_has_exactly_two_
+   implementations`, while the live fast suite is 575 passed / 0 failed. A
+   re-run is ~12 min (`pristine_check.py check`) and belongs to a round with
+   the budget. This is round 333's stale-number class appearing in a STATUS
+   LINE, which is worse than in prose: the line looks live.
+5. **Round 365's item 0 is still open and still outranks most of this
+   list** — when a later round reconciles an interrupted round's CODE,
+   nothing checks that its CONCLUSIONS reached the next-steps list. This
+   round reconciled round 366 and carried its conclusions forward by hand
+   (see the round-366 entry above), which is the behaviour the check would
+   enforce, not evidence that the check is unnecessary. harness(A) or
+   skills(B).
+6. **`languages/whence/SECURITY.md`: ELEVENTH consecutive round.**
+   Unchanged, escalated to the operator since round 349, four asserted
+   security controls this repo does not have. A TRACKED file a separate
+   system edits, deliberately NOT in
+   `state/known-standing-dirty-paths.json`. Nothing in-tree can resolve it.
+7. **`policy-replay-over-history` is never-probed**, registered with owner
+   skills(B) in `state/known-unprobed-skills.json`. Fold into a probe batch
+   with `measured-budget-sizing` (round 364) — a probe is a priced run
+   ([[feedback_check_flag_scope_before_priced_runs]]).
+8. **Round 365's items 1 and 4** (rename
+   `test_seed31_does_not_terminate_under_the_default_budget` — now
+   flipped by round 366, so this is only the OOM-hypothesis docstring; and
+   `oracle_self_eval` taking its own `timeout_s`) are unchanged. Item 8 also
+   noted seed 224 finishing in 18.20 s against `run_oracle`'s 30 s alarm —
+   a thin margin on a loaded box.
+9. **Round 363's skills(B) items 1-6** (the `--run` execution tier nothing
+   executes, the `unrun-checker-latency` re-probe, the absent reports
+   directory) and **round 361's item 6** (the 6 argv-blind mutating
+   scripts) are unchanged.
+10. **Round 364's NUC(E) items 1-6** are unchanged — the rotation has not
+    reached E since. The journal cache is warm; capture boot history FIRST
+    on the next up-round.
+11. **The heavy/light re-tally check-in** and **round 310's item 5** (the
+    `tail`/EOF backgrounded-pipe silent-drop mechanism, whose MECHANISM
+    round 365 corrected to an OOM kill) are unchanged.
+12. **Round 361's item 3** (9 of 19 slow-tier files `unknown`/
+    `stale_checkout`) is now item 1 above, restated with a measured
+    justification instead of an estimate. Its item 4 is **CLOSED** by this
+    round; its item 5 is **CLOSED** as rule 10.
+
 ## Next steps (as of round 365)
 
 0. **NEW, and it outranks everything below: when a round is interrupted and

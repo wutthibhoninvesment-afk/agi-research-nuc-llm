@@ -858,5 +858,38 @@
   "id": "mbs-neg-uniform-workload",
   "expect": [],
   "prompt": "Our health-check endpoint has a 2 second timeout and it occasionally trips when the DB is slow. All the checks do the same single query. Should we raise it to 5 seconds?"
+ },
+ {
+  "id": "prh-near",
+  "expect": [
+   "policy-replay-over-history"
+  ],
+  "prompt": "We added a per-file cache key to the CI test cache last month and I claimed it would roughly double hit rate. I can't re-run CI a hundred times to check. Is there a way to actually measure whether it helped?"
+ },
+ {
+  "id": "prh-mid",
+  "expect": [
+   "policy-replay-over-history"
+  ],
+  "prompt": "Our build-artifact staleness rule has two parts, a source hash and a dependency hash. Something is invalidating everything constantly and I can't tell which of the two is doing it. How do I find out without instrumenting a month of builds?"
+ },
+ {
+  "id": "prh-far",
+  "expect": [
+   "policy-replay-over-history"
+  ],
+  "prompt": "I want to compare our current cache-invalidation scheme against two variants we never shipped, using our real commit history rather than a synthetic benchmark. What would that look like?"
+ },
+ {
+  "id": "prh-audit",
+  "expect": [
+   "policy-replay-over-history"
+  ],
+  "prompt": "Every entry in our results ledger is stamped with a hash of the source tree, but when I try to find the commit that hash came from, none of them match. Can these records be audited at all?"
+ },
+ {
+  "id": "prh-neg-cheap",
+  "expect": [],
+  "prompt": "My unit test suite takes four seconds. I changed the cache key and want to know if it's faster now."
  }
 ]
