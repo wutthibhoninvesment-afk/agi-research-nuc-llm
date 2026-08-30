@@ -1105,3 +1105,15 @@ Code runs (proof in round file), measurements banked in both places,
 - Hygiene: no writes on the box outside `/work/logs/nuc-continuity-r358.md`;
   `/work/**` otherwise read-only; no unit restarted; **port 8001 never
   contacted**; no engine request of any kind.
+- **The round-184 suspend hypothesis, checked directly for the first time —
+  NEGATIVE on this boot.** `journalctl -b 0 -k` has zero `PM: suspend entry`
+  and zero `Freezing user space`; `journalctl -b 0` has zero
+  `systemd-suspend` / `Reached target Sleep`. The 7 apparent hits are all
+  `PM: hibernation: Registered nosave memory: [mem …]` stamped at 00:32:32,
+  boot-time setup on any machine that could hibernate — **a false positive
+  every future grep must exclude.** `sleep/suspend/hibernate.target` are all
+  `static`; `/etc/systemd/logind.conf` is an empty `[Login]` stanza;
+  `/sys/power/state` is `freeze mem disk`. Capable, not configured, never
+  observed. Boots -1 to -6 remain unchecked (archived scan timed out at
+  120 s). Signature to use:
+  `journalctl -b N -k | grep -E 'PM: suspend (entry|exit)|Freezing user space'`.

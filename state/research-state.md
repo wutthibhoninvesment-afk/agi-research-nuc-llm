@@ -10200,11 +10200,19 @@ in the round file §7.
    round 334's item 4 can be closed. `journal_seconds_probe`'s live path is
    verified for the fast per-boot case and NOT for the slow archived case,
    where the only live evidence so far is a 300 s timeout.
-6. **The suspend hypothesis (round 184) remains neither confirmed nor
-   refuted.** Round 358 bounds how much suspend could hide; nothing in the
-   toolchain detects one. The signal that would is `journalctl -u
-   systemd-suspend` / `PM: suspend entry` kernel records — one grep, never
-   run. Cheap, and it would turn the bound into a direct observation.
+6. **The suspend hypothesis (round 184): checked on ONE boot, and it is
+   negative.** Round 358 filed this as a next step and then ran it in the
+   same round. On boot `43e0c767` (5.5 h): zero `PM: suspend entry`, zero
+   `Freezing user space`, zero `systemd-suspend` / `Reached target Sleep`;
+   the 7 apparent hits are all `PM: hibernation: Registered nosave memory`
+   stamped at boot, a **false positive** any future grep must exclude.
+   `sleep/suspend/hibernate.target` are all `static`, `logind.conf` is an
+   empty `[Login]` stanza, `/sys/power/state` is `freeze mem disk` — capable,
+   not configured, never observed. Boots -1 to -6 are still unchecked (the
+   archived-journal scan timed out at 120 s while the wide capture held a
+   core); running the two greps there either promotes round 184's inference
+   to a finding or retires it, and costs an E-round's first ten minutes.
+   Exact signature in the round-358 file §11.
 7. Rounds 316/322/328's missing `nuc-missions.md` addenda are still
    reconstructible from the reachability log with no new information —
    unchanged from round 334's item 6.

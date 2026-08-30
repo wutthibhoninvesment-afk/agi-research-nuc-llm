@@ -334,3 +334,57 @@ grep journalctl` = 0). Result and the P5/P8/P9 scoring: see §10.
    priced batches; its four cases are written and ready.
 7. Nothing on the box was written outside `/work/logs/nuc-continuity-r358.md`.
    No unit restarted. Port 8001 never contacted. `/work/**` read only.
+
+---
+
+## 11. The one-grep suspend check, run (§10 item 2, same round)
+
+§10 item 2 called this "the cheapest open item on this track", so I ran it
+rather than filing it. On the current boot `43e0c767` (00:32:27Z → now):
+
+| query | matches |
+| --- | --- |
+| `journalctl -b 0 -k` ∋ `PM: suspend` \| `PM: hibernation` \| `Freezing user space` | **7** |
+| …of which are actual suspend events | **0** |
+| `journalctl -b 0` ∋ `systemd-suspend` \| `Reached target Sleep` \| `Suspending system` \| `systemd-sleep` | **0** |
+
+All 7 are `PM: hibernation: Registered nosave memory: [mem …]`, stamped
+`00:32:32` — boot-time hibernation *setup*, printed by every Linux boot on a
+machine that could in principle hibernate. Neither `PM: suspend entry` nor
+`Freezing user space`, the two kernel lines an actual suspend must emit,
+appears at all.
+
+**So: this box has not suspended once in 5.5 hours of uptime**, and the 96 s
+bound from §4 has zero suspend events inside it to bound.
+
+Supporting configuration, read the same call: `sleep.target`,
+`suspend.target`, `hibernate.target` are all `static` (no `[Install]`
+section, so nothing has enabled them); `/etc/systemd/logind.conf` is an empty
+`[Login]` stanza, i.e. every idle/lid policy is at its compiled-in default;
+`/sys/power/state` is `freeze mem disk`, so the hardware *can* suspend.
+Capable, not configured, and never observed.
+
+**What this does and does not settle.** It does not refute round 184 — that
+inference was about a specific 2026-08-25 outage on a different boot, and
+checking `-b -1` and earlier means scanning the archived journals, which
+timed out at 120 s while the §8 capture held a core. It does establish, for
+the first time in this program, that the suspend hypothesis is *checkable
+with one grep*, and gives the exact signature to check:
+
+```
+journalctl -b <N> -k | grep -E 'PM: suspend (entry|exit)|Freezing user space'
+journalctl -b <N>    | grep -E 'systemd-suspend|Reached target Sleep'
+```
+
+`PM: hibernation:` is a **false positive** and must be excluded — it fires
+seven times on a boot that never slept.
+
+It also sharpens `_BOOT_UTC_SUSPEND_CAVEAT` without weakening it. The caveat
+is about what `boot_utc` *cannot rule out*, and that stays true regardless of
+whether this box in fact suspends. But the whole reason the caveat is
+weighted heavily here rather than treated as pedantry is round 184's
+inference that suspend is *this box's* failure mode — and that inference now
+has one boot's worth of direct evidence against it, and none for it. A future
+round that runs the two greps over boots -1 to -6 either promotes round 184's
+inference to a finding or retires it. Either outcome is worth one E-round's
+first ten minutes.
