@@ -130,7 +130,12 @@ def test_whence_health_check_fail_logged_when_script_fails(tmp_path):
     )
     log_text = _run_driver(tmp_path)
     assert "round 1: whence-health-check FAIL" in log_text, log_text
-    assert "FAILED tests/test_x.py::test_y" in log_text, log_text
+    # Round 379: same edit, and same reason, as the harness twin of this
+    # test. The failing node id reaches driver.log from
+    # `classify_health_log`'s `failing` list now, so it arrives without the
+    # `FAILED ` prefix, alongside the count line rather than instead of it.
+    assert "tests/test_x.py::test_y" in log_text, log_text
+    assert "1 failed, 839 passed in 23.00s" in log_text, log_text
 
 
 def test_both_health_checks_run_independently_when_both_scripts_present(tmp_path):

@@ -821,6 +821,74 @@ _PYTEST_NO_VERDICT = frozenset({2, 3, 4, 5})
 _SUMMARY_COUNT_RE = re.compile(
     r"\b(\d+)\s+(passed|failed|error|errors|xfailed|xpassed|skipped|deselected)\b")
 
+#: The line `harness/run_tests_fast.sh` prints when its OWN pytest run is
+#: over, before it echoes two ledgers' recorded status (round 341's slow
+#: tier, round 355's pristine differential).
+#:
+#: Round 379. Those two `echo`s made the health log's last line stop being
+#: the suite's own result in round 341, and `classify_health_log` (round
+#: 349) reads `summary` as "the last non-empty line". Measured over
+#: `logs/driver.log`: ALL 38 `health-check` lines from round 341 to round
+#: 378 quote appended text — 14 quote `slowtier status`'s trailing NOTE, 18
+#: quote a recorded FAILURE (`fails in both (not this class) tests/
+#: test_self_eval.py::...`) under the word PASS, and 6 quote a
+#: `pristine-check-ledger` row measured once, at round 373, at a commit the
+#: tree has since left. The whence line is unaffected (its script `exec`s
+#: pytest and appends nothing), which is why round 349's fixtures — both
+#: transcribed from `whence_health_round_34*.log` — never saw this shape.
+#:
+#: Defined here, in the module that PARSES it, and asserted to be present in
+#: the script that PRINTS it by
+#: `test_run_tests_fast_prints_the_sentinel_driver_health_looks_for`, so the
+#: two cannot drift apart silently.
+MEASURED_END_SENTINEL = "--- end of measured output; recorded status below ---"
+
+#: A `short test summary info` entry. Pytest prints these before the count
+#: line; they are the only place a failing node id appears in `-q` output.
+_FAILED_LINE_RE = re.compile(r"^(?:FAILED|ERROR)\s+(\S+)", re.M)
+
+
+def split_measured_output(text):
+    """(measured, echoed, boundary) — what this run produced, what it merely
+    echoed, and how confidently the line between them was found.
+
+    `boundary` is one of:
+
+      `"sentinel"`    `MEASURED_END_SENTINEL` was printed. Exact.
+      `"count-line"`  no sentinel, but a pytest terminal-count line
+                      (`1 failed, 544 passed, ... in 854.14s`) has content
+                      after it. A GUESS — right for the 136 archived harness
+                      logs, where the trailing content is two recorded
+                      ledgers, and wrong for any log whose real verdict line
+                      comes last. `classify_health_log` reports it as
+                      `count-line-guess` rather than pretending it is exact.
+      `"none"`        nothing was echoed: the whole text is this run's.
+
+    The third case covers every whence health log (its script `exec`s pytest)
+    and every ERROR log (round 348's config abort has no count line at all,
+    and its one useful line IS the last one).
+    """
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        if MEASURED_END_SENTINEL in line:
+            return "\n".join(lines[:i]), "\n".join(lines[i + 1:]), "sentinel"
+    last = None
+    for i, line in enumerate(lines):
+        # Pytest-shaped: a terminal count line, or a `short test summary
+        # info` entry. Both orders occur — `-q` prints the summary block
+        # first and the counts last (round 362's real log), while the
+        # round-241 e2e fixture prints them the other way round — so the
+        # boundary is the last line of EITHER kind, not the last count line.
+        if ((_SUMMARY_COUNT_RE.search(line) and re.search(r"\bin \d", line))
+                or _FAILED_LINE_RE.match(line)):
+            last = i
+    if last is None:
+        return text, "", "none"
+    rest = "\n".join(lines[last + 1:])
+    if not rest.strip():
+        return text, "", "none"
+    return "\n".join(lines[:last + 1]), rest, "count-line"
+
 
 def classify_health_log(path: str, returncode: Optional[int] = None) -> dict:
     """Classify one `logs/{,whence_}health_round_N.log` into pass/fail/error.
@@ -850,7 +918,20 @@ def classify_health_log(path: str, returncode: Optional[int] = None) -> dict:
         {"outcome": "pass"|"fail"|"error"|"unknown",
          "reason": <short human string>,
          "ran_tests": <bool>,   # did collection get far enough to run any?
-         "summary": <last non-empty log line, or "">}
+         "summary": <this run's own last line, or "">,
+         "summary_source": "pytest-summary"|"last-line"|"none",
+         "echoed_lines": <int>,  # non-empty lines AFTER the measured region
+         "failing": [<node id>, ...]}   # from the measured region only
+
+    Round 379 added the last three and narrowed the first. `summary` was
+    "the last non-empty line of the file", which stopped being this run's
+    result when round 341 taught `harness/run_tests_fast.sh` to echo a
+    recorded status after its own output: every `health-check` line in
+    `driver.log` from round 341 to 378 (38 of 38) quoted that echo, 18 of
+    them quoting a RECORDED FAILURE under the word PASS. `summary_source`
+    is reported rather than assumed because the boundary is recoverable
+    exactly in a log with the sentinel or a pytest count line, and is a
+    guess otherwise — see `split_measured_output`.
     """
     summary = ""
     text = ""
@@ -859,11 +940,42 @@ def classify_health_log(path: str, returncode: Optional[int] = None) -> dict:
             text = fh.read()
     except OSError:
         return {"outcome": "unknown", "reason": "health log unreadable",
-                "ran_tests": False, "summary": ""}
+                "ran_tests": False, "summary": "", "summary_source": "none",
+                "echoed_lines": 0, "failing": []}
+    # Round 379: everything below is computed from the MEASURED region only.
+    # A recorded status echoed after the run is not evidence about this run,
+    # in either direction — it must not be quoted as the summary and it must
+    # not be able to make `ran_tests` true.
+    text, echoed, boundary = split_measured_output(text)
+    summary_source = "last-line"
     for line in reversed(text.splitlines()):
-        if line.strip():
-            summary = line.strip()
-            break
+        if not line.strip():
+            continue
+        summary = line.strip()
+        if _SUMMARY_COUNT_RE.search(summary):
+            summary_source = "pytest-summary"
+        break
+    if summary_source != "pytest-summary":
+        # The count line is the summary even when the short-summary block
+        # follows it: the ids go in `failing`, and a line reporting one id
+        # out of nine reads as "one test failed".
+        for line in reversed(text.splitlines()):
+            if _SUMMARY_COUNT_RE.search(line) and re.search(r"\bin \d", line):
+                summary = line.strip()
+                summary_source = "pytest-summary"
+                break
+    if boundary == "count-line":
+        # Content followed the count line and nothing marked the boundary.
+        # Round 363 already established that this classifier is
+        # pytest-shaped and gave `skills-check` its own formatter for that
+        # reason; a caller replaying a foreign log deserves to be told the
+        # split was inferred rather than read.
+        summary_source = "count-line-guess"
+
+    failing = []
+    for m in _FAILED_LINE_RE.finditer(text):
+        if m.group(1) not in failing:
+            failing.append(m.group(1))
 
     ran_tests = bool(_SUMMARY_COUNT_RE.search(text))
     # "no tests ran" is pytest's own wording for rc 5 and carries a count of
@@ -871,14 +983,18 @@ def classify_health_log(path: str, returncode: Optional[int] = None) -> dict:
     if re.search(r"\bno tests ran\b", text):
         ran_tests = False
 
+    extra = {"summary_source": summary_source,
+             "echoed_lines": len([l for l in echoed.splitlines() if l.strip()]),
+             "failing": failing}
+
     if returncode is not None:
         if returncode == _PYTEST_OK:
             return {"outcome": "pass", "reason": "suite green",
-                    "ran_tests": ran_tests, "summary": summary}
+                    "ran_tests": ran_tests, "summary": summary, **extra}
         if returncode in _PYTEST_NO_VERDICT:
             return {"outcome": "error",
                     "reason": "suite did not run (pytest exit %d)" % returncode,
-                    "ran_tests": False, "summary": summary}
+                    "ran_tests": False, "summary": summary, **extra}
         if returncode == _PYTEST_TESTS_FAILED:
             # Trust the code, but say so when the log disagrees rather than
             # silently picking one — a wrapper script that rewrites its own
@@ -886,26 +1002,26 @@ def classify_health_log(path: str, returncode: Optional[int] = None) -> dict:
             if not ran_tests:
                 return {"outcome": "error",
                         "reason": "exit 1 but no test counts in the log",
-                        "ran_tests": False, "summary": summary}
+                        "ran_tests": False, "summary": summary, **extra}
             return {"outcome": "fail", "reason": "tests ran and failed",
-                    "ran_tests": True, "summary": summary}
+                    "ran_tests": True, "summary": summary, **extra}
         # Negative -> signal; anything else is off the documented table.
         return {"outcome": "error",
                 "reason": "runner died (exit %d)" % returncode,
-                "ran_tests": ran_tests, "summary": summary}
+                "ran_tests": ran_tests, "summary": summary, **extra}
 
     # No exit code: fall back to the text alone.
     if not text.strip():
         return {"outcome": "unknown", "reason": "health log empty",
-                "ran_tests": False, "summary": summary}
+                "ran_tests": False, "summary": summary, **extra}
     if not ran_tests:
         return {"outcome": "error", "reason": "no test counts in the log",
-                "ran_tests": False, "summary": summary}
+                "ran_tests": False, "summary": summary, **extra}
     if re.search(r"\b\d+\s+(failed|error|errors)\b", text):
         return {"outcome": "fail", "reason": "tests ran and failed",
-                "ran_tests": True, "summary": summary}
+                "ran_tests": True, "summary": summary, **extra}
     return {"outcome": "pass", "reason": "suite green",
-            "ran_tests": True, "summary": summary}
+            "ran_tests": True, "summary": summary, **extra}
 
 
 def health_log_line(label: str, path: str, returncode: Optional[int] = None) -> str:
@@ -919,7 +1035,21 @@ def health_log_line(label: str, path: str, returncode: Optional[int] = None) -> 
             "unknown": "UNKNOWN"}[c["outcome"]]
     if c["outcome"] == "pass":
         return "%s %s (%s)" % (label, word, c["summary"])
-    return "%s %s — %s — %s" % (label, word, c["reason"], c["summary"])
+    line = "%s %s — %s — %s" % (label, word, c["reason"], c["summary"])
+    # Round 379: name the tests that actually failed. The one genuine
+    # harness-side FAIL in this program's history (round 362) read
+    # `FAIL — tests ran and failed — fails in both (not this class)
+    # tests/test_self_eval.py::test_shape_needs_three_adjacent_tokens_on_
+    # both_sides` — a whence test, from a ledger, quoted by a harness suite
+    # whose real failure was `test_run_driver_whence_health_check.py::
+    # test_whence_health_check_fail_logged_when_script_fails`. A reader who
+    # chased that line chased the wrong tree.
+    if c.get("failing"):
+        shown = ", ".join(c["failing"][:2])
+        if len(c["failing"]) > 2:
+            shown += " (+%d more)" % (len(c["failing"]) - 2)
+        line += " — %s" % shown
+    return line
 
 
 def main(argv: List[str]) -> int:
@@ -988,6 +1118,25 @@ def main(argv: List[str]) -> int:
         rc = int(argv[2]) if len(argv) == 3 else None
         print(json.dumps(classify_health_log(argv[1], rc), sort_keys=True))
         return 0
+    if argv[:1] == ["health_replay"]:
+        # Round 379. `driver.log` records one health line per round, written
+        # once, live. The 38 lines from round 341 to 378 quote a recorded
+        # ledger instead of the round's own suite, so the history reads as
+        # if six consecutive rounds measured a 1014.6 s pristine
+        # differential nobody ran. The logs themselves are intact — this
+        # re-derives the line each round SHOULD have logged, from the log
+        # that round wrote. `<round> <line>` per input path; the round
+        # number comes from the filename, which is where the driver put it.
+        if len(argv) < 2:
+            print("usage: driver_health.py health_replay HEALTH_LOG...",
+                  file=sys.stderr)
+            return 2
+        for path in argv[1:]:
+            m = re.search(r"(\d+)\.log$", path)
+            label = "round %s" % (m.group(1) if m else "?")
+            print(health_log_line(label, path, None))
+        return 0
+
     if argv[:1] == ["health_line"]:
         if len(argv) not in (3, 4):
             print("usage: driver_health.py health_line LABEL HEALTH_LOG [RETURNCODE]", file=sys.stderr)

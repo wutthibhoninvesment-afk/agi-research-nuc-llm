@@ -55,6 +55,7 @@ injectable `runner`, so no test in `test_pristine_check.py` shells out to
 pytest or spends a worktree.
 """
 import argparse
+import calendar
 import json
 import os
 import re
@@ -532,6 +533,59 @@ def _fmt(record):
     return "\n".join(lines)
 
 
+def status_freshness(record, repo=REPO_ROOT, now=None, runner=None,
+                     head=None):
+    """The lines `status` prints ABOVE a recorded verdict (round 379).
+
+    `check` measures; `status` re-prints something measured earlier, and
+    until this round the two produced the SAME text — `ref HEAD
+    (91acd9c5af97) verdict clean`, with no age and no statement about which
+    tree that verdict was about. Two rounds read the second as the first:
+
+    - `harness/run_tests_fast.sh` echoes `status` after every fast run, so
+      `driver_health` quoted a round-373 row into `driver.log` as rounds
+      374-378's own health-check result (fixed in `classify_health_log`);
+    - round 374 concluded from that line that the driver runs a pristine
+      whence-slow check every round. It runs none.
+
+    A record whose `resolved` commit is not HEAD is not about this tree, and
+    that is a fact this function can CHECK rather than caption. `head` is
+    injectable so the test does not need a repo; `now` likewise.
+    """
+    out = []
+    when = record.get("recorded_at")
+    now = time.time() if now is None else now
+    age = ""
+    if when:
+        try:
+            # `timegm`, not `mktime` minus `time.timezone`: the stamp is
+            # UTC (`check` writes it with `time.gmtime`), and mktime would
+            # read it as local — right on this UTC box, hours wrong on any
+            # other, which is the very class of defect this line exists to
+            # expose.
+            stamp = calendar.timegm(time.strptime(when, "%Y-%m-%dT%H:%M:%SZ"))
+            hours = (now - stamp) / 3600.0
+            age = " (%.1f h ago)" % hours if hours < 48 else \
+                  " (%.1f days ago)" % (hours / 24.0)
+        except ValueError:
+            age = ""
+    out.append("RECORDED %s%s — a stored verdict, not a run just now"
+               % (when or "at an unrecorded time", age))
+    head = resolve_ref("HEAD", repo=repo, runner=runner) if head is None else head
+    was = record.get("resolved")
+    if head and was and head != was:
+        out.append("  HEAD HAS MOVED SINCE: recorded at %s, now %s — this "
+                   "verdict is NOT about the current tree" % (was[:12], head[:12]))
+    elif head and was:
+        out.append("  HEAD is still %s — the tree this verdict was measured "
+                   "at (tracked files only; untracked and uncommitted work "
+                   "is not covered)" % was[:12])
+    else:
+        out.append("  commit unknown — cannot say which tree this verdict "
+                   "is about")
+    return out
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = ap.add_subparsers(dest="cmd")
@@ -588,6 +642,8 @@ def main(argv=None):
         if not recs:
             print("no recorded check (absence of evidence, not a pass)")
             return 3
+        for line in status_freshness(recs[-1]):
+            print(line)
         print(_fmt(recs[-1]))
         return _EXIT.get(recs[-1]["verdict"], 3)
 

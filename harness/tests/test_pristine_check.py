@@ -739,3 +739,86 @@ def test_dirt_preview_agrees_with_what_check_will_waive(tmp_path, capsys,
     assert rc == 0, out
     assert "pinned-waiver (escalation, suite-neutral)  doc.md" in out
     assert "BLOCKING" not in out
+
+
+# ------------------------------------------------------- round 379 (harness A) --
+#
+# `status` re-prints a stored verdict and, until this round, printed exactly
+# what `check` prints for a fresh one. Two rounds read the second as the
+# first: `driver_health` quoted a round-373 row into `driver.log` as rounds
+# 374-378's own health-check result, and round 374 concluded from that line
+# that the driver runs a pristine whence-slow differential every round. It
+# runs none — the driver runs three FAST suites on the live tree and never
+# invokes this module.
+
+_REC = {"ref": "HEAD", "resolved": "91acd9c5af97d71a4e1c506f3e568c5fffe5ea9c",
+        "recorded_at": "2026-08-30T17:53:28Z", "verdict": "clean",
+        "untracked_count": 17, "suites": ["whence-slow"],
+        "blocking_dirty": [], "results": []}
+#: `calendar.timegm` of _REC["recorded_at"]. Spelled as the number rather
+#: than computed from the string so the test cannot agree with the code by
+#: sharing its bug.
+_REC_EPOCH = 1788112408
+
+
+def test_status_says_a_stored_verdict_is_not_a_run():
+    lines = pc.status_freshness(_REC, now=_REC_EPOCH + 3600, head=_REC["resolved"])
+    assert lines[0].startswith("RECORDED 2026-08-30T17:53:28Z (1.0 h ago)")
+    assert "not a run just now" in lines[0]
+    assert "HEAD is still 91acd9c5af97" in lines[1]
+
+
+def test_status_flags_that_head_has_moved_since_the_record():
+    lines = pc.status_freshness(_REC, now=_REC_EPOCH + 3600, head="8fc29564d62d0")
+    assert "HEAD HAS MOVED SINCE" in lines[1]
+    assert "NOT about the current tree" in lines[1]
+    # The commit it WAS measured at stays in the line: a reader has to be
+    # able to go and look at that tree.
+    assert "91acd9c5af97" in lines[1]
+
+
+def test_status_age_is_utc_and_does_not_move_with_the_hosts_timezone():
+    # `time.mktime(strptime(utc))` reads a UTC stamp as local time and is
+    # right only on a UTC box — which this host is, so the bug would have
+    # been invisible here. `calendar.timegm` is the fix; this test is what
+    # says so on any other host.
+    import time as _time
+    saved = os.environ.get("TZ")
+    try:
+        answers = []
+        for tz in ("UTC", "America/New_York", "Asia/Bangkok"):
+            os.environ["TZ"] = tz
+            try:
+                _time.tzset()
+            except AttributeError:            # non-POSIX; nothing to test
+                pytest.skip("time.tzset unavailable")
+            answers.append(pc.status_freshness(
+                _REC, now=_REC_EPOCH + 7200, head=None)[0])
+        assert len(set(answers)) == 1, answers
+        assert "(2.0 h ago)" in answers[0]
+    finally:
+        if saved is None:
+            os.environ.pop("TZ", None)
+        else:
+            os.environ["TZ"] = saved
+        _time.tzset()
+
+
+def test_status_never_claims_a_tree_when_the_commit_is_unknown():
+    rec = dict(_REC); rec["resolved"] = None
+    lines = pc.status_freshness(rec, now=_REC_EPOCH, head=None)
+    assert "commit unknown" in lines[1]
+    assert "HEAD" not in lines[1] or "HAS MOVED" not in lines[1]
+
+
+def test_status_prints_the_freshness_lines_before_the_verdict(tmp_path, capsys,
+                                                              monkeypatch):
+    ledger = tmp_path / "ledger.jsonl"
+    ledger.write_text(json.dumps(_REC) + "\n")
+    monkeypatch.setattr(pc, "resolve_ref", lambda *a, **k: "8fc29564d62d0")
+    rc = pc.main(["status", "--ledger", str(ledger)])
+    out = capsys.readouterr().out.splitlines()
+    assert rc == 0                       # exit code is the verdict, unchanged
+    assert out[0].startswith("RECORDED ")
+    assert "HEAD HAS MOVED SINCE" in out[1]
+    assert out[2].startswith("ref HEAD (91acd9c5af97)   verdict clean")

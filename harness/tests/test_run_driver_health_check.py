@@ -133,4 +133,38 @@ def test_health_check_fail_logged_when_script_fails(tmp_path):
     )
     log_text = _run_driver(tmp_path)
     assert "round 1: health-check FAIL" in log_text, log_text
-    assert "FAILED harness/tests/test_x.py::test_y" in log_text, log_text
+    # Round 379: the failing node id still reaches driver.log, and now does
+    # so from `classify_health_log`'s `failing` list rather than by being
+    # whatever line the log happened to end with. The `FAILED ` prefix is
+    # gone with the old mechanism; the id — what this test is about — is
+    # not. The summary beside it is now the count line, which is what a
+    # real `pytest -q` prints last.
+    assert "harness/tests/test_x.py::test_y" in log_text, log_text
+    assert "1 failed, 2 passed in 0.01s" in log_text, log_text
+
+
+def test_health_check_quotes_the_run_not_the_recorded_status_below_it(tmp_path):
+    """Round 379, end to end through a real `bash run_driver.sh`.
+
+    The real script has echoed two RECORDED ledgers after its own pytest run
+    since round 341 (slow tier) and 355 (pristine differential), and the
+    driver quoted the last line of the file. Every `health-check` line in
+    this host's `driver.log` from round 341 to 378 — 38 of 38 — therefore
+    reported something the round did not measure; 18 of them quoted a
+    recorded FAILURE under the word PASS.
+
+    The fake script below has the real one's shape, sentinel included.
+    """
+    _make_health_script(
+        tmp_path,
+        'echo "587 passed, 323 deselected in 47.51s"\n'
+        'echo "--- end of measured output; recorded status below ---"\n'
+        'echo "ref HEAD (91acd9c5af97)   verdict clean"\n'
+        'echo "  whence-slow    clean   live={\'passed\': 70}  1014.6s"\n'
+        'exit 0',
+    )
+    log_text = _run_driver(tmp_path)
+    assert ("round 1: health-check PASS (587 passed, 323 deselected in 47.51s)"
+            in log_text), log_text
+    assert "1014.6s" not in log_text, log_text
+    assert "verdict clean" not in log_text, log_text

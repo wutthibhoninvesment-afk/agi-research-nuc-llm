@@ -22,7 +22,7 @@ export PATH="$PATH:/home/pgain/agi-research-nuc-llm/node_modules/.bin"
 # "$@"` at the loop's end below), this now reliably reflects the ON-DISK
 # script content for every round it produced, including rounds after a
 # mid-run edit — round 139's live driver could not make that claim.
-DRIVER_VERSION="363-skills-corpus-health-check"
+DRIVER_VERSION="379-health-line-quotes-the-run"
 
 # Round 157: a manual post-migration edit (made outside any round,
 # between the Mac->NUC sync commit c768d90 and round 154) hardcoded this
@@ -533,6 +533,17 @@ update research-state.md. Be relentless and thorough — this is deep research, 
   # `test_run_driver_*.py` tmp_path) degrades to the old formatting rather
   # than losing the line. Still DIAGNOSTIC ONLY: nothing here blocks or stops
   # the driver, exactly as before.
+  #
+  # Round 379 (harness A): the parenthetical on these lines is the SUITE's
+  # own last line again. `harness/run_tests_fast.sh` has echoed two recorded
+  # ledgers after its own run since rounds 341/355, and `health_line` quoted
+  # the log's last line — so all 38 `health-check` lines from round 341 to
+  # 378 reported something the round never measured, 18 of them quoting a
+  # recorded FAILURE under the word PASS, and 6 quoting a pristine
+  # differential measured once, at round 373, at a commit the tree had left.
+  # The script now prints `driver_health.MEASURED_END_SENTINEL` where its own
+  # output ends; the archive is re-derivable with `python3 -m
+  # harness.driver_health health_replay logs/health_round_*.log`.
   if [ -n "$HEALTH_PID" ]; then
     HEALTH_RC=0
     wait "$HEALTH_PID" || HEALTH_RC=$?

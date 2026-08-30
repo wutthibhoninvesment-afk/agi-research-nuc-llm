@@ -10,10 +10,13 @@ import sys
 
 import pytest
 
+from harness import driver_health
 from harness.driver_health import (
     RATE_LIMIT_BACKOFF_SCHEDULE,
     all_max_turns,
+    MEASURED_END_SENTINEL,
     classify_health_log,
+    split_measured_output,
     blocking_wait_gap_s,
     classify_round_log,
     count_consecutive_failures,
@@ -1308,3 +1311,216 @@ def test_health_log_line_says_error_and_why_for_round_348s_log(tmp_path):
                            "suite did not run (pytest exit 4) — ")
     assert "optional-dependencies" in line
     assert "FAIL" not in line
+
+
+# ------------------------------------------------------- round 379 (harness A) --
+#
+# The health log the HARNESS check writes has not been a bare pytest log
+# since round 341. `harness/run_tests_fast.sh` echoes two RECORDED ledgers
+# after its own run (round 341's slow tier, round 355's pristine
+# differential), so "the last non-empty line" — round 349's rule for
+# `summary` — stopped being this run's result three rounds after round 349
+# shipped, and nobody noticed for 38 rounds because round 349's two
+# fixtures (above) are both transcribed from `whence_health_round_34*.log`,
+# and the WHENCE script `exec`s pytest and appends nothing.
+#
+# Measured over `logs/driver.log`: 38 of 38 `health-check` lines from round
+# 341 to round 378 quote an echo. 14 quote `slowtier status`'s trailing
+# NOTE, 18 quote `fails in both (not this class) tests/test_self_eval.py::
+# test_shape_needs_three_adjacent_tokens_on_both_sides` — a RECORDED FAILURE
+# printed under the word PASS — and 6 quote a pristine row measured once, at
+# round 373, at a commit the tree had since left.
+#
+# The two literals below are transcribed from the real
+# `logs/health_round_378.log` and `logs/health_round_362.log` on this host
+# (gitignored, hence transcribed, same convention as REAL_347_PASS).
+
+REAL_378_HARNESS = (
+    "........................................................................ [ 98%]\n"
+    "...........                                                              [100%]\n"
+    "587 passed, 323 deselected in 47.51s\n"
+    "\n"
+    "slow tier (recorded, not run here)\n"
+    "  test_swe_repair.py                 stale_checkout     102s  26.2h ago\n"
+    "  test_swe_review.py                 stale_checkout     81s  14.9h ago\n"
+    "  NOTE: 18 file(s) are NOT evidence about this checkout.\n"
+    "\n"
+    "ref HEAD (91acd9c5af97)   verdict clean\n"
+    "  17 untracked path(s) exist here and in no fresh clone\n"
+    "  whence-slow    clean                  live={'deselected': 1598, "
+    "'passed': 70} pristine={'deselected': 1598, 'passed': 70}  1014.6s\n"
+)
+
+# Round 362: the ONE genuine harness-side FAIL in the program's history.
+REAL_362_HARNESS = (
+    "F....\n"
+    "FAILED harness/tests/test_run_driver_whence_health_check.py::"
+    "test_whence_health_check_fail_logged_when_script_fails\n"
+    "1 failed, 544 passed, 316 deselected in 854.14s (0:14:14)\n"
+    "\n"
+    "ref HEAD (aaaaaaaaaaaa)   verdict both_failed\n"
+    "  whence-slow    both_failed            live={'passed': 53} "
+    "pristine={'passed': 53}  586.3s\n"
+    "      fails in both (not this class)  tests/test_self_eval.py::"
+    "test_shape_needs_three_adjacent_tokens_on_both_sides\n"
+)
+
+
+def test_the_summary_is_this_runs_own_result_not_an_echoed_ledger(tmp_path):
+    """Round 378's real log. `pass` was already right; the QUOTE was not."""
+    p = _health_log(tmp_path, "h.log", REAL_378_HARNESS)
+    c = classify_health_log(p, 0)
+    assert c["outcome"] == "pass"
+    assert c["summary"] == "587 passed, 323 deselected in 47.51s"
+    assert c["summary_source"] == "count-line-guess"   # inferred, not read
+    assert c["echoed_lines"] == 7          # everything below the run's own
+    # The three strings the driver actually printed for rounds 373-378.
+    assert "1014.6s" not in c["summary"]
+    assert "NOTE:" not in c["summary"]
+
+
+def test_health_line_for_round_378s_log_stops_quoting_round_373s_ledger(tmp_path):
+    p = _health_log(tmp_path, "h.log", REAL_378_HARNESS)
+    assert health_log_line("round 378: health-check", p, 0) == (
+        "round 378: health-check PASS (587 passed, 323 deselected in 47.51s)")
+
+
+def test_a_failing_run_names_the_test_that_actually_failed(tmp_path):
+    """Round 362's real log.
+
+    The driver logged `FAIL — tests ran and failed — fails in both (not this
+    class) tests/test_self_eval.py::test_shape_needs_three_adjacent_tokens_
+    on_both_sides`: a whence test, from a ledger, for a harness suite whose
+    real failure was in `test_run_driver_whence_health_check.py`. The word
+    was right and every other part of the line pointed at the wrong tree.
+    """
+    p = _health_log(tmp_path, "h.log", REAL_362_HARNESS)
+    c = classify_health_log(p, 1)
+    assert c["outcome"] == "fail"
+    assert c["summary"] == "1 failed, 544 passed, 316 deselected in 854.14s (0:14:14)"
+    assert c["failing"] == [
+        "harness/tests/test_run_driver_whence_health_check.py::"
+        "test_whence_health_check_fail_logged_when_script_fails"]
+    line = health_log_line("round 362: health-check", p, 1)
+    assert "test_run_driver_whence_health_check" in line
+    assert "test_self_eval" not in line
+
+
+def test_an_echoed_status_cannot_make_ran_tests_true(tmp_path):
+    """The contamination path, which has never fired and is one wording
+    change away from firing.
+
+    `ran_tests` used to scan the WHOLE file. Today neither `slowtier status`
+    nor `pristine_check status` prints a bare `<n> passed` pair (checked
+    against all 136 archived harness health logs: zero), so no verdict was
+    ever wrong — but a run that aborts before collecting anything, followed
+    by an echo that happens to print one, would be classified as a suite
+    that ran and failed. The boundary removes the possibility instead of
+    re-checking the wording each time either printer changes.
+    """
+    text = ("wrapper: something went sideways\n"
+            + MEASURED_END_SENTINEL + "\n"
+            + "recorded: 70 passed in 509.47s\n")
+    p = _health_log(tmp_path, "h.log", text)
+    c = classify_health_log(p, 1)
+    assert c["outcome"] == "error"
+    assert c["ran_tests"] is False
+    assert "no test counts" in c["reason"]
+
+
+def test_the_sentinel_recovers_a_boundary_a_count_line_cannot(tmp_path):
+    """Round 348's shape (pytest exit 4, no counts at all) with the echo
+    below it. Without the sentinel the fallback is the last line, which is
+    the echo; with it, the config error is quoted."""
+    text = (REAL_348_ERROR + MEASURED_END_SENTINEL + "\n"
+            + "ref HEAD (91acd9c5af97)   verdict clean\n")
+    p = _health_log(tmp_path, "h.log", text)
+    c = classify_health_log(p, 4)
+    assert c["outcome"] == "error"
+    assert "optional-dependencies" in c["summary"]
+    assert c["summary_source"] == "last-line"    # honest: not a pytest line
+    assert "verdict clean" not in health_log_line("x", p, 4)
+
+
+def test_split_measured_output_leaves_a_plain_pytest_log_alone(tmp_path):
+    """Round 349's fixtures must keep meaning exactly what they meant: the
+    whence check appends nothing, and 130 of its lines in driver.log are
+    correct."""
+    measured, echoed, boundary = split_measured_output(REAL_347_PASS)
+    assert echoed == "" and boundary == "none"
+    assert measured.strip().endswith("1022 passed, 48 deselected in 35.62s")
+    measured, echoed, boundary = split_measured_output(REAL_348_ERROR)
+    assert echoed == "" and measured == REAL_348_ERROR and boundary == "none"
+
+
+def test_run_tests_fast_prints_the_sentinel_driver_health_looks_for():
+    """The printer and the parser are in different languages and different
+    files; this is the only thing that keeps them the same string."""
+    harness_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    script = os.path.join(harness_dir, "run_tests_fast.sh")
+    text = open(script, encoding="utf-8").read()
+    assert 'echo "%s"' % MEASURED_END_SENTINEL in text, script
+    # ...and that it is printed BEFORE the two status echoes, or the
+    # boundary is in the wrong place.
+    assert text.index(MEASURED_END_SENTINEL) < text.index("slowtier.py status")
+    assert text.index(MEASURED_END_SENTINEL) < text.index("pristine_check.py status")
+
+
+def test_the_sentinel_upgrades_the_guess_to_a_read_boundary(tmp_path):
+    """Same log, with and without the line round 379 taught the script to
+    print. The QUOTE is the same either way; what changes is whether the
+    module had to infer where the run ended."""
+    without = _health_log(tmp_path, "a.log", REAL_378_HARNESS)
+    head, _, tail = REAL_378_HARNESS.partition(
+        "587 passed, 323 deselected in 47.51s\n")
+    with_sentinel = _health_log(
+        tmp_path, "b.log", head + "587 passed, 323 deselected in 47.51s\n"
+        + MEASURED_END_SENTINEL + "\n" + tail)
+    a, b = classify_health_log(without, 0), classify_health_log(with_sentinel, 0)
+    assert a["summary"] == b["summary"] == "587 passed, 323 deselected in 47.51s"
+    assert a["summary_source"] == "count-line-guess"
+    assert b["summary_source"] == "pytest-summary"
+
+
+def test_a_non_pytest_log_is_out_of_contract_and_says_so(tmp_path):
+    """`skills/run_checks_fast.sh` writes a log whose LAST line is its real
+    verdict and whose second-to-last line happens to be a pytest count from
+    a checker it ran. Round 363 gave that check its own formatter
+    (`corpus_check.py --line`) precisely because this classifier is
+    pytest-shaped, so the driver never brings such a log here — but a round
+    replaying `logs/` might, and the count-line boundary would silently drop
+    the verdict line. It is reported as a guess for that reason.
+
+    Transcribed from the real `logs/skills_health_round_378.log`.
+    """
+    text = ("carryforward       warn K004              carryforward: 58 bank(s)\n"
+            "unit_tests         ok                     610 passed in 104.27s (0:01:44)\n"
+            "corpus-check: 7 checker(s), 0 error(s), 4 warning(s)\n")
+    p = _health_log(tmp_path, "s.log", text)
+    c = classify_health_log(p, 1)
+    assert c["summary_source"] == "count-line-guess"
+    assert c["summary"].startswith("unit_tests")
+
+
+def test_health_replay_re_derives_one_line_per_log(tmp_path, capsys):
+    """`driver.log`'s health lines were written once, live, and 38 of them
+    quote an echo. The logs they were written from are still on disk, so the
+    history is recoverable — this is the command that recovers it."""
+    a = _health_log(tmp_path, "health_round_378.log", REAL_378_HARNESS)
+    b = _health_log(tmp_path, "health_round_362.log", REAL_362_HARNESS)
+    rc = driver_health.main(["health_replay", a, b])
+    out = capsys.readouterr().out.splitlines()
+    assert rc == 0
+    assert out[0] == "round 378 PASS (587 passed, 323 deselected in 47.51s)"
+    assert out[1].startswith("round 362 FAIL — tests ran and failed — "
+                             "1 failed, 544 passed, 316 deselected")
+    assert "test_run_driver_whence_health_check" in out[1]
+    # A path with no round number in it still produces a line, not a crash.
+    c = _health_log(tmp_path, "other.log", REAL_347_PASS)
+    driver_health.main(["health_replay", c])
+    assert capsys.readouterr().out.startswith("round ? PASS (1022 passed")
+
+
+def test_health_replay_without_arguments_is_a_usage_error(capsys):
+    assert driver_health.main(["health_replay"]) == 2
+    assert "usage" in capsys.readouterr().err

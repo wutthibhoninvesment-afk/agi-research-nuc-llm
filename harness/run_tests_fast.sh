@@ -28,6 +28,28 @@ python3 -m pytest -q -m "not swe_slow" harness/tests/ "$@"
 rc=$?
 set -e
 
+# Round 379 (harness A): mark where THIS run's output ends, before anything
+# recorded earlier is echoed below. Two readers need the boundary:
+#
+#  - `driver_health.classify_health_log`, which quotes a health log's last
+#    line into `driver.log`. From round 341 (the slow-tier echo) to round
+#    378, every one of the 38 `health-check` lines quoted an echo instead of
+#    the suite's own result — 18 of them quoted a RECORDED FAILURE under the
+#    word PASS, and 6 quoted a pristine-differential row measured once, at
+#    round 373, at a commit the tree had since left.
+#  - a human. Round 374 read `health-check PASS (whence-slow clean ...
+#    1014.6s)` in driver.log and concluded from it that "the driver's
+#    whence-slow health check runs a PRISTINE checkout of HEAD" every round.
+#    It does not; the driver runs three FAST suites on the live tree and
+#    never invokes pristine_check.py at all. That inference became round
+#    375's next-steps item 3 and was carried by two rounds.
+#
+# The string is defined in `harness/driver_health.py` as
+# `MEASURED_END_SENTINEL` and a test asserts it appears here, so the printer
+# and the parser cannot drift apart.
+echo
+echo "--- end of measured output; recorded status below ---"
+
 # Round 341 (SWE-loop D): print the slow tier's RECORDED status after the
 # fast run. Round 338's item 1 named the real problem — deselecting the
 # slow tier means a green round report is not evidence about it, the same
