@@ -83,3 +83,12 @@ driver made meaningless. NO rule was added, removed, or reworded.
 Keep `D-013` spelled literally in `## Ground rules` or in this section:
 `skills/skill-authoring/scripts/xref_check.py` reads this file as the X002
 registry, and `--provenance` is what proved the body was recoverable.
+
+## 🔴 CRITICAL MISSION: PRODUCTION FIX (Round ~350 Focus)
+**Priority:** HIGH | **Target Model:** Claude Opus-5 (Direct Access)
+**Current Issues:**
+1. **Fold Logic Regression:** `fold()` returns `Miss` instead of calculated values when using inline lambdas or external functions. Needs deep code inspection in `whence/interp.py`.
+2. **Strict Syntax Enforcement:** Parser requires explicit `{}` blocks for all `if/else` branches in v0.19. Document this strictly and consider auto-fixing older scripts.
+
+**Instruction:** When reviewing Round tasks, prioritize debugging the Whence interpreter core over general knowledge generation. Use Opus-5 capability to analyze complex DAG merge failures.
+
