@@ -39,8 +39,12 @@ THE THREE DIVERGENCES THAT REMAIN, one test each, all measured:
   2. **No lines** — `test_every_guest_step_reports_line_zero`.
   3. **No merging** — `test_the_guest_never_merges_a_tail_loop`.
 
-And `diverge`/`contrast` are still delegated and still E4:
-`test_diverge_and_contrast_are_still_exempt`.
+And `diverge`/`contrast` were still delegated and still E4. **v0.31 (round
+380) retired them too**, so E4 is gone entirely and the two tests that
+pinned it are now its retirement notice:
+`test_diverge_and_contrast_no_longer_delegate` and
+`test_diverge_and_contrast_now_answer_from_the_guest_history`. See
+`tests/test_v31.py`.
 """
 
 import os
@@ -57,6 +61,22 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXAMPLE = os.path.join(ROOT, "examples", "self_eval.lang")
 MARKER = "# ==== SELF-TESTS"
 LINE_SUFFIX = re.compile(r" \(line \d+\)")
+# `contrast` renders two columns, and the left one is padded to the width
+# of the WIDEST left line. Removing the host's `  (line N)` suffix therefore
+# changes the padding too, so a suffix-stripped host string is not
+# comparable to the guest's character for character until the column rule is
+# re-normalised. This does both, on either side.
+CONTRAST_LINE = re.compile(r"  \(line \d+\)")
+
+
+def normalize_contrast(text):
+    out = []
+    for line in text.split("\n"):
+        line = CONTRAST_LINE.sub("", line)
+        line = re.sub(r" +\u2502 ", " \u2502 ", line)
+        out.append(line.rstrip())
+    return "\n".join(out)
+
 
 
 def library_source():
@@ -311,37 +331,45 @@ def test_the_guest_never_merges_a_tail_loop(lib):
     assert set(g) == {1}, g
 
 
-def test_diverge_and_contrast_are_still_exempt():
-    """The two the guest still delegates, and the reason, checked against
-    the host source rather than described: `diverge` decides sameness by
-    object identity and memoises on `(id(na), id(nb))`, neither of which a
-    Whence expression can state, and `render_contrast` lays two rendered
-    histories into aligned columns."""
-    import whence.values as V
-    src = open(V.__file__, encoding="utf-8").read()
-    body = src[src.index("def diverge(a, b):"):src.index("def render_contrast(")]
-    assert "id(na), id(nb)" in body and "na is nb" in body, body[:200]
+def test_diverge_and_contrast_no_longer_delegate():
+    """RETIRED by v0.31 (round 380), and kept here rather than deleted
+    because this is where the exemption was published.
+
+    This test used to assert that the guest still delegates, like so:
+
+        assert 'else if name == "diverge" {' in lib_src
+
+    It did NOT go red when the delegation was removed, because
+    `apply_builtin`'s new dispatch line spells the same nine characters:
+
+        else if name == "diverge" { @{v: guest_diverge(args), st: st} }
+
+    That is this round's own headline mechanism, one file over — a
+    substring standing in for a property. So the check is now on the
+    DELEGATION CALL, which is a different string in each case and cannot
+    be produced by a dispatch line."""
     lib_src = library_source()
-    assert 'else if name == "diverge" {' in lib_src
-    assert 'else if name == "contrast" {' in lib_src
-    for gone in ('else if name == "blame" { blame(a0) }',
+    for gone in ('{ diverge(a0) }', '{ contrast(a0) }',
+                 'diverge(a0, (args[1]).v)', 'contrast(a0, (args[1]).v)',
+                 'else if name == "blame" { blame(a0) }',
                  'else if name == "at" { at(a0, (args[1]).v) }'):
         assert gone not in lib_src, gone
+    for present in ('fn guest_diverge(args) {', 'fn guest_contrast(args) {'):
+        assert present in lib_src, present
 
 
-def test_diverge_and_contrast_still_answer_from_the_wrong_history(lib):
-    """E4's remainder, pinned LIVE rather than described. `test_v29.py`'s
-    atlas cannot reach this — its 104 `diverge`/`contrast` cases are all
-    argument-shape cases and all 104 agree — so a comparison of two
-    histories that really do diverge has to be made here, and this file
-    owns it the way `test_miss_message_differential.py` owns E3."""
+def test_diverge_and_contrast_now_answer_from_the_guest_history(lib):
+    """E4's remainder, retired at its own pin. Round 378 wrote this test to
+    prove the guest names `self_eval.lang`'s OWN frames (`a0`, `arg p`) for
+    a comparison of two histories that really diverge. It now names the
+    program's, and matches the host byte for byte once the `(line N)`
+    suffix — the language's oldest documented divergence — is removed."""
     src = 'let x = 1 + 2\nlet y = 1 + 3\nlet r = contrast(x, y)'
     h = host(src)
     g = guest_batch([src], lib)[0]
     assert "let x" in h and "let y" in h and "literal" in h, h
-    # the guest names `self_eval.lang`'s own frames instead
-    assert "a0" in g or "arg p" in g, g
-    assert h != g
+    assert "a0" not in g and "arg p" not in g, g
+    assert normalize_contrast(h) == normalize_contrast(g), (h, g)
 
 
 # --------------------------------------------------------------------------

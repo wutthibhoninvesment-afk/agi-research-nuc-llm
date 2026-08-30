@@ -106,7 +106,10 @@ def _tracked_examples():
              if p.endswith(".lang")]
     # round 355: git, not the directory — `examples/` is shared with a
     # separate system's untracked output.
-    assert len(names) == 16, names
+    # 16 -> 17 in round 380: `show.lang`, the example v0.29's `show` builtin
+    # had never had (round 378's item 8). The pin is deliberately a number
+    # and not a floor, so adding an example is a decision someone makes here.
+    assert len(names) == 17, names
     return names
 
 

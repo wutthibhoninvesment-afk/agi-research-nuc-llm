@@ -47,6 +47,26 @@ every parsable example: p90 = 24, p95 = 43, ordinary-mode max = 123, next
 value 71 552, and 24 bindings past 1e9.  A budget of 100 and a budget of
 50 000 refuse the same programs to within 2 of 526.  Pinned here as the two
 properties the constant must satisfy rather than as the constant.
+
+**E4 IS RETIRED** (round 378's item 1).  `diverge`/`contrast`, the last two
+members of the provenance-query family, stopped delegating.  v0.30 deferred
+them with two claims — `diverge` "decides sameness by `na is nb` and
+memoises on `(id(na), id(nb))`" and `render_contrast` "column-aligns two
+rendered histories", "neither a rule a Whence expression can state".  Priced
+separately: `na is nb` is a pure optimisation (a node compared with itself
+is structurally identical by definition), the MEMO is the only place
+identity is load-bearing and only for MULTIPLICITY, and column alignment is
+`s + spaces(w - len(s))`.  So option (b): a structural approximation that is
+an UPPER BOUND on the host's origin list, never a lower one.
+
+Measured, host against guest, on a 15-program corpus: 12 agree BYTE FOR
+BYTE and the other 3 differ only in the `(line N)` suffix of a miss reason,
+which is the language's oldest documented divergence.  Two new divergences
+are named and pinned rather than described:
+
+  4. no `count` origin — `go(5)` vs `go(7)` is 3 origins host, 7 guest
+  5. every route, not the shortest — a value shared at two depths renders 1
+     block of 5 rows host, 3 blocks (6, 6, 5) guest, the host's among them
 """
 
 import ast
@@ -451,3 +471,242 @@ def test_the_tail_ceiling_is_in_the_declared_divergence_list():
     assert "Known, deliberate divergences" in header
     assert "NO TAIL CALLS" in header, header[-1200:]
     assert "399" in header, header[-1200:]
+
+
+# --------------------------------------------------------------------------
+# E4's remainder: `diverge` / `contrast` from the guest history
+# --------------------------------------------------------------------------
+
+CONTRAST_LINE = re.compile(r"  \(line \d+\)")
+
+
+def normalize_contrast(text):
+    """`contrast` pads its left column to the widest left line, so removing
+    the host's `  (line N)` suffix changes the padding too. Strip the
+    suffix and re-normalise the column rule, on both sides."""
+    out = []
+    for line in text.split("\n"):
+        line = CONTRAST_LINE.sub("", line)
+        line = re.sub(r" +│ ", " │ ", line)
+        out.append(line.rstrip())
+    return "\n".join(out)
+
+
+def host_value(program):
+    v = Interpreter(out=lambda s: None, seed=7).run(program).get("r")
+    assert v is not None, program
+    return v.payload
+
+
+def guest_values(programs, lib):
+    parts = [lib]
+    for i, program in enumerate(programs):
+        parts.append('let __o%d = run_src("%s")\n' % (i, escape(program)))
+    env = Interpreter(out=lambda s: None, seed=7).run("".join(parts))
+    return [env.get("__o%d" % i).payload.fields["v"].payload
+            for i in range(len(programs))]
+
+
+# Every case binds `r`. Chosen to cover: value origins, step origins, the
+# no-divergence case, lists, calls, the n-way form, and all three argument
+# guards.
+DIVERGE_CORPUS = [
+    'let x = 1 + 2\nlet y = 1 + 3\nlet r = contrast(x, y)',
+    'let x = 1 + 2\nlet y = 1 + 3\nlet r = len(diverge(x, y))',
+    'let a = 2 * 3\nlet b = 2 * 4\nlet r = contrast(a, b)',
+    'let x = 1 + 2\nlet y = 1 + 2\nlet r = contrast(x, y)',
+    'let x = [1, 2]\nlet y = [1, 3]\nlet r = contrast(x, y)',
+    'fn f(n) { n * 2 }\nlet x = f(3)\nlet y = f(4)\nlet r = contrast(x, y)',
+    'let x = 1 + 2\nlet y = 1 + 3\nlet z = 1 + 4\nlet r = contrast([x, y, z])',
+    'let x = 1 + 2\nlet y = 1 + 3\nlet z = 1 + 4\n'
+    'let r = len(diverge([x, y, z]))',
+    'let x = 1 + 2\nlet y = 2 + 2\nlet r = contrast(x, y)',
+    'let x = (1 + 2) * (3 + 4)\nlet y = (1 + 9) * (3 + 8)\n'
+    'let r = contrast(x, y)',
+    'let x = (1 + 2) * (3 + 4)\nlet y = (1 + 9) * (3 + 8)\n'
+    'let r = len(diverge(x, y))',
+]
+
+
+def test_the_guest_matches_the_host_byte_for_byte_on_a_diverging_corpus(lib):
+    """v0.29 measured E4's remainder as `contrast(1 + 2, 1 + 3)` naming
+    `let a0 (line 2893)` and `arg p (line 1743)` — self_eval.lang's own
+    frames. Eleven programs that really diverge, every one now identical
+    to the host's answer."""
+    gs = guest_values(DIVERGE_CORPUS, lib)
+    for program, g in zip(DIVERGE_CORPUS, gs):
+        h = host_value(program)
+        if isinstance(h, str):
+            assert normalize_contrast(h) == normalize_contrast(g), program
+            assert "a0" not in g and "arg p" not in g, (program, g)
+        else:
+            assert h == g, (program, h, g)
+
+
+GUARDS = [
+    ('let r = diverge(7)',
+     "diverge needs two values or a list of runs, got 7"),
+    ('let r = contrast(7)',
+     "contrast needs two values or a list of runs, got 7"),
+    ('let r = contrast(1 / 0)', "division by zero"),
+    ('let r = diverge(1 / 0)', "division by zero"),
+]
+
+
+def test_the_argument_guards_say_what_the_host_says(lib):
+    """The three shapes `test_v29.py`'s atlas DOES reach for this pair —
+    its 104 diverge/contrast cases are all argument-shape cases. They
+    agreed before this round because both sides delegated; they have to
+    still agree now that one side does not."""
+    progs = [p for p, _ in GUARDS]
+    gs = guest_values(progs, lib)
+    for (program, needle), g in zip(GUARDS, gs):
+        h = host_value(program)
+        assert isinstance(h, Miss) and isinstance(g, Miss), (program, h, g)
+        assert any(needle in x for x in h.reasons), (program, h.reasons)
+        assert any(needle in x for x in g.reasons), (program, g.reasons)
+        # the only difference is the line, which is this evaluator's line
+        assert ([LINE_SUFFIX.sub("", x) for x in h.reasons] ==
+                [LINE_SUFFIX.sub("", x) for x in g.reasons]), (program, h, g)
+
+
+def test_an_empty_run_list_and_a_single_run_have_no_origins(lib):
+    progs = ['let r = len(diverge([]))',
+             'let r = len(diverge([1 + 2]))',
+             'let r = contrast([])',
+             'let r = contrast([1 + 2])']
+    for program, g in zip(progs, guest_values(progs, lib)):
+        assert g == host_value(program), (program, g, host_value(program))
+
+
+# --- divergence (4): the guest can never report a `count` origin ----------
+
+COUNTER = ('fn go(i, a) { if i == 0 { a } else { go(i - 1, a + 1) } }\n'
+           'let x = go(5, 0)\nlet y = go(7, 0)\nlet r = len(diverge(x, y))')
+
+
+def test_the_guest_reports_a_merged_loop_difference_differently(lib):
+    """Divergence (4), measured rather than described — and the measurement
+    corrected the description. The host merges a tail loop into one node
+    with `count`, and reports a `step` origin when two counts differ. The
+    guest never merges, so that clause can never fire; what does NOT follow
+    (and an early draft of the comment claimed) is that the guest reports
+    FEWER origins. The unmerged runs differ in LENGTH, so the guest finds
+    shape mismatches instead and reports MORE. Neither side is silent."""
+    h = host_value(COUNTER)
+    g = guest_values([COUNTER], lib)[0]
+    assert h == 3, h
+    assert g == 7, g
+
+
+def test_no_guest_node_can_carry_a_count_above_one(lib):
+    """The mechanism behind (4), pinned at the source: every step record
+    the guest produces reports `count` 1, so the host's `na.count !=
+    nb.count` clause has no guest counterpart to mirror."""
+    prog = ('fn go(i, a) { if i == 0 { a } else { go(i - 1, a + 1) } }\n'
+            'let x = go(5, 0)\n'
+            'let r = map(fn(s) { s.count }, steps(x))')
+    g = guest_values([prog], lib)[0]
+    assert set(deep(g)) == {1}, deep(g)
+    h = deep(host_value(prog))
+    assert max(h) > 1, h        # the host really does merge this loop
+
+
+# --- divergence (5): every route, not the shortest -----------------------
+
+SHARED_AT_TWO_DEPTHS = ('let a = 1 + 2\nlet b = a + (a + a)\n'
+                        'let c = 1 + 3\nlet d = c + (c + c)\n'
+                        'let r = contrast(b, d)')
+
+
+def test_the_guest_shows_every_route_and_the_hosts_is_among_them(lib):
+    """Divergence (5). The host's `_pair_path` is breadth-first, so it
+    renders the SHORTEST lockstep route to each origin, once. The guest
+    descends once per path, so it renders every route — and the host's
+    block is one of them, character for character. Upper bound, never a
+    lower one: a reader of the guest's contrast sees everything the host
+    would have shown."""
+    h = normalize_contrast(host_value(SHARED_AT_TWO_DEPTHS))
+    g = normalize_contrast(guest_values([SHARED_AT_TWO_DEPTHS], lib)[0])
+    hb = [b for b in h.split("origin ") if b.strip()]
+    gb = [b for b in g.split("origin ") if b.strip()]
+    assert len(hb) == 1 and len(gb) == 3, (len(hb), len(gb))
+    # 5 rendered rows in the host's block, 6/6/5 in the guest's
+    assert [b.count("│") for b in hb] == [5], hb
+    assert sorted(b.count("│") for b in gb) == [5, 6, 6], gb
+    body = hb[0].split(":", 1)[1]
+    assert any(b.split(":", 1)[1] == body for b in gb), (body, gb)
+
+
+SHARED = ('let a = 1 + 2\nlet b = a + a\nlet c = 1 + 3\nlet d = c + c\n'
+          'let r = len(diverge(b, d))')
+
+
+def test_a_shared_origin_is_over_reported_never_under_reported(lib):
+    """Divergence (1) for `diverge`: the host's memo is keyed on
+    `(id(na), id(nb))` so each pair contributes one origin; the guest has
+    no identity and contributes one per path. The DUPLICATE IS VISIBLE —
+    two identical blocks — rather than a silently short list."""
+    assert host_value(SHARED) == 1
+    assert guest_values([SHARED], lib)[0] == 2
+
+
+def test_identity_is_an_optimisation_and_not_a_rule(lib):
+    """The claim v0.30's deferral rested on, checked directly. If `na is
+    nb` were load-bearing, `diverge(v, v)` would answer differently from a
+    structural walk of the same graph — it does not, on either side, for
+    any of these."""
+    progs = ['let x = 1 + 2\nlet r = len(diverge(x, x))',
+             'let x = (1 + 2) * (3 + 4)\nlet r = len(diverge(x, x))',
+             'let x = 1 / 0\nlet r = len(diverge(x, x))',
+             'let x = [1, [2, 3]]\nlet r = len(diverge(x, x))',
+             'fn f(n) { n * 2 }\nlet x = f(3)\nlet r = len(diverge(x, x))']
+    gs = guest_values(progs, lib)
+    for program, g in zip(progs, gs):
+        assert host_value(program) == 0, program
+        assert g == 0, (program, g)
+
+
+def test_the_walk_refuses_rather_than_truncating(lib):
+    """The same rule v0.30 set for `steps`: because the walk cannot dedup,
+    a shared and deep history is exponential in its depth. The host answers
+    in linear time; the guest REFUSES and names the number. A silently
+    short origin list is the failure mode that would look like an answer."""
+    lets = "\n".join("let x%d = x%d + x%d" % (i, i - 1, i - 1)
+                     for i in range(1, 25))
+    src = ("let x0 = 1 + 2\n%s\nlet y0 = 1 + 3\n%s\nlet r = len(diverge(x24, y24))"
+           % (lets, lets.replace("x", "y")))
+    h = host_value(src)
+    assert isinstance(h, int) and h >= 1, h      # the host answers
+    g = guest_values([src], lib)[0]
+    assert isinstance(g, Miss), g
+    assert any("5000" in x and "gave up" in x for x in g.reasons), g.reasons
+    assert any("node pairs" in x for x in g.reasons), g.reasons
+
+
+def test_nothing_in_the_provenance_family_delegates_any_more(lib):
+    """What retires E4, stated as the absence of five call shapes rather
+    than as a substring of a dispatch line — see `test_v30.py::
+    test_diverge_and_contrast_no_longer_delegate` for why that distinction
+    is this round's own subject."""
+    src = library_source()
+    for gone in ('{ diverge(a0) }', '{ contrast(a0) }',
+                 'diverge(a0, (args[1]).v)', 'contrast(a0, (args[1]).v)',
+                 '{ blame(a0) }', 'at(a0, (args[1]).v)',
+                 'fn box_step_record(', 'fn box_diverge_record('):
+        assert gone not in src, gone
+    for fn in ('guest_steps', 'guest_at', 'guest_blame',
+               'guest_diverge', 'guest_contrast'):
+        assert ("fn %s(args) {" % fn) in src, fn
+        assert ('else if name == "%s" { @{v: %s(args), st: st} }'
+                % (fn[6:], fn)) in src, fn
+
+
+def test_the_example_still_passes_its_own_self_tests():
+    """`self_eval.lang` carries 17 new `check` lines for this feature, so
+    the count moves; the property is that none of them fails."""
+    r = subprocess.run([sys.executable, os.path.join(ROOT, "run.py"), EXAMPLE],
+                       capture_output=True, text=True, cwd=ROOT)
+    assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-2000:]
+    assert "0 failed" in r.stdout, r.stdout[-3000:]
+    assert "159 passed" in r.stdout, r.stdout[-400:]
