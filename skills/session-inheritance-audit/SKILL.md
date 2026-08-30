@@ -199,6 +199,19 @@ where "session" means a login/web session.
   --porcelain` cross-check (`unattributed_dirty_paths`) that catches this
   regardless of what any per-round field says. Full mechanism:
   [references/pitfall-history.md#git-committed-true-partial-diff-coverage](references/pitfall-history.md#git-committed-true-partial-diff-coverage).
+- **A dirty-tree finding cannot distinguish "unseen" from "decided and
+  deliberately left" — and treating both as unseen is how a check becomes
+  noise.** Measured live: one adjudicated, escalated TRACKED file
+  (`languages/whence/SECURITY.md`, round 349) was reported by
+  `unattributed_dirty_paths` in 25 consecutive rounds, and in 13 of them it
+  was the ONLY finding, so those rounds' entire non-zero exit existed for
+  something already decided. The standing-dirty allowlist is the WRONG fix
+  (round 349: allowlisting a tracked file means "never look at this diff
+  again"); `state/known-escalated-diffs.json` + `--escalated-diffs-file`
+  acknowledges the diff by BOTH blob hashes instead, so the pin expires by
+  itself the moment the third party edits again or a commit moves the base.
+  Full mechanism:
+  [references/pitfall-history.md#adjudicated-is-not-unattributed](references/pitfall-history.md#adjudicated-is-not-unattributed).
 - **`check_round_recorded.py`'s gap list rots into mostly-noise once
   `research-state.md` starts archiving its own old entries.** A plain run
   once flagged 32 rounds, most already explained elsewhere in prose or
@@ -245,7 +258,16 @@ python3 skills/session-inheritance-audit/scripts/check_round_recorded.py
 # (see pitfalls). `--since N` still works as a blunter, no-file alternative;
 # `--show-acknowledged` prints the suppressed rounds and their reasons for a
 # spot-check.
-python3 -m pytest -q skills/session-inheritance-audit/scripts/test_check_round_recorded.py    # 56 passed
+# Fifth shape (round 373): a TRACKED file another system edited, already
+# adjudicated and escalated, is acknowledged via
+# state/known-escalated-diffs.json — CONTENT-PINNED by both blob hashes, so
+# the acknowledgement expires by itself if the file or its base moves. An
+# acknowledged escalation prints with a carried-rounds count and does NOT
+# affect the exit code; an expired pin, or an entry matching nothing at all
+# (a dead acknowledgement), does. Add an entry only after a round has
+# actually inspected THAT EXACT diff and recorded why.
+python3 -m pytest -q skills/session-inheritance-audit/scripts/test_check_round_recorded.py    # 80 passed
+python3 -m pytest -q harness/tests/test_run_driver_record_gap_check.py                        # 7 passed
 for p in $(pgrep -f '<round-driver-prompt-or-script-pattern>'); do echo -n "$p "; readlink -f /proc/$p/cwd; done
 # every hit classified: real workspace = live peer (leave/message); tmp/pytest fixture = escaped test orphan (killable)
 ```

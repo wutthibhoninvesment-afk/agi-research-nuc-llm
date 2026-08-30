@@ -204,3 +204,147 @@ def test_record_gap_check_finds_gap_and_injects_note_into_prompt(tmp_path):
     assert "record-gap check" in prompt, prompt
     assert "round 7" in prompt, prompt
     assert "NUC-integration(E)" in prompt, prompt
+
+
+# --------------------------------------------------------------------------
+# Round 373 — the injected NOTE's preamble must describe the check that
+# actually ran. It did not: `check_round_recorded.py` grew gap shapes in
+# rounds 259, 273, 291 and 373, and the preamble kept saying only shape 1
+# ("the round(s) below ran per logs/driver.log but have no
+# state/research-state.md entry yet"). Round 373's own injected note is the
+# live proof — it opened with that sentence and then listed three DIRTY
+# PATHS, none of which is a round. Nothing asserted the correspondence, so
+# nothing reported the drift for four shapes and ~100 rounds.
+# --------------------------------------------------------------------------
+
+_ORDINALS = ["second", "third", "fourth", "fifth", "sixth", "seventh",
+             "eighth", "ninth", "tenth"]
+
+
+def _preamble():
+    with open(DRIVER_SRC) as f:
+        driver = f.read()
+    start = driver.index("NOTE (automated record-gap check")
+    return driver[start:driver.index("$RECORD_CHECK_OUT", start)]
+
+
+def _implemented_shape_count():
+    """Shapes the checker's own module docstring claims, counted from its
+    'Round N added a <ORDINAL>[,] ... gap shape' sentences (+1 for the
+    original shape, which predates the numbering)."""
+    with open(REAL_CHECK_SCRIPT) as f:
+        doc = f.read()
+    open_q = doc.index('"""')
+    doc = doc[open_q:doc.index('"""', open_q + 3)].lower()
+    n = 1
+    for word in _ORDINALS:
+        if "added a %s" % word in doc:
+            n += 1
+        else:
+            break
+    return n
+
+
+def test_injected_note_preamble_enumerates_every_implemented_gap_shape():
+    preamble = _preamble()
+    expected = _implemented_shape_count()
+    assert expected >= 5, "docstring shape count regressed: %d" % expected
+    enumerated = ["(%d)" % i for i in range(1, expected + 1)]
+    for marker in enumerated:
+        assert marker in preamble, (
+            "run_driver.sh's injected NOTE enumerates fewer gap shapes than "
+            "check_round_recorded.py implements (%d) — %s missing. A round "
+            "reading the note is told it is looking at shape 1 whatever the "
+            "check actually found." % (expected, marker))
+    assert "(%d)" % (expected + 1) not in preamble, (
+        "the NOTE enumerates MORE shapes than the checker implements")
+
+
+def test_injected_note_preamble_does_not_claim_a_single_shape():
+    preamble = _preamble()
+    assert "the round(s) below ran per logs/driver.log but have no" \
+        not in preamble, (
+            "the pre-round-373 preamble asserted shape 1 unconditionally; a "
+            "dirty-path or escalation finding was announced as a missing "
+            "research-state.md entry")
+    assert "READ WHAT IT ACTUALLY SAYS" in preamble
+    assert "NOT a gap" in preamble, (
+        "the preamble must say an acknowledged escalation is informational, "
+        "or the fifth shape reintroduces the noise it removes")
+
+
+def test_injected_note_preamble_names_the_working_tree_and_escalation_shapes():
+    preamble = _preamble().lower()
+    assert "working tree" in preamble
+    assert "escalat" in preamble
+
+
+def _git(ws, *args):
+    subprocess.run(["git", "-C", ws] + list(args), check=True,
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def test_acknowledged_escalation_logs_one_line_and_injects_no_note(tmp_path):
+    """Round 373's fifth gap shape, end to end through the real driver.
+
+    Two things are being pinned at once, and the second is a defect this
+    change introduced and had to fix. (a) An acknowledged escalation must
+    NOT make the check non-zero and must NOT put a NOTE in the round's
+    prompt — that is the whole point: 13 of rounds 349-373 injected a note
+    whose only content was an item decided in round 349. (b) The PASS
+    branch's driver.log entry must stay ONE line. It always had been,
+    because a zero-exit run printed exactly one sentence; the escalation
+    section broke that assumption, and driver.log is parsed line-by-line by
+    check_round_recorded.py itself.
+    """
+    ws = str(tmp_path)
+    os.makedirs(os.path.join(ws, "state"), exist_ok=True)
+    os.makedirs(os.path.join(ws, "logs"), exist_ok=True)
+    _install_real_check_script(ws)
+
+    # A real git checkout whose ONLY visible dirty path is the escalated
+    # file: `/*` + a negation keeps the driver's own scratch files (round
+    # counter, logs, the copied script, the stub bin/) out of git status.
+    _git(ws, "init", "-q")
+    _git(ws, "config", "user.email", "t@t.com")
+    _git(ws, "config", "user.name", "t")
+    with open(os.path.join(ws, ".gitignore"), "w") as f:
+        f.write("/*\n!/escalated.md\n")
+    esc_path = os.path.join(ws, "escalated.md")
+    with open(esc_path, "w") as f:
+        f.write("original\n")
+    _git(ws, "add", "-f", "escalated.md")
+    _git(ws, "commit", "-q", "-m", "base")
+    with open(esc_path, "w") as f:
+        f.write("rewritten by a separate system\n")
+
+    import sys as _sys
+    _sys.path.insert(0, os.path.dirname(REAL_CHECK_SCRIPT))
+    import check_round_recorded as crr
+    import json as _json
+    with open(os.path.join(ws, "state", "known-escalated-diffs.json"), "w") as f:
+        _json.dump({"escalations": {"escalated.md": {
+            "reason": "adjudicated and escalated to the operator. Details.",
+            "escalated_round": 349,
+            "worktree_blob": crr.worktree_blob_hash("escalated.md", ws),
+            "head_blob": crr.head_blob_hash("escalated.md", ws),
+        }}}, f)
+
+    log_text, args_text = _run_driver(tmp_path)
+
+    pass_lines = [l for l in log_text.splitlines()
+                   if "round 1: record-check PASS" in l]
+    assert len(pass_lines) == 1, log_text
+    line = pass_lines[0]
+    assert "known-escalated tracked-file diff(s)" in line, line
+    assert "escalated.md" in line, line
+    assert "0 gaps" in line, line
+    # Every driver.log entry starts with its own timestamp — a multi-line
+    # `log` call would leave continuation lines that match nothing.
+    for l in log_text.splitlines():
+        if l.strip():
+            assert l.startswith("["), "unstamped continuation line: %r" % l
+
+    assert "round 1: record-check FOUND" not in log_text, log_text
+    prompt = _first_call_prompt(args_text)
+    assert "record-gap check" not in prompt, prompt

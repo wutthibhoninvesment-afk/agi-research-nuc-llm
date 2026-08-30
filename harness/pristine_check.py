@@ -290,6 +290,57 @@ def standing_dirty(path=None):
         return set()
 
 
+def escalation_allowed_dirty(dirt, repo=REPO_ROOT, registry_path=None):
+    """Tracked-modified paths rule 1 may waive because a round already
+    ADJUDICATED that exact diff and the registry declares it suite-neutral.
+
+    Round 373. Before this, the one standing instance —
+    `languages/whence/SECURITY.md`, a tracked file the Hermes gateway
+    rewrote, checked and escalated to the operator by round 349 — had to be
+    waived by a hand-typed `--allow-dirty` at every single invocation, which
+    is why the recorded ledger entry reads "rule 1 waived by hand". That
+    made the same adjudication a hand-maintained fact in a THIRD place
+    (round 349's prose, this flag, and the record-gap checker's own output).
+
+    Two conditions, both required, and neither is "it's on a list":
+
+    - the acknowledgement in `state/known-escalated-diffs.json` still HOLDS,
+      i.e. `classify_escalated_diffs` says the diff is content-pinned to
+      what the adjudicating round saw. Edit the file again and the waiver
+      disappears with the pin.
+    - the entry declares `"suite_neutral": true`. Rule 1 asks whether the
+      dirty file could have changed a suite's outcome; being escalated says
+      nothing about that. A `.md` nothing imports is suite-neutral; an
+      escalated `.py` would not be, and must keep blocking.
+
+    Degrades to an empty set when the skill tree is absent (a promoted
+    `~/.hermes/skills/` copy per CURRICULUM.md's endgame has no
+    `check_round_recorded.py`), which is the same never-block convention
+    `standing_dirty` uses for a missing registry."""
+    scripts = os.path.join(REPO_ROOT, "skills", "session-inheritance-audit",
+                            "scripts")
+    if scripts not in sys.path:
+        sys.path.insert(0, scripts)
+    try:
+        import check_round_recorded as crr
+    except ImportError:
+        return set()
+    registry_path = registry_path or os.path.join(
+        REPO_ROOT, "state", "known-escalated-diffs.json")
+    registry = crr.load_escalated_diffs(registry_path)
+    if not registry:
+        return set()
+    # Classify against the SAME dirt snapshot rule 1 is being applied to,
+    # not a second `git status` — otherwise the waiver could be computed
+    # from a tree that has moved since `dirt` was taken.
+    status = ([(" M", p) for p in dirt.get("tracked_modified", [])]
+              + [("??", p) for p in dirt.get("untracked", [])])
+    rows = crr.classify_escalated_diffs(registry, status, repo)
+    return {r["path"] for r in rows
+            if r["state"] == crr.ESCALATION_ACKNOWLEDGED
+            and registry.get(r["path"], {}).get("suite_neutral") is True}
+
+
 def blocking_dirt(dirt, allow=None):
     """The `tracked_modified` entries rule 1 actually blocks on."""
     allow = standing_dirty() if allow is None else set(allow)
@@ -338,7 +389,7 @@ def compare(live, pristine):
 
 def differential(suites, ref="HEAD", repo=REPO_ROOT, runner=None,
                  timeout_s=1800, worktree_path=None, dirt=None,
-                 allow_dirty=()):
+                 allow_dirty=(), escalation_allow=None):
     """Run each suite in both trees and return one record for the whole check.
 
     Rule 1 is enforced HERE, before any worktree is spent: a blocking dirty
@@ -354,7 +405,10 @@ def differential(suites, ref="HEAD", repo=REPO_ROOT, runner=None,
     comparison was not against a clean tree and check the reasoning again.
     """
     dirt = worktree_dirt(repo=repo, ref=ref, runner=runner) if dirt is None else dirt
-    allow = standing_dirty() | set(allow_dirty)
+    if escalation_allow is None:
+        escalation_allow = escalation_allowed_dirty(dirt, repo=repo)
+    escalation_allow = set(escalation_allow)
+    allow = standing_dirty() | escalation_allow | set(allow_dirty)
     blocking = blocking_dirt(dirt, allow=allow)
     record = {
         "ref": ref,
@@ -368,6 +422,14 @@ def differential(suites, ref="HEAD", repo=REPO_ROOT, runner=None,
         "blocking_dirty": blocking,
         "allowed_dirty": sorted(
             p for p in dirt.get("tracked_modified", []) if p in set(allow_dirty)),
+        # Recorded SEPARATELY from `allowed_dirty` on purpose: a reader of
+        # the ledger must be able to tell a hand-typed waiver (a human
+        # judgement made at run time, unverifiable afterwards) from a
+        # content-pinned one (re-checkable against the registry at any
+        # later date). Collapsing them would lose exactly the property the
+        # registry was built to add.
+        "escalation_allowed_dirty": sorted(
+            p for p in dirt.get("tracked_modified", []) if p in escalation_allow),
         "results": [],
     }
     if blocking:
@@ -454,6 +516,8 @@ def _fmt(record):
                  % record["untracked_count"])
     for p in record.get("allowed_dirty", []):
         lines.append("  allowed-dirty (rule 1 waived by hand): %s" % p)
+    for p in record.get("escalation_allowed_dirty", []):
+        lines.append("  allowed-dirty (escalation pin, suite-neutral): %s" % p)
     for r in record["results"]:
         lines.append("  %-14s %-22s live=%s pristine=%s  %ss"
                      % (r["suite"], r["verdict"],

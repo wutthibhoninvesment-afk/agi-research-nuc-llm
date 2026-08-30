@@ -158,6 +158,7 @@ def test_end_to_end_reports_gap_for_unrecorded_round(tmp_path):
          "--state", str(state),
          "--archive", str(tmp_path / "no-archive.md"),
          "--ack-file", str(tmp_path / "no-ack.json"),
+         "--escalated-diffs-file", str(tmp_path / "no-esc.json"),
          "--knowledge-dir", str(knowledge),
          "--round-logs-dir", str(logs_dir)],
         capture_output=True, text=True,
@@ -192,6 +193,7 @@ def test_gap_reports_interrupted_true_when_no_result_event(tmp_path):
          "--state", str(state),
          "--archive", str(tmp_path / "no-archive.md"),
          "--ack-file", str(tmp_path / "no-ack.json"),
+         "--escalated-diffs-file", str(tmp_path / "no-esc.json"),
          "--knowledge-dir", str(knowledge),
          "--round-logs-dir", str(logs_dir)],
         capture_output=True, text=True,
@@ -225,6 +227,7 @@ def test_gap_reports_interrupted_false_when_result_event_present(tmp_path):
          "--state", str(state),
          "--archive", str(tmp_path / "no-archive.md"),
          "--ack-file", str(tmp_path / "no-ack.json"),
+         "--escalated-diffs-file", str(tmp_path / "no-esc.json"),
          "--knowledge-dir", str(knowledge),
          "--round-logs-dir", str(logs_dir)],
         capture_output=True, text=True,
@@ -248,6 +251,7 @@ def test_gap_reports_interrupted_none_when_round_log_missing(tmp_path):
          "--state", str(state),
          "--archive", str(tmp_path / "no-archive.md"),
          "--ack-file", str(tmp_path / "no-ack.json"),
+         "--escalated-diffs-file", str(tmp_path / "no-esc.json"),
          "--knowledge-dir", str(tmp_path / "knowledge_missing"),
          "--round-logs-dir", str(tmp_path / "logs_missing")],
         capture_output=True, text=True,
@@ -505,6 +509,7 @@ def test_end_to_end_flags_recorded_but_uncommitted_round(tmp_path):
          "--state", str(state),
          "--archive", str(tmp_path / "no-archive.md"),
          "--ack-file", str(tmp_path / "no-ack.json"),
+         "--escalated-diffs-file", str(tmp_path / "no-esc.json"),
          "--knowledge-dir", str(knowledge),
          "--round-logs-dir", str(tmp_path / "logs_missing"),
          "--repo-root", str(repo)],
@@ -554,6 +559,7 @@ def test_end_to_end_acknowledged_uncommitted_gap_suppressed_by_default(tmp_path)
          "--state", str(state),
          "--archive", str(tmp_path / "no-archive.md"),
          "--ack-file", str(ack),
+         "--escalated-diffs-file", str(tmp_path / "no-esc.json"),
          "--knowledge-dir", str(knowledge),
          "--round-logs-dir", str(tmp_path / "logs_missing"),
          "--repo-root", str(repo),
@@ -569,6 +575,7 @@ def test_end_to_end_acknowledged_uncommitted_gap_suppressed_by_default(tmp_path)
          "--state", str(state),
          "--archive", str(tmp_path / "no-archive.md"),
          "--ack-file", str(ack),
+         "--escalated-diffs-file", str(tmp_path / "no-esc.json"),
          "--show-acknowledged",
          "--knowledge-dir", str(knowledge),
          "--round-logs-dir", str(tmp_path / "logs_missing"),
@@ -672,6 +679,7 @@ def test_end_to_end_acknowledged_gap_suppressed_by_default(tmp_path):
          "--state", str(state),
          "--archive", str(tmp_path / "no-archive.md"),
          "--ack-file", str(ack),
+         "--escalated-diffs-file", str(tmp_path / "no-esc.json"),
          "--knowledge-dir", str(tmp_path / "knowledge_missing"),
          "--round-logs-dir", str(tmp_path / "logs_missing")],
         capture_output=True, text=True,
@@ -701,6 +709,7 @@ def test_end_to_end_acknowledged_gap_shown_with_flag(tmp_path):
          "--state", str(state),
          "--archive", str(tmp_path / "no-archive.md"),
          "--ack-file", str(ack),
+         "--escalated-diffs-file", str(tmp_path / "no-esc.json"),
          "--show-acknowledged",
          "--knowledge-dir", str(tmp_path / "knowledge_missing"),
          "--round-logs-dir", str(tmp_path / "logs_missing"),
@@ -759,6 +768,7 @@ def test_end_to_end_reports_sequence_gap_and_exits_nonzero(tmp_path):
          "--state", str(state),
          "--archive", str(tmp_path / "no-archive.md"),
          "--ack-file", str(tmp_path / "no-ack.json"),
+         "--escalated-diffs-file", str(tmp_path / "no-esc.json"),
          "--knowledge-dir", str(tmp_path / "knowledge_missing"),
          "--round-logs-dir", str(tmp_path / "logs_missing")],
         capture_output=True, text=True,
@@ -795,6 +805,7 @@ def test_end_to_end_acknowledged_sequence_gap_suppressed_by_default(tmp_path):
          "--state", str(state),
          "--archive", str(tmp_path / "no-archive.md"),
          "--ack-file", str(ack),
+         "--escalated-diffs-file", str(tmp_path / "no-esc.json"),
          "--knowledge-dir", str(tmp_path / "knowledge_missing"),
          "--round-logs-dir", str(tmp_path / "logs_missing"),
          "--repo-root", str(tmp_path)],
@@ -810,6 +821,7 @@ def test_end_to_end_acknowledged_sequence_gap_suppressed_by_default(tmp_path):
          "--state", str(state),
          "--archive", str(tmp_path / "no-archive.md"),
          "--ack-file", str(ack),
+         "--escalated-diffs-file", str(tmp_path / "no-esc.json"),
          "--show-acknowledged",
          "--knowledge-dir", str(tmp_path / "knowledge_missing"),
          "--round-logs-dir", str(tmp_path / "logs_missing"),
@@ -951,6 +963,7 @@ def test_end_to_end_flags_unattributed_dirty_tree(tmp_path):
          "--state", str(state),
          "--archive", str(tmp_path / "no-archive.md"),
          "--ack-file", str(tmp_path / "no-ack.json"),
+         "--escalated-diffs-file", str(tmp_path / "no-esc.json"),
          "--knowledge-dir", str(tmp_path / "knowledge_missing"),
          "--round-logs-dir", str(tmp_path / "logs_missing"),
          "--standing-dirty-file", str(tmp_path / "no-standing.json"),
@@ -991,6 +1004,7 @@ def test_end_to_end_standing_dirty_file_suppresses_known_noise(tmp_path):
          "--state", str(state),
          "--archive", str(tmp_path / "no-archive.md"),
          "--ack-file", str(tmp_path / "no-ack.json"),
+         "--escalated-diffs-file", str(tmp_path / "no-esc.json"),
          "--knowledge-dir", str(tmp_path / "knowledge_missing"),
          "--round-logs-dir", str(tmp_path / "logs_missing"),
          "--standing-dirty-file", str(standing),
@@ -1000,3 +1014,315 @@ def test_end_to_end_standing_dirty_file_suppresses_known_noise(tmp_path):
     assert rc.returncode == 0
     assert "0 gaps" in rc.stdout
     assert "unattributed" not in rc.stdout
+
+
+# --------------------------------------------------------------------------
+# Round 373 — fifth gap shape: known-escalated TRACKED-file diffs, pinned by
+# content. See check_round_recorded.load_escalated_diffs for why this is not
+# state/known-standing-dirty-paths.json.
+# --------------------------------------------------------------------------
+
+
+def _repo_with_escalated_file(path, committed, working):
+    """Init a repo at `path`, commit `escalated.md` with `committed` bytes,
+    then leave `working` bytes in the working tree (dirty)."""
+    _init_repo(path)
+    f = path / "escalated.md"
+    f.write_text(committed)
+    subprocess.run(["git", "add", "escalated.md"], cwd=path, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=path, check=True)
+    f.write_text(working)
+    return f
+
+
+def _pin(repo, path="escalated.md", **over):
+    entry = {
+        "reason": "adjudicated by round 349; operator decision. More text.",
+        "escalated_round": 349,
+        "worktree_blob": m.worktree_blob_hash(path, str(repo)),
+        "head_blob": m.head_blob_hash(path, str(repo)),
+    }
+    entry.update(over)
+    return {path: entry}
+
+
+def test_worktree_blob_hash_matches_git_hash_object(tmp_path):
+    _repo_with_escalated_file(tmp_path, "old\n", "new\n")
+    got = m.worktree_blob_hash("escalated.md", str(tmp_path))
+    expect = subprocess.run(
+        ["git", "hash-object", "escalated.md"], cwd=tmp_path,
+        capture_output=True, text=True, check=True).stdout.strip()
+    assert got == expect
+
+
+def test_worktree_blob_hash_none_for_missing_file(tmp_path):
+    _init_repo(tmp_path)
+    assert m.worktree_blob_hash("nope.md", str(tmp_path)) is None
+
+
+def test_worktree_blob_hash_works_outside_a_repo_and_that_is_harmless(tmp_path):
+    # `git hash-object` is pure content addressing and needs no repository,
+    # so this half of the fingerprint survives outside a checkout. It cannot
+    # cause a false ACKNOWLEDGEMENT on its own: head_blob_hash needs a HEAD,
+    # returns None here, and classify_escalated_diffs is fail-closed on a
+    # missing observed hash (see the test below).
+    (tmp_path / "a.md").write_text("x")
+    assert m.worktree_blob_hash("a.md", str(tmp_path))
+    assert m.head_blob_hash("a.md", str(tmp_path)) is None
+
+
+def test_classify_returns_nothing_when_the_tree_cannot_be_read(tmp_path):
+    # status=None is "couldn't look", not "clean" — reporting RESOLVED here
+    # would declare every acknowledgement dead on any non-checkout caller.
+    registry = {"escalated.md": {"reason": "r", "escalated_round": 349,
+                                  "worktree_blob": "w", "head_blob": "h"}}
+    assert m.classify_escalated_diffs(registry, None, str(tmp_path)) == []
+
+
+def test_head_blob_hash_reads_the_committed_side_not_the_worktree(tmp_path):
+    _repo_with_escalated_file(tmp_path, "old\n", "new\n")
+    head = m.head_blob_hash("escalated.md", str(tmp_path))
+    work = m.worktree_blob_hash("escalated.md", str(tmp_path))
+    assert head and work and head != work
+    committed = subprocess.run(
+        ["git", "rev-parse", "HEAD:escalated.md"], cwd=tmp_path,
+        capture_output=True, text=True, check=True).stdout.strip()
+    assert head == committed
+
+
+def test_head_blob_hash_none_for_untracked_path(tmp_path):
+    _init_repo(tmp_path)
+    (tmp_path / "a.md").write_text("x")
+    subprocess.run(["git", "add", "a.md"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "i"], cwd=tmp_path, check=True)
+    (tmp_path / "b.md").write_text("y")
+    assert m.head_blob_hash("b.md", str(tmp_path)) is None
+
+
+def test_load_escalated_diffs_missing_file_returns_empty(tmp_path):
+    assert m.load_escalated_diffs(str(tmp_path / "nope.json")) == {}
+
+
+def test_load_escalated_diffs_malformed_json_returns_empty(tmp_path):
+    p = tmp_path / "esc.json"
+    p.write_text("{not json")
+    assert m.load_escalated_diffs(str(p)) == {}
+
+
+def test_load_escalated_diffs_reads_escalations_and_skips_comment(tmp_path):
+    p = tmp_path / "esc.json"
+    p.write_text(json.dumps({
+        "_comment": "ignored",
+        "escalations": {
+            "_note": {"reason": "underscore keys are not paths"},
+            "a/b.md": {"reason": "r", "escalated_round": 349,
+                        "worktree_blob": "w", "head_blob": "h"},
+            "c.md": "not a dict",
+        },
+    }))
+    got = m.load_escalated_diffs(str(p))
+    assert list(got) == ["a/b.md"]
+    assert got["a/b.md"]["escalated_round"] == 349
+
+
+def test_classify_acknowledges_an_unchanged_pinned_diff(tmp_path):
+    _repo_with_escalated_file(tmp_path, "old\n", "new\n")
+    status = m.working_tree_status(str(tmp_path))
+    rows = m.classify_escalated_diffs(_pin(tmp_path), status, str(tmp_path))
+    assert [r["state"] for r in rows] == [m.ESCALATION_ACKNOWLEDGED]
+    assert rows[0]["code"] == " M"
+
+
+def test_classify_expires_the_pin_when_the_third_party_edits_again(tmp_path):
+    f = _repo_with_escalated_file(tmp_path, "old\n", "new\n")
+    registry = _pin(tmp_path)
+    f.write_text("newer still\n")           # the separate system edits again
+    status = m.working_tree_status(str(tmp_path))
+    rows = m.classify_escalated_diffs(registry, status, str(tmp_path))
+    assert rows[0]["state"] == m.ESCALATION_CHANGED
+    assert "working-tree content moved" in rows[0]["detail"]
+
+
+def test_classify_expires_the_pin_when_only_the_base_moved(tmp_path):
+    # Same bytes on disk, different diff: someone committed a new base.
+    f = _repo_with_escalated_file(tmp_path, "old\n", "new\n")
+    registry = _pin(tmp_path)
+    f.write_text("base2\n")
+    subprocess.run(["git", "commit", "-q", "-am", "move base"],
+                    cwd=tmp_path, check=True)
+    f.write_text("new\n")                    # worktree bytes restored
+    status = m.working_tree_status(str(tmp_path))
+    rows = m.classify_escalated_diffs(registry, status, str(tmp_path))
+    assert rows[0]["observed_worktree_blob"] == \
+        registry["escalated.md"]["worktree_blob"]
+    assert rows[0]["state"] == m.ESCALATION_CHANGED
+    assert "base moved" in rows[0]["detail"]
+
+
+def test_classify_reports_both_halves_when_both_moved(tmp_path):
+    f = _repo_with_escalated_file(tmp_path, "old\n", "new\n")
+    registry = _pin(tmp_path)
+    f.write_text("base2\n")
+    subprocess.run(["git", "commit", "-q", "-am", "move base"],
+                    cwd=tmp_path, check=True)
+    f.write_text("different\n")
+    status = m.working_tree_status(str(tmp_path))
+    rows = m.classify_escalated_diffs(registry, status, str(tmp_path))
+    assert rows[0]["state"] == m.ESCALATION_CHANGED
+    assert "both halves moved" in rows[0]["detail"]
+
+
+def test_classify_reports_resolved_when_the_path_is_no_longer_dirty(tmp_path):
+    _repo_with_escalated_file(tmp_path, "old\n", "new\n")
+    registry = _pin(tmp_path)
+    subprocess.run(["git", "commit", "-q", "-am", "land it"],
+                    cwd=tmp_path, check=True)
+    status = m.working_tree_status(str(tmp_path))
+    rows = m.classify_escalated_diffs(registry, status, str(tmp_path))
+    assert rows[0]["state"] == m.ESCALATION_RESOLVED
+    assert "not dirty" in rows[0]["detail"]
+
+
+def test_classify_is_fail_closed_on_an_unpinned_entry(tmp_path):
+    _repo_with_escalated_file(tmp_path, "old\n", "new\n")
+    registry = {"escalated.md": {"reason": "r", "escalated_round": 349}}
+    status = m.working_tree_status(str(tmp_path))
+    rows = m.classify_escalated_diffs(registry, status, str(tmp_path))
+    assert rows[0]["state"] == m.ESCALATION_CHANGED
+    assert "no fingerprint" in rows[0]["detail"]
+
+
+def test_classify_is_fail_closed_when_git_is_unavailable(tmp_path):
+    # An acknowledgement that cannot be VERIFIED must not suppress — the one
+    # place in this module where an unavailable git does NOT degrade to
+    # "don't flag" (round 367's rule 10 in a different file).
+    status = [(" M", "escalated.md")]
+    registry = {"escalated.md": {"reason": "r", "escalated_round": 349,
+                                  "worktree_blob": "w", "head_blob": "h"}}
+    rows = m.classify_escalated_diffs(registry, status, str(tmp_path))
+    assert rows[0]["state"] == m.ESCALATION_CHANGED
+    assert "fail-closed" in rows[0]["detail"]
+
+
+def test_classify_empty_registry_is_empty(tmp_path):
+    assert m.classify_escalated_diffs({}, [(" M", "x")], str(tmp_path)) == []
+
+
+def test_unattributed_dirty_paths_accepts_a_precomputed_status(tmp_path):
+    # No git call at all: the caller's snapshot is used verbatim, which is
+    # what lets main() classify escalations against the SAME snapshot.
+    got = m.unattributed_dirty_paths(
+        str(tmp_path), {"a.txt"},
+        status=[(" M", "a.txt"), ("??", "b.txt")])
+    assert got == [("??", "b.txt")]
+
+
+def test_first_sentence_trims_a_long_reason():
+    assert m._first_sentence("Short one. Then more text.") == "Short one."
+    long = "x" * 300
+    assert m._first_sentence(long).endswith("...")
+    assert len(m._first_sentence(long)) <= 183
+    assert m._first_sentence("") == "(no reason recorded)"
+
+
+def _run_cli(tmp_path, repo, extra=()):
+    driver_log = tmp_path / "driver.log"
+    _write_driver_log(str(driver_log), [
+        "[t] round 372 track=harness(A) start (driver_version=x) pid=1",
+        "[t] round 372: success",
+    ])
+    state = tmp_path / "state.md"
+    state.write_text("### Round 372 — harness(A) — 2026-08-30\n- ok\n")
+    return subprocess.run(
+        [sys.executable, SCRIPT,
+         "--driver-log", str(driver_log),
+         "--state", str(state),
+         "--archive", str(tmp_path / "no-archive.md"),
+         "--ack-file", str(tmp_path / "no-ack.json"),
+         "--knowledge-dir", str(tmp_path / "knowledge_missing"),
+         "--round-logs-dir", str(tmp_path / "logs_missing"),
+         "--standing-dirty-file", str(tmp_path / "no-standing.json"),
+         "--repo-root", str(repo)] + list(extra),
+        capture_output=True, text=True)
+
+
+def test_end_to_end_acknowledged_escalation_exits_zero(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _repo_with_escalated_file(repo, "old\n", "new\n")
+    esc = tmp_path / "esc.json"
+    esc.write_text(json.dumps({"escalations": _pin(repo)}))
+    rc = _run_cli(tmp_path, repo, ["--escalated-diffs-file", str(esc)])
+    assert rc.returncode == 0, rc.stdout + rc.stderr
+    assert "known-escalated tracked-file diff(s)" in rc.stdout
+    assert "carried 24 round(s)" in rc.stdout      # 372 - 349 + 1
+    # The path must NOT also appear under the round-291 unattributed list.
+    assert "unattributed change(s)" not in rc.stdout
+    assert "0 gaps" in rc.stdout
+    assert "1 acknowledged escalation(s)" in rc.stdout
+
+
+def test_end_to_end_expired_pin_is_a_gap_and_is_not_double_reported(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    f = _repo_with_escalated_file(repo, "old\n", "new\n")
+    registry = _pin(repo)
+    f.write_text("edited again by a third party\n")
+    esc = tmp_path / "esc.json"
+    esc.write_text(json.dumps({"escalations": registry}))
+    rc = _run_cli(tmp_path, repo, ["--escalated-diffs-file", str(esc)])
+    assert rc.returncode == 1
+    assert "ACKNOWLEDGEMENT NO LONGER HOLDS" in rc.stdout
+    assert rc.stdout.count("escalated.md") == 1
+    assert "unattributed change(s)" not in rc.stdout
+
+
+def test_end_to_end_dead_registry_entry_is_reported(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _repo_with_escalated_file(repo, "old\n", "new\n")
+    registry = _pin(repo)
+    subprocess.run(["git", "commit", "-q", "-am", "land"], cwd=repo, check=True)
+    esc = tmp_path / "esc.json"
+    esc.write_text(json.dumps({"escalations": registry}))
+    rc = _run_cli(tmp_path, repo, ["--escalated-diffs-file", str(esc)])
+    assert rc.returncode == 1
+    assert "match nothing in the working tree" in rc.stdout
+    assert "delete the entry" in rc.stdout
+
+
+def test_end_to_end_missing_registry_reproduces_pre_round_373_behaviour(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _repo_with_escalated_file(repo, "old\n", "new\n")
+    rc = _run_cli(tmp_path, repo,
+                   ["--escalated-diffs-file", str(tmp_path / "nope.json")])
+    assert rc.returncode == 1
+    assert "unattributed change(s)" in rc.stdout
+    assert "escalated.md" in rc.stdout
+    assert "known-escalated" not in rc.stdout
+
+
+def test_live_registry_is_well_formed_and_every_entry_is_load_bearing():
+    """The repo's own registry, checked the way round 372 checked its
+    exemptions: an entry that suppresses nothing must not exist."""
+    root = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
+    reg_path = os.path.join(root, "state", "known-escalated-diffs.json")
+    if not os.path.exists(reg_path):
+        return                      # registry is optional by design
+    registry = m.load_escalated_diffs(reg_path)
+    assert registry, "registry exists but parses to nothing"
+    for path, entry in registry.items():
+        assert entry.get("reason"), "%s has no reason" % path
+        assert isinstance(entry.get("escalated_round"), int), path
+        assert entry.get("worktree_blob"), "%s is not pinned" % path
+        assert entry.get("head_blob"), "%s is not pinned" % path
+    status = m.working_tree_status(root)
+    if status is None:
+        return                      # not a git checkout (promoted skill copy)
+    rows = m.classify_escalated_diffs(registry, status, root)
+    dead = [r["path"] for r in rows if r["state"] == m.ESCALATION_RESOLVED]
+    assert not dead, (
+        "dead acknowledgement(s) %s — the path(s) are no longer dirty, so "
+        "the entry suppresses nothing and reads as coverage; delete them "
+        "from state/known-escalated-diffs.json" % dead)

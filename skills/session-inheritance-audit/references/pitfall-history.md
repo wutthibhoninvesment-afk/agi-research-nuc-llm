@@ -21,6 +21,7 @@ enough to re-derive them.
 - [A round can be missing from `driver.log` itself](#missing-from-driver-log)
 - [A detector that only logs its finding is never read](#detector-must-feed-next-input)
 - [`git_committed=True` can hide a round's own uncommitted leftover diff](#git-committed-true-partial-diff-coverage)
+- [A dirty-tree check cannot tell "unseen" from "decided and left"](#adjudicated-is-not-unattributed)
 
 <a id="ppid1-not-safe-to-kill"></a>
 ### `ppid==1` alone does not mean "safe to kill"
@@ -280,3 +281,58 @@ recorded.py`'s own output. One sharp edge: git reports a wholly untracked
 DIRECTORY as a single `?? some/dir/` line, not one line per file inside
 it — an allowlist/standing entry for that case needs the directory path
 (trailing slash and all), not any individual file path underneath it.
+
+<a id="adjudicated-is-not-unattributed"></a>
+### A dirty-tree check cannot tell "nobody has looked at this" from "somebody looked, decided, and the decision was to leave it"
+`unattributed_dirty_paths` (the pitfall above) is a raw `git status`
+cross-check, so every path it reports reads the same: *inspect me*. That is
+right for a leftover diff and wrong for an ADJUDICATED one. Measured live
+(round 373, from `logs/driver.log`'s own `record-check` lines):
+`languages/whence/SECURITY.md` — a TRACKED file the Hermes gateway rewrote
+to assert four security controls this repo does not have, checked four for
+four false by round 349 and escalated to the operator because the call is
+theirs — was reported in **25 consecutive rounds (349-373)**, and in **13
+of them it was the only unattributed path**, so 13 rounds' entire non-zero
+exit and entire injected NOTE existed for an item already decided. Three
+separate next-steps entries (rounds 369, 370, 371) named the cost, and each
+of them hand-typed a DIFFERENT ordinal for it ("TWELFTH", "TENTH",
+"ELEVENTH") — none of which matched the log's 21st/22nd/23rd, because a
+carried-item counter maintained by hand is itself a number nothing
+re-executes.
+
+The wrong fix is the standing-dirty allowlist. Round 349 refused it on
+principle — *"allowlisting a tracked file would mean 'never look at this
+diff again', which is the wrong answer"* — and that is exactly right: the
+third party can edit the file again, and that new edit is the event most
+worth seeing.
+
+The fix that satisfies both is a CONTENT-PINNED acknowledgement
+(`state/known-escalated-diffs.json`, round 373). Each entry records the
+adjudicating round, its reasoning, and BOTH blob hashes of the diff —
+`git hash-object` of the working-tree file and `git rev-parse HEAD:<path>`
+of its base. The path is suppressed only while both still match. Pinning
+only the worktree side is not enough: a later commit can move the base
+while the bytes on disk are untouched, and the acknowledged diff is then a
+different diff. Three rules make it safe:
+- **Fail closed.** If the tree is known and the path is dirty but a hash
+  cannot be computed, the entry does NOT suppress. An acknowledgement you
+  cannot verify must not silence anything. (Distinct from "the tree could
+  not be read at all", where nothing can be claimed in either direction and
+  the classifier returns nothing.)
+- **A dead acknowledgement is reported.** If the path stops being dirty the
+  entry suppresses nothing and reads as coverage; the checker reports it so
+  it gets deleted.
+- **The suppressed item does not vanish.** It still prints, on a zero-exit
+  run, with a carried-rounds count computed from the driver log rather than
+  typed by hand. Known limitation, stated rather than hidden: on a clean
+  run the driver logs that line but does not inject it into the round's
+  prompt, so an acknowledged escalation reaches rounds only through
+  `driver.log` and the state file's next-steps — which is the intended
+  trade and not a free one.
+
+Second-order defect from the same change, worth its own line: the driver's
+PASS branch logged `$RECORD_CHECK_OUT` with `tr -d '\r'` only. That was
+correct while a zero-exit run printed exactly one sentence, and silently
+truncated the driver.log entry at the first newline the moment the
+escalation section made it multi-line. Any log a program parses line-by-
+line needs `tr '\n' ' '` on every branch that can grow a second line.

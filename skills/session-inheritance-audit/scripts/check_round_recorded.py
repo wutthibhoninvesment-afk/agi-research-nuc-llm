@@ -26,7 +26,11 @@ Usage:
 
 Exit codes: 0 = every round the driver log shows starting also has a
 research-state.md entry, AND driver.log's own round-number sequence has no
-holes; 1 = at least one gap found (either shape); 2 = usage/IO problem.
+holes, AND nothing is unattributed in the working tree, AND every
+escalation pin still holds; 1 = at least one gap found (any shape);
+2 = usage/IO problem. An ACKNOWLEDGED escalation does not change the
+exit code; an escalation whose pin has expired, or one that no longer
+matches anything, does.
 
 Round 259 added a second, structurally distinct gap shape:
 `missing_round_numbers` flags a round number that `run_driver.sh`'s own
@@ -77,6 +81,29 @@ to read by hand before landing a predecessor's leftover work, turned into
 one automatable, round-agnostic cross-check instead of something every
 future round must remember to run itself. See `unattributed_dirty_paths`'s
 own docstring below.
+
+Round 373 added a FIFTH gap shape, and it exists because shape 4 has a
+failure mode of its own: it cannot tell "nobody has looked at this" from
+"somebody looked, decided, and the decision was to leave it". Measured
+from `logs/driver.log`: `languages/whence/SECURITY.md` -- a TRACKED file a
+separate autonomous system rewrote, whose new text asserts four security
+controls this repo does not have, adjudicated by round 349 and escalated
+to the operator because the call is theirs -- appears in the shape-4
+output of 25 CONSECUTIVE ROUNDS (349-373), and in 13 of them it is the
+ONLY unattributed path. More than half the time, this script's entire
+non-zero exit and the entire NOTE injected into the next round's prompt
+existed for something already decided.
+
+Round 349 was right to refuse the shape-4 allowlist for it ("allowlisting
+a tracked file would mean 'never look at this diff again', which is the
+wrong answer") -- so the fifth shape is not an allowlist.
+`state/known-escalated-diffs.json` PINS each acknowledged diff by BOTH
+blob hashes (working tree and HEAD); `classify_escalated_diffs` suppresses
+a path only while both still match, reports it LOUDER than an ordinary
+unattributed path the moment either moves, and reports an entry that has
+stopped matching anything at all so a dead acknowledgement gets deleted
+rather than read as coverage. See `load_escalated_diffs` and
+`classify_escalated_diffs` below.
 """
 
 import argparse
@@ -539,7 +566,217 @@ def load_standing_dirty_paths(path):
     return {p for p in paths if isinstance(p, str)}
 
 
-def unattributed_dirty_paths(repo_root=".", standing_paths=frozenset()):
+def _first_sentence(text, limit=180):
+    """Return a one-line gist of a registry `reason` for the printed line.
+
+    The reasons in `state/known-escalated-diffs.json` are deliberately long
+    — an entry has to carry enough for a future round to re-adjudicate
+    without re-deriving anything. But this script's stdout is pasted
+    VERBATIM into the next round's prompt by `run_driver.sh`, and the whole
+    point of the fifth gap shape is to make an already-decided item cost
+    less attention, not more. Print the gist and the registry path; the
+    round that needs the rest knows where it is."""
+    text = " ".join((text or "").split())
+    if not text:
+        return "(no reason recorded)"
+    cut = text.find(". ")
+    if 0 < cut + 1 <= limit:
+        return text[:cut + 1]
+    return text if len(text) <= limit else text[:limit].rstrip() + "..."
+
+
+ESCALATION_ACKNOWLEDGED = "acknowledged"
+ESCALATION_CHANGED = "changed"
+ESCALATION_RESOLVED = "resolved"
+
+
+def worktree_blob_hash(path, repo_root="."):
+    """Return `git hash-object`'s SHA-1 for `path` AS IT SITS IN THE WORKING
+    TREE, or None if git/the file isn't available (same degrade-gracefully
+    convention as `working_tree_status`).
+
+    This is half of an escalation FINGERPRINT (see `load_escalated_diffs`).
+    Content-addressing, not mtime, is what makes a tracked-file
+    acknowledgement safe: mtime moves when a third party rewrites the file
+    with identical bytes and stays put when a `touch`-free edit lands, and
+    neither is what "is this still the diff someone adjudicated" asks."""
+    if not os.path.exists(os.path.join(repo_root, path)):
+        return None
+    try:
+        out = subprocess.run(
+            ["git", "-C", repo_root, "hash-object", "--", path],
+            capture_output=True, text=True, timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if out.returncode != 0:
+        return None
+    return out.stdout.strip() or None
+
+
+def head_blob_hash(path, repo_root="."):
+    """Return the SHA-1 of `path`'s blob AT HEAD, or None if the path isn't
+    in HEAD (untracked, or deleted there) or git isn't available.
+
+    The other half of the fingerprint, and it is not redundant: a diff is a
+    PAIR. If a later round commits a different base for the same file, the
+    working-tree bytes can be untouched while the diff being acknowledged is
+    a different diff. Pinning only the working-tree side would keep
+    suppressing an acknowledgement that no longer describes anything."""
+    try:
+        out = subprocess.run(
+            ["git", "-C", repo_root, "rev-parse", "--verify", "-q",
+             "HEAD:" + path],
+            capture_output=True, text=True, timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if out.returncode != 0:
+        return None
+    return out.stdout.strip() or None
+
+
+def load_escalated_diffs(path):
+    """Return {repo-relative path: entry dict} from a JSON registry of
+    KNOWN-ESCALATED TRACKED-FILE DIFFS — the fifth gap shape (round 373).
+
+    Shape: `{"_comment": ..., "escalations": {"<path>": {"reason": str,
+    "escalated_round": int, "worktree_blob": str, "head_blob": str}}}`.
+    Missing/malformed degrades to `{}` (same convention as
+    `load_acknowledged_gaps`/`load_standing_dirty_paths`).
+
+    WHY THIS IS NOT `state/known-standing-dirty-paths.json`. That registry
+    models UNTRACKED leftovers a separate autonomous system permanently
+    writes, and its entries are unconditional: the path is never looked at
+    again. Round 349 refused, on principle, to put a TRACKED file another
+    system EDITS into it — "allowlisting a tracked file would mean 'never
+    look at this diff again', which is the wrong answer for either." That
+    refusal was right and it left `languages/whence/SECURITY.md` firing the
+    round-291 dirty-tree check in 25 consecutive rounds (349-373 per
+    `logs/driver.log`), 13 of them as the ONLY unattributed path — i.e. more
+    than half the time the check's entire non-zero exit, and the entire note
+    injected into the next round's prompt, existed for an item already
+    adjudicated and deliberately left open.
+
+    The resolution is that an acknowledgement here is PINNED TO CONTENT.
+    `classify_escalated_diffs` suppresses a path only while both blob hashes
+    still match; the moment a third party edits the file again, or a commit
+    moves the base underneath it, the entry stops suppressing and the path
+    is reported LOUDER than an ordinary unattributed one, because a new edit
+    by a third party to a tracked file is exactly the event worth seeing.
+    "Never look at this diff again" is not what this file can express."""
+    if not os.path.exists(path):
+        return {}
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    entries = data.get("escalations", {})
+    if not isinstance(entries, dict):
+        return {}
+    return {k: v for k, v in entries.items()
+            if not k.startswith("_") and isinstance(v, dict)}
+
+
+def classify_escalated_diffs(registry, status, repo_root="."):
+    """Classify every entry of `registry` (from `load_escalated_diffs`)
+    against `status` (a `working_tree_status` list, or `[]`/None). Returns
+    one dict per entry, in registry order, with a `state` of:
+
+    - `ESCALATION_ACKNOWLEDGED` — the path is still dirty AND both recorded
+      blob hashes match what's on disk/at HEAD. Suppressed from the gap
+      list; reported on its own quiet line with a carried-rounds count.
+    - `ESCALATION_CHANGED` — the path is dirty but the fingerprint does not
+      match, could not be computed, or was never recorded. NOT suppressed.
+    A `status` of None (git unavailable / not a checkout) yields `[]`: see
+    the comment at the top of the body for why that is a different question
+    from the fail-closed rule.
+
+    - `ESCALATION_RESOLVED` — the path is not dirty at all: the diff was
+      committed, reverted, or the file deleted. The entry now suppresses
+      NOTHING, and a dead acknowledgement is worse than no acknowledgement
+      because it reads as coverage. Reported so it gets deleted.
+
+    FAIL-CLOSED is deliberate, and it is round 367's rule 10 in a different
+    file: a run that could not establish its own precondition may not
+    narrow. If git is unavailable the observed hashes come back None and the
+    entry lands in `CHANGED` rather than `ACKNOWLEDGED` — an
+    acknowledgement you cannot VERIFY must not silence anything. Everywhere
+    else in this module an unavailable git degrades to "don't flag"; here
+    that would mean a suppression rule whose precondition failed open, which
+    is the one direction that loses information."""
+    if status is None:
+        # We could not READ the working tree (no git, not a checkout). Every
+        # state below is a claim about the dirty set, so none of them can be
+        # made — including RESOLVED, which would otherwise fire on every
+        # entry and read as "your acknowledgements are all dead". This is the
+        # module's ordinary don't-cry-wolf degrade, and it is NOT in tension
+        # with the fail-closed rule below: that one applies when the tree IS
+        # known and the path IS dirty, where refusing to suppress is the
+        # conservative answer. Here there is nothing to suppress either way.
+        return []
+    dirty = {path: code for code, path in status}
+    out = []
+    for path, entry in registry.items():
+        rec_wt = entry.get("worktree_blob")
+        rec_head = entry.get("head_blob")
+        row = {
+            "path": path,
+            "code": dirty.get(path),
+            "reason": entry.get("reason", ""),
+            "escalated_round": entry.get("escalated_round"),
+            "recorded_worktree_blob": rec_wt,
+            "recorded_head_blob": rec_head,
+            "observed_worktree_blob": None,
+            "observed_head_blob": None,
+            "detail": "",
+        }
+        if path not in dirty:
+            row["state"] = ESCALATION_RESOLVED
+            row["detail"] = ("path is not dirty — the diff was committed, "
+                             "reverted, or the file deleted")
+            out.append(row)
+            continue
+        obs_wt = worktree_blob_hash(path, repo_root)
+        obs_head = head_blob_hash(path, repo_root)
+        row["observed_worktree_blob"] = obs_wt
+        row["observed_head_blob"] = obs_head
+        if not rec_wt or not rec_head:
+            row["state"] = ESCALATION_CHANGED
+            row["detail"] = ("registry entry records no fingerprint — an "
+                             "unpinned acknowledgement cannot be trusted")
+        elif obs_wt is None or obs_head is None:
+            row["state"] = ESCALATION_CHANGED
+            row["detail"] = ("fingerprint could not be computed (git "
+                             "unavailable or path missing) — fail-closed")
+        elif obs_wt != rec_wt and obs_head != rec_head:
+            row["state"] = ESCALATION_CHANGED
+            row["detail"] = ("both halves moved: working tree %s != %s and "
+                             "HEAD %s != %s"
+                             % (obs_wt[:12], rec_wt[:12],
+                                obs_head[:12], rec_head[:12]))
+        elif obs_wt != rec_wt:
+            row["state"] = ESCALATION_CHANGED
+            row["detail"] = ("working-tree content moved: %s != recorded %s "
+                             "— a third party edited this tracked file "
+                             "AGAIN; re-inspect before re-pinning"
+                             % (obs_wt[:12], rec_wt[:12]))
+        elif obs_head != rec_head:
+            row["state"] = ESCALATION_CHANGED
+            row["detail"] = ("base moved: HEAD blob %s != recorded %s — same "
+                             "bytes on disk, different diff"
+                             % (obs_head[:12], rec_head[:12]))
+        else:
+            row["state"] = ESCALATION_ACKNOWLEDGED
+        out.append(row)
+    return out
+
+
+def unattributed_dirty_paths(repo_root=".", standing_paths=frozenset(),
+                              status=None):
     """Return the (status_code, path) pairs from `working_tree_status` that
     are NOT in `standing_paths` — the automatable half of round 283's
     still-open `git_committed`-coverage gap (see `working_tree_status`'s
@@ -549,8 +786,17 @@ def unattributed_dirty_paths(repo_root=".", standing_paths=frozenset()):
     convention every other check in this file already uses; `working_tree_
     status`'s own `None` is only meaningful to a caller that needs to
     distinguish "clean" from "couldn't check," and nothing downstream of
-    this function does."""
-    status = working_tree_status(repo_root)
+    this function does.
+
+    `status` lets a caller pass a `working_tree_status` list it already has
+    (round 373). `main` does, so this check and `classify_escalated_diffs`
+    see ONE snapshot: a separate autonomous system writes into this tree
+    while rounds run (see `load_escalated_diffs`), and two independent `git
+    status` calls could disagree about which paths are dirty — an
+    escalation could be suppressed against a snapshot that no longer
+    matches the one the gap list was built from."""
+    if status is None:
+        status = working_tree_status(repo_root)
     if not status:
         return []
     return [(code, path) for code, path in status if path not in standing_paths]
@@ -592,11 +838,22 @@ def main():
                           "autonomous system leaves untracked) and must "
                           "never count as an unattributed dirty-tree gap. "
                           "Missing file degrades to an empty allowlist.")
+    ap.add_argument("--escalated-diffs-file",
+                     default="state/known-escalated-diffs.json",
+                     help="JSON registry of KNOWN-ESCALATED TRACKED-FILE "
+                          "diffs (round 373): a tracked file a separate "
+                          "system edited, already adjudicated, deliberately "
+                          "left uncommitted and escalated to the operator. "
+                          "Each entry PINS the exact diff by blob hash, so "
+                          "the acknowledgement expires the moment the "
+                          "content or its base moves. Missing file degrades "
+                          "to an empty registry. See load_escalated_diffs.")
     args = ap.parse_args()
     archive_paths = (args.archive if args.archive is not None
                       else ["state/research-state-archive.md"])
     acknowledged = load_acknowledged_gaps(args.ack_file)
     standing_dirty = load_standing_dirty_paths(args.standing_dirty_file)
+    escalated = load_escalated_diffs(args.escalated_diffs_file)
 
     driver_rounds = parse_driver_log(args.driver_log)
     state_rounds = recorded_rounds(args.state, archive_paths)
@@ -613,7 +870,24 @@ def main():
                              if n in acknowledged]
     uncommitted_unacked = [n for n in uncommitted_gaps if n not in acknowledged]
 
-    dirty_paths = unattributed_dirty_paths(args.repo_root, standing_dirty)
+    # ONE working-tree snapshot feeds both the round-291 dirty-path check
+    # and the round-373 escalation classifier — see unattributed_dirty_paths.
+    tree_status = working_tree_status(args.repo_root)
+    escalations = classify_escalated_diffs(escalated, tree_status,
+                                            args.repo_root)
+    esc_ack = [e for e in escalations if e["state"] == ESCALATION_ACKNOWLEDGED]
+    esc_changed = [e for e in escalations if e["state"] == ESCALATION_CHANGED]
+    esc_resolved = [e for e in escalations
+                     if e["state"] == ESCALATION_RESOLVED]
+    # Every registry path is reported by the escalation section (acknowledged,
+    # changed or resolved) and never ALSO as a bare unattributed path, so each
+    # path prints exactly once, under its most specific heading.
+    registry_paths = set(escalated)
+    dirty_paths = [(code, path) for code, path
+                    in unattributed_dirty_paths(args.repo_root, standing_dirty,
+                                                 status=tree_status)
+                    if path not in registry_paths]
+    latest_round = max(driver_rounds) if driver_rounds else None
 
     gaps = []
     ack_hits = []
@@ -658,6 +932,45 @@ def main():
         for n, reason in uncommitted_ack_hits:
             print("  round %s (recorded but uncommitted): %s" % (n, reason))
 
+    if esc_ack:
+        print("check_round_recorded: %d known-escalated tracked-file diff(s) "
+              "— already adjudicated, deliberately left uncommitted, content "
+              "UNCHANGED since the escalation was pinned. Acknowledged, not "
+              "counted as a gap (registry %s; the pin expires automatically "
+              "if the file or its base moves):"
+              % (len(esc_ack), args.escalated_diffs_file))
+        for e in esc_ack:
+            carried = ""
+            if latest_round is not None and isinstance(
+                    e.get("escalated_round"), int):
+                carried = " carried %d round(s)," % (
+                    latest_round - e["escalated_round"] + 1)
+            print("  %s %s — escalated round %s,%s pinned %s: %s" % (
+                e["code"], e["path"], e["escalated_round"], carried,
+                (e["recorded_worktree_blob"] or "?")[:12],
+                _first_sentence(e["reason"])))
+
+    if esc_changed:
+        print("check_round_recorded: %d known-escalated tracked-file diff(s) "
+              "whose ACKNOWLEDGEMENT NO LONGER HOLDS — %s pins an exact diff "
+              "by blob hash and this is not that diff any more. A third party "
+              "editing a tracked file again is precisely the event the pin "
+              "exists to surface: re-inspect, then either re-pin or resolve. "
+              "NOT suppressed:" % (len(esc_changed), args.escalated_diffs_file))
+        for e in esc_changed:
+            print("  %s %s — escalated round %s: %s" % (
+                e["code"], e["path"], e["escalated_round"], e["detail"]))
+
+    if esc_resolved:
+        print("check_round_recorded: %d escalation registry entr(ies) in %s "
+              "match nothing in the working tree — the diff was committed, "
+              "reverted, or the file deleted. A dead acknowledgement "
+              "suppresses nothing and reads as coverage: delete the entry:"
+              % (len(esc_resolved), args.escalated_diffs_file))
+        for e in esc_resolved:
+            print("  %s — escalated round %s: %s" % (
+                e["path"], e["escalated_round"], e["detail"]))
+
     if seq_unacked:
         print("check_round_recorded: %d round-number sequence gap(s) in "
               "driver.log itself — a round number was consumed but never "
@@ -686,10 +999,16 @@ def main():
         for code, path in dirty_paths:
             print("  %s %s" % (code, path))
 
-    if not gaps and not seq_unacked and not uncommitted_unacked and not dirty_paths:
+    if (not gaps and not seq_unacked and not uncommitted_unacked
+            and not dirty_paths and not esc_changed and not esc_resolved):
         n_ack = len(ack_hits) + len(seq_ack_hits) + len(uncommitted_ack_hits)
-        suffix = (" (%d pre-acknowledged, see %s)" % (n_ack, args.ack_file)
-                   if n_ack else "")
+        bits = []
+        if n_ack:
+            bits.append("%d pre-acknowledged, see %s" % (n_ack, args.ack_file))
+        if esc_ack:
+            bits.append("%d acknowledged escalation(s), see %s"
+                         % (len(esc_ack), args.escalated_diffs_file))
+        suffix = (" (%s)" % "; ".join(bits)) if bits else ""
         print("check_round_recorded: every driver-log round has a "
               "research-state.md entry (0 gaps)%s" % suffix)
         return 0

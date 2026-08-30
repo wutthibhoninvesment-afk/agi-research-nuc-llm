@@ -301,6 +301,20 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    parity only where the host's message does not depend on the SHAPE of an
    argument the guest boxed** — `push`'s v0.22 order hint disappears
    because a guest list holds boxes and a box is a record.
+36. **A reason string is a contract, over the WHOLE miss surface (v0.28,
+   round 372).** Decision 35 settled that for CONTRACT messages; v0.28
+   states it for every miss: a message names the kind that actually
+   stopped the computation, not one that plausibly might have, and
+   `examples/self_eval.lang` produces the same sentence except where an
+   enumerated exemption says it cannot. `==` used to answer `cannot
+   compare functions with ==` for `why 1 == 1`, a program containing no
+   function, because `deep_eq` returns `None` for four opaque payload
+   kinds and `binop` collapsed them into one sentence. The guest's mirror
+   defect is structural rather than a typo: a guest list holds boxes, so
+   the host worded a delegated miss around a box instead of the value —
+   fixed by re-delegating with deep-stripped arguments ON THE MISS PATH
+   ONLY, which costs nothing when nothing missed. See § v0.28 for the
+   three surviving exemptions, each asserted load-bearing by a test.
 
 ## Syntax (statements are newline-separated; `#` comments)
 ```

@@ -290,12 +290,19 @@ while true; do
     RECORD_CHECK_OUT=$(python3 "$RECORD_CHECK_SCRIPT" 2>&1)
     RECORD_CHECK_RC=$?
     if [ "$RECORD_CHECK_RC" -eq 0 ]; then
-      log "round $ROUND: record-check PASS ($(echo "$RECORD_CHECK_OUT" | tr -d '\r'))"
+      # `tr '\n' ' '` (round 373), not just `tr -d '\r'`: the PASS branch's
+      # output used to be exactly one line, and stopped being one when the
+      # fifth gap shape started printing acknowledged escalations on a
+      # zero-exit run. A multi-line `log` call writes a driver.log entry
+      # whose continuation lines carry no timestamp and match none of
+      # check_round_recorded.py's own line regexes — the driver's log is
+      # parsed, by that script and by rounds, so keep one entry per line.
+      log "round $ROUND: record-check PASS ($(echo "$RECORD_CHECK_OUT" | tr -d '\r' | tr '\n' ' '))"
     elif [ "$RECORD_CHECK_RC" -eq 1 ]; then
       log "round $ROUND: record-check FOUND gap(s) — $(echo "$RECORD_CHECK_OUT" | tr '\n' ' ')"
       ROUND_GAP_NOTE="
 
-NOTE (automated record-gap check, run before this round started — see skills/session-inheritance-audit/SKILL.md): the round(s) below ran per logs/driver.log but have no state/research-state.md entry yet. Before starting your own track's work, check whether their real work (uncommitted diffs, orphaned background processes from a dangling wait) needs to be verified and landed, per the standing cross-track convention:
+NOTE (automated record-gap check, run before this round started — see skills/session-inheritance-audit/SKILL.md): the check found at least one of its FIVE structurally distinct gap shapes — (1) a round that ran per logs/driver.log with no state/research-state.md entry; (2) a round number consumed with no driver-log line at all; (3) a recorded round whose knowledge file never landed in git; (4) an uncommitted, unattributed change in the working tree RIGHT NOW; (5) a known-escalated tracked-file diff whose content pin has expired, or an acknowledgement that no longer matches anything. READ WHAT IT ACTUALLY SAYS below rather than assuming shape 1 — the shapes need different responses, and an acknowledged escalation is reported for information and is NOT a gap. Before starting your own track's work, check whether a predecessor's real work (uncommitted diffs, orphaned background processes from a dangling wait) needs to be verified and landed, per the standing cross-track convention:
 $RECORD_CHECK_OUT"
     else
       log "round $ROUND: record-check errored (rc=$RECORD_CHECK_RC) — $(echo "$RECORD_CHECK_OUT" | tr '\n' ' ')"

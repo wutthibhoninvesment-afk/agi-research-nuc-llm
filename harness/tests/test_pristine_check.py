@@ -274,6 +274,10 @@ def test_allow_dirty_waives_one_named_path_and_records_it():
     rec = pc.differential(
         ["harness-fast"], runner=r,
         allow_dirty=["languages/whence/SECURITY.md"],
+        # escalation_allow=() isolates this test to the HAND waiver: the
+        # live registry now also pins this exact path (round 373), and
+        # without this the test would pass through the other mechanism.
+        escalation_allow=(),
         dirt={"ok": True, "untracked": [], "ignored": [],
               "tracked_modified": ["languages/whence/SECURITY.md"]})
     assert rec["verdict"] == "clean"
@@ -600,3 +604,111 @@ def test_an_unresolvable_ref_formats_as_unresolved_not_as_blank():
                    "untracked_count": 0, "allowed_dirty": [],
                    "blocking_dirty": [], "results": []})
     assert "unresolved" in out
+
+
+# --------------------------------------------------------------------------
+# Round 373 — rule 1's waiver can come from the content-pinned escalation
+# registry instead of a hand-typed --allow-dirty at every invocation.
+# --------------------------------------------------------------------------
+
+def _esc_registry(tmp_path, repo, path, suite_neutral=True, blobs=None):
+    import sys as _sys
+    _sys.path.insert(0, os.path.join(
+        pc.REPO_ROOT, "skills", "session-inheritance-audit", "scripts"))
+    import check_round_recorded as crr
+    wt, hd = blobs or (crr.worktree_blob_hash(path, repo),
+                       crr.head_blob_hash(path, repo))
+    entry = {"reason": "adjudicated round 349. More.", "escalated_round": 349,
+             "worktree_blob": wt, "head_blob": hd}
+    if suite_neutral is not None:
+        entry["suite_neutral"] = suite_neutral
+    p = tmp_path / "esc.json"
+    p.write_text(json.dumps({"escalations": {path: entry}}))
+    return str(p)
+
+
+def _dirty_repo(tmp_path, name="doc.md"):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    for a in (["init", "-q"], ["config", "user.email", "t@t.com"],
+              ["config", "user.name", "t"]):
+        subprocess.run(["git", "-C", str(repo)] + a, check=True,
+                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    f = repo / name
+    f.write_text("original\n")
+    subprocess.run(["git", "-C", str(repo), "add", name], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", "b"],
+                    check=True)
+    f.write_text("rewritten by a separate system\n")
+    return repo, f
+
+
+def test_escalation_allowed_dirty_waives_a_pinned_suite_neutral_path(tmp_path):
+    repo, _ = _dirty_repo(tmp_path)
+    reg = _esc_registry(tmp_path, str(repo), "doc.md")
+    dirt = {"ok": True, "tracked_modified": ["doc.md"], "untracked": [],
+            "ignored": []}
+    assert pc.escalation_allowed_dirty(
+        dirt, repo=str(repo), registry_path=reg) == {"doc.md"}
+
+
+def test_escalation_waiver_disappears_when_the_pin_expires(tmp_path):
+    repo, f = _dirty_repo(tmp_path)
+    reg = _esc_registry(tmp_path, str(repo), "doc.md")
+    f.write_text("edited AGAIN by the separate system\n")
+    dirt = {"ok": True, "tracked_modified": ["doc.md"], "untracked": [],
+            "ignored": []}
+    assert pc.escalation_allowed_dirty(
+        dirt, repo=str(repo), registry_path=reg) == set()
+
+
+def test_escalation_waiver_requires_the_suite_neutral_claim(tmp_path):
+    # Being escalated says nothing about whether the diff can move a suite.
+    repo, _ = _dirty_repo(tmp_path)
+    dirt = {"ok": True, "tracked_modified": ["doc.md"], "untracked": [],
+            "ignored": []}
+    for flag in (False, None):
+        reg = _esc_registry(tmp_path, str(repo), "doc.md", suite_neutral=flag)
+        assert pc.escalation_allowed_dirty(
+            dirt, repo=str(repo), registry_path=reg) == set(), flag
+
+
+def test_escalation_waiver_empty_when_registry_missing(tmp_path):
+    repo, _ = _dirty_repo(tmp_path)
+    dirt = {"ok": True, "tracked_modified": ["doc.md"], "untracked": [],
+            "ignored": []}
+    assert pc.escalation_allowed_dirty(
+        dirt, repo=str(repo),
+        registry_path=str(tmp_path / "nope.json")) == set()
+
+
+def test_escalation_waiver_only_covers_paths_the_dirt_reports():
+    # The classifier is fed the SAME dirt snapshot rule 1 is applied to, so
+    # a registry path that is not dirty in this snapshot waives nothing.
+    dirt = {"ok": True, "tracked_modified": [], "untracked": [],
+            "ignored": []}
+    assert pc.escalation_allowed_dirty(dirt) == set()
+
+
+def test_differential_records_a_pinned_waiver_separately_from_a_hand_one(tmp_path):
+    repo, _ = _dirty_repo(tmp_path)
+    r = recording_runner([("pytest", PASS)])
+    rec = pc.differential(
+        ["harness-fast"], runner=r, repo=str(repo),
+        escalation_allow=["doc.md"],
+        dirt={"ok": True, "untracked": [], "ignored": [],
+              "tracked_modified": ["doc.md"]})
+    assert rec["verdict"] == "clean"
+    assert rec["allowed_dirty"] == []
+    assert rec["escalation_allowed_dirty"] == ["doc.md"]
+    assert "escalation pin, suite-neutral" in pc._fmt(rec)
+
+
+def test_a_pinned_waiver_shows_in_status_text_as_a_pin_not_a_hand_waiver():
+    rec = {"ref": "HEAD", "resolved": "abc", "verdict": "clean",
+           "untracked_count": 0, "blocking_dirty": [], "allowed_dirty": [],
+           "escalation_allowed_dirty": ["languages/whence/SECURITY.md"],
+           "results": []}
+    text = pc._fmt(rec)
+    assert "escalation pin, suite-neutral" in text
+    assert "waived by hand" not in text
