@@ -431,19 +431,42 @@ def test_malformed_spec_reaches_a_parameter_guard_through_a_shadowed_shape():
         "typed spec must be a type name or a shape")
 
 
-def test_a_non_string_shape_name_renders_as_a_whence_value():
-    # `name_node.value` goes straight into a user-visible miss message. A
-    # hand-built spec can put anything under `__shape`; rendering a Record
-    # through `%s` leaked the Python repr INCLUDING the heap address, so the
-    # same program produced a different message on every run — the
-    # determinism / fast_slow / direct oracles all fired on it.
-    for spec, want in [('@{__shape: 5, a: "num"}', "expected 5"),
-                       ('@{__shape: [1, 2], a: "num"}', "expected [1, 2]"),
-                       ('@{__shape: @{q: 1}, a: "num"}', "expected @{q: 1}")]:
+def test_a_non_string_shape_name_is_not_a_name_and_reads_as_record():
+    """v0.25 (round 362), decision 35. REWRITTEN — this test used to pin
+    `expected 5` / `expected [1, 2]` / `expected @{q: 1}`.
+
+    `name_node.value` goes straight into a user-visible miss message. A
+    hand-built spec can put anything under `__shape`; rendering a Record
+    through `%s` leaked the Python repr INCLUDING the heap address, so the
+    same program produced a different message on every run — the
+    determinism / fast_slow / direct oracles all fired on it. Round 335
+    fixed that by rendering the payload through `show_payload`, and left
+    two things nobody looked for. `expected 5, got num` reads as if `5`
+    were a type; and the message now depended on `show_payload`'s CAPS, a
+    rendering policy `examples/self_eval.lang` cannot reach — so the guest
+    said `expected record` and the two disagreed on 112 of round 362's
+    1588 differential cases, invisibly, because a miss REASON is the guest
+    oracle's oldest exemption.
+
+    `__shape` is a NAME slot and a name is a string. Anything else means
+    the spec is anonymous, which is what the no-`__shape` branch above has
+    always said. The repr-leak property this test was written for is
+    STRONGER now, not weaker: there is no payload text at all. Its
+    companion `test_the_repr_leak_is_stable_across_two_runs_of_the_same_
+    source` is unchanged and still passes.
+    """
+    for spec in ['@{__shape: 5, a: "num"}', '@{__shape: [1, 2], a: "num"}',
+                 '@{__shape: @{q: 1}, a: "num"}',
+                 '@{__shape: num("q"), a: "num"}',
+                 '@{__shape: true, a: "num"}']:
         interp, env, out = run('let r = typed(@{a: "z"}, %s, "L")\n' % spec)
         reason = env.get("r").value.reasons[0]
-        assert want in reason, (spec, reason)
+        assert reason.startswith("L expected record, got record"), (spec,
+                                                                    reason)
         assert "object at 0x" not in reason, reason
+    # and the empty string IS a name, because it is a string
+    interp, env, out = run('let r = typed(1, @{__shape: "", a: "num"}, "L")\n')
+    assert env.get("r").value.reasons[0].startswith("L expected , got num")
 
 
 def test_the_repr_leak_is_stable_across_two_runs_of_the_same_source():

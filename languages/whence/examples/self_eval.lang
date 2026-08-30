@@ -1245,9 +1245,15 @@ fn is_str(v) { not is_guess_val(v) and not missed(v) and not missed(v + "") }
 # value reports itself as, same order (bool before num — a host bool IS an
 # int; callable checked before record, since a closure/builtin ref is
 # itself a record under the hood, see `guest_tag`). Primitive tags only —
-# the guest has no `shape` DECLARATIONS, so `guest_type_ok`'s own spec is
-# always a plain string. STALE until round 335 as to what follows from
-# that: this used to add "anything else (a record spec, i.e. a shape)
+# `guest_type_ok`'s own spec is always a plain string, because that is what
+# `guest_type_ok` is FOR; the record-spec branch is `guest_spec_match`.
+# This sentence used to give the reason as "the guest has no `shape`
+# DECLARATIONS", which round 338 made false in this very file (it added the
+# `shape` statement to the shared parser section) and which survived
+# unchanged for 24 rounds — the same stale-note class SPEC.md's own v0.12
+# section carries a correction for. Corrected round 362; the CONCLUSION was
+# right, only its stated reason was not. STALE until round 335 as to what
+# follows from that: this used to add "anything else (a record spec, i.e. a shape)
 # simply never matches, same as an unrecognised primitive name would",
 # which confuses a shape DECLARATION with a spec VALUE -- a hand-built
 # record IS a legal structural spec on the host and guest programs write
@@ -1276,8 +1282,10 @@ fn guest_type_ok(v, spec) {
 
 # Round 335: `guest_type_ok` above (and `guest_kind`'s comment) assume a
 # spec is ALWAYS a plain string, "anything else (a record spec, i.e. a
-# shape) simply never matches". That is true of a `shape` DECLARATION --
-# the guest parser has none -- but not of a spec VALUE: `typed`/`matches`
+# shape) simply never matches". That was said to be true of a `shape`
+# DECLARATION "because the guest parser has none" -- itself stale since
+# round 338 (corrected round 362, see `guest_kind` above) -- but it is not
+# true of a spec VALUE either: `typed`/`matches`
 # accept an ordinary hand-built record as a structural spec on the host by
 # design (SPEC v0.12: "a record built entirely by hand, with no relation to
 # the shape ever declared, matches it exactly as one built from it"), and
@@ -1673,7 +1681,14 @@ fn apply(f, args, st) {
   else if is_closure(f.v) { apply_closure(f, args, st) }
   else if is_builtin_ref(f.v) { apply_builtin(f.v.name, args, st) }
   else {
-    @{v: mkb(miss (str(strip(f)) + " is not callable"), "call", [f]), st: st}
+    # v0.25 (round 362): `show_val`, not `str`. The host renders this with
+    # `show_payload`, which QUOTES a string — `"hi" is not callable` — and
+    # the old `show_spec`'s own comment cited this very site as the place
+    # the "every other payload agrees between the two" assumption came
+    # from. It did not agree: `let f = "hi"` read `hi is not callable`
+    # here. One renderer, every value slot.
+    @{v: mkb(miss (show_val(strip(f)) + " is not callable"), "call", [f]),
+      st: st}
   }
 }
 
@@ -1837,12 +1852,40 @@ fn guest_spec_fields_ok(spec, ks, i) {
   else { guest_spec_fields_ok(spec, ks, i + 1) }
 }
 
-# The host renders the offending spec with `show_payload`, which answers a
-# bare "miss" for a miss; the guest's `str` renders a miss with its reasons
-# and line, so a miss is special-cased here rather than left to differ.
-# Every other payload agrees between the two (the same assumption
-# `apply`'s "is not callable" message already runs on).
-fn show_spec(spec) { if missed(spec) { "miss" } else { str(spec) } }
+# v0.25 (round 362): the guest's mirror of the host's `show_payload` — the
+# renderer every message VALUE slot goes through on that side (`typed`'s
+# spec and label, `sure`'s threshold, `check_contract`'s malformed-spec
+# clause). Called `show_spec` until this round, when the contract-message
+# differential measured what it actually answered:
+#
+#   * a MISS: `str` renders "miss: <reasons> (line N)"; `show_payload`
+#     answers a bare "miss". Already special-cased before this round, and
+#     the only one of the three that was.
+#   * a CALLABLE: `str` DUMPED THE GUEST'S OWN CLOSURE RECORD — the
+#     `@{__tag: "closure", body: ..., env: [...], param_specs: ...}` a
+#     guest closure is under the hood — into a user-visible message, where
+#     the host said `<fn>`. 10 of 436 annotation-site cases. `show_callable`
+#     (round 156) has answered exactly this question since round 156 and
+#     was simply never called from here: the same "a guest closure is an
+#     ordinary record" hazard `guest_spec_ok`/`guest_spec_match` already
+#     guard for MATCHING, left unguarded for SHOWING.
+#   * a STRING: `show_payload` QUOTES it (`_quote`), `str` does not —
+#     `sure(5, "x")` said `got "x"` on the host and `got x` here.
+#
+# Two things it deliberately does NOT mirror, both properties of the host's
+# renderer rather than rules of the language, both enumerated and asserted
+# load-bearing in `tests/test_contract_message_differential.py`:
+#   E1 `show_payload`'s CAPS — 40 chars, 12 per nested element, 6 list
+#      items, 4 record fields, 3 levels. `str` is the uncapped rendering
+#      and no Whence expression can reach those constants.
+#   E2 `_quote`'s ESCAPING of a backslash, a quote or a newline INSIDE a
+#      string. Whence has no string-replace builtin.
+fn show_val(v) {
+  if missed(v) { "miss" }
+  else if is_callable(v) { show_callable(v) }
+  else if is_str(v) { "\"" + v + "\"" }
+  else { str(v) }
+}
 
 # The early-out is repeated here rather than left to `check_contract`
 # alone: without it every call of every function would pay the
@@ -1872,7 +1915,7 @@ fn check_contract(box, spec, label) {
           label + ": type '" + ub + "' is not in scope here"
         } else if bad_spec {
           "typed spec must be a type name or a shape, got " +
-            show_spec(strip(spec))
+            show_val(strip(spec))
         } else if is_str(spec) {
           # a primitive tag: "expected num, got str" is already complete,
           # and there is no record spec to walk (v0.20)
@@ -1971,11 +2014,23 @@ fn box_diverge_record(rec) {
 # here take exactly two or three, so the guest lists them. This is
 # decision 31 in the small: the rule the host implements is one the guest
 # can express, and it is expressed here rather than approximated.
+# v0.25 (round 362): `typed` and `sure` join the four. Round 354 wrote
+# "only the four builtins this evaluator re-implements need a mirror" and
+# that enumeration was wrong — `apply_builtin` re-implements `typed`,
+# `sure` and `get` too, and each of the three carries a host message the
+# host builds WITH `_order_hint`. `typed` and `sure` are fixed here; `get`
+# is a separate finding recorded in round 362's knowledge file (its own
+# branch also swallows a propagated miss and drops the "got X" clause, so
+# it is a repair rather than an addition to this table).
 let sig_names = @{map: ["fn", "xs"], filter: ["fn", "xs"],
-                  fold: ["fn", "acc", "xs"], find: ["fn", "xs"]}
+                  fold: ["fn", "acc", "xs"], find: ["fn", "xs"],
+                  typed: ["value", "spec", "label"], sure: ["v", "threshold"],
+                  get: ["r", "name"]}
 # [] means kind `any` — the host's `None`.
 let sig_kinds = @{map: [["fn"], ["list"]], filter: [["fn"], ["list"]],
-                  fold: [["fn"], [], ["list"]], find: [["fn"], ["list"]]}
+                  fold: [["fn"], [], ["list"]], find: [["fn"], ["list"]],
+                  typed: [[], ["str", "record"], ["str"]],
+                  sure: [[], ["num"]], get: [["record"], ["str"]]}
 
 fn kind_ok(kinds, v) {
   if len(kinds) == 0 { true } else { contains(kinds, guest_kind(v)) }
@@ -2106,22 +2161,45 @@ fn apply_builtin(name, args, st) {
     let value = args[0]
     let spec = args[1]
     let label = args[2]
+    # v0.25 (round 362): three of this branch's four guards did not mirror
+    # the host, and every one of the three was invisible to every oracle
+    # for the same reason — a miss REASON is the guest differential's
+    # oldest exemption (`_both_exempt_strings`, round 17), so both sides
+    # missing was rated `ok` however differently they explained it.
+    #
+    # (1) PROPAGATION. The host's `_propagate` returns `merge_miss`, which
+    # CARRIES the missed arguments' own reasons: `typed(num("x"), "num",
+    # "L")` answers `num: cannot parse "x"`. This branch answered `typed: a
+    # propagated miss` — a fresh sentence that DESTROYS the cause, in a
+    # language whose decision 2 is that a miss can tell you why. Delegating
+    # to the real host `typed` on stripped arguments reproduces the merge
+    # exactly and cannot drift from it.
     if missed(value.v) or missed(spec.v) or missed(label.v) {
-      @{v: mkb(miss "typed: a propagated miss", "builtin typed", args), st: st}
+      @{v: mkb(typed(strip(value), strip(spec), strip(label)),
+               "builtin typed", args), st: st}
     }
-    # Round 335: a RECORD spec is legal too (host: `isinstance(spec.payload,
-    # (str, Record))`) -- see `guest_spec_match` above. The host rejects a
-    # record whose own FIELDS are not specs with this same "must be a type
-    # name or a shape" miss while the guest lets it fall through to a
-    # no-match miss below; both sides miss, and miss WORDINGS are an
-    # explicit exemption of the differential oracle (`_both_exempt_strings`,
-    # round 17), so mirroring the host's `_spec_ok` walk here would buy no
-    # observable agreement -- deliberately not done, recorded rather than
-    # left to be rediscovered.
-    else if not is_str(label.v) or
-            not (is_str(spec.v) or is_record(spec.v)) {
-      @{v: mkb(miss "typed: spec and label must be strings", "typed", args),
-        st: st}
+    # (2) THE LABEL and (3) THE SPEC are two host guards, checked in that
+    # order, each naming the offending value; this branch had ONE guard
+    # answering "typed: spec and label must be strings" for both. The
+    # spec guard is `_spec_ok`, not a bare kind test: a record whose own
+    # FIELDS are not specs is as unusable as a numeric one. Round 335
+    # recorded "mirroring the host's `_spec_ok` walk here would buy no
+    # observable agreement" — true only of the oracle, and it cost more
+    # than a sentence: `typed(@{a: @{b: 1}}, @{a: 5}, "L")` fell through to
+    # `guest_match_why`, which walked the malformed spec and leaked the
+    # guest's OWN internal miss, `keys needs a record, got 5`, to the user.
+    # `guest_spec_ok` (round 344) already existed for `check_contract`.
+    else if not is_str(label.v) {
+      @{v: mkb(miss ("typed label must be a string, got " +
+                     show_val(strip(label)) +
+                     order_hint("typed", [value.v, spec.v, label.v])),
+               "typed", args), st: st}
+    }
+    else if not guest_spec_ok(strip(spec)) {
+      @{v: mkb(miss ("typed spec must be a type name or a shape, got " +
+                     show_val(strip(spec)) +
+                     order_hint("typed", [value.v, spec.v, label.v])),
+               "typed", args), st: st}
     }
     else if guest_spec_match(value, spec) { @{v: value, st: st} }
     else {
@@ -2143,11 +2221,34 @@ fn apply_builtin(name, args, st) {
     # _field's — get(r, "a") and r.a are indistinguishable node for node.
     # Key-badness is checked FIRST, matching host b_get's own order (it
     # rejects a non-string name before ever looking at the record side).
+    # v0.25 (round 362): the key-side guard was ONE branch answering one
+    # sentence where the host has TWO, and the contract-message
+    # differential's builtin sweep measured both halves wrong.
+    #   * `get(@{a: 1}, num("x"))` — a MISSED key. The host's first line is
+    #     `merge_miss`, which carries the key's own reasons (`num: cannot
+    #     parse "x"`); this said `get field name must be a string`, which
+    #     is not even true of a miss.
+    #   * `get("a", @{a: 1})` — a non-string key. The host names the
+    #     offending value and appends v0.22's order hint (`got @{a: 1}
+    #     (arguments fit get(r, name))`); this named neither, so the one
+    #     message v0.22 exists to produce — swap your arguments — never
+    #     reached a guest program.
+    # `get` is the third builtin `apply_builtin` re-implements that carries
+    # an `_order_hint` on the host, after `typed` and `sure`; round 354's
+    # "only the four builtins this evaluator re-implements" missed all
+    # three. Input ORDER stays as it was ([key, record]) — the host uses
+    # (name, r) for the merge and (r, name) for the mismatch, and that
+    # difference is measured, not mirrored, in round 362's knowledge file.
     let nm = (args[1]).v
-    let keybad = missed(nm) or missed(nm + "")
-    if keybad {
-      @{v: mkb(miss "get field name must be a string", "get",
+    if missed(nm) {
+      @{v: mkb(get(strip(args[0]), strip(args[1])), "get",
                [args[1], args[0]]), st: st}
+    }
+    else if missed(nm + "") {
+      @{v: mkb(miss ("get field name must be a string, got " +
+                     show_val(strip(args[1])) +
+                     order_hint("get", [(args[0]).v, nm])),
+               "get", [args[1], args[0]]), st: st}
     }
     else if is_callable((args[0]).v) {
       # Guest closures/builtin refs are ordinary records under the hood
@@ -2217,12 +2318,21 @@ fn apply_builtin(name, args, st) {
   else if name == "sure" {
     let value = args[0]
     let threshold = args[1]
+    # v0.25 (round 362): the same two repairs the `typed` branch above
+    # takes, for the same reason and found by the same differential — the
+    # propagated miss carried a fresh sentence instead of the argument's
+    # own reasons, and the threshold message rendered its value with `str`
+    # (so a string threshold read `got x`, not the host's `got "x"`) and
+    # omitted the v0.22 order-hint clause the host appends here.
     if missed(value.v) or missed(threshold.v) {
-      @{v: mkb(miss "sure: a propagated miss", "builtin sure", args), st: st}
+      @{v: mkb(sure(strip(value), strip(threshold)), "builtin sure", args),
+        st: st}
     }
     else if not is_num(threshold.v) or threshold.v < 0 or threshold.v > 1 {
       @{v: mkb(miss ("sure threshold must be a number between 0 and 1, got " +
-                     str(strip(threshold))), "sure", args), st: st}
+                     show_val(strip(threshold)) +
+                     order_hint("sure", [value.v, threshold.v])),
+               "sure", args), st: st}
     }
     else if not is_guess_val(value.v) { @{v: value, st: st} }
     else {

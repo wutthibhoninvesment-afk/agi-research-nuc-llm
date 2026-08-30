@@ -2260,20 +2260,36 @@ def _type_match(payload, spec):
             return True, "any"
         return _kind(payload) == spec, spec
     name_node = spec.fields.get("__shape")
-    if name_node is None:
+    if name_node is None or not isinstance(name_node.value, str):
+        # v0.25 (round 362), decision 35: `__shape` is a NAME slot, and a
+        # name is a string. `shape Name = …` always binds a Str, but a
+        # HAND-BUILT spec record can carry any payload here, and `name`
+        # goes straight into `_mismatch_reason`'s "expected %s" — a slot
+        # the reader reads as a TYPE.
+        #
+        # Round 335 rendered a non-str through `show_payload` because `%s`
+        # had been leaking the Python repr, heap address included, so the
+        # same program produced a different message on every run. That
+        # fixed the leak and left two problems the round did not look for.
+        # (1) `typed(1, @{__shape: 5, a: "num"}, "L")` answered `expected
+        # 5, got num`, which reads as if `5` were a type. (2) It made the
+        # message depend on `show_payload`'s CAPS — 40 chars, 12 per nested
+        # element, 6 list items, 3 levels — a rendering policy
+        # `examples/self_eval.lang` has no way to reach, so the guest said
+        # `expected record` and the two implementations disagreed on 112 of
+        # this round's 1588 differential cases with no oracle able to see
+        # it (miss reasons are the guest oracle's oldest exemption).
+        #
+        # An unnamed spec is anonymous, and an anonymous spec reads as
+        # `record` — which is what the guest already said, and what the
+        # `name_node is None` branch has always said for a spec with no
+        # `__shape` at all. Nothing is lost: v0.20's field clause still
+        # names what actually broke, and `_spec_ok` still ignores
+        # `__shape`, so a non-str name never makes a matching record fail
+        # (structural, not nominal).
         name = "record"
     else:
-        # `shape Name = …` always binds a Str here, but a HAND-BUILT spec
-        # record can carry any payload under `__shape`, and `name` goes
-        # straight into a user-visible miss message. Rendering a non-str
-        # through `%s` leaked the Python repr — including the object's heap
-        # ADDRESS, which made the message differ between two runs of the
-        # same program and tripped the determinism/fast_slow/direct oracles
-        # (round 335). `show_payload` is this project's one renderer for
-        # exactly this job.
         name = name_node.value
-        if not isinstance(name, str):
-            name = show_payload(name)
     if not isinstance(payload, Record):
         return False, name
     have = payload.fields

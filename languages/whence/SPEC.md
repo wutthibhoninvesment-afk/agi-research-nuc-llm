@@ -1,6 +1,6 @@
 # Whence — a provenance-first language
 
-*Spec level: **v0.24** (round 360). The `## vN` sections below are the
+*Spec level: **v0.25** (round 362). The `## vN` sections below are the
 authoritative version list and each names the round that built it; this
 line deliberately no longer enumerates rounds, because the enumeration it
 replaced had said "v0.16.6 + v0.14.2" since round 266 while the file went
@@ -263,6 +263,33 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    expression grammar first, so `let a = 1 -2` binds `-1` — the automatic-
    semicolon-insertion hazard, confined to three tokens and written down
    rather than discovered.
+34. **A position is a fact about the program under analysis; a sentence is
+   a choice about how to describe it (v0.24, round 360).** The two
+   implementations must agree on the first and are still not required to
+   agree on the second — and rule 3 is asserted as a FACT
+   (`test_wording_is_still_not_a_guest_contract` requires >=10 cases with
+   equal positions and different sentences), so a later round cannot make
+   the distinction vacuous by accident. *(Added to this list by round 362:
+   round 360 numbered its decision 34 in `## v0.24` and did not add it
+   here, which would have made the list's own numbering the next thing to
+   rot.)*
+35. **A message has NAME slots and VALUE slots (v0.25, round 362).** A
+   name slot holds a name — a string — or says the thing is anonymous; a
+   value slot renders the offending value, and BOTH implementations must
+   be able to render it. `_type_match`'s `__shape` is a name slot: round
+   335 rendered a non-string one through `show_payload`, so
+   `typed(1, @{__shape: 5, a: "num"}, "L")` answered `expected 5, got num`
+   — reading as if `5` were a type — and made the message depend on that
+   renderer's CAPS, which `self_eval.lang` cannot reach. An unnamed spec
+   is anonymous and reads as `record`, which is what the guest already
+   said. Decision 34's split does not apply one level down: a contract
+   message's wording IS a contract, because the guest was written to
+   reproduce it, and the guest-differential oracle's oldest exemption
+   (miss REASONS, round 17) is exactly what hid 256 divergences in it.
+   The corollary that cost the most: **delegating a builtin to the host is
+   parity only where the host's message does not depend on the SHAPE of an
+   argument the guest boxed** — `push`'s v0.22 order hint disappears
+   because a guest list holds boxes and a box is a record.
 
 ## Syntax (statements are newline-separated; `#` comments)
 ```
@@ -5312,4 +5339,136 @@ host/guest acceptance divergences        9 of 47 -> 2 (both pinned host-only)
 host/guest position divergences          43 of 43 agree
 tracked example files with a wrong token column   10/16 -> 0/16
 host `raise ParseError` sites the corpus reaches  20/20
+```
+
+## v0.25 (round 362, language C) — a message names types; only a value slot renders a value
+- **The question no round had asked.** `examples/self_eval.lang` does not
+  only re-implement Whence's VALUES; it re-implements its MESSAGES.
+  `check_contract`, `guest_mismatch_reason`, `guest_match_why` and
+  `guest_spec_name` exist to reproduce the host's sentences word for word,
+  and round 338's tests say so in their names. Nothing had ever checked
+  more than three of them. The guest-differential oracle
+  (`harness/swe/guest.py`) compares payloads and **exempts miss REASONS** —
+  its oldest exemption, round 17, and correct for its purpose — so both
+  sides missing was rated `ok` however differently they explained it. The
+  only wording comparison in the tree was `test_self_eval.py`'s
+  `SHAPE_MISS_CASES`: **three** hand-written cases against a host surface
+  with **15** message sites.
+- **What made this round look.** Round 361's slow-tier read-scope
+  instrument found `harness/tests/test_swe_guest.py::
+  test_no_shape_declaration_reaches_the_guest_generator` RED. Its stated
+  reason — "the guest parser has no `shape` support at all" — had been
+  false since round 338, in the files it was talking about. Round 347
+  taught `ProgramGen` to emit `shape` declarations and inverted the
+  fuzz-side twin of that pin; `GuestGen` inherits `program()` by design, so
+  shapes reached the GUEST differential in the same commit, and the pin
+  failed the day it was written. Fourteen rounds ran with it red because
+  `harness/tests/test_swe_*.py` is the slow tier.
+- **First measurement: 141 of 400 generated guest programs (35.2%) carry a
+  `shape` declaration and 84 name one in an annotation; 141/141 parse on
+  the host; the guest differential rates 138 `ok`, 1 mismatch (a `guess`
+  divergence, unrelated to shapes) and 2 OOM-killed.** The values agree.
+  That is what the oracle can see, and it is not the interesting half.
+- **Decision 35 (new): a message has NAME slots and VALUE slots. A name
+  slot holds a name — a string — or says the thing is anonymous. A value
+  slot renders the offending value, and BOTH implementations must be able
+  to render it.**
+  - `_type_match`'s `__shape` is a name slot. `shape Name = …` always binds
+    a Str, but a hand-built spec can carry any payload there, and round 335
+    rendered a non-string through `show_payload` (to stop `%s` leaking a
+    Python repr with a heap address, which had made one program produce a
+    different message on every run and fired three oracles). That fixed the
+    leak and left two problems. `typed(1, @{__shape: 5, a: "num"}, "L")`
+    answered `expected 5, got num`, which reads as if `5` were a type. And
+    it made the message depend on `show_payload`'s CAPS — a rendering
+    policy no Whence expression can reach — so the guest said `expected
+    record`. **An unnamed spec is anonymous and reads as `record`**, which
+    is what the guest already said and what the no-`__shape` branch has
+    always said. `_spec_ok` still ignores `__shape`, so a record that fits
+    still fits: this is about the message, not about matching.
+  - The value slots (`typed`'s spec and label, `sure`'s threshold, `get`'s
+    key, `apply`'s non-callable) now go through ONE guest renderer,
+    `show_val`, mirroring `show_payload`: a miss is a bare `miss`, a
+    callable is `<fn>` / `<fn name>` / `<builtin name>`, a string is
+    QUOTED. Two properties of the host renderer are deliberately NOT
+    mirrored and are enumerated as load-bearing exemptions — its caps (40
+    chars, 12 per nested element, 6 list items, 4 record fields, 3 levels)
+    and `_quote`'s escaping.
+- **Four guest defects, each invisible to every oracle for the same
+  reason.**
+  1. **A propagated miss lost its cause.** `typed`'s and `sure`'s guest
+     branches answered `typed: a propagated miss` / `sure: a propagated
+     miss` where the host's `_propagate` returns `merge_miss`, carrying the
+     argument's own reasons (`num: cannot parse "x"`). A fresh sentence
+     that destroys the cause, in a language whose decision 2 is that a miss
+     can tell you *why*. Both now delegate propagation to the real host
+     builtin on stripped arguments, so the merge cannot drift.
+  2. **`typed` had one guard where the host has two, and no `_spec_ok`.**
+     Round 335 recorded "mirroring the host's `_spec_ok` walk here would
+     buy no observable agreement" — true of the ORACLE, and it cost more
+     than a sentence: `typed(@{a: @{b: 1}}, @{a: 5}, "L")` fell through to
+     `guest_match_why`, which walked the malformed spec and leaked the
+     guest's own internal miss, **`keys needs a record, got 5`**, to the
+     user. `guest_spec_ok` (round 344) already existed.
+  3. **The guest's own closure record leaked into a message.** A shape name
+     shadowed by a function made `check_contract` render the spec with
+     `str`, dumping `@{__tag: "closure", body: …, env: […], param_specs:
+     …}` where the host said `<fn>`. `show_callable` (round 156) has
+     answered exactly this since round 156 and was never called from here:
+     the "a guest closure is an ordinary record" hazard that
+     `guest_spec_ok`/`guest_spec_match` already guard for MATCHING, left
+     unguarded for SHOWING. The same `str` also left a string unquoted —
+     `let f = "hi"\nf(1)` read `hi is not callable`, and the old
+     `show_spec`'s own comment cited that site as its evidence that "every
+     other payload agrees between the two".
+  4. **`get`'s key guard was one branch where the host has two**: a MISSED
+     key answered `get field name must be a string` (not true of a miss)
+     instead of propagating, and a non-string key named neither the value
+     nor v0.22's order hint — so the one message v0.22 exists to produce,
+     *swap your arguments*, never reached a guest program through `get`.
+- **Round 354's enumeration was wrong, and this is the general lesson.**
+  `self_eval.lang` said "only the four builtins this evaluator
+  re-implements need a [v0.22 order-hint] mirror". It re-implements
+  **seven** with an `_order_hint`-bearing host message: `map`, `filter`,
+  `fold`, `find`, and also `typed`, `sure`, `get`. The three missing ones
+  are fixed here and `sig_names`/`sig_kinds` name them.
+- **One finding measured and NOT fixed, with its repro in the corpus.**
+  `push` is DELEGATED, and `apply_host_builtin` passes the pushed element
+  as a guest BOX (a guest list holds boxes). The host then computes
+  `_order_hint` over (payload, box-record), a record never fits
+  `push(xs:list, x)`, and the hint silently disappears: `push(1, [2])`
+  says `push needs a list, got 1` on the guest and `… (arguments fit
+  push(xs, x))` on the host. **Delegation is not automatically parity** —
+  it is parity only where the host's message does not depend on the SHAPE
+  of an argument the guest boxed. Fixing it means the guest stops
+  delegating `push`'s guard and builds the message on the hot path of its
+  own interpretation loop; that is a design call, handed forward with
+  `exempt-push-order-hint` as the repro.
+- **The instrument: `tests/test_contract_message_differential.py`.** Round
+  360's refusal-set method one level down, from PARSE errors to CONTRACT
+  errors — with the opposite verdict on wording, because here the two
+  implementations were built to agree. Three rules: missed-ness agrees;
+  the wording agrees except for the enumerated `EXEMPT` set, each entry
+  asserted load-bearing in BOTH directions; and the corpus reaches every
+  host message SITE, derived from `whence/interp.py`'s AST and captured by
+  wrapping `mk_miss`/`merge_miss` and walking the stack — because one
+  generic site can absorb a dozen cases and look like coverage. One site is
+  declared UNREACHABLE with its reason (`_check_contract`'s `_UnboundType`
+  branch: v0.18 made `parse_type` scope-aware, so no source text reaches
+  it), and a separate test fails if that branch is ever deleted out from
+  under the exclusion.
+
+### Measured
+
+```
+host/guest WORDING divergences, 1152-case typed/matches matrix   204 -> 0
+host/guest WORDING divergences, 436-case annotation matrix        52 -> 0
+host/guest divergences, 30-case order-hint builtin sweep     10 -> 1 (push,
+                                                          enumerated above)
+guest differential over the 141 shape-carrying programs   138 ok, 1 mismatch
+                                             (guess, unrelated), 2 OOM-killed
+languages/whence  tests/test_contract_message_differential  10 passed
+                  run.py examples/self_eval.lang            142 passed, 0 failed
+host contract-message sites the corpus reaches            14/15 (1 declared
+                                                              unreachable)
 ```
