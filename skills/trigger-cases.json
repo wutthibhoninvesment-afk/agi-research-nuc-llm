@@ -917,5 +917,31 @@
   "id": "ol-neg-broken-pipeline",
   "expect": [],
   "prompt": "Our CI step that uploads coverage to Codecov has been silently failing for two weeks because the exit code is swallowed by a pipe. Fix the pipeline so it fails loudly."
+ },
+ {
+  "id": "cpa-near",
+  "expect": [
+   "content-pinned-acknowledgement"
+  ],
+  "prompt": "Our security scanner reports the same three findings on every build. They were all triaged months ago and are waiting on a vendor fix. I want the build green, but if the vendor ships a change to one of those files I absolutely need to know. Adding them to the ignore list feels wrong."
+ },
+ {
+  "id": "cpa-mid",
+  "expect": [
+   "content-pinned-acknowledgement"
+  ],
+  "prompt": "We have a known-failures baseline file for the test suite. Half the entries are for tests that were deleted a year ago and nobody noticed, so the file reads like it covers more than it does. How should a baseline like this be structured so it can't rot?"
+ },
+ {
+  "id": "cpa-far",
+  "expect": [
+   "content-pinned-acknowledgement"
+  ],
+  "prompt": "A separate system writes into our repo and one of the files it edits is checked in. A reviewer already looked at the current edit and decided to leave it. Every audit run since then re-reports it and people have stopped reading the audit output. What's the right way to record 'we already decided this' without going blind to the next edit?"
+ },
+ {
+  "id": "cpa-neg-fix",
+  "expect": [],
+  "prompt": "Our linter has been flagging the same unused-import warning in one module for weeks. Can you just delete the unused import?"
  }
 ]

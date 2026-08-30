@@ -12098,6 +12098,198 @@ restarted, **port 8001 never contacted**, no engine request of any kind sent.
   `pytest skills/` 566 passed; `corpus-check` 7 checkers, 0 errors.
 - See `knowledge/round-371-the-signal-that-could-not-fire.md`.
 
+### Round 373 — harness(A) — 2026-08-30
+
+- **Inherited first.** Round 372 (language C) died interrupted with no
+  knowledge file and no state entry, having committed its v0.28 interpreter
+  change but not two files: `SPEC.md`'s `## v0.28` section and
+  `self_eval.lang`'s `is_compound`/`any_compound` COST GATE (the v0.28
+  re-render delegates a second time to the host on the miss path;
+  unconditionally that took the guest's fast tier from 40 s to 87 s). Both
+  tiers verified green at that exact tree — **1595 passed / 3 skipped**
+  (fast, 42.6 s) and **70 passed / 1598 deselected** (slow, 523.4 s) —
+  then landed as `9a9f3c5` with attribution. Round 372 still owes its own
+  knowledge file and state entry; that is language(C)'s and was
+  deliberately not manufactured here.
+- **Goal:** round 370's item 7 / 371's item 5 / 369's item 10, addressed to
+  the track that owns the record-gap checker: a third category for
+  *known-escalated tracked-file diffs*.
+- **The cost, measured from `logs/driver.log` rather than from prose.**
+  `languages/whence/SECURITY.md` appears in the record-check output of **25
+  consecutive rounds (349-373)** and is the **only** finding of any shape in
+  **13** of them — so 13 rounds' entire non-zero exit, and the entire NOTE
+  injected into their prompts, existed for something round 349 had already
+  inspected and deliberately left open.
+- **The next-steps ordinals were all wrong and no two agreed.** Round 369
+  wrote "TWELFTH consecutive round", round 370 "TENTH", round 371
+  "ELEVENTH" — in that order, one going backwards — against the log's 21st,
+  22nd, 23rd. Round 333's stale-number class inside the carry-forward
+  mechanism itself, its **fourth** independent instance. Not corrected by
+  hand: the checker now COMPUTES `carried N round(s)` from the driver log.
+- **Fifth gap shape: `state/known-escalated-diffs.json`, CONTENT-PINNED.**
+  Round 349 refused the standing-dirty allowlist for this file on principle
+  ("allowlisting a tracked file would mean 'never look at this diff
+  again'"). That refusal is honoured, not reversed: each entry pins BOTH
+  blob hashes — `git hash-object` of the worktree file and `git rev-parse
+  HEAD:<path>` of its base — and `classify_escalated_diffs` returns
+  `acknowledged` (quiet, rc unaffected), `changed` (pin expired → reported
+  LOUDER than an ordinary unattributed path, rc=1) or `resolved` (matches
+  nothing → a dead acknowledgement reads as coverage, rc=1). Both halves are
+  load-bearing: a commit can move the base while the bytes on disk are
+  untouched, and `test_classify_expires_the_pin_when_only_the_base_moved`
+  asserts the worktree hash still matches and the entry expires anyway.
+- **Two fail directions, deliberately different.** Tree known + path dirty +
+  hash uncomputable ⇒ does NOT suppress (round 367's rule 10 in another
+  file). Tree UNREADABLE ⇒ classify nothing — the first draft returned
+  `resolved` there, which declares every acknowledgement dead on any
+  non-checkout caller and broke two pre-existing CLI tests.
+- **`run_driver.sh`'s injected NOTE described gap shape 1 for four shapes.**
+  This round's own note is the proof: "the round(s) below ran ... but have
+  no research-state.md entry yet", followed by three dirty paths, none of
+  which is a round. Now enumerated, and
+  `test_injected_note_preamble_enumerates_every_implemented_gap_shape`
+  counts the shape claims in the checker's own docstring and requires the
+  preamble to match, so a sixth shape cannot ship without its note.
+- **A defect this change introduced, found and fixed.** The driver's PASS
+  branch logged `$RECORD_CHECK_OUT` through `tr -d '\r'` only — correct
+  while a zero-exit run printed one sentence, and silently truncating the
+  driver.log entry at the first newline once the escalation section made it
+  multi-line. Pinned by an e2e test confirmed RED without the fix.
+- **The third hand-maintained copy of the same adjudication removed.**
+  `pristine_check.py` recorded "allowed-dirty (rule 1 waived by hand):
+  languages/whence/SECURITY.md" and needed a typed `--allow-dirty` at every
+  invocation. `escalation_allowed_dirty()` reads the same registry and
+  waives only when the pin holds AND the entry declares
+  `"suite_neutral": true` — a SEPARATE claim, because "adjudicated" says
+  nothing about "cannot change a suite's outcome"; an escalated `.py` keeps
+  blocking. Recorded as its own ledger field so a reader can tell a hand
+  judgement from a re-checkable one. `pristine_check.py dirt` was also
+  previewing `BLOCKING` for a path `check` was about to waive; fixed.
+- **Rounds 367 item 4 / 369 item 8 / 371 item 8 CLOSED — the stale
+  `pristine_check status` verdict re-run**, which the new waiver made
+  possible with no hand-typed flag:
+
+  | suite | recorded (stale) | re-run |
+  |---|---|---|
+  | `harness-fast` | `both_failed`, live `524 passed / 1 failed` | **clean**, `587 passed` both trees (95.9 s) |
+  | `whence-fast` | `clean`, `1193 passed` | **clean**, `1595 passed / 3 skipped` (84.6 s) |
+  | `whence-slow` | `both_failed`, live `53 passed / 1 failed` | **clean**, `70 passed` (1014.6 s) |
+
+  Both tests the stale record named as failing pass today, in BOTH trees —
+  stale in exactly the direction round 367 suspected, carried three harness
+  rounds. `ref HEAD (91acd9c5af97) verdict clean`, with `allowed-dirty
+  (escalation pin, suite-neutral): languages/whence/SECURITY.md` in the
+  record — the new waiver working end to end on the real repo.
+
+- **Predictions: 10 HIT / 0 MISS + supplementary P11 HIT**
+  (`state/harness/round-373/PREDICTIONS.md`, registered in the ledger).
+  **The 0 MISS is scored as a criticism of the bank**: P3-P8 asked about
+  facts already fixed in the repo's history and merely unread — retrodiction
+  — and only P1/P2/P11 were about an unknown. P2 landed at 13/25, one round
+  either side of its own threshold.
+- **Unpredicted, and the suite caught it:** adding a fifth registry with a
+  repo-root-relative default broke SIX pre-existing e2e tests at once — they
+  neutralise the other two registries with explicit `tmp_path` flags, and
+  the new default reached out of the workspace into the live repo. Round
+  349's pytest-config-discovery finding in another guise: a default resolved
+  against the caller's cwd is a hidden input.
+- **Skill:** new `skills/content-pinned-acknowledgement/` (4 trigger cases
+  including a negative, `skill_lint --house --strict` clean), registered in
+  `state/known-unprobed-skills.json` with an owner — probing a description
+  this round wrote would be scoring its own paraphrase.
+- **Verification.**
+
+  | what | result |
+  |---|---|
+  | `pytest skills/session-inheritance-audit/scripts/test_check_round_recorded.py` | **80 passed** (was 56) |
+  | `pytest harness/tests/test_run_driver_record_gap_check.py` | **7 passed** (was 3) |
+  | `pytest harness/tests/test_pristine_check.py` | **62 passed** (was 54) |
+  | `bash harness/run_tests_fast.sh` | **587 passed, 323 deselected** (was 575) |
+  | whence fast / slow (round 372's diff) | **1595 + 70 passed**, 3 skipped |
+  | `pristine_check check` x3 | **clean / clean / clean** |
+  | `corpus_check.py` | **7 checkers, 0 errors**, 1 K004 warning (was 3 errors at round start) |
+  | live `check_round_recorded.py` | 0 unattributed, 1 acknowledged "carried 25 round(s)" |
+
+  Every new test that pins a behaviour change was confirmed RED against the
+  pre-change file, and the `changed` state was additionally exercised BY
+  HAND against the real registry (append a byte to `SECURITY.md` → reported
+  loudly, `89bfce636a5b != recorded 61248e50a3f5`; restore → acknowledged
+  again).
+
+- See `knowledge/round-373-adjudicated-is-not-unattributed.md`.
+
+
+## Next steps (as of round 373)
+
+1. **`changed` and `resolved` have never fired on real DATA in production.**
+   Both are fixture-tested and one (`changed`) was hand-exercised this round;
+   neither has occurred organically. `changed` fires the next time the
+   Hermes gateway edits `SECURITY.md`; `resolved` fires the day the operator
+   resolves it, which is the only way that registry empties. Same
+   never-observed-live shape as round 310's item 3 and round 349's
+   `classify_health_log`.
+2. **`languages/whence/SECURITY.md` is still UNRESOLVED and still the
+   operator's call** — four asserted security controls this repo does not
+   have, plus a deleted authorship section. What changed this round is only
+   that rounds stop paying the inspection: the item is now acknowledged,
+   content-pinned and carried with a computed count. The ASK is unchanged
+   and nothing in-tree can close it. **Note the trade honestly:** on a
+   zero-exit run the driver logs the acknowledgement but injects nothing
+   into the round's prompt, so it now reaches rounds via `driver.log` and
+   this list only. If that list stops carrying it, it goes quiet.
+3. **`suite_neutral` is a claim a round makes and nothing verifies
+   mechanically.** "No suite reads this file" was a grep. Fine for a `.md`;
+   the first `.py` entry needs better. The safe default (absent/false ⇒
+   keeps blocking the pristine differential) is what makes that acceptable
+   today.
+4. **The carried-rounds count assumes unbroken flagging.**
+   `latest_round - escalated_round + 1` equals the log's own 25 here because
+   nothing has interrupted it since 349. A path escalated, resolved and
+   re-escalated would over-count. Not fixed — the registry has no history
+   field and inventing one for a case that has never occurred is
+   speculative.
+5. **Round 372 (language C) still owes its knowledge file and state entry.**
+   Its DIFF was verified green in both tiers and landed by this round
+   (`9a9f3c5`); its RECORD was deliberately not manufactured here. It stays
+   reported by gap shape 1 until language(C) writes it. Its v0.28 work also
+   owes `state/whence/round-372/PREDICTIONS.md` a scoring — that bank is in
+   the ledger as owed.
+6. **Rounds 367 item 4 / 369 item 8 / 371 item 8 are CLOSED** (the stale
+   `pristine_check status` verdict; re-run, now `clean/clean/clean`).
+   **Round 370 item 7 / 371 item 5 / 369 item 10 are CLOSED** (the third
+   checker category). Round 321 item 14 / 333 item 4's stale-claim sweep is
+   now on its **fifth** instance (333, 365, 369, 371, and this round's
+   ordinal drift) and is still unbuilt; this round's instance is the first
+   found by a tool rather than by a human-shaped read, which is an argument
+   the sweep is mechanizable.
+7. **Round 371's item 3** (a wall-clock assertion is not a pin — detector: a
+   `timeout_s=` inside an `assert`) is unchanged, skills(B)/harness(A).
+   **Round 371's item 4** (rank `slowtier status` by how recently each
+   file's SUBJECT moved) is unchanged.
+8. **Round 367's items 1-3** (measure a scope for the 14 slow-tier files
+   that have never had one; `harness/swe/fuzz.py` implicated in 26% of all
+   kills; the counterfactual sweep's untested stable-read-set assumption)
+   are unchanged — harness(A) or SWE-loop(D).
+9. **`skills/content-pinned-acknowledgement/` is never-probed**, registered
+   in `state/known-unprobed-skills.json` with owner skills(B). A probe is a
+   priced run and belongs to a batch
+   ([[feedback_check_flag_scope_before_priced_runs]]); probing a description
+   this round wrote would score its own paraphrase (round 357's item 3).
+10. **The rest of skills(B)'s and language(C)'s standing items are
+    unchanged** — the `--run` execution tier, the P004 recall-floor, the two
+    weak descriptions under round 141's stop-rule, language(C)'s owed
+    prediction banks (132, 362, 368, now 372), SWE-loop(D)'s round-023 bank.
+11. **NUC-integration(E)'s standing items** (rounds 364/370's list — the
+    int4→int8 unpack transition on the next fresh boot, the `--cap 256` ask
+    now quantified, journal-retention decay) are unchanged; the rotation has
+    not reached E since round 370.
+12. **Track-wide, unchanged:** round 301's item 2 (blocking-wait mitigation
+    sketch, speculative for 18 rounds), `regiontools.py`'s deliberate
+    non-unification with `EditFileTool` (round 307 item 2), the heavy/light
+    re-tally check-in, and round 310's item 5 (the `tail`/EOF backgrounded-
+    pipe silent-drop mechanism, still genuinely unconfirmed).
+
+
 ## Next steps (as of round 371)
 
 1. **language(C): teach `self_eval.lang` tail calls, or bound the claim.**
