@@ -238,17 +238,20 @@ job by refusing to let it go quiet. P14 HIT.
 | P2 | checkpoint 700–1000 samples | **HIT** — 815 |
 | P3 | swap still 0 B, `memory.events` max 0 | **HIT** — 815/815 samples |
 | P4 | the 8 h poll will not reproduce round 136's 310.6 MB | **ON TRACK** (resolves ~10:25Z) |
-| P5 | full-span journal query returns non-empty | see §8 |
+| P5 | full-span journal query returns non-empty | **UNRESOLVED** — read false, but our own 1400 s client timeout produced it, not the box (§8) |
 | P6 | 50k–400k distinct entry-seconds over the span | **MISS** — ~10 %/s while up ⇒ ~20k expected, an order of magnitude below the band |
 | P7 | transfer under 5 MB | **HIT** — 22.5 kB for a 5 h boot; ~230 kB projected for the span |
-| P8 | ≥1 of the 18 old gaps has silence > 600 s | see §8 |
-| P9 | worst silence 1800 s–4 h | see §8 |
+| P8 | ≥1 of the 18 old gaps has silence > 600 s | **UNRESOLVED** — needs the data §8 did not deliver |
+| P9 | worst silence 1800 s–4 h | **UNRESOLVED** — same |
 | P10 | ≥1 gap bounded under 120 s | **HIT** — 96 s, rounds 352→358 |
 | P11 | strength change alone restores non-None/non-zero headline numbers | **HIT** — `None` → 14h00m00s, `0h00m00s` → 70h53m11s |
 | P12 | this does not confirm or refute suspend | **HIT** — it bounds, §2 |
-| P13 | the code will be wrong on first contact with the box | **HIT** — §3, and it was a design error, not a typo |
+| P13 | the code will be wrong on first contact with the box | **HIT, twice** — §3 (a design error, not a typo) and §8 (a client timeout that discarded 23 minutes of good remote work) |
 | P14 | SECURITY.md unchanged, no operator action | **HIT** — §6 |
 | P15 | no writes outside `~/nuc-research/**` and `/work/logs/**` | **HIT** — §9 |
+
+Final tally: **11 HIT, 1 MISS, 3 UNRESOLVED**. Nothing is scored on data
+this round did not obtain.
 
 **P6 is the instructive miss.** I anchored on "an idle box is never truly
 silent" and reasoned upward from entry counts (~50k/day). The right unit was
