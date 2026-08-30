@@ -206,6 +206,41 @@ move on, don't manufacture a wait).
   check the record/file count in the output against the expected input
   count before trusting a clean summary.
 
+- **Backgrounding a remote job with `cmd_a && cmd_b > log 2>&1 &` — the
+  `&` binds to the whole LIST, not to `cmd_b`.** bash forks a subshell for
+  the list, and only `cmd_b` carries the redirections, so the subshell
+  inherits sshd's stdout/stderr channel pipes and then blocks in `do_wait`
+  on the child for the job's ENTIRE duration. sshd never sees EOF, so the
+  ssh client hangs and your `subprocess.run(..., timeout=N)` raises —
+  while the remote job runs perfectly. Diagnose it on the box, don't guess:
+  `ls -l /proc/<subshell>/fd/{1,2}` shows `pipe:[...]` for the culprit and
+  the real log file for a properly detached child, and
+  `cat /proc/<pid>/wchan` reads `do_wait`. Fix: background a brace group
+  whose OWN fds are all redirected —
+  `{ cmd_a && exec cmd_b > log 2>&1 ; } > /dev/null 2>&1 < /dev/null &`.
+  Two details that are easy to get wrong: the group redirect must be
+  `/dev/null` and not the log, because group redirections are applied
+  BEFORE the body runs and the log usually lives in a directory `cmd_a` is
+  about to `mkdir`; and `exec` matters, because without it `$!` names the
+  wrapper subshell rather than the job, so any later `ps -p $PID` liveness
+  check is watching the wrong process.
+- **Treating a client-side timeout as "the remote step failed."** It is
+  not evidence of that, and can be evidence of the opposite: the pitfall
+  above produces a timeout precisely BECAUSE the remote job started. A
+  launcher that raises on timeout and stops there inverts its own safety
+  property — instead of "no watcher for a job that never started" you get
+  a job that DID start, with its PID discarded along with the exception
+  and nothing supervising it. On timeout, PROBE the box for the job you
+  may have just launched (`pgrep -f` on a pattern unique to THIS run, not
+  just the script name — adopting some other run's process is worse than
+  failing) and adopt it. If the probe comes back empty, that is still a
+  hard error, and say so explicitly: "probe found nothing" and "nothing is
+  running" are different statements, and a blind retry can leave two
+  copies of a multi-hour job running side by side.
+- **Recover, don't relaunch.** Once you find the orphaned job alive, start
+  the supervisor against the PID it already has. Relaunching to "do it
+  properly" leaves two jobs writing the same output paths.
+
 ## Verification
 ```bash
 # Cheap detector: does a round's own last assistant message describe
