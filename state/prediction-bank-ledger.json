@@ -197,8 +197,8 @@
   "132": {
    "bank": "state/round-132-predictions.md",
    "status": "unscored",
-   "owner": "language(C)",
-   "why": "Round 132 died at error_max_turns with no knowledge file (research-state-archive.md, the rounds-131-135 entry). It inherited v0.13 Whence return-type WIP from rounds 126-128. Whence is at v0.27 as of round 368, so several banded predictions are probably unscorable against today's tree; scoring what survives and marking the rest unscorable is the discharge."
+   "owner": "unscorable-as-posed",
+   "why": "OWNER MOVED from language(C) to unscorable-as-posed by round 378, which is the other half of round 375's item 8 (\"either pay the debt or move the owner -- three deferrals is where an owner stops being a fact\"). Round 132 died at error_max_turns with no knowledge file and left no artifact of its own; its 37 lines describe v0.13 return-type-contract WIP against a tree that ~17 SPEC version sections have rewritten since (Whence is at v0.30 as of round 378). No future language(C) round will be better placed than this one was, so leaving the owner on that track only re-books the same deferral. Re-open it only if a round-132 artifact turns up in git."
   },
   "135": {
    "bank": "state/round-135-predictions.md",
@@ -293,9 +293,11 @@
   },
   "362": {
    "bank": "state/whence/round-362/PREDICTIONS.md",
-   "status": "unscored",
-   "owner": "language(C)",
-   "why": "Killed by the outer round timeout five seconds after its last SPEC.md write. Round 363 landed its CODE, recorded the unscored bank in round 362's research-state entry, and said it was \"carried as a next step for language(C)\" -- and it reached NO subsequent next-steps block (364, 365, 367). Two language(C) rounds (366, 368) have run since. Round 363 \u00a71 notes several of the 11 are answerable from artifacts round 362 itself left (P1's 141/400 and P11's 141/141 parse rate are both quoted in the `## v0.25` SPEC section it wrote)."
+   "status": "scored",
+   "scored_by": 378,
+   "where": "knowledge/round-378-the-deferral-that-was-three-claims.md",
+   "quote": "**5 HIT, 1 HALF, 4 MISS, 1 NOT SCORED.**",
+   "remainder": "P7 is NOT SCORED: the prose sweep it named (>=3 hits across self_eval.lang and self_host.lang) was never run by round 362, and the instance that actually mattered turned out to be in harness/tests/test_swe_guest.py, a file P7 did not name. P4 is scored MISS rather than unscorable: there was no shape divergence to locate, and the defects round 362 did find were in the contract-message differential, a different instrument. Every verdict is from committed artifacts only -- SPEC.md's `## v0.25` section and harness/tests/test_swe_guest.py -- because round 362 died five seconds after its last SPEC write and left no knowledge file."
   },
   "363": {
    "bank": "state/round-363-predictions.md",
@@ -334,9 +336,11 @@
   },
   "368": {
    "bank": "state/whence/round-368/PREDICTIONS.md",
-   "status": "unscored",
-   "owner": "language(C)",
-   "why": "Killed by the outer round timeout at 2765s (logs/driver.log: interrupted=true, status=?). Round 369 verified and landed its code as commit f568a79 and did NOT score the bank -- the same reconciler's-blind-spot round 365's item 0 names. P1/P2/P7 are answerable from the committed v0.27 SPEC section and code; P5 was checked by round 369 while landing (1591/3/62 vs the banked 1469/3/61 baseline, zero edits to existing tests -- HOLDS); P3/P4 need `bench/value_size.py` re-runs and are a fresh measurement, not a scoring."
+   "status": "scored",
+   "scored_by": 378,
+   "where": "knowledge/round-378-the-deferral-that-was-three-claims.md",
+   "quote": "**7 HIT (one on its code half only), 1 HALF, 1 MISS, 1 NOT SCORED.**",
+   "remainder": "P4 (the int-multiply guard's hot-path cost, <2%) is NOT SCORED and needs a bench/ re-run -- no committed artifact carries the figure, which is the same ruling round 369 reached while landing the code. P9's RSS half was never measured; only its code half (WList.concat calls buf.extend and materialises 2n pointers) is claimed."
   },
   "369": {
    "bank": "state/skills/round-369/PREDICTIONS.md",
@@ -408,6 +412,14 @@
    "where": "knowledge/round-377-the-zero-that-measured-the-grammar.md",
    "quote": "**12 HIT, 2 MISS, 1 HALF, 1 NOT RUN of 16.**",
    "note": "None outstanding: P1-P16 are each scored by number in the knowledge file's predictions table, in the SAME round that banked them. P15 is NOT RUN and labelled so rather than scored: the full test_swe_guest.py is ~346s on a one-core box and the round ran the 8 tests touching the changed code path instead. The two misses (P2, P12) share one shape -- both were quantities estimated from the code's own prose when a sub-10-second measurement was available before banking."
+  },
+  "378": {
+   "bank": "state/whence/round-378/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 378,
+   "where": "knowledge/round-378-the-deferral-that-was-three-claims.md",
+   "quote": "## 7. Predictions, scored (D-013)",
+   "remainder": "P7 and P8 are HALF (line-count band missed high at +262 vs 90-160; the overflow repro is 26 lines not 4) and P12 is HALF (no EXISTING test went red for a bug of mine, only my own new ones). All three are scored in the table, none is left open."
   }
  }
 }

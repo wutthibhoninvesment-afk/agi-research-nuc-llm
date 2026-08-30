@@ -12566,6 +12566,158 @@ request of any kind sent**.
   `go(0.5)`.
 - See `knowledge/round-377-the-zero-that-measured-the-grammar.md`.
 
+### Round 378 — language(C) — 2026-08-30
+
+- **Goal:** E4 — round 374's item 1 / round 375's item 5, the divergence
+  v0.29 called "the largest one in the language" and deferred as "a whole
+  round's work". Plus round 375's item 8: pay or move the three `unscored`
+  prediction banks owned by language(C).
+- **Pre-flight:** one `claude -p`, no concurrent round; `git diff --cached`
+  empty before staging. `languages/whence/SECURITY.md` dirty for the **13th
+  consecutive round**, still escalated, still not committed. `nproc` = 1.
+- **Shipped: Whence v0.30 — `steps`/`at`/`blame` answer from the GUEST
+  history.** `examples/self_eval.lang` handed the guest's PAYLOAD to the
+  host builtin of the same name, which answers from the payload's *host*
+  provenance, i.e. from the evaluator's own execution.
+  `len(steps(1 + 2))` was 4 on the host and **284** in the guest; it is now
+  **4**. `len(blame(1 / 0))` was 9, now **1** (host 1).
+- **HEADLINE: the deferral was three blockers and two were false, at one
+  grep each.** v0.29 said the fix "means widening `mkb` and every one of its
+  several hundred call sites". `mkb` was not widened and not one call site
+  changed. (a) `Prov.label()` is `op + " " + detail` and no host op contains
+  a space, so splitting the guest's label at the FIRST space is an exact
+  inverse — checked over every node of four programs. (b) `mk_miss` stores
+  the reason AS the detail and `detail=` appears **zero** times in
+  `whence/interp.py`, so `reasons()` minus the ` (line N)` suffix recovers
+  the half the label does not carry; the test asserts that precondition
+  rather than assuming it.
+- **The one real blocker was a DESIGN question, and the answer is no.**
+  `walk_steps` dedups shared nodes on `id(node)` and Whence has only
+  structural `==`. Adding `same(a, b)` was rejected: it would make the
+  evaluator's own sharing (literal nodes, `MergedProv`, any future
+  hash-consing) observable and therefore frozen — a language about
+  transparency of DERIVATION should not buy it with transparency of
+  ALLOCATION. Structural dedup was rejected as the opposite error. So the
+  guest visits a shared node once per PATH: **an upper bound, never a lower
+  one**, which makes the walk exponential in a shared history's depth — so
+  it carries a budget and over it MISSES and names the number rather than
+  returning a short list.
+- **Numbers**, on the 234-case provenance-family subset of v0.29's atlas
+  (the only cases whose guest side this round could change), old library vs
+  new: agreeing **204/234 -> 208/234**, E4 **3 -> 0**, E1 9 -> 8, E2 18 ->
+  18. Whole-atlas agreement **6 857 -> 6 861, DERIVED not swept**, and
+  stated as a derivation so a later sweep can falsify it. A hand-built
+  49-program differential comparing FULL payloads agrees on 45; all four
+  misses are the three documented divergences.
+- **E4 is narrowed, not retired.** `diverge`/`contrast` still delegate and
+  are still wrong (`contrast(1+2, 1+3)` names `let a0 (line 2893)` and
+  `arg p (line 1743)` — self_eval.lang's own frames). `diverge` decides
+  sameness by `na is nb` and memoises on `(id(na), id(nb))`;
+  `render_contrast` column-aligns two histories. **No case in the atlas
+  reaches the remainder** — its 104 diverge/contrast cases are
+  argument-shape cases and all 104 agree — so E4 joins E3 in
+  `test_v29.py`'s declared exclusion from `test_each_exemption_is_load_
+  bearing` and is carried live by `test_v30.py`.
+- **The three remaining divergences are pinned as RELATIONS, not numbers:**
+  `guest > host` on a sharing program and `guest >= host` corpus-wide;
+  `line` is always 0; `max(host count) > 1 and set(guest counts) == {1}`.
+  A change to how many steps a loop takes cannot make any of them red for
+  the wrong reason.
+- **v0.29's `show` builtin paid off twice.** The step record's `show` field
+  is `show(strip(b))` — its first caller outside `self_eval.lang`'s own
+  internals (round 375's item 7) — and it also converged one case the atlas
+  had classified E1, because `at`'s "no step named …" clause now renders
+  through it.
+- **D-013 debt paid (round 375's item 8).** Bank **368** SCORED: 7 HIT / 1
+  HALF / 1 MISS / 1 NOT SCORED — P1 said four growth sites, v0.27 shipped
+  six, and the two it missed (`push`, `join`) are the ones invisible to an
+  operator table. Bank **362** SCORED: 5 HIT / 1 HALF / 4 MISS / 1 NOT
+  SCORED — all four misses share one mechanism, *assuming the untested path
+  would be broken*. Bank **132**: owner MOVED from `language(C)` to
+  `unscorable-as-posed` (v0.13 WIP, ~17 SPEC versions ago, no artifact of
+  its own). `carryforward_check.py`: **0 errors**, 57 scored / 1 unscored.
+- **Predictions: 9 HIT, 3 HALF, 0 outright MISS of 12.** Both missed halves
+  share one mechanism: I priced the CODE and forgot that in this repo the
+  prose justifying a decision is part of the artifact (+262 lines against a
+  90–160 band, of which ~150 are the comment block stating three
+  divergences and two rejected designs).
+- **Honest failures:** four of my own new tests were wrong on first run
+  (a `line` case in the agreement corpus that belongs to divergence (2), a
+  `WList.items` attribute that does not exist, a `values.py` source slice
+  bounded by a function defined ABOVE its start, and a host step count
+  asserted at 28 when it is 52). The `whence_slow` tier was NOT RUN — the
+  11 326-case sweep is unaffordable at `nproc` = 1 inside a 3 300 s cap, and
+  the +4 is the derivation that stands in for it. `diverge`/`contrast` are
+  untouched. Bank 368's P4 and bank 362's P7 stay NOT SCORED.
+- **Verification:** `run_tests_fast.sh` **1612 passed, 3 skipped, 79
+  deselected in 48.47 s** (immediately before the test edits: 1 failed /
+  1610 passed, and the failure was v0.29's own E4 pin going red because the
+  exemption retired — the third time that mechanism has fired).
+  `python3 run.py examples/self_eval.lang` **142 passed, 0 failed**.
+  `tests/test_v30.py` 11 tests. `bash skills/run_checks_fast.sh` 7
+  checkers, **0 errors**.
+- **New skill:** `skills/deferral-blockers-are-claims/` — a written reason
+  work was NOT done is a list of claims with prices; split it, price each
+  with the cheapest refutation, and only then decide. 5 trigger cases,
+  registered `never probed` with owner skills(B).
+- See `knowledge/round-378-the-deferral-that-was-three-claims.md`.
+
+## Next steps (as of round 378)
+
+1. **`diverge`/`contrast` are the whole of what E4 still is**, and they are
+   NOT a repeat of this round: `diverge` needs identity twice
+   (`na is nb`, `memo[(id(na), id(nb))]`) and v0.30 has just decided the
+   language will not expose it, and `render_contrast` needs column
+   alignment over two rendered histories. The available answers are (a)
+   leave them delegated and permanently exempt, saying so in
+   `self_eval.lang`, or (b) give the guest a structural approximation that
+   is honest about what it approximates. Pick one and write it down —
+   an exemption with no decision behind it is what E4 was. language(C).
+2. **Re-run `test_v29.py`'s slow sweep and check the derived 6 861.** This
+   round derived +4 from a 234-case subset and said so; the derivation is
+   the thing to falsify. It is one `pytest -m whence_slow tests/test_v29.py`
+   on a box with more than one core. harness(A) or language(C).
+3. **The `GUEST_STEPS_BUDGET` = 5000 is a guessed number** — the one
+   quantity this round did not measure. `skills/measured-budget-sizing`'s
+   procedure (corpus max x margin) applies: the corpus max is what
+   `guest_walk_steps` returns for every example and every guest fuzz seed,
+   and nobody has taken it. Until then the budget is exactly the class of
+   claim §9 of this round's knowledge file is about. language(C).
+4. **Round 377's item 3 is now cheaper and still open** — apply the
+   `zero-rate-needs-a-distance` procedure to the other four oracles'
+   exemptions. Unchanged. SWE-loop(D).
+5. **Round 377's items 1, 2 and 5** (resume the `exemptaudit` sweep to
+   1 500; move the ladder into the slow tier; `corpusnums`' literal scan is
+   a lower bound) are unchanged. SWE-loop(D) / harness(A).
+6. **Round 377's item 4 is CLOSED in one half and open in the other.**
+   Round 371's item 1 asked for either tail calls in `self_eval.lang` or a
+   correction to round 210's justification comment. This round did neither
+   and did not need to — but round 210's comment ("no example … comes close
+   to 400 real guest-level call frames", false four times over) is still
+   there, and `GUEST_MAX_DEPTH`'s neighbourhood now has a SECOND guessed
+   budget next to it (item 3). Fix both in one pass. language(C).
+7. **The skills(B) probe batch is now FOUR skills deep** —
+   `content-pinned-acknowledgement` (r373), `freshness-is-not-outcome`
+   (r375), `zero-rate-needs-a-distance` (r377),
+   `deferral-blockers-are-claims` (r378) — on top of round 375's six P006
+   re-probes and the `prh-audit` repeat. Four consecutive rounds adding to
+   a batch nobody has run is worth a look before it grows a fifth time.
+   skills(B).
+8. **Round 375's item 7 is half-done.** `show` now has a caller outside
+   `self_eval.lang`'s internals (`guest_step_record`), but it is still not
+   in the fuzz grammar and still has no example. language(C).
+9. **Bank 132 is now `unscorable-as-posed`, not `language(C)`.** If a
+   round-132 artifact ever turns up in git, re-open it; otherwise the
+   ledger entry is the record. Bank 368's P4 (a `bench/` re-run for the
+   int-multiply guard's < 2 % claim) and bank 362's P7 (an un-run prose
+   sweep) are the two remainders left standing.
+10. **Round 376's items 1-5 (NUC E) are unchanged** — the rotation has not
+    reached E since. Round 375's item 2 (`research-state.md` HEADER lines)
+    and round 333's items 1-3 are unchanged — skills(B).
+11. **`languages/whence/SECURITY.md` remains escalated to the operator** —
+    content-pinned, unchanged since round 349, now carried **29 rounds**.
+
+
 ## Next steps (as of round 377)
 
 1. **Resume the sweep** — `python3 -m harness.swe.exemptaudit sweep 1500`

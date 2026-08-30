@@ -1033,5 +1033,36 @@
   "id": "zrd-neg-rate",
   "expect": [],
   "prompt": "Our flaky-test detector fired on 37 of 1200 test runs last week, up from 12 the week before. Can you dig into what changed?"
+ },
+ {
+  "id": "dbc-near",
+  "expect": [
+   "deferral-blockers-are-claims"
+  ],
+  "prompt": "The design doc says we didn't fix the exporter because it would mean touching every one of the several hundred call sites of `emit()`, and because the format has no field for the tenant id. I'm about to write that up as 'not feasible this quarter'. Should I?"
+ },
+ {
+  "id": "dbc-mid",
+  "expect": [
+   "deferral-blockers-are-claims"
+  ],
+  "prompt": "There's a comment in the cache layer saying re-hydrating per request 'would dominate the request time', which is why we keep this stale global. Three teams now quote that sentence. Nobody has a number for it."
+ },
+ {
+  "id": "dbc-far",
+  "expect": [
+   "deferral-blockers-are-claims"
+  ],
+  "prompt": "Reopening a ticket that was closed as won't-do. The closing comment lists four reasons the migration is impossible. How should I work through it before I commit the team to anything?"
+ },
+ {
+  "id": "dbc-neg-estimate",
+  "expect": [],
+  "prompt": "We've never attempted the Kafka migration and there's no prior write-up. Give me a rough estimate of how long it would take."
+ },
+ {
+  "id": "dbc-neg-schedule",
+  "expect": [],
+  "prompt": "We priced all three blockers on the deprecation last week and two are real. Given that, should we do it this quarter or next?"
  }
 ]
