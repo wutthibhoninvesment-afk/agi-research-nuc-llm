@@ -201,6 +201,22 @@ clock `/proc/uptime` follows. That question is still open; it is now merely
 - `suspend-audit` subcommand — runs W-silence and W-clock from **local cached
   data only**, no ssh, no cost, repeatable by any future round.
 
+### Journal coverage extended
+
+`journal-boots` with the warm cache: **6 of 7 boots skipped**, boot 0 (the open
+one) rescanned in **6.6 s** — rate probe 70 entries/300 s → projected 7.99 s →
+timeout sized at 83 s, i.e. round 364's measure-extrapolate-multiply rule
+working exactly as intended. Boot 0's capture grew 2783 → 3674 entry-seconds,
+now covering to 2026-08-30T15:19:58Z. All 7 boots `complete`; merged total
+**183,514 entry-seconds** (`state/nuc-journal-cache/merged-r370-all7.json`).
+
+Fresh `continuity` over that merge: `unobserved_total` **0h23m39s**,
+`max_unobserved_outage` **0h01m57s** — unchanged from round 364, still the
+rounds-142→154 window, still `bounded`. Log span is now **118h45m57s** (round
+364's snapshot: 113h50m01s), which is exactly why round 364's rule holds:
+**`unobserved_total` is a snapshot of a growing append-only log and may only be
+compared method-to-method on ONE snapshot**, never round-to-round.
+
 **Tests: 400 passed** (`python3 -m pytest nuc/tests/ -q`, 30.55 s), including 18
 new ones. Two pre-existing tests were updated, not weakened: `_CountingSshRunner`
 now answers the new probe, and `test_check_up_record_carries_a_derived_boot_utc`
@@ -236,9 +252,10 @@ observed and briefly read as organic traffic on an idle box. All four PIDs
 `memory.current` was byte-identical before and after, so section 2 is unaffected.
 Generalises: **killing the local `ssh` does not kill the remote command.**
 
-**The `journal-boots` rescan of boot 0 and a fresh `continuity` run were cut for
-time** (P6/P7 unscored). The cache is warm and all 7 boots are still in the
-journal, so this is cheap for the next E round.
+**The `journal-boots` rescan and `continuity` run were nearly cut for time**, and
+were only recovered because the round finished its writeup with budget left.
+They cost **6.6 s of scan wall** in the end (see below) — the near-miss was a
+scheduling error on my part, not a cost.
 
 **One self-inflicted false alarm, caught before it was published.** My first
 standing-state check searched `/work/models` for the OLMoE tarball, found
@@ -259,8 +276,8 @@ not evidence of absence.
 | P4b | some records will predate boot −6 and be uncheckable | **MISS** — `n_unmatched = 0`. Only 5 of 39 log records carry `boot_utc` at all, and all 5 fall inside surviving boots |
 | P5 | `CLOCK_BOOTTIME − CLOCK_MONOTONIC` < 1 s | **HIT** — −1e−06 s |
 | P5b | `/proc/uptime` == CLOCK_BOOTTIME within 0.05 s, identifying the clock | **HALF** — the delta is −0.0035 s, but since BOOTTIME == MONOTONIC on this box the measurement **cannot** identify which clock uptime follows. The prediction was ill-posed, not the measurement |
-| P6 | `journal-boots` rescans exactly 1 boot in < 120 s | **NOT RUN** — cut for time |
-| P7 | `unobserved_total` ≤ 0h25m00s, `max_unobserved_outage` unchanged | **NOT RUN** — depends on P6 |
+| P6 | `journal-boots` rescans exactly 1 boot in < 120 s | **HIT** — 6 boots skipped from cache, boot 0 rescanned in **6.6 s** wall (projected 7.99 s, timeout sized at 83 s); `n_seconds` 2783 → 3674 |
+| P7 | `unobserved_total` ≤ 0h25m00s, `max_unobserved_outage` unchanged | **HIT** — **0h23m39s**, and `max_unobserved_outage` **unchanged at 0h01m57s** (the rounds-142→154 window, `bounded`) |
 | P8 | all six standing items unchanged, thirteenth boot with no operator action | **HIT, all six** — `--cap 256` live; E3 patch still NOT applied (0 markers in `qwen36.c`, mtime 2026-08-23T15:27:33Z); OLMoE tarball present at 7,420,160,000 B; `memory.events` `max` = 0; no operator login since 2026-08-26 19:24; both user units `active` |
 | P9 | `SECURITY.md` byte-identical to round 349's escalation | **HIT** — same diff (30 insertions, 7 deletions), unchanged for 21 rounds |
 

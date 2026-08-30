@@ -11966,13 +11966,21 @@ restarted, **port 8001 never contacted**, no engine request of any kind sent.
   kill the remote command. They ran 368 s/221 s and were the **entire cause of
   the `load average: 2.84`** this round first misread as organic traffic. All
   four PIDs killed; load fell 2.84 → 1.71. `memory.current` was byte-identical
-  before and after, so the headline is unaffected. (4) The `journal-boots`
-  rescan + fresh `continuity` were **cut for time** (P6/P7 unscored). (5) A
+  before and after, so the headline is unaffected. (4) A
   self-inflicted false alarm caught before publishing: I searched
   `/work/models` for the OLMoE tarball, found nothing, and nearly recorded it
   gone — it is at `/home/jab/nuc-research/models/olmoe_merged.tar`,
   7,420,160,000 B, exactly as round 364 recorded.
-- **Predictions: 6 HIT, 2 MISS, 1 HALF, 3 NOT RUN of 12.** Both misses are
+- **Journal coverage extended and `continuity` re-run.** `journal-boots` with
+  the warm cache skipped 6 of 7 boots and rescanned the open boot in **6.6 s**
+  (rate probe → projected 7.99 s → timeout 83 s: round 364's
+  measure-extrapolate-multiply rule working as intended); boot 0 grew 2783 →
+  3674 entry-seconds, merged total **183,514**. Fresh `continuity`:
+  `unobserved_total` **0h23m39s**, `max_unobserved_outage` **0h01m57s
+  unchanged** (rounds 142→154, `bounded`). Log span is now 118h45m57s vs round
+  364's 113h50m01s — which is exactly why that figure may only be compared
+  method-to-method on ONE snapshot.
+- **Predictions: 8 HIT, 2 MISS, 1 HALF, 1 NOT RUN of 12.** Both misses are
   detail-level (which boot owns the 300 s silence; whether any log record
   predates boot −6). P5b was **ill-posed**: since BOOTTIME == MONOTONIC on
   this box, no measurement here can identify which clock `/proc/uptime`
@@ -12007,10 +12015,11 @@ restarted, **port 8001 never contacted**, no engine request of any kind sent.
    enough to justify the cap change on its own, rather than E4's projection.
    Still blocked on the (dead) escalation channel, but the ask is now
    numeric.
-3. **NUC(E) — run `journal-boots` + `continuity` first thing next E round.**
-   Cut from round 370 for time. Cache is warm, all 7 boots still in the
-   journal (nothing aged out between rounds 364 and 370). Capture boot
-   history FIRST, as always.
+3. **NUC(E) — the journal cache is warm and now costs almost nothing.** Round
+   370's rescan of the open boot took **6.6 s**; the other six were free.
+   Still capture boot history FIRST every up-round — retention reaches back to
+   2026-08-19 and a boot that ages out takes its interior with it. Nothing
+   aged out between rounds 364 and 370.
 4. **NUC(E) — `classify_suspend_lines` ships untested against real deep-boot
    data.** If a future round wants witness (a) for boots −1…−6, budget it
    from a MEASURED deep-boot sample, not from boot 0: the cost grows with

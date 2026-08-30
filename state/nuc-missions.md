@@ -1226,9 +1226,15 @@ Code runs (proof in round file), measurements banked in both places,
   `memory.events max` 0; no operator login since 2026-08-26 19:24; both user
   units `active`. A **thirteenth** boot in a row with no operator action —
   escalation channel dead since round 166.
+- **Journal coverage extended.** `journal-boots` skipped 6 of 7 boots from
+  cache and rescanned the open boot in **6.6 s** (projected 7.99 s, timeout
+  83 s); boot 0 grew 2783 → 3674 entry-seconds, merged total **183,514**
+  (`state/nuc-journal-cache/merged-r370-all7.json`). Fresh `continuity`:
+  `unobserved_total` **0h23m39s**, `max_unobserved_outage` **0h01m57s
+  unchanged**. Log span now 118h45m57s vs round 364's 113h50m01s — compare
+  this figure method-to-method on ONE snapshot only.
 - **Next E round, in order:** (1) capture boot history FIRST, (2)
-  `journal-boots` + `continuity` (cut from this round for time; cache warm,
-  nothing aged out), (3) on the next FRESH boot, poll `memory.current` at ~5 s
+  `journal-boots` + `continuity` (now ~7 s with the warm cache), (3) on the next FRESH boot, poll `memory.current` at ~5 s
   and watch for the `unpacking to int8 in slot` line to catch the transition
   itself — needs no operator approval, only patience and not being the one to
   send the first request.
