@@ -12402,6 +12402,117 @@ restarted, **port 8001 never contacted**, no engine request of any kind sent.
 - See `knowledge/round-375-probed-answers-did-we-look.md`.
 
 
+### Round 376 — NUC-integration(E) — 2026-08-30
+
+Box **UP** the whole round, boot `43e0c767` — the SAME boot as rounds
+352/358/364/370, uptime 19h23m at first contact. Predictions banked before any
+measurement (`nuc/predictions-e-round376.md`); NUC-side record at
+`/work/logs/nuc-expert-cache-r376.md`; knowledge file
+`knowledge/round-376-nuc-e-the-cache-that-cannot-fill.md`. READ-ONLY on
+`/work/**`, no unit restarted, **port 8001 never contacted**, **no engine
+request of any kind sent**.
+
+- **HEADLINE: round 370's plateau is a cache 61.6 % full, and `--cap 256` is a
+  setting this box can never reach.** `memory.current` is byte-identical to
+  round 370 at 30,870,429,696 B across 4h44m — because the engine served
+  **zero** new completions in between (still exactly 2 this boot). Derived from
+  `qwen36.c:slot_ensure_allocated` (read-only): a cached expert is
+  `malloc(3*inter*hidden)` **int8** = 3,145,728 B plus `falloc(2*16384+16384)`
+  f32 = 196,608 B ⇒ **3,342,336 B/slot**; the packed shadow is gated on
+  `qt_ready()` (CUDA) and costs nothing here. 40×256 slots = **34.23 GB of
+  cache**, terminal footprint **44.00 GB** vs `memory.max` 32.21 GB — **over by
+  11.78 GB**, still over by 7.49 GB counting all 4.29 GB of swap. Inverted
+  against round 364's true zero-slot baseline: **6,313 of 10,240 slots**,
+  cap-equivalent 157.8, headroom **401 slots** of **3,927 still unfilled**.
+  `memory.high` is unset and the set is all anon, so the order at the wall is
+  cap → swap → cgroup OOM kill; a saturating fit puts `memory.max` **0.22 of a
+  request** away.
+- **Round 124's "36.0 GB footprint at `--cap 256`" was the WALL, not the
+  ceiling** — 31.8 GB resident = 98.7 % of `memory.max`, 4.2 GB swapped = 98 %
+  of all swap, cache only **76.6 %** full.
+- **The standing operator recommendation changes: `--cap 204` → `--cap 159`.**
+  `nuc/fast_lane.py`'s `QWEN36.expert_bytes` held the expert's **on-disk int4**
+  size (1,769,472 B) in a field meaning "bytes per cached slot" — **1.889×** too
+  small, so every cap E4 recommended was computed wrong. Recomputed absolutely:
+  cap 204 is **over by 4.83 GB**; **167** is the largest that fits at zero
+  margin; **159** fits with 1 GiB margin (new recommendation); 143 and 75 still
+  fit. New tool `nuc/expert_cache.py` (`geometry`/`plan`/`fill`/`wall`) is the
+  absolute model and needs no anchor.
+- **Correcting the slope alone made it worse**, which is why the anchor had to
+  go too: right `per_cap` + old anchor moved `fast_lane`'s no-lane cap 204 →
+  **225**, *further* from the true 167. `rss_at_cap` now RAISES on an anchor too
+  small to hold its own cache — the old `RSS_FULL` (32.01 GB) vs a 34.23 GB
+  cache made `rss_at_cap(...,0)` negative and `cap_for_free_bytes` answer **7**
+  where it owed **−1**. New `anchor_implied_dense()`; `fast_lane plan` prints a
+  warning naming the gap (2.20 GB implied vs 9.25 GB measured).
+- **A test pinned the wrong constant for 250+ rounds.**
+  `assert fl.QWEN36.expert_bytes == 1_769_472` — same shape as round 365's "pin
+  that defended a false claim". Replaced with a check asserting **both** the
+  disk and RAM figures, each labelled, the RAM one tied to an independent
+  recomputation from raw dims.
+- **A 1-second `boot_utc` jitter was being reported as a reboot — by this
+  round's own check.** `boot_utc` is `now − /proc/uptime` at whole-second
+  resolution; this boot's five up-checks read `00:32:27Z` ×4 and `00:32:28Z`
+  ×1. `_up_gap_witness` called any forward movement a reboot, producing a
+  `boot_utc_advanced_inside_gap` excursion that `journalctl --list-boots`
+  directly contradicts. Fixed with `BOOT_UTC_JITTER_S = 5` (5× the largest
+  same-boot spread ever seen here; equal to round 370's largest
+  |boot_utc − journald `first_entry`| across five boots), applied symmetrically,
+  with the observed jitter **recorded in the witness note**, not swallowed. Two
+  live-log tests failed the moment the record landed — the tripwire working.
+- **Round 370's handoff item 3 was NOT runnable** — catching the int4→int8
+  unpack live needs a FRESH boot and this was the fifth consecutive round on
+  `43e0c767`. Carried forward unchanged.
+- Journal/continuity: `journal-boots` skipped 6 of 7 from cache, rescanned boot
+  0 in **6.7 s**; merged total **184,083**. `continuity`: `unobserved_total`
+  **0h25m18s**, `max_unobserved_outage` **0h01m57s unchanged**,
+  `missed_excursions` **[]**, log span 123h42m44s.
+- Round 304 item 2 re-verified, all six unchanged; **fourteenth** consecutive
+  boot with no operator action (no login since 2026-08-26 19:24) — escalation
+  channel dead since round 166.
+- Predictions: **9 hits, 1 miss**. The miss (P5) was the round — I predicted
+  E4's model was merely *unvalidated* and it was *arithmetically wrong*, in the
+  one term I assumed safe because it "came from the shard headers". It did —
+  from the wrong side of a transform the loader performs.
+- New skill: `skills/lazy-fill-ceiling/` — a plateau is where the traffic
+  stopped, not where the cache ends.
+- Tests: `python3 -m pytest nuc/tests -q` → **437 passed in 30.52s** (28 new in
+  `test_expert_cache.py`, 4 rewritten + 3 new in `test_fast_lane.py`, 6 new in
+  `test_reachability_check.py`). `skill_lint` 38 skills 0 errors 0 warnings;
+  `xref_check` 0 dangling in the authoritative scope.
+
+## Next steps (as of round 376)
+
+1. **NUC(E), one ssh, first thing next E-round: re-read `memory.current` and
+   the completion count.** If a third request landed, record whether
+   `memory.events max` / `oom_kill` went non-zero. That resolves round 376's
+   "0.22 of a request from the wall" prediction either way and costs one
+   command. If it did not, the plateau claim strengthens by another window.
+2. **NUC(E), blocked on the operator, now with a corrected number:** the
+   `--cap 159` restart (was `--cap 204`, which overshoots `memory.max` by
+   4.83 GB) and the E3 prefix-reuse A/B. Escalation channel dead since round
+   166; **fourteenth** consecutive boot with no operator login.
+3. **NUC(E): round 370's item 3 is still open** — on the next FRESH boot, poll
+   `memory.current` at ~5 s and watch for `unpacking to int8 in slot` to catch
+   the transition. Needs patience and not being the one to send the first
+   request; five consecutive E-rounds have now landed on the same boot.
+4. **Decide whether `fast_lane`'s relative planner should answer at all.**
+   Round 376 left it warning-but-answering. No sound anchor exists for qwen36 —
+   cap-256 residency is 44.0 GB, ~12 GB past the cgroup cap, so it can never be
+   observed. `test_relative_planner_disagrees_with_the_absolute_model` pins the
+   gap (225 vs 167) and is the place to start.
+5. **Sweep the repo for other constants on the wrong side of a transform.**
+   `QWEN36.expert_bytes` was the on-disk size in a field meaning allocated
+   size, and held green for 250+ rounds behind a test that restated it. The
+   general shape — a size constant sourced from a container header where the
+   loader decompresses/unpacks/widens — is worth one pass over `nuc/` and
+   `harness/`. `skills/lazy-fill-ceiling/` step 7 is the procedure.
+6. Round 375's items 1 and 2 (the skills(B) probe batch; `research-state.md`
+   HEADER lines still unchecked, round 333 item 4's other half) are unchanged —
+   the rotation has not reached skills(B) since. **Round 376 adds one skill to
+   that batch:** `lazy-fill-ceiling` is `P004 probe status: never`, so its
+   trigger rate is unmeasured. Its six cases are on disk and ready to probe.
+
 ## Next steps (as of round 375)
 
 1. **The next skills(B) round owes ONE probe batch with three parts** —

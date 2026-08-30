@@ -2671,3 +2671,86 @@ def test_suspend_probe_failures_return_none_not_a_reassuring_answer():
     def _timeout(*a, **k):
         raise subprocess.TimeoutExpired(cmd="ssh", timeout=1)
     assert rc.suspend_probe(runner=_timeout) is None
+
+
+# --- round 376: boot_utc sampling jitter ----------------------------------
+
+def _up_gap(b1, b2):
+    """One up streak of two checks whose boot_utc endpoints are b1 -> b2.
+
+    Returns the single gap dict with the streak's `missed_excursions` folded in
+    as `missed_excursion` (None when empty), so each test reads as one claim."""
+    records = [_rec("2026-08-30T14:56:57Z", "up", 370, boot=b1),
+               _rec("2026-08-30T19:53:44Z", "up", 376, boot=b2)]
+    streaks = rc.gap_continuity(sorted(records, key=rc._sort_key))
+    gaps = [g for st in streaks for g in st["gaps"]]
+    excursions = [e for st in streaks for e in st["missed_excursions"]]
+    assert len(gaps) == 1
+    assert len(excursions) <= 1
+    gap = dict(gaps[0])
+    gap["missed_excursion"] = excursions[0] if excursions else None
+    return gap
+
+
+def test_one_second_boot_utc_jitter_is_not_a_reboot():
+    """ROUND 376, found by this round's own live check.
+
+    `boot_utc` is `now - /proc/uptime` truncated to whole seconds and read a
+    round-trip apart, so two checks of one boot need not agree exactly. The
+    real log's five up-checks of boot 43e0c767 report 00:32:27Z four times and
+    00:32:28Z once. The rule was `if d2 > d1: rebooted`, so that single second
+    made the instrument announce a reboot that `journalctl --list-boots`
+    directly contradicts -- same seven boot_ids, same 43e0c767, last_entry only
+    grown -- and dropped an otherwise good gap to WITNESS_NONE."""
+    g = _up_gap("2026-08-30T00:32:27Z", "2026-08-30T00:32:28Z")
+    assert g["witness_strength"] == rc.WITNESS_REBOOT_ONLY
+    assert g["witness_source"] == "boot_utc_unchanged"
+    assert g["missed_excursion"] is None
+
+
+def test_jitter_is_reported_not_silently_swallowed():
+    """Absorbing the movement must not hide it: a box that starts drifting
+    seconds per check should be visible in the note."""
+    g = _up_gap("2026-08-30T00:32:27Z", "2026-08-30T00:32:28Z")
+    assert "+1 s" in g["witness_note"]
+    assert "sampling jitter" in g["witness_note"]
+    # an exactly-equal pair says nothing extra
+    same = _up_gap("2026-08-30T00:32:27Z", "2026-08-30T00:32:27Z")
+    assert "sampling jitter" not in same["witness_note"]
+
+
+def test_backwards_jitter_is_also_absorbed():
+    """The old code called any backwards movement "contradictory". The same
+    +/-1 s truncation produces it just as easily, and it is no more meaningful
+    in that direction."""
+    g = _up_gap("2026-08-30T00:32:28Z", "2026-08-30T00:32:27Z")
+    assert g["witness_strength"] == rc.WITNESS_REBOOT_ONLY
+    assert g["missed_excursion"] is None
+    assert "-1 s" in g["witness_note"]
+
+
+def test_a_real_reboot_still_trips_the_detector():
+    """The tolerance must not blind the rule. This box needs 13.2 s just to
+    load weights after the kernel is up, so any genuine reboot moves boot_utc
+    by far more than the tolerance."""
+    g = _up_gap("2026-08-30T00:32:27Z", "2026-08-30T11:50:48Z")
+    assert g["witness_strength"] == rc.WITNESS_NONE
+    assert g["missed_excursion"]["kind"] == "boot_utc_advanced_inside_gap"
+    assert g["missed_excursion"]["advance_s"] == pytest.approx(40701.0)
+    assert "rebooted" in g["witness_note"]
+
+
+def test_jitter_tolerance_boundary_is_exclusive_above():
+    """Exactly at the tolerance is still jitter; one second past it is not."""
+    at = _up_gap("2026-08-30T00:32:27Z",
+                 "2026-08-30T00:32:%02dZ" % (27 + rc.BOOT_UTC_JITTER_S))
+    assert at["missed_excursion"] is None
+    past = _up_gap("2026-08-30T00:32:27Z",
+                   "2026-08-30T00:32:%02dZ" % (27 + rc.BOOT_UTC_JITTER_S + 1))
+    assert past["missed_excursion"] is not None
+
+
+def test_the_real_log_still_reports_no_missed_excursions():
+    """End-to-end on the live log, which is what caught this."""
+    report = rc.continuity_report(_real_log_records())
+    assert report["missed_excursions"] == []

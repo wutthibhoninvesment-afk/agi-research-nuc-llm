@@ -392,6 +392,14 @@
    "where": "knowledge/round-375-probed-answers-did-we-look.md",
    "quote": "## 7. Predictions \u2014 7 HIT / 5 MISS",
    "note": "None outstanding: P1-P12 are each scored by number in the knowledge file's section 7 table. Recorded in the SAME round that banked them, which is the half of D-013 round 369 built this ledger for and the half round 374 died before reaching. The five misses are one miss -- P2/P3/P4/P7 all bet the damage was in RECALL and all over-estimated it in the same direction, while the real defect was in a dimension the bank never asked about."
+  },
+  "376": {
+   "bank": "nuc/predictions-e-round376.md",
+   "status": "scored",
+   "scored_by": 376,
+   "where": "knowledge/round-376-nuc-e-the-cache-that-cannot-fill.md",
+   "quote": "9 hits, 1 miss",
+   "note": "None outstanding: P1-P10 are each scored by number in the knowledge file's section 7 table, in the SAME round that banked them. The bank also carries three items labelled O1-O3 as OBSERVED-before-writing (reachability check, suspend counters, boot history) precisely so the scoring could not claim credit for them; they are not counted in the 9/1. The single miss, P5, is the round's headline: it predicted E4's cap->RAM model was merely unvalidated, and the model was arithmetically wrong -- its per-slot constant was the expert's on-disk int4 size where the engine mallocs int8, 1.889x too small."
   }
  }
 }

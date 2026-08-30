@@ -102,10 +102,26 @@ def test_gate_threshold_and_disk_margin():
 RSS_FULL = 31_258_644 * 1024   # qwen36 worker, cap 256, measured
 
 
-def test_qwen36_geometry_matches_container_header():
-    # 20,480 expert tensors x 2 kinds → 18.119 GB on disk at 1,769,472 B/expert
-    assert fl.QWEN36.cache_bytes(256) == pytest.approx(18.119e9, rel=0.002)
-    assert fl.QWEN36.expert_bytes == 1_769_472
+def test_qwen36_geometry_is_the_ram_slot_not_the_disk_tensor():
+    # ROUND 376. This test used to assert `expert_bytes == 1_769_472` and
+    # `cache_bytes(256) ~= 18.119e9`, and it held green for 250+ rounds. Both
+    # numbers were right about the CONTAINER ON DISK and wrong about RAM, which
+    # is what `MoeGeometry.expert_bytes` is documented to mean ("bytes per
+    # cached expert slot"). `qwen36.c:slot_ensure_allocated` mallocs int8, and
+    # `load_expert_merged` unpacks the int4 nibbles into it. Assert BOTH figures
+    # now, each labelled, so the next reader cannot re-conflate them.
+    from nuc import expert_cache as ec
+    slot = ec.QWEN36_SLOT
+    on_disk_per_expert = 1_572_864 + 196_608          # int4 weights + f32 scales
+    in_ram_per_slot = 3_145_728 + 196_608             # int8 weights + f32 scales
+    assert slot.packed_disk_bytes == on_disk_per_expert
+    assert slot.slot_bytes == in_ram_per_slot
+    assert fl.QWEN36.expert_bytes == in_ram_per_slot
+    # 20,480 expert tensors x 2 kinds → 18.119 GB ON DISK ...
+    assert 256 * 40 * on_disk_per_expert == pytest.approx(18.119e9, rel=0.002)
+    # ... and 34.2 GB IN RAM, which is why cap 256 cannot fit a 30 GiB cgroup.
+    assert fl.QWEN36.cache_bytes(256) == pytest.approx(34.226e9, rel=0.002)
+    assert fl.QWEN36.cache_bytes(256) == slot.cache_bytes(256)
 
 
 def test_olmoe_footprint_anchors_on_upstream_comment():
@@ -117,44 +133,92 @@ def test_olmoe_footprint_anchors_on_upstream_comment():
     assert fl.OLMOE.kv_bytes_per_token * 4096 == pytest.approx(1.074e9, rel=0.001)
 
 
+# Round 376: RSS_FULL (32.01 GB) is smaller than a full cap-256 cache
+# (34.23 GB), so it is not a physically possible anchor and `rss_at_cap` now
+# rejects it. ANCHOR_36 is the resident+swap figure from PLAN-E4, the only one
+# in this repo that clears the impossibility guard -- it is still unsound (see
+# test_anchor_implied_dense_flags_every_qwen36_anchor), just not impossible.
+ANCHOR_36 = fl.full_footprint(32_211_791_872, 4_214_800_384)
+
+
 def test_rss_at_cap_is_linear_and_bounded():
-    assert fl.rss_at_cap(fl.QWEN36, RSS_FULL, 256, 256) == RSS_FULL
+    assert fl.rss_at_cap(fl.QWEN36, ANCHOR_36, 256, 256) == ANCHOR_36
     one_slot = fl.QWEN36.layers * fl.QWEN36.expert_bytes
-    assert fl.rss_at_cap(fl.QWEN36, RSS_FULL, 256, 255) == RSS_FULL - one_slot
-    assert fl.rss_at_cap(fl.QWEN36, RSS_FULL, 256, 0) == RSS_FULL - 256 * one_slot
+    assert fl.rss_at_cap(fl.QWEN36, ANCHOR_36, 256, 255) == ANCHOR_36 - one_slot
+    assert fl.rss_at_cap(fl.QWEN36, ANCHOR_36, 256, 0) == ANCHOR_36 - 256 * one_slot
     with pytest.raises(fl.FastLaneError):
-        fl.rss_at_cap(fl.QWEN36, RSS_FULL, 256, 300)
+        fl.rss_at_cap(fl.QWEN36, ANCHOR_36, 256, 300)
+
+
+def test_rss_at_cap_refuses_an_anchor_too_small_to_hold_its_own_cache():
+    """ROUND 376. RSS_FULL was labelled "qwen36 worker, cap 256, measured" and
+    used as an anchor for 250+ rounds. At the corrected int8 slot size it is
+    2.2 GB SMALLER than the cache it claims to contain, so `rss_at_cap(..., 0)`
+    went negative and `cap_for_free_bytes` read that as slack: asked for a cap
+    that frees literally all of RAM it answered 7 instead of -1."""
+    with pytest.raises(fl.FastLaneError, match="not full residency"):
+        fl.rss_at_cap(fl.QWEN36, RSS_FULL, 256, 0)
+    with pytest.raises(fl.FastLaneError):
+        fl.cap_for_free_bytes(fl.QWEN36, RSS_FULL, 256, int(31.23 * fl.GIB), 0,
+                              int(1.2 * fl.GB))
+
+
+def test_anchor_implied_dense_flags_every_qwen36_anchor():
+    """Both anchors imply far less non-expert weight than the engine's own
+    journal reports ("RSS after load: 9.25 GB"), which is the signature of a
+    mid-fill snapshot."""
+    assert fl.anchor_implied_dense(fl.QWEN36, ANCHOR_36, 256) < fl.QWEN36.dense_bytes
+    assert fl.anchor_implied_dense(fl.QWEN36, RSS_FULL, 256) < 0
+    # a sound anchor would be baseline + full cache; check the helper is not
+    # simply always negative
+    from nuc import expert_cache as ec
+    sound = ec.QWEN36_SLOT.terminal_bytes(256)
+    assert fl.anchor_implied_dense(fl.QWEN36, sound, 256) >= fl.QWEN36.dense_bytes
 
 
 def test_cap_for_free_bytes_prediction_p5():
     ram = int(31.23 * fl.GIB)
     reserve = int(1.2 * fl.GB)
-    # cap-64 lane (~8.5 GB incl. KV/workspace) → P5 said cap ≈ 130 (115–145)
+    # ROUND 376: these bounds moved. With the corrected int8 slot size a given
+    # cap reduction frees 1.889x more, so this RELATIVE planner now returns a
+    # HIGHER cap for the same lane -- cap-64 went 130 -> 190. That is the wrong
+    # direction, and it is not a regression in the arithmetic: it is the
+    # anchor. `rss_at_cap` subtracts from `RSS_FULL`, an alleged cap-256
+    # residency that was really a ~77 %-full cache pinned against the cgroup
+    # wall, so the model starts ~12 GB below the true cap-256 footprint and a
+    # bigger slope only walks it further off. See
+    # test_relative_planner_disagrees_with_the_absolute_model.
     need64 = fl.OLMOE.footprint(64, ctx=2048, workspace_bytes=int(0.3 * fl.GB))
-    cap64 = fl.cap_for_free_bytes(fl.QWEN36, RSS_FULL, 256, ram, need64, reserve)
-    assert 100 <= cap64 <= 150
-    # cap-16 lane (~2.3 GB) → P5 said ≈ 220 (210–230)
+    cap64 = fl.cap_for_free_bytes(fl.QWEN36, ANCHOR_36, 256, ram, need64, reserve)
+    assert 150 <= cap64 <= 175
+    # cap-16 lane (~2.3 GB)
     need16 = fl.OLMOE.footprint(16, ctx=1024, workspace_bytes=int(0.3 * fl.GB))
-    cap16 = fl.cap_for_free_bytes(fl.QWEN36, RSS_FULL, 256, ram, need16, reserve)
+    cap16 = fl.cap_for_free_bytes(fl.QWEN36, ANCHOR_36, 256, ram, need16, reserve)
     assert cap16 > cap64
     # the freed bytes really cover the need
-    freed = RSS_FULL - fl.rss_at_cap(fl.QWEN36, RSS_FULL, 256, cap64)
-    assert freed >= need64 - (ram - reserve - RSS_FULL)
+    freed = ANCHOR_36 - fl.rss_at_cap(fl.QWEN36, ANCHOR_36, 256, cap64)
+    assert freed >= need64 - (ram - reserve - ANCHOR_36)
     # impossible when the lane wants more than everything
-    assert fl.cap_for_free_bytes(fl.QWEN36, RSS_FULL, 256, ram, ram, reserve) == -1
+    assert fl.cap_for_free_bytes(fl.QWEN36, ANCHOR_36, 256, ram, ram, reserve) == -1
 
 
 def test_cap_cost_monotone_and_zero_at_full():
-    full = fl.cap_cost(fl.QWEN36, RSS_FULL, 256, 256, topk=8, nvme_mb_s=1500)
+    full = fl.cap_cost(fl.QWEN36, ANCHOR_36, 256, 256, topk=8, nvme_mb_s=1500)
     assert full.miss_fraction == 0 and full.decode_penalty_s_per_token == 0
     assert full.prefill_penalty_s_per_request == 0
-    half = fl.cap_cost(fl.QWEN36, RSS_FULL, 256, 128, topk=8, nvme_mb_s=1500)
+    half = fl.cap_cost(fl.QWEN36, ANCHOR_36, 256, 128, topk=8, nvme_mb_s=1500)
     assert half.miss_fraction == pytest.approx(0.5)
-    # 0.5 x 8 x 40 x 1.769 MB / 1500 MB/s ≈ 0.189 s per token
-    assert half.decode_penalty_s_per_token == pytest.approx(0.1887, rel=0.01)
-    # 128 missing x 40 x 1.769 MB / 1500 MB/s ≈ 6.0 s per request
-    assert half.prefill_penalty_s_per_request == pytest.approx(6.04, rel=0.01)
-    skewed = fl.cap_cost(fl.QWEN36, RSS_FULL, 256, 128, topk=8, nvme_mb_s=1500, skew=0.5)
+    # ROUND 376: the streamed bytes are the int8 SLOT, not the int4 tensor on
+    # disk -- a miss has to fill `slot_ensure_allocated`'s block. Both penalties
+    # rise by the 1.889x unpack ratio. (A disk read moves the packed bytes; the
+    # engine then spends CPU unpacking them. The old figures modelled neither
+    # cost correctly, and this is the conservative of the two.)
+    # 0.5 x 8 x 40 x 3.342 MB / 1500 MB/s ≈ 0.357 s per token
+    assert half.decode_penalty_s_per_token == pytest.approx(0.3565, rel=0.01)
+    assert half.decode_penalty_s_per_token == pytest.approx(0.1887 * 17 / 9, rel=0.01)
+    # 128 missing x 40 x 3.342 MB / 1500 MB/s ≈ 11.4 s per request
+    assert half.prefill_penalty_s_per_request == pytest.approx(11.41, rel=0.01)
+    skewed = fl.cap_cost(fl.QWEN36, ANCHOR_36, 256, 128, topk=8, nvme_mb_s=1500, skew=0.5)
     assert skewed.miss_fraction == pytest.approx(0.25)
     assert skewed.decode_penalty_s_per_token < half.decode_penalty_s_per_token
 
@@ -228,14 +292,51 @@ def test_full_footprint_and_plan_rows_use_resident_plus_swap():
     ram, reserve = int(31.234 * fl.GIB), int(1.2 * fl.GB)
     rows = fl.plan_rows(fl.QWEN36, fl.OLMOE, full, 256, ram, reserve, (0, 16, 64), 2048, 1500.0, 0.0)
     caps = {lane: cap for lane, _, cap, _ in rows}
-    # no lane: the cap that just stops the swapping (measured overshoot ≈ 4 GB → ≈ 60 slots)
-    assert 180 <= caps[0] <= 205
+    # ROUND 376: was 180..205, now 225, for the anchor reason documented in
+    # test_cap_for_free_bytes_prediction_p5.
+    assert 215 <= caps[0] <= 235
     # lanes take slots on top of that, monotonically
     assert caps[0] > caps[16] > caps[64] >= 0
-    # the RSS-only planner (P5) would have said ~130 for the cap-64 lane; the truth is far lower
-    rss_only = fl.cap_for_free_bytes(fl.QWEN36, resident, 256, ram,
-                                     fl.OLMOE.footprint(64, 2048, workspace_bytes=int(0.3 * fl.GB)), reserve)
-    assert rss_only - caps[64] > 40
+    # The RSS-only planner ignores the swap the box was already doing. That used
+    # to show up as "it returns a cap ~40 higher"; round 376 makes it sharper --
+    # resident-only (32.21 GB) cannot even hold a cap-256 cache (34.23 GB), so
+    # the anchor is now rejected outright rather than quietly over-allocating.
+    with pytest.raises(fl.FastLaneError, match="not full residency"):
+        fl.cap_for_free_bytes(fl.QWEN36, resident, 256, ram,
+                              fl.OLMOE.footprint(64, 2048, workspace_bytes=int(0.3 * fl.GB)),
+                              reserve)
+
+
+def test_relative_planner_disagrees_with_the_absolute_model():
+    """ROUND 376. `plan_rows`' "no lane" cap and `expert_cache`'s `max_cap` are
+    answers to the same question -- what cap fits this box -- and they differ by
+    58 slots (225 vs 167). They are NOT both usable.
+
+    `max_cap` is absolute: baseline (a measured zero-slot `memory.current`) plus
+    cap x layers x slot_bytes, compared to `memory.max`. It needs no anchor and
+    every input is a live reading or a source constant.
+
+    `plan_rows` is relative: it subtracts freed slots from an `rss_full` the
+    caller asserts is cap-256 residency. No such reading exists for this engine
+    -- cap-256 residency is 44.0 GB, ~12 GB past the cgroup cap, so it can never
+    be observed. Every anchor ever passed here was a mid-fill snapshot, which
+    makes the relative planner optimistic by construction.
+
+    This test exists to keep that gap visible rather than to bless either
+    number: if a later round re-anchors `plan_rows`, this should start failing
+    and be re-derived, not deleted."""
+    from nuc import expert_cache as ec
+    resident, swapped = 32_211_791_872, 4_214_800_384
+    ram, reserve = int(31.234 * fl.GIB), int(1.2 * fl.GB)
+    rows = fl.plan_rows(fl.QWEN36, fl.OLMOE, fl.full_footprint(resident, swapped),
+                        256, ram, reserve, (0,), 2048, 1500.0, 0.0)
+    relative_cap = rows[0][2]
+    absolute_cap = ec.QWEN36_SLOT.max_cap()
+    assert absolute_cap == 167
+    assert relative_cap > absolute_cap
+    # the relative planner's answer does NOT fit; the absolute one's does
+    assert ec.QWEN36_SLOT.terminal_bytes(relative_cap) > ec.NUC_MEMORY_MAX
+    assert ec.QWEN36_SLOT.terminal_bytes(absolute_cap) <= ec.NUC_MEMORY_MAX
 
 
 def test_cli_plan_and_turn_and_gate(tmp_path, capsys):

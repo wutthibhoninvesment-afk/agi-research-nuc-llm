@@ -214,7 +214,18 @@ class MoeGeometry:
 #   dense 2.862 GB + embed 2.034 GB on disk; "RSS after load: 9.25 GB" (journal).
 #   K/V 40,960 B/token (10 attention layers, 2 KV heads x 256 x fp32 x 2), DeltaNet
 #   state 65.9 MB context-independent (round 28).
-QWEN36 = MoeGeometry("qwen36", layers=40, experts=256, expert_bytes=1_572_864 + 196_608,
+#
+# ROUND 376 CORRECTION. `expert_bytes` was 1_572_864 + 196_608 = 1,769,472 -- the
+# size of the expert ON DISK. It is not what a cached expert costs in RAM.
+# `qwen36.c:slot_ensure_allocated` mallocs `ng + ng + nd` *int8* bytes
+# (= 3*inter*hidden = 3,145,728) and `load_expert_merged` unpacks the int4
+# nibbles into it; the packed copy is freed unless the CUDA tier is live
+# (`qt_ready()`, false on this CPU-only box). Round 370 found that mechanism but
+# nothing here was re-derived from it, so every cap this module recommended was
+# computed with a per-slot constant 1.889x too small -- including E4's headline
+# `--cap 204`, which overshoots the engine's 30 GiB cgroup cap by 4.8 GB.
+# Full derivation, inversion and tests: nuc/expert_cache.py (round 376).
+QWEN36 = MoeGeometry("qwen36", layers=40, experts=256, expert_bytes=3_145_728 + 196_608,
                      dense_bytes=int(9.25 * GB), kv_bytes_per_token=40_960,
                      fixed_bytes=65_900_000)
 
@@ -228,10 +239,46 @@ OLMOE = MoeGeometry("olmoe", layers=16, experts=64, expert_bytes=6_291_456 + 409
 
 
 def rss_at_cap(geom: MoeGeometry, rss_full: int, cap_full: int, cap: int) -> int:
-    """Engine RSS when the cache holds `cap` instead of `cap_full` experts/layer."""
+    """Engine RSS when the cache holds `cap` instead of `cap_full` experts/layer.
+
+    CAVEAT (round 376): this is a *relative* model anchored on `rss_full`, and
+    every anchor this repo has ever passed for qwen36 is a mid-fill reading
+    mislabelled "cap 256, measured" -- PLAN-E4's 36.01 GB (round 124's 31.8 GB
+    resident + 4.2 GB swap) and this module's test anchor of 32.01 GB alike.
+    Because `slot_ensure_allocated` fills lazily, an engine only reaches
+    `cap_full` residency after enough routing diversity to touch every expert;
+    round 124's box hit the cgroup wall and exhausted swap at ~77 % fill, and
+    round 376's is plateaued at ~62 %. Full cap-256 residency is 44.0 GB and is
+    unreachable on this box at all. Prefer
+    `expert_cache.SlotGeometry.terminal_bytes`, which is absolute
+    (baseline + cap * layers * slot_bytes) and needs no anchor, whenever the
+    question is "does this cap fit"."""
     if not (0 <= cap <= geom.experts and 0 < cap_full <= geom.experts):
         raise FastLaneError("cap out of range")
+    # Round 376: with the corrected int8 slot size, an anchor can be smaller
+    # than the cache it allegedly holds, and this function would then hand back
+    # a NEGATIVE "RSS with an empty cache" -- which `cap_for_free_bytes` reads
+    # as enormous slack and turns into a confidently wrong cap (it returned 7
+    # where it should have returned -1). Refuse the impossibility instead.
+    floor = rss_full - cap_full * geom.layers * geom.expert_bytes
+    if floor < 0:
+        raise FastLaneError(
+            f"anchor {rss_full} B cannot hold a cap-{cap_full} cache of "
+            f"{cap_full * geom.layers * geom.expert_bytes} B: the reading was "
+            "not full residency. For qwen36 no such reading exists -- cap-256 "
+            "residency is 44.0 GB, past the cgroup cap. Use "
+            "expert_cache.SlotGeometry.terminal_bytes instead.")
     return rss_full - (cap_full - cap) * geom.layers * geom.expert_bytes
+
+
+def anchor_implied_dense(geom: MoeGeometry, rss_full: int, cap_full: int) -> int:
+    """What `rss_full` implies the engine's non-expert bytes are.
+
+    Round 376. A sound anchor satisfies `implied >= geom.dense_bytes`; every
+    qwen36 anchor in this repo fails that by ~7 GB, because each was taken
+    mid-fill and labelled full residency. Callers that cannot switch to the
+    absolute model should at least SAY so -- `_plan_table` prints a warning."""
+    return rss_full - cap_full * geom.layers * geom.expert_bytes
 
 
 def cap_for_free_bytes(geom: MoeGeometry, rss_full: int, cap_full: int,
@@ -537,7 +584,16 @@ def _plan_table(args) -> str:
     reserve = int(args.os_reserve_gb * GB)
     rows = plan_rows(geom, OLMOE, rss_full, args.cap_full, ram, reserve, (0, 16, 32, 64),
                      args.lane_ctx, args.nvme_mb_s, args.skew)
-    out = [f"# RAM plan: {geom.name} cap {args.cap_full} = {rss_full / GB:.2f} GB "
+    out = []
+    implied = anchor_implied_dense(geom, rss_full, args.cap_full)
+    if implied < geom.dense_bytes:
+        out.append(
+            f"# WARNING (round 376): this anchor implies {implied / GB:.2f} GB of "
+            f"non-expert weights, but {geom.name} measures {geom.dense_bytes / GB:.2f} GB "
+            f"(engine journal: 'RSS after load'). The anchor is a MID-FILL reading "
+            f"labelled full residency, so every cap below is too high. The absolute "
+            f"answer for pgain-nuc is `python3 nuc/expert_cache.py plan` -> cap 167.")
+    out += [f"# RAM plan: {geom.name} cap {args.cap_full} = {rss_full / GB:.2f} GB "
            f"(resident {args.resident_gb:.2f} + swapped {args.swapped_gb:.2f}); "
            f"RAM {args.ram_gib} GiB; OS reserve {args.os_reserve_gb} GB; lane ctx {args.lane_ctx}; "
            f"NVMe {args.nvme_mb_s:.0f} MB/s; routing skew {args.skew}",

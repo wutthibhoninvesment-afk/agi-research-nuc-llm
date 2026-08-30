@@ -1244,3 +1244,84 @@ Code runs (proof in round file), measurements banked in both places,
   killed (PIDs 37531/37532/37680/37681, 368 s and 221 s) — they were the entire
   cause of the `load average: 2.84` first observed, and were killed. Load fell
   2.84 → 1.71; `memory.current` byte-identical before and after.
+
+## Round 376 addendum (2026-08-30, box **UP** — same boot `43e0c767` as rounds 352/358/364/370, uptime 19h23m at first contact)
+
+- **E-mission status: E1-E5 all still DONE; nothing new unchecked.** Round
+  370's handoff item 3 (catch the int4->int8 unpack live) needs a FRESH boot
+  and this was the fifth consecutive round on `43e0c767` — **not runnable,
+  carried forward unchanged**.
+- **`--cap 256` is not a footprint, it is an unreachable setting.** Derived
+  from `qwen36.c:slot_ensure_allocated` (read-only): one cached expert is
+  `malloc(3*inter*hidden)` **int8** = 3,145,728 B plus `falloc(2*16384+16384)`
+  f32 = 196,608 B, so **3,342,336 B/slot**; the packed shadow `g4/u4/d4` is
+  gated on `qt_ready()` (CUDA) and costs nothing on this CPU-only box. 40
+  layers x 256 experts = **34.23 GB of cache**, terminal footprint
+  **44.00 GB** against a `memory.max` of 32.21 GB — **over by 11.78 GB**, and
+  still over by 7.49 GB counting all 4.29 GB of swap.
+- **The plateau is 61.6 % fill, not a steady state.** `memory.current`
+  byte-identical at 30,870,429,696 B across 4h44m (r370 -> r376) — because the
+  engine served **zero** new completions in between (still exactly 2 this
+  boot). Inverted against round 364's true zero-slot baseline of
+  9,770,594,304 B: **6,313 of 10,240 slots**, cap-equivalent **157.8**, cgroup
+  at 95.8 % / peak 98.3 %. Headroom **1,341,825,024 B = 401 slots** out of
+  **3,927 still unfilled**. `memory.high` is `max` (no throttle band) and the
+  set is all anon (30.60 of 30.87 GB), so the order at the wall is
+  cap -> swap -> cgroup OOM kill. Saturating fit to the one observation:
+  `memory.max` arrives **0.22 of a request** later.
+- **Round 124's "36.0 GB" was the WALL, not the ceiling.** 31.8 GB resident =
+  98.7 % of `memory.max`, 4.2 GB swapped = 98 % of all swap, cache only
+  **76.6 %** full.
+- **The standing operator recommendation changes: `--cap 204` -> `--cap 159`.**
+  `nuc/fast_lane.py`'s `QWEN36.expert_bytes` was the expert's **on-disk int4**
+  size (1,769,472 B) in a field meaning "bytes per cached slot" — 1.889x too
+  small, so every cap E4 ever recommended was computed wrong. Recomputed
+  absolutely (`baseline + cap*40*slot_bytes` vs `memory.max`): cap 204 is
+  **over by 4.83 GB**; **167** is the largest that fits at zero margin;
+  **159** fits with 1 GiB margin and is the new recommendation; 143 and 75
+  still fit. New tool `nuc/expert_cache.py` (`geometry`/`plan`/`fill`/`wall`,
+  28 tests) is the absolute model and needs no anchor.
+- **Correcting the slope alone made it worse**, which is why the anchor had to
+  go too: with the right `per_cap` and the old anchor, `fast_lane`'s no-lane
+  cap moved 204 -> **225**, further from the true 167. `rss_at_cap` now RAISES
+  on an anchor too small to hold its own cache (the old `RSS_FULL` = 32.01 GB
+  vs a 34.23 GB cache made `cap_for_free_bytes` answer **7** where it owed
+  **-1**), and `fast_lane plan` prints a warning naming the implied-dense gap
+  (2.20 GB implied vs 9.25 GB measured).
+- **A 1-second `boot_utc` jitter was being reported as a reboot.** `boot_utc`
+  is `now - /proc/uptime` at whole-second resolution; the five up-checks of
+  this boot read `00:32:27Z` x4 and `00:32:28Z` x1. `_up_gap_witness` treated
+  any forward movement as a reboot, so **this round's own check** produced a
+  `boot_utc_advanced_inside_gap` excursion contradicted by
+  `journalctl --list-boots`. Fixed with `BOOT_UTC_JITTER_S = 5` (5x the
+  largest same-boot spread ever seen here, and equal to round 370's largest
+  |boot_utc - journald first_entry| across five boots), applied symmetrically,
+  with the observed jitter recorded in the witness note rather than swallowed.
+- **Journal + continuity.** `journal-boots` skipped 6 of 7 from cache and
+  rescanned boot 0 in **6.7 s** (7.7 s total); boot 0 grew 3674 -> 4243
+  entry-seconds, merged total **184,083**
+  (`state/nuc-journal-cache/merged-r376-all7.json`). Fresh `continuity`:
+  `unobserved_total` **0h25m18s**, `max_unobserved_outage` **0h01m57s
+  unchanged**, `missed_excursions` **[]**, log span 123h42m44s (r370:
+  118h45m57s — method-to-method on one snapshot only).
+- **Round 304 item 2 re-verified, all six unchanged** — `--cap 256` live; E3
+  patch still NOT applied (0 markers in `qwen36.c`, mtime
+  2026-08-23T15:27:33Z); OLMoE tarball at
+  `/home/jab/nuc-research/models/olmoe_merged.tar`, 7,420,160,000 B;
+  `memory.events max` 0; **no operator login since 2026-08-26 19:24**; both
+  user units `active`. A **fourteenth** boot with no operator action —
+  escalation channel dead since round 166.
+- **Next E round, in order:** (1) one ssh, first thing: re-read
+  `memory.current` and the completion count — if a third request landed,
+  record whether `memory.events max`/`oom_kill` went non-zero, which resolves
+  the 0.22-request prediction either way; (2) round 370's item 3 on the next
+  FRESH boot; (3) still blocked on the operator: the `--cap 159` restart and
+  the E3 A/B; (4) decide whether `fast_lane`'s relative planner should answer
+  at all now that no sound anchor exists for it.
+- Hygiene: READ-ONLY on `/work/**`; no unit restarted; **port 8001 never
+  contacted**; **no engine request of any kind**. One write on the box, in an
+  allowed path: `/work/logs/nuc-expert-cache-r376.md`. Disclosed:
+  `journal-boots` ran three times (two exploratory, one final); it rescans the
+  open boot and overwrites that boot's cache entry, so the only effect is that
+  the intermediate runs saw 4,236 and 4,239 entry-seconds as boot 0 grew. The
+  reachability log got exactly one record.

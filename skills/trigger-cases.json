@@ -969,5 +969,43 @@
   "id": "fino-neg-rerun",
   "expect": [],
   "prompt": "Our nightly integration suite has been failing for three days on the same assertion. Can you look at the assertion and tell me whether the expected value is still right?"
+ },
+ {
+  "id": "lfc-near",
+  "expect": [
+   "lazy-fill-ceiling"
+  ],
+  "prompt": "Our inference server's RSS has been flat at 30.8 GB for the last nine hours, so I think that's just its footprint at the cache size we configured. Can you sanity-check that before I sign off on the sizing?"
+ },
+ {
+  "id": "lfc-mid",
+  "expect": [
+   "lazy-fill-ceiling"
+  ],
+  "prompt": "We measured the process at cache_size=256 and got 36 GB, so I scaled it linearly to pick 204 for the new box. Does that math hold up?"
+ },
+ {
+  "id": "lfc-far",
+  "expect": [
+   "lazy-fill-ceiling"
+  ],
+  "prompt": "This service has been fine in prod for months and now it OOMs maybe once a week, always under weird traffic. Nothing was deployed. Where would you start?"
+ },
+ {
+  "id": "lfc-far2",
+  "expect": [
+   "lazy-fill-ceiling"
+  ],
+  "prompt": "The per-entry size constant in our pool sizing code came straight out of the file header, but I just noticed the loader decompresses each blob before it caches it. How much does that matter?"
+ },
+ {
+  "id": "lfc-neg-leak",
+  "expect": [],
+  "prompt": "Memory climbs about 40 MB an hour and never comes back down, with no configured cache size anywhere. Help me find the leak."
+ },
+ {
+  "id": "lfc-neg-startup",
+  "expect": [],
+  "prompt": "This daemon mmaps every buffer at startup and never allocates again. What's a safe container memory limit for it?"
  }
 ]

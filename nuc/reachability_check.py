@@ -847,6 +847,31 @@ WITNESS_REBOOT_ONLY = "reboot_only"
 WITNESS_BOUNDED = "bounded"
 WITNESS_FULL = "full"
 
+# Round 376. `boot_utc` is derived as `now - /proc/uptime` at whole-second
+# resolution, from two values read a round-trip apart, so two checks of the
+# SAME boot do not have to agree to the second. This log now proves it: the
+# five up-checks of boot `43e0c767` (rounds 352/358/364/370/376) report
+# 00:32:27Z four times and 00:32:28Z once -- a 1 s spread over 17h21m of the
+# same continuous boot.
+#
+# Before this constant existed, `_up_gap_witness` treated ANY forward movement
+# as evidence of a reboot. Round 376's own check therefore made the instrument
+# announce a reboot that provably did not happen (`journalctl --list-boots`
+# shows the same seven boot_ids and the same boot_id 43e0c767 with a
+# monotonically growing last_entry) and downgraded a good gap to WITNESS_NONE.
+#
+# 5 s, chosen for two independent reasons that agree: it is 5x the largest
+# same-boot spread this log has ever shown (1 s), and it equals the largest
+# |boot_utc - journald first_entry| round 370 measured across five boots
+# (5.0 s) -- i.e. the noise floor of this field against an independent clock.
+# It is far below any real reboot of this box, which spends 13.2 s merely
+# loading weights after the kernel is up.
+#
+# A movement inside the tolerance is NOT silently discarded: the witness note
+# records the observed jitter, so a box that starts drifting several seconds
+# per check becomes visible rather than being absorbed.
+BOOT_UTC_JITTER_S = 5
+
 _BOOT_UTC_SUSPEND_CAVEAT = (
     "boot_utc unchanged rules out a REBOOT inside this gap, not an outage: "
     "/proc/uptime's first field is CLOCK_BOOTTIME-based and keeps counting "
@@ -1004,26 +1029,37 @@ def _up_gap_witness(verdict: str, earlier: dict, later: dict,
                 "note": "boot_utc missing on one or both endpoints",
                 "missed_excursion": None}
     d1, d2 = _parse_ts(b1), _parse_ts(b2)
-    if d2 > d1:
+    delta_s = (d2 - d1).total_seconds()
+    # Round 376: |delta| within the sampling jitter is the SAME boot reported
+    # twice, not a reboot and not a contradiction. See BOOT_UTC_JITTER_S.
+    if abs(delta_s) > BOOT_UTC_JITTER_S:
+        if delta_s > 0:
+            return {"strength": WITNESS_NONE, "source": None,
+                    "note": "the box rebooted inside this up gap "
+                            "(boot_utc advanced %.0f s, past the %d s jitter "
+                            "tolerance)" % (delta_s, BOOT_UTC_JITTER_S),
+                    "missed_excursion": {
+                        "kind": "boot_utc_advanced_inside_gap",
+                        "verdict": verdict,
+                        "from_utc": _fmt_ts(t1), "to_utc": _fmt_ts(t2),
+                        "evidence_utc": b2,
+                        "evidence_field": "boot_utc",
+                        "advance_s": delta_s,
+                        "from_round": earlier.get("round"),
+                        "to_round": later.get("round"),
+                    }}
         return {"strength": WITNESS_NONE, "source": None,
-                "note": "the box rebooted inside this up gap",
-                "missed_excursion": {
-                    "kind": "boot_utc_advanced_inside_gap",
-                    "verdict": verdict,
-                    "from_utc": _fmt_ts(t1), "to_utc": _fmt_ts(t2),
-                    "evidence_utc": b2,
-                    "evidence_field": "boot_utc",
-                    "from_round": earlier.get("round"),
-                    "to_round": later.get("round"),
-                }}
-    if d2 < d1:
-        return {"strength": WITNESS_NONE, "source": None,
-                "note": ("contradictory: boot_utc moved backwards, %s -> %s"
-                         % (b1, b2)),
+                "note": ("contradictory: boot_utc moved backwards %.0f s, "
+                         "%s -> %s" % (-delta_s, b1, b2)),
                 "missed_excursion": None}
+    note = _BOOT_UTC_SUSPEND_CAVEAT
+    if delta_s:
+        note += (" (boot_utc moved %+.0f s between the endpoints, within the "
+                 "%d s same-boot sampling jitter -- treated as unchanged)"
+                 % (delta_s, BOOT_UTC_JITTER_S))
     return _silence_upgrade(
         {"strength": WITNESS_REBOOT_ONLY, "source": "boot_utc_unchanged",
-         "note": _BOOT_UTC_SUSPEND_CAVEAT, "missed_excursion": None},
+         "note": note, "missed_excursion": None},
         t1, t2, silence)
 
 
