@@ -215,6 +215,12 @@ this round started and still not applied to my own plan.
 - `harness/tests/test_swe_campaign.py -k "baseline or gate or score_audit or
   manifest or checkpoints or recheck_reruns"` — **10 passed, 8 deselected in
   307.77s**; 6 of the 10 are new.
+- The other 8 tests in `test_swe_campaign.py` were started and **stopped at
+  5 passed, 0 failed, 3 not reached** at the round's budget. Killed, not
+  orphaned: round 341's rule is not to drive this tier with `nohup &`, and
+  `slowtier.py run --budget-s N` is the mechanism this round should have used.
+  Six of the 8 carry a new `_seed_green_baseline(c)` line, so they are the
+  first thing a future round should re-run.
 - `skills/skill-authoring/scripts/test_state_claim_check.py` — **73 tests**
   (was 66). Two pre-existing tests changed meaning, both because the tool got
   broader and neither by weakening an assertion:

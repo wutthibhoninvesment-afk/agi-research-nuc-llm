@@ -9742,6 +9742,15 @@ Predictions written first (`nuc/predictions-e-round352.md`, D-013):
   and now does. Round 352's text is pinned as a fixture
   (`TestRound352Regression`) so correcting the live document does not delete
   the evidence.
+- **Slow tier, stated rather than implied:** the other **8** tests in
+  `test_swe_campaign.py` (the ~15-minute ones) were started and **stopped at
+  5 passed, 0 failed, 3 not reached** when the round ran out of budget. The
+  process was killed rather than left running — round 341's rule says not to
+  use `nohup &` for this tier and round 352's own pitfall list says an
+  orphaned job outliving its round is worse than an unfinished one. Six of
+  those 8 got a `_seed_green_baseline(c)` line this round, so they are the
+  ones a future round should re-run first; `slowtier.py run --budget-s N` is
+  the recording mechanism this round should have used and did not.
 - **Tests:** `tests/test_swe_scoreaudit.py` **18 passed** (new; 2 of them run
   against the real `state/swe/` corpus, so a future campaign whose tails do
   not classify fails there rather than defaulting into the flattering
