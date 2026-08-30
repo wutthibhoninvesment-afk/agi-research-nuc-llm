@@ -503,10 +503,44 @@ def show_payload(p, limit=SHOW_LIMIT, nest=0):
     return s
 
 
+# v0.27 (round 368): the one payload kind `_show` rendered in FULL, with no
+# cap of any sort. Strings are cut by `_quote`'s `limit`, lists by
+# `SHOW_NEST` and `head(6)`, records by `SHOW_NEST` and `items[:4]` — and
+# integers, which Whence makes unbounded on purpose (see SPEC "v0.4.1"),
+# went straight to `repr()`. CPython caps `int.__str__` at
+# `sys.get_int_max_str_digits()` (4300 by default since 3.11) and raises
+# `ValueError` past it, so rendering an integer the language itself lets you
+# build was a raw host traceback out of the SNAPSHOT path — i.e. out of
+# `print`, out of every `mk_miss` message that names its operands, out of a
+# failing `check`'s report, and out of `why`. In a language whose rule 2 is
+# "no exceptions" and whose one idea is that a failure can explain itself,
+# the explanation crashed. 13287 bits is at most 4000 decimal digits
+# (13287 * log10(2) = 3999.8), comfortably under the host's 4300, so the
+# host limit is never reached and this cap is Whence's own. `num()` refuses
+# numeric TEXT past the same boundary (see `b_num`), so the two stay inverses:
+# Whence never accepts digits it could not print back.
+SHOW_INT_DIGITS = 4000
+SHOW_INT_BITS = 13287
+
+
+def show_int(n):
+    """`repr(n)` for an integer small enough to render, a summary past
+    `SHOW_INT_BITS`. Bits, not digits, because bits is O(1) to obtain and is
+    the unit `Interpreter.max_value` charges integers in."""
+    if -_SHOW_INT_CUT < n < _SHOW_INT_CUT:      # the common case, no method call
+        return repr(n)
+    return "<integer, %d bits>" % n.bit_length()
+
+
+_SHOW_INT_CUT = 1 << SHOW_INT_BITS
+
+
 def _show(p, limit, nest):
     if isinstance(p, bool):
         return "true" if p else "false"
-    if isinstance(p, (int, float)):
+    if isinstance(p, int):
+        return show_int(p)
+    if isinstance(p, float):
         return repr(p)
     if isinstance(p, str):
         return _quote(p, limit)

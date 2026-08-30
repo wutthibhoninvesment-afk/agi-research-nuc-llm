@@ -57,13 +57,120 @@ from .values import (
     Explanation,
     _slot,
     WList, wlist,
-    show_payload, full_show, leaf, derived, mk_miss, merge_miss, render_why,
-    render_contrast, is_origin_miss, walk_steps, find_step, matches_step,
+    show_payload, full_show, show_int, SHOW_INT_DIGITS,
+    leaf, derived, mk_miss, merge_miss,
+    render_why, render_contrast, is_origin_miss, walk_steps, find_step,
+    matches_step,
     diverge, _LAZY,
 )
 import operator
 import re
 from itertools import permutations as _permutations
+
+# ---------------------------------------------------------------------------
+# v0.27 (round 368): a value's SIZE is a budget.
+#
+# `max_depth` bounds how deep a program may go and `max_iter` (v0.26) bounds
+# how many times it may go round. Neither bounds how BIG one value may get,
+# and the growth sites below are all MULTIPLICATIVE: `s + s`, `xs + xs` and
+# `x * x` each double their operand, so a doubling loop reaches any budget in
+# log2(budget) steps -- under 60 for any figure this machine can hold. That
+# is the structural reason `max_iter` cannot cover this class: a 1e6-iteration
+# ceiling never sees a loop that kills the host on iteration 40.
+#
+# What that cost before v0.27, measured (see knowledge/round-368-*.md):
+#   `s + s` x40      raw Python MemoryError traceback, exit 1
+#   `x * x` x40      no return in 60 s (CPython bigint multiply grinding)
+#   `range(1e11)`    no return in 20 s, then the OOM killer
+#   `str(x*x...)`    ValueError out of `values._show` -- see values.show_int
+# Exit 1 is the "some check failed" code, so a caller could not tell a
+# program whose checks failed from a program that killed the interpreter.
+# That is the third instance of the class round 350 found in `run.py`'s
+# LexError handling.
+#
+# THE UNITS ARE BYTES, and the per-kind cost is MEASURED, not guessed
+# (`bench/value_size.py` re-measures all four on demand):
+_STR_BYTES_PER_CHAR = 1       # CPython compact-ASCII str: measured 1.000
+_INT_BITS_PER_BYTE = 8        # NOT a budget conversion -- integers are
+                              # charged in BITS against `max_int_bits`, for
+                              # the reason DEFAULT_MAX_INT_BITS gives. This is
+                              # only the memory figure `bench/value_size.py`
+                              # reports (CPython packs 30 bits per 4-byte
+                              # digit = 7.5 bits/B, measured 0.1333 B/bit; 8
+                              # is the round number, 6% under).
+_LIST_BYTES_PER_ELEM = 8      # `xs + ys` / `push` copy POINTERS -- the
+                              # elements are shared Prov nodes that already
+                              # exist. Measured 8.00 B/elem.
+_RANGE_BYTES_PER_ELEM = 157   # `range` is the outlier: it allocates a fresh
+                              # `Prov` leaf (80 B) AND a decimal detail
+                              # string per element. Measured 157.01 B/elem,
+                              # ~20x a shared pointer, which is why it gets
+                              # its own constant instead of one blended one.
+
+
+# The `*` fast path's magnitude threshold. Two operands strictly inside
+# +/-2**64 make a product under 2**128 = 16 bytes, which no budget worth
+# setting would refuse -- so for ANY `max_value >= 16` (and for unbounded)
+# this one constant is both correct and maximally permissive, and the inline
+# multiply stays inline for every realistic program. Anything bigger routes
+# through `binop`, which does the exact `bit_length` check and owns the
+# wording -- and which is also the only place `peak_value` can see an
+# integer, so an unbounded run doubles as a MEASUREMENT of what a program's
+# integers cost.
+#
+# It must be a CONSTANT and not `1 << (max_int_bits // 2)`. Two reasons, and
+# v0.27's drafts hit both: (a) derived from `max_value`, the shipped default
+# makes it `1 << 2_000_000_000` -- a 250 MB integer built by every
+# `Interpreter()` constructor, the test suite's included; (b) read from the
+# live interpreter, it costs an `Env` walk on the numeric hot path, and a
+# closure may NOT read it from the interpreter that COMPILED the node (that
+# is the v0.7 shared-AST determinism rule -- see `_live_interp`). A constant
+# has neither problem, at the price of `MIN_MAX_INT_BITS` below.
+_MUL_FAST_CUT = 1 << 64
+MIN_MAX_INT_BITS = 128        # = 2 x 64, the product `_MUL_FAST_CUT` admits
+
+
+def _live_interp(env, compiled_by):
+    """The interpreter that owns THIS env chain, not the one that compiled the
+    (shared) node -- the v0.7 determinism rule, already inlined at
+    `d_call` and `_compile_builtin_call`. `_compile_binop` did not need it
+    while `binop` was effectively pure; v0.27 gave `binop` state (the size
+    budgets and the peak counters), so a captured bound method would charge
+    one interpreter's `peak_value` for another interpreter's run and decide
+    its misses against the wrong budget. Call envs and globals carry their
+    interpreter, so this walk is 0-2 hops."""
+    e = env
+    while e is not None:
+        cur = e.interp
+        if cur is not None:
+            return cur
+        e = e.parent
+    return compiled_by
+
+
+def _int_size_miss(nbits, cap, line, op, inputs):
+    """The integer half of `_size_miss`: a different budget, a different unit,
+    one wording."""
+    return mk_miss("integer too large: %s bits, over max_int_bits %d "
+                   "(raise it with --max-int-bits N, or 0 for unbounded)" %
+                   (show_int(nbits), cap), line, op, inputs=tuple(inputs))
+
+
+def _size_miss(kind, count, unit, nbytes, cap, line, op, inputs):
+    """The single wording for every over-budget value (v0.22's rule: an error
+    that can name the fix, names it). One shape for all six sites so the
+    fast closures, `binop` and the builtins cannot drift apart."""
+    # `show_int`, not `%d`, on BOTH counts. `range(1, big)` asks for a number
+    # of elements that is itself a 51937-bit integer, and formatting it with
+    # `%d` raised the very ValueError this miss exists to replace: the error
+    # about a too-large value crashed while saying so. Found by section 1's
+    # sweep on its first run, in v0.27's own new code -- which is the whole
+    # argument for the sweep.
+    return mk_miss("%s too large: %s %s is %s bytes, over max_value %d "
+                   "(raise it with --max-value N, or 0 for unbounded)" %
+                   (kind, show_int(count), unit, show_int(nbytes), cap),
+                   line, op, inputs=tuple(inputs))
+
 
 # numeric binary operators (both operands int/float, never bool): the hot
 # path of `binop`; `/` and `%` still check for a zero divisor first
@@ -234,7 +341,12 @@ def _index(obj, idx, line):
             return mk_miss("list index must be an integer, got %s" %
                            show_payload(i), line, "index", inputs=(obj, idx))
         if i < 0 or i >= len(o):
-            return mk_miss("index %d out of range (len %d)" % (i, len(o)),
+            # v0.27: `show_int`, not `%d`. `xs[big]` formatted a USER integer
+            # into a miss message, and CPython's 4300-digit conversion limit
+            # made that a ValueError traceback -- the miss about a bad index
+            # could not be built.
+            return mk_miss("index %s out of range (len %d)" %
+                           (show_int(i), len(o)),
                            line, "index", inputs=(obj, idx))
         return o[i]  # provenance passes through unchanged
     if isinstance(o, str):
@@ -242,9 +354,10 @@ def _index(obj, idx, line):
             return mk_miss("string index must be an integer, got %s" %
                            show_payload(i), line, "index", inputs=(obj, idx))
         if i < 0 or i >= len(o):
-            return mk_miss("index %d out of range (len %d)" % (i, len(o)),
+            return mk_miss("index %s out of range (len %d)" %
+                           (show_int(i), len(o)),
                            line, "index", inputs=(obj, idx))
-        return derived("index", "[%d]" % i, line, (obj, idx), o[i])
+        return derived("index", "[%s]" % show_int(i), line, (obj, idx), o[i])
     return mk_miss("cannot index %s" % show_payload(o), line, "index",
                    inputs=(obj, idx))
 
@@ -358,6 +471,71 @@ class Interpreter(object):
     # (`run.py --max-iter 0`), not the silent default.
     DEFAULT_MAX_ITER = 1000000
 
+    # v0.27 (round 368): the largest value, in BYTES of payload, that any of
+    # the six growth sites may build (`*` on ints, `+` on strings, `+` on
+    # lists, `push`, `range`, `join`). `None` = unbounded, and `--max-value 0`
+    # is the explicit opt-out, exactly like `--max-iter 0`.
+    #
+    # THE CORPUS DOES NOT SET THIS ONE, and that is the interesting part.
+    # Uncapped `interp.peak_value` over `examples/*.lang` (one fresh process
+    # each) is 15700 B (self_eval.lang), then 944, 785, 200, and nothing else
+    # over 70; the largest `range` anywhere in the tree, tests included, is
+    # `range(3000)` = 471000 B. Any figure above ~0.5 MB clears the corpus, so
+    # unlike `DEFAULT_MAX_ITER` the corpus is not the binding constraint and a
+    # `corpus_max x 3` reading would give ~1.4 MB, which is arbitrary.
+    #
+    # Note also that the corpus's LONGEST LOOP and its LARGEST VALUE are in
+    # different programs and do not correlate: deep.lang merges 200001 tail
+    # iterations and peaks at a 20-byte value; self_eval.lang peaks at 15700 B
+    # with a longest loop of 143. Neither budget predicts the other, which is
+    # why `max_iter` could not have been re-tuned to cover this class.
+    #
+    # WHAT DOES BIND IS COHERENCE WITH `max_iter`. Whence has no `while`: the
+    # two ways to say "do this a million times" are a tail loop (allowed --
+    # `DEFAULT_MAX_ITER` is exactly 1000000) and `map(f, range(1000000))`. If
+    # `range(DEFAULT_MAX_ITER)` were refused, the language would permit a
+    # million iterations in one spelling and refuse them in the other. That
+    # floor is 1000000 x `_RANGE_BYTES_PER_ELEM` = 157000000 B;
+    # `skills/measured-budget-sizing`'s margin of 3 gives 471000000, and
+    # 500000000 is the legible figure above it (3.18x the floor, 31847x the
+    # examples corpus, 1062x the largest range in the tree).
+    #
+    # What it costs, measured (`bench/value_size.py`): because the check runs
+    # BEFORE the allocation, the peak a runaway reaches is the last value it
+    # was ALLOWED to build, plus the operand it doubled. See the bench for the
+    # measured figures per shape.
+    DEFAULT_MAX_VALUE = 500000000
+
+    # v0.27: THE SECOND NUMBER, and the reason there are two.
+    #
+    # The first draft of v0.27 charged integers into `max_value` at their
+    # MEMORY cost (8 bits = 1 byte) so that one budget covered every kind.
+    # That is principled, it is measured, and it is wrong for exactly the
+    # reason round 366's memory-parity `max_iter` was wrong: the cost model
+    # is not the same across kinds. String concatenation is LINEAR (a
+    # 500 MB `s + s` runaway is refused in 0.55 s), while CPython's bigint
+    # multiply is Karatsuba, ~n**1.58. Measured on this host by
+    # `bench/value_size.py --ints`, one `x * x`:
+    #
+    #     3.3 M bits  0.49 s     13.3 M bits   3.97 s
+    #     6.6 M bits  1.39 s     26.6 M bits  12.77 s
+    #
+    # At `max_value`'s 500 MB an integer may reach 4e9 bits, and the LAST
+    # permitted multiply there extrapolates to hours. A "limit" that takes
+    # hours to reach is the hang this whole section exists to remove, so the
+    # byte budget cannot be the integer budget and no single number can serve
+    # both: `range(DEFAULT_MAX_ITER)` needs at least 157 MB (see above) and
+    # the integer ceiling needs about 1 MB.
+    #
+    # SIZED FROM TIME, not from memory. 8000000 bits is 1 MB and ~2.4 M
+    # decimal digits; a doubling runaway is refused at the step that would
+    # cross it, having spent ~2.2 s in total (the sum of the squarings up to
+    # 6.6 M bits) -- the same order as the 0.55 s string case and well inside
+    # round 366's 9.3 s worst case for a `max_iter` runaway. No program in
+    # this tree builds an integer over 64 bits, so the corpus margin is ~1e5x
+    # and is not the binding constraint here either.
+    DEFAULT_MAX_INT_BITS = 8000000
+
     # gen-0 threshold used by `run()` when gc_relief is on: a Whence run
     # builds a large, long-lived, (almost) acyclic object graph, and CPython's
     # generational collector otherwise rescans it every 700 allocations —
@@ -381,7 +559,8 @@ class Interpreter(object):
     HOST_RESERVE = 250
 
     def __init__(self, out=None, max_depth=DEFAULT_MAX_DEPTH,
-                 max_iter=DEFAULT_MAX_ITER,
+                 max_iter=DEFAULT_MAX_ITER, max_value=DEFAULT_MAX_VALUE,
+                 max_int_bits=DEFAULT_MAX_INT_BITS,
                  fast=True, gc_relief=False, direct=True, seed=0):
         self.out_lines = []
         self._out = out if out is not None else self.out_lines.append
@@ -409,6 +588,25 @@ class Interpreter(object):
         # reported it. Updated once per call, in the `finally` that already
         # unwinds the frame — not per iteration.
         self.peak_tail = 0
+        # v0.27 (round 368): cap on the SIZE of a value, in bytes; None =
+        # unbounded. `peak_value` is its `peak_tail` -- the largest value this
+        # run ASKED for at a growth site, recorded whether or not it was
+        # refused, because that is the number a future round needs to size the
+        # default. Round 366's lesson, restated: a budget whose consumption is
+        # not reported can only be argued about.
+        self.max_value = max_value
+        self.peak_value = 0
+        # The integer half, in BITS -- see DEFAULT_MAX_INT_BITS for why it is
+        # a second number and not a conversion into the first. Floored at
+        # MIN_MAX_INT_BITS so that the compiled `*` closure can decide "this
+        # multiply is definitely safe" against a module constant instead of
+        # walking the env chain for the live interpreter on every numeric
+        # operation. Without the floor, `fast=True` and `fast=False` would
+        # disagree below 128 bits and the three-way differential would be
+        # right to fail.
+        self.max_int_bits = (None if max_int_bits is None
+                             else max(max_int_bits, MIN_MAX_INT_BITS))
+        self.peak_int_bits = 0
         self.fast = fast          # compile call-free subtrees to closures
         self.fast_hits = 0        # subtrees evaluated by a compiled closure
         # v0.9: direct mode needs the fast path (direct closures are built
@@ -1242,7 +1440,7 @@ class Interpreter(object):
                         return r
                     return _logic_right(op, left, rf(env), line)
                 return f_logic
-            return _compile_binop(op, lf, rf, line, self.binop)
+            return _compile_binop(op, lf, rf, line, self.binop, self)
         if t is A.Unary:
             g = sub(node.operand)
             if not g:
@@ -1642,6 +1840,24 @@ class Interpreter(object):
         right = yield (node.right, env)
         return self.binop(op, left, right, node.line)
 
+    def _over_value(self, nbytes):
+        """Charge `nbytes` against the value budget: record it in
+        `peak_value` (always, refused or not) and answer whether it is over
+        `max_value`. Called only at the six growth sites -- the places where
+        a value can come out BIGGER than the sum of its inputs."""
+        if nbytes > self.peak_value:
+            self.peak_value = nbytes
+        mv = self.max_value
+        return mv is not None and nbytes > mv
+
+    def _over_int_bits(self, nbits):
+        """`_over_value` for integers, in bits. Separate because the two
+        budgets are sized from different costs -- see DEFAULT_MAX_INT_BITS."""
+        if nbits > self.peak_int_bits:
+            self.peak_int_bits = nbits
+        mb = self.max_int_bits
+        return mb is not None and nbits > mb
+
     def binop(self, op, left, right, line):
         l, r = left.value, right.value
         tl, tr = type(l), type(r)
@@ -1653,6 +1869,31 @@ class Interpreter(object):
                     return mk_miss("division by zero" if op == "/" else
                                    "modulo by zero", line, op,
                                    inputs=(left, right))
+                if (op == "+" or op == "-") and tl is int and tr is int:
+                    # v0.27: `x + x` DOUBLES, so additive growth is one bit
+                    # per step -- `max_iter` bounds it (1e6 iterations buys
+                    # 1e6 bits) and under the shipped defaults it can never
+                    # reach `max_int_bits`. But "can never" is a relationship
+                    # between two numbers a user may change, and an invariant
+                    # that holds only at the defaults is not an invariant.
+                    # One extra bit is the most either operator can add.
+                    nbits = max(l.bit_length(), r.bit_length()) + 1
+                    if self._over_int_bits(nbits):
+                        return _int_size_miss(nbits, self.max_int_bits, line,
+                                              op, (left, right))
+                elif op == "*" and tl is int and tr is int:
+                    # v0.27: the ONLY arithmetic operator that can grow a
+                    # value multiplicatively. `+`/`-` on ints add at most one
+                    # bit per step, so `max_iter` already bounds them (1e6
+                    # iterations buys 1e6 bits = 125 KB, under this cap);
+                    # `/` and `%` shrink; anything touching a float is bounded
+                    # by the float and already answers `number too large for
+                    # float arithmetic`. Checked BEFORE the multiply -- a
+                    # product this expensive cannot be checked afterwards.
+                    nbits = l.bit_length() + r.bit_length()
+                    if self._over_int_bits(nbits):
+                        return _int_size_miss(nbits, self.max_int_bits, line,
+                                              op, (left, right))
                 try:
                     return Prov(op, "", line, (left, right), _LAZY, fn(l, r))
                 except OverflowError:
@@ -1666,6 +1907,11 @@ class Interpreter(object):
             # does several string == per guest step. NOT _NUM_OPS: the host's
             # str % str would silently format, str * str would raise.
             if op == "+":
+                nchars = len(l) + len(r)
+                nbytes = nchars * _STR_BYTES_PER_CHAR
+                if self._over_value(nbytes):
+                    return _size_miss("string", nchars, "characters", nbytes,
+                                      self.max_value, line, op, (left, right))
                 return Prov(op, "concat", line, (left, right), _LAZY, l + r)
             fn = _STR_OPS.get(op)
             if fn is not None:
@@ -1694,8 +1940,21 @@ class Interpreter(object):
 
         if op == "+":
             if isinstance(l, str) and isinstance(r, str):
+                # reached only for a str SUBCLASS (the exact-type hot path
+                # above takes every real string); guarded anyway so the two
+                # spellings of string concat cannot disagree.
+                nchars = len(l) + len(r)
+                nbytes = nchars * _STR_BYTES_PER_CHAR
+                if self._over_value(nbytes):
+                    return _size_miss("string", nchars, "characters", nbytes,
+                                      self.max_value, line, op, provs)
                 return derived(op, "concat", line, provs, l + r)
             if isinstance(l, WList) and isinstance(r, WList):
+                nelem = len(l) + len(r)
+                nbytes = nelem * _LIST_BYTES_PER_ELEM
+                if self._over_value(nbytes):
+                    return _size_miss("list", nelem, "elements", nbytes,
+                                      self.max_value, line, op, provs)
                 return derived(op, "concat", line, provs, l.concat(r))
             return mk_miss("cannot add %s and %s" %
                            (show_payload(l), show_payload(r)), line, op,
@@ -1888,7 +2147,7 @@ Interpreter._LEAF = frozenset(
 _OPAQUE = (Closure, Builtin, Miss, Explanation)
 
 
-def _compile_binop(op, lf, rf, line, binop):
+def _compile_binop(op, lf, rf, line, binop, interp):
     """v0.10: one closure per operator with the numeric hot path INLINE —
     the exact-type test (bool excluded), the native operator, one `Prov` —
     instead of a lambda frame plus `binop`'s dictionary dispatch per
@@ -1906,13 +2165,30 @@ def _compile_binop(op, lf, rf, line, binop):
             tx = type(x)
             ty = type(y)
             if (tx is int or tx is float) and (ty is int or ty is float):
+                # v0.27: same magnitude gate as `f_mul`, same constant, same
+                # reason -- `x + x` doubles, so `+`/`-` grow an integer by a
+                # bit a step and the invariant "no integer is over
+                # max_int_bits" needs them guarded too. Both operands inside
+                # +/-2**64 make a sum inside 2**65, well under
+                # MIN_MAX_INT_BITS.
+                if tx is int and ty is int and not (
+                        -_MUL_FAST_CUT < x < _MUL_FAST_CUT and
+                        -_MUL_FAST_CUT < y < _MUL_FAST_CUT):
+                    return _live_interp(env, interp).binop("+", l, r, line)
                 try:
                     return Prov("+", "", line, (l, r), _LAZY, x + y)
                 except OverflowError:
                     pass
-            elif tx is str and ty is str:
-                return Prov("+", "concat", line, (l, r), _LAZY, x + y)
-            return binop("+", l, r, line)
+            # v0.27: the inline string-concat case is GONE, deliberately.
+            # It was `return Prov("+", "concat", ...)` -- the one place a
+            # compiled closure built a value whose size nothing checked, and
+            # `s + s` in a tail loop reached a raw host MemoryError in ~40
+            # iterations. Routing it through `binop` costs one Python call
+            # per string CONCATENATION (not per string `==`, which is what
+            # v0.6 added this hot path for and which is untouched) and keeps
+            # this function's own docstring promise: the closure never
+            # decides.
+            return _live_interp(env, interp).binop("+", l, r, line)
         return f_add
     if op == "-":
         def f_sub(env):
@@ -1923,11 +2199,21 @@ def _compile_binop(op, lf, rf, line, binop):
             tx = type(x)
             ty = type(y)
             if (tx is int or tx is float) and (ty is int or ty is float):
+                # v0.27: same magnitude gate as `f_mul`, same constant, same
+                # reason -- `x + x` doubles, so `+`/`-` grow an integer by a
+                # bit a step and the invariant "no integer is over
+                # max_int_bits" needs them guarded too. Both operands inside
+                # +/-2**64 make a sum inside 2**65, well under
+                # MIN_MAX_INT_BITS.
+                if tx is int and ty is int and not (
+                        -_MUL_FAST_CUT < x < _MUL_FAST_CUT and
+                        -_MUL_FAST_CUT < y < _MUL_FAST_CUT):
+                    return _live_interp(env, interp).binop("-", l, r, line)
                 try:
                     return Prov("-", "", line, (l, r), _LAZY, x - y)
                 except OverflowError:
                     pass
-            return binop("-", l, r, line)
+            return _live_interp(env, interp).binop("-", l, r, line)
         return f_sub
     if op == "*":
         def f_mul(env):
@@ -1938,11 +2224,25 @@ def _compile_binop(op, lf, rf, line, binop):
             tx = type(x)
             ty = type(y)
             if (tx is int or tx is float) and (ty is int or ty is float):
-                try:
+                # v0.27: the ONE size check that lands on the numeric hot
+                # path, so it is a magnitude test against a MODULE CONSTANT
+                # and not a `bit_length()` call or an attribute load: two
+                # operands strictly inside +/-2**64 make a product under
+                # 2**128, which `MIN_MAX_INT_BITS` guarantees is inside any
+                # budget this Interpreter will accept. CPython compares int
+                # digit COUNTS first, so this is O(1) even against 2**64.
+                # Anything else -- including every float, which cannot grow
+                # unboundedly -- goes to `binop` for the exact check and the
+                # wording.
+                if tx is not int or ty is not int:
+                    try:
+                        return Prov("*", "", line, (l, r), _LAZY, x * y)
+                    except OverflowError:
+                        pass
+                elif -_MUL_FAST_CUT < x < _MUL_FAST_CUT and \
+                        -_MUL_FAST_CUT < y < _MUL_FAST_CUT:
                     return Prov("*", "", line, (l, r), _LAZY, x * y)
-                except OverflowError:
-                    pass
-            return binop("*", l, r, line)
+            return _live_interp(env, interp).binop("*", l, r, line)
         return f_mul
     if op == "/":
         def f_div(env):
@@ -1958,7 +2258,7 @@ def _compile_binop(op, lf, rf, line, binop):
                     return Prov("/", "", line, (l, r), _LAZY, x / y)
                 except OverflowError:
                     pass
-            return binop("/", l, r, line)
+            return _live_interp(env, interp).binop("/", l, r, line)
         return f_div
     if op == "%":
         def f_mod(env):
@@ -1974,7 +2274,7 @@ def _compile_binop(op, lf, rf, line, binop):
                     return Prov("%", "", line, (l, r), _LAZY, x % y)
                 except OverflowError:
                     pass
-            return binop("%", l, r, line)
+            return _live_interp(env, interp).binop("%", l, r, line)
         return f_mod
     if op == "==":
         def f_eq(env):
@@ -1987,7 +2287,7 @@ def _compile_binop(op, lf, rf, line, binop):
             if ((tx is int or tx is float) and (ty is int or ty is float)) \
                     or (tx is str and ty is str):
                 return Prov("==", "", line, (l, r), _LAZY, x == y)
-            return binop("==", l, r, line)
+            return _live_interp(env, interp).binop("==", l, r, line)
         return f_eq
     if op == "!=":
         def f_ne(env):
@@ -2000,7 +2300,7 @@ def _compile_binop(op, lf, rf, line, binop):
             if ((tx is int or tx is float) and (ty is int or ty is float)) \
                     or (tx is str and ty is str):
                 return Prov("!=", "", line, (l, r), _LAZY, x != y)
-            return binop("!=", l, r, line)
+            return _live_interp(env, interp).binop("!=", l, r, line)
         return f_ne
     fn = _NUM_OPS[op]          # < <= > >= : numbers, and strings (same fn)
 
@@ -2014,7 +2314,7 @@ def _compile_binop(op, lf, rf, line, binop):
         if ((tx is int or tx is float) and (ty is int or ty is float)) \
                 or (tx is str and ty is str):
             return Prov(op, "", line, (l, r), _LAZY, fn(x, y))
-        return binop(op, l, r, line)
+        return _live_interp(env, interp).binop(op, l, r, line)
     return f_cmp
 
 
@@ -2828,8 +3128,21 @@ def _make_builtin_table():
                                inputs=tuple(args))
         lo, hi = (0, args[0].payload) if len(args) == 1 else \
                  (args[0].payload, args[1].payload)
-        items = [leaf("range", str(i), line, i) for i in range(lo, hi)]
-        return derived("range", "%d..%d" % (lo, hi), line,
+        # v0.27: `range` is the ONLY builtin whose output size comes from a
+        # NUMBER instead of from the size of a value argument, so it is the
+        # one place a five-character call can ask for 100 GB. The count is
+        # known exactly before a single element is allocated.
+        nelem = hi - lo
+        if nelem > 0:
+            nbytes = nelem * _RANGE_BYTES_PER_ELEM
+            if interp._over_value(nbytes):
+                return _size_miss("range", nelem, "elements", nbytes,
+                                  interp.max_value, line, "range", args)
+        # `show_int`, not `str`/`%d`: the BOUNDS can be huge even when the
+        # COUNT is 2 (`range(big, big + 2)`), and CPython raises ValueError
+        # past 4300 digits. That crash needed no memory pressure at all.
+        items = [leaf("range", show_int(i), line, i) for i in range(lo, hi)]
+        return derived("range", "%s..%s" % (show_int(lo), show_int(hi)), line,
                        tuple(args), wlist(items))
 
     @register("map", 2, "fn:fn, xs:list")
@@ -2916,6 +3229,15 @@ def _make_builtin_table():
                            (show_payload(xs.payload),
                             _order_hint("push", args)),
                            line, "push", inputs=(xs, x))
+        # v0.27: one element per call, so `max_iter` already bounds how far
+        # a loop can push -- but the invariant worth having is "no value in
+        # this run is over max_value", and that is only true if EVERY list
+        # constructor answers to it, not just the doubling one.
+        nelem = len(xs.payload) + 1
+        nbytes = nelem * _LIST_BYTES_PER_ELEM
+        if interp._over_value(nbytes):
+            return _size_miss("list", nelem, "elements", nbytes,
+                              interp.max_value, line, "push", (xs, x))
         return derived("push", "", line, (xs, x), xs.payload.push(x))
 
     @register("str", 1, "v")
@@ -2940,12 +3262,41 @@ def _make_builtin_table():
             t = p.strip()
             m = _NUM_RE.match(t)
             if not m:
-                return mk_miss('num: cannot parse "%s"' % p, line, "num",
-                               inputs=(args[0],))
+                # v0.27: `show_payload`, not `"%s"` -- it quotes identically
+                # for a short string and TRUNCATES at 40 chars, so a failed
+                # `num` on a 500 MB string no longer copies 500 MB into the
+                # miss message. The error path was itself a growth site.
+                return mk_miss('num: cannot parse %s' % show_payload(p),
+                               line, "num", inputs=(args[0],))
+            # v0.27: the second integer growth site. `num` turns a STRING
+            # into an integer, so `max_value`'s 500 MB of string became an
+            # unbounded integer -- and `int(t)` past CPython's 4300-digit
+            # limit is a ValueError traceback, not a miss. log2(10) = 3.32
+            # bits per decimal digit, rounded DOWN so the estimate never
+            # over-charges a string that would have fit.
+            if not (m.group(2) or m.group(3)):
+                ndigits = len(t.lstrip("+-"))
+                nbits = ndigits * 33219 // 10000
+                if ndigits > SHOW_INT_DIGITS:
+                    # NOT `max_int_bits`: this bound is the ROUND TRIP, and
+                    # it is tighter. `str()` of an integer past
+                    # `values.SHOW_INT_BITS` is a summary rather than digits
+                    # (CPython raises past 4300 anyway), so accepting more
+                    # digits here would mint a value the language cannot
+                    # write back out -- and `int(t)` itself is the
+                    # ValueError, so the check must come first.
+                    return mk_miss('num: %d digits is over the %d-digit '
+                                   'limit for numeric text (str of a larger '
+                                   'integer is a summary, not digits)' %
+                                   (ndigits, SHOW_INT_DIGITS), line, "num",
+                                   inputs=(args[0],))
+                if interp._over_int_bits(nbits):
+                    return _int_size_miss(nbits, interp.max_int_bits, line,
+                                          "num", (args[0],))
             v = float(t) if (m.group(2) or m.group(3)) else int(t)
             if isinstance(v, float) and (v != v or v in (_INF, -_INF)):
-                return mk_miss('num: "%s" is out of range' % p, line, "num",
-                               inputs=(args[0],))
+                return mk_miss('num: %s is out of range' % show_payload(p),
+                               line, "num", inputs=(args[0],))
             return derived("num", "", line, (args[0],), v)
         return mk_miss("num of %s" % show_payload(p), line, "num",
                        inputs=(args[0],))
@@ -3079,6 +3430,16 @@ def _make_builtin_table():
                                show_payload(x.payload), line, "join",
                                inputs=(x, xs))
             parts.append(x.payload)
+        # v0.27: `join` multiplies. Elements are SHARED pointers, so a list
+        # of 100k references to one 100k-character string costs 800 KB --
+        # and joining it materialises 10 GB. The list budget cannot see
+        # that; only the sum of the parts can.
+        nchars = sum(len(t) for t in parts) + \
+            len(sep.payload) * (len(parts) - 1 if parts else 0)
+        nbytes = nchars * _STR_BYTES_PER_CHAR
+        if interp._over_value(nbytes):
+            return _size_miss("string", nchars, "characters", nbytes,
+                              interp.max_value, line, "join", (xs, sep))
         return derived("join", "", line, (xs, sep),
                        sep.payload.join(parts))
 

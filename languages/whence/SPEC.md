@@ -1,6 +1,6 @@
 # Whence — a provenance-first language
 
-*Spec level: **v0.26** (round 366). The `## vN` sections below are the
+*Spec level: **v0.27** (round 368). The `## vN` sections below are the
 authoritative version list and each names the round that built it; this
 line deliberately no longer enumerates rounds, because the enumeration it
 replaced had said "v0.16.6 + v0.14.2" since round 266 while the file went
@@ -3463,6 +3463,25 @@ rule is two of them).
   before that it was unbounded, the one limit in this section that was
   neither an error nor a crash but a hang). `--max-iter 0` restores the
   old unbounded behaviour explicitly.
+- **v0.27 (round 368):** a value's SIZE is a budget too. `max_value`
+  (default 500000000 bytes) bounds the six places a value can come out
+  bigger than the sum of its inputs — `+` on strings, `+` on lists, `push`,
+  `range`, `join` — and `max_int_bits` (default 8000000 bits) bounds the
+  integer half, `*` and `+`/`-` and `num`. Before v0.27 `s + s` in a tail
+  loop was a raw host `MemoryError` at ~40 iterations, `x * x` did not
+  return in 60 s, and `range(100000000000)` reached the OOM killer. Two
+  budgets and not one because the cost models differ: string concatenation
+  is linear and CPython's bigint multiply is ~n^1.58, so the byte figure
+  that lets `range(max_iter)` work would license an integer whose last
+  multiply takes hours. `--max-value 0` / `--max-int-bits 0` restore the old
+  unbounded behaviour explicitly.
+- **v0.27:** integers RENDER as `<integer, N bits>` past 13287 bits (at most
+  4000 decimal digits), and `num()` refuses numeric text past the same
+  4000-digit boundary, so `num` and `str` stay inverses. Until v0.27
+  integers were the one payload kind `_show` rendered in full: `print` of a
+  15600-digit integer, a miss message naming one, a failing `check`
+  reporting one, `range(big, big + 2)` and `[1,2,3][big]` were all a host
+  `ValueError` traceback with exit **1** — the "some check failed" code.
 - Structural `==` on arbitrarily deep values is iterative (a 20000-deep
   record compares without touching the host stack).
 - **v0.4.1 (round 011):** arithmetic that mixes an unbounded integer with
@@ -3487,9 +3506,12 @@ rule is two of them).
   always SKIPPED in source and the language had no way to write.
 
 ## Running
-`python3 run.py [--max-depth N] [--max-iter N] [--no-direct]
-examples/<name>.lang` — exit 0 (all checks pass / none), 1 (some check
-failed), 2 (lex/parse error). *(`--max-iter 0` means unbounded. Until v0.26
+`python3 run.py [--max-depth N] [--max-iter N] [--max-value N]
+[--max-int-bits N] [--no-direct] examples/<name>.lang` — exit 0 (all checks
+pass / none), 1 (some check failed), 2 (lex/parse error). *(`--max-iter 0`,
+`--max-value 0` and `--max-int-bits 0` each mean unbounded; the two v0.27
+flags follow the shape v0.26 settled on, omitted unless given so the class
+default applies. Until v0.26
 `run.py` passed `max_iter` to the `Interpreter` unconditionally — including
 `None` when the flag was absent — so a class-level default would have been
 unreachable from the CLI; `--max-depth` had always been passed only when
@@ -3497,13 +3519,17 @@ given, and the two now agree.)* *(The LEX half of exit 2 only became true in
 v0.21, round 350: `run.py` caught `ParseError` and not `LexError`, so every
 lex error left the CLI as a Python traceback with exit 1 — the "some check
 failed" code.)* Embedding: `Interpreter(out=...,
-max_depth=..., max_iter=..., fast=True, direct=True, gc_relief=False)`; no
+max_depth=..., max_iter=..., max_value=..., max_int_bits=..., fast=True,
+direct=True, gc_relief=False)`; no
 `sys.setrecursionlimit` needed — direct mode (v0.9) spends only the host
 frames that are demonstrably free and the trampoline takes over beyond
 that, so a Whence call never *requires* host stack; a tail call costs zero
 Whence frames (`interp.tail_calls` counts them; `interp.fast_hits` counts
 driver entries into compiled closures, `interp.direct_hits` /
-`direct_fallbacks` the direct calls and the ones the budget refused).
+`direct_fallbacks` the direct calls and the ones the budget refused);
+`interp.peak_value` / `interp.peak_int_bits` (v0.27) report the largest value
+the run asked a growth site for, in bytes and in bits, whether or not it was
+refused.
 
 
 ## Time-Travel Debugging — NOT integrated (whence/timetravel.py, round 132 note)
@@ -5594,3 +5620,211 @@ Re-running round 365's 400-seed shape sweep under the new default turns both
 of its `timeout` seeds (31 and 224, the latter mutual recursion:
 `odd(-100) → even(-101) → …`) into `ok` — comparable differential data
 instead of discarded hangs.
+
+## v0.27 (round 368, language C) — a value has a size, and a size nothing bounds is a hang
+
+v0.26 closed the last entry in "Limits that are errors, not crashes" that was
+neither: a runaway tail loop. It closed it along the axis the section already
+understood — **how many times** a program goes round. This version is about
+the axis that section never had. `max_depth` bounds how DEEP a program goes,
+`max_iter` bounds how MANY TIMES it goes round, and **nothing bounded how BIG
+one value gets.**
+
+Five host exceptions were reachable from ordinary source, and none of them
+needed a big machine or a long run:
+
+```
+fn sq(n, x) { if n <= 0 { x } else { sq(n - 1, x * x) } }
+let big = sq(15, 3)          # 3**32768 — 51937 bits, 2 KB, 0.04 s
+```
+
+| what you write | what happened |
+| --- | --- |
+| `print(big)` | `ValueError` traceback, exit 1 |
+| `big + "x"` | `ValueError` — building the MISS MESSAGE |
+| `check "c": big < 10` | `ValueError` — reporting the FAILED CHECK |
+| `range(big, big + 2)` | `ValueError` — a **two**-element range |
+| `[1,2,3][big]` | `ValueError` — the index-out-of-range message |
+| `num(dbl(13, "1234"))` | `ValueError` — `int(t)` on 32768 digits |
+
+The cause is one CPython rule: `int.__str__` raises past
+`sys.get_int_max_str_digits()` (4300 by default since 3.11), and Whence's
+integers are unbounded on purpose (see "v0.4.1" above, which made *overflow*
+a miss and never considered *size*). The consequence is the sharp part. In a
+language whose rule 2 is "no exceptions, no null — every runtime error yields
+a `miss`", and whose one idea is that a failure can explain itself, **the
+explanation is what crashed.** `show_payload` is called by `print`, by every
+`mk_miss` that names its operands, by a failing `check`'s report and by
+`why`; a value that could not be rendered poisoned the entire diagnostic
+surface, and the miss about the bad value could not be constructed.
+
+Every one of those exited **1**, which is the "some check failed" code — so a
+caller could not tell a program whose checks failed from a program that
+killed the interpreter. That is the third recorded instance of this class,
+after `run.py`'s uncaught `LexError` (v0.21, round 350) and the two above it.
+
+And three shapes that were hangs rather than crashes:
+
+```
+fn go(n, s) { if n <= 0 { s } else { go(n - 1, s + s) } }   # MemoryError at ~40
+fn go(n, x) { if n <= 0 { x } else { go(n - 1, x * x) } }   # no return in 60 s
+let r = range(100000000000)                                 # OOM killer
+```
+
+### Integers were the only payload kind `_show` rendered in full
+
+Strings are cut by `_quote`'s `limit`. Lists are cut by `SHOW_NEST` and
+`head(6)`. Records by `SHOW_NEST` and `items[:4]`. Integers went to `repr()`.
+`values.show_int` now renders `<integer, N bits>` past **`SHOW_INT_BITS =
+13287`**, which is at most 4000 decimal digits (13287 × log10 2 = 3999.8) and
+therefore strictly under the host's 4300 — so the host limit is never the
+thing a user meets, and the cap is Whence's own. Bits and not digits, because
+`bit_length()` is O(1) and bits is the unit the integer budget charges in.
+
+`num()` refuses numeric TEXT past the same boundary
+(`SHOW_INT_DIGITS = 4000`), so **`num` and `str` stay inverses**: Whence never
+accepts digits it could not print back. That limit is tighter than
+`max_int_bits` and deliberately so — it is about the round trip, not about
+cost.
+
+### The six growth sites
+
+A growth site is a place where a value can come out BIGGER than the sum of
+its inputs' sizes. There are exactly six, and no other builtin or operator in
+the 36-name table can do it:
+
+| site | grows by | charged in |
+| --- | --- | --- |
+| `+` on two strings | doubling (`s + s`) | characters → bytes |
+| `+` on two lists | doubling (`xs + xs`) | elements → bytes |
+| `push(xs, x)` | one element | elements → bytes |
+| `range(lo, hi)` | **a number** | elements → bytes |
+| `join(xs, sep)` | list length × part length | characters → bytes |
+| `*` on two integers | doubling (`x * x`) | bits |
+| `+` / `-` on two integers | one bit | bits |
+
+`range` is the outlier that makes the whole class visible: it is the only
+builtin whose output size comes from a NUMBER rather than from the size of a
+value argument, so a five-character call can ask for 100 GB. `join` is the
+subtle one: a list of 20 shared pointers to one 1280-character string weighs
+160 bytes, and joining it materialises 25600 — only the sum of the parts can
+see that.
+
+**Why `max_iter` could not simply be re-tuned.** Every site above except
+`push` and `+`/`-` is MULTIPLICATIVE, so a doubling loop crosses any budget
+in log2(budget) steps — 29 for the shipped default, never more than 60 for
+any figure this machine can hold. A ceiling of 1 000 000 iterations cannot
+see a loop that kills the host on iteration 40. And `range` crosses it in
+ONE. The corpus says the same thing empirically: `deep.lang` merges 200001
+tail iterations and peaks at a **20-byte** value, while `self_eval.lang`
+peaks at **15700 bytes** with a longest loop of 143. Neither budget predicts
+the other.
+
+### Two budgets, and why not one
+
+`Interpreter(max_value=…, max_int_bits=…)`, CLI `--max-value N` /
+`--max-int-bits N`, `0` meaning unbounded on both — the shape v0.26 settled
+on for `--max-iter`.
+
+**`max_value = 500000000`** (bytes). The corpus does not set this one: any
+figure above ~0.5 MB clears every example, so `corpus_max × 3` would be
+arbitrary. What binds is **coherence with `max_iter`**. Whence has no
+`while`; the two ways to say "do this a million times" are a tail loop
+(allowed — `DEFAULT_MAX_ITER` is exactly 1000000) and `map(f,
+range(1000000))`. Refusing one spelling and permitting the other would be
+incoherent, and that floor is `1000000 × 157 B/elem = 157000000`.
+`skills/measured-budget-sizing`'s margin of 3 gives 471000000; 500000000 is
+the legible figure above it — 3.18× the floor, 31847× the examples corpus,
+1062× the largest `range` anywhere in this repo (`range(3000)`).
+
+**`max_int_bits = 8000000`** (bits = 1 MB). The first draft charged integers
+into `max_value` at their memory cost, 8 bits to the byte, so that one budget
+covered every kind. That is principled, it is measured, and it is wrong for
+exactly the reason round 366's memory-parity `max_iter` was wrong: **the cost
+model is not the same across kinds.** String concatenation is linear — a
+500 MB `s + s` runaway is refused in 0.55 s. CPython's bigint multiply is
+Karatsuba, ~n^1.58 (`bench/value_size.py --ints`):
+
+```
+ 3.3 M bits  0.49 s      13.3 M bits   3.97 s
+ 6.6 M bits  1.39 s      26.6 M bits  12.77 s
+```
+
+At `max_value`'s 500 MB an integer may reach 4×10^9 bits, and the last
+permitted multiply there extrapolates to **hours** — the hang this section
+exists to remove. So the two numbers cannot be one: the byte budget needs a
+floor of 157 MB and the integer budget needs a ceiling near 1 MB. Sized from
+TIME: a doubling runaway is refused having spent ~2.2 s, the same order as
+the 0.55 s string case and inside round 366's 9.3 s worst case for a
+`max_iter` runaway.
+
+The per-unit byte costs are MEASURED, not guessed, and
+`bench/value_size.py --bytes` re-measures them: a `str` is 1.000 B/char, a
+list element copied by `+`/`push` is 8.00 B (a shared pointer — the element
+`Prov` already exists), and a `range` element is **157.01 B** because `range`
+allocates a fresh `Prov` leaf *and* a decimal detail string per element,
+~20× a shared pointer. That is why `range` gets its own constant rather than
+one blended figure.
+
+`interp.peak_value` and `interp.peak_int_bits` are `peak_tail` for size: the
+largest value the run ASKED for at a growth site, recorded whether or not it
+was refused, because the refused number is the one a future round needs to
+re-size a default.
+
+### One check on the numeric hot path, and it is a constant
+
+`f_mul` (and now `f_add` / `f_sub`) test operand magnitude against the module
+constant `_MUL_FAST_CUT = 1 << 64`: two operands strictly inside ±2^64 make a
+product under 2^128, so the inline multiply stays inline for every realistic
+program, and CPython compares integer digit COUNTS first, so the test is O(1)
+even against the threshold. Anything bigger goes to `binop`, which does the
+exact `bit_length` check and owns the wording — `_compile_binop`'s own
+docstring rule, that the closure never decides a miss, kept intact.
+
+It must be a constant. Two drafts proved it: derived from `max_value`, the
+threshold is `1 << 2000000000` — a 250 MB integer built by every
+`Interpreter()` constructor; read from the live interpreter, it costs an
+`Env` walk per numeric operation. The price is `MIN_MAX_INT_BITS = 128`, the
+floor `max_int_bits` is clamped to, without which `fast=True` and
+`fast=False` would disagree below 128 bits.
+
+**`_compile_binop` also stopped capturing `binop`.** It had captured the
+compiling interpreter's bound method since v0.10, which was harmless while
+`binop` was effectively pure. v0.27 gave `binop` state — two budgets and two
+peak counters — so a captured method would charge one interpreter's
+`peak_value` for another's run and decide its misses against the wrong
+budget. It now resolves the live interpreter from the `Env` chain
+(`_live_interp`), the same v0.7 shared-AST determinism rule `d_call` and
+`_compile_builtin_call` already followed.
+
+### The oracle: no host exception, from any value the language allows
+
+`tests/test_v27.py` section 1 drives one 51937-bit integer through **every
+builtin in the live registry, at every arity in its range, in every argument
+position**, through every binary operator against seven other operand kinds
+on both sides, and through indexing / field access / `why` / `snip` / `note`
+/ `rescue` / a failing `check` — then forces `full_show`, `show_payload` and
+`report_checks` over each result. It asserts nothing about meaning: only that
+no host exception escapes. That is deliberate. Each of the five crashes was
+raised while BUILDING A MESSAGE, so any test that checked wording would first
+have had to know which call sites to look at, and the whole problem was that
+nobody did.
+
+It earned itself on its first run by finding a sixth site **in v0.27's own
+new code**: `_size_miss` formatted the element count with `%d`, and
+`range(1, big)` asks for a number of elements that is itself a 51937-bit
+integer — so the miss about a too-large range crashed while saying so. A
+seventh turned up writing the tests: `@pytest.mark.parametrize` builds test
+ids with `str(val)`, so parametrising on a 13286-bit integer makes **pytest**
+raise the same ValueError during collection.
+
+### What is NOT covered
+
+- **Records.** `put`/`merge` add one field per call, bounded by `max_iter`,
+  and a record's fields are shared pointers. Not a growth site; not guarded.
+- **`str()` of a large list.** `full_show` renders every element, so a list
+  at the budget renders a string larger than the budget. Bounded (the list is
+  bounded) but not itself charged.
+- **Time, in general.** These budgets bound SIZE. A program can still spend a
+  long time inside `max_iter` iterations of a cheap operation; that is what
+  `max_iter` is for, and it is a coarser instrument than this one.

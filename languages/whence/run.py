@@ -2,8 +2,11 @@
 """Whence — a provenance-first language. Run a program, stdin, or the REPL.
 
 Usage:
-    python3 run.py [--max-depth N] [--max-iter N] [--no-direct] [--seed N] examples/hello.lang
-                                   (--max-iter 0 = unbounded tail loops)
+    python3 run.py [--max-depth N] [--max-iter N] [--max-value N]
+                   [--max-int-bits N] [--no-direct] [--seed N] examples/hello.lang
+                            (--max-iter 0 = unbounded tail loops,
+                             --max-value 0 = unbounded strings/lists/ranges,
+                             --max-int-bits 0 = unbounded integers)
     python3 run.py -                        # program from stdin
     python3 run.py                          # REPL (interactive terminal only)
 
@@ -22,8 +25,8 @@ from whence.parser import parse, ParseError          # noqa: E402
 from whence.interp import Interpreter                # noqa: E402
 from whence.values import full_show                  # noqa: E402
 
-USAGE = ("usage: run.py [--max-depth N] [--max-iter N] [--no-direct] "
-         "[--seed N] <file.lang | ->\n"
+USAGE = ("usage: run.py [--max-depth N] [--max-iter N] [--max-value N] "
+         "[--max-int-bits N] [--no-direct] [--seed N] <file.lang | ->\n"
          "       run.py    (no arguments on an interactive terminal: REPL)")
 
 # v0.9: direct mode runs guest calls by host recursion under a frame budget
@@ -93,6 +96,8 @@ def main(argv):
     args = argv[1:]
     max_depth = None
     max_iter = None
+    max_value = None
+    max_int_bits = None
     direct = True
     seed = 0
     path = None
@@ -102,7 +107,8 @@ def main(argv):
         if a == "--no-direct":
             direct = False
             i += 1
-        elif a in ("--max-depth", "--max-iter", "--seed"):
+        elif a in ("--max-depth", "--max-iter", "--max-value",
+                   "--max-int-bits", "--seed"):
             if i + 1 >= len(args):
                 print(USAGE, file=sys.stderr)
                 return 2
@@ -115,6 +121,10 @@ def main(argv):
                 max_depth = n
             elif a == "--max-iter":
                 max_iter = n
+            elif a == "--max-value":
+                max_value = n
+            elif a == "--max-int-bits":
+                max_int_bits = n
             else:
                 seed = n
             i += 2
@@ -154,6 +164,12 @@ def main(argv):
     # `--max-iter 0` is the explicit "unbounded" opt-out.
     if max_iter is not None:
         kwargs["max_iter"] = max_iter if max_iter > 0 else None
+    # v0.27: `--max-value` follows the shape v0.26 settled on for `--max-iter`
+    # -- omitted unless the flag was given, `0` the explicit unbounded opt-out.
+    if max_value is not None:
+        kwargs["max_value"] = max_value if max_value > 0 else None
+    if max_int_bits is not None:
+        kwargs["max_int_bits"] = max_int_bits if max_int_bits > 0 else None
     if direct and sys.getrecursionlimit() < CLI_RECURSION_LIMIT:
         sys.setrecursionlimit(CLI_RECURSION_LIMIT)
     interp = Interpreter(**kwargs)
