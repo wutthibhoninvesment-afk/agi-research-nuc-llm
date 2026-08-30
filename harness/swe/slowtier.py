@@ -38,6 +38,20 @@ Fail-closed rules, all three load-bearing (cf. round 340's `gap_continuity`):
      This is round 341's own finding made mechanical: four of round 338's
      five failures are caused by exactly that race, and a PASS produced
      under it is no more trustworthy than the FAIL.
+  4-6. (round 343) The same three rules again for the HARNESS half, per
+     file: `dep_digests` over the test's own transitive `swe.*` closure,
+     `stale_harness` when one moved, `unstamped` for an entry written before
+     the closure was recorded at all, and `harness_stable: false` for a
+     closure that moved mid-run.
+  7-9. (round 361) The subject half gets per-file precision too, but MEASURED
+     rather than scanned — see the "subject scope" section. 7: a checkout
+     that moved OUTSIDE an entry's measured read-scope leaves it conclusive
+     at a weaker strength, `fresh_pass_scoped`/`fresh_fail_scoped`, counted
+     in `n_scoped` and never in `n_conclusive`. 8: a checkout that moved
+     INSIDE it is `stale_subject` — as inconclusive as `stale_checkout`, and
+     it names the directory. 9: a scope is usable only if the record is well
+     formed AND the run spawned no subprocess; anything else falls back to
+     rule 2 unchanged, so no entry is ever fresher than round 341 made it.
 
 Everything here is offline-testable: `run_slice` takes an injectable
 `runner`, so no test in `test_slowtier.py` shells out to pytest.
@@ -46,9 +60,16 @@ import ast
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 import time
+
+try:                                    # `python harness/swe/slowtier.py`
+    from swe import readscope
+except ImportError:                     # `python -m swe.slowtier` / in-package
+    import readscope
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 HARNESS_ROOT = os.path.dirname(HERE)
@@ -77,15 +98,32 @@ def _is_ignored(rel):
     return any(p in _IGNORED_DIRS or p.endswith(".egg-info") for p in parts)
 
 
-def checkout_digest(root=DEFAULT_WHENCE):
-    """A stable content digest of every `.py` file in the checkout.
+#: Extensions the digest covers. Round 341 chose `.py` ALONE, and gave a
+#: correct reason for excluding `SPEC.md`: a doc edit cannot move a line
+#: number in `whence/interp.py`, and a false alarm is as corrosive as a false
+#: pass. Round 361 found the rule too narrow by exactly one extension.
+#: `swe/guest.py` and `harness/tests/test_swe_guest.py` load
+#: `languages/whence/examples/self_eval.lang` — the ~885-line GUEST
+#: INTERPRETER, written in Whence — as source. It is not documentation; it is
+#: the thing under test. Three commits since 2026-08-26 change a
+#: `languages/whence/**.lang` file and NO `.py` file (`f0b8dde`, `32c5cbd`,
+#: `c52b9ba`, all three touching `examples/self_eval.lang` itself), so an
+#: entry recorded before any of them would have stayed `fresh_pass` across a
+#: rewrite of the guest interpreter. That is fail-OPEN, in the one rule the
+#: module exists to make fail-closed.
+_SOURCE_EXTS = (".py", ".lang")
 
-    `.py` only, deliberately: these tests read, mutate, unparse and diff
-    Python sources of the interpreter. A `SPEC.md` edit does not move a
-    line number in `whence/interp.py`, and counting it would mark results
-    stale for a change that cannot affect them — a false alarm is as
-    corrosive here as a false pass (round 339's rule: a checker nobody
-    watches must not cry wolf).
+
+def checkout_digest(root=DEFAULT_WHENCE):
+    """A stable content digest of every `.py` and `.lang` file in the checkout.
+
+    Source extensions only, deliberately: these tests read, mutate, unparse
+    and diff Python sources of the interpreter, and load `.lang` sources as
+    programs. A `SPEC.md` edit does not move a line number in
+    `whence/interp.py`, and counting it would mark results stale for a change
+    that cannot affect them — a false alarm is as corrosive here as a false
+    pass (round 339's rule: a checker nobody watches must not cry wolf).
+    See `_SOURCE_EXTS` for why `.lang` joined the set in round 361.
     """
     h = hashlib.sha256()
     files = []
@@ -93,7 +131,7 @@ def checkout_digest(root=DEFAULT_WHENCE):
         dirnames[:] = [d for d in dirnames
                        if d not in _IGNORED_DIRS and not d.endswith(".egg-info")]
         for n in sorted(names):
-            if not n.endswith(".py"):
+            if not n.endswith(_SOURCE_EXTS):
                 continue
             full = os.path.join(dirpath, n)
             rel = os.path.relpath(full, root)
@@ -290,6 +328,57 @@ def moved_deps(entry, current):
                       if old.get(k) != current.get(k)))
 
 
+# ------------------------------------------------------------- subject scope --
+#
+# Round 361, harness(A). The mirror image of the "harness deps" section above,
+# for the SUBJECT half — and the argument is the same arithmetic. The harness
+# half got per-file precision because "ANY harness edit invalidates ALL 18
+# files at once ... the ledger would never accumulate, which is the module's
+# entire purpose". `checkout_digest` is exactly that whole-directory digest,
+# over `languages/whence/`, and 52% of the commits that move it (32 of 61
+# since 2026-08-26) touch nothing under `whence/` and no `run.py` — they edit
+# whence's OWN tests and benches, which most slow-tier files never read.
+#
+# The subject half cannot be scanned statically the way the harness half is:
+# `swe/killers.py:load_whence` imports the package by file location,
+# `swe/guest.py` reads a `.lang` file as source, `swe/mutation.py` copytrees
+# the whole checkout and `swe/coverage.py` shells out to a pytest that reads
+# whatever it likes. A static marker table for those would be a hand-
+# maintained rule with nothing enforcing it — `skills/unenforced-documented-
+# rule/`'s exact shape. So the scope is MEASURED, by `swe/readscope.py`'s
+# audit hook, during the run that produced the entry.
+#
+# The claim a scope supports is strictly WEAKER than the claim
+# `checkout_digest` supports, and it is labelled as such rather than merged
+# into it: `fresh_pass_scoped` is its own state, `CONCLUSIVE` is unchanged,
+# and `status` reports both recalls. Round 334's rule about
+# `confirmed_span_s` — add a separate field, never redefine a published one.
+
+
+def scope_digests_now(entry, whence_root=DEFAULT_WHENCE):
+    """Recompute an entry's RECORDED scope directories against the tree now.
+
+    Returns None when the entry carries no usable scope, which is every
+    pre-round-361 entry and every entry whose run was opaque or whose record
+    was torn — `readscope.scope_is_narrowable` is the single predicate.
+    """
+    scope = (entry or {}).get("subject_scope")
+    if not isinstance(scope, dict) or not readscope.scope_is_narrowable(scope):
+        return None
+    dirs = scope.get("dirs")
+    if not isinstance(dirs, list):
+        return None
+    return readscope.scope_digests(whence_root, dirs)
+
+
+def moved_scope(entry, current):
+    """Scope directories whose digest differs between `entry` and `current`."""
+    old = (entry or {}).get("subject_digests") or {}
+    current = current or {}
+    return sorted(set(k for k in set(old) | set(current)
+                      if old.get(k) != current.get(k)))
+
+
 # ------------------------------------------------------------------ ledger --
 
 def append_entry(path, entry):
@@ -334,13 +423,21 @@ def latest_by_file(entries):
 
 # ------------------------------------------------------------------ status --
 
-def classify(entry, digest, cur_dep_digests=None):
+def classify(entry, digest, cur_dep_digests=None, cur_scope_digests=None):
     """The fail-closed state machine. See this module's docstring.
 
     `cur_dep_digests` is the current `dep_digests` mapping for this file
     (round 343, rules 4-6). Passing None evaluates only rules 1-3 — the
     round-341 behaviour, kept so a caller holding an entry but no tests
     directory can still classify the subject half.
+
+    `cur_scope_digests` (round 361, rules 7-9) is the current per-directory
+    digest of the entry's own MEASURED read-scope, as returned by
+    `scope_digests_now`. Passing None — which is what every caller gets for a
+    pre-361 entry, an opaque run, or a torn scope record — leaves rule 2
+    exactly as it was. When it IS available and nothing in scope moved, the
+    entry becomes evidence of a strictly WEAKER kind, reported under its own
+    `_scoped` state and NOT folded into `CONCLUSIVE`.
     """
     if entry is None:
         return "unknown"
@@ -348,8 +445,15 @@ def classify(entry, digest, cur_dep_digests=None):
         return "raced"
     if not entry.get("harness_stable", True):
         return "raced"
+    scoped = False
     if entry.get("checkout_digest") != digest:
-        return "stale_checkout"
+        if cur_scope_digests is None:
+            return "stale_checkout"
+        if moved_scope(entry, cur_scope_digests):
+            # More informative than `stale_checkout`, and just as inconclusive:
+            # the checkout moved AND it moved inside what this run read.
+            return "stale_subject"
+        scoped = True
     if cur_dep_digests is not None:
         if entry.get("dep_digests") is None:
             # Rule 5: written before the harness was stamped at all. Its
@@ -359,9 +463,9 @@ def classify(entry, digest, cur_dep_digests=None):
         if moved_deps(entry, cur_dep_digests):
             return "stale_harness"
     if entry.get("outcome") == "passed":
-        return "fresh_pass"
+        return "fresh_pass_scoped" if scoped else "fresh_pass"
     if entry.get("outcome") == "failed":
-        return "fresh_fail"
+        return "fresh_fail_scoped" if scoped else "fresh_fail"
     return "unknown"
 
 
@@ -369,6 +473,22 @@ def classify(entry, digest, cur_dep_digests=None):
 #: current harness. Round 343 widened what "current" has to mean; the tuple
 #: itself is unchanged, which is the point — every new state is inconclusive.
 CONCLUSIVE = ("fresh_pass", "fresh_fail")
+
+#: Round 361. Evidence about the current harness and about every checkout
+#: DIRECTORY this run was measured to read from — but not about the whole
+#: checkout, which has moved somewhere the run never looked. Deliberately a
+#: SECOND tuple rather than three more members of `CONCLUSIVE`: three rounds
+#: of reported figures, `run_tests_fast.sh`'s printed line and
+#: `state/slow-tier-ledger.jsonl`'s readers all depend on what
+#: "conclusive/recall" has meant since round 341 (round 334's rule about
+#: `confirmed_span_s`, applied here). Both numbers are reported side by side
+#: and the weaker one is always labelled.
+SCOPED_CONCLUSIVE = ("fresh_pass_scoped", "fresh_fail_scoped")
+
+#: Any state that is a real FAILURE signal, at either strength. A scoped
+#: failure is a failing test in a directory nothing has moved; the weaker
+#: freshness claim does not make the red less red.
+FAILING = ("fresh_fail", "fresh_fail_scoped")
 
 
 def status(ledger_path=DEFAULT_LEDGER, tests_dir=TESTS_DIR, whence_root=DEFAULT_WHENCE,
@@ -379,9 +499,11 @@ def status(ledger_path=DEFAULT_LEDGER, tests_dir=TESTS_DIR, whence_root=DEFAULT_
     for f in slow_tier_files(tests_dir):
         e = best.get(f)
         cur = dep_digests(f, tests_dir)
+        cur_scope = scope_digests_now(e, whence_root)
+        scope = (e or {}).get("subject_scope") or {}
         rows.append({
             "file": f,
-            "state": classify(e, digest, cur),
+            "state": classify(e, digest, cur, cur_scope),
             "outcome": (e or {}).get("outcome"),
             "finished_at": (e or {}).get("finished_at"),
             "seconds": (e or {}).get("seconds"),
@@ -390,17 +512,28 @@ def status(ledger_path=DEFAULT_LEDGER, tests_dir=TESTS_DIR, whence_root=DEFAULT_
             # Named, not counted: "which file moved" is the whole reason
             # the digests are stored per path (round 341's item 2).
             "moved_deps": moved_deps(e, cur) if e is not None else [],
+            # Round 361: the same "name it, do not count it" rule for the
+            # subject half. `scope_dirs` is [] for an entry with no usable
+            # scope, which is what a pre-361 ledger is made of.
+            "scope_dirs": list(scope.get("dirs") or []) if cur_scope is not None else [],
+            "scope_opaque": list(scope.get("opaque") or []),
+            "moved_scope": moved_scope(e, cur_scope) if cur_scope is not None else [],
         })
     covered = [r for r in rows if r["state"] in CONCLUSIVE]
+    scoped = [r for r in rows if r["state"] in SCOPED_CONCLUSIVE]
     return {
         "digest": digest,
         "rows": rows,
         "n_files": len(rows),
         "n_conclusive": len(covered),
-        "n_failing": len([r for r in rows if r["state"] == "fresh_fail"]),
+        # Round 361, reported SEPARATELY: files whose evidence survives only
+        # because the checkout moved outside their measured read-scope.
+        "n_scoped": len(scoped),
+        "n_failing": len([r for r in rows if r["state"] in FAILING]),
         # The recall this view has on the CURRENT tree. Round 339's rule:
         # a checker must report its own recall so the gap stays visible.
         "coverage": (float(len(covered)) / len(rows)) if rows else 0.0,
+        "coverage_scoped": (float(len(covered) + len(scoped)) / len(rows)) if rows else 0.0,
     }
 
 
@@ -458,7 +591,8 @@ def plan(st, budget_s, default_s=300.0, tests_dir=TESTS_DIR):
 
 # --------------------------------------------------------------------- run --
 
-def pytest_runner(test_file, tests_dir=TESTS_DIR, timeout_s=3000):
+def pytest_runner(test_file, tests_dir=TESTS_DIR, timeout_s=3000,
+                  whence_root=DEFAULT_WHENCE):
     """The real runner: one pytest process per file, cwd at the repo root.
 
     `PYTHONDONTWRITEBYTECODE` is set for round 340's reason — a `.pyc`
@@ -466,23 +600,41 @@ def pytest_runner(test_file, tests_dir=TESTS_DIR, timeout_s=3000):
     collides with a since-edited source makes a run test the WRONG
     bytecode. The whence tree is edited by other rounds between slices, so
     this is not hypothetical here.
+
+    Round 361: the child is launched as `python -c <bootstrap>` rather than
+    `python -m pytest`, so `swe/readscope.py`'s audit hook is live BEFORE
+    pytest imports anything — which is the only moment at which `swe.*` and
+    `whence.*` reads can be seen. `python -c` and `python -m` both put the
+    cwd at `sys.path[0]`, so collection and import resolution are unchanged;
+    `pytest.main`'s return codes are pytest's own. If the hook or the record
+    fails for any reason the run is unaffected and the scope is simply absent
+    — `readscope.read_scope_file` reports `ok: false` and `classify` falls
+    back to the whole-checkout rule.
     """
     env = dict(os.environ)
     env["PYTHONDONTWRITEBYTECODE"] = "1"
-    cmd = [sys.executable, "-m", "pytest", "-q", "-p", "no:randomly",
-           os.path.join(tests_dir, test_file)]
+    args = ["-q", "-p", "no:randomly", os.path.join(tests_dir, test_file)]
+    tmpdir = tempfile.mkdtemp(prefix="slowtier-scope-")
+    scope_path = os.path.join(tmpdir, "scope.json")
+    cmd = [sys.executable, "-c",
+           readscope.bootstrap_source(whence_root, scope_path, args)]
     try:
-        p = subprocess.Popen(cmd, cwd=REPO_ROOT, env=env,
-                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        out, _ = p.communicate(timeout=timeout_s)
-        rc = p.returncode
-        timed_out = False
-    except subprocess.TimeoutExpired:
-        p.kill()
-        out, _ = p.communicate()
-        rc, timed_out = -9, True
+        try:
+            p = subprocess.Popen(cmd, cwd=REPO_ROOT, env=env,
+                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            out, _ = p.communicate(timeout=timeout_s)
+            rc = p.returncode
+            timed_out = False
+        except subprocess.TimeoutExpired:
+            p.kill()
+            out, _ = p.communicate()
+            rc, timed_out = -9, True
+        scope = readscope.read_scope_file(scope_path)
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
     text = (out or b"").decode("utf-8", "replace")
-    return {"returncode": rc, "timed_out": timed_out, "tail": text[-800:]}
+    return {"returncode": rc, "timed_out": timed_out, "tail": text[-800:],
+            "scope": scope}
 
 
 def run_slice(files, ledger_path=DEFAULT_LEDGER, whence_root=DEFAULT_WHENCE,
@@ -494,6 +646,14 @@ def run_slice(files, ledger_path=DEFAULT_LEDGER, whence_root=DEFAULT_WHENCE,
     is stamped `checkout_stable: false` and can never be counted as
     evidence (rule 3) — the run overlapped another round editing the tree,
     which is exactly how four of round 338's five failures are produced.
+
+    Round 361: the per-scope-directory digests are computed BEFORE the
+    closing `checkout_digest` call, deliberately, so that `checkout_stable`
+    brackets the scope read too. Computing them after it would leave a window
+    in which the tree could move, the scope baseline would be recorded too
+    NEW, and a later `status` would compare that too-new baseline against the
+    tree, find it equal, and report `fresh_pass_scoped` for a run that never
+    saw those bytes.
     """
     log = log or (lambda s: None)
     written = []
@@ -504,6 +664,15 @@ def run_slice(files, ledger_path=DEFAULT_LEDGER, whence_root=DEFAULT_WHENCE,
         t0 = clock()
         r = runner(f)
         t1 = clock()
+        # Round 361. A runner that reports no scope (every injected test
+        # double, and the real one when the hook or the record failed) yields
+        # `ok: false`, which `scope_digests_now` refuses — the entry is then
+        # gated exactly as a round-341 entry is.
+        scope = r.get("scope") or {"ok": False, "dirs": [], "opaque": [],
+                                   "n_reads": 0, "why": "runner-gave-none"}
+        narrow = readscope.scope_is_narrowable(scope)
+        scope_digs = (readscope.scope_digests(whence_root, scope["dirs"])
+                      if narrow else None)
         after = checkout_digest(whence_root)
         # Re-scan the closure rather than reusing `deps`: an import added
         # mid-run changes WHICH files matter, and that is itself a race.
@@ -523,13 +692,21 @@ def run_slice(files, ledger_path=DEFAULT_LEDGER, whence_root=DEFAULT_WHENCE,
             "checkout_stable": stable,
             "dep_digests": deps_before,
             "harness_stable": harness_stable,
-            "schema": 2,
+            "subject_scope": scope,
+            "subject_digests": scope_digs,
+            "schema": 3,
             "tail": r.get("tail", "")[-800:],
         }
         append_entry(ledger_path, entry)
         written.append(entry)
         flags = ("" if stable else "  [CHECKOUT CHANGED MID-RUN]") \
             + ("" if harness_stable else "  [HARNESS CHANGED MID-RUN]")
+        if narrow:
+            flags += "  scope=%s" % ",".join(scope["dirs"] or ["(nothing)"])
+        elif scope.get("opaque"):
+            flags += "  scope=WHOLE (%s)" % ",".join(scope["opaque"])
+        else:
+            flags += "  scope=WHOLE (%s)" % (scope.get("why") or "unrecorded")
         log("%-34s %-8s %6.1fs%s" % (f, outcome, entry["seconds"], flags))
     return written
 
@@ -540,11 +717,17 @@ def report_text(st):
     lines = ["slow tier: %d files, %d conclusive against checkout %s (%.0f%% recall), %d failing"
              % (st["n_files"], st["n_conclusive"], st["digest"],
                 100.0 * st["coverage"], st["n_failing"])]
-    for r in sorted(st["rows"], key=lambda r: (r["state"] != "fresh_fail", r["file"])):
+    if st.get("n_scoped"):
+        # Never merged into the line above: this is the weaker claim, and it
+        # says what it is weaker about.
+        lines.append("  + %d file(s) conclusive WITHIN their measured read-scope only "
+                     "(%.0f%% combined) — the checkout moved outside what they read"
+                     % (st["n_scoped"], 100.0 * st["coverage_scoped"]))
+    for r in sorted(st["rows"], key=lambda r: (r["state"] not in FAILING, r["file"])):
         age = ""
         if r["finished_at"]:
             age = "  %.1fh ago" % ((time.time() - r["finished_at"]) / 3600.0)
-        lines.append("  %-34s %-14s %s%s"
+        lines.append("  %-34s %-18s %s%s"
                      % (r["file"], r["state"],
                         ("%.0fs" % r["seconds"]) if r["seconds"] else "-", age))
         if r["state"] == "stale_harness":
@@ -552,9 +735,13 @@ def report_text(st):
             lines.append("      moved: %s%s"
                          % (", ".join(moved[:4]),
                             "" if len(moved) <= 4 else " (+%d more)" % (len(moved) - 4)))
-    if st["n_conclusive"] < st["n_files"]:
-        lines.append("  NOTE: %d file(s) are NOT evidence about this checkout."
-                     % (st["n_files"] - st["n_conclusive"]))
+        if r["state"] == "stale_subject":
+            lines.append("      moved in scope: %s" % ", ".join(r["moved_scope"][:4]))
+        if r["state"] in SCOPED_CONCLUSIVE:
+            lines.append("      scope: %s" % ", ".join(r["scope_dirs"] or ["(nothing)"]))
+    uncovered = st["n_files"] - st["n_conclusive"] - st.get("n_scoped", 0)
+    if uncovered:
+        lines.append("  NOTE: %d file(s) are NOT evidence about this checkout." % uncovered)
     return "\n".join(lines)
 
 
