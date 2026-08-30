@@ -38,6 +38,48 @@ baseline's own rot check: an entry that has since been probed, or that
 names a skill that no longer exists, is an ERROR — an acknowledgement that
 outlives its debt is how a baseline becomes a mute button.
 
+`probed` answers "did we look", not "what did we see" (round 375)
+-----------------------------------------------------------------
+Round 369 probed `measured-budget-sizing` at 0/3, kept the description
+after round 141's stop-rule, and left this note in
+`state/known-unprobed-skills.json`:
+
+    P004 keys on FRESHNESS (was this skill probed under the description now
+    on disk?) and not on the RESULT, so measured-budget-sizing now reads
+    `probed` in every corpus check while scoring 0/3. "35 probed" is true
+    and much weaker than it reads.
+
+The reports needed to answer the other half are already committed under
+`state/trigger-eval/`: every result carries `expect` and `fired`. So the
+outcome half is FREE too, and until round 375 nothing read it. Measured on
+the corpus of 36 skills, NINE of them had a newest-probing-report that was
+not a clean sweep of their own cases, and the two shapes are different:
+
+  * **RECALL** — the report probed the cases and the skill did not fire:
+    `measured-budget-sizing` 0/3, `obligation-ledger` 0/3,
+    `policy-replay-over-history` 3/4. Round 369 knew about all three.
+  * **COVERAGE OF THE PROBE** — `probed` asserted from a strict SUBSET of
+    the skill's own cases, which nobody knew: `fuzz-mutate-kill-loop` 1 of
+    7, `measured-exemption` 1 of 3, `unrun-checker-latency` 1 of 3,
+    `deleted-vs-never-written` / `optimization-transparency-differential` /
+    `pristine-checkout-differential` 2 of 3.
+
+The second shape has a CAUSE, and it is the reason this is a checker and
+not a one-off cleanup. `audit_skills` reads the NEWEST report holding a
+probe of the skill — and a re-probe is, by construction, a re-run of the
+cases that MISSED. `state/trigger-eval/round-357-miss-reprobe.json` re-ran
+the 8 cases that missed in the full-corpus sweep and 6 of them fired on the
+retry, so four skills are now audited exclusively off their own retry and
+their full-corpus misses are invisible. **Freshness plus "newest wins" is
+survivorship bias: the most recent measurement is the one that was run
+because the previous one failed.**
+
+P006/P007 are WARNINGS against their own baseline
+(`state/known-weak-probes.json`) for the same reason P004 is: the fix is a
+re-probe, which is a live spend. That baseline pins the REPORT the
+acknowledgement was made against (round 373's content-pin pattern), so a
+newer probe expires the pin rather than being silently absorbed.
+
 Codes
 -----
     P001  error    skill has fewer than the floor of positive cases
@@ -46,13 +88,22 @@ Codes
                    (the probe answers itself; a fire is not evidence)
     P004  warning  skill never probed / STALE, and not in the baseline
     P005  error    baseline entry is stale (now probed, or skill is gone)
+    P006  warning  `probed` asserted from a strict SUBSET of the skill's
+                   own positive cases, and not in the weak-probe baseline
+    P007  warning  the newest probing report did not fire the skill on
+                   every case it did probe, and not in the weak baseline
+    P008  error    weak-probe baseline entry is stale: skill gone, no
+                   owner, debt discharged, or the pinned report is no
+                   longer the newest one (someone re-probed and did not
+                   re-adjudicate)
 
 Duplicate case ids are NOT a code here: `trigger_eval.load_cases` already
 raises on them, and two checks for one property is how they drift apart.
 
 Usage:
     python3 case_coverage.py [--cases F] [--skills DIR] [--reports DIR]
-                             [--baseline F] [--floor N] [--list]
+                             [--baseline F] [--weak-baseline F] [--floor N]
+                             [--list]
 
 Exit codes: 0 = no errors, 1 = at least one error, 2 = usage/IO problem.
 """
@@ -88,7 +139,8 @@ def name_variants(name):
                        re.I)]
 
 
-def check(catalog, cases, reports, baseline, floor=DEFAULT_FLOOR):
+def check(catalog, cases, reports, baseline, floor=DEFAULT_FLOOR,
+          weak_baseline=None):
     """Returns (findings, rows). A finding is
     (severity, code, subject, message)."""
     findings = []
@@ -151,7 +203,70 @@ def check(catalog, cases, reports, baseline, floor=DEFAULT_FLOOR):
                 "the baseline. Probe it, or acknowledge it with an owner."
                 % r["status"]))
 
+    findings += check_outcomes(by_name, weak_baseline or {})
     return findings, rows
+
+
+def check_outcomes(by_name, weak_baseline):
+    """P006/P007/P008 — what the probe SAW, against its own baseline.
+
+    Only skills whose freshness status is already `probed` are asked the
+    outcome question: a `never`/`STALE` skill is P004's, and three warnings
+    for one skill is how a warning list stops being read."""
+    findings = []
+    weak = weak_baseline.get("skills", {})
+
+    for name, entry in sorted(weak.items()):
+        row = by_name.get(name)
+        if row is None:
+            findings.append((
+                "error", "P008", name,
+                "weak-probe baseline names a skill that is not in the "
+                "corpus; delete the entry."))
+            continue
+        if not entry.get("owner"):
+            findings.append((
+                "error", "P008", name,
+                "weak-probe baseline entry has no `owner`; an unowned "
+                "acknowledgement is indistinguishable from a forgotten "
+                "one."))
+        if (row["status"] == "probed" and row["covered"] == row["positives"]
+                and row["recalled"] == row["covered"]):
+            findings.append((
+                "error", "P008", name,
+                "weak-probe baseline says the probe is weak, but %s covers "
+                "all %d positive case(s) with full recall. Delete the "
+                "entry: an acknowledgement that outlives its debt is a mute "
+                "button." % (row["report"], row["positives"])))
+        elif entry.get("report") and row["report"] != entry["report"]:
+            findings.append((
+                "error", "P008", name,
+                "weak-probe baseline pins %r, but the newest probing report "
+                "is now %r — someone re-probed and did not re-adjudicate. "
+                "Re-read the new report and rewrite or delete the entry."
+                % (entry["report"], row["report"])))
+
+    for r in sorted(by_name.values(), key=lambda r: r["name"]):
+        if r["status"] != "probed" or r["name"] in weak:
+            continue
+        if r["covered"] < r["positives"]:
+            findings.append((
+                "warning", "P006", r["name"],
+                "`probed` is asserted from %d of its %d positive case(s): "
+                "%s is the newest report holding a probe of it, and a "
+                "re-probe is by construction a re-run of what MISSED. "
+                "Re-probe the whole case set, or acknowledge it with an "
+                "owner." % (r["covered"], r["positives"], r["report"])))
+        if r["covered"] and r["recalled"] < r["covered"]:
+            findings.append((
+                "warning", "P007", r["name"],
+                "the newest probing report %s fired it on %d of the %d "
+                "case(s) it probed%s — `probed` says the description was "
+                "measured, not that it works. Re-probe, edit the "
+                "description, or acknowledge it with an owner."
+                % (r["report"], r["recalled"], r["covered"],
+                   " (%d flaky)" % r["flaky"] if r["flaky"] else "")))
+    return findings
 
 
 def main(argv=None):
@@ -162,6 +277,7 @@ def main(argv=None):
     ap.add_argument("--skills", default=None)
     ap.add_argument("--reports", default=None)
     ap.add_argument("--baseline", default=None)
+    ap.add_argument("--weak-baseline", default=None)
     ap.add_argument("--floor", type=int, default=DEFAULT_FLOOR)
     ap.add_argument("--list", action="store_true",
                     help="print the per-skill coverage table too")
@@ -173,6 +289,8 @@ def main(argv=None):
     reports_p = args.reports or os.path.join(root, "state", "trigger-eval")
     base_p = args.baseline or os.path.join(root, "state",
                                            "known-unprobed-skills.json")
+    weak_p = args.weak_baseline or os.path.join(root, "state",
+                                                "known-weak-probes.json")
 
     try:
         cases = trigger_eval.load_cases(cases_p)
@@ -182,25 +300,34 @@ def main(argv=None):
         return 2
     reports = (trigger_eval.load_reports(reports_p)
                if os.path.isdir(reports_p) else [])
-    baseline = {}
-    if os.path.exists(base_p):
+    loaded = {}
+    for key, path in (("baseline", base_p), ("weak", weak_p)):
+        loaded[key] = {}
+        if not os.path.exists(path):
+            continue
         try:
-            with open(base_p, encoding="utf-8") as f:
-                baseline = json.load(f)
+            with open(path, encoding="utf-8") as f:
+                loaded[key] = json.load(f)
         except (OSError, ValueError) as exc:
             print("case-coverage: %s" % exc, file=sys.stderr)
             return 2
+    baseline = loaded["baseline"]
 
-    findings, rows = check(catalog, cases, reports, baseline, args.floor)
+    findings, rows = check(catalog, cases, reports, baseline, args.floor,
+                           weak_baseline=loaded["weak"])
 
     if args.list:
-        print("| skill | positives | probe status | acknowledged |")
-        print("|---|---|---|---|")
+        print("| skill | positives | covered | recalled | probe status "
+              "| acknowledged |")
+        print("|---|---|---|---|---|---|")
         acked = baseline.get("skills", {})
+        weak = loaded["weak"].get("skills", {})
         for r in sorted(rows, key=lambda r: r["name"]):
-            print("| %s | %d | %s | %s |"
-                  % (r["name"], r["positives"], r["status"],
-                     acked.get(r["name"], {}).get("owner", "—")))
+            owner = (acked.get(r["name"]) or weak.get(r["name"])
+                     or {}).get("owner", "—")
+            print("| %s | %d | %d | %d | %s | %s |"
+                  % (r["name"], r["positives"], r["covered"], r["recalled"],
+                     r["status"], owner))
         print()
 
     for sev, code, subject, msg in findings:
@@ -209,10 +336,18 @@ def main(argv=None):
     n_err = sum(1 for f in findings if f[0] == "error")
     n_warn = len(findings) - n_err
     n_probed = sum(1 for r in rows if r["status"] == "probed")
+    # Round 375: "N probed" answers "did we look". The corpus check's
+    # headline is the line the driver logs every round, so it now also
+    # carries what the probe SAW -- every positive case reached, and the
+    # skill fired on every one of them.
+    n_clean = sum(1 for r in rows if r["status"] == "probed"
+                  and r["covered"] == r["positives"]
+                  and r["recalled"] == r["covered"])
     print("case-coverage: %d skill(s), %d case(s) (%d negative); %d probed "
-          "under the description on disk; %d error(s), %d warning(s)"
+          "under the description on disk, %d of those on every positive "
+          "case with full recall; %d error(s), %d warning(s)"
           % (len(rows), len(cases), sum(1 for c in cases if not c["expect"]),
-             n_probed, n_err, n_warn))
+             n_probed, n_clean, n_err, n_warn))
     return 1 if n_err else 0
 
 

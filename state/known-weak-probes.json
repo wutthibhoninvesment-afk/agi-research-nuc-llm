@@ -1,0 +1,27 @@
+{
+  "_comment": "Skills whose newest probing report is KNOWN to be a weak measurement -- it covered only a SUBSET of the skill's positive cases (P006), or it covered them and the skill did not fire (P007) -- and whose weakness the program has ADJUDICATED and decided to carry. Read by skills/skill-authoring/scripts/case_coverage.py. An entry silences P006 and P007 for that skill; P008 is this file's own rot check. The reason this is a baseline rather than a hard failure is the reason P004 has one: the fix is a RE-PROBE, which costs live model calls (~$0.05/probe), so a check that can only go green by spending money is a check a round will uninstall. Required fields: `owner` (the track that will pay), `why`, and `report` -- the CONTENT PIN, the exact report basename the acknowledgement was made against (round 373's pattern in state/known-escalated-diffs.json). P008 ERRORS: the skill is not in the corpus; no `owner`; the skill now covers all its positive cases with full recall (an acknowledgement that outlives its debt is a mute button, case_coverage's P005 rule); or the pinned report is no longer the newest one holding a probe of it, which means someone re-probed and did not re-adjudicate. `measured`/`positives` are recorded as a fact-at-the-time so a reader can see whether the number moved; they are NOT asserted, because pinning a live aggregate is round 340's fake-regression trap.",
+  "skills": {
+    "measured-budget-sizing": {
+      "owner": "skills(B)",
+      "why": "0 of 3 across TWO independent draws (round-369-owed-probes 0/3, then round-369-reprobe 0/3 after a description edit). mbs-near was displaced by bounded-not-binary-witness; mbs-mid and mbs-far selected NO skill at all. Round 369 applied round 141's stop-rule after the second draw -- no third edit -- and kept the edit without claiming it validated. This is a KNOWN-BAD description carried deliberately, not an unmeasured one, and P007 must say so rather than let `probed` imply it works.",
+      "report": "round-369-reprobe.json",
+      "measured": "0/3 recall on 3 of 3 positive cases",
+      "positives": 3
+    },
+    "obligation-ledger": {
+      "owner": "skills(B)",
+      "why": "Authored round 369, probed 1/3 in the same round and 0/3 on the re-probe after a description edit -- a move the instrument itself calls `noise?` at this n. Same stop-rule as measured-budget-sizing: no third edit. A skill whose own subject is 'a two-part process rule where only part A leaves an artifact' currently fails to fire on its own trigger cases, which is worth keeping visible.",
+      "report": "round-369-reprobe.json",
+      "measured": "0/3 recall on 3 of 3 positive cases",
+      "positives": 3
+    },
+    "policy-replay-over-history": {
+      "owner": "skills(B)",
+      "why": "3 of 4 with 100% precision (round 369). The single miss, prh-audit, fired NOTHING rather than firing a competitor -- round 369's chose-nothing shape, which it measured across three corpus sizes and showed is not a corpus-size effect. Kept unedited: one case at n=1 is a draw, not a description defect, which is round 357's finding replicated. The right next move is a repeat of prh-audit at n>=4, not a rewrite.",
+      "report": "round-369-owed-probes.json",
+      "measured": "3/4 recall on 4 of 4 positive cases",
+      "positives": 4
+    }
+  },
+  "_round_375_note": "Created by round 375 (skills B), closing the gap round 369 wrote into state/known-unprobed-skills.json's _round_369_note by name. The SIX P006 skills found this round -- fuzz-mutate-kill-loop (1 of 7), measured-exemption (1 of 3), unrun-checker-latency (1 of 3), deleted-vs-never-written / optimization-transparency-differential / pristine-checkout-differential (2 of 3) -- are deliberately NOT entered here. They are newly discovered and nobody has adjudicated them; an entry here means 'decided and carried', and pre-filling it with everything the checker found on its first run is how a baseline becomes the mute button its own rot check exists to prevent. They stay as live WARNINGs owed to the next skills(B) re-probe batch."
+}

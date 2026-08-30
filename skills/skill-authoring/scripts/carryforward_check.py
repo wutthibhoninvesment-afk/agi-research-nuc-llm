@@ -82,10 +82,37 @@ Findings
                 `case_coverage.py`'s P005 — an acknowledgement that outlives
                 its debt is a mute button.
 `K004` (WARN)   an `unscored` entry owed for a full rotation (6 rounds) or
-                more. Never sets the exit code: round 363's rule, that a
-                check which goes FAIL for a debt the program decided to carry
-                gets ignored and then uninstalled. The count rides in the
-                summary line, which is the line the driver logs.
+                more, or a `scored` entry with a `remainder` — predictions
+                the discharge left out. Never sets the exit code: round
+                363's rule, that a check which goes FAIL for a debt the
+                program decided to carry gets ignored and then uninstalled.
+                The count rides in the summary line, which is the line the
+                driver logs.
+
+`remainder` vs `note` (round 375)
+---------------------------------
+`remainder` means OUTSTANDING PREDICTIONS and nothing else, and K004 reads
+its PRESENCE. Two entries used it for narrative instead — rounds 373 and
+374, whose remainders both open with the words "None outstanding" — so the
+check reported two partial discharges that the record itself denies, 2 of
+the 11 warnings in the count the driver logs.
+
+The fix is a second field, `note`, for prose that is not a debt; it is NOT
+a scan for "None outstanding". Round 369 built this ledger precisely
+because a prose classifier got 5 of 13 verdicts wrong in both directions,
+and its conclusion was *stop inferring, make the corpus declare*. A regex
+that decides whether a `remainder` really means debt would re-introduce
+the thing the ledger replaced.
+
+The same reasoning is why there is no check that a `remainder`-free
+discharge actually names every `Pn` in its bank, which is the guard that
+would make `note` safe against misuse. Scoring sections across 50 banks
+use at least four incompatible idioms (`| P1 | … | **HIT** |`,
+`**P1 MISS**`, `P4/P5/P6 hit`, one sentence discharging three banks), and
+a scanner over them would be exactly round 369's 5-of-13 classifier
+wearing a different hat. The honest position: `note` is a DECLARATION, its
+accuracy rests on the round that writes it, and the reviewable artifact is
+that both fields are visible side by side in one file.
 
 Usage:
     python3 carryforward_check.py [--repo-root DIR]
@@ -388,6 +415,13 @@ def findings(root, corpus, banks, ledger, err, latest_round):
             out.append(("K003", LEDGER_FILE, "round %d: missing %s"
                         % (n, ", ".join(missing))))
             continue
+        for field in ("remainder", "note"):
+            if field in e and not str(e[field]).strip():
+                out.append(("K003", LEDGER_FILE,
+                            "round %d: `%s` is present but empty. An empty "
+                            "`remainder` warns for a debt it does not name; "
+                            "delete the field or say what is outstanding."
+                            % (n, field)))
         if n not in banks:
             out.append(("K003", LEDGER_FILE,
                         "round %d: no bank on disk at all — the entry names "
@@ -417,6 +451,10 @@ def findings(root, corpus, banks, ledger, err, latest_round):
             # did. A warning, not an error — the bank was engaged, and this
             # corpus's rule is that a check going FAIL for a debt the program
             # decided to carry gets ignored and then uninstalled.
+            #
+            # `remainder` is OUTSTANDING PREDICTIONS. Narrative that is not
+            # a debt belongs in `note` (round 375); see the module
+            # docstring for why this is a declared field and not a scan.
             if e.get("remainder"):
                 out.append(("K004", LEDGER_FILE,
                             "round %d: partially discharged by round %s — %s"

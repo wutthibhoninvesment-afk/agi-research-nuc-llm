@@ -15,6 +15,7 @@ rather than a sentence in a knowledge file.
 """
 
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -667,6 +668,25 @@ class TestCitationGrammar(unittest.TestCase):
         nums, src = scc.knowledge_items(336, REPO_ROOT)
         self.assertIsNotNone(src)
         self.assertTrue({1, 2, 3}.issubset(nums), nums)
+
+    def test_a_NUMBERED_next_steps_heading_resolves_too(self):
+        """Round 375. `## 10. Next steps` is the heading in 12 of the
+        corpus's knowledge files against 17 bare ones, and the original
+        pattern matched only the bare form -- so a citation of round 374's
+        item 1 was reported STALE while the item was right there. Widening
+        can only turn STALE into resolved, never the reverse."""
+        nums, src = scc.knowledge_items(374, REPO_ROOT)
+        self.assertIsNotNone(src, "`## 10. Next steps` did not resolve")
+        self.assertIn(1, nums, nums)
+
+    def test_the_numbered_form_is_actually_present_in_the_corpus(self):
+        """Guards the test above against passing on a renamed heading."""
+        import glob
+        numbered = [p for p in glob.glob(
+            os.path.join(REPO_ROOT, "knowledge", "round-*.md"))
+            if re.search(r"^#{2,3}\s+\d+\.\s+Next steps\b",
+                         open(p, encoding="utf-8").read(), re.M)]
+        self.assertGreaterEqual(len(numbered), 10, numbered)
 
 
 class TestRound352Regression(unittest.TestCase):

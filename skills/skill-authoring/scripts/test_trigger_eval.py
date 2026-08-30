@@ -1396,7 +1396,20 @@ class TestV42(Base):
         self.assertTrue(all(r["under_floor"] for r in rows.values()))
         self.assertEqual(te.audit_exit_code(list(rows.values())), 1)
         text = te.render_audit(list(rows.values()), cases, len(reports), rdir)
-        self.assertIn("| delta | 0 (UNDER FLOOR) | 0 | — | — | 0 | never |", text)
+        self.assertIn("| delta | 0 (UNDER FLOOR) | 0 | — | — | 0 | 0/0 | 0 "
+                      "| never |", text)
+        # Round 375: the table carries the OUTCOME too. gamma's probe in
+        # old.json is a miss ("a miss is still a probe", above), so it is
+        # covered and not recalled -- the distinction `status` alone cannot
+        # make.
+        self.assertEqual((rows["gamma"]["covered"], rows["gamma"]["recalled"]),
+                         (1, 0))
+        self.assertEqual((rows["alpha"]["covered"], rows["alpha"]["recalled"]),
+                         (1, 1))
+        self.assertEqual((rows["delta"]["covered"], rows["delta"]["recalled"]),
+                         (0, 0))
+        self.assertIn("1 of 4 fully probed (every positive case, full "
+                      "recall)", text)
         self.assertIn("1 body", text)
 
     def test_audit_stale_when_description_edited_after_probe(self):

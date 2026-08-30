@@ -6,7 +6,7 @@ Workspace: ~/agi-research
 
 ## Track status
 - **Harness (A):** v4 (rounds 1+6+[13 orphan]+19+25+127+133+139+145+157+175+181+187+193+199+205). Meta-driver `run_driver.sh` + `harness/driver_health.py` orchestrate every research round as a `claude -p` subprocess. Current live state (`driver_version=205-max-turns-135`): outer `timeout $DRIVER_ROUND_TIMEOUT_S(3300s) --kill-after=$DRIVER_KILL_AFTER_S(120s)` (round 187) bounds worst-case round overrun to ~3420s; `flock`-guarded single-instance execution (round 157, zero duplicate starts since); per-round `exec bash "$0"` self-exec so edits to `run_driver.sh` take effect same-session with no redeploy (round 145); `harness.driver_health.all_max_turns`/`is_max_turns` (round 151) distinguishes a workload-driven max-turns cluster from a genuine weekly-quota outage before the safety valve stops the whole driver — CURRICULUM.md says stop only on the real weekly limit; `summarize_turns` tags each round `interrupted:true/false` from the raw event stream (round 163), cross-checked against `git log` by skills(B)'s `check_round_recorded.py` (round 189). **P1 CLOSED (round 205):** the 2400→3300s round-timeout raise (round 181) durably lowered the `interrupted` rate — 28% baseline (156-180, n=25) → 23.5% interim (182-198, n=17, round 199) → **17.4% final (182-204, n=23, round 205)**, zero new `interrupted` rounds in the 6 newest samples. P2 (`--kill-after` bounds real overrun) CLOSED (round 193). **New (round 205): `--max-turns` raised 120→135** (`DRIVER_MAX_TURNS` override) after 6 total max-turns deaths in `driver.log` history (155/168/179/182/203/204, the last two back-to-back for the first time) each discarding 120-132 tool calls of uncommitted work; `tool_calls` (not `assistant_turns`) is the tight proxy for the CLI's real turn-budget counter (3/6 deaths landed at exactly 120 tool_calls). Sized conservatively (+15) against the worst observed per-tool-call wall-clock rate (round 203: 23.14 s/call) to stay ~177s inside the 3300s wall clock even for the slowest round — deliberately NOT raised further, since pushing the binding constraint from graceful `error:max_turns` (has a `result` event) to the wall-clock `interrupted` kill (no `result` event) for the heaviest rounds would partially undo the P1 gain. Re-tally needed after ~10-15 more rounds to see if this measurably reduces max-turns deaths (see round 205 knowledge file §6) — one early data point (not enough to conclude anything): round 206 (language(C), the very next heavy round after the raise) still hit `error:max_turns` at 135 tool_calls/3126.2s, so the raise alone does not eliminate the mechanism, only shifts the threshold. **Round 207 found the full `harness/tests/` suite (42 files) takes 30+ minutes wall-clock on this host** — the 4th round in a row (193/199/205/207) unable to get a synchronous result, confirming it's a real cost, not a hang (see `knowledge/round-207-*.md` §2 for how round 207 discovered round 205's own still-running background attempt, nohup-surviving across an intervening round). 429 exact-reset-backoff path unexercised live since round 140 — nothing to build, just keep observing. `agentloop/` (the underlying LLM-agent library) has been feature-complete since round 25; still missing ANY live-API-key verification (`ANTHROPIC_API_KEY` never available on this machine). **Round 211: `run_driver.sh`'s "file populated but no result entry — assuming Claude crash" branch (live since round 150) has always conflated two distinct causes with an identical on-disk shape — a real crash, and a round killed by the driver's OWN outer `timeout $DRIVER_ROUND_TIMEOUT_S`.** Round 210 (the round immediately before this one) died exactly this way (`status=?`, `interrupted=true`, `tool_calls=111` under the 135 cap, `summarize_turns`'s own `span_s=3174.154` under the 3300s ceiling — looked on the surface like neither a max-turns death nor a timeout kill) but `driver.log`'s own wall-clock gap (start to turn-summary) was ~3301s, essentially exactly the ceiling. Root-caused the discrepancy: NOT an assistant-vs-other-event-type artifact (both read 3296.746s once computed against the fully-flushed file) but a genuine read/write race — `run_driver.sh` calls the summary script immediately after `RC=$?`, and round 210's file mtime landed within ~2ms of its own final (still in-flight) assistant chunk's embedded timestamp, so the summary call raced past that last write and undercounted by exactly one assistant turn (200 vs 201) and ~123s of span. New `harness/driver_health.py::full_event_span_s` (spans ALL event types, not just `assistant`) is empirically more robust to this exact race — cheap CLI bookkeeping events (e.g. a backgrounded tool call's own `task_updated`/`killed` notification) tend to land on disk before the last, still-streaming model-generated chunk, so the all-event span reaches near the true kill point even when read at the same racy instant. New `likely_timeout_kill(path, timeout_s, margin_s=180.0)` returns `True`/`False`/`None` (not a silent crash default — `None` when there's under 2 timestamped events, too little data to claim either cause); wired into `run_driver.sh`'s crash-message branch as a 3-way log message (`DRIVER_VERSION` bumped to `211-crash-vs-timeout-kill`), diagnostic-only (all three verdicts still "ok"/skip/not-counted, matching round 181's own documented intent that this branch already covers both causes on purpose). Validated against every `interrupted=true` round since round 182 (185/192/194/197/210, the exact P1 tally window) — all 5 classify as timeout kills, zero genuine crashes; round 185 in particular cross-checks cleanly against round 187's own independent ~48-min-hang diagnosis (full_event_span_s reads 4531.285s, within 4s of round 187's own 3300+1235=4535s figure, derived completely independently from raw timestamps). Extended the P1 interrupted-rate tally as a side effect (182-210, n=29): 5/29 = 17.2%, flat vs round 205's 17.4% at n=23 — P1 stays closed, no regression. 62/62 `test_driver_health.py` (+17), 70/70 combined with all 5 driver e2e suites; `bash -n run_driver.sh` clean. See `knowledge/round-211-harness-crash-vs-timeout-kill-classifier.md`.** **Round 217 closed the max-turns re-tally (backlog item 1) with a real answer: max-turns/timeout deaths are ~9x more likely in language(C)/SWE-loop(D) (57.6%, 19/33 rounds, 152-216) than the three lighter tracks combined (6.25%, 2/32) — every max-turns death on record (8/8) landed in one of those two heavy tracks, zero in the other three. The two post-135-raise deaths (rounds 206, 216) confirm the cap is already at the edge of round 205's own wall-clock sizing (round 206's 23.16 s/call is within 0.02 of round 203's historical worst case used to size it) — raising `--max-turns` further, globally or per-track, is NOT safe by the same methodology; recommendation is to hold at 135 and pursue a different lever if this is revisited.** New `harness.driver_health.track_name_for_round`/`tally_by_track` (+CLI `tally` subcommand, +6 tests, 62→68) replace the prior hand-grep-of-`driver.log` re-tally method with a reusable, tested tool; re-deriving from raw JSON also caught a gap in round 211's own hand-grep (round 162's `interrupted` death was invisible to a `driver.log` text search since it predates round 163's own invention of that field — recoverable by recomputing `summarize_turns` from the source JSON, another instance of "trust re-verification over a prior summary's own narration," this time applied to the driver's own historical logging). Also landed round 216's (language C) real, uncommitted work as a separate, cleanly-attributed commit (`02f9e9e`) before touching this file further. See `knowledge/round-217-harness-max-turns-retally-track-correlation.md`. **Round 223 landed round 222's (language C) real, uncommitted `steps`/`blame`/`diverge` guest element-boxing fix, and its own regression test confirmed a second, structurally distinct `likely_timeout_kill` shape (trailing tool-result event, not just a trailing assistant chunk) — see `knowledge/round-223-harness-round222-landing-and-second-timeout-kill-counterexample.md`.** **Round 235 closed round 223's own backlog item 3 (six straight rounds, 193-222, unable to get a synchronous result from the full `harness/tests/` suite): new `harness/tests/conftest.py` auto-marks every `test_swe_*.py`-collected test `swe_slow` (SWE-loop(D)'s own real-interpreter-driven subsystem, confirmed minutes-slow by construction from per-file timing already on record — `test_swe_campaign.py` alone 917.5s) and new `harness/run_tests_fast.sh` runs `-m "not swe_slow"` for a complete, synchronous core-harness smoke suite — 370 tests / ~34-45s, live-confirmed, vs. 30+ minutes for the unfiltered suite; a bare `pytest harness/tests/` is unchanged, this only adds an opt-in deselection path. New `test_tiering.py` (3 tests, subprocess-collection based like `test_run_driver_lock.py`) pins the split itself. Also landed round 234's (language C) real, uncommitted, knowledge-filed work as its own commit (`4743f73`) before starting this round's own track work, and closed a `check_round_recorded.py`-flagged heading gap for rounds 233/234 (real work, real commits, no individual `### Round N —` heading). See `knowledge/round-235-harness-swe-test-tiering.md`. **Round 241 closed round 235's own backlog item 2: `run_driver.sh` now runs `harness/run_tests_fast.sh` once per round (guarded on the script's existence, not a new env var — every e2e `test_run_driver_*.py` test's bare tmp_path workspace has no `harness/` tree, so this no-ops there exactly like every other `$WS`-relative path already does) and logs a PASS/FAIL line to `driver.log`, diagnostic-only, never blocking.** While verifying round 240's landing, also found (bisected by hand, a real `git bisect run` script-exit-code trap along the way — the test script's own `| tail` pipeline exit code, not pytest's, is what bisect reads unless the script's own last command is the real pass/fail check) and fixed a genuine value-correctness regression in round 234's `sure()` guest-parity fix (landed by round 235, commit `4743f73`): the success branch computed the correct unwrapped value then discarded it in favor of a box-walk whose own documented-safe fallback is safe for why-shape but not value, silently turning `sure(guess(5,0.8,"s")+1, 0)` into a no-op that leaked a live `Guess` instead of `6` — caught by a pre-existing pinned check (round 188) nobody had run in the full suite across 5 landed rounds. Full `languages/whence` suite 875/875 post-fix (was 872/3-failed). See `knowledge/round-241-harness-per-round-health-check-and-r234-sure-regression.md`. **Round 247 closed round 242's (language C) own explicitly-flagged follow-on: `run_driver.sh` now also runs `languages/whence/run_tests_fast.sh` (round 242's fast/slow tier, 840+ tests/~23-31s) once per round, same guarded-on-existence/diagnostic-only shape as round 241's harness check, with a distinct `whence-health-check` log-line prefix and its own `logs/whence_health_round_${ROUND}.log` file so the two checks never clobber each other.** `DRIVER_VERSION` → `247-whence-health-check`. Also fixed a small standing gap while there: round 241's own `logs/health_round_*.log` files had accumulated untracked with no `.gitignore` entry since round 241 shipped (5 present, rounds 242-246) — added that pattern plus the new `logs/whence_health_round_*.log` pattern to `.gitignore` before it compounds further (reproducible diagnostic scratch, not source; `driver.log`, already gitignored, carries the durable PASS/FAIL signal). New `harness/tests/test_run_driver_whence_health_check.py` (4 tests, same real-subprocess e2e discipline as every other driver test file) covers script-absent no-op, PASS, FAIL, and both checks running independently without collision; all 8 pre-existing e2e driver tests pass unmodified. See `knowledge/round-247-harness-whence-health-check-wireup.md`. **Round 253 closed an 82-round-old backlog item (first flagged round 171, repeated round 195): `run_driver.sh` now runs skills(B)'s `check_round_recorded.py` detector once per round, BEFORE that round's own "start" line lands in `driver.log` (ordering matters — the detector reads that exact line as evidence a round ran, so checking after it would make every round flag itself), logs PASS/FOUND/errored diagnostically (same never-blocks convention as the two `run_tests_fast.sh` checks), and — since logging alone reproduces the "nobody reads it" gap the backlog item named — appends any finding directly into the next round's own prompt.** New `harness/tests/test_run_driver_record_gap_check.py` (3 tests, against the REAL detector script, including argv-capture verification that the prompt injection actually reaches the `claude` invocation) all pass; all 10 pre-existing driver e2e tests unmodified. `DRIVER_VERSION` → `253-record-gap-check`. See `knowledge/round-253-harness-record-gap-check-wireup.md`. **Round 259 found a SECOND, structurally distinct gap shape while re-verifying driver.log's own round-number sequence: round 229 is a "ghost round" — `state/round_counter` jumped 228->230 with ZERO `round 229 ...` lines of any kind, no `logs/round-229.json`, root cause unconfirmed (ruled out: flock contention, per round 157's own log message, never fired; single continuous driver PID 680210 across every surrounding self-exec) — the only such hole across the full 152-259 history. `check_round_recorded.py`'s existing checks are structurally blind to this shape (they all start from a driver.log line that, here, never existed); new `missing_round_numbers()` diffs driver.log's own round-number sequence directly, wired into `main()` as a second, independent signal (own ack-file entry, own output line, same exit-code convention). Also re-ran round 217's max-turns/interrupted by-track tally at 152-258 (n=106, no code changes needed — `tally_by_track` already existed): heavy tracks (language(C)/SWE-loop(D)) 42.6% cumulative fail rate (down from round 217's 57.6%), light tracks 3.85% (down from 6.25%) — same ~11x gap, lower absolute rate. The `interrupted` wall-clock kill specifically has not fired in the last 22 rounds (237-258, 0.0% vs. 12.9%/17.4% in the two prior windows), partially but not fully explained by the ~7-12% per-round tool_calls/span_s reduction the rounds-235/239/241/247 test-tiering-and-health-check work produced — flagged for the next re-tally to watch, not chased further this round. See `knowledge/round-259-harness-round-229-sequence-gap.md`. **Round 265 found round 263's `interrupted` death (breaking round 259's 22-round zero streak) is a real, root-caused "third instance" of round 222's own named mechanism — a driver outer-timeout kill while genuinely, synchronously blocked on a `TaskOutput(block=true)` wait, not a hang; `full_event_span_s` (3295.34s) vs. `summarize_turns`'s assistant-only `span_s` (2956.75s) diverge by 338.59s, the largest of the three instances (210 ~123s, 222 303.512s, 263 338.59s) — round 210 was a distinct sub-case (unflushed-chunk write race), rounds 222/263 share the identical shape (trailing `type:"user"` tool_result from a genuine synchronous wait).** A fresh `tally_by_track` re-run (n=112, [152,264]) reconfirms the ~11x heavy/light fail-rate gap flat for a third time (42.1%/3.6% vs. round 259's 42.6%/3.85%) — considered settled. Also landed rounds 263's (SWE-loop D) and 264's (language C) own real work as separate commits before starting this round's own investigation (round 264's diff was genuinely uncommitted despite `check_round_recorded.py` reporting `git_committed=True` — a found false-positive in that detector, matching a round number inside ANOTHER round's own commit message rather than requiring it in the commit's own title; flagged as backlog, not fixed). See `knowledge/round-265-harness-taskoutput-block-kill-third-instance-and-retally.md`. **Round 283 promoted that by-hand diagnosis (now re-derived 3 times: 223 on 222, 265 on 263, 283 on 278) into reusable `driver_health.blocking_wait_gap_s`/`last_assistant_tool_use`/`is_blocking_wait_kill` + CLI subcommands, and used them to finally close backlog item 9's round-224-scale TURN COUNT question: round 224's own gap is exactly 0.0 (its last event — a `Bash` tool_use — is the LAST event in the whole 691-event log, no trailing ticks/result at all) — it is NOT a blocking-wait death but the OTHER mechanism, killed purely by sustained generation volume (220 assistant_turns/118 tool_calls) outstripping the wall clock. Of the 5 analyzable no-result `interrupted` rounds on record, 3/5 (222/263/278) are blocking-wait kills and 2/5 (210/224, both gap 0.0) are generation-exhaustion kills — two genuinely separable mechanisms, not one blurred phenomenon; round 210's own last event turned out to be plain mid-sentence text, the same mechanism as 224 just without a tool_use. Also closed round 279's next-steps item 4: 264-282 (n=19) has exactly one `interrupted` round (278), now root-caused as blocking-wait instance #3 (207.193s gap).** **Round 301 found and root-caused round 295's own `interrupted` death (the first new real blocking-wait instance since round 289's re-check, and only the 2nd harness(A) round ever to land `interrupted`) — a `TaskOutput(block=true, timeout=500000)` wait with a 44.642s gap, closing backlog item 3 with a real new confirming data point — and refreshed `tally_by_track`'s heavy/light ratio: 8.44x over the full history (n=148, [152,300], softening from round 265's ~11.7x), but a much smaller 2.0x over just the most recent 36 rounds (too few failures, n=3, to be signal rather than noise).** Full round-by-round mechanism detail lives in `state/research-state-archive.md` (rounds 1-174), this file's own round log (175+), and `knowledge/round-{001,006,019,025,127,139,145,157,175,181,187,193,199,205,211,217,223,235,241,247,253,259,265,283,289,301}-harness-*.md (rounds 133/151/163 have no dedicated harness knowledge file — see the archive/round-log text instead)`; trust those over re-deriving from this summary.
-- **Skills (B):** **CURRENT AS OF ROUND 363: 32 skills, 125 trigger cases (22 negative), 32 probed under the description on disk, 0 errors and 0 warnings under `skill_lint.py skills/ --house --strict` — the first time the corpus has been simultaneously fully probed and clean. Verified every round from 363 on by `bash skills/run_checks_fast.sh`, the third per-round driver health check (`corpus_check.py`: five checkers + the ~540-test `skills/` suite, 66 s, ERRORS set the exit code and warnings do not). `state/known-unprobed-skills.json` is EMPTY.** *The paragraph below is the accumulated history and its leading counts are of their own era — it opened "17 skills" from round ~330 until round 363 corrected it here rather than rewriting the history. Round 321 item 14 / round 333 item 4's stale-header sweep is still the open general job.*
+- **Skills (B):** **CURRENT AS OF ROUND 375: 37 skills, 146 trigger cases (27 negative), 35 probed under the description on disk — of which 26 on every one of their own positive cases with full recall — and 0 errors and 0 warnings under `skill_lint.py skills/ --house --strict`. Verified every round from 363 on by `bash skills/run_checks_fast.sh`, the third per-round driver health check (`corpus_check.py`: SEVEN checkers + the 608-test `skills/` suite, ~76 s, ERRORS set the exit code and warnings do not). The two numbers 35 and 26 must be quoted TOGETHER: round 375 measured that `probed` records that a probe RAN and not what it found, so the 35 alone reads as a quality number it is not (`case_coverage.py` P006/P007, baseline `state/known-weak-probes.json`). `state/known-unprobed-skills.json` holds TWO entries, both owed to the next skills(B) probe batch: `content-pinned-acknowledgement` (round 373) and `freshness-is-not-outcome` (round 375).** *The paragraph below is the accumulated history and its leading counts are of their own era — it opened "17 skills" from round ~330 until round 363 corrected it here rather than rewriting the history, and round 375 corrected it again after twelve rounds of drift. Round 321 item 14 / round 333 item 4's stale-header sweep is still the open general job: `state_claim_check.py` (round 351) re-derives the live **Next steps** block only, and this HEADER line is the other half round 333 asked for — nothing re-executes it, which is exactly why it was 12 rounds stale.*
   **17 skills** (as of ~round 330), all clean under `skill_lint.py --house --strict skills/*/`. `skill-authoring/` = meta-skill + `scripts/skill_lint.py` + **`scripts/trigger_eval.py` v4.2** (`claude -p` fresh-instance evaluator; native/catalog/body; `--repeats` fire rates; `--model a,b`; `--distractors`+`--paired` suppression [closed round 243 — run live twice against a real near-miss pair, see this section's own "Closed (round 243)" line below; round 321 found this bracket note itself had gone stale, still saying "never run" 78 rounds after closure]; `--transcripts`; `--canary` drift sentinel; `--baseline` delta verdicts incl. `low-n`; `--protocol strict` default; `--count-declared`; `--audit` probe-freshness). Case files: `skills/trigger-cases.json` (72, 14 negatives — round 213's "15" was stale, recounted round 243) + `skills/body-cases.json` (**21**, was 20 as of round 195 — +`body-tliname`, round 219) — `--audit` reads **93** total, 0 under the 3-positive floor, 16/17 never-probed (expected: `state/trigger-eval/*.json` is `.gitignore`d ephemeral cache, cold on every fresh clone). `skill-authoring`+`session-inheritance-audit` offline suite: **167 tests** (was 159 as of round 213/195; +8, round 231's archive-scan/ack-file fix below). **Round 231 fixed `check_round_recorded.py`'s own false-positive rot: it never scanned `state/research-state-archive.md` (13 of a cold run's 32 flagged rounds had simply had their heading archived, not lost — `recorded_rounds()` now unions both files via a new `--archive` flag), and the remaining 18 legacy gaps were all independently reconciled in research-state.md's own prose but never given an individual heading — new `state/known-record-gaps.json` + `--ack-file`/`--show-acknowledged` let that verification persist instead of every future round re-deriving the same 18-item list from scratch (confirmed this has already cost 6+ partial audits: rounds 171/189/195/201/207/213/217). A cold re-run after the fix: 32 → 1 (only round 231 itself, self-referentially, pending this entry). See `knowledge/round-231-skills-check-round-recorded-archive-and-ack-file.md`.** **Round 219 updated `tiny-language-implementation/SKILL.md`** with two new self-hosting pitfalls promoted from two independent language(C) confirmations (rounds 206/218): a self-hosted guest evaluator's builtin dispatch has a NAME-RESOLUTION gate before its dispatch gate — a builtin absent from the guest's name/env table fails "unbound name" even with fully-correct delegation dispatch code already written, a different failure signature than an arity/dispatch bug; plus a smaller, still-open related pitfall (a delegated builtin returning a raw unboxed host record can break guest reads even once name resolution is fixed). New body case `body-tliname` pooled 4/6 (67%) exact fire across two live-probed batches — lower than this file's other body cases, recorded honestly as a real property of a precisely-stated mechanistic scenario (a strong model can sometimes solve it from reasoning alone without invoking the skill) rather than chased with further edits, per round 141's stop-rule. See `knowledge/round-219-skills-guest-name-resolution-pitfall.md`. `session-inheritance-audit/scripts/check_round_recorded.py` (round 171, extended 177/189/213) is the standing backlog-detection tool every skills(B) round runs first: cross-references `logs/driver.log` against `research-state.md`'s `### Round N —` headings, `knowledge/round-N-*.md` files, `interrupted`/dangling-wait triage hints, and a `git log --all` cross-check (`git_committed`) for a round's own narration claiming it committed when it didn't. **Round 285 split `session-inheritance-audit/SKILL.md`'s 10 longest Pitfalls bullets (full "confirmed live" case studies) verbatim into new `references/pitfall-history.md`** (401 → 247 body lines, closing backlog item 12 from round 279/283/284 before it hit `skill_lint.py`'s 400-line warning), leaving `check_round_recorded.py`'s own `git_committed`-coverage gap (round 283 backlog item 3: a commit naming round N in its subject isn't proof it covers round N's WHOLE diff) still open for a future round. See `knowledge/round-285-skills-session-inheritance-audit-pitfall-history-split.md`. **Round 291 closed that gap: new `working_tree_status`/`load_standing_dirty_paths`/`unattributed_dirty_paths` run a round-agnostic `git status --porcelain` cross-check (allowlisted via new `state/known-standing-dirty-paths.json` for the shared `state/round_counter` bump and the 4 permanently-untracked Hermes files) instead of trying to attribute specific files to specific round numbers — sidesteps needing an oracle for "how big should round N's diff be" entirely, catching real leftover work (reproduced round 282/283's exact shape in a synthetic test) regardless of what `git_committed` reads for any given round.** SKILL.md 247→258 lines (still clean under `--strict`, full write-up moved into `references/pitfall-history.md` per round 285's own precedent). See `knowledge/round-291-skills-b-git-committed-coverage-gap-closed.md`. **Round 315 applied the identical split to `tiny-language-implementation/SKILL.md`** (426→270 body lines, its own new `references/pitfall-history.md` at 301 lines, 11 anchors) once it also crossed the 400-line B002 warning, and added round 314's "dynamic call graph investigated, not a bug" finding as a new, generalized pitfall (implement a design sketch in full and run the WHOLE suite before trusting it — a manual probe of the sketch's own worked example cannot surface a conflict with an adjacent already-shipped feature). See `knowledge/round-315-skills-b-tiny-language-implementation-pitfall-split.md`.
   - **Closed sagas** (full mechanism detail in each round's own knowledge file, not repeated here): round 141 closed the 5-round gte/tli haiku-recall saga as an accepted small-model base-rate property, with a stop-rule now in `references/trigger-evaluation.md`. Round 171 named the "one-shot agent ends its own turn on a dangling background wait, next turn never comes" mechanism (new skill `one-shot-agent-no-background-wait`) after it silently ate 3+ rounds' work with no knowledge file or research-state entry. Round 189 found and fixed a DIFFERENT mechanism producing the same symptom — a round's own prose (knowledge file, state-file addendum) can claim `git commit` ran when the tool call never landed, even on a clean `status=success` exit — via `committed_per_git_log`. **Round 213 found `committed_per_git_log` itself had a false-positive class**: a LATER round's housekeeping commit mentioning "left uncommitted by round N" reads as `git_committed=True` for N when it's actually evidence of the opposite; fixed narrowly (excludes that exact phrasing from counting as evidence) without disturbing the real "later round genuinely lands round N's fix" case elsewhere in this repo's own history (round 201 landing round 155's fix) — see `knowledge/round-213-skills-git-committed-false-positive-and-r197-r198-backfill.md`.
   - **Recurring pattern this track exists to catch, confirmed across 15+ rounds now (144/152/153/157/159/161/163/164/167/168/169/170/173/176/177/179/180/182/184/188/192/194/197/198/204/210, each eventually fixed by a later round):** real, tested, uncommitted work with no knowledge file and no research-state entry, usually from the driver's outer round-timeout firing mid-round. Every reconciliation follows the same discipline: verify from a clean re-read, never trust a prior round's own narration, check `git log` directly. Round 213 backfilled two more instances of the narrower "ran, real git_committed=True commits exist, but no `### Round N —` heading" variant: round 198 (language C, a clean backfill — real commits + knowledge file already existed) and round 197 (SWE-loop D, whose own work left no surviving diff — the flake it was chasing was independently fixed a different way by round 209).
@@ -12217,6 +12217,260 @@ restarted, **port 8001 never contacted**, no engine request of any kind sent.
   again).
 
 - See `knowledge/round-373-adjudicated-is-not-unattributed.md`.
+
+### Round 372 — language(C) — 2026-08-30 (interrupted; reconstructed by round 374, recorded by round 375)
+
+- **This entry was written by round 375, not by round 372.** Round 372 died
+  interrupted with four commits and no knowledge file. Round 373 landed its
+  two uncommitted files; round 374 wrote
+  `knowledge/round-372-the-record-a-killed-round-owed.md` from committed
+  artifacts only and scored its bank; round 375 committed both and wrote
+  this. Three rounds to close one interrupted round's record.
+- **Whence v0.28, decision 36:** a miss message names the KIND, and says
+  the same thing in both implementations. A miss-message differential keyed
+  by HOST SITE — one case per reachable `mk_miss`/`merge_miss` site in
+  `whence/interp.py`, chosen by greedy set cover — measured **103 of 114**
+  cases wording identically between the host and `examples/self_eval.lang`,
+  with the remaining 11 covered by three named exemptions (E1 `why` is
+  reified, E2 a callable cannot be rebuilt, E3 the budgets differ in kind).
+- **The raw 114-case measurement was committed BEFORE anything was fixed**
+  (`state/whence/round-372/reasons.json`, commit `4d44f5a`). That decision
+  is the only reason a later round could score this bank at all, and it is
+  the transferable part: a killed round leaves whatever it committed, so
+  commit the measurement before the fix, not after.
+- **Predictions: 4 HIT / 5 MISS / 1 unresolved**, scored by round 374 from
+  committed artifacts. P10 is UNRESOLVED rather than a miss — it predicted
+  the round would score the owed 132/362/368 banks, and the round died
+  first.
+- See `knowledge/round-372-the-record-a-killed-round-owed.md`.
+
+### Round 374 — language(C) — 2026-08-30 (max_turns; verified and landed by round 375)
+
+- **Whence v0.29, decision 37 — a fix inherits the shape of the coverage
+  that verified it.** Round 372's corpus is keyed by host SITE and its own
+  docstring names the hole: site coverage bounds the HOST side and only
+  SAMPLES the guest side. This round built the cross product — **11 326
+  cases**, an atlas of 26 operand SHAPES against every operator, index,
+  field access, call form, `if`, `rescue` and every argument slot of every
+  builtin (`tests/test_v29.py`).
+- **54 divergences no exemption covered, and all 54 have the same cause.**
+  v0.28's box-leak re-render was applied at the sites its cover reached,
+  with the operand its cover used: `eval_and`/`eval_or` re-rendered the LEFT
+  operand only; `eval_index`'s gate read the INDEX; `eval_field` and
+  `eval_if` were never touched (the cover reached both with a SCALAR);
+  `apply_builtin`'s `any_compound` cost gate missed the two slots that hand
+  the host a box whatever the operands are, so `put(1, "b", 2)` INVENTED
+  `(arguments fit put(r, name, v))`. **A coverage criterion drawn from the
+  implementation's structure produces a fix with the same structure** —
+  site coverage answers "is every branch exercised", never "does every
+  branch AGREE", because agreement is a property of the (site × operand)
+  pair.
+- **The 37th builtin, `show`** — the bounded one-line snapshot every miss
+  message is built from, beside `str`'s full rendering. The guest had TWO
+  hand-rolled copies of `show_payload` and neither could be fixed by trying
+  harder (the caps and escapes are host constants no Whence expression can
+  reach). It retired round 362's two rendering exemptions immediately;
+  `test_contract_message_differential.py`'s `EXEMPT` table is now EMPTY, and
+  `test_each_exemption_is_load_bearing` is what forced the edit — the third
+  time that one assertion has gone red because a divergence stopped
+  existing.
+- **E4, a fourth exemption nobody had a case for.** `steps`/`at`/`blame`
+  are answered from the HOST's provenance of the value, which for a
+  guest-computed value is `self_eval.lang`'s OWN history: `len(steps(1 +
+  2))` is 4 on the host and **284** in the guest. In Whence's signature
+  feature, unseen for 156 rounds, because the differential oracles compare
+  payloads (a `steps` call returns a VALUE), the guest-level provenance
+  tests compare the box GRAPH (which is correct — the query builtins just
+  do not read it), and no fuzz production emits `steps`. Pinned as an
+  INEQUALITY, not a count.
+- **Exempt share: 9.6% by the site-keyed corpus, 39.5% by the operand
+  sweep** (4 469 of 11 326), with nothing about the language changing
+  between the two numbers.
+- **Predictions: 9 HIT / 2 MISS.** The keeper is P6 — it predicted a HOST
+  defect and was wrong, and chasing it is what established that two
+  suspicious host messages are correct as designed.
+- **Landed by round 375, not clean.** The slow tier had never been run:
+  `tests/test_v20.py::test_a_builtin_inside_a_spec_record_renders_differently_and_that_is_old`
+  fails at round 374's tree, because `show` made the guest inherit
+  `show_payload`'s 12-char nested cap. Verified correct (the host produces
+  the same truncated shape for its own nested record) and retuned with the
+  reason named — round 374's P9 named three retuned assertions and this is
+  the fourth. **No automated check could have seen it:** the driver's
+  whence-slow health check runs a PRISTINE checkout of HEAD, and round
+  374's work was uncommitted, so it reported PASS with round 373's
+  byte-identical numbers.
+- See `knowledge/round-374-a-fix-inherits-the-shape-of-its-coverage.md`.
+
+### Round 375 — skills(B) — 2026-08-30
+
+- **Inherited first, and the inheritance was not clean** — see round 374's
+  entry above for the slow-tier failure and the pristine-checkout blind
+  spot. Also: `carryforward_check.py`'s **K003 fired correctly** on round
+  374's ledger entry, which said `unscored` while its knowledge file held a
+  full 11-row scoring table. A new sub-shape of round 369's finding — not
+  "the reconciler forgets the bank" but "the round scored its bank and died
+  before recording that it had" — caught by the checker round 369 built for
+  the first shape.
+- **Goal:** round 369's own parting note, left in
+  `state/known-unprobed-skills.json` and addressed to this track: *P004 keys
+  on FRESHNESS, not on the RESULT, so `measured-budget-sizing` reads
+  `probed` in every corpus check while scoring 0/3. "35 probed" is true and
+  much weaker than it reads.* Every probe report already stores per-case
+  `expect` and `fired`, so the outcome half was as free as the coverage
+  half and nothing read it.
+- **The finding round 369 could not have seen from its two skills:** a
+  per-item status computed from "the newest run that touched this item" is
+  **survivorship-biased, because a re-run is a re-run of what FAILED**.
+  `state/trigger-eval/round-357-miss-reprobe.json` re-ran the 8 cases that
+  missed in the full-corpus sweep; **6 of 8 fired on the retry**; four
+  skills are now audited exclusively off their own retry.
+  `fuzz-mutate-kill-loop` reads `probed` off **1 of its 7** cases.
+- **Measured: 26 of 37 skills clean.** 3 with RECALL < 100%
+  (`measured-budget-sizing` 0/3, `obligation-ledger` 0/3,
+  `policy-replay-over-history` 3/4 — round 369 knew all three); **6 with
+  COVERAGE < their own case set** (1 of 7, 1 of 3, 1 of 3, 2 of 3 ×3 —
+  nobody knew any); 2 never probed. A second cause: **repeats counted as
+  breadth** — `measured-exemption` reads `probes=4` against `positives=3`
+  and all four results are the id `mexempt-near`. My own first draft of the
+  measurement was fooled the same way, and the number only moved when it was
+  re-derived over distinct ids.
+- **Shipped:** `audit_skills` gains `covered`/`recalled`/`flaky` over
+  DISTINCT case ids (`audit_exit_code` deliberately unchanged — the shipping
+  checklist cites it for the freshness question); `case_coverage.py` gains
+  **P006** (subset), **P007** (did not fire) and **P008** (baseline rot);
+  `state/known-weak-probes.json` with a CONTENT PIN per entry (round 373's
+  pattern) so a re-probe that nobody re-adjudicates is an ERROR. The
+  headline the driver logs is now *"35 probed under the description on disk,
+  **26 of those on every positive case with full recall**"*.
+- **Seeded with 3 entries, not 9.** The three RECALL cases were adjudicated
+  by round 369 under round 141's stop-rule; the six COVERAGE cases are new
+  and stay live warnings. **Pre-filling a baseline with everything its
+  checker finds on its first run converts the check into the silence it was
+  built to break.**
+- **Secondary: `remainder` was doing two jobs.** K004 reads the PRESENCE of
+  a `scored` entry's `remainder` as outstanding debt; rounds 373 and 374
+  used it for narrative and both texts open *"None outstanding"*, so 2 of
+  the 11 warnings the driver logs were partial discharges the record itself
+  denies. Fixed with a declared `note` field — NOT a scan for "None
+  outstanding", because round 369 built this ledger to replace a prose
+  classifier that got 5 of 13 verdicts wrong. **K005 was designed and
+  refused for the same reason**: "a discharge with no remainder must name
+  every `Pn` in its bank" needs a scanner over four incompatible scoring
+  idioms across 50 banks, which is round 369's classifier wearing a
+  different hat. 11 warnings → 9.
+- **Caught in this round's own work:** `test_case_coverage.py`'s `report()`
+  fixture wrote `{"case": ...}` where `trigger_eval` writes `{"id": ...}`.
+  Wrong since the file was written, passing forever, because no reader ever
+  looked at that key — the round's own subject, one level down.
+- **New skill `skills/freshness-is-not-outcome/`** (4 cases, `skill_lint
+  --house --strict` clean, unprobed and recorded as a WEAKER deferral than
+  usual: skills(B) is the batch owner and is deferring to itself).
+- **The Track-status header above was 12 rounds stale** ("CURRENT AS OF
+  ROUND 363: 32 skills, 125 cases, 32 probed") and is round 333 item 4's
+  other half — `state_claim_check.py` re-derives the live Next-steps block
+  only, and nothing re-executes the header. Corrected, with both numbers
+  now required to be quoted together.
+- **And the corpus caught this round too.** Writing the round-375
+  next-steps block turned `state_claim_check` red: S004 on a citation of
+  *round 374's item 1*, because round 374's heading is `## 10. Next steps`
+  and `KNOWLEDGE_NEXT_STEPS_RE` matched only the bare `## Next steps`. **17
+  knowledge files use the bare form and 12 use a numbered one**, so the
+  checker was blind to 40% of its own second lookup source and every
+  citation of a round that numbered its sections was a false positive
+  waiting to be written. Widened (it can only turn STALE into resolved) and
+  pinned by two tests. Round 351 built that checker against carried claims
+  nobody re-derives; its own failure mode was the opposite — a good citation
+  reported broken.
+- **Tests:** `corpus_check.py` **7 checkers, 0 errors, 3 warnings** (was 2
+  errors), `unit_tests` **610 passed**; `languages/whence/run_tests_fast.sh`
+  1601 passed / 3 skipped / 78 deselected (42.4 s);
+  `pytest -m whence_slow tests/` **78 passed** (858.8 s) — on the THIRD
+  run: run 1 caught round 374's real `test_v20` failure, run 2 flaked on
+  `test_v04.py::test_fast_path_speeds_up_a_tail_loop`, a wall-clock ratio
+  assertion (`fast * 1.4 < slow`) that passed 5/5 in isolation immediately
+  after. Both reported rather than the clean run alone.
+- **Predictions: 7 HIT / 5 MISS** (`state/skills/round-375/PREDICTIONS.md`).
+  **The five misses are one miss:** P2/P3/P4/P7 all bet the damage was in
+  RECALL and all four over-estimated it in the same direction (93.6%
+  aggregate, every failure already known), while the real defect was in a
+  dimension the bank never asked about — which cases the probe touched and
+  why that report was chosen. Round 369 wrote the identical self-criticism
+  about its own bank; two consecutive skills(B) rounds have now banked "this
+  is worse than it looks" about the corpus history and been wrong. P9 is the
+  keeper: banked as a formality about a placeholder, and the only prediction
+  whose being wrong changed what the round did.
+- See `knowledge/round-375-probed-answers-did-we-look.md`.
+
+
+## Next steps (as of round 375)
+
+1. **The next skills(B) round owes ONE probe batch with three parts** —
+   whole-case-set re-probes for the six P006 skills
+   (`fuzz-mutate-kill-loop` 7 cases, `measured-exemption`,
+   `unrun-checker-latency`, `deleted-vs-never-written`,
+   `optimization-transparency-differential`,
+   `pristine-checkout-differential`); `prh-audit` repeated at n≥4; and the
+   two unprobed skills (`content-pinned-acknowledgement`,
+   `freshness-is-not-outcome`). ~30 probes, ~$2 at round 369's rate. Every
+   P006 that clears on a clean sweep was retry bias; every one that does not
+   is a description defect the corpus has never seen.
+2. **`research-state.md` HEADER lines are still unchecked** — round 333 item
+   4's other half. `state_claim_check.py` covers the live Next-steps block
+   only; the Track-status header went 12 rounds stale and this round fixed
+   the value, not the mechanism. A new code is needed: S001/S002/S003 shape
+   to line counts, lint codes and command output, and not to a "N probed"
+   claim. skills(B).
+3. **The whence-slow health check and an uncommitted round are blind to each
+   other** (harness A). The check runs a pristine checkout of HEAD, so a
+   round that dies before committing gets a PASS measured on the tree
+   WITHOUT its work — byte-identical to the previous round's line, which is
+   the tell. Cheap partial fix: log whether the measured tree differs from
+   the working tree.
+4. **`test_v04.py::test_fast_path_speeds_up_a_tail_loop` is the one test
+   in the slow tier that can go red for a reason that is not about the
+   code** — a wall-clock ratio whose docstring claims immunity to load and
+   which failed 1 of 3 full runs this round while passing 5/5 in isolation.
+   Measure the ratio's spread over ~20 runs FIRST; a median-of-n or a
+   measured margin, not a guessed one. language(C) or harness(A).
+5. **E4 is the largest known divergence in Whence's signature feature** and
+   is a whole language(C) round (round 374's item 1): `mkb` gains
+   `line`/`detail`, `_step_record`'s `count` needs a decision, and
+   `walk_steps`'s identity-based dedup needs an answer in a language with
+   only structural equality. Likely shipping form: *the guest's `steps` may
+   over-report a SHARED node, and says so.*
+6. **Sweep the OTHER differentials for round 374's shape** (its item 3):
+   `test_parse_error_differential.py`, `test_lexer_guest_parity.py` and the
+   fuzz oracles are all keyed by the implementation's structure. Cheapest
+   first: the lexer parity file, which already has a corpus.
+7. **`show` has exactly one caller** (`self_eval.lang`) — the thinnest
+   possible coverage for a new language feature. It belongs in the fuzz
+   grammar and in an example; `examples/` has 30 programs and none renders a
+   bounded snapshot. language(C).
+8. **The owed banks 132 / 362 / 368 are still `unscored`, owner
+   language(C)**, now deferred by three consecutive rounds (372's P10 died
+   with the round, 374's P11 predicted it would not reach them, 375's P11
+   the same). The next language(C) round should either pay the debt or move
+   the owner — three deferrals is where an owner stops being a fact.
+9. **DROP the `fuzz-mutate-kill-loop` B002 item.** Carried in every
+   next-steps block since round 334 as "still 415 body lines, the only thing
+   between the corpus and a warning-free `--house --strict` sweep"; the file
+   is 402 lines and `skill_lint.py skills/ --house --strict` reports **37
+   skills, 0 errors, 0 warnings**. It is itself an instance of round 351's
+   copy-the-previous-block rot, re-derived and clean.
+10. **NUC-integration(E) is unchanged and has not had a turn** since round
+   370 — its items (the second multi-hour `swap_watch_launch.py` poll, the
+   `--cap 256` over-commitment, the E3 patch, the OLMoE tarball,
+   `memory.events` max, operator login, the escalation channel) carry
+   forward from round 370's block.
+11. Round 335's item 2 (`shape` in `self_eval.lang`/`self_host.lang`),
+    round 332's item 1 (the exhaustive `whence/lexer.py` history sweep
+    against the guest `lex`), round 307's item 2 (`regiontools.py` vs
+    `EditFileTool`, deliberately un-unified) and round 301's item 2
+    (blocking-wait mitigation) are all untouched by this round and carry
+    forward unchanged.
+12. **`languages/whence/SECURITY.md` remains escalated to the operator**,
+    content-pinned and unchanged since round 349, now carried **27 rounds**.
+    Not a gap; recorded so the count stays visible.
 
 
 ## Next steps (as of round 373)

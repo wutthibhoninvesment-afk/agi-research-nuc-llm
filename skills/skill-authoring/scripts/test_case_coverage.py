@@ -48,10 +48,11 @@ class Fixture(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
-    def run_check(self, baseline=None, floor=3, reports=()):
+    def run_check(self, baseline=None, floor=3, reports=(), weak=None):
         catalog = trigger_eval.load_catalog([self.skills])
         return case_coverage.check(catalog, self.cases, list(reports),
-                                   baseline or {}, floor)
+                                   baseline or {}, floor,
+                                   weak_baseline=weak or {})
 
     def codes(self, findings):
         return sorted(c for _, c, _, _ in findings)
@@ -133,12 +134,27 @@ class TestP003(Fixture):
         self.assertNotIn("P003", self.codes(findings))
 
 
-def report(names, digests, path):
+def report(names, digests, path, results=None):
+    """A probe report. `names` is the shorthand — one FIRING probe of each
+    named skill on each of its three fixture cases; `results` overrides it
+    with explicit rows.
+
+    The result key is `id`, not `case`: that is what `trigger_eval` writes
+    (see its `res = {"id": case["id"], ...}`) and what round 375's
+    `covered`/`recalled` read. The original of this helper wrote `case`,
+    which no reader ever looked at, so the fixture disagreed with the schema
+    it stood in for and nothing could notice."""
+    if results is None:
+        results = [{"id": "%s%d" % (n[0], i), "expect": [n], "fired": [n]}
+                   for n in names for i in range(3)]
     data = {"mode": "native", "protocol": "strict", "descriptions": digests,
-            "results": [{"case": "x", "expect": [n], "fired": [n]}
-                        for n in names]}
+            "results": results}
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f)
+
+
+def probe(cid, name, fired=True):
+    return {"id": cid, "expect": [name], "fired": [name] if fired else []}
 
 
 class TestP004P005(Fixture):
@@ -204,6 +220,135 @@ class TestP004P005(Fixture):
         self.assertIn("STALE", stale[0][3])
 
 
+class TestP006P007P008(Fixture):
+    """Round 375 — what the probe SAW, not merely that it ran.
+
+    `alpha-thing` and `beta-thing` each have three positive cases a0-a2 /
+    b0-b2 in the Fixture corpus."""
+
+    def setUp(self):
+        super().setUp()
+        self.reports_dir = os.path.join(self.tmp, "reports")
+        os.makedirs(self.reports_dir)
+        self.digests = {n: case_coverage.trigger_eval.description_digest(DESC)
+                        for n in ("alpha-thing", "beta-thing")}
+
+    def write(self, results, name="r.json"):
+        report(None, self.digests, os.path.join(self.reports_dir, name),
+               results=results)
+        return trigger_eval.load_reports(self.reports_dir)
+
+    def find(self, findings, code, subject=None):
+        return [f for f in findings if f[1] == code
+                and (subject is None or f[2] == subject)]
+
+    def test_a_full_firing_sweep_raises_nothing(self):
+        reports = self.write([probe("a%d" % i, "alpha-thing")
+                              for i in range(3)])
+        findings, _ = self.run_check(reports=reports)
+        self.assertEqual(self.find(findings, "P006"), [])
+        self.assertEqual(self.find(findings, "P007"), [])
+
+    def test_a_probe_of_a_SUBSET_of_the_cases_is_P006(self):
+        # The fuzz-mutate-kill-loop shape: `probed` asserted off one case.
+        reports = self.write([probe("a0", "alpha-thing")])
+        findings, _ = self.run_check(reports=reports)
+        p006 = self.find(findings, "P006", "alpha-thing")
+        self.assertEqual([f[0] for f in p006], ["warning"])
+        self.assertIn("1 of its 3 positive case(s)", p006[0][3])
+
+    def test_a_probe_that_did_not_FIRE_is_P007(self):
+        # The measured-budget-sizing shape: probed, fresh, and 0/3.
+        reports = self.write([probe("a%d" % i, "alpha-thing", fired=False)
+                              for i in range(3)])
+        findings, _ = self.run_check(reports=reports)
+        p007 = self.find(findings, "P007", "alpha-thing")
+        self.assertEqual([f[0] for f in p007], ["warning"])
+        self.assertIn("fired it on 0 of the 3 case(s)", p007[0][3])
+
+    def test_the_two_codes_are_independent(self):
+        reports = self.write([probe("a0", "alpha-thing", fired=False)])
+        findings, _ = self.run_check(reports=reports)
+        self.assertEqual(len(self.find(findings, "P006", "alpha-thing")), 1)
+        self.assertEqual(len(self.find(findings, "P007", "alpha-thing")), 1)
+
+    def test_repeats_of_ONE_case_do_not_pass_for_coverage(self):
+        # measured-exemption reads `probes=4` against `positives=3` while
+        # covering ONE distinct case, repeated four times. Counting results
+        # instead of distinct ids is what hid it.
+        reports = self.write([probe("a0", "alpha-thing") for _ in range(4)])
+        findings, rows = self.run_check(reports=reports)
+        row = {r["name"]: r for r in rows}["alpha-thing"]
+        self.assertEqual((row["probes"], row["covered"]), (4, 1))
+        self.assertEqual(len(self.find(findings, "P006", "alpha-thing")), 1)
+
+    def test_a_case_that_fired_on_only_SOME_repeats_is_flaky_and_not_recalled(self):
+        reports = self.write([probe("a0", "alpha-thing"),
+                              probe("a0", "alpha-thing", fired=False),
+                              probe("a1", "alpha-thing"),
+                              probe("a2", "alpha-thing")])
+        findings, rows = self.run_check(reports=reports)
+        row = {r["name"]: r for r in rows}["alpha-thing"]
+        self.assertEqual((row["covered"], row["recalled"], row["flaky"]),
+                         (3, 2, 1))
+        self.assertIn("(1 flaky)",
+                      self.find(findings, "P007", "alpha-thing")[0][3])
+
+    def test_an_unprobed_skill_gets_P004_only(self):
+        # Three warnings for one skill is how a warning list stops being
+        # read; `never`/`STALE` is P004's question, not P006/P007's.
+        findings, _ = self.run_check()
+        self.assertEqual(self.find(findings, "P006", "alpha-thing"), [])
+        self.assertEqual(self.find(findings, "P007", "alpha-thing"), [])
+        self.assertEqual(len(self.find(findings, "P004", "alpha-thing")), 1)
+
+    def test_an_acknowledged_weak_probe_is_silent(self):
+        reports = self.write([probe("a0", "alpha-thing", fired=False)])
+        weak = {"skills": {"alpha-thing": {"owner": "skills(B)",
+                                           "report": "r.json"}}}
+        findings, _ = self.run_check(reports=reports, weak=weak)
+        self.assertEqual(self.find(findings, "P006"), [])
+        self.assertEqual(self.find(findings, "P007"), [])
+        self.assertEqual(self.find(findings, "P008"), [])
+
+    def test_an_acknowledgement_whose_debt_is_paid_is_P008(self):
+        reports = self.write([probe("a%d" % i, "alpha-thing")
+                              for i in range(3)])
+        weak = {"skills": {"alpha-thing": {"owner": "skills(B)",
+                                           "report": "r.json"}}}
+        findings, _ = self.run_check(reports=reports, weak=weak)
+        p008 = self.find(findings, "P008", "alpha-thing")
+        self.assertEqual([f[0] for f in p008], ["error"])
+        self.assertIn("mute button", p008[0][3])
+
+    def test_a_newer_report_expires_the_content_pin(self):
+        # Someone re-probed and did not re-adjudicate. The entry may now be
+        # describing a measurement nobody has looked at.
+        self.write([probe("a0", "alpha-thing", fired=False)], "r-old.json")
+        reports = self.write([probe("a0", "alpha-thing", fired=False),
+                              probe("a1", "alpha-thing", fired=False)],
+                             "r-new.json")
+        weak = {"skills": {"alpha-thing": {"owner": "skills(B)",
+                                           "report": "r-old.json"}}}
+        findings, _ = self.run_check(reports=reports, weak=weak)
+        p008 = self.find(findings, "P008", "alpha-thing")
+        self.assertEqual([f[0] for f in p008], ["error"])
+        self.assertIn("did not re-adjudicate", p008[0][3])
+
+    def test_an_unowned_acknowledgement_is_P008(self):
+        reports = self.write([probe("a0", "alpha-thing", fired=False)])
+        weak = {"skills": {"alpha-thing": {"report": "r.json"}}}
+        findings, _ = self.run_check(reports=reports, weak=weak)
+        self.assertIn("no `owner`",
+                      self.find(findings, "P008", "alpha-thing")[0][3])
+
+    def test_an_acknowledgement_for_a_deleted_skill_is_P008(self):
+        weak = {"skills": {"delta-thing": {"owner": "skills(B)"}}}
+        findings, _ = self.run_check(weak=weak)
+        self.assertIn("not in the corpus",
+                      self.find(findings, "P008", "delta-thing")[0][3])
+
+
 class TestLiveCorpus(unittest.TestCase):
     """The enforcement itself. If this ever fails, a skill entered the
     corpus without cases, or a case outlived its skill."""
@@ -220,6 +365,43 @@ class TestLiveCorpus(unittest.TestCase):
         catalog = trigger_eval.load_catalog([os.path.join(ROOT, "skills")])
         self.assertGreaterEqual(len(catalog), 27)
         self.assertGreaterEqual(len(cases), 105)
+
+    def test_the_outcome_fields_are_bounded_by_the_case_set(self):
+        # Round 375. An invariant, not a pinned count: pinning "N skills
+        # have a weak probe" against a corpus whose reports only grow is
+        # round 340's fake-regression trap, and paying the debt is exactly
+        # what should NOT turn this red.
+        cases = trigger_eval.load_cases(
+            os.path.join(ROOT, "skills", "trigger-cases.json"))
+        catalog = trigger_eval.load_catalog([os.path.join(ROOT, "skills")])
+        reports = trigger_eval.load_reports(
+            os.path.join(ROOT, "state", "trigger-eval"))
+        for r in trigger_eval.audit_skills(catalog, cases, reports):
+            self.assertLessEqual(0, r["recalled"], r["name"])
+            self.assertLessEqual(r["recalled"], r["covered"], r["name"])
+            self.assertLessEqual(r["covered"], r["positives"], r["name"])
+            self.assertLessEqual(r["flaky"], r["covered"], r["name"])
+            if r["status"] == "never":
+                self.assertEqual(r["covered"], 0, r["name"])
+
+    def test_the_weak_probe_baseline_is_well_formed(self):
+        # P008 catches rot in the CONTENT; this catches rot in the SCHEMA,
+        # which P008 can only partly see (a missing `report` disables the
+        # content pin silently).
+        path = os.path.join(ROOT, "state", "known-weak-probes.json")
+        with open(path, encoding="utf-8") as f:
+            weak = json.load(f)
+        catalog = {n for n, _, _ in
+                   trigger_eval.load_catalog([os.path.join(ROOT, "skills")])}
+        reports_dir = os.path.join(ROOT, "state", "trigger-eval")
+        for name, entry in weak.get("skills", {}).items():
+            self.assertIn(name, catalog, name)
+            for field in ("owner", "why", "report"):
+                self.assertTrue(entry.get(field), "%s: %s" % (name, field))
+            self.assertTrue(
+                os.path.exists(os.path.join(reports_dir, entry["report"])),
+                "%s pins a report that is not on disk: %s"
+                % (name, entry["report"]))
 
     def test_every_skill_directory_reaches_the_catalog(self):
         # load_catalog is the corpus definition P001 is measured against; a

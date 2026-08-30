@@ -495,7 +495,15 @@ def check_command(claim, repo_root, timeout):
 # Carry-forward age
 # --------------------------------------------------------------------------
 
-KNOWLEDGE_NEXT_STEPS_RE = re.compile(r"^#{2,3}\s+Next steps\b", re.M)
+# The heading is numbered in 12 of the corpus's knowledge files
+# (`## 10. Next steps`, `## 8. Next steps`, `## 6. Next steps`, ...) and
+# bare in 17. Round 375 found the gap the way this checker is meant to be
+# found: a citation of `round 374's item 1` was reported STALE while the
+# item was right there under `## 10. Next steps`. Widening only ADDS
+# resolvable targets, so it can turn S004 into resolved and never the
+# reverse.
+KNOWLEDGE_NEXT_STEPS_RE = re.compile(r"^#{2,3}\s+(?:\d+\.\s+)?Next steps\b",
+                                     re.M)
 
 
 def knowledge_items(round_no, repo_root):

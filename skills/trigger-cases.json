@@ -943,5 +943,31 @@
   "id": "cpa-neg-fix",
   "expect": [],
   "prompt": "Our linter has been flagging the same unused-import warning in one module for weeks. Can you just delete the unused import?"
+ },
+ {
+  "id": "fino-near",
+  "expect": [
+   "freshness-is-not-outcome"
+  ],
+  "prompt": "Our coverage dashboard says '412 of 418 services checked this week' and leadership reads that as 412 healthy. The checker stores each run's pass/fail per service but the dashboard only shows the last-checked timestamp. Something feels off about the number but I can't articulate what."
+ },
+ {
+  "id": "fino-mid",
+  "expect": [
+   "freshness-is-not-outcome"
+  ],
+  "prompt": "Each package in our monorepo gets a status from the most recent CI run that touched it. But when a run fails we re-run just the failing packages, so a package's status usually comes from its own retry. Is the per-package status telling us what we think it is?"
+ },
+ {
+  "id": "fino-far",
+  "expect": [
+   "freshness-is-not-outcome"
+  ],
+  "prompt": "An audit reports every dataset as 'validated' against the current schema version. I dug in and one dataset's validation touched two of its nine tables, and another was validated four times on the same table. The audit counts validations, not tables. How should I restructure this so the summary line can't be quoted as a quality number?"
+ },
+ {
+  "id": "fino-neg-rerun",
+  "expect": [],
+  "prompt": "Our nightly integration suite has been failing for three days on the same assertion. Can you look at the assertion and tell me whether the expected value is still right?"
  }
 ]

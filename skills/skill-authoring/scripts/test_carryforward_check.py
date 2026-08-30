@@ -218,6 +218,38 @@ class TestFindings(unittest.TestCase):
             "quote": "P1 HIT", "remainder": "P2-P6 never named"}})
         self.assertEqual(codes, ["K004"])
 
+    def test_a_note_is_narrative_and_does_not_read_as_debt(self):
+        # Round 375. Rounds 373 and 374 wrote "None outstanding: ..." into
+        # `remainder`, and K004 -- which reads the field's PRESENCE --
+        # reported two partial discharges the record itself denies.
+        write(os.path.join(self.tmp, "knowledge/round-501-x.md"), "P1 HIT")
+        entry = {"bank": "state/round-500-predictions.md", "status": "scored",
+                 "scored_by": 501, "where": "knowledge/round-501-x.md",
+                 "quote": "P1 HIT",
+                 "note": "None outstanding: P1-P6 are each scored by number."}
+        self.assertEqual(self.run_check({"500": entry}), [])
+
+    def test_a_note_does_not_silence_a_real_remainder(self):
+        # The two fields are independent: `note` is not an override.
+        write(os.path.join(self.tmp, "knowledge/round-501-x.md"), "P1 HIT")
+        entry = {"bank": "state/round-500-predictions.md", "status": "scored",
+                 "scored_by": 501, "where": "knowledge/round-501-x.md",
+                 "quote": "P1 HIT", "note": "context",
+                 "remainder": "P2-P6 never named"}
+        self.assertEqual(self.run_check({"500": entry}), ["K004"])
+
+    def test_an_empty_remainder_or_note_is_rot(self):
+        # An empty `remainder` warns for a debt it does not name -- the
+        # mute button's inverse, a cry-wolf.
+        write(os.path.join(self.tmp, "knowledge/round-501-x.md"), "P1 HIT")
+        base = {"bank": "state/round-500-predictions.md", "status": "scored",
+                "scored_by": 501, "where": "knowledge/round-501-x.md",
+                "quote": "P1 HIT"}
+        for field in ("remainder", "note"):
+            entry = dict(base)
+            entry[field] = "   "
+            self.assertIn("K003", self.run_check({"500": entry}), field)
+
     def test_an_absent_ledger_is_an_error_not_a_silent_pass(self):
         codes = self.run_check()
         self.assertIn("K003", codes)
@@ -236,6 +268,20 @@ class TestLiveCorpus(unittest.TestCase):
         errors = [f for f in found if cf.SEV[f[0]] == "ERROR"]
         self.assertEqual(errors, [], "\n".join("%s %s" % (f[0], f[2])
                                                for f in errors))
+
+    def test_no_live_entry_uses_remainder_for_narrative(self):
+        # Round 375's own finding, pinned as a SHAPE rather than a count: a
+        # `remainder` opening with a denial of debt is the misuse, and the
+        # field it belongs in is `note`. Not a warning-count pin -- warning
+        # counts move whenever a bank ages past a rotation.
+        led, err = cf.load_ledger(ROOT)
+        self.assertIsNone(err)
+        for n, e in sorted(led.items()):
+            rem = (e.get("remainder") or "").strip().lower()
+            self.assertFalse(
+                rem.startswith("none outstanding") or rem.startswith("nothing "),
+                "round %s: `remainder` denies the debt it declares; that "
+                "text belongs in `note`" % n)
 
     def test_every_scored_entry_re_derives_against_the_file_it_cites(self):
         """K002's whole point: the ledger is checked, not trusted."""

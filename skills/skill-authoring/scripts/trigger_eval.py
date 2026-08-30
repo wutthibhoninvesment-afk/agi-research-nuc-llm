@@ -989,12 +989,36 @@ def load_reports(reports_dir):
 
 def audit_skills(catalog, cases, reports, positive_floor=3):
     """Per catalog skill: case coverage (positives = cases expecting it
-    without a body spec; body_cases = with one) and probe freshness from
-    the newest report holding a non-errored probe of a case expecting it:
-    ``probed`` (that report's description digest == the current one),
-    ``STALE`` (digest differs — edited since), ``unverified`` (report
-    predates digests), ``never``. ``under_floor`` flags positives <
-    positive_floor."""
+    without a body spec; body_cases = with one), probe freshness, and the
+    probe's OUTCOME, all from the newest report holding a non-errored probe
+    of a case expecting it.
+
+    Freshness (``status``): ``probed`` (that report's description digest ==
+    the current one), ``STALE`` (digest differs — edited since),
+    ``unverified`` (report predates digests), ``never``. ``under_floor``
+    flags positives < positive_floor.
+
+    Outcome (round 375). ``status`` answers "did we look", and until round
+    375 nothing here answered "what did we see" — `measured-budget-sizing`
+    read ``probed`` while its newest report fired it on 0 of 3 cases, and
+    `fuzz-mutate-kill-loop` read ``probed`` off ONE of its seven cases,
+    because the newest report holding a probe of it is a re-run of the one
+    case that had MISSED. Three fields close that:
+
+      ``covered``   distinct POSITIVE case ids that report actually probed
+      ``recalled``  of those, the ones where EVERY repeat fired the skill
+      ``flaky``     of those, the ones where some repeats fired and some
+                    did not (a report may repeat one case n times; counting
+                    RESULTS instead of distinct ids is what hid
+                    `measured-exemption`'s 1 case x 4 repeats behind
+                    ``probes=4`` against ``positives=3``)
+
+    ``covered``/``recalled``/``flaky`` are 0 when there is no probe. They
+    deliberately do NOT feed ``audit_exit_code``: `skill-authoring`'s
+    shipping checklist cites that exit code for the freshness question, and
+    the outcome question is priced (re-probing is a live spend), so it is
+    carried as `case_coverage.py`'s P006/P007 warnings against an owned
+    baseline — the same split P004 already uses."""
     rows = []
     for name, desc, _ in catalog:
         pos = [c for c in cases if name in c["expect"] and c.get("body") is None]
@@ -1002,8 +1026,10 @@ def audit_skills(catalog, cases, reports, positive_floor=3):
         row = {"name": name, "positives": len(pos), "body_cases": len(body),
                "status": "never", "report": None, "probes": 0,
                "protocol": None, "mode": None,
+               "covered": 0, "recalled": 0, "flaky": 0,
                "digest": description_digest(desc),
                "under_floor": len(pos) < positive_floor}
+        pos_ids = {c["id"] for c in pos}
         for path, _, data in reports:
             probes = [r for r in data["results"]
                       if name in (r.get("expect") or []) and not r.get("error")]
@@ -1013,6 +1039,14 @@ def audit_skills(catalog, cases, reports, positive_floor=3):
             row["probes"] = len(probes)
             row["protocol"] = data.get("protocol", "default")
             row["mode"] = data.get("mode")
+            by_id = {}
+            for r in probes:
+                if r.get("id") in pos_ids:
+                    by_id.setdefault(r["id"], []).append(
+                        name in (r.get("fired") or []))
+            row["covered"] = len(by_id)
+            row["recalled"] = sum(1 for v in by_id.values() if all(v))
+            row["flaky"] = sum(1 for v in by_id.values() if any(v) and not all(v))
             seen = (data.get("descriptions") or {}).get(name)
             if seen is None:
                 row["status"] = "unverified"
@@ -1037,13 +1071,15 @@ def render_audit(rows, cases, n_reports, reports_dir):
              "%d reports under %s" % (len(rows), len(cases), n_neg, n_body,
                                        n_reports, reports_dir), "",
              "| skill | positives | body | newest probing report | mode/protocol "
-             "| probes | status |", "|---|---|---|---|---|---|---|"]
+             "| probes | covered | recalled | status |",
+             "|---|---|---|---|---|---|---|---|---|"]
     for r in rows:
         pos = "%d%s" % (r["positives"], " (UNDER FLOOR)" if r["under_floor"] else "")
         mp = "%s/%s" % (r["mode"], r["protocol"]) if r["report"] else "—"
-        lines.append("| %s | %s | %d | %s | %s | %d | %s |" % (
+        lines.append("| %s | %s | %d | %s | %s | %d | %d/%d | %d%s | %s |" % (
             r["name"], pos, r["body_cases"], r["report"] or "—", mp,
-            r["probes"], r["status"]))
+            r["probes"], r["covered"], r["positives"], r["recalled"],
+            " (%d flaky)" % r["flaky"] if r["flaky"] else "", r["status"]))
     counts = {}
     for r in rows:
         counts[r["status"]] = counts.get(r["status"], 0) + 1
@@ -1051,6 +1087,10 @@ def render_audit(rows, cases, n_reports, reports_dir):
         counts.items(), key=lambda kv: (-kv[1], kv[0])))
         + "; %d under the %d-positive floor" % (
             sum(1 for r in rows if r["under_floor"]), 3)
+        + "; %d of %d fully probed (every positive case, full recall)" % (
+            sum(1 for r in rows if r["status"] == "probed"
+                and r["covered"] == r["positives"]
+                and r["recalled"] == r["covered"]), len(rows))
         + "; exit %d" % audit_exit_code(rows)]
     return "\n".join(lines)
 
