@@ -569,10 +569,16 @@ def main(argv=None):
 
     if args.cmd == "dirt":
         dirt = worktree_dirt(ref=args.ref)
-        blocking = blocking_dirt(dirt)
+        # Same allow set `differential` will use, or this subcommand reports
+        # a path as BLOCKING that `check` is about to waive — a preview that
+        # disagrees with the thing it previews is worse than no preview.
+        pinned = escalation_allowed_dirty(dirt)
+        blocking = blocking_dirt(dirt, allow=standing_dirty() | pinned)
         print("tracked-modified %d (blocking %d)  untracked %d  ignored %d"
               % (len(dirt["tracked_modified"]), len(blocking),
                  len(dirt["untracked"]), len(dirt["ignored"])))
+        for p in sorted(pinned & set(dirt["tracked_modified"])):
+            print("  pinned-waiver (escalation, suite-neutral)  %s" % p)
         for p in blocking:
             print("  BLOCKING  %s" % p)
         return 0 if not blocking else 3

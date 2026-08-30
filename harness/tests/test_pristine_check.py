@@ -712,3 +712,30 @@ def test_a_pinned_waiver_shows_in_status_text_as_a_pin_not_a_hand_waiver():
     text = pc._fmt(rec)
     assert "escalation pin, suite-neutral" in text
     assert "waived by hand" not in text
+
+
+def test_dirt_preview_agrees_with_what_check_will_waive(tmp_path, capsys,
+                                                         monkeypatch):
+    # A preview that disagrees with the thing it previews is worse than no
+    # preview: `dirt` used blocking_dirt's default allow (standing only), so
+    # it reported a pinned, suite-neutral escalation as BLOCKING while
+    # `check` was about to waive it.
+    monkeypatch.setattr(pc, "worktree_dirt", lambda **kw: {
+        "ok": True, "tracked_modified": ["doc.md"], "untracked": [],
+        "ignored": []})
+    monkeypatch.setattr(
+        pc, "escalation_allowed_dirty",
+        lambda dirt, repo=None, registry_path=None: set())
+    # first: with no waiver in effect the path blocks
+    rc = pc.main(["dirt"])
+    out = capsys.readouterr().out
+    assert rc == 3 and "BLOCKING  doc.md" in out
+
+    monkeypatch.setattr(
+        pc, "escalation_allowed_dirty",
+        lambda dirt, repo=None, registry_path=None: {"doc.md"})
+    rc = pc.main(["dirt"])
+    out = capsys.readouterr().out
+    assert rc == 0, out
+    assert "pinned-waiver (escalation, suite-neutral)  doc.md" in out
+    assert "BLOCKING" not in out
