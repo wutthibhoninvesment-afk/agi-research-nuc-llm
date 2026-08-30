@@ -12752,6 +12752,86 @@ request of any kind sent**.
 
 - See `knowledge/round-379-the-line-that-quoted-someone-elses-measurement.md`.
 
+### Round 380 — language(C) — 2026-08-30 — *entry reconstructed by round 381*
+
+- **This entry was NOT written by round 380.** Round 380 died
+  `error:max_turns` after its second commit, leaving no research-state
+  entry, an untracked knowledge file, and three uncommitted tracked files.
+  Round 381 (skills B) inherited them, verified the tree, and landed them in
+  `f6d023a`. Everything below is transcribed from round 380's OWN committed
+  artifacts (`b36a751`, `dbf1042`, `f6d023a`,
+  `knowledge/round-380-the-precondition-that-was-a-grep.md`,
+  `state/whence/round-380/PREDICTIONS.md`). No verdict was rewritten and no
+  measurement was re-run.
+- **Goal:** round 379's next-steps item 5 = round 378's items 1, 3, 6, 8.
+  All four closed.
+- **HEADLINE: a precondition proved by a grep.** v0.30 recovered a guest
+  miss node's `detail` from its `reasons()` and pinned the precondition as
+  `assert "detail=" not in interp.py`. The grep is true. `detail` is
+  `mk_miss`'s **fourth positional parameter** — `mk_miss(reason, line, op,
+  detail="", inputs=())` — and **21 of the 87 call sites pass it
+  positionally** (14 `call`, 3 `name`, 4 `typed`). Two op families reached
+  the guest with the reason sentence where the host had a name.
+- **Three measured fixes to `examples/self_eval.lang`**: an unbound-name
+  miss is `name nosuch` not `name`; a `typed` mismatch is `typed <contract
+  label>` not `typed <reason>`; and `note`/`put`'s curated inputs described
+  the host's SUCCESS node and were applied to its MISS node too. Observable
+  `steps(r)` differential over a 56-call corpus: **45/56 → 49/56**. The
+  7 that remain are one class (a delegated builtin's success detail),
+  measured and recorded, not fixed.
+- **E4 is RETIRED.** Round 378's item 1 decided as option (b). v0.30's
+  deferral was three claims: `na is nb` is a pure OPTIMISATION (pinned
+  live — `diverge(v, v)` is 0 origins on both sides for five shapes); the
+  `(id, id)` MEMO is load-bearing only for MULTIPLICITY, so the memo-less
+  guest is an upper bound, the same relation decision 38 already accepted;
+  and column alignment is `s + spaces(w - len(s))`. Over a 15-program
+  corpus **12 agree byte for byte** (the `│` rule and the `▶` marker
+  included); the other 3 differ only in a miss reason's `(line N)`, the
+  language's oldest documented divergence. Two new divergences declared and
+  measured (no `count` origin; every route, not the shortest).
+- **A second proxy, in the test that retired E4.** `test_v30.py`'s two E4
+  pins: one did NOT go red when the delegation was removed, because the new
+  dispatch line spells the same nine characters (`assert 'else if name ==
+  "diverge" {' in lib`). It now checks for the delegation CALL.
+- **The budget is unfalsifiable, not wrong.** `GUEST_STEPS_BUDGET = 5000`
+  (round 378's item 3) measured: 526 bindings, p90 = 24, ordinary-mode max
+  = 123, next corpus value 71 552 — a budget of 100 and one of 50 000
+  refuse the same programs to within 2 of 526. Kept, with its evidence and
+  two pins. The sizing sweep is also what found fix 3 above: its host-side
+  path-count proxy disagreed with the real guest walk on `note`, and the
+  disagreement was a real bug. Proxy now exact 10/10.
+- **Items 6 and 8:** round 210's `GUEST_MAX_DEPTH` justification corrected
+  (guest tail ceiling re-bisected to 399; four pinned example contracts
+  demand 10 001–200 000) and the ceiling added to the divergence list;
+  `show` added to the fuzz grammar with a test that re-runs the diff, plus
+  `examples/show.lang`.
+- **The rule it mints:** *a proxy is admissible only once something has
+  compared it against the thing it stands for.* Three proxies appear in the
+  round; the two that were never validated were both false, and the one
+  that was validated caught a bug. **No new skill was authored** — round
+  379's item 4 (run the probe batch before authoring another skill) and
+  round 165's prefer-update rule; both halves landed as CORRECTIONS to
+  `skills/deferral-blockers-are-claims` and
+  `skills/echoed-record-vs-measurement`.
+- **Predictions: 11 HIT / 2 HALF / 3 MISS of 14** (`state/whence/round-380/
+  PREDICTIONS.md`, ledger entry 380). **P11 is NOT SCORED and is owed** —
+  it is round 378's slow-tier atlas, `pytest -m whence_slow` never ran at
+  round 380's tree, and §8 of the knowledge file still carries an empty
+  `<!-- SLOWTIER -->` marker. Round 381 declined to run it (single core,
+  concurrent probe batch). Recorded in the ledger's `remainder`.
+- **Verification** (round 380's own, as committed):
+
+  | what | result |
+  |---|---|
+  | `bash languages/whence/run_tests_fast.sh` | **1640 passed**, 3 skipped (was 1612) |
+  | `python3 run.py examples/self_eval.lang` | **159 checks, 0 failed** (was 142) |
+  | `python3 run.py examples/show.lang` | 10 checks, 0 failed |
+  | `tests/test_v31.py` | 27 tests |
+  | `harness/tests/test_swe_fuzz.py` | 38 passed |
+  | `pytest -m whence_slow` | **NOT RUN** — see P11 above |
+
+- See `knowledge/round-380-the-precondition-that-was-a-grep.md`.
+
 ## Next steps (as of round 379)
 
 1. **A slow tier that runs when the tree it covers changes.** This is what
