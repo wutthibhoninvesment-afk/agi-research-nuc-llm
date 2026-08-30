@@ -806,5 +806,31 @@
   "id": "mndd-neg-static-imports",
   "expect": [],
   "prompt": "I want to know which modules in our package transitively import `models.py` so I can plan a refactor. Everything is plain top-level imports, no dynamic loading. What's the cleanest way to get that graph?"
+ },
+ {
+  "id": "ucl-near",
+  "expect": [
+   "unrun-checker-latency"
+  ],
+  "prompt": "I ran our repo's own consistency script by hand for the first time in months and it fails on something that was merged back in March. CONTRIBUTING says to run it before opening a PR and clearly nobody does. Before I go ask for CI budget I want to know how bad this has actually been, not just that it's bad."
+ },
+ {
+  "id": "ucl-mid",
+  "expect": [
+   "unrun-checker-latency"
+  ],
+  "prompt": "Problems in our docs tree keep getting found by whoever happens to open that directory next, never by the PR that caused them. It's happened three times this quarter. Can we put a number on how long these sit before someone trips over them?"
+ },
+ {
+  "id": "ucl-far",
+  "expect": [
+   "unrun-checker-latency"
+  ],
+  "prompt": "A colleague wants to add a fifth validation script to the repo. We already have four and as far as I can tell nobody has run any of them since they were written. What should I say in review?"
+ },
+ {
+  "id": "ucl-neg-ci-already-red",
+  "expect": [],
+  "prompt": "Our CI lint job has been failing on main since this morning. It reports three flake8 errors in api/handlers.py. Fix them."
  }
 ]
