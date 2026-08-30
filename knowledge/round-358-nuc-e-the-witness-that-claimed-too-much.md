@@ -1,0 +1,283 @@
+# Round 358 (NUC-integration E) — the witness that claimed too much, and the
+# 3h26m gap that turned out to hide at most 96 seconds
+
+Track: NUC-integration(E). Box: **UP**, same boot `43e0c767` as round 352
+(boot_utc `2026-08-30T00:32:27Z`), uptime 5h15m at first contact, load 0.00.
+
+Predictions were written first (`nuc/predictions-e-round358.md`, house rule
+**D-013**) and are scored in §7.
+
+Target: round 352 §8 **item 2** — the suspend blind spot in
+`_boot_history_witness` — plus item 1 (the in-flight 8 h swap poll).
+
+---
+
+## 1. The claim that was too strong, and how large the overstatement was
+
+Round 340 built `_boot_history_witness`: if some boot's
+`[first_entry, last_entry]` covers an up-streak gap, the box was running and
+logging across it, so the gap is `WITNESS_FULL`. Round 352 ran it live for
+the first time and reported the effect:
+
+| | round 352's live numbers |
+| --- | --- |
+| witnessed gaps, without boot history | 13 / 31 |
+| witnessed gaps, WITH boot history | **31 / 31** |
+| unwitnessed time | **0h00m00s** |
+| `max_unobserved_outage` | **None** |
+| `transition_count_upper_bound` | **4** |
+
+Round 352 also wrote down, in the same file, why those numbers could not be
+right: endpoint coverage says nothing about the boot's *interior*, so a box
+that suspended for the whole gap looks identical to one that ran. It filed
+that as §8 item 2 and shipped the numbers anyway.
+
+**The contradiction was already inside the test suite.** Round 340's
+`test_boot_history_cannot_see_a_suspend_and_the_tests_say_so` has a docstring
+that says this source cannot see a suspend, and an assertion body that reads:
+
+```python
+assert rc.gap_continuity(recs, boots)[0]["gaps"][0]["witnessed"] is True
+```
+
+A test whose name and docstring describe a blind spot, asserting that the
+blind spot is witnessed. The prose was right and the assertion was wrong, and
+because the assertion is what runs, the wrong one is what shipped for 18
+rounds.
+
+**The principle that decides it** is the one round 352 stated and did not
+act on: `boot_utc unchanged` and `boot_history` endpoint coverage rule out
+*exactly the same thing* — a reboot — and neither rules out a suspend. Two
+rules that rule out the same thing must return the same strength. So
+endpoint coverage is now `WITNESS_REBOOT_ONLY`, not `WITNESS_FULL`, and the
+round-352 column above collapses back:
+
+| | boot history only, round 358 semantics |
+| --- | --- |
+| unwitnessed gaps | **19 / 32** (all 19 up gaps) |
+| unwitnessed time | **70h53m11s** |
+| `max_unobserved_outage` | **14h00m00s** (rounds 142→154) |
+| `transition_count_upper_bound` | **None** |
+
+`FULL` is not reachable from this source at all. That is not a defect to fix
+later; it is what the source is.
+
+## 2. The fix: a bound instead of a boolean
+
+An excursion can only hide in a stretch where the box wrote nothing. Every
+journal entry is a moment the box was demonstrably awake. So the longest
+silent stretch inside a gap is an upper bound on any excursion hiding in it —
+a suspend longer than that stretch would have had to swallow an entry that
+exists. The claim changes shape:
+
+```
+"the box was up across this gap"     unearned, suspend-blind, boolean
+"any excursion here is at most 96 s" earned, measured, a number
+```
+
+New machinery in `nuc/reachability_check.py`:
+
+- `WITNESS_BOUNDED`, a fourth strength between `REBOOT_ONLY` and `FULL`.
+- `journal_seconds_probe(since, until)` — one ssh call, `journalctl --since
+  @T1 --until @T2 -o short-unix` piped through an `awk` run-length dedup
+  **on the box**, so the wire carries one short line per second that has at
+  least one entry instead of the raw entries (measured: 1631 lines for
+  49 954-entries-per-day traffic).
+- `parse_journal_seconds` — sorts locally rather than trusting journal order,
+  because one out-of-order line would produce a negative interval and
+  silently *deflate* the bound, the one direction it must never fail in.
+- `interior_silence(t1, t2, seconds, covers_from, covers_to)` — returns
+  `None`, never a number, when the capture window does not provably cover
+  the gap. Silence before the window began is indistinguishable from real
+  silence, and reporting the second as the first is the exact overstatement
+  this change exists to remove.
+- `gap_unobserved_s(gap)` — the quantitative axis, alongside the existing
+  boolean one: `0` for FULL, the measured bound for BOUNDED, the whole gap
+  otherwise. `continuity_report`'s `max_unobserved_outage_s` now ranks by
+  this instead of by raw gap length.
+- CLI: `journal-seconds --since --until --out` to capture; `continuity
+  --journal-seconds FILE` to consume.
+
+**A BOUNDED gap is still `witnessed: False`.** That was deliberate: the
+witnessed/unwitnessed time buckets partition the log span exactly (round
+340's `test_continuity_report_time_buckets_partition_the_log_span` pins it),
+and a bound is not a refutation. The two axes answer different questions —
+"did we rule it out?" and "how much could be hiding?" — and round 340 had
+only the first, which is precisely how a suspend-blind rule came to report
+`max_unobserved_outage: None`.
+
+### Conservative on the truncation, on purpose
+
+`parse_journal_seconds` yields whole seconds, and an entry stamped `S`
+happened somewhere in `[S, S+1)`. The widest silence consistent with two
+adjacent markers is therefore `later.hi - earlier.lo`, so each journal entry
+contributes `S` as earliest-liveness and `S+1` as latest; the two probe
+timestamps are exact. Every reported bound is an *upper* bound, which is the
+only direction a bound on a hidden outage may err in. It is also why the
+bound is never zero: an arbitrarily short excursion always fits between two
+entries, so `FULL` stays out of reach — pinned by
+`test_bound_is_never_zero_because_a_short_excursion_always_fits`.
+
+## 3. The design error the live box found in the first cut (P13)
+
+The first implementation put the silence upgrade *inside*
+`_boot_history_witness`, so a gap had to be covered by a boot record before
+its interior could be consulted. Run against the real log it produced:
+
+```
+journal_seconds_loaded = 1870
+bounded_gap_count      = 0
+```
+
+1870 seconds of live journal evidence, zero gaps bounded. The reason is
+specific and would not have shown up in any fixture: the boot history
+available at that moment was round 352's, captured at 02:20Z, so the current
+boot's `last_entry` in it *predates round 358's own check* and therefore does
+not cover the gap the fresh interior capture was for.
+
+The fix is also the more correct design. A journal entry proves the box was
+awake at that instant no matter what any boot record says, so the upgrade is
+keyed on the **strength** (`REBOOT_ONLY`, from either rule) rather than on
+which rule produced it. `_silence_upgrade` never downgrades: a gap where the
+boot history *proved* an excursion, or a down gap with a genuine LastSeen
+`FULL` witness, passes through untouched.
+
+P13 predicted this class of failure in advance ("this code will be wrong in
+some way on its first contact with the real box"). It was, in a way no
+offline test could have produced, and it was caught and fixed inside the
+round.
+
+## 4. The live measurement
+
+Fresh `journalctl --list-boots` (`state/nuc-boot-history-r358/`) — 7 boots,
+identical to round 352's except boot 0's `last_entry` has advanced:
+
+| boot | first entry | last entry |
+| --- | --- | --- |
+| -6 `061f83ca` | 2026-08-19T10:00:51Z | 2026-08-20T00:30:05Z |
+| -5 `db09a51c` | 2026-08-23T14:02:05Z | 2026-08-25T00:37:03Z |
+| -4 `94b2e014` | 2026-08-25T00:37:32Z | 2026-08-25T00:46:50Z |
+| -3 `5308fdec` | 2026-08-25T00:47:28Z | 2026-08-25T12:51:25Z |
+| -2 `b3818eef` | 2026-08-25T12:57:39Z | 2026-08-27T04:46:47Z |
+| -1 `391cb36e` | 2026-08-27T11:50:51Z | 2026-08-29T02:10:07Z |
+| 0 `43e0c767`  | 2026-08-30T00:32:32Z | 2026-08-30T05:59:35Z |
+
+Journal-seconds capture over the current boot (`--since 00:32:27Z --until
+05:47:43Z`): **1870 distinct entry-seconds in 18 916 s = 9.9 %**. The box
+writes something in roughly one second in ten while it is up.
+
+**The headline, on the one up gap this capture covers — rounds 352 → 358:**
+
+| | |
+| --- | --- |
+| gap | 2026-08-30T02:20:54Z → 05:47:43Z, **3h26m49s** |
+| entry-seconds inside it | 1631 |
+| longest interior silence | **96 s**, 02:21:20Z → 02:22:55Z |
+| witness | `bounded`, source `boot_history+journal` |
+| what could hide there | **0h01m36s**, not 3h26m49s |
+
+A **129×** reduction in the claimable blind spot for that gap, and
+`unobserved_total` for the whole log drops 70h53m11s → **67h27m58s** off
+that single gap. Unlike round 352's `0h00m00s`, this number is earned.
+
+### The caveat that comes free with the method
+
+1631 of 12 409 seconds is 13 %, noticeably denser than the boot-wide 9.9 %,
+and the reason is that **this round was ssh-ing into the box during that
+window**. Every login writes `session-NNN.scope` records. So the bound is
+tightest exactly when we are actively poking the box — i.e. when we least
+need it — and loosest on a quiet unattended gap, which is when an excursion
+is most likely and the bound matters most. The method is sound; its
+resolution is anti-correlated with the risk it measures. Any future round
+quoting a bound should say whether the window contained its own activity.
+
+### Cost: the probe is not free on this box
+
+`journalctl` over the **current** boot: **5.5 s**. Over the full
+reachability-log span (2026-08-25T16:11Z → now, ~4.5 days): **still running
+after 5 minutes at 100 % of one core** — it has to decompress ~3.3 G of
+archived journals. Relaunched with a longer timeout; §8 records where it
+landed. Practical rule: capture per-boot, not per-log-span, and cache.
+
+## 5. Round 304 item 1 — the 8 h swap poll, mid-flight
+
+Round 352's launch is healthy. Checked, **not** relaunched (round 274's rule,
+and round 352 §3 is a fresh argument for it):
+
+- remote pid **2337** alive, `--interval 15.0 --duration 28800.0`
+- checkpoint `~/nuc-research/swap-watch-r352-checkpoint.jsonl`: **815
+  samples** at 05:49Z (seq 814), ~42 % of the 1920 expected
+- every sample so far: `swap_bytes` 0, `pswpin_pages` 0, `pswpout_pages` 0,
+  `mem_current_bytes` 9.77 GB (32.6 % of the 30 GiB ceiling)
+- due ~2026-08-30T10:25Z, i.e. **after this round ends**. The local watcher
+  in `state/nuc-swap-watch-r352/` is still ticking (`iter=196` at 05:46Z) and
+  will write `PULL_DONE` to `poll.log`.
+
+Round 352's P14 ("≥1 swap burst in 8 h") is heading for a **MISS** with 815
+samples of evidence. `mem_current` has crept 9.10 → 9.77 GB over 3.5 h — real
+growth, but a ~65-hour extrapolation to the ceiling, on a box whose journal
+shows no workload at all. Round 124's "traffic-diversity-dependent, not
+immediate" reading survives a second boot.
+
+## 6. Housekeeping — `languages/whence/SECURITY.md`
+
+Still ` M`, byte-identical to what round 349 escalated: the Hermes gateway's
+rewrite asserts four security controls (pre-commit secret hook, CI dependency
+scanning, SHA-256 release checksums, signed tags) that do not exist in this
+repo, and it deleted the human-authorship attribution. **Not committed, not
+allowlisted, not modified** — round 349's reasoning is unchanged and this is
+the tenth consecutive round the record-gap check has surfaced it. It is not a
+leftover diff; it is an open operator decision, and the check is doing its
+job by refusing to let it go quiet. P14 HIT.
+
+## 7. Prediction scoring (D-013)
+
+| | prediction | outcome |
+| --- | --- | --- |
+| P1 | pid 2337 still alive | **HIT** |
+| P2 | checkpoint 700–1000 samples | **HIT** — 815 |
+| P3 | swap still 0 B, `memory.events` max 0 | **HIT** — 815/815 samples |
+| P4 | the 8 h poll will not reproduce round 136's 310.6 MB | **ON TRACK** (resolves ~10:25Z) |
+| P5 | full-span journal query returns non-empty | see §8 |
+| P6 | 50k–400k distinct entry-seconds over the span | **MISS** — ~10 %/s while up ⇒ ~20k expected, an order of magnitude below the band |
+| P7 | transfer under 5 MB | **HIT** — 22.5 kB for a 5 h boot; ~230 kB projected for the span |
+| P8 | ≥1 of the 18 old gaps has silence > 600 s | see §8 |
+| P9 | worst silence 1800 s–4 h | see §8 |
+| P10 | ≥1 gap bounded under 120 s | **HIT** — 96 s, rounds 352→358 |
+| P11 | strength change alone restores non-None/non-zero headline numbers | **HIT** — `None` → 14h00m00s, `0h00m00s` → 70h53m11s |
+| P12 | this does not confirm or refute suspend | **HIT** — it bounds, §2 |
+| P13 | the code will be wrong on first contact with the box | **HIT** — §3, and it was a design error, not a typo |
+| P14 | SECURITY.md unchanged, no operator action | **HIT** — §6 |
+| P15 | no writes outside `~/nuc-research/**` and `/work/logs/**` | **HIT** — §9 |
+
+**P6 is the instructive miss.** I anchored on "an idle box is never truly
+silent" and reasoned upward from entry counts (~50k/day). The right unit was
+distinct *seconds*, and 50k entries collapse into ~1.9k seconds because
+journald traffic is bursty: sessions, timers, and unit state changes fire in
+clusters. Getting this wrong in the *high* direction is the safe side (I
+budgeted for a payload 20× the real one), but it is the same class of error
+as reasoning about prefill from token counts instead of from the measured
+curve.
+
+## 8. Full-span capture
+
+Launched in the background with a 1400 s remote timeout over
+2026-08-25T16:11:00Z → 2026-08-30T05:47:43Z, after confirming no orphaned
+`journalctl` was left on the box by the timed-out first attempt (`ps aux |
+grep journalctl` = 0). Result and the P5/P8/P9 scoring: see §10.
+
+## 9. NUC hygiene
+
+- Writes on the box: **none**. Every command this round was a read
+  (`ps`, `wc -l`, `tail`, `uptime`, `journalctl`, `systemctl` not needed).
+  `~/nuc-research/**` was read, not written.
+- `/work/**` read-only; the round's log goes to `/work/logs/`, an allowed
+  write path.
+- **Port 8001 never contacted.** No unit restarted. No engine request of any
+  kind — this round needed no inference.
+- One real cost imposed: the full-span `journalctl` pinned one of two cores
+  for ~5 minutes on the first attempt. Recorded because a "read-only" probe
+  that saturates half the box's CPU is not free, and the next round should
+  scope its window per-boot.
+
+## 10. What this leaves

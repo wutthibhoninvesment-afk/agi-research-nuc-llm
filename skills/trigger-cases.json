@@ -702,5 +702,31 @@
       "declaration-scope-parity"
     ],
     "prompt": "There's a comment in our type checker saying the fragment table is 'deliberately not scope-aware', next to an UnboundName sentinel that exists so a lookup that 'cannot happen' stays safe. Should I trust that?"
+  },
+  {
+    "id": "bnbw-near",
+    "expect": [
+      "bounded-not-binary-witness"
+    ],
+    "prompt": "Our uptime checker reports a gap as `verified: true` whenever the surrounding log covers it, but the docstring right above it admits it can't detect a suspend. It's feeding a dashboard that says '0 minutes unverified'. Fix the claim."
+  },
+  {
+    "id": "bnbw-mid",
+    "expect": [
+      "bounded-not-binary-witness"
+    ],
+    "prompt": "This function returns a boolean 'no data loss occurred' but the only evidence it has is the first and last record in the window. I want it to say how much loss could still be hiding instead of just yes/no."
+  },
+  {
+    "id": "bnbw-far",
+    "expect": [
+      "bounded-not-binary-witness"
+    ],
+    "prompt": "Two of our health rules rule out exactly the same failure and one is labelled STRONG and the other WEAK, and the STRONG one is why the report shows None for worst-case downtime. Sort this out."
+  },
+  {
+    "id": "bnbw-neg-plain-bool",
+    "expect": [],
+    "prompt": "Change this function to return True instead of 1 so mypy stops complaining about the return type."
   }
 ]

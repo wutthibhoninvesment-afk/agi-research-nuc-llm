@@ -1569,19 +1569,225 @@ def test_parse_boot_history_drops_a_boot_whose_entries_are_inverted():
     assert rc.parse_boot_history(text) == []
 
 
-def test_boot_history_witnesses_an_up_gap_no_probe_rule_can_reach():
-    """The point of the whole source: an up gap that `boot_utc` can only
-    call `reboot_only` becomes a FULL witness, because the box's own journal
-    ran across it."""
+def test_boot_history_endpoint_coverage_is_reboot_only_not_full():
+    """ROUND 358, replacing round 340's
+    `test_boot_history_witnesses_an_up_gap_no_probe_rule_can_reach`.
+
+    That test asserted `witnessed is True` for endpoint coverage. Round 352
+    ran it on the real box and the consequence was
+    `unwitnessed 0h00m00s` / `max_unobserved_outage: None` for a log full of
+    multi-hour unprobed gaps -- i.e. the code claimed to have ruled out
+    suspend, the one failure mode round 184 inferred for this box. Endpoint
+    coverage rules out a REBOOT and nothing else, exactly like
+    `boot_utc unchanged`, so it now returns the same strength."""
     recs = [_rec("2026-08-25T18:00:00Z", "up", 1),
             _rec("2026-08-26T04:00:00Z", "up", 2)]
     boots = rc.parse_boot_history(BOOT_JSON_TWO_BOOTS)
     assert rc.gap_continuity(recs)[0]["gaps"][0]["witnessed"] is False
     gap = rc.gap_continuity(recs, boots)[0]["gaps"][0]
-    assert gap["witnessed"] is True
+    assert gap["witness_strength"] == rc.WITNESS_REBOOT_ONLY
+    assert gap["witnessed"] is False
     assert gap["witness_source"] == "boot_history"
     assert "aaa" in gap["witness_note"]
-    assert rc.continuity_report(recs, boots)["all_streaks_confirmed_continuous"] is True
+    assert "suspend" in gap["witness_note"]
+    # and the whole-log claim it used to license is withdrawn
+    rep = rc.continuity_report(recs, boots)
+    assert rep["all_streaks_confirmed_continuous"] is False
+    assert rep["max_unobserved_outage_human"] == "10h00m00s"
+
+
+def _journal(*iso_stamps):
+    """A capture covering 2026-08-25 -> 08-27 with entries at the given
+    instants. Whole seconds, as `parse_journal_seconds` produces them."""
+    return {"covers_from_utc": "2026-08-25T00:00:00Z",
+            "covers_to_utc": "2026-08-27T00:00:00Z",
+            "seconds": sorted(int(rc._parse_ts(s).timestamp()) for s in iso_stamps)}
+
+
+def test_journal_interior_upgrades_reboot_only_to_a_measured_bound():
+    """ROUND 358, the fix round 352 §8 item 2 asked for. Endpoint coverage
+    plus the journal's INTERIOR turns a boolean into a number: entries every
+    two hours across a ten-hour gap mean no excursion longer than ~2 h could
+    have hidden in it."""
+    recs = [_rec("2026-08-25T18:00:00Z", "up", 1),
+            _rec("2026-08-26T04:00:00Z", "up", 2)]
+    boots = rc.parse_boot_history(BOOT_JSON_TWO_BOOTS)
+    cap = _journal("2026-08-25T20:00:00Z", "2026-08-25T22:00:00Z",
+                   "2026-08-26T00:00:00Z", "2026-08-26T02:00:00Z")
+    gap = rc.gap_continuity(recs, boots, rc.make_silence_fn(cap))[0]["gaps"][0]
+    assert gap["witness_strength"] == rc.WITNESS_BOUNDED
+    assert gap["witness_source"] == "boot_history+journal"
+    # 2 h between adjacent entries, +1 s for the whole-second truncation
+    assert gap["bound_s"] == 7201.0
+    assert gap["unobserved_s"] == 7201.0
+    assert gap["interior_silence"]["n_entry_seconds"] == 4
+    # still NOT "witnessed": a bound is not a refutation
+    assert gap["witnessed"] is False
+    assert "at most" in gap["witness_note"]
+
+
+def test_bounded_gap_shrinks_max_unobserved_outage_below_the_gap_length():
+    """The payoff, and the reason `_worst` ranks by `unobserved_s`: a 10 h
+    gap that can only hide 2 h must not out-rank a 3 h gap that can hide all
+    3 h."""
+    recs = [_rec("2026-08-25T18:00:00Z", "up", 1),
+            _rec("2026-08-26T04:00:00Z", "up", 2)]
+    boots = rc.parse_boot_history(BOOT_JSON_TWO_BOOTS)
+    cap = _journal("2026-08-25T20:00:00Z", "2026-08-25T22:00:00Z",
+                   "2026-08-26T00:00:00Z", "2026-08-26T02:00:00Z")
+    plain = rc.continuity_report(recs, boots)
+    bounded = rc.continuity_report(recs, boots, rc.make_silence_fn(cap))
+    assert plain["max_unobserved_outage_s"] == 36000.0
+    assert bounded["max_unobserved_outage_s"] == 7201.0
+    assert bounded["bounded_gap_count"] == 1
+    assert bounded["max_unobserved_outage_strength"] == rc.WITNESS_BOUNDED
+    # the boolean bucket is untouched: a bounded gap is still unwitnessed,
+    # so the witnessed/unwitnessed partition of the log span still holds
+    assert bounded["unwitnessed_total_s"] == plain["unwitnessed_total_s"]
+
+
+def test_journal_interior_bounds_a_gap_with_no_boot_history_at_all():
+    """ROUND 358, second cut. The first cut gated the bound behind
+    boot-history endpoint coverage and scored `bounded_gap_count: 0` on the
+    live log: the round-352 boot history's `last_entry` predates round 358's
+    own check, so the ONE gap with a fresh interior capture was not covered
+    by it. A journal entry proves the box was awake at that instant no
+    matter what any boot record says, so the upgrade is keyed on the
+    STRENGTH (reboot_only) and not on which rule produced it."""
+    recs = [_rec("2026-08-25T18:00:00Z", "up", 1, boot="2026-08-25T12:00:00Z"),
+            _rec("2026-08-26T04:00:00Z", "up", 2, boot="2026-08-25T12:00:00Z")]
+    cap = _journal("2026-08-25T21:00:00Z", "2026-08-26T01:00:00Z")
+    gap = rc.gap_continuity(recs, None, rc.make_silence_fn(cap))[0]["gaps"][0]
+    assert gap["witness_strength"] == rc.WITNESS_BOUNDED
+    assert gap["witness_source"] == "boot_utc_unchanged+journal"
+    assert gap["bound_s"] == 4 * 3600 + 1     # 21:00 -> 01:00, plus truncation
+
+
+def test_silence_never_upgrades_a_proven_excursion_or_a_full_witness():
+    """`_silence_upgrade` may only strengthen reboot_only. A gap where the
+    boot history PROVED an outage must keep saying so -- a bound computed
+    from entries on either side of a real power-off would read as
+    reassurance about a gap we have positive evidence about."""
+    recs = [_rec("2026-08-26T05:00:00Z", "up", 1),
+            _rec("2026-08-26T12:00:00Z", "up", 2)]
+    boots = rc.parse_boot_history(BOOT_JSON_TWO_BOOTS)   # boundary 06:00-09:00
+    cap = {"covers_from_utc": "2026-08-26T00:00:00Z",
+           "covers_to_utc": "2026-08-26T23:00:00Z",
+           "seconds": [int(rc._parse_ts("2026-08-26T05:30:00Z").timestamp())]}
+    gap = rc.gap_continuity(recs, boots, rc.make_silence_fn(cap))[0]["gaps"][0]
+    assert gap["witness_strength"] == rc.WITNESS_NONE
+    assert rc.gap_continuity(recs, boots, rc.make_silence_fn(cap))[0]["missed_excursions"]
+    assert gap["bound_s"] is None
+
+    # and a down gap, where LastSeen already gives a genuine FULL witness
+    down = [_rec("2026-08-26T05:00:00Z", "down", 1, last_seen="2026-08-26T04:00:00Z"),
+            _rec("2026-08-26T12:00:00Z", "down", 2, last_seen="2026-08-26T04:00:00Z")]
+    dgap = rc.gap_continuity(down, boots, rc.make_silence_fn(cap))[0]["gaps"][0]
+    assert dgap["witness_strength"] == rc.WITNESS_FULL
+    assert dgap["unobserved_s"] == 0.0
+
+
+def test_bound_is_never_zero_because_a_short_excursion_always_fits():
+    """The honest ceiling of the method, pinned. Even an entry every single
+    second leaves a >=1 s bound, so this source can never return FULL and no
+    future round should be tempted to make it."""
+    recs = [_rec("2026-08-25T18:00:00Z", "up", 1),
+            _rec("2026-08-25T18:00:05Z", "up", 2)]
+    boots = rc.parse_boot_history(BOOT_JSON_TWO_BOOTS)
+    cap = _journal(*["2026-08-25T18:00:0%dZ" % i for i in range(6)])
+    gap = rc.gap_continuity(recs, boots, rc.make_silence_fn(cap))[0]["gaps"][0]
+    assert gap["witness_strength"] == rc.WITNESS_BOUNDED
+    assert 0 < gap["bound_s"] <= gap["gap_s"]
+
+
+def test_interior_silence_refuses_a_window_that_does_not_cover_the_gap():
+    """Partial coverage is not coverage -- the same rule the boot-history
+    endpoint test already pins, one level down. Silence before the capture
+    window began is indistinguishable from real silence, and reporting the
+    second as the first is the exact overstatement this whole change
+    removes."""
+    t1, t2 = rc._parse_ts("2026-08-25T18:00:00Z"), rc._parse_ts("2026-08-26T04:00:00Z")
+    secs = [int(rc._parse_ts("2026-08-25T20:00:00Z").timestamp())]
+    assert rc.interior_silence(t1, t2, secs, "2026-08-25T19:00:00Z",
+                               "2026-08-27T00:00:00Z") is None   # starts too late
+    assert rc.interior_silence(t1, t2, secs, "2026-08-25T00:00:00Z",
+                               "2026-08-26T03:00:00Z") is None   # ends too early
+    assert rc.interior_silence(t1, t2, secs, None, None) is None
+    assert rc.interior_silence(t1, t2, secs, "2026-08-25T00:00:00Z",
+                               "2026-08-27T00:00:00Z") is not None
+
+
+def test_interior_silence_bounds_the_edges_not_just_the_middle():
+    """A gap whose only entry is one second after t1 is still wide open
+    afterwards. Counting only entry-to-entry intervals would report ~0 and
+    miss the whole excursion."""
+    t1, t2 = rc._parse_ts("2026-08-25T18:00:00Z"), rc._parse_ts("2026-08-26T04:00:00Z")
+    secs = [int(rc._parse_ts("2026-08-25T18:00:01Z").timestamp())]
+    sil = rc.interior_silence(t1, t2, secs, "2026-08-25T00:00:00Z", "2026-08-27T00:00:00Z")
+    # marker lo = 18:00:01 (earliest liveness), t2 is exact => 36000 - 1
+    assert sil["max_silence_s"] == pytest.approx(35999.0)
+    assert sil["silence_from_utc"] == "2026-08-25T18:00:01Z"
+
+
+def test_empty_journal_capture_degrades_to_reboot_only_never_to_a_bound():
+    """Fail-closed, the same discipline as `boot_history_probe`: a capture
+    that came back empty (ssh failed, journal rotated, Storage=volatile)
+    must leave the witness where it was, not produce a bound of "the whole
+    gap" that reads like a measurement."""
+    recs = [_rec("2026-08-25T18:00:00Z", "up", 1),
+            _rec("2026-08-26T04:00:00Z", "up", 2)]
+    boots = rc.parse_boot_history(BOOT_JSON_TWO_BOOTS)
+    for cap in (None, {}, {"covers_from_utc": "a", "covers_to_utc": "b", "seconds": []}):
+        fn = rc.make_silence_fn(cap)
+        gap = rc.gap_continuity(recs, boots, fn)[0]["gaps"][0]
+        assert gap["witness_strength"] == rc.WITNESS_REBOOT_ONLY
+        assert gap["bound_s"] is None
+
+
+def test_parse_journal_seconds_sorts_dedups_and_drops_junk():
+    text = "1788000100\n1788000100\n1788000050\n\nnot-a-number\n-5\n0\n1788000200\n"
+    assert rc.parse_journal_seconds(text) == [1788000050, 1788000100, 1788000200]
+    assert rc.parse_journal_seconds("") == []
+    assert rc.parse_journal_seconds(None) == []
+
+
+def test_journal_seconds_probe_returns_empty_on_every_failure_mode():
+    for proc in (_FakeProc(255, ""), _FakeProc(1, "denied"), _FakeProc(0, ""),
+                 _FakeProc(0, "junk")):
+        assert rc.journal_seconds_probe("2026-08-25T00:00:00Z",
+                                        "2026-08-26T00:00:00Z",
+                                        runner=lambda cmd: proc) == []
+
+    def boom(cmd):
+        raise subprocess.TimeoutExpired(cmd, 1)
+    assert rc.journal_seconds_probe("2026-08-25T00:00:00Z", "2026-08-26T00:00:00Z",
+                                    runner=boom) == []
+    # inverted window and unparseable timestamps refuse BEFORE any ssh
+    called = []
+    assert rc.journal_seconds_probe("2026-08-26T00:00:00Z", "2026-08-25T00:00:00Z",
+                                    runner=lambda cmd: called.append(cmd)) == []
+    assert rc.journal_seconds_probe("nonsense", "2026-08-25T00:00:00Z",
+                                    runner=lambda cmd: called.append(cmd)) == []
+    assert called == []
+
+
+def test_journal_seconds_probe_reduces_on_the_box_not_over_the_wire():
+    """The payload discipline: the dedup-to-whole-seconds awk runs remotely,
+    so a day of ~50k journal entries crosses the wire as ~1.9k short lines.
+    If a future edit moves that reduction local, this test is the tripwire."""
+    seen = []
+
+    def runner(cmd):
+        seen.append(cmd)
+        return _FakeProc(0, "1788000050\n1788000100\n")
+
+    out = rc.journal_seconds_probe("2026-08-25T00:00:00Z", "2026-08-26T00:00:00Z",
+                                   runner=runner)
+    assert out == [1788000050, 1788000100]
+    remote = seen[0][-1]
+    assert remote.startswith("journalctl --since @")
+    assert "awk" in remote and "short-unix" in remote
+    assert seen[0][0] == "ssh"
 
 
 def test_boot_history_finds_a_missed_outage_with_exact_bounds():
@@ -1632,15 +1838,27 @@ def test_boot_history_is_not_applied_to_down_streaks():
     assert gap["witness_source"] is None
 
 
-def test_boot_history_beats_boot_utc_when_both_apply():
-    """`boot_utc` is two endpoint samples of the fact the journal records
-    continuously, so the continuous source wins and the gap is FULL rather
-    than reboot_only."""
+def test_boot_history_beats_boot_utc_only_once_it_has_the_interior():
+    """ROUND 358 rewrite. Round 340 asserted boot_history beat `boot_utc`
+    outright. It does not: both rule out a reboot and neither sees a
+    suspend, so on endpoint coverage alone the two sources TIE at
+    reboot_only, and boot_history's advantage is only realised when the
+    journal interior is supplied. Consulting it first still matters (it can
+    also PROVE an excursion, which `boot_utc` cannot on a same-boot gap),
+    which is why the source name changes even when the strength does not."""
     recs = [_rec("2026-08-25T18:00:00Z", "up", 1, boot="2026-08-25T12:00:00Z"),
             _rec("2026-08-26T04:00:00Z", "up", 2, boot="2026-08-25T12:00:00Z")]
     boots = rc.parse_boot_history(BOOT_JSON_TWO_BOOTS)
-    assert rc.gap_continuity(recs)[0]["gaps"][0]["witness_strength"] == rc.WITNESS_REBOOT_ONLY
-    assert rc.gap_continuity(recs, boots)[0]["gaps"][0]["witness_strength"] == rc.WITNESS_FULL
+    from_boot_utc = rc.gap_continuity(recs)[0]["gaps"][0]
+    from_history = rc.gap_continuity(recs, boots)[0]["gaps"][0]
+    assert from_boot_utc["witness_strength"] == rc.WITNESS_REBOOT_ONLY
+    assert from_history["witness_strength"] == rc.WITNESS_REBOOT_ONLY
+    assert from_boot_utc["witness_source"] == "boot_utc_unchanged"
+    assert from_history["witness_source"] == "boot_history"
+
+    cap = _journal("2026-08-25T20:00:00Z", "2026-08-26T02:00:00Z")
+    upgraded = rc.gap_continuity(recs, boots, rc.make_silence_fn(cap))[0]["gaps"][0]
+    assert upgraded["witness_strength"] == rc.WITNESS_BOUNDED
 
 
 def test_boot_history_cannot_see_a_suspend_and_the_tests_say_so():
@@ -1653,9 +1871,24 @@ def test_boot_history_cannot_see_a_suspend_and_the_tests_say_so():
     the one it has to change."""
     recs = [_rec("2026-08-25T18:00:00Z", "up", 1),
             _rec("2026-08-26T04:00:00Z", "up", 2)]
-    # one boot, journal continuous across a hypothetical 20:00-02:00 suspend
+    # one boot, journal endpoints straddling a hypothetical 20:00-02:00 suspend
     boots = rc.parse_boot_history(json.dumps(json.loads(BOOT_JSON_TWO_BOOTS)[:1]))
-    assert rc.gap_continuity(recs, boots)[0]["gaps"][0]["witnessed"] is True
+    gap = rc.gap_continuity(recs, boots)[0]["gaps"][0]
+    # ROUND 358: round 340 asserted `witnessed is True` HERE, in the very
+    # test whose docstring says the source cannot see a suspend. That
+    # contradiction is the bug this round fixed; the strength now matches
+    # the docstring.
+    assert gap["witnessed"] is False
+    assert gap["witness_strength"] == rc.WITNESS_REBOOT_ONLY
+
+    # With the journal interior, the suspend is still not DETECTED -- it is
+    # bounded. Entries at 20:00 and 02:00 leave a 6 h silence, so a 6 h
+    # suspend still fits and the bound says so out loud.
+    cap = _journal("2026-08-25T20:00:00Z", "2026-08-26T02:00:00Z")
+    bounded = rc.gap_continuity(recs, boots, rc.make_silence_fn(cap))[0]["gaps"][0]
+    assert bounded["witness_strength"] == rc.WITNESS_BOUNDED
+    assert bounded["bound_s"] == 6 * 3600 + 1
+    assert bounded["witnessed"] is False
 
 
 def test_boot_history_witnesses_shrink_the_real_logs_blind_spot():
@@ -1672,12 +1905,21 @@ def test_boot_history_witnesses_shrink_the_real_logs_blind_spot():
          "last_entry": _usec("2026-08-26T20:00:00Z")}]))
     after = rc.continuity_report(recs, boots)
     assert before["max_unobserved_outage_human"] == "14h00m00s"
-    assert after["max_unobserved_outage_human"] == "8h01m00s"
-    assert after["unwitnessed_gap_count"] < before["unwitnessed_gap_count"]
-    assert after["witnessed_total_s"] > before["witnessed_total_s"]
-    # and the record claim gets a much wider margin as a direct consequence
-    st = rc.current_streak_duration(recs, now_fn=lambda: "2026-08-29T17:21:00Z")
-    assert st["unobserved_margin_human"] == "1h07m53s"
+    # ROUND 358: the boot history ALONE no longer shrinks this -- endpoint
+    # coverage is reboot_only, so the 14 h gap still admits a 14 h suspend.
+    assert after["max_unobserved_outage_human"] == "14h00m00s"
+    assert after["unwitnessed_gap_count"] == before["unwitnessed_gap_count"]
+
+    # What DOES shrink it is the journal interior. One entry every 10 min
+    # across the covered window caps the hideable excursion at ~10 min.
+    t0 = rc._parse_ts("2026-08-26T00:00:00Z").timestamp()
+    cap = {"covers_from_utc": "2026-08-25T00:00:00Z",
+           "covers_to_utc": "2026-08-27T00:00:00Z",
+           "seconds": [int(t0 + 600 * i) for i in range(121)]}
+    bounded = rc.continuity_report(recs, boots, rc.make_silence_fn(cap))
+    assert bounded["max_unobserved_outage_human"] != "14h00m00s"
+    assert bounded["bounded_gap_count"] >= 1
+    assert bounded["max_unobserved_outage_s"] < before["max_unobserved_outage_s"]
 
 
 # --- the probe (not run live; the box is down) ---------------------------
@@ -1726,7 +1968,33 @@ def test_cli_continuity_accepts_a_saved_boot_history_file(tmp_path, capsys):
                     "--boot-history", str(hist)]) == 0
     out = json.loads(capsys.readouterr().out)
     assert out["boot_history_boots"] == 1
-    assert out["max_unobserved_outage_human"] != "14h00m00s"
+    # ROUND 358: boot history alone is reboot_only, so the headline number
+    # does NOT move. The `--journal-seconds` case below is what moves it.
+    assert out["journal_seconds_loaded"] == 0
+
+
+def test_cli_continuity_accepts_a_journal_seconds_capture(tmp_path, capsys):
+    """ROUND 358: the CLI half of the fix. Same log, same boot history, plus
+    a journal-interior capture -> the headline number stops being the whole
+    gap and becomes the measured silence."""
+    hist = tmp_path / "boots.json"
+    hist.write_text(json.dumps([
+        {"index": 0, "boot_id": "covers-everything",
+         "first_entry": _usec("2026-08-25T00:00:00Z"),
+         "last_entry": _usec("2026-08-31T00:00:00Z")}]))
+    t0 = rc._parse_ts("2026-08-25T00:00:00Z").timestamp()
+    cap = tmp_path / "journal.json"
+    cap.write_text(json.dumps({
+        "covers_from_utc": "2026-08-25T00:00:00Z",
+        "covers_to_utc": "2026-08-31T00:00:00Z",
+        "seconds": [int(t0 + 300 * i) for i in range(1730)]}))
+    assert rc.main(["continuity", "--log-path", str(REAL_LOG),
+                    "--boot-history", str(hist),
+                    "--journal-seconds", str(cap)]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["journal_seconds_loaded"] == 1730
+    assert out["bounded_gap_count"] > 0
+    assert out["max_unobserved_outage_s"] <= 301.0
 
 
 def test_cli_continuity_without_boot_history_reports_zero_boots(capsys):
@@ -1802,13 +2070,19 @@ def test_real_log_second_outage_is_closed_and_its_end_came_from_boot_utc():
 def test_boot_history_witness_closes_every_up_gap_the_probes_could_not():
     """ROUND 352 -- first live exercise of round 340's boot-history witness,
     against the box's real `journalctl --list-boots` output.
+    **REWRITTEN BY ROUND 358.**
 
-    Round 340 built this path and could only fixture-test it. On real data it
-    does exactly what it was designed to do and the size of the effect is the
-    finding: WITHOUT the boot history every one of the 18 up-streak gaps is
-    unwitnessed (the up records predate `boot_utc`, so even the weaker
-    `boot_utc_unchanged` rule has nothing to read); WITH it, all 18 become
-    full witnesses from a record the box kept while nobody was looking.
+    Round 352 ran this and reported that all 18 up-streak gaps became FULL
+    witnesses, `unwitnessed 0h00m00s`, `max_unobserved_outage: None`. Round
+    358 established that claim was unearned: endpoint coverage rules out a
+    reboot and cannot see a suspend, which is this box's own inferred
+    failure mode. So the WITH-history column now says reboot_only, and the
+    headline numbers come back.
+
+    Two brittleness fixes while rewriting: the gap counts are no longer
+    hardcoded (the real log grows every E-round -- round 358 alone took 18
+    up gaps to 19), and the `sources` set now also allows the boot_utc rule,
+    which newer records with a `boot_utc` field can legitimately reach.
     """
     records = _real_log_records()
     boots = rc.parse_boot_history(
@@ -1819,16 +2093,22 @@ def test_boot_history_witness_closes_every_up_gap_the_probes_could_not():
     without = rc.continuity_report(records)
     with_bh = rc.continuity_report(records, boots)
 
-    assert without["unwitnessed_gap_count"] == 18
+    assert without["unwitnessed_gap_count"] >= 18
     assert without["max_unobserved_outage_s"] is not None
     assert without["transition_count_upper_bound"] is None
 
-    assert with_bh["unwitnessed_gap_count"] == 0
-    assert with_bh["max_unobserved_outage_s"] is None
-    assert with_bh["transition_count_upper_bound"] == with_bh["confirmed_transitions"]
+    # The correction: the boot history alone changes NOTHING about how much
+    # could be hiding. It only renames the source and rules out a reboot.
+    assert with_bh["unwitnessed_gap_count"] == without["unwitnessed_gap_count"]
+    assert with_bh["max_unobserved_outage_s"] == without["max_unobserved_outage_s"]
+    assert with_bh["transition_count_upper_bound"] is None
     assert with_bh["missed_excursions"] == []
 
-    sources = {g["witness_source"]
-               for st in rc.gap_continuity(sorted(records, key=rc._sort_key), boots)
-               for g in st["gaps"] if st["verdict"] == "up"}
-    assert sources == {"boot_history"}
+    up_gaps = [g for st in rc.gap_continuity(sorted(records, key=rc._sort_key), boots)
+               if st["verdict"] == "up" for g in st["gaps"]]
+    assert {g["witness_source"] for g in up_gaps} <= {"boot_history", "boot_utc_unchanged"}
+    assert all(g["witness_strength"] == rc.WITNESS_REBOOT_ONLY for g in up_gaps)
+    # what the history DOES still buy, and it is not nothing: every up gap
+    # now has a reboot ruled out by a continuous record, including the ones
+    # whose endpoints predate the `boot_utc` field entirely.
+    assert sum(1 for g in up_gaps if g["witness_source"] == "boot_history") >= 18

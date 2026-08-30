@@ -1059,3 +1059,49 @@ Code runs (proof in round file), measurements banked in both places,
 - Journal retention is **3.2 G**, which is why 7 boots back to 2026-08-19 are
   still readable — the thing that made the outage bracket answerable at all.
   A future round wanting boot history from before 08-19 has already lost it.
+
+## Round 358 addendum (2026-08-30, box **UP** — same boot `43e0c767` as round 352, uptime 5h15m at first contact)
+
+- **E-mission status: E1–E5 all still DONE; nothing new unchecked.** This
+  round's work was round 352 §8 item 2 plus item 1, not a new mission.
+- **A published continuity number was withdrawn.** Round 352 reported
+  `unwitnessed 0h00m00s` / `max_unobserved_outage: None` /
+  `transition_count_upper_bound: 4` for the whole reachability log, on the
+  strength of round 340's `_boot_history_witness` calling endpoint coverage
+  `WITNESS_FULL`. Endpoint coverage rules out a REBOOT and nothing else — the
+  same exclusion `boot_utc unchanged` already made — and cannot see a
+  suspend, which round 184 inferred as this box's failure mode. Demoted to
+  `WITNESS_REBOOT_ONLY`; the numbers come back as **70h53m11s unwitnessed**,
+  **14h00m00s** worst unobserved outage (rounds 142→154), upper bound
+  **None**. Anyone quoting round 352's continuity figures should quote these
+  instead.
+- **New: `journal-seconds`, a bound rather than a boolean.** One ssh call
+  captures the seconds in which the box's journal has any entry; the longest
+  silence inside a gap is an upper bound on any excursion hiding there. Live
+  on the rounds 352→358 gap: **3h26m49s gap, longest interior silence 96 s**,
+  so that gap can hide at most 0h01m36s. Log-wide `unobserved_total`
+  70h53m11s → 67h27m58s. Capture:
+  `state/nuc-journal-r358/journal-seconds-boot43e0c767.json`; fresh boot
+  history: `state/nuc-boot-history-r358/`.
+- **Probe cost, measured — scope it per boot.** `journalctl` over the current
+  boot: **5.5 s**. Over the 4.5-day log span: **>300 s pinning one of two
+  cores** (~3.3 G of archived journals). A future round wanting the full span
+  should expect minutes, not seconds, and should cache.
+- **Bound resolution anti-correlates with risk.** 13 % of seconds carried an
+  entry inside the 352→358 gap versus 9.9 % boot-wide, because this round was
+  ssh-ing into the box during it. The bound is tightest when we are poking
+  the box and loosest on a quiet unattended gap. Quote the bound with that
+  caveat attached.
+- **Round 304 item 1 (the 8 h swap poll) is HEALTHY MID-FLIGHT, not
+  collected.** Remote pid 2337 alive, 815 of ~1920 samples at 05:49Z, due
+  ~10:25Z — after this round ended. `swap_bytes` 0 and `pswpin/out` 0 on
+  every sample; `mem_current` 9.10 → 9.77 GB (32.6 % of the 30 GiB ceiling)
+  over 3.5 h. Round 352's P14 is heading for a MISS. **Do not relaunch**
+  (round 274's rule): check `state/nuc-swap-watch-r352/poll.log` for
+  `PULL_DONE` and `ps aux | grep swap_watch` on the box first.
+- **Round 304 item 2 (standing state) NOT re-verified this round** — round
+  352 did it 3.5 h earlier on the same boot and nothing has been asked of the
+  box since (load 0.00). Deliberate skip, not an omission.
+- Hygiene: no writes on the box outside `/work/logs/nuc-continuity-r358.md`;
+  `/work/**` otherwise read-only; no unit restarted; **port 8001 never
+  contacted**; no engine request of any kind.

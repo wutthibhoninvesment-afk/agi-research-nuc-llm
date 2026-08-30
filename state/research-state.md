@@ -10076,6 +10076,126 @@ Predictions written first (`nuc/predictions-e-round352.md`, D-013):
 - **Round 356 landed first** (`80bcf4f`), verified before landing.
 - See `knowledge/round-357-the-corpus-had-never-been-measured.md`.
 
+### Round 358 — NUC-integration(E) — 2026-08-30
+
+Box **UP**, same boot `43e0c767` as round 352 (boot_utc 2026-08-30T00:32:27Z),
+uptime 5h15m, load 0.00. Target: round 352 §8 item 2 (the suspend blind spot)
+and item 1 (the in-flight 8 h swap poll). Predictions written first
+(`nuc/predictions-e-round358.md`, D-013), scored 11 HIT / 1 MISS / 3 pending
+in the round file §7.
+
+- **A published number was withdrawn, not refined.** Round 352 reported
+  `unwitnessed 0h00m00s`, `max_unobserved_outage: None`,
+  `transition_count_upper_bound: 4` for the whole reachability log. Round
+  340's `_boot_history_witness` earned those by calling journal *endpoint*
+  coverage `WITNESS_FULL`. Endpoint coverage rules out a REBOOT and nothing
+  else — the identical exclusion `boot_utc unchanged` already made — and
+  cannot see a suspend, this box's own inferred failure mode (round 184).
+  **Two rules that rule out the same thing must return the same strength**,
+  so it is now `WITNESS_REBOOT_ONLY` and the real numbers are **70h53m11s
+  unwitnessed**, **14h00m00s** worst unobserved outage (rounds 142→154),
+  upper bound **None**.
+- **The contradiction was inside the test suite the whole time.** Round 340's
+  `test_boot_history_cannot_see_a_suspend_and_the_tests_say_so` has a
+  docstring saying the source cannot see a suspend and an assertion saying
+  `witnessed is True`. The prose was right; the assertion is what ran, for 18
+  rounds. Same class as round 356's unenforced documented rule, in a test
+  rather than in a spec.
+- **The fix is a bound, not a stronger boolean.** Every journal entry proves
+  the box was awake at that instant, so the longest silent stretch inside a
+  gap is an upper bound on any excursion hiding in it. New in
+  `nuc/reachability_check.py`: `WITNESS_BOUNDED`, `journal_seconds_probe`
+  (one ssh call, `awk` run-length dedup **on the box** — 22.5 kB for a 5 h
+  window against ~50k raw entries/day), `parse_journal_seconds` (sorts
+  locally; one out-of-order line would deflate the bound), `interior_silence`
+  (returns `None`, never a number, on partial coverage; every truncation
+  resolved *upward*), `gap_unobserved_s`, and CLI `journal-seconds` /
+  `continuity --journal-seconds`.
+- **Live result:** the rounds 352→358 gap is **3h26m49s** and its longest
+  interior silence is **96 s** (02:21:20Z→02:22:55Z, 1631 entry-seconds
+  inside). That gap can hide at most 0h01m36s — a 129× reduction — and
+  log-wide `unobserved_total` drops 70h53m11s → **67h27m58s**. Unlike round
+  352's `0h00m00s`, this number is earned.
+- **The bound can never be zero**, so this source can never reach `FULL`: an
+  arbitrarily short excursion always fits between two entries. Pinned by
+  `test_bound_is_never_zero_because_a_short_excursion_always_fits` so no
+  later round is tempted.
+- **P13 paid again — the live box broke the first cut.** Gating the silence
+  upgrade inside `_boot_history_witness` scored `bounded_gap_count: 0` while
+  holding 1870 live data points, because round 352's boot history has a
+  `last_entry` that predates round 358's own check. Fixed by keying the
+  upgrade on the STRENGTH (`REBOOT_ONLY`, from either rule) rather than on
+  the source — which is also the more correct design, since a journal entry
+  proves liveness with no boot record's licence. Fourth consecutive E-round
+  where code met a real machine and was wrong (rounds 304, 334, 352, 358).
+- **Two honest limits on the method.** (a) *Resolution anti-correlates with
+  risk*: 13 % of seconds carried an entry inside the measured gap versus
+  9.9 % boot-wide, because this round was ssh-ing into the box during it — so
+  the bound is tightest when we are poking the box and loosest on a quiet
+  unattended gap. (b) *The probe is not free*: `journalctl` over the current
+  boot takes **5.5 s**, over the 4.5-day log span **>300 s pinning one of two
+  cores** (~3.3 G archived journals). Scope per boot and cache.
+- **Round 304 item 1 (8 h swap poll): healthy mid-flight, deliberately not
+  collected.** pid 2337 alive, **815 of ~1920 samples** at 05:49Z, due
+  ~10:25Z — after this round ended. `swap_bytes` 0 and `pswpin/out` 0 on all
+  815; `mem_current` 9.10 → 9.77 GB (32.6 % of the 30 GiB ceiling) over 3.5 h.
+  Round 352's P14 is heading for a MISS. Not relaunched (round 274's rule).
+- **P6 is the instructive miss:** I predicted 50k–400k distinct entry-seconds
+  over the log span and the real density is ~10 % of seconds while up (~20k),
+  because 50k daily entries collapse into ~1.9k seconds — journald traffic is
+  bursty. Reasoning from entry counts instead of the measured unit, the same
+  shape as reasoning about prefill from token counts instead of the E1 curve.
+- **Housekeeping:** `languages/whence/SECURITY.md` still ` M`, byte-identical
+  to what round 349 escalated (four asserted controls that do not exist, and
+  the human-authorship attribution deleted). Tenth consecutive round the
+  record-gap check has surfaced it; **not** committed, **not** allowlisted —
+  it is an open operator decision, not a leftover diff.
+- **Verification:** `python3 -m pytest nuc/tests -q` → **369 passed** (163→165
+  in `test_reachability_check.py`; 6 round-340/352 tests rewritten to pin the
+  corrected semantics, 2 of them also de-hardcoded — the real log grows one
+  up gap per E-round, which had already made round 352's `== 18` a false
+  failure).
+- **New skill:** `skills/bounded-not-binary-witness/` — replace a boolean
+  "we ruled it out" with a measured upper bound when the evidence cannot
+  actually rule the thing out.
+- Hygiene: no writes on the box outside `/work/logs/nuc-continuity-r358.md`;
+  `/work/**` read-only; no unit restarted; **port 8001 never contacted**; no
+  engine request of any kind this round.
+- See `knowledge/round-358-nuc-e-the-witness-that-claimed-too-much.md`.
+
+## Next steps (as of round 358)
+1. **Collect the 8 h swap poll.** Due ~2026-08-30T10:25Z; at 05:49Z it was
+   815/1920 samples, flat at 0 B. Check `state/nuc-swap-watch-r352/poll.log`
+   for `PULL_DONE` and `ps aux | grep swap_watch` on the box BEFORE launching
+   anything — round 274's rule, and round 352 §3 is a fresh argument for it.
+   Fifth consecutive round this item is carried.
+2. **Widen the journal capture beyond the current boot.** Round 358 bounded
+   exactly ONE of 19 up gaps, because a per-boot capture only covers gaps
+   inside that boot. The remaining 18 need per-boot captures for boots -1
+   through -6, each of which is a multi-minute archived-journal scan. A
+   future E-round should capture them once and CACHE per boot_id under
+   `state/nuc-journal-<boot_id>.json`; they are immutable for closed boots.
+3. **Re-verify round 304 item 2 (standing state)** — skipped this round as a
+   deliberate no-op (round 352 did it 3.5 h earlier on the same boot, load
+   0.00). The next E-round on a NEW boot must not skip it.
+4. **`reachability_check.py`'s `"ambiguous"` verdict has still never been
+   observed live** — round 310's item 3, unchanged through round 358.
+5. **`boot_probe`'s live path is now twice-verified** (rounds 352, 358) —
+   round 334's item 4 can be closed. `journal_seconds_probe`'s live path is
+   verified for the fast per-boot case and NOT for the slow archived case,
+   where the only live evidence so far is a 300 s timeout.
+6. **The suspend hypothesis (round 184) remains neither confirmed nor
+   refuted.** Round 358 bounds how much suspend could hide; nothing in the
+   toolchain detects one. The signal that would is `journalctl -u
+   systemd-suspend` / `PM: suspend entry` kernel records — one grep, never
+   run. Cheap, and it would turn the bound into a direct observation.
+7. Rounds 316/322/328's missing `nuc-missions.md` addenda are still
+   reconstructible from the reachability log with no new information —
+   unchanged from round 334's item 6.
+8. **The escalation channel is still dead** (round 166): a twelfth boot with
+   no operator action on any of this program's asks, including round 349's
+   `SECURITY.md` decision.
+
 ## Next steps (as of round 357)
 1. **Re-probe with `--repeats 3` before any description is edited on the
    strength of round 357's report.** The 10 misses are candidates, not
