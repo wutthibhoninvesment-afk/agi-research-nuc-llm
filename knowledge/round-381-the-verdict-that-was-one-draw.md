@@ -298,6 +298,8 @@ would have hidden that shape completely.
 | `case_coverage` | 42 skills, 173 cases, **42 probed**, 0 errors |
 | new tests, RED against `git show HEAD:` code | **19 of 19 fail** (2 did not until positive controls were added) |
 | canary `fmk-near` sonnet/strict | 4/4, band [0.75, 1.00], **OK** — checked immediately before the batch that produced the 0/12, which is a pitfall in the new skill: a canary answers "is this still the same instrument", not "is this run typical" |
+| `bash languages/whence/run_tests_fast.sh` | **1640 passed**, 3 skipped (round 380's tree, unchanged by this round) |
+| `bash harness/run_tests_fast.sh` | **604 passed**, 344 deselected |
 | probe spend | 270 probes, **$11.70** |
 
 ---

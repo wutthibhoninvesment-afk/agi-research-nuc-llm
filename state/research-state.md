@@ -12925,6 +12925,8 @@ request of any kind sent**.
   | `case_coverage` | 42 skills, 173 cases, **42 probed**, 0 errors |
   | new tests vs `git show HEAD:` code | **19 of 19 RED** (2 only after positive controls) |
   | canary `fmk-near` sonnet/strict | 4/4, in band — and see the pitfall it seeded |
+  | `bash languages/whence/run_tests_fast.sh` | **1640 passed**, 3 skipped |
+  | `bash harness/run_tests_fast.sh` | **604 passed**, 344 deselected |
   | probe spend | **270 probes, $11.70**, 13 reports |
 
 - See `knowledge/round-381-the-verdict-that-was-one-draw.md`.
