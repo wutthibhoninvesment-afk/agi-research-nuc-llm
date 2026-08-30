@@ -97,7 +97,7 @@ EXAMPLE = os.path.join(ROOT, "examples", "self_eval.lang")
 SELF_HOST = os.path.join(ROOT, "examples", "self_host.lang")
 EFFECTS = os.path.join(ROOT, "examples", "effects.lang")
 MARKER = "# ==== SELF-TESTS"
-LIB_START, LIB_END = 27, 750  # self_host.lang lines 28..750 (0-indexed slice)
+LIB_START, LIB_END = 27, 800  # self_host.lang lines 28..800 (0-indexed slice)
 
 
 def eval_library_source():
@@ -145,10 +145,15 @@ def test_guest_parser_parses_its_own_full_source():
     # checkpoint checks; round 344: +1 net -- v0.19 drops three parser
     # functions (`call_node`, `build_guards`, `apply_type_guards`) for one
     # (`build_param_contracts`), and the parameter-annotation checkpoint
-    # goes from one check to four); pin the exact count so a
+    # goes from one check to four); round 350: +10 -- the v0.21 lexer-parity
+    # block adds `pos_inf` and `lit_num` to the shared LIBRARY (so this
+    # count and `LIB_END` move together), plus 7 new checkpoint checks and
+    # one `let big_lit` holding the 330-digit overflowing literal they
+    # share, for the four host disagreements
+    # `tests/test_lexer_guest_parity.py` found; pin the exact count so a
     # silent structural regression (e.g. two statements merging into one)
     # fails loudly even though `__ok` alone would not catch it.
-    assert env.get("__nstmts").payload == 202
+    assert env.get("__nstmts").payload == 212
 
 
 @pytest.mark.whence_slow
@@ -202,6 +207,18 @@ def test_guest_evaluator_executes_self_host_library():
         'check "and a sibling block may declare the name again":\n'
         '  not missed(parse_whence("fn a() { shape S = @{x: num}\\n1 }\\n'
         'fn b() { shape S = @{y: num}\\n1 }\\nlet z = 1"))',
+        # round 350: the v0.21 lexer-parity fixes, at the guest-EVAL level.
+        # self_host.lang's own check section already proves them as ordinary
+        # host Whence; this is the same claims running under store-passing,
+        # two levels of interpretation down, which is where round 192's
+        # newline-continuation bug was actually caught.
+        'check "a carriage return is whitespace two levels down":\n'
+        '  len(lex_all("a\\r\\nb")) == 4',
+        'check "a raw newline still ends a string literal unterminated":\n'
+        '  (lex_all("\\"a\\nb\\""))[0].t == "bad" and\n'
+        '    (lex_all("\\"a\\nb\\""))[0].v == "unterminated string"',
+        'check "an overflowing literal is inf, not a miss":\n'
+        '  not missed((lex_all("1e400"))[0].v)',
     ])
     # round 228: this test used to also assert
     # `not missed(p2) and len(steps(p2)) > 0` here (added round 206, when
@@ -219,7 +236,7 @@ def test_guest_evaluator_executes_self_host_library():
     rec = env.get("__r").payload
     assert rec.fields["parse_error"].payload is False
     checks = rec.fields["checks"].payload
-    assert len(checks) == 11
+    assert len(checks) == 14      # round 350: +3, the v0.21 lexer-parity fixes
     failed = [c.payload.fields["label"].payload for c in checks
               if c.payload.fields["pass"].payload is not True]
     assert not failed, failed

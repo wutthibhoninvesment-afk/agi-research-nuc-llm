@@ -213,3 +213,84 @@ def test_positions_after_string_and_op_tokens_on_one_line():
         ("NEWLINE", "\n", 1, 21),
         ("EOF", None, 2, 1),
     ]
+
+
+# ---------------------------------------------------------------------------
+# v0.21 (round 350): the numeral and identifier grammars are ASCII.
+# ---------------------------------------------------------------------------
+
+def test_a_superscript_digit_is_a_lex_error_not_a_host_crash():
+    # THE regression. `'²'.isdigit()` is True and `int('²')` raises, so
+    # `let x = ²` was an uncaught `ValueError` out of `tokenize` -- a raw
+    # Python traceback, not a LexError, from a one-character source file.
+    # Both conversion branches reached it: `int` here, `float` below.
+    with pytest.raises(LexError, match="unexpected character"):
+        tokenize("let x = ²")
+    with pytest.raises(LexError, match="unexpected character"):
+        tokenize("let x = ².5")
+    # and appended to a perfectly good ASCII literal, which is how a real
+    # source file would most plausibly reach it
+    with pytest.raises(LexError, match="unexpected character"):
+        tokenize("let x = 1²")
+
+
+def test_every_isdigit_character_int_cannot_convert_is_now_rejected():
+    # 128 characters are in the `isdigit() and not int()` gap. Enumerated
+    # over the whole codepoint range rather than sampled, because the point
+    # is that NONE of them reaches a conversion any more.
+    gap = []
+    for cp in range(0x110000):
+        ch = chr(cp)
+        if ch.isdigit() and not ch.isascii():
+            try:
+                int(ch)
+            except ValueError:
+                gap.append(ch)
+    assert len(gap) == 128
+    for ch in gap:
+        with pytest.raises(LexError):
+            tokenize(ch)
+
+
+def test_a_convertible_non_ascii_digit_is_no_longer_a_number():
+    # `int('٣')` == 3, so this one never crashed -- it silently WORKED,
+    # contradicting SPEC's own `num(text)` grammar ("ASCII digits", v0.4.1)
+    # and `interp.py`'s `_NUM_RE`, which names non-ASCII digits as a
+    # host-only spelling that is not a number here. 670 characters were in
+    # this class.
+    with pytest.raises(LexError, match="unexpected character"):
+        tokenize("let x = ٣")
+
+
+def test_a_non_ascii_letter_is_not_a_name():
+    # `str.isalpha()` accepted these; the guest lexer never could, and a
+    # guest written in Whence cannot enumerate Unicode (SPEC decision 31).
+    with pytest.raises(LexError, match="unexpected character"):
+        tokenize("let café = 1")
+    # including in the TAIL of an otherwise-ASCII name (`str.isalnum()`)
+    with pytest.raises(LexError, match="unexpected character"):
+        tokenize("let caéfe = 1")
+
+
+def test_ascii_names_and_numerals_are_untouched():
+    assert [t.value for t in tokenize("12 3.5 0 1e5")[:4]] == [12, 3.5, 0, 1e5]
+    assert [t.value for t in tokenize("_ _9 AbC_d1 x1")[:4]] == \
+        ["_", "_9", "AbC_d1", "x1"]
+
+
+def test_strings_and_comments_still_hold_any_character():
+    # The narrowing is scoped to NAMES and NUMERALS. Source is still UTF-8.
+    assert tokenize('"café ² ٣"')[0].value == "café ² ٣"
+    assert [t.type for t in tokenize("# café ²\n1")] == \
+        ["NUMBER", "EOF"]
+
+
+def test_carriage_return_escape():
+    # v0.21 adds `\r` to _ESCAPES. The lexer has SKIPPED a carriage return
+    # in source since its first commit, so the language knew about the
+    # character and had no way to write it -- which is exactly what stopped
+    # examples/self_eval.lang's guest lexer from mirroring the skip.
+    assert tokenize('"a\\rb"')[0].value == "a\rb"
+    # the skip itself, unchanged
+    assert [t.type for t in tokenize("a\r\nb")] == \
+        ["NAME", "NEWLINE", "NAME", "EOF"]

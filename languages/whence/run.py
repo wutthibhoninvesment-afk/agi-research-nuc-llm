@@ -16,6 +16,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+from whence.lexer import LexError                    # noqa: E402
 from whence.parser import parse, ParseError          # noqa: E402
 from whence.interp import Interpreter                # noqa: E402
 from whence.values import full_show                  # noqa: E402
@@ -151,7 +152,18 @@ def main(argv):
     interp = Interpreter(**kwargs)
     try:
         interp.run(src)
-    except ParseError as e:
+    except (LexError, ParseError) as e:
+        # `LexError` was NOT in this tuple until v0.21 (round 350), so every
+        # lex error -- `$`, an unterminated string, a bad escape -- left the
+        # CLI as a raw Python traceback with exit **1**, while SPEC.md's
+        # "Running" section has always promised `exit ... 2 (lex/parse
+        # error)` and a parse error already did exactly that. Exit 1 is the
+        # "some check failed" code, so a caller could not tell a program
+        # whose checks failed from a program that does not lex. Every other
+        # entry point in the tree (`bench/ref_diff.py`,
+        # `bench/reserve_probe.py`, `tests/test_generated_killers.py`)
+        # already catches the two together, which is what makes this an
+        # oversight rather than a design choice.
         print("error: %s" % e, file=sys.stderr)
         return 2
     return 1 if report_checks(interp.checks) else 0

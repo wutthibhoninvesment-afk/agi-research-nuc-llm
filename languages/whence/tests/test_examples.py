@@ -67,6 +67,26 @@ def test_parse_error_exits_2(tmp_path):
     assert "error:" in r.stderr
 
 
+def test_lex_error_exits_2(tmp_path):
+    # v0.21 (round 350). `run.py` caught `ParseError` and not `LexError`,
+    # so EVERY lex error left the CLI as a raw Python traceback with exit
+    # 1 -- the "some check failed" code, indistinguishable from a program
+    # whose checks failed -- while SPEC's `## Running` has always promised
+    # `2 (lex/parse error)` and `test_parse_error_exits_2` above already
+    # held. Three shapes, one per `raise LexError` site in the lexer.
+    for src, msg in [("let x = $\n", "unexpected character"),
+                     ('let s = "abc\n', "unterminated string"),
+                     ('let s = "a\\qb"\n', "bad escape")]:
+        bad = tmp_path / "bad.lang"
+        bad.write_text(src)
+        r = subprocess.run([sys.executable, RUN, str(bad)],
+                           capture_output=True, text=True)
+        assert r.returncode == 2, (src, r.returncode, r.stderr)
+        assert r.stderr.startswith("error: "), r.stderr
+        assert msg in r.stderr
+        assert "Traceback" not in r.stderr
+
+
 def test_usage_exits_2():
     r = run_example(None)
     assert r.returncode == 2
@@ -100,7 +120,13 @@ def test_meta_self_hosting_subset():
 def test_self_hosting_real_syntax():
     r = run_example("self_host.lang")
     assert r.returncode == 0, r.stdout
-    assert "102 passed, 0 failed" in r.stdout
+    # round 350 (v0.21): 102 -> 109, seven checkpoint checks for the four
+    # places the guest lexer disagreed with whence/lexer.py (a `\r` is
+    # whitespace, twice; the `\r` escape decodes; a raw newline ends a
+    # string literal unterminated; a lex error carries the host's bare
+    # message; an overflowing literal is `inf`, with and without an
+    # exponent). See `tests/test_lexer_guest_parity.py`.
+    assert "109 passed, 0 failed" in r.stdout
     assert "guest lexer+parser for real Whence syntax" in r.stdout
 
 

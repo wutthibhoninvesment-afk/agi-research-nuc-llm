@@ -172,7 +172,7 @@ def test_example_runs_green():
 
 
 def test_parser_section_matches_self_host():
-    # the guest lexer+parser is self_host.lang lines 28..750, verbatim;
+    # the guest lexer+parser is self_host.lang lines 28..800, verbatim;
     # if one file changes, the other must change with it (round 158: grew
     # from 420 to 485 lines adding `: Type`/`-> Type` guest parity; round
     # 164: 485 to 533 adding `effects [...]` clause skipping; round 176:
@@ -191,9 +191,16 @@ def test_parser_section_matches_self_host():
     # `shapes_before` replacing `shapes_declared_before`, v0.18); round 344:
     # 743 to 750, `build_param_contracts` replacing `build_guards`/
     # `apply_type_guards` so a parameter annotation rides on the fn NODE
-    # instead of being desugared into the body (v0.19)
+    # instead of being desugared into the body (v0.19); round 350:
+    # 750 to 800, the v0.21 lexer-parity block -- `pos_inf`/`lit_num`
+    # (an overflowing literal is `inf`, as the host's own literal scan
+    # makes it, not `num`'s out-of-range MISS), `\\r` in the whitespace
+    # skip and in the escape decoder, a raw newline ending a string
+    # literal unterminated, and `lex_str_body` reporting through an
+    # `@{err: ...}` record instead of a `miss` literal whose reason
+    # carried a line number out of THIS file
     host_lines = open(SELF_HOST).read().splitlines()
-    section = "\n".join(host_lines[27:750])
+    section = "\n".join(host_lines[27:800])
     assert section.startswith("# ---- character classes")
     assert section.rstrip().endswith(
         "fn parse_whence(src) { parse_program(lex_all(src)) }")

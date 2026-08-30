@@ -204,6 +204,22 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    made the two contract ends one rule, the change was written once and
    arrived at four surfaces at once: `typed`, `-> Type`, `p: Type`, and
    every `shape` in every example.
+31. **A rule the guest cannot express is a rule the language does not have
+   (v0.21, round 350).** The lexer classified characters with
+   `str.isdigit()`/`isalpha()`/`isalnum()` — Unicode — while
+   `examples/self_eval.lang`'s guest lexer, which decision 27 already makes
+   the arbiter when the two disagree, has only ever had explicit ASCII
+   strings. A guest written in Whence cannot enumerate Unicode, so that gap
+   could only ever be closed by NARROWING the host. Two independent facts
+   said narrowing was also just correct: this file has specified "ASCII
+   digits" for `num(text)` since v0.4.1 while the literal grammar accepted
+   798 characters, and 128 of those made `int()` raise a bare `ValueError`
+   out of `tokenize`. The general form: when the host has a capability the
+   guest structurally cannot mirror, the question is not "how do we teach
+   the guest" but "was that capability ever specified" — and here it was
+   specified AGAINST. Strings and comments are untouched; they hold any
+   character, because nothing about them requires the guest to enumerate
+   anything.
 
 ## Syntax (statements are newline-separated; `#` comments)
 ```
@@ -223,6 +239,9 @@ Precedence (low→high): `rescue`, `or`, `and`, `not`, comparisons (non-chaining
 `if` requires `else`; blocks/fn bodies must end with an expression. Newlines are
 statement separators except inside `( ) [ ] @{ }` and directly after a token
 that cannot end a statement.
+Names are `[A-Za-z_][A-Za-z0-9_]*` and numeric literals are ASCII digits
+(v0.21); strings and comments hold any character. String escapes are `\n`,
+`\t`, `\r`, `\"` and `\\` — any other escape is a lex error.
 
 ## Semantics notes
 - Numbers are ints/floats; `/` is float division; `+` also concatenates strings
@@ -3355,11 +3374,22 @@ bodies and `while` bodies too.
   that overflows a float (`"1e400"`) is an `out of range` miss. (Round 5
   had made these decisions on a temp copy of the checkout that never
   shipped; the round-11 differential oracles re-found the whole family.)
+- **v0.21 (round 350):** NAMES and NUMERIC LITERALS are ASCII. Until v0.21
+  the lexer classified with `str.isdigit()`/`isalpha()`/`isalnum()`, so
+  `let x = ٣` was the number three (contradicting the `num(text)` rule
+  directly above it) and `let x = ²` was an uncaught host `ValueError` out
+  of `tokenize` — a traceback, not a `LexError`. Both are now `unexpected
+  character` lex errors. Source text is still UTF-8: STRINGS and COMMENTS
+  hold any character. The escape table gained `\r`, which the lexer had
+  always SKIPPED in source and the language had no way to write.
 
 ## Running
 `python3 run.py [--max-depth N] [--max-iter N] [--no-direct]
 examples/<name>.lang` — exit 0 (all checks pass / none), 1 (some check
-failed), 2 (lex/parse error). Embedding: `Interpreter(out=...,
+failed), 2 (lex/parse error). *(The LEX half of exit 2 only became true in
+v0.21, round 350: `run.py` caught `ParseError` and not `LexError`, so every
+lex error left the CLI as a Python traceback with exit 1 — the "some check
+failed" code.)* Embedding: `Interpreter(out=...,
 max_depth=..., max_iter=..., fast=True, direct=True, gc_relief=False)`; no
 `sys.setrecursionlimit` needed — direct mode (v0.9) spends only the host
 frames that are demonstrably free and the trampoline takes over beyond
@@ -4490,3 +4520,162 @@ claim below is pinned by a test named beside it.
   comparison and had to be pinned by wording (round 17's exemption again).
   And it does not touch `matches`, `shapeof`, or the parse-time errors of
   v0.18.
+
+## v0.21 (round 350, language C) — the lexer's grammar is ASCII, and the guest lexer is checked against the host rather than against its history
+
+Round 332's next-steps item 1 asked for *"an exhaustive sweep of
+`whence/lexer.py`'s full history against the guest `lex` function"*. It was
+carried unchanged for sixteen rounds; round 348 said the seventeenth was the
+worst option. The sweep takes five minutes:
+
+```
+$ git log --follow --oneline -- languages/whence/whence/lexer.py
+7b3afcb  Round 323 (SWE-loop D)   exponent literals
+8d92ff9  Round 144 (language C)   `->` into TWO_CHAR_OPS and CONTINUES
+ee30654  Initial clean commit v3  (the whole file; no parent to diff against)
+```
+
+Two semantic diffs in the lexer's entire recorded history, and the guest
+mirrors both (`two_char_ops`/`continue_ops` carry `->`; round 332 added
+`exp_end`). **A history sweep covers two lines of a two-hundred-line lexer
+and says nothing about the rest, because the rest never was a diff.** The
+item was undischargeable as worded, not merely unscheduled. What can settle
+the question is comparing what the two lexers DO, and doing that found four
+guest disagreements, two host defects, and one CLI defect — none of which a
+history read could have surfaced.
+
+### The host: names and numerals are ASCII
+
+`whence/lexer.py` classified characters with `str.isdigit()`,
+`str.isalpha()` and `str.isalnum()` from its first commit. Those are
+Python's UNICODE predicates, and two things followed.
+
+**`str.isdigit()` is true for 798 characters.** `let x = ٣` (Arabic-Indic
+three) lexed to `NUMBER 3`. Nothing chose that; nothing documented it. This
+file's own `## Limits that are errors, not crashes` has said the opposite
+since v0.4.1 — Whence number syntax is "optional sign, **ASCII digits**,
+optional fraction, optional exponent" — and `interp.py`'s `_NUM_RE` enforces
+exactly that for `num(text)`, with a comment naming "non-ASCII digits" among
+the host-only spellings that are *not* numbers here. So `num("٣")` was a
+`cannot parse` miss while the literal `٣` was the number three. The literal
+grammar and the documented grammar disagreed.
+
+**For 128 of those 798 characters `int()` raises.** `let x = ²` was an
+uncaught Python `ValueError` out of `tokenize` — not a `LexError`, not exit
+2, not a miss, a traceback. A one-character source file crashed the
+implementation. Both the float branch (`².5`) and the int branch reach it,
+and a valid ASCII literal with one of these appended (`1²`) reaches it too.
+
+This is the same defect round 323 found and half-fixed: the literal grammar
+drifting from `_NUM_RE`. Round 323 closed the *exponent* half (`1e5` had no
+lexer support at all while `num("1e5")` worked). v0.21 closes the *digit-set*
+half.
+
+`_DIGITS`, `_NAME_START` and `_NAME_CONT` are now explicit ASCII strings.
+`let x = ²` and `let x = ٣` are `unexpected character` lex errors. Names
+narrow for the same reason plus a third: `examples/self_eval.lang`'s guest
+lexer has only ever had `contains("abcdefghijklmnopqrstuvwxyz…", c)`, a guest
+written in Whence cannot enumerate Unicode, and so parity on names is
+unreachable in the widening direction and free in the narrowing one. Zero of
+the thirty `.lang` files in this tree contain a non-ASCII NAME token, so the
+narrowing costs nothing that exists.
+
+**Source text is still UTF-8 and STRINGS and COMMENTS still hold any
+character.** Only identifiers and numeric literals are ASCII.
+
+### The host: `\r` is writable
+
+The lexer has skipped a carriage return in source since its first commit
+(`if c in " \t\r"`, so a CRLF file lexes), and the escape table had `\n`,
+`\t`, `\"` and `\\` but no `\r` — a character the language knew about and
+could not name. `_ESCAPES` gains `"r"`. That is what made the guest fix
+below writable at all: a guest lexer written in Whence cannot test for a
+character Whence cannot spell.
+
+### The CLI: a lex error is exit 2
+
+`run.py` caught `ParseError` and not `LexError`, so **every** lex error —
+`$`, an unterminated string, a bad escape — left the CLI as a raw Python
+traceback with exit **1**, while `## Running` above has always promised
+`exit … 2 (lex/parse error)` and a parse error already did exactly that.
+Exit 1 is the "some check failed" code, so a caller could not tell a program
+whose checks failed from a program that does not lex. Every other entry
+point in the tree (`bench/ref_diff.py`, `bench/reserve_probe.py`,
+`tests/test_generated_killers.py`) already catches the two exceptions
+together, which is what makes this an oversight rather than a decision.
+
+### The guest: four disagreements
+
+Found by comparing token streams, all fixed in `examples/self_eval.lang` and
+`examples/self_host.lang` (the lexer section is byte-identical in both and
+pinned by `test_parser_section_matches_self_host`).
+
+| | host | guest, before v0.21 |
+| --- | --- | --- |
+| `\r` in source | skipped as whitespace | `bad: unexpected character` |
+| raw newline inside a string literal | `unterminated string` | consumed; a multi-line string token the host refuses |
+| overflowing literal (`1e400`, a 400-digit literal with a fraction) | `inf` | a **miss**, as the token's value |
+| a lex error's message | `unterminated string` | `unterminated string (line 161)` |
+
+The overflow one is the instructive one. Round 332 mirrored the exponent
+SCAN into `exp_end` and silently inherited `num`'s CONVERSION with it —
+`num(text)` answers an out-of-range finite-syntax string with an `out of
+range` miss, a string-conversion rule that `whence/lexer.py`'s own comment
+is careful to separate from the literal-grammar rule, and the guest used
+`num` for both. The 400-digit case predates round 332 entirely. The fix is
+`lit_num`, which falls back to `pos_inf` — bound to the literal `1e400`, so
+the guest gets the host's answer the host's own way, one level up. A literal
+the scan produced is always valid Whence number syntax and never signed
+(`-1e400` is the op `-` then the literal), so "out of range" is the only way
+`num` can fail on it and the overflow is always toward `+inf`.
+
+The message one: `miss "unterminated string"` gives a reason of
+`unterminated string (line 161)`, and 161 is a line in `self_eval.lang`. A
+guest lex error was describing the program being lexed with a coordinate
+into the lexer's own source, and it moved every time the file was edited.
+`lex_str_body` now returns `@{err: …}` instead of a miss.
+
+### The instrument
+
+`tests/test_lexer_guest_parity.py`. Three rules:
+
+1. **Acceptance agrees.** `tokenize(src)` raises a `LexError` if and only if
+   `lex_all(src)` ends in a `bad` token.
+2. **On acceptance the streams are equal** — kind, value and line, element
+   for element, EOF included.
+3. **On rejection the messages are equal**, minus the position.
+
+Plus **table parity**: the host's eight keyword/operator/character tables
+against the guest's own bindings, read out of a real interpreter run. Round
+144 added `->` to `TWO_CHAR_OPS` *and* `CONTINUES`, and nothing in this tree
+would have failed if it had touched one and not the other, or the host and
+not the guest. That is the mechanism by which a lexer table drifts, and it
+is now a test failure.
+
+Two things are pinned as real divergences rather than fixed. Guest tokens
+carry no `col` (nothing in the guest parser reads one). And the host builds
+its message with Python's `%r`, which switches quote style for `'` and
+doubles a backslash, while Whence has no `repr` — established exhaustively
+over printable ASCII to be **exactly two characters**, not a sample.
+
+### Measured
+
+- 70-case hand corpus, one per branch of `tokenize`: 0 divergences.
+- **All 30 `examples/*.lang` files, ~37,000 tokens, including
+  `self_eval.lang` lexing its own 138 KB source: 0 divergences.**
+- `self_host.lang`'s own check section 102 → 109; the guest-EVALUATOR
+  checkpoint (`test_guest_evaluator_executes_self_host_library`) 11 → 14
+  checks, so each fix is also proved two levels of interpretation down,
+  under store-passing, which is where round 192's newline-continuation bug
+  was actually caught.
+- `languages/whence` fast tier 1049 → **1137** passed / 53 deselected.
+
+### What this deliberately does NOT do
+
+It does not widen the guest to Unicode — that is not implementable in
+Whence. It does not make an overflowing literal an error: `inf` is pinned by
+`test_exponent_overflow_becomes_inf_not_a_lex_error` and by the fuzz
+regression corpus, and v0.21's job was to make the guest agree with the
+host, not to relitigate what the host does. And it does not touch the
+PARSER's own host/guest parity, which has its own differential
+(`tests/test_parser_differential.py`) and its own history.

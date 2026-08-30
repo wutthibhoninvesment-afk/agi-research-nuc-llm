@@ -98,6 +98,28 @@ fn exp_end(s, j) {
   } else { j }
 }
 
+# The other half of the same mirror, and round 332 did not have it (round
+# 350). The host's literal scanner converts with `float(text)`/`int(text)`,
+# which OVERFLOWS TO `inf` for `1e400` -- deliberately, and pinned by
+# tests/test_lexer.py::test_exponent_overflow_becomes_inf_not_a_lex_error.
+# `num(text)` does NOT: an out-of-range finite-syntax string is an "out of
+# range" MISS, a string-CONVERSION rule that whence/lexer.py's own comment
+# is careful to separate from the literal-grammar one. Round 332 mirrored
+# the exponent SCAN into `exp_end` and silently inherited `num`'s
+# CONVERSION with it, so every overflowing literal -- `1e400`, and the
+# pre-existing 400-digit-plus-fraction case that predates round 332
+# entirely -- carried a miss here where the host carries `inf`.
+# `pos_inf` is the host's own answer obtained the host's own way: this very
+# literal, lexed one level up. A literal the scan produced is always valid
+# Whence number syntax and is never signed (`-1e400` is op `-` then the
+# literal `1e400`), so "out of range" is the ONLY way `num` can fail on it
+# and the overflow is always toward +inf.
+let pos_inf = 1e400
+fn lit_num(text) {
+  let v = num(text)
+  if missed(v) { pos_inf } else { v }
+}
+
 # ---- lexer ------------------------------------------------------------------
 # bracket stack: a list of "(" "[" "@{" "{" strings, pushed on open, popped on
 # ANY close (matching whence/lexer.py's `brackets` — it does not check which
@@ -135,19 +157,37 @@ fn suppressed(stack, acc) {
   t == "(" or t == "[" or t == "@{" or last_continues(acc)
 }
 
+# Returns EITHER `@{v: <decoded text>, pos: <index after the closing quote>}`
+# on success OR `@{err: <message>}` on failure. Until v0.21 (round 350) the
+# failure side was a `miss` literal, and `miss "unterminated string"` gives
+# a reason of `unterminated string (line 161)` -- 161 being a line in THIS
+# file. That line number was reaching the caller's `bad` token and so the
+# guest's user-facing lex error, describing the program being lexed with a
+# coordinate into the lexer's own source; it also moved every time this
+# file was edited. A plain record carries the message the host's `LexError`
+# carries and nothing else. The `""` sentinel below is safe because every
+# valid escape decodes to exactly one character.
 fn lex_str_body(s, i, acc) {
-  if i >= len(s) { miss "unterminated string" }
+  if i >= len(s) { @{err: "unterminated string"} }
+  # v0.21 (round 350): a RAW newline inside a string literal ends the string
+  # unterminated -- whence/lexer.py's `if i >= n or src[i] == "\\n"` has said
+  # so since its first commit, and this guest had only the `i >= len(s)`
+  # half, so it happily consumed across the line break and produced a
+  # multi-line string token the host refuses outright.
+  else if s[i] == "\n" { @{err: "unterminated string"} }
   else if s[i] == "\"" { @{v: acc, pos: i + 1} }
   else if s[i] == "\\" {
-    if i + 1 >= len(s) { miss "unterminated string" }
+    if i + 1 >= len(s) { @{err: "unterminated string"} }
     else {
       let e = s[i + 1]
       let ch = if e == "n" { "\n" }
         else if e == "t" { "\t" }
+        else if e == "r" { "\r" }
         else if e == "\"" { "\"" }
         else if e == "\\" { "\\" }
-        else { miss ("bad escape '\\" + e + "'") }
-      if missed(ch) { ch } else { lex_str_body(s, i + 2, acc + ch) }
+        else { "" }
+      if ch == "" { @{err: "bad escape '\\" + e + "'"} }
+      else { lex_str_body(s, i + 2, acc + ch) }
     }
   }
   else { lex_str_body(s, i + 1, acc + s[i]) }
@@ -166,13 +206,19 @@ fn lex(s, i, stack, acc, line) {
       lex(s, i + 1, stack, push(acc, @{t: "nl", v: "\n", line: line}), line + 1)
     }
   }
-  else if s[i] == " " or s[i] == "\t" { lex(s, i + 1, stack, acc, line) }
+  # `\r` joined this branch in v0.21 (round 350). whence/lexer.py skips a
+  # carriage return with `if c in " \\t\\r"` and always has, so a CRLF
+  # file lexes under the host; the guest emitted `bad: unexpected
+  # character` at the first CR. It could not have been written before
+  # v0.21 added the `\\r` ESCAPE -- until then Whence had no way to
+  # spell the character this line compares against.
+  else if s[i] == " " or s[i] == "\t" or s[i] == "\r" { lex(s, i + 1, stack, acc, line) }
   else if is_digit(s[i]) {
     let j0 = scan_while(s, i, is_digit)
     let has_frac = j0 + 1 < len(s) and s[j0] == "." and is_digit(s[j0 + 1])
     let j1 = if has_frac { scan_while(s, j0 + 1, is_digit) } else { j0 }
     let j = exp_end(s, j1)
-    lex(s, j, stack, push(acc, @{t: "num", v: num(slice(s, i, j)), line: line}), line)
+    lex(s, j, stack, push(acc, @{t: "num", v: lit_num(slice(s, i, j)), line: line}), line)
   }
   else if is_name_start(s[i]) {
     let j = scan_while(s, i, is_name_cont)
@@ -182,7 +228,11 @@ fn lex(s, i, stack, acc, line) {
   }
   else if s[i] == "\"" {
     let r = lex_str_body(s, i + 1, "")
-    if missed(r) { push(acc, @{t: "bad", v: str(r), line: line}) }
+    # v0.21 (round 350): `has(r, "err")` replaces `missed(r)`, and the bad
+    # token now carries the bare message (see `lex_str_body`'s header) --
+    # byte-identical to what whence/lexer.py's `LexError` carries, minus
+    # the position, which a guest token has no field for.
+    if has(r, "err") { push(acc, @{t: "bad", v: r.err, line: line}) }
     else { lex(s, r.pos, stack, push(acc, @{t: "str", v: r.v, line: line}), line) }
   }
   else if i + 1 < len(s) and contains(two_char_ops, s[i] + s[i + 1]) {

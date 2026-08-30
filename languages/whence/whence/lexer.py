@@ -5,12 +5,51 @@ record literals @{ } so multi-line data and argument lists read naturally.
 Block braces { } keep their newlines (blocks contain statements).
 A newline directly after a token that cannot end a statement (a binary
 operator, `=`, `:`, `,`, `and`/`or`/`not`/`rescue`) is a line continuation.
+
+Source text is UTF-8 and STRINGS and COMMENTS hold any character; NAMES and
+NUMERIC LITERALS are ASCII (v0.21, round 350) -- see `_DIGITS`/`_NAME_START`
+below for why that is a narrowing and not just a spelling.
 """
 
 KEYWORDS = {
     "let", "fn", "if", "else", "check", "rescue",
     "why", "snip", "miss", "true", "false", "and", "or", "not",
 }
+
+# v0.21 (round 350). These three sets were `str.isdigit()`, `str.isalpha()`
+# and `str.isalnum()` -- Python's UNICODE classifications -- from the
+# lexer's first commit until this round. Two things were wrong with that,
+# and they are the same defect at two severities:
+#
+#   1. `str.isdigit()` is True for 798 characters. `let x = ٣` (Arabic-Indic
+#      three) lexed to `NUMBER 3`, because `int()` accepts it too -- an
+#      undocumented, unspecified numeral system nobody chose. SPEC.md's
+#      "Limits that are errors, not crashes" has said the opposite since
+#      v0.4.1: Whence number syntax is "optional sign, ASCII digits,
+#      optional fraction, optional exponent", and `interp.py`'s `_NUM_RE`
+#      enforces exactly that for `num(text)` -- with a comment naming
+#      "non-ASCII digits" as one of the host-only spellings that is NOT a
+#      number here. The literal grammar and the documented grammar
+#      disagreed.
+#   2. For 128 of those 798 characters `int()` RAISES. `let x = ²` was an
+#      uncaught `ValueError` escaping `tokenize()` -- a Python traceback
+#      out of `run.py`, not a `LexError`, not exit 2, not a miss. That is
+#      the discipline SPEC's "errors, not crashes" section exists to state.
+#
+# Round 323 found and fixed the exponent half of the SAME literal-grammar-
+# vs-`_NUM_RE` gap (`1e5` had no lexer support at all while `num("1e5")`
+# worked); this is the digit-set half of it, left behind.
+#
+# `_NAME_START`/`_NAME_CONT` narrow for a third reason on top of those two:
+# `examples/self_eval.lang`'s guest lexer -- the language's own reference
+# implementation, and the arbiter round 336 used for tail-position order --
+# has only ever had `contains("abcdefghijklmnopqrstuvwxyz...", c)`. A guest
+# written in Whence cannot enumerate Unicode, so host/guest parity on names
+# is unreachable in the widening direction and free in the narrowing one.
+# Zero of the 30 `.lang` files in this tree contain a non-ASCII NAME token.
+_DIGITS = "0123456789"
+_NAME_START = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"
+_NAME_CONT = _NAME_START + _DIGITS
 
 TWO_CHAR_OPS = ("==", "!=", "<=", ">=", "@{", "->")
 ONE_CHAR_OPS = "+-*/%()[]{},:.=<>"
@@ -40,7 +79,14 @@ class Token(object):
         return "Token(%s, %r, %d:%d)" % (self.type, self.value, self.line, self.col)
 
 
-_ESCAPES = {"n": "\n", "t": "\t", '"': '"', "\\": "\\"}
+# v0.21 (round 350) adds `\r`. The lexer has SKIPPED a carriage return
+# in source since its first commit (`if c in " \\t\\r"`, so a CRLF file
+# lexes), yet the escape table had no way to WRITE one -- a character
+# the language knew about but could not name. That hole is what made
+# `examples/self_eval.lang`'s guest lexer unable to mirror the skip:
+# a guest written in Whence cannot spell the character it must test
+# for. See the guest `lex`'s whitespace branch.
+_ESCAPES = {"n": "\n", "t": "\t", "r": "\r", '"': '"', "\\": "\\"}
 
 
 def tokenize(src):
@@ -82,14 +128,14 @@ def tokenize(src):
             col += 1
             continue
 
-        if c.isdigit():
+        if c in _DIGITS:
             start = i
             start_col = col
-            while i < n and src[i].isdigit():
+            while i < n and src[i] in _DIGITS:
                 i += 1
-            if i < n and src[i] == "." and i + 1 < n and src[i + 1].isdigit():
+            if i < n and src[i] == "." and i + 1 < n and src[i + 1] in _DIGITS:
                 i += 1
-                while i < n and src[i].isdigit():
+                while i < n and src[i] in _DIGITS:
                     i += 1
             # Optional exponent, mirroring `interp.py`'s own `_NUM_RE`
             # ("Whence decimal syntax": sign, digits, optional fraction,
@@ -111,8 +157,8 @@ def tokenize(src):
                 j = i + 1
                 if j < n and src[j] in "+-":
                     j += 1
-                if j < n and src[j].isdigit():
-                    while j < n and src[j].isdigit():
+                if j < n and src[j] in _DIGITS:
+                    while j < n and src[j] in _DIGITS:
                         j += 1
                     i = j
             text = src[start:i]
@@ -132,10 +178,10 @@ def tokenize(src):
             tokens.append(Token("NUMBER", value, line, start_col))
             continue
 
-        if c.isalpha() or c == "_":
+        if c in _NAME_START:
             start = i
             start_col = col
-            while i < n and (src[i].isalnum() or src[i] == "_"):
+            while i < n and src[i] in _NAME_CONT:
                 i += 1
             word = src[start:i]
             col += i - start
