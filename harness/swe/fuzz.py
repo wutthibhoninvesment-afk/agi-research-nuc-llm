@@ -833,22 +833,54 @@ class ProgramGen(object):
         generated (`-> S` and `p: S`) because v0.19 routes them through the
         same `_closure_spec` and the same `_check_contract`, and a shape
         that only ever exercised one end could not show a divergence
-        between them."""
+        between them.
+
+        EARLY vs LATE (round 359). The recipe above only ever emitted the
+        shadowing `let` BEFORE the annotated fn, and that placement cannot
+        show the difference this family exists to find. Round 342 §7's
+        hazard is about WHEN a spec name is resolved — at closure creation
+        (v0.19, the defining env) or per call (v0.12-v0.18, the calling
+        env) — and with the `let` first, BOTH answer 3. Round 359 measured
+        the consequence: its `param_erasure` oracle diverged on 47 of 2500
+        generated programs, and all 47 differed only in a v0.22 wording
+        clause, with the two forms resolving the spec to the same value. So
+        half the time the `let` now runs AFTER the fn is defined:
+
+            fn sh3() { fn sg4(q: S1) { q }
+              let S1 = 3
+              sg4(1) }
+
+        `_closure_spec` resolves `S1` at `fn sg4`'s creation, when the only
+        `S1` in scope is the module's real shape, while a v0.12-style guard
+        would look it up at the call and find the 3. That is the hazard
+        itself, generated for the first time. The EARLY half is kept
+        because it is the only thing that reaches `_check_contract`'s
+        `not _spec_ok` guard (round 344's AttributeError), which the LATE
+        half specifically does not."""
         r = self.r
         sname = r.choice(self.shape_names())
         outer, inner, res = self.fresh("sh"), self.fresh("sg"), self.fresh("sr")
         bind = r.choice(SHADOW_BINDINGS)
         if r.random() < 0.5:
-            body = "fn %s() -> %s { 1 }\n  %s()" % (inner, sname, inner)
+            decl = "fn %s() -> %s { 1 }" % (inner, sname)
+            call = "%s()" % inner
         else:
             q = self.fresh("q")
-            body = "fn %s(%s: %s) { %s }\n  %s(%s)" % (
-                inner, q, sname, q, inner,
-                r.choice(["1", '"3O"', "@{}", "@{a: 1}", self._witness_for(sname)]))
+            decl = "fn %s(%s: %s) { %s }" % (inner, q, sname, q)
+            call = "%s(%s)" % (inner, r.choice(
+                ["1", '"3O"', "@{}", "@{a: 1}", self._witness_for(sname)]))
+        shadow = "let %s = %s" % (sname, bind)
+        # LATE (round 359): the shadowing `let` runs AFTER the annotated fn
+        # is defined, so the two resolutions really do see different values
+        # — see this method's docstring.
+        if r.random() < 0.5:
+            stmts = [decl, shadow, call]      # LATE: shadow after the fn
+        else:
+            stmts = [shadow, decl, call]      # EARLY: the original recipe
         self.fns.append((outer, 0))
         self.scope.append(res)
-        return ("fn %s() { let %s = %s\n  %s }\nlet %s = %s()"
-                % (outer, sname, bind, body, res, outer))
+        return ("fn %s() { %s }\nlet %s = %s()"
+                % (outer, "\n  ".join(stmts), res, outer))
 
     def _chain_tag(self, term_tag):
         """A `-> Type` annotation for one link of a typed tail chain, drawn

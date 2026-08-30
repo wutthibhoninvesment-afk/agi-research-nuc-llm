@@ -406,3 +406,341 @@ def test_generated_programs_now_contain_typed_tail_chains():
         if re.search(r"fn (tc|tl|tm)\d+\(", ProgramGen(700 + i, stress_rate=0.0).program()):
             hits += 1
     assert hits >= 10, hits
+
+
+# --- param_erasure (round 359) ------------------------------------------------
+#
+# Round 347 §7 designed this oracle and deliberately did not ship it ("an
+# oracle whose exemption list has never been run against a real campaign is
+# worse than a named gap"); round 353 carried it as "the largest open
+# SWE-loop(D) item". These are the runs that were missing.
+
+PARAM_SRC = ('shape Pt = @{a: num}\n'
+             'fn f(p: num, q: Pt) { p }\n'
+             'let good = f(1, @{a: 2})\n'
+             'let bad = f("s", 3)\n'
+             'print(good)\nprint(bad)\n')
+
+# One case per exemption mechanism. Each MUST diverge — that is what makes
+# the exemption load-bearing rather than defensive.
+EXEMPT_CASES = {
+    # the shape is rebound AFTER the closure is made: v0.19 resolved it at
+    # creation (the shape), the erased guard resolves it per call (the 3)
+    "late-bound spec shadow":
+        'shape S = @{a: num}\nfn g() {\n  fn f(p: S) { p }\n'
+        '  let S = 3\n  f(1)\n}\nlet r = g()\n',
+    # the spec name is one of the function's OWN parameters
+    "spec name is a parameter":
+        'shape S = @{a: num}\nfn f(S, p: S) { p }\nlet r = f(9, 1)\n',
+    # the erased form calls `typed` BY NAME from inside the body
+    "program binds typed":
+        'let typed = fn(v, s, l) { 42 }\nfn f(p: num) { p }\nlet r = f("x")\n',
+}
+
+
+def test_oracle_names_is_the_single_pinned_registry():
+    """The one literal list of oracles in the test suite.
+
+    Round 343 found `test_swe_review.py` pinning its own copy of the set,
+    red since round 338 because round 337 added `tail_transparency` and
+    never re-pinned it there. Two literals mean one of them is stale; this
+    is now the only one, and `test_oracle_tool_reports_every_oracle_and_
+    fired_list` derives its expectation from `ORACLE_NAMES` instead.
+    """
+    assert O.ORACLE_NAMES == (
+        "totality", "fast_slow", "direct", "determinism", "render",
+        "frames", "tail_transparency", "param_erasure")
+    assert set(O.ORACLES) == set(O.ORACLE_NAMES)
+
+
+def test_param_erasure_reports_when_there_is_nothing_to_compare():
+    o = O.run_oracle("param_erasure", PKG, "let x = 1 + 2\n")
+    assert o.kind == "ok" and o.detail == "no parameter contracts"
+
+
+def test_param_erasure_silent_on_the_real_interpreter():
+    o = O.run_oracle("param_erasure", PKG, PARAM_SRC)
+    assert o.kind == "ok" and o.detail.startswith("2 contracts"), o.detail
+
+
+def test_erasure_writes_v012_guards_and_leaves_the_tail_alone():
+    """P1's mechanism, pinned: `block()` requires a body to end in an
+    expression statement, so prepending guards can never change which
+    statement `mark_tails` marked — which is why a POST-parse transform is
+    faithful to a parser that ran pre-`mark_tails`."""
+    src = ('fn f(n: num, acc: num) -> num {\n'
+           '  if n == 0 { acc } else { f(n - 1, acc + n) }\n}\n'
+           'let a = f(5, 0)\n')
+    program = O._parse(PKG, src)
+    fn = program.stmts[0]
+    tail_before = [id(n) for n in O.iter_ast_nodes(program)
+                   if type(n).__name__ == "Call" and n.tail]
+    assert tail_before                        # there IS a tail call to lose
+    assert len(fn.body.stmts) == 1
+    n = O.erase_param_contracts(PKG, program)
+    assert n == 2 and fn.param_types is None
+    assert len(fn.body.stmts) == 3            # two guards prepended
+    for guard in fn.body.stmts[:2]:
+        assert type(guard).__name__ == "Let"
+        assert guard.line == fn.body.line     # the contract's OWN line
+        assert type(guard.expr).__name__ == "Call"
+        assert guard.expr.fn.name == "typed"
+        assert [type(a).__name__ for a in guard.expr.args] == \
+            ["NameRef", "Str", "Str"]
+        assert guard.expr.args[0].name == guard.name
+        assert guard.expr.args[2].value == "parameter '%s' of f" % guard.name
+    assert [id(n) for n in O.iter_ast_nodes(program)
+            if type(n).__name__ == "Call" and n.tail] == tail_before
+    assert O.erase_param_contracts(PKG, program) == 0     # idempotent
+
+
+def _pre_v019_pkg():
+    """The real pre-v0.19 whence package (`6132f1f^`, the commit that landed
+    parameter contracts), materialised from git into a temp dir and loaded
+    alongside the current one. Returns None when git cannot supply it."""
+    import subprocess
+    import tempfile
+    global _PRE_V019
+    try:
+        return _PRE_V019
+    except NameError:
+        pass
+    repo = os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))))
+    rev = "6132f1f^:languages/whence/whence"
+    try:
+        names = subprocess.run(["git", "ls-tree", "--name-only", rev],
+                               cwd=repo, capture_output=True, text=True,
+                               timeout=30, check=True).stdout.split()
+        d = tempfile.mkdtemp(prefix="whence-pre-v019-")
+        os.mkdir(os.path.join(d, "whence"))
+        for name in names:
+            blob = subprocess.run(["git", "show", rev + "/" + name], cwd=repo,
+                                  capture_output=True, timeout=30,
+                                  check=True).stdout
+            with open(os.path.join(d, "whence", name), "wb") as fh:
+                fh.write(blob)
+        _PRE_V019 = K.load_whence(d, "pre_v019")
+    except Exception:
+        _PRE_V019 = None
+    return _PRE_V019
+
+
+# Fields every AST node class has had on both sides of v0.19 — the v0.19+
+# `param_types` slot and any later bookkeeping are deliberately not compared,
+# because the whole claim is that the ERASED tree needs none of them.
+_STRUCTURAL_FIELDS = {
+    "Num": ("value",), "Str": ("value",), "BoolLit": ("value",),
+    "NameRef": ("name",), "ListLit": ("items",), "RecordLit": ("pairs",),
+    "MissLit": ("reason",), "Unary": ("op", "operand"), "Why": ("operand",),
+    "Snip": ("operand",), "Binary": ("op", "left", "right"),
+    "Rescue": ("left", "right"), "Call": ("fn", "args", "tail"),
+    "Index": ("obj", "index"), "FieldAccess": ("obj", "name"),
+    "If": ("cond", "then", "otherwise"),
+    "FnExpr": ("params", "body", "ret_type"),
+    "FnDef": ("name", "params", "body", "ret_type"),
+    "Block": ("stmts",), "Let": ("name", "expr"), "Check": ("label", "expr"),
+    "ExprStmt": ("expr",), "Program": ("stmts",),
+}
+
+
+def _dump_ast(n, ind=0):
+    if n is None:
+        return "  " * ind + "None"
+    cls = type(n).__name__
+    if cls not in _STRUCTURAL_FIELDS:
+        return "  " * ind + repr(n)
+    out = ["  " * ind + "%s@%s" % (cls, getattr(n, "line", "?"))]
+    for f in _STRUCTURAL_FIELDS[cls]:
+        v = getattr(n, f)
+        if isinstance(v, (list, tuple)):
+            out.append("  " * (ind + 1) + f + ":")
+            for x in v:
+                if isinstance(x, (list, tuple)):
+                    out.append("  " * (ind + 2) + "(")
+                    out.extend(_dump_ast(y, ind + 3) for y in x)
+                    out.append("  " * (ind + 2) + ")")
+                else:
+                    out.append(_dump_ast(x, ind + 2))
+        elif type(v).__name__ in _STRUCTURAL_FIELDS:
+            out.append("  " * (ind + 1) + f + ":")
+            out.append(_dump_ast(v, ind + 2))
+        else:
+            out.append("  " * (ind + 1) + "%s=%r" % (f, v))
+    return "\n".join(out)
+
+
+def test_erasure_reproduces_the_real_pre_v019_parser_node_for_node():
+    """The transform is a transcription of `Parser._apply_type_guards`, and
+    this is the only test that can say so without taking my word for it: it
+    loads the DELETED parser out of git and compares trees.
+
+    Not a paraphrase of the old code and not a golden file — the authority
+    is the historical implementation itself. Skips (rather than passes) when
+    git cannot supply it, because a vacuous pass here is exactly the failure
+    mode round 347's `test_program_recipe_has_no_subclass_fork` caught in
+    its own first draft.
+    """
+    import pytest
+    old = _pre_v019_pkg()
+    if old is None:
+        pytest.skip("pre-v0.19 whence package unavailable from git")
+    cases = [
+        'fn f(p: num) { p }\nlet a = f(1)\n',
+        'fn f(p: num, q) { p + q }\nlet a = f(1, 2)\n',
+        'shape Pt = @{a: num}\nfn f(p: Pt) { p }\nlet a = f(@{a: 1})\n',
+        'let g = fn(p: str) { p }\nlet a = g("x")\n',
+        'fn f(n: num, acc: num) -> num { if n == 0 { acc } else '
+        '{ f(n - 1, acc + n) } }\nlet a = f(5, 0)\n',
+        'shape Pt = @{a: num}\nfn outer(z: num) { fn inner(w: Pt) { w }\n'
+        ' inner(@{a: z}) }\nlet a = outer(1)\n',
+    ]
+    for src in cases:
+        new_tree = O._parse(PKG, src)
+        assert O.erase_param_contracts(PKG, new_tree) > 0, src
+        assert _dump_ast(new_tree) == _dump_ast(O._parse(old, src)), src
+
+
+def test_param_erasure_is_a_no_op_on_a_package_that_never_had_contracts():
+    import pytest
+    old = _pre_v019_pkg()
+    if old is None:
+        pytest.skip("pre-v0.19 whence package unavailable from git")
+    assert O.has_param_contracts(PKG)
+    assert not O.has_param_contracts(old)
+    o = O.run_oracle("param_erasure", old, PARAM_SRC)
+    assert o.kind == "ok" and "no parameter contracts on the AST" in o.detail
+
+
+def test_param_erasure_fires_when_the_contract_stops_being_applied():
+    """The injected-bug half of the house rule. v0.19's whole risk is that
+    the check moved OFF the body: make `_check_params` a no-op and the
+    erased v0.12 form is the only one still checking."""
+    pkg = K.load_whence(WHENCE_ROOT, "param_noop")
+    interp_mod = sys.modules[pkg["name"] + ".interp"]
+    orig = interp_mod._check_params
+    interp_mod._check_params = lambda vs, param_specs: None
+    try:
+        o = O.run_oracle("param_erasure", pkg, PARAM_SRC)
+        assert o.kind == "mismatch", o.detail
+        # `first_difference` reports `out` first: the un-checked v0.19 run
+        # prints the raw "s", the erased one prints the contract's miss.
+        assert "parameter 'p' of f expected num, got str" in o.detail, o.detail
+    finally:
+        interp_mod._check_params = orig
+    assert O.run_oracle("param_erasure", pkg, PARAM_SRC).kind == "ok"
+
+
+def test_param_erasure_fires_on_a_label_only_divergence():
+    """A weaker injection: the contract still fires, but `_closure_params`
+    drops the `of <fn>` suffix v0.12's guard label carried. Nothing about
+    the ANSWER changes except the sentence, which is the whole reason the
+    oracle compares `vals` (misses render their reasons) rather than kinds."""
+    pkg = K.load_whence(WHENCE_ROOT, "param_label")
+    interp_mod = sys.modules[pkg["name"] + ".interp"]
+    orig = interp_mod._closure_params
+
+    def bad(param_types, env, line):
+        out = orig(param_types, env, line)
+        if out is None:
+            return None
+        return tuple((p, s, lbl.split(" of ")[0], ln) for p, s, lbl, ln in out)
+
+    interp_mod._closure_params = bad
+    try:
+        o = O.run_oracle("param_erasure", pkg, PARAM_SRC)
+        assert o.kind == "mismatch" and "of f" in o.detail, o.detail
+    finally:
+        interp_mod._closure_params = orig
+    assert O.run_oracle("param_erasure", pkg, PARAM_SRC).kind == "ok"
+
+
+def test_every_exemption_is_load_bearing():
+    """Each exemption must be needed: with `erasure_exemption` silenced, the
+    same program is a mismatch. An exemption that nothing uses is a hole in
+    the oracle's coverage dressed up as caution."""
+    orig = O.erasure_exemption
+    try:
+        for name, src in EXEMPT_CASES.items():
+            o = O.run_oracle("param_erasure", PKG, src)
+            assert o.kind == "ok" and "exempt, used" in o.detail, (name, o.detail)
+            O.erasure_exemption = lambda program: ""
+            bare = O.run_oracle("param_erasure", PKG, src)
+            O.erasure_exemption = orig
+            assert bare.kind == "mismatch", (name, bare.detail)
+    finally:
+        O.erasure_exemption = orig
+
+
+def test_the_typed_shadow_exemption_round_347_did_not_name():
+    """Round 347 named ONE exemption (the spec name bound twice). The erased
+    form also calls `typed` BY NAME from inside the body, so a program that
+    binds `typed` replaces the check itself — a total behavioural takeover,
+    not a wording difference."""
+    o = O.run_oracle("param_erasure", PKG, EXEMPT_CASES["program binds typed"])
+    assert "the program binds 'typed'" in o.detail
+    assert "B: 42" in o.detail          # the erased form ran the user's fn
+
+
+def test_exemptions_are_measured_not_skipped():
+    """An exempt program is still run, and the detail distinguishes an
+    exemption that was USED from one that merely applied. That distinction
+    is what turned round 347's assumption about WHY the exempt programs
+    diverge into a measurement — see round 359's knowledge file."""
+    used = O.run_oracle("param_erasure", PKG, EXEMPT_CASES["late-bound spec shadow"])
+    assert "exempt, used" in used.detail and "A: " in used.detail
+    # same exemption, but the second binding of `S` is in a function the
+    # annotated one never calls, so nothing about the lookup changes
+    unused = O.run_oracle(
+        "param_erasure", PKG,
+        'shape S = @{a: num}\nfn f(p: S) { p }\n'
+        'fn h() {\n  let S = 3\n  S\n}\n'
+        'let r = f(@{a: 1})\nlet q = h()\n')
+    assert "exempt, unused" in unused.detail, unused.detail
+
+
+def test_param_erasure_is_silent_across_generated_programs():
+    """No false positive anywhere in a generated corpus, and the corpus
+    really does reach the oracle (round 337's non-vacuity rule)."""
+    compared = 0
+    for i in range(60):
+        src = ProgramGen(359000000 + i, stress_rate=0.5).program()
+        o = O.run_oracle("param_erasure", PKG, src, timeout_s=6.0)
+        assert o.kind in ("ok", "parse_error", "timeout"), (i, o.kind, o.detail)
+        if o.kind == "ok" and "contracts, " in o.detail and "exempt" not in o.detail:
+            compared += 1
+    assert compared >= 10, compared
+
+
+def test_the_corpus_reaches_the_hazard_the_exemption_is_FOR():
+    """Round 359's real finding, as a permanent guard.
+
+    Round 347 exempted programs whose spec name is bound twice because the
+    two forms resolve it in different environments (round 342 §7). On the
+    corpus as it stood, that never happened: all 47 exempt-and-used
+    programs in a 2500-program campaign resolved the spec to the SAME
+    value and differed only in v0.22's argument-order clause, because
+    `_shadowed_shape_stmt` only ever emitted the shadowing `let` BEFORE the
+    annotated fn. With the late placement added, 66 of 93 differ in the
+    resolution itself, 22 of those in the VALUE and not just the sentence.
+
+    Fails if the late-shadow placement is removed, or if the exemption
+    stops being reachable for the reason it was written for — either of
+    which would leave the oracle exempting programs nothing exercises.
+    """
+    hazard = 0
+    for i in range(120):
+        src = ProgramGen(359000000 + i, stress_rate=0.5).program()
+        o = O.run_oracle("param_erasure", PKG, src, timeout_s=6.0)
+        if o.kind != "ok" or "exempt, used" not in o.detail:
+            continue
+        a = [l.strip()[3:] for l in o.detail.split("\n") if l.strip().startswith("A: ")]
+        b = [l.strip()[3:] for l in o.detail.split("\n") if l.strip().startswith("B: ")]
+        if not a or not b:
+            continue
+        # the v0.22 clause alone is NOT the hazard: strip it and see if the
+        # two sides were saying the same thing
+        stripped = b[0].replace(" (arguments fit typed(value, spec, label))", "")
+        if stripped != a[0]:
+            hazard += 1
+    assert hazard >= 2, hazard

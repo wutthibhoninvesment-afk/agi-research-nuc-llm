@@ -10201,6 +10201,111 @@ in the round file §7.
   edited, so its withdrawn headline numbers cannot be quoted forward.
 - See `knowledge/round-358-nuc-e-the-witness-that-claimed-too-much.md`.
 
+### Round 359 — SWE-loop(D) — 2026-08-30
+
+Shipped `param_erasure`, the EIGHTH oracle — round 347 §7's named gap,
+carried by round 353 as "the largest open SWE-loop(D) item", re-derived by
+reading `ORACLE_NAMES` before starting. Predictions written first
+(`state/swe/round-359/PREDICTIONS.md`, D-013): **7 HIT, 2 MISS** of 9.
+
+- **The oracle.** v0.19 moved a `p: Type` annotation off the body onto the
+  `FnDef`/`FnExpr` node; v0.12-v0.18 erased it into a prepended `let p =
+  typed(p, T, "parameter 'p' of f")` guard, and `_check_params`'s docstring
+  claims its properties are "inherited from the v0.12 guards this replaces
+  ... so that moving the check does not also change what it means". The
+  oracle erases the contracts back and requires the same `out`/`checks`/
+  `vals`. `why` is the may-differ field (a `let` adds a provenance node, a
+  satisfied contract adds none), handled by the same `provenance_tainted_
+  names` fixpoint `tail_transparency` uses.
+- **The transform is checked against the code it transcribes, not against a
+  reading of it.** `test_erasure_reproduces_the_real_pre_v019_parser_node_
+  for_node` pulls the deleted `Parser._apply_type_guards` out of git
+  (`6132f1f^`), loads that whole package beside the current one, and compares
+  whole ASTs over 6 cases. All match. It SKIPS rather than passes when git
+  cannot supply the tree.
+- **The finding is in the exemptions, not in a mismatch.** 0 mismatches over
+  2 × 2500 generated programs and all 16 curated examples. But the oracle
+  RUNS its exempt programs and reports whether the exemption was used — and
+  in the first campaign **all 47 exempt-and-used programs diverged on one
+  v0.22 wording clause, and none on the defining-env/calling-env question
+  round 347 wrote the exemption FOR**. `_shadowed_shape_stmt` had only ever
+  emitted the shadowing `let` BEFORE the annotated fn, so both forms saw the
+  shadow: round 342 §7's hazard was outside the grammar for 12 rounds.
+- **Closed by a placement, not a construct.** The recipe now puts the `let`
+  after the annotated fn half the time. Re-measured: 66 of 93 exempt-and-used
+  programs now resolve the spec DIFFERENTLY, 22 of them to a different VALUE
+  (v0.19 answers `@{a: 1}` where the erased form misses). The EARLY half is
+  kept — it is the only thing that reaches `_check_contract`'s `not _spec_ok`
+  guard — and both placements now have their own floor in
+  `test_shape_recipes_reach_the_paths_they_were_added_for`.
+- **A third exemption round 347 did not name:** the erased form calls `typed`
+  BY NAME from the body, so a program that binds `typed` takes the check over
+  entirely (`42` instead of a miss). v0.19 is structurally immune — it never
+  goes through a name. All three exemptions are pinned in both directions:
+  each must be `exempt, used`, and each must become a `mismatch` with
+  `erasure_exemption` silenced.
+- **A stale claim, found by a differential rather than by a reader.**
+  `_check_contract`'s docstring has said since v0.19 that its malformed-spec
+  wording "matches `typed`'s own for the same condition". v0.22 (round 354)
+  added `_order_hint` to `b_typed` and not to `_check_contract`, so it has
+  been false for five rounds. The BEHAVIOUR is right — an annotation has no
+  argument list to reorder — so the docstring was corrected with the reason,
+  and pinned as the fourth deliberate silence in `test_v22.py`. Round 321's
+  item 14 class, ninth independent instance.
+- **Two literals became one.** `test_swe_review.py` pinned its own copy of
+  the oracle set and was red rounds 338-343 for exactly that reason. It now
+  asserts `set(d) == set(O.ORACLE_NAMES) | {"_fired"}` (OracleTool's real
+  claim) and the literal list lives once, in
+  `test_oracle_names_is_the_single_pinned_registry`.
+- **Verification.** `harness/tests/test_swe_oracles.py` 37 passed (+15);
+  `test_swe_fuzz.py` 38 passed in 85.2s; `test_swe_review.py -k oracle_tool`
+  2 passed; `languages/whence/tests/test_v22.py` 54 passed (+1);
+  `bash harness/run_tests_fast.sh` **530 passed, 316 deselected in 69.8s**;
+  full `languages/whence/tests/` — see knowledge file §9. Campaign artifacts
+  in `state/swe/round-359/`.
+- Knowledge file:
+  `knowledge/round-359-swe-d-the-exemption-that-was-right-for-the-wrong-reason.md`.
+
+## Next steps (as of round 359)
+1. **A `why`-tree oracle for parameter contracts is the remaining half**, and
+   erasure cannot be its transform: the v0.12 form adds one `let` node per
+   annotated parameter by construction. A normalising comparison is the
+   obvious idea and is exactly the move that turns an oracle into a
+   tautology — do it only with an injected-bug test the normalisation does
+   NOT swallow. SWE-loop(D).
+2. **`_UnboundType` is unreachable from any generated program**, now measured
+   rather than asserted: v0.18's scope-aware parser refuses a forward
+   annotation reference, so the sentinel is a floor with no corpus path to
+   it. Whether the language permits one at all is a language(C) question.
+3. **`param_erasure` is in the 8-oracle default**, so every future
+   `python3 -m swe.oracles` campaign pays for it (~7% wall clock at
+   `n=2500`). It is the second oracle after `frames` whose cost scales with
+   a program's runtime rather than its size.
+4. Round 353's item 1 (re-run round 137's 260 no-evidence mutants on a host
+   where the archived suite is green) is unchanged; nothing this round
+   touched it.
+5. Round 353's items 2 and 3 (`scoreaudit` is blind to a pre-existing failing
+   test; the baseline gate protects new campaigns only) are unchanged.
+6. **`languages/whence/SECURITY.md` is still uncommitted and still escalated
+   to the operator, EIGHTH consecutive round** — re-confirmed byte-identical
+   to what round 349 §8 found. No round may resolve it: it is an authorship
+   decision, not a repair.
+7. Round 357's items 1-5 (skills(B): `--repeats 3` before editing any
+   description; `--mode body` unrun for 26 of 27 skills; no P00x for the
+   case-authorship problem; P004 not surviving a fresh clone; the unmeasured
+   `dsp-far` co-fire) are unchanged.
+8. All of NUC-integration(E)'s round-358 items are unchanged — the rotation
+   has not reached that track since.
+9. `harness/swe/regiontools.py`'s region-patch mechanism is still
+   deliberately un-unified with `EditFileTool` (round 307's item 2).
+10. Round 301's item 2 (blocking-wait mitigation design sketch) remains
+    speculative — 21 carries deep.
+11. The next heavy/light re-tally check-in: repeat the two
+    `heavy_light_fail_rates` calls (full history + the ~[331,360] window)
+    once that many rounds accumulate — one round away now.
+12. The `tail`/EOF backgrounded-pipe silent-drop mechanism (rounds 296, 300,
+    303, 309) remains genuinely unconfirmed — round 310's item 5.
+
 ## Next steps (as of round 358)
 1. **Collect the 8 h swap poll.** Due ~2026-08-30T10:25Z; at 05:49Z it was
    815/1920 samples, flat at 0 B. Check `state/nuc-swap-watch-r352/poll.log`

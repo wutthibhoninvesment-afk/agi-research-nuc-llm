@@ -42,6 +42,23 @@ see semantic bugs:
                 on provenance are exempt — see the long comment above
                 `oracle_tail_transparency` for both lists.
 
+  param_erasure
+                (round 359) the v0.19 parameter-contract oracle. v0.19
+                moved a `p: Type` annotation off the body and onto the
+                FnDef/FnExpr node, and `_check_params`'s docstring claims
+                its properties are "inherited from the v0.12 guards this
+                replaces rather than newly chosen, so that moving the check
+                does not also change what it means". This erases the
+                contracts back into v0.12's prepended `let p = typed(p,
+                spec, label)` guards — a transcription of the deleted
+                `Parser._apply_type_guards`, verified node-for-node against
+                the real pre-v0.19 parser — and requires the same `out` /
+                `checks` / `vals`. `why` is the may-differ field (a `let`
+                adds a provenance node; a satisfied contract adds none).
+                Two exemptions, both about WHERE a spec name is looked up,
+                and both MEASURED rather than skipped — see the long
+                comment above `oracle_param_erasure`.
+
   frames        (round 110) the frame-charge oracle. Direct mode charges
                 every host frame it will use (`cdepth` + 1 per call)
                 against a budget measured at `exec_stmt`; round 108's bug
@@ -73,7 +90,7 @@ from .fuzz import ProgramGen, WHENCE_ROOT, shrink, list_example_files, _whence_f
 from .killers import load_whence, _Timeout, _alarm
 
 ORACLE_NAMES = ("totality", "fast_slow", "direct", "determinism", "render",
-                "frames", "tail_transparency")
+                "frames", "tail_transparency", "param_erasure")
 
 # Largest transient (host frames used above the charge) the frames oracle
 # tolerates. The transient is bounded by construction: a call-free subtree
@@ -606,10 +623,241 @@ def oracle_frames(pkg, src, max_depth=500, slack=None):
     return OracleOutcome("ok", "frames", detail)
 
 
+# ---------------------------------------------------------- param_erasure --
+#
+# (round 359) The v0.19 parameter-contract oracle — round 347 §7's named gap,
+# carried as the largest open SWE-loop(D) item by round 353.
+#
+# v0.19 (round 344) moved a `p: Type` parameter annotation OFF the body and
+# ONTO the FnDef/FnExpr node (`param_types`), where `interp._closure_params`
+# resolves it once, in the DEFINING env, at closure creation — the same
+# moment and the same code a `-> Type` return annotation has used since
+# v0.13. v0.12-v0.18 instead erased the annotation, in the parser, into one
+# `let <p> = typed(<p>, <spec>, "parameter '<p>' of <f>")` statement
+# PREPENDED to the body.
+#
+# `_check_params`'s own docstring states the claim this oracle tests:
+#
+#     Two deliberate properties, both inherited from the v0.12 guards this
+#     replaces rather than newly chosen, so that moving the check does not
+#     also change what it means
+#
+# So: erase the contracts back into v0.12's form and require the same
+# answer. The transform runs on the AST rather than on source text, and it
+# is not an approximation of what v0.12 did — it is a transcription of
+# `Parser._apply_type_guards` as of `6132f1f^`, down to building every guard
+# node at `body.line` (which is why a parameter miss keeps being reported at
+# the line the contract is WRITTEN on, in both forms).
+#
+# Doing it post-parse is faithful for the same reason v0.12 could do it in
+# the parser: `_apply_type_guards` ran AFTER `block()` had finished the body
+# and BEFORE `mark_tails(body)`, so every parse-time fact the body carries
+# (`tail_alias_tag`, `tail_param_name`, the alias/effect scopes, the
+# duplicate-binding check) was resolved on the UNGUARDED body in v0.12
+# exactly as it is in v0.19. And `mark_tails` needs no re-run: `block()`
+# requires a body to end in an expression statement, so prepending can never
+# change which statement is the tail.
+#
+# Comparison fields: `out`, `checks`, `vals` — never `why`. A `let`
+# statement wraps its value in a fresh `("let", name, line)` Prov node
+# (`_stmt_gen`), so the v0.12 form necessarily carries one extra provenance
+# layer per annotated parameter, while a SATISFIED v0.19 contract leaves no
+# node at all. That is a known, intended difference, not a finding. Programs
+# that compute WITH provenance are handled by the same `provenance_tainted_
+# names` fixpoint the tail oracle uses, for the same reason: `len(steps(x))`
+# is an ordinary number in `vals`.
+#
+# Two exemptions, both about the one thing the two forms genuinely disagree
+# on — WHEN and WHERE a spec name is looked up:
+#
+#   * a spec NAME bound more than once anywhere in the program. v0.12 walks
+#     an ordinary `A.NameRef` in the CALL env on every call; v0.19 resolves
+#     it in the DEFINING env once. With a single binding those are the same
+#     value (Whence is lexically scoped and the parser refuses a forward
+#     annotation reference), so only a second binding can separate them —
+#     and when it does, the divergence IS v0.19, round 342 §7's late-binding
+#     capture hazard. Round 347 named this one in advance.
+#   * `typed` bound by the program. The erased form calls the builtin by
+#     NAME from inside the body, so a program that binds `typed` reaches its
+#     own value instead; v0.19 never goes through a name at all. Round 347
+#     did not name this one — see round 359's knowledge file.
+#
+# Both are deliberately coarse (any binding of the name ANYWHERE, including
+# a parameter), on the tail oracle's rule: over-exempting costs coverage,
+# under-exempting costs correctness.
+
+PARAM_ORACLE = "param_erasure"
+
+# The builtin the erased form reaches by name from inside the function body.
+GUARD_BUILTIN = "typed"
+
+
+def _ast_mod(pkg):
+    return __import__(pkg["name"] + ".ast_nodes", fromlist=["Let"])
+
+
+def has_param_contracts(pkg):
+    """Whether the package under test carries v0.19 parameter contracts on
+    the AST node. A pre-v0.19 package erased them in the parser, so there is
+    nothing left on the node to erase and the oracle has no transform to
+    apply — the same shape `has_direct_mode` gives `oracle_direct`."""
+    try:
+        A = _ast_mod(pkg)
+    except ImportError:
+        return False
+    return "param_types" in getattr(A.FnDef, "__slots__", ())
+
+
+def erase_param_contracts(pkg, program):
+    """Rewrite v0.19 parameter contracts into v0.12's prepended guards, in
+    place; return the number of guards written.
+
+    The spec EXPRESSION is reused rather than rebuilt. `_param_contracts`
+    already built it with `body.line` (`line = body.line` in its own body),
+    which is the line `_apply_type_guards` gave it, so a fresh copy would be
+    the same node with a different id — and reusing it keeps the oracle from
+    quietly depending on a second, drifting copy of `_type_spec_expr`.
+    """
+    A = _ast_mod(pkg)
+    n = 0
+    for node in list(iter_ast_nodes(program)):
+        contracts = getattr(node, "param_types", None)
+        if not contracts:
+            continue
+        body = node.body
+        line = body.line
+        guards = []
+        for _index, pname, spec_expr, label in contracts:
+            call = A.Call(line, A.NameRef(line, GUARD_BUILTIN),
+                          [A.NameRef(line, pname), spec_expr,
+                           A.Str(line, label)], False)
+            guards.append(A.Let(line, pname, call))
+        body.stmts[0:0] = guards
+        node.param_types = None
+        n += len(guards)
+    return n
+
+
+def binding_counts(program):
+    """How many times each name is BOUND anywhere in the program: `let` and
+    `fn` names (a `shape` declaration reaches the AST as an ordinary
+    `A.Let`, which is the whole point of decision 27) plus every function
+    parameter. Multiplicity is what matters — a name bound twice is a name
+    whose meaning can depend on WHEN it is looked up."""
+    counts = {}
+    for n in iter_ast_nodes(program):
+        cls = type(n).__name__
+        if cls in ("Let", "FnDef"):
+            counts[n.name] = counts.get(n.name, 0) + 1
+        if cls in ("FnDef", "FnExpr"):
+            for p in n.params:
+                counts[p] = counts.get(p, 0) + 1
+    return counts
+
+
+def param_spec_names(program):
+    """Shape names used as a PARAMETER annotation's spec. A primitive tag is
+    an `A.Str` and cannot be shadowed, so it is not collected."""
+    names = set()
+    for n in iter_ast_nodes(program):
+        for entry in getattr(n, "param_types", None) or ():
+            spec = entry[2]
+            if type(spec).__name__ == "NameRef":
+                names.add(spec.name)
+    return names
+
+
+def erasure_exemption(program):
+    """Why the two forms are ALLOWED to disagree on this program, or "".
+
+    Checked on the ORIGINAL (un-erased) AST, because `erase_param_contracts`
+    clears `param_types` as it goes."""
+    counts = binding_counts(program)
+    if counts.get(GUARD_BUILTIN):
+        return "the program binds %r, which the erased form calls by name" % \
+            GUARD_BUILTIN
+    for name in sorted(param_spec_names(program)):
+        if counts.get(name, 0) > 1:
+            return "spec name %r is bound %d times (defining env vs call " \
+                "env: round 342 §7)" % (name, counts[name])
+    return ""
+
+
+def oracle_param_erasure(pkg, src, max_depth=500):
+    """A parameter contract must mean what the v0.12 guard it replaced
+    meant.
+
+    An exempt program is still RUN, and `detail` says whether it actually
+    used its exemption ("exempt, used" / "exempt, unused") and, when it did,
+    what the divergence was. Round 347 designed the exemption around ONE
+    mechanism (defining env vs call env); on this corpus the exempt programs
+    diverge for a DIFFERENT one, and an exemption that returns early can
+    never tell you that. Same convention as `oracle_frames`, whose detail
+    carries the measured excess whether or not it exceeded the slack: a
+    campaign reports the distribution instead of hiding it.
+    """
+    if not has_param_contracts(pkg):
+        return OracleOutcome("ok", PARAM_ORACLE,
+                             "package has no parameter contracts on the AST")
+    try:
+        program = _parse(pkg, src)
+        erased = _parse(pkg, src)          # a second, independent AST
+    except (pkg["LexError"], pkg["ParseError"]) as e:
+        return OracleOutcome("parse_error", PARAM_ORACLE, type(e).__name__)
+    exemption = erasure_exemption(program)
+    n = erase_param_contracts(pkg, erased)
+    if n == 0:
+        return OracleOutcome("ok", PARAM_ORACLE, "no parameter contracts")
+    tainted = provenance_tainted_names(program)
+    whole = not reflects_on_provenance(program)
+    scope = "all fields" if whole else \
+        "untainted vals only (%d tainted)" % len(tainted)
+    detail = "%d contracts, %s" % (n, scope)
+    if not exemption:
+        a, _ = _answer(pkg, program, tainted, whole, max_depth=max_depth)
+        try:
+            b, _peak = _answer(pkg, erased, tainted, whole, max_depth=max_depth)
+        except RecursionError:
+            return OracleOutcome("ok", PARAM_ORACLE,
+                                 "%d contracts, erased run exhausted the host "
+                                 "stack (space-exempt)" % n)
+        if not a["vals"] and not whole:
+            return OracleOutcome("ok", PARAM_ORACLE,
+                                 "%d contracts, every binding provenance-"
+                                 "tainted (exempt)" % n)
+        d = first_difference(a, b)
+        if d:
+            return OracleOutcome("mismatch", PARAM_ORACLE,
+                                 "v0.19 vs erased v0.12: " + d +
+                                 "\n  (%s)" % detail)
+        return OracleOutcome("ok", PARAM_ORACLE, detail)
+    # Exempt: allowed to differ, measured anyway. Every failure mode of the
+    # comparison itself is folded into the detail — an exempt program has
+    # already told us its answer may be anything, so a crash in one of the
+    # two forms is an observation, not a finding. `_Timeout` is a
+    # BaseException on purpose (killers._Timeout) and so still escapes to
+    # `run_oracle`'s own budget.
+    try:
+        a, _ = _answer(pkg, program, tainted, whole, max_depth=max_depth)
+        b, _peak = _answer(pkg, erased, tainted, whole, max_depth=max_depth)
+    except (Exception, RecursionError) as e:      # noqa: B014 (explicit)
+        return OracleOutcome("ok", PARAM_ORACLE,
+                             "%s, exempt (%s); comparison raised %s" %
+                             (detail, exemption, type(e).__name__))
+    d = first_difference(a, b)
+    if d:
+        return OracleOutcome("ok", PARAM_ORACLE,
+                             "%s, exempt, used (%s)\n  %s" %
+                             (detail, exemption, d.replace("\n", "\n  ")))
+    return OracleOutcome("ok", PARAM_ORACLE,
+                         "%s, exempt, unused (%s)" % (detail, exemption))
+
+
 ORACLES = {"totality": oracle_totality, "fast_slow": oracle_fast_slow,
            "direct": oracle_direct, "determinism": oracle_determinism,
            "render": oracle_render, "frames": oracle_frames,
-           TAIL_ORACLE: oracle_tail_transparency}
+           TAIL_ORACLE: oracle_tail_transparency,
+           PARAM_ORACLE: oracle_param_erasure}
 
 
 def run_oracle(name, pkg, src, timeout_s=3.0, max_depth=500, root=WHENCE_ROOT, **kwargs):

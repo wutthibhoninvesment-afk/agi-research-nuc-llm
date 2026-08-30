@@ -499,13 +499,23 @@ def test_generator_emits_shape_declarations():
     corpus = [ProgramGen(i).program() for i in range(2000)]
     decl = re.compile(r"(^|\n)shape S\d+ = @\{")
     ann = re.compile(r"(->|:) S\d+\b")
+    # round 359 split the shadow recipe by PLACEMENT: `{ let S1 =` is the
+    # original (shadow first), `\n  let S1 =` is the new late one (shadow
+    # after the annotated fn, the only placement that can separate a spec
+    # resolved at closure creation from one resolved per call). Both floors
+    # are load-bearing and mean different things — the EARLY half is what
+    # reaches `_check_contract`'s `not _spec_ok` guard, the LATE half is
+    # what reaches round 342 §7's hazard.
     shadow = re.compile(r"\{ let S\d+ =")
+    late_shadow = re.compile(r"\n  let S\d+ =")
     n_decl = sum(1 for s in corpus if decl.search(s))
     n_ann = sum(1 for s in corpus if ann.search(s))
     n_shadow = sum(1 for s in corpus if shadow.search(s))
-    assert n_decl >= 150, n_decl        # ~31% measured
-    assert n_ann >= 90, n_ann           # ~19% measured
-    assert n_shadow >= 55, n_shadow     # ~12% measured
+    n_late = sum(1 for s in corpus if late_shadow.search(s))
+    assert n_decl >= 150, n_decl        # ~36% measured
+    assert n_ann >= 90, n_ann           # ~20% measured
+    assert n_shadow >= 55, n_shadow     # ~6.6% measured (was ~12% undivided)
+    assert n_late >= 55, n_late         # ~6.1% measured
 
 
 def test_declared_shape_annotations_are_total():

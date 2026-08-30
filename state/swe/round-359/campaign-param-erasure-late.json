@@ -1,0 +1,481 @@
+{
+ "total": 2500,
+ "seconds": 116.9,
+ "cats": {
+  "parse_error": 209,
+  "compared+agreed": 788,
+  "no contracts": 1337,
+  "exempt unused": 53,
+  "exempt USED": 93,
+  "timeout": 12,
+  "all-tainted exempt": 8
+ },
+ "mismatches": [],
+ "exempt_used": [
+  [
+   359001110,
+   0.5,
+   "1 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr10]\n    A: @{a: [1, 2], b: 1}\n    B: miss: parameter 'q11' of sg9 expected 3O, got record (line 12)"
+  ],
+  [
+   359001111,
+   0.5,
+   "1 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr5]\n    A: @{a: 1}\n    B: miss: typed spec must be a type name or a shape, got true (arguments fit typed(value, spec, label)) (line 3)"
+  ],
+  [
+   359001177,
+   0.5,
+   "1 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S3' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr10]\n    A: miss: parameter 'q11' of sg9 expected S3, got str (line 8)\n    B: miss: typed spec must be a type name or a shape, got true (arguments fit typed(value, spec, label)) (line 8)"
+  ],
+  [
+   359001189,
+   0.5,
+   "1 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S2' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr9]\n    A: miss: typed spec must be a type name or a shape, got true (line 10)\n    B: miss: typed spec must be a type name or a shape, got true (arguments fit typed(value, spec, label)) (line 10)"
+  ],
+  [
+   359001275,
+   0.5,
+   "1 contracts, untainted vals only (1 tainted), exempt, used (spec name 'S3' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr9]\n    A: miss: parameter 'q10' of sg8 expected S3, got str (line 6)\n    B: miss: typed spec must be a type name or a shape, got true (arguments fit typed(value, spec, label)) (line 6)"
+  ],
+  [
+   359001286,
+   0.5,
+   "1 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S2' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr14]\n    A: miss: parameter 'q15' of sg13 expected S2, got num (line 14)\n    B: miss: typed spec must be a type name or a shape, got @{a: 5} (line 14)"
+  ],
+  [
+   359001299,
+   0.5,
+   "3 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr17]\n    A: miss: parameter 'q18' of sg16 expected S1, got str (line 10)\n    B: miss: parameter 'q18' of sg16 expected 3O, got str (line 10)"
+  ],
+  [
+   359001318,
+   0.5,
+   "2 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S1' is bound 3 times (defining env vs call env: round 342 \u00a77))\n  vals[sr16]\n    A: miss: typed spec must be a type name or a shape, got true (line 13)\n    B: miss: typed spec must be a type name or a shape, got true (arguments fit typed(value, spec, label)) (line 13)"
+  ],
+  [
+   359001327,
+   0.5,
+   "1 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S3' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr7]\n    A: miss: typed spec must be a type name or a shape, got 3 (line 7)\n    B: miss: typed spec must be a type name or a shape, got 3 (arguments fit typed(value, spec, label)) (line 7)"
+  ],
+  [
+   359001428,
+   0.5,
+   "1 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S1' is bound 3 times (defining env vs call env: round 342 \u00a77))\n  vals[sr10]\n    A: @{c: @{}}\n    B: miss: typed spec must be a type name or a shape, got 3 (arguments fit typed(value, spec, label)) (line 10)"
+  ],
+  [
+   359001431,
+   0.5,
+   "1 contracts, all fields, exempt, used (spec name 'S2' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr6]\n    A: miss: parameter 'q7' of sg5 expected S2, got num (line 4)\n    B: miss: typed spec must be a type name or a shape, got [1] (line 4)"
+  ],
+  [
+   359001436,
+   0.5,
+   "3 contracts, untainted vals only (2 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr5]\n    A: miss: parameter 'q6' of sg4 expected S1, got record (no field 'v') (line 3)\n    B: miss: typed spec must be a type name or a shape, got <fn> (arguments fit typed(value, spec, label)) (line 3)"
+  ],
+  [
+   359001483,
+   0.5,
+   "2 contracts, untainted vals only (1 tainted), exempt, used (spec name 'S1' is bound 3 times (defining env vs call env: round 342 \u00a77))\n  vals[sr11]\n    A: miss: parameter 'q12' of sg10 expected S1, got record (no field 'name') (line 12)\n    B: miss: typed spec must be a type name or a shape, got <fn> (arguments fit typed(value, spec, label)) (line 12)"
+  ],
+  [
+   359001506,
+   0.5,
+   "1 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr9]\n    A: miss: parameter 'q10' of sg8 expected S1, got record (no field 'v') (line 6)\n    B: miss: parameter 'q10' of sg8 expected nosuch, got record (line 6)"
+  ],
+  [
+   359001515,
+   0.5,
+   "1 contracts, untainted vals only (2 tainted), exempt, used (spec name 'S3' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr6]\n    A: miss: parameter 'q7' of sg5 expected S3, got num (line 6)\n    B: miss: parameter 'q7' of sg5 expected str, got num (line 6)"
+  ],
+  [
+   359001524,
+   0.5,
+   "1 contracts, untainted vals only (3 tainted), exempt, used (spec name 'S3' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr23]\n    A: miss: parameter 'q24' of sg22 expected S3, got record (no field 'name') (line 19)\n    B: miss: parameter 'q24' of sg22 expected record, got record (no field 'a') (line 19)"
+  ],
+  [
+   359001529,
+   0.5,
+   "1 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr7]\n    A: miss: typed spec must be a type name or a shape, got true (line 8)\n    B: miss: typed spec must be a type name or a shape, got true (arguments fit typed(value, spec, label)) (line 8)"
+  ],
+  [
+   359001616,
+   0.5,
+   "1 contracts, untainted vals only (1 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr16]\n    A: miss: parameter 'q17' of sg15 expected S1, got record (no field 'name') (line 14)\n    B: miss: typed spec must be a type name or a shape, got true (arguments fit typed(value, spec, label)) (line 14)"
+  ],
+  [
+   359001636,
+   0.5,
+   "3 contracts, untainted vals only (2 tainted), exempt, used (spec name 'S3' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr17]\n    A: miss: typed spec must be a type name or a shape, got true (line 14)\n    B: miss: typed spec must be a type name or a shape, got true (arguments fit typed(value, spec, label)) (line 14)"
+  ],
+  [
+   359001657,
+   0.5,
+   "3 contracts, untainted vals only (2 tainted), exempt, used (spec name 'S2' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr8]\n    A: @{a: 1}\n    B: miss: parameter 'q9' of sg7 expected str, got record (line 7)"
+  ],
+  [
+   359001698,
+   0.5,
+   "3 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr4]\n    A: miss: typed spec must be a type name or a shape, got 3 (line 5)\n    B: miss: typed spec must be a type name or a shape, got 3 (arguments fit typed(value, spec, label)) (line 5)"
+  ],
+  [
+   359001740,
+   0.5,
+   "1 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S2' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr8]\n    A: miss: parameter 'q9' of sg7 expected S2, got record (no field 'a') (line 8)\n    B: miss: typed spec must be a type name or a shape, got 3 (arguments fit typed(value, spec, label)) (line 8)"
+  ],
+  [
+   359001764,
+   0.5,
+   "1 contracts, untainted vals only (1 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr9]\n    A: miss: parameter 'q10' of sg8 expected S1, got record (no field 'v') (line 10)\n    B: miss: typed spec must be a type name or a shape, got 3 (arguments fit typed(value, spec, label)) (line 10)"
+  ],
+  [
+   359001805,
+   0.5,
+   "1 contracts, untainted vals only (1 tainted), exempt, used (spec name 'S1' is bound 3 times (defining env vs call env: round 342 \u00a77))\n  vals[sr11]\n    A: miss: parameter 'q12' of sg10 expected S1, got record (no field 'c') (line 10)\n    B: miss: typed spec must be a type name or a shape, got @{a: 5} (line 10)"
+  ],
+  [
+   359001814,
+   0.5,
+   "2 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S3' is bound 3 times (defining env vs call env: round 342 \u00a77))\n  vals[sr11]\n    A: @{}\n    B: miss: typed spec must be a type name or a shape, got <fn> (arguments fit typed(value, spec, label)) (line 12)"
+  ],
+  [
+   359001837,
+   0.5,
+   "1 contracts, untainted vals only (1 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr9]\n    A: miss: typed spec must be a type name or a shape, got [1] (line 8)\n    B: miss: typed spec must be a type name or a shape, got [1] (arguments fit typed(value, spec, label)) (line 8)"
+  ],
+  [
+   359001859,
+   0.5,
+   "2 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr6]\n    A: @{a: \"\", b: \"3O\", name: @{}}\n    B: miss: typed spec must be a type name or a shape, got 3 (arguments fit typed(value, spec, label)) (line 4)"
+  ],
+  [
+   359001864,
+   0.5,
+   "1 contracts, untainted vals only (1 tainted), exempt, used (spec name 'S3' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr6]\n    A: @{c: @{c: [1, 2], name: [1, 2], v: \"\"}, name: 1}\n    B: miss: parameter 'q7' of sg5 expected record, got record (no field 'a') (line 4)"
+  ],
+  [
+   359001869,
+   0.5,
+   "4 contracts, untainted vals only (1 tainted), exempt, used (spec name 'S2' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr5]\n    A: miss: typed spec must be a type name or a shape, got [1] (line 4)\n    B: miss: typed spec must be a type name or a shape, got [1] (arguments fit typed(value, spec, label)) (line 4)"
+  ],
+  [
+   359001874,
+   0.5,
+   "1 contracts, untainted vals only (2 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr15]\n    A: @{b: \"3O\", name: <fn>, v: <fn>}\n    B: miss: typed spec must be a type name or a shape, got true (arguments fit typed(value, spec, label)) (line 9)"
+  ],
+  [
+   359001880,
+   0.5,
+   "2 contracts, all fields, exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  out\n    A: ['miss: cannot negate <fn> (line 20)', \"miss: parameter 'q15' of sg13 expected S1, got record (no field 'c') (line 13)\", '[]']\n    B: ['miss: cannot negate <fn> (line 20)', 'miss: typed spec must be a type name or a shape, got @{a: 5} (line 13)', '[]']"
+  ],
+  [
+   359001907,
+   0.5,
+   "1 contracts, all fields, exempt, used (spec name 'S1' is bound 3 times (defining env vs call env: round 342 \u00a77))\n  out\n    A: ['miss: sqrt of @{} (line 14)', 'true', 'true']\n    B: [\"miss: parameter 'q6' of sg4 expected str, got record (line 3)\", 'true', 'true']"
+  ],
+  [
+   359001909,
+   0.5,
+   "1 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S1' is bound 3 times (defining env vs call env: round 342 \u00a77))\n  vals[sr5]\n    A: miss: typed spec must be a type name or a shape, got true (line 5)\n    B: miss: typed spec must be a type name or a shape, got true (arguments fit typed(value, spec, label)) (line 5)"
+  ],
+  [
+   359001937,
+   0.5,
+   "1 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S3' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr6]\n    A: miss: typed spec must be a type name or a shape, got <fn> (line 6)\n    B: miss: typed spec must be a type name or a shape, got <fn> (arguments fit typed(value, spec, label)) (line 6)"
+  ],
+  [
+   359001949,
+   0.5,
+   "1 contracts, all fields, exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  out\n    A: ['[\"parameter \\'q5\\' of sg3 expected S1, got num (line 3)\"]', \"miss: parameter 'q5' of sg3 expected S1, got num (line 3)\", \"miss: parameter 'q5' of sg3 expected S1, got num (line 3)\"]\n    B: ['[\"parameter \\'q5\\' of sg3 expected 3O, got num (line 3)\"]', \"miss: parameter 'q5' of sg3 expected 3O, got num (line 3)\", \"miss: parameter 'q5' of sg3 expected 3O, got num (line 3)\"]"
+  ],
+  [
+   359001960,
+   0.5,
+   "1 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr5]\n    A: miss: parameter 'q6' of sg4 expected S1, got num (line 3)\n    B: miss: parameter 'q6' of sg4 expected str, got num (line 3)"
+  ],
+  [
+   359001986,
+   0.5,
+   "1 contracts, untainted vals only (2 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr13]\n    A: miss: parameter 'q14' of sg12 expected S1, got num (line 9)\n    B: miss: typed spec must be a type name or a shape, got @{a: 5} (line 9)"
+  ],
+  [
+   7000043,
+   0.5,
+   "2 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr8]\n    A: miss: parameter 'q9' of sg7 expected S3, got record (no field 'c') (line 6)\n    B: @{a: 1}"
+  ],
+  [
+   7000107,
+   0.5,
+   "1 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr8]\n    A: miss: typed spec must be a type name or a shape, got [1] (line 7)\n    B: miss: typed spec must be a type name or a shape, got [1] (arguments fit typed(value, spec, label)) (line 7)"
+  ],
+  [
+   7000124,
+   0.5,
+   "1 contracts, untainted vals only (1 tainted), exempt, used (spec name 'S2' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr6]\n    A: @{a: 1}\n    B: miss: typed spec must be a type name or a shape, got <fn> (arguments fit typed(value, spec, label)) (line 4)"
+  ],
+  [
+   7000183,
+   0.5,
+   "2 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr9]\n    A: miss: parameter 'q10' of sg8 expected S1, got num (line 8)\n    B: miss: typed spec must be a type name or a shape, got <fn> (line 8)"
+  ],
+  [
+   7000206,
+   0.5,
+   "3 contracts, untainted vals only (1 tainted), exempt, used (spec name 'S1' is bound 3 times (defining env vs call env: round 342 \u00a77))\n  vals[sr7]\n    A: miss: parameter 'q8' of sg6 expected S1, got num (line 7)\n    B: miss: parameter 'q8' of sg6 expected record, got num (line 7)"
+  ],
+  [
+   7000215,
+   0.5,
+   "3 contracts, untainted vals only (1 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr7]\n    A: miss: parameter 'q8' of sg6 expected S1, got record (field 'a' expected bool, got num) (line 5)\n    B: miss: parameter 'q8' of sg6 expected str, got record (line 5)"
+  ],
+  [
+   7000256,
+   0.5,
+   "1 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr10]\n    A: miss: typed spec must be a type name or a shape, got [1] (line 9)\n    B: miss: typed spec must be a type name or a shape, got [1] (arguments fit typed(value, spec, label)) (line 9)"
+  ],
+  [
+   7000296,
+   0.5,
+   "2 contracts, untainted vals only (1 tainted), exempt, used (spec name 'S1' is bound 3 times (defining env vs call env: round 342 \u00a77))\n  vals[sr10]\n    A: miss: parameter 'q11' of sg9 expected S1, got record (no field 'b') (line 6)\n    B: miss: parameter 'q11' of sg9 expected str, got record (line 6)"
+  ],
+  [
+   7000311,
+   0.5,
+   "1 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr5]\n    A: miss: parameter 'q6' of sg4 expected S1, got record (no field 'a') (line 4)\n    B: miss: typed spec must be a type name or a shape, got [1] (arguments fit typed(value, spec, label)) (line 4)"
+  ],
+  [
+   7000353,
+   0.5,
+   "3 contracts, untainted vals only (2 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr15]\n    A: miss: typed spec must be a type name or a shape, got true (line 13)\n    B: miss: typed spec must be a type name or a shape, got true (arguments fit typed(value, spec, label)) (line 13)"
+  ],
+  [
+   7000355,
+   0.5,
+   "1 contracts, untainted vals only (1 tainted), exempt, used (spec name 'S3' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr10]\n    A: miss: parameter 'q11' of sg9 expected S3, got str (line 9)\n    B: miss: typed spec must be a type name or a shape, got [1] (arguments fit typed(value, spec, label)) (line 9)"
+  ],
+  [
+   7000362,
+   0.5,
+   "1 contracts, untainted vals only (1 tainted), exempt, used (spec name 'S3' is bound 3 times (defining env vs call env: round 342 \u00a77))\n  vals[sr8]\n    A: miss: parameter 'q9' of sg7 expected S3, got num (line 6)\n    B: miss: parameter 'q9' of sg7 expected record, got num (line 6)"
+  ],
+  [
+   7000367,
+   0.5,
+   "1 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr7]\n    A: @{b: \"\", name: [], x: []}\n    B: miss: typed spec must be a type name or a shape, got true (arguments fit typed(value, spec, label)) (line 6)"
+  ],
+  [
+   7000402,
+   0.5,
+   "1 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr11]\n    A: miss: typed spec must be a type name or a shape, got <fn> (line 7)\n    B: miss: typed spec must be a type name or a shape, got <fn> (arguments fit typed(value, spec, label)) (line 7)"
+  ],
+  [
+   7000420,
+   0.5,
+   "2 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr5]\n    A: miss: parameter 'q6' of sg4 expected S1, got num (line 5)\n    B: miss: parameter 'q6' of sg4 expected record, got num (line 5)"
+  ],
+  [
+   7000425,
+   0.5,
+   "3 contracts, untainted vals only (1 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr9]\n    A: miss: parameter 'q10' of sg8 expected S1, got record (no field 'x') (line 9)\n    B: miss: parameter 'q10' of sg8 expected str, got record (line 9)"
+  ],
+  [
+   7000457,
+   0.5,
+   "1 contracts, untainted vals only (1 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr8]\n    A: miss: parameter 'q9' of sg7 expected S1, got str (line 9)\n    B: miss: typed spec must be a type name or a shape, got true (arguments fit typed(value, spec, label)) (line 9)"
+  ],
+  [
+   7000507,
+   0.5,
+   "2 contracts, untainted vals only (2 tainted), exempt, used (spec name 'S3' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr14]\n    A: miss: parameter 'q15' of sg13 expected S3, got num (line 8)\n    B: miss: parameter 'q15' of sg13 expected nosuch, got num (line 8)"
+  ],
+  [
+   7000508,
+   0.5,
+   "1 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S2' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr9]\n    A: miss: parameter 'q10' of sg8 expected S2, got record (no field 'name') (line 9)\n    B: miss: parameter 'q10' of sg8 expected nosuch, got record (line 9)"
+  ],
+  [
+   7000516,
+   0.5,
+   "1 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr7]\n    A: miss: parameter 'q8' of sg6 expected S1, got record (no field 'a') (line 5)\n    B: miss: typed spec must be a type name or a shape, got [1] (arguments fit typed(value, spec, label)) (line 5)"
+  ],
+  [
+   11000050,
+   0.9,
+   "1 contracts, untainted vals only (1 tainted), exempt, used (spec name 'S3' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr12]\n    A: miss: parameter 'q13' of sg11 expected S3, got str (line 11)\n    B: miss: parameter 'q13' of sg11 expected 3O, got str (line 11)"
+  ],
+  [
+   11000129,
+   0.9,
+   "3 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr15]\n    A: miss: typed spec must be a type name or a shape, got true (line 12)\n    B: miss: typed spec must be a type name or a shape, got true (arguments fit typed(value, spec, label)) (line 12)"
+  ],
+  [
+   11000133,
+   0.9,
+   "1 contracts, untainted vals only (2 tainted), exempt, used (spec name 'S2' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr13]\n    A: @{name: @{name: 0.5}}\n    B: miss: parameter 'q14' of sg12 expected record, got record (no field 'a') (line 11)"
+  ],
+  [
+   11000165,
+   0.9,
+   "1 contracts, untainted vals only (1 tainted), exempt, used (spec name 'S1' is bound 3 times (defining env vs call env: round 342 \u00a77))\n  vals[sr4]\n    A: miss: parameter 'q5' of sg3 expected S1, got record (no field 'b') (line 4)\n    B: miss: parameter 'q5' of sg3 expected nosuch, got record (line 4)"
+  ],
+  [
+   11000170,
+   0.9,
+   "1 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S3' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr7]\n    A: miss: parameter 'q8' of sg6 expected S3, got str (line 8)\n    B: miss: typed spec must be a type name or a shape, got true (arguments fit typed(value, spec, label)) (line 8)"
+  ],
+  [
+   11000223,
+   0.9,
+   "1 contracts, untainted vals only (1 tainted), exempt, used (spec name 'S3' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr10]\n    A: @{a: @{c: 1, v: \"3O\"}, b: @{c: 1, v: \"3O\"}, x: @{c: -3, v: \"\"}}\n    B: miss: parameter 'q11' of sg9 expected str, got record (line 9)"
+  ],
+  [
+   11000249,
+   0.9,
+   "2 contracts, untainted vals only (1 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr11]\n    A: miss: typed spec must be a type name or a shape, got <fn> (line 9)\n    B: miss: typed spec must be a type name or a shape, got <fn> (arguments fit typed(value, spec, label)) (line 9)"
+  ],
+  [
+   11000281,
+   0.9,
+   "2 contracts, untainted vals only (3 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr18]\n    A: miss: typed spec must be a type name or a shape, got [1] (line 17)\n    B: miss: typed spec must be a type name or a shape, got [1] (arguments fit typed(value, spec, label)) (line 17)"
+  ],
+  [
+   11000290,
+   0.9,
+   "1 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr11]\n    A: miss: parameter 'q12' of sg10 expected S1, got num (line 11)\n    B: miss: parameter 'q12' of sg10 expected 3O, got num (line 11)"
+  ],
+  [
+   11000318,
+   0.9,
+   "1 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr9]\n    A: @{}\n    B: miss: parameter 'q10' of sg8 expected nosuch, got record (line 8)"
+  ],
+  [
+   11000365,
+   0.9,
+   "2 contracts, untainted vals only (2 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr9]\n    A: miss: typed spec must be a type name or a shape, got true (line 9)\n    B: miss: typed spec must be a type name or a shape, got true (arguments fit typed(value, spec, label)) (line 9)"
+  ],
+  [
+   11000371,
+   0.9,
+   "1 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr6]\n    A: miss: typed spec must be a type name or a shape, got <fn> (line 6)\n    B: miss: typed spec must be a type name or a shape, got <fn> (arguments fit typed(value, spec, label)) (line 6)"
+  ],
+  [
+   11000372,
+   0.9,
+   "2 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr13]\n    A: miss: typed spec must be a type name or a shape, got [1] (line 12)\n    B: miss: typed spec must be a type name or a shape, got [1] (arguments fit typed(value, spec, label)) (line 12)"
+  ],
+  [
+   11000380,
+   0.9,
+   "1 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr8]\n    A: miss: parameter 'q9' of sg7 expected S1, got num (line 6)\n    B: miss: typed spec must be a type name or a shape, got [1] (line 6)"
+  ],
+  [
+   11000431,
+   0.9,
+   "1 contracts, untainted vals only (3 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr10]\n    A: miss: typed spec must be a type name or a shape, got [1] (line 10)\n    B: miss: typed spec must be a type name or a shape, got [1] (arguments fit typed(value, spec, label)) (line 10)"
+  ],
+  [
+   11000498,
+   0.9,
+   "1 contracts, untainted vals only (1 tainted), exempt, used (spec name 'S3' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr15]\n    A: @{c: [], name: 1}\n    B: miss: typed spec must be a type name or a shape, got @{a: 5} (line 14)"
+  ],
+  [
+   13000147,
+   0.1,
+   "5 contracts, untainted vals only (2 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr7]\n    A: miss: parameter 'q8' of sg6 expected S1, got record (no field 'x') (line 5)\n    B: miss: parameter 'q8' of sg6 expected record, got record (no field 'a') (line 5)"
+  ],
+  [
+   13000168,
+   0.1,
+   "2 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S1' is bound 3 times (defining env vs call env: round 342 \u00a77))\n  vals[sr12]\n    A: miss: typed spec must be a type name or a shape, got true (line 8)\n    B: miss: typed spec must be a type name or a shape, got true (arguments fit typed(value, spec, label)) (line 8)"
+  ],
+  [
+   13000170,
+   0.1,
+   "1 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr8]\n    A: miss: parameter 'q9' of sg7 expected S1, got record (no field 'b') (line 7)\n    B: miss: parameter 'q9' of sg7 expected str, got record (line 7)"
+  ],
+  [
+   13000172,
+   0.1,
+   "1 contracts, untainted vals only (5 tainted), exempt, used (spec name 'S3' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr9]\n    A: miss: typed spec must be a type name or a shape, got 3 (line 8)\n    B: miss: typed spec must be a type name or a shape, got 3 (arguments fit typed(value, spec, label)) (line 8)"
+  ],
+  [
+   13000188,
+   0.1,
+   "1 contracts, untainted vals only (1 tainted), exempt, used (spec name 'S3' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr28]\n    A: miss: parameter 'q29' of sg27 expected S3, got str (line 21)\n    B: miss: parameter 'q29' of sg27 expected record, got str (line 21)"
+  ],
+  [
+   13000238,
+   0.1,
+   "2 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr6]\n    A: @{a: []}\n    B: miss: typed spec must be a type name or a shape, got @{a: 5} (line 4)"
+  ],
+  [
+   13000269,
+   0.1,
+   "3 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S3' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr11]\n    A: miss: parameter 'q12' of sg10 expected S3, got record (no field 'c') (line 9)\n    B: miss: parameter 'q12' of sg10 expected nosuch, got record (line 9)"
+  ],
+  [
+   13000285,
+   0.1,
+   "2 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr16]\n    A: miss: typed spec must be a type name or a shape, got 3 (line 10)\n    B: miss: typed spec must be a type name or a shape, got 3 (arguments fit typed(value, spec, label)) (line 10)"
+  ],
+  [
+   13000287,
+   0.1,
+   "1 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S1' is bound 3 times (defining env vs call env: round 342 \u00a77))\n  vals[sr8]\n    A: @{}\n    B: miss: parameter 'q9' of sg7 expected 3O, got record (line 6)"
+  ],
+  [
+   13000302,
+   0.1,
+   "1 contracts, untainted vals only (3 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr13]\n    A: miss: parameter 'q14' of sg12 expected S1, got num (line 8)\n    B: miss: typed spec must be a type name or a shape, got [1] (line 8)"
+  ],
+  [
+   13000311,
+   0.1,
+   "1 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S3' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr7]\n    A: @{a: \"3O\", x: @{a: 1, c: []}}\n    B: miss: typed spec must be a type name or a shape, got @{a: 5} (line 5)"
+  ],
+  [
+   13000343,
+   0.1,
+   "2 contracts, untainted vals only (1 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr6]\n    A: miss: typed spec must be a type name or a shape, got [1] (line 5)\n    B: miss: typed spec must be a type name or a shape, got [1] (arguments fit typed(value, spec, label)) (line 5)"
+  ],
+  [
+   13000346,
+   0.1,
+   "1 contracts, untainted vals only (2 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr8]\n    A: miss: parameter 'q9' of sg7 expected S1, got num (line 6)\n    B: miss: typed spec must be a type name or a shape, got [1] (line 6)"
+  ],
+  [
+   13000349,
+   0.1,
+   "1 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr5]\n    A: miss: parameter 'q6' of sg4 expected S1, got str (line 3)\n    B: 3O"
+  ],
+  [
+   13000364,
+   0.1,
+   "1 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr5]\n    A: miss: parameter 'q6' of sg4 expected S1, got record (field 'a' expected bool, got num) (line 3)\n    B: miss: parameter 'q6' of sg4 expected str, got record (line 3)"
+  ],
+  [
+   13000381,
+   0.1,
+   "1 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr6]\n    A: miss: parameter 'q7' of sg5 expected S1, got record (field 'a' expected str, got num) (line 5)\n    B: miss: typed spec must be a type name or a shape, got [1] (arguments fit typed(value, spec, label)) (line 5)"
+  ],
+  [
+   13000387,
+   0.1,
+   "1 contracts, untainted vals only (0 tainted), exempt, used (spec name 'S2' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr6]\n    A: miss: typed spec must be a type name or a shape, got 3 (line 5)\n    B: miss: typed spec must be a type name or a shape, got 3 (arguments fit typed(value, spec, label)) (line 5)"
+  ],
+  [
+   13000424,
+   0.1,
+   "1 contracts, untainted vals only (2 tainted), exempt, used (spec name 'S2' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr6]\n    A: miss: parameter 'q7' of sg5 expected S2, got record (no field 'name') (line 4)\n    B: miss: typed spec must be a type name or a shape, got true (arguments fit typed(value, spec, label)) (line 4)"
+  ],
+  [
+   13000527,
+   0.1,
+   "1 contracts, untainted vals only (3 tainted), exempt, used (spec name 'S2' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr12]\n    A: miss: parameter 'q13' of sg11 expected S2, got num (line 10)\n    B: miss: typed spec must be a type name or a shape, got 3 (line 10)"
+  ],
+  [
+   13000533,
+   0.1,
+   "1 contracts, untainted vals only (2 tainted), exempt, used (spec name 'S1' is bound 2 times (defining env vs call env: round 342 \u00a77))\n  vals[sr6]\n    A: miss: typed spec must be a type name or a shape, got [1] (line 4)\n    B: miss: typed spec must be a type name or a shape, got [1] (arguments fit typed(value, spec, label)) (line 4)"
+  ]
+ ]
+}

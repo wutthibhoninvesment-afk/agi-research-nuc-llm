@@ -537,3 +537,63 @@ def test_spec_level_header_matches_the_highest_version_section():
     assert header.group(1) == highest, (
         "SPEC.md's header says v%s; the highest `## vN` section is v%s"
         % (header.group(1), highest))
+
+
+# --- the fourth silence, found by an oracle five rounds later ----------------
+
+def test_a_contract_miss_never_carries_an_order_hint():
+    """A TYPE-CONTRACT miss (v0.13 `-> T`, v0.19 `p: T`) is silent, even
+    where the identical condition reached through the `typed` BUILTIN is
+    not. Found by round 359's `param_erasure` oracle, which erases a v0.19
+    parameter contract back into the v0.12 `let p = typed(p, T, label)`
+    guard it replaced and compares answers: on 47 of 2500 generated
+    programs the two forms differed, and in all 47 the entire difference
+    was this clause.
+
+    The silence is correct and is the fourth entry in this file's list:
+    `_order_hint` names a signature the caller could reorder its arguments
+    into, and an annotation has no argument list to reorder — `fn f(p: P)`
+    is not a call the programmer wrote. What was WRONG was
+    `_check_contract`'s docstring, which claimed since v0.19 that "the
+    wording matches `typed`'s own for the same condition"; v0.22 made that
+    false and nothing re-executed the claim (round 321's item 14 class
+    again). Round 359 corrected the docstring and added this.
+
+    Both contract ends and both `_check_contract` guard branches that have
+    a `b_typed` counterpart are covered.
+    """
+    from whence import interp as I
+    shadow = "shape P = @{a: num}\nfn outer() {\n  let P = 3\n%s\n}\n" \
+             "let result = outer()\n"
+    cases = [
+        # not `_spec_ok`: the annotation's name resolved to a number.
+        # `b_typed`'s wording for this is pinned above WITH the clause.
+        (shadow % "  fn h() -> P { 1 }\n  h()",
+         "typed spec must be a type name or a shape, got 3"),
+        (shadow % "  fn h(q: P) { q }\n  h(1)",
+         "typed spec must be a type name or a shape, got 3"),
+        # an ordinary mismatch, the common case, both ends
+        ("fn h() -> num { \"x\" }\nlet result = h()\n",
+         "return value of h expected num, got str"),
+        ("fn h(q: num) { q }\nlet result = h(\"x\")\n",
+         "parameter 'q' of h expected num, got str"),
+    ]
+    for src, want in cases:
+        got = host_reason(src)
+        assert got == want, (src, got)
+        assert HINT_RE.search(got) is None, got
+
+    # ... and the same condition through the BUILTIN does carry it, so this
+    # is a real asymmetry and not just an absence of hintable calls.
+    with_hint = host_reason('let result = typed(@{a: 1}, true, "l")')
+    assert with_hint == ("typed spec must be a type name or a shape, got true"
+                         " (arguments fit typed(value, spec, label))")
+
+    # the mechanism, at the unit level: `_order_hint` is only ever reached
+    # from a registered builtin, and `_check_contract` is not one.
+    src = open(os.path.join(ROOT, "whence", "interp.py"), encoding="utf-8").read()
+    body = src.split("def _check_contract(")[1].split("\ndef ")[0]
+    assert "_order_hint" not in body.split('"""')[2], \
+        "_check_contract's CODE now calls _order_hint; this test is the pin"
+    assert "_order_hint" in body.split('"""')[1], \
+        "_check_contract's docstring must keep explaining why it does not"

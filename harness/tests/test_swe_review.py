@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import swe.review as R
 import swe.killers as K
+import swe.oracles as O
 from swe.fuzz import WHENCE_ROOT
 from swe.mutation import generate, _copy_project
 from swe.policy import PolicyLLM, call, say
@@ -42,8 +43,16 @@ def test_oracle_tool_reports_every_oracle_and_fired_list():
     # landed that work. Nobody saw it because `run_tests_fast.sh` deselects the
     # slow tier — which is precisely the blind spot `swe/slowtier.py` exists to
     # close, and this is the first failure its first recorded slice found.
-    assert set(d) == {"totality", "fast_slow", "direct", "determinism", "render",
-                      "frames", "tail_transparency", "_fired"}
+    #
+    # Round 359 (adding the EIGHTH oracle, `param_erasure`) stopped re-pinning
+    # a second literal here and derives it instead. The claim this test owns is
+    # OracleTool's: "reports every oracle, plus `_fired`" — which a literal copy
+    # states less well and goes stale on its own schedule. The literal list of
+    # oracles now lives in exactly one place,
+    # `test_swe_oracles.py::test_oracle_names_is_the_single_pinned_registry`,
+    # so adding an oracle still needs a deliberate edit, just not two of them.
+    assert set(d) == set(O.ORACLE_NAMES) | {"_fired"}
+    assert "param_erasure" in d and "tail_transparency" in d
     assert all(d[k]["kind"] == "ok" for k in ("totality", "fast_slow", "direct", "determinism", "render"))
     d2 = json.loads(t.run("let a = (\n", oracles="totality,fast_slow").output)
     assert set(d2) == {"totality", "fast_slow", "_fired"}

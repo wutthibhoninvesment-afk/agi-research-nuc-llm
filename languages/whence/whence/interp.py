@@ -2524,7 +2524,20 @@ def _check_contract(result, spec, label, line):
         straight out of the interpreter, in all three evaluation modes, for
         both FnDef and FnExpr, tail and non-tail — a totality violation in
         a language whose decision 2 says the answer to a bad input is a
-        miss. The wording matches `typed`'s own for the same condition."""
+        miss. The wording matches `typed`'s own for the same condition
+        EXCEPT for v0.22's argument-order clause, which `b_typed` appends
+        (`_order_hint("typed", args)`) and this function deliberately does
+        not: `_order_hint` names the signature a caller could reorder its
+        arguments into, and an ANNOTATION has no argument list to reorder —
+        `fn f(p: P)` is not a call the programmer wrote. Round 354 declined
+        the related, real feature ("the `_order_hint` rule generalises to
+        user functions", its item 2) for a separate reason: the contract
+        path binds arguments one at a time and cannot see the whole list.
+        This sentence used to claim the two wordings simply matched; that
+        stopped being true when v0.22 landed and stayed uncorrected for
+        five rounds, until round 359's `param_erasure` oracle measured the
+        difference on 47 of 2500 generated programs. Pinned by
+        `tests/test_v22.py::test_a_contract_miss_never_carries_an_order_hint`."""
     if spec is None or _is_miss(result):
         return result
     if isinstance(spec, _UnboundType):
