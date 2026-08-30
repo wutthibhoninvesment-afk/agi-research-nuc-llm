@@ -360,6 +360,12 @@
    "scored_by": 371,
    "where": "knowledge/round-371-the-signal-that-could-not-fire.md",
    "quote": "## 8. Predictions scored"
+  },
+  "372": {
+   "bank": "state/whence/round-372/PREDICTIONS.md",
+   "status": "unscored",
+   "owner": "language(C)",
+   "why": "Banked at the top of round 372 (language C). Scored in the same round's knowledge file; this entry is flipped to `scored` before the round commits."
   }
  }
 }
