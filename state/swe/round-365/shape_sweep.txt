@@ -1,0 +1,11 @@
+N=400 shape-emitting seeds: 141 (35.2%)
+   1 ok              0.74s shapes=['S1'] compared=['S1']
+   3 ok              0.92s shapes=['S1'] compared=['S1']
+   4 ok              1.05s shapes=['S1'] compared=['S1']
+   7 ok              1.60s shapes=['S1'] compared=['S1']
+   8 ok              1.19s shapes=['S1', 'S3'] compared=['S1', 'S3']
+  13 ok              2.00s shapes=['S1'] compared=['S1']
+  14 ok              1.14s shapes=['S1'] compared=['S1']
+  18 ok              1.52s shapes=['S1', 'S3'] compared=['S1', 'S3']
+  21 ok              0.84s shapes=['S1', 'S3'] compared=['S1', 'S3']
+  28 ok              0.26s shapes=['S1'] compared=['S1']

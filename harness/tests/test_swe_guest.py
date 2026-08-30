@@ -612,14 +612,136 @@ def test_generator_now_emits_the_shape_builtins_into_guest_programs():
     assert guest_hits >= 20, guest_hits
 
 
-def test_no_shape_declaration_reaches_the_guest_generator():
-    """`GuestGen` inherits `ProgramGen`'s grammar; the guest parser has no
-    `shape` support at all, so a generated declaration would be a one-sided
-    parse failure. The grammar reaches structural typing through record
-    SPEC VALUES instead -- this is the guard on that design choice."""
-    pat = re.compile(r"(^|\n)\s*shape\s")
+# =========================================================== round 365 ==
+#
+# `test_no_shape_declaration_reaches_the_guest_generator` (round 347) used
+# to stand here, asserting the OPPOSITE of the three tests below:
+#
+#     """`GuestGen` inherits `ProgramGen`'s grammar; the guest parser has no
+#     `shape` support at all, so a generated declaration would be a one-sided
+#     parse failure."""
+#     for i in range(200):
+#         assert not pat.search(G.generate_guest_program(i)), i
+#
+# Its premise was already false when it was written. Round 338 (language C)
+# taught `self_eval.lang`/`self_host.lang`'s shared parser section the
+# `shape` statement and taught the guest evaluator to resolve `-> Shape` at
+# closure-creation time; `GuestGen`'s own class docstring says so, nine
+# rounds before round 347 wrote "the guest parser has no `shape` support at
+# all" into a test docstring two hundred lines below it. The test passed
+# anyway because round 347 also added `_shape_decl` to `ProgramGen` and the
+# grammar happened not to reach it from the guest seeds in `range(200)`.
+#
+# Round 361's slow-tier sweep found it RED and handed it to SWE-loop(D) as
+# "a design call: a generator override, or teach the guest `shape`". It is
+# neither: the guest was taught in round 338, and round 365 MEASURED that —
+# 140 of 400 guest seeds declare a shape and all of them agree.
+#
+# So the negative pin is replaced by three positive ones. The rate pin
+# (shapes must KEEP reaching the guest), the structural pin (the shape
+# binding must be in the COMPARED record — round 365's real finding: it
+# never was), and the differential itself.
+SHAPE_DECL_RE = re.compile(r"(^|\n)\s*shape\s")
+
+
+def test_shape_declarations_reach_the_guest_generator():
+    """Round 338 gave the guest a real `shape` statement, so a generated
+    declaration is guest-SAFE, not a one-sided parse failure. Measured at
+    round 365: 70/200 seeds (35.0%) and 140/400 (35.0%). The bound is
+    deliberately loose -- this pin exists to catch the declaration falling
+    OUT of guest programs entirely (which is what `GuestGen` overriding
+    `_shape_decl` would do), not to freeze a rate."""
+    n = sum(1 for i in range(200) if SHAPE_DECL_RE.search(G.generate_guest_program(i)))
+    assert 40 <= n <= 120, n
+
+
+def test_every_declared_shape_binding_reaches_the_compared_record():
+    """Round 365's finding, pinned. `shape S = @{...}` desugars to an
+    ordinary top-level record binding on BOTH sides, but `_shape_decl`
+    registers only its optional witness in `self.scope`, and
+    `generate_guest_program` built the `__result` record from
+    `scope + fns`. From round 347 to round 365 every shape-declaring guest
+    program therefore ran, agreed, and compared everything EXCEPT the thing
+    the declaration produced.
+
+    This is the guard on the fix. It is structural, not statistical: if a
+    single declared shape name is missing from `__result`, the coverage is
+    silently back to zero and the two tests around this one would still
+    pass."""
+    checked = 0
     for i in range(200):
-        assert not pat.search(G.generate_guest_program(i)), i
+        src = G.generate_guest_program(i)
+        declared = re.findall(r"(?m)^shape\s+(\w+)", src)
+        if not declared:
+            continue
+        checked += 1
+        compared = set(re.findall(r"(\w+): \(", src[src.index("let __result"):]))
+        assert set(declared) <= compared, (i, declared, sorted(compared))
+    assert checked >= 40, checked
+
+
+def test_shape_declaring_guest_programs_agree(pkg, harness):
+    """The differential over the shapes themselves.
+
+    Goes through `O.run_oracle` rather than `outcome`/`oracle_self_eval`
+    because ONE of the seeds it covers does not terminate: seed 31 (see
+    `test_seed31_does_not_terminate_under_the_default_budget` below) runs
+    for >90s in the HOST interpreter alone. `oracle_self_eval` has no
+    timeout of its own -- the SIGALRM lives in `run_oracle` -- which is
+    exactly round 185's root cause, pinned two hundred lines above this by
+    `test_run_oracle_kwargs_bounds_a_shared_harness_hang`. Round 365's own
+    first sweep script called the bare oracle and lost 131 of 141 seeds to
+    it, so this is a mistake with a measured cost, not a hypothetical.
+
+    A `timeout` outcome is therefore ACCEPTED here, and counted: this test
+    is about agreement, and a program neither side finished is not a
+    disagreement. `test_seed31_...` is what keeps the hang visible."""
+    checked, mismatches, timeouts = 0, [], []
+    d = load_dict_with_root(pkg)
+    for i in range(200):
+        src = G.generate_guest_program(i)
+        if not SHAPE_DECL_RE.search(src):
+            continue
+        checked += 1
+        if checked > 25:
+            break
+        o = O.run_oracle(G.GUEST_ORACLE, d, src, timeout_s=20.0,
+                         max_depth=2000, harness=harness)
+        if o.kind == "mismatch":
+            mismatches.append((i, o.detail[:300]))
+        elif o.kind == "timeout":
+            timeouts.append(i)
+    assert checked >= 25, checked
+    assert not mismatches, mismatches
+    # measured at round 365: seed 31 only
+    assert len(timeouts) <= 2, timeouts
+
+
+def test_seed31_does_not_terminate_under_the_default_budget(pkg):
+    """Round 365's second finding, pinned as a BOUNDED reproducer.
+
+    `generate_guest_program(31)` produces a 13-line program the HOST
+    interpreter does not finish: `O._run_ast(pkg, ast, max_depth=2000)`
+    ran >90s on a box where `load_whence` + `_parse` of the same program
+    take 0.0s and the other 140 shape-emitting seeds average 1.2s. It is
+    NOT the guest, NOT this round's `__result` change (the pre-change
+    sweep stopped on the same seed), and NOT reproduced yet by any hand
+    minimization -- `fn tl3(p4) -> num {...}` recursing on a record
+    argument terminates instantly at every `max_depth` from 50 to 800, so
+    the trigger is something else in the program and finding it is the
+    next round's job.
+
+    This test asserts only what is MEASURED: the program is still
+    non-terminating under a 25s budget. If a future round fixes it, this
+    test goes red and that is the intended signal -- flip it to assert
+    termination and record the fix. It deliberately does NOT assert a
+    time, only that a generous bound is exceeded, so it cannot become a
+    flake on a loaded box (this one sat at load 25-42 while it was
+    written)."""
+    src = G.generate_guest_program(31)
+    o = O.run_oracle(G.GUEST_ORACLE, load_dict_with_root(pkg), src,
+                     timeout_s=25.0, max_depth=2000)
+    assert o.kind == "timeout", (o.kind, o.detail[:300])
 
 
 def test_record_spec_agreement_over_a_generated_batch(pkg, harness):

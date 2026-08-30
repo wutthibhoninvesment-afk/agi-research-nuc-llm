@@ -113,12 +113,12 @@ class GuestGen(ProgramGen):
     the remaining piece: `self_eval.lang`/`self_host.lang`'s shared parser
     section now implements the `shape` statement, and the guest evaluator
     resolves `-> Shape` at closure-creation time like the host's
-    `_closure_ret`. The fuzzer still never generates a shape name as a
-    type tag (`TYPE_TAGS` is primitives only), so nothing here changes —
-    but that is now a GENERATOR choice rather than a guest limitation, and
-    teaching `TYPE_TAGS` about declared shapes is a real, newly-unblocked
-    option for a future round rather than something out of scope by
-    construction.
+    `_closure_ret`. Round 347 took the "newly-unblocked option" this
+    paragraph used to describe as future work: `ProgramGen.type_tag`
+    returns a DECLARED SHAPE NAME 35% of the time once any shape exists,
+    so shape names now reach `: TAG` and `-> TAG` on the guest side too.
+    Measured (round 365, `range(200)` guest seeds): 70 programs declare a
+    shape, 39 of them use its name as an annotation tag.
 
     `maybe_effects` (round 162: `ProgramGen` gained `effects [...]`
     generation for the v0.14 effect system, round 146) used to be
@@ -153,10 +153,17 @@ class GuestGen(ProgramGen):
     therefore always vacuously satisfied for both builtins (there is no
     call left in the body for it to restrict), so there is no way for the
     host's parse-time rejection and the guest's silent non-enforcement to
-    disagree through this generator. Shapes remain unsupported on the
-    guest side for the same reason `typed_params` stays inherited
-    unchanged (see above) — out of scope for this generator by
-    construction, not worked around here."""
+    disagree through this generator.
+
+    Round 365 deleted this docstring's closing sentence, which read
+    "Shapes remain unsupported on the guest side ... out of scope for this
+    generator by construction". It contradicted its OWN third paragraph
+    (round 338 taught the guest the `shape` statement) and it is the claim
+    that `test_no_shape_declaration_reaches_the_guest_generator` — red
+    since round 347, found by round 361 — was written to defend. Shapes
+    are supported, generated, and differentially compared; see
+    `generate_guest_program` for the one piece that was genuinely
+    missing."""
 
     def template(self):
         r = self.r
@@ -246,10 +253,35 @@ def generate_guest_program(seed, stress_rate=0.7, max_names=8):
     for n in g.scope + [f for f, _ in g.fns]:
         if n not in names:
             names.append(n)
+    names = names[:max_names]
+    # Round 365 (SWE-loop D): the SHAPE names too, appended AFTER the
+    # `max_names` cut rather than competing for a slot inside it.
+    #
+    # `shape S1 = @{a: num}` is pure sugar for `let S1 = @{__shape: "S1",
+    # a: "num"}` on both sides (host `Parser.shape_def`; the guest's own
+    # desugaring, round 338), so the declaration produces an ordinary
+    # top-level RECORD BINDING that the differential can compare like any
+    # other. But `_shape_decl` registers only its optional WITNESS in
+    # `self.scope` — the shape name itself goes to `self.shapes`, which
+    # nothing here read. So from round 347 (when shape declarations entered
+    # the grammar) to round 365, ~35% of generated guest programs declared
+    # a shape and NOT ONE of them compared the desugared record the
+    # declaration produced. The programs ran and agreed; the agreement was
+    # simply never about the shape.
+    #
+    # Appended rather than merged because the cut is what would silently
+    # restore the blind spot: `max_names` is 8, a program with 8+ ordinary
+    # bindings is common, and a shape name losing the tie-break would look
+    # exactly like coverage. The set is bounded and small — `program()`
+    # emits 1-2 declarations, 35% of the time — so this widens the compared
+    # record by at most two fields.
+    for n in g.shape_names():
+        if n not in names:
+            names.append(n)
     # a missed binding becomes a sentinel string (reason wordings are exempt
     # by design); a DEPTH miss gets its own sentinel because the guest pays
     # ~6.8 host frames per guest call and can exhaust the budget one-sided
-    return src + scrub_record_line(names[:max_names])
+    return src + scrub_record_line(names)
 
 
 # -------------------------------------------------------------- comparator --

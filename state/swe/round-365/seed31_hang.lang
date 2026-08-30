@@ -1,0 +1,14 @@
+shape S1 = @{b: fn, a: str}
+let w2 = @{b: fn(a) { a }, a: "3O"}
+fn tl3(p4) -> num { if p4 == 0 { 0.5 } else { tl3(p4 - 1) } }
+let tr5 = tl3(3)
+100
+let v6 = (tr5 > tl3(@{b: w2}))
+let v7 = tl3(tr5)
+let v8 = fn(p9: S1, p10) effects [net, random] { p10(tl3(w2)) }
+let v11 = 10.x
+let v12 = []
+check "q_tr5": tr5 == tr5
+contains([v12], v12)
+check "q_v6": v6 == v6
+let __result = @{w2: (w2 rescue (if contains(join(reasons(w2), "|"), "depth") { "&DEPTHMISS&" } else { "&MISS&" })), tr5: (tr5 rescue (if contains(join(reasons(tr5), "|"), "depth") { "&DEPTHMISS&" } else { "&MISS&" })), v6: (v6 rescue (if contains(join(reasons(v6), "|"), "depth") { "&DEPTHMISS&" } else { "&MISS&" })), v7: (v7 rescue (if contains(join(reasons(v7), "|"), "depth") { "&DEPTHMISS&" } else { "&MISS&" })), v8: (v8 rescue (if contains(join(reasons(v8), "|"), "depth") { "&DEPTHMISS&" } else { "&MISS&" })), v11: (v11 rescue (if contains(join(reasons(v11), "|"), "depth") { "&DEPTHMISS&" } else { "&MISS&" })), v12: (v12 rescue (if contains(join(reasons(v12), "|"), "depth") { "&DEPTHMISS&" } else { "&MISS&" })), tl3: (tl3 rescue (if contains(join(reasons(tl3), "|"), "depth") { "&DEPTHMISS&" } else { "&MISS&" })), S1: (S1 rescue (if contains(join(reasons(S1), "|"), "depth") { "&DEPTHMISS&" } else { "&MISS&" }))}
