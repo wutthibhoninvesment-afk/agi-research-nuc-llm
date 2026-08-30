@@ -9326,6 +9326,153 @@ Workspace: ~/agi-research
   deliberately NOT widened — see next steps.
 - See `knowledge/round-348-whence-v020-the-field-a-type-miss-would-not-name.md`.
 
+### Round 349 — harness(A) — 2026-08-30
+
+- **Goal:** the rotation's harness round, but the working tree named the
+  subject before the track did. Round 348's `whence-health-check` went red —
+  the **first non-green health check in this program's recorded history** —
+  and the thing it was red about was not a test.
+- **The failure.** `languages/whence/pyproject.toml` acquired a duplicate
+  `[project.optional-dependencies]` table. pytest parses config files during
+  DISCOVERY, before collection, so the TOML error aborted the run outright:
+  **all 1043 whence fast-tier tests down, zero collected.** The driver logged
+  `whence-health-check FAIL`, which reads as "round 348 broke the whence
+  tests" and is false in both directions — round 348 broke nothing, and the
+  tests were not failing, they were absent. The file is UNTRACKED (`git
+  ls-files languages/whence` = 70 paths, not one of them), owned by the
+  Hermes gateway, and allowlisted since round 291 precisely so no round
+  treats it as its own. The suite's ability to run rested on the syntactic
+  validity of a file no round may own. It never needed it: the only pytest
+  config whence requires is the `whence_slow` marker, which
+  `tests/conftest.py` registers itself.
+- **Three places read "the runner exited non-zero" as "the tests ran and
+  failed."** Fixed at each point where the evidence actually exists.
+- **(1) Ownership, not repair.** New TRACKED `languages/whence/pytest.ini`;
+  `run_tests_fast.sh` passes `-c pytest.ini`, which stops the config SEARCH
+  so the unowned file is never opened. Both candidates were probed against
+  the live breakage first: `-c` collects 1043/1095, **`--rootdir=` alone does
+  NOT work** (pytest still parses `pyproject.toml`) — the obvious fix would
+  have been the wrong one. `tests/test_tiering.py` needed the same flag; it
+  spawns its own pytest, so the exposure is per-INVOCATION, not per-script.
+  **Verified by falsification:** the broken file was deliberately restored
+  and the whole suite run anyway — `1043 passed`. Round 348 had routed around
+  this with a throwaway `/tmp/r348/pytest.ini` for one run; this is that
+  insight made permanent rather than per-round.
+- **(2) The mutation scorer, which fails UPWARD — the sharpest finding.**
+  `swe/mutation.py` copies `pyproject.toml` into every mutant tree and read
+  ANY non-zero exit as a kill, so a tree that cannot run tests kills every
+  mutant. Measured A/B, same 6 mutants of `whence/values.py`, same command,
+  only the copied config differing: **broken → 6 killed / 0 survived / score
+  1.00; repaired → 3 killed / 3 survived / score 0.50.** It did not merely
+  mislead, it INVERTED the signal — the run that tested nothing scored twice
+  the run that worked, and 100% is the one result nobody investigates.
+  `Mutant.status` had declared `error` as a fourth outcome since the module
+  was written with nothing ever setting it; designed and never wired. Now
+  wired in two layers: per-mutant, only pytest exit 1 kills (2-5 are `error`,
+  signals still kill, non-pytest runners keep the old rule); per-campaign, a
+  **baseline pre-flight** that refuses to score a campaign whose UNMUTATED
+  tree is not green. The second is the one that generalises — it also catches
+  a single pre-existing failing test, which pins every mutant to `killed` via
+  a perfectly legitimate exit code 1 that no per-mutant rule can ever see.
+  `score`'s denominator is UNCHANGED and `errored`/`valid_score` are additive
+  — round 348's own next-steps item 5 about `confirmed_span_s`, applied.
+- **(3) The driver's own log.** `driver_health.classify_health_log` splits
+  PASS/FAIL into **PASS / FAIL / ERROR**, with the wording in Python so the
+  two call sites cannot drift and are unit-testable. Replayed over **all 206**
+  archived health logs on this host (text-only path — none recorded an exit
+  code): **205 pass, 1 error, 0 fail.** The FAIL branch's entire track record,
+  across every round that has ever run this check, is that one firing, and it
+  meant something other than what it said. The PASS line is byte-identical;
+  the `||` fallback preserves round 241's guarded-on-existence design; still
+  diagnostic-only. `DRIVER_VERSION` → `349-health-check-error-vs-fail`.
+- **The operator's two CLAUDE.md bug reports: neither is a defect** — round
+  348's verdict, reached independently again here. But this round asked *why*
+  a careful reader guessed `fold` wrong, and the answer is a real defect:
+  **SPEC.md's `## Builtins` was a bare list of 36 names giving the argument
+  order for none of them.** The only way to learn `fold(fn, acc, xs)` was to
+  read `interp.py`, and `fold(list, init, fn)` is the conventional order
+  elsewhere. SPEC.md now carries a signature table for all 36 builtins, and
+  `tests/test_spec_builtins.py` machine-checks every name and arity against
+  the live `@register` registry — a bare list cannot go stale because it
+  asserts nothing, so replacing it with assertions creates the drift risk
+  round 333 asked to be swept for. **That test immediately failed on this
+  round's own first draft**: `@register` arity tuples are inclusive
+  `(min, max)` RANGES, not enumerations, so `contrast`/`diverge` take two
+  values or one list of runs, and the draft had invented a third-argument
+  form that does not exist. Round 349 got the spec wrong the same way the
+  operator got `fold` wrong; the only difference is that a test was watching.
+- **Round 348's diff landed (`76e0e9a`).** It ran to the 3300s outer timeout
+  (`span_s: 3295.572, interrupted: true`) with its whole 13-file diff staged
+  and uncommitted. Verified from a clean re-read, and verified in a way round
+  348 could not: the whence fast tier is green against it — 1043 passed, 52
+  deselected, including its own new `tests/test_v20.py` (437 lines). Round
+  348 could not run its own suite at all, which is this round's subject.
+- **Unattributed working-tree paths: 27 → 1.** The 13 untracked gateway files
+  went into `known-standing-dirty-paths.json` — the handoff round 348 left
+  explicitly for harness(A)/skills(B), with its bar met (written 23:32-23:42
+  on 2026-08-29, attributed by round 348, fingerprint re-confirmed here).
+  `CLAUDE.md` was committed VERBATIM with attribution (`680b273`), not as
+  this round's words — it is the file round 346 spent a round restoring, and
+  an uncommitted operator instruction risks being lost. Both TRACKED files
+  were kept OUT of the allowlist on principle: that registry models untracked
+  leftovers, and allowlisting a tracked file would mean "never look at this
+  diff again".
+- **ESCALATED, not resolved: `languages/whence/SECURITY.md`.** The gateway's
+  rewrite asserts four security controls and **all four are false** — no
+  pre-commit hook or `.pre-commit-config.yaml`; no `.github/` directory at
+  all; `git tag` returns 0 tags (against claims of signed tags and SHA-256
+  release checksums); `.gitignore` contains no `.env`/`*.key` patterns. It
+  also deleted the previous file's authorship attribution to the human
+  architect and its MIT licence note. A security policy documenting controls
+  that do not exist is worse than none, because a reader trusts it. Left
+  uncommitted and unrewritten: outward-facing, operator authorship interest,
+  and currently only in the working tree so nothing is published. **The
+  decision is the operator's**; the evidence is recorded so it is a decision
+  and not a discovery.
+- **Tests:** whence fast tier 1049 passed / 52 deselected; harness fast tier
+  476 passed / 278 deselected; `test_swe_mutation.py` 14 passed (8 new,
+  recorded via `slowtier.py`); `test_driver_health.py` 102 passed (9 new);
+  the 8 e2e `run_driver.sh` health-check tests pass, 3 of them new and
+  asserting the ERROR line.
+- See `knowledge/round-349-a-suite-that-cannot-run-is-not-a-suite-that-passes.md`.
+
+## Next steps (as of round 349)
+1. **Operator decision on `languages/whence/SECURITY.md`** — four asserted
+   security controls do not exist and the authorship section was deleted;
+   left uncommitted on purpose. The highest-priority item here because it is
+   the only one this program should not decide alone.
+2. **New:** if a config file (`pyproject.toml`/`setup.cfg`/`pytest.ini`) ever
+   appears at the **repo root**, `harness/run_tests_fast.sh` and
+   `harness/tests/test_tiering.py` acquire round 349's bug on day one — the
+   root is config-free today, which is the only reason they were left alone.
+   Cheapest guard is a test asserting the root stays config-free.
+3. **New:** `classify_health_log`'s `fail` and `unknown` verdicts have never
+   been observed on real data (205 pass / 1 error / 0 fail across 206 logs) —
+   fixture-tested only, the same never-observed-live shape as round 310's
+   item 3 for `reachability_check.py`'s `"ambiguous"`.
+4. **New:** no historical mutation score was re-audited. Prior rounds' scores
+   predate the defect so they are probably fine, but "probably" is the honest
+   word. `state/swe/round-245/` and `round-263/` hold re-runnable campaign
+   scripts; they will now refuse a non-green baseline, which is itself the
+   thing worth watching. A SWE-loop(D) round could convert this to a number.
+5. **New:** the 8 new `test_swe_mutation.py` tests land in the `swe_slow`
+   tier by the `test_swe_*.py` filename convention, so they do NOT run in the
+   per-round harness fast check. Correct by the existing convention (they
+   spawn real pytest subprocesses) but worth naming rather than leaving
+   implied.
+6. Round 348's own v0.20 follow-ons are untouched by this round and stand.
+7. Round 321's item 14 (stale-header sweep) — round 349 closed one instance
+   at the source (SPEC.md's builtin table is now machine-checked against the
+   registry), which is a template for the rest: the fix for "a line asserting
+   a number no round re-executes" is a test that re-executes it, not a sweep.
+8. Standing and unchanged: `fuzz-mutate-kill-loop/SKILL.md` is still 415 body
+   lines (B002), 8th consecutive round carried; `harness/swe/regiontools.py`
+   is still deliberately un-unified with `EditFileTool` (round 307's item 2);
+   round 301's item 2 remains speculative; the `tail`/EOF backgrounded-pipe
+   silent-drop mechanism remains genuinely unconfirmed (round 310's item 5);
+   the heavy/light re-tally check-in is still pending its window; and
+   NUC-integration(E)'s box-down items are unchanged since round 334.
+
 ## Next steps (as of round 348)
 1. **A separate autonomous system is now editing `CLAUDE.md` — the file that
    carries this program's hard rules.** Mid-round 348 an unattributed,
