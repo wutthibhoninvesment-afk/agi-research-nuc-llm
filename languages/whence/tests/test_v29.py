@@ -265,20 +265,28 @@ EXEMPT = {
         "depth — so it is carried by "
         "`tests/test_miss_message_differential.py`, which owns it.",
     "E4-the-provenance-family-answers-from-the-wrong-history":
-        "NEW in v0.29, and the largest known guest divergence in the "
-        "language's signature feature. `self_eval.lang` BUILDS a correct "
-        "guest history (the `@{v, op, ins}` box graph `why`/`reify` walk, "
-        "checked against the host DAG by `tests/test_self_eval.py`'s "
-        "guest-level provenance tests) and then answers `steps`/`at`/"
-        "`blame`/`diverge`/`contrast` by calling the HOST builtin on the "
-        "guest's PAYLOAD — whose host provenance is `self_eval.lang`'s own "
-        "execution. Round 218 introduced that delegation with the comment "
-        "\"`a0`'s real host provenance is already there for free\"; the "
-        "provenance that is there is the evaluator's. `len(steps(1 + 2))` "
-        "is 4 on the host and 284 in the guest. Not fixed here because the "
-        "guest box carries `v`/`op`/`ins` and a host step record needs "
-        "`line`, `detail` and `count` as well — see SPEC v0.29 for the "
-        "design sketch and why it is a whole round's work.",
+        "NEW in v0.29 and NARROWED by v0.30 (round 378) from five builtins "
+        "to two. `self_eval.lang` BUILDS a correct guest history (the "
+        "`@{v, op, ins}` box graph `why`/`reify` walk, checked against the "
+        "host DAG by `tests/test_self_eval.py`'s guest-level provenance "
+        "tests) and then answered the whole provenance-query family by "
+        "calling the HOST builtin on the guest's PAYLOAD -- whose host "
+        "provenance is `self_eval.lang`'s own execution. Round 218 "
+        "introduced that delegation with the comment \"`a0`'s real host "
+        "provenance is already there for free\"; the provenance that is "
+        "there is the evaluator's. `len(steps(1 + 2))` was 4 on the host "
+        "and 284 in the guest. v0.30 answers `steps`/`at`/`blame` from the "
+        "guest box graph and they now agree: the 3 cases this exemption "
+        "covered in this atlas are 0, and the family's agreement went "
+        "204/234 to 208/234. What remains is `diverge`/`contrast`, whose "
+        "host rules a Whence expression cannot state -- `diverge` decides "
+        "sameness by `na is nb` and memoises on `(id(na), id(nb))`, and "
+        "`render_contrast` column-aligns two rendered histories. NO CASE "
+        "IN THIS ATLAS REACHES THE REMAINDER: its 104 diverge/contrast "
+        "cases are argument-shape cases and all 104 agree. So, exactly "
+        "like E3, it is excluded from `test_each_exemption_is_load_"
+        "bearing` and carried by the file that owns it, "
+        "`tests/test_v30.py`.",
 }
 
 def classify(name, atoms, host, guest):
@@ -430,10 +438,15 @@ def test_every_exemption_is_documented_and_reachable_by_the_classifier():
         assert len(v) > 200, k
 
 
-def test_the_provenance_family_is_still_exempt_and_still_wrong():
-    """E4, pinned as a NUMBER rather than as prose. Two guest runs, no
-    sweep: cheap enough for the fast tier, and it is the one exemption a
-    reader is most likely to assume was fixed."""
+def test_the_provenance_family_agrees_now_and_the_pins_are_exact():
+    """v0.29 pinned E4 as an inequality here -- `guest_steps > 50` against a
+    host 4, `guest_blame > 1` against a host 1 -- with the note that it was
+    "the one exemption a reader is most likely to assume was fixed".
+
+    v0.30 (round 378) fixed it for `steps`/`at`/`blame`, so the SAME two
+    programs are now equalities. Kept in this file rather than moved to
+    test_v30.py: this is where the wrong numbers were published, and an
+    exemption that retires should be visibly retired at its own pin."""
     lib = library_source()
     got = guest_batch(
         [("steps", "e4", "let x = 1 + 2\nlet r = len(steps(x))\n", ()),
@@ -443,16 +456,11 @@ def test_the_provenance_family_is_still_exempt_and_still_wrong():
     host_blame = Interpreter(out=lambda s: None, seed=7).run(
         "let x = 1 / 0\nlet r = len(blame(x))\n").get("r").payload
     assert host_steps == 4 and host_blame == 1, (host_steps, host_blame)
-    # The guest answers from `self_eval.lang`'s own history, so both counts
-    # are far larger. Asserted as an INEQUALITY with a floor rather than an
-    # equality: the exact numbers move whenever the evaluator's own source
-    # moves, and pinning them would make an unrelated edit look like this
-    # bug being fixed.
     assert got[0] == ("VAL",) and got[1] == ("VAL",)
     guest_steps = _guest_number("let x = 1 + 2\nlet r = len(steps(x))\n", lib)
     guest_blame = _guest_number("let x = 1 / 0\nlet r = len(blame(x))\n", lib)
-    assert guest_steps > 50, guest_steps
-    assert guest_blame > 1, guest_blame
+    assert guest_steps == 4, guest_steps
+    assert guest_blame == 1, guest_blame
 
 
 def _guest_number(src, lib):
@@ -545,25 +553,38 @@ def test_each_exemption_is_load_bearing(host_outcomes, guest_outcomes):
     this atlas reaches a depth budget, and it is carried by
     `test_miss_message_differential.py` instead, so requiring a case here
     would force a slow recursion case into a sweep that is about operand
-    shape."""
+    shape.
+
+    v0.30 (round 378) added E4 to that exclusion for the identical reason.
+    Its `steps`/`at`/`blame` half is FIXED, not exempted, and its
+    `diverge`/`contrast` remainder needs two histories that actually
+    diverge -- which this atlas, being about the shape of ONE operand,
+    never builds. `tests/test_v30.py` owns it and pins it live."""
     used = set()
     for n, fam, src, atoms in CASES:
         h, g = host_outcomes[n], guest_outcomes[n]
         if h != g:
             used.add(classify(n, atoms, h, g))
-    assert used == set(EXEMPT) - {"E3-the-budgets-are-different-in-kind"}, (
-        sorted(used))
+    assert used == set(EXEMPT) - {"E3-the-budgets-are-different-in-kind",
+                                  "E4-the-provenance-family-answers-from-"
+                                  "the-wrong-history"}, sorted(used)
 
 
 @pytest.mark.whence_slow
 def test_the_agreement_rate_does_not_regress(host_outcomes, guest_outcomes):
-    """A floor, not a pin. v0.28 agreed on 6 789 of these 11 326 cases and
-    v0.29 agrees on 6 857; the number can only go UP without an exemption
-    being added, and adding one is what `test_every_exemption_is_documented`
-    makes visible."""
+    """A floor, not a pin. v0.28 agreed on 6 789 of these 11 326 cases,
+    v0.29 on 6 857 and v0.30 on 6 861; the number can only go UP without an
+    exemption being added, and adding one is what
+    `test_every_exemption_is_documented` makes visible.
+
+    v0.30's 6 861 is DERIVED, not swept: round 378 measured the 234-case
+    provenance-family subset old-vs-new (204 -> 208 agreeing) and no other
+    case in this atlas can reach the code it changed, so the whole-atlas
+    figure moves by exactly that +4. Stated this way on purpose -- the
+    derivation is what a later sweep can falsify."""
     agree = sum(1 for n, _, _, _a in CASES
                 if host_outcomes[n] == guest_outcomes[n])
-    assert agree >= 6857, agree
+    assert agree >= 6861, agree
 
 
 @pytest.mark.whence_slow
@@ -583,5 +604,9 @@ def test_the_exemption_classes_are_the_measured_sizes(host_outcomes,
     assert total > 0.35 * len(CASES), (total, len(CASES))
     assert counts["E1-why-is-reified"] > 1000, counts
     assert counts["E2-a-callable-cannot-be-rebuilt"] > 1000, counts
-    assert counts["E4-the-provenance-family-answers-from-the-wrong-history"] \
-        >= 3, counts
+    # v0.30: 3 -> 0. Measured on the 234-case provenance-family SUBSET (the
+    # only cases whose guest side this round could change), old library vs
+    # new: 204/234 agreeing -> 208/234, E4 3 -> 0, E1 9 -> 8, E2 18 -> 18.
+    assert counts.get(
+        "E4-the-provenance-family-answers-from-the-wrong-history", 0) == 0, \
+        counts

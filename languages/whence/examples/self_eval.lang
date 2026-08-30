@@ -2084,6 +2084,278 @@ fn bind_params(st, fid, params, args, i, pspecs) {
 # happened INSIDE the bridge (the op/detail/etc are host bookkeeping, not
 # computed guest values), so an empty `ins` and a fixed "step" op label
 # mirror how `range`/`key`/`reason` elements are labelled just below.
+# ---- v0.30 (round 378): `steps` / `at` / `blame`, from the GUEST history ----
+# E4, which v0.29 recorded as "the largest known guest divergence in the
+# language's signature feature". Rounds 206/218 wired this family straight
+# through to the host builtin of the same name, applied to the guest's
+# PAYLOAD, with the comment "`a0`'s real host provenance is already there
+# for free". It is there, and it belongs to the wrong program: the payload's
+# host provenance is `self_eval.lang`'s OWN execution, so `len(steps(1 + 2))`
+# answered 284 -- this evaluator's line numbers, its locals `a0`/`p0`, its
+# internal probe misses -- where the host answers 4.
+#
+# The data was never missing. `eval` builds a correct guest history: the
+# `@{v, op, ins}` box graph that `why`/`reify` already walk and that
+# `tests/test_self_eval.py` compares against the host DAG label by label.
+# What follows is `whence/values.py`'s `walk_steps` / `matches_step` /
+# `find_step` / `is_origin_miss` and `interp.py`'s `_step_record`, written
+# against THAT graph. `diverge`/`contrast` stay delegated: `diverge`
+# memoises on `(id(na), id(nb))` and short-circuits on `na is nb`, and
+# `render_contrast` column-aligns two rendered histories -- neither is a
+# rule a Whence expression can state (see below).
+#
+# THREE DIVERGENCES REMAIN, each forced, each stated rather than hidden.
+#
+#  1. NO IDENTITY, so the count is an UPPER bound. `walk_steps` yields each
+#     shared node once, deduping on `id(node)`. Whence's `==` is structural:
+#     two distinct nodes that happen to be equal cannot be told apart, so no
+#     guest walk can reproduce that dedup. The guest therefore visits a
+#     shared node once per PATH -- every step the host reports is present,
+#     and a shared one may appear more than once. An identity predicate
+#     (`same(a, b)`) was considered and REJECTED: it would make the
+#     evaluator's own sharing decisions -- shared literal nodes, `MergedProv`
+#     runs, any future hash-consing -- observable from Whence source, and so
+#     freeze them. A language whose subject is transparency of DERIVATION
+#     should not buy it with transparency of ALLOCATION. Deduping
+#     STRUCTURALLY instead was also rejected: it is the other error (it
+#     merges distinct-but-equal steps, an under-report), and it costs a deep
+#     comparison per node.
+#  2. NO LINES. A guest box carries none, because the guest AST carries none
+#     -- the parser section of this file is pinned byte-identical to
+#     self_host.lang. `line` is reported as 0. Same divergence as the
+#     `(line N)` suffix every guest miss reason already has.
+#  3. NO MERGING. The host collapses a tail loop, or a run of identical `if`
+#     decisions, into one node with `count > 1`. The guest never merges, so
+#     `count` is always 1 and such a run appears as its individual steps.
+#
+# BOUNDED RATHER THAN TRUNCATED. Because of (1), a shared and deep history
+# is exponential in its depth, so the walk carries a budget; over it,
+# `steps` and `blame` MISS and name the number. Returning a short list
+# silently is the one failure mode here that would look like an answer.
+let GUEST_STEPS_BUDGET = 5000
+
+# `Prov.label()` is `op + " " + detail` (values.py) and a guest box keeps
+# only that composed label, in its `op` slot. Splitting at the FIRST space
+# inverts it exactly whenever the host's `op` has no space in it -- true for
+# every op this evaluator builds. A MISS box is where it under-reports:
+# `mk_miss` stores the whole reason sentence as `detail` (host label
+# `/ division by zero`) while the guest box is labelled `/`, so `detail`
+# comes back "". That is a property of the box graph, not of this walk;
+# tests/test_v30.py measures it rather than describing it.
+fn first_space(s, i) {
+  if i >= len(s) { -1 }
+  else if s[i] == " " { i }
+  else { first_space(s, i + 1) }
+}
+fn label_op(l) {
+  let k = first_space(l, 0)
+  if k < 0 { l } else { slice(l, 0, k) }
+}
+fn label_detail(l) {
+  let k = first_space(l, 0)
+  if k < 0 { "" } else { slice(l, k + 1, len(l)) }
+}
+
+# `_history_root`: a query accepts a value OR `why value`. A guest `why` is
+# a REIFIED copy (see `reify` above), so turn it back into a box graph --
+# faithful up to `why`'s own 300-node budget, past which `reify` has already
+# dropped the inputs and this rebuild inherits that truncation.
+fn unreify(b) {
+  if b.op == "why" and is_record(b.v) and has(b.v, "ins") {
+    mkb((get(b.v, "v")).v, (get(b.v, "op")).v,
+        map(unreify, (get(b.v, "ins")).v))
+  }
+  else { b }
+}
+fn guest_history_root(b) { unreify(b) }
+
+# `walk_steps`: pre-order, root first, children left to right. No `seen`
+# set -- see divergence (1). `budget` is spent per node VISITED.
+fn walk_boxes(b, d, acc, budget) {
+  if budget <= 0 { @{acc: acc, budget: 0} }
+  else {
+    walk_children(b.ins, 0, d + 1, push(acc, @{node: b, depth: d}),
+                  budget - 1)
+  }
+}
+fn walk_children(ins, i, d, acc, budget) {
+  if i >= len(ins) or budget <= 0 { @{acc: acc, budget: budget} }
+  else {
+    let r = walk_boxes(ins[i], d, acc, budget)
+    walk_children(ins, i + 1, d, r.acc, r.budget)
+  }
+}
+# one over the budget, so "did it overflow" is `len(...) > BUDGET` and not a
+# flag that a caller could forget to read
+fn guest_walk_steps(root) {
+  (walk_boxes(root, 0, [], GUEST_STEPS_BUDGET + 1)).acc
+}
+
+# `_step_record` (interp.py). `value` is the box itself, so a guest program
+# can compute with the historic value and keep its provenance, exactly as
+# the host hands back the node. The record's own box is labelled
+# `step <label>` with the walked node as its input -- the host's
+# `derived("step", node.label(), line, (node,), ...)`.
+# The MISS half of the split. `mk_miss` (values.py) stores the whole reason
+# sentence as the node's `detail` -- host label `/ division by zero` -- and
+# no call site in the tree overrides it (`detail=` appears zero times), so
+# for an ORIGIN miss the detail IS the reason. A guest box is labelled with
+# the op alone (`/`), but its PAYLOAD is the miss, and the reason is one
+# `reasons()` call away; the only thing between the two is the `(line N)`
+# suffix `mk_miss` appends -- which for a guest miss is a self_eval.lang
+# line, this evaluator's one long-documented provenance divergence. Drop it
+# and the detail agrees. Scanning for the last `(` from the END is what
+# keeps a reason that itself contains a bracket (`cannot add 1 and "(x"`)
+# from being cut in the wrong place.
+fn find_last_open(s, i) {
+  if i < 0 { -1 }
+  else if s[i] == "(" { i }
+  else { find_last_open(s, i - 1) }
+}
+fn drop_line_suffix(s) {
+  let k = find_last_open(s, len(s) - 1)
+  if k < 1 { s }
+  else if slice(s, k, k + 6) == "(line " and s[k - 1] == " " and
+          s[len(s) - 1] == ")" { slice(s, 0, k - 1) }
+  else { s }
+}
+fn guest_detail(b) {
+  let d = label_detail(b.op)
+  if d != "" { d }
+  else if missed(b.v) and guest_is_origin_miss(b) and len(reasons(b.v)) == 1 {
+    drop_line_suffix(reasons(b.v)[0])
+  }
+  else { d }
+}
+
+fn guest_step_record(sb) {
+  let b = sb.node
+  mkb(@{op: mkb(label_op(b.op), "step op", []),
+        detail: mkb(guest_detail(b), "step detail", []),
+        line: mkb(0, "step line", []),
+        show: mkb(show(strip(b)), "step show", []),
+        depth: mkb(sb.depth, "step depth", []),
+        inputs: mkb(len(b.ins), "step inputs", []),
+        count: mkb(1, "step count", []),
+        value: b},
+      "step " + b.op, [b])
+}
+
+# `matches_step`: label, op or detail. The host's merged-node clause
+# (`count > 1` and a `call even/odd` detail) has no guest counterpart --
+# divergence (3): the guest never merges, so there is never such a node.
+fn guest_matches_step(b, pat) {
+  pat == b.op or pat == label_op(b.op) or pat == guest_detail(b) or
+  pat == label_op(b.op) + " " + guest_detail(b)
+}
+
+fn any_ins_missed(ins, i) {
+  if i >= len(ins) { false }
+  else if missed((ins[i]).v) { true }
+  else { any_ins_missed(ins, i + 1) }
+}
+# `is_origin_miss`: a node that CREATED a miss -- missed, with no missed input
+fn guest_is_origin_miss(b) { missed(b.v) and not any_ins_missed(b.ins, 0) }
+
+# The host's `merge_miss` adds no wording of its own: a propagated miss
+# carries exactly its missed operands' reasons, in operand order. Any
+# propagating host builtin of the same arity therefore reproduces that
+# PAYLOAD for free, and `mkb` supplies the op and the inputs the host
+# records. `merge` is the one used here because it propagates over BOTH
+# operands, which is what `merge_miss("steps", "", line, (pat, v))` does
+# when the value is a miss too.
+fn propagate2(a, b) { merge(a, b) }
+
+fn steps_overflow(root, opname) {
+  mkb(miss ("guest " + opname + " gave up: history has more than " +
+            str(GUEST_STEPS_BUDGET) + " steps without identity dedup"),
+      opname, [root])
+}
+
+fn keep_steps(sbs, i, pat, has_pat, acc) {
+  if i >= len(sbs) { acc }
+  else if has_pat and not guest_matches_step((sbs[i]).node, pat) {
+    keep_steps(sbs, i + 1, pat, has_pat, acc)
+  }
+  else {
+    keep_steps(sbs, i + 1, pat, has_pat, push(acc, guest_step_record(sbs[i])))
+  }
+}
+fn keep_origins(sbs, i, acc) {
+  if i >= len(sbs) { acc }
+  else if guest_is_origin_miss((sbs[i]).node) {
+    keep_origins(sbs, i + 1, push(acc, guest_step_record(sbs[i])))
+  }
+  else { keep_origins(sbs, i + 1, acc) }
+}
+
+fn guest_steps(args) {
+  let pat_given = len(args) == 2
+  if pat_given and missed((args[1]).v) {
+    mkb(propagate2((args[1]).v, (args[0]).v), "steps", [args[1], args[0]])
+  }
+  else if pat_given and not is_str((args[1]).v) {
+    mkb(miss ("steps needs a string step name, got " +
+              show(strip(args[1])) +
+              order_hint("steps", [(args[0]).v, (args[1]).v])),
+        "steps", [guest_history_root(args[0]), args[1]])
+  }
+  else {
+    let root = guest_history_root(args[0])
+    let sbs = guest_walk_steps(root)
+    if len(sbs) > GUEST_STEPS_BUDGET { steps_overflow(root, "steps") }
+    else if pat_given {
+      let items = keep_steps(sbs, 0, (args[1]).v, true, [])
+      mkb(items, "steps " + str(len(items)) + " steps matching " +
+                 (args[1]).v, [root, args[1]])
+    }
+    else {
+      let items = keep_steps(sbs, 0, "", false, [])
+      mkb(items, "steps " + str(len(items)) + " steps", [root])
+    }
+  }
+}
+
+fn guest_blame(args) {
+  let root = guest_history_root(args[0])
+  let sbs = guest_walk_steps(root)
+  if len(sbs) > GUEST_STEPS_BUDGET { steps_overflow(root, "blame") }
+  else {
+    let items = keep_origins(sbs, 0, [])
+    mkb(items, "blame " + str(len(items)) + " origins", [root])
+  }
+}
+
+# `find_step`: breadth-first, "most recent history first". No `seen` set,
+# same reason as the walk; the budget bounds it, and running out reports
+# "no step named ..." rather than a wrong node.
+fn extend(xs, ys, i) {
+  if i >= len(ys) { xs } else { extend(push(xs, ys[i]), ys, i + 1) }
+}
+fn find_box(queue, i, pat, budget) {
+  if i >= len(queue) or budget <= 0 { @{found: false, b: 0} }
+  else if guest_matches_step(queue[i], pat) { @{found: true, b: queue[i]} }
+  else { find_box(extend(queue, (queue[i]).ins, 0), i + 1, pat, budget - 1) }
+}
+fn guest_at(args) {
+  let v = args[0]
+  let pat = args[1]
+  if missed(pat.v) { mkb(propagate2(pat.v, v.v), "at", [pat, v]) }
+  else if not is_str(pat.v) {
+    mkb(miss ("at needs a string step name, got " + show(strip(pat)) +
+              order_hint("at", [v.v, pat.v])), "at", [v, pat])
+  }
+  else {
+    let root = guest_history_root(v)
+    let f = find_box([root], 0, pat.v, GUEST_STEPS_BUDGET)
+    if f.found { f.b }
+    else {
+      mkb(miss ("no step named '" + pat.v + "' in the history of " +
+                show(strip(root))), "at", [root, pat])
+    }
+  }
+}
+
 fn box_step_record(rec) {
   @{op: mkb(rec.op, "step", []), detail: mkb(rec.detail, "step", []),
     line: mkb(rec.line, "step", []), show: mkb(rec.show, "step", []),
@@ -2131,12 +2403,14 @@ fn box_diverge_record(rec) {
 let sig_names = @{map: ["fn", "xs"], filter: ["fn", "xs"],
                   fold: ["fn", "acc", "xs"], find: ["fn", "xs"],
                   typed: ["value", "spec", "label"], sure: ["v", "threshold"],
-                  get: ["r", "name"]}
+                  get: ["r", "name"],
+                  steps: ["v", "pat"], at: ["v", "pat"]}
 # [] means kind `any` — the host's `None`.
 let sig_kinds = @{map: [["fn"], ["list"]], filter: [["fn"], ["list"]],
                   fold: [["fn"], [], ["list"]], find: [["fn"], ["list"]],
                   typed: [[], ["str", "record"], ["str"]],
-                  sure: [[], ["num"]], get: [["record"], ["str"]]}
+                  sure: [[], ["num"]], get: [["record"], ["str"]],
+                  steps: [[], ["str"]], at: [[], ["str"]]}
 
 fn kind_ok(kinds, v) {
   if len(kinds) == 0 { true } else { contains(kinds, guest_kind(v)) }
@@ -2523,6 +2797,14 @@ fn apply_builtin(name, args, st) {
       }
     }
   }
+  # v0.30 (round 378): the provenance-query family answers from the GUEST
+  # box graph, not from the host provenance of the guest's payload. See the
+  # `GUEST_STEPS_BUDGET` block above for the three divergences that remain.
+  # `diverge`/`contrast` are NOT here: they still delegate, and are still
+  # exempt, for the reasons stated there.
+  else if name == "steps" { @{v: guest_steps(args), st: st} }
+  else if name == "at" { @{v: guest_at(args), st: st} }
+  else if name == "blame" { @{v: guest_blame(args), st: st} }
   else {
     # v0.28 (round 372) -- THE BOX-LEAK RE-RENDER.
     #
@@ -2571,12 +2853,10 @@ fn apply_builtin(name, args, st) {
       else if name == "range" { map(fn(x) { mkb(x, "range", []) }, p) }
       else if name == "keys" { map(fn(x) { mkb(x, "key", []) }, p) }
       else if name == "reasons" { map(fn(x) { mkb(x, "reason", []) }, p) }
-      # round 222: box steps/blame's step-record elements (see
-      # box_step_record above) so guest code can read `.op`/`.detail`/etc,
-      # not just `len(...)` of the list, the same gap this round closed.
-      else if name == "steps" or name == "blame" {
-        map(fn(x) { mkb(box_step_record(x), "step", []) }, p)
-      }
+      # round 222: box diverge's record elements (see box_diverge_record
+      # above) so guest code can read `.kind`/`.a`/`.b`, not just
+      # `len(...)` of the list. v0.30 (round 378) dropped the `steps`/
+      # `blame` half of this branch: those two no longer reach here.
       else if name == "diverge" {
         map(fn(x) { mkb(box_diverge_record(x), "diverge", []) }, p)
       }
@@ -2708,35 +2988,17 @@ fn apply_host_builtin(name, args, msg) {
   else if name == "guess" { guess(strip(args[0]), (args[1]).v, (args[2]).v) }
   else if name == "is_guess" { is_guess(a0) }
   else if name == "confidence" { confidence(a0) }
-  # v0.16 guest parity (round 206): `steps` walks the REAL host provenance
-  # already sitting on `a0` — every guest value's `.v` is a genuine host
-  # Whence value built through real host `put`/`merge`/record-literal calls
-  # as self_eval.lang's own evaluator runs, so it already carries real
-  # history for free (same free-delegation trick as `guess`/`is_guess`/
-  # `confidence` above, round 176). Found by self_host.lang's own test
-  # section (line 651-652, checkpoint 47) calling `steps` on a guest AST at
-  # the deep guest-EVALUATOR level for the first time — `steps` was never
-  # in `builtin_names` at all, so guest code calling it failed at NAME
-  # RESOLUTION ("unbound name 'steps'"), never even reaching this dispatch
-  # (see knowledge/round-206-whence-v16-guest-steps-parity.md).
-  else if name == "steps" {
-    if len(args) == 1 { steps(a0) } else { steps(a0, (args[1]).v) }
-  }
-  # v0.16.4 guest parity (round 218): `at`/`blame`/`diverge`/`contrast` are
-  # the same "provenance as data" (round 4) family as `steps` above and
-  # share the identical free-delegation fix — `a0`'s real host provenance
-  # is already there for free, so each just calls straight through to the
-  # real host builtin of the same name. Round 206 flagged this as follow-up
-  # backlog specifically because nothing in the corpus exercised them yet
-  # ("evaluate-before-authoring"); `languages/whence/tests/test_self_hosting.py`'s
-  # new `test_guest_{at,blame,diverge,contrast}_...` tests (round 218) are
-  # that exercising code, written first to make the gap real before fixing
-  # it, mirroring `steps`'s own two-arg-pattern test (round 206). None of
-  # these four are in `propagating` — like `steps`, they are host-documented
-  # as TOTAL (must work on a miss argument, e.g. `blame` walking a failed
-  # value's own origin chain is the whole point).
-  else if name == "at" { at(a0, (args[1]).v) }
-  else if name == "blame" { blame(a0) }
+  # v0.16 (round 206) / v0.16.4 (round 218) delegated `steps`/`at`/`blame`
+  # to the host builtin of the same name on `a0`, on the reasoning that
+  # "`a0`'s real host provenance is already there for free". v0.29 measured
+  # what that provenance actually is -- `self_eval.lang`'s own execution --
+  # and recorded it as exemption E4. v0.30 (round 378) answers all three
+  # from the guest box graph instead; see `guest_steps`/`guest_at`/
+  # `guest_blame` above, which `apply_builtin` dispatches to BEFORE this
+  # function is reached. The two that remain here are the two whose host
+  # rule a Whence expression cannot state: `diverge` decides sameness by
+  # `na is nb` and memoises on `(id(na), id(nb))`, and `contrast` renders
+  # two histories into aligned columns. Both are still E4.
   else if name == "diverge" {
     if len(args) == 1 { diverge(a0) } else { diverge(a0, (args[1]).v) }
   }

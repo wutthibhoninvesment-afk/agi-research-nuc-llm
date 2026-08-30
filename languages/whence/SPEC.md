@@ -1,6 +1,6 @@
 # Whence — a provenance-first language
 
-*Spec level: **v0.29** (round 374). The `## vN` sections below are the
+*Spec level: **v0.30** (round 378). The `## vN` sections below are the
 authoritative version list and each names the round that built it; this
 line deliberately no longer enumerates rounds, because the enumeration it
 replaced had said "v0.16.6 + v0.14.2" since round 266 while the file went
@@ -332,6 +332,32 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    coverage criterion drawn from the implementation's structure produces a
    FIX with the same structure. See § v0.29, and the fourth exemption it
    opened.
+38. **A query about a history must be answered from THAT history, and
+   where the answer needs a fact the language cannot express, the answer
+   says so (v0.30, round 378).** `steps`/`at`/`blame` are the language's
+   provenance-as-data family, and in `examples/self_eval.lang` they were
+   answered by handing the guest's PAYLOAD to the host builtin of the same
+   name — which returns the payload's host provenance, i.e. the
+   *evaluator's* execution, not the program's. `len(steps(1 + 2))` was 4
+   on the host and 284 in the guest, 280 of those being self_eval.lang's
+   own line numbers, locals and internal probe misses. The evaluator was
+   never missing the data: the `@{v, op, ins}` box graph `why`/`reify`
+   already walk IS the guest's history. v0.30 answers the three from it.
+   The part that is a design decision rather than a repair is what to do
+   about the one fact the guest cannot get: **`walk_steps` dedups shared
+   nodes by object identity and Whence has only structural `==`.** Adding
+   an identity predicate was rejected — it would make the evaluator's own
+   sharing (shared literal nodes, `MergedProv` runs, any future
+   hash-consing) observable from Whence source and therefore frozen; a
+   language about transparency of DERIVATION should not buy it with
+   transparency of ALLOCATION. Deduping structurally was rejected as the
+   opposite error (it merges distinct-but-equal steps). So the guest walks
+   each shared node once per PATH: its count is an UPPER bound on the
+   host's, never a lower one, which also makes the walk exponential in a
+   shared history's depth — so it carries a budget and, over it, MISSES
+   and names the number rather than returning a short list. A silently
+   truncated history is the one failure here that would look like an
+   answer. See § v0.30.
 
 ## Syntax (statements are newline-separated; `#` comments)
 ```
@@ -6234,3 +6260,186 @@ agreement is a property of the (site x operand) pair. Whenever a
 differential's cover is keyed by one side's code, expect its fixes to be
 keyed the same way, and cross-product the other side before publishing a
 rate.
+
+## v0.30 (round 378, language C) — a query about a history is answered from that history, and where it cannot be, it says so
+
+**Decision 38.** v0.29 closed its own § with a new exemption and called it
+"the largest one in the language":
+
+> Sweeping `at`/`steps`/`blame` over the atlas exposed something no
+> message-wording test could have: **the guest answers the provenance-query
+> family from the wrong history.**
+
+```
+let x = 1 + 2
+len(steps(x))     # host: 4     guest: 284
+```
+
+Those 280 extra steps are `examples/self_eval.lang`'s OWN execution — its
+line numbers, its locals `a0`/`p0`, its internal probe misses. Round 218
+introduced the delegation with the comment "`a0`'s real host provenance is
+already there for free". It is there. It belongs to a different program.
+
+v0.29 recorded it as E4 rather than fixing it, on this reasoning:
+
+> A host step record is `@{op, detail, line, show, depth, inputs, count,
+> value}` and a guest box is `@{v, op, ins}` — no line, no op/detail split,
+> no count. Making the family correct means widening `mkb` and every one of
+> its several hundred call sites …
+
+**Two thirds of that estimate was wrong, and finding out cost one grep
+each.** `mkb` was not widened. Not one of its call sites changed.
+
+### The two recoveries
+
+**`Prov.label()` is invertible.** A label is `op + " " + detail`
+(`values.py`), and the guest box already stores the composed label. If no
+host `op` contains a space, splitting at the FIRST space recovers both
+halves exactly. It does not: over every node of four representative
+programs, zero ops contain a space, and the inversion is exact on every
+label collected. `tests/test_v30.py::
+test_the_label_split_is_exact_for_every_non_miss_op` asserts it against the
+HOST's vocabulary, so widening the host is what makes it red.
+
+**A miss node's `detail` IS its reason.** The split's one blind spot is a
+miss: `mk_miss` stores the whole reason sentence as the detail (host label
+`/ division by zero`) while the guest box is labelled `/` alone, so `detail`
+came back `""`. But the guest box's *payload* is the miss, and the reason is
+one `reasons()` call away — separated from the detail only by the
+` (line N)` suffix `mk_miss` appends, which for a guest miss is a
+self_eval.lang line and is this evaluator's oldest documented divergence.
+Drop the suffix and the detail agrees. This is sound only because
+`mk_miss(reason, line, op, detail="")` is never called with a `detail`
+argument anywhere in the tree — `detail=` appears zero times in
+`whence/interp.py`, and the test asserts that rather than assuming it.
+
+### The design decision: no identity
+
+What could not be recovered is the one thing v0.29 named correctly:
+
+> `walk_steps` additionally dedups shared nodes BY IDENTITY, which Whence
+> has no operator for (`==` is structural, so two distinct nodes that
+> happen to be equal cannot be told apart).
+
+Three options, and the reason for the choice matters more than the choice:
+
+| | what it does | why not |
+|---|---|---|
+| add `same(a, b)` | reference identity as a builtin | makes the evaluator's own sharing — shared literal nodes, `MergedProv` runs, any future hash-consing — **observable, and therefore frozen** |
+| dedup structurally | merge equal subgraphs | the opposite error: merges distinct-but-equal steps, an UNDER-report, and costs a deep comparison per node |
+| **no dedup** | visit a shared node once per path | over-reports a shared node; the count is an **upper** bound |
+
+The first is the interesting rejection. Whence's subject is transparency of
+DERIVATION. An identity predicate would buy a small amount of that with
+transparency of ALLOCATION, and allocation is exactly the thing every
+optimization this language has shipped (v0.2 retention, v0.3 lazy `show`,
+v0.6 `MergedProv`, v0.10's raw constructor, `WList`'s shared tip) is allowed
+to change. `skills/optimization-transparency-differential/` exists in this
+program because that boundary is easy to cross by accident; v0.30 declines
+to cross it on purpose.
+
+No dedup makes the walk exponential in a shared history's depth. So it
+carries a budget, and over the budget `steps`/`blame` **miss and name the
+number**:
+
+```
+let x0 = 1 + 2
+let x1 = x0 + x0
+... 24 levels ...
+len(steps(x24))
+# host:  52
+# guest: guest steps gave up: history has more than 5000 steps
+#        without identity dedup
+```
+
+A short list returned silently is the one failure mode here that would look
+like an answer. This is the same instinct as v0.26 (a runaway tail loop is a
+miss, not a hang) and v0.27 (a size nothing bounds is a hang), one level up.
+
+### The three divergences that remain, and their tests
+
+| | what the host does | what the guest does | test |
+|---|---|---|---|
+| identity | each shared node once | once per path — an upper bound | `test_a_shared_node_is_over_reported_never_under_reported` |
+| line | the real source line | `0`, always | `test_every_guest_step_reports_line_zero` |
+| count | a merged run has `count > 1` | never merges; `count` is always 1 | `test_the_guest_never_merges_a_tail_loop` |
+
+Each is asserted as a RELATION, not as a number: the identity one asserts
+`guest > host` on a sharing program and `guest >= host` over the whole
+agreement corpus, and the merge one asserts `max(host counts) > 1 and
+set(guest counts) == {1}` — so a change to how many steps the loop takes
+does not make any of them red for the wrong reason.
+
+### What `diverge` and `contrast` still do, and why they are still E4
+
+They still delegate, and they are still wrong for exactly the reason they
+were:
+
+```
+let x = 1 + 2
+let y = 1 + 3
+contrast(x, y)
+# host:  origin 1 of 1 (value):
+#          3 ← let x  (line 1)       │   4 ← let y  (line 2)
+#            3 ← +  (line 1)         │     4 ← +  (line 2)
+#            ▶ 2 ← literal  (line 1) │     ▶ 3 ← literal  (line 2)
+# guest: origin 1 of 1 (step):
+#        ▶ 3 ← let a0  (line 2893) │ ▶ 4 ← arg p  (line 1743)
+```
+
+`diverge` decides sameness by `na is nb` and memoises on
+`(id(na), id(nb))` — the identity the language declines to expose, used
+twice — and `render_contrast` lays two rendered histories into
+width-matched columns. Neither is a rule a Whence expression can state.
+E4 survives, narrowed from five builtins to two.
+
+**And no case in `tests/test_v29.py`'s atlas reaches the remainder.** Its
+104 `diverge`/`contrast` cases are argument-SHAPE cases and all 104 agree.
+So E4 joins E3 in that file's declared exclusion from
+`test_each_exemption_is_load_bearing`, and is carried live by
+`tests/test_v30.py::test_diverge_and_contrast_still_answer_from_the_wrong_history`,
+which builds two histories that actually diverge. An exemption a corpus
+cannot reach is not evidence, and pretending otherwise is how a retired
+divergence reads as coverage.
+
+### Numbers
+
+Measured on the 234-case provenance-family subset of v0.29's atlas — the
+only cases whose guest side this round could change — with the OLD library
+and the NEW one, against the same host outcomes:
+
+| | v0.29 | v0.30 |
+|---|---|---|
+| family cases agreeing | 204 / 234 | **208 / 234** |
+| E4 (provenance family) | 3 | **0** |
+| E1 (`why` is reified) | 9 | 8 |
+| E2 (a callable is a record) | 18 | 18 |
+| `len(steps(1 + 2))`, guest | 284 | **4** (host: 4) |
+| `len(blame(1 / 0))`, guest | 9 | **1** (host: 1) |
+| whole atlas agreeing | 6 857 | **6 861** (derived, +4) |
+
+The whole-atlas figure is DERIVED from the subset, not swept: nothing
+outside the provenance family reaches the code this round changed. It is
+stated that way on purpose, so a later sweep can falsify the derivation
+rather than merely disagree with a number.
+
+The one surprise in that table is the E1 row. Fixing `steps`/`at`/`blame`
+also converged one case that was classified E1, because `at`'s
+"no step named 'x' in the history of …" clause used to render the guest's
+payload and now renders `show(strip(root))` — v0.29's own new builtin, used
+by the first caller outside self_eval.lang's internals. A fix and a
+rendering exemption met in the same sentence.
+
+### The methodological rule
+
+**An estimate of a fix's size, made from the shape of the data, is a
+prediction and should be checked before it is banked as a reason not to
+try.** v0.29's "several hundred call sites" was a real reading of a real
+constraint — a guest box has three fields and a step record has eight — and
+it was wrong about two of the three missing fields, because both were
+recoverable from fields the box already had. Round 377 found the same shape
+in its own file (a docstring's "would dominate the campaign" overstated by
+15x, and one sub-10-second measurement would have said so). The rule:
+**when a design note explains why something was not done, the explanation
+is a claim with a cost, and the cheapest ones should be re-run before the
+next round inherits them as fact.**
