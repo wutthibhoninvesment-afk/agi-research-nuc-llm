@@ -1926,7 +1926,16 @@ class Interpreter(object):
         if op in ("==", "!="):
             eq = deep_eq(l, r)
             if eq is None:
-                return mk_miss("cannot compare functions with ==", line, op,
+                # v0.28 (round 372): NAME THE KIND. This said "cannot
+                # compare functions with ==" for every one of `deep_eq`'s
+                # four opaque kinds, so `why 1 == 1` (an Explanation) and
+                # `[1 / 0] == [1 / 0]` (a Miss nested where a top-level one
+                # would have propagated) both reported a function that was
+                # nowhere in the program. Same principle as v0.25's
+                # decision 34 -- a message names types, and the type it
+                # names has to be the one that stopped it.
+                return mk_miss("cannot compare %s with ==" %
+                               _incomparable_kind(l, r), line, op,
                                inputs=provs)
             result = eq if op == "==" else not eq
             return derived(op, "", line, provs, result)
@@ -2441,6 +2450,34 @@ def _arity_ok(arity, n):
     if isinstance(arity, tuple):
         return arity[0] <= n <= arity[1]
     return n == arity
+
+
+_OPAQUE_KINDS = ((Closure, "functions"), (Builtin, "functions"),
+                 (Explanation, "explanations"), (Miss, "misses"))
+
+
+def _incomparable_kind(l, r):
+    """The KIND word for the first opaque payload `deep_eq` refused (v0.28).
+
+    Order is fixed and simple so `examples/self_eval.lang` can mirror it:
+    the LEFT operand depth-first (list elements in order, record fields by
+    sorted name), then the right. `deep_eq`'s own stack order is an
+    implementation detail and deliberately not the contract here. Falls
+    back to "functions" -- the pre-v0.28 wording -- if no opaque payload is
+    found, so a future `deep_eq` kind cannot make this raise."""
+    for root in (l, r):
+        stack = [root]
+        while stack:
+            p = stack.pop()
+            for cls, word in _OPAQUE_KINDS:
+                if isinstance(p, cls):
+                    return word
+            if isinstance(p, WList):
+                stack.extend(x.payload for x in reversed(list(p)))
+            elif isinstance(p, Record):
+                stack.extend(p.fields[k].payload
+                             for k in sorted(p.fields, reverse=True))
+    return "functions"
 
 
 def _arity_str(arity):

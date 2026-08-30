@@ -178,6 +178,15 @@ BAD = [
     ("call-non-callable-str", 'let f = "hi"\nlet r = f(1)'),
     ("call-non-callable-num", 'let f = 5\nlet r = f(1)'),
     ("call-non-callable-rec", 'let f = @{a: 1}\nlet r = f(1)'),
+    # Round 362's exemption E3, PROMOTED to a required agreement by v0.28
+    # (round 372). E3 read "a design call handed to a future language(C)
+    # round with this case as the repro"; the whole-surface sweep found 14
+    # more instances of the same box-instead-of-payload class, and
+    # `self_eval.lang` now re-renders a delegated builtin's miss from
+    # deep-stripped arguments. `test_each_exemption_is_load_bearing` is
+    # what forced this edit: it went red the moment the divergence stopped
+    # existing, which is exactly what round 362 wrote it to do.
+    ("push-order-hint", 'let r = push(1, [2])'),
 ]
 
 # Valid programs, so rule 1 is a biconditional and not a test that only ever
@@ -210,20 +219,16 @@ EXEMPT = {
         "INSIDE a string before quoting it. Whence has no string-replace "
         "builtin, so `show_val` quotes without escaping. Same class as E1 "
         "and the same reason it is an exemption rather than a bug.",
-    "exempt-push-order-hint":
-        "A MEASURED, UNFIXED FINDING, not a rendering policy: `push` is "
-        "DELEGATED to the host by `apply_host_builtin`, which passes the "
-        "pushed element as a guest BOX (`push(a0, args[1])`) because a "
-        "guest list holds boxes. The host then computes `_order_hint` over "
-        "(payload, box-record) instead of (payload, payload), and a "
-        "record never fits `push(xs:list, x)`, so the hint the host would "
-        "have produced for `push(1, [2])` is silently absent. Fixing it "
-        "means the guest stops delegating `push`'s guard and builds the "
-        "message itself, on the hot path of its own interpretation loop — "
-        "a design call handed to a future language(C) round with this "
-        "case as the repro. Round 362 fixed the three RE-IMPLEMENTED "
-        "builtins (`typed`, `sure`, `get`); this is the delegated class.",
 }
+# E3 ("exempt-push-order-hint") was DELETED by v0.28 (round 372), which
+# closed it. Round 362 described it as "a design call handed to a future
+# language(C) round with this case as the repro" and predicted the fix
+# would mean "the guest stops delegating `push`'s guard and builds the
+# message itself, on the hot path of its own interpretation loop". That
+# prediction was wrong in a useful way: the fix keeps the delegation and
+# adds a SECOND delegated call, on the miss path only, with deep-stripped
+# arguments — so the hot path is untouched and the whole 15-case class
+# (not just `push`) closes at once. `push(1, [2])` now lives in `BAD`.
 
 EXEMPT_CASES = [
     ("exempt-render-cap",
@@ -231,7 +236,6 @@ EXEMPT_CASES = [
      '"L")'),
     ("exempt-render-escape",
      'let r = sure(5, "a\\"b")'),
-    ("exempt-push-order-hint", 'let r = push(1, [2])'),
 ]
 
 

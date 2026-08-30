@@ -1410,12 +1410,30 @@ fn guest_mismatch_reason(label, vraw, spec_raw, sname) {
 # firing on the exact pair it pops off its stack (round 107's
 # `[odd] == [odd]` case: both lists, same length, recurses to (odd, odd),
 # both callable at that reached position -> miss, still correct here).
-fn guest_eq(a, b) { raw_deep_eq(strip(a), strip(b)) }
+# v0.28 (round 372): a TOP-LEVEL miss operand propagates (the host never
+# reaches `deep_eq` -- `binop` merges the miss first), but a NESTED one is
+# `deep_eq` returning None, which the host now words `cannot compare misses
+# with ==`. Splitting the two cases here is what lets `raw_deep_eq` say the
+# host's sentence without swallowing propagation.
+fn guest_eq(a, b) {
+  let x = strip(a)
+  let y = strip(b)
+  if missed(x) { x } else if missed(y) { y } else { raw_deep_eq(x, y) }
+}
 
 fn raw_deep_eq(x, y) {
-  if missed(x) { x }
-  else if missed(y) { y }
-  else if is_callable(x) or is_callable(y) { miss "cannot compare functions" }
+  # v0.28: the host's message names the KIND that stopped the comparison
+  # (`_incomparable_kind`, interp.py) -- it said "functions" for all four
+  # of `deep_eq`'s opaque kinds until round 372. The guest can name two of
+  # them: a callable is a tagged record it can see, and a miss it can test.
+  # It cannot name `explanations`, because a guest `why` value is a REIFIED
+  # record, not an opaque payload -- that is the v0.28 EXEMPTION E1, and it
+  # is the same reason the guest cannot refuse `@{} == why 1` at all.
+  if missed(x) { miss "cannot compare misses with ==" }
+  else if missed(y) { miss "cannot compare misses with ==" }
+  else if is_callable(x) or is_callable(y) {
+    miss "cannot compare functions with =="
+  }
   # v0.15 guest parity (round 176): mirrors the host `deep_eq`'s OWN
   # Guess-vs-Guess case exactly — structural equality is about the
   # ANSWER, not how sure either side was (confidence/sources are
@@ -1496,6 +1514,22 @@ fn guess_unwrap_if_missed(a, p) {
 fn binop_ins(a, b, p) { [guess_unwrap_if_missed(a, p), guess_unwrap_if_missed(b, p)] }
 fn unary_ins(a, p) { [guess_unwrap_if_missed(a, p)] }
 
+# v0.28 (round 372): the arithmetic/ordering dispatch, on bare PAYLOADS, so
+# `apply_binop` can run it twice -- once on the guest's boxed payloads (the
+# answer) and, only when that misses, once on stripped ones (the wording).
+fn raw_binop(op, x, y) {
+  if op == "+" { x + y }
+  else if op == "-" { x - y }
+  else if op == "*" { x * y }
+  else if op == "/" { x / y }
+  else if op == "%" { x % y }
+  else if op == "<" { x < y }
+  else if op == "<=" { x <= y }
+  else if op == ">" { x > y }
+  else if op == ">=" { x >= y }
+  else { miss ("unknown operator '" + op + "'") }
+}
+
 fn apply_binop(op, a, b) {
   # v0.15 guest parity (round 176): `+ - * / % < <= > >=` need NO Guess
   # handling at all — `a.v OP b.v` is genuine top-level Whence source (this
@@ -1514,12 +1548,7 @@ fn apply_binop(op, a, b) {
   # impossible anyway (no `.sources` accessor is exposed to guest code) —
   # delegating straight to the real operator reproduces it exactly, for
   # free, the same trick the arithmetic ops above already rely on.
-  let p = if op == "+" { a.v + b.v }
-    else if op == "-" { a.v - b.v }
-    else if op == "*" { a.v * b.v }
-    else if op == "/" { a.v / b.v }
-    else if op == "%" { a.v % b.v }
-    else if op == "==" {
+  let p0 = if op == "==" {
       if is_guess_val(a.v) or is_guess_val(b.v) { a.v == b.v }
       else { guest_eq(a, b) }
     }
@@ -1530,11 +1559,21 @@ fn apply_binop(op, a, b) {
         not e
       }
     }
-    else if op == "<" { a.v < b.v }
-    else if op == "<=" { a.v <= b.v }
-    else if op == ">" { a.v > b.v }
-    else if op == ">=" { a.v >= b.v }
-    else { miss ("unknown operator '" + op + "'") }
+    else { raw_binop(op, a.v, b.v) }
+  # v0.28 (round 372): the delegation above hands the host the guest's own
+  # payload, and a COMPOUND guest payload is a list/record of BOXES. On the
+  # success path that is exactly right ([1] + [2] must concatenate the
+  # boxes). On the miss path the host words the message around what it was
+  # given, so `[1] + 0` read `cannot add [@{ins: [@{...}...] and 0`. Re-run
+  # the operator on deep-stripped payloads and keep THAT wording, only when
+  # both runs miss -- so a strip that changes the answer cannot change what
+  # this function returns. `==`/`!=` are excluded: `guest_eq` is authored
+  # here on purpose (a guest closure must read opaque, round 107/140) and
+  # the host's `==` would not reproduce it.
+  let p = if missed(p0) and op != "==" and op != "!=" {
+      let p1 = raw_binop(op, strip(a), strip(b))
+      if missed(p1) { p1 } else { p0 }
+    } else { p0 }
   mkb(p, op, binop_ins(a, b, p))
 }
 
@@ -1560,7 +1599,12 @@ fn eval_binary(node, env, st) {
 # miss/non-bool left is handed to the host operator, which words the miss
 fn eval_and(node, env, st) {
   let l = eval(node.left, env, st)
-  if not is_bool(l.v.v) { @{v: mkb(l.v.v and true, "and", [l.v]), st: l.st} }
+  if not is_bool(l.v.v) {
+    # v0.28: same box-leak re-render as `apply_binop` -- the host words
+    # this miss, so it must be handed the stripped payload.
+    @{v: mkb(remsg(l.v.v and true, strip(l.v) and true), "and", [l.v]),
+      st: l.st}
+  }
   else if l.v.v == false {
     @{v: mkb(false, "and short-circuit", [l.v]), st: l.st}
   }
@@ -1572,7 +1616,9 @@ fn eval_and(node, env, st) {
 
 fn eval_or(node, env, st) {
   let l = eval(node.left, env, st)
-  if not is_bool(l.v.v) { @{v: mkb(l.v.v or true, "or", [l.v]), st: l.st} }
+  if not is_bool(l.v.v) {
+    @{v: mkb(remsg(l.v.v or true, strip(l.v) or true), "or", [l.v]), st: l.st}
+  }
   else if l.v.v == true {
     @{v: mkb(true, "or short-circuit", [l.v]), st: l.st}
   }
@@ -1586,11 +1632,15 @@ fn eval_unary(node, env, st) {
   let r = eval(node.operand, env, st)
   let op = node.op
   let b = if op == "-" {
-      let p = 0 - r.v.v
+      # v0.28 (round 372): `0 - x` is a BINOP, and the host words a failed
+      # one `cannot apply '-' to 0 and @{}`. The host's own unary minus
+      # (`_unary`) says `cannot negate @{}`. Negate for real, and re-render
+      # from the stripped payload for the same reason as `apply_binop`.
+      let p = remsg(- (r.v.v), - (strip(r.v)))
       mkb(p, "-", unary_ins(r.v, p))
     }
     else if op == "not" {
-      let p = not r.v.v
+      let p = remsg(not r.v.v, not strip(r.v))
       mkb(p, "not", unary_ins(r.v, p))
     }
     # host `_miss_lit` (interp.py) only keeps the reason box as an input
@@ -1600,8 +1650,11 @@ fn eval_unary(node, env, st) {
     # (round 210 fix: this branch used to ALWAYS keep [r.v], inventing a
     # "literal" op the host derivation never has for that third case).
     else if op == "miss" {
+      # v0.28: the non-string branch is the one whose message renders the
+      # reason, so it is the one that box-leaked (`miss len` read
+      # `... got @{__tag: "builtin", name: "len"}`).
       if missed(r.v.v) or is_str(r.v.v) { mkb(miss r.v.v, "miss", [r.v]) }
-      else { mkb(miss r.v.v, "miss", []) }
+      else { mkb(remsg(miss r.v.v, miss strip(r.v)), "miss", []) }
     }
     else if op == "why" { (reify(r.v, 300)).r }
     else if op == "snip" { mkb(r.v.v, "snipped", []) }
@@ -1712,7 +1765,12 @@ fn apply_closure(f, args, st) {
   let c = f.v
   let op_name = call_op_name(c.name)
   if len(args) != len(c.params) {
-    @{v: mkb(miss ("fn expects " + str(len(c.params)) + " args, got " +
+    # v0.28 (round 372): the host says `<name> expects N args, got M` with
+    # the SAME `p.name or "<fn>"` substitution `op_name` already carries.
+    # This message said "fn expects ..." for every closure, named or not,
+    # so it diverged from the host on BOTH halves: `g expects 1 args, got
+    # 2` (named) and `<fn> expects 1 args, got 2` (anonymous).
+    @{v: mkb(miss (op_name + " expects " + str(len(c.params)) + " args, got " +
                    str(len(args))),
              "call " + op_name, args),
       st: st}
@@ -2067,12 +2125,40 @@ fn order_hint(name, vals) {
 # happens before inspection, exactly like the host's _propagate; a miss that
 # APPEARS mid-loop (a fold accumulator going bad) is still passed to the
 # callback, because that is what the host does too.
+# v0.28 (round 372): the host's `_arity_str`. `-1` is this table's sentinel
+# for the builtins the host declares as the tuple `(1, 2)` -- `range`,
+# `steps`, `diverge`, `contrast` -- which the host renders `1..2`.
+fn guest_arity_str(ar) { if ar == -1 { "1..2" } else { str(ar) } }
+
+# v0.28 (round 372): `strip` is NOT idempotent -- `strip(b)` is
+# `strip_raw(b.v)`, and `strip_raw` maps `strip` over a list, so a list
+# whose elements are already bare payloads makes it read `.v` on a number.
+# The miss re-render hands `apply_host_builtin` boxes whose `.v` is already
+# deep-stripped, so the three branches that strip for themselves must not
+# strip again. Found by the re-render regressing `join([1, 1 / 0], ",")`
+# from the host's `join: element 1 is not a string` to `cannot access .v
+# on 1` -- a guest-only miss the host has no site for.
+fn deep_arg(msg, b) { if msg { b.v } else { strip(b) } }
+
+# v0.28 (round 372): keep `bare`'s wording only when BOTH runs miss. Every
+# caller computes `boxed` first and `bare` from deep-stripped operands; a
+# strip that changes the ANSWER (rather than only the rendering) therefore
+# cannot change what the evaluator returns.
+fn remsg(boxed, bare) { if missed(boxed) and missed(bare) { bare } else { boxed } }
+
 fn apply_builtin(name, args, st) {
   let ar = get(arities, name)
   let ok = if ar == -1 { len(args) == 1 or len(args) == 2 }
     else { len(args) == ar }
   if not ok {
-    @{v: mkb(miss (name + " arity mismatch: got " + str(len(args)) + " args"),
+    # v0.28 (round 372): the host's builtin-arity message is
+    # `<name> expects <arity> args, got <n>` (interp.py `_builtin_inline`,
+    # `_call_direct`, `_call_gen`, `f_bcall` -- four copies, all identical),
+    # where <arity> is `_arity_str`: a plain count, or `lo..hi` for the
+    # range-arity builtins. This said "<name> arity mismatch: got N args",
+    # a sentence the host never produces.
+    @{v: mkb(miss (name + " expects " + guest_arity_str(ar) + " args, got " +
+                   str(len(args))),
              "call " + name, args),
       st: st}
   }
@@ -2363,7 +2449,34 @@ fn apply_builtin(name, args, st) {
     }
   }
   else {
-    let p = apply_host_builtin(name, args)
+    # v0.28 (round 372) -- THE BOX-LEAK RE-RENDER.
+    #
+    # `apply_host_builtin` hands the host builtin the guest's own values.
+    # For a scalar that is the same thing the host would have seen; for a
+    # LIST or a RECORD it is not, because a compound guest value holds
+    # BOXES (`@{op, v, ins}`) where the host holds plain elements. On the
+    # SUCCESS path that is exactly right and load-bearing (the boxes are
+    # what carry guest provenance). On the MISS path it is a wording bug:
+    # every host message that renders an argument then renders a box, so
+    # `num(@{a: 1})` read `num of @{a: @{ins: [], o...}` in the guest and
+    # `num of @{a: 1}` in the host. Round 362 measured ONE instance of this
+    # (its exemption E3, `push`'s order hint) and handed the class to a
+    # future language(C) round with that case as the repro; round 372's
+    # whole-surface sweep found 14 of them.
+    #
+    # The fix costs nothing on the success path: delegate exactly as
+    # before, and only if the answer is a MISS delegate a SECOND time with
+    # deep-stripped arguments and keep that miss's wording instead. The
+    # re-call is guarded three ways -- `print`/`rand` are excluded because
+    # a second call would repeat the EFFECT, and the re-rendered result is
+    # used only when it is also a miss, so a strip that changes the ANSWER
+    # can never change what this function returns.
+    let p_boxed = apply_host_builtin(name, args, false)
+    let p = if missed(p_boxed) and name != "print" and name != "rand" {
+        let bare = map(fn(a) { mkb(strip(a), "literal", []) }, args)
+        let p_bare = apply_host_builtin(name, bare, true)
+        if missed(p_bare) { p_bare } else { p_boxed }
+      } else { p_boxed }
     # element ops mirror the host exactly: range items are `range` leaves,
     # keys are `key`, reasons are `reason` (round 20 — the why-shape probe
     # caught these labelled "literal", an op the host never performed here)
@@ -2401,7 +2514,15 @@ fn apply_builtin(name, args, st) {
   }
 }
 
-fn apply_host_builtin(name, args) {
+# `msg` (v0.28, round 372): true on the miss RE-RENDER call above. Three
+# slots hand the host builtin a guest BOX on purpose, because the host
+# stores whatever it is given as a list element / record field and the
+# guest needs its box back; on the re-render those same slots must carry
+# the bare payload or the host's `_order_hint` sees a record and either
+# suppresses a hint it should print (`push(1, [2])` -- round 362's E3) or
+# prints one it should not (`put("", [], 1)` -- a record fits the untyped
+# `r` slot, so a permutation "fits" that does not).
+fn apply_host_builtin(name, args, msg) {
   let a0 = (args[0]).v
   # guest closures/builtin refs are ordinary records under the hood, but the
   # HOST's functions are opaque: len/keys/put/merge on a function miss.
@@ -2409,9 +2530,19 @@ fn apply_host_builtin(name, args) {
   # (found by the round-17 guest-differential fuzzer: len(fn) was 4).
   if is_callable(a0) and (name == "len" or name == "keys" or
                           name == "put" or name == "merge" or name == "has") {
-    miss (name + " of a function")
+    # v0.28 (round 372): `merge` is the one of the five whose host message
+    # renders NOTHING -- `merge needs two records`, whichever operand is
+    # the function -- so the guest can say it exactly. The other four
+    # (`len of <builtin len>`, `keys/put/has needs a record, got <fn g>`)
+    # all render the callable, which the guest cannot reproduce: the host
+    # prints a closure's NAME and Whence has no way to build a named
+    # closure at run time. That is exemption E2.
+    if name == "merge" { miss "merge needs two records" }
+    else { miss (name + " of a function") }
   }
-  else if name == "merge" and is_callable((args[1]).v) { miss "merge of a function" }
+  else if name == "merge" and is_callable((args[1]).v) {
+    miss "merge needs two records"
+  }
   # host b_contains: a list item that fails deep_eq (a function anywhere
   # in either side makes deep_eq miss) simply does not match — `false`,
   # never a miss (round 107: the guest guard here said miss)
@@ -2431,7 +2562,7 @@ fn apply_host_builtin(name, args) {
   # them).
   else if name == "rand" { rand() }
   else if name == "len" { len(a0) }
-  else if name == "str" { str(strip(args[0])) }
+  else if name == "str" { str(deep_arg(msg, args[0])) }
   else if name == "num" { num(a0) }
   else if name == "abs" { abs(a0) }
   else if name == "sqrt" { sqrt(a0) }
@@ -2442,12 +2573,16 @@ fn apply_host_builtin(name, args) {
   else if name == "range" {
     if len(args) == 1 { range(a0) } else { range(a0, (args[1]).v) }
   }
-  else if name == "push" { push(a0, args[1]) }
+  else if name == "push" { push(a0, if msg { strip(args[1]) } else { args[1] }) }
   else if name == "note" { note(a0, (args[1]).v) }
-  else if name == "contains" { contains(strip(args[0]), strip(args[1])) }
-  else if name == "join" { join(strip(args[0]), (args[1]).v) }
+  else if name == "contains" {
+    contains(deep_arg(msg, args[0]), deep_arg(msg, args[1]))
+  }
+  else if name == "join" { join(deep_arg(msg, args[0]), (args[1]).v) }
   else if name == "merge" { merge(a0, (args[1]).v) }
-  else if name == "put" { put(a0, (args[1]).v, args[2]) }
+  else if name == "put" {
+    put(a0, (args[1]).v, if msg { strip(args[2]) } else { args[2] })
+  }
   # v0.6: presence check — field VALUES are boxes but has only reads keys,
   # so the host builtin applies directly (guard above keeps closures opaque)
   else if name == "has" { has(a0, (args[1]).v) }
@@ -2637,7 +2772,11 @@ fn guest_find(f, xs, i, st) {
 fn eval_index(node, env, st) {
   let o = eval(node.obj, env, st)
   let ix = eval(node.index, env, o.st)
-  let raw = ((o.v).v)[(ix.v).v]
+  let raw0 = ((o.v).v)[(ix.v).v]
+  # v0.28: the index guards render the index value, so a LIST index leaked
+  # boxes (`("abc")[[1, 2]]` read `... got [@{ins: [], o..., @{ins: [], o...]`).
+  let raw = if missed(raw0) { remsg(raw0, (strip(o.v))[strip(ix.v)]) }
+            else { raw0 }
   let b = if missed(raw) { mkb(raw, "index", [o.v, ix.v]) }
     else if is_list((o.v).v) { raw }
     else { mkb(raw, "index", [o.v, ix.v]) }
