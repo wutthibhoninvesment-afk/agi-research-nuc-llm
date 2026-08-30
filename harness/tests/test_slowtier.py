@@ -499,10 +499,12 @@ def test_run_slice_stamps_both_digests_and_detects_a_harness_race(tmp_path):
         with open(target, "wb") as fh:
             fh.write(original)
     assert calls == ["test_swe_fake.py"]
-    # Round 361 bumped the schema to 3 (subject scope). The pin stays a
-    # pin: an entry writer that stops stamping a version is how a
-    # reader silently starts guessing which rules an entry obeyed.
-    assert e["outcome"] == "passed" and e["schema"] == 3
+    # Round 361 bumped the schema to 3 (subject scope); round 367 bumped it
+    # to 4, when rule 10 changed what `subject_scope.ok` MEANS for a run
+    # that did not finish. The pin stays a pin: an entry writer that stops
+    # stamping a version is how a reader silently starts guessing which
+    # rules an entry obeyed.
+    assert e["outcome"] == "passed" and e["schema"] == 4
     assert e["checkout_stable"] is True               # whence never moved
     assert e["harness_stable"] is False               # but swe/proc.py did
     assert "swe/proc.py" in e["dep_digests"]
@@ -700,7 +702,7 @@ def test_run_slice_records_the_scope_and_a_scopeless_runner_is_fail_closed(tmp_p
     a, b = ST.run_slice(["test_swe_a.py", "test_swe_b.py"], ledger_path=led,
                         whence_root=str(root), runner=runner,
                         clock=lambda: 1.0, tests_dir=str(tests))
-    assert a["schema"] == 3
+    assert a["schema"] == 4
     assert a["subject_digests"] == {"whence": RS.dir_digest(str(root), "whence")}
     # A runner that reports nothing is not a runner that reported "nothing".
     assert b["subject_digests"] is None
@@ -764,3 +766,106 @@ def test_the_lang_extension_is_in_the_digest_and_docs_are_not(tmp_path):
     assert ST.checkout_digest(str(root)) == d          # docs still excluded
     (root / "examples" / "self_eval.lang").write_text("guest = 2\n")
     assert ST.checkout_digest(str(root)) != d          # the guest is not a doc
+
+
+# ----------------------------------------------- rule 10 (round 367) --------
+#
+# Round 361's item 5, in its own words: "Scope is measured from a run that may
+# have failed early. A crashed run reads less than a healthy one, so its scope
+# is an under-approximation. Today `run_slice` narrows on any outcome
+# including `failed`. Either refuse to narrow on a non-`passed` outcome or
+# record the decision knowingly — this round did neither."
+
+def _scope_root(tmp_path):
+    root = tmp_path / "co"
+    (root / "whence").mkdir(parents=True)
+    (root / "whence" / "interp.py").write_text("x = 1\n")
+    tests = tmp_path / "t"
+    tests.mkdir()
+    (tests / "test_swe_a.py").write_text("")
+    return root, tests
+
+
+def _narrowable(**over):
+    r = {"returncode": 0, "timed_out": False, "tail": "",
+         "scope": {"ok": True, "dirs": ["whence"], "opaque": [],
+                   "n_reads": 3, "why": ""}}
+    r.update(over)
+    return r
+
+
+def test_rule_10_a_run_that_timed_out_may_not_narrow(tmp_path):
+    """The under-approximation case: killed at the timeout, so whatever it
+    had not read yet is missing from the scope and an edit there would look
+    like an edit outside it."""
+    root, tests = _scope_root(tmp_path)
+    [e] = ST.run_slice(["test_swe_a.py"], ledger_path=str(tmp_path / "l"),
+                       whence_root=str(root),
+                       runner=lambda f: _narrowable(timed_out=True,
+                                                    returncode=-9),
+                       clock=lambda: 1.0, tests_dir=str(tests))
+    assert e["outcome"] == "timeout"
+    assert e["subject_scope"]["ok"] is False
+    assert e["subject_scope"]["why"] == "run-did-not-complete: timed out"
+    # What it MEASURED is still readable; it is simply not usable.
+    assert e["subject_scope"]["dirs"] == ["whence"]
+    assert e["subject_digests"] is None
+    assert ST.classify(e, "NEW", e["dep_digests"],
+                       ST.scope_digests_now(e, str(root))) == "stale_checkout"
+
+
+def test_rule_10_a_run_that_merely_failed_still_narrows(tmp_path):
+    """The deliberate NON-case. pytest exit 1 means the run collected,
+    imported and reported — its read-set is complete, and `fresh_fail_scoped`
+    is the state this module most wants to stay visible."""
+    root, tests = _scope_root(tmp_path)
+    [e] = ST.run_slice(["test_swe_a.py"], ledger_path=str(tmp_path / "l"),
+                       whence_root=str(root),
+                       runner=lambda f: _narrowable(returncode=1),
+                       clock=lambda: 1.0, tests_dir=str(tests))
+    assert e["outcome"] == "failed"
+    assert e["subject_scope"]["ok"] is True
+    assert e["subject_digests"] == {"whence": RS.dir_digest(str(root), "whence")}
+    (root / "examples").mkdir()
+    (root / "examples" / "new.lang").write_text("z = 1\n")
+    assert ST.classify(e, ST.checkout_digest(str(root)), e["dep_digests"],
+                       ST.scope_digests_now(e, str(root))) == "fresh_fail_scoped"
+
+
+def test_rule_10_covers_every_return_code_that_is_not_a_verdict(tmp_path):
+    """2 interrupted, 3 internal error, 4 usage error, 5 nothing collected."""
+    root, tests = _scope_root(tmp_path)
+    for rc in (2, 3, 4, 5):
+        [e] = ST.run_slice(["test_swe_a.py"],
+                           ledger_path=str(tmp_path / ("l%d" % rc)),
+                           whence_root=str(root),
+                           runner=lambda f, rc=rc: _narrowable(returncode=rc),
+                           clock=lambda: 1.0, tests_dir=str(tests))
+        assert e["subject_scope"]["ok"] is False, rc
+        assert e["subject_scope"]["why"] == "run-did-not-complete: rc=%d" % rc
+        assert e["subject_digests"] is None, rc
+
+
+def test_rule_10_also_applies_on_the_READ_side_to_entries_already_written():
+    """A ledger is append-only: stamping the refusal into new entries would
+    leave every pre-round-367 entry under the old fail-open rule. The same
+    question is asked of the entry itself, from fields it always carried."""
+    e = _scoped_entry(["whence"], {"whence": "W1"})
+    e["returncode"] = 0
+    assert ST.scope_digests_now(e) is not None           # the baseline
+    stale = dict(e, returncode=-9, timed_out=True)
+    assert ST.scope_digests_now(stale) is None
+    for rc in (2, 3, 4, 5, -9):
+        assert ST.scope_digests_now(dict(e, returncode=rc)) is None, rc
+    # ... and the two verdict codes are untouched.
+    for rc in (0, 1):
+        assert ST.scope_digests_now(dict(e, returncode=rc)) is not None, rc
+
+
+def test_rule_10_changes_nothing_for_an_entry_with_no_returncode_field():
+    """Rule 6's floor, restated for rule 10: a pre-343 entry that never
+    recorded a return code must not become MORE stale because round 367
+    shipped, any more than it may become fresher."""
+    e = _scoped_entry(["whence"], {"whence": "W1"})
+    e.pop("returncode", None)
+    assert ST.scope_digests_now(e) is not None

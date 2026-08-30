@@ -1,0 +1,1274 @@
+{
+ "actual": {
+  "counterfactual": false,
+  "revs": [
+   "c768d90d307cd89ea0fa053e67c6f53e3c738af9",
+   "c443a23d4f254e7c165f09c2cd043fd13902ece9",
+   "68c3e61bd0cdaa9c8293df54b8ce61f7fdb49139",
+   "61983fb8401bb387bc9af8eae1e96b4f9f1e8fa3",
+   "c0a65a7230037fa1e91622c19dc0862d9b40352f",
+   "6f56fcc9b2e6c5177c9f7d1da8947bd98db0dcfb",
+   "e8c88e65a9d82f1d63ff067e9a48db373836b5f2",
+   "9c4c3ed3548f7609cbf1b802fd21fb3445205dcd",
+   "a94e5c06a17ed2e9af685c44046bbb506a2a6e37",
+   "ff2456b5423a2e5a5f4e9a1b07c3e792083be94d",
+   "60633f1b3e3243c78e2e0c5bd8ba98b52987b3d5",
+   "b1b3df308a4bf922b1ea829ab161c7a9df7a6b6d",
+   "b7f02fd45dd527ec4767b08d46af092e32b94e40",
+   "4843f0447e584635ee0d23c2df31f08955f07888",
+   "9474889c17d8508df6a4c130216a6d9d93b1d51e",
+   "10aa238a9252a0dd961de6a81f36addde7b3b88a",
+   "76ea27fd64c027473a2c3292847ee49abbe4328b",
+   "983ff8b46bfee02820aafbcbf4305ad2f65f685a",
+   "634fc0ccba5bf48302123880e8030e4773ecb08a",
+   "4d17218818018cc70b34966451b6a03f24b0f46d",
+   "1923c7948b3a5d17f9b3d1f494814211f1b600bb",
+   "46de4a70237e1cf225d8e20d32ca6380618991b7",
+   "3eaf50a183bd7559459bfe846f9241b034045fe3",
+   "a719ee1ecff1f32789a135e9d9ae50f8d75ad481",
+   "3eed71ee0978b72c01b6037e7b74a62e0fcda1a4",
+   "7bcd364110e65368f3de60298a2567a516b52831",
+   "23d6380cbc5a719f67b33ef472e89dc0d6199503",
+   "da5ed067d70a83941846ebf4b74d8faf720b7c48",
+   "b122e8c9e659e37ea7c30656f4cbd6cfc9c4d8a3",
+   "8975eeb1aded53efce6acd03965215e19156cf6f",
+   "53113dce7fdbca2d259258e256139cca21983ab1",
+   "b7fe532a4a6086076d7723f3aae0bad4329858b4",
+   "77caff6d32df4f34683f9f6d7f2ed671edd60e72",
+   "c698af9caa016b436c4f9dcbf659ca4f43bcca8e",
+   "6913a0f10b46678ed7aa47024eb69d06b8ebb694",
+   "76efeebf1a365992adc6e0573d7dc95b06ae1f94",
+   "dc432abaee1e531448b423c7fd7d806940510235",
+   "9867fd9eeae35916497fcbe3a13f518f396160ab",
+   "434c84485d7530b0462ba3b83a58b61dc48d15eb",
+   "ac7faae17ebc7612d27ecd4c098e5b77d2e45f24",
+   "2d1cfba7927d1ae1ece966451cd98b31268caf22",
+   "96e873580c34aeeed541db57512375b488b69098",
+   "d5d530ad7f0841ff8f40689145375ca5c3575c84",
+   "02f9e9ecce872a0befe5eaaca1e1997ef3ed5891",
+   "a19ebd91fba4d65ea25f5d693432f802e0621438",
+   "7c81ae5eb0ccc1adc9f4bf771c3931807d2dee0c",
+   "a95b097c781c282111c33a27b073c9243c5d08f2",
+   "d7b8b30fd6191fc0bd49b13b36ad634a24b9c974",
+   "8c6aeeb09bed2ba0ecf7809745666040e22de2cf",
+   "54937ea3ac7a30be1ae99af660e70bdd5c713f33",
+   "b25e371690e180e3b0696d7249be48e113cb9588",
+   "58a9f8cfe41d45a606eae245b9bd8a80029d1ebf",
+   "936e1198cb8c439c5a30f4ce8662f0f47dea36c2",
+   "453c12d07d223615661feea95186bd4698e9c4c9",
+   "8da13c4e958c1692149de6088a45365133e9b38b",
+   "2c5a4bfb24b771bdd87a280f896b8b7413c6c06d",
+   "64d8e785c44f2000f7be3b1529f2054689f160d6",
+   "7709d33dbde7aa6fbb8462c92cde964ae92929b5",
+   "740fccf3abf029668a6272ded4ca966ba99f547d",
+   "385cdfd06afb583b1533d373c829e29e3d7b62c0",
+   "4743f7328445e1cfb03757df8c7d7e75eccf234d",
+   "ef6995135ee495562dbe31a7c57cc09824925ff4",
+   "95c6be075cb8ace6508a7030e2a2e311bed19ab0",
+   "4d9a8f7ec0b7272b83d1f45e80682965eee64df1",
+   "2f6bab4f01cc54d820f8914d6ef8509fbbe294c2",
+   "ef701b856e5d54c1175b41a0a1d88b055edd9a54",
+   "5970dad055ad0ff1459deb20c15c920c89ad6516",
+   "f0b8dde8b78f1e2d8e408e0ac110ef08a81139ae",
+   "9ad4b80b34ee80d68550cdd7c4378e78c288073a",
+   "e9e4d1762de12e3864bfbf0e13758a005c8e7d50",
+   "3767f379ec7841edc230ed12a13443735296a472",
+   "9614b833364c0cbec5cfa92b19548a589409ee5d",
+   "dbf3ae741bec6ea2c83fa576b65b472000f414d3",
+   "ec4b00f35c8ce3bb1e6b5ee47c030818f143b60a",
+   "3aef0a520bb584b7d7aff95b57a1a5e13a3f42c8",
+   "32c5cbd286eb39fe7df7d9dd48a6f5e13031f60f",
+   "7c59470c741b065ddf350cff197853788494d936",
+   "0a95ca1717bd15b2c057c07f1916f9134e8ca2e5",
+   "a4ea6e2d7eb0e96235287af5c5d3f64452785ea8",
+   "75c46934eead49afc1fda7e9c714e8621b89293f",
+   "2cb723564be1e35b043a135169303896a0b7af56",
+   "c007184d9395e540030737f25651f83316fc84c3",
+   "8cf33d04db57850a42cb89f18bd95cd75daa74e8",
+   "c2c0b5e95398586d1e1f94e7acd2b2dff202bcbd",
+   "ad1f295fbe59931070c3e8e9bbea6a97af4aacc7",
+   "5c23ae42cc3dfe198b94626e4bba750d9622871c",
+   "613342a8ea9c96f99af5d987ffd59e033241ec85",
+   "dab705086187c4909946072be2e97b7b89e74e65",
+   "8f3fe648c553e0b85efd281d40e26a246e8b6d38",
+   "2cfd0d0421bdadcb4d8266fb332b99d0efeb012f",
+   "261473b9ac3fff090ba7c59b0dc9863cc49b8e5a",
+   "70d350d12f1cf934e2595deb5433e21b2ceb4aac",
+   "b95c953f21070ca113631a9fe2b790f65c92bc10",
+   "99c697417564f265991fc1a356bdc0b41c98d56f",
+   "d122e1a628514006a9fe68b3c1b2132ce5689839",
+   "50dc8694342b2d79411989bf9798135c816a585a",
+   "cd1022d02e32239473fc66cfd37d46d3a0a42c43",
+   "0a2420e34f0da4b3ca1e913d21fcddaabe299f9f",
+   "b21300c2cf63510afb9c7d4096c1ce7349db0fcf",
+   "554872c01d407a00b12c1934e8ae5428a2762344",
+   "ce198d158f6e76886901c175b069cd726a97e498",
+   "f8896ba8552039165a88cbe34b22e880ff6299f8",
+   "eb8e5e71cb68f8eb58d6bd3e6ba2ad32fd44aef8",
+   "63c6fa771a66c812bf367c04a042c23318b94a39",
+   "574f8be6ac3f1763536582deb8c36865cb4d52b6",
+   "ddfdac302f84a5a71fc958ad688a2ccce64644fe",
+   "70a81477d1f62e6fd5c24914bce3292c7c613130",
+   "3a866edf3026a89a0a4e2d945348bab1cef07413",
+   "1e5c40209bd7cc4ff71535f2faf5aab424d8f86a",
+   "cf7494325c1033ddf552397df4f4bb8603c05283",
+   "243c555197fe3956d0859387fd56422caabf4ee2",
+   "819723989b026d2f0e35d5b59186a5738fe2e647",
+   "639e7975947bd2d8e443a2bcae40a06d4322905b",
+   "7337d3309ad5026e0c4935d8315fae2c488d72d4",
+   "3facc156d1dcc5aef416b555f7011c33e54921c3",
+   "8b5857ad6f715bf5dd63f8a2d1000f2b771d2fb0",
+   "d84b5defce560ab0bde928d98ee138f6a67a4334",
+   "0c3828353e3d3f5cac36746966e69e362a5d591b",
+   "ac2ef06dcce2d29b54d16c9602188fa57ae551a0",
+   "92e95f378cd64d84d8e1aca406ea096d64f83924",
+   "b29f14ee15de809bfc7c51346291f7c129dee402",
+   "729bebd82da2ea09bcb1a081cc16cf6f9e523ffa",
+   "6ba25068f81c1660250c1506357a7827b6b0d9d9",
+   "7508a00940d6e0c7fdb39f2c5b64674909ea5e3f",
+   "359ddae62351d483527b6e7a1ac357c30c8766c9",
+   "884ff0d7c4afa6597f1fd0eb688cb4d2381be2db",
+   "0e56141514da95cf3ffccf44699e833f525341f0",
+   "b26bc3de3c49f36e0e3ac8229e9eb99736d88fd5",
+   "8d387632d6faf3a075d1608ef98bce5f05936e31",
+   "67fc895e3f92a0c80343ce113214658c56b71256",
+   "698ab5e6a02e00342de60a0ccac042b1d02171a3",
+   "b9b2db98105aeeaa4bfb6eca5537495c6aebc7a7",
+   "19797088430033bd7e54867276f1cc5c4a58b47d",
+   "b2e54257603411711250fbffe887350dd7cabb0b",
+   "8274f8ee5e11fe754499b6298638b74fbe2bf6c4",
+   "a22ac637bc138798ba8b94f35e453978018685b7",
+   "fcb69f9715392d8c0ae0fd1ed4e479a9b5db265c",
+   "00f7a029676c5bee4078a8a745c8de630fde5db9",
+   "9fcbb49e32f26e823b0ad5530c9fe3e4b2354cef",
+   "2c65f53325a0c9715be5aa4e117d860a455264be",
+   "adca7ffc82118478740e0ac83afa56ec0e4595db",
+   "cbb4fb73353961e69ecd1459a9dbaa2bfef01404",
+   "35b0a4c2f6c13e1a84759bfe75586be01bbbd447",
+   "5862e04e3b840e25f8bb7b0417a52807812e4b40",
+   "597adf5639e9715976ca6895ec6f62c1b55f0071",
+   "6db96497785e8e03446748c8d68d5137499fdec0",
+   "a1708208818cffa80a02c7c4c2b23ee26247eeb1",
+   "e9ee08b7e9e3e64ba3b371421a9516be41b408d3",
+   "0bb092b9d9766a738821bcb670e20f3fcadcb3e3",
+   "3dfde91676fae451c97a1a70e9bfdb4f76a5b82f",
+   "f911f7adc2bfe94b2729d079b446fd11141da956",
+   "89ea889d013a1b0cef4f98979bb966f2ca11fcc0",
+   "7b3afcbc28cf3aa421b3bd60f81d8a1346231f0b",
+   "2ecb6cff392b9c66220d34426ec30c554d39b75f",
+   "b7cb49afff3f5258a29815524e9ee49518fb04a2",
+   "59fd845688a2948c278bf68f2317dc05f2d4090d",
+   "9a166b233433466b0ed955d620f8ed90309a05c9",
+   "0ab898b5a746ec1dcc2f693295755aefcd7a051e",
+   "bdad38812e3e98acabe703846ba22719a74ae218",
+   "de75d7621280a8984058eef741b56f4124d17bbb",
+   "bc58c24df9d579545b2e8ba659456edc70c197ca",
+   "4a38c18cbe73976ab83b4b634173881d7f70a49a",
+   "5ce48fa66684c6657b943b534b0673ee42b4fde4",
+   "6344e684b7c62febb345ede1a77e89191370bb1e",
+   "db684e19d04fa73440b39dcb98a710e54ee536c3",
+   "b98c938ce6e020b04f28012ccc5d2fedd9d4ada6",
+   "e1a0d9fc1f063164ff53ffceb06ad3c867809ffb",
+   "c592b5a4c11699934d5376a8895070eff35bc5c9",
+   "645560a3d418e2acd53af1fffcb69ea6611f5d13",
+   "21f4677b68d174f2fc30c1fefbb6978dd03d7066",
+   "ddec87e0473875bd373925c1c562417b223ebf61",
+   "e106e59c245666c1ff8552dc80efd7eb8042c938",
+   "49d1c17f64c87a2c14d29f856b65b3e30af865d2",
+   "1752c164555c245a59fff2350a38b7d91c92eb6d",
+   "710945f7f378e15e25cfd6ff890826177048d5dd",
+   "7c61a285b759df288f6993a9e896a28ec993616f",
+   "2f8152e6ead12888cd1b4b4fde16ba5edd4299fc",
+   "4af6963a37a23a5f2566ba03ff34f6666e3d2576",
+   "532aa94d33da9637afcf4e89d058fe069a56f8b7",
+   "f7559fc1eca4a2018af92c32151f10b0a0e9e522",
+   "524b23367b594edda194045f70cfcf8780d52514",
+   "7965a4eb7305356cd10d1457734a2d42a2d9db91",
+   "d55cc913a32ef0ce50bcaadb2cc4932b51f7ca3e",
+   "7f79de3fb8686c6371ed26cfacfeea2623e3bc52",
+   "6132f1f7bfd740703d13e00a81e53aa89813e307",
+   "c52b9ba88da419bd72a0797c98f5b76c39e67129",
+   "1c3a6f071b13a097bd04998ec94adff59d3eb971",
+   "88168c462986cfbabaa44752a4181394b01719a9",
+   "4309fddd0704bdea9dedd026d579b1fb1c4d65fb",
+   "76e0e9ac9d17e7db1e1b8d5357aa2b1b144af26f",
+   "fde750bc974aaac0a48d848a157b560bd124d51d",
+   "680b2738b62d810931df78cf176250b31585141b",
+   "1425ee03ad8e13f0cbac163b983e562b42e3d4c4",
+   "ad33e0aafea70d5ca747d0f5774f694a00c1c1bc",
+   "0ca72afc45463e80cef8dc7831938dc15a4c9e96",
+   "302b1bf96e10353a3bce54a6ddd84ba171075e08",
+   "3ed439142946939de3dfb3e24255ae163301ca8c",
+   "491b1075146cb7980b4865fce86f57c08cd52463",
+   "4797f56d406c350fd14ab30377ad4992880f5324",
+   "488505a87dc3e699c6ec00e934f204acda60279e",
+   "68d4c308a6e92321918cd85def45a35fcc06a25c",
+   "bf20f73838075f8f3acf4f8596cc06a0bb8317c9",
+   "8a4cb56762a61a7ff3c898f334e05e2ae9d4a866",
+   "f8dce152060d3bd2317dd2773ad1f4bd12bd194c",
+   "9951585b696028be5bf1e002fbd0b58efa3d91f7",
+   "c22314d38cb9cac0facdc2e08a9afd406206ce83",
+   "c9b83adc08110d6b5b30f21f20f8273c7f9d8f77",
+   "c285623750f61a3d26de2896b1f1724ab4daf537",
+   "fb0e89320ced148eb41b2f16643444357f39425f",
+   "4ae1ac7810ef9db3e5565fc3d36a5d4d09fd2f0c",
+   "fd7d91a5a43a75064659fae250b5b94e621d45ed",
+   "2e3193f745570c26241180bbadf5a1bfe917ae07",
+   "bfb44bc71d740247798a51f729687ff5d035f518",
+   "80bcf4f252ee894f47a3c33c558ef750c3592a1d",
+   "ffb16427b55e959ad65d4d081aba873c11d0bdb1",
+   "02720d28cc840fa0a1ec05b57505bb186c8804f5",
+   "af0638159628f719a762a217a041b5cc1df172d2",
+   "36847617b0f088c04d1b0d887f0ebebb096cf3f7",
+   "4e0363088f344e0197caf411a012bfc036afdc61",
+   "d0a3037f7e7b7d6575adbc56fb5300ec381b3209",
+   "f88aac0e8be900956cd4a161f49044dc89736152",
+   "e7df524e0d9e797700e7c589d9387209ab7ac9e2",
+   "f91de9489ea8a297a5a94fd846ce8d74eca212dc",
+   "a439262b49f2b791a29533b2a27b84555d3d8508",
+   "5969dede0c77d74ad69426797afe430f61986bc2",
+   "807475b928266a619d5a568938e0f6eddfbbe828",
+   "b6cb9f3d990452f4c345d358507ebea76d211929",
+   "bb00ab8a549389504e304e1b34013d175c96d2f9",
+   "83ba9a1fe7a161faf7c840561cd8a7300cacf7de",
+   "2446257be41e86362fe76222d73518ae4ee9bd8d",
+   "52dcde1d849a2a6c69c8b96b96cb04b2cd75d735",
+   "9d198b8164210deb9bd1e27dc7b089736590a571",
+   "46c1e882c1a79cca2bba4afc7a71a6e6fc4c2377",
+   "8c1311ae26dfa9cd6c29a9e3e7cc967392e86114",
+   "fde4bddca7def29be37fab07a0849e0a2434798d",
+   "11aa0efb2af25e6463e9e0d0d8b1994d204dce21",
+   "ae41e215d949a7db47801b10227db420341dc8fc",
+   "b89c49702c0f3e40017421e1e8243964abd68981",
+   "4150f1df776190b2812303e007489d3c767897fc",
+   "68cf496df7f202ed961cf467d10b636e34f103ad",
+   "48b8967b07b204f85ba252fc92e8bc52c3d91a1e"
+  ],
+  "rows": [
+   {
+    "file": "test_swe_alias_effects.py",
+    "status": "no_entry"
+   },
+   {
+    "file": "test_swe_bymap.py",
+    "status": "no_entry"
+   },
+   {
+    "file": "test_swe_campaign.py",
+    "status": "no_entry"
+   },
+   {
+    "digest_in_history": true,
+    "file": "test_swe_coverage.py",
+    "n_commits_after": 13,
+    "outcome": "passed",
+    "scope_dirs": null,
+    "scoped": 3,
+    "scoped_state": "stale_checkout",
+    "start_index": 227,
+    "start_rev": "bb00ab8a549389504e304e1b34013d175c96d2f9",
+    "status": "replayed",
+    "strict": 3,
+    "strict_state": "stale_checkout",
+    "subject": 3,
+    "subject_state": "stale_checkout"
+   },
+   {
+    "file": "test_swe_equivalence.py",
+    "status": "no_entry"
+   },
+   {
+    "digest_in_history": false,
+    "file": "test_swe_fuzz.py",
+    "n_commits_after": 59,
+    "outcome": "passed",
+    "scope_dirs": null,
+    "scoped": 0,
+    "scoped_state": "stale_checkout",
+    "start_index": 181,
+    "start_rev": "7965a4eb7305356cd10d1457734a2d42a2d9db91",
+    "status": "replayed",
+    "strict": 0,
+    "strict_state": "stale_checkout",
+    "subject": 0,
+    "subject_state": "stale_checkout"
+   },
+   {
+    "digest_in_history": true,
+    "file": "test_swe_guest.py",
+    "n_commits_after": 14,
+    "outcome": "failed",
+    "scope_dirs": [
+     "examples",
+     "whence"
+    ],
+    "scoped": 4,
+    "scoped_state": "stale_subject",
+    "start_index": 226,
+    "start_rev": "b6cb9f3d990452f4c345d358507ebea76d211929",
+    "status": "replayed",
+    "strict": 4,
+    "strict_state": "stale_subject",
+    "subject": 4,
+    "subject_state": "stale_subject"
+   },
+   {
+    "digest_in_history": true,
+    "file": "test_swe_killers.py",
+    "n_commits_after": 14,
+    "outcome": "passed",
+    "scope_dirs": null,
+    "scoped": 4,
+    "scoped_state": "stale_checkout",
+    "start_index": 226,
+    "start_rev": "b6cb9f3d990452f4c345d358507ebea76d211929",
+    "status": "replayed",
+    "strict": 4,
+    "strict_state": "stale_checkout",
+    "subject": 4,
+    "subject_state": "stale_checkout"
+   },
+   {
+    "digest_in_history": true,
+    "file": "test_swe_loop.py",
+    "n_commits_after": 14,
+    "outcome": "passed",
+    "scope_dirs": [
+     "whence"
+    ],
+    "scoped": 4,
+    "scoped_state": "stale_subject",
+    "start_index": 226,
+    "start_rev": "b6cb9f3d990452f4c345d358507ebea76d211929",
+    "status": "replayed",
+    "strict": 4,
+    "strict_state": "stale_subject",
+    "subject": 4,
+    "subject_state": "stale_subject"
+   },
+   {
+    "digest_in_history": true,
+    "file": "test_swe_mutation.py",
+    "n_commits_after": 14,
+    "outcome": "passed",
+    "scope_dirs": null,
+    "scoped": 4,
+    "scoped_state": "stale_checkout",
+    "start_index": 226,
+    "start_rev": "b6cb9f3d990452f4c345d358507ebea76d211929",
+    "status": "replayed",
+    "strict": 4,
+    "strict_state": "stale_checkout",
+    "subject": 4,
+    "subject_state": "stale_checkout"
+   },
+   {
+    "digest_in_history": false,
+    "file": "test_swe_oraclekill.py",
+    "n_commits_after": 63,
+    "outcome": "passed",
+    "scope_dirs": null,
+    "scoped": 0,
+    "scoped_state": "stale_checkout",
+    "start_index": 177,
+    "start_rev": "4af6963a37a23a5f2566ba03ff34f6666e3d2576",
+    "status": "replayed",
+    "strict": 0,
+    "strict_state": "stale_checkout",
+    "subject": 0,
+    "subject_state": "stale_checkout"
+   },
+   {
+    "digest_in_history": true,
+    "file": "test_swe_oracles.py",
+    "n_commits_after": 14,
+    "outcome": "passed",
+    "scope_dirs": null,
+    "scoped": 4,
+    "scoped_state": "stale_checkout",
+    "start_index": 226,
+    "start_rev": "b6cb9f3d990452f4c345d358507ebea76d211929",
+    "status": "replayed",
+    "strict": 4,
+    "strict_state": "stale_checkout",
+    "subject": 4,
+    "subject_state": "stale_checkout"
+   },
+   {
+    "file": "test_swe_prioritize.py",
+    "status": "no_entry"
+   },
+   {
+    "digest_in_history": true,
+    "file": "test_swe_proc.py",
+    "n_commits_after": 14,
+    "outcome": "passed",
+    "scope_dirs": null,
+    "scoped": 4,
+    "scoped_state": "stale_checkout",
+    "start_index": 226,
+    "start_rev": "b6cb9f3d990452f4c345d358507ebea76d211929",
+    "status": "replayed",
+    "strict": 4,
+    "strict_state": "stale_checkout",
+    "subject": 4,
+    "subject_state": "stale_checkout"
+   },
+   {
+    "digest_in_history": true,
+    "file": "test_swe_regiontools.py",
+    "n_commits_after": 14,
+    "outcome": "passed",
+    "scope_dirs": [
+     "whence"
+    ],
+    "scoped": 4,
+    "scoped_state": "stale_subject",
+    "start_index": 226,
+    "start_rev": "b6cb9f3d990452f4c345d358507ebea76d211929",
+    "status": "replayed",
+    "strict": 4,
+    "strict_state": "stale_subject",
+    "subject": 4,
+    "subject_state": "stale_subject"
+   },
+   {
+    "digest_in_history": false,
+    "file": "test_swe_repair.py",
+    "n_commits_after": 62,
+    "outcome": "passed",
+    "scope_dirs": null,
+    "scoped": 0,
+    "scoped_state": "stale_checkout",
+    "start_index": 178,
+    "start_rev": "532aa94d33da9637afcf4e89d058fe069a56f8b7",
+    "status": "replayed",
+    "strict": 0,
+    "strict_state": "stale_checkout",
+    "subject": 0,
+    "subject_state": "stale_checkout"
+   },
+   {
+    "digest_in_history": false,
+    "file": "test_swe_review.py",
+    "n_commits_after": 19,
+    "outcome": "passed",
+    "scope_dirs": null,
+    "scoped": 0,
+    "scoped_state": "stale_checkout",
+    "start_index": 221,
+    "start_rev": "e7df524e0d9e797700e7c589d9387209ab7ac9e2",
+    "status": "replayed",
+    "strict": 0,
+    "strict_state": "stale_checkout",
+    "subject": 0,
+    "subject_state": "stale_checkout"
+   },
+   {
+    "digest_in_history": true,
+    "file": "test_swe_scoreaudit.py",
+    "n_commits_after": 14,
+    "outcome": "passed",
+    "scope_dirs": [],
+    "scoped": 14,
+    "scoped_state": "fresh_pass_scoped",
+    "start_index": 226,
+    "start_rev": "b6cb9f3d990452f4c345d358507ebea76d211929",
+    "status": "replayed",
+    "strict": 4,
+    "strict_state": "fresh_pass_scoped",
+    "subject": 14,
+    "subject_state": "fresh_pass_scoped"
+   },
+   {
+    "digest_in_history": true,
+    "file": "test_swe_triage.py",
+    "n_commits_after": 14,
+    "outcome": "passed",
+    "scope_dirs": [],
+    "scoped": 14,
+    "scoped_state": "fresh_pass_scoped",
+    "start_index": 226,
+    "start_rev": "b6cb9f3d990452f4c345d358507ebea76d211929",
+    "status": "replayed",
+    "strict": 4,
+    "strict_state": "fresh_pass_scoped",
+    "subject": 14,
+    "subject_state": "fresh_pass_scoped"
+   }
+  ]
+ },
+ "blame": {
+  "by_cause": [
+   [
+    "whole-checkout",
+    2799
+   ],
+   [
+    "harness:swe/fuzz.py",
+    1154
+   ],
+   [
+    "scope:whence",
+    466
+   ],
+   [
+    "harness:swe/guest.py",
+    362
+   ],
+   [
+    "harness:swe/oracles.py",
+    166
+   ],
+   [
+    "scope:examples",
+    150
+   ],
+   [
+    "harness:swe/killers.py",
+    140
+   ],
+   [
+    "harness:swe/alias_effects.py",
+    116
+   ],
+   [
+    "harness:swe/mutation.py",
+    115
+   ],
+   [
+    "harness:tests/conftest.py",
+    86
+   ],
+   [
+    "harness:swe/oraclekill.py",
+    78
+   ],
+   [
+    "harness:swe/campaign.py",
+    69
+   ],
+   [
+    "harness:swe/scoreaudit.py",
+    47
+   ],
+   [
+    "harness:swe/repair.py",
+    37
+   ],
+   [
+    "harness:swe/prioritize.py",
+    36
+   ],
+   [
+    "harness:tests/test_swe_alias_effects.py",
+    36
+   ],
+   [
+    "harness:tests/test_swe_fuzz.py",
+    36
+   ],
+   [
+    "harness:swe/coverage.py",
+    35
+   ],
+   [
+    "harness:tests/test_swe_guest.py",
+    33
+   ],
+   [
+    "harness:swe/equivalence.py",
+    27
+   ],
+   [
+    "harness:swe/slowtier.py",
+    22
+   ],
+   [
+    "harness:swe/bench_prioritize.py",
+    20
+   ],
+   [
+    "harness:swe/loop.py",
+    20
+   ],
+   [
+    "harness:swe/policy.py",
+    20
+   ],
+   [
+    "harness:swe/regiontools.py",
+    20
+   ],
+   [
+    "harness:swe/review.py",
+    20
+   ],
+   [
+    "harness:swe/tools.py",
+    20
+   ],
+   [
+    "harness:swe/proc.py",
+    18
+   ],
+   [
+    "harness:swe/triage.py",
+    18
+   ],
+   [
+    "harness:tests/test_swe_campaign.py",
+    17
+   ],
+   [
+    "harness:tests/test_swe_oracles.py",
+    17
+   ],
+   [
+    "harness:tests/test_swe_scoreaudit.py",
+    14
+   ],
+   [
+    "harness:tests/test_swe_review.py",
+    9
+   ],
+   [
+    "harness:tests/test_swe_repair.py",
+    6
+   ],
+   [
+    "harness:tests/test_swe_bymap.py",
+    4
+   ],
+   [
+    "harness:tests/test_swe_mutation.py",
+    4
+   ],
+   [
+    "harness:tests/test_swe_equivalence.py",
+    2
+   ],
+   [
+    "harness:tests/test_swe_oraclekill.py",
+    1
+   ]
+  ],
+  "n_kills": 4508
+ },
+ "head": "48b8967b07b204f85ba252fc92e8bc52c3d91a1e",
+ "means": {
+  "scoped": 2.7131578947368418,
+  "strict": 1.7750000000000001,
+  "subject": 15.454166666666666
+ },
+ "n_untracked_source_files": 15,
+ "self_check_ok": true,
+ "sweep": {
+  "counterfactual": true,
+  "per_file": {
+   "test_swe_alias_effects.py": {
+    "scope_dirs": null,
+    "scoped": {
+     "max": 12,
+     "mean": 1.6958333333333333,
+     "n_starts": 240
+    },
+    "strict": {
+     "max": 12,
+     "mean": 1.6958333333333333,
+     "n_starts": 240
+    },
+    "subject": {
+     "max": 12,
+     "mean": 2.125,
+     "n_starts": 240
+    }
+   },
+   "test_swe_bymap.py": {
+    "scope_dirs": null,
+    "scoped": {
+     "max": 10,
+     "mean": 1.6,
+     "n_starts": 240
+    },
+    "strict": {
+     "max": 10,
+     "mean": 1.6,
+     "n_starts": 240
+    },
+    "subject": {
+     "max": 12,
+     "mean": 2.125,
+     "n_starts": 240
+    }
+   },
+   "test_swe_campaign.py": {
+    "scope_dirs": null,
+    "scoped": {
+     "max": 10,
+     "mean": 1.5708333333333333,
+     "n_starts": 240
+    },
+    "strict": {
+     "max": 10,
+     "mean": 1.5708333333333333,
+     "n_starts": 240
+    },
+    "subject": {
+     "max": 12,
+     "mean": 2.125,
+     "n_starts": 240
+    }
+   },
+   "test_swe_coverage.py": {
+    "scope_dirs": null,
+    "scoped": {
+     "max": 12,
+     "mean": 1.8875,
+     "n_starts": 240
+    },
+    "strict": {
+     "max": 12,
+     "mean": 1.8875,
+     "n_starts": 240
+    },
+    "subject": {
+     "max": 12,
+     "mean": 2.125,
+     "n_starts": 240
+    }
+   },
+   "test_swe_equivalence.py": {
+    "scope_dirs": null,
+    "scoped": {
+     "max": 12,
+     "mean": 1.7833333333333334,
+     "n_starts": 240
+    },
+    "strict": {
+     "max": 12,
+     "mean": 1.7833333333333334,
+     "n_starts": 240
+    },
+    "subject": {
+     "max": 12,
+     "mean": 2.125,
+     "n_starts": 240
+    }
+   },
+   "test_swe_fuzz.py": {
+    "scope_dirs": null,
+    "scoped": {
+     "max": 12,
+     "mean": 1.9,
+     "n_starts": 240
+    },
+    "strict": {
+     "max": 12,
+     "mean": 1.9,
+     "n_starts": 240
+    },
+    "subject": {
+     "max": 12,
+     "mean": 2.125,
+     "n_starts": 240
+    }
+   },
+   "test_swe_guest.py": {
+    "scope_dirs": [
+     "examples",
+     "whence"
+    ],
+    "scoped": {
+     "max": 12,
+     "mean": 2.1875,
+     "n_starts": 240
+    },
+    "strict": {
+     "max": 12,
+     "mean": 1.7041666666666666,
+     "n_starts": 240
+    },
+    "subject": {
+     "max": 12,
+     "mean": 2.7625,
+     "n_starts": 240
+    }
+   },
+   "test_swe_killers.py": {
+    "scope_dirs": null,
+    "scoped": {
+     "max": 12,
+     "mean": 1.8041666666666667,
+     "n_starts": 240
+    },
+    "strict": {
+     "max": 12,
+     "mean": 1.8041666666666667,
+     "n_starts": 240
+    },
+    "subject": {
+     "max": 12,
+     "mean": 2.125,
+     "n_starts": 240
+    }
+   },
+   "test_swe_loop.py": {
+    "scope_dirs": [
+     "whence"
+    ],
+    "scoped": {
+     "max": 25,
+     "mean": 4.954166666666667,
+     "n_starts": 240
+    },
+    "strict": {
+     "max": 12,
+     "mean": 1.8,
+     "n_starts": 240
+    },
+    "subject": {
+     "max": 57,
+     "mean": 10.058333333333334,
+     "n_starts": 240
+    }
+   },
+   "test_swe_mutation.py": {
+    "scope_dirs": null,
+    "scoped": {
+     "max": 12,
+     "mean": 2.058333333333333,
+     "n_starts": 240
+    },
+    "strict": {
+     "max": 12,
+     "mean": 2.058333333333333,
+     "n_starts": 240
+    },
+    "subject": {
+     "max": 12,
+     "mean": 2.125,
+     "n_starts": 240
+    }
+   },
+   "test_swe_oraclekill.py": {
+    "scope_dirs": null,
+    "scoped": {
+     "max": 12,
+     "mean": 1.775,
+     "n_starts": 240
+    },
+    "strict": {
+     "max": 12,
+     "mean": 1.775,
+     "n_starts": 240
+    },
+    "subject": {
+     "max": 12,
+     "mean": 2.125,
+     "n_starts": 240
+    }
+   },
+   "test_swe_oracles.py": {
+    "scope_dirs": null,
+    "scoped": {
+     "max": 12,
+     "mean": 1.7916666666666667,
+     "n_starts": 240
+    },
+    "strict": {
+     "max": 12,
+     "mean": 1.7916666666666667,
+     "n_starts": 240
+    },
+    "subject": {
+     "max": 12,
+     "mean": 2.125,
+     "n_starts": 240
+    }
+   },
+   "test_swe_prioritize.py": {
+    "scope_dirs": null,
+    "scoped": {
+     "max": 10,
+     "mean": 1.6125,
+     "n_starts": 240
+    },
+    "strict": {
+     "max": 10,
+     "mean": 1.6125,
+     "n_starts": 240
+    },
+    "subject": {
+     "max": 12,
+     "mean": 2.125,
+     "n_starts": 240
+    }
+   },
+   "test_swe_proc.py": {
+    "scope_dirs": null,
+    "scoped": {
+     "max": 12,
+     "mean": 2.120833333333333,
+     "n_starts": 240
+    },
+    "strict": {
+     "max": 12,
+     "mean": 2.120833333333333,
+     "n_starts": 240
+    },
+    "subject": {
+     "max": 12,
+     "mean": 2.125,
+     "n_starts": 240
+    }
+   },
+   "test_swe_regiontools.py": {
+    "scope_dirs": [
+     "whence"
+    ],
+    "scoped": {
+     "max": 25,
+     "mean": 5.204166666666667,
+     "n_starts": 240
+    },
+    "strict": {
+     "max": 12,
+     "mean": 1.9,
+     "n_starts": 240
+    },
+    "subject": {
+     "max": 57,
+     "mean": 10.058333333333334,
+     "n_starts": 240
+    }
+   },
+   "test_swe_repair.py": {
+    "scope_dirs": null,
+    "scoped": {
+     "max": 12,
+     "mean": 1.6625,
+     "n_starts": 240
+    },
+    "strict": {
+     "max": 12,
+     "mean": 1.6625,
+     "n_starts": 240
+    },
+    "subject": {
+     "max": 12,
+     "mean": 2.125,
+     "n_starts": 240
+    }
+   },
+   "test_swe_review.py": {
+    "scope_dirs": null,
+    "scoped": {
+     "max": 12,
+     "mean": 1.6916666666666667,
+     "n_starts": 240
+    },
+    "strict": {
+     "max": 12,
+     "mean": 1.6916666666666667,
+     "n_starts": 240
+    },
+    "subject": {
+     "max": 12,
+     "mean": 2.125,
+     "n_starts": 240
+    }
+   },
+   "test_swe_scoreaudit.py": {
+    "scope_dirs": [],
+    "scoped": {
+     "max": 33,
+     "mean": 5.7125,
+     "n_starts": 240
+    },
+    "strict": {
+     "max": 10,
+     "mean": 1.5291666666666666,
+     "n_starts": 240
+    },
+    "subject": {
+     "max": 240,
+     "mean": 120.5,
+     "n_starts": 240
+    }
+   },
+   "test_swe_triage.py": {
+    "scope_dirs": [],
+    "scoped": {
+     "max": 31,
+     "mean": 8.5375,
+     "n_starts": 240
+    },
+    "strict": {
+     "max": 12,
+     "mean": 1.8375,
+     "n_starts": 240
+    },
+    "subject": {
+     "max": 240,
+     "mean": 120.5,
+     "n_starts": 240
+    }
+   }
+  },
+  "revs": [
+   "c768d90d307cd89ea0fa053e67c6f53e3c738af9",
+   "c443a23d4f254e7c165f09c2cd043fd13902ece9",
+   "68c3e61bd0cdaa9c8293df54b8ce61f7fdb49139",
+   "61983fb8401bb387bc9af8eae1e96b4f9f1e8fa3",
+   "c0a65a7230037fa1e91622c19dc0862d9b40352f",
+   "6f56fcc9b2e6c5177c9f7d1da8947bd98db0dcfb",
+   "e8c88e65a9d82f1d63ff067e9a48db373836b5f2",
+   "9c4c3ed3548f7609cbf1b802fd21fb3445205dcd",
+   "a94e5c06a17ed2e9af685c44046bbb506a2a6e37",
+   "ff2456b5423a2e5a5f4e9a1b07c3e792083be94d",
+   "60633f1b3e3243c78e2e0c5bd8ba98b52987b3d5",
+   "b1b3df308a4bf922b1ea829ab161c7a9df7a6b6d",
+   "b7f02fd45dd527ec4767b08d46af092e32b94e40",
+   "4843f0447e584635ee0d23c2df31f08955f07888",
+   "9474889c17d8508df6a4c130216a6d9d93b1d51e",
+   "10aa238a9252a0dd961de6a81f36addde7b3b88a",
+   "76ea27fd64c027473a2c3292847ee49abbe4328b",
+   "983ff8b46bfee02820aafbcbf4305ad2f65f685a",
+   "634fc0ccba5bf48302123880e8030e4773ecb08a",
+   "4d17218818018cc70b34966451b6a03f24b0f46d",
+   "1923c7948b3a5d17f9b3d1f494814211f1b600bb",
+   "46de4a70237e1cf225d8e20d32ca6380618991b7",
+   "3eaf50a183bd7559459bfe846f9241b034045fe3",
+   "a719ee1ecff1f32789a135e9d9ae50f8d75ad481",
+   "3eed71ee0978b72c01b6037e7b74a62e0fcda1a4",
+   "7bcd364110e65368f3de60298a2567a516b52831",
+   "23d6380cbc5a719f67b33ef472e89dc0d6199503",
+   "da5ed067d70a83941846ebf4b74d8faf720b7c48",
+   "b122e8c9e659e37ea7c30656f4cbd6cfc9c4d8a3",
+   "8975eeb1aded53efce6acd03965215e19156cf6f",
+   "53113dce7fdbca2d259258e256139cca21983ab1",
+   "b7fe532a4a6086076d7723f3aae0bad4329858b4",
+   "77caff6d32df4f34683f9f6d7f2ed671edd60e72",
+   "c698af9caa016b436c4f9dcbf659ca4f43bcca8e",
+   "6913a0f10b46678ed7aa47024eb69d06b8ebb694",
+   "76efeebf1a365992adc6e0573d7dc95b06ae1f94",
+   "dc432abaee1e531448b423c7fd7d806940510235",
+   "9867fd9eeae35916497fcbe3a13f518f396160ab",
+   "434c84485d7530b0462ba3b83a58b61dc48d15eb",
+   "ac7faae17ebc7612d27ecd4c098e5b77d2e45f24",
+   "2d1cfba7927d1ae1ece966451cd98b31268caf22",
+   "96e873580c34aeeed541db57512375b488b69098",
+   "d5d530ad7f0841ff8f40689145375ca5c3575c84",
+   "02f9e9ecce872a0befe5eaaca1e1997ef3ed5891",
+   "a19ebd91fba4d65ea25f5d693432f802e0621438",
+   "7c81ae5eb0ccc1adc9f4bf771c3931807d2dee0c",
+   "a95b097c781c282111c33a27b073c9243c5d08f2",
+   "d7b8b30fd6191fc0bd49b13b36ad634a24b9c974",
+   "8c6aeeb09bed2ba0ecf7809745666040e22de2cf",
+   "54937ea3ac7a30be1ae99af660e70bdd5c713f33",
+   "b25e371690e180e3b0696d7249be48e113cb9588",
+   "58a9f8cfe41d45a606eae245b9bd8a80029d1ebf",
+   "936e1198cb8c439c5a30f4ce8662f0f47dea36c2",
+   "453c12d07d223615661feea95186bd4698e9c4c9",
+   "8da13c4e958c1692149de6088a45365133e9b38b",
+   "2c5a4bfb24b771bdd87a280f896b8b7413c6c06d",
+   "64d8e785c44f2000f7be3b1529f2054689f160d6",
+   "7709d33dbde7aa6fbb8462c92cde964ae92929b5",
+   "740fccf3abf029668a6272ded4ca966ba99f547d",
+   "385cdfd06afb583b1533d373c829e29e3d7b62c0",
+   "4743f7328445e1cfb03757df8c7d7e75eccf234d",
+   "ef6995135ee495562dbe31a7c57cc09824925ff4",
+   "95c6be075cb8ace6508a7030e2a2e311bed19ab0",
+   "4d9a8f7ec0b7272b83d1f45e80682965eee64df1",
+   "2f6bab4f01cc54d820f8914d6ef8509fbbe294c2",
+   "ef701b856e5d54c1175b41a0a1d88b055edd9a54",
+   "5970dad055ad0ff1459deb20c15c920c89ad6516",
+   "f0b8dde8b78f1e2d8e408e0ac110ef08a81139ae",
+   "9ad4b80b34ee80d68550cdd7c4378e78c288073a",
+   "e9e4d1762de12e3864bfbf0e13758a005c8e7d50",
+   "3767f379ec7841edc230ed12a13443735296a472",
+   "9614b833364c0cbec5cfa92b19548a589409ee5d",
+   "dbf3ae741bec6ea2c83fa576b65b472000f414d3",
+   "ec4b00f35c8ce3bb1e6b5ee47c030818f143b60a",
+   "3aef0a520bb584b7d7aff95b57a1a5e13a3f42c8",
+   "32c5cbd286eb39fe7df7d9dd48a6f5e13031f60f",
+   "7c59470c741b065ddf350cff197853788494d936",
+   "0a95ca1717bd15b2c057c07f1916f9134e8ca2e5",
+   "a4ea6e2d7eb0e96235287af5c5d3f64452785ea8",
+   "75c46934eead49afc1fda7e9c714e8621b89293f",
+   "2cb723564be1e35b043a135169303896a0b7af56",
+   "c007184d9395e540030737f25651f83316fc84c3",
+   "8cf33d04db57850a42cb89f18bd95cd75daa74e8",
+   "c2c0b5e95398586d1e1f94e7acd2b2dff202bcbd",
+   "ad1f295fbe59931070c3e8e9bbea6a97af4aacc7",
+   "5c23ae42cc3dfe198b94626e4bba750d9622871c",
+   "613342a8ea9c96f99af5d987ffd59e033241ec85",
+   "dab705086187c4909946072be2e97b7b89e74e65",
+   "8f3fe648c553e0b85efd281d40e26a246e8b6d38",
+   "2cfd0d0421bdadcb4d8266fb332b99d0efeb012f",
+   "261473b9ac3fff090ba7c59b0dc9863cc49b8e5a",
+   "70d350d12f1cf934e2595deb5433e21b2ceb4aac",
+   "b95c953f21070ca113631a9fe2b790f65c92bc10",
+   "99c697417564f265991fc1a356bdc0b41c98d56f",
+   "d122e1a628514006a9fe68b3c1b2132ce5689839",
+   "50dc8694342b2d79411989bf9798135c816a585a",
+   "cd1022d02e32239473fc66cfd37d46d3a0a42c43",
+   "0a2420e34f0da4b3ca1e913d21fcddaabe299f9f",
+   "b21300c2cf63510afb9c7d4096c1ce7349db0fcf",
+   "554872c01d407a00b12c1934e8ae5428a2762344",
+   "ce198d158f6e76886901c175b069cd726a97e498",
+   "f8896ba8552039165a88cbe34b22e880ff6299f8",
+   "eb8e5e71cb68f8eb58d6bd3e6ba2ad32fd44aef8",
+   "63c6fa771a66c812bf367c04a042c23318b94a39",
+   "574f8be6ac3f1763536582deb8c36865cb4d52b6",
+   "ddfdac302f84a5a71fc958ad688a2ccce64644fe",
+   "70a81477d1f62e6fd5c24914bce3292c7c613130",
+   "3a866edf3026a89a0a4e2d945348bab1cef07413",
+   "1e5c40209bd7cc4ff71535f2faf5aab424d8f86a",
+   "cf7494325c1033ddf552397df4f4bb8603c05283",
+   "243c555197fe3956d0859387fd56422caabf4ee2",
+   "819723989b026d2f0e35d5b59186a5738fe2e647",
+   "639e7975947bd2d8e443a2bcae40a06d4322905b",
+   "7337d3309ad5026e0c4935d8315fae2c488d72d4",
+   "3facc156d1dcc5aef416b555f7011c33e54921c3",
+   "8b5857ad6f715bf5dd63f8a2d1000f2b771d2fb0",
+   "d84b5defce560ab0bde928d98ee138f6a67a4334",
+   "0c3828353e3d3f5cac36746966e69e362a5d591b",
+   "ac2ef06dcce2d29b54d16c9602188fa57ae551a0",
+   "92e95f378cd64d84d8e1aca406ea096d64f83924",
+   "b29f14ee15de809bfc7c51346291f7c129dee402",
+   "729bebd82da2ea09bcb1a081cc16cf6f9e523ffa",
+   "6ba25068f81c1660250c1506357a7827b6b0d9d9",
+   "7508a00940d6e0c7fdb39f2c5b64674909ea5e3f",
+   "359ddae62351d483527b6e7a1ac357c30c8766c9",
+   "884ff0d7c4afa6597f1fd0eb688cb4d2381be2db",
+   "0e56141514da95cf3ffccf44699e833f525341f0",
+   "b26bc3de3c49f36e0e3ac8229e9eb99736d88fd5",
+   "8d387632d6faf3a075d1608ef98bce5f05936e31",
+   "67fc895e3f92a0c80343ce113214658c56b71256",
+   "698ab5e6a02e00342de60a0ccac042b1d02171a3",
+   "b9b2db98105aeeaa4bfb6eca5537495c6aebc7a7",
+   "19797088430033bd7e54867276f1cc5c4a58b47d",
+   "b2e54257603411711250fbffe887350dd7cabb0b",
+   "8274f8ee5e11fe754499b6298638b74fbe2bf6c4",
+   "a22ac637bc138798ba8b94f35e453978018685b7",
+   "fcb69f9715392d8c0ae0fd1ed4e479a9b5db265c",
+   "00f7a029676c5bee4078a8a745c8de630fde5db9",
+   "9fcbb49e32f26e823b0ad5530c9fe3e4b2354cef",
+   "2c65f53325a0c9715be5aa4e117d860a455264be",
+   "adca7ffc82118478740e0ac83afa56ec0e4595db",
+   "cbb4fb73353961e69ecd1459a9dbaa2bfef01404",
+   "35b0a4c2f6c13e1a84759bfe75586be01bbbd447",
+   "5862e04e3b840e25f8bb7b0417a52807812e4b40",
+   "597adf5639e9715976ca6895ec6f62c1b55f0071",
+   "6db96497785e8e03446748c8d68d5137499fdec0",
+   "a1708208818cffa80a02c7c4c2b23ee26247eeb1",
+   "e9ee08b7e9e3e64ba3b371421a9516be41b408d3",
+   "0bb092b9d9766a738821bcb670e20f3fcadcb3e3",
+   "3dfde91676fae451c97a1a70e9bfdb4f76a5b82f",
+   "f911f7adc2bfe94b2729d079b446fd11141da956",
+   "89ea889d013a1b0cef4f98979bb966f2ca11fcc0",
+   "7b3afcbc28cf3aa421b3bd60f81d8a1346231f0b",
+   "2ecb6cff392b9c66220d34426ec30c554d39b75f",
+   "b7cb49afff3f5258a29815524e9ee49518fb04a2",
+   "59fd845688a2948c278bf68f2317dc05f2d4090d",
+   "9a166b233433466b0ed955d620f8ed90309a05c9",
+   "0ab898b5a746ec1dcc2f693295755aefcd7a051e",
+   "bdad38812e3e98acabe703846ba22719a74ae218",
+   "de75d7621280a8984058eef741b56f4124d17bbb",
+   "bc58c24df9d579545b2e8ba659456edc70c197ca",
+   "4a38c18cbe73976ab83b4b634173881d7f70a49a",
+   "5ce48fa66684c6657b943b534b0673ee42b4fde4",
+   "6344e684b7c62febb345ede1a77e89191370bb1e",
+   "db684e19d04fa73440b39dcb98a710e54ee536c3",
+   "b98c938ce6e020b04f28012ccc5d2fedd9d4ada6",
+   "e1a0d9fc1f063164ff53ffceb06ad3c867809ffb",
+   "c592b5a4c11699934d5376a8895070eff35bc5c9",
+   "645560a3d418e2acd53af1fffcb69ea6611f5d13",
+   "21f4677b68d174f2fc30c1fefbb6978dd03d7066",
+   "ddec87e0473875bd373925c1c562417b223ebf61",
+   "e106e59c245666c1ff8552dc80efd7eb8042c938",
+   "49d1c17f64c87a2c14d29f856b65b3e30af865d2",
+   "1752c164555c245a59fff2350a38b7d91c92eb6d",
+   "710945f7f378e15e25cfd6ff890826177048d5dd",
+   "7c61a285b759df288f6993a9e896a28ec993616f",
+   "2f8152e6ead12888cd1b4b4fde16ba5edd4299fc",
+   "4af6963a37a23a5f2566ba03ff34f6666e3d2576",
+   "532aa94d33da9637afcf4e89d058fe069a56f8b7",
+   "f7559fc1eca4a2018af92c32151f10b0a0e9e522",
+   "524b23367b594edda194045f70cfcf8780d52514",
+   "7965a4eb7305356cd10d1457734a2d42a2d9db91",
+   "d55cc913a32ef0ce50bcaadb2cc4932b51f7ca3e",
+   "7f79de3fb8686c6371ed26cfacfeea2623e3bc52",
+   "6132f1f7bfd740703d13e00a81e53aa89813e307",
+   "c52b9ba88da419bd72a0797c98f5b76c39e67129",
+   "1c3a6f071b13a097bd04998ec94adff59d3eb971",
+   "88168c462986cfbabaa44752a4181394b01719a9",
+   "4309fddd0704bdea9dedd026d579b1fb1c4d65fb",
+   "76e0e9ac9d17e7db1e1b8d5357aa2b1b144af26f",
+   "fde750bc974aaac0a48d848a157b560bd124d51d",
+   "680b2738b62d810931df78cf176250b31585141b",
+   "1425ee03ad8e13f0cbac163b983e562b42e3d4c4",
+   "ad33e0aafea70d5ca747d0f5774f694a00c1c1bc",
+   "0ca72afc45463e80cef8dc7831938dc15a4c9e96",
+   "302b1bf96e10353a3bce54a6ddd84ba171075e08",
+   "3ed439142946939de3dfb3e24255ae163301ca8c",
+   "491b1075146cb7980b4865fce86f57c08cd52463",
+   "4797f56d406c350fd14ab30377ad4992880f5324",
+   "488505a87dc3e699c6ec00e934f204acda60279e",
+   "68d4c308a6e92321918cd85def45a35fcc06a25c",
+   "bf20f73838075f8f3acf4f8596cc06a0bb8317c9",
+   "8a4cb56762a61a7ff3c898f334e05e2ae9d4a866",
+   "f8dce152060d3bd2317dd2773ad1f4bd12bd194c",
+   "9951585b696028be5bf1e002fbd0b58efa3d91f7",
+   "c22314d38cb9cac0facdc2e08a9afd406206ce83",
+   "c9b83adc08110d6b5b30f21f20f8273c7f9d8f77",
+   "c285623750f61a3d26de2896b1f1724ab4daf537",
+   "fb0e89320ced148eb41b2f16643444357f39425f",
+   "4ae1ac7810ef9db3e5565fc3d36a5d4d09fd2f0c",
+   "fd7d91a5a43a75064659fae250b5b94e621d45ed",
+   "2e3193f745570c26241180bbadf5a1bfe917ae07",
+   "bfb44bc71d740247798a51f729687ff5d035f518",
+   "80bcf4f252ee894f47a3c33c558ef750c3592a1d",
+   "ffb16427b55e959ad65d4d081aba873c11d0bdb1",
+   "02720d28cc840fa0a1ec05b57505bb186c8804f5",
+   "af0638159628f719a762a217a041b5cc1df172d2",
+   "36847617b0f088c04d1b0d887f0ebebb096cf3f7",
+   "4e0363088f344e0197caf411a012bfc036afdc61",
+   "d0a3037f7e7b7d6575adbc56fb5300ec381b3209",
+   "f88aac0e8be900956cd4a161f49044dc89736152",
+   "e7df524e0d9e797700e7c589d9387209ab7ac9e2",
+   "f91de9489ea8a297a5a94fd846ce8d74eca212dc",
+   "a439262b49f2b791a29533b2a27b84555d3d8508",
+   "5969dede0c77d74ad69426797afe430f61986bc2",
+   "807475b928266a619d5a568938e0f6eddfbbe828",
+   "b6cb9f3d990452f4c345d358507ebea76d211929",
+   "bb00ab8a549389504e304e1b34013d175c96d2f9",
+   "83ba9a1fe7a161faf7c840561cd8a7300cacf7de",
+   "2446257be41e86362fe76222d73518ae4ee9bd8d",
+   "52dcde1d849a2a6c69c8b96b96cb04b2cd75d735",
+   "9d198b8164210deb9bd1e27dc7b089736590a571",
+   "46c1e882c1a79cca2bba4afc7a71a6e6fc4c2377",
+   "8c1311ae26dfa9cd6c29a9e3e7cc967392e86114",
+   "fde4bddca7def29be37fab07a0849e0a2434798d",
+   "11aa0efb2af25e6463e9e0d0d8b1994d204dce21",
+   "ae41e215d949a7db47801b10227db420341dc8fc",
+   "b89c49702c0f3e40017421e1e8243964abd68981",
+   "4150f1df776190b2812303e007489d3c767897fc",
+   "68cf496df7f202ed961cf467d10b636e34f103ad",
+   "48b8967b07b204f85ba252fc92e8bc52c3d91a1e"
+  ],
+  "window": {
+   "moves_inside_scope_per_file": {
+    "test_swe_guest.py": 50,
+    "test_swe_loop.py": 30,
+    "test_swe_regiontools.py": 30
+   },
+   "n_commits": 241,
+   "n_digest_moves": 65,
+   "n_moves_inside_some_scope": 50
+  }
+ },
+ "window_n": 241
+}

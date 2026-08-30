@@ -52,6 +52,13 @@ Fail-closed rules, all three load-bearing (cf. round 340's `gap_continuity`):
      it names the directory. 9: a scope is usable only if the record is well
      formed AND the run spawned no subprocess; anything else falls back to
      rule 2 unchanged, so no entry is ever fresher than round 341 made it.
+  10. (round 367) A run that did not FINISH may not narrow anything. A
+     process killed by the timeout, interrupted, or dead of an internal or
+     collection error read LESS of the checkout than a healthy one would
+     have, so its scope is an under-approximation and narrowing on it is
+     fail-open. `failed` is NOT that case and still narrows — a pytest run
+     reporting "1 failed, 11 passed" imported everything it was going to.
+     See `_refuse_scope_if_incomplete`.
 
 Everything here is offline-testable: `run_slice` takes an injectable
 `runner`, so no test in `test_slowtier.py` shells out to pytest.
@@ -197,32 +204,72 @@ class DepScanFailed(Exception):
     """Raised internally when a source will not parse; callers fall back."""
 
 
-def _module_rel(mod):
+class _WorkingTreeSources(object):
+    """The harness sources as they are on disk — the default everywhere.
+
+    Round 367 (harness A) split this out so `harness_deps` can be run
+    against a source set that is NOT the working tree, which is what
+    `swe/ledgerreplay.py` needs to replay the ledger's freshness states
+    against historical commits. Without it the replay would have to
+    re-implement the import scan over git blobs, and a second copy of this
+    logic is `skills/copied-mirror-drift`'s exact shape: the replay would
+    keep answering the question the scan used to answer.
+
+    Three methods, all harness-relative (`swe/fuzz.py`, `tests/conftest.py`):
+    `exists`, `read` (text, may raise IOError/OSError), `all_swe_rels`.
+    """
+
+    def exists(self, rel):
+        return os.path.exists(os.path.join(HARNESS_ROOT, rel))
+
+    def read(self, rel):
+        with open(os.path.join(HARNESS_ROOT, rel), encoding="utf-8") as f:
+            return f.read()
+
+    def all_swe_rels(self):
+        out = []
+        for dirpath, dirnames, names in os.walk(SWE_DIR):
+            dirnames[:] = [d for d in dirnames if d not in _IGNORED_DIRS]
+            for n in sorted(names):
+                if n.endswith(".py"):
+                    rel = os.path.relpath(os.path.join(dirpath, n),
+                                          HARNESS_ROOT)
+                    out.append(rel.replace(os.sep, "/"))
+        return sorted(out)
+
+
+#: The default source set: the working tree. Every public entry point keeps
+#: its round-343 signature and behaviour when this is used.
+WORKING_TREE = _WorkingTreeSources()
+
+
+def _module_rel(mod, sources=WORKING_TREE):
     """`swe.fuzz` -> harness-relative `swe/fuzz.py`; None if not ours."""
     parts = mod.split(".")
     if not parts or parts[0] != "swe":
         return None
     cand = os.path.join(*parts) + ".py"
-    if os.path.exists(os.path.join(HARNESS_ROOT, cand)):
+    if sources.exists(cand.replace(os.sep, "/")):
         return cand.replace(os.sep, "/")
     pkg = os.path.join(os.path.join(*parts), "__init__.py")
-    if os.path.exists(os.path.join(HARNESS_ROOT, pkg)):
+    if sources.exists(pkg.replace(os.sep, "/")):
         return pkg.replace(os.sep, "/")
     return None
 
 
-def _swe_imports(full_path, inside_swe):
-    """Every `swe.*` module name imported by one source file.
+def _swe_imports_source(text, label, inside_swe):
+    """Every `swe.*` module name imported by one source TEXT.
 
-    `inside_swe` says whether the file lives in the `swe` package, which is
-    what a relative import (`from . import killers`, `from .fuzz import X`)
-    resolves against — the package is flat, so level is always 1 there.
+    Split out from `_swe_imports` in round 367 so the same scan can run over
+    a git blob (see `_WorkingTreeSources`). `inside_swe` says whether the
+    file lives in the `swe` package, which is what a relative import
+    (`from . import killers`, `from .fuzz import X`) resolves against — the
+    package is flat, so level is always 1 there.
     """
     try:
-        with open(full_path, encoding="utf-8") as f:
-            tree = ast.parse(f.read(), full_path)
-    except (IOError, OSError, SyntaxError, ValueError):
-        raise DepScanFailed(full_path)
+        tree = ast.parse(text, label)
+    except (SyntaxError, ValueError):
+        raise DepScanFailed(label)
     mods = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
@@ -248,54 +295,60 @@ def _swe_imports(full_path, inside_swe):
     return mods
 
 
-def _all_swe_rels():
-    out = []
-    for dirpath, dirnames, names in os.walk(SWE_DIR):
-        dirnames[:] = [d for d in dirnames if d not in _IGNORED_DIRS]
-        for n in sorted(names):
-            if n.endswith(".py"):
-                rel = os.path.relpath(os.path.join(dirpath, n), HARNESS_ROOT)
-                out.append(rel.replace(os.sep, "/"))
-    return sorted(out)
-
-
-def harness_deps(test_file, tests_dir=TESTS_DIR):
+def harness_deps(test_file, tests_dir=TESTS_DIR, sources=WORKING_TREE):
     """Harness-relative paths whose content can change `test_file`'s outcome.
 
     Returns a sorted list. Falls back to the whole `swe/` package (plus the
     always-loaded files and the test itself) when the static scan cannot be
     trusted — see this section's header.
+
+    `sources` (round 367) is where the scanned text comes from; the default
+    is the working tree, and `tests_dir` then still selects which directory
+    the test file is read from. A caller that passes a non-default `sources`
+    is scanning a different source set (a git revision, say) and gets the
+    harness-relative layout `tests/<file>`.
     """
     test_rel = os.path.relpath(os.path.join(tests_dir, test_file),
                                HARNESS_ROOT).replace(os.sep, "/")
     base = set(_ALWAYS_LOADED) | {test_rel}
-    base = set(p for p in base
-               if os.path.exists(os.path.join(HARNESS_ROOT, p)))
+    base = set(p for p in base if sources.exists(p))
     try:
-        seen, queue = set(), list(_swe_imports(
-            os.path.join(tests_dir, test_file), inside_swe=False))
+        seen, queue = set(), list(_read_swe_imports(
+            sources, test_rel, inside_swe=False))
         while queue:
             mod = queue.pop()
             if mod in seen:
                 continue
             seen.add(mod)
-            rel = _module_rel(mod)
+            rel = _module_rel(mod, sources)
             if rel is None:
                 continue
             base.add(rel)
             # A submodule's package `__init__.py` is executed on import.
             parts = mod.split(".")
             for i in range(1, len(parts)):
-                pkg = _module_rel(".".join(parts[:i]))
+                pkg = _module_rel(".".join(parts[:i]), sources)
                 if pkg:
                     base.add(pkg)
-            queue.extend(_swe_imports(os.path.join(HARNESS_ROOT, rel),
-                                      inside_swe=True))
+            queue.extend(_read_swe_imports(sources, rel, inside_swe=True))
         if not any(p.startswith("swe/") for p in base):
             raise DepScanFailed(test_file)          # blind scan -> fall back
     except DepScanFailed:
-        base |= set(_all_swe_rels())
+        base |= set(sources.all_swe_rels())
     return sorted(base)
+
+
+def _read_swe_imports(sources, rel, inside_swe):
+    """`_swe_imports_source` over a harness-relative path from `sources`.
+
+    A source that cannot be read is a scan failure, not a crash — the same
+    fail-closed fallback the round-343 version took on an unreadable file.
+    """
+    try:
+        text = sources.read(rel)
+    except (IOError, OSError, ValueError, KeyError):
+        raise DepScanFailed(rel)
+    return _swe_imports_source(text, rel, inside_swe)
 
 
 def dep_digests(test_file, tests_dir=TESTS_DIR, deps=None):
@@ -362,8 +415,22 @@ def scope_digests_now(entry, whence_root=DEFAULT_WHENCE):
     pre-round-361 entry and every entry whose run was opaque or whose record
     was torn — `readscope.scope_is_narrowable` is the single predicate.
     """
-    scope = (entry or {}).get("subject_scope")
+    entry = entry or {}
+    scope = entry.get("subject_scope")
     if not isinstance(scope, dict) or not readscope.scope_is_narrowable(scope):
+        return None
+    # Rule 10, applied on the READ side as well as the write side. Stamping
+    # the refusal into new entries (`_refuse_scope_if_incomplete`) leaves
+    # every entry already in the ledger under the old fail-open rule, and a
+    # ledger is append-only — the round that ships a rule does not get to
+    # rewrite the records that predate it. So the same question is asked of
+    # the entry itself, from data it has always carried. Today this changes
+    # nothing (no entry in the ledger is both incomplete and narrowable),
+    # which is the point: the guard exists for the next timeout, not for a
+    # backlog.
+    if entry.get("timed_out") or (
+            "returncode" in entry
+            and entry["returncode"] not in _COMPLETED_RETURNCODES):
         return None
     dirs = scope.get("dirs")
     if not isinstance(dirs, list):
@@ -637,6 +704,53 @@ def pytest_runner(test_file, tests_dir=TESTS_DIR, timeout_s=3000,
             "scope": scope}
 
 
+#: pytest return codes that mean THE RUN FINISHED AND REPORTED: 0 (all
+#: passed) and 1 (tests failed). Everything else — 2 interrupted, 3 internal
+#: error, 4 usage error, 5 nothing collected, and the -9 this module stamps
+#: on a timeout kill — means the process stopped early.
+_COMPLETED_RETURNCODES = (0, 1)
+
+
+def _refuse_scope_if_incomplete(scope, result):
+    """Fail-closed rule 10 (round 367): a run that did not FINISH may not
+    narrow anything.
+
+    Round 361 shipped rules 7-9 and named this hole in its own next steps:
+
+        Scope is measured from a run that may have failed early. A crashed
+        run reads less than a healthy one, so its scope is an
+        under-approximation. Today `run_slice` narrows on any outcome
+        including `failed`. Either refuse to narrow on a non-`passed`
+        outcome or record the decision knowingly — this round did neither.
+
+    The choice made here is deliberately NOT "narrow only on `passed`". A
+    pytest process that reports `1 failed, 11 passed` collected and imported
+    everything it was going to; its read-set is complete, and refusing to
+    narrow it would throw away the one state the module most wants to keep
+    visible (`fresh_fail_scoped`, which counts in `n_failing`). What makes a
+    read-set an under-approximation is the process stopping EARLY — a
+    timeout kill, an interrupt, an internal error, a collection failure —
+    and pytest already distinguishes those by return code.
+
+    The refusal is written into the scope RECORD (`ok: False`, with `why`
+    saying which return code caused it) rather than into a new entry field,
+    so every consumer refuses through the single predicate
+    `readscope.scope_is_narrowable` — present and future, without knowing
+    this rule exists. `dirs` and `opaque` are kept so a human reading the
+    ledger can still see what was measured and why it was not used.
+    """
+    if result.get("timed_out"):
+        why = "run-did-not-complete: timed out"
+    elif result.get("returncode") not in _COMPLETED_RETURNCODES:
+        why = "run-did-not-complete: rc=%s" % (result.get("returncode"),)
+    else:
+        return scope
+    out = dict(scope)
+    out["ok"] = False
+    out["why"] = why
+    return out
+
+
 def run_slice(files, ledger_path=DEFAULT_LEDGER, whence_root=DEFAULT_WHENCE,
               runner=pytest_runner, clock=time.time, log=None,
               tests_dir=TESTS_DIR):
@@ -670,6 +784,7 @@ def run_slice(files, ledger_path=DEFAULT_LEDGER, whence_root=DEFAULT_WHENCE,
         # gated exactly as a round-341 entry is.
         scope = r.get("scope") or {"ok": False, "dirs": [], "opaque": [],
                                    "n_reads": 0, "why": "runner-gave-none"}
+        scope = _refuse_scope_if_incomplete(scope, r)
         narrow = readscope.scope_is_narrowable(scope)
         scope_digs = (readscope.scope_digests(whence_root, scope["dirs"])
                       if narrow else None)
@@ -694,7 +809,7 @@ def run_slice(files, ledger_path=DEFAULT_LEDGER, whence_root=DEFAULT_WHENCE,
             "harness_stable": harness_stable,
             "subject_scope": scope,
             "subject_digests": scope_digs,
-            "schema": 3,
+            "schema": 4,
             "tail": r.get("tail", "")[-800:],
         }
         append_entry(ledger_path, entry)
