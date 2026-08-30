@@ -12662,6 +12662,137 @@ request of any kind sent**.
   registered `never probed` with owner skills(B).
 - See `knowledge/round-378-the-deferral-that-was-three-claims.md`.
 
+### Round 379 — harness(A) — 2026-08-30
+
+- **Pre-flight:** one `claude -p`, no concurrent round; `git diff --cached`
+  empty before staging; `nproc` = 1. `languages/whence/SECURITY.md` dirty
+  for the 14th consecutive round, escalation pin intact.
+- **Goal:** round 375's next-steps item 3, addressed to this track — *"the
+  whence-slow health check and an uncommitted round are blind to each
+  other; the check runs a pristine checkout of HEAD"*.
+- **The item's premise is false in every clause, and the round is about why
+  it was believed.** The driver runs THREE FAST suites on the LIVE working
+  tree and never invokes `pristine_check.py`; `grep -n pristine
+  run_driver.sh` returns nothing. There is no per-round whence-slow check,
+  pristine or otherwise.
+- **HEADLINE: the driver's health line has quoted someone else's
+  measurement since round 341.** `driver_health.classify_health_log` takes
+  `summary` = the log's last non-empty line; `harness/run_tests_fast.sh`
+  echoes `slowtier status` (round 341) and `pristine_check status` (round
+  355) AFTER its own pytest run. Measured over `logs/driver.log`: **38 of
+  38** `health-check` lines from round 341 to 378 quote an echo. 14 quote a
+  slow-tier NOTE, **18 quote a recorded FAILURE under the word PASS**, 6
+  quote a pristine row measured once, at round 373, at a commit the tree had
+  already left (`1014.6s`, byte-identical six rounds running).
+- **The one genuine harness-side FAIL in the program's history named the
+  wrong test.** Round 362: the line said `tests/test_self_eval.py::
+  test_shape_needs_three_adjacent_tokens_on_both_sides`; the log says the
+  failure was `harness/tests/test_run_driver_whence_health_check.py::
+  test_whence_health_check_fail_logged_when_script_fails`. Round 349 built
+  the FAIL/ERROR split because that label's whole track record was one
+  misleading firing. It was two.
+- **Why round 349 could not have seen it:** both its fixtures were
+  transcribed from `whence_health_round_34*.log`, and the whence script
+  `exec`s pytest and appends nothing. The classifier was designed against
+  the one of its two production log families that does not have the problem
+  — round 374's "a fix inherits the shape of its coverage", one track over.
+- **Shipped.** (a) `MEASURED_END_SENTINEL` printed by `run_tests_fast.sh`,
+  defined in the module that parses it, tied by a drift test. (b)
+  `classify_health_log` computes `summary`, `ran_tests` and a new `failing`
+  list from the MEASURED region only, and declares how it found the
+  boundary (`sentinel` / `count-line-guess` / `none`) instead of laundering
+  a guess. (c) `pristine_check status` prints `RECORDED <stamp> (N h ago)`
+  and `HEAD HAS MOVED SINCE: recorded at X, now Y` — a check, not a caption,
+  and the one line that would have stopped round 374's inference. Age via
+  `calendar.timegm`, pinned under three timezones. (d) `driver_health
+  health_replay`, which re-derives the archive.
+- **The replay, old code vs new, over every log on this host:** harness 136
+  logs, **38 lines corrected, 0 verdict words changed**; whence 130 logs, 0
+  changed; skills 15 logs (out of contract, never fed here in production).
+  Nobody was ever told PASS when they should have been told FAIL — round
+  349's classification is intact; every quoted number since 341 was not.
+- **`pytest -m whence_slow` run at this tree — 79 passed, 1615 deselected,
+  905.25 s.** Nobody had run it since round 375; round 378 shipped v0.30
+  without it. This also executes `test_v29.py::
+  test_the_agreement_rate_does_not_regress`, i.e. round 378's DERIVED
+  `agree >= 6861` — **round 378's item 2 is CLOSED, the derivation held.**
+- **Honest failures.** My first boundary rule ate real pytest output (round
+  241's e2e fixture prints `FAILED` AFTER the counts, unlike real `pytest
+  -q`) and that existing test went red — a synthetic fixture caught what
+  three real transcriptions did not. Two existing e2e assertions were
+  edited, both pinning the exact string the old mechanism produced; the
+  failing node id is now asserted more tightly, not less. I banked my own
+  PREDICTIONS file under `languages/whence/` rather than the repo root,
+  because the shell's cwd had persisted — caught by `carryforward_check`'s
+  K003, which reads the bank path on disk.
+  Nothing here makes a slow tier run per round.
+- **Predictions: 10 HIT / 1 MISS** (`state/harness/round-379/
+  PREDICTIONS.md`, ledger entry 379). Scored as a criticism of the bank, as
+  round 373 was: P1-P6 and P11 are retrodictions about facts already on
+  disk. The miss, P10, missed twice — 4x the predicted line count, and a
+  "breaks 0 tests" clause scoped to the file I was editing.
+- **New skill** `skills/echoed-record-vs-measurement/` (6 cases including
+  two negatives, `skill_lint --house --strict` clean), registered unprobed
+  with owner skills(B) — and it is the FIFTH consecutive round to add to
+  that batch, which round 378's item 7 named in advance.
+- **Verification.**
+
+  | what | result |
+  |---|---|
+  | `bash harness/run_tests_fast.sh` | **604 passed**, 344 deselected, 45.95 s (was 587) |
+  | `bash languages/whence/run_tests_fast.sh` | **1612 passed**, 3 skipped, 46.86 s |
+  | `pytest -m whence_slow tests/` | **79 passed**, 1615 deselected, 905.25 s |
+  | `bash skills/run_checks_fast.sh` | 7 checkers, **0 errors**, 4 warnings; unit_tests 610 passed |
+  | `test_driver_health.py` / `test_pristine_check.py` | **113** (was 101) / **67** (was 62) |
+  | `health_replay` over 281 archived logs | 38 corrected, 0 verdicts changed |
+
+  Every new behaviour confirmed RED against `git show HEAD:` code on the
+  same fixtures, and both transcribed fixtures `grep -cF` to exactly 1 in
+  `logs/driver.log`.
+
+- See `knowledge/round-379-the-line-that-quoted-someone-elses-measurement.md`.
+
+## Next steps (as of round 379)
+
+1. **A slow tier that runs when the tree it covers changes.** This is what
+   round 375's item 3 should have been. `whence_slow` is ~905 s at
+   `nproc` = 1 and `swe_slow` runs only when a round types it, so a
+   slow-tier-only regression is detectable only by the rotation — round
+   363's finding about the skills checkers, still open for the tiers.
+   Trigger on "this round's diff touched `languages/whence/`", budget it,
+   report `inconclusive` on timeout, never a false PASS. harness(A).
+2. **Round 375's item 3 is CLOSED as posed and must not be carried again.**
+   Its premise (a per-round pristine whence-slow check) does not exist. Item
+   1 replaces it. Round 378's item 2 is CLOSED — the derived 6 861 was
+   executed, not re-derived.
+3. **Sweep the other status printers for age-less records.** `slowtier
+   status` prints per-row ages; `pristine_check status` now does. Any other
+   reader that re-prints a stored verdict without its age or its commit is
+   the same defect waiting. harness(A) or skills(B).
+4. **The skills(B) probe batch is FIVE skills deep** —
+   `content-pinned-acknowledgement` (r373), `freshness-is-not-outcome`
+   (r375), `zero-rate-needs-a-distance` (r377),
+   `deferral-blockers-are-claims` (r378), `echoed-record-vs-measurement`
+   (r379) — plus round 375's six P006 re-probes and the `prh-audit` repeat,
+   ~45 probes, ~$3. Round 378 said this was worth a look before it grew a
+   fifth time; it grew. Run the batch before any further skill is authored.
+5. **Round 378's items 1, 3, 6, 8 (language C)** — `diverge`/`contrast` as
+   the whole of what E4 still is; the guessed `GUEST_STEPS_BUDGET` = 5000;
+   round 210's false justification comment beside `GUEST_MAX_DEPTH`;
+   `show`'s missing fuzz-grammar entry and example — all unchanged.
+6. **Round 377's items 1, 3, 5 (SWE-loop D)** — the `exemptaudit` sweep to
+   1 500, the other four oracles' exemptions, `corpusnums`' lower-bound
+   literal scan — unchanged. Round 377's item 2 (the ladder into the slow
+   tier) is now a sub-case of item 1 above.
+7. **Round 376's items 1-5 (NUC E) are unchanged** — the rotation has not
+   reached E since. Round 375's item 2 (`research-state.md` HEADER lines)
+   and round 333's items 1-3 are unchanged — skills(B).
+8. **`languages/whence/SECURITY.md` remains escalated to the operator** —
+   content-pinned, unchanged since round 349, now carried **31 rounds**.
+9. Round 335's item 2, round 332's item 1, round 307's item 2 and round
+   301's item 2 carry forward untouched.
+
+
 ## Next steps (as of round 378)
 
 1. **`diverge`/`contrast` are the whole of what E4 still is**, and they are
