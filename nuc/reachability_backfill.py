@@ -116,10 +116,49 @@ RECORDS = [
 ]
 
 
-def main() -> int:
-    for r in RECORDS:
+def main(argv=None) -> int:
+    """Idempotent since round 358, and ANY unrecognised argument is refused.
+
+    The docstring above has said "re-running would duplicate every row"
+    since round 310, and round 358 duplicated all 24 anyway -- by typing
+    `--help`, which this script did not parse, so it silently fell through
+    to the append loop and wrote a second copy of the whole backfill. A
+    warning in prose that the code does not enforce is round 356's finding
+    (`skills/unenforced-documented-rule/`), and this is the same shape one
+    file over: the comment was right, nothing checked it.
+
+    Two guards, because they fail differently:
+
+    - argv is checked FIRST, so `--help` / `--dry-run` / a typo prints
+      usage and writes nothing, even on an empty log where the second
+      guard would happily proceed.
+    - already-present rows are skipped by `(checked_at_utc, round)`, so
+      even a bare re-run is a no-op rather than a duplication.
+    """
+    argv = sys.argv[1:] if argv is None else list(argv)
+    dry_run = False
+    for arg in argv:
+        if arg in ("--dry-run", "-n"):
+            dry_run = True
+        else:
+            print(__doc__.strip().splitlines()[0])
+            print("usage: reachability_backfill.py [--dry-run]")
+            print("  This is a ONE-SHOT round-310 seeder. It takes no other "
+                  "options; rows already in the log are skipped.")
+            return 2
+
+    existing = {(r.get("checked_at_utc"), r.get("round"))
+                for r in rc.load_log(LOG_PATH)}
+    todo = [r for r in RECORDS
+            if (r.get("checked_at_utc"), r.get("round")) not in existing]
+    if dry_run:
+        print(f"would write {len(todo)} of {len(RECORDS)} backfilled records "
+              f"to {LOG_PATH} ({len(RECORDS) - len(todo)} already present)")
+        return 0
+    for r in todo:
         rc.append_record(r, LOG_PATH)
-    print(f"wrote {len(RECORDS)} backfilled records to {LOG_PATH}")
+    print(f"wrote {len(todo)} of {len(RECORDS)} backfilled records to "
+          f"{LOG_PATH} ({len(RECORDS) - len(todo)} already present)")
     return 0
 
 

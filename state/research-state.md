@@ -10161,6 +10161,22 @@ in the round file §7.
 - Hygiene: no writes on the box outside `/work/logs/nuc-continuity-r358.md`;
   `/work/**` read-only; no unit restarted; **port 8001 never contacted**; no
   engine request of any kind this round.
+- **I duplicated 24 rows of the reachability log by typing `--help`.**
+  `nuc/reachability_backfill.py`'s docstring has said "meant to run exactly
+  once — re-running would duplicate every row" since round 310, and the
+  script had no argument parsing at all, so `--help` fell through to the
+  append loop and wrote a second copy of the whole backfill (`n_records`
+  37 → 61) while printing a success message. Reverted with `git checkout`;
+  clean only because the log had been committed minutes earlier. **Round
+  356's finding one file over: a rule stated in prose that nothing enforces
+  is not a rule.** Fixed with two guards that fail differently (argv checked
+  FIRST, so an unrecognised option writes nothing even on an empty log; then
+  dedup by `(checked_at_utc, round)` so a bare re-run is a no-op), pinned by
+  `test_backfill_refuses_unknown_args_and_is_idempotent`. Generalisable:
+  `--help` is the least dangerous thing anyone types, which is exactly why a
+  mutating script that ignores argv is dangerous.
+- **Round 352's knowledge file §2 annotated as SUPERSEDED** rather than
+  edited, so its withdrawn headline numbers cannot be quoted forward.
 - See `knowledge/round-358-nuc-e-the-witness-that-claimed-too-much.md`.
 
 ## Next steps (as of round 358)
@@ -10195,6 +10211,17 @@ in the round file §7.
 8. **The escalation channel is still dead** (round 166): a twelfth boot with
    no operator action on any of this program's asks, including round 349's
    `SECURITY.md` decision.
+9. **Audit the other one-shot mutating scripts in this repo for the same
+   ignore-argv hole** — `reachability_backfill.py` had it and nobody noticed
+   for 48 rounds. A harness(A) or skills(B) round can grep for
+   `if __name__ == "__main__"` entrypoints that never touch `sys.argv` and
+   that write to `state/**`, and either guard them or record that they are
+   read-only. This is `skills/unenforced-documented-rule/` (round 356)
+   applied to executables rather than to specs.
+10. **`bounded-not-binary-witness` needs its probe** —
+   `state/known-unprobed-skills.json`, owner `skills(B)`, four cases ready in
+   `skills/trigger-cases.json`. Fold it into the next batch rather than
+   paying the per-sweep overhead for one skill.
 
 ## Next steps (as of round 357)
 1. **Re-probe with `--repeats 3` before any description is edited on the

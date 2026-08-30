@@ -54,6 +54,24 @@ because the kernel starts before journald's first write. I nearly recorded the
 
 ## 2. Round 340's boot-history witness, first live run: 67h26m22s → 0h00m00s
 
+> **SUPERSEDED BY ROUND 358 — the numbers in this section are withdrawn.**
+> The whole section rests on `_boot_history_witness` returning
+> `WITNESS_FULL` for journal ENDPOINT coverage. Round 358 established that
+> was never earned: endpoint coverage rules out a REBOOT and nothing else,
+> the identical exclusion `boot_utc unchanged` already made, and it cannot
+> see a suspend — which the caveat at the end of this very section says out
+> loud. Two rules that rule out the same thing must return the same
+> strength. Corrected figures: **19 of 32 gaps unwitnessed, 70h53m11s
+> unwitnessed, `max_unobserved_outage` 14h00m00s (rounds 142→154),
+> `transition_count_upper_bound` None.** What round 358 built in its place
+> is a measured BOUND (`WITNESS_BOUNDED` + journal interior timestamps): on
+> the rounds 352→358 gap, 3h26m49s of gap with a longest interior silence
+> of **96 s**. Do not quote `unwitnessed 0h00m00s`,
+> `max_unobserved_outage: None`, `transition_count_upper_bound: 4`, or the
+> "31 / 31" and "0h00m00s" cells in the table below. See
+> `knowledge/round-358-nuc-e-the-witness-that-claimed-too-much.md`.
+
+
 Round 340 built `_boot_history_witness` and could only fixture-test it. On
 real data, `continuity` with and without the boot history:
 

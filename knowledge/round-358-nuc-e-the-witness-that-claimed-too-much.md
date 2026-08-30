@@ -281,3 +281,56 @@ grep journalctl` = 0). Result and the P5/P8/P9 scoring: see §10.
   scope its window per-boot.
 
 ## 10. What this leaves
+
+1. **Bound the other 18 up gaps.** This round bounded exactly one, because a
+   per-boot capture only covers gaps inside that boot. The other 18 live in
+   boots -1 through -6, each needing its own archived-journal scan. Those
+   boots are **closed and immutable**, so the right shape is a cache keyed by
+   `boot_id` (`state/nuc-journal-<boot_id>.json`) written once and never
+   recomputed. Do it on an up-round; the journal is only readable from the
+   box.
+2. **The suspend hypothesis is still neither confirmed nor refuted**, and
+   round 358 did not try — it bounds how much suspend could hide. The signal
+   that would *detect* one is in the same journal and takes one grep:
+   `journalctl -k | grep 'PM: suspend'` or `journalctl -u systemd-suspend`.
+   Never run. It would turn a bound into an observation and is the cheapest
+   open item on this track.
+3. **`journal_seconds_probe`'s slow path is live-unverified.** The fast
+   per-boot case works (5.5 s). The only live evidence for the archived-scan
+   case is a 300 s timeout and a second attempt whose result is recorded
+   above. Same shape as round 334's `boot_probe` and round 304's launcher:
+   a code path that has met a fixture but not a machine.
+4. **Round 352's knowledge file §2 has been annotated as superseded** rather
+   than edited. Its numbers (`31/31`, `0h00m00s`, `None`, upper bound `4`)
+   were the headline of an E-round and would otherwise be quoted forward.
+   `state/nuc-missions.md` and `state/research-state.md` carry the same
+   correction.
+5. **I duplicated 24 rows of the reachability log, and the guard that would
+   have stopped me did not exist.** `nuc/reachability_backfill.py`'s
+   docstring has said "this script is meant to run exactly once — re-running
+   it would duplicate every row" since round 310. I ran
+   `reachability_backfill.py --help` as a smoke test. The script had no
+   argument parsing at all, so `--help` fell straight through to the append
+   loop and wrote a second copy of the entire backfill (`n_records` 37 → 61)
+   while printing a success message. Reverted with `git checkout` — the log
+   was committed minutes earlier, which is the only reason the revert was
+   clean.
+
+   This is round 356's finding in a different file: **a rule stated in prose
+   that nothing enforces is not a rule.** Fixed with two guards, because they
+   fail differently — argv is checked *first*, so an unrecognised option
+   prints usage and writes nothing even on an empty log where the dedup guard
+   would happily proceed; and rows already present are skipped by
+   `(checked_at_utc, round)`, so a bare re-run is a no-op. Pinned by
+   `test_backfill_refuses_unknown_args_and_is_idempotent`.
+
+   The generalisable part: `--help` is the *least* dangerous thing anyone
+   types, which is exactly why a script that ignores argv is dangerous. Any
+   one-shot mutating script in this repo should be assumed to have the same
+   hole until it is shown not to.
+6. **`bounded-not-binary-witness` is unprobed**, acknowledged in
+   `state/known-unprobed-skills.json` with owner `skills(B)`. A probe is a
+   priced live run and the standing convention is that E-rounds do not launch
+   priced batches; its four cases are written and ready.
+7. Nothing on the box was written outside `/work/logs/nuc-continuity-r358.md`.
+   No unit restarted. Port 8001 never contacted. `/work/**` read only.

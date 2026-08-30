@@ -2112,3 +2112,42 @@ def test_boot_history_witness_closes_every_up_gap_the_probes_could_not():
     # now has a reboot ruled out by a continuous record, including the ones
     # whose endpoints predate the `boot_utc` field entirely.
     assert sum(1 for g in up_gaps if g["witness_source"] == "boot_history") >= 18
+
+
+# --- round 358: the one-shot backfill must be one-shot in CODE, not in prose
+
+def test_backfill_refuses_unknown_args_and_is_idempotent(tmp_path, capsys, monkeypatch):
+    """Round 310's `reachability_backfill.py` docstring said "re-running it
+    would duplicate every row" and nothing enforced it. Round 358 duplicated
+    all 24 rows by typing `--help`, which the script did not parse: it fell
+    through to the append loop. Same shape as round 356's unenforced
+    documented rule, one file over.
+
+    Both guards are pinned, because they fail differently: the argv guard
+    protects an EMPTY log (where the dedup guard would happily proceed), and
+    the dedup guard protects a bare re-run (which passes the argv guard)."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "reachability_backfill",
+        Path(__file__).resolve().parents[1] / "reachability_backfill.py")
+    bf = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(bf)
+
+    log = tmp_path / "log.jsonl"
+    monkeypatch.setattr(bf, "LOG_PATH", str(log))
+
+    # argv guard, on an EMPTY log: writes nothing, exits non-zero
+    assert bf.main(["--help"]) == 2
+    assert not log.exists()
+    assert bf.main(["--boot-history", "x"]) == 2
+    assert not log.exists()
+
+    # the real run seeds it
+    assert bf.main([]) == 0
+    first = log.read_text().splitlines()
+    assert len(first) == len(bf.RECORDS)
+
+    # dedup guard: bare re-runs and dry runs are no-ops, byte for byte
+    assert bf.main([]) == 0
+    assert bf.main(["--dry-run"]) == 0
+    assert log.read_text().splitlines() == first
