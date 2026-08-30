@@ -10549,8 +10549,17 @@ boots is *unsafe* was a plausible-sounding invention the code refutes:
 a bound, never overstate liveness (pinned as
 `test_merged_coverage_hole_weakens_the_bound_it_never_inflates_liveness`).
 
+**New skill: `skills/measured-budget-sizing/`** — a timeout is a measurement,
+not a constant: sample each item's cost on the machine that will do the work,
+extrapolate, apply a 3× margin, fall back to the FLOOR (never a large
+constant) when an item cannot be sampled, write the sizing into the artifact
+so a truncated result is distinguishable from an empty one, and cache per item
+keyed on immutability. 4 trigger cases; **never probed** — a probe is a priced
+live run, deferred to a skills(B) batch under the standing convention and
+registered with an owner in `state/known-unprobed-skills.json`.
+
 Tests: **`nuc/tests/` 383 passed** (179 in `test_reachability_check.py`, +12
-new). Hygiene: no writes on the box outside the pre-existing `~/nuc-research/`
+new); `skills/run_checks_fast.sh` 6 checkers, 0 errors, 1 carried warning. Hygiene: no writes on the box outside the pre-existing `~/nuc-research/`
 poll outputs; `/work/**` read-only; no unit restarted; **port 8001 never
 contacted**; no engine request of any kind.
 

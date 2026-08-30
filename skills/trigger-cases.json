@@ -60,7 +60,7 @@
   "expect": [
    "agent-context-budgeting"
   ],
-  "prompt": "Prompt caching never hits after our agent trims old messages — cache reads are zero on every request. Why, and how do we trim without losing the cache?"
+  "prompt": "Prompt caching never hits after our agent trims old messages \u2014 cache reads are zero on every request. Why, and how do we trim without losing the cache?"
  },
  {
   "id": "gte-near",
@@ -109,7 +109,7 @@
   "expect": [
    "fuzz-mutate-kill-loop"
   ],
-  "prompt": "Find bugs in the parser and evaluator under languages/whence/ — crashes, not style issues — and pin each one with a regression test."
+  "prompt": "Find bugs in the parser and evaluator under languages/whence/ \u2014 crashes, not style issues \u2014 and pin each one with a regression test."
  },
  {
   "id": "fmk-mid",
@@ -216,7 +216,7 @@
   "expect": [
    "errors-that-name-the-fix"
   ],
-  "prompt": "The interpreter prints `expected a list, got a function` — accurate, points at the right argument, and three people this week reported it as a defect in the library. What should change?"
+  "prompt": "The interpreter prints `expected a list, got a function` \u2014 accurate, points at the right argument, and three people this week reported it as a defect in the library. What should change?"
  },
  {
   "id": "etnf-far",
@@ -335,7 +335,7 @@
   "expect": [
    "fuzz-mutate-kill-loop"
   ],
-  "prompt": "I had Claude review interp.py and it listed six 'bugs'. I don't trust the list — can we make it prove each one before I open tickets?"
+  "prompt": "I had Claude review interp.py and it listed six 'bugs'. I don't trust the list \u2014 can we make it prove each one before I open tickets?"
  },
  {
   "id": "fmk-timeouts",
@@ -356,7 +356,7 @@
   "expect": [
    "engine-prefix-reuse-audit"
   ],
-  "prompt": "Turn 5 of a chat on my self-hosted C inference engine takes about five times longer than turn 1 — nothing changed except the history got longer. Identical repeated prompts aren't faster either. What's wrong in the engine and how would I fix it?"
+  "prompt": "Turn 5 of a chat on my self-hosted C inference engine takes about five times longer than turn 1 \u2014 nothing changed except the history got longer. Identical repeated prompts aren't faster either. What's wrong in the engine and how would I fix it?"
  },
  {
   "id": "epr-far",
@@ -581,7 +581,7 @@
   "expect": [
    "optimization-transparency-differential"
   ],
-  "prompt": "Our compiler folds constants at parse time. A user reports the error message points at a different line when folding is on. Both lines are arguably right — how do we decide which one the compiler should say?"
+  "prompt": "Our compiler folds constants at parse time. A user reports the error message points at a different line when folding is on. Both lines are arguably right \u2014 how do we decide which one the compiler should say?"
  },
  {
   "id": "cri-near",
@@ -614,7 +614,7 @@
   "expect": [
    "deleted-vs-never-written"
   ],
-  "prompt": "Our CONTRIBUTING.md has a '## Release process' heading with nothing under it. Everyone cites 'the release process' in review comments. I guess nobody ever wrote it — can you draft one?"
+  "prompt": "Our CONTRIBUTING.md has a '## Release process' heading with nothing under it. Everyone cites 'the release process' in review comments. I guess nobody ever wrote it \u2014 can you draft one?"
  },
  {
   "id": "dvnw-mid",
@@ -638,7 +638,7 @@
  {
   "id": "neg-17",
   "expect": [],
-  "prompt": "I lost about an hour of edits when my editor crashed — the changes were never committed. Anything I can do to get them back?"
+  "prompt": "I lost about an hour of edits when my editor crashed \u2014 the changes were never committed. Anything I can do to get them back?"
  },
  {
   "id": "ccr-near",
@@ -774,7 +774,7 @@
   "expect": [
    "refusal-set-differential"
   ],
-  "prompt": "The reference interpreter returns an error record and the production one raises, so we never compare the two on malformed input — the shapes don't line up and the text is worded differently anyway. Is there anything in there worth testing?"
+  "prompt": "The reference interpreter returns an error record and the production one raises, so we never compare the two on malformed input \u2014 the shapes don't line up and the text is worded differently anyway. Is there anything in there worth testing?"
  },
  {
   "id": "rsd-neg-rename",
@@ -786,7 +786,7 @@
   "expect": [
    "measured-not-declared-dependencies"
   ],
-  "prompt": "Our incremental test runner skips a suite when the fingerprint hasn't moved. The fingerprint is a sha over every .py file under src/. In practice almost nothing is ever skipped — a one-line docstring edit in an unrelated package busts the whole thing. How should I make the fingerprint tighter without guessing wrong?"
+  "prompt": "Our incremental test runner skips a suite when the fingerprint hasn't moved. The fingerprint is a sha over every .py file under src/. In practice almost nothing is ever skipped \u2014 a one-line docstring edit in an unrelated package busts the whole thing. How should I make the fingerprint tighter without guessing wrong?"
  },
  {
   "id": "mndd-mid",
@@ -832,5 +832,31 @@
   "id": "ucl-neg-ci-already-red",
   "expect": [],
   "prompt": "Our CI lint job has been failing on main since this morning. It reports three flake8 errors in api/handlers.py. Fix them."
+ },
+ {
+  "id": "mbs-near",
+  "expect": [
+   "measured-budget-sizing"
+  ],
+  "prompt": "My log-scan script returned zero results after running for 1417 seconds against a 1400 second timeout, and it wrote that zero to disk as a finding. I'm about to bump the timeout to 3000. Is that the right fix?"
+ },
+ {
+  "id": "mbs-mid",
+  "expect": [
+   "measured-budget-sizing"
+  ],
+  "prompt": "I need to pick a batch timeout for a job that runs over ~40 partitions. A couple of them are enormous and most are tiny. Whatever number I pick is wrong for one end or the other. How should I approach this?"
+ },
+ {
+  "id": "mbs-far",
+  "expect": [
+   "measured-budget-sizing"
+  ],
+  "prompt": "We have a sweep over the whole archive that can't finish in one CI run. Every time we try it we lose the work and start over. I want it to make progress across runs without redoing anything."
+ },
+ {
+  "id": "mbs-neg-uniform-workload",
+  "expect": [],
+  "prompt": "Our health-check endpoint has a 2 second timeout and it occasionally trips when the DB is slow. All the checks do the same single query. Should we raise it to 5 seconds?"
  }
 ]
