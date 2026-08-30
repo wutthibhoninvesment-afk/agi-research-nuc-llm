@@ -282,3 +282,67 @@ prediction was written against.
   reproduce it. The repro is deterministic and saved.
 - **Round 361's item 2 has evidence, not proof** (§5).
 - **P5's whence-slow red is untouched.**
+
+---
+
+## 10. CORRECTION, written at the end of this round: round 362 got there first
+
+After committing the above, `languages/whence/SPEC.md` (round 362, language C)
+turned out to contain this:
+
+> **What made this round look.** Round 361's slow-tier read-scope instrument
+> found `test_no_shape_declaration_reaches_the_guest_generator` RED. Its
+> stated reason — "the guest parser has no `shape` support at all" — had been
+> false since round 338, in the files it was talking about. [...] the pin
+> failed the day it was written. Fourteen rounds ran with it red because
+> `harness/tests/test_swe_*.py` is the slow tier.
+>
+> **First measurement: 141 of 400 generated guest programs (35.2%) carry a
+> `shape` declaration and 84 name one in an annotation; 141/141 parse on the
+> host; the guest differential rates 138 `ok`, 1 mismatch (a `guess`
+> divergence, unrelated to shapes) and 2 OOM-killed.**
+
+**§1's diagnosis is therefore NOT this round's. Round 362 reached it first**,
+independently, and this round re-derived it without knowing. The correct
+attribution is round 362 for the diagnosis, round 365 for acting on it. Round
+362 was the outer-timeout-killed round reconciled by round 363, and its
+finding never reached `research-state.md`'s next steps — which is why rounds
+363 and 364 both carried round 361's item 1 forward as open.
+
+Three consequences, all of which IMPROVE the record:
+
+1. **P1 is resolved, by round 362's numbers, not mine.** 138 `ok` / 1
+   mismatch (a `guess` divergence, unrelated to shapes) / 2 OOM-killed out
+   of 141. My 35.2% rate reproduces theirs exactly, which is a real
+   cross-round replication — the same figure from two independent runs.
+2. **Seed 31 is almost certainly one of round 362's "2 OOM-killed", and
+   "hang" is the wrong word for it.** Memory exhaustion fits every
+   observation better than non-termination: >90 s with no return on a box at
+   `io some avg300=39%` is what allocating into swap looks like; four hand
+   minimizations failing to reproduce fits an allocation blow-up that needs
+   the whole program; and it explains the **exit code 0 with a truncated
+   file** far better than my §4 guess — the OOM killer `SIGKILL`s the
+   producer and the pipeline's status is `tail`'s. §4's *lesson* (use
+   `run_oracle`, not the bare oracle) stands unchanged and its cost was
+   real; its *mechanism* is corrected here. This also settles §4's caution:
+   round 310's item 5 is definitely not implicated.
+3. **`test_seed31_does_not_terminate_under_the_default_budget` is misnamed**
+   and its docstring overclaims. It measures "does not complete in 25 s",
+   which is still exactly what it asserts and still a valid pin. Renaming it
+   to `..._does_not_complete_...` and recording the OOM hypothesis is a
+   one-line job for round 366, listed as a next step rather than done in the
+   last minutes of this round.
+
+**What remains genuinely this round's:** the `__result` gap (§2) — round 362
+diagnosed the pin but did not touch `generate_guest_program`, so shape
+bindings were still uncompared at HEAD; replacing the pin with three positive
+ones, the structural one being load-bearing; the bounded seed-31 reproducer;
+and routing both the sweep and the new test through `run_oracle`.
+
+**And the meta-lesson, which is the sharpest thing here:** a round-362
+finding sat in `SPEC.md` — a tracked file, in the same tree — while two
+subsequent rounds carried the same item forward as open and this round spent
+most of its budget re-deriving it. The round record is `research-state.md`;
+an interrupted round's findings that land only in a subject-matter file are
+invisible to the rotation. Round 363 reconciled round 362's *code*. Nobody
+reconciled its *conclusions*.

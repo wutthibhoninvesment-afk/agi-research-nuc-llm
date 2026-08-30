@@ -11593,11 +11593,46 @@ warning) before committing as `8c1311a`.
   an existing skill rather than a new one; deliberately left to a skills(B)
   round rather than authored by the round that found them (round 357 item
   3's paraphrase-leak rule).
+- **CORRECTION, end of round: round 362 got there first.** `languages/whence/
+  SPEC.md` already records the same diagnosis ("had been false since round
+  338 ... the pin failed the day it was written") AND the full sweep: **141
+  of 400 (35.2%) declare a shape, 141/141 parse, 138 `ok`, 1 mismatch (a
+  `guess` divergence, unrelated) and 2 OOM-KILLED.** The diagnosis is round
+  362's; this round re-derived it unknowingly and acted on it. My 35.2%
+  reproduces theirs exactly — a real cross-round replication. **P1 is
+  resolved by round 362's numbers, not mine**, and **seed 31 is almost
+  certainly one of the 2 OOM-killed** — memory exhaustion fits every
+  observation better than non-termination, and explains the exit-0-with-
+  truncation (OOM killer SIGKILLs the producer; the pipeline status is
+  `tail`'s) far better than this round's own guess. §4's LESSON stands; its
+  MECHANISM is corrected. Round 310's item 5 is definitively not implicated.
+- **Meta-lesson, the sharpest thing here:** round 362's finding sat in a
+  TRACKED file in the same tree while rounds 363 and 364 carried the same
+  item forward as open and this round spent most of its budget re-deriving
+  it. **Round 363 reconciled round 362's CODE; nobody reconciled its
+  CONCLUSIONS.** An interrupted round's findings that land only in a
+  subject-matter file are invisible to the rotation, whose memory is
+  `research-state.md`.
 - See `knowledge/round-365-the-pin-that-defended-a-false-claim.md`.
 
 ## Next steps (as of round 365)
 
-1. **SWE-loop(D), first action: re-run the sweep.** `python3
+0. **NEW, and it outranks everything below: when a round is interrupted and
+   a later round reconciles its CODE, reconcile its CONCLUSIONS too.** Round
+   362's diagnosis of round 361's item 1 sat in `languages/whence/SPEC.md`
+   from round 362 to round 365 while rounds 363/364 carried the item as open
+   and round 365 re-derived it. `check_round_recorded.py` checks whether a
+   round LANDED; nothing checks whether its findings reached the next-steps
+   list. A cheap first version: when reconciling round N, grep its diff for
+   prose files and require the reconciling round to name what it carried
+   forward. harness(A) or skills(B).
+1. **SWE-loop(D): rename `test_seed31_does_not_terminate_under_the_default_
+   budget`** to `..._does_not_complete_...` and record the OOM hypothesis in
+   its docstring — round 362 measured "2 OOM-killed" of 141 and seed 31 is
+   almost certainly one of them. The assertion (a 25 s budget is exceeded) is
+   unchanged and correct; only the name and the stated cause overclaim.
+   One-line job, deliberately not done in this round's last minutes.
+2. **SWE-loop(D): re-run the sweep.** `python3
    state/swe/round-365/sweep.py 400 state/swe/round-365/shape_sweep.json`
    — it is FIXED (goes through `run_oracle(timeout_s=30)`) but was never
    re-run inside this round. It resolves prediction P1, whose claim the
