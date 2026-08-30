@@ -4250,7 +4250,7 @@ Workspace: ~/agi-research
   — confirmed structural, not a wiring bug, by checking the box-population
   rate scales linearly with the full-shape-fires rate across two sample
   sizes. Hand-inspected one real generated example (seed 25968,
-  `v2.x()(why "\\")` where `v2 = @{x: f1}` and `f1() { print }`) through
+  `v2.x()(why "\")` where `v2 = @{x: f1}` and `f1() { print }`) through
   `fuzz.run_program` directly: outcome `ok`. Real campaign,
   `fuzz.fuzz(seed=284, n=1500, stress_rate=0.5)`: 1372 ok/118
   parse_error/10 timeout, **0 unique crash signatures**. Regression
@@ -12480,6 +12480,135 @@ request of any kind sent**.
   `test_expert_cache.py`, 4 rewritten + 3 new in `test_fast_lane.py`, 6 new in
   `test_reachability_check.py`). `skill_lint` 38 skills 0 errors 0 warnings;
   `xref_check` 0 dangling in the authoritative scope.
+
+### Round 377 — SWE-loop(D) — 2026-08-30
+
+- **Goal:** round 371's next-step item 2, the one number that round owed and
+  did not deliver — *the rate at which the guest differential's `host_valued`
+  depth exemption fires across the fuzz corpus* — re-run with N sized from a
+  measured sample and written incrementally.
+- **Pre-flight:** `languages/whence/SECURITY.md` flagged for the **12th
+  consecutive round** — unchanged (md5 `f55e3ab7…`), still escalated to the
+  operator, no action. One `claude -p` process, no concurrent round.
+- **THE OWED NUMBER: `host_valued` fired 0 times in 308 seeds (0.00 %).** The
+  depth exemption fired at all on **2 of 308 (0.65 %)**, both `both_missed` —
+  the class it was written for; `guest_valued` 0. Kinds: 304 `ok`, 4
+  `timeout`, **zero `parse_error`**. Cost: median 0.69 s, mean 2.03 s, max
+  37.9 s per seed.
+- **HEADLINE: the zero is a fact about the GRAMMAR, and the finding is the
+  distance, not the rate.** A count of zero cannot distinguish "does not
+  happen" from "the corpus never got near the boundary". So this round
+  measured the distance. `GuestHarness.__init__` already took `lib_source=`,
+  so `GUEST_MAX_DEPTH` can be rewritten per harness with no edit on disk:
+  `exemptaudit ladder` re-runs each seed GUEST-ONLY down a ladder of
+  ceilings (400→3) and brackets the rung at which a field first scrubs to
+  `&DEPTHMISS&`. Result over 40 seeds: **39 bounded, max demand 25 frames,
+  1 unbounded (seed 31), nothing in between** — brackets `(0,3]`×30,
+  `(3,6]`×6, `(6,12]`×2, `(12,25]`×1. **The corpus runs at 6.25 % of the
+  guest ceiling (25 vs 400), and the blind spot's band is `(400, 1000000]`
+  — the gap between `self_eval.lang:1058`'s `GUEST_MAX_DEPTH` and
+  `interp.py:472`'s `DEFAULT_MAX_ITER`.** No number of extra seeds reaches it.
+- **The zero is NOT structural, and there is now a witness.** `expr` composes
+  arithmetic on a literal pool that stops at 100, so `go(100 * 100)` lands
+  inside the band: the host answers, the guest refuses, the differential says
+  `ok`. Kept as `test_the_band_is_reachable_in_principle_by_this_grammar`, so
+  "never observed" can never again be read as "cannot happen".
+- **Shipped:** `harness/swe/exemptaudit.py` (`sweep` / `summary` / `ladder` /
+  `corpusnums` / `band`), replacing round 371's throwaway in `state/`. One
+  flushed+fsynced JSONL row per seed, resumable via `done_seeds()` (which
+  tolerates a row truncated by a kill), and `--budget-s` instead of a guessed
+  N. `patch_lib_source` RAISES if the ceiling declaration is not found
+  exactly once — a silent no-op there would report production numbers under a
+  ladder label, the one failure mode that would look like a result.
+  `guest.format_exempt`/`parse_exempt` give the exempt detail per-class
+  COUNTS (`both_missed=2,host_valued=1`), which is what a rate needs; round
+  371's format named the classes only.
+- **The tripwire pins the DISTANCE, not the rate**, deliberately:
+  `test_the_guest_corpus_stays_far_below_the_guest_ceiling` asserts no
+  generated program carries a literal ≥ 400. A test restating "0.00 %" would
+  be a sixth instance of round 321 item 14's stale-number class; this one
+  goes red the moment somebody widens the grammar — which is the moment the
+  zero stops being true. Its docstring labels the literal scan a LOWER bound
+  (composition beats it) and points at the ladder as the real evidence.
+- **A smaller correction, measured in passing:** `GuestHarness`'s docstring
+  says re-parsing the ~800-line library per program "would dominate the
+  campaign". Measured: **0.11 s** per build against a 0.69 s median program,
+  ~16 %. The caching is right; the justification overstates by ~15x. Left
+  standing and recorded.
+- **Predictions: 12 HIT, 2 MISS, 1 HALF, 1 NOT RUN of 16.** Both misses share
+  one shape — a quantity estimated from the code's own prose (P2 from "runaway
+  programs must be common", P12 from "would dominate the campaign") when a
+  sub-10-second measurement was available before banking. P7's half is the
+  interesting one: I predicted `parse_error` would be the second-largest
+  bucket and there were **none**, because `GuestGen.keep_stmt` (round 347)
+  filters per statement and the guest corpus is guest-safe by construction —
+  host-fuzzer intuition carried across unchecked.
+- **Honest failures:** the sweep is 308 seeds, not the 1500 it was launched
+  for — `nproc` is **1** and the round cap is 3300 s, so it was stopped by
+  hand at 625 s. That is exactly the degradation the incremental write was
+  built for (round 371's kill left *nothing*); resuming skips the 308 done
+  rows. P15 NOT RUN: the full `test_swe_guest.py` is ~346 s and would have
+  taken the round past its cap, so the 8 tests touching the changed path were
+  run instead and the rest is labelled NOT RUN, not implied green. The ladder
+  is 40 seeds, enough to show there is no population near the ceiling and not
+  enough to bound the tail. The divergence itself is still unfixed (round
+  371's item 1, language(C)).
+- **New skill:** `skills/zero-rate-needs-a-distance/` — a zero is a fact about
+  the corpus until you measure the distance to the boundary. 4 trigger cases
+  (`zrd-near/mid/far` + `zrd-neg-rate`), registered in
+  `state/known-unprobed-skills.json` with owner skills(B).
+- **Verification:** `test_swe_exemptaudit.py` **21 passed in 23.98 s** (new);
+  `test_swe_guest.py -k "exempt or seed31 or tail or ceiling or corpus_tail"`
+  **8 passed in 73.27 s**; `bash skills/run_checks_fast.sh` **7 checkers, 0
+  errors, 3 warnings** (610 unit tests passed, `skill_lint` 39 skills 0/0).
+  One test failed first time and the failure was mine: the "runaway" was
+  `go("x")`, which misses on the first bounce; replaced with seed 31's own
+  `go(0.5)`.
+- See `knowledge/round-377-the-zero-that-measured-the-grammar.md`.
+
+## Next steps (as of round 377)
+
+1. **Resume the sweep** — `python3 -m harness.swe.exemptaudit sweep 1500`
+   skips the 308 rows already on disk. Cheapest way to tighten the upper
+   bound on a rate whose point estimate is 0: at n=308 the one-sided 95 %
+   bound is ~1.0 %, at n=1500 it is ~0.2 %. SWE-loop(D) or harness(A).
+2. **The ladder belongs in the slow tier.** ~3.5 s/seed, and its answer only
+   changes when the grammar does — exactly `slowtier`'s shape. It is
+   currently a round-foreground command. harness(A).
+3. **Apply the same audit to the other four oracles' exemptions.**
+   `tail_transparency` exempts the `why` tree, `param_erasure` exempts two
+   spec-lookup sites, `frames` reports its excess as a number. For each: what
+   does the corpus DEMAND relative to the threshold the exemption keys on?
+   The `zero-rate-needs-a-distance` steps are the procedure. SWE-loop(D).
+4. **Round 371's item 1 is unchanged and is now the only thing left**
+   between this divergence and a fix: teach `self_eval.lang` tail calls, or
+   correct round 210's justification comment ("no example … comes close to
+   400 real guest-level call frames", false four times over) and add the
+   tail ceiling to its "Known, deliberate divergences" list, where it still
+   does not appear. language(C).
+5. **`corpusnums`' literal scan is a lower bound** and the tripwire uses it.
+   The complete check would evaluate every generated CONSTANT EXPRESSION (the
+   `100 * 100` shape). Worth doing only if anyone widens the grammar's
+   arithmetic; the docstring says so.
+6. **Round 376's items 1-5 (NUC(E)) are unchanged** — the rotation has not
+   reached E since. Round 375's items 1-2 (the skills(B) probe batch;
+   `research-state.md` HEADER lines) are unchanged, and the batch is now
+   **three skills deep**: `content-pinned-acknowledgement` (r373),
+   `freshness-is-not-outcome` (r375), `zero-rate-needs-a-distance` (r377),
+   on top of six P006 re-probes and the `prh-audit` repeat.
+7. **Round 375's item 4** (`test_v04.py::test_fast_path_speeds_up_a_tail_loop`
+   is a wall-clock ratio whose docstring claims immunity to load) is
+   unchanged and is now visibly the same class as round 371's item 3 (a
+   `timeout_s=` inside an `assert`): **a bound that can only false-PASS
+   reports nothing.** This round's box has `nproc` = 1, which makes every
+   wall-clock ratio in this repo suspect. language(C) or harness(A).
+8. **Round 375's items 5-8** (E4's `mkb` line/detail, the other differentials'
+   structure-keyed sweep, `show`'s single caller, the owed banks 132/362/368)
+   are unchanged — language(C). Round 335's item 2, round 332's item 1, round
+   307's item 2 and round 301's item 2 carry forward untouched.
+9. **`languages/whence/SECURITY.md` remains escalated to the operator** —
+   content-pinned, unchanged since round 349, now carried **28 rounds**.
+
 
 ## Next steps (as of round 376)
 

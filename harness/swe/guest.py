@@ -639,12 +639,50 @@ def compare_behaviours(V, host_env_vars, host_checks, guest_rec):
     # campaign signatures (and `depth_skew (exempt)` already set the
     # precedent for a described `ok`).
     if notes:
-        hv_n = notes.count("host_valued")
-        return "ok", "depth_exempt %d field(s): %s%s" % (
-            len(notes), ",".join(sorted(set(notes))),
-            "   <-- %d with a HOST VALUE (difference of kind, not degree)"
-            % hv_n if hv_n else "")
+        return "ok", format_exempt(notes)
     return "ok", ""
+
+
+# Round 377 (SWE-loop D): the exempt report is the ONLY channel this
+# information has — `OracleOutcome` has no structured slot for it and
+# widening `__slots__` would touch every oracle. So the string carries
+# per-class COUNTS (`both_missed=2,host_valued=1`), not just which classes
+# fired, and `parse_exempt` below is the one reader. Round 371's format
+# named the classes but not their counts, which is exactly the number a
+# corpus-wide rate needs. `format_exempt`/`parse_exempt` round-trip, and
+# `test_swe_exemptaudit.py` pins that.
+_EXEMPT_RE = re.compile(r"depth_exempt (\d+) field\(s\): ([a-z_]+=\d+(?:,[a-z_]+=\d+)*)")
+
+
+def format_exempt(notes):
+    """The `ok` detail for a run where the depth exemption fired."""
+    counts = {}
+    for n in notes:
+        counts[n] = counts.get(n, 0) + 1
+    hv_n = counts.get("host_valued", 0)
+    return "depth_exempt %d field(s): %s%s" % (
+        len(notes),
+        ",".join("%s=%d" % (k, counts[k]) for k in sorted(counts)),
+        "   <-- %d with a HOST VALUE (difference of kind, not degree)"
+        % hv_n if hv_n else "")
+
+
+def parse_exempt(detail):
+    """`{class: count}` from an oracle detail; `{}` when none fired.
+
+    Tolerant by design: a detail from any other oracle, an empty string, or
+    a `None` all answer `{}` rather than raising, because the sweep that
+    calls this reads every outcome in a campaign, not only the guest's."""
+    if not detail:
+        return {}
+    m = _EXEMPT_RE.search(detail)
+    if not m:
+        return {}
+    out = {}
+    for part in m.group(2).split(","):
+        k, _, v = part.partition("=")
+        out[k] = int(v)
+    return out
 
 
 def _render(V, p):

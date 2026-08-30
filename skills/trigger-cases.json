@@ -1007,5 +1007,31 @@
   "id": "lfc-neg-startup",
   "expect": [],
   "prompt": "This daemon mmaps every buffer at startup and never allocates again. What's a safe container memory limit for it?"
+ },
+ {
+  "id": "zrd-near",
+  "expect": [
+   "zero-rate-needs-a-distance"
+  ],
+  "prompt": "Our fuzz campaign ran 2000 seeds against the new differential checker and found zero instances of the divergence we added it for. I want to write that up as 'this class does not occur' \u2014 is that a safe conclusion?"
+ },
+ {
+  "id": "zrd-mid",
+  "expect": [
+   "zero-rate-needs-a-distance"
+  ],
+  "prompt": "There's an exemption branch in our comparison code that has never once fired in production. Someone on the team wants to widen it to cover a second case. How should I evaluate that?"
+ },
+ {
+  "id": "zrd-far",
+  "expect": [
+   "zero-rate-needs-a-distance"
+  ],
+  "prompt": "This alert has not paged anyone in fourteen months. Can we delete it, or do we need to prove something first?"
+ },
+ {
+  "id": "zrd-neg-rate",
+  "expect": [],
+  "prompt": "Our flaky-test detector fired on 37 of 1200 test runs last week, up from 12 the week before. Can you dig into what changed?"
  }
 ]

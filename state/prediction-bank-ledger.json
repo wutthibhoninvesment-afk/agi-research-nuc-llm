@@ -400,6 +400,14 @@
    "where": "knowledge/round-376-nuc-e-the-cache-that-cannot-fill.md",
    "quote": "9 hits, 1 miss",
    "note": "None outstanding: P1-P10 are each scored by number in the knowledge file's section 7 table, in the SAME round that banked them. The bank also carries three items labelled O1-O3 as OBSERVED-before-writing (reachability check, suspend counters, boot history) precisely so the scoring could not claim credit for them; they are not counted in the 9/1. The single miss, P5, is the round's headline: it predicted E4's cap->RAM model was merely unvalidated, and the model was arithmetically wrong -- its per-slot constant was the expert's on-disk int4 size where the engine mallocs int8, 1.889x too small."
+  },
+  "377": {
+   "bank": "state/swe/round-377/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 377,
+   "where": "knowledge/round-377-the-zero-that-measured-the-grammar.md",
+   "quote": "**12 HIT, 2 MISS, 1 HALF, 1 NOT RUN of 16.**",
+   "note": "None outstanding: P1-P16 are each scored by number in the knowledge file's predictions table, in the SAME round that banked them. P15 is NOT RUN and labelled so rather than scored: the full test_swe_guest.py is ~346s on a one-core box and the round ran the 8 tests touching the changed code path instead. The two misses (P2, P12) share one shape -- both were quantities estimated from the code's own prose when a sub-10-second measurement was available before banking."
   }
  }
 }
