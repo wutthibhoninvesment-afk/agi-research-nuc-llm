@@ -303,6 +303,7 @@ AUTO_PATTERNS = [
     r"\bcheck_round_recorded\.py\b",
     r"\btrigger_eval\.py\b.*--audit\b",
     r"\bclaim_check\.py\b",
+    r"\bstate_claim_check\.py\b(?!.*--run\b)",   # --run would nest executors
     r"^\s*(wc|head|tail|cat|ls|grep)\b",
     r"^\s*git\s+(status|log|diff|show)\b",
 ]

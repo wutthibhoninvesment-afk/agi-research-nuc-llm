@@ -9436,6 +9436,207 @@ Workspace: ~/agi-research
   asserting the ERROR line.
 - See `knowledge/round-349-a-suite-that-cannot-run-is-not-a-suite-that-passes.md`.
 
+### Round 350 — language(C) — 2026-08-30 (died at max-turns; verified and landed by round 351)
+- **Whence v0.21**: host/guest lexer parity established by a differential
+  rather than by the history sweep round 332's item 1 asked for. The sweep
+  itself takes five minutes and cannot answer the question — `git log
+  --follow -- whence/lexer.py` has exactly THREE revisions (an initial
+  commit with no parent to diff against, plus two semantic diffs, both
+  already mirrored), so a diff-indexed audit covers two lines of a
+  two-hundred-line lexer. The item was not merely unscheduled for 16
+  rounds; **it was undischargeable as worded.**
+- Seven defects found by comparing what the two lexers DO. Host: an uncaught
+  Python `ValueError` escaping `tokenize()` (`'²'.isdigit()` is True,
+  `int('²')` raises — 128 codepoints in that gap); `str.isdigit()`
+  accepting 798 characters when SPEC and `interp.py`'s `_NUM_RE` have said
+  "ASCII digits" since v0.4.1 (the digit half of the same literal-grammar
+  gap round 323 half-fixed); and `run.py` never catching `LexError`, so a
+  lex error exited **1** where SPEC's `## Running` has always promised 2.
+  Guest: `\r`, raw newlines in strings, overflow-to-`inf`, and a lex error
+  whose message carried a line number from `self_eval.lang`'s OWN source.
+- SPEC decision 31: *a rule the guest cannot express is a rule the language
+  does not have* — the argument for narrowing NAME/NUMBER to ASCII rather
+  than teaching a Whence-written guest to enumerate Unicode.
+- **Landed by round 351**, not by 350 itself: the round died at
+  `error:max_turns` with `git_committed=False` and its whole diff — 11 files,
+  1404 insertions — sitting in the working tree with no research-state entry.
+  Round 351 verified before committing (`3ed4391`): `./run_tests_fast.sh`
+  **1137 passed, 53 deselected**, matching round 350's own claimed figure
+  exactly, and `test_self_hosting.py -m whence_slow` **12 passed** in 268s,
+  also as claimed. `languages/whence/SECURITY.md` was deliberately left out
+  of that commit — it is round 349's unresolved operator escalation, not
+  round 350's work, and both rounds re-verified it untouched.
+
+### Round 351 — skills(B) — 2026-08-30
+- **The other half of round 321's item 14, and it found the item's own
+  backlog line to be an instance of the class.** Round 333 rescoped item 14
+  to "any line asserting a number that no round re-executes, covering SKILL.md
+  Verification blocks and `research-state.md` header lines together"; round
+  339 built `claim_check.py` for the first half. This round built
+  `state_claim_check.py` for the second and pointed it at the live
+  `## Next steps` block.
+- **Finding, first run:** `fuzz-mutate-kill-loop/SKILL.md` **is 399 body
+  lines, not 415**, and `skill_lint` has emitted **nothing** for it since
+  round 339 — which closed that 8-round B002 backlog and said so in bold in
+  its own entry, ~1000 lines above. The next-steps blocks of rounds 343,
+  346, 347, 348 and 349 re-asserted "still 415 body lines (B002)" anyway;
+  round 349 added "8th consecutive round carried". Nine blocks in this file
+  carry the sentence verbatim (333, 334, 336, 338, 343, 346, 347, 348, 349).
+- **The mechanism is the point, and it is not carelessness.** A next-steps
+  block is written by copying the previous one and editing what you touched.
+  An item nobody touched is therefore re-asserted, in a document dated
+  today, over the author's name, with no step anywhere that re-derives it.
+  Every author did the right thing. The claim was verified once, on the
+  round that first wrote it, and every restatement since has been *a
+  transcription of a verification presented as a verification*. The carry
+  COUNT is the sharpest tell: the only field anybody edited was the counter,
+  and round 349's "8th" was itself wrong, counting carries of a closed item.
+- `state_claim_check.py` (611 lines) and `test_state_claim_check.py`
+  (629 lines, **64 tests**). Three findings, all fail-closed:
+  `S001` a body-line count that no longer matches; `S002` a lint code cited
+  as currently firing that `skill_lint` no longer emits; `S003` an inline
+  `` `cmd` -> result `` claim whose command, re-run, prints something else.
+  Plus `S005 CARRIED`, never an error: how many blocks assert each claim
+  verbatim, and from which rounds. Age is the recall half of the report —
+  it turns "we should re-check things" into a number with names on it.
+- Design decisions worth keeping: (1) the LIVE block is the highest ROUND
+  NUMBER, not the last block in the file — the trailing stack is only
+  roughly reverse-chronological (round 341's block sits physically between
+  343's and 349's), so file order would have picked one of the oldest
+  present; a tie is an error rather than a guess. (2) Older blocks are a
+  frozen record and are never checked. (3) Items are unwrapped before
+  parsing, because hard-wrapped markdown splits claims across lines *inside
+  backticks* — round 349's `` (`grep -c mutation_test\nharness/swe/campaign.py`
+  -> 0) `` is one claim on two source lines, invisible without joining, and a
+  char->line map keeps the finding pointing at the line the claim starts on.
+  (4) Re-derivation CALLS `skill_lint.parse_frontmatter`/`lint_skill` and
+  `claim_check.classify`/`run_command` rather than reimplementing them —
+  a second copy of "what is a body line" or "what is safe to execute" is the
+  `copied-mirror-drift` failure introduced by the tool meant to prevent it.
+  (5) Carry age matches EXACTLY on a normalised span, never fuzzily: a
+  similarity threshold would make this tool assert a number nobody can
+  reproduce, which is the thing it audits. That costs recall — rounds 327/328
+  say "is now at 415 body lines", scoring as a separate claim — and the cost
+  is stated rather than hidden.
+- **The fix is step 10, not the edit.** Correcting "415" to "399" clears
+  today's finding and changes nothing: the next round copies the corrected
+  line forward without re-deriving it either. `TestLiveCorpus` asserts the
+  live block has zero stale claims and runs in the `unittest discover` sweep
+  every skills round already runs. `TestRound349Regression` pins round 349's
+  real text as a fixture, because correcting the document makes the checker
+  exit 0 and would otherwise delete the only evidence it works.
+- **Second instance, found while fixing the first:** `skill-authoring/SKILL.md`'s
+  own Verification block claimed `22 skill(s)` for both the lint sweep and
+  the claim sweep while the corpus held **23** — the same figure copied
+  forward by every round that added a skill without re-running the sweep, in
+  the file that documents the rot. Corrected to 24 (this round's new skill
+  included) with the history noted inline.
+- **Third instance, four lines below the second, and this one no checker in
+  the tree can catch:** the same Verification block said "18 citations are
+  pre-acknowledged in `state/known-dangling-citations.json` — ONE registry
+  gap, owned by language(C)". That file has read `"citations": {}` since round
+  348 closed the last gap. `claim_check.py --run` could not have caught it
+  even if run: its `METRICS` table diffs numbers in command OUTPUT, and this
+  is a stale FACT in prose (round 338's class). Corrected inline. The three
+  instances this round sit in three different mechanisms — next-steps number
+  (now checked), Verification metric (checkable, ~15min, nobody runs it),
+  Verification prose fact (nothing checks it).
+- New skill **`carried-claim-rot`** (10 steps, 8 pitfalls): rolling status
+  documents as a silent copy-forward channel. Generalises past this repo —
+  sprint carryover lists, risk registers, README "known limitations".
+  Explicitly NOT citation-registry-integrity (that one's description already
+  says "NOT for verifying a documented claim is still TRUE") and NOT
+  copied-mirror-drift.
+- Also closed: `carried-claim-rot`, `copied-mirror-drift` and
+  `declaration-scope-parity` had **0 trigger cases** each, under
+  `trigger_eval.py --audit`'s 3-positive floor. Added 9 (near/mid/far x3),
+  taking "3 under the floor" to **0**. They are unprobed, like 21 of 24
+  skills — a probe is a priced run and this is a skills round's cheap half,
+  not its billed one.
+- **Tests:** `python3 -m unittest discover -s skills/skill-authoring/scripts`
+  **428 passed, OK** (was 364; +64 from `test_state_claim_check.py`).
+  `skill_lint.py --house --strict skills/` **24 skill(s), 0 errors, 0
+  warnings, exit 0**. `claim_check.py skills/` **24 skill(s), 0 stale**.
+  `state_claim_check.py state/research-state.md` **0 stale, exit 0**;
+  `--block 349` still **exit 1** with S001+S002. `xref_check.py` **0 NEW,
+  0 pre-acknowledged**, exit 0.
+  `trigger_eval.py --audit` **0 under the 3-positive floor**.
+- Also landed round 350's orphaned diff first — see that round's entry above.
+- See `knowledge/round-351-skills-the-status-block-that-copied-itself-forward.md`.
+
+## Next steps (as of round 351)
+1. **CORRECTION to round 349's item 9, which is left standing in its own
+   block as the frozen record it is:** `fuzz-mutate-kill-loop/SKILL.md` is
+   **399** body lines and `skill_lint` emits nothing for it. Round 339 closed
+   that backlog. It was carried by nine next-steps blocks after the fact;
+   `state_claim_check.py` + `TestLiveCorpus` now re-derive this every round,
+   so no future block can restate it silently.
+2. **Operator decision on `languages/whence/SECURITY.md`** — unchanged and
+   still the highest-priority item here, re-verified untouched in the working
+   tree by rounds 349, 350 and 351. Four asserted security controls do not
+   exist; the authorship attribution and MIT licence note were deleted. This
+   is the one item this program should not decide alone.
+3. **New:** `state_claim_check.py` covers TWO claim grammars: a body-line
+   count, and an inline backticked command with its expected output. The
+   live block's own coverage line is the honest number, printed every run.
+   Widening the
+   grammar is the obvious next move and the obvious way to break it — every
+   new shape must have an exact re-derivation, or it becomes the heuristic
+   the tool exists to avoid. Candidate shapes actually present in this
+   corpus's history: `N of M skills ...`, `still pending its window`, and
+   dated "unchanged since round N" claims.
+4. **New, and the gap this round leaves widest:** a stale FACT in prose is
+   caught by nothing. `claim_check.py --run` diffs NUMBERS in command output;
+   `state_claim_check.py` re-derives two structured claim shapes. Neither can
+   check "18 citations are pre-acknowledged in X" or "the box has been down
+   for six E-rounds". Round 338 found four of these and fixed them by hand;
+   round 351 found one more the same way. The honest options are (a) require
+   a prose fact to be restated as a command claim, or (b) accept it and say
+   so. Do not build a natural-language checker for it — that is the
+   heuristic both existing tools were designed to avoid.
+5. **New:** a corpus-wide `claim_check.py --run --timeout 200 skills/` was
+   attempted this round and **did not finish** — killed by a 1200s outer cap
+   with **zero output**, because the tool accumulates findings and prints
+   only at the end. So the sweep that would have caught the `22 skill(s)`
+   drift is both longer than any per-round budget AND all-or-nothing. Two
+   cheap fixes for whichever skills(B) round wants them: stream findings as
+   they are produced, and add a `--only <skill>` / per-skill resume so a
+   round can pay for a slice. The targeted single-skill run (~2 min) is what
+   verified this round's corrections and is the shape that actually gets run.
+6. **New:** the CARRIED age report is computed but nothing acts on it. A
+   claim with age >= 5 and no S001/S002/S003 finding is not wrong, but it is
+   unaudited by definition. A future skills(B) round could turn a high age
+   into a WARN, or better, into a checklist item for the round writing the
+   next block.
+7. **New:** 21 of 24 skills have never been probed by `trigger_eval.py`, now
+   including `carried-claim-rot`. This is the corpus norm, not a new gap
+   (round 334's item 7), but the three newly-covered skills make a batch
+   probe cheaper to justify: 9 fresh cases across 3 skills that have never
+   been measured at all. A probe is a priced run — see
+   `skills/preflight-priced-task-scripts`.
+8. Round 349's items 2-6 (root config-file guard, `classify_health_log`'s
+   never-observed verdicts, `campaign.py`'s missing mutation baseline
+   pre-flight, un-re-audited historical mutation scores, `swe_slow` tiering
+   of the 8 new mutation tests) are unchanged and owned by harness(A) and
+   SWE-loop(D). Item 4 remains the sharpest of them.
+9. Round 350's own follow-ons: the PARSER's host/guest parity is untouched
+   and has its own differential and its own history, so the same question
+   round 350 asked about the lexer ("is that history long enough to audit
+   against?") applies to it unanswered. No `.lang` file exercises `\r` or a
+   non-ASCII NAME, so those corpus cases are hand-written by construction.
+10. Round 321's item 14 is **closed as rescoped**: round 349 closed one
+    instance at the source (SPEC's builtin table), round 339 built the
+    SKILL.md Verification sweep, and this round built the research-state
+    sweep. What remains is not a sweep but items 3-5 above.
+11. Standing, and re-derived this round rather than copied:
+    `harness/swe/regiontools.py` is still deliberately un-unified with
+    `EditFileTool` (round 307's item 2 — confirmed by reading, not by
+    carrying); round 301's item 2 remains speculative; the `tail`/EOF
+    backgrounded-pipe silent-drop mechanism remains genuinely unconfirmed
+    (round 310's item 5); the heavy/light re-tally check-in is still pending
+    its window; and NUC-integration(E)'s box-down items are unchanged since
+    round 334.
+
 ## Next steps (as of round 349)
 1. **Operator decision on `languages/whence/SECURITY.md`** — four asserted
    security controls do not exist and the authorship section was deleted;

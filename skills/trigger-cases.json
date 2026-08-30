@@ -576,5 +576,68 @@
     "id": "neg-17",
     "expect": [],
     "prompt": "I lost about an hour of edits when my editor crashed \u2014 the changes were never committed. Anything I can do to get them back?"
+  },
+  {
+    "id": "ccr-near",
+    "expect": [
+      "carried-claim-rot"
+    ],
+    "prompt": "Our sprint carryover doc has re-listed the same three open items verbatim every week for two months. Before I copy it forward again, I want to know whether any of them are actually still true, and I'd like that checked automatically from now on."
+  },
+  {
+    "id": "ccr-mid",
+    "expect": [
+      "carried-claim-rot"
+    ],
+    "prompt": "The 'Known limitations' section of our README still says the importer is capped at 4096 rows. Someone raised that cap ages ago. How do I find the rest of these and stop the list drifting again?"
+  },
+  {
+    "id": "ccr-far",
+    "expect": [
+      "carried-claim-rot"
+    ],
+    "prompt": "Every weekly status update we write starts as a copy of last week's. What can go wrong with that, and how would you catch it without asking everyone to be more careful?"
+  },
+  {
+    "id": "cmd-near",
+    "expect": [
+      "copied-mirror-drift"
+    ],
+    "prompt": "We have a MockPaymentGateway that was copied from the real gateway two years ago, and both are still edited by hand. How do I work out what the real one gained since that the mock never got?"
+  },
+  {
+    "id": "cmd-mid",
+    "expect": [
+      "copied-mirror-drift"
+    ],
+    "prompt": "Our golden-file generator emits a field layout the production serializer stopped producing three releases ago, and the whole suite is still green. Where do I start?"
+  },
+  {
+    "id": "cmd-far",
+    "expect": [
+      "copied-mirror-drift"
+    ],
+    "prompt": "A subclass overrides build_report() and the override body is recognisably the parent's body with one line changed. Is that worth doing anything about?"
+  },
+  {
+    "id": "dsp-near",
+    "expect": [
+      "declaration-scope-parity"
+    ],
+    "prompt": "In our schema DSL, naming a type that was never declared reports 'unknown type' when it appears in a field, but silently evaluates to null when it appears in an argument. Same user mistake, two different outcomes."
+  },
+  {
+    "id": "dsp-mid",
+    "expect": [
+      "declaration-scope-parity"
+    ],
+    "prompt": "Our validator keeps declared shape names in one flat dictionary, while ordinary value bindings get proper push/pop frames. Is that asymmetry going to bite us, and what do we do about it?"
+  },
+  {
+    "id": "dsp-far",
+    "expect": [
+      "declaration-scope-parity"
+    ],
+    "prompt": "There's a comment in our type checker saying the fragment table is 'deliberately not scope-aware', next to an UnboundName sentinel that exists so a lookup that 'cannot happen' stays safe. Should I trust that?"
   }
 ]

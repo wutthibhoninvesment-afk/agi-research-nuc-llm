@@ -162,6 +162,23 @@ skills — that duplicates their triggers and adds an indirection hop.
      `UNQUANTIFIED` — it can only ever be checked for its exit code, so a
      silent count drift never surfaces.
 
+   The same rot lives OUTSIDE Verification blocks, in the rolling status
+   document the program keeps (`state/research-state.md`'s
+   `## Next steps (as of round N)` stack). That document is written by
+   copying the previous revision forward, so an untouched item is
+   re-asserted with nothing re-deriving it — round 351 found "still 415
+   body lines (B002)" carried by nine blocks, ten rounds after round 339
+   made it 399. `state_claim_check.py` is the same three tiers pointed at
+   the live block, and reuses this one's classifier so the two cannot
+   drift on what counts as safe to run:
+   ```bash
+   python3 skills/skill-authoring/scripts/state_claim_check.py state/research-state.md
+   # expected: "0 stale", exit 0 — static; --run executes the `auto` ones
+   ```
+   The full method, including why the carry AGE matters more than the
+   individual number, is in
+   [carried-claim-rot](../carried-claim-rot/SKILL.md).
+
 9. **Check that every identifier the corpus CITES is actually DEFINED**
    (script bundled with this skill — run it, don't read it). Step 8 covers
    claims that rot; this covers *pointers* that never resolved. A skill that
@@ -306,29 +323,39 @@ absolute `cd ~/agi-research` used to open this block and had been dead since
 the workspace was renamed — see `claim_check.py`'s C001.)
 ```bash
 python3 -m unittest discover -s skills/skill-authoring/scripts -v
-# expected: Ran 364 tests, OK  (skill_lint + trigger_eval + claim_check
-#           + xref_check, offline). Re-derived round 346; was 316 in round
-#           345 and 247 before test_xref_check.py, so a lower count in an
-#           older report is not evidence of a regression. (Round 345
+# expected: Ran 428 tests, OK  (skill_lint + trigger_eval + claim_check
+#           + xref_check + state_claim_check, offline). Re-derived round 351
+#           (+64 for test_state_claim_check.py); was 364 in round 346, 316 in
+#           round 345 and 247 before test_xref_check.py, so a lower count in
+#           an older report is not evidence of a regression. (Round 345
 #           re-derived this TWICE: its first figure, 311, was stale within
-#           the hour because the same round then added 5 tests. Round 346
-#           added 48 more. Re-derive this LAST.)
+#           the hour because the same round then added 5 tests. Re-derive
+#           this LAST.)
 python3 skills/skill-authoring/scripts/skill_lint.py --house skills/<name>/
 # expected: 1 skill(s), 0 error(s), 0 warning(s), exit 0   <- the bar for a new skill
 python3 skills/skill-authoring/scripts/skill_lint.py --house --strict skills/
-# expected: 22 skill(s), 0 error(s), 0 warning(s), exit 0. Warning-free since
+# expected: 24 skill(s), 0 error(s), 0 warning(s), exit 0. Warning-free since
 # round 339 split fuzz-mutate-kill-loop under the 400-line B002 threshold;
 # before that a known B002 made --strict exit 1, so a pre-339 report saying
 # "exit 1" is not evidence of a regression.
 python3 skills/skill-authoring/scripts/claim_check.py skills/
-# expected: 22 skill(s), 0 stale claim(s), exit 0 (static; --run also executes
-# the `auto` commands and diffs their output against these very claims)
+# expected: 24 skill(s), 0 stale claim(s), exit 0 (static; --run also executes
+# the `auto` commands and diffs their output against these very claims).
+# Round 351 re-derived this: it said 22 while the corpus held 23, because the
+# figure was copied forward by every round that added a skill without re-running
+# the sweep — the same rot in the file that documents the rot.
+python3 skills/skill-authoring/scripts/state_claim_check.py state/research-state.md
+# expected: 0 stale, exit 0. The Next-steps half of the same check; see
+# skills/carried-claim-rot/SKILL.md.
 python3 skills/skill-authoring/scripts/xref_check.py
-# expected: "0 NEW", exit 0. 18 citations are pre-acknowledged in
-# state/known-dangling-citations.json — ONE registry gap, owned by
-# language(C); --show-acknowledged lists them. (Round 345 said 28 across two
-# gaps; round 346 closed the second by restoring CLAUDE.md's rule sections
-# from git, so a report saying 28 is older, not a regression.)
+# expected: "0 NEW", exit 0, and "0 pre-acknowledged in
+# state/known-dangling-citations.json" — that baseline is EMPTY as of round
+# 348, which closed the last registry gap (X001:27/28/29) by writing SPEC
+# decisions 27-30. Re-derived round 351: this line said "18 citations are
+# pre-acknowledged … ONE registry gap owned by language(C)" and had been
+# false since round 348 — a stale FACT, not a stale number, so `--run`
+# cannot catch it (no METRIC pattern matches a sentence). Earlier reports
+# saying 18 or 28 are older, not regressions.
 python3 skills/skill-authoring/scripts/xref_check.py --provenance
 # expected: exit 0. Every dangling id labelled RESURRECTABLE (with the commit
 # to transcribe from) or "Writing it is authorship" — run this BEFORE filing
