@@ -44,4 +44,18 @@ set -e
 echo
 python3 harness/swe/slowtier.py status || true
 
+# Round 355 (harness A): and the RECORDED status of the pristine-checkout
+# differential, for the same reason and at the same price (one JSONL read).
+# The gap it covers is one level up from the slow tier's: every result above
+# is measured in THIS working tree, which is not the repo — it also holds
+# untracked files, 14 of them written by a separate autonomous system. Round
+# 355 found `languages/whence/tests/test_lexer_guest_parity.py` had required
+# those files to exist since round 350, so a fresh clone failed the suite
+# while every round reported green. `pristine_check.py check` is the real
+# run (a second full suite in a `git worktree`, minutes); this line is only
+# its last recorded verdict, and prints "no recorded check" — never "pass" —
+# when there isn't one.
+echo
+python3 harness/pristine_check.py status || true
+
 exit $rc

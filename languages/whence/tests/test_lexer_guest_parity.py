@@ -38,7 +38,8 @@ Layout:
                        This is the check that would have caught round 144's
                        `->` if it had been added on one side only.
   - stream parity    — a hand corpus (one case per lexer branch) plus every
-                       `examples/*.lang` file in the tree.
+                       `examples/*.lang` file GIT TRACKS (round 355: not
+                       every file in the directory — see `_example_files`).
   - pinned gaps      — the divergences that are real and are not bugs.
 
 Cost control: every guest run in this file loads the ~800-line library ONCE
@@ -48,6 +49,7 @@ and lexes the whole batch in that one program, the same trick
 
 import glob
 import os
+import subprocess
 
 import pytest
 
@@ -363,10 +365,45 @@ def test_the_corpus_exercises_both_outcomes():
 
 
 # --------------------------------------------------------------------------
-# stream parity — every real .lang file in the tree
+# stream parity — every example file GIT TRACKS
 # --------------------------------------------------------------------------
 
 def _example_files():
+    """The CURATED corpus: `examples/*.lang` as enumerated by `git ls-files`.
+
+    Round 355 (harness A) replaced a `glob.glob` here. `examples/` is not
+    exclusively ours — a separate autonomous process sharing this checkout
+    (the Hermes gateway) drops its own untracked `.lang` files into it, 14 of
+    them at the time of the fix — and a glob cannot tell those from the real
+    corpus. The consequence was not extra coverage but a suite that could
+    only pass HERE: checked out clean at the same commit, this file's two
+    corpus tests failed on their own size floors (`assert 12 >= 20` and
+    `assert 16 >= 26`), because round 350 set those floors from a directory
+    it had not distinguished and so encoded another system's file count as a
+    requirement of ours.
+
+    This is the same rule, and the same reasoning, as
+    `harness/swe/fuzz.py::list_example_files`, which predates the bug. It is
+    duplicated rather than imported so the whence suite stays runnable with
+    no dependency on `harness/` (round 349's `-c pytest.ini` routing has the
+    same goal); `harness/pristine_check.py` is what makes the duplication
+    safe, since a divergence between the two shows up there as a test that
+    passes in the working tree and fails from git alone.
+
+    Falls back to the old glob if `git` is unavailable or this is not a
+    checkout at all — a corpus of 16 is better than a collection error.
+    """
+    try:
+        out = subprocess.run(
+            ["git", "ls-files", "examples"], cwd=ROOT,
+            capture_output=True, text=True, timeout=10, check=True)
+        names = sorted(os.path.join(ROOT, line)
+                       for line in out.stdout.splitlines()
+                       if line.startswith("examples/") and line.endswith(".lang"))
+        if names:
+            return names
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        pass
     return sorted(glob.glob(os.path.join(ROOT, "examples", "*.lang")))
 
 
@@ -388,8 +425,12 @@ def _run_files(paths):
 
 
 def test_small_example_files_lex_identically():
+    # Floors are FLOORS, and both are now measured against the tracked
+    # corpus alone (round 355: 12 files / 3972 tokens). They exist to catch
+    # a corpus that silently emptied, so they must be reachable by a fresh
+    # clone — which the old `>= 20` was not.
     paths = _small_example_files()
-    assert len(paths) >= 20, paths
+    assert len(paths) >= 12, paths
     total = _run_files(paths)
     assert total > 3000, total
 
@@ -397,11 +438,37 @@ def test_small_example_files_lex_identically():
 @pytest.mark.whence_slow
 def test_every_example_file_lexes_identically():
     # The superset, including `self_eval.lang` lexing its own 138 KB source.
-    # Round 350 measured 30 files / ~37k tokens / 0 divergences here.
+    # Round 350 measured 30 files / ~37k tokens / 0 divergences, but 14 of
+    # those 30 were another system's untracked files; round 355 re-measured
+    # the curated 16 at 35188 tokens, still 0 divergences.
     paths = _example_files()
-    assert len(paths) >= 26, paths
+    assert len(paths) >= 16, paths
     total = _run_files(paths)
     assert total > 30000, total
+
+
+def test_the_corpus_is_what_git_tracks_and_not_what_the_directory_holds():
+    """The regression pin for round 355's fix, and it must FAIL LOUDLY here.
+
+    A `glob` and a `git ls-files` agree in any clean checkout, so a test
+    that only asserted "the corpus is non-empty" would pass again the moment
+    somebody reverted the fix on a CI box. This asserts the discrimination
+    itself: every path returned is tracked, and if the directory currently
+    holds untracked `.lang` files (it does on the research host, and does
+    not in a fresh clone) at least one of them is excluded.
+    """
+    listed = {os.path.basename(p) for p in _example_files()}
+    tracked = subprocess.run(["git", "ls-files", "examples"], cwd=ROOT,
+                             capture_output=True, text=True, check=True)
+    tracked = {os.path.basename(l) for l in tracked.stdout.splitlines()
+               if l.endswith(".lang")}
+    assert listed == tracked, listed ^ tracked
+
+    on_disk = {os.path.basename(p)
+               for p in glob.glob(os.path.join(ROOT, "examples", "*.lang"))}
+    extra = on_disk - tracked
+    if extra:                       # true here, false in a fresh clone
+        assert not (listed & extra), sorted(listed & extra)
 
 
 # --------------------------------------------------------------------------
