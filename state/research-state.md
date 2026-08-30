@@ -9450,22 +9450,33 @@ Workspace: ~/agi-research
    been observed on real data (205 pass / 1 error / 0 fail across 206 logs) —
    fixture-tested only, the same never-observed-live shape as round 310's
    item 3 for `reachability_check.py`'s `"ambiguous"`.
-4. **New:** no historical mutation score was re-audited. Prior rounds' scores
+4. **New, and the sharpest open item round 349 leaves:** `campaign.py` gets
+   layer 1 of the mutation fix but NOT layer 2. It imports `run_mutant` and
+   never calls `mutation_test` (`grep -c mutation_test
+   harness/swe/campaign.py` -> 0), so its mutants are classified correctly
+   per-run but its campaigns get **no baseline pre-flight** — a campaign
+   started against an already-red tree still reports every mutant killed,
+   with no warning, in the entry point that runs the biggest campaigns.
+   Named rather than fixed: `MutationStage` is checkpointed and resumable
+   with a manifest, so the gate belongs in that stage's design, and
+   `test_swe_campaign.py` is too slow to verify the change inside round
+   349's remaining budget. A SWE-loop(D) round owns this.
+5. **New:** no historical mutation score was re-audited. Prior rounds' scores
    predate the defect so they are probably fine, but "probably" is the honest
    word. `state/swe/round-245/` and `round-263/` hold re-runnable campaign
    scripts; they will now refuse a non-green baseline, which is itself the
    thing worth watching. A SWE-loop(D) round could convert this to a number.
-5. **New:** the 8 new `test_swe_mutation.py` tests land in the `swe_slow`
+6. **New:** the 8 new `test_swe_mutation.py` tests land in the `swe_slow`
    tier by the `test_swe_*.py` filename convention, so they do NOT run in the
    per-round harness fast check. Correct by the existing convention (they
    spawn real pytest subprocesses) but worth naming rather than leaving
    implied.
-6. Round 348's own v0.20 follow-ons are untouched by this round and stand.
-7. Round 321's item 14 (stale-header sweep) — round 349 closed one instance
+7. Round 348's own v0.20 follow-ons are untouched by this round and stand.
+8. Round 321's item 14 (stale-header sweep) — round 349 closed one instance
    at the source (SPEC.md's builtin table is now machine-checked against the
    registry), which is a template for the rest: the fix for "a line asserting
    a number no round re-executes" is a test that re-executes it, not a sweep.
-8. Standing and unchanged: `fuzz-mutate-kill-loop/SKILL.md` is still 415 body
+9. Standing and unchanged: `fuzz-mutate-kill-loop/SKILL.md` is still 415 body
    lines (B002), 8th consecutive round carried; `harness/swe/regiontools.py`
    is still deliberately un-unified with `EditFileTool` (round 307's item 2);
    round 301's item 2 remains speculative; the `tail`/EOF backgrounded-pipe

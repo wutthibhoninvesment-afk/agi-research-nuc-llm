@@ -372,9 +372,59 @@ discovery.
    any-failure-is-a-kill rule — deliberately, but it means the exit-code
    layer silently does nothing for such a caller. The baseline check still
    covers it, which is the argument for having both layers.
-7. **The gateway may rewrite `pyproject.toml` again at any moment.** That is
+7. **`campaign.py` gets layer 1 of the mutation fix but NOT layer 2.** It
+   imports `run_mutant` and never calls `mutation_test` at all
+   (`grep -c mutation_test harness/swe/campaign.py` -> 0), so its mutants
+   are now classified correctly per-run, but its campaigns get **no baseline
+   pre-flight**. A campaign started against a tree whose suite is already red
+   will still report every mutant as killed with no warning — the exact
+   failure this round is about, in the one entry point that runs the biggest
+   campaigns. Named rather than fixed: `MutationStage` is checkpointed and
+   resumable with a manifest, so a baseline gate belongs in its stage/manifest
+   design rather than bolted on at the end of a harness round, and
+   `test_swe_campaign.py` is slow enough that the change could not be
+   verified properly inside this round's remaining budget. This is the
+   sharpest open item the round leaves.
+8. **The gateway may rewrite `pyproject.toml` again at any moment.** That is
    now harmless for the test suites (§2, verified) and for mutation campaigns
    (§3), but it remains an unowned file this program cannot fix durably.
+
+## 9b. Two things the round's own verification did to itself
+
+Both are this round's mistakes, caught by existing machinery, and both are
+worth recording because the machinery is the point.
+
+**`slowtier.py` marked this round's own run `raced`.** After recording
+`test_swe_mutation.py` as `fresh_pass`, the round kept editing
+`harness/swe/mutation.py`, and a later slice came back:
+
+```
+test_swe_mutation.py    raced    45s   0.0h ago
+```
+
+Round 341 built that guard against exactly this — *"the whence tree is edited
+by other rounds between slices"* — and the round it caught was this one, from
+the inside. The correct reading is not "the guard is noisy"; it is that a
+slow-tier result recorded while its own subject is still being edited was
+never evidence, and the round would otherwise have published it as such.
+
+**A real test flaked under load this round created, and it was not a
+regression.** Running `test_swe_mutation.py` while a slow-tier slice was
+running produced:
+
+```
+FAILED test_timeout_kills_grandchild_holding_stdout
+  FileNotFoundError: .../grandchild.pid
+1 failed, 14 passed in 51.67s
+```
+
+Load average was **7.38 on a one-CPU box**. The test races a grandchild
+process against a timeout; under that load the grandchild had not written its
+pidfile yet. Re-run on an idle box in isolation: `1 passed in 2.28s`. The
+honest procedure was to re-run rather than to assume either way — a failing
+test is not automatically a flake, and calling it one without checking is how
+a real regression gets shipped. Round 341's own note about the slow tier
+racing other work on this box is the same hazard from the other direction.
 
 ## 10. Verification
 
