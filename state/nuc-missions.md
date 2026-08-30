@@ -1184,3 +1184,57 @@ Code runs (proof in round file), measurements banked in both places,
 - Hygiene: no writes on the box outside the pre-existing `~/nuc-research/`
   poll outputs; `/work/**` read-only; no unit restarted; **port 8001 never
   contacted**; no engine request of any kind.
+
+## Round 370 addendum (2026-08-30, box **UP** — same boot `43e0c767` as rounds 352/358/364, uptime 14h38m at first contact)
+
+- **E-mission status: E1-E5 all still DONE; nothing new unchecked.** This
+  round's work was round 364's handoff item 3 (the suspend witness) plus an
+  unplanned finding that corrects round 364's own headline.
+- **`--cap 256` IS over-committed once a single request lands.** Round 364
+  measured `memory.current` byte-identical at 9,770,594,304 B across 1921
+  samples / 8.002 h and concluded "at rest this deployment needs 9.77 GB …
+  `--cap 256` is not intrinsically over-committed". Same boot, 4h46m later:
+  **30,870,429,696 B = 95.8 % of the 30 GiB cap**, `memory.peak`
+  **31,670,497,280 B = 98.3 %**, i.e. **517 MiB of headroom**. `pswpout`
+  0 → 1669 pages. `memory.events max` still 0.
+- **Mechanism, confirmed at the source.** Engine log, this boot, three
+  relevant lines: `[qwen36] int4 packed weights detected — unpacking to int8
+  in slot` (13:26:32Z), then two `POST /v1/chat/completions 200` (13:28:25Z,
+  14:54:08Z). `/work/src/colibri-v170/c/qwen36.c:1224-1242` unpacks int4
+  experts **in-slot to int8**, so each demand-loaded expert costs **2× its
+  on-disk size** (packed model on disk 23,031,269,773 B). It is a **one-time
+  unpack on the first inference of a boot**, not gradual cache diversity.
+  **Two requests moved the cgroup 9.77 → 30.87 GB.** This explains rounds
+  130/136/142 and reaffirms E4's RAM-FAIL recommendation.
+- **Round 184's suspend hypothesis CLOSED, three independent witnesses.**
+  `/sys/power/suspend_stats/success = 0` and
+  `CLOCK_BOOTTIME − CLOCK_MONOTONIC = −1e−06 s` (zero suspends in 14.6 h);
+  longest journal silence **300 s across 149.0 h / 7 boots**, which bounds any
+  *unlogged* suspend without needing a grep pattern; and `boot_utc` vs
+  journald `first_entry` agreeing **5/5, max |delta| 5.0 s**, correct sign.
+  Round 340's item 2 is closed by making its assumption irrelevant —
+  `check()` now records the box's own suspend counters beside `boot_utc`.
+- **Round 364's "now cheap per boot" is WRONG for six of the seven boots.**
+  `journalctl -b -2 -k` alone exceeds 100 s and does not finish; only boot 0
+  is cheap (11 s). The per-boot kernel-log grep for boots −1…−6 was therefore
+  NOT run — it is also the weakest of the three witnesses.
+- **Round 304 item 2 re-verified, all six unchanged** — `--cap 256` live;
+  **E3 patch still NOT applied** (0 markers in `qwen36.c`, mtime
+  2026-08-23T15:27:33Z); OLMoE tarball present at
+  `/home/jab/nuc-research/models/olmoe_merged.tar` (7,420,160,000 B — NOT
+  under `/work/models`, which contains only `qwen36_i4_gs64`);
+  `memory.events max` 0; no operator login since 2026-08-26 19:24; both user
+  units `active`. A **thirteenth** boot in a row with no operator action —
+  escalation channel dead since round 166.
+- **Next E round, in order:** (1) capture boot history FIRST, (2)
+  `journal-boots` + `continuity` (cut from this round for time; cache warm,
+  nothing aged out), (3) on the next FRESH boot, poll `memory.current` at ~5 s
+  and watch for the `unpacking to int8 in slot` line to catch the transition
+  itself — needs no operator approval, only patience and not being the one to
+  send the first request.
+- Hygiene: READ-ONLY on `/work/**`; no unit restarted; **port 8001 never
+  contacted**; no engine request of any kind. **One cleanup action, disclosed:**
+  this round left two orphaned `journalctl` scans running when an ssh was
+  killed (PIDs 37531/37532/37680/37681, 368 s and 221 s) — they were the entire
+  cause of the `load average: 2.84` first observed, and were killed. Load fell
+  2.84 → 1.71; `memory.current` byte-identical before and after.

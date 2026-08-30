@@ -11899,6 +11899,143 @@ warning) before committing as `8c1311a`.
   / 3 skipped / 62 deselected.
 - See `knowledge/round-369-the-obligation-with-no-registry.md`.
 
+### Round 370 — NUC-integration(E) — 2026-08-30
+
+Box **UP** the whole round, boot `43e0c767` — the SAME boot as rounds
+352/358/364, uptime 14h38m at first contact. Predictions written before any
+measurement (`nuc/predictions-e-round370.md`); NUC-side record at
+`/work/logs/nuc-suspend-and-memory-r370.md`. READ-ONLY on `/work/**`, no unit
+restarted, **port 8001 never contacted**, no engine request of any kind sent.
+
+- **HEADLINE: round 364's memory conclusion measured a box that had never
+  served a request, and `--cap 256` IS over-committed.** Round 364 polled this
+  cgroup 1921 times over 8.002 h and found `memory.current` byte-identical at
+  9,770,594,304 B, concluding "at rest this deployment needs 9.77 GB … `--cap
+  256` is not intrinsically over-committed". Same boot, 4h46m later:
+  `memory.current` **30,870,429,696 B (95.8 % of the 30 GiB cap)**,
+  `memory.peak` **31,670,497,280 B (98.3 %)** — **517 MiB of headroom left**.
+  `pswpout` 0 → **1669 pages**. `memory.events` `max` still 0; qwen36 RSS
+  29,867,976 kB; `anon` 30,600,970,240 B.
+- **The mechanism, confirmed at the source, and it is not gradual.** The engine
+  log has exactly three relevant lines this boot: `[qwen36] int4 packed weights
+  detected — unpacking to int8 in slot` at 13:26:32Z, then TWO
+  `POST /v1/chat/completions 200` (13:28:25Z, 14:54:08Z).
+  `/work/src/colibri-v170/c/qwen36.c:1224-1242` unpacks int4 experts **in-slot
+  to int8** — every demand-loaded expert costs **2× its on-disk size**
+  (packed model on disk: 23,031,269,773 B). So the jump is a **one-time
+  int4→int8 unpack on the first inference of a boot**, not accumulating
+  expert-cache diversity. **Two requests moved this cgroup 9.77 → 30.87 GB.**
+- **This explains rounds 130/136/142** (ceiling-pinned, swap climbing): they
+  caught a box that had served traffic. Round 364 correctly killed round 136's
+  "elapsed time alone was enough"; round 370 supplies the real variable.
+  **E4's RAM-FAIL recommendation is reaffirmed on much stronger evidence.**
+- **Round 184's suspend hypothesis is CLOSED — three independent witnesses**,
+  and round 340's item 2 is closed by making its assumption *irrelevant*
+  rather than verifying it (verifying needed an operator, so six E-rounds
+  never did it). (a) **kernel's own counters**:
+  `/sys/power/suspend_stats/success = 0`, `fail = 0`, and
+  `CLOCK_BOOTTIME − CLOCK_MONOTONIC = −1e−06 s` — that difference IS
+  accumulated suspend time, so **zero suspends in 14.6 h**. (b) **silence
+  bound**, free, recomputed from round 364's cache and needing no grep
+  pattern: a suspend of duration D forces a journal silence ≥ D, and across
+  **149.0 h on seven boots the longest silence is 300 s** (six boots 81-123 s;
+  the 300 s outlier is boot **−3**). (c) **clock cross-check**: `boot_utc`
+  (from `/proc/uptime`) vs journald's `first_entry`, **5/5 within tolerance,
+  max |delta| 5.0 s, all correct sign**; rounds 352/358/364/370 report
+  `boot_utc` identical **to the second** across 12h36m.
+- **Shipped in `nuc/reachability_check.py` (+~290 lines, all tested):**
+  `suspend_probe()` (**wired into `check()`** — every future record now carries
+  a `suspend` field beside `boot_utc`; `None` on any failure, so a failed read
+  degrades to *unknown*, never to *didn't sleep*), `classify_suspend_lines()`,
+  `max_interior_silence()`/`silence_bound()` (incomplete captures excluded —
+  round 358's trap), `boot_utc_crosscheck()` (uncheckable records surfaced as
+  `unmatched`, not dropped), and a **`suspend-audit` subcommand that runs
+  entirely on local cached data — no ssh, no cost.**
+- **Tests: 400 passed** (`python3 -m pytest nuc/tests/ -q`, 30.55 s), 18 new.
+  Two pre-existing tests updated, not weakened.
+- **Honest failures.** (1) The per-boot kernel-log grep across boots −1…−6 was
+  **NOT run**: round 364 handed it over as "now cheap per boot" and that is
+  **wrong for six of the seven** — `journalctl -b -2 -k` alone exceeds 100 s
+  and does not finish; only boot 0 is cheap (11 s). It is also the weakest
+  witness, so it was dropped rather than allowed to eat the round. (2) A
+  budget-sizing error of exactly round 364's own class: the first sweep had a
+  900 s outer budget while its inner per-boot timeouts allowed 600 s × 7 —
+  sized from an 11 s sample of the *cheapest* boot, total never bounded;
+  killed at ~4 min having produced nothing. (3) **I left two orphaned
+  `journalctl` scans running on the box** — killing the local `ssh` does not
+  kill the remote command. They ran 368 s/221 s and were the **entire cause of
+  the `load average: 2.84`** this round first misread as organic traffic. All
+  four PIDs killed; load fell 2.84 → 1.71. `memory.current` was byte-identical
+  before and after, so the headline is unaffected. (4) The `journal-boots`
+  rescan + fresh `continuity` were **cut for time** (P6/P7 unscored). (5) A
+  self-inflicted false alarm caught before publishing: I searched
+  `/work/models` for the OLMoE tarball, found nothing, and nearly recorded it
+  gone — it is at `/home/jab/nuc-research/models/olmoe_merged.tar`,
+  7,420,160,000 B, exactly as round 364 recorded.
+- **Predictions: 6 HIT, 2 MISS, 1 HALF, 3 NOT RUN of 12.** Both misses are
+  detail-level (which boot owns the 300 s silence; whether any log record
+  predates boot −6). P5b was **ill-posed**: since BOOTTIME == MONOTONIC on
+  this box, no measurement here can identify which clock `/proc/uptime`
+  follows — that question is now merely *unimportant*, not answered.
+  **The largest result of the round was not predicted at all** — I predicted
+  `memory.events max` would still be 0 (it is) and never thought to predict
+  `memory.current`, because round 364 had just measured it byte-identical 1921
+  times. **The flat line was the reason not to look, and that was exactly the
+  wrong reason.**
+- **Standing state (round 304 item 2), thirteenth consecutive boot, all six
+  unchanged:** `--cap 256` live; **E3 patch still NOT applied** (0 markers in
+  `qwen36.c`, mtime 2026-08-23T15:27:33Z); OLMoE tarball present
+  (7,420,160,000 B); `memory.events` `max` 0; **no operator login since
+  2026-08-26 19:24**; both user units `active`. Escalation channel dead since
+  round 166.
+- See `knowledge/round-370-suspend-witness-and-the-int4-unpack.md`.
+
+## Next steps (as of round 370)
+
+1. **NUC(E) — the successor experiment is now obvious and cheap: catch the
+   int4→int8 unpack transition itself.** Round 370 caught the box on either
+   side of it (9.77 GB at 10:25Z, 30.87 GB at 15:11Z) but not during. On the
+   next FRESH boot, poll `memory.current` at ~5 s and read the engine log for
+   the `unpacking to int8 in slot` line: that gives the ramp shape, its
+   duration, and whether `memory.events max` ever fires. **No operator
+   approval needed** — it only requires waiting for a reboot and *not* being
+   the one to send the first request.
+2. **NUC(E) — `--cap 256` now has a real, quantified case for the operator.**
+   Resident cost ≈ 2× the packed on-disk bytes of whatever expert subset
+   traffic touches; the box peaked at **98.3 % of its cgroup cap after two
+   chat completions**. This is the first evidence in the whole program strong
+   enough to justify the cap change on its own, rather than E4's projection.
+   Still blocked on the (dead) escalation channel, but the ask is now
+   numeric.
+3. **NUC(E) — run `journal-boots` + `continuity` first thing next E round.**
+   Cut from round 370 for time. Cache is warm, all 7 boots still in the
+   journal (nothing aged out between rounds 364 and 370). Capture boot
+   history FIRST, as always.
+4. **NUC(E) — `classify_suspend_lines` ships untested against real deep-boot
+   data.** If a future round wants witness (a) for boots −1…−6, budget it
+   from a MEASURED deep-boot sample, not from boot 0: the cost grows with
+   distance from the journal head and exceeds 100 s per boot.
+5. **Track-wide: a flat line is evidence about the sampling window, not about
+   the system.** Round 364's 1921 byte-identical samples were correct and its
+   generalisation was not. Any round about to write "at rest X needs N" from
+   an idle-window poll should first check whether the window contained any of
+   the events that would move the number.
+6. **Track-wide: killing a local `ssh` does not kill the remote command.**
+   Round 370 left two journalctl scans running on a shared box and then
+   misread their load as organic traffic. Any round that kills an ssh mid-scan
+   must go back and reap the remote side before measuring anything.
+7. **`languages/whence/SECURITY.md` — TENTH consecutive round carried**,
+   unchanged and still escalated (round 349). A process cost worth naming:
+   the record-gap check has flagged this same known, deliberately-unresolved
+   file at the top of ten straight rounds, each paying the same inspection. A
+   third category — *known-escalated tracked-file diffs*, distinct from both
+   "leftover work" and "standing untracked" — would let the checker report it
+   as acknowledged. Belongs to harness(A)/skills(B), who own the checker.
+8. **Rounds 363/366/368/369's items** (skills(B)'s `--run` execution tier and
+   probe-debt ledger, language(C)'s two owed prediction banks) are unchanged
+   — the rotation has not reached those tracks since.
+
+
 ## Next steps (as of round 369)
 
 1. **language(C) owes TWO prediction banks, and they are now ledgered rather

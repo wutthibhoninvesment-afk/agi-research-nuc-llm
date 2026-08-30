@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 import time
@@ -152,6 +153,259 @@ def boot_utc_from_uptime(now_iso: str, uptime_s: float) -> str:
     return (_parse_ts(now_iso) - timedelta(seconds=uptime_s)).strftime(TS_FORMAT)
 
 
+# --- Round 370: the suspend witness -------------------------------------
+#
+# Round 184 hypothesised that some of this box's reachability gaps are
+# SUSPEND rather than power-off. Round 340 sharpened it into a soundness
+# question about our own instrument: `boot_utc` is `now - /proc/uptime`, and
+# reading "boot_utc unchanged" as "no reboot" assumes `/proc/uptime` keeps
+# counting while the box is suspended. That was read from kernel
+# documentation, never measured here, and round 340 queued "suspend the box,
+# resume, and check" -- which needs an operator, so it never happened.
+#
+# Round 370's answer is to stop depending on the assumption instead of
+# trying to verify it. The kernel keeps its own per-boot suspend counters in
+# `/sys/power/suspend_stats/`, and `CLOCK_BOOTTIME - CLOCK_MONOTONIC` IS the
+# accumulated suspend time for the current boot by definition of the two
+# clocks. Record those next to `boot_utc` and the pair
+# "boot_utc unchanged AND suspend_success == 0" is sound no matter which
+# clock `/proc/uptime` reads. The assumption becomes irrelevant rather than
+# unverified.
+#
+# NOTE the scope limit, which is real: `suspend_stats` and the
+# BOOTTIME/MONOTONIC delta both reset at boot, so they witness the CURRENT
+# boot only. For boots already in the past the witnesses are
+# `classify_suspend_lines` (did the box LOG a suspend) and
+# `max_interior_silence` (could it have suspended without logging one).
+
+SUSPEND_REAL_RE = re.compile(
+    r"PM: suspend entry|PM: suspend exit|PM: suspend-to-idle|"
+    r"Freezing user space|Freezing remaining freezable|"
+    r"Preparing to enter system sleep state|"
+    r"Restoring platform NVS memory|"
+    r"PM: hibernation: hibernation entry|PM: hibernation: hibernation exit|"
+    r"Suspending console|PM: Image saved|s2idle",
+    re.I)
+
+# Round 364 found 7 of these on boot 0 and correctly refused to read them as
+# suspends: `Registered nosave memory` is boot-time setup emitted by any
+# kernel built with hibernation support, on a machine that has never slept.
+# It is kept as an explicit exclusion rather than merely being absent from
+# SUSPEND_REAL_RE so that a future widening of the "real" pattern cannot
+# silently re-admit it.
+SUSPEND_FALSE_POSITIVE_RE = re.compile(
+    r"PM: hibernation: Registered nosave memory", re.I)
+
+SUSPEND_BROAD_RE = re.compile(
+    r"PM: suspend|PM: hibernation|Freezing|sleep state|Restoring platform NVS|"
+    r"s2idle|suspend-to-idle|systemd-suspend|systemd-sleep|Suspending console",
+    re.I)
+
+
+def classify_suspend_lines(lines) -> dict:
+    """Split kernel-log lines into real suspend evidence / known noise / rest.
+
+    Pure, so the pattern set is testable without a box. `real` is the only
+    bucket that means "this machine slept"; `false_positive` is round 364's
+    `Registered nosave memory`; `other` is everything the broad net caught
+    that neither pattern claims -- deliberately surfaced rather than dropped,
+    because an unrecognised power-management line is exactly the shape of
+    evidence this check exists to find.
+    """
+    real, false_pos, other = [], [], []
+    for line in lines:
+        if not SUSPEND_BROAD_RE.search(line):
+            continue
+        if SUSPEND_FALSE_POSITIVE_RE.search(line):
+            false_pos.append(line)
+        elif SUSPEND_REAL_RE.search(line):
+            real.append(line)
+        else:
+            other.append(line)
+    return {"n_scanned": len(lines), "real": real, "false_positive": false_pos,
+            "other": other, "n_real": len(real),
+            "n_false_positive": len(false_pos), "n_other": len(other),
+            "slept": bool(real)}
+
+
+def max_interior_silence(seconds) -> dict | None:
+    """Longest gap between consecutive entry-seconds in one boot's capture.
+
+    This is the witness that does NOT depend on the box logging anything: a
+    suspend of duration D produces a journal silence of at least D, because
+    nothing runs to write a record. So the longest interior silence is an
+    upper bound on any suspend the box took without logging it.
+
+    `seconds` is the `seconds` list of a journal-seconds capture (integer
+    epoch seconds that had at least one journal entry). Returns None for a
+    capture with fewer than two seconds in it -- one lone second bounds
+    nothing.
+    """
+    uniq = sorted(set(int(s) for s in seconds or []))
+    if len(uniq) < 2:
+        return None
+    best_gap, best_from = 0, uniq[0]
+    for a, b in zip(uniq, uniq[1:]):
+        if b - a > best_gap:
+            best_gap, best_from = b - a, a
+    return {"max_silence_s": best_gap, "from_epoch": best_from,
+            "to_epoch": best_from + best_gap, "n_seconds": len(uniq),
+            "covered_span_s": uniq[-1] - uniq[0]}
+
+
+def silence_bound(captures) -> dict:
+    """Per-boot and overall silence bounds across a set of journal captures.
+
+    Only `complete` captures count toward the overall bound. An incomplete
+    capture is one `journal-boots` could not finish inside the timeout it
+    sized (round 358's trap: the probe returns [] for a client-side timeout
+    and a truncated scan would otherwise read as a very quiet boot), and a
+    truncated scan's biggest gap is not a bound on anything.
+    """
+    per_boot, incomplete = [], []
+    for cap in captures:
+        row = {"boot_id": cap.get("boot_id"), "boot_index": cap.get("boot_index"),
+               "complete": bool(cap.get("complete"))}
+        sil = max_interior_silence(cap.get("seconds") or [])
+        row["silence"] = sil
+        if not row["complete"] or sil is None:
+            incomplete.append(row)
+        per_boot.append(row)
+    usable = [r for r in per_boot if r["complete"] and r["silence"]]
+    usable.sort(key=lambda r: (r["boot_index"] is None, r["boot_index"]))
+    overall = max((r["silence"]["max_silence_s"] for r in usable), default=None)
+    covered = sum(r["silence"]["covered_span_s"] for r in usable)
+    return {"n_captures": len(per_boot), "n_usable": len(usable),
+            "n_unusable": len(incomplete),
+            "max_silence_s": overall,
+            "covered_running_time_s": covered,
+            "per_boot": usable, "unusable": incomplete}
+
+
+def boot_utc_crosscheck(records, boots, tolerance_s: int = 120) -> dict:
+    """Compare each logged `boot_utc` against journald's own `first_entry`.
+
+    Two independent instruments for one wall-clock instant. `boot_utc` comes
+    from `/proc/uptime` over ssh; `first_entry` comes from the box's journal
+    index, which never consults `/proc/uptime`. They can only disagree if
+    uptime has lost or gained time relative to the realtime clock -- which is
+    exactly the failure mode round 340 worried about, and the check catches
+    it whatever the cause (suspend, a clock step, NTP slew).
+
+    Expected sign is NEGATIVE and small: the kernel starts counting uptime
+    before journald exists to write its first record, so a healthy
+    `boot_utc` lands a few seconds BEFORE `first_entry`.
+
+    Records whose instant predates the oldest boot still in the journal
+    cannot be checked at all and are reported as `unmatched` rather than
+    quietly dropped.
+    """
+    rows, unmatched = [], []
+    # `parse_boot_history`'s normalised schema: ISO strings, whole seconds.
+    # That 1 s quantisation is far below any tolerance worth setting here --
+    # the effect being measured (an unlogged suspend) is minutes to hours.
+    ordered = sorted(boots, key=lambda b: b["first_entry_utc"])
+    for rec in records:
+        if not rec.get("boot_utc"):
+            continue
+        checked = _parse_ts(rec["checked_at_utc"]).timestamp()
+        boot_utc = _parse_ts(rec["boot_utc"]).timestamp()
+        live = [b for b in ordered
+                if _parse_ts(b["first_entry_utc"]).timestamp() <= checked]
+        match = live[-1] if live else None
+        # +1h of slack past `last_entry_utc`: the boot-history snapshot is
+        # taken at one instant, so the OPEN boot's last_entry is already
+        # stale by the time an earlier record is compared against it.
+        if match is None or checked > _parse_ts(match["last_entry_utc"]).timestamp() + 3600:
+            unmatched.append({"round": rec.get("round"),
+                              "checked_at_utc": rec["checked_at_utc"],
+                              "boot_utc": rec["boot_utc"],
+                              "why": "no boot in the journal covers this instant"})
+            continue
+        delta = boot_utc - _parse_ts(match["first_entry_utc"]).timestamp()
+        rows.append({"round": rec.get("round"),
+                     "checked_at_utc": rec["checked_at_utc"],
+                     "boot_utc": rec["boot_utc"],
+                     "boot_index": match["index"], "boot_id": match["boot_id"],
+                     "first_entry_utc": match["first_entry_utc"],
+                     "delta_s": round(delta, 1),
+                     "within_tolerance": abs(delta) <= tolerance_s,
+                     "sign_ok": delta <= 0})
+    return {"n_checked": len(rows), "n_unmatched": len(unmatched),
+            "tolerance_s": tolerance_s,
+            "n_out_of_tolerance": sum(1 for r in rows if not r["within_tolerance"]),
+            "n_wrong_sign": sum(1 for r in rows if not r["sign_ok"]),
+            "max_abs_delta_s": max((abs(r["delta_s"]) for r in rows), default=None),
+            "checks": rows, "unmatched": unmatched}
+
+
+SUSPEND_STATS_FIELDS = ("success", "fail", "last_failed_dev", "last_failed_step")
+
+
+def suspend_probe(ssh_target: str = DEFAULT_SSH_TARGET, ssh_key: str = DEFAULT_SSH_KEY,
+                  connect_timeout: int = DEFAULT_CONNECT_TIMEOUT_S,
+                  runner=subprocess.run) -> dict | None:
+    """The box's own suspend accounting for the CURRENT boot. READ-ONLY.
+
+    Two independent kernel sources in one round-trip:
+      * `/sys/power/suspend_stats/{success,fail}` -- how many suspends the
+        kernel has entered and how many failed, this boot.
+      * `CLOCK_BOOTTIME - CLOCK_MONOTONIC` -- accumulated suspend time this
+        boot, by definition of the two clocks.
+    Plus `/proc/uptime` against both clocks, which is what says WHICH clock
+    our `boot_utc` instrument is actually reading.
+
+    A separate ssh call for the same reason `boot_probe` is separate: it must
+    not weaken `ssh_probe`'s exact-"UP"-stdout rule, which is the basis of
+    the `up` verdict.
+
+    Returns None -- never raises -- for every failure mode, exactly like
+    `boot_probe`. A missing suspend record must degrade to "we don't know",
+    never to "it didn't suspend".
+    """
+    remote = (
+        "python3 -c \"import time;"
+        "d={};"
+        "d['boottime']=time.clock_gettime(time.CLOCK_BOOTTIME);"
+        "d['monotonic']=time.clock_gettime(time.CLOCK_MONOTONIC);"
+        "d['uptime']=float(open('/proc/uptime').read().split()[0]);"
+        "d.update({k:open('/sys/power/suspend_stats/'+k).read().strip() "
+        "for k in ('success','fail','last_failed_dev','last_failed_step')});"
+        "import json;print(json.dumps(d))\""
+    )
+    argv = ["ssh", "-i", ssh_key, "-o", f"ConnectTimeout={connect_timeout}",
+            "-o", "BatchMode=yes", ssh_target, remote]
+    try:
+        res = runner(argv, capture_output=True, text=True, timeout=connect_timeout + 20)
+    except subprocess.TimeoutExpired:
+        return None
+    if res.returncode != 0:
+        return None
+    try:
+        raw = json.loads((res.stdout or "").strip())
+    except (json.JSONDecodeError, TypeError):
+        return None
+    try:
+        success = int(raw["success"])
+        fail = int(raw["fail"])
+        boottime = float(raw["boottime"])
+        monotonic = float(raw["monotonic"])
+        uptime = float(raw["uptime"])
+    except (KeyError, TypeError, ValueError):
+        return None
+    return {
+        "suspend_success": success,
+        "suspend_fail": fail,
+        "last_failed_dev": raw.get("last_failed_dev") or None,
+        "last_failed_step": raw.get("last_failed_step") or None,
+        "cumulative_suspend_s": round(boottime - monotonic, 6),
+        "uptime_minus_boottime_s": round(uptime - boottime, 4),
+        "uptime_minus_monotonic_s": round(uptime - monotonic, 4),
+        # The one line a reader wants: did this boot ever sleep?
+        "slept_this_boot": success > 0 or (boottime - monotonic) >= 1.0,
+    }
+
+
 def check(round_: int | None = None, hostname: str = DEFAULT_HOSTNAME,
           ssh_target: str = DEFAULT_SSH_TARGET, ssh_key: str = DEFAULT_SSH_KEY,
           connect_timeout: int = DEFAULT_CONNECT_TIMEOUT_S, notes: str = "",
@@ -193,10 +447,18 @@ def check(round_: int | None = None, hostname: str = DEFAULT_HOSTNAME,
     ssh_result = ssh_probe(ssh_target, ssh_key, connect_timeout, runner=ssh_runner)
 
     boot_utc = None
+    suspend = None
     if ssh_result["reachable"]:
         uptime_s = boot_probe(ssh_target, ssh_key, connect_timeout, runner=ssh_runner)
         if uptime_s is not None:
             boot_utc = boot_utc_from_uptime(now_fn(), uptime_s)
+        # Round 370: `boot_utc` alone only means "no reboot" if uptime keeps
+        # counting through a suspend. Recording the box's own suspend
+        # counters beside it removes the dependency on that assumption --
+        # see `suspend_probe`. None on a down check and on a failed read;
+        # a missing record must read as "unknown", never as "did not sleep".
+        suspend = suspend_probe(ssh_target, ssh_key, connect_timeout,
+                                runner=ssh_runner)
 
     if ssh_result["reachable"]:
         verdict = "up"
@@ -218,6 +480,7 @@ def check(round_: int | None = None, hostname: str = DEFAULT_HOSTNAME,
         "tailscale_last_write_utc": peer["last_write"] if peer else None,
         "tailscale_error": ts_error,
         "boot_utc": boot_utc,
+        "suspend": suspend,
         "source": "live",
         "precision": "precise",
         "notes": notes,
@@ -1754,6 +2017,19 @@ def main(argv=None) -> int:
                          "from the box; witnesses up-streak gaps from the box's "
                          "own continuous record instead of our probes")
 
+    ap = sub.add_parser("suspend-audit",
+                        help="round 370: did this box ever sleep? Answers from "
+                             "LOCAL cached data only -- no ssh, no cost.")
+    ap.add_argument("--log-path", default=DEFAULT_LOG_PATH)
+    ap.add_argument("--boot-history", required=True,
+                    help="saved `journalctl --list-boots -o json` from the box")
+    ap.add_argument("--cache-dir", default="state/nuc-journal-cache",
+                    help="journal-seconds captures, for the silence bound")
+    ap.add_argument("--tolerance-s", type=int, default=120,
+                    help="max |boot_utc - first_entry| before a check is flagged")
+    ap.add_argument("--sweep", default=None,
+                    help="optional per-boot kernel-log sweep JSON to fold in")
+
     args = p.parse_args(argv)
 
     if args.mode == "check":
@@ -1873,6 +2149,69 @@ def main(argv=None) -> int:
             Path(args.merge_out).write_text(json.dumps(merged))
             out["merged"] = {k: v for k, v in merged.items() if k != "seconds"}
         print(json.dumps(out, indent=2))
+        return 0
+
+    if args.mode == "suspend-audit":
+        boots = parse_boot_history(Path(args.boot_history).read_text())
+        records = load_log(args.log_path)
+        caps = []
+        for f in sorted(Path(args.cache_dir).glob("journal-seconds-*.json")):
+            try:
+                caps.append(json.loads(f.read_text()))
+            except Exception:
+                continue
+        bound = silence_bound(caps)
+        cross = boot_utc_crosscheck(records, boots, tolerance_s=args.tolerance_s)
+        report = {
+            "n_boots_in_history": len(boots),
+            # Witness B: could a suspend have happened WITHOUT being logged?
+            "silence_bound": {k: v for k, v in bound.items() if k != "per_boot"},
+            "per_boot_silence": [
+                {"boot_index": r["boot_index"], "boot_id": r["boot_id"],
+                 "max_silence_s": r["silence"]["max_silence_s"],
+                 "covered_span_s": r["silence"]["covered_span_s"]}
+                for r in bound["per_boot"]],
+            # Witness C: do our two clocks agree about when each boot started?
+            "boot_utc_crosscheck": {k: v for k, v in cross.items()
+                                    if k not in ("checks",)},
+            "boot_utc_checks": cross["checks"],
+        }
+        if args.sweep:
+            sweep = json.loads(Path(args.sweep).read_text())
+            # Witness A: did the box LOG a suspend, per boot?
+            per = []
+            for b in sweep.get("boots", []):
+                per.append({"boot_index": b["index"], "boot_id": b["boot_id"],
+                            "kernel_lines": b.get("kernel_lines"),
+                            "n_real": len(b.get("real_hits") or []),
+                            "n_false_positive": b.get("false_pos_hits"),
+                            "n_other": len(b.get("other_hits") or []),
+                            "userspace_lines": b.get("userspace_total_lines"),
+                            "real_hits": b.get("real_hits") or [],
+                            "other_hits": b.get("other_hits") or []})
+            report["kernel_log_sweep"] = {
+                "n_boots": len(per),
+                "n_boots_with_real_hits": sum(1 for r in per if r["n_real"]),
+                "total_real_hits": sum(r["n_real"] for r in per),
+                "total_false_positives": sum(r["n_false_positive"] or 0 for r in per),
+                "total_other": sum(r["n_other"] for r in per),
+                "total_userspace_lines": sum(r["userspace_lines"] or 0 for r in per),
+                "per_boot": per}
+            report["current_boot"] = sweep.get("current_boot")
+
+        # The verdict is deliberately conjunctive across the witnesses that
+        # ACTUALLY ran, and `unknown` when a witness is missing rather than
+        # defaulting to the reassuring answer.
+        logged = report.get("kernel_log_sweep")
+        verdict_bits = {
+            "no_logged_suspend": (None if logged is None
+                                  else logged["total_real_hits"] == 0),
+            "max_unlogged_suspend_s": bound["max_silence_s"],
+            "clocks_agree": (cross["n_out_of_tolerance"] == 0
+                             if cross["n_checked"] else None),
+        }
+        report["verdict"] = verdict_bits
+        print(json.dumps(report, indent=2))
         return 0
 
     if args.mode == "continuity":

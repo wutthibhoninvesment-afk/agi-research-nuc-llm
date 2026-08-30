@@ -759,7 +759,19 @@ class _CountingSshRunner:
             return FakeCompleted(255, stderr="Connection timed out")
         if argv[-1] == "cat /proc/uptime":
             return FakeCompleted(0, stdout=self.uptime_stdout)
+        # Round 370: `check()` now also asks the box for its own suspend
+        # counters. Answer it here so these tests keep exercising the real
+        # call sequence rather than a stubbed-out one.
+        if argv[-1].startswith("python3 -c"):
+            return FakeCompleted(0, stdout=json.dumps(
+                {"boottime": 26576.31, "monotonic": 26576.31,
+                 "uptime": 26576.31, "success": "0", "fail": "0",
+                 "last_failed_dev": "", "last_failed_step": ""}))
         return FakeCompleted(0, stdout="UP\n")
+
+    @property
+    def non_suspend_commands(self):
+        return [c for c in self.commands if not c.startswith("python3 -c")]
 
 
 def test_check_up_record_carries_a_derived_boot_utc():
@@ -773,7 +785,12 @@ def test_check_up_record_carries_a_derived_boot_utc():
     assert record["verdict"] == "up"
     # 13:00:00 - 26576.31s = 05:37:03.69 -> truncated to 05:37:03
     assert record["boot_utc"] == "2026-08-29T05:37:03Z"
-    assert runner.commands == ["echo UP", "cat /proc/uptime"]
+    assert runner.non_suspend_commands == ["echo UP", "cat /proc/uptime"]
+    # Round 370: the suspend counters ride along on every up check, so
+    # "boot_utc unchanged" no longer has to assume anything about which
+    # clock /proc/uptime reads.
+    assert record["suspend"]["slept_this_boot"] is False
+    assert record["suspend"]["suspend_success"] == 0
 
 
 def test_check_down_record_has_null_boot_utc_and_never_probes_for_it():
@@ -787,8 +804,10 @@ def test_check_down_record_has_null_boot_utc_and_never_probes_for_it():
     assert record["verdict"] == "down"
     assert record["boot_utc"] is None
     # exactly one ssh call: no second connect-timeout wait for a boot time
-    # that a down box cannot supply anyway.
+    # that a down box cannot supply anyway. Round 370's suspend probe is
+    # gated behind the same `reachable` check for the same reason.
     assert runner.commands == ["echo UP"]
+    assert record["suspend"] is None
 
 
 def test_check_up_record_tolerates_an_unreadable_boot_time():
@@ -2462,3 +2481,193 @@ def test_cli_journal_boots_marks_a_timed_out_scan_incomplete(tmp_path, capsys, m
     # ...and therefore the next sweep re-scans them rather than trusting them.
     assert all(t_["needs_scan"] for t_ in
                rc.boot_scan_targets(rc.parse_boot_history(_BOOTS_R364), cache))
+
+
+# --- Round 370: the suspend witness -------------------------------------
+
+
+def test_classify_suspend_lines_real_suspend_is_detected():
+    lines = ["kernel: PM: suspend entry (deep)",
+             "kernel: Freezing user space processes ... done.",
+             "kernel: usb 1-1: reset high-speed USB device"]
+    out = rc.classify_suspend_lines(lines)
+    assert out["slept"] is True
+    assert out["n_real"] == 2
+    assert out["n_false_positive"] == 0
+
+
+def test_classify_suspend_lines_round_364_false_positive_is_not_a_suspend():
+    """`Registered nosave memory` is boot-time setup, not a sleep.
+
+    Round 364 saw 7 of these on boot 0 and correctly refused to read them as
+    suspends. This pins that refusal so a future widening of
+    SUSPEND_REAL_RE cannot silently re-admit them.
+    """
+    lines = ["kernel: PM: hibernation: Registered nosave memory: [mem 0x1000-0x1fff]"] * 7
+    out = rc.classify_suspend_lines(lines)
+    assert out["slept"] is False
+    assert out["n_real"] == 0
+    assert out["n_false_positive"] == 7
+
+
+def test_classify_suspend_lines_unrecognised_pm_line_is_surfaced_not_dropped():
+    lines = ["kernel: PM: hibernation: a future message we have no pattern for"]
+    out = rc.classify_suspend_lines(lines)
+    assert out["n_other"] == 1
+    assert out["slept"] is False
+
+
+def test_classify_suspend_lines_ignores_unrelated_lines():
+    out = rc.classify_suspend_lines(["kernel: EXT4-fs (dm-0): mounted filesystem"])
+    assert out == {"n_scanned": 1, "real": [], "false_positive": [], "other": [],
+                   "n_real": 0, "n_false_positive": 0, "n_other": 0, "slept": False}
+
+
+def test_max_interior_silence_finds_the_largest_gap():
+    out = rc.max_interior_silence([100, 101, 102, 400, 401])
+    assert out["max_silence_s"] == 298
+    assert out["from_epoch"] == 102
+    assert out["to_epoch"] == 400
+    assert out["covered_span_s"] == 301
+
+
+def test_max_interior_silence_needs_two_seconds_to_bound_anything():
+    assert rc.max_interior_silence([]) is None
+    assert rc.max_interior_silence([5]) is None
+
+
+def test_max_interior_silence_deduplicates_and_sorts():
+    assert rc.max_interior_silence([9, 1, 9, 1, 5])["max_silence_s"] == 4
+
+
+def test_silence_bound_excludes_incomplete_captures():
+    """A truncated scan's biggest gap bounds nothing.
+
+    Round 358's trap: `journal_seconds_probe` returns [] on a client-side
+    timeout, so a partial scan can look like a very quiet boot. Only
+    `complete` captures may contribute to the overall bound.
+    """
+    caps = [
+        {"boot_id": "a", "boot_index": -1, "complete": True,
+         "seconds": [0, 10, 400]},          # 390 s gap, counts
+        {"boot_id": "b", "boot_index": 0, "complete": False,
+         "seconds": [0, 100000]},           # 100000 s gap, must NOT count
+    ]
+    out = rc.silence_bound(caps)
+    assert out["max_silence_s"] == 390
+    assert out["n_usable"] == 1
+    assert out["n_unusable"] == 1
+    assert out["unusable"][0]["boot_id"] == "b"
+
+
+def test_silence_bound_empty_input_reports_no_bound_rather_than_zero():
+    out = rc.silence_bound([])
+    assert out["max_silence_s"] is None
+    assert out["covered_running_time_s"] == 0
+
+
+_R370_BOOTS = rc.parse_boot_history(json.dumps([
+    {"index": -1, "boot_id": "aaa",
+     "first_entry": 1787831451404446, "last_entry": 1787969407949006},
+    {"index": 0, "boot_id": "bbb",
+     "first_entry": 1788049952417669, "last_entry": 1788101832061199},
+]))
+
+
+def _r370_rec(round_, checked, boot_utc):
+    return {"round": round_, "checked_at_utc": checked, "boot_utc": boot_utc,
+            "verdict": "up"}
+
+
+def test_boot_utc_crosscheck_healthy_deltas_are_small_and_negative():
+    """The real round-352/358/364/370 shape: boot_utc lands just BEFORE
+    journald's first record, because the kernel counts uptime before
+    journald exists to write anything."""
+    recs = [_r370_rec(352, "2026-08-30T02:20:54Z", "2026-08-30T00:32:27Z"),
+            _r370_rec(370, "2026-08-30T14:56:57Z", "2026-08-30T00:32:27Z")]
+    out = rc.boot_utc_crosscheck(recs, _R370_BOOTS)
+    assert out["n_checked"] == 2
+    assert out["n_out_of_tolerance"] == 0
+    assert out["n_wrong_sign"] == 0
+    assert out["max_abs_delta_s"] == 5.0
+    assert all(c["boot_index"] == 0 for c in out["checks"])
+
+
+def test_boot_utc_crosscheck_flags_uptime_that_lost_time():
+    """The failure round 340 worried about: if /proc/uptime does NOT count
+    a suspend, boot_utc drifts FORWARD of journald's first_entry by the
+    slept duration. That is a positive delta out of tolerance."""
+    recs = [_r370_rec(999, "2026-08-30T14:00:00Z", "2026-08-30T02:32:32Z")]
+    out = rc.boot_utc_crosscheck(recs, _R370_BOOTS, tolerance_s=120)
+    assert out["n_out_of_tolerance"] == 1
+    assert out["n_wrong_sign"] == 1
+    assert out["checks"][0]["delta_s"] == 7200.0
+
+
+def test_boot_utc_crosscheck_records_without_boot_utc_are_skipped():
+    recs = [{"round": 1, "checked_at_utc": "2026-08-30T14:00:00Z",
+             "boot_utc": None, "verdict": "down"}]
+    out = rc.boot_utc_crosscheck(recs, _R370_BOOTS)
+    assert out["n_checked"] == 0 and out["n_unmatched"] == 0
+
+
+def test_boot_utc_crosscheck_reports_uncheckable_records_rather_than_dropping():
+    """A record older than the oldest surviving boot cannot be checked.
+    It must be visible as `unmatched`, not silently absent -- otherwise
+    `n_checked` reads as full coverage of the log."""
+    recs = [_r370_rec(124, "2026-08-25T16:11:00Z", "2026-08-25T12:58:00Z")]
+    out = rc.boot_utc_crosscheck(recs, _R370_BOOTS)
+    assert out["n_checked"] == 0
+    assert out["n_unmatched"] == 1
+    assert "no boot in the journal" in out["unmatched"][0]["why"]
+
+
+class _R370Res:
+    def __init__(self, rc_, out="", err=""):
+        self.returncode, self.stdout, self.stderr = rc_, out, err
+
+
+def test_suspend_probe_parses_a_healthy_never_slept_box():
+    payload = json.dumps({"boottime": 51990.3, "monotonic": 51990.3,
+                          "uptime": 51990.3, "success": "0", "fail": "0",
+                          "last_failed_dev": "", "last_failed_step": ""})
+    out = rc.suspend_probe(runner=lambda *a, **k: _R370Res(0, payload))
+    assert out["suspend_success"] == 0
+    assert out["slept_this_boot"] is False
+    assert out["cumulative_suspend_s"] == 0.0
+
+
+def test_suspend_probe_detects_a_box_that_slept():
+    payload = json.dumps({"boottime": 8000.0, "monotonic": 5000.0,
+                          "uptime": 8000.0, "success": "2", "fail": "0",
+                          "last_failed_dev": "", "last_failed_step": ""})
+    out = rc.suspend_probe(runner=lambda *a, **k: _R370Res(0, payload))
+    assert out["suspend_success"] == 2
+    assert out["cumulative_suspend_s"] == 3000.0
+    assert out["slept_this_boot"] is True
+
+
+def test_suspend_probe_cumulative_delta_alone_is_enough_to_call_it_slept():
+    """success==0 but a real BOOTTIME/MONOTONIC gap still means it slept --
+    the two sources are OR-ed, so a kernel that fails to bump the counter
+    cannot produce a false 'never slept'."""
+    payload = json.dumps({"boottime": 8000.0, "monotonic": 7000.0,
+                          "uptime": 8000.0, "success": "0", "fail": "0",
+                          "last_failed_dev": "", "last_failed_step": ""})
+    out = rc.suspend_probe(runner=lambda *a, **k: _R370Res(0, payload))
+    assert out["slept_this_boot"] is True
+
+
+def test_suspend_probe_failures_return_none_not_a_reassuring_answer():
+    """Every failure mode must degrade to 'unknown'. Returning a
+    'never slept' record on a failed read would manufacture a witness --
+    the exact mistake round 358 caught in the journal probe."""
+    assert rc.suspend_probe(runner=lambda *a, **k: _R370Res(255, "")) is None
+    assert rc.suspend_probe(runner=lambda *a, **k: _R370Res(0, "not json")) is None
+    assert rc.suspend_probe(runner=lambda *a, **k: _R370Res(0, "{}")) is None
+    assert rc.suspend_probe(
+        runner=lambda *a, **k: _R370Res(0, json.dumps({"success": "x", "fail": "0"}))) is None
+
+    def _timeout(*a, **k):
+        raise subprocess.TimeoutExpired(cmd="ssh", timeout=1)
+    assert rc.suspend_probe(runner=_timeout) is None
