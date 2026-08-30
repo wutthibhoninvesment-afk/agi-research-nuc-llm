@@ -1,6 +1,6 @@
 # Whence — a provenance-first language
 
-*Spec level: **v0.28** (round 372). The `## vN` sections below are the
+*Spec level: **v0.29** (round 374). The `## vN` sections below are the
 authoritative version list and each names the round that built it; this
 line deliberately no longer enumerates rounds, because the enumeration it
 replaced had said "v0.16.6 + v0.14.2" since round 266 while the file went
@@ -315,6 +315,23 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    fixed by re-delegating with deep-stripped arguments ON THE MISS PATH
    ONLY, which costs nothing when nothing missed. See § v0.28 for the
    three surviving exemptions, each asserted load-bearing by a test.
+37. **The rendering a message is built from is part of the language, and a
+   differential must be keyed by the OPERAND (v0.29, round 374).** Two
+   halves of one finding. (a) Every miss message renders its operands with
+   `show_payload` — one line, bounded — and until v0.29 a Whence program
+   could only obtain `full_show`, via `str`. So any program that had to
+   build a message the way the interpreter builds one had to
+   RE-IMPLEMENT the bounded renderer, and `examples/self_eval.lang` had two
+   copies of it that had drifted. `show(v)` is now a builtin, and the guest
+   delegates instead of approximating. (b) Decision 36 was verified by a
+   corpus keyed by MISS SITE, which bounds the host side and only samples
+   the guest side; an 11 326-case cross product of operand SHAPES against
+   every operator, index, field, call form and builtin slot found 54
+   divergences no exemption covered, every one of them a v0.28 fix applied
+   at the site its cover reached with the operand its cover used. A
+   coverage criterion drawn from the implementation's structure produces a
+   FIX with the same structure. See § v0.29, and the fourth exemption it
+   opened.
 
 ## Syntax (statements are newline-separated; `#` comments)
 ```
@@ -3408,7 +3425,8 @@ was still unchecked prose: `fold(fn, acc, xs)` could have been written
 | `fold` | `fold(fn, acc, xs)` | **fn first**, then the seed, then the list |
 | `find` | `find(fn, xs)` | **fn first** |
 | `push` | `push(xs, x)` | list first — the reverse of the four above |
-| `str` | `str(v)` | |
+| `str` | `str(v)` | full rendering: a miss lists its reasons, a `why` renders its tree, a string is itself |
+| `show` | `show(v)` | v0.29 — the SNAPSHOT rendering miss messages are built from: one line, bounded, a miss is `miss`, a `why` is `<why>`, a string is quoted |
 | `num` | `num(text)` | Whence number syntax only; see "Limits" |
 | `abs` | `abs(n)` | |
 | `sqrt` | `sqrt(n)` | |
@@ -6029,3 +6047,190 @@ missing one.
 | corpus cases agreeing | 86 / 114 | 103 / 114 |
 | divergence classes | 7 | 3 (all named, all exempt) |
 | host sites with wording ever compared | 15 of 126 | 124 of 126 |
+
+## v0.29 (round 374, language C) — a rendering is part of the language, and a differential is keyed by the operand
+
+**Decision 37.** Two halves of one finding, and the second is the reason
+the first was invisible.
+
+### The question this round asked
+
+v0.28 (round 372) reported that the host and `examples/self_eval.lang` word
+**103 of 114** miss cases identically, with the remaining 11 covered by
+three named exemptions. Its corpus is keyed by HOST SITE — one case per
+reachable `mk_miss`/`merge_miss` site, chosen by greedy set cover — and its
+own module docstring records what that does not measure:
+
+> Site coverage bounds the HOST side and only SAMPLES the guest side. One
+> host site can be reached by operands the guest words differently from
+> each other.
+
+Round 372 patched that hole by hand, with a 10-case `EXTRA` list found by
+noticing. This round replaced noticing with a cross product.
+
+### The sweep
+
+`tests/test_v29.py` builds an ATLAS of **26** source expressions, one per
+renderable payload SHAPE — not per type: `[1, 2]`, `[len]` and `[1 / 0]`
+are all `list` to `_kind` and are three different things to `show_payload`,
+to `deep_eq` and to the guest's boxing. The atlas is crossed against every
+binary operator, every unary operator, indexing, field access, three call
+arities, `if`, `rescue`, and every argument slot of every builtin, one slot
+at a time: **11 326 cases** (11 354 once `show` itself joined the table).
+
+It is affordable because the guest side is one interpreter run per 500-case
+batch — round 362's trick — at ~21 ms/case, ~240 s for the sweep against
+~3 s for the host side.
+
+### What it found: a fix inherits the shape of the coverage that verified it
+
+**54 wording divergences no exemption covered**, so v0.28's "every
+remaining divergence is one of three named, load-bearing exemptions" was
+true of its 124-case corpus and false of the language. All 54 have the same
+cause, and it is not a slip — it is what site-keying does to a FIX:
+
+| site | what v0.28 did | what a second operand shows |
+|---|---|---|
+| `eval_and` / `eval_or` | re-render the LEFT operand | `true and [1, 2]` fails on the RIGHT and leaks boxes |
+| `eval_index` | gate the re-render on `is_compound(INDEX)` | `@{a: 1}[1]` words the miss around the OBJECT |
+| `eval_field` | untouched | the cover's case was `(true).a`, a scalar |
+| `eval_if` | untouched | same reason |
+| `apply_builtin` | gate on `any_compound(args)` | `put(1, "b", 2)`: every arg scalar, and `put`'s `v` slot is a box ANYWAY |
+
+The last row is the sharpest. v0.28's cost gate exists because re-rendering
+unconditionally took the guest's fast tier from 40 s to 87 s. It asks "is
+some operand compound?", which is one way a box reaches the host and not
+the only one: `push`'s element and `put`'s value are handed over boxed
+whatever the operands are. So `put(1, "b", 2)` reached `_order_hint` with a
+record in the `v` slot and INVENTED `(arguments fit put(r, name, v))` — a
+hint naming the order the call was already in. v0.28 found this exact shape
+for `put("", [], 1)` and fixed it *through* the compound gate, which that
+case happened to pass. **A cost gate that also narrows a correctness fix
+has to enumerate every way the leak can happen, not one of them.**
+
+### The language change: `show`
+
+The other class the sweep found is not a box leak. Where the guest
+DELEGATES an operation it can re-render from stripped arguments; where it
+RE-IMPLEMENTS one it must render the value itself, and it had two
+hand-rolled copies of `show_payload` to do it with:
+
+* `show_callable`'s fallback was `str(v)`, i.e. `full_show` — so
+  `filter(fn(a) { true }, "ab")` read `filter needs a list, got ab`
+  against the host's `... got "ab"`.
+* `show_val` quoted a string by concatenation, with **no escaping and no
+  truncation**, and fell back to `str` for everything else.
+
+Neither could be fixed by trying harder. `show_payload`'s caps — 40 chars,
+12 per nested element, 6 list items, 4 record fields, 3 levels — and
+`_quote`'s escapes are host constants that **no Whence expression could
+reach**. Round 362 had already met this and written it down as two
+permanent exemptions in those words.
+
+So v0.29 adds the 37th builtin:
+
+```
+show(v)     # the SNAPSHOT rendering: one line, bounded
+str(v)      # the FULL rendering: no cap, a miss lists its reasons,
+            # a `why` renders its tree, a string is itself
+```
+
+`show` is `show_payload` and nothing else. The argument for it is not "the
+guest needs it": **a language whose one idea is that a failure can explain
+itself should not keep the renderer its explanations are made of out of
+reach of the programs it explains.** `str` and `show` are now the two
+documented renderings, and the difference between them (bounded vs full) is
+the same distinction v0.27's size discipline already draws elsewhere.
+
+Adding it retired round 362's two rendering exemptions immediately —
+`test_contract_message_differential.py`'s `EXEMPT` is now EMPTY, and both
+cases moved to the required-agreement list. That file's
+`test_each_exemption_is_load_bearing` is what forced the edit, going red
+the moment the divergences stopped existing, which is the third time that
+assertion has done its job (v0.28 retired E3 the same way).
+
+### The fourth exemption, and it is the largest one in the language
+
+Sweeping `at`/`steps`/`blame` over the atlas exposed something no
+message-wording test could have: **the guest answers the provenance-query
+family from the wrong history.**
+
+```
+let x = 1 + 2
+len(steps(x))     # host: 4     guest: 284
+blame(1 / 0)      # host: one step, `division by zero`
+                  # guest: that step, plus `cannot add 1 and []`,
+                  #        plus `cannot access .__tag on 1`, ...
+```
+
+Those extra steps are `self_eval.lang`'s OWN execution — its line numbers,
+its local names (`a0`, `p0`), its internal probe misses. `apply_host_builtin`
+calls the host `steps` on the guest's PAYLOAD, and that payload's host
+provenance is the evaluator's, not the program's. Round 218 introduced the
+delegation with the comment "`a0`'s real host provenance is already there
+for free"; the provenance that is there belongs to the wrong program.
+
+The evaluator is not missing the data. It BUILDS a correct guest history —
+the `@{v, op, ins}` box graph that `why`/`reify` walk, and that
+`tests/test_self_eval.py`'s guest-level provenance tests already compare
+against the host DAG label by label. The query builtins simply do not read
+it.
+
+**Why it is an exemption here rather than a fix.** A host step record is
+`@{op, detail, line, show, depth, inputs, count, value}` and a guest box is
+`@{v, op, ins}` — no line, no op/detail split, no count. Making the family
+correct means widening `mkb` and every one of its several hundred call
+sites, and `walk_steps` additionally dedups shared nodes BY IDENTITY, which
+Whence has no operator for (`==` is structural, so two distinct nodes that
+happen to be equal cannot be told apart). That is a whole round's work and
+a design decision — most likely "the guest's `steps` may over-report a
+SHARED node, and says so" — not a patch. Recorded as E4, with
+`tests/test_v29.py::test_the_provenance_family_is_still_exempt_and_still_wrong`
+pinning it as an inequality rather than prose so it cannot quietly rot.
+
+### The two exemptions that were bigger than they read
+
+Keying the classifier on the CASE rather than on the host's wording also
+corrected the size of E1 and E2. Both have a MISSEDNESS half v0.28 did not
+state, because its corpus had one case each:
+
+* **E1.** A guest `why` is a record, so every operation that accepts a
+  record accepts one: `keys(why 1)`, `has(why 1, "a")`,
+  `merge(why 1, @{})` and `@{} == why 1` all miss on the host and SUCCEED
+  in the guest. 108 such cases, not one.
+* **E2.** A guest callable is a record, so it is not opaque to `deep_eq`:
+  `len == guess(1, 0.5, "s")` misses on the host and returns a value in
+  the guest. And `_incomparable_kind` searches left-operand-first for the
+  first opaque payload, so `[len] == [1 / 0]` finds the FUNCTION on the
+  host and the MISS in the guest — the two name different kinds and each
+  is right about its own value space. That ORDER divergence is a
+  consequence of v0.28's own fixed search order, not a defect in it.
+
+### Numbers
+
+| | v0.28 tree | v0.29 |
+|---|---|---|
+| cases | 11 326 | 11 326 |
+| agreeing | 6 789 | **6 857** |
+| divergences with NO exemption | **54** | **0** |
+| E1 (`why` is reified) | 1 796 | 1 796 |
+| E2 (a callable is a record) | 2 684 | 2 670 |
+| E4 (provenance family) | 3 | 3 |
+| exempt share of the surface | 39.6% | **39.5%** |
+
+The last row is the other half of the finding. The site-keyed corpus
+reported **11 exempt cases in 114 (9.6%)**; the operand sweep finds **4 469
+in 11 326 (39.5%)**. Nothing about the language changed between those two
+numbers. E1 and E2 are not edge cases, and a corpus that visits each site
+once is guaranteed to under-report any divergence that lives in the
+operands rather than in the code.
+
+### A methodological rule, stated so it can be reused
+
+**A coverage criterion drawn from the implementation's structure produces a
+fix with the same structure.** Site coverage is a good criterion for "is
+every branch exercised" and a bad one for "does every branch AGREE", because
+agreement is a property of the (site x operand) pair. Whenever a
+differential's cover is keyed by one side's code, expect its fixes to be
+keyed the same way, and cross-product the other side before publishing a
+rate.

@@ -3284,6 +3284,26 @@ def _make_builtin_table():
         return derived("str", "", line, (args[0],),
                        full_show(args[0].payload))
 
+    # v0.29 (round 374), decision 37: the SNAPSHOT renderer, exposed.
+    # `str` is `full_show` -- unbounded, a miss lists its reasons, a `why`
+    # renders its whole tree. Every MISS MESSAGE in this file is built from
+    # `show_payload` instead: one line, bounded (`SHOW_LIMIT` chars,
+    # `SHOW_NEST` deep, 6 elements, 4 fields), a miss is the word `miss`, a
+    # `why` is `<why>`. Until v0.29 a Whence program could obtain the first
+    # rendering and not the second, so any program that had to build a
+    # message the way the interpreter builds one -- `examples/self_eval.lang`
+    # is the one in this repo, but the argument is general -- had to
+    # re-implement `show_payload`, and its re-implementation drifted
+    # (round 374 measured `filter needs a list, got ab` against the host's
+    # `filter needs a list, got "ab"`). A rendering the language's own error
+    # messages depend on is part of the language's surface, so it is a
+    # builtin rather than a thing you reconstruct. Deliberately total, like
+    # `str`.
+    @register("show", 1, "v")
+    def b_show(interp, args, line):
+        return derived("show", "", line, (args[0],),
+                       show_payload(args[0].payload))
+
     @register("num", 1, "text")
     def b_num(interp, args, line):
         m = _propagate("num", args, line)

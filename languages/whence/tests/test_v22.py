@@ -211,7 +211,11 @@ def test_every_builtin_declares_a_signature():
     ever relaxed."""
     from whence import interp as I
     table = I._make_builtin_table()
-    assert len(table) == 36
+    # 36 through v0.28; 37 since v0.29 (round 374) added `show`. The number
+    # is the point of this assertion — it is here so that relaxing
+    # `register` shows up — so it is EDITED when a builtin is added, never
+    # loosened to `>=`.
+    assert len(table) == 37
     for name, _ in table:
         assert name in I._BUILTIN_SIGS, name
 

@@ -1014,7 +1014,8 @@ fn reify(b, k) {
 # which host builtin it stands for.
 let builtin_names = ["print", "rand", "len", "range", "map", "filter", "fold",
                      "push",
-                     "str", "num", "abs", "sqrt", "trunc", "missed", "reasons",
+                     "str", "show", "num", "abs", "sqrt", "trunc", "missed",
+                     "reasons",
                      "note",
                      "contains", "join", "keys", "merge", "get", "put", "has",
                      "find", "typed", "guess", "is_guess", "confidence", "sure",
@@ -1037,7 +1038,8 @@ let propagating = ["len", "range", "num", "abs", "sqrt", "trunc", "contains",
                    "confidence", "sure"]
 let arities = @{print: 1, rand: 0, len: 1, range: -1, map: 2, filter: 2,
                 fold: 3,
-                push: 2, str: 1, num: 1, abs: 1, sqrt: 1, trunc: 1, missed: 1,
+                push: 2, str: 1, show: 1, num: 1, abs: 1, sqrt: 1, trunc: 1,
+                missed: 1,
                 guess: 3, is_guess: 1, confidence: 1, sure: 2,
                 reasons: 1, note: 2, contains: 2, join: 2, keys: 1,
                 merge: 2, get: 2, put: 3, has: 2, find: 2, typed: 3,
@@ -1150,13 +1152,25 @@ fn is_callable(v) {
 # since the host never falls through to a plain record dump the way an
 # un-mirrored `str()` on the closure's underlying `@{__tag: "closure", ...}`
 # record would.
+# v0.29 (round 374): the fallback was `str(v)`, i.e. the host's `full_show`.
+# Every caller of this function is building a MISS MESSAGE, and a host miss
+# message renders its operands with `show_payload` -- which quotes and
+# truncates a string, caps a list at 6 elements and a record at 4 fields,
+# renders a nested Miss as the bare word `miss` and an Explanation as
+# `<why>`. `full_show` does none of that, so `filter(fn(a) { true }, "ab")`
+# read `filter needs a list, got ab` here against the host's `... got "ab"`.
+# v0.29 adds `show` to the language for exactly this reason (decision 37):
+# the guest DELEGATES the rendering now instead of approximating it, so the
+# two cannot drift again. The two branches above stay, and stay ahead of
+# the delegation: a guest callable is a tagged RECORD, so `show` would
+# render the record (exemption E2).
 fn show_callable(v) {
   if is_closure(v) {
     let n = get(v, "name")
     if n == "(anonymous)" { "<fn>" } else { "<fn " + n + ">" }
   }
   else if is_builtin_ref(v) { "<builtin " + get(v, "name") + ">" }
-  else { str(v) }
+  else { show(v) }
 }
 fn is_num(v) { not is_guess_val(v) and not missed(v) and not missed(v + 0) }
 # is_record needs no Guess guard: `keys()` on a Guess cleanly misses at the
@@ -1612,8 +1626,14 @@ fn eval_and(node, env, st) {
     @{v: mkb(false, "and short-circuit", [l.v]), st: l.st}
   }
   else {
+    # v0.29 (round 374): v0.28 re-rendered the LEFT operand only, because
+    # the site-keyed corpus reached this site with a left-hand miss. `true
+    # and [1, 2]` fails on the RIGHT and leaked boxes the same way.
     let r = eval(node.right, env, l.st)
-    @{v: mkb(true and r.v.v, "and", [l.v, r.v]), st: r.st}
+    let p = if is_compound(r.v.v) {
+              remsg(true and r.v.v, true and strip(r.v))
+            } else { true and r.v.v }
+    @{v: mkb(p, "and", [l.v, r.v]), st: r.st}
   }
 }
 
@@ -1629,8 +1649,12 @@ fn eval_or(node, env, st) {
     @{v: mkb(true, "or short-circuit", [l.v]), st: l.st}
   }
   else {
+    # v0.29 (round 374): the right-operand half, as in `eval_and`.
     let r = eval(node.right, env, l.st)
-    @{v: mkb(false or r.v.v, "or", [l.v, r.v]), st: r.st}
+    let p = if is_compound(r.v.v) {
+              remsg(false or r.v.v, false or strip(r.v))
+            } else { false or r.v.v }
+    @{v: mkb(p, "or", [l.v, r.v]), st: r.st}
   }
 }
 
@@ -1678,7 +1702,14 @@ fn eval_unary(node, env, st) {
 fn eval_if(node, env, st) {
   let c = eval(node.cond, env, st)
   if not is_bool(c.v.v) {
-    @{v: mkb(if c.v.v { true } else { true }, "if", [c.v]), st: c.st}
+    # v0.29 (round 374): v0.28 never touched this site at all -- its corpus
+    # reached the `if` guard with a scalar condition, for which a guest
+    # payload and a host payload are the same object.
+    let p = if is_compound(c.v.v) {
+              remsg(if c.v.v { true } else { true },
+                    if strip(c.v) { true } else { true })
+            } else { if c.v.v { true } else { true } }
+    @{v: mkb(p, "if", [c.v]), st: c.st}
   }
   else if c.v.v {
     let r = eval(node.then, env, c.st)
@@ -1949,11 +1980,17 @@ fn guest_spec_fields_ok(spec, ks, i) {
 #      and no Whence expression can reach those constants.
 #   E2 `_quote`'s ESCAPING of a backslash, a quote or a newline INSIDE a
 #      string. Whence has no string-replace builtin.
+# v0.29 (round 374): the SECOND hand-rolled copy of the host's
+# `show_payload`, and the more wrong of the two -- its string branch neither
+# ESCAPED nor TRUNCATED (`show_payload` routes a string through `_quote`,
+# which does both), and its `str(v)` fallback rendered a list or record with
+# no element/field/nesting cap at all. Delegated to the new `show` builtin
+# for the same reason `show_callable` is (decision 37). `show` already
+# answers the two branches this dropped: a Miss renders as the bare word
+# `miss`, a string comes back quoted. The callable branch stays, and stays
+# first: a guest callable is a record (exemption E2).
 fn show_val(v) {
-  if missed(v) { "miss" }
-  else if is_callable(v) { show_callable(v) }
-  else if is_str(v) { "\"" + v + "\"" }
-  else { str(v) }
+  if is_callable(v) { show_callable(v) } else { show(v) }
 }
 
 # The early-out is repeated here rather than left to `check_contract`
@@ -2389,7 +2426,15 @@ fn apply_builtin(name, args, st) {
         st: st}
     }
     else {
-      let r0 = get((args[0]).v, nm)
+      # v0.29 (round 374): the host words `cannot access .a on [1, 2]`
+      # around the RECORD side, so a guest list of boxes leaked here the
+      # same way it did in `eval_field`. This branch is `apply_builtin`'s
+      # own re-implementation of `get`, so the generic box-leak re-render
+      # further down never sees it.
+      let r1 = get((args[0]).v, nm)
+      let r0 = if missed(r1) and is_compound((args[0]).v) {
+                 remsg(r1, get(strip(args[0]), nm))
+               } else { r1 }
       @{v: if missed(r0) { mkb(r0, "field", [args[0]]) } else { r0 },
         st: st}
     }
@@ -2501,9 +2546,20 @@ fn apply_builtin(name, args, st) {
     # a second call would repeat the EFFECT, and the re-rendered result is
     # used only when it is also a miss, so a strip that changes the ANSWER
     # can never change what this function returns.
+    #
+    # v0.29 (round 374): `any_compound` is NOT the whole gate. Two slots
+    # hand the host a box on purpose whatever the operands are -- `push`'s
+    # element and `put`'s value -- so `put(1, "b", 2)`, every argument of
+    # which is a scalar, still reached `_order_hint` with a record in the
+    # `v` slot and INVENTED `(arguments fit put(r, name, v))` for a call
+    # that fits nothing. v0.28 found the same shape for `put("", [], 1)`
+    # and fixed it through the compound gate, which that case happened to
+    # pass. The gate is a COST optimisation (round 372 measured 40 s -> 87 s
+    # without one); a cost gate that also narrows a correctness fix has to
+    # name every way the leak can happen, not one of them.
     let p_boxed = apply_host_builtin(name, args, false)
     let p = if missed(p_boxed) and name != "print" and name != "rand" and
-              any_compound(args, 0) {
+              (any_compound(args, 0) or name == "push" or name == "put") {
         let bare = map(fn(a) { mkb(strip(a), "literal", []) }, args)
         let p_bare = apply_host_builtin(name, bare, true)
         if missed(p_bare) { p_bare } else { p_boxed }
@@ -2594,6 +2650,10 @@ fn apply_host_builtin(name, args, msg) {
   else if name == "rand" { rand() }
   else if name == "len" { len(a0) }
   else if name == "str" { str(deep_arg(msg, args[0])) }
+  # v0.29 (round 374): same `deep_arg` treatment as `str` -- a guest
+  # compound payload is a list/record of BOXES, and `show` renders what it
+  # is given.
+  else if name == "show" { show(deep_arg(msg, args[0])) }
   else if name == "num" { num(a0) }
   else if name == "abs" { abs(a0) }
   else if name == "sqrt" { sqrt(a0) }
@@ -2806,7 +2866,11 @@ fn eval_index(node, env, st) {
   let raw0 = ((o.v).v)[(ix.v).v]
   # v0.28: the index guards render the index value, so a LIST index leaked
   # boxes (`("abc")[[1, 2]]` read `... got [@{ins: [], o..., @{ins: [], o...]`).
-  let raw = if missed(raw0) and is_compound((ix.v).v) {
+  # v0.29 (round 374): the gate read the INDEX only, so `@{a: 1}[1]` --
+  # whose message renders the OBJECT (`cannot index @{a: 1}`) -- kept
+  # leaking. A miss here can be worded around either operand.
+  let raw = if missed(raw0) and
+               (is_compound((ix.v).v) or is_compound((o.v).v)) {
               remsg(raw0, (strip(o.v))[strip(ix.v)])
             }
             else { raw0 }
@@ -2824,7 +2888,13 @@ fn eval_field(node, env, st) {
       st: o.st}
   }
   else {
-    let raw = get((o.v).v, node.name)
+    # v0.29 (round 374): the host words `cannot access .a on [1, 2]` around
+    # the OBJECT, and a guest list is a list of boxes. v0.28 never reached
+    # this site -- its one case was `(true).a`, a scalar.
+    let raw0 = get((o.v).v, node.name)
+    let raw = if missed(raw0) and is_compound((o.v).v) {
+                remsg(raw0, get(strip(o.v), node.name))
+              } else { raw0 }
     @{v: if missed(raw) { mkb(raw, "field ." + node.name, [o.v]) } else { raw },
       st: o.st}
   }

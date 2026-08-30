@@ -187,6 +187,19 @@ BAD = [
     # what forced this edit: it went red the moment the divergence stopped
     # existing, which is exactly what round 362 wrote it to do.
     ("push-order-hint", 'let r = push(1, [2])'),
+    # Round 362's exemptions E1 (`show_payload`'s CAPS) and E2 (`_quote`'s
+    # ESCAPES), PROMOTED to required agreements by v0.29 (round 374). Both
+    # said the same thing: "the guest's renderer is the `str` builtin, which
+    # is `full_show`, and no Whence expression can reach those constants".
+    # Decision 37 made that false by adding one — `show` IS `show_payload`,
+    # so `show_val` delegates the rendering instead of approximating it, and
+    # the caps and the escapes come with it. Same mechanism as
+    # `push-order-hint` above: `test_each_exemption_is_load_bearing` went
+    # red the moment the divergence stopped existing.
+    ("render-cap",
+     'let r = typed(1, @{alpha: 5, beta: 5, gamma: 5, delta: 5, eps: 5}, '
+     '"L")'),
+    ("render-escape", 'let r = sure(5, "a\\"b")'),
 ]
 
 # Valid programs, so rule 1 is a biconditional and not a test that only ever
@@ -206,20 +219,17 @@ GOOD = [
 # Three enumerated divergences. Each is asserted load-bearing in BOTH
 # directions by `test_each_exemption_is_load_bearing`: if the host and guest
 # ever agree on one, the exemption fails and must be DELETED, not adjusted.
-EXEMPT = {
-    "exempt-render-cap":
-        "E1. `show_payload`'s CAPS — 40 chars, 12 per nested element, 6 "
-        "list items, 4 record fields, 3 levels of nesting. The guest's "
-        "renderer is the `str` builtin, which is `full_show` (limit=None), "
-        "and no Whence expression can reach those constants. A RENDERING "
-        "POLICY, not a rule of the type system: below the caps the two "
-        "agree exactly, which is what the rest of this corpus measures.",
-    "exempt-render-escape":
-        "E2. `_quote` escapes a backslash, a double quote and a newline "
-        "INSIDE a string before quoting it. Whence has no string-replace "
-        "builtin, so `show_val` quotes without escaping. Same class as E1 "
-        "and the same reason it is an exemption rather than a bug.",
-}
+EXEMPT = {}
+# E1 ("exempt-render-cap") and E2 ("exempt-render-escape") were DELETED by
+# v0.29 (round 374), which closed them, and their cases moved to `BAD`.
+# Both rested on the same premise — "the guest's renderer is the `str`
+# builtin, which is `full_show` (limit=None), and no Whence expression can
+# reach those constants" — and both were true only for as long as the
+# language had no way to ask for the SNAPSHOT rendering. Decision 37 added
+# `show`, which is `show_payload` itself, so the caps (40 chars, 12 per
+# nested element, 6 items, 4 fields, 3 levels) and `_quote`'s escapes now
+# reach the guest by delegation rather than by re-implementation. This
+# corpus is now exemption-FREE: every case must agree.
 # E3 ("exempt-push-order-hint") was DELETED by v0.28 (round 372), which
 # closed it. Round 362 described it as "a design call handed to a future
 # language(C) round with this case as the repro" and predicted the fix
@@ -230,13 +240,7 @@ EXEMPT = {
 # arguments — so the hot path is untouched and the whole 15-case class
 # (not just `push`) closes at once. `push(1, [2])` now lives in `BAD`.
 
-EXEMPT_CASES = [
-    ("exempt-render-cap",
-     'let r = typed(1, @{alpha: 5, beta: 5, gamma: 5, delta: 5, eps: 5}, '
-     '"L")'),
-    ("exempt-render-escape",
-     'let r = sure(5, "a\\"b")'),
-]
+EXEMPT_CASES = []
 
 
 # --------------------------------------------------------------------------
@@ -320,17 +324,26 @@ def test_each_exemption_is_load_bearing(host_reasons, guest_reasons):
     assert set(EXEMPT) == {n for n, _ in EXEMPT_CASES}
 
 
-def test_the_cap_exemption_is_only_about_the_cap(host_reasons, guest_reasons):
-    """E1's claim is narrow: the two renderings agree BELOW the cap and
-    differ only by truncation. Asserted rather than described — the same
-    spec, one field shorter, must agree exactly."""
+def test_the_cap_and_the_escape_are_now_agreements(host_reasons,
+                                                   guest_reasons):
+    """v0.29 (round 374) closed round 362's two rendering exemptions. The
+    old test asserted the guest did NOT truncate; this one asserts it does,
+    and that it escapes — the direction reversed, deliberately, so the
+    closure is pinned rather than merely un-asserted. Both cases are in
+    `BAD` now, so `test_every_bad_case_agrees` already requires equality;
+    what this adds is that the equality is the INTERESTING one (a truncated
+    rendering, an escaped rendering) and not two empty strings."""
     short = 'let r = typed(1, @{alpha: 5, beta: 5, gamma: 5}, "L")'
     assert host_reason(short) == _guest_reason_of(short)
-    h = host_reasons["exempt-render-cap"]
-    g = guest_reasons["exempt-render-cap"]
-    assert h.endswith("\u2026") or "\u2026" in h, h
-    assert "\u2026" not in g, g
-    assert g.startswith(h.split("\u2026")[0][:20]), (h, g)
+    assert "\u2026" not in host_reason(short)          # below the cap: no cut
+
+    cap = host_reasons["render-cap"]
+    assert "\u2026" in cap, cap                        # above it: cut
+    assert guest_reasons["render-cap"] == cap
+
+    esc = host_reasons["render-escape"]
+    assert '\\"' in esc, esc                           # the quote is escaped
+    assert guest_reasons["render-escape"] == esc
 
 
 def _guest_reason_of(src):

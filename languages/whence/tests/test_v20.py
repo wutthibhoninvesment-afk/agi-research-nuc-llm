@@ -426,6 +426,28 @@ def test_a_builtin_inside_a_spec_record_renders_differently_and_that_is_old():
     `show_payload`, `show_spec`, or the `_spec_ok` message. Pinned as a
     KNOWN difference so the corpus test above stays an exact-equality test
     instead of being weakened to accommodate it.
+
+    v0.29 (round 374, landed 375) RETUNED the guest half, and the retune is
+    named here rather than absorbed. Decision 37 gave the guest the `show`
+    builtin so its renderer DELEGATES to the host's `show_payload` instead
+    of hand-rolling a copy, so the guest's record now gets `show_payload`'s
+    nested-element cap (12 chars) and reads
+
+        guest : ... got @{y: @{__tag: "bu…}
+
+    The host's own output for a nested record has exactly that shape —
+    `@{y: @{aaaa: 1, b…}` for `let S = @{y: @{aaaa: 1, bbbb: 2}}`, verified
+    before this line was changed — so the truncation is the host's rule
+    correctly applied, not a new guest defect. What is UNCHANGED is the
+    thing this test exists for: the host renders a builtin as
+    `<builtin str>` and the guest renders the record it represents one as.
+    That is round 372's exemption E2 and v0.29 does not close it.
+
+    This assertion is also the reason the round-374 landing ran the slow
+    tier by hand. `run_tests_fast.sh` deselects it, and the driver's
+    whence-slow health check runs a PRISTINE checkout of HEAD — so while
+    round 374's work sat uncommitted, the only check that could see this
+    was measuring the tree without it, and reported PASS.
     """
     src = ('shape S = @{a: num}\nfn h() { let S = @{y: str}\n'
            '  fn g(p: S) { p }\n  g(@{x: 1}) }\nlet result = h()')
@@ -434,4 +456,4 @@ def test_a_builtin_inside_a_spec_record_renders_differently_and_that_is_old():
     prefix = "typed spec must be a type name or a shape, got "
     assert h.startswith(prefix) and g.startswith(prefix)
     assert h == prefix + "@{y: <builtin str>}"
-    assert g == prefix + '@{y: @{__tag: "builtin", name: "str"}}'
+    assert g == prefix + '@{y: @{__tag: "bu…}'
