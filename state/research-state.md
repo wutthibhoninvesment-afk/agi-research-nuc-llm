@@ -9572,6 +9572,140 @@ Workspace: ~/agi-research
 - Also landed round 350's orphaned diff first — see that round's entry above.
 - See `knowledge/round-351-skills-the-status-block-that-copied-itself-forward.md`.
 
+### Round 352 — NUC-integration(E) — 2026-08-30
+
+**Box UP — the first up-round since 292**, ending nine consecutive down-rounds
+(298/304/310/316/322/328/334/340/346). Boot `2026-08-30T00:32:27Z`.
+Predictions written first (`nuc/predictions-e-round352.md`, D-013):
+**12 hit, 2 missed, 1 in flight**, scored in the knowledge file §7.
+
+- **The nine-round outage is settled by ground truth.** `journalctl
+  --list-boots` (saved to `state/nuc-boot-history-r352/list-boots-r352.json`,
+  7 boots back to 2026-08-19) puts the previous boot's last entry at
+  `2026-08-29T02:10:07Z` and this boot's first at `2026-08-30T00:32:32Z` —
+  a true span of **80545.0 s (22h22m25s)**. Round 346's bracket was
+  `[70686.0 s, 80546.9 s]`: the **upper bound was right to 1.9 s**, and
+  `confirmed_span_s` — the probe-based number this track quoted for nine
+  rounds — was **9859 s (2h44m19s, 12.2%) short**. That is the argument for
+  publishing a bracket instead of a figure, now backed by evidence.
+- **Correction to how the two bounds combine.** Neither source dominates, which
+  no round could see without both: the journal's `last_entry` beat
+  `tailscale_last_seen` by 6.9 s on the 08-29 outage, but `tailscale_last_seen`
+  beat the journal by **94 s** on the 08-27 one (an idle box logs nothing for
+  minutes before it dies, so `last_entry` is itself only a lower bound).
+  `boot_utc` beat the journal's `first_entry` on both, the kernel starting
+  before journald's first write. Tightest bracket is
+  `max(journal_last_entry, tailscale_last_seen)` → `min(journal_first_entry, boot_utc)`.
+- **Round 340's boot-history witness, first live run: 67h26m22s of unwitnessed
+  time → 0h00m00s.** Witnessed gaps 13/31 → **31/31**;
+  `max_unobserved_outage` 14h00m00s → **None**; `transition_count_upper_bound`
+  None → **4**. All 18 up-streak gaps were unwitnessed without it — the
+  rounds-124–286 up records predate `boot_utc`, so even the weaker
+  `boot_utc_unchanged` rule had nothing to read. `missed_excursions` empty.
+  **Caveat kept rather than buried:** `_boot_history_witness` returns
+  `WITNESS_FULL` for endpoint coverage, which is exactly as suspend-blind as
+  `boot_utc_unchanged`'s `WITNESS_REBOOT_ONLY` — and suspend is the failure
+  mode round 184 inferred for this box. Design for the real fix in §8 item 2.
+- **`swap_watch_launch.py` hung on the first real machine it ever met, and the
+  remote side had succeeded.** `deploy_and_launch` raised `TimeoutExpired`
+  while python3 pid 2337 was polling and checkpointing normally. Root cause
+  **proven on the box**: `&` binds to the whole `mkdir -p DIR && nohup …`
+  list, so bash forks a subshell for it and only the `nohup` half carries the
+  redirections — `/proc/2335/fd/1 -> pipe:[17838]`, `fd/2 -> pipe:[17839]`
+  (vs `/proc/2337/fd/1 ->` the `.log`), `wchan = do_wait`, blocked on python3
+  for 8 hours, so sshd never sees EOF. **Three defects, all fixed:** (1) the
+  hang — background a brace group whose own fds go to `/dev/null` (not to
+  `LOG`: group redirections apply before the body runs, and `LOG` lives in the
+  directory `mkdir -p` is about to create); (2) `$!` named the wrapper, not
+  the poller — `exec nohup python3` makes the group *become* it; (3)
+  `TimeoutExpired` was treated as failure, **inverting the module's own
+  documented safety property** — instead of "no watcher for a job that didn't
+  start" it produced a job that did start, pid discarded with the exception,
+  nobody watching. Now a `pgrep` probe keyed on the *tagged checkpoint path*
+  adopts it, and an empty probe is still a hard error whose message warns a
+  retry may start a second poller. **Fix live-verified: ssh returned in
+  1.10 s** (was: still hanging at 30 s), printing pid 2829 = python3 itself,
+  ppid 1, fd 1 → the `.log`.
+- **Round 304's item 1 is finally in flight after nine deferrals.** The
+  orphaned 8h poller was **recovered, not restarted** (restarting would have
+  left two pollers competing): watcher hand-started against pid 2337,
+  `state/nuc-swap-watch-r352/` with a `LAUNCH-NOTES.md` recording that it was
+  hand-started. At round end: pid 2337 alive 8m39s, 35 checkpoints, watcher
+  `iter=7`. All 35 samples flat — `swap_bytes 0`, `pswpout 0`.
+- **Round 304's item 2 re-verified after nine rounds** (`state/nuc-standing-r352/
+  snapshot.txt`), all six: `--cap 256` live; **E3 patch NOT applied**
+  (`qwen36.c` absent from the prefix-reuse file list, confirming round 28 from
+  the other direction; mtime Aug 23 untouched); OLMoE tarball present at
+  `/home/jab/nuc-research/models/olmoe_merged.tar`; `memory.events` max **0**
+  (ceiling untouched this boot), `memory.max` 32212254720, `memory.current`
+  9770594304; operator idle (2 users, load 0.00); **both user units active,
+  started 00:32 = at boot** — new fact, they auto-start, which no round had
+  established since every prior observation was of a long-running boot.
+- **Two tests had "the box is down" written into them as an invariant.** The
+  suite went red the moment this round did its job:
+  `test_real_log_second_outage_started_at_the_tailscale_last_seen` asserted
+  `ongoing is True` and `max_possible_span_s is None`;
+  `test_cli_continuity_gaps_flag_includes_the_per_gap_detail` asserted exactly
+  `["up", "up"]`. This is round 321's item 14 / round 333's rescoping with a
+  sharper edge — these lines *were* re-executed every round and were still
+  wrong, because the suite encoded a transient world state as a property of
+  the code under test. Both now assert the structural claim they were about.
+- **Also verified**: `~/.ssh/id_ed25519_nuc` does not exist on this driver
+  host and `192.168.1.37` does not route from it (connection timed out) —
+  closing round 346's open note. The tailnet path is the only one that works
+  from here.
+- **Tests: `nuc/tests/` 357 passed, 0 failed** (was 355 with 2 failing). Nine
+  added — seven for the launcher, two for the bracket/witness. The three
+  command-shape tests were **red-checked against the original command**: all
+  three fail on the old string and pass on the fixed one.
+- Nothing on the box was written outside `~/nuc-research/**`; no unit
+  restarted; port 8001 never contacted; `/work/**` read-only.
+- See `knowledge/round-352-nuc-e-the-box-came-back-and-the-launcher-hung.md`.
+
+## Next steps (as of round 352)
+1. **Collect the 8h swap run** — remote pid 2337, due ~2026-08-30T10:25Z,
+   pulled by the local watcher into `state/nuc-swap-watch-r352/`. **Check
+   `poll.log` for `PULL_DONE` and `ps aux | grep swap_watch` on the box BEFORE
+   launching anything** (round 274's rule; this round is a fresh argument for
+   it). P14 — "at least one swap burst in 8h on a fresh boot" — is the open
+   prediction; a flat trace would be the more informative outcome, since it
+   would confirm round 130's "ceiling contact precedes swapping" over round
+   238's "passive growth continues at zero requests".
+2. **The suspend blind spot in `_boot_history_witness`.** It returns
+   `WITNESS_FULL` for endpoint coverage while `boot_utc_unchanged` returns
+   `WITNESS_REBOOT_ONLY` for ruling out the same thing. Fix is to make it
+   earn `FULL`: query journal entry timestamps *inside* each gap and report
+   the largest interior silence, turning a binary claim into a bounded one.
+   `--list-boots` cannot answer this — it needs a second query. Until then
+   `unwitnessed 0h00m00s` and `max_unobserved_outage: None` overstate what is
+   known. NUC-integration(E).
+3. **`swap_watch_launch.py`'s recovery path is offline-tested only.** The
+   success path is now live-verified; the `pgrep` adoption added this round is
+   not, and it would have fired this round had it existed. Same shape as the
+   gap this round closed — verify on the next up-round.
+4. **The 2026-08-20 → 08-23 inter-boot gap is 85h33m**, far longer than the
+   outage this track has called its longest, and entirely outside the
+   reachability log's span. Any "longest outage on record" claim should say
+   which record it means. NUC-integration(E).
+5. `nuc/reachability_check.py`'s `"ambiguous"` verdict has still never been
+   observed live (round 310's item 3, unchanged through this up-round too).
+6. Round 350's items 1-3 (the tail-vs-lifted oracle, the sixth-oracle
+   transform, the guest-TCO design question) are unchanged — SWE-loop(D) and
+   harness(A) own them; the rotation has not reached those tracks since.
+7. Round 333's items 1-3 (R006's one-level anchor rule, setext headings,
+   R007's cross-skill false-positive shape) are unchanged — skills(B).
+8. `harness/swe/regiontools.py`'s region-patch mechanism is still deliberately
+   un-unified with `EditFileTool` (round 307's item 2) — unchanged.
+9. Round 301's item 2 (blocking-wait mitigation design sketch) remains
+   speculative — unchanged through 17 rounds now.
+10. The `tail`/EOF backgrounded-pipe silent-drop mechanism (rounds 296, 300,
+    303, 309) remains genuinely unconfirmed — round 310's item 5, track-wide.
+11. **`languages/whence/SECURITY.md` is still uncommitted and still escalated
+    to the operator** — round 349 §8 found it asserts four security controls
+    that do not exist in this repo, and deleted the previous authorship/MIT
+    section. Re-confirmed unchanged this round; not this track's to decide.
+
+
 ## Next steps (as of round 351)
 1. **CORRECTION to round 349's item 9, which is left standing in its own
    block as the frozen record it is:** `fuzz-mutate-kill-loop/SKILL.md` is

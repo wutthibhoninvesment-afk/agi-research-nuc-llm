@@ -1,0 +1,55 @@
+=== P8: colibri cmdline / --cap ===
+jab         1111  0.0  0.0 113376 30616 ?        Ssl  00:32   0:01 python3 /work/src/colibri-v170/c/coli serve --host 127.0.0.1 --port 8000 --model-id qwen36 --cap 256 --ctx 32768 --max-queue 2 --queue-timeout 600
+jab         1112  0.0  0.0  31164 21892 ?        Ss   00:32   0:01 /usr/bin/python3 /work/src/qwen36-toolproxy/adapter.py
+jab         1114  0.3 14.3 4747032 4689392 ?     Sl   00:32   0:22 /work/src/colibri-v170/c/qwen36 256
+=== P11: user units ===
+  qwen36-colibri.service   loaded active running Colibri Qwen3.6-35B-A3B API (localhost:8000) for Hermes
+  qwen36-toolproxy.service loaded active running Qwen3.6 tool-calling adapter for Hermes (localhost:8080)
+--- is-active ---
+active
+active
+=== P6/P7: cgroup ===
+-- memory.max
+32212254720
+-- memory.current
+9770594304
+-- memory.swap.current
+0
+-- memory.events
+low 0
+high 0
+max 0
+oom 0
+oom_kill 0
+oom_group_kill 0
+-- memory.swap.max
+max
+=== system mem/swap ===
+               total        used        free      shared  buff/cache   available
+Mem:     33537888256  5618601984 22640271360    18550784  5706063872 27919286272
+Swap:     4294963200           0  4294963200
+
+pswpin 0
+pswpout 0
+=== P10: OLMoE ===
+/work/mac-backup/Downloads/UPSTREAM_ISSUE_olmoe_chat_exit_reason.md
+/work/olmoe_api_adapter.py.retired-20260818
+/work/olmoe_api_adapter.py.bak-20260818
+/work/src/hermes/olmoe_api_adapter.py
+/work/logs/olmoe-convert.log
+/home/jab/nuc-research/models/olmoe_merged.tar
+=== P9: E3 patch applied? ===
+total 32
+drwxrwxr-x  8 jab jab 4096 Aug 23 21:37 .
+drwxr-xr-x 16 jab jab 4096 Aug 26 16:06 ..
+drwxrwxr-x 12 jab jab 4096 Aug  5 07:19 colibri
+drwxrwxr-x 11 jab jab 4096 Aug 23 15:27 colibri-v170
+drwxrwxr-x  7 jab jab 4096 Aug 18 07:51 hermes
+drwxrwxr-x 19 jab jab 4096 Aug  7 03:41 hive
+drwxrwxr-x  2 jab jab 4096 Aug 23 21:37 qwen36-toolproxy
+drwxrwxr-x 14 jab jab 4096 Aug 12 00:21 solar-nuc
+=== ports ===
+LISTEN 0      5                        127.0.0.1:8000       0.0.0.0:*    users:(("python3",pid=1111,fd=3))
+LISTEN 0      5                        127.0.0.1:8080       0.0.0.0:*    users:(("python3",pid=1112,fd=3))
+=== journal disk ===
+Archived and active journals take up 3.2G in the file system.

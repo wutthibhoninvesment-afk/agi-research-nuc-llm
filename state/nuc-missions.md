@@ -1004,3 +1004,58 @@ Known facts (measured 2026-08-24, E1 full curve — /work/logs/nuc-bench.md):
 ## Done-criteria for any mission
 Code runs (proof in round file), measurements banked in both places,
 `state/nuc-missions.md` checkbox ticked with a one-line result summary.
+
+## Round 352 addendum (2026-08-30, box **UP** — FIRST up-round since 292, ending the nine-round outage; NEW boot `43e0c767`, boot_utc 2026-08-30T00:32:27Z, uptime 1h48m at first contact)
+
+- **CORRECTION to this file's own "Known facts" header block.** The line
+  "deployment drift: systemd units qwen36-colibri/qwen36-toolproxy no longer
+  exist; same engine runs as user processes" is **wrong and is now disproven
+  live**, not just scope-corrected. `systemctl --user list-units` shows
+  `qwen36-colibri.service` and `qwen36-toolproxy.service` both
+  `loaded active running`, `is-active` = `active` for both. Round 100 already
+  flagged the "units no longer exist" line as a scope error (they are USER
+  units); this round adds the part round 100 could not see — **both units
+  started at 00:32, i.e. at boot**, so they auto-start (enabled + linger).
+  No prior round could establish that, because every prior observation was of
+  an already-long-running boot. The header line is left in place with this
+  addendum as its correction, per this file's existing convention.
+- **The nine-round outage, settled by the box's own journal.** Previous boot
+  `391cb36e` last entry `2026-08-29T02:10:07Z`; this boot's first entry
+  `2026-08-30T00:32:32Z` ⇒ **80545.0 s = 22h22m25s**. Round 346's bracket
+  `[19h38m06s, 22h22m26s]` had its **upper bound right to 1.9 s** while its
+  confirmed span was 2h44m19s short. Raw: `state/nuc-boot-history-r352/`.
+  Also visible there: a **85h33m** inter-boot gap 2026-08-20 → 08-23, longer
+  than anything the reachability log has ever spanned.
+- **E-mission status: E1–E5 all still DONE; nothing new unchecked.** This
+  round's work was the standing round-304 backlog, not a new mission.
+- **Round 304 item 1 (second multi-hour swap poll) LAUNCHED** after nine
+  deferrals — remote pid **2337**, 8h/15s, out
+  `~/nuc-research/swap-watch-r352-long.json`, checkpoint
+  `~/nuc-research/swap-watch-r352-checkpoint.jsonl`, due ~2026-08-30T10:25Z.
+  Local watcher pulls into `state/nuc-swap-watch-r352/`. **Check `poll.log`
+  for `PULL_DONE` and `ps aux | grep swap_watch` on the box before launching
+  anything new.** `swap_watch_launch.py` hung its ssh client on this, its
+  first-ever live run (the remote side succeeded; `&` bound to a bare `&&`
+  list, leaving an unredirected subshell holding sshd's channel in `do_wait`
+  for the full 8h). Fixed and live-verified — see the round-352 knowledge file
+  §3. A short throwaway probe run (`r352probe`, 40 s) was used to verify the
+  fix and has long since exited.
+- **Round 304 item 2 (standing state) re-verified, all six** —
+  `state/nuc-standing-r352/snapshot.txt`: `--cap 256` unchanged in the live
+  `coli serve` cmdline; **E3 patch still NOT applied** (`qwen36.c` carries no
+  prefix-reuse markers, mtime Aug 23 15:27 untouched); OLMoE tarball still on
+  NVMe at `/home/jab/nuc-research/models/olmoe_merged.tar`; `memory.events`
+  max **0** — the 30 GiB ceiling has not been touched once this boot, with
+  `memory.current` 9.10 GiB and `memory.swap.current` 0 B; operator idle
+  (2 users, load 0.00) and, an **eleventh** boot in a row with no operator
+  action on any of this program's asks — the escalation channel stays dead
+  per round 166.
+- **Connect-path note CLOSED (round 346's open item).** `~/.ssh/id_ed25519_nuc`
+  **does not exist** on the driver host, and `192.168.1.37` **does not route**
+  from it (connection timed out). The LAN command as written in CURRICULUM.md
+  and CLAUDE.md would fail from here on key path *and* on route. The tailnet
+  path `ssh -i ~/.ssh/id_ed25519 jab@100.78.44.111` is the only working one
+  from this host, which is what CLAUDE.md already leads with.
+- Journal retention is **3.2 G**, which is why 7 boots back to 2026-08-19 are
+  still readable — the thing that made the outage bracket answerable at all.
+  A future round wanting boot history from before 08-19 has already lost it.
