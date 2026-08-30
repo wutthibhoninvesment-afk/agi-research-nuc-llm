@@ -1,732 +1,758 @@
 [
-  {
-    "id": "sa-near",
-    "expect": [
-      "skill-authoring"
-    ],
-    "prompt": "I want to turn the debugging procedure we worked out yesterday into a SKILL.md so future sessions reuse it. Can you write it?"
-  },
-  {
-    "id": "sa-mid",
-    "expect": [
-      "skill-authoring"
-    ],
-    "prompt": "I wrote a skill for our deploy process but Claude never seems to pick it up even when I ask about deploys. What's wrong with it?"
-  },
-  {
-    "id": "sa-far",
-    "expect": [
-      "skill-authoring"
-    ],
-    "prompt": "Review the markdown files under .claude/skills/ and tell me which ones are badly written."
-  },
-  {
-    "id": "oat-near",
-    "expect": [
-      "offline-agent-testing"
-    ],
-    "prompt": "Our agent loop has a retry-with-backoff path and a tool-result truncation path. Write tests for both that run in CI with no API key."
-  },
-  {
-    "id": "oat-mid",
-    "expect": [
-      "offline-agent-testing"
-    ],
-    "prompt": "The test suite for our LLM agent takes 40 seconds and randomly fails because it hits the real Anthropic API. Fix the approach."
-  },
-  {
-    "id": "oat-far",
-    "expect": [
-      "offline-agent-testing"
-    ],
-    "prompt": "How do I prove in a unit test that my agent really runs two tool calls concurrently instead of one after the other?"
-  },
-  {
-    "id": "acb-near",
-    "expect": [
-      "agent-context-budgeting"
-    ],
-    "prompt": "Our autonomous coding agent dies after ~60 steps with a request-too-large error from the model API. Each step appends a big file read. Fix it."
-  },
-  {
-    "id": "acb-mid",
-    "expect": [
-      "agent-context-budgeting"
-    ],
-    "prompt": "Add a max-spend-in-dollars option to the agent runner so a run stops cleanly when it crosses the cap."
-  },
-  {
-    "id": "acb-far",
-    "expect": [
-      "agent-context-budgeting"
-    ],
-    "prompt": "Prompt caching never hits after our agent trims old messages — cache reads are zero on every request. Why, and how do we trim without losing the cache?"
-  },
-  {
-    "id": "gte-near",
-    "expect": [
-      "generator-trampoline-evaluator"
-    ],
-    "prompt": "My Python tree-walking interpreter dies with 'maximum recursion depth exceeded' when a guest program recurses 5000 deep. How should I restructure the evaluator?"
-  },
-  {
-    "id": "gte-mid",
-    "expect": [
-      "generator-trampoline-evaluator"
-    ],
-    "prompt": "Add proper tail calls to the interpreter in interp.py so a tail-recursive loop of a million iterations runs in constant stack."
-  },
-  {
-    "id": "gte-far",
-    "expect": [
-      "generator-trampoline-evaluator"
-    ],
-    "prompt": "There's a sys.setrecursionlimit(100000) hack at the top of our evaluator module. Get rid of it without breaking deep programs."
-  },
-  {
-    "id": "stil-near",
-    "expect": [
-      "shared-tip-immutable-lists"
-    ],
-    "prompt": "Our interpreter keeps every intermediate version of a list for undo history, and appending in a loop makes memory grow quadratically. Fix the data structure."
-  },
-  {
-    "id": "stil-mid",
-    "expect": [
-      "shared-tip-immutable-lists"
-    ],
-    "prompt": "I need a persistent (immutable) list type in plain Python where push is cheap even though old versions stay alive. No third-party libraries."
-  },
-  {
-    "id": "stil-far",
-    "expect": [
-      "shared-tip-immutable-lists"
-    ],
-    "prompt": "Profiling shows 67% of interpreter time is spent building display strings for values that are never printed. What's the fix?"
-  },
-  {
-    "id": "fmk-near",
-    "expect": [
-      "fuzz-mutate-kill-loop"
-    ],
-    "prompt": "Find bugs in the parser and evaluator under languages/whence/ — crashes, not style issues — and pin each one with a regression test."
-  },
-  {
-    "id": "fmk-mid",
-    "expect": [
-      "fuzz-mutate-kill-loop"
-    ],
-    "prompt": "All 200 tests are green but I don't trust that they prove much. How strong is this suite really, and how do I make it stronger?"
-  },
-  {
-    "id": "fmk-far",
-    "expect": [
-      "fuzz-mutate-kill-loop"
-    ],
-    "prompt": "Harden the expression evaluator in calc.py before we ship it."
-  },
-  {
-    "id": "sct-near",
-    "expect": [
-      "subprocess-cli-testing"
-    ],
-    "prompt": "Our CLI is supposed to exit 1 on a failed check and 2 on a parse error, and print errors to stderr. Nothing tests that. Add tests."
-  },
-  {
-    "id": "sct-mid",
-    "expect": [
-      "subprocess-cli-testing"
-    ],
-    "prompt": "The README shows example output for every command in examples/ but nobody has verified it in months. Make that impossible to drift."
-  },
-  {
-    "id": "sct-far",
-    "expect": [
-      "subprocess-cli-testing"
-    ],
-    "prompt": "Unit tests pass but when I actually run ./tool from the shell it prints a traceback. How do I catch this class of bug automatically?"
-  },
-  {
-    "id": "tli-near",
-    "expect": [
-      "tiny-language-implementation"
-    ],
-    "prompt": "Design and implement a small scripting language in Python with a lexer, parser and evaluator, with tests."
-  },
-  {
-    "id": "tli-mid",
-    "expect": [
-      "tiny-language-implementation"
-    ],
-    "prompt": "We need a tiny config/expression DSL so users can write rules like `price > 100 and region == \"EU\"`. Build the evaluator."
-  },
-  {
-    "id": "tli-far",
-    "expect": [
-      "tiny-language-implementation"
-    ],
-    "prompt": "Add string interpolation and a `while` loop to the interpreter in languages/mini/, with tests."
-  },
-  {
-    "id": "multi-1",
-    "expect": [
-      "tiny-language-implementation",
-      "subprocess-cli-testing"
-    ],
-    "prompt": "Build a small calculator language with a `run.py` CLI; the CLI must exit non-zero on errors and that must be tested end to end."
-  },
-  {
-    "id": "multi-2",
-    "expect": [
-      "fuzz-mutate-kill-loop",
-      "generator-trampoline-evaluator"
-    ],
-    "prompt": "Random-program testing of my interpreter keeps finding RecursionError crashes on deeply nested input. Fix the root cause and keep the fuzzing loop going."
-  },
-  {
-    "id": "sib-near",
-    "expect": [
-      "sampled-interval-brackets"
-    ],
-    "prompt": "Our status page computes each outage's duration by subtracting the first failing health-check timestamp from the last one. We poll every 15 minutes, so those numbers must be low. Make the reporting honest."
-  },
-  {
-    "id": "sib-mid",
-    "expect": [
-      "sampled-interval-brackets"
-    ],
-    "prompt": "The incident review says the database was unreachable for 5h14m, but the postmortem doc says 6h. Both are derived from the same monitoring log. Which one is right and how do we stop this disagreement recurring?"
-  },
-  {
-    "id": "sib-far",
-    "expect": [
-      "sampled-interval-brackets"
-    ],
-    "prompt": "We want to claim last night was the longest downtime we've ever had, but we only find out a host is down when the hourly cron probe runs. Can we actually prove it beat the previous record?"
-  },
-  {
-    "id": "etnf-near",
-    "expect": [
-      "errors-that-name-the-fix"
-    ],
-    "prompt": "Our config loader rejects bad files with `invalid key: retires` and users keep filing that as a bug. I want the messages to tell people what to write instead."
-  },
-  {
-    "id": "etnf-mid",
-    "expect": [
-      "errors-that-name-the-fix"
-    ],
-    "prompt": "The interpreter prints `expected a list, got a function` — accurate, points at the right argument, and three people this week reported it as a defect in the library. What should change?"
-  },
-  {
-    "id": "etnf-far",
-    "expect": [
-      "errors-that-name-the-fix"
-    ],
-    "prompt": "Someone wants to fix our CLI's confusing validation failures by expanding the README and silently auto-correcting mistyped flag names. Is there a better option?"
-  },
-  {
-    "id": "pcd-near",
-    "expect": [
-      "pristine-checkout-differential"
-    ],
-    "prompt": "This suite has been green for months, but it has only ever run in one working directory on one box. How do I find out whether it still passes from a fresh clone?"
-  },
-  {
-    "id": "pcd-mid",
-    "expect": [
-      "pristine-checkout-differential"
-    ],
-    "prompt": "One of our tests builds its input corpus with glob() over a data directory and asserts there are at least 20 files in it. A separate agent also writes files into that directory. Is that a problem?"
-  },
-  {
-    "id": "pcd-far",
-    "expect": [
-      "pristine-checkout-differential"
-    ],
-    "prompt": "`git status` here has shown the same dozen untracked files for months and nobody remembers who wrote them, while the tests pass every day. Should I care?"
-  },
-  {
-    "id": "udr-near",
-    "expect": [
-      "unenforced-documented-rule"
-    ],
-    "prompt": "Our lexer's docstring has said statements are newline-separated since its first commit, but the parser happily accepts two of them on one line. Should I make that an error, and how do I do it safely?"
-  },
-  {
-    "id": "udr-mid",
-    "expect": [
-      "unenforced-documented-rule"
-    ],
-    "prompt": "The README says config keys must be lowercase and the loader takes uppercase ones without complaint. I want to start rejecting them without wrecking the good error messages we already have."
-  },
-  {
-    "id": "udr-far",
-    "expect": [
-      "unenforced-documented-rule"
-    ],
-    "prompt": "Go through our spec and module docstrings for sentences using must / always / only, and tell me which of those the code does not actually check."
-  },
-  {
-    "id": "neg-1",
-    "expect": [],
-    "prompt": "Write a bash script that renames all .jpeg files in a folder to .jpg."
-  },
-  {
-    "id": "neg-2",
-    "expect": [],
-    "prompt": "Explain the difference between Python's asyncio.gather and asyncio.wait."
-  },
-  {
-    "id": "neg-3",
-    "expect": [],
-    "prompt": "My Flask endpoint returns 500 when the JSON body is missing a field. Add validation and a 400 response."
-  },
-  {
-    "id": "neg-4",
-    "expect": [],
-    "prompt": "Optimize this SQL query: SELECT * FROM orders WHERE customer_id IN (SELECT id FROM customers WHERE region = 'EU')."
-  },
-  {
-    "id": "neg-5",
-    "expect": [],
-    "prompt": "Write a React component that renders a paginated table of users."
-  },
-  {
-    "id": "neg-6",
-    "expect": [],
-    "prompt": "Add type hints to utils.py and make mypy pass in strict mode."
-  },
-  {
-    "id": "leb-near",
-    "expect": [
-      "llm-engine-benchmarking"
-    ],
-    "prompt": "Our local llama.cpp server feels really slow on long prompts. Can you measure TTFT and tokens/sec at a few prompt sizes so we have actual numbers?"
-  },
-  {
-    "id": "leb-mid",
-    "expect": [
-      "llm-engine-benchmarking"
-    ],
-    "prompt": "vLLM says it has prefix caching enabled but agent turns with our 8k system prompt still take forever. How do I check whether the KV cache reuse is actually working?"
-  },
-  {
-    "id": "leb-far",
-    "expect": [
-      "llm-engine-benchmarking"
-    ],
-    "prompt": "I need prompts of exactly 1000 and 4000 tokens for a timing test but the box only has bare python, no tokenizers package. What's the way to do this?"
-  },
-  {
-    "id": "leb-neg",
-    "expect": [],
-    "prompt": "Write a pytest benchmark that times our JSON parser on a 10 MB file and fails if it regresses more than 20%."
-  },
-  {
-    "id": "fmk-oracle",
-    "expect": [
-      "fuzz-mutate-kill-loop"
-    ],
-    "prompt": "Our fuzzer has reported 0 crashes for three runs now, but I'm sure the new compiled fast path in the evaluator gives different answers than the old tree-walker on some inputs. How do I find those?"
-  },
-  {
-    "id": "fmk-modelreview",
-    "expect": [
-      "fuzz-mutate-kill-loop"
-    ],
-    "prompt": "I had Claude review interp.py and it listed six 'bugs'. I don't trust the list — can we make it prove each one before I open tickets?"
-  },
-  {
-    "id": "fmk-timeouts",
-    "expect": [
-      "fuzz-mutate-kill-loop"
-    ],
-    "prompt": "The random-program campaign against our interpreter shows a bunch of timeouts and I've been ignoring them. Worth looking into or is that normal?"
-  },
-  {
-    "id": "epr-near",
-    "expect": [
-      "engine-prefix-reuse-audit"
-    ],
-    "prompt": "Our colibri qwen36 engine re-prefills the whole 26k-token transcript on every turn even though the server has a --kv-slots option. Can you read the serve loop and figure out whether KV state can persist across requests, and draft an upstream patch? I can't restart the box."
-  },
-  {
-    "id": "epr-mid",
-    "expect": [
-      "engine-prefix-reuse-audit"
-    ],
-    "prompt": "Turn 5 of a chat on my self-hosted C inference engine takes about five times longer than turn 1 — nothing changed except the history got longer. Identical repeated prompts aren't faster either. What's wrong in the engine and how would I fix it?"
-  },
-  {
-    "id": "epr-far",
-    "expect": [
-      "engine-prefix-reuse-audit"
-    ],
-    "prompt": "The model behind our agent is a hybrid Mamba-plus-attention thing and the serving code resets everything per request. I want to propose prefix caching upstream but I can only compile, not run the weights. How do I validate a patch like that?"
-  },
-  {
-    "id": "pb-near",
-    "expect": [
-      "prediction-banking"
-    ],
-    "prompt": "Before I run the benchmark for the new caching layer I want to write down what we expect so we can't fool ourselves afterwards. Set that up properly."
-  },
-  {
-    "id": "pb-mid",
-    "expect": [
-      "prediction-banking"
-    ],
-    "prompt": "Every time I optimize something I claim 2x and get 1.3x when it's re-measured. How do I stop overestimating before I measure?"
-  },
-  {
-    "id": "pb-far",
-    "expect": [
-      "prediction-banking"
-    ],
-    "prompt": "We just ran the A/B on the new index and it's 'faster', but nobody agreed beforehand what would count as a win, so the result is meaningless. Fix our process so this doesn't happen again."
-  },
-  {
-    "id": "sia-near",
-    "expect": [
-      "session-inheritance-audit"
-    ],
-    "prompt": "The previous autonomous session of this project crashed halfway through; the state notes say the mutation run is 'in progress' but I see finished JSON result files on disk. Sort out what actually happened before we continue."
-  },
-  {
-    "id": "sia-mid",
-    "expect": [
-      "session-inheritance-audit"
-    ],
-    "prompt": "I'm resuming a long-running agent job that got killed by a rate limit overnight. What should I check before I start the next step?"
-  },
-  {
-    "id": "sia-far",
-    "expect": [
-      "session-inheritance-audit"
-    ],
-    "prompt": "Load average is 12 on my laptop and the last research run finished hours ago. Also there are test files in the repo that nobody remembers writing. What's going on?"
-  },
-  {
-    "id": "pb-neg",
-    "expect": [],
-    "prompt": "Train a time-series model to forecast next week's sales per store from the last two years of data."
-  },
-  {
-    "id": "sia-neg",
-    "expect": [],
-    "prompt": "Add session persistence to my Flask login so users stay logged in after the server restarts."
-  },
-  {
-    "id": "pm-neg",
-    "expect": [],
-    "prompt": "Write a post-mortem for yesterday's production outage: root cause, timeline, and action items."
-  },
-  {
-    "id": "cml-near",
-    "expect": [
-      "colocated-model-lane"
-    ],
-    "prompt": "Our box runs a 35B MoE engine that fills all 31 GB of RAM (MemAvailable is 580 MB, swap is in use). Someone wants to run a 1B model next to it as a fast lane for short tool calls. Is that feasible, and how would we even get the 7 GB weights onto the machine without evicting the big engine?"
-  },
-  {
-    "id": "cml-mid",
-    "expect": [
-      "colocated-model-lane"
-    ],
-    "prompt": "I need to copy a 7 GB model container onto a server whose inference engine is pinned at its cgroup MemoryMax. A plain scp last time pushed the engine into swap. What's the safe way to stage the file, and can I resume if the copy dies halfway?"
-  },
-  {
-    "id": "cml-far",
-    "expect": [
-      "colocated-model-lane"
-    ],
-    "prompt": "The small second model we added beside the production LLM decodes at 2 tok/s and gets SLOWER when I give it a bigger expert cache; top shows sys time above user time. The machine has almost no free memory. What's going on and what should I measure?"
-  },
-  {
-    "id": "cml-neg",
-    "expect": [],
-    "prompt": "We're adding a second GPU node to our Kubernetes inference cluster and want two replicas of the same model behind a load balancer. How should we configure the autoscaler and readiness probes?"
-  },
-  {
-    "id": "acg-near",
-    "expect": [
-      "agent-completion-guards"
-    ],
-    "prompt": "Our agent runs keep ending with the model writing `read_file(path=src/x.py, start=1, end=40)` as plain text instead of an actual tool call, and the loop records the run as completed. How do we catch and recover those?"
-  },
-  {
-    "id": "acg-mid",
-    "expect": [
-      "agent-completion-guards"
-    ],
-    "prompt": "Three of our sonnet review runs came back with an empty final answer or the literal text 'tool call: search' and we paid for them anyway. Change the harness so that doesn't count as done."
-  },
-  {
-    "id": "acg-far",
-    "expect": [
-      "agent-completion-guards"
-    ],
-    "prompt": "Last night's kill-stage results are mostly 'failed' at steps 1-3 with nothing scoreable in the final text. Look at what the model actually replied and make the loop robust to it."
-  },
-  {
-    "id": "acg-neg",
-    "expect": [],
-    "prompt": "Add a JSON schema validator for our REST API's request bodies and return a 400 with per-field errors when a body is malformed."
-  },
-  {
-    "id": "pts-near",
-    "expect": [
-      "preflight-priced-task-scripts"
-    ],
-    "prompt": "Our agent pipeline hits a CPU inference box where a 900-token prompt takes two minutes of prefill. I want each step declared with its lane, prompt, reply cap and a time budget, and the runner should refuse a step that can't fit the remaining budget before it sends anything. Retries with backoff and a JSONL trace too."
-  },
-  {
-    "id": "pts-mid",
-    "expect": [
-      "preflight-priced-task-scripts"
-    ],
-    "prompt": "We have a small fast model and a big slow one on the same server. Route short classification jobs to the small one and fall back to the big one when it fails, keep the whole chain under 4 minutes, and tell me afterwards which call spent the time."
-  },
-  {
-    "id": "pts-far",
-    "expect": [
-      "preflight-priced-task-scripts"
-    ],
-    "prompt": "The box is down until tomorrow but I need to know today whether this five-step model pipeline fits in a 10-minute window per run, given the latency numbers we already measured."
-  },
-  {
-    "id": "pts-neg",
-    "expect": [
-      "llm-engine-benchmarking"
-    ],
-    "prompt": "Benchmark our llama.cpp server: measure time-to-first-token and decode tokens per second at 100, 1k and 4k prompt tokens and plot the curve.",
-    "note": "boundary case: the sibling skill's territory (measure the curve), not the task-script skill; round 112 probe fired llm-engine-benchmarking 3/3 and never preflight-priced-task-scripts"
-  },
-  {
-    "id": "sudl-near",
-    "expect": [
-      "self-updating-driver-loop"
-    ],
-    "prompt": "Our bash driver runs a while-true loop launching agent rounds forever. We just fixed a bug in the script, but the process that has been running for two days is still doing the old broken thing. Do we need to kill and restart it, or is there a way to make it pick up the fix on its own?"
-  },
-  {
-    "id": "sudl-mid",
-    "expect": [
-      "self-updating-driver-loop"
-    ],
-    "prompt": "I want our long-running bash orchestration loop to pick up code changes automatically, without an external watchdog script that has to kill and relaunch it every time we ship a fix."
-  },
-  {
-    "id": "sudl-far",
-    "expect": [
-      "self-updating-driver-loop"
-    ],
-    "prompt": "ps shows the same PID for our driver process from three days ago, but its log output still looks like the OLD format even though we edited the script yesterday. What is going on?"
-  },
-  {
-    "id": "sudl-neg",
-    "expect": [],
-    "prompt": "Our systemd service keeps restarting after every deploy. Add a health check so it only restarts when a request actually fails, instead of on every deploy."
-  },
-  {
-    "id": "sia-concurrent",
-    "expect": [
-      "session-inheritance-audit"
-    ],
-    "prompt": "The driver log says round 12 finished and round 13 already started, but 'ps' still shows round 12's claude process alive with an 8-minute uptime, and both are editing the same repo. Am I safe to start writing files, or could round 12 still be mid-edit?"
-  },
-  {
-    "id": "obw-near",
-    "expect": [
-      "one-shot-agent-no-background-wait"
-    ],
-    "prompt": "Our cron job runs `claude -p \"do the round's work\" --max-turns 100` once per iteration. Three iterations in a row show the driver log marking them 'success' with 60-150 tool calls each, but no files changed and no report was written. The last line of each transcript says something like 'I'll resume once the background job finishes' or 'standing by for the notification.' What's going on and how do I stop it from happening again?"
-  },
-  {
-    "id": "obw-mid",
-    "expect": [
-      "one-shot-agent-no-background-wait"
-    ],
-    "prompt": "I have a non-interactive batch pipeline that invokes an LLM agent once per task. Every so often a task is marked done with no error, but nothing it was supposed to produce actually exists on disk. It looks like the agent kicked off a long-running check and then stopped issuing any more tool calls."
-  },
-  {
-    "id": "obw-far",
-    "expect": [
-      "one-shot-agent-no-background-wait"
-    ],
-    "prompt": "The overnight automated run finished clean, no errors, but this time absolutely nothing changed. The very end of the transcript just says the process is waiting for something to complete."
-  },
-  {
-    "id": "obw-neg",
-    "expect": [],
-    "prompt": "In my interactive Claude Code session, I want to kick off a long build in the background and keep working on something else while I wait for it to finish, then get notified when it's done."
-  },
-  {
-    "id": "otd-near",
-    "expect": [
-      "optimization-transparency-differential"
-    ],
-    "prompt": "Our interpreter has tail-call elimination. I want to prove it can't change any observable behaviour, not just that the return values match. How would you test that?"
-  },
-  {
-    "id": "otd-mid",
-    "expect": [
-      "optimization-transparency-differential"
-    ],
-    "prompt": "We have a test that compares the cached and uncached code paths, but it strips the timestamps and request ids out of both before diffing. That feels like cheating. Is it?"
-  },
-  {
-    "id": "otd-far",
-    "expect": [
-      "optimization-transparency-differential"
-    ],
-    "prompt": "Our compiler folds constants at parse time. A user reports the error message points at a different line when folding is on. Both lines are arguably right — how do we decide which one the compiler should say?"
-  },
-  {
-    "id": "cri-near",
-    "expect": [
-      "citation-registry-integrity"
-    ],
-    "prompt": "Our architecture docs and code comments are full of references like \"see ADR-014\" and \"per invariant I3\". Nobody has ever checked that those actually exist. Can you find the ones that point nowhere?"
-  },
-  {
-    "id": "cri-mid",
-    "expect": [
-      "citation-registry-integrity"
-    ],
-    "prompt": "SPEC.md has a numbered list of design decisions that stops at 13, but the parser's comments cite decision 27, 28 and 29. Where did those come from and what should we do about it?"
-  },
-  {
-    "id": "cri-far",
-    "expect": [
-      "citation-registry-integrity"
-    ],
-    "prompt": "I want to turn on a docs linter across a 200-file repo that will definitely be red on day one, and I don't own half of what it will flag. How do I roll it out so the team doesn't just delete it?"
-  },
-  {
-    "id": "neg-15",
-    "expect": [],
-    "prompt": "Our README links to https://example.com/docs and it 404s now. Find every external URL in the repo that's dead and update them."
-  },
-  {
-    "id": "dvnw-near",
-    "expect": [
-      "deleted-vs-never-written"
-    ],
-    "prompt": "Our CONTRIBUTING.md has a '## Release process' heading with nothing under it. Everyone cites 'the release process' in review comments. I guess nobody ever wrote it — can you draft one?"
-  },
-  {
-    "id": "dvnw-mid",
-    "expect": [
-      "deleted-vs-never-written"
-    ],
-    "prompt": "The code reads a config key BUILD_PROFILE that isn't defined in any of our config files or docs. Before I go ask the platform team to spec it out, is there any way to tell whether it used to be documented?"
-  },
-  {
-    "id": "dvnw-far",
-    "expect": [
-      "deleted-vs-never-written"
-    ],
-    "prompt": "Writing up an audit finding: the coding-standards doc our lint config points at is an empty stub, and it predates our git history, so reconstructing the standards is going to need a decision from engineering leadership. Sanity-check my reasoning before I send this."
-  },
-  {
-    "id": "neg-16",
-    "expect": [],
-    "prompt": "A test started failing sometime in the last two weeks and I can't tell which change did it. Help me narrow down the commit."
-  },
-  {
-    "id": "neg-17",
-    "expect": [],
-    "prompt": "I lost about an hour of edits when my editor crashed — the changes were never committed. Anything I can do to get them back?"
-  },
-  {
-    "id": "ccr-near",
-    "expect": [
-      "carried-claim-rot"
-    ],
-    "prompt": "Our sprint carryover doc has re-listed the same three open items verbatim every week for two months. Before I copy it forward again, I want to know whether any of them are actually still true, and I'd like that checked automatically from now on."
-  },
-  {
-    "id": "ccr-mid",
-    "expect": [
-      "carried-claim-rot"
-    ],
-    "prompt": "The 'Known limitations' section of our README still says the importer is capped at 4096 rows. Someone raised that cap ages ago. How do I find the rest of these and stop the list drifting again?"
-  },
-  {
-    "id": "ccr-far",
-    "expect": [
-      "carried-claim-rot"
-    ],
-    "prompt": "Every weekly status update we write starts as a copy of last week's. What can go wrong with that, and how would you catch it without asking everyone to be more careful?"
-  },
-  {
-    "id": "cmd-near",
-    "expect": [
-      "copied-mirror-drift"
-    ],
-    "prompt": "We have a MockPaymentGateway that was copied from the real gateway two years ago, and both are still edited by hand. How do I work out what the real one gained since that the mock never got?"
-  },
-  {
-    "id": "cmd-mid",
-    "expect": [
-      "copied-mirror-drift"
-    ],
-    "prompt": "Our golden-file generator emits a field layout the production serializer stopped producing three releases ago, and the whole suite is still green. Where do I start?"
-  },
-  {
-    "id": "cmd-far",
-    "expect": [
-      "copied-mirror-drift"
-    ],
-    "prompt": "A subclass overrides build_report() and the override body is recognisably the parent's body with one line changed. Is that worth doing anything about?"
-  },
-  {
-    "id": "dsp-near",
-    "expect": [
-      "declaration-scope-parity"
-    ],
-    "prompt": "In our schema DSL, naming a type that was never declared reports 'unknown type' when it appears in a field, but silently evaluates to null when it appears in an argument. Same user mistake, two different outcomes."
-  },
-  {
-    "id": "dsp-mid",
-    "expect": [
-      "declaration-scope-parity"
-    ],
-    "prompt": "Our validator keeps declared shape names in one flat dictionary, while ordinary value bindings get proper push/pop frames. Is that asymmetry going to bite us, and what do we do about it?"
-  },
-  {
-    "id": "dsp-far",
-    "expect": [
-      "declaration-scope-parity"
-    ],
-    "prompt": "There's a comment in our type checker saying the fragment table is 'deliberately not scope-aware', next to an UnboundName sentinel that exists so a lookup that 'cannot happen' stays safe. Should I trust that?"
-  },
-  {
-    "id": "bnbw-near",
-    "expect": [
-      "bounded-not-binary-witness"
-    ],
-    "prompt": "Our uptime checker reports a gap as `verified: true` whenever the surrounding log covers it, but the docstring right above it admits it can't detect a suspend. It's feeding a dashboard that says '0 minutes unverified'. Fix the claim."
-  },
-  {
-    "id": "bnbw-mid",
-    "expect": [
-      "bounded-not-binary-witness"
-    ],
-    "prompt": "This function returns a boolean 'no data loss occurred' but the only evidence it has is the first and last record in the window. I want it to say how much loss could still be hiding instead of just yes/no."
-  },
-  {
-    "id": "bnbw-far",
-    "expect": [
-      "bounded-not-binary-witness"
-    ],
-    "prompt": "Two of our health rules rule out exactly the same failure and one is labelled STRONG and the other WEAK, and the STRONG one is why the report shows None for worst-case downtime. Sort this out."
-  },
-  {
-    "id": "bnbw-neg-plain-bool",
-    "expect": [],
-    "prompt": "Change this function to return True instead of 1 so mypy stops complaining about the return type."
-  }
+ {
+  "id": "sa-near",
+  "expect": [
+   "skill-authoring"
+  ],
+  "prompt": "I want to turn the debugging procedure we worked out yesterday into a SKILL.md so future sessions reuse it. Can you write it?"
+ },
+ {
+  "id": "sa-mid",
+  "expect": [
+   "skill-authoring"
+  ],
+  "prompt": "I wrote a skill for our deploy process but Claude never seems to pick it up even when I ask about deploys. What's wrong with it?"
+ },
+ {
+  "id": "sa-far",
+  "expect": [
+   "skill-authoring"
+  ],
+  "prompt": "Review the markdown files under .claude/skills/ and tell me which ones are badly written."
+ },
+ {
+  "id": "oat-near",
+  "expect": [
+   "offline-agent-testing"
+  ],
+  "prompt": "Our agent loop has a retry-with-backoff path and a tool-result truncation path. Write tests for both that run in CI with no API key."
+ },
+ {
+  "id": "oat-mid",
+  "expect": [
+   "offline-agent-testing"
+  ],
+  "prompt": "The test suite for our LLM agent takes 40 seconds and randomly fails because it hits the real Anthropic API. Fix the approach."
+ },
+ {
+  "id": "oat-far",
+  "expect": [
+   "offline-agent-testing"
+  ],
+  "prompt": "How do I prove in a unit test that my agent really runs two tool calls concurrently instead of one after the other?"
+ },
+ {
+  "id": "acb-near",
+  "expect": [
+   "agent-context-budgeting"
+  ],
+  "prompt": "Our autonomous coding agent dies after ~60 steps with a request-too-large error from the model API. Each step appends a big file read. Fix it."
+ },
+ {
+  "id": "acb-mid",
+  "expect": [
+   "agent-context-budgeting"
+  ],
+  "prompt": "Add a max-spend-in-dollars option to the agent runner so a run stops cleanly when it crosses the cap."
+ },
+ {
+  "id": "acb-far",
+  "expect": [
+   "agent-context-budgeting"
+  ],
+  "prompt": "Prompt caching never hits after our agent trims old messages — cache reads are zero on every request. Why, and how do we trim without losing the cache?"
+ },
+ {
+  "id": "gte-near",
+  "expect": [
+   "generator-trampoline-evaluator"
+  ],
+  "prompt": "My Python tree-walking interpreter dies with 'maximum recursion depth exceeded' when a guest program recurses 5000 deep. How should I restructure the evaluator?"
+ },
+ {
+  "id": "gte-mid",
+  "expect": [
+   "generator-trampoline-evaluator"
+  ],
+  "prompt": "Add proper tail calls to the interpreter in interp.py so a tail-recursive loop of a million iterations runs in constant stack."
+ },
+ {
+  "id": "gte-far",
+  "expect": [
+   "generator-trampoline-evaluator"
+  ],
+  "prompt": "There's a sys.setrecursionlimit(100000) hack at the top of our evaluator module. Get rid of it without breaking deep programs."
+ },
+ {
+  "id": "stil-near",
+  "expect": [
+   "shared-tip-immutable-lists"
+  ],
+  "prompt": "Our interpreter keeps every intermediate version of a list for undo history, and appending in a loop makes memory grow quadratically. Fix the data structure."
+ },
+ {
+  "id": "stil-mid",
+  "expect": [
+   "shared-tip-immutable-lists"
+  ],
+  "prompt": "I need a persistent (immutable) list type in plain Python where push is cheap even though old versions stay alive. No third-party libraries."
+ },
+ {
+  "id": "stil-far",
+  "expect": [
+   "shared-tip-immutable-lists"
+  ],
+  "prompt": "Profiling shows 67% of interpreter time is spent building display strings for values that are never printed. What's the fix?"
+ },
+ {
+  "id": "fmk-near",
+  "expect": [
+   "fuzz-mutate-kill-loop"
+  ],
+  "prompt": "Find bugs in the parser and evaluator under languages/whence/ — crashes, not style issues — and pin each one with a regression test."
+ },
+ {
+  "id": "fmk-mid",
+  "expect": [
+   "fuzz-mutate-kill-loop"
+  ],
+  "prompt": "All 200 tests are green but I don't trust that they prove much. How strong is this suite really, and how do I make it stronger?"
+ },
+ {
+  "id": "fmk-far",
+  "expect": [
+   "fuzz-mutate-kill-loop"
+  ],
+  "prompt": "Harden the expression evaluator in calc.py before we ship it."
+ },
+ {
+  "id": "sct-near",
+  "expect": [
+   "subprocess-cli-testing"
+  ],
+  "prompt": "Our CLI is supposed to exit 1 on a failed check and 2 on a parse error, and print errors to stderr. Nothing tests that. Add tests."
+ },
+ {
+  "id": "sct-mid",
+  "expect": [
+   "subprocess-cli-testing"
+  ],
+  "prompt": "The README shows example output for every command in examples/ but nobody has verified it in months. Make that impossible to drift."
+ },
+ {
+  "id": "sct-far",
+  "expect": [
+   "subprocess-cli-testing"
+  ],
+  "prompt": "Unit tests pass but when I actually run ./tool from the shell it prints a traceback. How do I catch this class of bug automatically?"
+ },
+ {
+  "id": "tli-near",
+  "expect": [
+   "tiny-language-implementation"
+  ],
+  "prompt": "Design and implement a small scripting language in Python with a lexer, parser and evaluator, with tests."
+ },
+ {
+  "id": "tli-mid",
+  "expect": [
+   "tiny-language-implementation"
+  ],
+  "prompt": "We need a tiny config/expression DSL so users can write rules like `price > 100 and region == \"EU\"`. Build the evaluator."
+ },
+ {
+  "id": "tli-far",
+  "expect": [
+   "tiny-language-implementation"
+  ],
+  "prompt": "Add string interpolation and a `while` loop to the interpreter in languages/mini/, with tests."
+ },
+ {
+  "id": "multi-1",
+  "expect": [
+   "tiny-language-implementation",
+   "subprocess-cli-testing"
+  ],
+  "prompt": "Build a small calculator language with a `run.py` CLI; the CLI must exit non-zero on errors and that must be tested end to end."
+ },
+ {
+  "id": "multi-2",
+  "expect": [
+   "fuzz-mutate-kill-loop",
+   "generator-trampoline-evaluator"
+  ],
+  "prompt": "Random-program testing of my interpreter keeps finding RecursionError crashes on deeply nested input. Fix the root cause and keep the fuzzing loop going."
+ },
+ {
+  "id": "sib-near",
+  "expect": [
+   "sampled-interval-brackets"
+  ],
+  "prompt": "Our status page computes each outage's duration by subtracting the first failing health-check timestamp from the last one. We poll every 15 minutes, so those numbers must be low. Make the reporting honest."
+ },
+ {
+  "id": "sib-mid",
+  "expect": [
+   "sampled-interval-brackets"
+  ],
+  "prompt": "The incident review says the database was unreachable for 5h14m, but the postmortem doc says 6h. Both are derived from the same monitoring log. Which one is right and how do we stop this disagreement recurring?"
+ },
+ {
+  "id": "sib-far",
+  "expect": [
+   "sampled-interval-brackets"
+  ],
+  "prompt": "We want to claim last night was the longest downtime we've ever had, but we only find out a host is down when the hourly cron probe runs. Can we actually prove it beat the previous record?"
+ },
+ {
+  "id": "etnf-near",
+  "expect": [
+   "errors-that-name-the-fix"
+  ],
+  "prompt": "Our config loader rejects bad files with `invalid key: retires` and users keep filing that as a bug. I want the messages to tell people what to write instead."
+ },
+ {
+  "id": "etnf-mid",
+  "expect": [
+   "errors-that-name-the-fix"
+  ],
+  "prompt": "The interpreter prints `expected a list, got a function` — accurate, points at the right argument, and three people this week reported it as a defect in the library. What should change?"
+ },
+ {
+  "id": "etnf-far",
+  "expect": [
+   "errors-that-name-the-fix"
+  ],
+  "prompt": "Someone wants to fix our CLI's confusing validation failures by expanding the README and silently auto-correcting mistyped flag names. Is there a better option?"
+ },
+ {
+  "id": "pcd-near",
+  "expect": [
+   "pristine-checkout-differential"
+  ],
+  "prompt": "This suite has been green for months, but it has only ever run in one working directory on one box. How do I find out whether it still passes from a fresh clone?"
+ },
+ {
+  "id": "pcd-mid",
+  "expect": [
+   "pristine-checkout-differential"
+  ],
+  "prompt": "One of our tests builds its input corpus with glob() over a data directory and asserts there are at least 20 files in it. A separate agent also writes files into that directory. Is that a problem?"
+ },
+ {
+  "id": "pcd-far",
+  "expect": [
+   "pristine-checkout-differential"
+  ],
+  "prompt": "`git status` here has shown the same dozen untracked files for months and nobody remembers who wrote them, while the tests pass every day. Should I care?"
+ },
+ {
+  "id": "udr-near",
+  "expect": [
+   "unenforced-documented-rule"
+  ],
+  "prompt": "Our lexer's docstring has said statements are newline-separated since its first commit, but the parser happily accepts two of them on one line. Should I make that an error, and how do I do it safely?"
+ },
+ {
+  "id": "udr-mid",
+  "expect": [
+   "unenforced-documented-rule"
+  ],
+  "prompt": "The README says config keys must be lowercase and the loader takes uppercase ones without complaint. I want to start rejecting them without wrecking the good error messages we already have."
+ },
+ {
+  "id": "udr-far",
+  "expect": [
+   "unenforced-documented-rule"
+  ],
+  "prompt": "Go through our spec and module docstrings for sentences using must / always / only, and tell me which of those the code does not actually check."
+ },
+ {
+  "id": "neg-1",
+  "expect": [],
+  "prompt": "Write a bash script that renames all .jpeg files in a folder to .jpg."
+ },
+ {
+  "id": "neg-2",
+  "expect": [],
+  "prompt": "Explain the difference between Python's asyncio.gather and asyncio.wait."
+ },
+ {
+  "id": "neg-3",
+  "expect": [],
+  "prompt": "My Flask endpoint returns 500 when the JSON body is missing a field. Add validation and a 400 response."
+ },
+ {
+  "id": "neg-4",
+  "expect": [],
+  "prompt": "Optimize this SQL query: SELECT * FROM orders WHERE customer_id IN (SELECT id FROM customers WHERE region = 'EU')."
+ },
+ {
+  "id": "neg-5",
+  "expect": [],
+  "prompt": "Write a React component that renders a paginated table of users."
+ },
+ {
+  "id": "neg-6",
+  "expect": [],
+  "prompt": "Add type hints to utils.py and make mypy pass in strict mode."
+ },
+ {
+  "id": "leb-near",
+  "expect": [
+   "llm-engine-benchmarking"
+  ],
+  "prompt": "Our local llama.cpp server feels really slow on long prompts. Can you measure TTFT and tokens/sec at a few prompt sizes so we have actual numbers?"
+ },
+ {
+  "id": "leb-mid",
+  "expect": [
+   "llm-engine-benchmarking"
+  ],
+  "prompt": "vLLM says it has prefix caching enabled but agent turns with our 8k system prompt still take forever. How do I check whether the KV cache reuse is actually working?"
+ },
+ {
+  "id": "leb-far",
+  "expect": [
+   "llm-engine-benchmarking"
+  ],
+  "prompt": "I need prompts of exactly 1000 and 4000 tokens for a timing test but the box only has bare python, no tokenizers package. What's the way to do this?"
+ },
+ {
+  "id": "leb-neg",
+  "expect": [],
+  "prompt": "Write a pytest benchmark that times our JSON parser on a 10 MB file and fails if it regresses more than 20%."
+ },
+ {
+  "id": "fmk-oracle",
+  "expect": [
+   "fuzz-mutate-kill-loop"
+  ],
+  "prompt": "Our fuzzer has reported 0 crashes for three runs now, but I'm sure the new compiled fast path in the evaluator gives different answers than the old tree-walker on some inputs. How do I find those?"
+ },
+ {
+  "id": "fmk-modelreview",
+  "expect": [
+   "fuzz-mutate-kill-loop"
+  ],
+  "prompt": "I had Claude review interp.py and it listed six 'bugs'. I don't trust the list — can we make it prove each one before I open tickets?"
+ },
+ {
+  "id": "fmk-timeouts",
+  "expect": [
+   "fuzz-mutate-kill-loop"
+  ],
+  "prompt": "The random-program campaign against our interpreter shows a bunch of timeouts and I've been ignoring them. Worth looking into or is that normal?"
+ },
+ {
+  "id": "epr-near",
+  "expect": [
+   "engine-prefix-reuse-audit"
+  ],
+  "prompt": "Our colibri qwen36 engine re-prefills the whole 26k-token transcript on every turn even though the server has a --kv-slots option. Can you read the serve loop and figure out whether KV state can persist across requests, and draft an upstream patch? I can't restart the box."
+ },
+ {
+  "id": "epr-mid",
+  "expect": [
+   "engine-prefix-reuse-audit"
+  ],
+  "prompt": "Turn 5 of a chat on my self-hosted C inference engine takes about five times longer than turn 1 — nothing changed except the history got longer. Identical repeated prompts aren't faster either. What's wrong in the engine and how would I fix it?"
+ },
+ {
+  "id": "epr-far",
+  "expect": [
+   "engine-prefix-reuse-audit"
+  ],
+  "prompt": "The model behind our agent is a hybrid Mamba-plus-attention thing and the serving code resets everything per request. I want to propose prefix caching upstream but I can only compile, not run the weights. How do I validate a patch like that?"
+ },
+ {
+  "id": "pb-near",
+  "expect": [
+   "prediction-banking"
+  ],
+  "prompt": "Before I run the benchmark for the new caching layer I want to write down what we expect so we can't fool ourselves afterwards. Set that up properly."
+ },
+ {
+  "id": "pb-mid",
+  "expect": [
+   "prediction-banking"
+  ],
+  "prompt": "Every time I optimize something I claim 2x and get 1.3x when it's re-measured. How do I stop overestimating before I measure?"
+ },
+ {
+  "id": "pb-far",
+  "expect": [
+   "prediction-banking"
+  ],
+  "prompt": "We just ran the A/B on the new index and it's 'faster', but nobody agreed beforehand what would count as a win, so the result is meaningless. Fix our process so this doesn't happen again."
+ },
+ {
+  "id": "sia-near",
+  "expect": [
+   "session-inheritance-audit"
+  ],
+  "prompt": "The previous autonomous session of this project crashed halfway through; the state notes say the mutation run is 'in progress' but I see finished JSON result files on disk. Sort out what actually happened before we continue."
+ },
+ {
+  "id": "sia-mid",
+  "expect": [
+   "session-inheritance-audit"
+  ],
+  "prompt": "I'm resuming a long-running agent job that got killed by a rate limit overnight. What should I check before I start the next step?"
+ },
+ {
+  "id": "sia-far",
+  "expect": [
+   "session-inheritance-audit"
+  ],
+  "prompt": "Load average is 12 on my laptop and the last research run finished hours ago. Also there are test files in the repo that nobody remembers writing. What's going on?"
+ },
+ {
+  "id": "pb-neg",
+  "expect": [],
+  "prompt": "Train a time-series model to forecast next week's sales per store from the last two years of data."
+ },
+ {
+  "id": "sia-neg",
+  "expect": [],
+  "prompt": "Add session persistence to my Flask login so users stay logged in after the server restarts."
+ },
+ {
+  "id": "pm-neg",
+  "expect": [],
+  "prompt": "Write a post-mortem for yesterday's production outage: root cause, timeline, and action items."
+ },
+ {
+  "id": "cml-near",
+  "expect": [
+   "colocated-model-lane"
+  ],
+  "prompt": "Our box runs a 35B MoE engine that fills all 31 GB of RAM (MemAvailable is 580 MB, swap is in use). Someone wants to run a 1B model next to it as a fast lane for short tool calls. Is that feasible, and how would we even get the 7 GB weights onto the machine without evicting the big engine?"
+ },
+ {
+  "id": "cml-mid",
+  "expect": [
+   "colocated-model-lane"
+  ],
+  "prompt": "I need to copy a 7 GB model container onto a server whose inference engine is pinned at its cgroup MemoryMax. A plain scp last time pushed the engine into swap. What's the safe way to stage the file, and can I resume if the copy dies halfway?"
+ },
+ {
+  "id": "cml-far",
+  "expect": [
+   "colocated-model-lane"
+  ],
+  "prompt": "The small second model we added beside the production LLM decodes at 2 tok/s and gets SLOWER when I give it a bigger expert cache; top shows sys time above user time. The machine has almost no free memory. What's going on and what should I measure?"
+ },
+ {
+  "id": "cml-neg",
+  "expect": [],
+  "prompt": "We're adding a second GPU node to our Kubernetes inference cluster and want two replicas of the same model behind a load balancer. How should we configure the autoscaler and readiness probes?"
+ },
+ {
+  "id": "acg-near",
+  "expect": [
+   "agent-completion-guards"
+  ],
+  "prompt": "Our agent runs keep ending with the model writing `read_file(path=src/x.py, start=1, end=40)` as plain text instead of an actual tool call, and the loop records the run as completed. How do we catch and recover those?"
+ },
+ {
+  "id": "acg-mid",
+  "expect": [
+   "agent-completion-guards"
+  ],
+  "prompt": "Three of our sonnet review runs came back with an empty final answer or the literal text 'tool call: search' and we paid for them anyway. Change the harness so that doesn't count as done."
+ },
+ {
+  "id": "acg-far",
+  "expect": [
+   "agent-completion-guards"
+  ],
+  "prompt": "Last night's kill-stage results are mostly 'failed' at steps 1-3 with nothing scoreable in the final text. Look at what the model actually replied and make the loop robust to it."
+ },
+ {
+  "id": "acg-neg",
+  "expect": [],
+  "prompt": "Add a JSON schema validator for our REST API's request bodies and return a 400 with per-field errors when a body is malformed."
+ },
+ {
+  "id": "pts-near",
+  "expect": [
+   "preflight-priced-task-scripts"
+  ],
+  "prompt": "Our agent pipeline hits a CPU inference box where a 900-token prompt takes two minutes of prefill. I want each step declared with its lane, prompt, reply cap and a time budget, and the runner should refuse a step that can't fit the remaining budget before it sends anything. Retries with backoff and a JSONL trace too."
+ },
+ {
+  "id": "pts-mid",
+  "expect": [
+   "preflight-priced-task-scripts"
+  ],
+  "prompt": "We have a small fast model and a big slow one on the same server. Route short classification jobs to the small one and fall back to the big one when it fails, keep the whole chain under 4 minutes, and tell me afterwards which call spent the time."
+ },
+ {
+  "id": "pts-far",
+  "expect": [
+   "preflight-priced-task-scripts"
+  ],
+  "prompt": "The box is down until tomorrow but I need to know today whether this five-step model pipeline fits in a 10-minute window per run, given the latency numbers we already measured."
+ },
+ {
+  "id": "pts-neg",
+  "expect": [
+   "llm-engine-benchmarking"
+  ],
+  "prompt": "Benchmark our llama.cpp server: measure time-to-first-token and decode tokens per second at 100, 1k and 4k prompt tokens and plot the curve.",
+  "note": "boundary case: the sibling skill's territory (measure the curve), not the task-script skill; round 112 probe fired llm-engine-benchmarking 3/3 and never preflight-priced-task-scripts"
+ },
+ {
+  "id": "sudl-near",
+  "expect": [
+   "self-updating-driver-loop"
+  ],
+  "prompt": "Our bash driver runs a while-true loop launching agent rounds forever. We just fixed a bug in the script, but the process that has been running for two days is still doing the old broken thing. Do we need to kill and restart it, or is there a way to make it pick up the fix on its own?"
+ },
+ {
+  "id": "sudl-mid",
+  "expect": [
+   "self-updating-driver-loop"
+  ],
+  "prompt": "I want our long-running bash orchestration loop to pick up code changes automatically, without an external watchdog script that has to kill and relaunch it every time we ship a fix."
+ },
+ {
+  "id": "sudl-far",
+  "expect": [
+   "self-updating-driver-loop"
+  ],
+  "prompt": "ps shows the same PID for our driver process from three days ago, but its log output still looks like the OLD format even though we edited the script yesterday. What is going on?"
+ },
+ {
+  "id": "sudl-neg",
+  "expect": [],
+  "prompt": "Our systemd service keeps restarting after every deploy. Add a health check so it only restarts when a request actually fails, instead of on every deploy."
+ },
+ {
+  "id": "sia-concurrent",
+  "expect": [
+   "session-inheritance-audit"
+  ],
+  "prompt": "The driver log says round 12 finished and round 13 already started, but 'ps' still shows round 12's claude process alive with an 8-minute uptime, and both are editing the same repo. Am I safe to start writing files, or could round 12 still be mid-edit?"
+ },
+ {
+  "id": "obw-near",
+  "expect": [
+   "one-shot-agent-no-background-wait"
+  ],
+  "prompt": "Our cron job runs `claude -p \"do the round's work\" --max-turns 100` once per iteration. Three iterations in a row show the driver log marking them 'success' with 60-150 tool calls each, but no files changed and no report was written. The last line of each transcript says something like 'I'll resume once the background job finishes' or 'standing by for the notification.' What's going on and how do I stop it from happening again?"
+ },
+ {
+  "id": "obw-mid",
+  "expect": [
+   "one-shot-agent-no-background-wait"
+  ],
+  "prompt": "I have a non-interactive batch pipeline that invokes an LLM agent once per task. Every so often a task is marked done with no error, but nothing it was supposed to produce actually exists on disk. It looks like the agent kicked off a long-running check and then stopped issuing any more tool calls."
+ },
+ {
+  "id": "obw-far",
+  "expect": [
+   "one-shot-agent-no-background-wait"
+  ],
+  "prompt": "The overnight automated run finished clean, no errors, but this time absolutely nothing changed. The very end of the transcript just says the process is waiting for something to complete."
+ },
+ {
+  "id": "obw-neg",
+  "expect": [],
+  "prompt": "In my interactive Claude Code session, I want to kick off a long build in the background and keep working on something else while I wait for it to finish, then get notified when it's done."
+ },
+ {
+  "id": "otd-near",
+  "expect": [
+   "optimization-transparency-differential"
+  ],
+  "prompt": "Our interpreter has tail-call elimination. I want to prove it can't change any observable behaviour, not just that the return values match. How would you test that?"
+ },
+ {
+  "id": "otd-mid",
+  "expect": [
+   "optimization-transparency-differential"
+  ],
+  "prompt": "We have a test that compares the cached and uncached code paths, but it strips the timestamps and request ids out of both before diffing. That feels like cheating. Is it?"
+ },
+ {
+  "id": "otd-far",
+  "expect": [
+   "optimization-transparency-differential"
+  ],
+  "prompt": "Our compiler folds constants at parse time. A user reports the error message points at a different line when folding is on. Both lines are arguably right — how do we decide which one the compiler should say?"
+ },
+ {
+  "id": "cri-near",
+  "expect": [
+   "citation-registry-integrity"
+  ],
+  "prompt": "Our architecture docs and code comments are full of references like \"see ADR-014\" and \"per invariant I3\". Nobody has ever checked that those actually exist. Can you find the ones that point nowhere?"
+ },
+ {
+  "id": "cri-mid",
+  "expect": [
+   "citation-registry-integrity"
+  ],
+  "prompt": "SPEC.md has a numbered list of design decisions that stops at 13, but the parser's comments cite decision 27, 28 and 29. Where did those come from and what should we do about it?"
+ },
+ {
+  "id": "cri-far",
+  "expect": [
+   "citation-registry-integrity"
+  ],
+  "prompt": "I want to turn on a docs linter across a 200-file repo that will definitely be red on day one, and I don't own half of what it will flag. How do I roll it out so the team doesn't just delete it?"
+ },
+ {
+  "id": "neg-15",
+  "expect": [],
+  "prompt": "Our README links to https://example.com/docs and it 404s now. Find every external URL in the repo that's dead and update them."
+ },
+ {
+  "id": "dvnw-near",
+  "expect": [
+   "deleted-vs-never-written"
+  ],
+  "prompt": "Our CONTRIBUTING.md has a '## Release process' heading with nothing under it. Everyone cites 'the release process' in review comments. I guess nobody ever wrote it — can you draft one?"
+ },
+ {
+  "id": "dvnw-mid",
+  "expect": [
+   "deleted-vs-never-written"
+  ],
+  "prompt": "The code reads a config key BUILD_PROFILE that isn't defined in any of our config files or docs. Before I go ask the platform team to spec it out, is there any way to tell whether it used to be documented?"
+ },
+ {
+  "id": "dvnw-far",
+  "expect": [
+   "deleted-vs-never-written"
+  ],
+  "prompt": "Writing up an audit finding: the coding-standards doc our lint config points at is an empty stub, and it predates our git history, so reconstructing the standards is going to need a decision from engineering leadership. Sanity-check my reasoning before I send this."
+ },
+ {
+  "id": "neg-16",
+  "expect": [],
+  "prompt": "A test started failing sometime in the last two weeks and I can't tell which change did it. Help me narrow down the commit."
+ },
+ {
+  "id": "neg-17",
+  "expect": [],
+  "prompt": "I lost about an hour of edits when my editor crashed — the changes were never committed. Anything I can do to get them back?"
+ },
+ {
+  "id": "ccr-near",
+  "expect": [
+   "carried-claim-rot"
+  ],
+  "prompt": "Our sprint carryover doc has re-listed the same three open items verbatim every week for two months. Before I copy it forward again, I want to know whether any of them are actually still true, and I'd like that checked automatically from now on."
+ },
+ {
+  "id": "ccr-mid",
+  "expect": [
+   "carried-claim-rot"
+  ],
+  "prompt": "The 'Known limitations' section of our README still says the importer is capped at 4096 rows. Someone raised that cap ages ago. How do I find the rest of these and stop the list drifting again?"
+ },
+ {
+  "id": "ccr-far",
+  "expect": [
+   "carried-claim-rot"
+  ],
+  "prompt": "Every weekly status update we write starts as a copy of last week's. What can go wrong with that, and how would you catch it without asking everyone to be more careful?"
+ },
+ {
+  "id": "cmd-near",
+  "expect": [
+   "copied-mirror-drift"
+  ],
+  "prompt": "We have a MockPaymentGateway that was copied from the real gateway two years ago, and both are still edited by hand. How do I work out what the real one gained since that the mock never got?"
+ },
+ {
+  "id": "cmd-mid",
+  "expect": [
+   "copied-mirror-drift"
+  ],
+  "prompt": "Our golden-file generator emits a field layout the production serializer stopped producing three releases ago, and the whole suite is still green. Where do I start?"
+ },
+ {
+  "id": "cmd-far",
+  "expect": [
+   "copied-mirror-drift"
+  ],
+  "prompt": "A subclass overrides build_report() and the override body is recognisably the parent's body with one line changed. Is that worth doing anything about?"
+ },
+ {
+  "id": "dsp-near",
+  "expect": [
+   "declaration-scope-parity"
+  ],
+  "prompt": "In our schema DSL, naming a type that was never declared reports 'unknown type' when it appears in a field, but silently evaluates to null when it appears in an argument. Same user mistake, two different outcomes."
+ },
+ {
+  "id": "dsp-mid",
+  "expect": [
+   "declaration-scope-parity"
+  ],
+  "prompt": "Our validator keeps declared shape names in one flat dictionary, while ordinary value bindings get proper push/pop frames. Is that asymmetry going to bite us, and what do we do about it?"
+ },
+ {
+  "id": "dsp-far",
+  "expect": [
+   "declaration-scope-parity"
+  ],
+  "prompt": "There's a comment in our type checker saying the fragment table is 'deliberately not scope-aware', next to an UnboundName sentinel that exists so a lookup that 'cannot happen' stays safe. Should I trust that?"
+ },
+ {
+  "id": "bnbw-near",
+  "expect": [
+   "bounded-not-binary-witness"
+  ],
+  "prompt": "Our uptime checker reports a gap as `verified: true` whenever the surrounding log covers it, but the docstring right above it admits it can't detect a suspend. It's feeding a dashboard that says '0 minutes unverified'. Fix the claim."
+ },
+ {
+  "id": "bnbw-mid",
+  "expect": [
+   "bounded-not-binary-witness"
+  ],
+  "prompt": "This function returns a boolean 'no data loss occurred' but the only evidence it has is the first and last record in the window. I want it to say how much loss could still be hiding instead of just yes/no."
+ },
+ {
+  "id": "bnbw-far",
+  "expect": [
+   "bounded-not-binary-witness"
+  ],
+  "prompt": "Two of our health rules rule out exactly the same failure and one is labelled STRONG and the other WEAK, and the STRONG one is why the report shows None for worst-case downtime. Sort this out."
+ },
+ {
+  "id": "bnbw-neg-plain-bool",
+  "expect": [],
+  "prompt": "Change this function to return True instead of 1 so mypy stops complaining about the return type."
+ },
+ {
+  "id": "mexempt-near",
+  "expect": [
+   "measured-exemption"
+  ],
+  "prompt": "Our differential test skips any input where the two builds are allowed to answer differently. I want to know how often that skip actually fires and whether the reason we wrote down is the reason it fires."
+ },
+ {
+  "id": "mexempt-mid",
+  "expect": [
+   "measured-exemption"
+  ],
+  "prompt": "Adding a known-acceptable-divergence list to this comparison checker. Reviewer says just return early on those. Is there a better way to write it?"
+ },
+ {
+  "id": "mexempt-far",
+  "expect": [
+   "measured-exemption"
+  ],
+  "prompt": "This audit reports only its failures, so a suppression that hits 5% of rows looks exactly like one that never hits anything. I inherited the suppressions and have no idea which still earn their place."
+ },
+ {
+  "id": "mexempt-neg-noqa",
+  "expect": [],
+  "prompt": "Add a # noqa: E501 to line 42 so the linter stops complaining about the long URL in that comment."
+ }
 ]

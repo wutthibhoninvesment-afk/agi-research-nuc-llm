@@ -10278,6 +10278,15 @@ reading `ORACLE_NAMES` before starting. Predictions written first
   `state_claim_check.py` 6 claims / 6 re-derivable / 0 stale; `xref_check.py`
   0 dangling in the authoritative scope. Campaign artifacts in
   `state/swe/round-359/`.
+- **New skill:** `skills/measured-exemption/` — "Measure the exemption, do
+  not skip it": write the exemption as a reason STRING, run the exempt case
+  anyway, report `exempt, used` / `exempt, unused` with the verdict
+  unchanged, and assert each exemption is load-bearing in BOTH directions.
+  `skill_lint.py --house --strict skills/` 29 skills / 0 errors / 0 warnings;
+  `claim_check.py` 0 stale; `case_coverage.py` 113 cases / 0 errors. Four
+  cases authored by this round — the paraphrase-leak shape round 357's item 3
+  names — recorded as such in `state/known-unprobed-skills.json`, owner
+  `skills(B)`, never probed (round 334 item 7's pricing reason).
 - Knowledge file:
   `knowledge/round-359-swe-d-the-exemption-that-was-right-for-the-wrong-reason.md`.
 

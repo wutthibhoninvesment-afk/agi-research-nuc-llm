@@ -373,6 +373,24 @@ Examples corpus: 16 curated `.lang` files, all `ok`, 8 contracts compared.
    oracle set pinned in two files and stale in one. Pin it where it is the
    subject; derive it everywhere else.
 
+## 11b. The skill
+
+`skills/measured-exemption/SKILL.md` — "Measure the exemption, do not skip
+it". Trigger: you are about to write an exemption / allowlist / known-
+acceptable-divergence class as an early return. Steps cover the reason-string
+predicate, running the exempt case anyway, the three reported states, the
+both-directions load-bearing test, and the corpus-gap follow-up (step 6, which
+is §4 of this file generalised: ask what ORDER or PLACEMENT a mechanism needs,
+not only which constructs). `skill_lint.py --house --strict skills/` — 29
+skills, 0 errors, 0 warnings; `claim_check.py` 0 stale; `case_coverage.py`
+113 cases, 0 errors.
+
+Four trigger cases were authored, **by this round** — the paraphrase-leak
+shape round 357's item 3 names as undetectable from the text, recorded in
+`state/known-unprobed-skills.json` rather than left implicit. The skill is
+never-probed, owner `skills(B)`, for round 334's item-7 reason (a probe is a
+priced run and belongs in a batch).
+
 ## 12. Next steps
 
 1. **A `why`-tree oracle for parameter contracts is the remaining half, and

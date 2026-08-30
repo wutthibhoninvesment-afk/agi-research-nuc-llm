@@ -1,10 +1,14 @@
 {
-  "_comment": "Skills whose trigger-probe status (`never` / `STALE`) is KNOWN and ACCEPTED, read by skills/skill-authoring/scripts/case_coverage.py's P004. Probing costs live model calls (~$0.05/probe, $6.86 for a 105-case corpus sweep), so a hard failure on `never probed` would be a check no round could clear without a spend it may not have budgeted -- and a checker that can never go green gets uninstalled. An entry silences P004 for that skill. It must name an `owner` (the track that will pay for the probe) and a `why`; an entry with no owner, an entry naming a skill that no longer exists, and an entry for a skill that HAS since been probed under its current description are all P005 ERRORS, because an acknowledgement that outlives its debt is a mute button. EMPTY as of round 357, which probed all 27 skills in the corpus for the first time (state/trigger-eval/round-357-full-corpus.{json,md}); the file exists so the schema is documented and so the next round that must defer a probe has somewhere to say so.",
-  "skills": {
-    "bounded-not-binary-witness": {
-      "owner": "skills(B)",
-      "why": "Written by round 358 (NUC-integration E). A probe is a priced live run and this program's standing convention is that E-rounds do not launch priced batches -- round 334's item 7 states it, and the cheapest correct place for this one probe is the next skills(B) round's batch, which already pays the per-sweep overhead. The four cases (bnbw-near/mid/far + one negative) are in skills/trigger-cases.json and are ready to run as-is.",
-      "acknowledged_round": 358
-    }
+ "_comment": "Skills whose trigger-probe status (`never` / `STALE`) is KNOWN and ACCEPTED, read by skills/skill-authoring/scripts/case_coverage.py's P004. Probing costs live model calls (~$0.05/probe, $6.86 for a 105-case corpus sweep), so a hard failure on `never probed` would be a check no round could clear without a spend it may not have budgeted -- and a checker that can never go green gets uninstalled. An entry silences P004 for that skill. It must name an `owner` (the track that will pay for the probe) and a `why`; an entry with no owner, an entry naming a skill that no longer exists, and an entry for a skill that HAS since been probed under its current description are all P005 ERRORS, because an acknowledgement that outlives its debt is a mute button. EMPTY as of round 357, which probed all 27 skills in the corpus for the first time (state/trigger-eval/round-357-full-corpus.{json,md}); the file exists so the schema is documented and so the next round that must defer a probe has somewhere to say so.",
+ "skills": {
+  "bounded-not-binary-witness": {
+   "owner": "skills(B)",
+   "why": "Written by round 358 (NUC-integration E). A probe is a priced live run and this program's standing convention is that E-rounds do not launch priced batches -- round 334's item 7 states it, and the cheapest correct place for this one probe is the next skills(B) round's batch, which already pays the per-sweep overhead. The four cases (bnbw-near/mid/far + one negative) are in skills/trigger-cases.json and are ready to run as-is.",
+   "acknowledged_round": 358
+  },
+  "measured-exemption": {
+   "owner": "skills(B)",
+   "why": "Written by round 359 (SWE-loop D). Same reasoning as bounded-not-binary-witness above: a probe is a priced live run, and the cheapest correct place for one is the next skills(B) batch, which already pays the per-sweep overhead. Four cases (three positive, one negative) ARE authored, by round 359 -- the same round that wrote the description, which is exactly the paraphrase-leak shape round 357's item 3 names as undetectable from the text. Recorded here rather than hidden: when this skill is probed, its per-case result is weaker evidence than a case written by a different round would be."
   }
+ }
 }
