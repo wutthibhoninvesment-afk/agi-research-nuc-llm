@@ -39,6 +39,7 @@ import argparse
 import json
 import subprocess
 import sys
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -985,6 +986,193 @@ def journal_seconds_probe(since_utc: str, until_utc: str,
     return parse_journal_seconds(getattr(proc, "stdout", "") or "")
 
 
+# --------------------------------------------------------------------------
+# Per-boot journal capture, cached.  (round 364)
+#
+# Round 358 tried ONE capture over the whole reachability-log span and it
+# fail-closed to `n_seconds: 0` after 1417 s against a 1400 s client timeout
+# -- the probe's own "return [] on any failure" rule turning a too-small
+# timeout into a silent absence of evidence.  Its closing handoff was "one
+# scan per boot_id, cached, timeout sized from that rate".  This is that.
+#
+# Three properties, each earning its place:
+#
+# 1. PER BOOT, because a closed boot's journal is IMMUTABLE.  Boot -2 costs a
+#    projected 1955 s to scan on this box; paying that once ever, rather than
+#    once per E-round, is the difference between the sweep being affordable
+#    and it never being run.  The open boot (index 0) is re-scanned every
+#    time and is the only one that ever is.
+#
+# 2. TIMEOUT SIZED FROM A MEASURED RATE, not from a constant.  A 300 s window
+#    in the middle of the boot is timed ON THE BOX (`date +%s%N` around
+#    journalctl alone, so ssh setup is excluded), and the boot's timeout is
+#    extrapolated from it with a 3x + 60 s margin.  Measured on this box
+#    2026-08-30, the per-boot scan cost spans 0.3 s to 1955 s -- a 6000x
+#    range.  No single constant can serve that; round 358's 1400 s was too
+#    big for six boots and too small for one.
+#
+# 3. THE SIZING IS RECORDED IN THE CACHE, so a later round can see whether a
+#    scan that returned few seconds was sparse or was truncated.  `complete`
+#    is False whenever the scan did not demonstrably run to completion, and
+#    `make_multi_silence_fn` refuses to use an incomplete capture for a
+#    window it does not fully cover.
+#
+# Why the entry-density matters more than the span: boot -5 logs 0.037
+# entries/s and boot -2 logs 58.9/s, a 1605x spread across boots of the SAME
+# machine days apart.  Round 358 reported boot -1 at "2733/s" and projected
+# ~10 min for it; the projection was right (it came from a timed scan) but
+# the rate was 2733 entries per MINUTE -- 45.5/s -- which is what this
+# round's mid-boot probe measures directly.  Corrected here rather than
+# repeated.
+# --------------------------------------------------------------------------
+
+_JOURNAL_RATE_PROBE_CMD = (
+    "s=$(date +%%s%%N); "
+    "n=$(journalctl --since @%d --until @%d -o short-unix --no-pager 2>/dev/null | wc -l); "
+    "e=$(date +%%s%%N); echo \"$n $(( (e-s)/1000000 ))\""
+)
+
+RATE_PROBE_WINDOW_S = 300
+# Multiplier + floor applied to the extrapolated scan time.  3x absorbs a
+# mid-boot probe landing in a quiet stretch of an otherwise busy boot, which
+# is the failure mode that actually bites: the probe UNDER-estimates and the
+# scan gets killed.  Over-estimating only costs a longer ceiling we never hit.
+RATE_PROBE_MARGIN = 3.0
+RATE_PROBE_FLOOR_S = 60
+
+
+def parse_rate_probe(text: str) -> dict | None:
+    """`"<n_entries> <wall_ms>"` -> {n_entries, wall_ms}, or None."""
+    parts = (text or "").split()
+    if len(parts) < 2:
+        return None
+    try:
+        return {"n_entries": int(parts[0]), "wall_ms": int(parts[1])}
+    except ValueError:
+        return None
+
+
+def size_scan_timeout(probe: dict | None, span_s: float,
+                      window_s: int = RATE_PROBE_WINDOW_S,
+                      margin: float = RATE_PROBE_MARGIN,
+                      floor_s: int = RATE_PROBE_FLOOR_S,
+                      ceiling_s: int = 3600) -> dict:
+    """Extrapolate a per-boot scan timeout from one timed sample window.
+
+    Returns the timeout AND the projection it came from, because the round
+    file has to be able to say why a scan was given the budget it was given.
+    A missing/unparseable probe falls back to the floor rather than to a
+    large constant: an unmeasured boot should fail fast and be retried, not
+    occupy the whole round the way round 358's did.
+    """
+    if not probe or probe.get("wall_ms") is None or span_s <= 0:
+        return {"timeout_s": floor_s, "projected_s": None, "sized_from": "fallback"}
+    projected = (probe["wall_ms"] / 1000.0) * (float(span_s) / float(window_s))
+    timeout = int(min(ceiling_s, max(floor_s, projected * margin + floor_s)))
+    return {"timeout_s": timeout, "projected_s": projected, "sized_from": "measured"}
+
+
+def journal_rate_probe(mid_from_s: int, mid_to_s: int,
+                       ssh_target: str = DEFAULT_SSH_TARGET,
+                       ssh_key: str = DEFAULT_SSH_KEY,
+                       connect_timeout: int = DEFAULT_CONNECT_TIMEOUT_S,
+                       timeout_s: int = 120, runner=None) -> dict | None:
+    """Time ONE short journalctl window on the box.  None on any failure."""
+    run = runner or (lambda cmd: subprocess.run(cmd, capture_output=True,
+                                                text=True, timeout=timeout_s))
+    cmd = ["ssh", "-n", "-i", ssh_key, "-o", "BatchMode=yes",
+           "-o", f"ConnectTimeout={connect_timeout}",
+           "-o", "StrictHostKeyChecking=accept-new",
+           ssh_target, _JOURNAL_RATE_PROBE_CMD % (mid_from_s, mid_to_s)]
+    try:
+        proc = run(cmd)
+    except Exception:
+        return None
+    if getattr(proc, "returncode", 1) != 0:
+        return None
+    return parse_rate_probe(getattr(proc, "stdout", "") or "")
+
+
+def boot_scan_targets(boots: list, cache_dir, now_s: float | None = None) -> list:
+    """One work item per boot: what to scan, and whether the cache covers it.
+
+    `boots` is `parse_boot_history` output.  A CLOSED boot (any boot that is
+    not the newest) whose cache file exists and is `complete` needs no work
+    -- its journal cannot change.  The newest boot is always re-scanned; its
+    journal is still growing, which is exactly why round 358's single capture
+    of it went stale the moment it was written.
+    """
+    from pathlib import Path as _P
+    cache_dir = _P(cache_dir)
+    out = []
+    newest = max((b.get("index", 0) for b in boots), default=0)
+    for b in boots:
+        bid = b.get("boot_id") or "unknown"
+        f_s = int(_parse_ts(b["first_entry_utc"]).timestamp())
+        l_s = int(_parse_ts(b["last_entry_utc"]).timestamp())
+        if b.get("index") == newest and now_s:
+            l_s = max(l_s, int(now_s))
+        path = cache_dir / ("journal-seconds-%s.json" % bid)
+        cached, reason = None, "no cache"
+        if path.exists():
+            try:
+                cached = json.loads(path.read_text())
+            except Exception:
+                cached, reason = None, "unreadable cache"
+        is_open = b.get("index") == newest
+        if cached and cached.get("complete") and not is_open:
+            reason = "cached (closed boot, immutable)"
+        elif cached and is_open:
+            reason = "open boot, rescan"
+        elif cached:
+            reason = "cached but incomplete, rescan"
+        out.append({
+            "index": b.get("index"), "boot_id": bid, "path": str(path),
+            "from_s": f_s, "to_s": l_s, "span_s": l_s - f_s,
+            "open": is_open,
+            "needs_scan": not (cached and cached.get("complete") and not is_open),
+            "reason": reason,
+            "cached_n_seconds": (cached or {}).get("n_seconds"),
+        })
+    return sorted(out, key=lambda t: t["span_s"])
+
+
+def merge_captures(captures: list) -> dict:
+    """Union many per-boot captures into ONE the existing consumer accepts.
+
+    `continuity --journal-seconds` and `make_silence_fn` take a single
+    `{covers_from_utc, covers_to_utc, seconds}`.  Rather than teach every
+    consumer about a list, the per-boot captures are unioned here.
+
+    This is sound, and the reason is worth stating because it is NOT obvious:
+    the merged `covers` window spans the inter-boot stretches when the box
+    was OFF, and those stretches contain no journal seconds.  A gap landing
+    there gets a silence bound equal to its own length -- i.e. no better than
+    unwitnessed, which is the correct answer for a period the box was off.
+    `interior_silence` only ever produces an UPPER bound on a hidden
+    excursion, so a hole in the merged coverage can only WEAKEN the bound,
+    never overstate the box's liveness.  Merging cannot err in the unsafe
+    direction; it can only decline to help.
+    """
+    caps = [c for c in captures if c and c.get("seconds")]
+    if not caps:
+        return {"covers_from_utc": None, "covers_to_utc": None,
+                "n_seconds": 0, "seconds": [], "sources": []}
+    secs = set()
+    for c in caps:
+        secs.update(c["seconds"])
+    froms = [_parse_ts(c["covers_from_utc"]) for c in caps if c.get("covers_from_utc")]
+    tos = [_parse_ts(c["covers_to_utc"]) for c in caps if c.get("covers_to_utc")]
+    return {
+        "covers_from_utc": _fmt_ts(min(froms)) if froms else None,
+        "covers_to_utc": _fmt_ts(max(tos)) if tos else None,
+        "n_seconds": len(secs),
+        "seconds": sorted(secs),
+        "sources": [{"boot_id": c.get("boot_id"), "n_seconds": c.get("n_seconds"),
+                     "complete": c.get("complete")} for c in caps],
+    }
+
+
 def interior_silence(t1: datetime, t2: datetime, seconds: list,
                      covers_from: str | None = None,
                      covers_to: str | None = None) -> dict | None:
@@ -1529,6 +1717,27 @@ def main(argv=None) -> int:
     jp.add_argument("--timeout", type=int, default=300)
     jp.add_argument("--out", default=None, help="write the capture JSON here too")
 
+    jb = sub.add_parser("journal-boots",
+                        help=("LIVE: per-boot journal-seconds capture, CACHED; "
+                              "each boot's timeout sized from a measured rate probe"))
+    jb.add_argument("--boot-history", required=True,
+                    help="saved `journalctl --list-boots -o json` from the box")
+    jb.add_argument("--cache-dir", default="state/nuc-journal-cache")
+    jb.add_argument("--ssh-target", default=DEFAULT_SSH_TARGET)
+    jb.add_argument("--ssh-key", default=DEFAULT_SSH_KEY)
+    jb.add_argument("--connect-timeout", type=int, default=DEFAULT_CONNECT_TIMEOUT_S)
+    jb.add_argument("--budget-s", type=int, default=None,
+                    help=("stop starting new scans once this many seconds of "
+                          "wall clock have been spent; the cache makes a "
+                          "partial sweep a resumable one, not a wasted one"))
+    jb.add_argument("--max-boot-s", type=int, default=None,
+                    help="skip any boot whose PROJECTED scan exceeds this")
+    jb.add_argument("--plan", action="store_true",
+                    help="rate-probe and print the plan; run no full scan")
+    jb.add_argument("--merge-out", default=None,
+                    help=("union every cached capture into ONE file that "
+                          "`continuity --journal-seconds` accepts as-is"))
+
     gp = sub.add_parser("continuity",
                         help="per-gap witness analysis: is each streak really unbroken?")
     gp.add_argument("--log-path", default=DEFAULT_LOG_PATH)
@@ -1590,6 +1799,81 @@ def main(argv=None) -> int:
         print(json.dumps({k: v for k, v in capture.items() if k != "seconds"},
                          indent=2))
         return 0 if seconds else 1
+
+    if args.mode == "journal-boots":
+        boots = parse_boot_history(Path(args.boot_history).read_text())
+        cache_dir = Path(args.cache_dir)
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        targets = boot_scan_targets(boots, cache_dir, now_s=time.time())
+        started = time.time()
+        results = []
+        for t in targets:
+            row = {k: t[k] for k in ("index", "boot_id", "span_s", "open",
+                                     "needs_scan", "reason")}
+            if not t["needs_scan"]:
+                results.append(row | {"action": "skip"})
+                continue
+            if args.budget_s and (time.time() - started) > args.budget_s:
+                results.append(row | {"action": "deferred", "why": "budget spent"})
+                continue
+            mid = (t["from_s"] + t["to_s"]) // 2
+            probe = journal_rate_probe(mid, mid + RATE_PROBE_WINDOW_S,
+                                       ssh_target=args.ssh_target, ssh_key=args.ssh_key,
+                                       connect_timeout=args.connect_timeout)
+            sizing = size_scan_timeout(probe, t["span_s"])
+            row["rate_probe"] = probe
+            row["entries_per_s"] = (round(probe["n_entries"] / RATE_PROBE_WINDOW_S, 4)
+                                    if probe else None)
+            row |= sizing
+            if args.max_boot_s and (sizing["projected_s"] or 0) > args.max_boot_s:
+                results.append(row | {"action": "deferred", "why": "over --max-boot-s"})
+                continue
+            if args.plan:
+                results.append(row | {"action": "planned"})
+                continue
+            t0 = time.time()
+            seconds = journal_seconds_probe(
+                _fmt_ts(datetime.fromtimestamp(t["from_s"], tz=timezone.utc)),
+                _fmt_ts(datetime.fromtimestamp(t["to_s"], tz=timezone.utc)),
+                ssh_target=args.ssh_target, ssh_key=args.ssh_key,
+                connect_timeout=args.connect_timeout,
+                timeout_s=sizing["timeout_s"])
+            wall = time.time() - t0
+            # `journal_seconds_probe` returns [] for EVERY failure, including
+            # a client timeout -- round 358's trap. The one signal that
+            # separates "the boot really was silent" from "we got cut off" is
+            # whether we came back well inside the budget we sized, so that
+            # is what `complete` records, and it is recorded per capture
+            # rather than inferred later.
+            complete = bool(seconds) and wall < sizing["timeout_s"] * 0.95
+            row |= {"action": "scanned", "wall_s": round(wall, 1),
+                    "n_seconds": len(seconds), "complete": complete}
+            if seconds:
+                (cache_dir / ("journal-seconds-%s.json" % t["boot_id"])).write_text(
+                    json.dumps({
+                        "boot_id": t["boot_id"], "boot_index": t["index"],
+                        "covers_from_utc": _fmt_ts(datetime.fromtimestamp(t["from_s"], tz=timezone.utc)),
+                        "covers_to_utc": _fmt_ts(datetime.fromtimestamp(t["to_s"], tz=timezone.utc)),
+                        "n_seconds": len(seconds), "complete": complete,
+                        "scan_wall_s": round(wall, 1),
+                        "timeout_s": sizing["timeout_s"],
+                        "projected_s": sizing["projected_s"],
+                        "rate_probe": probe, "seconds": seconds}))
+            results.append(row)
+        out = {"n_boots": len(targets), "elapsed_s": round(time.time() - started, 1),
+               "results": results}
+        if args.merge_out:
+            caps = []
+            for f in sorted(cache_dir.glob("journal-seconds-*.json")):
+                try:
+                    caps.append(json.loads(f.read_text()))
+                except Exception:
+                    continue
+            merged = merge_captures(caps)
+            Path(args.merge_out).write_text(json.dumps(merged))
+            out["merged"] = {k: v for k, v in merged.items() if k != "seconds"}
+        print(json.dumps(out, indent=2))
+        return 0
 
     if args.mode == "continuity":
         records = load_log(args.log_path)

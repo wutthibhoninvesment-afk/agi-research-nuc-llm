@@ -1,0 +1,146 @@
+{
+  "n_boots": 7,
+  "elapsed_s": 1862.9,
+  "results": [
+    {
+      "index": -4,
+      "boot_id": "94b2e0148a724e989e57c049e72c9753",
+      "span_s": 558,
+      "open": false,
+      "needs_scan": true,
+      "reason": "no cache",
+      "rate_probe": {
+        "n_entries": 307,
+        "wall_ms": 174
+      },
+      "entries_per_s": 1.0233,
+      "timeout_s": 60,
+      "projected_s": 0.32364,
+      "sized_from": "measured",
+      "action": "scanned",
+      "wall_s": 2.2,
+      "n_seconds": 33,
+      "complete": true
+    },
+    {
+      "index": 0,
+      "boot_id": "43e0c767e98e41c5a2c0d475a15e06cf",
+      "span_s": 34495,
+      "open": true,
+      "needs_scan": true,
+      "reason": "no cache",
+      "rate_probe": {
+        "n_entries": 61,
+        "wall_ms": 43
+      },
+      "entries_per_s": 0.2033,
+      "timeout_s": 74,
+      "projected_s": 4.944283333333333,
+      "sized_from": "measured",
+      "action": "scanned",
+      "wall_s": 5.7,
+      "n_seconds": 2783,
+      "complete": true
+    },
+    {
+      "index": -3,
+      "boot_id": "5308fdec6a6f4bf4adb8a147c4cb62f4",
+      "span_s": 43437,
+      "open": false,
+      "needs_scan": true,
+      "reason": "no cache",
+      "rate_probe": {
+        "n_entries": 12,
+        "wall_ms": 35
+      },
+      "entries_per_s": 0.04,
+      "timeout_s": 75,
+      "projected_s": 5.06765,
+      "sized_from": "measured",
+      "action": "scanned",
+      "wall_s": 2.8,
+      "n_seconds": 419,
+      "complete": true
+    },
+    {
+      "index": -6,
+      "boot_id": "061f83ca4ea54605bd2868e265b610ec",
+      "span_s": 52154,
+      "open": false,
+      "needs_scan": true,
+      "reason": "no cache",
+      "rate_probe": {
+        "n_entries": 14,
+        "wall_ms": 37
+      },
+      "entries_per_s": 0.0467,
+      "timeout_s": 79,
+      "projected_s": 6.4323266666666665,
+      "sized_from": "measured",
+      "action": "scanned",
+      "wall_s": 1.9,
+      "n_seconds": 1504,
+      "complete": true
+    },
+    {
+      "index": -5,
+      "boot_id": "db09a51ce855433488012e6cc73ce211",
+      "span_s": 124498,
+      "open": false,
+      "needs_scan": true,
+      "reason": "no cache",
+      "rate_probe": {
+        "n_entries": 11,
+        "wall_ms": 35
+      },
+      "entries_per_s": 0.0367,
+      "timeout_s": 103,
+      "projected_s": 14.524766666666668,
+      "sized_from": "measured",
+      "action": "scanned",
+      "wall_s": 5.8,
+      "n_seconds": 3921,
+      "complete": true
+    },
+    {
+      "index": -1,
+      "boot_id": "391cb36ece2a4bbfb6743cf279d01148",
+      "span_s": 137956,
+      "open": false,
+      "needs_scan": true,
+      "reason": "no cache",
+      "rate_probe": {
+        "n_entries": 13641,
+        "wall_ms": 1401
+      },
+      "entries_per_s": 45.47,
+      "timeout_s": 1992,
+      "projected_s": 644.2545200000001,
+      "sized_from": "measured",
+      "action": "scanned",
+      "wall_s": 340.0,
+      "n_seconds": 76549,
+      "complete": true
+    },
+    {
+      "index": -2,
+      "boot_id": "b3818eef33d047f3b1a8f9fc11350dde",
+      "span_s": 143348,
+      "open": false,
+      "needs_scan": true,
+      "reason": "no cache",
+      "rate_probe": {
+        "n_entries": 17655,
+        "wall_ms": 4043
+      },
+      "entries_per_s": 58.85,
+      "timeout_s": 3600,
+      "projected_s": 1931.8532133333333,
+      "sized_from": "measured",
+      "action": "scanned",
+      "wall_s": 1493.5,
+      "n_seconds": 97414,
+      "complete": true
+    }
+  ]
+}

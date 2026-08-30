@@ -1127,3 +1127,60 @@ Code runs (proof in round file), measurements banked in both places,
   one.** Next E-round: one scan per `boot_id`, cached to
   `state/nuc-journal-<boot_id>.json` (closed boots are immutable), timeout
   sized from that rate.
+
+## Round 364 addendum (2026-08-30, box **UP** — same boot `43e0c767` as rounds 352/358, uptime 9h28m at first contact)
+
+- **E-mission status: E1-E5 all still DONE; nothing new unchecked.** This
+  round's work was round 304 item 1 + round 358's closing handoff.
+- **Round 304 item 1 (the 8 h swap poll) is CLOSED.** Asked for by rounds
+  304/310/316/322/328/334/340/346, launched by 352, seen mid-flight by 358,
+  **completed 10:25:07Z and collected this round** by round 352's hand-built
+  local watcher with no intervention (`PULL_DONE` at 10:26:39Z). Result over
+  **1921 samples / 8.002 h**: `memory.swap.current` **0 on every sample**,
+  `pswpin`/`pswpout` **0 on every sample**, and `memory.current` **byte-identical
+  across all 1921 samples** (9,770,594,304 B = 30.3 % of the 30 GiB ceiling,
+  zero increasing and zero decreasing steps). Round 352's P14 is a MISS.
+  Data: `state/nuc-swap-watch-r352/swap-watch-r352-{long.json,checkpoint-final.jsonl}`.
+- **This corrects round 136.** Rounds 130/136/142 caught this cgroup pinned at
+  the 30 GiB ceiling with swap climbing 0 → 310.6 MB → 2.96 GiB; round 136
+  concluded "elapsed time alone was enough". It is not. Eight hours of pure
+  elapsed time on an idle box moved `memory.current` by **zero bytes** and
+  `memory.events` `max` is still **0** on a ~10 h boot. The variable is
+  **traffic**, which is round 124's original reading. `--cap 256` is not
+  intrinsically over-committed: at rest this deployment needs 9.77 GB. The
+  E4 RAM-FAIL recommendation stands (a real Hermes workload IS that traffic),
+  but an idle NUC is not in distress and no round should read "swap is
+  growing" into a box that has merely been sitting there.
+- **Round 358's handoff BUILT and RUN to completion:
+  `reachability_check.py journal-boots`** — per-boot journal-seconds capture,
+  cached to `state/nuc-journal-cache/journal-seconds-<boot_id>.json`, each
+  boot's timeout sized from a 300 s mid-boot rate probe timed ON the box.
+  **All 7 boots scanned, all `complete`, 182 623 entry-seconds.**
+- **THE RESULT: this box is never quiet for more than two minutes.** Across
+  149 h of running time on seven boots the longest journal silence is 300 s,
+  and on six of the seven it is 81-123 s. On one log snapshot (38 records,
+  113h50m01s span): `unobserved_total` **75h06m29s -> 0h21m56s**,
+  `max_unobserved_outage` **14h00m00s -> 0h01m57s** — the rounds-142->154 gap
+  that has headlined this figure since round 358 is bounded at 117 s.
+  Use `state/nuc-journal-cache/merged-r364-all7.json`.
+- **Entry density varies 1605x between boots of the same machine** (boot -5
+  0.037 entries/s, boot -2 58.85/s), so per-boot scan cost spans 0.3 s to
+  1944 s. No single timeout constant can serve that — round 358's 1400 s was
+  ~100x too large for six boots and too small for the seventh.
+- **CORRECTION to round 358's published rate.** It reported boot -1 at
+  "81 991 entries (2733/s)"; 81 991 entries in 30 minutes is 2733 per
+  **minute** = **45.5/s**, which this round's probe measures directly. Its
+  ~10 min projection was unaffected (it came from a timed scan, not the rate).
+- **Round 304 item 2 (standing state) re-verified, all six** — `--cap 256`
+  live and unchanged; **E3 patch still NOT applied** (0 markers in
+  `qwen36.c`, mtime Aug 23 15:27); OLMoE tarball present (7,420,160,000 B);
+  `memory.events` `max` **0**; operator idle; a **twelfth** boot in a row with
+  no operator action on any of this program's asks — escalation channel dead
+  since round 166. Both user units `active`.
+- **Do NOT compare `unobserved_total` across rounds.** Round 358 published
+  67h27m58s; this round's same-method baseline is 75h06m29s. The log is
+  append-only and has grown. Round 340's "live-file aggregate pin" hazard.
+  Compare methods on ONE snapshot.
+- Hygiene: no writes on the box outside the pre-existing `~/nuc-research/`
+  poll outputs; `/work/**` read-only; no unit restarted; **port 8001 never
+  contacted**; no engine request of any kind.

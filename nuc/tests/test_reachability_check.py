@@ -2171,3 +2171,294 @@ def test_cli_journal_seconds_never_writes_an_empty_capture(tmp_path, capsys, mon
     assert rc.main(["journal-seconds", "--since", "2026-08-25T00:00:00Z",
                     "--until", "2026-08-26T00:00:00Z", "--out", str(out)]) == 0
     assert json.loads(out.read_text())["seconds"] == [1788000000]
+
+
+# ---------------------------------------------------------------------------
+# Round 364: per-boot journal capture, cached.
+# ---------------------------------------------------------------------------
+
+_BOOTS_R364 = json.dumps([
+    {"index": -2, "boot_id": "aaaa", "first_entry": 1_000_000_000_000,
+     "last_entry": 1_000_100_000_000},
+    {"index": -1, "boot_id": "bbbb", "first_entry": 1_000_200_000_000,
+     "last_entry": 1_000_300_000_000},
+    {"index": 0, "boot_id": "cccc", "first_entry": 1_000_400_000_000,
+     "last_entry": 1_000_450_000_000},
+])
+
+
+def test_parse_rate_probe_is_fail_closed():
+    assert rc.parse_rate_probe("17655 4069") == {"n_entries": 17655, "wall_ms": 4069}
+    assert rc.parse_rate_probe("17655 4069\n") == {"n_entries": 17655, "wall_ms": 4069}
+    # Every malformed shape must return None, not raise and not half-parse:
+    # the caller turns None into the timeout FLOOR, and a floor is a scan
+    # that fails fast and gets retried. A crash here would take out a sweep
+    # that had already paid for the boots before it.
+    for bad in ("", "17655", "abc def", "\n", None):
+        assert rc.parse_rate_probe(bad) is None
+
+
+def test_size_scan_timeout_scales_with_measured_rate_not_with_span():
+    """The measured spread on the real box is what forces this.
+
+    Boot -5 and boot -2 have comparable spans (124498 s and 143348 s) and
+    scan costs of 14.5 s and 1944 s -- a 134x difference driven entirely by
+    entry density, not by span. A timeout sized from span alone is wrong for
+    one of them by two orders of magnitude in whichever direction it is
+    tuned, which is precisely how round 358's single 1400 s constant both
+    over-served six boots and killed the seventh.
+    """
+    sparse = rc.size_scan_timeout({"n_entries": 11, "wall_ms": 35}, 124498)
+    dense = rc.size_scan_timeout({"n_entries": 17655, "wall_ms": 4069}, 143348)
+    assert sparse["sized_from"] == "measured"
+    assert 10 < sparse["projected_s"] < 20
+    assert 1900 < dense["projected_s"] < 2000
+    assert dense["timeout_s"] > sparse["timeout_s"] * 10
+    # The floor keeps a tiny boot from getting a timeout too small to even
+    # connect; the ceiling keeps a pathological probe from parking a round.
+    assert rc.size_scan_timeout({"n_entries": 0, "wall_ms": 0}, 10)["timeout_s"] == 60
+    assert rc.size_scan_timeout({"n_entries": 9, "wall_ms": 999999}, 10**9,
+                                ceiling_s=3600)["timeout_s"] == 3600
+
+
+def test_size_scan_timeout_missing_probe_falls_back_to_floor_not_to_a_big_constant():
+    """An unmeasured boot must fail FAST. Round 358's failure was a 1400 s
+    client timeout burning 23 min to produce `n_seconds: 0`; defaulting an
+    unmeasurable boot to a large budget would reproduce exactly that."""
+    out = rc.size_scan_timeout(None, 143348)
+    assert out == {"timeout_s": 60, "projected_s": None, "sized_from": "fallback"}
+
+
+def test_boot_scan_targets_skips_cached_closed_boots_and_always_rescans_the_open_one(tmp_path):
+    boots = rc.parse_boot_history(_BOOTS_R364)
+    cache = tmp_path / "c"
+    cache.mkdir()
+
+    first = {t["boot_id"]: t for t in rc.boot_scan_targets(boots, cache)}
+    assert all(t["needs_scan"] for t in first.values())
+    # cheapest-first ordering: a budgeted sweep must bank the cheap boots
+    # before it risks the expensive one.
+    assert [t["span_s"] for t in rc.boot_scan_targets(boots, cache)] == \
+           sorted(t["span_s"] for t in first.values())
+
+    for bid in ("aaaa", "bbbb", "cccc"):
+        (cache / f"journal-seconds-{bid}.json").write_text(
+            json.dumps({"boot_id": bid, "n_seconds": 5, "complete": True,
+                        "seconds": [1, 2, 3, 4, 5]}))
+    second = {t["boot_id"]: t for t in rc.boot_scan_targets(boots, cache)}
+    assert second["aaaa"]["needs_scan"] is False       # closed + complete
+    assert second["bbbb"]["needs_scan"] is False       # closed + complete
+    assert second["cccc"]["needs_scan"] is True        # OPEN: journal grows
+    assert second["cccc"]["reason"] == "open boot, rescan"
+
+    # An INCOMPLETE cached capture is not a cache hit. `complete: False` is
+    # how a truncated scan records itself, and treating it as done would
+    # silently freeze a partial measurement into the record forever.
+    (cache / "journal-seconds-aaaa.json").write_text(
+        json.dumps({"boot_id": "aaaa", "n_seconds": 5, "complete": False,
+                    "seconds": [1]}))
+    third = {t["boot_id"]: t for t in rc.boot_scan_targets(boots, cache)}
+    assert third["aaaa"]["needs_scan"] is True
+    assert third["aaaa"]["reason"] == "cached but incomplete, rescan"
+
+    # A corrupt cache file is a miss, not a crash.
+    (cache / "journal-seconds-aaaa.json").write_text("{not json")
+    assert {t["boot_id"]: t for t in rc.boot_scan_targets(boots, cache)}["aaaa"]["needs_scan"]
+
+
+def test_boot_scan_targets_extends_the_open_boot_to_now():
+    """The open boot's `last_entry` is a snapshot taken when the boot list
+    was captured; by scan time the box has logged more. Scanning only to the
+    stale `last_entry` leaves a sliver uncovered at exactly the end of the
+    log, which is where the freshest gap always is."""
+    boots = rc.parse_boot_history(_BOOTS_R364)
+    later = 1_000_450 + 9999
+    t = {x["boot_id"]: x for x in rc.boot_scan_targets(boots, "/nonexistent", now_s=later)}
+    assert t["cccc"]["to_s"] == later
+    assert t["bbbb"]["to_s"] == 1_000_300     # closed boot: untouched
+
+
+def test_merge_captures_unions_and_never_overstates_liveness():
+    a = {"boot_id": "aaaa", "covers_from_utc": "2026-08-20T00:00:00Z",
+         "covers_to_utc": "2026-08-20T01:00:00Z", "n_seconds": 2,
+         "complete": True, "seconds": [100, 200]}
+    b = {"boot_id": "bbbb", "covers_from_utc": "2026-08-22T00:00:00Z",
+         "covers_to_utc": "2026-08-22T01:00:00Z", "n_seconds": 2,
+         "complete": True, "seconds": [200, 300]}
+    m = rc.merge_captures([a, b])
+    assert m["seconds"] == [100, 200, 300]          # union, deduped, sorted
+    assert m["n_seconds"] == 3
+    assert m["covers_from_utc"] == "2026-08-20T00:00:00Z"
+    assert m["covers_to_utc"] == "2026-08-22T01:00:00Z"
+    assert [s["boot_id"] for s in m["sources"]] == ["aaaa", "bbbb"]
+    # Empty and all-empty inputs produce a capture `make_silence_fn` refuses,
+    # rather than one claiming coverage it does not have.
+    assert rc.make_silence_fn(rc.merge_captures([])) is None
+    assert rc.make_silence_fn(rc.merge_captures([{"seconds": []}])) is None
+
+
+def test_merged_coverage_hole_weakens_the_bound_it_never_inflates_liveness():
+    """The one property that makes merging across boots sound.
+
+    The merged `covers` window spans the inter-boot stretches when the box
+    was OFF and no journal exists. A gap landing in such a hole must come
+    back with a bound no better than its own length -- i.e. the same answer
+    as no evidence at all -- and must never come back claiming the box was
+    demonstrably alive there.
+    """
+    from datetime import datetime, timezone
+    m = rc.merge_captures([
+        {"boot_id": "a", "covers_from_utc": "2026-08-20T00:00:00Z",
+         "covers_to_utc": "2026-08-20T01:00:00Z", "seconds": [
+             int(datetime(2026, 8, 20, 0, 30, tzinfo=timezone.utc).timestamp())]},
+        {"boot_id": "b", "covers_from_utc": "2026-08-22T00:00:00Z",
+         "covers_to_utc": "2026-08-22T01:00:00Z", "seconds": [
+             int(datetime(2026, 8, 22, 0, 30, tzinfo=timezone.utc).timestamp())]},
+    ])
+    sil = rc.make_silence_fn(m)
+    t1 = datetime(2026, 8, 21, 0, 0, tzinfo=timezone.utc)   # inside the OFF hole
+    t2 = datetime(2026, 8, 21, 6, 0, tzinfo=timezone.utc)
+    got = sil(t1, t2)
+    assert got is not None
+    assert got["n_entry_seconds"] == 0
+    # bound == the whole gap: no better than unwitnessed, which is correct.
+    assert got["max_silence_s"] == got["gap_s"] == 6 * 3600
+    assert rc.gap_unobserved_s({"witness_strength": rc.WITNESS_BOUNDED,
+                                "bound_s": got["max_silence_s"],
+                                "gap_s": got["gap_s"]}) == 6 * 3600
+
+
+def test_cli_journal_boots_plan_probes_but_scans_nothing(tmp_path, capsys, monkeypatch):
+    bh = tmp_path / "boots.json"
+    bh.write_text(_BOOTS_R364)
+    scanned = []
+    monkeypatch.setattr(rc, "journal_rate_probe",
+                        lambda *a, **k: {"n_entries": 300, "wall_ms": 100})
+    monkeypatch.setattr(rc, "journal_seconds_probe",
+                        lambda *a, **k: scanned.append(a) or [1])
+    assert rc.main(["journal-boots", "--boot-history", str(bh),
+                    "--cache-dir", str(tmp_path / "c"), "--plan"]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert scanned == []
+    assert {r["action"] for r in out["results"]} == {"planned"}
+    assert all(r["sized_from"] == "measured" for r in out["results"])
+    assert not list((tmp_path / "c").glob("*.json"))
+
+
+def test_cli_journal_boots_caches_scans_and_merges(tmp_path, capsys, monkeypatch):
+    bh = tmp_path / "boots.json"
+    bh.write_text(_BOOTS_R364)
+    calls = []
+
+    def fake_scan(since, until, **kw):
+        calls.append((since, until, kw.get("timeout_s")))
+        return [1_000_000 + len(calls)]
+
+    monkeypatch.setattr(rc, "journal_rate_probe",
+                        lambda *a, **k: {"n_entries": 300, "wall_ms": 100})
+    monkeypatch.setattr(rc, "journal_seconds_probe", fake_scan)
+    cache = tmp_path / "c"
+    merged = tmp_path / "merged.json"
+    assert rc.main(["journal-boots", "--boot-history", str(bh),
+                    "--cache-dir", str(cache), "--merge-out", str(merged)]) == 0
+    first = json.loads(capsys.readouterr().out)
+    assert len(calls) == 3
+    assert all(t is not None and t >= 60 for _, _, t in calls)
+    assert {r["action"] for r in first["results"]} == {"scanned"}
+    assert all(r["complete"] for r in first["results"])
+    assert len(list(cache.glob("journal-seconds-*.json"))) == 3
+    assert json.loads(merged.read_text())["n_seconds"] == 3
+
+    # Re-run: the two CLOSED boots are served from cache and only the OPEN
+    # one is re-scanned. This is the whole point -- boot -2 on the real box
+    # costs a projected 1944 s, and paying it once ever is what makes the
+    # sweep affordable at all.
+    calls.clear()
+    assert rc.main(["journal-boots", "--boot-history", str(bh),
+                    "--cache-dir", str(cache)]) == 0
+    second = json.loads(capsys.readouterr().out)
+    actions = {r["boot_id"]: r["action"] for r in second["results"]}
+    assert actions == {"aaaa": "skip", "bbbb": "skip", "cccc": "scanned"}
+    assert len(calls) == 1
+
+
+def test_cli_journal_boots_budget_defers_rather_than_truncates(tmp_path, capsys, monkeypatch):
+    """A sweep that runs out of round must DEFER whole boots, not half-scan
+    one. Because the cache is per boot and keyed on completeness, a deferred
+    boot costs the next round nothing extra, while a truncated one written as
+    complete would poison the record permanently."""
+    bh = tmp_path / "boots.json"
+    bh.write_text(_BOOTS_R364)
+    monkeypatch.setattr(rc, "journal_rate_probe",
+                        lambda *a, **k: {"n_entries": 300, "wall_ms": 100})
+    monkeypatch.setattr(rc, "journal_seconds_probe", lambda *a, **k: [1])
+    # NB: main() calls time.time() twice before the loop (once for the open
+    # boot's now_s, once for `started`), so a monotone counter is used rather
+    # than a hand-built sequence -- getting that count wrong is how this test
+    # first passed for the wrong reason.
+    tick = {"v": 0.0}
+
+    def clock():
+        tick["v"] += 1000.0
+        return tick["v"]
+
+    monkeypatch.setattr(rc.time, "time", clock)
+    assert rc.main(["journal-boots", "--boot-history", str(bh),
+                    "--cache-dir", str(tmp_path / "c"), "--budget-s", "10"]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert [r["action"] for r in out["results"]] == ["deferred"] * 3
+    assert not list((tmp_path / "c").glob("*.json"))
+
+
+def test_cli_journal_boots_max_boot_s_defers_the_expensive_boot_only(tmp_path, capsys, monkeypatch):
+    bh = tmp_path / "boots.json"
+    bh.write_text(_BOOTS_R364)
+    # The OPEN boot is extended to now, so `now` must be pinned or its span
+    # becomes "epoch to today" and it dominates every projection -- which is
+    # real behaviour, and is why this test pins the clock.
+    monkeypatch.setattr(rc.time, "time", lambda: 1_000_460.0)
+    # spans: aaaa 100 s, bbbb 100 s, cccc 60 s (extended 1_000_450 -> now).
+    # At 100 s of probe wall per 300 s window: 33.3 s, 33.3 s, 20 s.
+    monkeypatch.setattr(rc, "journal_rate_probe",
+                        lambda *a, **k: {"n_entries": 300, "wall_ms": 100_000})
+    monkeypatch.setattr(rc, "journal_seconds_probe", lambda *a, **k: [1])
+    assert rc.main(["journal-boots", "--boot-history", str(bh),
+                    "--cache-dir", str(tmp_path / "c"), "--max-boot-s", "25"]) == 0
+    out = json.loads(capsys.readouterr().out)
+    by = {r["boot_id"]: r for r in out["results"]}
+    assert by["cccc"]["action"] == "scanned"
+    assert by["aaaa"]["action"] == "deferred"
+    assert by["aaaa"]["why"] == "over --max-boot-s"
+
+
+def test_cli_journal_boots_marks_a_timed_out_scan_incomplete(tmp_path, capsys, monkeypatch):
+    """Round 358's exact trap, now detectable.
+
+    `journal_seconds_probe` returns [] for a client-side timeout and for a
+    genuinely silent window alike. A scan that comes back having consumed
+    essentially its whole budget is the truncation case; it must not be
+    cached as a finished measurement of a quiet boot.
+    """
+    bh = tmp_path / "boots.json"
+    bh.write_text(_BOOTS_R364)
+    monkeypatch.setattr(rc, "journal_rate_probe",
+                        lambda *a, **k: {"n_entries": 300, "wall_ms": 100})
+    monkeypatch.setattr(rc, "journal_seconds_probe", lambda *a, **k: [1, 2, 3])
+    # Each scan appears to consume its entire sized timeout.
+    t = {"v": 0.0}
+
+    def slow():
+        t["v"] += 5000.0
+        return t["v"]
+
+    monkeypatch.setattr(rc.time, "time", slow)
+    cache = tmp_path / "c"
+    assert rc.main(["journal-boots", "--boot-history", str(bh),
+                    "--cache-dir", str(cache)]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert all(r["complete"] is False for r in out["results"] if r["action"] == "scanned")
+    for f in cache.glob("journal-seconds-*.json"):
+        assert json.loads(f.read_text())["complete"] is False
+    # ...and therefore the next sweep re-scans them rather than trusting them.
+    assert all(t_["needs_scan"] for t_ in
+               rc.boot_scan_targets(rc.parse_boot_history(_BOOTS_R364), cache))

@@ -10470,6 +10470,95 @@ reading `ORACLE_NAMES` before starting. Predictions written first
   the round died first. Carried as a next step; scoring another round's bank
   from its own output is not scoring.
 
+### Round 364 — NUC-integration(E) — 2026-08-30
+
+**Box UP**, boot `43e0c767` — the same boot as rounds 352 and 358, uptime
+9h28m at first contact. Knowledge file:
+`knowledge/round-364-nuc-e-the-box-is-never-quiet-for-more-than-two-minutes.md`.
+Predictions (D-013) written before any measurement:
+`nuc/predictions-e-round364.md`. Missions addendum in `state/nuc-missions.md`.
+
+**Round 304 item 1 is CLOSED after nine rounds of deferral.** The 8 h swap
+poll — asked for by rounds 304/310/316/322/328/334/340/346, launched by 352,
+seen mid-flight by 358 — completed at 10:25:07Z and was collected this round.
+Over **1921 samples / 8.002 h**: `memory.swap.current` 0 on every sample,
+`pswpin`/`pswpout` 0 on every sample, and `memory.current` **byte-identical
+across all 1921 samples** (9,770,594,304 B, 30.3 % of the 30 GiB ceiling;
+zero increasing and zero decreasing steps). **Round 352's P14 is a MISS**;
+round 358's P3, which predicted that miss, is a HIT.
+
+**That corrects round 136.** Rounds 130/136/142 caught this cgroup pinned at
+its ceiling with swap climbing 0 → 310.6 MB → 2.96 GiB, and round 136
+concluded "elapsed time alone was enough". Eight hours of pure elapsed time
+on an idle box moved `memory.current` by **zero bytes**, with
+`memory.events` `max` still 0 on a ~10 h boot. The variable is **traffic**
+(round 124's original reading). E4's RAM-FAIL recommendation stands — a real
+Hermes workload IS that traffic — but `--cap 256` is not intrinsically
+over-committed: at rest this deployment needs 9.77 GB.
+
+**Round 358's closing handoff BUILT and RUN to completion.**
+`reachability_check.py journal-boots` (+ `parse_rate_probe`,
+`size_scan_timeout`, `journal_rate_probe`, `boot_scan_targets`,
+`merge_captures`): per-boot journal-seconds capture cached to
+`state/nuc-journal-cache/journal-seconds-<boot_id>.json`, each boot's timeout
+extrapolated from a 300 s mid-boot rate probe timed ON the box, and
+`complete: False` written whenever a scan consumed ≥95 % of its budget — the
+one signal separating "this boot was quiet" from round 358's silent
+1417 s-vs-1400 s truncation. Closed boots are immutable and never re-scanned;
+the open boot always is, extended to now.
+
+**THE RESULT — this box is never quiet for more than two minutes.** All 7
+boots scanned, all `complete`, **182 623 entry-seconds**. Across **149 h of
+running time the longest journal silence is 300 s, and on six of the seven
+boots it is 81–123 s.** On ONE log snapshot (38 records, 113h50m01s span):
+
+| | `unobserved_total` | `bounded` gaps | `max_unobserved_outage` |
+|---|---|---|---|
+| boot history only | 75h06m29s | 0 | 14h00m00s (`reboot_only`) |
+| + 6 boots' journal | 35h14m45s | 20 | 14h00m00s (`bounded`) |
+| **+ all 7 boots** | **0h21m56s** | **20** | **0h01m57s** (`bounded`) |
+
+The 14-hour rounds-142→154 gap that has headlined `max_unobserved_outage`
+since round 358 is **bounded at 117 seconds** — the box was logging straight
+through it. Note the middle row: six of seven boots left the headline
+completely unmoved, because that gap lies inside boot −2, the last one
+scanned. A sweep stopped one boot short would have been technically true and
+substantively wrong.
+
+**Entry density varies 1605× between boots of the same machine** (boot −5
+0.037 entries/s, boot −2 58.85/s) so per-boot scan cost spans 0.3 s to
+1944 s. No single constant can serve that. **Correction to round 358:** its
+boot −1 rate "2733/s" is 2733 per *minute* = **45.5/s**; its ~10 min
+projection was unaffected, having come from a timed scan rather than the rate.
+
+**Round 304 item 2 re-verified, all six unchanged** — `--cap 256` live; E3
+patch still NOT applied (0 markers in `qwen36.c`, mtime Aug 23 15:27); OLMoE
+tarball present; `memory.events` `max` 0; operator idle; a **twelfth**
+consecutive boot with no operator action. Both user units `active`.
+
+Predictions scored: **12 hits, 4 misses, 1 split**. The misses carry the
+round. **P14 ("`unobserved_total` falls but not below 20 h") missed by two
+orders of magnitude** — I assumed the log's gaps straddled inter-boot OFF
+periods that no journal scan can shrink; they sit *inside* boots, which is
+exactly the case a journal scan answers. **P13** ("some boot has a >600 s
+silence") was the same error. **P11** (the sweep won't finish) missed because
+the 3× timeout margin made every projection conservative — boots −1/−2 ran at
+53 % and 77 % of projection. **P15**'s claim that merging captures across
+boots is *unsafe* was a plausible-sounding invention the code refutes:
+`interior_silence` yields an UPPER bound, so a coverage hole can only weaken
+a bound, never overstate liveness (pinned as
+`test_merged_coverage_hole_weakens_the_bound_it_never_inflates_liveness`).
+
+Tests: **`nuc/tests/` 383 passed** (179 in `test_reachability_check.py`, +12
+new). Hygiene: no writes on the box outside the pre-existing `~/nuc-research/`
+poll outputs; `/work/**` read-only; no unit restarted; **port 8001 never
+contacted**; no engine request of any kind.
+
+Also landed round 363's record, which committed its code (`46c1e88`) and was
+killed before committing its `research-state.md`/knowledge/skill files —
+verified green (`skills/run_checks_fast.sh`: 6 checkers, 0 errors, 1 carried
+warning) before committing as `8c1311a`.
+
 ### Round 363 — skills(B) — 2026-08-30
 
 - **Goal:** land round 362 (above), then the skills(B) backlog. Running the
@@ -11394,6 +11483,65 @@ reading `ORACLE_NAMES` before starting. Predictions written first
    full-history sweep) are untouched and carry forward unchanged.
 9. All of round 340's NUC-integration(E) items (1-6 below) are unchanged —
    the rotation has not reached that track since.
+
+## Next steps (as of round 364)
+
+1. **NUC(E) — the journal cache is now the cheapest continuity tool this
+   program has, and it is warm.** All 7 boots are cached and immutable in
+   `state/nuc-journal-cache/`. A future E-round re-runs
+   `reachability_check.py journal-boots --boot-history <fresh> --cache-dir
+   state/nuc-journal-cache --merge-out <path>` and pays ONLY for the open
+   boot (~6 s) plus any boot that has appeared since. Then
+   `continuity --journal-seconds <merged>`. **Capture boot history FIRST on
+   every up-round** — journal retention is 3.2 G reaching back to
+   2026-08-19, and a boot that ages out takes its interior with it.
+2. **NUC(E) — `unobserved_total 0h21m56s` is a SNAPSHOT, never a running
+   score.** The reachability log is append-only; round 358 published
+   67h27m58s and this round's same-method baseline is 75h06m29s purely
+   because the log grew. Round 340's live-file aggregate-pin hazard. Any
+   future round quoting a rollup must quote the log span with it.
+3. **NUC(E) — suspend across boots −1…−6 is still unchecked.** Round 358
+   checked boot 0 directly and found nothing (the 7 apparent hits are
+   `PM: hibernation: Registered nosave memory`, boot-time setup on any
+   hibernate-capable machine — a false positive every future grep must
+   exclude). Signature:
+   `journalctl -b N -k | grep -E 'PM: suspend (entry|exit)|Freezing user space'`.
+   Now cheap per boot, and it would close round 184's hypothesis for good.
+4. **NUC(E) — the swap question is answered for an IDLE box only.** Eight
+   hours flat at load 0.00 says nothing about how fast a *loaded* box walks
+   to the 30 GiB ceiling. The natural successor is a swap poll DURING real
+   traffic — but that needs an operator-approved workload, so it is a
+   proposal, not a queued task.
+5. **NUC(E) standing, unchanged and all blocked on the operator**: the E3
+   A/B (patch still not applied), the OLMoE on-box NVMe check, and any
+   `--cap` change all need an operator-approved restart of a shared box.
+   **Twelfth consecutive boot with no operator action** — the escalation
+   channel has been dead since round 166. This is not a task any round can
+   unblock; it is a standing fact about the program's environment.
+6. **Track-wide: a 3× margin on a measured budget is worth its cost.** This
+   round's timeouts were extrapolated from a 300 s probe and multiplied by 3;
+   the two expensive scans came in at 53 % and 77 % of projection, and the
+   sweep finished inside the round instead of deferring. Round 358's failure
+   was the opposite — one constant, no margin, silent truncation. Prefer
+   "measure a sample, extrapolate, multiply, and record the sizing in the
+   artifact" to any constant.
+7. **`languages/whence/SECURITY.md` has now been carried NINE consecutive
+   rounds** — the Hermes gateway's rewrite asserting four security controls
+   this repo does not have, escalated to the operator unresolved since round
+   349. A TRACKED file a separate system edits, deliberately not in
+   `state/known-standing-dirty-paths.json` (which models untracked leftovers
+   only). Nothing in-tree can resolve it.
+8. **Round 363's items 1-6 (skills B)** — the `--run` execution tier that
+   nothing executes, the re-probe of `unrun-checker-latency`'s 3 unprobed
+   cases, the absent reports directory — are unchanged; the rotation has not
+   reached B since.
+9. **Rounds 336/338's language(C) and SWE-loop(D) items** (typed tail chains
+   in the fuzz grammar, `whence/lexer.py`'s full-history sweep, 9 of 19
+   slow-tier files still `unknown`/`stale_checkout`) are untouched and carry
+   forward unchanged.
+10. **The heavy/light re-tally check-in** and **the `tail`/EOF
+    backgrounded-pipe silent-drop mechanism** (rounds 296/300/303/309, round
+    310's item 5) are both unchanged, track-wide.
 
 ## Next steps (as of round 340)
 1. **NUC(E), time-sensitive — the FIRST action on the first up check is
