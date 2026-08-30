@@ -309,6 +309,24 @@ skills — that duplicates their triggers and adds an indirection hop.
   description" for the mechanism order that actually moves a number
   (shared-noun removal, tried last, was the only one that worked).
 
+- **Reading a per-skill rate off a single draw.** Round 357 ran the first
+  full-corpus probe (27 skills, 105 cases, native/sonnet/strict, $6.86) and
+  got 90% exact match with 10 misses. Re-probing those misses immediately —
+  same instrument, same descriptions — **7 of the 8 no-fire cases fired**.
+  The worst-looking numbers (`33% recall`, three separate skills) were
+  single-draw noise, and a round that had gone straight to editing
+  descriptions would have been tuning for it. Only one case missed
+  twice, and that one was a real vocabulary gap worth an edit. An n=1 report
+  is a screen producing CANDIDATES; re-probe one (`--only <id> --repeats
+  2+`) before believing its rate or writing it down as a skill property.
+
+- **Spending description budget you do not have.** The 1024-char cap is the
+  real constraint on adding trigger vocabulary. Round 357's one-clause fix
+  for its confirmed miss pushed `citation-registry-integrity` to 1233 chars,
+  and fitting it back cost two symptom phrases and a `Covers` item: a TRADE,
+  and the phrases traded away were never re-probed. Budget the cut in the
+  same edit and say which cases ride on the removed words.
+
 - **A checker that can never go green gets uninstalled.** Two of this
   corpus's checks found real debt owned by someone else on their first run.
   Without a baseline file the check exits non-zero forever, somebody stops
@@ -323,27 +341,38 @@ absolute `cd ~/agi-research` used to open this block and had been dead since
 the workspace was renamed — see `claim_check.py`'s C001.)
 ```bash
 python3 -m unittest discover -s skills/skill-authoring/scripts -v
-# expected: Ran 430 tests, OK  (skill_lint + trigger_eval + claim_check
-#           + xref_check + state_claim_check, offline). Re-derived round 351
-#           (+66 for test_state_claim_check.py); was 364 in round 346, 316 in
-#           round 345 and 247 before test_xref_check.py, so a lower count in
-#           an older report is not evidence of a regression. (Round 345
-#           re-derived this TWICE: its first figure, 311, was stale within
-#           the hour because the same round then added 5 tests. Re-derive
-#           this LAST.)
+# expected: Ran 458 tests, OK  (skill_lint + trigger_eval + claim_check
+#           + xref_check + state_claim_check + case_coverage, offline).
+#           Re-derived round 357 (+21 test_case_coverage.py, +7 from 352-356);
+#           was 430 in 351, 364 in 346, 316 in 345, 247 before
+#           test_xref_check.py, so an older lower count is not a regression.
+#           (Round 345 re-derived this TWICE: its first figure, 311, was
+#           stale within the hour because the same round then added 5 tests.
+#           Re-derive this LAST.)
 python3 skills/skill-authoring/scripts/skill_lint.py --house skills/<name>/
 # expected: 1 skill(s), 0 error(s), 0 warning(s), exit 0   <- the bar for a new skill
 python3 skills/skill-authoring/scripts/skill_lint.py --house --strict skills/
-# expected: 24 skill(s), 0 error(s), 0 warning(s), exit 0. Warning-free since
+# expected: 27 skill(s), 0 error(s), 0 warning(s), exit 0. Warning-free since
 # round 339 split fuzz-mutate-kill-loop under the 400-line B002 threshold;
 # before that a known B002 made --strict exit 1, so a pre-339 report saying
-# "exit 1" is not evidence of a regression.
+# "exit 1" is not evidence of a regression. Re-derived round 357: this said
+# 24 while the corpus held 27 — rounds 354/355/356 each added a skill without
+# re-running the sweep, the SAME rot round 351 fixed here three rounds
+# earlier. It is caught only by `claim_check.py --run` (the static tier reads
+# paths, not numbers), and nothing ran that either; see C002 below.
 python3 skills/skill-authoring/scripts/claim_check.py skills/
-# expected: 24 skill(s), 0 stale claim(s), exit 0 (static; --run also executes
+# expected: 27 skill(s), 0 stale claim(s), exit 0 (static; --run also executes
 # the `auto` commands and diffs their output against these very claims).
 # Round 351 re-derived this: it said 22 while the corpus held 23, because the
 # figure was copied forward by every round that added a skill without re-running
 # the sweep — the same rot in the file that documents the rot.
+python3 skills/skill-authoring/scripts/case_coverage.py --list
+# expected: "27 skill(s), 105 case(s) (17 negative); … 0 error(s)", exit 0.
+# P001/P002 are the free half of the checklist below, asserted by
+# test_case_coverage.py: `unittest discover` now fails when a skill enters
+# the corpus with no cases — how rounds 354/355/356 each added one unnoticed.
+# P004 (never probed/STALE) warns against state/known-unprobed-skills.json,
+# EMPTY since round 357 probed all 27; an entry needs an owner (P005).
 python3 skills/skill-authoring/scripts/state_claim_check.py state/research-state.md
 # expected: 0 stale, exit 0. The Next-steps half of the same check; see
 # skills/carried-claim-rot/SKILL.md.

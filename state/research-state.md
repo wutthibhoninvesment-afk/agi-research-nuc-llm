@@ -9868,6 +9868,294 @@ Predictions written first (`nuc/predictions-e-round352.md`, D-013):
   and it is a deliberate escalation rather than a leftover diff.
 - See `knowledge/round-354-whence-v022-the-error-that-names-the-fix.md`.
 
+### Round 355 — harness(A) — 2026-08-30 (interrupted; verified and landed by round 356)
+
+- **Goal:** land round 354's uncommitted work, per the standing cross-track
+  convention. Establishing a baseline for that meant asking what the suite
+  did at `HEAD` *before* 354's diff — `git worktree add /tmp/r355_base HEAD`
+  — and the answer was that it FAILED. Same commit, green in the working
+  directory, red from git.
+- **Every green test result this program has recorded was measured in ONE
+  tree, and that tree is not the repo.** `tests/test_lexer_guest_parity.py`
+  (round 350) built its corpus with `glob.glob(examples/*.lang)` and guarded
+  it with `assert len(paths) >= 20` / `>= 26`. `examples/` holds 30 `.lang`
+  files; **git tracks 16**, the other 14 belonging to the Hermes gateway. Both
+  floors sit above the curated count, so both fail from git alone: a fresh
+  clone had failed this repo's own suite for five rounds (350-354) while every
+  one of those rounds reported green, honestly, from the only tree anyone ran.
+- **The fix was already in this repo, in this track, written before the bug
+  existed.** `harness/swe/fuzz.py::list_example_files` uses `git ls-files` and
+  its docstring names this exact adversary. The timeline is one hour and one
+  round: the gateway wrote the files at 23:35-23:42; round 349 added all 14 to
+  `state/known-standing-dirty-paths.json` **by name** at 00:39; round 350
+  globbed the same directory at 01:41. The lesson is not carelessness — it is
+  that a rule living in one function's docstring does not reach the next
+  function that needs it. Only something that RUNS does.
+- **`harness/pristine_check.py` (new).** Runs a suite in the live tree and in
+  a `git worktree` of a ref and reports the tests that fail only in the
+  pristine one. `git worktree add --detach` materialises exactly the tracked
+  content and shares `.git`, so `git ls-files` works inside it — not
+  incidental, since VCS-derived enumeration is the fix it recommends. Four
+  fail-closed rules in `slowtier.py`'s idiom: a dirty tree INVALIDATES the
+  comparison (short-circuiting before allocating a worktree — `--allow-dirty`
+  waives ONE named path and records the waiver); a test failing in both trees
+  is `both_failed`, not this class; an incomplete run yields `inconclusive`,
+  never `clean`; the worktree is removed with `--force` even on the exception
+  path. Differences are node ids, not counts. Ledger:
+  `state/pristine-check-ledger.jsonl`. `run_tests_fast.sh` prints the last
+  RECORDED verdict — round 341's idiom and price — and says "no recorded
+  check", never "pass", when there isn't one.
+- **The instrument's first run found three more things.** (a) A REAL failing
+  test on main in the `whence_slow` tier, from round 354's v0.22: decision 32
+  appends a cure to `unexpected '='` and
+  `test_shape_needs_three_adjacent_tokens_on_both_sides` asserted the message
+  by equality. Round 354 said the slow-tier result would be "reported
+  separately"; it never was, and that round never landed in git either. Rule
+  2 filed it `both_failed` — the bucket that exists so a plain broken test is
+  not misfiled as a git-reproducibility defect. Relaxed to a prefix check
+  PLUS an explicit pin that the only difference is v0.22's hint. (b) The
+  two-implementations census greps for a literal its own source contains, so
+  it passed while untracked and turned red on commit — a test whose result
+  depended on tree state, in the round about tests whose results depend on
+  tree state. (c) The ledger stored `"ref": "HEAD"`, a moving target; it now
+  records the resolved sha alongside.
+- **`harness-fast` is `clean`** — 530 passed in both trees, identical. First
+  time this repo has evidence for that rather than an assumption, and it
+  bounds the finding to one suite. A static `glob|listdir|iterdir|scandir`
+  sweep returns 34 tracked Python files, but `examples/` is the only SHARED
+  directory in the tree, which is why the dynamic check found one instance
+  and not twenty.
+- **Skills:** new `skills/pristine-checkout-differential/`.
+- **Verification.**
+
+  | what | result |
+  |---|---|
+  | `bash harness/run_tests_fast.sh` | **530 passed, 303 deselected** (was 476) |
+  | `pytest -q harness/tests/test_pristine_check.py` | 54 passed |
+  | whence fast tier | **1193 passed, 54 deselected** |
+  | whence slow tier | 54 passed, 1193 deselected in 308.6s |
+  | `tests/test_lexer_guest_parity.py` | 82 passed (both tiers) |
+  | curated corpus | 16 files / 35188 tokens / 0 divergences |
+
+  Pins checked by mutation: reverting `_example_files` to the glob fails the
+  new corpus test; four mutations of the checker itself each fail their own
+  rule's test.
+- **Landed by round 356**, which verified the two commits (`fd7d91a`,
+  `2e3193f`) and committed the knowledge file, the skill and the ledger that
+  the interruption left behind. `state/pristine-check-ledger.jsonl`'s newest
+  entry predates round 356's own changes and is kept as the round-355 record.
+- See `knowledge/round-355-the-suite-was-only-ever-green-here.md`.
+
+### Round 356 — language(C) — 2026-08-30 (max_turns; verified and landed by round 357)
+
+- **Whence v0.23, decision 33: a line break is the only statement separator,
+  and it is now required.** `lexer.py`'s first docstring and SPEC.md's syntax
+  heading have both said newlines separate statements since the first commit;
+  the parser never checked it, so `let a = 1 let b = 2` was two statements for
+  twenty-two versions. Documented and unenforced — every conforming program
+  behaved exactly as documented, so no test, example or bug report was in a
+  position to see it.
+- Closes round 354's largest open item and takes its ten-program
+  machine-written corpus from **9/10 to 10/10 cures WITHOUT writing a new
+  hint**: `let d = f one, two` now reports at col 11 (the juxtaposition) where
+  v0.22 reported at col 14 (the comma, three tokens later). The corpus improved
+  by removing a permission, not by adding advice.
+- Two qualifications are the design. The check fires only for a token that
+  could START a statement (`x = 2` still gets v0.22's assignment hint — the
+  first patch had no guard and a v0.22 regression test went red on exactly
+  that case), and the three tokens that also CONTINUE an expression (`-`, `(`,
+  `[`) are absorbed by the longest-match grammar first, so `let a = 1 -2` binds
+  `-1`. That is the automatic-semicolon-insertion hazard, confined to three
+  tokens and written into SPEC.md rather than left to be rediscovered.
+- Cost, measured with `git ls-files` (round 355's finding, inherited one round
+  later): **one** tracked program, `examples/effects.lang`, one `fold` lambda
+  reformatted across three lines. Seven test files, and round 336's
+  tail-vs-lifted differential kept its strictness for free — what it needed was
+  line ALIGNMENT, not one-line-ness, and two lines of padding restore it
+  exactly (now asserted, `test_the_two_forms_are_line_for_line_aligned`).
+- Guest parity: `self_host.lang`/`self_eval.lang` get the same rule and the
+  byte-identical parser section grows 773 -> 803 lines. **The guest's own
+  self-test had ASSERTED the laxity** ("two statements with no separator both
+  parse (host allows this)") — a reference implementation is exactly where a
+  laxity gets written down as a property.
+- 13 mutants, 13 killed — after the sweep found a real hole in this round's
+  own tests: the shape-head exclusion had a test that exercised its branch and
+  proved nothing, because with `1` in front of `shape` both branches return the
+  same string. `let a = b shape P` kills it.
+- **Skills:** new `skills/unenforced-documented-rule/`; upgraded
+  `skills/errors-that-name-the-fix/`.
+- **Verification** (re-run by round 357 at the tree it committed):
+  whence `pytest tests/` fast + `whence_slow` = **1309 passed**, exit 0;
+  `skill_lint.py --house --strict skills/` = 27 skills, 0 errors, 0 warnings.
+- **Landed by round 357** as `80bcf4f`. `languages/whence/SECURITY.md` is
+  deliberately NOT in that commit — the Hermes gateway's rewrite, escalated to
+  the operator unresolved since round 349 §8, seventh consecutive round.
+- See `knowledge/round-356-a-line-break-is-the-only-separator.md`.
+
+### Round 357 — skills(B) — 2026-08-30
+
+- **The skill corpus had never been measured.** `trigger_eval.py --audit` is
+  real, offline, free, exits 1 when the shipping checklist is false — and
+  nothing in this workspace RUNS it. Its first run: **24 of 27 skills `never`
+  probed, and 3 with ZERO cases** (`errors-that-name-the-fix` r354,
+  `pristine-checkout-differential` r355, `unenforced-documented-rule` r356 —
+  one per round, three rounds running). A skill with no cases cannot be probed,
+  cannot regress and cannot fail. This is round 356's own finding one level up:
+  a rule stated in the documentation and checked by nothing that runs.
+- **New `skills/skill-authoring/scripts/case_coverage.py`** (P001-P005) splits
+  the checklist by what a test can afford. P001 (skill under the 3-case floor)
+  and P002 (a case for a skill that no longer exists) are ERRORS asserted by
+  `test_case_coverage.py::TestLiveCorpus`, which runs inside the `unittest
+  discover` line already in the Verification block — so a skill entering the
+  corpus with no cases now fails a test a skills round already runs. P004
+  (never probed / STALE) is a WARNING against `state/known-unprobed-skills.json`
+  because probing costs money and a check that can never go green gets
+  uninstalled; P005 is that baseline's own rot check and IS an error (an
+  acknowledgement that outlives its debt is a mute button). 21 tests.
+- **First full-corpus probe: 105 cases, 27 skills, native/sonnet/strict,
+  90% exact match, 0/17 false fires on negatives against 48 host distractors,
+  $6.86.** 21 skills at 100% recall.
+- **The finding: 7 of the 8 no-fire misses fired on an identical re-probe** —
+  same instrument, same descriptions, zero edits, $0.63. Three skills whose
+  first-draw recall read `33%` are at 100% on the second draw, including round
+  355's `pristine-checkout-differential`. **An n=1 report is a screen that
+  produces candidates, not a measurement of a skill.** A round that had read
+  the report and gone straight to editing descriptions would have tuned 24
+  descriptions for noise, with a before/after that improved no matter what it
+  wrote. skill-authoring warned about this in the abstract; this is the first
+  time the corpus has measured it, and the effect is much larger than the
+  warning implies.
+- **One real miss, fixed and re-measured.** `cri-far` missed twice
+  (`SKILLS=NONE` in both transcripts): `citation-registry-integrity`'s
+  description carried the baseline CONCEPT but no roll-out vocabulary. Adding
+  one clause pushed it to **1233 chars against a 1024 cap**, so fitting it back
+  cost two symptom phrases and a `Covers` item — the edit was a TRADE, and the
+  phrases traded away were never re-probed. After: `cri` 6/6 exact, `cri-far`
+  2/2 (was 0/2), $0.49.
+- **Three stale claims, found by running the other tool nothing runs.**
+  `claim_check.py --run` (the priced tier; the static tier reads paths, not
+  numbers) found `ran_tests=430` (really 437, now 458) and `skills=24` twice
+  (really 27) in skill-authoring's own Verification block — rounds 354/355/356
+  each added a skill without re-running the sweep, the SAME rot round 351 fixed
+  in that same file three rounds earlier. **Every checker in this corpus has a
+  cheap tier that gets run and an expensive tier that does not; both expensive
+  tiers examined this round were hiding real debt.**
+- `case_coverage.py` added to `claim_check.py`'s AUTO allowlist so its own
+  expected line is re-executed rather than trusted (40 auto-checkable, was 39).
+- **Verification.**
+
+  | what | result |
+  |---|---|
+  | whence `pytest tests/` (fast + `whence_slow`) | 1309 passed, exit 0 |
+  | `skill_lint.py --house --strict skills/` | 27 skills, 0 err, 0 warn |
+  | `case_coverage.py` | 27 skills, 105 cases, 27 probed, 0 err, 0 warn |
+  | `unittest discover -s .../scripts` | **458 tests, OK** (was 430) |
+  | `claim_check.py skills/` | 27 skills, 0 stale (static) |
+  | `state_claim_check.py research-state.md` | 0 stale |
+  | `xref_check.py` | 0 dangling, authoritative scope |
+  | `trigger_eval.py --audit` | **exit 0** (was 24 never, 3 under floor) |
+  | probes, three reports | $7.98 total, 119 probes, 0 errored |
+
+  10 mutants of `case_coverage.py`, 10 killed. X004 caught this round citing
+  `state/known-unprobed-skills.json` before it existed — the file was written
+  rather than allowlisted, so the schema is documented where the next round
+  that must defer a probe will look.
+- **Pitfalls hit:** `pkill -f` matched this session's own shell twice (exit
+  144, the recorded `[[feedback_pkill_f_matches_your_own_shell]]`), and the
+  `[t]rigger_eval` bracket trick does NOT help — it protects grep from itself
+  and does nothing about the `bash -c` line containing the pattern; the second
+  attempt cost a $0.49 probe launched against a description edit that had not
+  yet passed the linter. Lint an edit BEFORE probing it: `D002` (1024 chars)
+  fired only after the probe was in flight.
+- **Deliberate limits:** the 90% is one draw and is reported as such; no canary
+  was run (24 skills had no prior report to compare against, and the `cri`
+  before/after is within one round and one instrument); `--mode body` was run
+  for nothing (0 of 27 skills have a body case, unchanged); and the nine new
+  cases were written FROM the descriptions they test, which makes them easier
+  than a real user's phrasing.
+- **Round 356 landed first** (`80bcf4f`), verified before landing.
+- See `knowledge/round-357-the-corpus-had-never-been-measured.md`.
+
+## Next steps (as of round 357)
+1. **Re-probe with `--repeats 3` before any description is edited on the
+   strength of round 357's report.** The 10 misses are candidates, not
+   defects; 7 of 8 flipped on one extra draw. The per-skill rates in
+   `state/trigger-eval/round-357-full-corpus.md` are n=1 and must not be
+   copied forward as skill properties — that is precisely the rot
+   `state_claim_check.py` exists to catch, arriving through a new door.
+   skills(B).
+2. **`--mode body` has never been run for 26 of 27 skills** (only
+   `tiny-language-implementation` has a body case, round 219). Everything
+   measured so far is whether a description FIRES, not whether the body is
+   FOLLOWED — the more expensive and more interesting question. `body-cases.json`
+   holds 21 cases; the corpus-coverage check does not yet have a body floor
+   because there is no corpus to floor. skills(B).
+3. **`case_coverage.py` has no P00x code for the case-authorship problem
+   named in round 357's §10:** nine of the 105 cases were written from the
+   descriptions they test, by the round that wrote them. P003 catches a
+   NAME leak; a paraphrase leak is not detectable from the text alone.
+   The honest fix is procedural (cases authored by a different round than
+   the description), not a lint rule — record the author round per case
+   first. skills(B).
+4. **`case_coverage.py`'s P004 does not survive a fresh clone**, because
+   `.gitignore:58` untracks `state/trigger-eval/*.json` and P004 reads those
+   reports — round 355's pristine-checkout finding landing inside the check
+   built one round later. Not a defect: P001/P002 (the ERRORS, and the ones
+   `TestLiveCorpus` asserts) are computed from tracked files only, so the
+   rule keeps its teeth from git alone and only the priced-tier warning
+   degrades. If a future round wants P004 reproducible, the choice is
+   tracking a digest-only summary of each report, not un-ignoring the
+   reports. skills(B).
+5. **The `dsp-far` co-fire is a real corpus interaction and is unmeasured:**
+   round 356's new skill co-fired on round 344's `declaration-scope-parity`
+   case. Adding a skill can move a sibling's precision, and this corpus
+   would never have seen it, because the sibling had never been probed
+   either. `--distractors --paired` measures displacement; it has never
+   been run on this corpus's own siblings. skills(B).
+6. **`languages/whence/SECURITY.md` is still uncommitted and still escalated
+   to the operator, seventh consecutive round** — the Hermes gateway's
+   rewrite asserts four security controls this repo does not have. Round
+   349 §8 raised it; no round may resolve it, because it is an authorship
+   decision, not a repair.
+7. Round 356's own next steps stand: teaching `self_eval.lang`/
+   `self_host.lang` the `shape` statement so the fuzz grammar can emit shape
+   declarations (round 335 item 2, large, language(C)); the guest not
+   mirroring `_spec_ok` (335 item 3); `_check_ret` having no `_spec_ok`
+   guard (335 item 5); the exhaustive `whence/lexer.py`-history sweep
+   against the guest `lex` (332 item 1).
+8. The tail-vs-lifted transform IS already a `harness/swe/` oracle —
+   `tail_transparency`, added by round 337 — so round 355's knowledge file
+   proposing it as a "sixth oracle" was re-proposing something that shipped
+   18 rounds earlier. Nothing to do; recorded because round 357 wrote the
+   stale item and `state_claim_check.py`'s S004 caught it in the same round
+   (its first live catch of a pointer this program minted rather than
+   inherited). What IS newly known: the oracle survives v0.23, because round
+   356 proved its strictness depends on line ALIGNMENT, not on the separator
+   laxity.
+9. All of NUC-integration(E)'s standing items (round 334's list 1-8) are
+   unchanged — the rotation has not reached that track since round 352, and
+   the box was down for seven consecutive E-rounds before it.
+10. `harness/swe/regiontools.py`'s region-patch mechanism is still
+   deliberately un-unified with `EditFileTool` (round 307's item 2).
+11. Round 301's item 2 (blocking-wait mitigation design sketch) remains
+    speculative — unchanged through 19 rounds now.
+12. The next heavy/light re-tally check-in: repeat the two
+    `heavy_light_fail_rates` calls (full history + the ~[331,360] window)
+    once that many rounds accumulate — unchanged from rounds 331-356.
+13. The `tail`/EOF backgrounded-pipe silent-drop mechanism (rounds 296, 300,
+    303, 309) remains genuinely unconfirmed — round 310's item 5. Round 357
+    hit its cousin and identified it: `pytest -q` redirected to a file shows
+    0 bytes for its whole run (block buffering), which reads exactly like a
+    hung process. That is NOT the same mechanism and does not close item 5.
+14. `fuzz-mutate-kill-loop/SKILL.md`'s B002 backlog is CLOSED (399 lines
+    since round 339) and the corpus is warning-free under `--house
+    --strict`; the carried "still 415 body lines" line was itself the rot
+    round 351 documented. `skill-authoring/SKILL.md` is now the closest to
+    the 400-line threshold at 400 exactly — round 357 spent four edits
+    buying lines back to stay under it, so the NEXT addition to that file
+    must split a reference rather than append.
+
+
 ## Next steps (as of round 354)
 1. **A mandatory statement separator.** `let a = 1 let b = 2` parses today
    and that laxity is the direct cause of the one machine-written program

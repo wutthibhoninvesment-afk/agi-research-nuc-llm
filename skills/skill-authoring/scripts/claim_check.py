@@ -304,6 +304,7 @@ AUTO_PATTERNS = [
     r"\btrigger_eval\.py\b.*--audit\b",
     r"\bclaim_check\.py\b",
     r"\bstate_claim_check\.py\b(?!.*--run\b)",   # --run would nest executors
+    r"\bcase_coverage\.py\b",   # offline: reads the case file + report dir
     r"^\s*(wc|head|tail|cat|ls|grep)\b",
     r"^\s*git\s+(status|log|diff|show)\b",
 ]

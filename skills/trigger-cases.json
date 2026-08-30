@@ -60,7 +60,7 @@
     "expect": [
       "agent-context-budgeting"
     ],
-    "prompt": "Prompt caching never hits after our agent trims old messages \u2014 cache reads are zero on every request. Why, and how do we trim without losing the cache?"
+    "prompt": "Prompt caching never hits after our agent trims old messages — cache reads are zero on every request. Why, and how do we trim without losing the cache?"
   },
   {
     "id": "gte-near",
@@ -109,7 +109,7 @@
     "expect": [
       "fuzz-mutate-kill-loop"
     ],
-    "prompt": "Find bugs in the parser and evaluator under languages/whence/ \u2014 crashes, not style issues \u2014 and pin each one with a regression test."
+    "prompt": "Find bugs in the parser and evaluator under languages/whence/ — crashes, not style issues — and pin each one with a regression test."
   },
   {
     "id": "fmk-mid",
@@ -205,6 +205,69 @@
     "prompt": "We want to claim last night was the longest downtime we've ever had, but we only find out a host is down when the hourly cron probe runs. Can we actually prove it beat the previous record?"
   },
   {
+    "id": "etnf-near",
+    "expect": [
+      "errors-that-name-the-fix"
+    ],
+    "prompt": "Our config loader rejects bad files with `invalid key: retires` and users keep filing that as a bug. I want the messages to tell people what to write instead."
+  },
+  {
+    "id": "etnf-mid",
+    "expect": [
+      "errors-that-name-the-fix"
+    ],
+    "prompt": "The interpreter prints `expected a list, got a function` — accurate, points at the right argument, and three people this week reported it as a defect in the library. What should change?"
+  },
+  {
+    "id": "etnf-far",
+    "expect": [
+      "errors-that-name-the-fix"
+    ],
+    "prompt": "Someone wants to fix our CLI's confusing validation failures by expanding the README and silently auto-correcting mistyped flag names. Is there a better option?"
+  },
+  {
+    "id": "pcd-near",
+    "expect": [
+      "pristine-checkout-differential"
+    ],
+    "prompt": "This suite has been green for months, but it has only ever run in one working directory on one box. How do I find out whether it still passes from a fresh clone?"
+  },
+  {
+    "id": "pcd-mid",
+    "expect": [
+      "pristine-checkout-differential"
+    ],
+    "prompt": "One of our tests builds its input corpus with glob() over a data directory and asserts there are at least 20 files in it. A separate agent also writes files into that directory. Is that a problem?"
+  },
+  {
+    "id": "pcd-far",
+    "expect": [
+      "pristine-checkout-differential"
+    ],
+    "prompt": "`git status` here has shown the same dozen untracked files for months and nobody remembers who wrote them, while the tests pass every day. Should I care?"
+  },
+  {
+    "id": "udr-near",
+    "expect": [
+      "unenforced-documented-rule"
+    ],
+    "prompt": "Our lexer's docstring has said statements are newline-separated since its first commit, but the parser happily accepts two of them on one line. Should I make that an error, and how do I do it safely?"
+  },
+  {
+    "id": "udr-mid",
+    "expect": [
+      "unenforced-documented-rule"
+    ],
+    "prompt": "The README says config keys must be lowercase and the loader takes uppercase ones without complaint. I want to start rejecting them without wrecking the good error messages we already have."
+  },
+  {
+    "id": "udr-far",
+    "expect": [
+      "unenforced-documented-rule"
+    ],
+    "prompt": "Go through our spec and module docstrings for sentences using must / always / only, and tell me which of those the code does not actually check."
+  },
+  {
     "id": "neg-1",
     "expect": [],
     "prompt": "Write a bash script that renames all .jpeg files in a folder to .jpg."
@@ -272,7 +335,7 @@
     "expect": [
       "fuzz-mutate-kill-loop"
     ],
-    "prompt": "I had Claude review interp.py and it listed six 'bugs'. I don't trust the list \u2014 can we make it prove each one before I open tickets?"
+    "prompt": "I had Claude review interp.py and it listed six 'bugs'. I don't trust the list — can we make it prove each one before I open tickets?"
   },
   {
     "id": "fmk-timeouts",
@@ -293,7 +356,7 @@
     "expect": [
       "engine-prefix-reuse-audit"
     ],
-    "prompt": "Turn 5 of a chat on my self-hosted C inference engine takes about five times longer than turn 1 \u2014 nothing changed except the history got longer. Identical repeated prompts aren't faster either. What's wrong in the engine and how would I fix it?"
+    "prompt": "Turn 5 of a chat on my self-hosted C inference engine takes about five times longer than turn 1 — nothing changed except the history got longer. Identical repeated prompts aren't faster either. What's wrong in the engine and how would I fix it?"
   },
   {
     "id": "epr-far",
@@ -518,7 +581,7 @@
     "expect": [
       "optimization-transparency-differential"
     ],
-    "prompt": "Our compiler folds constants at parse time. A user reports the error message points at a different line when folding is on. Both lines are arguably right \u2014 how do we decide which one the compiler should say?"
+    "prompt": "Our compiler folds constants at parse time. A user reports the error message points at a different line when folding is on. Both lines are arguably right — how do we decide which one the compiler should say?"
   },
   {
     "id": "cri-near",
@@ -551,7 +614,7 @@
     "expect": [
       "deleted-vs-never-written"
     ],
-    "prompt": "Our CONTRIBUTING.md has a '## Release process' heading with nothing under it. Everyone cites 'the release process' in review comments. I guess nobody ever wrote it \u2014 can you draft one?"
+    "prompt": "Our CONTRIBUTING.md has a '## Release process' heading with nothing under it. Everyone cites 'the release process' in review comments. I guess nobody ever wrote it — can you draft one?"
   },
   {
     "id": "dvnw-mid",
@@ -575,7 +638,7 @@
   {
     "id": "neg-17",
     "expect": [],
-    "prompt": "I lost about an hour of edits when my editor crashed \u2014 the changes were never committed. Anything I can do to get them back?"
+    "prompt": "I lost about an hour of edits when my editor crashed — the changes were never committed. Anything I can do to get them back?"
   },
   {
     "id": "ccr-near",
