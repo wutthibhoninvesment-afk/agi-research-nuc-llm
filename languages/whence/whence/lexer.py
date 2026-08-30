@@ -110,8 +110,24 @@ def tokenize(src):
         c = src[i]
 
         if c == "#":
+            # v0.24 (round 360): `col` advances across the comment too.
+            # From this lexer's first commit until this round the branch
+            # moved `i` and left `col` where the `#` was, so the NEWLINE
+            # token a trailing comment is followed by -- and the EOF token
+            # a comment at end of file is followed by -- carried the `#`'s
+            # column. Measured before the fix: 10 of the 16 git-TRACKED
+            # `examples/*.lang` files held at least one such token, and
+            # `let x = (1 # comment` reported `expected ), got None at
+            # line 1, col 12`, pointing at the `#` rather than at end of
+            # input (column 21). Invisible for 359 rounds because the only
+            # tokens a comment can precede on its own line are NEWLINE and
+            # EOF, neither of which any test had ever asked the column of.
+            # Found by giving the guest lexer columns (SPEC.md § v0.24):
+            # the guest derives a column from the index, which cannot
+            # forget to advance, so the two disagreed.
             while i < n and src[i] != "\n":
                 i += 1
+                col += 1
             continue
 
         if c == "\n":

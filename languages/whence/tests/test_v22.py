@@ -407,11 +407,24 @@ def test_parse_error_wording_is_not_a_guest_contract():
     """Why the parser half needs no `self_host.lang` mirror, established
     rather than assumed.
 
-    Host parse errors are exceptions carrying line AND column; guest parse
-    errors are `miss` values carrying a line only, and the two have never
-    used the same words. Adding a clause to one therefore cannot create a
-    divergence, because there was never an agreement. If a future round
-    makes them agree, this test is the one that should go red first.
+    ROUND 354 wrote this and asserted `"col" in host and "col" not in
+    guest`: host parse errors were exceptions carrying line AND column,
+    guest parse errors were `miss` values carrying a line only, and the two
+    had never used the same words, so adding a v0.22 hint to one could not
+    create a divergence where there was never an agreement. It ended: "If a
+    future round makes them agree, this test is the one that should go red
+    first."
+
+    ROUND 360 made HALF of them agree, and this test went red first,
+    exactly there — `"col" not in guest` is now false. v0.24's decision 34
+    splits the claim in two: a POSITION is a fact about the program and is
+    now a contract (`tests/test_parse_error_differential.py`, 43 malformed
+    programs, both sides refusing at the same line and column); WORDING is
+    still a choice and is still not a contract. The test keeps its name
+    because its name is about the half that did not change, and it now
+    pins BOTH halves on the same example round 354 chose, so the sentence
+    above stays checkable rather than becoming a story about a deleted
+    assertion.
     """
     src = 'let x = 1\nx = 2\n'
     host = parse_error(src)
@@ -420,7 +433,13 @@ def test_parse_error_wording_is_not_a_guest_contract():
     esc = src.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
     env = Interpreter().run(lib + 'let out = str(parse_whence("%s"))\n' % esc)
     guest = env.get("out").payload
-    assert "col" in host and "col" not in guest, (host, guest)
+    # v0.24: the position agrees, down to the column round 354 recorded.
+    assert "at line 2, col 3" in host, host
+    assert "at line 2, col 3" in guest, guest
+    # v0.22's hint is host-only, and the noun for the offending token still
+    # differs (`unexpected '='` vs `unexpected token '='`).
+    assert "Whence has no assignment" in host and "Whence has no" not in guest
+    assert "unexpected token" in guest and "unexpected token" not in host
     assert host != guest
 
 

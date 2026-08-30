@@ -130,7 +130,16 @@ def test_self_hosting_real_syntax():
     # assert `"1 2"` PARSES became four (it is refused; the same two
     # statements parse on two lines; the miss names the line; and a token
     # that starts no statement still gets its own error, not this one).
-    assert "112 passed, 0 failed" in r.stdout
+    # Round 360 (v0.24): 112 -> 133, decision 34 -- eight column checks
+    # (every token carries one; the first is 1; EOF is one past the end; a
+    # comment does not stop it advancing; the next line restarts at 1; a
+    # bad escape reports at the backslash; an unterminated string at the
+    # opening quote), two that a parse error says WHERE, eight for the
+    # trailing comma the guest used to permit in six constructs (plus the
+    # two that a comma still separates and an empty one is still empty),
+    # two for the `check` label a miss in a record field used to swallow,
+    # and two that a lex error is reported as itself.
+    assert "133 passed, 0 failed" in r.stdout
     assert "guest lexer+parser for real Whence syntax" in r.stdout
 
 

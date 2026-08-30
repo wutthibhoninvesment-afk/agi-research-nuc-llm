@@ -1,6 +1,6 @@
 # Whence — a provenance-first language
 
-*Spec level: **v0.23** (round 356). The `## vN` sections below are the
+*Spec level: **v0.24** (round 360). The `## vN` sections below are the
 authoritative version list and each names the round that built it; this
 line deliberately no longer enumerates rounds, because the enumeration it
 replaced had said "v0.16.6 + v0.14.2" since round 266 while the file went
@@ -5103,3 +5103,213 @@ why a block inside a call's parens still separates on newlines and
 `examples/effects.lang`'s fix is a normal-looking lambda. It does not change
 any wording the guest and host already disagreed on. And it does not tighten
 the three expression-continuation tokens, for the reason given above.
+
+## v0.24 (round 360, language C) — a position is a fact about the program
+
+Decision 34. Two implementations, one question they had never been asked:
+**where does a program stop being legal?**
+
+The corpus that could answer it did not exist. `test_parser_differential.py`
+(round 320) compares host and guest ASTs and has only ever been fed programs
+that PARSE. `test_lexer_guest_parity.py` (round 350) compares rejection, but
+only the lexer's. Round 354 established, correctly, that host and guest parse
+error WORDING had never agreed and pinned that as a deliberate non-contract.
+What nobody had checked was whether the two parsers refuse the same programs
+at all.
+
+### The rule
+
+For every source text:
+
+1. **Acceptance agrees.** `whence.parser.parse(src)` raises if and only if
+   the guest's `parse_whence(src)` returns a miss — modulo an enumerated set
+   of host-only checks (below), each of which must stay load-bearing.
+2. **On rejection, the position agrees.** Both messages end in
+   `at line L, col C`, and the two `(L, C)` are equal.
+3. **Wording is still not a contract**, deliberately. A position is a fact
+   about the program under analysis; a sentence is a choice about how to
+   describe it. v0.22's five parse-error hints are host-only and this
+   version does not change that.
+
+Rule 2 required the guest lexer to have columns at all, which is where the
+version's findings come from.
+
+### The guest gets columns, and derives them
+
+`lex` gains one parameter, `bol` — the index of the current line's first
+character — and every token's column is `i - bol + 1`. Nothing is tracked;
+the column is computed from the index the lexer already has. `lex_str_body`
+gains `q`, the opening quote's index, and its failure record now carries
+`at`: the absolute index the host's `LexError` reports, which is the QUOTE
+for an unterminated string and the BACKSLASH for a bad escape.
+
+```
+fn lex(s, i, stack, acc, line, bol) {
+  if i >= len(s) { push(acc, @{t: "eof", v: "", line: line, col: i - bol + 1}) }
+  ...
+```
+
+### Finding 1 — the host's column stopped at every comment
+
+`whence/lexer.py` INCREMENTS a `col` counter per character consumed. Its
+comment branch advanced `i` to end of line and left `col` where the `#` was:
+
+```python
+if c == "#":
+    while i < n and src[i] != "\n":
+        i += 1        # col not touched
+    continue
+```
+
+A comment runs to end of line, so the only tokens it can precede are the
+NEWLINE that ends that line and, at end of file, EOF — which is exactly why
+this survived 359 rounds. No test had ever asked for either one's column,
+and until this version there was no second implementation to disagree with.
+
+Measured before the fix: **10 of the 16 git-tracked `examples/*.lang` files**
+held at least one token whose recorded column was wrong. It is user-visible:
+
+```
+let x = (1 # comment
+                    ^ end of input is column 21
+expected ), got None at line 1, col 12        <- v0.23: the `#`
+expected ), got end of input at line 1, col 21 <- v0.24
+```
+
+`tests/test_v24.py` adds the oracle that would have caught it without any
+guest: a token's `(line, col)` must point at the token's own first character
+in the source. That is what a column *means*, and nothing in this repo had
+ever said so. It runs over a hand corpus and all 16 tracked examples.
+
+### Finding 2 — `col 0`
+
+`stmt_list`'s no-rebinding error passed a literal `0`:
+
+```python
+raise ParseError("'%s' is already bound in this block (line %d); "
+                 "Whence has no rebinding" % (name, bound[name]),
+                 s.line, 0)          # every other column here is 1-based
+```
+
+An AST node carries a `line` and no `col`, so there was nothing to pass. The
+fix is one line earlier: `start = self.peek()` before `self.statement()`, so
+the error points at the token the statement begins with. An indented
+rebinding now reports its own column instead of column 0.
+
+### Finding 3 — `None` is not a token the author wrote
+
+The EOF token's `value` is Python `None`, and two sites rendered the
+offending token with `%r`:
+
+```
+unexpected None at line 1, col 10        (`let x = (`)
+expected ), got None at line 1, col 11   (`let x = (1`)
+```
+
+`_show(tok)` returns `"end of input"` for EOF and `repr(tok.value)`
+otherwise, so a string is still quoted and a number still is not. It is
+deliberately NOT `_spell`, and the two must not be merged: `_spell` quotes a
+token back at the author inside a v0.22 HINT, where a string literal keeps
+its own double quotes because the hint is telling them how to write it;
+`_show` names the token that stopped the parse. `_spell` has no EOF case
+because a hint is never about end of input.
+
+No test in 359 rounds asserted either message. That is the finding, not the
+`None`.
+
+### Finding 4 — the guest permitted a trailing comma in six constructs
+
+Six list-like constructs in the shared guest parser wrote their
+closing-bracket test as the after-a-separator test as well:
+
+```
+fn parse_args(toks, pos, acc) {
+  if is_op(toks, pos, ")") { @{args: acc, pos: pos + 1} }    # also reached
+  else { ... if is_op(toks, a.pos, ",") { parse_args(toks, a.pos + 1, acc) } }
+}                                                            # after a comma
+```
+
+so `f(1,)`, `[1, 2,]`, `@{a: 1,}`, `fn f(a,) {}`, `shape P = @{a: num,}` and
+`effects [io,]` all parsed on the guest and are all refused by the host. The
+fix splits each into an entry function (which may see the closer) and a
+`_rest` function (which requires an element) — the shape `whence/parser.py`
+already has. Whence has no trailing-comma tolerance anywhere, and now says so
+twice.
+
+### Finding 5 — a miss in a record field is not a failure
+
+```
+let label = if k.t == "str" { k.v } else { miss "expected a string label..." }
+@{kind: "check", label: label, expr: e.node}
+```
+
+`check 1: 1 == 1` produced a well-formed `check` node whose `label` happened
+to be a miss, and `parse_whence` returned success for a program the host
+refuses. A miss propagates through *operations*, not through *containers* —
+which is correct language semantics and is a trap for a parser whose total-
+error discipline is miss propagation. The fix makes the miss the result.
+
+### Finding 6 — a lex error reported as a token
+
+The guest's `bad` token fell through to `parse_primary`'s catch-all:
+
+```
+guest (v0.23): unexpected token 'unterminated string' at line 1
+host:          unterminated string at line 1, col 9
+```
+
+— the lexer's own sentence wedged into the slot where a token's text goes.
+`whence/lexer.py` raises before `parse` is ever called, so the host says
+nothing about tokens. `parse_whence` now checks for a `bad` token first.
+This is the one error class where host and guest wording is byte-identical,
+because there is nothing to mirror except `LexError`'s own message.
+
+### The host-only exemptions
+
+Two host checks the guest parser does not have, each pinned in
+`test_parse_error_differential.py::HOST_ONLY` with its reason and each
+asserted still-firing in both directions (`skills/measured-exemption`):
+
+| check | why the guest does not have it |
+|---|---|
+| `MAX_NESTING` | a host RESOURCE guard (`_enter` counts Python recursion so a deep expression is a ParseError and not a RecursionError), not a rule of the grammar. The guest runs on the trampoline. |
+| effects (2 raise sites) | parse-time in the host, absent in the guest: `parse_effects_clause` SKIPS `effects [...]` without recording it (round 164). Implementing it needs six scope stacks the guest has no mutation to carry. |
+
+### What this deliberately does NOT do
+
+**It does not unify wording.** Rule 3 is asserted as a fact, not left as a
+comment: `test_wording_is_still_not_a_guest_contract` requires at least ten
+cases with equal positions and different sentences, so a future round cannot
+make rule 3 vacuous without noticing.
+
+**It does not remove the implementation coordinate from guest parse errors.**
+All 43 of them still end in `(line N)` — a line in `self_eval.lang`, not in
+the program being parsed — because `miss <string>` appends the line of the
+`miss` EXPRESSION. That is right for an ordinary program and wrong for a
+program that is itself a parser. Round 350 removed the guest LEXER's one
+instance by returning an `@{err: ...}` record instead of a miss; the parser
+cannot do the same, because miss PROPAGATION *is* its total-error discipline
+— roughly forty functions rely on a miss flowing up through record
+construction, and Whence has no `raise`. Fixing it is a LANGUAGE change with
+two candidate designs, recorded in the round-360 knowledge file. The count is
+pinned so it can only go down.
+
+**It does not give AST nodes a column.** Only the two host sites that had a
+token in hand and threw it away were changed; `Node` still carries `line`
+alone, and widening it is a separate change with its own blast radius.
+
+### Measured
+
+```
+languages/whence  pytest -m "not whence_slow"        1400 passed, 3 skipped
+                                                     (356 baseline 1253)
+                  tests/test_parse_error_differential 147 passed, 3 skipped
+                  tests/test_v24.py                   49 passed
+                  tests/test_lexer_guest_parity.py    82 passed
+                  run.py examples/self_host.lang      133 passed (was 112)
+                  run.py examples/self_eval.lang      142 passed, 0 failed
+host/guest acceptance divergences        9 of 47 -> 2 (both pinned host-only)
+host/guest position divergences          43 of 43 agree
+tracked example files with a wrong token column   10/16 -> 0/16
+host `raise ParseError` sites the corpus reaches  20/20
+```

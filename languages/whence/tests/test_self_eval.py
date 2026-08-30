@@ -200,12 +200,19 @@ def test_parser_section_matches_self_host():
     # `@{err: ...}` record instead of a `miss` literal whose reason
     # carried a line number out of THIS file; round 356: 800 to 830, the
     # v0.23 statement-separator rule (`stmt_start_kws`/`stmt_start_ops`/
-    # `starts_stmt` plus the two-branch check in `parse_stmt_list`)
+    # `starts_stmt` plus the two-branch check in `parse_stmt_list`);
+    # round 360: 830 to 912, v0.24 decision 34 -- a `col` on every token
+    # (`lex` threads `bol`, `lex_str_body` returns the offending index),
+    # `tok_at` and a position clause on all fifteen parse errors, SIX
+    # after-a-separator splits (`parse_args_rest`/`parse_list_rest`/
+    # `parse_record_rest`/`parse_params_rest`/`parse_shape_fields_rest`/
+    # `skip_effect_names_rest`) that stop a trailing comma the host
+    # refuses, and `lex_error_of` so a lex error is reported as itself
     host_lines = open(SELF_HOST).read().splitlines()
-    section = "\n".join(host_lines[27:830])
+    section = "\n".join(host_lines[27:912])
     assert section.startswith("# ---- character classes")
     assert section.rstrip().endswith(
-        "fn parse_whence(src) { parse_program(lex_all(src)) }")
+        'if le != "" { miss le } else { parse_program(toks) }\n}')
     assert section in open(EXAMPLE).read()
 
 
@@ -802,11 +809,36 @@ SHAPE_PARSE_ERRORS = [
 ]
 
 LINE_SUFFIX = re.compile(r" \(line \d+\)")
+# v0.24 (round 360): a guest parse error also ends with the POSITION clause
+# `whence/parser.py`'s ParseError has always appended, and `host_parse_error`
+# below strips the host's with `.split(" at line ")`. Stripped here for the
+# same reason: these cases compare WORDING, which v0.24 deliberately left as
+# the one thing host and guest still do not agree on. The positions are
+# compared, and required to be EQUAL, by
+# `tests/test_parse_error_differential.py` and by the assertion added to
+# `test_shape_declaration_errors_agree_host_vs_guest_by_wording`.
+POSITION_CLAUSE = re.compile(r" at line \d+, col \d+")
 
 
 def guest_reason(payload):
     assert isinstance(payload, Miss), payload
-    return LINE_SUFFIX.sub("", payload.reasons[0])
+    return POSITION_CLAUSE.sub("", LINE_SUFFIX.sub("", payload.reasons[0]))
+
+
+def guest_position(payload):
+    """The (line, col) a v0.24 guest parse error ends with."""
+    assert isinstance(payload, Miss), payload
+    found = re.findall(r" at line (\d+), col (\d+)", payload.reasons[0])
+    return (int(found[-1][0]), int(found[-1][1])) if found else None
+
+
+def host_parse_position(src):
+    """The (line, col) the host refuses `src` at. v0.24 (round 360)."""
+    try:
+        Interpreter().run(src)
+    except (ParseError, LexError) as e:
+        return (e.line, e.col)
+    return None
 
 
 def host_parse_error(src):
@@ -874,11 +906,21 @@ def test_shape_declaration_errors_agree_host_vs_guest_by_wording():
     sources = [src for src, _ in SHAPE_PARSE_ERRORS]
     guest = guest_eval_all(sources)
     bad = []
+    misplaced = []
     for (src, want), g in zip(SHAPE_PARSE_ERRORS, guest):
         assert host_parse_error(src) == want, (src, host_parse_error(src))
         if guest_reason(g.payload) != want:
             bad.append((src, want, g.payload.reasons[0]))
+        # v0.24 (round 360): these six were the LAST guest parse errors with
+        # no position at all — `duplicate field 'x'`, `unknown type 'Foo'`
+        # and friends were bare sentences. Now that they carry one, it must
+        # be the host's, or this file's wording agreement would be hiding a
+        # disagreement about WHERE.
+        if guest_position(g.payload) != host_parse_position(src):
+            misplaced.append((src, host_parse_position(src),
+                              guest_position(g.payload)))
     assert bad == [], bad
+    assert misplaced == [], misplaced
 
 
 @pytest.mark.whence_slow

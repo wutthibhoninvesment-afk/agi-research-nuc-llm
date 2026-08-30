@@ -167,17 +167,24 @@ fn suppressed(stack, acc) {
 # file was edited. A plain record carries the message the host's `LexError`
 # carries and nothing else. The `""` sentinel below is safe because every
 # valid escape decodes to exactly one character.
-fn lex_str_body(s, i, acc) {
-  if i >= len(s) { @{err: "unterminated string"} }
+# v0.24 (round 360): the failure side also carries `at`, the ABSOLUTE
+# index the host's `LexError` reports, because host and guest now have to
+# agree on a COLUMN and not just on a sentence. The host reports an
+# unterminated string at the OPENING QUOTE (`start_col`, captured before
+# the scan) and a bad escape at the BACKSLASH (the live `col`), so `q` --
+# the quote's index, passed in by the caller -- is what the three
+# unterminated arms return and `i` is what the escape arm returns.
+fn lex_str_body(s, i, acc, q) {
+  if i >= len(s) { @{err: "unterminated string", at: q} }
   # v0.21 (round 350): a RAW newline inside a string literal ends the string
   # unterminated -- whence/lexer.py's `if i >= n or src[i] == "\\n"` has said
   # so since its first commit, and this guest had only the `i >= len(s)`
   # half, so it happily consumed across the line break and produced a
   # multi-line string token the host refuses outright.
-  else if s[i] == "\n" { @{err: "unterminated string"} }
+  else if s[i] == "\n" { @{err: "unterminated string", at: q} }
   else if s[i] == "\"" { @{v: acc, pos: i + 1} }
   else if s[i] == "\\" {
-    if i + 1 >= len(s) { @{err: "unterminated string"} }
+    if i + 1 >= len(s) { @{err: "unterminated string", at: q} }
     else {
       let e = s[i + 1]
       let ch = if e == "n" { "\n" }
@@ -186,24 +193,36 @@ fn lex_str_body(s, i, acc) {
         else if e == "\"" { "\"" }
         else if e == "\\" { "\\" }
         else { "" }
-      if ch == "" { @{err: "bad escape '\\" + e + "'"} }
-      else { lex_str_body(s, i + 2, acc + ch) }
+      if ch == "" { @{err: "bad escape '\\" + e + "'", at: i} }
+      else { lex_str_body(s, i + 2, acc + ch, q) }
     }
   }
-  else { lex_str_body(s, i + 1, acc + s[i]) }
+  else { lex_str_body(s, i + 1, acc + s[i], q) }
 }
 
-# lex(s, i, stack, acc, line) -> final token list (acc grows via push, which
-# is O(1) amortized on the tip of a shared-buffer WList — round 7's finding).
-fn lex(s, i, stack, acc, line) {
-  if i >= len(s) { push(acc, @{t: "eof", v: "", line: line}) }
-  else if s[i] == "#" { lex(s, scan_while(s, i, fn(c) { c != "\n" }), stack, acc, line) }
+# lex(s, i, stack, acc, line, bol) -> final token list (acc grows via push,
+# which is O(1) amortized on the tip of a shared-buffer WList — round 7's
+# finding).
+#
+# v0.24 (round 360): `bol` is the index of the current line's FIRST
+# character, and every token's column is `i - bol + 1` — derived from the
+# index it already has, never tracked. That is the whole reason this guest
+# found a bug in `whence/lexer.py` the day it grew columns: the host
+# INCREMENTS a `col` counter per character consumed, and its `#` branch
+# advanced `i` to end of line without advancing `col`, so the NEWLINE (or
+# EOF) token after a comment carried the `#`'s column. A derived column
+# cannot forget to advance. 10 of the 16 git-tracked `examples/*.lang`
+# files held at least one such token; see SPEC.md § v0.24.
+fn lex(s, i, stack, acc, line, bol) {
+  if i >= len(s) { push(acc, @{t: "eof", v: "", line: line, col: i - bol + 1}) }
+  else if s[i] == "#" { lex(s, scan_while(s, i, fn(c) { c != "\n" }), stack, acc, line, bol) }
   else if s[i] == "\n" {
     let last_is_nl = len(acc) > 0 and acc[len(acc) - 1].t == "nl"
     if suppressed(stack, acc) or last_is_nl or len(acc) == 0 {
-      lex(s, i + 1, stack, acc, line + 1)
+      lex(s, i + 1, stack, acc, line + 1, i + 1)
     } else {
-      lex(s, i + 1, stack, push(acc, @{t: "nl", v: "\n", line: line}), line + 1)
+      lex(s, i + 1, stack, push(acc, @{t: "nl", v: "\n", line: line, col: i - bol + 1}),
+          line + 1, i + 1)
     }
   }
   # `\r` joined this branch in v0.21 (round 350). whence/lexer.py skips a
@@ -212,47 +231,66 @@ fn lex(s, i, stack, acc, line) {
   # character` at the first CR. It could not have been written before
   # v0.21 added the `\\r` ESCAPE -- until then Whence had no way to
   # spell the character this line compares against.
-  else if s[i] == " " or s[i] == "\t" or s[i] == "\r" { lex(s, i + 1, stack, acc, line) }
+  else if s[i] == " " or s[i] == "\t" or s[i] == "\r" { lex(s, i + 1, stack, acc, line, bol) }
   else if is_digit(s[i]) {
     let j0 = scan_while(s, i, is_digit)
     let has_frac = j0 + 1 < len(s) and s[j0] == "." and is_digit(s[j0 + 1])
     let j1 = if has_frac { scan_while(s, j0 + 1, is_digit) } else { j0 }
     let j = exp_end(s, j1)
-    lex(s, j, stack, push(acc, @{t: "num", v: lit_num(slice(s, i, j)), line: line}), line)
+    lex(s, j, stack, push(acc, @{t: "num", v: lit_num(slice(s, i, j)), line: line,
+                                 col: i - bol + 1}), line, bol)
   }
   else if is_name_start(s[i]) {
     let j = scan_while(s, i, is_name_cont)
     let word = slice(s, i, j)
     let kind = if contains(keywords, word) { "kw" } else { "name" }
-    lex(s, j, stack, push(acc, @{t: kind, v: word, line: line}), line)
+    lex(s, j, stack, push(acc, @{t: kind, v: word, line: line, col: i - bol + 1}),
+        line, bol)
   }
   else if s[i] == "\"" {
-    let r = lex_str_body(s, i + 1, "")
+    let r = lex_str_body(s, i + 1, "", i)
     # v0.21 (round 350): `has(r, "err")` replaces `missed(r)`, and the bad
     # token now carries the bare message (see `lex_str_body`'s header) --
     # byte-identical to what whence/lexer.py's `LexError` carries, minus
     # the position, which a guest token has no field for.
-    if has(r, "err") { push(acc, @{t: "bad", v: r.err, line: line}) }
-    else { lex(s, r.pos, stack, push(acc, @{t: "str", v: r.v, line: line}), line) }
+    if has(r, "err") { push(acc, @{t: "bad", v: r.err, line: line, col: r.at - bol + 1}) }
+    else { lex(s, r.pos, stack, push(acc, @{t: "str", v: r.v, line: line, col: i - bol + 1}),
+               line, bol) }
   }
   else if i + 1 < len(s) and contains(two_char_ops, s[i] + s[i + 1]) {
     let op = s[i] + s[i + 1]
     let stack2 = if op == "@{" { stack + ["@{"] } else { stack }
-    lex(s, i + 2, stack2, push(acc, @{t: "op", v: op, line: line}), line)
+    lex(s, i + 2, stack2, push(acc, @{t: "op", v: op, line: line, col: i - bol + 1}),
+        line, bol)
   }
   else if contains(one_char_ops, s[i]) {
     let c = s[i]
     let stack2 = if c == "(" or c == "[" or c == "{" { stack + [c] }
       else if c == ")" or c == "]" or c == "}" { pop_last(stack) }
       else { stack }
-    lex(s, i + 1, stack2, push(acc, @{t: "op", v: c, line: line}), line)
+    lex(s, i + 1, stack2, push(acc, @{t: "op", v: c, line: line, col: i - bol + 1}),
+        line, bol)
   }
-  else { push(acc, @{t: "bad", v: "unexpected character '" + s[i] + "'", line: line}) }
+  else { push(acc, @{t: "bad", v: "unexpected character '" + s[i] + "'", line: line,
+                     col: i - bol + 1}) }
 }
-fn lex_all(s) { lex(s, 0, [], [], 1) }
+fn lex_all(s) { lex(s, 0, [], [], 1, 0) }
 
 # ---- token helpers ------------------------------------------------------
-fn t_at(toks, pos) { if pos < len(toks) { toks[pos] } else { @{t: "eof", v: "", line: 0} } }
+fn t_at(toks, pos) {
+  if pos < len(toks) { toks[pos] } else { @{t: "eof", v: "", line: 0, col: 0} }
+}
+# v0.24 (round 360), decision 34. The clause every guest parse error ends
+# with, in `whence/parser.py`'s own `ParseError` format ("%s at line %d,
+# col %d") and built from the OFFENDING TOKEN. Wording is still not a
+# host/guest contract (round 354 established that it never was); WHERE a
+# program stops being legal now is, and `tests/test_parse_error_
+# differential.py` compares exactly this suffix.
+fn tok_at(toks, pos) {
+  let k = t_at(toks, pos)
+  " at line " + str(k.line) + ", col " + str(k.col)
+}
+
 fn is_op(toks, pos, o) { let k = t_at(toks, pos)
   k.t == "op" and k.v == o }
 fn is_kw(toks, pos, w) { let k = t_at(toks, pos)
@@ -262,12 +300,13 @@ fn is_ntype(toks, pos, ty) { t_at(toks, pos).t == ty }
 
 fn expect_op(toks, pos, o) {
   if is_op(toks, pos, o) { pos + 1 }
-  else { miss ("expected '" + o + "', got '" + str(t_at(toks, pos).v) +
-               "' at line " + str(t_at(toks, pos).line)) }
+  else { miss ("expected '" + o + "', got '" + str(t_at(toks, pos).v) + "'" +
+               tok_at(toks, pos)) }
 }
 fn expect_name(toks, pos) {
   let k = t_at(toks, pos)
-  if k.t == "name" { @{name: k.v, pos: pos + 1} } else { miss "expected a name" }
+  if k.t == "name" { @{name: k.v, pos: pos + 1} }
+  else { miss ("expected a name" + tok_at(toks, pos)) }
 }
 
 # ---- expression parser (precedence low -> high, mirrors whence/parser.py) --
@@ -322,7 +361,7 @@ fn parse_cmp(toks, pos) {
     let right = parse_add(toks, left.pos + 1)
     let k2 = t_at(toks, right.pos)
     if k2.t == "op" and contains(cmp_ops, k2.v) {
-      miss ("comparisons do not chain; use 'and' at line " + str(k2.line))
+      miss ("comparisons do not chain; use 'and'" + tok_at(toks, right.pos))
     } else {
       @{node: @{kind: "binary", op: k.v, left: left.node, right: right.node}, pos: right.pos}
     }
@@ -381,16 +420,26 @@ fn parse_postfix_rest(expr, toks, pos) {
     parse_postfix_rest(@{kind: "field", obj: expr, name: fld.name}, toks, fld.pos)
   } else { @{node: expr, pos: pos} }
 }
+# v0.24 (round 360): `parse_args_rest` exists so that the empty-list test
+# is the ENTRY branch and not also the after-a-comma branch. Before the
+# split, `f(1,)` recursed back into `parse_args`, met `)`, and returned a
+# one-argument call -- the host refuses it (`unexpected ')'`). Same edit in
+# `parse_list_lit`, `parse_record_lit`, `parse_params`, `parse_shape_fields`
+# and `skip_effect_names`: FIVE list-like constructs plus the effects
+# clause, all silently more permissive than the host, none of them visible
+# to any differential this program had, because every corpus it ever fed
+# the two parsers held only programs that PARSE.
 fn parse_args(toks, pos, acc) {
   if is_op(toks, pos, ")") { @{args: acc, pos: pos + 1} }
+  else { parse_args_rest(toks, pos, acc) }
+}
+fn parse_args_rest(toks, pos, acc) {
+  let a = parse_expr(toks, pos)
+  let acc2 = push(acc, a.node)
+  if is_op(toks, a.pos, ",") { parse_args_rest(toks, a.pos + 1, acc2) }
   else {
-    let a = parse_expr(toks, pos)
-    let acc2 = push(acc, a.node)
-    if is_op(toks, a.pos, ",") { parse_args(toks, a.pos + 1, acc2) }
-    else {
-      let after = expect_op(toks, a.pos, ")")
-      @{args: acc2, pos: after}
-    }
+    let after = expect_op(toks, a.pos, ")")
+    @{args: acc2, pos: after}
   }
 }
 
@@ -420,33 +469,35 @@ fn parse_primary(toks, pos) {
               body: body0.node},
       pos: body0.pos}
   }
-  else { miss ("unexpected token '" + str(k.v) + "' at line " + str(k.line)) }
+  else { miss ("unexpected token '" + str(k.v) + "'" + tok_at(toks, pos)) }
 }
 
 fn parse_list_lit(toks, pos, acc) {
   if is_op(toks, pos, "]") { @{node: @{kind: "list", items: acc}, pos: pos + 1} }
-  else {
-    let it = parse_expr(toks, pos)
-    let acc2 = push(acc, it.node)
-    if is_op(toks, it.pos, ",") { parse_list_lit(toks, it.pos + 1, acc2) }
-    else { @{node: @{kind: "list", items: acc2}, pos: expect_op(toks, it.pos, "]")} }
-  }
+  else { parse_list_rest(toks, pos, acc) }
+}
+fn parse_list_rest(toks, pos, acc) {
+  let it = parse_expr(toks, pos)
+  let acc2 = push(acc, it.node)
+  if is_op(toks, it.pos, ",") { parse_list_rest(toks, it.pos + 1, acc2) }
+  else { @{node: @{kind: "list", items: acc2}, pos: expect_op(toks, it.pos, "]")} }
 }
 fn parse_record_lit(toks, pos, acc, seen) {
   if is_op(toks, pos, "}") { @{node: @{kind: "record", pairs: acc}, pos: pos + 1} }
-  else {
-    let key = expect_name(toks, pos)
-    let dup = contains(seen, key.name)
-    let after_colon = expect_op(toks, key.pos, ":")
-    let val = parse_expr(toks, after_colon)
-    let pair = @{name: key.name, value: val.node}
-    let acc2 = push(acc, pair)
-    let seen2 = push(seen, key.name)
-    let step = if dup { miss ("duplicate field '" + key.name + "'") }
-      else if is_op(toks, val.pos, ",") { parse_record_lit(toks, val.pos + 1, acc2, seen2) }
-      else { @{node: @{kind: "record", pairs: acc2}, pos: expect_op(toks, val.pos, "}")} }
-    step
-  }
+  else { parse_record_rest(toks, pos, acc, seen) }
+}
+fn parse_record_rest(toks, pos, acc, seen) {
+  let key = expect_name(toks, pos)
+  let dup = contains(seen, key.name)
+  let after_colon = expect_op(toks, key.pos, ":")
+  let val = parse_expr(toks, after_colon)
+  let pair = @{name: key.name, value: val.node}
+  let acc2 = push(acc, pair)
+  let seen2 = push(seen, key.name)
+  let step = if dup { miss ("duplicate field '" + key.name + "'" + tok_at(toks, pos)) }
+    else if is_op(toks, val.pos, ",") { parse_record_rest(toks, val.pos + 1, acc2, seen2) }
+    else { @{node: @{kind: "record", pairs: acc2}, pos: expect_op(toks, val.pos, "}")} }
+  step
 }
 
 # ---- params, blocks, if -----------------------------------------------------
@@ -570,7 +621,7 @@ fn expect_type_name(toks, pos) {
   let k = t_at(toks, pos)
   let name = if k.t == "kw" and k.v == "fn" { "fn" }
     else if k.t == "name" { k.v } else { "" }
-  if name == "" { miss ("expected a type name at line " + str(k.line)) }
+  if name == "" { miss ("expected a type name" + tok_at(toks, pos)) }
   else if contains(guest_primitive_types, name) {
     @{type: name, spec: spec_node(name), pos: pos + 1}
   }
@@ -578,9 +629,9 @@ fn expect_type_name(toks, pos) {
     @{type: name, spec: name_node(name), pos: pos + 1}
   }
   else if contains(shapes_before(toks, pos, "any", 0, []), name) {
-    miss ("type '" + name + "' is not in scope here")
+    miss ("type '" + name + "' is not in scope here" + tok_at(toks, pos))
   }
-  else { miss ("unknown type '" + name + "'") }
+  else { miss ("unknown type '" + name + "'" + tok_at(toks, pos)) }
 }
 
 # optional `TRIGGER TAG` (`:` for a param, `->` for a return type); absent
@@ -598,18 +649,19 @@ fn parse_typed_suffix(toks, pos, trigger) {
 }
 
 fn parse_params(toks, pos, acc, tacc) {
-  let after_paren = if len(acc) == 0 { expect_op(toks, pos, "(") } else { pos }
+  let after_paren = expect_op(toks, pos, "(")
   if is_op(toks, after_paren, ")") { @{params: acc, types: tacc, pos: after_paren + 1} }
-  else {
-    let nm = expect_name(toks, after_paren)
-    let dup = contains(acc, nm.name)
-    let acc2 = push(acc, nm.name)
-    let tr = parse_typed_suffix(toks, nm.pos, ":")
-    let tacc2 = push(tacc, tr.spec)
-    if dup { miss ("duplicate parameter '" + nm.name + "'") }
-    else if is_op(toks, tr.pos, ",") { parse_params(toks, tr.pos + 1, acc2, tacc2) }
-    else { @{params: acc2, types: tacc2, pos: expect_op(toks, tr.pos, ")")} }
-  }
+  else { parse_params_rest(toks, after_paren, acc, tacc) }
+}
+fn parse_params_rest(toks, pos, acc, tacc) {
+  let nm = expect_name(toks, pos)
+  let dup = contains(acc, nm.name)
+  let acc2 = push(acc, nm.name)
+  let tr = parse_typed_suffix(toks, nm.pos, ":")
+  let tacc2 = push(tacc, tr.spec)
+  if dup { miss ("duplicate parameter '" + nm.name + "'" + tok_at(toks, pos)) }
+  else if is_op(toks, tr.pos, ",") { parse_params_rest(toks, tr.pos + 1, acc2, tacc2) }
+  else { @{params: acc2, types: tacc2, pos: expect_op(toks, tr.pos, ")")} }
 }
 
 # ---- parameter contracts (v0.19 guest parity, round 344) -------------------
@@ -692,20 +744,23 @@ fn parse_effects_clause(toks, pos) {
 
 fn skip_effect_names(toks, pos) {
   if is_op(toks, pos, "]") { pos + 1 }
-  else {
-    let nm = expect_name(toks, pos)
-    if is_op(toks, nm.pos, ",") { skip_effect_names(toks, nm.pos + 1) }
-    else { expect_op(toks, nm.pos, "]") }
-  }
+  else { skip_effect_names_rest(toks, pos) }
+}
+fn skip_effect_names_rest(toks, pos) {
+  let nm = expect_name(toks, pos)
+  if is_op(toks, nm.pos, ",") { skip_effect_names_rest(toks, nm.pos + 1) }
+  else { expect_op(toks, nm.pos, "]") }
 }
 
 fn parse_block(toks, pos) {
   let open = expect_op(toks, pos, "{")
   let sl = parse_stmt_list(toks, skip_nl(toks, open), "}", [], [])
   let after = expect_op(toks, sl.pos, "}")
-  if len(sl.stmts) == 0 { miss "block must contain at least one expression" }
+  if len(sl.stmts) == 0 {
+    miss ("block must contain at least one expression" + tok_at(toks, pos))
+  }
   else if (sl.stmts[len(sl.stmts) - 1]).kind != "exprstmt" {
-    miss "block must end with an expression"
+    miss ("block must end with an expression" + tok_at(toks, sl.pos))
   } else { @{node: @{kind: "block", stmts: sl.stmts}, pos: after} }
 }
 
@@ -748,7 +803,7 @@ fn parse_stmt_list(toks, pos, end, acc, bound) {
     let nm = if s.node.kind == "let" or s.node.kind == "fndef" { s.node.name } else { "" }
     let dup = nm != "" and contains(bound, nm)
     let bound2 = if nm != "" { push(bound, nm) } else { bound }
-    if dup { miss ("'" + nm + "' already bound") }
+    if dup { miss ("'" + nm + "' already bound" + tok_at(toks, pos)) }
     else {
       let acc2 = push(acc, s.node)
       let after = skip_nl(toks, s.pos)
@@ -758,7 +813,7 @@ fn parse_stmt_list(toks, pos, end, acc, bound) {
       # the last.
       if at_end(toks, after, end) { @{stmts: acc2, pos: after} }
       else if after == s.pos and starts_stmt(toks, after) {
-        miss ("two statements on one line at line " + str(t_at(toks, after).line))
+        miss ("two statements on one line" + tok_at(toks, after))
       }
       else { parse_stmt_list(toks, after, end, acc2, bound2) }
     }
@@ -780,17 +835,18 @@ fn parse_stmt_list(toks, pos, end, acc, bound) {
 # `fields` became, exactly like every other parse failure in this file.
 fn parse_shape_fields(toks, pos, acc, seen) {
   if is_op(toks, pos, "}") { @{pairs: acc, pos: pos + 1} }
-  else {
-    let f = expect_name(toks, pos)
-    let dup = contains(seen, f.name)
-    let after_colon = expect_op(toks, f.pos, ":")
-    let ft = expect_type_name(toks, after_colon)
-    let acc2 = push(acc, @{name: f.name, value: ft.spec})
-    let seen2 = push(seen, f.name)
-    if dup { miss ("duplicate field '" + f.name + "'") }
-    else if is_op(toks, ft.pos, ",") { parse_shape_fields(toks, ft.pos + 1, acc2, seen2) }
-    else { @{pairs: acc2, pos: expect_op(toks, ft.pos, "}")} }
-  }
+  else { parse_shape_fields_rest(toks, pos, acc, seen) }
+}
+fn parse_shape_fields_rest(toks, pos, acc, seen) {
+  let f = expect_name(toks, pos)
+  let dup = contains(seen, f.name)
+  let after_colon = expect_op(toks, f.pos, ":")
+  let ft = expect_type_name(toks, after_colon)
+  let acc2 = push(acc, @{name: f.name, value: ft.spec})
+  let seen2 = push(seen, f.name)
+  if dup { miss ("duplicate field '" + f.name + "'" + tok_at(toks, pos)) }
+  else if is_op(toks, ft.pos, ",") { parse_shape_fields_rest(toks, ft.pos + 1, acc2, seen2) }
+  else { @{pairs: acc2, pos: expect_op(toks, ft.pos, "}")} }
 }
 
 fn parse_shape_def(toks, pos) {
@@ -800,10 +856,11 @@ fn parse_shape_def(toks, pos) {
   let head = @{name: "__shape", value: spec_node(nm.name)}
   let fields = parse_shape_fields(toks, after_brace, [head], [])
   if contains(guest_primitive_types, nm.name) {
-    miss ("'" + nm.name + "' is a reserved type name")
+    miss ("'" + nm.name + "' is a reserved type name" + tok_at(toks, pos + 1))
   }
   else if contains(shapes_before(toks, pos, "block", 0, []), nm.name) {
-    miss ("shape '" + nm.name + "' is already declared in this block")
+    miss ("shape '" + nm.name + "' is already declared in this block" +
+          tok_at(toks, pos + 1))
   }
   else {
     @{node: @{kind: "let", name: nm.name,
@@ -832,11 +889,21 @@ fn parse_stmt(toks, pos) {
       pos: body0.pos}
   }
   else if is_kw(toks, pos, "check") {
+    # v0.24 (round 360): the miss is the RESULT, not a field of it. It used
+    # to be bound to `label` and stored in the node -- a miss inside a
+    # record field is an ordinary value, so `check 1: 1 == 1` produced a
+    # perfectly good `check` node whose label happened to be a failure, and
+    # `parse_whence` returned success for a program the host refuses. The
+    # only acceptance divergence in this file that was a MISSING refusal
+    # rather than an over-permissive grammar rule.
     let k = t_at(toks, pos + 1)
-    let label = if k.t == "str" { k.v } else { miss "expected a string label after 'check'" }
-    let after_colon = expect_op(toks, pos + 2, ":")
-    let e = parse_expr(toks, after_colon)
-    @{node: @{kind: "check", label: label, expr: e.node}, pos: e.pos}
+    if k.t != "str" {
+      miss ("expected a string label after 'check'" + tok_at(toks, pos + 1))
+    } else {
+      let after_colon = expect_op(toks, pos + 2, ":")
+      let e = parse_expr(toks, after_colon)
+      @{node: @{kind: "check", label: k.v, expr: e.node}, pos: e.pos}
+    }
   }
   else if is_shape_head(toks, pos) { parse_shape_def(toks, pos) }
   else {
@@ -856,7 +923,7 @@ fn parse_if(toks, pos) {
     @{node: @{kind: "if", cond: cond.node, then: then.node, otherwise: other.node},
       pos: other.pos}
   } else {
-    miss ("'if' requires 'else' at line " + str(t_at(toks, after_then).line))
+    miss ("'if' requires 'else'" + tok_at(toks, after_then))
   }
 }
 
@@ -864,9 +931,24 @@ fn parse_if(toks, pos) {
 fn parse_program(toks) {
   let sl = parse_stmt_list(toks, skip_nl(toks, 0), "eof", [], [])
   if is_ntype(toks, sl.pos, "eof") { @{kind: "program", stmts: sl.stmts} }
-  else { miss ("trailing input at token " + str(sl.pos)) }
+  else { miss ("trailing input" + tok_at(toks, sl.pos)) }
 }
-fn parse_whence(src) { parse_program(lex_all(src)) }
+# v0.24 (round 360): a LEX error is reported as a lex error. The `bad`
+# token used to fall through to `parse_primary`'s catch-all, which reported
+# `unexpected token 'unterminated string' at line 1` -- the lexer's message
+# wedged into the slot where a token's TEXT goes. `whence/lexer.py` raises
+# before `parse` is ever called, so the host says `unterminated string at
+# line 1, col 9` and nothing about tokens; `lex` stops at the first bad
+# character, so the bad token is always the last one.
+fn lex_error_of(toks) {
+  let last = t_at(toks, len(toks) - 1)
+  if last.t == "bad" { last.v + tok_at(toks, len(toks) - 1) } else { "" }
+}
+fn parse_whence(src) {
+  let toks = lex_all(src)
+  let le = lex_error_of(toks)
+  if le != "" { miss le } else { parse_program(toks) }
+}
 
 # ==== EVALUATOR (self-hosting rounds 4+5) ===================================
 

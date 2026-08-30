@@ -394,7 +394,11 @@ def test_the_guest_miss_names_the_line_the_second_statement_is_on():
 
 @pytest.mark.whence_slow
 def test_both_self_hosting_examples_still_run_green():
-    for name, expected in (("self_host.lang", "112 passed, 0 failed"),
+    # round 360 (v0.24): 112 -> 133 in self_host.lang, decision 34's own
+    # 21 checkpoint checks. self_eval.lang is unchanged at 142: its checks
+    # exercise the guest EVALUATOR, and v0.24 touched the shared PARSER
+    # section only.
+    for name, expected in (("self_host.lang", "133 passed, 0 failed"),
                            ("self_eval.lang", "142 passed, 0 failed")):
         r = subprocess.run(
             [sys.executable, os.path.join(ROOT, "run.py"),

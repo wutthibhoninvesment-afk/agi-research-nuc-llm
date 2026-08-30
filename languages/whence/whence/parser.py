@@ -105,6 +105,29 @@ def _spell(tok):
     return "%s" % (tok.value,)
 
 
+def _show(tok):
+    """How a token is NAMED in the body of an error message.
+
+    v0.24 (round 360). Two sites rendered the offending token with `%r`
+    straight off `tok.value`, and the EOF token's value is Python `None` --
+    an object of the implementation, not anything the author wrote. So
+    `let x = (` reported `unexpected None at line 1, col 10` and
+    `let x = (1` reported `expected ), got None`. Everything else is
+    unchanged: `%r` of a string still quotes it (`got '='`), of a number
+    still does not (`got 1`).
+
+    This is NOT `_spell`, and the two must not be merged. `_spell` quotes a
+    token back at the author INSIDE A HINT, where a string literal is shown
+    with its own double quotes because the hint is telling them how to
+    write it; `_show` names the token that stopped the parse. `_spell` has
+    no EOF case because a hint is never about end of input -- v0.22's five
+    hints all fire on a token the author typed.
+    """
+    if tok.type == "EOF":
+        return "end of input"
+    return repr(tok.value)
+
+
 def _with_hint(message, hint):
     return message if hint is None else "%s (%s)" % (message, hint)
 
@@ -403,7 +426,7 @@ class Parser(object):
         if not self.at(type_, value):
             want = what or (value if value is not None else type_)
             raise ParseError(
-                _with_hint("expected %s, got %r" % (want, tok.value),
+                _with_hint("expected %s, got %s" % (want, _show(tok)),
                            self._expect_hint(want, tok)),
                 tok.line, tok.col)
         return self.next()
@@ -542,6 +565,15 @@ class Parser(object):
                         _with_hint("two statements on one line",
                                    self._separator_hint(tok)),
                         tok.line, tok.col)
+                # v0.24 (round 360): the token the statement STARTS at,
+                # captured before parsing it, is what the no-rebinding
+                # error points at. It used to pass a literal `0` for the
+                # column -- every other column in this file is 1-based, and
+                # `col 0` is not a position in any source file. The LINE is
+                # unchanged (a `let`/`fn` node's `line` is its head token's
+                # line), which `test_v24.py` pins so this stays a column fix
+                # and not a quiet relocation of the whole message.
+                start = self.peek()
                 s = self.statement()
                 name = getattr(s, "name", None) if isinstance(s, (A.Let, A.FnDef)) else None
                 if name is not None:
@@ -549,7 +581,7 @@ class Parser(object):
                         raise ParseError(
                             "'%s' is already bound in this block (line %d); "
                             "Whence has no rebinding" % (name, bound[name]),
-                            s.line, 0)
+                            start.line, start.col)
                     bound[name] = s.line
                 stmts.append(s)
                 started = True
@@ -1994,7 +2026,7 @@ class Parser(object):
             return A.FnExpr(tok.line, params, body, ret_type,
                             param_call_fact, param_types)
         raise ParseError(
-            _with_hint("unexpected %r" % (tok.value,),
+            _with_hint("unexpected %s" % (_show(tok),),
                        _SYNTAX_HINTS.get(tok.value)), tok.line, tok.col)
 
     def if_expr(self):

@@ -97,7 +97,7 @@ EXAMPLE = os.path.join(ROOT, "examples", "self_eval.lang")
 SELF_HOST = os.path.join(ROOT, "examples", "self_host.lang")
 EFFECTS = os.path.join(ROOT, "examples", "effects.lang")
 MARKER = "# ==== SELF-TESTS"
-LIB_START, LIB_END = 27, 830  # self_host.lang lines 28..830 (0-indexed slice)
+LIB_START, LIB_END = 27, 912  # self_host.lang lines 28..912 (0-indexed slice)
 
 
 def eval_library_source():
@@ -111,7 +111,7 @@ def self_host_library_section():
     section = "".join(lines[LIB_START:LIB_END])
     assert section.startswith("# ---- character classes")
     assert section.rstrip().endswith(
-        "fn parse_whence(src) { parse_program(lex_all(src)) }")
+        'if le != "" { miss le } else { parse_program(toks) }\n}')
     return section
 
 
@@ -154,13 +154,18 @@ def test_guest_parser_parses_its_own_full_source():
     # statement-separator rule adds three statements to the shared LIBRARY
     # (`stmt_start_kws`, `stmt_start_ops`, `starts_stmt`, so this count and
     # `LIB_END` move together again), and the self-test that used to assert
-    # `"1 2"` PARSES becomes four checks that assert it does not;
+    # `"1 2"` PARSES becomes four checks that assert it does not; round 360:
+    # +32 -- v0.24 adds SIX after-a-separator parser functions plus
+    # `tok_at` and `lex_error_of` to the shared LIBRARY (so this count and
+    # `LIB_END` move together a third time), and 21 new checkpoint checks
+    # plus three `let`s (`cx`, `cc`, `ue`) for the column, the six
+    # trailing-comma refusals and the lex-error-as-itself rule;
     # pin the exact count so a
     # silent structural regression (e.g. two statements merging into one)
     # fails loudly even though `__ok` alone would not catch it. That failure
     # mode is no longer hypothetical: v0.23 is the version that made two
     # statements merging into one a parse error rather than a silent merge.
-    assert env.get("__nstmts").payload == 218
+    assert env.get("__nstmts").payload == 250
 
 
 @pytest.mark.whence_slow

@@ -22,14 +22,23 @@ THE CONTRACT (SPEC.md `## v0.21`)
 
   1. ACCEPTANCE AGREES. `tokenize(src)` raises a `LexError` if and only if
      `lex_all(src)` ends in a `bad` token. Never one without the other.
-  2. ON ACCEPTANCE, THE STREAMS ARE EQUAL — kind, value and line, element
-     for element, EOF included, under the normalisation in `KIND` below.
-  3. ON REJECTION, THE MESSAGES ARE EQUAL, minus the position (a guest
-     token has no column field). Two characters are exempt and pinned by
+  2. ON ACCEPTANCE, THE STREAMS ARE EQUAL — kind, value, line AND COLUMN,
+     element for element, EOF included, under the normalisation in `KIND`
+     below.
+  3. ON REJECTION, THE MESSAGES AND THE POSITIONS ARE EQUAL. Two characters
+     are exempt from the message half and pinned by
      `test_the_two_characters_whose_message_rendering_cannot_agree`.
 
-Column numbers are the one thing rule 2 does not cover: guest tokens carry
-`line` and no `col`, deliberately and since the guest lexer was written.
+v0.24 (round 360) put the column into both rules. It used to be the one
+thing rule 2 did not cover, "deliberately and since the guest lexer was
+written" — and covering it found a real bug in the HOST, which is why the
+old pin (`test_guest_tokens_carry_no_column`) is quoted verbatim in the
+test that replaced it rather than deleted. The host INCREMENTS a `col`
+counter per character; its `#` branch advanced the index and not the
+counter, so every NEWLINE token after a trailing comment, and the EOF token
+after a comment at end of file, carried the `#`'s column — 10 of the 16
+git-tracked `examples/*.lang` files. The guest DERIVES its column from the
+index (`col = i - bol + 1`) and cannot forget to advance one.
 
 Layout:
   - table parity     — the host's eight character/keyword/operator tables
@@ -94,19 +103,26 @@ KIND = {"NUMBER": "num", "STRING": "str", "NAME": "name", "KW": "kw",
 
 
 class HostRejected(object):
-    """A `LexError`, reduced to the part a guest token can carry."""
+    """A `LexError`, reduced to the part a guest token can carry.
 
-    __slots__ = ("message",)
+    v0.24: that is now the message AND the position — a guest `bad` token
+    has a `line` and a `col`, and `lex_str_body` returns the offending
+    INDEX so that an unterminated string reports at the opening quote and a
+    bad escape at the backslash, which is what `whence/lexer.py` does."""
 
-    def __init__(self, message):
+    __slots__ = ("message", "line", "col")
+
+    def __init__(self, message, line, col):
         self.message = message
+        self.line = line
+        self.col = col
 
     def __repr__(self):
-        return "HostRejected(%r)" % self.message
+        return "HostRejected(%r, %d:%d)" % (self.message, self.line, self.col)
 
 
 def host_stream(src):
-    """[(kind, value, line)] on success, `HostRejected` on a lex error.
+    """[(kind, value, line, col)] on success, `HostRejected` on a lex error.
 
     A bare `except Exception` is deliberately NOT here. Until v0.21
     `tokenize` could raise a raw `ValueError` on `let x = ²` (see
@@ -116,9 +132,9 @@ def host_stream(src):
     try:
         toks = tokenize(src)
     except LexError as e:
-        return HostRejected(str(e).split(" at line ")[0])
+        return HostRejected(str(e).split(" at line ")[0], e.line, e.col)
     return [(KIND.get(t.type, "op"), "" if t.type == "EOF" else t.value,
-             t.line) for t in toks]
+             t.line, t.col) for t in toks]
 
 
 def _unwrap(v):
@@ -142,7 +158,8 @@ def guest_streams(srcs):
             rec = item.payload
             assert isinstance(rec, Record), rec
             stream.append((_unwrap(rec.fields["t"]), _unwrap(rec.fields["v"]),
-                           _unwrap(rec.fields["line"])))
+                           _unwrap(rec.fields["line"]),
+                           _unwrap(rec.fields["col"])))
         out.append(stream)
     return out
 
@@ -155,10 +172,14 @@ def compare(name, src, host, guest):
         assert rejected_by_guest, (
             "[%s] host rejected %r (%s) but the guest accepted it: %r"
             % (name, src, host.message, guest))
-        # rule 3
+        # rule 3 — message
         assert guest[-1][1] == host.message, (
             "[%s] %r: host says %r, guest says %r"
             % (name, src, host.message, guest[-1][1]))
+        # rule 3 — position (v0.24)
+        assert (guest[-1][2], guest[-1][3]) == (host.line, host.col), (
+            "[%s] %r: host rejects at %d:%d, guest at %d:%d"
+            % (name, src, host.line, host.col, guest[-1][2], guest[-1][3]))
         return
     # rule 1, the other direction
     assert not rejected_by_guest, (
@@ -251,8 +272,11 @@ def test_escape_table_parity():
     for src, guest in zip(srcs, guests):
         compare("escape", src, host_stream(src), guest)
     for k, guest in zip(sorted(_ESCAPES), guests):
-        assert guest[0] == ("str", _ESCAPES[k], 1), (k, guest[0])
-    assert guests[-1][-1] == ("bad", "bad escape '\\q'", 1)
+        assert guest[0] == ("str", _ESCAPES[k], 1, 1), (k, guest[0])
+    # v0.24: at the BACKSLASH (col 2), which is where the host's LexError
+    # reports it -- not at the opening quote, where the guest's `bad` token
+    # used to be built before `lex_str_body` returned the offending index.
+    assert guests[-1][-1] == ("bad", "bad escape '\\q'", 1, 2)
 
 
 # --------------------------------------------------------------------------
@@ -475,15 +499,53 @@ def test_the_corpus_is_what_git_tracks_and_not_what_the_directory_holds():
 # pinned gaps — real divergences that are not bugs
 # --------------------------------------------------------------------------
 
-def test_guest_tokens_carry_no_column():
-    # The oldest and largest gap, and the reason rule 2 normalises to
-    # (kind, value, line). Pinned rather than fixed: nothing in the guest
-    # parser reads a column, and adding one would thread a fifth field
-    # through every branch of `lex` to be used by nobody.
+def test_guest_tokens_carry_a_column_and_it_is_the_hosts():
+    """Round 350 wrote the test this replaces, and it said:
+
+        "The oldest and largest gap, and the reason rule 2 normalises to
+        (kind, value, line). Pinned rather than fixed: nothing in the guest
+        parser reads a column, and adding one would thread a fifth field
+        through every branch of `lex` to be used by nobody."
+
+    Both halves of the last sentence were true when written and stopped
+    being true in v0.24: the guest PARSER now reads a column (every parse
+    error carries one, `tests/test_parse_error_differential.py`), and the
+    fifth field is not threaded — `bol` is, and the column is derived from
+    the index. The quote is kept because it is the reason the host bug in
+    the next test survived 359 rounds: everyone who looked agreed there was
+    nothing on the other side to compare against."""
     guest = guest_streams(["let x = 1"])[0]
-    assert set(guest[0]) and len(guest[0]) == 3
+    assert len(guest[0]) == 4
     host = tokenize("let x = 1")
     assert host[1].col == 5 and host[1].line == 1
+    assert guest[1] == ("name", "x", 1, 5)
+
+
+def test_the_host_column_bug_a_derived_guest_column_found():
+    """v0.24 (round 360). The single case, isolated.
+
+    A comment runs to end of line, so the only tokens it can precede are
+    NEWLINE and EOF — which is why no test in 359 rounds had ever asked for
+    one of their columns, and why the bug was invisible rather than
+    tolerated. It is user-visible: `let x = (1 # comment` reported
+    `expected ), got end of input at line 1, col 12` (the `#`) where end of
+    input is column 21."""
+    src = "let x = 1 # c\nlet y = 2\n"
+    host = host_stream(src)
+    guest = guest_streams([src])[0]
+    assert host == guest
+    nl = [t for t in host if t[0] == "nl"]
+    # two newlines; the first is the one a comment precedes.
+    assert nl[0] == ("nl", "\n", 1, 14), nl     # the newline, not the # at 11
+    assert src.split("\n")[0][10] == "#"
+
+    from whence.parser import ParseError, parse
+    try:
+        parse("let x = (1 # comment")
+        raise AssertionError("expected a ParseError")
+    except ParseError as e:
+        assert (e.line, e.col) == (1, 21), (e.line, e.col)
+        assert len("let x = (1 # comment") == 20      # end of input is 21
 
 
 def test_the_two_characters_whose_message_rendering_cannot_agree():
@@ -509,8 +571,8 @@ def test_the_two_characters_whose_message_rendering_cannot_agree():
     assert dict(disagree)["\\"] == "unexpected character '\\\\'"
     # and the guest really does say the other thing, for both
     guest = guest_streams(["'", "\\"])
-    assert guest[0][-1] == ("bad", "unexpected character '''", 1)
-    assert guest[1][-1] == ("bad", "unexpected character '\\'", 1)
+    assert guest[0][-1] == ("bad", "unexpected character '''", 1, 1)
+    assert guest[1][-1] == ("bad", "unexpected character '\\'", 1, 1)
 
 
 def test_a_host_lex_error_discards_the_tokens_before_it():
