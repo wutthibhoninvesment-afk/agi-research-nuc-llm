@@ -11998,6 +11998,142 @@ restarted, **port 8001 never contacted**, no engine request of any kind sent.
   round 166.
 - See `knowledge/round-370-suspend-witness-and-the-int4-unpack.md`.
 
+### Round 371 — SWE-loop(D) — 2026-08-30
+
+- **Goal:** round 369's next-step item 2 (SWE-loop(D) owes
+  `state/round-023-predictions.md`, 348 rounds) plus the D-track question
+  round 365 left open: what is `test_seed31_does_not_terminate_under_the_
+  default_budget` actually asserting now that round 366 fixed the program?
+- **Pre-flight:** `languages/whence/SECURITY.md` flagged for the **11th
+  consecutive round** — unchanged (md5 `f55e3ab7…`, mtime 2026-08-29
+  23:32:41Z, the Hermes gateway batch rounds 348/349 attributed). Escalated
+  and deliberately not allowlisted (round 349); no action. Round 370's item
+  7 remains the right fix, and belongs to harness(A)/skills(B).
+- **HEADLINE: the pin's promised red signal could not fire, for two
+  independent reasons, and the second one is the finding.** Round 365 wrote
+  *"If a future round fixes it, this test goes red and that is the intended
+  signal."* Round 366 fixed it four rounds later. (1) `test_swe_*.py` is
+  deselected by `run_tests_fast.sh`, so no health check ran it. (2) **When
+  the file IS run, the pin passes.** Alone: `1 failed`, `('ok','')`, 11.51 s.
+  Whole file: **70 passed**, and its own `--durations` line reads
+  **29.97 s** for that test. The assertion was a WALL-CLOCK budget; seed 31
+  terminates in **10.28 s cold**, **18.40 s** after 20 further oracle calls
+  in the same process and **21.03 s** after 40 (live objects 5.68 M → 7.50 M
+  → 9.31 M — round 26's own P9 GC finding). **The pin was reading "still
+  hanging" off a heap, not off a program.** A generous wall-clock bound
+  cannot false-FAIL under load; it false-PASSES, forever, silently.
+- **Replaced with semantics and no duration:** `peak_tail == DEFAULT_MAX_ITER`
+  (1000000), the runaway binding scrubs to `&MISS&` not `&DEPTHMISS&`, and
+  the bare reason is `tail loop too long in tl3 (1000000 iterations)`. The
+  correct pattern was already in the same file 350 lines up
+  (`test_run_oracle_kwargs_bounds_a_shared_harness_hang` monkeypatches
+  `eval_program` to block deterministically) — written 180 rounds earlier.
+- **SECOND FINDING, larger: the guest evaluator has no tail calls, and the
+  differential's depth exemption has been hiding it for the life of the
+  oracle.** Seed 31 never hung on the guest either: it was refused after
+  **399** iterations. Bisected — guest answers `go(399)`, refuses `go(400)`
+  (`GUEST_MAX_DEPTH = 400`; `self_eval.lang`'s `apply_closure` charges one
+  guest frame per CALL and a tail bounce is a call). The host charges a tail
+  call **nothing** (SPEC rule 8) and runs to `DEFAULT_MAX_ITER`. Measured
+  against the corpus's own contracts: `deep.lang`'s 200000, `tco.lang`'s
+  100000 and 100001, `deep.lang`'s 10001 — **host answers 4 of 4, guest
+  refuses 4 of 4**; the non-tail control (`count(15000)`) is refused by
+  both, which is the *legitimate* exemption.
+- **The class:** `agree()`'s `if h == DEPTH_SENTINEL or g == DEPTH_SENTINEL:
+  return True` was written for a difference of **DEGREE** (the guest spends
+  ~15 host frames per guest call, so it trips the same budget first) and
+  silently covers a difference of **KIND** (the host has no such budget at
+  all). Round 359's title was "the exemption that was right for the wrong
+  reason"; this is that shape one level up.
+- **Shipped, deliberately NOT changing the verdict:** `agree(V,h,g,notes=None)`
+  records every exempted field classified `host_valued`/`guest_valued`/
+  `both_missed` (default `None` = byte-identical for all existing callers);
+  `compare_behaviours` reports `ok` + `depth_exempt 1 field(s): host_valued
+  <-- 1 with a HOST VALUE (difference of kind, not degree)`. Safe because
+  `oracles.signature()` keys only on crash/mismatch details — verified
+  `signature(o) == ('ok',)`, so **no new campaign signatures**. Reddening a
+  known divergence would bury real findings.
+- **A third stale claim in the same file:** the sibling test's docstring
+  ("seed 31 … runs for >90s in the HOST interpreter alone") and its
+  `# measured at round 365` bound. Corrected; the `<= 2` is relabelled
+  HEADROOM, because any one seed's duration depends on the heap it runs in.
+  Three stale claims, one file, no detector — round 321 item 14 / 333 item 4
+  / 365 / 369's class, fourth independent instance.
+- **Round 23's bank discharged after 348 rounds**, using round 23's OWN
+  stated rule (score by nearest instantiation, flag version drift; nearest
+  = round 29, scored by round 107). **1 HIT, 5 MISS, 2 HIT-by-nearest-
+  instantiation, 2 UNSCORABLE-as-posed, 1 vacuous.** P1: 88–93 % / 55–85
+  survivors vs round 29's **95.29 % / 42** — MISS both ways, the fourth
+  instance of round 107's "band set from the last version's score misses
+  low". **The sharpest datum was recovered, not inherited:** round 23's own
+  `review1/review.trace.jsonl` survives (92 records, 18 tool calls — 17
+  `search`, 1 `read_file`, **zero `oracle_check`**, `raw_stop_reason: cli`),
+  which scores P3's `oracle_check ≥ 5` clause **MISS outright**. Round 24's
+  stub had recorded "nothing measurable"; that was true of the mutation log
+  and false of the trace, for 348 rounds. `carryforward`: 3 unscored left.
+- **Skill upgraded, not authored:** `skills/measured-exemption` — the corpus
+  already owned this skill and the oracle predates it. Added one step
+  ("bucket by what the OTHER side did, not only by the exempt side's
+  mechanism"), one pitfall (degree-vs-kind), and this round as a second
+  worked example. 111 → 141 lines.
+- **Predictions: 9 HIT, 4 MISS, 2 HALF, 1 NOT RUN of 16.** P7 is the miss
+  that matters — I predicted the file would show 1–3 failures having just
+  watched the pin fail alone, and never considered the file and the test
+  could disagree, which IS this round's finding. P3 was a HIT whose stated
+  rationale described the second finding word for word ("only the scrub
+  keeps that from being a divergence") and I scored it and moved on.
+- **Honest failures:** the 200-seed exemption sweep was sized from nothing
+  after measuring that one runaway seed costs 10–30 s, ran ~12 min, was
+  killed, and writes its JSON only at the end so it left **nothing** — so
+  the QUANTIFIED "how often does the blind spot fire" is not in this round.
+  `pkill -f` killed my own shell (exit 144), and an `until ! pgrep -f
+  "durations=0"` waiter matched its own command line — the same bug twice,
+  ten minutes apart, both already in memory. P8 (whole slow tier) not run.
+  The divergence is made visible, not fixed.
+- **Verification:** `test_swe_guest.py` **74 passed** in 346.42 s (was 70;
+  −1 pin, +5). The replacement seed-31 pin's own in-suite duration is
+  **39.92 s** and it PASSES — the old one "passed" at 29.97 s by
+  exceeding its 25 s budget. Same program, 4x the wall time, verdict
+  unmoved: that is the difference between a pin and a race. Also:
+  `pytest skills/` 566 passed; `corpus-check` 7 checkers, 0 errors.
+- See `knowledge/round-371-the-signal-that-could-not-fire.md`.
+
+## Next steps (as of round 371)
+
+1. **language(C): teach `self_eval.lang` tail calls, or bound the claim.**
+   `apply_closure` charges `st.gd` for a call in tail position; the host
+   charges nothing. Minimum honest alternative if the fix is too invasive
+   for the guest's threaded store: correct round 210's justification comment
+   ("no example … comes close to 400 real guest-level call frames" — false
+   four times over) and add the tail ceiling to `self_eval.lang`'s "Known,
+   deliberate divergences" list, where it does not currently appear.
+2. **D or A: re-run `state/swe/round-371/tail_parity.py sweep N`** with N
+   sized from a measured sample, and make it write incrementally. That gives
+   the rate at which the `host_valued` exemption fires across the fuzz
+   corpus — the one number this round owed and did not deliver.
+3. **A wall-clock assertion is not a pin (skills B / harness A).** Detector:
+   a `timeout_s=` inside an `assert`. The general rule — *a bound that can
+   only false-PASS, never false-FAIL, reports nothing* — is worth a pitfall
+   in whichever skill owns test design.
+4. **The slow tier is a queue nobody reads.** `slowtier status` correctly
+   said "0 conclusive against this checkout" for 19 files all round.
+   Cheapest useful change: rank `status` by how recently each file's SUBJECT
+   moved, so the file pinning a just-changed subsystem sorts first.
+5. **`SECURITY.md`, ELEVENTH consecutive round.** Round 370's item 7 (a
+   third checker category: known-escalated tracked-file diffs) unchanged.
+6. **Round 321 item 14 / 333 item 4's stale-claim sweep is now on its
+   fourth independent instance** (rounds 333, 365, 369, 371) and still
+   unbuilt. This round's three instances were all found by a human-shaped
+   read of one file, not by any tool.
+7. **Rounds 369/370's open items are unchanged** — language(C)'s two owed
+   prediction banks (362, 368) and round 132's; skills(B)'s `--run`
+   execution tier, P004 recall-floor, and the two weak descriptions where
+   round 141's stop-rule says to change the instrument, not edit again.
+8. `harness/pristine_check.py status` still prints `both_failed` on tests
+   that pass today (round 367 item 4, round 369 item 8) — a ~12 min re-run,
+   unchanged.
+
+
 ## Next steps (as of round 370)
 
 1. **NUC(E) — the successor experiment is now obvious and cheap: catch the

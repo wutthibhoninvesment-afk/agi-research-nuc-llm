@@ -42,6 +42,14 @@ exemption was USED and what the difference actually was.
 4. **Classify the "used" cases and count them.** This is the step the early
    return removes. Bucket the differences by mechanism and check the
    distribution against the reason string you wrote in step 1.
+   **Bucket by what the OTHER side did, not only by the exempt side's
+   mechanism.** An exemption whose predicate is symmetric ("either side hit
+   the budget") hides two different populations: one where BOTH sides
+   declined, and one where the other side produced a real ANSWER. The first
+   is a difference of degree and is what the exemption was almost certainly
+   written for; the second is a difference of KIND — the two implementations
+   disagree about what the system does, not about how far it gets — and the
+   same early return covers both.
 5. **Assert every exemption is load-bearing, in BOTH directions.** One test
    per mechanism: the input must report `exempt, used`, AND must become a
    real finding with the exemption predicate silenced. One direction alone
@@ -84,6 +92,17 @@ return OK("exempt, unused (%s)" % reason)
 - **Assuming the exempt population is homogeneous.** Two mechanisms can
   route through one predicate. Round 359 found an exemption written for
   mechanism A firing 47 times for mechanism B and zero times for A.
+- **A predicate written for a difference of DEGREE, silently covering a
+  difference of KIND.** The classic shape: side A and side B both have
+  budget X, B's is smaller, so B trips first and the exemption is fair. Then
+  a feature lands where A has NO budget of that kind at all — and the
+  predicate, which only asks "did anyone trip X", keeps saying `ok`. Round
+  371: a self-hosted evaluator charged one frame per TAIL call while the
+  host charged none (its whole tail-call feature), so it refused at 399
+  iterations what the host answered at 1 000 000. Four of the language's own
+  pinned tail-loop contracts were unmeetable by its own self-definition, and
+  every oracle said `ok` for the life of the oracle. The tell is step 4's new
+  bucket: the exemption firing while the other side holds a real value.
 - **Normalising until they agree.** If the fix for an `exempt, used` case is
   "strip this clause before comparing", you have converted an oracle into a
   tautology. Only do it with an injected-bug test proving the normalisation
@@ -100,6 +119,17 @@ Re-derive on a real exemption, not a fixture:
    findings, and step 5's silenced-predicate test tells you which.
 3. Classify the `used` cases by mechanism and compare against the reason
    string. Agreement is a confirmed hypothesis; disagreement is the finding.
+
+Second worked example (round 371, `harness/swe/guest.py`'s `agree()`):
+one line, `if h == DEPTH_SENTINEL or g == DEPTH_SENTINEL: return True`, with
+the comment `# one-sided depth exhaustion: exempt by design`. Adding an
+optional `notes` list — default `None`, so every existing caller is
+byte-identical — and one three-way classifier (`host_valued` /
+`guest_valued` / `both_missed`) was the entire change. The verdict did not
+move (a known divergence must not redden a standing campaign, per the second
+pitfall above) and no new campaign signatures appeared, because the
+project's `signature()` keys only on crash/mismatch details — check that
+before you make an `ok` detail non-empty.
 
 Worked example (round 359, `harness/swe/oracles.py`'s `param_erasure`):
 2500 generated programs, 0 mismatches, 47 `exempt, used` — and **47 of 47**

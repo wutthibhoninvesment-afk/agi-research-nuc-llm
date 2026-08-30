@@ -1,0 +1,13 @@
+........................................................................ [ 97%]
+..                                                                       [100%]
+============================= slowest 8 durations ==============================
+67.52s call     harness/tests/test_swe_guest.py::test_shape_declaring_guest_programs_agree
+53.16s call     harness/tests/test_swe_guest.py::test_generator_now_includes_guess_family_in_guest_output
+53.03s call     harness/tests/test_swe_guest.py::test_record_spec_agreement_over_a_generated_batch
+39.92s call     harness/tests/test_swe_guest.py::test_seed31_terminates_and_its_runaway_is_a_max_iter_miss
+36.42s call     harness/tests/test_swe_guest.py::test_seed31_agrees_between_host_and_guest_now_that_it_terminates
+31.62s call     harness/tests/test_swe_guest.py::test_the_corpus_tail_contracts_the_self_hosted_definition_cannot_meet
+11.52s call     harness/tests/test_swe_guest.py::test_round167_backlog_seeds_now_agree[4002]
+9.09s call     harness/tests/test_swe_guest.py::test_generated_effects_programs_agree
+74 passed in 346.42s (0:05:46)
+EXIT=0

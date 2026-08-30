@@ -1,0 +1,72 @@
+......................................................................   [100%]
+============================== slowest durations ===============================
+64.50s call     harness/tests/test_swe_guest.py::test_shape_declaring_guest_programs_agree
+54.42s call     harness/tests/test_swe_guest.py::test_generator_now_includes_guess_family_in_guest_output
+36.69s call     harness/tests/test_swe_guest.py::test_record_spec_agreement_over_a_generated_batch
+29.97s call     harness/tests/test_swe_guest.py::test_seed31_does_not_terminate_under_the_default_budget
+15.75s call     harness/tests/test_swe_guest.py::test_campaign_smoke
+9.94s call     harness/tests/test_swe_guest.py::test_generated_effects_programs_agree
+5.74s call     harness/tests/test_swe_guest.py::test_depth_skew_is_exempt
+5.70s call     harness/tests/test_swe_guest.py::test_round107_guest_divergences_fixed[fn adder(a) { fn(b) { a + b } }\nlet addv = adder(0)(0) + adder(0)(0)\nlet v1 = num(addv)\nlet v2 = num("5")\nlet v3 = num(3.5)\n]
+5.48s call     harness/tests/test_swe_guest.py::test_guest_harness_cache_evicted_after_a_mid_call_exception
+3.61s call     harness/tests/test_swe_guest.py::test_agreement_on_handpicked_cases[let r = put(@{}, "m", num("xx"))\nlet p = has(r, "m")\n]
+2.49s call     harness/tests/test_swe_guest.py::test_agreement_on_handpicked_cases[let a = 1 + 2 * 3\nlet b = a / 4\ncheck "c": b > 1\n]
+1.53s call     harness/tests/test_swe_guest.py::test_round167_backlog_seeds_now_agree[4002]
+1.46s call     harness/tests/test_swe_guest.py::test_agreement_on_handpicked_cases[fn fib(n) { if n < 2 { n } else { fib(n - 1) + fib(n - 2) } }\nlet v = fib(9)\n]
+1.29s call     harness/tests/test_swe_guest.py::test_round107_guest_divergences_fixed[fn even(n) { if n == 0 { true } else { odd(n - 1) } }\nfn odd(n) { if n == 0 { false } else { even(n - 1) } }\nlet v1 = [odd, even]\nlet v2 = odd\nlet v3 = @{a: odd}\ncheck "q_v1": v1 == v1\ncheck "q_v2": v2 == v2\ncheck "q_v3": v3 == v3\nlet r1 = (v1 == v1) rescue "m"\nlet r3 = (v3 != v3) rescue "m"\n]
+0.72s call     harness/tests/test_swe_guest.py::test_run_oracle_path_works
+0.65s call     harness/tests/test_swe_guest.py::test_round107_guest_divergences_fixed[fn odd(n) { n }\nlet c1 = contains([odd], odd)\nlet c2 = contains([1, odd], 1)\nlet c3 = contains([[odd]], [odd])\nlet c4 = (contains("abc", odd)) rescue "m"\n]
+0.63s call     harness/tests/test_swe_guest.py::test_run_oracle_kwargs_bounds_a_shared_harness_hang
+0.62s call     harness/tests/test_swe_guest.py::test_result_record_auto_appended_for_plain_programs
+0.55s call     harness/tests/test_swe_guest.py::test_round167_backlog_seeds_now_agree[152]
+0.36s call     harness/tests/test_swe_guest.py::test_guest_closures_are_opaque_after_fix
+0.34s call     harness/tests/test_swe_guest.py::test_agreement_on_handpicked_cases[let xs = fold(fn(acc, x) { push(acc, x * x) }, [], range(6))\nlet y = xs[3]\n]
+0.32s call     harness/tests/test_swe_guest.py::test_agreement_on_handpicked_cases[let e = fold(fn(a, i) { put(a, "k" + str(i), i) }, @{}, range(4))\nlet g = get(e, "k2")\nlet h = has(e, "k9")\n]
+0.26s call     harness/tests/test_swe_guest.py::test_reified_reason_strings_are_exempt
+0.24s call     harness/tests/test_swe_guest.py::test_harness_for_rebuilds_on_a_different_max_depth_and_reuses_on_a_match
+0.21s call     harness/tests/test_swe_guest.py::test_why_probe_fires_on_injected_mirror_bug
+0.21s call     harness/tests/test_swe_guest.py::test_oracle_self_eval_builds_guest_with_host_matching_max_depth
+0.20s call     harness/tests/test_swe_guest.py::test_agreement_on_handpicked_cases[let r = @{a: 1}\nlet p = has(r, "a")\nlet q = has(r, "zz")\n]
+0.20s call     harness/tests/test_swe_guest.py::test_agreement_on_handpicked_cases[fn f(x) { x }\nlet p = has(f, "body")\nlet saved = p rescue false\n]
+0.20s call     harness/tests/test_swe_guest.py::test_agreement_on_handpicked_cases[fn f(x) { typed(x, @{a: "num"}, "p") }\nlet v = f(@{a: 1})\nlet w = f(3)\n]
+0.20s call     harness/tests/test_swe_guest.py::test_agreement_on_handpicked_cases[let a = shapeof(@{a: 1})\nlet b = shapeof(fn(x) { x })\nlet c = shapeof(num("x"))\n]
+0.17s call     harness/tests/test_swe_guest.py::test_agreement_on_handpicked_cases[let a = matches(@{a: 1}, @{a: "num"})\nlet b = matches(@{a: 1}, @{a: 5})\n]
+0.16s call     harness/tests/test_swe_guest.py::test_run_oracle_forwards_kwargs_to_the_oracle_fn
+0.16s call     harness/tests/test_swe_guest.py::test_why_probe_can_be_disabled
+0.15s call     harness/tests/test_swe_guest.py::test_injected_check_bug_fires
+0.15s call     harness/tests/test_swe_guest.py::test_injected_arith_bug_fires
+0.15s setup    harness/tests/test_swe_guest.py::test_generator_now_includes_guess_family_in_guest_output
+0.15s call     harness/tests/test_swe_guest.py::test_agreement_on_handpicked_cases[fn f(a) effects [io] -> num { a + 1 }\nlet v = f(3)\n]
+0.14s call     harness/tests/test_swe_guest.py::test_agreement_on_handpicked_cases[let r = @{name: "Ada", age: 36}\nlet v = r.name + str(r.age)\n]
+0.14s call     harness/tests/test_swe_guest.py::test_injected_missedness_bug_fires
+0.13s call     harness/tests/test_swe_guest.py::test_agreement_on_handpicked_cases[let m = num("3O")\nlet saved = m rescue -1\n]
+0.13s call     harness/tests/test_swe_guest.py::test_agreement_on_handpicked_cases[let g = fn(a, b) effects [net, io] { a + b }\nlet v = g(2, 3)\n]
+0.13s call     harness/tests/test_swe_guest.py::test_escape_roundtrip
+0.12s call     harness/tests/test_swe_guest.py::test_agreement_on_handpicked_cases[fn f(a) effects [] { a + 1 }\nlet v = f(3)\n]
+0.12s call     harness/tests/test_swe_guest.py::test_harness_for_default_max_depth_matches_oracle_default
+0.11s call     harness/tests/test_swe_guest.py::test_why_probe_ok_on_clean_guest
+0.11s call     harness/tests/test_swe_guest.py::test_agreement_on_handpicked_cases[let v = guess(@{a: 1, b: 2}, 0.5, "m")\n]
+0.11s call     harness/tests/test_swe_guest.py::test_agreement_on_handpicked_cases[let v = typed(@{x: 1}, @{__shape: "Pt", x: "num"}, "L")\n]
+0.11s call     harness/tests/test_swe_guest.py::test_agreement_on_handpicked_cases[let v = str(typed(@{a: 1}, @{a: "num"}, "L"))\n]
+0.11s call     harness/tests/test_swe_guest.py::test_agreement_on_handpicked_cases[let v = typed(@{a: @{b: 1}}, @{a: @{b: "num"}}, "L")\n]
+0.11s call     harness/tests/test_swe_guest.py::test_agreement_on_handpicked_cases[let v = guess([1, 2, 3], 0.5, "m")\n]
+0.10s call     harness/tests/test_swe_guest.py::test_agreement_on_handpicked_cases[let v = typed(@{a: 1, b: 2}, @{a: "num"}, "L")\n]
+0.10s call     harness/tests/test_swe_guest.py::test_generated_programs_mostly_parse
+0.09s call     harness/tests/test_swe_guest.py::test_agreement_on_handpicked_cases[let v = missed(typed(1, @{a: "num"}, "L"))\n]
+0.09s call     harness/tests/test_swe_guest.py::test_agreement_on_handpicked_cases[let v = typed(@{a: 1}, @{a: "num"}, "L")\n]
+0.08s call     harness/tests/test_swe_guest.py::test_agreement_on_handpicked_cases[fn f(x) { x }\nlet g = f\nlet h = fold\n]
+0.06s call     harness/tests/test_swe_guest.py::test_agreement_on_handpicked_cases[let bad = nope + 1\nlet alsobad = bad * 2\n]
+0.06s call     harness/tests/test_swe_guest.py::test_generator_now_emits_the_shape_builtins_into_guest_programs
+0.05s call     harness/tests/test_swe_guest.py::test_agreement_on_handpicked_cases[let v = typed(@{a: "s"}, @{a: "num"}, "L")\n]
+0.04s call     harness/tests/test_swe_guest.py::test_generator_can_emit_rand_but_it_stays_banned
+0.03s call     harness/tests/test_swe_guest.py::test_agreement_on_handpicked_cases[let e = 1 / 0\ncheck "z": missed(e)\n]
+0.02s call     harness/tests/test_swe_guest.py::test_every_declared_shape_binding_reaches_the_compared_record
+0.02s call     harness/tests/test_swe_guest.py::test_shape_declarations_reach_the_guest_generator
+0.01s call     harness/tests/test_swe_guest.py::test_generator_now_emits_effects_clauses
+0.01s call     harness/tests/test_swe_guest.py::test_new_templates_reach_has_put_and_are_guest_safe
+0.01s call     harness/tests/test_swe_guest.py::test_generator_emits_no_banned_tokens
+0.01s setup    harness/tests/test_swe_guest.py::test_generated_programs_mostly_parse
+
+(144 durations < 0.005s hidden.  Use -vv to show these durations.)
+70 passed in 248.05s (0:04:08)
+EXIT=0

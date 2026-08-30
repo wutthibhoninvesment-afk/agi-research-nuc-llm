@@ -297,11 +297,43 @@ def _is_guest_fn(V, p):
     return tag is not None and tag.payload in ("closure", "builtin")
 
 
-def agree(V, h, g):
+def agree(V, h, g, notes=None):
     """Structural agreement between a host payload and a guest payload.
-    Returns (ok, path) where path names the first disagreement."""
+    Returns (ok, path) where path names the first disagreement.
+
+    `notes`, when a list is passed, RECORDS every field the depth exemption
+    below swallowed, tagged with whether the other side had a real value.
+    The exemption's verdict is unchanged (round 371 deliberately did not
+    turn a known divergence into a red standing campaign); what changed is
+    that it is no longer silent. Default `None` = byte-identical to the
+    round-295 behaviour for every existing caller.
+    """
     if h == DEPTH_SENTINEL or g == DEPTH_SENTINEL:
-        return True, ""    # one-sided depth exhaustion: exempt by design
+        # One-sided depth exhaustion: exempt by design (see this module's
+        # docstring). Round 371 measured what "by design" now covers, and
+        # it is TWO classes, not one:
+        #
+        #   (a) BOTH sides refused the program, on budgets of the same kind
+        #       at different sizes -- the guest pays ~15 host frames per
+        #       guest call, so it hits its own `GUEST_MAX_DEPTH` (400)
+        #       before the host hits `max_depth`. This is the asymmetry the
+        #       exemption was written for and it is right.
+        #
+        #   (b) The HOST produced a real value and the guest refused the
+        #       program outright. Measured instance: a TAIL loop. The host
+        #       spends no depth at all on a tail call (SPEC rule 8), so it
+        #       answers `go(200000)`; `self_eval.lang`'s `apply_closure`
+        #       charges one guest frame per bounce, so the guest misses at
+        #       399 iterations. That is a difference of KIND -- the two
+        #       evaluators disagree about whether Whence has tail calls --
+        #       and the exemption, written for a difference of DEGREE,
+        #       covers it silently. `deep.lang` and `tco.lang` pin four
+        #       tail-loop contracts (200000, 100001, 100000, 10001
+        #       iterations) that the self-hosted definition of the language
+        #       cannot meet, and no oracle could see it.
+        if notes is not None:
+            notes.append(_exemption_class(V, h, g))
+        return True, ""
     if isinstance(h, V.Miss) or isinstance(g, V.Miss):
         ok = isinstance(h, V.Miss) and isinstance(g, V.Miss)
         return ok, "" if ok else "missedness %s-vs-%s" % (type(h).__name__, type(g).__name__)
@@ -317,7 +349,7 @@ def agree(V, h, g):
               h.confidence == g.confidence and h.sources == g.sources)
         if not ok:
             return False, "guess %s-vs-%s" % (type(h).__name__, type(g).__name__)
-        return agree(V, h.node.payload, g.node.payload)
+        return agree(V, h.node.payload, g.node.payload, notes)
     if _is_host_fn(V, h):
         ok = _is_guest_fn(V, g) or _is_host_fn(V, g)
         return ok, "" if ok else "fn-vs-%s" % type(g).__name__
@@ -334,7 +366,7 @@ def agree(V, h, g):
         if len(h) != len(g):
             return False, "list-len %d-vs-%d" % (len(h), len(g))
         for i, (a, b) in enumerate(zip(h, g)):
-            ok, path = agree(V, a.payload, b.payload)
+            ok, path = agree(V, a.payload, b.payload, notes)
             if not ok:
                 return False, "[%d].%s" % (i, path)
         return True, ""
@@ -342,11 +374,28 @@ def agree(V, h, g):
         if set(h.fields) != set(g.fields):
             return False, "record-keys %s-vs-%s" % (sorted(h.fields), sorted(g.fields))
         for k in h.fields:
-            ok, path = agree(V, h.fields[k].payload, g.fields[k].payload)
+            ok, path = agree(V, h.fields[k].payload, g.fields[k].payload, notes)
             if not ok:
                 return False, "%s.%s" % (k, path)
         return True, ""
     return False, "type %s-vs-%s" % (type(h).__name__, type(g).__name__)
+
+
+def _refused(V, p):
+    """Did this side decline to produce a value? Either scrub sentinel, or
+    a raw Miss (a field can hold one when the program supplied its own
+    `__result` without the scrub)."""
+    return p is DEPTH_SENTINEL or p is MISS_SENTINEL or isinstance(p, V.Miss) \
+        or p in (DEPTH_SENTINEL, MISS_SENTINEL)
+
+
+def _exemption_class(V, h, g):
+    """Which of the two classes in `agree`'s comment this exemption is."""
+    if not _refused(V, h):
+        return "host_valued"
+    if not _refused(V, g):
+        return "guest_valued"
+    return "both_missed"
 
 
 _REASONISH = re.compile(r"\(line \d+\)|^miss: ")
@@ -569,7 +618,8 @@ def compare_behaviours(V, host_env_vars, host_checks, guest_rec):
     if _depth_missed(V, hv) != _depth_missed(V, gv) and \
        (isinstance(hv, V.Miss) != isinstance(gv, V.Miss)):
         return "depth_skew", "one-sided depth miss"
-    ok, path = agree(V, hv, gv)
+    notes = []
+    ok, path = agree(V, hv, gv, notes)
     if not ok:
         return "mismatch", "value %s\nhost:  %s\nguest: %s" % (
             path, _render(V, hv), _render(V, gv))
@@ -582,6 +632,18 @@ def compare_behaviours(V, host_env_vars, host_checks, guest_rec):
     if hchecks != gchecks:
         return "mismatch", "checks %d-vs-%d\nhost:  %s\nguest: %s" % (
             len(hchecks), len(gchecks), hchecks[:6], gchecks[:6])
+    # Round 371: the verdict is still `ok` -- the exemption is real and a
+    # known divergence must not turn the standing campaign red -- but an
+    # exemption that fired is now REPORTED. `oracles.signature()` keys only
+    # on crash/mismatch details, so a non-empty `ok` detail adds no
+    # campaign signatures (and `depth_skew (exempt)` already set the
+    # precedent for a described `ok`).
+    if notes:
+        hv_n = notes.count("host_valued")
+        return "ok", "depth_exempt %d field(s): %s%s" % (
+            len(notes), ",".join(sorted(set(notes))),
+            "   <-- %d with a HOST VALUE (difference of kind, not degree)"
+            % hv_n if hv_n else "")
     return "ok", ""
 
 

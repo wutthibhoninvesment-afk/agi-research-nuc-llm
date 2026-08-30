@@ -26,9 +26,11 @@
   },
   "23": {
    "bank": "state/round-023-predictions.md",
-   "status": "unscored",
-   "owner": "SWE-loop(D)",
-   "why": "Round 23 died at max-turns. research-state-archive.md's round-24 stub rolled P1-P6 to \"next D round (29)\"; round 29 scored its own bank (via round 107) and round 101's, and never round 23's. The rolled obligation was dropped at the hand-off, which is this checker's whole subject. Note before spending a round: round 23 left `state/mutation/round-023-interp.log` INCOMPLETE (43 kills, no score), so some of P1-P6 may be unscorable from surviving artifacts -- deciding that and SAYING SO discharges the entry as honestly as a tally would."
+   "status": "scored",
+   "scored_by": 371,
+   "where": "knowledge/round-371-the-signal-that-could-not-fire.md",
+   "quote": "Tally: 1 HIT, 5 MISS, 2 HIT-by-nearest-instantiation, 2 UNSCORABLE-as-posed",
+   "remainder": "P1 and P6 are UNSCORABLE AS POSED and were scored only by nearest instantiation (round 29, one Whence version later): v0.6 interp.py no longer exists and state/mutation/round-023-interp.log stops after 44 mutants with no score line; the live lane never ran to completion so its <=$8 bar has no total to compare. P4 likewise has no round-23 artifact. P3's claims/precision clauses are satisfied VACUOUSLY (review1.out is 0 bytes -- the model emitted no answer), though its oracle_check clause IS scored MISS from round 23's own surviving review.trace.jsonl, re-read in round 371 rather than taken from round 29's summary."
   },
   "24": {
    "bank": "state/round-024-predictions.md",
@@ -351,6 +353,13 @@
    "where": "knowledge/round-370-suspend-witness-and-the-int4-unpack.md",
    "quote": "## 6. Predictions scored (D-013)",
    "remainder": "P1 is NOT RUN and stays that way: the per-boot kernel-log grep across boots -1..-6 is unaffordable (journalctl -b -2 -k alone exceeds 100 s and does not finish) and is the weakest of the three suspend witnesses, so it was dropped rather than allowed to eat the round. P5b was ill-posed rather than unanswered -- with CLOCK_BOOTTIME == CLOCK_MONOTONIC on this box no measurement here can identify which clock /proc/uptime follows, and round 370 makes that question unimportant rather than answering it."
+  },
+  "371": {
+   "bank": "state/swe/round-371/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 371,
+   "where": "knowledge/round-371-the-signal-that-could-not-fire.md",
+   "quote": "## 8. Predictions scored"
   }
  }
 }

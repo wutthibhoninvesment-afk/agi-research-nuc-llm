@@ -684,18 +684,29 @@ def test_shape_declaring_guest_programs_agree(pkg, harness):
     """The differential over the shapes themselves.
 
     Goes through `O.run_oracle` rather than `outcome`/`oracle_self_eval`
-    because ONE of the seeds it covers does not terminate: seed 31 (see
-    `test_seed31_does_not_terminate_under_the_default_budget` below) runs
-    for >90s in the HOST interpreter alone. `oracle_self_eval` has no
-    timeout of its own -- the SIGALRM lives in `run_oracle` -- which is
-    exactly round 185's root cause, pinned two hundred lines above this by
+    because `oracle_self_eval` has no timeout of its own -- the SIGALRM
+    lives in `run_oracle` -- which is exactly round 185's root cause,
+    pinned two hundred lines above this by
     `test_run_oracle_kwargs_bounds_a_shared_harness_hang`. Round 365's own
     first sweep script called the bare oracle and lost 131 of 141 seeds to
-    it, so this is a mistake with a measured cost, not a hypothetical.
+    one slow program, so this is a mistake with a measured cost, not a
+    hypothetical.
 
-    A `timeout` outcome is therefore ACCEPTED here, and counted: this test
-    is about agreement, and a program neither side finished is not a
-    disagreement. `test_seed31_...` is what keeps the hang visible."""
+    ROUND 371 CORRECTION. This docstring used to say "ONE of the seeds it
+    covers does not terminate: seed 31 ... runs for >90s in the HOST
+    interpreter alone", and the `<= 2` bound below was justified as
+    "measured at round 365: seed 31 only". Both statements were true when
+    written and stopped being true at round 366, which bounded tail loops
+    with `DEFAULT_MAX_ITER`. Seed 31 now terminates -- ~10 s in a fresh
+    process, longer in a loaded one -- and this round measured the real
+    timeout count over 200 seeds at a 30 s budget (see
+    `state/swe/round-371/sweep.txt`).
+
+    A `timeout` outcome is still ACCEPTED here, and counted: this test is
+    about agreement, and a program neither side finished is not a
+    disagreement. The bound stays at `<= 2` as HEADROOM, not as a
+    measurement -- the duration of any one seed depends on the heap it
+    runs in, which is precisely the trap the old seed-31 pin fell into."""
     checked, mismatches, timeouts = 0, [], []
     d = load_dict_with_root(pkg)
     for i in range(200):
@@ -713,35 +724,182 @@ def test_shape_declaring_guest_programs_agree(pkg, harness):
             timeouts.append(i)
     assert checked >= 25, checked
     assert not mismatches, mismatches
-    # measured at round 365: seed 31 only
+    # Headroom, not a measurement -- see the round-371 note above.
     assert len(timeouts) <= 2, timeouts
 
 
-def test_seed31_does_not_terminate_under_the_default_budget(pkg):
-    """Round 365's second finding, pinned as a BOUNDED reproducer.
+def test_seed31_terminates_and_its_runaway_is_a_max_iter_miss(pkg):
+    """Round 365's pin, flipped as its own docstring instructed.
 
-    `generate_guest_program(31)` produces a 13-line program the HOST
-    interpreter does not finish: `O._run_ast(pkg, ast, max_depth=2000)`
-    ran >90s on a box where `load_whence` + `_parse` of the same program
-    take 0.0s and the other 140 shape-emitting seeds average 1.2s. It is
-    NOT the guest, NOT this round's `__result` change (the pre-change
-    sweep stopped on the same seed), and NOT reproduced yet by any hand
-    minimization -- `fn tl3(p4) -> num {...}` recursing on a record
-    argument terminates instantly at every `max_depth` from 50 to 800, so
-    the trigger is something else in the program and finding it is the
-    next round's job.
+    Round 365 (D) pinned `generate_guest_program(31)` as a program the HOST
+    interpreter does not finish, and wrote: "If a future round fixes it,
+    this test goes red and that is the intended signal -- flip it to assert
+    termination and record the fix."
 
-    This test asserts only what is MEASURED: the program is still
-    non-terminating under a 25s budget. If a future round fixes it, this
-    test goes red and that is the intended signal -- flip it to assert
-    termination and record the fix. It deliberately does NOT assert a
-    time, only that a generous bound is exceeded, so it cannot become a
-    flake on a loaded box (this one sat at load 25-42 while it was
-    written)."""
+    Round 366 (language C) fixed it, four rounds ago, without knowing this
+    test existed: it bisected the same program to line 7 (`tl3(tr5)` with
+    `tr5 == 0.5`, decrementing past a `== 0` base case it can never equal),
+    found the class was "a non-terminating TAIL recursion is unbounded
+    because `max_depth` cannot charge a tail call", and added
+    `Interpreter.DEFAULT_MAX_ITER`. Round 368 raised it to 1000000.
+
+    THE SIGNAL NEVER FIRED, and round 371 measured why: run alone this test
+    failed, run in its own file it PASSED. The old assertion was a WALL-CLOCK
+    budget (`timeout_s=25.0`), and by the time pytest reaches this test the
+    process holds ~9M live objects from the 69 tests before it, which makes
+    the same terminating program take longer than 25 s of CPython GC. Cold:
+    10.3 s. After 20 further oracle calls in one process: 18.4 s. After 40:
+    21.0 s. So the pin read "still hanging" from a heap, not from a program.
+
+    The replacement therefore asserts SEMANTICS, never a duration:
+    the runaway binding is a miss, its reason names the ITERATION budget
+    (not depth), and the loop stopped exactly at `DEFAULT_MAX_ITER`."""
     src = G.generate_guest_program(31)
-    o = O.run_oracle(G.GUEST_ORACLE, load_dict_with_root(pkg), src,
-                     timeout_s=25.0, max_depth=2000)
-    assert o.kind == "timeout", (o.kind, o.detail[:300])
+    program = O._parse(pkg, src)
+    interp, env, _out = O._run_ast(pkg, program, max_depth=2000)
+    assert interp.peak_tail == pkg["Interpreter"].DEFAULT_MAX_ITER, \
+        interp.peak_tail
+    fields = env.get("__result").payload.fields
+    # `v7 = tl3(tr5)` is the runaway; the scrub maps a miss whose reasons
+    # mention "depth" to &DEPTHMISS& and everything else to &MISS&, so a
+    # plain &MISS& here IS the assertion that this is not a depth miss.
+    assert fields["v7"].payload == G.MISS_SENTINEL, fields["v7"].payload
+    # and unscrubbed, the reason names the budget that actually stopped it
+    bare = O._parse(pkg, "fn tl3(p4) { if p4 == 0 { 0.5 } else { tl3(p4 - 1) } }\n"
+                         "let v7 = tl3(0.5)\n")
+    _i2, env2, _o2 = O._run_ast(pkg, bare, max_depth=2000)
+    reasons = " | ".join(env2.get("v7").payload.reasons)
+    assert "tail loop too long" in reasons, reasons
+    assert "depth" not in reasons, reasons
+
+
+def test_seed31_agrees_between_host_and_guest_now_that_it_terminates(pkg):
+    """The other half of round 365's pin: with the loop bounded, the
+    guest-differential can finally RUN this seed instead of timing out.
+
+    It reports `ok` -- but round 371 measured that the agreement is
+    EXEMPTED, not real (see the tail-ceiling tests below), so this test
+    pins the exemption's report string as well. If a future round teaches
+    the guest tail calls, `depth_exempt` disappears from the detail and
+    this test goes red, which is the intended signal."""
+    o = O.run_oracle(G.GUEST_ORACLE, load_dict_with_root(pkg), G.generate_guest_program(31),
+                     timeout_s=120.0, max_depth=2000)
+    assert o.kind == "ok", (o.kind, o.detail[:300])
+    assert O.signature(o) == ("ok",), O.signature(o)
+
+
+# ------------------------------------------- the guest's TAIL-call ceiling --
+# Round 371 (SWE-loop D). Flipping the seed-31 pin above answered "why did
+# the host hang" and immediately raised "why did the GUEST not". It did not
+# hang because it refused the program 2500x earlier, on a budget the host
+# does not have — and the differential's depth exemption hid that.
+#
+# `self_eval.lang`'s `apply_closure` charges one guest frame per CALL, and a
+# tail bounce is a call. The host charges a tail call NOTHING (SPEC rule 8),
+# which is the whole of Whence's tail-call story: `deep.lang` pins
+# `count_tail(200000, 0) == 200000` as a language property and `tco.lang`
+# pins three more. So the two evaluators disagree about whether the language
+# has tail calls at all, by a factor of 500, and every oracle said `ok`.
+
+TAIL_LOOP = ('fn go(i) { if i == 0 { 42 } else { go(i - 1) } }\n'
+             'let r = go(%d)\n' +
+             G.scrub_record_line(["r"]))
+
+
+def _host_r(pkg, src):
+    program = O._parse(pkg, src)
+    interp, env, _out = O._run_ast(pkg, program, max_depth=2000)
+    return env.get("__result").payload.fields["r"].payload, interp.peak_tail
+
+
+def _guest_r(harness, src):
+    gv = harness.eval_program(src).fields["v"].payload
+    if not isinstance(gv, harness.V.Record):
+        return "GUEST_INTERNAL_MISS"
+    return gv.fields["r"].payload
+
+
+def test_the_guest_refuses_tail_loops_the_host_answers(pkg, harness):
+    """The measured boundary, bisected by
+    `state/swe/round-371/tail_parity.py ceiling`: the guest answers
+    `go(399)` and refuses `go(400)`, matching `self_eval.lang`'s
+    `GUEST_MAX_DEPTH = 400`. The host answers BOTH, and would answer up to
+    `DEFAULT_MAX_ITER` (1000000), because it spends no depth on a tail
+    call at all.
+
+    This is not a "the guest is slower/deeper" skew. It is the two
+    evaluators giving different ANSWERS to a program with a value."""
+    assert _guest_r(harness, TAIL_LOOP % 399) == 42
+    assert _guest_r(harness, TAIL_LOOP % 400) == G.DEPTH_SENTINEL
+    for n in (399, 400, 1000):
+        hv, peak = _host_r(pkg, TAIL_LOOP % n)
+        assert hv == 42, (n, hv)
+        assert peak == n + 1, (n, peak)
+
+
+def test_the_depth_exemption_covers_a_difference_of_kind_not_degree(pkg, harness):
+    """The blind spot itself, pinned so it cannot go quiet again.
+
+    `agree()` exempts any field where either side scrubbed to
+    `&DEPTHMISS&`. For a NON-tail runaway both sides refuse and the
+    exemption is exactly right (`both_missed`). For a tail loop the host
+    has an answer and only the guest refuses (`host_valued`) — the same
+    exemption, a different situation. Round 371 left the VERDICT alone
+    (a known divergence must not redden the standing campaign) and made
+    the exemption report which class it fired on."""
+    V = harness.V
+    notes = []
+    assert G.agree(V, 42, G.DEPTH_SENTINEL, notes) == (True, "")
+    assert notes == ["host_valued"]
+    notes = []
+    assert G.agree(V, G.MISS_SENTINEL, G.DEPTH_SENTINEL, notes) == (True, "")
+    assert notes == ["both_missed"]
+    notes = []
+    assert G.agree(V, G.DEPTH_SENTINEL, 42, notes) == (True, "")
+    assert notes == ["guest_valued"]
+    # default stays byte-identical for every pre-round-371 caller
+    assert G.agree(V, 42, G.DEPTH_SENTINEL) == (True, "")
+
+    o = G.oracle_self_eval(pkg, TAIL_LOOP % 500, harness=harness)
+    assert o.kind == "ok", (o.kind, o.detail[:200])
+    assert "depth_exempt" in o.detail and "host_valued" in o.detail, o.detail
+    # ... and reporting it adds no campaign signature
+    assert O.signature(o) == ("ok",), O.signature(o)
+
+
+def test_the_corpus_tail_contracts_the_self_hosted_definition_cannot_meet(pkg, harness):
+    """`self_eval.lang`'s round-210 comment justifies `GUEST_MAX_DEPTH = 400`
+    with "no example or self-hosting test corpus this project has ever run
+    comes close to 400 real guest-level call frames". Measured against the
+    examples' own tail-loop assertions, that is false four times over — and
+    it is `apply_closure`, the one function the guard sits in, that every
+    tail bounce goes through.
+
+    Verbatim from `examples/deep.lang` and `examples/tco.lang`; the examples
+    themselves are not guest-safe (`print`/`why`/`steps` are banned), which
+    is why nothing had ever put these through the guest."""
+    cases = [
+        ('fn count_tail(n, acc) { if n == 0 { acc } else '
+         '{ count_tail(n - 1, acc + 1) } }\nlet r = count_tail(200000, 0)\n',
+         200000),
+        ('fn sum_to(i, acc) { if i == 0 { acc } else '
+         '{ sum_to(i - 1, acc + i) } }\nlet r = sum_to(100000, 0)\n',
+         5000050000),
+        ('fn even(n) { if n == 0 { true } else { odd(n - 1) } }\n'
+         'fn odd(n) { if n == 0 { false } else { even(n - 1) } }\n'
+         'let r = even(100001)\n', False),
+    ]
+    for body, want in cases:
+        src = body + G.scrub_record_line(["r"])
+        hv, _peak = _host_r(pkg, src)
+        assert hv == want, (want, hv)
+        assert _guest_r(harness, src) == G.DEPTH_SENTINEL, body[:40]
+    # the control: a genuinely NON-tail runaway, where both sides refuse and
+    # the exemption is the right answer.
+    nontail = ('fn count(n) { if n == 0 { 0 } else { 1 + count(n - 1) } }\n'
+               'let r = count(15000)\n') + G.scrub_record_line(["r"])
+    assert _host_r(pkg, nontail)[0] == G.DEPTH_SENTINEL
+    assert _guest_r(harness, nontail) == G.DEPTH_SENTINEL
 
 
 def test_record_spec_agreement_over_a_generated_batch(pkg, harness):
