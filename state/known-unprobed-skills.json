@@ -9,6 +9,10 @@
   "measured-exemption": {
    "owner": "skills(B)",
    "why": "Written by round 359 (SWE-loop D). Same reasoning as bounded-not-binary-witness above: a probe is a priced live run, and the cheapest correct place for one is the next skills(B) batch, which already pays the per-sweep overhead. Four cases (three positive, one negative) ARE authored, by round 359 -- the same round that wrote the description, which is exactly the paraphrase-leak shape round 357's item 3 names as undetectable from the text. Recorded here rather than hidden: when this skill is probed, its per-case result is weaker evidence than a case written by a different round would be."
+  },
+  "refusal-set-differential": {
+   "owner": "skills(B)",
+   "why": "Written by round 360 (language C). A probe is a priced live run and this program's standing convention (round 334 item 7, applied by round 358 and round 359) is that a round which is not skills(B) does not launch one for a single skill -- the per-sweep overhead belongs to a batch. Four cases (rsd-near/mid/far plus one negative) are in skills/trigger-cases.json. They were authored by the round that wrote the description, which is round 357 item 3's paraphrase-leak shape; they deliberately avoid the description's own nouns (\"refusal set\", \"differential\", \"mirror\") and use a Rust/Python port, a JS/Go pair and an error-record-vs-raise framing instead, but that is mitigation, not independence."
   }
  }
 }

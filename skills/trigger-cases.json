@@ -754,5 +754,31 @@
   "id": "mexempt-neg-noqa",
   "expect": [],
   "prompt": "Add a # noqa: E501 to line 42 so the linter stops complaining about the long URL in that comment."
+ },
+ {
+  "id": "rsd-near",
+  "expect": [
+   "refusal-set-differential"
+  ],
+  "prompt": "We shipped a Rust port of our Python config parser and there's a test that runs 400 real config files through both and diffs the parsed result. Green since day one. A customer just hit a file the Rust side happily loaded and the Python side has always thrown on."
+ },
+ {
+  "id": "rsd-mid",
+  "expect": [
+   "refusal-set-differential"
+  ],
+  "prompt": "Our JS and Go implementations of the same document format are supposed to behave identically. The conformance suite is 200 documents that all load fine. What am I missing from that suite?"
+ },
+ {
+  "id": "rsd-far",
+  "expect": [
+   "refusal-set-differential"
+  ],
+  "prompt": "The reference interpreter returns an error record and the production one raises, so we never compare the two on malformed input — the shapes don't line up and the text is worded differently anyway. Is there anything in there worth testing?"
+ },
+ {
+  "id": "rsd-neg-rename",
+  "expect": [],
+  "prompt": "Rename the `errors` module to `diagnostics` throughout the package and fix up the imports."
  }
 ]

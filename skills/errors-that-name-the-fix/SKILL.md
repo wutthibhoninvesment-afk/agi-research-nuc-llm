@@ -164,6 +164,24 @@ in a Hindley-Milner solver may have no single "write this instead").
   and diffing one message, and pin the answer in a test, so the next person
   finds the decision instead of the surprise.
 
+  **But "the wording never agreed" is not "nothing can be compared."** Round
+  354 wrote exactly that pin for Whence's host and guest parsers and it was
+  half right: the sentences were genuinely incomparable, and the POSITIONS
+  were not. Round 360 found that the two had always refused the same
+  programs at the same token — only one of them could say so — and that
+  giving the mirror a column exposed a real bug in the ORIGINAL's columns.
+  Split the claim: a position is a fact about the input, a sentence is a
+  choice about describing it. See [[refusal-set-differential]].
+
+- **A message that names the fix can still point at the wrong place.** All of
+  decision 32's cures are appended to a `ParseError` whose line and column
+  come from the offending token, and in Whence two of those coordinates were
+  wrong for 359 rounds (a column that stopped advancing at every comment; a
+  literal `col 0` where an AST node had no column to give). Nothing caught it
+  because every test asserted the WORDS. When you add a clause to an error,
+  assert its position in the same test — the cheapest oracle is that the
+  reported coordinate points at the offending token's own first character.
+
 - **Fixing stale guidance with better prose.** If your investigation turns up
   a document that mis-states the tool, replace the sentence AND add the check
   that re-derives it. A sentence is a claim nobody re-runs; see
