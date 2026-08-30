@@ -183,11 +183,23 @@ Measured scopes (`-p no:randomly`, one pytest process per file):
 | `test_swe_scoreaudit.py` | passed | 0.5 | **(nothing)** — 0 reads |
 | `test_swe_loop.py` | passed | 0.4 | `whence` |
 | `test_swe_regiontools.py` | passed | 4.9 | `whence` |
-| `test_swe_oracles.py` | passed | 4.8 | OPAQUE (`subprocess.Popen`) |
-| `test_swe_proc.py` | passed | 13 | OPAQUE (`subprocess.Popen`) |
 | `test_swe_guest.py` | **FAILED** | 202 | `examples`, `whence` |
+| `test_swe_oracles.py` | passed | 4.8 | OPAQUE (`subprocess.Popen`) |
+| `test_swe_proc.py` | passed | 13.2 | OPAQUE (`subprocess.Popen`) |
+| `test_swe_killers.py` | passed | 39.9 | OPAQUE (`subprocess.Popen`) |
+| `test_swe_mutation.py` | passed | 17.1 | OPAQUE (`subprocess.Popen`) |
+| `test_swe_coverage.py` | passed | 4.9 | OPAQUE (`subprocess.Popen`) |
 
-Recall went 0% → **37% (7/19)** in one round, on ~230 s of runtime.
+**Half the measured files cannot be narrowed at all, and that is the result,
+not a caveat.** 5 of 10 spawn a subprocess, so rule 1 fires and their scope is
+the whole checkout — they are exactly as invalidatable as they were before
+this round. The narrowing buys something for 5 files: two that read NOTHING
+under the checkout and are immune to every whence edit forever, two that read
+`whence/` only, and `test_swe_guest.py`, which reads `examples/` — the one
+that proves the fail-open half was real. Anyone reading "measured read-scope"
+as "the tier is now precise" would be wrong by a factor of two.
+
+Recall went 0% → **53% (10/19)** in one round, on 288 s of runtime.
 
 **`test_swe_guest.py` is RED, and this closes round 359's item 13.** Round 359
 found `test_swe_oracles.py` red since round 356 because a test SOURCE used
@@ -271,17 +283,17 @@ reports only the ratio hides that completely. This round is itself a light
 round that spent its first six minutes landing another round's abandoned
 diff.
 
-## 8. Predictions scored — 8 HIT, 1 MISS, 1 VOID, 1 UNRESOLVED
+## 8. Predictions scored — 7 HIT, 2 MISS, 1 VOID, 1 UNRESOLVED
 
 | | prediction | result |
 |---|---|---|
 | P1 | `test_swe_guest.py`'s scope includes an `examples/*.lang` path | **HIT** — `['examples', 'whence']` |
 | P2 | 1-6 `.lang`-only commits | **VOID** — see below |
 | P3 | audit hook costs < 10% wall clock | **UNRESOLVED** — see below |
-| P4 | ≥5 of 19 files' scope excludes `tests/` | **HIT** — 6 of the 7 measured do (only the opaque ones fall back), and 2 read nothing at all |
-| P5 | ≥3 spawn a subprocess | **HIT** — `oracles`, `proc` measured opaque; `mutation`/`campaign`/`coverage` unmeasured but `_copy_project`+`run_capped` make them certain |
+| P4 | ≥5 of 19 files' scope excludes `tests/` | **HIT, exactly at the boundary** — 5 of the 10 measured do; the other 5 are opaque and exclude nothing |
+| P5 | ≥3 spawn a subprocess | **HIT** — 5 measured opaque: `oracles`, `proc`, `killers`, `mutation`, `coverage`. Two of the three files named as guesses were right; `campaign` is still unmeasured |
 | P6 | `test_swe_scoreaudit.py`'s scope is empty | **HIT** — 0 reads. `test_swe_triage.py` too, unpredicted |
-| P7 | ≥6 files keep evidence across all 32 tests-only commits | **HIT** by construction of P4's result — but see the honesty note |
+| P7 | ≥6 files keep evidence across all 32 tests-only commits | **MISS** — 5, not 6. The opaque half is larger than predicted |
 | P8 | the sweep finds ≥1 red file besides `test_swe_oracles.py` | **HIT** — `test_swe_guest.py`, 2 failures |
 | P9 | `test_swe_oracles.py` is green | **HIT** — `fresh_pass`, 4.8 s |
 | P10 | ≥1 argv-blind mutating script besides `reachability_backfill.py` | **HIT** — 6 |
@@ -303,24 +315,28 @@ the pre-361 ledger and 4.9 s here, `test_swe_proc.py` 23 s → 13 s,
 different checkout on a shared one-CPU box, so they bound nothing. Round
 358's rule: score an unmeasured thing UNRESOLVED, not as a miss.
 
-**P7's honesty note.** It is scored HIT, but it is close to a tautology:
-having measured that 6 files' scopes exclude `tests/`, "they would have kept
-their evidence across a tests-only commit" follows from the rule this round
-wrote. The independent content is P4's measurement; P7 restates it. A
-prediction whose truth is implied by another prediction's method is worth
-about as much as P2 was.
+**P7 is a MISS, and it is the useful one.** It was written as a near-restatement
+of P4 — having measured which scopes exclude `tests/`, the counterfactual
+follows from the rule this round wrote — so it should have been cheap to hit.
+It missed by one because the OPAQUE half is bigger than predicted: 5 of 10
+measured files spawn a subprocess, and rule 1 correctly refuses to narrow any
+of them. The prediction that the mechanism would help ≥6 files was optimism
+about how much of this test suite runs in-process, and it was wrong.
 
 ## 9. Where this leaves the tier
 
 `run_tests_fast.sh` now prints, every round:
 
 ```
-slow tier: 19 files, 7 conclusive against checkout 2c9d0227a1d4fca5 (37% recall), 1 failing
+slow tier: 19 files, 10 conclusive against checkout 2c9d0227a1d4fca5 (53% recall), 1 failing
   test_swe_guest.py   fresh_fail   202s
 ```
 
-Recall is still 37%, not 100%, and the 12 uncovered files are still named as
-uncovered. The scoped states have not yet had a chance to fire in anger —
+Recall is 53%, not 100%, and the 9 uncovered files are still named as
+uncovered (`alias_effects`, `bymap`, `campaign`, `equivalence`, `prioritize`,
+`fuzz`, `oraclekill`, `repair`, `review`). Note also that recall reached 53%
+by RUNNING 10 files this round, not by narrowing: the narrowing has not yet
+saved a single entry, because no whence edit has landed since the slice. The scoped states have not yet had a chance to fire in anger —
 they only pay off on the NEXT whence edit that lands outside a file's scope,
 which is 52% of them historically. Whether the mechanism actually raises
 sustained recall is a claim for round ~367 to check against the ledger, not
@@ -333,8 +349,8 @@ one this round gets to make.
 | `python3 -m pytest tests/ -q` (whence, round 360's diff) | **1507 passed, 3 skipped** in 328.54s |
 | `pytest -q harness/tests/test_slowtier.py` | **53 passed** (39 + 14 new) |
 | `bash harness/run_tests_fast.sh` | **545 passed, 316 deselected** in 67.9s (was 530) |
-| slow-tier slice, 7 files, real runner | 6 passed / **1 failed**, 231 s total |
-| slow-tier recall | 0% → **37%** |
+| slow-tier slice, 10 files, real runner | 9 passed / **1 failed**, 288 s total |
+| slow-tier recall | 0% → **53%** (10/19) |
 | `test_no_shape_declaration_reaches_the_guest_generator` in isolation | **fails in 0.05 s** — deterministic repro |
 
 Pins checked by construction: an opaque scope, a torn record, a missing

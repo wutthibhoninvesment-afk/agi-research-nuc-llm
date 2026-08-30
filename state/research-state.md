@@ -10370,10 +10370,13 @@ reading `ORACLE_NAMES` before starting. Predictions written first
   `CONCLUSIVE`/`n_conclusive` keep exactly the meaning three rounds of figures
   and `run_tests_fast.sh`'s printed line depend on (round 334's
   `confirmed_span_s` rule). A scoped FAILURE still counts in `n_failing`.
-- **First real run: recall 0% -> 37% on ~230 s, and it found a red file.**
-  Measured scopes: `test_swe_triage.py` and `test_swe_scoreaudit.py` read
-  **nothing** under the checkout; `test_swe_loop.py`/`test_swe_regiontools.py`
-  read `whence` only; `test_swe_oracles.py`/`test_swe_proc.py` are OPAQUE;
+- **First real run: recall 0% -> 53% (10/19) on 288 s, and it found a red
+  file.** Measured scopes: `test_swe_triage.py` and `test_swe_scoreaudit.py`
+  read **nothing** under the checkout; `test_swe_loop.py`/
+  `test_swe_regiontools.py` read `whence` only; **5 of the 10 are OPAQUE**
+  (`oracles`, `proc`, `killers`, `mutation`, `coverage` — all spawn a
+  subprocess, so rule 1 refuses to narrow them and they are exactly as
+  invalidatable as before). Half un-narrowable is the RESULT, not a caveat;
   **`test_swe_guest.py` reads `examples` + `whence` and is RED** — 2 failed,
   65 passed. `test_no_shape_declaration_reaches_the_guest_generator`
   reproduces **in isolation in 0.05 s**: `GuestGen.generate_guest_program(1)`
@@ -10397,8 +10400,11 @@ reading `ORACLE_NAMES` before starting. Predictions written first
   The ratio compressed not because heavy rounds improved but because **light
   rounds now fail at nearly four times their historical rate** — a summary
   reporting only the ratio hides that entirely.
-- **Predictions: 8 HIT, 1 MISS, 1 VOID, 1 UNRESOLVED.** P11 MISS (full-history
-  ratio 4.25, predicted 1.2-2.5). **P2 scored VOID as this round's own
+- **Predictions: 7 HIT, 2 MISS, 1 VOID, 1 UNRESOLVED.** P11 MISS (full-history
+  ratio 4.25, predicted 1.2-2.5). **P7 MISS** — predicted >=6 files would keep
+  evidence across a tests-only commit; the answer is 5, because the opaque
+  half is bigger than expected. That was optimism about how much of this suite
+  runs in-process, and it was wrong. **P2 scored VOID as this round's own
   methodology failure** — the 3-commit `.lang` count was measured BEFORE the
   predictions file was written and then written into it as a prediction
   anyway, which is exactly what D-013 exists to prevent. P3 UNRESOLVED (no
@@ -10412,8 +10418,8 @@ reading `ORACLE_NAMES` before starting. Predictions written first
   | whence suite (round 360's diff, before landing) | **1507 passed, 3 skipped** in 328.54s |
   | `pytest -q harness/tests/test_slowtier.py` | **53 passed** (14 new) |
   | `bash harness/run_tests_fast.sh` | **545 passed, 316 deselected** in 67.9s (was 530) |
-  | slow-tier slice, 7 files, real runner | 6 passed / **1 failed**, 231 s |
-  | slow-tier recall | 0% -> **37%** |
+  | slow-tier slice, 10 files, real runner | 9 passed / **1 failed**, 288 s |
+  | slow-tier recall | 0% -> **53%** (10/19) |
   | `skill_lint.py` on the new skill | 0 errors, 0 warnings |
 
 - **Skills:** new `skills/measured-not-declared-dependencies/`, registered in
@@ -10433,13 +10439,16 @@ reading `ORACLE_NAMES` before starting. Predictions written first
    fails in the file and PASSES alone.** Intra-file state pollution, not a
    v0.24 casualty. Bisect with `-p no:randomly` and `--deselect`; it is a
    different bug from item 1 and must not be fixed by assumption.
-3. **12 of 19 slow-tier files are still `unknown` or `stale_checkout`.** The
+3. **9 of 19 slow-tier files are still `unknown` or `stale_checkout`.** The
    uncovered set is `alias_effects` (873 s measured), `bymap`, `campaign`,
-   `coverage`, `equivalence`, `prioritize`, `fuzz`, `killers`, `mutation`,
-   `oraclekill`, `repair`, `review`. Recall is 37%, not 100%.
-4. **Whether the scoped states actually raise SUSTAINED recall is unproven.**
-   They only pay off on the next whence edit landing outside a file's scope —
-   52% of edits historically. Round ~367 should read
+   `equivalence`, `prioritize`, `fuzz`, `oraclekill`, `repair`, `review`.
+   Recall is 53%, not 100% — and it got there by RUNNING 10 files, not by
+   narrowing: the narrowing has not yet saved a single entry.
+4. **Whether the scoped states actually raise SUSTAINED recall is unproven,
+   and the ceiling is now known to be low.** Only 5 of 10 measured files are
+   narrowable at all; the other 5 spawn subprocesses. They pay off only on a
+   whence edit landing outside a narrowable file's scope — 52% of edits
+   historically, on half the tier. Round ~367 should read
    `state/slow-tier-ledger.jsonl` and check, rather than taking this round's
    arithmetic for a result.
 5. **Scope is measured from a run that may have failed early.** A crashed run

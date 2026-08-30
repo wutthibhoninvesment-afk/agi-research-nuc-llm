@@ -127,8 +127,8 @@ pytest -q <tests> -k "scope"
 Worked example and the measurements behind every rule above:
 `knowledge/round-361-the-freshness-gate-was-wrong-in-both-directions.md`
 (52% of invalidating commits were false alarms; 3 commits exercised the
-fail-open half; recall 0% → 37% in one round, which surfaced a test that had
-been red and unnoticed). Related:
+fail-open half; recall 0% → 53% in one round, which surfaced a test that had
+been red and unnoticed; and HALF the measured files turned out un-narrowable). Related:
 `skills/unenforced-documented-rule/` (the failure mode a declared list is),
 `skills/pristine-checkout-differential/` (the other "measured in the wrong
 tree" gap, round 355).
