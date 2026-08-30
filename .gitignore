@@ -57,3 +57,12 @@ state/.driver.lock
 state/trigger-eval/round-*/transcripts/
 state/trigger-eval/*.json
 state/trigger-eval/*.log
+
+# Round 352: the swap-watch supervisor's live poll log. It is appended to once
+# a minute for the run's whole duration (8h), so tracking it would leave a
+# genuinely uncommitted diff in `git status` for every round in that window and
+# trip the record-gap check eight times over for a file that is doing exactly
+# what it is supposed to. The DURABLE artifacts of a run -- the checkpoint
+# JSONL and the final JSON the watcher scp's back -- are tracked as normal;
+# only the supervisor's own progress log is ignored.
+state/nuc-swap-watch-*/poll.log
