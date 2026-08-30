@@ -27,6 +27,12 @@ logs/nuc-llm-tunnel*
 # round forever if left tracked.
 logs/health_round_*.log
 logs/whence_health_round_*.log
+# Round 365 (SWE-loop D) pre-flight reconciliation: round 363 wired a THIRD
+# per-round health log (`skills/run_checks_fast.sh` -> corpus-check) into
+# run_driver.sh but did not extend this pattern, so round 364's log landed in
+# `git status` as an unattributed `??` and tripped round 365's record-gap
+# check. Same class as the two lines above, same reasoning verbatim.
+logs/skills_health_round_*.log
 
 # OS files
 .DS_Store
