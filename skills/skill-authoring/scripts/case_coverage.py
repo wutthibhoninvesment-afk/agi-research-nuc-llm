@@ -204,6 +204,9 @@ def check(catalog, cases, reports, baseline, floor=DEFAULT_FLOOR,
                 % r["status"]))
 
     findings += check_outcomes(by_name, weak_baseline or {})
+    findings += check_replication(weak_baseline or {},
+                                  trigger_eval.replication_rows(
+                                      catalog, cases, reports))
     return findings, rows
 
 
@@ -269,6 +272,65 @@ def check_outcomes(by_name, weak_baseline):
     return findings
 
 
+def check_replication(weak_baseline, repl_rows):
+    """P009 — a DURABLE adjudication that rests on a single draw.
+
+    Round 381. Everything P006/P007/P008 say is read off *the newest report
+    holding a probe*, and `state/known-weak-probes.json` records permanent
+    verdicts about descriptions on exactly that basis. Round 381 measured
+    what one report is worth: two runs of a byte-identical configuration
+    disagreed at majority level on 11 of 29 cases, and the two entries this
+    file carried as KNOWN-BAD DESCRIPTIONS -- `measured-budget-sizing`
+    (0/3 twice) and `obligation-ledger` (1/3 then 0/3) -- re-measured at
+    9/9 and 6/9. Both verdicts were draws.
+
+    So P009 asks the one question nothing else asked: does a SECOND
+    independent report agree? It fires ONLY on skills that already carry an
+    adjudication, which is what keeps it from being 41 warnings nobody
+    reads -- an unreplicated skill with no verdict written about it is not
+    a problem, it is just unprobed twice. Two shapes:
+
+      * ``n_reports <= 1`` — the entry cannot have been replicated.
+      * ``disagree`` non-empty — two same-description reports reached
+        DIFFERENT verdicts on a case, so the entry pinned one of them.
+
+    Warning, never error: the fix is a re-probe, which is a live spend, and
+    a check that can only go green by spending money is a check a round
+    uninstalls (P004's own reasoning, and this file's)."""
+    findings = []
+    by_name = {r["name"]: r for r in repl_rows}
+    for name, entry in sorted(weak_baseline.get("skills", {}).items()):
+        row = by_name.get(name)
+        if row is None:
+            continue
+        if row["n_reports"] <= 1:
+            findings.append((
+                "warning", "P009", name,
+                "the weak-probe verdict rests on %d report(s) under the "
+                "description on disk — an UNREPLICATED draw. Round 381 "
+                "measured two runs of one configuration disagreeing on 11 "
+                "of 29 cases. Re-probe once more before this entry is "
+                "quoted again." % row["n_reports"]))
+        elif row["disagree"]:
+            findings.append((
+                "warning", "P009", name,
+                "%d same-description report(s) DISAGREE on %s — the entry "
+                "pins %r, which is one of them. Say in `why` which draws "
+                "were seen and what the pooled rate is, or re-probe."
+                % (row["n_reports"], ", ".join(row["disagree"]),
+                   entry.get("report"))))
+    return findings
+
+
+def replication_summary(repl_rows):
+    """(replicated_skills, total_skills, disagreeing_cases, compared_cases)."""
+    tot = len(repl_rows)
+    rep = sum(1 for r in repl_rows if r["n_reports"] >= 2)
+    comp = sum(len(r["compared"]) for r in repl_rows)
+    dis = sum(len(r["disagree"]) for r in repl_rows)
+    return rep, tot, dis, comp
+
+
 def main(argv=None):
     root = repo_root()
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
@@ -281,6 +343,9 @@ def main(argv=None):
     ap.add_argument("--floor", type=int, default=DEFAULT_FLOOR)
     ap.add_argument("--list", action="store_true",
                     help="print the per-skill coverage table too")
+    ap.add_argument("--replication", action="store_true",
+                    help="print the per-skill cross-report replication "
+                         "table too (round 381)")
     args = ap.parse_args(argv)
 
     root = args.repo_root
@@ -343,11 +408,32 @@ def main(argv=None):
     n_clean = sum(1 for r in rows if r["status"] == "probed"
                   and r["covered"] == r["positives"]
                   and r["recalled"] == r["covered"])
+    # Round 381: "N probed ... with full recall" answers "what did ONE
+    # report see". It cannot answer "would a second report see it too",
+    # and this round measured that two runs of one configuration disagree
+    # on 11 of 29 cases. The headline the driver logs now carries the
+    # replication figure alongside the outcome figure, so a reader can
+    # tell a measured description from a single draw without opening a
+    # report.
+    repl = trigger_eval.replication_rows(catalog, cases, reports)
+    n_rep, n_tot, n_dis, n_comp = replication_summary(repl)
+    if args.replication:
+        print("| skill | reports | compared | disagree |")
+        print("|---|---|---|---|")
+        for r in sorted(repl, key=lambda r: (-len(r["disagree"]),
+                                             -r["n_reports"], r["name"])):
+            print("| %s | %d | %d | %s |"
+                  % (r["name"], r["n_reports"], len(r["compared"]),
+                     ", ".join(r["disagree"]) or "—"))
+        print()
+
     print("case-coverage: %d skill(s), %d case(s) (%d negative); %d probed "
           "under the description on disk, %d of those on every positive "
-          "case with full recall; %d error(s), %d warning(s)"
+          "case with full recall; %d replicated (>=2 same-description "
+          "reports), %d of %d cross-report case verdicts DISAGREE; "
+          "%d error(s), %d warning(s)"
           % (len(rows), len(cases), sum(1 for c in cases if not c["expect"]),
-             n_probed, n_clean, n_err, n_warn))
+             n_probed, n_clean, n_rep, n_dis, n_comp, n_err, n_warn))
     return 1 if n_err else 0
 
 

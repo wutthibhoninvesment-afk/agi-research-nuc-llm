@@ -1,0 +1,13 @@
+case: cpa-near
+model: sonnet
+arm: None
+fired: ['measured-exemption']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=measured-exemption

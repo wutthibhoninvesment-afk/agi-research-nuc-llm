@@ -1,0 +1,13 @@
+case: zrd-near
+model: sonnet
+arm: None
+fired: ['bounded-not-binary-witness']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=bounded-not-binary-witness

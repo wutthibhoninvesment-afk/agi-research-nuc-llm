@@ -1,0 +1,13 @@
+case: cpa-far
+model: sonnet
+arm: None
+fired: ['content-pinned-acknowledgement']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=content-pinned-acknowledgement

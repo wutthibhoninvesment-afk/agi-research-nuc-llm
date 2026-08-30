@@ -1,0 +1,13 @@
+case: lfc-far2
+model: sonnet
+arm: None
+fired: ['measured-budget-sizing']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=measured-budget-sizing

@@ -1,0 +1,13 @@
+case: fino-far
+model: sonnet
+arm: None
+fired: ['freshness-is-not-outcome']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=freshness-is-not-outcome

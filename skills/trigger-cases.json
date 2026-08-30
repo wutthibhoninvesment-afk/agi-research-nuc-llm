@@ -1102,5 +1102,43 @@
   "id": "erm-neg-format",
   "expect": [],
   "prompt": "Our log lines are hard to read in the terminal. Can you suggest a nicer column layout for the per-file status output?"
+ },
+ {
+  "id": "rbr-near",
+  "expect": [
+   "rerun-before-you-record"
+  ],
+  "prompt": "Our prompt-selection eval fired the new instruction 0 times out of 3 on its own test cases. I'm going to write that into the baseline file as a known-bad prompt and move on. Sound right?"
+ },
+ {
+  "id": "rbr-mid",
+  "expect": [
+   "rerun-before-you-record"
+  ],
+  "prompt": "Two evaluation reports for the same model disagree about whether the summarizer regressed. The newer one is from last night, so I'm taking that one as the current answer and closing the ticket."
+ },
+ {
+  "id": "rbr-far",
+  "expect": [
+   "rerun-before-you-record"
+  ],
+  "prompt": "An integration test failed once in CI. I want to add it to the quarantine list with a note saying it's flaky so the board goes green."
+ },
+ {
+  "id": "rbr-far2",
+  "expect": [
+   "rerun-before-you-record"
+  ],
+  "prompt": "We tweaked the retrieval prompt after a bad benchmark score and the second run was bad too, so I'm ready to say the approach doesn't work. Writing it up now."
+ },
+ {
+  "id": "rbr-neg-determ",
+  "expect": [],
+  "prompt": "Our schema linter reported three violations. It's a pure static check over the same files every time. Should I fix them or suppress them?"
+ },
+ {
+  "id": "rbr-neg-effect",
+  "expect": [],
+  "prompt": "The latency difference between the two configs replicated cleanly across six independent runs: 240ms vs 251ms. Is an 11ms regression worth blocking the release over?"
  }
 ]

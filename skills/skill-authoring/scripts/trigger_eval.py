@@ -1059,6 +1059,82 @@ def audit_skills(catalog, cases, reports, positive_floor=3):
     return rows
 
 
+def replication_rows(catalog, cases, reports):
+    """Per catalog skill: how many INDEPENDENT reports probed it under the
+    description on disk, and whether those reports AGREE.
+
+    Round 381. ``audit_skills`` answers every outcome question from *the
+    newest report holding a probe*, and every durable verdict this program
+    has ever written about a description was read off exactly one such
+    report. Round 381 measured what that is worth: two runs of a
+    byte-identical configuration (same 41-skill catalog, same 29 cases,
+    same model, same ``--protocol strict``) disagreed at majority level on
+    **11 of 29 cases**, and `lazy-fill-ceiling` read 0 of 12 in one run and
+    12/12, 4/4 and 11/12 in three others. `measured-budget-sizing` and
+    `obligation-ledger` had both been written into
+    ``state/known-weak-probes.json`` as KNOWN-BAD DESCRIPTIONS off single
+    3-probe draws; re-measured they are 9/9 and 6/9.
+
+    A probe run is a DRAW from a stochastic selector. One draw is not a
+    measurement of a description, and this function is what lets a caller
+    say so with a number instead of a feeling.
+
+    Returns one dict per skill:
+
+      ``reports``       basenames of every report probing a positive case of
+                        this skill under the CURRENT description digest,
+                        newest first (reports with no ``descriptions`` map
+                        are excluded — an unverified digest cannot be
+                        compared)
+      ``n_reports``     len(reports); 1 means UNREPLICATED
+      ``compared``      positive case ids probed by >=2 of those reports
+      ``disagree``      of those, ids where the per-report verdict
+                        (did EVERY repeat in that report fire the skill?)
+                        is not the same in all of them
+      ``verdicts``      {case id: {report: bool}} for the compared ids
+
+    A case probed by two reports that both fired it, or both missed it,
+    agrees. Repeat counts deliberately do NOT have to match: the question is
+    whether two independent runs reached the same VERDICT, which is the
+    thing a baseline entry records."""
+    rows = []
+    for name, desc, _ in catalog:
+        digest = description_digest(desc)
+        pos_ids = {c["id"] for c in cases
+                   if name in c["expect"] and c.get("body") is None}
+        row = {"name": name, "reports": [], "n_reports": 0,
+               "compared": [], "disagree": [], "verdicts": {}}
+        per_report = []
+        for path, _, data in reports:
+            if (data.get("descriptions") or {}).get(name) != digest:
+                continue
+            by_id = {}
+            for r in data["results"]:
+                if r.get("error") or r.get("id") not in pos_ids:
+                    continue
+                if name not in (r.get("expect") or []):
+                    continue
+                by_id.setdefault(r["id"], []).append(
+                    name in (r.get("fired") or []))
+            if by_id:
+                per_report.append((os.path.basename(path), by_id))
+        row["reports"] = [b for b, _ in per_report]
+        row["n_reports"] = len(per_report)
+        seen = {}
+        for base, by_id in per_report:
+            for cid, fires in by_id.items():
+                seen.setdefault(cid, {})[base] = all(fires)
+        for cid in sorted(seen):
+            if len(seen[cid]) < 2:
+                continue
+            row["compared"].append(cid)
+            row["verdicts"][cid] = seen[cid]
+            if len(set(seen[cid].values())) > 1:
+                row["disagree"].append(cid)
+        rows.append(row)
+    return rows
+
+
 def audit_exit_code(rows):
     return 0 if all(r["status"] == "probed" and not r["under_floor"]
                     for r in rows) else 1

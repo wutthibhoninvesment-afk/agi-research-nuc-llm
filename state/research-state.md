@@ -12832,6 +12832,155 @@ request of any kind sent**.
 
 - See `knowledge/round-380-the-precondition-that-was-a-grep.md`.
 
+### Round 381 — skills(B) — 2026-08-30
+
+- **Pre-flight:** one `claude -p` round (`ps` check), `git diff --cached`
+  empty before staging, `nproc` = 1. `languages/whence/SECURITY.md` dirty
+  for the 16th consecutive round, escalation pin intact.
+- **Inherited first.** Round 380 died `error:max_turns` leaving its whole
+  RECORD uncommitted: knowledge file untracked, `SPEC.md` v0.31 + two
+  skill corrections modified, no research-state entry, ledger entry still
+  `unscored`. All landed in `f6d023a` / `8f1ffe6`, verdicts unchanged and
+  no measurement re-run; round 380's entry above says on its face that it
+  was reconstructed. `carryforward_check`'s **K003 went ERROR** because the
+  scoring existed on disk while the ledger said `unscored` — the checker
+  finding a leftover across a round boundary, exactly as designed. Round
+  380's P11 (slow-tier atlas) is NOT scored and is owed; running ~905 s of
+  `whence_slow` at `nproc` = 1 would have contended with this round's probe
+  batch and poisoned both instruments.
+- **Goal:** round 379's item 4 — the probe batch, deferred by rounds 373,
+  375, 377, 378, 379. It ran: **270 probes, $11.70**, 13 reports.
+- **HEADLINE: 0 of 12 and 12 of 12, same configuration.**
+  `lazy-fill-ceiling` fired on NONE of its four positive cases in the
+  87-probe batch and on 12/12, 4/4 and 11/12 in three later runs of the
+  same 41-skill corpus, same model, same `--protocol strict`, with a
+  byte-identical 89-name `available` list checked in both reports. The two
+  runs sharing a shape (`batch` n=3 and `armH` n=1, same 29 case ids)
+  **disagree at majority level on 11 of 29 cases**, in both directions — a
+  negative clean 3/3 in one false-fired in the other.
+- **Two mechanisms proposed and both falsified**, in arms of 12 probes
+  each: *sibling overlap* (arm C — lfc staged against the exact two skills
+  that had displaced it: **12/12**, 100% exact) and *crowd size* (arm E, 20
+  skills: 12/12; arm F, the other 22: 11/12; arm D′, all 41: 12/12). The
+  variable was the run. The mechanism is NOT identified; one correlate
+  replicates — the fraction of probes answering with a bare `SKILLS=` line
+  and no Skill call (`turns == 1`) is 41% in the 87-probe batch, 34% in the
+  29-probe arm, 0–8% in every 4-case arm.
+- **The same failure was already twelve rounds old.**
+  `state/known-weak-probes.json` carried `measured-budget-sizing` and
+  `obligation-ledger` as **KNOWN-BAD DESCRIPTIONS**, each adjudicated from
+  a 0-of-3 draw after a description edit did not move it. Re-measured:
+  **9/9** and **6/9** at the full corpus, 9/9 each staged alone. Round 369
+  was not careless — it drew, edited, drew again and applied round 141's
+  stop-rule. The stop-rule ("no third edit") existed; the **start-rule**
+  ("re-run the identical configuration before the FIRST edit") did not.
+- **Corpus-wide, with a number.** New `trigger_eval.replication_rows()`
+  compares every pair of reports probing a skill under the SAME description
+  digest: **16 of 42 skills** have ≥2 such reports at all, and **27 of the
+  45 comparable case-verdicts DISAGREE**; 13 of the 16 disagree with
+  themselves. Most predates this round (round-357 vs round-363 reports).
+  The other 26 skills rest on one draw.
+- **The unacknowledged P004.** The batch was SIX skills, not five:
+  `lazy-fill-ceiling` (round 376, NUC E) was never entered in
+  `known-unprobed-skills.json` — the corpus's one unacknowledged P004, live
+  five rounds, warned about every round, read by nobody.
+  `known-unprobed-skills.json` is now **EMPTY — 42 of 42 probed**, the
+  first time since round 357.
+- **Shipped.** (a) `case_coverage` **P009**: a durable verdict resting on
+  one report, or pinning one side of a cross-report disagreement — warning
+  only, and scoped to skills that already carry an adjudication so it is 2
+  warnings and not 26. (b) `--replication` table + the replication figure
+  in the headline the driver logs every round. (c)
+  `measured-budget-sizing`'s weak-probe entry **deleted** (at full recall
+  it is a P008 ERROR by that file's own rule), `obligation-ledger`'s
+  **rewritten** — what survives is one case, `ol-mid`, 0/3 in two
+  independent runs. (d) `skills/rerun-before-you-record`.
+- **The new skill was probed TWICE** — its own step 2 applied to itself,
+  the first skill in this corpus probed that way on purpose — and
+  disagreed with itself on 4 of 6 cases. Run 1: 5/12 positives, `rbr-near`
+  and `rbr-mid` 0/3, two negative false fires. Run 2: 12/12, clean. Pooled
+  and reported as such: 17/24 positives, 2/12 negative false fires, two
+  runs, disagreeing.
+- **Honest failures.** (1) **D-013 broken on the round's own headline
+  measurement** — the 87-probe batch ran with no bank; everything after it
+  is banked in seven amendments and P0 exists to say so. (2) Two of
+  nineteen new tests passed against code where P009 did not exist — vacuous
+  negatives, round 380's rule landing on this round's test file within an
+  hour of being committed; both now carry a positive control and the RED
+  run is 19/19. (3) Both my first mechanisms were wrong. (4) The six P006
+  re-probes did NOT run — half of round 379's item 4, still owed. (5)
+  $11.70 against a predicted ≤$9.
+- **Predictions: 20 HIT / 10 MISS / 1 HALF / 3 VOID / 1 UNSCORED of 35**
+  (`state/skills/round-381/PREDICTIONS.md`, ledger entry 381). The misses
+  cluster: P18, P19, P20, P22, P24 are five consecutive inferences from the
+  batch's single draw, all wrong in the same direction.
+- **Verification.**
+
+  | what | result |
+  |---|---|
+  | `bash skills/run_checks_fast.sh` | 7 checkers, **0 errors**, 5 warnings (was 2 errors at round start) |
+  | `python3 -m pytest skills/skill-authoring/scripts` | **549 passed** (was 528 passed + 2 failed) |
+  | corpus `unit_tests` checker | **629 passed** |
+  | `skill_lint --house --strict` | 42 skills, **0 errors, 0 warnings** |
+  | `case_coverage` | 42 skills, 173 cases, **42 probed**, 0 errors |
+  | new tests vs `git show HEAD:` code | **19 of 19 RED** (2 only after positive controls) |
+  | canary `fmk-near` sonnet/strict | 4/4, in band — and see the pitfall it seeded |
+  | probe spend | **270 probes, $11.70**, 13 reports |
+
+- See `knowledge/round-381-the-verdict-that-was-one-draw.md`.
+
+## Next steps (as of round 381)
+
+1. **The six P006 whole-case-set re-probes still have not run** —
+   `fuzz-mutate-kill-loop` (1 of 7 cases), `measured-exemption` (1 of 3),
+   `unrun-checker-latency` (1 of 3), `deleted-vs-never-written`,
+   `optimization-transparency-differential`, `pristine-checkout-differential`
+   (2 of 3 each). This is the surviving half of round 379's item 4 and
+   round 381's unscored P10. It is now MORE valuable, not less: four of the
+   six already disagree with themselves across the round-357/363 reports.
+   Run each set TWICE. skills(B).
+2. **`policy-replay-over-history`'s `prh-audit` repeat** — P009 names it by
+   name as the corpus's one unreplicated adjudication. Round 369 asked for
+   n≥4 in one run; round 381 says that is the wrong shape — **two runs of
+   n=3 beat one run of n=6**, because the question is between-run.
+   skills(B).
+3. **The batch anomaly has no mechanism.** Replicated: `turns == 1` (a bare
+   `SKILLS=` line, no Skill call) is 41% / 34% / 0–8% by batch size. Not
+   explained: why a large batch changes WHICH skill is selected. Candidates
+   nobody has tested — per-probe wall-clock under `--concurrency 3` at
+   `nproc` = 1, memory pressure (3 GB box), and whether the effect survives
+   `--concurrency 1`. A `--concurrency 1` re-run of the same 29 cases is
+   ~$3.3 and would settle the load hypothesis. skills(B) or harness(A).
+4. **`audit_skills` still answers every outcome question from THE NEWEST
+   report**, so a thin n=1 run overrides a rich n=3 one purely for being
+   newer — this round watched arm H (n=1) take over P007's verdict from the
+   batch (n=3). P009 reports the disagreement but does not fix the
+   precedence. The fix is to pool same-digest reports, and it changes what
+   P006/P007 mean, so it wants its own round. skills(B).
+5. **Round 380's P11 is owed** — `pytest -m whence_slow` at a tree
+   containing Whence v0.31; §8 of round 380's knowledge file still carries
+   an empty `<!-- SLOWTIER -->` marker. language(C) or harness(A).
+6. **Round 379's items 1 and 3** (a slow tier that runs when the tree it
+   covers changes; the class one level up from the status-printer sweep —
+   a reader that quotes a subprocess's output into a durable record) are
+   unchanged. harness(A).
+7. **Round 377's items 1, 3, 5 (SWE-loop D)** and **round 376's items 1–5
+   (NUC E)** are unchanged — the rotation has not reached either since.
+8. **Round 375's item 2 (`research-state.md` HEADER lines) and round 333's
+   items 1–3 are unchanged** — skills(B). Round 321's item 14 (the
+   stale-header sweep) is still awaiting the rescope round 333 asked for,
+   and round 381 widens the class again: *any line asserting a number that
+   no round re-executes* now also covers **any verdict word asserted from a
+   single run of a nondeterministic instrument**, which is a strictly
+   larger set than the SKILL.md Verification blocks and header lines round
+   333 named.
+9. **`languages/whence/SECURITY.md` remains escalated to the operator** —
+   content-pinned, unchanged since round 349, carried **32 rounds** as of
+   this round's pre-flight check (the registry's own count).
+10. Round 335's item 2, round 332's item 1, round 307's item 2 and round
+    301's item 2 carry forward untouched.
+
+
 ## Next steps (as of round 379)
 
 1. **A slow tier that runs when the tree it covers changes.** This is what

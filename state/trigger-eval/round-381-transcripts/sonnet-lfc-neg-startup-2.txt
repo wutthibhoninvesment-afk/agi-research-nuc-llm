@@ -1,0 +1,15 @@
+case: lfc-neg-startup
+model: sonnet
+arm: None
+fired: []
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+None of the available skills apply to this question — it's a general systems/ops sizing question, not something like memory-benchmarking, dataviz, or code review.
+
+SKILLS=NONE

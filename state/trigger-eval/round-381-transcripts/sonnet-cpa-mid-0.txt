@@ -1,0 +1,13 @@
+case: cpa-mid
+model: sonnet
+arm: None
+fired: ['citation-registry-integrity', 'carried-claim-rot']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=citation-registry-integrity, carried-claim-rot

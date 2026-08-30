@@ -1,0 +1,13 @@
+case: cpa-mid
+model: sonnet
+arm: None
+fired: ['carried-claim-rot']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=carried-claim-rot

@@ -1,0 +1,13 @@
+case: dbc-near
+model: sonnet
+arm: None
+fired: ['deferral-blockers-are-claims']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=deferral-blockers-are-claims

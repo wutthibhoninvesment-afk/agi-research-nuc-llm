@@ -1,0 +1,13 @@
+case: zrd-far
+model: sonnet
+arm: None
+fired: ['zero-rate-needs-a-distance']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=zero-rate-needs-a-distance

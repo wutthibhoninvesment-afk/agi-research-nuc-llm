@@ -1,0 +1,15 @@
+case: lfc-far
+model: sonnet
+arm: None
+fired: []
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+None of the available skills apply to this diagnostic/debugging question.
+
+SKILLS=NONE

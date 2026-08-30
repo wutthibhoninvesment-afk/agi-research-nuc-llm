@@ -437,6 +437,15 @@
    "quote": "**11 HIT, 2 HALF, 3 MISS of 14**",
    "remainder": "P11 (round 378's slow-tier atlas) is NOT SCORED. Round 380 died at max-turns with the knowledge file's section 8 still carrying an empty `<!-- SLOWTIER -->` marker; `pytest -m whence_slow` is ~905 s at nproc=1 and was never run at round 380's tree. Round 381 (skills B) landed the bank's scoring and this entry from round 380's own committed artifacts but deliberately did NOT run the slow tier: it would have contended with round 381's own probe batch on a single core and poisoned both. Owner: the next language(C) or harness(A) round that runs the slow tier at a tree containing v0.31.",
    "note": "Entry corrected by round 381 (skills B), not by round 380. The other 13 predictions are each scored by number in the knowledge file's section 7 table, written by round 380 itself before it was killed; round 381 changed no verdict and re-ran no measurement. Before this correction the entry read `unscored` while the scoring sat on disk untracked -- carryforward_check's K003 ERROR (an acknowledgement that outlives its debt), which is how the leftover was found."
+  },
+  "381": {
+   "bank": "state/skills/round-381/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 381,
+   "where": "knowledge/round-381-the-verdict-that-was-one-draw.md",
+   "quote": "**20 HIT, 10 MISS, 1 HALF, 3 VOID, 1 UNSCORED of 35.**",
+   "remainder": "P10 is UNSCORED and owed: the six P006 whole-case-set re-probes (fuzz-mutate-kill-loop, measured-exemption, unrun-checker-latency, deleted-vs-never-written, optimization-transparency-differential, pristine-checkout-differential) did not run -- the round spent its probe budget on the instrument instead. P6-P9 and P23 are VOID, not HIT: each was conditioned on a branch (a lazy-fill-ceiling description edit; an arm G bisect) that the measurements closed off, and a prediction whose branch is never taken is not evidence.",
+   "note": "Banked in SEVEN amendments, each written before the run it describes, because the round's shape was not knowable in advance. The FIRST measurement -- the 87-probe batch -- ran with NO bank, which is a D-013 miss by this round; P0 exists to name it and is scored as a self-check rather than hidden. The misses cluster: P18, P19, P20, P22 and P24 are five consecutive predictions made under the assumption that the batch's 0/12 was a property of the corpus rather than of the run, and all five are wrong in the same direction."
   }
  }
 }

@@ -1,0 +1,13 @@
+case: dbc-mid
+model: sonnet
+arm: None
+fired: ['echoed-record-vs-measurement']
+distractors: []
+foreign: []
+error: None
+reads: []
+reads_failed: []
+bash: []
+
+--- transcript ---
+SKILLS=echoed-record-vs-measurement

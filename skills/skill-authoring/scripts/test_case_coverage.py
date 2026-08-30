@@ -414,5 +414,216 @@ class TestLiveCorpus(unittest.TestCase):
         self.assertEqual(on_disk - catalog, set())
 
 
+class TestP009Replication(Fixture):
+    """Round 381 — a durable verdict that rests on ONE draw.
+
+    Written RED first against the code as it stood before this round —
+    and the RED run is itself a worked instance of what this round found.
+    17 of the 19 new tests failed (AttributeError: `replication_rows` and
+    `check_replication` did not exist). TWO PASSED: the two that assert
+    P009 does NOT fire. Of course they did — with no P009 in the codebase
+    nothing fires, so an assertion that nothing fires is satisfied by the
+    absence of the feature it is testing. That is round 380's rule ("a
+    proxy is admissible only once something has compared it against the
+    thing it stands for") landing on this file within an hour of being
+    committed. Both now carry a POSITIVE CONTROL in the same test: they
+    assert the check is live on a sibling input before asserting it is
+    silent on theirs, so neither can pass again without P009 existing.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.reports_dir = os.path.join(self.tmp, "reports")
+        os.makedirs(self.reports_dir)
+        self.digest = trigger_eval.description_digest(DESC)
+        self.digests = {"alpha-thing": self.digest,
+                        "beta-thing": self.digest}
+        self.weak = {"skills": {"alpha-thing": {
+            "owner": "skills(B)", "why": "0 of 3.", "report": "r1.json"}}}
+
+    def write(self, base, results):
+        report(None, self.digests, os.path.join(self.reports_dir, base),
+               results=results)
+
+    def load(self):
+        return trigger_eval.load_reports(self.reports_dir)
+
+    def repl(self):
+        catalog = trigger_eval.load_catalog([self.skills])
+        return trigger_eval.replication_rows(catalog, self.cases, self.load())
+
+    def row(self, name="alpha-thing"):
+        return {r["name"]: r for r in self.repl()}[name]
+
+    # ---------------------------------------------------------- the rows --
+    def test_one_report_is_unreplicated(self):
+        self.write("r1.json", [probe("a0", "alpha-thing")])
+        self.assertEqual(self.row()["n_reports"], 1)
+        self.assertEqual(self.row()["compared"], [])
+
+    def test_two_reports_agreeing_compare_and_do_not_disagree(self):
+        self.write("r1.json", [probe("a0", "alpha-thing")])
+        self.write("r2.json", [probe("a0", "alpha-thing")])
+        r = self.row()
+        self.assertEqual(r["n_reports"], 2)
+        self.assertEqual(r["compared"], ["a0"])
+        self.assertEqual(r["disagree"], [])
+
+    def test_two_reports_disagreeing_are_named(self):
+        self.write("r1.json", [probe("a0", "alpha-thing", fired=False)])
+        self.write("r2.json", [probe("a0", "alpha-thing")])
+        self.assertEqual(self.row()["disagree"], ["a0"])
+        self.assertEqual(set(self.row()["verdicts"]["a0"].values()),
+                         {True, False})
+
+    def test_a_case_only_one_report_touched_is_not_compared(self):
+        # The 0/12-vs-12/12 shape only counts where BOTH runs ran the case.
+        self.write("r1.json", [probe("a0", "alpha-thing")])
+        self.write("r2.json", [probe("a1", "alpha-thing")])
+        r = self.row()
+        self.assertEqual(r["n_reports"], 2)
+        self.assertEqual(r["compared"], [])
+
+    def test_repeats_inside_one_report_collapse_to_one_verdict(self):
+        # 2 of 3 repeats firing is NOT a fire for this purpose: the verdict
+        # a baseline entry records is "did every repeat fire".
+        self.write("r1.json", [probe("a0", "alpha-thing"),
+                               probe("a0", "alpha-thing", fired=False)])
+        self.write("r2.json", [probe("a0", "alpha-thing")])
+        self.assertEqual(self.row()["disagree"], ["a0"])
+
+    def test_a_report_under_a_DIFFERENT_description_is_excluded(self):
+        # Comparing draws across a description edit is the one thing this
+        # must not do -- that is P004's STALE question, not P009's.
+        self.write("r1.json", [probe("a0", "alpha-thing", fired=False)])
+        report(None, {"alpha-thing": "deadbeefdead"},
+               os.path.join(self.reports_dir, "r2.json"),
+               results=[probe("a0", "alpha-thing")])
+        r = self.row()
+        self.assertEqual(r["n_reports"], 1)
+        self.assertEqual(r["disagree"], [])
+
+    def test_a_report_with_no_descriptions_map_is_excluded(self):
+        self.write("r1.json", [probe("a0", "alpha-thing")])
+        with open(os.path.join(self.reports_dir, "r2.json"), "w",
+                  encoding="utf-8") as f:
+            json.dump({"mode": "native", "results":
+                       [probe("a0", "alpha-thing", fired=False)]}, f)
+        self.assertEqual(self.row()["n_reports"], 1)
+
+    def test_an_errored_probe_does_not_vote(self):
+        self.write("r1.json", [dict(probe("a0", "alpha-thing", fired=False),
+                                    error="timeout")])
+        self.write("r2.json", [probe("a0", "alpha-thing")])
+        self.assertEqual(self.row()["n_reports"], 1)
+
+    def test_a_negative_case_is_not_a_positive_of_any_skill(self):
+        self.write("r1.json", [{"id": "neg1", "expect": [], "fired": []}])
+        self.write("r2.json", [{"id": "neg1", "expect": [], "fired": []}])
+        self.assertEqual(self.row()["n_reports"], 0)
+
+    # ------------------------------------------------------- the finding --
+    def test_P009_fires_on_an_unreplicated_adjudication(self):
+        self.write("r1.json", [probe("a0", "alpha-thing", fired=False)])
+        findings, _ = self.run_check(reports=self.load(), weak=self.weak)
+        p009 = [f for f in findings if f[1] == "P009"]
+        self.assertEqual([f[2] for f in p009], ["alpha-thing"])
+        self.assertEqual(p009[0][0], "warning")
+        self.assertIn("UNREPLICATED", p009[0][3])
+
+    def test_P009_fires_when_two_reports_disagree(self):
+        self.write("r1.json", [probe("a0", "alpha-thing", fired=False)])
+        self.write("r2.json", [probe("a0", "alpha-thing")])
+        findings, _ = self.run_check(reports=self.load(), weak=self.weak)
+        p009 = [f for f in findings if f[1] == "P009"]
+        self.assertEqual(len(p009), 1)
+        self.assertIn("DISAGREE", p009[0][3])
+        self.assertIn("a0", p009[0][3])
+
+    def test_P009_is_silent_when_two_reports_agree(self):
+        self.write("r1.json", [probe("a0", "alpha-thing", fired=False)])
+        self.write("r2.json", [probe("a0", "alpha-thing", fired=False)])
+        findings, _ = self.run_check(reports=self.load(), weak=self.weak)
+        self.assertNotIn("P009", self.codes(findings))
+        # POSITIVE CONTROL. Without it this passes against a codebase that
+        # has no P009 at all -- which is exactly what it did on the RED run.
+        self.write("r2.json", [probe("a0", "alpha-thing")])
+        live, _ = self.run_check(reports=self.load(), weak=self.weak)
+        self.assertIn("P009", self.codes(live))
+
+    def test_P009_says_NOTHING_about_a_skill_with_no_adjudication(self):
+        # The anti-cry-wolf rule: 26 of 41 live skills are unreplicated and
+        # only the ones carrying a verdict are a problem.
+        self.write("r1.json", [probe("b0", "beta-thing")])
+        findings, _ = self.run_check(reports=self.load(), weak=self.weak)
+        self.assertNotIn("beta-thing",
+                         [f[2] for f in findings if f[1] == "P009"])
+        # POSITIVE CONTROL: alpha-thing IS adjudicated and unreplicated, so
+        # P009 must be firing for it in the very same run. Without this the
+        # test passes when P009 does not exist.
+        self.assertEqual([f[2] for f in findings if f[1] == "P009"],
+                         ["alpha-thing"])
+
+    def test_P009_never_raises_an_error(self):
+        self.write("r1.json", [probe("a0", "alpha-thing", fired=False)])
+        findings, _ = self.run_check(reports=self.load(), weak=self.weak)
+        self.assertEqual([f[0] for f in findings if f[1] == "P009"],
+                         ["warning"])
+
+    def test_the_summary_counts_add_up(self):
+        self.write("r1.json", [probe("a0", "alpha-thing", fired=False),
+                               probe("a1", "alpha-thing")])
+        self.write("r2.json", [probe("a0", "alpha-thing"),
+                               probe("a1", "alpha-thing")])
+        n_rep, n_tot, n_dis, n_comp = case_coverage.replication_summary(
+            self.repl())
+        self.assertEqual((n_rep, n_tot, n_dis, n_comp), (1, 2, 1, 2))
+
+
+class TestLiveReplication(unittest.TestCase):
+    """The live-corpus half. These are the numbers round 381 published."""
+
+    def setUp(self):
+        self.catalog = trigger_eval.load_catalog(
+            [os.path.join(ROOT, "skills")])
+        self.cases = trigger_eval.load_cases(
+            os.path.join(ROOT, "skills", "trigger-cases.json"))
+        self.reports = trigger_eval.load_reports(
+            os.path.join(ROOT, "state", "trigger-eval"))
+        self.rows = trigger_eval.replication_rows(
+            self.catalog, self.cases, self.reports)
+
+    def test_the_corpus_has_cross_report_disagreement_at_all(self):
+        # If this ever goes to zero the instrument became deterministic and
+        # P009 should be re-argued, not deleted quietly.
+        self.assertGreater(sum(len(r["disagree"]) for r in self.rows), 0)
+
+    def test_lazy_fill_ceiling_disagrees_with_itself_on_every_case(self):
+        # The round's own worked instance: 0/12 in round-381-batch.json and
+        # 12/12, 4/4, 11/12 in three other runs of the SAME configuration.
+        row = {r["name"]: r for r in self.rows}["lazy-fill-ceiling"]
+        self.assertGreaterEqual(row["n_reports"], 4)
+        self.assertEqual(sorted(row["disagree"]),
+                         ["lfc-far", "lfc-far2", "lfc-mid", "lfc-near"])
+
+    def test_every_disagreeing_case_was_actually_compared(self):
+        for r in self.rows:
+            self.assertLessEqual(set(r["disagree"]), set(r["compared"]),
+                                 r["name"])
+            self.assertLessEqual(len(r["compared"]), len(r["verdicts"]) + 1,
+                                 r["name"])
+
+    def test_no_weak_probe_entry_is_silently_unreplicated(self):
+        # Not "P009 must be empty" -- a re-probe is a live spend. The rule
+        # is that every entry P009 names is one an owner has been handed.
+        with open(os.path.join(ROOT, "state", "known-weak-probes.json"),
+                  encoding="utf-8") as f:
+            weak = json.load(f)
+        for _, code, subject, _ in case_coverage.check_replication(
+                weak, self.rows):
+            self.assertEqual(code, "P009")
+            self.assertTrue(weak["skills"][subject].get("owner"), subject)
+
+
 if __name__ == "__main__":
     unittest.main()
