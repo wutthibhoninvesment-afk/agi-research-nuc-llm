@@ -10175,6 +10175,28 @@ in the round file §7.
   `test_backfill_refuses_unknown_args_and_is_idempotent`. Generalisable:
   `--help` is the least dangerous thing anyone types, which is exactly why a
   mutating script that ignores argv is dangerous.
+- **The full-span journal capture FAILED and the failure is the finding.**
+  It returned `n_seconds: 0` after 23 minutes: started 05:58:20Z, wrote at
+  06:21:57Z = **1417 s against a `timeout_s` of 1400**, so `subprocess.run`
+  raised `TimeoutExpired` and the probe fail-closed to `[]`. The client gave
+  up on a remote side that was fine — **the same shape as round 352 §3's
+  `swap_watch_launch.py` hang, two E-rounds running.** Why it is slow,
+  measured not guessed: a 30-minute window inside boot `-1` holds **81 991
+  entries, 2733/s sustained**, 8.2 s to scan, and that boot spans ~38 h. The
+  cost is not archive decompression — **this box's earlier boots logged two
+  orders of magnitude harder than the current one** (well under 3 entries/s
+  now). The `awk` reduction was fine throughout: 81 991 entries dedup to at
+  most 1800 whole seconds. **P5/P8/P9 are UNRESOLVED, not scored** — scoring
+  P5 a MISS would credit a prediction with an outcome our own timeout
+  produced.
+- **A second defect fell out of it:** the CLI wrote the empty capture to
+  `--out`, producing a file reading "covers 4.5 days, 0 entry-seconds" —
+  indistinguishable on disk from a real measurement of a silent box. Nothing
+  downstream was fooled (`make_silence_fn` refuses an empty list) but a human
+  reading the directory would have been. Empty captures are no longer
+  written and the exit code is non-zero; pinned by
+  `test_cli_journal_seconds_never_writes_an_empty_capture`. The file was
+  deleted rather than kept.
 - **Round 352's knowledge file §2 annotated as SUPERSEDED** rather than
   edited, so its withdrawn headline numbers cannot be quoted forward.
 - See `knowledge/round-358-nuc-e-the-witness-that-claimed-too-much.md`.
@@ -10185,12 +10207,16 @@ in the round file §7.
    for `PULL_DONE` and `ps aux | grep swap_watch` on the box BEFORE launching
    anything — round 274's rule, and round 352 §3 is a fresh argument for it.
    Fifth consecutive round this item is carried.
-2. **Widen the journal capture beyond the current boot.** Round 358 bounded
-   exactly ONE of 19 up gaps, because a per-boot capture only covers gaps
-   inside that boot. The remaining 18 need per-boot captures for boots -1
-   through -6, each of which is a multi-minute archived-journal scan. A
-   future E-round should capture them once and CACHE per boot_id under
-   `state/nuc-journal-<boot_id>.json`; they are immutable for closed boots.
+2. **Widen the journal capture beyond the current boot — PER BOOT, and the
+   whole-span attempt is known not to work.** Round 358 bounded exactly ONE
+   of 19 up gaps, and its full-span capture died on a client timeout after 23
+   minutes with nothing to show. Do it as one scan per `boot_id`, cached to
+   `state/nuc-journal-<boot_id>.json` (closed boots are immutable, so this is
+   write-once), with a timeout sized from the measured rate: **8.2 s per 30
+   min of boot -1**, so ~10 min for boot -1's ~38 h. Boot -1 alone would have
+   fit inside the timeout that killed the whole span. Verify the CLI's exit
+   code, not just the file — round 358 made the empty-capture file impossible
+   but a partial one is still conceivable.
 3. **Re-verify round 304 item 2 (standing state)** — skipped this round as a
    deliberate no-op (round 352 did it 3.5 h earlier on the same boot, load
    0.00). The next E-round on a NEW boot must not skip it.

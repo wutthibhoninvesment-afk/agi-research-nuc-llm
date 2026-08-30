@@ -2151,3 +2151,23 @@ def test_backfill_refuses_unknown_args_and_is_idempotent(tmp_path, capsys, monke
     assert bf.main([]) == 0
     assert bf.main(["--dry-run"]) == 0
     assert log.read_text().splitlines() == first
+
+
+def test_cli_journal_seconds_never_writes_an_empty_capture(tmp_path, capsys, monkeypatch):
+    """Round 358: the first wide capture failed on a client-side timeout and
+    `journal_seconds_probe` returned [] -- correct, fail-closed -- and the
+    CLI then wrote `{covers 4.5 days, n_seconds: 0}` to disk, which reads
+    like a measurement of a silent box. Nothing downstream was fooled
+    (`make_silence_fn` refuses an empty list) but a human reading the
+    directory would have been. Empty means no file and a non-zero exit."""
+    out = tmp_path / "cap.json"
+    monkeypatch.setattr(rc, "journal_seconds_probe", lambda *a, **k: [])
+    assert rc.main(["journal-seconds", "--since", "2026-08-25T00:00:00Z",
+                    "--until", "2026-08-26T00:00:00Z", "--out", str(out)]) == 1
+    assert not out.exists()
+    assert json.loads(capsys.readouterr().out)["n_seconds"] == 0
+
+    monkeypatch.setattr(rc, "journal_seconds_probe", lambda *a, **k: [1788000000])
+    assert rc.main(["journal-seconds", "--since", "2026-08-25T00:00:00Z",
+                    "--until", "2026-08-26T00:00:00Z", "--out", str(out)]) == 0
+    assert json.loads(out.read_text())["seconds"] == [1788000000]

@@ -1117,3 +1117,13 @@ Code runs (proof in round file), measurements banked in both places,
   observed. Boots -1 to -6 remain unchecked (archived scan timed out at
   120 s). Signature to use:
   `journalctl -b N -k | grep -E 'PM: suspend (entry|exit)|Freezing user space'`.
+- **The full-span journal capture FAILED — capture per boot instead.**
+  `journal-seconds --since 2026-08-25T16:11Z --until 2026-08-30T05:47Z`
+  returned `n_seconds: 0` after 23 min: elapsed **1417 s against a 1400 s
+  client timeout**, so the probe fail-closed to `[]` while the box's side was
+  fine (round 352 §3's shape again). Rate, measured: a 30-min window in boot
+  `-1` holds **81 991 entries (2733/s), 8.2 s to scan**; boot -1 spans ~38 h
+  ⇒ ~10 min. **This box's earlier boots logged ~1000x harder than the current
+  one.** Next E-round: one scan per `boot_id`, cached to
+  `state/nuc-journal-<boot_id>.json` (closed boots are immutable), timeout
+  sized from that rate.

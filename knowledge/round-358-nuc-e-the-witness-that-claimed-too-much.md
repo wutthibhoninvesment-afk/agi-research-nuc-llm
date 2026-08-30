@@ -261,10 +261,54 @@ curve.
 
 ## 8. Full-span capture
 
-Launched in the background with a 1400 s remote timeout over
+Launched in the background with a 1400 s client timeout over
 2026-08-25T16:11:00Z → 2026-08-30T05:47:43Z, after confirming no orphaned
 `journalctl` was left on the box by the timed-out first attempt (`ps aux |
-grep journalctl` = 0). Result and the P5/P8/P9 scoring: see §10.
+grep journalctl` = 0).
+
+**It came back with `n_seconds: 0` after 23 minutes** — a failure, not a
+measurement. Diagnosis, from elapsed time against the configured limit:
+started 05:58:20Z, wrote at 06:21:57Z = **1417 s against a `timeout_s` of
+1400**, so `subprocess.run` raised `TimeoutExpired` and
+`journal_seconds_probe` returned `[]` exactly as designed. The client gave up
+~17 seconds before its own deadline would have mattered; the remote side had
+been running for 23 minutes and its result was discarded. **Third instance
+this round, and the fourth E-round running, of code being wrong on first
+contact with the real machine — and the second time in two E-rounds that the
+failure was a client giving up on a remote side that was fine** (round 352
+§3 was the same shape with `swap_watch_launch.py`).
+
+**Why it takes that long, measured rather than guessed.** A 30-minute window
+inside boot `-1` (2026-08-28T12:00–12:30Z) holds **81 991 entries — 2733
+entries/second sustained** — and takes 8.2 s to scan. Boot -1 spans ~38 h, so
+that boot alone is ~10 minutes of scanning, and boot -2 spans ~40 h more. The
+cost is not archive decompression; it is that **this box's earlier boots
+logged two orders of magnitude harder than the current one** (the current
+boot averages well under 3 entries/s). Whatever was running on 08-28 is not
+running now, and the journal's own volume is the evidence.
+
+The payload was never the problem: 81 991 entries dedup to at most 1800
+whole seconds, so the `awk` reduction was doing its job.
+
+**One more defect this exposed.** The CLI wrote the empty capture to `--out`
+anyway, producing a file that says "covers 2026-08-25 → 2026-08-30, 0
+entry-seconds" — indistinguishable on disk from a real measurement of a
+silent box. Nothing downstream would have been fooled (`make_silence_fn`
+refuses an empty list, so every gap stays `REBOOT_ONLY`), but a human reading
+the directory would have been, and I nearly quoted it. Fixed: an empty
+capture is never written, and the exit code is non-zero. Pinned by
+`test_cli_journal_seconds_never_writes_an_empty_capture`. The file has been
+deleted rather than kept as an artifact.
+
+**P5, P8 and P9 are therefore UNRESOLVED, not scored.** P5 (non-empty
+full-span result) technically read as false, but the cause was our own client
+timeout, not the box — scoring it as a MISS would credit a prediction with an
+outcome it did not produce. P8 (>600 s silence in an old gap) and P9 (worst
+silence 1800 s–4 h) need the data that did not arrive. What §10 item 1 now
+asks for — per-boot captures cached by `boot_id` — is also the right way to
+get them: each boot is a separate, resumable, cacheable scan, and boot -1
+alone would have fit comfortably inside the timeout that killed the whole
+span.
 
 ## 9. NUC hygiene
 

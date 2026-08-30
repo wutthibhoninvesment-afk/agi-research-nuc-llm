@@ -1577,7 +1577,14 @@ def main(argv=None) -> int:
                                         timeout_s=args.timeout)
         capture = {"covers_from_utc": args.since, "covers_to_utc": args.until,
                    "n_seconds": len(seconds), "seconds": seconds}
-        if args.out:
+        # Round 358: an EMPTY capture is never written to --out. The probe
+        # returns [] for every failure mode including a client-side timeout,
+        # and a file on disk saying "covers 4.5 days, 0 entry-seconds" looks
+        # exactly like a measurement of a silent box. `make_silence_fn`
+        # already refuses an empty list, so nothing downstream would have
+        # been fooled -- but a human reading the directory would have been,
+        # and the first wide capture this round produced exactly that file.
+        if args.out and seconds:
             Path(args.out).write_text(json.dumps(capture))
         # stdout stays small: the seconds list belongs in --out, not a terminal.
         print(json.dumps({k: v for k, v in capture.items() if k != "seconds"},
