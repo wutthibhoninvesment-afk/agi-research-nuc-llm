@@ -37,7 +37,7 @@ class TestDriverLine(unittest.TestCase):
         self.tmp = tempfile.mkdtemp()
         self.log = os.path.join(self.tmp, "skills_health_round_999.log")
         write(self.log, "skill_lint         ok    fine\n"
-                        "corpus-check: 5 checker(s), 0 error(s), 1 warning(s)\n")
+                        "corpus-check: 6 checker(s), 0 error(s), 1 warning(s)\n")
 
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -193,11 +193,18 @@ class TestLiveCorpus(unittest.TestCase):
         out = os.path.join(tempfile.mkdtemp(), "r.json")
         corpus_check.main(["--repo-root", ROOT, "--json", out])
         report = json.load(open(out, encoding="utf-8"))
-        # 5 under the re-entry guard (these tests run inside `unit_tests`),
-        # 6 when the driver invokes it from a clean environment.
-        # 5 here (setUp sets the guard); 6 when the driver invokes it from a
-        # clean environment, which `test_the_reentry_guard...` covers.
-        self.assertEqual(len(report["results"]), 5)
+        # DERIVED, not a literal. This assertion was `== 5` and round 369
+        # added a sixth checker, which turned a real health check red for a
+        # number rather than for a defect — round 321 item 14 / round 333
+        # item 4's "a line asserting a number that no round re-executes",
+        # inside the corpus's own test suite. `checks()` reads the re-entry
+        # guard itself, so this is right in both environments: one fewer
+        # under the guard (these tests run inside `unit_tests`), all of them
+        # when the driver invokes it from a clean environment.
+        self.assertEqual(len(report["results"]),
+                         len(corpus_check.checks(ROOT)))
+        self.assertNotIn("unit_tests",
+                         [r["check"] for r in report["results"]])
         for r in report["results"]:
             self.assertEqual(r["status"], "ran", r)
             self.assertTrue(r["summary"], r)

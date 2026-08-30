@@ -4,9 +4,10 @@ and reduce them to one PASS/FAIL line.
 
 Why this exists
 ---------------
-The corpus owns five checkers (`skill_lint`, `case_coverage`, `xref_check`,
-`claim_check`, `state_claim_check`), all offline, all free, all fast — and
-before round 363 **nothing in `run_driver.sh` ran any of them**. The driver
+The corpus owns six checkers (`skill_lint`, `case_coverage`, `xref_check`,
+`claim_check`, `state_claim_check`, and `carryforward_check` since round
+369), all offline, all free, all fast — and before round 363 **nothing in
+`run_driver.sh` ran any of them**. The driver
 has two per-round health checks (round 241's `harness/run_tests_fast.sh` and
 round 247's `languages/whence/run_tests_fast.sh`) and neither reads
 `skills/`. So a corpus violation was found only by the next skills(B) round:
@@ -103,7 +104,7 @@ REENTRY_ENV = "SKILLS_CORPUS_CHECK_RUNNING"
 def checks(root):
     """(name, argv). Order is cheapest-first so a broken tree fails fast.
 
-    TWO enforcement surfaces, not one. The five checkers are the obvious
+    TWO enforcement surfaces, not one. The six checkers are the obvious
     half; `skills/*/scripts/test_*.py` is the other, and round 363 found it
     the hard way — `test_claim_check.py::test_only_the_known_prose_only_
     skills_parse_to_zero_commands` had been RED since round 359's commit
@@ -123,6 +124,16 @@ def checks(root):
                                os.path.join(root, "state", "research-state.md"),
                                "--repo-root", root]),
         ("xref_check", [os.path.join(s, "xref_check.py")]),
+        # Round 369. Not a SKILL.md rule — it checks that every
+        # PREDICTIONS bank on disk is accounted for in
+        # `state/prediction-bank-ledger.json` (CLAUDE.md D-013's
+        # second half). It belongs here rather than in a fourth
+        # health check for the reason this file exists at all: the
+        # cost of a checker nothing runs is a latency bounded only by
+        # the rotation, and round 362's dropped bank sat for 7 rounds
+        # while two language(C) rounds ran past it. 0.7 s.
+        ("carryforward", [os.path.join(s, "carryforward_check.py"),
+                          "--repo-root", root]),
         # Last because it is the slow one (~37s vs ~3s for the five above),
         # and because a checker failing is the cheaper diagnosis to read
         # first. pytest's own exit codes land correctly on this file's

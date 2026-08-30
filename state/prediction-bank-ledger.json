@@ -1,0 +1,348 @@
+{
+ "_comment": "Per-PREDICTIONS-bank ledger, read by skills/skill-authoring/scripts/carryforward_check.py (round 369). CLAUDE.md rule D-013 has two halves -- bank predictions BEFORE measuring, then score them honestly -- and nothing in this program ever checked the second half. Five banks had been silently dropped (23, 132, 362, 368, and this round's own 369 until it is scored). An entry is `scored` (naming the round that discharged it, the file, and a sentence that must still be findable there -- K002 re-reads it, it is not trusted) or `unscored` (naming an `owner` track and a `why`). A `remainder` field records predictions a discharge left out; it raises a K004 WARNING, never an error, so a partial discharge stays visible without the check crying wolf. DISCOVERY IS A REPO-WIDE FILENAME SWEEP, not this file: a bank on disk with no entry here is a K001 ERROR, so adding a bank under a seventh naming convention cannot silently escape. The scanner behind `--suggest` is a bootstrap and a rot detector, never the authority -- its first version got 5 of 13 verdicts wrong in both directions, which is why this file exists.",
+ "_bootstrap": "Bootstrapped by round 369 from a prose scan of state/research-state.md, state/research-state-archive.md and knowledge/*.md, then HAND-ADJUDICATED bank by bank against the corpus. Eleven entries (15, 17, 24, 27, 29, 31, 105, 112, 137, 366, 367) had their quote or attribution corrected by hand -- the scanner had credited round 137 with round 353's P1 about round 137's TREE, credited round 105 with a sentence about round 27, and missed round 366's lowercase \"P4/P5/P6 hit\" entirely. Two banks carry no round number in their path at all (nuc/predictions-e1.md, nuc/predictions-e2.md, mission-scoped rather than round-scoped); the checker reports them as unnumbered and does not require entries for them.",
+ "banks": {
+  "15": {
+   "bank": "state/trigger-eval/round-015-predictions.md",
+   "status": "scored",
+   "scored_by": 15,
+   "where": "state/research-state-archive.md",
+   "quote": "scored 9 HIT / 6 MISS"
+  },
+  "17": {
+   "bank": "state/round-017-predictions.md",
+   "status": "scored",
+   "scored_by": 18,
+   "where": "state/research-state-archive.md",
+   "quote": "round-17 **P1 MISS**",
+   "remainder": "P2-P4 (mutation/live) were explicitly left unscored by the same sentence: \"P2–P4 (mutation/live) still unscored, need a D round\". No later round named them."
+  },
+  "21": {
+   "bank": "state/trigger-eval/round-021-predictions.md",
+   "status": "scored",
+   "scored_by": 21,
+   "where": "knowledge/round-021-skill-suppression-necessity-haiku.md",
+   "quote": "- **P1 HIT** (97% ≥ 90% with distractors). **P2 MISS** — 0 staged fires; I"
+  },
+  "23": {
+   "bank": "state/round-023-predictions.md",
+   "status": "unscored",
+   "owner": "SWE-loop(D)",
+   "why": "Round 23 died at max-turns. research-state-archive.md's round-24 stub rolled P1-P6 to \"next D round (29)\"; round 29 scored its own bank (via round 107) and round 101's, and never round 23's. The rolled obligation was dropped at the hand-off, which is this checker's whole subject. Note before spending a round: round 23 left `state/mutation/round-023-interp.log` INCOMPLETE (43 kills, no score), so some of P1-P6 may be unscorable from surviving artifacts -- deciding that and SAYING SO discharges the entry as honestly as a tally would."
+  },
+  "24": {
+   "bank": "state/round-024-predictions.md",
+   "status": "scored",
+   "scored_by": 26,
+   "where": "knowledge/round-026-whence-v08-chain-walk-concurrent-writer.md",
+   "quote": "**Round-24 predictions scored**"
+  },
+  "25": {
+   "bank": "state/round-025-predictions.md",
+   "status": "scored",
+   "scored_by": 25,
+   "where": "state/research-state-archive.md",
+   "quote": "- **Predictions: 6 HIT / 1 MISS** — the miss was P6, the base-rate \"I'll break one of my own tests\" bet (first zero-first-run-failure round). P4/P5 hit with bars ~3× too loose: computable effects dese"
+  },
+  "26": {
+   "bank": "state/round-026-predictions.md",
+   "status": "scored",
+   "scored_by": 26,
+   "where": "knowledge/round-026-whence-v08-chain-walk-concurrent-writer.md",
+   "quote": "| P1 | fib20 unchanged ±5% | **HIT** (0.118–0.120s vs 0.115 baseline) |"
+  },
+  "27": {
+   "bank": "state/round-027-predictions.md",
+   "status": "scored",
+   "scored_by": 105,
+   "where": "state/research-state-archive.md",
+   "quote": "its P1 HIT / P2 MISS(low: haiku 5/6) / P9 HIT, P3–P5/P8 never ran (done this round)"
+  },
+  "28": {
+   "bank": "state/round-028-predictions.md",
+   "status": "scored",
+   "scored_by": 28,
+   "where": "knowledge/round-028-nuc-e3-kv-prefix-reuse.md",
+   "quote": "48.33 / 47.58 / 47.57 s, ratio 1.000 → nothing reused (P8 hit). The"
+  },
+  "29": {
+   "bank": "state/round-029-predictions.md",
+   "status": "scored",
+   "scored_by": 107,
+   "where": "state/research-state-archive.md",
+   "quote": "round 29's P3–P10 finally scored",
+   "remainder": "P1-P2 are not named by the discharge. Round 35 was recorded as the owner (\"Round-29 predictions unscored → 35\") and round 107 scored P3-P10; nothing accounts for P1-P2."
+  },
+  "30": {
+   "bank": "state/round-030-predictions.md",
+   "status": "scored",
+   "scored_by": 30,
+   "where": "state/research-state-archive.md",
+   "quote": "- **Predictions 7 HIT / 5 MISS (+guest):** P1 1.58× vs ≥1.6 and P2 −19.2 % vs ≥20 % missed by a hair — I set the LOWER bound at the point estimate (rule: lower bound = tottime floor); P3/P4 missed on "
+  },
+  "31": {
+   "bank": "state/round-031-predictions.md",
+   "status": "scored",
+   "scored_by": 109,
+   "where": "knowledge/round-109-harness-completion-guards-process-groups.md",
+   "quote": "**Round-31 ledger (`state/round-031-predictions.md`), scored from the"
+  },
+  "100": {
+   "bank": "state/round-100-predictions.md",
+   "status": "scored",
+   "scored_by": 106,
+   "where": "knowledge/round-106-nuc-e4-fast-lane-inheritance.md",
+   "quote": "round 100's predictions (`state/round-100-predictions.md`, P1–P12) scored here"
+  },
+  "101": {
+   "bank": "state/round-101-predictions.md",
+   "status": "scored",
+   "scored_by": 101,
+   "where": "knowledge/round-101-swe-loop-coverage-triage-repair-bench-read-budget.md",
+   "quote": "P7 scoring: `oracle_check ≥ 5` MISS for A / HIT for B; JSON emitted MISS"
+  },
+  "105": {
+   "bank": "state/round-105-predictions.md",
+   "status": "scored",
+   "scored_by": 105,
+   "where": "state/research-state-archive.md",
+   "quote": "- **Predictions 11 HIT / 4 MISS**"
+  },
+  "106": {
+   "bank": "state/round-106-predictions.md",
+   "status": "scored",
+   "scored_by": 106,
+   "where": "knowledge/round-106-nuc-e4-fast-lane-inheritance.md",
+   "quote": "| P6 | container 7.4 (6.8–7.6) GB | 7.42 GB | HIT |"
+  },
+  "107": {
+   "bank": "state/round-107-predictions.md",
+   "status": "scored",
+   "scored_by": 107,
+   "where": "knowledge/round-107-swe-loop-campaign-completion-process-groups.md",
+   "quote": "\"killed by test_b\" mutant and it is equivalent for `clamp`; P11 HIT)."
+  },
+  "108": {
+   "bank": "state/round-108-predictions.md",
+   "status": "scored",
+   "scored_by": 108,
+   "where": "knowledge/round-108-whence-v10-value-model-floor.md",
+   "quote": "## 4. Predictions scored: 9 HIT / 5 MISS (+P13 HIT)"
+  },
+  "109": {
+   "bank": "state/round-109-predictions.md",
+   "status": "scored",
+   "scored_by": 109,
+   "where": "knowledge/round-109-harness-completion-guards-process-groups.md",
+   "quote": "| P3 | delegation break-even R ∈ [2, 4] for P=20k V=8k S=4 O=1.5k | **MISS (low)**: bench says R = 0.0 (closed form 0.00). Mechanism: the prediction's model omitted *prefix avoidance* — each of the ch"
+  },
+  "110": {
+   "bank": "state/round-110-predictions.md",
+   "status": "scored",
+   "scored_by": 110,
+   "where": "knowledge/round-110-whence-v11-ceiling-frame-charge-oracle.md",
+   "quote": "| P1 | fib20 direct −4 … −12 % | **HIT**: −11.6 % (2.81 µs/call) — at the ablation bound's edge |"
+  },
+  "111": {
+   "bank": "state/round-111-predictions.md",
+   "status": "scored",
+   "scored_by": 111,
+   "where": "knowledge/round-111-skills-probe-audit-strict-default.md",
+   "quote": "(`round-111-audit-before.md`, P6 first half HIT exactly.) Semantics: per"
+  },
+  "112": {
+   "bank": "state/round-112-predictions.md",
+   "status": "scored",
+   "scored_by": 112,
+   "where": "state/research-state-archive.md",
+   "quote": "R1–R12): **6 HIT / 6 MISS**"
+  },
+  "113": {
+   "bank": "state/round-113-predictions.md",
+   "status": "scored",
+   "scored_by": 113,
+   "where": "knowledge/round-113-swe-loop-bymap-subset-triage-oracle-kill.md",
+   "quote": "docstring asserted** (P2 banked 12–30 min from that docstring: MISS, and"
+  },
+  "123": {
+   "bank": "state/round-123-predictions.md",
+   "status": "scored",
+   "scored_by": 141,
+   "where": "state/research-state-archive.md",
+   "quote": "- **Scored every prediction from the raw artifacts (not narration):** round 111 5 HIT/1 HIT-exceeded/3 MISS/2 PARTIAL (P5 \"gte-near ≥4/6 after the symptom rewrite\" MISS — actually 0/6, the direct reas"
+  },
+  "125": {
+   "bank": "state/round-125-predictions.md",
+   "status": "scored",
+   "scored_by": 131,
+   "where": "knowledge/round-131-swe-loop-campaign-snapshot-bug.md",
+   "quote": "| P6 | MISS (large) | subset self-check: 20/20 flipped, predicted <=1 of 20 -- this became round 125's headline forensic finding (`_BUILTIN_TABLE` process-wide singleton + subprocess-invisible `test_e"
+  },
+  "129": {
+   "bank": "state/round-129-predictions.md",
+   "status": "scored",
+   "scored_by": 141,
+   "where": "state/research-state-archive.md",
+   "quote": "- **Scored every prediction from the raw artifacts (not narration):** round 111 5 HIT/1 HIT-exceeded/3 MISS/2 PARTIAL (P5 \"gte-near ≥4/6 after the symptom rewrite\" MISS — actually 0/6, the direct reas"
+  },
+  "131": {
+   "bank": "state/round-131-predictions.md",
+   "status": "scored",
+   "scored_by": 131,
+   "where": "knowledge/round-131-swe-loop-campaign-snapshot-bug.md",
+   "quote": "| P1 | MISS (far) | recheck score 99.02% (survived 12/1226) vs predicted 86-90% — the subset-check correction (20/20 flips) pulled the score up far more than expected |"
+  },
+  "132": {
+   "bank": "state/round-132-predictions.md",
+   "status": "unscored",
+   "owner": "language(C)",
+   "why": "Round 132 died at error_max_turns with no knowledge file (research-state-archive.md, the rounds-131-135 entry). It inherited v0.13 Whence return-type WIP from rounds 126-128. Whence is at v0.27 as of round 368, so several banded predictions are probably unscorable against today's tree; scoring what survives and marking the rest unscorable is the discharge."
+  },
+  "135": {
+   "bank": "state/round-135-predictions.md",
+   "status": "scored",
+   "scored_by": 141,
+   "where": "state/research-state-archive.md",
+   "quote": "- **Scored every prediction from the raw artifacts (not narration):** round 111 5 HIT/1 HIT-exceeded/3 MISS/2 PARTIAL (P5 \"gte-near ≥4/6 after the symptom rewrite\" MISS — actually 0/6, the direct reas"
+  },
+  "137": {
+   "bank": "state/round-137-predictions.md",
+   "status": "scored",
+   "scored_by": 155,
+   "where": "knowledge/round-155-swe-loop-stale-coverage-map-soundness-bug.md",
+   "quote": "## 7. Round 137 predictions scored"
+  },
+  "139": {
+   "bank": "state/round-139-predictions.md",
+   "status": "scored",
+   "scored_by": 145,
+   "where": "state/research-state-archive.md",
+   "quote": "- **Scored `state/round-139-predictions.md` from raw log evidence:** P1 (redeploy happened, `watcher.log`) HIT, P2 (stream-json live from round 140, `wc -l`>1) HIT, P4 (turn instrumentation returns re"
+  },
+  "145": {
+   "bank": "state/round-145-predictions.md",
+   "status": "scored",
+   "scored_by": 145,
+   "where": "knowledge/round-145-harness-driver-selfexec-and-max-turns-answer.md",
+   "quote": "- **P1 (redeploy happens): HIT.** `logs/watcher.log`: `\"round pid 25834"
+  },
+  "340": {
+   "bank": "nuc/predictions-e-round340.md",
+   "status": "scored",
+   "scored_by": 346,
+   "where": "knowledge/round-346-nuc-e-deleted-vs-never-written.md",
+   "quote": "| P1 | box `down` (0.85) | **HIT** — 9th consecutive. (The banked text said \"8th\"; that was an off-by-one against `research-state.md`, which records round 340 as the eighth. It does not affect the ver"
+  },
+  "345": {
+   "bank": "state/round-345-predictions.md",
+   "status": "scored",
+   "scored_by": 345,
+   "where": "knowledge/round-345-skills-b-citation-registry-integrity.md",
+   "quote": "first run** — three real, one an over-strong test. Base-rate prediction P7 hit."
+  },
+  "346": {
+   "bank": "state/round-346-predictions.md",
+   "status": "scored",
+   "scored_by": 346,
+   "where": "state/research-state.md",
+   "quote": "is what makes X001 real authorship. P7 hit on outcome but was **wrong on"
+  },
+  "352": {
+   "bank": "nuc/predictions-e-round352.md",
+   "status": "scored",
+   "scored_by": 352,
+   "where": "knowledge/round-352-nuc-e-the-box-came-back-and-the-launcher-hung.md",
+   "quote": "| P1 | ≥2 boots listed | **HIT** — 7, back to 2026-08-19 |"
+  },
+  "353": {
+   "bank": "state/swe/round-353/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 353,
+   "where": "knowledge/round-353-swe-d-a-score-of-1-0-that-measured-1016-of-1276.md",
+   "quote": "| P1 | the archived round-137 tree is green today | **MISS** — red, four times, three causes (§3). The prediction assumed an archive is a time machine; it is a directory whose tests still talk to a mo"
+  },
+  "358": {
+   "bank": "nuc/predictions-e-round358.md",
+   "status": "scored",
+   "scored_by": 358,
+   "where": "state/research-state.md",
+   "quote": "- **P6 is the instructive miss:** I predicted 50k–400k distinct entry-seconds"
+  },
+  "359": {
+   "bank": "state/swe/round-359/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 359,
+   "where": "knowledge/round-359-swe-d-the-exemption-that-was-right-for-the-wrong-reason.md",
+   "quote": "| P2 | 0 mismatches over a 200-program campaign of unshadowed programs | 60% | **HIT**, at 12.5× the size — 0 over 2500, twice (before and after the grammar change) |"
+  },
+  "360": {
+   "bank": "state/whence/round-360/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 360,
+   "where": "knowledge/round-360-whence-v024-the-refusal-set-nobody-had-compared.md",
+   "quote": "| P1 | fixing the host comment/col bug moves NEWLINE and EOF columns ONLY | **HIT** — every divergence the model found was one of those two kinds; pinned by `test_only_newline_and_eof_columns_could_ev"
+  },
+  "361": {
+   "bank": "state/harness/round-361/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 361,
+   "where": "state/research-state.md",
+   "quote": "- **Predictions: 7 HIT, 2 MISS, 1 VOID, 1 UNRESOLVED.** P11 MISS (full-history"
+  },
+  "362": {
+   "bank": "state/whence/round-362/PREDICTIONS.md",
+   "status": "unscored",
+   "owner": "language(C)",
+   "why": "Killed by the outer round timeout five seconds after its last SPEC.md write. Round 363 landed its CODE, recorded the unscored bank in round 362's research-state entry, and said it was \"carried as a next step for language(C)\" -- and it reached NO subsequent next-steps block (364, 365, 367). Two language(C) rounds (366, 368) have run since. Round 363 §1 notes several of the 11 are answerable from artifacts round 362 itself left (P1's 141/400 and P11's 141/141 parse rate are both quoted in the `## v0.25` SPEC section it wrote)."
+  },
+  "363": {
+   "bank": "state/round-363-predictions.md",
+   "status": "scored",
+   "scored_by": 363,
+   "where": "knowledge/round-363-the-corpus-had-five-checkers-and-nothing-ran-them.md",
+   "quote": "**P13 missed, and the miss is worth more than the hit would have been.** The"
+  },
+  "364": {
+   "bank": "nuc/predictions-e-round364.md",
+   "status": "scored",
+   "scored_by": 364,
+   "where": "knowledge/round-364-nuc-e-the-box-is-never-quiet-for-more-than-two-minutes.md",
+   "quote": "| P1 | poll completes on its own at 10:25:07Z | **HIT** |"
+  },
+  "365": {
+   "bank": "state/swe/round-365/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 365,
+   "where": "state/research-state.md",
+   "quote": "141-seed sweep the prediction was written against. P7 MISS (~100 s vs"
+  },
+  "366": {
+   "bank": "state/whence/round-366/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 366,
+   "where": "knowledge/round-366-the-limit-that-was-neither-an-error-nor-a-crash.md",
+   "quote": "and scored there: **P4/P5/P6 hit,"
+  },
+  "367": {
+   "bank": "state/harness/round-367/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 367,
+   "where": "state/research-state.md",
+   "quote": "- **Predictions: 5 HIT, 5 MISS**"
+  },
+  "368": {
+   "bank": "state/whence/round-368/PREDICTIONS.md",
+   "status": "unscored",
+   "owner": "language(C)",
+   "why": "Killed by the outer round timeout at 2765s (logs/driver.log: interrupted=true, status=?). Round 369 verified and landed its code as commit f568a79 and did NOT score the bank -- the same reconciler's-blind-spot round 365's item 0 names. P1/P2/P7 are answerable from the committed v0.27 SPEC section and code; P5 was checked by round 369 while landing (1591/3/62 vs the banked 1469/3/61 baseline, zero edits to existing tests -- HOLDS); P3/P4 need `bench/value_size.py` re-runs and are a fresh measurement, not a scoring."
+  },
+  "369": {
+   "bank": "state/skills/round-369/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 369,
+   "where": "knowledge/round-369-the-obligation-with-no-registry.md",
+   "quote": "## 8. Predictions, scored",
+   "remainder": "P10 is UNRESOLVED by choice: scoring rounds 362/368's banks from their own artifacts is language(C)'s owed work, and round 363 established that scoring someone else's bank from their own output is not scoring. P4 is NOT ESTABLISHED -- the scanner's 11 includes at least 3 rounds that discharged another round's bank."
+  }
+ }
+}

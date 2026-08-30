@@ -4,10 +4,10 @@
 # languages/whence/run_tests_fast.sh.
 #
 # Round 363 (skills B). Both existing health checks read code trees; neither
-# reads skills/. The corpus owns five checkers — skill_lint, case_coverage,
-# claim_check, state_claim_check, xref_check — all offline, all free, all
-# under 3s, and until this file NOTHING RAN ANY OF THEM outside a skills(B)
-# round. Detection latency for a corpus violation was therefore bounded by
+# reads skills/. The corpus owns six checkers — skill_lint, case_coverage,
+# claim_check, state_claim_check, xref_check, and carryforward_check (round
+# 369) — all offline, all free, all under 3s, and until this file NOTHING RAN
+# ANY OF THEM outside a skills(B) round. Detection latency for a corpus violation was therefore bounded by
 # the rotation: up to six rounds.
 #
 # The measurement that justifies it (corpus_history.py, replaying every

@@ -891,5 +891,31 @@
   "id": "prh-neg-cheap",
   "expect": [],
   "prompt": "My unit test suite takes four seconds. I changed the cache key and want to know if it's faster now."
+ },
+ {
+  "id": "ol-near",
+  "expect": [
+   "obligation-ledger"
+  ],
+  "prompt": "Our rule is that every incident gets a postmortem. I have no idea how many actually got one: the incidents are Jira tickets and the postmortems are scattered across Notion pages, a few Google Docs, and some markdown in the repo, with no naming convention. Before I ask for a bot I want to know what we're actually missing and who owes it."
+ },
+ {
+  "id": "ol-mid",
+  "expect": [
+   "obligation-ledger"
+  ],
+  "prompt": "Every ADR in our repo is supposed to end up with an entry in docs/decisions.md, but people often write the outcome in the PR description or a Slack thread instead and never circle back. Can I get a list I'd actually trust of which ADRs are still undecided?"
+ },
+ {
+  "id": "ol-far",
+  "expect": [
+   "obligation-ledger"
+  ],
+  "prompt": "A contractor handed their project to us halfway through. We merged all their branches and the tests pass, but I have a nagging feeling the open questions they raised in their design docs went nowhere. How would I check that systematically rather than by reading everything?"
+ },
+ {
+  "id": "ol-neg-broken-pipeline",
+  "expect": [],
+  "prompt": "Our CI step that uploads coverage to Codecov has been silently failing for two weeks because the exit code is swallowed by a pipe. Fix the pipeline so it fails loudly."
  }
 ]

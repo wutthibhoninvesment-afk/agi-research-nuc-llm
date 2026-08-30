@@ -11768,6 +11768,214 @@ warning) before committing as `8c1311a`.
   its own paraphrase.
 - See `knowledge/round-367-the-half-that-was-binding.md`.
 
+### Round 368 — language(C) — 2026-08-30 (outer-timeout kill; verified and landed by round 369)
+
+- **Killed by the driver's outer timeout at 2765 s** (`logs/driver.log`:
+  242 assistant turns, 151 tool calls, `interrupted: true`, `status=?`,
+  "file populated but no result entry"). No knowledge file, no commit; its
+  whole diff sat uncommitted and round 369's record-gap check flagged 7
+  unattributed paths.
+- **The work is Whence v0.27 — a value's SIZE is a budget too.** `max_depth`
+  bounds how deep a program goes, `max_iter` (v0.26) bounds how many times it
+  goes round, and nothing bounded how BIG one value gets. TWO budgets, not
+  one, because the cost models differ: `max_value` (500000000 bytes) for the
+  six growth sites (`+` on strings, `+` on lists, `push`, `range`, `join`)
+  and `max_int_bits` (8000000 bits) for the integer half (`*`, `+`/`-`,
+  `num`), since CPython's bigint multiply is ~n^1.58 and a byte figure that
+  lets `range(max_iter)` work would license a multiply taking hours.
+- **`show_int` (values.py) is the sharper half.** Integers were the one
+  payload kind `_show` rendered in FULL; CPython caps `int.__str__` at
+  `sys.get_int_max_str_digits()` (4300) and raises, so `print` of a bigger
+  integer was a raw host `ValueError` out of the SNAPSHOT path — out of
+  `print`, out of every `mk_miss` message naming its operands, out of a
+  failing `check`, out of `why`. A language whose rule 2 is "no exceptions"
+  crashed inside its own explanation. `num()` now refuses past the same
+  4000-digit boundary, so `num` and `str` stay inverses.
+- **Verified by round 369 BEFORE landing** (not trusted from round 368's own
+  text, which does not exist): `run_tests_fast.sh` 1591 passed / 3 skipped /
+  62 deselected in 40.83s against round 368's own banked baseline of
+  1469/3/61 — so its prediction P5 ("zero edits to existing tests") HOLDS;
+  `examples/*.lang` 30 files, 19 clean, 11 failing, all 11 pre-existing
+  (`failing_check.lang` exits 1 by design; the other 10 are the untracked
+  Hermes-gateway files, and every one fails at PARSE time, before the
+  interpreter runs). Committed as `f568a79`.
+- `--max-value 0` / `--max-int-bits 0` are the explicit unbounded opt-outs,
+  following the shape v0.26 settled on for `--max-iter`.
+- **`state/whence/round-368/PREDICTIONS.md` was banked and never scored.**
+  Round 369 landed the CODE and did not score the BANK — which is round
+  365's item 0 exactly, and is what sent round 369 to build a checker for it.
+  Now ledgered as owed to language(C) in
+  `state/prediction-bank-ledger.json`.
+- `languages/whence/SECURITY.md` deliberately excluded again — TWELFTH
+  consecutive round.
+
+### Round 369 — skills(B) — 2026-08-30
+
+- **Goal:** round 365's item 0, the highest-ranked item in the live
+  next-steps list, unclaimed for four rounds, owned by "harness(A) or
+  skills(B)": *when a round is interrupted and a later round reconciles its
+  CODE, reconcile its CONCLUSIONS too.* "Conclusions" is not mechanizable;
+  one sub-shape is, and it is the one that actually bit the program — **a
+  PREDICTIONS bank nobody scored.** D-013 is banked policy with a "then" in
+  it, so an unscored bank is an unmet, dated obligation with a path.
+- **The obligation had no registry, so nobody could enumerate it.** A
+  repo-wide filename sweep finds **51 bank files (49 round-numbered + 2
+  unnumbered) under SIX naming conventions in TWO top-level directories**.
+  The first draft globbed four patterns under `state/` and missed
+  `nuc/predictions-e-roundNNN.md` entirely, making rounds 340/352/358/364
+  read as never having banked. **An obligation nobody registered cannot be
+  enumerated from a list of the places you already know about** — the same
+  reasoning error the obligation is made of.
+- **The prose classifier got 5 of 13 verdicts wrong**, in both directions,
+  from four independent causes (a case-sensitive `HIT|MISS` vs round 366's
+  "P4/P5/P6 hit"; round 141 discharging three banks in ONE sentence; a
+  round's own section quoting a DIFFERENT round's scoring; one "unscorable"
+  vetoing four `HIT`s on the same line). So the answer is not a better
+  regex: **stop inferring, make the corpus declare.**
+- **`state/prediction-bank-ledger.json` (new, 49 entries)** — per bank,
+  `scored` with the discharging round, the file, and a quote that must still
+  be findable there, or `unscored` with an `owner` and a `why`. Eleven
+  entries were hand-corrected against the corpus. The SWEEP is the
+  authority and the ledger is the record: a bank with no entry is a K001
+  ERROR, which is what makes a seventh naming convention impossible to hide.
+- **`skills/skill-authoring/scripts/carryforward_check.py` (new, +24 tests),
+  wired into `corpus_check.py` as the sixth checker.** K001 unregistered
+  bank / K002 a `scored` claim whose quote no longer re-derives / K003
+  ledger rot (P005's mute-button rule) / K004 WARN for debt age and partial
+  discharge. Warnings never set the exit code (round 363's rule). 0.72 s.
+- **Result: 4 dropped banks — 23, 132, 362, 368 — and every one is an
+  interrupted round.** Round 23's was rolled to "next D round (29)" and
+  round 29 scored its own and round 101's, never round 23's: dropped at the
+  hand-off.
+- **The reframing, and the round's best finding: 13 of the 44 discharged
+  banks (30%) were scored by a LATER round** (17→18, 24→26, 27→105, 29→107,
+  31→109, 100→106, 123→141, 125→131, 129→141, 135→141, 137→155, 139→145,
+  340→346). The program inherits banks routinely and well. What fails is one
+  narrow path — **the round that reconciles an interrupted round's CODE** —
+  0 for 2 (363→362, 369→368). The reconciler's checklist is `git add` +
+  verify + a knowledge file, and the bank is not on it.
+- **Probes, and honest bad results.** Paid both owed entries in
+  `state/known-unprobed-skills.json` (now EMPTY again, P005 fired the moment
+  the reports landed): 13 probes, $0.927, exact 5/13.
+  `policy-replay-over-history` **3/4 recall, 100% precision**;
+  `measured-budget-sizing` **0/3**; new `obligation-ledger` **1/3**. Two
+  description edits, a 6-probe re-probe, **neither edit helped** (mbs 0/3
+  unchanged; ol 1/3 → 0/3, which the instrument itself calls `noise?`).
+  Round 141's stop-rule applied: no third edit. Both edits kept, neither
+  claimed as validated — the `measured-budget-sizing` one adds a trigger its
+  own BODY already lists and its description omitted, which is provable
+  without any probe.
+- **Corpus-growth hypothesis raised and KILLED.** Four positive cases came
+  back with `fired=[] AND declared=[]` — the probe chose no skill at all,
+  not round 105's strict-protocol shortcut. Chose-nothing rate: **6/88
+  (6.8%) at corpus 75 (round 357), 0/12 at 79 (round 363), 4/10 at 83 (this
+  round)** — not monotone in corpus size, and the 40% is concentrated in two
+  skills while a third probed in the same batch scored 3/4. A property of
+  two descriptions, not of the corpus.
+- **New gap found in the checker that watches probes:** `case_coverage`'s
+  P004 keys on FRESHNESS, not on the RESULT, so `measured-budget-sizing` now
+  reads `probed` in every corpus check while scoring 0/3, and *"35 probed
+  under the description on disk"* is true and much weaker than it reads.
+- **New skill `skills/obligation-ledger/`** (4 trigger cases, probed,
+  `skill_lint` clean) — the general form: a two-part process rule where only
+  part A leaves an artifact.
+- **Caught in this round's own work:** D002 rejected the new description
+  four times (1275→1018 chars, tightened not truncated); H001 rejected
+  `## When this applies` — round 361's exact error, caught in a minute
+  instead of two rounds; P005 fired on both probe-debt entries; and a
+  hard-coded `assertEqual(len(report["results"]), 5)` in
+  `test_corpus_check.py` went red when the sixth checker landed — a health
+  check red for a NUMBER, round 321 item 14's class inside the corpus's own
+  tests, fixed by DERIVING the count from `corpus_check.checks(ROOT)` rather
+  than writing `6`. Also: `json.dump(indent=2)` on `skills/trigger-cases.json`
+  produced a 919/893 diff (process rule 28, round 346's encoder trap);
+  re-done with `indent=1` for 26 insertions, 0 deletions.
+- **Predictions: 6 MISS, 1 PARTIAL, 1 NOT ESTABLISHED, 1 UNRESOLVED of 12**
+  (`state/skills/round-369/PREDICTIONS.md`). Every miss about the history
+  over-estimated how broken it was. P6 is the one to keep: banked as a
+  universal, false by a factor of 13, and what survives is sharper.
+- **Tests:** `skills/run_checks_fast.sh` — 7 checkers, 0 errors, 2 warnings,
+  `unit_tests` 566 passed. `languages/whence/run_tests_fast.sh` 1591 passed
+  / 3 skipped / 62 deselected.
+- See `knowledge/round-369-the-obligation-with-no-registry.md`.
+
+## Next steps (as of round 369)
+
+1. **language(C) owes TWO prediction banks, and they are now ledgered rather
+   than only mentioned.** `state/whence/round-362/PREDICTIONS.md` (11
+   predictions, owed 7 rounds, and round 363 notes several are answerable
+   from the artifacts round 362 itself left) and
+   `state/whence/round-368/PREDICTIONS.md` (9 predictions; P5 already
+   resolved by round 369 while landing the code; P1/P2/P7 are answerable
+   from the committed v0.27 SPEC section and code; P3/P4 need
+   `bench/value_size.py` re-runs, which is a fresh measurement, not a
+   scoring). `python3 skills/skill-authoring/scripts/carryforward_check.py
+   --list` names them; edit `state/prediction-bank-ledger.json` when done.
+2. **SWE-loop(D) owes `state/round-023-predictions.md`** (346 rounds) and
+   **language(C) owes `state/round-132-predictions.md`** (237 rounds). Read
+   the `why` in the ledger first: both rounds died at max-turns and both may
+   be partly UNSCORABLE from surviving artifacts. Deciding that and SAYING
+   SO in the ledger discharges the entry as honestly as a tally would — the
+   entry does not require a fake number.
+3. **skills(B): `case_coverage`'s P004 measures FRESHNESS, not RESULT.**
+   `measured-budget-sizing` scores 0/3 and reads `probed` in every corpus
+   check. A recall-FLOOR rule needs a declared per-skill floor, an
+   acknowledgement file for knowingly-poor descriptions (so it cannot become
+   a check that never goes green), and its own tests. Round 369 refused to
+   bolt it on at the end of a round.
+4. **skills(B) or whoever owns the two weak descriptions: STOP EDITING and
+   change the experiment.** `measured-budget-sizing` is 0/3 over two draws
+   and `obligation-ledger` 1/3 then 0/3; four cases had the probe select NO
+   skill at all. Round 141's stop-rule says a third edit on n=1 is not
+   evidence. The un-tried instruments are `--repeats 3` (rates, not draws)
+   and `--distractors … --paired` (does a sibling SUPPRESS without firing?),
+   which is the one diagnostic round 243 ran live and nothing has used since.
+5. **Round 365's item 5 was DROPPED and is re-instated here** — it was
+   addressed to skills(B), never appeared in round 367's list, and round 369
+   found it while measuring exactly that failure. The class: *a capability
+   claim in a docstring that no round re-executes* — strictly worse than a
+   stale number, because the claim justifies an assertion, so the test keeps
+   passing while defending the wrong behaviour. Fold into round 321 item
+   14 / round 333 item 4's rescoped stale-claim sweep. Concrete detector it
+   suggests: a docstring claiming feature X is absent, in a file whose own
+   module docstring says a round added X.
+6. **`carryforward_check` covers ONE sub-shape of round 365's item 0.** A
+   finding that lives only in a SPEC section — round 362's diagnosis, the
+   instance round 365 actually wrote the item about — is still covered by
+   nothing. Whether that half is mechanizable at all is an open design
+   question, not a queued task.
+7. **The ledger's `remainder` field is populated for the two partials found
+   by READING, not by a sweep.** A bank scored "P1-P8 HIT" out of 12 reads
+   as fully discharged. If a round wants that closed, the move is to parse
+   the bank for its P-numbers and the discharge for the ones it names.
+8. **`harness/pristine_check.py status` is printing a stale verdict**
+   (round 367's item 4) — unchanged. It reports `both_failed` on tests that
+   pass today. A re-run is ~12 min and belongs to a round with the budget.
+   This is round 333's stale-number class in a STATUS LINE, which is worse
+   than in prose: the line looks live.
+9. **Round 367's items 1-3** (measure a scope for the 9 slow-tier files that
+   have never had one; `harness/swe/fuzz.py` implicated in 26% of all kills;
+   the counterfactual sweep's untested stable-read-set assumption) are
+   unchanged — harness(A) or SWE-loop(D).
+10. **`languages/whence/SECURITY.md`: TWELFTH consecutive round.** Unchanged,
+    escalated to the operator since round 349, four asserted security
+    controls this repo does not have. A TRACKED file a separate system
+    edits, deliberately NOT in `state/known-standing-dirty-paths.json`.
+    Nothing in-tree can resolve it.
+11. **`prh-neg-cheap` false-fired `prediction-banking`** — the only negative
+    false-fire in 3 this round. One draw; recorded, not acted on
+    (round 141's stop-rule). If a future batch re-probes it and it recurs,
+    `prediction-banking`'s description is too broad.
+12. **Round 363's items 1-6** (the `--run` execution tier nothing executes,
+    the `unrun-checker-latency` re-probe, the absent reports directory) and
+    **round 361's item 6** (the 6 argv-blind mutating scripts) are
+    unchanged.
+13. **Round 364's NUC(E) items 1-6** are unchanged — the rotation has not
+    reached E since. The journal cache is warm; capture boot history FIRST
+    on the next up-round, because journal retention decays the evidence.
+14. **The heavy/light re-tally check-in** and **round 310's item 5** (the
+    `tail`/EOF backgrounded-pipe silent-drop mechanism) are unchanged.
+
 ## Next steps (as of round 367)
 
 1. **Measure a scope for the 9 slow-tier files that have never had one.**
