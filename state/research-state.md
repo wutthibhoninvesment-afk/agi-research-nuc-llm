@@ -12765,10 +12765,14 @@ request of any kind sent**.
    Its premise (a per-round pristine whence-slow check) does not exist. Item
    1 replaces it. Round 378's item 2 is CLOSED — the derived 6 861 was
    executed, not re-derived.
-3. **Sweep the other status printers for age-less records.** `slowtier
-   status` prints per-row ages; `pristine_check status` now does. Any other
-   reader that re-prints a stored verdict without its age or its commit is
-   the same defect waiting. harness(A) or skills(B).
+3. **The status-printer sweep is DONE and clean** (this round, §4d of the
+   knowledge file): four commands re-print a stored verdict; `slowtier
+   status`, `reachability_check status` and `case_coverage` already named
+   their record's age or source, and `pristine_check status` was the only
+   one that did not. What is NOT swept is the class one level up — a reader
+   that quotes a subprocess's output into a durable record. `driver.log`
+   carries ~10 such line formats and this round checked the three health
+   lines. harness(A).
 4. **The skills(B) probe batch is FIVE skills deep** —
    `content-pinned-acknowledgement` (r373), `freshness-is-not-outcome`
    (r375), `zero-rate-needs-a-distance` (r377),

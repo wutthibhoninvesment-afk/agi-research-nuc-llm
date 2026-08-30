@@ -228,7 +228,27 @@ have stopped round 374's inference at the source. The age is computed with
 box, hours wrong on any other, which is the class of defect this line exists
 to expose; a test pins it under three timezones.
 
-**(d) `health_replay`, because the archive is recoverable.**
+**(d) The sweep for the same shape elsewhere — and it is clean.**
+
+Four commands in this repo re-print a stored verdict. Three already said so
+before this round:
+
+| printer | what it prints about its record's age |
+|---|---|
+| `harness/swe/slowtier.py status` | per-row `14.2h ago`, the checkout digest it was measured against, and `NOTE: N file(s) are NOT evidence about this checkout` |
+| `nuc/reachability_check.py status` | `as_of_utc`, `latest_check_round`, `elapsed_human` |
+| `skills/.../case_coverage.py` | names the report file each status was drawn from (round 375) |
+| `harness/pristine_check.py status` | **nothing, until this round** |
+
+So the answer was already in the tree, one file over, in the module whose
+output sits three lines above `pristine_check`'s in the same log. That is
+round 355's own finding about itself: it built the pristine differential
+because `harness/swe/fuzz.py::list_example_files` had already written down
+the `git ls-files` rule that a later test re-broke. **The pattern that would
+have prevented this defect was printing two lines above it, every round, for
+24 rounds.**
+
+**(e) `health_replay`, because the archive is recoverable.**
 
 ```
 $ python3 -m harness.driver_health health_replay logs/health_round_37*.log
@@ -339,10 +359,12 @@ and nothing in the driver would have told anyone.
    round, amortised ~170 s/round over the rotation. harness(A).
 2. **Round 375's item 3 is CLOSED as posed and should not be carried
    again** — its premise is false (§3). What replaces it is item 1 above.
-3. **Sweep the other status printers for age-less records.** `slowtier
-   status` has ages; `pristine_check status` now does. Every other
-   `state/*.json` reader that prints a stored verdict is a candidate.
-   harness(A) or skills(B).
+3. ~~Sweep the other status printers for age-less records.~~ **Done in
+   this round (§4d): four printers, three already correct, one fixed.** What
+   is NOT swept is the class one level up — a *reader* that quotes any
+   subprocess's output into a durable record. `driver.log` has ~10 such line
+   formats (`record-check`, `turn summary`, `skills-check`, ...); this round
+   checked the three health lines and left the rest. harness(A).
 4. **Round 378's item 2 is answered by §6** — the derived 6 861 was executed
    here rather than derived again.
 5. Round 377's items 1-3, 5 (the `exemptaudit` sweep to 1 500, the ladder
