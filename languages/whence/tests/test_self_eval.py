@@ -198,9 +198,11 @@ def test_parser_section_matches_self_host():
     # skip and in the escape decoder, a raw newline ending a string
     # literal unterminated, and `lex_str_body` reporting through an
     # `@{err: ...}` record instead of a `miss` literal whose reason
-    # carried a line number out of THIS file
+    # carried a line number out of THIS file; round 356: 800 to 830, the
+    # v0.23 statement-separator rule (`stmt_start_kws`/`stmt_start_ops`/
+    # `starts_stmt` plus the two-branch check in `parse_stmt_list`)
     host_lines = open(SELF_HOST).read().splitlines()
-    section = "\n".join(host_lines[27:800])
+    section = "\n".join(host_lines[27:830])
     assert section.startswith("# ---- character classes")
     assert section.rstrip().endswith(
         "fn parse_whence(src) { parse_program(lex_all(src)) }")

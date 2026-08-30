@@ -299,7 +299,7 @@ def test_rebinding_the_parameter_name_reads_the_guarded_value():
     # the guard is not silently discarded by a same-named rebind that
     # still depends on the original.
     interp, env, out = run(
-        'fn f(a: num) { let a = a  a }\nlet r = f("x")\n')
+        'fn f(a: num) { let a = a\n  a }\nlet r = f("x")\n')
     assert isinstance(env.get("r").value, Miss)
 
 
@@ -307,7 +307,7 @@ def test_rebind_that_ignores_the_parameter_discards_the_guard():
     # a rebind that does NOT read `a` naturally replaces it, same as it
     # would replace any other prior binding — no special-casing needed.
     interp, env, out = all_ok(
-        'fn f(a: num) { let a = 5  a }\n'
+        'fn f(a: num) { let a = 5\n  a }\n'
         'check "unrelated rebind wins": f("x") == 5\n')
 
 

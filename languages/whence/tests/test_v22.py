@@ -379,8 +379,16 @@ def test_shape_is_the_one_legal_name_name_and_draws_no_hint():
     from whence.lexer import tokenize, KEYWORDS
     assert "shape" not in KEYWORDS
     assert [t.type for t in tokenize("shape Foo")][:2] == ["NAME", "NAME"]
+    # v0.23 (round 356) moved WHERE this program's error comes from: `shape
+    # Foo` is not a shape head (`peek(2)` is `Bar`, not `=`), so `shape` is
+    # an expression statement and `Foo` starts a second one on the same
+    # line — the missing-separator check now fires first. It inherits this
+    # exclusion verbatim (`Parser._separator_hint`), which is the only
+    # reason this assertion still holds; dropping `_NAME_INTRODUCERS` there
+    # turns this test red.
     msg = parse_error("shape Foo Bar = @{x: num}\nlet r = 1\n")
     assert "juxtaposition" not in msg, msg
+    assert msg.startswith("two statements on one line "), msg
     # and a well-formed shape still parses
     parse("shape Foo = @{x: num}\nlet r = 1\n")
 
@@ -454,36 +462,53 @@ def test_the_ten_machine_written_programs_fail_for_six_reasons():
     assert sum(1 for _, _, c in MACHINE_WRITTEN if c == "braces") == 2
 
 
-def test_nine_of_the_ten_now_name_a_cure():
-    """Before v0.22 exactly ONE of the ten said what to write instead
-    ('if' requires 'else' (every expression has a value)). The tenth is
-    still bare and the reason is recorded in the next test."""
+def test_all_ten_now_name_a_cure():
+    """1 -> 9 -> 10, across two rounds and two decisions.
+
+    Before v0.22 exactly ONE of the ten said what to write instead
+    ('if' requires 'else' (every expression has a value)). Decision 32
+    (round 354) took that to nine. The tenth, `prod_demo_v4.lang`, was not
+    a missing hint at all but a grammar laxity, recorded as such in the
+    test below; decision 33 (v0.23, round 356) removed the laxity and the
+    hint the other juxtaposition programs already got now reaches it too.
+    """
     named = []
     for fname, src, cause in MACHINE_WRITTEN:
         msg = parse_error(src)
         head = msg.split(" at line")[0]
         named.append((fname, "(" in head))
-    assert sum(ok for _, ok in named) == 9, named
-    assert [f for f, ok in named if not ok] == ["prod_demo_v4.lang"]
+    assert [f for f, ok in named if not ok] == [], named
+    assert len(named) == 10
 
 
-def test_the_tenth_is_a_statement_separator_laxity_not_a_missing_hint():
-    """`f one, two` cannot be hinted because the parser ACCEPTS the mistake.
+def test_the_tenth_was_a_separator_laxity_and_v023_removed_it():
+    """`f one, two` could not be hinted in v0.22 because the parser ACCEPTED
+    the mistake.
 
-    Whence statements need no separator: `let d = f` and `one` are two
-    complete statements on one line, so the juxtaposition is consumed
-    silently and the error surfaces three tokens later, at the `,`, where
-    no adjacency is visible any more. The two programs whose juxtaposition
-    IS hinted are the ones where it happens inside brackets, where the
-    statement rule cannot swallow it.
+    Whence statements needed no separator, so `let d = f` and `one` were
+    two complete statements on one line: the juxtaposition was consumed
+    silently and the error surfaced three tokens later, at the `,`, where
+    no adjacency was visible any more. The two programs whose juxtaposition
+    WAS hinted in v0.22 are the ones where it happens inside brackets,
+    where the statement rule could not swallow it.
 
-    Pinned as a KNOWN property of the grammar rather than as a wish: if a
-    future round makes a statement separator mandatory, this test is where
-    the decision was recorded and it should be updated, not deleted.
+    Round 354 pinned that as a known property of the grammar rather than a
+    wish, and said a future round making the separator mandatory should
+    UPDATE this test rather than delete it. v0.23 is that round. Both
+    halves are kept: the programs that used to be accepted, now refused at
+    the mistake, and the diagnosis `prod_demo_v4.lang` gets instead of
+    `unexpected ','`.
     """
-    parse("let a = 1 let b = 2\nlet c = a\n")     # accepted today
-    parse("let a = 1\nlet b = a b\n")             # ditto
-    assert parse_error("let d = f one, two\n") == "unexpected ',' at line 1, col 14"
+    for accepted_before in ("let a = 1 let b = 2\nlet c = a\n",
+                            "let a = 1\nlet b = a b\n"):
+        with pytest.raises(ParseError):
+            parse(accepted_before)
+    # the error moved from the `,` (col 14) back to `one` (col 11), which is
+    # where the author's mistake actually is, and it names the cure.
+    assert parse_error("let d = f one, two\n") == (
+        "two statements on one line (two names in a row: Whence has no "
+        "juxtaposition \u2014 a call is `f(x)` and text must be quoted) "
+        "at line 1, col 11")
 
 
 # --- the header line that rotted in one round --------------------------------

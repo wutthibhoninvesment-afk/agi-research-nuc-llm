@@ -1423,7 +1423,7 @@ def test_call_site_check_does_not_fire_for_a_normal_unrelated_call():
     len(args)` guard."""
     all_ok(
         'fn apply(f) effects [] { 1 }\n'
-        'fn make_it() { fn inner(f) effects [] { f(1) } inner }\n'
+        'fn make_it() { fn inner(f) effects [] { f(1) }\n  inner }\n'
         'check "ok": true\n')
 
 

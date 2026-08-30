@@ -322,13 +322,20 @@ def test_non_tail_recursion_checks_every_frame_independently():
 # all until something read it). v0.18 makes the annotation itself the
 # error, once, at parse time, with one sentence for all three.
 
-SRC_OUT_OF_SCOPE_RET = ('fn make() { shape Local = @{x: num} 1 }\n'
+# v0.23 (round 356): `make`'s body is two statements, so it is two LINES —
+# `shape Local = @{x: num} 1` on one line is no longer a program. The three
+# sources keep the same shape; every annotation below simply sits one line
+# lower than it did, which is why the line assertion is derived from the
+# source (see `test_the_error_points_at_the_annotation_not_the_declaration`)
+# rather than restated as a literal.
+_LOCAL_DECL = 'fn make() { shape Local = @{x: num}\n  1 }\n'
+SRC_OUT_OF_SCOPE_RET = (_LOCAL_DECL +
                         'fn f() -> Local { @{x: 1} }\n'
                         'let r = f()\n')
-SRC_OUT_OF_SCOPE_PARAM = ('fn make() { shape Local = @{x: num} 1 }\n'
+SRC_OUT_OF_SCOPE_PARAM = (_LOCAL_DECL +
                           'fn g(p: Local) { p }\n'
                           'let r = g(@{x: 1})\n')
-SRC_OUT_OF_SCOPE_FIELD = ('fn make() { shape Local = @{x: num} 1 }\n'
+SRC_OUT_OF_SCOPE_FIELD = (_LOCAL_DECL +
                           'shape Wrap = @{inner: Local}\n'
                           'let r = 1\n')
 
@@ -358,10 +365,18 @@ def test_out_of_scope_is_worded_differently_from_never_declared():
 
 
 def test_the_error_points_at_the_annotation_not_the_declaration():
-    # line 2 is `fn f() -> Local ...`; the shape is declared on line 1.
+    # The annotation and the declaration are on different lines and the
+    # error must name the annotation's. v0.23 moved that line (the shape
+    # declaration and `make`'s tail can no longer share one), so both
+    # numbers are read off the source: the property is "points at the use",
+    # not "points at line 2".
+    lines = SRC_OUT_OF_SCOPE_RET.splitlines()
+    annotation = lines.index('fn f() -> Local { @{x: 1} }') + 1
+    declaration = lines.index('fn make() { shape Local = @{x: num}') + 1
+    assert annotation != declaration
     with pytest.raises(ParseError) as e:
         parse(SRC_OUT_OF_SCOPE_RET)
-    assert e.value.line == 2
+    assert e.value.line == annotation
 
 
 def test_a_local_shape_is_still_usable_inside_its_own_block():
@@ -735,7 +750,7 @@ def test_the_same_callee_misses_identically_out_of_tail_position():
     # line — now agree byte for byte, line number included.
     tail = run('fn f() -> num { "s" }\nfn outer() { f() }\nlet r = outer()\n')
     lifted = run('fn f() -> num { "s" }\n'
-                 'fn outer() { let q = f()  q }\n'
+                 'fn outer() { let q = f()\n  q }\n'
                  'let r = outer()\n')
     a, b = tail[1].get("r").value, lifted[1].get("r").value
     assert isinstance(a, Miss) and isinstance(b, Miss)
@@ -745,9 +760,9 @@ def test_the_same_callee_misses_identically_out_of_tail_position():
 
 def test_nested_fn_and_fnexpr_tail_calls_keep_their_return_contracts():
     for src, want in [
-        ('fn outer() { fn f() -> num { "s" }  f() }\nlet r = outer()\n',
+        ('fn outer() { fn f() -> num { "s" }\n  f() }\nlet r = outer()\n',
          "return value of f expected num"),
-        ('fn outer() { let f = fn() -> num { "s" }  f() }\nlet r = outer()\n',
+        ('fn outer() { let f = fn() -> num { "s" }\n  f() }\nlet r = outer()\n',
          "return value expected num"),
     ]:
         interp, env, out = run(src)
@@ -983,18 +998,51 @@ _CHAIN_TERMS = ('1', '"s"', 'true')
 
 def chain_pair(specs, term):
     """(tail form, lifted form) of an n-hop chain `f0 -> f1 -> ... -> term`,
-    line for line: `let t = <call>  t` fits on one line, so a `-> Type`
-    miss must report the same line number under both."""
+    line for line: every function occupies exactly TWO lines in BOTH forms,
+    so a `-> Type` miss must report the same line number under both.
+
+    v0.23 (round 356) is why there are two. The lifted form used to be
+    `let t = <call>  t` on the same line as its header, and a mandatory
+    statement separator forbids that. What this differential needs is line
+    ALIGNMENT, not one-line-ness — the tail form gets a blank second line,
+    every call site keeps the line number its counterpart has, and the
+    oracle is exactly as strict as it was. (Round 353's item 2, which wants
+    this transform promoted to a `harness/swe/` oracle, records
+    line-alignment as the strictness; that survives decision 33 unchanged.)
+    """
     tail, lifted = [], []
     last = len(specs) - 1
     for i, sp in enumerate(specs):
         ann = "" if sp is None else " -> %s" % sp
         body = term if i == last else "f%d()" % (i + 1)
         tail.append("fn f%d()%s { %s }" % (i, ann, body))
-        lifted.append("fn f%d()%s { %s }" % (
-            i, ann, body if i == last else "let t = %s  t" % body))
+        tail.append("")
+        if i == last:
+            lifted.append("fn f%d()%s { %s }" % (i, ann, body))
+            lifted.append("")
+        else:
+            lifted.append("fn f%d()%s { let t = %s" % (i, ann, body))
+            lifted.append("  t }")
     end = "\nlet r = f0()\n"
     return "\n".join(tail) + end, "\n".join(lifted) + end
+
+
+def mutual_pair(sa, sb, term, k):
+    """(tail form, lifted form) of the mutual `a` <-> `b` loop, aligned line
+    for line by the same two-lines-per-function padding `chain_pair` uses,
+    and for the same v0.23 reason."""
+    def ann(s):
+        return "" if s is None else " -> %s" % s
+    out = []
+    for lifted in (False, True):
+        body_a = "let t = b(k - 1)\n  t" if lifted else "b(k - 1)"
+        body_b = "let t = a(k)\n  t" if lifted else "a(k)"
+        pad = "" if lifted else "\n"
+        out.append("fn a(k)%s { if k <= 0 { %s } else { %s } }%s\n"
+                   "fn b(k)%s { %s }%s\n"
+                   "let r = a(%d)\n"
+                   % (ann(sa), term, body_a, pad, ann(sb), body_b, pad, k))
+    return out
 
 
 def outcome(src, **kw):
@@ -1021,6 +1069,33 @@ def run_chain_differential(hops, **kw):
     return n
 
 
+def test_the_two_forms_are_line_for_line_aligned():
+    """What makes the differential above strict, pinned directly.
+
+    Until v0.23 this was self-evident from the source (`let t = <call>  t`
+    fitted on one line, so both forms had one line per function). The
+    mandatory separator made the lifted form two lines and the tail form
+    gained a blank one to match; nothing in `run_chain_differential` would
+    fail if that padding were dropped and the forms drifted apart — the
+    outcomes would simply stop containing comparable line numbers, and two
+    genuinely different reports would still be equal to each other. So the
+    alignment is asserted, not inferred.
+    """
+    for specs in chain_specs(2):
+        for term in _CHAIN_TERMS:
+            tail, lifted = chain_pair(specs, term)
+            tl, ll = tail.splitlines(), lifted.splitlines()
+            assert len(tl) == len(ll), (specs, term)
+            for i, (a, b) in enumerate(zip(tl, ll)):
+                head = a.split(" {")[0]
+                if head.startswith("fn f"):
+                    assert b.startswith(head), (i, a, b)
+    for sa in _CHAIN_RETS[:2]:
+        for sb in _CHAIN_RETS[:2]:
+            tail, lifted = mutual_pair(sa, sb, '1', 1)
+            assert len(tail.splitlines()) == len(lifted.splitlines())
+
+
 @pytest.mark.parametrize("hops", [2, 3])
 def test_tail_and_lifted_chains_agree_exhaustively(hops):
     # 75 + 375 programs; the 4-hop tier (1875 more) is the slow test below
@@ -1035,15 +1110,7 @@ def test_tail_and_lifted_mutual_loops_agree():
         for sb in _CHAIN_RETS:
             for term in _CHAIN_TERMS:
                 for k in (1, 3):
-                    srcs = []
-                    for call in (lambda c: c, lambda c: "let t = %s  t" % c):
-                        ann = lambda s: "" if s is None else " -> %s" % s
-                        srcs.append(
-                            "fn a(k)%s { if k <= 0 { %s } else { %s } }\n"
-                            "fn b(k)%s { %s }\n"
-                            "let r = a(%d)\n" % (ann(sa), term,
-                                                 call("b(k - 1)"), ann(sb),
-                                                 call("a(k)"), k))
+                    srcs = mutual_pair(sa, sb, term, k)
                     assert outcome(srcs[0], max_depth=50) == \
                         outcome(srcs[1], max_depth=50), (sa, sb, term, k)
                     n += 1

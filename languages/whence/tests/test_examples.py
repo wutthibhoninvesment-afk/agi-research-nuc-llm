@@ -125,8 +125,12 @@ def test_self_hosting_real_syntax():
     # whitespace, twice; the `\r` escape decodes; a raw newline ends a
     # string literal unterminated; a lex error carries the host's bare
     # message; an overflowing literal is `inf`, with and without an
-    # exponent). See `tests/test_lexer_guest_parity.py`.
-    assert "109 passed, 0 failed" in r.stdout
+    # exponent). See `tests/test_lexer_guest_parity.py`. Round 356 (v0.23):
+    # 109 -> 112, the statement-separator rule — one check that used to
+    # assert `"1 2"` PARSES became four (it is refused; the same two
+    # statements parse on two lines; the miss names the line; and a token
+    # that starts no statement still gets its own error, not this one).
+    assert "112 passed, 0 failed" in r.stdout
     assert "guest lexer+parser for real Whence syntax" in r.stdout
 
 

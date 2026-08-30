@@ -59,12 +59,50 @@ _BRACE_HINT = ("blocks are always braced: `if c { a } else { b }`, "
 _RECORD_HINT = "records are written `@{a: 1}`, not `{a: 1}`"
 _JUXTAPOSE_HINT = ("two names in a row: Whence has no juxtaposition "
                    "\u2014 a call is `f(x)` and text must be quoted")
+# v0.23 (round 356). Takes the offending token, already spelled by `_spell`.
+_SEPARATOR_HINT = ("a line break is the only statement separator Whence has "
+                   "\u2014 start `%s` on the next line")
+
+# v0.23 (round 356): the tokens a STATEMENT can begin with. Read off the
+# three dispatch sites that decide it and nowhere else --- `statement()`
+# (`let`, `fn`, `check`, and the `shape` head, which is a NAME),
+# `not_expr`/`unary` (`not`, `-`, `why`, `snip`, `miss`) and `primary`
+# (NUMBER, STRING, NAME, `true`/`false`, `[`, `@{`, `(`, `{`, `if`, `fn`).
+#
+# The missing-separator error is raised ONLY for these. Every other token
+# is not a second statement that needed a newline in front of it, it is a
+# token that can never start a statement at all --- `x = 2` is an attempted
+# assignment, not two statements, and `_SYNTAX_HINTS` has said the useful
+# thing about it since v0.22. Falling through to `statement()` there keeps
+# the more specific diagnosis, which is the whole point of decision 32; a
+# separator rule that shadowed it would have made v0.22's own regression
+# test go quiet. `test_v23.py::test_every_token_is_classified_by_whether_it
+# _can_start_a_statement` derives both sets from the parser itself rather
+# than trusting this comment.
+_STARTS_STATEMENT_TYPES = frozenset(
+    ("NUMBER", "STRING", "NAME", "[", "@{", "(", "{", "-"))
+_STARTS_STATEMENT_KWS = frozenset(
+    ("let", "fn", "check", "if", "true", "false", "why", "snip", "miss",
+     "not"))
+
+
+def _starts_statement(tok):
+    if tok.type == "KW":
+        return tok.value in _STARTS_STATEMENT_KWS
+    return tok.type in _STARTS_STATEMENT_TYPES
 
 # `shape` is a SOFT keyword: the lexer emits NAME for it (only the 14 words
 # in `lexer.KEYWORDS` are KW), so `shape Foo` is the one legal NAME NAME
 # adjacency in the grammar and must not draw the juxtaposition hint.
 # `effects`, the other soft keyword, is always followed by `[`.
 _NAME_INTRODUCERS = ("shape",)
+
+
+def _spell(tok):
+    """How a token should be quoted back at the author inside a hint."""
+    if tok.type == "STRING":
+        return '"%s"' % tok.value
+    return "%s" % (tok.value,)
 
 
 def _with_hint(message, hint):
@@ -391,9 +429,50 @@ class Parser(object):
             return _JUXTAPOSE_HINT
         return None
 
+    def _separator_hint(self, tok):
+        """v0.23: the clause the missing-separator error appends. Never None.
+
+        `statement()`'s own comment says "no other legal statement starts
+        with two bare names in a row" -- that sentence was only true of the
+        SHAPE head until v0.23, because two statements could sit on one line
+        and make any `NAME NAME` pair legal by splitting it. Now that the
+        pair really is illegal except at a shape head, this site inherits
+        `_expect_hint`'s juxtaposition rule verbatim: a NAME immediately
+        after a NAME is a paren-less call or an unquoted string, and saying
+        "put it on the next line" would be advice for a mistake the author
+        did not make.
+
+        The shape head is excluded by the same three-token test `statement()`
+        uses, not by `_NAME_INTRODUCERS` alone: here `tok` is the START of
+        the offending statement, so `shape P = @{...}` after another
+        statement on the same line is a real separator error whose cure IS
+        the newline, and only `prev` (the previous statement's last token)
+        is a `shape` that could have introduced a name.
+        """
+        prev = self.tokens[self.pos - 1] if self.pos > 0 else None
+        shape_head = (tok.type == "NAME" and tok.value == "shape"
+                      and self.peek(1).type == "NAME"
+                      and self.peek(2).type == "=")
+        if (tok.type == "NAME" and not shape_head
+                and prev is not None and prev.type == "NAME"
+                and prev.value not in _NAME_INTRODUCERS):
+            return _JUXTAPOSE_HINT
+        return _SEPARATOR_HINT % _spell(tok)
+
     def skip_newlines(self):
+        """Consume any run of NEWLINEs; return True if there was at least one.
+
+        The return value is v0.23's (round 356). `stmt_list` needs to know
+        whether a separator was actually PRESENT between two statements, not
+        merely that it has arrived at the next one \u2014 those were the same
+        question for as long as the separator was optional. Every other
+        caller ignores the value, unchanged.
+        """
+        seen = False
         while self.at("NEWLINE"):
             self.next()
+            seen = True
+        return seen
 
     # --- statements ----------------------------------------------------
     def parse_program(self):
@@ -448,8 +527,21 @@ class Parser(object):
         self.param_alias_scopes.append({})
         self.return_param_scopes.append({})
         try:
-            self.skip_newlines()
+            separated = self.skip_newlines()
+            started = False
             while not self.at(end):
+                # v0.23 (round 356), decision 33: a line break is the only
+                # statement separator Whence has, and it is REQUIRED between
+                # two statements. Only between them -- nothing is required
+                # before the first statement or after the last, which is why
+                # the `at(end)` test above is what closes the block and this
+                # check sits inside the loop rather than after `statement()`.
+                if started and not separated and _starts_statement(self.peek()):
+                    tok = self.peek()
+                    raise ParseError(
+                        _with_hint("two statements on one line",
+                                   self._separator_hint(tok)),
+                        tok.line, tok.col)
                 s = self.statement()
                 name = getattr(s, "name", None) if isinstance(s, (A.Let, A.FnDef)) else None
                 if name is not None:
@@ -460,7 +552,8 @@ class Parser(object):
                             s.line, 0)
                     bound[name] = s.line
                 stmts.append(s)
-                self.skip_newlines()
+                started = True
+                separated = self.skip_newlines()
             tail = stmts[-1] if stmts else None
             tail_expr = tail.expr if isinstance(tail, A.ExprStmt) else None
             if tail_expr is not None and tail_expr.__class__ is A.NameRef:

@@ -718,6 +718,29 @@ fn at_end(toks, pos, end) {
   if end == "eof" { is_ntype(toks, pos, "eof") } else { is_op(toks, pos, end) }
 }
 
+# v0.23 guest parity (round 356), decision 33: the tokens a STATEMENT can
+# begin with, read off the host's `_STARTS_STATEMENT_TYPES` /
+# `_STARTS_STATEMENT_KWS` and, like them, off nothing else. `shape` is a
+# soft keyword and lexes as a `name`, so it needs no entry of its own.
+#
+# The missing-separator error is raised only for these. Everything else is
+# a token that can never start a statement at all -- `x = 2` is an attempted
+# assignment, not two statements -- and must fall through to `parse_stmt`,
+# which already refuses it with the more specific message. The host makes
+# exactly this distinction for exactly this reason; a guest that raised the
+# separator error for every leftover token would diverge on `missed`-ness
+# nowhere but would report the wrong thing everywhere.
+let stmt_start_kws = ["let", "fn", "check", "if", "true", "false",
+                      "why", "snip", "miss", "not"]
+let stmt_start_ops = ["[", "@{", "(", "{", "-"]
+
+fn starts_stmt(toks, pos) {
+  let k = t_at(toks, pos)
+  if k.t == "kw" { contains(stmt_start_kws, k.v) }
+  else if k.t == "op" { contains(stmt_start_ops, k.v) }
+  else { k.t == "num" or k.t == "str" or k.t == "name" }
+}
+
 fn parse_stmt_list(toks, pos, end, acc, bound) {
   if at_end(toks, pos, end) { @{stmts: acc, pos: pos} }
   else {
@@ -729,7 +752,14 @@ fn parse_stmt_list(toks, pos, end, acc, bound) {
     else {
       let acc2 = push(acc, s.node)
       let after = skip_nl(toks, s.pos)
+      # `after == s.pos` means `skip_nl` found no newline: two statements are
+      # touching. Only between them -- `at_end` above is what closes the
+      # block, so nothing is required before the first statement or after
+      # the last.
       if at_end(toks, after, end) { @{stmts: acc2, pos: after} }
+      else if after == s.pos and starts_stmt(toks, after) {
+        miss ("two statements on one line at line " + str(t_at(toks, after).line))
+      }
       else { parse_stmt_list(toks, after, end, acc2, bound2) }
     }
   }

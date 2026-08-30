@@ -679,6 +679,29 @@ fn at_end(toks, pos, end) {
   if end == "eof" { is_ntype(toks, pos, "eof") } else { is_op(toks, pos, end) }
 }
 
+# v0.23 guest parity (round 356), decision 33: the tokens a STATEMENT can
+# begin with, read off the host's `_STARTS_STATEMENT_TYPES` /
+# `_STARTS_STATEMENT_KWS` and, like them, off nothing else. `shape` is a
+# soft keyword and lexes as a `name`, so it needs no entry of its own.
+#
+# The missing-separator error is raised only for these. Everything else is
+# a token that can never start a statement at all -- `x = 2` is an attempted
+# assignment, not two statements -- and must fall through to `parse_stmt`,
+# which already refuses it with the more specific message. The host makes
+# exactly this distinction for exactly this reason; a guest that raised the
+# separator error for every leftover token would diverge on `missed`-ness
+# nowhere but would report the wrong thing everywhere.
+let stmt_start_kws = ["let", "fn", "check", "if", "true", "false",
+                      "why", "snip", "miss", "not"]
+let stmt_start_ops = ["[", "@{", "(", "{", "-"]
+
+fn starts_stmt(toks, pos) {
+  let k = t_at(toks, pos)
+  if k.t == "kw" { contains(stmt_start_kws, k.v) }
+  else if k.t == "op" { contains(stmt_start_ops, k.v) }
+  else { k.t == "num" or k.t == "str" or k.t == "name" }
+}
+
 fn parse_stmt_list(toks, pos, end, acc, bound) {
   if at_end(toks, pos, end) { @{stmts: acc, pos: pos} }
   else {
@@ -690,7 +713,14 @@ fn parse_stmt_list(toks, pos, end, acc, bound) {
     else {
       let acc2 = push(acc, s.node)
       let after = skip_nl(toks, s.pos)
+      # `after == s.pos` means `skip_nl` found no newline: two statements are
+      # touching. Only between them -- `at_end` above is what closes the
+      # block, so nothing is required before the first statement or after
+      # the last.
       if at_end(toks, after, end) { @{stmts: acc2, pos: after} }
+      else if after == s.pos and starts_stmt(toks, after) {
+        miss ("two statements on one line at line " + str(t_at(toks, after).line))
+      }
       else { parse_stmt_list(toks, after, end, acc2, bound2) }
     }
   }
@@ -949,14 +979,25 @@ check "unclosed paren names the culprit":
 check "missing else is a miss": missed(parse_whence("if 1 { 2 }"))
 check "missing else says so": contains(str(parse_whence("if 1 { 2 }")), "requires 'else'")
 check "empty block is a miss": missed(parse_whence("fn f() { }"))
-# A statement list has NO required separator between statements (host's own
-# `stmt_list` just loops calling `statement()` until `end`, `skip_newlines()`
-# is best-effort) — "1 2" is two valid top-level statements in both the host
-# and the guest, verified against the real parser. An actually-unparseable
-# trailing token needs to be one `parse_primary` cannot start an expression
-# with, e.g. a stray ')'.
-check "two statements with no separator both parse (host allows this)":
-  not missed(parse_whence("1 2")) and len((parse_whence("1 2")).stmts) == 2
+# v0.23 (round 356), decision 33: a line break is the only statement
+# separator Whence has, and it is REQUIRED between two statements. "1 2" was
+# two valid top-level statements in both the host and the guest until this
+# version; now both refuse it. The wording differs by design (the host
+# raises an exception with a column, the guest returns a miss with a line —
+# `tests/test_v22.py::test_parse_error_wording_is_not_a_guest_contract`),
+# so what is checked here is the refusal and the line, not the sentence.
+check "two statements with no separator are refused": missed(parse_whence("1 2"))
+check "...and the same two statements parse on two lines":
+  not missed(parse_whence("1\n2")) and len((parse_whence("1\n2")).stmts) == 2
+check "...and the miss names the line the second statement is on":
+  contains(str(parse_whence("let a = 1\nlet b = 2 let c = 3")),
+           "two statements on one line at line 2")
+# A token that can never START a statement is NOT a separator error: it
+# falls through to `parse_stmt`, which refuses it with the specific
+# message. `1 + 2)` is the pre-existing case; `x = 2` is the one decision 32
+# added a cure for at the host, and the guest must not shadow it either.
+check "a stray token that starts no expression is still its own error":
+  contains(str(parse_whence("let x = 1\nx = 2")), "unexpected token")
 check "a stray token that starts no expression is a miss":
   missed(parse_whence("1 + 2)"))
 check "...and names the offending token":

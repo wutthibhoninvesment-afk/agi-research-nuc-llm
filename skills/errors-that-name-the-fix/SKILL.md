@@ -146,6 +146,17 @@ in a Hindley-Milner solver may have no single "write this instead").
   is a separate change with its own blast radius. Name it in the write-up as
   the input you could not cure and why.
 
+  Then follow it up. Whence v0.22 (round 354) reported exactly one such
+  input of ten and pinned the laxity as a known grammar property; v0.23
+  (round 356) withdrew the permission and the corpus went 9/10 → 10/10 with
+  **no new hint written** — the hint the other juxtaposition programs
+  already got simply reached it once the statement boundary stopped
+  absorbing the evidence. A cure you cannot deliver is often a rule your
+  documentation already states and your parser does not enforce; see
+  `skills/unenforced-documented-rule/SKILL.md` for the tightening
+  procedure, whose first obligation is not to shadow the messages this
+  skill just built.
+
 - **Reimplementing the message in a second implementation.** If a
   self-hosting guest, a language server, or a second parser produces "the
   same" errors, adding a clause to one creates a divergence — unless the two

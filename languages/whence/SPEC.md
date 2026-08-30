@@ -1,6 +1,6 @@
 # Whence — a provenance-first language
 
-*Spec level: **v0.22** (round 354). The `## vN` sections below are the
+*Spec level: **v0.23** (round 356). The `## vN` sections below are the
 authoritative version list and each names the round that built it; this
 line deliberately no longer enumerates rounds, because the enumeration it
 replaced had said "v0.16.6 + v0.14.2" since round 266 while the file went
@@ -243,7 +243,26 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    the parser half fires only on token patterns the grammar cannot
    otherwise produce. The evidence for the second half is measured rather
    than assumed: of ten machine-written Whence programs that fail to
-   parse, ONE named a cure before v0.22 and NINE do after.
+   parse, ONE named a cure before v0.22 and NINE do after — and TEN after
+   decision 33, which removed the grammar laxity the last one was hiding
+   behind rather than adding an eleventh hint.
+33. **A line break is the only statement separator, and it is required
+   (v0.23, round 356).** Whence has never had a `;` and its lexer has
+   called newlines statement separators since its first commit, but the
+   parser accepted `let a = 1 let b = 2` as two statements: the separator
+   was documented and unenforced. Making it mandatory is the smaller
+   grammar, not the larger one — nothing is added, one permission is
+   withdrawn — and it is what lets a whole class of mistake be reported
+   where the author made it instead of several tokens later, because a
+   statement boundary can no longer silently absorb the evidence. Two
+   deliberate limits keep it from shadowing better diagnoses. It fires
+   only for a token that could actually START a statement, so `x = 2`
+   still gets decision 32's assignment clause rather than a separator
+   complaint; and the three tokens that both start a statement and
+   CONTINUE an expression (`-`, `(`, `[`) are still absorbed by the
+   expression grammar first, so `let a = 1 -2` binds `-1` — the automatic-
+   semicolon-insertion hazard, confined to three tokens and written down
+   rather than discovered.
 
 ## Syntax (statements are newline-separated; `#` comments)
 ```
@@ -262,7 +281,9 @@ Precedence (low→high): `rescue`, `or`, `and`, `not`, comparisons (non-chaining
 `+ -`, `* / %`, unary (`-`, `why`, `snip`, `miss <string>`), calls/index/field.
 `if` requires `else`; blocks/fn bodies must end with an expression. Newlines are
 statement separators except inside `( ) [ ] @{ }` and directly after a token
-that cannot end a statement.
+that cannot end a statement. Since v0.23 a newline is the ONLY separator and
+it is REQUIRED between two statements — `let a = 1 let b = 2` is a parse
+error, not two statements.
 Names are `[A-Za-z_][A-Za-z0-9_]*` and numeric literals are ASCII digits
 (v0.21); strings and comments hold any character. String escapes are `\n`,
 `\t`, `\r`, `\"` and `\\` — any other escape is a lex error.
@@ -4844,16 +4865,17 @@ expected ], got 'Unit' (two names in a row: Whence has no juxtaposition
   — a call is `f(x)` and text must be quoted) at line 1, col 20
 ```
 
-**One of ten is still bare, and the reason is a grammar property, not a
-missing hint.** `let d = f one, two` cannot be diagnosed at the mistake
-because the parser ACCEPTS it: Whence statements need no separator, so
-`let d = f` and `one` are two complete statements on one line and the error
-surfaces three tokens later at the `,`, where the adjacency is no longer
+**One of ten was still bare, and the reason was a grammar property, not a
+missing hint.** `let d = f one, two` could not be diagnosed at the mistake
+because the parser ACCEPTED it: Whence statements needed no separator, so
+`let d = f` and `one` were two complete statements on one line and the error
+surfaced three tokens later at the `,`, where the adjacency was no longer
 visible. The two juxtaposition cases that ARE hinted happen inside brackets,
-where the statement rule cannot swallow them. Pinned as a known property
-(`test_the_tenth_is_a_statement_separator_laxity_not_a_missing_hint`), not
-fixed: a mandatory statement separator is a real grammar change with its own
-guest-parity obligations and belongs to its own round.
+where the statement rule could not swallow them. v0.22 pinned this as a known
+property rather than fixing it — a mandatory statement separator is a real
+grammar change with its own guest-parity obligations and belongs to its own
+round. **v0.23 (round 356) is that round**, and the corpus went 9/10 to
+10/10 with no new hint written; see `## v0.23` below.
 
 Two rules deserve their exactness noted. The `{a: 1}` case is caught by a
 two-token lookahead in `block()` — a block statement can never begin
@@ -4921,5 +4943,163 @@ surface and the miss's provenance INPUTS are untouched (round 347 put
 `fold`'s accumulator back into them and this must not undo that). It does
 not add kinds to one-argument builtins, whose declaration is a name only —
 there is no other order for one argument, so a kind there would be an
-assertion nothing executes. It does not require a statement separator. And
+assertion nothing executes. It does not require a statement separator (v0.23
+does). And
 it does not touch `matches`, which returns a bool and has no message.
+
+## v0.23 (round 356, language C) — a line break is the only statement separator
+
+Decision 33. One rule, two implementations (host and guest), and it exists
+because v0.22 could not finish its own job without it.
+
+### The gap v0.22 left, in its own words
+
+Round 354 measured decision 32's parser half against the ten machine-written
+Whence programs a separate system leaves in `examples/`. Nine gained a cure.
+The tenth did not, and the reason was written down at the time:
+
+> `let d = f one, two` cannot be diagnosed at the mistake because the parser
+> ACCEPTS it: Whence statements need no separator, so `let d = f` and `one`
+> are two complete statements on one line and the error surfaces three tokens
+> later at the `,`, where the adjacency is no longer visible.
+
+That is not a missing hint. It is the grammar destroying the evidence before
+any hint could be computed. `Parser.stmt_list` looped `statement()` until its
+end token with `skip_newlines()` in between, so a newline was *permitted*
+everywhere and *required* nowhere — while `lexer.py`'s own first line has
+said "Newlines are statement separators" since its first commit, and this
+document's `## Syntax` heading has said the same. The separator was
+documented and unenforced for twenty-two versions.
+
+### The rule
+
+Between two statements there must be at least one NEWLINE token. Three
+qualifications, each of which is the design rather than a caveat.
+
+**1. Only BETWEEN.** Nothing is required before the first statement or after
+the last: `at(end)` is what closes a block, so `{ x }`, `let a = 1` with no
+trailing newline, and a file starting with blank lines are all unchanged. A
+run of newlines is one separator. A trailing `#` comment separates, because
+the comment ends at the line break the lexer then emits — and there is no way
+to write a comment that does *not* end the line, so a comment can never
+separate on its own.
+
+**2. Only for a token that could START a statement.**
+
+```python
+_STARTS_STATEMENT_TYPES = frozenset(("NUMBER", "STRING", "NAME", "[", "@{", "(", "{", "-"))
+_STARTS_STATEMENT_KWS   = frozenset(("let", "fn", "check", "if", "true", "false",
+                                     "why", "snip", "miss", "not"))
+```
+
+Every other token is not a second statement that needed a newline in front of
+it — it is a token that can never start a statement at all, and it must keep
+the diagnosis it already had:
+
+```
+let x = 1
+x = 2      -> unexpected '=' (Whence has no assignment; a name binds once
+                — write `let name = value`) at line 2, col 3
+```
+
+A separator rule that shadowed that would have made decision 32's own
+regression tests go quiet, which is the failure mode this qualification
+exists to prevent. The set of keywords excluded is exactly the four infix
+ones — `and`, `or`, `rescue`, `else` — every keyword that needs a left
+operand. `tests/test_v23.py::test_every_token_is_classified_by_whether_it_can
+_start_a_statement` re-derives both sets from the parser over all 40 tokens
+rather than trusting the constants.
+
+**3. The error names the cure, and defers when the newline is not the cure.**
+
+```
+let a = 1 let b = 2
+  -> two statements on one line (a line break is the only statement
+     separator Whence has — start `let` on the next line) at line 1, col 11
+
+let d = f one, two
+  -> two statements on one line (two names in a row: Whence has no
+     juxtaposition — a call is `f(x)` and text must be quoted) at line 1, col 11
+```
+
+The second is the point. A NAME touching a NAME is a paren-less call or an
+unquoted string; telling that author to add a newline would be advice for a
+mistake they did not make, so the site reuses decision 32's own juxtaposition
+rule verbatim. `statement()`'s comment had already claimed "no other legal
+statement starts with two bare names in a row" — true of the `shape` head,
+and false in general only because two statements could share a line. v0.23
+makes the sentence true, and a `shape` HEAD after another statement is
+excluded by the same three-token test `statement()` uses, so it draws the
+separator hint and not the juxtaposition one.
+
+### The honest limit
+
+`-`, `(` and `[` both start a statement and continue an expression
+(subtraction, a call, an index). After an expression statement the
+longest-match grammar has already consumed them by the time `stmt_list`
+looks:
+
+```
+let a = 1 -2      -> ONE statement; `a` is -1
+let a = 1 (2)     -> ONE statement; a call
+let a = 1 .x      -> ONE statement; a field access (`.` is not a statement head)
+fn f() { 1 } (2)  -> two statements on one line   # `fn` cannot be extended
+```
+
+This is automatic-semicolon-insertion's hazard, and Whence has it in exactly
+three places instead of everywhere. It is a property of having both prefix
+and infix `-`, not of this rule; removing it would mean either a real
+separator token or newline-sensitive expression parsing, and both are larger
+languages than this one. Written down (`test_a_token_that_also_continues_an
+_expression_is_absorbed_first`) rather than left to be discovered.
+
+### Guest parity
+
+`examples/self_host.lang`'s `parse_stmt_list` implements the identical rule
+(`after == s.pos` is "`skip_nl` found no newline"), with `starts_stmt` and the
+`stmt_start_kws`/`stmt_start_ops` lists mirroring the host's two frozensets;
+`examples/self_eval.lang` carries the byte-identical copy, which grew from 773
+to 803 lines. Host and guest agree on ACCEPT/REFUSE over a 23-program corpus.
+They do NOT agree on wording, by design and as before: host parse errors are
+exceptions with a line and a column, guest ones are `miss` values with a line
+(`tests/test_v22.py::test_parse_error_wording_is_not_a_guest_contract`).
+
+### What it cost
+
+One tracked program. `examples/effects.lang` had
+`fold(fn(acc, x) { debug_print(x) acc + x }, 0, xs)`; it is now three lines.
+Fifteen of the sixteen tracked `.lang` files were already conformant, which is
+the measurement that says this rule matches how the language was actually
+being written.
+
+The one interesting cost is in the test suite. Round 336's tail-vs-lifted
+differential rewrites every tail call `f()` to `let t = f()  t` **on the same
+line**, so a `-> Type` miss must report the same line under both forms; round
+353 named line-alignment as what makes that oracle strict. Decision 33 forbids
+the one-line spelling — but alignment, not one-line-ness, is what the oracle
+needs. Both forms now take exactly two lines per function (the tail form's
+second is blank), every call site keeps its line number, and the differential
+is unchanged in strength: 75 + 375 programs at 2 and 3 hops, 1875 more at 4.
+
+### Measured
+
+```
+languages/whence  pytest -m "not whence_slow"     1249 passed, 57 deselected
+                                                  (354 baseline 1191; 355 1193)
+                  tests/test_v23.py               59 passed (3 whence_slow)
+                  run.py examples/self_host.lang  112 passed, 0 failed (was 109)
+                  run.py examples/self_eval.lang  142 passed, 0 failed
+                  tracked .lang files that parse  16/16
+machine-written corpus, cures named               9/10 -> 10/10
+```
+
+### What this deliberately does NOT do
+
+It does not add a `;`. A separator token would make the newline rule optional
+again and put the language back where it started, one keystroke louder. It
+does not make newlines significant anywhere else — `( ) [ ] @{ }` suppression
+and the continuation rule after a trailing operator are untouched, which is
+why a block inside a call's parens still separates on newlines and
+`examples/effects.lang`'s fix is a normal-looking lambda. It does not change
+any wording the guest and host already disagreed on. And it does not tighten
+the three expression-continuation tokens, for the reason given above.

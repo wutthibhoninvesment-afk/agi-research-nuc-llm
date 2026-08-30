@@ -97,7 +97,7 @@ EXAMPLE = os.path.join(ROOT, "examples", "self_eval.lang")
 SELF_HOST = os.path.join(ROOT, "examples", "self_host.lang")
 EFFECTS = os.path.join(ROOT, "examples", "effects.lang")
 MARKER = "# ==== SELF-TESTS"
-LIB_START, LIB_END = 27, 800  # self_host.lang lines 28..800 (0-indexed slice)
+LIB_START, LIB_END = 27, 830  # self_host.lang lines 28..830 (0-indexed slice)
 
 
 def eval_library_source():
@@ -150,10 +150,17 @@ def test_guest_parser_parses_its_own_full_source():
     # count and `LIB_END` move together), plus 7 new checkpoint checks and
     # one `let big_lit` holding the 330-digit overflowing literal they
     # share, for the four host disagreements
-    # `tests/test_lexer_guest_parity.py` found; pin the exact count so a
+    # `tests/test_lexer_guest_parity.py` found; round 356: +6 -- v0.23's
+    # statement-separator rule adds three statements to the shared LIBRARY
+    # (`stmt_start_kws`, `stmt_start_ops`, `starts_stmt`, so this count and
+    # `LIB_END` move together again), and the self-test that used to assert
+    # `"1 2"` PARSES becomes four checks that assert it does not;
+    # pin the exact count so a
     # silent structural regression (e.g. two statements merging into one)
-    # fails loudly even though `__ok` alone would not catch it.
-    assert env.get("__nstmts").payload == 212
+    # fails loudly even though `__ok` alone would not catch it. That failure
+    # mode is no longer hypothetical: v0.23 is the version that made two
+    # statements merging into one a parse error rather than a silent merge.
+    assert env.get("__nstmts").payload == 218
 
 
 @pytest.mark.whence_slow

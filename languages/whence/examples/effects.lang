@@ -44,7 +44,13 @@ check "effects and a return type compose": audited_total(prices) == 60
 # "one settle point" rule a top-level fn's own clause uses.
 fn strict_sum(xs) effects [] {
   fn debug_print(x) effects [io] { print("(debug) " + str(x)) }
-  fold(fn(acc, x) { debug_print(x) acc + x }, 0, xs)
+  # v0.23: two statements need two lines. A block keeps its newlines even
+  # nested inside a call's parens (only `(`/`[`/`@{` suppress them), so
+  # this is still one `fold` argument.
+  fold(fn(acc, x) {
+    debug_print(x)
+    acc + x
+  }, 0, xs)
 }
 check "a nested fn may still print, but only via its OWN explicit effects [io]":
   strict_sum(prices) == 60
