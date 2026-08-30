@@ -303,7 +303,7 @@ mechanisms:
 ## 6. Measured
 
 - `python3 -m unittest discover -s skills/skill-authoring/scripts` —
-  **428 passed, OK** (was 364; +64 from `test_state_claim_check.py`).
+  **430 passed, OK** (was 364; +66 from `test_state_claim_check.py`).
 - `skill_lint.py --house --strict skills/` — **24 skill(s), 0 errors,
   0 warnings, exit 0**.
 - `claim_check.py skills/` — **24 skill(s), 0 stale claim(s)**.

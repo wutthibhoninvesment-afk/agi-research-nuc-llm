@@ -323,9 +323,9 @@ absolute `cd ~/agi-research` used to open this block and had been dead since
 the workspace was renamed — see `claim_check.py`'s C001.)
 ```bash
 python3 -m unittest discover -s skills/skill-authoring/scripts -v
-# expected: Ran 428 tests, OK  (skill_lint + trigger_eval + claim_check
+# expected: Ran 430 tests, OK  (skill_lint + trigger_eval + claim_check
 #           + xref_check + state_claim_check, offline). Re-derived round 351
-#           (+64 for test_state_claim_check.py); was 364 in round 346, 316 in
+#           (+66 for test_state_claim_check.py); was 364 in round 346, 316 in
 #           round 345 and 247 before test_xref_check.py, so a lower count in
 #           an older report is not evidence of a regression. (Round 345
 #           re-derived this TWICE: its first figure, 311, was stale within

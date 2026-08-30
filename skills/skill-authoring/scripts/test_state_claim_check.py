@@ -125,6 +125,21 @@ class TestParseItems(unittest.TestCase):
         # heading on line 1, item line 2, claim on line 3
         self.assertEqual(claim.line, 3)
 
+    def test_indented_sub_bullets_stay_inside_their_parent_item(self):
+        # Round 351's own item 11 is a numbered item with `-` sub-bullets,
+        # one per standing claim. They must fold into the parent so a claim
+        # inside a sub-bullet is still extracted and still attributed.
+        items = self.items_of(block(9,
+                                    "11. Standing items:",
+                                    "    - `a/SKILL.md` is still 5 body lines",
+                                    "    - something else"))
+        self.assertEqual([i.number for i in items], [11])
+        self.assertEqual(len(scc.extract_claims(items[0])), 1)
+
+    def test_an_indented_number_does_not_start_a_new_item(self):
+        items = self.items_of(block(9, "1. lead", "   2. not a new item"))
+        self.assertEqual([i.number for i in items], [1])
+
     def test_a_blank_line_ends_an_item(self):
         items = self.items_of(block(9, "1. a", "", "trailing prose"))
         self.assertEqual(len(items), 1)

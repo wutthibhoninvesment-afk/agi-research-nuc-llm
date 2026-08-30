@@ -9492,7 +9492,7 @@ Workspace: ~/agi-research
   COUNT is the sharpest tell: the only field anybody edited was the counter,
   and round 349's "8th" was itself wrong, counting carries of a closed item.
 - `state_claim_check.py` (611 lines) and `test_state_claim_check.py`
-  (629 lines, **64 tests**). Three findings, all fail-closed:
+  (644 lines, **66 tests**). Three findings, all fail-closed:
   `S001` a body-line count that no longer matches; `S002` a lint code cited
   as currently firing that `skill_lint` no longer emits; `S003` an inline
   `` `cmd` -> result `` claim whose command, re-run, prints something else.
@@ -9554,7 +9554,7 @@ Workspace: ~/agi-research
   skills — a probe is a priced run and this is a skills round's cheap half,
   not its billed one.
 - **Tests:** `python3 -m unittest discover -s skills/skill-authoring/scripts`
-  **428 passed, OK** (was 364; +64 from `test_state_claim_check.py`).
+  **430 passed, OK** (was 364; +66 from `test_state_claim_check.py`).
   `skill_lint.py --house --strict skills/` **24 skill(s), 0 errors, 0
   warnings, exit 0**. `claim_check.py skills/` **24 skill(s), 0 stale**.
   `state_claim_check.py state/research-state.md` **0 stale, exit 0**;
