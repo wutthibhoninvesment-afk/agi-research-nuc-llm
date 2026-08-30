@@ -10,6 +10,7 @@ verification lives in the round's own knowledge file, run manually against
 the real (offline) NUC target, not as a pytest case (a real network attempt
 in a test suite would make the suite depend on host reachability).
 """
+import re
 import shlex
 import subprocess
 import sys
@@ -251,3 +252,145 @@ def test_deploy_and_launch_watcher_script_matches_returned_remote_pid(tmp_path):
                                     popen_factory=fake_popen)
     script_text = Path(result["watcher_script_path"]).read_text()
     assert "ps -p 99999" in script_text
+
+
+# ---------------------------------------------------------------------------
+# Round 352 — the first LIVE run of `deploy_and_launch`, and the two defects
+# only a real machine could show. Both were invisible to every test above
+# because those tests assert on the STRING the command builder returns; the
+# bug was in what that string makes a real remote bash DO with its file
+# descriptors. These tests pin the observable consequences instead.
+# ---------------------------------------------------------------------------
+
+def test_remote_launch_cmd_does_not_background_an_unredirected_list():
+    """`&` must bind to a fully-redirected compound, never to a bare
+    `A && B` list.
+
+    The original built `mkdir -p DIR && nohup python3 ... > LOG 2>&1 &`.
+    Because `&` binds to the whole list, bash forks a subshell for it and
+    only the `nohup` half carries redirections -- so the subshell keeps
+    sshd's stdout/stderr pipes and blocks in do_wait for the run's entire
+    8-hour duration, and the ssh client never returns. Verified live on
+    pgain-nuc round 352: /proc/<subshell>/fd/1 -> pipe:[17838].
+    """
+    cmd = swl.remote_launch_cmd("/tmp/swap_watch.py", "r352", 15.0, 28800.0)
+    # The unit `&` backgrounds must be a brace group whose own stdin, stdout
+    # and stderr are all redirected. Anchored as one regex so the assertion
+    # cannot be satisfied by a `&` that merely appears somewhere after a `}`.
+    assert re.search(r"\}\s*>\s*/dev/null\s+2>&1\s*<\s*/dev/null\s*&(?!&)", cmd), (
+        "the backgrounded unit must be a brace group with all three fds "
+        "redirected, not a bare && list: " + cmd)
+    # And nothing may be backgrounded BEFORE that group closes -- a stray `&`
+    # inside the body would fork exactly the unredirected child this guards.
+    # `2>&1` is a redirection, not a backgrounding `&`; drop those first so
+    # this checks what it claims to.
+    body = re.sub(r"\d?>&\d", "", cmd[:cmd.index("}")])
+    assert not re.search(r"(?<!&)&(?!&)", body), (
+        "no backgrounding may happen inside the group: " + cmd)
+
+
+def test_remote_launch_cmd_group_redirect_is_devnull_not_the_log():
+    """The group redirect cannot be LOG. Group redirections are applied
+    before the body runs, and LOG lives inside the directory `mkdir -p` is
+    about to create, so `> LOG` on the group fails on a first-ever run.
+    LOG belongs on the inner command, opened after mkdir succeeded.
+    """
+    cmd = swl.remote_launch_cmd("/tmp/swap_watch.py", "r352", 15.0, 28800.0)
+    group_redirect = cmd.split("}", 1)[1].split("&", 1)[0]
+    assert "/dev/null" in group_redirect and "swap-watch-r352-long.log" not in group_redirect
+    inner = cmd.split("}", 1)[0]
+    assert "swap-watch-r352-long.log" in inner
+    assert inner.index("mkdir") < inner.index("swap-watch-r352-long.log")
+
+
+def test_remote_launch_cmd_execs_so_the_printed_pid_is_the_poller():
+    """`$!` must be the POLLER's pid, not a wrapper's.
+
+    Without `exec`, the forked group stays alive as python3's parent and
+    `$!` names it, so the watcher's `ps -p <pid>` polls a wrapper that only
+    happens to die when the thing it stands in for does. Live-verified
+    round 352: with `exec`, the printed pid 2829 was python3 itself, ppid 1,
+    fd 1 -> the .log file.
+    """
+    cmd = swl.remote_launch_cmd("/tmp/swap_watch.py", "r352", 15.0, 28800.0)
+    assert "exec nohup python3" in cmd
+    assert cmd.rstrip().endswith("echo $!")
+
+
+def test_recover_pid_cmd_matches_on_the_tag_not_just_the_script():
+    """Adopting some other round's poller as "the run we just started"
+    would be worse than failing, so the probe matches the tagged checkpoint
+    path, not `swap_watch.py` alone.
+    """
+    cmd = swl.recover_pid_cmd("/tmp/swap_watch.py", "r352")
+    assert "swap-watch-r352-checkpoint" in cmd
+    assert "swap_watch.py" in cmd
+    other = swl.recover_pid_cmd("/tmp/swap_watch.py", "r268")
+    assert "swap-watch-r268-checkpoint" in other and cmd != other
+
+
+def test_launch_timeout_adopts_a_poller_that_did_start(tmp_path):
+    """A client-side TimeoutExpired is NOT evidence the remote failed.
+
+    This is the exact live failure: the poller was running and
+    checkpointing while the ssh client hung. Treating the timeout as a
+    failure inverted the module's own safety property -- rather than "no
+    watcher for a job that never started", it produced a job that DID
+    start with its pid discarded and nobody watching it.
+    """
+    calls = []
+
+    def runner(argv, **kw):
+        calls.append(argv)
+        if argv[0] == "scp":
+            return FakeCompleted(0)
+        if any("pgrep" in a for a in argv):
+            return FakeCompleted(0, stdout="2337\n")
+        raise subprocess.TimeoutExpired(cmd=argv, timeout=30)
+
+    res = swl.deploy_and_launch(
+        tag="r352", local_script="nuc/swap_watch.py", interval_s=15.0,
+        duration_s=28800.0, dest_dir=str(tmp_path), runner=runner,
+        popen_factory=FakePopen)
+
+    assert res["remote_pid"] == "2337"
+    assert res["launch_timed_out"] is True
+    assert res["watcher_pid"] == 424242
+    assert Path(res["watcher_script_path"]).exists()
+    assert "2337" in Path(res["watcher_script_path"]).read_text()
+
+
+def test_launch_timeout_with_no_poller_found_is_still_a_failure(tmp_path):
+    """The recovery must not paper over a genuine failure. If the probe
+    finds nothing, this is a real error -- and the message has to warn that
+    a retry can start a SECOND poller, because "probe found nothing" and
+    "nothing is running" are not the same statement.
+    """
+    def runner(argv, **kw):
+        if argv[0] == "scp":
+            return FakeCompleted(0)
+        if any("pgrep" in a for a in argv):
+            return FakeCompleted(1)
+        raise subprocess.TimeoutExpired(cmd=argv, timeout=30)
+
+    started = []
+    with pytest.raises(swl.SwapWatchLaunchError) as ei:
+        swl.deploy_and_launch(
+            tag="r352", local_script="nuc/swap_watch.py", interval_s=15.0,
+            duration_s=28800.0, dest_dir=str(tmp_path), runner=runner,
+            popen_factory=lambda *a, **k: started.append(1))
+    assert "SECOND poller" in str(ei.value)
+    assert not started, "no watcher may be started when the remote state is unknown"
+
+
+def test_recover_remote_pid_degrades_to_none_never_raises():
+    """The probe runs on an error path; a second exception there would bury
+    the original one.
+    """
+    def boom(argv, **kw):
+        raise OSError("ssh binary missing")
+    assert swl._recover_remote_pid("/tmp/swap_watch.py", "r352", "h", "k", 10, boom) is None
+
+    def junk(argv, **kw):
+        return FakeCompleted(0, stdout="not-a-pid\n")
+    assert swl._recover_remote_pid("/tmp/swap_watch.py", "r352", "h", "k", 10, junk) is None

@@ -113,14 +113,74 @@ def remote_launch_cmd(remote_script: str, tag: str, interval_s: float, duration_
     out = f"{remote_outdir}/swap-watch-{tag}-long.json"
     ckpt = f"{remote_outdir}/swap-watch-{tag}-checkpoint.jsonl"
     log = f"{remote_outdir}/swap-watch-{tag}-long.log"
+    # ROUND 352, from the first live run this function ever had. The
+    # original form was
+    #     mkdir -p DIR && nohup python3 ... > LOG 2>&1 < /dev/null & disown -h; echo $!
+    # which hangs the ssh CLIENT for the run's entire duration. `&` binds to
+    # the whole `A && B` LIST, so bash forks a subshell for it; only `B`
+    # carries the redirections, so that subshell inherits sshd's stdout/
+    # stderr channel pipes and then blocks in do_wait on python3 for 8 hours.
+    # sshd never sees EOF, so `subprocess.run(..., timeout=30)` raises
+    # TimeoutExpired even though the remote side started perfectly.
+    # Proven on the box, not inferred: /proc/<subshell>/fd/1 -> pipe:[17838]
+    # and fd/2 -> pipe:[17839], versus /proc/<python3>/fd/1 -> the .log file,
+    # with the subshell's wchan reading `do_wait`.
+    #
+    # The fix is a brace group whose OWN fds go to /dev/null, so nothing that
+    # outlives the ssh session holds the channel:
+    #   - the group redirect must be /dev/null, not LOG: group redirections
+    #     are applied BEFORE the body runs, and LOG lives inside the very
+    #     directory `mkdir -p` is about to create, so `> LOG` on the group
+    #     would fail on a first-ever run. LOG stays on the inner command,
+    #     where it is opened after mkdir has succeeded.
+    #   - `exec` makes the forked group become python3 rather than fork it
+    #     and wait, so `$!` is the POLLER's pid. The original printed the
+    #     subshell's pid instead; the watcher's `ps -p <pid>` then polled a
+    #     wrapper that merely happened to die at the same time as the thing
+    #     it was standing in for.
+    #   - `&&` is kept: if mkdir fails, exec never runs and the group exits,
+    #     which the caller's `_remote_pid_alive` recovery probe detects.
     inner = (
-        f"mkdir -p {remote_quote(remote_outdir)} && "
-        f"nohup python3 {shlex.quote(remote_script)} "
+        f"{{ mkdir -p {remote_quote(remote_outdir)} && "
+        f"exec nohup python3 {shlex.quote(remote_script)} "
         f"--interval {interval_s} --duration {duration_s} "
         f"--out {remote_quote(out)} --checkpoint {remote_quote(ckpt)} "
-        f"> {remote_quote(log)} 2>&1 < /dev/null & disown -h; echo $!"
+        f"> {remote_quote(log)} 2>&1 ; }} "
+        f"> /dev/null 2>&1 < /dev/null & disown -h; echo $!"
     )
     return inner
+
+
+def recover_pid_cmd(remote_script: str, tag: str) -> str:
+    """Remote command that finds a running poller for THIS tag, or prints
+    nothing. Matches on the checkpoint path, which carries the tag, rather
+    than on the script name alone -- `pgrep -f swap_watch.py` would also
+    match a poller some other round left running, and adopting one of those
+    as "the run we just started" would be worse than failing.
+    """
+    _validate_tag(tag)
+    pattern = f"{Path(remote_script).name} .*swap-watch-{tag}-checkpoint"
+    return f"pgrep -f {shlex.quote(pattern)} | head -1"
+
+
+def _recover_remote_pid(remote_script: str, tag: str, ssh_target: str, ssh_key: str,
+                        connect_timeout: int, runner: Callable) -> Optional[str]:
+    """Ask the box whether the poller we may have just launched is running.
+    Returns its pid as a string, or None. Never raises: this runs on an
+    error path, and a failure to answer must degrade to "unknown", which
+    the caller reports honestly, rather than to a second exception that
+    buries the original one.
+    """
+    argv = ssh_argv(ssh_target, ssh_key, recover_pid_cmd(remote_script, tag), connect_timeout)
+    try:
+        res = runner(argv, capture_output=True, text=True, timeout=connect_timeout + 20)
+    except Exception:
+        return None
+    if getattr(res, "returncode", 1) != 0:
+        return None
+    pid = (getattr(res, "stdout", "") or "").strip().splitlines()
+    pid = pid[-1].strip() if pid else ""
+    return pid if pid.isdigit() else None
 
 
 def remote_paths(tag: str, remote_outdir: str = DEFAULT_REMOTE_OUTDIR) -> dict:
@@ -253,14 +313,39 @@ def deploy_and_launch(tag: str, local_script: str = "nuc/swap_watch.py",
 
     launch_cmd = remote_launch_cmd(remote_script, tag, interval_s, duration_s, remote_outdir)
     launch_argv = ssh_argv(ssh_target, ssh_key, launch_cmd, connect_timeout)
-    launch_res = runner(launch_argv, capture_output=True, text=True, timeout=30)
-    if launch_res.returncode != 0:
-        raise SwapWatchLaunchError(
-            f"remote launch failed (rc={launch_res.returncode}): {launch_res.stderr.strip()}")
-    remote_pid = launch_res.stdout.strip().splitlines()[-1].strip() if launch_res.stdout.strip() else ""
-    if not remote_pid.isdigit():
-        raise SwapWatchLaunchError(
-            f"remote launch did not return a PID (stdout={launch_res.stdout!r})")
+    try:
+        launch_res = runner(launch_argv, capture_output=True, text=True, timeout=30)
+    except subprocess.TimeoutExpired:
+        # ROUND 352: a client-side timeout is NOT evidence the remote command
+        # failed. On this function's first live run it was evidence of the
+        # exact opposite -- the poller was running and checkpointing while the
+        # client hung (see `remote_launch_cmd`). Treating it as failure
+        # inverted the documented safety property: instead of "no watcher for
+        # a job that didn't start" we got "a job that DID start, with its PID
+        # discarded along with the exception, and nobody watching it".
+        #
+        # So: probe the box for the poller we may have just started, and adopt
+        # it if it is there. Only if the probe comes back empty is this a real
+        # failure. `remote_pid` is deliberately re-derived from the box rather
+        # than guessed, because the stdout that carried `echo $!` is gone.
+        recovered = _recover_remote_pid(remote_script, tag, ssh_target, ssh_key,
+                                        connect_timeout, runner)
+        if not recovered:
+            raise SwapWatchLaunchError(
+                "remote launch timed out after 30s AND no matching poller was "
+                "found on the box -- treat the remote state as unknown and "
+                "check by hand before retrying, or a retry may start a SECOND "
+                "poller alongside a first one this probe simply missed")
+        remote_pid, launch_timed_out = recovered, True
+    else:
+        if launch_res.returncode != 0:
+            raise SwapWatchLaunchError(
+                f"remote launch failed (rc={launch_res.returncode}): {launch_res.stderr.strip()}")
+        remote_pid = launch_res.stdout.strip().splitlines()[-1].strip() if launch_res.stdout.strip() else ""
+        if not remote_pid.isdigit():
+            raise SwapWatchLaunchError(
+                f"remote launch did not return a PID (stdout={launch_res.stdout!r})")
+        launch_timed_out = False
 
     max_iters = compute_max_iters(duration_s, poll_interval_s)
     script_text = build_watcher_script(remote_pid, ssh_target, ssh_key, tag, remote_outdir,
@@ -280,6 +365,9 @@ def deploy_and_launch(tag: str, local_script: str = "nuc/swap_watch.py",
         "watcher_script_path": str(watcher_path),
         "watcher_pid": proc.pid,
         "max_iters": max_iters,
+        # True when the ssh launch timed out client-side and the pid above was
+        # recovered by probing the box instead of read from `echo $!`.
+        "launch_timed_out": launch_timed_out,
     }
 
 
