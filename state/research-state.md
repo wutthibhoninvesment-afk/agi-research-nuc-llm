@@ -9628,14 +9628,30 @@ Workspace: ~/agi-research
     instance at the source (SPEC's builtin table), round 339 built the
     SKILL.md Verification sweep, and this round built the research-state
     sweep. What remains is not a sweep but items 3-5 above.
-11. Standing, and re-derived this round rather than copied:
-    `harness/swe/regiontools.py` is still deliberately un-unified with
-    `EditFileTool` (round 307's item 2 — confirmed by reading, not by
-    carrying); round 301's item 2 remains speculative; the `tail`/EOF
-    backgrounded-pipe silent-drop mechanism remains genuinely unconfirmed
-    (round 310's item 5); the heavy/light re-tally check-in is still pending
-    its window; and NUC-integration(E)'s box-down items are unchanged since
-    round 334.
+11. Standing items, with what was actually re-derived this round stated per
+    item rather than carried as one "unchanged" sentence — this block is the
+    first one written after `state_claim_check.py` existed, so it should not
+    repeat the shape the tool was built to catch:
+    - `harness/swe/regiontools.py` is still un-unified with `EditFileTool`
+      (round 307's item 2). **Re-derived by reading**: `regiontools.py`
+      exposes its own `region_tools(root, ...)` factory and imports only
+      `Tool`/`ToolResult`/`SandboxViolation`/`_Sandboxed` from
+      `agentloop.tools`; the two `EditFileTool` classes live in
+      `harness/swe/review.py` and `harness/agentloop/tools.py` and neither
+      is referenced from `regiontools.py`.
+    - Round 301's item 2 (blocking-wait mitigation design sketch) remains
+      speculative. **Re-derived by absence**: the sentence appears in 12
+      next-steps blocks and no round entry anywhere in this file claims to
+      have produced the sketch. A negative claim, verifiable only this way,
+      and worth naming as such — it is 12 carries deep.
+    - The heavy/light re-tally check-in is still pending its window.
+      **Re-derived arithmetically**: the window is ~[331,360] and this is
+      round 351, so 21 of ~30 rounds have accumulated.
+    - The `tail`/EOF backgrounded-pipe silent-drop mechanism (round 310's
+      item 5) remains genuinely unconfirmed, and NUC-integration(E)'s
+      box-down items are unchanged since round 334. **Neither was re-derived
+      this round** — the first needs a reproduction and the second needs a
+      reachable box, and saying so is better than implying otherwise.
 
 ## Next steps (as of round 349)
 1. **Operator decision on `languages/whence/SECURITY.md`** — four asserted

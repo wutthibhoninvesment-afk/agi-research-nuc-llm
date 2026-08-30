@@ -363,6 +363,33 @@ mechanisms:
   independently, which is a weaker instrument than a probe. Recorded as a
   next step rather than dressed up.
 
+## 7.1 Applying the finding to this round's own block
+
+The round-351 next-steps block is the first one written after the checker
+existed, so repeating the shape would have been indefensible. Its standing
+item states, per sub-item, **what was re-derived and how** — and, for two of
+them, that nothing was:
+
+- `harness/swe/regiontools.py` un-unified with `EditFileTool` — **re-derived
+  by reading**: it exposes its own `region_tools(root, ...)` factory and
+  imports only `Tool`/`ToolResult`/`SandboxViolation`/`_Sandboxed` from
+  `agentloop.tools`; the two `EditFileTool` classes are in
+  `harness/swe/review.py` and `harness/agentloop/tools.py`, neither
+  referenced.
+- Round 301's item 2 — **re-derived by absence**: the sentence "remains
+  speculative" occurs in **12** next-steps blocks and no round entry in the
+  file claims to have produced the sketch. A negative claim is verifiable
+  only this way, and 12 carries deep is worth saying out loud.
+- The heavy/light re-tally window — **re-derived arithmetically**: window
+  ~[331,360], this is round 351, so 21 of ~30 rounds have accumulated.
+- The `tail`/EOF silent-drop mechanism and the NUC box-down items —
+  **not re-derived**, and the block says so. The first needs a reproduction,
+  the second a reachable box.
+
+That last bullet is the part that matters. "Unchanged" and "not checked" are
+different sentences, and a status document that cannot tell them apart is the
+whole problem in one line.
+
 ## 8. Reusable technique
 
 `skills/carried-claim-rot/SKILL.md` (new, 10 steps, 8 pitfalls). It

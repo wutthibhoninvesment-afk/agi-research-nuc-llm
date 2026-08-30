@@ -104,6 +104,12 @@ are the only ones nobody re-runs.
     zero stale claims, in whatever suite the next cycle is guaranteed to run.
 
 ## Pitfalls
+- **"Unchanged" and "not checked" are different sentences, and most rolling
+  documents cannot tell them apart.** When you carry an item forward, say
+  which one it is, per item, with the derivation: *re-derived by reading /
+  by absence / arithmetically*, or plainly *not re-derived this cycle, and
+  here is what it would take*. One bulk "standing and unchanged" line
+  collapses both into the reassuring one.
 - **Fixing the live document is not the fix.** Editing "415" to "399" clears
   today's finding and changes nothing about the channel. The next cycle will
   copy your corrected line forward without re-deriving it either. Only step 10
