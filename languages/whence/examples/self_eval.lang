@@ -44,7 +44,12 @@
 # structure instead of missing; guest provenance carries no line numbers (the
 # guest AST has none — the parser is pinned to self_host.lang) and no merged
 # tail-loop/if nodes (host v0.3/v0.4 compressions); `why` output is capped at
-# 300 nodes. The old `__tag` spoofing leak is CLOSED by boxing: a user
+# 300 nodes; and -- added to this list by v0.31 (round 380), where it had
+# been missing since round 210 minted it -- THE GUEST HAS NO TAIL CALLS, so
+# a tail loop that the host runs for 200 000 iterations at zero stack cost
+# is refused by the guest after 399 (see `GUEST_MAX_DEPTH` below for the
+# four pinned example contracts this divergence breaks and the measurement
+# behind the number). The old `__tag` spoofing leak is CLOSED by boxing: a user
 # record's fields are boxes, and a box never equals the raw string "closure".
 # Guest recursion spends host frames (~15 per guest call). Before round
 # 210, "tops out around max_depth/15" meant the HOST's OWN recursion-depth
@@ -1049,12 +1054,36 @@ let arities = @{print: 1, rand: 0, len: 1, range: -1, map: 2, filter: 2,
 # round 210: guest-level function-CALL depth ceiling, checked only in
 # apply_closure (see the module-doc comment above and apply_closure's own
 # comment below for why this is the right, and only needed, choke point).
-# Picked with a wide safety margin under host max_depth/~15 (~1300): no
+# Picked with a wide safety margin under host max_depth/~15 (~1300).
+#
+# v0.31 (round 380) CORRECTS round 210's justification, which read: "no
 # example or self-hosting test corpus this project has ever run comes
-# close to 400 real guest-level call frames, and even a legitimate,
-# intentionally-deep guest recursion test should prefer a graceful guest
-# miss at a small, predictable depth over silently depending on exactly
-# where the host's own guard happens to land.
+# close to 400 real guest-level call frames". That sentence was false when
+# it was written and is false by two to three orders of magnitude. Round
+# 371 measured it and round 380 re-bisected the ceiling from scratch
+# (`state/whence/round-380/`, `GUEST TAIL CEILING = 399`: the guest answers
+# `go(399)` and refuses `go(400)`; the host answers `go(200000)`).
+# Four contracts pinned in this project's OWN examples demand more:
+#
+#   deep.lang  "a tail loop runs 10x past max_depth"     200 000 frames
+#   tco.lang   "a 100000-iteration tail loop ..."        100 000
+#   tco.lang   "mutual tail recursion"                   100 001
+#   deep.lang  "mutual recursion 10001 deep"              10 001
+#
+# The reason none of them ever showed up as a failure is that they are all
+# TAIL calls, which SPEC rule 8 says cost the host nothing and which this
+# evaluator charges one guest frame each -- so the ceiling is not really
+# 400 frames, it is 399 tail ITERATIONS. `deep.lang`'s `count(15000)` is
+# the control: genuinely non-tail, refused by both, and the only one of the
+# five where the two evaluators disagree merely about where the wall is.
+#
+# The NUMBER is nonetheless kept at 400, and for the reason round 210's
+# second clause gave, which is still sound: a graceful guest miss at a
+# small, predictable depth beats silently depending on exactly where the
+# host's own guard happens to land. What changes is that the ceiling is now
+# a DECLARED DIVERGENCE (see the module header's list) rather than a
+# margin nobody was expected to reach. Teaching `apply_closure` real tail
+# calls is the fix that would retire it; it is not a comment's job.
 let GUEST_MAX_DEPTH = 400
 
 fn new_store() {
@@ -1198,8 +1227,15 @@ fn eval(node, env, st) {
     @{v: mkb(node.value, "literal", []), st: st}
   }
   else if k == "name" {
+    # v0.31 (round 380): the label is `name <the name>`, not a bare `name`.
+    # Host `f_name` is `mk_miss("unbound name '%s'", line, "name", name)` and
+    # `mk_miss`'s FOURTH POSITIONAL parameter is `detail` -- so the host node
+    # is labelled `name nosuch` and its reason is the sentence. A bare `name`
+    # label made `guest_detail` fall through to its reasons() recovery and
+    # answer `unbound name 'nosuch'` where the host answers `nosuch`. See the
+    # `guest_detail` comment for the 21 call sites this class covers.
     let b = lookup(st, env, node.value)
-    @{v: if missed(b) { mkb(b, "name", []) } else { b }, st: st}
+    @{v: if missed(b) { mkb(b, "name " + node.value, []) } else { b }, st: st}
   }
   else if k == "list" {
     let r = eval_items(node.items, 0, [], env, st)
@@ -2132,6 +2168,43 @@ fn bind_params(st, fid, params, args, i, pspecs) {
 # is exponential in its depth, so the walk carries a budget; over it,
 # `steps` and `blame` MISS and name the number. Returning a short list
 # silently is the one failure mode here that would look like an answer.
+#
+# v0.31 (round 380) MEASURED this number, which v0.30 guessed and said so.
+# `skills/measured-budget-sizing`'s step 1 is "find a cheap proxy and
+# validate it": the guest walk visits a node once per ROOT-TO-NODE PATH, so
+# `paths(n) = 1 + sum(paths(c))` over the HOST DAG is the same quantity,
+# computable without running the guest at all. Validated against the real
+# `len(guest_walk_steps(...))` on a 10-program sample -- exact on 10 of 10
+# (`state/whence/round-380/guest_walk_probe.py`; the one disagreement in
+# the first run was a real bug in this file, see `apply_host_builtin`'s
+# curated-ins comment, and it is fixed).
+#
+# Swept over all 526 top-level bindings of every `examples/*.lang` this
+# interpreter can parse:
+#
+#     min   p50   p90   p95        p99          max
+#       1     1    24    43   ~3.06e8   uncountable (24 bindings)
+#
+# The distribution is BIMODAL with nothing in the middle. The ordinary mode
+# tops out at 123 paths (`diverge.lang`'s `week`, 112 host nodes); the next
+# value in the whole corpus is 71 552, a 582x jump, and above that come the
+# self-hosting and runaway bindings, 24 of which exceed 1e9 and are not
+# countable at all.
+#
+# So a budget of 100 and a budget of 50 000 refuse the SAME programs, to
+# within 2 bindings of 526 (484 vs 486, 0.4 percentage points), and no
+# value anywhere in [369, 71 551] changes a single verdict. The guessed
+# 5000 is 40x the measured corpus max and sits in the middle of a band two
+# and a half orders of magnitude wide over which the constant has no
+# observable effect. That is the honest verdict on the guess: it was not
+# right and not wrong, it was UNFALSIFIABLE at the granularity that
+# matters -- which is exactly `measured-budget-sizing`'s "if the spread is
+# 1000x, no constant is correct". The number is kept, because moving it
+# inside its own insensitivity band would be churn; what changes is that it
+# now carries its evidence, and `tests/test_v31.py` pins both properties
+# it must satisfy (>= 10x the corpus max, inside the insensitive band) so a
+# future example with a 6 000-path history fails a test instead of silently
+# turning `steps` into a refusal.
 let GUEST_STEPS_BUDGET = 5000
 
 # `Prov.label()` is `op + " " + detail` (values.py) and a guest box keeps
@@ -2639,7 +2712,13 @@ fn apply_builtin(name, args, st) {
           guest_mismatch_reason(label.v, strip(value), strip(spec),
                                 guest_spec_name(strip(spec)))
         }
-      @{v: mkb(miss reason, "typed " + reason, [value]), st: st}
+      # v0.31 (round 380): the label's detail is the CONTRACT LABEL, not the
+      # reason. Host `b_typed`'s mismatch is
+      # `mk_miss(_mismatch_reason(...), line, "typed", label.payload,
+      #          inputs=(value,))` -- fourth positional argument, i.e.
+      # `detail=label`, so the host node reads `typed p` while its reason
+      # reads `p expected num, got str`. This said `typed <reason>`.
+      @{v: mkb(miss reason, "typed " + label.v, [value]), st: st}
     }
   }
   else if name == "get" {
@@ -2871,10 +2950,33 @@ fn apply_builtin(name, args, st) {
     let propagated = contains(propagating, name) and
       not missed(find(fn(a) { missed(a.v) }, pargs))
     # curated ins where the host drops an argument's derivation: put keeps
-    # (record, value) but not the key; note keeps only the noted value
+    # (record, value) but not the key; note keeps only the noted value.
+    #
+    # v0.31 (round 380): those two curations describe the host's SUCCESS
+    # node and were being applied to its MISS node as well. `b_put`'s two
+    # guards and `b_note`'s one guard all pass `inputs=` EVERY argument
+    # (`inputs=(r, name, v)` / `inputs=(label, v)`); only `derived` drops
+    # one. So `note(1 + 2, "m")` lost the whole derivation of `1 + 2` from
+    # the guest history -- three host steps that simply were not there --
+    # and `put(7, "b", 2 + 3)` lost the key's. Found by the
+    # `GUEST_STEPS_BUDGET` sizing sweep, whose host-side path-count proxy
+    # disagreed with the real guest walk on exactly these shapes
+    # (6 host nodes vs 3 guest nodes for the `note` case).
+    #
+    # The guard conditions below are the host's own, in the host's own
+    # order: `b_put` checks record-ness then key-string-ness (its
+    # `_propagate` over (r, name) is the `propagated` branch above), and
+    # `b_note` checks label-string-ness. When a guard fires the node is a
+    # fresh origin miss and keeps everything; when none does, the node is
+    # `derived` and the curation applies. A miss that merely PASSES THROUGH
+    # (`note("m", 1 / 0)` -- host `derived("note", label, line, (v,), ...)`
+    # with a missed payload) is a success node and still curates, which is
+    # why the test is on the guards and not on `missed(p2)`.
+    let put_ok = is_record((args[0]).v) and is_str((args[1]).v)
+    let note_ok = is_str((args[0]).v)
     let ins2 = if propagated { pargs }
-      else if name == "put" { [args[0], args[2]] }
-      else if name == "note" { [args[1]] }
+      else if name == "put" and put_ok { [args[0], args[2]] }
+      else if name == "note" and note_ok { [args[1]] }
       else { args }
     let o = if propagated { "builtin" } else { name }
     @{v: mkb(p2, o, ins2), st: st}

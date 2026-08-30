@@ -110,6 +110,18 @@ BUILTIN_ARITY = {
     # below declares real shapes and `type_tag` puts their names in
     # `p: Type`/`-> Type` annotations.
     "matches": 2, "shapeof": 1, "typed": 3,
+    # v0.29 (round 374): `show(v)`, arity 1 -- the 37th registered builtin
+    # and, until round 380, the only one this table could not reach. Round
+    # 335 closed this same gap by re-diffing the table's keys against
+    # `interp._make_builtin_table()` and said so; a builtin registered
+    # forty rounds later re-opened it, because nothing RE-RUNS that diff.
+    # `test_generator_covers_every_registered_builtin` (round 380) does,
+    # so the next 38th builtin fails a test instead of waiting for a
+    # backlog item. Architecturally a plain total unary derive over the
+    # payload (`derived("show", "", line, (v,), show_payload(v.payload))`,
+    # never a miss, never higher-order), so `call()`'s generic fallback
+    # covers it exactly as it covers `str`/`abs`/`trunc`.
+    "show": 1,
     # v0.17 (round 318): `trunc(x)`, arity 1 -- a plain numeric builtin,
     # architecturally identical to the pre-existing `abs`/`sqrt` entries
     # (miss on a non-numeric argument, otherwise a total, pure derive of

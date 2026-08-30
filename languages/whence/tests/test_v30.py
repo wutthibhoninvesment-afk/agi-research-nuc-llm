@@ -228,15 +228,29 @@ def test_the_label_split_is_exact_for_every_non_miss_op(lib):
 
 def test_a_miss_nodes_detail_is_recovered_from_its_reason():
     """The one place the split under-reports, and why it is repairable:
-    `mk_miss` uses the reason AS the detail, and nothing overrides it."""
-    import whence.interp as I
-    src = open(I.__file__, encoding="utf-8").read()
-    assert "detail=" not in src, "a mk_miss call now overrides `detail`"
+    `mk_miss` uses the reason AS the detail **when no caller overrides it**.
+
+    v0.31 (round 380) CORRECTED this test. It used to read
+
+        assert "detail=" not in src, "a mk_miss call now overrides `detail`"
+
+    and take that as proof that nothing overrides the detail. The grep is
+    true and the conclusion is false: `detail` is `mk_miss`'s FOURTH
+    POSITIONAL parameter, and 21 of the 87 call sites in `whence/interp.py`
+    pass it positionally. Two of the three ops involved reached the guest,
+    and `guest_detail` answered with the reason sentence where the host had
+    put a name. `tests/test_v31.py::test_the_grep_is_true_and_the_property_
+    it_stood_for_is_false` now owns the real check, by AST; what belongs
+    here is the DEFAULT behaviour this file's recovery actually rests on."""
     from whence.values import mk_miss
     node = mk_miss("division by zero", 7, "/")
     assert node.detail == "division by zero"
     assert node.label() == "/ division by zero"
     assert list(node.value.reasons) == ["division by zero (line 7)"]
+    # ...and the override, so the two halves of the story sit together
+    override = mk_miss("unbound name 'x'", 7, "name", "x")
+    assert override.detail == "x"
+    assert override.label() == "name x"
 
 
 # --------------------------------------------------------------------------

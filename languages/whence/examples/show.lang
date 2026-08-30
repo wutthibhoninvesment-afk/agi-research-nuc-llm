@@ -1,0 +1,55 @@
+# show.lang — the bounded rendering, and where it is not `str`
+#
+# `show(v)` (v0.29) is the ONE-LINE, BOUNDED rendering of a value: the same
+# `show_payload` the interpreter itself uses for a provenance node's snapshot
+# and for every miss reason that quotes a value. `str(v)` is the FULL one.
+# Before v0.29 a Whence program could only obtain the full form, so any
+# program that had to render a value the way the language renders it kept a
+# hand-rolled copy that drifted. `steps(x)[i].show` is `show` of that step's
+# value, and the self-hosted evaluator builds that field with this builtin.
+#
+# Three differences worth seeing, none of them cosmetic:
+#   1. LENGTH. `show` elides a long list; `str` does not.
+#   2. MISSES. `show` of a miss is the word `miss` -- it is a rendering, not
+#      an explanation, so it never leaks a reason into a string a program was
+#      only trying to display. `reasons` is how you ask for the reason.
+#   3. IT IS A DERIVATION. `show(v)` records `v` as its input, so a rendered
+#      string still knows which value it rendered.
+
+let squares = map(fn(i) { i * i }, range(30))
+
+print("show : " + show(squares))
+print("str  : " + str(squares))
+print("")
+
+# 1. bounded vs full
+let short = show(squares)
+let full = str(squares)
+check "show elides a long list": len(short) < len(full)
+check "show keeps the head": contains(short, "[0, 1, 4, 9")
+check "str keeps the tail": contains(full, "841")
+
+# 2. a miss renders as a word, not as its reason
+let bad = 1 / 0
+check "show of a miss is just `miss`": show(bad) == "miss"
+check "the reason is still reachable":
+  contains((reasons(bad))[0], "division by zero")
+
+# 3. show is a derivation, so the string knows its source
+let rendered = show(squares)
+check "show records its input": contains(str(why rendered), "show")
+check "...and the input's own history is still under it":
+  contains(str(why rendered), "range")
+
+# records and guesses render structurally, on one line
+check "a record renders on one line":
+  show(@{a: 1, b: [1, 2]}) == "@{a: 1, b: [1, 2]}"
+check "a guess renders with its confidence and source":
+  show(guess(3, 0.5, "sensor")) == "guess 0.5 (sensor): 3"
+
+# the step record's own `show` field is this same function
+let x = 1 + 2
+let first = (steps(x))[0]
+check "a step's show field is show of its value": first.show == show(x)
+
+print("show.lang: every check above ran")
