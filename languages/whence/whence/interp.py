@@ -300,9 +300,63 @@ def _const(node):
 
 
 class Interpreter(object):
-    # Each Whence call frame costs ~6KB (≈4KB of it is the provenance DAG the
-    # result will retain anyway), so 20000 ≈ 125MB worst case for a runaway.
+    # v0.26 (round 366) re-measured both runaway budgets with one run per
+    # process (`ru_maxrss` is a process-wide high-water mark, so a second run
+    # in the same process reads the first one's peak). `bench/runaway_cost.py`
+    # is that measurement; re-run it before changing either constant.
+    #
+    # A non-tail frame retains 1337 B (`1 + spin(n+1)`), 1560 B (a `let`) or
+    # 2084 B (a `let` inside an `if`) — NOT the "~6KB" this comment asserted
+    # from v0.2 to round 365, which no round ever re-executed. At the worst of
+    # the three, 20000 frames is a ~40MB worst case for a runaway, not ~125MB.
     DEFAULT_MAX_DEPTH = 20000
+
+    # v0.26 (round 366): a tail call spends no frame, so `max_depth` cannot
+    # bound a tail loop — and `max_iter` defaulted to None, so NOTHING did. A
+    # non-terminating tail recursion hung forever, while the same function
+    # with its recursive call lifted out of tail position by a `let` returned
+    # a depth miss in 0.07s. That is SPEC rule 8's own round-336 invariant
+    # ("lifting a tail call out of tail position changes the frame count and
+    # nothing else") failing on the one input class its exhaustive
+    # differential could not drive: the tail side never returns, so a test
+    # that compares the two forms cannot be written without this bound.
+    #
+    # SIZED FROM THE CORPUS, NOT FROM MEMORY PARITY -- and round 366 got this
+    # wrong the first time, so the reasoning it discarded is recorded here to
+    # stop the next reader re-deriving it. The tempting rule is "give a tail
+    # runaway the same memory ceiling a depth runaway gets": a merged tail
+    # iteration retains 258/419/499/768 B across four shapes vs 1337-2084 B
+    # per non-tail frame, so 20000 x 2084 / 768 = 54270, i.e. ~50000. That is
+    # principled, it is measured, and it is WRONG -- it breaks four of this
+    # repo's own examples, because a tail loop is the only loop Whence has
+    # (there is no `while`) and real programs run long ones.
+    #
+    # The corpus is the authority. Uncapped, `interp.peak_tail` over
+    # `examples/*.lang` is 200001 (deep.lang), 100002 (tco.lang), 60005
+    # (meta.lang), 50001 (shapes.lang), then a 150x gap to 331. The 200000 is
+    # not incidental: deep.lang asserts it as a language property --
+    # `check "a tail loop runs 10x past max_depth"` -- so 10 x DEFAULT_MAX_DEPTH
+    # is a pinned contract and the default must clear it. 600000 is that
+    # maximum times `skills/measured-budget-sizing`'s default margin of 3,
+    # rounded UP to a legible figure: 200001 x 3 = 600003, so 600000 misses
+    # its own rule by three iterations and 1000000 is the round number above
+    # it. (That is not a joke at the rule's expense -- 600000 was the value
+    # committed first, and `test_every_example_stays_under_the_default_with_
+    # margin` failed on exactly those 3.)
+    #
+    # What 1000000 buys, measured (bench/runaway_cost.py): a runaway is a miss
+    # after 9.3s / 748MB at the worst of four shapes, 3.7s / 412MB at guest
+    # seed 31's. Both are FINITE, which is the entire point -- the previous
+    # default was unbounded in both, and round 362 measured 2 of 141 guest
+    # seeds OOM-killed. The cap never raises a program's memory use; it only
+    # ever puts a ceiling on it. Erring high is deliberate and the costs are
+    # asymmetric: too low is a correctness regression on working programs
+    # (round 366 shipped 50000 and broke four examples), too high only makes
+    # a runaway slower to catch than it strictly had to be.
+    #
+    # `max_iter=None` still means UNBOUNDED and is now the explicit opt-out
+    # (`run.py --max-iter 0`), not the silent default.
+    DEFAULT_MAX_ITER = 1000000
 
     # gen-0 threshold used by `run()` when gc_relief is on: a Whence run
     # builds a large, long-lived, (almost) acyclic object graph, and CPython's
@@ -326,7 +380,8 @@ class Interpreter(object):
     # 2.3× that (was 350 — a guess).
     HOST_RESERVE = 250
 
-    def __init__(self, out=None, max_depth=DEFAULT_MAX_DEPTH, max_iter=None,
+    def __init__(self, out=None, max_depth=DEFAULT_MAX_DEPTH,
+                 max_iter=DEFAULT_MAX_ITER,
                  fast=True, gc_relief=False, direct=True, seed=0):
         self.out_lines = []
         self._out = out if out is not None else self.out_lines.append
@@ -341,9 +396,19 @@ class Interpreter(object):
         self.globals = Env()
         self.depth = 0            # current Whence call depth
         self.max_depth = max_depth
-        self.max_iter = max_iter  # cap on frames merged by one tail loop
+        # cap on frames merged by ONE tail loop; None = unbounded (v0.26:
+        # no longer the default -- see DEFAULT_MAX_ITER)
+        self.max_iter = max_iter
         self.peak_depth = 0       # deepest call depth reached (for reporting)
         self.tail_calls = 0       # frames elided by tail calls (for reporting)
+        # v0.26 (round 366): the tail analogue of `peak_depth` — the most
+        # frames any SINGLE tail loop merged, which is the quantity
+        # `max_iter` bounds. `tail_calls` is a run-wide TOTAL and cannot
+        # answer "how close did this program come to the cap"; sizing
+        # `DEFAULT_MAX_ITER` needed the per-loop maximum and nothing
+        # reported it. Updated once per call, in the `finally` that already
+        # unwinds the frame — not per iteration.
+        self.peak_tail = 0
         self.fast = fast          # compile call-free subtrees to closures
         self.fast_hits = 0        # subtrees evaluated by a compiled closure
         # v0.9: direct mode needs the fast path (direct closures are built
@@ -756,6 +821,8 @@ class Interpreter(object):
         finally:
             self.depth = depth - 1
             self._hleft = hleft
+            if merged > self.peak_tail:
+                self.peak_tail = merged
         # round 336: inside-out — the chain's contracts (innermost first,
         # each at its own tail-call line), THEN the originally-called
         # closure's own, exactly as the same program behaves with every
@@ -1787,6 +1854,8 @@ class Interpreter(object):
                         names.append(name2)
             finally:
                 self.depth -= 1
+                if merged > self.peak_tail:
+                    self.peak_tail = merged
             # round 336: inside-out, see `_call_direct`'s twin comment
             if chain_rets is not None:
                 result = _check_chain_rets(result, chain_rets)

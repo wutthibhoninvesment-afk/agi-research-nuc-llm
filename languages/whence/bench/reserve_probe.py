@@ -33,7 +33,10 @@ from whence.interp import Interpreter
 Interpreter.HOST_RESERVE = %(reserve)d
 src = open(%(path)r).read()
 out = []
-it = Interpreter(gc_relief=True, out=out.append, max_depth=10 ** 6)
+# v0.26: max_iter=None for the same reason as max_depth=10**6 — a probe
+# measures where the real limit is, so neither cap may bind first.
+it = Interpreter(gc_relief=True, out=out.append, max_depth=10 ** 6,
+                 max_iter=None)
 from whence.lexer import LexError
 from whence.parser import ParseError
 try:

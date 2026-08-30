@@ -3,6 +3,7 @@
 
 Usage:
     python3 run.py [--max-depth N] [--max-iter N] [--no-direct] [--seed N] examples/hello.lang
+                                   (--max-iter 0 = unbounded tail loops)
     python3 run.py -                        # program from stdin
     python3 run.py                          # REPL (interactive terminal only)
 
@@ -143,10 +144,16 @@ def main(argv):
             print("error: %s" % e, file=sys.stderr)
             return 2
 
-    kwargs = {"out": print, "gc_relief": True, "max_iter": max_iter,
-              "direct": direct, "seed": seed}
+    kwargs = {"out": print, "gc_relief": True, "direct": direct, "seed": seed}
     if max_depth is not None:
         kwargs["max_depth"] = max_depth
+    # v0.26: `max_iter` is now treated exactly like `max_depth` — omitted
+    # unless the flag was given, so the class default applies. Before v0.26
+    # this line passed `max_iter` unconditionally, so the CLI passed None on
+    # every run and `DEFAULT_MAX_ITER` would have been unreachable from it.
+    # `--max-iter 0` is the explicit "unbounded" opt-out.
+    if max_iter is not None:
+        kwargs["max_iter"] = max_iter if max_iter > 0 else None
     if direct and sys.getrecursionlimit() < CLI_RECURSION_LIMIT:
         sys.setrecursionlimit(CLI_RECURSION_LIMIT)
     interp = Interpreter(**kwargs)

@@ -23,7 +23,7 @@ FIB = "fn fib(n) { if n < 2 { n } else { fib(n - 1) + fib(n - 2) } }\nlet result
 if name == "retention":
     import tracemalloc
     n = 20000
-    interp = Interpreter(max_depth=10**6, fast=fast)
+    interp = Interpreter(max_depth=10**6, max_iter=None, fast=fast)
     gc.collect()
     tracemalloc.start()
     base = tracemalloc.get_traced_memory()[0]
@@ -43,7 +43,7 @@ elif name == "fib20":
         "fast" if fast else "slow", dt, env.get("result").show,
         interp.fast_hits))
 elif name == "tail100k":
-    interp = Interpreter(max_depth=10**6, fast=fast, gc_relief=True)
+    interp = Interpreter(max_depth=10**6, max_iter=None, fast=fast, gc_relief=True)
     t0 = time.time()
     env = interp.run(TAIL % 100000)
     dt = time.time() - t0
@@ -54,7 +54,7 @@ elif name == "tail100k":
 elif name == "fib15guest":
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     src = open(os.path.join(root, "examples", "self_eval.lang")).read()
-    interp = Interpreter(max_depth=10**6, fast=fast, gc_relief=True)
+    interp = Interpreter(max_depth=10**6, max_iter=None, fast=fast, gc_relief=True)
     t0 = time.time()
     interp.run(src)
     dt = time.time() - t0

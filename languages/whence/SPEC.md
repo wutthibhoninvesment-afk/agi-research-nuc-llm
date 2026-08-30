@@ -1,6 +1,6 @@
 # Whence — a provenance-first language
 
-*Spec level: **v0.25** (round 362). The `## vN` sections below are the
+*Spec level: **v0.26** (round 366). The `## vN` sections below are the
 authoritative version list and each names the round that built it; this
 line deliberately no longer enumerates rounds, because the enumeration it
 replaced had said "v0.16.6 + v0.14.2" since round 266 while the file went
@@ -69,10 +69,16 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    Its provenance is ONE node `call f` with `count` = frames merged (rendered
    `call f ×N`; mutual recursion renders `call even/odd ×N`) whose inputs
    are the final result followed by the `if` decision of every iteration —
-   so `why` still explains every branch taken. Tail loops are unbounded by
-   default; `max_iter` (`run.py --max-iter N`) turns a too-long one into a
-   miss. A call under `let`, `rescue`, an operator, an argument, `why`,
-   `snip` or `check` is not a tail and still costs a frame.
+   so `why` still explains every branch taken. A tail loop is bounded by
+   `max_iter` (default 1000000, `run.py --max-iter N`), which turns a
+   too-long one into a miss; `--max-iter 0` (`max_iter=None`) opts out and
+   makes it unbounded again. **Until v0.26 (round 366) unbounded was the
+   DEFAULT**, and `max_depth` cannot substitute for it — a tail call spends
+   no frame, which is the whole point of the rule — so a non-terminating
+   tail recursion had no bound at all and hung. `interp.peak_tail` reports
+   the longest single loop, as `peak_depth` does for depth. A call under
+   `let`, `rescue`, an operator, an argument, `why`, `snip` or `check` is
+   not a tail and still costs a frame.
    **Tail position changes space, never meaning (round 336).** Lifting any
    tail call out of tail position with a `let` must not change the value,
    the miss, which `-> Type` contract is blamed, or the line the miss
@@ -80,7 +86,12 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    `test_tail_and_lifted_chains_agree_exhaustively` drives the whole
    `f0 -> f1 -> …` family (every combination of return annotations up to
    4 hops, plus loops that revisit a closure) through both forms, laid out
-   line for line, and requires byte equality.
+   line for line, and requires byte equality. **It cannot drive a
+   NON-terminating chain** — the tail side would hang the suite rather than
+   fail it — and until v0.26 that was the one shape where lifting changed
+   the answer from "no value, ever" to a depth miss in 0.07s. Bounding the
+   tail loop is what makes that comparison expressible;
+   `tests/test_v26.py` is where it is now made.
 9. **Full history is the default, and it is affordable (v0.3).** Lists are
    immutable views over a shared append-only buffer: `push(xs, x)` and
    `xs + ys` extend in place when `xs` is the buffer's tip and copy
@@ -3447,8 +3458,11 @@ rule is two of them).
 ## Limits that are errors, not crashes
 - Expression nesting deeper than 60 levels (parentheses, prefix operators,
   `else if` chains) is a parse error (exit 2), not a host RecursionError.
-- Runaway non-tail recursion is a `max_depth` miss; a runaway tail loop is
-  unbounded unless `--max-iter` is given.
+- Runaway non-tail recursion is a `max_depth` miss (default 20000); a
+  runaway tail loop is a `max_iter` miss (default 1000000, **v0.26**;
+  before that it was unbounded, the one limit in this section that was
+  neither an error nor a crash but a hang). `--max-iter 0` restores the
+  old unbounded behaviour explicitly.
 - Structural `==` on arbitrarily deep values is iterative (a 20000-deep
   record compares without touching the host stack).
 - **v0.4.1 (round 011):** arithmetic that mixes an unbounded integer with
@@ -3475,7 +3489,11 @@ rule is two of them).
 ## Running
 `python3 run.py [--max-depth N] [--max-iter N] [--no-direct]
 examples/<name>.lang` — exit 0 (all checks pass / none), 1 (some check
-failed), 2 (lex/parse error). *(The LEX half of exit 2 only became true in
+failed), 2 (lex/parse error). *(`--max-iter 0` means unbounded. Until v0.26
+`run.py` passed `max_iter` to the `Interpreter` unconditionally — including
+`None` when the flag was absent — so a class-level default would have been
+unreachable from the CLI; `--max-depth` had always been passed only when
+given, and the two now agree.)* *(The LEX half of exit 2 only became true in
 v0.21, round 350: `run.py` caught `ParseError` and not `LexError`, so every
 lex error left the CLI as a Python traceback with exit 1 — the "some check
 failed" code.)* Embedding: `Interpreter(out=...,
@@ -5472,3 +5490,107 @@ languages/whence  tests/test_contract_message_differential  10 passed
 host contract-message sites the corpus reaches            14/15 (1 declared
                                                               unreachable)
 ```
+
+## v0.26 (round 366, language C) — a runaway tail loop is a miss, not a hang
+
+Two lines of this spec contradicted each other for thirty rounds, and rule 8
+held both:
+
+> **(a)** Tail position changes space, never meaning (round 336). Lifting any
+> tail call out of tail position with a `let` must not change the value, the
+> miss, which `-> Type` contract is blamed, or the line the miss reports —
+> only the frame count.
+>
+> **(b)** Tail loops are unbounded by default.
+
+Take any function whose recursion does not terminate:
+
+```
+fn tl3(p4) { if p4 == 0 { 0.5 } else { tl3(p4 - 1) } }
+let v7 = tl3(0.5)
+```
+
+`0.5` decrements past a `== 0` base case it can never equal. Out of tail
+position — the same function with `let r = tl3(p4 - 1)` and `r` — that is a
+`recursion too deep in tl3 (depth 50)` miss in 0.07 s. In tail position, (b)
+said it ran forever. "No value, ever" versus "a miss" is the largest
+difference in meaning two forms of one function can have, so (a) was false
+for every non-terminating program, and had been since v0.3 introduced tail
+merging.
+
+**`max_depth` cannot cover this, and that is not a bug.** A tail call spends
+no frame — that is what rule 8 is *for*. The bound a tail loop needs is a
+bound on ITERATIONS, and `max_iter` was exactly that bound, already
+implemented, already tested (`test_v03.py::
+test_max_iter_turns_an_infinite_tail_loop_into_a_miss` has passed since
+v0.3), and defaulted to `None`. Nothing was missing but a number.
+
+Why no test caught it: `test_v13.py::
+test_tail_and_lifted_chains_agree_exhaustively` drives the whole
+`f0 -> f1 -> …` family through both forms and requires byte equality, and
+every chain it builds terminates. A non-terminating one would have hung the
+suite rather than failed it, so the differential could not be written until
+the bound existed. It is `tests/test_v26.py` now.
+
+### Sizing the default — the first answer was measured, principled and wrong
+
+The tempting rule is memory parity: give a tail runaway the same ceiling a
+depth runaway gets. `bench/runaway_cost.py` (new here; one run per process,
+because `ru_maxrss` is a process-wide high-water mark that reports the
+previous run's peak if you reuse one) measures both sides:
+
+| shape | retained |
+|---|---|
+| non-tail `1 + spin(n+1)` / `let` / `let` inside `if` | 1337 / 1560 / 2084 B per frame |
+| tail `spin(n+1)` / seed 31 / `if`-spin / two-arg `if` | 258 / 419 / 499 / 768 B per iteration |
+
+That also retires the `DEFAULT_MAX_DEPTH` comment's "~6 KB" per frame, which
+had stood since v0.2 and which no round ever re-executed: at the worst of the
+three shapes, 20000 frames is ~40 MB, not the ~125 MB the comment claimed.
+Parity then gives 20000 × 2084 / 768 = 54270, i.e. 50000 — and 50000 breaks
+four of this repo's own examples, because a tail loop is the only loop Whence
+has and real programs run long ones.
+
+The corpus is the authority. Uncapped `interp.peak_tail` over
+`examples/*.lang` is 200001 (`deep.lang`), 100002 (`tco.lang`), 60005
+(`meta.lang`), 50001 (`shapes.lang`), then a 150× gap to 331. The 200000 is
+deliberate: `deep.lang` asserts it as a language property —
+`check "a tail loop runs 10x past max_depth"` — so 10 × `DEFAULT_MAX_DEPTH`
+is a pinned contract the default must clear. Applying
+`skills/measured-budget-sizing`'s margin of 3 gives 600003, so **1000000** is
+the round number above it. Measured cost of that ceiling: a runaway is a miss
+after 9.3 s / 748 MB at the worst shape, 3.7 s / 412 MB at seed 31's. Both
+finite; the previous default was unbounded in both, and round 362 measured 2
+of 141 guest seeds OOM-killed.
+
+`test_v26.py::test_every_example_stays_under_the_default_with_margin`
+re-derives that maximum from the tracked examples on every run, so the
+constant cannot silently drift away from the corpus that justifies it.
+
+### `peak_tail`
+
+`interp.peak_tail` is the tail analogue of `peak_depth`: the most frames any
+SINGLE tail loop merged. `tail_calls` is a run-wide total and cannot answer
+"how close did this program come to the cap" — two loops of 300 give
+`tail_calls == 600` and `peak_tail == 301`. Sizing the default needed the
+per-loop maximum and nothing reported it. Updated once per call in the
+`finally` that already unwinds the frame, not per iteration.
+
+### Found from the fuzz side first
+
+Round 365 minimised guest seed 31 to `state/swe/round-365/seed31_hang.lang`
+and left three suspects: field access on a number (`10.x`), a `-> num`
+contract, and `reasons()` over a Miss chain. All three were wrong — a
+13-statement prefix bisect puts it on line 7, `tl3(tr5)` where `tr5` is
+`0.5`. Nothing about the program is exotic; any non-terminating tail
+recursion did this. Round 365's other observation, that hand variants
+recursing on a RECORD argument terminate at every `max_depth` 50–800, is
+correct and was the misleading part: a record argument makes `p4 - 1` a
+miss, so `p4 == 0` is a miss, so the `if` takes neither branch and the loop
+stops after two calls. It takes an argument that keeps *working* — a float —
+to recurse forever.
+
+Re-running round 365's 400-seed shape sweep under the new default turns both
+of its `timeout` seeds (31 and 224, the latter mutual recursion:
+`odd(-100) → even(-101) → …`) into `ok` — comparable differential data
+instead of discarded hangs.

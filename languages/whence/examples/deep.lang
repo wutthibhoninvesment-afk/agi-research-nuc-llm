@@ -24,6 +24,10 @@ check "the miss says how deep it got": contains(str(runaway), "depth 20000")
 check "the program continues after it": count(10) == 10
 
 # v0.3: a call in tail position needs no frame at all, so a tail loop runs
-# far past max_depth (see tco.lang). `--max-iter N` bounds those instead.
+# far past max_depth (see tco.lang). `--max-iter N` bounds those instead —
+# v0.26: it defaults to 1000000 rather than to unbounded, so a tail loop that
+# never terminates is a miss like the `loop` above and not a hang. The 200000
+# below is what sized that default: it is the largest tail loop in this
+# corpus, and the default is 3x it, rounded up (SPEC "## v0.26").
 fn count_tail(n, acc) { if n == 0 { acc } else { count_tail(n - 1, acc + 1) } }
 check "a tail loop runs 10x past max_depth": count_tail(200000, 0) == 200000
