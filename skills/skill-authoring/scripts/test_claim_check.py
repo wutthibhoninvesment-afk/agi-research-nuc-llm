@@ -572,6 +572,18 @@ class TestLiveCorpusClaims(unittest.TestCase):
     # parser bugs found in round 339 each emptied blocks that DO have
     # fences; without this pin, both would have read as green.
     PROSE_ONLY_VERIFICATION = {
+        # Round 363 added `measured-exemption`, and HOW it was found is the
+        # point: this test had been RED since round 359's commit `a439262`
+        # shipped that skill, and nothing ran it. `skills/` has TWO
+        # enforcement surfaces — the five checkers and this unittest/pytest
+        # suite — and before round 363 the driver ran neither. Confirmed
+        # prose-only rather than allowlisted on faith: its Verification
+        # section is a numbered checklist with inline-backtick `grep`, no
+        # fenced block, and `commands_for` reads fences only. The skill's
+        # verification genuinely cannot be a fixed command ("run a campaign
+        # and count the three states"). Both surfaces now run every round
+        # via `skills/run_checks_fast.sh`.
+        "measured-exemption",
         "engine-prefix-reuse-audit",
         "generator-trampoline-evaluator",
         "llm-engine-benchmarking",

@@ -22,7 +22,7 @@ export PATH="$PATH:/home/pgain/agi-research-nuc-llm/node_modules/.bin"
 # "$@"` at the loop's end below), this now reliably reflects the ON-DISK
 # script content for every round it produced, including rounds after a
 # mid-run edit — round 139's live driver could not make that claim.
-DRIVER_VERSION="349-health-check-error-vs-fail"
+DRIVER_VERSION="363-skills-corpus-health-check"
 
 # Round 157: a manual post-migration edit (made outside any round,
 # between the Mac->NUC sync commit c768d90 and round 154) hardcoded this
@@ -450,10 +450,45 @@ update research-state.md. Be relentless and thorough — this is deep research, 
   # other job's completion, and `HEALTH_PID`/`WHENCE_PID` default to ""
   # (not unset) so `[ -n "$HEALTH_PID" ]` never trips `set -u` when a
   # script is absent.
+  #
+  # Round 363 (skills B): a THIRD check, `skills/run_checks_fast.sh`, on the
+  # same guarded-on-existence, concurrent, diagnostic-only pattern. Both
+  # checks above read CODE trees; neither reads `skills/`. The corpus owns
+  # five checkers (skill_lint, case_coverage, claim_check, state_claim_check,
+  # xref_check) — all offline, all free, 2.8s for the set — and until this
+  # round NOTHING RAN ANY OF THEM outside a skills(B) round, so detection
+  # latency for a corpus violation was bounded only by the rotation.
+  #
+  # Measured before building, by replaying all 59 commits that touched
+  # `skills/` against each commit's OWN checkers
+  # (`skills/skill-authoring/scripts/corpus_history.py own|today`):
+  # ERROR-red 2 of 59 under the rules of the day (one episode, OPEN at HEAD
+  # — round 361 shipped H001+P001 and two rounds ran without anyone
+  # learning); 44 of 59 under today's rules, in FOUR episodes. Three of the
+  # four are one shape — a non-skills(B) round adds a skill with no trigger
+  # cases — opened by rounds 342, 354, 361 and closed by 351, 357, 363.
+  # Violations are rare; the debt that becomes one recurs every few rounds.
+  #
+  # This one is authored and wired by the SAME round, unlike rounds 242->247
+  # where language(C) built the whence script and harness(A) wired it five
+  # rounds later. Deliberate, and the round's own subject: deferring the
+  # wiring is exactly the "documented but nothing runs it" shape being fixed.
+  # It touches nothing the other two use — its own script, its own PID, its
+  # own log file, its own log label — so a failure here cannot affect them.
+  #
+  # Its driver.log line is formatted by `corpus_check.py --line`, NOT by
+  # `driver_health.health_line`: that classifier is pytest-shaped (it infers
+  # "the suite ran" from a `<n> passed` pair and says "pytest exit N" in its
+  # ERROR branch), and corpus-check has a stricter contract — the exit code
+  # alone is the verdict, 0 clean / 1 a rule was violated / 2 a checker could
+  # not run. Same round-349 design (wording in Python, unit-tested, one call
+  # site), applied to a different log format rather than borrowed from one.
   HEALTH_SCRIPT="$WS/harness/run_tests_fast.sh"
   WHENCE_HEALTH_SCRIPT="$WS/languages/whence/run_tests_fast.sh"
+  SKILLS_HEALTH_SCRIPT="$WS/skills/run_checks_fast.sh"
   HEALTH_PID=""
   WHENCE_PID=""
+  SKILLS_PID=""
   if [ -f "$HEALTH_SCRIPT" ]; then
     HEALTH_LOG="$WS/logs/health_round_${ROUND}.log"
     bash "$HEALTH_SCRIPT" > "$HEALTH_LOG" 2>&1 &
@@ -463,6 +498,11 @@ update research-state.md. Be relentless and thorough — this is deep research, 
     WHENCE_HEALTH_LOG="$WS/logs/whence_health_round_${ROUND}.log"
     bash "$WHENCE_HEALTH_SCRIPT" > "$WHENCE_HEALTH_LOG" 2>&1 &
     WHENCE_PID=$!
+  fi
+  if [ -f "$SKILLS_HEALTH_SCRIPT" ]; then
+    SKILLS_HEALTH_LOG="$WS/logs/skills_health_round_${ROUND}.log"
+    bash "$SKILLS_HEALTH_SCRIPT" > "$SKILLS_HEALTH_LOG" 2>&1 &
+    SKILLS_PID=$!
   fi
   # Round 349 (harness A): log PASS / FAIL / ERROR, not PASS / FAIL.
   #
@@ -504,6 +544,17 @@ update research-state.md. Be relentless and thorough — this is deep research, 
                  echo "round $ROUND: whence-health-check PASS ($(tail -n 1 "$WHENCE_HEALTH_LOG" | tr -d '\r'))"; \
                else \
                  echo "round $ROUND: whence-health-check FAIL — $(tail -n 5 "$WHENCE_HEALTH_LOG" | tr '\n' ' ')"; \
+               fi; })"
+  fi
+
+  if [ -n "$SKILLS_PID" ]; then
+    SKILLS_RC=0
+    wait "$SKILLS_PID" || SKILLS_RC=$?
+    log "$(python3 "$WS/skills/skill-authoring/scripts/corpus_check.py" --line "round $ROUND: skills-check" "$SKILLS_HEALTH_LOG" "$SKILLS_RC" 2>/dev/null \
+          || { if [ "$SKILLS_RC" -eq 0 ]; then \
+                 echo "round $ROUND: skills-check PASS ($(tail -n 1 "$SKILLS_HEALTH_LOG" | tr -d '\r'))"; \
+               else \
+                 echo "round $ROUND: skills-check FAIL — $(tail -n 5 "$SKILLS_HEALTH_LOG" | tr '\n' ' ')"; \
                fi; })"
   fi
 

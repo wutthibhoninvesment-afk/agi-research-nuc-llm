@@ -1,0 +1,2759 @@
+{
+ "mode": "today",
+ "rows": [
+  {
+   "sha": "ee306546ac406b9fc8b76649324375bec03e708b",
+   "short": "ee30654",
+   "date": "2026-08-25",
+   "subject": "Initial clean commit v3. All large binaries removed (.venv, torch libs, model weights). Comprehensive .gitignore rules added.",
+   "index": 0,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "R006"
+     ],
+     "warnings": [],
+     "red_kind": "error",
+     "summary": "skill-lint: 10 skill(s), 1 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 10 skill(s), 42 case(s) (7 negative); 0 probed under the description on disk; 0 error(s), 10 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "R006"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "e37675018280b546fbad76fc6ae9af2722aed316",
+   "short": "e376750",
+   "date": "2026-08-25",
+   "subject": "AUTO-COMMIT v4: Research rounds up to latest. Adds 9 knowledge files, 45 skill files, harness improvements, NUC research artifacts. Driver now uses sonnet-5 (fable-5 weekly limit).",
+   "index": 1,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "R006"
+     ],
+     "warnings": [],
+     "red_kind": "error",
+     "summary": "skill-lint: 15 skill(s), 1 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 15 skill(s), 63 case(s) (12 negative); 0 probed under the description on disk; 0 error(s), 15 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "R006"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "8d92ff90a5cf1044f3a81898b56663235b734006",
+   "short": "8d92ff9",
+   "date": "2026-08-26",
+   "subject": "Round 144 (language C): reconcile v0.12/v0.13 backlog, close time-travel debugger question, fix ref_diff timeout flake",
+   "index": 2,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "R006"
+     ],
+     "warnings": [],
+     "red_kind": "error",
+     "summary": "skill-lint: 15 skill(s), 1 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 15 skill(s), 63 case(s) (12 negative); 0 probed under the description on disk; 0 error(s), 15 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "R006"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "c768d90d307cd89ea0fa053e67c6f53e3c738af9",
+   "short": "c768d90",
+   "date": "2026-08-26",
+   "subject": "checkpoint: sync from Mac backup \u2014 Whence v0.6 work, harness fixes, SWE rounds 137-149 state",
+   "index": 3,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "R006"
+     ],
+     "warnings": [],
+     "red_kind": "error",
+     "summary": "skill-lint: 16 skill(s), 1 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 16 skill(s), 67 case(s) (13 negative); 0 probed under the description on disk; 0 error(s), 16 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "R006"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "c443a23d4f254e7c165f09c2cd043fd13902ece9",
+   "short": "c443a23",
+   "date": "2026-08-26",
+   "subject": "Round 165 (skills B): verify+commit round 159's concurrency-audit skill extension, add coverage-map staleness and guest-parity-gap pitfalls",
+   "index": 4,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "R006"
+     ],
+     "warnings": [],
+     "red_kind": "error",
+     "summary": "skill-lint: 16 skill(s), 1 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 16 skill(s), 68 case(s) (13 negative); 0 probed under the description on disk; 0 error(s), 16 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "R006"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "e8c88e65a9d82f1d63ff067e9a48db373836b5f2",
+   "short": "e8c88e6",
+   "date": "2026-08-26",
+   "subject": "Round 171 (skills B): one-shot-agent-no-background-wait + a 9-round reconciliation audit",
+   "index": 5,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "R006"
+     ],
+     "warnings": [],
+     "red_kind": "error",
+     "summary": "skill-lint: 17 skill(s), 1 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 17 skill(s), 72 case(s) (14 negative); 0 probed under the description on disk; 0 error(s), 17 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "R006"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "4843f0447e584635ee0d23c2df31f08955f07888",
+   "short": "4843f04",
+   "date": "2026-08-27",
+   "subject": "Round 177 (skills B, reconciled by round 183): surface driver interrupted flag in check_round_recorded.py, add two cross-track pitfalls",
+   "index": 6,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "R006"
+     ],
+     "warnings": [],
+     "red_kind": "error",
+     "summary": "skill-lint: 17 skill(s), 1 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 17 skill(s), 72 case(s) (14 negative); 0 probed under the description on disk; 0 error(s), 17 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "R006"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "9474889c17d8508df6a4c130216a6d9d93b1d51e",
+   "short": "9474889",
+   "date": "2026-08-27",
+   "subject": "Round 183 (skills B): backfill round 177's research-state entry, live- validate its new pitfall with a body case",
+   "index": 7,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "R006"
+     ],
+     "warnings": [],
+     "red_kind": "error",
+     "summary": "skill-lint: 17 skill(s), 1 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 17 skill(s), 72 case(s) (14 negative); 0 probed under the description on disk; 0 error(s), 17 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "R006"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "983ff8b46bfee02820aafbcbf4305ad2f65f685a",
+   "short": "983ff8b",
+   "date": "2026-08-27",
+   "subject": "Round 189 (skills B): git log cross-check for check_round_recorded.py, name the \"claimed commit that never landed\" pattern",
+   "index": 8,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "R006"
+     ],
+     "warnings": [],
+     "red_kind": "error",
+     "summary": "skill-lint: 17 skill(s), 1 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 17 skill(s), 72 case(s) (14 negative); 0 probed under the description on disk; 0 error(s), 17 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "R006"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "4d17218818018cc70b34966451b6a03f24b0f46d",
+   "short": "4d17218",
+   "date": "2026-08-27",
+   "subject": "Round 195 (skills B): close the engine-prefix-reuse-audit/llm-engine-benchmarking body-case gap, audit rounds 190-194 backlog",
+   "index": 9,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "R006"
+     ],
+     "warnings": [],
+     "red_kind": "error",
+     "summary": "skill-lint: 17 skill(s), 1 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 17 skill(s), 72 case(s) (14 negative); 0 probed under the description on disk; 0 error(s), 17 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "R006"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "b122e8c9e659e37ea7c30656f4cbd6cfc9c4d8a3",
+   "short": "b122e8c",
+   "date": "2026-08-27",
+   "subject": "Round 201 (skills B): two more one-shot-agent-no-background-wait instances, plus a new session-inheritance-audit case for non-driver agents sharing the tree",
+   "index": 10,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "R006"
+     ],
+     "warnings": [],
+     "red_kind": "error",
+     "summary": "skill-lint: 17 skill(s), 1 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 17 skill(s), 72 case(s) (14 negative); 0 probed under the description on disk; 0 error(s), 17 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "R006"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "2d1cfba7927d1ae1ece966451cd98b31268caf22",
+   "short": "2d1cfba",
+   "date": "2026-08-27",
+   "subject": "Round 213 (skills B): fix check_round_recorded.py's git_committed false positive, backfill rounds 197/198, trim skills(B) track-status summary",
+   "index": 11,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "R006"
+     ],
+     "warnings": [],
+     "red_kind": "error",
+     "summary": "skill-lint: 17 skill(s), 1 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 17 skill(s), 72 case(s) (14 negative); 0 probed under the description on disk; 0 error(s), 17 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "R006"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "a95b097c781c282111c33a27b073c9243c5d08f2",
+   "short": "a95b097",
+   "date": "2026-08-27",
+   "subject": "Round 219 (skills B): guest name-resolution pitfall for tiny-language-implementation",
+   "index": 12,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "R006"
+     ],
+     "warnings": [],
+     "red_kind": "error",
+     "summary": "skill-lint: 17 skill(s), 1 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 17 skill(s), 72 case(s) (14 negative); 0 probed under the description on disk; 0 error(s), 17 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "R006"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "64d8e785c44f2000f7be3b1529f2054689f160d6",
+   "short": "64d8e78",
+   "date": "2026-08-28",
+   "subject": "Round 231 (skills B): fix check_round_recorded.py's false-positive rot",
+   "index": 13,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "R006"
+     ],
+     "warnings": [],
+     "red_kind": "error",
+     "summary": "skill-lint: 17 skill(s), 1 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 17 skill(s), 72 case(s) (14 negative); 0 probed under the description on disk; 0 error(s), 17 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "R006"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "4d9a8f7ec0b7272b83d1f45e80682965eee64df1",
+   "short": "4d9a8f7",
+   "date": "2026-08-28",
+   "subject": "Round 237 (skills B): land round 236, generalize the probe-filter-staleness pitfall",
+   "index": 14,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "R006"
+     ],
+     "warnings": [],
+     "red_kind": "error",
+     "summary": "skill-lint: 17 skill(s), 1 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 17 skill(s), 72 case(s) (14 negative); 0 probed under the description on disk; 0 error(s), 17 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "R006"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "e9e4d1762de12e3864bfbf0e13758a005c8e7d50",
+   "short": "e9e4d17",
+   "date": "2026-08-28",
+   "subject": "Round 243 (skills B): first live run of the --distractors/--paired suppression diagnostic, closing a 138-round-old backlog item",
+   "index": 15,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "R006"
+     ],
+     "warnings": [],
+     "red_kind": "error",
+     "summary": "skill-lint: 17 skill(s), 1 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 17 skill(s), 72 case(s) (14 negative); 0 probed under the description on disk; 0 error(s), 17 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "R006"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "75c46934eead49afc1fda7e9c714e8621b89293f",
+   "short": "75c4693",
+   "date": "2026-08-28",
+   "subject": "Round 255 (skills B): document round 251/253 findings in their owning skills",
+   "index": 16,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "R006"
+     ],
+     "warnings": [],
+     "red_kind": "error",
+     "summary": "skill-lint: 17 skill(s), 1 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 17 skill(s), 72 case(s) (14 negative); 0 probed under the description on disk; 0 error(s), 17 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "R006"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "c007184d9395e540030737f25651f83316fc84c3",
+   "short": "c007184",
+   "date": "2026-08-28",
+   "subject": "Round 257 (SWE-loop D): guess-targeted campaign reaches 1000/1000, zero new findings",
+   "index": 17,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "R006"
+     ],
+     "warnings": [],
+     "red_kind": "error",
+     "summary": "skill-lint: 17 skill(s), 1 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 17 skill(s), 72 case(s) (14 negative); 0 probed under the description on disk; 0 error(s), 17 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "R006"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "c2c0b5e95398586d1e1f94e7acd2b2dff202bcbd",
+   "short": "c2c0b5e",
+   "date": "2026-08-28",
+   "subject": "Round 259 (harness A): round-229 sequence-gap detector + fresh max-turns/interrupted re-tally",
+   "index": 18,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "R006"
+     ],
+     "warnings": [],
+     "red_kind": "error",
+     "summary": "skill-lint: 17 skill(s), 1 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 17 skill(s), 72 case(s) (14 negative); 0 probed under the description on disk; 0 error(s), 17 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "R006"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "5c23ae42cc3dfe198b94626e4bba750d9622871c",
+   "short": "5c23ae4",
+   "date": "2026-08-28",
+   "subject": "Round 261 (skills B): fold round 259's ghost-round pitfall into skill, correct stale r260 backlog item",
+   "index": 19,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "R006"
+     ],
+     "warnings": [],
+     "red_kind": "error",
+     "summary": "skill-lint: 17 skill(s), 1 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 17 skill(s), 72 case(s) (14 negative); 0 probed under the description on disk; 0 error(s), 17 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "R006"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "70d350d12f1cf934e2595deb5433e21b2ceb4aac",
+   "short": "70d350d",
+   "date": "2026-08-28",
+   "subject": "Round 266 (language C, landed by round 267): document alias_scopes shadowing pitfall",
+   "index": 20,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "R006"
+     ],
+     "warnings": [],
+     "red_kind": "error",
+     "summary": "skill-lint: 17 skill(s), 1 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 17 skill(s), 72 case(s) (14 negative); 0 probed under the description on disk; 0 error(s), 17 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "R006"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "b95c953f21070ca113631a9fe2b790f65c92bc10",
+   "short": "b95c953",
+   "date": "2026-08-28",
+   "subject": "Round 267 (skills B): generalize check_round_recorded.py's by-round-N false positive, land round 266",
+   "index": 21,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "R006"
+     ],
+     "warnings": [],
+     "red_kind": "error",
+     "summary": "skill-lint: 17 skill(s), 1 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 17 skill(s), 72 case(s) (14 negative); 0 probed under the description on disk; 0 error(s), 17 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "R006"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "99c697417564f265991fc1a356bdc0b41c98d56f",
+   "short": "99c6974",
+   "date": "2026-08-28",
+   "subject": "Round 268 (NUC-integration E): 7-gap swap burst tally + first multi-hour checkpointed swap_watch.py run",
+   "index": 22,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "R006"
+     ],
+     "warnings": [],
+     "red_kind": "error",
+     "summary": "skill-lint: 17 skill(s), 1 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 17 skill(s), 72 case(s) (14 negative); 0 probed under the description on disk; 0 error(s), 17 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "R006"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "d122e1a628514006a9fe68b3c1b2132ce5689839",
+   "short": "d122e1a",
+   "date": "2026-08-28",
+   "subject": "Round 269 (SWE-loop D): independent oracle for v0.14.2 alias-effect tracking",
+   "index": 23,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "R006"
+     ],
+     "warnings": [
+      "B002"
+     ],
+     "red_kind": "error",
+     "summary": "skill-lint: 17 skill(s), 1 error(s), 1 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 17 skill(s), 72 case(s) (14 negative); 0 probed under the description on disk; 0 error(s), 17 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "R006"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "b21300c2cf63510afb9c7d4096c1ce7349db0fcf",
+   "short": "b21300c",
+   "date": "2026-08-28",
+   "subject": "Round 273 (skills B): check_round_recorded.py detects recorded-but-uncommitted rounds",
+   "index": 24,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "R006"
+     ],
+     "warnings": [
+      "B002"
+     ],
+     "red_kind": "error",
+     "summary": "skill-lint: 17 skill(s), 1 error(s), 1 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 17 skill(s), 72 case(s) (14 negative); 0 probed under the description on disk; 0 error(s), 17 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "R006"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "f8896ba8552039165a88cbe34b22e880ff6299f8",
+   "short": "f8896ba",
+   "date": "2026-08-28",
+   "subject": "Round 276 (language C): Whence v0.14.5 \u2014 effect-system if/else-tail return tracking",
+   "index": 25,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "R006"
+     ],
+     "warnings": [
+      "B002"
+     ],
+     "red_kind": "error",
+     "summary": "skill-lint: 17 skill(s), 1 error(s), 1 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 17 skill(s), 72 case(s) (14 negative); 0 probed under the description on disk; 0 error(s), 17 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "R006"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "574f8be6ac3f1763536582deb8c36865cb4d52b6",
+   "short": "574f8be",
+   "date": "2026-08-28",
+   "subject": "Round 279 (skills B): first real record-gap since round 253 \u2014 verified and landed",
+   "index": 26,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "R006"
+     ],
+     "warnings": [
+      "B002"
+     ],
+     "red_kind": "error",
+     "summary": "skill-lint: 17 skill(s), 1 error(s), 1 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 17 skill(s), 72 case(s) (14 negative); 0 probed under the description on disk; 0 error(s), 17 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "R006"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "819723989b026d2f0e35d5b59186a5738fe2e647",
+   "short": "8197239",
+   "date": "2026-08-28",
+   "subject": "Round 285 (skills B): split session-inheritance-audit's Pitfalls into a reference file",
+   "index": 27,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "R006"
+     ],
+     "warnings": [
+      "B002"
+     ],
+     "red_kind": "error",
+     "summary": "skill-lint: 17 skill(s), 1 error(s), 1 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 17 skill(s), 72 case(s) (14 negative); 0 probed under the description on disk; 0 error(s), 17 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "R006"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "0c3828353e3d3f5cac36746966e69e362a5d591b",
+   "short": "0c38283",
+   "date": "2026-08-28",
+   "subject": "Round 291 (skills B): close the git_committed-coverage gap with a round-agnostic dirty-tree check",
+   "index": 28,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "R006"
+     ],
+     "warnings": [
+      "B002"
+     ],
+     "red_kind": "error",
+     "summary": "skill-lint: 17 skill(s), 1 error(s), 1 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 17 skill(s), 72 case(s) (14 negative); 0 probed under the description on disk; 0 error(s), 17 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "R006"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "0e56141514da95cf3ffccf44699e833f525341f0",
+   "short": "0e56141",
+   "date": "2026-08-29",
+   "subject": "Round 297 (skills B): harvest cross-track pitfalls into tiny-language-implementation",
+   "index": 29,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "R006"
+     ],
+     "warnings": [
+      "B002"
+     ],
+     "red_kind": "error",
+     "summary": "skill-lint: 17 skill(s), 1 error(s), 1 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 17 skill(s), 72 case(s) (14 negative); 0 probed under the description on disk; 0 error(s), 17 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "R006"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "b2e54257603411711250fbffe887350dd7cabb0b",
+   "short": "b2e5425",
+   "date": "2026-08-29",
+   "subject": "Round 303 (skills B): tail/EOF-only backgrounded-pipe pitfall, close round 302's record gap",
+   "index": 30,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "R006"
+     ],
+     "warnings": [
+      "B002"
+     ],
+     "red_kind": "error",
+     "summary": "skill-lint: 17 skill(s), 1 error(s), 1 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 17 skill(s), 72 case(s) (14 negative); 0 probed under the description on disk; 0 error(s), 17 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "R006"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "2c65f53325a0c9715be5aa4e117d860a455264be",
+   "short": "2c65f53",
+   "date": "2026-08-29",
+   "subject": "Round 309 (skills B): codify the hop-by-hop scope-mirroring analysis recipe",
+   "index": 31,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "R006"
+     ],
+     "warnings": [
+      "B002"
+     ],
+     "red_kind": "error",
+     "summary": "skill-lint: 17 skill(s), 1 error(s), 2 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 17 skill(s), 72 case(s) (14 negative); 0 probed under the description on disk; 0 error(s), 17 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "R006"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "597adf5639e9715976ca6895ec6f62c1b55f0071",
+   "short": "597adf5",
+   "date": "2026-08-29",
+   "subject": "Round 315 (skills B): land round 314, split tiny-language-implementation pitfall history",
+   "index": 32,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "R006"
+     ],
+     "warnings": [
+      "B002"
+     ],
+     "red_kind": "error",
+     "summary": "skill-lint: 17 skill(s), 1 error(s), 1 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 17 skill(s), 72 case(s) (14 negative); 0 probed under the description on disk; 0 error(s), 17 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "R006"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "f911f7adc2bfe94b2729d079b446fd11141da956",
+   "short": "f911f7a",
+   "date": "2026-08-29",
+   "subject": "Round 321 (skills B): promote round 320's parser-differential finding into tiny-language-implementation, fix a 78-round-stale research-state header note",
+   "index": 33,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "R006"
+     ],
+     "warnings": [
+      "B002"
+     ],
+     "red_kind": "error",
+     "summary": "skill-lint: 17 skill(s), 1 error(s), 1 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 17 skill(s), 72 case(s) (14 negative); 0 probed under the description on disk; 0 error(s), 17 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "R006"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "0ab898b5a746ec1dcc2f693295755aefcd7a051e",
+   "short": "0ab898b",
+   "date": "2026-08-29",
+   "subject": "Round 327 (skills B): promote round 326's sibling-guard-family-audit lesson into tiny-language-implementation SKILL.md",
+   "index": 34,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "R006"
+     ],
+     "warnings": [
+      "B002"
+     ],
+     "red_kind": "error",
+     "summary": "skill-lint: 17 skill(s), 1 error(s), 1 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 17 skill(s), 72 case(s) (14 negative); 0 probed under the description on disk; 0 error(s), 17 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "R006"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "b98c938ce6e020b04f28012ccc5d2fedd9d4ada6",
+   "short": "b98c938",
+   "date": "2026-08-29",
+   "subject": "Round 333 (skills B): check link-fragment anchors in skill_lint.py (R006/R007)",
+   "index": 35,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [
+      "B002"
+     ],
+     "red_kind": "strict",
+     "summary": "skill-lint: 17 skill(s), 0 error(s), 1 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 17 skill(s), 72 case(s) (14 negative); 0 probed under the description on disk; 0 error(s), 17 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "strict",
+   "error_codes": [],
+   "unrunnable": []
+  },
+  {
+   "sha": "e1a0d9fc1f063164ff53ffceb06ad3c867809ffb",
+   "short": "e1a0d9f",
+   "date": "2026-08-29",
+   "subject": "Round 334 (NUC-integration E): bracket outage spans instead of reporting a lower bound as the answer",
+   "index": 36,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [
+      "B002"
+     ],
+     "red_kind": "strict",
+     "summary": "skill-lint: 18 skill(s), 0 error(s), 1 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 18 skill(s), 75 case(s) (14 negative); 0 probed under the description on disk; 0 error(s), 18 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "strict",
+   "error_codes": [],
+   "unrunnable": []
+  },
+  {
+   "sha": "645560a3d418e2acd53af1fffcb69ea6611f5d13",
+   "short": "645560a",
+   "date": "2026-08-29",
+   "subject": "Round 336 (language C) reconciliation: land the tail-position blame-order work",
+   "index": 37,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [
+      "B002"
+     ],
+     "red_kind": "strict",
+     "summary": "skill-lint: 19 skill(s), 0 error(s), 1 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 19 skill(s), 78 case(s) (14 negative); 0 probed under the description on disk; 0 error(s), 19 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "strict",
+   "error_codes": [],
+   "unrunnable": []
+  },
+  {
+   "sha": "49d1c17f64c87a2c14d29f856b65b3e30af865d2",
+   "short": "49d1c17",
+   "date": "2026-08-29",
+   "subject": "Round 339 (skills B) reconciliation: land claim_check.py and the Verification-claim sweep",
+   "index": 38,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 19 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 19 skill(s), 78 case(s) (14 negative); 0 probed under the description on disk; 0 error(s), 19 warning(s)",
+     "flags": []
+    }
+   },
+   "red": false,
+   "red_kind": null,
+   "error_codes": [],
+   "unrunnable": []
+  },
+  {
+   "sha": "1752c164555c245a59fff2350a38b7d91c92eb6d",
+   "short": "1752c16",
+   "date": "2026-08-29",
+   "subject": "Round 340 (NUC-integration E): gap continuity \u2014 is a streak we report as unbroken actually unbroken?",
+   "index": 39,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 19 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 19 skill(s), 78 case(s) (14 negative); 0 probed under the description on disk; 0 error(s), 19 warning(s)",
+     "flags": []
+    }
+   },
+   "red": false,
+   "red_kind": null,
+   "error_codes": [],
+   "unrunnable": []
+  },
+  {
+   "sha": "4af6963a37a23a5f2566ba03ff34f6666e3d2576",
+   "short": "4af6963",
+   "date": "2026-08-29",
+   "subject": "Round 342 (language C) reconciliation: land Whence v0.18 shape-scope parity",
+   "index": 40,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 20 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "P001"
+     ],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": "error",
+     "summary": "case-coverage: 20 skill(s), 78 case(s) (14 negative); 0 probed under the description on disk; 1 error(s), 20 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "P001"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "c52b9ba88da419bd72a0797c98f5b76c39e67129",
+   "short": "c52b9ba",
+   "date": "2026-08-29",
+   "subject": "Round 345 reconciliation: land the citation-registry-integrity checker",
+   "index": 41,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 21 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "P001"
+     ],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": "error",
+     "summary": "case-coverage: 21 skill(s), 82 case(s) (15 negative); 0 probed under the description on disk; 1 error(s), 21 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "P001"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "1c3a6f071b13a097bd04998ec94adff59d3eb971",
+   "short": "1c3a6f0",
+   "date": "2026-08-29",
+   "subject": "Round 346 (NUC-integration E): the hard rules were in git the whole time",
+   "index": 42,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 22 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "P001"
+     ],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": "error",
+     "summary": "case-coverage: 22 skill(s), 87 case(s) (17 negative); 0 probed under the description on disk; 1 error(s), 22 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "P001"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "4309fddd0704bdea9dedd026d579b1fb1c4d65fb",
+   "short": "4309fdd",
+   "date": "2026-08-29",
+   "subject": "Round 347 (SWE-loop D): the generator fork, and shapes the fuzzer could never declare",
+   "index": 43,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 23 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "P001"
+     ],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": "error",
+     "summary": "case-coverage: 23 skill(s), 87 case(s) (17 negative); 0 probed under the description on disk; 2 error(s), 23 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "P001"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "491b1075146cb7980b4865fce86f57c08cd52463",
+   "short": "491b107",
+   "date": "2026-08-30",
+   "subject": "Round 351 (skills B): the status block that copied itself forward",
+   "index": 44,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 24 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 24 skill(s), 96 case(s) (17 negative); 0 probed under the description on disk; 0 error(s), 24 warning(s)",
+     "flags": []
+    }
+   },
+   "red": false,
+   "red_kind": null,
+   "error_codes": [],
+   "unrunnable": []
+  },
+  {
+   "sha": "4797f56d406c350fd14ab30377ad4992880f5324",
+   "short": "4797f56",
+   "date": "2026-08-30",
+   "subject": "Round 351 (skills B): fix a misleading house-code example in state_claim_check's docstring",
+   "index": 45,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 24 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 24 skill(s), 96 case(s) (17 negative); 0 probed under the description on disk; 0 error(s), 24 warning(s)",
+     "flags": []
+    }
+   },
+   "red": false,
+   "red_kind": null,
+   "error_codes": [],
+   "unrunnable": []
+  },
+  {
+   "sha": "488505a87dc3e699c6ec00e934f204acda60279e",
+   "short": "488505a",
+   "date": "2026-08-30",
+   "subject": "Round 351 (skills B): apply the finding to this round's own next-steps block",
+   "index": 46,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 24 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 24 skill(s), 96 case(s) (17 negative); 0 probed under the description on disk; 0 error(s), 24 warning(s)",
+     "flags": []
+    }
+   },
+   "red": false,
+   "red_kind": null,
+   "error_codes": [],
+   "unrunnable": []
+  },
+  {
+   "sha": "68d4c308a6e92321918cd85def45a35fcc06a25c",
+   "short": "68d4c30",
+   "date": "2026-08-30",
+   "subject": "Round 351 (skills B): two more parser tests, and re-derive the test count LAST",
+   "index": 47,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 24 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 24 skill(s), 96 case(s) (17 negative); 0 probed under the description on disk; 0 error(s), 24 warning(s)",
+     "flags": []
+    }
+   },
+   "red": false,
+   "red_kind": null,
+   "error_codes": [],
+   "unrunnable": []
+  },
+  {
+   "sha": "c22314d38cb9cac0facdc2e08a9afd406206ce83",
+   "short": "c22314d",
+   "date": "2026-08-30",
+   "subject": "Round 352 (NUC-integration E): three pitfalls from a real orphaned remote job",
+   "index": 48,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 24 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 24 skill(s), 96 case(s) (17 negative); 0 probed under the description on disk; 0 error(s), 24 warning(s)",
+     "flags": []
+    }
+   },
+   "red": false,
+   "red_kind": null,
+   "error_codes": [],
+   "unrunnable": []
+  },
+  {
+   "sha": "c285623750f61a3d26de2896b1f1724ab4daf537",
+   "short": "c285623",
+   "date": "2026-08-30",
+   "subject": "Round 353 (SWE-loop D): a mutation score of 1.0 that measured 1016 of 1276",
+   "index": 49,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 24 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 24 skill(s), 96 case(s) (17 negative); 0 probed under the description on disk; 0 error(s), 24 warning(s)",
+     "flags": []
+    }
+   },
+   "red": false,
+   "red_kind": null,
+   "error_codes": [],
+   "unrunnable": []
+  },
+  {
+   "sha": "4ae1ac7810ef9db3e5565fc3d36a5d4d09fd2f0c",
+   "short": "4ae1ac7",
+   "date": "2026-08-30",
+   "subject": "Round 354 (language C): Whence v0.22 \u2014 an error that can name the fix, names it",
+   "index": 50,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 25 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "P001"
+     ],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": "error",
+     "summary": "case-coverage: 25 skill(s), 96 case(s) (17 negative); 0 probed under the description on disk; 1 error(s), 25 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "P001"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "bfb44bc71d740247798a51f729687ff5d035f518",
+   "short": "bfb44bc",
+   "date": "2026-08-30",
+   "subject": "Round 355 (harness A): land the artifacts the interruption left behind",
+   "index": 51,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 26 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "P001"
+     ],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": "error",
+     "summary": "case-coverage: 26 skill(s), 96 case(s) (17 negative); 0 probed under the description on disk; 2 error(s), 26 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "P001"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "80bcf4f252ee894f47a3c33c558ef750c3592a1d",
+   "short": "80bcf4f",
+   "date": "2026-08-30",
+   "subject": "Round 356 (language C): Whence v0.23 \u2014 a line break is the only separator",
+   "index": 52,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 27 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "P001"
+     ],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": "error",
+     "summary": "case-coverage: 27 skill(s), 96 case(s) (17 negative); 0 probed under the description on disk; 3 error(s), 27 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "P001"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "ffb16427b55e959ad65d4d081aba873c11d0bdb1",
+   "short": "ffb1642",
+   "date": "2026-08-30",
+   "subject": "Round 357 (skills B): the corpus had never been measured, and one draw is not a measurement",
+   "index": 53,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 27 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 27 skill(s), 105 case(s) (17 negative); 0 probed under the description on disk; 0 error(s), 27 warning(s)",
+     "flags": []
+    }
+   },
+   "red": false,
+   "red_kind": null,
+   "error_codes": [],
+   "unrunnable": []
+  },
+  {
+   "sha": "02720d28cc840fa0a1ec05b57505bb186c8804f5",
+   "short": "02720d2",
+   "date": "2026-08-30",
+   "subject": "Round 358 (NUC-E): endpoint coverage was never a full witness",
+   "index": 54,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 28 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 28 skill(s), 109 case(s) (18 negative); 0 probed under the description on disk; 0 error(s), 27 warning(s)",
+     "flags": []
+    }
+   },
+   "red": false,
+   "red_kind": null,
+   "error_codes": [],
+   "unrunnable": []
+  },
+  {
+   "sha": "a439262b49f2b791a29533b2a27b84555d3d8508",
+   "short": "a439262",
+   "date": "2026-08-30",
+   "subject": "Round 359 (SWE-loop D): skills/measured-exemption \u2014 measure the exemption, do not skip it",
+   "index": 55,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 29 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 29 skill(s), 113 case(s) (19 negative); 0 probed under the description on disk; 0 error(s), 27 warning(s)",
+     "flags": []
+    }
+   },
+   "red": false,
+   "red_kind": null,
+   "error_codes": [],
+   "unrunnable": []
+  },
+  {
+   "sha": "807475b928266a619d5a568938e0f6eddfbbe828",
+   "short": "807475b",
+   "date": "2026-08-30",
+   "subject": "Round 360 (language C): skills/refusal-set-differential + the round-360 record",
+   "index": 56,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 30 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 30 skill(s), 117 case(s) (20 negative); 0 probed under the description on disk; 0 error(s), 27 warning(s)",
+     "flags": []
+    }
+   },
+   "red": false,
+   "red_kind": null,
+   "error_codes": [],
+   "unrunnable": []
+  },
+  {
+   "sha": "83ba9a1fe7a161faf7c840561cd8a7300cacf7de",
+   "short": "83ba9a1",
+   "date": "2026-08-30",
+   "subject": "Round 361 (harness A): skills/measured-not-declared-dependencies + the round record",
+   "index": 57,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "H001"
+     ],
+     "warnings": [],
+     "red_kind": "error",
+     "summary": "skill-lint: 31 skill(s), 1 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "P001"
+     ],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": "error",
+     "summary": "case-coverage: 31 skill(s), 117 case(s) (20 negative); 0 probed under the description on disk; 1 error(s), 27 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "H001",
+    "P001"
+   ],
+   "unrunnable": []
+  },
+  {
+   "sha": "52dcde1d849a2a6c69c8b96b96cb04b2cd75d735",
+   "short": "52dcde1",
+   "date": "2026-08-30",
+   "subject": "Round 361 (harness A): correct the figures to the finished slice \u2014 and the miss it turns up",
+   "index": 58,
+   "present": [
+    "skills",
+    "state",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "H001"
+     ],
+     "warnings": [],
+     "red_kind": "error",
+     "summary": "skill-lint: 31 skill(s), 1 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "P001"
+     ],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": "error",
+     "summary": "case-coverage: 31 skill(s), 117 case(s) (20 negative); 0 probed under the description on disk; 1 error(s), 27 warning(s)",
+     "flags": []
+    }
+   },
+   "red": true,
+   "red_kind": "error",
+   "error_codes": [
+    "H001",
+    "P001"
+   ],
+   "unrunnable": []
+  }
+ ],
+ "error_episodes": [
+  {
+   "start": "ee30654",
+   "start_date": "2026-08-25",
+   "start_subject": "Initial clean commit v3. All large binaries removed (.venv, torch libs, model weights). Comprehensive .gitignore rules added.",
+   "commits": [
+    "ee30654",
+    "e376750",
+    "8d92ff9",
+    "c768d90",
+    "c443a23",
+    "e8c88e6",
+    "4843f04",
+    "9474889",
+    "983ff8b",
+    "4d17218",
+    "b122e8c",
+    "2d1cfba",
+    "a95b097",
+    "64d8e78",
+    "4d9a8f7",
+    "e9e4d17",
+    "75c4693",
+    "c007184",
+    "c2c0b5e",
+    "5c23ae4",
+    "70d350d",
+    "b95c953",
+    "99c6974",
+    "d122e1a",
+    "b21300c",
+    "f8896ba",
+    "574f8be",
+    "8197239",
+    "0c38283",
+    "0e56141",
+    "b2e5425",
+    "2c65f53",
+    "597adf5",
+    "f911f7a",
+    "0ab898b"
+   ],
+   "codes": [
+    "R006"
+   ],
+   "end": "b98c938",
+   "end_date": "2026-08-29",
+   "closed_by": "Round 333 (skills B): check link-fragment anchors in skill_lint.py (R006/R007)",
+   "length": 35
+  },
+  {
+   "start": "4af6963",
+   "start_date": "2026-08-29",
+   "start_subject": "Round 342 (language C) reconciliation: land Whence v0.18 shape-scope parity",
+   "commits": [
+    "4af6963",
+    "c52b9ba",
+    "1c3a6f0",
+    "4309fdd"
+   ],
+   "codes": [
+    "P001"
+   ],
+   "end": "491b107",
+   "end_date": "2026-08-30",
+   "closed_by": "Round 351 (skills B): the status block that copied itself forward",
+   "length": 4
+  },
+  {
+   "start": "4ae1ac7",
+   "start_date": "2026-08-30",
+   "start_subject": "Round 354 (language C): Whence v0.22 \u2014 an error that can name the fix, names it",
+   "commits": [
+    "4ae1ac7",
+    "bfb44bc",
+    "80bcf4f"
+   ],
+   "codes": [
+    "P001"
+   ],
+   "end": "ffb1642",
+   "end_date": "2026-08-30",
+   "closed_by": "Round 357 (skills B): the corpus had never been measured, and one draw is not a measurement",
+   "length": 3
+  },
+  {
+   "start": "83ba9a1",
+   "start_date": "2026-08-30",
+   "start_subject": "Round 361 (harness A): skills/measured-not-declared-dependencies + the round record",
+   "commits": [
+    "83ba9a1",
+    "52dcde1"
+   ],
+   "codes": [
+    "H001",
+    "P001"
+   ],
+   "end": null,
+   "closed_by": null,
+   "open": true,
+   "length": 2
+  }
+ ],
+ "strict_episodes": [
+  {
+   "start": "b98c938",
+   "start_date": "2026-08-29",
+   "start_subject": "Round 333 (skills B): check link-fragment anchors in skill_lint.py (R006/R007)",
+   "commits": [
+    "b98c938",
+    "e1a0d9f",
+    "645560a"
+   ],
+   "codes": [
+    "B002",
+    "P004"
+   ],
+   "end": "49d1c17",
+   "end_date": "2026-08-29",
+   "closed_by": "Round 339 (skills B) reconciliation: land claim_check.py and the Verification-claim sweep",
+   "length": 3
+  }
+ ]
+}

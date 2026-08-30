@@ -5,7 +5,13 @@ description: When a cache, ledger or freshness gate must know which inputs can c
 
 # Measured, not declared, dependencies
 
-## When this applies
+## Trigger conditions
+
+*(Renamed from `## When this applies` by round 363. `skill_lint.py`'s
+H001 requires a heading matching `trigger` or `when to use`; this skill
+shipped with an H001 ERROR in round 361's commit and the corpus stayed
+red for two rounds because nothing in `run_driver.sh` runs the linter.
+The content below is round 361's, unchanged.)*
 
 Trigger on any of these:
 

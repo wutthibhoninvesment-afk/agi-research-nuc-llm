@@ -780,5 +780,31 @@
   "id": "rsd-neg-rename",
   "expect": [],
   "prompt": "Rename the `errors` module to `diagnostics` throughout the package and fix up the imports."
+ },
+ {
+  "id": "mndd-near",
+  "expect": [
+   "measured-not-declared-dependencies"
+  ],
+  "prompt": "Our incremental test runner skips a suite when the fingerprint hasn't moved. The fingerprint is a sha over every .py file under src/. In practice almost nothing is ever skipped — a one-line docstring edit in an unrelated package busts the whole thing. How should I make the fingerprint tighter without guessing wrong?"
+ },
+ {
+  "id": "mndd-mid",
+  "expect": [
+   "measured-not-declared-dependencies"
+  ],
+  "prompt": "We had a bad one yesterday. A benchmark result got served as current even though someone had edited the .sql template it loads at runtime. The stamp only covers the Python sources, so the edit was invisible to it. I want to fix this properly rather than bolting *.sql onto the glob and waiting for the next surprise."
+ },
+ {
+  "id": "mndd-far",
+  "expect": [
+   "measured-not-declared-dependencies"
+  ],
+  "prompt": "I'm adding a constant at the top of the invalidation module listing which packages actually matter to the report generator, with a comment telling people to keep it up to date when they add an import. Does that hold up, and is there a better shape for it?"
+ },
+ {
+  "id": "mndd-neg-static-imports",
+  "expect": [],
+  "prompt": "I want to know which modules in our package transitively import `models.py` so I can plan a refactor. Everything is plain top-level imports, no dynamic loading. What's the cleanest way to get that graph?"
  }
 ]
