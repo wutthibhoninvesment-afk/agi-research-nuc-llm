@@ -30,6 +30,14 @@ host's `_type_spec_expr`, where it used to be a bare tag string): both tests
 here went red on a change whose in-language checks were all green, which is
 precisely the layer round 320 built this file for.
 
+(Everything in the paragraph below is a v0.12-v0.18 record. v0.19 deleted
+`_apply_type_guards`/`build_guards`/`apply_type_guards` outright — a
+parameter annotation now rides on the fn NODE and never becomes a guard
+statement — so the label wording it is about is built by
+`parser._param_contracts` and `self_host.lang`'s `build_param_contracts`
+today. The `suffix` threading and the divergence class are unchanged; only
+the function names are historical.)
+
 **Round 320 finding, fixed the same round**: this tool immediately found a
 real, previously-undocumented divergence — `self_host.lang`/`self_eval.lang`'s
 `build_guards`/`apply_type_guards` (the v0.12 parameter-type-guard erasure,

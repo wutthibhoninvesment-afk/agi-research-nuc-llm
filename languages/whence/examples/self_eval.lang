@@ -1158,6 +1158,71 @@ fn guest_spec_name(spec) {
   }
 }
 
+# v0.20: the FIELD-level reason a record failed a record spec — the guest
+# mirror of the host's `_match_why` (interp.py). "" is its "nothing more to
+# say" answer, the same sentinel `param_spec_at`/`unbound_ret_name` use.
+#
+# Both sides walk `keys(spec)`, which SORTS, and that is the whole reason
+# the host walks `sorted(spec.fields)` rather than its own declaration
+# order: declaration order lives in the host's `fields` dict and is not
+# recoverable through any Whence builtin, so a declaration-order rule would
+# be one the guest could not express, and the two sides would name
+# different fields in every multi-field mismatch. Same reasoning as
+# decision 27 — what the guest can recover from the language is what the
+# rule may depend on.
+#
+# `is_callable(v)` before `is_record(v)` for the reason `guest_spec_ok`
+# gives: a guest closure is an ordinary record under the hood, and the
+# host's own `isinstance(payload, Record)` excludes a Closure, so without
+# the exclusion this would walk a closure's internals (round 18's
+# tag-spoofing shape).
+#
+# `matches(fv, fspec)` is exactly the host's `_type_match(fv, fspec)[0]`
+# here: every caller has already established `guest_spec_ok(spec)`, which
+# is recursive, so no nested spec can be the malformed kind `matches`
+# answers false for on principle rather than on structure.
+fn guest_match_why(v, spec, path) {
+  if is_str(spec) or is_callable(v) or not is_record(v) { "" }
+  else { guest_match_why_at(v, spec, keys(spec), 0, path) }
+}
+
+fn guest_match_why_at(v, spec, ks, i, path) {
+  if i >= len(ks) { "" }
+  else if ks[i] == "__shape" { guest_match_why_at(v, spec, ks, i + 1, path) }
+  else {
+    let here = path + "'" + ks[i] + "'"
+    if not has(v, ks[i]) { "no field " + here }
+    else {
+      let fv = get(v, ks[i])
+      let fspec = get(spec, ks[i])
+      if missed(fv) { "field " + here + " is a miss" }
+      else if matches(fv, fspec) {
+        guest_match_why_at(v, spec, ks, i + 1, path)
+      }
+      else {
+        let deeper = guest_match_why(fv, fspec, here + ".")
+        if deeper != "" { deeper }
+        else {
+          "field " + here + " expected " + guest_spec_name(fspec) +
+            ", got " + guest_kind(fv)
+        }
+      }
+    }
+  }
+}
+
+# The full text of a failed type check, mirroring host `_mismatch_reason`:
+# the v0.12 message plus `guest_match_why`'s clause when there is one. Both
+# guest sites that build a mismatch message (`check_contract` and the
+# `typed` builtin) go through here, exactly as both host sites do.
+fn guest_mismatch_reason(label, vraw, spec_raw, sname) {
+  let base = label + " expected " + sname + ", got " + guest_kind(vraw)
+  # `why` is a KEYWORD (`why x` reifies a history), so it cannot name a
+  # binding — the host's `_mismatch_reason` calls this local `why`.
+  let clause = guest_match_why(vraw, spec_raw, "")
+  if clause == "" { base } else { base + " (" + clause + ")" }
+}
+
 # raw_deep_eq mirrors the host's OWN deep_eq (interp.py): recurse only while
 # both sides have the SAME shape at the position being compared (bool/bool,
 # num/num, str/str, same-length list/list, same-keyset record/record) — a
@@ -1646,10 +1711,13 @@ fn check_contract(box, spec, label) {
         } else if bad_spec {
           "typed spec must be a type name or a shape, got " +
             show_spec(strip(spec))
+        } else if is_str(spec) {
+          # a primitive tag: "expected num, got str" is already complete,
+          # and there is no record spec to walk (v0.20)
+          label + " expected " + spec + ", got " + guest_kind(box.v)
         } else {
-          let sname = if is_str(spec) { spec }
-                      else { guest_spec_name(strip(spec)) }
-          label + " expected " + sname + ", got " + guest_kind(box.v)
+          guest_mismatch_reason(label, strip(box), strip(spec),
+                                guest_spec_name(strip(spec)))
         }
       mkb(miss reason, "typed " + label, [box])
     }
@@ -1802,8 +1870,12 @@ fn apply_builtin(name, args, st) {
     else { guest_find(args[0], (args[1]).v, 0, st) }
   }
   else if name == "typed" {
-    # v0.12/v0.13 guest parity (round 158): the erasure `apply_type_guards`
-    # builds calls this. Same contract as the host `typed` builtin: a miss
+    # v0.12/v0.13 guest parity (round 158). Until v0.19 this was what the
+    # erasure `apply_type_guards` built its calls to; v0.19 deleted the
+    # erasure on both sides (a parameter annotation rides on the fn node
+    # and is checked by `check_contract` via `bind_params`), so `typed` is
+    # now reached only from a guest program that calls it directly. Same
+    # contract as the host `typed` builtin: a miss
     # value/spec/label propagates FIRST (decision 2, before inspecting the
     # spec at all — mirrors host `_propagate`), a match is a PURE pass-
     # through (the original box, no new node — like `get`'s success case
@@ -1830,8 +1902,15 @@ fn apply_builtin(name, args, st) {
     }
     else if guest_spec_match(value, spec) { @{v: value, st: st} }
     else {
-      let reason = label.v + " expected " + guest_spec_name(strip(spec)) +
-                   ", got " + guest_kind(value.v)
+      # v0.20: same `guest_mismatch_reason` the contract path uses, so the
+      # builtin and the annotation cannot drift apart — mirroring the host,
+      # where `typed` and `_check_contract` share `_mismatch_reason`.
+      let reason = if is_str(spec.v) {
+          label.v + " expected " + spec.v + ", got " + guest_kind(value.v)
+        } else {
+          guest_mismatch_reason(label.v, strip(value), strip(spec),
+                                guest_spec_name(strip(spec)))
+        }
       @{v: mkb(miss reason, "typed " + reason, [value]), st: st}
     }
   }
@@ -2603,6 +2682,42 @@ check "...and the inner shape wins when IT is the one in scope":
   (gv("shape P = @{x: num}\n" +
       "fn g() { shape P = @{y: str}\nfn h(p: P) -> P { p }\n" +
       "h(@{y: \"a\"}) }\ng()")).y == "a"
+
+# v0.20 (round 348), the guest half. `guest_match_why` walks `keys(spec)`
+# — which SORTS — and that is exactly why the host walks
+# `sorted(spec.fields)` rather than its own declaration order: declaration
+# order is not reachable from Whence, so a rule that depended on it would
+# be one this file could not express (decision 27) and the two sides would
+# name a different field in every multi-field mismatch.
+check "the field clause names the missing field":
+  contains(reasons(gv("shape P = @{x: num, a: str}\n" +
+                      "fn f(p: P) { p }\nf(@{x: 1})"))[0],
+           "expected P, got record (no field 'a')")
+check "...and a wrongly-typed field, from the RETURN end":
+  contains(reasons(gv("shape P = @{x: num}\n" +
+                      "fn f() -> P { @{x: \"s\"} }\nf()"))[0],
+           "expected P, got record (field 'x' expected num, got str)")
+check "a nested mismatch reports the PATH":
+  contains(reasons(gv("shape P = @{x: num}\nshape Q = @{p: P}\n" +
+                      "fn f(q: Q) { q }\nf(@{p: @{x: \"s\"}})"))[0],
+           "(field 'p'.'x' expected num, got str)")
+check "a miss-valued field is its own clause":
+  contains(reasons(gv("shape P = @{x: num}\n" +
+                      "fn f(p: P) { p }\nf(@{x: 1/0})"))[0],
+           "(field 'x' is a miss)")
+check "sorted order, not declaration order: b declared first, a named":
+  contains(reasons(gv("shape P = @{b: num, a: num}\n" +
+                      "fn f(p: P) { p }\nf(@{b: \"s\", a: \"s\"})"))[0],
+           "(field 'a' expected num, got str)")
+# A reason carries its own " (line N)" suffix, so "there is no clause" is
+# pinned by what immediately follows the v0.12 sentence rather than by
+# string equality.
+check "a primitive spec keeps the v0.12 sentence, with no clause":
+  contains(reasons(gv("fn f(p: num) { p }\nf(\"s\")"))[0],
+           "parameter 'p' of f expected num, got str (line")
+check "and a non-record payload gets no clause either":
+  contains(reasons(gv("shape P = @{x: num}\nfn f(p: P) { p }\nf(3)"))[0],
+           "parameter 'p' of f expected P, got num (line")
 # The `_spec_ok` floor (round 335 left it open on both sides; v0.19 makes
 # it reachable from an ordinary annotation, so both sides grew it). On the
 # host the RETURN half of this raised AttributeError out of the

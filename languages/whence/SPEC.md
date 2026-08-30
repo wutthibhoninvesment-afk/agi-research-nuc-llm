@@ -1,4 +1,12 @@
-# Whence — a provenance-first language (spec v0.16.6 + v0.14.2, rounds 009/011/014/020/024/026/030/108/110/122/128/132/146/164/168/204/206/210/216/218/222/224/264/266)
+# Whence — a provenance-first language
+
+*Spec level: **v0.20** (round 348). The `## vN` sections below are the
+authoritative version list and each names the round that built it; this
+line deliberately no longer enumerates rounds, because the enumeration it
+replaced had said "v0.16.6 + v0.14.2" since round 266 while the file went
+on to document v0.17, v0.18, v0.19 and v0.20 — a header asserting a number
+no round re-executes, which is the rot class round 321 item 14 named and
+round 345's `xref_check.py` was built for.*
 
 **One idea:** every value remembers where it came from. `why x` returns the
 derivation tree of `x` as a first-class value. Failures are values too, so a
@@ -106,6 +114,96 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    produce identical values and identical why-trees (the test suite checks
    a corpus both ways). Subtrees taller than 100 levels stay on the
    trampoline so host stack depth is never a function of program shape.
+
+<!-- 14-26: never minted. The list above was written for v0.1-v0.4 and then
+     stopped being appended to for ~200 rounds while the prose kept citing
+     it; round 338 resumed at 27, not 14, and nothing in this tree has ever
+     defined OR cited 14 through 26 (`skills/skill-authoring/scripts/
+     xref_check.py --provenance`, rounds 345/346: "never-defined in 46
+     revision(s)"). The range is left RESERVED rather than closed by
+     renumbering, because 27/28/29 are cited from 17 authoritative sites —
+     SPEC prose, `whence/parser.py`, `ast_nodes.py`, `values.py`,
+     `test_v12.py`, `test_v13.py`, `research-state.md` — and a renumber
+     would break every one of them to buy nothing. Do not reuse 14-26 for
+     new decisions: the gap is evidence of the rot round 345 found, and
+     this list is the registry `xref_check.py` reads. Append here in the
+     SAME round that mints a number. -->
+
+14-26. *(reserved — never minted; see the comment above.)*
+27. **A self-hosted implementation may RECOVER host state instead of
+   threading it — and a rule the guest cannot express is a rule the two
+   sides will silently disagree about (v0.12/v0.13 guest parity, round
+   338).** `whence/parser.py` keeps `self.shapes`, a mutable dict
+   `shape_def()` writes and `parse_type()` reads. Whence has no mutation,
+   and threading an accumulator would not have sufficed either: the host's
+   set was deliberately NOT scope-aware, so all ~25 parser functions —
+   expression parser included — would have had to return it too.
+   `self_host.lang`'s `shapes_declared_before(toks, p)` is instead a PURE
+   function of the token stream, exact rather than approximate on two
+   premises verified against the host and pinned as tests: ADJACENCY (the
+   three tokens `shape` NAME `=` must be adjacent, which is what the
+   host's own `peek(1)`/`peek(2)` require, and NAME NAME never occurs
+   adjacently in a legal expression, so a match implies statement start)
+   and COMPLETION (the closing `}` must precede `p`, because the host
+   writes `self.shapes[name]` only after `expect("}")` — which is what
+   rejects `shape Foo = @{x: Foo}`). Cost is zero on every pre-existing
+   program: the primitive-tag branch is tested first, so the scan is
+   reached only for a non-primitive name.
+   **The general rule, which two later decisions lean on:** the guest sees
+   only what the language exposes, so any host rule depending on state the
+   language cannot reach is a rule the guest cannot mirror. v0.18
+   (decision 28) removed one such asymmetry rather than mirroring it;
+   v0.20 (decision 30) chose sorted field order over declaration order for
+   exactly this reason.
+28. **The type namespace IS the value namespace, so it has exactly one
+   scope rule — decision 3's (v0.18, round 342).** `shape Name = @{…}`
+   desugars to a `let`, so the name already obeyed decision 3 at RUN time
+   (bound in its block, shadowable, gone when that block closes) while the
+   parser used one flat file-global table and accepted the name in any
+   later annotation anywhere in the file. `Parser.self.shapes` becomes
+   `self.shape_scopes`, a frame stack pushed and popped by `stmt_list`
+   (whose only two callers are `block()` and `parse_program()`, so a frame
+   is exactly a `{ … }`), looked up innermost-out — the same walk the
+   desugared `let`'s `NameRef` performs at run time. Sibling blocks may
+   each declare the same shape name; an inner block may shadow an outer
+   one; and an annotation naming a shape whose block has closed is a parse
+   error at the annotation's own line and column instead of one of three
+   unrelated run-time outcomes. See `## v0.18` for the measured
+   before/after table.
+29. **A parameter contract and a return contract are ONE rule, resolved at
+   ONE moment in ONE environment (v0.19, round 344).** `-> Type` (v0.13)
+   was carried on the fn node and resolved once, in the DEFINING env, at
+   closure creation. `p: Type` (v0.12) was ERASED by the parser into a
+   `let p = typed(p, spec, label)` statement prepended to the body, so its
+   spec was an ordinary expression re-evaluated in the CALL env on every
+   call. One signature could therefore name two different shapes with one
+   name — `fn f(P, p: P)` resolved the annotation's `P` to the ARGUMENT,
+   because the parameter was bound before the guard statement ran. v0.19
+   carries the parameter half on the node too (`FnDef.param_types`,
+   `FnExpr.param_types`), resolves it with the SAME `_closure_spec` in the
+   SAME env at the SAME moment as `ret_type`, and checks it with the same
+   `_check_contract` — `_check_ret` renamed, because it was never about
+   returns. The four asymmetries that REMAIN are deliberate and are listed
+   in `## v0.19`; each is a place where the two ends genuinely differ, not
+   a place two implementations drifted.
+30. **A type miss names the FIELD, not just the shape (v0.20, round 348).**
+   `_type_match` walks a record spec field by field and knows exactly which
+   field broke a match and how — and, until v0.20, returned only the spec's
+   NAME, so the whole contract system answered a structural mismatch with
+   `expected Point, got record`: the one thing the reader already knew. On
+   a spec with no `__shape` — legal, and ordinary under this file's own
+   "structural, not nominal" rule — it degenerated to `expected record, got
+   record`, which says nothing at all. That is decision 2's promise
+   ("unlike NaN it can tell you *why*") going unmet at the newest and
+   most-used contract surface. A failed check now appends the PATH to the
+   field that broke it: `(no field 'a'.'y')`, `(field 'x' expected num, got
+   str)`, `(field 'x' is a miss)`. Fields are visited in SORTED order, not
+   declaration order, because declaration order is not recoverable through
+   `keys()` and a rule the guest cannot express is one the two sides would
+   silently disagree about (decision 27). Because decision 29 had already
+   made the two contract ends one rule, the change was written once and
+   arrived at four surfaces at once: `typed`, `-> Type`, `p: Type`, and
+   every `shape` in every example.
 
 ## Syntax (statements are newline-separated; `#` comments)
 ```
@@ -3985,7 +4083,9 @@ not this round. See `knowledge/round-254-whence-self-hosting-round9-steps-repro-
   A block's env is one dict later statements keep adding to — that is what
   makes mutual recursion work — so a binding added AFTER the annotation is
   still visible to a later call. The sharpest witness, pinned as
-  `test_one_signature_can_mean_two_different_shapes`:
+  `test_one_signature_can_mean_two_different_shapes` (renamed by round 344
+  to `test_one_signature_now_means_exactly_one_shape` when v0.19 closed it —
+  see `## v0.19`):
 
   ```
   shape P = @{x: num}
@@ -4007,3 +4107,312 @@ not this round. See `knowledge/round-254-whence-self-hosting-round9-steps-repro-
   boundary — all three call paths, and a changed why-tree for every typed
   function. That is a v0.19-sized change and is named as one, not
   smuggled in here.
+
+## v0.19 (round 344, landed by round 345; specified round 348) — parameter contracts: both ends of a signature become one rule
+
+*Provenance of this section.* Round 344 built v0.19 and was killed by the
+driver's 3300 s outer timeout before writing any of it down; round 345
+verified the diff from a clean read and landed it as `6132f1f`, deliberately
+NOT writing the design rationale for another track's round, and recorded the
+dangling `SPEC decision 29` as a language(C) handoff. This section is round
+348 discharging that handoff. It is derived from the code and from probes run
+against it, not transcribed from round 344's intent, and every behavioural
+claim below is pinned by a test named beside it.
+
+- **The defect in one sentence: a `-> Type` and a `p: Type` on the same
+  signature were resolved at different times, in different environments, by
+  different machinery — so one signature could name two different shapes
+  with one name.** v0.13's return annotation was carried on the fn node
+  (`FnDef.ret_type`) and resolved ONCE, in the DEFINING env, at closure
+  creation (`_closure_ret`). v0.12's parameter annotation was ERASED by the
+  parser into a statement prepended to the body:
+
+  ```
+  fn f(p: P) { … }        # v0.12-v0.18, after parsing:
+  fn f(p) { let p = typed(p, P, "parameter 'p' of f")
+            … }
+  ```
+
+  so its spec was an ordinary expression walked by the everyday evaluator in
+  the CALL env, on every call. The call env's parent is the closure's
+  defining env, so most of the time the two agreed — which is exactly why
+  this survived seven versions. They disagree when something binds the name
+  *between* the two: a `let` in the closure's own block, or the parameter
+  list itself.
+
+  ```
+  shape P = @{x: num}
+  fn f(P, p: P) { p }     # v0.18: the annotation's P is the ARGUMENT
+  ```
+
+  `P` is bound in the call env before the prepended guard runs, so `f(3, …)`
+  checked `p` against `3` and answered `typed spec must be a type name or a
+  shape, got 3`. v0.18 §7 found the shape-shadowing form of this, showed it
+  was not about shapes (a plain `let P = 3` captures the guard identically),
+  and named the fix as v0.19-sized rather than smuggling it in.
+
+- **Decision 29: a parameter contract and a return contract are ONE rule,
+  resolved at ONE moment in ONE environment.** The parameter half moves onto
+  the node beside the return half:
+
+  | | v0.13 return | v0.19 parameter |
+  |---|---|---|
+  | carried on | `FnDef.ret_type` / `FnExpr.ret_type` | `FnDef.param_types` / `FnExpr.param_types` |
+  | built by | `parser._type_spec_expr` | `parser._param_contracts`, same spec-expr shape |
+  | resolved by | `_closure_ret` → `_closure_spec` | `_closure_params` → **the same `_closure_spec`** |
+  | resolved when | closure creation, defining env | **closure creation, defining env** |
+  | checked by | `_check_contract` | **the same `_check_contract`** |
+
+  `_check_ret` is renamed `_check_contract` because it was never about
+  returns: it is "check one half of a contract at the one point every call
+  path has the value in hand". `_mk_closure` is the single choke point all
+  five FnDef/FnExpr construction sites (fast, direct, three generator sites)
+  go through, so closures built for the same function by any evaluation mode
+  agree byte for byte on `ret_spec` / `ret_label` / `param_specs` — which
+  the three-way fast/direct/trampoline differential requires.
+
+- **A parameter annotation no longer changes the body.** `fn f(p: num) { p }`
+  and `fn f(p) { p }` now have byte-identical bodies; the annotation lives
+  entirely on the node. Two consequences that are not cosmetic: a satisfied
+  parameter contract leaves NO node in the why-tree (`_check_contract`
+  returns its input unchanged), exactly as a satisfied `-> Type` already
+  left none; and `self_host.lang`'s round-338 pin
+  `len(parse_whence("fn f(a) { a }…").stmts[0].param_types) == 0` now
+  measures the annotation's absence on the node rather than the absence of a
+  prepended statement.
+
+- **The check runs at every site that binds a parameter — all three of
+  them.** `_check_params(vs, param_specs)` is applied immediately after the
+  `Prov("arg", …)` bindings in `_call_direct` (the direct/trampoline loop),
+  `_closure_inline` (the F2 fast path for a call-free body) and `_call_gen`
+  (the generator loop). Round 128 found the mirror-image bug on the return
+  half — `_closure_inline` was a THIRD place a call settles and was missing
+  `_check_contract` entirely, so a `-> Type` on any call-free-bodied
+  function was silently never checked — which is why the audit here is
+  "every `Prov("arg", …)` site", not "every call path in the docstring".
+
+- **Four asymmetries REMAIN, and all four are deliberate.** Decision 29 says
+  the two ends are one *rule*; it does not say they are the same *event*.
+  Each of these is a place where the ends genuinely differ:
+
+  1. **When.** Parameters are checked as the call env is entered, before the
+     body; the return is checked once the body — and any merged tail chain —
+     has settled.
+  2. **Tail chains.** `ret_spec` is captured ONCE from the originally-called
+     closure, before the tail loop may reassign `p`, because a `-> Type` is
+     a contract on what THIS call returns to ITS caller (v0.13); the
+     contracts of closures the loop bounced *through* are collected in
+     `chain_rets` and applied innermost-first (round 336). `param_specs` is
+     the exact opposite: it is re-read beside `params` on every hop, because
+     it guards the closure being ENTERED and its values cross that
+     closure's own boundary. Verified: in `fn a(n: num) {… b(n-1) }` /
+     `fn b(n: str) { a(n) }`, hop 2 blames `parameter 'n' of b`.
+  3. **Which line is blamed.** A parameter miss reports the function body's
+     opening line — where the contract is WRITTEN — because the offending
+     argument is right there in the miss's inputs carrying its own call-site
+     line. A return miss reports the CALL's line, which is round 336's rule
+     and is what lets a merged tail chain say which hop it is blaming. v0.19
+     unified the CHECK; it deliberately did not unify the blame location.
+  4. **What a failure does.** A failing parameter check binds the miss and
+     **the body still runs**. It does not short-circuit the call, so a
+     function that never reads a badly-typed parameter still returns
+     normally (`fn f(p: num) { 42 }`; `f("s")` is `42`). This is inherited
+     from the v0.12 guards unchanged, so that moving the check did not also
+     change what it means — and it is consistent with decision 2, under
+     which an unobserved miss is simply never observed. Making a bad
+     parameter abort the call is a separate decision with its own corpus
+     cost and is named as one here rather than smuggled in.
+
+- **Two guard branches now protect the parameter half too, and one of them
+  was a live totality violation.** `_check_contract` sits ahead of
+  `_type_match`, which documents `_spec_ok(spec)` as its PRECONDITION:
+  - `_UnboundType` — the annotation named a shape with no binding at
+    closure-creation time. v0.12-v0.18 the parameter half degraded on its
+    own (a guard's spec was an ordinary `A.NameRef`, and the everyday
+    evaluator turns an unbound name into a miss); resolving it in Python
+    like the return half means it now needs, and shares, the same floor.
+    Unreachable from source text since v0.18 made the parser scope-aware,
+    and kept anyway as the floor under `_closure_spec`.
+  - `not _spec_ok(spec)` — the name resolved to something that is not a
+    usable spec. Round 335 added this guard to `typed`/`matches` and
+    recorded `_check_ret` as "has no `_spec_ok` guard, unreachable today".
+    That was wrong, and round 344 measured it: an ordinary `let P = 3`
+    shadowing a shape name inside a block made `fn h() -> P { 1 }` raise
+    `AttributeError: 'int' object has no attribute 'fields'` straight out
+    of the interpreter, in all three modes, for both `FnDef` and `FnExpr`,
+    tail and non-tail — a crash where decision 2 promises a miss. It is now
+    an ordinary miss with `typed`'s own wording for the same condition.
+
+- **v0.18 §7's hazard is closed, and this is the check that shows it.**
+  Re-run against v0.19 (round 348):
+
+  ```
+  shape P = @{x: num}
+  fn g() {
+    fn h(p: P) -> P { p }
+    shape P = @{y: str}
+    h(ARG)
+  }
+  ```
+
+  | `ARG` | v0.18 | v0.19 |
+  |---|---|---|
+  | `@{x: 1, y: "a"}` | passes | passes |
+  | `@{y: "a"}` | passes the param (inner `P`), misses the return (outer `P`) | **misses the param** — one `P`, the outer one |
+  | `@{x: 1}` | misses the param, passes the return | **passes both** |
+
+  v0.18 §7 cited `test_one_signature_can_mean_two_different_shapes`; round
+  344 renamed it `test_one_signature_now_means_exactly_one_shape`
+  (`tests/test_v12.py`), which is the sentence v0.19 is for.
+
+- **The index is kept on the AST and dropped at resolution.** Every host
+  call path binds parameters by NAME into the call env's `vars`, so a name
+  is what `_check_params` needs and carrying an index as well would be a
+  second way to say the same thing. `parser._param_contracts` keeps it
+  because a POSITIONAL consumer wants it — and `self_eval.lang`'s own
+  `bind_params`, which walks parameters by position and finds its entry with
+  a linear `param_spec_at` scan, is that consumer. `param_specs` holds only
+  the ANNOTATED parameters, so `fn f(a, b: num)` has exactly one entry, at
+  index 1.
+
+- **Guest parity landed in the same round** (`examples/self_eval.lang`):
+  `resolve_spec` is the guest's `_closure_spec` — ONE lookup, used by both
+  halves, which is the point of the round in a nutshell — with
+  `resolve_ret_spec` and `resolve_param_specs` above it, and `bind_params`
+  applying the parameter half as each argument crosses the call boundary.
+  Round 344 also closed round 335's open item "the guest does not mirror
+  `_spec_ok`" (`guest_spec_ok` / `guest_spec_fields_ok`), because v0.19 is
+  what made the malformed-spec case reachable from an ordinary annotation on
+  both sides.
+
+- **Measured (round 348), because the round that built it could not.** A
+  16-program parameter-contract corpus — named and anonymous fns, one and
+  two annotated parameters, an unread parameter, shadowed shapes, tail
+  chains, a re-read-per-hop chain, shape specs, `guess`, `any`, an
+  already-missed argument, both ends failing at once — run on the host in
+  all three evaluation modes and through `self_eval.lang`, comparing the
+  full miss REASON and not merely missed-ness:
+
+  ```
+  host fast / direct / generator : 3/3 identical on all 16
+  host vs guest (reason text)    : 16/16 identical
+  ```
+
+  Miss reasons are an explicit exemption of the ordinary guest differential
+  (round 17), so agreement here was not implied by the suite that was
+  already green; `test_param_contract_wording_agrees_host_vs_guest`
+  (`tests/test_v20.py`) is what keeps it. The one thing that does NOT agree
+  is the miss's LINE — the guest's misses carry a line in `self_eval.lang`,
+  not in the program under test — which is structural and pre-existing
+  (round 338's `test_shape_line_divergence_is_pre_existing_not_new`).
+
+
+## v0.20 (round 348, language C) — a type miss names the field
+
+- **The defect in one sentence: `_type_match` walks a record spec field by
+  field, knows exactly which field broke the match and how, and threw all of
+  it away — returning only the spec's NAME.** So the entire contract system
+  answered a structural mismatch with the one thing the reader already knew:
+
+  ```
+  shape Point = @{x: num, y: num}
+  fn midpoint(l: Line) -> Point { @{x: (l.a.x + l.b.x) / 2} }
+
+  return value of midpoint expected Point, got record        # v0.19
+  ```
+
+  Which field? The message cannot say, and on a hand-built spec — legal, and
+  ordinary under this file's own "structural, not nominal" rule, where "a
+  record built entirely by hand, with no relation to the shape ever
+  declared, matches it exactly as one built from it" — the spec has no
+  `__shape`, `desc` falls back to `"record"`, and the whole sentence
+  degenerates to:
+
+  ```
+  parameter 'p' of g expected record, got record             # v0.19
+  ```
+
+  which says nothing at all. Decision 2's promise is that a miss, unlike a
+  NaN, *can tell you why*. This is where the newest and most-used contract
+  surface stopped keeping it.
+
+- **Decision 30: a type miss names the FIELD.** A failed check appends the
+  PATH to the field that broke it, in one of three forms:
+
+  ```
+  parameter 'l' of length expected Line, got record (no field 'a'.'y')
+  parameter 'p' of f expected P, got record (field 'x' expected num, got str)
+  parameter 'p' of f expected P, got record (field 'x' is a miss)
+  ```
+
+  and, on the case that used to say nothing:
+
+  ```
+  parameter 'p' of g expected record, got record (no field 'y')
+  ```
+
+  A nested path is dotted per level (`field 'b'.'a'.'n' expected num, got
+  str` for three shapes deep). The clause is OMITTED, leaving v0.12's
+  sentence exactly as it was, when there is nothing more to say: a
+  primitive-tag spec (`expected num, got str` is already complete) and a
+  non-record payload (`got num` already says why).
+
+- **It is a SEPARATE walk, not a third return value from `_type_match`.**
+  `_type_match` runs on every `matches` call, on every SATISFIED contract,
+  and as its own recursive worker; an extra allocation per level would be
+  paid by the success path. `_match_why(payload, spec, path="")` runs only
+  after a failure, from the two sites that build a message, and
+  `_mismatch_reason` is the single place both of them build it — the same
+  reason `_check_contract` is one function for both contract ends.
+  `matches` is untouched: it returns a bool and has no message to improve.
+
+- **Fields are visited in SORTED order, not declaration order, and the
+  reason is decision 27.** Which field a multi-field mismatch names is
+  arbitrary either way. Declaration order survives in the host's `fields`
+  dict but is NOT recoverable through any Whence builtin — `keys()` sorts —
+  so `self_eval.lang`, Whence's own definition of Whence, could not mirror a
+  declaration-order rule at all, and the two sides would name a different
+  field in every multi-field mismatch. A rule the guest cannot express is a
+  rule the two implementations will silently disagree about; the host walks
+  `sorted(spec.fields)` so that both sides can walk the same list.
+
+- **Four surfaces improved from one change, which is decision 29 paying
+  out.** `typed(x, spec, label)`, `-> Type` (v0.13), `p: Type` (v0.19) and
+  every `shape` in every example all build their mismatch text through
+  `_mismatch_reason` now. Before v0.19 the parameter half went through a
+  prepended `typed()` call and the return half through `_check_ret`, and
+  this would have been two changes that could drift; `examples/shapes.lang`
+  demonstrates both ends in one file and pins both clauses as in-language
+  `check`s.
+
+- **Guest parity landed the same round.** `guest_match_why` /
+  `guest_match_why_at` / `guest_mismatch_reason` in `examples/self_eval.lang`
+  mirror the host, walking `keys(spec)` (already sorted) and skipping
+  `__shape`, with `is_callable(v)` tested before `is_record(v)` for the
+  reason `guest_spec_ok` gives — a guest closure is an ordinary record under
+  the hood, and the host's `isinstance(payload, Record)` excludes a Closure
+  (round 18's tag-spoofing shape). `matches(fv, fspec)` is exactly the
+  host's `_type_match(fv, fspec)[0]` at every level here, because every
+  caller has already established `guest_spec_ok(spec)` and that check is
+  recursive, so no nested spec can be the malformed kind `matches` answers
+  false for on principle rather than on structure. One naming note: `why` is
+  a KEYWORD, so the guest's local is `clause` where the host's is `why`.
+
+- **Measured.** A 17-program corpus (missing field, wrong field type from
+  each end, nested to two and three levels, a miss-valued field, the
+  `typed` builtin with a hand-built record spec, a shadowed shape resolving
+  to a plain record, a non-record payload, a primitive spec, sort order with
+  `b` declared before `a`, a callable value, `matches` still returning a
+  bool) run on the host in all three modes and through `self_eval.lang`,
+  comparing full reason text: **3/3 modes identical, 17/17 host vs guest
+  identical.** `tests/test_v20.py`.
+
+- **What this deliberately does NOT do.** It does not report EVERY failing
+  field — the first in sorted order wins, matching `_type_match`'s own early
+  return, and a full failure list would be a different feature with a
+  different rendering problem. It does not change what MATCHES: no program's
+  value changes, only the text of a miss that was already a miss, which is
+  why the whole change is invisible to the guest differential's payload
+  comparison and had to be pinned by wording (round 17's exemption again).
+  And it does not touch `matches`, `shapeof`, or the parse-time errors of
+  v0.18.

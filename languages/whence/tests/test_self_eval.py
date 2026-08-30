@@ -167,7 +167,7 @@ def test_example_runs_green():
     r = subprocess.run([sys.executable, os.path.join(ROOT, "run.py"), EXAMPLE],
                        capture_output=True, text=True)
     assert r.returncode == 0, r.stdout + r.stderr
-    assert "135 passed, 0 failed" in r.stdout
+    assert "142 passed, 0 failed" in r.stdout
     assert "all in Whence" in r.stdout
 
 
@@ -847,7 +847,10 @@ def test_shape_misses_agree_host_vs_guest_including_the_wording():
     assert bad == [], bad
     # and the message round 338 was actually about, spelled out
     h_ret = host_eval(SHAPE_MISS_CASES[1]).payload
-    assert guest_reason(h_ret) == "return value of mk expected P, got record"
+    # v0.20 (round 348) appended the field clause; round 338's own point —
+    # that the message names the SHAPE and not "record" — is the prefix.
+    assert guest_reason(h_ret) == ("return value of mk expected P, "
+                                   "got record (no field 'x')")
     # its companion — the out-of-scope `-> L` miss — is gone from this list
     # since v0.18 (round 342): the annotation no longer parses, so the pair
     # is checked by wording in `SHAPE_PARSE_ERRORS` instead.

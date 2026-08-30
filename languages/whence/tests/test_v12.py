@@ -1,12 +1,21 @@
 """v0.12 (round 122): structural types — `fn f(a: num, b: Point) {…}` and
 `shape Name = @{field: type, …}`.
 
-Design (see SPEC.md "v0.12"): a type annotation is erased entirely at
-PARSE time. `_apply_type_guards` (parser.py) prepends one
-`let <param> = typed(<param>, <spec>, <label>)` per annotated parameter to
-the body's statement list — an ordinary Let/Call/Str AST, evaluated by the
-existing interpreter with zero new machinery. Consequences that are the
-actual claims under test here:
+Design AS SHIPPED IN v0.12 (see SPEC.md "v0.12"): a type annotation was
+erased entirely at PARSE time. `_apply_type_guards` (parser.py) prepended
+one `let <param> = typed(<param>, <spec>, <label>)` per annotated parameter
+to the body's statement list — an ordinary Let/Call/Str AST, evaluated by
+the existing interpreter with zero new machinery.
+
+**v0.19 (round 344) deleted the erasure and `_apply_type_guards` with it**
+(SPEC.md "## v0.19", decision 29): the annotation rides on the fn node as
+`param_types`, is resolved in the DEFINING env at closure creation by the
+same `_closure_spec` a `-> Type` uses, and is checked by `_check_contract`
+at the call boundary. The tests below still hold — they were written about
+OBSERVABLE behaviour, which is exactly why they survived the mechanism
+being replaced underneath them — but the mechanism sentence above is
+history, not a description of the current parser. The consequences under
+test:
 
   - an untyped function's body is untouched (no guard is ever inserted) —
     the whole existing corpus (654 tests, run.py) is the regression gate;

@@ -25,6 +25,11 @@ let broken = length(flat)
 check "a missing field is a miss, not a crash": missed(broken)
 check "the miss names the parameter and the shape": contains(
   reasons(broken)[0], "parameter 'l' of length expected Line")
+# v0.20: and it names the FIELD. `flat.a` is a Point missing `y`, two
+# levels down; the clause is the path to the field that broke the match,
+# not just the name of the shape the reader already wrote.
+check "the miss names the field, two levels down": contains(
+  reasons(broken)[0], "(no field 'a'.'y')")
 check "matches agrees too, and never itself misses": not matches(flat, Line)
 
 # Untyped code costs nothing: a plain parameter is exactly what it always
@@ -90,4 +95,8 @@ let bad_mid = broken_midpoint(good)
 check "a broken shape return is a miss, not a wrong answer": missed(bad_mid)
 check "the miss names the return value, not a parameter": contains(
   reasons(bad_mid)[0], "return value of broken_midpoint expected Point")
+# v0.20 again, and from the OTHER end of the same contract: one rule
+# (decision 29), so one improvement.
+check "and the field the return forgot": contains(
+  reasons(bad_mid)[0], "(no field 'y')")
 print(reasons(bad_mid)[0])

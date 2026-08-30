@@ -138,10 +138,16 @@ def test_diverge():
 def test_shapes():
     r = run_example("shapes.lang")
     assert r.returncode == 0, r.stdout
-    assert "parameter 'r' of validate expected Request, got record" in r.stdout
+    # v0.20 (round 348): the field clause is part of the message now, from
+    # BOTH ends of the contract — a parameter's and a return's. Pinned in
+    # full rather than by prefix, because the prefix is exactly what
+    # survived unchanged when the interesting half was added.
+    assert ("parameter 'r' of validate expected Request, got record "
+            "(field 'retries' expected num, got str)") in r.stdout
     assert "recovered total (bad request contributes 0): 3" in r.stdout
-    assert "return value of broken_midpoint expected Point" in r.stdout
-    assert "16 passed, 0 failed" in r.stdout
+    assert ("return value of broken_midpoint expected Point, got record "
+            "(no field 'y')") in r.stdout
+    assert "18 passed, 0 failed" in r.stdout
 
 
 def test_effects():

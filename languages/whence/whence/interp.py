@@ -2186,6 +2186,79 @@ def _type_match(payload, spec):
     return True, name
 
 
+def _match_why(payload, spec, path=""):
+    """The FIELD-level reason a record failed a RECORD spec, as a clause
+    for the mismatch message, or None when there is nothing more to say
+    than the message already says (v0.20).
+
+    `_type_match` walks a record spec field by field and knows exactly
+    which field broke the match and how — and, until v0.20, threw that
+    away and returned only the spec's NAME. So the whole contract system
+    (`typed`, `-> Type` v0.13, `p: Type` v0.19) answered a structural
+    mismatch with `expected Point, got record`: the one thing the reader
+    already knew. On a spec with no `__shape` — legal, and the SPEC's own
+    "structural, not nominal" rule makes it ordinary — it degenerated to
+    `expected record, got record`, which says nothing at all. Decision 2's
+    promise is that a miss can tell you *why*; this is where the type
+    checker starts keeping it.
+
+    Deliberately a SEPARATE walk rather than a third return value from
+    `_type_match`: `_type_match` runs on every `matches` call and on every
+    satisfied contract, and it is also its own recursive worker, so an
+    extra allocation per level would be paid by the success path. This
+    runs only after a failure, from the two sites that build a message.
+
+    Fields are visited in SORTED order, not declaration order. Which field
+    a multi-field mismatch names is arbitrary either way, and sorted order
+    is the one an implementation holding only the runtime Record can
+    reproduce: declaration order survives in the host's `fields` dict but
+    is not recoverable through `keys()`, which sorts — so `self_eval.lang`,
+    Whence's own definition of Whence, could not mirror a declaration-order
+    choice at all. Same reasoning as decision 27: the guest sees what the
+    language exposes, and a rule it cannot express is a rule the two sides
+    will silently disagree about.
+
+    Returns None (not a clause) when: the spec is a primitive tag, since
+    `expected num, got str` is already complete; the payload is not a
+    Record, since `got num` already says why; or nothing is wrong at this
+    level, which cannot happen from the failure sites but keeps the
+    function total."""
+    if isinstance(spec, str) or not isinstance(payload, Record):
+        return None
+    have = payload.fields
+    for fname in sorted(spec.fields):
+        if fname == "__shape":
+            continue
+        here = "%s'%s'" % (path, fname)
+        if fname not in have:
+            return "no field %s" % here
+        fv = have[fname].value
+        if isinstance(fv, Miss):
+            return "field %s is a miss" % here
+        fspec = spec.fields[fname].value
+        ok, d = _type_match(fv, fspec)
+        if ok:
+            continue
+        deeper = _match_why(fv, fspec, here + ".")
+        if deeper is not None:
+            return deeper
+        return "field %s expected %s, got %s" % (here, d, _kind(fv))
+    return None
+
+
+def _mismatch_reason(label, payload, spec, desc):
+    """The full text of a failed type check: the v0.12 message, plus
+    `_match_why`'s field clause when there is one (v0.20). The single
+    place both contract ends and the `typed` builtin build it, so the
+    three cannot drift — the same reason `_check_contract` is one function
+    for both ends (decision 29)."""
+    msg = "%s expected %s, got %s" % (label, desc, _kind(payload))
+    why = _match_why(payload, spec)
+    if why is None:
+        return msg
+    return "%s (%s)" % (msg, why)
+
+
 def _note_chain_ret(chain_rets, p, line):
     """Record a tail-entered closure's own `-> Type` contract as
     `[spec, label, line]`, where `line` is the line of the TAIL CALL that
@@ -2363,8 +2436,7 @@ def _check_contract(result, spec, label, line):
     ok, desc = _type_match(result.value, spec)
     if ok:
         return result
-    return mk_miss("%s expected %s, got %s" %
-                   (label, desc, _kind(result.value)), line,
+    return mk_miss(_mismatch_reason(label, result.value, spec, desc), line,
                    "typed", label, inputs=(result,))
 
 
@@ -2903,13 +2975,20 @@ def _make_builtin_table():
                        inputs=(fn, xs))
 
     # --- structural types (v0.12) ---------------------------------------
-    # `typed` is the whole feature's runtime: `fn f(a: num) {…}` desugars
-    # at PARSE time (parser.py `_apply_type_guards`) to a leading
-    # `let a = typed(a, "num", "parameter 'a' of f")` — an ordinary
-    # builtin call, so a mismatch is an ordinary miss that propagates
-    # through the rest of the body exactly like any other bad input
-    # (decision 2). `shapeof`/`matches` are the same check exposed
-    # directly for programs that want to test structure themselves.
+    # `typed` is the runtime of the ORIGINAL v0.12 design, where
+    # `fn f(a: num) {…}` desugared at PARSE time (parser.py
+    # `_apply_type_guards`) to a leading
+    # `let a = typed(a, "num", "parameter 'a' of f")`. **v0.19 (round 344)
+    # deleted that erasure and `_apply_type_guards` with it**: a parameter
+    # annotation now rides on the fn NODE (`param_types`) and is checked by
+    # `_check_contract` at the call boundary, the same function the `->
+    # Type` half uses (decision 29). So `typed` is no longer on the
+    # annotation path at all — it is the check exposed DIRECTLY, beside
+    # `shapeof`/`matches`, for programs that want to test structure
+    # themselves. What it shares with the annotation path is the message,
+    # via `_mismatch_reason` (v0.20, decision 30), and the decision-2
+    # property that made the erasure work in the first place: a mismatch is
+    # an ordinary miss that propagates like any other bad input.
 
     @register("typed", 3)
     def b_typed(interp, args, line):
@@ -2932,8 +3011,8 @@ def _make_builtin_table():
         ok, desc = _type_match(value.payload, spec.payload)
         if ok:
             return value                    # pass-through: no new node
-        return mk_miss("%s expected %s, got %s" %
-                       (label.payload, desc, _kind(value.payload)), line,
+        return mk_miss(_mismatch_reason(label.payload, value.payload,
+                                        spec.payload, desc), line,
                        "typed", label.payload, inputs=(value,))
 
     @register("matches", 2)
