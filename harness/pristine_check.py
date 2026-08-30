@@ -260,6 +260,15 @@ def worktree_dirt(repo=REPO_ROOT, ref="HEAD", runner=None):
             "ok": True}
 
 
+def resolve_ref(ref="HEAD", repo=REPO_ROOT, runner=None):
+    """The commit `ref` names right now, or None. Never raises."""
+    rc, out = _git(["rev-parse", ref], cwd=repo, runner=runner)
+    if rc != 0:
+        return None
+    out = out.strip().splitlines()
+    return out[0] if out else None
+
+
 def standing_dirty(path=None):
     """Paths a separate system permanently leaves dirty (round 291's registry).
 
@@ -349,6 +358,11 @@ def differential(suites, ref="HEAD", repo=REPO_ROOT, runner=None,
     blocking = blocking_dirt(dirt, allow=allow)
     record = {
         "ref": ref,
+        # ...and what it RESOLVED to. `slowtier`'s rule 2 in miniature: a
+        # stored `"ref": "HEAD"` is a moving target, so a ledger entry that
+        # kept only the name would claim a verdict about whatever HEAD is
+        # when you read it. `null` if the rev-parse failed — never a guess.
+        "resolved": resolve_ref(ref, repo=repo, runner=runner),
         "suites": list(suites),
         "untracked_count": len(dirt.get("untracked", [])),
         "blocking_dirty": blocking,
@@ -425,7 +439,9 @@ _EXIT = {"clean": 0, "git_incomplete": 1, "untracked_breaks_test": 1,
 
 
 def _fmt(record):
-    lines = ["ref %s   verdict %s" % (record["ref"], record["verdict"])]
+    lines = ["ref %s (%s)   verdict %s"
+             % (record["ref"], (record.get("resolved") or "unresolved")[:12],
+                record["verdict"])]
     if record["verdict"] == "dirty_worktree":
         lines.append("  the live tree differs from %s in %d tracked file(s);"
                      % (record["ref"], len(record["blocking_dirty"])))

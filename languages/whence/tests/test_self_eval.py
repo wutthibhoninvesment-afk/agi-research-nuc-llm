@@ -888,7 +888,19 @@ def test_shape_needs_three_adjacent_tokens_on_both_sides():
     recovering the host's mutable `self.shapes` from the token stream: were
     the host to skip newlines here, the guest's scan would over-accept."""
     src = 'shape\nP = @{x: num}\nlet result = 1'
-    assert host_parse_error(src) == "unexpected '='"
+    # Was `== "unexpected '='"`. v0.22 (round 354, decision 32) appends a
+    # named cure to this exact parse error, so the host string is no longer
+    # EQUAL to the guest's — it starts with it, and the guest assertion
+    # below has always been a containment. Relaxed to a prefix rather than
+    # deleted, because the premise being tested is "both sides refuse the
+    # same program at the same token", which the prefix still carries.
+    # The second line keeps the relaxation honest: it pins that the ONLY
+    # difference is v0.22's hint, so this cannot silently absorb some other
+    # change to the message. `tests/test_v22.py` owns the hint's wording;
+    # this is deliberately a weaker check than that one, not a copy of it.
+    host = host_parse_error(src)
+    assert host.startswith("unexpected '='"), host
+    assert "no assignment" in host, host
     g, = guest_eval_all([src])
     assert isinstance(g.payload, Miss), g.payload
     assert "unexpected token '='" in g.payload.reasons[0]

@@ -251,8 +251,13 @@ def test_rule_1_short_circuits_before_spending_a_worktree():
     assert rec["verdict"] == "dirty_worktree"
     assert rec["blocking_dirty"] == ["harness/agentloop/tools.py"]
     assert rec["results"] == []
-    # The point of doing this check FIRST: nothing was run at all.
-    assert r.calls == []
+    # The point of doing this check FIRST: none of the EXPENSIVE work
+    # happened. (A `git rev-parse` for the record's `resolved` field does
+    # run — milliseconds — so this asserts the two things that are not:
+    # no worktree was allocated and no suite was executed.)
+    ran = [" ".join(c["argv"]) for c in r.calls]
+    assert not [c for c in ran if "worktree" in c], ran
+    assert not [c for c in ran if "pytest" in c], ran
 
 
 def test_a_standing_dirty_path_alone_does_not_block():
@@ -543,6 +548,55 @@ def test_the_curated_corpus_rule_has_exactly_two_implementations():
     others = subprocess.run(
         ["git", "grep", "-l", '"git", "ls-files", "examples"'],
         cwd=pc.REPO_ROOT, capture_output=True, text=True)
-    found = {l for l in others.stdout.splitlines() if l.endswith(".py")}
+    # THIS FILE quotes the literal in order to census it, so it matches
+    # itself — but only once committed, because `git grep` reads tracked
+    # content. Uncommitted it passed; the commit turned it red. Excluding
+    # the census's own path is the fix; do not "repair" this by dropping
+    # the assertion, and do not stop quoting the literal (a census that
+    # spelled its needle in pieces would not survive a rename).
+    SELF = "harness/tests/test_pristine_check.py"
+    found = {l for l in others.stdout.splitlines()
+             if l.endswith(".py") and l != SELF}
     assert found == {"harness/swe/fuzz.py",
                      "languages/whence/tests/test_lexer_guest_parity.py"}, found
+
+
+# --------------------------------------------------------------------------
+# the record says which commit it is about
+# --------------------------------------------------------------------------
+
+def test_resolve_ref_returns_the_sha(tmp_path):
+    _repo(tmp_path)
+    got = pc.resolve_ref("HEAD", repo=str(tmp_path))
+    assert got and len(got) == 40 and all(c in "0123456789abcdef" for c in got)
+
+
+def test_resolve_ref_returns_none_rather_than_guessing():
+    r = recording_runner([("rev-parse", (128, "unknown revision"))])
+    assert pc.resolve_ref("nope", runner=r) is None
+
+
+def test_the_record_pins_the_commit_not_just_the_ref_name():
+    # A stored `"ref": "HEAD"` is a moving target: read tomorrow it would
+    # claim a verdict about a different commit.
+    r = recording_runner([("rev-parse", (0, "a" * 40 + "\n")),
+                          ("pytest", PASS), ("worktree", (0, ""))])
+    rec = pc.differential(["harness-fast"], runner=r, worktree_path="/tmp/wt",
+                          dirt={"ok": True, "tracked_modified": [],
+                                "untracked": [], "ignored": []})
+    assert rec["resolved"] == "a" * 40
+    assert rec["ref"] == "HEAD"
+
+
+def test_the_formatter_shows_the_resolved_commit():
+    out = pc._fmt({"ref": "HEAD", "resolved": "abc123def456789", "verdict":
+                   "clean", "untracked_count": 0, "allowed_dirty": [],
+                   "blocking_dirty": [], "results": []})
+    assert "abc123def456" in out
+
+
+def test_an_unresolvable_ref_formats_as_unresolved_not_as_blank():
+    out = pc._fmt({"ref": "HEAD", "resolved": None, "verdict": "clean",
+                   "untracked_count": 0, "allowed_dirty": [],
+                   "blocking_dirty": [], "results": []})
+    assert "unresolved" in out
