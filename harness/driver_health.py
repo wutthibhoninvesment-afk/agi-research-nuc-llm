@@ -20,6 +20,7 @@ paths as argv, no xargs at all.
 """
 
 import json
+import re
 import sys
 import time
 from datetime import datetime
@@ -805,6 +806,122 @@ def is_5xx(path: str) -> bool:
     return status.startswith("5") or "529" in result_text
 
 
+# ------------------------------------------- health-check outcome (round 349) --
+
+# pytest's documented exit codes. Only 1 means "the tests ran and some
+# failed"; 2-5 all mean the run did not produce a verdict.
+_PYTEST_OK = 0
+_PYTEST_TESTS_FAILED = 1
+_PYTEST_NO_VERDICT = frozenset({2, 3, 4, 5})
+
+# A pytest terminal-summary line always carries at least one `<n> <outcome>`
+# pair. Its presence is the evidence that collection got far enough to run
+# something; its absence in a non-zero run is the signature of a config or
+# collection abort.
+_SUMMARY_COUNT_RE = re.compile(
+    r"\b(\d+)\s+(passed|failed|error|errors|xfailed|xpassed|skipped|deselected)\b")
+
+
+def classify_health_log(path: str, returncode: Optional[int] = None) -> dict:
+    """Classify one `logs/{,whence_}health_round_N.log` into pass/fail/error.
+
+    Round 349. `run_driver.sh` has logged these two checks as a bare
+    PASS/FAIL since rounds 241/247, keyed on nothing but the exit status of
+    a `wait`. That collapses two outcomes a reader has to tell apart:
+
+      FAIL  the suite ran and tests failed  -> the previous round broke code
+      ERROR the suite never ran at all      -> the previous round broke
+                                               NOTHING; the environment did
+
+    Round 348 produced the first non-green health check in the program's
+    recorded history, and it was the second kind: an untracked
+    `pyproject.toml` that a separate system left with a duplicate TOML table,
+    which pytest hit during config discovery. All 1043 fast-tier tests were
+    down and `driver.log` said `whence-health-check FAIL`, which reads as
+    "round 348 broke the whence tests" and is false. Surveying all 206
+    health logs on this host: 205 clean passes and that one line — so the
+    FAIL branch's entire track record is a single firing that meant
+    something other than what it says.
+
+    `returncode` is authoritative when given (the driver has it from
+    `wait`); the log text is used to corroborate it and as the sole signal
+    when it is absent. Returns a dict, never raises:
+
+        {"outcome": "pass"|"fail"|"error"|"unknown",
+         "reason": <short human string>,
+         "ran_tests": <bool>,   # did collection get far enough to run any?
+         "summary": <last non-empty log line, or "">}
+    """
+    summary = ""
+    text = ""
+    try:
+        with open(path, "r", errors="replace") as fh:
+            text = fh.read()
+    except OSError:
+        return {"outcome": "unknown", "reason": "health log unreadable",
+                "ran_tests": False, "summary": ""}
+    for line in reversed(text.splitlines()):
+        if line.strip():
+            summary = line.strip()
+            break
+
+    ran_tests = bool(_SUMMARY_COUNT_RE.search(text))
+    # "no tests ran" is pytest's own wording for rc 5 and carries a count of
+    # zero, so the regex above can match it; treat it as not-ran explicitly.
+    if re.search(r"\bno tests ran\b", text):
+        ran_tests = False
+
+    if returncode is not None:
+        if returncode == _PYTEST_OK:
+            return {"outcome": "pass", "reason": "suite green",
+                    "ran_tests": ran_tests, "summary": summary}
+        if returncode in _PYTEST_NO_VERDICT:
+            return {"outcome": "error",
+                    "reason": "suite did not run (pytest exit %d)" % returncode,
+                    "ran_tests": False, "summary": summary}
+        if returncode == _PYTEST_TESTS_FAILED:
+            # Trust the code, but say so when the log disagrees rather than
+            # silently picking one — a wrapper script that rewrites its own
+            # exit status would show up here.
+            if not ran_tests:
+                return {"outcome": "error",
+                        "reason": "exit 1 but no test counts in the log",
+                        "ran_tests": False, "summary": summary}
+            return {"outcome": "fail", "reason": "tests ran and failed",
+                    "ran_tests": True, "summary": summary}
+        # Negative -> signal; anything else is off the documented table.
+        return {"outcome": "error",
+                "reason": "runner died (exit %d)" % returncode,
+                "ran_tests": ran_tests, "summary": summary}
+
+    # No exit code: fall back to the text alone.
+    if not text.strip():
+        return {"outcome": "unknown", "reason": "health log empty",
+                "ran_tests": False, "summary": summary}
+    if not ran_tests:
+        return {"outcome": "error", "reason": "no test counts in the log",
+                "ran_tests": False, "summary": summary}
+    if re.search(r"\b\d+\s+(failed|error|errors)\b", text):
+        return {"outcome": "fail", "reason": "tests ran and failed",
+                "ran_tests": True, "summary": summary}
+    return {"outcome": "pass", "reason": "suite green",
+            "ran_tests": True, "summary": summary}
+
+
+def health_log_line(label: str, path: str, returncode: Optional[int] = None) -> str:
+    """The exact string `run_driver.sh` appends to `driver.log`.
+
+    Formatted here rather than in bash so the wording is testable and the
+    two call sites (harness + whence) cannot drift apart.
+    """
+    c = classify_health_log(path, returncode)
+    word = {"pass": "PASS", "fail": "FAIL", "error": "ERROR",
+            "unknown": "UNKNOWN"}[c["outcome"]]
+    if c["outcome"] == "pass":
+        return "%s %s (%s)" % (label, word, c["summary"])
+    return "%s %s — %s — %s" % (label, word, c["reason"], c["summary"])
+
+
 def main(argv: List[str]) -> int:
     if argv[:1] == ["success"]:
         if len(argv) != 2:
@@ -863,6 +980,20 @@ def main(argv: List[str]) -> int:
             return 2
         s = summarize_turns(argv[1])
         print(json.dumps(s) if s is not None else "n/a")
+        return 0
+    if argv[:1] == ["health"]:
+        if len(argv) not in (2, 3):
+            print("usage: driver_health.py health HEALTH_LOG [RETURNCODE]", file=sys.stderr)
+            return 2
+        rc = int(argv[2]) if len(argv) == 3 else None
+        print(json.dumps(classify_health_log(argv[1], rc), sort_keys=True))
+        return 0
+    if argv[:1] == ["health_line"]:
+        if len(argv) not in (3, 4):
+            print("usage: driver_health.py health_line LABEL HEALTH_LOG [RETURNCODE]", file=sys.stderr)
+            return 2
+        rc = int(argv[3]) if len(argv) == 4 else None
+        print(health_log_line(argv[1], argv[2], rc))
         return 0
     if argv[:1] == ["tally"]:
         print(json.dumps(tally_by_track(argv[1:]), sort_keys=True))

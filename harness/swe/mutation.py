@@ -141,6 +141,109 @@ def generate(source, rel_path, ops=None):
     return out
 
 
+# --------------------------------------------------------- run classification --
+#
+# Round 349 (harness A). `Mutant.status` has declared `error` as a fourth
+# outcome since this module was written, and nothing ever set it: `run_mutant`
+# read `returncode == 0` as SURVIVED and *every* non-zero code as KILLED. That
+# conflates "the suite ran and a test failed" (the only thing that kills a
+# mutant) with "the suite never ran at all", and it fails in the reassuring
+# direction — an environment that cannot run tests scores a perfect 100%.
+#
+# Observed live, not hypothesised. Round 348 a separate system appended a
+# duplicate `[project.optional-dependencies]` table to the UNTRACKED
+# `languages/whence/pyproject.toml`; `_copy_project` copies that file into
+# every mutant tree, and pytest parses it during config discovery before
+# collecting anything, so each mutant exited 4 (usage error). Round 349's A/B
+# over the same 6 mutants of `whence/values.py` with the same test command:
+#
+#     pyproject.toml broken    6 killed, 0 survived, score 1.00
+#     pyproject.toml repaired  3 killed, 3 survived, score 0.50
+#
+# The broken tree did not merely mislead, it inverted the signal: the run that
+# tested nothing reported twice the mutation score of the run that worked.
+#
+# pytest's exit codes distinguish these cases and we were throwing them away:
+#   0 all passed | 1 TESTS FAILED | 2 interrupted | 3 internal error
+#   4 usage error (this bug) | 5 no tests collected
+# Only 1 is evidence about the mutant. 2-5 say the harness broke.
+#
+# Negative codes (killed by a signal) stay KILLED deliberately: a mutant that
+# segfaults the interpreter is a real behavioural difference the suite caught.
+
+_PYTEST_TESTS_FAILED = 1
+# 2 interrupted, 3 internal error, 4 usage/config error, 5 nothing collected.
+_PYTEST_NO_EVIDENCE = frozenset({2, 3, 4, 5})
+
+
+def is_pytest_cmd(cmd):
+    """True when `cmd` invokes pytest, whose exit-code table we can trust.
+
+    `mutation_test` takes an arbitrary `test_cmd`, and a generic runner's
+    non-zero codes carry no agreed meaning — for those we must keep the old
+    any-failure-is-a-kill rule rather than guess.
+    """
+    for tok in cmd or ():
+        tok = str(tok)
+        if tok == "pytest" or tok.endswith("/pytest") or tok.endswith("\\pytest"):
+            return True
+    return False
+
+
+def classify_mutant_run(returncode, output, cmd):
+    """-> "survived" | "killed" | "error" for one finished mutant run.
+
+    "error" means the run produced no evidence either way. Such a mutant is
+    neither killed nor survived; see `MutationReport.errored`.
+    """
+    if returncode == 0:
+        return "survived"
+    if is_pytest_cmd(cmd) and returncode in _PYTEST_NO_EVIDENCE:
+        return "error"
+    return "killed"
+
+
+class BaselineNotGreen(RuntimeError):
+    """The UNMUTATED project does not pass its own suite.
+
+    Raised by `mutation_test`'s pre-flight. Every mutation score is a
+    comparison against a green baseline; without one the number is
+    meaningless, and — as round 349's A/B showed — meaningless in the
+    flattering direction. Carries the failing run's tail so the caller can
+    see whether it is a config error, a collection error, or a genuinely
+    red test.
+    """
+
+    def __init__(self, returncode, tail):
+        self.returncode = returncode
+        self.tail = tail
+        super(BaselineNotGreen, self).__init__(
+            "baseline run of the unmutated project exited %s (expected 0); "
+            "a mutation score against a non-green baseline is not evidence. "
+            "Tail:\n%s" % (returncode, tail))
+
+
+def baseline_check(project_root, test_cmd, timeout_s=120.0):
+    """Run `test_cmd` against an unmutated COPY of the project.
+
+    Deliberately a copy made by `_copy_project`, not the original checkout:
+    round 349's defect lived in a file that only matters once copied into the
+    mutant tree, so a baseline run against the original would have missed it.
+    This exercises byte-for-byte the same path every mutant takes.
+    """
+    tmp = tempfile.mkdtemp(prefix="mut-baseline-")
+    try:
+        dst = os.path.join(tmp, "proj")
+        _copy_project(project_root, dst)
+        r = run_capped(test_cmd, dst, timeout_s)
+        return {"returncode": -9 if r.timed_out else r.returncode,
+                "timed_out": r.timed_out,
+                "seconds": round(r.seconds, 2),
+                "tail": (r.output or "").strip()[-800:]}
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def _copy_project(project_root, dst):
     shutil.copytree(project_root, dst, ignore=shutil.ignore_patterns(
         "__pycache__", ".pytest_cache", "*.pyc",
@@ -159,12 +262,11 @@ def run_mutant(m, project_root, test_cmd, timeout_s=120.0):
         if r.timed_out:
             m.status = "timeout"
             m.detail = "test run exceeded %.0fs (process group killed)" % timeout_s
-        elif r.returncode == 0:
-            m.status = "survived"
         else:
-            m.status = "killed"
-            tail = r.output.strip().splitlines()
-            m.detail = "\n".join(tail[-3:])
+            m.status = classify_mutant_run(r.returncode, r.output, test_cmd)
+            if m.status != "survived":
+                tail = r.output.strip().splitlines()
+                m.detail = "\n".join(tail[-3:])
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     return m
@@ -184,8 +286,34 @@ class MutationReport(object):
         return [m for m in self.mutants if m.status == "survived"]
 
     @property
+    def errored(self):
+        """Mutants whose run produced no evidence (round 349).
+
+        Neither killed nor survived. They still count in `score`'s
+        denominator, so an errored campaign scores LOW rather than high --
+        the safe direction, and the opposite of the pre-349 behaviour that
+        scored a non-running suite at 100%.
+        """
+        return [m for m in self.mutants if m.status == "error"]
+
+    @property
     def score(self):
+        """Killed / ALL mutants -- denominator deliberately unchanged.
+
+        Round 349 added `errored` but did NOT redefine this, for the reason
+        round 348 recorded about `confirmed_span_s`: published figures and
+        `campaign.py`'s own independent `killed / total` recomputation
+        (campaign.py:383) depend on the current meaning. `valid_score` is a
+        separate field.
+        """
         return len(self.killed) / len(self.mutants) if self.mutants else 0.0
+
+    @property
+    def valid_score(self):
+        """Killed / (killed + survived) -- the score over evidence-bearing
+        runs only. Equals `score` exactly when nothing errored."""
+        n = len(self.killed) + len(self.survived)
+        return len(self.killed) / n if n else 0.0
 
     def summary(self):
         by_op = {}
@@ -195,6 +323,18 @@ class MutationReport(object):
         lines = ["mutation: %d mutants, %d killed, %d survived, score %.1f%% (%.0fs)"
                  % (len(self.mutants), len(self.killed), len(self.survived),
                     100 * self.score, self.seconds)]
+        if self.errored:
+            # First line after the headline, not buried under the per-op
+            # table: an errored campaign is not a weak result, it is a
+            # non-result, and the reader has to see that before the number.
+            lines.append(
+                "  !! %d mutant(s) ERRORED -- the suite did not run for them; "
+                "this campaign is not evidence. valid_score %.1f%% over the "
+                "%d run(s) that did produce a verdict."
+                % (len(self.errored), 100 * self.valid_score,
+                   len(self.killed) + len(self.survived)))
+            for m in self.errored[:3]:
+                lines.append("  ERROR    %-32s %s" % (m.id, m.detail.splitlines()[-1][:90] if m.detail else ""))
         for op in sorted(by_op):
             k, s = by_op[op]
             lines.append("  %-6s killed %3d  survived %3d" % (op, k, s))
@@ -205,12 +345,35 @@ class MutationReport(object):
     def as_dict(self):
         return {"total": len(self.mutants), "killed": len(self.killed),
                 "survived": len(self.survived), "score": round(self.score, 4),
+                # Round 349, additive: existing readers of the four keys
+                # above are untouched.
+                "errored": len(self.errored),
+                "valid_score": round(self.valid_score, 4),
                 "seconds": round(self.seconds, 1),
                 "mutants": [m.as_dict() for m in self.mutants]}
 
 
 def mutation_test(project_root, rel_paths, test_cmd, workers=4, timeout_s=120.0,
-                  ops=None, limit=None, on_result=None):
+                  ops=None, limit=None, on_result=None, baseline=True):
+    """Score `rel_paths`' mutants against `test_cmd`.
+
+    `baseline=True` (round 349, the default) runs the suite once against an
+    UNMUTATED copy first and raises `BaselineNotGreen` unless it exits 0.
+    One extra run per campaign, against N mutant runs -- and it is the only
+    check that catches the whole family of "the score is high because the
+    suite is not running", of which round 348's broken `pyproject.toml` was
+    one instance and a single pre-existing failing test is another (that one
+    pins every mutant to `killed` just as effectively, and no per-mutant
+    exit-code classification can see it).
+
+    Pass `baseline=False` only when the caller has already established a
+    green baseline itself -- `campaign.py` re-runs recorded mutants against
+    a checkout it has separately verified.
+    """
+    if baseline:
+        b = baseline_check(project_root, test_cmd, timeout_s)
+        if b["returncode"] != 0:
+            raise BaselineNotGreen(b["returncode"], b["tail"])
     mutants = []
     for rel in rel_paths:
         with open(os.path.join(project_root, rel), encoding="utf-8") as f:

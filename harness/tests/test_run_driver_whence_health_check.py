@@ -199,3 +199,53 @@ def test_both_health_checks_run_concurrently_not_sequentially(tmp_path):
         f"health/whence checks started {gap:.2f}s apart — looks "
         "sequential, not concurrent"
     )
+
+
+# ------------------------------------------------------- round 349 (harness A) --
+
+def test_whence_health_check_error_when_the_suite_never_ran(tmp_path):
+    """pytest exit 4 (config/usage error) must log ERROR, not FAIL.
+
+    This is round 348's live shape, reduced: a duplicate TOML table in the
+    UNTRACKED `languages/whence/pyproject.toml` aborted pytest during config
+    discovery, all 1043 fast-tier tests were down, and the driver logged
+    `whence-health-check FAIL` — which reads as "round 348 broke the whence
+    tests" and is false. The distinction the log has to carry is whether any
+    test ran at all.
+    """
+    _make_script(
+        str(tmp_path), os.path.join("languages", "whence"),
+        "run_tests_fast.sh",
+        "echo \"ERROR: /x/pyproject.toml: Cannot declare ('project', "
+        "'optional-dependencies') twice (at line 29, column 31)\"\nexit 4",
+    )
+    log_text = _run_driver(tmp_path)
+    assert "round 1: whence-health-check ERROR" in log_text, log_text
+    assert "suite did not run (pytest exit 4)" in log_text, log_text
+    # The word FAIL must NOT appear on this line — that is the whole point.
+    line = next(l for l in log_text.splitlines() if "whence-health-check" in l)
+    assert "FAIL" not in line, line
+
+
+def test_whence_health_check_error_when_nothing_was_collected(tmp_path):
+    # pytest exit 5: the suite is intact but selected zero tests — e.g. a
+    # marker expression that stopped matching after a rename. Green-looking
+    # in every way except that no test ran, so it is an ERROR, not a PASS.
+    _make_script(
+        str(tmp_path), os.path.join("languages", "whence"),
+        "run_tests_fast.sh", 'echo "no tests ran in 0.01s"\nexit 5',
+    )
+    log_text = _run_driver(tmp_path)
+    assert "round 1: whence-health-check ERROR" in log_text, log_text
+    assert "pytest exit 5" in log_text, log_text
+
+
+def test_harness_health_check_error_uses_the_same_wording(tmp_path):
+    # Both call sites go through driver_health.health_line precisely so they
+    # cannot drift apart; assert that on the harness-side line too.
+    _make_script(
+        str(tmp_path), "harness", "run_tests_fast.sh",
+        'echo "ERROR: file or directory not found: harness/tests/"\nexit 4',
+    )
+    log_text = _run_driver(tmp_path)
+    assert "round 1: health-check ERROR — suite did not run (pytest exit 4)" in log_text, log_text

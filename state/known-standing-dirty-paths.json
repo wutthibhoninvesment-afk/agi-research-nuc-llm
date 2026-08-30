@@ -1,10 +1,24 @@
 {
-  "_comment": "Repo-relative paths that PERMANENTLY show up in `git status --porcelain` and must never count as evidence of a round's own uncommitted work, read by check_round_recorded.py's unattributed_dirty_paths (round 291, closing round 283's backlog item 3 — the git_committed-coverage gap). Two distinct sources so far: (1) state/round_counter, the shared bookkeeping file every round bumps early in its own run, so it is always ` M` mid-round by design (see feedback_check_for_concurrent_rounds); (2) the four files a wholly separate autonomous system (the Hermes gateway, see skills/session-inheritance-audit/SKILL.md's 'hermes-not-a-driver-process' pitfall) leaves permanently untracked under languages/whence/ — confirmed unchanged across dozens of rounds (152, 172, 198, 201, and every round since; most recently round 288/289/290). Add a new path here ONLY after independently confirming it recurs across multiple rounds' `git status` with no round ever attributing or committing it — a real one-off leftover diff belongs in git via `git add`+`git commit`, not in this allowlist.",
+  "_comment": "Repo-relative paths that PERMANENTLY show up in `git status --porcelain` and must never count as evidence of a round's own uncommitted work, read by check_round_recorded.py's unattributed_dirty_paths (round 291, closing round 283's backlog item 3 \u2014 the git_committed-coverage gap). Two distinct sources so far: (1) state/round_counter, the shared bookkeeping file every round bumps early in its own run, so it is always ` M` mid-round by design (see feedback_check_for_concurrent_rounds); (2) the four files a wholly separate autonomous system (the Hermes gateway, see skills/session-inheritance-audit/SKILL.md's 'hermes-not-a-driver-process' pitfall) leaves permanently untracked under languages/whence/ \u2014 confirmed unchanged across dozens of rounds (152, 172, 198, 201, and every round since; most recently round 288/289/290). Add a new path here ONLY after independently confirming it recurs across multiple rounds' `git status` with no round ever attributing or committing it \u2014 a real one-off leftover diff belongs in git via `git add`+`git commit`, not in this allowlist.",
   "paths": [
-    "state/round_counter",
+    "languages/whence/CHANGELOG.md",
+    "languages/whence/examples/cognitive_verifier.lang",
+    "languages/whence/examples/cognitive_verifier_v2.lang",
+    "languages/whence/examples/cognitive_verifier_v3.lang",
     "languages/whence/examples/expense_tracker.lang",
+    "languages/whence/examples/mini_agi_guardian.lang",
+    "languages/whence/examples/nano_reasoner.lang",
+    "languages/whence/examples/prod_demo_v1.lang",
+    "languages/whence/examples/prod_demo_v3.lang",
+    "languages/whence/examples/prod_demo_v4.lang",
+    "languages/whence/examples/prod_demo_v5.lang",
+    "languages/whence/examples/prod_showcase_final.lang",
     "languages/whence/examples/test_simple.lang",
+    "languages/whence/examples/whenceguard_auditor.lang",
+    "languages/whence/examples/whenceguard_v2.lang",
     "languages/whence/pyproject.toml",
-    "languages/whence/whence_qwen_bridge.py"
-  ]
+    "languages/whence/whence_qwen_bridge.py",
+    "state/round_counter"
+  ],
+  "_round_349_addendum": "Round 349 (harness A) added the 13 paths above the original five, on the handoff round 348 left explicitly for this track ('the allowlist was deliberately NOT widened ... recorded as a next step for harness(A)/skills(B), which own that checker'). The bar the _comment sets is met: the Hermes gateway wrote all 13 at 23:32-23:42 UTC on 2026-08-29, round 348 inspected them mid-round and attributed them to that system in its own knowledge file section 7, and round 349 independently re-confirmed the same authorship fingerprint before adding them here. No round has ever committed or claimed any of them. Adding them takes the record-gap check's unattributed-path count from 27 to 1. TWO deliberate exclusions, both TRACKED files the same system modified: languages/whence/SECURITY.md and CLAUDE.md. This registry models UNTRACKED leftovers only -- a separate system editing a TRACKED file is a different class (round 348's own words), and allowlisting one would mean 'never look at this diff again', which is the wrong answer for both. CLAUDE.md was committed by round 349 with attribution. SECURITY.md is escalated to the operator unresolved -- see round 349's knowledge file; its rewrite asserts four security controls that do not exist in this repo."
 }

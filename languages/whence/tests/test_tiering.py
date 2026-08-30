@@ -40,9 +40,24 @@ TESTS_DIR = os.path.join(REPO_ROOT, "tests")
 BIGGEST_OFFENDER = "tests/test_v10.py::test_three_way_on_big_examples"
 
 
+# Round 349 (harness A): mirror run_tests_fast.sh's `-c pytest.ini`.
+#
+# Not cosmetic and not merely consistency. Without it these subprocesses
+# rediscover config from the rootdir, which means parsing
+# `languages/whence/pyproject.toml` — an UNTRACKED file a separate system
+# owns (allowlisted in state/known-standing-dirty-paths.json since round
+# 291). Round 348 it grew a duplicate `[project.optional-dependencies]`
+# table and pytest exited 4 before collecting anything; these two tests were
+# the last two red in the suite even after run_tests_fast.sh itself was
+# fixed, because the exposure is per-invocation, not per-script. The tiering
+# under test is the tiering `run_tests_fast.sh` sees, so the collection here
+# must use the same config the real runner does.
+INI = os.path.join(REPO_ROOT, "pytest.ini")
+
+
 def _collect(*extra_args):
     out = subprocess.run(
-        [sys.executable, "-m", "pytest", "--collect-only", "-q", *extra_args],
+        [sys.executable, "-m", "pytest", "-c", INI, "--collect-only", "-q", *extra_args],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,

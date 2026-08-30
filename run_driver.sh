@@ -22,7 +22,7 @@ export PATH="$PATH:/home/pgain/agi-research-nuc-llm/node_modules/.bin"
 # "$@"` at the loop's end below), this now reliably reflects the ON-DISK
 # script content for every round it produced, including rounds after a
 # mid-run edit — round 139's live driver could not make that claim.
-DRIVER_VERSION="277-parallel-health-checks"
+DRIVER_VERSION="349-health-check-error-vs-fail"
 
 # Round 157: a manual post-migration edit (made outside any round,
 # between the Mac->NUC sync commit c768d90 and round 154) hardcoded this
@@ -464,19 +464,47 @@ update research-state.md. Be relentless and thorough — this is deep research, 
     bash "$WHENCE_HEALTH_SCRIPT" > "$WHENCE_HEALTH_LOG" 2>&1 &
     WHENCE_PID=$!
   fi
+  # Round 349 (harness A): log PASS / FAIL / ERROR, not PASS / FAIL.
+  #
+  # Since rounds 241/247 these two lines were keyed on nothing but `wait`'s
+  # exit status, so "the suite ran and tests failed" and "the suite never ran
+  # at all" produced the same word. Round 348 produced the program's FIRST
+  # non-green health check and it was the second kind: a duplicate TOML table
+  # in the UNTRACKED `languages/whence/pyproject.toml` (a file a separate
+  # system owns and `state/known-standing-dirty-paths.json` allowlists) made
+  # pytest exit 4 during config discovery. All 1043 fast-tier tests were down
+  # and the log said `whence-health-check FAIL`, which reads as "round 348
+  # broke the whence tests" and was false in both directions — round 348
+  # broke nothing, and the tests were not merely failing, they were absent.
+  # Across all 206 health logs on this host the FAIL branch had fired exactly
+  # once, ever: that one. A label whose entire track record is a single
+  # misleading firing is worth splitting.
+  #
+  # `driver_health.health_line` does the wording so the two call sites cannot
+  # drift, and so it is unit-testable; the `|| ` fallback keeps the round-241
+  # design intact — a workspace with no `harness/` tree (every
+  # `test_run_driver_*.py` tmp_path) degrades to the old formatting rather
+  # than losing the line. Still DIAGNOSTIC ONLY: nothing here blocks or stops
+  # the driver, exactly as before.
   if [ -n "$HEALTH_PID" ]; then
-    if wait "$HEALTH_PID"; then
-      log "round $ROUND: health-check PASS ($(tail -n 1 "$HEALTH_LOG" | tr -d '\r'))"
-    else
-      log "round $ROUND: health-check FAIL — $(tail -n 5 "$HEALTH_LOG" | tr '\n' ' ')"
-    fi
+    HEALTH_RC=0
+    wait "$HEALTH_PID" || HEALTH_RC=$?
+    log "$(python3 -m harness.driver_health health_line "round $ROUND: health-check" "$HEALTH_LOG" "$HEALTH_RC" 2>/dev/null \
+          || { if [ "$HEALTH_RC" -eq 0 ]; then \
+                 echo "round $ROUND: health-check PASS ($(tail -n 1 "$HEALTH_LOG" | tr -d '\r'))"; \
+               else \
+                 echo "round $ROUND: health-check FAIL — $(tail -n 5 "$HEALTH_LOG" | tr '\n' ' ')"; \
+               fi; })"
   fi
   if [ -n "$WHENCE_PID" ]; then
-    if wait "$WHENCE_PID"; then
-      log "round $ROUND: whence-health-check PASS ($(tail -n 1 "$WHENCE_HEALTH_LOG" | tr -d '\r'))"
-    else
-      log "round $ROUND: whence-health-check FAIL — $(tail -n 5 "$WHENCE_HEALTH_LOG" | tr '\n' ' ')"
-    fi
+    WHENCE_RC=0
+    wait "$WHENCE_PID" || WHENCE_RC=$?
+    log "$(python3 -m harness.driver_health health_line "round $ROUND: whence-health-check" "$WHENCE_HEALTH_LOG" "$WHENCE_RC" 2>/dev/null \
+          || { if [ "$WHENCE_RC" -eq 0 ]; then \
+                 echo "round $ROUND: whence-health-check PASS ($(tail -n 1 "$WHENCE_HEALTH_LOG" | tr -d '\r'))"; \
+               else \
+                 echo "round $ROUND: whence-health-check FAIL — $(tail -n 5 "$WHENCE_HEALTH_LOG" | tr '\n' ' ')"; \
+               fi; })"
   fi
 
   # Safety valve (round 150+): if the log file exists but contains ZERO "type":"result""

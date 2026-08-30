@@ -121,3 +121,124 @@ def test_timeout_kills_grandchild_holding_stdout(tmp_path):
             dead = True
             break
     assert dead, "grandchild %d survived the cap" % pid
+
+
+# ------------------------------------------------------- round 349 (harness A) --
+#
+# Regression pins for the "a suite that cannot run scores 100%" defect.
+# Round 348 a separate autonomous system appended a duplicate
+# `[project.optional-dependencies]` table to the untracked
+# `languages/whence/pyproject.toml`. `_copy_project` copies that file into
+# every mutant tree; pytest parses it during config DISCOVERY, before
+# collection, and exits 4. `run_mutant` read every non-zero exit as a kill,
+# so the campaign reported a perfect score having run no tests at all.
+# Measured live over 6 mutants of `whence/values.py`: broken 6 killed /
+# score 1.00, repaired 3 killed 3 survived / score 0.50.
+
+from swe.mutation import (BaselineNotGreen, baseline_check, classify_mutant_run,
+                          is_pytest_cmd)
+import pytest
+
+# A pyproject.toml with the exact defect round 348 shipped.
+BROKEN_PYPROJECT = textwrap.dedent('''
+    [project]
+    name = "fixture"
+    version = "0.0.1"
+
+    [project.optional-dependencies]
+    dev = ["pytest>=7.0"]
+
+    [project.optional-dependencies]
+    dev = ["pytest"]
+''')
+
+PYTEST_CMD = [sys.executable, "-m", "pytest", "-q", "tests"]
+
+
+def test_is_pytest_cmd_recognises_the_forms_we_actually_use():
+    assert is_pytest_cmd(PYTEST_CMD)
+    assert is_pytest_cmd(DEFAULT_TEST_CMD)
+    assert is_pytest_cmd(["/usr/bin/pytest", "-q"])
+    assert not is_pytest_cmd(["make", "test"])
+    assert not is_pytest_cmd([])
+    assert not is_pytest_cmd(None)
+
+
+def test_classify_mutant_run_only_counts_a_real_test_failure_as_a_kill():
+    # 0 = green suite, the mutant slipped through.
+    assert classify_mutant_run(0, "", PYTEST_CMD) == "survived"
+    # 1 = tests ran and failed. The ONLY kill.
+    assert classify_mutant_run(1, "1 failed", PYTEST_CMD) == "killed"
+    # 2-5 = the harness broke; no evidence about the mutant either way.
+    for rc in (2, 3, 4, 5):
+        assert classify_mutant_run(rc, "ERROR", PYTEST_CMD) == "error", rc
+    # A signal death IS a behavioural difference the suite caught.
+    assert classify_mutant_run(-11, "", PYTEST_CMD) == "killed"
+    # For a non-pytest runner the exit-code table means nothing, so keep the
+    # old any-failure-is-a-kill rule rather than guess.
+    assert classify_mutant_run(4, "", ["make", "test"]) == "killed"
+
+
+def test_baseline_check_is_green_on_a_healthy_project(tmp_path):
+    b = baseline_check(make_project(tmp_path), PYTEST_CMD, timeout_s=120.0)
+    assert b["returncode"] == 0 and not b["timed_out"]
+
+
+def test_baseline_check_catches_the_unowned_broken_config(tmp_path):
+    root = make_project(tmp_path)
+    (tmp_path / "pyproject.toml").write_text(BROKEN_PYPROJECT)
+    b = baseline_check(root, PYTEST_CMD, timeout_s=120.0)
+    assert b["returncode"] == 4
+    assert "optional-dependencies" in b["tail"]
+
+
+def test_mutation_test_refuses_to_score_against_a_broken_baseline(tmp_path):
+    root = make_project(tmp_path)
+    (tmp_path / "pyproject.toml").write_text(BROKEN_PYPROJECT)
+    with pytest.raises(BaselineNotGreen) as ei:
+        mutation_test(root, ["mod.py"], PYTEST_CMD, workers=2, limit=2)
+    assert ei.value.returncode == 4
+    assert "not evidence" in str(ei.value)
+
+
+def test_baseline_also_catches_a_merely_red_suite(tmp_path):
+    """The exit-code classifier alone cannot see this one.
+
+    One pre-existing failing test pins every mutant to `killed` (rc 1, a
+    perfectly legitimate kill code) and yields score 1.00 just as surely as
+    a config error does. Only the baseline run distinguishes it.
+    """
+    root = make_project(tmp_path)
+    (tmp_path / "tests" / "test_already_red.py").write_text("def test_red():\n    assert False\n")
+    with pytest.raises(BaselineNotGreen) as ei:
+        mutation_test(root, ["mod.py"], PYTEST_CMD, workers=2, limit=2)
+    assert ei.value.returncode == 1
+
+
+def test_broken_config_now_errors_every_mutant_instead_of_killing_it(tmp_path):
+    """The pre-349 behaviour, pinned by its numbers.
+
+    With `baseline=False` (the escape hatch campaign.py uses) the per-mutant
+    classifier is the last line of defence, and it must move this tree from
+    score 1.00 to score 0.00.
+    """
+    root = make_project(tmp_path)
+    (tmp_path / "pyproject.toml").write_text(BROKEN_PYPROJECT)
+    rep = mutation_test(root, ["mod.py"], PYTEST_CMD, workers=2, limit=4, baseline=False)
+    assert rep.mutants
+    assert all(m.status == "error" for m in rep.mutants)
+    assert rep.killed == [] and rep.survived == []
+    assert len(rep.errored) == len(rep.mutants)
+    assert rep.score == 0.0          # was 1.0 before round 349
+    assert rep.valid_score == 0.0    # no evidence-bearing runs at all
+    d = rep.as_dict()
+    assert d["errored"] == d["total"] and d["killed"] == 0
+    text = rep.summary()
+    assert "ERRORED" in text and "not evidence" in text
+
+
+def test_valid_score_equals_score_when_nothing_errored(tmp_path):
+    rep = mutation_test(make_project(tmp_path), ["mod.py"], PYTEST_CMD, workers=4)
+    assert rep.errored == []
+    assert rep.valid_score == rep.score
+    assert rep.as_dict()["valid_score"] == rep.as_dict()["score"]

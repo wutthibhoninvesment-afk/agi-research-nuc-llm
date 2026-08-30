@@ -16,4 +16,17 @@
 # the standing convention since round 227) instead.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
-exec python3 -m pytest -q -m "not whence_slow" tests/ "$@"
+#
+# Round 349 (harness A): `-c pytest.ini` is LOAD-BEARING, not cosmetic.
+# Without it pytest discovers config by scanning the rootdir, which means
+# it parses `languages/whence/pyproject.toml` — an UNTRACKED file owned by
+# a separate system (allowlisted in state/known-standing-dirty-paths.json
+# since round 291). Round 348 that file grew a duplicate
+# `[project.optional-dependencies]` table; the TOML parse error aborted the
+# run before collection and took all 1043 fast-tier tests down, and the
+# driver logged `whence-health-check FAIL` for a breakage that had nothing
+# to do with any test. `-c` makes pytest use the named file and stop
+# scanning. Verified round 349 against the still-broken pyproject.toml:
+# `-c pytest.ini` collects 1043/1095, plain discovery hard-errors,
+# `--rootdir=` alone does NOT help (pytest still parses pyproject.toml).
+exec python3 -m pytest -c pytest.ini -q -m "not whence_slow" tests/ "$@"

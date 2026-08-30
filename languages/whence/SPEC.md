@@ -3258,9 +3258,83 @@ that cannot end a statement.
 - See `knowledge/round-224-whence-matches-shapeof-guest-parity.md`.
 
 ## Builtins
-`print rand len range map filter fold push str num abs sqrt trunc missed
-reasons note contains join keys merge get put has find steps at blame
-diverge contrast typed matches shapeof guess is_guess confidence sure`
+
+Until round 349 this section was a bare list of 36 names with no argument
+order anywhere in the document, and an operator bug report against v0.19
+turned out to be exactly that gap: `fold(nums, 0, fn(acc, x) { acc + x })`
+was reported as "`fold()` returns Miss instead of calculated values with
+inline lambdas". It does not. Whence's higher-order builtins take the
+FUNCTION FIRST — `fold(fn, acc, xs)`, like `map(fn, xs)` and `filter(fn,
+xs)` — so that call passed a list where a function goes, and the miss said
+so precisely (`miss: fold needs a list, got <fn>`). Written the documented
+way it folds inline lambdas and named functions alike. The signature was
+never wrong; it was never written down.
+
+Argument names below are the interpreter's own (`whence/interp.py`'s
+`@register` handlers); `tests/test_spec_builtins.py` machine-checks every
+arity in this table against that registry, so the table cannot drift from
+the code the way the old list drifted from nothing.
+
+| builtin | signature | notes |
+| --- | --- | --- |
+| `print` | `print(v)` | effectful (v0.14.2) |
+| `rand` | `rand()` | effectful (v0.14.8) |
+| `len` | `len(v)` | list, text or record |
+| `range` | `range(hi)` / `range(lo, hi)` | 1 or 2 args |
+| `map` | `map(fn, xs)` | **fn first** |
+| `filter` | `filter(fn, xs)` | **fn first** |
+| `fold` | `fold(fn, acc, xs)` | **fn first**, then the seed, then the list |
+| `find` | `find(fn, xs)` | **fn first** |
+| `push` | `push(xs, x)` | list first — the reverse of the four above |
+| `str` | `str(v)` | |
+| `num` | `num(text)` | Whence number syntax only; see "Limits" |
+| `abs` | `abs(n)` | |
+| `sqrt` | `sqrt(n)` | |
+| `trunc` | `trunc(n)` | |
+| `missed` | `missed(v)` | |
+| `reasons` | `reasons(v)` | |
+| `note` | `note(label, v)` | label first |
+| `contains` | `contains(hay, needle)` | haystack first |
+| `join` | `join(xs, sep)` | |
+| `keys` | `keys(r)` | |
+| `merge` | `merge(a, b)` | |
+| `get` | `get(r, name)` | |
+| `has` | `has(r, name)` | |
+| `put` | `put(r, name, v)` | |
+| `typed` | `typed(value, spec, label)` | v0.20 names the field that missed |
+| `matches` | `matches(value, spec)` | |
+| `shapeof` | `shapeof(v)` | |
+| `guess` | `guess(value, conf, source)` | |
+| `is_guess` | `is_guess(v)` | |
+| `confidence` | `confidence(v)` | |
+| `sure` | `sure(v, threshold)` | |
+| `steps` | `steps(v)` / `steps(v, pat)` | 1 or 2 args |
+| `at` | `at(v, pat)` | |
+| `blame` | `blame(v)` | |
+| `diverge` | `diverge(a, b)` / `diverge(runs)` | two values, or one list of runs |
+| `contrast` | `contrast(a, b)` / `contrast(runs)` | two values, or one list of runs |
+
+Where two spellings are given the builtin accepts an argument-count RANGE,
+not two fixed shapes: `@register`'s arity tuple is `(min, max)` and
+`_arity_ok` tests `min <= n <= max`. Passing a count inside the range but a
+value the handler cannot use is a miss, not an arity error — `contrast(a)`
+answers `contrast needs two values or a list of runs`, while
+`contrast(a, b, pat)` answers `contrast expects 1..2 args, got 3`.
+
+### Blocks are always braced
+
+The other half of the same operator report: `if` / `else` branches require
+an explicit `{ ... }` block. There is no single-statement form.
+
+```
+if x > 3 { print("big") } else { print("small") }   # ok
+if x > 3 print("big")                               # error: expected '{',
+                                                    # got 'print' at line 2, col 10
+```
+
+This is not a v0.19 tightening — it is how the grammar has always read, and
+the parser has always said so in those words. The rule holds for `fn`
+bodies and `while` bodies too.
 
 ## Limits that are errors, not crashes
 - Expression nesting deeper than 60 levels (parentheses, prefix operators,

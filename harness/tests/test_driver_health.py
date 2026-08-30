@@ -13,11 +13,13 @@ import pytest
 from harness.driver_health import (
     RATE_LIMIT_BACKOFF_SCHEDULE,
     all_max_turns,
+    classify_health_log,
     blocking_wait_gap_s,
     classify_round_log,
     count_consecutive_failures,
     exact_reset_wait_seconds,
     full_event_span_s,
+    health_log_line,
     has_real_ratelimit_signal,
     heavy_light_fail_rates,
     is_5xx,
@@ -1188,3 +1190,121 @@ def test_cli_heavy_light_subcommand(tmp_path):
         "light": {"total": 0, "fail": 0, "rate": 0.0},
         "ratio": None,
     }
+
+
+# ------------------------------------------------------- round 349 (harness A) --
+#
+# `classify_health_log` splits run_driver.sh's PASS/FAIL health-check line
+# into PASS / FAIL / ERROR. Round 348 produced the first non-green health
+# check in the program's recorded history — an untracked `pyproject.toml`
+# with a duplicate TOML table made pytest exit 4 during config discovery,
+# taking all 1043 whence fast-tier tests down — and the driver logged
+# `whence-health-check FAIL`, which reads as "round 348 broke the tests" and
+# was false twice over. Across all 206 health logs on this host the FAIL
+# branch had fired exactly once ever: that one.
+#
+# The two literals below are the REAL last lines of
+# logs/whence_health_round_348.log and logs/whence_health_round_347.log.
+# Those files are gitignored (see .gitignore's round-241/247 note), so they
+# are transcribed here rather than referenced.
+
+REAL_348_ERROR = (
+    "ERROR: /home/pgain/agi-research-nuc-llm/languages/whence/pyproject.toml: "
+    "Cannot declare ('project', 'optional-dependencies') twice "
+    "(at line 29, column 31)\n"
+)
+REAL_347_PASS = (
+    "........................................................................ [ 98%]\n"
+    "..............                                                           [100%]\n"
+    "1022 passed, 48 deselected in 35.62s\n"
+)
+
+
+def _health_log(tmp_path, name, text):
+    p = tmp_path / name
+    p.write_text(text)
+    return str(p)
+
+
+def test_classify_health_log_pass_on_the_real_round_347_log(tmp_path):
+    p = _health_log(tmp_path, "h.log", REAL_347_PASS)
+    for rc in (0, None):                      # exit code present or inferred
+        c = classify_health_log(p, rc)
+        assert c["outcome"] == "pass", (rc, c)
+        assert c["ran_tests"] is True
+        assert c["summary"] == "1022 passed, 48 deselected in 35.62s"
+
+
+def test_classify_health_log_error_on_the_real_round_348_log(tmp_path):
+    p = _health_log(tmp_path, "h.log", REAL_348_ERROR)
+    c = classify_health_log(p, 4)
+    assert c["outcome"] == "error"
+    assert c["ran_tests"] is False
+    assert "pytest exit 4" in c["reason"]
+    # And with no exit code at all — the text alone has to be enough, which
+    # is what let round 349 replay the verdict over 206 archived logs that
+    # never recorded one.
+    c2 = classify_health_log(p, None)
+    assert c2["outcome"] == "error" and c2["ran_tests"] is False
+
+
+def test_classify_health_log_fail_is_reserved_for_tests_that_actually_ran(tmp_path):
+    p = _health_log(tmp_path, "h.log",
+                    "F...\n1 failed, 1041 passed, 52 deselected in 22.06s\n"
+                    "FAILED tests/test_tiering.py::test_partitions\n")
+    for rc in (1, None):
+        c = classify_health_log(p, rc)
+        assert c["outcome"] == "fail", (rc, c)
+        assert c["ran_tests"] is True
+
+
+def test_classify_health_log_calls_zero_collected_an_error_not_a_pass(tmp_path):
+    # pytest exit 5. Nothing failed, so the old any-nonzero-is-FAIL rule and
+    # a naive "no 'failed' in the text" rule both get this wrong in opposite
+    # directions. No test ran, so it is neither a pass nor a failure.
+    p = _health_log(tmp_path, "h.log", "no tests ran in 0.01s\n")
+    assert classify_health_log(p, 5)["outcome"] == "error"
+    assert classify_health_log(p, None)["outcome"] == "error"
+
+
+def test_classify_health_log_flags_an_exit_1_with_no_test_counts(tmp_path):
+    # A wrapper that rewrites its own exit status would land here. Trusting
+    # rc alone would call it FAIL; the log says no test ever ran.
+    p = _health_log(tmp_path, "h.log", "wrapper: something went sideways\n")
+    c = classify_health_log(p, 1)
+    assert c["outcome"] == "error"
+    assert "no test counts" in c["reason"]
+
+
+def test_classify_health_log_handles_missing_and_empty_logs(tmp_path):
+    c = classify_health_log(str(tmp_path / "nope.log"), None)
+    assert c["outcome"] == "unknown" and "unreadable" in c["reason"]
+    p = _health_log(tmp_path, "empty.log", "")
+    assert classify_health_log(p, None)["outcome"] == "unknown"
+    # With an exit code we can still answer even for an empty log.
+    assert classify_health_log(p, 0)["outcome"] == "pass"
+    assert classify_health_log(p, 4)["outcome"] == "error"
+
+
+def test_classify_health_log_treats_a_signal_death_as_an_error(tmp_path):
+    p = _health_log(tmp_path, "h.log", "collecting ...\n")
+    c = classify_health_log(p, -9)
+    assert c["outcome"] == "error" and "runner died" in c["reason"]
+
+
+def test_health_log_line_matches_the_pre_349_pass_wording_exactly(tmp_path):
+    # The PASS line is unchanged on purpose: rounds 242-348 of driver.log
+    # are parsed by eye and by `check_round_recorded`, and 205 of the 206
+    # archived health logs are passes.
+    p = _health_log(tmp_path, "h.log", REAL_347_PASS)
+    assert health_log_line("round 9: whence-health-check", p, 0) == (
+        "round 9: whence-health-check PASS (1022 passed, 48 deselected in 35.62s)")
+
+
+def test_health_log_line_says_error_and_why_for_round_348s_log(tmp_path):
+    p = _health_log(tmp_path, "h.log", REAL_348_ERROR)
+    line = health_log_line("round 348: whence-health-check", p, 4)
+    assert line.startswith("round 348: whence-health-check ERROR — "
+                           "suite did not run (pytest exit 4) — ")
+    assert "optional-dependencies" in line
+    assert "FAIL" not in line
