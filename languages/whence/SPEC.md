@@ -1,6 +1,6 @@
 # Whence — a provenance-first language
 
-*Spec level: **v0.27** (round 368). The `## vN` sections below are the
+*Spec level: **v0.28** (round 372). The `## vN` sections below are the
 authoritative version list and each names the round that built it; this
 line deliberately no longer enumerates rounds, because the enumeration it
 replaced had said "v0.16.6 + v0.14.2" since round 266 while the file went
@@ -5828,3 +5828,190 @@ raise the same ValueError during collection.
 - **Time, in general.** These budgets bound SIZE. A program can still spend a
   long time inside `max_iter` iterations of a cheap operation; that is what
   `max_iter` is for, and it is a coarser instrument than this one.
+
+## v0.28 (round 372, language C) — a message names the kind that stopped it, and both implementations say it
+
+**Decision 36.** A miss carries reason strings, and a reason string is a
+CONTRACT — the same one v0.25 (round 362) settled for contract messages,
+now stated over the whole miss surface. Two halves:
+
+1. **A message names the kind that actually stopped the computation**, not
+   a kind that plausibly might have.
+2. **`examples/self_eval.lang` produces the same sentence**, except where an
+   enumerated exemption says it cannot, and each exemption must still
+   DIVERGE or be deleted.
+
+### Why nobody had checked it
+
+Round 362 asked question 2 for CONTRACT messages. Its `TYPE_FNS` tuple names
+five host functions and its coverage assertion is `len(declared) >= 12`. An
+AST census of the same file finds **126** `mk_miss`/`merge_miss`/`_propagate`
+sites in **46** enclosing functions. The arithmetic, the operators, the call
+path, the two size budgets and 30 of the 36 builtins were outside it — and
+outside everything else too, because the guest-differential oracle's oldest
+exemption (miss REASONS, round 17) means every campaign that ever ran rated
+these `ok`: both sides missed, and the oracle does not read what they said.
+
+### The corpus is keyed by SITE, and that is not enough
+
+`tests/test_miss_message_differential.py` builds one case per site by
+instrumenting `mk_miss`/`merge_miss` and greedily set-covering the census
+across all three engines: **124 of 126 sites reachable**, 114 cases. Two
+sites are genuinely unreachable and both are named with a reason —
+`_check_contract`'s `_UnboundType` branch (round 362's entry, unchanged) and
+`f_bcall`'s `fnv is None` branch, which is DEAD CODE and whose own source
+comment says so (`# unreachable while builtins are global`; `f_bcall` is
+only compiled for a name that resolved to a builtin, and Whence cannot
+unbind a name).
+
+Site coverage bounds the HOST side and only SAMPLES the guest side. One host
+site can be reached by operands the guest words differently from each other:
+the cover kept one case for `binop`'s `==` guard, on which the guest agreed,
+while `len == len` — same site — disagreed (`cannot compare functions` vs
+`cannot compare functions with ==`). The `EXTRA` list in that file exists for
+exactly that reason and the finding is recorded here rather than in a
+comment, because it is a property of site-keyed differentials in general.
+
+### Host vs host: three engines, four copies of every call guard
+
+Whence has three engines (`direct` / `direct=False` / `fast=False`) and the
+call guards are QUADRUPLICATED: `_builtin_inline`, `_closure_inline`,
+`_call_direct` and `_call_gen` each carry their own `%s expects %s args, got
+%d`, `recursion too deep in %s (depth %d)`, `tail loop too long in %s (%d
+iterations)` and `%s is not callable`. Nothing compared the sentences those
+copies produce.
+
+**They agree** — over the corpus and over a 23 997-case mechanical sweep
+(every builtin at every arity against 16 argument atoms, every binary and
+unary operator, indexing, field access, calls, `if`, plus hand-written
+closure-arity / depth / tail-loop / unbound-name / rebind cases). Zero
+divergences in wording, reason count or missedness.
+
+This is a PIN on a negative result, and it is deliberately less novel than
+it looks: `oracles.oracle_fast_slow` and `oracle_direct` already covered it
+incidentally, because `behaviour_ex`'s `vals` field renders a Miss through
+`full_show` and that includes its reasons. What v0.28 adds is that the
+coverage is now site-keyed and deliberate instead of program-keyed and
+accidental. Reaching two of the four depth-guard copies needs a NON-DEFAULT
+`max_depth` (the default 20000 is far past the direct engine's host-frame
+budget, so `_call_gen`'s copy answers first); those two cases are `HOST_ONLY`
+in the test file.
+
+### The host defect: `==` named a kind that was not there
+
+`deep_eq` returns `None` for four opaque payload kinds — `Closure`,
+`Builtin`, `Explanation`, `Miss` — and `binop` turned that into one sentence:
+
+```
+why 1 == 1              # miss: cannot compare functions with ==
+[1 / 0] == [1 / 0]      # miss: cannot compare functions with ==
+```
+
+Neither program contains a function. A top-level miss never reaches here
+(`binop` merges it first), so the second case is specifically a miss NESTED
+where a top-level one would have propagated. `_incomparable_kind(l, r)` now
+finds the first opaque payload — **left operand depth-first (list elements in
+order, record fields by sorted name), then right**, a fixed order chosen so
+the guest can mirror it rather than `deep_eq`'s own stack order — and the
+message names it: `cannot compare explanations with ==`, `cannot compare
+misses with ==`, `cannot compare functions with ==`. It falls back to the
+pre-v0.28 wording if no opaque payload is found, so a fifth opaque kind
+cannot make it raise.
+
+This is decision 34's principle (a message names types) applied one level
+out from the type system: it is not enough for the named type to be a type,
+it has to be the one that stopped the program.
+
+### The guest defect: a compound guest value is made of BOXES
+
+A guest list holds `@{op, v, ins}` boxes, not elements. `apply_host_builtin`
+hands the host builtin the guest's payload, which for a scalar is what the
+host would have seen and for a list or record is not. On the SUCCESS path
+that is load-bearing and correct — the boxes carry guest provenance. On the
+MISS path the host words the message around what it was given:
+
+```
+num(@{a: 1})       host  num of @{a: 1}
+                   guest num of @{a: @{ins: [], o…}
+```
+
+**The fix costs nothing on the success path.** Delegate exactly as before;
+only if the answer is a MISS, delegate a SECOND time with deep-stripped
+arguments, and keep that miss's wording. Three guards make it safe:
+`print`/`rand` are excluded (a second call repeats the EFFECT), the
+re-rendered result is used only when it is also a miss (so a strip that
+changes the ANSWER cannot change what the evaluator returns), and the three
+slots that hand the host a box ON PURPOSE (`push`'s element, `put`'s value)
+switch to the bare payload only on the re-render.
+
+The same shape fixes the guest's own operators — `apply_binop` (factored
+through `raw_binop` so the dispatch can run twice), `eval_and`/`eval_or`'s
+non-bool left operand, `eval_unary`'s `-`/`not`/`miss`, and `eval_index` —
+all of which delegate their wording to a real host operation.
+
+**Round 362's exemption E3 is retired.** It read: "a design call handed to a
+future language(C) round with this case as the repro", and predicted the fix
+would mean the guest "stops delegating `push`'s guard and builds the message
+itself, on the hot path of its own interpretation loop". That prediction was
+wrong in a useful way — the hot path is untouched, and the fix closes the
+whole class rather than `push`. Its own
+`test_each_exemption_is_load_bearing` went red the moment the divergence
+stopped existing, which is exactly what round 362 wrote it to do.
+
+E3's mirror image was in the same class and nobody had seen it: the box
+SUPPRESSED an order hint for `push(1, [2])`, and it INVENTED one for
+`put("", [], 1)` — a box is a record, a record fits `put`'s untyped `r`
+slot, so a permutation "fits" that does not. A false hint is worse than a
+missing one.
+
+### Four more guest fixes
+
+- **Closure arity.** The guest said `fn expects 1 args, got 2` for every
+  closure. The host says `g expects 1 args, got 2` / `<fn> expects 1 args,
+  got 2` — the `p.name or "<fn>"` substitution the guest ALREADY computed,
+  as `op_name`, for the node label and then did not use in the message.
+- **Builtin arity.** The guest said `len arity mismatch: got 2 args`, a
+  sentence the host never produces anywhere. It now mirrors `_arity_str`.
+- **`merge` of a function.** The guest said `merge of a function`; the host
+  says `merge needs two records` whichever operand is the function. `merge`
+  is the ONE of the five callable-piercing guards whose host message renders
+  nothing, which is why it is a fix and the other four are exemption E2.
+- **`strip` is not idempotent** and the re-render is what proved it:
+  `strip(b)` is `strip_raw(b.v)` and `strip_raw` maps `strip` over a list, so
+  a list of already-bare payloads makes it read `.v` on a number. It
+  regressed `join([1, 1 / 0], ",")` from the host's `join: element 1 is not
+  a string` to a guest-only `cannot access .v on 1`.
+
+### The three exemptions, each asserted load-bearing
+
+- **E1 — `why` is REIFIED in the guest.** The host's `why x` is an opaque
+  `Explanation`; the guest's is a record, because guest code must be able to
+  READ a history (SPEC's own "history is data"). Every message that renders a
+  `why` value therefore differs, and `@{} == why 1` is a miss on the host and
+  a plain `false` on the guest — the corpus's ONE missedness divergence, and
+  a consequence of the design rather than of a bug.
+- **E2 — a callable cannot be rebuilt.** The host renders `<fn>`, `<fn
+  NAME>` or `<builtin NAME>`; a guest function is a tagged record. v0.28
+  tried to close this the way it closed the box-leak class — substitute, on
+  the miss path only, a host value that renders the same — and **it cannot
+  be done**: `<fn NAME>` needs a host closure constructed with a chosen name
+  at run time, and Whence has no expression that does that (`fn NAME(..)` is
+  a statement with a literal name). Closing it needs a LANGUAGE change (a way
+  to name a value) or a decision that `show_payload` stops printing a
+  closure's name. Half a fix — mapping the guest's builtins through a
+  name-to-value table and leaving closures broken — would have been worse
+  than a named exemption.
+- **E3 — the budgets differ in KIND.** `recursion too deep in g (depth
+  20000)` vs `guest recursion too deep in g (guest depth 400)`. Round 371
+  established this is not a difference of degree: the host charges a tail
+  call NOTHING (rule 8) and the guest's `apply_closure` charges one guest
+  frame per CALL. The guest's wording says "guest" on purpose, so it cannot
+  be mistaken for agreement.
+
+### Numbers
+
+| | before | after |
+|---|---|---|
+| corpus cases agreeing | 86 / 114 | 103 / 114 |
+| divergence classes | 7 | 3 (all named, all exempt) |
+| host sites with wording ever compared | 15 of 126 | 124 of 126 |
