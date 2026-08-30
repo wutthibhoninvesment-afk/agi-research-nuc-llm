@@ -235,6 +235,45 @@ OracleTool test now asserts what it actually owns — `set(d) == set(ORACLE_NAME
 an oracle still needs a deliberate edit; just not two of them, in two files,
 where forgetting one is silent.
 
+## 7b. And the slow tier had one more red file
+
+Recording the two changed files through `slowtier.py run --only` (round 341's
+mechanism, rather than an orphaned `nohup`) reported `test_swe_oracles.py`
+**failed in 4.5 s** — before any of this round's additions were reached.
+
+`test_clearing_tail_flags_matches_round_336s_textual_lifted_form` (round 337)
+spells round 336's lifted form as
+
+```
+fn f0() { let t = f1()  t }
+```
+
+— two statements on ONE line. **v0.23 (round 356) made that a ParseError**, so
+`behaviour_ex` returned `{"kind": "ParseError"}` and every one of the test's 75
+programs died on `KeyError: 'vals'`. It had been red for three rounds. Nobody
+saw it because `test_swe_oracles.py` is in the slow tier — the same blind spot
+round 341 built `slowtier.py` for and round 343 found its first failure in, and
+the third time that mechanism has caught a file that a green round report did
+not cover. Round 357 wrote that "the oracle survives v0.23, because round 356
+proved its strictness depends on line ALIGNMENT, not on the separator laxity":
+true of the ORACLE, and this TEST was relying on the laxity anyway.
+
+The fix keeps the property the test is about. Both forms now put the `f1()`
+call on line 1 and `}` / `fn f1` / `let r` on lines 2, 3, 4:
+
+```
+fn f0() { f1()          fn f0() { let t = f1()
+ }                       t }
+fn f1() { 1 }           fn f1() { 1 }
+let r = f0()            let r = f0()
+```
+
+A naive split would have moved `fn f1` from line 2 to line 3 in the lifted
+form only, and round 336's whole finding was a line-only divergence. Verified
+after: `test_swe_oracles.py` **37 passed in 5.61 s**, recorded
+`fresh_pass` against this checkout (`slowtier status`, alongside
+`test_swe_review.py` `fresh_pass 81 s`).
+
 ## 8. Predictions, scored
 
 Written to `state/swe/round-359/PREDICTIONS.md` before any measurement (D-013).
@@ -270,7 +309,23 @@ $ python3 -m pytest -q harness/tests/test_swe_review.py -k oracle_tool
 
 $ python3 -m pytest -q languages/whence/tests/test_v22.py
 54 passed in 2.75s      (53 before: +1)
+
+$ bash harness/run_tests_fast.sh
+530 passed, 316 deselected in 69.77s
+
+$ python3 -m pytest -q languages/whence/tests/
+1310 passed in 357.56s          (the whole language suite, no deselection)
+
+$ python3 skills/skill-authoring/scripts/state_claim_check.py state/research-state.md
+6 claim(s): 6 re-derivable, 0 skipped, 0 stale     (live block = round 359)
+
+$ python3 skills/skill-authoring/scripts/xref_check.py
+0 dangling citation(s) in the authoritative scope (0 NEW)
 ```
+
+The full whence suite matters here because the only `languages/` change is a
+docstring — but it is a docstring that `test_v22.py`'s new test READS, so the
+two are one artifact and a green `test_v22.py` alone would not have said so.
 
 Campaigns (`state/swe/round-359/campaign-*.json`, summarised in
 `campaign-summary.md`): 2 × 2500 programs, 4 seed/stress-rate combinations

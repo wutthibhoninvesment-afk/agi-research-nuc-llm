@@ -311,10 +311,10 @@ def test_tail_transparency_fires_on_a_line_only_divergence():
 def test_clearing_tail_flags_matches_round_336s_textual_lifted_form():
     """The transform this oracle uses (clear `parser.mark_tails`'s own
     `Call.tail`) must agree with the SOURCE rewrite round 336's item 2
-    described (`f()` -> `let t = f()  t`, same line). Re-runs a slice of
-    round 336's own `chain_pair` family — every 2-hop chain over its five
-    `-> Type` annotations and three terminals — and requires the two
-    transforms to produce the same answer program for program.
+    described (`f()` -> `let t = f()` + `t`). Re-runs a slice of round 336's
+    own `chain_pair` family — every 2-hop chain over its five `-> Type`
+    annotations and three terminals — and requires the two transforms to
+    produce the same answer program for program.
 
     Round 337 also ran the full 2- and 3-hop family (450 programs) against
     a pre-round-336 interpreter built from `git show`: 450/450 there too,
@@ -322,6 +322,23 @@ def test_clearing_tail_flags_matches_round_336s_textual_lifted_form():
     the half that actually rules out the AST transform quietly papering
     over the defect. Only the fast slice is pinned here — reconstructing
     the old interpreter needs git.
+
+    Round 359: this test spelled the lifted form `{ let t = f1()  t }`, two
+    statements on ONE line, which **v0.23 (round 356) made a ParseError** —
+    so `behaviour_ex` returned `{"kind": "ParseError"}` and the test died on
+    `KeyError: 'vals'` for all 75 programs. It had been red since round 356
+    and nobody saw it: `test_swe_oracles.py` is in the slow tier, exactly the
+    blind spot round 341 built `slowtier.py` for and round 343 found its
+    first failure in. Round 357 recorded that "the oracle survives v0.23,
+    because round 356 proved its strictness depends on line ALIGNMENT, not
+    on the separator laxity" — true of the ORACLE, and this test was relying
+    on the laxity anyway.
+
+    The fix keeps the alignment the test is about, rather than the one-line
+    spelling: BOTH forms now put the `f1()` call on line 1, `}` and `fn f1`
+    and `let r` on lines 2, 3 and 4. Same line numbers on both sides, which
+    is the property round 336's line-only divergence needed; a naive split
+    would have moved `fn f1` from line 2 to line 3 in the lifted form only.
     """
     rets = (None, "num", "str", "bool", "any")
     terms = ('1', '"s"', 'true')
@@ -331,9 +348,9 @@ def test_clearing_tail_flags_matches_round_336s_textual_lifted_form():
             for term in terms:
                 a0 = "" if r0 is None else " -> %s" % r0
                 a1 = "" if r1 is None else " -> %s" % r1
-                tail = ("fn f0()%s { f1() }\nfn f1()%s { %s }\nlet r = f0()\n"
-                        % (a0, a1, term))
-                lifted = ("fn f0()%s { let t = f1()  t }\nfn f1()%s { %s }\n"
+                tail = ("fn f0()%s { f1()\n }\nfn f1()%s { %s }\n"
+                        "let r = f0()\n" % (a0, a1, term))
+                lifted = ("fn f0()%s { let t = f1()\n t }\nfn f1()%s { %s }\n"
                           "let r = f0()\n" % (a0, a1, term))
                 prog = O._parse(PKG, tail)
                 assert O.clear_tail_flags(prog) == 1

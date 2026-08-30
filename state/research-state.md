@@ -10257,12 +10257,27 @@ reading `ORACLE_NAMES` before starting. Predictions written first
   asserts `set(d) == set(O.ORACLE_NAMES) | {"_fired"}` (OracleTool's real
   claim) and the literal list lives once, in
   `test_oracle_names_is_the_single_pinned_registry`.
-- **Verification.** `harness/tests/test_swe_oracles.py` 37 passed (+15);
+- **The slow tier had one more red file, found by recording rather than by
+  running.** `slowtier.py run --only` reported `test_swe_oracles.py` failing
+  in 4.5s before any of this round's additions were reached: round 337's
+  `test_clearing_tail_flags_matches_round_336s_textual_lifted_form` spells
+  the lifted form `{ let t = f1()  t }`, two statements on one line, which
+  **v0.23 (round 356) made a ParseError** — so all 75 programs died on
+  `KeyError: 'vals'`. Red for three rounds, invisible because the file is in
+  the slow tier. Third catch for round 341's mechanism. Fixed by keeping the
+  LINE ALIGNMENT (both forms put `f1()` on line 1 and `fn f1` on line 3)
+  rather than the one-line spelling — a naive split would have moved `fn f1`
+  in the lifted form only, and round 336's finding was a line-only
+  divergence. Recorded `fresh_pass` afterwards.
+- **Verification.** `harness/tests/test_swe_oracles.py` 37 passed (+15,
+  +1 repaired);
   `test_swe_fuzz.py` 38 passed in 85.2s; `test_swe_review.py -k oracle_tool`
   2 passed; `languages/whence/tests/test_v22.py` 54 passed (+1);
   `bash harness/run_tests_fast.sh` **530 passed, 316 deselected in 69.8s**;
-  full `languages/whence/tests/` — see knowledge file §9. Campaign artifacts
-  in `state/swe/round-359/`.
+  full `languages/whence/tests/` **1310 passed in 357.6s**;
+  `state_claim_check.py` 6 claims / 6 re-derivable / 0 stale; `xref_check.py`
+  0 dangling in the authoritative scope. Campaign artifacts in
+  `state/swe/round-359/`.
 - Knowledge file:
   `knowledge/round-359-swe-d-the-exemption-that-was-right-for-the-wrong-reason.md`.
 
@@ -10305,6 +10320,14 @@ reading `ORACLE_NAMES` before starting. Predictions written first
     once that many rounds accumulate — one round away now.
 12. The `tail`/EOF backgrounded-pipe silent-drop mechanism (rounds 296, 300,
     303, 309) remains genuinely unconfirmed — round 310's item 5.
+13. **Sweep the slow tier for other v0.23 casualties.** Round 359 found
+    `test_swe_oracles.py` red since round 356 because a test SOURCE used the
+    pre-v0.23 two-statements-on-one-line spelling. Any `harness/tests/`
+    or `harness/swe/` file that builds Whence source text is a candidate;
+    `grep -rn "()  [a-z]" harness/` over embedded program strings is the
+    cheap first pass. 17 of 19 slow-tier files are still `unknown` or
+    `stale_checkout` against this checkout (11% recall), so this is a
+    lower bound, not a count. harness(A) or SWE-loop(D).
 
 ## Next steps (as of round 358)
 1. **Collect the 8 h swap poll.** Due ~2026-08-30T10:25Z; at 05:49Z it was
