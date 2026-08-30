@@ -11493,6 +11493,171 @@ warning) before committing as `8c1311a`.
 9. All of round 340's NUC-integration(E) items (1-6 below) are unchanged —
    the rotation has not reached that track since.
 
+### Round 365 — SWE-loop(D) — 2026-08-30
+
+- **Goal:** round 361's items 1 and 2, both left explicitly for this track —
+  `test_swe_guest.py` RED with a 0.05 s repro, and a second test failing
+  in-file but passing alone.
+- **Pre-flight:** `logs/skills_health_round_364.log` was a REAL gap and is
+  fixed (`ae41e21`). Round 363 wired a third per-round health check into
+  `run_driver.sh` without extending `.gitignore`, whose two sibling patterns
+  have covered this class since rounds 241/247. A `.gitignore` fix, NOT a
+  `known-standing-dirty-paths.json` entry — that registry models a separate
+  system's untracked leftovers, and allowlisting a file our own driver writes
+  every round would grow it by one path per round forever.
+- **The red test was a red CLAIM, and it was red on the day it was written.**
+  `test_no_shape_declaration_reaches_the_guest_generator` (round 347)
+  asserted "the guest parser has no `shape` support at all". **Round 338 —
+  nine rounds EARLIER — taught `self_eval.lang`/`self_host.lang` the `shape`
+  statement**, and `GuestGen`'s own class docstring says so two hundred lines
+  above the test that denied it. It passed for fourteen rounds only because
+  the grammar happened not to reach `_shape_decl` from guest seeds. Round
+  361 framed the fix as "a generator override, or teach the guest `shape`";
+  both accept the false premise, and neither was needed.
+- **Class:** round 321 item 14 / round 333 item 4 widened one notch — from
+  "any line asserting a NUMBER no round re-executes" to **"any line asserting
+  a CAPABILITY no round re-executes"**. Worse than the number case: a stale
+  capability claim in a test docstring is the JUSTIFICATION for the
+  assertion, so the test keeps passing and actively defends the wrong
+  behaviour. Nothing in the corpus checks a docstring against its code.
+- **The gap the stale pin was hiding.** `shape S = @{...}` desugars to an
+  ordinary top-level record binding on BOTH sides, but `_shape_decl`
+  registers only its optional WITNESS in `self.scope`, and
+  `generate_guest_program` built `__result` from `scope + fns`. **From round
+  347 to now, ~35% of generated guest programs declared a shape and NOT ONE
+  compared the record the declaration produced.** Shape names are now
+  appended AFTER the `max_names` cut — appended, not merged, because losing
+  an 8-name tie-break is exactly what would silently restore the blind spot.
+- **Three positive pins replace the negative one**, the load-bearing one
+  being STRUCTURAL: if a single declared shape name is missing from
+  `__result` the coverage is back to zero and both statistical pins still
+  pass.
+- **Second finding: a generated program the HOST does not finish.**
+  `generate_guest_program(31)` — 13 lines — did not return from
+  `_run_ast(max_depth=2000)` in **>90 s** on a run where load and parse each
+  took **0.0 s** and the other 140 shape seeds averaged **1.2 s**. NOT the
+  guest (host alone hangs), NOT this round's change (the pre-change sweep
+  stopped at the same seed — two runs, same stopping point, which is what
+  turned "the job died" into "seed 31 is deterministic"), and NOT reproduced
+  by four hand minimizations. Saved verbatim as
+  `state/swe/round-365/seed31_hang.lang`, pinned by
+  `test_seed31_does_not_terminate_under_the_default_budget`, which asserts
+  only that a 25 s budget is exceeded and no timing.
+- **Third finding, methodological: this round repeated round 185's root
+  cause.** The first sweep called the bare `oracle_self_eval`, which has NO
+  timeout — the SIGALRM lives in `run_oracle` — and **lost 131 of 141 seeds
+  to seed 31, twice, both times reporting exit code 0** with a truncated
+  file (the pipeline status was `tail`'s). That mechanism is already pinned
+  IN THE SAME FILE by `test_run_oracle_kwargs_bounds_a_shared_harness_hang`.
+  The pin was there and was not enough: **a pin proves the mechanism works;
+  it does not make the next scratch script use it.** Scratch code is written
+  from the API, not from the tests. Both the sweep and the new differential
+  now go through `run_oracle`.
+- **NOT a confirmation of round 310's item 5.** The truncation here was a
+  hang plus a pipeline exit status, not a dropped write. Item 5 stays open.
+- **Round 361's item 2 is checkout drift, with evidence but NOT proof.** It
+  passes both ways at HEAD (1 failed/66 passed vs round 361's 2 failed/65
+  passed, same 67 tests, deterministic order — `pytest-randomly` is not
+  installed). The two files it reads per `readscope` (`whence/interp.py`,
+  `examples/self_eval.lang`) are exactly the two round 362 changed, which is
+  what `slowtier`'s `stale_subject / moved in scope: examples, whence` said.
+  The confirming `git worktree` run at `52dcde1` was **SIGTERM'd by the box
+  before it produced a line**.
+- **Environment:** load average **25–42 on 1 CPU**, `io some avg300=39%`,
+  `cpu some avg300=67%`, no process above 3% CPU — saturated I/O wait. Three
+  backgrounded jobs were killed out from under this round. Every figure
+  above was taken from a run that printed its own setup cost, so the control
+  is published with the measurement — without it a reviewer cannot tell a
+  real hang from a starved process, and that is what makes ">90 s" a finding.
+- **Predictions: 4 HIT, 1 MISS, 2 UNRESOLVED, 1 pending.** P1 (the 62
+  remaining shape seeds all agree) is **UNRESOLVED** and it is the one that
+  stings — the headline rests on 10 sweep seeds + 4 hand cases, not the
+  141-seed sweep the prediction was written against. P7 MISS (~100 s vs
+  ≤90 s predicted, because of seed 31, which P7 did not know about).
+- **Verification.**
+
+  | what | result |
+  |---|---|
+  | `pytest -k "shape_declarations_reach or compared_record"` | **2 passed** in 0.41s |
+  | `pytest -k seed31` (the hang pin) | **1 passed** in 27.51s |
+  | `generate_guest_program(1)` `__result` fields | `... f13 S1` — `S1` present, was absent |
+  | host/guest agreement, hand cases | **4/4 ok** |
+  | host/guest agreement, sweep seeds 1..28 | **10/10 ok**, 0.26–2.52s |
+  | shape rate | 70/200 (35.0%), **141/400 (35.2%)** |
+  | seed 31 `_run_ast(max_depth=2000)` | **no return in >90s** (load 0.0s, parse 0.0s) |
+  | full `test_swe_guest.py` | see round-366 handoff |
+
+- **Skills:** none authored — the round's two reusable lessons (a stale
+  capability claim in a test docstring; a scratch script skipping the
+  suite's own safety rail) are recorded in the knowledge file and belong in
+  an existing skill rather than a new one; deliberately left to a skills(B)
+  round rather than authored by the round that found them (round 357 item
+  3's paraphrase-leak rule).
+- See `knowledge/round-365-the-pin-that-defended-a-false-claim.md`.
+
+## Next steps (as of round 365)
+
+1. **SWE-loop(D), first action: re-run the sweep.** `python3
+   state/swe/round-365/sweep.py 400 state/swe/round-365/shape_sweep.json`
+   — it is FIXED (goes through `run_oracle(timeout_s=30)`) but was never
+   re-run inside this round. It resolves prediction P1, whose claim the
+   round-365 knowledge file's §1 currently rests on 10 seeds for. ~4 min.
+2. **SWE-loop(D)/language(C): minimize seed 31.** Deterministic repro saved
+   at `state/swe/round-365/seed31_hang.lang`. Four hand variants did NOT
+   reproduce (typed `fn` recursing on a record argument terminates at every
+   `max_depth` 50–800), so bisect the 13 statements instead of guessing.
+   Suspects not yet eliminated: `let v11 = 10.x` (field access on a number),
+   the `-> num` contract against `tl3(tr5)` where `tr5` is `0.5`, and the
+   appended `__result`'s `reasons(...)` over a Miss chain.
+   `test_seed31_does_not_terminate_under_the_default_budget` goes RED when
+   this is fixed — that is the intended signal; flip it to assert
+   termination and record the fix.
+3. **Finish round 361's item 2 properly** (one command, ~3 min on an idle
+   box): `git worktree add --detach /tmp/r365-wt 52dcde1 && cd /tmp/r365-wt
+   && pytest -q harness/tests/test_swe_guest.py`. If it reports 2 failed /
+   65 passed there and 1 failed / 66 passed at HEAD, the flip is checkout
+   drift and the item CLOSES. This round's attempt was SIGTERM'd by the box.
+   **A stale `/tmp/r365-wt` worktree may still be registered — `git worktree
+   prune` or `git worktree remove` it first.**
+4. **`oracle_self_eval` should take its own `timeout_s`.** The only bounded
+   entry point is `run_oracle`, one layer up, and this round is the SECOND
+   time (after round 185) a script has skipped it — this time with a
+   measured cost of 131 lost seeds. Cheap; harness(A) or SWE-loop(D).
+5. **NEW CLASS, for skills(B): "a capability claim in a docstring that no
+   round re-executes."** Round 321 item 14 / round 333 item 4 already asked
+   for a stale-NUMBER sweep. This round is the first instance where the
+   stale line was a CAPABILITY, and it is strictly worse: the claim is the
+   justification for an assertion, so the test keeps passing while
+   defending the wrong behaviour. Fold into the same rescoped sweep, and
+   note the concrete detector this instance suggests — a docstring claiming
+   feature X is absent, in a file whose own module docstring says a round
+   added X.
+6. **`languages/whence/SECURITY.md`: TENTH consecutive round.** Unchanged,
+   escalated to the operator since round 349, four asserted security
+   controls this repo does not have. A TRACKED file a separate system
+   edits, deliberately not in `state/known-standing-dirty-paths.json`.
+   Nothing in-tree can resolve it.
+7. **Round 364's NUC(E) items 1-6 are unchanged** — the rotation has not
+   reached E since. The journal cache is warm; capture boot history FIRST
+   on the next up-round, because journal retention decays the evidence.
+8. **Round 363's skills(B) items 1-6** (the `--run` execution tier nothing
+   executes, the `unrun-checker-latency` re-probe, the absent reports
+   directory) are unchanged.
+9. **Round 361's item 3 (slow-tier recall)** is unchanged and now stale in
+   an interesting way: this round's commit moves `harness/swe/guest.py` and
+   `harness/tests/test_swe_guest.py`, so every slow-tier entry recorded
+   against the old digest is invalidated again. Round 361's item 4 asked
+   round ~367 to read `state/slow-tier-ledger.jsonl` and check whether the
+   scoped states actually raise SUSTAINED recall — that check is now more
+   informative, not less.
+10. **`test_shape_needs_three_adjacent_tokens_on_both_sides`** (whence-slow,
+    seen in the pristine-check status line) was NOT re-run this round —
+    prediction P5 is UNRESOLVED. The whence slow tier is ~590 s. language(C).
+11. **The heavy/light re-tally check-in** and **round 310's item 5** (the
+    `tail`/EOF backgrounded-pipe silent-drop mechanism) are unchanged. This
+    round deliberately does NOT claim item 5: its own truncated jobs were a
+    hang plus a pipeline exit status, not a dropped write.
+
 ## Next steps (as of round 364)
 
 1. **NUC(E) — the journal cache is now the cheapest continuity tool this
