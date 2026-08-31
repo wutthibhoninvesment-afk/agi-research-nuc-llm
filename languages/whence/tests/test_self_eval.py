@@ -225,7 +225,11 @@ def test_parser_section_matches_self_host():
     # host's seven `what=` spellings, so the guest names the token it
     # stopped on and says which KIND of name it wanted.
     host_lines = open(SELF_HOST).read().splitlines()
-    section = "\n".join(host_lines[27:1022])
+    # round 404: 1022 -> 1043, v0.38 decision 47. The OTHER copy of this
+    # bound is `tests/test_self_hosting.py::LIB_END`; they must move
+    # together and have drifted apart before (38 rounds, found in round
+    # 398).
+    section = "\n".join(host_lines[27:1043])
     assert section.startswith("# ---- character classes")
     assert section.rstrip().endswith(
         'if le != "" { miss le } else { parse_program(toks) }\n}')
@@ -807,7 +811,16 @@ SHAPE_PARSE_ERRORS = [
     ('shape num = @{x: num}\nlet result = 1',
      "'num' is a reserved type name"),
     ('shape P = @{x: num}\nshape P = @{y: num}\nlet result = 1',
-     "shape 'P' is already declared in this block"),
+     "shape 'P' is already declared in this block (line 1)"),
+    # v0.38 (round 404), decision 47: the case above declares `P` first on
+    # LINE 1, so it cannot tell the computed line from the constant 1 --
+    # and until this round it was one of only two programs in the whole
+    # repo that reached this sentence. This one declares it on line 3 and
+    # collides on line 5, so neither the constant nor the duplicate's line
+    # nor an off-by-one passes it.
+    ('let k = 0\n\nshape P = @{x: num}\nlet j = 1\nshape P = @{y: num}\n'
+     'let result = 1',
+     "shape 'P' is already declared in this block (line 3)"),
     ('shape P = @{x: num, x: str}\nlet result = 1', "duplicate field 'x'"),
     ('fn f(a: Nope) { a }\nlet result = 1', "unknown type 'Nope'"),
     ('fn f() -> Nope { 1 }\nlet result = 1', "unknown type 'Nope'"),
@@ -824,7 +837,43 @@ SHAPE_PARSE_ERRORS = [
      "type 'L' is not in scope here"),
 ]
 
-LINE_SUFFIX = re.compile(r" \(line \d+\)")
+# ROUND 404 (v0.38, decision 47) — THIS PATTERN IS `$`-ANCHORED, AND WAS NOT.
+#
+# It was `r" \(line \d+\)"` with `.sub("", ...)`, i.e. GLOBAL: it deleted
+# every parenthesised line number in a message, not just the implementation
+# coordinate `miss` appends. That was harmless for as long as no message
+# CARRIED a line number as a fact. v0.37 (round 402) made the first one
+# (`'a' is already bound in this block (line 1); Whence has no rebinding`)
+# and survived only because no corpus in this file reaches it. v0.38 made
+# the second — `shape 'S' is already declared in this block (line 3)` —
+# `SHAPE_PARSE_ERRORS` does reach it, and the unanchored pattern deleted
+# exactly the fact the version added, reporting the guest as disagreeing
+# with a host it agrees with byte for byte.
+#
+# THE SAME NORMALISER IS DEFINED TEN TIMES ACROSS EIGHT TEST FILES, and
+# NINE of the ten were unanchored: here, `test_v29.py`, `test_v30.py`,
+# `test_v31.py`, `test_v33.py`, `test_miss_message_differential.py`,
+# `test_contract_message_differential.py` (all spelled `LINE_SUFFIX`), plus
+# `test_v20.py` and `test_v22.py`, which spell it `LINE_RE`. The tenth,
+# `test_parse_error_differential.py::IMPL_COORD`, was already anchored and
+# was pinned by a test in round 402 -- a pin about one of ten.
+#
+# THE FIRST SEVEN WERE FOUND BY GREPPING THE NAME, AND THAT IS WHY THE
+# COUNT WAS WRONG. `grep -rn LINE_SUFFIX tests/` cannot see a copy called
+# something else. `bench/sanitisers.py` walks each module's AST for
+# `re.compile` and decides membership by RUNNING the pattern against a
+# rendered ` (line N)`, so two spellings of one hazard are one row; it
+# found the last two, and `test_v22.py`'s turned out to be dead code.
+# Round 404 ran the suites to show the anchor changes no other result.
+# Anchoring is safe because a guest miss reason is
+# `<sentence><position><implementation coordinate>` in that order — `miss`
+# appends the raising line LAST — so `$` lands on the coordinate and one
+# `sub` removes exactly it.
+#
+# `tests/test_parse_error_differential.py::IMPL_COORD` was already anchored
+# and round 402 pinned it. That pin was about ONE of the seven. The class
+# is the pattern, not the file.
+LINE_SUFFIX = re.compile(r" \(line \d+\)$")
 # v0.24 (round 360): a guest parse error also ends with the POSITION clause
 # `whence/parser.py`'s ParseError has always appended, and `host_parse_error`
 # below strips the host's with `.split(" at line ")`. Stripped here for the

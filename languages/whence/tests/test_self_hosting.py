@@ -97,7 +97,7 @@ EXAMPLE = os.path.join(ROOT, "examples", "self_eval.lang")
 SELF_HOST = os.path.join(ROOT, "examples", "self_host.lang")
 EFFECTS = os.path.join(ROOT, "examples", "effects.lang")
 MARKER = "# ==== SELF-TESTS"
-# self_host.lang lines 28..1022 (0-indexed slice).
+# self_host.lang lines 28..1043 (0-indexed slice).
 #
 # ROUND 398: this was `27, 912`, and `self_host_library_section()`'s own
 # `endswith` assertion had been FAILING since round 360 -- v0.24 appended
@@ -110,7 +110,15 @@ MARKER = "# ==== SELF-TESTS"
 #
 # THE SAME COORDINATE LIVES IN TWO FILES AND DRIFTED. Same class as the
 # `142 passed` check-count pin, which round 398 found in THREE files.
-LIB_START, LIB_END = 27, 1022
+# ROUND 404 (v0.38, decision 47): 1022 -> 1043. Six edits inside the shared
+# section (`shapes_before` accumulating `@{n, ln}`, two `contains` call
+# sites becoming `bound_line`, `parse_shape_def`'s `redecl`), no new
+# top-level statement -- so this bound moves and `__nstmts` does not.
+# THE SAME NUMBER IS IN `tests/test_self_eval.py` TOO; it was found by
+# `grep -rn '\b1022\b' tests/`, which is round 402's item 6 and is now
+# the sixth consecutive round in which grepping for the NUMBER rather
+# than for the test is what located the duplicate.
+LIB_START, LIB_END = 27, 1043
 
 
 def eval_library_source():

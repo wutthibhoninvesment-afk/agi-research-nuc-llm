@@ -398,7 +398,12 @@ PARITY_CASES = [
     ("bare null", "let r = null\n"),
 ]
 
-_LINE_SUFFIX = re.compile(r" \(line \d+\)")
+# `$`-anchored since round 404 (v0.38): unanchored, this deletes a line
+# number a message carries as a FACT, not just the implementation
+# coordinate `miss` appends. Seven copies of this regex existed and all
+# seven were unanchored — see `tests/test_self_eval.py`'s copy for the
+# full account.
+_LINE_SUFFIX = re.compile(r" \(line \d+\)$")
 
 
 def _first_reason(payload):

@@ -670,6 +670,9 @@ fn shape_rel_depth(toks, i, limit, rel) {
 }
 
 # `want` picks which of the three questions this scan answers:
+# Each entry is `@{n: name, ln: line}` since v0.38 (round 404) — the three
+# questions below are answered by membership, and the fourth, which the
+# redeclaration MESSAGE asks, is answered by `ln`.
 #   "any"   — declared anywhere earlier in the file. Diagnostics only: it is
 #             what separates "unknown type" (a typo) from "not in scope here"
 #             (a real declaration in a block that has closed). Mirrors the
@@ -689,7 +692,15 @@ fn shapes_before(toks, limit, want, i, acc) {
     let keep = close < limit and
       (want == "any" or (want == "scope" and rel >= 0) or
        (want == "block" and rel == 0))
-    let acc2 = if keep { push(acc, (t_at(toks, i + 1)).v) } else { acc }
+    # v0.38 (round 404), decision 47: a NAME was all three questions ever
+    # needed; the fourth one -- "which line was it declared on" -- needs a
+    # record, so this accumulates `@{n, ln}`, the same shape v0.37 gave
+    # `bound`, and is read back by the same `bound_line`. `t_at(toks, i)`
+    # is the `shape` KEYWORD (`is_shape_head` is what put us here), which
+    # is the token the host's `shape_def` reads its `tok.line` from.
+    let acc2 = if keep {
+      push(acc, @{n: (t_at(toks, i + 1)).v, ln: (t_at(toks, i)).line})
+    } else { acc }
     shapes_before(toks, limit, want, i + 1, acc2)
   }
 }
@@ -702,10 +713,14 @@ fn expect_type_name(toks, pos) {
   else if contains(guest_primitive_types, name) {
     @{type: name, spec: spec_node(name), pos: pos + 1}
   }
-  else if contains(shapes_before(toks, pos, "scope", 0, []), name) {
+  # v0.38: `bound_line(...) != 0` IS the membership test these two used to
+  # spell `contains`, because a line is >= 1 and `0` is the absent
+  # sentinel -- the same fact `test_v37.py::test_zero_is_a_safe_absent_
+  # sentinel_for_a_line` already pins. One lookup, two tables.
+  else if bound_line(shapes_before(toks, pos, "scope", 0, []), name, 0) != 0 {
     @{type: name, spec: name_node(name), pos: pos + 1}
   }
-  else if contains(shapes_before(toks, pos, "any", 0, []), name) {
+  else if bound_line(shapes_before(toks, pos, "any", 0, []), name, 0) != 0 {
     miss ("type '" + name + "' is not in scope here" + tok_at(toks, pos))
   }
   else { miss ("unknown type '" + name + "'" + tok_at(toks, pos)) }
@@ -969,12 +984,18 @@ fn parse_shape_def(toks, pos) {
   let after_brace = expect_op_as(toks, after_eq, "@{", "'@{' after shape name")
   let head = @{name: "__shape", value: spec_node(nm.name)}
   let fields = parse_shape_fields(toks, after_brace, [head], [])
+  # v0.38 (round 404), decision 47. `redecl` is the line of the earlier
+  # declaration in THIS block, or 0. It is computed eagerly, one `let`
+  # earlier than the branch that spends it, for the same reason `fields`
+  # above is: a number cannot reorder a message, and the alternative is
+  # scanning the token stream twice to print one integer.
+  let redecl = bound_line(shapes_before(toks, pos, "block", 0, []), nm.name, 0)
   if contains(guest_primitive_types, nm.name) {
     miss ("'" + nm.name + "' is a reserved type name" + tok_at(toks, pos + 1))
   }
-  else if contains(shapes_before(toks, pos, "block", 0, []), nm.name) {
-    miss ("shape '" + nm.name + "' is already declared in this block" +
-          tok_at(toks, pos + 1))
+  else if redecl != 0 {
+    miss ("shape '" + nm.name + "' is already declared in this block (line " +
+          str(redecl) + ")" + tok_at(toks, pos + 1))
   }
   else {
     @{node: @{kind: "let", name: nm.name,
@@ -4140,9 +4161,10 @@ check "sibling blocks may each declare the same shape name":
 check "an inner block may shadow an outer shape name":
   gv("shape S = @{x: num}\n" +
      "fn inner() { shape S = @{y: num}\nfn g(p: S) { p.y }\ng(@{y: 5}) }\ninner()") == 5
-check "redeclaring in the SAME block is still refused":
-  contains(reasons(gv("shape P = @{x: num}\nshape P = @{y: num}\n1"))[0],
-           "shape 'P' is already declared in this block")
+check "redeclaring in the SAME block is still refused, and names the line":
+  contains(reasons(gv("let k = 0\n\nshape P = @{x: num}\n" +
+                      "shape P = @{y: num}\n1"))[0],
+           "shape 'P' is already declared in this block (line 3)")
 
 # v0.19 (round 344): both halves of a contract — `p: T` and `-> T` — are
 # resolved by ONE `resolve_spec`, in the DEFINING env, at closure creation,

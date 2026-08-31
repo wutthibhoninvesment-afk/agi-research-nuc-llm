@@ -85,7 +85,12 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXAMPLE = os.path.join(ROOT, "examples", "self_eval.lang")
 INTERP = os.path.join(ROOT, "whence", "interp.py")
 MARKER = "# ==== SELF-TESTS"
-LINE_SUFFIX = re.compile(r" \(line \d+\)")
+# `$`-anchored since round 404 (v0.38): unanchored, this deletes a line
+# number a message carries as a FACT, not just the implementation
+# coordinate `miss` appends. Seven copies of this regex existed and all
+# seven were unanchored — see `tests/test_self_eval.py`'s copy for the
+# full account.
+LINE_SUFFIX = re.compile(r" \(line \d+\)$")
 
 # The observable a Whence program has of a provenance node.  Every test in
 # the first half of this file compares this, host against guest.

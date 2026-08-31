@@ -2054,8 +2054,20 @@ class Parser(object):
             # deliberately: it fires first, with the more specific message,
             # and that message is a host/guest wording witness — see
             # SPEC.md § v0.18.
-            raise ParseError("shape '%s' is already declared in this block"
-                             % name, name_tok.line, name_tok.col)
+            # v0.38 (round 404), decision 47: ...and it names WHICH one,
+            # from the line the frame has recorded since the declaration
+            # was registered. `stmt_list`'s sentence has named the earlier
+            # position since v0.14; this one is the host's OTHER
+            # duplicate-name sentence and until now it named only the
+            # scope. Both now read the same line for the same declaration
+            # -- `shape S = ...` binds `A.Let(tok.line, ...)`, so
+            # `stmt_list` writes that same `tok.line` into `bound` -- which
+            # `test_v38.py::test_the_two_duplicate_name_sentences_name_the_
+            # same_line` is what keeps true.
+            raise ParseError(
+                "shape '%s' is already declared in this block (line %d)"
+                % (name, self.shape_scopes[-1][name][1]),
+                name_tok.line, name_tok.col)
         self.expect("=")
         self.expect("@{", what="'@{' after shape name")
         fields = []
@@ -2081,7 +2093,16 @@ class Parser(object):
         # `shape Foo = @{x: Foo}` an "unknown type", and the guest's
         # token-stream reconstruction of this table depends on it
         # (decision 27, SPEC.md § round 338).
-        self.shape_scopes[-1][name] = fields
+        # v0.38 (round 404): the frame value is now `(fields, line)`. The
+        # `fields` half has never been READ by anything -- every use of a
+        # `shape_scopes` frame in this file is a membership test
+        # (`_shape_in_scope`, and the redeclaration check above) -- so the
+        # line rides along for free rather than needing a tenth
+        # push/pop-ed stack in `stmt_list`. `tok` is the `shape` KEYWORD,
+        # which is the same line `A.Let(tok.line, ...)` below gives the
+        # desugared node, and therefore the same line `stmt_list` would
+        # record for it.
+        self.shape_scopes[-1][name] = (fields, tok.line)
         self.shapes_seen.add(name)
         return A.Let(tok.line, name, A.RecordLit(tok.line, pairs))
 

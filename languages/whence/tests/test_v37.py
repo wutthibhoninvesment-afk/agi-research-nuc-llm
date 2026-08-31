@@ -197,14 +197,35 @@ def test_the_guest_records_a_record_not_a_bare_name():
 # 5. the host did not move
 # --------------------------------------------------------------------------
 
+#: The commit that landed v0.37 / decision 46 (round 402).
+V37_COMMIT = "768954b"
+
+
 def test_the_host_is_byte_unchanged_by_this_decision():
     """v0.36 and v0.37 are both guest-only. The claim is cheap to make and
     cheap to check, and it is the difference between "the guest caught up"
-    and "the two were quietly moved together until they matched"."""
-    p = subprocess.run(["git", "diff", "--name-only", "HEAD", "--",
-                        "whence/"], cwd=ROOT, capture_output=True, text=True)
+    and "the two were quietly moved together until they matched".
+
+    ROUND 404 REWROTE THIS TEST, AND WHY IS THE POINT. It used to ask
+    `git diff --name-only HEAD -- whence/` — the WORKING TREE against
+    HEAD. That is not a claim about decision 46; it is a claim that
+    *nobody has touched the host since the last commit*, which was true
+    for exactly as long as no later round edited `whence/`. v0.38 (round
+    404, decision 47) edits `whence/parser.py` for entirely unrelated
+    reasons and this test went red in the full tier — reporting a
+    violation of a claim v0.37 has not violated.
+
+    The claim belongs to v0.37's own commit, so that is what it now reads:
+    nothing under `whence/` changed in `768954b`. That is stable forever,
+    it re-executes, and it cannot be made false by a later round doing
+    legitimate work. Same class as this round's other findings — a check
+    that was about one thing and asserted another.
+    """
+    p = subprocess.run(["git", "show", "--name-only", "--format=",
+                        V37_COMMIT, "--", "whence/"],
+                       cwd=ROOT, capture_output=True, text=True)
     if p.returncode != 0:
-        pytest.skip("not a git checkout")
+        pytest.skip("not a git checkout, or %s is not present" % V37_COMMIT)
     assert p.stdout.strip() == "", p.stdout
 
 

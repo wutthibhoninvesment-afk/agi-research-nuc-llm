@@ -144,6 +144,43 @@ BAD = [
     # the guest mirrors it exactly; putting it here is what would make a
     # future round unifying them visible on both sides at once.
     ("shape-redeclare",      "shape S = @{a: num}\nshape S = @{b: num}\nS"),
+    # v0.38 (round 404), decision 47. `shape-redeclare` above declares `S`
+    # first on LINE 1 and redeclares it on line 2 -- so does
+    # `shape-redeclared` below, and so does every other program in this
+    # repo that reaches this sentence. The moment the sentence gains
+    # `(line N)`, a guest that computes nothing and prints the constant 1
+    # passes both, and so does one that prints the DUPLICATE's line minus
+    # one. That is round 402's finding arriving in the one place v0.38 adds
+    # a number, for the fourth time in six rounds, so the corpus is widened
+    # BEFORE the feature is written -- not after it is green.
+    #   -line-3  first declaration on line 3     (kills the constant 1)
+    #   -gap     first on 2, duplicate on 5      (kills both off-by-ones
+    #                                             AND the duplicate's line)
+    #   -nested  first on 2, inside a block      (the `shape_rel_depth`
+    #                                             path, not the top frame)
+    ("shape-redeclare-line-3",
+     "let k = 0\n\nshape S = @{a: num}\nshape S = @{b: num}\nS"),
+    ("shape-redeclare-gap",
+     "\nshape S = @{a: num}\nlet k = 0\n# c\nshape S = @{b: num}\nS"),
+    ("shape-redeclare-nested",
+     "let z = fn() {\n shape S = @{a: num}\n\n shape S = @{b: num} }"),
+    # ...and the case that makes the two duplicate-name sentences readable
+    # against each other: a `shape` on line 2 collided with by an ordinary
+    # `let` on line 4, which fires the OTHER sentence (`stmt_list`'s) on
+    # the SAME declaration. Both must name line 2. `rebind-shape-desugar`
+    # above is the same collision in the other order and on line 1, where
+    # the two answers coincide with each other and with the constant.
+    ("shape-then-let-line-2",
+     "\nshape S = @{a: num}\nlet k = 0\nlet S = 1\nS"),
+    # ...and the TOP frame, not any frame: an outer `S`, shadowed legally
+    # one block in (v0.18), then redeclared there. The sentence must name
+    # the INNER declaration on line 3. Naming line 1 would mean the check
+    # had walked the frame stack, which is the difference v0.18 drew
+    # between an error and legal shadowing -- and no program in this repo
+    # could tell the two apart until this one.
+    ("shape-shadow-then-redeclare",
+     "shape S = @{a: num}\nfn f() {\n shape S = @{b: num}\n\n"
+     " shape S = @{c: num}\n 1 }\nf()"),
     ("dup-param",            "fn f(a, a) { a }"),
     ("dup-record-field",     "let r = @{a: 1, a: 2}"),
     ("missing-let-name",     "let = 2"),
@@ -505,7 +542,7 @@ def test_every_guest_parse_error_still_leaks_an_implementation_coordinate(guest)
     leaking = [n for n, (rejected, reason) in guest.items()
                if rejected and IMPL_COORD.search(reason)]
     rejecting = [n for n, (rejected, _) in guest.items() if rejected]
-    assert len(rejecting) == len(BAD) - len(HOST_ONLY) == 59, len(rejecting)
+    assert len(rejecting) == len(BAD) - len(HOST_ONLY) == 64, len(rejecting)
     assert len(leaking) == len(rejecting), (
         "%d of %d — good news, but update this pin and SPEC.md § v0.24"
         % (len(leaking), len(rejecting)))
@@ -577,6 +614,12 @@ def test_wording_is_still_not_a_guest_contract(hosts, guest):
         "'a' is already bound in this block (line 1); Whence has no rebinding"
 
 
+#: A parenthetical that is a LINE NUMBER, not a hint (v0.38, round 404).
+#: `whence/parser.py` has two sentences that end this way, and `_with_hint`
+#: renders to the same shape. See `_strip_hint`.
+_HINT_IS_A_LINE = re.compile(r"^line \d+$")
+
+
 def _strip_hint(message):
     """The host message with a trailing parenthetical HINT removed.
 
@@ -584,8 +627,31 @@ def _strip_hint(message):
     v0.22's/v0.33's/v0.34's hints contains balanced parens of its own
     (`fn f(x) { x }`), so this scans back from the final `)` for its
     match rather than using a regex. A message that does not END in `)`
-    is returned unchanged — which is what keeps `rebind`'s mid-sentence
+    is returned unchanged — which is what kept `rebind`'s mid-sentence
     `(line 1)` out of this.
+
+    v0.38 (round 404), decision 47 — AND A TRAILING `(line N)` IS NOT A
+    HINT. `_with_hint` and "a sentence that ends by naming a line" render
+    to the same six characters, `" (…)"`, so this function cannot tell
+    them apart by shape; only by content. Round 402 wrote that the
+    `$`-anchored `IMPL_COORD` was what stopped the sanitiser eating v0.37's
+    number, and that was true of a number in the MIDDLE of a sentence.
+    v0.38 put one at the END, where the anchor is no defence and this
+    function is the one that reaches it.
+
+    Left unguarded the consequence is not a red test, it is a GREEN one:
+    `test_every_remaining_divergence_is_a_host_only_hint` would file a
+    brand-new, unclassified host/guest divergence into `hint_only` — the
+    bucket that means "understood, host-only by rule 3" — and `other`
+    would stay `[]`. The test whose whole job is to make an unclassified
+    divergence visible would report it as already understood. That is why
+    the guard is here and not in the caller, and why
+    `test_v38.py::test_a_trailing_line_number_is_not_a_hint` builds the
+    exact string and asserts this function leaves it alone.
+
+    `_HINT_IS_A_LINE` is deliberately narrow: `line` followed by digits
+    and nothing else. Every real hint in `whence/parser.py` is prose or
+    code and none of them is two words.
     """
     if not message.endswith(")"):
         return message
@@ -596,6 +662,8 @@ def _strip_hint(message):
         elif message[i] == "(":
             depth -= 1
             if depth == 0:
+                if _HINT_IS_A_LINE.match(message[i + 1:-1]):
+                    return message
                 return message[:i - 1] if i and message[i - 1] == " " else message
     return message
 
@@ -651,7 +719,7 @@ def test_the_agreeing_share_is_measured_not_assumed(hosts, guest):
     agree = [n for n, _ in BOTH_REJECT
              if POSITION.sub("", hosts[n].message)
              == IMPL_COORD.sub("", POSITION.sub("", guest[n][1]))]
-    assert (len(agree), len(BOTH_REJECT)) == (41, 59), (len(agree), len(BOTH_REJECT))
+    assert (len(agree), len(BOTH_REJECT)) == (46, 64), (len(agree), len(BOTH_REJECT))
 
 
 #: `expected X, got Y` is the one message shape BOTH parsers build, and it

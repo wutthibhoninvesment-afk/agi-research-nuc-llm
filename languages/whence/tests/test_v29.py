@@ -83,7 +83,12 @@ MARKER = "# ==== SELF-TESTS"
 
 # Same rule as the v0.28 file: the guest's trailing `(line N)` is a line in
 # `self_eval.lang`, the host's a line in the program under test.
-LINE_SUFFIX = re.compile(r" \(line \d+\)")
+# `$`-anchored since round 404 (v0.38): unanchored, this deletes a line
+# number a message carries as a FACT, not just the implementation
+# coordinate `miss` appends. Seven copies of this regex existed and all
+# seven were unanchored — see `tests/test_self_eval.py`'s copy for the
+# full account.
+LINE_SUFFIX = re.compile(r" \(line \d+\)$")
 
 PRELUDE = "fn g(a) { a }\n"
 

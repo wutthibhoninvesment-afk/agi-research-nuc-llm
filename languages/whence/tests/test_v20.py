@@ -38,7 +38,15 @@ MARKER = "# ==== SELF-TESTS"
 # test — structural and pre-existing, pinned as such by round 338's
 # `test_shape_line_divergence_is_pre_existing_not_new`. Everything else in
 # the sentence must match byte for byte.
-LINE_RE = re.compile(r" \(line \d+\)")
+# `$`-anchored since round 404 (v0.38). Unanchored, and applied with a
+# global `.sub`, this deleted EVERY parenthesised line number in a reason,
+# including the ones v0.37 and v0.38 made a message carry as a FACT. Nine
+# copies of this normaliser were unanchored across eight files; this one
+# and `test_v22.py`'s were the two that `grep LINE_SUFFIX` did not find,
+# because they are spelled with a different NAME. `bench/sanitisers.py`
+# finds them by running each pattern against a real message instead.
+# See `tests/test_self_eval.py`'s copy for the full account.
+LINE_RE = re.compile(r" \(line \d+\)$")
 
 
 def reason(v):

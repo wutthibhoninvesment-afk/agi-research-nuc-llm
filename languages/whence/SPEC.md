@@ -1,6 +1,6 @@
 # Whence — a provenance-first language
 
-*Spec level: **v0.37** (round 402). The `## vN` sections below are the
+*Spec level: **v0.38** (round 404). The `## vN` sections below are the
 authoritative version list and each names the round that built it; this
 line deliberately no longer enumerates rounds, because the enumeration it
 replaced had said "v0.16.6 + v0.14.2" since round 266 while the file went
@@ -7861,3 +7861,184 @@ change, it would move a position nothing has argued for moving, and the
 corpus case that would make it visible on both sides at once is now
 present. It does not change any POSITION, so decision 34's rule 2 is
 untouched.
+
+## v0.38 (round 404, language C) — the second sentence, and the seven sanitisers that would have deleted it
+
+Decision 47. Round 402 closed the last host/guest divergence that was
+neither a rendering nor a hint, and recorded in its own "what this version
+deliberately does NOT do" that the host owns a **second** duplicate-name
+sentence which names no line at all:
+
+    'a' is already bound in this block (line 1); Whence has no rebinding
+    shape 'S' is already declared in this block
+
+Two sentences for one idea. The first has named the earlier position since
+v0.14; the second named the scope and stopped, even though
+`self.shape_scopes` has held the declaration since v0.18 and could have
+recorded the line at the same moment. This version gives it that line, on
+both sides at once:
+
+    shape 'S' is already declared in this block (line 3)
+
+### The change is a tuple in a frame nobody was reading
+
+`shape_def` ends with `self.shape_scopes[-1][name] = fields`, and the
+`fields` half **has never been read by anything**. Every use of a frame in
+`whence/parser.py` is a membership test — `_shape_in_scope`'s
+`name in frame`, and `shape_def`'s own `name in self.shape_scopes[-1]`.
+So the frame value becomes `(fields, tok.line)` and no other call site
+moves; the alternative was a tenth push/pop-ed stack in `stmt_list`, which
+already pushes nine.
+
+`tok` is the `shape` KEYWORD, which is the line `shape_def` already gives
+the desugared `A.Let(tok.line, …)` — so it is the same line `stmt_list`
+writes into `bound` for the same declaration. **The two sentences report
+the same fact about the same program**, which
+`test_v38.py::test_the_two_duplicate_name_sentences_name_the_same_line`
+asserts by colliding one `shape S` on line 2 with a `let S` and then with
+a second `shape S`, and reading both sentences.
+
+The guest change is v0.37's, one level down. `shapes_before` accumulated
+bare name strings for three questions ("declared anywhere", "in scope
+here", "in this block"), all answered by `contains`. It now accumulates
+`@{n, ln}` — the record shape v0.37 gave `bound` — and all three call
+sites read it with v0.37's `bound_line`, because `bound_line(recs, nm, 0)
+!= 0` **is** the membership test as long as no real line is 0. One lookup
+function, two tables, and the 1-based-lexer premise that makes `0` a safe
+sentinel is now load-bearing in two places rather than one.
+
+No POSITION moves. The host reports `name_tok`, the guest reports
+`tok_at(toks, pos + 1)` — the same token, unchanged. Decision 34's rule 2
+is untouched, and this version says so with numbers rather than by
+assertion.
+
+### The corpus could not tell the computed line from the constant 1 — again
+
+Before this version, six programs in the whole repository reached this
+sentence: two in `tests/test_parse_error_differential.py`, one in
+`tests/test_self_eval.py`, two in `tests/test_v13.py`, and one self-check
+inside `examples/self_eval.lang` itself. In **five of the six** the first
+declaration is on line 1 and the duplicate on line 2. So
+three distinct wrong implementations — print the constant `1`, print the
+duplicate's own line, print the duplicate's line minus one — would all
+have been green, and the sixth (`test_v13.py`'s nested case, first
+declaration on line 2) asserts with `match="already declared in this
+block"`, a substring that reads none of it.
+
+This is the **fourth** instance in six rounds of a corpus assembled to
+exercise a RULE not exercising the VALUES the rule computes (round 398's
+got slot, round 402's `rebind`, round 402's item 4b, this). So `BAD` was
+widened by six programs BEFORE the feature was written: a first
+declaration on line 3, one on line 2 with a three-line gap before the
+duplicate, one nested in a block, one collided with an ordinary `let` so
+the OTHER sentence fires on the same declaration, and — the case no
+program in this repo could express before — an outer shape legally
+shadowed one block in and *then* redeclared there, which distinguishes
+"the top frame" from "any frame" and would catch a check that had walked
+the frame stack.
+
+### A line number and a hint are the same six characters
+
+`_with_hint` renders `"%s (%s)" % (message, hint)`. A sentence that ends by
+naming a line renders `"%s (line %d)"`. **These are indistinguishable by
+shape**, and the host/guest divergence census reads that shape off the
+string:
+
+  * `tests/test_parse_error_differential.py::_strip_hint` scans back from a
+    final `)` and calls whatever it finds a hint. Its own docstring said a
+    message that does not end in `)` is what kept v0.37's *mid-sentence*
+    `(line 1)` out of it. v0.38 put one at the **end**.
+  * Left unguarded, the consequence is not a red test. It is a GREEN one:
+    `test_every_remaining_divergence_is_a_host_only_hint` would strip the
+    host's new number, find the sentences equal, and file a brand-new
+    unclassified divergence into `hint_only` — the bucket that means
+    "understood, host-only by rule 3". `other` would stay `[]`. The test
+    whose entire job is to make an unclassified divergence visible would
+    report it as already understood.
+
+`_strip_hint` now refuses a parenthetical that is `line` followed by digits
+and nothing else. Deliberately narrow: every real hint in
+`whence/parser.py` is prose or code, and none of them is two words.
+
+`tests/test_v34.py`'s census is **not** affected, and the reason is worth
+recording next to the one that was: `_parse_error_sites` reads `hinted`
+off the module's AST (`_with_hint(...)` at the raise site), not off the
+message. Two censuses of the same property, one immune and one not, and
+the difference is which representation each reads.
+
+### The ten sanitisers, and the two a name-grep could not see
+
+The same normaliser is defined **ten times across eight test files**, and
+**nine of the ten were unanchored**:
+
+    LINE_SUFFIX = re.compile(r" \(line \d+\)")
+
+`tests/test_self_eval.py`, `test_v29.py`, `test_v30.py`, `test_v31.py`,
+`test_v33.py`, `test_miss_message_differential.py`,
+`test_contract_message_differential.py` — plus `test_v20.py` and
+`test_v22.py`, which spell the identical pattern `LINE_RE`. The tenth,
+`test_parse_error_differential.py::IMPL_COORD`, was already anchored.
+Every unanchored one is applied with `.sub("", …)`, which is global — so
+each deleted *every* parenthesised line number in a message, not merely
+the implementation coordinate `miss` appends to a guest error.
+
+**The first count was seven, and it was wrong by two, because it came from
+grepping the NAME.** `grep -rn LINE_SUFFIX tests/` cannot see a copy called
+something else. `bench/sanitisers.py` (this version) walks each test
+module's AST for `re.compile`, recovers the literal pattern, and decides
+membership by RUNNING it against a rendered ` (line N)` — so two spellings
+of one hazard are one row, and the two-space variant `CONTRAST_LINE`
+(which matches `  (line N)` and cannot reach these messages) is correctly
+not a row at all. It found the last two. One of them, `test_v22.py`'s, was
+**dead** — that module imports its `reason` helper from `test_v20` and
+never used its own copy — so it is deleted rather than anchored: a dead
+unanchored normaliser is a trap for whoever reaches for it next.
+
+That was harmless for exactly as long as no message carried a line number
+as a fact. v0.37 made the first and survived only because no corpus in
+those six files reaches a parse error. v0.38 made the second, and
+`test_self_eval.py::SHAPE_PARSE_ERRORS` *does* reach it:
+
+    raw       shape 'P' is already declared in this block (line 1) at line 2, col 7 (line 997)
+    unanchored → shape 'P' is already declared in this block
+    anchored   → shape 'P' is already declared in this block (line 1)
+
+The unanchored form deleted the exact fact this version adds and reported
+the guest as disagreeing with a host it agrees with byte for byte. All
+seven are `$`-anchored now. Anchoring is safe because a guest error reason
+is `<sentence><position><implementation coordinate>` in that order — `miss`
+appends the raising line last — so `$` lands on the coordinate and one
+`sub` removes exactly it.
+
+Round 402 pinned `IMPL_COORD`'s anchor and wrote that "only the `$` anchor
+stops the sanitiser deleting the exact fact the decision added". That was
+true, and it was true of **one of ten**. A pin on one instance reads, to
+the next round, as a pin on the class.
+
+Round 402's item 6 says "grep for the NUMBER, not the test", and v0.38 is
+its sixth consecutive instance in two forms at once: the duplicated
+`LIB_END` bound (1022, in two files, found by `grep -rn '\b1022\b'`) and
+this normaliser. It also shows the item's limit. A grep finds a
+*representation*, and these ten copies share a pattern but not an
+identifier — which is why the artefact this version leaves behind is
+`bench/sanitisers.py check`, an executable census that does not depend on
+what anybody named anything.
+
+### What v0.38 deliberately does NOT do
+
+It does not **unify** the two duplicate-name sentences. Unification would
+move a position — `shape_def`'s fires at the shape NAME, `stmt_list`'s at
+the statement head, and for `shape S = …` those are six columns apart — so
+decision 34's rule 2 makes it a real change with a real cost, and nothing
+has argued for paying it. What this version does instead is make the
+unification *checkable*: both sentences now report the same line for the
+same declaration, so a future round that merges them can prove it changed
+a wording and not a fact.
+
+It does not give the guest the hint system; 18 of 64 messages still differ
+by a host-only cure and rule 3 is unchanged. It does not touch
+`whence/interp.py`, `whence/lexer.py` or `whence/values.py`. And it does
+not audit the OTHER normalisers in `tests/` — `POSITION_CLAUSE`,
+`CONTRAST_LINE`, the several `_show`-shaped helpers — for the same hazard
+against values they might one day be handed. `bench/sanitisers.py` is
+written so that widening `_FACT_SHAPE` is the whole of that job.

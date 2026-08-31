@@ -45,7 +45,11 @@ from test_v20 import guest_eval_all, reason  # same helpers, same rationale
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-LINE_RE = re.compile(r" \(line \d+\)")
+# Round 404 (v0.38): a tenth copy of the `(line N)` normaliser lived here
+# and was DEAD -- this module imports `reason` from `test_v20` and never
+# used its own. It was unanchored, like eight of the other nine, and a
+# dead unanchored normaliser is a trap for whoever reaches for it next, so
+# it is deleted rather than fixed. `bench/sanitisers.py` is what found it.
 HINT_RE = re.compile(r" \(arguments fit [a-z_]+\([^)]*\)\)$")
 
 

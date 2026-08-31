@@ -1572,5 +1572,33 @@
    "instruments-already-running"
   ],
   "prompt": "The box was slow overnight and I want to know which process was responsible. Should I add a per-process CPU sampler so we can tell next time?"
+ },
+ {
+  "id": "sotn-near",
+  "expect": [
+   "sanitiser-outgrows-its-noise"
+  ],
+  "prompt": "Our host/guest differential strips the implementation's own line number out of every message with re.sub(r' \\(line \\d+\\)', '', msg) before comparing. I just added a real line number to the END of one of those messages. Is that going to be a problem?"
+ },
+ {
+  "id": "sotn-mid",
+  "expect": [
+   "sanitiser-outgrows-its-noise"
+  ],
+  "prompt": "A golden-output test normalises timestamps away before diffing. We added a duration field that renders like a timestamp and now the diff says the two sides match even though I can see they don't. Where do I start?"
+ },
+ {
+  "id": "sotn-far",
+  "expect": [
+   "sanitiser-outgrows-its-noise"
+  ],
+  "prompt": "The same 'strip the trailing noise' regex is copy-pasted into six of our test files. One of them was fixed last month and the others weren't touched. How worried should I be?"
+ },
+ {
+  "id": "sotn-neg-constant",
+  "expect": [
+   "would-a-constant-have-passed"
+  ],
+  "prompt": "I taught the parser to report the line of the first binding and every fixture in the differential happens to bind on line 1. Does the corpus actually test that the line is computed?"
  }
 ]

@@ -124,9 +124,16 @@ UNHINTED = {
          "message says both the name and that scope is the problem"),
     "'%s' is a reserved type name":
         "message-is-the-cure: rename it; the message names it",
-    "shape '%s' is already declared in this block":
-        ("names-the-operands: the name and the scope. Rename or delete is "
-         "a choice the message cannot make"),
+    "shape '%s' is already declared in this block (line %d)":
+        ("names-the-operands: the name, the scope, and (v0.38, round 404,"
+         " decision 47) the line of the earlier declaration. Rename or "
+         "delete is a choice the message cannot make. NOTE for whoever "
+         "edits this table next: the `(line %d)` is a FACT this sentence "
+         "reports, not a hint -- `_parse_error_sites` reads `hinted` off "
+         "the AST (`_with_hint(...)` at the raise site) and is therefore "
+         "immune to the shape collision that bit "
+         "`test_parse_error_differential.py::_strip_hint`, which reads it "
+         "off the string"),
     "block must contain at least one expression":
         "HINTED-IN-v0.34 (kept here only to fail loudly if it is removed)",
     "expected a type name":
