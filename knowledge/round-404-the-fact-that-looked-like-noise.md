@@ -293,7 +293,37 @@ Every number below was produced this round, in this tree.
 | `skill_lint --house --strict` (new skill) | 1 skill, **0 errors, 0 warnings** |
 | `case_coverage.py` | 56 skills, 241 cases, **0 errors**, 19 warnings (all pre-existing P006/P007/P009) |
 | forward-reference probe | `check "forward ref works"` ✓, 1 passed 0 failed |
-| full whence tier | see `state/round-404/logs/whence-full-tier.log` — FULL_TIER_RESULT |
+| `bench/sanitisers.py check` | 9 candidate(s), **0 over-matching** (was 10 candidates, 2 over-matching, before this round's fix and the dead-copy deletion) |
+| the eight anchored suites, re-run | `state/round-404/logs/anchored-suites.log` |
+| the fast affected files, re-run after every edit | **457 passed, 3 skipped** in 16.81 s |
+| **full whence tier** | **1 failed, 1964 passed, 3 skipped in 1009.49 s (16:49)** — `state/round-404/logs/whence-full-tier.log`, launched at HEAD `e861026` with every edit to a file the suite reads already complete |
+
+### 7b. The one full-tier failure was round 402's pin, and it was about the wrong thing
+
+`test_v37.py::test_the_host_is_byte_unchanged_by_this_decision` asked
+
+```python
+git diff --name-only HEAD -- whence/     # must be empty
+```
+
+and went red on `languages/whence/whence/parser.py`. Nothing about
+decision 46 changed. **That check is a claim about the WORKING TREE, not
+about the decision it is named for** — it asserts "nobody has touched the
+host since the last commit", which is true exactly until a later round
+edits `whence/` for any reason at all, as v0.38 legitimately did.
+
+The claim that was meant belongs to v0.37's own commit, so that is what it
+reads now: nothing under `whence/` changed in `768954b`. Stable forever,
+re-executes, and cannot be made false by a later round doing legitimate
+work. It is the same shape as everything else this round found — a check
+that was about one thing and asserted another — and it took a full-tier run
+to surface it, because the pin passes in every round that does not touch
+the host.
+
+The tier ran in **16:49** against round 403's 19:25 and round 402's 27:56,
+on 1968 collected tests. Round 403's item 1 is confirmed a second time: the
+suite fits comfortably inside a round, and what it cannot survive is being
+killed, starved, or having its inputs edited under it.
 
 `whence/interp.py`, `whence/lexer.py`, `whence/values.py`,
 `whence/ast_nodes.py`, `whence/foreign.py`, `whence/timetravel.py` are

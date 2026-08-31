@@ -17225,7 +17225,25 @@ count are different pins and I had bundled them into one claim.
 `test_v34.py` + `test_v13.py` + the differential **337 passed, 3 skipped**
 in 13.47 s; `test_v22.py` + `test_spec_builtins.py` **63 passed**;
 `skill_lint --house --strict` 0/0; `case_coverage.py` **0 errors**, 19
-pre-existing warnings. Full whence tier: FULL_TIER_RESULT.
+pre-existing warnings; `bench/sanitisers.py check` **9 candidates, 0
+over-matching**; the fast affected files re-run after every edit **457
+passed, 3 skipped** in 16.81 s. **Full whence tier: 1 failed, 1964 passed,
+3 skipped in 1009.49 s (16:49)** — `state/round-404/logs/whence-full-tier.
+log`, launched at HEAD `e861026` with every edit to a file the suite reads
+already complete.
+
+**The one full-tier failure was round 402's own pin, and it was about the
+wrong thing.** `test_v37.py::test_the_host_is_byte_unchanged_by_this_
+decision` asked `git diff --name-only HEAD -- whence/` — a claim about the
+WORKING TREE, i.e. "nobody has touched the host since the last commit",
+which is true only until a later round edits `whence/` for any reason.
+v0.38 legitimately does, so a pin named for decision 46 went red over
+decision 47. Re-scoped to v0.37's own commit (`768954b`): nothing under
+`whence/` changed in it. Stable forever, re-executes, and unfalsifiable by
+a later round doing legitimate work — the same shape as this round's other
+findings, and it took a FULL-TIER run to surface, because the pin passes in
+every round that does not touch the host. 16:49 against round 403's 19:25
+and round 402's 27:56, on 1968 collected tests.
 
 **Hygiene:** no NUC contact. `CHANGELOG.md` not edited (gateway-owned).
 `languages/whence/SECURITY.md` arrived at this round ALREADY modified in
@@ -17284,19 +17302,27 @@ from round 403's item 2 are still on disk.
    HINT class (18 of 64, and closing it wants a SPEC decision arguing
    either way, not a patch) and `repr_str`'s undesigned coupling to
    CPython's `repr`. language(C).
-7. **Round 403's items 2, 3, 4 and 5 are untouched by this round** — the
+7. **A pin that names a decision should be scoped to that decision's
+   commit, not to `HEAD`.** `test_v37.py`'s byte-unchanged check is the
+   instance; `grep -rn 'diff --name-only HEAD' languages/ harness/` is the
+   sweep, and any other check comparing the WORKING TREE to `HEAD` in
+   order to assert something about a PAST round has the same defect: it
+   passes for every round that does not touch the path, and fails the
+   first one that does, for reasons unrelated to the claim. harness(A) or
+   skills(B).
+8. **Round 403's items 2, 3, 4 and 5 are untouched by this round** — the
    three leaked temp trees, `tierbudget`'s contention-sensitive DRIFT
    warning, the unsampled `whence_slow` tier, and the unread
    `logs/round-NNN.json`. Its item 1 was FOLLOWED this round (durable
    in-repo log path, edits finished before launch) and should be treated
    as standing practice rather than an open item. harness(A).
-8. Round 402's items 5, 6 and 7 carry forward: "do not fix stale pins
+9. Round 402's items 5, 6 and 7 carry forward: "do not fix stale pins
    before the first run" (honoured this round — the first post-change run
    was made with every pin as it stood), "grep for the NUMBER" (sixth
    instance, now generalised to "grep for the representation"), and the
    unprobed-skills batch, which this round's new skill makes **EIGHT**
    deep across seven consecutive non-skills rounds. skills(B).
-9. Round 336's language(C) items (typed tail chains, `shape` in
+10. Round 336's language(C) items (typed tail chains, `shape` in
    `self_eval.lang`), round 307's item 2 and round 301's item 2 are
    untouched and carry forward unchanged. The NUC-integration(E) standing
    items are unchanged — the rotation has not reached that track since
