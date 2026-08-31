@@ -1,0 +1,254 @@
+[
+  {
+    "file": "cognitive_verifier.lang",
+    "first_error": "expected '{', got '\\n' (blocks are always braced: `if c { a } else { b }`, `fn f(x) { x }`) at line 24, col 11",
+    "parses": false,
+    "outcome": "stalled",
+    "steps": [
+      {
+        "error": "expected '{', got '\\n' (blocks are always braced: `if c { a } else { b }`, `fn f(x) { x }`) at line 24, col 11",
+        "body": "expected '{', got '\\n'",
+        "hint": "blocks are always braced: `if c { a } else { b }`, `fn f(x) { x }`",
+        "line": 24,
+        "col": 11,
+        "cure": "braced-block",
+        "determinacy": "under-extent"
+      }
+    ],
+    "applied": 0
+  },
+  {
+    "file": "cognitive_verifier_v2.lang",
+    "first_error": "'if' requires 'else' (every expression has a value) at line 17, col 5",
+    "parses": false,
+    "outcome": "stalled",
+    "steps": [
+      {
+        "error": "'if' requires 'else' (every expression has a value) at line 17, col 5",
+        "body": "'if' requires 'else'",
+        "hint": "every expression has a value",
+        "line": 17,
+        "col": 5,
+        "cure": "if-requires-else",
+        "determinacy": "under-content"
+      }
+    ],
+    "applied": 0
+  },
+  {
+    "file": "cognitive_verifier_v3.lang",
+    "first_error": "expected '{', got 'VERIFIED: ' (blocks are always braced: `if c { a } else { b }`, `fn f(x) { x }`) at line 12, col 10",
+    "parses": false,
+    "outcome": "stalled",
+    "steps": [
+      {
+        "error": "expected '{', got 'VERIFIED: ' (blocks are always braced: `if c { a } else { b }`, `fn f(x) { x }`) at line 12, col 10",
+        "body": "expected '{', got 'VERIFIED: '",
+        "hint": "blocks are always braced: `if c { a } else { b }`, `fn f(x) { x }`",
+        "line": 12,
+        "col": 10,
+        "cure": "braced-block",
+        "determinacy": "under-extent"
+      }
+    ],
+    "applied": 0
+  },
+  {
+    "file": "expense_tracker.lang",
+    "first_error": null,
+    "parses": true,
+    "rc": 0,
+    "outcome": "parses-unedited",
+    "steps": [],
+    "applied": 0
+  },
+  {
+    "file": "mini_agi_guardian.lang",
+    "first_error": null,
+    "parses": true,
+    "rc": 0,
+    "outcome": "parses-unedited",
+    "steps": [],
+    "applied": 0
+  },
+  {
+    "file": "nano_reasoner.lang",
+    "first_error": "unexpected '=' (Whence has no assignment; a name binds once \u2014 write `let name = value`) at line 31, col 21",
+    "parses": false,
+    "outcome": "stalled",
+    "steps": [
+      {
+        "error": "unexpected '=' (Whence has no assignment; a name binds once \u2014 write `let name = value`) at line 31, col 21",
+        "body": "unexpected '='",
+        "hint": "Whence has no assignment; a name binds once \u2014 write `let name = value`",
+        "line": 31,
+        "col": 21,
+        "cure": "assignment",
+        "determinacy": "mechanical",
+        "applied": true,
+        "next_line": 32,
+        "moved_backwards": false
+      },
+      {
+        "error": "block must end with an expression at line 32, col 5",
+        "body": "block must end with an expression",
+        "hint": null,
+        "line": 32,
+        "col": 5,
+        "cure": null,
+        "determinacy": "no-cure"
+      }
+    ],
+    "applied": 1
+  },
+  {
+    "file": "prod_demo_v1.lang",
+    "first_error": "unexpected 'rescue' (`rescue` is infix: `risky rescue fallback`) at line 27, col 23",
+    "parses": false,
+    "outcome": "stalled",
+    "steps": [
+      {
+        "error": "unexpected 'rescue' (`rescue` is infix: `risky rescue fallback`) at line 27, col 23",
+        "body": "unexpected 'rescue'",
+        "hint": "`rescue` is infix: `risky rescue fallback`",
+        "line": 27,
+        "col": 23,
+        "cure": "rescue-infix",
+        "determinacy": "under-extent"
+      }
+    ],
+    "applied": 0
+  },
+  {
+    "file": "prod_demo_v3.lang",
+    "first_error": "expected ), got 'total' (two names in a row: Whence has no juxtaposition \u2014 a call is `f(x)` and text must be quoted) at line 22, col 19",
+    "parses": false,
+    "outcome": "stalled",
+    "steps": [
+      {
+        "error": "expected ), got 'total' (two names in a row: Whence has no juxtaposition \u2014 a call is `f(x)` and text must be quoted) at line 22, col 19",
+        "body": "expected ), got 'total'",
+        "hint": "two names in a row: Whence has no juxtaposition \u2014 a call is `f(x)` and text must be quoted",
+        "line": 22,
+        "col": 19,
+        "cure": "juxtaposition",
+        "determinacy": "under-choice"
+      }
+    ],
+    "applied": 0
+  },
+  {
+    "file": "prod_demo_v4.lang",
+    "first_error": "two statements on one line (two names in a row: Whence has no juxtaposition \u2014 a call is `f(x)` and text must be quoted) at line 8, col 32",
+    "parses": false,
+    "outcome": "stalled",
+    "steps": [
+      {
+        "error": "two statements on one line (two names in a row: Whence has no juxtaposition \u2014 a call is `f(x)` and text must be quoted) at line 8, col 32",
+        "body": "two statements on one line",
+        "hint": "two names in a row: Whence has no juxtaposition \u2014 a call is `f(x)` and text must be quoted",
+        "line": 8,
+        "col": 32,
+        "cure": "juxtaposition",
+        "determinacy": "under-choice"
+      }
+    ],
+    "applied": 0
+  },
+  {
+    "file": "prod_demo_v5.lang",
+    "first_error": "unexpected 'rescue' (`rescue` is infix: `risky rescue fallback`) at line 35, col 18",
+    "parses": false,
+    "outcome": "stalled",
+    "steps": [
+      {
+        "error": "unexpected 'rescue' (`rescue` is infix: `risky rescue fallback`) at line 35, col 18",
+        "body": "unexpected 'rescue'",
+        "hint": "`rescue` is infix: `risky rescue fallback`",
+        "line": 35,
+        "col": 18,
+        "cure": "rescue-infix",
+        "determinacy": "under-extent"
+      }
+    ],
+    "applied": 0
+  },
+  {
+    "file": "prod_showcase_final.lang",
+    "first_error": null,
+    "parses": true,
+    "rc": 0,
+    "outcome": "parses-unedited",
+    "steps": [],
+    "applied": 0
+  },
+  {
+    "file": "test_simple.lang",
+    "first_error": null,
+    "parses": true,
+    "rc": 0,
+    "outcome": "parses-unedited",
+    "steps": [],
+    "applied": 0
+  },
+  {
+    "file": "whenceguard_auditor.lang",
+    "first_error": "unexpected ':' (records are written `@{a: 1}`, not `{a: 1}`) at line 14, col 10",
+    "parses": false,
+    "outcome": "stalled",
+    "steps": [
+      {
+        "error": "unexpected ':' (records are written `@{a: 1}`, not `{a: 1}`) at line 14, col 10",
+        "body": "unexpected ':'",
+        "hint": "records are written `@{a: 1}`, not `{a: 1}`",
+        "line": 14,
+        "col": 10,
+        "cure": "record-literal",
+        "determinacy": "mechanical",
+        "applied": true,
+        "next_line": 15,
+        "moved_backwards": false
+      },
+      {
+        "error": "unexpected ':' (records are written `@{a: 1}`, not `{a: 1}`) at line 15, col 10",
+        "body": "unexpected ':'",
+        "hint": "records are written `@{a: 1}`, not `{a: 1}`",
+        "line": 15,
+        "col": 10,
+        "cure": "record-literal",
+        "determinacy": "mechanical",
+        "applied": true,
+        "next_line": 19,
+        "moved_backwards": false
+      },
+      {
+        "error": "two statements on one line (two names in a row: Whence has no juxtaposition \u2014 a call is `f(x)` and text must be quoted) at line 19, col 9",
+        "body": "two statements on one line",
+        "hint": "two names in a row: Whence has no juxtaposition \u2014 a call is `f(x)` and text must be quoted",
+        "line": 19,
+        "col": 9,
+        "cure": "juxtaposition",
+        "determinacy": "under-choice"
+      }
+    ],
+    "applied": 2
+  },
+  {
+    "file": "whenceguard_v2.lang",
+    "first_error": "two statements on one line (two names in a row: Whence has no juxtaposition \u2014 a call is `f(x)` and text must be quoted) at line 9, col 21",
+    "parses": false,
+    "outcome": "stalled",
+    "steps": [
+      {
+        "error": "two statements on one line (two names in a row: Whence has no juxtaposition \u2014 a call is `f(x)` and text must be quoted) at line 9, col 21",
+        "body": "two statements on one line",
+        "hint": "two names in a row: Whence has no juxtaposition \u2014 a call is `f(x)` and text must be quoted",
+        "line": 9,
+        "col": 21,
+        "cure": "juxtaposition",
+        "determinacy": "under-choice"
+      }
+    ],
+    "applied": 0
+  }
+]

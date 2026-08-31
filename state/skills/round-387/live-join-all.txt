@@ -1,0 +1,44 @@
+# live vs. replay — 23 round(s) with a skills-check verdict
+
+live   = `skills/run_checks_fast.sh`, 7 checkers, WORKING TREE, every round (logs/driver.log)
+replay = `corpus_history.py`, 6 checker(s), COMMITS
+
+live FAIL rounds:            5 of 23
+  ...with NO commit in the replay scope: 1
+live ERROR codes:            K001, K003, rc1
+replay ERROR codes (all commits): K001, K003
+CODE INTERSECTION:           K001, K003
+
+| round | live | live codes | replay | replay codes | commit |
+|---|---|---|---|---|---|
+| 364 | PASS | - | strict | - | fde4bdd |
+| 365 | FAIL | unit_tests:rc1, xref_check:rc1 | strict | - | b89c497 |
+| 366 | PASS | - | strict | - | 48b8967 |
+| 367 | PASS | - | strict | - | 24bc75c |
+| 368 | PASS | - | strict | - | f568a79 |
+| 369 | PASS | - | strict | - | 80401e5 |
+| 370 | PASS | - | error | K001 | e7b2745 |
+| 371 | PASS | - | strict | - | d49e2dd |
+| 372 | FAIL | unit_tests:rc1, xref_check:rc1 | strict | - | 9277c62 |
+| 373 | PASS | - | error | K001 | 9f6cff3 |
+| 374 | FAIL | carryforward:K003, unit_tests:rc1 | error | K003 | 10acd1f |
+| 375 | PASS | - | artifact | P008 | 78077fa |
+| 376 | PASS | - | artifact | P008 | 19feaa6 |
+| 377 | PASS | - | artifact | P008 | 3f80a0b |
+| 378 | PASS | - | error | K001, P008 | 4b63752 |
+| 379 | PASS | - | artifact | P008 | 743f8f4 |
+| 380 | FAIL | carryforward:K003, unit_tests:rc1 | artifact | P008 | b36a751 |
+| 381 | PASS | - | artifact | P008 | e3e85cf |
+| 382 | PASS | - | artifact | P008 | 710066f |
+| 383 | PASS | - | artifact | P008 | 74e70c7 |
+| 384 | PASS | - | artifact | P008 | 4db91cd |
+| 385 | PASS | - | artifact | P008 | 3772ac6 |
+| 386 | FAIL | carryforward:K001, unit_tests:rc1 | absent | - | — |
+
+## repair latency (rounds from a FAIL to the next PASS)
+
+- round 365 → round 366 (1 round(s) later)
+- round 372 → round 373 (1 round(s) later)
+- round 374 → round 375 (1 round(s) later)
+- round 380 → round 381 (1 round(s) later)
+- round 386 → NEVER (still failing at the end of the log)

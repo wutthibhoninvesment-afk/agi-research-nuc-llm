@@ -51,6 +51,7 @@ import sys
 from types import GeneratorType
 
 from . import ast_nodes as A
+from .foreign import FOREIGN_NAMES, MISS_REASON_HINT, name_hint
 from .parser import parse
 from .values import (
     Value, Prov, MergedProv, Miss, Guess, Record, Closure, Builtin,
@@ -324,6 +325,20 @@ def _if_bad(cond, line):
 
 def _miss_lit(reason, line):
     if isinstance(reason.value, Miss):
+        # v0.33 (round 386), round 384's next-step 1. `miss SOME_ATOM` --- six
+        # sites across four field programs --- evaluated the NameRef, got
+        # `unbound name 'SOME_ATOM'`, and propagated it: the atom the author
+        # wrote as the reason survived only as the subject of a complaint
+        # about scope. Decision 41's clause is what it needed and the clause
+        # already existed. Guarded on ORIGIN + `op == "name"` because `miss
+        # reason` over a BOUND name is the idiomatic spelling and the tracked
+        # corpus uses it 14 times (`self_eval.lang`, `self_host.lang`); only
+        # an unbound name in this position is the mistake.
+        if reason.op == "name" and is_origin_miss(reason):
+            return mk_miss(
+                _unbound_text(reason.detail,
+                              " (%s)" % (MISS_REASON_HINT % reason.detail)),
+                line, "miss", inputs=(reason,))
         return merge_miss("miss", "", line, (reason,))
     if not isinstance(reason.value, str):
         return mk_miss("miss reason must be a string, got %s" %
@@ -2702,34 +2717,29 @@ def _sig_text(name):
 #   - And it cost host/guest parity: `examples/self_eval.lang` would have had
 #     to re-implement Levenshtein to keep saying what the host says. A record
 #     lookup it can mirror in four lines.
-_FOREIGN_NAMES = {
-    # (a) attested in the field corpus — count in the comment
-    "println": "Whence has no `println`; `print` already ends the line",  # 34
-    "catch": "Whence has no `catch`; recover with `risky rescue fallback`",  # 6
-    "Miss": "Whence's `miss` is lower case: `miss <reason>`",              # 6
-    "return": "Whence has no `return`; a block's value is its last "
-              "expression",                                                # 4
-    "for": "Whence has no loops; iterate with `map`/`filter`/`fold` or "
-           "recursion",                                                    # 2
-    "then": "an `if` needs no `then`: `if c { a } else { b }`",            # 1
-    # (b) a construct SPEC decision 2 or 3 names as deliberately absent
-    "while": "Whence has no loops; iterate with `map`/`filter`/`fold` or "
-             "recursion",
-    "try": "Whence has no `try`; recover with `risky rescue fallback`",
-    "throw": "Whence has no `throw`; a failure is a value — write "
-             "`miss <reason>`",
-    "raise": "Whence has no `raise`; a failure is a value — write "
-             "`miss <reason>`",
-    "null": "Whence has no null; a missing value is `miss <reason>`",
-    "nil": "Whence has no nil; a missing value is `miss <reason>`",
-    "None": "Whence has no None; a missing value is `miss <reason>`",
-}
+# v0.33 (round 386), decision 42: the table MOVED to `whence/foreign.py`
+# so the parser can read it too --- `interp.py` imports `parser.py`, so a
+# table the parser needs cannot live here. This alias is not a convenience;
+# it is the guarantee that there is still exactly ONE table. Round 384's
+# `tests/test_v32.py` imports this name and tests the live dict through it.
+_FOREIGN_NAMES = FOREIGN_NAMES
 
 
 def _name_hint(name):
-    """The v0.32 clause on an unbound name, or `""`."""
-    foreign = _FOREIGN_NAMES.get(name)
-    return " (%s)" % foreign if foreign is not None else ""
+    """The v0.32 clause on an unbound name, or `""`. See `whence/foreign.py`."""
+    return name_hint(name)
+
+
+def _unbound_text(name, clause):
+    """The `unbound name 'x'` sentence, in ONE place.
+
+    v0.33. Round 380 found this literal in three copies and `_unbound`
+    made it one; v0.33 needs a SECOND caller (`_miss_lit`, which supplies
+    decision 41's miss-reason clause instead of the foreign one) and a
+    second caller is exactly how the three copies started. `clause` is the
+    already-parenthesised suffix, or `""`.
+    """
+    return "unbound name '%s'%s" % (name, clause)
 
 
 def _unbound(name, line):
@@ -2737,8 +2747,7 @@ def _unbound(name, line):
     the trampoline and the builtin-call path cannot drift apart — they were
     three copies of the same literal before v0.32, which is why round 380's
     `mk_miss` census counted three `name` sites and now counts one."""
-    return mk_miss("unbound name '%s'%s" % (name, _name_hint(name)),
-                   line, "name", name)
+    return mk_miss(_unbound_text(name, _name_hint(name)), line, "name", name)
 
 
 def _order_hint(name, args):

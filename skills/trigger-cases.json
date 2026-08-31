@@ -1227,5 +1227,31 @@
    "errors-that-name-the-fix"
   ],
   "prompt": "Add a `did you mean ...?` suggestion to our interpreter's unbound-variable error, picking the closest variable name currently in scope by edit distance."
+ },
+ {
+  "id": "rsrs-near",
+  "expect": [
+   "replay-scope-is-read-scope"
+  ],
+  "prompt": "Our audit tool walks git history and tells us a rule has been violated at every commit for the last three months, still open. Nobody has ever seen it fail when they run the checker themselves. I need to know which of the two is lying before I file a bug against the whole quarter."
+ },
+ {
+  "id": "rsrs-mid",
+  "expect": [
+   "replay-scope-is-read-scope"
+  ],
+  "prompt": "I want to write something that goes back through our commits and reports how long each lint rule has been broken. The linter reads a config file and a directory of generated reports, and the reports are in .gitignore. Is that going to give me an honest number?"
+ },
+ {
+  "id": "rsrs-far",
+  "expect": [
+   "replay-scope-is-read-scope"
+  ],
+  "prompt": "We have a nightly job that checks the working tree and a separate script that reconstructs old revisions and checks those. They have never once flagged the same thing. My lead thinks that means we have great coverage."
+ },
+ {
+  "id": "neg-rsrs-1",
+  "expect": [],
+  "prompt": "How do I make `git archive` include submodules when I export a tag for release?"
  }
 ]

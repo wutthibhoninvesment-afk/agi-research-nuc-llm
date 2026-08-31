@@ -8,6 +8,7 @@ Enforced at parse time (not runtime):
 
 from .lexer import tokenize
 from . import ast_nodes as A
+from .foreign import FOREIGN_NAMES, bound_anywhere
 
 
 class ParseError(Exception):
@@ -175,6 +176,14 @@ class Parser(object):
         self.tokens = tokens
         self.pos = 0
         self.nesting = 0
+        # v0.33 (round 386), decision 42: names this file BINDS, so a
+        # foreign-word clause is never printed about a name the program
+        # defines. One whole-file token scan, done once here rather than
+        # per error, because it is the same answer every time and an error
+        # path is not where a linear scan belongs. See `whence/foreign.py`
+        # for why it is a token scan (the file does not parse --- that is
+        # the situation) and why it errs toward suppression.
+        self._bound_names = bound_anywhere(tokens)
         # v0.18 (round 342): the type namespace is the VALUE namespace, so
         # it obeys the value namespace's scope rule. One frame per block,
         # pushed/popped by `stmt_list` alongside the alias stacks below —
@@ -431,6 +440,63 @@ class Parser(object):
                 tok.line, tok.col)
         return self.next()
 
+    def _foreign_hint(self, tok):
+        """v0.33 (round 386), decision 42: the clause naming a foreign word.
+
+        The most specific thing a parse error can say about `for d in xs` is
+        not that two names are adjacent; it is that Whence has no loops.
+        That sentence has existed since v0.32 --- in `interp.py`, reachable
+        only from a RUNTIME unbound name, which a program that does not
+        parse never reaches. This is the same table, read from the other
+        side.
+
+        Two candidate tokens, in this order:
+
+        ONE candidate token, and which one depends on the shape:
+
+          - when the offending token is a NAME directly after another NAME
+            --- the juxtaposition adjacency `_expect_hint` and
+            `_separator_hint` already test --- the candidate is the EARLIER
+            one, and only the earlier one. `for d` stops the parse at `d`;
+            `for` is the word that created the adjacency, and `catch Miss`
+            is the same shape with both tokens in the table.
+          - otherwise the candidate is the offending token itself.
+            `... "HIGH_RISK" then` stops at `then`, whose predecessor is a
+            STRING.
+
+        Trying BOTH was this round's own bug, and the corpus caught it. An
+        earlier draft tried `prev` and then `tok`, which made
+        `safe_divide one_hundred, zero_point_zero` --- a paren-less call,
+        round 354's tenth case --- report "Whence has no spelled-out
+        numbers; write the literal `100`". True about the word, and it
+        SHADOWED the juxtaposition hint, which is the one message that
+        describes the actual parse mistake there. The rule that fixes it is
+        the rule that was already implicit: a foreign word explains an
+        error when it is what put the two names next to each other, not
+        when it merely happens to be one of them. Round 386 measured 15 of
+        45 corpus parse errors changed by this clause; before the fix one
+        of the 15 was a regression.
+
+        Silent for any name the file binds (`self._bound_names`) and for
+        any name not in the table --- decision 32's standing rule that a
+        cure is computed or absent, never guessed.
+        """
+        prev = self.tokens[self.pos - 1] if self.pos > 0 else None
+        if (tok.type == "NAME" and prev is not None and prev.type == "NAME"
+                and prev.value not in _NAME_INTRODUCERS):
+            cands = [prev]
+        elif tok.type == "NAME":
+            cands = [tok]
+        else:
+            cands = []
+        for cand in cands:
+            if cand.value in self._bound_names:
+                continue
+            sentence = FOREIGN_NAMES.get(cand.value)
+            if sentence is not None:
+                return sentence
+        return None
+
     def _expect_hint(self, want, tok):
         """v0.22: the clause `expect` appends, or None.
 
@@ -444,6 +510,9 @@ class Parser(object):
             adjacency itself is what identifies it, not the token that
             happened to be expected, which is why this is `)`-and-`]`-proof.
         """
+        foreign = self._foreign_hint(tok)
+        if foreign is not None:
+            return foreign
         if want == "'{'":
             return _BRACE_HINT
         prev = self.tokens[self.pos - 1] if self.pos > 0 else None
@@ -476,6 +545,15 @@ class Parser(object):
         shape_head = (tok.type == "NAME" and tok.value == "shape"
                       and self.peek(1).type == "NAME"
                       and self.peek(2).type == "=")
+        if not shape_head:
+            # v0.33: `for d in xs` and `return AUTHORIZED` both arrive here,
+            # and both have a table entry saying something truer than
+            # "two names in a row". A shape head is excluded for the reason
+            # the juxtaposition test excludes it: it is the one legal
+            # NAME NAME adjacency in the grammar.
+            foreign = self._foreign_hint(tok)
+            if foreign is not None:
+                return foreign
         if (tok.type == "NAME" and not shape_head
                 and prev is not None and prev.type == "NAME"
                 and prev.value not in _NAME_INTRODUCERS):
@@ -2027,7 +2105,8 @@ class Parser(object):
                             param_call_fact, param_types)
         raise ParseError(
             _with_hint("unexpected %s" % (_show(tok),),
-                       _SYNTAX_HINTS.get(tok.value)), tok.line, tok.col)
+                       _SYNTAX_HINTS.get(tok.value)
+                       or self._foreign_hint(tok)), tok.line, tok.col)
 
     def if_expr(self):
         tok = self.expect("KW", "if")

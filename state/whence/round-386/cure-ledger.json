@@ -1,0 +1,362 @@
+[
+ {
+  "file": "cognitive_verifier.lang",
+  "old": "    } else\n        \"VERIFIED: \" + topic\n",
+  "new": "    } else {\n        \"VERIFIED: \" + topic\n    }\n",
+  "answers": "braced-block",
+  "needed": "extent",
+  "note": "the else branch is line 25 and only line 25; the message names neither"
+ },
+ {
+  "file": "cognitive_verifier_v2.lang",
+  "old": "    if confidence < confidence_threshold { miss(\"VERIFICATION_FAILED\") }\n    \"VERIFIED: \" + topic\n",
+  "new": "    if confidence < confidence_threshold { miss(\"VERIFICATION_FAILED\") }\n    else { \"VERIFIED: \" + topic }\n",
+  "answers": "if-requires-else",
+  "needed": "content+extent",
+  "note": "the value for the else branch is the NEXT statement, which the message does not mention; sibling file v3 confirms the intent"
+ },
+ {
+  "file": "cognitive_verifier_v3.lang",
+  "old": "    else \"VERIFIED: \" + topic\n",
+  "new": "    else { \"VERIFIED: \" + topic }\n",
+  "answers": "braced-block",
+  "needed": "extent",
+  "note": "the branch runs to end of line 12"
+ },
+ {
+  "file": "nano_reasoner.lang",
+  "old": "    let risk_status = \"LOW_RISK\"\n    \n    # Rule 1: Confidence Check\n    if score < min_trust_score {\n        risk_status = \"HIGH_RISK\"\n    }\n",
+  "new": "    let risk_status = if score < min_trust_score { \"HIGH_RISK\" } else { \"LOW_RISK\" }\n",
+  "answers": "assignment",
+  "needed": "whole-construct",
+  "note": "following the message LITERALLY (insert `let`) parses to `block must end with an expression`, an error naming no cure at all; the intent needs the mutation turned into an if-EXPRESSION whose else value is the line-27 initialiser"
+ },
+ {
+  "file": "nano_reasoner.lang",
+  "old": "    if risk_status == \"HIGH_RISK\" then\n        miss(\"HALUCINATION_RISK: Topic= + topic +  Score=\" + str(score) + \" < Limit=\" + str(min_trust_score))\n    else\n        [\"VERIFIED_ACTION\", topic, score]\n",
+  "new": "    if risk_status == \"HIGH_RISK\" {\n        miss(\"HALUCINATION_RISK: Topic= + topic +  Score=\" + str(score) + \" < Limit=\" + str(min_trust_score))\n    } else {\n        [\"VERIFIED_ACTION\", topic, score]\n    }\n",
+  "answers": "foreign-word",
+  "needed": "whole-construct",
+  "note": "v0.33 names `then`; the edit also needs both branches braced"
+ },
+ {
+  "file": "nano_reasoner.lang",
+  "old": "final_total_or_result = result_b",
+  "new": "let final_total_or_result = result_b",
+  "answers": "assignment",
+  "needed": "none",
+  "note": "the mechanical cure is correct here and the applier never reached it --- it stalled four errors earlier"
+ },
+ {
+  "file": "prod_demo_v1.lang",
+  "old": "let division_result = rescue { safe_divide(100, 0) }\n                      catch Miss as err {\n                          print(Caught: )\n                          println(why err)\n                          zero_point_zero\n                      }\n",
+  "new": "let division_result = safe_divide(100, 0) rescue zero_point_zero\n",
+  "answers": "rescue-infix",
+  "needed": "whole-construct+deletion",
+  "note": "`a rescue b` has no error binder, so the four-line catch body --- including the `why err` the author wanted --- has no target in the cured form and is DELETED. The message names a form that cannot hold the code it is asked to replace."
+ },
+ {
+  "file": "prod_demo_v1.lang",
+  "old": "print(Final Total: )",
+  "new": "print(\"Final Total: \")",
+  "answers": "juxtaposition",
+  "needed": "choice",
+  "note": "the quote branch, not the call branch"
+ },
+ {
+  "file": "prod_demo_v1.lang",
+  "old": "print(Provenance Tracking Active: )",
+  "new": "print(\"Provenance Tracking Active: \")",
+  "answers": "juxtaposition",
+  "needed": "choice",
+  "note": "the quote branch, not the call branch"
+ },
+ {
+  "file": "prod_demo_v1.lang",
+  "old": "print(Division Error Gracefully Handled: )",
+  "new": "print(\"Division Error Gracefully Handled: \")",
+  "answers": "juxtaposition",
+  "needed": "choice",
+  "note": "the quote branch, not the call branch"
+ },
+ {
+  "file": "prod_demo_v3.lang",
+  "old": "print(Calculating total with provenance tracking...)",
+  "new": "print(\"Calculating total with provenance tracking...\")",
+  "answers": "juxtaposition",
+  "needed": "choice",
+  "note": "the quote branch, not the call branch"
+ },
+ {
+  "file": "prod_demo_v3.lang",
+  "old": "print(Safe division failed: )",
+  "new": "print(\"Safe division failed: \")",
+  "answers": "juxtaposition",
+  "needed": "choice",
+  "note": "the quote branch, not the call branch"
+ },
+ {
+  "file": "prod_demo_v3.lang",
+  "old": "print(Test ing graceful error handling...)",
+  "new": "print(\"Test ing graceful error handling...\")",
+  "answers": "juxtaposition",
+  "needed": "choice",
+  "note": "the quote branch, not the call branch"
+ },
+ {
+  "file": "prod_demo_v3.lang",
+  "old": "print(=== PRODUCTION RESULTS ===)",
+  "new": "print(\"=== PRODUCTION RESULTS ===\")",
+  "answers": "juxtaposition",
+  "needed": "choice",
+  "note": "the quote branch, not the call branch"
+ },
+ {
+  "file": "prod_demo_v3.lang",
+  "old": "print(Final Total with Tax: )",
+  "new": "print(\"Final Total with Tax: \")",
+  "answers": "juxtaposition",
+  "needed": "choice",
+  "note": "the quote branch, not the call branch"
+ },
+ {
+  "file": "prod_demo_v3.lang",
+  "old": "print(Provenance Depth: )",
+  "new": "print(\"Provenance Depth: \")",
+  "answers": "juxtaposition",
+  "needed": "choice",
+  "note": "the quote branch, not the call branch"
+ },
+ {
+  "file": "prod_demo_v3.lang",
+  "old": "print(Division Result: )",
+  "new": "print(\"Division Result: \")",
+  "answers": "juxtaposition",
+  "needed": "choice",
+  "note": "the quote branch, not the call branch"
+ },
+ {
+  "file": "prod_demo_v4.lang",
+  "old": "let tax_rate = zero_point_zero seven",
+  "new": "let tax_rate = 0.07",
+  "answers": "foreign-word",
+  "needed": "content",
+  "note": "v0.33 names the spelled-out number and offers `0.0`; the author meant `0.07`, which the adjacent `seven` says and the message cannot"
+ },
+ {
+  "file": "prod_demo_v4.lang",
+  "old": "let div_result = safe_divide one_hundred, zero_point_zero",
+  "new": "let div_result = safe_divide(one_hundred, zero_point_zero)",
+  "answers": "juxtaposition",
+  "needed": "choice",
+  "note": "the CALL branch --- the opposite of every other juxtaposition edit in this ledger, from a word-for-word identical message. This is round 354's tenth case."
+ },
+ {
+  "file": "prod_demo_v5.lang",
+  "old": "let div_result = rescue(safe_divide(100, 0)) catch(Miss as err) zero_point_zero",
+  "new": "let div_result = safe_divide(100, 0) rescue zero_point_zero",
+  "answers": "rescue-infix",
+  "needed": "whole-construct+deletion",
+  "note": "the `catch(Miss as err)` binder has no target in `a rescue b`"
+ },
+ {
+  "file": "whenceguard_auditor.lang",
+  "old": "    {name: \"Server Parts\"",
+  "new": "    @{name: \"Server Parts\"",
+  "answers": "record-literal",
+  "needed": "none",
+  "note": "mechanical"
+ },
+ {
+  "file": "whenceguard_auditor.lang",
+  "old": "    {name: \"Express Shipping\"",
+  "new": "    @{name: \"Express Shipping\"",
+  "answers": "record-literal",
+  "needed": "none",
+  "note": "mechanical"
+ },
+ {
+  "file": "whenceguard_auditor.lang",
+  "old": "    for d in approved_departments {\n        if dept_name == d { return \"AUTHORIZED\" }\n    }\n    miss \"DEPT_NOT_APPROVED:  + str(dept_name) +  requires VP sign-off.\"\n",
+  "new": "    if contains(approved_departments, dept_name) { \"AUTHORIZED\" }\n    else { miss \"DEPT_NOT_APPROVED:  + str(dept_name) +  requires VP sign-off.\" }\n",
+  "answers": "foreign-word",
+  "needed": "whole-construct",
+  "note": "v0.33 names `for`; the loop-to-`contains` rewrite is the reader's"
+ },
+ {
+  "file": "whenceguard_auditor.lang",
+  "old": "fn sum_lines(acc, line_item) {",
+  "new": "fn(acc, line_item) {",
+  "answers": "NO-CURE",
+  "needed": "everything",
+  "note": "`expected (, got 'sum_lines'` names no cure: a fn EXPRESSION may not be named, and the message never says so"
+ },
+ {
+  "file": "whenceguard_auditor.lang",
+  "old": "let department_status = rescue { validate_department(department) } \n                       catch Miss as dept_err {\n                           println(\"\\nStep 1 FAILED: \" + why(dept_err))\n                           \"UNDER_REVIEW\"\n                       }\n",
+  "new": "let department_status = validate_department(department) rescue \"UNDER_REVIEW\"\n",
+  "answers": "rescue-infix",
+  "needed": "whole-construct+deletion",
+  "note": "catch body deleted"
+ },
+ {
+  "file": "whenceguard_auditor.lang",
+  "old": "let safe_net = rescue { check_budget_limit(net_total) }\n              catch Miss as budget_err {\n                  println(\"\\nStep 2 FAILED: \" + why(budget_err))\n                  0.0\n              }\n",
+  "new": "let safe_net = check_budget_limit(net_total) rescue 0.0\n",
+  "answers": "rescue-infix",
+  "needed": "whole-construct+deletion",
+  "note": "catch body deleted"
+ },
+ {
+  "file": "whenceguard_v2.lang",
+  "old": "let approved_departments = [Engineering, Marketing, Operations]",
+  "new": "let approved_departments = [\"Engineering\", \"Marketing\", \"Operations\"]",
+  "answers": "ACCEPTED",
+  "needed": "none",
+  "note": "bare names in a list PARSE; no error is ever raised"
+ },
+ {
+  "file": "whenceguard_v2.lang",
+  "old": "let transaction_id = TXN-2026-8842",
+  "new": "let transaction_id = \"TXN-2026-8842\"",
+  "answers": "ACCEPTED",
+  "needed": "none",
+  "note": "parses as `TXN - 2026 - 8842`, three-term arithmetic"
+ },
+ {
+  "file": "whenceguard_v2.lang",
+  "old": "let department = IT Support",
+  "new": "let department = \"IT Support\"",
+  "answers": "juxtaposition",
+  "needed": "choice",
+  "note": "choice --- the quote branch"
+ },
+ {
+  "file": "whenceguard_v2.lang",
+  "old": "let vendor = SecureSupplier_Ltd",
+  "new": "let vendor = \"SecureSupplier_Ltd\"",
+  "answers": "ACCEPTED",
+  "needed": "none",
+  "note": "a single bare name parses"
+ },
+ {
+  "file": "whenceguard_v2.lang",
+  "old": "    [Hardware Unit, 2100.00, 2],",
+  "new": "    [\"Hardware Unit\", 2100.00, 2],",
+  "answers": "juxtaposition",
+  "needed": "choice",
+  "note": "choice --- the quote branch"
+ },
+ {
+  "file": "whenceguard_v2.lang",
+  "old": "    [Express Shipping, 350.00, 1]",
+  "new": "    [\"Express Shipping\", 350.00, 1]",
+  "answers": "juxtaposition",
+  "needed": "choice",
+  "note": "choice --- the quote branch"
+ },
+ {
+  "file": "whenceguard_v2.lang",
+  "old": "fn sum_lines(acc, line_item) {",
+  "new": "fn(acc, line_item) {",
+  "answers": "NO-CURE",
+  "needed": "none",
+  "note": "a fn expression may not be named"
+ },
+ {
+  "file": "whenceguard_v2.lang",
+  "old": "        miss BUDGET_VIOLATION",
+  "new": "        miss \"BUDGET_VIOLATION\"",
+  "answers": "ACCEPTED",
+  "needed": "none",
+  "note": "parses; v0.33 now names the cure at RUNTIME"
+ },
+ {
+  "file": "whenceguard_v2.lang",
+  "old": "print(=== WHENCEGUARD AUDIT ENGINE STARTED ===)",
+  "new": "print(\"=== WHENCEGUARD AUDIT ENGINE STARTED ===\")",
+  "answers": "juxtaposition",
+  "needed": "choice",
+  "note": "choice"
+ },
+ {
+  "file": "whenceguard_v2.lang",
+  "old": "println(ID:  + transaction_id)",
+  "new": "print(\"ID: \" + transaction_id)",
+  "answers": "juxtaposition",
+  "needed": "choice",
+  "note": "choice, plus the `println` rename the RUNTIME table names"
+ },
+ {
+  "file": "whenceguard_v2.lang",
+  "old": "println(Department:  + department)",
+  "new": "print(\"Department: \" + department)",
+  "answers": "juxtaposition",
+  "needed": "choice",
+  "note": "choice, plus the `println` rename"
+ },
+ {
+  "file": "whenceguard_v2.lang",
+  "old": "if department_status == AUTHORIZED and safe_net != 0.0 {",
+  "new": "if department_status == \"AUTHORIZED\" and safe_net != 0.0 {",
+  "answers": "ACCEPTED",
+  "needed": "none",
+  "note": "a single bare name parses"
+ },
+ {
+  "file": "whenceguard_v2.lang",
+  "old": "    print(APPROVED FOR PAYMENT)",
+  "new": "    print(\"APPROVED FOR PAYMENT\")",
+  "answers": "juxtaposition",
+  "needed": "choice",
+  "note": "choice"
+ },
+ {
+  "file": "whenceguard_v2.lang",
+  "old": "} else if department_status == UNDER_REVIEW {",
+  "new": "} else if department_status == \"UNDER_REVIEW\" {",
+  "answers": "ACCEPTED",
+  "needed": "none",
+  "note": "parses"
+ },
+ {
+  "file": "whenceguard_v2.lang",
+  "old": "    print(PENDING VERIFICATION)",
+  "new": "    print(\"PENDING VERIFICATION\")",
+  "answers": "juxtaposition",
+  "needed": "choice",
+  "note": "choice"
+ },
+ {
+  "file": "whenceguard_v2.lang",
+  "old": "    print(REJECTED)",
+  "new": "    print(\"REJECTED\")",
+  "answers": "ACCEPTED",
+  "needed": "none",
+  "note": "parses"
+ },
+ {
+  "file": "whenceguard_v2.lang",
+  "old": "    for d in approved_departments {\n        if dept_name == d { return AUTHORIZED }\n    }\n    miss DEPT_NOT_APPROVED\n",
+  "new": "    if contains(approved_departments, dept_name) { \"AUTHORIZED\" }\n    else { miss \"DEPT_NOT_APPROVED\" }\n",
+  "answers": "foreign-word",
+  "needed": "whole-construct",
+  "note": "v0.33 names `for`; also absorbs the `return AUTHORIZED` on line 20, which v0.33 also names"
+ },
+ {
+  "file": "whenceguard_v2.lang",
+  "old": "let department_status = rescue { validate_department(department) } \n                       catch Miss as dept_err {\n                           println(Step 1 FAILED:  + why(dept_err))\n                           UNDER_REVIEW\n                       }\n",
+  "new": "let department_status = validate_department(department) rescue \"UNDER_REVIEW\"\n",
+  "answers": "rescue-infix",
+  "needed": "whole-construct+deletion",
+  "note": "catch body deleted"
+ },
+ {
+  "file": "whenceguard_v2.lang",
+  "old": "let safe_net = rescue { check_budget_limit(net_total) }\n              catch Miss as budget_err {\n                  println(Step 2 FAILED:  + why(budget_err))\n                  0.0\n              }\n",
+  "new": "let safe_net = check_budget_limit(net_total) rescue 0.0\n",
+  "answers": "rescue-infix",
+  "needed": "whole-construct+deletion",
+  "note": "catch body deleted"
+ }
+]

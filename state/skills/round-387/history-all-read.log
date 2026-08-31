@@ -1,0 +1,71 @@
+[ 1/40] 46c1e88 warn P004
+[ 2/40] 8c1311a warn P004
+[ 3/40] fde4bdd warn P004
+[ 4/40] 11aa0ef warn P004
+[ 5/40] b89c497 warn P004
+[ 6/40] 4150f1d warn P004
+[ 7/40] 68cf496 warn P004
+[ 8/40] 48b8967 warn P004
+[ 9/40] 24bc75c warn P004
+[10/40] 9903247 warn P004
+[11/40] f568a79 warn P004
+[12/40] 80401e5 warn K004,P004
+[13/40] e7b2745 RED! K001
+[14/40] d5c4338 RED! K001
+[15/40] 95274a1 warn K004,P004
+[16/40] d49e2dd warn K004,P004
+[17/40] 9277c62 warn K004,P004
+[18/40] 4d44f5a warn K004,P004
+[19/40] 9a9f3c5 warn K004,P004
+[20/40] 9f6cff3 RED! K001
+[21/40] 1f3cc43 warn K004,P004
+[22/40] fab139b warn K004,P004
+[23/40] 10acd1f RED! K003
+[24/40] 78077fa ungv P008
+[25/40] 19feaa6 ungv P008
+[26/40] 3f80a0b ungv P008
+[27/40] 4b63752 RED! K001
+[28/40] 8fc2956 ungv P008
+[29/40] 743f8f4 ungv P008
+[30/40] 6bc7c62 ungv P008
+[31/40] 29fd7d8 ungv P008
+[32/40] b36a751 ungv P008
+[33/40] f6d023a ungv P008
+[34/40] 8f1ffe6 ungv P008
+[35/40] e3e85cf ungv P008
+[36/40] 01cceaa ungv P008
+[37/40] 710066f ungv P008
+[38/40] 74e70c7 ungv P008
+[39/40] 4db91cd ungv P008
+[40/40] 3772ac6 ungv P008
+# corpus_history (own) — 40 commit(s) in scope
+
+ERROR-red:  5/40 commit(s)   (a rule the corpus asserts as an ERROR was violated)
+strict-red: 19/40 commit(s)   (rc=1 from --strict only: a WARNING, in this repo a carried debt)
+ungovernable: 16/40 commit(s) (rc=1 ONLY from P004,P006,P007,P008 — codes whose inputs `state/trigger-eval/*.json` keeps out of every archived tree; neither red nor green)
+checker could not run: 0 commit(s)
+
+## ERROR episodes — 4
+
+| # | commits | codes | opened by | closed by |
+|---|---|---|---|---|
+| 1 | 2 (e7b2745..d5c4338) | K001 | 2026-08-30 Round 370 (NUC E): the box never slept, and -- | Round 370 (NUC E): register the prediction ban |
+| 2 | 1 (9f6cff3..9f6cff3) | K001 | 2026-08-30 Round 373 (harness A): a dirty-tree check that | Round 373 (harness A): the record, the skill a |
+| 3 | 1 (10acd1f..10acd1f) | K003 | 2026-08-30 Round 374 (language C), verified and landed by | Round 375 (skills B): "probed" answers did we  |
+| 4 | 1 (4b63752..4b63752) | K001 | 2026-08-30 Round 378 (language C): Whence v0.30 — the pro | Round 378 (language C) record: knowledge file, |
+
+## ungovernable episodes (NOT violations) — 2
+
+| # | commits | codes | opened by | closed by |
+|---|---|---|---|---|
+| 1 | 3 (78077fa..3f80a0b) | P008 | 2026-08-30 Round 375 (skills B): "probed" answers did we  | Round 378 (language C): Whence v0.30 — the pro |
+| 2 | 13 (8fc2956..3772ac6) | P008 | 2026-08-30 Round 378 (language C) record: knowledge file, | STILL OPEN |
+
+## strict-warning episodes — 3
+
+| # | commits | codes | opened by | closed by |
+|---|---|---|---|---|
+| 1 | 12 (46c1e88..80401e5) | K004,P004 | 2026-08-30 Round 363 (skills B): the corpus had five chec | Round 370 (NUC E): the box never slept, and -- |
+| 2 | 5 (95274a1..9a9f3c5) | K004,P004 | 2026-08-30 Round 370 (NUC E): register the prediction ban | Round 373 (harness A): a dirty-tree check that |
+| 3 | 2 (1f3cc43..fab139b) | K004,P004 | 2026-08-30 Round 373 (harness A): the record, the skill a | Round 374 (language C), verified and landed by |
+

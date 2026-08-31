@@ -1,0 +1,103 @@
+[ 1/78] ee30654 ---- 
+[ 2/78] e376750 ---- 
+[ 3/78] 8d92ff9 ---- 
+[ 4/78] c768d90 ---- 
+[ 5/78] c443a23 ---- 
+[ 6/78] e8c88e6 ---- 
+[ 7/78] 4843f04 ---- 
+[ 8/78] 9474889 ---- 
+[ 9/78] 983ff8b ---- 
+[10/78] 4d17218 ---- 
+[11/78] b122e8c ---- 
+[12/78] 2d1cfba ---- 
+[13/78] a95b097 ---- 
+[14/78] 64d8e78 ---- 
+[15/78] 4d9a8f7 ---- 
+[16/78] e9e4d17 ---- 
+[17/78] 75c4693 ---- 
+[18/78] c007184 ---- 
+[19/78] c2c0b5e ---- 
+[20/78] 5c23ae4 ---- 
+[21/78] 70d350d ---- 
+[22/78] b95c953 ---- 
+[23/78] 99c6974 ---- 
+[24/78] d122e1a warn B002
+[25/78] b21300c warn B002
+[26/78] f8896ba warn B002
+[27/78] 574f8be warn B002
+[28/78] 8197239 warn B002
+[29/78] 0c38283 warn B002
+[30/78] 0e56141 warn B002
+[31/78] b2e5425 warn B002
+[32/78] 2c65f53 warn B002
+[33/78] 597adf5 warn B002
+[34/78] f911f7a warn B002
+[35/78] 0ab898b warn B002
+[36/78] b98c938 warn B002
+[37/78] e1a0d9f warn B002
+[38/78] 645560a warn B002
+[39/78] 49d1c17 ---- 
+[40/78] 1752c16 ---- 
+[41/78] 4af6963 ---- 
+[42/78] c52b9ba ---- 
+[43/78] 1c3a6f0 ---- 
+[44/78] 4309fdd ---- 
+[45/78] 491b107 ---- 
+[46/78] 4797f56 ---- 
+[47/78] 488505a ---- 
+[48/78] 68d4c30 ---- 
+[49/78] c22314d ---- 
+[50/78] c285623 ---- 
+[51/78] 4ae1ac7 ---- 
+[52/78] bfb44bc ---- 
+[53/78] 80bcf4f ---- 
+[54/78] ffb1642 ---- P004
+[55/78] 02720d2 ---- P004
+[56/78] a439262 ---- P004
+[57/78] 807475b ---- P004
+[58/78] 83ba9a1 RED! H001,P001
+[59/78] 52dcde1 RED! H001,P001
+[60/78] 46c1e88 ---- P004
+[61/78] 8c1311a ---- P004
+[62/78] 11aa0ef ---- P004
+[63/78] 9903247 ---- P004
+[64/78] 80401e5 ---- P004
+[65/78] 95274a1 ---- P004
+[66/78] d49e2dd ---- P004
+[67/78] 9f6cff3 ---- P004
+[68/78] 1f3cc43 ---- P004
+[69/78] 78077fa ungv P008
+[70/78] 19feaa6 ungv P008
+[71/78] 3f80a0b ungv P008
+[72/78] 8fc2956 ungv P008
+[73/78] 743f8f4 ungv P008
+[74/78] f6d023a ungv P008
+[75/78] e3e85cf ungv P008
+[76/78] 710066f ungv P008
+[77/78] 74e70c7 ungv P008
+[78/78] 4db91cd ungv P008
+# corpus_history (own) — 78 commit(s) in scope
+
+ERROR-red:  2/78 commit(s)   (a rule the corpus asserts as an ERROR was violated)
+strict-red: 15/78 commit(s)   (rc=1 from --strict only: a WARNING, in this repo a carried debt)
+ungovernable: 10/78 commit(s) (rc=1 ONLY from P004,P006,P007,P008 — codes whose inputs `state/trigger-eval/*.json` keeps out of every archived tree; neither red nor green)
+checker could not run: 0 commit(s)
+
+## ERROR episodes — 1
+
+| # | commits | codes | opened by | closed by |
+|---|---|---|---|---|
+| 1 | 2 (83ba9a1..52dcde1) | H001,P001 | 2026-08-30 Round 361 (harness A): skills/measured-not-dec | Round 363 (skills B): the corpus had five chec |
+
+## ungovernable episodes (NOT violations) — 1
+
+| # | commits | codes | opened by | closed by |
+|---|---|---|---|---|
+| 1 | 10 (78077fa..4db91cd) | P008 | 2026-08-30 Round 375 (skills B): "probed" answers did we  | STILL OPEN |
+
+## strict-warning episodes — 1
+
+| # | commits | codes | opened by | closed by |
+|---|---|---|---|---|
+| 1 | 15 (d122e1a..645560a) | B002 | 2026-08-28 Round 269 (SWE-loop D): independent oracle for | Round 339 (skills B) reconciliation: land clai |
+

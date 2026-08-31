@@ -1,0 +1,490 @@
+[
+  {
+    "file": "cognitive_verifier.lang",
+    "edits": 1,
+    "parse_errors_seen": [
+      {
+        "error": "expected '{', got '\\n' (blocks are always braced: `if c { a } else { b }`, `fn f(x) { x }`) at line 24, col 11",
+        "line": 24,
+        "cure": "braced-block",
+        "determinacy": "under-extent",
+        "answers": "braced-block",
+        "needed": "extent"
+      }
+    ],
+    "edits_for_accepted_text": [],
+    "n_accepted": 0,
+    "final_error": null,
+    "rc": 0,
+    "strict_rc": 0,
+    "cured_path": "/tmp/curecheck-assisted-cognitive_verifier.lang"
+  },
+  {
+    "file": "cognitive_verifier_v2.lang",
+    "edits": 1,
+    "parse_errors_seen": [
+      {
+        "error": "'if' requires 'else' (every expression has a value) at line 17, col 5",
+        "line": 17,
+        "cure": "if-requires-else",
+        "determinacy": "under-content",
+        "answers": "if-requires-else",
+        "needed": "content+extent"
+      }
+    ],
+    "edits_for_accepted_text": [],
+    "n_accepted": 0,
+    "final_error": null,
+    "rc": 0,
+    "strict_rc": 0,
+    "cured_path": "/tmp/curecheck-assisted-cognitive_verifier_v2.lang"
+  },
+  {
+    "file": "cognitive_verifier_v3.lang",
+    "edits": 1,
+    "parse_errors_seen": [
+      {
+        "error": "expected '{', got 'VERIFIED: ' (blocks are always braced: `if c { a } else { b }`, `fn f(x) { x }`) at line 12, col 10",
+        "line": 12,
+        "cure": "braced-block",
+        "determinacy": "under-extent",
+        "answers": "braced-block",
+        "needed": "extent"
+      }
+    ],
+    "edits_for_accepted_text": [],
+    "n_accepted": 0,
+    "final_error": null,
+    "rc": 0,
+    "strict_rc": 1,
+    "cured_path": "/tmp/curecheck-assisted-cognitive_verifier_v3.lang"
+  },
+  {
+    "file": "nano_reasoner.lang",
+    "edits": 3,
+    "parse_errors_seen": [
+      {
+        "error": "unexpected '=' (Whence has no assignment; a name binds once \u2014 write `let name = value`) at line 31, col 21",
+        "line": 31,
+        "cure": "assignment",
+        "determinacy": "mechanical",
+        "answers": "assignment",
+        "needed": "whole-construct"
+      },
+      {
+        "error": "expected '{', got 'then' (an `if` needs no `then`: `if c { a } else { b }`) at line 30, col 35",
+        "line": 30,
+        "cure": "foreign-word",
+        "determinacy": "under-extent",
+        "answers": "foreign-word",
+        "needed": "whole-construct"
+      },
+      {
+        "error": "unexpected '=' (Whence has no assignment; a name binds once \u2014 write `let name = value`) at line 53, col 23",
+        "line": 53,
+        "cure": "assignment",
+        "determinacy": "mechanical",
+        "answers": "assignment",
+        "needed": "none"
+      }
+    ],
+    "edits_for_accepted_text": [],
+    "n_accepted": 0,
+    "final_error": null,
+    "rc": 0,
+    "strict_rc": 1,
+    "cured_path": "/tmp/curecheck-assisted-nano_reasoner.lang"
+  },
+  {
+    "file": "prod_demo_v1.lang",
+    "edits": 4,
+    "parse_errors_seen": [
+      {
+        "error": "unexpected 'rescue' (`rescue` is infix: `risky rescue fallback`) at line 27, col 23",
+        "line": 27,
+        "cure": "rescue-infix",
+        "determinacy": "under-extent",
+        "answers": "rescue-infix",
+        "needed": "whole-construct+deletion"
+      },
+      {
+        "error": "expected ), got 'Total' (two names in a row: Whence has no juxtaposition \u2014 a call is `f(x)` and text must be quoted) at line 29, col 13",
+        "line": 29,
+        "cure": "juxtaposition",
+        "determinacy": "under-choice",
+        "answers": "juxtaposition",
+        "needed": "choice"
+      },
+      {
+        "error": "expected ), got 'Tracking' (two names in a row: Whence has no juxtaposition \u2014 a call is `f(x)` and text must be quoted) at line 32, col 18",
+        "line": 32,
+        "cure": "juxtaposition",
+        "determinacy": "under-choice",
+        "answers": "juxtaposition",
+        "needed": "choice"
+      },
+      {
+        "error": "expected ), got 'Error' (two names in a row: Whence has no juxtaposition \u2014 a call is `f(x)` and text must be quoted) at line 35, col 16",
+        "line": 35,
+        "cure": "juxtaposition",
+        "determinacy": "under-choice",
+        "answers": "juxtaposition",
+        "needed": "choice"
+      }
+    ],
+    "edits_for_accepted_text": [],
+    "n_accepted": 0,
+    "final_error": null,
+    "rc": 0,
+    "strict_rc": 1,
+    "cured_path": "/tmp/curecheck-assisted-prod_demo_v1.lang"
+  },
+  {
+    "file": "prod_demo_v3.lang",
+    "edits": 7,
+    "parse_errors_seen": [
+      {
+        "error": "expected ), got 'total' (two names in a row: Whence has no juxtaposition \u2014 a call is `f(x)` and text must be quoted) at line 22, col 19",
+        "line": 22,
+        "cure": "juxtaposition",
+        "determinacy": "under-choice",
+        "answers": "juxtaposition",
+        "needed": "choice"
+      },
+      {
+        "error": "expected ), got 'division' (two names in a row: Whence has no juxtaposition \u2014 a call is `f(x)` and text must be quoted) at line 29, col 20",
+        "line": 29,
+        "cure": "juxtaposition",
+        "determinacy": "under-choice",
+        "answers": "juxtaposition",
+        "needed": "choice"
+      },
+      {
+        "error": "expected ), got 'ing' (two names in a row: Whence has no juxtaposition \u2014 a call is `f(x)` and text must be quoted) at line 37, col 12",
+        "line": 37,
+        "cure": "juxtaposition",
+        "determinacy": "under-choice",
+        "answers": "juxtaposition",
+        "needed": "choice"
+      },
+      {
+        "error": "unexpected '==' at line 41, col 7",
+        "line": 41,
+        "cure": null,
+        "determinacy": "no-cure",
+        "answers": "juxtaposition",
+        "needed": "choice"
+      },
+      {
+        "error": "expected ), got 'Total' (two names in a row: Whence has no juxtaposition \u2014 a call is `f(x)` and text must be quoted) at line 42, col 13",
+        "line": 42,
+        "cure": "juxtaposition",
+        "determinacy": "under-choice",
+        "answers": "juxtaposition",
+        "needed": "choice"
+      },
+      {
+        "error": "expected ), got 'Depth' (two names in a row: Whence has no juxtaposition \u2014 a call is `f(x)` and text must be quoted) at line 44, col 18",
+        "line": 44,
+        "cure": "juxtaposition",
+        "determinacy": "under-choice",
+        "answers": "juxtaposition",
+        "needed": "choice"
+      },
+      {
+        "error": "expected ), got 'Result' (two names in a row: Whence has no juxtaposition \u2014 a call is `f(x)` and text must be quoted) at line 46, col 16",
+        "line": 46,
+        "cure": "juxtaposition",
+        "determinacy": "under-choice",
+        "answers": "juxtaposition",
+        "needed": "choice"
+      }
+    ],
+    "edits_for_accepted_text": [],
+    "n_accepted": 0,
+    "final_error": null,
+    "rc": 0,
+    "strict_rc": 1,
+    "cured_path": "/tmp/curecheck-assisted-prod_demo_v3.lang"
+  },
+  {
+    "file": "prod_demo_v4.lang",
+    "edits": 2,
+    "parse_errors_seen": [
+      {
+        "error": "two statements on one line (Whence has no spelled-out numbers; write the literal `0.0`) at line 8, col 32",
+        "line": 8,
+        "cure": "foreign-word",
+        "determinacy": "under-extent",
+        "answers": "foreign-word",
+        "needed": "content"
+      },
+      {
+        "error": "two statements on one line (two names in a row: Whence has no juxtaposition \u2014 a call is `f(x)` and text must be quoted) at line 31, col 30",
+        "line": 31,
+        "cure": "juxtaposition",
+        "determinacy": "under-choice",
+        "answers": "juxtaposition",
+        "needed": "choice"
+      }
+    ],
+    "edits_for_accepted_text": [],
+    "n_accepted": 0,
+    "final_error": null,
+    "rc": 0,
+    "strict_rc": 1,
+    "cured_path": "/tmp/curecheck-assisted-prod_demo_v4.lang"
+  },
+  {
+    "file": "prod_demo_v5.lang",
+    "edits": 1,
+    "parse_errors_seen": [
+      {
+        "error": "unexpected 'rescue' (`rescue` is infix: `risky rescue fallback`) at line 35, col 18",
+        "line": 35,
+        "cure": "rescue-infix",
+        "determinacy": "under-extent",
+        "answers": "rescue-infix",
+        "needed": "whole-construct+deletion"
+      }
+    ],
+    "edits_for_accepted_text": [],
+    "n_accepted": 0,
+    "final_error": null,
+    "rc": 0,
+    "strict_rc": 1,
+    "cured_path": "/tmp/curecheck-assisted-prod_demo_v5.lang"
+  },
+  {
+    "file": "whenceguard_auditor.lang",
+    "edits": 6,
+    "parse_errors_seen": [
+      {
+        "error": "unexpected ':' (records are written `@{a: 1}`, not `{a: 1}`) at line 14, col 10",
+        "line": 14,
+        "cure": "record-literal",
+        "determinacy": "mechanical",
+        "answers": "record-literal",
+        "needed": "none"
+      },
+      {
+        "error": "unexpected ':' (records are written `@{a: 1}`, not `{a: 1}`) at line 15, col 10",
+        "line": 15,
+        "cure": "record-literal",
+        "determinacy": "mechanical",
+        "answers": "record-literal",
+        "needed": "none"
+      },
+      {
+        "error": "two statements on one line (Whence has no loops; iterate with `map`/`filter`/`fold` or recursion) at line 19, col 9",
+        "line": 19,
+        "cure": "foreign-word",
+        "determinacy": "under-extent",
+        "answers": "foreign-word",
+        "needed": "whole-construct"
+      },
+      {
+        "error": "expected (, got 'sum_lines' at line 28, col 29",
+        "line": 28,
+        "cure": null,
+        "determinacy": "no-cure",
+        "answers": "NO-CURE",
+        "needed": "everything"
+      },
+      {
+        "error": "unexpected 'rescue' (`rescue` is infix: `risky rescue fallback`) at line 50, col 25",
+        "line": 50,
+        "cure": "rescue-infix",
+        "determinacy": "under-extent",
+        "answers": "rescue-infix",
+        "needed": "whole-construct+deletion"
+      },
+      {
+        "error": "unexpected 'rescue' (`rescue` is infix: `risky rescue fallback`) at line 55, col 16",
+        "line": 55,
+        "cure": "rescue-infix",
+        "determinacy": "under-extent",
+        "answers": "rescue-infix",
+        "needed": "whole-construct+deletion"
+      }
+    ],
+    "edits_for_accepted_text": [],
+    "n_accepted": 0,
+    "final_error": null,
+    "rc": 0,
+    "strict_rc": 1,
+    "cured_path": "/tmp/curecheck-assisted-whenceguard_auditor.lang"
+  },
+  {
+    "file": "whenceguard_v2.lang",
+    "edits": 19,
+    "parse_errors_seen": [
+      {
+        "error": "two statements on one line (two names in a row: Whence has no juxtaposition \u2014 a call is `f(x)` and text must be quoted) at line 9, col 21",
+        "line": 9,
+        "cure": "juxtaposition",
+        "determinacy": "under-choice",
+        "answers": "ACCEPTED",
+        "needed": "none"
+      },
+      {
+        "error": "two statements on one line (two names in a row: Whence has no juxtaposition \u2014 a call is `f(x)` and text must be quoted) at line 9, col 21",
+        "line": 9,
+        "cure": "juxtaposition",
+        "determinacy": "under-choice",
+        "answers": "ACCEPTED",
+        "needed": "none"
+      },
+      {
+        "error": "two statements on one line (two names in a row: Whence has no juxtaposition \u2014 a call is `f(x)` and text must be quoted) at line 9, col 21",
+        "line": 9,
+        "cure": "juxtaposition",
+        "determinacy": "under-choice",
+        "answers": "juxtaposition",
+        "needed": "choice"
+      },
+      {
+        "error": "expected ], got 'Unit' (two names in a row: Whence has no juxtaposition \u2014 a call is `f(x)` and text must be quoted) at line 14, col 15",
+        "line": 14,
+        "cure": "juxtaposition",
+        "determinacy": "under-choice",
+        "answers": "ACCEPTED",
+        "needed": "none"
+      },
+      {
+        "error": "expected ], got 'Unit' (two names in a row: Whence has no juxtaposition \u2014 a call is `f(x)` and text must be quoted) at line 14, col 15",
+        "line": 14,
+        "cure": "juxtaposition",
+        "determinacy": "under-choice",
+        "answers": "juxtaposition",
+        "needed": "choice"
+      },
+      {
+        "error": "expected ], got 'Shipping' (two names in a row: Whence has no juxtaposition \u2014 a call is `f(x)` and text must be quoted) at line 15, col 14",
+        "line": 15,
+        "cure": "juxtaposition",
+        "determinacy": "under-choice",
+        "answers": "juxtaposition",
+        "needed": "choice"
+      },
+      {
+        "error": "two statements on one line (Whence has no loops; iterate with `map`/`filter`/`fold` or recursion) at line 19, col 9",
+        "line": 19,
+        "cure": "foreign-word",
+        "determinacy": "under-extent",
+        "answers": "NO-CURE",
+        "needed": "none"
+      },
+      {
+        "error": "two statements on one line (Whence has no loops; iterate with `map`/`filter`/`fold` or recursion) at line 19, col 9",
+        "line": 19,
+        "cure": "foreign-word",
+        "determinacy": "under-extent",
+        "answers": "ACCEPTED",
+        "needed": "none"
+      },
+      {
+        "error": "two statements on one line (Whence has no loops; iterate with `map`/`filter`/`fold` or recursion) at line 19, col 9",
+        "line": 19,
+        "cure": "foreign-word",
+        "determinacy": "under-extent",
+        "answers": "juxtaposition",
+        "needed": "choice"
+      },
+      {
+        "error": "two statements on one line (Whence has no loops; iterate with `map`/`filter`/`fold` or recursion) at line 19, col 9",
+        "line": 19,
+        "cure": "foreign-word",
+        "determinacy": "under-extent",
+        "answers": "juxtaposition",
+        "needed": "choice"
+      },
+      {
+        "error": "two statements on one line (Whence has no loops; iterate with `map`/`filter`/`fold` or recursion) at line 19, col 9",
+        "line": 19,
+        "cure": "foreign-word",
+        "determinacy": "under-extent",
+        "answers": "juxtaposition",
+        "needed": "choice"
+      },
+      {
+        "error": "two statements on one line (Whence has no loops; iterate with `map`/`filter`/`fold` or recursion) at line 19, col 9",
+        "line": 19,
+        "cure": "foreign-word",
+        "determinacy": "under-extent",
+        "answers": "ACCEPTED",
+        "needed": "none"
+      },
+      {
+        "error": "two statements on one line (Whence has no loops; iterate with `map`/`filter`/`fold` or recursion) at line 19, col 9",
+        "line": 19,
+        "cure": "foreign-word",
+        "determinacy": "under-extent",
+        "answers": "juxtaposition",
+        "needed": "choice"
+      },
+      {
+        "error": "two statements on one line (Whence has no loops; iterate with `map`/`filter`/`fold` or recursion) at line 19, col 9",
+        "line": 19,
+        "cure": "foreign-word",
+        "determinacy": "under-extent",
+        "answers": "ACCEPTED",
+        "needed": "none"
+      },
+      {
+        "error": "two statements on one line (Whence has no loops; iterate with `map`/`filter`/`fold` or recursion) at line 19, col 9",
+        "line": 19,
+        "cure": "foreign-word",
+        "determinacy": "under-extent",
+        "answers": "juxtaposition",
+        "needed": "choice"
+      },
+      {
+        "error": "two statements on one line (Whence has no loops; iterate with `map`/`filter`/`fold` or recursion) at line 19, col 9",
+        "line": 19,
+        "cure": "foreign-word",
+        "determinacy": "under-extent",
+        "answers": "ACCEPTED",
+        "needed": "none"
+      },
+      {
+        "error": "two statements on one line (Whence has no loops; iterate with `map`/`filter`/`fold` or recursion) at line 19, col 9",
+        "line": 19,
+        "cure": "foreign-word",
+        "determinacy": "under-extent",
+        "answers": "foreign-word",
+        "needed": "whole-construct"
+      },
+      {
+        "error": "unexpected 'rescue' (`rescue` is infix: `risky rescue fallback`) at line 47, col 25",
+        "line": 47,
+        "cure": "rescue-infix",
+        "determinacy": "under-extent",
+        "answers": "rescue-infix",
+        "needed": "whole-construct+deletion"
+      },
+      {
+        "error": "unexpected 'rescue' (`rescue` is infix: `risky rescue fallback`) at line 52, col 16",
+        "line": 52,
+        "cure": "rescue-infix",
+        "determinacy": "under-extent",
+        "answers": "rescue-infix",
+        "needed": "whole-construct+deletion"
+      }
+    ],
+    "edits_for_accepted_text": [
+      "let approved_departments = [Engineering, Marketing, Operations]",
+      "let transaction_id = TXN-2026-8842",
+      "let vendor = SecureSupplier_Ltd",
+      "miss BUDGET_VIOLATION",
+      "if department_status == AUTHORIZED and safe_net != 0.0 {",
+      "} else if department_status == UNDER_REVIEW {",
+      "print(REJECTED)"
+    ],
+    "n_accepted": 7,
+    "final_error": null,
+    "rc": 0,
+    "strict_rc": 1,
+    "cured_path": "/tmp/curecheck-assisted-whenceguard_v2.lang"
+  }
+]

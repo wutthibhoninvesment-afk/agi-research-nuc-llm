@@ -1,0 +1,37 @@
+# ========================================
+# WhenceLang — Production Feature Demo
+# Version: v0.19 | Provenance-First Language
+# ========================================
+
+let prices = [150.0, 200.5, 75.0, 300.25]
+let tax_rate = 0.07
+
+fn add_items(acc, x) { acc + x }
+
+fn calculate_total(items_arr, rate) {
+    let subtotal = fold(items_arr, 0.0, add_items)
+    let tax_amount = subtotal * rate
+    subtotal + tax_amount
+}
+
+let final_total = calculate_total(prices, tax_rate)
+
+fn safe_divide(numerator, denominator) {
+    if denominator == 0 {
+        miss DivisionByZeroError
+    } else {
+        numerator / denominator
+    }
+}
+
+let division_result = safe_divide(100, 0) rescue zero_point_zero
+
+print("Final Total: ")
+println(str(final_total))
+
+print("Provenance Tracking Active: ")
+println(why final_total)
+
+print("Division Error Gracefully Handled: ")
+println(str(division_result))
+final_total

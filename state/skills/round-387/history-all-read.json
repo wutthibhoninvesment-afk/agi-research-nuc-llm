@@ -1,0 +1,3588 @@
+{
+ "mode": "own",
+ "checkers": "all",
+ "scope": "read",
+ "rows": [
+  {
+   "sha": "46c1e882c1a79cca2bba4afc7a71a6e6fc4c2377",
+   "short": "46c1e88",
+   "date": "2026-08-30",
+   "subject": "Round 363 (skills B): the corpus had five checkers and nothing ran them",
+   "index": 0,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 31 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 31 skill(s), 121 case(s) (21 negative); 0 probed under the description on disk; 0 error(s), 27 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 52 path(s) resolved, 42 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 4 claim(s): 4 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 16 dangling citation(s) in the authoritative scope (16 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 92 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "absent"
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [],
+   "artifact_codes": [],
+   "red_kind": "strict",
+   "unrunnable": []
+  },
+  {
+   "sha": "8c1311ae26dfa9cd6c29a9e3e7cc967392e86114",
+   "short": "8c1311a",
+   "date": "2026-08-30",
+   "subject": "Round 363 (skills B) record + skill, landed by round 364",
+   "index": 1,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 32 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 32 skill(s), 125 case(s) (22 negative); 0 probed under the description on disk; 0 error(s), 32 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 52 path(s) resolved, 42 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 2 claim(s): 2 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 16 dangling citation(s) in the authoritative scope (16 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 92 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "absent"
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [],
+   "artifact_codes": [],
+   "red_kind": "strict",
+   "unrunnable": []
+  },
+  {
+   "sha": "fde4bddca7def29be37fab07a0849e0a2434798d",
+   "short": "fde4bdd",
+   "date": "2026-08-30",
+   "subject": "Round 364 (NUC E): the box is never quiet for more than two minutes",
+   "index": 2,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 32 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 32 skill(s), 125 case(s) (22 negative); 0 probed under the description on disk; 0 error(s), 32 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 52 path(s) resolved, 42 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 2 claim(s): 2 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 16 dangling citation(s) in the authoritative scope (16 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 93 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "absent"
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [],
+   "artifact_codes": [],
+   "red_kind": "strict",
+   "unrunnable": []
+  },
+  {
+   "sha": "11aa0efb2af25e6463e9e0d0d8b1994d204dce21",
+   "short": "11aa0ef",
+   "date": "2026-08-30",
+   "subject": "Round 364 (NUC E): skills/measured-budget-sizing, the generalisation",
+   "index": 3,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 33 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 33 skill(s), 129 case(s) (23 negative); 0 probed under the description on disk; 0 error(s), 32 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 55 path(s) resolved, 42 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 2 claim(s): 2 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 16 dangling citation(s) in the authoritative scope (16 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 93 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "absent"
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [],
+   "artifact_codes": [],
+   "red_kind": "strict",
+   "unrunnable": []
+  },
+  {
+   "sha": "b89c49702c0f3e40017421e1e8243964abd68981",
+   "short": "b89c497",
+   "date": "2026-08-30",
+   "subject": "Round 365 (SWE-loop D): the shape the differential never compared, and a seed that never returns",
+   "index": 4,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 33 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 33 skill(s), 129 case(s) (23 negative); 0 probed under the description on disk; 0 error(s), 32 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 55 path(s) resolved, 42 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 2 claim(s): 2 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 16 dangling citation(s) in the authoritative scope (16 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 93 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "absent"
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [],
+   "artifact_codes": [],
+   "red_kind": "strict",
+   "unrunnable": []
+  },
+  {
+   "sha": "4150f1df776190b2812303e007489d3c767897fc",
+   "short": "4150f1d",
+   "date": "2026-08-30",
+   "subject": "Round 365 (SWE-loop D) record: knowledge file + research-state entry",
+   "index": 5,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 33 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 33 skill(s), 129 case(s) (23 negative); 0 probed under the description on disk; 0 error(s), 32 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 55 path(s) resolved, 42 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 5 claim(s): 4 re-derivable, 1 skipped (unknown program 1); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 17 dangling citation(s) in the authoritative scope (17 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 93 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "absent"
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [],
+   "artifact_codes": [],
+   "red_kind": "strict",
+   "unrunnable": []
+  },
+  {
+   "sha": "68cf496df7f202ed961cf467d10b636e34f103ad",
+   "short": "68cf496",
+   "date": "2026-08-30",
+   "subject": "Round 365 (SWE-loop D): correct the attribution \u2014 round 362 got there first",
+   "index": 6,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 33 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 33 skill(s), 129 case(s) (23 negative); 0 probed under the description on disk; 0 error(s), 32 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 55 path(s) resolved, 42 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 6 claim(s): 5 re-derivable, 1 skipped (unknown program 1); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 17 dangling citation(s) in the authoritative scope (17 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 93 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "absent"
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [],
+   "artifact_codes": [],
+   "red_kind": "strict",
+   "unrunnable": []
+  },
+  {
+   "sha": "48b8967b07b204f85ba252fc92e8bc52c3d91a1e",
+   "short": "48b8967",
+   "date": "2026-08-30",
+   "subject": "Round 366 (language C), verified and landed by round 367: a runaway tail loop is a miss, not a hang",
+   "index": 7,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 33 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 33 skill(s), 129 case(s) (23 negative); 0 probed under the description on disk; 0 error(s), 32 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 55 path(s) resolved, 42 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 6 claim(s): 5 re-derivable, 1 skipped (unknown program 1); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 16 dangling citation(s) in the authoritative scope (16 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 93 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "absent"
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [],
+   "artifact_codes": [],
+   "red_kind": "strict",
+   "unrunnable": []
+  },
+  {
+   "sha": "24bc75cfd12787748900e5661d2b3d721fffcede",
+   "short": "24bc75c",
+   "date": "2026-08-30",
+   "subject": "Round 367 (harness A): the half that was binding, measured by replaying the policy over git history",
+   "index": 8,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 33 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 33 skill(s), 129 case(s) (23 negative); 0 probed under the description on disk; 0 error(s), 32 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 55 path(s) resolved, 42 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 6 claim(s): 5 re-derivable, 1 skipped (unknown program 1); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 16 dangling citation(s) in the authoritative scope (16 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 93 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "absent"
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [],
+   "artifact_codes": [],
+   "red_kind": "strict",
+   "unrunnable": []
+  },
+  {
+   "sha": "9903247535e2564224afe07a0344a371e74d7587",
+   "short": "9903247",
+   "date": "2026-08-30",
+   "subject": "Round 367 (harness A) record: knowledge file, research-state entries for 366 and 367, skills/policy-replay-over-history",
+   "index": 9,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 34 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 34 skill(s), 134 case(s) (24 negative); 0 probed under the description on disk; 0 error(s), 32 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 55 path(s) resolved, 45 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 5 claim(s): 5 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 16 dangling citation(s) in the authoritative scope (16 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 93 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "absent"
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [],
+   "artifact_codes": [],
+   "red_kind": "strict",
+   "unrunnable": []
+  },
+  {
+   "sha": "f568a7965d349550c17d682ccfba06d4778b3a47",
+   "short": "f568a79",
+   "date": "2026-08-30",
+   "subject": "Round 368 (language C), verified and landed by round 369: a value's SIZE is a budget too",
+   "index": 10,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 34 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 34 skill(s), 134 case(s) (24 negative); 0 probed under the description on disk; 0 error(s), 32 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 55 path(s) resolved, 45 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 5 claim(s): 5 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 16 dangling citation(s) in the authoritative scope (16 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 93 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "absent"
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [],
+   "artifact_codes": [],
+   "red_kind": "strict",
+   "unrunnable": []
+  },
+  {
+   "sha": "80401e5431f3cf719dfed19b8ae5109ce5fdfb67",
+   "short": "80401e5",
+   "date": "2026-08-30",
+   "subject": "Round 369 (skills B): D-013 has two halves and nothing ever checked the second one",
+   "index": 11,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 35 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 35 skill(s), 138 case(s) (25 negative); 0 probed under the description on disk; 0 error(s), 35 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 58 path(s) resolved, 45 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 7 claim(s): 7 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 16 dangling citation(s) in the authoritative scope (16 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 94 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "K004"
+     ],
+     "red_kind": null,
+     "summary": "carryforward: 49 bank(s) (+2 unnumbered), 45 scored, 4 unscored, 0 error(s), 6 warning(s)",
+     "flags": []
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [],
+   "artifact_codes": [],
+   "red_kind": "strict",
+   "unrunnable": []
+  },
+  {
+   "sha": "e7b27458053eebfa6e87453946ab5171eeb86a0f",
+   "short": "e7b2745",
+   "date": "2026-08-30",
+   "subject": "Round 370 (NUC E): the box never slept, and --cap 256 is over-committed after all",
+   "index": 12,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 35 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 35 skill(s), 138 case(s) (25 negative); 0 probed under the description on disk; 0 error(s), 35 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 58 path(s) resolved, 45 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 0 claim(s): 0 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 16 dangling citation(s) in the authoritative scope (16 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 94 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "K001"
+     ],
+     "warnings": [
+      "K004"
+     ],
+     "red_kind": "error",
+     "summary": "carryforward: 50 bank(s) (+2 unnumbered), 45 scored, 4 unscored, 1 error(s), 6 warning(s)",
+     "flags": []
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [
+    "K001"
+   ],
+   "artifact_codes": [],
+   "red_kind": "error",
+   "unrunnable": []
+  },
+  {
+   "sha": "d5c4338336562311cf302ada8ea7ae59ae5ae4b4",
+   "short": "d5c4338",
+   "date": "2026-08-30",
+   "subject": "Round 370 (NUC E) follow-through: journal rescan + continuity, P6/P7 scored",
+   "index": 13,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 35 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 35 skill(s), 138 case(s) (25 negative); 0 probed under the description on disk; 0 error(s), 35 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 58 path(s) resolved, 45 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 0 claim(s): 0 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 16 dangling citation(s) in the authoritative scope (16 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 94 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "K001"
+     ],
+     "warnings": [
+      "K004"
+     ],
+     "red_kind": "error",
+     "summary": "carryforward: 50 bank(s) (+2 unnumbered), 45 scored, 4 unscored, 1 error(s), 6 warning(s)",
+     "flags": []
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [
+    "K001"
+   ],
+   "artifact_codes": [],
+   "red_kind": "error",
+   "unrunnable": []
+  },
+  {
+   "sha": "95274a1ad67a182425ced7b411f34de62eade468",
+   "short": "95274a1",
+   "date": "2026-08-30",
+   "subject": "Round 370 (NUC E): register the prediction bank, and three budget pitfalls",
+   "index": 14,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 35 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 35 skill(s), 138 case(s) (25 negative); 0 probed under the description on disk; 0 error(s), 35 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 58 path(s) resolved, 45 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 0 claim(s): 0 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 16 dangling citation(s) in the authoritative scope (16 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 94 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "K004"
+     ],
+     "red_kind": null,
+     "summary": "carryforward: 50 bank(s) (+2 unnumbered), 46 scored, 4 unscored, 0 error(s), 7 warning(s)",
+     "flags": []
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [],
+   "artifact_codes": [],
+   "red_kind": "strict",
+   "unrunnable": []
+  },
+  {
+   "sha": "d49e2dd098b47d74bf554dd6584f104eacd74319",
+   "short": "d49e2dd",
+   "date": "2026-08-30",
+   "subject": "Round 371 (SWE-loop D): the signal that could not fire, and the exemption underneath it",
+   "index": 15,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 35 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 35 skill(s), 138 case(s) (25 negative); 0 probed under the description on disk; 0 error(s), 35 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 58 path(s) resolved, 45 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 1 claim(s): 1 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 16 dangling citation(s) in the authoritative scope (16 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 94 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "K004"
+     ],
+     "red_kind": null,
+     "summary": "carryforward: 51 bank(s) (+2 unnumbered), 48 scored, 3 unscored, 0 error(s), 7 warning(s)",
+     "flags": []
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [],
+   "artifact_codes": [],
+   "red_kind": "strict",
+   "unrunnable": []
+  },
+  {
+   "sha": "9277c624045c1415fa7e31897b57fe128d1161ed",
+   "short": "9277c62",
+   "date": "2026-08-30",
+   "subject": "Round 372 (language C): bank predictions before measuring (D-013)",
+   "index": 16,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 35 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 35 skill(s), 138 case(s) (25 negative); 0 probed under the description on disk; 0 error(s), 35 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 58 path(s) resolved, 45 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 1 claim(s): 1 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 16 dangling citation(s) in the authoritative scope (16 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 94 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "K004"
+     ],
+     "red_kind": null,
+     "summary": "carryforward: 52 bank(s) (+2 unnumbered), 48 scored, 4 unscored, 0 error(s), 7 warning(s)",
+     "flags": []
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [],
+   "artifact_codes": [],
+   "red_kind": "strict",
+   "unrunnable": []
+  },
+  {
+   "sha": "4d44f5a9dc004410045b446dcd109e8bc8e3fa0f",
+   "short": "4d44f5a",
+   "date": "2026-08-30",
+   "subject": "Round 372 (language C): the raw host-vs-guest miss-reason measurement",
+   "index": 17,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 35 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 35 skill(s), 138 case(s) (25 negative); 0 probed under the description on disk; 0 error(s), 35 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 58 path(s) resolved, 45 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 1 claim(s): 1 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 16 dangling citation(s) in the authoritative scope (16 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 94 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "K004"
+     ],
+     "red_kind": null,
+     "summary": "carryforward: 52 bank(s) (+2 unnumbered), 48 scored, 4 unscored, 0 error(s), 7 warning(s)",
+     "flags": []
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [],
+   "artifact_codes": [],
+   "red_kind": "strict",
+   "unrunnable": []
+  },
+  {
+   "sha": "9a9f3c56d36074ee7fba6ac219a11f650413c112",
+   "short": "9a9f3c5",
+   "date": "2026-08-30",
+   "subject": "Round 372 (language C): the v0.28 SPEC section and the re-render cost gate (verified and landed by round 373)",
+   "index": 18,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 35 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 35 skill(s), 138 case(s) (25 negative); 0 probed under the description on disk; 0 error(s), 35 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 58 path(s) resolved, 45 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 1 claim(s): 1 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 18 dangling citation(s) in the authoritative scope (18 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 94 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "K004"
+     ],
+     "red_kind": null,
+     "summary": "carryforward: 52 bank(s) (+2 unnumbered), 48 scored, 4 unscored, 0 error(s), 7 warning(s)",
+     "flags": []
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [],
+   "artifact_codes": [],
+   "red_kind": "strict",
+   "unrunnable": []
+  },
+  {
+   "sha": "9f6cff376156ce7fdfed41d786195b8a768b0860",
+   "short": "9f6cff3",
+   "date": "2026-08-30",
+   "subject": "Round 373 (harness A): a dirty-tree check that can tell \"unseen\" from \"decided and left\"",
+   "index": 19,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 35 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 35 skill(s), 138 case(s) (25 negative); 0 probed under the description on disk; 0 error(s), 35 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 58 path(s) resolved, 46 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 1 claim(s): 1 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 16 dangling citation(s) in the authoritative scope (16 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 94 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "K001"
+     ],
+     "warnings": [
+      "K004"
+     ],
+     "red_kind": "error",
+     "summary": "carryforward: 53 bank(s) (+2 unnumbered), 48 scored, 4 unscored, 1 error(s), 7 warning(s)",
+     "flags": []
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [
+    "K001"
+   ],
+   "artifact_codes": [],
+   "red_kind": "error",
+   "unrunnable": []
+  },
+  {
+   "sha": "1f3cc43731ec86d0847eccdd1114a83b8a9b476f",
+   "short": "1f3cc43",
+   "date": "2026-08-30",
+   "subject": "Round 373 (harness A): the record, the skill and the ledgers its own commits left behind",
+   "index": 20,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 36 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 36 skill(s), 142 case(s) (26 negative); 0 probed under the description on disk; 0 error(s), 35 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 60 path(s) resolved, 48 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 7 claim(s): 7 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 16 dangling citation(s) in the authoritative scope (16 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 94 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "K004"
+     ],
+     "red_kind": null,
+     "summary": "carryforward: 53 bank(s) (+2 unnumbered), 49 scored, 4 unscored, 0 error(s), 8 warning(s)",
+     "flags": []
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [],
+   "artifact_codes": [],
+   "red_kind": "strict",
+   "unrunnable": []
+  },
+  {
+   "sha": "fab139bdcccc22408613f5d710d63da62bd00006",
+   "short": "fab139b",
+   "date": "2026-08-30",
+   "subject": "Round 374 (language C): bank predictions before measuring (D-013)",
+   "index": 21,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 36 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 36 skill(s), 142 case(s) (26 negative); 0 probed under the description on disk; 0 error(s), 35 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 60 path(s) resolved, 48 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 7 claim(s): 7 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 16 dangling citation(s) in the authoritative scope (16 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 94 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "K004"
+     ],
+     "red_kind": null,
+     "summary": "carryforward: 54 bank(s) (+2 unnumbered), 49 scored, 5 unscored, 0 error(s), 9 warning(s)",
+     "flags": []
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [],
+   "artifact_codes": [],
+   "red_kind": "strict",
+   "unrunnable": []
+  },
+  {
+   "sha": "10acd1f4b824a641954cba0f6523551beab4ecf1",
+   "short": "10acd1f",
+   "date": "2026-08-30",
+   "subject": "Round 374 (language C), verified and landed by round 375: Whence v0.29 \u2014 the operand-shape sweep, `show`, and E4",
+   "index": 22,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 36 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": null,
+     "summary": "case-coverage: 36 skill(s), 142 case(s) (26 negative); 0 probed under the description on disk; 0 error(s), 35 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 60 path(s) resolved, 48 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 7 claim(s): 7 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 16 dangling citation(s) in the authoritative scope (16 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 94 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "K003"
+     ],
+     "warnings": [
+      "K004"
+     ],
+     "red_kind": "error",
+     "summary": "carryforward: 54 bank(s) (+2 unnumbered), 49 scored, 5 unscored, 2 error(s), 9 warning(s)",
+     "flags": []
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [
+    "K003"
+   ],
+   "artifact_codes": [],
+   "red_kind": "error",
+   "unrunnable": []
+  },
+  {
+   "sha": "78077fa02ec6720fcc1e63e62980fe8f0098fada",
+   "short": "78077fa",
+   "date": "2026-08-30",
+   "subject": "Round 375 (skills B): \"probed\" answers did we look, and the newest measurement is the one that failed",
+   "index": 23,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 37 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "P008"
+     ],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": "error",
+     "summary": "case-coverage: 37 skill(s), 146 case(s) (27 negative); 0 probed under the description on disk, 0 of those on every positive case with full recall; 3 error(s), 35 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 62 path(s) resolved, 49 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 5 claim(s): 5 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 17 dangling citation(s) in the authoritative scope (17 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 95 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "K004"
+     ],
+     "red_kind": null,
+     "summary": "carryforward: 55 bank(s) (+2 unnumbered), 52 scored, 3 unscored, 0 error(s), 9 warning(s)",
+     "flags": []
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [],
+   "artifact_codes": [
+    "P008"
+   ],
+   "red_kind": "artifact",
+   "unrunnable": []
+  },
+  {
+   "sha": "19feaa6550827c9e7744b8870598dcef8755f203",
+   "short": "19feaa6",
+   "date": "2026-08-30",
+   "subject": "Round 376 (NUC-integration E): the plateau was 62% of a cache that can never fill",
+   "index": 24,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 38 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "P008"
+     ],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": "error",
+     "summary": "case-coverage: 38 skill(s), 152 case(s) (29 negative); 0 probed under the description on disk, 0 of those on every positive case with full recall; 3 error(s), 36 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 66 path(s) resolved, 49 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 2 claim(s): 2 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 17 dangling citation(s) in the authoritative scope (17 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 95 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "K004"
+     ],
+     "red_kind": null,
+     "summary": "carryforward: 56 bank(s) (+2 unnumbered), 53 scored, 3 unscored, 0 error(s), 9 warning(s)",
+     "flags": []
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [],
+   "artifact_codes": [
+    "P008"
+   ],
+   "red_kind": "artifact",
+   "unrunnable": []
+  },
+  {
+   "sha": "3f80a0b6abc2e933bf09ddbcde5696ab8cfe1c9e",
+   "short": "3f80a0b",
+   "date": "2026-08-30",
+   "subject": "Round 377 (SWE-loop D): the zero measured the grammar, not the language",
+   "index": 25,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 39 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "P008"
+     ],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": "error",
+     "summary": "case-coverage: 39 skill(s), 156 case(s) (30 negative); 0 probed under the description on disk, 0 of those on every positive case with full recall; 3 error(s), 36 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 66 path(s) resolved, 49 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 10 claim(s): 10 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 17 dangling citation(s) in the authoritative scope (17 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 95 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "K004"
+     ],
+     "red_kind": null,
+     "summary": "carryforward: 57 bank(s) (+2 unnumbered), 54 scored, 3 unscored, 0 error(s), 9 warning(s)",
+     "flags": []
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [],
+   "artifact_codes": [
+    "P008"
+   ],
+   "red_kind": "artifact",
+   "unrunnable": []
+  },
+  {
+   "sha": "4b63752692d3caa1f9403805270ffbca43269f29",
+   "short": "4b63752",
+   "date": "2026-08-30",
+   "subject": "Round 378 (language C): Whence v0.30 \u2014 the provenance-query family answers from the guest's own history",
+   "index": 26,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 39 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "P008"
+     ],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": "error",
+     "summary": "case-coverage: 39 skill(s), 156 case(s) (30 negative); 0 probed under the description on disk, 0 of those on every positive case with full recall; 3 error(s), 36 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 66 path(s) resolved, 49 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 10 claim(s): 10 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 17 dangling citation(s) in the authoritative scope (17 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 95 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "K001"
+     ],
+     "warnings": [
+      "K004"
+     ],
+     "red_kind": "error",
+     "summary": "carryforward: 58 bank(s) (+2 unnumbered), 54 scored, 3 unscored, 1 error(s), 9 warning(s)",
+     "flags": []
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [
+    "K001"
+   ],
+   "artifact_codes": [
+    "P008"
+   ],
+   "red_kind": "error",
+   "unrunnable": []
+  },
+  {
+   "sha": "8fc29564d62df031e987a59e492667bbc85f72db",
+   "short": "8fc2956",
+   "date": "2026-08-30",
+   "subject": "Round 378 (language C) record: knowledge file, research-state, the D-013 debt paid, skills/deferral-blockers-are-claims",
+   "index": 27,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 40 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "P008"
+     ],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": "error",
+     "summary": "case-coverage: 40 skill(s), 161 case(s) (32 negative); 0 probed under the description on disk, 0 of those on every positive case with full recall; 3 error(s), 36 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 68 path(s) resolved, 49 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 8 claim(s): 8 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 17 dangling citation(s) in the authoritative scope (17 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 95 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "K004"
+     ],
+     "red_kind": null,
+     "summary": "carryforward: 58 bank(s) (+2 unnumbered), 57 scored, 1 unscored, 0 error(s), 10 warning(s)",
+     "flags": []
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [],
+   "artifact_codes": [
+    "P008"
+   ],
+   "red_kind": "artifact",
+   "unrunnable": []
+  },
+  {
+   "sha": "743f8f4cb8d16c850c48ca0511d2a6dca0bd13e0",
+   "short": "743f8f4",
+   "date": "2026-08-30",
+   "subject": "Round 379 (harness A): the health line quoted a measurement no round took",
+   "index": 28,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 41 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "P008"
+     ],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": "error",
+     "summary": "case-coverage: 41 skill(s), 167 case(s) (34 negative); 0 probed under the description on disk, 0 of those on every positive case with full recall; 3 error(s), 36 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 68 path(s) resolved, 49 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 8 claim(s): 8 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 17 dangling citation(s) in the authoritative scope (17 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 96 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "K004"
+     ],
+     "red_kind": null,
+     "summary": "carryforward: 59 bank(s) (+2 unnumbered), 58 scored, 1 unscored, 0 error(s), 10 warning(s)",
+     "flags": []
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [],
+   "artifact_codes": [
+    "P008"
+   ],
+   "red_kind": "artifact",
+   "unrunnable": []
+  },
+  {
+   "sha": "6bc7c6274d8723440be657e267771eee21392352",
+   "short": "6bc7c62",
+   "date": "2026-08-30",
+   "subject": "Round 379 (harness A) record: research-state entry and next steps",
+   "index": 29,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 41 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "P008"
+     ],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": "error",
+     "summary": "case-coverage: 41 skill(s), 167 case(s) (34 negative); 0 probed under the description on disk, 0 of those on every positive case with full recall; 3 error(s), 36 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 68 path(s) resolved, 49 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 13 claim(s): 13 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 17 dangling citation(s) in the authoritative scope (17 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 96 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "K004"
+     ],
+     "red_kind": null,
+     "summary": "carryforward: 59 bank(s) (+2 unnumbered), 58 scored, 1 unscored, 0 error(s), 10 warning(s)",
+     "flags": []
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [],
+   "artifact_codes": [
+    "P008"
+   ],
+   "red_kind": "artifact",
+   "unrunnable": []
+  },
+  {
+   "sha": "29fd7d8916cd105a9d2fafe180bb66b8963fa660",
+   "short": "29fd7d8",
+   "date": "2026-08-30",
+   "subject": "Round 379 (harness A): the status-printer sweep, done and clean",
+   "index": 30,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 41 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "P008"
+     ],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": "error",
+     "summary": "case-coverage: 41 skill(s), 167 case(s) (34 negative); 0 probed under the description on disk, 0 of those on every positive case with full recall; 3 error(s), 36 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 68 path(s) resolved, 49 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 13 claim(s): 13 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 17 dangling citation(s) in the authoritative scope (17 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 96 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "K004"
+     ],
+     "red_kind": null,
+     "summary": "carryforward: 59 bank(s) (+2 unnumbered), 58 scored, 1 unscored, 0 error(s), 10 warning(s)",
+     "flags": []
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [],
+   "artifact_codes": [
+    "P008"
+   ],
+   "red_kind": "artifact",
+   "unrunnable": []
+  },
+  {
+   "sha": "b36a751de834d97a62a3f6b623c5471d6383e3e8",
+   "short": "b36a751",
+   "date": "2026-08-30",
+   "subject": "Round 380 (language C): the precondition that was a grep",
+   "index": 31,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 41 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "P008"
+     ],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": "error",
+     "summary": "case-coverage: 41 skill(s), 167 case(s) (34 negative); 0 probed under the description on disk, 0 of those on every positive case with full recall; 3 error(s), 36 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 68 path(s) resolved, 49 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 13 claim(s): 13 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 18 dangling citation(s) in the authoritative scope (18 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 96 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "K004"
+     ],
+     "red_kind": null,
+     "summary": "carryforward: 60 bank(s) (+2 unnumbered), 58 scored, 2 unscored, 0 error(s), 10 warning(s)",
+     "flags": []
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [],
+   "artifact_codes": [
+    "P008"
+   ],
+   "red_kind": "artifact",
+   "unrunnable": []
+  },
+  {
+   "sha": "f6d023a80fd68c81b5be313c0b64aac8d0e18f63",
+   "short": "f6d023a",
+   "date": "2026-08-30",
+   "subject": "Round 380 (language C) record, landed by round 381 (skills B): knowledge file, SPEC v0.31, two skill corrections, ledger",
+   "index": 32,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 41 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "P008"
+     ],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": "error",
+     "summary": "case-coverage: 41 skill(s), 167 case(s) (34 negative); 0 probed under the description on disk, 0 of those on every positive case with full recall; 3 error(s), 36 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 68 path(s) resolved, 49 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 13 claim(s): 13 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 17 dangling citation(s) in the authoritative scope (17 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 96 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "K004"
+     ],
+     "red_kind": null,
+     "summary": "carryforward: 60 bank(s) (+2 unnumbered), 59 scored, 1 unscored, 0 error(s), 11 warning(s)",
+     "flags": []
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [],
+   "artifact_codes": [
+    "P008"
+   ],
+   "red_kind": "artifact",
+   "unrunnable": []
+  },
+  {
+   "sha": "8f1ffe6ca3adc405bd56a784d6eb287566cfa62d",
+   "short": "8f1ffe6",
+   "date": "2026-08-30",
+   "subject": "Round 380 (language C) record, part 2: the missing research-state entry, reconstructed by round 381",
+   "index": 33,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 41 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "P008"
+     ],
+     "warnings": [
+      "P004"
+     ],
+     "red_kind": "error",
+     "summary": "case-coverage: 41 skill(s), 167 case(s) (34 negative); 0 probed under the description on disk, 0 of those on every positive case with full recall; 3 error(s), 36 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 68 path(s) resolved, 49 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 13 claim(s): 13 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 17 dangling citation(s) in the authoritative scope (17 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 96 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "K004"
+     ],
+     "red_kind": null,
+     "summary": "carryforward: 60 bank(s) (+2 unnumbered), 59 scored, 1 unscored, 0 error(s), 11 warning(s)",
+     "flags": []
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [],
+   "artifact_codes": [
+    "P008"
+   ],
+   "red_kind": "artifact",
+   "unrunnable": []
+  },
+  {
+   "sha": "e3e85cf93ad6a80c1ca53b1c59776d7dfa96e14c",
+   "short": "e3e85cf",
+   "date": "2026-08-30",
+   "subject": "Round 381 (skills B): the verdict that was one draw \u2014 the probe batch, and what it found about the probe",
+   "index": 34,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 42 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "P008"
+     ],
+     "warnings": [
+      "P004",
+      "P009"
+     ],
+     "red_kind": "error",
+     "summary": "case-coverage: 42 skill(s), 173 case(s) (36 negative); 0 probed under the description on disk, 0 of those on every positive case with full recall; 0 replicated (>=2 same-description reports), 0 of 0 cross-report case verdicts DISAGREE; 2 error(s), 44 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 69 path(s) resolved, 49 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 11 claim(s): 11 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 18 dangling citation(s) in the authoritative scope (18 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 96 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "K004"
+     ],
+     "red_kind": null,
+     "summary": "carryforward: 61 bank(s) (+2 unnumbered), 60 scored, 1 unscored, 0 error(s), 12 warning(s)",
+     "flags": []
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [],
+   "artifact_codes": [
+    "P008"
+   ],
+   "red_kind": "artifact",
+   "unrunnable": []
+  },
+  {
+   "sha": "01cceaa661357fdd0fa8d3643388469ddb0b56c7",
+   "short": "01cceaa",
+   "date": "2026-08-30",
+   "subject": "Round 381 (skills B): record the other two fast suites in the verification tables",
+   "index": 35,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 42 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "P008"
+     ],
+     "warnings": [
+      "P004",
+      "P009"
+     ],
+     "red_kind": "error",
+     "summary": "case-coverage: 42 skill(s), 173 case(s) (36 negative); 0 probed under the description on disk, 0 of those on every positive case with full recall; 0 replicated (>=2 same-description reports), 0 of 0 cross-report case verdicts DISAGREE; 2 error(s), 44 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 69 path(s) resolved, 49 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 11 claim(s): 11 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 18 dangling citation(s) in the authoritative scope (18 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 96 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "K004"
+     ],
+     "red_kind": null,
+     "summary": "carryforward: 61 bank(s) (+2 unnumbered), 60 scored, 1 unscored, 0 error(s), 12 warning(s)",
+     "flags": []
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [],
+   "artifact_codes": [
+    "P008"
+   ],
+   "red_kind": "artifact",
+   "unrunnable": []
+  },
+  {
+   "sha": "710066fd4f84fb3234d659e471d5664b4c21e951",
+   "short": "710066f",
+   "date": "2026-08-31",
+   "subject": "Round 382 (NUC-integration E): a fixture that expired, and a constant the repo already had exact",
+   "index": 36,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 43 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "P008"
+     ],
+     "warnings": [
+      "P004",
+      "P009"
+     ],
+     "red_kind": "error",
+     "summary": "case-coverage: 43 skill(s), 179 case(s) (37 negative); 0 probed under the description on disk, 0 of those on every positive case with full recall; 0 replicated (>=2 same-description reports), 0 of 0 cross-report case verdicts DISAGREE; 2 error(s), 45 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 70 path(s) resolved, 49 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 10 claim(s): 10 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 18 dangling citation(s) in the authoritative scope (18 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 96 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "K004"
+     ],
+     "red_kind": null,
+     "summary": "carryforward: 62 bank(s) (+2 unnumbered), 61 scored, 1 unscored, 0 error(s), 12 warning(s)",
+     "flags": []
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [],
+   "artifact_codes": [
+    "P008"
+   ],
+   "red_kind": "artifact",
+   "unrunnable": []
+  },
+  {
+   "sha": "74e70c7dcde0003a0e6eefbe9a9e4612d9abb73d",
+   "short": "74e70c7",
+   "date": "2026-08-31",
+   "subject": "Round 383 (SWE-loop D): the exemption that was already past the boundary",
+   "index": 37,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 44 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "P008"
+     ],
+     "warnings": [
+      "P004",
+      "P009"
+     ],
+     "red_kind": "error",
+     "summary": "case-coverage: 44 skill(s), 184 case(s) (38 negative); 0 probed under the description on disk, 0 of those on every positive case with full recall; 0 replicated (>=2 same-description reports), 0 of 0 cross-report case verdicts DISAGREE; 2 error(s), 45 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 70 path(s) resolved, 49 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 9 claim(s): 9 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 18 dangling citation(s) in the authoritative scope (18 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 96 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "K004"
+     ],
+     "red_kind": null,
+     "summary": "carryforward: 63 bank(s) (+2 unnumbered), 62 scored, 1 unscored, 0 error(s), 12 warning(s)",
+     "flags": []
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [],
+   "artifact_codes": [
+    "P008"
+   ],
+   "red_kind": "artifact",
+   "unrunnable": []
+  },
+  {
+   "sha": "4db91cd0add048fbb74184ab130f93ba8cf24483",
+   "short": "4db91cd",
+   "date": "2026-08-31",
+   "subject": "Round 384 (language C): the cure that was never rendered \u2014 landed by round 385",
+   "index": 38,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 44 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "P008"
+     ],
+     "warnings": [
+      "P004",
+      "P009"
+     ],
+     "red_kind": "error",
+     "summary": "case-coverage: 44 skill(s), 186 case(s) (38 negative); 0 probed under the description on disk, 0 of those on every positive case with full recall; 0 replicated (>=2 same-description reports), 0 of 0 cross-report case verdicts DISAGREE; 2 error(s), 45 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 70 path(s) resolved, 49 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 7 claim(s): 7 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 18 dangling citation(s) in the authoritative scope (18 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 96 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "K004"
+     ],
+     "red_kind": null,
+     "summary": "carryforward: 64 bank(s) (+2 unnumbered), 63 scored, 1 unscored, 0 error(s), 12 warning(s)",
+     "flags": []
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [],
+   "artifact_codes": [
+    "P008"
+   ],
+   "red_kind": "artifact",
+   "unrunnable": []
+  },
+  {
+   "sha": "3772ac6f66cef4f767abd2aee90b210a21962700",
+   "short": "3772ac6",
+   "date": "2026-08-31",
+   "subject": "Round 385 (harness A): the tier that was a name, not a cost \u2014 landed by round 386",
+   "index": 39,
+   "present": [
+    "skills",
+    "state",
+    "knowledge",
+    "languages",
+    "nuc",
+    "CLAUDE.md"
+   ],
+   "checkers": {
+    "skills/skill-authoring/scripts/skill_lint.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "skill-lint: 44 skill(s), 0 error(s), 0 warning(s)",
+     "flags": [
+      "--house",
+      "--strict"
+     ]
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [
+      "P008"
+     ],
+     "warnings": [
+      "P004",
+      "P009"
+     ],
+     "red_kind": "error",
+     "summary": "case-coverage: 44 skill(s), 186 case(s) (38 negative); 0 probed under the description on disk, 0 of those on every positive case with full recall; 0 replicated (>=2 same-description reports), 0 of 0 cross-report case verdicts DISAGREE; 2 error(s), 45 warning(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "claim_check: 70 path(s) resolved, 49 unresolvable-by-design (scratch/placeholder/output/unanchored); 5 stale claim(s)",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [],
+     "red_kind": null,
+     "summary": "state_claim_check: 7 claim(s): 7 re-derivable, 0 skipped (none); 0 stale",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+     "status": "red",
+     "rc": 1,
+     "errors": [],
+     "warnings": [],
+     "red_kind": "strict",
+     "summary": "xref_check: 18 dangling citation(s) in the authoritative scope (18 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 96 in the historical scope",
+     "flags": []
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+     "status": "green",
+     "rc": 0,
+     "errors": [],
+     "warnings": [
+      "K004"
+     ],
+     "red_kind": null,
+     "summary": "carryforward: 65 bank(s) (+2 unnumbered), 64 scored, 1 unscored, 0 error(s), 12 warning(s)",
+     "flags": []
+    }
+   },
+   "checker_set": "all",
+   "scope": "read",
+   "red": true,
+   "error_codes": [],
+   "artifact_codes": [
+    "P008"
+   ],
+   "red_kind": "artifact",
+   "unrunnable": []
+  }
+ ],
+ "error_episodes": [
+  {
+   "start": "e7b2745",
+   "start_date": "2026-08-30",
+   "start_subject": "Round 370 (NUC E): the box never slept, and --cap 256 is over-committed after all",
+   "commits": [
+    "e7b2745",
+    "d5c4338"
+   ],
+   "codes": [
+    "K001"
+   ],
+   "end": "95274a1",
+   "end_date": "2026-08-30",
+   "closed_by": "Round 370 (NUC E): register the prediction bank, and three budget pitfalls",
+   "length": 2
+  },
+  {
+   "start": "9f6cff3",
+   "start_date": "2026-08-30",
+   "start_subject": "Round 373 (harness A): a dirty-tree check that can tell \"unseen\" from \"decided and left\"",
+   "commits": [
+    "9f6cff3"
+   ],
+   "codes": [
+    "K001"
+   ],
+   "end": "1f3cc43",
+   "end_date": "2026-08-30",
+   "closed_by": "Round 373 (harness A): the record, the skill and the ledgers its own commits left behind",
+   "length": 1
+  },
+  {
+   "start": "10acd1f",
+   "start_date": "2026-08-30",
+   "start_subject": "Round 374 (language C), verified and landed by round 375: Whence v0.29 \u2014 the operand-shape sweep, `show`, and E4",
+   "commits": [
+    "10acd1f"
+   ],
+   "codes": [
+    "K003"
+   ],
+   "end": "78077fa",
+   "end_date": "2026-08-30",
+   "closed_by": "Round 375 (skills B): \"probed\" answers did we look, and the newest measurement is the one that failed",
+   "length": 1
+  },
+  {
+   "start": "4b63752",
+   "start_date": "2026-08-30",
+   "start_subject": "Round 378 (language C): Whence v0.30 \u2014 the provenance-query family answers from the guest's own history",
+   "commits": [
+    "4b63752"
+   ],
+   "codes": [
+    "K001"
+   ],
+   "end": "8fc2956",
+   "end_date": "2026-08-30",
+   "closed_by": "Round 378 (language C) record: knowledge file, research-state, the D-013 debt paid, skills/deferral-blockers-are-claims",
+   "length": 1
+  }
+ ],
+ "artifact_episodes": [
+  {
+   "start": "78077fa",
+   "start_date": "2026-08-30",
+   "start_subject": "Round 375 (skills B): \"probed\" answers did we look, and the newest measurement is the one that failed",
+   "commits": [
+    "78077fa",
+    "19feaa6",
+    "3f80a0b"
+   ],
+   "codes": [
+    "P008"
+   ],
+   "end": "4b63752",
+   "end_date": "2026-08-30",
+   "closed_by": "Round 378 (language C): Whence v0.30 \u2014 the provenance-query family answers from the guest's own history",
+   "length": 3
+  },
+  {
+   "start": "8fc2956",
+   "start_date": "2026-08-30",
+   "start_subject": "Round 378 (language C) record: knowledge file, research-state, the D-013 debt paid, skills/deferral-blockers-are-claims",
+   "commits": [
+    "8fc2956",
+    "743f8f4",
+    "6bc7c62",
+    "29fd7d8",
+    "b36a751",
+    "f6d023a",
+    "8f1ffe6",
+    "e3e85cf",
+    "01cceaa",
+    "710066f",
+    "74e70c7",
+    "4db91cd",
+    "3772ac6"
+   ],
+   "codes": [
+    "P008"
+   ],
+   "end": null,
+   "closed_by": null,
+   "open": true,
+   "length": 13
+  }
+ ],
+ "strict_episodes": [
+  {
+   "start": "46c1e88",
+   "start_date": "2026-08-30",
+   "start_subject": "Round 363 (skills B): the corpus had five checkers and nothing ran them",
+   "commits": [
+    "46c1e88",
+    "8c1311a",
+    "fde4bdd",
+    "11aa0ef",
+    "b89c497",
+    "4150f1d",
+    "68cf496",
+    "48b8967",
+    "24bc75c",
+    "9903247",
+    "f568a79",
+    "80401e5"
+   ],
+   "codes": [
+    "K004",
+    "P004"
+   ],
+   "end": "e7b2745",
+   "end_date": "2026-08-30",
+   "closed_by": "Round 370 (NUC E): the box never slept, and --cap 256 is over-committed after all",
+   "length": 12
+  },
+  {
+   "start": "95274a1",
+   "start_date": "2026-08-30",
+   "start_subject": "Round 370 (NUC E): register the prediction bank, and three budget pitfalls",
+   "commits": [
+    "95274a1",
+    "d49e2dd",
+    "9277c62",
+    "4d44f5a",
+    "9a9f3c5"
+   ],
+   "codes": [
+    "K004",
+    "P004"
+   ],
+   "end": "9f6cff3",
+   "end_date": "2026-08-30",
+   "closed_by": "Round 373 (harness A): a dirty-tree check that can tell \"unseen\" from \"decided and left\"",
+   "length": 5
+  },
+  {
+   "start": "1f3cc43",
+   "start_date": "2026-08-30",
+   "start_subject": "Round 373 (harness A): the record, the skill and the ledgers its own commits left behind",
+   "commits": [
+    "1f3cc43",
+    "fab139b"
+   ],
+   "codes": [
+    "K004",
+    "P004"
+   ],
+   "end": "10acd1f",
+   "end_date": "2026-08-30",
+   "closed_by": "Round 374 (language C), verified and landed by round 375: Whence v0.29 \u2014 the operand-shape sweep, `show`, and E4",
+   "length": 2
+  }
+ ]
+}

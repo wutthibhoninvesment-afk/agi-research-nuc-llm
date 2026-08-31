@@ -1,6 +1,6 @@
 # Whence — a provenance-first language
 
-*Spec level: **v0.32** (round 384). The `## vN` sections below are the
+*Spec level: **v0.33** (round 386). The `## vN` sections below are the
 authoritative version list and each names the round that built it; this
 line deliberately no longer enumerates rounds, because the enumeration it
 replaced had said "v0.16.6 + v0.14.2" since round 266 while the file went
@@ -409,6 +409,30 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    re-implement Levenshtein to keep wording the message the same way. A
    hint needing four tuning constants to stop lying is not a hint. See
    § v0.32.
+42. **The parser reads decision 41's table, and there is only one table
+   (v0.33, round 386).** Decision 32 has had two halves since v0.22 — a
+   builtin-argument half in `interp.py` and a parse-error half in
+   `parser.py` — and decision 41 gave the first of them a table of foreign
+   idioms. The second half could not reach it: `interp.py` imports
+   `parser.py`, so a table living in the interpreter is invisible to the
+   parser, and a program that does not PARSE never reaches a runtime
+   unbound name at all. The result was that Whence knew "Whence has no
+   loops; iterate with `map`/`filter`/`fold` or recursion" and answered
+   `for d in xs` with "two names in a row … a call is `f(x)` and text must
+   be quoted" — advice that is wrong in both of its branches. The table
+   moved to `whence/foreign.py`; `interp._FOREIGN_NAMES` is an ALIAS, not
+   a copy, because the second copy of a literal is where drift starts.
+   Three constraints, each measured rather than assumed: the clause is
+   silent about any name the FILE BINDS (`meta.lang` and `self_eval.lang`
+   both write `let then = …`, since an interpreter written in Whence names
+   an if-node's then-branch `then`); it explains an error only when the
+   foreign word is what put two names next to each other, never when it
+   merely happens to be one of them (an earlier draft made `safe_divide
+   one_hundred, …` report "Whence has no spelled-out numbers", shadowing
+   the one message that described the actual mistake); and in `miss`
+   position the miss-reason clause replaces the foreign one, because
+   "Whence has no null; a missing value is `miss <reason>`" on `miss null`
+   is advice to write what the author is already writing. See § v0.33.
 
 ## Syntax (statements are newline-separated; `#` comments)
 ```
@@ -6869,3 +6893,200 @@ returns on an `isinstance` unless the value is already a miss.
   belongs in the same place, and `tests/test_v32.py`'s
   `test_print_of_a_non_miss_records_nothing_at_all` is the pin that will
   notice it being added carelessly.
+
+## v0.33 (round 386, language C) — a cure named is not a cure followed
+
+Decision 42, and the measurement that produced it.
+
+### The number nobody had taken
+
+v0.22 (round 354) built decision 32's parser half and measured itself
+honestly: of the ten machine-written Whence programs a separate system
+leaves in `examples/`, **one** named a cure before v0.22 and **nine** did
+after; v0.23 took it to **ten**. That figure has stood, correctly, for
+thirty rounds. It counts **cures NAMED**.
+
+Nobody had counted **cures FOLLOWED**. The claim "an error that can name
+the fix, names it" had been true-as-written and untested-as-used since the
+day it was made — which is round 385's class exactly, one level in: *a rule
+whose effect is to stop measuring something cannot be checked by the thing
+it stopped measuring.* Here the unmeasured thing is what happens next.
+
+`curecheck.py` takes the number, under a strict operational definition:
+
+> A cure is **MECHANICAL** if the error message — body, parenthetical hint,
+> line and column — determines a unique edit to the source text, with no
+> appeal to knowledge of Whence the message does not itself contain.
+
+Operationally: a program that reads the message and edits the file, whose
+only licence is the transformation the hint's own example demonstrates.
+
+### The answer: 3 of 8 cures, and 0 of 10 programs
+
+| cure | determinacy | what the message does not carry |
+| --- | --- | --- |
+| `unexpected '='` | **mechanical** | — (`let name = value` shows where `let` goes) |
+| `unexpected ':'` | **mechanical** | — (`@{a: 1}` beside `{a: 1}` is one `@`) |
+| `two statements on one line` (separator) | **mechanical** | — ("start `X` on the next line") |
+| `expected '{', got X` | under-**extent** | where the block ENDS. One position given, two needed. |
+| two names in a row | under-**choice** | WHICH of the two named edits. `print(Calculating total)` wants quotes; `f x` wants parens; the message is word-for-word identical. |
+| `` `rescue` is infix `` | under-**extent** | where `risky` and `fallback` begin and end |
+| `'if' requires 'else'` | under-**content** | WHAT the else branch evaluates to |
+| foreign word (v0.33) | under-**extent** | what to REWRITE — a construct swap, not an edit |
+
+Three failure modes, and they are not one failure. Then the corpus:
+
+```
+$ python3 curecheck.py corpus
+14 file(s): 4 parse, 4 reach a value (rc=0), 3 mechanical edit(s) in total
+```
+
+**Zero of the ten programs whose first error names a cure are fixed by
+following it.** Eight stall on the *first* error. The two that move —
+`nano_reasoner.lang` and `whenceguard_auditor.lang` — stall on the second.
+Only **3 mechanical edits exist in the whole corpus**.
+
+And one of those three is worse than a stall. `nano_reasoner.lang:31` is
+`risk_status = "HIGH_RISK"`; the message says, correctly, *write `let name =
+value`*; doing exactly that yields
+
+```
+block must end with an expression at line 32, col 5
+```
+
+— an error that names **no cure at all**. Following the cure moved the
+program from a diagnosed error to an undiagnosed one, because the mistake
+was never the missing `let`: it was a mutation, and Whence's answer is an
+`if` *expression*.
+
+### The other half: a reader, and 45 edits
+
+`state/whence/round-386/cure-ledger.json` records what a reader who applies
+each cure's *intent* has to do, one literal search/replace per entry,
+annotated with the cure it answers and the information the message did not
+carry. `curecheck.py replay` re-applies it and re-parses between every
+edit, so the number is re-derivable rather than remembered:
+
+```
+10 file(s): 10 reach a value, 2 clean under --strict-miss
+45 edit(s); 45 parse-error observation(s) on the way, 32 of them distinct
+7 edit(s) fixed text the grammar ACCEPTS — no message about them was ever available
+determinacy of the 45: under-extent 22, under-choice 16, mechanical 4,
+                       no-cure 2, under-content 1
+```
+
+Three things fall out of it.
+
+**Reaching a value is not working.** All ten run; **eight drop a miss** and
+fail `--strict-miss`. `nano_reasoner.lang` cured prints its banner and
+nothing else — every output line was a `println`, and every one is a
+dropped miss.
+
+**The first parse error is not the first mistake.** Seven of
+`whenceguard_v2.lang`'s nineteen edits fix text the grammar *accepts*:
+`[Engineering, Marketing, Operations]` is a list of unbound names, `let
+transaction_id = TXN-2026-8842` is three-term arithmetic, `miss
+BUDGET_VIOLATION` parses. The file's first *reported* error is on line 9;
+its first *mistake* is on line 6, and the two are the same mistake class.
+The claim is tested per-edit rather than asserted: put that one edit back
+into the cured file and ask whether it still parses.
+
+**The disjunctive cure is not merely unresolved, it is sometimes wrong.**
+`prod_demo_v3.lang:22` needs quotes; `prod_demo_v4.lang:31` needs
+parentheses; both get the identical sentence. And `prod_demo_v4.lang:8`,
+`let tax_rate = zero_point_zero seven`, needs **neither** — the author
+meant `0.07`, which is not among the two spellings offered.
+
+### Decision 42: the table the parser could not see
+
+The corpus named the fix for its own diagnosis. Two of the stalls are
+foreign *keywords* — `then`, `for` — and Whence already had the right
+sentence for both, in `interp.py`, reachable only from a RUNTIME unbound
+name, which a program that does not parse never becomes.
+
+```
+nano_reasoner.lang:35   if risk_status == "HIGH_RISK" then
+  v0.32   expected '{', got 'then' (blocks are always braced: …)
+  v0.33   expected '{', got 'then' (an `if` needs no `then`: `if c { a } else { b }`)
+
+whenceguard_auditor.lang:19   for d in approved_departments {
+  v0.32   two statements on one line (two names in a row: … a call is `f(x)`
+          and text must be quoted)
+  v0.33   two statements on one line (Whence has no loops; iterate with
+          `map`/`filter`/`fold` or recursion)
+```
+
+The table moved to `whence/foreign.py` — forced, not preferred:
+`interp.py` imports `parser.py`, so a table the parser can read cannot live
+in the interpreter. `interp._FOREIGN_NAMES` is an alias, so round 384's
+`tests/test_v32.py` keeps testing the live table with no edit and there is
+still exactly one.
+
+**Two names added, under rule (a) unchanged.** `zero_point_zero` is the
+*second* most attested unbound identifier in round 384's frozen census — 11
+occurrences across 5 of the 14 field programs, against `println`'s 34 — and
+round 384 entered the first, third, fourth, fifth and sixth while stepping
+over it, because a number spelled in words does not look like a foreign
+keyword. It meets the written rule exactly. `one_hundred` (2) joins it. A
+general English-number *decoder* was considered and rejected: that is a
+PATTERN rule, the shape round 384 deleted when it deleted edit distance.
+
+**Three constraints, each measured.**
+
+1. *Silent about a name the file binds.* `meta.lang` and `self_eval.lang`
+   both write `let then = parse_block(…)` — three bindings across two
+   tracked files — because an interpreter written in Whence names an
+   if-node's then-branch `then`. Without the suppression, decision 42 would
+   have printed "an `if` needs no `then`" on a parse error in this
+   language's own self-interpreter. `bound_anywhere` is a whole-file TOKEN
+   scan: token because the file does not parse (that is the situation), and
+   whole-file because over-suppressing costs a hint while under-suppressing
+   prints advice that is wrong about the reader's own code.
+2. *Only when the foreign word created the adjacency.* An earlier draft
+   tried the offending token as well as its predecessor, and made
+   `safe_divide one_hundred, zero_point_zero` — a paren-less call, round
+   354's tenth case — report "Whence has no spelled-out numbers; write the
+   literal `100`", shadowing the juxtaposition hint that described the
+   actual mistake. The corpus caught it: the counterfactual sweep said 15 of
+   45 errors changed, and one of the 15 was a regression. The rule is now 14
+   of 45, all improvements, at 4 distinct sites.
+3. *In `miss` position the miss-reason clause wins.* Round 384's next-step
+   1: `miss DEPT_NOT_APPROVED` reported `unbound name 'DEPT_NOT_APPROVED'`
+   and the atom the author wrote as the reason survived only as the subject
+   of a complaint about scope. Decision 41's own clause covers it — *a miss
+   reason is a string* — and the census says the guard must be ORIGIN +
+   `op == "name"`: `miss reason` over a BOUND name is the idiomatic
+   spelling and the tracked corpus uses it **14 times**. `miss null` takes
+   the miss-reason clause, not "Whence has no null; a missing value is
+   `miss <reason>`", which is advice to write what is already written.
+
+### Measured
+
+```
+languages/whence  run_tests_fast.sh          1699 passed, 3 skipped,
+                                             81 deselected (1670 baseline, +29)
+                  tests/test_v33.py          23 passed
+                  run.py examples/self_eval.lang   159 checks, 0 failed
+                  run.py examples/self_host.lang   133 checks, 0 failed
+                  run.py examples/meta.lang         25 checks, 0 failed
+curecheck.py      corpus                     0 of 10 fixed mechanically
+                  replay cure-ledger.json    10 of 10 reach a value,
+                                             2 clean under --strict-miss
+                  counterfactual sweep       14 of 45 hints improved by v0.33
+```
+
+### What v0.33 deliberately does NOT do
+
+It does not make any under-determined cure mechanical. The braced-block
+hint still cannot say where a block ends, the juxtaposition hint still
+cannot choose between quoting and calling, and `'if' requires 'else'` still
+cannot know what value belongs in the branch — and the round's own finding
+is that *naming the right construct is not the same as determining the
+edit*, which is true of decision 42's clause too. It does not add a
+recogniser for `expected (, got 'sum_lines'` (a `fn` EXPRESSION may not be
+named — a real no-cure error the corpus hit twice) or for `block must end
+with an expression`; both are named as next steps with corpus counts rather
+than fixed on one sighting. It does not touch the `9/10 -> 10/10` figure:
+that was a true statement about naming and this is a different property
+measured beside it. And it repairs none of the field programs — they belong
+to another system; every cure in this round was applied to a copy.

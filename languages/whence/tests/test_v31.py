@@ -185,7 +185,13 @@ def test_the_grep_is_true_and_the_property_it_stood_for_is_false():
     # is doing exactly its job here: a number that moves when the code moves
     # and states why. The PROPERTY it guards is unchanged — `detail` is
     # still set positionally and still says nothing about itself.
-    assert len(sites) == 85, len(sites)
+    # v0.33 (round 386): 85 -> 86, `setting` unchanged at 19. `_miss_lit`
+    # gained a call for round 384's next-step 1 (`miss <bare unbound name>`
+    # now carries decision 41's miss-reason clause instead of propagating a
+    # complaint about scope). It passes `inputs=` and NOT `detail`, so it
+    # joins the census's total and not its detail-setting subset — which is
+    # the census reporting the shape of the change, not just its size.
+    assert len(sites) == 86, len(sites)
     assert len(setting) == 19, len(setting)
 
 
