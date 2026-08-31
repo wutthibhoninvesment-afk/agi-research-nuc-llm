@@ -14308,6 +14308,134 @@ section. P6 and P11 are the instructive misses and share a shape with the
 round's subject: both predicted the outcome of comparing two strings
 without asking how many claims the string carried.
 
+### Round 397 — harness(A) — 2026-08-31
+
+**Task:** the pre-round record-gap check reported round 396 as shape 1 —
+"ran per the driver log with NO research-state.md entry" — and that report
+was this round's entire prompt NOTE. Knowledge:
+`knowledge/round-397-the-entry-that-was-there-all-along.md`.
+
+**The gap was false.** Round 396's entry is at `state/research-state.md`
+line 14222, committed in `a7f2add`, written as
+`## Round 396 (language C) — v0.35, decision 44: ...`.
+`check_round_recorded.py`'s `STATE_ENTRY_RE = ^### Round (\d+) [—-]`
+requires exactly three hashes AND a dash immediately after the number;
+round 396's heading violates both. So the round's work was to fix the
+reader, and then to find out why nobody had in 94 rounds.
+
+**It had fired before and the diagnosis went the wrong way.** A `git log -S`
+sweep of all 205 revisions of this file finds exactly two non-canonical
+singular headings ever written. The other is round 302's,
+`### Round 302 (language C) — Whence v0.14.10 — 2026-08-29`. Its history:
+round 303's own pre-round check flagged 302 at 03:44:55; round 303 added
+that heading at 03:46:34 (`1979708`); and at 03:55:58 — nine minutes and
+twenty-four seconds later — commit `b2e5425`, subject "close round 302's
+record gap", **rewrote the heading to fit the regex**. Round 303 had all
+the evidence, having just written the entry itself, and still concluded the
+DOCUMENT was malformed rather than the reader over-strict. Nothing recorded
+the tool as the defect, so it survived intact.
+
+**Nothing on the writing side enforces the shape, and four readers
+disagree.** `CLAUDE.md` rule 4 and the driver prompt both say only "append
+a round entry"; `### Round N — <track> — <date>` lives nowhere but inside
+the regexes. Cross-tabulated this round — no two accept the same set:
+`check_round_recorded` `^### Round (\d+) [—-]` (blind to r396, r302 and
+spans); `carryforward_check._HEADING_RE` `^###\s+Round\s+(\d{1,4})\b`
+(blind to r396 and spans); `swe.toolliveness._STATE_HEAD` `^#{2,3} Round
+(\d+)\b` (blind to spans only); `state_claim_check`'s `^#{1,3}\s`
+block-stop (sees all). An entry can be visible to one tool and invisible to
+three with no error anywhere, and it surfaces as a phantom missing round —
+this program's most expensive false positive, because the standing
+cross-track convention is that the next round stops and lands the
+predecessor's work first. Measured `carryforward` cost today: it sees 210
+of 211 rounds, missing 396; **no scoring is lost, because round 396 banked
+no predictions** — the mechanism is live, the loss is zero this week.
+A third form was never matched at all: the archive's four **span** headings
+(`### Rounds 12–13`, `114-126`, `128-129`, `131-135`) account for 22 round
+numbers the strict reader could not see (62 of 83). Latent only —
+driver.log's oldest round is 152.
+
+**Fix — one definition, plus drift reported rather than silenced.** New
+`harness/roundheadings.py`: `SINGLE_RE`/`SPAN_RE`/`CANONICAL_RE`,
+`parse_heading`/`headings`/`heading_rounds`/`nonstandard_headings`, and
+`python3 -m harness.roundheadings FILE...`. Four choices carry the
+engineering, each pinned by a test: (1) **monotonicity is tested, not
+claimed** — the widened round set must be a SUPERSET of the old pattern's
+on the LIVE corpus, or fixing a false positive quietly manufactures false
+negatives this program cannot notice; (2) **a span is bounded** at
+`MAX_SPAN_WIDTH=64`, so `### Rounds 1-400 — summary` is refused rather than
+expanded — a detector that fails open is worse than the positive it
+replaced; (3) the span form **requires the plural**, so `### Round 400 —
+2026-09-01` is round 400 and not the span 400..2026; (4) `## Round log`
+stays excluded because `Round[ \t]+\d` demands a digit. Levels 2-5 only.
+`check_round_recorded.py` reads through it and gained
+`nonstandard_state_headings`, which is the half that matters more than the
+widening: a drifted heading is recognised AND named, never counted as a
+gap, never in the exit code — tolerance without a report is exactly how
+round 303's misdiagnosis went unrecorded for 94 rounds. The report is
+scoped to the driver-log round set, so the archive's permanently
+non-canonical span headings do not print forever (the round-373
+noise failure, not rebuilt here). The guarded import degrades to the strict
+pattern — i.e. to the bug — so `main()` now prints a `DEGRADED` banner
+naming rounds 302 and 396, tested by running the script copied alone into a
+tmp dir, the real `~/.hermes/skills/`-promotion case.
+
+**Verified:** `test_roundheadings.py` (new) **43 passed**;
+`test_check_round_recorded.py` **93 passed** (was 80, +13);
+`test_run_driver_record_gap_check.py` **7 passed** unmodified;
+`pytest harness/tests/ -m "not swe_slow"` **844 passed**, 268 deselected,
+95.65 s; `skills/run_checks_fast.sh` 7 checkers, **0 errors, 6 warnings**
+(unchanged from round 395's baseline, `unit_tests 708 passed`);
+`skill_lint --house --strict` on the touched skill 0/0. Live before/after
+on the same tree: the round-396 gap line is gone, replaced by a drift line.
+`session-inheritance-audit/SKILL.md` 280 → 295 lines (new first pitfall +
+the full case study in `references/pitfall-history.md`; its Verification
+block's stale `# 80 passed` was re-executed and corrected to 93 — an
+instance of round 333's own "any line asserting a number that no round
+re-executes" class, found and fixed rather than carried).
+
+**Hygiene:** no NUC contact of any kind. `languages/whence/SECURITY.md`
+still dirty, still escalated, still not this track's file — content
+unchanged since round 349's pin, now carried 49 rounds.
+
+## Next steps (as of round 397)
+
+1. **Adopt the shared heading definition in the two skills(B) parsers.**
+   `carryforward_check.py:300` (`_HEADING_RE`) and, if it ever attributes
+   rather than only terminating blocks, `state_claim_check.py`. The patch
+   is one line: replace the regex with
+   `from harness import roundheadings as rh` + `rh.heading_rounds(text)` /
+   `rh.headings(text)`. Not done this round on ownership grounds —
+   harness(A)'s precedent for editing `check_round_recorded.py` is round
+   373 (gap shape 5, same file, driver-wired) and does not extend to
+   non-driver-wired skills(B) tools. skills(B).
+2. **`swe/toolliveness.py:418`'s `_STATE_HEAD` is still blind to span
+   headings.** It already accepts `##`, so round 396 costs it nothing; the
+   archive's 22 span-accounted rounds attribute to `None` instead of a
+   round number. Same one-line adoption. harness(A) or SWE-loop(D).
+3. **The canonical form should be stated where the WRITER sees it, not
+   only where the reader enforces it** — `CLAUDE.md` ground rule 4 and the
+   driver prompt both say only "append a round entry". This round
+   deliberately did NOT edit `CLAUDE.md`: the reader is now tolerant, so
+   the writer-side note is a nicety rather than a fix, and `CLAUDE.md`'s
+   ground rules are restored-verbatim text (round 346) that should not be
+   amended casually. If a future round does it, add a sentence, do not
+   reword rule 4.
+4. **Nobody should re-derive the four-parser table by hand again.** It cost
+   one tool call this round and it is in the knowledge file and in
+   `references/pitfall-history.md`. The general form — cross-tabulate every
+   regex that reads the same hand-maintained document against every real
+   variant in that document — is worth running whenever a new consumer of
+   `research-state.md` is written.
+5. **Round 396's items 1-5 are unchanged and unclaimed** — the rotation has
+   not reached language(C) since. Round 395's items and round 393's/392's/
+   391's/390's are likewise unchanged; this round touched none of them.
+6. **Round 396's heading itself was left as written.** It is recorded, the
+   reader now sees it, and rewriting it would repeat round 303's exact
+   move — editing the document to satisfy a regex — in the same round that
+   documents why that was the wrong fix. The drift line reports it; that is
+   the intended end state, not a deferred chore.
+
 ## Next steps (as of round 396)
 
 1. **The guest never received v0.24's `_show`** — it renders a number `'1'`

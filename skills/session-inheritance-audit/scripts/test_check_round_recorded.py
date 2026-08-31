@@ -1326,3 +1326,223 @@ def test_live_registry_is_well_formed_and_every_entry_is_load_bearing():
         "dead acknowledgement(s) %s — the path(s) are no longer dirty, so "
         "the entry suppresses nothing and reads as coverage; delete them "
         "from state/known-escalated-diffs.json" % dead)
+
+
+# --------------------------------------------------------------------------
+# Round 397 (harness A): the heading pattern was a format contract nothing
+# on the writing side enforced. `### Round N — <track> — <date>` is now the
+# CANONICAL form, not the definition; `harness.roundheadings` is the
+# definition, and drift is reported instead of read as a missing round.
+# Confirmed live twice: round 302 (`### Round 302 (language C) — ...`,
+# rewritten to fit the regex by commit b2e5425) and round 396
+# (`## Round 396 (language C) — ...`, which became round 397's prompt NOTE).
+# --------------------------------------------------------------------------
+
+R396_HEADING = ("## Round 396 (language C) — v0.35, decision 44: the "
+                "sentence that was three divergences")
+R302_HEADING = "### Round 302 (language C) — Whence v0.14.10 — 2026-08-29"
+
+
+def test_recorded_rounds_accepts_a_level_2_heading(tmp_path):
+    """The exact live round-396 heading. Was a false gap before round 397."""
+    state = tmp_path / "state.md"
+    state.write_text("# state\n\n" + R396_HEADING + "\n- did stuff\n")
+    assert m.recorded_rounds(str(state)) == {396}
+
+
+def test_recorded_rounds_accepts_a_parenthesised_track(tmp_path):
+    """The exact round-302 heading, before commit b2e5425 rewrote it."""
+    state = tmp_path / "state.md"
+    state.write_text(R302_HEADING + "\n- did stuff\n")
+    assert m.recorded_rounds(str(state)) == {302}
+
+
+def test_recorded_rounds_expands_a_span_heading(tmp_path):
+    """`### Rounds A-B` is real, live archive format (rounds 12-13, 114-126,
+    128-129, 131-135) that the strict pattern matched not at all."""
+    state = tmp_path / "state.md"
+    state.write_text("### Rounds 128-129 — unrecorded, flagged not chased\n")
+    assert m.recorded_rounds(str(state)) == {128, 129}
+
+
+def test_recorded_rounds_still_ignores_the_round_log_heading(tmp_path):
+    """Widening must not start counting `## Round log` as round entries."""
+    state = tmp_path / "state.md"
+    state.write_text("## Round log\n\n## Round log (rounds 1-136)\n\n"
+                     "### Round 9 — harness(A) — 2026-01-01\n")
+    assert m.recorded_rounds(str(state)) == {9}
+
+
+def test_recorded_rounds_on_the_live_record_is_a_superset(tmp_path):
+    """Regression guard with teeth: the widened reader must never LOSE a
+    round the strict pattern already found, in the real corpus."""
+    repo = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
+    state = os.path.join(repo, "state/research-state.md")
+    archive = os.path.join(repo, "state/research-state-archive.md")
+    import re
+    old = re.compile(r"^### Round (\d+) [—-]", re.MULTILINE)
+    was = set()
+    for p in (state, archive):
+        with open(p) as f:
+            was |= {int(x.group(1)) for x in old.finditer(f.read())}
+    now = m.recorded_rounds(state, [archive])
+    assert was <= now
+    assert 396 in now, "round 396's real entry must be recognised"
+
+
+def test_nonstandard_state_headings_finds_the_drift(tmp_path):
+    state = tmp_path / "state.md"
+    state.write_text("### Round 1 — harness(A) — 2026-01-01\n- ok\n\n"
+                     + R396_HEADING + "\n- ok\n")
+    drift = m.nonstandard_state_headings(str(state))
+    assert [h.rounds for h in drift] == [(396,)]
+    assert drift[0].line == 4
+
+
+def test_nonstandard_state_headings_scoped_by_only_rounds(tmp_path):
+    state = tmp_path / "state.md"
+    state.write_text("### Rounds 12-13 — did not run\n\n" + R396_HEADING + "\n")
+    assert m.nonstandard_state_headings(str(state), only_rounds={396}) != []
+    assert [h.rounds for h in
+            m.nonstandard_state_headings(str(state), only_rounds={396})
+            ] == [(396,)]
+
+
+def test_end_to_end_drifted_heading_is_reported_but_is_not_a_gap(tmp_path):
+    """The whole point: round 396 is RECORDED (rc 0, no gap line) and the
+    drift is still surfaced to the next round."""
+    driver_log = tmp_path / "driver.log"
+    _write_driver_log(str(driver_log), [
+        "[t] round 396 track=language(C) start (driver_version=x) pid=1",
+        "[t] round 396: success",
+    ])
+    state = tmp_path / "state.md"
+    state.write_text(R396_HEADING + "\n- did stuff\n")
+
+    rc = subprocess.run(
+        [sys.executable, SCRIPT,
+         "--driver-log", str(driver_log),
+         "--state", str(state),
+         "--archive", str(tmp_path / "no-archive.md"),
+         "--ack-file", str(tmp_path / "no-ack.json"),
+         "--escalated-diffs-file", str(tmp_path / "no-esc.json"),
+         "--knowledge-dir", str(tmp_path / "no-knowledge"),
+         "--round-logs-dir", str(tmp_path),
+         "--repo-root", str(tmp_path)],
+        capture_output=True, text=True,
+    )
+    assert rc.returncode == 0, rc.stdout
+    assert "0 gaps" in rc.stdout
+    assert "NO research-state.md entry" not in rc.stdout
+    assert "drifted" in rc.stdout
+    assert "Round 396" in rc.stdout
+
+
+def test_end_to_end_span_heading_in_archive_is_not_a_gap(tmp_path):
+    driver_log = tmp_path / "driver.log"
+    _write_driver_log(str(driver_log), [
+        "[t] round 128 track=language(C) start (driver_version=x) pid=1",
+        "[t] round 128: success",
+        "[t] round 129 track=skills(B) start (driver_version=x) pid=1",
+        "[t] round 129: success",
+    ])
+    state = tmp_path / "state.md"
+    state.write_text("# state\n")
+    archive = tmp_path / "archive.md"
+    archive.write_text("### Rounds 128-129 — unrecorded, flagged not chased\n")
+
+    rc = subprocess.run(
+        [sys.executable, SCRIPT,
+         "--driver-log", str(driver_log),
+         "--state", str(state),
+         "--archive", str(archive),
+         "--ack-file", str(tmp_path / "no-ack.json"),
+         "--escalated-diffs-file", str(tmp_path / "no-esc.json"),
+         "--knowledge-dir", str(tmp_path / "no-knowledge"),
+         "--round-logs-dir", str(tmp_path),
+         "--repo-root", str(tmp_path)],
+        capture_output=True, text=True,
+    )
+    assert rc.returncode == 0, rc.stdout
+    assert "0 gaps" in rc.stdout
+
+
+def test_end_to_end_a_real_gap_is_still_a_gap(tmp_path):
+    """Tolerance must not have turned the detector off. A round with no
+    heading of ANY shape still exits 1."""
+    driver_log = tmp_path / "driver.log"
+    _write_driver_log(str(driver_log), [
+        "[t] round 396 track=language(C) start (driver_version=x) pid=1",
+        "[t] round 396: success",
+        "[t] round 397 track=harness(A) start (driver_version=x) pid=1",
+        "[t] round 397: success",
+    ])
+    state = tmp_path / "state.md"
+    state.write_text(R396_HEADING + "\n- did stuff\n")
+
+    rc = subprocess.run(
+        [sys.executable, SCRIPT,
+         "--driver-log", str(driver_log),
+         "--state", str(state),
+         "--archive", str(tmp_path / "no-archive.md"),
+         "--ack-file", str(tmp_path / "no-ack.json"),
+         "--escalated-diffs-file", str(tmp_path / "no-esc.json"),
+         "--knowledge-dir", str(tmp_path / "no-knowledge"),
+         "--round-logs-dir", str(tmp_path),
+         "--repo-root", str(tmp_path)],
+        capture_output=True, text=True,
+    )
+    assert rc.returncode == 1
+    assert "round 397" in rc.stdout
+    assert "round 396 track" not in rc.stdout
+
+
+def test_canonical_heading_form_matches_the_shared_module():
+    """The message the operator reads and the module's own constant must be
+    the same string — this is the divergence the round is about."""
+    from harness import roundheadings as rh
+    assert m.CANONICAL_HEADING_FORM == rh.CANONICAL_FORM
+
+
+def test_degraded_fallback_is_the_old_strict_pattern(monkeypatch, tmp_path):
+    """If harness/ is not importable (a promoted ~/.hermes/skills/ copy),
+    detection falls back to the strict pattern — which is WRONG, so the run
+    must say so rather than silently regress."""
+    monkeypatch.setattr(m, "_roundheadings", None)
+    state = tmp_path / "state.md"
+    state.write_text(R396_HEADING + "\n")
+    assert m.recorded_rounds(str(state)) == set()
+    assert m.nonstandard_state_headings(str(state)) == []
+
+
+def test_end_to_end_promoted_copy_without_harness_says_degraded(tmp_path):
+    """A real promoted-copy run: the script alone, nowhere near the repo.
+    CURRICULUM.md's endgame promotes skills into ~/.hermes/skills/, which is
+    the case the guarded import exists for. It must announce that its answer
+    is the untrustworthy one, not quietly emit the old false gap."""
+    import shutil
+    away = tmp_path / "promoted" / "scripts"
+    away.mkdir(parents=True)
+    shutil.copy(SCRIPT, str(away / "check_round_recorded.py"))
+    driver_log = tmp_path / "driver.log"
+    _write_driver_log(str(driver_log), [
+        "[t] round 396 track=language(C) start (driver_version=x) pid=1",
+        "[t] round 396: success",
+    ])
+    state = tmp_path / "state.md"
+    state.write_text(R396_HEADING + "\n- did stuff\n")
+
+    rc = subprocess.run(
+        [sys.executable, str(away / "check_round_recorded.py"),
+         "--driver-log", str(driver_log),
+         "--state", str(state),
+         "--archive", str(tmp_path / "no-archive.md"),
+         "--ack-file", str(tmp_path / "no-ack.json"),
+         "--escalated-diffs-file", str(tmp_path / "no-esc.json"),
+         "--knowledge-dir", str(tmp_path / "no-knowledge"),
+         "--round-logs-dir", str(tmp_path),
+         "--repo-root", str(tmp_path)],
+        capture_output=True, text=True,
+    )
+    assert "DEGRADED" in rc.stdout, rc.stdout
+    assert "rounds 302 and 396" in rc.stdout

@@ -122,6 +122,14 @@ where "session" means a login/web session.
    progress" for a session that is not running.
 
 ## Pitfalls
+- **A phantom "round N was never recorded" gap.** The detector's own
+  heading pattern is a format contract nothing enforces at the point of
+  writing, so a legal, committed entry can read as a total record loss.
+  Confirmed twice (rounds 302, 396); round 303 "fixed" it by rewriting the
+  document to satisfy the regex, and the bug outlived that by 94 rounds.
+  Before treating a gap as real, `grep -n "Round <N>" state/research-state.md`
+  by eye. Full mechanism:
+  [references/pitfall-history.md#the-detectors-heading-pattern-is-a-format-contract-nothing-on-the-writing-side-enforces](references/pitfall-history.md#the-detectors-heading-pattern-is-a-format-contract-nothing-on-the-writing-side-enforces).
 - **Diffing only your own subsystem.** A skills-track audit that diffed
   `knowledge/` against `skills/` missed a full harness feature set
   (streaming, retries, token counting) an unrecorded round had shipped
@@ -266,7 +274,13 @@ python3 skills/session-inheritance-audit/scripts/check_round_recorded.py
 # affect the exit code; an expired pin, or an entry matching nothing at all
 # (a dead acknowledgement), does. Add an entry only after a round has
 # actually inspected THAT EXACT diff and recorded why.
-python3 -m pytest -q skills/session-inheritance-audit/scripts/test_check_round_recorded.py    # 80 passed
+python3 -m pytest -q skills/session-inheritance-audit/scripts/test_check_round_recorded.py    # 93 passed (round 397)
+python3 -m pytest -q harness/tests/test_roundheadings.py                                     # 43 passed (round 397)
+python3 -m harness.roundheadings state/research-state.md state/research-state-archive.md
+# the shared heading definition the detector now reads with. Prints every
+# recognised entry, the round set it accounts for, and every heading that has
+# DRIFTED from `### Round N — <track> — <date>`. A drifted heading is recorded,
+# not a gap — see the first pitfall above before chasing one.
 python3 -m pytest -q harness/tests/test_run_driver_record_gap_check.py                        # 7 passed
 for p in $(pgrep -f '<round-driver-prompt-or-script-pattern>'); do echo -n "$p "; readlink -f /proc/$p/cwd; done
 # every hit classified: real workspace = live peer (leave/message); tmp/pytest fixture = escaped test orphan (killable)

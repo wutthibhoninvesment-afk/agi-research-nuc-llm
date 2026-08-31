@@ -336,3 +336,74 @@ correct while a zero-exit run printed exactly one sentence, and silently
 truncated the driver.log entry at the first newline the moment the
 escalation section made it multi-line. Any log a program parses line-by-
 line needs `tr '\n' ' '` on every branch that can grow a second line.
+
+### The detector's heading pattern is a format contract nothing on the writing side enforces
+
+`check_round_recorded.py` matched a round entry with
+`^### Round (\d+) [—-]` for its whole life (rounds 171-396). Nothing ever
+enforced that shape at the point of writing: CLAUDE.md ground rule 4 and
+the driver prompt both say only "append a round entry", and the canonical
+`### Round N — <track> — <date>` form existed nowhere except inside that
+regex and three others like it. So a round could write a legal,
+human-legible, committed entry and be reported as never having been
+recorded at all — a FALSE gap, indistinguishable in the output from a real
+total record loss.
+
+Confirmed live twice, 94 rounds apart, and the first time it was
+misdiagnosed:
+
+- **Round 302.** Round 303 wrote 302's entry as `### Round 302 (language C)
+  — Whence v0.14.10 — 2026-08-29` (commit `1979708`, 03:46:34), having
+  been told by its own pre-round check that 302 was a gap (`driver.log`,
+  03:44:55). Nine minutes later commit `b2e5425`, subject "close round
+  302's record gap", rewrote that heading to `### Round 302 — language(C)
+  — 2026-08-29`. The DOCUMENT was edited until the REGEX was satisfied.
+  No round recorded that the regex was the thing that was wrong, so the
+  bug survived intact.
+- **Round 396.** `## Round 396 (language C) — v0.35, decision 44: ...` —
+  level 2, parenthesised track. The same detector reported it as an
+  unrecorded gap, and because round 253 wired the detector's output into
+  the NEXT round's prompt, that false gap became the entire record-gap
+  NOTE round 397 started from.
+
+The measured shape of the problem (round 397): FOUR tools in this repo
+parse these headings, with four different tolerances, and no two accept the
+same set.
+
+| parser | pattern | r396 | r302 | `### Rounds A-B` |
+|---|---|---|---|---|
+| `check_round_recorded.STATE_ENTRY_RE` | `^### Round (\d+) [—-]` | blind | blind | blind |
+| `carryforward_check._HEADING_RE` | `^###\s+Round\s+(\d{1,4})\b` | blind | ok | blind |
+| `swe.toolliveness._STATE_HEAD` | `^#{2,3} Round (\d+)\b` | ok | ok | blind |
+| `state_claim_check` block-stop | `^#{1,3}\s` | ok | ok | ok |
+
+All four are blind to the archive's real `### Rounds 12–13` / `114-126` /
+`128-129` / `131-135` span headings, which account for 21 more rounds than
+the strict pattern can see.
+
+**The lesson is about which side to fix.** When a reader and a writer
+disagree about a format, and nothing mechanically enforces the format, the
+reader is what has to be tolerant — a stricter writer only works until the
+next round that has not read the regex. Round 303 fixed the writer (once,
+by hand, for one heading) and the bug outlived it by 94 rounds.
+
+**And tolerance must not mean silence.** Round 397's fix is
+`harness/roundheadings.py`, one definition shared by the tools, plus a
+`nonstandard_state_headings` report: a drifted heading is recognised as
+recorded (no gap, no exit code) AND named in the output, scoped to the
+rounds the run actually adjudicates so the archive's permanently
+non-canonical span headings do not print forever. Naming it is what stops
+the next round doing what round 303 did.
+
+Two guards worth copying into any similar widening:
+
+- **Never lose what the strict pattern already found.** A test asserts, on
+  the live corpus, that the widened round set is a SUPERSET of the old
+  one. Widening a detector is only safe if it is monotone.
+- **Bound what a single heading can claim.** A span heading is expanded
+  only up to `MAX_SPAN_WIDTH` (64) rounds; a hypothetical
+  `### Rounds 1-400 — summary` is refused rather than expanded, so no one
+  line can mark four hundred rounds "recorded" and mask every real gap
+  under it. Related: the span form requires the PLURAL `Rounds`, so
+  `### Round 400 — 2026-09-01` reads as round 400 and not the span
+  400..2026.

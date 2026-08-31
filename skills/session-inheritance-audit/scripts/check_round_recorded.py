@@ -104,6 +104,18 @@ unattributed path the moment either moves, and reports an entry that has
 stopped matching anything at all so a dead acknowledgement gets deleted
 rather than read as coverage. See `load_escalated_diffs` and
 `classify_escalated_diffs` below.
+
+Round 397 added no sixth SHAPE — it fixed the reader that decides shape 1.
+`^### Round (\d+) [—-]` was a format contract nothing enforces at the point
+of writing, and it reported a legal, committed entry as a missing round
+twice: round 302 (round 303 rewrote the DOCUMENT to satisfy the regex,
+commit `b2e5425`) and round 396 (whose false gap became round 397's entire
+prompt NOTE). `harness.roundheadings` is the definition now — shared with
+the three other tools in this repo that parse the same headings with three
+other patterns — and `nonstandard_state_headings` REPORTS drift instead of
+reading it as absence, because tolerance without a report is how round
+303's misdiagnosis went unrecorded for 94 rounds. That report never moves
+the exit code. See `recorded_rounds` and `nonstandard_state_headings`.
 """
 
 import argparse
@@ -130,10 +142,28 @@ except ImportError:
     # promoted ~/.hermes/skills/ copy per CURRICULUM.md's endgame) — the
     # `interrupted` column just degrades to None rather than crashing.
     _summarize_turns = None
+try:
+    from harness import roundheadings as _roundheadings
+except ImportError:
+    # Same promoted-copy case. Unlike `interrupted`, this one degrades into
+    # a WRONG ANSWER rather than a missing column — the strict fallback
+    # below is exactly the pattern that produced round 302's and round
+    # 396's false gaps — so `main` prints a DEGRADED warning instead of
+    # letting it fail silently. See `recorded_rounds`.
+    _roundheadings = None
 
 DRIVER_START_RE = re.compile(r"round (\d+) track=(\S+) start")
 DRIVER_STATUS_RE = re.compile(r"round (\d+): (success|non-success)(?:\s+status=(\S+))?")
+# The historical, strict pattern. Round 397 demoted it from "the
+# definition of a round entry" to "the CANONICAL form, and the
+# fallback used only when harness/ is not importable" — it rejects
+# legal entries (`## Round 396 (language C) — ...`), and twice it
+# reported one as a missing round. `harness.roundheadings` is the
+# definition now; see its module docstring for the two live cases.
 STATE_ENTRY_RE = re.compile(r"^### Round (\d+) [—-]", re.MULTILINE)
+CANONICAL_HEADING_FORM = (_roundheadings.CANONICAL_FORM
+                           if _roundheadings is not None
+                           else "### Round N — <track> — <date>")
 
 # Phrases seen live (rounds 161/167/170) in a round's own final assistant
 # message when it ended on a dangling background wait instead of finishing.
@@ -216,15 +246,64 @@ def recorded_rounds(state_path, archive_paths=()):
     live (round 231): a plain run flagged 32 rounds; 13 of them (154-174
     minus a few genuine gaps) had a heading sitting in the archive file the
     whole time.
+
+    Round 397 replaced this function's own `### Round N —` matcher with
+    `harness.roundheadings`, after the strict pattern reported a legal,
+    committed entry as a missing round for the SECOND time in 94 rounds
+    (round 302, papered over by rewriting the document in commit `b2e5425`;
+    round 396, whose false gap became round 397's entire prompt NOTE).
+    Nothing on the writing side enforces the heading shape, so the reader
+    is what has to be tolerant. `nonstandard_state_headings` reports the
+    drift separately, so tolerance does not mean silence.
     """
     rounds = set()
-    for path in (state_path,) + tuple(archive_paths):
-        if not os.path.exists(path):
-            continue
+    for path in _existing_state_paths(state_path, archive_paths):
         with open(path) as f:
             text = f.read()
-        rounds |= {int(m.group(1)) for m in STATE_ENTRY_RE.finditer(text)}
+        if _roundheadings is None:
+            rounds |= {int(m.group(1))
+                       for m in STATE_ENTRY_RE.finditer(text)}
+        else:
+            rounds |= _roundheadings.heading_rounds(text)
     return rounds
+
+
+def _existing_state_paths(state_path, archive_paths=()):
+    """`state_path` plus every archive path that exists, in read order."""
+    return [p for p in (state_path,) + tuple(archive_paths)
+            if os.path.exists(p)]
+
+
+def nonstandard_state_headings(state_path, archive_paths=(),
+                               only_rounds=None):
+    """Round entries that ARE recorded but whose heading has drifted from
+    `### Round N — <track> — <date>`.
+
+    This is not a sixth gap shape and does not move the exit code — every
+    round it names is recorded. It exists because the drift is invisible
+    from the writing side and expensive from the reading side: four tools
+    in this repo parse these headings with four different regexes (see
+    `harness/roundheadings.py`), so an entry can be visible to one and
+    invisible to three, and the way that surfaces is as a phantom missing
+    round. Naming the heading is what stops the next round rewriting the
+    DOCUMENT to satisfy a REGEX, which is what round 303 did.
+
+    `only_rounds` scopes the report to rounds this run actually adjudicates
+    (the driver-log round set). Without it, the archive's four historical
+    span headings — real, correct, permanently non-canonical, and all below
+    the oldest driver-log round — would print on every run forever, which
+    is the same unactionable-noise failure the escalation registry (round
+    373) exists to avoid.
+    """
+    if _roundheadings is None:
+        return []
+    out = []
+    for path in _existing_state_paths(state_path, archive_paths):
+        with open(path) as f:
+            text = f.read()
+        out.extend(_roundheadings.nonstandard_headings(
+            text, path=path, only_rounds=only_rounds))
+    return out
 
 
 def _knowledge_file_paths(knowledge_dir):
@@ -888,6 +967,11 @@ def main():
                                                  status=tree_status)
                     if path not in registry_paths]
     latest_round = max(driver_rounds) if driver_rounds else None
+    # Recorded-but-drifted headings, scoped to the rounds this run
+    # adjudicates. Informational: never moves the exit code.
+    adjudicated = {n for n in driver_rounds if n >= args.since}
+    drifted = nonstandard_state_headings(args.state, archive_paths,
+                                          only_rounds=adjudicated)
 
     gaps = []
     ack_hits = []
@@ -919,6 +1003,27 @@ def main():
             ack_hits.append((g, acknowledged[n]))
         else:
             gaps.append(g)
+
+    if _roundheadings is None:
+        print("check_round_recorded: DEGRADED — harness.roundheadings is not "
+              "importable, so round entries are matched with the old strict "
+              "`%s` pattern. That pattern reported a legal, committed entry "
+              "as a missing round twice (rounds 302 and 396); treat any gap "
+              "below as unconfirmed until the heading is read by eye."
+              % CANONICAL_HEADING_FORM)
+
+    if drifted:
+        print("check_round_recorded: %d round entr(ies) are recorded but "
+              "their heading has drifted from `%s`. NOT a gap and NOT part "
+              "of the exit code — every round below IS in the record. It is "
+              "reported because four tools in this repo parse these headings "
+              "with four different patterns, so a drifted heading is visible "
+              "to some and invisible to others, and that surfaces as a "
+              "PHANTOM missing round (rounds 302, 396). Fix the heading if "
+              "you like, but do not record the round as a gap:"
+              % (len(drifted), CANONICAL_HEADING_FORM))
+        for h in drifted:
+            print("  %s:%d  %s" % (h.path, h.line, h.text))
 
     if args.show_acknowledged and (ack_hits or seq_ack_hits or uncommitted_ack_hits):
         print("check_round_recorded: %d round(s) are known gaps, already "
