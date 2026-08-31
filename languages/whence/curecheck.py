@@ -831,6 +831,51 @@ def field_programs(root=None):
     return sorted(p for p in paths if os.path.exists(p))
 
 
+#: Why a test whose subject is the field corpus has NO subject in a fresh
+#: checkout. Round 402 resolved a contradiction between two of this repo's
+#: records by `git rm --cached`-ing the fourteen field programs and naming
+#: every one of them in `.gitignore`. That was the right call for the census
+#: — and it also means the corpus exists in the ONE working tree a separate
+#: system writes into and in NO git checkout of ANY commit. `git worktree
+#: add --detach /tmp/x HEAD` produces a tree without it, at every commit,
+#: forever.
+FIELD_CORPUS_ABSENT_REASON = (
+    "the 14-file field corpus is absent from this checkout: round 402 named "
+    "all fourteen in .gitignore, so they exist only in a working tree the "
+    "Hermes gateway has written into and in no checkout of any commit. A "
+    "test whose subject is that corpus has no subject here — this is not a "
+    "regression in anything this project wrote.")
+
+
+def field_corpus_absent(root=None):
+    """True only when the declared corpus is ENTIRELY absent from `root`.
+
+    All-or-nothing on purpose, and the two halves are different facts:
+
+      * NONE of the fourteen present — this checkout was never the tree the
+        gateway writes into. Nothing about it is evidence, so a corpus test
+        should SKIP.
+      * SOME present and some not — DRIFT. The gateway deleted or renamed a
+        program, `field_corpus_drift` will name it, and the tests must stay
+        RED. Skipping here would be the exact failure this predicate is
+        being added to avoid: a skip that swallows a real finding.
+
+    Round 409. Four fast-tier tests read the corpus off disk with no guard
+    and therefore failed in every worktree at every commit — which broke
+    `harness/pristine_check.py` itself, since four unconditional
+    pristine-only failures make its `whence-fast` verdict a permanent, false
+    `git_incomplete`. Round 395's `test_v33.py`/`test_v34.py` already had
+    `_corpus_unchanged()` for the sibling case (the gateway REWROTE a file)
+    and those tests skip cleanly; the guard was simply never extended to the
+    file round 395 wrote next, or to `test_v24.py`.
+    """
+    root = root or _HERE
+    declared = _census_names()
+    present = [n for n in declared
+               if os.path.exists(os.path.join(root, "examples", n))]
+    return not present and bool(declared)
+
+
 def field_corpus_drift(root=None):
     """`(undeclared, missing)` — a new gateway program, and a declared one
     that is gone. Empty tuples mean the census still describes `examples/`.

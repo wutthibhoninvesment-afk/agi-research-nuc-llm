@@ -18133,3 +18133,196 @@ run.
    `Harness (A)` half of the Track-status audit is still the last one
    owed, and harness(A) still owns wiring `nuc/run_checks_fast.sh` into
    `run_driver.sh` — 0 references, SIXTH round carried.
+
+### Round 409 — harness(A) — 2026-08-31
+
+**Three harness(A) items were owed and all three are closed. The first two
+turned out to be one story: the repo's own standing recipe for taking a
+pristine baseline named a directory that broke the repo's own pristine
+checker.**
+
+**Round 408's item 3 was diagnosed and its three candidate causes are all
+wrong.** `test_the_round_355_finding_reproduces_end_to_end` fails in a
+`git worktree` and passes in the live tree at the same commit; round 408
+proposed cwd, collection order, or something `pc.differential` reads that
+the mock does not cover. The dependence is on **the absolute path of the
+checkout**, via the test file's own fake. `recording_runner` matched
+`needle in (" ".join(argv) + " @" + str(cwd))`, and the table tells the two
+trees apart with `("@/tmp/wt", FAIL_PARITY)` against
+`worktree_path="/tmp/wt"`. Round 408 checked out at `/tmp/wt-408`, so the
+LIVE suite's cwd `/tmp/wt-408/languages/whence` **contains** `@/tmp/wt`,
+the live tree got the pristine tree's canned failure, and `git_incomplete`
+— the finding the whole instrument exists to produce — collapsed to
+`both_failed`. **A differential that cannot tell its two trees apart
+reports NO DIFFERENCE, the one answer that never alarms anybody.** Proved
+causally rather than inferred: `/tmp/wt-409` → `1 failed, 66 passed`;
+`/tmp/pristine-409` → `67 passed`; same commit, same command, the variable
+is the directory name. It survived from round 355 because
+`pristine_check.py`'s own default worktree path is
+`/tmp/pristine-check-<pid>-<ts>` and cannot prefix-match — **the instrument
+was structurally incapable of provoking the bug in its own test double** —
+while round 402's standing next-step recipe says `git worktree add
+--detach /tmp/wt-N HEAD`. The recipe named the collision. `@`-prefixed
+needles are now a cwd-containment question answered by path components
+(`_cwd_under`), and the regression pin passes `repo="/tmp/wt-409"`
+explicitly so it is red-or-green identically in every checkout. Falsified
+before being trusted: replayed against `git show HEAD:` plus a shim for the
+old semantics → **2 failed, 1 passed** (the two bug pins red; the
+don't-break-argv guard green under both, as it should be).
+
+**Round 408's item 4(b) is fixed, and its consequence one level up was not
+drawn.** Four whence fast-tier tests read the fourteen gateway-written
+`.lang` programs off disk, and round 402 named all fourteen in
+`.gitignore` — so they fail in **every worktree at every commit**. The part
+round 408 did not follow through: those four unconditional pristine-only
+failures make `pristine_check.py check --suite whence-fast` report a
+**permanent, false `git_incomplete`**. The instrument built to catch "a test
+depends on files git does not carry" had been switched off by a deliberate,
+correct `.gitignore` decision, for seven rounds, unnoticed because nobody
+ran it. Fixed with `curecheck.field_corpus_absent`, and its shape is the
+finding: **all-or-nothing**. None of the fourteen present means this
+checkout was never the tree the gateway writes into, so skip with a reason
+naming the cause; *some* present means real drift and must stay RED. A skip
+keyed on "any file missing" would swallow exactly the event the corpus
+check exists to catch — pinned by
+`test_absence_is_all_or_nothing_so_real_drift_still_fails`, which walks a
+fake corpus 14 → 13 → 0 asserting skip/red/skip. Round 395 had already
+built `_corpus_unchanged()` for the sibling case and `test_v33.py`/
+`test_v34.py` skip cleanly under it; the guard was simply never extended to
+the file round 395 wrote next, nor to `test_v24.py`.
+
+**Item 4(a) is closed by a new instrument, and the reason rounds hand-roll
+`git worktree add` is now written down: `differential` REFUSES to run.**
+Rule 1 short-circuits on a dirty tree, correctly — its answer is a
+*comparison*. But "what does this COMMIT do?" is what a round asks before it
+edits and still needs answered while it edits, and `check` says
+`dirty_worktree` and runs nothing, so the round types `git worktree add`
+instead. New `pristine_check.py baseline`: one tree, no live run, dirt
+RECORDED as a caveat rather than a veto, suites addressed BY NAME (so
+`harness/run_tests_fast.sh` cannot be mistaken for a language round's
+baseline — round 408's own 4(a)), a worktree path that cannot collide, and
+removal on every exit path. First run, on this round's 7-file-dirty tree,
+reproduced round 408's four whence reds exactly and showed `harness-fast`
+**green** at the commit where `/tmp/wt-408` was red. Plus
+`baseline-status`, its own ledger (kept separate so "the commit is green"
+can never be read as "the two trees agree"), and exit codes that separate
+`red` from `never ran`.
+
+**`nuc/run_checks_fast.sh` is wired into `run_driver.sh` — SIXTH round
+carried, 0 references in-tree, closed — and the wiring nearly shipped a
+known-broken log line.** Round 388 built it and deferred the wiring to
+harness(A) by the 242→247 precedent, specifying "mirroring the whence check
+exactly", i.e. `driver_health.health_line`. Measured on a representative log
+BEFORE wiring: a run where every test passed and the AUDIT failed classifies
+as `{'outcome': 'fail', 'reason': 'tests ran and failed', 'summary': '490
+passed in 30.12s', 'summary_source': 'count-line-guess'}`. The nuc check has
+TWO legs and prints the audit after pytest's count line, so
+`split_measured_output`'s `count-line` boundary — a guess whose own docstring
+says it is "wrong for any log whose real verdict line comes last" — drops the
+audit's finding as *echoed* and the surviving line blames the wrong
+subsystem. Round 379's defect at a new call site; round 349's
+FAIL-names-the-wrong-thing in a third flavour. The sentinel is not the fix
+(it means "recorded status below"; nuc's second leg is MEASURED), so this
+follows round 363's precedent — a check whose EXIT CODE is its verdict gets
+its own formatter. New `driver_health.classify_nuc_health_log` /
+`nuc_health_log_line` / `nuc_health_line` CLI: reads both legs from the
+script's own verdict line, names which leg failed, keeps ERROR ahead of FAIL,
+and refuses to let the script's word outrank `wait`. The justifying
+measurement is kept as a test that asserts the SIBLING function's defect by
+name, so the day it is fixed the duplicate becomes deletable. `.gitignore`
+gained `logs/nuc_health_round_*.log` in the SAME round as the wiring (round
+363 did not, and the next round's log tripped the record-gap check). Real
+check run once end-to-end: **exit 0, 638 passed in 64.77s, constant-audit 23
+constants / 0 transform-risk** — note round 388's header says 490 tests, so
+that number has drifted by 148.
+
+**Two smaller findings, both in instruments.** (1) **`tail -25` on
+`harness/run_tests_fast.sh` returns ZERO measured output.** Its echoed block
+(slow-tier + pristine ledger + `procreap scan`) is now ~40 lines; I piped
+this round's own verification through `tail -25` and got back only echoed
+records — including a `RECORDED ... 26.4 h ago` verdict at a commit HEAD has
+left, correctly labelled by the instrument. Round 379's sentinel protects the
+driver's parser and `health_replay`; it does not protect a human reaching for
+`tail`. (2) **A coupling check that resolved the wrong repo root SKIPPED** —
+two `dirname`s instead of three, no `nuc/` found, reported as `11 passed, 1
+skipped`, which reads as fine. A guard written to keep a check honest
+silently switched the check off on its first run; it now asserts the root
+resolved before it is allowed to skip. Same shape as the all-or-nothing rule
+above: *absent* and *not looked for* must not share a branch.
+
+**Verification.** harness fast tier **999 passed, 269 deselected, 0 failed**
+in 111.24s (961 → 999, +38: 17 in `test_pristine_check.py`, 12 in new
+`test_nuc_health_line.py`, 9 in new `test_run_driver_nuc_health_check.py`).
+Whence fast tier **1947 passed, 3 skipped, 81 deselected, 0 failed** in
+93.38s (1944 → 1947). Skills corpus check **7 checkers, 0 errors, 5
+warnings** (`skill_lint` 59 skills 0/0; `claim_check` 0 stale;
+`state_claim_check` 0 stale; `xref_check` 0 dangling authoritative;
+`unit_tests` 747 passed). `nuc/run_checks_fast.sh` exit 0, **638 passed**.
+Post-commit `baseline --ref HEAD` — see the round file. Three skills upgraded
+(`pristine-checkout-differential`, `echoed-record-vs-measurement`,
+`unrun-checker-latency`); no new skill, deliberately — each finding belongs
+to a skill that already exists and upgrading beats a fourth near-duplicate.
+Predictions banked at `state/harness/round-409/PREDICTIONS.md` and registered
+in `state/prediction-bank-ledger.json`; the bank is **NOT cold** and its §0
+lists the seven facts already measured so none is scorable as foresight.
+
+**Hygiene:** no NUC contact; nothing wired this round opens a socket, and
+`nuc/tests/` injects fake ssh/tailscale runners by construction. Port 8001
+never contacted. `CHANGELOG.md` not edited (gateway-owned).
+`languages/whence/SECURITY.md` was ALREADY modified on arrival by something
+that is not a driver round — untouched, not reverted, not committed; **61
+rounds carried**. Worktrees `/tmp/wt-409` and `/tmp/pristine-409` removed and
+`git worktree prune` run. No background job was left running.
+
+## Next steps (as of round 409)
+
+1. **The whence field corpus now has THREE guards for one fact, in three
+   files.** `curecheck.field_corpus_absent` (round 409, all-or-nothing,
+   "is this the tree the gateway writes into?"), `_corpus_unchanged()`
+   duplicated verbatim in `test_v33.py` and `test_v34.py` (round 395, md5
+   census, "has the gateway rewritten anything?"). The two questions are
+   genuinely different and both are worth asking — but `_corpus_unchanged`
+   answers ABSENT and CHANGED with the same skip and the same reason
+   string, so in a worktree it says "field corpus moved: missing: X",
+   which is true and misleading. One helper, two predicates, one home.
+   language(C) or skills(B).
+2. **`split_measured_output`'s `count-line` boundary is a guess and there
+   is now a second producer it is wrong for.** Round 409 routed around it
+   with a dedicated nuc classifier rather than changing the shared one,
+   which is the right local call and leaves the general defect standing:
+   ANY check that prints something after pytest's count line has its tail
+   silently reclassified as "echoed". The fix is for every producer to
+   print `MEASURED_END_SENTINEL` (exact boundary, no guess) — which means
+   the sentinel's wording, "recorded status below", has to stop implying
+   that everything after it is a stored record. harness(A).
+3. **Nothing re-runs the falsification.** Round 409 proved its two new
+   pins red against the OLD helper by reconstructing it from
+   `git show HEAD:` plus a shim, in `/tmp`, and threw it away. That is the
+   same "the demonstration should itself be a test" gap round 408 named
+   in `self_host.lang`, one subsystem over. A `harness/` mutation-style
+   check that re-applies a named list of historical defects to their
+   fixed sites would re-execute every such proof for free. harness(A) or
+   SWE-loop(D).
+4. **`harness/run_tests_fast.sh`'s echoed block has outgrown every `tail`
+   a human would type.** Finding (1) above. The cheapest honest fix is for
+   the script to print its OWN result line last, after the echoed records,
+   clearly labelled — or for the echoed block to move behind a flag. Right
+   now the default output's last 25 lines contain nothing this run
+   measured. harness(A).
+5. **Round 408's items 1, 2, 5, 6 carry forward unchanged** (the
+   4001-digit lexer/`num()` divergence wants a SPEC decision; the
+   `check "<name>"` sweep for checks that cannot see their own mechanism
+   go away; round 402's item 1 host-only HINT class; `parser.quote_str`
+   vs `values._quote`). Its items 3 and 4 are CLOSED by this round.
+   language(C) or skills(B).
+6. **Round 408's item 9 (CLAUDE.md's `🔴 CRITICAL MISSION` block is stale
+   in both halves) is re-escalated, not deferred.** Verified again this
+   round: it is unchanged, both items were answered by rounds 349 and
+   33/v0.23, and every round pays a re-read for it. CLAUDE.md is the
+   operator's file (round 346), so this needs the operator, not a round.
+7. **Round 406's items 1-4 and 7 are untouched and TIME-CRITICAL**
+   (`sa23` dies 2026-09-23). Round 405's items 1-4, round 404's items 1-4
+   and 7, round 403's items 2-5, and round 336's remaining language(C)
+   items carry forward. The `Harness (A)` half of the Track-status audit
+   is still the last one owed. **`nuc/run_checks_fast.sh` wiring is
+   CLOSED by this round** after six carried rounds.

@@ -1330,6 +1330,136 @@ def health_log_line(label: str, path: str, returncode: Optional[int] = None) -> 
     return line
 
 
+# --------------------------------------------------------------------------
+# the nuc check (round 409) — a two-leg check, and the shared classifier is
+# one-leg-shaped
+# --------------------------------------------------------------------------
+
+#: `nuc-checks PASS (pytest rc=0, audit rc=0)` — the script's own verdict.
+_NUC_VERDICT_RE = re.compile(
+    r"^nuc-checks\s+(PASS|FAIL)\s*\(pytest rc=(-?\d+|None),\s*audit rc=(-?\d+|None)\)",
+    re.M)
+#: `constant-audit 19 constants, 15 derived (0.789), 4 bare, 0 transform-risk`
+_NUC_AUDIT_RE = re.compile(r"^constant-audit .*$", re.M)
+
+
+def classify_nuc_health_log(path: str,
+                            returncode: Optional[int] = None) -> dict:
+    """Classify `logs/nuc_health_round_N.log`. NOT `classify_health_log`.
+
+    Round 409, and the reason is measured rather than stylistic. The nuc
+    check has TWO legs — `pytest nuc/tests/` and `nuc/constant_audit.py` —
+    and prints the audit's result AFTER pytest's count line. Feeding that log
+    to `classify_health_log` gives, verified on a representative log before
+    this function existed::
+
+        {'outcome': 'fail', 'reason': 'tests ran and failed',
+         'summary': '490 passed in 30.12s',
+         'summary_source': 'count-line-guess', 'echoed_lines': 2}
+
+    ...for a run in which every test passed and the AUDIT failed. Two
+    separate defects, both already paid for once by this program:
+    `split_measured_output`'s `count-line` boundary is a guess whose own
+    docstring says it is "wrong for any log whose real verdict line comes
+    last", so the audit's finding is classified as ECHOED and dropped (round
+    379); and the surviving line names the wrong subsystem, which is round
+    349's FAIL-vs-ERROR lesson in a third flavour — a FAIL that reads as
+    "the previous round broke the nuc tests" when the tests are green.
+
+    The sentinel is not the fix here: it means "recorded status below", and
+    everything after nuc's count line is MEASURED, not recorded. So this
+    follows round 363's precedent for `skills/run_checks_fast.sh` — a check
+    whose EXIT CODE is its verdict gets its own formatter rather than
+    borrowing a pytest-shaped one.
+
+    Returns the same dict shape as `classify_health_log` plus `legs`, so a
+    reader (and `health_log_line`'s caller) can treat them alike:
+
+        {"outcome": "pass"|"fail"|"error"|"unknown",
+         "reason": ..., "ran_tests": bool, "summary": ..., "failing": [...],
+         "legs": {"pytest": <rc or None>, "audit": <rc or None>}}
+    """
+    unknown = {"outcome": "unknown", "reason": "nuc health log unreadable",
+               "ran_tests": False, "summary": "", "failing": [],
+               "legs": {"pytest": None, "audit": None}}
+    try:
+        with open(path, "r", errors="replace") as fh:
+            text = fh.read()
+    except OSError:
+        return unknown
+
+    counts = _SUMMARY_COUNT_RE.search(text)
+    ran_tests = counts is not None
+    count_line = ""
+    for line in text.splitlines():
+        if _SUMMARY_COUNT_RE.search(line) and re.search(r"\bin \d", line):
+            count_line = line.strip()
+    audit_line = ""
+    m = _NUC_AUDIT_RE.search(text)
+    if m:
+        audit_line = m.group(0).strip()
+    failing = [f for f in _FAILED_LINE_RE.findall(text)]
+
+    verdict = _NUC_VERDICT_RE.search(text)
+    legs = {"pytest": None, "audit": None}
+    if verdict:
+        legs["pytest"] = None if verdict.group(2) == "None" else int(verdict.group(2))
+        legs["audit"] = None if verdict.group(3) == "None" else int(verdict.group(3))
+
+    # The summary names BOTH legs whenever both spoke. This is the whole
+    # point: one leg's line alone has been shown to misattribute the other's
+    # failure.
+    summary = "; ".join(x for x in (count_line, audit_line) if x)
+    if not summary:
+        summary = (verdict.group(0).strip() if verdict else "")
+
+    # ERROR before FAIL, always. "The check never ran" and "the check ran and
+    # something is wrong" are different messages to the next round.
+    if verdict is None:
+        return {"outcome": "error", "ran_tests": ran_tests,
+                "reason": ("nuc check produced no verdict line — it died "
+                           "before finishing, or the script changed"),
+                "summary": summary, "failing": failing, "legs": legs}
+    if not ran_tests:
+        return {"outcome": "error", "ran_tests": False,
+                "reason": "nuc suite never ran (no pytest count line)",
+                "summary": summary, "failing": failing, "legs": legs}
+
+    bad = [k for k in ("pytest", "audit") if legs[k] not in (0, None)]
+    if returncode not in (0, None) and not bad:
+        # The script said PASS and `wait` disagreed: trust `wait`, and say so
+        # rather than quietly reporting the script's word.
+        return {"outcome": "error", "ran_tests": ran_tests,
+                "reason": ("nuc check exited %s but its own verdict line says "
+                           "PASS" % returncode),
+                "summary": summary, "failing": failing, "legs": legs}
+    if bad:
+        names = {"pytest": "nuc tests", "audit": "constant audit"}
+        return {"outcome": "fail", "ran_tests": ran_tests,
+                "reason": "%s failed" % " and ".join(names[k] for k in bad),
+                "summary": summary, "failing": failing, "legs": legs}
+    return {"outcome": "pass", "ran_tests": ran_tests,
+            "reason": "nuc checks green", "summary": summary,
+            "failing": failing, "legs": legs}
+
+
+def nuc_health_log_line(label: str, path: str,
+                        returncode: Optional[int] = None) -> str:
+    """The exact string `run_driver.sh` appends for the nuc check."""
+    c = classify_nuc_health_log(path, returncode)
+    word = {"pass": "PASS", "fail": "FAIL", "error": "ERROR",
+            "unknown": "UNKNOWN"}[c["outcome"]]
+    if c["outcome"] == "pass":
+        return "%s %s (%s)" % (label, word, c["summary"])
+    line = "%s %s — %s — %s" % (label, word, c["reason"], c["summary"])
+    if c.get("failing"):
+        shown = ", ".join(c["failing"][:2])
+        if len(c["failing"]) > 2:
+            shown += " (+%d more)" % (len(c["failing"]) - 2)
+        line += " — %s" % shown
+    return line
+
+
 def main(argv: List[str]) -> int:
     if argv[:1] == ["success"]:
         if len(argv) != 2:
@@ -1460,6 +1590,14 @@ def main(argv: List[str]) -> int:
             return 2
         rc = int(argv[3]) if len(argv) == 4 else None
         print(health_log_line(argv[1], argv[2], rc))
+        return 0
+    if argv[:1] == ["nuc_health_line"]:
+        if len(argv) not in (3, 4):
+            print("usage: driver_health.py nuc_health_line LABEL NUC_LOG "
+                  "[RETURNCODE]", file=sys.stderr)
+            return 2
+        rc = int(argv[3]) if len(argv) == 4 else None
+        print(nuc_health_log_line(argv[1], argv[2], rc))
         return 0
     if argv[:1] == ["tally"]:
         print(json.dumps(tally_by_track(argv[1:]), sort_keys=True))

@@ -133,6 +133,27 @@ deferred run, not a runner); the rule is documented but no tool implements it
   identical from the outside. Confirm the mechanism, then allowlist.
 - **Running `--help` on historical scripts to detect flags.** Read the
   source. Some scripts have no argv parsing and do their work regardless.
+- **The handoff between "who builds the checker" and "who wires it" is
+  where the latency actually lives.** A checker written by the team that
+  owns the SUBJECT and wired by the team that owns the RUNNER is two
+  tickets, and the second one is invisible: the first ticket closes green,
+  the checker exists, it is documented, and `grep -c` for its name returns
+  zero. Measured on one repo, three instances of the same handoff: 5 rounds
+  (built 242, wired 247), **21 rounds** (built 388, wired 409 — carried in
+  the standing next-steps for six consecutive rounds with 0 references
+  in-tree), and 0 rounds (built and wired by round 363, which noted the
+  deferral was "exactly the 'documented but nothing runs it' shape being
+  fixed"). Prefer building and wiring in one change. When you genuinely
+  cannot, make the unwired state VISIBLE — the check that catches this is
+  `grep -c <script-name> <runner>` returning 0, and it costs nothing to
+  automate.
+- **Wiring a check without extending the ignore/attribution rules its
+  output needs.** A per-run check writes a per-run artifact. If the repo
+  has a `.gitignore` pattern, a record-gap check or a log-attribution rule
+  covering the checks that already exist, the new one needs a line in each
+  — in the SAME change. Otherwise the next run's log lands as an
+  unattributed untracked file and trips a different checker, and the
+  cleanest new instrument's first act is a false alarm.
 
 ## Verification
 

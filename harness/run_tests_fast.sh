@@ -30,6 +30,20 @@
 # bounded slice INSIDE the round, records each outcome against the
 # checkout digest it was computed against, and refuses to count any
 # result whose checkout moved mid-run.
+# SCOPE, stated because a round already got it wrong (round 409). This runs
+# `harness/tests/` and NOTHING under `languages/whence/`, `skills/` or
+# `nuc/`. Round 402's standing baseline recipe — "`git worktree add --detach
+# /tmp/wt-N HEAD` and run it THERE" — names no suite, and round 408 followed
+# it with THIS script during a language(C) round: three of that round's eight
+# red tests were in a tree this script never looks at. For a pristine
+# baseline, use the instrument that names its suites instead:
+#
+#     python3 harness/pristine_check.py suites
+#     python3 harness/pristine_check.py baseline --suite whence-fast
+#
+# `baseline` runs one pristine worktree at a ref, works in a dirty tree
+# (unlike `check`, whose answer is a comparison), records the dirt as a
+# caveat, and removes its worktree on every exit path.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 

@@ -33,6 +33,13 @@ logs/whence_health_round_*.log
 # `git status` as an unattributed `??` and tripped round 365's record-gap
 # check. Same class as the two lines above, same reasoning verbatim.
 logs/skills_health_round_*.log
+# Round 409 (harness A) wired a FOURTH per-round health log
+# (`nuc/run_checks_fast.sh` -> nuc-health-check). Extended in the SAME
+# round as the wiring, which is the whole point of round 365's note
+# above: round 363 wired the third check without this line, and the
+# next round's log landed in `git status` as an unattributed `??` and
+# tripped the record-gap check.
+logs/nuc_health_round_*.log
 
 # OS files
 .DS_Store

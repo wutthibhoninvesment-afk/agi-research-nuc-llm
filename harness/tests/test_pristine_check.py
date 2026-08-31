@@ -22,20 +22,53 @@ from harness import pristine_check as pc            # noqa: E402
 # helpers
 # --------------------------------------------------------------------------
 
+def _cwd_under(cwd, base):
+    """True when `cwd` IS `base` or lies inside it — by path COMPONENTS.
+
+    Round 409. This used to be a string `in`, and that is not the same
+    question. The checker's whole job is to tell a LIVE checkout from a
+    PRISTINE one, and the only thing the fake had to distinguish them by was
+    the cwd each suite ran in — so when the live checkout's own path happened
+    to begin with the fake pristine path, the fake answered the pristine
+    tree's canned FAILURE for the live tree's run and `git_incomplete`
+    (a real finding) collapsed into `both_failed` (no finding at all).
+
+    Not hypothetical: `worktree_path="/tmp/wt"` against a repo checked out at
+    `/tmp/wt-408` — which is precisely what a round following
+    `skills/pristine-checkout-differential`'s recipe creates. The suite was
+    green in the live tree and red in a worktree at the SAME commit, for
+    eight months of rounds, because nobody had run the harness tier from a
+    worktree named after the recipe.
+
+    `/tmp/wt-408` is not under `/tmp/wt`; `/tmp/wt/languages/whence` is.
+    """
+    if cwd is None:
+        return False
+    a = os.path.normpath(str(cwd))
+    b = os.path.normpath(str(base))
+    return a == b or a.startswith(b.rstrip(os.sep) + os.sep)
+
+
 def recording_runner(table, default=(0, "1 passed in 0.1s")):
     """A runner that answers from `table` and records every call.
 
-    `table` maps a substring of the joined argv to `(rc, output)`; the first
-    match wins. Calls land on `runner.calls` so a test can assert what was
-    NOT run — which is how rule 1's short-circuit is checked.
+    A needle is matched against the joined argv as a substring, EXCEPT one
+    beginning with `@`, which is a question about the cwd: `"@/tmp/wt"` means
+    "this call ran in /tmp/wt or below it", decided by `_cwd_under` rather
+    than by string prefix. The first match wins. Calls land on
+    `runner.calls` so a test can assert what was NOT run — which is how rule
+    1's short-circuit is checked.
     """
     calls = []
 
     def runner(argv, cwd=None, timeout=None):
         calls.append({"argv": list(argv), "cwd": cwd, "timeout": timeout})
-        joined = " ".join(argv) + " @" + str(cwd)
+        joined = " ".join(argv)
         for needle, resp in table:
-            if needle in joined:
+            if needle.startswith("@"):
+                if _cwd_under(cwd, needle[1:]):
+                    return resp
+            elif needle in joined:
                 return resp
         return default
 
@@ -333,6 +366,68 @@ def test_the_round_355_finding_reproduces_end_to_end():
     assert res["pristine_counts"]["failed"] == 1
 
 
+def test_the_two_trees_are_told_apart_by_path_not_by_string_prefix():
+    """Round 409's regression pin, and the reason it stayed invisible.
+
+    The scenario above with ONE thing changed: the LIVE checkout sits at
+    `/tmp/wt-409` — a path that has the fake pristine worktree `/tmp/wt` as
+    a string PREFIX while not being inside it. Under the old substring fake
+    the live suite's cwd matched the pristine needle, so both trees
+    "failed" and `git_incomplete` — the finding this entire instrument
+    exists to produce — was reported as `both_failed`: a differential that
+    cannot tell its two trees apart reports NO DIFFERENCE, the one answer
+    that is never alarming.
+
+    Pinned with an explicit `repo=`, so it is red-or-green identically for
+    every reader in every checkout. The defect itself was reachable ONLY by
+    running this file from a worktree named after
+    `skills/pristine-checkout-differential`'s own recipe
+    (`git worktree add --detach /tmp/wt-NNN HEAD`), which is why it lived
+    from round 355 to round 408 with the suite green every round: the
+    instrument's own default worktree path is `/tmp/pristine-check-<pid>-
+    <ts>`, so the instrument could never provoke it — only a human
+    following the recipe could.
+    """
+    r = recording_runner([
+        ("worktree add", (0, "")),
+        ("worktree remove", (0, "")),
+        ("@/tmp/wt", FAIL_PARITY),          # the pristine tree's run
+        ("pytest", PASS),                   # the live tree's run
+    ])
+    rec = pc.differential(["whence-fast"], runner=r, repo="/tmp/wt-409",
+                          worktree_path="/tmp/wt",
+                          dirt={"ok": True, "tracked_modified": [],
+                                "untracked": [], "ignored": []})
+    assert rec["verdict"] == "git_incomplete"
+    assert rec["results"][0]["pristine_only"] == [
+        "tests/test_lexer_guest_parity.py"
+        "::test_small_example_files_lex_identically"]
+    # ...and the live suite really was asked, inside its own checkout.
+    ran = [c["cwd"] for c in r.calls if "pytest" in " ".join(c["argv"])]
+    assert os.path.normpath("/tmp/wt-409/languages/whence") in ran
+    assert os.path.normpath("/tmp/wt/languages/whence") in ran
+
+
+def test_cwd_needles_ask_about_containment_not_about_characters():
+    """The unit behind the pin. `/tmp/wtx` and `/tmp/wt-409` both start with
+    `/tmp/wt` and neither is in it; only a component-wise answer is right."""
+    assert _cwd_under("/tmp/wt", "/tmp/wt") is True
+    assert _cwd_under("/tmp/wt/", "/tmp/wt") is True
+    assert _cwd_under("/tmp/wt/languages/whence", "/tmp/wt") is True
+    assert _cwd_under("/tmp/wt-409/languages/whence", "/tmp/wt") is False
+    assert _cwd_under("/tmp/wtx", "/tmp/wt") is False
+    assert _cwd_under(None, "/tmp/wt") is False
+
+
+def test_an_argv_needle_still_ignores_the_cwd_entirely():
+    """The `@` rule must not have turned ordinary argv needles into path
+    questions — `worktree add` is matched against argv and nothing else."""
+    r = recording_runner([("worktree add", (0, "created"))])
+    assert r(["git", "worktree", "add", "--detach", "/x", "HEAD"],
+             cwd="/somewhere/else") == (0, "created")
+    assert r(["git", "worktree", "list"], cwd="/x") == (0, "1 passed in 0.1s")
+
+
 def test_the_worst_verdict_across_suites_is_the_records_verdict():
     r = recording_runner([
         ("worktree", (0, "")),
@@ -345,6 +440,149 @@ def test_the_worst_verdict_across_suites_is_the_records_verdict():
                                 "untracked": [], "ignored": []})
     assert [x["verdict"] for x in rec["results"]] == ["clean", "git_incomplete"]
     assert rec["verdict"] == "git_incomplete"
+
+
+# --------------------------------------------------------------------------
+# baseline — one tree, the question a round asks BEFORE it edits (round 409)
+# --------------------------------------------------------------------------
+
+DIRTY = {"ok": True, "tracked_modified": ["languages/whence/interp.py"],
+         "untracked": ["examples/gateway.lang"], "ignored": []}
+CLEAN = {"ok": True, "tracked_modified": [], "untracked": [], "ignored": []}
+
+
+def test_baseline_runs_only_the_pristine_tree():
+    """The whole point: no live run. `differential` costs two full suites;
+    a round that already has its live numbers needs the other one."""
+    r = recording_runner([("worktree", (0, "")), ("pytest", PASS)])
+    rec = pc.baseline(["whence-fast"], runner=r, worktree_path="/tmp/wt",
+                      repo="/repo", dirt=CLEAN)
+    ran = [c["cwd"] for c in r.calls if "pytest" in " ".join(c["argv"])]
+    assert ran == [os.path.normpath("/tmp/wt/languages/whence")]
+    assert rec["verdict"] == "green"
+    assert rec["results"][0]["counts"]["passed"] == 476
+
+
+def test_a_dirty_live_tree_does_not_stop_a_baseline():
+    """Rule 1 gates `differential` because its answer is a COMPARISON. A
+    baseline compares nothing, and refusing here is precisely why every
+    round hand-rolls `git worktree add` instead of using this module."""
+    r = recording_runner([("worktree", (0, "")), ("pytest", PASS)])
+    rec = pc.baseline(["harness-fast"], runner=r, worktree_path="/tmp/wt",
+                      repo="/repo", dirt=DIRTY)
+    assert rec["verdict"] == "green"
+    assert [c for c in r.calls if "pytest" in " ".join(c["argv"])] != []
+
+
+def test_the_dirt_is_recorded_even_though_it_does_not_gate():
+    rec = pc.baseline(["harness-fast"],
+                      runner=recording_runner([("worktree", (0, "")),
+                                               ("pytest", PASS)]),
+                      worktree_path="/tmp/wt", repo="/repo", dirt=DIRTY)
+    assert rec["live_tree_dirty"] == {"tracked_modified": 1, "untracked": 1}
+    assert "blocking_dirty" not in rec, "must not read as rule 1 having run"
+    assert "NOTE:" in pc._fmt_baseline(rec)
+
+
+def test_a_clean_live_tree_prints_no_caveat():
+    rec = pc.baseline(["harness-fast"],
+                      runner=recording_runner([("worktree", (0, "")),
+                                               ("pytest", PASS)]),
+                      worktree_path="/tmp/wt", repo="/repo", dirt=CLEAN)
+    assert "NOTE:" not in pc._fmt_baseline(rec)
+
+
+def test_baseline_reports_the_failing_node_ids_not_just_a_count():
+    """What a round pastes into its knowledge file. Round 408 had to name
+    its four reds by hand out of pytest's tail."""
+    r = recording_runner([("worktree", (0, "")), ("pytest", FAIL_PARITY)])
+    rec = pc.baseline(["whence-fast"], runner=r, worktree_path="/tmp/wt",
+                      repo="/repo", dirt=CLEAN)
+    assert rec["verdict"] == "red"
+    assert rec["results"][0]["failures"] == [
+        "tests/test_lexer_guest_parity.py"
+        "::test_small_example_files_lex_identically"]
+    assert "FAILED tests/test_lexer_guest_parity.py" in pc._fmt_baseline(rec)
+
+
+def test_a_suite_that_never_produced_a_count_is_incomplete_not_green():
+    """Rule 3, per suite. A timeout or a segfault leaves zero parsed
+    failures, and zero failures must never be read as a pass."""
+    r = recording_runner([("worktree", (0, "")),
+                          ("pytest", (None, "collecting ...\n"))])
+    rec = pc.baseline(["harness-fast"], runner=r, worktree_path="/tmp/wt",
+                      repo="/repo", dirt=CLEAN)
+    assert rec["results"][0]["verdict"] == "incomplete"
+    assert rec["verdict"] == "incomplete"
+
+
+def test_the_worst_suite_verdict_is_the_baselines_verdict():
+    r = recording_runner([("worktree", (0, "")),
+                          ("@/tmp/wt/languages/whence", FAIL_PARITY),
+                          ("pytest", PASS)])
+    rec = pc.baseline(["harness-fast", "whence-fast"], runner=r,
+                      worktree_path="/tmp/wt", repo="/repo", dirt=CLEAN)
+    assert [x["verdict"] for x in rec["results"]] == ["green", "red"]
+    assert rec["verdict"] == "red"
+
+
+def test_a_worktree_that_could_not_be_made_is_inconclusive_never_green():
+    r = recording_runner([("worktree add", (128, "invalid reference: nope"))])
+    rec = pc.baseline(["harness-fast"], ref="nope", runner=r,
+                      worktree_path="/tmp/wt", repo="/repo", dirt=CLEAN)
+    assert rec["verdict"] == "inconclusive"
+    assert "invalid reference" in rec["error"]
+    assert rec["results"] == []
+
+
+def test_the_worktree_is_removed_even_when_a_suite_fails():
+    """Rule 4. Round 408 had to remember `git worktree prune` by hand."""
+    r = recording_runner([("worktree", (0, "")), ("pytest", FAIL_PARITY)])
+    pc.baseline(["harness-fast"], runner=r, worktree_path="/tmp/wt",
+                repo="/repo", dirt=CLEAN)
+    joined = [" ".join(c["argv"]) for c in r.calls]
+    assert any("worktree remove" in j and "--force" in j for j in joined)
+
+
+def test_an_unknown_suite_raises_before_a_worktree_is_allocated():
+    r = recording_runner([("worktree", (0, "")), ("pytest", PASS)])
+    with pytest.raises(KeyError):
+        pc.baseline(["harness-fast", "no-such-suite"], runner=r,
+                    worktree_path="/tmp/wt", repo="/repo", dirt=CLEAN)
+    assert r.calls == [], "a typo must not cost a checkout"
+
+
+def test_baseline_exit_codes_distinguish_red_from_never_ran():
+    assert pc._BASELINE_EXIT["green"] == 0
+    assert pc._BASELINE_EXIT["red"] == 1
+    assert pc._BASELINE_EXIT["incomplete"] == 3
+    assert pc._BASELINE_EXIT["inconclusive"] == 3
+
+
+def test_a_baseline_is_not_recorded_in_the_differentials_ledger(tmp_path):
+    """A baseline says the COMMIT is green. A differential says the two
+    trees AGREE. Sharing a ledger would let `status` present the first as
+    the second — the one inference this module exists to refuse."""
+    assert pc.BASELINE_LEDGER != pc.DEFAULT_LEDGER
+    diff_ledger = str(tmp_path / "diff.jsonl")
+    base_ledger = str(tmp_path / "base.jsonl")
+    pc.append_ledger({"kind": "baseline", "verdict": "green"}, base_ledger)
+    assert pc.read_ledger(diff_ledger) == []
+    assert pc.read_ledger(base_ledger)[0]["kind"] == "baseline"
+
+
+def test_baseline_status_on_an_empty_ledger_exits_nonzero(tmp_path, capsys):
+    rc = pc.main(["baseline-status", "--ledger", str(tmp_path / "none.jsonl")])
+    assert rc == 3
+    assert "absence of evidence" in capsys.readouterr().out
+
+
+def test_the_record_pins_the_commit_the_baseline_is_of():
+    r = recording_runner([("rev-parse", (0, "b" * 40 + "\n")),
+                          ("worktree", (0, "")), ("pytest", PASS)])
+    rec = pc.baseline(["harness-fast"], runner=r, worktree_path="/tmp/wt",
+                      repo="/repo", dirt=CLEAN)
+    assert rec["resolved"] == "b" * 40 and rec["ref"] == "HEAD"
 
 
 # --------------------------------------------------------------------------

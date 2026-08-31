@@ -645,6 +645,14 @@
    "where": "knowledge/round-408-the-got-slot-that-spoke-python.md",
    "quote": "### Outcome column \u2014 15 HIT, 1 HALF, 2 MISS of 18",
    "note": "Banked cold before any measurement, with a section-0 OBSERVATIONS ALREADY MADE list of the ten orientation facts read while choosing the task, so nothing below is counted as foresight it did not have. Scored in TWO COLUMNS (outcome and mechanism), which is round 407's next-step item 3 followed prospectively: outcome 15 HIT / 1 HALF / 2 MISS of 18, mechanism 3 HIT / 1 HALF of 4. The three non-hits are the informative rows. P9 predicted the printable-ASCII disagreement set as {double-quote, single-quote} and it is exactly one character, backslash -- the quote difference is in the OUTER quote, an axis the same sentence had separated out. P12/P19 are one miss the bank itself predicted: my enumeration of affected files was short by three, and P19's MECHANISM clause (found by grepping a string or a number) is right for one of the three and wrong for two, one of which is not findable by grepping anything. P20 anchored on round 407's reported baseline and is a claim about the tree rather than about the change. None outstanding."
+  },
+  "409": {
+   "bank": "state/harness/round-409/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 409,
+   "where": "knowledge/round-409-the-differential-that-could-not-tell-its-trees-apart.md",
+   "quote": "## 6. Predictions, banked before the runs (D-013), scored in two columns",
+   "note": "NOT a cold bank and its section 0 says so: written partway through the round, immediately before the verification tiers, with the seven facts already measured listed explicitly so none is scorable as foresight. Two columns per round 407 item 3 / round 408's precedent: outcome 5 of 5, mechanism 3 of 3. The load-bearing row is M3, which predicts the fix changes NOTHING the pristine instrument reports -- a green harness-fast leg before AND after -- because that instrument's own worktree path cannot prefix-match and so could never provoke the bug in its own test double."
   }
  }
 }

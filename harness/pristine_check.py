@@ -66,6 +66,12 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(HERE)
 DEFAULT_LEDGER = os.path.join(REPO_ROOT, "state", "pristine-check-ledger.jsonl")
+#: Round 409. Kept SEPARATE from the differential's ledger on purpose: they
+#: answer different questions and share a formatter otherwise. `status` reads
+#: the last differential; a baseline landing in that file would let "the
+#: pristine tree is green" be read as "the two trees agree", which is the one
+#: inference this module exists to refuse.
+BASELINE_LEDGER = os.path.join(REPO_ROOT, "state", "baseline-ledger.jsonl")
 
 #: Named suites this repo actually runs as its health check. `cwd` is
 #: repo-relative so the same entry addresses both trees; `argv` is passed to
@@ -468,6 +474,117 @@ def differential(suites, ref="HEAD", repo=REPO_ROOT, runner=None,
     return record
 
 
+def baseline(suites, ref="HEAD", repo=REPO_ROOT, runner=None,
+             timeout_s=1800, worktree_path=None, dirt=None):
+    """What the named suites do in a PRISTINE checkout of `ref`. ONE tree.
+
+    Round 409. This is the operation every round has been hand-rolling —
+    `git worktree add --detach /tmp/wt-NNN HEAD; cd there; pytest ...` — and
+    hand-rolling it has cost real findings twice in one round. Round 408 read
+    five reds out of a hand-made worktree, four of them false (a
+    `.gitignore`d corpus, fixed this round) and the fifth caused BY THE
+    WORKTREE'S NAME: `/tmp/wt-408` has `/tmp/wt` as a string prefix, which
+    is what this module's own test double used to tell the two trees apart.
+
+    Why not just call `differential`? Because it refuses. Rule 1
+    short-circuits on a dirty tree, correctly: its answer is a COMPARISON and
+    an uncommitted edit makes the comparison uninterpretable. A baseline
+    compares nothing — it asks "what does this COMMIT do", which is the
+    question a round asks BEFORE it edits anything, and which a round that
+    has ALREADY edited still needs answered. So dirt does not gate this; it
+    is RECORDED instead, because a reader must still be able to see the live
+    tree had edits when the baseline was taken.
+
+    The three things hand-rolling gets wrong and this does not: the suites
+    are NAMED (`SUITES`, so nobody runs `harness/tests/` and calls it a
+    baseline for a language round), the worktree path cannot collide with
+    anything, and it is removed on every exit path including a raise.
+    """
+    # Validated FIRST, before any git call: a mistyped suite name is a
+    # caller bug and must cost nothing — not a rev-parse, and certainly not
+    # a checkout of the whole tree.
+    for name in suites:
+        if name not in SUITES:
+            raise KeyError("unknown suite %r (known: %s)"
+                           % (name, ", ".join(sorted(SUITES))))
+    dirt = worktree_dirt(repo=repo, ref=ref, runner=runner) if dirt is None else dirt
+    record = {
+        "kind": "baseline",
+        "ref": ref,
+        "resolved": resolve_ref(ref, repo=repo, runner=runner),
+        "suites": list(suites),
+        # Not a gate — a caveat. Named `live_tree_dirty` rather than reusing
+        # `blocking_dirty`, so no reader can mistake it for rule 1 having run.
+        "live_tree_dirty": {
+            "tracked_modified": len(dirt.get("tracked_modified", [])),
+            "untracked": len(dirt.get("untracked", [])),
+        },
+        "results": [],
+    }
+    try:
+        with PristineWorktree(ref=ref, path=worktree_path, runner=runner,
+                              repo=repo) as wt:
+            record["worktree"] = wt.path
+            for name in suites:
+                res = run_suite(name, wt.path, runner=runner,
+                                timeout_s=timeout_s)
+                record["results"].append({
+                    "suite": name,
+                    "completed": res["completed"],
+                    "counts": res["counts"],
+                    "failures": res["failures"],
+                    "returncode": res["returncode"],
+                    "timed_out": res["timed_out"],
+                    "duration_s": res["duration_s"],
+                    "tail": res.get("tail", ""),
+                    # Rule 3 per suite, not per run: a suite that never
+                    # produced a count line is `incomplete`, never `green`.
+                    "verdict": ("incomplete" if not res["completed"]
+                                else "red" if res["failures"]
+                                     or res["counts"].get("failed")
+                                     or res["counts"].get("error")
+                                else "green"),
+                })
+    except RuntimeError as e:
+        record["verdict"] = "inconclusive"
+        record["error"] = str(e)
+        return record
+
+    order = ["inconclusive", "incomplete", "red", "green"]
+    seen = [r["verdict"] for r in record["results"]]
+    record["verdict"] = next((v for v in order if v in seen), "inconclusive")
+    return record
+
+
+def _fmt_baseline(rec):
+    """One block a round can paste into its knowledge file verbatim."""
+    lines = ["baseline  %s (%s)  verdict=%s"
+             % (rec.get("ref"), (rec.get("resolved") or "unresolved")[:12],
+                rec.get("verdict"))]
+    d = rec.get("live_tree_dirty") or {}
+    if d.get("tracked_modified") or d.get("untracked"):
+        lines.append("  NOTE: taken while the live tree had %d tracked-modified"
+                     " and %d untracked path(s) — the baseline is of the"
+                     " COMMIT, not of that tree."
+                     % (d.get("tracked_modified", 0), d.get("untracked", 0)))
+    if rec.get("error"):
+        lines.append("  error: %s" % rec["error"])
+    for r in rec.get("results", []):
+        lines.append("  %-14s %-10s %s (%.0fs)"
+                     % (r["suite"], r["verdict"],
+                        ", ".join("%d %s" % (v, k) for k, v
+                                  in sorted(r["counts"].items())) or "no counts",
+                        r["duration_s"]))
+        for f in r["failures"][:20]:
+            lines.append("      FAILED %s" % f)
+        if len(r["failures"]) > 20:
+            lines.append("      ... and %d more" % (len(r["failures"]) - 20))
+    return "\n".join(lines)
+
+
+_BASELINE_EXIT = {"green": 0, "red": 1, "incomplete": 3, "inconclusive": 3}
+
+
 def append_ledger(record, path=None):
     path = path or DEFAULT_LEDGER
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -604,6 +721,19 @@ def main(argv=None):
                         "after checking it cannot affect the suites. "
                         "Recorded in the ledger as allowed_dirty.")
 
+    b = sub.add_parser("baseline", help="run suites in a pristine checkout "
+                                       "of a ref (one tree, no live run)")
+    b.add_argument("--suite", action="append", dest="suites",
+                   choices=sorted(SUITES), help="repeatable; default two fast")
+    b.add_argument("--ref", default="HEAD")
+    b.add_argument("--timeout-s", type=int, default=1800)
+    b.add_argument("--ledger", default=None)
+    b.add_argument("--no-record", action="store_true")
+    b.add_argument("--json", action="store_true")
+
+    bs = sub.add_parser("baseline-status", help="last recorded baseline")
+    bs.add_argument("--ledger", default=None)
+
     sub.add_parser("suites", help="list known suites")
 
     s = sub.add_parser("status", help="last recorded check")
@@ -613,6 +743,27 @@ def main(argv=None):
     d.add_argument("--ref", default="HEAD")
 
     args = ap.parse_args(argv)
+
+    if args.cmd == "baseline":
+        rec = baseline(args.suites or ["harness-fast", "whence-fast"],
+                       ref=args.ref, timeout_s=args.timeout_s)
+        rec["recorded_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        if not args.no_record:
+            rec["ledger"] = append_ledger(
+                rec, args.ledger or BASELINE_LEDGER)
+        print(json.dumps(rec, indent=2, sort_keys=True) if args.json
+              else _fmt_baseline(rec))
+        return _BASELINE_EXIT.get(rec["verdict"], 3)
+
+    if args.cmd == "baseline-status":
+        recs = read_ledger(args.ledger or BASELINE_LEDGER)
+        if not recs:
+            print("no recorded baseline (absence of evidence, not a pass)")
+            return 3
+        for line in status_freshness(recs[-1]):
+            print(line)
+        print(_fmt_baseline(recs[-1]))
+        return _BASELINE_EXIT.get(recs[-1]["verdict"], 3)
 
     if args.cmd == "suites":
         for k in sorted(SUITES):

@@ -77,11 +77,62 @@ problem), `git stash` (mutates the tree you are comparing against), or
    tree.
 
    ```
-   git worktree add --detach /tmp/pristine HEAD
-   ( cd /tmp/pristine && <the exact suite command> )
-   ( cd .              && <the exact suite command> )
-   git worktree remove --force /tmp/pristine
+   git worktree add --detach /tmp/pristine-$$-$(date +%s) HEAD
+   ( cd "$WT" && <the exact suite command> )
+   ( cd .     && <the exact suite command> )
+   git worktree remove --force "$WT"
    ```
+
+   **Name the worktree so that no other path can prefix-match it.** This is
+   not tidiness. Round 409 lost a real finding to it: a repo checked out at
+   `/tmp/wt-408` was compared against a fake pristine tree at `/tmp/wt`, and
+   the harness that decides "which tree is this call in?" answered by
+   `"@/tmp/wt" in joined_string`. `/tmp/wt-408/languages/whence` contains
+   `@/tmp/wt`. Both trees got the pristine tree's canned failure, the
+   `git_incomplete` finding collapsed into `both_failed`, and the suite was
+   green in the live tree and red in the worktree at the same commit for 53
+   rounds. **A short, human-typed worktree name is a prefix of the next one
+   you type.** Prefer `$$`/timestamp suffixes, and compare paths by
+   components (`a == b or a.startswith(b + os.sep)`), never by `in`.
+
+   **Say WHICH suite, every time.** A repo with more than one test tree has
+   more than one baseline, and the fast script for one subsystem is not a
+   baseline for another. Round 402 published a standing recipe — "`git
+   worktree add --detach /tmp/wt-N HEAD` and run it THERE" — that named no
+   suite; round 408 followed it with `harness/run_tests_fast.sh`, which runs
+   `harness/tests/` and nothing under `languages/whence/`, so three of that
+   round's eight red tests were invisible to the check that was supposed to
+   see them. Register the suites by name (see `pristine_check.py:SUITES`) so
+   the choice is made once and cannot be forgotten under time pressure.
+
+   **A baseline is not a differential, and refusing to run it in a dirty
+   tree is why people hand-roll this.** Step 1's clean-tree rule is correct
+   for the *comparison* and wrong for the question "what does this COMMIT
+   do?", which is what a round asks before it starts editing and still needs
+   answered after it has. Provide both: a gated `check` and an ungated
+   `baseline` that runs the pristine tree ALONE and records the live tree's
+   dirt as a caveat rather than a veto. Every hand-rolled worktree in this
+   repo's history was someone routing around the missing second mode — and
+   hand-rolling is what produced both defects named above.
+
+   **Before attributing a pristine-only failure to git, change the
+   worktree's NAME and run it again.** One extra checkout, seconds, and it
+   separates two causes that look identical: "this commit does not carry
+   what the test needs" and "this test is sensitive to where it was checked
+   out". Round 409:
+
+   ```
+   ( cd /tmp/wt-409       && pytest -q harness/tests/test_pristine_check.py )  # 1 failed
+   ( cd /tmp/pristine-409 && pytest -q harness/tests/test_pristine_check.py )  # 67 passed
+   ```
+
+   Same commit, same command, two verdicts — so the dependence is the
+   directory NAME, and no amount of reading the diff would have found it.
+   A failure that survives the rename is about the commit; one that does not
+   is about your environment, and reporting it as a finding costs the next
+   round a paragraph of disproof. Round 408 reported five reds from a
+   hand-made worktree: four were the ignored-corpus pitfall below and the
+   fifth was this, and it characterised neither.
 
 4. **Difference the FAILING TEST IDS, not the pass counts.** Counts move for
    uninteresting reasons (collection differences, skips, a parametrised case
@@ -196,6 +247,28 @@ problem), `git stash` (mutates the tree you are comparing against), or
   over: the test still cannot distinguish its corpus, and if another system
   owns those files you have adopted them and will now see their churn in
   every diff.
+- **An IGNORED corpus makes every worktree red at every commit, forever.**
+  The dual of the pitfall above it. If a test reads files that are named in
+  `.gitignore`, it does not fail "in a fresh clone" — it fails in *every*
+  checkout of *every* commit, including the pristine tree this check builds,
+  so the check itself reports a permanent, false `git_incomplete`. Round 402
+  ignored fourteen gateway-written `.lang` files for a good reason; four
+  tests that read them off disk then failed in every worktree, and because
+  nobody had run that tier from a worktree for seven rounds, the repo's own
+  differential instrument was quietly disabled by its own `.gitignore`.
+  The fix is a SKIP with a reason that names the cause — and it must be
+  **all-or-nothing**: none of the corpus present means "this checkout was
+  never the tree that has it", so skip; *some* present means real drift, so
+  stay red. A skip keyed on "any file missing" swallows the deletion you
+  built the corpus check to catch.
+- **A test double that tells two trees apart by a path substring will
+  eventually be fooled by where the repo is checked out.** The instrument's
+  own default path is usually collision-proof, so the instrument can never
+  provoke the bug — only a human following the recipe can, which means the
+  failure appears in exactly the situation where it is read as a finding
+  about the code under test. Pin the case with an explicit `repo=` argument
+  so it is red or green identically in every checkout, rather than leaving
+  it reachable only from a particularly-named directory.
 - **Counts are not ids.** "1191 vs 1192 passed" invites you to hunt for one
   test; the FAILED lines name it. And a count differential goes silent
   entirely when one test starts failing as another starts passing.
@@ -244,6 +317,31 @@ The checker's own rules are mutation-checked, not assumed — dropping the
 step-1 short-circuit, forcing "the run completed", dropping `--force` from
 worktree removal, and disabling the pristine-only comparison each kill 1-2
 of the 49 tests in `harness/tests/test_pristine_check.py`. 4/4 caught.
+
+Round 409 (harness A), the ungated second mode, first run, at `d71d7cd`
+with seven tracked files dirty — a tree in which `check` refuses to run at
+all:
+
+```
+$ python3 harness/pristine_check.py baseline --ref HEAD
+baseline  HEAD (d71d7cd36c81)  verdict=red
+  NOTE: taken while the live tree had 7 tracked-modified and 0 untracked
+        path(s) — the baseline is of the COMMIT, not of that tree.
+  harness-fast   green      269 deselected, 961 passed (98s)
+  whence-fast    red        81 deselected, 4 failed, 1933 passed, 10 skipped (89s)
+      FAILED tests/test_field_corpus_selector.py::test_ten_of_the_fourteen_still_fail_to_parse
+      FAILED tests/test_field_corpus_selector.py::test_the_census_and_the_directory_still_agree
+      FAILED tests/test_field_corpus_selector.py::test_the_live_tree_has_no_drift
+      FAILED tests/test_v24.py::test_the_tracked_example_set_is_the_one_this_repo_decided_on
+```
+
+Those four are the ignored-corpus pitfall above, reproduced exactly: green
+in the live tree, red at the same commit in any checkout. Note also what
+this run does NOT show — `harness-fast` is green here while the same tier
+was red in a hand-made `/tmp/wt-408`, because this command's own worktree
+path (`/tmp/pristine-check-<pid>-<ts>`) cannot prefix-match, which is the
+substring pitfall from the other side: **the instrument was structurally
+incapable of finding the bug in its own test double.**
 
 ## Related
 

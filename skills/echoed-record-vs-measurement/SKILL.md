@@ -106,7 +106,29 @@ it forward as an open work item addressed to the team that owned the code.
   first place. Report out-of-contract input as out of contract.
 - **Trusting a boundary heuristic on data you have not looked at.** "The
   last count line ends the run" is true for one family of logs and false
-  for any tool whose real verdict comes last.
+  for any tool whose real verdict comes last. **A check with two legs is
+  that tool**, and it is not exotic — a suite plus a lint, a build plus a
+  size budget, tests plus an audit. Round 409 was about to wire a two-leg
+  check (`pytest nuc/tests/` then a constant audit) into a driver whose
+  shared classifier used exactly this heuristic, and measured it first on a
+  representative log:
+
+  ```
+  >>> classify_health_log(audit_failure_log, 1)
+  {'outcome': 'fail', 'reason': 'tests ran and failed',
+   'summary': '490 passed in 30.12s', 'summary_source': 'count-line-guess'}
+  ```
+
+  Every test passed and the AUDIT failed. The audit's line came after the
+  count line, so it was classified as echoed and dropped, and the surviving
+  line blamed the wrong subsystem — the original defect, reproduced by the
+  fix for it, at a new call site. Two rules follow. **Measure the classifier
+  against the new producer BEFORE wiring it**, not after; it costs one
+  hand-written log and one call. And **when a check's exit code is its
+  verdict, give it its own formatter** rather than bending a
+  shape-inferring one — then keep the measurement as a test that asserts the
+  shared classifier's defect *by name*, so the day it is fixed, the
+  duplicate becomes deletable instead of becoming permanent.
 - **Rewriting the historical log.** It was written once, live. Re-derive
   from the source logs and publish the derivation; leave the record.
 - **Assuming the verdict word is wrong too.** Usually it is not — the exit

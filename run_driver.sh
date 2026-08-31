@@ -492,12 +492,42 @@ TURN BUDGET (added round 391, harness A — measured, not advice). This session 
   # alone is the verdict, 0 clean / 1 a rule was violated / 2 a checker could
   # not run. Same round-349 design (wording in Python, unit-tested, one call
   # site), applied to a different log format rather than borrowed from one.
+  #
+  # Round 409 (harness A): a FOURTH check, `nuc/run_checks_fast.sh`. Round
+  # 388 (NUC-integration E) built it and deliberately did NOT wire it,
+  # citing the 242->247 precedent: "the health-check block — its
+  # concurrency, its PID handling, its guarded-on-existence contract — is
+  # harness(A)'s artifact. Same handoff here." That handoff had been carried
+  # by six rounds with 0 references to the script anywhere in the tree, so
+  # nothing under `nuc/` — 490 offline tests, five instruments and the
+  # constant audit — ran outside an E round, and E comes round every sixth.
+  #
+  # Everything it runs is offline by construction (`nuc/tests/` injects fake
+  # ssh/tailscale runners and opens no socket; `constant_audit.py` reads .py
+  # files with `ast`), so wiring it here cannot contact the NUC and in
+  # particular cannot touch port 8001. Cost, measured by round 388 and
+  # restated rather than assumed: ~65.6 s, the slowest of the four, and this
+  # box has ONE cpu — so the concurrent block below buys less than round
+  # 277's 29-pair measurement suggests. Accepted: the alternative is a
+  # subsystem whose detection latency is bounded only by the rotation.
+  #
+  # Its driver.log line is formatted by `driver_health.nuc_health_line`, NOT
+  # by `health_line`, for a reason that was MEASURED before this was wired
+  # (see `classify_nuc_health_log`). The nuc check has two legs and prints
+  # the audit's result after pytest's count line, so the shared classifier —
+  # whose `count-line` boundary is a documented guess — read a green suite
+  # with a FAILING AUDIT as `FAIL — tests ran and failed — 490 passed in
+  # 30.12s`, dropping the audit line as "echoed" and naming the wrong
+  # subsystem. Same shape as round 363's reason for giving skills-check its
+  # own formatter, and the same defect round 379 spent 38 driver rounds on.
   HEALTH_SCRIPT="$WS/harness/run_tests_fast.sh"
   WHENCE_HEALTH_SCRIPT="$WS/languages/whence/run_tests_fast.sh"
   SKILLS_HEALTH_SCRIPT="$WS/skills/run_checks_fast.sh"
+  NUC_HEALTH_SCRIPT="$WS/nuc/run_checks_fast.sh"
   HEALTH_PID=""
   WHENCE_PID=""
   SKILLS_PID=""
+  NUC_PID=""
   if [ -f "$HEALTH_SCRIPT" ]; then
     HEALTH_LOG="$WS/logs/health_round_${ROUND}.log"
     bash "$HEALTH_SCRIPT" > "$HEALTH_LOG" 2>&1 &
@@ -512,6 +542,11 @@ TURN BUDGET (added round 391, harness A — measured, not advice). This session 
     SKILLS_HEALTH_LOG="$WS/logs/skills_health_round_${ROUND}.log"
     bash "$SKILLS_HEALTH_SCRIPT" > "$SKILLS_HEALTH_LOG" 2>&1 &
     SKILLS_PID=$!
+  fi
+  if [ -f "$NUC_HEALTH_SCRIPT" ]; then
+    NUC_HEALTH_LOG="$WS/logs/nuc_health_round_${ROUND}.log"
+    bash "$NUC_HEALTH_SCRIPT" > "$NUC_HEALTH_LOG" 2>&1 &
+    NUC_PID=$!
   fi
   # Round 349 (harness A): log PASS / FAIL / ERROR, not PASS / FAIL.
   #
@@ -575,6 +610,17 @@ TURN BUDGET (added round 391, harness A — measured, not advice). This session 
                  echo "round $ROUND: skills-check PASS ($(tail -n 1 "$SKILLS_HEALTH_LOG" | tr -d '\r'))"; \
                else \
                  echo "round $ROUND: skills-check FAIL — $(tail -n 5 "$SKILLS_HEALTH_LOG" | tr '\n' ' ')"; \
+               fi; })"
+  fi
+
+  if [ -n "$NUC_PID" ]; then
+    NUC_RC=0
+    wait "$NUC_PID" || NUC_RC=$?
+    log "$(python3 -m harness.driver_health nuc_health_line "round $ROUND: nuc-health-check" "$NUC_HEALTH_LOG" "$NUC_RC" 2>/dev/null \
+          || { if [ "$NUC_RC" -eq 0 ]; then \
+                 echo "round $ROUND: nuc-health-check PASS ($(tail -n 1 "$NUC_HEALTH_LOG" | tr -d '\r'))"; \
+               else \
+                 echo "round $ROUND: nuc-health-check FAIL — $(tail -n 5 "$NUC_HEALTH_LOG" | tr '\n' ' ')"; \
                fi; })"
   fi
 

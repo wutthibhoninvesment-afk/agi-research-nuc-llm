@@ -185,6 +185,18 @@ def test_the_tracked_example_set_is_the_one_this_repo_decided_on():
     field = _field_corpus()
     assert field & got == set(), (
         "field-corpus files are tracked again: %s" % sorted(field & got))
+    # Round 409: the two assertions above are about GIT and hold in any
+    # checkout. The one below is about this DIRECTORY, and the fourteen are
+    # `.gitignore`d by name — so in a `git worktree` it failed at every
+    # commit, one of four such tests that between them made
+    # `harness/pristine_check.py`'s `whence-fast` verdict a permanent false
+    # `git_incomplete`. All-or-nothing, exactly as in
+    # `curecheck.field_corpus_absent`: no corpus at all means this checkout
+    # is not the tree the gateway writes into and the question does not
+    # arise; a PARTIALLY missing corpus is drift and still fails here.
+    import curecheck as C
+    if C.field_corpus_absent():
+        pytest.skip(C.FIELD_CORPUS_ABSENT_REASON)
     on_disk = {n for n in os.listdir(os.path.join(REPO, "languages", "whence",
                                                   "examples"))
                if n.endswith(".lang")}
