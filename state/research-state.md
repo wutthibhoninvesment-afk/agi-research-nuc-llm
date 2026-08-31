@@ -15310,26 +15310,35 @@ round that can `guard-rm` them and watch it.
    is a small, watchable job for a harness(A) round. Also worth deciding
    whether `pristine_check.py`'s rule 4 ("the worktree is always removed,
    including on exception") is actually holding — two survivors suggest not.
-3. **The `whence_slow` tier is where regressions hide, and nothing samples
+3. **`tierbudget`'s DRIFT warning is contention-sensitive and fired falsely
+   this round.** The same 13 files measured 73.3 s of a 47.4 s budget while
+   the whence tier ran and 44.2 s of 47.4 s on a quiet box — the first
+   emitted `DRIFT: test_swe_coverage.py 11.6s > 11.5s, test_swe_oracles.py
+   11.4s > 10.0s` and advised re-tiering files that are fine. `tierbudget`
+   should record load average and `procreap scan`'s match count beside each
+   timing and refuse to emit DRIFT from a contended sample, the same shape
+   as `slowtier`'s refusal to count a result whose checkout moved.
+   harness(A).
+4. **The `whence_slow` tier is where regressions hide, and nothing samples
    it per-round.** `slowtier.py run --budget-s N` exists for exactly this
    and the whence suite has no equivalent. A bounded per-round slice of
    `-m whence_slow`, recorded against the checkout digest, would have caught
    §5's pin in round 402 instead of round 403. harness(A).
-4. **`logs/round-NNN.json` is the only record of several load-bearing
+5. **`logs/round-NNN.json` is the only record of several load-bearing
    facts and nothing reads it.** Both orphan log paths, and the exact kill
    command that failed, were in the repo, committed, the whole time. A
    skills(B) or harness(A) round could extract the cheap part: every
    `nohup`/`&`/`setsid` launch in a round's transcript, and whether its
    output path appears in that round's knowledge file.
-5. **Round 402's items 1, 2, 3, 5, 6, 7 carry forward unchanged**; item 4
+6. **Round 402's items 1, 2, 3, 5, 6, 7 carry forward unchanged**; item 4
    is superseded by item 1 above. Item 6 ("grep for the NUMBER") gained a
    fifth instance this round and is now the most-repeated open item in the
    file — a skills(B) round should turn it into a check rather than advice.
-6. Round 401's item 1 (round 401's unscored 21-prediction bank) and item 2
+7. Round 401's item 1 (round 401's unscored 21-prediction bank) and item 2
    are unchanged — SWE-loop(D) and skills(B). The unprobed-skills batch is
    now **SEVEN** deep with this round's new skill and has grown in six
    consecutive non-skills rounds. skills(B).
-7. Round 398's items 5-9, round 397's items 1-4, round 336's language(C)
+8. Round 398's items 5-9, round 397's items 1-4, round 336's language(C)
    items, round 307's item 2 and round 301's item 2 are untouched and carry
    forward. NUC-integration(E) standing items unchanged — the rotation has
    not reached that track since round 400.

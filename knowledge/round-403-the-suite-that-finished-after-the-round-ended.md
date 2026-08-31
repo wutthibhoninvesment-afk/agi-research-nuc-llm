@@ -409,8 +409,43 @@ useful number this round produced, and it cost one `reap`.
 - both fixed files after the fix, run together:
   `pytest -c pytest.ini -q tests/test_v24.py tests/test_self_hosting.py`
   → **68 passed in 119.27 s**
+- final harness fast tier, on a quiet box: **944 passed, 269 deselected in
+  109.27 s** (944 = 943 + the ledger-path test added late)
 - `case_coverage.py`: **0 errors**, 18 warnings (was 1 error, 19 warnings —
   P001 for the new skill's empty case set, now 3 positive + 1 negative)
+
+## 9b. A third measurement that contention had corrupted
+
+The harness fast tier was run twice this round. The first run overlapped the
+whence full tier; the second had the box to itself. Same code, same files:
+
+```
+16:04  943 passed ... in 184.71s
+       tier-budget: 13/13 promoted files timed, 73.3s of a 47.4s budget —
+       DRIFT: test_swe_coverage.py 11.6s > 11.5s,
+              test_swe_oracles.py 11.4s > 10.0s
+              (re-run `tierbudget.py measure` and re-decide)
+
+16:21  944 passed ... in 109.27s
+       tier-budget: 13/13 promoted files timed, 44.2s of a 47.4s budget —
+       worst test_swe_mutation.py 21.0s of 36.3s
+```
+
+**73.3 s of a 47.4 s budget becomes 44.2 s of 47.4 s.** The `DRIFT` line —
+which tells a round to re-run `tierbudget.py measure` and re-tier files —
+was entirely an artefact of sharing one CPU with the whence tier. Round 385
+built that detector to make tiering a measured decision rather than a
+filename convention; on a contended box it instead advises demoting files
+that are fine.
+
+That is the round's own thesis arriving in a third place. §4's `112 failed`
+was a teardown artefact, §9's `27:56` was a contention artefact, and this
+`DRIFT` is a contention artefact recommending a code change. Nothing in the
+tier-budget output says which kind of box it was measured on. A future
+harness(A) round could make `tierbudget` record the load average and the
+count of other runs found by `procreap scan` alongside each timing, and
+refuse to emit `DRIFT` from a contended sample — the same shape as
+`slowtier`'s refusal to count a result whose checkout moved.
 
 ## 10. Hygiene
 
