@@ -166,7 +166,7 @@ def test_a_token_that_also_continues_an_expression_is_absorbed_first():
     assert len(parse('let a = 1 (2)\n').stmts) == 1
     assert len(parse('let a = 1 .x\n').stmts) == 1
     # an index, so `1 [1, 2]` fails on the index grammar rather than parsing
-    assert parse_error('let a = 1 [1, 2]\n').startswith("expected ]")
+    assert parse_error('let a = 1 [1, 2]\n').startswith("expected ']'")
     assert parse_error('fn f() { 1 } .x\n') == "unexpected '.' at line 1, col 14"
 
 

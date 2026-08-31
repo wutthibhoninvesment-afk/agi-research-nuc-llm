@@ -360,11 +360,11 @@ PARSE_HINT_CASES = [
     # juxtaposition: an unquoted string, inside a call and inside a list —
     # two DIFFERENT expected tokens, one adjacency rule
     ('let x = print(Calculating total)\n',
-     "expected ), got 'total' (two names in a row: Whence has no "
+     "expected ')', got 'total' (two names in a row: Whence has no "
      "juxtaposition \u2014 a call is `f(x)` and text must be quoted) "
      "at line 1, col 27"),
     ('let xs = [Hardware Unit, 2100]\n',
-     "expected ], got 'Unit' (two names in a row: Whence has no "
+     "expected ']', got 'Unit' (two names in a row: Whence has no "
      "juxtaposition \u2014 a call is `f(x)` and text must be quoted) "
      "at line 1, col 20"),
 ]

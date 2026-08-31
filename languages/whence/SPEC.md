@@ -1,6 +1,6 @@
 # Whence — a provenance-first language
 
-*Spec level: **v0.34** (round 392). The `## vN` sections below are the
+*Spec level: **v0.35** (round 396). The `## vN` sections below are the
 authoritative version list and each names the round that built it; this
 line deliberately no longer enumerates rounds, because the enumeration it
 replaced had said "v0.16.6 + v0.14.2" since round 266 while the file went
@@ -458,6 +458,32 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    own limit, restated by v0.33 — and v0.34's own measurement is that
    following the new cures still fixes zero of the ten field programs.
    See § v0.34.
+44. **A message says what to TYPE, or it says prose — never a token type
+   (v0.35, round 396).** `expect` is where the parser demands a specific
+   token, and until v0.35 it named the thing it wanted with
+   `what or (value if value is not None else type_)` — the raw argument it
+   had been passed. Of its 28 call sites, 9 pass a written `what` and 19
+   pass nothing, so the parser said `expected ), got '='` with the two
+   halves of one sentence quoted differently, and said `expected NAME,
+   got '='` where `NAME` is a token type in `whence/lexer.py` and not
+   anything an author can write. The rule is now `_spell_want`, and the
+   three bare kinds are not treated alike: punctuation and keywords are
+   QUOTED (`expected ')'`, `expected 'if'`), because they are literal text
+   the author types; a CATEGORY becomes PROSE (`expected a name`,
+   `expected end of input`), because quoting one would read as an
+   instruction to type it. The seven `what=` sites that were already prose
+   are untouched, which is the same rule seen from the other side. Two
+   consequences are load-bearing. `_expect_hint` DISPATCHES on the
+   spelling of `want` — v0.34's `fn` expression clause tested
+   `want == "("` and now tests `want == "'('"` — so a rendering change in
+   this parser is not free, and neither is `curecheck`'s trigger table.
+   And it CLOSES a host/guest divergence rather than opening one: the
+   guest parser in `examples/self_eval.lang` has asserted `expected ')'`
+   since it was written, round 354 recorded the two spellings as a
+   disagreement without saying which was right, and the answer is that the
+   guest was. Six of the 28 sites can never fail at all (their guards
+   already tested the token), so only 22 renderings are observable; that is
+   a measurement from `bench/expectsites.py`, not a reading. See § v0.35.
 
 ## Syntax (statements are newline-separated; `#` comments)
 ```
@@ -7382,3 +7408,167 @@ round that disagrees with one of those reasons should change the entry
 rather than add a sentence on one sighting. And it does not move
 `block must end with an expression`'s POSITION, which remains at the
 closing brace on purpose — see decision 43.
+
+## v0.35 (round 396, language C) — the half of the sentence nobody read
+
+Decision 44. One rendering rule, one dead-code measurement, and one
+host/guest divergence closing.
+
+### The sentence had two halves and only one had been fixed
+
+Every `Parser.expect` failure is `expected X, got Y`. v0.24 (round 360)
+fixed `Y`: two sites rendered the offending token with `%r` straight off
+`tok.value`, and the EOF token's value is Python `None`, so `let x = (1`
+reported `expected ), got None`. `_show` replaced that with
+`end of input`.
+
+`X` was never touched. It was whatever argument `expect` happened to be
+handed:
+
+```
+expected ), got '='          <- want bare, got quoted
+expected '{', got 'then'     <- want quoted, two call sites away
+expected NAME, got '='       <- want is an implementation identifier
+```
+
+The third is the one that matters. `NAME` is a token type in
+`whence/lexer.py`. There is no program text spelled `NAME`, so the message
+names an internal symbol in the slot where it is telling somebody what to
+write — the same class of defect as v0.24's `None`, in the other half of
+the same sentence, four versions later.
+
+### The count round 392 deferred was wrong in both terms
+
+Round 392 found this and deferred it with a hand-count: *"nine of
+`parser.py`'s twenty `expect` call sites pass a quoted `what` and eleven
+pass the bare token … the edit is one line in `expect`."* There are **28**
+sites, not 20. Nine pass a `what`, of which only **two** quote a token —
+the other seven are prose (`parameter name`, `effect name`, `field name
+after '.'`). So the inconsistency was never two-way:
+
+| class | sites | example | v0.35 |
+| --- | --- | --- | --- |
+| `bare-punct` | 15 | `expect(")")` | quote it — `expected ')'` |
+| `bare-prose` | 7 | `what="parameter name"` | unchanged |
+| `bare-category` | 3 | `expect("NAME")` | prose — `expected a name` |
+| `quoted-token` | 2 | `what="'{'"` | unchanged |
+| `bare-keyword` | 1 | `expect("KW", "if")` | quote it — `expected 'if'` |
+
+And it is not one line, because the bare half is three kinds that want
+three treatments. `_spell_want` is the rule; `bench/expectsites.py sites`
+derives this table from `parser.py`'s AST so that the next round to price
+the change reads a measurement instead of counting by hand.
+
+### Six of the 28 can never fail
+
+A rendering only matters if an author can see it, and `expect` is called
+on paths where the caller has already established the token it is about to
+demand. `bench/expectsites.py sweep` instruments `Parser.expect` and
+counts EXECUTIONS against RAISES, which separates three different facts —
+`reached`, `never-fails` (executed, never raised: a dead diagnostic), and
+`unexecuted` (the corpus is too thin to say).
+
+Over 3120 programs — the parse-error differential's own corpus, every
+example, one handwritten input per site, and 3000 single-token mutants —
+**22 sites raised, 6 never did, and none went unexecuted.** The six are
+dead because a guard upstream already tested the token:
+
+```
+parse_program  expect("EOF")        `stmt_list(end="EOF")` loops `while not at(end)`
+block          expect("}")          the same contract, with `}`
+statement      expect("NAME")       guarded by `peek(1).type == "NAME"`
+shape_def      expect("NAME")       entered only on `NAME NAME =`
+shape_def      expect("=")          the same guard tested `peek(2).type == "="`
+if_expr        expect("KW", "if")   both callers test `at("KW", "if")`
+```
+
+They are kept, not deleted — each is a cheap assertion of the invariant its
+guard establishes — and `tests/test_v35.py::DEAD` names all six with the
+guard, so a grammar change that makes one reachable fails there rather than
+shipping a message nobody chose. `unexecuted == 0` is what entitles
+"never-fails" to be read as *dead* rather than as *untested*.
+
+### It closes HALF of a host/guest divergence, and names the other half
+
+`test_parse_error_differential.py` asserts as a live fact that host and
+guest wording still disagrees (v0.24 rule 3), and names three shapes that
+must still differ. The first, from round 354, was `unclosed-paren`:
+`expected )` from the host against `expected ')'` from the guest.
+
+Decision 44 was expected to close it outright. It did not, and what it
+actually did is the more useful result — **that one "divergence" was two
+divergences sharing a sentence:**
+
+```
+host  v0.34   expected ),   got end of input
+guest         expected ')', got ''
+host  v0.35   expected ')', got end of input
+```
+
+The WANT half closed, and it closed by the HOST moving. The guest has
+quoted the token it wanted since it was written — `self_eval.lang`,
+`self_host.lang` and `meta.lang` each carry a `check` asserting
+`expected ')'` — and round 354 recorded the disagreement without saying
+which side was right. It was the guest.
+
+The GOT half is untouched and is a **different debt with a known owner**:
+v0.24 (round 360) taught the host's `_show` to name the EOF token
+`end of input`, and the guest never received that fix — it still renders
+the token's empty value. Round 354 read one string, saw one disagreement,
+and named one shape; two of the three shapes it named were really one
+shape each and this one was two.
+
+### Three axes, and the aggregate that could not see any of them
+
+Ten of the 51 rejected programs in the differential's corpus produce
+`expected X, got Y` on BOTH sides — the one message shape the two parsers
+share. Measured before and after decision 44:
+
+| | before | after |
+| --- | --- | --- |
+| want halves agreeing | 2 of 10 | **10 of 10** |
+| whole messages agreeing | 0 of 10 | 0 of 10 |
+| `test_wording_is_still_not_a_guest_contract` differing | 39 of 51 | 39 of 51 |
+
+The aggregate did not move by a single case, and the agreeing set is the
+same twelve names. Every one of the ten still differs, for one of exactly
+two remaining reasons — the GOT half (the guest renders a number `'1'` and
+the EOF token `''` where the host says `1` and `end of input`: v0.24's
+`_show`, which the guest never received) or the HINT (host-only by rule 3).
+
+So `expected X, got Y` was never one divergence. It is three that share a
+sentence — want, got, hint — with three different owners and three
+different resolutions, and round 354 collapsed them into "wording" because
+it compared whole strings. The floor of ten differing cases still holds, so
+rule 3 is a live fact and not a vacuous one; but the aggregate that
+enforces it is blind to a convergence inside it, which is why v0.35 pins
+the axes separately in
+`test_the_want_half_of_every_shared_message_now_agrees`.
+
+No POSITION moves. Rule 2 (host and guest agree on line and column) is a
+contract and this is a rendering change; `test_v35.py` pins the host half
+for the three cases round 360 named.
+
+### The pre-v0.35 spelling in the sections above this one
+
+Every `expected <token>` written into a `## v0.2x`/`## v0.3x` section above
+is in the pre-v0.35 spelling and is left alone, exactly as v0.33's reword of
+the braced-block hint left v0.32's example in place. Those sections are the
+record of what each version said. The live consumers — `curecheck`'s two
+`fn-expression-*` triggers, and the wording assertions in `test_v22.py`,
+`test_v24.py` and `test_parse_error_differential.py` — are the ones that
+moved.
+
+### What v0.35 deliberately does NOT do
+
+It does not delete the six dead `expect` calls. It does not touch the
+guest: convergence happened by the host moving, and `self_eval.lang` /
+`self_host.lang` are byte-unchanged this round. It does NOT give the guest
+v0.24's `_show`, which is the other half of the `unclosed-paren`
+divergence and is now the named, isolated form of that debt. It does not reword the
+seven prose `what=` sites, whose sentences say more than a token can. It
+does not change any POSITION, any hint TEXT, or the determinacy verdict of
+any cure — `curecheck.py corpus` applies the same 4 mechanical edits to the
+same 14 field programs, and still fixes none of them. And it does not
+revisit round 392's cure ledger, which records a reader following v0.33's
+messages and is still the open item it was.

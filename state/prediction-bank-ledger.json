@@ -15,14 +15,14 @@
    "scored_by": 18,
    "where": "state/research-state-archive.md",
    "quote": "round-17 **P1 MISS**",
-   "remainder": "P2-P4 (mutation/live) were explicitly left unscored by the same sentence: \"P2–P4 (mutation/live) still unscored, need a D round\". No later round named them."
+   "remainder": "P2-P4 (mutation/live) were explicitly left unscored by the same sentence: \"P2\u2013P4 (mutation/live) still unscored, need a D round\". No later round named them."
   },
   "21": {
    "bank": "state/trigger-eval/round-021-predictions.md",
    "status": "scored",
    "scored_by": 21,
    "where": "knowledge/round-021-skill-suppression-necessity-haiku.md",
-   "quote": "- **P1 HIT** (97% ≥ 90% with distractors). **P2 MISS** — 0 staged fires; I"
+   "quote": "- **P1 HIT** (97% \u2265 90% with distractors). **P2 MISS** \u2014 0 staged fires; I"
   },
   "23": {
    "bank": "state/round-023-predictions.md",
@@ -44,43 +44,43 @@
    "status": "scored",
    "scored_by": 25,
    "where": "state/research-state-archive.md",
-   "quote": "- **Predictions: 6 HIT / 1 MISS** — the miss was P6, the base-rate \"I'll break one of my own tests\" bet (first zero-first-run-failure round). P4/P5 hit with bars ~3× too loose: computable effects dese"
+   "quote": "- **Predictions: 6 HIT / 1 MISS** \u2014 the miss was P6, the base-rate \"I'll break one of my own tests\" bet (first zero-first-run-failure round). P4/P5 hit with bars ~3\u00d7 too loose: computable effects dese"
   },
   "26": {
    "bank": "state/round-026-predictions.md",
    "status": "scored",
    "scored_by": 26,
    "where": "knowledge/round-026-whence-v08-chain-walk-concurrent-writer.md",
-   "quote": "| P1 | fib20 unchanged ±5% | **HIT** (0.118–0.120s vs 0.115 baseline) |"
+   "quote": "| P1 | fib20 unchanged \u00b15% | **HIT** (0.118\u20130.120s vs 0.115 baseline) |"
   },
   "27": {
    "bank": "state/round-027-predictions.md",
    "status": "scored",
    "scored_by": 105,
    "where": "state/research-state-archive.md",
-   "quote": "its P1 HIT / P2 MISS(low: haiku 5/6) / P9 HIT, P3–P5/P8 never ran (done this round)"
+   "quote": "its P1 HIT / P2 MISS(low: haiku 5/6) / P9 HIT, P3\u2013P5/P8 never ran (done this round)"
   },
   "28": {
    "bank": "state/round-028-predictions.md",
    "status": "scored",
    "scored_by": 28,
    "where": "knowledge/round-028-nuc-e3-kv-prefix-reuse.md",
-   "quote": "48.33 / 47.58 / 47.57 s, ratio 1.000 → nothing reused (P8 hit). The"
+   "quote": "48.33 / 47.58 / 47.57 s, ratio 1.000 \u2192 nothing reused (P8 hit). The"
   },
   "29": {
    "bank": "state/round-029-predictions.md",
    "status": "scored",
    "scored_by": 107,
    "where": "state/research-state-archive.md",
-   "quote": "round 29's P3–P10 finally scored",
-   "remainder": "P1-P2 are not named by the discharge. Round 35 was recorded as the owner (\"Round-29 predictions unscored → 35\") and round 107 scored P3-P10; nothing accounts for P1-P2."
+   "quote": "round 29's P3\u2013P10 finally scored",
+   "remainder": "P1-P2 are not named by the discharge. Round 35 was recorded as the owner (\"Round-29 predictions unscored \u2192 35\") and round 107 scored P3-P10; nothing accounts for P1-P2."
   },
   "30": {
    "bank": "state/round-030-predictions.md",
    "status": "scored",
    "scored_by": 30,
    "where": "state/research-state-archive.md",
-   "quote": "- **Predictions 7 HIT / 5 MISS (+guest):** P1 1.58× vs ≥1.6 and P2 −19.2 % vs ≥20 % missed by a hair — I set the LOWER bound at the point estimate (rule: lower bound = tottime floor); P3/P4 missed on "
+   "quote": "- **Predictions 7 HIT / 5 MISS (+guest):** P1 1.58\u00d7 vs \u22651.6 and P2 \u221219.2 % vs \u226520 % missed by a hair \u2014 I set the LOWER bound at the point estimate (rule: lower bound = tottime floor); P3/P4 missed on "
   },
   "31": {
    "bank": "state/round-031-predictions.md",
@@ -94,14 +94,14 @@
    "status": "scored",
    "scored_by": 106,
    "where": "knowledge/round-106-nuc-e4-fast-lane-inheritance.md",
-   "quote": "round 100's predictions (`state/round-100-predictions.md`, P1–P12) scored here"
+   "quote": "round 100's predictions (`state/round-100-predictions.md`, P1\u2013P12) scored here"
   },
   "101": {
    "bank": "state/round-101-predictions.md",
    "status": "scored",
    "scored_by": 101,
    "where": "knowledge/round-101-swe-loop-coverage-triage-repair-bench-read-budget.md",
-   "quote": "P7 scoring: `oracle_check ≥ 5` MISS for A / HIT for B; JSON emitted MISS"
+   "quote": "P7 scoring: `oracle_check \u2265 5` MISS for A / HIT for B; JSON emitted MISS"
   },
   "105": {
    "bank": "state/round-105-predictions.md",
@@ -115,7 +115,7 @@
    "status": "scored",
    "scored_by": 106,
    "where": "knowledge/round-106-nuc-e4-fast-lane-inheritance.md",
-   "quote": "| P6 | container 7.4 (6.8–7.6) GB | 7.42 GB | HIT |"
+   "quote": "| P6 | container 7.4 (6.8\u20137.6) GB | 7.42 GB | HIT |"
   },
   "107": {
    "bank": "state/round-107-predictions.md",
@@ -136,14 +136,14 @@
    "status": "scored",
    "scored_by": 109,
    "where": "knowledge/round-109-harness-completion-guards-process-groups.md",
-   "quote": "| P3 | delegation break-even R ∈ [2, 4] for P=20k V=8k S=4 O=1.5k | **MISS (low)**: bench says R = 0.0 (closed form 0.00). Mechanism: the prediction's model omitted *prefix avoidance* — each of the ch"
+   "quote": "| P3 | delegation break-even R \u2208 [2, 4] for P=20k V=8k S=4 O=1.5k | **MISS (low)**: bench says R = 0.0 (closed form 0.00). Mechanism: the prediction's model omitted *prefix avoidance* \u2014 each of the ch"
   },
   "110": {
    "bank": "state/round-110-predictions.md",
    "status": "scored",
    "scored_by": 110,
    "where": "knowledge/round-110-whence-v11-ceiling-frame-charge-oracle.md",
-   "quote": "| P1 | fib20 direct −4 … −12 % | **HIT**: −11.6 % (2.81 µs/call) — at the ablation bound's edge |"
+   "quote": "| P1 | fib20 direct \u22124 \u2026 \u221212 % | **HIT**: \u221211.6 % (2.81 \u00b5s/call) \u2014 at the ablation bound's edge |"
   },
   "111": {
    "bank": "state/round-111-predictions.md",
@@ -157,21 +157,21 @@
    "status": "scored",
    "scored_by": 112,
    "where": "state/research-state-archive.md",
-   "quote": "R1–R12): **6 HIT / 6 MISS**"
+   "quote": "R1\u2013R12): **6 HIT / 6 MISS**"
   },
   "113": {
    "bank": "state/round-113-predictions.md",
    "status": "scored",
    "scored_by": 113,
    "where": "knowledge/round-113-swe-loop-bymap-subset-triage-oracle-kill.md",
-   "quote": "docstring asserted** (P2 banked 12–30 min from that docstring: MISS, and"
+   "quote": "docstring asserted** (P2 banked 12\u201330 min from that docstring: MISS, and"
   },
   "123": {
    "bank": "state/round-123-predictions.md",
    "status": "scored",
    "scored_by": 141,
    "where": "state/research-state-archive.md",
-   "quote": "- **Scored every prediction from the raw artifacts (not narration):** round 111 5 HIT/1 HIT-exceeded/3 MISS/2 PARTIAL (P5 \"gte-near ≥4/6 after the symptom rewrite\" MISS — actually 0/6, the direct reas"
+   "quote": "- **Scored every prediction from the raw artifacts (not narration):** round 111 5 HIT/1 HIT-exceeded/3 MISS/2 PARTIAL (P5 \"gte-near \u22654/6 after the symptom rewrite\" MISS \u2014 actually 0/6, the direct reas"
   },
   "125": {
    "bank": "state/round-125-predictions.md",
@@ -185,14 +185,14 @@
    "status": "scored",
    "scored_by": 141,
    "where": "state/research-state-archive.md",
-   "quote": "- **Scored every prediction from the raw artifacts (not narration):** round 111 5 HIT/1 HIT-exceeded/3 MISS/2 PARTIAL (P5 \"gte-near ≥4/6 after the symptom rewrite\" MISS — actually 0/6, the direct reas"
+   "quote": "- **Scored every prediction from the raw artifacts (not narration):** round 111 5 HIT/1 HIT-exceeded/3 MISS/2 PARTIAL (P5 \"gte-near \u22654/6 after the symptom rewrite\" MISS \u2014 actually 0/6, the direct reas"
   },
   "131": {
    "bank": "state/round-131-predictions.md",
    "status": "scored",
    "scored_by": 131,
    "where": "knowledge/round-131-swe-loop-campaign-snapshot-bug.md",
-   "quote": "| P1 | MISS (far) | recheck score 99.02% (survived 12/1226) vs predicted 86-90% — the subset-check correction (20/20 flips) pulled the score up far more than expected |"
+   "quote": "| P1 | MISS (far) | recheck score 99.02% (survived 12/1226) vs predicted 86-90% \u2014 the subset-check correction (20/20 flips) pulled the score up far more than expected |"
   },
   "132": {
    "bank": "state/round-132-predictions.md",
@@ -205,7 +205,7 @@
    "status": "scored",
    "scored_by": 141,
    "where": "state/research-state-archive.md",
-   "quote": "- **Scored every prediction from the raw artifacts (not narration):** round 111 5 HIT/1 HIT-exceeded/3 MISS/2 PARTIAL (P5 \"gte-near ≥4/6 after the symptom rewrite\" MISS — actually 0/6, the direct reas"
+   "quote": "- **Scored every prediction from the raw artifacts (not narration):** round 111 5 HIT/1 HIT-exceeded/3 MISS/2 PARTIAL (P5 \"gte-near \u22654/6 after the symptom rewrite\" MISS \u2014 actually 0/6, the direct reas"
   },
   "137": {
    "bank": "state/round-137-predictions.md",
@@ -233,14 +233,14 @@
    "status": "scored",
    "scored_by": 346,
    "where": "knowledge/round-346-nuc-e-deleted-vs-never-written.md",
-   "quote": "| P1 | box `down` (0.85) | **HIT** — 9th consecutive. (The banked text said \"8th\"; that was an off-by-one against `research-state.md`, which records round 340 as the eighth. It does not affect the ver"
+   "quote": "| P1 | box `down` (0.85) | **HIT** \u2014 9th consecutive. (The banked text said \"8th\"; that was an off-by-one against `research-state.md`, which records round 340 as the eighth. It does not affect the ver"
   },
   "345": {
    "bank": "state/round-345-predictions.md",
    "status": "scored",
    "scored_by": 345,
    "where": "knowledge/round-345-skills-b-citation-registry-integrity.md",
-   "quote": "first run** — three real, one an over-strong test. Base-rate prediction P7 hit."
+   "quote": "first run** \u2014 three real, one an over-strong test. Base-rate prediction P7 hit."
   },
   "346": {
    "bank": "state/round-346-predictions.md",
@@ -254,35 +254,35 @@
    "status": "scored",
    "scored_by": 352,
    "where": "knowledge/round-352-nuc-e-the-box-came-back-and-the-launcher-hung.md",
-   "quote": "| P1 | ≥2 boots listed | **HIT** — 7, back to 2026-08-19 |"
+   "quote": "| P1 | \u22652 boots listed | **HIT** \u2014 7, back to 2026-08-19 |"
   },
   "353": {
    "bank": "state/swe/round-353/PREDICTIONS.md",
    "status": "scored",
    "scored_by": 353,
    "where": "knowledge/round-353-swe-d-a-score-of-1-0-that-measured-1016-of-1276.md",
-   "quote": "| P1 | the archived round-137 tree is green today | **MISS** — red, four times, three causes (§3). The prediction assumed an archive is a time machine; it is a directory whose tests still talk to a mo"
+   "quote": "| P1 | the archived round-137 tree is green today | **MISS** \u2014 red, four times, three causes (\u00a73). The prediction assumed an archive is a time machine; it is a directory whose tests still talk to a mo"
   },
   "358": {
    "bank": "nuc/predictions-e-round358.md",
    "status": "scored",
    "scored_by": 358,
    "where": "state/research-state.md",
-   "quote": "- **P6 is the instructive miss:** I predicted 50k–400k distinct entry-seconds"
+   "quote": "- **P6 is the instructive miss:** I predicted 50k\u2013400k distinct entry-seconds"
   },
   "359": {
    "bank": "state/swe/round-359/PREDICTIONS.md",
    "status": "scored",
    "scored_by": 359,
    "where": "knowledge/round-359-swe-d-the-exemption-that-was-right-for-the-wrong-reason.md",
-   "quote": "| P2 | 0 mismatches over a 200-program campaign of unshadowed programs | 60% | **HIT**, at 12.5× the size — 0 over 2500, twice (before and after the grammar change) |"
+   "quote": "| P2 | 0 mismatches over a 200-program campaign of unshadowed programs | 60% | **HIT**, at 12.5\u00d7 the size \u2014 0 over 2500, twice (before and after the grammar change) |"
   },
   "360": {
    "bank": "state/whence/round-360/PREDICTIONS.md",
    "status": "scored",
    "scored_by": 360,
    "where": "knowledge/round-360-whence-v024-the-refusal-set-nobody-had-compared.md",
-   "quote": "| P1 | fixing the host comment/col bug moves NEWLINE and EOF columns ONLY | **HIT** — every divergence the model found was one of those two kinds; pinned by `test_only_newline_and_eof_columns_could_ev"
+   "quote": "| P1 | fixing the host comment/col bug moves NEWLINE and EOF columns ONLY | **HIT** \u2014 every divergence the model found was one of those two kinds; pinned by `test_only_newline_and_eof_columns_could_ev"
   },
   "361": {
    "bank": "state/harness/round-361/PREDICTIONS.md",
@@ -394,7 +394,7 @@
    "status": "scored",
    "scored_by": 375,
    "where": "knowledge/round-375-probed-answers-did-we-look.md",
-   "quote": "## 7. Predictions — 7 HIT / 5 MISS",
+   "quote": "## 7. Predictions \u2014 7 HIT / 5 MISS",
    "note": "None outstanding: P1-P12 are each scored by number in the knowledge file's section 7 table. Recorded in the SAME round that banked them, which is the half of D-013 round 369 built this ledger for and the half round 374 died before reaching. The five misses are one miss -- P2/P3/P4/P7 all bet the damage was in RECALL and all over-estimated it in the same direction, while the real defect was in a dimension the bank never asked about."
   },
   "376": {
@@ -469,7 +469,7 @@
    "scored_by": 384,
    "where": "knowledge/round-384-the-cure-that-was-never-rendered.md",
    "quote": "**11 HIT, 2 HALF, 4 MISS of 17",
-   "note": "Banked in ONE block before the drop recorder existed, with a §0 section listing everything already observed at banking time (the 14 field programs' exit codes and byte counts, `println` not being a builtin, the fold order hint's text) so no retrodiction is scored -- round 379's criticism of its own bank, applied in advance. Two of the four misses are the round's evidence rather than its errors: P5 predicted the tracked corpus would drop 0 misses, it dropped 4, and all 4 were `print(<a miss>)` -- which is what forced the observation rule the feature now rests on; P9 predicted 0-2 builtin pairs within edit distance 2 and there are 18, which is one of the three measurements that killed the nearest-builtin rule. P10 is a REPEAT of round 378's own banked miss in the same file one rotation later (priced the code at <60 lines, shipped +192/-15, the difference being the comment blocks stating the entry rule and the deleted rule's evidence). P16 is HALF because its first clause held and its second inverted: I named self_eval.lang as the likely surprise and it was the only one of the three I got right."
+   "note": "Banked in ONE block before the drop recorder existed, with a \u00a70 section listing everything already observed at banking time (the 14 field programs' exit codes and byte counts, `println` not being a builtin, the fold order hint's text) so no retrodiction is scored -- round 379's criticism of its own bank, applied in advance. Two of the four misses are the round's evidence rather than its errors: P5 predicted the tracked corpus would drop 0 misses, it dropped 4, and all 4 were `print(<a miss>)` -- which is what forced the observation rule the feature now rests on; P9 predicted 0-2 builtin pairs within edit distance 2 and there are 18, which is one of the three measurements that killed the nearest-builtin rule. P10 is a REPEAT of round 378's own banked miss in the same file one rotation later (priced the code at <60 lines, shipped +192/-15, the difference being the comment blocks stating the entry rule and the deleted rule's evidence). P16 is HALF because its first clause held and its second inverted: I named self_eval.lang as the likely surprise and it was the only one of the three I got right."
   },
   "385": {
    "bank": "state/harness/round-385/PREDICTIONS.md",
@@ -532,15 +532,15 @@
    "scored_by": 392,
    "where": "knowledge/round-392-the-errors-that-named-no-cure.md",
    "quote": "All 17 are scored by number below. **9 HIT / 3 HALF / 5 MISS**",
-   "note": "Banked in ONE block before any of the round's numbers were taken, with a §0 OBSERVATIONS ALREADY MADE section listing the ten orientation facts so none is scored -- rounds 379/384/385/386/390's discipline, sixth round running. P13 (whole-round diff 1400-2600 lines, measured ~2000) is the FIRST time in four language rounds that the size prediction has landed; 384's P10, 386's P16 and 390's P9 all missed it low, and round 390's own scoring is what said to price the artifact rather than the code. All five misses are about my own work and share one shape, named in the round file as 'a pre-state quoted as a post-state': P11 counted unhinted ParseError sites BEFORE the change and predicted the count after (15 vs 13, and the change itself hinted two of them); P6 priced the cure table at 11 rows by counting the three MESSAGES and shipped 16 by keying rows on determinacy; P12 predicted zero self_eval.lang lines from the one guest contract I had checked (v0.24 rule 3, wording) without enumerating the one I had not (rule 2, position) -- and rule 2 is exactly what the round then found broken; P14 predicted round 386's anti-rot pair would fire during development and it never fired at all, which IS the round's second-largest finding (a hand-written list of the things a hand-written list might miss is not an anti-rot check) arriving as a failed prediction for the third round running after 387's P1/P2 and 390's P2. P1 is a HALF on a premise: three trailing statement KINDS is right, but `shape` is a fourth SOURCE of `A.Let` and is the case that needed a guard. P10 is a MISS in both directions at once -- no position moved, as predicted, and the parse-error differential did NOT stay green with no edit, because a case for the divergence had to exist before it could be seen."
+   "note": "Banked in ONE block before any of the round's numbers were taken, with a \u00a70 OBSERVATIONS ALREADY MADE section listing the ten orientation facts so none is scored -- rounds 379/384/385/386/390's discipline, sixth round running. P13 (whole-round diff 1400-2600 lines, measured ~2000) is the FIRST time in four language rounds that the size prediction has landed; 384's P10, 386's P16 and 390's P9 all missed it low, and round 390's own scoring is what said to price the artifact rather than the code. All five misses are about my own work and share one shape, named in the round file as 'a pre-state quoted as a post-state': P11 counted unhinted ParseError sites BEFORE the change and predicted the count after (15 vs 13, and the change itself hinted two of them); P6 priced the cure table at 11 rows by counting the three MESSAGES and shipped 16 by keying rows on determinacy; P12 predicted zero self_eval.lang lines from the one guest contract I had checked (v0.24 rule 3, wording) without enumerating the one I had not (rule 2, position) -- and rule 2 is exactly what the round then found broken; P14 predicted round 386's anti-rot pair would fire during development and it never fired at all, which IS the round's second-largest finding (a hand-written list of the things a hand-written list might miss is not an anti-rot check) arriving as a failed prediction for the third round running after 387's P1/P2 and 390's P2. P1 is a HALF on a premise: three trailing statement KINDS is right, but `shape` is a fourth SOURCE of `A.Let` and is the case that needed a guard. P10 is a MISS in both directions at once -- no position moved, as predicted, and the parse-error differential did NOT stay green with no edit, because a case for the divergence had to exist before it could be seen."
   },
   "393": {
    "bank": "state/skills/round-393/PREDICTIONS.md",
    "status": "scored",
    "scored_by": 393,
    "where": "knowledge/round-393-the-repeats-that-were-one-draw.md",
-   "quote": "Predictions scored — 8 HIT / 1 HALF / 6 MISS",
-   "note": "15 predictions banked in ONE block before the live experiment, with a §0 OBSERVATIONS ALREADY MADE section listing the eleven offline facts (the archive re-analysis and the pre-flight canary) so none is scored -- rounds 379/384/385/386/390/392's discipline, seventh round running. THE MISSES ARE THE ROUND'S CONTENT AND TWO OF THEM SHARE ONE SHAPE: P3 (abstention spread >=15pp; actual 5.3pp -- the run variation was in DISPLACEMENT, 28.9/21.1/13.2) and P5 (n_eff < 3.0) both banked figures DERIVED FROM THE ARCHIVE that this round then proved unreliable, i.e. I predicted with an instrument I was in the middle of discrediting. P6 (derived-subject-set fires >=2 of 3) is the round's largest finding arriving as a failed prediction -- 2/18, REFUTED -- the FOURTH consecutive round where that happened after 387's P1/P2, 390's P2 and 392's P14. P12 is the sharpest self-inflicted one: I predicted my own new checker would LOWER the case_coverage warning count, having not noticed that authoring a skill adds a P004 and that shipping a new code adds a warning class; a round cannot both add a check and predict fewer findings. P10 is a HALF -- 138 probes exactly and mean $0.0551 just inside the banded range, but the total was $7.60 against a banded $8-13. P1/P2/P4/P9 (the experiment's own structural claims) and P7/P8 (two other rounds' boundary claims, 6/6 each) all HIT, and P15 -- that the pre-flight's DRIFT canary would come back in band -- HIT at 2/5, which is this round's thesis scoring itself."
+   "quote": "Predictions scored \u2014 8 HIT / 1 HALF / 6 MISS",
+   "note": "15 predictions banked in ONE block before the live experiment, with a \u00a70 OBSERVATIONS ALREADY MADE section listing the eleven offline facts (the archive re-analysis and the pre-flight canary) so none is scored -- rounds 379/384/385/386/390/392's discipline, seventh round running. THE MISSES ARE THE ROUND'S CONTENT AND TWO OF THEM SHARE ONE SHAPE: P3 (abstention spread >=15pp; actual 5.3pp -- the run variation was in DISPLACEMENT, 28.9/21.1/13.2) and P5 (n_eff < 3.0) both banked figures DERIVED FROM THE ARCHIVE that this round then proved unreliable, i.e. I predicted with an instrument I was in the middle of discrediting. P6 (derived-subject-set fires >=2 of 3) is the round's largest finding arriving as a failed prediction -- 2/18, REFUTED -- the FOURTH consecutive round where that happened after 387's P1/P2, 390's P2 and 392's P14. P12 is the sharpest self-inflicted one: I predicted my own new checker would LOWER the case_coverage warning count, having not noticed that authoring a skill adds a P004 and that shipping a new code adds a warning class; a round cannot both add a check and predict fewer findings. P10 is a HALF -- 138 probes exactly and mean $0.0551 just inside the banded range, but the total was $7.60 against a banded $8-13. P1/P2/P4/P9 (the experiment's own structural claims) and P7/P8 (two other rounds' boundary claims, 6/6 each) all HIT, and P15 -- that the pre-flight's DRIFT canary would come back in band -- HIT at 2/5, which is this round's thesis scoring itself."
   },
   "394": {
    "bank": "nuc/predictions-e-round394.md",
@@ -556,7 +556,15 @@
    "scored_by": 395,
    "where": "knowledge/round-395-the-command-nobody-ran-and-the-suite-nobody-read.md",
    "quote": "**12 HIT / 2 MISS / 2 HALF of 16.**",
-   "note": "The bank opens with a §0 OBSERVATIONS ALREADY MADE section listing the nine facts read while choosing the task, so nothing below it can be scored as foresight it did not have. P7 and P11 are the instructive misses and share one shape with each other and with the round's subject: a number derived from a narrower subject set than the claim it supports."
+   "note": "The bank opens with a \u00a70 OBSERVATIONS ALREADY MADE section listing the nine facts read while choosing the task, so nothing below it can be scored as foresight it did not have. P7 and P11 are the instructive misses and share one shape with each other and with the round's subject: a number derived from a narrower subject set than the claim it supports."
+  },
+  "396": {
+   "bank": "state/whence/round-396/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 396,
+   "where": "knowledge/round-396-the-sentence-that-was-three-divergences.md",
+   "quote": "**12 HIT / 3 HALF / 1 MISS / 1 unscored.**",
+   "note": "17 predictions banked in ONE block before any measurement, with a S0 OBSERVATIONS ALREADY MADE section listing the eleven orientation facts -- eighth round running of that discipline. P6 and P11 are the instructive misses and share one shape with the round's SUBJECT: both predicted the result of comparing two strings without asking how many claims the string carried. P6 predicted `unclosed-paren` would CONVERGE; it did not, because `expected X, got Y` is three divergences sharing a sentence (want / got / hint) and only the want half closed -- the round's largest finding arriving as a failed prediction, the fifth consecutive round that has happened. P11 predicted stale SPEC.md lines would need edits; they are historical record under version headings and correctly need none. P2 and P9 are the same error one size down: both priced a partition from the two or three cases already looked at (3 classes predicted, 5 actual). P9 was scored HALF on a first pass that counted only the files this round had edited and re-scored HIT against a controlled revert -- the correction is itself the round's subject. P14 is UNSCORED because the slow tier was killed at 50% on a loaded 1-CPU box. P15 (diff 700-1600) MISSED high at ~1750 staged lines: five of the last six language-round size predictions have missed, and this is the second to miss high."
   }
  }
 }

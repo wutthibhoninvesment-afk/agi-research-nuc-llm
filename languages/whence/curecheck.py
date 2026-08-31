@@ -511,7 +511,12 @@ CURES = [
     Cure(
         key="fn-expression-name",
         hint=_template_capture(P._FN_EXPR_ANON_HINT),
-        trigger=re.compile(r"^expected \(, got "),
+        # v0.35 (round 396), decision 44: the parser quotes the token it
+        # wanted, so this is `expected '(', got …` and no longer
+        # `expected (, got …`. `braced-block`'s trigger above needed no
+        # edit -- that message was ALREADY quoted, which is the asymmetry
+        # decision 44 removed.
+        trigger=re.compile(r"^expected '\(', got "),
         determinacy=MECHANICAL,
         derivation="the hint prints `fn(x) { x }` beside `fn <name>(x) "
                    "{ x }`; the sole difference is the name, and the "
@@ -521,7 +526,12 @@ CURES = [
     Cure(
         key="fn-expression-recursive",
         hint=_template_capture(P._FN_EXPR_RECURSIVE_HINT),
-        trigger=re.compile(r"^expected \(, got "),
+        # v0.35 (round 396), decision 44: the parser quotes the token it
+        # wanted, so this is `expected '(', got …` and no longer
+        # `expected (, got …`. `braced-block`'s trigger above needed no
+        # edit -- that message was ALREADY quoted, which is the asymmetry
+        # decision 44 removed.
+        trigger=re.compile(r"^expected '\(', got "),
         determinacy=UNDER_EXTENT,
         derivation="the hint asks for the whole `fn` to be lifted to a "
                    "statement of its own and locates only its name",

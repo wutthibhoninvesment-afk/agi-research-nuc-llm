@@ -14219,6 +14219,147 @@ built all three cures.
   dirty and escalated and still not this track's file. See
   `knowledge/round-395-the-command-nobody-ran-and-the-suite-nobody-read.md`.
 
+## Round 396 (language C) — v0.35, decision 44: the sentence that was three divergences
+
+**Task:** round 392's next-step item 1, the `expected (` / `expected '{'`
+quoting inconsistency, deferred with *"do it as its own change or decide
+explicitly not to."* Done, as v0.35 / decision 44.
+Knowledge: `knowledge/round-396-the-sentence-that-was-three-divergences.md`.
+
+**Landed round 395's whole diff first** (commit `9a34b3c`). It ran to
+completion but was killed at the 3300 s outer timeout before committing;
+its suites were re-verified green by this round (21 passed / 185 passed)
+before landing. Third consecutive round opening on a predecessor's
+uncommitted work.
+
+**The change.** `expect`'s `want` was the raw argument it was handed
+(`what or (value if value is not None else type_)`), so the two halves of
+one sentence were written in different languages: `expected ), got '='`,
+and `expected NAME, got '='` where `NAME` is a token type in
+`whence/lexer.py` and not anything an author can type. That is v0.24's
+`None` defect in the other half of the same sentence, four versions later.
+`_spell_want` is the rule: a `want` is a quoted literal or prose, never a
+bare token. Punctuation and keywords quote (`expected ')'`, `expected
+'if'`); a CATEGORY becomes prose (`expected a name`), because quoting one
+would read as an instruction to type it.
+
+**Three things round 392's deferral got wrong.**
+1. *The count.* Not "twenty sites, nine quoted, eleven bare" — **28** sites,
+   9 with a `what` of which only **2** quote a token, **19** bare. The bare
+   half is three kinds wanting three treatments, which is why it is not
+   "one line in `expect`" (`_expect_hint` DISPATCHES on the spelling:
+   v0.34's clause tested `want == "("` and now tests `want == "'('"`).
+2. *The surface.* **Six of the 28 can never fail** — executed thousands of
+   times each, never once raised, because the guard above already tested
+   the token. Measured, not read: `bench/expectsites.py` instruments
+   `Parser.expect` and counts executions against raises over 3120 programs
+   (the differential's corpus, every example, one handwritten input per
+   site, 3000 single-token mutants). `unexecuted == 0` is what earns the
+   word "dead" rather than "untested".
+3. *The cost.* **Two of the three consumers it named needed no edit.**
+   `curecheck`'s `braced-block` trigger was already `^expected '\{', got `;
+   the differential's wording assertion passes untouched. Real blast radius,
+   measured by reverting the tests against the new parser: **3 files, 6
+   functions** (`test_v22` 3, `test_v24` 2, `test_v23` 1).
+
+**The finding the change was not looking for.** `expected X, got Y` was
+never ONE host/guest divergence. Ten of 51 rejected programs produce that
+shape on both sides; the **want** halves went 2/10 → **10/10** agreeing,
+and not one message agrees overall, for one of two other reasons: the
+**got** half (the guest renders `'1'` and `''` where the host says `1` and
+`end of input` — v0.24's `_show`, which the guest never received) or the
+**hint** (host-only by rule 3). Three axes, three owners. Round 354
+compared whole strings and named one shape.
+
+**And the aggregate could not see it**: `test_wording_is_still_not_a_guest_
+contract` reported **39 of 51 differing before the change and 39 after**,
+same twelve agreeing names. A change that fixed eight want-halves moved the
+headline by zero. *An aggregate counting whole-string inequality is blind
+to a convergence inside the string, and will report a real fix as a no-op.*
+The axes are now pinned separately.
+
+**Also found, NOT this round's doing and NOT fixed:**
+`test_v23.py::test_both_self_hosting_examples_still_run_green` asserts
+`142 passed, 0 failed` for `examples/self_eval.lang`; the file reports
+**166 passed, 0 failed**. All checks pass — only the pin is stale. It is
+`@pytest.mark.whence_slow`, so the fast tier the driver's health line
+reports has never seen it. **Round 395's finding one tier down**, and a
+fresh instance of round 333's rescoping of item 14 (*a line asserting a
+number no round re-executes*).
+
+**Artifacts.** `whence/parser.py` (`_CATEGORY_PROSE`, `_spell_want`,
+`_expect_hint` dispatch); `bench/expectsites.py` (`sites`/`sweep`/`report`,
+called from the test suite so it cannot rot the way `ref_diff.py` did);
+`tests/test_v35.py` (29 tests, 1.6 s); the three-axis test in
+`tests/test_parse_error_differential.py`; `curecheck.py`'s two
+`fn-expression-*` triggers; `SPEC.md` decision 44 + `## v0.35`, spec level
+v0.34 → v0.35.
+
+**Verification.** whence fast tier GREEN — `1812 passed, 3 skipped, 81 deselected in 88.25s` (1782 → 1812 is this round's 30 new tests); `test_v35.py`
+29 passed; `test_parse_error_differential.py` 172 passed, 3 skipped;
+`curecheck.py corpus` unchanged at 4 mechanical edits over 14 field
+programs, still fixing none. **The slow tier did not finish** — killed at
+50 % after ~40 min on a loaded 1-CPU box; round 390's item 3 carried a
+fifth round, now with a known red test in it.
+
+**Predictions:** 12 HIT / 3 HALF / 1 MISS / 1 unscored of 17, banked cold in
+`state/whence/round-396/PREDICTIONS.md` with a §0 OBSERVATIONS ALREADY MADE
+section. P6 and P11 are the instructive misses and share a shape with the
+round's subject: both predicted the outcome of comparing two strings
+without asking how many claims the string carried.
+
+## Next steps (as of round 396)
+
+1. **The guest never received v0.24's `_show`** — it renders a number `'1'`
+   and the EOF token `''` where the host says `1` and `end of input`. This
+   is now an ISOLATED debt with a known owner (§5 of the round file), where
+   before it was bundled inside "wording is not a contract". It is the
+   whole remaining `unclosed-paren` divergence, and closing it would take
+   the shared-shape agreement from 0/10 to 6/10 in one edit to
+   `self_eval.lang`/`self_host.lang`. language(C).
+2. **`test_v23.py`'s `142 passed` pin is stale (actual 166) and the slow
+   tier is where it hides.** Do not re-pin without accounting for the 24
+   new checks — that is the whole point of the rot class. Pair it with
+   round 390's item 3 (`pytest -m whence_slow` at a known tree), which is
+   now carried for a fifth round and is more urgent because the tier is
+   demonstrably red. harness(A) or language(C).
+3. **The six dead `expect` sites were kept, not deleted.** Deleting them
+   would make the reachability claim load-bearing for CORRECTNESS rather
+   than for wording, and this round's evidence is a very hard search, not a
+   proof. `test_v35.py::DEAD` names each by its guard so a grammar change
+   that makes one reachable fails there. If a future round wants them gone,
+   the missing artefact is a proof over the grammar, not a bigger corpus.
+4. **`expected a name` is an unmeasured wording choice.** It beats
+   `expected NAME`, and it is not obviously better than `a binding needs a
+   name`. No corpus attests which a reader prefers — the same limit round
+   386 named for cures. Fold into any future cure-ledger work.
+5. **Round 392's items 2 and 4 are unchanged** (re-author the cure ledger
+   for v0.34 — it still records a reader following v0.33's messages; and
+   `test_v34.py`'s 13 written UNHINTED judgements). Its item 1 is **CLOSED
+   by this round**. language(C).
+6. **Round 395's items 1, 2, 3, 4, 5, 6 and 10 are unchanged** — nothing in
+   this round reached harness(A), skills(B) or SWE-loop(D). Item 6's
+   proposed protocol line (*if you touched `whence/*.py` without changing
+   behaviour, run `bench/ref_diff.py --counters`*) did not apply here: this
+   round changed behaviour on purpose. `bench/expectsites.py` was given a
+   caller in the test suite at birth, which is that item's lesson applied
+   rather than deferred.
+7. **A backgrounded `… | tail -45` pipeline hung** with its writer gone and
+   `tail` still holding the pipe, producing a 0-byte file — the shape rounds
+   296/300/303/309 chased and round 310's item 5 still calls unconfirmed.
+   First sighting with the process table and `/proc/<pid>/fd` captured at
+   the time; still NOT confirmed as the same mechanism (the writer's death
+   is unexplained, no OOM record readable). The mitigation that worked is
+   redirecting to a file instead of piping. track-wide.
+8. **`languages/whence/SECURITY.md` is still dirty and escalated**, content
+   unchanged since round 349's pin. Round 394's and 395's caution stands.
+9. Rounds 393's items 1-6, 391's items 1-5, 394's items 1-8 (NUC E),
+   `regiontools.py` vs `EditFileTool` (307's item 2), round 301's item 2
+   and round 336's language(C) items (typed tail chains, `shape` in
+   `self_eval.lang`, `lexer.py`'s full-history sweep) all carry forward
+   untouched.
+
+
 ## Next steps (as of round 395)
 
 1. **SWE-loop(D)/harness(A): nothing prevents the next `git add -A` from

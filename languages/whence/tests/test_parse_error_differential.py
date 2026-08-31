@@ -487,10 +487,87 @@ def test_wording_is_still_not_a_guest_contract(hosts, guest):
             differing.append((name, h, g))
     assert len(differing) >= 10, differing
     names = {d[0] for d in differing}
-    # the three shapes round 354 named, each still present
-    assert "unclosed-paren" in names      # `expected )` vs `expected ')'`
+    # Round 354 named three shapes. TWO of them are still present:
     assert "bare-eof" in names            # `unexpected …` vs `unexpected token …`
     assert "unbraced-if" in names         # v0.22's hint, guest has none
+    # The third, `unclosed-paren`, is STILL differing — but not for the
+    # reason round 354 gave, and v0.35 (round 396, decision 44) is what
+    # separated the two reasons. That message has two halves and each was
+    # a divergence of its own:
+    #
+    #   host  v0.34   expected ),   got end of input
+    #   guest         expected ')', got ''
+    #   host  v0.35   expected ')', got end of input
+    #
+    # The WANT half closed, by the HOST moving: the guest has quoted the
+    # token it wanted since it was written, and round 354 recorded the
+    # disagreement without saying which side was right. The GOT half is
+    # untouched and is a DIFFERENT debt — v0.24 (round 360) taught the
+    # host's `_show` to name the EOF token `end of input`, and the guest
+    # never got that fix; it still renders the token's empty value.
+    #
+    # Pinned as the two halves rather than as one string, so that closing
+    # the second one cannot be mistaken for re-opening the first.
+    h = POSITION.sub("", hosts["unclosed-paren"].message)
+    g = IMPL_COORD.sub("", POSITION.sub("", guest["unclosed-paren"][1]))
+    assert h != g, (h, g)
+    assert h.split(", got ")[0] == g.split(", got ")[0] == "expected ')'", (h, g)
+    assert h.split(", got ")[1] == "end of input", h
+    assert g.split(", got ")[1] == "''", g
+
+
+#: `expected X, got Y` is the one message shape BOTH parsers build, and it
+#: has three independently-diverging parts. Round 354 read the whole string,
+#: saw one disagreement, and called it "wording"; v0.35 (round 396) split it.
+_EXPECTED_SHAPE = re.compile(r"^expected (.*?), got (.*?)(?: \(|$)")
+
+
+def test_the_want_half_of_every_shared_message_now_agrees(hosts, guest):
+    """v0.35, decision 44 --- the measurement that says what actually closed.
+
+    Ten of the 51 rejected programs produce `expected X, got Y` on BOTH
+    sides. Before v0.35 the host wrote the want half bare (`expected )`)
+    at every site but the two that passed `what="'{'"`; the guest has
+    quoted it since it was written. All ten want halves now agree.
+
+    None of the ten messages agrees OVERALL, and the two remaining reasons
+    are separate debts with separate owners:
+
+      * the GOT half --- the guest renders a number as `'1'` and the EOF
+        token as `''`, where the host says `1` and `end of input`. That is
+        v0.24's `_show` (round 360), which the guest never received.
+      * the HINT --- v0.22's and v0.34's parenthetical clauses are
+        host-only by design (rule 3).
+
+    Asserting the axes separately is the point: `test_wording_is_still_not_
+    a_guest_contract`'s aggregate did NOT move when decision 44 landed
+    (39 of 51 differing before and after, same 12 agreeing), so the
+    aggregate alone cannot show that anything converged.
+    """
+    shared, want_agree = [], []
+    for name, _ in BOTH_REJECT:
+        h = POSITION.sub("", hosts[name].message)
+        g = IMPL_COORD.sub("", POSITION.sub("", guest[name][1]))
+        mh, mg = _EXPECTED_SHAPE.match(h), _EXPECTED_SHAPE.match(g)
+        if not (mh and mg):
+            continue
+        shared.append(name)
+        if mh.group(1) == mg.group(1):
+            want_agree.append(name)
+        # every want half is now a quoted literal or prose on BOTH sides
+        assert not mh.group(1).isupper(), (name, h)
+        assert not mg.group(1).isupper(), (name, g)
+    assert len(shared) == 10, sorted(shared)
+    assert sorted(want_agree) == sorted(shared), (
+        "want halves that still differ: %s"
+        % sorted(set(shared) - set(want_agree)))
+    # ...and not one of the ten agrees overall, for one of the two reasons
+    # in the docstring. If this ever drops, a debt closed and rule 3's
+    # floor should be re-read.
+    still = [n for n in shared
+             if POSITION.sub("", hosts[n].message)
+             != IMPL_COORD.sub("", POSITION.sub("", guest[n][1]))]
+    assert len(still) == 10, sorted(set(shared) - set(still))
 
 
 def test_the_lex_errors_are_the_one_class_where_wording_does_agree(hosts, guest):

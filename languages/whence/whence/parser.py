@@ -195,6 +195,58 @@ def _show(tok):
     return repr(tok.value)
 
 
+# v0.35 (round 396), decision 44: how `expect` NAMES the token it wanted.
+#
+# `_show` above answers "what stopped the parse". This answers the other
+# half of the same sentence, "what was wanted", and until v0.35 the two
+# halves were written in different languages. `expect`'s `want` was
+# `what or (value if value is not None else type_)` -- a raw token TYPE
+# when no `what` was passed -- so the parser said `expected ), got '='`
+# with the got side quoted and the want side not, and said
+# `expected '{', got 'then'` two call sites later because that ONE site
+# happened to pass `what="'{'"` with the quotes written into the string.
+#
+# Round 392 found this and priced it as "one line in `expect`". It is not
+# one line, because the bare half is three kinds and only one of them
+# wants quoting:
+#
+#   punctuation   `)` `}` `]` `(` `:` `=` `@{`  -> quote it: `expected ')'`
+#   a keyword     `expect("KW", "if")`          -> quote it: `expected 'if'`
+#   a CATEGORY    `NAME` `STRING` `EOF`         -> quoting is WRONG. There
+#                 is no token an author can type that is spelled `NAME`,
+#                 and `expected 'NAME'` reads as an instruction to type it.
+#                 A category is prose, like the seven `what=` sites that
+#                 were already prose (`expected parameter name`).
+#
+# So the rule is: after v0.35 a `want` is EITHER a quoted literal the
+# author can type verbatim OR prose. It is never a bare token, and never
+# an implementation identifier. `bench/expectsites.py sites` derives the
+# classification from this file's AST and is what a future round should
+# run instead of counting by hand.
+_CATEGORY_PROSE = {
+    "NAME": "a name",
+    "STRING": "a string",
+    "NUMBER": "a number",
+    "EOF": "end of input",
+}
+
+
+def _spell_want(type_, value, what):
+    """The `X` in `expected X, got Y` -- see decision 44 above.
+
+    `what` wins when given, unchanged: seven of its nine sites are prose
+    that says more than a token can (`a string label after 'check'`), and
+    the other two already wrote the quotes by hand.
+    """
+    if what is not None:
+        return what
+    if value is not None:
+        return "'%s'" % (value,)
+    if type_ in _CATEGORY_PROSE:
+        return _CATEGORY_PROSE[type_]
+    return "'%s'" % (type_,)
+
+
 def _block_tail_hint(stmt):
     """v0.34: the clause `block must end with an expression` appends.
 
@@ -552,7 +604,7 @@ class Parser(object):
     def expect(self, type_, value=None, what=None):
         tok = self.peek()
         if not self.at(type_, value):
-            want = what or (value if value is not None else type_)
+            want = _spell_want(type_, value, what)
             raise ParseError(
                 _with_hint("expected %s, got %s" % (want, _show(tok)),
                            self._expect_hint(want, tok)),
@@ -644,7 +696,11 @@ class Parser(object):
         # apart --- and this one has to come first anyway, since `adder` is
         # a NAME and `fn` is a KW, not a NAME, so the juxtaposition rule
         # would decline it and the message would stay bare.
-        if (want == "(" and tok.type == "NAME" and prev is not None
+        # v0.35: `want` is now decision 44's SPELLING, so this reads
+        # `"'('"` and not `"("`. `'{'` above needed no edit -- that site
+        # passed `what="'{'"` all along, and it is the only reason the
+        # inconsistency was visible enough for round 392 to find.
+        if (want == "'('" and tok.type == "NAME" and prev is not None
                 and prev.type == "KW" and prev.value == "fn"):
             return self._fn_expr_hint(tok)
         if (tok.type == "NAME" and prev is not None and prev.type == "NAME"

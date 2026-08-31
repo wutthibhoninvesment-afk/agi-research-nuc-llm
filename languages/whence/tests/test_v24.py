@@ -257,7 +257,9 @@ def test_end_of_input_is_named_at_both_rendering_sites():
     # primary()'s fallback
     assert str(parse_error("let x =")).startswith("unexpected end of input")
     # expect()
-    assert "expected ), got end of input" in str(parse_error("let x = (1"))
+    # v0.35 (decision 44) quoted the WANT half; `end of input` is v0.24's
+    # own contribution to the GOT half and is what this test is about.
+    assert "expected ')', got end of input" in str(parse_error("let x = (1"))
 
 
 @pytest.mark.parametrize("src", [
@@ -273,10 +275,13 @@ def test_no_parse_error_ever_renders_a_python_none(src):
 def test_show_is_unchanged_for_every_token_the_author_actually_wrote():
     """Only the EOF arm is new. A string is still quoted, a number is not —
     the two spellings `%r` gave, kept."""
-    assert "expected NAME, got '='" in str(parse_error("let = 2"))
-    assert "expected :, got 1" in str(parse_error('check "l" 1 == 1'))
+    # The WANT half was respelled by v0.35 (`NAME` -> `a name`, `:` ->
+    # `':'`); the GOT half, which is what `_show` owns and what this test
+    # asserts, is byte-unchanged.
+    assert "expected a name, got '='" in str(parse_error("let = 2"))
+    assert "expected ':', got 1" in str(parse_error('check "l" 1 == 1'))
     assert "unexpected ','" in str(parse_error("let x = [,]"))
-    assert "expected NAME, got 'let'" in str(parse_error("let let = 1"))
+    assert "expected a name, got 'let'" in str(parse_error("let let = 1"))
 
 
 def test_show_is_not_spell_and_the_two_must_not_be_merged():
