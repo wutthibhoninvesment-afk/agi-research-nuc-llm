@@ -97,7 +97,20 @@ EXAMPLE = os.path.join(ROOT, "examples", "self_eval.lang")
 SELF_HOST = os.path.join(ROOT, "examples", "self_host.lang")
 EFFECTS = os.path.join(ROOT, "examples", "effects.lang")
 MARKER = "# ==== SELF-TESTS"
-LIB_START, LIB_END = 27, 912  # self_host.lang lines 28..912 (0-indexed slice)
+# self_host.lang lines 28..985 (0-indexed slice).
+#
+# ROUND 398: this was `27, 912`, and `self_host_library_section()`'s own
+# `endswith` assertion had been FAILING since round 360 -- v0.24 appended
+# `lex_error_of` and `parse_whence` to the shared section and moved the end
+# 912 -> 927 in `test_self_eval.py`'s copy of the same bound, and not here.
+# 38 rounds red, invisible because both readers of this constant are
+# `whence_slow` and the slow tier has not completed in six consecutive
+# rounds (round 390's item 3). Verified against `HEAD~1`, so the redness
+# predates round 398's own edit.
+#
+# THE SAME COORDINATE LIVES IN TWO FILES AND DRIFTED. Same class as the
+# `142 passed` check-count pin, which round 398 found in THREE files.
+LIB_START, LIB_END = 27, 985
 
 
 def eval_library_source():
@@ -165,7 +178,11 @@ def test_guest_parser_parses_its_own_full_source():
     # fails loudly even though `__ok` alone would not catch it. That failure
     # mode is no longer hypothetical: v0.23 is the version that made two
     # statements merging into one a parse error rather than a silent merge.
-    assert env.get("__nstmts").payload == 250
+    # round 398: +12 -- v0.36 decision 45 adds five shared-library
+    # functions (`repr_body`, `repr_str`, `show_tok`, `expect_op_as`,
+    # `expect_name_as`) and seven `check` statements to the self-test
+    # section, all of which are top-level statements of this file.
+    assert env.get("__nstmts").payload == 262
 
 
 @pytest.mark.whence_slow

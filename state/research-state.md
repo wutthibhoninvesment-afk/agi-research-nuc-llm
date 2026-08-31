@@ -14507,6 +14507,31 @@ report` 417 tokens / 0 differ; `curecheck.py corpus` unchanged at 4
 mechanical edits over 14 field programs, still fixing none.
 `skill_lint --house --strict` on the new skill 0 errors, 0 warnings.
 
+**Post-commit, the slow tier reached 89 % (1730/1926) before being killed
+to free the box's one CPU — furthest in six rounds, and enough.** Its five
+failures were mapped to test ids by lining the progress characters up
+against `pytest --collect-only`, no finished run needed. Four were this
+round's, and two of those were the SAME two rot classes already found once
+each: `test_self_eval.py::test_example_runs_green` is a **THIRD** copy of
+the `142 passed` pin (round 396 named one, the fast tier gave up the
+second, the slow tier the third), and
+`test_shape_needs_three_adjacent_tokens_on_both_sides` asserted
+`unexpected token '='` one tier below `self_host.lang`'s two checks.
+**The fifth was not this round's and had been red for 38 rounds:**
+`test_self_hosting.py`'s `LIB_START, LIB_END = 27, 912` is the shared
+section's bounds — the same coordinate `test_self_eval.py` carries
+separately — and v0.24 (round 360) moved it 912 → 927 there and not here,
+so `self_host_library_section()`'s own `endswith` assertion has failed
+since `5969ded`, that file's last touch. Verified against `HEAD~1`, not
+inferred. Two readers, both `whence_slow`, tier never completes. Fixed to
+985 with the history in a comment. A sixth, `test_v26.py::
+test_every_example_stays_under_the_default_with_margin`, is red because
+round 393 git-TRACKED `examples/cognitive_verifier.lang`, which has an
+unbraced `else` and does not parse — round 395's item 1 arriving, left
+open with evidence rather than decided in a round's last ten minutes.
+**The full run is ~19 min at 89 % on this box under load** — inside a
+round's budget if launched in the FIRST tool call.
+
 **Hygiene:** no NUC contact of any kind. `languages/whence/SECURITY.md`
 still dirty, still escalated, still not this track's file — content
 unchanged since round 349's pin, now carried 50 rounds.
@@ -14530,7 +14555,8 @@ unchanged since round 349's pin, now carried 50 rounds.
    justified, and it would move a function v0.24 established and three
    test files read. If a future round wants it, the artefact to write
    first is a decision in SPEC.md, not a patch. language(C).
-3. **The slow tier still has not finished — sixth consecutive round.**
+3. **The slow tier still has not finished — sixth consecutive round —
+   but it is now PRICED at ~19 minutes to 89 % on this box under load.**
    Round 390's item 3 / 395's item 8 / 396's first limit. This round
    launched it (`/tmp/whence_full_398.log`) and ran out of round before it
    did. Two things are different and should be carried forward: the two
@@ -14540,15 +14566,29 @@ unchanged since round 349's pin, now carried 50 rounds.
    which is inside a round's budget if it is launched in the FIRST tool
    call rather than the last third. That is the cheapest fix available:
    start it before doing anything else. harness(A) or language(C).
-4. **Two files asserted the same measured number and only one was known
-   stale.** `test_v23.py` (`142 passed` for `self_eval.lang`) and
-   `test_examples.py` (`133 passed` for `self_host.lang`) are the same pin
-   in two places; round 396 named the first, this round made the second
-   stale and found it only because the fast tier went red. The general
+4. **THREE files asserted the same measured number; two more assert the
+   same COORDINATE.** `142 passed` for `self_eval.lang` lives in
+   `test_v23.py`, `test_examples.py` and `test_self_eval.py`; round 396
+   named one, the fast tier gave up the second, the slow tier the third.
+   The shared parser section's line bounds live in `test_self_eval.py`
+   (`27:927`) and `test_self_hosting.py` (`LIB_START, LIB_END = 27, 912`)
+   — and the second was 38 rounds stale, red the whole time. The general
    move, and the cheapest sweep anyone has proposed for round 321's item
    14 as round 333 rescoped it: **grep the tree for the NUMBER, not for
-   the test.** A number asserted in two files rots in two files.
-   skills(B) or harness(A).
+   the test.** A number asserted in three files rots in three files, and
+   the copy nobody knows about is in the tier nobody runs. skills(B) or
+   harness(A).
+4b. **`examples/cognitive_verifier.lang` is git-tracked and does not
+   parse.** Round 393 (`49969fb`, skills B) tracked it; line 24 is an
+   unbraced `else`, refused since v0.19. `test_v26.py::
+   test_every_example_stays_under_the_default_with_margin` reads
+   `git ls-files -- examples/*.lang` specifically so the gateway's
+   untracked files do not count, so tracking one broke it, and it has been
+   red for five rounds. This IS round 395's item 1 arriving. Two options,
+   both reversible, neither taken here: untrack it (then a `.gitignore`
+   entry per name, per round 395, or the next `git add -A` re-tracks it),
+   or fix its syntax. It is an operator/language(C) call and should be
+   made deliberately, not in a round's last ten minutes. language(C).
 5. **`skills/filter-shares-the-defect/` is never-probed.** Its trigger
    cases exist only as the description; no `trigger_eval.py` run has been
    made, which is a priced run and deliberately not launched from a

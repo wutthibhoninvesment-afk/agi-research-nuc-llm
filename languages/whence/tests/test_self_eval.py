@@ -167,7 +167,13 @@ def test_example_runs_green():
     r = subprocess.run([sys.executable, os.path.join(ROOT, "run.py"), EXAMPLE],
                        capture_output=True, text=True)
     assert r.returncode == 0, r.stdout + r.stderr
-    assert "142 passed, 0 failed" in r.stdout
+    # Round 398: 142 -> 166, the THIRD copy of this same number in the
+    # suite (`test_v23.py`, `test_examples.py`, here). Round 396 named one
+    # of the three. The 24 are not this round's: 142 at r360 `5969ded`,
+    # 159 at r380 `dbf1042` (+17, v0.31), 166 at r390 `54a74c7` (+7),
+    # measured by running the historical file. See `test_v23.py::
+    # test_both_self_hosting_examples_still_run_green` for the derivation.
+    assert "166 passed, 0 failed" in r.stdout
     assert "all in Whence" in r.stdout
 
 
@@ -957,7 +963,10 @@ def test_shape_needs_three_adjacent_tokens_on_both_sides():
     assert "no assignment" in host, host
     g, = guest_eval_all([src])
     assert isinstance(g.payload, Miss), g.payload
-    assert "unexpected token '='" in g.payload.reasons[0]
+    # v0.36 (round 398), decision 45: the guest writes `unexpected '='`,
+    # the host's own spelling. It wrote `unexpected token '='` until this
+    # round -- a prefix the host has never used.
+    assert "unexpected '='" in g.payload.reasons[0]
 
 
 @pytest.mark.whence_slow

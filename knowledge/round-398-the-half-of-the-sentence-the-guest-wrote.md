@@ -300,3 +300,73 @@ MISS and been reported as "the debt was not guest-only after all".
   unchanged since round 349's pin, now carried 50 rounds. Not this
   track's file; untouched again.
 * **No NUC contact of any kind.**
+
+---
+
+## 11. Post-commit: what the slow tier had been hiding
+
+The full suite was launched at 12:14 UTC and reached **89 % (1730 of 1926)**
+before it was killed at 12:33 to free the box's one CPU for the fixes. That
+is the furthest it has run in six rounds, and it is enough: the five
+failures it found were mapped to test ids by lining its progress characters
+up against `pytest --collect-only`, which costs one run and does not need
+the suite to finish.
+
+```
+F 576   test_self_eval.py::test_example_runs_green
+F 599   test_self_eval.py::test_shape_needs_three_adjacent_tokens_on_both_sides
+F 601   test_self_hosting.py::test_guest_parser_parses_its_own_full_source
+F 602   test_self_hosting.py::test_guest_evaluator_executes_self_host_library
+F 1594  test_v26.py::test_every_example_stays_under_the_default_with_margin
+```
+
+**Four were this round's, and two of them were the SAME two rot classes
+this round had already found once each.**
+
+* `test_example_runs_green` is a **THIRD copy** of the `142 passed` pin.
+  Round 396 named one (`test_v23.py`); this round found the second
+  (`test_examples.py`) when the fast tier went red, and the third only
+  here, in the tier nobody runs. One measured number, asserted in three
+  files, stale in all three. *Grep for the number, not for the test.*
+* `test_shape_needs_three_adjacent_tokens_on_both_sides` asserted
+  `unexpected token '='` — the same spelling as `self_host.lang`'s two
+  self-checks, one tier down.
+
+**And one was not this round's, and had been red for 38 rounds.**
+`test_self_hosting.py` carries `LIB_START, LIB_END = 27, 912`, the shared
+section's bounds — *the same coordinate `test_self_eval.py` carries
+separately*. v0.24 (round 360) appended `lex_error_of` and `parse_whence`
+to that section and moved the bound 912 → 927 in `test_self_eval.py` and
+not here, so `self_host_library_section()`'s own
+`assert section.rstrip().endswith('... parse_program(toks) }\n}')` has
+been failing ever since. Verified against `HEAD~1` rather than inferred:
+
+```
+$ git show HEAD~1:…/self_host.lang | python3 -c '…lines[27:912]…'
+startswith marker: True
+endswith close   : False
+last line        : '# v0.24 (round 360): a LEX error is reported as a lex error. …'
+```
+
+`git log -1 -- tests/test_self_hosting.py` is `5969ded`, round 360 itself.
+Two readers of that constant, both `whence_slow`, and the slow tier has
+not completed in six rounds — so a test that could never pass sat green in
+every round report since.
+
+**The fifth failure is neither this round's nor the parser's.**
+`examples/cognitive_verifier.lang` is git-TRACKED as of round 393
+(`49969fb`, a skills(B) round) and **does not parse**: line 24 is an
+unbraced `else`, which v0.19 refuses. `test_v26.py`'s guard reads
+`git ls-files -- examples/*.lang` precisely so that the gateway's
+untracked files do not count, so tracking one broke it. This is round
+395's item 1 arriving — *"nothing prevents the next `git add -A` from
+re-tracking the field corpus"* — and it is the ownership call round 395
+deliberately left open. Left open here too, under time pressure, with the
+evidence written down rather than an untracking decision made in the last
+ten minutes of a round: see next steps.
+
+*The full-run-to-completion item is now six rounds old and this round is
+the first to price it: **~19 minutes at 89 %** on this box under load.
+That fits a round's budget with room, but only if it is launched in the
+FIRST tool call rather than the last third — which is the cheapest fix
+anyone has proposed for it.*
