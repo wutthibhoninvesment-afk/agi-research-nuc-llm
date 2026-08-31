@@ -1,0 +1,7 @@
+=== run B --repeats 1  2026-08-31T17:24:55Z ===
+run B exit=1 2026-08-31T17:27:28Z
+=== run C --repeats 1  2026-08-31T17:27:28Z ===
+run C exit=1 2026-08-31T17:30:02Z
+=== run D --repeats 2  2026-08-31T17:30:02Z ===
+run D exit=1 2026-08-31T17:35:22Z
+BATCH DONE 2026-08-31T17:35:22Z

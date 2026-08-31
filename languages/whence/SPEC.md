@@ -531,6 +531,31 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    still stands, and now has to be read as "the guest owes no sentence",
    because the only sentences it still declines to write are cures.
    See § v0.37.
+47. **A shape declaration's frame records WHERE it was declared too, and
+   the two duplicate-name sentences report the same fact (v0.38, round
+   404).** Decision 46 gave the no-rebinding error's line number to the
+   guest and left the host's *second* duplicate-name sentence,
+   `shape 'S' is already declared in this block`, naming no line at all —
+   one idea, two sentences, and only one of them answering *where*. It now
+   reads `… in this block (line 3)` on both sides. `shape_def` has always
+   ended `self.shape_scopes[-1][name] = fields` and the `fields` half had
+   **never been read by anything** — every use of a frame in
+   `whence/parser.py` is a membership test — so the frame value becomes
+   `(fields, tok.line)` and no other call site moves. `tok` is the `shape`
+   KEYWORD, the same line `stmt_list` writes into decision 46's `bound`
+   for the same declaration, so both sentences now name the same line for
+   the same declaration and a later round may unify them as a *wording*
+   change with that fact already pinned. Guest-side, `shapes_before`
+   accumulates `@{n, ln}` and all three of its call sites reuse decision
+   46's `bound_line`, because `bound_line(recs, nm, 0) != 0` IS the
+   membership test — one lookup, two tables. No POSITION moves, so
+   decision 34's rule 2 is untouched. The finding was in the harness, not
+   the parser: a trailing `(line N)` and a hint render identically, and
+   `re.compile(r" \(line \d+\)")` was defined **ten times across eight
+   test files**, nine of them unanchored and applied with a global `sub`,
+   each deleting every parenthesised line number in a message rather than
+   the one implementation coordinate it was written for.
+   See § v0.38.
 
 ## Syntax (statements are newline-separated; `#` comments)
 ```
@@ -7862,7 +7887,7 @@ corpus case that would make it visible on both sides at once is now
 present. It does not change any POSITION, so decision 34's rule 2 is
 untouched.
 
-## v0.38 (round 404, language C) — the second sentence, and the seven sanitisers that would have deleted it
+## v0.38 (round 404, language C) — the second sentence, and the ten sanitisers that would have deleted it
 
 Decision 47. Round 402 closed the last host/guest divergence that was
 neither a rendering nor a hint, and recorded in its own "what this version

@@ -26,6 +26,16 @@ draws, and no repeat count ever beats the ceiling `1/rho`. The same six
 samples spent as 3 runs × 2 are worth **4.50**. Same cost, twice the
 information, and the only change is where the loop lives.
 
+Read the formula once more before you copy that `3 × 2`, because it is
+not the optimum and step 2 does not claim it is. `n_eff` at a fixed
+budget is **strictly decreasing in samples-per-run**: at ρ = 1/3 six
+probes are worth 2.25 as `1 × 6`, 3.60 as `2 × 3`, 4.50 as `3 × 2` and
+**6.00 as `6 × 1`**. The reason to stop short of `6 × 1` is not
+information, it is that an all-singleton design has no within-run term
+and ρ becomes unestimable — a property of the estimator, not of the
+measurement. So `3 × 2` is right for the run that must *measure* ρ and
+merely adequate for every run that only *spends* it.
+
 ## When to use
 
 Trigger on any of these:
@@ -53,11 +63,39 @@ burst is the measurement, not a nuisance).
    window, warm cache, staged directory, host population, model routing.
    If you cannot name it, you cannot claim it is absent.
 
-2. **Design the crossing, not the total.** You need at least 2 runs *and*
-   at least 2 samples per run. `R` runs × 1 sample cannot separate the
-   levels — run and sample are confounded — and 1 run × `N` samples
-   measures only within-run variance. Prefer `3 × 2` over `1 × 6` and over
-   `6 × 1`.
+2. **Design the crossing, not the total — and say which quantity you
+   are buying.** 1 run × `N` samples measures only within-run variance.
+   `R` runs × 1 sample cannot separate the levels — run and sample are
+   confounded — so it maximises information about the *rate* while
+   destroying your ability to re-estimate ρ.
+
+   * **Estimating ρ** (you have no trustworthy prior, or the system has
+     changed): you need ≥ 2 runs *and* ≥ 2 samples in at least one of
+     them. `3 × 2` is the honest default.
+   * **Spending a known ρ** (someone measured it prospectively and
+     nothing has changed): put the budget in *runs*. Keep exactly one
+     `--repeats 2` run so ρ stays checkable and the design does not
+     silently become unfalsifiable.
+
+   The second case is cheaper per unit of information. At ρ = 1/3,
+   `3 × 1 + 1 × 2` is **5 probes for 4.500 effective draws** and `3 × 2`
+   is **6 probes for 4.500** — identical information, 17% less money.
+   Round 405 ran a 41-case batch that way: 205 probes instead of 246.
+
+   Then its own `--repeats 2` run re-derived ρ and got **0.143**, not
+   1/3, on 18 informative cases against round 393's 7. At the ρ that was
+   actually in force the two designs are **4.750** and **5.250**: still
+   8.6% more information per probe and 17% cheaper, but 9.5% *less*
+   information in total, not the same. Plan the design from a ρ you have
+   re-derived on your own case set, or accept that you are trading an
+   unknown amount — and keep the `--repeats 2` run, because it is the
+   only reason that sentence is a measurement instead of an unnoticed
+   error.
+
+   Whichever you pick, do not copy the ratio out of someone else's round
+   without re-deriving it. Seven registry entries in this repo carried
+   "spread over ≥3 invocations at `--repeats 2`" as a constant, quoting a
+   round whose *purpose* had been to measure ρ.
 
 3. **Hold everything else identical and run them sequentially.** Same
    inputs, same concurrency, same configuration. Any deliberate variation
@@ -116,16 +154,19 @@ print("3 runs x 2   :", 3 * te.effective_draws(2, rv["icc"]))
 PY
 ```
 
-Spend a probe budget across runs rather than inside one — three
-invocations, not one with `--repeats 6`:
+Spend a probe budget across runs rather than inside one — several
+invocations, not one with `--repeats 6`. Use `--repeats 1` for all but
+one of them when ρ is already known (round 405's design; set `R=2` for a
+single run so the within-run term survives):
 
 ```bash
-for T in A B C; do
+for spec in "A 1" "B 1" "C 1" "D 2"; do          # one run keeps R=2
+  set -- $spec
   python3 skills/skill-authoring/scripts/trigger_eval.py \
     skills/trigger-cases.json --skills skills \
     --mode native --model sonnet --protocol strict \
-    --repeats 2 --concurrency 3 --only "$CASES" \
-    --json state/trigger-eval/round-NNN-run$T.json
+    --repeats "$2" --concurrency 3 --only "$CASES" \
+    --json state/trigger-eval/round-NNN-run$1.json
 done
 ```
 
@@ -138,6 +179,15 @@ python3 skills/skill-authoring/scripts/case_coverage.py | tail -1
 
 ## Pitfalls
 
+- **Copying a design ratio is not applying the skill.** `3 × 2` was
+  derived by and for the round that had to *measure* ρ; a round that only
+  spends a known ρ pays ~17% more for the same interval. Re-derive the
+  design from `effective_draws` and your own ρ, every time.
+- **An all-`--repeats 1` design is unfalsifiable, not merely awkward.**
+  `trigger_eval.run_variance` drops any case whose every run contributed
+  one probe (`N == len(d)`) and returns `None` — so the next round has no
+  ρ to plan with and quietly inherits yours. One `--repeats 2` run costs
+  one probe per case and prevents it.
 - **`--repeats N` looks like replication and is not.** It is the single
   most expensive mistake here, because it costs full price for a fraction
   of the information. Check where the loop lives before trusting the knob.
@@ -152,6 +202,9 @@ python3 skills/skill-authoring/scripts/case_coverage.py | tail -1
   `n`. Most of that alarming number was the estimator arguing with itself.
 - **ρ is not portable.** It is a property of *this* system on *this* box
   at *this* cluster definition. Re-derive it; do not quote someone else's.
+  Demonstrated the hard way: round 405 sized its batch from round 393's
+  0.333 and measured 0.143 on its own runs — same box, same tool, twelve
+  rounds and a 41 → 57 skill corpus apart. It under-bought by 9.5%.
 - **A case that pools to exactly 0 or 1 carries no dispersion** and drops
   out of the ANOVA. If most of your cases are saturated you cannot
   estimate ρ at all, and should say so rather than reporting a number
@@ -165,6 +218,12 @@ python3 skills/skill-authoring/scripts/case_coverage.py | tail -1
   summary line and warn only on refutations.
 
 ## Verification
+
+Round 405 re-ran the same estimator prospectively on a different 41-case
+batch (`state/trigger-eval/round-405-run{A,B,C,D}.json`, 205 probes, 0
+errors): **MSB 0.267, MSW 0.222, ratio 1.20, ICC 0.143, 18 cases, 4
+runs**. A ratio that near 1 means those runs were close to exchangeable.
+Two prospective measurements, 0.333 and 0.143 — quote neither.
 
 Measured on this repo, round 393, `skills(B)`. 23 trigger cases × 3
 separate `trigger_eval.py` invocations × `--repeats 2` = 138 probes, 0
@@ -192,7 +251,13 @@ python3 skills/skill-authoring/scripts/case_coverage.py | tail -1
 
 `test_pooled_estimator.py::TestLiveCorpus::test_the_round_393_experiment_reproduces_its_icc`
 re-computes the ICC from the reports on disk and fails if it moves, so
-the table above cannot rot silently. The figure is evaluated against the
+the table above cannot rot silently. Round 405 added two more:
+`test_the_prescribed_design_is_not_the_one_the_formula_favours` asserts
+the monotonicity (`6×1` > `3×2` > `2×3` > `1×6` at equal budget) and the
+`3×1+1×2 == 3×2` equality this skill now recommends, and
+`test_an_all_singleton_design_makes_the_icc_unestimable` pins the actual
+reason `6 × 1` is refused — `run_variance` returns `None` for it, and
+returns a number again as soon as one run carries `--repeats 2`. The figure is evaluated against the
 descriptions currently on disk — a stale digest removes a case from the
 pool, and while an edited description was briefly staged the same three
 reports gave 6 cases and ρ = 0.200.

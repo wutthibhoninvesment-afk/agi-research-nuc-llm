@@ -1600,5 +1600,33 @@
    "would-a-constant-have-passed"
   ],
   "prompt": "I taught the parser to report the line of the first binding and every fixture in the differential happens to bind on line 1. Does the corpus actually test that the line is computed?"
+ },
+ {
+  "id": "lntw-near",
+  "expect": [
+   "losses-name-their-winner"
+  ],
+  "prompt": "One of our agent skills has 2/18 recall on its own trigger cases. Its description already says 'NOT for X' about the sibling I think it's losing to, and I'm about to rewrite both descriptions against each other. Is that the right move?"
+ },
+ {
+  "id": "lntw-mid",
+  "expect": [
+   "losses-name-their-winner"
+  ],
+  "prompt": "Our intent classifier keeps mishandling refund requests. The team's plan is to reword the refund intent's examples so it stops colliding with the returns intent. All I have in the metrics is per-intent recall. Anything I should check first?"
+ },
+ {
+  "id": "lntw-far",
+  "expect": [
+   "losses-name-their-winner"
+  ],
+  "prompt": "Retrieval keeps not surfacing our runbook for this alert. I want to edit the runbook's summary line so it beats the other doc that I assume is outranking it. How would you approach this?"
+ },
+ {
+  "id": "lntw-neg-replicate",
+  "expect": [
+   "repeats-are-not-replicates"
+  ],
+  "prompt": "We ran the eval once with --iterations 8 and one prompt variant scored worse. Is that enough to say the variant is worse, or do I need to run it differently?"
  }
 ]

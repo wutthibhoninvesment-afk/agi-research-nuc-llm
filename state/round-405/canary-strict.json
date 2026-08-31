@@ -1,0 +1,12 @@
+[
+ {
+  "case": "fmk-near",
+  "model": "sonnet",
+  "repeats": 4,
+  "min_rate": 0.75,
+  "mode": "native",
+  "protocol": "strict",
+  "_baseline": "2026-08-25 round 105: hit 4/4 under --protocol strict (state/trigger-eval/round-105-canary-strict.json)",
+  "_meaning": "strict sonnet sentinel only; round 405 runs the sonnet half of skills/canary.json to save wall clock, and says so"
+ }
+]

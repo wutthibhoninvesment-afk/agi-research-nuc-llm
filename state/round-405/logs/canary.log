@@ -1,0 +1,5 @@
+CANARY fmk-near     sonnet   native/strict: fired 4/4 (errs 0) band [0.75, 1.00] -> OK
+
+real	0m23.846s
+user	0m6.378s
+sys	0m1.438s

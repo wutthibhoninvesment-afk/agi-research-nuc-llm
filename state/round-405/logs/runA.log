@@ -1,0 +1,153 @@
+[NO ] sonnet   -      rina-near    expect=['residency-is-not-allocation'] fired=['lazy-fill-ceiling'] distractor=[] foreign=[] $0.095
+[ok ] sonnet   -      rina-mid     expect=['residency-is-not-allocation'] fired=['residency-is-not-allocation'] distractor=[] foreign=[] $0.092
+[NO ] sonnet   -      rina-far     expect=['residency-is-not-allocation'] fired=['lazy-fill-ceiling'] distractor=[] foreign=[] $0.074
+[NO ] sonnet   -      iar-near     expect=['instruments-already-running'] fired=[] distractor=[] foreign=[] $0.045
+[NO ] sonnet   -      rina-neg-workingset expect=[] fired=['lazy-fill-ceiling'] distractor=[] foreign=[] $0.074
+[ok ] sonnet   -      iar-mid      expect=['instruments-already-running'] fired=['instruments-already-running'] distractor=[] foreign=[] $0.064
+[ok ] sonnet   -      iar-estimated expect=['instruments-already-running'] fired=['instruments-already-running'] distractor=[] foreign=[] $0.073
+[NO ] sonnet   -      iar-far      expect=['instruments-already-running'] fired=['lazy-fill-ceiling'] distractor=[] foreign=[] $0.074
+[NO ] sonnet   -      rina-baseline expect=['residency-is-not-allocation'] fired=['would-a-constant-have-passed'] distractor=[] foreign=[] $0.120
+[ok ] sonnet   -      iar-neg-semantics expect=[] fired=[] distractor=[] foreign=['claude-api'] $0.054
+[NO ] sonnet   -      udp-near     expect=['untested-default-path'] fired=['subprocess-cli-testing'] distractor=[] foreign=[] $0.063
+[ok ] sonnet   -      udp-mid      expect=['untested-default-path'] fired=['untested-default-path'] distractor=[] foreign=[] $0.067
+[ok ] sonnet   -      udp-neg      expect=['unrun-checker-latency'] fired=['unrun-checker-latency'] distractor=[] foreign=['update-config'] $0.065
+[ok ] sonnet   -      fsd-near     expect=['filter-shares-the-defect'] fired=['filter-shares-the-defect'] distractor=[] foreign=[] $0.061
+[NO ] sonnet   -      udp-far      expect=['untested-default-path'] fired=['unrun-checker-latency'] distractor=[] foreign=[] $0.072
+[NO ] sonnet   -      fsd-mid      expect=['filter-shares-the-defect'] fired=[] distractor=[] foreign=[] $0.045
+[NO ] sonnet   -      fsd-neg-list expect=['derived-subject-set'] fired=[] distractor=[] foreign=[] $0.045
+[NO ] sonnet   -      rir-near     expect=['recorder-in-the-record'] fired=[] distractor=[] foreign=[] $0.046
+[NO ] sonnet   -      fsd-far      expect=['filter-shares-the-defect'] fired=['bounded-not-binary-witness'] distractor=[] foreign=[] $0.073
+[NO ] sonnet   -      rir-mid      expect=['recorder-in-the-record'] fired=[] distractor=[] foreign=[] $0.054
+[NO ] sonnet   -      rir-far      expect=['recorder-in-the-record'] fired=['echoed-record-vs-measurement'] distractor=[] foreign=[] $0.069
+[NO ] sonnet   -      rir-far2     expect=['recorder-in-the-record'] fired=[] distractor=[] foreign=[] $0.050
+[NO ] sonnet   -      rcys-near    expect=['run-the-comparison-you-suppress'] fired=['exemption-census'] distractor=[] foreign=[] $0.066
+[NO ] sonnet   -      rcys-mid     expect=['run-the-comparison-you-suppress'] fired=['exemption-census'] distractor=[] foreign=[] $0.073
+[NO ] sonnet   -      rcys-far     expect=['run-the-comparison-you-suppress'] fired=[] distractor=[] foreign=[] $0.045
+[ok ] sonnet   -      rcys-neg-zero expect=['zero-rate-needs-a-distance'] fired=['zero-rate-needs-a-distance'] distractor=[] foreign=[] $0.076
+[ok ] sonnet   -      wchp-near    expect=['would-a-constant-have-passed'] fired=['would-a-constant-have-passed'] distractor=[] foreign=[] $0.064
+[NO ] sonnet   -      rir-neg-audit expect=[] fired=['deleted-vs-never-written'] distractor=[] foreign=[] $0.105
+[ok ] sonnet   -      wchp-mid     expect=['would-a-constant-have-passed'] fired=['would-a-constant-have-passed'] distractor=[] foreign=[] $0.065
+[NO ] sonnet   -      wchp-far     expect=['would-a-constant-have-passed'] fired=['derived-subject-set'] distractor=[] foreign=[] $0.077
+[NO ] sonnet   -      rcys-far2    expect=['run-the-comparison-you-suppress'] fired=['exemption-census', 'bounded-not-binary-witness'] distractor=[] foreign=[] $0.113
+[ok ] sonnet   -      wchp-neg-filter expect=['filter-shares-the-defect'] fired=['filter-shares-the-defect'] distractor=[] foreign=[] $0.063
+[ok ] sonnet   -      kwyl-near    expect=['kill-what-you-launched'] fired=['kill-what-you-launched'] distractor=[] foreign=[] $0.060
+[NO ] sonnet   -      wchp-far2    expect=['would-a-constant-have-passed'] fired=[] distractor=[] foreign=[] $0.055
+[ok ] sonnet   -      kwyl-mid     expect=['kill-what-you-launched'] fired=['kill-what-you-launched'] distractor=[] foreign=[] $0.064
+[NO ] sonnet   -      kwyl-neg-instruments expect=['instruments-already-running'] fired=[] distractor=[] foreign=[] $0.047
+[ok ] sonnet   -      kwyl-far     expect=['kill-what-you-launched'] fired=['kill-what-you-launched'] distractor=[] foreign=[] $0.066
+[NO ] sonnet   -      sotn-near    expect=['sanitiser-outgrows-its-noise'] fired=[] distractor=[] foreign=[] $0.045
+[NO ] sonnet   -      sotn-far     expect=['sanitiser-outgrows-its-noise'] fired=['copied-mirror-drift'] distractor=[] foreign=[] $0.060
+[ok ] sonnet   -      sotn-neg-constant expect=['would-a-constant-have-passed'] fired=['would-a-constant-have-passed'] distractor=[] foreign=[] $0.061
+[ok ] sonnet   -      sotn-mid     expect=['sanitiser-outgrows-its-noise'] fired=['sanitiser-outgrows-its-noise'] distractor=[] foreign=[] $0.072
+# skill trigger eval — mode=native model=sonnet protocol=strict
+
+probes: 41 ok, 0 errored, exact-match 39%, negatives false-fire 2/3, cost $2.750
+
+| skill | recall | precision | tp | fp | fn |
+|---|---|---|---|---|---|
+| agent-completion-guards | n/a | n/a | 0 | 0 | 0 |
+| agent-context-budgeting | n/a | n/a | 0 | 0 | 0 |
+| bounded-not-binary-witness | n/a | 0% | 0 | 2 | 0 |
+| carried-claim-rot | n/a | n/a | 0 | 0 | 0 |
+| citation-registry-integrity | n/a | n/a | 0 | 0 | 0 |
+| colocated-model-lane | n/a | n/a | 0 | 0 | 0 |
+| content-pinned-acknowledgement | n/a | n/a | 0 | 0 | 0 |
+| copied-mirror-drift | n/a | 0% | 0 | 1 | 0 |
+| declaration-scope-parity | n/a | n/a | 0 | 0 | 0 |
+| deferral-blockers-are-claims | n/a | n/a | 0 | 0 | 0 |
+| deleted-vs-never-written | n/a | 0% | 0 | 1 | 0 |
+| derived-subject-set | 0% | 0% | 0 | 1 | 1 |
+| echoed-record-vs-measurement | n/a | 0% | 0 | 1 | 0 |
+| engine-prefix-reuse-audit | n/a | n/a | 0 | 0 | 0 |
+| errors-that-name-the-fix | n/a | n/a | 0 | 0 | 0 |
+| exemption-census | n/a | 0% | 0 | 3 | 0 |
+| expiring-fixture-window | n/a | n/a | 0 | 0 | 0 |
+| filter-shares-the-defect | 50% | 100% | 2 | 0 | 2 |
+| freshness-is-not-outcome | n/a | n/a | 0 | 0 | 0 |
+| fuzz-mutate-kill-loop | n/a | n/a | 0 | 0 | 0 |
+| generator-trampoline-evaluator | n/a | n/a | 0 | 0 | 0 |
+| instruments-already-running | 40% | 100% | 2 | 0 | 3 |
+| kill-what-you-launched | 100% | 100% | 3 | 0 | 0 |
+| lazy-fill-ceiling | n/a | 0% | 0 | 4 | 0 |
+| llm-engine-benchmarking | n/a | n/a | 0 | 0 | 0 |
+| measured-budget-sizing | n/a | n/a | 0 | 0 | 0 |
+| measured-exemption | n/a | n/a | 0 | 0 | 0 |
+| measured-not-declared-dependencies | n/a | n/a | 0 | 0 | 0 |
+| obligation-ledger | n/a | n/a | 0 | 0 | 0 |
+| offline-agent-testing | n/a | n/a | 0 | 0 | 0 |
+| one-shot-agent-no-background-wait | n/a | n/a | 0 | 0 | 0 |
+| optimization-transparency-differential | n/a | n/a | 0 | 0 | 0 |
+| policy-replay-over-history | n/a | n/a | 0 | 0 | 0 |
+| prediction-banking | n/a | n/a | 0 | 0 | 0 |
+| preflight-priced-task-scripts | n/a | n/a | 0 | 0 | 0 |
+| pristine-checkout-differential | n/a | n/a | 0 | 0 | 0 |
+| recorder-in-the-record | 0% | n/a | 0 | 0 | 4 |
+| refusal-set-differential | n/a | n/a | 0 | 0 | 0 |
+| repeats-are-not-replicates | n/a | n/a | 0 | 0 | 0 |
+| replay-scope-is-read-scope | n/a | n/a | 0 | 0 | 0 |
+| rerun-before-you-record | n/a | n/a | 0 | 0 | 0 |
+| residency-is-not-allocation | 25% | 100% | 1 | 0 | 3 |
+| run-the-comparison-you-suppress | 0% | n/a | 0 | 0 | 4 |
+| sampled-interval-brackets | n/a | n/a | 0 | 0 | 0 |
+| sanitiser-outgrows-its-noise | 33% | 100% | 1 | 0 | 2 |
+| self-updating-driver-loop | n/a | n/a | 0 | 0 | 0 |
+| session-inheritance-audit | n/a | n/a | 0 | 0 | 0 |
+| shared-tip-immutable-lists | n/a | n/a | 0 | 0 | 0 |
+| skill-authoring | n/a | n/a | 0 | 0 | 0 |
+| subprocess-cli-testing | n/a | 0% | 0 | 1 | 0 |
+| tiny-language-implementation | n/a | n/a | 0 | 0 | 0 |
+| unenforced-documented-rule | n/a | n/a | 0 | 0 | 0 |
+| unrun-checker-latency | 100% | 50% | 1 | 1 | 0 |
+| untested-default-path | 33% | 100% | 1 | 0 | 2 |
+| would-a-constant-have-passed | 60% | 75% | 3 | 1 | 2 |
+| zero-rate-needs-a-distance | 100% | 100% | 1 | 0 | 0 |
+
+| case | expect | fired | foreign | ok |
+|---|---|---|---|---|
+| rina-near | residency-is-not-allocation | lazy-fill-ceiling | — | NO |
+| rina-mid | residency-is-not-allocation | residency-is-not-allocation | — | yes |
+| rina-baseline | residency-is-not-allocation | would-a-constant-have-passed | — | NO |
+| rina-far | residency-is-not-allocation | lazy-fill-ceiling | — | NO |
+| rina-neg-workingset | — | lazy-fill-ceiling | — | NO |
+| iar-near | instruments-already-running | — | — | NO |
+| iar-mid | instruments-already-running | instruments-already-running | — | yes |
+| iar-estimated | instruments-already-running | instruments-already-running | — | yes |
+| iar-far | instruments-already-running | lazy-fill-ceiling | — | NO |
+| iar-neg-semantics | — | — | claude-api | yes |
+| udp-near | untested-default-path | subprocess-cli-testing | — | NO |
+| udp-mid | untested-default-path | untested-default-path | — | yes |
+| udp-far | untested-default-path | unrun-checker-latency | — | NO |
+| udp-neg | unrun-checker-latency | unrun-checker-latency | update-config | yes |
+| fsd-near | filter-shares-the-defect | filter-shares-the-defect | — | yes |
+| fsd-mid | filter-shares-the-defect | — | — | NO |
+| fsd-far | filter-shares-the-defect | bounded-not-binary-witness | — | NO |
+| fsd-neg-list | derived-subject-set | — | — | NO |
+| rir-near | recorder-in-the-record | — | — | NO |
+| rir-mid | recorder-in-the-record | — | — | NO |
+| rir-far | recorder-in-the-record | echoed-record-vs-measurement | — | NO |
+| rir-far2 | recorder-in-the-record | — | — | NO |
+| rir-neg-audit | — | deleted-vs-never-written | — | NO |
+| rcys-near | run-the-comparison-you-suppress | exemption-census | — | NO |
+| rcys-mid | run-the-comparison-you-suppress | exemption-census | — | NO |
+| rcys-far | run-the-comparison-you-suppress | — | — | NO |
+| rcys-far2 | run-the-comparison-you-suppress | exemption-census,bounded-not-binary-witness | — | NO |
+| rcys-neg-zero | zero-rate-needs-a-distance | zero-rate-needs-a-distance | — | yes |
+| wchp-near | would-a-constant-have-passed | would-a-constant-have-passed | — | yes |
+| wchp-mid | would-a-constant-have-passed | would-a-constant-have-passed | — | yes |
+| wchp-far | would-a-constant-have-passed | derived-subject-set | — | NO |
+| wchp-far2 | would-a-constant-have-passed | — | — | NO |
+| wchp-neg-filter | filter-shares-the-defect | filter-shares-the-defect | — | yes |
+| kwyl-near | kill-what-you-launched | kill-what-you-launched | — | yes |
+| kwyl-mid | kill-what-you-launched | kill-what-you-launched | — | yes |
+| kwyl-far | kill-what-you-launched | kill-what-you-launched | — | yes |
+| kwyl-neg-instruments | instruments-already-running | — | — | NO |
+| sotn-near | sanitiser-outgrows-its-noise | — | — | NO |
+| sotn-mid | sanitiser-outgrows-its-noise | sanitiser-outgrows-its-noise | — | yes |
+| sotn-far | sanitiser-outgrows-its-noise | copied-mirror-drift | — | NO |
+| sotn-neg-constant | would-a-constant-have-passed | would-a-constant-have-passed | — | yes |
+
+host distractor skills present: __remote-workflow, agents, auto-mode-setup, autocompact, batch, claude-api, clear, code-review, color, compact, config, context, dataviz, debug, deep-research, design, design-consent, design-revoke, design-sync, doctor, effort, extra-usage, fast, fewer-permission-prompts, goal, heapdump, import, init, insights, list-agents, loop, mcp, model, recap, reload-skills, rename, run, run-skill-generator, schedule, security-review, simplify, team-onboarding, ultrareview, update-config, usage, usage-credits, verify, workflow-launch-exec
+
+real	2m50.912s
+user	0m56.458s
+sys	0m12.974s

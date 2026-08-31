@@ -324,6 +324,47 @@ class TestLiveCorpus(unittest.TestCase):
         self.assertAlmostEqual(te.effective_draws(6, rv["icc"]), 2.25, places=2)
         self.assertAlmostEqual(3 * te.effective_draws(2, rv["icc"]), 4.50, places=2)
 
+    def test_the_prescribed_design_is_not_the_one_the_formula_favours(self):
+        """Round 405. `repeats-are-not-replicates` step 2 prescribes
+        `3 runs x 2` over both `1 x 6` and `6 x 1`, and seven entries in
+        state/known-unprobed-skills.json copied that prescription. Two of
+        those three comparisons are about INFORMATION and the third is
+        not: at any icc > 0, `effective_draws` is strictly decreasing in
+        repeats-per-run at a fixed probe budget, so `6 x 1` dominates
+        `3 x 2` on information. The reason to reject it is that it makes
+        the within-run term unestimable -- a property of the ESTIMATOR,
+        not of the measurement -- which the next test pins."""
+        icc = 1 / 3.0
+        eff = lambda d: sum(te.effective_draws(k, icc) for k in d)
+        self.assertAlmostEqual(eff([6]), 2.25, places=2)
+        self.assertAlmostEqual(eff([2] * 3), 4.50, places=2)
+        self.assertAlmostEqual(eff([1] * 6), 6.00, places=2)
+        # strictly decreasing in repeats-per-run at a fixed 6-probe budget
+        budgets = [eff([1] * 6), eff([2] * 3), eff([3] * 2), eff([6])]
+        self.assertEqual(budgets, sorted(budgets, reverse=True))
+        # round 405's design: the SAME information for one fewer probe/case
+        self.assertAlmostEqual(eff([1, 1, 1, 2]), eff([2, 2, 2]), places=6)
+        self.assertEqual(len([1, 1, 1, 2]) + 1, sum([1, 1, 1, 2]))
+        self.assertLess(sum([1, 1, 1, 2]), sum([2, 2, 2]))
+
+    def test_an_all_singleton_design_makes_the_icc_unestimable(self):
+        """Why `6 x 1` is rejected, stated as a property of the code rather
+        than as advice: `run_variance` drops any case whose every run
+        contributed exactly one probe (`N == len(d)`), so a design with no
+        within-run replication anywhere returns None and the next round has
+        no icc to plan with. ONE `--repeats 2` run restores it."""
+        digest = te.description_digest("d")
+        def rep(reps):
+            return {"descriptions": {"s": digest},
+                    "results": [{"id": "c", "expect": ["s"],
+                                 "fired": ["s"] if f else []} for f in reps]}
+        cat = [("s", "d", "/x")]
+        cases = [{"id": "c", "prompt": "p", "expect": ["s"]}]
+        singles = [("r%d" % i, i, rep([i % 2 == 0])) for i in range(6)]
+        self.assertIsNone(te.run_variance(cat, cases, singles))
+        mixed = singles[:3] + [("rD", 9, rep([True, False]))]
+        self.assertIsNotNone(te.run_variance(cat, cases, mixed))
+
     def test_no_skill_in_the_corpus_is_probed_beyond_doubt_on_a_single_run(self):
         """The structural claim, independent of any particular count: on
         this corpus's per-skill probe budgets, no `WORKS` verdict that

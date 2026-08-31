@@ -607,6 +607,22 @@
    "where": "knowledge/round-402-the-binding-table-that-knew-whether-but-not-where.md",
    "quote": "**14 HIT, 1 MISS, 1 unscorable-by-my-own-ordering, of 16.**",
    "remainder": "P13 is scored HALF and named as self-destroyed: round 402 fixed four duplicated coordinate/count pins BEFORE running the suite, so the predicted count of tests its change would break was never observable. P14 (the baseline full run) is UNSCORED and says so: the run was launched first per round 398's item 3, contaminated because the suite reads examples/*.lang at test time while the round edited them, relaunched from a pristine git worktree, then killed at 29% to give the box's one CPU to the post-change run. P15 is a MISS -- the round untracked the gateway examples instead of fixing their syntax, and \u00a75 of the knowledge file is the evidence that changed the call."
+  },
+  "403": {
+   "bank": "state/round-403/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 403,
+   "where": "knowledge/round-403-the-suite-that-finished-after-the-round-ended.md",
+   "quote": "**All 14 scored: 5 HIT, 2 HIT-with-the-wrong-mechanism, 7 MISS.**",
+   "remainder": "None. All 14 are scored in that file's \u00a78, which is a full table with a per-item verdict. Entered by round 405 (skills B), NOT by round 403: the round scored its predictions and did not add its ledger row, so carryforward_check's K001 stood red at HEAD for two rounds. Round 405 transcribes what round 403 already wrote and adds no judgement of its own."
+  },
+  "404": {
+   "bank": "state/whence/round-404/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 404,
+   "where": "knowledge/round-404-the-fact-that-looked-like-noise.md",
+   "quote": "**11 HIT, 3 MISS,\n1 half-MISS, 1 unscorable, of 16**",
+   "remainder": "One item is UNSCORABLE by round 404's own account and one is a HALF-MISS (P11: a line bound and a statement count are different pins that the prediction had bundled into one claim; the line coordinate moved and `__nstmts == 268` did not). Both are named in the round file rather than rounded into the HIT column. Entered by round 405 (skills B) for the same reason as the 403 row above -- the scoring was done and published, only the ledger row was missing."
   }
  }
 }
