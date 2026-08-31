@@ -106,7 +106,7 @@ rather than read as coverage. See `load_escalated_diffs` and
 `classify_escalated_diffs` below.
 
 Round 397 added no sixth SHAPE — it fixed the reader that decides shape 1.
-`^### Round (\d+) [—-]` was a format contract nothing enforces at the point
+`^### Round (\\d+) [—-]` was a format contract nothing enforces at the point
 of writing, and it reported a legal, committed entry as a missing round
 twice: round 302 (round 303 rewrote the DOCUMENT to satisfy the regex,
 commit `b2e5425`) and round 396 (whose false gap became round 397's entire

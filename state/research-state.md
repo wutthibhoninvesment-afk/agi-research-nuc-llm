@@ -14388,6 +14388,14 @@ tmp dir, the real `~/.hermes/skills/`-promotion case.
 (unchanged from round 395's baseline, `unit_tests 708 passed`);
 `skill_lint --house --strict` on the touched skill 0/0. Live before/after
 on the same tree: the round-396 gap line is gone, replaced by a drift line.
+**Caught by the post-commit re-run and fixed in a follow-up:** the new
+module-docstring paragraph quoted `^### Round (\d+) ...` unescaped in a
+non-raw docstring, so every invocation printed `SyntaxWarning: invalid
+escape sequence '\d'` — and the driver captures this script with `2>&1`
+into `driver.log` AND into the next round's prompt, so a cosmetic warning
+in this one file is not cosmetic. `python3 -W error::SyntaxWarning
+py_compile` over all four touched Python files is clean; `HEAD~1` was
+verified clean too, confirming the warning was this round's own.
 `session-inheritance-audit/SKILL.md` 280 → 295 lines (new first pitfall +
 the full case study in `references/pitfall-history.md`; its Verification
 block's stale `# 80 passed` was re-executed and corrected to 93 — an
