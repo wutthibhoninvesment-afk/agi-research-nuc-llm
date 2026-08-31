@@ -1,0 +1,59 @@
+### E3_PATCH
+-rw-rw-r-- 1 jab jab 130631 2026-08-23 15:27:33.539778748 +0000 /work/src/colibri-v170/c/qwen36.c
+markers=0
+### OLMOE_SEARCH
+4403 2026-08-18T08:06:18.0000000000Z /work/mac-backup/Downloads/UPSTREAM_ISSUE_olmoe_chat_exit_reason.md
+5864 2026-08-05T10:17:25.9239414620Z /work/olmoe_api_adapter.py.retired-20260818
+5864 2026-08-18T07:33:50.1393040550Z /work/olmoe_api_adapter.py.bak-20260818
+5864 2026-08-18T07:51:12.3663932300Z /work/src/hermes/olmoe_api_adapter.py
+2552 2026-08-05T08:33:05.5458474100Z /work/logs/olmoe-convert.log
+### WORK_TOP
+total 2136
+drwxr-xr-x 16 jab  jab     4096 Aug 26 16:06 .
+drwxr-xr-x 24 root root    4096 Aug  5 07:14 ..
+drwxrwxr-x  2 jab  jab     4096 Aug  5 08:47 benchmarks
+drwxrwxr-x  2 jab  jab     4096 Aug  5 07:12 build
+drwxrwxr-x  2 jab  jab     4096 Aug  5 07:12 cache
+drwxrwxr-x  2 jab  jab     4096 Aug  5 07:12 downloads
+-rw-rw-r--  1 jab  jab     6062 Aug 11 15:32 frontier-cache.json
+-rw-rw-r--  1 jab  jab     3212 Aug  7 00:53 HANDOFF_NUC_2026-08-06.md
+-rw-rw-r--  1 jab  jab    59297 Aug  7 07:13 hermes-0713.bundle
+-rw-rw-r--  1 jab  jab    44217 Aug  7 03:09 hermes-20260807-0309.bundle
+-rw-rw-r--  1 jab  jab    47101 Aug  7 06:18 hermes-20260807-0618.bundle
+-rw-rw-r--  1 jab  jab    47101 Aug  7 06:22 hermes-20260807-0622.bundle
+-rw-rw-r--  1 jab  jab   196341 Aug 19 11:36 hermes-final-20260819.bundle
+-rw-rw-r--  1 jab  jab   196341 Aug 18 07:58 hermes-latest.bundle
+-rw-r--r--  1 jab  jab  1134833 Aug  7 03:40 hive-20260807-1038.bundle
+drwxrwxr-x  2 jab  jab     4096 Aug 31 09:35 logs
+drwx------  2 root root   16384 Aug  4 15:59 lost+found
+drwxrwxr-x 10 jab  jab     4096 Aug 26 14:55 mac-backup
+drwxrwxr-x  3 jab  jab     4096 Aug 23 15:35 models
+-rw-rw-r--  1 jab  jab     3750 Aug  7 06:39 notes.md
+drwxrwxr-x  3 jab  jab     4096 Aug 25 15:40 nuc-research
+-rw-rw-r--  1 jab  jab    47292 Aug  7 03:09 nuc-state-20260807-0309.tgz
+-rw-rw-r--  1 jab  jab    50200 Aug  7 06:18 nuc-state-20260807-0618.tgz
+-rw-rw-r--  1 jab  jab    50200 Aug  7 06:22 nuc-state-20260807-0622.tgz
+-rw-rw-r--  1 jab  jab    88396 Aug 19 11:36 nuc-state-final-20260819.tgz
+-rw-rw-r--  1 jab  jab    92110 Aug 23 15:01 nuc-state-latest.tgz
+-rw-rw-r--  1 jab  jab     5864 Aug 18 07:33 olmoe_api_adapter.py.bak-20260818
+-rw-rw-r--  1 jab  jab     5864 Aug  5 10:17 olmoe_api_adapter.py.retired-20260818
+drwxrwxr-x  3 jab  jab     4096 Aug 18 07:28 projects
+drwxrwxr-x  8 jab  jab     4096 Aug 23 21:37 src
+drwxrwxr-x  5 jab  jab     4096 Aug 23 15:34 venvs
+drwxrwxr-x  4 jab  jab     4096 Aug 26 15:28 vps-archive
+drwxrwxr-x 22 jab  jab     4096 Aug 26 16:12 vps-data
+### MODELS_DEEP
+total 22491728
+drwxrwxr-x 3 jab jab       4096 Aug 23 15:41 .
+drwxrwxr-x 3 jab jab       4096 Aug 23 15:35 ..
+drwxrwxr-x 3 jab jab       4096 Aug 23 15:35 .cache
+-rw-rw-r-- 1 jab jab       3686 Aug 23 15:35 config.hf.json
+-rw-rw-r-- 1 jab jab       2081 Aug 23 15:35 config.json
+-rw-rw-r-- 1 jab jab       1570 Aug 23 15:35 .gitattributes
+-rw-rw-r-- 1 jab jab  527831896 Aug 23 15:36 model-00000.safetensors
+-rw-rw-r-- 1 jab jab  527831896 Aug 23 15:36 model-00001.safetensors
+-rw-rw-r-- 1 jab jab  527831896 Aug 23 15:36 model-00002.safetensors
+### DISK
+Filesystem                         Size  Used Avail Use% Mounted on
+/dev/mapper/ubuntu--vg-work        738G   83G  618G  12% /work
+/dev/mapper/ubuntu--vg-ubuntu--lv   98G   21G   73G  23% /

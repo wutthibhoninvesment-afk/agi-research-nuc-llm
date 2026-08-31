@@ -341,3 +341,151 @@ def test_both_documented_entry_points_work():
 def test_the_page_size_is_the_one_swap_analysis_already_had():
     from nuc import swap_analysis
     assert pt.PAGE_BYTES is swap_analysis.DEFAULT_PAGE_BYTES
+
+
+# ------------------------------------------------ round 400: the cost ledger
+
+from nuc.perturbation import (  # noqa: E402
+    Event, LEDGER_BOUNDARY_SLACK_S, LEDGER_EXCLUDE_UNITS, LEDGER_MIN_BYTES,
+    PerturbationError, cost_ledger, parse_sar, parse_unit_starts,
+)
+
+_W_HEADER = ("Linux 6.8.0-138-generic (pgain-nuc) \t08/31/26 \t_x86_64_\t(4 CPU)"
+             "\n\n00:00:05     pswpin/s pswpout/s\n")
+
+
+def _swap_table(rows):
+    return parse_sar(_W_HEADER + "\n".join(
+        f"{t}         0.00     {rate:.2f}" for t, rate in rows))
+
+
+def _fires(*pairs):
+    return [Event(at_utc=f"2026-08-31T{t}Z", label=u) for t, u in pairs]
+
+
+def test_parse_unit_starts_matches_pid1_starting_only():
+    text = (
+        "2026-08-31T01:57:33+00:00 pgain-nuc systemd[1]: Starting "
+        "fwupd-refresh.service - Refresh fwupd metadata...\n"
+        "2026-08-31T01:57:35+00:00 pgain-nuc systemd[1]: Started "
+        "fwupd-refresh.service - Refresh fwupd metadata.\n"
+        "2026-08-30T00:32:35+00:00 pgain-nuc systemd[1057]: Started "
+        "qwen36-colibri.service - Colibri.\n")
+    ev = parse_unit_starts(text)
+    assert [(e.at_utc, e.label) for e in ev] == [
+        ("2026-08-31T01:57:33Z", "fwupd-refresh")]
+
+
+def test_parse_unit_starts_handles_a_zulu_stamp_as_well_as_an_offset():
+    text = "2026-08-31T03:50:05Z host systemd[1]: Starting apt-daily.service - x\n"
+    assert [e.label for e in parse_unit_starts(text)] == ["apt-daily"]
+
+
+def test_ledger_places_a_fire_in_the_bucket_that_ENDS_after_it():
+    t = _swap_table([("01:50:05", 0.00), ("02:00:05", 27.54)])
+    led = cost_ledger(_fires(("01:57:33", "fwupd-refresh")), t, "2026-08-31")
+    assert led["entries"][0]["bucket_end"] == "02:00:05"
+    assert led["entries"][0]["costly"] is True
+    assert led["entries"][0]["sole_attributable"] is True
+    assert led["entries"][0]["bucket_swapped_bytes"] == round(27.54 * 600) * 4096
+
+
+def test_a_fire_on_a_bucket_boundary_goes_to_the_NEXT_bucket():
+    """`apt-daily` fires at 03:50:05 and the sample that closes the 03:50:05
+    bucket is taken at the same instant, so it cannot contain apt's work. The
+    first version of this function credited apt to the zero bucket and gave its
+    218 MB to `packagekit` four seconds later."""
+    t = _swap_table([("03:50:05", 0.00), ("04:00:03", 89.88)])
+    led = cost_ledger(_fires(("03:50:05", "apt-daily")), t, "2026-08-31")
+    assert led["entries"][0]["bucket_end"] == "04:00:03"
+    assert led["boundary_slack_s"] == LEDGER_BOUNDARY_SLACK_S
+
+
+def test_the_boundary_slack_does_not_reach_a_real_bucket_boundary():
+    """5 s must not move a fire that genuinely belongs to the earlier bucket."""
+    t = _swap_table([("03:50:05", 89.88), ("04:00:03", 0.00)])
+    led = cost_ledger(_fires(("03:49:00", "apt-daily")), t, "2026-08-31")
+    assert led["entries"][0]["bucket_end"] == "03:50:05"
+
+
+def test_a_shared_bucket_is_not_divided_and_no_fire_is_sole_attributable():
+    t = _swap_table([("03:50:05", 0.00), ("04:00:03", 89.88)])
+    led = cost_ledger(_fires(("03:50:05", "apt-daily"), ("03:50:09", "packagekit"),
+                             ("03:57:05", "fwupd-refresh")), t, "2026-08-31")
+    assert {e["bucket_shared_by"] for e in led["entries"]} == {3}
+    assert led["n_fires_in_costly_bucket"] == 3
+    assert led["n_sole_attributable"] == 0
+    for e in led["entries"]:
+        assert e["sole_attributable"] is False
+
+
+def test_total_swapped_bytes_sums_distinct_buckets_not_fires():
+    """Summing per-fire bytes reported 799 MB for a day whose real total is
+    289 MB. The bucket's cost is a property of the bucket."""
+    t = _swap_table([("03:50:05", 0.00), ("04:00:03", 89.88)])
+    one = cost_ledger(_fires(("03:57:05", "fwupd-refresh")), t, "2026-08-31")
+    three = cost_ledger(_fires(("03:50:05", "apt-daily"), ("03:50:09", "packagekit"),
+                               ("03:57:05", "fwupd-refresh")), t, "2026-08-31")
+    assert one["total_swapped_bytes"] == three["total_swapped_bytes"]
+
+
+def test_the_instrument_is_excluded_by_default_and_can_be_included():
+    """`sysstat-collect` writes the bucket, so it is in every costly bucket by
+    construction. Counting it makes the base rate a fact about the sampler."""
+    t = _swap_table([("01:50:05", 0.00), ("02:00:05", 27.54), ("02:10:05", 0.00)])
+    fires = _fires(("01:57:33", "fwupd-refresh"), ("02:00:05", "sysstat-collect"))
+    default = cost_ledger(fires, t, "2026-08-31")
+    assert default["n_fires"] == 1 and default["n_excluded_fires"] == 1
+    assert default["excluded_units"] == list(LEDGER_EXCLUDE_UNITS)
+    both = cost_ledger(fires, t, "2026-08-31", exclude_units=())
+    assert both["n_fires"] == 2
+    # And even when included, the boundary slack keeps the sampler OUT of the
+    # bucket it wrote: sadc fires at 02:00:05 and the 02:00:05 sample is that
+    # same write, so its own cost belongs to 02:10:05.
+    sysstat = [e for e in both["entries"] if e["unit"] == "sysstat-collect"][0]
+    assert sysstat["bucket_end"] == "02:10:05" and sysstat["costly"] is False
+
+
+def test_a_sub_threshold_bucket_is_not_called_costly():
+    """0.14 pswpout/s over 600 s is 344 kB. Three fires shared that bucket and
+    none of them swapped a third of a megabyte of a 30 GB engine."""
+    t = _swap_table([("00:30:05", 0.00), ("00:40:05", 0.14)])
+    led = cost_ledger(_fires(("00:30:33", "fstrim")), t, "2026-08-31")
+    assert led["entries"][0]["costly"] is False
+    assert led["n_costly_buckets"] == 0
+    assert led["min_bytes"] == LEDGER_MIN_BYTES
+
+
+def test_a_fire_before_the_first_bucket_is_unclassified_not_free():
+    t = _swap_table([("00:50:05", 0.00), ("01:00:05", 0.00)])
+    led = cost_ledger(_fires(("00:32:32", "systemd-journald")), t, "2026-08-31")
+    assert led["n_fires"] == 0 and led["n_unclassified"] == 1
+    assert "no sar bucket" in led["unclassified"][0]["why"]
+
+
+def test_a_costly_bucket_with_no_named_fire_is_reported_not_hidden():
+    """A costly bucket nobody fired into is the interesting case -- it is what
+    an unattributed perturbation looks like."""
+    t = _swap_table([("01:50:05", 27.54), ("02:00:05", 0.00)])
+    led = cost_ledger(_fires(("01:55:00", "fwupd-refresh")), t, "2026-08-31")
+    assert led["costly_buckets_without_a_named_fire"] == ["01:50:05"]
+
+
+def test_ledger_filters_by_date():
+    t = _swap_table([("01:50:05", 0.00), ("02:00:05", 27.54)])
+    fires = [Event(at_utc="2026-08-30T01:57:33Z", label="fwupd-refresh")]
+    assert cost_ledger(fires, t, "2026-08-31")["n_fires"] == 0
+
+
+def test_ledger_accepts_plain_tuples_as_well_as_events():
+    t = _swap_table([("01:50:05", 0.00), ("02:00:05", 27.54)])
+    led = cost_ledger([("2026-08-31T01:57:33Z", "fwupd-refresh")], t, "2026-08-31")
+    assert led["entries"][0]["unit"] == "fwupd-refresh"
+
+
+def test_ledger_rejects_a_nonpositive_interval_and_a_negative_floor():
+    t = _swap_table([("01:50:05", 0.00), ("02:00:05", 27.54)])
+    with pytest.raises(PerturbationError):
+        cost_ledger([], t, "2026-08-31", interval_s=0)
+    with pytest.raises(PerturbationError):
+        cost_ledger([], t, "2026-08-31", min_bytes=-1)

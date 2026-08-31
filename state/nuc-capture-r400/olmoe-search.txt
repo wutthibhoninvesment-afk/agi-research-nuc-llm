@@ -1,0 +1,7 @@
+7420160000 2026-08-24T16:12:28.1350100090Z /home/jab/nuc-research/models/olmoe_merged.tar
+3405469696 2026-08-04T08:19:25.0000000000Z /work/mac-backup/Downloads/ubuntu-24.04.4-live-server-amd64.iso
+2104932768 2026-07-29T01:49:18.0000000000Z /work/mac-backup/Downloads/hive-weights/qwen2.5-3b-instruct-q4_k_m.gguf
+2034241832 2026-08-23T15:41:33.6459041310Z /work/models/qwen36_i4_gs64/model-globals.safetensors
+1413271806 2026-05-07T17:15:11.0000000000Z /work/vps-archive/incoming_migration/HERMES_FULL_MIGRATION_20260508_001142.tar.gz
+--- exact size match ---
+7420160000 /home/jab/nuc-research/models/olmoe_merged.tar

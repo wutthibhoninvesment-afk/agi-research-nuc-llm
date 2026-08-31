@@ -1,0 +1,78 @@
+### CMDLINE
+   1111  132414 15584 python3 /work/src/colibri-v170/c/coli serve --host 127.0.0.1 --port 8000 --model-id qwen36 --cap 256 --ctx 32768 --max-queue 2 --queue-timeout 600
+   1114  132414 29614416 /work/src/colibri-v170/c/qwen36 256
+### UNITS
+active
+active
+  UNIT                     LOAD   ACTIVE SUB     DESCRIPTION
+  qwen36-colibri.service   loaded active running Colibri Qwen3.6-35B-A3B API (localhost:8000) for Hermes
+  qwen36-toolproxy.service loaded active running Qwen3.6 tool-calling adapter for Hermes (localhost:8080)
+
+Legend: LOAD   → Reflects whether the unit definition was properly loaded.
+        ACTIVE → The high-level unit activation state, i.e. generalization of SUB.
+        SUB    → The low-level unit activation state, values depend on unit type.
+
+2 loaded units listed. Pass --all to see loaded but inactive units, too.
+To show all installed unit files use 'systemctl list-unit-files'.
+### E3_PATCH
+ls: cannot access '/work/src/colibri/qwen36.c': No such file or directory
+grep: /work/src/colibri/qwen36.c: No such file or directory
+### OLMOE
+total 12
+drwxrwxr-x  3 jab jab 4096 Aug 23 15:35 .
+drwxr-xr-x 16 jab jab 4096 Aug 26 16:06 ..
+drwxrwxr-x  3 jab jab 4096 Aug 23 15:41 qwen36_i4_gs64
+### LASTLOG
+reboot   system boot  6.8.0-138-generic Sun Aug 30 00:32   still running
+reboot   system boot  6.8.0-138-generic Thu Aug 27 11:50   still running
+jab      pts/1        192.168.1.39     Wed Aug 26 19:24 - crash  (16:25)
+jab      pts/0        192.168.1.39     Wed Aug 26 19:14 - crash  (16:36)
+jab      pts/0        192.168.1.39     Wed Aug 26 16:06 - 16:06  (00:00)
+jab      pts/0        192.168.1.39     Wed Aug 26 13:14 - 13:14  (00:00)
+jab      pts/0        192.168.1.39     Wed Aug 26 12:55 - 12:55  (00:00)
+jab      pts/0        192.168.1.39     Wed Aug 26 12:54 - 12:54  (00:00)
+jab      pts/0        192.168.1.39     Wed Aug 26 12:51 - 12:51  (00:00)
+jab      pts/0        192.168.1.39     Wed Aug 26 12:38 - 12:38  (00:00)
+jab      pts/0        192.168.1.39     Wed Aug 26 12:29 - 12:29  (00:00)
+jab      pts/0        192.168.1.39     Wed Aug 26 12:29 - 12:29  (00:00)
+
+wtmp begins Tue Aug  4 16:09:23 2026
+### ENGINE_LOG_TAIL
+-rw-rw-r--  1 jab jab    760 Aug 24 08:21 nuc-bench-decodefix.json
+-rw-rw-r--  1 jab jab   2632 Aug 24 00:45 nuc-bench.json
+-rw-r--r--  1 jab jab   3556 Aug 24 08:27 nuc-bench.md
+-rw-rw-r--  1 jab jab    905 Aug 24 00:45 nuc-bench-table.md
+-rw-rw-r--  1 jab jab   5293 Aug 31 00:33 nuc-constant-provenance-r382.md
+-rw-rw-r--  1 jab jab   6178 Aug 30 06:25 nuc-continuity-r358.md
+-rw-rw-r--  1 jab jab   5957 Aug 30 20:10 nuc-expert-cache-r376.md
+-rw-rw-r--  1 jab jab  32225 Aug 26 21:08 nuc-fast-lane.md
+-rw-rw-r--  1 jab jab    475 Aug 24 15:59 nuc-fast-lane-probes.jsonl
+-rw-r--r--  1 jab jab   4066 Aug 24 13:08 nuc-kv-reuse.md
+-rw-rw-r--  1 jab jab   9762 Aug 31 09:35 nuc-perturbation-r394.md
+-rw-r--r--  1 jab jab   4554 Aug 24 10:54 nuc-prompt-budget.md
+-rw-rw-r--  1 jab jab   7997 Aug 31 05:08 nuc-reclaim-r388.md
+-rw-rw-r--  1 jab jab   7300 Aug 30 15:25 nuc-suspend-and-memory-r370.md
+-rw-rw-r--  1 jab jab   4289 Aug 25 16:22 nuc-taskscript.md
+-rw-rw-r--  1 jab jab    833 Aug  5 08:47 nvme-after.txt
+-rw-rw-r--  1 jab jab    827 Aug  5 07:15 nvme-baseline.txt
+-rw-rw-r--  1 jab jab    827 Aug  5 08:45 nvme-before.txt
+-rw-rw-r--  1 jab jab   2552 Aug  5 08:33 olmoe-convert.log
+-rw-rw-r--  1 jab jab   8296 Aug  7 04:10 scrutinize-0410.md
+### COMPLETIONS
+### JOURNAL_ENGINE
+2026-08-30T00:32:35+00:00 pgain-nuc systemd[1057]: Started qwen36-colibri.service - Colibri Qwen3.6-35B-A3B API (localhost:8000) for Hermes.
+2026-08-30T00:32:35+00:00 pgain-nuc coli[1114]: == qwen36 Phase-2 engine | cache=256/layer bits=4 pilot=0 wide=1 hot=0 smooth=0.30 conf=0.92 ==
+2026-08-30T00:32:36+00:00 pgain-nuc coli[1114]: [tok] loaded 248044 pieces (max id 248043) from /work/models/qwen36_i4_gs64/tokenizer.json
+2026-08-30T00:32:36+00:00 pgain-nuc coli[1114]: [meta] loaded: q_heads=16 kv_heads=2 head_dim=256 q_head_dim=512 k_head_dim=256 v_head_dim=256 o_in=4096 rotary_dim=64 n_experts=256 topk=8 inter=512 shared_inter=512 n_group=1 topk_group=1 attn_output_gate=1 n_active=10
+2026-08-30T00:32:36+00:00 pgain-nuc coli[1114]: [meta] DeltaNet: vheads=32 kheads=16 kdim=128 vdim=128 convk=4 conv_dim=8192
+2026-08-30T00:32:49+00:00 pgain-nuc coli[1114]: [qwen36] group-scaled experts: gs=64
+2026-08-30T00:32:49+00:00 pgain-nuc coli[1114]: resident weights loaded in 13.2s | RSS after load: 9.25 GB
+2026-08-30T00:32:54+00:00 pgain-nuc coli[1114]: [dense-i8] 291 matrices quantized in 4.7 s, 7.2 GB f32 freed
+2026-08-30T00:32:54+00:00 pgain-nuc coli[1111]: OpenAI-compatible API listening on http://127.0.0.1:8000/v1
+2026-08-30T10:25:38+00:00 pgain-nuc coli[1111]: [api] 127.0.0.1 - "GET /v1/models HTTP/1.1" 200 -
+2026-08-30T13:26:32+00:00 pgain-nuc coli[1114]: [qwen36] int4 packed weights detected — unpacking to int8 in slot
+2026-08-30T13:28:25+00:00 pgain-nuc coli[1111]: [api] 127.0.0.1 - "POST /v1/chat/completions HTTP/1.1" 200 -
+2026-08-30T14:54:08+00:00 pgain-nuc coli[1111]: [api] 127.0.0.1 - "POST /v1/chat/completions HTTP/1.1" 200 -
+### JOURNAL_ENGINE_COUNTS
+2
+1

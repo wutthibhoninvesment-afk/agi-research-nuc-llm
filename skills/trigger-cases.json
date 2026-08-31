@@ -1441,5 +1441,38 @@
    "derived-subject-set"
   ],
   "prompt": "Our audit script walks a hard-coded MODULES tuple at the top of the file, and three modules added last quarter were never appended to it. What is the right fix here?"
+ },
+ {
+  "id": "rir-near",
+  "expect": [
+   "recorder-in-the-record"
+  ],
+  "prompt": "I'm using our Prometheus history to find when the service was down last month. There are gaps in the series \u2014 can I treat each gap as an outage window?"
+ },
+ {
+  "id": "rir-mid",
+  "expect": [
+   "recorder-in-the-record"
+  ],
+  "prompt": "Our nightly memory spike correlates almost perfectly with the metrics agent's own scrape. Is the agent causing it, or am I fooling myself?"
+ },
+ {
+  "id": "rir-far",
+  "expect": [
+   "recorder-in-the-record"
+  ],
+  "prompt": "I attributed a 200 MB swap event to the apt timer because it fired in that ten-minute bucket. How solid is that attribution?"
+ },
+ {
+  "id": "rir-far2",
+  "expect": [
+   "recorder-in-the-record"
+  ],
+  "prompt": "Every one of the anomalies my analysis found happens at exactly midnight, once per day. That seems like a real daily pattern \u2014 how do I check?"
+ },
+ {
+  "id": "rir-neg-audit",
+  "expect": [],
+  "prompt": "We have an append-only audit ledger with one row per authorization decision. A user says their approval is missing \u2014 can I conclude it never happened?"
  }
 ]

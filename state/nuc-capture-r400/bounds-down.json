@@ -1,0 +1,66 @@
+{
+  "n_streaks": 2,
+  "streaks": [
+    {
+      "verdict": "down",
+      "start_round": 184,
+      "end_round": 196,
+      "n_checks": 2,
+      "rounds": [
+        184,
+        196
+      ],
+      "first_check_utc": "2026-08-27T05:40:00Z",
+      "last_check_utc": "2026-08-27T10:54:40Z",
+      "confirmed_span_s": 18880.0,
+      "confirmed_span_human": "5h14m40s",
+      "earliest_possible_start_utc": "2026-08-27T04:48:21.1Z",
+      "earliest_possible_start_source": "tailscale_last_seen",
+      "latest_possible_end_utc": "2026-08-27T11:50:48Z",
+      "latest_possible_end_source": "boot_utc",
+      "start_uncertainty_s": 3098.9,
+      "start_uncertainty_human": "0h51m38s",
+      "end_uncertainty_s": 3368.0,
+      "end_uncertainty_human": "0h56m08s",
+      "max_possible_span_s": 25346.9,
+      "max_possible_span_human": "7h02m26s",
+      "ongoing": false
+    },
+    {
+      "verdict": "down",
+      "start_round": 298,
+      "end_round": 346,
+      "n_checks": 13,
+      "rounds": [
+        298,
+        304,
+        310,
+        316,
+        316,
+        322,
+        328,
+        334,
+        334,
+        340,
+        340,
+        340,
+        346
+      ],
+      "first_check_utc": "2026-08-29T02:13:07Z",
+      "last_check_utc": "2026-08-29T21:51:13Z",
+      "confirmed_span_s": 70686.0,
+      "confirmed_span_human": "19h38m06s",
+      "earliest_possible_start_utc": "2026-08-29T02:10:00.1Z",
+      "earliest_possible_start_source": "tailscale_last_seen",
+      "latest_possible_end_utc": "2026-08-30T00:32:27Z",
+      "latest_possible_end_source": "boot_utc",
+      "start_uncertainty_s": 186.9,
+      "start_uncertainty_human": "0h03m06s",
+      "end_uncertainty_s": 9674.0,
+      "end_uncertainty_human": "2h41m14s",
+      "max_possible_span_s": 80546.9,
+      "max_possible_span_human": "22h22m26s",
+      "ongoing": false
+    }
+  ]
+}

@@ -1,0 +1,172 @@
+### DATE
+2026-08-31T13:16:21Z
+### UPTIME
+ 13:16:21 up 1 day, 12:43,  2 users,  load average: 0.01, 0.02, 0.00
+132232.98 520057.60
+### BOOTID
+43e0c767-e98e-41c5-a2c0-d475a15e06cf
+2026-08-30 00:32:28
+### CGROUP_PATH
+cgdir=/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/qwen36-colibri.service firstpid=1111
+### MEMORY_CURRENT
+30412222464
+### MEMORY_PEAK
+31670497280
+### MEMORY_MAX
+32212254720
+### MEMORY_SWAP_CURRENT
+274530304
+### MEMORY_SWAP_PEAK
+274530304
+### MEMORY_SWAP_MAX
+max
+### MEMORY_HIGH
+max
+### MEMORY_EVENTS
+low 0
+high 0
+max 0
+oom 0
+oom_kill 0
+oom_group_kill 0
+### MEMORY_EVENTS_LOCAL
+low 0
+high 0
+max 0
+oom 0
+oom_kill 0
+oom_group_kill 0
+### MEMORY_STAT
+anon 30326439936
+file 458752
+kernel 85000192
+kernel_stack 49152
+pagetables 60067840
+sec_pagetables 0
+percpu 192
+sock 0
+vmalloc 0
+shmem 0
+zswap 0
+zswapped 0
+file_mapped 421888
+file_dirty 0
+file_writeback 0
+swapcached 323584
+anon_thp 0
+file_thp 0
+shmem_thp 0
+inactive_anon 9239560192
+active_anon 21087203328
+inactive_file 0
+active_file 458752
+unevictable 0
+slab_reclaimable 24720864
+slab_unreclaimable 133872
+slab 24854736
+workingset_refault_anon 0
+workingset_refault_file 22163
+workingset_activate_anon 0
+workingset_activate_file 22163
+workingset_restore_anon 0
+workingset_restore_file 26
+workingset_nodereclaim 0
+pgscan 2587671
+pgsteal 1975157
+pgscan_kswapd 2587671
+pgscan_direct 0
+pgscan_khugepaged 0
+pgsteal_kswapd 1975157
+pgsteal_direct 0
+pgsteal_khugepaged 0
+pgfault 10030366
+pgmajfault 9
+pgrefill 1760197
+pgactivate 0
+pgdeactivate 0
+pglazyfree 0
+pglazyfreed 0
+zswpin 0
+zswpout 0
+zswpwb 0
+thp_fault_alloc 0
+thp_collapse_alloc 0
+thp_swpout 0
+thp_swpout_fallback 0
+### VMSTAT_SEL
+workingset_refault_anon 90
+workingset_refault_file 24699
+pswpin 92
+pswpout 72044
+allocstall_dma 0
+allocstall_dma32 0
+allocstall_normal 0
+allocstall_movable 0
+allocstall_device 0
+pgsteal_kswapd 2879928
+pgsteal_direct 0
+pgsteal_khugepaged 0
+pgscan_kswapd 3500256
+pgscan_direct 0
+pgscan_direct_throttle 0
+pgsteal_anon 70409
+pgsteal_file 2809519
+### MEMINFO
+MemTotal:       32751844 kB
+MemFree:          312412 kB
+MemAvailable:    2285988 kB
+Buffers:          122056 kB
+Cached:          2199968 kB
+SwapCached:         6772 kB
+Active:         20818108 kB
+Inactive:       11197032 kB
+Active(anon):   20625092 kB
+Inactive(anon):  9100344 kB
+Active(file):     193016 kB
+Inactive(file):  2096688 kB
+Unevictable:       27416 kB
+Mlocked:           27284 kB
+SwapTotal:       4194300 kB
+SwapFree:        3905532 kB
+Zswap:                 0 kB
+Zswapped:              0 kB
+Dirty:               416 kB
+Writeback:             0 kB
+AnonPages:      29713864 kB
+Mapped:           139112 kB
+Shmem:             23568 kB
+KReclaimable:     105588 kB
+Slab:             187880 kB
+SReclaimable:     105588 kB
+SUnreclaim:        82292 kB
+KernelStack:        3296 kB
+PageTables:        63668 kB
+SecPageTables:         0 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:    20570220 kB
+Committed_AS:   30786392 kB
+VmallocTotal:   34359738367 kB
+VmallocUsed:       33928 kB
+VmallocChunk:          0 kB
+Percpu:             3424 kB
+HardwareCorrupted:     0 kB
+AnonHugePages:         0 kB
+ShmemHugePages:        0 kB
+ShmemPmdMapped:        0 kB
+FileHugePages:         0 kB
+FilePmdMapped:         0 kB
+Unaccepted:            0 kB
+HugePages_Total:       0
+HugePages_Free:        0
+HugePages_Rsvd:        0
+HugePages_Surp:        0
+Hugepagesize:       2048 kB
+Hugetlb:               0 kB
+DirectMap4k:      169388 kB
+DirectMap2M:     7055360 kB
+DirectMap1G:    26214400 kB
+### SWAPS
+Filename				Type		Size		Used		Priority
+/swap.img                               file		4194300		288768		-2

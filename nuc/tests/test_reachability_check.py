@@ -2854,3 +2854,61 @@ def test_the_real_log_still_reports_no_missed_excursions():
     """End-to-end on the live log, which is what caught this."""
     report = rc.continuity_report(_real_log_records())
     assert report["missed_excursions"] == []
+
+
+# ------------------------------- round 400: what unobserved_total is conditioned on
+
+def test_continuity_report_always_states_the_basis_of_unobserved_total():
+    """Round 394 (P22): the SAME command over the SAME log printed 102h19m47s
+    and 0h12m00s depending on an optional flag, and nothing in the output said
+    which. The name stays (round 334 item 5 -- three rounds have published
+    under it); the basis ships beside it."""
+    recs = [
+        {"round": 1, "checked_at_utc": "2026-08-30T00:00:00Z", "verdict": "up"},
+        {"round": 2, "checked_at_utc": "2026-08-30T05:00:00Z", "verdict": "up"},
+    ]
+    rep = rc.continuity_report(recs)
+    b = rep["unobserved_basis"]
+    assert b["interior_witness_supplied"] is False
+    assert "loosest possible bracket" in b["note"]
+    assert "Do not compare" in b["note"]
+
+
+def test_the_basis_note_flips_once_a_witness_is_supplied():
+    recs = [
+        {"round": 1, "checked_at_utc": "2026-08-30T00:00:00Z", "verdict": "up"},
+        {"round": 2, "checked_at_utc": "2026-08-30T05:00:00Z", "verdict": "up"},
+    ]
+    rep = rc.continuity_report(recs, basis={"sar_archive_supplied": True})
+    b = rep["unobserved_basis"]
+    assert b["interior_witness_supplied"] is True
+    assert "CURRENT BEST BRACKET" in b["note"]
+    assert "not a running total" in b["note"]
+
+
+def test_the_basis_records_boot_history_and_journal_independently():
+    recs = [
+        {"round": 1, "checked_at_utc": "2026-08-30T00:00:00Z", "verdict": "up"},
+        {"round": 2, "checked_at_utc": "2026-08-30T05:00:00Z", "verdict": "up"},
+    ]
+    rep = rc.continuity_report(
+        recs, boots=[{"index": 0, "boot_id": "b0",
+                      "first_entry_utc": "2026-08-30T00:00:00Z",
+                      "last_entry_utc": "2026-08-30T05:00:00Z"}],
+        silence=None)
+    assert rep["unobserved_basis"]["boot_history_boots"] == 1
+    assert rep["unobserved_basis"]["journal_capture_supplied"] is False
+    assert rep["unobserved_basis"]["interior_witness_supplied"] is True
+
+
+def test_the_basis_does_not_change_unobserved_total_itself():
+    """Emitting the basis must be additive. If it moved the number, three
+    rounds of published figures would silently change meaning."""
+    recs = [
+        {"round": 1, "checked_at_utc": "2026-08-30T00:00:00Z", "verdict": "up"},
+        {"round": 2, "checked_at_utc": "2026-08-30T05:00:00Z", "verdict": "up"},
+    ]
+    a = rc.continuity_report(recs)
+    b = rc.continuity_report(recs, basis={"sar_archive_supplied": True})
+    assert a["unobserved_total_s"] == b["unobserved_total_s"]
+    assert a["max_unobserved_outage_s"] == b["max_unobserved_outage_s"]

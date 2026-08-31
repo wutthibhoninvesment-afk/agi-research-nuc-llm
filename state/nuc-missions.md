@@ -1502,3 +1502,106 @@ Code runs (proof in round file), measurements banked in both places,
   the E3 A/B; (5) harness(A) owns wiring `nuc/run_checks_fast.sh` into
   `run_driver.sh`; (6) any future A/B on this box must record whether
   `apt-daily.timer` (03:50 UTC) straddled the measurement window.
+
+## Round 394 (NUC-integration E) — 2026-08-31, box UP, boot `43e0c767` (eighth consecutive E-round) — RECONSTRUCTED ADDENDUM
+
+Round 394 wrote no addendum here; this two-line reconstruction was added by
+round 400 so the gap is named rather than silently inherited (round 334's
+item 6, third occurrence). The authority is
+`knowledge/round-394-nuc-e-the-record-was-already-being-kept.md`.
+
+- Explained round 388's unattributed 01:50–02:00 bucket: `fwupd-refresh` at
+  01:57:33Z, a libxmlb silo rebuild ballooning fwupd's heap ~147 MB and
+  forcing global kswapd to write 67.7 MB of engine weights to swap. Graded
+  *attributed, not proven*. Established that `sar -r` is the missing
+  instrument and that the archives already held the per-request fill curve.
+- **Corrected `NUC_BASELINE`:** it was a `memory.current` (residency) reading
+  and is ~2x too large. Three independent routes agree inside 0.7 %. Fill
+  6,232 → **7,686–7,753 slots**, cap-equivalent 155.8 → **192–194**,
+  recommendation **159 → 196**, band **[129, 204]** — vindicating round 124's
+  original `--cap 204` headline. Built `nuc/perturbation.py`, extended
+  `nuc/expert_cache.py`, added `skills/residency-is-not-allocation/` and
+  `skills/instruments-already-running/`. 13 HIT / 9 MISS of 22.
+
+## Round 400 (NUC-integration E) — 2026-08-31, box UP, boot `43e0c767` (NINTH consecutive E-round on it)
+
+- **`/var/log/sysstat/` holds NINE days — sa23..sa31 — and this track had
+  never opened a file older than `sa30`.** 957 samples at a 600 s cadence, 6
+  `LINUX RESTART` markers, 190h50m02s of coverage reaching back to
+  2026-08-23T14:02, i.e. across every round of this track from 124 onward and
+  through the whole nine-round outage. It is an on-box availability witness
+  of a different kind from an ssh probe: a `sar` sample says "this kernel was
+  running", not "I could reach it from here".
+- **Both recorded outages confirmed by the archive, to seconds.** 184–196 end:
+  `boot_utc` 11:50:48Z vs `LINUX RESTART` 11:50:53Z (5 s). 298–346 start:
+  `tailscale_last_seen` 02:10:00.1Z vs last sample 02:10:04Z (3.9 s); end:
+  `boot_utc` 00:32:27Z vs restart 00:32:34Z (7 s). **`tailscale_last_seen` has
+  sourced `earliest_possible_start_utc` for thirteen rounds and had never been
+  checked against anything. It is right.** The archive also holds three
+  reboots (2026-08-25 00:37:34, 00:47:30, 12:57:41) that predate the log's
+  first record — graded `unknown_to_log`, not `conflict`.
+- **`unobserved_total` 102h19m47s → 254 s.** 25 of 39 probe gaps CLOSED by the
+  archive, 98.28 h of previously-unobserved time retired, and the
+  `max_unobserved_outage` of **14h00m00s** (rounds 142→154) that four rounds
+  carried as a live bound is covered end-to-end with no hole: no outage hid
+  there. The 13 `open` gaps all sit inside the two known DOWN streaks, where
+  silence corroborates but does not witness.
+- **Round 394's forward prediction scored — the first in this track.** It
+  published `apt-daily`'s next fire as 10:22:25Z, inside this round's gap; it
+  fired at **10:22:33Z**, confirming that `RandomizedDelaySec` is drawn once
+  at schedule time. It cost the engine **zero** pages.
+- **`apt` was never sole-attributable.** With the sampler-cadence boundary bug
+  fixed, the 04:00:03Z bucket (218.3 MB, 76 % of the boot's swap-out) holds
+  **five** named starts — `apt-daily`, `apt-news`, `esm-cache` (03:50:05),
+  `packagekit` (03:50:09), `fwupd-refresh` (03:57:05). Rounds 388 and 394
+  published "apt is the largest perturbation this deployment has seen"; a
+  bucket cannot separate five units, and one of the five is independently
+  known to cost 67.7 MB alone. Whole-boot ledger: 62 named fires, 6 in a
+  costly bucket (9.68 %), **1 sole-attributable — `fwupd-refresh` 01:57:33Z**.
+- **Three recorder artifacts, all of which read as findings first.** 7 of 12
+  "gaps" were sysstat's own file rollover (7 of the 7 observable day
+  boundaries — `sadc`'s first write into a new file is consumed as the rate
+  baseline and never displayed); `sysstat-collect` was in 100 % of costly
+  buckets because it *writes* them, and dominated the denominator 218 to 60;
+  and timers firing at `:00:05` land on the sampler's own bucket boundary.
+- **Standing state re-verified, EIGHTEENTH check, all six unchanged.**
+  `--cap 256` live; E3 patch NOT applied
+  (`/work/src/colibri-v170/c/qwen36.c`, 130,631 B, mtime
+  2026-08-23T15:27:33Z, 0 markers); OLMoE tarball
+  **`~/nuc-research/models/olmoe_merged.tar`, 7,420,160,000 B** — the path is
+  recorded here because an `ls` of `/work/models/` nearly produced a false
+  "it is gone"; `memory.events max` 0; no operator login since 2026-08-26
+  19:24; both user units `active`.
+- Engine cgroup byte-identical across a THIRD window: `anon` 30,326,439,936,
+  `memory.swap.current` 274,530,304 (`peak == current`), sum 30,600,970,240,
+  `memory.current` 30,412,222,464, `pgscan_kswapd` 2,587,671,
+  `pgscan_direct` 0, `workingset_refault_anon` 0, system `pswpout` 72,044.
+  Completions **2**, `unpacking to int8 in slot` **1** — fifth consecutive
+  round; recorded as a property of zero traffic and dropped from the
+  per-round probe.
+- Recommendation unchanged: **`--cap 196`**, band **[129, 204]**,
+  `bounded_by: engine_lru`, 1.096 GB margin against `memory.max`.
+- Built: `nuc/sysstat_archive.py` (new, 37 tests); `cost_ledger` /
+  `parse_unit_starts` in `nuc/perturbation.py` (+14); `unobserved_basis` and
+  `--sar-capture` in `nuc/reachability_check.py` (+4);
+  `skills/recorder-in-the-record/`. Tests **551 → 606**, all green; audit
+  23/18/0.783/0 transform risks.
+- Hygiene: READ-ONLY on `/work/**`; no unit restarted; **port 8001 never
+  contacted**; **no engine request of any kind**. One write on the box, in an
+  allowed path: `/work/logs/nuc-sysstat-archive-r400.md`. Ten ssh/scp
+  connections, all read-only bar the scp. `journal-boots` did NOT run — the
+  sar archive answered the continuity question at lower cost and higher
+  resolution, and loading both would have made the closure figure depend on
+  which witness happened to be present, the exact defect `unobserved_basis`
+  now exposes. 17 HIT / 6 MISS of 23.
+- **Next E round, in order:** (1) **TIME-CRITICAL — `sa23` is overwritten on
+  2026-09-23 and everything older is already gone; copy `sa*` into
+  `~/nuc-research/` on every up-round, ~2 MB and one scp**; (2) the missing
+  `sar29` summary file is a third, zero-cost outage witness this round did not
+  use; (3) prove or drop the fwupd attribution — now the only
+  sole-attributable event in the boot; (4) still blocked on the operator:
+  `--cap 196` and the E3 A/B, and any A/B must record how many units share
+  each bucket, not just which fired; (5) round 370's item 3 still needs a
+  FRESH boot; (6) harness(A) owns wiring `nuc/run_checks_fast.sh` into
+  `run_driver.sh` — 0 references, third round carried (note that
+  `skills/run_checks_fast.sh` IS wired, round 363, so a basename grep lies).

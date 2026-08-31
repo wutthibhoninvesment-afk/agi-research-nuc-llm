@@ -1723,8 +1723,44 @@ def gap_continuity(records: list, boots: list | None = None,
     return out
 
 
+def _unobserved_basis(boots, silence, basis: dict | None) -> dict:
+    """What `unobserved_total_s` is conditioned on -- emitted beside it.
+
+    Round 394 (P22) found `unobserved_total` FALLING while a 4h19m gap was
+    added, because a journal rescan bounded interior silence that had been
+    unbounded. It concluded the figure is "a current best bracket, not a
+    running total" and asked a future round to rename it or emit the coverage
+    alongside.
+
+    Renaming is the wrong fix: three rounds have published figures under the
+    current name and round 334's item 5 is explicit that a redefinition in
+    place is how published numbers rot. So the name stays and the BASIS ships
+    next to it, because the defect is not the name -- it is that the same
+    command over the same log prints 102h19m47s with no witnesses and 0h12m00s
+    with a journal capture, and NOTHING in the output said which had been
+    supplied. Two brackets of different tightness were being read as a trend.
+    """
+    b = dict(basis or {})
+    b["boot_history_boots"] = 0 if not boots else len(boots)
+    b["journal_capture_supplied"] = silence is not None
+    b["interior_witness_supplied"] = bool(
+        b["boot_history_boots"] or b["journal_capture_supplied"]
+        or b.get("sar_archive_supplied"))
+    b["note"] = (
+        "unobserved_total_s is a CURRENT BEST BRACKET conditioned on the "
+        "witnesses in this block, not a running total. Adding a witness "
+        "makes it FALL even as the log grows. Two runs are comparable only "
+        "if this block is identical in both."
+        if b["interior_witness_supplied"] else
+        "NO interior witness supplied: unobserved_total_s is the loosest "
+        "possible bracket -- every unwitnessed gap counted in full. Do not "
+        "compare this figure with one produced using --boot-history, "
+        "--journal-seconds or a sar archive.")
+    return b
+
+
 def continuity_report(records: list, boots: list | None = None,
-                      silence=None) -> dict:
+                      silence=None, basis: dict | None = None) -> dict:
     """Whole-log rollup of `gap_continuity`, plus the two numbers that
     change how this track's own history should be read.
 
@@ -1794,6 +1830,7 @@ def continuity_report(records: list, boots: list | None = None,
         "bounded_gap_count": len(bounded),
         "unobserved_total_s": unobserved_total,
         "unobserved_total_human": format_duration_s(unobserved_total),
+        "unobserved_basis": _unobserved_basis(boots, silence, basis),
         "max_unobserved_outage_s": (None if hidden_outage is None
                                     else hidden_outage["unobserved_s"]),
         "max_unobserved_outage_human": (None if hidden_outage is None
@@ -2052,6 +2089,11 @@ def main(argv=None) -> int:
                     help="path to saved `journalctl --list-boots -o json` output "
                          "from the box; witnesses up-streak gaps from the box's "
                          "own continuous record instead of our probes")
+    gp.add_argument("--sar-capture", default=None,
+                    help="round 400: a multi-day `sar -r` capture from the box "
+                         "(/var/log/sysstat/saNN). Its 10-minute samples are an "
+                         "independent uptime witness; every probe gap it covers "
+                         "end-to-end is reported closed.")
 
     ap = sub.add_parser("suspend-audit",
                         help="round 370: did this box ever sleep? Answers from "
@@ -2257,9 +2299,42 @@ def main(argv=None) -> int:
         capture = (json.loads(Path(args.journal_seconds).read_text())
                    if getattr(args, "journal_seconds", None) else None)
         silence = make_silence_fn(capture)
-        report = continuity_report(records, boots, silence)
+        basis = None
+        sar_rep = None
+        if getattr(args, "sar_capture", None):
+            try:      # importable as `nuc.reachability_check` AND runnable
+                from nuc.sysstat_archive import availability, parse_capture
+            except ModuleNotFoundError:   # pragma: no cover - script entry point
+                sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+                from nuc.sysstat_archive import availability, parse_capture
+            sar_rep = availability(parse_capture(
+                Path(args.sar_capture).read_text()))
+            basis = {"sar_archive_supplied": True,
+                     "sar_capture_path": args.sar_capture,
+                     "sar_coverage": sar_rep.get("coverage", {}).get("from_utc"),
+                     "sar_coverage_to": sar_rep.get("coverage", {}).get("to_utc"),
+                     "sar_samples": sar_rep.get("n_samples")}
+        report = continuity_report(records, boots, silence, basis)
         report["journal_seconds_loaded"] = 0 if not capture else len(capture.get("seconds") or [])
         report["boot_history_boots"] = 0 if not boots else len(boots)
+        if sar_rep is not None:
+            from nuc.sysstat_archive import witness_probe_gaps  # path set above
+            detail = gap_continuity(records, boots, silence)
+            closure = witness_probe_gaps(
+                sar_rep, [g for s in detail for g in s["gaps"]])
+            closed = [c for c in closure if c["verdict"] == "closed"]
+            report["sar_closure"] = {
+                "n_probe_gaps": len(closure),
+                "n_closed": len(closed),
+                "n_partial": sum(1 for c in closure if c["verdict"] == "partial"),
+                "n_open": sum(1 for c in closure if c["verdict"] == "open"),
+                "unobserved_s_closed": sum(c["probe_unobserved_s"] or 0
+                                           for c in closed),
+                "unobserved_s_remaining": sum(
+                    min(c["sar_uncovered_s"], c["probe_unobserved_s"] or 0)
+                    for c in closure),
+                "gaps": closure,
+            }
         if args.gaps:
             detail = gap_continuity(records, boots, silence)
             if args.verdict:

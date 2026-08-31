@@ -449,6 +449,191 @@ def attribute(excursions: Iterable, events: Iterable,
     return out
 
 
+@dataclass(frozen=True)
+class LedgerEntry:
+    """One named housekeeping fire, and what the bucket it fell in cost."""
+    at_utc: str
+    unit: str
+    bucket_end: str
+    pswpout_s: float
+    bucket_swapped_bytes: int
+    bucket_shared_by: int
+    costly: bool
+    sole_attributable: bool
+
+    def as_dict(self) -> dict:
+        return asdict(self)
+
+
+# A bucket has to move by more than sampling noise before a fire in it is
+# called costly, and the floor is DERIVED from the boot's own two extremes
+# rather than picked. `sar -W` gave exactly one sub-megabyte non-zero bucket
+# (0.14 pswpout/s, three fires shared it, and none of them plausibly swapped a
+# third of a megabyte of a 30 GB engine) and one smallest real event (27.54
+# pswpout/s, the 67.7 MB fwupd step round 394 attributed). The floor is their
+# GEOMETRIC MEAN: the value furthest, in log space, from both the largest
+# thing that must be rejected and the smallest thing that must be kept. Its
+# margin is 14.0x in each direction, so the grading does not turn on a
+# judgement call about either endpoint.
+LEDGER_NOISE_BUCKET_RATE = 0.14          # sar -W sa31, the 00:40:05 bucket
+LEDGER_SMALLEST_REAL_RATE = 27.54        # sar -W sa31, the 02:00:05 bucket
+LEDGER_NOISE_BUCKET_BYTES = round(LEDGER_NOISE_BUCKET_RATE
+                                  * SAR_INTERVAL_S) * PAGE_BYTES
+LEDGER_SMALLEST_REAL_EVENT_BYTES = round(LEDGER_SMALLEST_REAL_RATE
+                                         * SAR_INTERVAL_S) * PAGE_BYTES
+LEDGER_MIN_BYTES = int((LEDGER_NOISE_BUCKET_BYTES
+                        * LEDGER_SMALLEST_REAL_EVENT_BYTES) ** 0.5)
+
+# `sysstat-collect` is what WRITES the bucket. It is present in every costly
+# bucket by construction, so including it makes the base rate a statement
+# about the instrument rather than about the box. Excluded by default and
+# named here so the exclusion is a documented decision, not a silent filter.
+LEDGER_EXCLUDE_UNITS = ("sysstat-collect",)
+
+# A sample taken at instant T summarises (T-interval, T]. A unit that STARTS
+# at T has done nothing yet at T, so its cost belongs to the next bucket.
+# This is not a corner case on this box: `sysstat-collect.timer` and every
+# `OnCalendar=*-*-* HH:MM:SS` housekeeping timer fire on the same :00:0x
+# cadence, so a fire and the sample that closes its bucket are routinely
+# within seconds. Without the slack, `apt-daily` at 03:50:05 was credited to
+# the 03:50:05 bucket -- zero pages -- while the 218 MB it caused landed in
+# 04:00:03 and got attributed to `packagekit` instead. 5 s covers the observed
+# spread (fires at :05, samples at :03..:21) without reaching a real 10-minute
+# bucket boundary.
+LEDGER_BOUNDARY_SLACK_S = 5
+
+
+def cost_ledger(fires: Iterable, swap_table: SarTable, date: str,
+                interval_s: int = SAR_INTERVAL_S,
+                page_bytes: int = PAGE_BYTES,
+                min_bytes: int = LEDGER_MIN_BYTES,
+                exclude_units: Iterable = LEDGER_EXCLUDE_UNITS,
+                boundary_slack_s: int = LEDGER_BOUNDARY_SLACK_S) -> dict:
+    """Join every named unit start to the `sar -W` bucket it fell in.
+
+    Round 394 asked whether the identity of a housekeeping timer predicts what
+    it costs the engine. It had one case (`fwupd-refresh` at 01:57, 67.7 MB)
+    and three controls, and concluded "attribute to the bucket that MOVED; let
+    the unit name be corroboration". This function is that conclusion turned
+    into a measurement over every fire in a boot.
+
+    Unlike `attribute`, which starts from the excursions and asks which events
+    are in them, this starts from the FIRES and asks what each one cost --
+    including the many fires whose bucket is zero. That inversion is the whole
+    point: a base rate needs a denominator, and the denominator is the quiet
+    fires nobody writes down.
+
+    THREE THINGS IT REFUSES TO DO, each because the first draft did it and the
+    real capture caught it:
+
+    * It does not divide a shared bucket's cost among the fires in it.
+      `bucket_swapped_bytes` is a property of the BUCKET; when three units fire
+      into one bucket all three carry the same figure and `bucket_shared_by` is
+      3. `sole_attributable` is the only flag that licenses "unit X cost this",
+      and `total_swapped_bytes` sums DISTINCT BUCKETS. Summing per-fire bytes
+      gave 799 MB for a day whose real total is 289 MB.
+    * It does not count the instrument. See `LEDGER_EXCLUDE_UNITS`.
+    * It does not call a 344 kB bucket costly. See `LEDGER_MIN_BYTES`.
+
+    `unclassified` holds fires with no covering bucket -- the boot's first
+    partial bucket, or a fire on a day this table does not cover. They are
+    reported separately rather than counted as free, because a fire whose cost
+    is unknown is not a fire that cost nothing.
+    """
+    if interval_s <= 0:
+        raise PerturbationError("interval_s must be > 0")
+    if min_bytes < 0:
+        raise PerturbationError("min_bytes must be >= 0")
+    excluded = set(exclude_units or ())
+    ends = [(r.time, _hms_to_s(r.time), r.get("pswpout/s"))
+            for r in swap_table.rows]
+    bucket_bytes = {name: round(rate * interval_s) * page_bytes
+                    for name, _end, rate in ends}
+
+    placed, unclassified, skipped = [], [], 0
+    for f in fires:
+        at, unit = (f.at_utc, f.label) if hasattr(f, "at_utc") else (f[0], f[1])
+        if date and not at.startswith(date):
+            continue
+        if unit in excluded:
+            skipped += 1
+            continue
+        t = _hms_to_s(at.split("T")[-1][:8]) + boundary_slack_s
+        hit = next(((name, rate) for name, end, rate in ends
+                    if end - interval_s < t <= end), None)
+        if hit is None:
+            unclassified.append({"at_utc": at, "unit": unit,
+                                 "why": "no sar bucket covers this instant"})
+            continue
+        placed.append((at, unit, hit[0], hit[1]))
+
+    share = {}
+    for _at, _unit, name, _rate in placed:
+        share[name] = share.get(name, 0) + 1
+
+    entries = []
+    for at, unit, name, rate in placed:
+        b = bucket_bytes[name]
+        costly = b >= min_bytes
+        entries.append(LedgerEntry(
+            at_utc=at, unit=unit, bucket_end=name, pswpout_s=rate,
+            bucket_swapped_bytes=b, bucket_shared_by=share[name],
+            costly=costly, sole_attributable=costly and share[name] == 1))
+
+    by_unit = {}
+    for e in entries:
+        u = by_unit.setdefault(e.unit, {"fires": 0, "in_costly_bucket": 0,
+                                        "sole_attributable": 0,
+                                        "sole_attributable_bytes": 0})
+        u["fires"] += 1
+        u["in_costly_bucket"] += int(e.costly)
+        u["sole_attributable"] += int(e.sole_attributable)
+        u["sole_attributable_bytes"] += e.bucket_swapped_bytes if e.sole_attributable else 0
+
+    costly_buckets = sorted({e.bucket_end for e in entries if e.costly})
+    all_costly = sorted(n for n, b in bucket_bytes.items() if b >= min_bytes)
+    return {
+        "date": date,
+        "n_fires": len(entries),
+        "n_excluded_fires": skipped,
+        "excluded_units": sorted(excluded),
+        "min_bytes": min_bytes,
+        "boundary_slack_s": boundary_slack_s,
+        "n_fires_in_costly_bucket": sum(1 for e in entries if e.costly),
+        "n_sole_attributable": sum(1 for e in entries if e.sole_attributable),
+        "n_unclassified": len(unclassified),
+        "base_rate": (None if not entries
+                      else sum(1 for e in entries if e.costly) / len(entries)),
+        "n_buckets": len(ends),
+        "n_costly_buckets": len(all_costly),
+        "n_costly_buckets_with_a_named_fire": len(costly_buckets),
+        "costly_buckets_without_a_named_fire":
+            [n for n in all_costly if n not in set(costly_buckets)],
+        "total_swapped_bytes": sum(bucket_bytes[n] for n in all_costly),
+        "by_unit": by_unit,
+        "entries": [e.as_dict() for e in entries],
+        "unclassified": unclassified,
+    }
+
+
+def parse_unit_starts(text: str) -> list:
+    """`journalctl -o short-iso` lines -> `Event(at_utc, unit)`.
+
+    Matches only `systemd[1]: Starting <unit>.service`, i.e. PID 1 starting a
+    system unit. The narrower match is deliberate: `Started` fires for the same
+    unit and would double every count, and a user-manager line
+    (`systemd[1057]:`) is not a housekeeping timer."""
+    pat = re.compile(
+        r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:[+-]\d{2}:\d{2}|Z)?\s+"
+        r"\S+\s+systemd\[1\]:\s+Starting\s+(\S+?)\.service")
+    out = []
+    for line in text.splitlines():
+        m = pat.match(line)
+        if m:
+            out.append(Event(at_utc=m.group(1) + "Z", label=m.group(2)))
+    return out
+
+
 def _hms_to_s(hms: str) -> int:
     h, m, s = (int(p) for p in hms.split(":"))
     return h * 3600 + m * 60 + s
@@ -482,6 +667,17 @@ def main(argv=None) -> int:
 
     sub.add_parser("timers", help="the measured NUC timer table")
 
+    sl = sub.add_parser("ledger",
+                        help="round 400: what every housekeeping fire cost")
+    sl.add_argument("--sar-w", required=True)
+    sl.add_argument("--journal", required=True,
+                    help="`journalctl -b -o short-iso` text (or a grep of it)")
+    sl.add_argument("--date", required=True, help="YYYY-MM-DD the sar file covers")
+    sl.add_argument("--interval-s", type=int, default=SAR_INTERVAL_S)
+    sl.add_argument("--min-bytes", type=int, default=LEDGER_MIN_BYTES)
+    sl.add_argument("--include-instrument", action="store_true",
+                    help="do NOT exclude sysstat-collect (see LEDGER_EXCLUDE_UNITS)")
+
     args = p.parse_args(argv)
     if args.mode == "steps":
         table = parse_sar(_load(args.sar_r))
@@ -494,6 +690,14 @@ def main(argv=None) -> int:
                          indent=2))
     elif args.mode == "guard":
         print(json.dumps(window_guard(args.window_s), indent=2))
+    elif args.mode == "ledger":
+        table = parse_sar(_load(args.sar_w))
+        fires = parse_unit_starts(_load(args.journal))
+        print(json.dumps(cost_ledger(
+            fires, table, args.date, args.interval_s,
+            min_bytes=args.min_bytes,
+            exclude_units=() if args.include_instrument
+            else LEDGER_EXCLUDE_UNITS), indent=2))
     elif args.mode == "timers":
         print(json.dumps([asdict(t) | {"avoidable": t.avoidable}
                           for t in NUC_TIMERS], indent=2))
