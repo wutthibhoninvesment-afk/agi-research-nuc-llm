@@ -433,7 +433,7 @@ def test_both_self_hosting_examples_still_run_green():
     #        replaces would have stayed GREEN through the change: it
     #        asserted `got "a'b"` and named the quote-switching rule, and
     #        `got "a'b"` is what a always-double-quote rule prints too.
-    for name, expected in (("self_host.lang", "148 passed, 0 failed"),
+    for name, expected in (("self_host.lang", "154 passed, 0 failed"),
                            ("self_eval.lang", "166 passed, 0 failed")):
         r = subprocess.run(
             [sys.executable, os.path.join(ROOT, "run.py"),

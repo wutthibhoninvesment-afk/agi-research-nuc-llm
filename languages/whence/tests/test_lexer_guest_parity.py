@@ -366,6 +366,20 @@ CORPUS = [
     ("reject-non-ascii-digit", "let x = \u0663"),
     ("reject-superscript-two", "let x = \u00b2"),
     ("reject-non-ascii-in-name-tail", "let ca\u00e9fe = 1"),
+    # v0.40 (round 410), decision 49 -- the two doors for numeric text.
+    # This file is the ONLY instrument in the tree that can witness the
+    # closure of round 408's 4001-digit divergence, and the reason is
+    # structural: `bench/showtok.py` compares how the two sides RENDER a
+    # token, and a refusal produces no token to render. Contract rule 1
+    # (acceptance agrees) and rule 3 (on rejection, message AND position
+    # agree) are exactly the two claims decision 49 makes.
+    ("int-literal-at-the-cap", "let a = " + "9" * 4000),
+    ("reject-int-literal-one-past-the-cap", "let a = " + "9" * 4001),
+    # ...and the case the rule deliberately does NOT cover: a FLOAT literal
+    # has no digits to print back, so both sides still overflow it to `inf`
+    # rather than refusing it. Without this row the corpus would read as if
+    # "long numeric literal" were the rule.
+    ("float-literal-past-the-cap-is-not-refused", "let a = " + "9" * 4001 + ".5"),
 ]
 
 

@@ -42,8 +42,11 @@ from whence.parser import parse                               # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RUN = os.path.join(ROOT, "run.py")
-CENSUS = os.path.join(os.path.dirname(ROOT), "..", "state", "whence",
-                      "round-384", "field-names.json")
+# Round 410: the census's own integrity test reads it through the SAME
+# constant every other reader uses, so that it certifies the file that is
+# actually read rather than a file that happens to share a name.
+import curecheck as _C                                        # noqa: E402
+CENSUS = _C.FIELD_CENSUS
 
 
 def run(src, **kw):

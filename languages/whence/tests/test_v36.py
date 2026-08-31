@@ -44,7 +44,8 @@ import sys
 import pytest
 
 from whence.interp import Interpreter
-from whence.lexer import KEYWORDS, ONE_CHAR_OPS, TWO_CHAR_OPS, tokenize
+from whence.lexer import (KEYWORDS, LexError, ONE_CHAR_OPS, TWO_CHAR_OPS,
+                          tokenize)
 from whence.parser import ParseError, _show, parse
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -236,7 +237,7 @@ def test_v36s_unreachability_argument_was_false():
     `\\` and a raw newline. The escape form and the raw form are different
     programs and only one of them was ever run.
     """
-    from whence.lexer import LexError
+    pass  # LexError imported at module level (round 410)
     with pytest.raises(LexError) as e:
         tokenize('let s = "a\\x00b"')          # the ESCAPE: \, x, 0, 0
     assert "bad escape" in str(e.value)
@@ -248,58 +249,78 @@ def test_v36s_unreachability_argument_was_false():
     assert _show(_tok("STRING", "a\x00b")) == '"a\x00b"'
 
 
-def test_the_second_residual_was_a_lexer_divergence_wearing_a_renderer_name():
-    """The integer one, and the reason it is still open.
+def test_the_second_residual_is_closed_and_this_file_could_not_have_seen_it():
+    """The integer one, CLOSED by v0.40 (round 410), decision 49 --- and the
+    reason its closure is asserted somewhere else.
 
-    v0.36 described it as a RENDERING difference -- `str` summarises past
-    `SHOW_INT_BITS`, `repr` does not -- and decision 48 closed exactly that
-    by routing `_show` through `show_int`. What the description concealed
-    is a divergence one layer down, in the LEXER, which is still there:
+    v0.36 called it a RENDERING difference (`str` summarises past
+    `SHOW_INT_BITS`, `repr` does not) and decision 48 closed exactly that.
+    Underneath was a LEXER divergence: `num()` refused numeric text past
+    `SHOW_INT_DIGITS` and `whence/lexer.py` accepted a literal of any
+    length, so the guest --- whose `lit_num` IS `num` --- refused where the
+    host accepted. Decision 49 made the literal door enforce the same rule.
 
-      * `num()` refuses numeric text past `SHOW_INT_DIGITS` (4000), which
-        round 368 recorded as "Whence never accepts digits it could not
-        print back";
-      * `whence/lexer.py` accepts a literal of ANY length, so the rule
-        holds at one door and not at the other;
-      * the guest's `lit_num` is `num(text)` with `pos_inf` for a miss, so
-        it walks through the door that refuses.
-
-    The boundary is exact and it is asserted here rather than described.
-    Closing it is a decision about what the language ACCEPTS, which is not
-    what decision 48 is about.
+    THE STRUCTURAL POINT, and the reason this test is not just a deletion:
+    `bench/showtok.py` compares how the two sides RENDER a token. The fixed
+    behaviour is that neither side produces a token at all. A parity harness
+    over answers cannot witness a case whose right answer is to give no
+    answer, so emptying `KNOWN_DIVERGENT` must come with a NAMED home for
+    the case, or the exemption has not been closed --- it has been dropped.
     """
     from whence.values import SHOW_INT_DIGITS
     assert SHOW_INT_DIGITS == 4000
-    assert S.KNOWN_DIVERGENT, "the exemption stopped being executable"
-    for name, src, kind, why in S.KNOWN_DIVERGENT:
-        rows, misaligned = S.sweep(cases=[(name, src)])
-        assert not misaligned, (name, misaligned)
-        bad = [r for r in rows if not r.agrees]
-        assert bad, "%s no longer diverges -- %s" % (name, why)
-        assert {r.kind for r in bad} == {kind}, sorted({r.kind for r in bad})
-        assert bad[0].guest == "inf", bad[0]
-        assert bad[0].host.startswith("<integer,"), bad[0]
+    assert S.KNOWN_DIVERGENT == [], S.KNOWN_DIVERGENT
 
-    # ...and one digit fewer agrees, on both sides, which is what makes the
-    # boundary a measurement instead of an anecdote. That case is in the
-    # clean CORPUS, so this only has to name it.
+    # the case is refused now, on the host, by the door decision 49 closed
+    with pytest.raises(LexError):
+        tokenize("let a = %s" % ("9" * (SHOW_INT_DIGITS + 1)))
+
+    # ...and the closure has a home, which is checked rather than cited.
+    rel, case = S.CLOSED_DIVERGENCE_HOME
+    home = os.path.join(ROOT, rel)
+    assert os.path.exists(home), home
+    src = open(home, encoding="utf-8").read()
+    assert ('("%s"' % case) in src, (rel, case)
+
+    # ...and one digit fewer is still ACCEPTED and still agrees, which is
+    # what makes the boundary a measurement instead of an anecdote. That
+    # case is in the clean CORPUS, so this only has to name it.
     assert any(n == "integer-just-under-the-cap" for n, _ in S.CORPUS)
+    rows, misaligned = S.sweep(cases=[("integer-just-under-the-cap",
+                                       "let a = %s\n" % ("9" * 4000))])
+    assert not misaligned and all(r.agrees for r in rows), rows
 
 
-def test_the_host_lexer_and_num_disagree_about_the_same_text():
-    """The mechanism above, on the HOST alone, with no guest involved --
-    so it survives any future rewrite of `self_eval.lang`."""
-    from whence.values import SHOW_INT_DIGITS
-    for digits, num_misses in ((SHOW_INT_DIGITS, False),
-                               (SHOW_INT_DIGITS + 1, True)):
+def test_the_host_lexer_and_num_now_agree_about_the_same_text():
+    """The mechanism, on the HOST alone with no guest involved, so it
+    survives any future rewrite of `self_eval.lang`.
+
+    Two doors for one piece of numeric text. Before v0.40 they disagreed at
+    4001 digits; now they refuse together, in the two different PHASES they
+    belong to --- a literal is program text, so its refusal is a `LexError`
+    at lex time, and `num(s)` is a runtime call on a runtime string, so its
+    refusal is a Miss. Same rule, same sentence, different phase, and the
+    sentence is one constant so neither door can reword it alone.
+    """
+    from whence.values import (SHOW_INT_DIGITS, NUM_TEXT_LIMIT_MSG, Miss)
+    for digits, refused in ((SHOW_INT_DIGITS, False),
+                            (SHOW_INT_DIGITS + 1, True)):
         text = "9" * digits
-        toks = tokenize("let a = %s" % text)
-        lexed = [t.value for t in toks if t.type == "NUMBER"]
-        assert len(lexed) == 1 and isinstance(lexed[0], int), lexed
         env = Interpreter().run('let a = num("%s")\n' % text)
-        from whence.values import Miss
-        # the binding is a provenance node; the miss is its PAYLOAD
-        assert isinstance(env.get("a").payload, Miss) is num_misses, digits
+        assert isinstance(env.get("a").payload, Miss) is refused, digits
+        if not refused:
+            toks = tokenize("let a = %s" % text)
+            lexed = [t.value for t in toks if t.type == "NUMBER"]
+            assert len(lexed) == 1 and isinstance(lexed[0], int), lexed
+            continue
+        with pytest.raises(LexError) as exc:
+            tokenize("let a = %s" % text)
+        sentence = NUM_TEXT_LIMIT_MSG % (digits, SHOW_INT_DIGITS)
+        assert str(exc.value) == "%s at line 1, col 9" % sentence
+        # the runtime door appends a `(line N)` clause; the SENTENCE is the
+        # shared constant and is what must match, character for character.
+        assert env.get("a").payload.reasons == (
+            "num: %s (line 1)" % sentence,)
 
 
 # --------------------------------------------------------------------------

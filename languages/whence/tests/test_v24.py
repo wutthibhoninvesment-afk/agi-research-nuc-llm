@@ -140,18 +140,16 @@ OUR_EXAMPLES = (
 )
 # The other fourteen are the FIELD CORPUS, and their names are NOT repeated
 # here: `state/whence/round-384/field-names.json` has declared them since
-# round 384 and both `_corpus_unchanged()` in test_v33/test_v34 and
-# `curecheck.field_programs()` read it. Read lazily inside the test — a
-# module-level read is what took this file's collection down in the first
-# place.
-FIELD_CENSUS = os.path.join(REPO, "state", "whence", "round-384",
-                            "field-names.json")
+# round 384. Round 410 made `curecheck` the ONE reader of that file — this
+# module used to open and parse it itself, which was the fourth copy of the
+# same six lines. Still read lazily, inside the test: a module-level read is
+# what took this file's collection down in the first place, and
+# `field_census_names()` opens the file when it is called and not on import.
 
 
 def _field_corpus():
-    import json
-    with open(FIELD_CENSUS, encoding="utf-8") as fh:
-        return {os.path.basename(k) for k in json.load(fh)["file_md5"]}
+    import curecheck as C
+    return set(C.field_census_names())
 
 
 def _tracked_examples():

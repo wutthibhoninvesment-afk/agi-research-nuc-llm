@@ -52,6 +52,7 @@ from __future__ import annotations
 
 import argparse
 import collections
+import hashlib
 import json
 import os
 import re
@@ -791,10 +792,22 @@ FIELD_CENSUS = os.path.join(
     "field-names.json")
 
 
-def _census_names():
+def _census_md5():
+    """`{basename: md5}` --- round 384's frozen census, read once per call.
+
+    The ONE reader of the census file in this repo's runtime code. Round 410
+    made it one: `_corpus_unchanged()` in `tests/test_v33.py` and
+    `tests/test_v34.py` were a second and third, byte-identical to each
+    other, and being three copies was not the defect --- answering two
+    different questions with one answer was. See `field_corpus_skip_reason`.
+    """
     with open(FIELD_CENSUS, encoding="utf-8") as fh:
-        return sorted(os.path.basename(k)
-                      for k in json.load(fh)["file_md5"])
+        return {os.path.basename(k): v
+                for k, v in json.load(fh)["file_md5"].items()}
+
+
+def field_census_names():
+    return sorted(_census_md5())
 
 
 def field_programs(root=None):
@@ -827,7 +840,7 @@ def field_programs(root=None):
     untracked `.lang` the census does not name.
     """
     root = root or _HERE
-    paths = [os.path.join(root, "examples", n) for n in _census_names()]
+    paths = [os.path.join(root, "examples", n) for n in field_census_names()]
     return sorted(p for p in paths if os.path.exists(p))
 
 
@@ -870,10 +883,122 @@ def field_corpus_absent(root=None):
     file round 395 wrote next, or to `test_v24.py`.
     """
     root = root or _HERE
-    declared = _census_names()
-    present = [n for n in declared
-               if os.path.exists(os.path.join(root, "examples", n))]
-    return not present and bool(declared)
+    declared = field_census_names()
+    return bool(declared) and len(field_corpus_missing(root)) == len(declared)
+
+
+def field_corpus_missing(root=None):
+    """Declared programs that are not on disk under `root`, sorted.
+
+    One computation of "which of the fourteen are gone", used by
+    `field_corpus_absent` (are they ALL gone?), by `field_corpus_skip_reason`
+    (are SOME gone?) and by `field_corpus_drift` (which ones, and is there
+    anything undeclared next to them?). Round 410 split it out because the
+    first two of those three had been asking git, or asking the filesystem
+    twice, for an answer the third already had.
+    """
+    root = root or _HERE
+    return sorted(n for n in field_census_names()
+                  if not os.path.exists(os.path.join(root, "examples", n)))
+
+
+#: Why a corpus-derived NUMBER is not a regression when the corpus moves.
+#: `%s` is the name of the first program whose bytes differ from round 384's
+#: census. Distinct from `FIELD_CORPUS_ABSENT_REASON` on purpose: that one
+#: says the subject was never here, this one says the subject is here and is
+#: a different subject. Round 395's `_corpus_unchanged()` produced ONE
+#: sentence, `field corpus moved: missing: X`, for both --- so in a fresh
+#: `git worktree`, where nothing had moved and nothing had been rewritten,
+#: seven tests skipped saying the gateway had rewritten a file.
+FIELD_CORPUS_CHANGED_REASON = (
+    "the field corpus has been REWRITTEN since round 384's census (%s). The "
+    "Hermes gateway is a separate autonomous system that shares this repo "
+    "and may rewrite its programs without notice, so a corpus-derived "
+    "number is NEW INFORMATION rather than a regression in anything this "
+    "project wrote --- re-freeze the census deliberately, do not edit the "
+    "expected number to make the suite quiet.")
+
+
+def field_corpus_changed(root=None):
+    """The first declared program PRESENT on disk whose bytes are not the
+    ones round 384 froze, or None.
+
+    Deliberately says NOTHING about a program that is absent. Absence has
+    two readings and neither of them is "rewritten": none present is a
+    checkout that was never the gateway's tree (`field_corpus_absent`), and
+    some present is drift (`field_corpus_drift`). Round 410 split this out
+    of `_corpus_unchanged()`, whose `missing:` branch made those readings
+    unreachable.
+    """
+    root = root or _HERE
+    census = _census_md5()
+    for name in sorted(census):
+        path = os.path.join(root, "examples", name)
+        if not os.path.exists(path):
+            continue
+        with open(path, "rb") as fh:
+            if hashlib.md5(fh.read()).hexdigest() != census[name]:
+                return name
+    return None
+
+
+def field_corpus_skip_reason(root=None):
+    """The ONE decision every corpus-derived test needs: skip, and why --- or
+    None, meaning run.
+
+    FOUR states of the field corpus, and the whole point of this function is
+    that they are four --- it was written with three and its own test found
+    the fourth:
+
+      * **none of the declared programs present.** This checkout was never
+        the tree the gateway writes into; round 402 named all fourteen in
+        `.gitignore`, so no checkout of any commit has them. A test whose
+        subject is the corpus has no subject -> SKIP, with
+        `FIELD_CORPUS_ABSENT_REASON`.
+      * **all present, one rewritten.** The gateway moved; the measurement
+        is about a different corpus than the one the number was frozen
+        against -> SKIP, with `FIELD_CORPUS_CHANGED_REASON`.
+      * **some present, some gone.** DRIFT -> **None**. The tests RUN and go
+        red, and `field_corpus_drift()` names the file. A skip here would
+        swallow exactly the event drift-reporting exists to report.
+      * **some gone AND one of the rest rewritten.** Still **None**. The
+        fourth state is not a corner case, it is what a gateway that
+        reorganises its programs actually produces, and answering it with
+        the rewrite's skip would hide the deletion behind the smaller
+        event. The order of the two checks below IS this rule.
+
+    Round 395's `_corpus_unchanged()` collapsed the first and third into the
+    second: any missing file returned `"missing: X"`, which skipped, under a
+    reason string that said the corpus had MOVED. Two costs, and the quiet
+    one is worse. Loud: in every `git worktree` --- where all fourteen are
+    absent for a reason that has nothing to do with the gateway --- seven
+    tests announced a rewrite that had not happened. Quiet: if the gateway
+    DELETES one of the fourteen, the seven tests that measure the corpus go
+    silent about it, and the drift report that would have named the file is
+    in a different file that nobody has to read.
+
+    `tests/test_field_corpus_selector.py::test_the_old_helper_skipped_the_
+    one_state_that_must_stay_red` re-runs that falsification against a
+    verbatim copy of the old helper, every fast tier, forever.
+    """
+    root = root or _HERE
+    missing = field_corpus_missing(root)
+    declared = field_census_names()
+    if declared and len(missing) == len(declared):
+        return FIELD_CORPUS_ABSENT_REASON
+    if missing:
+        # DRIFT, and it is checked BEFORE the rewrite because the two can be
+        # true at once. Round 410 wrote this function with three states, and
+        # `test_a_rewritten_corpus_does_not_hide_a_missing_one` --- written
+        # in the same round to assert the ordering --- failed, because the
+        # gateway deleting one program and rewriting another produced the
+        # REWRITE's skip and buried the deletion under it. A deletion is the
+        # louder event: it is the one that can be a mistake.
+        return None
+    changed = field_corpus_changed(root)
+    if changed is not None:
+        return FIELD_CORPUS_CHANGED_REASON % changed
+    return None
 
 
 def field_corpus_drift(root=None):
@@ -892,10 +1017,8 @@ def field_corpus_drift(root=None):
     )
     untracked = {os.path.basename(n) for n in proc.stdout.split("\n")
                  if n.endswith(".lang")}
-    declared = set(_census_names())
-    missing = sorted(n for n in declared
-                     if not os.path.exists(os.path.join(root, "examples", n)))
-    return sorted(untracked - declared), missing
+    declared = set(field_census_names())
+    return sorted(untracked - declared), field_corpus_missing(root)
 
 
 # There is deliberately NO `tracked_programs()` here. It would have been

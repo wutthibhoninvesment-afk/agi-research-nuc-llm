@@ -120,6 +120,11 @@ fn exp_end(s, j) {
 # literal `1e400`), so "out of range" is the ONLY way `num` can fail on it
 # and the overflow is always toward +inf.
 let pos_inf = 1e400
+# v0.40 (round 410), decision 49: `values.SHOW_INT_DIGITS`. The guest cannot
+# import the host's constant, so it is written here once and pinned against
+# the host by `tests/test_lexer_guest_parity.py`'s table-parity section --
+# the same arrangement as `keywords`, `one_char_ops` and the escape table.
+let num_text_digit_limit = 4000
 fn lit_num(text) {
   let v = num(text)
   if missed(v) { pos_inf } else { v }
@@ -242,8 +247,27 @@ fn lex(s, i, stack, acc, line, bol) {
     let has_frac = j0 + 1 < len(s) and s[j0] == "." and is_digit(s[j0 + 1])
     let j1 = if has_frac { scan_while(s, j0 + 1, is_digit) } else { j0 }
     let j = exp_end(s, j1)
-    lex(s, j, stack, push(acc, @{t: "num", v: lit_num(slice(s, i, j)), line: line,
-                                 col: i - bol + 1}), line, bol)
+    # v0.40 (round 410), decision 49. The literal door for numeric text now
+    # enforces the same round-trip rule `num` always has, so the guest gets
+    # a branch it could not have had before: until v0.40 the HOST accepted a
+    # 4001-digit literal and this guest could not, because `lit_num` IS
+    # `num` and `num` refused -- the divergence `bench/showtok.py`'s
+    # KNOWN_DIVERGENT recorded. `j == j0` is "no fraction and no exponent
+    # were consumed", i.e. INTEGER text; a float literal still overflows to
+    # `pos_inf` and is not refused, because a float has no digits to print
+    # back. The message is the host's, character for character
+    # (`values.NUM_TEXT_LIMIT_MSG`), and `test_lexer_guest_parity.py` rule 3
+    # is what keeps it so.
+    if j == j0 and j - i > num_text_digit_limit {
+      push(acc, @{t: "bad", v: str(j - i) + " digits is over the " +
+                                str(num_text_digit_limit) +
+                                "-digit limit for numeric text (str of a " +
+                                "larger integer is a summary, not digits)",
+                  line: line, col: i - bol + 1})
+    } else {
+      lex(s, j, stack, push(acc, @{t: "num", v: lit_num(slice(s, i, j)), line: line,
+                                   col: i - bol + 1}), line, bol)
+    }
   }
   else if is_name_start(s[i]) {
     let j = scan_while(s, i, is_name_cont)
@@ -338,6 +362,14 @@ fn is_ntype(toks, pos, ty) { t_at(toks, pos).t == ty }
 # `bad escape` that the byte could not be reached.) The big-integer one
 # goes because the HOST now calls `show_int` where it used to call `repr`,
 # so `str(k.v)` on this side and `_show` on that side are the same rule.
+#
+# v0.40 (round 410), decision 49: that last sentence was true and it was
+# not the whole story. Under the rendering fix the two sides still parted
+# company at 4001 digits, because the HOST LEXER accepted a literal this
+# guest's `lit_num` refused -- a divergence in what the language ACCEPTS,
+# wearing a renderer's name. Decision 49 closed it at the other end: the
+# literal door now enforces the digit bound `num` always had, on both
+# sides, and `lex`'s integer branch below carries this guest's half.
 fn quote_body(s, i, acc) {
   if i >= len(s) { acc }
   else {

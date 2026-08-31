@@ -189,7 +189,19 @@ def test_a_huge_literal_in_the_got_slot_honours_show_int_bits():
     that had never heard of it, so the PARSER could emit what the RUNTIME
     is forbidden to.
     """
-    digits = "9" * 4100
+    # v0.40 (round 410), decision 49: this was `"9" * 4100`, and 4100 digits
+    # is no longer a program. Closing the lexer's door on numeric text past
+    # `SHOW_INT_DIGITS` did not make this branch dead code, but it made the
+    # live window EXACTLY ONE BIT WIDE, and that is worth knowing:
+    #
+    #   smallest integer `show_int` summarises   2**13287 -> 4000 digits
+    #   largest integer the lexer now accepts    10**4000-1 -> 4000 digits
+    #
+    # both 13288 bits. Every integer literal a source file can now carry
+    # that reaches the summarising branch has that one bit length (43.3% of
+    # the 4000-digit integers). Pinned in `test_v40.py::
+    # test_the_summarising_branch_is_still_reachable_from_source`.
+    digits = "9" * values.SHOW_INT_DIGITS
     n = int(digits)
     assert n.bit_length() > values.SHOW_INT_BITS, n.bit_length()
     msg = reason("fn f(%s) { 1 }" % digits)
@@ -206,8 +218,9 @@ def test_a_huge_literal_in_the_got_slot_honours_show_int_bits():
 def test_the_summary_is_the_same_function_the_runtime_uses():
     """Not a re-implementation of the rule — the rule itself. If round
     368's cap moves, both move together."""
-    n = int("9" * 4100)
-    assert values.show_int(n) in reason("fn f(%s) { 1 }" % ("9" * 4100))
+    digits = "9" * values.SHOW_INT_DIGITS      # v0.40: was 4100, see above
+    n = int(digits)
+    assert values.show_int(n) in reason("fn f(%s) { 1 }" % digits)
 
 
 # --------------------------------------------------------------------------

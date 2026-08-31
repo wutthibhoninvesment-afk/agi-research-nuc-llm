@@ -59,6 +59,14 @@ CONTINUES = set("+-*/%,:=<>") | {"==", "!=", "<=", ">=", "->"}
 CONTINUE_KWS = {"and", "or", "not", "rescue"}
 
 
+# v0.40 (round 410): this module's first import, and it is deliberate. The
+# alternative was a copy of the 4000 and of the refusal sentence, which is
+# exactly the anti-rot rule `curecheck.py`'s header states for parser hints:
+# key on the constant, never on a copy of its wording. `whence/values.py`
+# imports nothing from this package, so there is no cycle.
+from .values import SHOW_INT_DIGITS, NUM_TEXT_LIMIT_MSG
+
+
 class LexError(Exception):
     def __init__(self, message, line, col):
         super(LexError, self).__init__("%s at line %d, col %d" % (message, line, col))
@@ -188,8 +196,34 @@ def tokenize(src):
             # -- literal overflow silently becomes `inf`, unlike
             # `num("1e400")`'s "out of range" MISS, which is a string-
             # conversion-specific rule, not a literal-grammar one.
-            value = (float(text) if ("." in text or "e" in text or "E" in text)
-                     else int(text))
+            is_float = "." in text or "e" in text or "E" in text
+            # v0.40 (round 410), decision 49 -- THE OTHER DOOR.
+            #
+            # `values.SHOW_INT_DIGITS`'s own comment has claimed since round
+            # 368 that "`num()` refuses numeric TEXT past the same boundary,
+            # so the two stay inverses: Whence never accepts digits it could
+            # not print back." That is a claim about the LANGUAGE and it was
+            # only ever true of the builtin. A source literal is the other
+            # door for numeric text and it had no bound, so
+            # `let a = <4001 nines>` was accepted and produced a value whose
+            # every rendering is `<integer, 13292 bits>` -- digits in, no
+            # digits out. Round 408 measured it as a host/guest divergence
+            # (the guest's `lit_num` IS `num`, so the guest refused where the
+            # host did not) and deferred it here as a decision about what the
+            # language accepts.
+            #
+            # INTEGER text only. `1e400` and `9...9.5` still lex to `inf`,
+            # deliberately and unchanged: those are FLOATS, and a float has
+            # no round-trip property to preserve -- `inf` is a value the
+            # language can print, and `num("1e400")`'s "out of range" miss is
+            # a string-conversion rule about range, not a rule about digits.
+            # The two doors were never asked to agree about floats and they
+            # still do not. See `tests/test_v40.py`.
+            if not is_float and len(text) > SHOW_INT_DIGITS:
+                raise LexError(
+                    NUM_TEXT_LIMIT_MSG % (len(text), SHOW_INT_DIGITS),
+                    line, start_col)
+            value = float(text) if is_float else int(text)
             col += i - start
             tokens.append(Token("NUMBER", value, line, start_col))
             continue

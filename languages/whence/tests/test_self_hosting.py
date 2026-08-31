@@ -123,7 +123,7 @@ MARKER = "# ==== SELF-TESTS"
 # block eleven lines longer. Found by RUNNING the suite, not by reading the
 # diff: the assertion that catches a stale bound is the section's closing
 # line, not its length.
-LIB_START, LIB_END = 27, 1054
+LIB_START, LIB_END = 27, 1086   # round 410, v0.40 decision 49 (+32)
 
 
 def eval_library_source():
@@ -204,7 +204,28 @@ def test_guest_parser_parses_its_own_full_source():
     # that would have has not completed since round 390. Found by round 403
     # by reading an ORPHANED full-tier run's log -- see
     # knowledge/round-403-*.md.
-    assert env.get("__nstmts").payload == 268
+    # ROUND 410: was the literal `268`, and it was **3 stale on arrival** --
+    # round 408 (v0.39) added three `check` statements to `self_host.lang`
+    # and did not move it, so at `HEAD` this test asserted 268 against a
+    # file that parses to 271. It is the THIRD time a manually-maintained
+    # coordinate in this file has rotted (the `27, 912` bound was 38 rounds
+    # red; `LIB_END` drifted from `test_self_eval.py`'s copy), and the cause
+    # is the same every time: every reader of these numbers is
+    # `whence_slow`, so the tier that would notice does not run in most
+    # rounds.
+    #
+    # So the number is no longer here. The claim this test makes is a
+    # PARITY claim -- the guest parser finds the same top-level statements
+    # in `self_host.lang` that the host does -- and that is checked against
+    # the host, computed from the same file, in the same run. The exact
+    # count keeps its guard against a silent structural regression (two
+    # statements merging into one) by being pinned ON THE HOST in
+    # `test_the_host_statement_count_of_self_host_lang_is_pinned` below,
+    # which is NOT `whence_slow` and therefore runs every round.
+    from whence.parser import parse as _host_parse
+    host_stmts = len(_host_parse(host_src).stmts)
+    assert env.get("__nstmts").payload == host_stmts, (
+        "guest %s, host %s" % (env.get("__nstmts").payload, host_stmts))
 
 
 @pytest.mark.whence_slow
@@ -1080,3 +1101,32 @@ def test_guest_matches_shapeof_typed_why_shape_matches_host_exactly():
         guest_ops = [e.payload.split(" ")[0] for e in rec.fields["v"].payload]
 
         assert guest_ops == host_ops, (label, "guest", guest_ops, "host", host_ops)
+
+
+def test_the_host_statement_count_of_self_host_lang_is_pinned():
+    """The exact number, moved out of the slow tier (round 410).
+
+    `self_host.lang` parses to 280 top-level statements. This is the pin
+    that catches a silent structural regression --- two statements merging
+    into one leaves `__ok` true and the file running --- and it is here,
+    unmarked, because the version that lived in
+    `test_guest_parser_parses_its_own_full_source` was `whence_slow` and
+    went stale twice without anyone seeing it.
+
+    UPDATE IT DELIBERATELY when you add a top-level statement, and say what
+    you added. The two moves this pin knows about:
+
+      * the value asserted up to round 409 was **268**, and the file at that
+        commit parses to **271**. The missing +3 is round 408's three new
+        `check` statements; nothing recorded the move, and nothing could
+        have noticed it, because the only reader was `whence_slow`.
+        Recovered round 410 by parsing `git show HEAD:...` against the same
+        host parser this test uses.
+      * round 410 (v0.40, decision 49): **271 -> 280**. +1 shared-section
+        `let` (`num_text_digit_limit`), +2 fns (`rep9`, `rep9_at`), +6
+        `check`s for the boundary, the reported column, and the float
+        non-rule.
+    """
+    from whence.parser import parse as host_parse
+    src = open(SELF_HOST, encoding="utf-8").read()
+    assert len(host_parse(src).stmts) == 280

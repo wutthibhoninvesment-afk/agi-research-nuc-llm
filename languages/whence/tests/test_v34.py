@@ -44,7 +44,6 @@ runs.
 """
 
 import ast
-import hashlib
 import json
 import os
 import re
@@ -64,8 +63,6 @@ from whence.foreign import FOREIGN_NAMES                   # noqa: E402
 
 PARSER_PY = os.path.join(ROOT, "whence", "parser.py")
 EXAMPLES = os.path.join(ROOT, "examples")
-CENSUS = os.path.join(os.path.dirname(ROOT), "..", "state", "whence",
-                      "round-384", "field-names.json")
 
 
 def err(src):
@@ -514,20 +511,13 @@ def test_the_cure_loop_terminates_on_the_pair():
 # 6. the corpus delta --- pinned behind round 384's frozen census
 # --------------------------------------------------------------------------
 
-def _corpus_unchanged():
-    census = json.load(open(CENSUS, encoding="utf-8"))
-    for name, want in census["file_md5"].items():
-        path = os.path.join(EXAMPLES, os.path.basename(name))
-        if not os.path.exists(path):
-            return "missing: %s" % name
-        if hashlib.md5(open(path, "rb").read()).hexdigest() != want:
-            return "changed: %s" % name
-    return None
-
-
-corpus_pin = pytest.mark.skipif(_corpus_unchanged() is not None,
-                                reason="field corpus moved: %s"
-                                       % _corpus_unchanged())
+# Round 410: was a verbatim copy of `test_v33.py`'s `_corpus_unchanged()`.
+# One helper now, in `curecheck`, over two predicates --- see the comment at
+# `test_v33.py`'s section 3 and `curecheck.field_corpus_skip_reason`'s
+# docstring for why the copy was not the defect.
+_CORPUS_SKIP = C.field_corpus_skip_reason()
+corpus_pin = pytest.mark.skipif(_CORPUS_SKIP is not None,
+                                reason=_CORPUS_SKIP or "")
 
 
 @corpus_pin

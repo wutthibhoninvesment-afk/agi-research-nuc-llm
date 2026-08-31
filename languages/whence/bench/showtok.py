@@ -50,7 +50,10 @@ replaced them is not nothing.
     this as `str` summarising where `repr` does not --- a RENDERING
     difference, closed by decision 48 routing `_show` through `show_int`.
     What that description concealed is a real divergence one layer down,
-    in the LEXER, and it is still open. See `KNOWN_DIVERGENT` below.
+    in the LEXER. v0.40 (round 410, decision 49) closed THAT, by making the
+    literal door refuse the numeric text `num()` has always refused --- and
+    the closure is invisible from here, because a refusal produces no token
+    to render. See `KNOWN_DIVERGENT` below, which is now empty and says so.
 """
 import argparse
 import os
@@ -116,32 +119,35 @@ CORPUS = [
     ("integer-just-under-the-cap", 'let a = %s\n' % ("9" * 4000)),
 ]
 
-# v0.39 (round 408). Cases that are KNOWN to diverge, with the boundary
-# measured rather than asserted. These are deliberately NOT in `CORPUS`:
-# the sweep's headline number stays a clean 0, and the exemption stays
-# executable instead of becoming a paragraph. `tests/test_v36.py` requires
-# each of these to diverge -- an exemption that has stopped being true is
-# as much a defect as a divergence that has started.
+# v0.39 (round 408) opened this list with one entry; v0.40 (round 410),
+# decision 49, closed it, and the list is kept EMPTY rather than deleted
+# because what it recorded is worth keeping addressable.
 #
-# THE MECHANISM, which v0.36's wording did not reach. Round 368 gave
-# `num()` a refusal past `SHOW_INT_DIGITS` (4000) and recorded the rule as
-# "Whence never accepts digits it could not print back". That is true of
-# `num()` and false of the LEXER, which accepts a literal of any length --
-# two doors for one piece of numeric text, and only one of them enforces
-# the rule. The guest's `lit_num` is `num(text)` with `pos_inf` for a
-# miss, so it walks through the door that refuses; the host's
-# `whence/lexer.py` walks through the one that does not.
+# THE ENTRY WAS: `let a = <4001 nines>`, host `<integer, 13292 bits>`, guest
+# `inf`. Round 368 gave `num()` a refusal past `SHOW_INT_DIGITS` (4000) and
+# recorded the rule as "Whence never accepts digits it could not print
+# back". That was true of `num()` and false of the LEXER, which accepted a
+# literal of any length -- two doors for one piece of numeric text, and only
+# one of them enforcing. The guest's `lit_num` IS `num`, so the guest walked
+# through the door that refuses while `whence/lexer.py` walked through the
+# one that did not. Decision 49 made the literal door enforce the rule.
 #
-#   4000 digits: host `<integer, 13288 bits>`, guest `<integer, 13288 bits>`
-#   4001 digits: host `<integer, 13292 bits>`, guest `inf`
-#
-# Closing it is a decision about what the language ACCEPTS, not about how
-# it renders, so decision 48 does not touch it.
-KNOWN_DIVERGENT = [
-    ("integer-one-digit-past-the-cap", 'let a = %s\n' % ("9" * 4001),
-     "NUMBER", "the lexer accepts what num() refuses; the guest's lit_num "
-               "substitutes pos_inf"),
-]
+# AND THIS FILE COULD NOT HAVE WITNESSED THE CLOSURE. A rendering-parity
+# sweep compares how two implementations SHOW a token; a refusal produces no
+# token, so the closed case has nothing for `sweep` to line up. The
+# instrument that can is `tests/test_lexer_guest_parity.py`, whose contract
+# has a rejection arm (rule 1 acceptance agrees, rule 3 message and position
+# agree) -- its corpus carries `reject-int-literal-one-past-the-cap`,
+# `int-literal-at-the-cap` and the float row that shows the rule is about
+# integer text. A harness that can only see agreement between two answers
+# cannot see a case where the right answer is to give no answer.
+KNOWN_DIVERGENT = []
+
+#: Where the closed exemption is pinned now, asserted by
+#: `tests/test_v36.py` so that emptying the list above cannot quietly become
+#: "nobody checks that case any more".
+CLOSED_DIVERGENCE_HOME = ("tests/test_lexer_guest_parity.py",
+                          "reject-int-literal-one-past-the-cap")
 
 
 def library_source():

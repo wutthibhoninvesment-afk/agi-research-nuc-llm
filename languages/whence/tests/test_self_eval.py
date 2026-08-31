@@ -229,11 +229,15 @@ def test_parser_section_matches_self_host():
     # bound is `tests/test_self_hosting.py::LIB_END`; they must move
     # together and have drifted apart before (38 rounds, found in round
     # 398).
+    # round 410: 1054 -> 1086, v0.40 decision 49. The guest lexer's integer
+    # branch gains the same round-trip refusal `num` has always had (+24
+    # lines, 19 of them the comment saying why it could not have existed
+    # before v0.40: the HOST used to accept what the guest refused).
     # round 408: 1043 -> 1054, v0.39 decision 48. `repr_body`/`repr_str`
     # become `quote_body`/`quote_str` (one line shorter: no quote-character
     # argument to thread) and `show_tok` gains two branches, against a
     # comment block eleven lines longer.
-    section = "\n".join(host_lines[27:1054])
+    section = "\n".join(host_lines[27:1086])
     assert section.startswith("# ---- character classes")
     assert section.rstrip().endswith(
         'if le != "" { miss le } else { parse_program(toks) }\n}')

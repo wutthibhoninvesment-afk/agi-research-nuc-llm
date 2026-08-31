@@ -59,6 +59,7 @@ from .values import (
     _slot,
     WList, wlist,
     show_payload, full_show, show_int, SHOW_INT_DIGITS,
+    NUM_TEXT_LIMIT_MSG,
     leaf, derived, mk_miss, merge_miss,
     render_why, render_contrast, is_origin_miss, walk_steps, find_step,
     matches_step,
@@ -3523,11 +3524,13 @@ def _make_builtin_table():
                     # digits here would mint a value the language cannot
                     # write back out -- and `int(t)` itself is the
                     # ValueError, so the check must come first.
-                    return mk_miss('num: %d digits is over the %d-digit '
-                                   'limit for numeric text (str of a larger '
-                                   'integer is a summary, not digits)' %
-                                   (ndigits, SHOW_INT_DIGITS), line, "num",
-                                   inputs=(args[0],))
+                    # v0.40: the wording is `values.NUM_TEXT_LIMIT_MSG`,
+                    # shared with `whence/lexer.py`'s literal door. Same
+                    # rule, same sentence, two phases -- see decision 49.
+                    return mk_miss(
+                        "num: " + NUM_TEXT_LIMIT_MSG % (ndigits,
+                                                        SHOW_INT_DIGITS),
+                        line, "num", inputs=(args[0],))
                 if interp._over_int_bits(nbits):
                     return _int_size_miss(nbits, interp.max_int_bits, line,
                                           "num", (args[0],))

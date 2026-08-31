@@ -1680,5 +1680,31 @@
   "id": "vct-neg",
   "expect": [],
   "prompt": "Write a pytest fixture that spins up a temporary SQLite database and yields a connection, rolling back after each test."
+ },
+ {
+  "id": "srac-near",
+  "expect": [
+   "skip-reason-is-a-claim"
+  ],
+  "prompt": "Our pytest skipif for the fixture corpus prints \"corpus moved: missing foo.json\" in a fresh clone, where nothing has moved \u2014 it just isn't there. The same helper is copy-pasted in two test files. Sort this out."
+ },
+ {
+  "id": "srac-mid",
+  "expect": [
+   "skip-reason-is-a-claim"
+  ],
+  "prompt": "This guard skips the integration checks whenever any of the expected artefacts is missing. I'm worried that if the upstream job actually deletes one we'd go quiet instead of failing. Look at how the condition is written."
+ },
+ {
+  "id": "srac-far",
+  "expect": [
+   "skip-reason-is-a-claim"
+  ],
+  "prompt": "We have an alert suppression rule whose condition I think would also match the outage it is supposed to page on. Review it."
+ },
+ {
+  "id": "srac-neg-exemption",
+  "expect": [],
+  "prompt": "This differential test exempts about 5% of inputs and nobody has ever counted them. How do I find out whether the exemption is still load-bearing?"
  }
 ]

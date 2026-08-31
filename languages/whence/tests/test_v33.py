@@ -20,7 +20,6 @@ Three things are pinned here and they are not the same kind of claim:
      regression. What stays exact is what derives from constants.
 """
 
-import hashlib
 import json
 import os
 import re
@@ -42,8 +41,7 @@ from whence.lexer import tokenize                           # noqa: E402
 from whence.values import Miss                              # noqa: E402
 from whence.parser import ParseError, parse                 # noqa: E402
 
-CENSUS = os.path.join(os.path.dirname(ROOT), "..", "state", "whence",
-                      "round-384", "field-names.json")
+CENSUS = C.FIELD_CENSUS      # round 410: one spelling of the path, in curecheck
 LEDGER = os.path.join(os.path.dirname(ROOT), "..", "state", "whence",
                       "round-386", "cure-ledger.json")
 EXAMPLES = os.path.join(ROOT, "examples")
@@ -282,29 +280,21 @@ def test_there_is_still_one_unbound_name_literal():
 # 3. the corpus measurement --- pinned behind the frozen md5 census
 # --------------------------------------------------------------------------
 
-def _corpus_unchanged():
-    """True when every field program still hashes to round 384's census.
-
-    The field corpus is written by the Hermes gateway, a separate
-    autonomous system that shares this repo, and it has rewritten files
-    before. A corpus-derived number is not a regression when the corpus
-    moves --- it is new information --- so these tests SKIP rather than
-    fail, and say which file moved.
-    """
-    census = json.load(open(CENSUS, encoding="utf-8"))
-    for name, want in census["file_md5"].items():
-        path = os.path.join(EXAMPLES, os.path.basename(name))
-        if not os.path.exists(path):
-            return "missing: %s" % name
-        got = hashlib.md5(open(path, "rb").read()).hexdigest()
-        if got != want:
-            return "changed: %s" % name
-    return None
-
-
-corpus_pin = pytest.mark.skipif(_corpus_unchanged() is not None,
-                                reason="field corpus moved: %s"
-                                       % _corpus_unchanged())
+# Round 410. This guard used to live HERE, and byte-identically in
+# `test_v34.py`, as `_corpus_unchanged()`. Three copies was the visible
+# problem and not the real one: the helper answered "the corpus is ABSENT"
+# and "the corpus was REWRITTEN" with the same skip and the same sentence,
+# `field corpus moved: <file>`. In a `git worktree` --- where the fourteen
+# are absent because round 402 `.gitignore`d them, and nothing has moved ---
+# these four tests announced a gateway rewrite that had not happened; and if
+# the gateway ever DELETES one of the fourteen they would have gone silent
+# about the one event a corpus measurement most needs to be loud about.
+# `curecheck.field_corpus_skip_reason` is one helper over the two predicates
+# `field_corpus_absent` and `field_corpus_changed`, and it returns None ---
+# RUN, go red --- for the third state, partial drift.
+_CORPUS_SKIP = C.field_corpus_skip_reason()
+corpus_pin = pytest.mark.skipif(_CORPUS_SKIP is not None,
+                                reason=_CORPUS_SKIP or "")
 
 
 @corpus_pin

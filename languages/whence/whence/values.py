@@ -516,11 +516,49 @@ def show_payload(p, limit=SHOW_LIMIT, nest=0):
 # "no exceptions" and whose one idea is that a failure can explain itself,
 # the explanation crashed. 13287 bits is at most 4000 decimal digits
 # (13287 * log10(2) = 3999.8), comfortably under the host's 4300, so the
-# host limit is never reached and this cap is Whence's own. `num()` refuses
-# numeric TEXT past the same boundary (see `b_num`), so the two stay inverses:
-# Whence never accepts digits it could not print back.
+# host limit is never reached and this cap is Whence's own.
+#
+# WHAT THE TWO CONSTANTS DO AND DO NOT GUARANTEE (corrected v0.40, round 410,
+# decision 49). This comment used to end: "`num()` refuses numeric TEXT past
+# the same boundary (see `b_num`), so the two stay inverses: Whence never
+# accepts digits it could not print back." Both halves needed work.
+#
+#   * "the two stay inverses" named `num()` and left out the OTHER door for
+#     numeric text, a source literal, which had no bound at all until
+#     decision 49 gave it this one. Round 408 measured the gap as a
+#     host/guest divergence at 4001 digits.
+#   * "never accepts digits it could not print back" is a claim decision 49
+#     deliberately does NOT make true, because the ACCEPTANCE bound is on
+#     decimal DIGITS (4000) and the PRINTING bound is on BITS (13287), and
+#     13287 bits is 3999.8 digits. Every accepted 4000-digit integer at or
+#     past `2 ** SHOW_INT_BITS` --- 43.3% of them, `9 * 4000` among them ---
+#     is accepted and renders as `<integer, 13288 bits>`.
+#
+# The rule the code actually has, which is the one to reason from:
+#
+#     Whence accepts at most SHOW_INT_DIGITS digits of numeric integer TEXT,
+#     at both doors, with the same sentence; and it prints an integer in full
+#     up to SHOW_INT_BITS bits, summarising past it however that integer was
+#     built. The bounds are in different units on purpose --- a refusal has
+#     to name a fix the author can carry out, and an author can count the
+#     digits in their own source and cannot count its bits.
+#
+# `tests/test_v40.py` section 4 measures the residual rather than repeating
+# any of this, and pins the two ways of closing it that were not taken.
 SHOW_INT_DIGITS = 4000
 SHOW_INT_BITS = 13287
+
+#: v0.40 (round 410), decision 49. The sentence BOTH doors for numeric text
+#: say when they refuse. It used to be written out once, inside `interp.b_num`,
+#: and the comment above claimed the rule held of the language --- while
+#: `whence/lexer.py`, the other door, had never heard of it: a 4001-digit
+#: SOURCE LITERAL was accepted, so Whence did accept digits it could not print
+#: back, through the door nobody had looked at. The constant is here rather
+#: than in either door so that neither can reword the rule alone; the guest
+#: lexer's copy is a separate implementation and is pinned by
+#: `tests/test_lexer_guest_parity.py`'s rule 3 instead.
+NUM_TEXT_LIMIT_MSG = ("%d digits is over the %d-digit limit for numeric text "
+                      "(str of a larger integer is a summary, not digits)")
 
 
 def show_int(n):

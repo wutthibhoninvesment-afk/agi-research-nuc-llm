@@ -1,6 +1,6 @@
 ---
 name: unenforced-documented-rule
-description: Use when a system's own documentation states a REQUIREMENT its implementation never checks — a spec sentence, a module docstring, a README grammar summary — and violating inputs are quietly accepted. Symptoms: a docstring says "X are Y-separated" / "must" / "always" / "only", and the smallest violating input parses or validates fine; a bug report that cannot be diagnosed where the mistake is, because a permissive rule swallowed the evidence and the error surfaces several tokens later; a comment claiming "no legal input starts with A B" that is only true of one special case; a reference/guest implementation agreeing with the real one because BOTH are permissive. Covers turning requirement sentences into falsifiable probes, measuring the corpus before tightening, deriving the fire set from the code so the new refusal cannot shadow a better existing diagnosis, finding the tests that DEPEND on the laxity, and mirroring into every implementation.
+description: Use when a system's own documentation states a REQUIREMENT its implementation never checks — a spec sentence, a module docstring, a README grammar summary — and violating inputs are quietly accepted. Symptoms: a docstring says "must" / "always" / "only" and the smallest violating input validates fine; a bug that cannot be diagnosed where the mistake is, because a permissive rule swallowed the evidence; a comment claiming "no legal input starts with A B" that holds only of one case; a guest implementation agreeing with the real one because BOTH are permissive; a rule enforced at ONE door while its comment asserts it of the whole system, so a second constructor accepts what the first refuses. Covers turning requirement sentences into probes, enumerating the DOORS a value can enter by, measuring the corpus before tightening, keeping the new refusal from shadowing a better diagnosis, finding tests that DEPEND on the laxity, and mirroring into every implementation.
 ---
 
 # Enforcing a rule the documentation already states
@@ -30,6 +30,15 @@ error does the new refusal shadow.
   auto-repairing users' inputs, when the docs were already correct.
 - A reference/guest implementation and the real one agree on an input both
   should reject.
+- **The rule IS enforced — at one door.** A validator/constructor refuses
+  something and the comment beside it says "so the system never accepts X",
+  while a SECOND way of producing the same value has never heard of the
+  rule. Tells: the sentence names the function (`num()` refuses…) and then
+  generalises to the language; two entry points build the same type (a
+  literal and a parse-from-string, a config file and an env var, an API
+  body and a CLI flag) and only one has a bound; a differential shows a
+  mirror refusing what the original accepts (the mirror is built on the
+  door that enforces).
 
 **When NOT to use:** the doc describes behaviour that has since changed
 (that is a stale claim — re-derive the claim, don't tighten the code); the
@@ -53,6 +62,29 @@ style preference with no downstream diagnosis riding on it.
    Outcome: a list of (sentence, violating input, accepted?/refused?). Every
    `accepted` row is an unenforced rule. Stop here and report if there are
    several — each is its own change.
+
+1b. **Enumerate the DOORS, not the rule.** Before deciding a rule is
+   unenforced, list every way the constrained value can be produced, and
+   test each. A rule enforced at one of two doors reads exactly like a rule
+   enforced everywhere from the inside, and exactly like no rule at all
+   from the outside.
+
+   ```bash
+   # who constructs this type / this field / this value?
+   grep -rn "int(" src/lexer.py src/parser.py src/builtins.py
+   grep -rn "def .*from_str\|def parse_\|literal" src/ | grep -i <type>
+   ```
+
+   Two properties to check per door, and they are different questions:
+   **does it enforce**, and **does it say the same sentence**. A second door
+   that enforces with its own wording is a copy that will drift; hoist the
+   message to one constant and have both read it.
+
+   Doors usually differ in PHASE, and that is not an inconsistency to
+   flatten. Program text refused at parse time is a static error; the same
+   text arriving as a runtime string has to be refused as a value. Same
+   rule, same sentence, two failure kinds — say so in the spec, or the next
+   round will "fix" the asymmetry.
 
 2. **Measure the corpus before deciding to enforce.** Run the violating-input
    check over every artefact the project owns, and count. This is the number
@@ -168,6 +200,34 @@ style preference with no downstream diagnosis riding on it.
   tree.** `try/finally` does not run on SIGTERM. Snapshot the files to a
   temp dir and write a standalone `restore.sh` *before* the first mutation,
   and scope each mutant's test run so the whole sweep fits the timeout.
+- **The claim's units are not the code's units.** The commonest way a
+  documented rule is false is that it states a property in one unit while
+  the code bounds a different one — "never accepts digits it cannot print
+  back" where acceptance is bounded in DIGITS and printing in BITS, and the
+  two nearly coincide. Closing the door-vs-door gap does not make such a
+  sentence true. Compute the witness (the input that is accepted and still
+  violates the claim), decide whether to move a bound or reword the claim,
+  and if you reword it, pin the retraction — see the next pitfall.
+- **A pin on a string is satisfied by the pin's own text.** Asserting
+  `"the false claim" not in source` fails the moment your correction QUOTES
+  the claim in order to retract it; asserting `"def old_helper" in src`
+  over a tree that includes the test file matches the assertion itself.
+  Anchor the pattern (`^def `), or assert the ORDER — the retraction marker
+  must appear before the quoted claim — rather than absence.
+- **Closing an acceptance door makes some existing fixture illegal.**
+  Enforcement invalidates test inputs whose subject was something else
+  entirely: a RENDERING test that reached the renderer through the door you
+  just closed now fails at lex time, and its name says nothing about
+  acceptance. Expect breakage outside the subsystem you changed, and check
+  whether the branch those tests cover is still reachable from real input
+  at all — if the reachable window has narrowed to almost nothing, that is
+  a finding, and it belongs in a test rather than in the commit message.
+- **The instrument that found the gap may be unable to witness the fix.**
+  A differential over ANSWERS (renderings, outputs, values) cannot see a
+  case whose correct behaviour is to produce no answer. When the fix turns
+  a divergence into a shared refusal, the exemption must not simply be
+  deleted from that harness: empty the list, and add a named pointer to the
+  harness that DOES have a rejection arm, asserted rather than cited.
 - **Only checking the real implementation.** Guest/reference implementations
   are where the laxity survives; their own self-tests may even ASSERT it
   ("two statements with no separator both parse"). Grep the mirror for the

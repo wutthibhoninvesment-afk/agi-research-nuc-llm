@@ -1,6 +1,6 @@
 # Whence — a provenance-first language
 
-*Spec level: **v0.39** (round 408). The `## vN` sections below are the
+*Spec level: **v0.40** (round 410). The `## vN` sections below are the
 authoritative version list and each names the round that built it; this
 line deliberately no longer enumerates rounds, because the enumeration it
 replaced had said "v0.16.6 + v0.14.2" since round 266 while the file went
@@ -593,6 +593,37 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    the host now calls the same `show_int` the guest's `str` already
    called. An exemption is a rule you could not follow; the fix was to
    stop having the rule. See § v0.39.
+49. **Every door into a kind of value enforces that kind's rule, with the
+   same sentence, in the phase the door belongs to (v0.40, round 410).**
+   Whence has two ways to turn numeric TEXT into a number: a source
+   literal, and `num(s)` on a runtime string. Round 368 bounded the second
+   at `SHOW_INT_DIGITS` (4000 decimal digits) and wrote the reason down as
+   a property of the LANGUAGE — *"Whence never accepts digits it could not
+   print back"* — while the first had no bound at all, so
+   `let a = <4001 nines>` was accepted and every rendering of it is
+   `<integer, 13292 bits>`. The gap was visible for two rounds as a
+   host/guest divergence, because the guest lexer's `lit_num` **is**
+   `num(text)`: the guest refused what the host accepted, and it was filed
+   as a RENDERING difference until decision 48 closed the rendering half
+   and left the acceptance half standing. After v0.40 both doors refuse the
+   same text at the same boundary, reading one constant
+   (`values.NUM_TEXT_LIMIT_MSG`) so neither can reword the rule alone — a
+   literal as a `LexError` at lex time, because a literal is program text
+   and refusing it is a static error; `num(s)` as a Miss at run time,
+   because a runtime string's refusal has to be a value that carries its
+   provenance. Same rule, same sentence, two phases. The rule is about
+   INTEGER text: a float literal has no digits to round-trip, so `1e400`
+   and a 4001-digit mantissa with a fraction are still `inf` and are still
+   NOT refused, pinned as non-rules rather than left to be inferred. And
+   the decision explicitly does NOT rescue round 368's sentence: acceptance
+   is bounded in DIGITS and printing in BITS (`SHOW_INT_BITS`, 13287 =
+   3999.8 digits), so 43.3% of the accepted 4000-digit integers still print
+   as a summary. Bounding acceptance in bits would make the refusal
+   unfollowable — decision 32 says an error that can name the fix names it,
+   and an author can count digits and cannot count bits — and moving the
+   digit bound down by one would make decision 48's summarising branch
+   unreachable from any source file. So the wording was corrected instead
+   and the residual measured. See § v0.40.
 
 ## Syntax (statements are newline-separated; `#` comments)
 ```
@@ -8277,3 +8308,147 @@ to a diagnostic — it truncates to a `limit` and does not escape `\t`/`\r`
 rule_and_two_implementations` so a round that unifies them knows what it
 is changing. It does not close the 4001-digit lexer divergence. And it
 does not give the guest a cure system.
+
+## v0.40 (round 410, language C) — two doors for one piece of numeric text
+
+Decision 49. Round 368 gave `num()` a refusal past `SHOW_INT_DIGITS` (4000
+decimal digits) and wrote the reason into `whence/values.py` as a claim
+about the **language**:
+
+> `num()` refuses numeric TEXT past the same boundary, so the two stay
+> inverses: Whence never accepts digits it could not print back.
+
+Round 408 measured that sentence against the OTHER door — a source literal
+— and found it false there. `whence/lexer.py` accepted an integer literal
+of any length. The two doors for one piece of numeric text disagreed, and
+only one of them was enforcing.
+
+### The divergence was visible, and it was filed under the wrong heading
+
+v0.36 had recorded a host/guest difference at large integers as a
+**rendering** difference (`str` summarises past `SHOW_INT_BITS`, `repr`
+does not), and decision 48 closed exactly that by routing `parser._show`
+through `show_int`. Doing so uncovered what the description had been
+standing on:
+
+| | 4000 digits | 4001 digits |
+| --- | --- | --- |
+| host `whence/lexer.py` | `<integer, 13288 bits>` | `<integer, 13292 bits>` |
+| guest `lit_num` | `<integer, 13288 bits>` | **`inf`** |
+
+The guest's `lit_num` **is** `num(text)`, with `pos_inf` for a miss. So the
+guest walked through the door that refuses while the host walked through
+the one that did not. Round 408 declined to patch it, on the correct
+grounds that closing it is a decision about what the language **accepts**,
+and left it as `bench/showtok.py:KNOWN_DIVERGENT` — an executable
+exemption with the boundary asserted rather than described.
+
+### The rule
+
+**Both doors for numeric integer text enforce the same bound, with the same
+sentence, in the phase each belongs to.**
+
+```
+let a = <4001 nines>        ->  LexError, at lex time     (program text)
+num("<4001 nines>")         ->  Miss,     at run time     (a runtime string)
+```
+
+The two failure KINDS are not an inconsistency. A literal is program text,
+so refusing it is a static error in the same class as `bad escape`, and
+rule 2's "no exceptions" is about **values**, not about whether a file is a
+program. `num(s)` is a call on a string that may have come from anywhere,
+so its refusal has to be a value that carries its provenance.
+
+The sentence is one constant, `values.NUM_TEXT_LIMIT_MSG`, so neither door
+can reword the rule alone; `whence/lexer.py` gains this package's first
+`import` to read it, and `tests/test_v40.py::test_neither_door_carries_a_
+copy_of_the_wording` requires the wording to appear in `values.py` and
+nowhere else. The guest is a separate implementation and necessarily
+carries a copy — pinned, as `bad escape` is, by
+`tests/test_lexer_guest_parity.py`'s contract rule 3.
+
+### The rule is about INTEGER text, and floats are untouched
+
+`1e400`, `<4001 nines>.5` and `1e4001` all still lex to `inf`. A float has
+no digits to round-trip: `inf` is a value Whence can print, and an
+overflowing float literal has been `inf` since round 323 with a test
+pinning it. `num("1e400")` remains an *out of range* MISS while the literal
+`1e400` is `inf` — the two doors do **not** agree about floats, that is
+round 350's deliberate finding, and decision 49 does not touch it. Both
+non-rules are corpus rows and tests rather than sentences, so the change
+cannot be read as "long numeric literal is refused".
+
+### The instrument that found it could not witness the fix
+
+`bench/showtok.py` compares how the two sides **render a token**. The fixed
+behaviour is that neither side produces a token at all. A parity harness
+over answers cannot see a case whose right answer is to give no answer, so
+`KNOWN_DIVERGENT` is now `[]` and carries `CLOSED_DIVERGENCE_HOME`, a
+named pointer to where the case IS checked:
+`tests/test_lexer_guest_parity.py`, whose contract has a rejection arm
+(rule 1 acceptance agrees, rule 3 message and position agree). Its corpus
+gained `int-literal-at-the-cap`, `reject-int-literal-one-past-the-cap` and
+`float-literal-past-the-cap-is-not-refused`.
+`tests/test_v36.py::test_the_second_residual_is_closed_and_this_file_could_
+not_have_seen_it` asserts the list is empty **and** that the named home
+contains the case, because emptying an exemption list without that is not
+closing it — it is dropping it.
+
+### The residual, which is the part worth reading
+
+Decision 49 makes the two **doors** agree. It does **not** make round 368's
+sentence true, and it could not have: the ACCEPTANCE bound is on decimal
+DIGITS (`SHOW_INT_DIGITS` = 4000) and the PRINTING bound is on BITS
+(`SHOW_INT_BITS` = 13287), and 13287 bits is 3999.8 decimal digits. So
+`9 × 4000` — 4000 digits, 13288 bits — is **accepted and printed as a
+summary**. That is 43.3% of the 4000-digit integers.
+
+Three ways to close it, and why none was taken:
+
+* **bound acceptance on bits.** The message stops being followable. An
+  author can count the digits in their own source and cannot count its
+  bits, and decision 32 says an error that can name the fix names it.
+* **move `SHOW_INT_DIGITS` to 3999.** The sentence becomes true, and
+  `parser._show`'s summarising branch — decision 48, two rounds old —
+  becomes unreachable from any source file. A rule whose only remaining
+  witness is a unit test on a constructed value is weaker than the
+  residual.
+* **reword the claim so it stops asserting a property the code lacks.**
+  Taken. `whence/values.py` now states the rule the code has: *at most
+  `SHOW_INT_DIGITS` digits of numeric integer text, at both doors, with
+  the same sentence; printed in full up to `SHOW_INT_BITS` bits,
+  summarised past it however the integer was built.* The bounds are in
+  different units on purpose.
+
+`tests/test_v40.py` section 4 measures the residual rather than repeating
+it, including the window: every integer literal a source file can now carry
+that reaches the summarising branch has **exactly one bit length**, 13288,
+between `2**13287` and `10**4000 - 1`.
+
+### Measured
+
+* Whence fast tier **1947 → 1976 passed**, 3 skipped, 0 failed. New:
+  `tests/test_v40.py` (18), 3 rows in `test_lexer_guest_parity.py`, 6 in
+  `test_field_corpus_selector.py`, 2 rewritten in `test_v36.py`.
+* `examples/self_host.lang` **148 → 154 checks**; the guest checks its own
+  half of the rule, including the column and the float non-rule.
+  `examples/self_eval.lang` unchanged at 166.
+* Shared guest section **1054 → 1086 lines** (`test_self_eval.py` and
+  `test_self_hosting.py::LIB_END` moved together).
+* `bench/showtok.py report`: **28 snippets, 435 tokens, 29 kinds, 0
+  misaligned, 0 divergent** — unchanged, and that is the point.
+* Existing tests moved: **4**. Two in `test_v36.py` (the exemption), and
+  two in `test_v39.py` — `test_a_huge_literal_in_the_got_slot_honours_show_
+  int_bits` and `test_the_summary_is_the_same_function_the_runtime_uses`
+  used a **4100-digit** literal, which is no longer a program. A test
+  about RENDERING was reaching the renderer through the door decision 49
+  closed, and nothing in its name said so.
+
+### What v0.40 deliberately does NOT do
+
+It does not bound float literals by range, does not unify `num("1e400")`'s
+miss with the literal's `inf`, does not move `SHOW_INT_DIGITS` or
+`SHOW_INT_BITS`, and does not give the guest a cure system. It does not
+touch the `rebind`/hint divergence class (round 402's item 1 still wants a
+decision arguing either way), and it does not unify `parser.quote_str` with
+`values._quote`.

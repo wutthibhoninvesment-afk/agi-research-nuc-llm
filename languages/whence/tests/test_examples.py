@@ -159,7 +159,7 @@ def test_self_hosting_real_syntax():
     # used to answer with `expected a name`. Round 408 (v0.39): 145 -> 148,
     # decision 48 -- see `test_v23.py`'s accounting, which is the other
     # copy of this number and moved with it.
-    assert "148 passed, 0 failed" in r.stdout
+    assert "154 passed, 0 failed" in r.stdout   # round 410: 148 -> 154, v0.40 decision 49
     assert "guest lexer+parser for real Whence syntax" in r.stdout
 
 
