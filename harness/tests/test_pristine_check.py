@@ -586,6 +586,68 @@ def test_the_record_pins_the_commit_the_baseline_is_of():
 
 
 # --------------------------------------------------------------------------
+# rule 1 vs this module's own records (round 409)
+# --------------------------------------------------------------------------
+
+def test_a_baselines_own_ledger_does_not_block_the_next_differential():
+    """Found by running `baseline` and then `check`, in that order.
+
+    `baseline` appends a line to `state/baseline-ledger.jsonl`; that makes
+    the tree dirty; rule 1 then short-circuits `check` to `dirty_worktree`,
+    naming a file this module wrote seconds earlier. The same trap has
+    existed for `check` against its OWN ledger since round 355 and was
+    never reached only because nobody ran it twice in one round.
+    """
+    r = recording_runner([("worktree", (0, "")), ("pytest", PASS)])
+    rec = pc.differential(
+        ["harness-fast"], runner=r, worktree_path="/tmp/wt", repo="/repo",
+        dirt={"ok": True, "untracked": [], "ignored": [],
+              "tracked_modified": ["state/baseline-ledger.jsonl",
+                                   "state/pristine-check-ledger.jsonl"]})
+    assert rec["verdict"] != "dirty_worktree"
+    assert rec["blocking_dirty"] == []
+
+
+def test_waiving_the_ledgers_does_not_waive_anything_else():
+    """The waiver is two named paths, not a category. A real source edit in
+    the same directory still blocks."""
+    r = recording_runner([("worktree", (0, "")), ("pytest", PASS)])
+    rec = pc.differential(
+        ["harness-fast"], runner=r, worktree_path="/tmp/wt", repo="/repo",
+        dirt={"ok": True, "untracked": [], "ignored": [],
+              "tracked_modified": ["state/baseline-ledger.jsonl",
+                                   "harness/pristine_check.py"]})
+    assert rec["verdict"] == "dirty_worktree"
+    assert rec["blocking_dirty"] == ["harness/pristine_check.py"]
+
+
+def test_no_suite_reads_the_ledgers_so_waiving_them_is_sound():
+    """Rule 1's question, answered by grep rather than asserted.
+
+    Waiving a path is only legitimate if it could not have changed a
+    suite's outcome. That is checkable: no test file in either registered
+    suite may mention either ledger by name. If a future test starts
+    reading one, this goes red and the waiver has to be re-argued.
+    """
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    repo = os.path.dirname(root)
+    suites = [os.path.join(repo, "harness", "tests"),
+              os.path.join(repo, "languages", "whence", "tests")]
+    names = [os.path.basename(p) for p in pc.OWN_RECORDS]
+    offenders = []
+    for d in suites:
+        if not os.path.isdir(d):
+            continue
+        for fn in sorted(os.listdir(d)):
+            if not fn.endswith(".py") or fn == os.path.basename(__file__):
+                continue
+            text = open(os.path.join(d, fn), errors="replace").read()
+            offenders += [(fn, n) for n in names if n in text]
+    assert offenders == [], offenders
+    assert any(os.path.isdir(d) for d in suites), "found no suite to check"
+
+
+# --------------------------------------------------------------------------
 # ledger
 # --------------------------------------------------------------------------
 

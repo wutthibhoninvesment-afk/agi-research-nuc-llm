@@ -300,11 +300,11 @@ that §1's mechanism is what it is claimed to be.
 | P1 | **HIT** — `999 passed, 269 deselected in 111.24s`, 0 failed |
 | P2 | **HIT** — `1947 passed, 3 skipped, 81 deselected in 93.38s`, 0 failed |
 | P3 | **HIT** — `corpus-check: 7 checker(s), 0 error(s), 5 warning(s)` |
-| P4 | see §7 |
+| P4 | **HIT** — `verdict=green`, both suites, at `50c7bb3` |
 | P5 | **HIT** — the only harness test that went red all round was one I wrote, and it was right (see below) |
-| M1 | see §7 |
+| M1 | **MISS** — predicted +4 skips (3 → 7); actual **+11** (3 → 14) |
 | M2 | **HIT** — `git check-ignore -v logs/nuc_health_round_409.log` → `.gitignore:42`; absent from `git status` |
-| M3 | see §7 |
+| M3 | **HIT** — `harness-fast green 999 passed` before AND after |
 
 P1's count was predicted to the test: 961 + 17 + 12 + 9 = 999. That is not
 insight, it is arithmetic over three suites I had already run in isolation —
@@ -324,7 +324,130 @@ find the prose about the code before it finds the code.
 
 ---
 
+**Outcome 5 of 5. Mechanism 2 of 3 — and M1 is the row worth reading.**
+
+I predicted the pristine tree would show exactly **4** more skips than the
+live tree: the four tests I had just converted from red to skip. It shows
+**11** (3 → 14, and 1947 → 1936 passed). The other seven are round 395's
+`corpus_pin` in `test_v33.py` (4) and `test_v34.py` (3) — the guard I cited
+**in §2 of this very file** as the reason only four tests were red rather
+than more. Counted: `grep -c '^@corpus_pin'` → 4 and 3; my own additions are
+3 `@needs_field_corpus` plus 1 in-body `pytest.skip`; 7 + 4 = 11 exactly.
+
+The mechanism I got wrong is not arithmetic. I predicted the DELTA my change
+makes while implicitly holding everything else at the live tree's baseline —
+but `corpus_pin` answers the same question about the same corpus in the same
+situation, so those seven tests move in the same tree, for the same reason,
+at the same time. **A prediction about "how many more X after my change"
+silently assumes nothing else in the tree responds to the same stimulus.**
+Here three separate guards respond to one fact, which is precisely why
+next-steps item 1 exists.
+
+---
+
 ## 7. Verification
 
-*(post-commit baseline: filled in below after the commit)*
+**Post-commit pristine baseline at `50c7bb3`** — the same command that
+reported `red` at `d71d7cd` three sections ago:
+
+```
+$ python3 harness/pristine_check.py baseline --ref HEAD
+baseline  HEAD (50c7bb3caf0a)  verdict=green
+  NOTE: taken while the live tree had 1 tracked-modified and 0 untracked
+        path(s) — the baseline is of the COMMIT, not of that tree.
+  harness-fast   green      269 deselected, 999 passed (110s)
+  whence-fast    green      81 deselected, 1936 passed, 14 skipped (102s)
+```
+
+Live tree, same commit: harness `999 passed, 269 deselected, 0 failed`
+(111.24s); whence `1947 passed, 3 skipped, 81 deselected, 0 failed`
+(93.38s); skills `7 checker(s), 0 error(s), 5 warning(s)` (`skill_lint` 59
+skills 0/0, `claim_check` 0 stale, `state_claim_check` 0 stale, `xref_check`
+0 dangling authoritative, `unit_tests` 747 passed); `nuc/run_checks_fast.sh`
+exit 0, `638 passed in 64.77s`, `0 transform-risk`.
+
+**Both trees green with zero failures in both, so the `whence-fast`
+differential is `clean` by construction** — the permanent false
+`git_incomplete` of §2 is gone. Stated as an entailment and not as a run: a
+full `check` was attempted and is reported honestly in §8 instead.
+
+After §8's fix the harness tier is **1002 passed, 269 deselected, 0
+failed** in 107.31s (the three `OWN_RECORDS` tests). Every number quoted
+above for `50c7bb3` is 999 and stays 999: that is what that commit does.
+
+Test counts: `test_pristine_check.py` 67 → **87** (+20),
+`test_nuc_health_line.py` **12** (new), `test_run_driver_nuc_health_check.py`
+**9** (new), `test_field_corpus_selector.py` 7 → **9**.
+
+---
+
+## 8. The last finding, produced by using the new tool
+
+Having taken the baseline, I ran the differential to refresh a ledger that
+`harness/run_tests_fast.sh` echoes every round and that was 26.4 h stale at
+a commit HEAD had left. It refused:
+
+```
+ref HEAD (50c7bb3caf0a)   verdict dirty_worktree
+  the live tree differs from HEAD in 1 tracked file(s);
+  a differential against it cannot attribute anything.  Commit or stash first:
+    M state/baseline-ledger.jsonl
+```
+
+**`baseline` appends to a tracked ledger, which makes the tree dirty, which
+makes the very next `check` short-circuit — naming a file this same module
+wrote seconds earlier.** And the trap is not new: `check` has had it against
+its OWN ledger since round 355, unreached only because nobody ever ran it
+twice in one round. Adding a second mode made a two-command sequence natural
+and the latent defect immediate.
+
+Fixed at rule 1, not in `state/known-standing-dirty-paths.json` — that
+registry's own comment sets a bar ("recurs across multiple rounds with no
+round ever attributing or committing it") that a tracked record a round DOES
+commit fails, and it models a *separate system's* untracked leftovers, not
+this tool's own output. Rule 1 asks one question — could this dirty file have
+changed a suite's outcome? — and for these two the answer is checkable:
+`test_no_suite_reads_the_ledgers_so_waiving_them_is_sound` greps every test
+file in both registered suites for either ledger name and requires zero hits,
+so a future test that starts reading one turns the waiver red instead of
+silently invalidating it. The waiver is two named paths, not a category:
+`test_waiving_the_ledgers_does_not_waive_anything_else` puts
+`harness/pristine_check.py` in the same dirty list and requires it to still
+block.
+
+```
+$ python3 harness/pristine_check.py dirt
+tracked-modified 5 (blocking 2)  untracked 0  ignored 717
+  pinned-waiver (escalation, suite-neutral)  languages/whence/SECURITY.md
+  BLOCKING  harness/pristine_check.py
+  BLOCKING  harness/tests/test_pristine_check.py
+```
+
+The ledgers are gone from the blocking set; the two real source edits are
+not. The ledger refresh itself is left undone and named in next steps —
+starting a second 7-minute pair of suites this late in a round is how a round
+gets killed mid-write, which this program has recorded a dozen times.
+
+---
+
+## 9. Hygiene
+
+No NUC contact. Nothing wired this round opens a socket, and `nuc/tests/`
+injects fake `ssh_runner`/`tailscale_runner` by construction. **Port 8001
+never contacted.** `CHANGELOG.md` not edited (gateway-owned).
+`languages/whence/SECURITY.md` arrived ALREADY modified by something that is
+not a driver round — untouched, not reverted, not committed; **61 rounds
+carried**.
+
+Worktrees: `/tmp/wt-409` and `/tmp/pristine-409` created and removed.
+`git worktree list` then showed **two orphans from earlier rounds** that
+`prune` would not clear because their directories still existed —
+`/tmp/pristine-check-1467072-1788064326` and `/tmp/r355_pristine`, 51M each,
+~40 h old, no process with a cwd inside either. Removed with `git worktree
+remove --force`; 102M reclaimed. These are exactly the orphans
+`PristineWorktree.__exit__` exists to prevent, so at least one earlier run
+was killed between `add` and `remove` — an argument for `procreap`-style
+scanning of worktree registrations, not just processes.
+
+No background job was left running.
 

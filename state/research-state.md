@@ -18251,14 +18251,45 @@ resolved before it is allowed to skip. Same shape as the all-or-nothing rule
 above: *absent* and *not looked for* must not share a branch.
 
 **Verification.** harness fast tier **999 passed, 269 deselected, 0 failed**
-in 111.24s (961 → 999, +38: 17 in `test_pristine_check.py`, 12 in new
+in 111.24s at the commit, and **1002 passed** in 107.31s after the
+`OWN_RECORDS` fix below (961 → 1002, +41: 17 in `test_pristine_check.py`, 12 in new
 `test_nuc_health_line.py`, 9 in new `test_run_driver_nuc_health_check.py`).
 Whence fast tier **1947 passed, 3 skipped, 81 deselected, 0 failed** in
 93.38s (1944 → 1947). Skills corpus check **7 checkers, 0 errors, 5
 warnings** (`skill_lint` 59 skills 0/0; `claim_check` 0 stale;
 `state_claim_check` 0 stale; `xref_check` 0 dangling authoritative;
 `unit_tests` 747 passed). `nuc/run_checks_fast.sh` exit 0, **638 passed**.
-Post-commit `baseline --ref HEAD` — see the round file. Three skills upgraded
+Post-commit `baseline --ref HEAD` at `50c7bb3`: **verdict=green**,
+`harness-fast green 999 passed`, `whence-fast green 1936 passed, 14 skipped`
+— the same command that reported `red` with four failures at `d71d7cd`.
+Both trees green with zero failures in both, so the `whence-fast`
+differential is `clean` by construction and the permanent false
+`git_incomplete` is gone. **Predictions: outcome 5/5, mechanism 2/3.** The
+miss is the informative row — I predicted the pristine tree would show +4
+skips and it shows **+11**, because round 395's `corpus_pin` guards seven
+MORE tests on the same corpus in the same tree for the same reason, a guard
+this round's own write-up cites two sections earlier. **A prediction about
+"how many more X after my change" silently assumes nothing else in the tree
+responds to the same stimulus.**
+
+**A last finding, produced by using the new tool.** Running `baseline` and
+then `check` — to refresh a ledger `run_tests_fast.sh` echoes every round,
+26.4 h stale at a commit HEAD had left — the differential REFUSED:
+`dirty_worktree ... M state/baseline-ledger.jsonl`. **`baseline` appends to
+a tracked ledger, which makes the tree dirty, which short-circuits the very
+next `check` on a file this same module just wrote** — and `check` has had
+the identical trap against its OWN ledger since round 355, unreached only
+because nobody ran it twice in one round. Fixed at rule 1 (`OWN_RECORDS`),
+NOT in `state/known-standing-dirty-paths.json`, whose own comment sets a bar
+a tracked record a round commits does not meet and which models a separate
+system's untracked leftovers. Rule 1's question is checkable, so it is
+checked: `test_no_suite_reads_the_ledgers_so_waiving_them_is_sound` greps
+every test file in both registered suites for either ledger name and
+requires zero hits. The ledger refresh itself is left undone — see next
+steps. Also removed **two orphaned worktrees from earlier rounds**
+(`/tmp/pristine-check-1467072-1788064326`, `/tmp/r355_pristine`, 51M each,
+~40 h old, no process inside) that `git worktree prune` would not clear
+because their directories still existed; 102M reclaimed. Three skills upgraded
 (`pristine-checkout-differential`, `echoed-record-vs-measurement`,
 `unrun-checker-latency`); no new skill, deliberately — each finding belongs
 to a skill that already exists and upgrading beats a fourth near-duplicate.
@@ -18295,7 +18326,15 @@ rounds carried**. Worktrees `/tmp/wt-409` and `/tmp/pristine-409` removed and
    print `MEASURED_END_SENTINEL` (exact boundary, no guess) — which means
    the sentinel's wording, "recorded status below", has to stop implying
    that everything after it is a stored record. harness(A).
-3. **Nothing re-runs the falsification.** Round 409 proved its two new
+3. **The pristine-check ledger is still 26.4 h stale at a commit HEAD has
+   left, and `harness/run_tests_fast.sh` echoes it every round.** Round 409
+   tried to refresh it, was blocked by the defect it then fixed
+   (`OWN_RECORDS`), and declined to start a second 7-minute pair of suites
+   late in a round. It is now unblocked: `python3 harness/pristine_check.py
+   check --suite harness-fast --suite whence-fast` in a tree whose only
+   dirt is `SECURITY.md`, ~7 min, and it should report `clean`. Cheap and
+   owed. harness(A).
+4. **Nothing re-runs the falsification.** Round 409 proved its two new
    pins red against the OLD helper by reconstructing it from
    `git show HEAD:` plus a shim, in `/tmp`, and threw it away. That is the
    same "the demonstration should itself be a test" gap round 408 named
@@ -18303,24 +18342,24 @@ rounds carried**. Worktrees `/tmp/wt-409` and `/tmp/pristine-409` removed and
    check that re-applies a named list of historical defects to their
    fixed sites would re-execute every such proof for free. harness(A) or
    SWE-loop(D).
-4. **`harness/run_tests_fast.sh`'s echoed block has outgrown every `tail`
+5. **`harness/run_tests_fast.sh`'s echoed block has outgrown every `tail`
    a human would type.** Finding (1) above. The cheapest honest fix is for
    the script to print its OWN result line last, after the echoed records,
    clearly labelled — or for the echoed block to move behind a flag. Right
    now the default output's last 25 lines contain nothing this run
    measured. harness(A).
-5. **Round 408's items 1, 2, 5, 6 carry forward unchanged** (the
+6. **Round 408's items 1, 2, 5, 6 carry forward unchanged** (the
    4001-digit lexer/`num()` divergence wants a SPEC decision; the
    `check "<name>"` sweep for checks that cannot see their own mechanism
    go away; round 402's item 1 host-only HINT class; `parser.quote_str`
    vs `values._quote`). Its items 3 and 4 are CLOSED by this round.
    language(C) or skills(B).
-6. **Round 408's item 9 (CLAUDE.md's `🔴 CRITICAL MISSION` block is stale
+7. **Round 408's item 9 (CLAUDE.md's `🔴 CRITICAL MISSION` block is stale
    in both halves) is re-escalated, not deferred.** Verified again this
    round: it is unchanged, both items were answered by rounds 349 and
    33/v0.23, and every round pays a re-read for it. CLAUDE.md is the
    operator's file (round 346), so this needs the operator, not a round.
-7. **Round 406's items 1-4 and 7 are untouched and TIME-CRITICAL**
+8. **Round 406's items 1-4 and 7 are untouched and TIME-CRITICAL**
    (`sa23` dies 2026-09-23). Round 405's items 1-4, round 404's items 1-4
    and 7, round 403's items 2-5, and round 336's remaining language(C)
    items carry forward. The `Harness (A)` half of the Track-status audit

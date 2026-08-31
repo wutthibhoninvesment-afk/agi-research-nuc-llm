@@ -348,6 +348,30 @@ def escalation_allowed_dirty(dirt, repo=REPO_ROOT, registry_path=None):
             and registry.get(r["path"], {}).get("suite_neutral") is True}
 
 
+#: This module's OWN records, repo-relative. Rule 1 asks exactly one
+#: question — "could this dirty file have changed a suite's outcome?" — and
+#: for these two the answer is provably no: nothing under `harness/tests/`
+#: or `languages/whence/tests/` reads them, which
+#: `test_no_suite_reads_the_ledgers_so_waiving_them_is_sound` re-proves by
+#: grep rather than asserting.
+#:
+#: Round 409, found by running `baseline` and then `check`: `baseline`
+#: appends to its ledger, which makes the tree dirty, which makes the very
+#: next `check` short-circuit to `dirty_worktree` naming a file this module
+#: just wrote. The same trap has existed for `check` against ITSELF since
+#: round 355 — two `check` runs in one round, the second blocked by the
+#: first's record — and was simply never reached because nobody ran it
+#: twice. Waived HERE and not in `state/known-standing-dirty-paths.json`:
+#: that registry's own comment sets a bar ("recurs across multiple rounds
+#: with no round ever attributing or committing it") which a tracked record
+#: a round DOES commit does not meet, and models untracked leftovers from a
+#: separate system rather than this tool's own output.
+OWN_RECORDS = frozenset([
+    os.path.relpath(DEFAULT_LEDGER, REPO_ROOT).replace(os.sep, "/"),
+    os.path.relpath(BASELINE_LEDGER, REPO_ROOT).replace(os.sep, "/"),
+])
+
+
 def blocking_dirt(dirt, allow=None):
     """The `tracked_modified` entries rule 1 actually blocks on."""
     allow = standing_dirty() if allow is None else set(allow)
@@ -415,7 +439,8 @@ def differential(suites, ref="HEAD", repo=REPO_ROOT, runner=None,
     if escalation_allow is None:
         escalation_allow = escalation_allowed_dirty(dirt, repo=repo)
     escalation_allow = set(escalation_allow)
-    allow = standing_dirty() | escalation_allow | set(allow_dirty)
+    allow = (standing_dirty() | escalation_allow | set(allow_dirty)
+             | set(OWN_RECORDS))
     blocking = blocking_dirt(dirt, allow=allow)
     record = {
         "ref": ref,
@@ -778,7 +803,8 @@ def main(argv=None):
         # a path as BLOCKING that `check` is about to waive — a preview that
         # disagrees with the thing it previews is worse than no preview.
         pinned = escalation_allowed_dirty(dirt)
-        blocking = blocking_dirt(dirt, allow=standing_dirty() | pinned)
+        blocking = blocking_dirt(
+            dirt, allow=standing_dirty() | pinned | set(OWN_RECORDS))
         print("tracked-modified %d (blocking %d)  untracked %d  ignored %d"
               % (len(dirt["tracked_modified"]), len(blocking),
                  len(dirt["untracked"]), len(dirt["ignored"])))
