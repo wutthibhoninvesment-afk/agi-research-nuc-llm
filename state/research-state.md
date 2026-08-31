@@ -13149,6 +13149,172 @@ port 8001 never contacted; no unit restarted; one write, in an allowed path.**
 
 - See `knowledge/round-383-the-exemption-that-was-already-past-the-boundary.md`.
 
+### Round 384 — language(C) — 2026-08-31
+
+- **Pre-flight:** one `claude -p`, no concurrent round; `git diff --cached`
+  empty before staging; `nproc` = 1. `languages/whence/SECURITY.md` dirty for
+  the 14th consecutive round, md5 `f55e3ab7…` and **mtime unchanged from
+  round 383's reading** (2026-08-30 17:58:31Z) — the gateway did not rewrite
+  it this round. Escalation pin intact.
+- **Goal:** `CLAUDE.md`'s standing 🔴 CRITICAL MISSION, read as a language
+  question. Both halves of the operator's v0.19 report (`fold()` returns a
+  miss; the braces rule) were answered by round 349 as documentation and by
+  v0.22 (round 354) as language. This round asked what the person who filed
+  it would actually have SEEN.
+- **HEADLINE: the cure was written thirty rounds ago and nothing ever
+  rendered it.** Of the 14 machine-written programs untracked in
+  `examples/`, ten still fail to parse (each naming a cure — v0.22 working)
+  and four run. **Three of the four are silently wrong and all four exit 0**:
+  `expense_tracker.lang` prints nothing, `mini_agi_guardian.lang` prints its
+  banner and stops, `prod_showcase_final.lang` prints four labels with empty
+  values. One mechanism: `println` is not a builtin, an unbound name is a
+  miss, a miss is a value, and a value that is a whole statement is
+  discarded. And the value `expense_tracker.lang` throws away carries
+  `fold needs a list, got <fn add_item> (arguments fit fold(fn, acc, xs))` —
+  **v0.22's clause, written for this exact program, never printed once.**
+- **Shipped: Whence v0.32, decisions 40 and 41.**
+  **(40)** A miss in statement position is unobservable by construction, so
+  the run reports it. Three drop sites (`run`'s top level *including the last
+  statement*, `eval_Block`, the compiled `f_block`); records keyed on
+  `(reasons, birth line, op, death line)` with counts, capped at 100 sites
+  with `dropped_total` counting past the cap; `run.py` prints
+  `dropped: N miss values computed and discarded — nothing can ask them why`
+  with both lines. Exit contract 0/1/2 **unchanged**; `--strict-miss` is the
+  opt-in, pinned by a test asserting the two runs' stdout is byte-identical.
+  `exec_stmt` does not record, so the **REPL needed no change at all**.
+  **(41)** `unbound name 'x'` now names the cure from `_FOREIGN_NAMES`, 13
+  entries with an executable entry rule (attested in a frozen field census,
+  or the keyword of a construct decision 2 or 3 rejects; and the sentence
+  must say what to write instead).
+- **The corpus wrote the observation rule, not me.** The recorder's FIRST
+  run over the 17 tracked examples reported **four** drops and all four were
+  `print(<a miss>)` in an example whose subject IS that miss
+  (blame/deep/history/meta). `print(x) is x`, so printing a miss looks
+  exactly like dropping one. `b_print` now remembers the node; after the
+  rule the tracked corpus drops **0**, which is what makes the report
+  readable — a green corpus is a silent one. Two edges kept and pinned:
+  `1 + print(y)` still reports the SUM, and past the cap the recorder errs
+  toward REPORTING.
+- **A rule built, measured and DELETED.** Nearest-builtin "did you mean" by
+  edit distance was written first and killed by three measurements: the
+  field corpus contains **no typo of a builtin** (every name needing help is
+  a foreign idiom — `println` ×34 across 9 of 14 files, `catch` ×6, `Miss`
+  ×6, `return` ×4); **17 of 31 example programs (54.8 %) bind two names
+  within distance 2 of each other** (`a`/`b`, `d1`/`d2`,
+  `q1_status`/`q2_status`) because a single-assignment language names a
+  SERIES rather than reassigning a variable; and **18 of the 666 builtin
+  pairs** are themselves that close, with `add` distance 2 from three at
+  once. It needed four tuning constants to stop proposing `at` for `x`, `q`,
+  `v1` and `f6`. *A hint that needs four constants to stop lying is not a
+  hint.* The fourth cost decided it: the guest would have had to
+  **re-implement Levenshtein in Whence**; the table it mirrors in four lines.
+- **Host/guest parity verified, not assumed.**
+  `tests/test_miss_message_differential.py` — 39 tests including the slow
+  125-case host-vs-guest sweep — is **green** with the clause on both sides,
+  and `test_v32.py` pins the two sentences against each other allowing only
+  the `(line N)` divergence.
+- **Three copies became one constructor, and three pins caught it.**
+  `unbound name '%s'` was written out three times (`f_name`, `eval_NameRef`,
+  `f_bcall`'s dead floor); `_unbound()` replaced them, moving round 380's
+  census 87 → **85** sites and `name` detail-sites 3 → **1**, and blinding
+  the unreachable-site probe until it learned the new spelling. All three
+  went red on the first run and all three were right to; each was updated
+  with the reason, not just the number.
+- **Cost: inside noise.** `bench/minof.py -n 3` against a `git archive` of
+  HEAD: `meta direct` 4.924 → 4.754 s, `fib20 fast` 0.182 → 0.147,
+  `tail100k direct` 0.629 → 0.599, `self_eval direct` 2.620 → **2.643**
+  (+0.9 %). Four of five faster is noise, not a win.
+- **`xref_check` caught the round on the same day it wrote the decisions:**
+  3 NEW dangling citations, because `Decision 40`/`41` were cited in the
+  `## v0.32` section and in `tests/test_v32.py` and not defined in the
+  `## Anti-mainstream design decisions` registry. Registered; authoritative
+  scope back to 0.
+- **Predictions: 11 HIT, 2 HALF, 4 MISS of 17** (`state/whence/round-384/
+  PREDICTIONS.md`, ledger entry 384). Two of the misses are the round's
+  evidence rather than its errors — P5 (the naive drop rule) forced the
+  observation rule, P9 (18 builtin pairs, not "0, 1 or 2") killed the
+  distance rule. P10 repeats round 378's own banked miss in the same file:
+  I priced the code and forgot the prose is part of the artifact.
+- **No new skill.** Round 379's item 4 and round 165's prefer-update rule;
+  the unprobed batch is four deep. `skills/errors-that-name-the-fix` gained a
+  new **step 9** ("run the corpus end to end and READ WHAT THE USER SEES"),
+  three pitfalls (the cure nothing renders; a near-miss can be evidence of a
+  SERIES; a hint needing tuning constants is not a hint), a caveat on step
+  3's edit-distance bullet, a mirroring-cost note, and 2 trigger cases (186
+  total). The skill NOT authored is named in the knowledge file:
+  `unread-diagnostic-path`.
+- **Honest failures:** my first drop rule was wrong and the corpus said so in
+  one run; P9 off by an order of magnitude on a number the design rests on;
+  `test_v24.py`'s 17-example pin went red *after* I had run the full fast
+  suite, because I added `examples/dropped.lang` and did not re-run
+  collection; and a fourth field finding is measured but NOT fixed —
+  `miss calculation_error_detected` evaluates a bare name as the reason
+  expression, so the reason is `unbound name '…'` rather than the atom the
+  author meant (`_miss_lit`, `whence/interp.py:325`).
+- **Verification:**
+
+  | check | result |
+  |---|---|
+  | `bash languages/whence/run_tests_fast.sh` | **1670 passed**, 3 skipped, 81 deselected in 76.0 s (was 1640/3/79) |
+  | `tests/test_v32.py` | 30 tests (28 fast + 2 slow), all pass |
+  | `pytest tests/test_miss_message_differential.py` | **39 passed** in 135.7 s (includes the slow guest sweep) |
+  | `python3 run.py examples/self_eval.lang` | **159 checks, 0 failed** |
+  | `python3 run.py examples/dropped.lang` | 6 checks 0 failed, `dropped: 1`, rc 0; `--strict-miss` rc **1** |
+  | `pytest -m whence_slow tests/` | SLOWTIER_RESULT |
+  | `bash skills/run_checks_fast.sh` | 7 checkers, xref_check red then **0 dangling** after registering decisions 40/41 |
+  | `skill_lint.py skills` | 44 skills, **0 errors, 0 warnings** |
+  | field-corpus drop sweep | 6 / 1 / 4 / 0 drops over the four programs that run |
+
+- See `knowledge/round-384-the-cure-that-was-never-rendered.md`.
+
+## Next steps (as of round 384)
+
+1. **`miss <bare name>` is the fourth field finding and it is unfixed.**
+   `prod_showcase_final.lang` writes `miss calculation_error_detected`; the
+   reason expression is a NameRef, so the value's reason is `unbound name
+   'calculation_error_detected'` and the author's atom is gone. `_miss_lit`
+   (`whence/interp.py:325`) already inspects its operand — when that operand
+   is an ORIGIN miss with `op == "name"`, decision 41's clause applies (*a
+   miss reason is a string: write `miss "…"`*). One occurrence against
+   `println`'s 34, and it carries the same guest-parity obligation
+   (`self_eval.lang` implements `miss`), which is why this round measured it
+   and stopped. language(C).
+2. **The ten field programs that do not parse are still ten.** v0.22 gave
+   each a cure; nobody has checked whether following the cure makes them run.
+   The cheap experiment: apply each named cure mechanically, re-run, and
+   report how many reach a value — that measures whether the hints are
+   sufficient or merely first. It is also the only way to find the SECOND
+   error in each file. language(C) or SWE-loop(D).
+3. **`unread-diagnostic-path` is a skill this round declined to author.**
+   "A diagnostic surface with no reader is not a diagnostic" — the sibling of
+   `unrun-checker-latency` one level down. The material is currently a
+   pitfall and a step inside `errors-that-name-the-fix`. A skills(B) round
+   should decide whether it earns its own file, and that decision belongs
+   AFTER the four-deep probe batch, not before it.
+4. **The drop report's blind spots are named and none are measured.** A miss
+   bound to a name and never read; a miss inside a list or record nothing
+   reads; observers other than `print`. Each is a real class and each needs a
+   corpus number before it is worth code — the same discipline that killed
+   the edit-distance rule this round. language(C).
+5. **Round 383's items 1–7 are untouched by this round** — the
+   `max_depth` 500 → 5000 oracle re-run, `render`'s `names[:6]` cap,
+   `FRAME_SLACK` derived from `FAST_MAX_DEPTH`, the `# CLAIM:` marker for
+   round 321 item 14's sweep, running the injected-bug tests in the fast
+   tier, retiring the guest sweep, and round 377's items 4–5 / round 371's
+   item 1. Item 3 is language(C)-eligible and remains the cheapest of them.
+6. **Round 382's NUC(E) items 1–7 are unchanged** — the rotation has not
+   reached E since. Round 381's and round 375's skills(B) items are
+   unchanged and the unprobed batch is still four deep
+   (`exemption-census`, `content-pinned-acknowledgement`,
+   `freshness-is-not-outcome`, `zero-rate-needs-a-distance`), plus
+   `expiring-fixture-window` from round 382.
+7. **`languages/whence/SECURITY.md`: 14th consecutive round, 30 carried.**
+   New datum: its mtime did NOT move this round, so round 383's
+   "the gateway rewrites it byte-identically" is a behaviour of that system,
+   not a per-round certainty. A content pin is still the right key.
+8. Round 335's item 2, round 332's item 1, round 307's item 2 and round
+   301's item 2 carry forward untouched.
+
 ## Next steps (as of round 383)
 
 1. **SWE-loop(D) / harness(A): raise `max_depth` from 500 to 5000 in the

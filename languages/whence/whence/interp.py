@@ -558,6 +558,13 @@ class Interpreter(object):
     # 2.3× that (was 350 — a guess).
     HOST_RESERVE = 250
 
+    # v0.32: distinct dropped-miss SITES kept. `dropped_total` keeps counting
+    # past it, so the report can say how many it is not showing. 100 is far
+    # above anything a human reads and far below anything that costs memory:
+    # the whole tracked example corpus drops 0 and the field corpus's worst
+    # program drops 5 (round 384's measurement).
+    DROP_CAP = 100
+
     def __init__(self, out=None, max_depth=DEFAULT_MAX_DEPTH,
                  max_iter=DEFAULT_MAX_ITER, max_value=DEFAULT_MAX_VALUE,
                  max_int_bits=DEFAULT_MAX_INT_BITS,
@@ -624,6 +631,34 @@ class Interpreter(object):
         # a runtime identity check inside the compiled call keeps stale
         # entries (incremental exec_stmt callers) correct via call_value.
         self.shadowed = set()
+        # v0.32 (round 384): miss values DISCARDED in statement position.
+        # A miss reaches a name (`let x = f()`), a check, or an operand and
+        # is then observable — `str`/`why`/`blame` can be asked about it. A
+        # miss that is the value of a statement whose value nothing keeps
+        # can never be asked anything: it has no name, no consumer, and the
+        # run is over. That is the one place decision 2's promise ("it can
+        # tell you *why*") has nobody to tell. The interpreter records these
+        # so a front end can report them; recording is passive and changes
+        # no value, no reason string and no exit code.
+        # Keyed on (reasons, line, op) with a count, because a drop inside a
+        # loop or a recursion is the same defect N times, and capped so a
+        # runaway program cannot turn the record into the memory leak.
+        self.dropped = []          # [{reasons, line, op, label, count, node}]
+        self.dropped_total = 0     # every drop, including ones past the cap
+        self._drop_index = {}      # (reasons, line, op, at) -> entry
+        # Nodes a miss has already been SHOWN through. `print` is a
+        # pass-through (`print(x) is x`), so `print(some_miss)` is a
+        # statement whose value is a miss — and it is the one statement in
+        # the language where that is not a defect but the point. Measured,
+        # not assumed: this set exists because the FIRST run of the drop
+        # recorder over the tracked corpus reported four drops and all four
+        # were `print(<a miss>)` in an example whose subject IS that miss
+        # (blame/deep/history/meta.lang). Strong references, so an id can
+        # never be recycled under the check; capped like `dropped`, and past
+        # the cap the recorder errs toward REPORTING (a false drop is
+        # visible and arguable; a silent one is what this feature exists to
+        # end).
+        self._observed = {}
         self.globals.interp = self   # root back-pointer for shared-AST closures
         _install_builtins(self.globals)
 
@@ -638,7 +673,14 @@ class Interpreter(object):
                              old[2])
         try:
             for stmt in program.stmts:
-                self.exec_stmt(stmt, env)
+                v = self.exec_stmt(stmt, env)
+                # v0.32: EVERY top-level expression statement is a drop,
+                # the last one included — `run` returns the Env, not the
+                # value, so a program ending in a bare expression has
+                # nowhere to put it either. (The REPL does not go through
+                # here; it calls exec_stmt and prints what comes back.)
+                if type(stmt) is A.ExprStmt:
+                    self._note_drop(v, stmt.line)
         finally:
             if self.gc_relief:
                 gc.set_threshold(*old)
@@ -646,6 +688,35 @@ class Interpreter(object):
 
     def failed_checks(self):
         return [c for c in self.checks if not c["ok"]]
+
+    def _note_drop(self, v, at):
+        """v0.32: `v` is the value of a statement that discards it. Record it
+        if it is a miss. Called from the three places a statement value is
+        thrown away — `run`'s top level and the two block evaluators — and
+        NOT from `exec_stmt`, because a front end that calls `exec_stmt`
+        directly (the REPL) is holding the value and printing it.
+
+        `at` is the line of the STATEMENT that dropped it, which is not
+        `v.line`: a program that ends in a bare `total` drops a value made
+        twenty lines earlier, and the reader needs both — where the miss
+        came from, and where it stopped being anybody's."""
+        val = getattr(v, "value", None)
+        if not isinstance(val, Miss):
+            return
+        if id(v) in self._observed:
+            return
+        self.dropped_total += 1
+        key = (val.reasons, v.line, v.op, at)
+        entry = self._drop_index.get(key)
+        if entry is not None:
+            entry["count"] += 1
+            return
+        if len(self.dropped) >= self.DROP_CAP:
+            return
+        entry = {"reasons": val.reasons, "line": v.line, "op": v.op,
+                 "at": at, "label": v.label(), "count": 1, "node": v}
+        self._drop_index[key] = entry
+        self.dropped.append(entry)
 
     def exec_stmt(self, stmt, env):
         self._collect_shadowed(stmt)
@@ -1344,7 +1415,7 @@ class Interpreter(object):
                     if name in vs:
                         return vs[name]
                     env = env.parent
-                return mk_miss("unbound name '%s'" % name, line, "name", name)
+                return _unbound(name, line)
             return f_name
         if t is A.FnExpr:
             params, body, rt = node.params, node.body, node.ret_type
@@ -1522,27 +1593,35 @@ class Interpreter(object):
         if t is A.Block:
             steps = []
             ok = True
-            for stmt in node.stmts:
+            nstmts = len(node.stmts)
+            for i, stmt in enumerate(node.stmts):
                 g = None
                 if type(stmt) is not A.FnDef:
                     g = sub(stmt.expr)
                     ok = ok and bool(g)
-                steps.append((type(stmt), stmt, g))
+                # v0.32: precomputed once at compile time, so the hot loop
+                # pays one truth test rather than an index comparison
+                drop = type(stmt) is A.ExprStmt and i != nstmts - 1
+                steps.append((type(stmt), stmt, g, drop))
             if not ok:
                 return False
             if len(steps) == 1:
                 # a one-expression block binds nothing: no inner Env, no
                 # frame — the trampoline driver unwraps these too (v0.9;
-                # v0.4–v0.8 allocated an Env per evaluation here)
+                # v0.4–v0.8 allocated an Env per evaluation here).
+                # A one-statement block has no non-tail statement, so this
+                # shortcut can never skip a v0.32 drop.
                 return steps[0][2]
             interp = self
 
             def f_block(env):
                 inner = Env(env)
                 result = None
-                for ts, stmt, g in steps:
+                for ts, stmt, g, drop in steps:
                     if ts is A.ExprStmt:
                         result = g(inner)   # may be a pending _TailCall
+                        if drop:
+                            interp._note_drop(result, stmt.line)
                     elif ts is A.Let:
                         v = g(inner)
                         result = Prov("let", stmt.name, stmt.line, v, _LAZY,
@@ -1666,7 +1745,7 @@ class Interpreter(object):
                 for g in gs:            # no comprehension frame (v0.10)
                     args.append(g(env))
             if fnv is None:      # unreachable while builtins are global
-                fnv = mk_miss("unbound name '%s'" % name, line, "name", name)
+                fnv = _unbound(name, line)
             p = fnv.value
             if p is b:
                 if not _arity_ok(b.arity, nargs):
@@ -1735,8 +1814,7 @@ class Interpreter(object):
     def eval_NameRef(self, node, env):
         v = env.get(node.name)
         if v is None:
-            return mk_miss("unbound name '%s'" % node.name, node.line,
-                           "name", node.name)
+            return _unbound(node.name, node.line)
         return v
 
     def eval_FnExpr(self, node, env):
@@ -1805,6 +1883,9 @@ class Interpreter(object):
     def eval_Block(self, node, env):
         inner = Env(env)
         result = None
+        # v0.32: a non-tail expression statement's value is discarded here,
+        # so the LAST statement is the only ExprStmt that is not a drop.
+        last = node.stmts[-1]
         for stmt in node.stmts:
             # every statement kind runs inline (v0.8, F3b): _stmt_gen's
             # per-statement generator was one push + two sends of pure
@@ -1812,6 +1893,8 @@ class Interpreter(object):
             ts = type(stmt)
             if ts is A.ExprStmt:
                 result = yield (stmt.expr, inner)
+                if stmt is not last:
+                    self._note_drop(result, stmt.line)
             elif ts is A.Let:
                 v = yield (stmt.expr, inner)
                 result = derived("let", stmt.name, stmt.line, (v,), v.value)
@@ -2577,6 +2660,87 @@ def _sig_text(name):
     return "%s(%s)" % (name, ", ".join(pname for pname, _ in sig))
 
 
+# ---------------------------------------------------------------------------
+# v0.32 (round 384): the cure clause on `unbound name 'x'`.
+#
+# v0.22 (round 354) taught the ARGUMENT half of a builtin miss to name its
+# own fix, after an operator bug report whose real content was "the message
+# is true and I still do not know what to type". `unbound name 'x'` is that
+# same message at that same half strength, and it is the most common runtime
+# miss in the field corpus — the 14 machine-written programs no round wrote
+# that sit untracked in `examples/` (`state/known-standing-dirty-paths.json`).
+#
+# The table is small and the ENTRY RULE is what keeps it small. A name
+# qualifies only if
+#   (a) it is attested as an unbound identifier in the field corpus
+#       (`state/whence/round-384/field-names.json` freezes that census, so
+#       this rule is checkable against a tracked file rather than against
+#       somebody else's working tree), or
+#   (b) it is the keyword of a construct a numbered SPEC decision names as
+#       deliberately absent — decision 2 "No exceptions, no null", decision
+#       3 "All iteration is recursion / `map` / `filter` / `fold`",
+# AND the sentence names what to write in Whence instead. `printf`, `def`,
+# `lambda`, `elif`, `size`, `length` all FAIL the rule and are absent: they
+# are neither attested nor rejected by a decision, they are just names other
+# languages happen to use.
+#
+# WHAT IS NOT HERE, and why — a nearest-builtin "did you mean" by edit
+# distance was built first, measured, and then deleted (round 384 §5):
+#   - The field corpus contains no typo of a builtin. Every name in it that
+#     needs help is a FOREIGN IDIOM (`println` x34, `catch` x6, `return` x4,
+#     `for` x2, `then` x1), not a misspelling. The distance rule's whole
+#     population was hypothetical.
+#   - Suggesting from names in scope is actively wrong here: 17 of the 31
+#     programs in `examples/` (54.8 %) bind two names within edit distance 2
+#     of each other (`a`/`b`, `d1`/`d2`, `q1_status`/`q2_status`), because a
+#     single-assignment language names a SERIES where an imperative one
+#     reassigns one variable. A near-miss between user names is evidence of
+#     a series, not of a typo.
+#   - Suggesting from builtins is ambiguous in the set itself: 18 of the 666
+#     builtin pairs are within distance 2 (`at`/`put`, `str`/`sure`,
+#     `find`/`fold`), and `add` is distance 2 from three at once.
+#   - And it cost host/guest parity: `examples/self_eval.lang` would have had
+#     to re-implement Levenshtein to keep saying what the host says. A record
+#     lookup it can mirror in four lines.
+_FOREIGN_NAMES = {
+    # (a) attested in the field corpus — count in the comment
+    "println": "Whence has no `println`; `print` already ends the line",  # 34
+    "catch": "Whence has no `catch`; recover with `risky rescue fallback`",  # 6
+    "Miss": "Whence's `miss` is lower case: `miss <reason>`",              # 6
+    "return": "Whence has no `return`; a block's value is its last "
+              "expression",                                                # 4
+    "for": "Whence has no loops; iterate with `map`/`filter`/`fold` or "
+           "recursion",                                                    # 2
+    "then": "an `if` needs no `then`: `if c { a } else { b }`",            # 1
+    # (b) a construct SPEC decision 2 or 3 names as deliberately absent
+    "while": "Whence has no loops; iterate with `map`/`filter`/`fold` or "
+             "recursion",
+    "try": "Whence has no `try`; recover with `risky rescue fallback`",
+    "throw": "Whence has no `throw`; a failure is a value — write "
+             "`miss <reason>`",
+    "raise": "Whence has no `raise`; a failure is a value — write "
+             "`miss <reason>`",
+    "null": "Whence has no null; a missing value is `miss <reason>`",
+    "nil": "Whence has no nil; a missing value is `miss <reason>`",
+    "None": "Whence has no None; a missing value is `miss <reason>`",
+}
+
+
+def _name_hint(name):
+    """The v0.32 clause on an unbound name, or `""`."""
+    foreign = _FOREIGN_NAMES.get(name)
+    return " (%s)" % foreign if foreign is not None else ""
+
+
+def _unbound(name, line):
+    """The unbound-name miss, built in ONE place so the compiled fast path,
+    the trampoline and the builtin-call path cannot drift apart — they were
+    three copies of the same literal before v0.32, which is why round 380's
+    `mk_miss` census counted three `name` sites and now counts one."""
+    return mk_miss("unbound name '%s'%s" % (name, _name_hint(name)),
+                   line, "name", name)
+
+
 def _order_hint(name, args):
     """The v0.22 clause — `" (arguments fit fold(fn, acc, xs))"` or `""`.
 
@@ -3130,7 +3294,15 @@ def _make_builtin_table():
     @register("print", 1, "v")
     def b_print(interp, args, line):
         interp._out(full_show(args[0].payload))
-        return args[0]  # pass-through: print(x) is x
+        # v0.32: printing a miss IS observing it, so the value this returns
+        # is not an unobserved drop when the statement throws it away. The
+        # gate is `isinstance` on the payload, so a program that never
+        # prints a miss never touches this dict.
+        a = args[0]
+        if (isinstance(a.payload, Miss)
+                and len(interp._observed) < interp.DROP_CAP):
+            interp._observed[id(a)] = a
+        return a  # pass-through: print(x) is x
 
     @register("rand", 0, "")
     def b_rand(interp, args, line):

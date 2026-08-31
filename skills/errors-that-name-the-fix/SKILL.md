@@ -1,6 +1,6 @@
 ---
 name: errors-that-name-the-fix
-description: Use when a tool's error messages are accurate but unhelpful — users keep filing bug reports for things that are not bugs, a message names the symptom ("expected a list, got a function", "invalid config key") without saying what to write instead, or someone proposes fixing the confusion by rewriting the DOCS or by auto-repairing users' inputs. Applies to compiler and interpreter diagnostics, parse and lint errors, CLI argument validation, API 400 bodies, config loaders, and any validator whose check already knows more than its message says. Covers turning implicit checks into a declaration the message can quote, re-testing the failing input against that declaration to compute the cure, defining the SILENCES before the advice, and measuring a real corpus of failing inputs to choose which cures are worth naming. NOT for adding stack traces, log levels, or error CODES, and not for making a message shorter.
+description: Use when a tool's error messages are accurate but unhelpful — users keep filing bug reports for things that are not bugs, a message names the symptom ("expected a list, got a function", "invalid config key") without saying what to write instead, or someone proposes fixing the confusion by rewriting the DOCS or by auto-repairing users' inputs. Applies to compiler and interpreter diagnostics, parse and lint errors, CLI argument validation, API 400 bodies, config loaders, and any validator whose check already knows more than its message says. Covers turning implicit checks into a declaration the message can quote, computing the cure by re-testing the input against it, defining the SILENCES first, measuring a real corpus of failing inputs, and proving the finished message actually REACHES a reader rather than being computed into something nothing renders. NOT for adding stack traces, log levels, or error CODES, and not for making a message shorter.
 ---
 
 # Errors that name the fix
@@ -29,9 +29,15 @@ with an authoritative tone, and users will follow it.
   the users' existing inputs.
 - A validator has a table of legal values in its head (an arity, a key set, a
   signature, an enum) that never reaches the message.
+- **A message you already improved is still not helping anyone.** Before
+  concluding the wording is wrong, check whether the wording is being
+  *printed* — see step 9.
 - Proven on: Whence v0.22 (round 354). One operator report against two
   surfaces; ten machine-written programs measured; parse errors naming a cure
-  went 1/10 → 9/10.
+  went 1/10 → 9/10. And on Whence v0.32 (round 384), which re-ran the SAME
+  corpus thirty rounds later and found that the cure v0.22 wrote for it had
+  never once been rendered: the value carrying it was discarded in statement
+  position and the program exited 0 printing nothing.
 
 **When NOT to use:** not for error CODES, log levels, or stack traces — those
 help the maintainer, this helps the author of the input. Not for shortening a
@@ -66,6 +72,10 @@ in a Hindley-Milner solver may have no single "write this instead").
    - argument-order confusion → does some permutation of the given arguments
      satisfy the declared kinds?
    - unknown config key → is it within edit distance 1 of a declared key?
+     **Only when the candidate set is DECLARED and the user was typing a
+     member of it.** Edit distance over names the *user* chose is a different
+     and much worse rule — see the pitfall "a near-miss can be evidence of a
+     series".
    - unknown subcommand → is it a prefix of exactly one?
    - a parse error → is the failing token pattern one the grammar can never
      produce, and does it match a construct the language deliberately lacks?
@@ -113,6 +123,25 @@ in a Hindley-Milner solver may have no single "write this instead").
 8. **Append, never replace.** Every hint is a suffix on the message that
    already existed, so existing callers that substring-match keep working.
    Add a test that asserts each new message still *starts with* the old one.
+
+9. **Run the corpus end to end and READ WHAT THE USER SEES.** Not the unit
+   test that asserts the string — the actual program, the actual command, the
+   actual stdout. Steps 1–8 build a cure; only this one delivers it. For every
+   input in the corpus, record the three things a user has:
+
+   | input | exit code | what was printed |
+   | --- | --- | --- |
+
+   Any row whose printed output does not contain the cure is an undelivered
+   fix, and the defect is in the RENDERING path, not in the wording. Whence
+   v0.22 got every unit test green and shipped; v0.32 ran the same ten
+   programs as programs and found four that exit 0 while printing nothing or
+   printing labels with empty values — because a diagnostic can be computed
+   into a value that is then discarded, logged at a level nobody enables,
+   returned from a function whose caller ignores it, or attached to a field no
+   formatter reads. Checkable outcome: a table with one row per corpus input,
+   and a test that asserts the cure appears in the rendered output of at least
+   one END-TO-END run.
 
 ## Pitfalls
 
@@ -173,6 +202,14 @@ in a Hindley-Milner solver may have no single "write this instead").
   Split the claim: a position is a fact about the input, a sentence is a
   choice about describing it. See [[refusal-set-differential]].
 
+  **And let the cost of mirroring pick the mechanism.** Round 384 chose a
+  13-entry table over an edit-distance rule partly because the self-hosted
+  guest would have had to re-implement Levenshtein to keep wording the
+  message the same way; the table is a record lookup the guest mirrors in
+  four lines, and the 125-case host-vs-guest differential stayed green. If a
+  second implementation must say what you say, the cheapest hint to MIRROR is
+  a data structure, not an algorithm.
+
 - **A message that names the fix can still point at the wrong place.** All of
   decision 32's cures are appended to a `ParseError` whose line and column
   come from the offending token, and in Whence two of those coordinates were
@@ -181,6 +218,45 @@ in a Hindley-Milner solver may have no single "write this instead").
   because every test asserted the WORDS. When you add a clause to an error,
   assert its position in the same test — the cheapest oracle is that the
   reported coordinate points at the offending token's own first character.
+
+- **The cure exists, and nothing renders it.** This is the most expensive
+  failure in this skill, because every test is green and the corpus table from
+  step 6 says the message improved. Enumerate the paths a diagnostic can take
+  from construction to a human — printed, logged, returned, stored on a field,
+  raised — and check each has a reader. In Whence the diagnostic is a VALUE,
+  so the unread path was a statement whose value is discarded; v0.32 made the
+  runtime report every one of those (`dropped: 1 miss value computed and
+  discarded — nothing can ask it why`) and the operator's own bug report
+  finally got its answer, thirty rounds after the answer was written. The
+  general form: *a diagnostic surface with no reader is not a diagnostic.*
+  Sibling of [[unrun-checker-latency]], which is the same defect one level up
+  (a correct checker nobody runs).
+
+- **A near-miss can be evidence of a SERIES, not of a typo.** "Did you mean
+  X?" by edit distance is safe over a set the language declares and the user
+  is trying to spell — config keys, subcommands, builtins. It is unsafe over
+  names the user chose. Measure before shipping it: in Whence, 17 of 31
+  example programs (54.8 %) bind two names within edit distance 2 of each
+  other — `a`/`b`, `d1`/`d2`, `q1_status`/`q2_status` — because a
+  single-assignment language names a series where an imperative one reassigns
+  one variable, so a near-miss there is the norm and the suggestion is noise.
+  Check the declared set against ITSELF too: 18 of Whence's 666 builtin pairs
+  are within distance 2, and one name is distance 2 from three builtins at
+  once.
+
+- **A hint that needs tuning constants to stop lying is not a hint.** Round
+  384 built a nearest-builtin rule and had to add "unique winner", then
+  "distance ≤ 2", then "name length ≥ 3", then "distance ≤ len − 2" — each
+  constant added to suppress a specific wrong answer (`at` proposed for `x`,
+  `q`, `v1`, `f6`). It was deleted in favour of a table of 13 names with a
+  written ENTRY RULE: a name may enter only if it is attested in a frozen
+  census of the real corpus, or it is the keyword of a construct a numbered
+  design decision names as deliberately absent — and the entry rule is a
+  test, so the table cannot grow by taste. Prefer a small curated table with
+  a checkable admission rule over a general rule with hand-tuned thresholds,
+  whenever the real population is small and enumerable. The corpus decides
+  which you are in: Whence's field corpus contained no typo of a builtin at
+  all, only foreign idioms (`println` ×34, `catch` ×6, `return` ×4).
 
 - **Fixing stale guidance with better prose.** If your investigation turns up
   a document that mis-states the tool, replace the sentence AND add the check
@@ -207,7 +283,18 @@ python3 -m pytest tests/ -q -k "corpus or name_a_cure"
 # expected: passed, and the count in the assertion matches the write-up
 ```
 
+```bash
+# 5. the message is DELIVERED: run the real corpus as programs and grep the
+#    rendered output, not the unit assertions
+for f in corpus/*; do "$TOOL" "$f" 2>&1 | grep -q "$CURE_SUBSTRING" \
+    && echo "delivered: $f" || echo "NOT DELIVERED: $f"; done
+# expected: no NOT DELIVERED row, or a named reason for each one
+```
+
 - [ ] Every message the change touches still starts with its pre-change text.
+- [ ] At least one END-TO-END run prints the cure; a test asserts it.
+- [ ] Every path a diagnostic can take from construction to a human has a
+      reader, and the ones that do not are reported rather than silent.
 - [ ] Every uncured input in the corpus has a named reason, in a test.
 - [ ] The hint function is pure and callable at any site without a whitelist.
 - [ ] No hint claims an outcome (`this will work`) rather than a property

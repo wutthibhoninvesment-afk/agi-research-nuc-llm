@@ -583,7 +583,12 @@ def _unreachable_lines():
                     break
         if "unreachable while builtins are global" in line:
             for j in range(i, min(i + 3, len(src))):
-                if "mk_miss" in src[j]:
+                # v0.32 (round 384): the site still builds the same miss, but
+                # through `_unbound` — the single constructor that replaced
+                # three copies of the `unbound name` literal — so the probe
+                # has to know both spellings. It is the SITE that is being
+                # pinned as still-present, not the call it happens to make.
+                if "mk_miss" in src[j] or "_unbound(" in src[j]:
                     out.add(j + 1)
                     break
     return out

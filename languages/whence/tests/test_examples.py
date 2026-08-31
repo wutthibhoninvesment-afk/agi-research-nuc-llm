@@ -50,6 +50,18 @@ def test_sales():
     assert "5 passed, 0 failed" in r.stdout
 
 
+def test_dropped_reports_the_one_miss_it_drops_on_purpose():
+    """v0.32: the report is unconditional, the exit code is not."""
+    r = run_example("dropped.lang")
+    assert r.returncode == 0
+    assert "6 passed, 0 failed" in r.stdout
+    assert "dropped: 1 miss value computed and discarded" in r.stdout
+    assert 'num: cannot parse "7O"' in r.stdout
+    strict = run_example("dropped.lang", "--strict-miss")
+    assert strict.returncode == 1
+    assert strict.stdout == r.stdout
+
+
 def test_failing_check_exits_1_and_explains():
     r = run_example("failing_check.lang")
     assert r.returncode == 1

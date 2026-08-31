@@ -178,8 +178,15 @@ def test_the_grep_is_true_and_the_property_it_stood_for_is_false():
 
     sites = mk_miss_sites()
     setting = [s for s in sites if s[2]]
-    assert len(sites) == 87, len(sites)
-    assert len(setting) == 21, len(setting)
+    # v0.32 (round 384): 87 -> 85 and 21 -> 19. The unbound-name miss was
+    # THREE copies of one literal (the compiled `f_name`, `eval_NameRef`,
+    # and `f_bcall`'s dead `fnv is None` floor); v0.32 needed to append a
+    # cure clause to it and gave it one constructor, `_unbound`. The census
+    # is doing exactly its job here: a number that moves when the code moves
+    # and states why. The PROPERTY it guards is unchanged — `detail` is
+    # still set positionally and still says nothing about itself.
+    assert len(sites) == 85, len(sites)
+    assert len(setting) == 19, len(setting)
 
 
 def test_every_detail_setting_site_belongs_to_one_of_three_ops():
@@ -192,7 +199,11 @@ def test_every_detail_setting_site_belongs_to_one_of_three_ops():
         if sets:
             by_op.setdefault(op, 0)
             by_op[op] += 1
-    assert by_op == {"call": 14, "name": 3, "typed": 4}, by_op
+    # v0.32: `name` 3 -> 1, for the reason above — one constructor, not
+    # three copies. The guest's obligation is the same obligation and it is
+    # now met at one site on each side (`_unbound` here,
+    # `lookup`/`name_hint` in examples/self_eval.lang).
+    assert by_op == {"call": 14, "name": 1, "typed": 4}, by_op
 
 
 # --------------------------------------------------------------------------

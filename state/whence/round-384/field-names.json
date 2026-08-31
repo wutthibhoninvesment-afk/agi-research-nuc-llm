@@ -1,0 +1,419 @@
+{
+ "_comment": "Round 384 (language C). A FROZEN census of every identifier used by the 14 machine-written Whence programs that sit UNTRACKED in languages/whence/examples/ (the Hermes gateway's output, allowlisted in state/known-standing-dirty-paths.json) and that is neither bound in the same file, nor a builtin, nor a keyword. It is the evidence for whence/interp.py's `_FOREIGN_NAMES` entry rule clause (a): a name may enter that table only if it is attested HERE or rejected by a numbered SPEC decision. Frozen on purpose -- the source files are owned by another system and can change or vanish at any time, so a test that re-derived this census would be pinning a live file (state/nuc-missions.md / round 340's lesson, and skills/expiring-fixture-window). The md5s below record WHICH bytes were censused; if they no longer match, the census is stale but still true of the programs it was taken from.",
+ "round": 384,
+ "captured_utc": "2026-08-31T01:56:37Z",
+ "n_files": 14,
+ "file_md5": {
+  "cognitive_verifier.lang": "7e6a6e4508ed822f4060a9f11a06651b",
+  "cognitive_verifier_v2.lang": "dffc29dab2a9cc7cfa2c9414af215004",
+  "cognitive_verifier_v3.lang": "364b41c38ca086c0de8949671bf67884",
+  "expense_tracker.lang": "0743f416b159897a4352f5bee9bb483c",
+  "mini_agi_guardian.lang": "7e8b71a43cb11ffef08808c104ef3621",
+  "nano_reasoner.lang": "256e8794756b2d1984a6adcec02fae1c",
+  "prod_demo_v1.lang": "0062aaa4a55efc267340e840eafebca3",
+  "prod_demo_v3.lang": "e18be88edb92ac066ba87a290f672104",
+  "prod_demo_v4.lang": "c0623f94576415cf404ba1cfe444e66f",
+  "prod_demo_v5.lang": "80eec2658bd5d55586c4b9231c87cc28",
+  "prod_showcase_final.lang": "44a9a18a093e4cb9e2e81fd274e15206",
+  "test_simple.lang": "097b0fce685434e2562ed39ff3ab1cc5",
+  "whenceguard_auditor.lang": "5af80d066d4c91025130c97408a230d4",
+  "whenceguard_v2.lang": "d13f25b435b3676006b1aa525df661dd"
+ },
+ "builtins_at_capture": [
+  "abs",
+  "at",
+  "blame",
+  "confidence",
+  "contains",
+  "contrast",
+  "diverge",
+  "filter",
+  "find",
+  "fold",
+  "get",
+  "guess",
+  "has",
+  "is_guess",
+  "join",
+  "keys",
+  "len",
+  "map",
+  "matches",
+  "merge",
+  "missed",
+  "note",
+  "num",
+  "print",
+  "push",
+  "put",
+  "rand",
+  "range",
+  "reasons",
+  "shapeof",
+  "show",
+  "sqrt",
+  "steps",
+  "str",
+  "sure",
+  "trunc",
+  "typed"
+ ],
+ "unbound_identifier_counts": {
+  "println": 34,
+  "zero_point_zero": 11,
+  "catch": 6,
+  "Miss": 6,
+  "as": 6,
+  "return": 4,
+  "d": 4,
+  "dept_err": 4,
+  "budget_err": 4,
+  "err": 3,
+  "qty": 3,
+  "price_per_unit": 3,
+  "DivisionByZeroError": 2,
+  "Final": 2,
+  "Total": 2,
+  "Provenance": 2,
+  "Division": 2,
+  "with": 2,
+  "one_hundred": 2,
+  "name": 2,
+  "for": 2,
+  "in": 2,
+  "AUTHORIZED": 2,
+  "Step": 2,
+  "FAILED": 2,
+  "UNDER_REVIEW": 2,
+  "then": 1,
+  "final_total_or_result": 1,
+  "Caught": 1,
+  "Tracking": 1,
+  "Active": 1,
+  "Error": 1,
+  "Gracefully": 1,
+  "Handled": 1,
+  "Calculating": 1,
+  "total": 1,
+  "provenance": 1,
+  "tracking": 1,
+  "Safe": 1,
+  "division": 1,
+  "failed": 1,
+  "Test": 1,
+  "ing": 1,
+  "graceful": 1,
+  "error": 1,
+  "handling": 1,
+  "PRODUCTION": 1,
+  "RESULTS": 1,
+  "Tax": 1,
+  "Depth": 1,
+  "Result": 1,
+  "seven": 1,
+  "division_by_zero": 1,
+  "division_by_zero_error": 1,
+  "calculation_error_detected": 1,
+  "Engineering": 1,
+  "Marketing": 1,
+  "Operations": 1,
+  "TXN": 1,
+  "IT": 1,
+  "Support": 1,
+  "SecureSupplier_Ltd": 1,
+  "Hardware": 1,
+  "Unit": 1,
+  "Express": 1,
+  "Shipping": 1,
+  "DEPT_NOT_APPROVED": 1,
+  "BUDGET_VIOLATION": 1,
+  "WHENCEGUARD": 1,
+  "AUDIT": 1,
+  "ENGINE": 1,
+  "STARTED": 1,
+  "ID": 1,
+  "Department": 1,
+  "APPROVED": 1,
+  "FOR": 1,
+  "PAYMENT": 1,
+  "PENDING": 1,
+  "VERIFICATION": 1,
+  "REJECTED": 1
+ },
+ "unbound_identifier_files": {
+  "APPROVED": [
+   "whenceguard_v2.lang"
+  ],
+  "AUDIT": [
+   "whenceguard_v2.lang"
+  ],
+  "AUTHORIZED": [
+   "whenceguard_v2.lang"
+  ],
+  "Active": [
+   "prod_demo_v1.lang"
+  ],
+  "BUDGET_VIOLATION": [
+   "whenceguard_v2.lang"
+  ],
+  "Calculating": [
+   "prod_demo_v3.lang"
+  ],
+  "Caught": [
+   "prod_demo_v1.lang"
+  ],
+  "DEPT_NOT_APPROVED": [
+   "whenceguard_v2.lang"
+  ],
+  "Department": [
+   "whenceguard_v2.lang"
+  ],
+  "Depth": [
+   "prod_demo_v3.lang"
+  ],
+  "Division": [
+   "prod_demo_v1.lang",
+   "prod_demo_v3.lang"
+  ],
+  "DivisionByZeroError": [
+   "prod_demo_v1.lang",
+   "prod_demo_v3.lang"
+  ],
+  "ENGINE": [
+   "whenceguard_v2.lang"
+  ],
+  "Engineering": [
+   "whenceguard_v2.lang"
+  ],
+  "Error": [
+   "prod_demo_v1.lang"
+  ],
+  "Express": [
+   "whenceguard_v2.lang"
+  ],
+  "FAILED": [
+   "whenceguard_v2.lang"
+  ],
+  "FOR": [
+   "whenceguard_v2.lang"
+  ],
+  "Final": [
+   "prod_demo_v1.lang",
+   "prod_demo_v3.lang"
+  ],
+  "Gracefully": [
+   "prod_demo_v1.lang"
+  ],
+  "Handled": [
+   "prod_demo_v1.lang"
+  ],
+  "Hardware": [
+   "whenceguard_v2.lang"
+  ],
+  "ID": [
+   "whenceguard_v2.lang"
+  ],
+  "IT": [
+   "whenceguard_v2.lang"
+  ],
+  "Marketing": [
+   "whenceguard_v2.lang"
+  ],
+  "Miss": [
+   "prod_demo_v1.lang",
+   "prod_demo_v5.lang",
+   "whenceguard_auditor.lang",
+   "whenceguard_v2.lang"
+  ],
+  "Operations": [
+   "whenceguard_v2.lang"
+  ],
+  "PAYMENT": [
+   "whenceguard_v2.lang"
+  ],
+  "PENDING": [
+   "whenceguard_v2.lang"
+  ],
+  "PRODUCTION": [
+   "prod_demo_v3.lang"
+  ],
+  "Provenance": [
+   "prod_demo_v1.lang",
+   "prod_demo_v3.lang"
+  ],
+  "REJECTED": [
+   "whenceguard_v2.lang"
+  ],
+  "RESULTS": [
+   "prod_demo_v3.lang"
+  ],
+  "Result": [
+   "prod_demo_v3.lang"
+  ],
+  "STARTED": [
+   "whenceguard_v2.lang"
+  ],
+  "Safe": [
+   "prod_demo_v3.lang"
+  ],
+  "SecureSupplier_Ltd": [
+   "whenceguard_v2.lang"
+  ],
+  "Shipping": [
+   "whenceguard_v2.lang"
+  ],
+  "Step": [
+   "whenceguard_v2.lang"
+  ],
+  "Support": [
+   "whenceguard_v2.lang"
+  ],
+  "TXN": [
+   "whenceguard_v2.lang"
+  ],
+  "Tax": [
+   "prod_demo_v3.lang"
+  ],
+  "Test": [
+   "prod_demo_v3.lang"
+  ],
+  "Total": [
+   "prod_demo_v1.lang",
+   "prod_demo_v3.lang"
+  ],
+  "Tracking": [
+   "prod_demo_v1.lang"
+  ],
+  "UNDER_REVIEW": [
+   "whenceguard_v2.lang"
+  ],
+  "Unit": [
+   "whenceguard_v2.lang"
+  ],
+  "VERIFICATION": [
+   "whenceguard_v2.lang"
+  ],
+  "WHENCEGUARD": [
+   "whenceguard_v2.lang"
+  ],
+  "as": [
+   "prod_demo_v1.lang",
+   "prod_demo_v5.lang",
+   "whenceguard_auditor.lang",
+   "whenceguard_v2.lang"
+  ],
+  "budget_err": [
+   "whenceguard_auditor.lang",
+   "whenceguard_v2.lang"
+  ],
+  "calculation_error_detected": [
+   "prod_showcase_final.lang"
+  ],
+  "catch": [
+   "prod_demo_v1.lang",
+   "prod_demo_v5.lang",
+   "whenceguard_auditor.lang",
+   "whenceguard_v2.lang"
+  ],
+  "d": [
+   "whenceguard_auditor.lang",
+   "whenceguard_v2.lang"
+  ],
+  "dept_err": [
+   "whenceguard_auditor.lang",
+   "whenceguard_v2.lang"
+  ],
+  "division": [
+   "prod_demo_v3.lang"
+  ],
+  "division_by_zero": [
+   "prod_demo_v4.lang"
+  ],
+  "division_by_zero_error": [
+   "prod_demo_v5.lang"
+  ],
+  "err": [
+   "prod_demo_v1.lang",
+   "prod_demo_v5.lang"
+  ],
+  "error": [
+   "prod_demo_v3.lang"
+  ],
+  "failed": [
+   "prod_demo_v3.lang"
+  ],
+  "final_total_or_result": [
+   "nano_reasoner.lang"
+  ],
+  "for": [
+   "whenceguard_auditor.lang",
+   "whenceguard_v2.lang"
+  ],
+  "graceful": [
+   "prod_demo_v3.lang"
+  ],
+  "handling": [
+   "prod_demo_v3.lang"
+  ],
+  "in": [
+   "whenceguard_auditor.lang",
+   "whenceguard_v2.lang"
+  ],
+  "ing": [
+   "prod_demo_v3.lang"
+  ],
+  "name": [
+   "whenceguard_auditor.lang"
+  ],
+  "one_hundred": [
+   "prod_demo_v3.lang",
+   "prod_demo_v4.lang"
+  ],
+  "price_per_unit": [
+   "whenceguard_auditor.lang"
+  ],
+  "println": [
+   "cognitive_verifier_v3.lang",
+   "mini_agi_guardian.lang",
+   "nano_reasoner.lang",
+   "prod_demo_v1.lang",
+   "prod_demo_v3.lang",
+   "prod_demo_v5.lang",
+   "prod_showcase_final.lang",
+   "whenceguard_auditor.lang",
+   "whenceguard_v2.lang"
+  ],
+  "provenance": [
+   "prod_demo_v3.lang"
+  ],
+  "qty": [
+   "whenceguard_auditor.lang"
+  ],
+  "return": [
+   "mini_agi_guardian.lang",
+   "whenceguard_auditor.lang",
+   "whenceguard_v2.lang"
+  ],
+  "seven": [
+   "prod_demo_v4.lang"
+  ],
+  "then": [
+   "nano_reasoner.lang"
+  ],
+  "total": [
+   "prod_demo_v3.lang"
+  ],
+  "tracking": [
+   "prod_demo_v3.lang"
+  ],
+  "with": [
+   "prod_demo_v3.lang"
+  ],
+  "zero_point_zero": [
+   "prod_demo_v1.lang",
+   "prod_demo_v3.lang",
+   "prod_demo_v4.lang",
+   "prod_demo_v5.lang"
+  ]
+ }
+}

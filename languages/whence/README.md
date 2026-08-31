@@ -18,6 +18,8 @@ Whence is an experimental, research-grade programming language built on a single
 | **No Exceptions, No Null** | All errors are ordinary `miss` values — safe to catch, recover, and inspect |
 | **Self-Hosting v0.5** | The evaluator for Whence is itself written in Whence (~950 lines) with differential testing |
 | **Immutable & Cheap** | Full history retained in O(n) memory via structural sharing — no retention policy needed |
+| **No Silent Miss (v0.32)** | A miss that is a whole statement can never be asked *why* — so the run reports every one it discarded, with where it was made and where it died. `--strict-miss` makes that exit 1 |
+| **Errors That Name the Cure** | `fold needs a list, got <fn add> (arguments fit fold(fn, acc, xs))`; `unbound name 'println' (Whence has no `println`; `print` already ends the line)` |
 
 ## 🚀 Quick Start
 
@@ -31,8 +33,14 @@ python3 run.py examples/hello.lang
 python3 run.py examples/self_eval.lang    # self-hosted evaluator
 python3 run.py examples/diverge.lang       # diff two histories
 
-# Run full test suite (449 tests, ~20s)
-python3 -m pytest tests/ -v
+# Run the fast tier (1,668 tests, ~75s on one core)
+bash run_tests_fast.sh
+
+# Run everything, including the self-hosting / differential tier (~15 min)
+python3 -m pytest tests/ -q
+
+# See what a run threw away (v0.32)
+python3 run.py --strict-miss examples/dropped.lang
 
 # Launch benchmarking
 python3 run.py bench/retention.py --n 20000

@@ -1,6 +1,6 @@
 # Whence — a provenance-first language
 
-*Spec level: **v0.31** (round 380). The `## vN` sections below are the
+*Spec level: **v0.32** (round 384). The `## vN` sections below are the
 authoritative version list and each names the round that built it; this
 line deliberately no longer enumerates rounds, because the enumeration it
 replaced had said "v0.16.6 + v0.14.2" since round 266 while the file went
@@ -382,6 +382,33 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    is exactly why the same round's budget sizing validated its own
    path-count proxy against the real guest walk before quoting it. See
    § v0.31.
+40. **An unobserved miss is the one thing this language cannot explain, so
+   the run reports it (v0.32, round 384).** Decision 2 promises a failure
+   "can tell you *why*", and it can — to a name, a `check`, an operand, a
+   `print`. It cannot to nobody. A miss that is the value of an expression
+   statement is discarded: no name, no consumer, and when the run ends
+   nothing is left to ask it anything. Whence said nothing at all about
+   those until v0.32, and three of the four machine-written field programs
+   that run were silently wrong because of it — one of them throwing away,
+   unrendered, the exact cure v0.22 had written for its bug thirty rounds
+   earlier. `print(x)` is observation, not a drop: the tracked corpus
+   reported four drops on the recorder's first run and all four were
+   `print(<a miss>)` in an example whose subject IS that miss. The report is
+   unconditional; the exit code is not (`--strict-miss`). See § v0.32.
+41. **`unbound name 'x'` names the cure from a table with an entry rule, not
+   from edit distance (v0.32, round 384).** Decision 32's rule applied to
+   the language's most common runtime miss. A name enters `_FOREIGN_NAMES`
+   only if a frozen census of the field corpus attests it or a numbered
+   decision here rejects the construct it names, and the sentence must say
+   what to write in Whence instead. A nearest-builtin rule was built first
+   and deleted: the field corpus contains no typo of a builtin, only
+   foreign idioms; 54.8 % of example programs bind two names within edit
+   distance 2 of each other, because a single-assignment language names a
+   SERIES rather than reassigning one variable; 18 of the 666 builtin pairs
+   are that close to each other; and the guest would have had to
+   re-implement Levenshtein to keep wording the message the same way. A
+   hint needing four tuning constants to stop lying is not a hint. See
+   § v0.32.
 
 ## Syntax (statements are newline-separated; `#` comments)
 ```
@@ -3589,8 +3616,14 @@ rule is two of them).
 
 ## Running
 `python3 run.py [--max-depth N] [--max-iter N] [--max-value N]
-[--max-int-bits N] [--no-direct] examples/<name>.lang` — exit 0 (all checks
-pass / none), 1 (some check failed), 2 (lex/parse error). *(`--max-iter 0`,
+[--max-int-bits N] [--no-direct] [--strict-miss] examples/<name>.lang` —
+exit 0 (all checks pass / none), 1 (some check failed, or `--strict-miss`
+and a miss was dropped), 2 (lex/parse error). *(v0.32: the run also prints a
+`dropped:` report naming every miss it computed and threw away. The report
+is unconditional — the defect it names is SILENCE — but it does not move the
+exit code by itself, because 1 has meant "a check failed" since v0.1 and a
+caller grepping for that must keep working. `--strict-miss` is the opt-in
+for a CI that wants a discarded miss to fail the run.)* *(`--max-iter 0`,
 `--max-value 0` and `--max-int-bits 0` each mean unbounded; the two v0.27
 flags follow the shape v0.26 settled on, omitted unless given so the class
 default applies. Until v0.26
@@ -6626,3 +6659,213 @@ walk's length. The third was validated, disagreed on one case, and found a
 bug. The first two were not, and both were quietly false. The cost of
 validating is one comparison; the cost of not validating is a test that
 reports coverage it does not have.
+
+## v0.32 (round 384, language C) — the miss nobody looked at
+
+**Decision 40.** *A miss in statement position is unobservable by
+construction, so the run reports it.*
+
+### Where this came from
+
+Fourteen machine-written Whence programs sit untracked in `examples/` — the
+output of a system that is not this research program (allowlisted in
+`state/known-standing-dirty-paths.json`; v0.22 measured ten of them, there
+are fourteen now). They are the only field data this language has. Ten still
+fail to parse. Of the four that run:
+
+| program | what it prints | exit |
+| --- | --- | --- |
+| `test_simple.lang` | `Result: 150` | 0 |
+| `expense_tracker.lang` | *nothing at all* | 0 |
+| `mini_agi_guardian.lang` | its banner, then nothing | 0 |
+| `prod_showcase_final.lang` | `Prices: `, `Subtotal: `, … four labels with empty values | 0 |
+
+Three of the four are silently wrong and every one of them exits 0. The
+mechanism is one mechanism: `println` is not a Whence builtin (`print`
+already ends the line), an unbound name is a miss, a miss is a first-class
+value, and a value that is a whole statement is discarded. Nothing was
+printed and nothing was said.
+
+And the second half is worse. `expense_tracker.lang`'s discarded value is
+
+```
+fold needs a list, got <fn add_item> (arguments fit fold(fn, acc, xs))
+```
+
+which is **v0.22's clause, written thirty rounds ago for exactly this
+program's bug**, sitting inside a value the language threw away without
+rendering. The operator report v0.22 answered ("`fold()` returns Miss
+instead of calculated values") was answered as *language* in round 354 and
+the answer never reached the person who filed it. Decision 2 promises a
+failure "can tell you *why*"; it can only keep that promise where somebody
+asks, and this is the one position in the language where nobody can.
+
+### What counts as a drop
+
+A miss is **observable** when it reaches a name (`let x = f()`), a `check`,
+an operand of another expression, or `print`. It is **dropped** when it is
+the value of an expression statement whose value is discarded — three sites,
+all of them in `whence/interp.py`:
+
+- `Interpreter.run`'s top-level loop, **including the last statement**:
+  `run` returns the `Env`, not a value, so a program ending in a bare
+  `total` has nowhere to put it either. (This is `expense_tracker.lang`.)
+- `eval_Block`'s non-tail statements, and
+- the compiled `f_block`'s non-tail statements. A one-statement block
+  short-circuits to its closure and can never skip a drop, because its only
+  statement is its tail.
+
+`exec_stmt` does **not** record. That is what keeps the REPL correct with no
+REPL change: the REPL prints every expression statement's value, so nothing
+there is unobserved, and it drives statements through `exec_stmt`.
+
+Records are keyed on `(reasons, birth line, op, death line)` with a count —
+a drop inside a recursion is one defect twenty times, not twenty defects —
+and capped at `DROP_CAP = 100` distinct sites, with `dropped_total` counting
+past the cap so the report can say what it is not showing.
+
+### `print` is observation — and the corpus is what said so
+
+The first run of the recorder over the 17 tracked examples reported **four**
+drops, and all four were the same shape:
+
+```whence
+let runaway = loop(0)
+print(runaway)          # deep.lang: the miss IS the subject of the example
+```
+
+`print(x) is x` (a pass-through, so provenance is not disturbed), so
+`print(<a miss>)` is a statement whose value is a miss — and it is the one
+statement in the language where that is the point rather than the defect.
+`b_print` now remembers the node when its payload is a `Miss`, and
+`_note_drop` skips it. With that rule the tracked corpus drops **0**, which
+is the property that makes the report readable: a green corpus is a silent
+one.
+
+Two honest edges, both kept deliberately:
+
+- `1 + print(y)` still reports the SUM as dropped. `print` showed `y`; it
+  did not show the sum, and crediting it with observing a value it never saw
+  would be the false negative this feature exists to prevent.
+- The observed set is capped like the record. Past 100 printed misses the
+  recorder errs toward REPORTING, because a false drop is visible and
+  arguable and a silent one is not.
+
+### The report, and why the exit code did not move
+
+```
+$ python3 run.py examples/expense_tracker.lang
+dropped: 1 miss value computed and discarded — nothing can ask it why
+  line 35 (let final_total, from line 20) — fold needs a list, got
+  <fn add_item> (arguments fit fold(fn, acc, xs)) (line 15)
+```
+
+Two lines are named because they are two different facts: where the value
+was **made** and where it stopped being anybody's. `run.py`'s exit contract
+(0 / 1 / 2) is **unchanged** — 1 has meant "a check failed" since v0.1 and a
+caller grepping for it must keep working — so `--strict-miss` is the opt-in
+that makes a dropped miss exit 1. Everything else about the two runs is
+byte-identical, which `tests/test_v32.py` pins.
+
+**Decision 41.** *`unbound name 'x'` names the cure, from a table with an
+entry rule — and NOT from edit distance.*
+
+v0.22 taught the argument half of a builtin miss to name its own fix. The
+unbound-name miss is the same message at the same half strength, and it is
+the most common runtime miss in the field corpus: `println` appears **34
+times across 9 of the 14 programs**. It now reads
+
+```
+unbound name 'println' (Whence has no `println`; `print` already ends the line)
+unbound name 'return' (Whence has no `return`; a block's value is its last expression)
+```
+
+`_FOREIGN_NAMES` has 13 entries and an **entry rule**, so it cannot grow by
+taste. A name qualifies only if (a) it is attested as an unbound identifier
+in the field corpus — frozen in `state/whence/round-384/field-names.json`,
+so the rule is checkable against a tracked file rather than against another
+system's working tree — or (b) it is the keyword of a construct a numbered
+decision names as deliberately absent (decision 2 "No exceptions, no null";
+decision 3 "All iteration is recursion / `map` / `filter` / `fold`"); and the
+sentence must name what to write in Whence instead. `printf`, `def`,
+`lambda`, `elif`, `size` and `length` fail the rule and are absent.
+
+### The rule that was built, measured and deleted
+
+A nearest-builtin "did you mean" by edit distance was written first. Three
+measurements killed it, and they are recorded because the machinery is
+cheap to rebuild if the evidence ever changes:
+
+1. **The field corpus contains no typo of a builtin.** Every name in it that
+   needs help is a foreign idiom — `println` ×34, `catch` ×6, `Miss` ×6,
+   `return` ×4, `for` ×2, `then` ×1. The distance rule's entire population
+   was hypothetical. (`length` is not even reachable: `length`→`len` is
+   distance 3.)
+2. **Suggesting from names in scope is wrong in THIS language.** 17 of the
+   31 programs in `examples/` (54.8 %) bind two names within distance 2 of
+   each other — `a`/`b`, `d1`/`d2`, `q1_status`/`q2_status` — because a
+   single-assignment language names a *series* where an imperative one
+   reassigns one variable. A near-miss between user names is evidence of a
+   series, not of a typo. In fuzz-generated programs it is 30.6 % of all
+   name pairs.
+3. **The builtin set is ambiguous with itself.** 18 of its 666 pairs are
+   within distance 2 (`at`/`put`, `str`/`sure`, `find`/`fold`, `rand`/
+   `range`), and `add` is distance 2 from three builtins at once. Requiring
+   a unique nearest fixes that, but only by making the rule silent exactly
+   where a typo is most likely.
+
+A length guard (`len(name) >= 3 and d <= len(name) - 2`) was needed on top,
+without which the rule proposes `at` for `x`, `q`, `v1` and `f6`; it fired
+on 12 of a 20-name probe corpus unguarded and 7 guarded. A hint that needs
+two tuning constants to stop lying is not a hint. Deleted.
+
+The fourth cost is the one that settles it: `examples/self_eval.lang`
+re-implements name lookup, so **it would have had to re-implement
+Levenshtein in Whence** to keep saying what the host says — the host/guest
+divergence class round 380 spent a whole round closing. A record lookup it
+mirrors in four lines:
+
+```whence
+fn name_hint(n) {
+  if has(foreign_names, n) { " (" + get(foreign_names, n) + ")" } else { "" }
+}
+```
+
+Guest and host now word the clause identically; the full 125-case
+host-vs-guest miss-message differential is green.
+
+### Structure this forced, and what it cost
+
+`unbound name '%s'` was **three copies of one literal** — the compiled
+`f_name`, `eval_NameRef`, and `f_bcall`'s dead `fnv is None` floor — so a
+clause added to one of them would have been added to one of them.
+`_unbound(name, line)` is now the single constructor, which moves round
+380's `mk_miss` census from 87 sites to 85 and its `name`-op detail sites
+from 3 to 1. Both numbers are pinned in `tests/test_v31.py` and both were
+updated with the reason; the property they guard (`detail` is positional and
+says nothing about itself) is unchanged.
+
+Cost, `bench/minof.py -n 3` against a `git archive` of the previous HEAD:
+`meta direct` 4.924 → 4.754 s, `fib20 fast` 0.182 → 0.147 s, `tail100k
+direct` 0.629 → 0.599 s, `self_eval direct` 2.620 → 2.643 s. Four of five
+faster, one 0.9 % slower: the change is inside measurement noise, because
+`f_block` pays one precomputed truth test per statement and `_note_drop`
+returns on an `isinstance` unless the value is already a miss.
+
+### What v0.32 deliberately does NOT report
+
+- **A `let` that is bound and never read.** `expense_tracker.lang` binds
+  `division_result = safe_divide(100, 0)` on purpose, to demonstrate a
+  first-class error, and never uses it. That value is observable — it has a
+  name — and reporting it would make the report a style checker. Whether an
+  unread binding is worth its own report is a separate question with a
+  separate answer.
+- **A miss inside a list or a record that nothing reads.** The container was
+  observed; the element was not. Reaching that needs a traversal at drop
+  time and a policy for how deep, neither of which the field corpus asks
+  for.
+- **`print` as the only observer.** It is the only builtin whose purpose is
+  to show a value to a human. If a future version adds a second one, it
+  belongs in the same place, and `tests/test_v32.py`'s
+  `test_print_of_a_non_miss_records_nothing_at_all` is the pin that will
+  notice it being added carelessly.

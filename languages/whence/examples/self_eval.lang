@@ -1104,11 +1104,40 @@ fn frame_bind(st, fid, name, v) {
                           put(get(st.frames, fid), name, v))})
 }
 
+# v0.32 (round 384): the host's `_FOREIGN_NAMES`, mirrored key for key and
+# sentence for sentence. The host's clause on an unbound name is part of the
+# REASON, so a guest that did not carry it would word the language's most
+# common runtime miss differently from the host — the divergence class round
+# 380 spent its round closing. It is a record lookup precisely BECAUSE it
+# has to live here twice: the nearest-builtin-by-edit-distance rule that was
+# built alongside it would have needed a Levenshtein in Whence to keep this
+# file honest, and the field corpus had no typo for it to fix (see
+# whence/interp.py's `_FOREIGN_NAMES` comment and SPEC "## v0.32").
+let foreign_names = @{
+  println: "Whence has no `println`; `print` already ends the line",
+  catch: "Whence has no `catch`; recover with `risky rescue fallback`",
+  Miss: "Whence's `miss` is lower case: `miss <reason>`",
+  return: "Whence has no `return`; a block's value is its last expression",
+  for: "Whence has no loops; iterate with `map`/`filter`/`fold` or recursion",
+  then: "an `if` needs no `then`: `if c { a } else { b }`",
+  while: "Whence has no loops; iterate with `map`/`filter`/`fold` or recursion",
+  try: "Whence has no `try`; recover with `risky rescue fallback`",
+  throw: "Whence has no `throw`; a failure is a value — write `miss <reason>`",
+  raise: "Whence has no `raise`; a failure is a value — write `miss <reason>`",
+  null: "Whence has no null; a missing value is `miss <reason>`",
+  nil: "Whence has no nil; a missing value is `miss <reason>`",
+  None: "Whence has no None; a missing value is `miss <reason>`"
+}
+
+fn name_hint(n) {
+  if has(foreign_names, n) { " (" + get(foreign_names, n) + ")" } else { "" }
+}
+
 # innermost frame that HAS the name wins; reading the store at call time is
 # what makes binding late, like the host's mutable Env chain
 fn lookup(st, env, name) {
   let fid = find(fn(f) { contains(keys(get(st.frames, f)), name) }, env)
-  if missed(fid) { miss ("unbound name '" + name + "'") }
+  if missed(fid) { miss ("unbound name '" + name + "'" + name_hint(name)) }
   else { get(get(st.frames, fid), name) }
 }
 

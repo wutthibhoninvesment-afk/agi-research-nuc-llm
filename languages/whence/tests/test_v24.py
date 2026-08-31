@@ -109,7 +109,10 @@ def _tracked_examples():
     # 16 -> 17 in round 380: `show.lang`, the example v0.29's `show` builtin
     # had never had (round 378's item 8). The pin is deliberately a number
     # and not a floor, so adding an example is a decision someone makes here.
-    assert len(names) == 17, names
+    # 17 -> 18 in round 384: `dropped.lang`, v0.32's example, and the only
+    # one in the corpus that discards a miss on purpose (see
+    # tests/test_v32.py::DROPS_ON_PURPOSE).
+    assert len(names) == 18, names
     return names
 
 

@@ -1,0 +1,46 @@
+# dropped.lang — v0.32 (round 384): the one position where a miss cannot
+# explain itself, because nothing is left to ask it.
+#
+# Decision 2 says a failure is a value that can tell you WHY. It can only
+# keep that promise where somebody asks. A miss that reaches a name, a
+# check, an operand or `print` is observable. A miss that IS a whole
+# statement has no name and no consumer, and when the run ends there is
+# nobody left. Until v0.32 the run said nothing at all about those; now it
+# prints a `dropped:` report, and `run.py --strict-miss` makes them exit 1.
+#
+# THIS IS THE ONE EXAMPLE IN THE CORPUS THAT DROPS ON PURPOSE — see
+# tests/test_v32.py::test_no_tracked_example_drops_a_miss, which exempts it
+# by name and pins the count. Every other example drops nothing, and that is
+# what keeps the report worth reading.
+
+let rows = ["12", "3O", "4"]          # "3O" is a letter O, not a zero
+fn qty(r) { num(r) }
+fn add(a, b) { a + b }
+let total = fold(add, 0, map(qty, rows))
+
+# --- observed three ways ---------------------------------------------------
+check "one bad row poisons the total": missed(total)
+check "and the value says which row": contains(str(total), "3O")
+check "blame names the origin": len(blame(total)) == 1
+print(total)                          # printing IS observing: not a drop
+
+# --- dropped ---------------------------------------------------------------
+# Nothing binds this, nothing reads it, nothing prints it. It is a real miss
+# with a real reason and, before v0.32, a run that ended in silence.
+qty("7O")
+
+# --- the cure clause on an unbound name ------------------------------------
+# `println` is not a Whence builtin — `print` already ends the line — and
+# saying only "unbound name" was the same half-answer v0.22 fixed for
+# arguments. 34 uses of `println` across 9 machine-written programs is what
+# put this entry in the table.
+let foreign = str(println)
+check "an unbound name is a miss, not a crash": contains(foreign, "unbound name 'println'")
+check "and the miss names the cure": contains(foreign, "`print` already ends the line")
+
+# A name with no entry in the table gets no clause: the table has an entry
+# rule, and a guess dressed as advice is worse than silence.
+check "no clause for a name the language has nothing to say about":
+  not contains(str(nosuch_helper), "did you mean")
+
+print("this example drops exactly one miss, on purpose — see the report below")
