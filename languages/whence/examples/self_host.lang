@@ -829,14 +829,51 @@ fn starts_stmt(toks, pos) {
   else { k.t == "num" or k.t == "str" or k.t == "name" }
 }
 
+# v0.37 (round 402), decision 46: the binding table records WHERE a name was
+# bound, not merely THAT it was. `whence/parser.py`'s `stmt_list` keeps
+# `bound[name] = s.line` and spends it in the sentence -- `'a' is already
+# bound in this block (line 1); Whence has no rebinding` -- so a reader is
+# told which line to look at for the binding they collided with. The guest
+# kept a list of bare NAMES and could only say `'a' already bound`, and that
+# was the LAST divergence in `tests/test_parse_error_differential.py` which
+# was neither a host-only hint nor a rendering (round 398's item 1).
+#
+# It is a DATA change, not a wording change. `bound` becomes a list of
+# `@{n: name, ln: line}` records and this is the lookup. Whence has no dict,
+# so the scan is linear and written out; the host's `dict` and this loop
+# answer the same question, and a single block with enough bindings for the
+# difference to matter is not a program this parser is asked to be fast on.
+#
+# `0` is the absent sentinel: `whence/lexer.py` numbers lines from 1, which
+# `tests/test_v37.py::test_zero_is_a_safe_absent_sentinel_for_a_line` pins
+# so it stays true. The synthetic eof record `t_at` returns past the end of
+# the token list carries `line: 0`, and it is never a binding's head token
+# -- `at_end` has already closed the block before `parse_stmt` could run.
+fn bound_line(bound, nm, i) {
+  if i >= len(bound) { 0 }
+  else if bound[i].n == nm { bound[i].ln }
+  else { bound_line(bound, nm, i + 1) }
+}
+
 fn parse_stmt_list(toks, pos, end, acc, bound) {
   if at_end(toks, pos, end) { @{stmts: acc, pos: pos} }
   else {
+    # v0.37: the head token, captured BEFORE the statement is parsed -- which
+    # is exactly what the host does (`start = self.peek()` on the line above
+    # its own `self.statement()`). The guest has no AST line field to copy,
+    # so it reconstructs the host's `(line N)` from this token; `bench/
+    # bindline.py` measured 1083 binding statements over the whole example
+    # corpus and found the head token's line equal to the node's line every
+    # time, which is what makes the reconstruction exact and not a guess.
+    let head = t_at(toks, pos)
     let s = parse_stmt(toks, pos)
     let nm = if s.node.kind == "let" or s.node.kind == "fndef" { s.node.name } else { "" }
-    let dup = nm != "" and contains(bound, nm)
-    let bound2 = if nm != "" { push(bound, nm) } else { bound }
-    if dup { miss ("'" + nm + "' already bound" + tok_at(toks, pos)) }
+    let first = if nm == "" { 0 } else { bound_line(bound, nm, 0) }
+    let bound2 = if nm != "" { push(bound, @{n: nm, ln: head.line}) } else { bound }
+    if first != 0 {
+      miss ("'" + nm + "' is already bound in this block (line " + str(first) +
+            "); Whence has no rebinding" + tok_at(toks, pos))
+    }
     else {
       let acc2 = push(acc, s.node)
       let after = skip_nl(toks, s.pos)
@@ -1249,7 +1286,35 @@ check "...and a parameter is a parameter, not just a name":
 check "duplicate let in one block is a miss":
   missed(parse_whence("fn f() { let x = 1\nlet x = 2\nx }"))
 check "duplicate let names the variable":
-  contains(str(parse_whence("fn f() { let x = 1\nlet x = 2\nx }")), "'x' already bound")
+  contains(str(parse_whence("fn f() { let x = 1\nlet x = 2\nx }")),
+           "'x' is already bound in this block (line 1); Whence has no rebinding")
+# v0.37 (round 402), decision 46. The line in that sentence is COMPUTED, and
+# these are the checks that say so. There are exactly two plausible wrong
+# answers -- a hard-coded `(line 1)`, and reporting the DUPLICATE's line
+# instead of the FIRST binding's -- and the program below separates them:
+# the first binding is on line 3, the collision on line 4, so a wrong
+# implementation fails one of the next two checks and a right one passes
+# both. Without them the check above passes for a guest that never looked
+# at a token, because line 1 is where the first binding usually is.
+check "...and the line is the FIRST binding's, not a constant":
+  contains(str(parse_whence("fn f() {\n\nlet x = 1\nlet x = 2\nx }")),
+           "'x' is already bound in this block (line 3)")
+check "...while the position clause still points at the DUPLICATE":
+  contains(str(parse_whence("fn f() {\n\nlet x = 1\nlet x = 2\nx }")),
+           "Whence has no rebinding at line 4, col 1")
+check "a duplicate fn is reported exactly as a duplicate let is":
+  contains(str(parse_whence("fn f() { 1 }\nfn f() { 2 }\nf()")),
+           "'f' is already bound in this block (line 1); Whence has no rebinding")
+# The binding table is per-block on both sides, and it has to stay that way:
+# `bound_line` scanning an OUTER block's table would turn legal shadowing
+# into a parse error. The host accepts this program (`whence/parser.py`
+# pushes a fresh `bound` per `stmt_list`); so must the guest.
+check "an inner block may still bind a name the outer block bound":
+  not missed(parse_whence("fn f() { let x = 1\n if true { let x = 2\n x } else { x } }"))
+# ...and the SIBLING direction: a name bound in a closed inner block must
+# not be visible to the table of the block that follows it.
+check "a name bound inside a closed block does not collide with a later one":
+  not missed(parse_whence("fn f() { if true { let x = 1\n x } else { 0 }\nlet x = 2\nx }"))
 check "duplicate param is a miss": missed(parse_whence("fn f(a, a) { a }"))
 check "bad token in a string is a miss": missed(parse_whence("`"))
 check "chained comparisons are rejected, matching the host":

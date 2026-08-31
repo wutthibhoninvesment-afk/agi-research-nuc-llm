@@ -190,13 +190,39 @@ def test_every_example_stays_under_the_default_with_margin():
         ["git", "ls-files", "--", "examples/*.lang"],
         cwd=ROOT, capture_output=True, text=True, check=True).stdout.split()
     assert tracked, "no tracked examples found — the guard would be vacuous"
-    worst = 0
+    # ROUND 402: this loop used to have no `try`, so the FIRST tracked
+    # example that failed to parse aborted it and the failure named exactly
+    # one file. Round 393's `git add -A` (49969fb) tracked FOURTEEN example
+    # programs written by the Hermes gateway — every one of them already
+    # listed in `state/known-standing-dirty-paths.json` as permanently
+    # untracked — and TEN of the fourteen do not parse under v0.19's
+    # braced-block rule. This test went red, said
+    # `cognitive_verifier.lang`, and rounds 395 and 398 both recorded the
+    # problem as one file. It was ten. A loop that aborts on the first
+    # failure reports one member of its failure class and hides the rest,
+    # and the nine hidden ones were invisible for nine rounds because this
+    # test is `whence_slow` and that tier had not completed since round 390.
+    #
+    # So the two questions are now separated and BOTH are answered for
+    # every file. "Does it parse" is a precondition of "how many tail
+    # iterations does it need" — a program that does not parse cannot
+    # answer the second question at all, and merging them let the first
+    # masquerade as the second.
+    unparseable, worst = [], 0
     for rel in tracked:
         with open(os.path.join(ROOT, rel), encoding="utf-8") as f:
             src = f.read()
         interp = Interpreter(out=lambda *a: None, max_iter=None, gc_relief=True)
-        interp.run(src)
+        try:
+            interp.run(src)
+        except Exception as exc:
+            unparseable.append("%s: %s" % (rel, exc))
+            continue
         worst = max(worst, interp.peak_tail)
+    assert not unparseable, (
+        "%d of %d tracked examples do not run — the iteration-cap question "
+        "below cannot be asked of them:\n  %s"
+        % (len(unparseable), len(tracked), "\n  ".join(unparseable)))
     # measured round 366: 200001 (deep.lang), then 100002, 60005, 50001 and
     # a 150x gap to 331. Margin of 3 over the maximum is the sizing rule.
     assert worst * 3 <= Interpreter.DEFAULT_MAX_ITER, (

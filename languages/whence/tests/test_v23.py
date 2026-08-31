@@ -422,7 +422,7 @@ def test_both_self_hosting_examples_still_run_green():
     # `self_host.lang` 133 -> 140 IS this round's doing: v0.36 decision 45
     # adds seven parse-error checks (the got half's five token kinds, and
     # the two `expect_name` sites that used to say `a name` for everything).
-    for name, expected in (("self_host.lang", "140 passed, 0 failed"),
+    for name, expected in (("self_host.lang", "145 passed, 0 failed"),
                            ("self_eval.lang", "166 passed, 0 failed")):
         r = subprocess.run(
             [sys.executable, os.path.join(ROOT, "run.py"),

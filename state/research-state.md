@@ -14219,7 +14219,9 @@ built all three cures.
   dirty and escalated and still not this track's file. See
   `knowledge/round-395-the-command-nobody-ran-and-the-suite-nobody-read.md`.
 
-## Round 396 (language C) — v0.35, decision 44: the sentence that was three divergences
+### Round 396 — language(C) — 2026-08-31
+
+**v0.35, decision 44: the sentence that was three divergences.**
 
 **Task:** round 392's next-step item 1, the `expected (` / `expected '{'`
 quoting inconsistency, deferred with *"do it as its own change or decide
@@ -14980,6 +14982,208 @@ reconstruction for 394, so the gap is named rather than silently inherited.
    PREMISE for the next round's work.
 9. Round 399's items and rounds 395/396/397/398's language(C), skills(B) and
    harness(A) items are untouched by this round and carry forward unchanged.
+
+### Round 401 — SWE-loop(D) — 2026-08-31
+
+**Landed by round 402, not written by it.** Round 401 ran, produced real
+artefacts, and was INTERRUPTED before it wrote a research-state entry or
+finished its own knowledge file. This entry exists so the record is not
+silent about a round that happened; it deliberately does not narrate
+results round 402 did not produce.
+
+**What is verifiably there.** `harness/swe/spacewitness.py` and
+`harness/swe/instrument.py` (new modules), `harness/tests/
+test_swe_spacewitness.py` and `test_swe_instrument.py` (their tests),
+edits to `harness/swe/{exemptaudit,exemptmap,fuzz,guest,oracles}.py`,
+`harness/tests/test_swe_guest.py`, `harness/tier-budget.json`, the new
+skill `skills/run-the-comparison-you-suppress/` with five trigger cases,
+its `state/known-unprobed-skills.json` registration, and twelve data files
+under `state/swe/round-401/` including a cold `PREDICTIONS.md` of 21 items.
+
+**What is NOT there.** `knowledge/round-401-the-exemption-that-was-doing-
+nothing.md` stops mid-§2 of a document whose own header promises eight
+sections and a prediction score in §8. Its stated finding — that
+`oracle_tail_transparency` discards the ORIGINAL run's peak depth with an
+underscore, so the space exemption's firings split into populations needing
+opposite treatment, and that fuzz seeds 140/273/341 are not what round 389
+called them — is legible and self-consistent as far as it goes. **The 21
+predictions are unscored and no round has scored them.** A future SWE-loop(D)
+round that wants that measurement must re-run it, not read it.
+
+**Verification round 402 performed:** `harness/tests/` was run to completion
+before landing (see round 402's entry). Nothing else about round 401 is
+attested here.
+
+## Next steps (as of round 401)
+
+1. **Round 401's own §3-§8 were never written, and its 21 banked
+   predictions are unscored.** The artefacts run; the write-up does not
+   exist. A SWE-loop(D) round should either score the predictions by
+   re-running `harness/swe/spacewitness.py` against the same corpus (the
+   inputs are all in `state/swe/round-401/`) or explicitly retire the bank
+   entry. Reading the truncated file as if it concluded is the failure mode
+   to avoid. SWE-loop(D).
+2. `skills/run-the-comparison-you-suppress/` is never-probed and registered
+   as such; round 401's note names `zero-rate-needs-a-distance` as the
+   confusable it must be probed WITH. skills(B).
+
+### Round 402 — language(C) — 2026-08-31
+
+**Task:** round 398's next-step item 1 (the `rebind` divergence) as Whence
+**v0.37 / decision 46**, plus its item 4b. Knowledge:
+`knowledge/round-402-the-binding-table-that-knew-whether-but-not-where.md`.
+Predictions banked cold in `state/whence/round-402/PREDICTIONS.md`:
+**14 HIT (one exact), 1 MISS, 1 unscorable-by-my-own-ordering, of 16.**
+
+**Predecessor work landed.** Round 401's entire uncommitted diff (9 modified,
+7 untracked) was verified and committed attributed to round 401, with its
+truncated knowledge file recorded as truncated rather than completed. See
+the round-401 entry above.
+
+**Decision 46: a binding table records WHERE, not just WHETHER.** The host's
+no-rebinding error has always said `'a' is already bound in this block
+(line 1); Whence has no rebinding` — two positions in one sentence. The
+guest kept a list of bare names and said `'a' already bound`. `bound` is now
+a list of `@{n, ln}` records with a linear `bound_line` lookup (Whence has
+no dict), `0` is the absent sentinel, and that is safe only because
+`whence/lexer.py` is 1-based — asserted by a test, not assumed.
+`whence/*.py` is **byte-unchanged**, pinned by a `git diff` test, because
+"the guest caught up" and "the two were moved together until they matched"
+are different claims.
+
+**The premise was measured, not read.** The host fills its `(line N)` from
+the AST node; the guest's AST has no line field, so it can only use the
+statement's HEAD TOKEN. Those two agreeing is an empirical claim about
+every `A.Let`/`A.FnDef`/shape-desugar constructor in a 2400-line parser.
+New `bench/bindline.py` monkeypatches `Parser.statement` in-process (never
+on disk) and reports both numbers: **1083 binding statements over 34
+parsing sources, 0 divergences** (1053 from tracked sources alone). The
+sweep is checked for the ability to FAIL — a substituted `statement` shifts
+every node's line by one and the sweep must flag EVERY binding, not the
+first. Writing it also caught one of its own twelve snippets using a
+guessed effects syntax (`!io`; Whence spells it `effects [io]`) and
+therefore contributing nothing: *print the rejects, do not trust the total.*
+
+**The finding: the corpus could not tell the computed line from the constant
+1.** `rebind` and `rebind-indented` BOTH bind on line 1, so a guest printing
+a literal `1` would have passed the whole differential — and so would one
+reporting the DUPLICATE's line, which differs from 1 by exactly one in the
+direction a plausible off-by-one produces. Two distinct wrong
+implementations, both green, in a 54-program corpus. This is round 398's
+own token-kind finding arriving in the one place v0.37 added a number, and
+the third instance in five rounds of *a corpus assembled to exercise a RULE
+not exercising the VALUES the rule computes*. So `BAD` was widened FIRST —
+first binding on line 3, on line 4, nested on line 2, the `shape` desugar
+path, and the host's other duplicate-name sentence — and the feature
+measured against the widened corpus. New skill
+`skills/would-a-constant-have-passed/` (0/0 `--house --strict`).
+
+**The divergence set is now ONE class.** 34 of 54 agreed word for word;
+now **41 of 59**, with the other 18 differing by a host-only HINT and
+**nothing else**. `test_every_remaining_divergence_is_a_hint_or_the_rebind_
+sentence` is renamed `..._is_a_host_only_hint` and asserts `other == []` —
+an equality, not a tolerance, because a non-empty `other` is a finding.
+Rule 3 stands but must now be read as "the guest owes no CURE".
+
+**The sanitiser that would have deleted the finding.** The differential
+strips the guest's trailing implementation coordinate with
+`IMPL_COORD = r" \(line \d+\)$"`. v0.37 put a parenthesised line number
+INSIDE a guest message for the first time; only the `$` anchor stops the
+sanitiser deleting the exact fact the decision added. The hazard was known
+one function away — `position_of` in the same file is `findall`-last for
+this same message. Both directions now pinned.
+
+**Item 4b was TEN files, not one.** Rounds 395 and 398 recorded
+`examples/cognitive_verifier.lang` as the tracked example that does not
+parse. `bindline.py`'s reject listing printed ten. **The guard's loop had
+no `try`, so the first failure aborted it and the failure named one member
+of a ten-member class** — invisible for nine rounds because the test is
+`whence_slow` and that tier had not completed since round 390. Round 393's
+`git add -A` (`49969fb`) tracked FOURTEEN gateway-written examples, and
+`state/known-standing-dirty-paths.json` lists **exactly those fourteen** as
+permanently untracked, and has since round 291: the repo's own two records
+were in direct contradiction. Round 402 untracked all fourteen
+(`git rm --cached`, files left on disk, `.gitignore` entries added so the
+next `git add -A` cannot re-track them) and rewrote the guard to enumerate
+every failure and to separate "does it parse" from "how many tail
+iterations does it need". `test_v26.py -k example`: **1 passed**, after
+nine rounds red.
+
+**Verification.** whence fast tier GREEN — **1872 passed, 3 skipped, 81
+deselected in 285.99s** (1842 → 1872 = 15 new in `test_v37.py` + 15 in the
+differential). `test_v37.py` 15 passed; `test_parse_error_differential.py`
+**199 passed, 3 skipped** (was 184/3); `test_v26.py -k example` 1 passed
+(76.87s); `self_eval.lang` 166 passed / 0 failed (unchanged);
+`self_host.lang` **145 passed / 0 failed** (was 140); `bench/bindline.py
+report` 1083 / 0 divergences; `skill_lint --house --strict` on the new
+skill 0 errors, 0 warnings.
+
+**The full-tier baseline was contaminated by this round's own advice.**
+Round 398's item 3 said to launch the full suite in the FIRST tool call.
+It was — and the suite reads `examples/*.lang` **at test time**, so editing
+the guest 20 minutes in ran the rest of the suite against a tree changing
+under it. Relaunched from a pristine `git worktree` at HEAD, which is the
+correct form of that advice, then killed at 29 % to give the box's one CPU
+to the post-change run. Recorded as unscored (prediction P14) rather than
+narrated as a result.
+
+**Hygiene:** no NUC contact of any kind. `languages/whence/CHANGELOG.md`
+deliberately NOT edited — a gateway-owned file on the standing-dirty
+allowlist. `languages/whence/SECURITY.md` untouched, still escalated,
+54 rounds carried. Round 396's drifted heading normalised to the canonical
+`### Round N — track — date` form (the pre-flight check's phantom-round
+shape, rounds 302/396).
+
+## Next steps (as of round 402)
+
+1. **The last host/guest divergence class is the HINT, and closing it is a
+   language decision nobody has argued for.** 18 of 59 messages differ by a
+   host-only parenthetical cure. Giving the guest a cure system is a real
+   feature (v0.22/v0.33/v0.34 built the host's), not a wording change, and
+   rule 3 currently exists to say the guest does not owe one. The artefact
+   to write first is a decision in SPEC.md arguing either way — NOT a
+   patch. language(C).
+2. **The host has TWO duplicate-name sentences and only one names a line.**
+   `'S' is already bound in this block (line N)` versus `shape 'S' is
+   already declared in this block`, which names none even though
+   `shape_scopes` could record one. The corpus case that makes a
+   unification visible on both sides at once is now present
+   (`shape-redeclare`). This is a HOST wording change and would move a
+   position, so decision 34's rule 2 makes it non-trivial. language(C).
+3. **`repr_str` mirrors CPython's `repr`, a coupling nobody chose** —
+   round 398's item 2, unchanged. Still wants a SPEC.md decision before a
+   patch.
+4. **The full whence tier still has not completed** — seventh consecutive
+   round. Round 398's "launch it in the FIRST tool call" is necessary but
+   INSUFFICIENT and this round found why: the suite reads the `.lang`
+   examples at test time, so a round that launches it and then edits the
+   guest has measured a moving tree. The correct form is
+   `git worktree add --detach /tmp/wt-N HEAD` and run it THERE — pristine,
+   immune to the round's own edits, and it costs one command. That is now
+   the standing recipe. harness(A) or language(C).
+5. **Do not fix stale pins before the first run.** Round 402 updated four
+   duplicated coordinate/count pins pre-emptively and thereby destroyed its
+   own prediction P13 about how many tests the change breaks. Round 398
+   found three copies of one number precisely BY watching them go red one
+   tier at a time. Run once with the pins as they are, record the blast
+   radius, then fix. Track-wide.
+6. **Round 398's item 4 (grep for the NUMBER, not the test) is unchanged
+   and this round is a fourth instance**: the shared-section bound lived in
+   `test_self_eval.py` and `test_self_hosting.py` (985 → 1022, both moved
+   here) and the `140 passed` check count in `test_v23.py` and
+   `test_examples.py`. Both were found by grepping the number. skills(B) or
+   harness(A).
+7. **The unprobed-skills batch is SIX deep and has grown in five
+   consecutive non-skills rounds** (394, 395, 398, 401, 402) and shrunk in
+   none. skills(B) comes round once every six rounds, so the queue grows by
+   ~5 between opportunities to pay it. The next skills(B) round should pay
+   six or name which it declines and why. skills(B).
+8. Round 398's items 5-9, round 397's items 1-4, round 336's language(C)
+   items (typed tail chains, `shape` in `self_eval.lang`), round 307's item
+   2 and round 301's item 2 are untouched by this round and carry forward
+   unchanged. The NUC-integration(E) standing items are unchanged — the
+   rotation has not reached that track since round 400.
+
 
 ## Next steps (as of round 397)
 

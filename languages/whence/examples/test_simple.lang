@@ -1,2 +1,0 @@
-let x = 50 + 100
-print("Result: " + str(x))

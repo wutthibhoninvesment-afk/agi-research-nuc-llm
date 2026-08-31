@@ -1,6 +1,6 @@
 # Whence — a provenance-first language
 
-*Spec level: **v0.36** (round 398). The `## vN` sections below are the
+*Spec level: **v0.37** (round 402). The `## vN` sections below are the
 authoritative version list and each names the round that built it; this
 line deliberately no longer enumerates rounds, because the enumeration it
 replaced had said "v0.16.6 + v0.14.2" since round 266 while the file went
@@ -506,6 +506,31 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    carries a fact the guest does not compute (2 of 54). Rule 3 stands:
    wording is still not a contract, and 20 of 54 still differ. See
    § v0.36.
+46. **A binding table records WHERE a name was bound, not merely THAT it
+   was (v0.37, round 402).** The host's no-rebinding error has said
+   `'a' is already bound in this block (line 1); Whence has no rebinding`
+   since the rule existed: it names the collision AND the line to look at
+   for the binding you collided with, which are two different positions in
+   one sentence. The guest kept a list of bare names and could only say
+   `'a' already bound`. Decision 45 left this as the last divergence that
+   was neither a host-only hint nor a rendering, and named it correctly as
+   a DATA gap rather than a wording one. `bound` is now a list of
+   `@{n: name, ln: line}` records with a linear `bound_line` lookup —
+   Whence has no dict, and the block whose binding count would make that
+   matter is not a program this parser is asked to be fast on.
+   The load-bearing part is again not the string. The host fills that
+   number from the AST node (`bound[name] = s.line`); the guest's nodes
+   have no line field at all, so it can only use the statement's HEAD
+   TOKEN, and the two agreeing is an empirical claim about every
+   `A.Let`/`A.FnDef`/shape-desugar constructor in the host parser rather
+   than something to read off and believe. `bench/bindline.py` measures
+   it: **1083 binding statements, 0 divergences.** With that, the
+   divergence set is not merely closed but a SINGLE class — every message
+   the corpus can produce either agrees word for word (41 of 59) or
+   differs by a host-only hint and by nothing else (18 of 59). Rule 3
+   still stands, and now has to be read as "the guest owes no sentence",
+   because the only sentences it still declines to write are cures.
+   See § v0.37.
 
 ## Syntax (statements are newline-separated; `#` comments)
 ```
@@ -7718,3 +7743,121 @@ record a line number. It does not change any POSITION, so decision 34's
 rule 2 is untouched, and `curecheck.py corpus` applies the same 4
 mechanical edits to the same 14 field programs and still fixes none of
 them.
+
+## v0.37 (round 402, language C) — the binding table that knew whether but not where
+
+Decision 46. Round 398 closed the `expected X, got Y` sentence and left a
+two-element remainder it had classified precisely: `rebind` and
+`rebind-indented`, where the host writes
+
+    'a' is already bound in this block (line 1); Whence has no rebinding
+
+and the guest wrote `'a' already bound`. Its diagnosis — *"the host's
+sentence carries a FACT (the line of the first binding) that the guest's
+table does not record; closing it is a guest data change, not a wording
+change"* — was right, and this is that change.
+
+### The change is four lines of data and one lookup
+
+`bound`, threaded through `parse_stmt_list` in the shared parser section of
+`examples/self_eval.lang` and `examples/self_host.lang`, was a list of name
+strings tested with `contains`. It is now a list of `@{n, ln}` records with
+
+```
+fn bound_line(bound, nm, i) {
+  if i >= len(bound) { 0 }
+  else if bound[i].n == nm { bound[i].ln }
+  else { bound_line(bound, nm, i + 1) }
+}
+```
+
+Whence has no dict and no `option`, so the lookup is a linear scan and `0`
+is the absent sentinel — safe only because `whence/lexer.py` numbers lines
+from 1, which `test_v37.py::test_zero_is_a_safe_absent_sentinel_for_a_line`
+is what keeps true. `whence/*.py` is byte-unchanged, and
+`test_v37.py::test_the_host_is_byte_unchanged_by_this_decision` says so
+with `git diff`, because "the guest caught up" and "the two were quietly
+moved together until they matched" are different claims.
+
+### The premise was measured, not read
+
+The host fills its `(line N)` from the AST node — `bound[name] = s.line` —
+while reporting the DUPLICATE's position from a head token captured one
+line earlier (`start = self.peek()`). The guest's AST has no line field at
+all; its nodes are records of `kind`, `name` and `value`. So the guest can
+reconstruct the host's sentence **if and only if** a binding statement's
+head-token line always equals its node's line, across `A.Let`, `A.FnDef`
+and the third constructor behind `shape S = …`'s desugar
+(`parser.py:2086`), in a 2400-line parser.
+
+`bench/bindline.py` monkeypatches `Parser.statement` in-process — never on
+disk — and records both numbers for every binding node the parser builds,
+over all 32 tracked examples plus twelve targeted snippets (a multi-line
+`let` value, a multi-line parameter list, a multi-line record, a shape
+declaration, an `effects` clause, nested blocks):
+
+**1083 binding statements over 34 parsing sources, 0 divergences.**
+
+The sweep is checked for the ability to FAIL: `test_v37.py` substitutes a
+`statement` that shifts every binding node's line by one and requires the
+sweep to flag **every** binding, not just the first.
+
+### The corpus could not tell a computed line from the constant 1
+
+`rebind` is `let a = 1\nlet a = 2` and `rebind-indented` is
+`let z = fn() { let b = 1\nlet b = 2 }`. Both bind on **line 1**. A guest
+that computed nothing and printed `1` would have passed the whole
+differential — and would also have passed if it reported the DUPLICATE's
+line, which in both cases differs from 1 by exactly one, in the direction
+that a plausible off-by-one would produce.
+
+This is round 398's own finding about the got slot ("across all 51
+rejected programs the got slot held four of the lexer's 29 token kinds")
+arriving in the one place v0.37 added a number. So the corpus was widened
+BEFORE the feature was measured, by five cases: a first binding on line 3,
+one on line 4, a nested one on line 2, the `shape` desugar path, and the
+host's OTHER duplicate-name sentence (`shape 'S' is already declared in
+this block`, which names no line at all — two sentences for one idea, the
+host's choice, now mirrored exactly).
+
+### The divergence set is now ONE class
+
+| | before v0.36 | after v0.36 | after v0.37 |
+| --- | --- | --- | --- |
+| corpus (both reject) | 51 | 54 | **59** |
+| agreeing word for word | 12 | 34 | **41** |
+| differing by a host-only HINT | — | 18 | **18** |
+| differing for any other reason | — | 2 | **0** |
+
+`test_every_remaining_divergence_is_a_hint_or_the_rebind_sentence` is
+renamed `test_every_remaining_divergence_is_a_host_only_hint` and asserts
+`other == []`. That is a strictly stronger claim than v0.36's, and it is
+kept as an equality rather than a tolerance: a non-empty `other` is a
+finding — some divergence exists that nobody has classified — not a
+threshold breach.
+
+### The sanitiser that could have deleted the finding
+
+`tests/test_parse_error_differential.py` strips the guest's trailing
+implementation coordinate with `IMPL_COORD = r" \(line \d+\)$"`. v0.37 put
+a parenthesised line number *inside* a guest message for the first time,
+and only the `$` anchor keeps the sanitiser from deleting the exact fact
+the decision added — an unanchored pattern would strip `(line 1)` from the
+guest side, leave it on the host side, and report a closed divergence as
+still open. The hazard was already known one function away: `position_of`
+in the same file is written `findall`-last rather than `search`-first for
+this same message. Both directions are now pinned by tests.
+
+### What v0.37 deliberately does NOT do
+
+It does not touch `whence/*.py`. It does not give the guest the hint
+system, so 18 of 59 still differ and rule 3 is unchanged — but rule 3 must
+now be read as "the guest owes no CURE", since a cure is the only kind of
+sentence it still declines to write. It does not unify the host's two
+duplicate-name sentences (`is already bound in this block (line N)` and
+`shape 'S' is already declared in this block`, the second naming no line
+even though `shape_scopes` could record one) — that is a HOST wording
+change, it would move a position nothing has argued for moving, and the
+corpus case that would make it visible on both sides at once is now
+present. It does not change any POSITION, so decision 34's rule 2 is
+untouched.

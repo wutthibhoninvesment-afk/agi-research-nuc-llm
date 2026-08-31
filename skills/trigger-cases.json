@@ -1474,5 +1474,75 @@
   "id": "rir-neg-audit",
   "expect": [],
   "prompt": "We have an append-only audit ledger with one row per authorization decision. A user says their approval is missing \u2014 can I conclude it never happened?"
+ },
+ {
+  "id": "rcys-near",
+  "expect": [
+   "run-the-comparison-you-suppress"
+  ],
+  "prompt": "Our property-test oracle has a `skip if the run hit the recursion limit` branch that fires on about 13% of generated inputs and returns pass. It's been there for years. How do I tell whether it's actually costing us anything?"
+ },
+ {
+  "id": "rcys-mid",
+  "expect": [
+   "run-the-comparison-you-suppress"
+  ],
+  "prompt": "The scanner reports 41 suppressed findings and 0 real ones. The suppression rule is 'not applicable in this configuration'. My lead wants to raise the budget so fewer get suppressed \u2014 is that the right lever?"
+ },
+ {
+  "id": "rcys-far",
+  "expect": [
+   "run-the-comparison-you-suppress"
+  ],
+  "prompt": "I want to narrow a known-flaky guard in our diff test so it stops swallowing cases, but I don't want to turn on a wave of false positives. What should I measure first, and how do I make the narrowing reversible?"
+ },
+ {
+  "id": "rcys-far2",
+  "expect": [
+   "run-the-comparison-you-suppress"
+  ],
+  "prompt": "Our report prints 'surface 0.0, cost 100%' for an exemption branch. Two rounds have cited that as the exemption's cost. Something about it bothers me but I can't say what."
+ },
+ {
+  "id": "rcys-neg-zero",
+  "expect": [
+   "zero-rate-needs-a-distance"
+  ],
+  "prompt": "Our fuzz campaign found zero instances of the bug class in 2000 seeds and the team is calling it clean. The generator's recursion depths come from a fixed list. How should I report this?"
+ },
+ {
+  "id": "wchp-near",
+  "expect": [
+   "would-a-constant-have-passed"
+  ],
+  "prompt": "I taught our error message to name the line where a symbol was first declared, and all four fixtures pass. Looking at them, every fixture declares on line 1. Is that a problem?"
+ },
+ {
+  "id": "wchp-mid",
+  "expect": [
+   "would-a-constant-have-passed"
+  ],
+  "prompt": "New feature computes a retry delay from the attempt number. The test table has three rows and all three expect 100ms because they all use attempt 1. Reviewer says it's covered. I'm not sure how to argue."
+ },
+ {
+  "id": "wchp-far",
+  "expect": [
+   "would-a-constant-have-passed"
+  ],
+  "prompt": "Our parity harness went from 'these two differ' to 'these two agree' after I added a derived id field. What should I check before I write that the gap is closed?"
+ },
+ {
+  "id": "wchp-far2",
+  "expect": [
+   "would-a-constant-have-passed"
+  ],
+  "prompt": "Every assertion in this fixture set has the start offset one less than the end offset. It has bothered me since I wrote it but I can't articulate the risk."
+ },
+ {
+  "id": "wchp-neg-filter",
+  "expect": [
+   "filter-shares-the-defect"
+  ],
+  "prompt": "Our differential reports 'all ten cases agree' but membership in the ten requires both sides to have emitted the field, and the bug is that one side emits nothing there."
  }
 ]

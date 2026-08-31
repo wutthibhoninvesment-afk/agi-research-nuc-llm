@@ -157,7 +157,7 @@ def test_self_hosting_real_syntax():
     # containing a single quote, which Python `repr` renders in DOUBLE
     # quotes) and two for the six host `what=` spellings `expect_name`
     # used to answer with `expected a name`.
-    assert "140 passed, 0 failed" in r.stdout
+    assert "145 passed, 0 failed" in r.stdout
     assert "guest lexer+parser for real Whence syntax" in r.stdout
 
 

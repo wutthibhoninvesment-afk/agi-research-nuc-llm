@@ -589,6 +589,24 @@
    "where": "knowledge/round-400-nuc-e-the-archive-that-predates-the-question.md",
    "quote": "**17 HIT / 6 MISS of 23 scored.**",
    "note": "23 scored plus two NOT-SCORED orientation facts (N1/N2) labelled as such in the bank itself, because `reachability_check.py check` is the round protocol's mandated first instrument and necessarily runs before D-013's first half. THE ROUND'S HEADLINE PREDICTION IS SOMEONE ELSE'S: round 394 read `systemctl list-timers` and published that `apt-daily` would next fire at 10:22:25Z, an instant that fell inside this round's gap; it fired at 10:22:33Z, confirming that `RandomizedDelaySec` is drawn once at schedule time. This is the first forward-looking claim about the box in this track that a later round could score. My P1 wrapped it in a +/-5s band and therefore MISSES on my own tolerance while round 394's substance holds -- one of three misses (P1, P9 by one fire, P10 held at 9.68%% against a 10%% line) that are tolerance errors on substantively right claims, all three from bands set by arithmetic rather than by the dispersion of the process. P4-P7 went 4 for 4 predicting four counters would NOT move, which is round 394's own miss-shape inverted deliberately after reading its lesson. THE TRANSFERABLE MISS IS P14+P15: both predicted the state of a TOOL from what the previous round had PUBLISHED about it rather than from running it, and one flagless `continuity` run refuted both in the same second (102h19m47s, not the 0h12m00s round 394 reported under a journal capture). That is the same defect the round then shipped a fix for -- an inherited number is not an observation, even when the round that published it was careful. P13 is a miss I am glad of: round 394's `parse_sar` read nine days of archives it had never seen, six LINUX RESTART markers and drifting stamps, unchanged."
+  },
+  "401": {
+   "bank": "state/swe/round-401/PREDICTIONS.md",
+   "status": "unscored",
+   "scored_by": null,
+   "where": "knowledge/round-401-the-exemption-that-was-doing-nothing.md",
+   "quote": "Predictions: banked before any measurement in state/swe/round-401/PREDICTIONS.md (21 items), scored in \u00a78.",
+   "remainder": "ALL 21 unscored. Round 401 was INTERRUPTED: its knowledge file stops mid-\u00a72 of a document whose own header promises eight sections, and the \u00a78 the quote above points at was never written. Entered by round 402, which LANDED round 401's diff but did not do its work and will not narrate a scoring it did not perform. The inputs are all present under state/swe/round-401/, so a SWE-loop(D) round can score these by re-running harness/swe/spacewitness.py against the same corpus -- or retire the bank explicitly. Reading the truncated file as if it concluded is the failure mode.",
+   "owner": "SWE-loop(D)",
+   "why": "Round 401 was interrupted mid-write; nobody has scored these and round 402, which landed the diff, deliberately did not score work it did not do. The track that banked them owns them. Cheapest discharge: re-run harness/swe/spacewitness.py over the corpus already sitting in state/swe/round-401/ and score against the 21 items, or retire the bank explicitly with a reason."
+  },
+  "402": {
+   "bank": "state/whence/round-402/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 402,
+   "where": "knowledge/round-402-the-binding-table-that-knew-whether-but-not-where.md",
+   "quote": "**14 HIT, 1 MISS, 1 unscorable-by-my-own-ordering, of 16.**",
+   "remainder": "P13 is scored HALF and named as self-destroyed: round 402 fixed four duplicated coordinate/count pins BEFORE running the suite, so the predicted count of tests its change would break was never observable. P14 (the baseline full run) is UNSCORED and says so: the run was launched first per round 398's item 3, contaminated because the suite reads examples/*.lang at test time while the round edited them, relaunched from a pristine git worktree, then killed at 29% to give the box's one CPU to the post-change run. P15 is a MISS -- the round untracked the gateway examples instead of fixing their syntax, and \u00a75 of the knowledge file is the evidence that changed the call."
   }
  }
 }

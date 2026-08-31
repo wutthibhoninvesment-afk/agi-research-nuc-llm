@@ -72,3 +72,31 @@ state/trigger-eval/*.log
 # JSONL and the final JSON the watcher scp's back -- are tracked as normal;
 # only the supervisor's own progress log is ignored.
 state/nuc-swap-watch-*/poll.log
+
+# Whence example programs written by the Hermes gateway, a SEPARATE
+# autonomous system that shares this repo. They are listed in
+# state/known-standing-dirty-paths.json as permanently untracked and have
+# been since round 291; round 393's `git add -A` sweep (49969fb) tracked
+# all fourteen anyway, which put the repo's own two records in
+# contradiction. Ten of the fourteen do not parse under v0.19's braced-
+# block rule, and tests/test_v26.py filters on `git ls-files` precisely so
+# that this program's corpus is the one in git — so tracking them made a
+# whence_slow test red for nine rounds. Round 402 untracked them; these
+# entries are what stops the next `git add -A` from re-tracking them.
+# The FILES ARE STILL ON DISK and are still read as the cure system's
+# field corpus by curecheck.py, tests/test_v22.py, test_v33.py, test_v34.py
+# and test_field_corpus_selector.py, none of which care about tracking.
+languages/whence/examples/cognitive_verifier.lang
+languages/whence/examples/cognitive_verifier_v2.lang
+languages/whence/examples/cognitive_verifier_v3.lang
+languages/whence/examples/expense_tracker.lang
+languages/whence/examples/mini_agi_guardian.lang
+languages/whence/examples/nano_reasoner.lang
+languages/whence/examples/prod_demo_v1.lang
+languages/whence/examples/prod_demo_v3.lang
+languages/whence/examples/prod_demo_v4.lang
+languages/whence/examples/prod_demo_v5.lang
+languages/whence/examples/prod_showcase_final.lang
+languages/whence/examples/test_simple.lang
+languages/whence/examples/whenceguard_auditor.lang
+languages/whence/examples/whenceguard_v2.lang

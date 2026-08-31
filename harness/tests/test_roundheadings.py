@@ -249,14 +249,51 @@ def test_live_record_has_no_duplicate_round_headings():
 
 # ------------------------------------------------------------------- CLI
 
-def test_cli_reports_the_live_non_canonical_heading():
+def test_cli_reports_a_non_canonical_heading(tmp_path):
+    """ROUND 402: this used to run the CLI against `state/research-state.md`
+    and assert the output named `Round 396`.
+
+    That is a test whose subject is a live DEFECT — round 396's heading had
+    drifted from `### Round N — <track> — <date>` — so it passed only while
+    the defect survived, and it went red the moment round 402 normalised the
+    heading. The record is now 217 headings, 217 rounds, **0 non-canonical**,
+    for the first time in the program's history.
+
+    The CLI's ability to report a drifted heading is a real behaviour and is
+    still tested; it is tested against a FIXTURE that owns its own defect,
+    which is where a defect a test needs should live. The live record gets
+    the assertion it actually wants — that it is clean — in
+    `test_the_live_record_is_fully_canonical` below.
+    """
+    doc = tmp_path / "rec.md"
+    doc.write_text(
+        "### Round 400 — NUC-integration(E) — 2026-08-31\n\nbody\n\n"
+        "## Round 401 (SWE-loop D) — a heading that drifted\n\nbody\n",
+        encoding="utf-8")
+    out = subprocess.run(
+        [sys.executable, "-m", "harness.roundheadings", str(doc)],
+        cwd=REPO, capture_output=True, text=True)
+    assert out.returncode == 0, out.stderr
+    assert "non-canonical" in out.stdout
+    assert "Round 401" in out.stdout
+
+
+def test_the_live_record_is_fully_canonical():
+    """The claim the previous test was standing in for, stated directly.
+
+    Four tools in this repo parse these headings with four different
+    patterns, so a drifted heading is visible to some readers and invisible
+    to others — which is what surfaced as a PHANTOM missing round in rounds
+    302 and 396. Zero non-canonical headings is the only state in which all
+    four agree, and this is where a regression shows up as itself rather
+    than as a missing round somewhere downstream.
+    """
     out = subprocess.run(
         [sys.executable, "-m", "harness.roundheadings",
          "state/research-state.md"],
         cwd=REPO, capture_output=True, text=True)
     assert out.returncode == 0, out.stderr
-    assert "non-canonical" in out.stdout
-    assert "Round 396" in out.stdout
+    assert "0 non-canonical" in out.stdout, out.stdout
 
 
 def test_cli_with_no_args_is_a_usage_error():

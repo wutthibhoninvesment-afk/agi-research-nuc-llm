@@ -118,6 +118,32 @@ BAD = [
     # --- binding / naming -------------------------------------------------
     ("rebind",               "let a = 1\nlet a = 2"),
     ("rebind-indented",      "let z = fn() { let b = 1\nlet b = 2 }"),
+    # v0.37 (round 402), decision 46. The two cases above BOTH have their
+    # first binding on line 1, so the sentence they check — `(line 1)` —
+    # is satisfied by an implementation that computes nothing and prints
+    # the constant 1. That is round 398's own finding about the got slot
+    # ("the corpus could only ever see four token kinds") in the one place
+    # v0.37 added a number, so the corpus is widened FIRST and the feature
+    # measured against the widened one. Each of these has the first
+    # binding somewhere other than line 1, and one of them separates the
+    # other plausible wrong answer — reporting the DUPLICATE's line, which
+    # for `rebind`/`rebind-indented` differs from 1 by exactly one.
+    ("rebind-first-line-3",  "\n\nlet a = 1\nlet a = 2\na"),
+    ("rebind-fn-line-4",     "# c\n\n\nfn f() { 1 }\nfn f() { 2 }\nf()"),
+    ("rebind-nested-line-2", "let z = fn() {\n let b = 1\n\nlet b = 2 }"),
+    # The desugar path: `shape S = …` reaches `stmt_list` as an ordinary
+    # `A.Let` built by a DIFFERENT constructor (`parser.py:2086`), so the
+    # host's `(line N)` comes from a different `tok` there. The guest can
+    # only ever see the head token, and `bench/bindline.py` measured the
+    # two equal over 1083 bindings; this is that measurement's case in the
+    # differential, where it is checked against the host and not just
+    # against the parser's own constructors.
+    ("rebind-shape-desugar", "let S = 1\nshape S = @{a: num}\nS"),
+    # ...and the OTHER duplicate-name sentence the host owns, which names
+    # no line at all. Two sentences for one idea is the host's choice and
+    # the guest mirrors it exactly; putting it here is what would make a
+    # future round unifying them visible on both sides at once.
+    ("shape-redeclare",      "shape S = @{a: num}\nshape S = @{b: num}\nS"),
     ("dup-param",            "fn f(a, a) { a }"),
     ("dup-record-field",     "let r = @{a: 1, a: 2}"),
     ("missing-let-name",     "let = 2"),
@@ -460,7 +486,7 @@ def test_the_corpus_reaches_every_host_lex_error_class(hosts):
 # --------------------------------------------------------------------------
 
 def test_every_guest_parse_error_still_leaks_an_implementation_coordinate(guest):
-    """54 of 54 (43 until round 392 widened `BAD` by eight, 51 until
+    """59 of 59 (43 until round 392 widened `BAD` by eight, 51 until
     round 398 widened it by three).
     The RATIO can go down; it must never go up.
 
@@ -479,7 +505,7 @@ def test_every_guest_parse_error_still_leaks_an_implementation_coordinate(guest)
     leaking = [n for n, (rejected, reason) in guest.items()
                if rejected and IMPL_COORD.search(reason)]
     rejecting = [n for n, (rejected, _) in guest.items() if rejected]
-    assert len(rejecting) == len(BAD) - len(HOST_ONLY) == 54, len(rejecting)
+    assert len(rejecting) == len(BAD) - len(HOST_ONLY) == 59, len(rejecting)
     assert len(leaking) == len(rejecting), (
         "%d of %d — good news, but update this pin and SPEC.md § v0.24"
         % (len(leaking), len(rejecting)))
@@ -493,11 +519,12 @@ def test_wording_is_still_not_a_guest_contract(hosts, guest):
     describes nothing, and a future round could tighten wording without
     noticing it had made rule 3 vacuous.
 
-    v0.36 (round 398) is the round that came closest to making it vacuous,
-    and the floor held: 34 of the 54 now agree word for word, up from 12.
-    What is left is 20, and `test_every_remaining_divergence_is_a_hint_or_
-    the_rebind_sentence` below says exactly what all 20 are — which is the
-    state rule 3 should be read in from here. Rule 3 is not "the wordings
+    v0.37 (round 402) is the round that came closest to making it vacuous,
+    and the floor held: 41 of the 59 now agree word for word, up from 12
+    before v0.36 and 34 after it. What is left is 18, and
+    `test_every_remaining_divergence_is_a_host_only_hint` below says exactly
+    what all 18 are — a SINGLE class, for the first time in this file's
+    history. Rule 3 is not "the wordings
     are arbitrary"; it is "the guest owes no sentence, and when it happens
     to write the same one that is a measurement, not a contract".
     """
@@ -523,22 +550,31 @@ def test_wording_is_still_not_a_guest_contract(hosts, guest):
     #     Its got half agrees (`got 1` on both since v0.36); what remains
     #     is v0.22's HINT, which is host-only by design.
     assert "unbraced-if" in names
-    for closed in ("unclosed-paren", "bare-eof"):
+    for closed in ("unclosed-paren", "bare-eof", "rebind", "rebind-indented"):
         h = POSITION.sub("", hosts[closed].message)
         g = IMPL_COORD.sub("", POSITION.sub("", guest[closed][1]))
         assert h == g, (closed, h, g)
     assert POSITION.sub("", hosts["unclosed-paren"].message) == \
         "expected ')', got end of input"
     assert POSITION.sub("", hosts["bare-eof"].message) == "unexpected end of input"
-    # The second anchor is now `rebind`, which differs for neither of the
-    # two structural reasons: the host's sentence carries a fact the guest
-    # does not compute (the LINE of the first binding). It is the only
-    # non-hint divergence left in the corpus.
-    assert "rebind" in names
-    h = POSITION.sub("", hosts["rebind"].message)
-    g = IMPL_COORD.sub("", POSITION.sub("", guest["rebind"][1]))
-    assert h == "'a' is already bound in this block (line 1); Whence has no rebinding"
-    assert g == "'a' already bound"
+    # v0.37 (round 402), decision 46: `rebind` was the second anchor here
+    # and is now the third and fourth CLOSED cases, so they move into the
+    # loop above. They closed for a reason neither earlier closure had —
+    # not a rendering (v0.36) and not the host moving (v0.35), but the
+    # guest computing a FACT it never had: the line of the first binding,
+    # which its table did not record.
+    #
+    # The sentence is pinned literally on both sides because its `(line 1)`
+    # is the only place in this corpus where a message contains a
+    # parenthesised line number that is NOT the guest's implementation
+    # coordinate. `IMPL_COORD` is `$`-anchored precisely so it cannot eat
+    # this one, and `test_the_sanitiser_does_not_eat_a_line_number_inside_
+    # the_sentence` below is what makes that anchoring deliberate rather
+    # than lucky.
+    assert POSITION.sub("", hosts["rebind"].message) == \
+        "'a' is already bound in this block (line 1); Whence has no rebinding"
+    assert IMPL_COORD.sub("", POSITION.sub("", guest["rebind"][1])) == \
+        "'a' is already bound in this block (line 1); Whence has no rebinding"
 
 
 def _strip_hint(message):
@@ -564,8 +600,8 @@ def _strip_hint(message):
     return message
 
 
-def test_every_remaining_divergence_is_a_hint_or_the_rebind_sentence(hosts, guest):
-    """v0.36 (round 398), decision 45 — the divergence set is now CLOSED.
+def test_every_remaining_divergence_is_a_host_only_hint(hosts, guest):
+    """v0.37 (round 402), decision 46 — the divergence set is now ONE class.
 
     Round 354 called the whole thing "wording". Round 396 split the
     `expected X, got Y` shape into want / got / hint and closed the want
@@ -577,16 +613,18 @@ def test_every_remaining_divergence_is_a_hint_or_the_rebind_sentence(hosts, gues
         Strip it and the two sentences are byte-identical. Rule 3 keeps
         these host-only deliberately: a hint is a CURE, and the guest has
         no cure system.
-      * 2 are `rebind`/`rebind-indented`, where the host says `'a' is
-        already bound in this block (line 1); Whence has no rebinding` and
-        the guest says `'a' already bound`. This is the one remaining
-        divergence that is neither a hint nor a rendering: the host's
-        sentence carries a FACT (the line of the first binding) that the
-        guest's shape table does not record. Closing it is a guest data
-        change, not a wording change — see the round-398 knowledge file.
+      * 0 are anything else. v0.36 left exactly two —
+        `rebind`/`rebind-indented`, where the host's sentence carried a
+        FACT (the line of the first binding) that the guest's binding table
+        did not record. v0.37 gave the guest that fact and `other` is now
+        EMPTY: every message this corpus can produce either agrees word for
+        word or differs by a host-only hint and by nothing else.
 
-    A THIRD class appearing here is the finding, not the failure: it would
-    mean some divergence exists that nobody has classified.
+    That is a strictly stronger statement than v0.36's, and it is the one
+    worth guarding. `other` becoming non-empty is the finding, not the
+    failure — it would mean a divergence exists that nobody has classified.
+    It stays an equality against `[]` rather than a `<= 1` tolerance for
+    exactly that reason.
     """
     hint_only, other = [], []
     for name, _ in BOTH_REJECT:
@@ -596,13 +634,16 @@ def test_every_remaining_divergence_is_a_hint_or_the_rebind_sentence(hosts, gues
             continue
         (hint_only if _strip_hint(h) == g else other).append(name)
     assert len(hint_only) == 18, sorted(hint_only)
-    assert sorted(other) == ["rebind", "rebind-indented"], sorted(other)
+    assert other == [], sorted(other)
 
 
 def test_the_agreeing_share_is_measured_not_assumed(hosts, guest):
     """The headline number, pinned so a regression is visible as a number.
 
-    12 of 51 before v0.36, 34 of 54 after. It is deliberately NOT a floor
+    12 of 51 before v0.36, 34 of 54 after it, and 41 of 59 after v0.37
+    (round 402) closed `rebind`/`rebind-indented` AND widened `BAD` by the
+    five cases that make the new `(line N)` a measurement rather than a
+    constant. It is deliberately NOT a floor
     that only goes up: the corpus grows, and a round that widens `BAD`
     with cases the guest gets wrong SHOULD see this drop and have to say
     so. The pin is on the exact pair.
@@ -610,7 +651,7 @@ def test_the_agreeing_share_is_measured_not_assumed(hosts, guest):
     agree = [n for n, _ in BOTH_REJECT
              if POSITION.sub("", hosts[n].message)
              == IMPL_COORD.sub("", POSITION.sub("", guest[n][1]))]
-    assert (len(agree), len(BOTH_REJECT)) == (34, 54), (len(agree), len(BOTH_REJECT))
+    assert (len(agree), len(BOTH_REJECT)) == (41, 59), (len(agree), len(BOTH_REJECT))
 
 
 #: `expected X, got Y` is the one message shape BOTH parsers build, and it

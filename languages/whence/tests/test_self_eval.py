@@ -225,7 +225,7 @@ def test_parser_section_matches_self_host():
     # host's seven `what=` spellings, so the guest names the token it
     # stopped on and says which KIND of name it wanted.
     host_lines = open(SELF_HOST).read().splitlines()
-    section = "\n".join(host_lines[27:985])
+    section = "\n".join(host_lines[27:1022])
     assert section.startswith("# ---- character classes")
     assert section.rstrip().endswith(
         'if le != "" { miss le } else { parse_program(toks) }\n}')

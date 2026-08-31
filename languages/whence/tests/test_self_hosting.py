@@ -97,7 +97,7 @@ EXAMPLE = os.path.join(ROOT, "examples", "self_eval.lang")
 SELF_HOST = os.path.join(ROOT, "examples", "self_host.lang")
 EFFECTS = os.path.join(ROOT, "examples", "effects.lang")
 MARKER = "# ==== SELF-TESTS"
-# self_host.lang lines 28..985 (0-indexed slice).
+# self_host.lang lines 28..1022 (0-indexed slice).
 #
 # ROUND 398: this was `27, 912`, and `self_host_library_section()`'s own
 # `endswith` assertion had been FAILING since round 360 -- v0.24 appended
@@ -110,7 +110,7 @@ MARKER = "# ==== SELF-TESTS"
 #
 # THE SAME COORDINATE LIVES IN TWO FILES AND DRIFTED. Same class as the
 # `142 passed` check-count pin, which round 398 found in THREE files.
-LIB_START, LIB_END = 27, 985
+LIB_START, LIB_END = 27, 1022
 
 
 def eval_library_source():

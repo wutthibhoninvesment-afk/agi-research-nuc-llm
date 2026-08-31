@@ -873,14 +873,51 @@ fn starts_stmt(toks, pos) {
   else { k.t == "num" or k.t == "str" or k.t == "name" }
 }
 
+# v0.37 (round 402), decision 46: the binding table records WHERE a name was
+# bound, not merely THAT it was. `whence/parser.py`'s `stmt_list` keeps
+# `bound[name] = s.line` and spends it in the sentence -- `'a' is already
+# bound in this block (line 1); Whence has no rebinding` -- so a reader is
+# told which line to look at for the binding they collided with. The guest
+# kept a list of bare NAMES and could only say `'a' already bound`, and that
+# was the LAST divergence in `tests/test_parse_error_differential.py` which
+# was neither a host-only hint nor a rendering (round 398's item 1).
+#
+# It is a DATA change, not a wording change. `bound` becomes a list of
+# `@{n: name, ln: line}` records and this is the lookup. Whence has no dict,
+# so the scan is linear and written out; the host's `dict` and this loop
+# answer the same question, and a single block with enough bindings for the
+# difference to matter is not a program this parser is asked to be fast on.
+#
+# `0` is the absent sentinel: `whence/lexer.py` numbers lines from 1, which
+# `tests/test_v37.py::test_zero_is_a_safe_absent_sentinel_for_a_line` pins
+# so it stays true. The synthetic eof record `t_at` returns past the end of
+# the token list carries `line: 0`, and it is never a binding's head token
+# -- `at_end` has already closed the block before `parse_stmt` could run.
+fn bound_line(bound, nm, i) {
+  if i >= len(bound) { 0 }
+  else if bound[i].n == nm { bound[i].ln }
+  else { bound_line(bound, nm, i + 1) }
+}
+
 fn parse_stmt_list(toks, pos, end, acc, bound) {
   if at_end(toks, pos, end) { @{stmts: acc, pos: pos} }
   else {
+    # v0.37: the head token, captured BEFORE the statement is parsed -- which
+    # is exactly what the host does (`start = self.peek()` on the line above
+    # its own `self.statement()`). The guest has no AST line field to copy,
+    # so it reconstructs the host's `(line N)` from this token; `bench/
+    # bindline.py` measured 1083 binding statements over the whole example
+    # corpus and found the head token's line equal to the node's line every
+    # time, which is what makes the reconstruction exact and not a guess.
+    let head = t_at(toks, pos)
     let s = parse_stmt(toks, pos)
     let nm = if s.node.kind == "let" or s.node.kind == "fndef" { s.node.name } else { "" }
-    let dup = nm != "" and contains(bound, nm)
-    let bound2 = if nm != "" { push(bound, nm) } else { bound }
-    if dup { miss ("'" + nm + "' already bound" + tok_at(toks, pos)) }
+    let first = if nm == "" { 0 } else { bound_line(bound, nm, 0) }
+    let bound2 = if nm != "" { push(bound, @{n: nm, ln: head.line}) } else { bound }
+    if first != 0 {
+      miss ("'" + nm + "' is already bound in this block (line " + str(first) +
+            "); Whence has no rebinding" + tok_at(toks, pos))
+    }
     else {
       let acc2 = push(acc, s.node)
       let after = skip_nl(toks, s.pos)
