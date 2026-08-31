@@ -1654,5 +1654,31 @@
   "id": "cnd-neg-mechanism",
   "expect": [],
   "prompt": "I bisected the regression to commit a3f1c2 and reverting it makes the failing test pass every time. Can you help me write the fix forward instead of leaving the revert in place?"
+ },
+ {
+  "id": "vct-near",
+  "expect": [
+   "verdict-carries-its-threshold"
+  ],
+  "prompt": "Our A/B says the coverage gate stopped firing on 125 of 125 files after we bumped the sampling depth. That's a 100% conversion rate and I want to put it in the release notes. Anything I should check first?"
+ },
+ {
+  "id": "vct-mid",
+  "expect": [
+   "verdict-carries-its-threshold"
+  ],
+  "prompt": "I'm diffing two benchmark JSON reports by their pass/fail columns to see what last month's tuning changed. The tool prints mixed_config: false for both files so I think the runs are consistent. Is that the right check?"
+ },
+ {
+  "id": "vct-far",
+  "expect": [
+   "verdict-carries-its-threshold"
+  ],
+  "prompt": "Comparing this week's lint report to last quarter's, a whole rule category shows zero violations now. The rule config lives in the same repo as the code. How confident should I be that we actually fixed them?"
+ },
+ {
+  "id": "vct-neg",
+  "expect": [],
+  "prompt": "Write a pytest fixture that spins up a temporary SQLite database and yields a connection, rolling back after each test."
  }
 ]

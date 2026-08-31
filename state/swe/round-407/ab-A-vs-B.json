@@ -1,0 +1,670 @@
+{
+ "path_a": "state/swe/round-389/armA-500.jsonl",
+ "path_b": "state/swe/round-389/armB-5000.jsonl",
+ "n_a": 360,
+ "n_b": 360,
+ "n_shared": 360,
+ "digests_a": {
+  "pre-r389": 360
+ },
+ "digests_b": {
+  "pre-r389": 360
+ },
+ "mixed_instrument": false,
+ "instrument_a": {
+  "unstamped": {
+   "unstamped": 360
+  }
+ },
+ "instrument_b": {
+  "unstamped": {
+   "unstamped": 360
+  }
+ },
+ "mixed_parts_a": [],
+ "mixed_parts_b": [],
+ "arms_share_instrument": null,
+ "digests_match": null,
+ "max_depth_a": 500,
+ "max_depth_b": 5000,
+ "sites": {
+  "R-CAP": {
+   "fired_a": 125,
+   "fired_b": 125,
+   "converted": 0,
+   "new_fires": 0,
+   "still_firing": 125,
+   "never": 199,
+   "converted_pct": 0.0,
+   "converted_seeds": [],
+   "new_fire_seeds": [],
+   "still_firing_seeds": [
+    1,
+    3,
+    7,
+    10,
+    15,
+    18,
+    21,
+    24,
+    29,
+    32,
+    36,
+    37,
+    38,
+    40,
+    45,
+    49,
+    57,
+    59,
+    60,
+    64,
+    70,
+    71,
+    72,
+    80,
+    82,
+    83,
+    88,
+    89,
+    90,
+    97,
+    99,
+    100,
+    102,
+    103,
+    106,
+    107,
+    109,
+    110,
+    111,
+    114
+   ],
+   "threshold_a": [
+    6
+   ],
+   "threshold_b": [
+    6
+   ],
+   "threshold_move": null,
+   "threshold_moved": false,
+   "comparable": true,
+   "n_compared": 324,
+   "n_skipped": 0,
+   "unpaired_a": [],
+   "unpaired_b": [],
+   "unpaired_fired_a": [],
+   "unpaired_fired_b": []
+  },
+  "F-SLACK": {
+   "fired_a": 0,
+   "fired_b": 0,
+   "converted": 0,
+   "new_fires": 0,
+   "still_firing": 0,
+   "never": 324,
+   "converted_pct": null,
+   "converted_seeds": [],
+   "new_fire_seeds": [],
+   "still_firing_seeds": [],
+   "threshold_a": [
+    140
+   ],
+   "threshold_b": [
+    140
+   ],
+   "threshold_move": null,
+   "threshold_moved": false,
+   "comparable": true,
+   "n_compared": 324,
+   "n_skipped": 0,
+   "unpaired_a": [],
+   "unpaired_b": [],
+   "unpaired_fired_a": [],
+   "unpaired_fired_b": []
+  },
+  "T-SPACE": {
+   "fired_a": 41,
+   "fired_b": 3,
+   "converted": 38,
+   "new_fires": 0,
+   "still_firing": 3,
+   "never": 283,
+   "converted_pct": 92.6829268292683,
+   "converted_seeds": [
+    10,
+    15,
+    18,
+    29,
+    32,
+    37,
+    38,
+    45,
+    46,
+    78,
+    80,
+    82,
+    87,
+    93,
+    103,
+    110,
+    114,
+    120,
+    125,
+    130,
+    133,
+    134,
+    144,
+    163,
+    175,
+    179,
+    180,
+    230,
+    234,
+    238,
+    251,
+    271,
+    276,
+    280,
+    289,
+    309,
+    339,
+    340
+   ],
+   "new_fire_seeds": [],
+   "still_firing_seeds": [
+    140,
+    273,
+    341
+   ],
+   "threshold_a": [
+    500
+   ],
+   "threshold_b": [
+    5000
+   ],
+   "threshold_move": "declared:max_depth",
+   "threshold_moved": false,
+   "comparable": true,
+   "n_compared": 324,
+   "n_skipped": 0,
+   "unpaired_a": [],
+   "unpaired_b": [],
+   "unpaired_fired_a": [],
+   "unpaired_fired_b": []
+  },
+  "T-TAINT": {
+   "fired_a": 299,
+   "fired_b": 299,
+   "converted": 0,
+   "new_fires": 0,
+   "still_firing": 299,
+   "never": 25,
+   "converted_pct": 0.0,
+   "converted_seeds": [],
+   "new_fire_seeds": [],
+   "still_firing_seeds": [
+    0,
+    1,
+    2,
+    3,
+    5,
+    6,
+    7,
+    10,
+    11,
+    12,
+    13,
+    14,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    24,
+    26,
+    27,
+    28,
+    29,
+    30,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48
+   ],
+   "threshold_a": [],
+   "threshold_b": [],
+   "threshold_move": null,
+   "threshold_moved": false,
+   "comparable": true,
+   "n_compared": 324,
+   "n_skipped": 0,
+   "unpaired_a": [],
+   "unpaired_b": [],
+   "unpaired_fired_a": [],
+   "unpaired_fired_b": []
+  },
+  "T-NONE": {
+   "fired_a": 117,
+   "fired_b": 117,
+   "converted": 0,
+   "new_fires": 0,
+   "still_firing": 117,
+   "never": 207,
+   "converted_pct": 0.0,
+   "converted_seeds": [],
+   "new_fire_seeds": [],
+   "still_firing_seeds": [
+    0,
+    5,
+    9,
+    11,
+    12,
+    14,
+    17,
+    19,
+    20,
+    21,
+    23,
+    26,
+    27,
+    33,
+    34,
+    43,
+    48,
+    51,
+    52,
+    53,
+    66,
+    67,
+    68,
+    69,
+    77,
+    81,
+    85,
+    91,
+    96,
+    98,
+    104,
+    105,
+    112,
+    116,
+    117,
+    119,
+    121,
+    122,
+    126,
+    127
+   ],
+   "threshold_a": [],
+   "threshold_b": [],
+   "threshold_move": null,
+   "threshold_moved": false,
+   "comparable": true,
+   "n_compared": 324,
+   "n_skipped": 0,
+   "unpaired_a": [],
+   "unpaired_b": [],
+   "unpaired_fired_a": [],
+   "unpaired_fired_b": []
+  },
+  "T-ALL": {
+   "fired_a": 8,
+   "fired_b": 8,
+   "converted": 0,
+   "new_fires": 0,
+   "still_firing": 8,
+   "never": 316,
+   "converted_pct": 0.0,
+   "converted_seeds": [],
+   "new_fire_seeds": [],
+   "still_firing_seeds": [
+    0,
+    12,
+    98,
+    116,
+    171,
+    241,
+    291,
+    330
+   ],
+   "threshold_a": [
+    0
+   ],
+   "threshold_b": [
+    0
+   ],
+   "threshold_move": null,
+   "threshold_moved": false,
+   "comparable": true,
+   "n_compared": 324,
+   "n_skipped": 0,
+   "unpaired_a": [],
+   "unpaired_b": [],
+   "unpaired_fired_a": [],
+   "unpaired_fired_b": []
+  },
+  "P-EXEMPT": {
+   "fired_a": 15,
+   "fired_b": 15,
+   "converted": 0,
+   "new_fires": 0,
+   "still_firing": 15,
+   "never": 309,
+   "converted_pct": 0.0,
+   "converted_seeds": [],
+   "new_fire_seeds": [],
+   "still_firing_seeds": [
+    3,
+    7,
+    57,
+    71,
+    109,
+    114,
+    139,
+    184,
+    201,
+    255,
+    273,
+    309,
+    332,
+    342,
+    354
+   ],
+   "threshold_a": [
+    2
+   ],
+   "threshold_b": [
+    2
+   ],
+   "threshold_move": null,
+   "threshold_moved": false,
+   "comparable": true,
+   "n_compared": 324,
+   "n_skipped": 0,
+   "unpaired_a": [],
+   "unpaired_b": [],
+   "unpaired_fired_a": [],
+   "unpaired_fired_b": []
+  },
+  "P-NONE": {
+   "fired_a": 189,
+   "fired_b": 189,
+   "converted": 0,
+   "new_fires": 0,
+   "still_firing": 189,
+   "never": 135,
+   "converted_pct": 0.0,
+   "converted_seeds": [],
+   "new_fire_seeds": [],
+   "still_firing_seeds": [
+    0,
+    2,
+    5,
+    6,
+    9,
+    12,
+    13,
+    14,
+    17,
+    20,
+    21,
+    25,
+    28,
+    29,
+    30,
+    33,
+    35,
+    36,
+    40,
+    43,
+    44,
+    45,
+    46,
+    48,
+    49,
+    52,
+    53,
+    63,
+    66,
+    67,
+    68,
+    69,
+    70,
+    72,
+    73,
+    74,
+    77,
+    78,
+    79,
+    80
+   ],
+   "threshold_a": [],
+   "threshold_b": [],
+   "threshold_move": null,
+   "threshold_moved": false,
+   "comparable": true,
+   "n_compared": 324,
+   "n_skipped": 0,
+   "unpaired_a": [],
+   "unpaired_b": [],
+   "unpaired_fired_a": [],
+   "unpaired_fired_b": []
+  }
+ },
+ "oracles": {
+  "totality": {
+   "ok->ok": 324,
+   "parse_error->parse_error": 30,
+   "timeout->timeout": 5,
+   "ok->timeout": 1
+  },
+  "fast_slow": {
+   "ok->ok": 323,
+   "parse_error->parse_error": 30,
+   "timeout->timeout": 6,
+   "ok->timeout": 1
+  },
+  "direct": {
+   "ok->ok": 321,
+   "parse_error->parse_error": 30,
+   "timeout->timeout": 6,
+   "ok->timeout": 3
+  },
+  "determinism": {
+   "ok->ok": 321,
+   "parse_error->parse_error": 30,
+   "ok->timeout": 2,
+   "timeout->timeout": 7
+  },
+  "render": {
+   "ok->ok": 324,
+   "parse_error->parse_error": 30,
+   "timeout->timeout": 5,
+   "ok->timeout": 1
+  },
+  "frames": {
+   "ok->ok": 321,
+   "parse_error->parse_error": 30,
+   "timeout->timeout": 8,
+   "ok->timeout": 1
+  },
+  "tail_transparency": {
+   "ok->ok": 323,
+   "parse_error->parse_error": 30,
+   "timeout->timeout": 6,
+   "ok->timeout": 1
+  },
+  "param_erasure": {
+   "ok->ok": 326,
+   "parse_error->parse_error": 30,
+   "timeout->timeout": 4
+  }
+ },
+ "flips": [
+  {
+   "seed": 272,
+   "oracle": "totality",
+   "from": "ok",
+   "to": "timeout",
+   "detail_b": "exceeded 3.0s"
+  },
+  {
+   "seed": 125,
+   "oracle": "fast_slow",
+   "from": "ok",
+   "to": "timeout",
+   "detail_b": "exceeded 3.0s"
+  },
+  {
+   "seed": 125,
+   "oracle": "direct",
+   "from": "ok",
+   "to": "timeout",
+   "detail_b": "exceeded 3.0s"
+  },
+  {
+   "seed": 253,
+   "oracle": "direct",
+   "from": "ok",
+   "to": "timeout",
+   "detail_b": "exceeded 3.0s"
+  },
+  {
+   "seed": 341,
+   "oracle": "direct",
+   "from": "ok",
+   "to": "timeout",
+   "detail_b": "exceeded 3.0s"
+  },
+  {
+   "seed": 14,
+   "oracle": "determinism",
+   "from": "ok",
+   "to": "timeout",
+   "detail_b": "exceeded 3.0s"
+  },
+  {
+   "seed": 253,
+   "oracle": "determinism",
+   "from": "ok",
+   "to": "timeout",
+   "detail_b": "exceeded 3.0s"
+  },
+  {
+   "seed": 272,
+   "oracle": "render",
+   "from": "ok",
+   "to": "timeout",
+   "detail_b": "exceeded 3.0s"
+  },
+  {
+   "seed": 253,
+   "oracle": "frames",
+   "from": "ok",
+   "to": "timeout",
+   "detail_b": "exceeded 3.0s"
+  },
+  {
+   "seed": 125,
+   "oracle": "tail_transparency",
+   "from": "ok",
+   "to": "timeout",
+   "detail_b": "exceeded 3.0s"
+  }
+ ],
+ "confounded_sites": [],
+ "knob_sites": [
+  "T-SPACE"
+ ],
+ "comparable": null,
+ "seconds_a": 123.0,
+ "seconds_b": 156.1,
+ "new_mismatches": [],
+ "new_timeouts": [
+  {
+   "seed": 272,
+   "oracle": "totality",
+   "from": "ok",
+   "to": "timeout",
+   "detail_b": "exceeded 3.0s"
+  },
+  {
+   "seed": 125,
+   "oracle": "fast_slow",
+   "from": "ok",
+   "to": "timeout",
+   "detail_b": "exceeded 3.0s"
+  },
+  {
+   "seed": 125,
+   "oracle": "direct",
+   "from": "ok",
+   "to": "timeout",
+   "detail_b": "exceeded 3.0s"
+  },
+  {
+   "seed": 253,
+   "oracle": "direct",
+   "from": "ok",
+   "to": "timeout",
+   "detail_b": "exceeded 3.0s"
+  },
+  {
+   "seed": 341,
+   "oracle": "direct",
+   "from": "ok",
+   "to": "timeout",
+   "detail_b": "exceeded 3.0s"
+  },
+  {
+   "seed": 14,
+   "oracle": "determinism",
+   "from": "ok",
+   "to": "timeout",
+   "detail_b": "exceeded 3.0s"
+  },
+  {
+   "seed": 253,
+   "oracle": "determinism",
+   "from": "ok",
+   "to": "timeout",
+   "detail_b": "exceeded 3.0s"
+  },
+  {
+   "seed": 272,
+   "oracle": "render",
+   "from": "ok",
+   "to": "timeout",
+   "detail_b": "exceeded 3.0s"
+  },
+  {
+   "seed": 253,
+   "oracle": "frames",
+   "from": "ok",
+   "to": "timeout",
+   "detail_b": "exceeded 3.0s"
+  },
+  {
+   "seed": 125,
+   "oracle": "tail_transparency",
+   "from": "ok",
+   "to": "timeout",
+   "detail_b": "exceeded 3.0s"
+  }
+ ],
+ "new_crashes": []
+}

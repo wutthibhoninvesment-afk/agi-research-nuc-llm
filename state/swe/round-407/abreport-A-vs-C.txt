@@ -1,0 +1,15 @@
+A state/swe/round-389/armA-500.jsonl  n=360  digests=pre-r389 x360
+B state/swe/round-401/armC-5000-12.jsonl  n=360  digests=82adbc790eed x360
+shared 360   max_depth 500 -> 5000
+COMPARABLE: NO   (digests_match=None arms_share_instrument=None mixed_instrument=False)
+  CONFOUNDED R-CAP     threshold moved [6] -> [24] with no declared knob: every count below for this site measures that edit
+  by design  T-SPACE   threshold [500] -> [5000] is the arm's own max_depth knob
+site       fired_a  fired_b  converted  new_fires  compared  skipped  threshold
+R-CAP          125        0        125          0       324        2  [6] -> [24]  <-- CONFOUNDED  [2 unpaired]
+F-SLACK          0        0          0          0       324        2  [140]  [2 unpaired]
+T-SPACE         41        3         38          0       324        2  [500] -> [5000]  (knob)  [2 unpaired, 1 of them FIRING: [31]]
+T-TAINT        299      299          0          0       324        2  -  [2 unpaired, 2 of them FIRING: [31, 272]]
+T-NONE         117      117          0          0       324        2  -  [2 unpaired]
+T-ALL            8        8          0          0       324        2  [0]  [2 unpaired]
+P-EXEMPT        15       15          0          0       324        2  [2]  [2 unpaired]
+P-NONE         189      189          0          0       324        2  -  [2 unpaired]

@@ -1,0 +1,14 @@
+A state/swe/round-401/armD-500-stamped.jsonl  n=30  digests=7ce0ec9f2215 x30
+B state/swe/round-401/armD-5000-stamped.jsonl  n=30  digests=7ce0ec9f2215 x30
+shared 30   max_depth 500 -> 5000
+COMPARABLE: yes   (digests_match=True arms_share_instrument=True mixed_instrument=False)
+  by design  T-SPACE   threshold [500] -> [5000] is the arm's own max_depth knob
+site       fired_a  fired_b  converted  new_fires  compared  skipped  threshold
+R-CAP            0        0          0          0        27        0  [24]
+F-SLACK          0        0          0          0        27        0  [140]
+T-SPACE          2        0          2          0        27        0  [500] -> [5000]  (knob)
+T-TAINT         23       23          0          0        27        0  -
+T-NONE          13       13          0          0        27        0  -
+T-ALL            2        2          0          0        27        0  [0]
+P-EXEMPT         2        2          0          0        27        0  [2]
+P-NONE          14       14          0          0        27        0  -

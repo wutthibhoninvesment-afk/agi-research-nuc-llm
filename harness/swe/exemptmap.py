@@ -39,6 +39,8 @@ usage:
                                           [--stress R] [--start K]
                                           [--max-depth D] [--timeout-s S]
   python3 -m harness.swe.exemptmap ab      --a P --b Q   (paired arm diff)
+  python3 -m harness.swe.exemptmap abreport --a P --b Q  (the same, rendered,
+                                          comparability verdict FIRST)
   python3 -m harness.swe.exemptmap report [--out P]
   python3 -m harness.swe.exemptmap chainladder [--max N]
   python3 -m harness.swe.exemptmap paircap [--bindings K]
@@ -234,11 +236,14 @@ def oracles_digest(path=_ORACLES_PY):
         return ""
 
 
+PRE_R389 = "pre-r389"      # a NAME for "this row carries no digest"
+
+
 def sweep_digests(path):
     """`{digest: n_rows}` for a sweep file — one key means one instrument."""
     counts = {}
     for r in read_rows(path):
-        d = r.get("oracles_sha", "pre-r389")
+        d = r.get("oracles_sha", PRE_R389)
         counts[d] = counts.get(d, 0) + 1
     return counts
 
@@ -1262,15 +1267,37 @@ def ab(path_a, path_b, sites=("R-CAP", "F-SLACK", "T-SPACE", "T-TAINT",
            # the part-level version of the question `ab()` exists to answer:
            # are these two arms even measuring the same thing?
            "arms_share_instrument": _same_parts(parts_a, parts_b),
+           # (round 407) the ROW-level version of the same question, which
+           # `arms_share_instrument` cannot answer for a pre-round-401 arm.
+           # `mixed_instrument` is a WITHIN-arm check and reads reassuring
+           # (`false`) precisely when each arm is internally uniform -- the
+           # case where the two arms can still be uniformly DIFFERENT.
+           # Round 401's `ab-A-vs-C.json` records `digests_a: {"pre-r389":
+           # 360}` beside `digests_b: {"82adbc790eed": 360}` with
+           # `mixed_instrument: false`, and no field said they disagreed.
+           "digests_match": _digests_match(da, db),
            "max_depth_a": _mode([A[s].get("max_depth", 500) for s in shared]),
            "max_depth_b": _mode([B[s].get("max_depth", 500) for s in shared]),
            "sites": {}, "oracles": {}, "flips": []}
     for sid in sites:
         conv, newfire, both, neither = [], [], 0, 0
+        # (round 407) Seeds the pairing DROPS. A row whose `sites` entry is
+        # absent for this site -- a `measure_error` row, or a parse error --
+        # has `fired is None` in one arm, and the loop below skips it in
+        # silence. That is the population an arm change is most likely to
+        # move: round 401's arm C recovered seed 31 from `measure_error` at
+        # `timeout_s=12`, seed 31 then FIRED `T-SPACE`, and `ab()` reported
+        # `new_fires: 0` because arm B had no verdict to compare against.
+        # The site's own fire table said 4 seeds; this function said 3.
+        unpaired_a, unpaired_b = [], []
         for sd in shared:
             fa = A[sd].get("sites", {}).get(sid, {}).get("fired")
             fb = B[sd].get("sites", {}).get(sid, {}).get("fired")
             if fa is None or fb is None:
+                if fb is None and fa is not None:
+                    unpaired_a.append(sd)
+                elif fa is None and fb is not None:
+                    unpaired_b.append(sd)
                 continue
             if fa and not fb:
                 conv.append(sd)
@@ -1280,6 +1307,10 @@ def ab(path_a, path_b, sites=("R-CAP", "F-SLACK", "T-SPACE", "T-TAINT",
                 both += 1
             else:
                 neither += 1
+        ta = _site_thresholds(A, shared, sid)
+        tb = _site_thresholds(B, shared, sid)
+        move = _classify_move(ta, tb, out["max_depth_a"], out["max_depth_b"])
+        moved = move == "undeclared"
         out["sites"][sid] = {
             "fired_a": len(conv) + both, "fired_b": len(newfire) + both,
             "converted": len(conv), "new_fires": len(newfire),
@@ -1290,7 +1321,32 @@ def ab(path_a, path_b, sites=("R-CAP", "F-SLACK", "T-SPACE", "T-TAINT",
             "still_firing_seeds": [sd for sd in shared
                                    if A[sd].get("sites", {}).get(sid, {}).get("fired")
                                    and B[sd].get("sites", {}).get(sid, {}).get("fired")][:40],
+            # (round 407) the THRESHOLD each arm's verdict was computed
+            # against. A `fired` boolean is a comparison against a number,
+            # and comparing two booleans across arms is only meaningful
+            # when that number held still. Recorded on every row since
+            # round 383; never read here until now.
+            "threshold_a": ta, "threshold_b": tb,
+            "threshold_move": move,
+            "threshold_moved": moved,
+            "comparable": not moved,
+            "n_compared": len(conv) + len(newfire) + both + neither,
+            "n_skipped": len(unpaired_a) + len(unpaired_b),
+            # only ONE arm had a verdict for these seeds
+            "unpaired_a": unpaired_a[:40], "unpaired_b": unpaired_b[:40],
+            # ...and these are the ones that FIRED in the arm that could
+            # measure them: the seeds whose verdict the pairing threw away.
+            "unpaired_fired_a": [sd for sd in unpaired_a
+                                 if A[sd]["sites"][sid].get("fired")][:40],
+            "unpaired_fired_b": [sd for sd in unpaired_b
+                                 if B[sd]["sites"][sid].get("fired")][:40],
         }
+    out["confounded_sites"] = sorted(sid for sid in out["sites"]
+                                     if out["sites"][sid]["threshold_moved"])
+    out["knob_sites"] = sorted(sid for sid in out["sites"]
+                               if (out["sites"][sid]["threshold_move"] or "")
+                               .startswith("declared"))
+    out["comparable"] = _comparable(out)
     for name in O.ORACLE_NAMES:
         tab = {}
         for sd in shared:
@@ -1310,6 +1366,128 @@ def ab(path_a, path_b, sites=("R-CAP", "F-SLACK", "T-SPACE", "T-TAINT",
     out["new_timeouts"] = [f for f in out["flips"] if f["to"] == "timeout"]
     out["new_crashes"] = [f for f in out["flips"] if f["to"] == "crash"]
     return out
+
+
+def _site_thresholds(rowmap, shared, sid):
+    """Sorted distinct `threshold` values this site's verdicts were computed
+    against, over the shared seeds. Empty when the site records none (the
+    predicate sites -- T-TAINT, T-NONE, T-ALL, P-NONE -- have no threshold,
+    so `threshold_moved` is False for them by construction, not by luck)."""
+    seen = set()
+    for sd in shared:
+        t = rowmap[sd].get("sites", {}).get(sid, {}).get("threshold")
+        if t is not None:
+            seen.add(t)
+    return sorted(seen)
+
+
+def _classify_move(ta, tb, max_depth_a, max_depth_b):
+    """Did this site's threshold move, and did the ARM declare the move?
+
+    Returns None (it did not move), `"declared:max_depth"` (it moved because
+    `max_depth` is this site's threshold and `max_depth` is what the arm
+    changed), or `"undeclared"` (it moved for a reason the arm did not name).
+
+    Only the last is a confound. `T-SPACE`'s threshold IS `max_depth`, so a
+    depth-ceiling A/B moves it BY CONSTRUCTION -- the first version of this
+    guard flagged all four of round 401's pairs, including the one whose two
+    arms share a byte-identical instrument, which is the cry-wolf shape this
+    package already names in `instrument.LANES`: a guard that fires on the
+    experiment is a guard the next round switches off."""
+    if not (ta and tb) or ta == tb:
+        return None
+    if (max_depth_a != max_depth_b
+            and ta == [max_depth_a] and tb == [max_depth_b]):
+        return "declared:max_depth"
+    return "undeclared"
+
+
+def _digests_match(da, db):
+    """True / False / None for "were these two arms measured by the same
+    oracle build?"
+
+    `sweep_digests` files every unstamped row under `PRE_R389`, which is a
+    NAME for "unknown", not a digest. An arm made only of those cannot be
+    compared to anything, and the honest answer is None -- the same
+    three-valued convention `_same_parts` uses one level down."""
+    ka = set(da) - {PRE_R389}
+    kb = set(db) - {PRE_R389}
+    if not ka or not kb:
+        return None
+    if len(ka) > 1 or len(kb) > 1:
+        return False            # a mixed arm is not one instrument
+    return ka == kb
+
+
+def _comparable(out):
+    """Three-valued: False when something KNOWN differs between the arms,
+    None when the record cannot say, True when it can and nothing did.
+
+    A confounded site is decisive on its own: the verdict boolean changed
+    meaning between the arms, so every count derived from it -- including
+    `converted_pct` -- is measuring the threshold edit, not the arm."""
+    if out["confounded_sites"]:
+        return False
+    if out["mixed_instrument"]:
+        return False
+    if out["digests_match"] is False or out["arms_share_instrument"] is False:
+        return False
+    if out["digests_match"] is None and out["arms_share_instrument"] is None:
+        return None
+    return True
+
+
+def ab_report(out):
+    """Render an `ab()` result so its comparability verdict cannot be
+    scrolled past. The JSON has carried the evidence since round 389; what
+    it never had was a line a reader sees before the conversion rates."""
+    verdict = {True: "yes", False: "NO", None: "UNKNOWN"}[out["comparable"]]
+    lines = ["A %s  n=%d  digests=%s" % (out["path_a"], out["n_a"],
+                                         _fmt_digests(out["digests_a"])),
+             "B %s  n=%d  digests=%s" % (out["path_b"], out["n_b"],
+                                         _fmt_digests(out["digests_b"])),
+             "shared %d   max_depth %s -> %s" % (out["n_shared"],
+                                                 out["max_depth_a"],
+                                                 out["max_depth_b"]),
+             "COMPARABLE: %s   (digests_match=%s arms_share_instrument=%s "
+             "mixed_instrument=%s)"
+             % (verdict, out["digests_match"], out["arms_share_instrument"],
+                out["mixed_instrument"])]
+    for sid in out["confounded_sites"]:
+        st = out["sites"][sid]
+        lines.append("  CONFOUNDED %-9s threshold moved %s -> %s with no "
+                     "declared knob: every count below for this site "
+                     "measures that edit"
+                     % (sid, st["threshold_a"], st["threshold_b"]))
+    for sid in out["knob_sites"]:
+        st = out["sites"][sid]
+        lines.append("  by design  %-9s threshold %s -> %s is the arm's own "
+                     "max_depth knob" % (sid, st["threshold_a"],
+                                         st["threshold_b"]))
+    lines.append("%-9s %8s %8s %10s %10s %9s %8s  %s"
+                 % ("site", "fired_a", "fired_b", "converted", "new_fires",
+                    "compared", "skipped", "threshold"))
+    for sid, st in out["sites"].items():
+        thr = ("%s -> %s" % (st["threshold_a"], st["threshold_b"])
+               if st["threshold_move"]
+               else (str(st["threshold_a"]) if st["threshold_a"] else "-"))
+        flag = ("  <-- CONFOUNDED" if st["threshold_moved"]
+                else ("  (knob)" if st["threshold_move"] else ""))
+        if st["n_skipped"]:
+            fired = sorted(st["unpaired_fired_a"] + st["unpaired_fired_b"])
+            flag += ("  [%d unpaired%s]"
+                     % (st["n_skipped"],
+                        (", %d of them FIRING: %s" % (len(fired), fired))
+                        if fired else ""))
+        lines.append("%-9s %8d %8d %10d %10d %9d %8d  %s%s"
+                     % (sid, st["fired_a"], st["fired_b"], st["converted"],
+                        st["new_fires"], st["n_compared"], st["n_skipped"],
+                        thr, flag))
+    return "\n".join(lines)
+
+
+def _fmt_digests(d):
+    return ",".join("%s x%d" % (k, v) for k, v in sorted(d.items()))
 
 
 def _same_parts(pa, pb):
@@ -1422,6 +1600,8 @@ def main(argv):
                                        or default_out("sweep")), indent=1))
     elif cmd == "ab":
         print(json.dumps(ab(_flag(argv, "--a"), _flag(argv, "--b")), indent=1))
+    elif cmd == "abreport":
+        print(ab_report(ab(_flag(argv, "--a"), _flag(argv, "--b"))))
     elif cmd == "deepest":
         out = {}
         for lim in (None, 6000):

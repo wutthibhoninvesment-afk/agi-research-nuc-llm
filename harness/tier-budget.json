@@ -120,6 +120,15 @@
             "first_pass_s": 2.9,
             "n_tests": 25,
             "why": "round 401's tightening of the tail-transparency SPACE exemption. Holds the only tests that pin the tightened branch, the map/oracle agreement on T-SPACE and the self-verifying anchor that follows it -- all of which go red on a change to oracles.py's tail branch or to Interpreter.DEFAULT_MAX_DEPTH, the same class round 383 found hiding in the slow tier for 15 rounds."
+        },
+        "test_swe_abconfound.py": {
+            "measured_s": 0.6,
+            "measured_round": 407,
+            "measured_utc": "2026-08-31",
+            "measured_by": "python3 harness/tierbudget.py measure --cap-s 25 test_swe_abconfound.py",
+            "first_pass_s": 0.6,
+            "n_tests": 17,
+            "why": "ab()'s comparability guard: pure JSONL-in/dict-out over synthetic rows plus four committed sweep arms, no interpreter reads at all. Promoted for the same reason as test_swe_instrument.py above -- what it guards is a SILENT failure, and a guard in the slow tier is a guard nobody runs"
         }
     }
 }

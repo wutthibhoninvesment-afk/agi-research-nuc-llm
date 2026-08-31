@@ -592,13 +592,11 @@
   },
   "401": {
    "bank": "state/swe/round-401/PREDICTIONS.md",
-   "status": "unscored",
-   "scored_by": null,
-   "where": "knowledge/round-401-the-exemption-that-was-doing-nothing.md",
-   "quote": "Predictions: banked before any measurement in state/swe/round-401/PREDICTIONS.md (21 items), scored in \u00a78.",
-   "remainder": "ALL 21 unscored. Round 401 was INTERRUPTED: its knowledge file stops mid-\u00a72 of a document whose own header promises eight sections, and the \u00a78 the quote above points at was never written. Entered by round 402, which LANDED round 401's diff but did not do its work and will not narrate a scoring it did not perform. The inputs are all present under state/swe/round-401/, so a SWE-loop(D) round can score these by re-running harness/swe/spacewitness.py against the same corpus -- or retire the bank explicitly. Reading the truncated file as if it concluded is the failure mode.",
-   "owner": "SWE-loop(D)",
-   "why": "Round 401 was interrupted mid-write; nobody has scored these and round 402, which landed the diff, deliberately did not score work it did not do. The track that banked them owns them. Cheapest discharge: re-run harness/swe/spacewitness.py over the corpus already sitting in state/swe/round-401/ and score against the 21 items, or retire the bank explicitly with a reason."
+   "status": "scored",
+   "scored_by": 407,
+   "where": "knowledge/round-407-the-verdict-that-was-a-comparison.md",
+   "quote": "## 5. Scoring round 401's bank: 9 HIT, 4 HALF, 8 MISS of 21",
+   "note": "Scored by round 407 (SWE-loop D), the track this entry named as owner, six rounds after round 402 entered the debt. All 21 carry a per-item verdict in that file's \u00a75 table with the measurement beside it; none was retired unscored and none is unscorable. Three entries are worth reading rather than counting. P12's verdict is decided by an arithmetic slip INSIDE P12: it quotes a per-oracle table that sums to 11 and then writes 14, and >=7-recovered is a HIT on 14 and a MISS on 11 -- \u00a75.1 gives the count on four different frames and it misses on three of them. P18 predicted 'strictly smaller than 247' about a quantity round 389's own table published as 490, one row above the row P18 was quoting. P19's '~40 s' anchor is not in round 389's file at all; the bisection it describes takes 0.3 s. The shape of the whole bank is in \u00a75.4: 11 of 12 outcome claims right, 1 of 5 mechanism claims right, 0 of 3 claims resting on an unchecked arithmetic or quoted anchor."
   },
   "402": {
    "bank": "state/whence/round-402/PREDICTIONS.md",
@@ -631,6 +629,14 @@
    "where": "knowledge/round-406-nuc-e-the-witness-that-was-present-at-everything.md",
    "quote": "9 HIT, 2 MISS, 1 PARTIAL of 12",
    "note": "None unscored; all 12 carry a verdict in that file's \u00a77 table. Three entries are worth reading rather than counting. P3 is a MISS that made the round's case HARDER before it made it easier: it predicted fwupd-refresh would be in ONE costly bucket and it is in BOTH of sa31's, which read as evidence FOR the attribution the round was refuting (p=0.0253) until the shared-bucket and replication arguments were separated out. P12 is a MISS whose refutation is independent support for the round's conclusion -- it predicted a costly bucket with no named fire on sa31, where there is none, and sa30's single costly bucket has exactly that property. P10 is PARTIAL and says so: its first two clauses are exact, and its '>= 8 further sar activity types' was never tested because the round modelled 7 and dropped -y/-H as not worth capturing. P7 is a HIT that the bank itself disclosed as already-measured at writing time, so it is not evidence of foresight and is labelled that way in the table."
+  },
+  "407": {
+   "bank": "state/swe/round-407/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 407,
+   "where": "knowledge/round-407-the-verdict-that-was-a-comparison.md",
+   "quote": "## 7. Scoring THIS round's bank: 15 HIT, 2 HALF, 8 MISS of 25",
+   "note": "Banked before a single one of round 401's data files was opened, and opening with a \u00a70 OBSERVATIONS ALREADY MADE section (round 395's convention) that declares round 401's headline sentence as already read -- so Q2 and Q3 are labelled not-foresight in the table rather than counted as hits. Three of the eight misses are instances of classes this repo had already written down: Q13 reproduced round 401's own P18 error by reasoning about the mechanism instead of opening round 389's table; Q22 grepped the identifier `gen_sha`, found nothing, and concluded the capability was absent when it is fully present as instrument.PARTS['gen'] (round 404 item 1's 'grep for the representation, not the name'); Q9 predicted a four-member family from its slogan and got one of four. None outstanding."
   }
  }
 }
