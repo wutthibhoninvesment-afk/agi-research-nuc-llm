@@ -18554,3 +18554,197 @@ carried**. No worktrees created. No background job left running.
    matches, so nothing is wrong — but sixty-three rounds of "acknowledged,
    not a gap" is worth one operator decision rather than another
    acknowledgement.
+
+### Round 412 — NUC-integration(E) — 2026-08-31
+
+**Box DOWN the whole round, and demonstrably the SAME outage as round 406**:
+`tailscale_last_seen` is byte-identical (`2026-08-31T16:30:00.1Z`), so no up
+window occurred between the two rounds. Two ssh probes, both rc 255, then
+probing stopped per CLAUDE.md. Record 46 of the reachability log; outage
+bracketed after 13:14:19Z, at or after 16:30:00.1Z, ≥ 5h41m at round end.
+Round 406's item 1 could not fire; **its item 4, marked "runnable offline on
+the next DOWN round", was the work** — and it contained more than it
+advertised.
+
+**The headline. `supported: []` was never checked for reachability, and for
+half the units it was unreachable.** Round 406 published "16 units tested,
+`supported: []` — this instrument, over this record, licenses no causal claim
+at all". That sentence has two readings — the box did nothing attributable,
+and the arithmetic could not have detected it if it had — and nothing in the
+output separated them. New `power_floor(N, K, n_units_tested, α)` computes,
+from the record's SHAPE alone and **with no data**, which occupancies could
+ever clear the Bonferroni bar. On round 406's own run (N=218, K=3, 16 units,
+bar 0.003125) the band is **occupancies 2..32, 14.2 % of N, and 8 of the 16
+units sit outside it**. Seven of the eight because their occupancy is too
+**LOW** — they fired once, and covering 1 of 3 costly buckets by chance is
+`3/218`, ×16 = 0.22. The testable set does not start at 1: `d=1` is
+untestable while `d=2` is testable, a hundredfold drop in `p_best` from one
+extra bucket, because covering *one* positive by chance is common and *two*
+is rare. Every instinct says the unit that fired once is the cleanest case;
+it is the one case that can never be decided.
+
+**`fwupd-refresh`'s swap-channel verdict was fixed before the data was read.**
+`d=36` ⇒ `p_best = 0.00419`, ×16 = 0.067 > 0.05 — **hitting all three costly
+buckets would still have read `coincidence`.** Round 406's DROP stands (its
+consistency argument, 33 of 36 fires moving zero bytes, is independent), but
+the chance test it also reported had no power to say otherwise. And **`sa30`
+ALONE has K=1**, where `1/218 × 16 = 0.0734` makes *no* occupancy testable:
+run per-day, the whole instrument returns the same confident empty list from a
+day with **zero** power. Round 406 pooled the days "because sa30 contributes
+23 free fwupd fires"; this is the quantitative reason pooling was *necessary*.
+
+**Item 4 answered.** `cost_ledger` was channel-locked on the literal
+`pswpout/s`. It now takes a `Channel` separating a **rate** column
+(self-contained per bucket) from a **level** column (`kbcommit`, a delta,
+whose first row and post-restart rows are **undefined — `None`, not `0`**,
+routed to `unclassified`). On `Committed_AS` (N=216, K=9) fwupd at `d=36` is
+*inside* the band, the test genuinely runs, and it fails — 1 of 9 covered,
+`p=0.813`. **The DROP now rests on a powered test rather than a consistency
+argument alone.**
+
+**The result I did not go looking for: the biggest swap event of the boot
+committed nothing.** `sa31` 04:00:03 — 220.89 MB out, five named units in it,
+circled by rounds 388/394/400 as "the largest perturbation this deployment has
+seen" — has a commit rise of **0**, and raw `kbcommit` **FALLS 1.6 MB** across
+it. Nothing was allocated there: that was **reclaim against already-committed
+memory**, not a housekeeping unit allocating, and the apt cluster the record
+keeps circling did not allocate. 02:00:05 (fwupd's) by contrast **is** a real
+allocation, +150.62 MB committed alongside 67.68 MB out. Caveat kept explicit:
+`kbcommit` is committed address space, not RSS, so this refutes the "a unit
+allocated 220 MB" story without naming what drove the reclaim.
+
+**Sweep: 9 thresholds × 2 channels, `supported` is `[]` in all 18** — round
+406's headline survives everything, which is what makes it a result rather
+than a setting. The inversion I predicted **backwards**: above ~134 MB the
+**swap** channel has no testable unit at any occupancy
+(`supported_was_reachable: false`), while the commit channel never enters that
+regime. The robust instrument is the one with more events in it.
+
+**Round 406's own test for the consistency rule never reached it.** Fixture
+N=79, K=1, d=18 ⇒ `p_chance = 0.228`, so the chance branch fired first; the
+test asserted the right verdict *string* while the branch it was named after
+was unreachable behind an earlier one, and it went red the moment `untestable`
+was inserted. **A verdict string can be correct while the branch that produced
+it is not the one the test is named after.** Split into a pin for the
+discovery and a rewritten test on a fixture that reaches the rule.
+
+**Testability is a property of the RUN, not the unit** — Bonferroni's
+corollary, found by writing a fixture that refused to fail. The same 36 fires
+with the same best case are testable in a family of 1 and untestable in a
+family of 16: **widening the family retracts a claim with no new
+observation.** Correct, but a verdict without its `n_units_tested` is not
+reproducible, so it now rides in every record.
+
+**Two latent defects fixed.** `parse_sar` silently DISCARDED `LINUX RESTART` —
+harmless for a rate column, corrupting for a level one, where an 18.4 GB
+reboot step would have been booked as a unit's cost;
+`sysstat_archive.parse_day` had always kept it, and **two parsers over the
+same bytes disagreeing about whether a marker is representable is a defect
+that only appears when a new consumer needs it.** And `bucket_shared_by`
+counted **fires, not distinct units**, reporting `sole_attributable: False`
+about a bucket with exactly one unit in it. Predicted that was reachable in
+the banked record (A9) — **it is not**, zero buckets hold same-unit repeats,
+so every published number is unchanged. Both pinned as fix *and* as
+no-movement.
+
+**`CHANNEL_MIN_BYTES["commit"] is None` and `cost_ledger` RAISES.**
+`LEDGER_MIN_BYTES` is derived from two labelled swap events; the commit
+channel has no such pair on this record, so the code demands the number
+explicitly rather than shipping a default with a derivation-shaped comment and
+no derivation.
+
+**Verification.** `nuc/tests/test_perturbation.py` **65 → 96**; whole nuc suite
+**638 → 669 passed**, 68.6 s, exit 0. `constant_audit` 23/18/**0.783**/0
+transform risks (unchanged). `skills/run_checks_fast.sh` **7 checkers, 0
+errors** — skill_lint 62/0/0, claim_check 135 resolved / 0 stale, xref 0
+dangling authoritative, state_claim 0 stale, carryforward 0 errors, unit_tests
+759 passed. `carryforward` correctly went **ERROR K001** mid-round for this
+round's own unscored bank — D-013's second half, caught by the machine round
+369 built for it — and was cleared by scoring.
+
+**Predictions: 14 HIT / 2 PARTIAL / 3 MISS of 19.** The pattern is the
+finding: **11 of 11 predictions I could have computed on paper were HITs, and
+0 of 4 empirical magnitudes I guessed at were clean.** B7 being backwards
+produced the best result in the round. That is itself an argument for
+computing the power floor *before* the capture rather than after.
+
+**Built:** `power_floor` / `best_case_p` / `Channel` / `bucket_costs` /
+`channel_sweep`, the `untestable` verdict, `testable` / `p_best` /
+`supported_was_reachable` fields, and `power` / `sweep` CLI modes — all in
+`nuc/perturbation.py`; `skills/null-result-needs-a-power-floor/` (+4 trigger
+cases, registered unprobed).
+
+**Hygiene:** no contact with the box was possible; two ssh attempts, both
+timed out, then stopped. No scp, no writes on the box, no unit restarted.
+**Port 8001 never contacted; no engine request of any kind** — every module
+touched is pure text-in/dict-out and opens no socket.
+`languages/whence/SECURITY.md` was already modified on arrival (Hermes
+gateway): untouched, not reverted, not committed; **64 rounds carried**. No
+worktrees created. No background job left running.
+
+## Next steps (as of round 412)
+
+1. **NUC-E, and it is the first thing the next E round does: reachability,
+   then — if UP — `python3 nuc/capture_manifest.py plan --capture
+   state/nuc-capture-r400 > /tmp/cap.sh && bash /tmp/cap.sh` BEFORE anything
+   else.** One command, ~2 MB, closes all three of round 406's blocking
+   capture gaps and self-verifies. **Second round carried**, both times
+   because the box was down. `sa23` is still overwritten 2026-09-23.
+2. **The 04:00:03 reclaim is newly unexplained in a SPECIFIC way, and the
+   next probe is offline.** Round 412 showed nothing was allocated there, so
+   the question is no longer "which unit allocated" but "what touched
+   already-committed pages". `sar -B` (`pgscan`/`pgsteal`) is banked for
+   sa30/sa31 in `state/nuc-capture-r400/sar-all.txt`, this round did not read
+   it, and it needs no box. NUC-E.
+3. **Stitch consecutive `sar` day-files.** A level channel loses each day's
+   first bucket, and three units (`dpkg-db-backup`, `logrotate`,
+   `sysstat-summary`) vanish from the commit family for exactly that reason —
+   16 tested units → 13. The data to stitch is already in git, so this is
+   offline work. NUC-E.
+4. **The journal, not `sar`, bounds attribution to two of nine banked days**
+   (`unit-starts.txt` covers 2026-08-30 → 08-31 only). Any future up-round
+   capture should take a journal window WIDER than one boot; `sar` breadth
+   without journal breadth buys nothing for attribution. NUC-E.
+5. **`case_coverage` has 27 warnings and they remain the corpus's largest
+   standing debt** (P004/P006/P007/P009): 51 of 105 cross-report case verdicts
+   DISAGREE, 5 descriptions REFUTED, 29 UNDECIDED.
+   `policy-replay-over-history`'s verdict rests on a single unreplicated draw.
+   Needs a priced `trigger_eval` re-probe budgeted as a whole round, which is
+   why it keeps being carried. skills(B). Three skills are now registered
+   unprobed (`cause-needs-a-denominator`, `verdict-carries-its-threshold`,
+   `null-result-needs-a-power-floor`) and should be probed in one batch.
+6. **Round 411's items 2 and 3 carry forward**: a single
+   `command_exempt_reason(cmd, tok, bases)` composing all four suppression
+   rules (skills B), and a mutation-style check that deletes a pinned call and
+   requires a specific test to go red (harness A or SWE-loop D). Round 412 hit
+   the same class from the other side — a test whose fixture cannot reach the
+   branch it is named after passes forever — so the falsification machine now
+   has two independent motivating instances.
+7. **Round 409's items 2, 3, 4 and 5 are untouched and carry forward** (the
+   `split_measured_output` count-line boundary and `MEASURED_END_SENTINEL`;
+   the stale pristine-check ledger; the falsification-as-a-test machine, see 6;
+   `run_tests_fast.sh`'s echoed block outgrowing every `tail`). harness(A).
+8. **Round 408's items 2, 5 and 6 carry forward** (the `check "<name>"` sweep;
+   round 402's host-only HINT class; `parser.quote_str` vs `values._quote`).
+   language(C).
+9. **Round 408's item 9 (CLAUDE.md's `🔴 CRITICAL MISSION` block is stale in
+   both halves) is re-escalated for the FOURTH time.** Unchanged again; both
+   its items were answered by rounds 349 and 33/v0.23, and every round pays a
+   re-read for it. CLAUDE.md is the operator's file (round 346), so this needs
+   the operator, not a round.
+10. **Blocked on the operator: `--cap 196` and the E3 A/B.** Round 412 adds a
+    precondition — **any A/B must publish its power floor BEFORE it runs**.
+    An A/B that cannot reach significance at its planned `n` is the same
+    defect this round found, and `nuc.perturbation power` answers it with no
+    data.
+11. **`nuc/run_checks_fast.sh` still has 0 references in `run_driver.sh` —
+    FIFTH round carried.** harness(A) owns it. Note that
+    `skills/run_checks_fast.sh` IS wired (round 363), so a basename grep lies.
+12. **Round 406's items 1-7 carry forward** where not closed above; round
+    405's items 1-4, round 404's items 1-4 and 7, round 403's items 2-5, and
+    round 336's remaining language(C) items carry forward. The `Harness (A)`
+    half of the Track-status audit is still the last one owed.
+13. **`languages/whence/SECURITY.md` has now been carried 64 rounds.** The
+    round-349 escalation is still accurate and its content pin still matches,
+    so nothing is wrong — but sixty-four rounds of "acknowledged, not a gap"
+    is worth one operator decision rather than another acknowledgement.

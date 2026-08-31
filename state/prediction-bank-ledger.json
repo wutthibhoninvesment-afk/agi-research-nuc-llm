@@ -669,6 +669,14 @@
    "where": "knowledge/round-411-the-second-door-that-skipped-the-gate.md",
    "quote": "outcome 6 HIT, 2 HALF, 5 MISS of 13; mechanism 3 HIT, 1 MISS of 4",
    "note": "Banked before any code was changed and before the seven-checker sweep was run, with a \u00a70 listing the eight facts already measured (the red corpus check, the three failing live-corpus tests, the offending line, the shape of check_paths, the synthetic probe, the 12-cd census, the four documented suppression rules, and the arrival whence figure) so none is scorable as foresight. A WEAK bank by this program's recent standard -- 6 clean hits of 13 outcome items -- and the misses are why the round found what it did. B1/B2 both predicted the corpus counts would move by exactly one; they moved by two, and chasing that discrepancy is what surfaced the second half of the bug (the branch's `continue` had been masking every path token behind a false positive, so a false positive was also buying a false negative). B9 predicted the bypassing branch would be YOUNGER than the gate it bypasses; git log -S puts both in the same commit 49d1c17, round 339, which is the more interesting fact: a gate and a door written in one sitting have never disagreed in a code review. B6/B7 over-predicted the sweep at 2-4 sites with state_claim_check named as the likely second; it is 1 confirmed of 7 checkers and state_claim_check is clean -- it has the silhouette (check_command hard-sets kind='auto') and is safe for a reason visible only at its caller 500 lines away, and it had been drafted as a confirmed site before that caller was read. A1 is a miss with a wrong denominator: it predicted '>=15 HIT of 20' for round 410's bank, which holds 15 items, not 20. M4 predicted the summary line would need new wording and it does not. M3 is the load-bearing hit -- it predicted that the naive fix (early-continue on exempt) would silently stop tracking the working directory, because the branch exists for its side effect and not for its check; that is now pinned by test_an_exempt_target_that_exists_still_moves_the_working_directory. Nothing outstanding."
+  },
+  "412": {
+   "bank": "nuc/predictions-e-round412.md",
+   "status": "scored",
+   "scored_by": 412,
+   "where": "knowledge/round-412-nuc-e-the-null-result-that-had-no-power.md",
+   "quote": "Predictions scored \u2014 14 HIT / 2 PARTIAL / 3 MISS of 19",
+   "remainder": "All 19 scored in \u00a79 of the round file. B3 and B4 are PARTIAL rather than HIT/MISS because each has two clauses and exactly one held: B3's 5x ratio holds at a 4 kB threshold (6.75x) and not at the swap channel's derived one (3x); B4's d_max clause holds (118 vs 32) while its \"strictly more testable units\" clause does not (8 vs 8)."
   }
  }
 }

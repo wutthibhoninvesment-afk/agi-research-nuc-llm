@@ -1678,3 +1678,115 @@ item 6, third occurrence). The authority is
   next up-round may satisfy it for free; capture `uptime -s` first; (7)
   harness(A) still owns wiring `nuc/run_checks_fast.sh` into `run_driver.sh` —
   0 references, **fourth round carried**.
+
+## Round 412 (NUC-integration E) — 2026-08-31, box **DOWN** the whole round; SAME continuous outage as round 406 (`tailscale_last_seen` byte-identical), so no up window occurred between the two rounds
+
+- **Reachability.** `reachability_check check --round 412` at
+  **2026-08-31T22:11:08Z**: ssh to `jab@100.78.44.111` rc 255 (timed out),
+  `tailscale_online: false`, `tailscale_last_seen 2026-08-31T16:30:00.1Z` —
+  **the same value round 406 recorded**, which is the evidence that this is
+  one outage and not two. A second confirming probe also timed out; two
+  consecutive failures ⇒ probing stopped per CLAUDE.md. Record **46** of
+  `state/nuc-reachability-log.jsonl` (`verdict: down`, `source: live`,
+  `precision: precise`). Outage now bracketed: after **13:14:19Z** (round
+  400's last contact, up), at or after **16:30:00.1Z**, still open at
+  22:11:08Z — **≥ 5h41m**.
+- **Round 406's item 1 (run `capture_manifest plan` if UP) did not fire and
+  carries forward unchanged.** Item 4, explicitly marked *"runnable offline on
+  the next DOWN round"*, was this round's work.
+- **`supported: []` was never checked for reachability, and for half the units
+  it was unreachable.** New `power_floor(N, K, n_units_tested, α)` computes,
+  from the record's SHAPE alone and with no data, which occupancies could ever
+  clear the Bonferroni bar. On round 406's own pooled run (N=218, K=3, 16
+  units, bar 0.003125) the testable band is **occupancies 2..32 — 14.2 % of
+  N — and 8 of the 16 units are outside it.** Seven because their occupancy is
+  too LOW (`d=1`; covering 1 of 3 by chance is `3/218`, ×16 = 0.22), one
+  because it is too high.
+- **`fwupd-refresh`'s swap-channel verdict was fixed before the data was
+  read.** `d=36` gives `p_best = 0.00419`, ×16 = **0.067 > 0.05**: hitting all
+  three costly buckets would still have read `coincidence`. Round 406's DROP
+  is still right — its consistency argument (33 of 36 fires moved zero bytes)
+  is independent — but the chance test it also reported had no power.
+- **`sa30` ALONE has K=1, and a record with one costly bucket can support
+  nothing at any occupancy** (`1/218 × 16 = 0.0734`). Round 406 pooled the two
+  day-files "because sa30 contributes 23 free fwupd fires"; this is the
+  quantitative reason pooling was *necessary*, not merely useful. Run per-day,
+  the instrument returns the same confident empty list from a day with zero
+  power.
+- **Item 4 answered: the commit channel gives fwupd the powered test swap
+  could not.** `cost_ledger` was channel-locked on the literal `pswpout/s`;
+  it now takes a `Channel` that distinguishes a **rate** column
+  (self-contained per bucket) from a **level** column (`kbcommit`, a delta,
+  with the table's first row and any post-restart row **undefined — `None`,
+  not `0`**). On `Committed_AS` (N=216, K=9) fwupd at `d=36` is *inside* the
+  band, the test genuinely runs, and fwupd fails it (covered 1 of 9,
+  `p=0.813`).
+- **THE BIGGEST SWAP EVENT OF THE BOOT COMMITTED NOTHING.** `sa31` 04:00:03 —
+  the 220.89 MB bucket rounds 388/394/400 all circled as "the largest
+  perturbation this deployment has seen", with five named units in it — has a
+  commit rise of **0**; raw `kbcommit` **FALLS 1.6 MB** across it. No new
+  address space was promised, so that was **reclaim against memory already
+  committed, not a housekeeping unit allocating**. The apt cluster did not
+  allocate. By contrast 02:00:05 (fwupd's) **is** a real allocation: +150.62 MB
+  committed alongside 67.68 MB out. Caveat kept explicit: `kbcommit` is
+  committed address space, not RSS, so this rules out the "a unit allocated
+  220 MB" story without identifying what did drive the reclaim.
+- **The sweep, 9 thresholds × 2 channels: `supported` is `[]` in all 18.**
+  Round 406's headline survives everything, which is what makes it a result.
+  The inversion I predicted backwards: **above ~134 MB the SWAP channel has no
+  testable unit at any occupancy** (`supported_was_reachable: false`), while
+  the commit channel never enters that regime.
+- **Two defects fixed, both latent.** `parse_sar` silently DISCARDED
+  `LINUX RESTART` — harmless for a rate column, corrupting for a level one
+  (an 18.4 GB reboot step would have been booked as a unit's cost);
+  `SarRow.restart_before` now carries it and `139 + 79 = 218` reproduces round
+  400's N. And `bucket_shared_by` counted **fires, not distinct units**, so two
+  fires of one unit in a bucket reported `sole_attributable: False` about a
+  bucket with exactly one unit in it. **Zero buckets in the r400 capture hold
+  same-unit repeats**, so every published number is unchanged — pinned as both.
+- **Round 406's own test for the consistency rule never reached it.** Its
+  fixture (N=79, K=1, d=18) has `p_chance = 0.228`, so the chance branch fired
+  first; it asserted the right verdict string for the wrong reason and went red
+  the moment `untestable` was inserted. Split into a pin for the discovery and a
+  rewritten test on a fixture that reaches the rule.
+- **The journal, not `sar`, bounds attribution.** `unit-starts.txt` covers
+  **2026-08-30T00:32:32 → 2026-08-31T13:16:41** only. Item 4's "all nine days"
+  is true of the CHANNEL and false of the analysis; `sa23`–`sa29` have no unit
+  fires banked at all.
+- **`CHANNEL_MIN_BYTES["commit"] is None` and `cost_ledger` RAISES.**
+  `LEDGER_MIN_BYTES` is derived from two labelled swap events; the commit
+  channel has no such pair on this record, so it demands the number explicitly
+  rather than shipping a default with a derivation-shaped comment.
+- Built: `power_floor` / `best_case_p` / `Channel` / `bucket_costs` /
+  `channel_sweep` + `untestable` verdict + `testable` / `p_best` /
+  `supported_was_reachable` fields + `power` and `sweep` CLI modes, all in
+  `nuc/perturbation.py`; `skills/null-result-needs-a-power-floor/` (+4 trigger
+  cases, registered unprobed). Tests **638 → 669**, all green; audit
+  23/18/0.783/0 transform risks (unchanged). Skills corpus 7 checkers,
+  **0 errors** (62 skills, 265 cases). **14 HIT / 2 PARTIAL / 3 MISS of 19.**
+- Hygiene: no contact with the box was possible; two ssh attempts, both timed
+  out, then stopped. No scp, no writes on the box, no unit restarted. **Port
+  8001 never contacted; no engine request of any kind.** Every module touched
+  is pure text-in/dict-out and opens no socket.
+- **Next E round, in order:** (1) reachability check first; **if UP, run
+  `python3 nuc/capture_manifest.py plan --capture state/nuc-capture-r400 > /tmp/cap.sh && bash /tmp/cap.sh`
+  before anything else** — round 406's item 1, unchanged, second round
+  carried; (2) with `Finished` lines, run interval-attribution and re-grade
+  the 02:00:05 event — and note it is now the ONLY one of the two big events
+  with an allocation behind it; (3) **the 04:00:03 reclaim is newly
+  unexplained in a specific way** — nothing allocated, so ask what *touched*
+  already-committed pages: `sar -B` (`pgscan`/`pgsteal`) is banked for sa30/31
+  and this round did not read it, and it is runnable OFFLINE; (4) stitch
+  consecutive `sar` day-files so a level channel does not lose each day's
+  first bucket — three units (`dpkg-db-backup`, `logrotate`,
+  `sysstat-summary`) vanish from the commit family for exactly this reason,
+  and the data is already in git, so this is offline work too; (5) capture a
+  journal window WIDER than one boot, since the journal and not `sar` is what
+  bounds attribution to two of nine banked days; (6) still blocked on the
+  operator: `--cap 196` and the E3 A/B — and any A/B must now publish its
+  power floor BEFORE it runs, because an A/B that cannot reach significance is
+  the same defect this round found; (7) round 370's item 3 needs a FRESH boot;
+  the outage means the next up-round may satisfy it for free — capture
+  `uptime -s` first; (8) harness(A) still owns wiring `nuc/run_checks_fast.sh`
+  into `run_driver.sh` — 0 references, **fifth round carried** (note
+  `skills/run_checks_fast.sh` IS wired, round 363, so a basename grep lies).

@@ -389,7 +389,7 @@ def test_ledger_places_a_fire_in_the_bucket_that_ENDS_after_it():
     assert led["entries"][0]["bucket_end"] == "02:00:05"
     assert led["entries"][0]["costly"] is True
     assert led["entries"][0]["sole_attributable"] is True
-    assert led["entries"][0]["bucket_swapped_bytes"] == round(27.54 * 600) * 4096
+    assert led["entries"][0]["bucket_bytes"] == round(27.54 * 600) * 4096
 
 
 def test_a_fire_on_a_bucket_boundary_goes_to_the_NEXT_bucket():
@@ -421,14 +421,14 @@ def test_a_shared_bucket_is_not_divided_and_no_fire_is_sole_attributable():
         assert e["sole_attributable"] is False
 
 
-def test_total_swapped_bytes_sums_distinct_buckets_not_fires():
+def test_total_cost_bytes_sums_distinct_buckets_not_fires():
     """Summing per-fire bytes reported 799 MB for a day whose real total is
     289 MB. The bucket's cost is a property of the bucket."""
     t = _swap_table([("03:50:05", 0.00), ("04:00:03", 89.88)])
     one = cost_ledger(_fires(("03:57:05", "fwupd-refresh")), t, "2026-08-31")
     three = cost_ledger(_fires(("03:50:05", "apt-daily"), ("03:50:09", "packagekit"),
                                ("03:57:05", "fwupd-refresh")), t, "2026-08-31")
-    assert one["total_swapped_bytes"] == three["total_swapped_bytes"]
+    assert one["total_cost_bytes"] == three["total_cost_bytes"]
 
 
 def test_the_instrument_is_excluded_by_default_and_can_be_included():
@@ -539,14 +539,38 @@ def test_a_single_fire_can_never_be_supported_however_expensive():
     assert "replication" in ev["why"]
 
 
-def test_a_unit_whose_own_fires_are_mostly_free_is_a_coincidence():
-    """The refutation in miniature: one expensive bucket, many zero ones."""
+def test_round_406s_consistency_fixture_never_reached_the_consistency_rule():
+    """Round 412. This fixture was WRITTEN to demonstrate the consistency rule
+    ("a cause absent from most of its own occurrences is not the cause") and
+    it never exercised it. With N=79, K=1 and one unit tested, an occupancy of
+    18 gives p_chance = 18/79 = 0.228, so the CHANCE branch fires first and
+    the consistency branch is unreachable behind it. The verdict string was
+    right for the wrong reason, and round 412's power floor is what makes the
+    difference visible: at K=1 the testable band is 1..3, and d=18 is outside
+    it, so no arrangement of these fires could have been supported."""
     entries = [_entry("fwupd-refresh", "02:00:05", 67_682_304)]
     entries += [_entry("fwupd-refresh", f"{h:02d}:00:05", 0) for h in range(3, 20)]
     ev = attribution_evidence([_ledger(entries, 79, 1)])["units"][0]
     assert ev["n_fires"] == 18 and ev["n_zero_byte"] == 17
     assert ev["consistency"] == pytest.approx(1 / 18)
+    assert ev["verdict"] == "untestable"
+    assert pt._hypergeom_atleast(79, 1, 18, 1) > 0.05    # the branch that fired
+
+
+def test_a_unit_whose_own_fires_are_mostly_free_is_a_coincidence():
+    """The consistency rule, on a fixture that can actually reach it: the unit
+    covers every costly bucket there is (so chance is ruled out at p=1e-5) and
+    is STILL rejected, because 4 of its 10 fires cost nothing."""
+    entries = [_entry("fwupd-refresh", f"{h:02d}:00:05", 67_682_304)
+               for h in range(1, 5)]
+    entries += [_entry("fwupd-refresh", f"{h:02d}:00:05", 0) for h in range(5, 11)]
+    ev = attribution_evidence([_ledger(entries, 79, 4)])["units"][0]
+    assert ev["n_fires"] == 10 and ev["n_costly"] == 4 and ev["n_clean"] == 4
+    assert ev["testable"] is True            # chance is NOT the binding rule
+    assert ev["p_family"] < 0.05
+    assert ev["consistency"] == pytest.approx(0.4)
     assert ev["verdict"] == "coincidence"
+    assert "of its own" in ev["why"]         # the consistency branch's text
 
 
 def test_a_costly_hit_shared_with_another_unit_is_never_attributable():
@@ -640,7 +664,7 @@ def test_the_banked_capture_still_reproduces_round_400s_headline_ledger():
     assert len(sole) == 1
     assert sole[0]["unit"] == "fwupd-refresh"
     assert sole[0]["at_utc"] == "2026-08-31T01:57:33Z"
-    assert sole[0]["bucket_swapped_bytes"] == 67_682_304
+    assert sole[0]["bucket_bytes"] == 67_682_304
 
 
 def test_fwupd_refresh_fires_36_times_and_33_of_them_cost_nothing():
@@ -655,7 +679,14 @@ def test_fwupd_refresh_fires_36_times_and_33_of_them_cost_nothing():
     assert ev["n_costly"] == 2
     assert ev["n_clean"] == 1          # only the 02:00:05 bucket is separable
     assert ev["occupancy"] == pytest.approx(36 / 218, abs=1e-4)
-    assert ev["verdict"] == "coincidence"
+    # Round 412 moved this verdict from `coincidence` to `untestable`. Round
+    # 406 read "coincidence" as "we tested it and it looks like chance". At
+    # d=36 against K=3 in N=218 the best p this unit could ever attain is
+    # 0.00419, and 0.00419*16 = 0.067 > 0.05 -- so even hitting ALL THREE
+    # costly buckets would have been graded `coincidence`. The swap channel
+    # never had the power to support fwupd, whatever it did.
+    assert ev["verdict"] == "untestable"
+    assert ev["testable"] is False
 
 
 def test_not_one_unit_in_the_whole_boot_licenses_an_attribution():
@@ -682,5 +713,438 @@ def test_cli_evidence_pools_ledger_files_and_filters_by_unit(tmp_path):
     assert out.returncode == 0, out.stderr
     got = json.loads(out.stdout)
     assert [u["unit"] for u in got["units"]] == ["fwupd-refresh"]
-    assert got["units"][0]["verdict"] == "coincidence"
+    assert got["units"][0]["verdict"] == "untestable"
     assert got["n_units_tested"] == 16      # the filter must not shrink the family
+
+
+# =====================================================================
+# Round 412 -- the power floor, and the ledger as a two-channel instrument.
+#
+# Round 406 reported `supported: []` over the whole boot and wrote "this
+# instrument, over this record, licenses no causal claim at all". That
+# sentence conflates two different facts: the box did nothing attributable,
+# and the arithmetic could not have detected it if it had. These tests pin the
+# separation.
+
+from nuc.perturbation import (                                    # noqa: E402
+    Channel, SWAP_CHANNEL, COMMIT_CHANNEL, CHANNEL_MIN_BYTES,
+    bucket_costs, best_case_p, power_floor, channel_sweep,
+)
+
+_SAR_WITH_RESTART = """Linux 6.8.0-138-generic (pgain-nuc) 	08/30/26 	_x86_64_	(4 CPU)
+
+00:32:34     LINUX RESTART	(4 CPU)
+
+00:40:05    kbmemfree kbcommit
+00:50:05      273148  30634440
+01:00:05      270976  30640000
+"""
+
+
+# ---------------------------------------------------- the restart marker
+
+def test_parse_sar_marks_the_row_after_a_linux_restart():
+    """It used to DROP the marker. Harmless for a rate column, corrupting for
+    a level one: the delta across a reboot is two different address spaces."""
+    t = parse_sar(_SAR_WITH_RESTART)
+    assert [r.time for r in t.rows] == ["00:50:05", "01:00:05"]
+    assert t.rows[0].restart_before is True
+    assert t.rows[1].restart_before is False
+
+
+def test_the_real_sa30_table_has_exactly_one_post_restart_row():
+    t = parse_sar((_CAP / "sarW-30.txt").read_text())
+    assert [r.time for r in t.rows if r.restart_before] == ["00:50:05"]
+    assert len(t.rows) == 139          # and sa31 has 79: 139+79 = round 400's N
+
+
+# ------------------------------------------------------------- channels
+
+def test_a_rate_channel_cost_is_self_contained_per_bucket():
+    t = parse_sar((_CAP / "sarW-31.txt").read_text())
+    costs = bucket_costs(t, SWAP_CHANNEL)
+    assert len(costs) == len(t.rows)
+    assert all(b is not None for _n, _v, b in costs)     # never undefined
+    assert dict((n, b) for n, _v, b in costs)["02:00:05"] == 67_682_304
+
+
+def test_a_level_channels_first_and_post_restart_buckets_are_undefined():
+    """`None`, not `0`. Round 400's own rule -- a fire whose cost is unknown
+    is not a fire that cost nothing -- applied to the buckets themselves."""
+    costs = bucket_costs(parse_sar(_SAR_WITH_RESTART), COMMIT_CHANNEL)
+    assert costs[0][2] is None          # post-restart AND first row
+    assert costs[1][2] == (30_640_000 - 30_634_440) * 1024
+
+
+def test_a_level_channel_reads_rises_only_by_default():
+    """A fall in Committed_AS is some other process exiting. Crediting a unit
+    with it would make the ledger's sign depend on who happened to die."""
+    text = _SAR_WITH_RESTART.replace("01:00:05      270976  30640000",
+                                     "01:00:05      270976  30000000")
+    assert bucket_costs(parse_sar(text), COMMIT_CHANNEL)[1][2] == 0
+    both = Channel("c", "kbcommit", "level", 1024, "both")
+    assert bucket_costs(parse_sar(text), both)[1][2] == (30_634_440 - 30_000_000) * 1024
+
+
+def test_a_channel_rejects_an_incoherent_declaration():
+    with pytest.raises(pt.PerturbationError):
+        Channel("x", "c", "levl", 1)
+    with pytest.raises(pt.PerturbationError):
+        Channel("x", "c", "level", 1, "sideways")
+    with pytest.raises(pt.PerturbationError):
+        Channel("x", "c", "rate", 1, "rise")     # a rate has no predecessor
+
+
+def test_bucket_costs_refuses_a_table_without_the_channels_column():
+    t = parse_sar((_CAP / "sarW-31.txt").read_text())
+    with pytest.raises(pt.PerturbationError) as e:
+        bucket_costs(t, COMMIT_CHANNEL)
+    assert "kbcommit" in str(e.value)
+
+
+# ------------------------------------------- the threshold has no default
+
+def test_the_commit_channel_refuses_to_invent_a_costly_threshold():
+    """`LEDGER_MIN_BYTES` is derived from two LABELLED swap events. The commit
+    channel has no such pair on this record, so a default would be a number
+    with a derivation-shaped comment and no derivation."""
+    assert CHANNEL_MIN_BYTES["commit"] is None
+    t = parse_sar(_sar_sections((_CAP / "sar-all.txt").read_text())["SAR_R_SA31"])
+    with pytest.raises(pt.PerturbationError) as e:
+        cost_ledger([], t, "2026-08-31", channel=COMMIT_CHANNEL)
+    assert "channel_sweep" in str(e.value)
+    cost_ledger([], t, "2026-08-31", channel=COMMIT_CHANNEL, min_bytes=1 << 20)
+
+
+# ------------------------------------------------------- the power floor
+
+def test_a_record_with_one_costly_bucket_can_support_nothing_at_all():
+    """The vacuity case, exactly. N=218, K=1, 16 units: the smallest p any
+    unit can attain is 1/218 = 0.00459, and 0.00459*16 = 0.073 > 0.05."""
+    pf = power_floor(218, 1, 16)
+    assert pf["any_testable"] is False
+    assert pf["n_testable_occupancies"] == 0
+    assert pf["best_p_at_occupancy_1"] == pytest.approx(1 / 218)
+    assert "whatever it contains" in pf["why"]
+
+
+def test_occupancy_that_is_too_LOW_is_as_fatal_as_occupancy_too_high():
+    """The counterintuitive half. Covering 1 of K by chance is common;
+    covering 2 of K is rare. So d=1 can be untestable while d=2 is testable,
+    and the testable set does not start at 1."""
+    pf = power_floor(218, 3, 16)
+    assert pf["min_testable_occupancy"] == 2
+    assert pf["max_testable_occupancy"] == 32
+    assert best_case_p(218, 3, 1) > best_case_p(218, 3, 2)
+    assert best_case_p(218, 3, 1) * 16 > 0.05          # d=1 cannot clear
+    assert best_case_p(218, 3, 2) * 16 <= 0.05         # d=2 can
+
+
+def test_best_case_p_is_the_tail_at_the_best_possible_number_of_hits():
+    assert best_case_p(218, 3, 36) == pt._hypergeom_atleast(218, 3, 36, 3)
+    assert best_case_p(218, 3, 2) == pt._hypergeom_atleast(218, 3, 2, 2)  # d<K
+
+
+def test_power_floor_rejects_an_impossible_record_shape():
+    for args in ((0, 0, 1), (10, 11, 1), (10, 2, 0)):
+        with pytest.raises(pt.PerturbationError):
+            power_floor(*args)
+
+
+# ------------------------------- untestable is not the same as unsupported
+
+def _noisy(n_costly=3):
+    """One unit at fwupd's real occupancy -- 36 buckets, all K costly ones
+    covered and held alone. This is the BEST outcome the record allows it."""
+    e = [_entry("noisy", f"{h:02d}:00:05", 67_682_304) for h in range(n_costly)]
+    e += [_entry("noisy", f"{h:02d}:{m:02d}:05", 0)
+          for h in range(n_costly, 24) for m in (0, 30)][:36 - n_costly]
+    return e
+
+
+def test_a_unit_too_large_to_test_is_graded_untestable_not_coincidence():
+    """36 buckets against K=3 in N=218, with the best outcome available, and
+    still not supported. `untestable` names that; `coincidence` implied a test
+    ran and the unit lost it."""
+    filler = [_entry(f"u{i}", f"{i:02d}:15:05", 0) for i in range(15)]
+    res = attribution_evidence([_ledger(_noisy() + filler, 218, 3)])
+    u = {x["unit"]: x for x in res["units"]}["noisy"]
+    assert u["n_distinct_buckets"] == 36 and u["n_costly"] == 3
+    assert u["n_clean"] == 3 and u["consistency"] > 0.05
+    assert u["testable"] is False
+    assert u["verdict"] == "untestable"
+    assert "fact about" in u["why"]
+    assert "noisy" in res["untestable_units"]
+
+
+def test_testability_depends_on_how_many_OTHER_units_are_in_the_ledger():
+    """Bonferroni's uncomfortable corollary, and the reason `untestable` is a
+    property of the RUN and not of the unit. The identical 36 fires with the
+    identical best-case outcome are testable in a one-unit family (bar 0.05)
+    and untestable in a sixteen-unit one (bar 0.003125) -- so widening the
+    family can retract a claim without a single new observation. It is still
+    the right correction: the unit under test was chosen by having been
+    noticed. But the ledger must say which family it was graded against."""
+    alone = attribution_evidence([_ledger(_noisy(), 218, 3)])
+    assert alone["n_units_tested"] == 1
+    assert alone["units"][0]["testable"] is True
+    # testable, and it then LOSES the test on consistency (3 of 36 fires
+    # costly) -- which is a real result about the unit. The crowd run below
+    # never gets that far.
+    assert alone["units"][0]["verdict"] == "coincidence"
+    assert "of its own" in alone["units"][0]["why"]
+
+    filler = [_entry(f"u{i}", f"{i:02d}:15:05", 0) for i in range(15)]
+    crowd = attribution_evidence([_ledger(_noisy() + filler, 218, 3)])
+    noisy = {x["unit"]: x for x in crowd["units"]}["noisy"]
+    assert crowd["n_units_tested"] == 16
+    assert noisy["testable"] is False and noisy["verdict"] == "untestable"
+    assert noisy["p_chance"] == alone["units"][0]["p_chance"]   # same evidence
+    assert crowd["supported"] == []
+
+
+def test_untestable_can_never_steal_a_unit_from_supported():
+    """The new verdict sits between `shared-only` and `coincidence`. Anything
+    it captures already had p_family > max_family_p, so round 406's
+    `supported: []` headline is unchanged by construction."""
+    entries = [_entry("clean", f"{h:02d}:00:05", 67_682_304) for h in range(1, 4)]
+    res = attribution_evidence([_ledger(entries, 218, 3)])
+    assert res["units"][0]["verdict"] == "supported"
+    assert res["units"][0]["testable"] is True
+    assert res["supported"] == ["clean"] and res["supported_was_reachable"]
+
+
+def test_attribution_evidence_still_reads_a_round_400_era_ledger():
+    """`_entry` writes the OLD `bucket_swapped_bytes` key, which is exactly
+    the point: ledger JSON written by rounds 400-406 is on disk."""
+    e = _entry("u", "02:00:05", 67_682_304)
+    assert "bucket_swapped_bytes" in e and "bucket_bytes" not in e
+    old = attribution_evidence([_ledger([e], 218, 3)])["units"][0]
+    new_e = dict(e); new_e["bucket_bytes"] = new_e.pop("bucket_swapped_bytes")
+    new = attribution_evidence([_ledger([new_e], 218, 3)])["units"][0]
+    assert old["max_bucket_bytes"] == new["max_bucket_bytes"] == 67_682_304
+
+
+# ------------------------------------ shared_by counts units, not fires
+
+def test_two_fires_of_one_unit_in_a_bucket_leave_it_sole_attributable():
+    """Latent defect found in round 412: `share` counted FIRES, so a bucket
+    with exactly one unit implicated reported `sole_attributable = False`."""
+    t = parse_sar(_sar_sections((_CAP / "sar-all.txt").read_text())["SAR_W_SA31"])
+    led = cost_ledger([("2026-08-31T01:57:33Z", "fwupd-refresh"),
+                       ("2026-08-31T01:58:00Z", "fwupd-refresh")],
+                      t, "2026-08-31")
+    a, b = led["entries"]
+    assert a["bucket_end"] == b["bucket_end"] == "02:00:05"
+    assert a["bucket_shared_by"] == 1 and a["bucket_fires"] == 2
+    assert a["sole_attributable"] is True
+    assert led["n_sole_attributable"] == 2
+
+
+def test_two_DIFFERENT_units_in_a_bucket_are_still_not_separable():
+    t = parse_sar(_sar_sections((_CAP / "sar-all.txt").read_text())["SAR_W_SA31"])
+    led = cost_ledger([("2026-08-31T01:57:33Z", "fwupd-refresh"),
+                       ("2026-08-31T01:58:00Z", "man-db")], t, "2026-08-31")
+    assert led["entries"][0]["bucket_shared_by"] == 2
+    assert led["n_sole_attributable"] == 0
+
+
+def test_the_shared_by_fix_does_not_move_round_400s_published_headline():
+    """No bucket in the r400 capture holds same-unit repeats, so the defect
+    was latent. If a future capture makes it active, THIS is the pin that
+    says the numbers moved for a reason."""
+    a, b = _boot_ledgers()
+    assert a["n_fires"] + b["n_fires"] == 62
+    assert a["n_sole_attributable"] + b["n_sole_attributable"] == 1
+    for led in (a, b):
+        for e in led["entries"]:
+            assert e["bucket_fires"] >= e["bucket_shared_by"]
+
+
+# --------------------------------------------- the real capture, re-graded
+
+def _commit_ledgers(min_bytes=4_825_700):
+    secs = _sar_sections((_CAP / "sar-all.txt").read_text())
+    fires = pt.parse_unit_starts((_CAP / "unit-starts.txt").read_text())
+    return [cost_ledger(fires, parse_sar(secs[f"SAR_R_{d}"]), date,
+                        min_bytes=min_bytes, channel=COMMIT_CHANNEL)
+            for d, date in (("SA30", "2026-08-30"), ("SA31", "2026-08-31"))]
+
+
+def test_half_the_boots_units_could_never_have_been_supported():
+    res = attribution_evidence(_boot_ledgers())
+    assert res["n_units_tested"] == 16
+    assert res["n_testable_units"] == 8
+    assert len(res["untestable_units"]) == 8
+    # seven because their occupancy is too LOW (one bucket), one too high
+    low = [u for u in res["units"]
+           if not u["testable"] and u["n_distinct_buckets"] == 1]
+    high = [u for u in res["units"]
+            if not u["testable"] and u["n_distinct_buckets"] > 1]
+    assert len(low) == 7
+    assert [u["unit"] for u in high] == ["fwupd-refresh"]
+
+
+def test_sa30_ALONE_is_a_record_that_could_not_have_supported_anything():
+    """Round 406 pooled the two day-files "because sa30 contributes 23 free
+    fwupd fires". This is the quantitative reason it had to: on its own, sa30
+    has K=1 and therefore no power at any occupancy."""
+    sa30 = _boot_ledgers()[0]
+    assert sa30["n_buckets"] == 139 and sa30["n_costly_buckets"] == 1
+    res = attribution_evidence([sa30])
+    assert res["supported_was_reachable"] is False
+    assert res["power"]["any_testable"] is False
+
+
+def test_the_commit_channel_gives_fwupd_the_powered_test_swap_could_not():
+    """Round 406's handoff item 4, answered. On `sar -W` fwupd is UNTESTABLE:
+    its verdict was fixed before the data was read, and hitting all three
+    costly buckets would still have read `coincidence`. On `Committed_AS` the
+    same 36 fires sit against K=9 costly buckets in N=216, which IS inside the
+    testable band -- so the test genuinely runs, and fwupd fails it: it
+    covered 1 of the 9, which a unit of its occupancy does by chance with
+    p=0.81. Round 406's DROP verdict now rests on a powered test rather than
+    on a consistency argument alone."""
+    swap = {u["unit"]: u for u in
+            attribution_evidence(_boot_ledgers())["units"]}["fwupd-refresh"]
+    commit = {u["unit"]: u for u in
+              attribution_evidence(_commit_ledgers())["units"]}["fwupd-refresh"]
+    assert swap["testable"] is False and swap["verdict"] == "untestable"
+    assert commit["testable"] is True and commit["verdict"] == "coincidence"
+    assert commit["n_fires"] == 36 and commit["n_costly"] == 1
+    assert commit["n_buckets"] == 216 and commit["n_costly_buckets"] == 9
+    assert commit["p_chance"] == pytest.approx(0.8127, abs=5e-4)
+    assert commit["p_best"] * commit["n_units_tested"] <= 0.05   # it WAS testable
+    assert "happens by chance" in commit["why"]
+
+
+def test_neither_channel_supports_anything_at_any_threshold():
+    """18 configurations. Round 406's headline survives all of them -- which
+    is what makes it a result rather than a setting."""
+    secs = _sar_sections((_CAP / "sar-all.txt").read_text())
+    fires = pt.parse_unit_starts((_CAP / "unit-starts.txt").read_text())
+    ths = [4096, 1 << 15, 1 << 17, 1 << 19, 4_825_700,
+           1 << 23, 1 << 25, 1 << 27, 1 << 30]
+    for chan, pfx in ((SWAP_CHANNEL, "SAR_W_"), (COMMIT_CHANNEL, "SAR_R_")):
+        tables = [(parse_sar(secs[pfx + d]), dt)
+                  for d, dt in (("SA30", "2026-08-30"), ("SA31", "2026-08-31"))]
+        rows = channel_sweep(fires, tables, chan, ths)
+        assert len(rows) == len(ths)
+        assert all(r["supported"] == [] for r in rows)
+
+
+def test_the_swap_channels_power_collapses_to_zero_and_commits_does_not():
+    """The inversion. Above ~134 MB the swap channel has NO testable unit at
+    any occupancy -- `supported: []` there is arithmetic, not evidence. The
+    commit channel keeps 7 testable units at the same threshold, because it
+    still has costly buckets to be improbably covered."""
+    secs = _sar_sections((_CAP / "sar-all.txt").read_text())
+    fires = pt.parse_unit_starts((_CAP / "unit-starts.txt").read_text())
+    ths = [4_825_700, 1 << 27]
+    got = {}
+    for chan, pfx in ((SWAP_CHANNEL, "SAR_W_"), (COMMIT_CHANNEL, "SAR_R_")):
+        tables = [(parse_sar(secs[pfx + d]), dt)
+                  for d, dt in (("SA30", "2026-08-30"), ("SA31", "2026-08-31"))]
+        got[chan.name] = channel_sweep(fires, tables, chan, ths)
+    assert [r["n_testable_units"] for r in got["swap"]] == [8, 0]
+    assert got["swap"][1]["supported_was_reachable"] is False
+    assert [r["n_testable_units"] for r in got["commit"]] == [8, 7]
+    assert all(r["supported_was_reachable"] for r in got["commit"])
+
+
+def test_the_biggest_swap_event_of_the_boot_committed_nothing():
+    """Rounds 388/394/400 circled the 04:00:03 bucket -- 220.9 MB out, five
+    named units in it -- as the largest perturbation this deployment has seen.
+    On the commitment channel that bucket does not rise at all; kbcommit FALLS
+    1.6 MB across it. No NEW address space was promised there, so whatever
+    drove 220 MB to swap was reclaim against memory already committed, not a
+    housekeeping unit allocating. The 02:00:05 bucket, by contrast, is a real
+    allocation: +150.6 MB committed alongside 67.7 MB out."""
+    secs = _sar_sections((_CAP / "sar-all.txt").read_text())
+    w = dict((n, b) for n, _v, b in
+             bucket_costs(parse_sar(secs["SAR_W_SA31"]), SWAP_CHANNEL))
+    r = parse_sar(secs["SAR_R_SA31"])
+    c = dict((n, b) for n, _v, b in bucket_costs(r, COMMIT_CHANNEL))
+    kb = {row.time: row.get("kbcommit") for row in r.rows}
+    assert w["04:00:03"] == 220_889_088 and c["04:00:03"] == 0
+    assert kb["04:00:03"] - kb["03:50:05"] == -1620          # kB, i.e. a FALL
+    assert w["02:00:05"] == 67_682_304 and c["02:00:05"] == 150_622_208
+
+
+def test_a_level_channel_loses_the_days_first_bucket_and_says_so():
+    """Three units fire into sa31's 00:10:05 bucket, whose commit cost is
+    undefined because the day-file has no earlier row. They are reported as
+    unclassified, NOT as free -- and they vanish from the tested family,
+    16 units -> 13. Stitching consecutive day-files would recover them."""
+    swap_units = {e["unit"] for l in _boot_ledgers() for e in l["entries"]}
+    commit = _commit_ledgers()
+    commit_units = {e["unit"] for l in commit for e in l["entries"]}
+    assert sorted(swap_units - commit_units) == [
+        "dpkg-db-backup", "logrotate", "sysstat-summary"]
+    whys = [u["why"] for l in commit for u in l["unclassified"]
+            if "no defined commit cost" in u["why"]]
+    assert len(whys) == 4
+    assert all(l["n_undefined_buckets"] == 1 for l in commit)
+
+
+def test_the_journal_bounds_attribution_to_two_of_the_nine_banked_days():
+    """`sar` covers 2026-08-23..31; the journal covers one boot. Item 4's
+    "runnable for all nine days" is true of the CHANNEL and false of the
+    analysis, and no amount of sar data changes it."""
+    fires = pt.parse_unit_starts((_CAP / "unit-starts.txt").read_text())
+    dates = sorted({f.at_utc[:10] for f in fires})
+    assert dates == ["2026-08-30", "2026-08-31"]
+
+
+def _run(*argv):
+    return subprocess.run([sys.executable, "-m", "nuc.perturbation", *argv],
+                          capture_output=True, text=True,
+                          cwd=str(pathlib.Path(__file__).resolve().parents[2]))
+
+
+def test_cli_power_needs_no_data_at_all():
+    """The point of exposing it separately: you can ask whether a record of a
+    given shape COULD support anything before you go and capture it."""
+    out = _run("power", "--n-buckets", "218", "--n-costly-buckets", "1",
+               "--n-units-tested", "16")
+    assert out.returncode == 0, out.stderr
+    assert json.loads(out.stdout)["any_testable"] is False
+
+
+def test_cli_sweep_reports_the_verdict_as_a_function_of_the_threshold(tmp_path):
+    secs = _sar_sections((_CAP / "sar-all.txt").read_text())
+    days = []
+    for d, date in (("SA30", "2026-08-30"), ("SA31", "2026-08-31")):
+        f = tmp_path / f"{d}.txt"
+        f.write_text(secs[f"SAR_W_{d}"])
+        days += ["--day", f"{f}:{date}"]
+    out = _run("sweep", *days, "--journal", str(_CAP / "unit-starts.txt"),
+               "--channel", "swap", "--thresholds", "4825700,134217728")
+    assert out.returncode == 0, out.stderr
+    got = json.loads(out.stdout)
+    assert [r["n_costly_buckets"] for r in got] == [3, 1]
+    assert [r["supported_was_reachable"] for r in got] == [True, False]
+    assert all(r["supported"] == [] for r in got)
+
+
+def test_cli_ledger_defaults_to_the_channels_threshold_and_refuses_when_none():
+    secs = _sar_sections((_CAP / "sar-all.txt").read_text())
+    import tempfile, os
+    with tempfile.TemporaryDirectory() as td:
+        w = os.path.join(td, "w.txt"); r = os.path.join(td, "r.txt")
+        open(w, "w").write(secs["SAR_W_SA31"])
+        open(r, "w").write(secs["SAR_R_SA31"])
+        j = str(_CAP / "unit-starts.txt")
+        ok = _run("ledger", "--sar-w", w, "--journal", j,
+                  "--date", "2026-08-31")
+        assert ok.returncode == 0, ok.stderr
+        assert json.loads(ok.stdout)["min_bytes"] == LEDGER_MIN_BYTES
+        bad = _run("ledger", "--sar-w", r, "--journal", j,
+                   "--date", "2026-08-31", "--channel", "commit")
+        assert bad.returncode != 0
+        assert "channel_sweep" in bad.stderr
+        good = _run("ledger", "--sar-w", r, "--journal", j, "--date",
+                    "2026-08-31", "--channel", "commit",
+                    "--min-bytes", "4825700")
+        assert good.returncode == 0, good.stderr
+        assert json.loads(good.stdout)["channel"] == "commit"

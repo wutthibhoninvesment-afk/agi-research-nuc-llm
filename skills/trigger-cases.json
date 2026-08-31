@@ -1732,5 +1732,31 @@
   "id": "sdsg-neg-copy",
   "expect": [],
   "prompt": "We have a mock interpreter that was copied from the real one two years ago and never gained the features the real one grew. How do I find everything it's missing?"
+ },
+ {
+  "id": "npf-near",
+  "expect": [
+   "null-result-needs-a-power-floor"
+  ],
+  "prompt": "My significance sweep over 40 services came back with zero significant results after Bonferroni. I'm about to write \"no service is responsible\" in the incident review. Anything wrong with that?"
+ },
+ {
+  "id": "npf-mid",
+  "expect": [
+   "null-result-needs-a-power-floor"
+  ],
+  "prompt": "The A/B test ran for two weeks and showed no difference between variants, so we're keeping the control. Ship it?"
+ },
+ {
+  "id": "npf-far",
+  "expect": [
+   "null-result-needs-a-power-floor"
+  ],
+  "prompt": "Our attribution tool prints an empty `supported: []` list for this whole trace. Is that a finding I can quote, or does it need something else alongside it?"
+ },
+ {
+  "id": "npf-neg-scan",
+  "expect": [],
+  "prompt": "The scanner found 14 high-severity findings in this repo. Which should I fix first?"
  }
 ]

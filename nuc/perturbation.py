@@ -85,6 +85,15 @@ class PerturbationError(ValueError):
     pass
 
 
+class _Unset:
+    """Distinguishes "caller passed nothing" from "caller passed None"."""
+    def __repr__(self):
+        return "<unset>"
+
+
+_UNSET = _Unset()
+
+
 # --------------------------------------------------------------- sar parsing
 
 _BANNER = re.compile(r"^Linux\s")
@@ -94,9 +103,20 @@ _TIME = re.compile(r"^(\d{2}:\d{2}:\d{2})(\s+(AM|PM))?$")
 
 @dataclass(frozen=True)
 class SarRow:
-    """One sysstat bucket: its END timestamp plus the named columns."""
+    """One sysstat bucket: its END timestamp plus the named columns.
+
+    `restart_before` marks a row that sysstat wrote after a `LINUX RESTART`
+    line with no intervening sample. Round 412: `parse_sar` used to DROP the
+    restart marker, which is harmless for a RATE column (`pswpout/s` is
+    self-contained per bucket) and corrupting for a LEVEL column
+    (`kbcommit`), where a bucket's cost is a difference against the previous
+    row and the previous row belongs to a different boot's address space.
+    `sysstat_archive.parse_day` has always kept restarts; the two parsers
+    disagreeing about whether a marker is representable is how a level
+    channel would have silently booked a 30 GB reboot as one unit's cost."""
     time: str
     values: dict
+    restart_before: bool = False
 
     def get(self, column: str) -> float:
         if column not in self.values:
@@ -124,7 +144,8 @@ def parse_sar(text: str) -> SarTable:
     """Parse one `sar -X -f saNN` table into named columns.
 
     Handles, because the real output contains all of them: the `Linux ...`
-    banner, blank lines, the `LINUX RESTART` marker sysstat writes at boot, the
+    banner, blank lines, the `LINUX RESTART` marker sysstat writes at boot
+    (kept, as `restart_before` on the next row -- see `SarRow`), the
     trailing `Average:` row (dropped -- it is not a bucket), a repeated header
     row when sar re-prints it, and both 24-hour and `HH:MM:SS AM/PM` stamps.
 
@@ -134,9 +155,13 @@ def parse_sar(text: str) -> SarTable:
     exactly how round 388's mystery would have been mis-attributed."""
     columns: tuple = ()
     rows: list = []
+    pending_restart = False
     for raw in text.splitlines():
         line = raw.strip()
-        if not line or _BANNER.match(line) or _RESTART.search(line):
+        if _RESTART.search(line):
+            pending_restart = True
+            continue
+        if not line or _BANNER.match(line):
             continue
         parts = line.split()
         stamp = _TIME.match(parts[0])
@@ -163,7 +188,9 @@ def parse_sar(text: str) -> SarTable:
                 f"row at {parts[0]} has {len(body)} fields, header has "
                 f"{len(columns)}: {body}")
         rows.append(SarRow(time=parts[0],
-                           values={c: float(v) for c, v in zip(columns, body)}))
+                           values={c: float(v) for c, v in zip(columns, body)},
+                           restart_before=pending_restart))
+        pending_restart = False
     if not columns:
         raise PerturbationError("no header row found; is this sar output?")
     return SarTable(columns=columns, rows=tuple(rows))
@@ -179,6 +206,103 @@ def _looks_like_header(body: Sequence[str]) -> bool:
 
 
 # ------------------------------------------------------- the two channels
+
+# Round 412. `cost_ledger` was written against `sar -W` and reads the literal
+# column `pswpout/s`. Round 406's handoff item 4 asks whether that channel is
+# simply too coarse to attribute anything on this box, which can only be
+# answered by running the SAME fires against a DIFFERENT channel. The two
+# channels banked for this boot are not the same shape:
+#
+#   `pswpout/s` is a RATE. Each bucket's value is self-contained: pages per
+#   second over the interval, so cost = rate * interval * page_bytes, and a
+#   bucket's cost is knowable from that bucket alone.
+#
+#   `kbcommit` is a LEVEL -- Committed_AS, the running total of address space
+#   the kernel has promised. A bucket's cost is a DIFFERENCE against the
+#   previous row, which means (a) the first row of a table has no cost at all,
+#   not a cost of zero, and (b) a row after a `LINUX RESTART` has no cost
+#   either, because its predecessor describes a different boot.
+#
+# Conflating those two is how a level channel books a 30 GB reboot as one
+# housekeeping unit's cost. `Channel` makes the difference declarative, and
+# `bucket_costs` returns `None` -- not `0` -- for a bucket whose cost is
+# undefined, so `cost_ledger` can route fires there to `unclassified` instead
+# of counting them as free. That is round 400's own rule ("a fire whose cost
+# is unknown is not a fire that cost nothing") applied to the buckets.
+
+
+@dataclass(frozen=True)
+class Channel:
+    """A sar column read as a perturbation cost, plus how to read it."""
+    name: str
+    column: str
+    kind: str            # "rate" (self-contained per bucket) | "level" (delta)
+    unit_bytes: float    # multiplier from the column's units to bytes
+    direction: str = "both"   # level only: "rise" | "fall" | "both"
+
+    def __post_init__(self):
+        if self.kind not in ("rate", "level"):
+            raise PerturbationError(f"unknown channel kind {self.kind!r}")
+        if self.direction not in ("rise", "fall", "both"):
+            raise PerturbationError(
+                f"unknown channel direction {self.direction!r}")
+        if self.kind == "rate" and self.direction != "both":
+            raise PerturbationError(
+                "direction is meaningless for a rate channel: a rate column "
+                "has no predecessor to be signed against")
+
+
+# The channel round 400/406 measured. `pswpout/s` counts pages written OUT to
+# swap in the interval; it moves only under memory pressure, which is exactly
+# why it is nearly always zero on this box and why K (the number of costly
+# buckets) is 3 for a 36-hour boot.
+SWAP_CHANNEL = Channel("swap", "pswpout/s", "rate", PAGE_BYTES)
+
+# The channel item 4 proposes. `kbcommit` moves on every allocation whether or
+# not it causes pressure, so it sees perturbations the swap channel cannot.
+# `direction="rise"` because the question is what a housekeeping unit ALLOCATED;
+# a fall is some other process exiting, and crediting a unit with a release
+# would make the ledger's sign depend on who happened to die nearby.
+COMMIT_CHANNEL = Channel("commit", "kbcommit", "level", KB, "rise")
+
+CHANNELS = {c.name: c for c in (SWAP_CHANNEL, COMMIT_CHANNEL)}
+
+
+def bucket_costs(table: SarTable, channel: Channel = SWAP_CHANNEL,
+                 interval_s: int = SAR_INTERVAL_S) -> list:
+    """[(bucket_end, raw_value, cost_bytes_or_None)], one per row, in order.
+
+    `cost_bytes is None` means UNDEFINED, and only a level channel produces
+    it: the table's first row, and any row sysstat marked `restart_before`.
+    Callers must not treat `None` as `0` -- that is the whole reason it is not
+    `0`.
+    """
+    if interval_s <= 0:
+        raise PerturbationError("interval_s must be > 0")
+    if channel.column not in table.columns:
+        raise PerturbationError(
+            f"channel {channel.name!r} needs column {channel.column!r}; this "
+            f"table has {sorted(table.columns)}")
+    out = []
+    prev = None
+    for r in table.rows:
+        v = r.get(channel.column)
+        if channel.kind == "rate":
+            cost = round(v * interval_s) * channel.unit_bytes
+        elif prev is None or r.restart_before:
+            cost = None
+        else:
+            delta = v - prev
+            if channel.direction == "rise":
+                delta = max(delta, 0.0)
+            elif channel.direction == "fall":
+                delta = max(-delta, 0.0)
+            else:
+                delta = abs(delta)
+            cost = delta * channel.unit_bytes
+        out.append((r.time, v, None if cost is None else int(cost)))
+        prev = v
+    return out
 
 
 @dataclass(frozen=True)
@@ -452,13 +576,23 @@ def attribute(excursions: Iterable, events: Iterable,
 
 @dataclass(frozen=True)
 class LedgerEntry:
-    """One named housekeeping fire, and what the bucket it fell in cost."""
+    """One named housekeeping fire, and what the bucket it fell in cost.
+
+    Round 412 renamed `pswpout_s` -> `channel_value` and
+    `bucket_swapped_bytes` -> `bucket_bytes`: the ledger is no longer
+    swap-only, and a field called `bucket_swapped_bytes` holding a
+    `Committed_AS` delta is a lie that survives into every JSON file it is
+    written to. `attribution_evidence` still READS the old key, because
+    ledgers written by rounds 400-406 exist on disk and a rename must not
+    invalidate banked data."""
     at_utc: str
     unit: str
     bucket_end: str
-    pswpout_s: float
-    bucket_swapped_bytes: int
-    bucket_shared_by: int
+    channel: str
+    channel_value: float
+    bucket_bytes: int
+    bucket_shared_by: int        # DISTINCT UNITS in this bucket, not fires
+    bucket_fires: int            # fires in it, which may exceed shared_by
     costly: bool
     sole_attributable: bool
 
@@ -485,6 +619,17 @@ LEDGER_SMALLEST_REAL_EVENT_BYTES = round(LEDGER_SMALLEST_REAL_RATE
 LEDGER_MIN_BYTES = int((LEDGER_NOISE_BUCKET_BYTES
                         * LEDGER_SMALLEST_REAL_EVENT_BYTES) ** 0.5)
 
+# The swap threshold above is DERIVED from two labelled events on that
+# channel. `Committed_AS` has no such pair on this record: there is no bucket
+# independently known to be noise-and-must-be-rejected paired with a smallest
+# event independently known to be real. Round 412 therefore refuses to invent
+# one. A channel with `None` here has no defensible default and `cost_ledger`
+# demands an explicit `min_bytes`, so that every commit-channel verdict in the
+# record carries the number it was produced with. Use `channel_sweep` to see
+# how much the verdict depends on it -- if it moves, the threshold IS the
+# result and no single run should be quoted.
+CHANNEL_MIN_BYTES = {"swap": LEDGER_MIN_BYTES, "commit": None}
+
 # `sysstat-collect` is what WRITES the bucket. It is present in every costly
 # bucket by construction, so including it makes the base rate a statement
 # about the instrument rather than about the box. Excluded by default and
@@ -507,10 +652,11 @@ LEDGER_BOUNDARY_SLACK_S = 5
 def cost_ledger(fires: Iterable, swap_table: SarTable, date: str,
                 interval_s: int = SAR_INTERVAL_S,
                 page_bytes: int = PAGE_BYTES,
-                min_bytes: int = LEDGER_MIN_BYTES,
+                min_bytes=_UNSET,
                 exclude_units: Iterable = LEDGER_EXCLUDE_UNITS,
-                boundary_slack_s: int = LEDGER_BOUNDARY_SLACK_S) -> dict:
-    """Join every named unit start to the `sar -W` bucket it fell in.
+                boundary_slack_s: int = LEDGER_BOUNDARY_SLACK_S,
+                channel: Channel = SWAP_CHANNEL) -> dict:
+    """Join every named unit start to the sar bucket it fell in.
 
     Round 394 asked whether the identity of a housekeeping timer predicts what
     it costs the engine. It had one case (`fwupd-refresh` at 01:57, 67.7 MB)
@@ -543,13 +689,23 @@ def cost_ledger(fires: Iterable, swap_table: SarTable, date: str,
     """
     if interval_s <= 0:
         raise PerturbationError("interval_s must be > 0")
+    if min_bytes is _UNSET:
+        min_bytes = CHANNEL_MIN_BYTES.get(channel.name)
+        if min_bytes is None:
+            raise PerturbationError(
+                f"channel {channel.name!r} has no derived costly-threshold on "
+                f"this record (see CHANNEL_MIN_BYTES); pass min_bytes "
+                f"explicitly and report it, or use channel_sweep")
     if min_bytes < 0:
         raise PerturbationError("min_bytes must be >= 0")
     excluded = set(exclude_units or ())
-    ends = [(r.time, _hms_to_s(r.time), r.get("pswpout/s"))
-            for r in swap_table.rows]
-    bucket_bytes = {name: round(rate * interval_s) * page_bytes
-                    for name, _end, rate in ends}
+    costs = bucket_costs(swap_table, channel, interval_s)
+    ends = [(name, _hms_to_s(name), value) for name, value, _b in costs]
+    bucket_bytes = {name: b for name, _v, b in costs}
+    # A level channel's undefined buckets (first row, post-restart row) are
+    # not part of the denominator: they are buckets whose cost is UNKNOWN, and
+    # counting them as free would inflate N and deflate every base rate.
+    defined = {name for name, b in bucket_bytes.items() if b is not None}
 
     placed, unclassified, skipped = [], [], 0
     for f in fires:
@@ -566,19 +722,36 @@ def cost_ledger(fires: Iterable, swap_table: SarTable, date: str,
             unclassified.append({"at_utc": at, "unit": unit,
                                  "why": "no sar bucket covers this instant"})
             continue
+        if hit[0] not in defined:
+            unclassified.append({"at_utc": at, "unit": unit,
+                                 "why": f"bucket {hit[0]} has no defined "
+                                        f"{channel.name} cost (first row of "
+                                        f"the table, or a post-restart row)"})
+            continue
         placed.append((at, unit, hit[0], hit[1]))
 
-    share = {}
-    for _at, _unit, name, _rate in placed:
-        share[name] = share.get(name, 0) + 1
+    # Round 412: `share` counts DISTINCT UNITS, not fires. It used to count
+    # fires, which made two fires of the SAME unit in one bucket set
+    # `sole_attributable = False` -- the flag reporting "nothing is separable"
+    # about a bucket in which exactly one unit is implicated. No bucket in the
+    # r400 capture has same-unit repeats, so every published number is
+    # unchanged; the defect was latent, not active, and is pinned as both.
+    share_units: dict = {}
+    fires_in: dict = {}
+    for _at, unit, name, _rate in placed:
+        share_units.setdefault(name, set()).add(unit)
+        fires_in[name] = fires_in.get(name, 0) + 1
+    share = {name: len(u) for name, u in share_units.items()}
 
     entries = []
     for at, unit, name, rate in placed:
-        b = bucket_bytes[name]
+        b = bucket_bytes[name]          # never None: `placed` filtered by `defined`
         costly = b >= min_bytes
         entries.append(LedgerEntry(
-            at_utc=at, unit=unit, bucket_end=name, pswpout_s=rate,
-            bucket_swapped_bytes=b, bucket_shared_by=share[name],
+            at_utc=at, unit=unit, bucket_end=name, channel=channel.name,
+            channel_value=rate,
+            bucket_bytes=b, bucket_shared_by=share[name],
+            bucket_fires=fires_in[name],
             costly=costly, sole_attributable=costly and share[name] == 1))
 
     by_unit = {}
@@ -589,12 +762,16 @@ def cost_ledger(fires: Iterable, swap_table: SarTable, date: str,
         u["fires"] += 1
         u["in_costly_bucket"] += int(e.costly)
         u["sole_attributable"] += int(e.sole_attributable)
-        u["sole_attributable_bytes"] += e.bucket_swapped_bytes if e.sole_attributable else 0
+        u["sole_attributable_bytes"] += e.bucket_bytes if e.sole_attributable else 0
 
     costly_buckets = sorted({e.bucket_end for e in entries if e.costly})
-    all_costly = sorted(n for n, b in bucket_bytes.items() if b >= min_bytes)
+    all_costly = sorted(n for n in defined if bucket_bytes[n] >= min_bytes)
     return {
         "date": date,
+        "channel": channel.name,
+        "channel_column": channel.column,
+        "channel_kind": channel.kind,
+        "n_undefined_buckets": len(bucket_bytes) - len(defined),
         "n_fires": len(entries),
         "n_excluded_fires": skipped,
         "excluded_units": sorted(excluded),
@@ -605,12 +782,12 @@ def cost_ledger(fires: Iterable, swap_table: SarTable, date: str,
         "n_unclassified": len(unclassified),
         "base_rate": (None if not entries
                       else sum(1 for e in entries if e.costly) / len(entries)),
-        "n_buckets": len(ends),
+        "n_buckets": len(defined),
         "n_costly_buckets": len(all_costly),
         "n_costly_buckets_with_a_named_fire": len(costly_buckets),
         "costly_buckets_without_a_named_fire":
             [n for n in all_costly if n not in set(costly_buckets)],
-        "total_swapped_bytes": sum(bucket_bytes[n] for n in all_costly),
+        "total_cost_bytes": sum(bucket_bytes[n] for n in all_costly),
         "by_unit": by_unit,
         "entries": [e.as_dict() for e in entries],
         "unclassified": unclassified,
@@ -679,6 +856,76 @@ def _hypergeom_atleast(N: int, K: int, n: int, h: int) -> float:
                for i in range(lo, hi + 1)) / math.comb(N, n)
 
 
+def best_case_p(N: int, K: int, d: int) -> float:
+    """The SMALLEST `p_chance` a unit of occupancy `d` can possibly attain.
+
+    Its best outcome is covering every costly bucket it could -- `min(K, d)`
+    of them. Nothing it does can produce a smaller tail than that, so this is
+    the arithmetic ceiling on how much evidence the record can carry about
+    that unit, before any observation is made.
+    """
+    return _hypergeom_atleast(N, K, d, min(K, d))
+
+
+def power_floor(N: int, K: int, n_units_tested: int,
+                max_family_p: float = ATTRIBUTION_MAX_FAMILY_P) -> dict:
+    """Which occupancies could EVER be graded `supported` in a record of this
+    shape -- computed from (N, K, n_units_tested) alone, before any data.
+
+    Round 412. Round 406 ran `attribution_evidence` over the whole boot,
+    reported `supported: []`, and wrote "this instrument, over this record,
+    licenses no causal claim at all". That sentence reads as a fact about the
+    box. It is at least partly a fact about the arithmetic, and nothing in the
+    output separated the two.
+
+    The separation is cheap. Bonferroni over `n_units_tested` units puts the
+    per-unit bar at `max_family_p / n_units_tested`. A unit of occupancy `d`
+    cannot beat `best_case_p(N, K, d)`. If that exceeds the bar, the unit is
+    UNTESTABLE: no arrangement of its fires could have been supported, and
+    "not supported" says nothing about it.
+
+    Two consequences worth stating because both surprised me:
+
+    * The testable set is NOT an interval starting at 1. `d = 1` is untestable
+      whenever `K * n_units_tested / N > max_family_p`, while `d = 2` may be
+      testable, because covering 2 of K by chance is much rarer than covering
+      1. Occupancy that is too LOW is as fatal as occupancy that is too high.
+    * When `K` is small enough the testable set is EMPTY and the instrument
+      has no power at all. On this box, `K = 1` with 16 units and N = 218
+      gives `min_p = 1/218 = 0.00459`, and `0.00459 * 16 = 0.073 > 0.05`:
+      a record with a single costly bucket can never support anything,
+      whatever happens in it.
+    """
+    if N <= 0:
+        raise PerturbationError("power_floor needs N > 0")
+    if not 0 <= K <= N:
+        raise PerturbationError("power_floor needs 0 <= K <= N")
+    if n_units_tested <= 0:
+        raise PerturbationError("power_floor needs n_units_tested > 0")
+    bar = max_family_p / n_units_tested
+    testable = [d for d in range(1, N + 1) if best_case_p(N, K, d) <= bar]
+    return {
+        "n_buckets": N,
+        "n_costly_buckets": K,
+        "n_units_tested": n_units_tested,
+        "max_family_p": max_family_p,
+        "per_unit_bar": bar,
+        "any_testable": bool(testable),
+        "min_testable_occupancy": testable[0] if testable else None,
+        "max_testable_occupancy": testable[-1] if testable else None,
+        "n_testable_occupancies": len(testable),
+        "testable_fraction_of_N": len(testable) / N,
+        "best_p_at_occupancy_1": best_case_p(N, K, 1),
+        "why": ("no occupancy can clear the Bonferroni bar: this record "
+                "cannot support any attribution, whatever it contains"
+                if not testable else
+                f"occupancies {testable[0]}..{testable[-1]} can clear the bar "
+                f"(contiguous)" if testable[-1] - testable[0] + 1 == len(testable)
+                else f"{len(testable)} occupancies in [{testable[0]}, "
+                     f"{testable[-1]}] can clear the bar"),
+    }
+
+
 @dataclass(frozen=True)
 class AttributionEvidence:
     """Whether a ledger licenses "unit X cost this", and why or why not."""
@@ -697,6 +944,8 @@ class AttributionEvidence:
     p_chance: float
     n_units_tested: int
     p_family: float
+    p_best: float                # the smallest p this occupancy could attain
+    testable: bool               # could ANY outcome have supported this unit?
     verdict: str
     why: str
 
@@ -734,10 +983,14 @@ def attribution_evidence(ledgers: Iterable,
                 "n_fires": 0, "n_costly": 0, "n_zero_byte": 0, "n_clean": 0,
                 "max_bytes": 0, "buckets": set(), "costly_buckets": set()})
             key = (date, e["bucket_end"])
+            # `bucket_swapped_bytes` is the round 400-406 name; ledgers written
+            # under it are on disk, so the rename must not orphan them.
+            byts = int(e["bucket_bytes"] if "bucket_bytes" in e
+                       else e["bucket_swapped_bytes"])
             u["n_fires"] += 1
             u["buckets"].add(key)
-            u["max_bytes"] = max(u["max_bytes"], int(e["bucket_swapped_bytes"]))
-            if int(e["bucket_swapped_bytes"]) == 0:
+            u["max_bytes"] = max(u["max_bytes"], byts)
+            if byts == 0:
                 u["n_zero_byte"] += 1
             if e["costly"]:
                 u["n_costly"] += 1
@@ -752,6 +1005,8 @@ def attribution_evidence(ledgers: Iterable,
         n_costly_distinct = len(u["costly_buckets"])
         p_chance = _hypergeom_atleast(N, K, n_distinct, n_costly_distinct)
         p_family = min(1.0, p_chance * n_tested)
+        p_best = best_case_p(N, K, n_distinct)
+        testable = p_best * n_tested <= max_family_p
         consistency = u["n_costly"] / u["n_fires"] if u["n_fires"] else 0.0
 
         if u["n_fires"] < min_fires:
@@ -764,6 +1019,13 @@ def attribution_evidence(ledgers: Iterable,
             verdict, why = "shared-only", (
                 f"all {u['n_costly']} costly hit(s) shared the bucket with "
                 f"another unit; nothing separates them")
+        elif not testable:
+            verdict, why = "untestable", (
+                f"occupies {n_distinct}/{N} buckets against {K} costly one(s); "
+                f"the best p this occupancy can attain is {p_best:.4g} "
+                f"({p_best * n_tested:.4g} over {n_tested} units), so NO "
+                f"outcome could have been supported -- this is a fact about "
+                f"the record's shape, not about the unit")
         elif p_family > max_family_p:
             verdict, why = "coincidence", (
                 f"occupies {n_distinct}/{N} buckets, so covering "
@@ -787,16 +1049,26 @@ def attribution_evidence(ledgers: Iterable,
             max_bucket_bytes=u["max_bytes"], n_buckets=N, n_costly_buckets=K,
             occupancy=n_distinct / N if N else 0.0, consistency=consistency,
             p_chance=p_chance, n_units_tested=n_tested, p_family=p_family,
+            p_best=p_best, testable=testable,
             verdict=verdict, why=why))
 
     out.sort(key=lambda e: (-e.n_fires, e.unit))
     by_verdict: dict = {}
     for e in out:
         by_verdict[e.verdict] = by_verdict.get(e.verdict, 0) + 1
+    floor = power_floor(N, K, n_tested, max_family_p)
+    n_testable = sum(1 for e in out if e.testable)
     return {
         "dates": [l.get("date") for l in ledgers],
+        "channels": sorted({l.get("channel", "swap") for l in ledgers}),
         "n_buckets": N,
         "n_costly_buckets": K,
+        "power": floor,
+        "n_testable_units": n_testable,
+        "untestable_units": sorted(e.unit for e in out if not e.testable),
+        # The single most important field here. `supported: []` from a run
+        # where this is False is not a result.
+        "supported_was_reachable": n_testable > 0,
         "n_units_tested": n_tested,
         "max_family_p": max_family_p,
         "min_consistency": min_consistency,
@@ -805,6 +1077,48 @@ def attribution_evidence(ledgers: Iterable,
         "supported": sorted(e.unit for e in out if e.verdict == "supported"),
         "units": [e.as_dict() for e in out],
     }
+
+
+def channel_sweep(fires: Iterable, tables: Iterable, channel: Channel,
+                  thresholds: Iterable,
+                  interval_s: int = SAR_INTERVAL_S,
+                  max_family_p: float = ATTRIBUTION_MAX_FAMILY_P,
+                  exclude_units: Iterable = LEDGER_EXCLUDE_UNITS) -> list:
+    """Re-grade the whole record at each costly-threshold, and report the
+    verdict AS A FUNCTION of it.
+
+    Round 412. `LEDGER_MIN_BYTES` on the swap channel is derived from two
+    labelled events. On any other channel there is no such pair, so the
+    threshold is a CHOICE -- and a verdict that moves with an unpinned choice
+    is not a verdict, it is a setting. This runs the choice out over a range
+    and shows what survives it.
+
+    `tables` is an iterable of `(SarTable, date)`, one per sar day-file.
+    """
+    tables = list(tables)
+    out = []
+    for mb in thresholds:
+        ledgers = [cost_ledger(fires, t, date, interval_s, min_bytes=int(mb),
+                               exclude_units=exclude_units, channel=channel)
+                   for t, date in tables]
+        try:
+            ev = attribution_evidence(ledgers, max_family_p=max_family_p)
+        except PerturbationError:
+            continue
+        out.append({
+            "channel": channel.name,
+            "min_bytes": int(mb),
+            "n_buckets": ev["n_buckets"],
+            "n_costly_buckets": ev["n_costly_buckets"],
+            "n_units_tested": ev["n_units_tested"],
+            "max_testable_occupancy": ev["power"]["max_testable_occupancy"],
+            "min_testable_occupancy": ev["power"]["min_testable_occupancy"],
+            "n_testable_units": ev["n_testable_units"],
+            "supported_was_reachable": ev["supported_was_reachable"],
+            "supported": ev["supported"],
+            "by_verdict": ev["by_verdict"],
+        })
+    return out
 
 
 def parse_unit_starts(text: str) -> list:
@@ -865,9 +1179,15 @@ def main(argv=None) -> int:
                     help="`journalctl -b -o short-iso` text (or a grep of it)")
     sl.add_argument("--date", required=True, help="YYYY-MM-DD the sar file covers")
     sl.add_argument("--interval-s", type=int, default=SAR_INTERVAL_S)
-    sl.add_argument("--min-bytes", type=int, default=LEDGER_MIN_BYTES)
+    sl.add_argument("--min-bytes", type=int, default=None,
+                    help="default: the channel's derived threshold, if it has "
+                         "one (the commit channel does not -- see "
+                         "CHANNEL_MIN_BYTES)")
     sl.add_argument("--include-instrument", action="store_true",
                     help="do NOT exclude sysstat-collect (see LEDGER_EXCLUDE_UNITS)")
+    sl.add_argument("--channel", default="swap", choices=sorted(CHANNELS),
+                    help="swap = sar -W pswpout/s (default); commit = sar -r "
+                         "kbcommit. --sar-w takes whichever file matches.")
 
     se = sub.add_parser("evidence",
                         help="round 406: does a ledger actually license "
@@ -882,6 +1202,29 @@ def main(argv=None) -> int:
                     default=ATTRIBUTION_MAX_FAMILY_P)
     se.add_argument("--min-consistency", type=float,
                     default=ATTRIBUTION_MIN_CONSISTENCY)
+
+    sf = sub.add_parser(
+        "power",
+        help="round 412: could ANY unit have been supported in a record of "
+             "this shape? Pure arithmetic -- no data needed")
+    sf.add_argument("--n-buckets", type=int, required=True)
+    sf.add_argument("--n-costly-buckets", type=int, required=True)
+    sf.add_argument("--n-units-tested", type=int, required=True)
+    sf.add_argument("--max-family-p", type=float,
+                    default=ATTRIBUTION_MAX_FAMILY_P)
+
+    ss = sub.add_parser(
+        "sweep",
+        help="round 412: re-grade the record at every costly-threshold, so a "
+             "verdict that is really a setting shows up as one")
+    ss.add_argument("--day", action="append", required=True, metavar="FILE:DATE",
+                    help="a sar day-file and the date it covers; repeat per day")
+    ss.add_argument("--journal", required=True)
+    ss.add_argument("--channel", default="swap", choices=sorted(CHANNELS))
+    ss.add_argument("--thresholds", default=None,
+                    help="comma-separated byte thresholds (default: a decade "
+                         "sweep from one page to 1 GiB)")
+    ss.add_argument("--interval-s", type=int, default=SAR_INTERVAL_S)
 
     args = p.parse_args(argv)
     if args.mode == "steps":
@@ -900,9 +1243,29 @@ def main(argv=None) -> int:
         fires = parse_unit_starts(_load(args.journal))
         print(json.dumps(cost_ledger(
             fires, table, args.date, args.interval_s,
-            min_bytes=args.min_bytes,
+            min_bytes=_UNSET if args.min_bytes is None else args.min_bytes,
             exclude_units=() if args.include_instrument
-            else LEDGER_EXCLUDE_UNITS), indent=2))
+            else LEDGER_EXCLUDE_UNITS,
+            channel=CHANNELS[args.channel]), indent=2))
+    elif args.mode == "power":
+        print(json.dumps(power_floor(
+            args.n_buckets, args.n_costly_buckets, args.n_units_tested,
+            args.max_family_p), indent=2))
+    elif args.mode == "sweep":
+        tables = []
+        for spec in args.day:
+            path, _, date = spec.rpartition(":")
+            if not path or not date:
+                raise SystemExit(f"--day wants FILE:DATE, got {spec!r}")
+            tables.append((parse_sar(_load(path)), date))
+        fires = parse_unit_starts(_load(args.journal))
+        ths = ([int(x) for x in args.thresholds.split(",")]
+               if args.thresholds
+               else [4096, 1 << 15, 1 << 17, 1 << 19, LEDGER_MIN_BYTES,
+                     1 << 23, 1 << 25, 1 << 27, 1 << 30])
+        print(json.dumps(channel_sweep(
+            fires, tables, CHANNELS[args.channel], ths,
+            interval_s=args.interval_s), indent=2))
     elif args.mode == "evidence":
         result = attribution_evidence(
             [json.loads(_load(f)) for f in args.ledger],
