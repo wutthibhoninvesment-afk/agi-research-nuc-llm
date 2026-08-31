@@ -13719,7 +13719,11 @@ port 8001 never contacted; no unit restarted; one write, in an allowed path.**
   delta exactly this round's 28 new tests. (I first published "+17 / 773",
   a delta computed by subtraction against a stale mid-edit run rather than
   measured; corrected here. Round 390's §5.4, one round later.) `skills/run_checks_fast.sh` **7 checkers, 0 errors, 6 warnings**
-  (baseline 6). The instrument read against this round's OWN live log:
+  (baseline 6); `languages/whence/run_tests_fast.sh` **1696 passed, 3
+  skipped, 81 deselected**, identical to the driver's post-round-390 health
+  line — this round changed no whence file, so that run is evidence about
+  round 390's landing, not about round 391's change. The instrument read
+  against this round's OWN live log:
   turns=66, tool_calls=76, ratio **1.1515**.
 - **Bank:** 12 predictions banked cold — **9 HIT / 1 HALF / 2 MISS**, plus
   E1 pre-registered. **Every prediction about the SYSTEM was right** (P1–P9,

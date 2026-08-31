@@ -349,7 +349,14 @@ python3 -m harness.driver_health headroom logs/round-390.json 135
      "serial_would_have_died": true, "remaining": 0, "max_turns_hit": true}
 
 bash skills/run_checks_fast.sh
-    corpus-check: 7 checker(s), 0 error(s), 6 warning(s)
+    corpus-check: 7 checker(s), 0 error(s), 6 warning(s)   (baseline: 6)
+
+bash languages/whence/run_tests_fast.sh
+    1696 passed, 3 skipped, 81 deselected in 82.16s
+    identical to the driver's post-round-390 health line. This round
+    changed NO whence file; the run is evidence that landing round 390's
+    diff left that tree where round 390 said it did, not evidence about
+    round 391's own change.
 ```
 
 Round 390's landing, re-verified before commit `54a74c7`: `self_eval.lang`
