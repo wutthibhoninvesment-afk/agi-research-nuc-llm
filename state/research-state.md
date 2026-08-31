@@ -17226,7 +17226,10 @@ count are different pins and I had bundled them into one claim.
 in 13.47 s; `test_v22.py` + `test_spec_builtins.py` **63 passed**;
 `skill_lint --house --strict` 0/0; `case_coverage.py` **0 errors**, 19
 pre-existing warnings; `bench/sanitisers.py check` **9 candidates, 0
-over-matching**; the fast affected files re-run after every edit **457
+over-matching**; the eight anchored suites re-run in full (slow tier
+included) **141 passed in 590.06 s (9:50)**, which is the measurement the
+anchoring needed — it changed no other result, so no corpus in those files
+contained a non-final `(line N)` the global `sub` had been removing; the fast affected files re-run after every edit **457
 passed, 3 skipped** in 16.81 s. **Full whence tier: 1 failed, 1964 passed,
 3 skipped in 1009.49 s (16:49)** — `state/round-404/logs/whence-full-tier.
 log`, launched at HEAD `e861026` with every edit to a file the suite reads

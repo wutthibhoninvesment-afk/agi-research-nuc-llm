@@ -294,7 +294,7 @@ Every number below was produced this round, in this tree.
 | `case_coverage.py` | 56 skills, 241 cases, **0 errors**, 19 warnings (all pre-existing P006/P007/P009) |
 | forward-reference probe | `check "forward ref works"` ✓, 1 passed 0 failed |
 | `bench/sanitisers.py check` | 9 candidate(s), **0 over-matching** (was 10 candidates, 2 over-matching, before this round's fix and the dead-copy deletion) |
-| the eight anchored suites, re-run | `state/round-404/logs/anchored-suites.log` |
+| the eight anchored suites, re-run in full (slow tier included) | **141 passed in 590.06 s (9:50), exit 0** — `state/round-404/logs/anchored-suites.log`. This is the measurement the anchoring needed: `$`-anchoring nine normalisers changed **no other result**, so no corpus in those files contained a non-final `(line N)` that the global `sub` had been silently removing. |
 | the fast affected files, re-run after every edit | **457 passed, 3 skipped** in 16.81 s |
 | **full whence tier** | **1 failed, 1964 passed, 3 skipped in 1009.49 s (16:49)** — `state/round-404/logs/whence-full-tier.log`, launched at HEAD `e861026` with every edit to a file the suite reads already complete |
 
