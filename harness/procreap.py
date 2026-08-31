@@ -91,7 +91,13 @@ CLEAN = "clean"
 RESIDUE = "residue"
 INCONCLUSIVE = "inconclusive"
 
-DEFAULT_RECORD = "state/procreap.jsonl"
+#: Absolute, like `pristine_check.DEFAULT_LEDGER` and
+#: `slowtier.DEFAULT_LEDGER`, and for the same reason: a relative default
+#: writes the ledger wherever the caller happened to be standing, and this
+#: program's shells keep their cwd between calls
+#: ([[feedback_bash_cwd_persists_between_calls]]). Naming matches those two.
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DEFAULT_RECORD = os.path.join(REPO_ROOT, "state", "procreap-ledger.jsonl")
 
 
 class ProcInfo:
@@ -537,7 +543,7 @@ def last_record(path=DEFAULT_RECORD):
 # --------------------------------------------------------------------------
 
 def _repo_root():
-    return os.path.dirname(os.path.abspath(__file__)).rsplit(os.sep + "harness", 1)[0]
+    return REPO_ROOT
 
 
 def _fmt(info):

@@ -568,3 +568,16 @@ def test_scan_excludes_our_own_driver_chain():
     assert [p.pid for p in res.matched] == [2166178]
     res2 = scan(src, REPO, self_pid=2172842, exclude_ancestors=False)
     assert sorted(p.pid for p in res2.matched) == [680210, 2166178, 2172841]
+
+
+def test_the_default_ledger_is_absolute_and_named_like_its_siblings():
+    """A relative default writes wherever the caller was standing.
+
+    `pristine_check.DEFAULT_LEDGER` and `slowtier.DEFAULT_LEDGER` are both
+    absolute for this reason; shells in this program keep their cwd between
+    calls.
+    """
+    assert os.path.isabs(procreap.DEFAULT_RECORD)
+    assert procreap.DEFAULT_RECORD.endswith(
+        os.path.join("state", "procreap-ledger.jsonl"))
+    assert os.path.isdir(os.path.join(procreap.REPO_ROOT, "harness"))
