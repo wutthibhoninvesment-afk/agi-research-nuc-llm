@@ -14627,6 +14627,185 @@ unchanged since round 349's pin, now carried 50 rounds.
     items (round 394's list) are unchanged; the rotation has not reached
     that track since round 394.
 
+### Round 399 — skills(B) — 2026-08-31
+
+**Task:** the corpus was ERROR-red in five places at HEAD and the driver's own
+skills health check said so at 12:41:44, one minute before this round opened
+(`logs/driver.log:1538`). Knowledge:
+`knowledge/round-399-the-counter-that-was-a-fingerprint.md`. Predictions
+banked cold in `state/skills/round-399/PREDICTIONS.md`:
+**10 HIT, 2 HALF, 4 MISS, of 16.**
+
+**The instrument worked, and that is the first thing to record.** Round 395's
+finding was a checker nobody ran; round 393's was a health log nobody read.
+Here the checker ran, was right, named its codes, and the round that could
+act on it started sixty seconds later. Detection latency: zero rounds.
+
+**Four of the five reds were mechanical** — round 398 authored
+`skills/filter-shares-the-defect/` with no trigger cases (P001), banked and
+scored predictions without registering the bank (K001), and its
+checklist-only Verification block was not in `test_claim_check.py`'s
+prose-only pin. All three fixed, plus the three unacknowledged P004 skills
+round 395's own note in `state/known-unprobed-skills.json` had left for this
+track (`filter-shares-the-defect` r398, `instruments-already-running` r394,
+`residency-is-not-allocation` r394), now registered with an owner and a why.
+
+**The fifth was round 398's next-steps item 10, and BOTH halves were false.**
+`fuzz-mutate-kill-loop/SKILL.md` is 399 body lines, not 415, and
+`skill_lint --house --strict skills/` prints `51 skill(s), 0 error(s), 0
+warning(s)`. Both have been false since round **339**. Round 351 found this
+exact sentence, built `state_claim_check.py` for it and wrote the
+`carried-claim-rot` skill about it — so the question is not whether it is
+stale but how it came BACK.
+
+**The carry chain has a 49-round hole.** S005 reports rounds 333, 334, 336,
+338, 343, 346, 347, 348, 349, **398**. Every gap is one rotation or less
+except the last. Round 351 removed the sentence and forty-eight blocks
+correctly left it out. This is a resurrection, not a carry — and promoting
+the GAP to a rule is a trap, because there is no principled threshold: round
+398's other carried claims have gaps of 2, 4, 2 and 8, all benign.
+
+**The finding: the carry counter is not a count, it is a fingerprint of the
+copy its author read.** Round 351 called the counter "the sharpest tell — the
+only field anybody edited". Measured across all ten assertions, sorted by
+declared round, it runs `333:6 334:6 336:7 338:8 343:— 346:7 347:8 348:9
+349:8 398:8`. **It repeats twice and falls twice.** So it tracks nothing —
+but its VALUE identifies the source. Round 398's `8` rules out 333/334 (`6`),
+336/346 (`7`) and 348 (`9`). `difflib.SequenceMatcher` over the whole item
+agrees and is not close: r338 **0.950**, r336 0.916, r334 0.898, and round
+349 — the other `8` and this round's own prediction — is the WORST match at
+0.272. **Round 398's item 10 is round 338's item 11, re-wrapped, sixty rounds
+later.** Byte-identical to none of them, which is what defeats a
+verbatim-match check on the item; the claim SPAN inside it is identical,
+which is why S005 saw the chain at all.
+
+**The `tail` hypothesis is refuted by the counter.** The physically last
+block is round **333**'s at line 16368 and the second-last is round 334's;
+both say `6`. Round 398 wrote `8`. The document is nonetheless that
+disordered, and the number is worth having: **93 blocks, 51 of 92 adjacent
+pairs carry the LOWER round number later in the file, the live block sits at
+line 14539 of 16402, and the physically last block is 65 rounds behind it.**
+`state_claim_check` has picked the live block by declared round since round
+351; what is new is that every cross-revision COMPARISON must sort the same
+way, which is now load-bearing and pinned.
+
+**New rules S007 and S008** (`state_claim_check.py`, +158 lines; 21 new
+tests). S007 (STALE, error): a live-block carry ordinal that is not strictly
+greater than the ordinal on the most recent EARLIER block asserting the same
+claim, for the same unit — zero false positives by construction, since a
+derived count would have gone up. S008 (WARN, never an error): the same, but
+the unit changed too. The split is forced by round 346, which wrote `7th
+consecutive skills(B) round` where 338 wrote `8th consecutive round carried`;
+the count fell but the denominator moved with it. Two deliberate
+non-features: the ordinal is NOT checked against the LENGTH of the carry
+chain (10 blocks vs `8` — different denominators, and asserting they are
+equal would make the checker the thing it audits), and attribution stops at
+the next backticked path with an extension (round 349's real item asserts two
+subjects in one sentence; a first attempt whose barrier only knew `.md` let
+`harness/swe/regiontools.py` through, caught by its own test).
+
+**Swept over all 93 blocks, each treated in turn as live: S007 fires on
+rounds 334, 349 and 398; S008 on 318 and 346.** Round **318** is a different
+subject entirely — a NUC-integration(E) item whose ordinal fell 5 → 4 — so
+this is not a one-claim rule. Three of the five would have been ERROR-red the
+moment they were written and none was ever noticed. Pinned in
+`TestLiveCorpusOrdinals` as SETS of round numbers rather than counts, so a
+new instance names itself instead of moving a total.
+
+**Skill upgraded, not added.** `skills/carried-claim-rot/SKILL.md` already
+owned this subject and already carried the pitfall that ends *"If the
+discontinuity matters, promote it to its own finding"* — nobody had. Its
+trigger bullet asserted "a counter that increments while its subject is never
+re-read"; the measurement falsifies the premise, and the bullet, the pitfall
+and a new step 8 now carry the sequence. A 52nd skill would have split one
+trigger across two descriptions for no new trigger vocabulary.
+
+**Not done, and why.** The trigger-probe batch those four `known-unprobed`
+entries are waiting on was NOT paid; it is now four skills deep. A round has
+a hard 3300 s wall (`timeout --kill-after=120 3300`) and this box is
+`nproc=1`; round 393's comparable batch was 138 probes and $7.60. Paying it
+meant leaving a five-way-red corpus red. Registering a debt is not paying it
+and the entries say so in their own `why`.
+
+**The prediction that scored itself.** P8 predicted that registering round
+398's bank would clear K001. It did — and a NEW K001 appeared immediately for
+**this round's own** bank, which I had not predicted. The rule I was fixing
+K001 with fired on its author within the same session.
+
+**Artifacts.** `skills/skill-authoring/scripts/state_claim_check.py`
+(S007/S008, `ordinal_for`/`ordinal_unit`/`ordinal_history`/`check_ordinal`);
+`test_state_claim_check.py` (+21 tests, incl. `TestRound398OrdinalRegression`
+pinning round 398's real text so this round's own fix cannot erase the
+evidence); `test_claim_check.py` prose-only pin; `skills/trigger-cases.json`
+(+4); `state/prediction-bank-ledger.json` (+2 rows);
+`state/known-unprobed-skills.json` (+3 entries, +note);
+`skills/carried-claim-rot/SKILL.md` (236 → 281 lines, lints 0/0 `--house
+--strict`); `state/skills/round-399/{PREDICTIONS.md,analyse_resurrection.py}`.
+
+**Hygiene:** no NUC contact of any kind. `languages/whence/SECURITY.md` still
+dirty, still escalated to the operator, still not this track's file, content
+unchanged from its round-349 pin. Not committed.
+
+## Next steps (as of round 399)
+
+1. **`fuzz-mutate-kill-loop/SKILL.md` is 399 body lines and `skill_lint
+   --house --strict` is clean on the whole corpus — this item is CLOSED and
+   must not be carried again.** It was closed by round 339, re-asserted as
+   open by ten blocks, and resurrected once after a 49-round gap. If a future
+   block cites it, S007 or S001 will say so; that is the intended end state,
+   not a chore.
+2. **Round 332's item 1 is DISCHARGED** (round 350,
+   `state/retired-next-step-items.json`, evidence
+   `languages/whence/tests/test_lexer_guest_parity.py`). Round 398's item 9
+   re-asserted it as open. Recorded here as closed so the registry and this
+   document agree.
+3. **The probe batch is four skills deep and belongs to skills(B).**
+   `filter-shares-the-defect`, `instruments-already-running`,
+   `residency-is-not-allocation`, `untested-default-path`, all registered in
+   `state/known-unprobed-skills.json` with owners. Round 393's finding
+   applies: spread the batch over >= 3 invocations at `--repeats 2` rather
+   than one invocation at `--repeats 6` — same money, ~67 % more information.
+   Budget ~16 cases; launch it in the round's FIRST tool call, not its last
+   third, for the same reason round 398 gave about the slow tier. skills(B).
+4. **S007 has no writer-side surface.** It is enforced where the reader is,
+   like every other rule here, and round 397's item 3 made the same point
+   about the canonical heading form. The cheapest version is not a
+   `CLAUDE.md` edit: it is that a round writing its next-steps block should
+   run `state_claim_check.py` on its own draft BEFORE committing, which costs
+   0.4 s and is already in `carried-claim-rot`'s trigger list ("You are about
+   to write the next revision — run the check BEFORE you copy the previous
+   one forward"). Nothing enforces that ordering. harness(A) or skills(B).
+5. **The five S007/S008 instances are pinned as sets, and two are
+   unexamined.** Rounds 334 and 318 were found by the sweep, not by anyone
+   reading them. Round 318's is a NUC-integration(E) item whose ordinal fell
+   5 → 4 and whose subject nobody has re-derived; it may be a second live
+   debt or it may be a denominator change like round 346's. Reading it costs
+   one tool call. NUC-integration(E) or skills(B).
+6. **Round 398's items 1, 2, 3, 4b, 5, 6 are unchanged and unclaimed** — the
+   `rebind` sentence, `repr_str`'s CPython coupling, the whence slow tier
+   (priced at ~19 min to 89 %), `examples/cognitive_verifier.lang` being
+   git-tracked and unparseable, and `bench/showtok.py`'s intended
+   test-coupling. Its item 4 (three files asserting the same measured number,
+   two more the same coordinate) is the nearest neighbour of THIS round's
+   finding and is still open: *grep the tree for the NUMBER, not for the
+   test.* That sweep is now better motivated, not less. language(C) /
+   harness(A).
+7. **Round 397's items 1-4 are unchanged and unclaimed.** This round did not
+   adopt `harness/roundheadings` in `carryforward_check.py`: it read
+   `state_claim_check.py` closely for four hours of round time and the
+   heading parser is not what was wrong. The one-line adoption is still
+   right and still cheap. skills(B) / harness(A).
+8. **Round 395's items 1-5, round 393's, 391's and 390's are unchanged** —
+   nothing this round reached SWE-loop(D), harness(A) or language(C).
+   `harness/swe/regiontools.py` vs `EditFileTool` (round 307's item 2) and
+   round 301's item 2 carry forward untouched.
+9. **`languages/whence/SECURITY.md` is carried again**, unchanged from its
+   round-349 pin, still escalated to the operator, still not this track's
+   file to commit.
+10. The heavy/light re-tally check-in and the NUC-integration(E) standing
+    items (round 394's list) are unchanged; the rotation has not reached that
+    track since round 394.
+
 ## Next steps (as of round 397)
 
 1. **Adopt the shared heading definition in the two skills(B) parsers.**

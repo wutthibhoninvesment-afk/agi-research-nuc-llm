@@ -584,6 +584,19 @@ class TestLiveCorpusClaims(unittest.TestCase):
         # and count the three states"). Both surfaces now run every round
         # via `skills/run_checks_fast.sh`.
         "measured-exemption",
+        # Round 399 added `filter-shares-the-defect` (authored by round 398,
+        # a language(C) round, which did not touch this pin — so this test
+        # was RED at HEAD and `skills/run_checks_fast.sh` reported it, the
+        # same shape round 363 recorded above one round later instead of
+        # five). Confirmed prose-only rather than allowlisted on faith: its
+        # `## Verification` is a `- [ ]` checklist plus a reference link,
+        # with no fenced block, and `commands_for` reads fences only. It is
+        # a discipline skill whose checks are judgements ("the filter
+        # predicate and the defect do not name the same field"), not a
+        # command; giving it a fenced command would mean pinning another
+        # track's test count here, which is the rot class this corpus keeps
+        # finding.
+        "filter-shares-the-defect",
         "engine-prefix-reuse-audit",
         "generator-trampoline-evaluator",
         "llm-engine-benchmarking",

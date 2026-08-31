@@ -29,8 +29,11 @@ are the only ones nobody re-runs.
 - An item is prefixed with a non-change word: *still*, *unchanged*,
   *standing*, *as before*, *remains*, *pending*, *deferred again*.
 - An item states a **carry count** ("8th consecutive round", "carried since
-  Q2"). A counter that increments while its subject is never re-read is the
-  clearest possible signal: the only field anybody edited was the counter.
+  Q2"). Measured across one claim's ten assertions, that counter went 6, 6,
+  7, 8, -, 7, 8, 9, 8, 8 — it does not count carries. Each author derived it
+  from whichever earlier revision they happened to read, so its VALUE
+  identifies the source copy, and a counter that fails to advance is proof
+  the item was transcribed rather than re-derived.
 - An item cites a **number** (line count, test count, failure rate) or a
   **rule code** (`B002`, `SC-14`, `RUBY-021`) as currently true.
 - You are about to write the next revision of such a document. Run the check
@@ -88,21 +91,37 @@ are the only ones nobody re-runs.
    derived it. Age 9 means nine authors signed a sentence none of them ran.
    Age is not an error — it is the recall side of the report, and it is what
    turns "we should re-check things" into a number with names on it.
-8. **Publish the coverage gap in the same breath as the result.** "0 stale"
+8. **Audit the carry COUNTER against its own history — it is the one field
+   everybody edits and the one nobody can get right.** An ordinal
+   ("Nth consecutive cycle") is a claim about a history, and in a document
+   whose revisions are not in order it is computed from whatever copy the
+   author opened. Compare it against the ordinal on the most recent EARLIER
+   revision asserting the same claim, sorted by declared cycle, never by file
+   position. If it did not go UP, the item was transcribed. This has no false
+   positives by construction: had the author derived the count from that
+   revision, the number would have risen. Two rules keep it honest —
+   **compare like with like** ("8th consecutive round" and "7th consecutive
+   skills(B) round" have different denominators, so report that separately
+   and never as an error), and **do not check the ordinal against the LENGTH
+   of the carry chain**, because "consecutive cycles of type X" and "revisions
+   in this file" are different denominators and asserting they are equal makes
+   the checker the thing it audits.
+
+9. **Publish the coverage gap in the same breath as the result.** "0 stale"
    is not the honest line. "9 items, 2 with a checkable claim, 2 re-derived,
    0 stale" is. A checker nobody is watching must have a zero false-positive
    rate even at the cost of recall, and must report the recall it gave up.
-9. **Fix the live revision at the source, then pin the historical instance as
+10. **Fix the live revision at the source, then pin the historical instance as
    a test fixture.** Correcting the document makes the checker exit 0 — which
    deletes the only evidence it works. Copy the offending historical text into
    a unit-test fixture so "this tool catches the bug it was written for" stays
    a re-executed claim. Keep the wrong text in the frozen older revisions:
    rewriting them hides the mechanism and teaches nothing.
-10. **Wire the live check into the suite that already runs every cycle.** The
+11. **Wire the live check into the suite that already runs every cycle.** The
     fix for a claim nobody re-executes is a test that re-executes it — not a
     sweep somebody has to remember. One test, asserting the live revision has
     zero stale claims, in whatever suite the next cycle is guaranteed to run.
-11. **Give a RETIRED item a tombstone, because deleting its line is
+12. **Give a RETIRED item a tombstone, because deleting its line is
     indistinguishable from never writing one.** The normal way to close a
     carried item is to drop it from the next revision — which records
     nothing. Omission and retirement are the same edit, so any later
@@ -138,11 +157,16 @@ are the only ones nobody re-runs.
   rotted line, ship the re-derivation next to it in the same change: here,
   a test that parses every version heading and compares the maximum against
   the header (sorting on the numeric parts, or v0.22 loses to v0.2).
-- **The carry count is the most seductive false comfort in the document.**
-  "8th consecutive round carried" reads like diligence — somebody has been
-  tracking this. It is the opposite: it is proof that the only field anybody
-  touched was the counter. Round 349's "8th" was itself wrong, because it was
-  counting carries of an item closed on round 339.
+- **The carry count is the most seductive false comfort in the document, and
+  it is not even a count.** "8th consecutive round carried" reads like
+  diligence — somebody has been tracking this. Measured across all ten
+  assertions of one such claim, the ordinal ran 6, 6, 7, 8, -, 7, 8, 9, 8, 8:
+  it repeated twice and fell twice. Round 349's "8th" was wrong because it
+  counted carries of an item closed on round 339; round 398's "8th", 49
+  rounds later, was wrong because it was round 349's "8th", copied. The
+  counter is a FINGERPRINT of the revision the author read, which is what
+  makes it useful: round 398's `8` rules out the two physically last blocks
+  in the file (both `6`) and points at the three that say `8`.
 - **Exempt the acknowledgement, or the check punishes the cure.** The
   sentence a well-behaved revision writes is *"item 5 is CLOSED and must not
   be carried again"* — which cites the item, and which a naive registry check
@@ -159,7 +183,12 @@ are the only ones nobody re-runs.
   needs a different fix (a tombstone, not a re-read), so read the list rather
   than the count. Note the age report is correctly INFORMATIONAL and never an
   error: a long carry is not itself a defect, which is exactly why nobody
-  reads it. If the discontinuity matters, promote it to its own finding.
+  reads it. If the discontinuity matters, promote it to its own finding —
+  round 399 did, after a 49-cycle gap put a closed item back in the live
+  revision with its old counter attached, and the promoted rule is the
+  ordinal check in step 8 rather than a gap threshold, because "how big a
+  gap is suspicious" has no principled answer and "the counter went
+  backwards" needs none.
 - **A closure recorded elsewhere in the SAME file does not propagate.** Round
   339's entry says, in bold, that it closed the backlog item. That entry sits
   ~1000 lines above the next-steps block that re-opens it. Nothing reads
@@ -210,7 +239,8 @@ python3 skills/skill-authoring/scripts/state_claim_check.py --list state/researc
 
 # 4. a historical block, to reproduce a finding the live document no longer has
 python3 skills/skill-authoring/scripts/state_claim_check.py --block 349 state/research-state.md
-# expected: exit 1, S001 (415 vs 399) and S002 (B002 no longer emitted)
+# expected: exit 1, S001 (415 vs 399), S002 (B002 no longer emitted) and
+# S007 (its ordinal 8 is below round 348's 9)
 
 # 5. the tombstone registry — a retired item re-asserted as open
 python3 skills/skill-authoring/scripts/state_claim_check.py state/research-state.md
@@ -222,7 +252,14 @@ python3 skills/skill-authoring/scripts/state_claim_check.py state/research-state
 # round 383's item 5, whose citation says "is CLOSED and must not be carried
 # again".
 
-# 6. the guard that makes this run every cycle
+# 6. the carry counter, against its own history
+python3 skills/skill-authoring/scripts/state_claim_check.py --block 398 state/research-state.md
+# expected: exit 1, S007 naming the previous asserting block and printing the
+# whole sequence by cycle: `333:6 skills(b) round, 334:6 skills(b) round,
+# 336:7 round, 338:8 round, 343:-, 346:7 skills(b) round, 347:8 round,
+# 348:9 round, 349:8 round, 398:8 round`
+
+# 7. the guard that makes this run every cycle
 python3 -m unittest discover -s skills/skill-authoring/scripts -p 'test_state_claim_check.py'
 # expected: exit 0, OK. TestLiveCorpus is the live assertion;
 # TestRound349Regression pins the historical text so correcting the document
@@ -234,3 +271,11 @@ mutation_test harness/swe/campaign.py` -> 0) re-ran clean; carry age **9
 blocks** (rounds 333, 334, 336, 338, 343, 346, 347, 348, 349) for the stale
 sentence; coverage 9 items, 2 with a checkable claim. After the correction the
 live document exits 0 and `--block 349` still exits 1.
+
+Round 399 added step 8 and measured it over the same document: sweeping all
+**93** revisions, each treated in turn as the live one, **3** would be
+ERROR-red on S007 (rounds 334, 349, 398) and **2** more WARN on S008 (rounds
+318, 346 — the counter fell and its denominator moved with it). The rule is
+therefore not a one-instance rule, and none of the five was ever noticed by
+the rounds that wrote them. The sets, not the counts, are pinned in
+`TestLiveCorpusOrdinals`, so a new instance names itself.

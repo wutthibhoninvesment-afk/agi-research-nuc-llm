@@ -565,6 +565,22 @@
    "where": "knowledge/round-396-the-sentence-that-was-three-divergences.md",
    "quote": "**12 HIT / 3 HALF / 1 MISS / 1 unscored.**",
    "note": "17 predictions banked in ONE block before any measurement, with a S0 OBSERVATIONS ALREADY MADE section listing the eleven orientation facts -- eighth round running of that discipline. P6 and P11 are the instructive misses and share one shape with the round's SUBJECT: both predicted the result of comparing two strings without asking how many claims the string carried. P6 predicted `unclosed-paren` would CONVERGE; it did not, because `expected X, got Y` is three divergences sharing a sentence (want / got / hint) and only the want half closed -- the round's largest finding arriving as a failed prediction, the fifth consecutive round that has happened. P11 predicted stale SPEC.md lines would need edits; they are historical record under version headings and correctly need none. P2 and P9 are the same error one size down: both priced a partition from the two or three cases already looked at (3 classes predicted, 5 actual). P9 was scored HALF on a first pass that counted only the files this round had edited and re-scored HIT against a controlled revert -- the correction is itself the round's subject. P14 is UNSCORED because the slow tier was killed at 50% on a loaded 1-CPU box. P15 (diff 700-1600) MISSED high at ~1750 staged lines: five of the last six language-round size predictions have missed, and this is the second to miss high."
+  },
+  "398": {
+   "bank": "state/whence/round-398/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 398,
+   "where": "knowledge/round-398-the-half-of-the-sentence-the-guest-wrote.md",
+   "quote": "**15 HIT (one exact), 1 HALF, 1 MISS, 1 unscored, of 18.**",
+   "note": "Ledger entry added by round 399 (skills B), not by round 398, which banked and scored the predictions but never registered the bank -- so K001 was ERROR-red at HEAD and the driver's own skills health check said so at 12:41:44, one minute before round 399 opened. The bank and the score are round 398's own work and are quoted verbatim from its research-state.md entry; round 399 re-derived nothing about the predictions themselves and claims no verdict on them. This is the fourth consecutive skills(B) round to land a predecessor's ledger row."
+  },
+  "399": {
+   "bank": "state/skills/round-399/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 399,
+   "where": "knowledge/round-399-the-counter-that-was-a-fingerprint.md",
+   "quote": "**10 HIT, 2 HALF, 4 MISS, of 16.**",
+   "note": "16 predictions banked in ONE block before the archaeology, with a S0 OBSERVATIONS ALREADY MADE section listing the ten orientation facts. THE ROUND'S OWN K001 IS THE POINT: this row exists because round 399 fixed round 398's missing row, re-ran the checker, and it immediately fired on round 399's own bank -- the rule caught its author inside one session, at a latency of minutes rather than the rotation. P4 and P5 are the instructive misses and share one shape with each other AND with the round's subject: both priced a population from the single vivid instance already in hand. P4 predicted the resurrection would be common in round 398's block (it is 1 of 5 carried claims); P5 predicted the broken carry counter would show up on the SECURITY.md carry (monotone: 7, 8, 9, 10, 13, 14) and missed the place it actually did show up, a NUC-integration(E) item at round 318. P2 is a HALF for the same reason in reverse: the mechanism held (the ordinal fingerprints the source copy) while my named source was wrong -- round 338 at 0.950 similarity, not round 349, which scored 0.272, the WORST of the nine. P13 is a MISS worth keeping: it predicted the corpus would still carry >= 6 warnings after the fix and it carries 5 -- clearing five errors also cleared a warning assumed to be structural. P11 missed high (158 lines / 21 tests vs 60-140 / 8-16) entirely on the S007-vs-S008 unit split I had not foreseen."
   }
  }
 }

@@ -55,6 +55,9 @@ Findings
 `S001`  a body-line count that no longer matches the file.
 `S002`  a lint code cited as currently firing (`… (B002)`) that `skill_lint`
         does not emit for that file any more.
+`S007`  a carry ordinal that did not advance since the previous block
+        asserting the same claim, for the same unit.
+`S008`  the same, but the unit changed too — reported, never an error.
 `S003`  an inline `` `cmd` -> result `` claim whose command, re-run, prints
         something else. Requires `--run`; the command must classify `auto`
         under `claim_check.py`'s fail-closed allowlist, so nothing here can
@@ -593,6 +596,160 @@ def check_retired(claim, repo_root):
     return out
 
 
+ORDINAL_WORDS = {
+    "second": 2, "third": 3, "fourth": 4, "fifth": 5, "sixth": 6,
+    "seventh": 7, "eighth": 8, "ninth": 9, "tenth": 10, "eleventh": 11,
+    "twelfth": 12, "thirteenth": 13, "fourteenth": 14, "fifteenth": 15,
+    "sixteenth": 16, "seventeenth": 17, "eighteenth": 18, "nineteenth": 19,
+    "twentieth": 20,
+}
+
+# `8th consecutive round carried`, `SEVENTH consecutive down-round`,
+# `unchanged, 7th consecutive skills(B) round`.
+#
+# Digits AND words, because this corpus writes both and an author who
+# reaches for `TWELFTH` is emphasising the very field this rule audits.
+ORDINAL_RE = re.compile(
+    r"\b(?:(?P<digits>\d{1,2})(?:st|nd|rd|th)|(?P<word>%s))\b[\s,]*consecutive"
+    % "|".join(sorted(ORDINAL_WORDS, key=len, reverse=True),),
+    re.I)
+
+# A second SUBJECT in the same item starts at its own backticked path; an
+# ordinal on the far side of one belongs to that subject, not this claim.
+# Any extension, not just `.md`: round 349's real item pairs a SKILL.md claim
+# with `harness/swe/regiontools.py` in one sentence, and a barrier that only
+# knew about markdown would hand the second subject's counter to the first.
+# Erring toward NOT attributing is the right bias — an unattributed ordinal
+# costs a finding, a misattributed one invents a false one.
+NEXT_CLAIM_RE = re.compile(r"`[^`\s]+\.[a-z]{1,5}`")
+
+
+def ordinal_value(m):
+    if m.group("digits"):
+        return int(m.group("digits"))
+    return ORDINAL_WORDS[m.group("word").lower()]
+
+
+# Words that decorate a carry unit without changing it: "8th consecutive
+# round carried", "7th consecutive round it has been carried" and "9th
+# consecutive round" all count ROUNDS. "7th consecutive skills(B) round"
+# does not — it counts a sixth of them, and a document that switches
+# denominators mid-carry is making a different mistake from one whose
+# counter simply failed to move.
+UNIT_STOPWORDS = frozenset(
+    ("carried", "it", "has", "been", "now", "this", "that", "so", "far",
+     "in", "a", "the", "and", "for", "if", "since", "with", "of", "on",
+     "at", "to", "per", "as", "each", "he", "she", "they"))
+
+
+def ordinal_unit(window, end):
+    """The thing an ordinal counts, as a tuple of significant words."""
+    tail = re.split(r"[.;,:\u2014]", window[end:].strip(), 1)[0]
+    out = []
+    for w in tail.split():
+        if w in UNIT_STOPWORDS:
+            break
+        out.append(w)
+        if len(out) >= 4:
+            break
+    return tuple(out)
+
+
+def ordinal_for(item_text, key):
+    """`(ordinal, unit)` for `key` inside one item, or None.
+
+    Attachment rule, stated rather than guessed: the FIRST `Nth consecutive`
+    phrase that appears AFTER the claim span and BEFORE any other backticked
+    `.md` path. Round 349's item 9 is why both halves are needed — it asserts
+    two claims in one sentence (`fuzz-mutate-kill-loop/SKILL.md` ... `8th
+    consecutive round carried; `harness/swe/regiontools.py` ...`), so an
+    unbounded search would hand the same ordinal to both.
+    """
+    hay = normalise(item_text)
+    i = hay.find(key)
+    if i < 0:
+        return None
+    window = hay[i + len(key):]
+    m = ORDINAL_RE.search(window)
+    if m is None:
+        return None
+    if NEXT_CLAIM_RE.search(window[:m.start()]):
+        return None
+    return (ordinal_value(m), ordinal_unit(window, m.end()))
+
+
+def ordinal_history(key, blocks):
+    """[(round, (ordinal, unit)-or-None)] per block asserting `key`, by round.
+
+    Sorted by the block's own declared round, NEVER by file position: in this
+    corpus 51 of 92 adjacent block pairs are out of chronological order and
+    the physically last block is 65 rounds behind the live one, so file order
+    would compare a counter against a block written long after it.
+    """
+    rows = []
+    for block in blocks:
+        for item in parse_items(block):
+            if key in normalise(item.text):
+                rows.append((block.round_no, ordinal_for(item.text, key)))
+                break
+    rows.sort(key=lambda r: r[0])
+    return rows
+
+
+def check_ordinal(claim, blocks):
+    """S007 -- a carry ordinal that did not advance since the last assertion.
+
+    A rolling document's "Nth consecutive cycle carried" counter is the one
+    field every author edits, so round 351 read it as the sharpest tell that
+    the claim was copied forward. Measured across its own ten assertions, the
+    counter does not count: it goes 6, 6, 7, 8, -, 7, 8, 9, 8, 8. Each author
+    derived N from whichever earlier revision they happened to read, so N is
+    not a carry count at all -- it is a fingerprint of the SOURCE copy.
+
+    The rule is therefore about monotonicity, not about a derived total. An
+    ordinal must be strictly greater than the ordinal on the most recent
+    earlier block asserting the same claim. That has no false positives by
+    construction: if the later author had derived the count from the earlier
+    block, the number would have gone up. It deliberately does not check N
+    against the LENGTH of the carry chain -- "consecutive skills(B) rounds"
+    and "blocks in this file" are different denominators, and asserting they
+    are equal would make this checker the thing it audits.
+    """
+    key = claim.key()
+    live_round = claim.item.block.round_no
+    mine = ordinal_for(claim.item.text, key)
+    if mine is None:
+        return []
+    history = ordinal_history(key, blocks)
+    prior = [(r, o) for r, o in history if r < live_round and o is not None]
+    if not prior:
+        return []
+    prev_round, (prev_ord, prev_unit) = prior[-1]
+    my_ord, my_unit = mine
+    if my_ord > prev_ord:
+        return []
+    seq = ", ".join("%d:%s" % (r, "-" if o is None else "%d %s"
+                               % (o[0], " ".join(o[1]) or "?"))
+                    for r, o in history)
+    if my_unit != prev_unit:
+        return [Finding(
+            claim, "S008",
+            "carry ordinal is %d %s, below round %d's %d %s — the counter "
+            "went backwards AND its unit changed, so the document asserts "
+            "two incompatible counts of the same carry and a reader cannot "
+            "tell which is current. Sequence by round: %s"
+            % (my_ord, " ".join(my_unit) or "?", prev_round, prev_ord,
+               " ".join(prev_unit) or "?", seq),
+            level="WARN")]
+    return [Finding(
+        claim, "S007",
+        "carry ordinal is %d, not above round %d's %d for the same unit "
+        "(%s) — the counter did not advance since the previous block "
+        "asserting this claim, so it was transcribed from an older revision "
+        "rather than derived. Sequence by round: %s"
+        % (my_ord, prev_round, prev_ord, " ".join(my_unit) or "?", seq))]
+
+
 def check_citation(claim, blocks, repo_root):
     """S004 -- a `Round N's item K` pointer that resolves to nothing.
 
@@ -693,6 +850,7 @@ def analyse(path, repo_root, run=False, timeout=300, block_round=None):
     for item in items:
         for claim in extract_claims(item):
             claims.append(claim)
+            findings.extend(check_ordinal(claim, blocks))
             if claim.kind == "body-lines":
                 findings.extend(check_body_lines(claim, repo_root))
             elif claim.kind == "citation":

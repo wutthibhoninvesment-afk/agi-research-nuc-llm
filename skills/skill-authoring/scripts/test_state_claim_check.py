@@ -880,3 +880,220 @@ class TestTheRealRegistry(unittest.TestCase):
             self.assertTrue(
                 any(os.path.exists(os.path.join(REPO_ROOT, p)) for p in paths),
                 (rnd, item, paths))
+
+
+# --------------------------------------------------------------------------
+# S007 / S008 — the carry ordinal (round 399)
+# --------------------------------------------------------------------------
+
+B002 = "`fuzz-mutate-kill-loop/SKILL.md` is still 415 body lines (B002)"
+
+
+def one_claim(text, round_no=400):
+    """The first extracted claim of a one-item block."""
+    blk = scc.find_blocks(block(round_no, "1. " + text))[0]
+    blk.path = "<test>"
+    item = scc.parse_items(blk)[0]
+    return scc.extract_claims(item)[0]
+
+
+class TestOrdinalGrammar(unittest.TestCase):
+    def test_digits_and_words_both_parse(self):
+        c = one_claim(B002 + " — 8th consecutive round.")
+        self.assertEqual(scc.ordinal_for(c.item.text, c.key()), (8, ("round",)))
+        c = one_claim(B002 + " — TWELFTH consecutive round.")
+        self.assertEqual(scc.ordinal_for(c.item.text, c.key()),
+                         (12, ("round",)))
+
+    def test_no_ordinal_is_none_not_zero(self):
+        # Round 343's real item asserts the claim with no counter at all.
+        c = one_claim(B002 + " — unchanged, the only thing in the way.")
+        self.assertIsNone(scc.ordinal_for(c.item.text, c.key()))
+
+    def test_an_ordinal_before_the_claim_is_not_attached_to_it(self):
+        c = one_claim("Deferred a 4th consecutive round: " + B002 + ".")
+        self.assertIsNone(scc.ordinal_for(c.item.text, c.key()))
+
+    def test_an_ordinal_behind_a_second_md_claim_is_not_stolen(self):
+        # Round 349's real item 9 shape: two subjects, one sentence. Without
+        # the `.md` barrier the first claim would take the second's counter.
+        c = one_claim(B002 + "; `harness/swe/regiontools.py` is still "
+                      "un-unified, 9th consecutive round.")
+        self.assertIsNone(scc.ordinal_for(c.item.text, c.key()))
+
+    def test_the_ordinal_between_the_claim_and_the_next_md_is_attached(self):
+        # Also round 349's real shape, in the order it was actually written.
+        c = one_claim(B002 + ", 8th consecutive round carried; "
+                      "`harness/swe/regiontools.py` is still un-unified.")
+        self.assertEqual(scc.ordinal_for(c.item.text, c.key()), (8, ("round",)))
+
+    def test_decoration_does_not_change_the_unit(self):
+        # The three real spellings of "rounds" in this corpus.
+        for tail in ("round.", "round carried.", "round it has been carried."):
+            c = one_claim(B002 + " — unchanged, 8th consecutive " + tail)
+            self.assertEqual(scc.ordinal_for(c.item.text, c.key())[1],
+                             ("round",), tail)
+
+    def test_a_qualified_denominator_is_a_different_unit(self):
+        c = one_claim(B002 + " — 7th consecutive skills(B) round.")
+        self.assertEqual(scc.ordinal_for(c.item.text, c.key())[1],
+                         ("skills(b)", "round"))
+
+
+class TestOrdinalHistory(unittest.TestCase):
+    def test_history_is_sorted_by_declared_round_not_file_position(self):
+        # Load-bearing. In the real research-state.md 51 of 92 adjacent block
+        # pairs are out of chronological order and the physically LAST block
+        # is 65 rounds behind the live one, so file order would compare a
+        # counter against a revision written long after it.
+        text = (block(349, "1. " + B002 + " — 8th consecutive round.") +
+                "\n" +
+                block(334, "1. " + B002 + " — 6th consecutive round.") +
+                "\n" +
+                block(338, "1. " + B002 + " — 8th consecutive round."))
+        hist = scc.ordinal_history(scc.normalise(B002),
+                                   scc.find_blocks(text))
+        self.assertEqual([r for r, _ in hist], [334, 338, 349])
+
+    def test_a_block_with_no_ordinal_is_kept_as_a_hole(self):
+        text = (block(334, "1. " + B002 + " — 6th consecutive round.") +
+                "\n" + block(343, "1. " + B002 + " — unchanged."))
+        hist = scc.ordinal_history(scc.normalise(B002), scc.find_blocks(text))
+        self.assertEqual([o for _, o in hist], [(6, ("round",)), None])
+
+
+class TestCheckOrdinal(unittest.TestCase):
+    def _findings(self, live_round, live_tail, *older):
+        parts = [block(r, "1. " + B002 + " — " + t) for r, t in older]
+        parts.append(block(live_round, "1. " + B002 + " — " + live_tail))
+        text = "\n".join(parts)
+        blocks = scc.find_blocks(text)
+        for b in blocks:
+            b.path = "<test>"
+        live = [b for b in blocks if b.round_no == live_round][0]
+        claim = scc.extract_claims(scc.parse_items(live)[0])[0]
+        return scc.check_ordinal(claim, blocks)
+
+    def test_an_advancing_counter_is_silent(self):
+        self.assertEqual(
+            self._findings(398, "9th consecutive round.",
+                           (349, "8th consecutive round.")), [])
+
+    def test_a_repeated_counter_is_S007(self):
+        # The live instance: round 398 re-asserted round 349's `8th`.
+        f = self._findings(398, "8th consecutive round carried.",
+                           (349, "8th consecutive round carried."))
+        self.assertEqual(codes(f), ["S007"])
+        self.assertEqual(f[0].level, "STALE")
+        self.assertIn("round 349's 8", f[0].message)
+
+    def test_a_decreasing_counter_is_S007(self):
+        f = self._findings(349, "8th consecutive round.",
+                           (348, "9th consecutive round."))
+        self.assertEqual(codes(f), ["S007"])
+
+    def test_the_message_carries_the_whole_sequence(self):
+        f = self._findings(398, "8th consecutive round.",
+                           (333, "6th consecutive round."),
+                           (343, "unchanged."),
+                           (349, "8th consecutive round."))
+        self.assertIn("333:6 round, 343:-, 349:8 round, 398:8 round",
+                      f[0].message)
+
+    def test_a_changed_unit_is_S008_and_only_a_warning(self):
+        # Round 346's real shape: 8 rounds -> 7 skills(B) rounds. The count
+        # went backwards, but the denominator moved with it, so the document
+        # is ambiguous rather than provably stale. Reported, never an error.
+        f = self._findings(346, "7th consecutive skills(B) round.",
+                           (338, "8th consecutive round carried."))
+        self.assertEqual(codes(f), ["S008"])
+        self.assertEqual(f[0].level, "WARN")
+
+    def test_the_first_assertion_of_a_claim_is_silent(self):
+        self.assertEqual(self._findings(398, "1st consecutive round."), [])
+
+    def test_a_prior_block_with_no_ordinal_is_skipped_not_compared(self):
+        # Round 343 asserts the claim with no counter; the comparison must
+        # reach past it to round 338 rather than treat the hole as zero.
+        f = self._findings(346, "7th consecutive round.",
+                           (338, "8th consecutive round."),
+                           (343, "unchanged."))
+        self.assertEqual(codes(f), ["S007"])
+        self.assertIn("round 338's 8", f[0].message)
+
+    def test_an_item_with_no_ordinal_at_all_is_silent(self):
+        self.assertEqual(
+            self._findings(398, "unchanged.",
+                           (349, "8th consecutive round.")), [])
+
+
+class TestRound398OrdinalRegression(unittest.TestCase):
+    """Round 398's real text, verbatim, pinned as a fixture.
+
+    Round 399 rewrote the live block, so the tool exits 0 against the current
+    `state/research-state.md` — which would quietly delete the evidence that
+    S007 works. Same reason `TestRound349Regression` above exists.
+    """
+
+    LIVE_398 = (
+        "10. `fuzz-mutate-kill-loop/SKILL.md` is still 415 body lines (B002) "
+        "and is\n    still the only thing between the corpus and a "
+        "warning-free `--house\n    --strict` sweep — 8th consecutive round "
+        "carried.")
+    R349 = (
+        "9. Standing and unchanged: `fuzz-mutate-kill-loop/SKILL.md` is still "
+        "415 body lines (B002), 8th consecutive round carried; "
+        "`harness/swe/regiontools.py`'s region-patch mechanism is still "
+        "deliberately un-unified with `EditFileTool`.")
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.doc = os.path.join(self.tmp, "research-state.md")
+        with open(self.doc, "w") as f:
+            f.write(block(349, self.R349) + "\n" +
+                    block(398, self.LIVE_398))
+        self.addCleanup(shutil.rmtree, self.tmp)
+
+    def test_round_398s_counter_is_caught(self):
+        findings, _ = scc.analyse(self.doc, REPO_ROOT, run=False)
+        s7 = [f for f in findings if f.code == "S007"]
+        self.assertEqual(len(s7), 1, [str(f) for f in findings])
+        self.assertIn("not above round 349's 8", s7[0].message)
+
+    def test_the_body_line_count_is_caught_in_the_same_pass(self):
+        # Both halves of round 398's item 10 were false. S001 catches the
+        # number; S007 catches the claim that nobody had needed to re-check
+        # it for eight consecutive rounds.
+        findings, _ = scc.analyse(self.doc, REPO_ROOT, run=False)
+        self.assertEqual(sorted({f.code for f in findings}),
+                         ["S001", "S002", "S007"])
+
+
+class TestLiveCorpusOrdinals(unittest.TestCase):
+    DOC = os.path.join(REPO_ROOT, "state", "research-state.md")
+
+    @unittest.skipUnless(os.path.isfile(DOC), "research-state.md absent")
+    def test_the_live_block_has_no_ordinal_findings(self):
+        findings, _ = scc.analyse(self.DOC, REPO_ROOT, run=False)
+        bad = [str(f) for f in findings if f.code in ("S007", "S008")]
+        self.assertEqual(bad, [], "\n".join(bad))
+
+    @unittest.skipUnless(os.path.isfile(DOC), "research-state.md absent")
+    def test_every_historical_block_is_swept_and_the_verdicts_are_stable(self):
+        # Round 399 measured the whole document: 3 blocks of 93 would be
+        # ERROR-red on S007 (334, 349, 398) and 2 more WARN on S008 (318,
+        # 346). Pinned as SETS of round numbers, not as counts, so a future
+        # block that trips the rule names itself instead of moving a total.
+        with open(self.DOC, encoding="utf-8") as f:
+            blocks = scc.find_blocks(f.read())
+        s7, s8 = set(), set()
+        for b in blocks:
+            findings, _ = scc.analyse(self.DOC, REPO_ROOT, run=False,
+                                      block_round=b.round_no)
+            for x in findings:
+                if x.code == "S007":
+                    s7.add(b.round_no)
+                elif x.code == "S008":
+                    s8.add(b.round_no)
+        self.assertEqual(sorted(s7), [334, 349, 398], "S007 set moved")
+        self.assertEqual(sorted(s8), [318, 346], "S008 set moved")
