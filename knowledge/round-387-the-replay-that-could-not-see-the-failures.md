@@ -214,7 +214,7 @@ replay ran, with an OBSERVATIONS ALREADY MADE section — fourth round running.
 P5 (a commit ERROR-red under the full replay, green under `core`, touching
 **no** `skills/` path — three of them: `e7b2745`, `4b63752`, `10acd1f`, so the
 two blind spots compound); P6 (median repair latency **1 round**); P7 (no
-episode >2 rounds); P9 (§9 below); P10 (driver.log is the sole evidence for
+episode >2 rounds); P9 (§8c, verified after this round's own commit); P10 (driver.log is the sole evidence for
 **4 of 5** — only round 374's is reproducible from a commit); P11 (the
 checker-set extension proper is ~26 lines of code / ~40 with comments, well
 under 120, and for exactly the predicted reason: `run_checker`, `classify`
@@ -301,6 +301,32 @@ tool to be missing; it only needs nobody to look.
 This is the third instance in one round of a single failure — §3's docstring
 enumeration, §8's archive pathspec, and this — and the third was committed
 while writing up the first two.
+
+## 8c. P9, verified after the commit: the repair erases the episode
+
+P9 predicted that landing round 386's work and its ledger entry in **one**
+commit would make the replay report **green** at that commit — the episode
+erased from history by the act of repairing it.
+
+Run at `4c05cf4`, the commit this round just made, with the full six-checker
+read-scope replay:
+
+```
+ERROR-red:    0/3 commit(s)
+ungovernable: 3/3 commit(s)   (P008 only)
+## ERROR episodes — 0
+```
+
+The working tree was `carryforward ERROR K001` when this round started. Its
+own commit is green, and a replay run a year from now will find nothing. The
+only surviving evidence that round 386 left the corpus ERROR-red is the one
+line `run_checks_fast.sh` wrote into `logs/driver.log` at 04:06:36.
+
+That is the finding in its smallest form, and it is not a defect to fix:
+**a repair is indistinguishable from cleanliness once it is committed.** Any
+history replay measures the record of what was kept, not what happened. The
+`live` mode exists because an append-only log of live verdicts is the only
+instrument that can tell the two apart.
 
 ## 9. Shipped
 
