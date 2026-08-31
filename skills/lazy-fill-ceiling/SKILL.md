@@ -39,6 +39,19 @@ overshot that wall by 4.8 GB.
   the constant is on.
 - An OOM or eviction storm appeared without a deploy, or only under "unusual"
   traffic.
+- **An RSS or `memory.current` figure DROPPED with no work done** — that is a
+  residency reading, not an allocation one, and step 4 is the fix.
+- A `--cap`/pool-size recommendation was chosen from an upper bound alone, with
+  no floor read off the prefetcher or worker pool (step 11).
+
+*These last two are deliberately in the body and not in the frontmatter
+`description`. Round 388 added them to the description, and
+`case_coverage.py` keys a skill's probe reports on its description text: the
+edit silently dropped this skill from 4 recorded probe runs to 0 and turned
+`test_lazy_fill_ceiling_disagrees_with_itself_on_every_case` red. Re-probing
+is a priced live run and was not launched from an E round. **A description
+edit discards probe history — budget a re-probe with it, or put the new
+trigger in the body.**
 
 **When NOT to use:** a service that allocates everything at startup and whose
 memory is bounded by construction; ordinary leak hunting (unbounded growth with
@@ -78,31 +91,45 @@ An observation can only ever prove the ceiling is AT LEAST what you saw.
    reading of a partly-filled cache.
    *Outcome:* one number, comparable directly against the hard limit.
 
-4. **Invert the live reading into a fill fraction.**
-   `entries = (observed - baseline) / entry_bytes`. State the uncertainty in
+4. **Pick an observable that tracks ALLOCATION, then invert it.**
+   `entries = (observed - baseline) / entry_bytes` — but `observed` must not be
+   RSS or `memory.current`. Those are *residency*, and they are wrong in two
+   directions at once: they FALL when the kernel reclaims (pages the process
+   still owns move to swap) and they INCLUDE kernel/slab/page-cache charge that
+   was never a cache entry. Use `anon + swap.current` on cgroup v2, or
+   `VmRSS + VmSwap` from `/proc/<pid>/status`. State the uncertainty in
    entries, not bytes, so nobody reads spurious precision.
    *Outcome:* "the cache is X % full", which is the sentence the snapshot was
-   hiding.
+   hiding — computed from a quantity that only goes up.
 
-5. **Audit every stated anchor for impossibility.** If a recorded figure
+5. **Add a monotonicity witness, and make it refuse to be widened.** Step 2
+   established that allocation below `cap` never decreases. So encode it:
+   invert two consecutive readings and grade a decrease as `instrument_error`,
+   not as data. Give it a tolerance no larger than the inversion's own rounding
+   — the tempting fix, when it fires, is a bigger epsilon, and a test should
+   assert that even an absurd tolerance still fails.
+   *Outcome:* the next wrong observable is caught by the model instead of being
+   published by it.
+
+6. **Audit every stated anchor for impossibility.** If a recorded figure
    claims to be "measured at full capacity", check `anchor - capacity *
    entry_bytes >= known_fixed_size`. A negative result means the anchor cannot
    hold the cache it claims to, and any model built on it is arithmetic on
    nonsense — make the code raise rather than return a plausible number.
    *Outcome:* each historical anchor labelled sound / mid-fill / impossible.
 
-6. **Report distance to the wall in the units that caused the fill.** Bytes of
+7. **Report distance to the wall in the units that caused the fill.** Bytes of
    headroom are not actionable; "0.22 of another request like the last two" is.
    Fit the crudest saturating curve to the observations you have, state that it
    is one data point, and give the lower-bound model beside it.
    *Outcome:* a falsifiable prediction the next cycle can score.
 
-7. **Re-derive every downstream recommendation.** A wrong per-entry constant
+8. **Re-derive every downstream recommendation.** A wrong per-entry constant
    does not fail loudly; it produces confident config values. Grep for the
    constant, fix it, and re-run every sizing it feeds.
    *Outcome:* the changed recommendations listed explicitly, old value -> new.
 
-8. **Then fix the constant's PROVENANCE, not just its value, and do the same
+9. **Then fix the constant's PROVENANCE, not just its value, and do the same
    for every sibling in the same record.** Correcting the number leaves the
    next reader with the same opaque literal. Replace it with an expression
    over named dimensions (`3 * INTER * HIDDEN`, not `3_145_728`) so which side
@@ -117,12 +144,24 @@ An observation can only ever prove the ceiling is AT LEAST what you saw.
    *Outcome:* every constant in the record either derived from named
    dimensions, or explicitly named as a single live reading that cannot be.
 
-9. **Distrust the transform claim for models you have not read the loader
+10. **Distrust the transform claim for models you have not read the loader
    for.** "int8 in the container" does not establish "int8 in the slot" — that
    is exactly the inference round 376 falsified. If a second model's geometry
    comes from a README rather than from its allocator, say so in the code
    beside it; that is the pre-bug state, not a fixed one.
    *Outcome:* each geometry record labelled allocator-read or document-read.
+
+11. **Bound the config from BELOW as well as above.** Sizing work naturally
+    asks "how large can `cap` be"; the miss path can have a floor too. If any
+    prefetcher, worker pool or in-flight queue can hold more entries per bucket
+    than `cap` itself, the eviction scan can find no victim and drop into a
+    fallback path — often the least-tested code in the module, and often
+    recently rewritten because its predecessor was racy. Read the prefetch
+    depth, not just the limit. Round 388 found a 128-deep per-layer prefetch
+    queue in the same file as the cache, making every `cap <= 128` unsound and
+    retracting two recommendations a prior round had made on RAM grounds alone.
+    *Outcome:* a closed band `[floor+1, max_cap]`, which reports EMPTY rather
+    than rounding down when a box cannot satisfy both ends.
 
 ## Pitfalls
 
@@ -149,6 +188,29 @@ An observation can only ever prove the ceiling is AT LEAST what you saw.
   file-backed. All-anonymous plus a small swap device means thrash, then kill.
 - **Counting swap into the headroom hides the cliff.** Report "X to the hard
   limit, then Y of swap" as two numbers. A single sum reads as reassurance.
+- **Swap is future runway AND present debt, and it is easy to model only the
+  first.** A model that adds `swap_total` to the headroom while ignoring
+  `swap.current` believes the process can grow into space it is already using.
+  Round 388's headroom figure was overstated by exactly the swapped-out bytes:
+  538 slots claimed, 456 real.
+- **Reclaim need not come from the limit you are watching.** A cgroup can lose
+  hundreds of MB to *global* `kswapd` pressure with `memory.events max` still
+  at 0 — the counters that distinguish them are `pgscan_direct`/`allocstall_*`
+  (the allocator reclaiming in its own context) versus `pgscan_kswapd`
+  (background, whole-machine). Zero traffic to your service does not mean zero
+  memory events for your service.
+- **The perturbation is usually a timer, and the box already recorded it.**
+  Before theorising, read `sar`/`sysstat` (10-minute buckets on a default
+  Ubuntu install) for the swap-out rate, and `systemctl list-timers` for what
+  fired in the same bucket. Round 388 pinned 76 % of an unexplained swap event
+  to the bucket containing `apt-daily.service`. Any A/B on such a box must
+  record whether a housekeeping timer straddled the measurement window.
+- **A stable reading is the reason a lesson gets recorded too narrowly.** The
+  round that first noticed this cache's flat line wrote "the flat line was the
+  reason not to look, and it was exactly the wrong reason" — about that one
+  number. Two rounds later the same number was published as unchanged three
+  more times, because the lesson had been filed under the number rather than
+  under flat lines.
 
 ## Verification
 
@@ -161,8 +223,13 @@ python3 nuc/expert_cache.py geometry     # entry bytes from raw dims
 python3 nuc/expert_cache.py plan         # -> max_cap per safety margin
 # 3. where is it actually
 python3 nuc/expert_cache.py fill --current <observed>
-# 4. how far to the wall, in requests
-python3 nuc/expert_cache.py wall --current <observed> --requests <n>
+# 4. how far to the wall, in requests -- on the ALLOCATION observable
+python3 nuc/expert_cache.py wall --current <memory.current> --anon <anon> \
+                                 --swap-current <swap.current>
+# 5. residency vs allocation for one reading, incl. the monotonicity verdict
+python3 nuc/expert_cache.py snapshot --current <c> --anon <a> --swap-current <s>
+# 6. is this cap sound at BOTH ends?
+python3 nuc/expert_cache.py bound --cap <n>     # -> in_sound_band, bounded_by
 ```
 
 Expected shape: `plan` names a cap strictly below the configured one whenever
@@ -171,6 +238,11 @@ Expected shape: `plan` names a cap strictly below the configured one whenever
 
 - [ ] `entry_bytes` recomputed by hand from raw dimensions, matching the code
 - [ ] fill path confirmed lazy and capped (quote the miss-path branch)
+- [ ] the observable inverted is allocation (`anon + swap.current`), not RSS
+- [ ] two consecutive readings run through the monotonicity witness
+- [ ] the reclaim source identified as cgroup-limit vs global (`pgscan_direct`
+      / `allocstall_*` vs `pgscan_kswapd`)
+- [ ] the cap band is closed at BOTH ends, with the floor's source quoted
 - [ ] `baseline` is a pre-first-entry reading, not a mid-fill one
 - [ ] every historical anchor classified sound / mid-fill / impossible
 - [ ] downstream config recommendations re-derived and listed old -> new

@@ -206,3 +206,91 @@ def test_cli_grade_filter(tmp_path):
     assert r.returncode == 0
     data = json.loads(r.stdout)
     assert data["findings"] and all(x["grade"] == "derived" for x in data["findings"])
+
+
+# ------------------------------------------------ round 388: the fast check
+#
+# `nuc/run_checks_fast.sh` is the fourth per-round health check. Its whole
+# value is the FAIL path, which is the path nobody exercises: a check that
+# dies before printing why is worse than no check, because the driver logs its
+# last line either way.
+
+import os
+import shutil
+import subprocess
+import sys
+import textwrap
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[2]
+SCRIPT = REPO / "nuc" / "run_checks_fast.sh"
+
+
+def test_the_fast_check_exists_and_is_executable():
+    assert SCRIPT.is_file()
+    assert os.access(SCRIPT, os.X_OK)
+
+
+def test_the_fast_check_is_syntactically_valid_bash():
+    subprocess.run(["bash", "-n", str(SCRIPT)], check=True,
+                   capture_output=True, text=True)
+
+
+def test_the_fast_check_declares_its_offline_contract():
+    body = SCRIPT.read_text()
+    # the reason it is safe to run every round from any track
+    assert "OFFLINE" in body
+    assert "8001" in body           # the one port that must never be contacted
+    assert "Diagnostic-only" in body
+
+
+def _audit_summary_rc(payload: str) -> tuple[int, str]:
+    """Run the exact python fragment the script pipes its audit JSON into."""
+    body = SCRIPT.read_text()
+    start = body.index("import json, sys")
+    end = body.index("raise SystemExit(1 if s[", start)
+    frag = body[start:end] + 'raise SystemExit(1 if s["transform_risk"] else 0)\n'
+    proc = subprocess.run([sys.executable, "-c", textwrap.dedent(frag)],
+                          input=payload, capture_output=True, text=True)
+    return proc.returncode, proc.stdout
+
+
+def test_the_fast_check_reports_fail_on_a_transform_risk():
+    rc, out = _audit_summary_rc(json.dumps({"summary": {
+        "n": 19, "by_grade": {"derived": 14, "bare": 4, "disk": 1},
+        "derived_fraction": 0.737, "transform_risk": 2}}))
+    assert rc == 1                       # FAIL...
+    assert "transform-risk" in out       # ...and it said so before failing
+
+
+def test_the_fast_check_passes_on_bare_constants_alone():
+    """Four bare constants are a deliberate steady state, not a failure."""
+    rc, out = _audit_summary_rc(json.dumps({"summary": {
+        "n": 19, "by_grade": {"derived": 14, "bare": 4, "disk": 1},
+        "derived_fraction": 0.737, "transform_risk": 0}}))
+    assert rc == 0
+    assert "4 bare" in out
+
+
+def test_the_fast_check_fails_loudly_on_unparseable_audit_output():
+    rc, out = _audit_summary_rc("not json at all")
+    assert rc == 2
+    assert "PARSE-ERROR" in out
+
+
+@pytest.mark.skipif(
+    shutil.which("bash") is None or os.environ.get("NUC_FAST_CHECK_NESTED") == "1",
+    reason="no bash, or already inside the check this test invokes")
+def test_the_fast_check_runs_green_on_this_tree():
+    """End-to-end, including the pytest leg — with a recursion guard.
+
+    The script's first act is to run `nuc/tests/`, which contains this test.
+    Without `NUC_FAST_CHECK_NESTED` the run would re-enter itself forever; the
+    env var is set for the child only, so the outer run still exercises every
+    other line of the script."""
+    env = dict(os.environ, NUC_FAST_CHECK_NESTED="1")
+    proc = subprocess.run(["bash", str(SCRIPT)], cwd=REPO, env=env,
+                          capture_output=True, text=True, timeout=600)
+    assert proc.returncode == 0, proc.stdout[-3000:]
+    assert "nuc-checks PASS" in proc.stdout
+    assert "constant-audit" in proc.stdout

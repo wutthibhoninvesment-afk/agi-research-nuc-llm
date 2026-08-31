@@ -1409,3 +1409,96 @@ Code runs (proof in round file), measurements banked in both places,
   FRESH boot; (3) still blocked on the operator: `--cap 159` and the E3 A/B;
   (4) wire `nuc/constant_audit.py` into a health check (harness A) — it is
   offline and sub-second, and nothing but one test currently runs it.
+
+## Round 388 (NUC-integration E) — 2026-08-31, box UP, boot `43e0c767` (seventh consecutive E-round on it)
+
+- **The 13-hour "byte-identical `memory.current`" plateau that rounds 370/376/382
+  each published was an instrument reading, not a state.** With the completion
+  count STILL exactly 2 and still one `unpacking to int8 in slot` line,
+  `memory.current` fell **458,207,232 B** between 00:05:32Z and 04:52:43Z:
+  `anon` −274,530,304 and `memory.swap.current` 0 → **+274,530,304**, the same
+  number to the byte. `memory.swap.peak` moved with it (was 0 at r382), so the
+  event is bracketed inside this round's own gap. **`anon + swap.current` is
+  byte-identical across it: 30,600,970,240 both times.** The allocation never
+  changed; its residency did.
+- **It was NOT the cgroup limit.** `memory.events max` still 0 for the whole
+  boot; cgroup `pgscan_direct` 0 and `pgscan_kswapd` 2,587,671; system-wide
+  `allocstall_* 0`. Every page was **global kswapd** reclaim — the kernel taking
+  pages from the box's largest anonymous working set in response to
+  whole-machine watermarks. `workingset_refault_anon` 0: nothing has come back.
+  `memory.high` unset, `memory.swap.max` `max`.
+- **Pinned to a 10-minute bucket from data already on the box.** `sar -W -f
+  /var/log/sysstat/sa31`: 89.88 pswpout/s in the 03:50:05–04:00:03 bucket
+  (218.3 MB, 76 % of the event) and 27.54/s in 01:50–02:00 (67.7 MB). The 04:00
+  bucket contains `apt-daily.service` (03:50:05, 7.352 s CPU), `apt-news`,
+  `esm-cache` and `packagekit` — `sar -B` shows `pgpgin/s` 554.76 and
+  `pgscank/s` 1207.00 against an all-day baseline of ~0. **`apt` is the largest
+  perturbation this deployment has seen since its restart.** The 02:00 bucket is
+  **unexplained**: no journald entry 01:45–02:05, ~4 CPU-seconds, +147 MB
+  `Committed_AS` that persisted.
+- **`nuc/expert_cache.py` corrected.** Inverting `memory.current` across the
+  event reports the expert cache *losing 137 slots*, which `slot_ensure_allocated`
+  forbids (`if (s->g) return;` — a slot's block is malloc'd once and reused in
+  place on eviction). New `CgroupSnapshot` / `fill_from_snapshot()` invert
+  `anon + swap.current`; `check_monotone()` grades a decrease `instrument_error`
+  and a test asserts a 100-slot tolerance still does not launder it. Corrected
+  figures: fill **6,232 slots / 60.9 % / cap-equivalent 155.8** (published:
+  6,313 / 61.6 % / 157.8); headroom **456 slots**, not the naive 538.
+- **The correct treatment was one file away.** `full_footprint()` in
+  `nuc/fast_lane.py` has summed `resident + swapped` since round 382. `expert_cache.wall()` took a
+  `swap_total` parameter and used it only as future runway, never as present
+  debt. Second consecutive E-round to find this shape (r382: the DeltaNet
+  constant already exact in `nuc/kv_reuse_model.py`).
+- **`--cap` reframed: it is a choice of bounding MECHANISM, not a memory
+  budget.** At `--cap 256` the engine's terminal footprint is 44.00 GB against
+  `memory.max` 32.21 GB and RAM+swap 36.51 GB, so **the LRU in `expert_get`
+  (qwen36.c:1322-1355) can never engage on this box** — the OOM killer is the
+  only thing bounding the cache. New `bound_by`/`cap_verdict` grade both axes.
+  Round 376's "cap 204 is over by 4.83 GB" is against RAM alone; against
+  RAM+swap (what round 124 actually observed: 31.8 GB resident **plus** 4.2 GB
+  swapped) it is over by **0.537 GB**. Verdict survives, margin was ninefold.
+- **A floor nobody had read: `--cap` must exceed 128.** The PILOT prefetch
+  queues at most 128 candidates per layer (`int idx[128]`, `if (max_cand > 128)
+  max_cand = 128`, qwen36.c:2000/2005); at or below that a layer can have every
+  slot in flight, the one `expert_get` path with no LRU victim. v1.7.0 sleeps
+  and rescans (its predecessor "corrupts silently rather than crashing").
+  **Round 124's `--cap 16` and `--cap 64` lane variants are RETRACTED.**
+  Sound band for this box: **`--cap` ∈ [129, 167]**; **159 stays the
+  recommendation**, now for two reasons.
+- **Is one probe request safe? No, and it is now arithmetic.** `topk = 8`,
+  40 layers ⇒ ≤320 uncached slots per token. Against 456 slots of corrected
+  headroom: **1 token worst case, 3 expected.** The two models agree, so the
+  honest sentence is "any new traffic is unsafe until the cap is lowered", not
+  "we lack data". **No engine request sent** — banked as P11 before measuring.
+- **Round 304 item 2 re-verified, all six unchanged — SIXTEENTH check.**
+  `--cap 256` live; E3 patch NOT applied (0 markers, mtime
+  2026-08-23T15:27:33Z, 130,631 B); OLMoE tarball 7,420,160,000 B;
+  `memory.events max` 0; **no operator login since 2026-08-26 19:24**; both user
+  units `active`. Escalation channel dead since round 166.
+- **New `nuc/run_checks_fast.sh`** — the fourth per-round health check (round
+  382's handoff item 4, widened). Nothing under `nuc/` ran outside an E round:
+  not the 499 tests, not the five instruments, not the audit; detection latency
+  was bounded by the rotation at six rounds. Offline by construction, 65.6 s,
+  errors-only exit code, FAIL path covered by three tests plus a
+  `NUC_FAST_CHECK_NESTED` recursion guard. Found one real bug writing them:
+  `set -e` aborts at a command substitution that exits non-zero, so the FAIL
+  path would have killed the script before printing why. **NOT wired into
+  `run_driver.sh` — harness(A)'s file, per the round 242→247 precedent.**
+- Journal: 6/7 skipped, boot 0 4,724 → **5,342** entry-seconds in 6.8 s, merged
+  **185,182**; `unobserved_total` **0h29m20s**; `max_unobserved_outage`
+  **0h02m01s unchanged** (predicted to move — it did not); `missed_excursions`
+  `[]`; span 127h54m32s → **132h38m33s**.
+- Hygiene: READ-ONLY on `/work/**`; no unit restarted; **port 8001 never
+  contacted**; **no engine request of any kind**. One write on the box, in an
+  allowed path: `/work/logs/nuc-reclaim-r388.md`. Twelve ssh/scp
+  connections, all read-only bar the scp. `journal-boots` ran twice, `continuity` twice;
+  the reachability log got exactly one record.
+- **Next E round, in order:** (1) **stop reading `memory.current`** — read
+  `anon` + `memory.swap.current` and feed `expert_cache wall --anon … 
+  --swap-current …`; (2) the 02:00:05 bucket is unexplained, and **`sa31`
+  rotates at 2026-09-01T00:07Z** — capture it before then; (3) round 370's item
+  3 still needs a FRESH boot; (4) still blocked on the operator: `--cap 159`
+  (now argued as "the LRU can never engage at 256", with a `> 128` floor) and
+  the E3 A/B; (5) harness(A) owns wiring `nuc/run_checks_fast.sh` into
+  `run_driver.sh`; (6) any future A/B on this box must record whether
+  `apt-daily.timer` (03:50 UTC) straddled the measurement window.

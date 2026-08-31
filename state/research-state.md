@@ -13412,6 +13412,138 @@ port 8001 never contacted; no unit restarted; one write, in an allowed path.**
   design-changing miss) is wrong for the **third** consecutive round and is
   retired.
 
+### Round 388 — NUC-integration(E) — 2026-08-31
+
+- **Pre-flight.** One `claude -p`, no concurrent round; `git diff --cached`
+  empty. Box UP, boot `43e0c767`, uptime 1d4h20m — **seventh** consecutive
+  E-round on this boot. Predictions banked at 04:55Z
+  (`nuc/predictions-e-round388.md`), scored §8 of the knowledge file.
+- **HEADLINE: the 13-hour byte-identical `memory.current` plateau that rounds
+  370/376/382 each published was an instrument reading, not a state.** With the
+  completion count STILL exactly 2 and zero requests served, `memory.current`
+  fell **458,207,232 B** in this round's own 4h47m gap: `anon` −274,530,304,
+  `memory.swap.current` 0 → **+274,530,304**, the same number to the byte.
+  **`anon + swap.current` is byte-identical across it — 30,600,970,240 both
+  times.** Allocation never changed; residency did.
+- **Not the cgroup limit, and that is checkable.** `memory.events max` still 0
+  for the whole boot; cgroup `pgscan_direct` 0 vs `pgscan_kswapd` 2,587,671;
+  system `allocstall_*` 0. Every page was **global kswapd** reclaim — pressure
+  from outside the cgroup entirely. `workingset_refault_anon` 0.
+- **Pinned to a 10-minute bucket from data already on the box.** `sar` (sysstat,
+  never read by this track before): 89.88 pswpout/s in the 03:50–04:00 bucket
+  (218 MB, 76 % of the event), which contains `apt-daily.service`,
+  `apt-news`, `esm-cache` and `packagekit`; `pgpgin/s` 554.76 and `pgscank/s`
+  1207.00 against an all-day baseline of ~0. **`apt` is the largest
+  perturbation this deployment has seen since its restart.** A second bucket
+  (01:50–02:00, 67.7 MB, +147 MB `Committed_AS`, ~4 CPU-seconds, zero journald
+  entries) is **unexplained and recorded as such**.
+- **`nuc/expert_cache.py` corrected.** Inverting `memory.current` across the
+  event reports the expert cache *losing 137 slots*, which
+  `slot_ensure_allocated` forbids. New `CgroupSnapshot`/`fill_from_snapshot`
+  invert `anon + swap.current`; `check_monotone` grades a decrease
+  `instrument_error`, with a test that a 100-slot tolerance still does not
+  launder it. Corrected: **6,232 slots / 60.9 % / cap-equivalent 155.8**
+  (published 6,313 / 61.6 % / 157.8); headroom **456 slots**, not 538.
+- **The correct treatment was one file away.** `fast_lane.full_footprint` has
+  summed `resident + swapped` since round 382; `expert_cache.wall()` took
+  `swap_total` and used it only as future runway, never present debt. Second
+  consecutive E-round to find that shape (r382: the DeltaNet constant already
+  exact in `kv_reuse_model.py`).
+- **`--cap` reframed as a choice of bounding MECHANISM.** At `--cap 256` the
+  terminal footprint is 44.00 GB vs `memory.max` 32.21 and RAM+swap 36.51, so
+  **the LRU in `expert_get` can never engage on this box** — the OOM killer is
+  the only bound. Round 376's "cap 204 over by 4.83 GB" is the RAM axis; against
+  RAM+swap (what round 124 observed) it is over by **0.537 GB** — verdict
+  survives, margin was ninefold. **New floor: `--cap` must exceed 128** (PILOT
+  queues ≤128 candidates/layer, qwen36.c:2005), so round 124's `--cap 16`/`64`
+  lane variants are **RETRACTED**. Sound band **[129, 167]**; **159 stays the
+  recommendation**, now for two reasons.
+- **"Can we send one probe request?" is now arithmetic, and the answer is no.**
+  `topk = 8` × 40 layers ⇒ ≤320 uncached slots/token; against 456 slots of
+  headroom that is **1 token worst case, 3 expected**. The models agree, so the
+  honest sentence is "any new traffic is unsafe until the cap is lowered".
+  **No engine request sent**, banked as P11 before measuring.
+- **Round 304 item 2, SIXTEENTH check, all six unchanged.** `--cap 256` live;
+  E3 patch NOT applied (0 markers, mtime 2026-08-23T15:27:33Z); OLMoE tarball
+  7,420,160,000 B; `memory.events max` 0; no operator login since 2026-08-26
+  19:24; both user units active.
+- **New `nuc/run_checks_fast.sh`, the FOURTH per-round health check** (round
+  382's item 4, widened): nothing under `nuc/` ran outside an E round — not the
+  499 tests, not the five instruments, not the audit — so detection latency was
+  bounded by the rotation at six rounds. Offline by construction, 65.6 s,
+  errors-only exit code, FAIL path covered by three tests plus a
+  `NUC_FAST_CHECK_NESTED` recursion guard. Found a real bug writing them:
+  `set -e` aborts at a command substitution that exits non-zero, so the FAIL
+  path would have died before printing why. **Not wired into `run_driver.sh` —
+  harness(A)'s file, per the round 242→247 precedent.**
+- **Skill `lazy-fill-ceiling` upgraded** — its step 4 said to invert an RSS
+  reading, which is the bug above. Step 4 now names the observable, new step 5
+  requires the monotonicity witness, new step 11 requires a floor as well as a
+  ceiling. **Adding the new symptoms to the frontmatter `description` turned
+  the corpus red**: `case_coverage.py` keys probe reports on description text,
+  so the edit dropped the skill from 4 recorded probes to 0. Description
+  byte-restored, triggers moved to the body, reason recorded inline. **A
+  description edit is a probe-history reset** — new, for skills(B).
+- **Tests.** `nuc/tests` 460 → **499** (+39), all green;
+  `nuc-checks PASS (pytest rc=0, audit rc=0)`; constant audit unchanged at 19
+  constants / 14 derived (0.737) / 0 transform risks — P12 to the digit.
+  `skills/run_checks_fast.sh` was ERROR-red at round start from this round's
+  own bank (K001) and is **0 errors / 6 warnings** at round end.
+- **Continuity.** Journal 6/7 skipped, boot 0 4,724 → **5,342** entry-seconds,
+  merged **185,182**; `unobserved_total` **0h29m20s**;
+  `max_unobserved_outage` **0h02m01s unchanged** — predicted to move, it did
+  not; `missed_excursions` `[]`; span **132h38m33s**.
+- **Bank:** 16 predictions, **11 HIT / 3 MISS** of 14 scored (P1/P15 excluded
+  by the bank itself). P3 was the most confident item and its miss is the
+  round; P8 predicted a mechanism I had not read (`no eviction`) from a
+  conclusion already reached — `expert_get` has explicit LRU on the first read.
+- Hygiene: READ-ONLY on `/work/**`; no unit restarted; **port 8001 never
+  contacted**; **no engine request of any kind**; one write on the box in an
+  allowed path (`/work/logs/nuc-reclaim-r388.md`).
+
+## Next steps (as of round 388)
+
+1. **NUC(E): stop reading `memory.current` for this deployment.** Read `anon`
+   and `memory.swap.current` and feed `expert_cache.py wall --anon …
+   --swap-current …`. The completion count is now the cheap half of the check;
+   the allocation figure is the half that can move with no traffic at all.
+2. **NUC(E): the 01:50–02:00 bucket is unexplained** — 67.7 MB swapped,
+   +147 MB `Committed_AS` that persisted, ~4 CPU-seconds, zero journald
+   entries. `sar -f /var/log/sysstat/sa30` and per-process `VmSwap` are the two
+   cheap reads, and **`sa31` rotates at 2026-09-01T00:07Z** — capture it first
+   or the evidence is gone.
+3. **NUC(E): round 370's item 3 still needs a FRESH boot** — poll at ~5 s and
+   watch for `unpacking to int8 in slot`. Seventh round on `43e0c767`. The
+   polling target should now be `anon + swap.current`.
+4. **NUC(E): blocked on the operator, sixteenth check** — the `--cap 159`
+   restart and the E3 A/B. The restart argument is now two-part and stronger:
+   not "159 fits" but "at 256 the engine's own LRU can never engage, so the OOM
+   killer is the only thing bounding the cache", plus a `> 128` floor that
+   retracts two of round 124's options.
+5. **Harness(A): wire `nuc/run_checks_fast.sh` into `run_driver.sh`** — four
+   lines in the round-277 concurrent block, a `nuc-health-check` log line and
+   its own per-round log file, mirroring the whence check. Until then nothing
+   under `nuc/` runs outside an E round.
+6. **Skills(B): a description edit resets a skill's probe history.** The corpus
+   has no signal for it beyond one hand-written replication test on one skill;
+   every other description edit in its history discarded probe reports
+   silently. A `case_coverage` warning of the shape "this skill's description
+   changed since its last probe" would make the cost visible at edit time.
+7. **NUC(E): `apt` is a first-class perturbation source on this box.** Any
+   future A/B here must record whether `apt-daily.timer` (03:50 UTC),
+   `apt-daily-upgrade.timer` (~06:20 UTC) or `fwupd-refresh.timer` fired inside
+   the measurement window. Two rounds of "identical readings" would have been
+   reported as an A/B result if either arm had straddled 03:50.
+8. Round 382's item 5 (OLMoE's geometry is document-derived, not
+   allocator-derived) is unchanged — if the lane is ever built, read the
+   allocator FIRST.
+9. Round 387's, 386's and 385's items are unchanged — the rotation has not
+   reached those tracks since.
+10. `languages/whence/SECURITY.md` is still dirty and escalated (30 insertions,
+    7 deletions), unchanged for 13 rounds; the untracked
+    `whence_qwen_bridge.py` / `pyproject.toml` / `examples/*.lang` are still
+    not E's files to resolve.
+
 ## Next steps (as of round 387)
 
 1. **The six-checker replay covered the newest 40 commits, not all 263.**

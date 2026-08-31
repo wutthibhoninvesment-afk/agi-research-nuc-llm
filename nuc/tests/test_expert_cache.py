@@ -17,6 +17,7 @@ same failure: a test that restates a constant cannot notice the constant is
 wrong. Each check below either derives the value independently or ties it to a
 measurement.
 """
+import json
 import math
 import subprocess
 import sys
@@ -285,3 +286,245 @@ def test_cli_geometry_accepts_another_box_geometry():
     # OLMoE-1B-7B: 3 x 2048 x 1024 int8, per-row scales
     assert g["weight_bytes_int8"] == 3 * 2048 * 1024
     assert g["total_slots"] == 16 * 64
+
+
+# ------------------------------------------------- round 388: residency vs allocation
+#
+# These tests exist because round 388 measured `memory.current` falling
+# 458,207,232 B on pgain-nuc with ZERO requests served between the two readings,
+# and the previous inversion turned that into "the expert cache lost 137 slots"
+# -- which `slot_ensure_allocated` makes impossible below `cap`. The fixture is
+# the real r382/r388 pair, and the assertions are about the *relationship*
+# between the two readings, not about either one's digits.
+
+
+def test_the_two_live_readings_disagree_on_residency_and_agree_on_allocation():
+    a, b = ec.R382_SNAPSHOT, ec.R388_SNAPSHOT
+    assert b.memory_current < a.memory_current           # residency fell...
+    assert a.memory_current - b.memory_current == 458_207_232
+    assert b.allocated_anon == a.allocated_anon          # ...allocation did not
+    # and the whole anon shortfall is accounted for by swap, to the byte
+    assert a.anon - b.anon == b.swap_current
+
+
+def test_inverting_residency_reports_an_impossible_shrink():
+    earlier = ec.fill_from_current(ec.R382_MEMORY_CURRENT)
+    later = ec.fill_from_current(ec.R388_MEMORY_CURRENT)
+    verdict = ec.check_monotone(earlier, later)
+    assert verdict["verdict"] == "instrument_error"
+    assert verdict["delta_slots"] < -100
+
+
+def test_inverting_allocation_is_flat_across_the_same_event():
+    earlier = ec.fill_from_snapshot(ec.R382_SNAPSHOT)
+    later = ec.fill_from_snapshot(ec.R388_SNAPSHOT)
+    assert earlier.slots_loaded == later.slots_loaded
+    assert ec.check_monotone(earlier, later)["verdict"] == "ok"
+
+
+def test_check_monotone_does_not_launder_a_real_drop_through_tolerance():
+    earlier = ec.fill_from_current(ec.R382_MEMORY_CURRENT)
+    later = ec.fill_from_current(ec.R388_MEMORY_CURRENT)
+    # even a 100-slot tolerance -- 334 MB, far past any plausible arena slop --
+    # must not turn the observed 137-slot drop into "ok"
+    assert ec.check_monotone(earlier, later, tolerance_slots=100)["verdict"] \
+        == "instrument_error"
+    with pytest.raises(ec.ExpertCacheError):
+        ec.check_monotone(earlier, later, tolerance_slots=-1)
+
+
+def test_check_monotone_flags_an_inversion_above_the_configured_cap():
+    small = ec.fill_from_current(ec.NUC_BASELINE + 1)
+    big = ec.fill_from_current(ec.NUC_BASELINE + 200 * ec.QWEN36_SLOT.bytes_per_cap_unit)
+    assert ec.check_monotone(small, big, cap=159)["verdict"] == "over_cap"
+    assert ec.check_monotone(small, big, cap=256)["verdict"] == "ok"
+
+
+def test_naive_headroom_overstates_by_exactly_the_swapped_bytes():
+    b = ec.R388_SNAPSHOT
+    # the two headroom figures differ by swapped anon minus the kernel/file
+    # charge that the naive figure was wrongly counting as headroom's opposite
+    assert b.naive_headroom_bytes > b.headroom_bytes
+    assert b.headroom_overstatement_bytes == (
+        b.swap_current + b.non_anon_resident - (b.memory_current - b.anon))
+    # before any reclaim the two agree exactly
+    assert ec.R382_SNAPSHOT.headroom_overstatement_bytes == 0
+
+
+def test_snapshot_rejects_anon_larger_than_the_resident_charge():
+    with pytest.raises(ec.ExpertCacheError):
+        ec.CgroupSnapshot(memory_current=10, anon=11)
+    with pytest.raises(ec.ExpertCacheError):
+        ec.CgroupSnapshot(memory_current=10, anon=1, swap_current=-1)
+
+
+def test_non_anon_falls_back_to_current_minus_anon_when_unbroken_out():
+    # round 382 read no `kernel`/`file`; the snapshot must still be usable
+    assert ec.R382_SNAPSHOT.non_anon_resident == (
+        ec.R382_MEMORY_CURRENT - ec.R382_ANON)
+
+
+def test_wall_on_the_allocation_observable_reports_both_headrooms():
+    w = ec.wall(snap=ec.R388_SNAPSHOT)
+    assert w["observable"] == "anon+swap.current"
+    assert w["naive_headroom_bytes"] > w["headroom_bytes"]
+    assert w["headroom_overstatement_bytes"] == \
+        ec.R388_SNAPSHOT.headroom_overstatement_bytes
+    # and the legacy path is unchanged
+    legacy = ec.wall(current=ec.R388_MEMORY_CURRENT)
+    assert legacy["observable"] == "memory.current"
+    assert legacy["headroom_bytes"] == legacy["naive_headroom_bytes"]
+
+
+# ----------------------------------------------------------------- probe budget
+
+
+def test_one_token_can_demand_layers_times_topk_slots():
+    b = ec.probe_budget(10**12, 0.0)
+    assert b["slots_per_token_worst_case"] == ec.NUC_LAYERS * ec.NUC_TOPK == 320
+
+
+def test_the_live_deployment_has_room_for_one_token_worst_case():
+    b = ec.wall(snap=ec.R388_SNAPSHOT)["probe"]
+    assert b["worst_case_tokens"] == 1
+    # the optimistic model does not rescue it either -- same order of magnitude
+    assert b["expected_tokens"] < 10
+    assert b["expected_tokens"] >= b["worst_case_tokens"]
+
+
+def test_probe_budget_expected_beats_worst_case_only_when_partly_filled():
+    empty = ec.probe_budget(10**10, 0.0)
+    assert empty["expected_tokens"] == empty["worst_case_tokens"]
+    half = ec.probe_budget(10**10, 0.5)
+    assert half["expected_tokens"] == 2 * empty["worst_case_tokens"]
+    full = ec.probe_budget(10**10, 1.0)
+    assert full["expected_tokens"] is None      # nothing left to miss on
+
+
+@pytest.mark.parametrize("kwargs", [
+    {"headroom_bytes": -1, "fill_fraction": 0.5},
+    {"headroom_bytes": 10, "fill_fraction": 1.5},
+    {"headroom_bytes": 10, "fill_fraction": 0.5, "topk": 0},
+])
+def test_probe_budget_rejects_nonsense(kwargs):
+    with pytest.raises(ec.ExpertCacheError):
+        ec.probe_budget(**kwargs)
+
+
+# --------------------------------------------------- which mechanism bounds it
+
+
+def test_cap_256_is_bounded_by_the_oom_killer_not_the_engine():
+    b = ec.bound_by(256)
+    assert b["bounded_by"] == "oom_killer"
+    assert not b["fits_ram"] and not b["fits_ram_plus_swap"]
+
+
+def test_e4_cap_204_survives_ram_plus_swap_by_far_less_than_r376_said():
+    """Round 376 graded cap 204 'over by 4.83 GB' against `memory.max` alone.
+
+    Against RAM+swap -- which is what round 124 actually measured the box doing,
+    31.8 GB resident PLUS 4.2 GB swapped -- the overshoot is an order of
+    magnitude smaller. The verdict (does not fit) survives; the margin does not.
+    """
+    b = ec.bound_by(204)
+    assert b["over_memory_max_bytes"] == 4_831_801_344      # round 376's number
+    assert b["over_ram_plus_swap_bytes"] == 536_838_144     # ~9x smaller
+    assert b["bounded_by"] == "oom_killer"
+
+
+def test_there_is_a_cap_band_that_survives_but_is_not_healthy():
+    ram_only = ec.QWEN36_SLOT.max_cap(ec.NUC_MEMORY_MAX, ec.NUC_BASELINE)
+    with_swap = ec.QWEN36_SLOT.max_cap(
+        ec.NUC_MEMORY_MAX + ec.NUC_SWAP_TOTAL, ec.NUC_BASELINE)
+    assert with_swap > ram_only
+    assert ec.bound_by(ram_only)["bounded_by"] == "engine_lru"
+    assert ec.bound_by(with_swap)["bounded_by"] == "cgroup_limit_then_swap"
+    assert ec.bound_by(with_swap)["healthy"] is False
+
+
+def test_the_recommended_cap_makes_the_engines_own_lru_the_binding_mechanism():
+    b = ec.bound_by(159)
+    assert b["bounded_by"] == "engine_lru" and b["healthy"] is True
+
+
+def test_plan_reports_both_axes():
+    pl = ec.plan()
+    assert pl["max_cap_fits_ram"] < pl["max_cap_fits_ram_plus_swap"]
+    mechs = {r["cap"]: r["bounded_by"] for r in pl["bound_by"]}
+    assert mechs[256] == "oom_killer"
+    assert mechs[159] == "engine_lru"
+
+
+@pytest.mark.parametrize("mode", ["snapshot", "bound"])
+def test_new_cli_modes_emit_json(mode):
+    out = subprocess.run([sys.executable, "nuc/expert_cache.py", mode],
+                         capture_output=True, text=True, check=True)
+    payload = json.loads(out.stdout)
+    assert payload
+
+
+def test_cli_wall_switches_observable_when_given_anon():
+    out = subprocess.run(
+        [sys.executable, "nuc/expert_cache.py", "wall",
+         "--current", str(ec.R388_MEMORY_CURRENT), "--anon", str(ec.R388_ANON),
+         "--swap-current", str(ec.R388_SWAP_CURRENT),
+         "--kernel", str(ec.R388_KERNEL), "--file", str(ec.R388_FILE)],
+        capture_output=True, text=True, check=True)
+    payload = json.loads(out.stdout)
+    assert payload["observable"] == "anon+swap.current"
+    assert payload["fill"]["slots_loaded"] == 6232
+
+
+# ------------------------------------------------- the prefetch floor (round 388)
+
+
+def test_the_sound_cap_band_is_closed_at_both_ends():
+    band = ec.cap_band()
+    assert band["lower_cap"] == ec.PILOT_QUEUE_DEPTH + 1 == 129
+    assert band["upper_cap"] == ec.QWEN36_SLOT.max_cap(ec.NUC_MEMORY_MAX, ec.NUC_BASELINE)
+    assert not band["empty"]
+    assert band["width"] == band["upper_cap"] - band["lower_cap"] + 1
+
+
+@pytest.mark.parametrize("cap", [16, 64, 128])
+def test_e4s_small_lane_caps_sit_below_the_prefetch_floor(cap):
+    """Round 124 proposed cap 16 and cap 64 on RAM grounds alone.
+
+    Both fit RAM comfortably -- `bounded_by` says `engine_lru` for each -- and
+    both are nonetheless unsound, because a layer whose whole cache is smaller
+    than the 128-deep PILOT queue can have every slot in flight at once. The
+    RAM axis cannot see this, which is exactly why it needs its own field."""
+    v = ec.cap_verdict(cap)
+    assert v["fits_ram"] and v["bounded_by"] == "engine_lru"   # the old verdict
+    assert not v["above_pilot_floor"]                          # the new one
+    assert not v["in_sound_band"] and v["healthy"] is False
+
+
+def test_the_recommended_cap_is_inside_the_band():
+    v = ec.cap_verdict(159)
+    assert v["in_sound_band"] and v["above_pilot_floor"] and v["healthy"]
+
+
+def test_the_band_is_empty_when_ram_cannot_reach_the_prefetch_floor():
+    """A smaller box has no sound cap at all, and must say so rather than
+    rounding down into the in-flight path."""
+    tiny = ec.NUC_BASELINE + 100 * ec.QWEN36_SLOT.bytes_per_cap_unit
+    band = ec.cap_band(memory_max=tiny)
+    assert band["upper_cap"] == 100 < band["lower_cap"]
+    assert band["empty"] and band["width"] == 0
+
+
+def test_cap_band_rejects_a_negative_pilot_depth():
+    with pytest.raises(ec.ExpertCacheError):
+        ec.cap_band(pilot_depth=-1)
+
+
+def test_a_cap_above_ram_is_unhealthy_even_though_it_clears_the_floor():
+    v = ec.cap_verdict(256)
+    assert v["above_pilot_floor"] and not v["in_sound_band"]
+    assert v["healthy"] is False
+
+
+def test_plan_carries_the_band():
+    assert ec.plan()["sound_band"]["lower_cap"] == 129
