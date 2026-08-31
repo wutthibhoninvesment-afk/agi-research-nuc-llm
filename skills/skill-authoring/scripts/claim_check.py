@@ -366,6 +366,36 @@ SCRATCH_PREFIXES = ("/tmp/", "/var/tmp/", "/dev/", "/proc/")
 UNCHECKED_CATEGORIES = ("mutating", "network")
 
 
+def token_exempt_reason(tok):
+    """Why `tok` must NOT be resolved, or None if it is a checkable claim.
+
+    THE one home for suppression rules 1, 2 and the "not a path at all" half
+    of the list above. Round 411: this used to be three bare `continue`s
+    inside `path_tokens`, which made the exemption a property of ONE producer
+    rather than of the tool. `check_paths` has a second door — the `cd`
+    branch, which matches its target with its own regex and never calls
+    `path_tokens` — and for 71 rounds that door resolved tokens the four
+    rules exempt. It went unnoticed only because no Verification block
+    contained a placeholder or scratch `cd` until round 410 wrote one.
+
+    So the rule is stated once, as a function with a name, and BOTH doors
+    ask it. A third door added later must ask it too; the invariant is
+    pinned by `test_every_c001_site_consults_the_exemption_gate`.
+
+    Rule 3 (mutating/network) is NOT here: it is a property of the COMMAND,
+    not of the token, and `check_paths` applies it from `cmd.reason`.
+    Rule 4 (unanchored) is NOT here either: it needs the caller's bases and
+    lives in `is_anchored`.
+    """
+    if not tok or URLISH_RE.search(tok):
+        return "not a path: url, flag or bare number"
+    if TOKEN_PLACEHOLDER_RE.search(tok):
+        return "placeholder: a template the reader fills in"
+    if tok.startswith(SCRATCH_PREFIXES):
+        return "scratch: created by the command, not required by it"
+    return None
+
+
 def path_tokens(command):
     """Path-shaped arguments of a command, in order.
 
@@ -377,11 +407,7 @@ def path_tokens(command):
     out = []
     for raw in re.split(r"[\s=]+", command):
         tok = raw.strip("'\"`,;()")
-        if not tok or URLISH_RE.search(tok):
-            continue
-        if TOKEN_PLACEHOLDER_RE.search(tok):
-            continue
-        if tok.startswith(SCRATCH_PREFIXES):
+        if token_exempt_reason(tok) is not None:
             continue
         if tok.startswith(("~", "/", "./", "../")):
             out.append(tok)
@@ -446,15 +472,29 @@ def check_paths(commands, repo_root):
         m = re.match(r"^\s*cd\s+(\S+)", cmd.command)
         if m:
             target = m.group(1).strip("'\"")
+            # A `cd` target is a path claim like any other and gets the same
+            # suppression rules (round 411). This branch is the tool's SECOND
+            # door into C001 — it has its own regex and never calls
+            # `path_tokens` — so it has to ask the gate itself.
+            #
+            # Exempt is NOT the same as "skip the branch": the assignment
+            # below is a side effect on `cwd` that every later command in the
+            # block depends on, and it must still happen when the target is
+            # exempt AND happens to exist (`cd /tmp/wt` in a block run after
+            # the worktree was created). Only the FINDING is suppressed.
+            exempt = token_exempt_reason(target)
             resolved = resolve_token(target, [cwd, repo_root])
-            if resolved is None:
+            if exempt is not None:
+                n_skipped += 1
+            elif resolved is None:
                 n_checked += 1
                 findings.append(Finding(
                     cmd, "C001", "`cd %s` — no such directory (checked %s)"
                     % (target, _describe_bases([cwd, repo_root], repo_root))))
                 continue
-            n_checked += 1
-            if os.path.isdir(resolved):
+            else:
+                n_checked += 1
+            if resolved is not None and os.path.isdir(resolved):
                 cwd = resolved
             if not CD_PREFIX_RE.match(cmd.command):
                 continue

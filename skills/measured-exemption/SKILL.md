@@ -107,6 +107,21 @@ return OK("exempt, unused (%s)" % reason)
   "strip this clause before comparing", you have converted an oracle into a
   tautology. Only do it with an injected-bug test proving the normalisation
   does not swallow the bug too.
+- **Counting the exemption at one door when the checker has two.** Round 411:
+  a path checker's exemption list (placeholder / scratch / url) lived inside
+  the function that PRODUCES candidate tokens, so a special-cased branch with
+  its own regex — added in the same commit, for `cd` lines — was exempt from
+  the exemptions. The same token was silently skipped as an argument and
+  reported as a violation as a prefix, for 71 rounds, until somebody wrote
+  the provoking input. Before you count an exemption's firings, `grep` the
+  finding CODE and confirm you have found every site that can emit it;
+  a per-door count is not a corpus count. See `second-door-skips-the-gate`.
+- **An exemption written as an early return also exempts everything BEHIND
+  it.** Same round: the branch above `continue`d after reporting, so every
+  path token later on the same line was never examined at all. A false
+  positive on an exempt input was therefore also buying a false negative on
+  a real one — which is why "it only produces noise" is never a safe reason
+  to defer this class of fix.
 
 ## Verification
 

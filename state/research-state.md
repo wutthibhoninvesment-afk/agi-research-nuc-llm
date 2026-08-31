@@ -18365,3 +18365,192 @@ rounds carried**. Worktrees `/tmp/wt-409` and `/tmp/pristine-409` removed and
    items carry forward. The `Harness (A)` half of the Track-status audit
    is still the last one owed. **`nuc/run_checks_fast.sh` wiring is
    CLOSED by this round** after six carried rounds.
+
+### Round 410 — language(C) — 2026-08-31 — *recorded by round 411*
+
+**Round 410 died at the `--max-turns` cap** with its entire 26-path diff
+uncommitted, its knowledge file's §8 Verification an empty placeholder, no
+entry in this file, and its prediction bank unregistered. Round 411 (skills
+B) picked it up under the standing cross-track convention, verified it,
+scored it, and landed it. This entry is round 411's, and every number in it
+is from a run round 411 performed against round 410's working tree
+unmodified.
+
+**What round 410 built.** Whence **v0.40, decision 49**: *every door into a
+kind of value enforces that kind's rule, with the same sentence, in the
+phase the door belongs to.* Since round 368 `whence/values.py` had claimed
+"Whence never accepts digits it could not print back" — a claim about the
+LANGUAGE, made next to a bound that only `num()` enforced. `whence/lexer.py`
+had no digit bound at all, so a 4001-digit source literal was accepted and
+rendered only as `<integer, 13292 bits>`: digits in, no digits out. The
+guest's `lit_num` *is* `num(text)`, so the guest refused what the host
+accepted, and the divergence had been parked for two rounds as
+`bench/showtok.py:KNOWN_DIVERGENT` under the wrong heading (a *rendering*
+difference, closed by decision 48). Both doors now say one sentence,
+`values.NUM_TEXT_LIMIT_MSG` — `whence/lexer.py` gains the package's first
+`import` to read it rather than copy it. Second deliverable: round 409's
+item 1, the field-corpus guard that existed three times in three files and
+answered two questions with one skip. Now one census reader, four named
+predicates, and a decision function whose ORDER is the policy — *check the
+state whose silence costs more FIRST; a deletion is louder than a rewrite,
+because a deletion is the one that can be a mistake.*
+
+**Verification (run by round 411).** whence fast tier **1977 passed, 3
+skipped, 81 deselected**, exit 0 — **+30** on round 409's 1947, and the skip
+count did **not** move, which is its A1. `bench/showtok.py report`: 435
+tokens, **differ 0**, `KNOWN_DIVERGENT = []`. Decision 49 probed directly:
+4000 nines lex, 4001 nines are a `LexError`, `1e400` is untouched, and a
+4001-digit literal with a fraction is a float and is not refused.
+
+**Predictions: outcome 10 HIT / 2 MISS of 12, mechanism 3 HIT of 3.** The
+two misses are one mistake counted twice, and it is a class round 408's bank
+had recorded one round earlier: **an enumeration of what a rule change
+touches, derived from the rule, misses every site that borrowed the rule's
+CONSTANT without being about the rule.** `test_v39.py` used `"9" * 4100` as
+a convenient big-number fixture; it is not part of the digit-limit machinery,
+so B1's "all of them in `test_v36.py`" excluded it by name and it broke
+anyway. Grep the constant, not the concept.
+
+**Two pins that were satisfied by their own text**, in unrelated files,
+minutes apart: a test searching every file for `"def _corpus_unchanged"`
+matched its own string literal, and an assertion that a false claim had been
+retracted failed because the retraction has to quote what it retracts. New
+skill `skills/skip-reason-is-a-claim/`; `skills/unenforced-documented-rule/`
+upgraded.
+
+### Round 411 — skills(B) — 2026-08-31
+
+**`skills/run_checks_fast.sh` was RED on arrival**: `claim_check ERROR C001`,
+`carryforward ERROR K001`, `unit_tests 3 failed / 744 passed` — two defects
+reported five times, both opened by round 410 and both caught by the next
+round, which is the corpus check doing exactly what round 363 built it for.
+
+**The headline.** `claim_check.py` decides two things about every path: a
+**gate** (four documented suppression rules — scratch, placeholder,
+mutating/network, unanchored) and a **verdict** (does it resolve?). The gate
+lives inside `path_tokens()`, the function that *produces* candidate tokens,
+as three bare `continue`s — so it is a property of that producer, not of the
+tool. `check_paths()` has a **second door**: a `cd` branch with its own
+regex that never calls `path_tokens`, and therefore consults none of the
+four rules. The same token got opposite verdicts on adjacent lines —
+`git worktree add /tmp/<scratch-worktree>` silent, `cd /tmp/<scratch-worktree>`
+a STALE C001. Worse, **the answer was already computed**: `classify()` runs
+at collection and hangs `("manual", "placeholder: not runnable as written")`
+on the command object; the branch reads `cmd.command` and never `cmd.reason`,
+which it *does* read eleven lines further down, after the `cd` branch has
+`continue`d past it.
+
+**The second half, and the reason it is not cosmetic.** The branch
+`continue`s after firing, so every path token after an `&&` was never
+examined. Corpus counts moved by **two**, not one — `135/29/1 stale` →
+`134/31/0` — and the extra unit is a `tests/` token the tool had not looked
+at in 71 rounds. **A false positive that short-circuits is a detector outage
+for everything downstream of it**; a genuinely missing file behind an
+exempt-but-unresolvable prefix was undetectable, and there is now a test
+that proves the old branch fires on the prefix while the new one finds the
+real stale path behind it.
+
+**Fixed** by extracting `token_exempt_reason()` as the one home, returning a
+*reason* rather than a bool. Two ways the naive fix goes wrong, both
+avoided: **exempt is not "skip the branch"** (the branch exists for its
+`cwd` side effect, and an early `continue` would silently un-anchor every
+later command in the block — banked as M3, now pinned by a test), and **only
+what is a property of the TOKEN belongs in the gate** (mutating/network is a
+property of the command; unanchored needs the caller's bases; both stay out,
+with the docstring saying why).
+
+**The sweep: 1 confirmed site of 7 checkers**, not the 2–4 predicted.
+`xref_check.py` has the same problem and does not have the bug — its
+placeholder check is *inside the token generator*, which yields
+`(tok, pos, is_evidence)`, so no consumer can opt out because there is
+nothing to opt out of. **A gate inside a producer is only as strong as that
+producer's monopoly on candidates.** `state_claim_check.py` has the
+silhouette (`check_command` hard-sets `kind="auto"`) and is safe for a
+reason visible only at its caller 500 lines away; it was drafted as a
+confirmed second site before that caller was read.
+
+**`git log -S` puts the gate and the bypassing branch in the SAME commit**
+(`49d1c17`, round 339), which refutes the banked B9 and is the better fact:
+a gate and a door written in one sitting have never disagreed with each
+other in a code review, because there was never a diff in which one existed
+and the other did not. 71 rounds latent — detection latency for this class
+is bounded by *when somebody writes the provoking input*, so "it has been
+fine for years" is not evidence.
+
+**A structural pin I wrote was satisfiable by a comment.** Falsifying it by
+deleting the call while leaving a comment that named the function made it
+**pass** — round 410's *"a pin whose subject is a string is a pin the pin
+can satisfy"*, reproduced by me hours after reading it. The pin now strips
+comment lines, and that is step 8 of the new skill.
+
+**Verification.** `claim_check` 135 resolved / 29 by-design / **1 stale** →
+134 / 32 / **0 stale**. `skill_lint` **61 skills, 0 error(s), 0 warning(s)**.
+`case_coverage` **61 skills, 261 cases, 0 error(s)**. `xref_check` 0 dangling
+authoritative. `state_claim_check` 7 claims, 0 stale. `carryforward` 89
+banks, 88 scored, **0 error(s)**. `test_claim_check.py` 82 → **94 passed**,
+and both structural pins falsified before being believed. Whence fast tier
+**1977 passed, 3 skipped**, exit 0. **Predictions: outcome 6 HIT / 2 HALF /
+5 MISS of 13, mechanism 3 HIT / 1 MISS of 4** — a weak bank, and the three
+places it scored worst are the three places the round found something.
+
+**Built:** `skills/second-door-skips-the-gate/` (new), `measured-exemption`
+upgraded with two pitfalls, 4 trigger cases, 12 tests, and round 410's
+knowledge file completed with §8 / §9b / §10.
+
+**Hygiene:** no NUC contact, port 8001 never contacted, `CHANGELOG.md`
+untouched. `languages/whence/SECURITY.md` was already modified on arrival by
+the Hermes gateway — untouched, not reverted, not committed; **63 rounds
+carried**. No worktrees created. No background job left running.
+
+## Next steps (as of round 411)
+
+1. **`case_coverage` has 27 warnings and they are the corpus's largest
+   standing debt** (P004/P006/P007/P009): 51 of 105 cross-report case
+   verdicts DISAGREE, 5 descriptions are REFUTED, and 29 are UNDECIDED.
+   `policy-replay-over-history`'s verdict rests on a single unreplicated
+   draw and round 381 measured two runs of one configuration disagreeing on
+   11 of 29 cases. This needs a priced `trigger_eval` re-probe, which is
+   why it keeps being carried. skills(B), and it should be budgeted as the
+   whole round rather than bolted onto one.
+2. **`token_exempt_reason` covers rules 1 and 2 only.** Rule 3
+   (mutating/network) is a property of the COMMAND and rule 4 (unanchored)
+   needs the caller's bases, so both stayed out — correctly, but that means
+   the "four suppression rules" the file documents now live in three places
+   with one of them named. If a third door appears it will get two rules
+   for free and still have to remember the other two. The honest next step
+   is a single `command_exempt_reason(cmd, tok, bases)` that composes all
+   four and returns one reason. skills(B).
+3. **The `test_every_c001_site_consults_the_exemption_gate` pin is coarse
+   by construction** — it proves a finding site *mentions* the gate, not
+   that it calls it on the right path. A mutation-style check that deletes
+   the call and requires a specific test to go red would prove the
+   stronger thing, and round 409's item 4 (a `harness/` check that
+   re-applies named historical defects to their fixed sites) is exactly
+   the machine for it. This round hand-ran that falsification twice;
+   nothing re-runs it. harness(A) or SWE-loop(D).
+4. **Round 409's items 2, 3, 4 and 5 are untouched and carry forward**
+   (the `split_measured_output` count-line boundary and the
+   `MEASURED_END_SENTINEL` fix; the 26.4h-stale pristine-check ledger,
+   still owed and now cheap; the falsification-as-a-test machine, see 3
+   above; `run_tests_fast.sh`'s echoed block outgrowing every `tail`).
+   Its item 1 is **CLOSED** by round 410. harness(A).
+5. **Round 408's items 2, 5 and 6 carry forward** (the `check "<name>"`
+   sweep for checks that cannot see their own mechanism go away; round
+   402's item 1 host-only HINT class; `parser.quote_str` vs
+   `values._quote`). Its item 1 is **CLOSED** by round 410's decision 49.
+   language(C).
+6. **Round 408's item 9 (CLAUDE.md's `🔴 CRITICAL MISSION` block is stale
+   in both halves) is re-escalated for the third time.** Unchanged again
+   this round; both its items were answered by rounds 349 and 33/v0.23,
+   and every round pays a re-read for it. CLAUDE.md is the operator's file
+   (round 346), so this needs the operator, not a round.
+7. **Round 406's items 1-4 and 7 are untouched and TIME-CRITICAL**
+   (`sa23` dies 2026-09-23). Round 405's items 1-4, round 404's items 1-4
+   and 7, round 403's items 2-5, and round 336's remaining language(C)
+   items carry forward. The `Harness (A)` half of the Track-status audit
+   is still the last one owed.
+8. **`languages/whence/SECURITY.md` has now been carried 63 rounds.** The
+   round-349 escalation is still accurate and its content pin still
+   matches, so nothing is wrong — but sixty-three rounds of "acknowledged,
+   not a gap" is worth one operator decision rather than another
+   acknowledgement.

@@ -1706,5 +1706,31 @@
   "id": "srac-neg-exemption",
   "expect": [],
   "prompt": "This differential test exempts about 5% of inputs and nobody has ever counted them. How do I find out whether the exemption is still load-bearing?"
+ },
+ {
+  "id": "sdsg-near",
+  "expect": [
+   "second-door-skips-the-gate"
+  ],
+  "prompt": "Our path linter has a special branch for `cd` lines that reports a missing directory, but the same path as an argument to any other command gets skipped as a placeholder. Two entry points, one of them ignores the suppression list. Fix it properly."
+ },
+ {
+  "id": "sdsg-mid",
+  "expect": [
+   "second-door-skips-the-gate"
+  ],
+  "prompt": "This validator has a fast path near the top with its own regex that emits the same error code as the main loop, except the main loop consults the allowlist first and the fast path doesn't. What's the right way to restructure this?"
+ },
+ {
+  "id": "sdsg-far",
+  "expect": [
+   "second-door-skips-the-gate"
+  ],
+  "prompt": "We keep getting a bogus alert for one particular resource shape. The suppression rule is applied where we build the candidate list, but there's a separate code path that pages directly. How should I make sure both go through the same suppression?"
+ },
+ {
+  "id": "sdsg-neg-copy",
+  "expect": [],
+  "prompt": "We have a mock interpreter that was copied from the real one two years ago and never gained the features the real one grew. How do I find everything it's missing?"
  }
 ]

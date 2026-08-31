@@ -5,7 +5,10 @@ cases that deliberately run `true`/`echo` through the executor, and the live
 corpus regression test at the bottom, which is static-only (no --run).
 """
 
+import io
 import os
+import re
+import shutil
 import sys
 import tempfile
 import time
@@ -377,6 +380,195 @@ class TestCheckPaths(unittest.TestCase):
             "cd harness", "python3 -m pytest -q tests/t.py",
             "pytest -q othertests/x.py")
         self.assertEqual((checked, skipped), (2, 1))
+
+
+# --------------------------------------------------------------------------
+# Round 411: the `cd` branch is the tool's SECOND door into C001, and for 71
+# rounds it consulted none of the four suppression rules `path_tokens`
+# applies. `classify` had the right answer the whole time — it is computed at
+# collection and hangs off `cmd.reason` — and this branch never read it.
+# --------------------------------------------------------------------------
+
+def _old_cd_branch(command, cwd, repo_root):
+    """`check_paths`'s round-339 `cd` branch, VERBATIM apart from taking its
+    inputs as arguments and returning a verdict instead of appending.
+
+    Quarantined rather than deleted (round 410's `skip-reason-is-a-claim`
+    step 6) so the falsification re-runs on every suite run instead of living
+    in a scratch directory somebody throws away. NEVER called on the live
+    corpus — only by the differential tests directly below.
+
+    Returns "stale" | "checked" | None (not a `cd` line).
+    """
+    m = re.match(r"^\s*cd\s+(\S+)", command)
+    if not m:
+        return None
+    target = m.group(1).strip("'\"")
+    resolved = claim_check.resolve_token(target, [cwd, repo_root])
+    return "stale" if resolved is None else "checked"
+
+
+class TestCdTargetConsultsTheExemptionGate(unittest.TestCase):
+    """The four suppression rules apply to a `cd` target like any other path."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        os.makedirs(os.path.join(self.tmp, "harness", "tests"))
+        open(os.path.join(self.tmp, "harness", "tests", "t.py"), "w").close()
+
+    def run_block(self, *lines):
+        cmds = parse(*lines)
+        for c in cmds:
+            c.kind, c.reason = claim_check.classify(c.command)
+        return claim_check.check_paths(cmds, self.tmp)
+
+    # ---- the gate itself -------------------------------------------------
+
+    def test_the_gate_names_a_distinct_cause_for_each_exempt_class(self):
+        reasons = {
+            "placeholder": claim_check.token_exempt_reason("languages/<lang>"),
+            "scratch": claim_check.token_exempt_reason("/tmp/wt-411"),
+            "urlish": claim_check.token_exempt_reason("https://x/y"),
+        }
+        for k, v in reasons.items():
+            self.assertIsNotNone(v, k)
+        # un-confusable: each reason carries a word the others do not
+        self.assertIn("placeholder", reasons["placeholder"])
+        self.assertIn("scratch", reasons["scratch"])
+        self.assertNotIn("scratch", reasons["placeholder"])
+        self.assertNotIn("placeholder", reasons["scratch"])
+
+    def test_a_real_relative_path_is_not_exempt(self):
+        self.assertIsNone(claim_check.token_exempt_reason("harness/tests/t.py"))
+        self.assertIsNone(claim_check.token_exempt_reason("~/agi-research"))
+
+    # ---- the differential: what actually changed -------------------------
+
+    def test_the_old_cd_branch_called_a_placeholder_target_stale(self):
+        self.assertEqual(
+            _old_cd_branch("cd languages/<lang>", self.tmp, self.tmp), "stale")
+        self.assertEqual(self.run_block("cd languages/<lang>")[0], [])
+
+    def test_the_old_cd_branch_called_a_scratch_target_stale(self):
+        self.assertEqual(
+            _old_cd_branch("cd /tmp/wt-411-not-here", self.tmp, self.tmp),
+            "stale")
+        self.assertEqual(self.run_block("cd /tmp/wt-411-not-here")[0], [])
+
+    def test_the_live_corpus_line_that_provoked_this(self):
+        """`skills/skip-reason-is-a-claim/SKILL.md:192`, verbatim."""
+        line = ("cd /tmp/<scratch-worktree> && pytest tests/ -q -rs 2>&1 "
+                "| grep SKIPPED")
+        self.assertEqual(_old_cd_branch(line, self.tmp, self.tmp), "stale")
+        findings, checked, skipped = self.run_block(line)
+        self.assertEqual(findings, [])
+        # both the cd target AND the `tests/` behind it are accounted for as
+        # skipped — see the masking test below for why that is the point
+        self.assertEqual((checked, skipped), (0, 2))
+
+    # ---- the second half of the bug: a false positive that hid a real one --
+
+    def test_a_false_cd_positive_used_to_mask_every_token_behind_it(self):
+        """The old branch `continue`d after emitting, so the REST of a
+        `cd X && rest` line was never path-checked at all.
+
+        A false STALE therefore also bought a false NEGATIVE: a genuinely
+        missing file named after the `&&` was invisible for as long as the
+        prefix was exempt-but-unresolvable.
+        """
+        line = "cd /tmp/<scratch-worktree> && python3 -m pytest harness/tests/gone.py"
+        # old: the cd fires, and its `continue` means `harness/tests/gone.py`
+        # is never looked at
+        self.assertEqual(_old_cd_branch(line, self.tmp, self.tmp), "stale")
+        # new: the cd is silent and the real stale path behind it is FOUND
+        findings, _, _ = self.run_block(line)
+        self.assertEqual(codes(findings), ["C001"])
+        self.assertIn("gone.py", findings[0].message)
+
+    # ---- exempt is not "skip the branch" ---------------------------------
+
+    def test_an_exempt_target_that_exists_still_moves_the_working_directory(self):
+        """`exempt` suppresses the FINDING, not the `cwd` side effect.
+
+        A naive early-`continue` fix would stop tracking the working
+        directory and silently un-anchor every later command in the block.
+        """
+        scratch = tempfile.mkdtemp(prefix="cc411-")
+        os.makedirs(os.path.join(scratch, "sub"))
+        open(os.path.join(scratch, "sub", "here.py"), "w").close()
+        try:
+            findings, _, _ = self.run_block(
+                "cd %s" % os.path.join(scratch, "sub"),
+                "python3 -m pytest -q here.py")
+            self.assertEqual(findings, [])
+        finally:
+            shutil.rmtree(scratch, ignore_errors=True)
+
+    # ---- the rule that must NOT have been weakened ------------------------
+
+    def test_an_ordinary_missing_cd_target_is_still_c001(self):
+        findings, _, _ = self.run_block("cd ~/definitely-not-here-9f2")
+        self.assertEqual(codes(findings), ["C001"])
+
+    def test_a_real_cd_target_is_still_checked_not_skipped(self):
+        _, checked, skipped = self.run_block("cd harness")
+        self.assertEqual((checked, skipped), (1, 0))
+
+
+class TestExemptionGateHasOneHome(unittest.TestCase):
+    """Structural pins. A third door will be added; it must ask the gate."""
+
+    SRC = io.open(claim_check.__file__, encoding="utf-8").read()
+
+    def test_the_suppression_regexes_are_used_only_inside_the_gate(self):
+        """`TOKEN_PLACEHOLDER_RE` and `SCRATCH_PREFIXES` may be READ in
+        exactly one function. Anywhere else is a second copy of the policy.
+        """
+        for name in ("TOKEN_PLACEHOLDER_RE", "SCRATCH_PREFIXES"):
+            uses = [ln for ln in self.SRC.split("\n")
+                    if name in ln and not ln.startswith(name)
+                    and not ln.lstrip().startswith("#")]
+            self.assertEqual(
+                len(uses), 1,
+                "%s is read %d times; the gate is supposed to be its only "
+                "reader:\n%s" % (name, len(uses), "\n".join(uses)))
+
+    def test_every_c001_site_consults_the_exemption_gate(self):
+        """Every function that can append a C001 must mention the gate.
+
+        Deliberately coarse — it cannot prove the call is on the right path.
+        What it does prove is that a new C001 site cannot be added in
+        ignorance of the gate's existence, which is exactly how this bug
+        was born: `path_tokens` and the `cd` branch were written in the same
+        commit and never reconciled.
+        """
+        emitters = [f for f in re.findall(
+            r"^def (\w+)\(.*?(?=^def |\Z)", self.SRC, re.S | re.M)]
+        bodies = dict(zip(emitters, re.split(r"^def \w+\(", self.SRC,
+                                             flags=re.M)[1:]))
+        sites = [n for n, b in bodies.items() if '"C001"' in b]
+        self.assertIn("check_paths", sites)
+        for name in sites:
+            # CODE only. The branch this test was written for carries a
+            # six-line comment explaining the gate, and a pin that accepts a
+            # comment is a pin its own subject can satisfy in prose while the
+            # call is gone (round 410, `skip-reason-is-a-claim`).
+            code = "\n".join(
+                ln for ln in bodies[name].split("\n")
+                if not ln.lstrip().startswith("#"))
+            self.assertIn(
+                "token_exempt_reason(", code,
+                "%s emits C001 without CALLING token_exempt_reason" % name)
+
+    def test_the_quarantined_old_branch_still_exists(self):
+        """Paired with the pin above: `_old_cd_branch` is the falsification,
+        and a pin that only forbids things passes when the subject is gone.
+        """
+        here = io.open(__file__, encoding="utf-8").read()
+        self.assertTrue(
+            re.search(r"^def _old_cd_branch\(", here, re.M),
+            "the quarantined round-339 branch was deleted; the differential "
+            "tests above are then asserting against nothing")
 
 
 class TestClaimMetrics(unittest.TestCase):
