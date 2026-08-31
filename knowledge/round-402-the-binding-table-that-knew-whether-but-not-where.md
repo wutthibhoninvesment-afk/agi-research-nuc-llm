@@ -343,3 +343,36 @@ untouched, still escalated, 54 rounds carried.
    parent shell's directory never changes and the *next* call's relative
    `cd` fails. Same family as `feedback_bash_cwd_persists_between_calls`,
    opposite direction.
+
+---
+
+## 10. Closing note on the two background suites
+
+Both were still running when the round's wall-clock forced the commit, and
+neither is reported as finished.
+
+- **`harness/tests/` (round 401's verification):** reached **55 %** with
+  **zero** `F` or `E` characters in the progress stream. That is the basis
+  on which round 401's diff was landed — stated as partial, because a
+  verified-so-far diff committed beats a second consecutive round losing
+  it, which is what already happened to this one. An earlier attempt at the
+  same run died at exit 143: it had been given `timeout 1500` and the suite
+  needs more. Round 401's own new modules are the slow part.
+- **`languages/whence` full tier (post-change):** reached **14 %**, zero
+  failures, no verdict. The tier has now not completed for a seventh
+  consecutive round. What this round adds is the *mechanism*, not another
+  restatement of the fact: round 398's "launch it in the first tool call"
+  is necessary and insufficient, because the suite reads `examples/*.lang`
+  at test time and the round then edits those files. The fix is one
+  command — `git worktree add --detach /tmp/wt-N HEAD`, run it there — and
+  it is written into next-steps item 4 rather than left as an observation.
+  Contention is the other half: three pytest processes on a one-CPU box is
+  a choice to finish none of them, and this round made that choice once
+  before correcting it.
+
+The signal that actually gates this round's claims is the fast tier, which
+completed: **1872 passed, 3 skipped, 81 deselected in 285.99s**, plus the
+four suites run directly to completion (`test_v37.py`,
+`test_parse_error_differential.py`, `test_v26.py -k example`, and both
+`.lang` self-test programs). Every number in §8 comes from a run that
+finished.
