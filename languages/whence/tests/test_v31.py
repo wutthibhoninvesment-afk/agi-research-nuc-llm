@@ -721,9 +721,16 @@ def test_nothing_in_the_provenance_family_delegates_any_more(lib):
 
 def test_the_example_still_passes_its_own_self_tests():
     """`self_eval.lang` carries 17 new `check` lines for this feature, so
-    the count moves; the property is that none of them fails."""
+    the count moves; the property is that none of them fails.
+
+    The EXACT count is pinned anyway, and deliberately: `0 failed` alone
+    stays green if a `check` line is deleted or stops being reached, which
+    is the one regression this file cannot otherwise see. The contract is
+    that a round which adds or removes checks updates this number in the
+    same commit -- round 390 took it 159 -> 166 (seven v0.33-parity checks).
+    """
     r = subprocess.run([sys.executable, os.path.join(ROOT, "run.py"), EXAMPLE],
                        capture_output=True, text=True, cwd=ROOT)
     assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-2000:]
     assert "0 failed" in r.stdout, r.stdout[-3000:]
-    assert "159 passed" in r.stdout, r.stdout[-400:]
+    assert "166 passed" in r.stdout, r.stdout[-400:]

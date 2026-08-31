@@ -1141,6 +1141,49 @@ fn lookup(st, env, name) {
   else { get(get(st.frames, fid), name) }
 }
 
+# v0.33 parity (round 390): the host's `MISS_REASON_HINT` (whence/foreign.py),
+# mirrored sentence for sentence — the debt round 386 shipped on the host side
+# only and `state/prediction-bank-ledger.json` entry 386 recorded as a
+# `remainder`. Host `_miss_lit` REPLACES the foreign clause with this one and
+# does so ONLY in `miss` position, on purpose: `miss null` would otherwise read
+# "Whence has no null; a missing value is `miss <reason>`" — advice to write
+# the thing the author is already writing. Position beats vocabulary because
+# the position is the more specific fact. So this is not `name_hint(n) + more`;
+# it is a sentence rebuilt from the bare name, which is what drops the other
+# clause.
+fn miss_reason_hint(n) {
+  " (a miss reason is a string: write `miss \"" + n + "\"`)"
+}
+
+# The host guard is `reason.op == "name" and is_origin_miss(reason)` — the
+# NAME ITSELF failed to resolve, not "some miss arrived here from a name".
+#
+# The obvious mirror is to test the reason box's OP LABEL against
+# `"name " + node.operand.value` (round 380 gave an unbound name exactly that
+# label). It was written first, and then measured against this one rather than
+# argued about: the two agree on every case tried, including the one built to
+# separate them (`let NOSUCH = NOSUCH` then `miss NOSUCH`, where the label
+# would have to match itself). They agree because the guest RE-WRAPS on all
+# three of its binding paths — `let X` (eval_stmt), `arg X` (bind_params),
+# `fn X` (fndef) — so a BOUND name's box never carries a `name X` label at all,
+# and the label test can only ever see an unbound one. That invariant is what
+# makes the label test work, it is held up by three unrelated sites, and
+# nothing stated it until this round; `check "a bound name is never labelled
+# `name`"` in the self-tests below is now the pin.
+#
+# Asking the store is kept anyway, because it encodes the host's QUESTION
+# ("did this name resolve?") instead of a convention that three sites happen
+# to maintain. If a future round drops one re-wrap the label test starts
+# firing a clause the host does not fire, silently; this one does not.
+# Exact on the three edges that matter:
+#   miss NOSUCH        name, unresolved   -> clause    (both)
+#   miss b             name, resolved     -> no clause (both)
+#   miss g()           not a name         -> no clause (both)
+# `and` short-circuits, so `lookup` runs only for a name operand.
+fn miss_names_unbound(node, env, st) {
+  (node.operand.kind == "name") and missed(lookup(st, env, node.operand.value))
+}
+
 # ---- type tests without a typeof: total operations + missed ----------------
 # `v + []` succeeds exactly for lists; `v == true or v == false` is safe once
 # misses are excluded (== across types is false, on misses it is a miss).
@@ -1750,7 +1793,20 @@ fn eval_unary(node, env, st) {
       # v0.28: the non-string branch is the one whose message renders the
       # reason, so it is the one that box-leaked (`miss len` read
       # `... got @{__tag: "builtin", name: "len"}`).
-      if missed(r.v.v) or is_str(r.v.v) { mkb(miss r.v.v, "miss", [r.v]) }
+      #
+      # v0.33 parity (round 390): the unbound-name clause comes FIRST, because
+      # the propagation branch below would otherwise carry the reason through
+      # unchanged — which is exactly the divergence this mirrors away. The
+      # sentence is rebuilt from the bare name (see `miss_reason_hint`), not
+      # patched onto `r.v.v`, so the foreign clause `lookup` already put there
+      # is dropped rather than joined. Inputs stay `[r.v]`: host `_miss_lit`
+      # passes `inputs=(reason,)` on this path too, so the derivation still
+      # shows where the reason came from.
+      if missed(r.v.v) and miss_names_unbound(node, env, r.st) {
+        mkb(miss ("unbound name '" + node.operand.value + "'"
+                  + miss_reason_hint(node.operand.value)), "miss", [r.v])
+      }
+      else if missed(r.v.v) or is_str(r.v.v) { mkb(miss r.v.v, "miss", [r.v]) }
       else if is_compound(r.v.v) {
         mkb(remsg(miss r.v.v, miss strip(r.v)), "miss", [])
       }
@@ -3694,6 +3750,39 @@ check "guest miss literal": missed(gv("miss \"deliberate\""))
 check "guest miss with non-string reason still misses": missed(gv("miss 1"))
 check "guest miss argument still runs the body (host does too)":
   gv("fn f(a) { 7 }\nf(num(\"3O\"))") == 7
+
+# --- v0.33 parity: `miss <bare unbound name>` (round 390) --------------------
+# The host clause shipped in round 386 and its mirror did not; the ledger
+# carried the gap as entry 386's `remainder` for four rounds. These checks are
+# the guest half of `tests/test_v33.py`'s host pins — the two files assert the
+# SAME five sentences, which is the only reason the mirror can be said to hold.
+check "guest miss <unbound name> names the miss-reason cure":
+  contains(str(gv("miss NOSUCH")),
+           "unbound name 'NOSUCH' (a miss reason is a string: write `miss \"NOSUCH\"`)")
+# position beats vocabulary: `null` IS a foreign word, and in `miss` position
+# its foreign clause would advise writing the thing already being written.
+check "guest miss <foreign word> REPLACES the foreign clause, not joins it":
+  contains(str(gv("miss null")), "unbound name 'null' (a miss reason is a string: write `miss \"null\"`)") and
+  not contains(str(gv("miss null")), "Whence has no null")
+# ...and the same word OUTSIDE `miss` position keeps the foreign clause.
+check "guest a foreign word outside miss position keeps its own clause":
+  contains(str(gv("null")), "Whence has no null")
+check "guest miss <BOUND name> stays plain propagation":
+  contains(str(gv("let b = NOSUCH\nmiss b")), "unbound name 'NOSUCH'") and
+  not contains(str(gv("let b = NOSUCH\nmiss b")), "a miss reason is a string")
+check "guest miss <non-name> stays plain propagation":
+  not contains(str(gv("fn g() { NOSUCH }\nmiss g()")), "a miss reason is a string")
+
+# The invariant `miss_names_unbound`'s rejected alternative rests on, stated
+# because nothing stated it: the guest re-wraps at every binding path, so a
+# BOUND name's box is labelled by its binder (`let x` / `arg x` / `fn x`) and
+# never `name x`. Only an UNBOUND name carries a `name x` label.
+check "guest a bound name is never labelled `name`":
+  (gp("let x = 1\nx")).op == "let x" and
+  (gp("fn f(a) { a }\nf")).op == "fn f" and
+  ((gp("fn f(a) { a }\nf(1)")).ins[0]).op == "arg a"
+check "guest an UNBOUND name is labelled `name <the name>`":
+  (gp("NOSUCH")).op == "name NOSUCH"
 
 # --- the guest runs the host's own check statements --------------------------
 let rep = run_src("check \"good\": 1 + 1 == 2\ncheck \"bad\": 1 == 2\n0")

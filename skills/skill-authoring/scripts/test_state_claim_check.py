@@ -781,3 +781,102 @@ class TestLiveCorpus(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# --------------------------------------------------------------------------
+
+
+class TestS006RetiredItems(unittest.TestCase):
+    """S004 asks whether an item pointer RESOLVES; S006 asks whether the
+    thing it points at is still OPEN. Round 390 added it after finding
+    round 332's item 1 -- discharged by round 350, correctly dropped from
+    every block for 23 rounds, then RESURRECTED at round 375 and carried by
+    nine language-facing blocks since."""
+
+    def setUp(self):
+        self.root = tempfile.mkdtemp()
+        os.makedirs(os.path.join(self.root, "state"))
+        self.addCleanup(shutil.rmtree, self.root)
+
+    def _registry(self, entries):
+        import json
+        with open(os.path.join(self.root, scc.RETIRED_REGISTRY), "w") as f:
+            json.dump({"retired": entries}, f)
+
+    def _claim(self, text):
+        item = scc.parse_items(scc.Block(1, 1, ["1. " + text]))[0]
+        return [c for c in scc.extract_claims(item) if c.kind == "citation"][0]
+
+    ENTRY = {"round": 332, "item": 1, "summary": "the lexer history sweep",
+             "retired_by": 350, "evidence": "tests/test_lexer_guest_parity.py"}
+
+    def test_a_retired_item_reasserted_as_open_is_a_finding(self):
+        self._registry([self.ENTRY])
+        f = scc.check_retired(self._claim("Round 332's item 1 is unchanged"),
+                              self.root)
+        self.assertEqual(codes(f), ["S006"])
+        self.assertIn("DISCHARGED by round 350", f[0].message)
+        self.assertIn("test_lexer_guest_parity.py", f[0].message)
+
+    def test_acknowledging_the_closure_is_the_cure_not_the_disease(self):
+        """Round 389's own block says "Round 383's item 5 is CLOSED and must
+        not be carried again". Firing on that sentence would make the
+        checker punish the only thing that fixes the problem."""
+        self._registry([self.ENTRY])
+        for text in ("Round 332's item 1 is CLOSED by round 350",
+                     "Round 332's item 1 -- retired, do not carry",
+                     "Round 332's item 1 was discharged and must not be "
+                     "carried again"):
+            self.assertEqual(scc.check_retired(self._claim(text), self.root),
+                             [], text)
+
+    def test_an_item_not_in_the_registry_is_never_a_finding(self):
+        self._registry([self.ENTRY])
+        self.assertEqual(
+            scc.check_retired(self._claim("Round 332's item 2 is unchanged"),
+                              self.root), [])
+        self.assertEqual(
+            scc.check_retired(self._claim("Round 301's item 2 is unchanged"),
+                              self.root), [])
+
+    def test_a_multi_item_citation_reports_only_the_retired_ones(self):
+        self._registry([self.ENTRY,
+                        dict(self.ENTRY, item=3, summary="another")])
+        f = scc.check_retired(self._claim("Round 332's items 1-4 are unchanged"),
+                              self.root)
+        self.assertEqual(codes(f), ["S006", "S006"])
+        self.assertIn("item 1", f[0].message)
+        self.assertIn("item 3", f[1].message)
+
+    def test_a_missing_or_broken_registry_checks_nothing(self):
+        """Absent must degrade to "check nothing", never to "everything is
+        retired" -- most checkouts of this document predate the file."""
+        c = self._claim("Round 332's item 1 is unchanged")
+        self.assertEqual(scc.check_retired(c, self.root), [])
+        with open(os.path.join(self.root, scc.RETIRED_REGISTRY), "w") as f:
+            f.write("{not json")
+        self.assertEqual(scc.check_retired(c, self.root), [])
+
+
+class TestTheRealRegistry(unittest.TestCase):
+    """The registry is a set of CLAIMS and is held to this program's own
+    standard: each names a round, a discharging round and evidence a reader
+    can open."""
+
+    PATH = os.path.join(REPO_ROOT, scc.RETIRED_REGISTRY)
+
+    @unittest.skipUnless(os.path.isfile(PATH), "registry absent")
+    def test_every_entry_is_complete_and_its_evidence_path_exists(self):
+        entries = scc.retired_items(REPO_ROOT)
+        self.assertTrue(entries)
+        for (rnd, item), e in entries.items():
+            for field in ("round", "item", "summary", "retired_by",
+                          "evidence", "recorded_by"):
+                self.assertIn(field, e, (rnd, item))
+            self.assertGreater(e["retired_by"], e["round"], (rnd, item))
+            # the evidence must name at least one path that is really there
+            paths = re.findall(r"[\w./-]+\.(?:py|json|md|lang|sh)", e["evidence"])
+            self.assertTrue(paths, (rnd, item, e["evidence"]))
+            self.assertTrue(
+                any(os.path.exists(os.path.join(REPO_ROOT, p)) for p in paths),
+                (rnd, item, paths))

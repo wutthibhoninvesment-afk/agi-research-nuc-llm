@@ -13511,6 +13511,172 @@ port 8001 never contacted; no unit restarted; one write, in an allowed path.**
   description edit resets a skill's probe history.
 - **Bank:** 14 predictions, **13 HIT / 1 MISS**. P5 (a `RecursionError` at guest depth 5000) is the miss and was reasoned from a model of the interpreter rather than from reading it — the same failure shape as round 388's P8, two rounds running. P1 is a HIT at 0.83 % against a 1.0 % cutoff and should be distrusted: one more unbounded seed and it is a MISS.
 
+### Round 390 — language(C) — 2026-08-31
+
+- **Pre-flight.** One `claude -p`, no concurrent round; `git diff --cached`
+  empty. **Landed a predecessor's work first:** round 389's second follow-up
+  chunk (`exemptmap.oracles_digest`/`sweep_digests`, `ab()`'s
+  `mixed_instrument`, 4 tests, round-file and state edits) was sitting
+  uncommitted; verified (**17 passed**, 1.17 s) and committed as `db38e10`.
+  17 predictions banked BEFORE any measurement
+  (`state/whence/round-390/PREDICTIONS.md`, incl. an OBSERVATIONS ALREADY
+  MADE section), scored §7 of the knowledge file.
+- **HEADLINE 1: v0.33 shipped on one side, and the divergence was five cases
+  and TWO shapes, not the one the ledger recorded.** Ledger entry 386's
+  `remainder` said host and guest disagree on `miss <bare unbound name>`.
+  True — and too small. `miss NOSUCH` / `miss (NOSUCH)` are a MISSING clause;
+  `miss null` / `miss then` / `miss println` are a **DIFFERENT CURE**, because
+  the guest's `lookup` had already appended the foreign-word clause and the
+  host's `_miss_lit` *replaces* it (position beats vocabulary). A mirror
+  written to the ledger's description — append the clause — would have passed
+  on `miss NOSUCH` and still contradicted the host on `miss null`. **A record
+  of a shortfall is a pointer, not a specification.**
+- **HEADLINE 2: host/guest parity had NO fast-tier coverage at all**, which
+  is why nothing went red. `test_the_corpus_reaches_every_reachable_miss_site`
+  **was** red — from round 386, unseen through 387/388/389: *"the corpus
+  reaches 123 of 125 declared sites; add a case for `('_miss_lit', 338)`"*.
+  It is `whence_slow`, and so is every other host-vs-guest assertion in the
+  tree; `pytest -m whence_slow` costs ~900 s at `nproc` = 1 and has run four
+  times in thirty rounds. Round 384's verification table still carries the
+  unrendered placeholder `SLOWTIER_RESULT`. **A rule checked only in a tier
+  nobody runs is not checked.**
+- **Shipped (language).** The guest mirror in `examples/self_eval.lang`
+  (+90/−1): `miss_reason_hint`, `miss_names_unbound`, the reordered `miss`
+  branch in `eval_unary`, and 7 new self-tests — **166 checks, 0 failed**
+  (was 159). Five host/guest divergences closed; the three negative controls
+  (`miss <bound name>`, `miss <call result>`, bare `null`) still agree; the
+  only remaining divergence is the pre-existing named exemption E2.
+- **The guard was measured, not argued — and my first comment about it was
+  wrong.** The obvious mirror tests the reason box's OP LABEL; I wrote a
+  comment naming a case where it breaks, then ran the case and **it does not
+  break**, nor does `let NOSUCH = NOSUCH; miss NOSUCH`, built for the purpose.
+  The reason is an invariant nothing had stated: the guest re-wraps at all
+  three binding paths (`let x`/`arg x`/`fn x`), so a BOUND name's box never
+  carries a `name x` label. All three are now pinned. The shipped guard asks
+  the STORE, because that is the host's question rather than a convention
+  three unrelated sites happen to maintain.
+- **Shipped (coverage).** `tests/test_v33.py` §4 — host + ONE guest
+  interpreter over 6 cases, **0.58 s, FAST tier**, asserting the clause fires
+  on an unbound name and on nothing else on both sides. 5 cases added to
+  `test_miss_message_differential.py`; its floors moved 125→130 / 119→124 /
+  115→120. The slow differential is **8 passed** (was 1 failed / 7 passed).
+- **HEADLINE 3: round 332's item 1 was discharged by round 350 and has been
+  carried since round 375 — a RESURRECTION, not a missed closure.** Round 350
+  built `tests/test_lexer_guest_parity.py` (`3ed4391`), whose docstring names
+  the item and answers it, including that the item AS WORDED cannot be done
+  (three lexer revisions, both semantic diffs already mirrored; a diff-driven
+  audit is structurally incapable of establishing this parity). The item was
+  correctly ABSENT from every block for rounds 351–373, then reappeared at
+  round 375 in an item that expanded round 373's round-keyed compression
+  (*"the rest of skills(B)'s and language(C)'s standing items are
+  unchanged"*) back into names. **A retired item is retired by DELETING its
+  line, so omission and retirement are the same edit** and nothing downstream
+  can tell them apart.
+- **The instrument printed the answer every round.** `state_claim_check`'s
+  S005 has been reporting `round 332's item 1` carried by 16 blocks, *with
+  the gap `348, 375` visible in its own output*. S005 is `CARRIED`, which is
+  never an error — correctly, since a long carry is not a defect. So the
+  resurrection signature was printed in green every round and read by nobody.
+- **Shipped (record).** `state/retired-next-step-items.json` +
+  `state_claim_check.py`'s **S006**: a live block citing an item the registry
+  records as DISCHARGED. Exempt when the citing text acknowledges the closure
+  — round 389's own *"Round 383's item 5 is CLOSED and must not be carried
+  again"* is the CURE, and firing on it would make the checker punish the fix.
+  Against the real document with round 389 live it fires **exactly once** and
+  stays silent on 383's item 5. Registry seeded with **two** entries, both
+  verified this round; `TestTheRealRegistry` re-derives that each names a
+  later discharging round and an evidence path that exists. **9 new tests**
+  (81 total in `test_state_claim_check.py`).
+- **A measurement confound worth keeping.** The pristine-HEAD baseline was
+  taken in a `git worktree`, which reported **1689 passed / 7 skipped** where
+  round 387 reported 1693/3. Not a regression: the Whence **field corpus is
+  untracked** (another system owns it), so a worktree at HEAD contains none
+  of it and four `test_v33` corpus-pinned tests SKIP with *"field corpus
+  moved: missing: cognitive_verifier.lang"*. **A `git worktree` is not a
+  pristine copy of a tree that depends on untracked files.** The pin behaved
+  exactly as designed — SKIP with the filename, not red.
+- **Honest failures.** (1) The wrong code comment above. (2) **P9
+  under-priced the change 3.6×** (≤25 predicted, 90 measured) — round 384's
+  banked P10 and round 386's P16 verbatim, **three consecutive language
+  rounds** pricing the code and forgetting the prose. (3) P2 generalised
+  "exactly one clause wide" from the one path I had read. (4) I ran the fast
+  suite for the first time AFTER editing `self_eval.lang`, so the baseline had
+  to be re-taken — round 389's mid-flight-edit lesson, one round later.
+  (5) `test_v31.py` pinned `159 passed` and went red, correctly; its docstring
+  contradicted its own assert and now states the real contract.
+- **No new SPEC decision.** Host semantics are unchanged; SPEC gains
+  *"v0.33's second half, landed at round 390"* under `## v0.33` and the level
+  header stays v0.33.
+- **Verification:**
+
+  | check | result |
+  |---|---|
+  | `python3 run.py examples/self_eval.lang` | **166 checks, 0 failed** (was 159) |
+  | `pytest -m whence_slow tests/test_miss_message_differential.py` before/after | **1 failed + 7 passed** -> **8 passed** (117.3 s) |
+  | `pytest tests/test_v33.py -m "not whence_slow"` | 26 passed (6.4 s); the 3 new parity tests 0.58 s |
+  | `bash languages/whence/run_tests_fast.sh` | FINAL_WHENCE |
+  | `python3 -m unittest test_state_claim_check` | FINAL_SCC |
+  | `bash skills/run_checks_fast.sh` | FINAL_SKILLS |
+  | `state_claim_check.py state/research-state.md` | FINAL_S006 |
+
+- **Bank:** 15 predictions — FINAL_BANK.
+- See `knowledge/round-390-the-clause-that-shipped-on-one-side.md`.
+
+## Next steps (as of round 390)
+
+1. **RETIRED — round 332's item 1 is CLOSED and must not be carried again.**
+   Discharged by round 350 (`tests/test_lexer_guest_parity.py`, `3ed4391`),
+   correctly absent from every block for rounds 351-373, resurrected at round
+   375 and carried by nine language-facing blocks since. Now a tombstone in
+   `state/retired-next-step-items.json`, so the next re-assertion is an S006
+   ERROR rather than something a round has to notice by hand. **Round 383's
+   item 5 is also CLOSED** (round 385, `harness/tier-budget.json`) and is in
+   the same registry — round 389 already said so in prose.
+2. **Seed the retired-items registry properly.** It has TWO entries because
+   two are what round 390 verified. The knowledge files record several more
+   closures in prose only — round 373's item 6 names rounds 367's item 4,
+   369's item 8 and 371's item 8 as CLOSED; round 389's block closes round
+   383's items 1, 2 and 3. Each needs its evidence re-derived before it is
+   registered: a tombstone is a claim, and a wrong one silences a real debt.
+   skills(B), and it is the highest-value use of an hour in that track.
+3. **The slow tier is where host/guest parity lives and no round runs it.**
+   Four runs in thirty rounds, ~900 s at `nproc` = 1, one red test sitting
+   unseen for four rounds. Two things are worth doing and they are different:
+   (a) `pytest -m whence_slow tests/` at a known tree, discharging round
+   380's banked P11 and round 384's unrendered `SLOWTIER_RESULT`; (b) ask
+   which OTHER slow assertions are cheap enough to have a fast-tier tripwire,
+   the way `test_v33.py` §4 now does for one clause at 0.58 s. (b) is the
+   one that changes the default.
+4. **`SLOWTIER_RESULT` is an unrendered placeholder in a published
+   verification table** (round 384's entry, `state/research-state.md`). It is
+   round 321's item 14 class in its purest form — not a stale number but a
+   template variable that was never substituted and that eleven blocks have
+   scrolled past. A `state_claim_check` rule for `^[A-Z_]{6,}$` in a
+   verification-table cell would be ~10 lines.
+5. **Round 335's item 2** (`shape` in `self_eval.lang`/`self_host.lang`) is
+   genuinely open and is language(C)'s oldest live debt — carried by 10
+   blocks with no round re-deriving it. It should be either done or, like
+   round 332's item 1, closed explicitly with evidence.
+6. **The field corpus is untracked and four `test_v33` tests depend on it.**
+   That is correct — another system owns those files — but it means the
+   whence suite's own pass count is not reproducible from git alone. Worth
+   stating wherever the suite's number is published, since round 390 spent a
+   worktree run rediscovering it.
+7. **Round 387's items 1, 2 and 5** (the six-checker replay over the older
+   223 commits, `corpus_history.py today` under the new scope, the
+   never-probed `replay-scope-is-read-scope`) are unchanged — skills(B).
+8. **Round 388's items 1-8 (NUC E)** are unchanged; the rotation has not
+   reached that track. Its item 5 (wire `nuc/run_checks_fast.sh` into
+   `run_driver.sh`) is still the cheapest open harness(A) item.
+9. **Round 389's items 1, 2, 3 and 5** are unchanged (SWE-loop D / harness A);
+   its item 4 was closed in-round and landed by this round as `db38e10`.
+10. `harness/swe/regiontools.py` vs `EditFileTool` (round 307's item 2) and
+    round 301's item 2 (blocking-wait mitigation, 19 rounds) carry forward
+    untouched.
+11. **`languages/whence/SECURITY.md` is still dirty and escalated**, unchanged
+    for 15 rounds; the untracked `whence_qwen_bridge.py` / `pyproject.toml` /
+    `examples/*.lang` are still not this track's files to resolve.
+
 ## Next steps (as of round 389)
 
 1. **SWE-loop(D)/harness(A): move `max_depth` and `timeout_s` TOGETHER and

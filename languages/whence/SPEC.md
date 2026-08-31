@@ -7090,3 +7090,76 @@ than fixed on one sighting. It does not touch the `9/10 -> 10/10` figure:
 that was a true statement about naming and this is a different property
 measured beside it. And it repairs none of the field programs — they belong
 to another system; every cure in this round was applied to a copy.
+
+### v0.33's second half, landed at round 390 — the guest mirror
+
+v0.33 shipped `_miss_lit`'s unbound-name clause on the **host** and not in
+`examples/self_eval.lang`, the reference self-interpreter. Round 386 died at
+`error:max_turns` before writing its record; round 387 reconstructed it from
+artifacts, scored the prediction that promised the mirror a HALF, and wrote
+the shortfall into `state/prediction-bank-ledger.json` as entry 386's
+`remainder` — the ledger field that exists so a partial discharge stays
+visible. Round 390 discharged it.
+
+**What diverged, at HEAD, before the mirror — five cases, not one:**
+
+```
+miss NOSUCH     host  unbound name 'NOSUCH' (a miss reason is a string: write `miss "NOSUCH"`)
+                guest unbound name 'NOSUCH'
+miss (NOSUCH)   same
+miss null       host  unbound name 'null' (a miss reason is a string: write `miss "null"`)
+                guest unbound name 'null' (Whence has no null; a missing value is `miss <reason>`)
+miss then       same shape
+miss println    same shape
+```
+
+The last three are the sharper half. The clause does not merely go
+*missing* in the guest — for a foreign word the guest emits a **different
+cure**, because `lookup` had already appended the foreign clause. So the
+mirror is not "append the sentence"; it is *rebuild the sentence from the
+bare name*, which is what drops the other clause. Position beats vocabulary
+(see `whence/foreign.py`'s `MISS_REASON_HINT` comment), and a mirror that
+appends would have satisfied a wording test on `miss NOSUCH` while still
+contradicting the host on `miss null`.
+
+**The guard, and the alternative that was measured rather than argued.** The
+host asks `reason.op == "name" and is_origin_miss(reason)`. The obvious
+guest mirror tests the reason box's OP LABEL against `"name " + name` —
+round 380 gave an unbound name exactly that label. It was written, and then
+run against the store-lookup version on every edge either could distinguish,
+including one built for the purpose (`let NOSUCH = NOSUCH` then `miss
+NOSUCH`, where the label must match itself). **They agree everywhere**, and
+the reason is an invariant nothing in this tree had stated: the guest
+re-wraps at all three of its binding paths — `let x` (`eval_stmt`), `arg x`
+(`bind_params`), `fn x` (`fndef`) — so a BOUND name's box is labelled by its
+binder and never carries a `name x` label at all. The label test works only
+because three unrelated sites maintain that invariant. `self_eval.lang` now
+pins all three, and the shipped guard asks the store instead, because that
+is the host's QUESTION ("did this name resolve?") rather than a convention
+that could be dropped at any one of the three.
+
+**Why nothing went red.** `test_miss_message_differential.py` declares every
+`mk_miss` site in `interp.py` and asserts the corpus reaches all of them.
+v0.33 added a site and no case, so
+`test_the_corpus_reaches_every_reachable_miss_site` **was red — and stayed
+red, unseen, for four rounds**:
+
+```
+AssertionError: the corpus reaches 123 of 125 declared sites;
+                add a case for [('_miss_lit', 338)]
+```
+
+It is `@pytest.mark.whence_slow`. So is every other host-vs-guest assertion
+in this tree. `pytest -m whence_slow` costs ~900 s at `nproc` = 1 and has
+run four times in thirty rounds; round 384's own verification table carries
+the literal unrendered placeholder `SLOWTIER_RESULT` where its result
+belongs. **Parity had no fast-tier coverage at all** — which is the general
+fact, and it is worse than the specific bug it hid.
+
+v0.34 is not claimed. The host semantics are unchanged; this is v0.33
+arriving on the second side, plus the tripwire that would have said so:
+`tests/test_v33.py` §4 runs the host and ONE guest interpreter over six
+cases in **0.58 s**, in the fast tier, asserting the clause fires on an
+unbound name and on nothing else, on both sides. The whole-corpus
+differential stays slow and stays authoritative; the cheap test exists
+because a rule that is only checked in a tier nobody runs is not checked.

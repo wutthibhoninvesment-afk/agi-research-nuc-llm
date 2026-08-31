@@ -326,6 +326,25 @@ EXTRA = [
     ("[1] + 0", "let r = [1] + 0\n"),
     ("(len)(1, 2, 3)", "let r = (len)(1, 2, 3)\n"),
     ("range(0, 1, 2)", "let r = range(0, 1, 2)\n"),
+    # v0.33's `_miss_lit` unbound-name clause (round 386) — the site this
+    # file DECLARED and no case reached, which is why
+    # `test_the_corpus_reaches_every_reachable_miss_site` had been red since
+    # round 386 in a tier no round ran. Round 390 added the case and the
+    # guest mirror together; before the mirror the first three diverged.
+    # One host SITE, five cases, because site coverage bounds the host side
+    # and only SAMPLES the guest side (see the module docstring) — and the
+    # guest wording here turns on which of two clauses wins, not on whether
+    # the site is hit.
+    ("miss NOSUCH", "let r = miss NOSUCH\n"),
+    ("miss (NOSUCH)", "let r = miss (NOSUCH)\n"),
+    # a FOREIGN word in miss position: the miss-reason clause must replace
+    # the foreign one on both sides (`whence/foreign.py`'s MISS_REASON_HINT
+    # comment: position beats vocabulary).
+    ("miss null", "let r = miss null\n"),
+    # the two negative controls — the clause must fire on an unbound name
+    # and on nothing else, on both sides.
+    ("miss <bound name>", "let b = NOSUCH\nlet r = miss b\n"),
+    ("miss <call result>", "fn g() { NOSUCH }\nlet r = miss g()\n"),
 ]
 
 # Valid programs. Without these `test_missedness_agrees_except_where_exempt`
@@ -601,7 +620,7 @@ def _unreachable_lines():
 def test_the_corpus_is_well_formed():
     names = [n for n, _ in ALL]
     assert len(names) == len(set(names)), "duplicate case name"
-    assert len(ALL) >= 125, len(ALL)
+    assert len(ALL) >= 130, len(ALL)
     assert len(HOST_ONLY) == 2
     for name, src in ALL:
         assert src.endswith("\n"), name
@@ -691,7 +710,7 @@ def test_no_case_raises_out_of_the_host(three_engine_outcomes):
 def test_the_corpus_exercises_both_outcomes(host_reasons):
     missed = [n for n, _ in ALL if host_reasons[n] is not None]
     clean = [n for n, _ in ALL if host_reasons[n] is None]
-    assert len(missed) >= 115, len(missed)
+    assert len(missed) >= 120, len(missed)
     assert len(clean) >= 6, len(clean)
 
 
@@ -734,4 +753,4 @@ def test_the_agreement_rate_does_not_regress(host_reasons, guest_reasons):
     future round cannot satisfy by ADDING exemptions."""
     agree = sum(1 for n, _ in ALL if host_reasons[n] == guest_reasons[n])
     assert agree >= len(ALL) - len(EXEMPT_CASES), (agree, len(ALL))
-    assert agree >= 119, agree
+    assert agree >= 124, agree

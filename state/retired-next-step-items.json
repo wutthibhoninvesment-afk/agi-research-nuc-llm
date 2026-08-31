@@ -1,0 +1,27 @@
+{
+  "_comment": "Tombstones for `Round N's item K` debts that a later round DISCHARGED. Read by skills/skill-authoring/scripts/state_claim_check.py as finding S006. Round 390 built it, from a class this program has now hit three times. S004 already resolves an item pointer to the item's TEXT; nothing asked whether the item was still OPEN, so a discharged debt could be re-asserted forever and every checker stayed green. The failure is not carelessness: a next-steps block is written by copying the previous one and editing what the round touched, and a retired item is normally handled by DELETING its line -- which leaves no record that it was retired rather than merely omitted. A later block that re-expands a round-keyed compression ('the rest of language(C)'s standing items are unchanged') then has no way to tell the two apart, and resurrects it. This file is the missing tombstone.",
+  "_rules": "An entry is a CLAIM and is held to the same standard as any other in this program: `evidence` must name a file, commit or artifact that a reader can open, and `retired_by` must be the round that actually discharged it -- not the round that noticed. Register only what you verified this round. A citation is exempt from S006 when its own item text acknowledges the closure (`closed`, `retired`, `discharged`, ...), because saying 'round 383's item 5 is CLOSED and must not be carried again' is the CURE, not the disease.",
+  "retired": [
+    {
+      "round": 332,
+      "item": 1,
+      "summary": "exhaustive sweep of whence/lexer.py's full history against the guest `lex` function",
+      "retired_by": 350,
+      "recorded_by": 390,
+      "commit": "3ed4391",
+      "evidence": "languages/whence/tests/test_lexer_guest_parity.py -- its module docstring names this item, quotes it, and says `Done`. `git log --follow -- languages/whence/whence/lexer.py` has 5 revisions and only 2 semantic diffs, both already mirrored in the guest; round 350's answer is that a diff-driven audit is STRUCTURALLY incapable of establishing this parity, and it compared what the two lexers DO instead.",
+      "carried_after_retirement_by": [375, 377, 379, 381, 382, 383, 384, 387, 389],
+      "note": "Correctly ABSENT from the blocks of rounds 351-373 -- the retirement was understood at the time. It reappeared at round 375, in an item that expanded round 373's round-keyed compression ('the rest of skills(B)'s and language(C)'s standing items are unchanged') back into names, and has been carried by every language-facing block since. A resurrection, not a never-noticed closure -- which is why a tombstone and not a re-read is the fix."
+    },
+    {
+      "round": 383,
+      "item": 5,
+      "summary": "run the injected-bug tests in the fast tier",
+      "retired_by": 385,
+      "recorded_by": 390,
+      "evidence": "harness/tier-budget.json -- the promoted entry for harness/tests/test_swe_oracles.py carries `why: holds all three injected-bug tests (fast_slow / direct / frames) -- round 383 item 5's actual ask`.",
+      "carried_after_retirement_by": [386, 387, 388],
+      "note": "Round 389's own block already says this one is CLOSED and 'must not be carried again', and names why it survived three rounds: the carrying rounds named the ROUND ('round 385's items are unchanged'), not the ITEM. Registered so the next re-assertion is an ERROR rather than a thing a round has to notice by hand."
+    }
+  ]
+}

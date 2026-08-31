@@ -23,6 +23,7 @@ Three things are pinned here and they are not the same kind of claim:
 import hashlib
 import json
 import os
+import re
 import sys
 
 import pytest
@@ -35,8 +36,10 @@ import curecheck as C                                       # noqa: E402
 from whence import parser as P                              # noqa: E402
 from whence.foreign import (FOREIGN_NAMES, MISS_REASON_HINT,  # noqa: E402
                             bound_anywhere, name_hint)
+from whence import interp as I                              # noqa: E402
 from whence.interp import _FOREIGN_NAMES                    # noqa: E402
 from whence.lexer import tokenize                           # noqa: E402
+from whence.values import Miss                              # noqa: E402
 from whence.parser import ParseError, parse                 # noqa: E402
 
 CENSUS = os.path.join(os.path.dirname(ROOT), "..", "state", "whence",
@@ -350,3 +353,101 @@ def test_seven_edits_fix_text_the_grammar_accepts():
     by_file = dict((r["file"], r["n_accepted"]) for r in rows)
     assert sum(by_file.values()) == 7, by_file
     assert by_file["whenceguard_v2.lang"] == 7, by_file
+
+
+# --------------------------------------------------------------------------
+# 4. HOST/GUEST PARITY FOR THE v0.33 CLAUSE --- in the FAST tier (round 390)
+# --------------------------------------------------------------------------
+# Round 386 shipped `_miss_lit`'s clause on the host and not in
+# `examples/self_eval.lang`. Nothing went red, for a reason worth stating:
+# EVERY host-vs-guest assertion in this tree is `whence_slow`
+# (`test_miss_message_differential.py`, `test_self_hosting.py`,
+# `test_lexer_guest_parity.py`'s sweeps), and `pytest -m whence_slow` has run
+# four times in the last thirty rounds. `test_the_corpus_reaches_every_
+# reachable_miss_site` DID go red at round 386 and sat red, unseen, for four
+# rounds, in a tier that costs ~900 s at `nproc` = 1.
+#
+# The whole-corpus differential is genuinely expensive (130 cases x 3
+# engines). ONE guest interpreter run over five cases is ~1 s, which the fast
+# tier can carry. This does not replace the slow differential; it is the
+# tripwire for the one clause that has already been shipped one-sided once.
+
+_MARKER = "# ==== SELF-TESTS"
+
+PARITY_CASES = [
+    # the clause fires
+    ("miss NOSUCH", "let r = miss NOSUCH\n"),
+    ("miss (NOSUCH)", "let r = miss (NOSUCH)\n"),
+    ("miss null", "let r = miss null\n"),        # replaces the foreign clause
+    # ...and on nothing else
+    ("miss <bound name>", "let b = NOSUCH\nlet r = miss b\n"),
+    ("miss <call result>", "fn g() { NOSUCH }\nlet r = miss g()\n"),
+    # the same foreign word OUTSIDE miss position keeps its own clause
+    ("bare null", "let r = null\n"),
+]
+
+_LINE_SUFFIX = re.compile(r" \(line \d+\)")
+
+
+def _first_reason(payload):
+    if not isinstance(payload, Miss):
+        return None
+    return _LINE_SUFFIX.sub("", payload.reasons[0])
+
+
+def _host_reasons():
+    out = {}
+    for name, src in PARITY_CASES:
+        env = I.Interpreter(out=lambda s: None, seed=7).run(src)
+        out[name] = _first_reason(env.get("r").payload)
+    return out
+
+
+def _guest_reasons():
+    """One interpreter run for the whole batch --- round 362's trick."""
+    path = os.path.join(EXAMPLES, "self_eval.lang")
+    lib = open(path, encoding="utf-8").read().split(_MARKER)[0]
+
+    def esc(s):
+        return (s.replace("\\", "\\\\").replace('"', '\\"')
+                 .replace("\n", "\\n").replace("\t", "\\t").replace("\r", "\\r"))
+
+    parts = [lib] + ['let __out%d = run_src("%s")\n' % (i, esc(s))
+                     for i, (_, s) in enumerate(PARITY_CASES)]
+    env = I.Interpreter(out=lambda s: None, seed=7).run("".join(parts))
+    return {name: _first_reason(env.get("__out%d" % i).payload.fields["v"].payload)
+            for i, (name, _) in enumerate(PARITY_CASES)}
+
+
+@pytest.fixture(scope="module")
+def parity():
+    return _host_reasons(), _guest_reasons()
+
+
+def test_host_and_guest_word_the_v33_miss_clause_identically(parity):
+    host, guest = parity
+    bad = [(n, host[n], guest[n]) for n, _ in PARITY_CASES if host[n] != guest[n]]
+    assert bad == [], bad
+
+
+def test_the_clause_fires_on_an_unbound_name_and_on_nothing_else(parity):
+    """The test that would have caught round 386's one-sided ship. Stated as
+    a POSITIVE and a NEGATIVE set, because a mirror that fires everywhere
+    agrees with a host that fires nowhere."""
+    host, guest = parity
+    clause = "a miss reason is a string"
+    fires = {"miss NOSUCH", "miss (NOSUCH)", "miss null"}
+    for name, _ in PARITY_CASES:
+        for side, got in (("host", host[name]), ("guest", guest[name])):
+            assert (clause in got) is (name in fires), (side, name, got)
+
+
+def test_position_beats_vocabulary_on_both_sides(parity):
+    """`miss null` drops the foreign clause; a bare `null` keeps it. If the
+    guest ever joins the two clauses instead of replacing, this is what
+    says so --- the differential's wording test would too, one tier away."""
+    host, guest = parity
+    for side, got in (("host", host), ("guest", guest)):
+        assert "Whence has no null" not in got["miss null"], (side, got["miss null"])
+        assert (MISS_REASON_HINT % "null") in got["miss null"], side
+        assert "Whence has no null" in got["bare null"], (side, got["bare null"])

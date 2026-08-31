@@ -60,7 +60,7 @@
   "expect": [
    "agent-context-budgeting"
   ],
-  "prompt": "Prompt caching never hits after our agent trims old messages — cache reads are zero on every request. Why, and how do we trim without losing the cache?"
+  "prompt": "Prompt caching never hits after our agent trims old messages \u2014 cache reads are zero on every request. Why, and how do we trim without losing the cache?"
  },
  {
   "id": "gte-near",
@@ -109,7 +109,7 @@
   "expect": [
    "fuzz-mutate-kill-loop"
   ],
-  "prompt": "Find bugs in the parser and evaluator under languages/whence/ — crashes, not style issues — and pin each one with a regression test."
+  "prompt": "Find bugs in the parser and evaluator under languages/whence/ \u2014 crashes, not style issues \u2014 and pin each one with a regression test."
  },
  {
   "id": "fmk-mid",
@@ -216,7 +216,7 @@
   "expect": [
    "errors-that-name-the-fix"
   ],
-  "prompt": "The interpreter prints `expected a list, got a function` — accurate, points at the right argument, and three people this week reported it as a defect in the library. What should change?"
+  "prompt": "The interpreter prints `expected a list, got a function` \u2014 accurate, points at the right argument, and three people this week reported it as a defect in the library. What should change?"
  },
  {
   "id": "etnf-far",
@@ -335,7 +335,7 @@
   "expect": [
    "fuzz-mutate-kill-loop"
   ],
-  "prompt": "I had Claude review interp.py and it listed six 'bugs'. I don't trust the list — can we make it prove each one before I open tickets?"
+  "prompt": "I had Claude review interp.py and it listed six 'bugs'. I don't trust the list \u2014 can we make it prove each one before I open tickets?"
  },
  {
   "id": "fmk-timeouts",
@@ -356,7 +356,7 @@
   "expect": [
    "engine-prefix-reuse-audit"
   ],
-  "prompt": "Turn 5 of a chat on my self-hosted C inference engine takes about five times longer than turn 1 — nothing changed except the history got longer. Identical repeated prompts aren't faster either. What's wrong in the engine and how would I fix it?"
+  "prompt": "Turn 5 of a chat on my self-hosted C inference engine takes about five times longer than turn 1 \u2014 nothing changed except the history got longer. Identical repeated prompts aren't faster either. What's wrong in the engine and how would I fix it?"
  },
  {
   "id": "epr-far",
@@ -581,7 +581,7 @@
   "expect": [
    "optimization-transparency-differential"
   ],
-  "prompt": "Our compiler folds constants at parse time. A user reports the error message points at a different line when folding is on. Both lines are arguably right — how do we decide which one the compiler should say?"
+  "prompt": "Our compiler folds constants at parse time. A user reports the error message points at a different line when folding is on. Both lines are arguably right \u2014 how do we decide which one the compiler should say?"
  },
  {
   "id": "cri-near",
@@ -614,7 +614,7 @@
   "expect": [
    "deleted-vs-never-written"
   ],
-  "prompt": "Our CONTRIBUTING.md has a '## Release process' heading with nothing under it. Everyone cites 'the release process' in review comments. I guess nobody ever wrote it — can you draft one?"
+  "prompt": "Our CONTRIBUTING.md has a '## Release process' heading with nothing under it. Everyone cites 'the release process' in review comments. I guess nobody ever wrote it \u2014 can you draft one?"
  },
  {
   "id": "dvnw-mid",
@@ -638,7 +638,7 @@
  {
   "id": "neg-17",
   "expect": [],
-  "prompt": "I lost about an hour of edits when my editor crashed — the changes were never committed. Anything I can do to get them back?"
+  "prompt": "I lost about an hour of edits when my editor crashed \u2014 the changes were never committed. Anything I can do to get them back?"
  },
  {
   "id": "ccr-near",
@@ -774,7 +774,7 @@
   "expect": [
    "refusal-set-differential"
   ],
-  "prompt": "The reference interpreter returns an error record and the production one raises, so we never compare the two on malformed input — the shapes don't line up and the text is worded differently anyway. Is there anything in there worth testing?"
+  "prompt": "The reference interpreter returns an error record and the production one raises, so we never compare the two on malformed input \u2014 the shapes don't line up and the text is worded differently anyway. Is there anything in there worth testing?"
  },
  {
   "id": "rsd-neg-rename",
@@ -786,7 +786,7 @@
   "expect": [
    "measured-not-declared-dependencies"
   ],
-  "prompt": "Our incremental test runner skips a suite when the fingerprint hasn't moved. The fingerprint is a sha over every .py file under src/. In practice almost nothing is ever skipped — a one-line docstring edit in an unrelated package busts the whole thing. How should I make the fingerprint tighter without guessing wrong?"
+  "prompt": "Our incremental test runner skips a suite when the fingerprint hasn't moved. The fingerprint is a sha over every .py file under src/. In practice almost nothing is ever skipped \u2014 a one-line docstring edit in an unrelated package busts the whole thing. How should I make the fingerprint tighter without guessing wrong?"
  },
  {
   "id": "mndd-mid",
@@ -1013,7 +1013,7 @@
   "expect": [
    "zero-rate-needs-a-distance"
   ],
-  "prompt": "Our fuzz campaign ran 2000 seeds against the new differential checker and found zero instances of the divergence we added it for. I want to write that up as 'this class does not occur' — is that a safe conclusion?"
+  "prompt": "Our fuzz campaign ran 2000 seeds against the new differential checker and found zero instances of the divergence we added it for. I want to write that up as 'this class does not occur' \u2014 is that a safe conclusion?"
  },
  {
   "id": "zrd-mid",
@@ -1146,7 +1146,7 @@
   "expect": [
    "expiring-fixture-window"
   ],
-  "prompt": "One of our tests just went red in CI with an empty diff — nobody touched the code. It builds a fake retention window from 2026-08-25 to 2026-08-31 and runs it against our live append-only audit log, and now the assertion `max_gap <= 301` is getting 15108. What happened?"
+  "prompt": "One of our tests just went red in CI with an empty diff \u2014 nobody touched the code. It builds a fake retention window from 2026-08-25 to 2026-08-31 and runs it against our live append-only audit log, and now the assertion `max_gap <= 301` is getting 15108. What happened?"
  },
  {
   "id": "efw-mid",
@@ -1186,14 +1186,14 @@
   "expect": [
    "exemption-census"
   ],
-  "prompt": "Our differential oracle suite has accumulated maybe half a dozen exemption branches over the years — some skip a whole program, some drop a field, one of them is a `[:6]` slice in a loop. The campaign reports green. I want to know what it actually covers. Where do I start?"
+  "prompt": "Our differential oracle suite has accumulated maybe half a dozen exemption branches over the years \u2014 some skip a whole program, some drop a field, one of them is a `[:6]` slice in a loop. The campaign reports green. I want to know what it actually covers. Where do I start?"
  },
  {
   "id": "exc-cap",
   "expect": [
    "exemption-census"
   ],
-  "prompt": "I just noticed our consistency checker only compares the first 6 items in each batch — it's a literal slice in the loop bound and nothing logs what it skipped. Before I change it, how do I find out whether there are other caps like this and how much they're costing us?"
+  "prompt": "I just noticed our consistency checker only compares the first 6 items in each batch \u2014 it's a literal slice in the loop bound and nothing logs what it skipped. Before I change it, how do I find out whether there are other caps like this and how much they're costing us?"
  },
  {
   "id": "exc-suppress",
@@ -1207,7 +1207,7 @@
   "expect": [
    "measured-exemption"
   ],
-  "prompt": "I'm adding one new exemption to our comparison code — these two forms are genuinely allowed to differ when the spec name is shadowed. What's the right way to write that branch?"
+  "prompt": "I'm adding one new exemption to our comparison code \u2014 these two forms are genuinely allowed to differ when the spec name is shadowed. What's the right way to write that branch?"
  },
  {
   "id": "exc-neg-perf",
@@ -1253,5 +1253,19 @@
   "id": "neg-rsrs-1",
   "expect": [],
   "prompt": "How do I make `git archive` include submodules when I export a tag for release?"
+ },
+ {
+  "id": "ccr-tombstone",
+  "expect": [
+   "carried-claim-rot"
+  ],
+  "prompt": "Our sprint carryover doc lists an item as still open, but I found the PR that closed it two months ago. Worse, it had been correctly dropped from the doc for weeks and then someone re-added it. How do I stop this happening again?"
+ },
+ {
+  "id": "ccr-resurrect",
+  "expect": [
+   "carried-claim-rot"
+  ],
+  "prompt": "The risk register says 'standing, unchanged' next to six items. Two of them were fixed last quarter. Can you build something that flags a re-asserted item that we already closed, without flagging the lines that say we closed it?"
  }
 ]

@@ -59,6 +59,11 @@ Findings
         something else. Requires `--run`; the command must classify `auto`
         under `claim_check.py`'s fail-closed allowlist, so nothing here can
         ssh, spend money, or write to the checkout.
+`S006`  a `Round N's item K` pointer to an item that
+        `state/retired-next-step-items.json` records as DISCHARGED. S004
+        asks whether the pointer RESOLVES; this asks whether the thing it
+        points at is still open. Exempt when the citing item's own text
+        acknowledges the closure -- saying so is the cure, not the disease.
 `CARRIED` (never an error) the age of each extracted claim: how many
         distinct next-steps blocks assert it verbatim, and from which round.
         An age of 1 means this round derived it. An age of 11 means eleven
@@ -80,6 +85,7 @@ Exit codes: 0 = no stale claims, 1 = at least one, 2 = usage/IO problem.
 """
 
 import argparse
+import json
 import os
 import re
 import sys
@@ -535,6 +541,58 @@ def knowledge_items(round_no, repo_root):
     return None, None
 
 
+RETIRED_REGISTRY = os.path.join("state", "retired-next-step-items.json")
+
+# Words that turn a citation from a RE-ASSERTION into an ACKNOWLEDGEMENT.
+# Round 389's block says "Round 383's item 5 is CLOSED and must not be
+# carried again" -- the exact sentence this check exists to produce. Firing
+# on it would make the checker punish the fix. Deliberately generous: a
+# checker nobody watches must be zero-false-positive even at the cost of
+# recall (round 339's rule, which this file already applies to S003).
+ACKNOWLEDGED_RE = re.compile(
+    r"\b(closed|retired|discharged|resolved|done|no longer|"
+    r"must not be carried|superseded)\b", re.I)
+
+
+def retired_items(repo_root):
+    """`{(round, item): entry}` from the registry, or `{}` if absent.
+
+    Absent is not an error: the registry is new, most checkouts of this
+    document predate it, and a missing tombstone file must degrade to
+    "check nothing" rather than to "everything is retired".
+    """
+    path = os.path.join(repo_root, RETIRED_REGISTRY)
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    return {(int(e["round"]), int(e["item"])): e
+            for e in data.get("retired", [])}
+
+
+def check_retired(claim, repo_root):
+    """S006 -- a live block re-asserting a debt some round already paid."""
+    registry = retired_items(repo_root)
+    if not registry:
+        return []
+    if ACKNOWLEDGED_RE.search(claim.item.text):
+        return []
+    out = []
+    for n in claim.payload["items"]:
+        entry = registry.get((claim.payload["round"], n))
+        if entry is None:
+            continue
+        out.append(Finding(
+            claim, "S006",
+            "cites round %d's item %d as open, but "
+            "state/retired-next-step-items.json records it DISCHARGED by "
+            "round %d (%s). Evidence: %s"
+            % (claim.payload["round"], n, entry["retired_by"],
+               entry.get("summary", ""), entry.get("evidence", ""))))
+    return out
+
+
 def check_citation(claim, blocks, repo_root):
     """S004 -- a `Round N's item K` pointer that resolves to nothing.
 
@@ -639,6 +697,7 @@ def analyse(path, repo_root, run=False, timeout=300, block_round=None):
                 findings.extend(check_body_lines(claim, repo_root))
             elif claim.kind == "citation":
                 findings.extend(check_citation(claim, blocks, repo_root))
+                findings.extend(check_retired(claim, repo_root))
             elif claim.kind == "command" and claim.checkable:
                 if run:
                     findings.extend(check_command(claim, repo_root, timeout))

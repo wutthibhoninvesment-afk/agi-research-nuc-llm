@@ -102,6 +102,20 @@ are the only ones nobody re-runs.
     fix for a claim nobody re-executes is a test that re-executes it — not a
     sweep somebody has to remember. One test, asserting the live revision has
     zero stale claims, in whatever suite the next cycle is guaranteed to run.
+11. **Give a RETIRED item a tombstone, because deleting its line is
+    indistinguishable from never writing one.** The normal way to close a
+    carried item is to drop it from the next revision — which records
+    nothing. Omission and retirement are the same edit, so any later
+    revision that re-expands a compressed list ("the rest of team X's
+    standing items are unchanged") back into names can resurrect a paid
+    debt, and every checker stays green because the pointer still resolves.
+    Keep a small registry — `{item id, discharged-by, evidence}` — and make
+    a live-revision citation of a registered item an ERROR. Two rules keep
+    it honest: **a tombstone is a claim** (its evidence must name a file,
+    commit or artefact a reader can open, and a test should re-derive that
+    the path exists), and **register only what you verified**, because a
+    wrong tombstone silences a real debt — the one failure mode worse than
+    the rot.
 
 ## Pitfalls
 - **"Unchanged" and "not checked" are different sentences, and most rolling
@@ -129,6 +143,23 @@ are the only ones nobody re-runs.
   tracking this. It is the opposite: it is proof that the only field anybody
   touched was the counter. Round 349's "8th" was itself wrong, because it was
   counting carries of an item closed on round 339.
+- **Exempt the acknowledgement, or the check punishes the cure.** The
+  sentence a well-behaved revision writes is *"item 5 is CLOSED and must not
+  be carried again"* — which cites the item, and which a naive registry check
+  flags as a re-assertion. The one thing that fixes the rot becomes the thing
+  that trips the alarm, and the next author deletes the sentence to get green.
+  Exempt a citation whose own item text says `closed` / `retired` /
+  `discharged` / `superseded`. Be generous about it: a checker nobody watches
+  must be zero-false-positive even at the cost of recall.
+- **A gap in the carry list is a resurrection, and the age report already
+  shows it.** A carry age of "16 revisions" hides the shape; the LIST of
+  revisions does not. `rounds 333, 334, 336, 338, 346, 347, 348, 375, 377,
+  …` has the answer in it — the item was dropped for twenty-three cycles and
+  came back. That is a different defect from a never-noticed closure and it
+  needs a different fix (a tombstone, not a re-read), so read the list rather
+  than the count. Note the age report is correctly INFORMATIONAL and never an
+  error: a long carry is not itself a defect, which is exactly why nobody
+  reads it. If the discontinuity matters, promote it to its own finding.
 - **A closure recorded elsewhere in the SAME file does not propagate.** Round
   339's entry says, in bold, that it closed the backlog item. That entry sits
   ~1000 lines above the next-steps block that re-opens it. Nothing reads
@@ -181,7 +212,17 @@ python3 skills/skill-authoring/scripts/state_claim_check.py --list state/researc
 python3 skills/skill-authoring/scripts/state_claim_check.py --block 349 state/research-state.md
 # expected: exit 1, S001 (415 vs 399) and S002 (B002 no longer emitted)
 
-# 5. the guard that makes this run every cycle
+# 5. the tombstone registry — a retired item re-asserted as open
+python3 skills/skill-authoring/scripts/state_claim_check.py state/research-state.md
+# expected: S006 for any live-block citation of an item
+# state/retired-next-step-items.json records as discharged; SILENT when the
+# citing item's own text acknowledges the closure. Verified against the real
+# document: with round 389 live it fired exactly once (round 332's item 1,
+# discharged by round 350 and resurrected at round 375) and stayed silent on
+# round 383's item 5, whose citation says "is CLOSED and must not be carried
+# again".
+
+# 6. the guard that makes this run every cycle
 python3 -m unittest discover -s skills/skill-authoring/scripts -p 'test_state_claim_check.py'
 # expected: exit 0, OK. TestLiveCorpus is the live assertion;
 # TestRound349Regression pins the historical text so correcting the document
