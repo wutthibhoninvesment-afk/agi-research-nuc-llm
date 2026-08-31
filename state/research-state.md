@@ -15191,8 +15191,11 @@ shape, rounds 302/396).
 completed since round 390), which named harness(A). Knowledge:
 `knowledge/round-403-the-suite-that-finished-after-the-round-ended.md`.
 Predictions banked cold in `state/round-403/PREDICTIONS.md`: **5 HIT,
-2 HIT-with-the-wrong-mechanism, 3 MISS, of 10 scorable** (P11/P12 scored in
-§10 of the knowledge file).
+2 HIT-with-the-wrong-mechanism, 7 MISS, all 14 scored** — a poor record,
+and split cleanly: every prediction about what I was about to MEASURE was
+right, every reconstruction of round 402's session from two log filenames
+was wrong, and `logs/round-402.json` settled all of them in plain text and
+was free to read before banking.
 
 **The tier completed; the round that said it had not was three minutes
 early.** Round 402 committed "the tier has now not completed for a seventh
@@ -15268,6 +15271,20 @@ round instead ran the tier in the live tree with its own edits confined to
 `harness/`, which the whence suite does not read: same guarantee, no
 worktree, and the number stays comparable to every previous live-tree run.
 
+**Verification — the full whence tier completed, uncontaminated, for the
+first time since round 390.** `1 failed, 1938 passed, 3 skipped in
+1165.81s (0:19:25)`; `1+1938+3 = 1942` is exactly the collection count both
+index derivations above depend on, so the run confirms its own arithmetic.
+The one failure is the `test_v24.py` one, fixed and re-run: `pytest
+tests/test_v24.py tests/test_self_hosting.py` → **68 passed in 119.27 s**.
+**19:25, against round 402's 27:56** — the difference is the two orphans it
+had been sharing one CPU with. So the twelve-round belief that this suite
+does not fit inside a round is wrong by a wide margin: it fits in a third
+of one, on a quiet box, and that cost one `reap`. Also: harness fast tier
+**943 passed, 269 deselected in 184.71s**; `test_procreap.py` **46 passed**;
+`skill_lint --house --strict` 0/0; `case_coverage.py` **0 errors** (was 1 —
+P001 for the new skill, now 3 positive + 1 negative trigger case).
+
 **Hygiene:** no NUC contact. `languages/whence/SECURITY.md` untouched, still
 escalated, 55 rounds carried. `CHANGELOG.md` not edited (gateway-owned).
 PIDs 2166178/2161852/2161850 were reaped at 15:56:37 **after** both logs
@@ -15278,8 +15295,9 @@ round that can `guard-rm` them and watch it.
 
 ## Next steps (as of round 403)
 
-1. **Re-scope the "full tier cannot complete" item.** It can: ~28 minutes,
-   measured. What it cannot survive is being launched and then killed,
+1. **Retire the "full tier cannot complete" item — it is measured false.**
+   1165.81 s (19:25) for 1942 tests on a quiet one-CPU box, 1 failure, now
+   0. What it cannot survive is being launched and then killed,
    deleted, or starved. Any future round carrying this item should launch
    it in the first tool call **with a durable in-repo log path recorded in
    the round file**, confine its own edits to a subtree the suite does not

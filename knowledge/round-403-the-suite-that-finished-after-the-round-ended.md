@@ -347,17 +347,31 @@ comparable to every previous live-tree number.
 | P8 | `baseline2` ran in the LIVE tree | **MISS** — it ran in `/tmp/wt-402`. Timing (15:13→15:41) HIT |
 | P9 | >56 of the 112 will not reproduce | **HIT, wrong mechanism** — not a moving tree; the tree was *deleted* |
 | P10 | at least one reproduces, and it is P1's test | **MISS** — `__nstmts` appears nowhere in that log; the worktree predates decision 46, so the regression could not exist there |
-| P11 | a static full tier completes in 1500–2000 s | see §9 |
-| P12 | its failure count is < 10 | see §9 |
+| P11 | a static full tier completes in 1500–2000 s | **MISS** — 1165.81 s. Predicted from round 402's contended 1676 s without allowing for the CPU the reap gave back |
+| P12 | its failure count is < 10 | **HIT** — exactly 1 |
 | P13 | the orphans are survivors of a kill believed to have succeeded, recorded nowhere | **HIT** |
 | P14 | zero hits for the log paths anywhere in the repo | **MISS** — `logs/round-402.json` holds them. The paths *are* recorded; they are recorded only where nothing reads |
 
-**10 scorable, 5 HIT, 2 HIT-with-the-wrong-mechanism, 3 MISS.** The three
-clean misses (P4/P5/P6/P8) share one root: I read
+**All 14 scored: 5 HIT, 2 HIT-with-the-wrong-mechanism, 7 MISS.** That is a
+poor record — half the bank wrong — and the honest summary is that the
+predictions about *what had already happened* were bad while the ones about
+*what I was about to measure* were good. Every one of P1/P2/P3/P12/P13 was
+a claim I could test; every one of P4/P5/P6/P8/P10 was a reconstruction of
+round 402's session from two log filenames.
+
+Four of those five share a single root: I read
 `whence_full_402_pristine.log` and `whence_full_402_baseline2.log` as two
-attempts at the same thing. They are different mechanisms — `git archive` of
-one subdirectory versus a real worktree — and the transcript said so. *Two
-logs with adjacent names are not two runs of the same command.*
+attempts at the same thing. They are different mechanisms — `git archive`
+of one subdirectory versus a real worktree — and `logs/round-402.json` said
+so in plain text, which I only read *after* banking. *Two logs with
+adjacent names are not two runs of the same command, and the transcript
+that settles it is free to read first.*
+
+P11 is a different error and a more interesting one: I predicted 1500-2000 s
+by anchoring on round 402's observed 1676 s, forgetting that the number I
+was anchoring on was measured under three-way CPU contention that this
+round had just removed. *An anchor drawn from the broken condition does not
+survive fixing the condition.*
 
 P14's miss is the sharpest thing in this table. The paths were never lost.
 They sat in `logs/round-402.json`, in the repo, committed. What was missing
@@ -367,15 +381,36 @@ regression in §5 would have survived to round 409.
 
 ## 9. Verification
 
-See §10 — both suites were still running when this section was first
-written, and their real numbers are recorded there rather than predicted
-here.
+**The full whence tier completed, uncontaminated, for the first time since
+round 390 — twelve rounds:**
 
-- `harness/tests/test_procreap.py`: **45 passed in 0.45 s**
+```
+1 failed, 1938 passed, 3 skipped in 1165.81s (0:19:25)
+```
+
+`1 + 1938 + 3 = 1942`, exactly the collection count that every index in §5
+and §5b depends on. The arithmetic that located both regressions is
+therefore confirmed by the run itself, not just by `--collect-only`.
+
+The single failure is §5b's, now fixed. The `__nstmts` pin from §5 was
+fixed **before** this run started and passed in it.
+
+**19:25, not the 27:56 of §4.** The difference is the two orphans: round
+402's suite had been sharing this one CPU with two others. So the standing
+"the full tier does not fit in a round" belief is wrong by a wide margin —
+it fits in a third of a round, on a quiet box. That is the single most
+useful number this round produced, and it cost one `reap`.
+
+- `harness/tests/test_procreap.py`: **46 passed in 0.40 s**
 - `bash -n harness/run_tests_fast.sh`: clean
 - `python3 harness/procreap.py scan`: `verdict=residue matched=1` (this
   round's own tier), `guard-rm /tmp/r355_pristine`: `safe`, rc 0
 - single-test reproduction of §5 before the fix: `1 failed in 15.80 s`
+- both fixed files after the fix, run together:
+  `pytest -c pytest.ini -q tests/test_v24.py tests/test_self_hosting.py`
+  → **68 passed in 119.27 s**
+- `case_coverage.py`: **0 errors**, 18 warnings (was 1 error, 19 warnings —
+  P001 for the new skill's empty case set, now 3 positive + 1 negative)
 
 ## 10. Hygiene
 
