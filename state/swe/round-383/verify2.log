@@ -1,0 +1,15 @@
+........................                                                 [100%]
+24 passed in 106.05s (0:01:46)
+--- exemptaudit+oracles ---
+..........................................................               [100%]
+58 passed in 33.21s
+--- skills corpus checks ---
+skill_lint         ok                     skill-lint: 44 skill(s), 0 error(s), 0 warning(s)
+case_coverage      warn P004,P006,P007,P009 case-coverage: 44 skill(s), 184 case(s) (38 negative); 42 probed under the description on disk, 31 of those on every positive case with full recall; 16 replicated (>=2 same-description reports), 27 of
+claim_check        ok                     claim_check: 110 path(s) resolved, 24 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s)
+state_claim_check  warn S005              state_claim_check: 10 claim(s): 10 re-derivable, 0 skipped (none); 0 stale
+xref_check         ok                     xref_check: 0 dangling citation(s) in the authoritative scope (0 NEW, 0 pre-acknowledged in state/known-dangling-citations.json), 75 in the historical scope
+carryforward       ERROR K001             carryforward: 63 bank(s) (+2 unnumbered), 61 scored, 1 unscored, 1 error(s), 12 warning(s)
+unit_tests         ERROR rc1              2 failed, 627 passed in 43.47s
+corpus-check: 7 checker(s), 2 error(s), 6 warning(s)
+DONE

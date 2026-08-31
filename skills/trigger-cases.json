@@ -1180,5 +1180,38 @@
    "lazy-fill-ceiling"
   ],
   "prompt": "Our service's RSS has been byte-identical at 30.8 GB for nine hours with no OOM, so I'm going to write that down as its footprint and size the next box from it."
+ },
+ {
+  "id": "exc-suite",
+  "expect": [
+   "exemption-census"
+  ],
+  "prompt": "Our differential oracle suite has accumulated maybe half a dozen exemption branches over the years \u2014 some skip a whole program, some drop a field, one of them is a `[:6]` slice in a loop. The campaign reports green. I want to know what it actually covers. Where do I start?"
+ },
+ {
+  "id": "exc-cap",
+  "expect": [
+   "exemption-census"
+  ],
+  "prompt": "I just noticed our consistency checker only compares the first 6 items in each batch \u2014 it's a literal slice in the loop bound and nothing logs what it skipped. Before I change it, how do I find out whether there are other caps like this and how much they're costing us?"
+ },
+ {
+  "id": "exc-suppress",
+  "expect": [
+   "exemption-census"
+  ],
+  "prompt": "We have a suppressions file with 40 entries that nobody has audited since it was created. Some of them probably matter and some are probably dead. How would you evaluate the whole set rather than arguing about them one at a time?"
+ },
+ {
+  "id": "exc-neg-single",
+  "expect": [
+   "measured-exemption"
+  ],
+  "prompt": "I'm adding one new exemption to our comparison code \u2014 these two forms are genuinely allowed to differ when the spec name is shadowed. What's the right way to write that branch?"
+ },
+ {
+  "id": "exc-neg-perf",
+  "expect": [],
+  "prompt": "Our oracle suite takes 6 minutes per campaign and `determinism` is the slowest. Can you profile it and find where the time goes?"
  }
 ]

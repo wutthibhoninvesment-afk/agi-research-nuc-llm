@@ -1,0 +1,13 @@
+=== test_swe_exemptmap ===
+...............s........                                                 [100%]
+23 passed, 1 skipped in 105.51s (0:01:45)
+=== test_swe_exemptaudit + test_swe_oracles ===
+E             + crash)
+
+harness/tests/test_swe_oracles.py:64: AssertionError
+=========================== short test summary info ============================
+FAILED harness/tests/test_swe_oracles.py::test_fast_slow_fires_on_an_injected_fast_path_bug
+1 failed, 57 passed in 36.58s
+=== skill_lint ===
+skill-lint: 44 skill(s), 0 error(s), 0 warning(s)
+DONE

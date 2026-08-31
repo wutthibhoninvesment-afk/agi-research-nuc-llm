@@ -1,0 +1,5 @@
+{"demand": 98, "fired": false, "oracle_detail": "max excess 98 frames at guest depth 0 (slack 140)", "oracle_kind": "ok", "parse_error": "", "site": "F-SLACK", "witness": "1+1+... chain at the measured crossing (None terms)"}
+{"demand": 10, "fired": true, "oracle_detail": "", "oracle_kind": "ok", "parse_error": "", "site": "R-CAP", "witness": "10 top-level bindings"}
+{"demand": 500, "fired": true, "oracle_detail": "1 tail calls, lifted run reached depth 500 >= max_depth 500 (space-exempt)", "oracle_kind": "ok", "parse_error": "", "site": "T-SPACE", "witness": "tail loop 600 bounces long"}
+{"demand": 2, "fired": true, "oracle_detail": "1 contracts, all fields, exempt, unused (spec name 'S' is bound 2 times (defining env vs call env: round 342 \u00a77))", "oracle_kind": "ok", "parse_error": "", "site": "P-EXEMPT", "witness": "spec name bound twice"}
+{"demand": 0, "fired": true, "oracle_detail": "1 contracts, all fields, exempt, unused (the program binds 'typed', which the erased form calls by name)", "oracle_kind": "ok", "parse_error": "", "site": "P-EXEMPT", "witness": "program binds `typed`"}

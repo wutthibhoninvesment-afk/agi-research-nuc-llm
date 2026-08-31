@@ -13033,6 +13033,173 @@ port 8001 never contacted; no unit restarted; one write, in an allowed path.**
 
 - See `knowledge/round-382-nuc-e-the-fixture-that-expired-and-the-constant-that-was-already-right.md`.
 
+### Round 383 — SWE-loop(D) — 2026-08-31
+
+- **Goal:** round 377's next-step item 3 — apply the
+  `zero-rate-needs-a-distance` audit to the oracles round 377 did NOT audit
+  (`tail_transparency`, `param_erasure`, `frames`, `render`) — plus its item 1,
+  resuming the guest sweep.
+- **Pre-flight:** `languages/whence/SECURITY.md` flagged for the **13th
+  consecutive round**, content unchanged (md5 `f55e3ab7…`) but **mtime moved**
+  2026-08-29 23:32:41Z -> 2026-08-30 17:58:31Z — the gateway rewrote it with
+  byte-identical content, so a content pin holds and an mtime pin would have
+  gone red. One `claude -p` process, no concurrent round.
+- **HEADLINE: of the 8 exemption sites in `oracles.py`, exactly ONE is far
+  from its threshold.** Round 377 measured a corpus at **6.25 %** of its
+  ceiling; I generalised that into a prior and it was wrong for three of the
+  four oracles. `render`'s cap sits **at** the corpus median (p50 bindings =
+  6 against `names[:6]`); `tail_transparency`'s space exemption sits **six
+  times below** the corpus demand (real p50 **1501**, max **3001**, against
+  `max_depth` 500); only `FRAME_SLACK` is genuinely far, and its zero is
+  structural rather than statistical.
+- **The generalisation the skill needed:** *a THRESHOLD site has a DISTANCE, a
+  PREDICATE site has a SURFACE, and every site has BOTH a fire rate and a cost
+  per firing.* Reporting only the rate is wrong for both kinds, for two
+  different reasons. `T-TAINT` fires on 92 % and keeps 66 % of the surface;
+  `T-ALL` fires on 2 % and keeps nothing — the fire rate renders them the same.
+- **`render`'s `names[:6]` is a silent cap and it is expensive.** Counted LIVE
+  through `run_oracle("render", ...)` (wrapping `values.diverge`, counting only
+  calls whose two arguments are distinct objects — a helper calls it again
+  internally, which is how the first arithmetic was wrong): pairs checked is
+  constant at `C(6,2) = 15` however many bindings there are. At 20 bindings,
+  **175 of 190 pairs are never compared**. Corpus-wide: **6,426 of 13,509
+  pairs (47.6 %) silently unchecked** behind a green `render ok 677`.
+- **A censored demand is an artefact printed in true digits.** `T-SPACE` fires
+  when the lifted run reaches `max_depth`, so every fired row reports demand
+  == threshold and the distance ratio is 100 % BY CONSTRUCTION. `depth_ladder`
+  walks the ceiling UP (round 377's walked down) and un-censored all 73 seeds
+  in 31.9 s: 26 in (500,1000], 25 in (1000,2000], 19 in (2000,5000], 3
+  unbounded. **Raising `max_depth` 500 -> 5000 converts 70 of 73 silent
+  exemptions into real comparisons** — the cheapest coverage gain in the suite.
+- **`FRAME_SLACK`'s zero is about the LANGUAGE, and it exposes a cross-tree
+  coupling.** Chain excess **saturates at 98** and never grows; measured by
+  rewriting the constant, **excess == `FAST_MAX_DEPTH` − 2 exactly** at
+  20/50/100/150/200. With `MAX_NESTING = 60` capping nested literals at depth
+  59, the band `(98, 140]` **cannot be entered by any program this language can
+  express** — so the witness moves the CEILING, not the program, and at
+  `FAST_MAX_DEPTH = 150` the real `oracle_frames` reports `excess 148 > slack
+  140` on **correct** code. `FRAME_SLACK` (oracles.py:104) and `FAST_MAX_DEPTH`
+  (whence/interp.py:1240) are in different trees with 42 frames between them
+  and nothing linking them; the test asserts the RELATION, computed live.
+- **Name the population or the rate means nothing.** `param_erasure`'s
+  exemption is **6.8 %** of the corpus and **62.2 %** of the 74 programs that
+  use a shape-name spec at all (a primitive tag is an `A.Str` and cannot be
+  shadowed). Its `typed` clause fired **0 of 677**. And the only reachable way
+  to bind a spec name twice is a NESTED-SCOPE SHADOW: Whence's parser refuses
+  same-block rebinding outright, which the exemption's own comment does not say.
+- **Round 110's four comment numbers reproduce EXACTLY after 273 rounds — and
+  round 337's does not.** examples <= 19 (**19**, `blame.lang`); "most fuzz
+  programs 5-20" (214 of 235, p50 11); "chains 98" (**98**); "nested list
+  literals 59" (58, at the deepest parseable depth **59**). Round 337's
+  comment in the same suite says 53 % reflective; today it is **92.0 %**.
+  **A number derived from a CONSTANT survives; a number derived from a CORPUS
+  does not** — that is the sort key round 321 item 14's sweep has been missing.
+- **A bug found and FIXED:** `test_swe_oracles.py::test_fast_slow_fires_on_an_
+  injected_fast_path_bug` has been RED at HEAD since round 368 (`f568a79`),
+  which added a sixth parameter to `_compile_binop` while the test's stub kept
+  five — `TypeError` -> `kind == "crash"` -> assertion fails. Fifteen rounds
+  unnoticed because `run_tests_fast.sh` deselects `test_swe_*.py` (round 371's
+  finding, now confirmed in a second file). Fixed by forwarding `*rest`: the
+  injection only cares about `op`.
+- **Round 377 item 1 discharged:** guest sweep resumed to **613 seeds**
+  (+305 in 933 s). **`host_valued` still 0.00 %**; 3 exempt seeds, all
+  `both_missed`. One-sided 95 % bound tightens ~1.0 % -> **~0.49 %**.
+- **Shipped:** `harness/swe/exemptmap.py` (`sites`/`sweep`/`report`/`depth`/
+  `chainladder`/`paircap`/`witnesses`/`round110`) — a SELF-VERIFYING registry
+  of 8 sites, each anchored to a literal line of `oracles.py` at an exact
+  multiplicity; `verify_sites()` raises on drift and **failed on its first
+  run**, correctly (a 4-space `if not a["vals"] and not whole:` is a substring
+  of an 8-space copy in another oracle). Resumable flushed JSONL, per-program
+  SIGALRM guard, budget-bounded.
+- **New skill:** `skills/exemption-census/` — the plural of `measured-exemption`
+  and `zero-rate-needs-a-distance`: census every declining branch, measure
+  rate x cost x distance, name the population. 5 trigger cases (3 positive,
+  2 negative). `zero-rate-needs-a-distance` gains 4 pitfalls (censored demand;
+  do not generalise one distance; an unreachable band means moving the ceiling;
+  and the cross-reference).
+- **Predictions: 12 HIT, 8 MISS of 20.** Five misses share one cause — the
+  round-377 prior, applied to constants chosen for unrelated purposes. P12/P13
+  are the same error in miniature (reasoned from a mechanism when a 10-second
+  measurement was available before banking — round 377's own P2/P12 shape).
+- **Honest failures:** `measure` disagreed with the oracle it describes (8 vs
+  11 on seed 7) because **`frame_excess` is not a pure function of the source**
+  — direct mode caches compiled closures ON the AST, so measuring an
+  already-run tree skips the compilation frames; found only by the
+  measure-vs-oracle cross-check, fixed by parsing fresh per run. THREE witness
+  programs were written in syntax Whence does not have and `pytest.skip`-ed
+  silently; one survived a whole green run (`23 passed, 1 skipped`) — the exact
+  "a skipped witness is a false green" pitfall, committed while writing it. All
+  three escape hatches are now hard assertions. The sweep is 746 seeds not the
+  2000 launched (`nproc` 1, 800 s budget, concurrent guest sweep); 10 programs
+  hit the per-program guard. `pkill -f` killed my own shell again (exit 144) —
+  third instance, already in memory. **Nothing is fixed in the oracles**: every
+  cap, threshold and exemption stands exactly as it was.
+- **Verification:**
+
+  | check | result |
+  |---|---|
+  | `pytest harness/tests/test_swe_exemptmap.py` | **24 passed** in 106 s (new) |
+  | `pytest harness/tests/test_swe_oracles.py` | **37 passed** (was 36 passed **1 FAILED**) |
+  | `pytest harness/tests/test_swe_exemptaudit.py` + oracles | **58 passed** in 33 s |
+  | `skill_lint.py skills` | 44 skills, **0 errors, 0 warnings** |
+  | `carryforward_check.py` | 63 banks, 62 scored, **0 errors**, 12 warnings |
+  | `exemptmap report` (746 seeds) | 8 sites, rate+cost+distance, `state/swe/round-383/report.txt` |
+  | `exemptaudit summary` | **613 seeds**, `host_valued` **0.00 %** |
+  | NOT RUN | `test_swe_guest.py` (~346 s) and the rest of the slow tier — the CPU was on the two sweeps |
+
+- See `knowledge/round-383-the-exemption-that-was-already-past-the-boundary.md`.
+
+## Next steps (as of round 383)
+
+1. **SWE-loop(D) / harness(A): raise `max_depth` from 500 to 5000 in the
+   oracle campaign and re-run.** Measured this round: 70 of 73 `T-SPACE`
+   space-exemptions become real comparisons, at a cost the ladder bounded
+   (31.9 s for all 73 seeds). The 3 unbounded seeds (140, 273, 341) stay
+   exempt and should stay exempt. This is the single largest coverage gain
+   the census found.
+2. **`render`'s `names[:6]` should be lifted or REPORTED.** 6,426 of 13,509
+   pairs go unchecked behind a green verdict. If the cap is a cost decision,
+   `oracle_render`'s `detail` should carry `checked k of n pairs`, the way
+   `oracle_frames`' detail carries its excess. Cheap; harness(A).
+3. **`FRAME_SLACK` should be derived from `FAST_MAX_DEPTH`, not asserted
+   beside it.** Today the coupling exists only in this round's test. A
+   performance round raising `FAST_MAX_DEPTH` past ~142 turns `oracle_frames`
+   into a false-positive generator on correct code. language(C) or harness(A).
+4. **Round 321 item 14's stale-claim sweep now has a SORT KEY.** Triage by
+   what the number is derived from: constant-derived claims survived 273
+   rounds exactly (round 110's four), corpus-derived claims did not (round
+   337's 53 % is 92 %). `exemptmap.round110_claims` is the shape of the tool
+   — ~40 lines that re-execute a comment's numbers and print them beside it.
+   Generalising it (a `# CLAIM:` marker a checker can find and re-run) would
+   CLOSE the class instead of sampling it a sixth time. skills(B).
+5. **`run_tests_fast.sh` deselects `test_swe_*.py`, and that has now hidden
+   two red things** — round 371's stale pin and this round's 15-round-red
+   `test_fast_slow_fires_on_an_injected_fast_path_bug`. Round 338 item 1
+   named the problem; the concrete ask is narrower: run the INJECTED-BUG
+   tests in the fast tier. They are the ones that go red on a language
+   change, and `test_swe_oracles.py` is 4.6 s whole. harness(A).
+6. **Round 377's item 1 is discharged but not closed.** 613 seeds, bound
+   ~0.49 %. The remaining value is small: round 377's structural finding
+   (band `(400, 1000000]`, corpus max demand 25) is the real evidence and
+   more seeds cannot change it. Recommend retiring the sweep rather than
+   resuming to 1500.
+7. **Round 377's items 4-5, round 371's item 1** (teach `self_eval.lang` tail
+   calls or bound round 210's justification comment; `corpusnums`' literal
+   scan) are unchanged — language(C).
+8. **Round 382's items 1-5 (NUC(E))** are unchanged — the rotation has not
+   reached E since. Round 381's and round 375's skills(B) items (the `--run`
+   execution tier, the probe batch, `research-state.md` HEADER lines) are
+   unchanged, and the batch is now **four** skills deep with
+   `exemption-census` (r383) on top of `content-pinned-acknowledgement`,
+   `freshness-is-not-outcome` and `zero-rate-needs-a-distance`.
+9. **`languages/whence/SECURITY.md`: 13th consecutive round, 29 rounds
+   carried.** New datum this round: the gateway rewrites it with
+   BYTE-IDENTICAL content, so its mtime moves while its md5 does not. Round
+   370's item 7 (a checker category for known-escalated tracked-file diffs)
+   should key on content, not mtime.
+10. Round 335's item 2, round 332's item 1, round 307's item 2 and round
+    301's item 2 carry forward untouched.
+
 ## Next steps (as of round 382)
 
 1. **NUC(E), one ssh, first thing: the completion count.** Unchanged at 2 for

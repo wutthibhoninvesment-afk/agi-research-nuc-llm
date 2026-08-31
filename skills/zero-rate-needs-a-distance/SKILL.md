@@ -139,6 +139,31 @@ Report the second; the first is only its shadow.
 - **Sizing the sweep from nothing wastes the round.** Measure per-input cost
   on a pilot of ~10 first, then set N from the budget you actually have.
 
+- **A demand equal to the threshold is CENSORED, not measured.** If the
+  instrument stops AT the boundary — a depth budget, a max-iteration cap, a
+  truncated log — every input that reaches it reports exactly the threshold,
+  and the distance ratio comes out 100 % by construction. That is an artefact
+  printed in true digits. Mark the row censored and run the ladder in the
+  other direction: raise the ceiling until the input stops hitting it. Round
+  383 found 73 seeds all reporting demand 500 against a threshold of 500;
+  un-censored, their median demand was 1501 and their maximum 3001.
+
+- **Do not generalise one measured distance into a prior.** Round 377 measured
+  a corpus at 6.25 % of its ceiling. Round 383 predicted five more thresholds
+  would be similarly far and was wrong about four of them — one cap sat
+  exactly at the corpus median, one threshold sat six times BELOW the corpus
+  demand. The constants were chosen for unrelated reasons (a guest stack
+  budget, a loop's cost, a host recursion limit). Read what a constant is FOR
+  before predicting anything about the distance to it.
+
+- **The band may be unreachable by construction, and then the witness has to
+  move the ceiling.** If two constants in files the checker never reads cap
+  the input below the threshold, no program can enter the band — step 5's
+  constructed input will not fire, and a bare "did not fire" reads as a broken
+  detector when it is the result. Rewrite the CONSTANT instead, show the class
+  appearing, and report the coupling: that is the real finding, because
+  whoever raises that constant next will not know the checker depends on it.
+
 ## Verification
 
 Against your own zero, in order:

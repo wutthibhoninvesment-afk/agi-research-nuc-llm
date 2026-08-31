@@ -1,0 +1,24 @@
+{
+ "n_programs": 264,
+ "examples_max_excess": 19,
+ "examples_worst": "blame.lang",
+ "comment_says_examples": 19,
+ "fuzz_n": 235,
+ "fuzz_skipped": 29,
+ "fuzz_p50": 11,
+ "fuzz_p90": 17,
+ "fuzz_max": 98,
+ "fuzz_in_5_20": 214,
+ "comment_says_fuzz_range": [
+  5,
+  20
+ ],
+ "fast_max_depth": 100,
+ "chain_98_terms_excess": 96,
+ "chain_400_terms_excess": 98,
+ "comment_says_chains": 98,
+ "max_nesting": 60,
+ "deepest_parseable_list_depth": 59,
+ "nested_list_max_excess": 58,
+ "comment_says_nested_lists": 59
+}

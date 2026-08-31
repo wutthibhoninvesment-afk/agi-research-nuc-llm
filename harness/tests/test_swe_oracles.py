@@ -56,8 +56,16 @@ def test_fast_slow_fires_on_an_injected_fast_path_bug():
     # (`eval_Binary` -> `self.binop`) is untouched, so only fast mode is wrong.
     orig_factory = interp_mod._compile_binop
 
-    def bad_factory(op, lf, rf, line, binop):
-        return orig_factory("+" if op == "-" else op, lf, rf, line, binop)
+    # Forward *rest instead of naming every parameter. The injection only
+    # cares about `op`; the rest is `_compile_binop`'s private signature and
+    # this test has no stake in it. Round 368 added an `interp` parameter and
+    # this stub kept its 5-argument form, so from round 368 to round 383 the
+    # patched factory raised TypeError, `run_oracle` turned that into
+    # `kind == "crash"`, and the assertion for `"mismatch"` failed — RED for
+    # 15 rounds, unnoticed because `run_tests_fast.sh` deselects
+    # `test_swe_*.py` (round 371's finding, in a second file).
+    def bad_factory(op, *rest):
+        return orig_factory("+" if op == "-" else op, *rest)
     interp_mod._compile_binop = bad_factory
     try:
         o = O.run_oracle("fast_slow", pkg, "let a = 5 - 2\nprint(a)\n")

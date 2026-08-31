@@ -1,0 +1,31 @@
+seed 403   ok            21.7s  depth_exempt 1 field(s): both_missed=1
+seed 408   ok            12.3s  
+seed 426   ok            20.6s  
+seed 438   ok            11.2s  
+seed 444   ok            12.4s  
+seed 462   ok            12.6s  
+seed 476   ok            13.3s  
+seed 495   ok            17.4s  
+seed 510   timeout       38.0s  exceeded 30.0s
+seed 535   timeout       70.8s  exceeded 30.0s
+seed 537   ok            14.1s  
+seed 550   ok            17.2s  
+seed 564   ok            14.1s  
+seed 578   ok            12.4s  
+seed 582   ok            17.5s  
+seed 589   ok            19.8s  
+seed 593   ok            18.8s  
+seed 598   ok            21.9s  
+seed 603   timeout       30.0s  exceeded 30.0s
+seed 612   timeout       48.5s  exceeded 30.0s
+budget 900s reached after 305 seed(s)
+305 new row(s) in 933.4s -> /home/pgain/agi-research-nuc-llm/state/swe/round-377/sweep.jsonl
+seeds                        : 305
+kinds                        : {'ok': 301, 'timeout': 4}
+depth exemption fired        : 1 seed(s)  0.33%  (1 field(s))
+  ... both_missed            : 1 seed(s)
+  ... guest_valued           : 0 seed(s)
+  ... host_valued BLIND SPOT : 0 seed(s)  0.00%  []
+seconds  median/mean/p90/max : 1.01 / 3.06 / 7.20 / 70.76
+slowest (s, seed)            : [(70.759, 535), (48.492, 612), (38.02, 510), (30.048, 603), (21.903, 598)]
+wall in oracle               : 932.7s
