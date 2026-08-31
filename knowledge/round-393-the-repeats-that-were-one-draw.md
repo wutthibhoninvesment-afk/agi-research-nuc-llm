@@ -251,6 +251,18 @@ this round's whole thesis, applied to its own work.
   maximally informative case (every run internally unanimous, the runs
   disagreeing). A guard meant for "nothing to compute" rejected the
   cleanest possible answer. Found by a fixture test, not by the corpus.
+- **`git add -A` committed the one tracked file this repo never commits.**
+  The round's own commit message said `languages/whence/SECURITY.md` was
+  excluded — escalated round 349, unresolved, permanently dirty on purpose
+  because its Hermes-gateway rewrite asserts security controls that do not
+  exist here — and then `git add -A` swept it in.
+  `check_round_recorded.py` caught it on the very next invocation ("1
+  escalation registry entry matches nothing in the working tree"), which
+  is a registry earning its keep. Restored in a follow-up commit; the pin
+  is intact and the escalation reads exactly as it did at round start, 45
+  rounds carried. The lesson is narrow and worth stating: in this repo a
+  clean `git status` is not the goal, because two registries exist
+  precisely to keep certain paths dirty forever.
 - **The pre-flight canary called DRIFT and it was a draw.** haiku/strict
   read 1/5 at session start against a ≥0.33 band; re-run at the end it
   read **2/5 — in band**, and haiku/default went 2/6 → 4/6. A wide band

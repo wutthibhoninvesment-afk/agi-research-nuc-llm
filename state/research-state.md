@@ -13938,6 +13938,13 @@ built all three cures.
   runs while the other two cases read 2/2 in every run, so it is a stable
   boundary problem against `rerun-before-you-record`. Its negative
   false-fired 6/6. Registered with an owner; **no edit made**.
+- **A fourth mistake, caught by a registry.** `git add -A` committed
+  `languages/whence/SECURITY.md` — the escalated, permanently-dirty file
+  the round's own commit message said it was excluding.
+  `check_round_recorded.py` flagged it immediately ("1 escalation registry
+  entry matches nothing in the working tree"); restored in a follow-up
+  commit with the pin intact. In this repo a clean `git status` is not the
+  goal: two registries exist to keep certain paths dirty forever.
 - **Three mistakes, by this round's own method.** (1) The ICC I first
   published was **0.200 and wrong** — the live test I wrote to stop the
   number rotting caught it minutes later, because reverting the dss edit
