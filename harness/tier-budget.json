@@ -38,7 +38,7 @@
             "measured_by": "python3 harness/tierbudget.py measure --cap-s 25",
             "first_pass_s": 4.43,
             "n_tests": 37,
-            "why": "holds all three injected-bug tests (fast_slow / direct / frames) \u2014 round 383 item 5's actual ask; these are the tests that go red on a language change and the whole reason the tier was re-measured"
+            "why": "holds all three injected-bug tests (fast_slow / direct / frames) — round 383 item 5's actual ask; these are the tests that go red on a language change and the whole reason the tier was re-measured"
         },
         "test_swe_prioritize.py": {
             "measured_s": 2.44,
@@ -93,6 +93,15 @@
             "first_pass_s": 1.72,
             "n_tests": 13,
             "why": "round 389's ceiling tests: they pin the FRAME_SLACK derivation, the undercharge detection band and render's pair-coverage line, all of which go red on a language-constant change (FAST_MAX_DEPTH, MAX_NESTING, DEFAULT_MAX_DEPTH) -- exactly the class round 383 found hiding in the slow tier for 15 rounds"
+        },
+        "test_swe_toolliveness.py": {
+            "measured_s": 1.76,
+            "measured_round": 395,
+            "measured_utc": "2026-08-31",
+            "measured_by": "python3 -m pytest tests/test_swe_toolliveness.py -q (fresh process, PYTHONDONTWRITEBYTECODE=1, twice: 1.76s / 1.65s)",
+            "first_pass_s": 1.65,
+            "n_tests": 21,
+            "why": "the per-commit liveness sweep. 20 of its 21 tests run against a CONSTRUCTED git history in a tempdir, so it is cheap and has no dependence on this repo's own state; the 3 that pin the historical claim skip when their shas are unreachable. Promoted because the thing it guards -- can bench/ref_diff.py actually run -- went undetected for 5 rounds, and a guard in the slow tier is a guard nobody runs (round 390's item 3: four slow-tier runs in thirty rounds)."
         }
     }
 }

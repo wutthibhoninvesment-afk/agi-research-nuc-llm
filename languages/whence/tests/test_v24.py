@@ -99,25 +99,82 @@ def test_every_token_position_points_at_its_own_first_character(name, src):
     assert position_errors(src) == [], (name, position_errors(src))
 
 
+# The examples this repo DECIDED to track, by name.
+#
+# round 355: git, not the directory — `examples/` is shared with a separate
+# system's untracked output.
+# 16 -> 17 in round 380: `show.lang`, the example v0.29's `show` builtin had
+# never had (round 378's item 8).
+# 17 -> 18 in round 384: `dropped.lang`, v0.32's example, and the only one in
+# the corpus that discards a miss on purpose (tests/test_v32.py::
+# DROPS_ON_PURPOSE).
+#
+# 18 -> 32 in round 395 (SWE-loop D), and this one was not a decision anybody
+# made. Round 393's `git add -A` sweep (commit `49969fb`) tracked the
+# fourteen FIELD_CORPUS files below, which round 355's premise assumed would
+# stay untracked. The old form of this code was
+#
+#     assert len(names) == 18, names      # at module level
+#     @pytest.mark.parametrize("path", _tracked_examples(), ...)
+#
+# so the stale pin raised during COLLECTION, and pytest answered
+# "Interrupted: 1 error during collection" — 1758 tests never ran, from a
+# disagreement about 14 filenames. It stayed that way for rounds 393 and 394;
+# `logs/whence_health_round_393.log` and `..._394.log` each recorded it and
+# no round read them. Two changes, both about blast radius rather than about
+# the pin being wrong:
+#
+#   1. the check is a TEST, not a module-level assert, so a wrong pin costs
+#      one red test instead of the whole file's collection;
+#   2. it pins NAMES, not a count, so the failure says which file arrived
+#      instead of saying 32 != 18.
+#
+# All 32 pass the position oracle, so tracking them widened coverage and cost
+# nothing; the defect was never the files.
+OUR_EXAMPLES = (
+    "blame.lang", "checks_demo.lang", "deep.lang", "diverge.lang",
+    "dropped.lang", "effects.lang", "failing_check.lang", "guess.lang",
+    "hello.lang", "history.lang", "meta.lang", "provenance.lang",
+    "sales.lang", "self_eval.lang", "self_host.lang", "shapes.lang",
+    "show.lang", "tco.lang",
+)
+# The other fourteen are the FIELD CORPUS, and their names are NOT repeated
+# here: `state/whence/round-384/field-names.json` has declared them since
+# round 384 and both `_corpus_unchanged()` in test_v33/test_v34 and
+# `curecheck.field_programs()` read it. Read lazily inside the test — a
+# module-level read is what took this file's collection down in the first
+# place.
+FIELD_CENSUS = os.path.join(REPO, "state", "whence", "round-384",
+                            "field-names.json")
+
+
+def _field_corpus():
+    import json
+    with open(FIELD_CENSUS, encoding="utf-8") as fh:
+        return {os.path.basename(k) for k in json.load(fh)["file_md5"]}
+
+
 def _tracked_examples():
     out = subprocess.run(["git", "ls-files", "languages/whence/examples"],
                          cwd=REPO, capture_output=True, text=True)
-    names = [os.path.join(REPO, p) for p in out.stdout.split()
-             if p.endswith(".lang")]
-    # round 355: git, not the directory — `examples/` is shared with a
-    # separate system's untracked output.
-    # 16 -> 17 in round 380: `show.lang`, the example v0.29's `show` builtin
-    # had never had (round 378's item 8). The pin is deliberately a number
-    # and not a floor, so adding an example is a decision someone makes here.
-    # 17 -> 18 in round 384: `dropped.lang`, v0.32's example, and the only
-    # one in the corpus that discards a miss on purpose (see
-    # tests/test_v32.py::DROPS_ON_PURPOSE).
-    assert len(names) == 18, names
-    return names
+    return [os.path.join(REPO, p) for p in out.stdout.split()
+            if p.endswith(".lang")]
+
+
+def test_the_tracked_example_set_is_the_one_this_repo_decided_on():
+    """Adding an example is still a decision someone makes here — it just
+    costs one red test now, and names the file."""
+    got = {os.path.basename(p) for p in _tracked_examples()}
+    want = set(OUR_EXAMPLES) | _field_corpus()
+    assert got - want == set(), "newly tracked, undeclared: %s" % sorted(
+        got - want)
+    assert want - got == set(), "declared but no longer tracked: %s" % sorted(
+        want - got)
 
 
 @pytest.mark.parametrize("path", _tracked_examples(),
-                         ids=[os.path.basename(p) for p in _tracked_examples()])
+                         ids=[os.path.basename(p)
+                              for p in _tracked_examples()])
 def test_every_tracked_example_has_correct_token_positions(path):
     src = open(path, encoding="utf-8").read()
     assert position_errors(src) == [], (path, position_errors(src)[:3])

@@ -1385,5 +1385,33 @@
   "id": "iar-neg-semantics",
   "expect": [],
   "prompt": "I need per-request token counts and which user made each call, for last month's billing. Where would I get those?"
+ },
+ {
+  "id": "udp-near",
+  "expect": [
+   "untested-default-path"
+  ],
+  "prompt": "Our diff script has five tests and they all pass, but when I ran it by hand it crashed with ModuleNotFoundError before printing anything. How did the test suite not catch that?"
+ },
+ {
+  "id": "udp-mid",
+  "expect": [
+   "untested-default-path"
+  ],
+  "prompt": "Every test in test_exporter.py builds a temp directory and passes --config to it. Real runs never pass --config. Is that worth worrying about?"
+ },
+ {
+  "id": "udp-far",
+  "expect": [
+   "untested-default-path"
+  ],
+  "prompt": "This CLI has apparently been broken since March and CI was green the whole time. I want to know exactly which commits it was broken at and whether anyone was actually relying on its output."
+ },
+ {
+  "id": "udp-neg",
+  "expect": [
+   "unrun-checker-latency"
+  ],
+  "prompt": "We have a lint script in the repo that works fine but nobody ever runs it — it only exists as a line in a release checklist. Can we get it invoked automatically?"
  }
 ]

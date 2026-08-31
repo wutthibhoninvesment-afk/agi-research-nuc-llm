@@ -776,20 +776,71 @@ def run_program(path, timeout=90, strict=False):
 
 # --- the corpus -----------------------------------------------------------
 
-def field_programs(root=None):
-    """The untracked `.lang` files a separate system leaves in `examples/`.
+FIELD_CENSUS = os.path.join(
+    os.path.dirname(os.path.dirname(_HERE)), "state", "whence", "round-384",
+    "field-names.json")
 
-    Derived from `git ls-files --others`, not from a list in this file: a
-    hard-coded list is exactly the kind of name-for-a-fact round 385 spent
-    a round on. If the gateway adds a program tomorrow this picks it up.
+
+def _census_names():
+    with open(FIELD_CENSUS, encoding="utf-8") as fh:
+        return sorted(os.path.basename(k)
+                      for k in json.load(fh)["file_md5"])
+
+
+def field_programs(root=None):
+    """The `.lang` files a separate system leaves in `examples/`.
+
+    Round 386 derived this from `git ls-files --others` — untracked status —
+    with the reasoning that "a hard-coded list is exactly the kind of
+    name-for-a-fact round 385 spent a round on. If the gateway adds a program
+    tomorrow this picks it up." Both halves were right and the premise was
+    not stable.
+
+    Round 393's `git add -A` sweep (commit `49969fb`) TRACKED all fourteen of
+    them, so from that commit `--others` returned the empty list and this
+    function reported that the field corpus does not exist. A derived subject
+    set can go silently EMPTY, and that is worse than going stale: every
+    "for all" assertion over it becomes vacuously true and every "there are
+    N" assertion fails without naming the cause. Four tests in `test_v33.py`
+    and `test_v34.py` failed as `assert 0 == 10` and `KeyError:
+    'nano_reasoner.lang'` — neither of which says "the selector found
+    nothing". The `_corpus_unchanged()` skip-guard built for exactly this
+    event could not help: the FILES had not moved (same names, same md5s),
+    only their git status had, and the guard is a census of files.
+
+    The authority is now `state/whence/round-384/field-names.json`, which has
+    declared these fourteen names since round 384 and is what
+    `_corpus_unchanged()` already trusts — so this is not a new hand-written
+    list, it is the list the repo already had, read instead of re-derived
+    from a proxy. Round 386's live property is kept as a CHECK rather than as
+    the source: `field_corpus_drift()` still asks git, and reports an
+    untracked `.lang` the census does not name.
+    """
+    root = root or _HERE
+    paths = [os.path.join(root, "examples", n) for n in _census_names()]
+    return sorted(p for p in paths if os.path.exists(p))
+
+
+def field_corpus_drift(root=None):
+    """`(undeclared, missing)` — a new gateway program, and a declared one
+    that is gone. Empty tuples mean the census still describes `examples/`.
+
+    This is round 386's "if the gateway adds a program tomorrow this picks it
+    up", demoted from the selector to a report, because a selector that
+    silently changes its answer when a file's git status changes is not a
+    selector for "programs a separate system wrote".
     """
     root = root or _HERE
     proc = subprocess.run(
         ["git", "ls-files", "--others", "--exclude-standard", "examples"],
         cwd=root, capture_output=True, text=True,
     )
-    names = [n for n in proc.stdout.split("\n") if n.endswith(".lang")]
-    return sorted(os.path.join(root, n) for n in names)
+    untracked = {os.path.basename(n) for n in proc.stdout.split("\n")
+                 if n.endswith(".lang")}
+    declared = set(_census_names())
+    missing = sorted(n for n in declared
+                     if not os.path.exists(os.path.join(root, "examples", n)))
+    return sorted(untracked - declared), missing
 
 
 # There is deliberately NO `tracked_programs()` here. It would have been

@@ -152,6 +152,39 @@ rebuild the input at every rung, or the first rung's honest value is reused.
 Always run the **clean control at the same rungs**. If a correct run's value
 also grows with the dimension, a rung crossing `T` says nothing.
 
+## An exemption that prints per item and not in the summary (round 395)
+
+The rate and the surface are the two numbers this skill is built on, and
+there is a third failure that hides both: an exemption branch that reports
+**per item** while the run's SUMMARY LINE reports only the outcome. Every
+skipped item is on stdout, honestly, one line each — and the last line, the
+one that gets pasted into a record, is `0 differing (file, mode) pairs`.
+
+Round 395: `bench/ref_diff.py` compared 32 example programs in 3 modes and
+printed `0 differing (file, mode) pairs`. Ten of the files had printed
+`NEWSYNTAX ... (reference package cannot parse this file's current syntax)`
+and been skipped. **66 of 96 pairs were compared; 30 were not**, and the
+published headline said neither number. Nobody was hiding anything: the
+detail was in the scrollback and the summary was the artefact.
+
+Two moves, and they are separable:
+
+1. **Put the denominator in the line that gets quoted.** Not "0 differing",
+   but `0 differing; 66 of 96 pairs compared (30 unparsed, 0 new syntax)`.
+   The test is whether the single line a reader copies can be read as full
+   coverage.
+2. **Check the exemption's own DIAGNOSIS, not just its count.** That branch
+   named a cause — *the reference is too old for this syntax* — that it had
+   never tested. Against `--rev HEAD` the two packages share a parser, so
+   that cause is impossible; the real one was that the files do not parse at
+   all. Asking the second package too split the 30 into 30 `UNPARSED` and 0
+   `NEWSYNTAX`. **An exemption branch that asserts WHY it fired is making a
+   claim, and a claim in a skip path is the least-read code in the tool.**
+
+Ask of any skip/continue/exempt branch: what does its message assert, and
+what would have to be true for that assertion to be wrong? Then make the
+branch establish it instead of assuming it.
+
 ## Pitfalls
 
 - **Pinning the measured rate manufactures a stale claim.** The number was

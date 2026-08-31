@@ -549,6 +549,14 @@
    "where": "knowledge/round-394-nuc-e-the-record-was-already-being-kept.md",
    "quote": "**13 HIT / 9 MISS of 22 scored** (P1 excluded by the bank itself).",
    "note": "P1 was banked NOT SCORED by the bank itself: `reachability_check.py check` is the round's mandated first instrument and ran at 09:11:22Z, before the bank was written at 09:14Z. P4/P5/P6/P18 are four instances of one error -- predicting that a counter would move -- and the knowledge file scores them as such rather than separately. P22's miss is a methodology finding about `unobserved_total` being a bracket rather than a running total; see next-step 3."
+  },
+  "395": {
+   "bank": "state/swe/round-395/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 395,
+   "where": "knowledge/round-395-the-command-nobody-ran-and-the-suite-nobody-read.md",
+   "quote": "**12 HIT / 2 MISS / 2 HALF of 16.**",
+   "note": "The bank opens with a §0 OBSERVATIONS ALREADY MADE section listing the nine facts read while choosing the task, so nothing below it can be scored as foresight it did not have. P7 and P11 are the instructive misses and share one shape with each other and with the round's subject: a number derived from a narrower subject set than the claim it supports."
   }
  }
 }

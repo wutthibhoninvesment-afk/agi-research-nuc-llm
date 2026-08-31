@@ -37,27 +37,57 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # 149: found via 7/78 round-137 "kills" that were really `git -C <tempdir>`
 # / `import swe` failures here, misclassified as genuine mutant kills).
 REPO = os.environ.get("AGI_RESEARCH_ROOT") or os.path.dirname(os.path.dirname(ROOT))
-# v0.34 (round 392): DERIVED, not hand-written. `whence/foreign.py` arrived
-# with v0.33 (round 386) and was never added to the list, so every
-# `ref_diff.py` invocation since has died with `ModuleNotFoundError: No
-# module named 'whence_ref.foreign'` before comparing anything --- six
-# rounds of a tool whose whole job is "this rewrite is byte-identical to
-# the previous version or it is a different language", silently
-# unavailable. Reading the directory is what stops the next module having
-# the same six rounds. `timetravel.py` joins the set for free and is
-# harmless (nothing imports it from `interp`).
-MODULES = tuple(sorted(
-    f[:-3] for f in os.listdir(os.path.join(ROOT, "whence"))
-    if f.endswith(".py")))
+PKG_PATH = "languages/whence/whence"
 MODES = {"direct": {}, "fast": {"direct": False}, "slow": {"fast": False}}
 
 
-def extract_head(into):
+def ref_modules(rev="HEAD"):
+    """The module names to extract, read from the REVISION BEING BUILT.
+
+    History of this one line, because both halves of it are instructive.
+
+    v0.10-v0.33 it was a hand-written tuple `("__init__", "ast_nodes",
+    "interp", "lexer", "parser", "values")`. `whence/foreign.py` arrived with
+    v0.33 (round 386) and was never added, so every invocation from commit
+    `4c05cf4` to `21538a8` died with `ModuleNotFoundError: No module named
+    'whence_ref.foreign'` before comparing anything --- a tool whose whole
+    job is "this rewrite is byte-identical to the previous version or it is
+    a different language", silently unavailable. Round 395 re-executed that
+    interval commit by commit (`harness/swe/toolliveness.py`): 9 commits,
+    the HEADs of rounds 387-391. `timetravel.py` had been missing from the
+    same tuple since `8637795` and cost NOTHING for 280 commits, because
+    nothing in the extracted set imports it --- a missing name is free until
+    somebody imports it, which is why this went unnoticed for so long.
+
+    v0.34 (round 392) derived it from `os.listdir(ROOT/whence)` --- the
+    WORKING TREE --- while `extract_head` extracts from HEAD. Round 395
+    demonstrated the failure that leaves: a module present in the working
+    tree and not yet committed makes `git show` exit 128 and the whole
+    command die, so the round that ADDS a module breaks the differential for
+    itself, which is precisely the round that most needs it.
+
+    The set is a property of the package being BUILT, so it is read from
+    that revision's tree and from nowhere else. `--ref DIR` supplies a
+    prebuilt package and never reaches here at all.
+    """
+    out = subprocess.check_output(
+        ["git", "-C", REPO, "ls-tree", "--name-only", rev, PKG_PATH + "/"],
+        text=True)
+    return tuple(sorted(os.path.basename(p)[:-3] for p in out.split()
+                        if p.endswith(".py")))
+
+
+def extract_head(into, rev="HEAD"):
     pkg = os.path.join(into, "whence_ref")
     os.makedirs(pkg, exist_ok=True)
-    for m in MODULES:
+    names = ref_modules(rev)
+    if not names:
+        raise SystemExit("ref_diff: %s:%s lists no .py files --- is REPO (%s) "
+                         "the right checkout?" % (rev, PKG_PATH, REPO))
+    for m in names:
         src = subprocess.check_output(
-            ["git", "-C", REPO, "show", "HEAD:languages/whence/whence/%s.py" % m])
+            ["git", "-C", REPO, "show",
+             "%s:%s/%s.py" % (rev, PKG_PATH, m)])
         with open(os.path.join(pkg, m + ".py"), "wb") as f:
             f.write(src)
     return into
@@ -130,6 +160,15 @@ def fuzz_sources(seed, n):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--ref")
+    ap.add_argument("--rev", default="HEAD",
+                    help="the git revision to build the reference package "
+                         "from (default HEAD). Ignored when --ref names a "
+                         "prebuilt directory. Round 395: this is what makes "
+                         "a CROSS-VERSION differential one command --- "
+                         "`--rev 4c05cf4` compares the working tree against "
+                         "v0.33 --- and until it existed the tool could only "
+                         "ever compare a tree with its own last commit, "
+                         "which is a refactor check and nothing else.")
     ap.add_argument("--modes", default="direct,fast,slow")
     ap.add_argument("--limit", type=int, default=6000)
     ap.add_argument("--counters", action="store_true",
@@ -141,7 +180,8 @@ def main():
     ap.add_argument("files", nargs="*")
     a = ap.parse_args()
     sys.setrecursionlimit(a.limit)
-    ref_dir = a.ref or extract_head(tempfile.mkdtemp(prefix="whence_ref_"))
+    ref_dir = a.ref or extract_head(tempfile.mkdtemp(prefix="whence_ref_"),
+                                    a.rev)
     new_i, new_v = load(ROOT, "whence")
     ref_i, ref_v = load(ref_dir, "whence_ref")
     if a.fuzz is not None:
@@ -218,14 +258,16 @@ def main():
         for exc, where in sorted(ref_raised.items()):
             print("NOTE the reference raised %s on %d (program, mode) pairs: %s"
                   % (exc, len(where), where[:8]))
-        print("ref=%s  fuzz seed %d: %d programs parsed of %d, %d (program, mode) "
+        print("ref=%s (rev %s)  fuzz seed %d: %d programs parsed of %d, "
+              "%d (program, mode) "
               "pairs differ, %d skipped (timeout or exception under the "
-              "reference)" % (ref_dir, a.fuzz, len(srcs), a.n, bad, skipped))
+              "reference)" % (ref_dir, "supplied" if a.ref else a.rev,
+                              a.fuzz, len(srcs), a.n, bad, skipped))
         sys.exit(1 if bad else 0)
     files = a.files or sorted(
         os.path.join(ROOT, "examples", f)
         for f in os.listdir(os.path.join(ROOT, "examples")) if f.endswith(".lang"))
-    bad = 0
+    bad = compared = newsyntax = unparsed = 0
     for path in files:
         with open(path) as f:
             src = f.read()
@@ -240,12 +282,35 @@ def main():
                 # (round 132: `-> Type` on shapes.lang, unparseable under
                 # HEAD's pre-v0.13 lexer/parser) — that is the expected
                 # shape of "we shipped a new feature", not a divergence to
-                # crash over; report it and move on instead of comparing.
+                # crash over.
+                #
+                # Round 395: it is NOT the only shape, and until this round
+                # the tool called every parse failure by that name. Against
+                # `--rev HEAD` the two packages share a parser, so a
+                # reference parse error cannot mean "the reference is old" —
+                # it means the FILE does not parse. Ten of the thirty-two
+                # examples are in exactly that state, so round 392's "0
+                # differing (file, mode) pairs" was 66 of 96 pairs with the
+                # other 30 excluded under a wrong diagnosis and no
+                # denominator printed. Ask the new tree too, and say which
+                # of the two answers this is.
+                try:
+                    run(new_i, new_v, src, mkw)
+                except Exception as e2:
+                    if type(e2).__name__ != "ParseError":
+                        raise
+                    unparsed += 1
+                    print("UNPARSED  %-18s %-6s (neither package parses this "
+                          "file: %s)" % (os.path.basename(path), mode,
+                                         str(e2)[:60]))
+                    continue
+                newsyntax += 1
                 print("NEWSYNTAX %-18s %-6s (reference package cannot "
                       "parse this file's current syntax)" %
                       (os.path.basename(path), mode))
                 continue
             no, nc, nt, nk = run(new_i, new_v, src, mkw)
+            compared += 1
             diffs = []
             if ro != no:
                 diffs.append("output")
@@ -261,7 +326,11 @@ def main():
             print("%s %-18s %-6s bindings=%d checks=%d out=%d%s" % (
                 tag, os.path.basename(path), mode, len(nt), len(nc), len(no),
                 ("  " + ", ".join(diffs)) if diffs else ""))
-    print("ref=%s  %d differing (file, mode) pairs" % (ref_dir, bad))
+    total = compared + newsyntax + unparsed
+    print("ref=%s (rev %s)  %d differing (file, mode) pairs; %d of %d pairs "
+          "compared (%d unparsed, %d new syntax)"
+          % (ref_dir, "supplied" if a.ref else a.rev, bad, compared, total,
+             unparsed, newsyntax))
     sys.exit(1 if bad else 0)
 
 

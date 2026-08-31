@@ -581,6 +581,112 @@ def _load_ref_diff_module():
     return mod
 
 
+# --- round 395 (SWE-loop D): the precondition NO ref_diff test ran -----------
+#
+# The five tests above all pass `--ref <dir>`, so `extract_head` --- the only
+# reader of the module set and the only path that touches git --- had zero
+# coverage for its whole life. `whence/foreign.py` arrived with v0.33 and was
+# missing from the hand-written list, and `harness/swe/toolliveness.py`
+# re-executed the consequence commit by commit: the command died with
+# `ModuleNotFoundError` before comparing anything at 9 consecutive HEADs, the
+# HEADs of rounds 387-391, with every one of these tests green throughout.
+# Green tests over every path but the one that broke.
+
+V021_REV = "3ed4391"        # round 350, "Whence v0.21 host/guest lexer
+                            # differential" --- the newest revision whose
+                            # `whence/` predates `foreign.py`. A sha is
+                            # immutable, so this pin cannot rot; it can only
+                            # become unreachable, which the skip below names.
+
+
+def _agi_root():
+    return os.environ.get("AGI_RESEARCH_ROOT") or os.path.dirname(
+        os.path.dirname(ROOT))
+
+
+def _have_rev(rev):
+    return subprocess.run(["git", "-C", _agi_root(), "cat-file", "-e",
+                           rev + "^{commit}"],
+                          capture_output=True).returncode == 0
+
+
+def _importable(pkg_parent):
+    return subprocess.run(
+        [sys.executable, "-c",
+         "import sys; sys.path.insert(0, %r); "
+         "import whence_ref.interp, whence_ref.values" % pkg_parent],
+        capture_output=True, text=True, timeout=120)
+
+
+def test_ref_diff_extract_head_builds_an_importable_reference_package():
+    """The anti-rot guard. A `whence/` module that HEAD's `interp` imports
+    but the extraction misses makes this red in the round that adds it,
+    instead of dark for five."""
+    if not _have_rev("HEAD"):
+        pytest.skip("no git checkout reachable from %s" % _agi_root())
+    rd = _load_ref_diff_module()
+    tmp = tempfile.mkdtemp(prefix="whence_refhead_")
+    try:
+        rd.extract_head(tmp)
+        pkg = os.path.join(tmp, "whence_ref")
+        got = sorted(f[:-3] for f in os.listdir(pkg) if f.endswith(".py"))
+        assert got == sorted(rd.ref_modules("HEAD")), got
+        assert "interp" in got and "__init__" in got
+        r = _importable(tmp)
+        assert r.returncode == 0, r.stderr
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_ref_diff_module_set_follows_the_revision_not_the_working_tree():
+    """Round 392 derived the set from `os.listdir(ROOT/whence)` while the
+    extraction reads a git revision, so a module present in the working tree
+    and not yet committed made `git show` exit 128 and killed the whole
+    command --- in the round that adds a module, which is the round that most
+    needs the differential. Reading it from the revision being BUILT is what
+    closes that: here the working tree is a strict superset of v0.21's
+    package, and the extraction must follow v0.21."""
+    if not _have_rev(V021_REV):
+        pytest.skip("%s unreachable (shallow clone?)" % V021_REV)
+    rd = _load_ref_diff_module()
+    worktree = {f[:-3] for f in os.listdir(os.path.join(ROOT, "whence"))
+                if f.endswith(".py")}
+    old = set(rd.ref_modules(V021_REV))
+    assert "foreign" in worktree and "foreign" not in old
+    assert old < worktree                      # strict subset: it is not
+                                               # reading the working tree
+    tmp = tempfile.mkdtemp(prefix="whence_refold_")
+    try:
+        rd.extract_head(tmp, V021_REV)
+        pkg = os.path.join(tmp, "whence_ref")
+        got = {f[:-3] for f in os.listdir(pkg) if f.endswith(".py")}
+        assert got == old
+        assert not os.path.exists(os.path.join(pkg, "foreign.py"))
+        r = _importable(tmp)
+        assert r.returncode == 0, r.stderr    # v0.21 imports on its own terms
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_ref_diff_reference_package_omitting_an_imported_module_is_caught():
+    """The positive control for the two tests above: build HEAD's package
+    with `foreign` removed --- exactly what the v0.10-v0.33 hand-written
+    tuple did --- and confirm the import fails with the recorded message. A
+    guard that has never been shown to go red is not a guard."""
+    if not _have_rev("HEAD"):
+        pytest.skip("no git checkout reachable from %s" % _agi_root())
+    rd = _load_ref_diff_module()
+    tmp = tempfile.mkdtemp(prefix="whence_refsab_")
+    try:
+        rd.extract_head(tmp)
+        os.remove(os.path.join(tmp, "whence_ref", "foreign.py"))
+        r = _importable(tmp)
+        assert r.returncode != 0
+        assert "No module named 'whence_ref.foreign'" in r.stderr, r.stderr
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def test_ref_diff_fuzz_transient_new_tree_timeout_is_retried_not_reported():
     """round 144: `run_capped`'s SIGALRM cap is wall-clock, not CPU time, so
     under concurrent load the SAME program can cross the budget on one

@@ -127,6 +127,55 @@ pytest tests/test_antirot.py -q      # green with the new member present = stale
 grep -rnE '^[A-Z][A-Z0-9_]+ = [([]' --include='*.py' . | head -40
 ```
 
+## A derived set can go EMPTY, and that is worse than stale (round 395)
+
+Deriving the set is necessary and not sufficient. The derivation reads an
+**artefact**, and it is really reading a *proxy for a fact*; when the proxy's
+meaning changes without the fact changing, the set does not go stale, it goes
+**empty**.
+
+Worked example. `curecheck.field_programs()` selected "the programs a separate
+system leaves in `examples/`" with
+
+```python
+subprocess.run(["git", "ls-files", "--others", "--exclude-standard", "examples"])
+```
+
+— untracked status, derived from git, with an explicit argument in its own
+docstring for why a hand-written list would be worse. Three rounds later a
+`git add -A` sweep tracked all fourteen files. Not one byte of any file
+changed. The selector returned `[]`.
+
+What that costs, and why it is worse than a stale list:
+
+| | stale set | empty set |
+|---|---|---|
+| `assert all(P(x) for x in S)` | fails on the item it missed | **vacuously true** |
+| `assert len(S) == N` | fails, naming the extra item | fails, naming `0 == N` |
+| `S["known_member"]` | works | `KeyError`, naming the member not the cause |
+
+Two of the four tests that broke here were the vacuous kind's siblings and
+two were the loud kind, and **none of the four failure messages contained the
+word "empty" or the name of the selector.**
+
+The moves:
+
+1. **Name the fact, then ask whether the artefact is the fact or a proxy for
+   it.** "Written by another system" is the fact; "untracked" is a proxy, and
+   proxies are what other people's commits change.
+2. **Prefer a declaration the repo already has over a fresh proxy.** Here a
+   frozen census (`state/whence/round-384/field-names.json`) had listed the
+   fourteen names for eleven rounds and a *different* guard already trusted
+   it. Reading it is not "a hand-written list": it is the existing
+   declaration, read instead of re-derived from something weaker.
+3. **Keep the live derivation as a REPORT, not as the source.** The original
+   argument — "if the gateway adds a program tomorrow this picks it up" — is
+   real and worth keeping. It became `field_corpus_drift()`, which returns
+   `(undeclared, missing)`. The property survives; the failure mode does not.
+4. **Assert non-emptiness at the derivation, not at the assertion sites.** A
+   selector that can legitimately return zero should say so; one that cannot
+   should raise there, where the message can name the selector.
+
 ## Pitfalls
 
 - **Fixing the list instead of the mechanism.** Adding the eight missing
