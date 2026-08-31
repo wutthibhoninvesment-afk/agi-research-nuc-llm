@@ -121,6 +121,31 @@ FRAME_SLACK = 140
 # rather than asserting it.
 FRAME_SLACK_MARGIN = 40
 
+# (round 401) The tail-transparency SPACE exemption used to fire whenever the
+# LIFTED run reached `max_depth`, regardless of what the ORIGINAL run did.
+# Round 401 measured the two populations that branch was covering over round
+# 389's arm-A corpus (41 firings of 324 usable seeds, `max_depth=500`):
+#
+#   26  only the lifted run hit the ceiling (`peak_original` was 1 —
+#       fully merged). The answers differ, the difference IS the ceiling,
+#       and exempting is correct. This is what the branch was built for.
+#   15  BOTH runs hit the ceiling. Neither form got further than the other,
+#       the depth miss is symmetric, and the suppressed difference was
+#       EMPTY in every one of the 15.
+#
+# So the branch was dropping 15 valid comparisons to protect against a
+# false positive that only the first population can produce. Setting this
+# False makes the oracle compare the symmetric case.
+#
+# It is a NAMED CONSTANT rather than a silent narrowing because the risk is
+# real and this corpus does not exhaust it: two runs stopped by the same
+# ceiling CAN legitimately differ (merging lets the original get further in
+# PROGRAM terms before the wall, so it could miss in a different function).
+# Zero such cases here; `harness/swe/spacewitness.py` classifies that case
+# as `suppressed_at_ceiling` and counts it as an ALARM precisely so a future
+# round can tell a real interpreter bug from a re-widening.
+SPACE_EXEMPT_WHEN_BOTH_AT_CEILING = False
+
 
 def fast_max_depth(pkg):
     """`Interpreter.FAST_MAX_DEPTH` of the package under test, or None when
@@ -615,23 +640,33 @@ def oracle_tail_transparency(pkg, src, max_depth=500):
     tainted = provenance_tainted_names(program)
     whole = not reflects_on_provenance(program)
     scope = "all fields" if whole else "untainted vals only (%d tainted)" % len(tainted)
-    a, _ = _answer(pkg, program, tainted, whole, max_depth=max_depth)
+    a, peak_orig = _answer(pkg, program, tainted, whole, max_depth=max_depth)
     try:
         b, peak = _answer(pkg, lifted, tainted, whole, max_depth=max_depth)
     except RecursionError:
         return OracleOutcome("ok", TAIL_ORACLE,
                              "%d tail calls, lifted run exhausted the host "
                              "stack (space-exempt)" % n)
-    if peak >= max_depth:
+    # (round 401) `peak_orig` is the number this branch used to discard.
+    # Exempt only the ASYMMETRIC case — the lifted run ran out of a resource
+    # the original did not need. When both runs stop at the same wall the
+    # comparison is on equal footing; see SPACE_EXEMPT_WHEN_BOTH_AT_CEILING.
+    if peak >= max_depth and (SPACE_EXEMPT_WHEN_BOTH_AT_CEILING
+                              or peak_orig < max_depth):
         return OracleOutcome("ok", TAIL_ORACLE,
                              "%d tail calls, lifted run reached depth %d >= "
-                             "max_depth %d (space-exempt)" % (n, peak, max_depth))
+                             "max_depth %d while the original reached %d "
+                             "(space-exempt)" % (n, peak, max_depth, peak_orig))
     if not a["vals"] and not whole:
         return OracleOutcome("ok", TAIL_ORACLE,
                              "%d tail calls, every binding provenance-tainted "
                              "(exempt)" % n)
     d = first_difference(a, b)
-    detail = "%d tail calls, %s" % (n, scope)
+    # Round 110's convention: a verdict reports the numbers it decided on.
+    ceiling = (", both runs reached max_depth %d" % max_depth
+               if peak >= max_depth and peak_orig >= max_depth else "")
+    detail = "%d tail calls, %s, original reached %d / lifted %d%s" % (
+        n, scope, peak_orig, peak, ceiling)
     if d:
         return OracleOutcome("mismatch", TAIL_ORACLE,
                              "tail vs lifted: " + d + "\n  (%s)" % detail)
@@ -1027,9 +1062,19 @@ class OracleCampaign(object):
         return "\n".join(lines)
 
     def as_dict(self):
+        # (round 401) A campaign is ONE object, so the analogue of a mixed
+        # JSONL is start-vs-end: `instrument_moved` names the parts of the
+        # instrument that changed while the campaign ran. Absent on a
+        # campaign built by hand, which is why both reads are guarded.
+        start = getattr(self, "instrument", None)
+        end = getattr(self, "instrument_end", None)
+        moved = sorted(k for k in (start or {})
+                       if k != "lane" and (end or {}).get(k, start[k]) != start[k])
         return {"programs": self.programs, "seconds": round(self.seconds, 2),
                 "oracles": list(self.oracles),
                 "counts": dict(("%s/%s" % k, v) for k, v in self.counts.items()),
+                "instrument": start, "instrument_end": end,
+                "instrument_moved": moved,
                 "findings": [f.as_dict() for f in self.findings.values()]}
 
 

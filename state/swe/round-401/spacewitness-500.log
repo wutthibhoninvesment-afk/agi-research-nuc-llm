@@ -1,0 +1,21 @@
+  seed 0 (0.0s)
+  seed 50 (7.1s)
+  seed 100 (10.8s)
+  seed 150 (13.9s)
+  seed 200 (49.6s)
+  seed 250 (85.6s)
+  seed 300 (129.3s)
+  seed 350 (130.1s)
+360 new row(s) in 130.2s -> state/swe/round-401/spacewitness-500.jsonl
+space exemption: 328 usable, 44 fired (13.4%) at max_depth 500
+  potential cost 100.0%% (a firing drops the whole comparison)
+  REALIZED  cost  61.4%  (27 of 44 firings hid a real difference)
+  tightenable (both runs at the ceiling, nothing differed): 14
+  ALARM (both runs at the ceiling AND they differed): 0 
+    not_fired                167
+    no_tail                  117
+    parse_error              30
+    ceiling_artifact         27
+    free_both_at_ceiling     14
+    free_lifted_only         3
+    error                    2

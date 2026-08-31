@@ -228,15 +228,62 @@ def _lib_source():
         return f.read().split(G.LIB_MARKER)[0]
 
 
-def _broken_harness(pkg, old, new):
+#: Every line of `examples/self_eval.lang` that a test in this file mutates
+#: in order to check the guest differential can still SEE an injected bug.
+#:
+#: (round 401, SWE-loop D) These used to be six literals spread over six call
+#: sites. Round 372's v0.28 rewrote `raw_binop` to dispatch on bare payloads
+#: — `a.v - b.v` became `x - y` — and two of the anchors stopped matching.
+#: The three tests that depend on them have been RED since `98258f0`
+#: (2026-08-30), 29 rounds, because `test_swe_guest.py` is in the harness
+#: slow tier and nothing has run it. The failure LOOKED like a broken oracle
+#: (`assert 0 == 1` on a source string) rather than like what it was: a
+#: coordinate the language moved.
+#:
+#: Single-sourcing them buys the thing the literals could not — ONE named
+#: failure (`test_every_injection_anchor_still_exists`) that says which
+#: anchor rotted, instead of N oracle tests failing for a reason that is not
+#: about the oracle. Same rule as `exemptmap.verify_sites()`: a stale
+#: registry that silently measures the wrong line reports numbers that look
+#: like results.
+INJECTION_ANCHORS = {
+    "arith_minus": 'else if op == "-" { x - y }',
+    "arith_div": 'else if op == "/" { x / y }',
+    "check_pass": "@{label: stmt.label, pass: ok}",
+    "range_label": 'else if name == "range" '
+                   '{ map(fn(x) { mkb(x, "range", []) }, p) }',
+}
+
+
+def test_every_injection_anchor_still_exists():
+    """The one test a language round should see when it moves a line this
+    file injects into. It names the key, the line, and the fix."""
     lib = _lib_source()
-    assert lib.count(old) == 1, old
+    rotted = {k: v for k, v in INJECTION_ANCHORS.items() if lib.count(v) != 1}
+    assert not rotted, (
+        "these INJECTION_ANCHORS no longer occur exactly once in "
+        "examples/self_eval.lang: %s. A language round moved the line. "
+        "Re-anchor the dict entry to the line that replaced it; the tests "
+        "that use it check that the guest differential can still DETECT an "
+        "injected bug, and they cannot run at all while the anchor is stale."
+        % sorted(rotted))
+
+
+def _broken_harness(pkg, key, new):
+    """Mutate one registered anchor of the guest library and build a harness
+    on the result. `key` is an `INJECTION_ANCHORS` key, not a raw string —
+    see that dict's comment for why."""
+    old = INJECTION_ANCHORS[key]
+    lib = _lib_source()
+    assert lib.count(old) == 1, (
+        "anchor %r is stale (%d occurrences); see "
+        "test_every_injection_anchor_still_exists" % (key, lib.count(old)))
     return G.GuestHarness(WHENCE_ROOT, pkg, lib_source=lib.replace(old, new))
 
 
 def test_injected_arith_bug_fires(pkg):
-    h = _broken_harness(pkg, 'if op == "-" { a.v - b.v }',
-                        'if op == "-" { a.v + b.v }')
+    h = _broken_harness(pkg, "arith_minus",
+                        'else if op == "-" { x + y }')
     src = ('let v = 10 - 3\n'
            'let __result = @{v: (v rescue "&MISS&")}\n')
     o = G.oracle_self_eval(load_dict_with_root(pkg), src, harness=h)
@@ -247,7 +294,7 @@ def test_injected_arith_bug_fires(pkg):
 
 def test_injected_check_bug_fires(pkg):
     # invert the guest's check recording: pass becomes fail
-    h = _broken_harness(pkg, "@{label: stmt.label, pass: ok}",
+    h = _broken_harness(pkg, "check_pass",
                         "@{label: stmt.label, pass: not ok}")
     src = ('check "good": 1 + 1 == 2\nlet v = 0\n'
            'let __result = @{v: (v rescue "&MISS&")}\n')
@@ -259,8 +306,8 @@ def test_injected_check_bug_fires(pkg):
 def test_injected_missedness_bug_fires(pkg):
     # make the guest rescue the div-by-zero into 0 where the host misses:
     # `1 / 0` then diverges in missed-ness, which the sentinel scrub exposes
-    h = _broken_harness(pkg, 'else if op == "/" { a.v / b.v }',
-                        'else if op == "/" { (a.v / b.v) rescue 0 }')
+    h = _broken_harness(pkg, "arith_div",
+                        'else if op == "/" { (x / y) rescue 0 }')
     src = ('let v = 1 / 0\n'
            'let __result = @{v: (v rescue "&MISS&")}\n')
     o = G.oracle_self_eval(load_dict_with_root(pkg), src, harness=h)
@@ -340,8 +387,8 @@ def test_run_oracle_forwards_kwargs_to_the_oracle_fn(pkg, harness):
     # `harness=`. Confirms the forwarded `harness=` is the SAME shared
     # instance (not silently ignored / rebuilt), by mutating it first the
     # way `test_injected_arith_bug_fires` does.
-    h = _broken_harness(pkg, 'if op == "-" { a.v - b.v }',
-                        'if op == "-" { a.v + b.v }')
+    h = _broken_harness(pkg, "arith_minus",
+                        'else if op == "-" { x + y }')
     src = ('let v = 10 - 3\nlet __result = @{v: (v rescue "&MISS&")}\n')
     o = O.run_oracle(G.GUEST_ORACLE, load_dict_with_root(pkg), src,
                      timeout_s=8.0, max_depth=2000, harness=h)
@@ -467,7 +514,7 @@ def test_why_probe_fires_on_injected_mirror_bug(pkg):
     # re-inject the REAL bug the probe caught in round 20: guest range
     # elements labelled "literal" where the host labels them "range"
     h = _broken_harness(
-        pkg, 'else if name == "range" { map(fn(x) { mkb(x, "range", []) }, p) }',
+        pkg, "range_label",
         'else if name == "range" { map(fn(x) { mkb(x, "literal", []) }, p) }')
     src = ('let y = (range(4))[2]\n'
            'let __result = @{y: (y rescue "&MISS&")}\n')
@@ -479,7 +526,7 @@ def test_why_probe_fires_on_injected_mirror_bug(pkg):
 
 def test_why_probe_can_be_disabled(pkg):
     h = _broken_harness(
-        pkg, 'else if name == "range" { map(fn(x) { mkb(x, "range", []) }, p) }',
+        pkg, "range_label",
         'else if name == "range" { map(fn(x) { mkb(x, "literal", []) }, p) }')
     src = ('let y = (range(4))[2]\n'
            'let __result = @{y: (y rescue "&MISS&")}\n')

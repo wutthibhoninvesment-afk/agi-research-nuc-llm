@@ -1435,6 +1435,18 @@ class ProgramGen(object):
 
 # ------------------------------------------------------------------ oracle --
 
+def _instrument():
+    """`harness.swe.instrument`, imported lazily (round 401).
+
+    Everything else in this package imports `fuzz` at module load; keeping
+    the dependency one-way means adding the guard cannot change any import
+    order, which is the kind of change that shows up as a different fuzz
+    corpus three rounds later.
+    """
+    from . import instrument
+    return instrument
+
+
 class FuzzTimeout(Exception):
     pass
 
@@ -1670,6 +1682,12 @@ class Campaign(object):
         self.crashers = {}   # sig -> Crasher (first seen)
         self.programs = 0
         self.seconds = 0.0
+        # (round 401) Round 389's item 4. A campaign is one object, so the
+        # guard is start-vs-end rather than row-vs-row: if `fuzz.py` or the
+        # whence tree moved while the campaign ran, the programs before the
+        # edit and the programs after it are two populations.
+        self.instrument = None
+        self.instrument_end = None
 
     def summary(self):
         lines = ["fuzz: %d programs in %.1fs" % (self.programs, self.seconds)]
@@ -1682,15 +1700,26 @@ class Campaign(object):
                 ", minimized to %d" % c.minimized.count("\n") if c.minimized else ""))
         return "\n".join(lines)
 
+    def instrument_moved(self):
+        """Parts of the instrument that differ between the campaign's start
+        and its end. Empty list = one population."""
+        start, end = self.instrument or {}, self.instrument_end or {}
+        return sorted(k for k in start
+                      if k != "lane" and end.get(k, start[k]) != start[k])
+
     def as_dict(self):
         return {"programs": self.programs, "seconds": round(self.seconds, 2),
                 "counts": self.counts,
+                "instrument": self.instrument,
+                "instrument_end": self.instrument_end,
+                "instrument_moved": self.instrument_moved(),
                 "crashers": [c.as_dict() for c in self.crashers.values()]}
 
 
 def fuzz(seed=0, n=200, max_depth=2000, timeout_s=3.0, root=WHENCE_ROOT,
          do_shrink=True, stress_rate=0.5, on_program=None):
     camp = Campaign()
+    camp.instrument = _instrument().stamp("fuzz.fuzz")
     t0 = time.time()
     for i in range(n):
         s = seed * 1000003 + i
@@ -1710,6 +1739,7 @@ def fuzz(seed=0, n=200, max_depth=2000, timeout_s=3.0, root=WHENCE_ROOT,
                 cr.minimized = shrink(src, keep)
             camp.crashers[sig] = cr
     camp.seconds = time.time() - t0
+    camp.instrument_end = _instrument().stamp("fuzz.fuzz")
     return camp
 
 

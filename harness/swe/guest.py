@@ -37,6 +37,7 @@ import re
 
 from .fuzz import ProgramGen, WHENCE_ROOT, shrink
 from .killers import load_whence
+from . import instrument as INS
 from . import oracles as O
 
 MISS_SENTINEL = "&MISS&"
@@ -782,6 +783,11 @@ def fuzz_guest(seed=0, n=200, root=WHENCE_ROOT, timeout_s=8.0, max_depth=2000,
     pkg = load_whence(root, "guestcamp")
     pkg["root"] = root
     camp = O.OracleCampaign((GUEST_ORACLE,))
+    # (round 401) A campaign is ONE object, not a JSONL, so the analogue of
+    # `exemptmap`'s per-row digest is start-vs-end: if any part of the
+    # instrument moved while the campaign ran, `instrument_moved` names it.
+    # Round 389's item 4, extended — see `harness/swe/instrument.py`.
+    camp.instrument = INS.stamp("guest.fuzz_guest")
     import time
     t0 = time.time()
     for i in range(n):
@@ -804,6 +810,7 @@ def fuzz_guest(seed=0, n=200, root=WHENCE_ROOT, timeout_s=8.0, max_depth=2000,
                 f.minimized = shrink(src, keep)
             camp.findings[sig] = f
     camp.seconds = time.time() - t0
+    camp.instrument_end = INS.stamp("guest.fuzz_guest")
     return camp
 
 

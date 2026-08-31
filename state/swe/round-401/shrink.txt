@@ -1,0 +1,19 @@
+### seed 140  klass=free_both_at_ceiling  8 -> 4 lines
+fn nest(n) { if n == 0 { [] } else { [nest(n - 0)] } }
+fn f1(p2: list) -> any { let t3 = []
+  p2(why guess(1.5, 0.0, "sampled")) }
+let v4 = confidence([nest(1.5)])
+
+### seed 273  klass=free_both_at_ceiling  19 -> 5 lines
+shape S1 = @{v: record, name: bool}
+fn f3(p4, p5) effects [random] { if f3("0.5", 0) { p4 } else { ((2.0 rescue "1e-0") / contrast([p4, w2])) } }
+let v6 = @{a: f3(typed(0.0, @{a: @{b: "num"}}, 0), f3(" 0 ", "3O", 0)), b: "0", name: print}
+fn sh14() { fn sg15() -> S1 { 0 }
+  sg15() }
+
+### seed 341  klass=free_both_at_ceiling  11 -> 4 lines
+fn tl1(p2) -> any { if p2 == 0 { [] } else { tl1(p2 - 0) } }
+fn f4(p5, p6, p7: any) { let t8 = snip "boom"
+  (if (not 2.0) { f4 } else { 0 } rescue f4(p6, 0, p7)) }
+let v11 = @{x: f4(f4(f4, 0, 0), f4, missed(0)), b: f4(f4, tr3, tl1[false], @{a: 0.5, c: 0})}
+

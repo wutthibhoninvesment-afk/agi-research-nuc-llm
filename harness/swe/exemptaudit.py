@@ -43,6 +43,7 @@ import sys
 import time
 
 from . import guest as G
+from . import instrument as INS
 from . import oracles as O
 from .fuzz import WHENCE_ROOT
 from .killers import load_whence
@@ -96,6 +97,12 @@ def sweep_record(pkg, seed, timeout_s=30.0, max_depth=2000, harness=None):
     o = O.run_oracle(G.GUEST_ORACLE, pkg, src, **kw)
     ex = G.parse_exempt(o.detail)
     return {
+        # (round 401) The instrument this row was measured with, one digest
+        # per PART. Round 389 built this for `exemptmap` only and hashed the
+        # oracle alone; this lane's numbers also move if the guest generator
+        # or the whence tree moves, and a seed only denotes a program
+        # relative to a fixed generator. See `harness/swe/instrument.py`.
+        INS.STAMP_KEY: INS.stamp("exemptaudit.sweep"),
         "seed": seed,
         "kind": o.kind,
         "s": round(o.seconds, 3),
@@ -330,6 +337,7 @@ def ladder(n=40, out=None, rungs=LADDER, timeout_s=30.0, budget_s=None,
                 break
             row = demand_of(lad, G.generate_guest_program(seed), timeout_s)
             row["seed"] = seed
+            row[INS.STAMP_KEY] = INS.stamp("exemptaudit.ladder")
             f.write(json.dumps(row, sort_keys=True) + "\n")
             f.flush()
             os.fsync(f.fileno())
