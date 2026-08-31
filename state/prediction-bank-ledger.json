@@ -503,6 +503,13 @@
    "where": "knowledge/round-388-nuc-e-the-plateau-that-was-an-instrument.md",
    "quote": "**11 HIT, 3 MISS of 14 scored** (P1 and P15 excluded by the bank itself).",
    "note": "Banked in one block at 04:55Z. P1 and P15 are labelled NOT SCORED *in the bank* because the mandated `reachability_check check` and the baseline pytest run both preceded it -- the bank names them as observations rather than letting the scoring claim them. All 16 items appear in section 8's table. Two misses carry the round in opposite ways. P3 -- the MOST confident item, three prior rounds of byte-identical readings -- was banked as a list of specific field values, and that is what made the miss legible the instant the ssh returned: `memory.peak` and `memory.events` held while `memory.current` and `anon` did not, which IS the finding. P8 is the failure mode the bank exists to expose: I predicted a mechanism (`the expert cache is admission-only, no eviction`) that I had not read, inferred from a conclusion I had already reached; `expert_get` has explicit LRU eviction on the first read. The conclusion survived and got sharper -- eviction exists but at --cap 256 can never engage -- which is exactly why the miss is scored MISS and not HALF. P13 is an over-correction from round 382's own lesson: that round found `max_unobserved_outage` had moved, so I predicted it would move again; it did not, and this round's 4h47m gap (the largest of the boot) produced no larger interior silence."
+  },
+  "389": {
+   "bank": "state/swe/round-389/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 389,
+   "where": "knowledge/round-389-the-ceiling-that-was-a-default-argument.md",
+   "quote": "14 predictions, banked at `state/swe/round-389/PREDICTIONS.md` before any\nmeasurement. **13 HIT / 1 MISS.**"
   }
  }
 }

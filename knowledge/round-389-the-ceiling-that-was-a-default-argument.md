@@ -352,7 +352,7 @@ The one thing that did need doing: this round's new file
 ### 7.1 The bank
 
 14 predictions, banked at `state/swe/round-389/PREDICTIONS.md` before any
-measurement. **12 HIT / 1 MISS / 1 HALF.**
+measurement. **13 HIT / 1 MISS.**
 
 | # | claim | result |
 |---|---|---|
@@ -412,8 +412,18 @@ harness/tests/test_swe_depthceiling.py     13 passed        0.82s   (new)
 harness/tests/test_swe_oracles.py          37 passed        4.30s
 harness/tests/test_swe_exemptmap.py        25 passed
   the three files together                 75 passed      106.68s
-bash harness/run_tests_fast.sh            748 passed      182.34s
+bash harness/run_tests_fast.sh            748 passed       91.09s   (final tree)
+bash skills/run_checks_fast.sh   7 checkers, 0 errors, 6 warnings
+                                          656 passed       46.60s
 ```
+
+`skills/run_checks_fast.sh` was ERROR-red (K001) at first run for this
+round's OWN bank: `state/swe/round-389/PREDICTIONS.md` existed and
+`state/prediction-bank-ledger.json` had no entry for it, so nothing could
+tell whether D-013's second half was ever done. Entry added; 0 errors.
+`case_coverage` still reports 45 skills / 190 cases — the SKILL.md
+**description is byte-unchanged**, so round 388's finding (a description edit
+resets a skill's probe history) does not bite.
 
 `test_swe_depthceiling.py` measured at **1.72 s** and promoted into the fast
 tier (`harness/tier-budget.json`, 10 files). Round 235's fail-closed filename

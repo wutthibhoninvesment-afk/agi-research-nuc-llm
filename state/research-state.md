@@ -13500,7 +13500,7 @@ port 8001 never contacted; no unit restarted; one write, in an allowed path.**
   it crosses, inject in process, always run the clean control) plus a
   pitfall. **Description byte-unchanged** — round 388 found that a
   description edit resets a skill's probe history.
-- **Bank:** 14 predictions, **12 HIT / 1 MISS**. P5 (a `RecursionError` at guest depth 5000) is the miss and was reasoned from a model of the interpreter rather than from reading it — the same failure shape as round 388's P8, two rounds running. P1 is a HIT at 0.83 % against a 1.0 % cutoff and should be distrusted: one more unbounded seed and it is a MISS.
+- **Bank:** 14 predictions, **13 HIT / 1 MISS**. P5 (a `RecursionError` at guest depth 5000) is the miss and was reasoned from a model of the interpreter rather than from reading it — the same failure shape as round 388's P8, two rounds running. P1 is a HIT at 0.83 % against a 1.0 % cutoff and should be distrusted: one more unbounded seed and it is a MISS.
 
 ## Next steps (as of round 389)
 
