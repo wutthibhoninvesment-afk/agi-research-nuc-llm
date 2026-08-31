@@ -1544,5 +1544,33 @@
    "filter-shares-the-defect"
   ],
   "prompt": "Our differential reports 'all ten cases agree' but membership in the ten requires both sides to have emitted the field, and the bug is that one side emits nothing there."
+ },
+ {
+  "id": "kwyl-near",
+  "expect": [
+   "kill-what-you-launched"
+  ],
+  "prompt": "I backgrounded the full test suite in my last session and it's still running now. How do I stop it and be sure it actually stopped, before I delete the worktree it's running in?"
+ },
+ {
+  "id": "kwyl-mid",
+  "expect": [
+   "kill-what-you-launched"
+  ],
+  "prompt": "I ran `ps -eo pid,args | grep wt-402 | awk '{print $1}' | while read p; do kill $p; done` and it printed nothing and exited 0, but load average is still 4. Did that kill anything?"
+ },
+ {
+  "id": "kwyl-far",
+  "expect": [
+   "kill-what-you-launched"
+  ],
+  "prompt": "There's a leftover pytest process from yesterday's run eating the CPU. Nobody wrote down where its output goes. Can I find the log before I kill it?"
+ },
+ {
+  "id": "kwyl-neg-instruments",
+  "expect": [
+   "instruments-already-running"
+  ],
+  "prompt": "The box was slow overnight and I want to know which process was responsible. Should I add a per-process CPU sampler so we can tell next time?"
  }
 ]
