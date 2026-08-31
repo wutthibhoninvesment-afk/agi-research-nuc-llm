@@ -528,3 +528,153 @@ def test_a_cap_above_ram_is_unhealthy_even_though_it_clears_the_floor():
 
 def test_plan_carries_the_band():
     assert ec.plan()["sound_band"]["lower_cap"] == 129
+
+
+# ------------------------------------ round 394: the baseline was residency too
+#
+# Round 388 replaced the inversion's NUMERATOR with `anon + swap.current` and
+# left the DENOMINATOR -- `NUC_BASELINE` -- as a `memory.current` reading, on
+# the stated grounds that "round 364's was taken with swap.current == 0, so it
+# serves for both". `swap.current == 0` makes `anon + swap == anon`; it does not
+# make `memory.current == anon`. These tests tie the correction to a
+# measurement, not to a second model.
+
+
+def test_the_measured_fill_is_the_sum_of_two_observed_steps_not_an_inversion():
+    """`sar -r` bracketed each of the boot's two completions with a bucket."""
+    assert ec.R394_REQ1_STEP_KB == ec.R394_COMMIT_POST_REQ1_KB - ec.R394_COMMIT_PRE_REQ1_KB
+    assert ec.R394_REQ2_STEP_KB == ec.R394_COMMIT_POST_REQ2_KB - ec.R394_COMMIT_PRE_REQ2_KB
+    assert ec.R394_MEASURED_FILL_BYTES == (
+        ec.R394_REQ1_STEP_KB + ec.R394_REQ2_STEP_KB) * 1024
+
+
+def test_the_witness_rejects_the_residency_baseline_and_keeps_all_three_others():
+    w = ec.baseline_witness()
+    assert w["verdict"] == "resolved"
+    assert w["candidates"]["modelled_residency"]["survives"] is False
+    assert sorted(w["survivors"]) == ["anon", "commit", "disk"]
+
+
+def test_the_residency_baseline_is_wrong_by_nineteen_percent_not_by_rounding():
+    """The gap is 4.9 GB. The three corrected routes disagree by 0.22 GB."""
+    w = ec.baseline_witness()["candidates"]
+    assert abs(w["modelled_residency"]["error_fraction"]) > 0.15
+    for name in ("disk", "commit", "anon"):
+        assert abs(w[name]["error_fraction"]) < 0.01
+
+
+def test_the_three_corrected_routes_are_independent_of_each_other():
+    """Disk geometry, Committed_AS and sar's kbmemused share no input."""
+    assert ec.ALLOC_BASELINE_FROM_DISK == (
+        ec.NUC_MODEL_DISK_BYTES
+        - ec.QWEN36_SLOT.total_slots * ec.QWEN36_SLOT.packed_disk_bytes)
+    assert ec.ALLOC_BASELINE_FROM_COMMIT == (
+        ec.R394_COMMIT_PRE_REQ1_KB
+        - (ec.R394_SYSTEM_COMMIT_KB - ec.R394_QWEN36_VMDATA_KB)) * 1024
+    assert ec.ALLOC_BASELINE_FROM_ANON == (
+        ec.R394_MEMUSED_PRE_REQ1_KB
+        - (ec.R394_MEMUSED_NOW_KB - ec.R394_CGROUP_ANON_KB)) * 1024
+
+
+def test_cap_sizing_takes_the_LARGEST_baseline_in_the_band():
+    b = ec.alloc_baseline_band()
+    assert b["recommended_for_cap_sizing"] == b["hi_bytes"] == ec.NUC_ALLOC_BASELINE
+    assert b["spread_cap_units"] < 2      # the band is under two cap units wide
+
+
+def test_the_corrected_band_reaches_204_and_stops_there():
+    band = ec.cap_band(baseline=ec.NUC_ALLOC_BASELINE)
+    assert band["lower_cap"] == ec.PILOT_QUEUE_DEPTH + 1 == 129
+    assert band["upper_cap"] == 204
+    assert ec.bound_by(204, ec.NUC_ALLOC_BASELINE)["bounded_by"] == "engine_lru"
+    assert ec.bound_by(205, ec.NUC_ALLOC_BASELINE)["bounded_by"] != "engine_lru"
+
+
+def test_round_124s_cap_204_headline_is_recovered_not_asserted():
+    """Rounds 376 and 388 rejected 204 against the residency baseline.
+
+    This is not a restatement of 204 -- it recomputes the largest cap whose
+    terminal footprint fits `memory.max` from the corrected baseline and
+    demands it land there."""
+    largest = int((ec.NUC_MEMORY_MAX - ec.NUC_ALLOC_BASELINE)
+                  // ec.QWEN36_SLOT.bytes_per_cap_unit)
+    assert largest == 204
+
+
+def test_the_recommendation_keeps_a_margin_far_wider_than_the_baseline_spread():
+    r = ec.recommend_cap()
+    assert r["verdict"] == "recommend"
+    assert ec.PILOT_QUEUE_DEPTH < r["cap"] <= r["band"]["upper_cap"]
+    assert r["actual_margin_bytes"] >= r["margin_bytes"]
+    assert r["actual_margin_bytes"] > 4 * ec.alloc_baseline_band()["spread_bytes"]
+    assert r["bounded_by"]["bounded_by"] == "engine_lru"
+
+
+def test_a_margin_that_swallows_the_band_says_so_instead_of_recommending():
+    r = ec.recommend_cap(margin_bytes=ec.NUC_MEMORY_MAX - ec.NUC_ALLOC_BASELINE)
+    assert r["cap"] is None
+    assert r["verdict"] == "margin_excludes_the_whole_band"
+
+
+def test_a_negative_margin_is_rejected():
+    with pytest.raises(ec.ExpertCacheError):
+        ec.recommend_cap(margin_bytes=-1)
+
+
+def test_the_measured_curve_agrees_with_the_corrected_inversion_not_the_old_one():
+    """Two routes to "how many slots are loaded", which must now agree.
+
+    Sum of the two measured request steps vs (allocation - corrected baseline).
+    Under the residency baseline they differ by ~1,470 slots."""
+    from_curve = sum(s.slots for s in ec.fill_curve())
+    from_inversion = ec.fill_from_snapshot(
+        ec.R388_SNAPSHOT, baseline=ec.NUC_ALLOC_BASELINE).slots_loaded
+    assert abs(from_curve - from_inversion) < 60          # < 0.8 %
+    old = ec.fill_from_snapshot(ec.R388_SNAPSHOT).slots_loaded
+    assert from_curve - old > 1_400
+
+
+def test_the_per_request_cost_decays_and_the_third_request_still_does_not_fit():
+    head = ec.NUC_MEMORY_MAX - (ec.NUC_ANON_PLUS_SWAP + ec.R388_KERNEL + ec.R388_FILE)
+    s = ec.request_cost_series(head)
+    assert s["observed"][0]["slots"] > s["observed"][1]["slots"]
+    assert 0 < s["decay_ratio"] < 1
+    assert s["verdict"] == "unsafe"
+    assert s["next_over_headroom"] > 1.5
+
+
+def test_the_docstrings_robustness_claim_is_the_one_the_arithmetic_supports():
+    """The claim is 1.906x, i.e. the fit must be overstated by 47.5 % to flip.
+
+    Written first as "wrong by half", which 1.906 does not support: halving
+    870.2 gives 435.1, BELOW the 456.5 slots of headroom, so the verdict would
+    have flipped. Asserting the true factor keeps prose and arithmetic tied."""
+    head = ec.NUC_MEMORY_MAX - (ec.NUC_ANON_PLUS_SWAP + ec.R388_KERNEL + ec.R388_FILE)
+    s = ec.request_cost_series(head)
+    assert s["next_request_slots_est"] * 0.5 < s["headroom_slots"]
+    assert s["next_request_slots_est"] / 1.9 > s["headroom_slots"]
+    assert s["next_over_headroom"] == pytest.approx(1.906, abs=0.001)
+
+
+def test_request_cost_needs_two_observations_and_rejects_a_negative_step():
+    with pytest.raises(ec.ExpertCacheError):
+        ec.request_cost_series(1, step_kb=(100,))
+    with pytest.raises(ec.ExpertCacheError):
+        ec.fill_curve(step_kb=(100, -1))
+    with pytest.raises(ec.ExpertCacheError):
+        ec.fill_curve(step_kb=())
+
+
+def test_a_baseline_at_or_above_the_allocation_is_an_error_not_a_negative_fill():
+    with pytest.raises(ec.ExpertCacheError):
+        ec.baseline_witness(candidates={"absurd": ec.NUC_ANON_PLUS_SWAP})
+    with pytest.raises(ec.ExpertCacheError):
+        ec.baseline_witness(measured_fill=0)
+
+
+def test_the_new_cli_modes_run():
+    for mode in ("baseline", "curve", "recommend"):
+        out = subprocess.run([sys.executable, "-m", "nuc.expert_cache", mode],
+                             capture_output=True, text=True)
+        assert out.returncode == 0, out.stderr
+        json.loads(out.stdout)

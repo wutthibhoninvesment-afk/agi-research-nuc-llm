@@ -79,10 +79,12 @@ from __future__ import annotations
 import argparse
 import json
 import math
+from typing import Sequence
 from dataclasses import dataclass, asdict
 
 GB = 1_000_000_000
 GIB = 1 << 30
+KB_ = 1024
 
 # ---------------------------------------------------------------- measured NUC
 
@@ -137,6 +139,8 @@ R124_RESIDENT = int(31.8 * GB)
 R124_SWAP = int(4.2 * GB)
 
 SLOT_SHADOW_ON_NUC = False               # qt_ready() is false on a CPU-only box
+
+
 
 
 class ExpertCacheError(ValueError):
@@ -244,6 +248,73 @@ class SlotGeometry:
 
 
 QWEN36_SLOT = SlotGeometry()
+
+
+# ------------------------------------------------- round 394: the baseline was
+# ------------------------------------------------- a RESIDENCY reading too
+#
+# `NUC_BASELINE` above is a `memory.current` value: round 364 polled it 1921
+# times over 8.002 h before the boot's first completion and got 9,770,594,304
+# every time. Round 388 replaced the NUMERATOR of the inversion with
+# `anon + swap.current` because `memory.current` is residency -- and left this,
+# the DENOMINATOR, as a `memory.current` reading, with a docstring saying
+# "round 364's was taken with swap.current == 0, so it serves for both".
+# `swap.current == 0` makes `anon + swap == anon`. It does NOT make
+# `memory.current == anon`: `memory.current = anon + file + kernel + ...`, and
+# at that moment the cgroup was charged several GB of PAGE CACHE for the model
+# file it had been reading. Subtracting a residency baseline from an allocation
+# figure understates the fill by exactly that page cache.
+#
+# `sar -r` has sampled every 10 minutes since this box booted and no round in
+# this track had read it. It settles the question three independent ways.
+
+# System-wide `sar -r` on sa30, the boot's own day. The two completions are at
+# 2026-08-30T13:28:25Z and T14:54:08Z; the buckets bracket them exactly.
+R394_COMMIT_PRE_REQ1_KB = 5_476_700       # bucket ending 13:20:05
+R394_COMMIT_POST_REQ1_KB = 23_472_692     # bucket ending 13:30:05
+R394_COMMIT_PRE_REQ2_KB = 23_484_980      # bucket ending 14:50:05
+R394_COMMIT_POST_REQ2_KB = 30_634_440     # bucket ending 15:00:05
+R394_MEMUSED_PRE_REQ1_KB = 4_958_436      # sar kbmemused EXCLUDES buffers/cache
+# `/proc/<pid>` on 2026-08-31T09:13Z. VmData is the engine's own commitment;
+# subtracting it from the system figure isolates everything that is not it.
+R394_SYSTEM_COMMIT_KB = 30_786_464        # /proc/meminfo Committed_AS
+R394_QWEN36_VMDATA_KB = 29_888_624
+R394_QWEN36_RSSANON_KB = 29_611_696
+R394_QWEN36_VMSWAP_KB = 253_520
+R394_CGROUP_ANON_KB = R388_ANON // KB_    # = 29,615,664, the same reading in kB
+R394_MEMUSED_NOW_KB = 29_902_972          # sar kbmemused, bucket ending 09:10:05
+
+R394_NON_ENGINE_COMMIT_KB = R394_SYSTEM_COMMIT_KB - R394_QWEN36_VMDATA_KB
+R394_NON_ENGINE_ANON_KB = R394_MEMUSED_NOW_KB - R394_CGROUP_ANON_KB
+
+# Route 1 -- the model on disk. Experts are the packed int4 blobs; everything
+# else in the directory is the non-expert weights, which are not unpacked.
+ALLOC_BASELINE_FROM_DISK = (NUC_MODEL_DISK_BYTES
+                            - QWEN36_SLOT.total_slots * QWEN36_SLOT.packed_disk_bytes)
+# Route 2 -- system Committed_AS before the first request, less everything that
+# is not the engine.
+ALLOC_BASELINE_FROM_COMMIT = (R394_COMMIT_PRE_REQ1_KB
+                              - R394_NON_ENGINE_COMMIT_KB) * KB_
+# Route 3 -- system anonymous+slab before the first request, less non-engine.
+ALLOC_BASELINE_FROM_ANON = (R394_MEMUSED_PRE_REQ1_KB
+                            - R394_NON_ENGINE_ANON_KB) * KB_
+
+ALLOC_BASELINE_ROUTES = {
+    "disk": ALLOC_BASELINE_FROM_DISK,
+    "commit": ALLOC_BASELINE_FROM_COMMIT,
+    "anon": ALLOC_BASELINE_FROM_ANON,
+}
+# The conservative choice for a CAP recommendation is the LARGEST baseline in
+# the band: it leaves the least room for slots, so it yields the smallest safe
+# cap. The opposite choice would flatter the box.
+NUC_ALLOC_BASELINE = max(ALLOC_BASELINE_ROUTES.values())
+
+# The measured fill, straight from the two commit steps. No inversion of a
+# single reading, no modelled baseline -- a difference of two observations
+# taken ten minutes apart on either side of a request.
+R394_REQ1_STEP_KB = R394_COMMIT_POST_REQ1_KB - R394_COMMIT_PRE_REQ1_KB
+R394_REQ2_STEP_KB = R394_COMMIT_POST_REQ2_KB - R394_COMMIT_PRE_REQ2_KB
+R394_MEASURED_FILL_BYTES = (R394_REQ1_STEP_KB + R394_REQ2_STEP_KB) * KB_
 
 
 # ----------------------------------------------------------------- inversion
@@ -699,6 +770,155 @@ def geometry_report(geom: SlotGeometry = QWEN36_SLOT) -> dict:
     }
 
 
+# --------------------------------------------- round 394: measured fill curve
+
+
+def baseline_witness(allocated: int = NUC_ANON_PLUS_SWAP,
+                     measured_fill: int = R394_MEASURED_FILL_BYTES,
+                     candidates: dict = None) -> dict:
+    """Decide between candidate zero-slot baselines using a measured growth.
+
+    The test needs no model at all. If B is the engine's allocation with zero
+    slots and A is its allocation now, then A - B is how much the slots cost --
+    and `sar -r` measured that number directly, as the sum of the two steps in
+    `Committed_AS` bracketing the boot's two completions. A baseline that is
+    wrong by X is wrong by X here.
+
+    Returns each candidate's implied growth, its error against the measured
+    figure, and `survives` at a 5 % tolerance. 5 % is loose on purpose: the
+    two figures are different quantities (cgroup `anon + swap` vs system-wide
+    `Committed_AS` less the non-engine remainder), so agreement inside a few
+    percent is the most this test can honestly claim -- and it is two orders of
+    magnitude tighter than the gap it has to resolve."""
+    cands = dict(candidates or {"modelled_residency": NUC_BASELINE,
+                                **ALLOC_BASELINE_ROUTES})
+    if measured_fill <= 0:
+        raise ExpertCacheError("measured_fill must be > 0")
+    rows = {}
+    for name, b in cands.items():
+        if b >= allocated:
+            raise ExpertCacheError(f"baseline {name}={b} is not below allocated")
+        growth = allocated - b
+        err = (growth - measured_fill) / measured_fill
+        rows[name] = {"baseline_bytes": b, "implied_growth_bytes": growth,
+                      "error_fraction": round(err, 6),
+                      "implied_slots": round(growth / QWEN36_SLOT.slot_bytes, 1),
+                      "survives": abs(err) <= 0.05}
+    survivors = [n for n, r in rows.items() if r["survives"]]
+    return {"measured_fill_bytes": measured_fill, "allocated_bytes": allocated,
+            "candidates": rows, "survivors": sorted(survivors),
+            "verdict": ("resolved" if len(survivors) >= 1
+                        and "modelled_residency" not in survivors
+                        else "unresolved")}
+
+
+def alloc_baseline_band() -> dict:
+    """The corrected zero-slot ALLOCATION baseline, as a band not a point."""
+    vals = ALLOC_BASELINE_ROUTES
+    lo, hi = min(vals.values()), max(vals.values())
+    return {"routes": dict(vals), "lo_bytes": lo, "hi_bytes": hi,
+            "spread_bytes": hi - lo,
+            "spread_cap_units": round((hi - lo) / QWEN36_SLOT.bytes_per_cap_unit, 3),
+            "recommended_for_cap_sizing": hi,
+            "why": "the largest baseline leaves the least room for slots, so it "
+                   "yields the smallest safe cap; the opposite choice flatters the box"}
+
+
+@dataclass(frozen=True)
+class RequestStep:
+    index: int
+    bytes: int
+    slots: float
+
+    def as_dict(self) -> dict:
+        return asdict(self)
+
+
+def fill_curve(step_kb: Sequence = (R394_REQ1_STEP_KB, R394_REQ2_STEP_KB),
+               geom: SlotGeometry = QWEN36_SLOT) -> list:
+    """The per-request slot cost, measured rather than modelled."""
+    if not step_kb:
+        raise ExpertCacheError("step_kb must be non-empty")
+    out = []
+    for i, kb in enumerate(step_kb, start=1):
+        if kb < 0:
+            raise ExpertCacheError(f"request {i} step is negative: {kb}")
+        b = int(kb) * KB_
+        out.append(RequestStep(index=i, bytes=b, slots=round(b / geom.slot_bytes, 1)))
+    return out
+
+
+def request_cost_series(headroom_bytes: int,
+                        step_kb: Sequence = (R394_REQ1_STEP_KB, R394_REQ2_STEP_KB),
+                        geom: SlotGeometry = QWEN36_SLOT) -> dict:
+    """Is the NEXT request safe? Answered from observed request costs.
+
+    Round 376 wanted a per-request slot denominator and round 388 concluded it
+    was "not recoverable that way" -- correctly, about the JOURNAL, which logs
+    no token counts. It is recoverable from `sar -r`: each completion left a
+    step in `Committed_AS` ten minutes wide.
+
+    Extrapolation is one geometric step at the observed decay ratio, which is a
+    two-point fit and is labelled as such. It is used only to answer a yes/no
+    question whose answer is not close: request 3 is predicted at 1.906x the
+    available headroom, so the estimate would have to be overstated by 47.5 %
+    -- very nearly halved -- before the verdict changed. That figure is
+    asserted in the tests rather than left in prose; the first draft of this
+    docstring said "wrong by half", which is on the wrong side of 1.906 and the
+    test caught it."""
+    steps = fill_curve(step_kb, geom)
+    if len(steps) < 2:
+        raise ExpertCacheError("need at least two requests to fit a decay")
+    if headroom_bytes < 0:
+        raise ExpertCacheError("headroom_bytes must be >= 0")
+    ratio = steps[-1].slots / steps[-2].slots if steps[-2].slots else 0.0
+    nxt = steps[-1].slots * ratio
+    head_slots = headroom_bytes / geom.slot_bytes
+    return {"observed": [s.as_dict() for s in steps],
+            "decay_ratio": round(ratio, 5),
+            "next_request_slots_est": round(nxt, 1),
+            "headroom_slots": round(head_slots, 1),
+            "next_over_headroom": round(nxt / head_slots, 3) if head_slots else None,
+            "fit": "two-point geometric; used only for a yes/no verdict",
+            "verdict": "unsafe" if nxt > head_slots else "fits"}
+
+
+def recommend_cap(margin_bytes: int = 1 << 30,
+                  baseline: int = None,
+                  memory_max: int = NUC_MEMORY_MAX,
+                  geom: SlotGeometry = QWEN36_SLOT) -> dict:
+    """The largest cap inside the sound band that keeps `margin_bytes` spare.
+
+    Round 388 recommended 159 against a band of [129, 167] computed from the
+    residency baseline. With the allocation baseline the band is [129, 204] and
+    159 throws away ~4.4 GB of usable expert cache for no safety it does not
+    already have. The default 1 GiB margin is ~6.4x the spread between the
+    three baseline routes (0.223 GB, 1.67 cap units), so the recommendation is
+    insensitive to which route is right.
+
+    The band's floor is the PILOT prefetch depth and is NOT negotiable by
+    margin: `cap_band` returns `empty` rather than a cap at or below 128."""
+    if margin_bytes < 0:
+        raise ExpertCacheError("margin_bytes must be >= 0")
+    base = alloc_baseline_band()["recommended_for_cap_sizing"] if baseline is None \
+        else baseline
+    band = cap_band(baseline=base, memory_max=memory_max, geom=geom)
+    if band["empty"]:
+        return {"band": band, "cap": None, "verdict": "no_sound_cap"}
+    budget = memory_max - margin_bytes - base
+    cap = int(budget // geom.bytes_per_cap_unit)
+    cap = min(cap, band["upper_cap"])
+    if cap < band["lower_cap"]:
+        return {"band": band, "cap": None, "margin_bytes": margin_bytes,
+                "verdict": "margin_excludes_the_whole_band"}
+    terminal = base + cap * geom.bytes_per_cap_unit
+    return {"band": band, "cap": cap, "margin_bytes": margin_bytes,
+            "baseline_bytes": base, "terminal_bytes": terminal,
+            "actual_margin_bytes": memory_max - terminal,
+            "bounded_by": bound_by(cap, base, memory_max, geom=geom),
+            "verdict": "recommend"}
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = p.add_subparsers(dest="mode", required=True)
@@ -745,6 +965,11 @@ def main(argv=None) -> int:
     sp.add_argument("--file", type=int, default=R388_FILE)
     sp.add_argument("--memory-max", type=int, default=NUC_MEMORY_MAX)
 
+    sub.add_parser("baseline", help="round 394: which zero-slot baseline survives")
+    sub.add_parser("curve", help="round 394: measured per-request slot cost")
+    rp = sub.add_parser("recommend", help="largest sound --cap keeping a margin")
+    rp.add_argument("--margin-bytes", type=int, default=1 << 30)
+
     bp = sub.add_parser("bound", help="which mechanism bounds the cache at a given --cap")
     common(bp)
     bp.add_argument("--cap", type=int, default=NUC_EXPERTS)
@@ -760,6 +985,17 @@ def main(argv=None) -> int:
         layers=getattr(args, "layers", NUC_LAYERS),
         experts=getattr(args, "experts", NUC_EXPERTS))
 
+    if args.mode == "baseline":
+        print(json.dumps({"witness": baseline_witness(),
+                          "band": alloc_baseline_band()}, indent=2))
+        return 0
+    if args.mode == "curve":
+        head = NUC_MEMORY_MAX - (NUC_ANON_PLUS_SWAP + R388_KERNEL + R388_FILE)
+        print(json.dumps(request_cost_series(head), indent=2))
+        return 0
+    if args.mode == "recommend":
+        print(json.dumps(recommend_cap(args.margin_bytes), indent=2))
+        return 0
     if args.mode == "snapshot":
         snap = CgroupSnapshot(memory_current=args.current, anon=args.anon,
                               swap_current=args.swap_current, kernel=args.kernel,

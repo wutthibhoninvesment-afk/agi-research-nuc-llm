@@ -1319,5 +1319,71 @@
   "id": "rnr-neg-selection",
   "expect": [],
   "prompt": "We only ever re-run the benchmark when the first result looks bad, and the re-run almost always looks better. Is that telling us the system is fine?"
+ },
+ {
+  "id": "rina-near",
+  "expect": [
+   "residency-is-not-allocation"
+  ],
+  "prompt": "Our cache-occupancy dashboard computes loaded entries as (container memory usage - baseline) / entry_size. It just reported the cache losing 137 entries, but the allocator only ever mallocs a slot and reuses it in place — it never frees. What is wrong?"
+ },
+ {
+  "id": "rina-mid",
+  "expect": [
+   "residency-is-not-allocation"
+  ],
+  "prompt": "cgroup memory.current for our model server dropped 458 MB overnight with zero requests served. memory.events max is 0. Did the cache shrink?"
+ },
+ {
+  "id": "rina-baseline",
+  "expect": [
+   "residency-is-not-allocation"
+  ],
+  "prompt": "We fixed our fill calculation to read anon + swap.current instead of memory.current. The zero-point constant we subtract is still the memory.current value someone measured before the first request, but swap was 0 then so it should be fine, right?"
+ },
+ {
+  "id": "rina-far",
+  "expect": [
+   "residency-is-not-allocation"
+  ],
+  "prompt": "I need to publish how full the expert cache is and how much headroom is left, from one RSS reading of the server process. Sanity-check the arithmetic before I put it in the capacity doc."
+ },
+ {
+  "id": "rina-neg-workingset",
+  "expect": [],
+  "prompt": "I'm sizing a VM for this service and I want to know its working set so I can avoid page faults under load. RSS over a week of production traffic is what I should be looking at, right?"
+ },
+ {
+  "id": "iar-near",
+  "expect": [
+   "instruments-already-running"
+  ],
+  "prompt": "We had a memory spike on a box last Tuesday and the application log shows nothing in that window. I'm going to add a per-minute memory poller so we catch it next time. Any better ideas?"
+ },
+ {
+  "id": "iar-mid",
+  "expect": [
+   "instruments-already-running"
+  ],
+  "prompt": "The postmortem says 'zero log entries between 01:45 and 02:05, cause unknown'. Before I sign it off, is there anything else on the host that would have recorded what happened?"
+ },
+ {
+  "id": "iar-estimated",
+  "expect": [
+   "instruments-already-running"
+  ],
+  "prompt": "Our capacity model uses an estimated per-request memory cost because we never instrumented it and the requests happened days ago. Is that number recoverable at this point or do we have to re-run the load?"
+ },
+ {
+  "id": "iar-far",
+  "expect": [
+   "instruments-already-running"
+  ],
+  "prompt": "I want to restart the production inference server with different flags to measure how much RAM the cache actually takes. It's the only way to get the number, isn't it?"
+ },
+ {
+  "id": "iar-neg-semantics",
+  "expect": [],
+  "prompt": "I need per-request token counts and which user made each call, for last month's billing. Where would I get those?"
  }
 ]

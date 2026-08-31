@@ -541,6 +541,14 @@
    "where": "knowledge/round-393-the-repeats-that-were-one-draw.md",
    "quote": "Predictions scored — 8 HIT / 1 HALF / 6 MISS",
    "note": "15 predictions banked in ONE block before the live experiment, with a §0 OBSERVATIONS ALREADY MADE section listing the eleven offline facts (the archive re-analysis and the pre-flight canary) so none is scored -- rounds 379/384/385/386/390/392's discipline, seventh round running. THE MISSES ARE THE ROUND'S CONTENT AND TWO OF THEM SHARE ONE SHAPE: P3 (abstention spread >=15pp; actual 5.3pp -- the run variation was in DISPLACEMENT, 28.9/21.1/13.2) and P5 (n_eff < 3.0) both banked figures DERIVED FROM THE ARCHIVE that this round then proved unreliable, i.e. I predicted with an instrument I was in the middle of discrediting. P6 (derived-subject-set fires >=2 of 3) is the round's largest finding arriving as a failed prediction -- 2/18, REFUTED -- the FOURTH consecutive round where that happened after 387's P1/P2, 390's P2 and 392's P14. P12 is the sharpest self-inflicted one: I predicted my own new checker would LOWER the case_coverage warning count, having not noticed that authoring a skill adds a P004 and that shipping a new code adds a warning class; a round cannot both add a check and predict fewer findings. P10 is a HALF -- 138 probes exactly and mean $0.0551 just inside the banded range, but the total was $7.60 against a banded $8-13. P1/P2/P4/P9 (the experiment's own structural claims) and P7/P8 (two other rounds' boundary claims, 6/6 each) all HIT, and P15 -- that the pre-flight's DRIFT canary would come back in band -- HIT at 2/5, which is this round's thesis scoring itself."
+  },
+  "394": {
+   "bank": "nuc/predictions-e-round394.md",
+   "status": "scored",
+   "scored_by": 394,
+   "where": "knowledge/round-394-nuc-e-the-record-was-already-being-kept.md",
+   "quote": "**13 HIT / 9 MISS of 22 scored** (P1 excluded by the bank itself).",
+   "note": "P1 was banked NOT SCORED by the bank itself: `reachability_check.py check` is the round's mandated first instrument and ran at 09:11:22Z, before the bank was written at 09:14Z. P4/P5/P6/P18 are four instances of one error -- predicting that a counter would move -- and the knowledge file scores them as such rather than separately. P22's miss is a methodology finding about `unobserved_total` being a bracket rather than a running total; see next-step 3."
   }
  }
 }

@@ -13971,6 +13971,180 @@ built all three cures.
   `knowledge/round-393-the-repeats-that-were-one-draw.md`.
 
 
+### Round 394 — NUC-integration(E) — 2026-08-31
+
+- **Pre-flight.** One `claude -p`, no concurrent round; `git diff --cached`
+  empty. Box UP, boot `43e0c767`, uptime 1d8h39m — **eighth** consecutive
+  E-round on this boot. Predictions banked at 09:14Z
+  (`nuc/predictions-e-round394.md`), scored §9 of the knowledge file.
+- **HEADLINE 1: round 388's "unexplained" 01:50-02:00 bucket is
+  `fwupd-refresh.service`, and its "zero journald entries between 01:45 and
+  02:05" is factually wrong — there are 21.** The cause is named in three of
+  them (`Updating lvfs` / `Successfully downloaded new metadata`, 01:57:33Z),
+  dated independently by `/var/cache/fwupd/metadata.xmlb`'s mtime (Aug 31
+  01:57, 15,586,525 B), and sized by `fwupd`'s own high-water marks: `VmHWM`
+  192,760 kB against `VmRSS` 45,912 and `VmData` 185,468 with `VmSwap` 0 — a
+  libxmlb silo rebuild ballooned the heap ~147 MB, forced global kswapd
+  reclaim, and glibc then returned the pages with `MADV_DONTNEED`, so RSS fell
+  and the commitment did not. Cost to the engine: **67.7 MB of resident
+  weights, permanently** (`workingset_refault_anon` 0). Graded **attributed,
+  not proven**; the falsifier is one read and is named.
+- **Two perturbation channels, and round 388 had only one instrument.**
+  `apt-daily` (03:50Z, 218 MB) arrives through the **page cache** — visible in
+  `pgpgin/s` and `kbcached`, invisible in `kbcommit`. `fwupd` arrives through
+  **commitment** — a persistent `kbcommit` step, with `kbcached` *falling*.
+  Round 388 read `sar -W` and `sar -B`; **`sar -r` is the missing instrument
+  and had sampled every 10 minutes since boot.** Accounting closes: the four
+  non-zero `sar -W` buckets sum to 72,204 pages against 72,044 system
+  `pswpout` and 72,192 pages of swap in use.
+- **Three controls, which round 388 never had.** `motd-news` (05:10:05Z),
+  `apt-daily-upgrade` (06:20:33Z) and five more `fwupd-refresh` fires all cost
+  **zero pages**. `fwupd-refresh.service` fired **34 times this boot and
+  downloaded 26**; exactly one of the 34 cost anything. A named event in the
+  window is not a cost.
+- **You cannot schedule around these timers.** `fwupd-refresh.timer` is
+  `*:00:00` + `RandomizedDelaySec=1h`; `apt-daily.timer` is `6,18:00` +
+  **12h**. Randomization equals the period, so the fire time is uniform and a
+  one-hour window contains a fwupd fire with probability 1.0. Round 388's
+  "record whether a timer fired" is therefore the *only* available practice,
+  not merely good practice.
+- **HEADLINE 2: the expert-cache fill curve was recorded at 10-minute
+  resolution and nobody had read it.** `sar -r` on `sa30` brackets both of the
+  boot's completions: `kbcommit` **5,476,700 -> 23,472,692** across request 1
+  (+17.16 GiB, 5,513 slots) and **23,484,980 -> 30,634,440** across request 2
+  (+6.82 GiB, 2,190 slots), decay ratio 0.397. Round 388 concluded this
+  denominator was "not recoverable" — true of the journal, false of the box.
+- **HEADLINE 3: the inversion's BASELINE was a residency reading too, and is
+  ~2x too large.** Round 388 fixed the numerator to `anon + swap.current` and
+  left `NUC_BASELINE = 9,770,594,304` as a `memory.current` value, arguing
+  `swap.current == 0` made it serve for both. It does not: `memory.current`
+  also counts **page cache**, and `sar -r` shows `kbcached` at 8.15 GB in
+  exactly that window. Three independent routes (disk geometry;
+  `Committed_AS` less the engine's `VmData`; `sar kbmemused` less non-engine)
+  give **4.69-4.91 GB** and agree with the measured 25.75 GB fill inside
+  **0.7 %**; the modelled baseline misses by **19.1 %**.
+- **Corrected: 7,686-7,753 slots / 75.1-75.7 % / cap-equivalent 192.1-193.8**
+  (published 6,232 / 60.9 % / 155.8). Terminal at `--cap 256` is **39.14 GB**,
+  not 43.996. Sound band **[129, 204]**, not [129, 167] — **round 124's E4
+  headline of `--cap 204` was right**, and rounds 376 and 388 rejected it on
+  the residency baseline. **New recommendation `--cap 196`** (1.10 GB margin,
+  4.9x the baseline spread, bounded by the engine's own LRU), replacing round
+  388's 159. Corroboration using no model: the box is surviving at
+  cap-equivalent ~192-194 right now with `memory.events max == 0`.
+- **A probe request is still unsafe, now from measurement too.** Request 3,
+  extrapolated at the observed decay, costs ~870 slots against **456.5** of
+  headroom — **1.906x**; the fit would have to be overstated 47.5 % to flip.
+  Round 388's source-derived arithmetic and this round's measured curve agree
+  from independent data. **No engine request sent.**
+- **Round 304 item 2, SEVENTEENTH check, all six unchanged.** `--cap 256`
+  live; E3 patch NOT applied (0 markers, mtime 2026-08-23T15:27:33Z); OLMoE
+  tarball absent; `memory.events max` 0; no operator login since 2026-08-26
+  19:24; both user units active. Cgroup **byte-identical to round 388**:
+  `anon + swap.current` 30,600,970,240 for the third consecutive reading.
+  New: the cgroup is **not** all engine — `qwen36` holds 253,520 kB of its
+  268,096 kB of swap and the `coli serve` supervisor holds the other 14,576 to
+  the byte; the C engine is **99.94 %** of the cgroup's allocation.
+- **Built: `nuc/perturbation.py`** (new, 36 tests) — `sar` parsing that raises
+  rather than mis-aligning, `commit_steps` (finds exactly one persistent step
+  on the real capture and grades the ssh blips transient), `swap_excursions`,
+  `classify_bucket` with an `unattributed` verdict kept so a future gap is
+  named, `Timer.avoidable` / `window_guard`, and bucket-END attribution.
+  Offline by construction: no socket, no command, no path to port 8001.
+  **`nuc/expert_cache.py` extended** (14 tests) with `baseline_witness`,
+  `alloc_baseline_band`, `fill_curve`, `request_cost_series`, `recommend_cap`
+  and three CLI modes.
+- **Three bugs my own tests found in code written this round:** a ratio-only
+  surge test that graded 2.5 MB a page-cache surge (fixed with an absolute
+  floor + a regression test asserting the old version was wrong);
+  de-duplicating `PAGE_BYTES` against `swap_analysis` — flagged by
+  `constant_audit` at authoring time, the shape rounds 382/388 each found
+  *after the fact* — which broke `python3 nuc/perturbation.py` because every
+  test used `-m` (both entry points now tested); and a docstring of mine
+  claiming a 2x safety margin where the arithmetic gives 1.906.
+- **Two skills**, both `skill_lint --house` clean, both with trigger cases
+  added to `skills/trigger-cases.json` (200 -> 210) so they are probeable.
+  `skills/residency-is-not-allocation/` — **round 388 announced this skill in
+  its knowledge file and never created the directory**, while its own
+  disclosures said only `lazy-fill-ceiling` was edited; written now because
+  this round supplies the second instance. `skills/instruments-already-running/`
+  — the technique that produced both of this round's findings.
+- **`skills/run_checks_fast.sh` went ERROR-red three times inside this round,
+  each time from this round's own work** — `carryforward K001` (bank with no
+  ledger entry), `case_coverage P001` (two new skills with 0 trigger cases
+  against a floor of 3), and `claim_check C001` (3 stale paths, all in one
+  verification block: an ellipsis cgroup path and the two regex fragments of an
+  `awk '/^anon /...'` command, which the checker reads as paths). All three
+  cleared; **0 errors / 6 warnings at round end**, the same profile as at round
+  start, with `unit_tests` 695 passed.
+- **Tests.** `nuc/tests` 499 -> **551** (+52), all green; `nuc-checks PASS
+  (pytest rc=0, audit rc=0)`; constant audit **20 constants / 15 derived
+  (0.750) / 0 transform risks** (was 19/14/0.737).
+- **Continuity.** Merged **185,768** entry-seconds across 7 boots (was
+  185,182); `max_unobserved_gap` **0h02m01s unchanged**; `missed_excursions`
+  `[]`. `unobserved_total` **fell** 0h29m20s -> **0h12m00s** while a 4h19m gap
+  was added — because better journal coverage *bounded* previously unbounded
+  silence. **It is a current best bracket, not a running total**, and nothing
+  in the tool says so.
+- **Bank:** 23 predictions, **13 HIT / 9 MISS** of 22 scored (P1 excluded by
+  the bank itself). P4/P5/P6/P18 are four instances of ONE error — predicting
+  a counter would move — made immediately after reading round 388's P13 miss,
+  which was the same error inverted. "This number moved last time" is not
+  evidence about next time.
+- Hygiene: READ-ONLY on `/work/**`; no unit restarted; **port 8001 never
+  contacted**; **no engine request of any kind**; one write on the box in an
+  allowed path (`/work/logs/nuc-perturbation-r394.md`). Twelve ssh/scp
+  connections, all read-only bar the `scp`.
+
+## Next steps (as of round 394)
+
+1. **NUC(E): prove or drop the fwupd attribution.** Capture `fwupd`'s
+   `VmData`/`VmHWM` before and after a forced `systemctl start
+   fwupd-refresh.service`. That is a write action on the box and needs
+   operator sign-off; until then the finding stays graded *attributed, not
+   proven*.
+2. **NUC(E): blocked on the operator, SEVENTEENTH check — and the ask has
+   CHANGED.** The `--cap` recommendation is **196, not 159**; the ceiling is
+   **204, not 167**; round 124's E4 headline is vindicated. The E3
+   prefix-reuse A/B is unchanged. Any A/B must record the housekeeping fire
+   history for both arms — `python3 -m nuc.perturbation guard --window-s N`
+   returns `contaminated_by_construction` for this box and says why.
+3. **NUC(E)/harness(A): `unobserved_total` is a bracket, not a total.** It
+   fell this round while the observation gap grew. Either rename it in
+   `reachability_check.py` or emit the journal-coverage figure beside it, so a
+   future round cannot read a coverage improvement as an uptime improvement.
+4. **NUC(E): round 370's item 3 still needs a FRESH boot** — eighth round on
+   `43e0c767`. The polling target is `anon + swap.current`, and with the fill
+   curve in hand the right instrument is `sar -r`'s own 10-minute series plus
+   a 5 s poll only across the request itself.
+5. **Harness(A): wire `nuc/run_checks_fast.sh` into `run_driver.sh`** — four
+   lines in the round-277 concurrent block plus a `nuc-health-check` log line,
+   mirroring the whence check. Round 388's item 5, unchanged; nothing under
+   `nuc/` still runs outside an E round.
+6. **Skills(B): a round can announce a skill and not create it, and no checker
+   notices.** `carryforward_check.py` catches an unscored predictions bank by
+   sweeping the repo for bank filenames; the same shape — sweep
+   `knowledge/*.md` for "New skill: `skills/<name>/`" and require the
+   directory — would have caught round 388 inside its own session. Round 388's
+   item 6 (a description edit resets probe history) is unchanged.
+7. **Skills(B): the two new skills are never-probed**, like most of the
+   corpus. A probe is a priced live run, deliberately not launched from an
+   E round; fold both into a skills(B) batch.
+8. Round 382's item 5 (OLMoE's geometry is document-derived, not
+   allocator-derived) is unchanged — if the lane is ever built, read the
+   allocator FIRST.
+9. Round 393's, 392's, 391's, 390's and 389's items are unchanged — the
+   rotation has not reached those tracks since.
+10. **`languages/whence/SECURITY.md` is still dirty and escalated** — the
+    diff is byte-for-byte the same 30-insertion/7-deletion change round 388
+    saw. The *round count* attached to it is not reliable and is not repeated
+    here: round 388 published "13 consecutive rounds" and round 393 published
+    "15", five rounds apart, which cannot both be a per-round tally. The
+    observable is the diff; the count is a carried number nobody re-derives
+    (round 321's item 14 / round 333's widening, still open). The untracked
+    `whence_qwen_bridge.py` / `pyproject.toml` / `examples/*.lang` are still
+    not E's files to resolve.
+
+
 ## Next steps (as of round 393)
 
 1. **29 UNDECIDED skills is the corpus's real backlog**, now visible in
