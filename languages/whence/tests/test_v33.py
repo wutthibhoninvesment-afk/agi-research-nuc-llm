@@ -76,16 +76,22 @@ def test_there_is_exactly_one_foreign_table():
 def test_the_parsers_hint_constants_are_all_owned_by_a_cure_rule():
     """Every hint `parser.py` can attach is classified by `curecheck`.
 
-    This is the anti-rot check the module docstring promises. An eighth
-    hint added by a future round arrives here as a failure --- not as a
-    silent `no-cure` in a measurement, which would read as a finding about
-    the LANGUAGE when it is a fact about `curecheck.py` being stale.
+    This is the anti-rot check the module docstring promises. A hint added
+    by a future round arrives here as a failure --- not as a silent
+    `no-cure` in a measurement, which would read as a finding about the
+    LANGUAGE when it is a fact about `curecheck.py` being stale.
+
+    ROUND 392 REPAIRED THIS TEST, and the repair is the point. Round 386
+    wrote it against a HAND-WRITTEN list of four constants plus two
+    tables, and promised in this docstring that an eighth hint "arrives
+    here as a failure". v0.34 added eight and the fast suite stayed green:
+    a hint this list does not name is a hint this test cannot see. The
+    source of truth is now `curecheck.parser_hint_sentences()`, which
+    reads `parser.py`'s own namespace --- see its docstring, and
+    `tests/test_v34.py` for the cross-check that it is a derivation and
+    not another list.
     """
-    emitted = ([P._BRACE_HINT, P._RECORD_HINT, P._JUXTAPOSE_HINT,
-                P._SEPARATOR_HINT % "x"]
-               + list(P._SYNTAX_HINTS.values())
-               + list(FOREIGN_NAMES.values()))
-    for hint in emitted:
+    for hint in C.parser_hint_sentences():
         assert any(c.hint is not None and c.matches("", hint) or
                    (c.hint is not None and _hint_only(c, hint))
                    for c in C.CURES), hint
@@ -107,11 +113,7 @@ def test_no_two_cure_rules_claim_the_same_hint():
     is listed first silently wins and the classification becomes a fact
     about this file's line order.
     """
-    hints = ([P._BRACE_HINT, P._RECORD_HINT, P._JUXTAPOSE_HINT,
-              P._SEPARATOR_HINT % "x", "every expression has a value"]
-             + list(P._SYNTAX_HINTS.values())
-             + list(FOREIGN_NAMES.values()))
-    for hint in hints:
+    for hint in C.parser_hint_sentences():
         owners = [c.key for c in C.CURES if _hint_only(c, hint)]
         assert len(owners) == 1, (hint, owners)
 
@@ -316,13 +318,23 @@ def test_ten_field_programs_still_fail_to_parse():
 def test_following_the_cures_mechanically_fixes_none_of_them():
     """Round 386's headline. Of ten programs whose first error names a cure,
     a reader who does exactly what the message says fixes ZERO --- eight
-    stall on the first error, and the two that move stall on the second."""
+    stall on the first error, and the two that move stall on the second.
+
+    THE HEADLINE IS THE `stalled` LINE, not the edit count. v0.34 (round
+    392) gave `block must end with an expression` a cure and the total
+    mechanical edits went 3 -> 4: `nano_reasoner.lang` now takes two steps
+    instead of one. Zero of ten is unchanged and is what this test is
+    about. The count is pinned exactly anyway, because an exact pin is
+    what catches a cure that silently stops applying (round 390's rule for
+    `test_v31.py`); update it deliberately when a cure is added, never to
+    make the suite quiet.
+    """
     rows = C.survey([p for p in C.field_programs()])
     broken = [r for r in rows if not r["parses"]]
     assert len(broken) == 10
     assert all(r["outcome"] == "stalled" for r in broken), \
         [(r["file"], r["outcome"]) for r in broken]
-    assert sum(r["applied"] for r in broken) == 3
+    assert sum(r["applied"] for r in broken) == 4     # v0.33: 3
     stalled_on_first = [r for r in broken if r["applied"] == 0]
     assert len(stalled_on_first) == 8
 

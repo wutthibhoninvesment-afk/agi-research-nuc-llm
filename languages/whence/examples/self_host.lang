@@ -420,7 +420,22 @@ fn parse_primary(toks, pos) {
   }
   else if k.t == "kw" and k.v == "if" { parse_if(toks, pos) }
   else if is_op(toks, pos, "{") { parse_block(toks, pos) }
-  else if k.t == "kw" and k.v == "fn" and is_op(toks, pos + 1, "(") {
+  # v0.34 (round 392): the `and is_op(toks, pos + 1, "(")` guard that used
+  # to sit on this branch is GONE, and its removal is a v0.24 rule-2 fix.
+  # `let g = fn adder(a, b) { a + b }` is refused by both parsers and used
+  # to be refused in two different PLACES: the host consumes `fn` and lets
+  # `param_list`'s `expect("(")` report at `adder` (col 12), while this
+  # guard declined the whole branch and let the fallback report at `fn`
+  # (col 9). A position is a fact about the program under analysis
+  # (decision 34) and the fact here is the NAME. The guard was also
+  # unnecessary: statement position already claims `fn NAME` (see
+  # `parse_stmt`), so any `fn` that reaches `parse_primary` is an
+  # anonymous fn or a mistake, which is exactly what the host assumes.
+  # Found by `tests/test_v34.py`'s five-case fast-tier position check --
+  # NOT by `test_parse_error_differential.py`'s 47-program sweep, whose
+  # corpus never contained a named `fn` in expression position. A case is
+  # now added there too.
+  else if k.t == "kw" and k.v == "fn" {
     let ps = parse_params(toks, pos + 1, [], [])
     let ep = parse_effects_clause(toks, ps.pos)
     let rt = parse_typed_suffix(toks, ep, "->")

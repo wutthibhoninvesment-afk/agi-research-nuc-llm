@@ -1267,5 +1267,31 @@
    "carried-claim-rot"
   ],
   "prompt": "The risk register says 'standing, unchanged' next to six items. Two of them were fixed last quarter. Can you build something that flags a re-asserted item that we already closed, without flagging the lines that say we closed it?"
+ },
+ {
+  "id": "dss-near",
+  "expect": [
+   "derived-subject-set"
+  ],
+  "prompt": "We have a test that asserts every error hint in the parser is owned by a rule in our classifier. I just added eight new hints and the suite stayed green. Can you look at why?"
+ },
+ {
+  "id": "dss-near-2",
+  "expect": [
+   "derived-subject-set"
+  ],
+  "prompt": "Our build tool has a hard-coded MODULES = (\"a\", \"b\", \"c\") tuple listing the package's files. Someone added a fourth module months ago and the tool has been crashing on import ever since. I want to fix this so it cannot happen again."
+ },
+ {
+  "id": "dss-far",
+  "expect": [
+   "derived-subject-set"
+  ],
+  "prompt": "This test docstring says 'a new handler added by a future change will fail here'. Nobody has added a handler since it was written. How would I check that promise is actually true?"
+ },
+ {
+  "id": "dss-neg-unrun",
+  "expect": [],
+  "prompt": "We have five audit scripts in tools/ and nothing in CI runs any of them. How long have violations been sitting there?"
  }
 ]

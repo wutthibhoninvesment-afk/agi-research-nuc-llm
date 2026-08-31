@@ -37,7 +37,18 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # 149: found via 7/78 round-137 "kills" that were really `git -C <tempdir>`
 # / `import swe` failures here, misclassified as genuine mutant kills).
 REPO = os.environ.get("AGI_RESEARCH_ROOT") or os.path.dirname(os.path.dirname(ROOT))
-MODULES = ("__init__", "ast_nodes", "interp", "lexer", "parser", "values")
+# v0.34 (round 392): DERIVED, not hand-written. `whence/foreign.py` arrived
+# with v0.33 (round 386) and was never added to the list, so every
+# `ref_diff.py` invocation since has died with `ModuleNotFoundError: No
+# module named 'whence_ref.foreign'` before comparing anything --- six
+# rounds of a tool whose whole job is "this rewrite is byte-identical to
+# the previous version or it is a different language", silently
+# unavailable. Reading the directory is what stops the next module having
+# the same six rounds. `timetravel.py` joins the set for free and is
+# harmless (nothing imports it from `interp`).
+MODULES = tuple(sorted(
+    f[:-3] for f in os.listdir(os.path.join(ROOT, "whence"))
+    if f.endswith(".py")))
 MODES = {"direct": {}, "fast": {"direct": False}, "slow": {"fast": False}}
 
 

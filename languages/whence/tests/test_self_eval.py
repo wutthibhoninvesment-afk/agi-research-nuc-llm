@@ -208,8 +208,14 @@ def test_parser_section_matches_self_host():
     # `parse_record_rest`/`parse_params_rest`/`parse_shape_fields_rest`/
     # `skip_effect_names_rest`) that stop a trailing comma the host
     # refuses, and `lex_error_of` so a lex error is reported as itself
+    # ; round 392: 912 to 927, the v0.34 removal of `parse_primary`'s
+    # `and is_op(toks, pos + 1, "(")` guard on the `fn` branch, plus the
+    # fourteen comment lines recording why -- a named `fn` in expression
+    # position was refused by the guest at the `fn` and by the host at the
+    # NAME, a v0.24 rule-2 divergence that `test_parse_error_differential`'s
+    # 47-program corpus never contained a case for.
     host_lines = open(SELF_HOST).read().splitlines()
-    section = "\n".join(host_lines[27:912])
+    section = "\n".join(host_lines[27:927])
     assert section.startswith("# ---- character classes")
     assert section.rstrip().endswith(
         'if le != "" { miss le } else { parse_program(toks) }\n}')

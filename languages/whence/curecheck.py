@@ -105,15 +105,40 @@ _FOREIGN_PATTERN = None       # built below, once `FOREIGN_NAMES` is read
 def _template_pattern(template):
     """A matcher for a hint that is a `%s` template, built FROM the template.
 
-    `_SEPARATOR_HINT` is the one hint in `parser.py` that interpolates the
+    `_SEPARATOR_HINT` was the one hint in `parser.py` that interpolated the
     offending token, so no exact string can identify it. Deriving the
     pattern by splitting the imported template on its own `%s` keeps the
-    anti-rot property the other six get for free: reword the template and
-    this pattern follows it; delete the `%s` and it still works.
+    anti-rot property the others get for free: reword the template and this
+    pattern follows it; delete the `%s` and it still works.
+
+    v0.34 FIXED A LATENT DEFECT HERE. `re.split` returns only the LITERAL
+    parts --- `%s` has no group, so it is not captured --- and the original
+    joined them with `re.escape(part) if i % 2 == 0 else ".*"`, which
+    treats every SECOND LITERAL as a wildcard. For a template with one
+    `%s` that is `escaped_prefix + ".*"`, which under `.search` is a
+    correct prefix match by accident; for a template with two it silently
+    discards the text between the placeholders, and for three it discards
+    most of the sentence. Nothing noticed for six rounds because
+    `_SEPARATOR_HINT` was the only template in the table.
+    `_FN_EXPR_RECURSIVE_HINT` (v0.34) has three placeholders and is what
+    made the accident visible.
     """
-    return re.compile("".join(re.escape(part) if i % 2 == 0 else ".*"
-                              for i, part in
-                              enumerate(re.split(r"%s", template))))
+    return re.compile(".*?".join(re.escape(part)
+                                 for part in re.split(r"%s", template)))
+
+
+def _template_capture(template):
+    """`_template_pattern`, but the interpolated spans are CAPTURED.
+
+    v0.34. `_BLOCK_TAIL_LET_HINT` interpolates the bound NAME, and that
+    name is the datum its applier needs --- the message's own column is the
+    closing brace, which is not where the edit goes. Reading it back out of
+    the rendered hint is the only channel a READER has, so it is the only
+    channel the applier may use.
+    """
+    return re.compile("(.*?)".join(re.escape(part)
+                                   for part in re.split(r"%s", template))
+                      + "$")
 
 
 class Cure(object):
@@ -242,6 +267,69 @@ def _apply_separator(lines, line, col, body, hint):
     return out
 
 
+_BLOCK_TAIL_LET_NAME = _template_capture(P._BLOCK_TAIL_LET_HINT)
+
+
+def _apply_block_tail_let(lines, line, col, body, hint):
+    """`{ ... let y = e }` -> `{ ... e }`.
+
+    Licence, in two halves. WHERE: the hint interpolates the bound name,
+    and the message's column is the block's closing brace; a block cannot
+    rebind (`'x' is already bound in this block`), so at most one
+    `let <name> =` lies between the block's start and that brace, and
+    scanning backwards from it finds that line and no other. WHAT: the
+    hint prints `let %s = e` beside `write `e` on its own`, and the only
+    difference between the two is the `let <name> =` prefix.
+
+    The applier declines if no such line is found rather than guessing,
+    which is what makes `no-progress` distinguishable from `stalled` in
+    the survey.
+    """
+    m = _BLOCK_TAIL_LET_NAME.search(hint or "")
+    if not m:
+        return None
+    name = m.group(1)
+    pat = re.compile(r"^(\s*)let\s+" + re.escape(name) + r"\s*=\s*(\S.*)$")
+    for li in range(min(line, len(lines)) - 1, -1, -1):
+        mm = pat.match(lines[li])
+        if mm:
+            out = list(lines)
+            out[li] = mm.group(1) + mm.group(2)
+            return out
+    return None
+
+
+def _apply_fn_expr_name(lines, line, col, body, hint):
+    """`fn adder(a, b) { ... }` -> `fn(a, b) { ... }`, in expression position.
+
+    Licence: the hint prints `fn(x) { x }` beside `fn <name>(x) { x }` and
+    the sole difference is the name; the message's column is the name.
+    Deleting it, and the run of whitespace in front of it, is the edit the
+    hint's two spellings demonstrate.
+
+    This is the round's second instance of *mechanical is not correct*:
+    when the body calls itself the parser emits the OTHER hint, which this
+    rule does not own, precisely so that this edit is never licensed there.
+    """
+    text = lines[line - 1]
+    i = col - 1
+    if i < 0 or i >= len(text):
+        return None
+    j = i
+    while j < len(text) and (text[j].isalnum() or text[j] == "_"):
+        j += 1
+    if j == i:
+        return None
+    k = i
+    while k > 0 and text[k - 1].isspace():
+        k -= 1
+    if k == 0:
+        return None
+    out = list(lines)
+    out[line - 1] = text[:k] + text[j:]
+    return out
+
+
 # --- the table ------------------------------------------------------------
 
 class _ExactSet(object):
@@ -346,7 +434,7 @@ CURES = [
     ),
     Cure(
         key="if-requires-else",
-        hint="every expression has a value",
+        hint=P._IF_ELSE_HINT,
         trigger=re.compile(r"^'if' requires 'else'"),
         determinacy=UNDER_CONTENT,
         derivation="the message states a requirement and gives the reason "
@@ -357,9 +445,144 @@ CURES = [
                 "one; nothing in it distinguishes `else { 0 }` from `else "
                 "{ miss(\"...\") }`.",
     ),
+    # --- v0.34 (round 392): the three messages that named no cure --------
+    Cure(
+        key="block-tail-let",
+        hint=_template_capture(P._BLOCK_TAIL_LET_HINT),
+        trigger=re.compile(r"^block must end with an expression"),
+        determinacy=MECHANICAL,
+        derivation="the hint names the bound NAME, a block cannot rebind, "
+                   "so `let <name> =` is unique between the block's start "
+                   "and the column; the hint prints `let <name> = e` beside "
+                   "`write `e` on its own`, and the difference is the prefix",
+        applier=_apply_block_tail_let,
+    ),
+    Cure(
+        key="block-tail-fn",
+        hint=_template_capture(P._BLOCK_TAIL_FN_HINT),
+        trigger=re.compile(r"^block must end with an expression"),
+        determinacy=UNDER_CHOICE,
+        derivation="the hint names one spelling (`fn(x) { x }`) for a "
+                   "statement that may also want lifting out of the block "
+                   "entirely",
+        missing="WHICH of the two. Dropping the name makes the fn the "
+                "block's value; but a named fn last in a block is as often "
+                "a definition the author meant to CALL, and the message "
+                "cannot tell those apart --- unlike the fn-EXPRESSION case, "
+                "where the body's own tokens decide.",
+    ),
+    Cure(
+        key="block-tail-check",
+        hint=P._BLOCK_TAIL_CHECK_HINT,
+        trigger=re.compile(r"^block must end with an expression"),
+        determinacy=UNDER_CONTENT,
+        derivation="the hint says a `check` is not a value and that the "
+                   "value goes on the next line; it names no value",
+        missing="WHAT the block's value is. Same shape as "
+                "`if-requires-else`: the message establishes that a value "
+                "is needed and is silent on which one.",
+    ),
+    Cure(
+        key="block-tail-shape",
+        hint=P._BLOCK_TAIL_SHAPE_HINT,
+        trigger=re.compile(r"^block must end with an expression"),
+        determinacy=UNDER_CONTENT,
+        derivation="as `block-tail-check`: the hint names the construct "
+                   "that is not a value and says where the value goes",
+        missing="WHAT the block's value is. This clause exists to stop the "
+                "`let` sentence being printed about a line that says "
+                "`shape`; it is a guard against a WRONG cure, and being "
+                "under-determined is the price of being right.",
+    ),
+    Cure(
+        key="empty-block",
+        hint=P._EMPTY_BLOCK_HINT,
+        trigger=re.compile(r"^block must contain at least one expression"),
+        determinacy=UNDER_CONTENT,
+        derivation="the hint states the rule (every block has a value) and "
+                   "shows the smallest block, `{ 0 }`, as an illustration "
+                   "of the SHAPE rather than as the cure",
+        missing="WHICH value. `{ 0 }` is deliberately not offered as the "
+                "edit --- an empty block is empty because the author had "
+                "not written the value yet, and inserting a `0` would "
+                "produce a program that runs and is wrong, which is the "
+                "failure `nano_reasoner.lang:31` already demonstrates.",
+    ),
+    Cure(
+        key="fn-expression-name",
+        hint=_template_capture(P._FN_EXPR_ANON_HINT),
+        trigger=re.compile(r"^expected \(, got "),
+        determinacy=MECHANICAL,
+        derivation="the hint prints `fn(x) { x }` beside `fn <name>(x) "
+                   "{ x }`; the sole difference is the name, and the "
+                   "column is the name",
+        applier=_apply_fn_expr_name,
+    ),
+    Cure(
+        key="fn-expression-recursive",
+        hint=_template_capture(P._FN_EXPR_RECURSIVE_HINT),
+        trigger=re.compile(r"^expected \(, got "),
+        determinacy=UNDER_EXTENT,
+        derivation="the hint asks for the whole `fn` to be lifted to a "
+                   "statement of its own and locates only its name",
+        missing="where the `fn` BEGINS and ENDS. Lifting a construct out "
+                "of an argument list is a two-position edit and the "
+                "message gives one --- the same shortfall `rescue-infix` "
+                "and `braced-block` have, arrived at from the other "
+                "direction: this hint is the one the parser chooses when "
+                "it has read enough of the program to know the MECHANICAL "
+                "cure would be wrong.",
+    ),
+    Cure(
+        key="infix-no-left-operand",
+        hint=_template_capture(P._INFIX_HINT),
+        trigger=re.compile(r"^unexpected "),
+        determinacy=UNDER_CONTENT,
+        derivation="the hint names the operator's shape (`a OP b`) and "
+                   "says the left-hand side is absent; it names no operand",
+        missing="WHAT belongs on the left. And in the field corpus the "
+                "answer is often neither operand: `print(=== H ===)` is "
+                "unquoted text whose `===` lexes as `==` then `=`, so the "
+                "true cure is quotation. The clause is still strictly "
+                "better than the bare `unexpected '=='` it replaces, and "
+                "still not the edit.",
+    ),
 ]
 
 _BY_KEY = dict((c.key, c) for c in CURES)
+
+
+def parser_hint_sentences():
+    """Every hint sentence `whence.parser` can attach, DERIVED from it.
+
+    v0.34, and the reason it exists is a defect in the thing it replaces.
+    Round 386 built `test_v33.py::test_the_parsers_hint_constants_are_all_
+    owned_by_a_cure_rule` as the anti-rot check for this table, promising
+    that "an eighth hint added by a future round arrives here as a
+    failure". It did not: that test builds its own list by NAMING four
+    constants, so v0.34's eight new hints were invisible to it and the
+    fast suite stayed green through the whole change. A hand-written list
+    of the things a hand-written list might miss is not an anti-rot check.
+
+    This reads `parser.py`'s module namespace instead: every module-level
+    `_..._HINT` string, rendered with a placeholder for each `%s` it
+    interpolates, plus the two tables' values. A ninth constant is found
+    because it is a `_HINT`, not because someone remembered it.
+    `tests/test_v34.py::test_the_hint_census_is_derived_and_not_a_list`
+    cross-checks the count against a grep of the source.
+    """
+    out = []
+    for name in sorted(vars(P)):
+        if not (name.startswith("_") and name.endswith("_HINT")):
+            continue
+        value = getattr(P, name)
+        if not isinstance(value, str):
+            continue
+        n = value.count("%s")
+        out.append(value % (("x",) * n) if n else value)
+    out.extend(P._SYNTAX_HINTS.values())
+    out.extend(FOREIGN_NAMES.values())
+    return out
 
 
 # --- reading an error -----------------------------------------------------

@@ -156,6 +156,24 @@ BAD = [
     ("trailing-comma-rec",   "let r = @{a: 1,}"),
     ("trailing-comma-param", "fn f(a,) { a }"),
     ("trailing-comma-shape", "shape P = @{a: num,}"),
+    # --- v0.34 (round 392): the shapes the three no-cure messages fire on.
+    # `named-fn-expression` is why these are here. The five-case fast-tier
+    # check in `test_v34.py` found host and guest refusing it in two
+    # different COLUMNS (12 vs 9) --- a rule-2 violation this 47-program
+    # sweep could not see, because no program in it put a NAMED `fn` in
+    # expression position. A corpus is not made complete by being run more
+    # often. Fixed in `self_eval.lang`'s `parse_primary`; these cases are
+    # what keep it fixed.
+    ("named-fn-expression",  "let g = fn adder(a, b) { a + b }"),
+    ("named-fn-expr-recursive",
+     "let g = fn fact(n) { if n < 2 { 1 } else { n * fact(n - 1) } }"),
+    ("named-fn-expr-in-arg",
+     "let xs = [1, 2]\nlet t = fold(fn sum(a, b) { a + b }, 0, xs)"),
+    ("block-ends-in-fn",     "let f = fn() { fn g(a) { a } }"),
+    ("block-ends-in-check",  'let f = fn() { check "ok": 1 == 1 }'),
+    ("block-ends-in-shape",  "let f = fn() { shape P = @{a: num} }"),
+    ("infix-no-left-operand", "let x = 1\n== 2"),
+    ("infix-kw-no-left-operand", "let x = 1\nand 2"),
     # --- lex errors, which the host raises BEFORE parsing at all ----------
     ("bad-escape",           'let s = "a\\qb"'),
     ("unterminated-str",     'let s = "abc'),
@@ -430,7 +448,8 @@ def test_the_corpus_reaches_every_host_lex_error_class(hosts):
 # --------------------------------------------------------------------------
 
 def test_every_guest_parse_error_still_leaks_an_implementation_coordinate(guest):
-    """43 of 43. The number can go DOWN; it must never go up.
+    """51 of 51 (was 43 of 43 until round 392 widened `BAD` by eight).
+    The RATIO can go down; it must never go up.
 
     `miss <string>` appends `(line N)` where N is the line of the `miss`
     EXPRESSION — correct for an ordinary program, and a coordinate into the
@@ -447,7 +466,7 @@ def test_every_guest_parse_error_still_leaks_an_implementation_coordinate(guest)
     leaking = [n for n, (rejected, reason) in guest.items()
                if rejected and IMPL_COORD.search(reason)]
     rejecting = [n for n, (rejected, _) in guest.items() if rejected]
-    assert len(rejecting) == len(BAD) - len(HOST_ONLY) == 43, len(rejecting)
+    assert len(rejecting) == len(BAD) - len(HOST_ONLY) == 51, len(rejecting)
     assert len(leaking) == len(rejecting), (
         "%d of %d — good news, but update this pin and SPEC.md § v0.24"
         % (len(leaking), len(rejecting)))

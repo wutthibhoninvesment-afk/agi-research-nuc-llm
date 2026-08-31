@@ -1,6 +1,6 @@
 # Whence — a provenance-first language
 
-*Spec level: **v0.33** (round 386). The `## vN` sections below are the
+*Spec level: **v0.34** (round 392). The `## vN` sections below are the
 authoritative version list and each names the round that built it; this
 line deliberately no longer enumerates rounds, because the enumeration it
 replaced had said "v0.16.6 + v0.14.2" since round 266 while the file went
@@ -433,6 +433,31 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    position the miss-reason clause replaces the foreign one, because
    "Whence has no null; a missing value is `miss <reason>`" on `miss null`
    is advice to write what the author is already writing. See § v0.33.
+
+43. **A hint may read the program, not only the offending token
+   (v0.34, round 392).** Every clause the parser could attach before v0.34
+   was a function of at most two tokens — the one that stopped the parse
+   and its predecessor — plus, from v0.33, a whole-file token scan for a
+   binding. Round 386 measured three messages in the field corpus that
+   name no cure at all, and in all three the datum the message was missing
+   was in the program. `block must end with an expression` now names the
+   KIND of the statement that ended the block, and for a `let` the name it
+   bound; a named `fn` in expression position is told to drop its name, or
+   — if a token scan of its own body finds the name used inside it — to be
+   lifted to a statement, because dropping the name there would turn a
+   parse error into an unbound name; an operator that reaches `primary` is
+   told it is infix and has no left operand, from the operator set the
+   expression grammar itself defines rather than from a hand-written
+   table. The bound name in the first of those is load-bearing beyond
+   wording: that error reports at the CLOSING BRACE, which is not where
+   the edit goes, and moving the position would break decision 34's rule
+   that host and guest agree on it. A block cannot rebind, so `let <name>
+   =` is unique inside it, and the name plus the column locate one line.
+   **The name in the hint buys what a position change would have cost.**
+   This does not make an under-determined cure determined — decision 32's
+   own limit, restated by v0.33 — and v0.34's own measurement is that
+   following the new cures still fixes zero of the ten field programs.
+   See § v0.34.
 
 ## Syntax (statements are newline-separated; `#` comments)
 ```
@@ -7163,3 +7188,197 @@ cases in **0.58 s**, in the fast tier, asserting the clause fires on an
 unbound name and on nothing else, on both sides. The whole-corpus
 differential stays slow and stays authoritative; the cheap test exists
 because a rule that is only checked in a tier nobody runs is not checked.
+
+## v0.34 (round 392, language C) — the errors that named no cure
+
+Decision 43, and the three messages that forced it.
+
+### The three
+
+Round 386 measured what happens to a reader who FOLLOWS a Whence parse
+error's cure. Two of the 45 errors its cure-ledger replay observed named
+no cure at all, and a third is not in that count because it is not
+reachable until a MECHANICAL cure has been followed:
+
+```
+prod_demo_v3.lang:41          unexpected '=='
+whenceguard_auditor.lang:28   expected (, got 'sum_lines'
+nano_reasoner.lang:32         block must end with an expression
+```
+
+The third is the worst and round 386 said so in this file: `risk_status =
+"HIGH_RISK"` is diagnosed, the message says write `let name = value`,
+doing exactly that produces `block must end with an expression`, and that
+error names nothing. **Following the cure moved the program from a
+diagnosed error to an undiagnosed one.**
+
+Two of the three are on sites that already HAVE hint machinery and fell
+through it. `_SYNTAX_HINTS` had two hand-written entries and no rule;
+`_expect_hint` keys its juxtaposition test on `prev.type == "NAME"`, and
+the token before `adder` is the keyword `fn`. Only the block errors had no
+machinery at all.
+
+### Decision 43, and what each clause reads
+
+| message | what the clause reads | new determinacy |
+| --- | --- | --- |
+| `block must end with an expression` (`let`) | the AST of the trailing statement, and the name it bound | **mechanical** |
+| the same (`fn`) | the same | under-choice |
+| the same (`check`, `shape`) | the same | under-content |
+| `block must contain at least one expression` | — | under-content |
+| `expected (, got 'f'` | the fn body's TOKENS, for the name | **mechanical** |
+| the same, body calls the name | the same | under-extent |
+| `unexpected '<op>'` | `_INFIX_OPS`, derived from the grammar | under-content |
+
+Five things about that table are load-bearing.
+
+**The `shape` row is a guard, not a feature.** A `shape` reaches `block()`
+as an ordinary `A.Let` (decision 27), so without a discriminator the author
+of `shape P = @{a: num}` would be told to delete a `let` their file does
+not contain. The field corpus attests it zero times; it is here because
+round 390 established that a DIFFERENT cure is worse than a missing one,
+and this is that failure prevented instead of found. A hand-written `let
+Foo = @{__shape: "Foo", …}` draws the same sentence, correctly: that IS
+the desugaring.
+
+**The recursion row is why decision 43 is a decision.** Dropping the name
+from `fn fact(n) { … fact(n - 1) … }` is the mechanical cure and it is
+wrong — it turns a parse error into an unbound name, which is
+`nano_reasoner.lang:31`'s failure exactly. The parser can tell, and only by
+reading the program: at that point the body has not been parsed, so
+`_fn_body_mentions` is a TOKEN scan to the matching `}`, counting `{` and
+`@{` up (`@{` is one token) — the mechanism `bound_anywhere` (v0.33) and
+the guest's `shape_close` (round 338) already use. The message the scan
+chooses is deliberately the LESS determined of the two.
+
+**The name in the hint buys what a position change would have cost.**
+`block must end with an expression` reports at the closing brace, which is
+not where the edit goes. Moving the position to the offending statement
+would break decision 34 (host and guest agree on the position) and cost a
+matching `self_eval.lang` change. A block cannot rebind, so `let <name> =`
+is unique inside it: the name in the sentence plus the column in the
+message locate one line, which is what makes this cure mechanical from a
+message that points somewhere else.
+
+**The infix clause is a rule where there was a table.** `_INFIX_OPS` is
+the operators that build an `A.Binary` — `or`, `and`, `COMPARE_OPS`, `+`,
+`*`, `/`, `%` — with exactly one exclusion, `-`, because `unary` accepts it
+as a prefix so a leading `-` is a well-formed expression. `rescue` is infix
+too and keeps its hand-written `_SYNTAX_HINTS` entry, whose example
+(`risky rescue fallback`) names three spans the template cannot; the table
+is consulted first, deliberately.
+`tests/test_v34.py::test_the_infix_set_is_exactly_the_binary_operators`
+derives both halves by RUNNING the parser — for each operator, `1 OP 2`
+parses and `OP 2` does not — rather than trusting the comment.
+
+**The empty-block clause deliberately does not offer `{ 0 }` as the edit.**
+It shows it as the smallest block there is. An empty block is empty because
+the value had not been written yet, and inserting a `0` produces a program
+that runs and is wrong.
+
+### Measured
+
+The three no-cure errors are gone and the headline is unmoved:
+
+```
+curecheck.py rules      16 cure(s): 5 mechanical, 11 under-determined
+                        (v0.33: 8 cure(s), 3 mechanical, 5 under-determined)
+curecheck.py replay     45 error(s) seen, 32 distinct — unchanged
+                        mechanical 5 (was 4), under-choice 16, under-content 2
+                        (was 1), under-extent 22, NO-CURE 0 (was 2)
+curecheck.py corpus     4 mechanical edit(s) (was 3);
+                        still 0 of 10 field programs fixed mechanically
+```
+
+`nano_reasoner.lang` is the one that moved: one mechanical edit, then a
+dead end, becomes two mechanical edits and a stall on `'if' requires
+'else'` — an under-CONTENT cure on a different `if`. And the two edits
+**contradict each other about the same line**. The first says write `let
+risk_status = "HIGH_RISK"`; the second says delete `let risk_status =`.
+Both are correctly licensed by their own messages, and the disagreement is
+right: the mistake was never the missing `let`, as round 386 said, and the
+round trip lands on the value the branch actually needed.
+
+### Two instruments, and one of them was wrong
+
+`test_v33.py::test_the_parsers_hint_constants_are_all_owned_by_a_cure_rule`
+is the anti-rot check round 386 built for exactly this event, and its
+docstring promised that "an eighth hint added by a future round arrives
+here as a failure". v0.34 added eight and **the fast suite stayed green**:
+that test builds its own left-hand side by NAMING four constants, so a hint
+it does not name is a hint it cannot see. A hand-written list of the things
+a hand-written list might miss is not an anti-rot check. It now reads
+`curecheck.parser_hint_sentences()`, which derives the census from
+`parser.py`'s own namespace — every module-level `_..._HINT`, plus the two
+tables. `'if' requires 'else'`'s parenthetical was promoted to
+`_IF_ELSE_HINT` for that reason alone; the rendered message is
+byte-identical.
+
+`tests/test_v34.py` adds the census the parse-error surface never had:
+every `raise ParseError` site is read out of `parser.py`'s AST and must be
+either hinted (7 of 20, was 5) or carry a written reason for not being (13,
+was 15). The reasons fall into three classes — `message-is-the-cure`
+(`comparisons do not chain; use 'and'`), `names-the-operands` (every
+duplicate-name and type-scope error), `implementation-limit`
+(`MAX_NESTING`). It is in the fast tier, which is round 390's rule applied
+to a different surface.
+
+### The guest, and the divergence the big sweep could not see
+
+Parse-error WORDING is not a guest contract (v0.24 rule 3) and none of the
+eight clauses is mirrored. ACCEPTANCE and POSITION are contracts, and
+v0.34 found one broken. `let g = fn adder(a, b) { a + b }` was refused by
+both parsers in two different columns:
+
+```
+host    expected (, got 'adder'        at line 1, col 12
+guest   unexpected token 'fn'          at line 1, col 9
+```
+
+`self_eval.lang`'s `parse_primary` carried an `and is_op(toks, pos + 1,
+"(")` guard on its `fn` branch, so a named `fn` in expression position
+declined the branch and fell through to the generic fallback. The guard was
+also unnecessary — statement position already claims `fn NAME` — and it is
+removed. A position is a fact about the program under analysis (decision
+34), and the fact here is the NAME.
+
+It was found by a **five-case** check in the fast tier, not by
+`test_parse_error_differential.py`'s 47-program sweep, which has run for
+thirty rounds and never contained a named `fn` in expression position.
+
+> A corpus is not made complete by being run more often. The cheap tier
+> did not merely cost less than the expensive one — it found what the
+> expensive one could not, because coverage is a property of the corpus
+> and not of the tier.
+
+Eight cases are now in `BAD` (`named-fn-expression`,
+`named-fn-expr-recursive`, `named-fn-expr-in-arg`, `block-ends-in-fn`,
+`block-ends-in-check`, `block-ends-in-shape`, `infix-no-left-operand`,
+`infix-kw-no-left-operand`), so the sweep covers what the tripwire found.
+The guest implementation-coordinate leak is now 51 of 51, unchanged in
+ratio.
+
+### One latent defect, in the matcher that was supposed to prevent them
+
+`curecheck._template_pattern` builds a hint matcher from the imported
+template by splitting it on `%s` — and `re.split` returns only the LITERAL
+parts, so joining them with `re.escape(part) if i % 2 == 0 else ".*"`
+turns every SECOND LITERAL into a wildcard. For a one-placeholder template
+that is `escaped_prefix + ".*"`, a correct prefix match by accident; for a
+three-placeholder one it discards most of the sentence.
+`_FN_EXPR_RECURSIVE_HINT` is the first template in this tree with more than
+one placeholder, and it is what made the accident visible. Both matchers
+now join on `.*?` / `(.*?)`.
+
+### What v0.34 deliberately does NOT do
+
+It does not make any previously under-determined cure determined; the
+braced-block hint still cannot say where a block ends and the juxtaposition
+hint still cannot choose between quoting and calling. It does not repair
+any field program — they belong to another system and every cure in this
+round was applied to a copy. It does not hint the remaining 13
+`ParseError` sites: each carries a written reason instead, and a future
+round that disagrees with one of those reasons should change the entry
+rather than add a sentence on one sighting. And it does not move
+`block must end with an expression`'s POSITION, which remains at the
+closing brace on purpose — see decision 43.

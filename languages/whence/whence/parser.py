@@ -58,11 +58,77 @@ _SYNTAX_HINTS = {
 _BRACE_HINT = ("blocks are always braced: `if c { a } else { b }`, "
                "`fn f(x) { x }`")
 _RECORD_HINT = "records are written `@{a: 1}`, not `{a: 1}`"
+# v0.34: this sentence has been a parenthetical inside a message literal
+# since v0.22 and a hard-coded string inside `curecheck.CURES` beside it.
+# Promoted to a constant for one reason: `curecheck.parser_hint_sentences`
+# derives the hint census from the module's `_..._HINT` names, and a hint
+# that is not one of them is a hint the census cannot see. The rendered
+# message is byte-identical.
+_IF_ELSE_HINT = "every expression has a value"
 _JUXTAPOSE_HINT = ("two names in a row: Whence has no juxtaposition "
                    "\u2014 a call is `f(x)` and text must be quoted")
 # v0.23 (round 356). Takes the offending token, already spelled by `_spell`.
 _SEPARATOR_HINT = ("a line break is the only statement separator Whence has "
                    "\u2014 start `%s` on the next line")
+
+# --- v0.34 (round 392): the errors that named no cure ------------------
+#
+# Round 386 measured what happens to a reader who FOLLOWS a Whence parse
+# error's cure and found three messages in the field corpus that name no
+# cure at all. Two of them are on sites that already HAVE hint machinery
+# (`_expect_hint`, `_SYNTAX_HINTS`) and fell through it; the third is on a
+# site that has none. Decision 43 is what the three have in common: the
+# datum each message was missing is IN THE PROGRAM, and a hint may read it.
+#
+# `block must end with an expression` reports at the CLOSING BRACE, which
+# is not where the edit goes. Moving the position would break v0.24's rule
+# 2 (host and guest positions agree) and cost a matching guest change.
+# Interpolating the bound NAME buys the same thing for nothing: a block
+# cannot rebind, so `let <name> =` is unique inside it, and name + column
+# locate a unique line. The name in the hint is what a position change
+# would otherwise have had to pay for.
+_BLOCK_TAIL_LET_HINT = (
+    "a block's value is its last expression — `let %s = e` binds a name "
+    "nothing can read here (a block's bindings do not escape it); write `e` "
+    "on its own")
+# A `shape` reaches `block()` as an ordinary `A.Let` (decision 27), so
+# without this it would draw the sentence above and tell the author to
+# delete a `let` their file does not contain. It is a GUARD against a
+# confidently-worded wrong sentence, not a feature: the field corpus
+# attests it zero times. Round 390 found the guest emitting a different
+# cure from the host and named that worse than emitting none; this is the
+# same failure one step earlier, prevented rather than found.
+_BLOCK_TAIL_SHAPE_HINT = (
+    "a block's value is its last expression — a `shape` declares a type, "
+    "it is not a value; put the value on the next line")
+_BLOCK_TAIL_FN_HINT = (
+    "a block's value is its last expression — `fn %s(x) { x }` is a "
+    "statement; write `fn(x) { x }` to make it the value")
+_BLOCK_TAIL_CHECK_HINT = (
+    "a block's value is its last expression — a `check` is a statement, "
+    "not a value; put the value on the next line")
+_EMPTY_BLOCK_HINT = (
+    "every block has a value and an empty one has none — `{ 0 }` is the "
+    "smallest block there is")
+# `let g = fn adder(a, b) { a + b }`. A named `fn` is a STATEMENT; in
+# expression position the name has nowhere to go, and `param_list`'s
+# `expect("(")` reports `expected (, got 'adder'` with no hint at all.
+# There are two cures and the BODY decides between them, which is why
+# `_fn_expr_hint` reads it.
+_FN_EXPR_ANON_HINT = (
+    "a `fn` expression is anonymous: write `fn(x) { x }` — "
+    "`fn %s(x) { x }` is a statement, not a value")
+_FN_EXPR_RECURSIVE_HINT = (
+    "a `fn` expression is anonymous and this body calls `%s`: give it a "
+    "statement of its own — `fn %s(x) { x }` on its own line, then pass "
+    "`%s` here")
+# `print(=== H ===)`, `== 2`. `_SYNTAX_HINTS` had two hand-written entries
+# and `rescue`'s is already the sentence "`rescue` is infix"; this is that
+# sentence as a RULE, over the operator set the expression grammar itself
+# defines (see `_INFIX_OPS`). The table still wins where it has an entry,
+# because a hand-written sentence about one operator can say more than a
+# template about all of them.
+_INFIX_HINT = "`%s` is infix and has nothing on its left: `a %s b`"
 
 # v0.23 (round 356): the tokens a STATEMENT can begin with. Read off the
 # three dispatch sites that decide it and nowhere else --- `statement()`
@@ -129,11 +195,64 @@ def _show(tok):
     return repr(tok.value)
 
 
+def _block_tail_hint(stmt):
+    """v0.34: the clause `block must end with an expression` appends.
+
+    Three statement kinds can sit last in a block and not be an
+    `ExprStmt`, and `shape` makes a fourth SOURCE of the first:
+    `shape_def` returns an ordinary `A.Let` (decision 27), so the `let`
+    sentence would tell the author to delete text their file does not
+    contain. The discriminator is the desugaring's own marker field ---
+    `pairs[0]` is `("__shape", A.Str(name))` and nothing else in the
+    grammar produces it. A hand-written `let Foo = @{__shape: "Foo"}` IS
+    that desugaring spelled out, so being indistinguishable from it is
+    correct rather than a limitation.
+
+    Returns None for anything else, which renders the v0.33 message
+    unchanged --- an unhinted message is the safe default, and a wrong
+    hint is not (round 390).
+    """
+    if isinstance(stmt, A.Let):
+        pairs = getattr(stmt.expr, "pairs", None)
+        if (isinstance(stmt.expr, A.RecordLit) and pairs
+                and pairs[0][0] == "__shape"
+                and getattr(pairs[0][1], "value", None) == stmt.name):
+            return _BLOCK_TAIL_SHAPE_HINT
+        return _BLOCK_TAIL_LET_HINT % stmt.name
+    if isinstance(stmt, A.FnDef):
+        return _BLOCK_TAIL_FN_HINT % stmt.name
+    if isinstance(stmt, A.Check):
+        return _BLOCK_TAIL_CHECK_HINT
+    return None
+
+
 def _with_hint(message, hint):
     return message if hint is None else "%s (%s)" % (message, hint)
 
 
 COMPARE_OPS = ("==", "!=", "<", "<=", ">", ">=")
+
+# v0.34: every operator that BUILDS an `A.Binary`, read off the five
+# precedence levels that build one --- `or_expr` (`or`), `and_expr`
+# (`and`), `comparison` (`COMPARE_OPS`), `additive` (`+`, `-`) and
+# `multiplicative` (`*`, `/`, `%`). `-` is excluded and is the only
+# exclusion: `unary` accepts it as a prefix, so a leading `-` is a
+# well-formed expression and never reaches the fallback this set serves.
+# `rescue` is infix too and keeps its own `_SYNTAX_HINTS` entry, whose
+# example (`risky rescue fallback`) says more than the template can.
+# `tests/test_v34.py::test_the_infix_set_is_exactly_the_binary_operators`
+# derives both halves by RUNNING the parser rather than trusting this
+# comment: for each operator token, `1 OP 2` parses and `OP 2` does not.
+_INFIX_OPS = frozenset(COMPARE_OPS + ("+", "*", "/", "%", "and", "or"))
+
+
+def _infix_hint(tok):
+    """v0.34: the clause for an infix operator with no left operand."""
+    op = tok.value
+    if op not in _INFIX_OPS:
+        return None
+    return _INFIX_HINT % (op, op)
+
 
 # Recursive descent costs ~11 host frames per nesting level (60 levels ≈
 # 660 frames, safe under CPython's default 1000 even inside a test runner);
@@ -516,9 +635,77 @@ class Parser(object):
         if want == "'{'":
             return _BRACE_HINT
         prev = self.tokens[self.pos - 1] if self.pos > 0 else None
+        # v0.34: `let g = fn adder(a, b) { a + b }`. `param_list` is the
+        # only caller that wants a `(`, and it is reached from two places:
+        # the fn STATEMENT (867), which has already eaten the name, so
+        # `prev` there is the NAME; and the fn EXPRESSION (2048), which
+        # cannot eat one, so `prev` is the `fn` keyword itself. The two
+        # rules below therefore cannot collide --- `prev.type` tells them
+        # apart --- and this one has to come first anyway, since `adder` is
+        # a NAME and `fn` is a KW, not a NAME, so the juxtaposition rule
+        # would decline it and the message would stay bare.
+        if (want == "(" and tok.type == "NAME" and prev is not None
+                and prev.type == "KW" and prev.value == "fn"):
+            return self._fn_expr_hint(tok)
         if (tok.type == "NAME" and prev is not None and prev.type == "NAME"
                 and prev.value not in _NAME_INTRODUCERS):
             return _JUXTAPOSE_HINT
+        return None
+
+    def _fn_expr_hint(self, name_tok):
+        """v0.34, decision 43: which of the two cures the BODY chooses.
+
+        A named `fn` in expression position has two spellings in Whence and
+        they are not interchangeable: drop the name (`fn(a, b) { ... }`) is
+        right unless the body calls itself, in which case dropping it turns
+        a parse error into an unbound name --- a strictly worse outcome, and
+        exactly the shape round 386 recorded for `nano_reasoner.lang:31`,
+        where following a mechanical cure moved the program from a diagnosed
+        error to an undiagnosed one.
+
+        The parser can tell, and only from the program: it scans the body's
+        TOKENS for the name. A token scan and not an AST walk because at
+        this point the body has not been parsed --- the parse just failed
+        two tokens ago, which is the whole situation. `_bound_anywhere`
+        (v0.33) and the guest's `shape_close` (round 338) are the same
+        mechanism; brace matching counts `{` and `@{` up and `}` down,
+        because `@{` is one token.
+
+        Best-effort by construction: if the text has no body to read
+        (`_fn_body_mentions` returns None) the anonymous sentence is the
+        answer, because it is the one that is true of every named `fn`
+        expression regardless of what follows.
+        """
+        name = name_tok.value
+        if self._fn_body_mentions(name):
+            return _FN_EXPR_RECURSIVE_HINT % (name, name, name)
+        return _FN_EXPR_ANON_HINT % name
+
+    def _fn_body_mentions(self, name):
+        """Does the brace-delimited body after `self.pos` mention `name`?
+
+        None (rendered the same as False by the caller) when there is no
+        balanced body to read.
+        """
+        toks = self.tokens
+        i = self.pos
+        n = len(toks)
+        while i < n and toks[i].type not in ("{", "@{", "EOF"):
+            i += 1
+        if i >= n or toks[i].type == "EOF":
+            return None
+        depth = 0
+        while i < n:
+            t = toks[i]
+            if t.type in ("{", "@{"):
+                depth += 1
+            elif t.type == "}":
+                depth -= 1
+                if depth == 0:
+                    return False
+            elif t.type == "NAME" and t.value == name:
+                return True
+            i += 1
         return None
 
     def _separator_hint(self, tok):
@@ -1862,10 +2049,12 @@ class Parser(object):
         stmts, tail_tag, tail_param = self.stmt_list(end="}")
         close = self.expect("}")
         if not stmts:
-            raise ParseError("block must contain at least one expression",
+            raise ParseError(_with_hint("block must contain at least one "
+                                        "expression", _EMPTY_BLOCK_HINT),
                              open_tok.line, open_tok.col)
         if not isinstance(stmts[-1], A.ExprStmt):
-            raise ParseError("block must end with an expression",
+            raise ParseError(_with_hint("block must end with an expression",
+                                        _block_tail_hint(stmts[-1])),
                              close.line, close.col)
         # v0.14.3 (round 270): `tail_alias_tag` is a real `Block` field (see
         # ast_nodes.py), set directly at construction since — unlike `Call.
@@ -2106,6 +2295,7 @@ class Parser(object):
         raise ParseError(
             _with_hint("unexpected %s" % (_show(tok),),
                        _SYNTAX_HINTS.get(tok.value)
+                       or _infix_hint(tok)
                        or self._foreign_hint(tok)), tok.line, tok.col)
 
     def if_expr(self):
@@ -2115,7 +2305,8 @@ class Parser(object):
         self.skip_newlines()
         if not self.at("KW", "else"):
             bad = self.peek()
-            raise ParseError("'if' requires 'else' (every expression has a value)",
+            raise ParseError(_with_hint("'if' requires 'else'",
+                                        _IF_ELSE_HINT),
                              bad.line, bad.col)
         self.next()
         if self.at("KW", "if"):

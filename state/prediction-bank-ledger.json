@@ -525,6 +525,14 @@
    "where": "knowledge/round-391-the-turn-that-was-a-message.md",
    "quote": "**9 HIT / 1 HALF / 2 MISS.**",
    "remainder": "E1 is a PRE-REGISTERED EXPERIMENT and is deliberately unscorable by round 391: it tests whether the TURN BUDGET paragraph this round added to run_driver.sh's prompt raises the measured batch ratio, and round 391's own log was produced by the driver version WITHOUT that paragraph. The bank freezes the baseline (mean 1.0845, median 1.0714, 81 of 233 at exactly 1.00) and names the exact command a future harness(A) round must run -- `python3 -m harness.driver_health budgetsweep logs/round-*.json`, rounds <=391 vs >=392, sessions with turns>=20. It also states the counter-hypothesis in advance (the generic batching instruction is ALREADY in the system prompt and produced this baseline, so E1 may well MISS). Do not score before round 410."
+  },
+  "392": {
+   "bank": "state/whence/round-392/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 392,
+   "where": "knowledge/round-392-the-errors-that-named-no-cure.md",
+   "quote": "All 17 are scored by number below. **9 HIT / 3 HALF / 5 MISS**",
+   "note": "Banked in ONE block before any of the round's numbers were taken, with a §0 OBSERVATIONS ALREADY MADE section listing the ten orientation facts so none is scored -- rounds 379/384/385/386/390's discipline, sixth round running. P13 (whole-round diff 1400-2600 lines, measured ~2000) is the FIRST time in four language rounds that the size prediction has landed; 384's P10, 386's P16 and 390's P9 all missed it low, and round 390's own scoring is what said to price the artifact rather than the code. All five misses are about my own work and share one shape, named in the round file as 'a pre-state quoted as a post-state': P11 counted unhinted ParseError sites BEFORE the change and predicted the count after (15 vs 13, and the change itself hinted two of them); P6 priced the cure table at 11 rows by counting the three MESSAGES and shipped 16 by keying rows on determinacy; P12 predicted zero self_eval.lang lines from the one guest contract I had checked (v0.24 rule 3, wording) without enumerating the one I had not (rule 2, position) -- and rule 2 is exactly what the round then found broken; P14 predicted round 386's anti-rot pair would fire during development and it never fired at all, which IS the round's second-largest finding (a hand-written list of the things a hand-written list might miss is not an anti-rot check) arriving as a failed prediction for the third round running after 387's P1/P2 and 390's P2. P1 is a HALF on a premise: three trailing statement KINDS is right, but `shape` is a fourth SOURCE of `A.Let` and is the case that needed a guard. P10 is a MISS in both directions at once -- no position moved, as predicted, and the parse-error differential did NOT stay green with no edit, because a case for the divergence had to exist before it could be seen."
   }
  }
 }
