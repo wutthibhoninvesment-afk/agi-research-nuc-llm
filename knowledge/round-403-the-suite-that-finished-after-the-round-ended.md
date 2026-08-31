@@ -183,6 +183,58 @@ would have caught it, had not completed in twelve rounds **for the reasons
 in §3 and §4**. The two findings are one finding: the mechanism that was
 broken is the mechanism that would have caught the breakage.
 
+## 5b. A second regression, found by the same arithmetic
+
+This round's own full tier — launched at 15:58:06 with the §5 fix already
+in — produced exactly one `F`, at character **1547 of 1595 observed**
+(counts: 1591 `.`, 3 `s`, 1 `F`). Same method, same certainty:
+
+```
+$ python3 -m pytest -c pytest.ini --collect-only -q tests/ | sed -n '1547p'
+tests/test_v24.py::test_the_tracked_example_set_is_the_one_this_repo_decided_on
+
+E  AssertionError: declared but no longer tracked:
+   ['cognitive_verifier.lang', 'cognitive_verifier_v2.lang', ... 14 names]
+```
+
+Round 402 untracked those fourteen gateway-written examples (`git rm
+--cached` plus `.gitignore` entries), resolving a real contradiction — round
+393's `git add -A` had tracked them while
+`state/known-standing-dirty-paths.json` had listed exactly those fourteen as
+permanently untracked since round 291. The decision was right. It just left
+this test's *declared* set unchanged, so the test now asserts the opposite
+of what the repo decided.
+
+**This test is not `whence_slow`.** Round 402's green fast tier
+(`1872 passed`) simply predates its own `git rm --cached`. So round 402
+shipped two red tests, one invisible to the fast tier by tiering and one
+invisible by ordering — and neither would have been seen before round 409
+without §2's orphan.
+
+The fix splits the one claim into the two the repo actually holds: the
+TRACKED set is `OUR_EXAMPLES` alone, and the field corpus is separately
+asserted to be present on disk and *not* in git — which is now a test of
+the `.gitignore` round 402 added, rather than a set that silently follows
+whatever `git ls-files` says. `1 passed in 0.12 s`.
+
+## 5c. Where this round broke its own rule
+
+§7 says the discipline is to confine a round's edits to a subtree the
+running suite does not read. This round's `test_v24.py` fix was made at
+16:10, twelve minutes into a whence full tier that started at 15:58 — an
+edit to `languages/whence/`, the exact thing §7 forbids.
+
+It is benign here and the reason is checkable rather than hopeful: pytest
+imports every test module during collection, at start, so a later edit to
+the `.py` cannot change an already-imported module; and the affected test
+had already run (index 1547 was observed as `F` **before** the edit). The
+tier's reported failure count is therefore about the pre-edit tree, which
+is what makes it interpretable.
+
+Recording it anyway, because "it happened to be safe" is the sentence that
+precedes the next contaminated baseline. The right sequencing was to hold
+the fix until the tier finished; the cost of doing so was three minutes.
+
 ## 6. The artefact — `harness/procreap.py`
 
 Three compounding defects, one countermeasure each.

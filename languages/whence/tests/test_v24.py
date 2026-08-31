@@ -165,11 +165,31 @@ def test_the_tracked_example_set_is_the_one_this_repo_decided_on():
     """Adding an example is still a decision someone makes here — it just
     costs one red test now, and names the file."""
     got = {os.path.basename(p) for p in _tracked_examples()}
-    want = set(OUR_EXAMPLES) | _field_corpus()
+    # Round 402 UNtracked the fourteen field-corpus files (`git rm --cached`
+    # plus `.gitignore` entries), resolving a direct contradiction between
+    # two of this repo's own records: round 393's `git add -A` had tracked
+    # them, while `state/known-standing-dirty-paths.json` had listed exactly
+    # those fourteen as permanently untracked since round 291. So the
+    # TRACKED set is now `OUR_EXAMPLES` alone, and the field corpus is
+    # asserted separately below — present on disk, deliberately not in git.
+    # Round 402 did not update this expectation; round 403 found the red
+    # test in an orphaned full-tier run's log. (This test is NOT
+    # `whence_slow`; round 402's green fast tier simply predates its own
+    # `git rm --cached`.)
+    want = set(OUR_EXAMPLES)
     assert got - want == set(), "newly tracked, undeclared: %s" % sorted(
         got - want)
     assert want - got == set(), "declared but no longer tracked: %s" % sorted(
         want - got)
+
+    field = _field_corpus()
+    assert field & got == set(), (
+        "field-corpus files are tracked again: %s" % sorted(field & got))
+    on_disk = {n for n in os.listdir(os.path.join(REPO, "languages", "whence",
+                                                  "examples"))
+               if n.endswith(".lang")}
+    assert field - on_disk == set(), (
+        "declared field corpus missing from disk: %s" % sorted(field - on_disk))
 
 
 @pytest.mark.parametrize("path", _tracked_examples(),
