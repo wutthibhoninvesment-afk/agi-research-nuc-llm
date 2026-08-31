@@ -213,9 +213,13 @@ def test_parser_section_matches_self_host():
     # fourteen comment lines recording why -- a named `fn` in expression
     # position was refused by the guest at the `fn` and by the host at the
     # NAME, a v0.24 rule-2 divergence that `test_parse_error_differential`'s
-    # 47-program corpus never contained a case for.
+    # 47-program corpus never contained a case for; round 398: 927 to 985,
+    # v0.36 decision 45 -- `repr_str`/`show_tok` (the guest's own `_show`)
+    # and the `_as` forms of `expect_op`/`expect_name` that carry the
+    # host's seven `what=` spellings, so the guest names the token it
+    # stopped on and says which KIND of name it wanted.
     host_lines = open(SELF_HOST).read().splitlines()
-    section = "\n".join(host_lines[27:927])
+    section = "\n".join(host_lines[27:985])
     assert section.startswith("# ---- character classes")
     assert section.rstrip().endswith(
         'if le != "" { miss le } else { parse_program(toks) }\n}')

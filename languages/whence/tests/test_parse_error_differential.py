@@ -174,6 +174,18 @@ BAD = [
     ("block-ends-in-shape",  "let f = fn() { shape P = @{a: num} }"),
     ("infix-no-left-operand", "let x = 1\n== 2"),
     ("infix-kw-no-left-operand", "let x = 1\nand 2"),
+    # --- v0.36 (round 398): the token kinds the got slot never reached.
+    # Across the 51 cases above, `expected X, got Y` is filled by exactly
+    # four token kinds (EOF, NUMBER, NAME, punctuation) --- the lexer emits
+    # 29. These three reach a NEWLINE, a STRING, and a STRING whose value
+    # contains a single quote, which is the input Python `repr` renders
+    # with DOUBLE quotes. The last one is here because a renderer can be
+    # right on every token in `bench/showtok.py` and still be wrong once
+    # the message path gets hold of it.
+    ("newline-in-got-slot",  "let x\nlet y = 1"),
+    ("string-in-got-slot",   'let f = fn(x) { x }\nlet v = f("a" "b")'),
+    ("quote-switching-in-got-slot",
+     'let f = fn(x) { x }\nlet v = f(1 "a\'b")'),
     # --- lex errors, which the host raises BEFORE parsing at all ----------
     ("bad-escape",           'let s = "a\\qb"'),
     ("unterminated-str",     'let s = "abc'),
@@ -448,7 +460,8 @@ def test_the_corpus_reaches_every_host_lex_error_class(hosts):
 # --------------------------------------------------------------------------
 
 def test_every_guest_parse_error_still_leaks_an_implementation_coordinate(guest):
-    """51 of 51 (was 43 of 43 until round 392 widened `BAD` by eight).
+    """54 of 54 (43 until round 392 widened `BAD` by eight, 51 until
+    round 398 widened it by three).
     The RATIO can go down; it must never go up.
 
     `miss <string>` appends `(line N)` where N is the line of the `miss`
@@ -466,7 +479,7 @@ def test_every_guest_parse_error_still_leaks_an_implementation_coordinate(guest)
     leaking = [n for n, (rejected, reason) in guest.items()
                if rejected and IMPL_COORD.search(reason)]
     rejecting = [n for n, (rejected, _) in guest.items() if rejected]
-    assert len(rejecting) == len(BAD) - len(HOST_ONLY) == 51, len(rejecting)
+    assert len(rejecting) == len(BAD) - len(HOST_ONLY) == 54, len(rejecting)
     assert len(leaking) == len(rejecting), (
         "%d of %d — good news, but update this pin and SPEC.md § v0.24"
         % (len(leaking), len(rejecting)))
@@ -478,7 +491,16 @@ def test_wording_is_still_not_a_guest_contract(hosts, guest):
     At least one case must have equal positions and DIFFERENT sentences —
     otherwise this file's careful distinction between "where" and "what"
     describes nothing, and a future round could tighten wording without
-    noticing it had made rule 3 vacuous."""
+    noticing it had made rule 3 vacuous.
+
+    v0.36 (round 398) is the round that came closest to making it vacuous,
+    and the floor held: 34 of the 54 now agree word for word, up from 12.
+    What is left is 20, and `test_every_remaining_divergence_is_a_hint_or_
+    the_rebind_sentence` below says exactly what all 20 are — which is the
+    state rule 3 should be read in from here. Rule 3 is not "the wordings
+    are arbitrary"; it is "the guest owes no sentence, and when it happens
+    to write the same one that is a measurement, not a contract".
+    """
     differing = []
     for name, _ in BOTH_REJECT:
         h = POSITION.sub("", hosts[name].message)
@@ -487,33 +509,108 @@ def test_wording_is_still_not_a_guest_contract(hosts, guest):
             differing.append((name, h, g))
     assert len(differing) >= 10, differing
     names = {d[0] for d in differing}
-    # Round 354 named three shapes. TWO of them are still present:
-    assert "bare-eof" in names            # `unexpected …` vs `unexpected token …`
-    assert "unbraced-if" in names         # v0.22's hint, guest has none
-    # The third, `unclosed-paren`, is STILL differing — but not for the
-    # reason round 354 gave, and v0.35 (round 396, decision 44) is what
-    # separated the two reasons. That message has two halves and each was
-    # a divergence of its own:
+    # Round 354 named three shapes that must still differ. All three are
+    # now CLOSED, and each closed for a different reason, which is why they
+    # are re-authored here as pins on the agreement rather than deleted:
     #
-    #   host  v0.34   expected ),   got end of input
-    #   guest         expected ')', got ''
-    #   host  v0.35   expected ')', got end of input
-    #
-    # The WANT half closed, by the HOST moving: the guest has quoted the
-    # token it wanted since it was written, and round 354 recorded the
-    # disagreement without saying which side was right. The GOT half is
-    # untouched and is a DIFFERENT debt — v0.24 (round 360) taught the
-    # host's `_show` to name the EOF token `end of input`, and the guest
-    # never got that fix; it still renders the token's empty value.
-    #
-    # Pinned as the two halves rather than as one string, so that closing
-    # the second one cannot be mistaken for re-opening the first.
-    h = POSITION.sub("", hosts["unclosed-paren"].message)
-    g = IMPL_COORD.sub("", POSITION.sub("", guest["unclosed-paren"][1]))
-    assert h != g, (h, g)
-    assert h.split(", got ")[0] == g.split(", got ")[0] == "expected ')'", (h, g)
-    assert h.split(", got ")[1] == "end of input", h
-    assert g.split(", got ")[1] == "''", g
+    #   `unclosed-paren` — the want half closed in v0.35 by the HOST moving
+    #     (decision 44), the got half in v0.36 by the GUEST moving
+    #     (decision 45). Two rounds, two directions, one sentence.
+    #   `bare-eof` — v0.36. The guest wrote `unexpected token ''`: the
+    #     wrong prefix AND the token's empty `v` field where the host
+    #     names `end of input`.
+    #   `unbraced-if` — still differs, and is the anchor this test keeps.
+    #     Its got half agrees (`got 1` on both since v0.36); what remains
+    #     is v0.22's HINT, which is host-only by design.
+    assert "unbraced-if" in names
+    for closed in ("unclosed-paren", "bare-eof"):
+        h = POSITION.sub("", hosts[closed].message)
+        g = IMPL_COORD.sub("", POSITION.sub("", guest[closed][1]))
+        assert h == g, (closed, h, g)
+    assert POSITION.sub("", hosts["unclosed-paren"].message) == \
+        "expected ')', got end of input"
+    assert POSITION.sub("", hosts["bare-eof"].message) == "unexpected end of input"
+    # The second anchor is now `rebind`, which differs for neither of the
+    # two structural reasons: the host's sentence carries a fact the guest
+    # does not compute (the LINE of the first binding). It is the only
+    # non-hint divergence left in the corpus.
+    assert "rebind" in names
+    h = POSITION.sub("", hosts["rebind"].message)
+    g = IMPL_COORD.sub("", POSITION.sub("", guest["rebind"][1]))
+    assert h == "'a' is already bound in this block (line 1); Whence has no rebinding"
+    assert g == "'a' already bound"
+
+
+def _strip_hint(message):
+    """The host message with a trailing parenthetical HINT removed.
+
+    `_with_hint` renders `"%s (%s)" % (message, hint)` and every one of
+    v0.22's/v0.33's/v0.34's hints contains balanced parens of its own
+    (`fn f(x) { x }`), so this scans back from the final `)` for its
+    match rather than using a regex. A message that does not END in `)`
+    is returned unchanged — which is what keeps `rebind`'s mid-sentence
+    `(line 1)` out of this.
+    """
+    if not message.endswith(")"):
+        return message
+    depth = 0
+    for i in range(len(message) - 1, -1, -1):
+        if message[i] == ")":
+            depth += 1
+        elif message[i] == "(":
+            depth -= 1
+            if depth == 0:
+                return message[:i - 1] if i and message[i - 1] == " " else message
+    return message
+
+
+def test_every_remaining_divergence_is_a_hint_or_the_rebind_sentence(hosts, guest):
+    """v0.36 (round 398), decision 45 — the divergence set is now CLOSED.
+
+    Round 354 called the whole thing "wording". Round 396 split the
+    `expected X, got Y` shape into want / got / hint and closed the want
+    half. This round closed the got half, and what that makes possible is
+    the assertion this test exists for: every message that still differs
+    differs for one of exactly TWO reasons, both named, neither a mystery.
+
+      * 18 carry a host-only parenthetical HINT (v0.22, v0.33, v0.34).
+        Strip it and the two sentences are byte-identical. Rule 3 keeps
+        these host-only deliberately: a hint is a CURE, and the guest has
+        no cure system.
+      * 2 are `rebind`/`rebind-indented`, where the host says `'a' is
+        already bound in this block (line 1); Whence has no rebinding` and
+        the guest says `'a' already bound`. This is the one remaining
+        divergence that is neither a hint nor a rendering: the host's
+        sentence carries a FACT (the line of the first binding) that the
+        guest's shape table does not record. Closing it is a guest data
+        change, not a wording change — see the round-398 knowledge file.
+
+    A THIRD class appearing here is the finding, not the failure: it would
+    mean some divergence exists that nobody has classified.
+    """
+    hint_only, other = [], []
+    for name, _ in BOTH_REJECT:
+        h = POSITION.sub("", hosts[name].message)
+        g = IMPL_COORD.sub("", POSITION.sub("", guest[name][1]))
+        if h == g:
+            continue
+        (hint_only if _strip_hint(h) == g else other).append(name)
+    assert len(hint_only) == 18, sorted(hint_only)
+    assert sorted(other) == ["rebind", "rebind-indented"], sorted(other)
+
+
+def test_the_agreeing_share_is_measured_not_assumed(hosts, guest):
+    """The headline number, pinned so a regression is visible as a number.
+
+    12 of 51 before v0.36, 34 of 54 after. It is deliberately NOT a floor
+    that only goes up: the corpus grows, and a round that widens `BAD`
+    with cases the guest gets wrong SHOULD see this drop and have to say
+    so. The pin is on the exact pair.
+    """
+    agree = [n for n, _ in BOTH_REJECT
+             if POSITION.sub("", hosts[n].message)
+             == IMPL_COORD.sub("", POSITION.sub("", guest[n][1]))]
+    assert (len(agree), len(BOTH_REJECT)) == (34, 54), (len(agree), len(BOTH_REJECT))
 
 
 #: `expected X, got Y` is the one message shape BOTH parsers build, and it
@@ -523,28 +620,36 @@ _EXPECTED_SHAPE = re.compile(r"^expected (.*?), got (.*?)(?: \(|$)")
 
 
 def test_the_want_half_of_every_shared_message_now_agrees(hosts, guest):
-    """v0.35, decision 44 --- the measurement that says what actually closed.
+    """v0.35 decision 44 and v0.36 decision 45 --- both halves, separately.
 
-    Ten of the 51 rejected programs produce `expected X, got Y` on BOTH
-    sides. Before v0.35 the host wrote the want half bare (`expected )`)
-    at every site but the two that passed `what="'{'"`; the guest has
-    quoted it since it was written. All ten want halves now agree.
+    `expected X, got Y` is the one message shape BOTH parsers build. It has
+    three independently-diverging parts and each was fixed in a different
+    round, from a different side:
 
-    None of the ten messages agrees OVERALL, and the two remaining reasons
-    are separate debts with separate owners:
+      want  v0.35 (round 396), by the HOST moving. `expect`'s want was the
+            raw argument, so the host wrote `expected )` where the guest
+            had always written `expected ')'`.
+      got   v0.36 (round 398), by the GUEST moving. `expect_op` quoted
+            unconditionally, so the EOF token printed `got ''` and a
+            number printed `got '1'` --- the guest's own token record,
+            not anything the author typed.
+      hint  host-only by rule 3, in both rounds and still.
 
-      * the GOT half --- the guest renders a number as `'1'` and the EOF
-        token as `''`, where the host says `1` and `end of input`. That is
-        v0.24's `_show` (round 360), which the guest never received.
-      * the HINT --- v0.22's and v0.34's parenthetical clauses are
-        host-only by design (rule 3).
-
-    Asserting the axes separately is the point: `test_wording_is_still_not_
-    a_guest_contract`'s aggregate did NOT move when decision 44 landed
-    (39 of 51 differing before and after, same 12 agreeing), so the
-    aggregate alone cannot show that anything converged.
+    THE SHARED SET GREW FROM 10 TO 20 WHEN THE GOT HALF LANDED, and that
+    is the part worth reading twice. Membership is decided by
+    `_EXPECTED_SHAPE`, which requires `, got ` on BOTH sides --- so the
+    seven programs where the guest wrote no got half at all were excluded
+    from the want-half measurement BECAUSE of the defect the measurement
+    was next to. Four of those seven (`dot-no-field`,
+    `trailing-comma-rec`, `trailing-comma-param`, `trailing-comma-shape`)
+    had a want half that DISAGREED the whole time: the host said
+    `expected field name` / `expected parameter name` and the guest's one
+    `expect_name` helper said `expected a name`. Round 396's "all ten want
+    halves now agree" was true of what it could see. A test that filters
+    its population on a field the defect removes will report the defect as
+    absent.
     """
-    shared, want_agree = [], []
+    shared, want_agree, got_agree, full = [], [], [], []
     for name, _ in BOTH_REJECT:
         h = POSITION.sub("", hosts[name].message)
         g = IMPL_COORD.sub("", POSITION.sub("", guest[name][1]))
@@ -554,20 +659,50 @@ def test_the_want_half_of_every_shared_message_now_agrees(hosts, guest):
         shared.append(name)
         if mh.group(1) == mg.group(1):
             want_agree.append(name)
-        # every want half is now a quoted literal or prose on BOTH sides
+        if mh.group(2) == mg.group(2):
+            got_agree.append(name)
+        if h == g:
+            full.append(name)
+        # every want half is a quoted literal or prose on BOTH sides
         assert not mh.group(1).isupper(), (name, h)
         assert not mg.group(1).isupper(), (name, g)
-    assert len(shared) == 10, sorted(shared)
+    assert len(shared) == 20, sorted(shared)
     assert sorted(want_agree) == sorted(shared), (
         "want halves that still differ: %s"
         % sorted(set(shared) - set(want_agree)))
-    # ...and not one of the ten agrees overall, for one of the two reasons
-    # in the docstring. If this ever drops, a debt closed and rule 3's
-    # floor should be re-read.
-    still = [n for n in shared
-             if POSITION.sub("", hosts[n].message)
-             != IMPL_COORD.sub("", POSITION.sub("", guest[n][1]))]
-    assert len(still) == 10, sorted(set(shared) - set(still))
+    assert sorted(got_agree) == sorted(shared), (
+        "got halves that still differ: %s"
+        % sorted(set(shared) - set(got_agree)))
+    # ...and the five that still differ OVERALL differ only by the host's
+    # hint. Named, because these five are the whole of rule 3's remaining
+    # footprint inside this message shape.
+    still = sorted(set(shared) - set(full))
+    assert still == ["fn-no-body", "named-fn-expr-in-arg",
+                     "named-fn-expr-recursive", "named-fn-expression",
+                     "unbraced-if"], still
+
+
+def test_the_got_half_reaches_more_than_four_token_kinds(hosts, guest):
+    """Why `bench/showtok.py` exists, asserted rather than asserted-about.
+
+    A whole-program corpus fills the got slot with whatever token happens
+    to sit at a refusal point. Before round 398 that was four kinds across
+    51 programs; the lexer emits 29. `bench/showtok.py` compares the
+    RENDERER over every kind; this test keeps the three programs added
+    here (a NEWLINE, a STRING, and a STRING that makes Python `repr` switch
+    to double quotes) from being deleted as redundant, because they are
+    the only place the renderer is reached through the real message path.
+    """
+    got = {}
+    for name in ("newline-in-got-slot", "string-in-got-slot",
+                 "quote-switching-in-got-slot"):
+        h = POSITION.sub("", hosts[name].message)
+        g = IMPL_COORD.sub("", POSITION.sub("", guest[name][1]))
+        assert h == g, (name, h, g)
+        got[name] = _EXPECTED_SHAPE.match(h).group(2)
+    assert got["newline-in-got-slot"] == r"'\n'", got
+    assert got["string-in-got-slot"] == "'b'", got
+    assert got["quote-switching-in-got-slot"] == '"a\'b"', got
 
 
 def test_the_lex_errors_are_the_one_class_where_wording_does_agree(hosts, guest):

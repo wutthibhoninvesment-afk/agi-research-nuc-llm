@@ -1,6 +1,6 @@
 # Whence — a provenance-first language
 
-*Spec level: **v0.35** (round 396). The `## vN` sections below are the
+*Spec level: **v0.36** (round 398). The `## vN` sections below are the
 authoritative version list and each names the round that built it; this
 line deliberately no longer enumerates rounds, because the enumeration it
 replaced had said "v0.16.6 + v0.14.2" since round 266 while the file went
@@ -484,6 +484,28 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    guest was. Six of the 28 sites can never fail at all (their guards
    already tested the token), so only 22 renderings are observable; that is
    a measurement from `bench/expectsites.py`, not a reading. See § v0.35.
+45. **The guest names the token it stopped on, the same way the host does
+   (v0.36, round 398).** Decision 44 fixed the WANT half of
+   `expected X, got Y` by moving the host. This fixes the GOT half by
+   moving the guest, and the two together close the sentence. The guest's
+   `expect_op` quoted the offending token unconditionally, so the EOF
+   token — whose `v` field is the empty string — printed `got ''` and a
+   number printed `got '1'`: a field of the guest's own token record, not
+   anything an author typed, which is exactly the defect v0.24 fixed on
+   the host. `parse_primary`'s catch-all wrote `unexpected token 'X'`
+   where the host writes `unexpected X`. And `expect_name` wrote no got
+   half at all, standing alone for SIX different host `what=` spellings,
+   so `let r = @{a: 1,}` told a guest reader `expected a name` where the
+   host says `expected field name, got '}'`. The guest now carries
+   `show_tok` (`_show` in Whence, including a `repr_str` that mirrors
+   Python's quote-switching rule) and `_as` forms of both expect helpers.
+   The load-bearing part is not the strings: with the got half present,
+   the divergence set between the two implementations became CLOSED —
+   every message that still differs differs for one of exactly two named
+   reasons, a host-only HINT (18 of 54) or the `rebind` sentence, which
+   carries a fact the guest does not compute (2 of 54). Rule 3 stands:
+   wording is still not a contract, and 20 of 54 still differ. See
+   § v0.36.
 
 ## Syntax (statements are newline-separated; `#` comments)
 ```
@@ -7572,3 +7594,127 @@ any cure — `curecheck.py corpus` applies the same 4 mechanical edits to the
 same 14 field programs, and still fixes none of them. And it does not
 revisit round 392's cure ledger, which records a reader following v0.33's
 messages and is still the open item it was.
+
+## v0.36 (round 398, language C) — the half of the sentence the guest wrote
+
+Decision 45. Round 396 closed the WANT half of `expected X, got Y` by
+moving the host, and named the remaining debt precisely: *"the guest
+renders a number `'1'` and the EOF token `''` where the host says `1` and
+`end of input`. That is v0.24's `_show`, which the guest never received."*
+
+That was right about the mechanism and short by two kinds.
+
+### The got half was wrong in three places, not one
+
+| # | site | guest wrote | host writes |
+| --- | --- | --- | --- |
+| 1 | `expect_op` | `expected ')', got ''` | `expected ')', got end of input` |
+| 2 | `parse_primary` catch-all | `unexpected token ''` | `unexpected end of input` |
+| 3 | `expect_name` | `expected a name` | `expected field name, got '}'` |
+
+Kind 1 is the one round 396 could see. Kind 2 renders the same two token
+kinds the same wrong way behind a prefix the host never wrote. Kind 3 is
+the interesting one: **`expect_name` was one function standing in for six
+different host `what=` spellings**, so a guest reader chasing a trailing
+comma in a record, a shape, a parameter list, a `.field` or a `let` was
+told the same six words in all five places, with no mention of the token
+that actually stopped the parse. That is a diagnostic regression against
+the host, not a wording preference, and it is the half of decision 45 with
+user-visible value.
+
+### The measurement round 396 could not make
+
+`test_the_want_half_of_every_shared_message_now_agrees` decides membership
+with a regex requiring `, got ` on BOTH sides. Kind 3 removes the got
+half — so the seven programs where the guest wrote none were excluded from
+the want-half measurement **because of the defect the measurement was
+sitting next to**. Four of them (`dot-no-field`, `trailing-comma-rec`,
+`trailing-comma-param`, `trailing-comma-shape`) had a want half that
+disagreed the whole time. Round 396's "all ten want halves now agree" was
+true of what it could see, and the shared set went 10 → 20 the moment the
+got half existed.
+
+*A test that filters its population on a field the defect removes will
+report the defect as absent.* Round 396's lesson was that an aggregate
+counting whole-string inequality is blind to a convergence inside the
+string; this is its mirror image, one level in.
+
+### The divergence set is now closed
+
+| | before v0.36 | after |
+| --- | --- | --- |
+| messages agreeing word for word | 12 of 51 | **34 of 54** |
+| `expected X, got Y` on both sides | 10 | **20** |
+| want halves agreeing | 10 of 10 | 20 of 20 |
+| got halves agreeing | 0 of 10 | **20 of 20** |
+
+The twenty that still differ are not a remainder, they are two named
+classes:
+
+* **18 carry a host-only parenthetical HINT** (v0.22, v0.33, v0.34).
+  Strip it and the two sentences are byte-identical. A hint is a CURE and
+  the guest has no cure system; rule 3 keeps these host-only on purpose.
+* **2 are `rebind`/`rebind-indented`**, where the host says `'a' is
+  already bound in this block (line 1); Whence has no rebinding` and the
+  guest says `'a' already bound`. This is the one divergence left that is
+  neither a hint nor a rendering: the host's sentence carries a FACT — the
+  line of the FIRST binding — that the guest's shape table does not
+  record. Closing it is a guest data change, not a wording change.
+
+A third class appearing is a finding, not a failure, and
+`test_every_remaining_divergence_is_a_hint_or_the_rebind_sentence` is
+where it would appear.
+
+### The corpus could only see four token kinds
+
+`expected X, got Y` is filled by whatever token happens to sit at a
+refusal point. Across all 51 rejected programs that was **four** kinds:
+EOF, NUMBER, NAME and punctuation. The lexer emits **29**. A NEWLINE in
+the got slot is one line of real source away — `let x` then `let y = 1`
+gives `expected '=', got '\n'` — and no program in the corpus reached it.
+
+So the renderers are now compared directly rather than through programs.
+`bench/showtok.py` runs `whence.parser._show` against the guest's
+`show_tok` over every token of a 25-snippet corpus: **417 tokens, all 29
+token types, all 16 keywords, 0 divergences.** Three programs were added
+to the differential too (a NEWLINE, a STRING, and a STRING whose value
+makes Python `repr` switch to double quotes), because a renderer can be
+right in isolation and wrong once the message path has it.
+
+The sweep is checked for the ability to FAIL. `test_v36.py` plants three
+divergences in the guest source — one per rule `show_tok` implements — and
+requires the sweep to catch each in the right token kind. A parity harness
+that has never been seen red is a green light, not a measurement.
+
+### Two residuals, exempted by measurement
+
+`repr_str` mirrors Python `repr` for printable ASCII including its
+quote-switching rule. It cannot mirror a NON-PRINTABLE character (`repr`
+writes `\x00`; `whence/lexer.py`'s escape table can spell exactly
+`\n \t \r \" \\`, so a guest cannot write the character to compare
+against — and cannot reach it either, since a literal cannot contain a
+byte it cannot spell), nor an integer past `values.SHOW_INT_BITS`, which
+`str` summarises by design. Both are asserted ABSENT from the corpus
+rather than assumed absent.
+
+### `expected shape name` is dead on both sides
+
+`bench/expectsites.py` classifies `parser.py:2044` as **never-fails** —
+executed 16 times over round 396's 3120-program mutation corpus, never
+once raised, because `shape` is contextual and `is_shape_head` has already
+tested that a NAME follows. The guest is an independently written grammar
+that reaches the same verdict from the same guard: `shape 1 = @{a: num}`
+is two statements on one line on both sides. That is a stronger
+corroboration of the dead-site claim than another three thousand host
+mutants would be.
+
+### What v0.36 deliberately does NOT do
+
+It does not touch `whence/*.py`: this debt was guest-only and stays that
+way. It does not make wording a contract — rule 3 is unchanged and 20 of
+54 still differ. It does not give the guest the hint system, and it does
+not close the `rebind` sentence, which needs the guest's shape table to
+record a line number. It does not change any POSITION, so decision 34's
+rule 2 is untouched, and `curecheck.py corpus` applies the same 4
+mechanical edits to the same 14 field programs and still fixes none of
+them.

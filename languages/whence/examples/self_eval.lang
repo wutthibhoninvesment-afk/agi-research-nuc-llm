@@ -303,15 +303,72 @@ fn is_kw(toks, pos, w) { let k = t_at(toks, pos)
 fn skip_nl(toks, pos) { if is_ntype(toks, pos, "nl") { skip_nl(toks, pos + 1) } else { pos } }
 fn is_ntype(toks, pos, ty) { t_at(toks, pos).t == ty }
 
-fn expect_op(toks, pos, o) {
+# v0.36 (round 398), decision 45: how a token is NAMED in a message, and
+# what was WANTED where it stood. `whence/parser.py`'s `_show` (v0.24,
+# round 360) and `_spell_want` (v0.35, round 396) are the host's two
+# halves of the same sentence; these are the guest's, and until this round
+# the guest had neither.
+#
+# The got half was wrong in three different ways, not one. `expect_op`
+# quoted UNCONDITIONALLY, so the EOF token -- whose `v` is the empty
+# string -- printed `got ''` and a number printed `got '1'`: a field of
+# the guest's own token record, not anything the author typed, which is
+# exactly the defect v0.24 fixed on the host. `parse_primary`'s catch-all
+# wrote `unexpected token 'X'` where the host writes `unexpected X`, and
+# rendered the same two kinds the same wrong way. And `expect_name` wrote
+# NO got half at all -- the kind round 396's want-half measurement could
+# not see, because its shared set is defined by having one.
+#
+# `repr_str` spells out Python's `repr` for a string, which Whence has no
+# builtin for (`str` of a string is its bare content). It is byte-exact
+# for printable ASCII, including `repr`'s quote-switching rule. Two
+# residuals are pinned rather than fixed in `tests/test_v36.py`: a
+# non-printable character (`repr` writes `\x00`, which Whence's escape
+# table cannot spell) and an integer past `values.SHOW_INT_BITS` (`str`
+# summarises it as `<integer, N bits>`, `repr` does not).
+fn repr_body(s, i, acc, q) {
+  if i >= len(s) { acc }
+  else {
+    let c = s[i]
+    let e = if c == "\\" { "\\\\" }
+      else if c == "\n" { "\\n" }
+      else if c == "\t" { "\\t" }
+      else if c == "\r" { "\\r" }
+      else if c == q { "\\" + c }
+      else { c }
+    repr_body(s, i + 1, acc + e, q)
+  }
+}
+fn repr_str(s) {
+  let q = if contains(s, "'") and not contains(s, "\"") { "\"" } else { "'" }
+  q + repr_body(s, 0, "", q) + q
+}
+fn show_tok(k) {
+  if k.t == "eof" { "end of input" }
+  else if k.t == "num" { str(k.v) }
+  else { repr_str(str(k.v)) }
+}
+
+# The want half. `expect_op`/`expect_name` keep their two-and-three
+# argument shapes so the twenty-odd call sites that want the DEFAULT
+# spelling read as before; the `_as` forms carry the seven host `what=`
+# sites (`field name`, `parameter name`, `effect name`, `shape name`,
+# `field name after '.'`, `'@{' after shape name`, and `a name` itself).
+# One `expect_name` standing in for six different `what=` values is why
+# `let r = @{a: 1,}` told a guest reader "expected a name" where the host
+# says "expected field name, got '}'".
+fn expect_op(toks, pos, o) { expect_op_as(toks, pos, o, "'" + o + "'") }
+fn expect_op_as(toks, pos, o, what) {
   if is_op(toks, pos, o) { pos + 1 }
-  else { miss ("expected '" + o + "', got '" + str(t_at(toks, pos).v) + "'" +
+  else { miss ("expected " + what + ", got " + show_tok(t_at(toks, pos)) +
                tok_at(toks, pos)) }
 }
-fn expect_name(toks, pos) {
+fn expect_name(toks, pos) { expect_name_as(toks, pos, "a name") }
+fn expect_name_as(toks, pos, what) {
   let k = t_at(toks, pos)
   if k.t == "name" { @{name: k.v, pos: pos + 1} }
-  else { miss ("expected a name" + tok_at(toks, pos)) }
+  else { miss ("expected " + what + ", got " + show_tok(k) +
+               tok_at(toks, pos)) }
 }
 
 # ---- expression parser (precedence low -> high, mirrors whence/parser.py) --
@@ -421,7 +478,7 @@ fn parse_postfix_rest(expr, toks, pos) {
     let after = expect_op(toks, ix.pos, "]")
     parse_postfix_rest(@{kind: "index", obj: expr, index: ix.node}, toks, after)
   } else if is_op(toks, pos, ".") {
-    let fld = expect_name(toks, pos + 1)
+    let fld = expect_name_as(toks, pos + 1, "field name after '.'")
     parse_postfix_rest(@{kind: "field", obj: expr, name: fld.name}, toks, fld.pos)
   } else { @{node: expr, pos: pos} }
 }
@@ -489,7 +546,7 @@ fn parse_primary(toks, pos) {
               body: body0.node},
       pos: body0.pos}
   }
-  else { miss ("unexpected token '" + str(k.v) + "'" + tok_at(toks, pos)) }
+  else { miss ("unexpected " + show_tok(k) + tok_at(toks, pos)) }
 }
 
 fn parse_list_lit(toks, pos, acc) {
@@ -507,7 +564,7 @@ fn parse_record_lit(toks, pos, acc, seen) {
   else { parse_record_rest(toks, pos, acc, seen) }
 }
 fn parse_record_rest(toks, pos, acc, seen) {
-  let key = expect_name(toks, pos)
+  let key = expect_name_as(toks, pos, "field name")
   let dup = contains(seen, key.name)
   let after_colon = expect_op(toks, key.pos, ":")
   let val = parse_expr(toks, after_colon)
@@ -674,7 +731,7 @@ fn parse_params(toks, pos, acc, tacc) {
   else { parse_params_rest(toks, after_paren, acc, tacc) }
 }
 fn parse_params_rest(toks, pos, acc, tacc) {
-  let nm = expect_name(toks, pos)
+  let nm = expect_name_as(toks, pos, "parameter name")
   let dup = contains(acc, nm.name)
   let acc2 = push(acc, nm.name)
   let tr = parse_typed_suffix(toks, nm.pos, ":")
@@ -767,7 +824,7 @@ fn skip_effect_names(toks, pos) {
   else { skip_effect_names_rest(toks, pos) }
 }
 fn skip_effect_names_rest(toks, pos) {
-  let nm = expect_name(toks, pos)
+  let nm = expect_name_as(toks, pos, "effect name")
   if is_op(toks, nm.pos, ",") { skip_effect_names_rest(toks, nm.pos + 1) }
   else { expect_op(toks, nm.pos, "]") }
 }
@@ -858,7 +915,7 @@ fn parse_shape_fields(toks, pos, acc, seen) {
   else { parse_shape_fields_rest(toks, pos, acc, seen) }
 }
 fn parse_shape_fields_rest(toks, pos, acc, seen) {
-  let f = expect_name(toks, pos)
+  let f = expect_name_as(toks, pos, "field name")
   let dup = contains(seen, f.name)
   let after_colon = expect_op(toks, f.pos, ":")
   let ft = expect_type_name(toks, after_colon)
@@ -870,9 +927,9 @@ fn parse_shape_fields_rest(toks, pos, acc, seen) {
 }
 
 fn parse_shape_def(toks, pos) {
-  let nm = expect_name(toks, pos + 1)
+  let nm = expect_name_as(toks, pos + 1, "shape name")
   let after_eq = expect_op(toks, nm.pos, "=")
-  let after_brace = expect_op(toks, after_eq, "@{")
+  let after_brace = expect_op_as(toks, after_eq, "@{", "'@{' after shape name")
   let head = @{name: "__shape", value: spec_node(nm.name)}
   let fields = parse_shape_fields(toks, after_brace, [head], [])
   if contains(guest_primitive_types, nm.name) {
@@ -918,7 +975,8 @@ fn parse_stmt(toks, pos) {
     # rather than an over-permissive grammar rule.
     let k = t_at(toks, pos + 1)
     if k.t != "str" {
-      miss ("expected a string label after 'check'" + tok_at(toks, pos + 1))
+      miss ("expected a string label after 'check', got " + show_tok(k) +
+            tok_at(toks, pos + 1))
     } else {
       let after_colon = expect_op(toks, pos + 2, ":")
       let e = parse_expr(toks, after_colon)

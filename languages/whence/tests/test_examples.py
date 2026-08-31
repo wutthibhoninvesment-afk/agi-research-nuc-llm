@@ -150,8 +150,14 @@ def test_self_hosting_real_syntax():
     # trailing comma the guest used to permit in six constructs (plus the
     # two that a comma still separates and an empty one is still empty),
     # two for the `check` label a miss in a record field used to swallow,
-    # and two that a lex error is reported as itself.
-    assert "133 passed, 0 failed" in r.stdout
+    # and two that a lex error is reported as itself. Round 398 (v0.36):
+    # 133 -> 140, decision 45 -- five for the GOT half of `expected X,
+    # got Y` (end of input rather than the EOF token's empty `v`; an
+    # unquoted number; a quoted name; an escaped newline; and a string
+    # containing a single quote, which Python `repr` renders in DOUBLE
+    # quotes) and two for the six host `what=` spellings `expect_name`
+    # used to answer with `expected a name`.
+    assert "140 passed, 0 failed" in r.stdout
     assert "guest lexer+parser for real Whence syntax" in r.stdout
 
 

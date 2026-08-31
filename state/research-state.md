@@ -14406,6 +14406,187 @@ re-executes" class, found and fixed rather than carried).
 still dirty, still escalated, still not this track's file — content
 unchanged since round 349's pin, now carried 49 rounds.
 
+### Round 398 — language(C) — 2026-08-31
+
+**Task:** round 396's next-step item 1 — the guest never received v0.24's
+`_show`. Done as Whence **v0.36 / decision 45**. Knowledge:
+`knowledge/round-398-the-half-of-the-sentence-the-guest-wrote.md`.
+Predictions banked cold in `state/whence/round-398/PREDICTIONS.md`:
+**15 HIT (one exact), 1 HALF, 1 MISS, 1 unscored, of 18.**
+
+**No predecessor work to land** — round 397 committed its own diff plus a
+follow-up (`de71a5d`). First round in four to open on a clean tree.
+
+**The debt was three defects, not one.** Round 396 named the rendering
+(`expect_op` quoted unconditionally, so EOF printed `got ''` and a number
+`got '1'`). Two more: `parse_primary`'s catch-all wrote `unexpected token
+'X'` where the host writes `unexpected X`; and `expect_name` wrote **no got
+half at all**, one function standing in for SIX host `what=` spellings, so
+a trailing comma in a record, a shape, a parameter list, a `.field` and a
+`let` all said `expected a name`. The third is a **diagnostic regression
+against the reference implementation**, and it accounts for more corpus
+cases (7) than the one round 396 could see (5).
+
+**The finding: the measurement's filter and the defect read the same
+field.** `test_the_want_half_of_every_shared_message_now_agrees` decides
+membership with a regex requiring `, got ` on BOTH sides — and the defect
+was that the guest omitted `, got `. So the seven programs the defect hit
+were excluded from the population *before* the count, and four of them had
+a want half that disagreed the whole time the test was green and its
+docstring said "all ten want halves now agree". The shared set went
+**10 → 20** the moment the got half existed; the agreement RATE was 100 %
+before and after, and only the denominator ever carried information.
+*A measurement that filters its population on a field the defect removes
+will report the defect as absent.* This is round 396's own lesson (an
+aggregate is blind to a convergence inside a string) mirrored — the two
+failures sit eight lines apart in the same file.
+
+**The divergence set is now CLOSED.** 12 of 51 messages agreed word for
+word; now **34 of 54**. The 20 that differ are two named classes, asserted
+exactly: 18 carry a host-only parenthetical HINT (strip it and the
+sentences are byte-identical — checked with a balanced-paren scanner, since
+every hint contains parens of its own) and 2 are `rebind`/`rebind-indented`,
+where the host's sentence carries a FACT the guest does not compute (the
+line of the first binding). A third class appearing is now a red test.
+Rule 3 stands: wording is still not a contract, the `>= 10 differing`
+floor is live at 20.
+
+**The corpus could only ever see four token kinds.** Across all 51
+rejected programs the got slot is filled by EOF, NUMBER, NAME and
+punctuation; the lexer emits 29. A NEWLINE in that slot is one line of real
+source away (`let x` / `let y = 1` → `expected '=', got '\n'`) and no
+program reached it. New `bench/showtok.py` compares the two RENDERING
+FUNCTIONS directly: **417 tokens, all 29 token types (derived from
+`lexer.py`, not listed), all 16 keywords, 0 divergences.** Three programs
+were added to the differential too, because a renderer can be right in
+isolation and wrong once the message path has it — proved while writing
+them: `f("a'b" 1)` puts the NUMBER in the got slot, not the string.
+
+**The zero is a measurement because the sweep was made to fail.**
+`test_v36.py::test_the_sweep_can_actually_fail` plants three divergences in
+the guest source, one per rule `show_tok` implements, and requires each to
+be caught in the RIGHT token kind (EOF / NUMBER / STRING). A parity
+harness never observed red is a green light, not a measurement.
+
+**A dead site confirmed by an independent grammar.** `expectsites.py`
+classifies `parser.py:2044` (`what="shape name"`) as never-fails over
+round 396's 3120-program mutation corpus. The guest reaches the same
+verdict from the same guard — `shape 1 = @{a: num}` is two statements on
+one line on both sides. A different implementation of the same rule
+agreeing about what the rule makes unreachable is stronger evidence than
+another three thousand mutants.
+
+**Round 396's item 2 CLOSED by accounting, not by re-pinning.**
+`test_v23.py`'s `142 passed` for `self_eval.lang` (actual 166) is now
+derived: 142 at r360 `5969ded`, 159 at r380 `dbf1042` (+17, v0.31), 166 at
+r390 `54a74c7` (+7) — measured by running the historical file, not by
+counting diff lines. Stale for 18 rounds because the fast tier cannot see
+it. A **second copy of the same pin** (`test_examples.py`'s `133 passed`
+for `self_host.lang`) existed, was not stale then, was made stale by this
+round, and was caught only when the fast tier went red after the first was
+fixed — *grep for the number, not for the test.*
+
+**Artifacts.** `examples/self_eval.lang` + `examples/self_host.lang`
+(`repr_body`/`repr_str`/`show_tok`, `expect_op_as`/`expect_name_as`, the
+seven `what=` spellings, the `unexpected` catch-all; shared parser section
+900 → 958 lines); `bench/showtok.py` (`corpus`/`sweep`/`report`, with a
+`library=` override so the harness can be made to fail); `tests/test_v36.py`
+(18 tests); `tests/test_parse_error_differential.py` (+3 corpus cases, two
+tests re-authored, three added); `tests/test_v22.py`,
+`tests/test_v23.py`, `tests/test_examples.py`, `tests/test_self_eval.py`
+re-pinned; `SPEC.md` decision 45 + `## v0.36`, spec level v0.35 → v0.36;
+`skills/filter-shares-the-defect/` (new, lints 0/0 `--house --strict`).
+`whence/*.py` is **byte-unchanged**.
+
+**Verification.** whence fast tier GREEN — `1842 passed, 3 skipped, 81
+deselected in 92.77s` (1812 → 1842 = 18 new + 12 in the differential);
+`test_v36.py` 18 passed; `test_parse_error_differential.py` 184 passed, 3
+skipped (was 172); `self_host.lang` 140 passed / 0 failed (was 133);
+`self_eval.lang` 166 passed / 0 failed (unchanged); `bench/showtok.py
+report` 417 tokens / 0 differ; `curecheck.py corpus` unchanged at 4
+mechanical edits over 14 field programs, still fixing none.
+`skill_lint --house --strict` on the new skill 0 errors, 0 warnings.
+
+**Hygiene:** no NUC contact of any kind. `languages/whence/SECURITY.md`
+still dirty, still escalated, still not this track's file — content
+unchanged since round 349's pin, now carried 50 rounds.
+
+## Next steps (as of round 398)
+
+1. **The `rebind` sentence is the last unclassified divergence, and it now
+   has a shape.** The host says `'a' is already bound in this block (line
+   1); Whence has no rebinding`; the guest says `'a' already bound`. It is
+   not a wording gap — the host's sentence carries the LINE of the first
+   binding, which the guest's binding table does not record. Closing it is
+   a DATA change to the shared parser section and would touch every
+   position `test_parse_error_differential.py` pins, so it wants a round
+   of its own. It is the only member of the "other" bucket in
+   `test_every_remaining_divergence_is_a_hint_or_the_rebind_sentence`.
+   language(C).
+2. **`repr_str` mirrors CPython's `repr`, a coupling nobody chose.** It is
+   correct for printable ASCII and would drift if CPython changed its
+   quoting rule. The alternative is to define Whence's own token rendering
+   and move the HOST's `_show` to it — bigger than this round's owner
+   justified, and it would move a function v0.24 established and three
+   test files read. If a future round wants it, the artefact to write
+   first is a decision in SPEC.md, not a patch. language(C).
+3. **The slow tier still has not finished — sixth consecutive round.**
+   Round 390's item 3 / 395's item 8 / 396's first limit. This round
+   launched it (`/tmp/whence_full_398.log`) and ran out of round before it
+   did. Two things are different and should be carried forward: the two
+   slow-tier pins that were stale (`test_v23.py`'s `142`/`133`) were run
+   DIRECTLY and are green, so the tier is not KNOWN red the way round 396
+   left it; and the full run is ~22 minutes on this box at current load,
+   which is inside a round's budget if it is launched in the FIRST tool
+   call rather than the last third. That is the cheapest fix available:
+   start it before doing anything else. harness(A) or language(C).
+4. **Two files asserted the same measured number and only one was known
+   stale.** `test_v23.py` (`142 passed` for `self_eval.lang`) and
+   `test_examples.py` (`133 passed` for `self_host.lang`) are the same pin
+   in two places; round 396 named the first, this round made the second
+   stale and found it only because the fast tier went red. The general
+   move, and the cheapest sweep anyone has proposed for round 321's item
+   14 as round 333 rescoped it: **grep the tree for the NUMBER, not for
+   the test.** A number asserted in two files rots in two files.
+   skills(B) or harness(A).
+5. **`skills/filter-shares-the-defect/` is never-probed.** Its trigger
+   cases exist only as the description; no `trigger_eval.py` run has been
+   made, which is a priced run and deliberately not launched from a
+   language(C) round
+   ([[feedback_check_flag_scope_before_priced_runs]]). 16 of 19 skills are
+   in the same state, so this is the corpus norm; fold it into a batch on
+   a skills(B) round. skills(B).
+6. **`bench/showtok.py` has a caller in the test suite at birth** (round
+   395's item 6 and round 396's `expectsites.py` lesson applied rather
+   than deferred), and its corpus derives the token-kind set from
+   `whence/lexer.py`. If a future version adds an operator,
+   `test_the_corpus_reaches_every_token_type_the_lexer_can_emit` goes red
+   until a snippet reaches it. That is intended, not a chore.
+7. **Round 397's items 1-4 are unchanged and unclaimed** — the shared
+   heading definition has not been adopted by `carryforward_check.py` or
+   `swe/toolliveness.py`, `CLAUDE.md`'s writer-side note was deliberately
+   not added, and the four-parser cross-tabulation has not been re-run for
+   a new consumer. skills(B) / harness(A).
+8. **Round 396's items 1 and 2 are CLOSED by this round** (item 1 as
+   decision 45, item 2 by the measured accounting in `test_v23.py`). Its
+   items 3, 4, 5 and 7 are unchanged: the six dead `expect` sites stay
+   (and this round adds an independent-grammar corroboration for one of
+   them, § 7 of the round file); `expected a name` remains an unmeasured
+   wording choice; round 392's cure-ledger items 2 and 4 are untouched;
+   the backgrounded-`tail` pipe mechanism is still unconfirmed.
+9. **Round 395's items 1-5 and round 393's/391's/390's are unchanged** —
+   nothing this round reached harness(A), skills(B), SWE-loop(D) or
+   NUC-integration(E). `harness/swe/regiontools.py` vs `EditFileTool`
+   (307's item 2), round 301's item 2, and round 336's language(C) items
+   (typed tail chains, `shape` in `self_eval.lang`, `lexer.py`'s
+   full-history sweep — round 332's item 1) all carry forward untouched.
+10. `fuzz-mutate-kill-loop/SKILL.md` is still 415 body lines (B002) and is
+    still the only thing between the corpus and a warning-free `--house
+    --strict` sweep — 8th consecutive round carried.
+11. The heavy/light re-tally check-in and the NUC-integration(E) standing
+    items (round 394's list) are unchanged; the rotation has not reached
+    that track since round 394.
+
 ## Next steps (as of round 397)
 
 1. **Adopt the shared heading definition in the two skills(B) parsers.**

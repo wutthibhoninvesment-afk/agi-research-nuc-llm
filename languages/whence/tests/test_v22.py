@@ -429,6 +429,20 @@ def test_parse_error_wording_is_not_a_guest_contract():
     pins BOTH halves on the same example round 354 chose, so the sentence
     above stays checkable rather than becoming a story about a deleted
     assertion.
+
+    ROUND 398 went red here a SECOND time, for the same good reason, and
+    the assertion it broke was the one this test had left as its proof
+    that the wordings differ: `"unexpected token" in guest`. v0.36's
+    decision 45 gave the guest the host's `_show` and, with it, the host's
+    `unexpected X` spelling, so the two now write this sentence
+    identically apart from the hint. Rule 3 is unchanged and is NOT
+    becoming a contract --- 20 of the corpus's 54 refusals still differ
+    (`test_parse_error_differential.py::test_every_remaining_divergence_
+    is_a_hint_or_the_rebind_sentence`), 18 of them by exactly the hint
+    this test is about. What is pinned here now is the ONE fact the v0.22
+    hint needs: strip the host's parenthetical and the two sentences are
+    equal, so a hint is additive and cannot silently change the diagnosis
+    underneath it.
     """
     src = 'let x = 1\nx = 2\n'
     host = parse_error(src)
@@ -440,11 +454,18 @@ def test_parse_error_wording_is_not_a_guest_contract():
     # v0.24: the position agrees, down to the column round 354 recorded.
     assert "at line 2, col 3" in host, host
     assert "at line 2, col 3" in guest, guest
-    # v0.22's hint is host-only, and the noun for the offending token still
-    # differs (`unexpected '='` vs `unexpected token '='`).
+    # v0.22's hint is host-only. v0.36: the rest of the sentence is not.
     assert "Whence has no assignment" in host and "Whence has no" not in guest
-    assert "unexpected token" in guest and "unexpected token" not in host
+    assert "unexpected token" not in guest and "unexpected token" not in host
     assert host != guest
+    # The hint is ADDITIVE: host minus its parenthetical is the guest's
+    # sentence, character for character (after the guest's `(line N)`
+    # implementation coordinate, which is a separate debt -- see
+    # `test_parse_error_differential.py::test_every_guest_parse_error_
+    # still_leaks_an_implementation_coordinate`).
+    bare = re.sub(r" \(Whence has no assignment[^)]*\)", "", host.strip())
+    assert bare == "unexpected '=' at line 2, col 3", bare
+    assert re.sub(r" \(line \d+\)$", "", guest.strip()) == "miss: " + bare
 
 
 # --- the measurement that decided against auto-fixing ------------------------

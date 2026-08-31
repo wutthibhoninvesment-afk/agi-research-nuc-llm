@@ -395,11 +395,35 @@ def test_the_guest_miss_names_the_line_the_second_statement_is_on():
 @pytest.mark.whence_slow
 def test_both_self_hosting_examples_still_run_green():
     # round 360 (v0.24): 112 -> 133 in self_host.lang, decision 34's own
-    # 21 checkpoint checks. self_eval.lang is unchanged at 142: its checks
+    # 21 checkpoint checks. self_eval.lang was unchanged at 142: its checks
     # exercise the guest EVALUATOR, and v0.24 touched the shared PARSER
     # section only.
-    for name, expected in (("self_host.lang", "133 passed, 0 failed"),
-                           ("self_eval.lang", "142 passed, 0 failed")):
+    #
+    # ROUND 398 re-derived both numbers, which is the point of this note.
+    # Round 396 found `self_eval.lang`'s pin reading 142 against an actual
+    # 166 and deliberately did not re-pin it, because a number nobody has
+    # ACCOUNTED FOR is the same defect whichever value it holds --- round
+    # 321's item 14 as round 333 rescoped it, *a line asserting a number
+    # that no round re-executes*. The accounting, measured by running the
+    # historical file at each revision that moved it rather than by
+    # counting `check` lines in a diff:
+    #
+    #   142  round 360 `5969ded`   the pin, correct when written
+    #   142  round 380 `b36a751`
+    #   159  round 380 `dbf1042`   v0.31, +17 (diverge/contrast answers)
+    #   166  round 390 `54a74c7`   +7  (the clause that shipped on one side)
+    #   166  round 392 `1b18b2c`, and today
+    #
+    # Neither round 380 nor round 390 touched this line, and the fast tier
+    # cannot see it (`whence_slow`), so it went 18 rounds wrong. THE PIN
+    # ITSELF IS NOT THE FIX --- the fix is that the number is now derived
+    # from a measurement anyone can repeat, in this comment.
+    #
+    # `self_host.lang` 133 -> 140 IS this round's doing: v0.36 decision 45
+    # adds seven parse-error checks (the got half's five token kinds, and
+    # the two `expect_name` sites that used to say `a name` for everything).
+    for name, expected in (("self_host.lang", "140 passed, 0 failed"),
+                           ("self_eval.lang", "166 passed, 0 failed")):
         r = subprocess.run(
             [sys.executable, os.path.join(ROOT, "run.py"),
              os.path.join(ROOT, "examples", name)],
