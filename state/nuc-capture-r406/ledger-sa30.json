@@ -1,0 +1,823 @@
+{
+  "date": "2026-08-30",
+  "n_fires": 35,
+  "n_excluded_fires": 140,
+  "excluded_units": [
+    "sysstat-collect"
+  ],
+  "min_bytes": 4825665,
+  "boundary_slack_s": 5,
+  "n_fires_in_costly_bucket": 0,
+  "n_sole_attributable": 0,
+  "n_unclassified": 76,
+  "base_rate": 0.0,
+  "n_buckets": 139,
+  "n_costly_buckets": 1,
+  "n_costly_buckets_with_a_named_fire": 0,
+  "costly_buckets_without_a_named_fire": [
+    "15:10:03"
+  ],
+  "total_swapped_bytes": 6832128,
+  "by_unit": {
+    "systemd-tmpfiles-clean": {
+      "fires": 1,
+      "in_costly_bucket": 0,
+      "sole_attributable": 0,
+      "sole_attributable_bytes": 0
+    },
+    "apt-daily-upgrade": {
+      "fires": 2,
+      "in_costly_bucket": 0,
+      "sole_attributable": 0,
+      "sole_attributable_bytes": 0
+    },
+    "motd-news": {
+      "fires": 2,
+      "in_costly_bucket": 0,
+      "sole_attributable": 0,
+      "sole_attributable_bytes": 0
+    },
+    "fwupd-refresh": {
+      "fires": 23,
+      "in_costly_bucket": 0,
+      "sole_attributable": 0,
+      "sole_attributable_bytes": 0
+    },
+    "e2scrub_all": {
+      "fires": 1,
+      "in_costly_bucket": 0,
+      "sole_attributable": 0,
+      "sole_attributable_bytes": 0
+    },
+    "apt-daily": {
+      "fires": 1,
+      "in_costly_bucket": 0,
+      "sole_attributable": 0,
+      "sole_attributable_bytes": 0
+    },
+    "apt-news": {
+      "fires": 1,
+      "in_costly_bucket": 0,
+      "sole_attributable": 0,
+      "sole_attributable_bytes": 0
+    },
+    "esm-cache": {
+      "fires": 1,
+      "in_costly_bucket": 0,
+      "sole_attributable": 0,
+      "sole_attributable_bytes": 0
+    },
+    "packagekit": {
+      "fires": 1,
+      "in_costly_bucket": 0,
+      "sole_attributable": 0,
+      "sole_attributable_bytes": 0
+    },
+    "man-db": {
+      "fires": 1,
+      "in_costly_bucket": 0,
+      "sole_attributable": 0,
+      "sole_attributable_bytes": 0
+    },
+    "systemd-timedated": {
+      "fires": 1,
+      "in_costly_bucket": 0,
+      "sole_attributable": 0,
+      "sole_attributable_bytes": 0
+    }
+  },
+  "entries": [
+    {
+      "at_utc": "2026-08-30T00:47:28Z",
+      "unit": "systemd-tmpfiles-clean",
+      "bucket_end": "00:50:05",
+      "pswpout_s": 0.0,
+      "bucket_swapped_bytes": 0,
+      "bucket_shared_by": 1,
+      "costly": false,
+      "sole_attributable": false
+    },
+    {
+      "at_utc": "2026-08-30T00:56:23Z",
+      "unit": "apt-daily-upgrade",
+      "bucket_end": "01:00:05",
+      "pswpout_s": 0.0,
+      "bucket_swapped_bytes": 0,
+      "bucket_shared_by": 1,
+      "costly": false,
+      "sole_attributable": false
+    },
+    {
+      "at_utc": "2026-08-30T01:45:03Z",
+      "unit": "motd-news",
+      "bucket_end": "01:50:05",
+      "pswpout_s": 0.0,
+      "bucket_swapped_bytes": 0,
+      "bucket_shared_by": 1,
+      "costly": false,
+      "sole_attributable": false
+    },
+    {
+      "at_utc": "2026-08-30T01:53:05Z",
+      "unit": "fwupd-refresh",
+      "bucket_end": "02:00:05",
+      "pswpout_s": 0.0,
+      "bucket_swapped_bytes": 0,
+      "bucket_shared_by": 1,
+      "costly": false,
+      "sole_attributable": false
+    },
+    {
+      "at_utc": "2026-08-30T02:13:05Z",
+      "unit": "fwupd-refresh",
+      "bucket_end": "02:20:03",
+      "pswpout_s": 0.0,
+      "bucket_swapped_bytes": 0,
+      "bucket_shared_by": 1,
+      "costly": false,
+      "sole_attributable": false
+    },
+    {
+      "at_utc": "2026-08-30T03:11:05Z",
+      "unit": "e2scrub_all",
+      "bucket_end": "03:20:05",
+      "pswpout_s": 0.0,
+      "bucket_swapped_bytes": 0,
+      "bucket_shared_by": 2,
+      "costly": false,
+      "sole_attributable": false
+    },
+    {
+      "at_utc": "2026-08-30T03:11:38Z",
+      "unit": "fwupd-refresh",
+      "bucket_end": "03:20:05",
+      "pswpout_s": 0.0,
+      "bucket_swapped_bytes": 0,
+      "bucket_shared_by": 2,
+      "costly": false,
+      "sole_attributable": false
+    },
+    {
+      "at_utc": "2026-08-30T04:28:15Z",
+      "unit": "fwupd-refresh",
+      "bucket_end": "04:30:05",
+      "pswpout_s": 0.0,
+      "bucket_swapped_bytes": 0,
+      "bucket_shared_by": 1,
+      "costly": false,
+      "sole_attributable": false
+    },
+    {
+      "at_utc": "2026-08-30T05:42:33Z",
+      "unit": "fwupd-refresh",
+      "bucket_end": "05:50:00",
+      "pswpout_s": 0.0,
+      "bucket_swapped_bytes": 0,
+      "bucket_shared_by": 1,
+      "costly": false,
+      "sole_attributable": false
+    },
+    {
+      "at_utc": "2026-08-30T06:13:23Z",
+      "unit": "apt-daily",
+      "bucket_end": "06:20:05",
+      "pswpout_s": 0.0,
+      "bucket_swapped_bytes": 0,
+      "bucket_shared_by": 5,
+      "costly": false,
+      "sole_attributable": false
+    },
+    {
+      "at_utc": "2026-08-30T06:13:23Z",
+      "unit": "fwupd-refresh",
+      "bucket_end": "06:20:05",
+      "pswpout_s": 0.0,
+      "bucket_swapped_bytes": 0,
+      "bucket_shared_by": 5,
+      "costly": false,
+      "sole_attributable": false
+    },
+    {
+      "at_utc": "2026-08-30T06:13:24Z",
+      "unit": "apt-news",
+      "bucket_end": "06:20:05",
+      "pswpout_s": 0.0,
+      "bucket_swapped_bytes": 0,
+      "bucket_shared_by": 5,
+      "costly": false,
+      "sole_attributable": false
+    },
+    {
+      "at_utc": "2026-08-30T06:13:24Z",
+      "unit": "esm-cache",
+      "bucket_end": "06:20:05",
+      "pswpout_s": 0.0,
+      "bucket_swapped_bytes": 0,
+      "bucket_shared_by": 5,
+      "costly": false,
+      "sole_attributable": false
+    },
+    {
+      "at_utc": "2026-08-30T06:13:34Z",
+      "unit": "packagekit",
+      "bucket_end": "06:20:05",
+      "pswpout_s": 0.0,
+      "bucket_swapped_bytes": 0,
+      "bucket_shared_by": 5,
+      "costly": false,
+      "sole_attributable": false
+    },
+    {
+      "at_utc": "2026-08-30T06:32:03Z",
+      "unit": "apt-daily-upgrade",
+      "bucket_end": "06:40:05",
+      "pswpout_s": 0.0,
+      "bucket_swapped_bytes": 0,
+      "bucket_shared_by": 1,
+      "costly": false,
+      "sole_attributable": false
+    },
+    {
+      "at_utc": "2026-08-30T07:21:33Z",
+      "unit": "man-db",
+      "bucket_end": "07:30:05",
+      "pswpout_s": 0.0,
+      "bucket_swapped_bytes": 0,
+      "bucket_shared_by": 1,
+      "costly": false,
+      "sole_attributable": false
+    },
+    {
+      "at_utc": "2026-08-30T07:55:53Z",
+      "unit": "fwupd-refresh",
+      "bucket_end": "08:00:05",
+      "pswpout_s": 0.0,
+      "bucket_swapped_bytes": 0,
+      "bucket_shared_by": 1,
+      "costly": false,
+      "sole_attributable": false
+    },
+    {
+      "at_utc": "2026-08-30T08:37:03Z",
+      "unit": "fwupd-refresh",
+      "bucket_end": "08:40:05",
+      "pswpout_s": 0.0,
+      "bucket_swapped_bytes": 0,
+      "bucket_shared_by": 1,
+      "costly": false,
+      "sole_attributable": false
+    },
+    {
+      "at_utc": "2026-08-30T09:33:51Z",
+      "unit": "fwupd-refresh",
+      "bucket_end": "09:40:05",
+      "pswpout_s": 0.0,
+      "bucket_swapped_bytes": 0,
+      "bucket_shared_by": 1,
+      "costly": false,
+      "sole_attributable": false
+    },
+    {
+      "at_utc": "2026-08-30T10:32:33Z",
+      "unit": "fwupd-refresh",
+      "bucket_end": "10:40:05",
+      "pswpout_s": 0.0,
+      "bucket_swapped_bytes": 0,
+      "bucket_shared_by": 1,
+      "costly": false,
+      "sole_attributable": false
+    },
+    {
+      "at_utc": "2026-08-30T11:40:05Z",
+      "unit": "fwupd-refresh",
+      "bucket_end": "11:50:05",
+      "pswpout_s": 0.0,
+      "bucket_swapped_bytes": 0,
+      "bucket_shared_by": 1,
+      "costly": false,
+      "sole_attributable": false
+    },
+    {
+      "at_utc": "2026-08-30T12:37:03Z",
+      "unit": "fwupd-refresh",
+      "bucket_end": "12:40:05",
+      "pswpout_s": 0.0,
+      "bucket_swapped_bytes": 0,
+      "bucket_shared_by": 1,
+      "costly": false,
+      "sole_attributable": false
+    },
+    {
+      "at_utc": "2026-08-30T13:15:05Z",
+      "unit": "fwupd-refresh",
+      "bucket_end": "13:20:05",
+      "pswpout_s": 0.0,
+      "bucket_swapped_bytes": 0,
+      "bucket_shared_by": 1,
+      "costly": false,
+      "sole_attributable": false
+    },
+    {
+      "at_utc": "2026-08-30T14:43:13Z",
+      "unit": "fwupd-refresh",
+      "bucket_end": "14:50:05",
+      "pswpout_s": 0.0,
+      "bucket_swapped_bytes": 0,
+      "bucket_shared_by": 1,
+      "costly": false,
+      "sole_attributable": false
+    },
+    {
+      "at_utc": "2026-08-30T15:11:24Z",
+      "unit": "systemd-timedated",
+      "bucket_end": "15:20:00",
+      "pswpout_s": 0.0,
+      "bucket_swapped_bytes": 0,
+      "bucket_shared_by": 1,
+      "costly": false,
+      "sole_attributable": false
+    },
+    {
+      "at_utc": "2026-08-30T15:38:57Z",
+      "unit": "motd-news",
+      "bucket_end": "15:40:05",
+      "pswpout_s": 0.0,
+      "bucket_swapped_bytes": 0,
+      "bucket_shared_by": 1,
+      "costly": false,
+      "sole_attributable": false
+    },
+    {
+      "at_utc": "2026-08-30T15:41:05Z",
+      "unit": "fwupd-refresh",
+      "bucket_end": "15:50:05",
+      "pswpout_s": 0.0,
+      "bucket_swapped_bytes": 0,
+      "bucket_shared_by": 1,
+      "costly": false,
+      "sole_attributable": false
+    },
+    {
+      "at_utc": "2026-08-30T16:10:03Z",
+      "unit": "fwupd-refresh",
+      "bucket_end": "16:20:05",
+      "pswpout_s": 0.0,
+      "bucket_swapped_bytes": 0,
+      "bucket_shared_by": 1,
+      "costly": false,
+      "sole_attributable": false
+    },
+    {
+      "at_utc": "2026-08-30T17:25:27Z",
+      "unit": "fwupd-refresh",
+      "bucket_end": "17:30:03",
+      "pswpout_s": 0.0,
+      "bucket_swapped_bytes": 0,
+      "bucket_shared_by": 1,
+      "costly": false,
+      "sole_attributable": false
+    },
+    {
+      "at_utc": "2026-08-30T18:02:33Z",
+      "unit": "fwupd-refresh",
+      "bucket_end": "18:10:05",
+      "pswpout_s": 0.0,
+      "bucket_swapped_bytes": 0,
+      "bucket_shared_by": 1,
+      "costly": false,
+      "sole_attributable": false
+    },
+    {
+      "at_utc": "2026-08-30T19:08:33Z",
+      "unit": "fwupd-refresh",
+      "bucket_end": "19:10:05",
+      "pswpout_s": 0.0,
+      "bucket_swapped_bytes": 0,
+      "bucket_shared_by": 1,
+      "costly": false,
+      "sole_attributable": false
+    },
+    {
+      "at_utc": "2026-08-30T20:44:05Z",
+      "unit": "fwupd-refresh",
+      "bucket_end": "20:50:05",
+      "pswpout_s": 0.0,
+      "bucket_swapped_bytes": 0,
+      "bucket_shared_by": 1,
+      "costly": false,
+      "sole_attributable": false
+    },
+    {
+      "at_utc": "2026-08-30T21:57:23Z",
+      "unit": "fwupd-refresh",
+      "bucket_end": "22:00:05",
+      "pswpout_s": 0.0,
+      "bucket_swapped_bytes": 0,
+      "bucket_shared_by": 1,
+      "costly": false,
+      "sole_attributable": false
+    },
+    {
+      "at_utc": "2026-08-30T22:50:23Z",
+      "unit": "fwupd-refresh",
+      "bucket_end": "23:00:05",
+      "pswpout_s": 0.0,
+      "bucket_swapped_bytes": 0,
+      "bucket_shared_by": 1,
+      "costly": false,
+      "sole_attributable": false
+    },
+    {
+      "at_utc": "2026-08-30T23:48:05Z",
+      "unit": "fwupd-refresh",
+      "bucket_end": "23:50:05",
+      "pswpout_s": 0.0,
+      "bucket_swapped_bytes": 0,
+      "bucket_shared_by": 1,
+      "costly": false,
+      "sole_attributable": false
+    }
+  ],
+  "unclassified": [
+    {
+      "at_utc": "2026-08-30T00:32:32Z",
+      "unit": "systemd-journald",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:32Z",
+      "unit": "keyboard-setup",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:32Z",
+      "unit": "kmod-static-nodes",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:32Z",
+      "unit": "lvm2-monitor",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:32Z",
+      "unit": "modprobe@configfs",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:32Z",
+      "unit": "modprobe@dm_mod",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:32Z",
+      "unit": "modprobe@drm",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:32Z",
+      "unit": "modprobe@efi_pstore",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:32Z",
+      "unit": "modprobe@fuse",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:32Z",
+      "unit": "modprobe@loop",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:32Z",
+      "unit": "modprobe@nvme_fabrics",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:32Z",
+      "unit": "systemd-modules-load",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:32Z",
+      "unit": "systemd-remount-fs",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:32Z",
+      "unit": "systemd-udev-trigger",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:32Z",
+      "unit": "multipathd",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:32Z",
+      "unit": "systemd-journal-flush",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:32Z",
+      "unit": "systemd-random-seed",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:32Z",
+      "unit": "systemd-sysctl",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:32Z",
+      "unit": "systemd-tmpfiles-setup-dev-early",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:32Z",
+      "unit": "systemd-tmpfiles-setup-dev",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:32Z",
+      "unit": "systemd-udevd",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:32Z",
+      "unit": "systemd-fsck@dev-disk-by\\x2did-dm\\x2duuid\\x2dLVM\\x2dGmeciVfJgbU9Qm5md2f6WBnVjAubj2fBpywKoC1qmcFWFhy9XEjURBjljeyrHwD4",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:32Z",
+      "unit": "systemd-fsck@dev-disk-by\\x2duuid-C66B\\x2d40FA",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:32Z",
+      "unit": "systemd-fsck@dev-disk-by\\x2duuid-ccc0671a\\x2dc1bf\\x2d43a0\\x2dbc37\\x2d556570907824",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:33Z",
+      "unit": "apparmor",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:33Z",
+      "unit": "console-setup",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:33Z",
+      "unit": "finalrd",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:33Z",
+      "unit": "plymouth-read-write",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:33Z",
+      "unit": "systemd-binfmt",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:33Z",
+      "unit": "systemd-tmpfiles-setup",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:33Z",
+      "unit": "ufw",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:33Z",
+      "unit": "systemd-resolved",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:33Z",
+      "unit": "systemd-timesyncd",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:33Z",
+      "unit": "systemd-update-utmp",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:33Z",
+      "unit": "snapd.apparmor",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:33Z",
+      "unit": "systemd-rfkill",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:34Z",
+      "unit": "dbus",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:34Z",
+      "unit": "dpkg-db-backup",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:34Z",
+      "unit": "e2scrub_reap",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:34Z",
+      "unit": "grub-common",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:34Z",
+      "unit": "lm-sensors",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:34Z",
+      "unit": "polkit",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:34Z",
+      "unit": "rsyslog",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:34Z",
+      "unit": "secureboot-db",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:34Z",
+      "unit": "smartmontools",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:34Z",
+      "unit": "snapd.seeded",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:34Z",
+      "unit": "snapd",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:34Z",
+      "unit": "sysstat",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:34Z",
+      "unit": "systemd-logind",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:34Z",
+      "unit": "thermald",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:34Z",
+      "unit": "udisks2",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:34Z",
+      "unit": "logrotate",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:34Z",
+      "unit": "systemd-networkd",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:34Z",
+      "unit": "tailscaled",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:34Z",
+      "unit": "wpa_supplicant",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:34Z",
+      "unit": "grub-initrd-fallback",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:34Z",
+      "unit": "user-runtime-dir@1000",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:34Z",
+      "unit": "ModemManager",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:34Z",
+      "unit": "postgresql@16-main",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:34Z",
+      "unit": "nvmf-autoconnect",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:34Z",
+      "unit": "ssh",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:34Z",
+      "unit": "rsyslog",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:34Z",
+      "unit": "apport",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:34Z",
+      "unit": "systemd-user-sessions",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:34Z",
+      "unit": "plymouth-quit-wait",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:35Z",
+      "unit": "plymouth-quit",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:35Z",
+      "unit": "user@1000",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:35Z",
+      "unit": "setvtrgb",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:35Z",
+      "unit": "systemd-timedated",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:37Z",
+      "unit": "postgresql",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:32:37Z",
+      "unit": "systemd-update-utmp-runlevel",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:37:33Z",
+      "unit": "update-notifier-download",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:39:33Z",
+      "unit": "fwupd-refresh",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:39:33Z",
+      "unit": "modprobe@sd_mod",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:39:33Z",
+      "unit": "fwupd",
+      "why": "no sar bucket covers this instant"
+    },
+    {
+      "at_utc": "2026-08-30T00:39:33Z",
+      "unit": "upower",
+      "why": "no sar bucket covers this instant"
+    }
+  ]
+}

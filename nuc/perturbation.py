@@ -48,6 +48,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 import sys
 from dataclasses import asdict, dataclass, field
@@ -616,6 +617,196 @@ def cost_ledger(fires: Iterable, swap_table: SarTable, date: str,
     }
 
 
+# --------------------------------------------------- attribution evidence
+
+# Round 406. `cost_ledger`'s `sole_attributable` flag means exactly one named
+# unit STARTED in a bucket that moved more than `LEDGER_MIN_BYTES`. Round 400
+# read that flag as a licence for the sentence "unit X cost this", and named
+# `fwupd-refresh` at 2026-08-31T01:57:33Z the only sole-attributable event of
+# the boot -- 67.68 MB, inherited from round 394, which had a sample of ONE.
+#
+# The flag cannot support that sentence, because it has no denominator.
+# `fwupd-refresh` fired **36 times** across the same boot and **33 of those 36
+# buckets moved zero bytes**; on sa30 alone it fired 23 times for 23 zeroes and
+# not one costly bucket. A unit whose own modal cost, measured 36 times, is
+# nothing is not the explanation for a 67 MB step -- and one that occupies 36
+# of the boot's 218 buckets is within 10 minutes of 16.5% of everything that
+# ever happens on this box, so being "the only name in the bucket" is what
+# chance looks like for it, not evidence.
+#
+# This function is the missing denominator. It pools one or more per-day
+# ledgers and asks, of each unit, the three questions the flag skips:
+#
+#   1. CONSISTENCY -- of this unit's own fires, what fraction cost anything?
+#      Attribution claims a cause, and a cause absent from the majority of its
+#      own occurrences is not the cause; something else is separating the
+#      expensive fires from the free ones, and that something is unmeasured.
+#   2. CHANCE -- given that the unit occupies `n_distinct` of `N` buckets, how
+#      often would a unit placed at random cover this many of the `K` costly
+#      ones? Hypergeometric, then Bonferroni over every unit in the ledger,
+#      because the unit under test was CHOSEN by having been noticed.
+#   3. SEPARABILITY -- how many of its costly buckets does it hold alone? A
+#      hit shared with four other units carries no attributional information;
+#      that is round 400's own finding about the 04:00:03 bucket, applied to
+#      the one entry round 400 exempted from it.
+#
+# It deliberately cannot return "supported" from a single fire. One
+# observation has no within-unit replication, which is precisely the state
+# round 394 was in when the 67.7 MB attribution was first written down.
+
+ATTRIBUTION_MAX_FAMILY_P = 0.05      # conventional, and Bonferroni-corrected
+ATTRIBUTION_MIN_CONSISTENCY = 0.5    # a cause absent from most of its own
+                                     # occurrences is not the cause; 0.5 is the
+                                     # weakest line that can be defended at all
+ATTRIBUTION_MIN_FIRES = 2            # below this there is no replication
+
+
+def _hypergeom_atleast(N: int, K: int, n: int, h: int) -> float:
+    """P(a uniformly random n-subset of N buckets covers >= h of the K costly).
+
+    Exact, via `math.comb` -- the numbers here are tiny (N <= a few hundred)
+    and an exact tail beats a normal approximation that would be wrong in
+    exactly the small-K regime this box lives in (K is 1, 2 or 3 per day).
+    """
+    if n < 0 or h < 0 or K < 0 or n > N or K > N:
+        raise PerturbationError("hypergeometric arguments out of range")
+    if h <= 0:
+        return 1.0
+    lo, hi = h, min(K, n)
+    if lo > hi:
+        return 0.0
+    return sum(math.comb(K, i) * math.comb(N - K, n - i)
+               for i in range(lo, hi + 1)) / math.comb(N, n)
+
+
+@dataclass(frozen=True)
+class AttributionEvidence:
+    """Whether a ledger licenses "unit X cost this", and why or why not."""
+    unit: str
+    n_fires: int
+    n_distinct_buckets: int
+    n_costly: int
+    n_costly_distinct: int
+    n_clean: int                 # costly buckets this unit holds ALONE
+    n_zero_byte: int             # its fires whose bucket moved nothing
+    max_bucket_bytes: int
+    n_buckets: int
+    n_costly_buckets: int
+    occupancy: float             # n_distinct_buckets / n_buckets
+    consistency: float           # n_costly / n_fires
+    p_chance: float
+    n_units_tested: int
+    p_family: float
+    verdict: str
+    why: str
+
+    def as_dict(self) -> dict:
+        return asdict(self)
+
+
+def attribution_evidence(ledgers: Iterable,
+                         max_family_p: float = ATTRIBUTION_MAX_FAMILY_P,
+                         min_consistency: float = ATTRIBUTION_MIN_CONSISTENCY,
+                         min_fires: int = ATTRIBUTION_MIN_FIRES) -> dict:
+    """Pool `cost_ledger` results and grade every unit's attribution claim.
+
+    `ledgers` is one or more dicts as returned by `cost_ledger` -- typically
+    one per sar day-file, since `sar` writes one file per day and the costly
+    threshold is a property of the boot, not the day. Pooling is the point:
+    sa30 contributes 23 free `fwupd-refresh` fires that sa31 alone cannot see,
+    and those 23 are the whole refutation.
+
+    Buckets are pooled by `(date, bucket_end)` so two days' `02:00:05` are two
+    buckets, not one.
+    """
+    ledgers = list(ledgers)
+    if not ledgers:
+        raise PerturbationError("attribution_evidence needs at least one ledger")
+
+    N = sum(int(l["n_buckets"]) for l in ledgers)
+    K = sum(int(l["n_costly_buckets"]) for l in ledgers)
+
+    agg: dict = {}
+    for l in ledgers:
+        date = l.get("date") or ""
+        for e in l["entries"]:
+            u = agg.setdefault(e["unit"], {
+                "n_fires": 0, "n_costly": 0, "n_zero_byte": 0, "n_clean": 0,
+                "max_bytes": 0, "buckets": set(), "costly_buckets": set()})
+            key = (date, e["bucket_end"])
+            u["n_fires"] += 1
+            u["buckets"].add(key)
+            u["max_bytes"] = max(u["max_bytes"], int(e["bucket_swapped_bytes"]))
+            if int(e["bucket_swapped_bytes"]) == 0:
+                u["n_zero_byte"] += 1
+            if e["costly"]:
+                u["n_costly"] += 1
+                u["costly_buckets"].add(key)
+                if int(e["bucket_shared_by"]) == 1:
+                    u["n_clean"] += 1
+
+    n_tested = len(agg)
+    out = []
+    for unit, u in agg.items():
+        n_distinct = len(u["buckets"])
+        n_costly_distinct = len(u["costly_buckets"])
+        p_chance = _hypergeom_atleast(N, K, n_distinct, n_costly_distinct)
+        p_family = min(1.0, p_chance * n_tested)
+        consistency = u["n_costly"] / u["n_fires"] if u["n_fires"] else 0.0
+
+        if u["n_fires"] < min_fires:
+            verdict, why = "insufficient-data", (
+                f"{u['n_fires']} fire(s): no within-unit replication, so a cost "
+                f"and a coincidence are indistinguishable")
+        elif u["n_costly"] == 0:
+            verdict, why = "no-evidence", "never fired into a costly bucket"
+        elif u["n_clean"] == 0:
+            verdict, why = "shared-only", (
+                f"all {u['n_costly']} costly hit(s) shared the bucket with "
+                f"another unit; nothing separates them")
+        elif p_family > max_family_p:
+            verdict, why = "coincidence", (
+                f"occupies {n_distinct}/{N} buckets, so covering "
+                f"{n_costly_distinct} of {K} costly ones happens by chance with "
+                f"p={p_chance:.4f} (p={p_family:.4f} over {n_tested} units)")
+        elif consistency < min_consistency:
+            verdict, why = "coincidence", (
+                f"only {u['n_costly']} of its own {u['n_fires']} fires cost "
+                f"anything ({consistency:.1%}); {u['n_zero_byte']} moved zero "
+                f"bytes, so the unit alone does not determine the cost")
+        else:
+            verdict, why = "supported", (
+                f"{u['n_costly']} of {u['n_fires']} fires costly "
+                f"({consistency:.1%}), {u['n_clean']} in a bucket it holds "
+                f"alone, p={p_family:.4f}")
+
+        out.append(AttributionEvidence(
+            unit=unit, n_fires=u["n_fires"], n_distinct_buckets=n_distinct,
+            n_costly=u["n_costly"], n_costly_distinct=n_costly_distinct,
+            n_clean=u["n_clean"], n_zero_byte=u["n_zero_byte"],
+            max_bucket_bytes=u["max_bytes"], n_buckets=N, n_costly_buckets=K,
+            occupancy=n_distinct / N if N else 0.0, consistency=consistency,
+            p_chance=p_chance, n_units_tested=n_tested, p_family=p_family,
+            verdict=verdict, why=why))
+
+    out.sort(key=lambda e: (-e.n_fires, e.unit))
+    by_verdict: dict = {}
+    for e in out:
+        by_verdict[e.verdict] = by_verdict.get(e.verdict, 0) + 1
+    return {
+        "dates": [l.get("date") for l in ledgers],
+        "n_buckets": N,
+        "n_costly_buckets": K,
+        "n_units_tested": n_tested,
+        "max_family_p": max_family_p,
+        "min_consistency": min_consistency,
+        "min_fires": min_fires,
+        "by_verdict": by_verdict,
+        "supported": sorted(e.unit for e in out if e.verdict == "supported"),
+        "units": [e.as_dict() for e in out],
+    }
+
+
 def parse_unit_starts(text: str) -> list:
     """`journalctl -o short-iso` lines -> `Event(at_utc, unit)`.
 
@@ -678,6 +869,20 @@ def main(argv=None) -> int:
     sl.add_argument("--include-instrument", action="store_true",
                     help="do NOT exclude sysstat-collect (see LEDGER_EXCLUDE_UNITS)")
 
+    se = sub.add_parser("evidence",
+                        help="round 406: does a ledger actually license "
+                             "\"unit X cost this\"?")
+    se.add_argument("--ledger", action="append", required=True,
+                    metavar="FILE",
+                    help="JSON from `perturbation.py ledger`; repeat once per "
+                         "sar day-file -- pooling days is the point")
+    se.add_argument("--unit", default=None,
+                    help="report only this unit (default: every unit)")
+    se.add_argument("--max-family-p", type=float,
+                    default=ATTRIBUTION_MAX_FAMILY_P)
+    se.add_argument("--min-consistency", type=float,
+                    default=ATTRIBUTION_MIN_CONSISTENCY)
+
     args = p.parse_args(argv)
     if args.mode == "steps":
         table = parse_sar(_load(args.sar_r))
@@ -698,6 +903,15 @@ def main(argv=None) -> int:
             min_bytes=args.min_bytes,
             exclude_units=() if args.include_instrument
             else LEDGER_EXCLUDE_UNITS), indent=2))
+    elif args.mode == "evidence":
+        result = attribution_evidence(
+            [json.loads(_load(f)) for f in args.ledger],
+            max_family_p=args.max_family_p,
+            min_consistency=args.min_consistency)
+        if args.unit:
+            result = dict(result, units=[u for u in result["units"]
+                                         if u["unit"] == args.unit])
+        print(json.dumps(result, indent=2))
     elif args.mode == "timers":
         print(json.dumps([asdict(t) | {"avoidable": t.avoidable}
                           for t in NUC_TIMERS], indent=2))

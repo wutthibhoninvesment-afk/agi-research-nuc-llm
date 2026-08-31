@@ -928,8 +928,17 @@ def test_real_log_second_outage_started_at_the_tailscale_last_seen():
     # LastSeen-vs-first-check disagreement on the START side, asserted above.
     # `ongoing` is now DERIVED from the log rather than pinned, so this test
     # says the same thing whichever state the box is in.
+    # ROUND 406: round 352's derivation above was right for a log with two
+    # down streaks and wrong for one with three. `_last["verdict"] == "down"`
+    # asks "is the box down NOW", which answers whether the LAST streak is
+    # ongoing -- not this one. Round 406 opened a third down streak (406..406,
+    # ongoing) and the assertion claimed the CLOSED 298..346 streak was still
+    # running. Same defect class round 352 fixed, one level up: the expectation
+    # was derived from the log, but from the wrong part of it. A streak is
+    # ongoing iff it contains the newest record, which is a statement about the
+    # streak and cannot be falsified by a later, unrelated outage.
     _last = sorted(_real_log_records(), key=rc._sort_key)[-1]
-    assert second["ongoing"] is (_last["verdict"] == "down")
+    assert second["ongoing"] is (second["end_round"] == _last["round"])
     # Same treatment: `max_possible_span_s is None` was only true BECAUSE the
     # outage was open (an ongoing streak has no end bound to compute one
     # from). The durable statement is the conditional, which holds in both
@@ -2101,8 +2110,27 @@ def test_a_capture_window_that_ends_before_the_log_does_loses_the_bound():
                                 silence=rc.make_silence_fn(capture))
     assert full["max_unobserved_outage_s"] <= step_s + 1
 
-    # stop covering one second before the newest record
-    cutoff = rc._parse_ts(recs[-1]["checked_at_utc"]).timestamp() - 1
+    # ROUND 406: this used to stop one second before the NEWEST record and
+    # assert that the newest gap reverted to full length. That silently assumed
+    # the newest record is `up`. `max_unobserved_outage_s` is by definition the
+    # worst unwitnessed gap INSIDE AN UP STREAK (`_worst(lambda v: v == "up")`)
+    # -- a gap that ends in a `down` check is a transition, and an outage
+    # cannot hide in it because the outage is exactly what the check found. So
+    # when round 406's down record arrived, the final gap stopped being
+    # eligible and the assertion compared 301.0 against the whole 4h42m
+    # up->down transition. The fixture pinned a fact about the world again,
+    # one layer below where round 382 fixed it: not an absolute window this
+    # time, but the assumption that the log ends in an up streak.
+    #
+    # Target the last gap the metric can actually see instead.
+    last_up = max(i for i, r in enumerate(recs) if r["verdict"] == "up")
+    first_of_streak = last_up
+    while first_of_streak > 0 and recs[first_of_streak - 1]["verdict"] == "up":
+        first_of_streak -= 1
+    assert last_up - first_of_streak >= 1, "need an up streak with at least one gap"
+    start_of_gap, end_of_gap = recs[last_up - 1], recs[last_up]
+
+    cutoff = rc._parse_ts(end_of_gap["checked_at_utc"]).timestamp() - 1
     truncated = dict(capture,
                      covers_to_utc=rc._fmt_ts(
                          datetime.fromtimestamp(cutoff, timezone.utc)),
@@ -2110,8 +2138,8 @@ def test_a_capture_window_that_ends_before_the_log_does_loses_the_bound():
     lost = rc.continuity_report(recs, boot_objs,
                                 silence=rc.make_silence_fn(truncated))
 
-    last_gap_s = (rc._parse_ts(recs[-1]["checked_at_utc"])
-                  - rc._parse_ts(recs[-2]["checked_at_utc"])).total_seconds()
+    last_gap_s = (rc._parse_ts(end_of_gap["checked_at_utc"])
+                  - rc._parse_ts(start_of_gap["checked_at_utc"])).total_seconds()
     assert lost["max_unobserved_outage_s"] >= last_gap_s
     assert lost["max_unobserved_outage_s"] > full["max_unobserved_outage_s"]
 

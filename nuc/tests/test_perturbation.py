@@ -346,6 +346,8 @@ def test_the_page_size_is_the_one_swap_analysis_already_had():
 # ------------------------------------------------ round 400: the cost ledger
 
 from nuc.perturbation import (  # noqa: E402
+    ATTRIBUTION_MAX_FAMILY_P, ATTRIBUTION_MIN_CONSISTENCY, ATTRIBUTION_MIN_FIRES,
+    attribution_evidence, _hypergeom_atleast,
     Event, LEDGER_BOUNDARY_SLACK_S, LEDGER_EXCLUDE_UNITS, LEDGER_MIN_BYTES,
     PerturbationError, cost_ledger, parse_sar, parse_unit_starts,
 )
@@ -489,3 +491,196 @@ def test_ledger_rejects_a_nonpositive_interval_and_a_negative_floor():
         cost_ledger([], t, "2026-08-31", interval_s=0)
     with pytest.raises(PerturbationError):
         cost_ledger([], t, "2026-08-31", min_bytes=-1)
+
+
+# ------------------------------------------------- attribution evidence (406)
+# Round 400 read `sole_attributable` as a licence for "unit X cost this" and
+# named `fwupd-refresh` 2026-08-31T01:57:33Z the boot's only such event, 67.68
+# MB, inherited from round 394's sample of one. `attribution_evidence` is the
+# denominator that was missing. These tests fix the three ways the flag can be
+# true while the claim is false, and pin the real capture that showed it.
+
+def _ledger(entries, n_buckets, n_costly_buckets, date="2026-08-31"):
+    """A minimal `cost_ledger`-shaped dict. `attribution_evidence` reads only
+    these keys, so the fake is honest about the coupling."""
+    return {"date": date, "n_buckets": n_buckets,
+            "n_costly_buckets": n_costly_buckets, "entries": entries}
+
+
+def _entry(unit, bucket_end, byts, shared_by=1, costly=None):
+    return {"unit": unit, "bucket_end": bucket_end,
+            "bucket_swapped_bytes": byts, "bucket_shared_by": shared_by,
+            "costly": (byts >= LEDGER_MIN_BYTES) if costly is None else costly}
+
+
+def test_hypergeometric_tail_at_zero_hits_is_certain_and_above_K_impossible():
+    assert _hypergeom_atleast(100, 3, 10, 0) == 1.0
+    assert _hypergeom_atleast(100, 3, 10, 4) == 0.0
+
+
+def test_hypergeometric_matches_a_hand_computed_case():
+    """P(both costly buckets inside a random 13-subset of 79) = 13*12/(79*78)."""
+    assert _hypergeom_atleast(79, 2, 13, 2) == pytest.approx(156 / 6162)
+
+
+def test_hypergeometric_rejects_out_of_range_arguments():
+    with pytest.raises(pt.PerturbationError):
+        _hypergeom_atleast(10, 2, 11, 1)
+
+
+def test_a_single_fire_can_never_be_supported_however_expensive():
+    """Round 394's actual epistemic position: one fire, one big bucket, held
+    alone. It is not evidence -- there is nothing to replicate against."""
+    led = _ledger([_entry("fwupd-refresh", "02:00:05", 67_682_304)], 79, 1)
+    ev = attribution_evidence([led])["units"][0]
+    assert ev["n_fires"] == 1
+    assert ev["n_clean"] == 1
+    assert ev["verdict"] == "insufficient-data"
+    assert "replication" in ev["why"]
+
+
+def test_a_unit_whose_own_fires_are_mostly_free_is_a_coincidence():
+    """The refutation in miniature: one expensive bucket, many zero ones."""
+    entries = [_entry("fwupd-refresh", "02:00:05", 67_682_304)]
+    entries += [_entry("fwupd-refresh", f"{h:02d}:00:05", 0) for h in range(3, 20)]
+    ev = attribution_evidence([_ledger(entries, 79, 1)])["units"][0]
+    assert ev["n_fires"] == 18 and ev["n_zero_byte"] == 17
+    assert ev["consistency"] == pytest.approx(1 / 18)
+    assert ev["verdict"] == "coincidence"
+
+
+def test_a_costly_hit_shared_with_another_unit_is_never_attributable():
+    entries = [_entry("apt-daily", "04:00:03", 220_889_088, shared_by=5),
+               _entry("apt-daily", "05:00:05", 0)]
+    ev = attribution_evidence([_ledger(entries, 79, 1)])["units"][0]
+    assert ev["n_costly"] == 1 and ev["n_clean"] == 0
+    assert ev["verdict"] == "shared-only"
+
+
+def test_a_unit_that_is_consistent_clean_and_rare_IS_supported():
+    """The gate must be passable, or it is a way of never believing anything."""
+    entries = [_entry("greedy", f"0{h}:00:05", 220_889_088) for h in (2, 3, 4)]
+    entries += [_entry("quiet", f"1{h}:00:05", 0) for h in (0, 1, 2)]
+    ev = {u["unit"]: u for u in
+          attribution_evidence([_ledger(entries, 200, 3)])["units"]}
+    assert ev["greedy"]["verdict"] == "supported"
+    assert ev["greedy"]["consistency"] == 1.0
+    assert ev["greedy"]["p_family"] <= ATTRIBUTION_MAX_FAMILY_P
+
+
+def test_the_family_correction_uses_every_unit_in_the_ledger():
+    """The unit under test was CHOSEN by having been noticed, so the p-value
+    owes a correction over all the units that could have been noticed."""
+    entries = [_entry("greedy", f"0{h}:00:05", 220_889_088) for h in (2, 3, 4)]
+    entries += [_entry(f"other{i}", f"2{i}:00:05", 0) for i in range(8)]
+    res = attribution_evidence([_ledger(entries, 200, 3)])
+    g = next(u for u in res["units"] if u["unit"] == "greedy")
+    assert res["n_units_tested"] == 9
+    assert g["p_family"] == pytest.approx(min(1.0, g["p_chance"] * 9))
+
+
+def test_pooling_two_days_keeps_same_named_buckets_distinct():
+    """sa30's 02:00:05 and sa31's 02:00:05 are two buckets, not one."""
+    a = _ledger([_entry("u", "02:00:05", 0)], 100, 1, date="2026-08-30")
+    b = _ledger([_entry("u", "02:00:05", 0)], 79, 2, date="2026-08-31")
+    res = attribution_evidence([a, b])
+    assert res["n_buckets"] == 179 and res["n_costly_buckets"] == 3
+    assert res["units"][0]["n_distinct_buckets"] == 2
+
+
+def test_attribution_evidence_needs_at_least_one_ledger():
+    with pytest.raises(pt.PerturbationError):
+        attribution_evidence([])
+
+
+def test_the_thresholds_are_decisions_not_discoveries():
+    assert ATTRIBUTION_MAX_FAMILY_P == 0.05
+    assert ATTRIBUTION_MIN_CONSISTENCY == 0.5
+    assert ATTRIBUTION_MIN_FIRES == 2
+
+
+# ------------------------------------- the real capture, as a regression pin
+# `state/nuc-capture-r400/` is the ONLY surviving copy of this data off the
+# box, and the box has been down since 2026-08-31T16:30Z. These tests read it
+# directly rather than a hand-rolled fixture, and they are deliberately NOT
+# skipped when it is absent: a missing capture is the failure, not a reason to
+# pass quietly.
+
+import pathlib  # noqa: E402
+
+_CAP = pathlib.Path(__file__).resolve().parents[2] / "state" / "nuc-capture-r400"
+
+
+def _sar_sections(text):
+    secs, cur = {}, None
+    for line in text.splitlines():
+        if line.startswith("### "):
+            cur = line[4:].strip()
+            secs[cur] = []
+        elif cur is not None:
+            secs[cur].append(line)
+    return {k: "\n".join(v) for k, v in secs.items()}
+
+
+def _boot_ledgers():
+    secs = _sar_sections((_CAP / "sar-all.txt").read_text())
+    fires = pt.parse_unit_starts((_CAP / "unit-starts.txt").read_text())
+    return [cost_ledger(fires, parse_sar(secs[f"SAR_W_{d}"]), date)
+            for d, date in (("SA30", "2026-08-30"), ("SA31", "2026-08-31"))]
+
+
+def test_the_banked_capture_still_reproduces_round_400s_headline_ledger():
+    """62 named fires, 6 in a costly bucket, 1 sole-attributable. If this
+    drifts, the disagreement is with round 400's published numbers."""
+    a, b = _boot_ledgers()
+    assert a["n_fires"] + b["n_fires"] == 62
+    assert a["n_fires_in_costly_bucket"] + b["n_fires_in_costly_bucket"] == 6
+    assert a["n_sole_attributable"] + b["n_sole_attributable"] == 1
+    sole = [e for e in b["entries"] if e["sole_attributable"]]
+    assert len(sole) == 1
+    assert sole[0]["unit"] == "fwupd-refresh"
+    assert sole[0]["at_utc"] == "2026-08-31T01:57:33Z"
+    assert sole[0]["bucket_swapped_bytes"] == 67_682_304
+
+
+def test_fwupd_refresh_fires_36_times_and_33_of_them_cost_nothing():
+    """The measurement that drops the attribution. On sa30 alone it fired 23
+    times for 23 zero-byte buckets -- an independent replication, on the same
+    boot and the same configuration, in which the claimed cause is present and
+    the claimed effect never appears."""
+    ev = {u["unit"]: u for u in
+          attribution_evidence(_boot_ledgers())["units"]}["fwupd-refresh"]
+    assert ev["n_fires"] == 36
+    assert ev["n_zero_byte"] == 33
+    assert ev["n_costly"] == 2
+    assert ev["n_clean"] == 1          # only the 02:00:05 bucket is separable
+    assert ev["occupancy"] == pytest.approx(36 / 218, abs=1e-4)
+    assert ev["verdict"] == "coincidence"
+
+
+def test_not_one_unit_in_the_whole_boot_licenses_an_attribution():
+    res = attribution_evidence(_boot_ledgers())
+    assert res["n_buckets"] == 218 and res["n_costly_buckets"] == 3
+    assert res["n_units_tested"] == 16
+    assert res["supported"] == []
+    assert "supported" not in res["by_verdict"]
+
+
+def test_cli_evidence_pools_ledger_files_and_filters_by_unit(tmp_path):
+    paths = []
+    for led in _boot_ledgers():
+        p = tmp_path / f"{led['date']}.json"
+        p.write_text(json.dumps(led))
+        paths.append(str(p))
+    argv = ["evidence"]
+    for p in paths:
+        argv += ["--ledger", p]
+    out = subprocess.run(
+        [sys.executable, "nuc/perturbation.py", *argv, "--unit", "fwupd-refresh"],
+        capture_output=True, text=True,
+        cwd=str(pathlib.Path(__file__).resolve().parents[2]))
+    assert out.returncode == 0, out.stderr
+    got = json.loads(out.stdout)
+    assert [u["unit"] for u in got["units"]] == ["fwupd-refresh"]
+    assert got["units"][0]["verdict"] == "coincidence"
+    assert got["n_units_tested"] == 16      # the filter must not shrink the family

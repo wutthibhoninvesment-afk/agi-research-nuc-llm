@@ -623,6 +623,14 @@
    "where": "knowledge/round-404-the-fact-that-looked-like-noise.md",
    "quote": "**11 HIT, 3 MISS,\n1 half-MISS, 1 unscorable, of 16**",
    "remainder": "One item is UNSCORABLE by round 404's own account and one is a HALF-MISS (P11: a line bound and a statement count are different pins that the prediction had bundled into one claim; the line coordinate moved and `__nstmts == 268` did not). Both are named in the round file rather than rounded into the HIT column. Entered by round 405 (skills B) for the same reason as the 403 row above -- the scoring was done and published, only the ledger row was missing."
+  },
+  "406": {
+   "bank": "nuc/predictions-e-round406.md",
+   "status": "scored",
+   "scored_by": 406,
+   "where": "knowledge/round-406-nuc-e-the-witness-that-was-present-at-everything.md",
+   "quote": "9 HIT, 2 MISS, 1 PARTIAL of 12",
+   "note": "None unscored; all 12 carry a verdict in that file's \u00a77 table. Three entries are worth reading rather than counting. P3 is a MISS that made the round's case HARDER before it made it easier: it predicted fwupd-refresh would be in ONE costly bucket and it is in BOTH of sa31's, which read as evidence FOR the attribution the round was refuting (p=0.0253) until the shared-bucket and replication arguments were separated out. P12 is a MISS whose refutation is independent support for the round's conclusion -- it predicted a costly bucket with no named fire on sa31, where there is none, and sa30's single costly bucket has exactly that property. P10 is PARTIAL and says so: its first two clauses are exact, and its '>= 8 further sar activity types' was never tested because the round modelled 7 and dropped -y/-H as not worth capturing. P7 is a HIT that the bank itself disclosed as already-measured at writing time, so it is not evidence of foresight and is labelled that way in the table."
   }
  }
 }

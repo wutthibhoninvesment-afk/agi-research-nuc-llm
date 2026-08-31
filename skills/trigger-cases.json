@@ -1628,5 +1628,31 @@
    "repeats-are-not-replicates"
   ],
   "prompt": "We ran the eval once with --iterations 8 and one prompt variant scored worse. Is that enough to say the variant is worse, or do I need to run it differently?"
+ },
+ {
+  "id": "cnd-near",
+  "expect": [
+   "cause-needs-a-denominator"
+  ],
+  "prompt": "Our nightly p99 blew up at 03:10 and the only cron job in that ten-minute window was the log-rotation timer. I'm going to write it up as the root cause and mask the timer. Sanity-check me?"
+ },
+ {
+  "id": "cnd-mid",
+  "expect": [
+   "cause-needs-a-denominator"
+  ],
+  "prompt": "This attribution tool has a `sole_attributable` field and it flags exactly one event in the whole trace. The last two incident reports both quoted it. Is that enough to say that service caused the memory spike?"
+ },
+ {
+  "id": "cnd-far",
+  "expect": [
+   "cause-needs-a-denominator"
+  ],
+  "prompt": "Weird pattern: the same background job shows up in the window of basically every incident we've had this quarter. Feels like we finally found the common root cause \u2014 how should I present it to the team?"
+ },
+ {
+  "id": "cnd-neg-mechanism",
+  "expect": [],
+  "prompt": "I bisected the regression to commit a3f1c2 and reverting it makes the failing test pass every time. Can you help me write the fix forward instead of leaving the revert in place?"
  }
 ]

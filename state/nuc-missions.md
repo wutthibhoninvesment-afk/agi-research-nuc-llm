@@ -1605,3 +1605,76 @@ item 6, third occurrence). The authority is
   FRESH boot; (6) harness(A) owns wiring `nuc/run_checks_fast.sh` into
   `run_driver.sh` — 0 references, third round carried (note that
   `skills/run_checks_fast.sh` IS wired, round 363, so a basename grep lies).
+
+## Round 406 (NUC-integration E) — 2026-08-31, box **DOWN** the whole round; first down window since the 298–346 outage, ending a nine-round up streak on boot `43e0c767`
+
+- **Reachability.** `tailscale status`: `pgain-nuc` offline,
+  `tailscale_last_seen 2026-08-31T16:30:00.1Z`. Real ssh probe to
+  `jab@100.78.44.111` timed out (rc 255). Two consecutive ssh failures, so
+  probing stopped per CLAUDE.md. Logged as record 45 of
+  `state/nuc-reachability-log.jsonl` (`verdict: down`, `source: live`,
+  `precision: precise`). Outage start bracket: after round 400's last contact
+  **13:14:19Z** (up), at or after **16:30:00.1Z**.
+- **Round 400's item 3 answered anyway, offline — DROP the fwupd attribution.**
+  Round 400 committed its raw captures (`state/nuc-capture-r400/`, git-tracked),
+  so the whole-boot ledger is re-runnable with the box unreachable. It
+  reproduces round 400's headline exactly (62 fires, 6 costly, 1
+  sole-attributable, 67,682,304 B). The number nobody had computed:
+  **`fwupd-refresh` fired 36 times in that boot and 33 of the 36 buckets moved
+  ZERO bytes.** On sa30 alone: 23 fires, 23 zeroes, 0 costly hits — an
+  independent replication in which the claimed cause is present 23 times and
+  the effect never appears. Occupancy 36/218 = **16.5 %**, so it is within ten
+  minutes of one event in six on this box. The 02:00:05Z 67.68 MB event is
+  **unexplained**, as round 388 originally recorded it.
+- **The gate is now in the tool.** `attribution_evidence` in
+  `nuc/perturbation.py` (+ `evidence` CLI mode) grades every unit
+  insufficient-data / no-evidence / shared-only / coincidence / supported, with
+  an exact hypergeometric tail Bonferroni-corrected over the ledger's units.
+  Over the whole boot: 16 units tested, **`supported: []`** — this instrument,
+  over this record, licenses no causal claim at all.
+- **THE CAPTURE IS FILTERED AND NOTHING SAID SO.** `unit-starts.txt` holds 358
+  `Starting` lines and **zero `Finished` lines** — it was grepped for
+  `Starting|Started`, and a systemd oneshot logs `Finished`, never `Started`.
+  **330 of 358 fires (92.2 %) have no derivable duration**, and all 13
+  housekeeping units in the ledger are in the 62-of-87 set that never gets a
+  terminal line. The obvious stronger test — attribute by the interval a unit
+  RAN, not the instant it STARTED — is unrunnable from banked data.
+- **Banked `sar` coverage, now a checked claim:** `-r` and `-W` for all nine
+  day files; `-B` for sa30/sa31 only; **seven further activities (`-u -q -S -b
+  -d -n -w`) for zero days.** They exist only in the binary `saNN` files and
+  `sar` renders only what you ask for. **`sa23` is overwritten 2026-09-23.**
+- **New: `nuc/capture_manifest.py`** (`audit` / `plan`, 17 tests). Round 400's
+  capture grades **`filtered`, 3 blocking gaps**. `plan` emits a `bash -n`-clean
+  script that tars the binaries, captures every activity with unambiguous
+  markers, takes the journal **unfiltered**, and re-audits itself `--strict`.
+  Round 400 wrote the same remediation as prose marked TIME-CRITICAL and the
+  next E round opened to an unreachable box; a command can be run in thirty
+  seconds, a paragraph has to be read and retyped.
+- Two world-fact pins in `test_reachability_check.py` went red purely because
+  round 406's own `down` record entered the live log — both fixed to derive
+  from the data (see the round file §6). Neither was a code regression.
+- Built: `attribution_evidence` + `evidence` CLI in `nuc/perturbation.py` (+15
+  tests); `nuc/capture_manifest.py` (new, 17 tests);
+  `skills/cause-needs-a-denominator/` (+4 trigger cases, registered unprobed).
+  Tests **606 → 638**, all green; audit 23/18/0.783/0 transform risks. Skills
+  corpus 7 checkers, **0 errors**. **9 HIT, 2 MISS, 1 PARTIAL of 12.**
+- Hygiene: no contact with the box was possible; two ssh attempts, both timed
+  out, then stopped. No scp, no writes on the box, no unit restarted. **Port
+  8001 never contacted; no engine request of any kind.** Every module added is
+  pure text-in/dict-out and opens no socket.
+- **Next E round, in order:** (1) reachability check first; **if UP, run
+  `python3 nuc/capture_manifest.py plan --capture state/nuc-capture-r400 > /tmp/cap.sh && bash /tmp/cap.sh`
+  before anything else** — one command, ~2 MB, closes all three blocking gaps
+  and self-verifies; (2) with `Finished` lines, run the interval-attribution
+  and re-grade the 02:00:05Z event; (3) determine why `fwupd-refresh.timer`
+  fires ~hourly rather than daily (36 fires in 36 h, gaps 24–95 min) — needs
+  `Failed`/`Finished` to separate a retry loop from a healthy re-trigger; (4)
+  `supported: []` may mean the 10-minute `sar` window is too coarse to
+  attribute anything here — the `sar -r` `Committed_AS` channel is banked for
+  all nine days and is **runnable offline on the next DOWN round**; (5) still
+  blocked on the operator: `--cap 196` and the E3 A/B, and any A/B must record
+  each unit's occupancy over the whole record, not just which fired; (6) round
+  370's item 3 needs a FRESH boot — the `43e0c767` streak has ended, so the
+  next up-round may satisfy it for free; capture `uptime -s` first; (7)
+  harness(A) still owns wiring `nuc/run_checks_fast.sh` into `run_driver.sh` —
+  0 references, **fourth round carried**.
