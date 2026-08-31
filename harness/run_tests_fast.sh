@@ -90,4 +90,23 @@ python3 harness/swe/slowtier.py status || true
 echo
 python3 harness/pristine_check.py status || true
 
+# Round 403 (harness A): and whether a PREVIOUS round left a suite RUNNING.
+# One `/proc` walk, milliseconds, and DIAGNOSTIC ONLY (`|| true`, `rc` is
+# still the fast tier's).
+#
+# The gap this closes is not hypothetical and not old. Round 402 left two
+# full suites running past its own commit; round 403 found them 27 minutes
+# later still holding this box's single CPU, and one of them had written an
+# `F` to a log whose path round 402 recorded nowhere. That `F` was a real
+# regression — a stale `whence_slow` count pin in
+# `languages/whence/tests/test_self_hosting.py` — which the fast tier
+# deselects and which the full tier had not caught in twelve rounds.
+#
+# `scan` keys on cwd, not argv: every suite this program runs has the same
+# argv, so argv cannot tell them apart. Our own driver -> wrapper -> claude
+# chain is excluded by ancestry, so a quiet box prints `verdict=clean`
+# rather than six lines of ourselves.
+echo
+python3 harness/procreap.py scan --no-record || true
+
 exit $rc

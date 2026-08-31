@@ -1,0 +1,29 @@
+
+==================================== ERRORS ====================================
+_____________ ERROR collecting tests/test_field_corpus_selector.py _____________
+tests/test_field_corpus_selector.py:38: in <module>
+    json.load(open(C.FIELD_CENSUS, encoding="utf-8"))["file_md5"])
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/whence-pristine/state/whence/round-384/field-names.json'
+______________________ ERROR collecting tests/test_v33.py ______________________
+tests/test_v33.py:305: in <module>
+    corpus_pin = pytest.mark.skipif(_corpus_unchanged() is not None,
+                                    ^^^^^^^^^^^^^^^^^^^
+tests/test_v33.py:294: in _corpus_unchanged
+    census = json.load(open(CENSUS, encoding="utf-8"))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/whence-pristine/languages/../state/whence/round-384/field-names.json'
+______________________ ERROR collecting tests/test_v34.py ______________________
+tests/test_v34.py:521: in <module>
+    corpus_pin = pytest.mark.skipif(_corpus_unchanged() is not None,
+                                    ^^^^^^^^^^^^^^^^^^^
+tests/test_v34.py:511: in _corpus_unchanged
+    census = json.load(open(CENSUS, encoding="utf-8"))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/whence-pristine/languages/../state/whence/round-384/field-names.json'
+=========================== short test summary info ============================
+ERROR tests/test_field_corpus_selector.py - FileNotFoundError: [Errno 2] No s...
+ERROR tests/test_v33.py - FileNotFoundError: [Errno 2] No such file or direct...
+ERROR tests/test_v34.py - FileNotFoundError: [Errno 2] No such file or direct...
+!!!!!!!!!!!!!!!!!!! Interrupted: 3 errors during collection !!!!!!!!!!!!!!!!!!!!
+3 errors in 5.74s

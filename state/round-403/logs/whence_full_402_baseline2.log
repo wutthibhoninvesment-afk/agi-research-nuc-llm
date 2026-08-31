@@ -1,0 +1,2751 @@
+........................................................................ [  3%]
+........................................................................ [  7%]
+........................................................................ [ 11%]
+........................................................................ [ 14%]
+........................................................................ [ 18%]
+........................................................................ [ 22%]
+..................................................sss................... [ 26%]
+........................................................................ [ 29%]
+........................................................................ [ 33%]
+........................................................................ [ 37%]
+................F....................................................... [ 41%]
+........................................................................ [ 44%]
+........................................................................ [ 48%]
+...........................................FFFFsssFF.....F.............. [ 52%]
+..................FF.................................................... [ 56%]
+........................................................................ [ 59%]
+........................................................................ [ 63%]
+........................................................................ [ 67%]
+........................................................................ [ 71%]
+...........................FFFF...F..................................FF. [ 74%]
+...........F...FF....................................................... [ 78%]
+..FFFF.............FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF.................F.F [ 82%]
+.........FFFF........................................................... [ 85%]
+........................................................FFFFFFF.F....F.. [ 89%]
+..EEEEEEE.EEEFEEEFFFEEEEEEFFFFFEFFEEEEEEEEEEF...................F.F....F [ 93%]
+FFF.............F....FFFFFEEEFFFF.........................FFFEEEEEE..FFF [ 97%]
+.FEEEE................F.EEEFE.EEEEEEEEEFFF............                   [100%]
+==================================== ERRORS ====================================
+_______________ ERROR at setup of test_every_divergence_is_named _______________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v29.py:375: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v29.py:337: FileNotFoundError
+____________ ERROR at setup of test_each_exemption_is_load_bearing _____________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v29.py:375: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v29.py:337: FileNotFoundError
+__________ ERROR at setup of test_the_agreement_rate_does_not_regress __________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v29.py:375: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v29.py:337: FileNotFoundError
+_____ ERROR at setup of test_the_exemption_classes_are_the_measured_sizes ______
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v29.py:375: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v29.py:337: FileNotFoundError
+______ ERROR at setup of test_the_provenance_family_agrees_with_the_host _______
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v30.py:194: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v30.py:83: FileNotFoundError
+______________ ERROR at setup of test_the_two_v29_pins_are_exact _______________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v30.py:194: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v30.py:83: FileNotFoundError
+____ ERROR at setup of test_the_label_split_is_exact_for_every_non_miss_op _____
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v30.py:194: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v30.py:83: FileNotFoundError
+__ ERROR at setup of test_a_shared_node_is_over_reported_never_under_reported __
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v30.py:194: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v30.py:83: FileNotFoundError
+__________ ERROR at setup of test_every_guest_step_reports_line_zero ___________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v30.py:194: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v30.py:83: FileNotFoundError
+__________ ERROR at setup of test_the_guest_never_merges_a_tail_loop ___________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v30.py:194: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v30.py:83: FileNotFoundError
+_ ERROR at setup of test_diverge_and_contrast_now_answer_from_the_guest_history _
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v30.py:194: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v30.py:83: FileNotFoundError
+_ ERROR at setup of test_a_history_over_the_budget_misses_instead_of_truncating _
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v30.py:194: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v30.py:83: FileNotFoundError
+_ ERROR at setup of test_the_budget_is_declared_once_and_the_message_reads_it __
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v30.py:194: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v30.py:83: FileNotFoundError
+____ ERROR at setup of test_an_unbound_name_reports_the_name_as_its_detail _____
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:104: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:97: FileNotFoundError
+___ ERROR at setup of test_a_typed_mismatch_reports_the_label_as_its_detail ____
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:104: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:97: FileNotFoundError
+______ ERROR at setup of test_a_guarded_builtin_miss_keeps_every_argument ______
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:104: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:97: FileNotFoundError
+_____ ERROR at setup of test_a_passed_through_miss_is_still_a_success_node _____
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:104: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:97: FileNotFoundError
+____ ERROR at setup of test_the_curated_inputs_are_still_curated_on_success ____
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:104: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:97: FileNotFoundError
+____ ERROR at setup of test_the_proxy_is_exact_against_the_real_guest_walk _____
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:104: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:97: FileNotFoundError
+__ ERROR at setup of test_the_guest_tail_ceiling_is_399_and_the_host_has_none __
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:104: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:97: FileNotFoundError
+_ ERROR at setup of test_the_guest_matches_the_host_byte_for_byte_on_a_diverging_corpus _
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:104: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:97: FileNotFoundError
+______ ERROR at setup of test_the_argument_guards_say_what_the_host_says _______
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:104: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:97: FileNotFoundError
+__ ERROR at setup of test_an_empty_run_list_and_a_single_run_have_no_origins ___
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:104: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:97: FileNotFoundError
+_ ERROR at setup of test_the_guest_reports_a_merged_loop_difference_differently _
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:104: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:97: FileNotFoundError
+_______ ERROR at setup of test_no_guest_node_can_carry_a_count_above_one _______
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:104: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:97: FileNotFoundError
+_ ERROR at setup of test_the_guest_shows_every_route_and_the_hosts_is_among_them _
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:104: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:97: FileNotFoundError
+_ ERROR at setup of test_a_shared_origin_is_over_reported_never_under_reported _
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:104: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:97: FileNotFoundError
+______ ERROR at setup of test_identity_is_an_optimisation_and_not_a_rule _______
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:104: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:97: FileNotFoundError
+________ ERROR at setup of test_the_walk_refuses_rather_than_truncating ________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:104: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:97: FileNotFoundError
+__ ERROR at setup of test_nothing_in_the_provenance_family_delegates_any_more __
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:104: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:97: FileNotFoundError
+__ ERROR at setup of test_host_and_guest_word_the_v33_miss_clause_identically __
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v33.py:436: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v33.py:421: FileNotFoundError
+_ ERROR at setup of test_the_clause_fires_on_an_unbound_name_and_on_nothing_else _
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v33.py:436: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v33.py:421: FileNotFoundError
+________ ERROR at setup of test_position_beats_vocabulary_on_both_sides ________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v33.py:436: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v33.py:421: FileNotFoundError
+_ ERROR at setup of test_host_and_guest_refuse_the_same_programs_at_the_same_place[let-tail] _
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v34.py:596: FileNotFoundError
+_ ERROR at setup of test_host_and_guest_refuse_the_same_programs_at_the_same_place[empty] _
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v34.py:596: FileNotFoundError
+_ ERROR at setup of test_host_and_guest_refuse_the_same_programs_at_the_same_place[fn-expr] _
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v34.py:596: FileNotFoundError
+_ ERROR at setup of test_host_and_guest_refuse_the_same_programs_at_the_same_place[eq] _
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v34.py:596: FileNotFoundError
+_ ERROR at setup of test_host_and_guest_refuse_the_same_programs_at_the_same_place[and] _
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v34.py:596: FileNotFoundError
+______ ERROR at setup of test_no_clause_of_v034_is_mirrored_in_the_guest _______
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v34.py:596: FileNotFoundError
+________ ERROR at setup of test_exactly_six_expect_sites_can_never_fail ________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v35.py:89: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/whence/parser.py'
+
+/tmp/wt-402/languages/whence/bench/expectsites.py:124: FileNotFoundError
+__________ ERROR at setup of test_no_expect_site_is_merely_unreached ___________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v35.py:89: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/whence/parser.py'
+
+/tmp/wt-402/languages/whence/bench/expectsites.py:124: FileNotFoundError
+_ ERROR at setup of test_the_live_sites_are_twenty_two_and_all_of_them_raised __
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v35.py:89: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/whence/parser.py'
+
+/tmp/wt-402/languages/whence/bench/expectsites.py:124: FileNotFoundError
+_ ERROR at setup of test_no_message_an_author_can_see_names_an_implementation_symbol _
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v35.py:89: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/whence/parser.py'
+
+/tmp/wt-402/languages/whence/bench/expectsites.py:124: FileNotFoundError
+___ ERROR at setup of test_the_renderer_agrees_on_every_token_in_the_corpus ____
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v36.py:60: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/tmp/wt-402/languages/whence/bench/showtok.py:172: in sweep
+    ???
+/tmp/wt-402/languages/whence/bench/showtok.py:142: in guest_shows
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/bench/showtok.py:103: FileNotFoundError
+_ ERROR at setup of test_the_corpus_reaches_every_token_type_the_lexer_can_emit _
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v36.py:60: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/tmp/wt-402/languages/whence/bench/showtok.py:172: in sweep
+    ???
+/tmp/wt-402/languages/whence/bench/showtok.py:142: in guest_shows
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/bench/showtok.py:103: FileNotFoundError
+___________ ERROR at setup of test_the_corpus_reaches_every_keyword ____________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v36.py:60: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/tmp/wt-402/languages/whence/bench/showtok.py:172: in sweep
+    ???
+/tmp/wt-402/languages/whence/bench/showtok.py:142: in guest_shows
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/bench/showtok.py:103: FileNotFoundError
+__ ERROR at setup of test_the_two_known_residuals_are_absent_from_the_corpus ___
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v36.py:60: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/tmp/wt-402/languages/whence/bench/showtok.py:172: in sweep
+    ???
+/tmp/wt-402/languages/whence/bench/showtok.py:142: in guest_shows
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/bench/showtok.py:103: FileNotFoundError
+___ ERROR at setup of test_the_guest_repr_matches_python_repr_on_every_case ____
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v36.py:189: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/bench/showtok.py:103: FileNotFoundError
+_ ERROR at setup of test_each_host_what_site_has_the_same_guest_sentence[field name after '.'] _
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v36.py:239: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/bench/showtok.py:103: FileNotFoundError
+_ ERROR at setup of test_each_host_what_site_has_the_same_guest_sentence[field name (record)] _
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v36.py:239: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/bench/showtok.py:103: FileNotFoundError
+_ ERROR at setup of test_each_host_what_site_has_the_same_guest_sentence[field name (shape)] _
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v36.py:239: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/bench/showtok.py:103: FileNotFoundError
+_ ERROR at setup of test_each_host_what_site_has_the_same_guest_sentence[parameter name] _
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v36.py:239: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/bench/showtok.py:103: FileNotFoundError
+_ ERROR at setup of test_each_host_what_site_has_the_same_guest_sentence[effect name] _
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v36.py:239: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/bench/showtok.py:103: FileNotFoundError
+_ ERROR at setup of test_each_host_what_site_has_the_same_guest_sentence['@{' after shape name] _
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v36.py:239: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/bench/showtok.py:103: FileNotFoundError
+_ ERROR at setup of test_each_host_what_site_has_the_same_guest_sentence[a name (control)] _
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v36.py:239: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/bench/showtok.py:103: FileNotFoundError
+_ ERROR at setup of test_each_host_what_site_has_the_same_guest_sentence['{' (control)] _
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v36.py:239: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/bench/showtok.py:103: FileNotFoundError
+=================================== FAILURES ===================================
+_____________________ test_fast_path_speeds_up_a_tail_loop _____________________
+
+    @pytest.mark.whence_slow
+    def test_fast_path_speeds_up_a_tail_loop():
+        """Relative, so it holds on a loaded machine: the same loop with the
+        fast path off must be clearly slower (absolute numbers: bench/)."""
+        import time
+    
+        def timed(**kw):
+            interp = Interpreter(max_depth=10 ** 6, **kw)
+            gc.collect()
+            gc.disable()             # measure the evaluator, not the collector
+            t0 = time.time()
+            try:
+                interp.run(LOOP + "let s = go(20000, 0)")
+            finally:
+                gc.enable()
+            return time.time() - t0, interp
+        slow, si = timed(fast=False)
+        fast, fi = timed(fast=True)
+        assert si.fast_hits == 0 and fi.fast_hits > 0
+>       assert fast * 1.4 < slow, (fast, slow)
+E       AssertionError: (0.6164183616638184, 0.8520517349243164)
+E       assert (0.6164183616638184 * 1.4) < 0.8520517349243164
+
+tests/test_v04.py:308: AssertionError
+________________ test_three_way_on_big_examples[self_eval.lang] ________________
+
+name = 'self_eval.lang'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v10.py:428: FileNotFoundError
+__________ test_ref_diff_same_on_identical_copy_and_diff_on_sabotage ___________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v10.py:462: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/tmp/wt-402/languages/whence/tests/test_v10.py:446: in _copy_package
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+src = '/tmp/wt-402/languages/whence/whence'
+dst = '/tmp/whence_refdiff_r5l1gakm/whence_ref', symlinks = False
+ignore = <function ignore_patterns.<locals>._ignore_patterns at 0x77a1cc231620>
+copy_function = <function copy2 at 0x77a1e49dbc40>
+ignore_dangling_symlinks = False, dirs_exist_ok = False
+
+    def copytree(src, dst, symlinks=False, ignore=None, copy_function=copy2,
+                 ignore_dangling_symlinks=False, dirs_exist_ok=False):
+        """Recursively copy a directory tree and return the destination directory.
+    
+        If exception(s) occur, an Error is raised with a list of reasons.
+    
+        If the optional symlinks flag is true, symbolic links in the
+        source tree result in symbolic links in the destination tree; if
+        it is false, the contents of the files pointed to by symbolic
+        links are copied. If the file pointed by the symlink doesn't
+        exist, an exception will be added in the list of errors raised in
+        an Error exception at the end of the copy process.
+    
+        You can set the optional ignore_dangling_symlinks flag to true if you
+        want to silence this exception. Notice that this has no effect on
+        platforms that don't support os.symlink.
+    
+        The optional ignore argument is a callable. If given, it
+        is called with the `src` parameter, which is the directory
+        being visited by copytree(), and `names` which is the list of
+        `src` contents, as returned by os.listdir():
+    
+            callable(src, names) -> ignored_names
+    
+        Since copytree() is called recursively, the callable will be
+        called once for each directory that is copied. It returns a
+        list of names relative to the `src` directory that should
+        not be copied.
+    
+        The optional copy_function argument is a callable that will be used
+        to copy each file. It will be called with the source path and the
+        destination path as arguments. By default, copy2() is used, but any
+        function that supports the same signature (like copy()) can be used.
+    
+        If dirs_exist_ok is false (the default) and `dst` already exists, a
+        `FileExistsError` is raised. If `dirs_exist_ok` is true, the copying
+        operation will continue if it encounters existing directories, and files
+        within the `dst` tree will be overwritten by corresponding files from the
+        `src` tree.
+        """
+        sys.audit("shutil.copytree", src, dst)
+>       with os.scandir(src) as itr:
+             ^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/whence'
+
+/usr/lib/python3.12/shutil.py:598: FileNotFoundError
+____________ test_ref_diff_counters_flag_catches_a_mode_only_change ____________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v10.py:489: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/tmp/wt-402/languages/whence/tests/test_v10.py:446: in _copy_package
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+src = '/tmp/wt-402/languages/whence/whence'
+dst = '/tmp/whence_refdiff_bpbdxx01/whence_ref', symlinks = False
+ignore = <function ignore_patterns.<locals>._ignore_patterns at 0x77a1cc230360>
+copy_function = <function copy2 at 0x77a1e49dbc40>
+ignore_dangling_symlinks = False, dirs_exist_ok = False
+
+    def copytree(src, dst, symlinks=False, ignore=None, copy_function=copy2,
+                 ignore_dangling_symlinks=False, dirs_exist_ok=False):
+        """Recursively copy a directory tree and return the destination directory.
+    
+        If exception(s) occur, an Error is raised with a list of reasons.
+    
+        If the optional symlinks flag is true, symbolic links in the
+        source tree result in symbolic links in the destination tree; if
+        it is false, the contents of the files pointed to by symbolic
+        links are copied. If the file pointed by the symlink doesn't
+        exist, an exception will be added in the list of errors raised in
+        an Error exception at the end of the copy process.
+    
+        You can set the optional ignore_dangling_symlinks flag to true if you
+        want to silence this exception. Notice that this has no effect on
+        platforms that don't support os.symlink.
+    
+        The optional ignore argument is a callable. If given, it
+        is called with the `src` parameter, which is the directory
+        being visited by copytree(), and `names` which is the list of
+        `src` contents, as returned by os.listdir():
+    
+            callable(src, names) -> ignored_names
+    
+        Since copytree() is called recursively, the callable will be
+        called once for each directory that is copied. It returns a
+        list of names relative to the `src` directory that should
+        not be copied.
+    
+        The optional copy_function argument is a callable that will be used
+        to copy each file. It will be called with the source path and the
+        destination path as arguments. By default, copy2() is used, but any
+        function that supports the same signature (like copy()) can be used.
+    
+        If dirs_exist_ok is false (the default) and `dst` already exists, a
+        `FileExistsError` is raised. If `dirs_exist_ok` is true, the copying
+        operation will continue if it encounters existing directories, and files
+        within the `dst` tree will be overwritten by corresponding files from the
+        `src` tree.
+        """
+        sys.audit("shutil.copytree", src, dst)
+>       with os.scandir(src) as itr:
+             ^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/whence'
+
+/usr/lib/python3.12/shutil.py:598: FileNotFoundError
+__________ test_ref_diff_fuzz_mode_same_on_copy_and_diff_on_sabotage ___________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v10.py:511: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/tmp/wt-402/languages/whence/tests/test_v10.py:446: in _copy_package
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+src = '/tmp/wt-402/languages/whence/whence'
+dst = '/tmp/whence_refdiff_xltdb1id/whence_ref', symlinks = False
+ignore = <function ignore_patterns.<locals>._ignore_patterns at 0x77a1cc231f80>
+copy_function = <function copy2 at 0x77a1e49dbc40>
+ignore_dangling_symlinks = False, dirs_exist_ok = False
+
+    def copytree(src, dst, symlinks=False, ignore=None, copy_function=copy2,
+                 ignore_dangling_symlinks=False, dirs_exist_ok=False):
+        """Recursively copy a directory tree and return the destination directory.
+    
+        If exception(s) occur, an Error is raised with a list of reasons.
+    
+        If the optional symlinks flag is true, symbolic links in the
+        source tree result in symbolic links in the destination tree; if
+        it is false, the contents of the files pointed to by symbolic
+        links are copied. If the file pointed by the symlink doesn't
+        exist, an exception will be added in the list of errors raised in
+        an Error exception at the end of the copy process.
+    
+        You can set the optional ignore_dangling_symlinks flag to true if you
+        want to silence this exception. Notice that this has no effect on
+        platforms that don't support os.symlink.
+    
+        The optional ignore argument is a callable. If given, it
+        is called with the `src` parameter, which is the directory
+        being visited by copytree(), and `names` which is the list of
+        `src` contents, as returned by os.listdir():
+    
+            callable(src, names) -> ignored_names
+    
+        Since copytree() is called recursively, the callable will be
+        called once for each directory that is copied. It returns a
+        list of names relative to the `src` directory that should
+        not be copied.
+    
+        The optional copy_function argument is a callable that will be used
+        to copy each file. It will be called with the source path and the
+        destination path as arguments. By default, copy2() is used, but any
+        function that supports the same signature (like copy()) can be used.
+    
+        If dirs_exist_ok is false (the default) and `dst` already exists, a
+        `FileExistsError` is raised. If `dirs_exist_ok` is true, the copying
+        operation will continue if it encounters existing directories, and files
+        within the `dst` tree will be overwritten by corresponding files from the
+        `src` tree.
+        """
+        sys.audit("shutil.copytree", src, dst)
+>       with os.scandir(src) as itr:
+             ^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/whence'
+
+/usr/lib/python3.12/shutil.py:598: FileNotFoundError
+____ test_ref_diff_fuzz_transient_new_tree_timeout_is_retried_not_reported _____
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v10.py:699: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/tmp/wt-402/languages/whence/tests/test_v10.py:580: in _load_ref_diff_module
+    ???
+<frozen importlib._bootstrap_external>:991: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1128: in get_code
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <_frozen_importlib_external.SourceFileLoader object at 0x77a1cdb21f40>
+path = '/tmp/wt-402/languages/whence/bench/ref_diff.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/bench/ref_diff.py'
+
+<frozen importlib._bootstrap_external>:1186: FileNotFoundError
+_______ test_ref_diff_fuzz_persistent_new_tree_timeout_is_a_real_finding _______
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v10.py:733: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/tmp/wt-402/languages/whence/tests/test_v10.py:580: in _load_ref_diff_module
+    ???
+<frozen importlib._bootstrap_external>:991: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1128: in get_code
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <_frozen_importlib_external.SourceFileLoader object at 0x77a1a5467080>
+path = '/tmp/wt-402/languages/whence/bench/ref_diff.py'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/bench/ref_diff.py'
+
+<frozen importlib._bootstrap_external>:1186: FileNotFoundError
+_________________ test_cli_runs_the_fuzz_deep_nesting_program __________________
+
+>   ???
+E   AssertionError: /home/pgain/agi-research-nuc-llm/.venv/bin/python3: can't open file '/tmp/wt-402/languages/whence/run.py': [Errno 2] No such file or directory
+E     
+E   assert 2 == 0
+E    +  where 2 = CompletedProcess(args=['/home/pgain/agi-research-nuc-llm/.venv/bin/python3', '/tmp/wt-402/languages/whence/run.py', '/...c-llm/.venv/bin/python3: can't open file '/tmp/wt-402/languages/whence/run.py': [Errno 2] No such file or directory\n").returncode
+
+/tmp/wt-402/languages/whence/tests/test_v10.py:834: AssertionError
+__________________ test_minof_runs_a_bench_in_a_fresh_process __________________
+
+>   ???
+E   AssertionError: assert (False)
+E    +  where False = <built-in method startswith of str object at 0xb3c3f0>('fib20 direct')
+E    +    where <built-in method startswith of str object at 0xb3c3f0> = ''.startswith
+
+/tmp/wt-402/languages/whence/tests/test_v11.py:242: AssertionError
+__________ test_reserve_probe_finds_a_need_below_the_current_reserve ___________
+
+>   ???
+E   ModuleNotFoundError: No module named 'reserve_probe'
+
+/tmp/wt-402/languages/whence/tests/test_v11.py:248: ModuleNotFoundError
+_______________ test_param_contract_wording_agrees_host_vs_guest _______________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v20.py:290: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/tmp/wt-402/languages/whence/tests/test_v20.py:89: in guest_eval_all
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v20.py:72: FileNotFoundError
+____________________ test_field_clause_agrees_host_vs_guest ____________________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v20.py:305: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/tmp/wt-402/languages/whence/tests/test_v20.py:89: in guest_eval_all
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v20.py:72: FileNotFoundError
+_________________ test_sorted_field_order_agrees_host_vs_guest _________________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v20.py:323: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/tmp/wt-402/languages/whence/tests/test_v20.py:89: in guest_eval_all
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v20.py:72: FileNotFoundError
+____________ test_every_arg_binding_site_applies_the_parameter_half ____________
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/whence/interp.py'
+
+/tmp/wt-402/languages/whence/tests/test_v20.py:339: FileNotFoundError
+___ test_a_builtin_inside_a_spec_record_renders_differently_and_that_is_old ____
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v20.py:455: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/tmp/wt-402/languages/whence/tests/test_v20.py:89: in guest_eval_all
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v20.py:72: FileNotFoundError
+__________________ test_hint_survives_a_failing_check_report ___________________
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/_v22_tmp.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v22.py:261: FileNotFoundError
+_________________ test_order_hint_wording_agrees_host_vs_guest _________________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v22.py:295: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/tmp/wt-402/languages/whence/tests/test_v20.py:89: in guest_eval_all
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v20.py:72: FileNotFoundError
+_______________ test_parse_error_wording_is_not_a_guest_contract _______________
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_host.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v22.py:449: FileNotFoundError
+__________ test_spec_level_header_matches_the_highest_version_section __________
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/SPEC.md'
+
+/tmp/wt-402/languages/whence/tests/test_v22.py:571: FileNotFoundError
+_______________ test_a_contract_miss_never_carries_an_order_hint _______________
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/whence/interp.py'
+
+/tmp/wt-402/languages/whence/tests/test_v22.py:638: FileNotFoundError
+____________________ test_guest_start_sets_match_the_hosts _____________________
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_host.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v23.py:339: FileNotFoundError
+____ test_host_and_guest_agree_on_which_programs_the_separator_rule_refuses ____
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v23.py:366: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_host.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v23.py:325: FileNotFoundError
+________ test_the_guest_miss_names_the_line_the_second_statement_is_on _________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v23.py:389: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_host.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v23.py:325: FileNotFoundError
+_______________ test_both_self_hosting_examples_still_run_green ________________
+
+>   ???
+E   AssertionError: /home/pgain/agi-research-nuc-llm/.venv/bin/python3: can't open file '/tmp/wt-402/languages/whence/run.py': [Errno 2] No such file or directory
+E     
+E   assert 2 == 0
+E    +  where 2 = CompletedProcess(args=['/home/pgain/agi-research-nuc-llm/.venv/bin/python3', '/tmp/wt-402/languages/whence/run.py', '/...c-llm/.venv/bin/python3: can't open file '/tmp/wt-402/languages/whence/run.py': [Errno 2] No such file or directory\n").returncode
+
+/tmp/wt-402/languages/whence/tests/test_v23.py:431: AssertionError
+_________ test_the_tracked_example_set_is_the_one_this_repo_decided_on _________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v24.py:167: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/tmp/wt-402/languages/whence/tests/test_v24.py:158: in _tracked_examples
+    ???
+/usr/lib/python3.12/subprocess.py:548: in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/subprocess.py:1026: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Popen: returncode: 255 args: ['git', 'ls-files', 'languages/whence/examples']>
+args = ['git', 'ls-files', 'languages/whence/examples'], executable = b'git'
+preexec_fn = None, close_fds = True, pass_fds = (), cwd = '/tmp/wt-402'
+env = None, startupinfo = None, creationflags = 0, shell = False, p2cread = -1
+p2cwrite = -1, c2pread = 11, c2pwrite = 12, errread = 13, errwrite = 14
+restore_signals = True, gid = None, gids = None, uid = None, umask = -1
+start_new_session = False, process_group = -1
+
+    def _execute_child(self, args, executable, preexec_fn, close_fds,
+                       pass_fds, cwd, env,
+                       startupinfo, creationflags, shell,
+                       p2cread, p2cwrite,
+                       c2pread, c2pwrite,
+                       errread, errwrite,
+                       restore_signals,
+                       gid, gids, uid, umask,
+                       start_new_session, process_group):
+        """Execute program (POSIX version)"""
+    
+        if isinstance(args, (str, bytes)):
+            args = [args]
+        elif isinstance(args, os.PathLike):
+            if shell:
+                raise TypeError('path-like args is not allowed when '
+                                'shell is true')
+            args = [args]
+        else:
+            args = list(args)
+    
+        if shell:
+            # On Android the default shell is at '/system/bin/sh'.
+            unix_shell = ('/system/bin/sh' if
+                      hasattr(sys, 'getandroidapilevel') else '/bin/sh')
+            args = [unix_shell, "-c"] + args
+            if executable:
+                args[0] = executable
+    
+        if executable is None:
+            executable = args[0]
+    
+        sys.audit("subprocess.Popen", executable, args, cwd, env)
+    
+        if (_USE_POSIX_SPAWN
+                and os.path.dirname(executable)
+                and preexec_fn is None
+                and not close_fds
+                and not pass_fds
+                and cwd is None
+                and (p2cread == -1 or p2cread > 2)
+                and (c2pwrite == -1 or c2pwrite > 2)
+                and (errwrite == -1 or errwrite > 2)
+                and not start_new_session
+                and process_group == -1
+                and gid is None
+                and gids is None
+                and uid is None
+                and umask < 0):
+            self._posix_spawn(args, executable, env, restore_signals,
+                              p2cread, p2cwrite,
+                              c2pread, c2pwrite,
+                              errread, errwrite)
+            return
+    
+        orig_executable = executable
+    
+        # For transferring possible exec failure from child to parent.
+        # Data format: "exception name:hex errno:description"
+        # Pickle is not used; it is complex and involves memory allocation.
+        errpipe_read, errpipe_write = os.pipe()
+        # errpipe_write must not be in the standard io 0, 1, or 2 fd range.
+        low_fds_to_close = []
+        while errpipe_write < 3:
+            low_fds_to_close.append(errpipe_write)
+            errpipe_write = os.dup(errpipe_write)
+        for low_fd in low_fds_to_close:
+            os.close(low_fd)
+        try:
+            try:
+                # We must avoid complex work that could involve
+                # malloc or free in the child process to avoid
+                # potential deadlocks, thus we do all this here.
+                # and pass it to fork_exec()
+    
+                if env is not None:
+                    env_list = []
+                    for k, v in env.items():
+                        k = os.fsencode(k)
+                        if b'=' in k:
+                            raise ValueError("illegal environment variable name")
+                        env_list.append(k + b'=' + os.fsencode(v))
+                else:
+                    env_list = None  # Use execv instead of execve.
+                executable = os.fsencode(executable)
+                if os.path.dirname(executable):
+                    executable_list = (executable,)
+                else:
+                    # This matches the behavior of os._execvpe().
+                    executable_list = tuple(
+                        os.path.join(os.fsencode(dir), executable)
+                        for dir in os.get_exec_path(env))
+                fds_to_keep = set(pass_fds)
+                fds_to_keep.add(errpipe_write)
+                self.pid = _fork_exec(
+                        args, executable_list,
+                        close_fds, tuple(sorted(map(int, fds_to_keep))),
+                        cwd, env_list,
+                        p2cread, p2cwrite, c2pread, c2pwrite,
+                        errread, errwrite,
+                        errpipe_read, errpipe_write,
+                        restore_signals, start_new_session,
+                        process_group, gid, gids, uid, umask,
+                        preexec_fn, _USE_VFORK)
+                self._child_created = True
+            finally:
+                # be sure the FD is closed no matter what
+                os.close(errpipe_write)
+    
+            self._close_pipe_fds(p2cread, p2cwrite,
+                                 c2pread, c2pwrite,
+                                 errread, errwrite)
+    
+            # Wait for exec to fail or succeed; possibly raising an
+            # exception (limited in size)
+            errpipe_data = bytearray()
+            while True:
+                part = os.read(errpipe_read, 50000)
+                errpipe_data += part
+                if not part or len(errpipe_data) > 50000:
+                    break
+        finally:
+            # be sure the FD is closed no matter what
+            os.close(errpipe_read)
+    
+        if errpipe_data:
+            try:
+                pid, sts = os.waitpid(self.pid, 0)
+                if pid == self.pid:
+                    self._handle_exitstatus(sts)
+                else:
+                    self.returncode = sys.maxsize
+            except ChildProcessError:
+                pass
+    
+            try:
+                exception_name, hex_errno, err_msg = (
+                        errpipe_data.split(b':', 2))
+                # The encoding here should match the encoding
+                # written in by the subprocess implementations
+                # like _posixsubprocess
+                err_msg = err_msg.decode()
+            except ValueError:
+                exception_name = b'SubprocessError'
+                hex_errno = b'0'
+                err_msg = 'Bad exception data from child: {!r}'.format(
+                              bytes(errpipe_data))
+            child_exception_type = getattr(
+                    builtins, exception_name.decode('ascii'),
+                    SubprocessError)
+            if issubclass(child_exception_type, OSError) and hex_errno:
+                errno_num = int(hex_errno, 16)
+                if err_msg == "noexec:chdir":
+                    err_msg = ""
+                    # The error must be from chdir(cwd).
+                    err_filename = cwd
+                elif err_msg == "noexec":
+                    err_msg = ""
+                    err_filename = None
+                else:
+                    err_filename = orig_executable
+                if errno_num != 0:
+                    err_msg = os.strerror(errno_num)
+                if err_filename is not None:
+>                   raise child_exception_type(errno_num, err_msg, err_filename)
+E                   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402'
+
+/usr/lib/python3.12/subprocess.py:1955: FileNotFoundError
+______ test_every_tracked_example_has_correct_token_positions[blame.lang] ______
+
+path = '/tmp/wt-402/languages/whence/examples/blame.lang'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/blame.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v24.py:179: FileNotFoundError
+___ test_every_tracked_example_has_correct_token_positions[checks_demo.lang] ___
+
+path = '/tmp/wt-402/languages/whence/examples/checks_demo.lang'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/checks_demo.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v24.py:179: FileNotFoundError
+_ test_every_tracked_example_has_correct_token_positions[cognitive_verifier.lang] _
+
+path = '/tmp/wt-402/languages/whence/examples/cognitive_verifier.lang'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/cognitive_verifier.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v24.py:179: FileNotFoundError
+_ test_every_tracked_example_has_correct_token_positions[cognitive_verifier_v2.lang] _
+
+path = '/tmp/wt-402/languages/whence/examples/cognitive_verifier_v2.lang'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/cognitive_verifier_v2.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v24.py:179: FileNotFoundError
+_ test_every_tracked_example_has_correct_token_positions[cognitive_verifier_v3.lang] _
+
+path = '/tmp/wt-402/languages/whence/examples/cognitive_verifier_v3.lang'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/cognitive_verifier_v3.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v24.py:179: FileNotFoundError
+______ test_every_tracked_example_has_correct_token_positions[deep.lang] _______
+
+path = '/tmp/wt-402/languages/whence/examples/deep.lang'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/deep.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v24.py:179: FileNotFoundError
+_____ test_every_tracked_example_has_correct_token_positions[diverge.lang] _____
+
+path = '/tmp/wt-402/languages/whence/examples/diverge.lang'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/diverge.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v24.py:179: FileNotFoundError
+_____ test_every_tracked_example_has_correct_token_positions[dropped.lang] _____
+
+path = '/tmp/wt-402/languages/whence/examples/dropped.lang'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/dropped.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v24.py:179: FileNotFoundError
+_____ test_every_tracked_example_has_correct_token_positions[effects.lang] _____
+
+path = '/tmp/wt-402/languages/whence/examples/effects.lang'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/effects.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v24.py:179: FileNotFoundError
+_ test_every_tracked_example_has_correct_token_positions[expense_tracker.lang] _
+
+path = '/tmp/wt-402/languages/whence/examples/expense_tracker.lang'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/expense_tracker.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v24.py:179: FileNotFoundError
+__ test_every_tracked_example_has_correct_token_positions[failing_check.lang] __
+
+path = '/tmp/wt-402/languages/whence/examples/failing_check.lang'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/failing_check.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v24.py:179: FileNotFoundError
+______ test_every_tracked_example_has_correct_token_positions[guess.lang] ______
+
+path = '/tmp/wt-402/languages/whence/examples/guess.lang'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/guess.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v24.py:179: FileNotFoundError
+______ test_every_tracked_example_has_correct_token_positions[hello.lang] ______
+
+path = '/tmp/wt-402/languages/whence/examples/hello.lang'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/hello.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v24.py:179: FileNotFoundError
+_____ test_every_tracked_example_has_correct_token_positions[history.lang] _____
+
+path = '/tmp/wt-402/languages/whence/examples/history.lang'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/history.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v24.py:179: FileNotFoundError
+______ test_every_tracked_example_has_correct_token_positions[meta.lang] _______
+
+path = '/tmp/wt-402/languages/whence/examples/meta.lang'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/meta.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v24.py:179: FileNotFoundError
+_ test_every_tracked_example_has_correct_token_positions[mini_agi_guardian.lang] _
+
+path = '/tmp/wt-402/languages/whence/examples/mini_agi_guardian.lang'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/mini_agi_guardian.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v24.py:179: FileNotFoundError
+__ test_every_tracked_example_has_correct_token_positions[nano_reasoner.lang] __
+
+path = '/tmp/wt-402/languages/whence/examples/nano_reasoner.lang'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/nano_reasoner.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v24.py:179: FileNotFoundError
+__ test_every_tracked_example_has_correct_token_positions[prod_demo_v1.lang] ___
+
+path = '/tmp/wt-402/languages/whence/examples/prod_demo_v1.lang'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/prod_demo_v1.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v24.py:179: FileNotFoundError
+__ test_every_tracked_example_has_correct_token_positions[prod_demo_v3.lang] ___
+
+path = '/tmp/wt-402/languages/whence/examples/prod_demo_v3.lang'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/prod_demo_v3.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v24.py:179: FileNotFoundError
+__ test_every_tracked_example_has_correct_token_positions[prod_demo_v4.lang] ___
+
+path = '/tmp/wt-402/languages/whence/examples/prod_demo_v4.lang'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/prod_demo_v4.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v24.py:179: FileNotFoundError
+__ test_every_tracked_example_has_correct_token_positions[prod_demo_v5.lang] ___
+
+path = '/tmp/wt-402/languages/whence/examples/prod_demo_v5.lang'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/prod_demo_v5.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v24.py:179: FileNotFoundError
+_ test_every_tracked_example_has_correct_token_positions[prod_showcase_final.lang] _
+
+path = '/tmp/wt-402/languages/whence/examples/prod_showcase_final.lang'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/prod_showcase_final.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v24.py:179: FileNotFoundError
+___ test_every_tracked_example_has_correct_token_positions[provenance.lang] ____
+
+path = '/tmp/wt-402/languages/whence/examples/provenance.lang'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/provenance.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v24.py:179: FileNotFoundError
+______ test_every_tracked_example_has_correct_token_positions[sales.lang] ______
+
+path = '/tmp/wt-402/languages/whence/examples/sales.lang'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/sales.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v24.py:179: FileNotFoundError
+____ test_every_tracked_example_has_correct_token_positions[self_eval.lang] ____
+
+path = '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v24.py:179: FileNotFoundError
+____ test_every_tracked_example_has_correct_token_positions[self_host.lang] ____
+
+path = '/tmp/wt-402/languages/whence/examples/self_host.lang'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_host.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v24.py:179: FileNotFoundError
+_____ test_every_tracked_example_has_correct_token_positions[shapes.lang] ______
+
+path = '/tmp/wt-402/languages/whence/examples/shapes.lang'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/shapes.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v24.py:179: FileNotFoundError
+______ test_every_tracked_example_has_correct_token_positions[show.lang] _______
+
+path = '/tmp/wt-402/languages/whence/examples/show.lang'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/show.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v24.py:179: FileNotFoundError
+_______ test_every_tracked_example_has_correct_token_positions[tco.lang] _______
+
+path = '/tmp/wt-402/languages/whence/examples/tco.lang'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/tco.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v24.py:179: FileNotFoundError
+___ test_every_tracked_example_has_correct_token_positions[test_simple.lang] ___
+
+path = '/tmp/wt-402/languages/whence/examples/test_simple.lang'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/test_simple.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v24.py:179: FileNotFoundError
+_ test_every_tracked_example_has_correct_token_positions[whenceguard_auditor.lang] _
+
+path = '/tmp/wt-402/languages/whence/examples/whenceguard_auditor.lang'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/whenceguard_auditor.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v24.py:179: FileNotFoundError
+_ test_every_tracked_example_has_correct_token_positions[whenceguard_v2.lang] __
+
+path = '/tmp/wt-402/languages/whence/examples/whenceguard_v2.lang'
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/whenceguard_v2.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v24.py:179: FileNotFoundError
+____________ test_show_is_not_spell_and_the_two_must_not_be_merged _____________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v24.py:304: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/inspect.py:1278: in getsource
+    lines, lnum = getsourcelines(object)
+                  ^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/inspect.py:1260: in getsourcelines
+    lines, lnum = findsource(object)
+                  ^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+object = <function _spell at 0x77a1e3737ba0>
+
+    def findsource(object):
+        """Return the entire source file and starting line number for an object.
+    
+        The argument may be a module, class, method, function, traceback, frame,
+        or code object.  The source code is returned as a list of all the lines
+        in the file and the line number indexes a line in that list.  An OSError
+        is raised if the source code cannot be retrieved."""
+    
+        file = getsourcefile(object)
+        if file:
+            # Invalidate cache if needed.
+            linecache.checkcache(file)
+        else:
+            file = getfile(object)
+            # Allow filenames in form of "<something>" to pass through.
+            # `doctest` monkeypatches `linecache` module to enable
+            # inspection, so let `linecache.getlines` to be called.
+            if not (file.startswith('<') and file.endswith('>')):
+                raise OSError('source code not available')
+    
+        module = getmodule(object, file)
+        if module:
+            lines = linecache.getlines(file, module.__dict__)
+        else:
+            lines = linecache.getlines(file)
+        if not lines:
+>           raise OSError('could not get source code')
+E           OSError: could not get source code
+
+/usr/lib/python3.12/inspect.py:1089: OSError
+___________________________ test_spec_documents_v024 ___________________________
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/SPEC.md'
+
+/tmp/wt-402/languages/whence/tests/test_v24.py:322: FileNotFoundError
+__________ test_the_default_clears_the_tail_budget_deep_lang_asserts ___________
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/deep.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v26.py:178: FileNotFoundError
+____________ test_every_example_stays_under_the_default_with_margin ____________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v26.py:189: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/subprocess.py:548: in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/subprocess.py:1026: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Popen: returncode: 255 args: ['git', 'ls-files', '--', 'examples/*.lang']>
+args = ['git', 'ls-files', '--', 'examples/*.lang'], executable = b'git'
+preexec_fn = None, close_fds = True, pass_fds = ()
+cwd = '/tmp/wt-402/languages/whence', env = None, startupinfo = None
+creationflags = 0, shell = False, p2cread = -1, p2cwrite = -1, c2pread = 11
+c2pwrite = 12, errread = 13, errwrite = 14, restore_signals = True, gid = None
+gids = None, uid = None, umask = -1, start_new_session = False
+process_group = -1
+
+    def _execute_child(self, args, executable, preexec_fn, close_fds,
+                       pass_fds, cwd, env,
+                       startupinfo, creationflags, shell,
+                       p2cread, p2cwrite,
+                       c2pread, c2pwrite,
+                       errread, errwrite,
+                       restore_signals,
+                       gid, gids, uid, umask,
+                       start_new_session, process_group):
+        """Execute program (POSIX version)"""
+    
+        if isinstance(args, (str, bytes)):
+            args = [args]
+        elif isinstance(args, os.PathLike):
+            if shell:
+                raise TypeError('path-like args is not allowed when '
+                                'shell is true')
+            args = [args]
+        else:
+            args = list(args)
+    
+        if shell:
+            # On Android the default shell is at '/system/bin/sh'.
+            unix_shell = ('/system/bin/sh' if
+                      hasattr(sys, 'getandroidapilevel') else '/bin/sh')
+            args = [unix_shell, "-c"] + args
+            if executable:
+                args[0] = executable
+    
+        if executable is None:
+            executable = args[0]
+    
+        sys.audit("subprocess.Popen", executable, args, cwd, env)
+    
+        if (_USE_POSIX_SPAWN
+                and os.path.dirname(executable)
+                and preexec_fn is None
+                and not close_fds
+                and not pass_fds
+                and cwd is None
+                and (p2cread == -1 or p2cread > 2)
+                and (c2pwrite == -1 or c2pwrite > 2)
+                and (errwrite == -1 or errwrite > 2)
+                and not start_new_session
+                and process_group == -1
+                and gid is None
+                and gids is None
+                and uid is None
+                and umask < 0):
+            self._posix_spawn(args, executable, env, restore_signals,
+                              p2cread, p2cwrite,
+                              c2pread, c2pwrite,
+                              errread, errwrite)
+            return
+    
+        orig_executable = executable
+    
+        # For transferring possible exec failure from child to parent.
+        # Data format: "exception name:hex errno:description"
+        # Pickle is not used; it is complex and involves memory allocation.
+        errpipe_read, errpipe_write = os.pipe()
+        # errpipe_write must not be in the standard io 0, 1, or 2 fd range.
+        low_fds_to_close = []
+        while errpipe_write < 3:
+            low_fds_to_close.append(errpipe_write)
+            errpipe_write = os.dup(errpipe_write)
+        for low_fd in low_fds_to_close:
+            os.close(low_fd)
+        try:
+            try:
+                # We must avoid complex work that could involve
+                # malloc or free in the child process to avoid
+                # potential deadlocks, thus we do all this here.
+                # and pass it to fork_exec()
+    
+                if env is not None:
+                    env_list = []
+                    for k, v in env.items():
+                        k = os.fsencode(k)
+                        if b'=' in k:
+                            raise ValueError("illegal environment variable name")
+                        env_list.append(k + b'=' + os.fsencode(v))
+                else:
+                    env_list = None  # Use execv instead of execve.
+                executable = os.fsencode(executable)
+                if os.path.dirname(executable):
+                    executable_list = (executable,)
+                else:
+                    # This matches the behavior of os._execvpe().
+                    executable_list = tuple(
+                        os.path.join(os.fsencode(dir), executable)
+                        for dir in os.get_exec_path(env))
+                fds_to_keep = set(pass_fds)
+                fds_to_keep.add(errpipe_write)
+                self.pid = _fork_exec(
+                        args, executable_list,
+                        close_fds, tuple(sorted(map(int, fds_to_keep))),
+                        cwd, env_list,
+                        p2cread, p2cwrite, c2pread, c2pwrite,
+                        errread, errwrite,
+                        errpipe_read, errpipe_write,
+                        restore_signals, start_new_session,
+                        process_group, gid, gids, uid, umask,
+                        preexec_fn, _USE_VFORK)
+                self._child_created = True
+            finally:
+                # be sure the FD is closed no matter what
+                os.close(errpipe_write)
+    
+            self._close_pipe_fds(p2cread, p2cwrite,
+                                 c2pread, c2pwrite,
+                                 errread, errwrite)
+    
+            # Wait for exec to fail or succeed; possibly raising an
+            # exception (limited in size)
+            errpipe_data = bytearray()
+            while True:
+                part = os.read(errpipe_read, 50000)
+                errpipe_data += part
+                if not part or len(errpipe_data) > 50000:
+                    break
+        finally:
+            # be sure the FD is closed no matter what
+            os.close(errpipe_read)
+    
+        if errpipe_data:
+            try:
+                pid, sts = os.waitpid(self.pid, 0)
+                if pid == self.pid:
+                    self._handle_exitstatus(sts)
+                else:
+                    self.returncode = sys.maxsize
+            except ChildProcessError:
+                pass
+    
+            try:
+                exception_name, hex_errno, err_msg = (
+                        errpipe_data.split(b':', 2))
+                # The encoding here should match the encoding
+                # written in by the subprocess implementations
+                # like _posixsubprocess
+                err_msg = err_msg.decode()
+            except ValueError:
+                exception_name = b'SubprocessError'
+                hex_errno = b'0'
+                err_msg = 'Bad exception data from child: {!r}'.format(
+                              bytes(errpipe_data))
+            child_exception_type = getattr(
+                    builtins, exception_name.decode('ascii'),
+                    SubprocessError)
+            if issubclass(child_exception_type, OSError) and hex_errno:
+                errno_num = int(hex_errno, 16)
+                if err_msg == "noexec:chdir":
+                    err_msg = ""
+                    # The error must be from chdir(cwd).
+                    err_filename = cwd
+                elif err_msg == "noexec":
+                    err_msg = ""
+                    err_filename = None
+                else:
+                    err_filename = orig_executable
+                if errno_num != 0:
+                    err_msg = os.strerror(errno_num)
+                if err_filename is not None:
+>                   raise child_exception_type(errno_num, err_msg, err_filename)
+E                   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence'
+
+/usr/lib/python3.12/subprocess.py:1955: FileNotFoundError
+__________________ test_cli_bounds_a_runaway_without_any_flag __________________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v26.py:223: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/tmp/wt-402/languages/whence/tests/test_v26.py:213: in _run_cli
+    ???
+/usr/lib/python3.12/subprocess.py:548: in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/subprocess.py:1026: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Popen: returncode: 255 args: ['/home/pgain/agi-research-nuc-llm/.venv/bin/p...>
+args = ['/home/pgain/agi-research-nuc-llm/.venv/bin/python3', '/tmp/wt-402/languages/whence/run.py', '-']
+executable = b'/home/pgain/agi-research-nuc-llm/.venv/bin/python3'
+preexec_fn = None, close_fds = True, pass_fds = ()
+cwd = '/tmp/wt-402/languages/whence', env = None, startupinfo = None
+creationflags = 0, shell = False, p2cread = 11, p2cwrite = 12, c2pread = 13
+c2pwrite = 14, errread = 15, errwrite = 16, restore_signals = True, gid = None
+gids = None, uid = None, umask = -1, start_new_session = False
+process_group = -1
+
+    def _execute_child(self, args, executable, preexec_fn, close_fds,
+                       pass_fds, cwd, env,
+                       startupinfo, creationflags, shell,
+                       p2cread, p2cwrite,
+                       c2pread, c2pwrite,
+                       errread, errwrite,
+                       restore_signals,
+                       gid, gids, uid, umask,
+                       start_new_session, process_group):
+        """Execute program (POSIX version)"""
+    
+        if isinstance(args, (str, bytes)):
+            args = [args]
+        elif isinstance(args, os.PathLike):
+            if shell:
+                raise TypeError('path-like args is not allowed when '
+                                'shell is true')
+            args = [args]
+        else:
+            args = list(args)
+    
+        if shell:
+            # On Android the default shell is at '/system/bin/sh'.
+            unix_shell = ('/system/bin/sh' if
+                      hasattr(sys, 'getandroidapilevel') else '/bin/sh')
+            args = [unix_shell, "-c"] + args
+            if executable:
+                args[0] = executable
+    
+        if executable is None:
+            executable = args[0]
+    
+        sys.audit("subprocess.Popen", executable, args, cwd, env)
+    
+        if (_USE_POSIX_SPAWN
+                and os.path.dirname(executable)
+                and preexec_fn is None
+                and not close_fds
+                and not pass_fds
+                and cwd is None
+                and (p2cread == -1 or p2cread > 2)
+                and (c2pwrite == -1 or c2pwrite > 2)
+                and (errwrite == -1 or errwrite > 2)
+                and not start_new_session
+                and process_group == -1
+                and gid is None
+                and gids is None
+                and uid is None
+                and umask < 0):
+            self._posix_spawn(args, executable, env, restore_signals,
+                              p2cread, p2cwrite,
+                              c2pread, c2pwrite,
+                              errread, errwrite)
+            return
+    
+        orig_executable = executable
+    
+        # For transferring possible exec failure from child to parent.
+        # Data format: "exception name:hex errno:description"
+        # Pickle is not used; it is complex and involves memory allocation.
+        errpipe_read, errpipe_write = os.pipe()
+        # errpipe_write must not be in the standard io 0, 1, or 2 fd range.
+        low_fds_to_close = []
+        while errpipe_write < 3:
+            low_fds_to_close.append(errpipe_write)
+            errpipe_write = os.dup(errpipe_write)
+        for low_fd in low_fds_to_close:
+            os.close(low_fd)
+        try:
+            try:
+                # We must avoid complex work that could involve
+                # malloc or free in the child process to avoid
+                # potential deadlocks, thus we do all this here.
+                # and pass it to fork_exec()
+    
+                if env is not None:
+                    env_list = []
+                    for k, v in env.items():
+                        k = os.fsencode(k)
+                        if b'=' in k:
+                            raise ValueError("illegal environment variable name")
+                        env_list.append(k + b'=' + os.fsencode(v))
+                else:
+                    env_list = None  # Use execv instead of execve.
+                executable = os.fsencode(executable)
+                if os.path.dirname(executable):
+                    executable_list = (executable,)
+                else:
+                    # This matches the behavior of os._execvpe().
+                    executable_list = tuple(
+                        os.path.join(os.fsencode(dir), executable)
+                        for dir in os.get_exec_path(env))
+                fds_to_keep = set(pass_fds)
+                fds_to_keep.add(errpipe_write)
+                self.pid = _fork_exec(
+                        args, executable_list,
+                        close_fds, tuple(sorted(map(int, fds_to_keep))),
+                        cwd, env_list,
+                        p2cread, p2cwrite, c2pread, c2pwrite,
+                        errread, errwrite,
+                        errpipe_read, errpipe_write,
+                        restore_signals, start_new_session,
+                        process_group, gid, gids, uid, umask,
+                        preexec_fn, _USE_VFORK)
+                self._child_created = True
+            finally:
+                # be sure the FD is closed no matter what
+                os.close(errpipe_write)
+    
+            self._close_pipe_fds(p2cread, p2cwrite,
+                                 c2pread, c2pwrite,
+                                 errread, errwrite)
+    
+            # Wait for exec to fail or succeed; possibly raising an
+            # exception (limited in size)
+            errpipe_data = bytearray()
+            while True:
+                part = os.read(errpipe_read, 50000)
+                errpipe_data += part
+                if not part or len(errpipe_data) > 50000:
+                    break
+        finally:
+            # be sure the FD is closed no matter what
+            os.close(errpipe_read)
+    
+        if errpipe_data:
+            try:
+                pid, sts = os.waitpid(self.pid, 0)
+                if pid == self.pid:
+                    self._handle_exitstatus(sts)
+                else:
+                    self.returncode = sys.maxsize
+            except ChildProcessError:
+                pass
+    
+            try:
+                exception_name, hex_errno, err_msg = (
+                        errpipe_data.split(b':', 2))
+                # The encoding here should match the encoding
+                # written in by the subprocess implementations
+                # like _posixsubprocess
+                err_msg = err_msg.decode()
+            except ValueError:
+                exception_name = b'SubprocessError'
+                hex_errno = b'0'
+                err_msg = 'Bad exception data from child: {!r}'.format(
+                              bytes(errpipe_data))
+            child_exception_type = getattr(
+                    builtins, exception_name.decode('ascii'),
+                    SubprocessError)
+            if issubclass(child_exception_type, OSError) and hex_errno:
+                errno_num = int(hex_errno, 16)
+                if err_msg == "noexec:chdir":
+                    err_msg = ""
+                    # The error must be from chdir(cwd).
+                    err_filename = cwd
+                elif err_msg == "noexec":
+                    err_msg = ""
+                    err_filename = None
+                else:
+                    err_filename = orig_executable
+                if errno_num != 0:
+                    err_msg = os.strerror(errno_num)
+                if err_filename is not None:
+>                   raise child_exception_type(errno_num, err_msg, err_filename)
+E                   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence'
+
+/usr/lib/python3.12/subprocess.py:1955: FileNotFoundError
+_____________ test_cli_max_iter_zero_restores_unbounded_and_hangs ______________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v26.py:234: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/tmp/wt-402/languages/whence/tests/test_v26.py:213: in _run_cli
+    ???
+/usr/lib/python3.12/subprocess.py:548: in run
+    with Popen(*popenargs, **kwargs) as process:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/subprocess.py:1026: in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Popen: returncode: 255 args: ['/home/pgain/agi-research-nuc-llm/.venv/bin/p...>
+args = ['/home/pgain/agi-research-nuc-llm/.venv/bin/python3', '/tmp/wt-402/languages/whence/run.py', '--max-iter', '0', '-']
+executable = b'/home/pgain/agi-research-nuc-llm/.venv/bin/python3'
+preexec_fn = None, close_fds = True, pass_fds = ()
+cwd = '/tmp/wt-402/languages/whence', env = None, startupinfo = None
+creationflags = 0, shell = False, p2cread = 11, p2cwrite = 12, c2pread = 13
+c2pwrite = 14, errread = 15, errwrite = 16, restore_signals = True, gid = None
+gids = None, uid = None, umask = -1, start_new_session = False
+process_group = -1
+
+    def _execute_child(self, args, executable, preexec_fn, close_fds,
+                       pass_fds, cwd, env,
+                       startupinfo, creationflags, shell,
+                       p2cread, p2cwrite,
+                       c2pread, c2pwrite,
+                       errread, errwrite,
+                       restore_signals,
+                       gid, gids, uid, umask,
+                       start_new_session, process_group):
+        """Execute program (POSIX version)"""
+    
+        if isinstance(args, (str, bytes)):
+            args = [args]
+        elif isinstance(args, os.PathLike):
+            if shell:
+                raise TypeError('path-like args is not allowed when '
+                                'shell is true')
+            args = [args]
+        else:
+            args = list(args)
+    
+        if shell:
+            # On Android the default shell is at '/system/bin/sh'.
+            unix_shell = ('/system/bin/sh' if
+                      hasattr(sys, 'getandroidapilevel') else '/bin/sh')
+            args = [unix_shell, "-c"] + args
+            if executable:
+                args[0] = executable
+    
+        if executable is None:
+            executable = args[0]
+    
+        sys.audit("subprocess.Popen", executable, args, cwd, env)
+    
+        if (_USE_POSIX_SPAWN
+                and os.path.dirname(executable)
+                and preexec_fn is None
+                and not close_fds
+                and not pass_fds
+                and cwd is None
+                and (p2cread == -1 or p2cread > 2)
+                and (c2pwrite == -1 or c2pwrite > 2)
+                and (errwrite == -1 or errwrite > 2)
+                and not start_new_session
+                and process_group == -1
+                and gid is None
+                and gids is None
+                and uid is None
+                and umask < 0):
+            self._posix_spawn(args, executable, env, restore_signals,
+                              p2cread, p2cwrite,
+                              c2pread, c2pwrite,
+                              errread, errwrite)
+            return
+    
+        orig_executable = executable
+    
+        # For transferring possible exec failure from child to parent.
+        # Data format: "exception name:hex errno:description"
+        # Pickle is not used; it is complex and involves memory allocation.
+        errpipe_read, errpipe_write = os.pipe()
+        # errpipe_write must not be in the standard io 0, 1, or 2 fd range.
+        low_fds_to_close = []
+        while errpipe_write < 3:
+            low_fds_to_close.append(errpipe_write)
+            errpipe_write = os.dup(errpipe_write)
+        for low_fd in low_fds_to_close:
+            os.close(low_fd)
+        try:
+            try:
+                # We must avoid complex work that could involve
+                # malloc or free in the child process to avoid
+                # potential deadlocks, thus we do all this here.
+                # and pass it to fork_exec()
+    
+                if env is not None:
+                    env_list = []
+                    for k, v in env.items():
+                        k = os.fsencode(k)
+                        if b'=' in k:
+                            raise ValueError("illegal environment variable name")
+                        env_list.append(k + b'=' + os.fsencode(v))
+                else:
+                    env_list = None  # Use execv instead of execve.
+                executable = os.fsencode(executable)
+                if os.path.dirname(executable):
+                    executable_list = (executable,)
+                else:
+                    # This matches the behavior of os._execvpe().
+                    executable_list = tuple(
+                        os.path.join(os.fsencode(dir), executable)
+                        for dir in os.get_exec_path(env))
+                fds_to_keep = set(pass_fds)
+                fds_to_keep.add(errpipe_write)
+                self.pid = _fork_exec(
+                        args, executable_list,
+                        close_fds, tuple(sorted(map(int, fds_to_keep))),
+                        cwd, env_list,
+                        p2cread, p2cwrite, c2pread, c2pwrite,
+                        errread, errwrite,
+                        errpipe_read, errpipe_write,
+                        restore_signals, start_new_session,
+                        process_group, gid, gids, uid, umask,
+                        preexec_fn, _USE_VFORK)
+                self._child_created = True
+            finally:
+                # be sure the FD is closed no matter what
+                os.close(errpipe_write)
+    
+            self._close_pipe_fds(p2cread, p2cwrite,
+                                 c2pread, c2pwrite,
+                                 errread, errwrite)
+    
+            # Wait for exec to fail or succeed; possibly raising an
+            # exception (limited in size)
+            errpipe_data = bytearray()
+            while True:
+                part = os.read(errpipe_read, 50000)
+                errpipe_data += part
+                if not part or len(errpipe_data) > 50000:
+                    break
+        finally:
+            # be sure the FD is closed no matter what
+            os.close(errpipe_read)
+    
+        if errpipe_data:
+            try:
+                pid, sts = os.waitpid(self.pid, 0)
+                if pid == self.pid:
+                    self._handle_exitstatus(sts)
+                else:
+                    self.returncode = sys.maxsize
+            except ChildProcessError:
+                pass
+    
+            try:
+                exception_name, hex_errno, err_msg = (
+                        errpipe_data.split(b':', 2))
+                # The encoding here should match the encoding
+                # written in by the subprocess implementations
+                # like _posixsubprocess
+                err_msg = err_msg.decode()
+            except ValueError:
+                exception_name = b'SubprocessError'
+                hex_errno = b'0'
+                err_msg = 'Bad exception data from child: {!r}'.format(
+                              bytes(errpipe_data))
+            child_exception_type = getattr(
+                    builtins, exception_name.decode('ascii'),
+                    SubprocessError)
+            if issubclass(child_exception_type, OSError) and hex_errno:
+                errno_num = int(hex_errno, 16)
+                if err_msg == "noexec:chdir":
+                    err_msg = ""
+                    # The error must be from chdir(cwd).
+                    err_filename = cwd
+                elif err_msg == "noexec":
+                    err_msg = ""
+                    err_filename = None
+                else:
+                    err_filename = orig_executable
+                if errno_num != 0:
+                    err_msg = os.strerror(errno_num)
+                if err_filename is not None:
+>                   raise child_exception_type(errno_num, err_msg, err_filename)
+E                   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence'
+
+/usr/lib/python3.12/subprocess.py:1955: FileNotFoundError
+_______________ test_cli_reports_a_size_miss_and_not_a_traceback _______________
+
+>   ???
+E   assert (2 == 0)
+
+/tmp/wt-402/languages/whence/tests/test_v27.py:597: AssertionError
+__________________ test_cli_max_value_flag_lowers_the_budget ___________________
+
+>   ???
+E   assert (2 == 0)
+
+/tmp/wt-402/languages/whence/tests/test_v27.py:604: AssertionError
+_________________ test_cli_max_int_bits_flag_lowers_the_budget _________________
+
+>   ???
+E   assert (2 == 0)
+
+/tmp/wt-402/languages/whence/tests/test_v27.py:609: AssertionError
+________________ test_cli_zero_restores_unbounded_on_both_flags ________________
+
+>   ???
+E   assert (2 == 0)
+
+/tmp/wt-402/languages/whence/tests/test_v27.py:618: AssertionError
+_____________________ test_cli_usage_names_both_new_flags ______________________
+
+>   ???
+E   assert ('--max-value' in "/home/pgain/agi-research-nuc-llm/.venv/bin/python3: can't open file '/tmp/wt-402/languages/whence/run.py': [Errno 2] No such file or directory\n")
+
+/tmp/wt-402/languages/whence/tests/test_v27.py:625: AssertionError
+____________________ test_cli_rejects_a_non_numeric_budget _____________________
+
+>   ???
+E   assert (2 == 2 and 'usage:' in "/home/pgain/agi-research-nuc-llm/.venv/bin/python3: can't open file '/tmp/wt-402/languages/whence/run.py': [Errno 2] No such file or directory\n")
+
+/tmp/wt-402/languages/whence/tests/test_v27.py:630: AssertionError
+___________ test_every_example_stays_under_both_defaults_with_margin ___________
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/blame.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v27.py:653: FileNotFoundError
+_____ test_the_longest_loop_and_the_largest_value_are_not_the_same_program _____
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/tco.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v27.py:676: FileNotFoundError
+_________ test_the_provenance_family_agrees_now_and_the_pins_are_exact _________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v29.py:450: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v29.py:337: FileNotFoundError
+_________________ test_diverge_and_contrast_no_longer_delegate _________________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v30.py:351: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v30.py:83: FileNotFoundError
+____________ test_self_eval_example_still_passes_its_own_self_tests ____________
+
+>   ???
+E   AssertionError: /home/pgain/agi-research-nuc-llm/.venv/bin/python3: can't open file '/tmp/wt-402/languages/whence/run.py': [Errno 2] No such file or directory
+E     
+E   assert 2 == 0
+E    +  where 2 = CompletedProcess(args=['/home/pgain/agi-research-nuc-llm/.venv/bin/python3', '/tmp/wt-402/languages/whence/run.py', '/...c-llm/.venv/bin/python3: can't open file '/tmp/wt-402/languages/whence/run.py': [Errno 2] No such file or directory\n").returncode
+
+/tmp/wt-402/languages/whence/tests/test_v30.py:410: AssertionError
+_________ test_the_grep_is_true_and_the_property_it_stood_for_is_false _________
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/whence/interp.py'
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:172: FileNotFoundError
+__________ test_every_detail_setting_site_belongs_to_one_of_three_ops __________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:204: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/whence/interp.py'
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:152: FileNotFoundError
+_______ test_the_budget_clears_the_measured_corpus_by_at_least_ten_times _______
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:369: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/tmp/wt-402/languages/whence/tests/test_v31.py:331: in budget_from_library
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:97: FileNotFoundError
+____________ test_the_budget_sits_inside_its_own_insensitivity_band ____________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:392: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/tmp/wt-402/languages/whence/tests/test_v31.py:331: in budget_from_library
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:97: FileNotFoundError
+_______ test_the_budget_is_declared_once_and_the_message_still_reads_it ________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:400: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:97: FileNotFoundError
+_____________ test_the_generator_reaches_every_registered_builtin ______________
+
+>   ???
+E   ModuleNotFoundError: No module named 'harness'
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:417: ModuleNotFoundError
+_____________ test_the_show_example_runs_and_passes_its_own_checks _____________
+
+>   ???
+E   AssertionError: /home/pgain/agi-research-nuc-llm/.venv/bin/python3: can't open file '/tmp/wt-402/languages/whence/run.py': [Errno 2] No such file or directory
+E     
+E   assert 2 == 0
+E    +  where 2 = CompletedProcess(args=['/home/pgain/agi-research-nuc-llm/.venv/bin/python3', '/tmp/wt-402/languages/whence/run.py', '/...c-llm/.venv/bin/python3: can't open file '/tmp/wt-402/languages/whence/run.py': [Errno 2] No such file or directory\n").returncode
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:434: AssertionError
+_________ test_the_four_broken_contracts_are_named_where_the_number_is _________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:467: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:97: FileNotFoundError
+___________ test_the_tail_ceiling_is_in_the_declared_divergence_list ___________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:486: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:97: FileNotFoundError
+_______________ test_the_example_still_passes_its_own_self_tests _______________
+
+>   ???
+E   AssertionError: /home/pgain/agi-research-nuc-llm/.venv/bin/python3: can't open file '/tmp/wt-402/languages/whence/run.py': [Errno 2] No such file or directory
+E     
+E   assert 2 == 0
+E    +  where 2 = CompletedProcess(args=['/home/pgain/agi-research-nuc-llm/.venv/bin/python3', '/tmp/wt-402/languages/whence/run.py', '/...c-llm/.venv/bin/python3: can't open file '/tmp/wt-402/languages/whence/run.py': [Errno 2] No such file or directory\n").returncode
+
+/tmp/wt-402/languages/whence/tests/test_v31.py:734: AssertionError
+________ test_every_foreign_name_is_attested_or_rejected_by_a_decision _________
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/../state/whence/round-384/field-names.json'
+
+/tmp/wt-402/languages/whence/tests/test_v32.py:197: FileNotFoundError
+_________________ test_the_frozen_census_says_what_it_censused _________________
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/../state/whence/round-384/field-names.json'
+
+/tmp/wt-402/languages/whence/tests/test_v32.py:215: FileNotFoundError
+____________ test_strict_miss_moves_the_exit_code_and_nothing_else _____________
+
+>   ???
+E   assert 2 == 0
+E    +  where 2 = CompletedProcess(args=['/home/pgain/agi-research-nuc-llm/.venv/bin/python3', '/tmp/wt-402/languages/whence/run.py', '/...c-llm/.venv/bin/python3: can't open file '/tmp/wt-402/languages/whence/run.py': [Errno 2] No such file or directory\n").returncode
+
+/tmp/wt-402/languages/whence/tests/test_v32.py:280: AssertionError
+_________________________ test_usage_mentions_the_flag _________________________
+
+>   ???
+E   assert '--strict-miss' in ''
+E    +  where '' = CompletedProcess(args=['/home/pgain/agi-research-nuc-llm/.venv/bin/python3', '/tmp/wt-402/languages/whence/run.py', '-...c-llm/.venv/bin/python3: can't open file '/tmp/wt-402/languages/whence/run.py': [Errno 2] No such file or directory\n").stdout
+
+/tmp/wt-402/languages/whence/tests/test_v32.py:304: AssertionError
+_____________________ test_no_tracked_example_drops_a_miss _____________________
+
+>   ???
+E   AssertionError: []
+E   assert 0 >= 18
+E    +  where 0 = len([])
+
+/tmp/wt-402/languages/whence/tests/test_v32.py:325: AssertionError
+___________ test_host_and_guest_word_the_foreign_clause_identically ____________
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v32.py:340: FileNotFoundError
+_________ test_the_entry_rule_still_holds_for_the_two_names_v033_added _________
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/../state/whence/round-384/field-names.json'
+
+/tmp/wt-402/languages/whence/tests/test_v33.py:210: FileNotFoundError
+_________________ test_there_is_still_one_unbound_name_literal _________________
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/whence/interp.py'
+
+/tmp/wt-402/languages/whence/tests/test_v33.py:275: FileNotFoundError
+_________________ test_ten_field_programs_still_fail_to_parse __________________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v33.py:312: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/tmp/wt-402/languages/whence/curecheck.py:830: in field_programs
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/state/whence/round-384/field-names.json'
+
+/tmp/wt-402/languages/whence/curecheck.py:795: FileNotFoundError
+___________ test_following_the_cures_mechanically_fixes_none_of_them ___________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v33.py:332: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/tmp/wt-402/languages/whence/curecheck.py:830: in field_programs
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/state/whence/round-384/field-names.json'
+
+/tmp/wt-402/languages/whence/curecheck.py:795: FileNotFoundError
+_______ test_the_ledger_still_replays_and_every_program_reaches_a_value ________
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/../state/whence/round-386/cure-ledger.json'
+
+/tmp/wt-402/languages/whence/tests/test_v33.py:345: FileNotFoundError
+________________ test_seven_edits_fix_text_the_grammar_accepts _________________
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/../state/whence/round-386/cure-ledger.json'
+
+/tmp/wt-402/languages/whence/tests/test_v33.py:363: FileNotFoundError
+________ test_every_parse_error_site_is_hinted_or_has_a_written_reason _________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v34.py:183: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/whence/parser.py'
+
+/tmp/wt-402/languages/whence/tests/test_v34.py:155: FileNotFoundError
+_______________ test_the_unhinted_registry_has_no_stale_entries ________________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v34.py:201: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/whence/parser.py'
+
+/tmp/wt-402/languages/whence/tests/test_v34.py:155: FileNotFoundError
+_______________ test_seven_sites_are_hinted_and_thirteen_are_not _______________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v34.py:213: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/whence/parser.py'
+
+/tmp/wt-402/languages/whence/tests/test_v34.py:155: FileNotFoundError
+________________ test_the_hint_census_is_derived_and_not_a_list ________________
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/whence/parser.py'
+
+/tmp/wt-402/languages/whence/tests/test_v34.py:225: FileNotFoundError
+___________ test_no_field_program_stalls_on_a_no_cure_error_any_more ___________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v34.py:530: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/tmp/wt-402/languages/whence/curecheck.py:830: in field_programs
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/state/whence/round-384/field-names.json'
+
+/tmp/wt-402/languages/whence/curecheck.py:795: FileNotFoundError
+_______ test_nano_reasoner_now_takes_two_steps_and_stalls_somewhere_else _______
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v34.py:544: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/tmp/wt-402/languages/whence/curecheck.py:830: in field_programs
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/state/whence/round-384/field-names.json'
+
+/tmp/wt-402/languages/whence/curecheck.py:795: FileNotFoundError
+_____________ test_following_the_cures_still_fixes_none_of_the_ten _____________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v34.py:556: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/tmp/wt-402/languages/whence/curecheck.py:830: in field_programs
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/state/whence/round-384/field-names.json'
+
+/tmp/wt-402/languages/whence/curecheck.py:795: FileNotFoundError
+____________ test_every_expect_site_wants_a_quoted_literal_or_prose ____________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v35.py:125: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/whence/parser.py'
+
+/tmp/wt-402/languages/whence/bench/expectsites.py:124: FileNotFoundError
+______________________ test_no_want_is_a_bare_token_type _______________________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v35.py:132: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/whence/parser.py'
+
+/tmp/wt-402/languages/whence/bench/expectsites.py:124: FileNotFoundError
+______________ test_the_five_rendering_classes_are_still_the_five ______________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v35.py:142: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/whence/parser.py'
+
+/tmp/wt-402/languages/whence/bench/expectsites.py:124: FileNotFoundError
+_____________ test_every_category_an_expect_site_passes_has_prose ______________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v35.py:168: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/whence/parser.py'
+
+/tmp/wt-402/languages/whence/bench/expectsites.py:124: FileNotFoundError
+___________ test_the_host_now_agrees_with_the_guest_on_the_WANT_half ___________
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v35.py:319: FileNotFoundError
+_______________________ test_the_sweep_can_actually_fail _______________________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v36.py:106: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/bench/showtok.py:103: FileNotFoundError
+_____________ test_the_dead_shape_name_site_is_dead_on_both_sides ______________
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v36.py:288: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/bench/showtok.py:103: FileNotFoundError
+______ test_expect_name_no_longer_answers_six_questions_with_one_sentence ______
+
+>   ???
+
+/tmp/wt-402/languages/whence/tests/test_v36.py:307: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/bench/showtok.py:103: FileNotFoundError
+________________ test_both_guest_files_carry_the_same_renderer _________________
+
+>   ???
+E   FileNotFoundError: [Errno 2] No such file or directory: '/tmp/wt-402/languages/whence/examples/self_eval.lang'
+
+/tmp/wt-402/languages/whence/tests/test_v36.py:320: FileNotFoundError
+=========================== short test summary info ============================
+FAILED tests/test_v04.py::test_fast_path_speeds_up_a_tail_loop - AssertionErr...
+FAILED tests/test_v10.py::test_three_way_on_big_examples[self_eval.lang] - Fi...
+FAILED tests/test_v10.py::test_ref_diff_same_on_identical_copy_and_diff_on_sabotage
+FAILED tests/test_v10.py::test_ref_diff_counters_flag_catches_a_mode_only_change
+FAILED tests/test_v10.py::test_ref_diff_fuzz_mode_same_on_copy_and_diff_on_sabotage
+FAILED tests/test_v10.py::test_ref_diff_fuzz_transient_new_tree_timeout_is_retried_not_reported
+FAILED tests/test_v10.py::test_ref_diff_fuzz_persistent_new_tree_timeout_is_a_real_finding
+FAILED tests/test_v10.py::test_cli_runs_the_fuzz_deep_nesting_program - Asser...
+FAILED tests/test_v11.py::test_minof_runs_a_bench_in_a_fresh_process - Assert...
+FAILED tests/test_v11.py::test_reserve_probe_finds_a_need_below_the_current_reserve
+FAILED tests/test_v20.py::test_param_contract_wording_agrees_host_vs_guest - ...
+FAILED tests/test_v20.py::test_field_clause_agrees_host_vs_guest - FileNotFou...
+FAILED tests/test_v20.py::test_sorted_field_order_agrees_host_vs_guest - File...
+FAILED tests/test_v20.py::test_every_arg_binding_site_applies_the_parameter_half
+FAILED tests/test_v20.py::test_a_builtin_inside_a_spec_record_renders_differently_and_that_is_old
+FAILED tests/test_v22.py::test_hint_survives_a_failing_check_report - FileNot...
+FAILED tests/test_v22.py::test_order_hint_wording_agrees_host_vs_guest - File...
+FAILED tests/test_v22.py::test_parse_error_wording_is_not_a_guest_contract - ...
+FAILED tests/test_v22.py::test_spec_level_header_matches_the_highest_version_section
+FAILED tests/test_v22.py::test_a_contract_miss_never_carries_an_order_hint - ...
+FAILED tests/test_v23.py::test_guest_start_sets_match_the_hosts - FileNotFoun...
+FAILED tests/test_v23.py::test_host_and_guest_agree_on_which_programs_the_separator_rule_refuses
+FAILED tests/test_v23.py::test_the_guest_miss_names_the_line_the_second_statement_is_on
+FAILED tests/test_v23.py::test_both_self_hosting_examples_still_run_green - A...
+FAILED tests/test_v24.py::test_the_tracked_example_set_is_the_one_this_repo_decided_on
+FAILED tests/test_v24.py::test_every_tracked_example_has_correct_token_positions[blame.lang]
+FAILED tests/test_v24.py::test_every_tracked_example_has_correct_token_positions[checks_demo.lang]
+FAILED tests/test_v24.py::test_every_tracked_example_has_correct_token_positions[cognitive_verifier.lang]
+FAILED tests/test_v24.py::test_every_tracked_example_has_correct_token_positions[cognitive_verifier_v2.lang]
+FAILED tests/test_v24.py::test_every_tracked_example_has_correct_token_positions[cognitive_verifier_v3.lang]
+FAILED tests/test_v24.py::test_every_tracked_example_has_correct_token_positions[deep.lang]
+FAILED tests/test_v24.py::test_every_tracked_example_has_correct_token_positions[diverge.lang]
+FAILED tests/test_v24.py::test_every_tracked_example_has_correct_token_positions[dropped.lang]
+FAILED tests/test_v24.py::test_every_tracked_example_has_correct_token_positions[effects.lang]
+FAILED tests/test_v24.py::test_every_tracked_example_has_correct_token_positions[expense_tracker.lang]
+FAILED tests/test_v24.py::test_every_tracked_example_has_correct_token_positions[failing_check.lang]
+FAILED tests/test_v24.py::test_every_tracked_example_has_correct_token_positions[guess.lang]
+FAILED tests/test_v24.py::test_every_tracked_example_has_correct_token_positions[hello.lang]
+FAILED tests/test_v24.py::test_every_tracked_example_has_correct_token_positions[history.lang]
+FAILED tests/test_v24.py::test_every_tracked_example_has_correct_token_positions[meta.lang]
+FAILED tests/test_v24.py::test_every_tracked_example_has_correct_token_positions[mini_agi_guardian.lang]
+FAILED tests/test_v24.py::test_every_tracked_example_has_correct_token_positions[nano_reasoner.lang]
+FAILED tests/test_v24.py::test_every_tracked_example_has_correct_token_positions[prod_demo_v1.lang]
+FAILED tests/test_v24.py::test_every_tracked_example_has_correct_token_positions[prod_demo_v3.lang]
+FAILED tests/test_v24.py::test_every_tracked_example_has_correct_token_positions[prod_demo_v4.lang]
+FAILED tests/test_v24.py::test_every_tracked_example_has_correct_token_positions[prod_demo_v5.lang]
+FAILED tests/test_v24.py::test_every_tracked_example_has_correct_token_positions[prod_showcase_final.lang]
+FAILED tests/test_v24.py::test_every_tracked_example_has_correct_token_positions[provenance.lang]
+FAILED tests/test_v24.py::test_every_tracked_example_has_correct_token_positions[sales.lang]
+FAILED tests/test_v24.py::test_every_tracked_example_has_correct_token_positions[self_eval.lang]
+FAILED tests/test_v24.py::test_every_tracked_example_has_correct_token_positions[self_host.lang]
+FAILED tests/test_v24.py::test_every_tracked_example_has_correct_token_positions[shapes.lang]
+FAILED tests/test_v24.py::test_every_tracked_example_has_correct_token_positions[show.lang]
+FAILED tests/test_v24.py::test_every_tracked_example_has_correct_token_positions[tco.lang]
+FAILED tests/test_v24.py::test_every_tracked_example_has_correct_token_positions[test_simple.lang]
+FAILED tests/test_v24.py::test_every_tracked_example_has_correct_token_positions[whenceguard_auditor.lang]
+FAILED tests/test_v24.py::test_every_tracked_example_has_correct_token_positions[whenceguard_v2.lang]
+FAILED tests/test_v24.py::test_show_is_not_spell_and_the_two_must_not_be_merged
+FAILED tests/test_v24.py::test_spec_documents_v024 - FileNotFoundError: [Errn...
+FAILED tests/test_v26.py::test_the_default_clears_the_tail_budget_deep_lang_asserts
+FAILED tests/test_v26.py::test_every_example_stays_under_the_default_with_margin
+FAILED tests/test_v26.py::test_cli_bounds_a_runaway_without_any_flag - FileNo...
+FAILED tests/test_v26.py::test_cli_max_iter_zero_restores_unbounded_and_hangs
+FAILED tests/test_v27.py::test_cli_reports_a_size_miss_and_not_a_traceback - ...
+FAILED tests/test_v27.py::test_cli_max_value_flag_lowers_the_budget - assert ...
+FAILED tests/test_v27.py::test_cli_max_int_bits_flag_lowers_the_budget - asse...
+FAILED tests/test_v27.py::test_cli_zero_restores_unbounded_on_both_flags - as...
+FAILED tests/test_v27.py::test_cli_usage_names_both_new_flags - assert ('--ma...
+FAILED tests/test_v27.py::test_cli_rejects_a_non_numeric_budget - assert (2 =...
+FAILED tests/test_v27.py::test_every_example_stays_under_both_defaults_with_margin
+FAILED tests/test_v27.py::test_the_longest_loop_and_the_largest_value_are_not_the_same_program
+FAILED tests/test_v29.py::test_the_provenance_family_agrees_now_and_the_pins_are_exact
+FAILED tests/test_v30.py::test_diverge_and_contrast_no_longer_delegate - File...
+FAILED tests/test_v30.py::test_self_eval_example_still_passes_its_own_self_tests
+FAILED tests/test_v31.py::test_the_grep_is_true_and_the_property_it_stood_for_is_false
+FAILED tests/test_v31.py::test_every_detail_setting_site_belongs_to_one_of_three_ops
+FAILED tests/test_v31.py::test_the_budget_clears_the_measured_corpus_by_at_least_ten_times
+FAILED tests/test_v31.py::test_the_budget_sits_inside_its_own_insensitivity_band
+FAILED tests/test_v31.py::test_the_budget_is_declared_once_and_the_message_still_reads_it
+FAILED tests/test_v31.py::test_the_generator_reaches_every_registered_builtin
+FAILED tests/test_v31.py::test_the_show_example_runs_and_passes_its_own_checks
+FAILED tests/test_v31.py::test_the_four_broken_contracts_are_named_where_the_number_is
+FAILED tests/test_v31.py::test_the_tail_ceiling_is_in_the_declared_divergence_list
+FAILED tests/test_v31.py::test_the_example_still_passes_its_own_self_tests - ...
+FAILED tests/test_v32.py::test_every_foreign_name_is_attested_or_rejected_by_a_decision
+FAILED tests/test_v32.py::test_the_frozen_census_says_what_it_censused - File...
+FAILED tests/test_v32.py::test_strict_miss_moves_the_exit_code_and_nothing_else
+FAILED tests/test_v32.py::test_usage_mentions_the_flag - assert '--strict-mis...
+FAILED tests/test_v32.py::test_no_tracked_example_drops_a_miss - AssertionErr...
+FAILED tests/test_v32.py::test_host_and_guest_word_the_foreign_clause_identically
+FAILED tests/test_v33.py::test_the_entry_rule_still_holds_for_the_two_names_v033_added
+FAILED tests/test_v33.py::test_there_is_still_one_unbound_name_literal - File...
+FAILED tests/test_v33.py::test_ten_field_programs_still_fail_to_parse - FileN...
+FAILED tests/test_v33.py::test_following_the_cures_mechanically_fixes_none_of_them
+FAILED tests/test_v33.py::test_the_ledger_still_replays_and_every_program_reaches_a_value
+FAILED tests/test_v33.py::test_seven_edits_fix_text_the_grammar_accepts - Fil...
+FAILED tests/test_v34.py::test_every_parse_error_site_is_hinted_or_has_a_written_reason
+FAILED tests/test_v34.py::test_the_unhinted_registry_has_no_stale_entries - F...
+FAILED tests/test_v34.py::test_seven_sites_are_hinted_and_thirteen_are_not - ...
+FAILED tests/test_v34.py::test_the_hint_census_is_derived_and_not_a_list - Fi...
+FAILED tests/test_v34.py::test_no_field_program_stalls_on_a_no_cure_error_any_more
+FAILED tests/test_v34.py::test_nano_reasoner_now_takes_two_steps_and_stalls_somewhere_else
+FAILED tests/test_v34.py::test_following_the_cures_still_fixes_none_of_the_ten
+FAILED tests/test_v35.py::test_every_expect_site_wants_a_quoted_literal_or_prose
+FAILED tests/test_v35.py::test_no_want_is_a_bare_token_type - FileNotFoundErr...
+FAILED tests/test_v35.py::test_the_five_rendering_classes_are_still_the_five
+FAILED tests/test_v35.py::test_every_category_an_expect_site_passes_has_prose
+FAILED tests/test_v35.py::test_the_host_now_agrees_with_the_guest_on_the_WANT_half
+FAILED tests/test_v36.py::test_the_sweep_can_actually_fail - FileNotFoundErro...
+FAILED tests/test_v36.py::test_the_dead_shape_name_site_is_dead_on_both_sides
+FAILED tests/test_v36.py::test_expect_name_no_longer_answers_six_questions_with_one_sentence
+FAILED tests/test_v36.py::test_both_guest_files_carry_the_same_renderer - Fil...
+ERROR tests/test_v29.py::test_every_divergence_is_named - FileNotFoundError: ...
+ERROR tests/test_v29.py::test_each_exemption_is_load_bearing - FileNotFoundEr...
+ERROR tests/test_v29.py::test_the_agreement_rate_does_not_regress - FileNotFo...
+ERROR tests/test_v29.py::test_the_exemption_classes_are_the_measured_sizes - ...
+ERROR tests/test_v30.py::test_the_provenance_family_agrees_with_the_host - Fi...
+ERROR tests/test_v30.py::test_the_two_v29_pins_are_exact - FileNotFoundError:...
+ERROR tests/test_v30.py::test_the_label_split_is_exact_for_every_non_miss_op
+ERROR tests/test_v30.py::test_a_shared_node_is_over_reported_never_under_reported
+ERROR tests/test_v30.py::test_every_guest_step_reports_line_zero - FileNotFou...
+ERROR tests/test_v30.py::test_the_guest_never_merges_a_tail_loop - FileNotFou...
+ERROR tests/test_v30.py::test_diverge_and_contrast_now_answer_from_the_guest_history
+ERROR tests/test_v30.py::test_a_history_over_the_budget_misses_instead_of_truncating
+ERROR tests/test_v30.py::test_the_budget_is_declared_once_and_the_message_reads_it
+ERROR tests/test_v31.py::test_an_unbound_name_reports_the_name_as_its_detail
+ERROR tests/test_v31.py::test_a_typed_mismatch_reports_the_label_as_its_detail
+ERROR tests/test_v31.py::test_a_guarded_builtin_miss_keeps_every_argument - F...
+ERROR tests/test_v31.py::test_a_passed_through_miss_is_still_a_success_node
+ERROR tests/test_v31.py::test_the_curated_inputs_are_still_curated_on_success
+ERROR tests/test_v31.py::test_the_proxy_is_exact_against_the_real_guest_walk
+ERROR tests/test_v31.py::test_the_guest_tail_ceiling_is_399_and_the_host_has_none
+ERROR tests/test_v31.py::test_the_guest_matches_the_host_byte_for_byte_on_a_diverging_corpus
+ERROR tests/test_v31.py::test_the_argument_guards_say_what_the_host_says - Fi...
+ERROR tests/test_v31.py::test_an_empty_run_list_and_a_single_run_have_no_origins
+ERROR tests/test_v31.py::test_the_guest_reports_a_merged_loop_difference_differently
+ERROR tests/test_v31.py::test_no_guest_node_can_carry_a_count_above_one - Fil...
+ERROR tests/test_v31.py::test_the_guest_shows_every_route_and_the_hosts_is_among_them
+ERROR tests/test_v31.py::test_a_shared_origin_is_over_reported_never_under_reported
+ERROR tests/test_v31.py::test_identity_is_an_optimisation_and_not_a_rule - Fi...
+ERROR tests/test_v31.py::test_the_walk_refuses_rather_than_truncating - FileN...
+ERROR tests/test_v31.py::test_nothing_in_the_provenance_family_delegates_any_more
+ERROR tests/test_v33.py::test_host_and_guest_word_the_v33_miss_clause_identically
+ERROR tests/test_v33.py::test_the_clause_fires_on_an_unbound_name_and_on_nothing_else
+ERROR tests/test_v33.py::test_position_beats_vocabulary_on_both_sides - FileN...
+ERROR tests/test_v34.py::test_host_and_guest_refuse_the_same_programs_at_the_same_place[let-tail]
+ERROR tests/test_v34.py::test_host_and_guest_refuse_the_same_programs_at_the_same_place[empty]
+ERROR tests/test_v34.py::test_host_and_guest_refuse_the_same_programs_at_the_same_place[fn-expr]
+ERROR tests/test_v34.py::test_host_and_guest_refuse_the_same_programs_at_the_same_place[eq]
+ERROR tests/test_v34.py::test_host_and_guest_refuse_the_same_programs_at_the_same_place[and]
+ERROR tests/test_v34.py::test_no_clause_of_v034_is_mirrored_in_the_guest - Fi...
+ERROR tests/test_v35.py::test_exactly_six_expect_sites_can_never_fail - FileN...
+ERROR tests/test_v35.py::test_no_expect_site_is_merely_unreached - FileNotFou...
+ERROR tests/test_v35.py::test_the_live_sites_are_twenty_two_and_all_of_them_raised
+ERROR tests/test_v35.py::test_no_message_an_author_can_see_names_an_implementation_symbol
+ERROR tests/test_v36.py::test_the_renderer_agrees_on_every_token_in_the_corpus
+ERROR tests/test_v36.py::test_the_corpus_reaches_every_token_type_the_lexer_can_emit
+ERROR tests/test_v36.py::test_the_corpus_reaches_every_keyword - FileNotFound...
+ERROR tests/test_v36.py::test_the_two_known_residuals_are_absent_from_the_corpus
+ERROR tests/test_v36.py::test_the_guest_repr_matches_python_repr_on_every_case
+ERROR tests/test_v36.py::test_each_host_what_site_has_the_same_guest_sentence[field name after '.']
+ERROR tests/test_v36.py::test_each_host_what_site_has_the_same_guest_sentence[field name (record)]
+ERROR tests/test_v36.py::test_each_host_what_site_has_the_same_guest_sentence[field name (shape)]
+ERROR tests/test_v36.py::test_each_host_what_site_has_the_same_guest_sentence[parameter name]
+ERROR tests/test_v36.py::test_each_host_what_site_has_the_same_guest_sentence[effect name]
+ERROR tests/test_v36.py::test_each_host_what_site_has_the_same_guest_sentence['@{' after shape name]
+ERROR tests/test_v36.py::test_each_host_what_site_has_the_same_guest_sentence[a name (control)]
+ERROR tests/test_v36.py::test_each_host_what_site_has_the_same_guest_sentence['{' (control)]
+112 failed, 1752 passed, 6 skipped, 56 errors in 1676.12s (0:27:56)

@@ -182,7 +182,16 @@ def test_guest_parser_parses_its_own_full_source():
     # functions (`repr_body`, `repr_str`, `show_tok`, `expect_op_as`,
     # `expect_name_as`) and seven `check` statements to the self-test
     # section, all of which are top-level statements of this file.
-    assert env.get("__nstmts").payload == 262
+    # round 402: +6 -- v0.37 decision 46 adds ONE shared-library function
+    # (`bound_line`, the linear WHERE-lookup over the `@{n, ln}` binding
+    # records, so this count and `LIB_END` move together a fourth time) and
+    # five `check` statements to the self-test section. Round 402 updated
+    # `LIB_END` (985 -> 1022) and three other pins but not this one, and the
+    # test is `whence_slow`, so the fast tier could not see it; the full tier
+    # that would have has not completed since round 390. Found by round 403
+    # by reading an ORPHANED full-tier run's log -- see
+    # knowledge/round-403-*.md.
+    assert env.get("__nstmts").payload == 268
 
 
 @pytest.mark.whence_slow

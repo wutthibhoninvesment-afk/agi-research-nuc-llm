@@ -1,0 +1,73 @@
+........................................................................ [  7%]
+........................................................................ [ 15%]
+........................................................................ [ 22%]
+........................................................................ [ 30%]
+........................................................................ [ 38%]
+........................................................................ [ 45%]
+........................................................................ [ 53%]
+........................................................................ [ 61%]
+........................................................................ [ 68%]
+........................................................................ [ 76%]
+........................................................................ [ 83%]
+........................................................................ [ 91%]
+........................................................................ [ 99%]
+.......                                                                  [100%]
+tier-budget: 13/13 promoted files timed, 73.3s of a 47.4s budget — DRIFT: test_swe_coverage.py 11.6s > 11.5s, test_swe_oracles.py 11.4s > 10.0s (re-run `python3 harness/tierbudget.py measure` and re-decide)
+943 passed, 269 deselected in 184.71s (0:03:04)
+
+--- end of measured output; recorded status below ---
+
+slow tier: 25 files, 0 conclusive against checkout e3c368b21fe3000f (0% recall), 0 failing
+  + 1 file(s) LAST RAN RED, at a checkout that has since moved — not evidence about this one, and the first thing a slow-tier slice should re-run
+  test_swe_alias_effects.py          unknown            -
+  test_swe_bymap.py                  unknown            -
+  test_swe_campaign.py               unknown            -
+  test_swe_coverage.py               stale_checkout     5s  32.0h ago
+  test_swe_depthceiling.py           unknown            -
+  test_swe_equivalence.py            unknown            -
+  test_swe_exemptaudit.py            unknown            -
+  test_swe_exemptmap.py              unknown            -
+  test_swe_fuzz.py                   stale_checkout     142s  44.4h ago
+  test_swe_guest.py                  stale_subject      202s  32.0h ago   [last run RED]
+      moved in scope: examples, whence
+  test_swe_instrument.py             unknown            -
+  test_swe_killers.py                stale_checkout     40s  32.0h ago
+  test_swe_loop.py                   stale_subject      0s  32.1h ago
+      moved in scope: whence
+  test_swe_mutation.py               stale_checkout     17s  32.0h ago
+  test_swe_oraclekill.py             stale_checkout     58s  44.7h ago
+  test_swe_oracles.py                stale_checkout     5s  32.1h ago
+  test_swe_prioritize.py             unknown            -
+  test_swe_proc.py                   stale_checkout     13s  32.0h ago
+  test_swe_regiontools.py            stale_subject      5s  32.1h ago
+      moved in scope: whence
+  test_swe_repair.py                 stale_checkout     102s  44.5h ago
+  test_swe_review.py                 stale_checkout     81s  33.2h ago
+  test_swe_scoreaudit.py             stale_harness      1s  32.1h ago
+      moved: tests/conftest.py
+  test_swe_spacewitness.py           unknown            -
+  test_swe_toolliveness.py           unknown            -
+  test_swe_triage.py                 stale_harness      0s  32.1h ago
+      moved: swe/fuzz.py, swe/instrument.py, tests/conftest.py
+  NOTE: 25 file(s) are NOT evidence about this checkout.
+
+RECORDED 2026-08-30T17:53:28Z (22.2 h ago) — a stored verdict, not a run just now
+  HEAD HAS MOVED SINCE: recorded at 91acd9c5af97, now 58abd8fd92cf — this verdict is NOT about the current tree
+ref HEAD (91acd9c5af97)   verdict clean
+  17 untracked path(s) exist here and in no fresh clone
+  allowed-dirty (escalation pin, suite-neutral): languages/whence/SECURITY.md
+  harness-fast   clean                  live={'deselected': 323, 'passed': 587} pristine={'deselected': 323, 'passed': 587}  95.9s
+  whence-fast    clean                  live={'deselected': 70, 'passed': 1595, 'skipped': 3} pristine={'deselected': 70, 'passed': 1595, 'skipped': 3}  84.6s
+  whence-slow    clean                  live={'deselected': 1598, 'passed': 70} pristine={'deselected': 1598, 'passed': 70}  1014.6s
+
+procreap scan: under=/home/pgain/agi-research-nuc-llm verdict=residue matched=5 unreadable=0 (protected=2 vanished=0)
+  pid=680210   ppid=1      ORPHANED cwd=/home/pgain/agi-research-nuc-llm
+      open: /home/pgain/agi-research-nuc-llm/logs/driver_bg.log, /home/pgain/agi-research-nuc-llm/logs/round-403.json, /home/pgain/agi-research-nuc-llm/run_driver.sh, /home/pgain/agi-research-nuc-llm/state/.driver.lock
+  pid=2172840  ppid=680210          cwd=/home/pgain/agi-research-nuc-llm
+      open: /home/pgain/agi-research-nuc-llm/logs/round-403.json, /home/pgain/agi-research-nuc-llm/state/.driver.lock
+  pid=2172841  ppid=2172840          cwd=/home/pgain/agi-research-nuc-llm
+      open: /home/pgain/agi-research-nuc-llm/claude-wrapper.sh, /home/pgain/agi-research-nuc-llm/logs/round-403.json, /home/pgain/agi-research-nuc-llm/state/.driver.lock
+  pid=2172842  ppid=2172841          cwd=/home/pgain/agi-research-nuc-llm
+      open: /home/pgain/agi-research-nuc-llm/logs/round-403.json, /home/pgain/agi-research-nuc-llm/state/.driver.lock, /proc/2172842/statm
+  pid=2173635  ppid=1      ORPHANED cwd=/home/pgain/agi-research-nuc-llm/languages/whence
+      open: /home/pgain/agi-research-nuc-llm/state/round-403/logs/whence_full_403.log
