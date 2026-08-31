@@ -25,22 +25,32 @@ grammar. `sweep` runs the guest library once, asks it to render every
 token of every snippet, and lines the answers up against `_show` on the
 host's own token stream.
 
-THE TWO KNOWN RESIDUALS, and why they are exemptions and not bugs:
+THE TWO KNOWN RESIDUALS ARE GONE (v0.39, round 408, decision 48), and
+neither went by being tested harder. Both are recorded here because what
+replaced them is not nothing.
 
-  * a NON-PRINTABLE character inside a string literal. Python `repr`
-    writes `\x00`; Whence's escape table (`whence/lexer.py:_ESCAPES`) can
-    spell exactly `\n \t \r \" \\` and nothing else, so a guest cannot
-    write the character it would have to compare against, let alone
-    render it. Same shape as the `\r` hole round 350 closed on the
-    lexer, one level down --- and unreachable from source, because a
-    literal cannot CONTAIN a byte it cannot spell.
-  * an integer past `values.SHOW_INT_BITS` (13287 bits). `str` summarises
-    it as `<integer, N bits>` by design (round 368); `repr` does not.
-    Reachable only from a 4000+ digit literal.
+  * a NON-PRINTABLE character inside a string literal. v0.36 exempted it
+    twice over: `repr` writes `\x00`, which Whence's escape table cannot
+    spell, "so a guest cannot write the character it would have to compare
+    against" --- and "unreachable from source, because a literal cannot
+    CONTAIN a byte it cannot spell."
+    BOTH halves were wrong. The second is the interesting one: a literal
+    cannot ESCAPE such a byte, and `whence/lexer.py`'s string scanner
+    copies every byte except `"`, `\` and a raw newline straight into the
+    value, so a RAW NUL in source reaches a STRING token and reached a
+    rendered message. v0.36 checked `tokenize('let s = "a\\x00b"')`,
+    which is the ESCAPE spelling and a different program, and read its
+    `bad escape` as unreachability.
+    The first half stopped being true when decision 48 deleted the rule
+    that needed it: `quote_str` renders an unspellable byte by COPYING it,
+    so a guest renders it correctly without being able to name it. The
+    corpus now carries `string-with-unspellable-byte` and it AGREES.
 
-Both are asserted absent from the corpus by `tests/test_v36.py`, in the
-`skills/measured-exemption` discipline: an exemption that is not measured
-is a shrug.
+  * an integer past `values.SHOW_INT_BITS` (13287 bits). v0.36 described
+    this as `str` summarising where `repr` does not --- a RENDERING
+    difference, closed by decision 48 routing `_show` through `show_int`.
+    What that description concealed is a real divergence one layer down,
+    in the LEXER, and it is still open. See `KNOWN_DIVERGENT` below.
 """
 import argparse
 import os
@@ -96,6 +106,41 @@ CORPUS = [
     ("comment-then-eof", 'let x = 1 # trailing\n'),
     ("no-trailing-newline", 'let x = 1'),
     ("underscore-name", 'let _a1 = 1\n'),
+    # v0.39 (round 408), decision 48. The kinds the got half now renders
+    # by a Whence rule rather than a Python one. `unspellable-byte` is
+    # v0.36's first residual, promoted from an exemption to a corpus row:
+    # the bytes in it are exactly the ones `_ESCAPES` cannot name, they
+    # are reachable from source, and both sides now render them by copying.
+    ("string-with-unspellable-byte", 'let s = "a\x00b\x07c\x1bd\x7fe"\n'),
+    ("string-with-every-escape", 'let s = "\\\\ \\" \\n \\t \\r"\n'),
+    ("integer-just-under-the-cap", 'let a = %s\n' % ("9" * 4000)),
+]
+
+# v0.39 (round 408). Cases that are KNOWN to diverge, with the boundary
+# measured rather than asserted. These are deliberately NOT in `CORPUS`:
+# the sweep's headline number stays a clean 0, and the exemption stays
+# executable instead of becoming a paragraph. `tests/test_v36.py` requires
+# each of these to diverge -- an exemption that has stopped being true is
+# as much a defect as a divergence that has started.
+#
+# THE MECHANISM, which v0.36's wording did not reach. Round 368 gave
+# `num()` a refusal past `SHOW_INT_DIGITS` (4000) and recorded the rule as
+# "Whence never accepts digits it could not print back". That is true of
+# `num()` and false of the LEXER, which accepts a literal of any length --
+# two doors for one piece of numeric text, and only one of them enforces
+# the rule. The guest's `lit_num` is `num(text)` with `pos_inf` for a
+# miss, so it walks through the door that refuses; the host's
+# `whence/lexer.py` walks through the one that does not.
+#
+#   4000 digits: host `<integer, 13288 bits>`, guest `<integer, 13288 bits>`
+#   4001 digits: host `<integer, 13292 bits>`, guest `inf`
+#
+# Closing it is a decision about what the language ACCEPTS, not about how
+# it renders, so decision 48 does not touch it.
+KNOWN_DIVERGENT = [
+    ("integer-one-digit-past-the-cap", 'let a = %s\n' % ("9" * 4001),
+     "NUMBER", "the lexer accepts what num() refuses; the guest's lit_num "
+               "substitutes pos_inf"),
 ]
 
 

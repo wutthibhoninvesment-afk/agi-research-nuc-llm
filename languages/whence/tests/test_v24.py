@@ -307,14 +307,22 @@ def test_show_is_unchanged_for_every_token_the_author_actually_wrote():
 def test_show_is_not_spell_and_the_two_must_not_be_merged():
     """`_spell` quotes a token back at the author inside a HINT (a string
     literal keeps its own double quotes, because the hint is telling them
-    how to write it); `_show` names the token that stopped the parse. They
-    disagree on every STRING token, and `_spell` has no EOF case because a
-    hint is never about end of input."""
+    how to write it); `_show` names the token that stopped the parse.
+    `_spell` has no EOF case because a hint is never about end of input.
+
+    v0.39 (round 408), decision 48 CHANGED what this test used to say. It
+    asserted the two "disagree on every STRING token" -- `_spell` wrote
+    `"hi"` and `_show` wrote `'hi'`, one in Whence's string syntax and one
+    in Python's. That was never a reason to keep them apart; it was the
+    defect. They now agree on a STRING, through the one `quote_str` both
+    call, and the reasons they must not be merged are the two below: a
+    non-STRING is BARE in a hint (the hint's own format supplies the
+    backticks) and quoted in the got slot, and only `_show` handles EOF.
+    """
     class T(object):
         def __init__(self, type_, value):
             self.type, self.value = type_, value
-    assert _spell(T("STRING", "hi")) == '"hi"'
-    assert _show(T("STRING", "hi")) == "'hi'"
+    assert _spell(T("STRING", "hi")) == _show(T("STRING", "hi")) == '"hi"'
     assert _spell(T("NAME", "x")) == "x"
     assert _show(T("NAME", "x")) == "'x'"
     assert _show(T("EOF", None)) == "end of input"

@@ -637,6 +637,14 @@
    "where": "knowledge/round-407-the-verdict-that-was-a-comparison.md",
    "quote": "## 7. Scoring THIS round's bank: 15 HIT, 2 HALF, 8 MISS of 25",
    "note": "Banked before a single one of round 401's data files was opened, and opening with a \u00a70 OBSERVATIONS ALREADY MADE section (round 395's convention) that declares round 401's headline sentence as already read -- so Q2 and Q3 are labelled not-foresight in the table rather than counted as hits. Three of the eight misses are instances of classes this repo had already written down: Q13 reproduced round 401's own P18 error by reasoning about the mechanism instead of opening round 389's table; Q22 grepped the identifier `gen_sha`, found nothing, and concluded the capability was absent when it is fully present as instrument.PARTS['gen'] (round 404 item 1's 'grep for the representation, not the name'); Q9 predicted a four-member family from its slogan and got one of four. None outstanding."
+  },
+  "408": {
+   "bank": "state/whence/round-408/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 408,
+   "where": "knowledge/round-408-the-got-slot-that-spoke-python.md",
+   "quote": "### Outcome column \u2014 15 HIT, 1 HALF, 2 MISS of 18",
+   "note": "Banked cold before any measurement, with a section-0 OBSERVATIONS ALREADY MADE list of the ten orientation facts read while choosing the task, so nothing below is counted as foresight it did not have. Scored in TWO COLUMNS (outcome and mechanism), which is round 407's next-step item 3 followed prospectively: outcome 15 HIT / 1 HALF / 2 MISS of 18, mechanism 3 HIT / 1 HALF of 4. The three non-hits are the informative rows. P9 predicted the printable-ASCII disagreement set as {double-quote, single-quote} and it is exactly one character, backslash -- the quote difference is in the OUTER quote, an axis the same sentence had separated out. P12/P19 are one miss the bank itself predicted: my enumeration of affected files was short by three, and P19's MECHANISM clause (found by grepping a string or a number) is right for one of the three and wrong for two, one of which is not findable by grepping anything. P20 anchored on round 407's reported baseline and is a claim about the tree rather than about the change. None outstanding."
   }
  }
 }

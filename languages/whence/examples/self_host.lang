@@ -275,34 +275,45 @@ fn is_ntype(toks, pos, ty) { t_at(toks, pos).t == ty }
 # NO got half at all -- the kind round 396's want-half measurement could
 # not see, because its shared set is defined by having one.
 #
-# `repr_str` spells out Python's `repr` for a string, which Whence has no
-# builtin for (`str` of a string is its bare content). It is byte-exact
-# for printable ASCII, including `repr`'s quote-switching rule. Two
-# residuals are pinned rather than fixed in `tests/test_v36.py`: a
-# non-printable character (`repr` writes `\x00`, which Whence's escape
-# table cannot spell) and an integer past `values.SHOW_INT_BITS` (`str`
-# summarises it as `<integer, N bits>`, `repr` does not).
-fn repr_body(s, i, acc, q) {
+# v0.39 (round 408), decision 48. `quote_str` spells a string VALUE as the
+# Whence literal that produces it -- the five escapes `whence/lexer.py`'s
+# `_ESCAPES` can spell, and every other byte verbatim, so the rendering
+# re-lexes to the input for all 256 of them. It replaces `repr_str`, which
+# mirrored Python's `repr` including the quote-switching rule, and it needs
+# no `contains` scan of the value to pick a quote character: Whence has one
+# string syntax and this is it.
+#
+# Both of v0.36's residuals go with it, and neither by testing harder.
+# The non-printable one goes because there is no `\xNN` rule left to
+# mirror -- rendering an unspellable byte is now the IDENTITY, which a
+# guest can do without being able to name the byte. (It was also never
+# unreachable: the host lexer's string scanner copies every byte except
+# `"`, `\` and a raw newline straight into the value, so a RAW NUL in
+# source reaches a STRING token. v0.36 checked the ESCAPE spelling
+# `"a\x00b"`, which is a different program, and concluded from its
+# `bad escape` that the byte could not be reached.) The big-integer one
+# goes because the HOST now calls `show_int` where it used to call `repr`,
+# so `str(k.v)` on this side and `_show` on that side are the same rule.
+fn quote_body(s, i, acc) {
   if i >= len(s) { acc }
   else {
     let c = s[i]
     let e = if c == "\\" { "\\\\" }
+      else if c == "\"" { "\\\"" }
       else if c == "\n" { "\\n" }
       else if c == "\t" { "\\t" }
       else if c == "\r" { "\\r" }
-      else if c == q { "\\" + c }
       else { c }
-    repr_body(s, i + 1, acc + e, q)
+    quote_body(s, i + 1, acc + e)
   }
 }
-fn repr_str(s) {
-  let q = if contains(s, "'") and not contains(s, "\"") { "\"" } else { "'" }
-  q + repr_body(s, 0, "", q) + q
-}
+fn quote_str(s) { "\"" + quote_body(s, 0, "") + "\"" }
 fn show_tok(k) {
   if k.t == "eof" { "end of input" }
+  else if k.t == "nl" { "a line break" }
   else if k.t == "num" { str(k.v) }
-  else { repr_str(str(k.v)) }
+  else if k.t == "str" { quote_str(k.v) }
+  else { "'" + str(k.v) + "'" }
 }
 
 # The want half. `expect_op`/`expect_name` keep their two-and-three
@@ -1284,8 +1295,17 @@ check "...and names the offending token":
 # the want half at the six sites `expect_name` used to answer with one
 # sentence. `show_tok` is `whence/parser.py`'s `_show` written in Whence:
 # the EOF token is `end of input` and not the empty string its `v` field
-# holds, a number is not quoted, and everything else goes through
-# `repr_str`, which mirrors Python `repr` down to its quote-switching rule.
+# holds, and a number is not quoted.
+#
+# v0.39 (round 408), decision 48 rewrote the rest of it. The got slot is
+# now EITHER a literal the author can type back verbatim in Whence OR
+# prose -- never a spelling from the implementation language. Three of the
+# checks below moved with it, and one of them is worth reading twice:
+# "a string in the got slot switches quotes when it holds a single one"
+# asserted `got "a'b"`, and `got "a'b"` is still what comes out, because a
+# string is now ALWAYS double-quoted. The check would have stayed green
+# with its own claim gone. It is replaced here by the pair that can tell
+# the two rules apart -- a KEYWORD and a STRING carrying the same text.
 check "the got half names end of input, not the token's empty value":
   contains(str(parse_whence("(1 + 2")), "expected ')', got end of input")
 check "a number in the got slot is not quoted":
@@ -1293,11 +1313,18 @@ check "a number in the got slot is not quoted":
            "expected a string label after 'check', got 1")
 check "a name in the got slot is quoted":
   contains(str(parse_whence("let let = 1")), "expected a name, got 'let'")
-check "a newline in the got slot is escaped, as the host's repr writes it":
-  contains(str(parse_whence("let x\nlet y = 1")), "expected '=', got '\\n'")
-check "a string in the got slot switches quotes when it holds a single one":
+check "a newline in the got slot is prose, not the host language's escape":
+  contains(str(parse_whence("let x\nlet y = 1")), "expected '=', got a line break")
+check "a string in the got slot is a Whence literal, always double-quoted":
   contains(str(parse_whence("let f = fn(x) { x }\nlet v = f(1 \"a'b\")")),
            "expected ')', got \"a'b\"")
+check "...so a keyword and a string spelled alike no longer collide":
+  contains(str(parse_whence("let \"let\" = 1")), "expected a name, got \"let\"")
+check "...and the keyword keeps decision 44's single quotes":
+  contains(str(parse_whence("let let = 1")), "expected a name, got 'let'")
+check "a quote inside a string in the got slot is escaped, so it re-lexes":
+  contains(str(parse_whence("let f = fn(x) { x }\nlet v = f(1 \"a\\\"b\")")),
+           "expected ')', got \"a\\\"b\"")
 check "expect_name says which KIND of name it wanted":
   contains(str(parse_whence("let r = @{a: 1,}")), "expected field name, got '}'")
 check "...and a parameter is a parameter, not just a name":

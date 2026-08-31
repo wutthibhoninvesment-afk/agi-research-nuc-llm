@@ -419,10 +419,21 @@ def test_both_self_hosting_examples_still_run_green():
     # ITSELF IS NOT THE FIX --- the fix is that the number is now derived
     # from a measurement anyone can repeat, in this comment.
     #
-    # `self_host.lang` 133 -> 140 IS this round's doing: v0.36 decision 45
+    # `self_host.lang` 133 -> 140 IS round 398's doing: v0.36 decision 45
     # adds seven parse-error checks (the got half's five token kinds, and
     # the two `expect_name` sites that used to say `a name` for everything).
-    for name, expected in (("self_host.lang", "145 passed, 0 failed"),
+    #
+    #   145  round 402 `4ce8de8` and after
+    #   148  round 408, v0.39 decision 48: +3 net. Two of the five got-half
+    #        checks change WORDING (a newline is prose, not `'\n'`; a
+    #        string is always double-quoted) and three are added -- the
+    #        keyword/string pair that can tell decision 48's rule from the
+    #        `repr` rule it replaced, and one that pastes an escaped quote
+    #        back through the guest's own lexer. The check the pair
+    #        replaces would have stayed GREEN through the change: it
+    #        asserted `got "a'b"` and named the quote-switching rule, and
+    #        `got "a'b"` is what a always-double-quote rule prints too.
+    for name, expected in (("self_host.lang", "148 passed, 0 failed"),
                            ("self_eval.lang", "166 passed, 0 failed")):
         r = subprocess.run(
             [sys.executable, os.path.join(ROOT, "run.py"),

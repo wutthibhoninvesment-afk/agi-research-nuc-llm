@@ -9,6 +9,7 @@ Enforced at parse time (not runtime):
 from .lexer import tokenize
 from . import ast_nodes as A
 from .foreign import FOREIGN_NAMES, bound_anywhere
+from .values import show_int
 
 
 class ParseError(Exception):
@@ -165,10 +166,55 @@ def _starts_statement(tok):
 _NAME_INTRODUCERS = ("shape",)
 
 
+# v0.39 (round 408), decision 48. The five escapes `whence/lexer.py`'s
+# `_ESCAPES` can spell, inverted. Backslash MUST come first or the escapes
+# this table introduces get escaped again by the passes below it.
+#
+# There is no `\xNN` row and there must not be. Whence's escape table is
+# CLOSED at five, and the lexer's string scanner copies every other byte
+# into the value verbatim (`out.append(ch)`, guarded only against `"`, `\`
+# and a raw newline) -- so a raw NUL, TAB, BEL or ESC is not merely
+# legal inside a literal, it is the ONLY way to write one. Rendering such a
+# byte back verbatim is therefore exactly right: the output re-lexes to the
+# input, for all 256 of them. Rendering it as `\x00` -- which is what
+# Python's `repr` does, and what `_show` did until this version -- prints a
+# spelling no Whence program can contain.
+_QUOTE_ESCAPES = (("\\", "\\\\"), ('"', '\\"'),
+                  ("\n", "\\n"), ("\t", "\\t"), ("\r", "\\r"))
+
+
+def quote_str(s):
+    """A string VALUE, spelled as the Whence literal that produces it.
+
+    Round-trip exact by construction rather than by enumeration: the five
+    characters the lexer treats specially are escaped, everything else is
+    copied. `tests/test_v39.py::test_every_byte_round_trips` runs the
+    inverse over all 256 single-byte values and re-lexes each one.
+
+    This is the parser's copy of a rule `whence/values.py:_quote` already
+    owned for the RUNTIME (`print`, `why`, a failing `check`'s report).
+    The two are not shared because `values._quote` also truncates to a
+    `limit` and does not escape `\t`/`\r`, both of which are wrong for a
+    diagnostic that is telling an author what they typed; see SPEC.md
+    decision 48 for why the language ended up with three renderings of one
+    idea and which one won.
+    """
+    for raw, esc in _QUOTE_ESCAPES:
+        s = s.replace(raw, esc)
+    return '"%s"' % s
+
+
 def _spell(tok):
-    """How a token should be quoted back at the author inside a hint."""
+    """How a token should be quoted back at the author inside a hint.
+
+    v0.39: the STRING case escapes. It used to be `'"%s"' % tok.value`,
+    which for `let a = 1 "he said \"hi\""` told the author to *start
+    `"he said "hi""` on the next line* -- text that lexes as a string, a
+    name and an empty string, i.e. a hint whose instruction cannot be
+    followed. `"back\\slash"` was worse: following it is a `bad escape`.
+    """
     if tok.type == "STRING":
-        return '"%s"' % tok.value
+        return quote_str(tok.value)
     return "%s" % (tok.value,)
 
 
@@ -192,7 +238,38 @@ def _show(tok):
     """
     if tok.type == "EOF":
         return "end of input"
-    return repr(tok.value)
+    # v0.39 (round 408), decision 48 -- decision 44's rule, applied to the
+    # OTHER half of its own sentence. A `got` is EITHER a literal the
+    # author can type back verbatim in Whence OR prose. It is never a
+    # spelling borrowed from the implementation language, which is what
+    # `repr(tok.value)` was for all four kinds below.
+    if tok.type == "NEWLINE":
+        # Not a literal at all: there is no Whence expression whose text is
+        # a line break. `'\n'` was Python's spelling for one, sitting in
+        # the same slot as `end of input`, which has been prose since v0.24.
+        return "a line break"
+    if tok.type == "STRING":
+        # `repr` chose the quote character by INSPECTING the value (single,
+        # switching to double when the value holds a `'` and no `"`), so
+        # `let "let" = 1` and `let let = 1` produced the same eleven bytes:
+        # `expected a name, got 'let'`. Whence has one string syntax; a
+        # STRING token now renders in it and a KW/NAME renders in the
+        # single quotes decision 44 gives a typeable literal, so the two
+        # kinds are no longer confusable.
+        return quote_str(tok.value)
+    if tok.type == "NUMBER" and isinstance(tok.value, int):
+        # The language's OWN integer rule (round 368, `SHOW_INT_BITS`),
+        # which `_show` was bypassing: a 4000-digit literal in the got slot
+        # emitted a 4146-character parse error, out of the one renderer in
+        # this repo that had never heard of the cap.
+        return show_int(tok.value)
+    if tok.type == "NUMBER":
+        return repr(tok.value)          # a float; `values._show` agrees
+    # KW, NAME and every operator. Their values cannot contain a quote or a
+    # backslash -- `tests/test_v39.py::test_the_bare_quote_is_repr_for_
+    # every_token_the_lexer_emits` is what keeps that true -- so this is
+    # `repr` minus the inspection, and minus the dependency.
+    return "'%s'" % (tok.value,)
 
 
 # v0.35 (round 396), decision 44: how `expect` NAMES the token it wanted.

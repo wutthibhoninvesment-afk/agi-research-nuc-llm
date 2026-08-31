@@ -96,29 +96,62 @@ def test_the_corpus_reaches_every_keyword(rows):
     assert KEYWORDS - seen == set(), sorted(KEYWORDS - seen)
 
 
+def _plant_line(lib, needle, replacement):
+    """Replace the ONE line of the guest library containing `needle`.
+
+    v0.39 (round 408). The plants used to be (old_text, new_text) pairs
+    written out in full, and the guest source they quote is Whence string
+    literals inside Python string literals inside a docstring-bearing test
+    file --- three levels of backslash. The v0.39 rewrite got one of them
+    wrong in a way that PASSED its `lib.count(old) == 1` guard and then
+    planted a real newline into a rendering, misaligning the sweep's
+    `SEP.split`. Naming the line by a short unambiguous needle and
+    replacing the whole line removes the level of escaping that was
+    carrying the error.
+    """
+    lines = lib.splitlines(True)
+    hits = [i for i, ln in enumerate(lines) if needle in ln]
+    assert len(hits) == 1, (needle, hits)
+    lines[hits[0]] = replacement
+    return "".join(lines)
+
+
 def test_the_sweep_can_actually_fail():
     """The negative control, and the reason the 0 above is a measurement.
 
     A parity harness that has never been observed red is a green light.
-    Three plants, one per rule `show_tok` implements; each must be caught,
-    and each must be caught in the RIGHT token kind.
+    One plant per branch of `show_tok`, plus one on the renderer it
+    delegates to; each must be caught, and each must be caught in the
+    RIGHT token kind.
+
+    v0.39 (round 408): the STRING plant used to be *drop `repr`'s
+    quote-switching rule*, and decision 48 deleted that rule, so the plant
+    became a no-op edit. A plant that no longer perturbs anything asserts
+    nothing about the sweep --- it asserts that the sweep sees a
+    difference that is not there, and it goes red for a reason unrelated
+    to blindness. The NEWLINE branch is new in v0.39 and gets its own.
     """
     lib = S.library_source()
     plants = [
         # the v0.24 defect this round fixed, put back
-        ('  if k.t == "eof" { "end of input" }', '  if k.t == "eof" { "\'\'" }',
-         "EOF"),
+        ('{ "end of input" }', '  if k.t == "eof" { "the end" }\n', "EOF"),
         # quote a number, the other half of the same defect
-        ('  else if k.t == "num" { str(k.v) }',
-         '  else if k.t == "num" { "\'" + str(k.v) + "\'" }', "NUMBER"),
-        # drop `repr`'s quote-switching rule
-        ('  let q = if contains(s, "\'") and not contains(s, "\\"") { "\\"" } '
-         'else { "\'" }',
-         '  let q = "\'"', "STRING"),
+        ('else if k.t == "num" { str(k.v) }',
+         '  else if k.t == "num" { "<" + str(k.v) + ">" }\n', "NUMBER"),
+        # v0.39: the prose decision 48 gives a line break
+        ('{ "a line break" }', '  else if k.t == "nl" { "a newline" }\n',
+         "NEWLINE"),
+        # v0.39: perturb the STRING branch WITHOUT removing escaping.
+        # `{ str(k.v) }` would be the obvious plant and it is unusable
+        # here for the same reason `fn quote_str(s) { s }` is -- see
+        # `test_the_plant_that_breaks_the_harness_instead_of_the_
+        # comparison`. Any plant that stops escaping a newline
+        # desynchronises `SEP` instead of diverging.
+        ('{ quote_str(k.v) }',
+         '  else if k.t == "str" { "<" + quote_str(k.v) + ">" }\n', "STRING"),
     ]
-    for old, new, kind in plants:
-        assert lib.count(old) == 1, (lib.count(old), old)
-        rows, misaligned = S.sweep(library=lib.replace(old, new))
+    for needle, replacement, kind in plants:
+        rows, misaligned = S.sweep(library=_plant_line(lib, needle, replacement))
         assert not misaligned, (kind, misaligned)
         bad = [r for r in rows if not r.agrees]
         assert bad, "planting %r changed nothing --- the sweep is blind" % kind
@@ -126,47 +159,46 @@ def test_the_sweep_can_actually_fail():
             {r.kind for r in bad}))
 
 
-# --------------------------------------------------------------------------
-# 2. the two residuals, measured rather than shrugged at
-# --------------------------------------------------------------------------
+def test_the_plant_that_breaks_the_harness_instead_of_the_comparison():
+    """The fifth plant, and the reason it is not in the list above.
 
-def test_the_two_known_residuals_are_absent_from_the_corpus(rows):
-    """`skills/measured-exemption` (round 359): an exemption nobody
-    measured is a shrug.
+    `guest_shows` gets the whole corpus back from ONE interpreter run as a
+    single string joined by `SEP` (a newline), and splits it. That is safe
+    only while no rendering can CONTAIN a newline -- which is true exactly
+    because `quote_str` escapes one. So the single most direct plant on
+    decision 48's renderer, `fn quote_str(s) { s }`, does not produce a
+    divergence the comparison can see: it desynchronises the comparison.
 
-    `repr_str` mirrors Python `repr` for printable ASCII, including its
-    quote-switching rule. Two things it cannot mirror:
-
-      * a NON-PRINTABLE character. `repr` writes `\x00`; `whence/lexer.py`'s
-        `_ESCAPES` can spell exactly `\n \t \r \" \\`, so a guest cannot
-        write the character to compare against, let alone render it. It is
-        also unreachable from source for the same reason --- a literal
-        cannot CONTAIN a byte it cannot spell.
-      * an integer past `values.SHOW_INT_BITS` (13287 bits, ~4000 digits),
-        which `str` summarises as `<integer, N bits>` by design (round 368)
-        and `repr` does not.
-
-    Both are asserted absent here, so "the sweep is clean" is not resting
-    on a corpus that quietly avoids the hard cases.
+    A parity harness whose records are joined by a character its subject
+    may emit has TWO failure channels, and a negative control has to name
+    which one it expects. This plant is caught, loudly, by the other one.
+    Recorded as a test rather than as a comment because the day `SEP`
+    changes, this is the thing that has to be re-derived.
     """
-    from whence.values import SHOW_INT_BITS
-    for r in rows:
-        if isinstance(r.value, str):
-            assert all(ch.isprintable() or ch in "\n\t\r" for ch in r.value), r
-        if isinstance(r.value, int) and not isinstance(r.value, bool):
-            assert r.value.bit_length() < SHOW_INT_BITS, r
+    lib = S.library_source()
+    rows, misaligned = S.sweep(
+        library=_plant_line(lib, 'fn quote_str(s)', 'fn quote_str(s) { s }\n'))
+    assert misaligned, "the harness did not notice a renderer with no quotes"
+    names = {n for n, _, _ in misaligned}
+    assert names == {"string-with-newline-escape", "string-with-every-escape"}, \
+        sorted(names)
+    # ...and those are exactly the corpus snippets whose STRING value holds
+    # a newline. Nothing else in the corpus can desynchronise it.
+    from whence.lexer import tokenize as _tk
+    holds_newline = {n for n, src in S.CORPUS
+                     if any(t.type == "STRING" and "\n" in t.value
+                            for t in _tk(src))}
+    assert names == holds_newline, (sorted(names), sorted(holds_newline))
 
 
-def test_the_first_residual_is_real_and_not_theoretical():
-    """`_show` and `show_tok` DO diverge on a non-printable, and the
-    divergence is unreachable from Whence source. Both halves asserted:
-    the first says the exemption names something real, the second says it
-    cannot bite."""
-    from whence.lexer import LexError
-    assert _show(_tok("STRING", "a\x00b")) == "'a\\x00b'"
-    with pytest.raises(LexError) as e:
-        tokenize('let s = "a\\x00b"')
-    assert "bad escape" in str(e.value)
+# --------------------------------------------------------------------------
+# 2. the two residuals, which v0.39 removed rather than re-measured
+# --------------------------------------------------------------------------
+# v0.36 recorded two exemptions in the `skills/measured-exemption`
+# discipline and asserted both ABSENT from the corpus. Decision 48 (v0.39,
+# round 408) took both out of the exemption list, and only one of them is
+# now clean. What is below is the pair of tests that replaces
+# `test_the_two_known_residuals_are_absent_from_the_corpus`.
 
 
 def _tok(type_, value):
@@ -174,35 +206,140 @@ def _tok(type_, value):
     return Token(type_, value, 1, 1)
 
 
+def test_the_first_residual_is_now_in_the_corpus_and_agrees(rows):
+    """The non-printable one. It is no longer exempt, it is COVERED.
+
+    `quote_str` renders an unspellable byte by copying it, so the guest
+    renders it correctly without being able to name it -- an exemption
+    removed by deleting the rule that needed it rather than by testing
+    harder. The assertion is the inverse of v0.36's: the corpus must now
+    CONTAIN such a byte, and every row must agree.
+    """
+    unspellable = [r for r in rows
+                   if isinstance(r.value, str)
+                   and any(not ch.isprintable() and ch not in "\n\t\r"
+                           for ch in r.value)]
+    assert unspellable, "the corpus stopped covering the first residual"
+    assert all(r.agrees for r in unspellable), [r for r in unspellable
+                                                if not r.agrees]
+    seen = set("".join(r.value for r in unspellable))
+    assert {"\x00", "\x07", "\x1b", "\x7f"} <= seen, sorted(map(ord, seen))
+
+
+def test_v36s_unreachability_argument_was_false():
+    """v0.36 said a non-printable byte was *"unreachable from source,
+    because a literal cannot CONTAIN a byte it cannot spell"*, and offered
+    `tokenize('let s = "a\\x00b"')` raising `bad escape` as the evidence.
+
+    A literal cannot ESCAPE such a byte. It can contain one: the string
+    scanner's fall-through is `out.append(ch)`, guarded only against `"`,
+    `\\` and a raw newline. The escape form and the raw form are different
+    programs and only one of them was ever run.
+    """
+    from whence.lexer import LexError
+    with pytest.raises(LexError) as e:
+        tokenize('let s = "a\\x00b"')          # the ESCAPE: \, x, 0, 0
+    assert "bad escape" in str(e.value)
+
+    toks = tokenize('let s = "a\x00b"')        # the RAW byte
+    assert [t.value for t in toks if t.type == "STRING"] == ["a\x00b"]
+    # ...and v0.36's own rendering of it, which decision 48 replaced
+    assert repr("a\x00b") == "'a\\x00b'"       # what `_show` used to write
+    assert _show(_tok("STRING", "a\x00b")) == '"a\x00b"'
+
+
+def test_the_second_residual_was_a_lexer_divergence_wearing_a_renderer_name():
+    """The integer one, and the reason it is still open.
+
+    v0.36 described it as a RENDERING difference -- `str` summarises past
+    `SHOW_INT_BITS`, `repr` does not -- and decision 48 closed exactly that
+    by routing `_show` through `show_int`. What the description concealed
+    is a divergence one layer down, in the LEXER, which is still there:
+
+      * `num()` refuses numeric text past `SHOW_INT_DIGITS` (4000), which
+        round 368 recorded as "Whence never accepts digits it could not
+        print back";
+      * `whence/lexer.py` accepts a literal of ANY length, so the rule
+        holds at one door and not at the other;
+      * the guest's `lit_num` is `num(text)` with `pos_inf` for a miss, so
+        it walks through the door that refuses.
+
+    The boundary is exact and it is asserted here rather than described.
+    Closing it is a decision about what the language ACCEPTS, which is not
+    what decision 48 is about.
+    """
+    from whence.values import SHOW_INT_DIGITS
+    assert SHOW_INT_DIGITS == 4000
+    assert S.KNOWN_DIVERGENT, "the exemption stopped being executable"
+    for name, src, kind, why in S.KNOWN_DIVERGENT:
+        rows, misaligned = S.sweep(cases=[(name, src)])
+        assert not misaligned, (name, misaligned)
+        bad = [r for r in rows if not r.agrees]
+        assert bad, "%s no longer diverges -- %s" % (name, why)
+        assert {r.kind for r in bad} == {kind}, sorted({r.kind for r in bad})
+        assert bad[0].guest == "inf", bad[0]
+        assert bad[0].host.startswith("<integer,"), bad[0]
+
+    # ...and one digit fewer agrees, on both sides, which is what makes the
+    # boundary a measurement instead of an anecdote. That case is in the
+    # clean CORPUS, so this only has to name it.
+    assert any(n == "integer-just-under-the-cap" for n, _ in S.CORPUS)
+
+
+def test_the_host_lexer_and_num_disagree_about_the_same_text():
+    """The mechanism above, on the HOST alone, with no guest involved --
+    so it survives any future rewrite of `self_eval.lang`."""
+    from whence.values import SHOW_INT_DIGITS
+    for digits, num_misses in ((SHOW_INT_DIGITS, False),
+                               (SHOW_INT_DIGITS + 1, True)):
+        text = "9" * digits
+        toks = tokenize("let a = %s" % text)
+        lexed = [t.value for t in toks if t.type == "NUMBER"]
+        assert len(lexed) == 1 and isinstance(lexed[0], int), lexed
+        env = Interpreter().run('let a = num("%s")\n' % text)
+        from whence.values import Miss
+        # the binding is a provenance node; the miss is its PAYLOAD
+        assert isinstance(env.get("a").payload, Miss) is num_misses, digits
+
+
 # --------------------------------------------------------------------------
 # 3. the guest's own renderer, unit by unit
 # --------------------------------------------------------------------------
 
-REPR_CASES = [
+QUOTE_CASES = [
     "", "a", "hello world", "1", "1.5", "-", "a'b", 'a"b', "a'b\"c",
     "a\\b", "a\tb", "a\nb", "a\rb", "'", '"', "''", '""', "'\"",
+    # v0.39: the bytes v0.36 said a guest could not compare against
+    "a\x00b", "\x07", "\x1b\x7f", "a\x00\\\"b",
 ]
 
 
 @pytest.fixture(scope="module")
-def guest_reprs():
+def guest_quotes():
     lib = S.library_source()
     prog = [lib]
-    for k, v in enumerate(REPR_CASES):
-        prog.append('let __r%d = repr_str("%s")' % (k, S.escape(v)))
+    for k, v in enumerate(QUOTE_CASES):
+        prog.append('let __r%d = quote_str("%s")' % (k, S.escape(v)))
     env = Interpreter().run("\n".join(prog) + "\n")
-    return [env.get("__r%d" % k).payload for k in range(len(REPR_CASES))]
+    return [env.get("__r%d" % k).payload for k in range(len(QUOTE_CASES))]
 
 
-def test_the_guest_repr_matches_python_repr_on_every_case(guest_reprs):
-    """Including the rule most hand-written mirrors miss: Python switches
-    to DOUBLE quotes when the value contains a single quote and no double
-    quote, and only then."""
-    for v, got in zip(REPR_CASES, guest_reprs):
-        assert got == repr(v), (v, got, repr(v))
-    # the switching rule is exercised in both directions, not just present
-    assert guest_reprs[REPR_CASES.index("a'b")].startswith('"')
-    assert guest_reprs[REPR_CASES.index("a'b\"c")].startswith("'")
+def test_the_guest_quote_matches_the_host_quote_on_every_case(guest_quotes):
+    """v0.36 asserted the guest matched Python's `repr`, quote-switching
+    rule and all. The subject of the comparison is now the HOST's
+    `quote_str`, which is Whence's own rule -- the guest mirrors this
+    language, not the implementation language."""
+    from whence.parser import quote_str
+    for v, got in zip(QUOTE_CASES, guest_quotes):
+        assert got == quote_str(v), (v, got, quote_str(v))
+    # there is no quote-switching rule left to exercise: every rendering
+    # opens and closes with a double quote, whatever the value holds.
+    assert all(g.startswith('"') and g.endswith('"') for g in guest_quotes), \
+        [g for g in guest_quotes if not g.startswith('"')]
+    # ...and the guest's answers round-trip through the HOST's lexer.
+    for v, got in zip(QUOTE_CASES, guest_quotes):
+        assert [t.value for t in tokenize("let s = %s" % got)
+                if t.type == "STRING"] == [v], (v, got)
 
 
 # --------------------------------------------------------------------------
@@ -319,7 +456,7 @@ def test_both_guest_files_carry_the_same_renderer():
     so a partial sync fails with the reason rather than with a diff."""
     ev = open(EXAMPLE, encoding="utf-8").read()
     sh = open(SELF_HOST, encoding="utf-8").read()
-    for fn in ("fn repr_body(s, i, acc, q) {", "fn repr_str(s) {",
+    for fn in ("fn quote_body(s, i, acc) {", "fn quote_str(s) {",
                "fn show_tok(k) {", "fn expect_op_as(toks, pos, o, what) {",
                "fn expect_name_as(toks, pos, what) {"):
         assert ev.count(fn) == 1, (fn, ev.count(fn))
@@ -333,3 +470,7 @@ def test_both_guest_files_carry_the_same_renderer():
                          if not ln.lstrip().startswith("#"))
         assert "unexpected token" not in code, [
             ln for ln in code.splitlines() if "unexpected token" in ln]
+        # v0.39: and the renderer decision 48 replaced. `repr_str` mirrored
+        # Python's quote-switching rule; there is no such rule to mirror.
+        assert "repr_str" not in code, [
+            ln for ln in code.splitlines() if "repr_str" in ln]

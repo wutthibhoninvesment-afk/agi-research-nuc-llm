@@ -97,7 +97,7 @@ EXAMPLE = os.path.join(ROOT, "examples", "self_eval.lang")
 SELF_HOST = os.path.join(ROOT, "examples", "self_host.lang")
 EFFECTS = os.path.join(ROOT, "examples", "effects.lang")
 MARKER = "# ==== SELF-TESTS"
-# self_host.lang lines 28..1043 (0-indexed slice).
+# self_host.lang lines 28..1054 (0-indexed slice).
 #
 # ROUND 398: this was `27, 912`, and `self_host_library_section()`'s own
 # `endswith` assertion had been FAILING since round 360 -- v0.24 appended
@@ -118,7 +118,12 @@ MARKER = "# ==== SELF-TESTS"
 # `grep -rn '\b1022\b' tests/`, which is round 402's item 6 and is now
 # the sixth consecutive round in which grepping for the NUMBER rather
 # than for the test is what located the duplicate.
-LIB_START, LIB_END = 27, 1043
+# ROUND 408 (v0.39, decision 48): 1043 -> 1054. `repr_body`/`repr_str` ->
+# `quote_body`/`quote_str` and two new `show_tok` branches, under a comment
+# block eleven lines longer. Found by RUNNING the suite, not by reading the
+# diff: the assertion that catches a stale bound is the section's closing
+# line, not its length.
+LIB_START, LIB_END = 27, 1054
 
 
 def eval_library_source():

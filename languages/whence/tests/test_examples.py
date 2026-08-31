@@ -156,8 +156,10 @@ def test_self_hosting_real_syntax():
     # unquoted number; a quoted name; an escaped newline; and a string
     # containing a single quote, which Python `repr` renders in DOUBLE
     # quotes) and two for the six host `what=` spellings `expect_name`
-    # used to answer with `expected a name`.
-    assert "145 passed, 0 failed" in r.stdout
+    # used to answer with `expected a name`. Round 408 (v0.39): 145 -> 148,
+    # decision 48 -- see `test_v23.py`'s accounting, which is the other
+    # copy of this number and moved with it.
+    assert "148 passed, 0 failed" in r.stdout
     assert "guest lexer+parser for real Whence syntax" in r.stdout
 
 

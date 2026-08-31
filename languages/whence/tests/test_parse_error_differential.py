@@ -249,6 +249,26 @@ BAD = [
     ("string-in-got-slot",   'let f = fn(x) { x }\nlet v = f("a" "b")'),
     ("quote-switching-in-got-slot",
      'let f = fn(x) { x }\nlet v = f(1 "a\'b")'),
+    # --- v0.39 (round 408), decision 48: the got slot stops speaking
+    # Python. `quote-switching-in-got-slot` above no longer names its own
+    # phenomenon -- there is no quote-switching rule left -- and it stays
+    # because it is still a STRING carrying a `'` and it still agrees.
+    # What it can no longer do is TELL the two rules apart: it renders
+    # `"a'b"` under Python's rule and under Whence's. The pair below can.
+    # Two programs, one three-character text, two token KINDS: before
+    # v0.39 both produced `expected a name, got 'let'`, byte for byte.
+    ("keyword-in-got-slot",       "let let = 1"),
+    ("string-that-is-a-keyword",  'let "let" = 1'),
+    # ...and the bytes a Whence literal can hold but not spell. `\x00` is
+    # not an escape this language has; the lexer's string scanner copies
+    # the raw byte into the value, so it reaches a rendered message, which
+    # v0.36 recorded as unreachable. Both sides now copy it back.
+    ("unspellable-byte-in-got-slot",
+     'let f = fn(x) { x }\nlet v = f(1 "a\x00b")'),
+    # ...and a string whose value holds a double quote, which is where the
+    # OLD `_spell` produced text that could not be pasted back.
+    ("escaped-quote-in-got-slot",
+     'let f = fn(x) { x }\nlet v = f(1 "a\\"b")'),
     # --- lex errors, which the host raises BEFORE parsing at all ----------
     ("bad-escape",           'let s = "a\\qb"'),
     ("unterminated-str",     'let s = "abc'),
@@ -542,7 +562,9 @@ def test_every_guest_parse_error_still_leaks_an_implementation_coordinate(guest)
     leaking = [n for n, (rejected, reason) in guest.items()
                if rejected and IMPL_COORD.search(reason)]
     rejecting = [n for n, (rejected, _) in guest.items() if rejected]
-    assert len(rejecting) == len(BAD) - len(HOST_ONLY) == 64, len(rejecting)
+    # round 408 (v0.39, decision 48): 64 -> 68, four programs added for
+    # the got slot's Whence-vs-Python rendering. All four agree.
+    assert len(rejecting) == len(BAD) - len(HOST_ONLY) == 68, len(rejecting)
     assert len(leaking) == len(rejecting), (
         "%d of %d — good news, but update this pin and SPEC.md § v0.24"
         % (len(leaking), len(rejecting)))
@@ -719,7 +741,12 @@ def test_the_agreeing_share_is_measured_not_assumed(hosts, guest):
     agree = [n for n, _ in BOTH_REJECT
              if POSITION.sub("", hosts[n].message)
              == IMPL_COORD.sub("", POSITION.sub("", guest[n][1]))]
-    assert (len(agree), len(BOTH_REJECT)) == (46, 64), (len(agree), len(BOTH_REJECT))
+    # round 408 (v0.39, decision 48): 46/64 -> 50/68. The four programs
+    # this round added to `BAD` all AGREE, so both halves move by four and
+    # the hint-only remainder is unchanged at 18 -- decision 48 moved a
+    # rendering rule on both sides at once, which is what makes it a
+    # wording change to the language rather than to one implementation.
+    assert (len(agree), len(BOTH_REJECT)) == (50, 68), (len(agree), len(BOTH_REJECT))
 
 
 #: `expected X, got Y` is the one message shape BOTH parsers build, and it
@@ -775,7 +802,9 @@ def test_the_want_half_of_every_shared_message_now_agrees(hosts, guest):
         # every want half is a quoted literal or prose on BOTH sides
         assert not mh.group(1).isupper(), (name, h)
         assert not mg.group(1).isupper(), (name, g)
-    assert len(shared) == 20, sorted(shared)
+    # round 408: 20 -> 24 (the four v0.39 programs all match
+    # `_EXPECTED_SHAPE`, i.e. all four are `expected X, got Y` messages).
+    assert len(shared) == 24, sorted(shared)
     assert sorted(want_agree) == sorted(shared), (
         "want halves that still differ: %s"
         % sorted(set(shared) - set(want_agree)))
@@ -804,14 +833,27 @@ def test_the_got_half_reaches_more_than_four_token_kinds(hosts, guest):
     """
     got = {}
     for name in ("newline-in-got-slot", "string-in-got-slot",
-                 "quote-switching-in-got-slot"):
+                 "quote-switching-in-got-slot", "keyword-in-got-slot",
+                 "string-that-is-a-keyword", "unspellable-byte-in-got-slot",
+                 "escaped-quote-in-got-slot"):
         h = POSITION.sub("", hosts[name].message)
         g = IMPL_COORD.sub("", POSITION.sub("", guest[name][1]))
         assert h == g, (name, h, g)
         got[name] = _EXPECTED_SHAPE.match(h).group(2)
-    assert got["newline-in-got-slot"] == r"'\n'", got
-    assert got["string-in-got-slot"] == "'b'", got
+    # v0.39 (round 408), decision 48. Every value below changed except the
+    # last two of the original three, and the two that did not change are
+    # the reason the pair after them exists.
+    assert got["newline-in-got-slot"] == "a line break", got
+    assert got["string-in-got-slot"] == '"b"', got
     assert got["quote-switching-in-got-slot"] == '"a\'b"', got
+    # the collision decision 48 removed: same text, different KIND
+    assert got["keyword-in-got-slot"] == "\'let\'", got
+    assert got["string-that-is-a-keyword"] == '"let"', got
+    assert got["keyword-in-got-slot"] != got["string-that-is-a-keyword"]
+    # a byte Whence cannot spell, copied rather than escaped
+    assert got["unspellable-byte-in-got-slot"] == '"a\x00b"', got
+    # ...and one it can, escaped rather than copied
+    assert got["escaped-quote-in-got-slot"] == '"a\\\"b"', got
 
 
 def test_the_lex_errors_are_the_one_class_where_wording_does_agree(hosts, guest):

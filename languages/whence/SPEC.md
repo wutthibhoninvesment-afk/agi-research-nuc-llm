@@ -1,6 +1,6 @@
 # Whence — a provenance-first language
 
-*Spec level: **v0.38** (round 404). The `## vN` sections below are the
+*Spec level: **v0.39** (round 408). The `## vN` sections below are the
 authoritative version list and each names the round that built it; this
 line deliberately no longer enumerates rounds, because the enumeration it
 replaced had said "v0.16.6 + v0.14.2" since round 266 while the file went
@@ -556,6 +556,43 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    each deleting every parenthesised line number in a message rather than
    the one implementation coordinate it was written for.
    See § v0.38.
+48. **Every token a diagnostic names is either a literal the author can
+   type back verbatim in Whence, or prose — never a spelling borrowed from
+   the implementation language (v0.39, round 408).** This is decision 44's
+   rule, applied to the other half of decision 44's own sentence. Round
+   396 fixed the WANT side of `expected X, got Y` — after it, a want is a
+   quoted literal or a category rendered as prose (`a name`, `end of
+   input`), never a bare token and never an implementation identifier —
+   and the GOT side stayed `repr(tok.value)`, four kinds of Python at
+   once. `repr` picks its quote character by INSPECTING the value, so
+   `let let = 1` and `let "let" = 1` produced the same eleven bytes,
+   `expected a name, got 'let'`: the got slot could not distinguish a
+   KEYWORD from a STRING carrying the same text. `repr` writes `\x00` for
+   a byte Whence's escape table cannot spell, a spelling no Whence program
+   can contain. `repr` of a NEWLINE token wrote `'\n'`, a four-character
+   Python escape in the slot next to prose `end of input`. And `repr` of
+   an integer ignores `SHOW_INT_BITS`, so a 4000-digit literal at a
+   refusal point emitted a **4146-character** parse error out of the one
+   renderer in this language that had never heard of decision-368's cap.
+   After v0.39 a STRING renders as `quote_str(value)` — the five escapes
+   `whence/lexer.py:_ESCAPES` can spell, every other byte verbatim, so the
+   rendering re-lexes to the value for **all 256** single-byte values — a
+   NEWLINE renders as the prose `a line break`, an integer goes through
+   `show_int`, and KW/NAME/operators keep decision 44's single quotes with
+   the inspection removed. `_spell`, the hint-side renderer, gets the same
+   `quote_str`: it was `'"%s"' % value` with no escaping at all, so the
+   separator hint for `let a = 1 "back\slash"` told the author to *start
+   `"back\slash"` on the next line* — following it is a `bad escape`.
+   A hint whose instruction cannot be followed is worse than no hint.
+   The load-bearing part is what the change REMOVED rather than what it
+   renders: decision 45's two "residuals, exempted by measurement" are
+   both gone, and neither by testing harder. The non-printable one is gone
+   because there is no `\xNN` rule left to mirror — rendering an
+   unspellable byte is now the identity, which a guest can do without
+   being able to name the byte — and the big-integer one is gone because
+   the host now calls the same `show_int` the guest's `str` already
+   called. An exemption is a rule you could not follow; the fix was to
+   stop having the rule. See § v0.39.
 
 ## Syntax (statements are newline-separated; `#` comments)
 ```
@@ -8067,3 +8104,176 @@ not audit the OTHER normalisers in `tests/` — `POSITION_CLAUSE`,
 `CONTRAST_LINE`, the several `_show`-shaped helpers — for the same hazard
 against values they might one day be handed. `bench/sanitisers.py` is
 written so that widening `_FACT_SHAPE` is the whole of that job.
+
+
+## v0.39 (round 408, language C) — the got slot spoke Python
+
+Decision 48. Round 396 (decision 44) closed the WANT half of
+`expected X, got Y`: after it, a *want* is either a quoted literal the
+author can type back verbatim or a category rendered as prose, never a
+bare token and never an implementation identifier. The GOT half stayed
+one line of Python — `return repr(tok.value)` — and it was wrong in four
+independent ways at once, which is why nothing that looked at one of them
+ever found the others.
+
+### `repr` picks its quotes by looking at the value
+
+Python quotes a string with `'`, switching to `"` when the value holds a
+`'` and no `"`. Whence has one string syntax and it is neither of those
+rules. The visible consequence:
+
+```
+let let = 1        ->  expected a name, got 'let'
+let "let" = 1      ->  expected a name, got 'let'
+```
+
+**Two programs, two token KINDS, eleven identical bytes.** The got slot
+could not distinguish a keyword from a string carrying the same text —
+in a message whose entire job is to name the token that stopped the
+parse. Nothing detected it, because the guest reimplements `_show`
+faithfully and round 398's parity sweep compares the two implementations
+against each other: **parity between two implementations of a wrong rule
+is still zero divergences.**
+
+### `repr` spells bytes Whence cannot
+
+`repr("a\x00b")` is `'a\x00b'`. `\x00` is not a Whence escape and cannot
+be one — `whence/lexer.py:_ESCAPES` is closed at `\n \t \r \" \\`. So the
+parser answered a question about the author's source in a notation the
+author cannot write.
+
+### `repr` of a NEWLINE token wrote `'\n'`
+
+A four-character Python escape, in the same slot that has said the prose
+`end of input` since v0.24.
+
+### `repr` of an integer had never heard of round 368's cap
+
+`values.SHOW_INT_BITS` exists because rendering an unbounded integer in
+full turned `print` into a host traceback. `_show` bypassed it, so a
+4000-digit literal at a refusal point emitted a **4146-character** parse
+error out of the one renderer in this language exempt from its own rule.
+
+### The rule
+
+> **Every token a diagnostic names is either a literal the author can type
+> back verbatim in Whence, or prose.**
+
+| kind | before | after |
+| --- | --- | --- |
+| STRING | `'a'` / `"a'b"` (inspected) | `"a"` / `"a'b"` (always) |
+| NEWLINE | `'\n'` | `a line break` |
+| NUMBER (int) | every digit | `show_int` — `<integer, 13620 bits>` |
+| NUMBER (float) | `1.5` | `1.5` (unchanged; `values._show` agrees) |
+| KW / NAME / op | `repr(v)` | `'v'` — same bytes, no inspection |
+| EOF | `end of input` | unchanged |
+
+`quote_str` is the new renderer: the five escapes the lexer can spell,
+every other byte copied. **Round-trip exact by construction rather than by
+enumeration** — `tests/test_v39.py::test_every_byte_round_trips` renders
+all 256 single-byte values and re-lexes each one, 0 failures.
+
+### The hint side had the same defect, worse
+
+`_spell` — the renderer for the *cure* half — was `'"%s"' % tok.value`,
+with no escaping at all. Whence syntax, and unusable:
+
+```
+let a = 1 "he said \"hi\""
+  -> ...start `"he said "hi""` on the next line   <- lexes as str, name, str
+let a = 1 "back\\slash"
+  -> ...start `"back\slash"` on the next line     <- following it is bad escape
+```
+
+**A hint whose instruction cannot be followed is worse than no hint.**
+Both renderers now call `quote_str`, and `test_v39.py` verifies the fix by
+doing what the hint says — pasting the backticked text onto the next line
+and requiring one STRING token with the original value.
+
+### What the change REMOVED
+
+Decision 45 shipped with two "residuals, exempted by measurement". Both
+are gone, and neither by testing harder.
+
+**The non-printable one was exempted twice and wrong both times.** v0.36
+said a guest "cannot write the character to compare against" and that it
+is "unreachable from source, because a literal cannot CONTAIN a byte it
+cannot spell". A literal cannot ESCAPE such a byte; the string scanner's
+fall-through is `out.append(ch)`, guarded only against `"`, `\` and a raw
+newline, so a **raw** NUL in source reaches a STRING token and reached a
+rendered message. The evidence v0.36 offered —
+`tokenize('let s = "a\\x00b"')` raising `bad escape` — is the ESCAPE
+spelling, a different program. And the first half stopped being true when
+the `\xNN` rule went away: rendering an unspellable byte is now the
+IDENTITY, which a guest can do without being able to name the byte. The
+sweep corpus carries `string-with-unspellable-byte` and **agrees**.
+**An exemption is a rule you could not follow; the fix was to stop having
+the rule.**
+
+**The integer one was a lexer divergence wearing a renderer's name, and
+it is still open.** v0.36 described it as `str` summarising where `repr`
+does not, which decision 48 closed. Underneath it:
+
+| | 4000 digits | 4001 digits |
+| --- | --- | --- |
+| host `whence/lexer.py` | `<integer, 13288 bits>` | `<integer, 13292 bits>` |
+| guest `lit_num` | `<integer, 13288 bits>` | **`inf`** |
+
+Round 368 gave `num()` a refusal past `SHOW_INT_DIGITS` (4000) and
+recorded the rule as *"Whence never accepts digits it could not print
+back"*. That is true of `num()` and **false of the lexer**, which accepts
+a literal of any length — two doors for one piece of numeric text and one
+of them unguarded. The guest's `lit_num` is `num(text)` with `pos_inf`
+for a miss, so it walks through the door that refuses. Closing it is a
+decision about what the language ACCEPTS, not about how it renders, so
+v0.39 does not touch it: it is `bench/showtok.py:KNOWN_DIVERGENT`, an
+executable exemption with the boundary asserted rather than described.
+
+### Measured
+
+* `bench/showtok.py report`: **28 snippets, 435 tokens, 29 token kinds,
+  0 misaligned, 0 divergent** (v0.36: 25 / 417 / 29 / 0).
+* All 256 single-byte values round-trip through `quote_str` + `tokenize`.
+* `examples/self_eval.lang` 166 checks; `examples/self_host.lang`
+  **145 -> 148**.
+* Existing tests moved: **5, in 2 files** — four in `test_v36.py` and
+  `test_v24.py::test_show_is_not_spell_and_the_two_must_not_be_merged`,
+  whose claim ("they disagree on every STRING token") *was the defect*.
+* **No POSITION moved**, so decision 34 rule 2 is untouched, with the
+  numbers in `test_v39.py::test_no_position_moved`.
+
+### The check that would have stayed green
+
+`self_host.lang` carried `check "a string in the got slot switches quotes
+when it holds a single one"`, asserting `got "a'b"`. Decision 48 deleted
+the quote-switching rule and **the assertion still passes** — a string is
+now always double-quoted, so `"a'b"` comes out either way. A check whose
+name states a mechanism and whose body cannot see the mechanism go away is
+not a check on that mechanism. It is replaced by the pair that CAN tell
+the two rules apart, a keyword and a string spelled alike, and
+`test_v39.py::test_the_check_that_would_have_stayed_green` is the evidence
+for the replacement.
+
+### And one about the harness
+
+`bench/showtok.py` returns the whole corpus from one interpreter run as a
+single string joined by `SEP`, a newline — safe only while no rendering
+can contain one, which is true exactly because `quote_str` escapes it. So
+the most direct plant on the new renderer, `fn quote_str(s) { s }`, does
+not produce a divergence the comparison can see; it desynchronises the
+comparison. **A parity harness whose records are joined by a character its
+subject may emit has two failure channels**, and a negative control has to
+name which one it expects. Pinned in
+`test_v36.py::test_the_plant_that_breaks_the_harness_instead_of_the_comparison`.
+
+### What v0.39 deliberately does NOT do
+
+It does not touch the `rebind`/hint divergence class (round 402's item 1
+still wants a decision arguing either way, not a patch). It does not
+unify `parser.quote_str` with `values._quote`, the RUNTIME's string
+renderer, which is Whence-native too and differs in two ways that matter
+to a diagnostic — it truncates to a `limit` and does not escape `\t`/`\r`
+— both pinned in `test_v39.py::test_the_language_has_one_string_rendering_
+rule_and_two_implementations` so a round that unifies them knows what it
+is changing. It does not close the 4001-digit lexer divergence. And it
+does not give the guest a cure system.

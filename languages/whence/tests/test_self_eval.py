@@ -229,7 +229,11 @@ def test_parser_section_matches_self_host():
     # bound is `tests/test_self_hosting.py::LIB_END`; they must move
     # together and have drifted apart before (38 rounds, found in round
     # 398).
-    section = "\n".join(host_lines[27:1043])
+    # round 408: 1043 -> 1054, v0.39 decision 48. `repr_body`/`repr_str`
+    # become `quote_body`/`quote_str` (one line shorter: no quote-character
+    # argument to thread) and `show_tok` gains two branches, against a
+    # comment block eleven lines longer.
+    section = "\n".join(host_lines[27:1054])
     assert section.startswith("# ---- character classes")
     assert section.rstrip().endswith(
         'if le != "" { miss le } else { parse_program(toks) }\n}')
