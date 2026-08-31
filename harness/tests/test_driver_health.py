@@ -39,6 +39,10 @@ from harness.driver_health import (
     round_status_text,
     round_succeeded,
     summarize_turns,
+    split_sessions,
+    turn_budget,
+    headroom,
+    _span_seconds,
     tally_by_track,
     track_name_for_round,
 )
@@ -1524,3 +1528,463 @@ def test_health_replay_re_derives_one_line_per_log(tmp_path, capsys):
 def test_health_replay_without_arguments_is_a_usage_error(capsys):
     assert driver_health.main(["health_replay"]) == 2
     assert "usage" in capsys.readouterr().err
+
+
+# --- Round 391 (harness A): the turn budget ---------------------------------
+#
+# Every fixture below is shaped from a REAL log on this box, not invented.
+# Round 145's lesson is the reason: the original per-turn thinking-token
+# test passed against a fixture whose STRUCTURE had never been checked
+# against a call that exercised the path, and the always-0 bug survived it
+# for twelve rounds. `logs/round-*.json` is gitignored, so these carry the
+# real shapes inline rather than reading the files.
+
+# The shape a BATCHED turn really has, copied from `logs/round-390.json`:
+# two separate `type:"assistant"` events sharing ONE `message.id`, each
+# carrying exactly one `tool_use` block. This is the whole finding — the
+# CLI charges one turn for the pair.
+BATCHED_A = {
+    "type": "assistant", "parent_tool_use_id": None,
+    "session_id": "2cc8af67", "request_id": "req_1",
+    "message": {
+        "id": "msg_011CeaLRG4Gk1ABt2kMAaD1Q", "role": "assistant",
+        "model": "claude-opus-5",
+        "content": [{"type": "tool_use", "name": "Bash", "id": "t1", "input": {}}],
+        "usage": {"output_tokens": 40},
+    },
+    "timestamp": "2026-08-31T06:20:00.000Z",
+}
+BATCHED_B = {
+    "type": "assistant", "parent_tool_use_id": None,
+    "session_id": "2cc8af67", "request_id": "req_1",
+    "message": {
+        "id": "msg_011CeaLRG4Gk1ABt2kMAaD1Q", "role": "assistant",
+        "model": "claude-opus-5",
+        "content": [{"type": "tool_use", "name": "Bash", "id": "t2", "input": {}}],
+        "usage": {"output_tokens": 40},
+    },
+    "timestamp": "2026-08-31T06:20:10.000Z",
+}
+# The two block kinds that inflate `assistant_turns` without spending a
+# turn: both are their own events, both share the batch's message id.
+THINKING_EVENT = {
+    "type": "assistant", "parent_tool_use_id": None,
+    "message": {
+        "id": "msg_011CeaLRG4Gk1ABt2kMAaD1Q", "role": "assistant",
+        "content": [{"type": "thinking", "thinking": "", "signature": "x"}],
+        "usage": {"output_tokens": 2},
+    },
+    "timestamp": "2026-08-31T06:19:50.000Z",
+}
+TEXT_EVENT = {
+    "type": "assistant", "parent_tool_use_id": None,
+    "message": {
+        "id": "msg_011CeaLRG4Gk1ABt2kMAaD1Q", "role": "assistant",
+        "content": [{"type": "text", "text": "Checking both at once."}],
+        "usage": {"output_tokens": 9},
+    },
+    "timestamp": "2026-08-31T06:19:55.000Z",
+}
+
+
+def _turn(msg_id, ts, n_blocks=1, parent=None):
+    return {
+        "type": "assistant", "parent_tool_use_id": parent,
+        "message": {
+            "id": msg_id, "role": "assistant",
+            "content": [
+                {"type": "tool_use", "name": "Bash", "id": "%s-%d" % (msg_id, i), "input": {}}
+                for i in range(n_blocks)
+            ],
+            "usage": {"output_tokens": 40},
+        },
+        "timestamp": ts,
+    }
+
+
+# `result.terminal_reason` and `stop_reason` copied from
+# `logs/round-339.json`'s real max-turns result.
+MAXTURNS_RESULT = {
+    "type": "result", "subtype": "error_max_turns", "is_error": True,
+    "num_turns": 136, "session_id": "b1516798", "stop_reason": "tool_use",
+    "terminal_reason": "max_turns", "queued_turn_count": 0,
+}
+SECOND_INIT = {
+    "type": "system", "subtype": "init", "session_id": "b1516798",
+    "cwd": "/home/pgain/agi-research-nuc-llm", "claude_code_version": "2.1.246",
+    "model": "claude-opus-5",
+}
+
+
+def test_split_sessions_charges_one_turn_for_a_batch(tmp_path):
+    """THE finding. Two parallel Bash calls arrive as two assistant events
+    sharing one `message.id`; `--max-turns` charges ONE. `tool_calls`
+    (round 205's "tight proxy") reads 2 for the same turn.
+    """
+    p = _write_ndjson(str(tmp_path), "a.json",
+                      [REAL_INIT_LINE, BATCHED_A, BATCHED_B, REAL_RESULT_LINE])
+    (s,) = split_sessions(p)
+    assert s["turns"] == 1
+    assert s["tool_calls"] == 2
+    assert s["batch_ratio"] == 2.0
+
+
+def test_split_sessions_charges_one_turn_for_a_multi_block_message(tmp_path):
+    """The other on-disk spelling of the same thing: one assistant event
+    whose `content` holds two `tool_use` blocks. Same verdict, and it is
+    the shape `test_summarize_turns_counts_thinking_tokens_and_tool_calls`
+    has asserted `tool_calls == 2` against since round 133 — that
+    assertion stays true and stays a tool-call count, not a turn count.
+    """
+    p = _write_ndjson(str(tmp_path), "a.json",
+                      [REAL_INIT_LINE, _turn("m1", "2026-08-31T06:20:00.000Z", n_blocks=2),
+                       REAL_RESULT_LINE])
+    (s,) = split_sessions(p)
+    assert s["turns"] == 1
+    assert s["tool_calls"] == 2
+
+
+def test_split_sessions_ignores_thinking_and_text_events(tmp_path):
+    """Why `assistant_turns` overstates by ~80% on real logs: thinking and
+    text blocks are their own events. Four assistant events here, ONE turn.
+    """
+    p = _write_ndjson(str(tmp_path), "a.json",
+                      [REAL_INIT_LINE, THINKING_EVENT, TEXT_EVENT, BATCHED_A,
+                       BATCHED_B, REAL_RESULT_LINE])
+    (s,) = split_sessions(p)
+    assert s["assistant_blocks"] == 4
+    assert s["turns"] == 1
+    assert s["tool_calls"] == 2
+    assert summarize_turns(p)["assistant_turns"] == 4
+
+
+def test_split_sessions_splits_at_a_second_init(tmp_path):
+    """`logs/round-339.json`'s real shape: a max-turns death, then a fresh
+    `system/init` under the SAME session_id (the harness re-invoking the
+    agent after a background task finished), then more turns and no second
+    result because the outer timeout killed it.
+    """
+    p = _write_ndjson(str(tmp_path), "a.json", [
+        REAL_INIT_LINE,
+        _turn("m1", "2026-08-31T06:00:00.000Z"),
+        _turn("m2", "2026-08-31T06:41:12.918Z"),
+        MAXTURNS_RESULT,
+        SECOND_INIT,
+        _turn("m3", "2026-08-31T06:45:00.000Z"),
+        _turn("m4", "2026-08-31T06:48:39.499Z"),
+    ])
+    first, second = split_sessions(p)
+    assert first["turns"] == 2
+    assert first["result_subtype"] == "error_max_turns"
+    assert first["interrupted"] is False
+    assert first["span_s"] == pytest.approx(2472.918, abs=0.01)
+    assert second["turns"] == 2
+    assert second["result_subtype"] is None
+    assert second["interrupted"] is True
+    assert second["span_s"] == pytest.approx(219.499, abs=0.01)
+
+
+def test_summarize_turns_interrupted_is_still_whole_file(tmp_path):
+    """Round 334's item 5, applied: `interrupted` keeps its published
+    meaning (no result ANYWHERE in the file) even though that reads False
+    for round 339, whose round really did die with no result. The
+    per-session truth is reachable and is NOT a redefinition of a field
+    three rounds of driver.log figures already use.
+    """
+    p = _write_ndjson(str(tmp_path), "a.json", [
+        REAL_INIT_LINE, _turn("m1", "2026-08-31T06:00:00.000Z"), MAXTURNS_RESULT,
+        SECOND_INIT, _turn("m2", "2026-08-31T06:45:00.000Z"),
+    ])
+    assert summarize_turns(p)["interrupted"] is False
+    assert split_sessions(p)[-1]["interrupted"] is True
+
+
+def test_split_sessions_excludes_subagent_turns(tmp_path):
+    """A turn made by a delegated subagent carries `parent_tool_use_id` and
+    does not spend the main loop's budget.
+
+    FORWARD-GUARD ONLY, and this test is the only thing that exercises it:
+    zero events in the 238 `logs/round-*.json` on this box have a truthy
+    `parent_tool_use_id`, because the driver's `--allowedTools` list has
+    never included a delegating tool. If that list ever gains one, this is
+    what keeps `turns` comparable to `--max-turns`.
+    """
+    p = _write_ndjson(str(tmp_path), "a.json", [
+        REAL_INIT_LINE,
+        _turn("m1", "2026-08-31T06:00:00.000Z"),
+        _turn("sub1", "2026-08-31T06:00:10.000Z", parent="toolu_abc"),
+        _turn("sub2", "2026-08-31T06:00:20.000Z", n_blocks=3, parent="toolu_abc"),
+        REAL_RESULT_LINE,
+    ])
+    (s,) = split_sessions(p)
+    assert s["turns"] == 1
+    assert s["tool_calls"] == 1
+    assert s["assistant_blocks"] == 3
+
+
+def test_turn_budget_sees_a_max_turns_death_that_is_not_the_last_result(tmp_path):
+    """Rounds 349 and 378 on this box: hit `--max-turns`, were re-invoked
+    when a background task completed, finished cleanly, and were logged as
+    plain successes. `is_max_turns` goes through `load_round_result`, which
+    takes the LAST result, so it cannot see the death.
+    """
+    p = _write_ndjson(str(tmp_path), "a.json", [
+        REAL_INIT_LINE, _turn("m1", "2026-08-31T06:00:00.000Z"), MAXTURNS_RESULT,
+        SECOND_INIT, _turn("m2", "2026-08-31T06:45:00.000Z"),
+        dict(REAL_RESULT_LINE, num_turns=27),
+    ])
+    assert is_max_turns(p) is False
+    assert classify_round_log(p) == "ok"
+    tb = turn_budget(p)
+    assert tb["max_turns_hit"] is True
+    assert tb["sessions"] == 2
+    assert tb["num_turns"] == 27
+
+
+def test_turn_budget_turns_is_the_last_session_and_turns_all_is_the_sum(tmp_path):
+    p = _write_ndjson(str(tmp_path), "a.json", [
+        REAL_INIT_LINE,
+        _turn("m1", "2026-08-31T06:00:00.000Z"),
+        _turn("m2", "2026-08-31T06:00:10.000Z"),
+        MAXTURNS_RESULT,
+        SECOND_INIT,
+        _turn("m3", "2026-08-31T06:45:00.000Z"),
+        REAL_RESULT_LINE,
+    ])
+    tb = turn_budget(p)
+    assert tb["turns"] == 1
+    assert tb["turns_all"] == 3
+    assert tb["sessions"] == 2
+
+
+def test_turn_budget_single_session_turns_equals_turns_all(tmp_path):
+    """234 of the 238 logs on this box are this case, where the old
+    whole-file reading and the session-aware one agree.
+    """
+    p = _write_ndjson(str(tmp_path), "a.json", [
+        REAL_INIT_LINE, BATCHED_A, BATCHED_B,
+        _turn("m9", "2026-08-31T06:30:00.000Z"), REAL_RESULT_LINE,
+    ])
+    tb = turn_budget(p)
+    assert tb["sessions"] == 1
+    assert tb["turns"] == tb["turns_all"] == 2
+    assert tb["tool_calls"] == 3
+    assert tb["batch_ratio"] == 1.5
+    assert tb["max_turns_hit"] is False
+
+
+def test_headroom_reports_the_work_the_budget_did_not_charge_for(tmp_path):
+    p = _write_ndjson(str(tmp_path), "a.json",
+                      [REAL_INIT_LINE, BATCHED_A, BATCHED_B, REAL_RESULT_LINE])
+    h = headroom(p, 135)
+    assert h["turns"] == 1
+    assert h["tool_calls"] == 2
+    assert h["turns_saved"] == 1
+    assert h["remaining"] == 134
+    assert h["serial_would_have_died"] is False
+
+
+def test_headroom_flags_a_round_batching_alone_kept_alive(tmp_path):
+    """Round 345's real numbers: 107 turns, 137 tool calls, cap 135. It
+    finished. Un-batched it would have needed 137 turns and died — one of
+    FOURTEEN finished rounds on this box in that position, none of which
+    batched on purpose.
+    """
+    events = [REAL_INIT_LINE]
+    for i in range(107):
+        n = 2 if i < 30 else 1
+        events.append(_turn("m%d" % i, "2026-08-31T06:%02d:00.000Z" % (i % 60), n_blocks=n))
+    events.append(REAL_RESULT_LINE)
+    p = _write_ndjson(str(tmp_path), "a.json", events)
+    h = headroom(p, 135)
+    assert h["turns"] == 107
+    assert h["tool_calls"] == 137
+    assert h["turns_saved"] == 30
+    assert h["remaining"] == 28
+    assert h["serial_would_have_died"] is True
+    assert h["max_turns_hit"] is False
+
+
+def test_summarize_turns_keeps_its_four_original_keys_unchanged(tmp_path):
+    """Round 334's item 5 as a regression pin: the keys rounds have already
+    published keep their exact prior values. `assistant_turns` still counts
+    EVENTS (4 here, not 1); `tool_calls` still counts BLOCKS (2, not 1);
+    `span_s` still spans the whole file across a session boundary.
+    """
+    p = _write_ndjson(str(tmp_path), "a.json", [
+        REAL_INIT_LINE, THINKING_EVENT, TEXT_EVENT, BATCHED_A, BATCHED_B,
+        MAXTURNS_RESULT, SECOND_INIT,
+        _turn("m2", "2026-08-31T06:50:00.000Z"), REAL_RESULT_LINE,
+    ])
+    s = summarize_turns(p)
+    assert s["assistant_turns"] == 5
+    assert s["tool_calls"] == 3
+    assert s["span_s"] == pytest.approx(1810.0, abs=0.01)
+    assert s["interrupted"] is False
+
+
+def test_summarize_turns_gains_the_turn_budget_keys(tmp_path):
+    """`run_driver.sh` logs this dict verbatim, so `driver.log` gains the
+    real turn count with no change to the driver script.
+    """
+    p = _write_ndjson(str(tmp_path), "a.json",
+                      [REAL_INIT_LINE, BATCHED_A, BATCHED_B, MAXTURNS_RESULT])
+    s = summarize_turns(p)
+    assert s["turns"] == 1
+    assert s["sessions"] == 1
+    assert s["num_turns"] == 136
+    assert s["max_turns_hit"] is True
+    assert s["batch_ratio"] == 2.0
+    # and the old keys are still there, in their original order
+    assert list(s)[:5] == [
+        "assistant_turns", "thinking_tokens", "tool_calls", "span_s", "interrupted",
+    ]
+
+
+def test_split_sessions_handles_a_log_with_no_init(tmp_path):
+    """Older on-disk shapes (and a stream truncated at the head) have no
+    `init`; that is still exactly one session, not zero.
+    """
+    p = _write_ndjson(str(tmp_path), "a.json",
+                      [_turn("m1", "2026-08-31T06:00:00.000Z"), REAL_RESULT_LINE])
+    (s,) = split_sessions(p)
+    assert s["turns"] == 1
+    assert s["result_subtype"] == "success"
+
+
+def test_split_sessions_drops_a_trailing_empty_session(tmp_path):
+    """A log ending in an `init` with nothing after it (the driver killed
+    between re-invocation and the first turn) must not produce a phantom
+    zero-turn session — `turn_budget`'s `turns` reads the LAST one.
+    """
+    p = _write_ndjson(str(tmp_path), "a.json", [
+        REAL_INIT_LINE, _turn("m1", "2026-08-31T06:00:00.000Z"),
+        MAXTURNS_RESULT, SECOND_INIT,
+    ])
+    sessions = split_sessions(p)
+    assert len(sessions) == 1
+    assert turn_budget(p)["turns"] == 1
+
+
+def test_split_sessions_none_on_missing_file(tmp_path):
+    assert split_sessions(os.path.join(str(tmp_path), "nope.json")) is None
+    assert turn_budget(os.path.join(str(tmp_path), "nope.json")) is None
+    assert headroom(os.path.join(str(tmp_path), "nope.json"), 135) is None
+
+
+def test_split_sessions_empty_on_plain_json_shape(tmp_path):
+    """The pre-round-133 `--output-format json` shape has no per-event data
+    at all, so there is no turn budget to read — and `summarize_turns`
+    keeps returning None for it, exactly as before.
+    """
+    p = _write(str(tmp_path), "a.json", {"is_error": False, "subtype": "success"})
+    assert turn_budget(p) is None
+    assert summarize_turns(p) is None
+
+
+def test_turn_budget_batch_ratio_is_none_when_no_turns(tmp_path):
+    p = _write_ndjson(str(tmp_path), "a.json",
+                      [REAL_INIT_LINE, TEXT_EVENT, REAL_RESULT_LINE])
+    tb = turn_budget(p)
+    assert tb["turns"] == 0
+    assert tb["batch_ratio"] is None
+
+
+def test_span_seconds_helper(tmp_path):
+    assert _span_seconds([]) is None
+    assert _span_seconds(["2026-08-31T06:00:00.000Z"]) is None
+    assert _span_seconds(
+        ["2026-08-31T06:00:00.000Z", "2026-08-31T06:00:10.500Z"]
+    ) == pytest.approx(10.5, abs=0.001)
+    assert _span_seconds(["not-a-time", "2026-08-31T06:00:10.000Z"]) is None
+
+
+def test_turn_budget_cli_subcommands(tmp_path):
+    def run(*args):
+        out = subprocess.run(
+            [sys.executable, "-m", "harness.driver_health", *args],
+            cwd=os.path.join(HERE, "..", ".."), capture_output=True, text=True, timeout=30,
+        )
+        assert out.returncode == 0, out.stderr
+        return out.stdout.strip()
+
+    p = _write_ndjson(str(tmp_path), "round-390.json",
+                      [REAL_INIT_LINE, BATCHED_A, BATCHED_B, MAXTURNS_RESULT])
+    tb = json.loads(run("turnbudget", p))
+    assert tb["turns"] == 1 and tb["max_turns_hit"] is True
+    h = json.loads(run("headroom", p, "135"))
+    assert h["turns_saved"] == 1 and h["remaining"] == 134
+
+    old = _write_ndjson(str(tmp_path), "round-182.json",
+                        [REAL_INIT_LINE, _turn("m1", "2026-08-31T06:00:00.000Z"),
+                         MAXTURNS_RESULT])
+    sweep = run("budgetsweep", p, old).splitlines()
+    assert sweep[0].split()[:3] == ["round", "cap", "turns"]
+    # round 205 raised --max-turns 120 -> 135, so the cap a sweep compares
+    # against depends on the round number in the filename.
+    assert sweep[1].split()[:2] == ["390", "135"]
+    assert sweep[2].split()[:2] == ["182", "120"]
+
+
+def test_budgetsweep_reports_na_for_a_log_with_no_events(tmp_path):
+    p = _write(str(tmp_path), "round-152.json", {"is_error": False, "subtype": "success"})
+    out = subprocess.run(
+        [sys.executable, "-m", "harness.driver_health", "budgetsweep", p],
+        cwd=os.path.join(HERE, "..", ".."), capture_output=True, text=True, timeout=30,
+    )
+    assert out.returncode == 0, out.stderr
+    # cap 120, not 135: round 152 is on the pre-round-205 side of the raise,
+    # which is also what the 34 real event-less logs on this box look like.
+    assert out.stdout.splitlines()[1].split()[:3] == ["152", "120", "n/a"]
+
+
+def test_all_max_turns_sees_a_cap_hit_in_a_non_final_session(tmp_path):
+    """Round 391's widening of the safety valve. A log whose FIRST session
+    died at the cap and whose second session failed some other way reads
+    `is_max_turns == False` (that goes through `load_round_result`, which
+    takes the last result), so the valve would have called a still
+    workload-driven cluster a quota outage and stopped the driver — the
+    exact false positive that cost two manual restarts at rounds 146/147
+    and 149/150.
+    """
+    logs = []
+    for i in range(3):
+        logs.append(_write_ndjson(str(tmp_path), "round-%d.json" % (400 + i), [
+            REAL_INIT_LINE, _turn("m1", "2026-08-31T06:00:00.000Z"), MAXTURNS_RESULT,
+            SECOND_INIT, _turn("m2", "2026-08-31T06:45:00.000Z"),
+            {"type": "result", "subtype": "error_during_execution",
+             "is_error": True, "num_turns": 4},
+        ]))
+    for p in logs:
+        assert classify_round_log(p) == "bad"
+        assert is_max_turns(p) is False          # the blind spot
+        assert driver_health._hit_max_turns_anywhere(p) is True
+    assert all_max_turns(logs) is True           # valve keeps the driver alive
+
+
+def test_all_max_turns_still_stops_on_a_genuine_non_max_turns_cluster(tmp_path):
+    """The widening must not make the valve stop stopping. A cluster with
+    no cap hit anywhere is still a quota/outage signal.
+    """
+    logs = [
+        _write(str(tmp_path), "round-%d.json" % (410 + i),
+               {"is_error": True, "subtype": "error", "api_error_status": 429})
+        for i in range(3)
+    ]
+    for p in logs:
+        assert classify_round_log(p) == "bad"
+    assert all_max_turns(logs) is False
+
+
+def test_all_max_turns_unchanged_for_single_session_logs(tmp_path):
+    """234 of the 238 logs on this box: the widened test and the original
+    agree exactly.
+    """
+    hit = _write_ndjson(str(tmp_path), "round-420.json", [
+        REAL_INIT_LINE, _turn("m1", "2026-08-31T06:00:00.000Z"), MAXTURNS_RESULT])
+    other = _write(str(tmp_path), "round-421.json",
+                   {"is_error": True, "subtype": "error_during_execution"})
+    assert is_max_turns(hit) is driver_health._hit_max_turns_anywhere(hit) is True
+    assert is_max_turns(other) is driver_health._hit_max_turns_anywhere(other) is False
+    assert all_max_turns([hit]) is True
+    assert all_max_turns([hit, other]) is False

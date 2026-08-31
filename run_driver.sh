@@ -22,7 +22,7 @@ export PATH="$PATH:/home/pgain/agi-research-nuc-llm/node_modules/.bin"
 # "$@"` at the loop's end below), this now reliably reflects the ON-DISK
 # script content for every round it produced, including rounds after a
 # mid-run edit — round 139's live driver could not make that claim.
-DRIVER_VERSION="379-health-line-quotes-the-run"
+DRIVER_VERSION="391-turn-budget-in-prompt"
 
 # Round 157: a manual post-migration edit (made outside any round,
 # between the Mac->NUC sync commit c768d90 and round 154) hardcoded this
@@ -315,7 +315,9 @@ $RECORD_CHECK_OUT"
 Your track this round: $TRACK. Follow CLAUDE.md ground rules and CURRICULUM.md exactly.
 Round number for file naming: $(printf '%03d' "$ROUND").
 First: read state/research-state.md. Then do the work, test it, write the knowledge file,
-update research-state.md. Be relentless and thorough — this is deep research, spend the tokens.$ROUND_GAP_NOTE"
+update research-state.md. Be relentless and thorough — this is deep research, spend the tokens.
+
+TURN BUDGET (added round 391, harness A — measured, not advice). This session runs under \`--max-turns $MAX_TURNS\`. The CLI charges ONE turn per assistant MESSAGE, not per tool call: N independent tool calls issued in a SINGLE message cost one turn, not N. Batching is therefore free work. Measured over all 238 round logs on this box: 32 sessions have died at this cap, discarding a whole round of uncommitted diff each time, while 14 rounds finished ONLY because they happened to batch (their serial tool-call count exceeded the cap). The mean batch ratio is 1.08 against a demonstrated 1.39, and 81 rounds never issued a single parallel call. Batch every group of tool calls that do not depend on each other.$ROUND_GAP_NOTE"
 
   # Run with sonnet-5 (fable-5 hit weekly limit; resets ~Sunday 2026-08-30).
   # stream-json (needs --verbose) instead of json: (1) the final `result`

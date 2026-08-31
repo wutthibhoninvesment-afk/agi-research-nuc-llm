@@ -517,6 +517,14 @@
    "where": "knowledge/round-390-the-clause-that-shipped-on-one-side.md",
    "quote": "15 predictions, banked before any measurement. **11 HIT / 3 HALF / 1 MISS.**",
    "note": "Banked in one block with an OBSERVATIONS ALREADY MADE section (rounds 379/384/385/386's discipline, fifth round running). The four sharpest items were banked from READING the instrument rather than running it and all four are exact: P4 predicted the slow differential was RED and named the cause (round 386 added a mk_miss site and no corpus case); P5 predicted exactly ONE declared-but-unreached site, and the failure names `('_miss_lit', 338)`; P6 predicted the nine post-350 blocks that re-assert round 332's item 1 and named all nine correctly; P1 predicted the host sentence character for character. The MISS is P9's size clause (<=25 added lines in self_eval.lang, measured 90) -- round 384's banked P10 and round 386's P16 verbatim, THREE consecutive language rounds pricing the code and forgetting the prose is part of the artifact; the code really is ~10 lines, which is why the habit survives. P2 is a HALF that carries the round's first finding: I banked 'the divergence is exactly one clause wide' having read only the `miss NOSUCH` path, and three of the five diverging cases diverge by emitting a DIFFERENT cure rather than by omitting one. P7 is a HALF on a premise rather than a conclusion (round 350 has no next-steps block at all -- it was landed by round 351, whose block correctly omits the item). P3 is a HALF on method, not on the number: the figure reconciles exactly (1693 baseline + 3 new tests = 1696 final) but I ran the fast suite for the first time AFTER editing self_eval.lang, and the git-worktree substitute was confounded because the Whence field corpus is untracked, so a worktree at HEAD has none of it and four corpus-pinned tests SKIP."
+  },
+  "391": {
+   "bank": "state/harness/round-391/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 391,
+   "where": "knowledge/round-391-the-turn-that-was-a-message.md",
+   "quote": "**9 HIT / 1 HALF / 2 MISS.**",
+   "remainder": "E1 is a PRE-REGISTERED EXPERIMENT and is deliberately unscorable by round 391: it tests whether the TURN BUDGET paragraph this round added to run_driver.sh's prompt raises the measured batch ratio, and round 391's own log was produced by the driver version WITHOUT that paragraph. The bank freezes the baseline (mean 1.0845, median 1.0714, 81 of 233 at exactly 1.00) and names the exact command a future harness(A) round must run -- `python3 -m harness.driver_health budgetsweep logs/round-*.json`, rounds <=391 vs >=392, sessions with turns>=20. It also states the counter-hypothesis in advance (the generic batching instruction is ALREADY in the system prompt and produced this baseline, so E1 may well MISS). Do not score before round 410."
   }
  }
 }

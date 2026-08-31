@@ -220,10 +220,37 @@ def all_max_turns(paths: List[str]) -> bool:
     for any mix that includes a 429, a hard error, or a truly empty/corrupt
     log alongside the max-turns deaths — those cases keep the original
     "assume weekly limit, stop" behavior.
+
+    Round 391 widened the per-log test from `is_max_turns` to "ANY session
+    in this log hit the cap". `is_max_turns` goes through
+    `load_round_result`, which takes the LAST result event, and a round log
+    can hold more than one session: when a background task completes the
+    harness re-invokes the agent, which emits a fresh `system/init` under
+    the same `session_id` and gets a FRESH turn budget (rounds 326, 339,
+    349 and 378 on this box). A log whose first session died at the cap and
+    whose second failed some other way therefore reads `is_max_turns ==
+    False` — and the valve would stop the whole driver on a cluster that is
+    still workload-driven, which is the exact false positive rounds 146/147
+    and 149/150 cost two manual restarts. No such log exists on this box
+    yet; this closes the case before it costs a third. The widening only
+    ever makes the valve MORE reluctant to stop, which is the safe
+    direction under CURRICULUM.md's "stop only on the weekly limit".
     """
     return bool(paths) and all(
-        classify_round_log(p) == "bad" and is_max_turns(p) for p in paths
+        classify_round_log(p) == "bad" and _hit_max_turns_anywhere(p)
+        for p in paths
     )
+
+
+def _hit_max_turns_anywhere(path: str) -> bool:
+    """`is_max_turns`, but true when ANY session in a multi-session log hit
+    the cap rather than only the last. Identical for the 234 of 238
+    single-session logs on this box.
+    """
+    if is_max_turns(path):
+        return True
+    budget = turn_budget(path)
+    return bool(budget and budget["max_turns_hit"])
 
 
 def is_rate_limit(path: str) -> bool:
@@ -336,6 +363,22 @@ def rate_limit_backoff_seconds(attempt: int) -> int:
     return RATE_LIMIT_BACKOFF_SCHEDULE[idx]
 
 
+def _span_seconds(timestamps: List[str]) -> Optional[float]:
+    """First-to-last wall time over ISO-8601 event timestamps, or None when
+    there are fewer than two or any of them is unparseable. Extracted
+    verbatim from `summarize_turns` (round 391) so `split_sessions` spans
+    each session the same way rather than the whole file.
+    """
+    if len(timestamps) < 2:
+        return None
+    try:
+        t0 = datetime.fromisoformat(timestamps[0].replace("Z", "+00:00"))
+        t1 = datetime.fromisoformat(timestamps[-1].replace("Z", "+00:00"))
+        return (t1 - t0).total_seconds()
+    except Exception:
+        return None
+
+
 def summarize_turns(path: str) -> Optional[dict]:
     """Per-turn instrumentation for the OUTER `claude -p` round session —
     the piece round 127 flagged as missing (`agentloop/trace.py` already
@@ -424,20 +467,255 @@ def summarize_turns(path: str) -> Optional[dict]:
         return None
     if thinking_tokens == 0 and result_thinking_tokens:
         thinking_tokens = result_thinking_tokens
-    span_s = None
-    if len(timestamps) >= 2:
-        try:
-            t0 = datetime.fromisoformat(timestamps[0].replace("Z", "+00:00"))
-            t1 = datetime.fromisoformat(timestamps[-1].replace("Z", "+00:00"))
-            span_s = (t1 - t0).total_seconds()
-        except Exception:
-            span_s = None
-    return {
+    span_s = _span_seconds(timestamps)
+    # Round 391: the four keys above keep their EXACT prior meanings
+    # (whole-file aggregates; rounds have published these figures, and
+    # round 334's item 5 is the rule that a live meaning is not redefined
+    # in place). `turns` is the number the CLI's `--max-turns` actually
+    # counts, `sessions`/`max_turns_hit` are the two facts a whole-file
+    # read cannot express. `run_driver.sh` logs this dict verbatim, so the
+    # driver log gains them with no change to the driver.
+    out = {
         "assistant_turns": assistant_turns,
         "thinking_tokens": thinking_tokens,
         "tool_calls": tool_calls,
         "span_s": span_s,
         "interrupted": not saw_result,
+    }
+    budget = turn_budget(path)
+    if budget is not None:
+        out["turns"] = budget["turns"]
+        out["sessions"] = budget["sessions"]
+        out["num_turns"] = budget["num_turns"]
+        out["max_turns_hit"] = budget["max_turns_hit"]
+        out["batch_ratio"] = budget["batch_ratio"]
+    return out
+
+
+# --- Round 391 (harness A): the turn budget the driver could not see -------
+#
+# `--max-turns` is the driver's PRIMARY graceful stopgap (round 205), and
+# 32 sessions in `logs/` have died on it. Nothing in this module ever
+# counted the thing the CLI counts. Two proxies existed and both are wrong:
+#
+#   `assistant_turns` counts `type:"assistant"` EVENTS, and the CLI emits
+#   one event per CONTENT BLOCK -- a thinking block, a text block and each
+#   tool_use block are three separate events sharing one `message.id`. Over
+#   the 32 death sessions it reads 212-305 for a budget of 135, i.e. it
+#   overstates by ~80% and is not a turn count at all.
+#
+#   `tool_calls` counts `tool_use` BLOCKS. Round 205 called it "the tight
+#   proxy for the CLI's real turn-budget counter". It is an UPPER bound,
+#   exact only for a round that never batches: over the 32 death sessions
+#   it reads 120-158 for the same budget, overstating by up to 17%.
+#
+# The CLI's real counter is the number of distinct assistant MESSAGES that
+# carry at least one tool_use -- a batch of N parallel tool calls is ONE
+# turn. Measured over every `logs/round-*.json` on this box (238 files,
+# 240 sessions): the count equals the live `--max-turns` value EXACTLY in
+# all 32 sessions whose result is `error_max_turns` (120 before round 205's
+# raise, 135 after), and NO session anywhere exceeds it. Zero
+# counterexamples. The CLI also reports the number itself, as
+# `result.num_turns` (== cap + 1 in all 32), which this module has been
+# reading past since round 133.
+#
+# The operational consequence is the reason this is worth code rather than
+# a note: **parallel tool calls are free against the turn budget.** Round
+# 390 did 153 tool calls inside the same 135 turns that bought round 389
+# only 135 -- 13% more work for the same budget, at no cost. The mean
+# batch ratio over the 32 death sessions is 1.064; ten of them are at
+# exactly 1.00, having never issued a single parallel call.
+#
+# Sessions, plural, because a round log is not always one session. When a
+# BACKGROUND task completes, the harness re-invokes the agent; that
+# re-invocation emits a fresh `system/init` under the SAME `session_id`,
+# appends to the same stdout, and gets a FRESH turn budget. Four logs on
+# disk are like this (326, 339, 349, 378). `load_round_result` takes the
+# LAST result, so rounds 349 and 378 hit `--max-turns`, were re-invoked,
+# finished, and are recorded in `driver.log` as plain successes -- their
+# death is invisible. `summarize_turns`'s whole-file aggregates likewise
+# sum across both sessions (round 339's reported `span_s` of 3204.7 s
+# covers a 2472.9 s session plus a 219.5 s one plus the gap between them).
+#
+# Round 334's item 5 is the design rule followed here: the four existing
+# keys keep their exact current meanings -- rounds have published those
+# figures -- and the session-aware truth arrives as SEPARATE fields.
+
+
+def split_sessions(path: str) -> Optional[List[dict]]:
+    """Partition a stream-json round log into the CLI sessions it contains.
+
+    A new session starts at each `system`/`subtype:"init"` event, and a
+    `type:"result"` event closes the one in progress. Almost every log is a
+    single session; a log is multi-session when a background task completed
+    and the harness re-invoked the agent (see the block comment above).
+
+    Returns one dict per session with:
+      `turns`         -- the CLI's own `--max-turns` counter: distinct
+                         assistant `message.id`s carrying >=1 tool_use.
+      `tool_calls`    -- tool_use BLOCKS, i.e. `turns` plus every parallel
+                         call that rode along for free.
+      `assistant_blocks` -- `type:"assistant"` events (the old
+                         `assistant_turns`, per session).
+      `batch_ratio`   -- tool_calls / turns, or None when turns == 0.
+      `num_turns`     -- the CLI's own figure from this session's result.
+      `result_subtype`, `interrupted`, `span_s`, `session_id`.
+
+    Assistant events carrying a `parent_tool_use_id` are SUBAGENT turns and
+    are excluded from `turns`: they do not spend the main loop's budget.
+    Zero such events exist in the 238 logs on this box (the driver's
+    `--allowedTools` has never included a delegating tool), so this branch
+    is a forward-guard covered only by `test_split_sessions_excludes_
+    subagent_turns`, not by production data. Their tool_use blocks are
+    likewise excluded, so `tool_calls` stays comparable to `turns`.
+    """
+    events = load_round_events(path)
+    if events is None:
+        return None
+
+    sessions: List[dict] = []
+    cur: Optional[dict] = None
+    closed = False
+
+    def start() -> dict:
+        return {
+            "turns": 0,
+            "tool_calls": 0,
+            "assistant_blocks": 0,
+            "num_turns": None,
+            "result_subtype": None,
+            "session_id": None,
+            "_ids": set(),
+            "_ts": [],
+        }
+
+    for obj in events:
+        if not isinstance(obj, dict):
+            continue
+        kind = obj.get("type")
+        if kind == "system" and obj.get("subtype") == "init":
+            if cur is not None:
+                sessions.append(cur)
+            cur = start()
+            cur["session_id"] = obj.get("session_id")
+            closed = False
+            continue
+        if cur is None:
+            # A log whose first event is not an `init` (older shapes, or a
+            # stream truncated at the head) still has exactly one session.
+            cur = start()
+            closed = False
+        if kind == "result":
+            cur["result_subtype"] = obj.get("subtype")
+            cur["num_turns"] = obj.get("num_turns")
+            closed = True
+            continue
+        if closed:
+            # Content after a result with no intervening `init`. Not seen
+            # on this box, but it would mean a second session either way.
+            sessions.append(cur)
+            cur = start()
+            closed = False
+        if kind != "assistant":
+            continue
+        cur["assistant_blocks"] += 1
+        if obj.get("parent_tool_use_id"):
+            continue
+        msg = obj.get("message") or {}
+        blocks = [
+            b for b in (msg.get("content") or [])
+            if isinstance(b, dict) and b.get("type") == "tool_use"
+        ]
+        if blocks:
+            cur["tool_calls"] += len(blocks)
+            cur["_ids"].add(msg.get("id"))
+        ts = obj.get("timestamp")
+        if ts:
+            cur["_ts"].append(ts)
+
+    if cur is not None:
+        sessions.append(cur)
+
+    out = []
+    for s in sessions:
+        if not s["assistant_blocks"] and s["result_subtype"] is None:
+            continue
+        s["turns"] = len(s.pop("_ids"))
+        ts = s.pop("_ts")
+        s["span_s"] = _span_seconds(ts)
+        s["batch_ratio"] = (
+            round(s["tool_calls"] / s["turns"], 4) if s["turns"] else None
+        )
+        s["interrupted"] = s["result_subtype"] is None
+        out.append(s)
+    return out
+
+
+def turn_budget(path: str) -> Optional[dict]:
+    """Session-aware view of what a round log spent against `--max-turns`.
+
+    `turns` is the LAST session's count -- the one the budget was counting
+    when the round ended, and the number to compare against `--max-turns`.
+    `turns_all` sums every session, which is what a whole-file count gives
+    and is the RIGHT number only for the 234 of 238 single-session logs.
+
+    `max_turns_hit` is true when ANY session's result is
+    `error_max_turns`, which is the field `is_max_turns` cannot provide:
+    that one goes through `load_round_result`, which takes the LAST result,
+    so a round that hit the cap and was then re-invoked to a clean finish
+    reads as a plain success (rounds 349 and 378 on this box).
+    """
+    sessions = split_sessions(path)
+    if not sessions:
+        return None
+    last = sessions[-1]
+    turns_all = sum(s["turns"] for s in sessions)
+    tool_calls = sum(s["tool_calls"] for s in sessions)
+    return {
+        "sessions": len(sessions),
+        "turns": last["turns"],
+        "turns_all": turns_all,
+        "tool_calls": tool_calls,
+        "batch_ratio": round(tool_calls / turns_all, 4) if turns_all else None,
+        "num_turns": last["num_turns"],
+        "max_turns_hit": any(
+            s["result_subtype"] == "error_max_turns" for s in sessions
+        ),
+        "per_session": [
+            {k: s[k] for k in (
+                "turns", "tool_calls", "batch_ratio", "num_turns",
+                "result_subtype", "interrupted", "span_s",
+            )}
+            for s in sessions
+        ],
+    }
+
+
+def headroom(path: str, max_turns: int) -> Optional[dict]:
+    """How much of `--max-turns` a round actually needed, and how much
+    batching bought it.
+
+    `turns_saved` is the count of tool calls that rode along inside a turn
+    that was already being spent -- work the budget did not charge for.
+    `turns_if_serial` is what the same tool calls would have cost with no
+    batching at all; when it exceeds `max_turns`, batching is the only
+    reason the round finished.
+    """
+    tb = turn_budget(path)
+    if tb is None:
+        return None
+    turns_saved = tb["tool_calls"] - tb["turns_all"]
+    return {
+        "max_turns": max_turns,
+        "turns": tb["turns"],
+        "turns_all": tb["turns_all"],
+        "tool_calls": tb["tool_calls"],
+        "turns_saved": turns_saved,
+        "turns_if_serial": tb["tool_calls"],
+        "remaining": max_turns - tb["turns"],
+        "max_turns_hit": tb["max_turns_hit"],
+        "serial_would_have_died": tb["tool_calls"] > max_turns,
+        "sessions": tb["sessions"],
     }
 
 
@@ -1110,6 +1388,45 @@ def main(argv: List[str]) -> int:
             return 2
         s = summarize_turns(argv[1])
         print(json.dumps(s) if s is not None else "n/a")
+        return 0
+    if argv[:1] == ["turnbudget"]:
+        if len(argv) != 2:
+            print("usage: driver_health.py turnbudget ROUND_LOG", file=sys.stderr)
+            return 2
+        tb = turn_budget(argv[1])
+        print(json.dumps(tb, sort_keys=True) if tb is not None else "n/a")
+        return 0
+    if argv[:1] == ["headroom"]:
+        if len(argv) != 3:
+            print("usage: driver_health.py headroom ROUND_LOG MAX_TURNS", file=sys.stderr)
+            return 2
+        h = headroom(argv[1], int(argv[2]))
+        print(json.dumps(h, sort_keys=True) if h is not None else "n/a")
+        return 0
+    if argv[:1] == ["budgetsweep"]:
+        # Round 391. One line per log: what the CLI's turn counter really
+        # read, versus the two proxies this module used to print. `cap` is
+        # taken from the round number in the filename, because round 205
+        # raised `--max-turns` from 120 to 135 and a sweep that used one
+        # value would mis-read every round on the other side of it.
+        if len(argv) < 2:
+            print("usage: driver_health.py budgetsweep ROUND_LOG...", file=sys.stderr)
+            return 2
+        print("round cap turns tool_calls batch_ratio sessions max_turns_hit at_cap")
+        for path in argv[1:]:
+            m = re.search(r"(\d+)\.json$", path)
+            rnd = int(m.group(1)) if m else 0
+            cap = 120 if rnd and rnd < 206 else 135
+            tb = turn_budget(path)
+            if tb is None:
+                print("%s %d n/a n/a n/a n/a n/a n/a" % (m.group(1) if m else "?", cap))
+                continue
+            print("%s %d %d %d %s %d %s %s" % (
+                m.group(1) if m else "?", cap, tb["turns"], tb["tool_calls"],
+                tb["batch_ratio"], tb["sessions"],
+                "yes" if tb["max_turns_hit"] else "no",
+                "yes" if tb["turns"] == cap else "no",
+            ))
         return 0
     if argv[:1] == ["health"]:
         if len(argv) not in (2, 3):
