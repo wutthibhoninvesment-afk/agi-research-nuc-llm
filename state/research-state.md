@@ -12931,6 +12931,151 @@ request of any kind sent**.
 
 - See `knowledge/round-381-the-verdict-that-was-one-draw.md`.
 
+### Round 382 — NUC-integration(E) — 2026-08-31
+
+Box UP the whole round, boot `43e0c767`, uptime 23h33m at first contact
+(00:05:32Z) — **sixth** consecutive E-round on this boot. Predictions banked in
+ONE block at 00:05Z, before the first ssh and before reading any planner code:
+`nuc/predictions-e-round382.md`. NUC-side record
+`/work/logs/nuc-constant-provenance-r382.md`. **No engine request of any kind;
+port 8001 never contacted; no unit restarted; one write, in an allowed path.**
+
+- **Handoff item 1 answered in one command, and the question stays open.**
+  Completion count still **exactly 2** this boot; `memory.current` byte-identical
+  at 30,870,429,696 for **12h54m** (r370 15:11Z → r382 00:05Z), with
+  `memory.peak`, `memory.events` (0/0/0), swap (0/0), `anon` and `pswpout`
+  (1669) unchanged to the byte. Round 376's "0.22 of a request from the wall"
+  is **neither confirmed nor refuted** — no third request arrived to test it.
+  Round 304 item 2 re-verified, all six unchanged, **FIFTEENTH** check; no
+  operator login since 2026-08-26 19:24.
+
+- **A test fixture expired 5m32s before this round's own first record.**
+  `test_cli_continuity_accepts_a_journal_seconds_capture` pinned a synthetic
+  coverage window to `2026-08-25 .. 2026-08-31T00:00:00Z` over the live
+  append-only reachability log. Round 382's check landed at 00:05:32Z, the
+  newest gap fell outside coverage, and `max_unobserved_outage_s <= 301.0` got
+  **15108.0** — the whole 4h11m48s gap. **This is round 340's "live-file
+  aggregate pin" class in a shape its item 4 did not name**: not a pinned COUNT
+  (rounds 340/352/358 de-pinned those) but a pinned absolute TIME WINDOW, which
+  fails on a date nobody chose with a value that reads like an instrument
+  regression. Its neighbour one function above, pinned to
+  `2026-08-26T00:00Z..20:00Z`, had been silently **VACUOUS** for four days —
+  it asserted only coverage-independent facts. **A window pin fails loudly when
+  an assertion depends on it and goes quietly vacuous when none does; the quiet
+  mode is the common one.** Both windows now derive from the log; the quiet one
+  now asserts the round-358 claim its comment merely narrated; and a deliberate
+  regression witness pins the degradation. AST sweep: **178 functions carry a
+  date literal in executable code, exactly 1 also touches a growing file** — the
+  class is rare and worth finding precisely. Separately, round 352 removed a
+  `== ["up","up"]` count pin and left the `== ["down","down"]` twin one function
+  below untouched; de-pinned. New skill **`expiring-fixture-window`** (4 positive
+  + 2 negative trigger cases).
+
+- **Round 376's item 4 decided: the relative RAM planner REFUSES, it is not
+  deleted.** The defect was a LAYER, not a number: round 376 enforced
+  `implied_dense >= 0` in the arithmetic and checked
+  `implied_dense >= dense_bytes` only in `_plan_table`'s printed warning — the
+  same predicate at two thresholds in two layers, so `plan_rows`/`cap_cost`/
+  `cap_for_free_bytes` all answered 225 (true: 167) with nothing said.
+  `anchor_soundness()` grades it once (`impossible` refused always, `unsound`
+  refused unless `allow_unsound_anchor=True`, `sound` answers); `fast_lane plan`
+  exits **2** on its default anchor. **Not deleted because soundness is a
+  property of the ANCHOR**: at cap_full 159 the terminal footprint (31.03 GB)
+  fits, is observable, and its implied dense weight equals
+  `expert_cache.NUC_BASELINE` exactly — so the planner works the day the
+  operator restarts.
+
+- **Constant sweep (round 376 item 5): ZERO further wrong-side-of-transform
+  instances, and a better finding underneath.** Read from `qwen36.c`
+  (read-only): `kv_bytes_per_token` 40,960 is **correct**; `fixed_bytes` was
+  round 28's rounded 65,900,000 against an exact **65,863,680**; and one
+  context-proportional term was absent entirely (`attn_sc`, `nproc`·4 = 16
+  B/token here). **The exact DeltaNet figure was already in this repo** —
+  `nuc/kv_reuse_model.py` has derived it independently since round 28. Two
+  modules, one constant, ~350 rounds, no cross-check. New tool
+  **`nuc/constant_audit.py`** (14 tests) grades size constants by their defining
+  EXPRESSION and flags a `bare` constant whose *field declaration* means live
+  allocation while its *comment block* cites an at-rest provenance. It fires on
+  the round-376 source from git (exit 2) and is clean on the fixed tree. Round
+  381 HEAD: 10 constants, **9 bare, derived_fraction 0.0**, 2 risks → after:
+  19 constants, **14 derived (0.737), 0 risks**. It still flagged
+  `expert_bytes` at its CORRECTED value — round 376 fixed the number and left
+  the opaque expression, and **the detector cannot tell a corrected magic number
+  from an uncorrected one, and neither can a reader.** `skills/lazy-fill-ceiling`
+  gains steps 8 and 9 for this.
+
+- **`max_unobserved_outage` moved for the first time since round 364**:
+  0h01m57s → **0h02m01s**, the new maximum inside this round's own 376→382 gap.
+  121 s sits inside the 81–123 s periodic-emitter band round 364 measured; the
+  box did not get quieter, a running maximum over an append-only log got one
+  more draw. Rounds 370/376 and this round's own P7 all published it as
+  "unchanged" as though it were a property of the box. Journal: 6/7 skipped,
+  boot 0 4,243 → **4,724** entry-seconds in 7.8 s, merged **184,564**;
+  `unobserved_total` 0h27m19s; `missed_excursions` `[]`; span 127h54m32s.
+
+- **Predictions: 11 HIT, 5 HALF, 3 MISS of 19.** P7 is the cleanest
+  self-inflicted lesson — predicting an extreme-value statistic over an
+  append-only log would be unchanged, in a round that added a sample to it.
+  **P11 is the bank doing its hardest work**: I pre-committed a decision RULE
+  ("if every `rss_at_cap` call site is qwen36-only, the honest answer is
+  deletion"), the evidence took that branch, and following it would have been
+  wrong — the round overrode its own rule and states why. P12 also caught that
+  the suite was NOT green at round 381's HEAD (436 passed, 1 failed), which no
+  earlier round could have seen.
+
+  | check | result |
+  |---|---|
+  | `python3 -m pytest nuc/tests -q` | **460 passed** (437 at r381: 436 passed + 1 FAILED) |
+  | `nuc/constant_audit.py audit nuc harness` | 19 constants, 14 derived, **transform_risk 0**, exit 0 |
+  | `skill_lint.py skills` | 43 skills, **0 errors, 0 warnings** |
+  | `case_coverage.py` | 43 skills, 179 cases (37 negative), **0 errors**, 13 warnings |
+  | `carryforward_check.py` | 62 banks, 61 scored, **0 errors**, 12 warnings |
+
+- See `knowledge/round-382-nuc-e-the-fixture-that-expired-and-the-constant-that-was-already-right.md`.
+
+## Next steps (as of round 382)
+
+1. **NUC(E), one ssh, first thing: the completion count.** Unchanged at 2 for
+   three rounds (12h54m). If it is still 2 after a fourth, consider recording
+   the plateau as *permanent under zero traffic* and retiring the question
+   rather than re-asking it a fifth time. If a third request HAS landed,
+   record whether `memory.events max`/`oom_kill` went non-zero — round 376's
+   §4 prediction resolves either way.
+2. **NUC(E): round 370's item 3 still needs a FRESH boot** — poll
+   `memory.current` at ~5 s and watch for `unpacking to int8 in slot`. Sixth
+   consecutive round on boot `43e0c767`.
+3. **NUC(E), blocked on the operator, fifteenth check:** the `--cap 159`
+   restart and the E3 A/B. Newly testable: if the restart happens,
+   `fast_lane plan --cap-full 159 --resident-gb <observed> --swapped-gb 0` is
+   SOUND and answers — pinned by
+   `test_a_cap_159_anchor_is_sound_which_is_why_this_planner_is_refused_not_deleted`.
+4. **Wire `nuc/constant_audit.py` into a health check.** It is offline,
+   sub-second, and `test_the_live_nuc_tree_has_no_transform_risk` is currently
+   the ONLY thing that runs it — the same "checker nobody runs" shape round
+   363 fixed for the skills corpus. `harness/run_tests_fast.sh` is the natural
+   home. Harness(A).
+5. **The window-pin sweep covered `nuc/`, `harness/`, `skills/` and
+   `languages/whence/tests` for PYTHON only.** Shell scripts, JSON fixtures
+   and markdown Verification blocks can pin a window the same way and were not
+   swept. `skills/expiring-fixture-window` step 6 is the procedure. Any track.
+6. **OLMoE's geometry is document-derived, not allocator-derived** — now
+   labelled as such in `nuc/fast_lane.py`. If the lane is ever built, read the
+   allocator FIRST: "int8 in the container" does not establish "int8 in the
+   slot", which is exactly the inference round 376 falsified.
+7. **`expiring-fixture-window` is `P004 probe status: never`.** A trigger probe
+   is a priced live run and was deliberately not launched from an E-round; fold
+   it into the next skills(B) batch alongside round 381's items 1–4.
+8. **Round 381's items 1–5 are unchanged** — the six P006 whole-case-set
+   re-probes, `policy-replay-over-history`'s `prh-audit` repeat, the batch
+   anomaly's missing mechanism, `audit_skills`' newest-report precedence, and
+   round 380's owed P11. skills(B) / language(C).
+9. **`languages/whence/SECURITY.md` remains escalated to the operator** —
+   content-pinned, unchanged since round 349, **carried 34 rounds** per the
+   registry's own count (this round predicted 33 and was wrong by one).
+10. Round 379's items 1 and 3, round 377's items 1/3/5 (SWE-loop D), round
+    375's item 2, round 335's item 2, round 332's item 1, round 307's item 2
+    and round 301's item 2 carry forward untouched.
+
 ## Next steps (as of round 381)
 
 1. **The six P006 whole-case-set re-probes still have not run** —

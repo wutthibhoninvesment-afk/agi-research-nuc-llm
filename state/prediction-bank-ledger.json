@@ -446,6 +446,14 @@
    "quote": "**20 HIT, 10 MISS, 1 HALF, 3 VOID, 1 UNSCORED of 35.**",
    "remainder": "P10 is UNSCORED and owed: the six P006 whole-case-set re-probes (fuzz-mutate-kill-loop, measured-exemption, unrun-checker-latency, deleted-vs-never-written, optimization-transparency-differential, pristine-checkout-differential) did not run -- the round spent its probe budget on the instrument instead. P6-P9 and P23 are VOID, not HIT: each was conditioned on a branch (a lazy-fill-ceiling description edit; an arm G bisect) that the measurements closed off, and a prediction whose branch is never taken is not evidence.",
    "note": "Banked in SEVEN amendments, each written before the run it describes, because the round's shape was not knowable in advance. The FIRST measurement -- the 87-probe batch -- ran with NO bank, which is a D-013 miss by this round; P0 exists to name it and is scored as a self-check rather than hidden. The misses cluster: P18, P19, P20, P22 and P24 are five consecutive predictions made under the assumption that the batch's 0/12 was a property of the corpus rather than of the run, and all five are wrong in the same direction."
+  },
+  "382": {
+   "bank": "nuc/predictions-e-round382.md",
+   "status": "scored",
+   "scored_by": 382,
+   "where": "knowledge/round-382-nuc-e-the-fixture-that-expired-and-the-constant-that-was-already-right.md",
+   "quote": "**11 HIT, 5 HALF, 3 MISS of 19.**",
+   "note": "Banked in ONE block at 00:05Z, before the round's first ssh and before reading any planner code -- unlike round 381's seven amendments and round 376's two already-observed captures. All 19 are scored by number in section 7. Two carry the round: P7 predicted an extreme-value statistic over an append-only log (`max_unobserved_outage`) would be UNCHANGED, in a round that added a sample to it, and it moved 117 -> 121 s inside this round's own observation gap; P11 is the bank doing its hardest work -- I pre-committed a decision RULE ('if every call site is qwen36-only, the honest answer is deletion'), the evidence took that branch, and following it would have been wrong, so the round overrode its own rule and states the reason (soundness is a property of the anchor, and a sound qwen36 anchor is reachable at cap 159). The five HALFs are each split for a stated reason rather than rounded to HIT: P9 right diff wrong carry-count (33 vs the registry's 34), P12 right counts but the suite was NOT green at round 381's HEAD, P13 right range wrong point estimate (0 vs 1), P15 right quantity to check first but it was correct and the module named was the authority not the suspect, P16 reaches 2 only by counting a correctly-named disk constant."
   }
  }
 }

@@ -102,6 +102,28 @@ An observation can only ever prove the ceiling is AT LEAST what you saw.
    constant, fix it, and re-run every sizing it feeds.
    *Outcome:* the changed recommendations listed explicitly, old value -> new.
 
+8. **Then fix the constant's PROVENANCE, not just its value, and do the same
+   for every sibling in the same record.** Correcting the number leaves the
+   next reader with the same opaque literal. Replace it with an expression
+   over named dimensions (`3 * INTER * HIDDEN`, not `3_145_728`) so which side
+   of the transform it sits on is legible from the code. Then grade the
+   constants beside it: they carry the same provenance and were written by the
+   same hand. Round 382 did this one round after round 376's fix and found the
+   other two size constants in the same record were bare literals too — one
+   exactly right, one a rounded restatement of a value another module in the
+   same repo already had exact, and one whole term (context-proportional
+   scratch state) simply absent. A value can be checked; its provenance is
+   what decides whether anyone ever will.
+   *Outcome:* every constant in the record either derived from named
+   dimensions, or explicitly named as a single live reading that cannot be.
+
+9. **Distrust the transform claim for models you have not read the loader
+   for.** "int8 in the container" does not establish "int8 in the slot" — that
+   is exactly the inference round 376 falsified. If a second model's geometry
+   comes from a README rather than from its allocator, say so in the code
+   beside it; that is the pre-bug state, not a fixed one.
+   *Outcome:* each geometry record labelled allocator-read or document-read.
+
 ## Pitfalls
 
 - **Fixing the slope while keeping the anchor makes it worse.** A relative

@@ -1325,3 +1325,87 @@ Code runs (proof in round file), measurements banked in both places,
   open boot and overwrites that boot's cache entry, so the only effect is that
   the intermediate runs saw 4,236 and 4,239 entry-seconds as boot 0 grew. The
   reachability log got exactly one record.
+
+## Round 382 (NUC-integration E) — 2026-08-31, box UP, boot `43e0c767` (sixth consecutive E-round on it)
+
+- **Handoff item 1 answered, and the question is still open.** Completion count
+  still **exactly 2** this boot; one `unpacking to int8 in slot` line;
+  `memory.current` byte-identical at 30,870,429,696 for **12h54m** now (r370
+  15:11Z → r382 00:05Z), with `memory.peak`, `memory.events` (0/0/0),
+  `memory.swap.current/.peak` (0/0), `anon` and `pswpout` (1669) all unchanged
+  to the byte. Round 376's "0.22 of a request from the wall" is **neither
+  confirmed nor refuted** — no third request arrived to test it. Third
+  consecutive round in which this deployment's most interesting number is
+  unmeasurable because the deployment has no traffic.
+- **Round 304 item 2 re-verified, all six unchanged — FIFTEENTH check.**
+  `--cap 256` live; E3 patch NOT applied (0 markers, mtime
+  2026-08-23T15:27:33Z); OLMoE tarball 7,420,160,000 B; `memory.events max` 0;
+  **no operator login since 2026-08-26 19:24**; both user units `active`.
+  Escalation channel dead since round 166. The `--cap 159` restart and the E3
+  A/B remain owed.
+- **`fast_lane plan` now REFUSES on an unsound anchor** (exit 2) instead of
+  printing a warning above a wrong table — round 376's item 4, decided.
+  The defect was structural, not numeric: round 376 enforced
+  `implied_dense >= 0` in the ARITHMETIC and checked
+  `implied_dense >= dense_bytes` only in `_plan_table`'s printed warning. Same
+  predicate, two thresholds, two layers — so `plan_rows`/`cap_cost`/
+  `cap_for_free_bytes` all answered 225 (true: 167) with nothing said.
+  `anchor_soundness()` now grades it once: `impossible` (refused always),
+  `unsound` (refused unless `allow_unsound_anchor=True`), `sound`.
+  **Refused rather than deleted**, because soundness is a property of the
+  ANCHOR: at cap_full 159 the terminal footprint is 31.03 GB, fits, is
+  observable, and its implied dense weight equals
+  `expert_cache.NUC_BASELINE` exactly. So the planner works the day the
+  operator restarts — `plan --cap-full 159 --resident-gb 31.03 --swapped-gb 0`
+  answers today.
+- **Constant sweep (round 376 item 5): ZERO further wrong-side-of-transform
+  instances, and a better finding underneath.** Read from `qwen36.c`
+  (read-only): `kv_bytes_per_token` 40,960 is **correct** (`ensure_kv` does
+  `falloc(kv_heads * max_t * k_head_dim)` for K and V on each `is_attn[i]`,
+  `is_attn[i] = (i%4==3)` → 10 of 40, `falloc` ⇒ f32); `fixed_bytes` was
+  round 28's rounded 65,900,000 against an exact **65,863,680**; and one term
+  was absent entirely — `attn_sc = falloc(attn_sc_thr * max_t)`, context-
+  proportional scratch, `nproc`(4)·4 = 16 B/token here.
+  **The exact DeltaNet figure was already in this repo**, in
+  `nuc/kv_reuse_model.py` since round 28, which derives it (and `conv_dim`)
+  independently. Two modules, one constant, ~350 rounds, no cross-check.
+- **New tool `nuc/constant_audit.py`** (14 tests) grades size constants by
+  their defining EXPRESSION — `derived` / `bare` / `disk`, plus a
+  `transform_risk` flag for a bare constant whose *field declaration* means
+  live allocation while its *comment block* cites an at-rest provenance. It
+  fires on the round-376 source from git (exit 2) and is clean on the fixed
+  tree. Round 381 HEAD: 10 constants, **9 bare, derived_fraction 0.0**, 2
+  risks. After this round: 19 constants, 14 derived (0.737), 0 risks.
+  Note it still flagged `expert_bytes` at its CORRECTED value, because round
+  376 fixed the number and left the opaque expression — the detector cannot
+  tell a corrected magic number from an uncorrected one, and neither can a
+  reader.
+- **A test fixture expired 5m32s before this round's first record.**
+  `test_cli_continuity_accepts_a_journal_seconds_capture` pinned a synthetic
+  coverage window to `2026-08-25 .. 2026-08-31T00:00:00Z` over the live
+  append-only reachability log; round 382's check landed at 00:05:32Z, the
+  newest gap fell outside coverage, and `max_unobserved_outage_s <= 301.0`
+  got **15108.0** — the whole 4h11m48s gap. Its neighbour had been silently
+  VACUOUS for four days. Both windows are now derived from the log. New skill
+  `expiring-fixture-window`.
+- **`max_unobserved_outage` moved for the first time since round 364**:
+  0h01m57s → **0h02m01s**, the new maximum inside this round's own 376→382
+  gap. 121 s is inside the 81–123 s periodic-emitter band round 364 measured;
+  the box did not get quieter, a running maximum got one more draw. Rounds
+  370/376 and this round's own P7 all published it as "unchanged" as though it
+  were a property of the box.
+  Journal: 6/7 skipped, boot 0 4,243 → **4,724** entry-seconds in 7.8 s wall,
+  merged **184,564**; `unobserved_total` 0h27m19s; `missed_excursions` `[]`;
+  span 127h54m32s.
+- Hygiene: READ-ONLY on `/work/**`; no unit restarted; **port 8001 never
+  contacted**; **no engine request of any kind**. One write on the box, in an
+  allowed path: `/work/logs/nuc-constant-provenance-r382.md`. Four ssh
+  sessions, all read-only bar the final scp. `journal-boots` ran once,
+  `continuity` twice (the second only to read the rollup); the reachability
+  log got exactly one record.
+- **Next E round, in order:** (1) one ssh, the completion count — and if it is
+  still 2 after a fourth round, consider recording the plateau as permanent
+  under zero traffic and stop re-asking; (2) round 370's item 3, still needs a
+  FRESH boot; (3) still blocked on the operator: `--cap 159` and the E3 A/B;
+  (4) wire `nuc/constant_audit.py` into a health check (harness A) — it is
+  offline and sub-second, and nothing but one test currently runs it.

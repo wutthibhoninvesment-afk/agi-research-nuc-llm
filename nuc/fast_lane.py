@@ -12,6 +12,14 @@ read-only on the target box:
                   RSS(cap) = RSS_full - (cap_full - cap) * layers * expert_bytes.
                   Given the small lane's footprint, compute the cap the big
                   engine would have to run at, and what that costs it.
+                  ROUND 382: this is a RELATIVE model and it now REFUSES an
+                  anchor that cannot be full residency (`anchor_soundness`),
+                  rather than warning and answering. For pgain-nuc at cap 256
+                  no sound anchor can exist — cap-256 residency is 44.00 GB
+                  against a 32.21 GB `memory.max` — so `plan` with its default
+                  arguments refuses and points at `nuc/expert_cache.py plan`,
+                  which is absolute and needs no anchor. Give it a cap whose
+                  residency actually fits (159) and it answers again.
   3. lane       — project a lane turn (prefill + decode) against the E1 curve
                   of the production engine for the same prompt.
 
@@ -47,6 +55,21 @@ CURL_W = ("speed_B_s=%{speed_download} bytes=%{size_download} t=%{time_total} "
 
 class FastLaneError(RuntimeError):
     pass
+
+
+class UnsoundAnchorError(FastLaneError):
+    """ROUND 382. The relative RAM planner was asked to extrapolate from an
+    anchor that cannot be full residency.
+
+    Round 376 established the fact and shipped it in the WRONG LAYER: the
+    strong soundness test (`implied_dense >= geom.dense_bytes`) lived in
+    `_plan_table` as a printed WARNING, while only its degenerate case
+    (`implied_dense >= 0`) was enforced in the arithmetic. So the CLI warned
+    and every library caller -- `plan_rows`, `cap_cost`, `cap_for_free_bytes`
+    -- got an unwarned wrong number. Same predicate, two thresholds, two
+    layers, two strengths. It is one predicate and it belongs in the
+    arithmetic.
+    """
 
 
 def check_url(url: str) -> str:
@@ -225,20 +248,176 @@ class MoeGeometry:
 # computed with a per-slot constant 1.889x too small -- including E4's headline
 # `--cap 204`, which overshoots the engine's 30 GiB cgroup cap by 4.8 GB.
 # Full derivation, inversion and tests: nuc/expert_cache.py (round 376).
-QWEN36 = MoeGeometry("qwen36", layers=40, experts=256, expert_bytes=3_145_728 + 196_608,
-                     dense_bytes=int(9.25 * GB), kv_bytes_per_token=40_960,
-                     fixed_bytes=65_900_000)
+# ROUND 382. `expert_bytes` was the only field round 376 re-derived. The other
+# two size constants in this record were BARE LITERALS whose derivation lived
+# in the comment above -- the same provenance grade the wrong one had, and the
+# reason it survived 250 rounds. Both are now computed from the engine's own
+# dimensions, read out of `/work/src/colibri-v170/c/qwen36.c` (read-only) and
+# the `[meta] loaded:` / `[meta] DeltaNet:` banner lines. Verdicts:
+#
+#   kv_bytes_per_token  40,960  CORRECT, now derived.  `ensure_kv()` does
+#       `K[i] = falloc(kv_heads * max_t * k_head_dim)` and the same again for
+#       V, for each layer with `is_attn[i]`, where `is_attn[i] = (i % 4 == 3)`
+#       -> 10 of 40 layers. `falloc` is `malloc(n * sizeof(float))`, so f32:
+#       10 * 2 * (2 * 2 * 256 * 4) ... = 40,960 B/token exactly. Note V is
+#       sized from `k_head_dim`, not `v_head_dim`; they are both 256 on this
+#       checkpoint so it changes nothing here, and would if they ever differed.
+#   fixed_bytes  65,900,000 -> 65,863,680.  Round 28's figure was a rounded
+#       estimate ("65.9 MB"); the allocator is exact. Off by 36,320 B (0.055 %).
+#
+# And one term the model did NOT have at all: `ensure_kv` also allocates
+# `attn_sc = falloc(attn_sc_thr * max_t)`, one attention-score row per OpenMP
+# thread, and its own comment says it "grows with the context exactly like the
+# KV cache does". That is context-proportional state the KV constant omitted.
+# It is small (`nproc` = 4 on pgain-nuc, unset OMP_NUM_THREADS -> 16 B/token,
+# 0.039 % of the KV term) but it is deployment-dependent, which a hard-coded
+# byte count can never express -- hence `attn_score_bytes_per_token()`.
+QWEN36_HIDDEN, QWEN36_INTER, QWEN36_EXPERT_GS = 2048, 512, 64
+QWEN36_KV_HEADS, QWEN36_K_HEAD_DIM = 2, 256      # [meta] banner
+QWEN36_ATTN_LAYERS = 10                          # is_attn[i] = (i % 4 == 3), 40 layers
+QWEN36_DN_LAYERS = 30                            # the other 30
+QWEN36_DN_VHEADS, QWEN36_DN_KDIM, QWEN36_DN_VDIM = 32, 128, 128
+QWEN36_DN_CONV_DIM, QWEN36_DN_CONVK = 8192, 4
+F32 = 4                                          # sizeof(float); `falloc`/`calloc(.., sizeof(float))`
+
+#   K and V per attention layer per token, both sized from k_head_dim
+QWEN36_KV_BYTES_PER_TOKEN = (QWEN36_ATTN_LAYERS * 2
+                             * QWEN36_KV_HEADS * QWEN36_K_HEAD_DIM * F32)
+#   DeltaNet recurrent state + conv ring, per non-attention layer, context-free
+QWEN36_DN_BYTES = QWEN36_DN_LAYERS * (
+    QWEN36_DN_VHEADS * QWEN36_DN_KDIM * QWEN36_DN_VDIM * F32      # DN_rec
+    + QWEN36_DN_CONV_DIM * (QWEN36_DN_CONVK - 1) * F32)           # DN_conv
+
+
+def attn_score_bytes_per_token(threads: int) -> int:
+    """`ensure_kv`: `attn_sc = falloc(attn_sc_thr * max_t)`, one score row per
+    OpenMP thread, each `max_t` floats. ROUND 382 -- context-proportional state
+    the KV constant does not include. `threads` is `omp_get_max_threads()`,
+    i.e. `nproc` unless `OMP_NUM_THREADS` is set; 4 on pgain-nuc."""
+    if threads < 1:
+        raise FastLaneError("threads >= 1")
+    return threads * F32
+
+
+#   ROUND 382: `expert_bytes` was the field round 376 CORRECTED, but it stayed
+#   two magic numbers -- the same provenance grade that let the wrong value
+#   live for 250 rounds. The derivation existed all along in the module round
+#   376 wrote; it just never came back here. `slot_ensure_allocated` mallocs
+#   `ng + ng + nd` int8 = 3*inter*hidden, and `falloc`s
+#   `2*scale_count_gu + scale_count_d` f32 where each scale_count is
+#   inter*hidden/expert_gs. Cross-checked against `expert_cache.SlotGeometry`
+#   by `test_fast_lane_and_expert_cache_agree_on_the_slot`.
+QWEN36_SLOT_WEIGHT_BYTES = 3 * QWEN36_INTER * QWEN36_HIDDEN          # int8
+QWEN36_SLOT_SCALE_BYTES = (3 * QWEN36_INTER * QWEN36_HIDDEN
+                           // QWEN36_EXPERT_GS) * F32                # f32
+QWEN36_SLOT_BYTES = QWEN36_SLOT_WEIGHT_BYTES + QWEN36_SLOT_SCALE_BYTES
+
+QWEN36 = MoeGeometry("qwen36", layers=40, experts=256, expert_bytes=QWEN36_SLOT_BYTES,
+                     dense_bytes=int(9.25 * GB),
+                     kv_bytes_per_token=QWEN36_KV_BYTES_PER_TOKEN,
+                     fixed_bytes=QWEN36_DN_BYTES)
 
 # OLMoE-1B-7B int8 merged container: 16 layers x 64 experts, hidden 2048, inter 1024.
-#   expert = 3 x 2048 x 1024 int8 = 6,291,456 B + 3 x 1024 f32 scales (2048-row gate/up,
-#   1024-row down ... row scales: gate 1024 + up 1024 + down 2048 = 4096 x 4 B).
 #   dense ~1.8 GB f32 (chat_olmoe.sh comment: "~6GB cache + ~1.8GB dense = 7.8GB peak").
 #   KV: layers x ctx x heads(16) x head_dim(128) x 2 x 4 B  (family_registry _olmoe_geometry).
-OLMOE = MoeGeometry("olmoe", layers=16, experts=64, expert_bytes=6_291_456 + 4096 * 4,
-                    dense_bytes=int(1.8 * GB), kv_bytes_per_token=16 * 16 * 128 * 2 * 4)
+#
+# ROUND 382, and the honest caveat that makes this record different from
+# QWEN36's. The values below are unchanged; the EXPRESSIONS now name their
+# dimensions, so which side of a packing transform each one sits on is legible
+# instead of being asserted in a comment. But the provenance grade is NOT the
+# same as QWEN36's: qwen36's dimensions were read out of the engine's own
+# allocator on the box this round, whereas OLMoE's come from a container README
+# and a shell-script comment. **That is exactly the state qwen36 was in before
+# round 376 found `expert_bytes` 1.889x wrong.** OLMoE has never been deployed
+# here, so no allocator exists to read; if the lane is ever built, read
+# `slot_ensure_allocated`'s equivalent FIRST and re-derive, because "int8 in
+# the container" does not by itself establish "int8 in the slot".
+OLMOE_LAYERS, OLMOE_EXPERTS = 16, 64
+OLMOE_HIDDEN, OLMOE_INTER = 2048, 1024
+OLMOE_HEADS, OLMOE_HEAD_DIM = 16, 128
+#   3 matrices (gate/up/down), int8 in the container
+OLMOE_SLOT_WEIGHT_BYTES = 3 * OLMOE_HIDDEN * OLMOE_INTER
+#   row scales, f32: gate 1024 + up 1024 + down 2048
+OLMOE_SLOT_SCALE_BYTES = (OLMOE_INTER + OLMOE_INTER + OLMOE_HIDDEN) * F32
+OLMOE_SLOT_BYTES = OLMOE_SLOT_WEIGHT_BYTES + OLMOE_SLOT_SCALE_BYTES
+#   K and V for every layer, f32
+OLMOE_KV_BYTES_PER_TOKEN = OLMOE_LAYERS * OLMOE_HEADS * OLMOE_HEAD_DIM * 2 * F32
+
+OLMOE = MoeGeometry("olmoe", layers=OLMOE_LAYERS, experts=OLMOE_EXPERTS,
+                    expert_bytes=OLMOE_SLOT_BYTES,
+                    dense_bytes=int(1.8 * GB),
+                    kv_bytes_per_token=OLMOE_KV_BYTES_PER_TOKEN)
 
 
-def rss_at_cap(geom: MoeGeometry, rss_full: int, cap_full: int, cap: int) -> int:
+def anchor_soundness(geom: MoeGeometry, rss_full: int, cap_full: int) -> dict:
+    """Is `rss_full` a physically possible reading of `geom` at full residency?
+
+    ROUND 382. A sound anchor has to leave at least the engine's measured
+    non-expert weight behind once its whole cache is subtracted:
+
+        implied_dense = rss_full - cap_full * layers * expert_bytes
+        sound         <=> implied_dense >= geom.dense_bytes
+
+    Three grades, because they mean different things:
+      * `impossible`  implied_dense < 0 -- the anchor is smaller than the
+        cache it claims to hold. Refused unconditionally; extrapolating from
+        it produced round 376's "cap 7 where -1 was owed".
+      * `unsound`     0 <= implied_dense < dense_bytes -- arithmetically
+        coherent, physically a MID-FILL reading mislabelled full residency.
+        Refused by default, openable with `allow_unsound_anchor=True` for
+        callers whose subject IS the wrong answer (the disagreement witness).
+      * `sound`       implied_dense >= dense_bytes.
+
+    Why this is a refusal and not a deletion. The arithmetic is correct for a
+    sound anchor; what does not exist is a sound qwen36 anchor *at cap 256*,
+    because cap-256 residency is 44.00 GB and `memory.max` is 32.21 GB. That
+    is a property of the CAP, not of the model. Restart at the round-376
+    recommendation and the anchor becomes observable and sound:
+    cap_full 159 terminates at 31.03 GB, whose implied dense is 9.77 GB
+    against a measured 9.25 GB. `test_a_cap_159_anchor_is_sound` pins exactly
+    that, so the day the operator acts, this planner works again -- and if it
+    had been deleted, nothing would record that it could.
+    """
+    implied = anchor_implied_dense(geom, rss_full, cap_full)
+    if implied < 0:
+        grade = "impossible"
+    elif implied < geom.dense_bytes:
+        grade = "unsound"
+    else:
+        grade = "sound"
+    return {"grade": grade, "sound": grade == "sound",
+            "implied_dense_bytes": implied,
+            "measured_dense_bytes": geom.dense_bytes,
+            "shortfall_bytes": max(0, geom.dense_bytes - implied),
+            "cache_bytes": cap_full * geom.layers * geom.expert_bytes}
+
+
+def _refuse_unsound(geom: MoeGeometry, rss_full: int, cap_full: int,
+                    allow_unsound_anchor: bool) -> None:
+    """Shared gate for every entry point into the relative planner."""
+    v = anchor_soundness(geom, rss_full, cap_full)
+    if v["grade"] == "impossible":
+        raise UnsoundAnchorError(
+            f"anchor {rss_full} B cannot hold a cap-{cap_full} cache of "
+            f"{v['cache_bytes']} B: the reading was not full residency. For "
+            f"qwen36 no such reading exists -- cap-256 residency is 44.0 GB, "
+            f"past the cgroup cap. Use "
+            f"expert_cache.SlotGeometry.terminal_bytes instead.")
+    if v["grade"] == "unsound" and not allow_unsound_anchor:
+        raise UnsoundAnchorError(
+            f"anchor {rss_full} B implies {v['implied_dense_bytes'] / GB:.2f} GB of "
+            f"non-expert weights for {geom.name}, but it measures "
+            f"{geom.dense_bytes / GB:.2f} GB (engine journal: 'RSS after load') "
+            f"-- short by {v['shortfall_bytes'] / GB:.2f} GB. This is a MID-FILL "
+            f"reading labelled full residency, so every cap derived from it is "
+            f"too high. Use `python3 nuc/expert_cache.py plan` (absolute, no "
+            f"anchor) -> cap 167 at zero margin, 159 with 1 GiB. Pass "
+            f"allow_unsound_anchor=True only to reproduce the wrong answer "
+            f"deliberately.")
+
+
+def rss_at_cap(geom: MoeGeometry, rss_full: int, cap_full: int, cap: int,
+               *, allow_unsound_anchor: bool = False) -> int:
     """Engine RSS when the cache holds `cap` instead of `cap_full` experts/layer.
 
     CAVEAT (round 376): this is a *relative* model anchored on `rss_full`, and
@@ -255,19 +434,10 @@ def rss_at_cap(geom: MoeGeometry, rss_full: int, cap_full: int, cap: int) -> int
     question is "does this cap fit"."""
     if not (0 <= cap <= geom.experts and 0 < cap_full <= geom.experts):
         raise FastLaneError("cap out of range")
-    # Round 376: with the corrected int8 slot size, an anchor can be smaller
-    # than the cache it allegedly holds, and this function would then hand back
-    # a NEGATIVE "RSS with an empty cache" -- which `cap_for_free_bytes` reads
-    # as enormous slack and turns into a confidently wrong cap (it returned 7
-    # where it should have returned -1). Refuse the impossibility instead.
-    floor = rss_full - cap_full * geom.layers * geom.expert_bytes
-    if floor < 0:
-        raise FastLaneError(
-            f"anchor {rss_full} B cannot hold a cap-{cap_full} cache of "
-            f"{cap_full * geom.layers * geom.expert_bytes} B: the reading was "
-            "not full residency. For qwen36 no such reading exists -- cap-256 "
-            "residency is 44.0 GB, past the cgroup cap. Use "
-            "expert_cache.SlotGeometry.terminal_bytes instead.")
+    # Round 376 refused the `impossible` grade here; round 382 moved the whole
+    # soundness test into `_refuse_unsound` so the CLI and the library apply
+    # the SAME predicate at the SAME threshold.
+    _refuse_unsound(geom, rss_full, cap_full, allow_unsound_anchor)
     return rss_full - (cap_full - cap) * geom.layers * geom.expert_bytes
 
 
@@ -276,19 +446,30 @@ def anchor_implied_dense(geom: MoeGeometry, rss_full: int, cap_full: int) -> int
 
     Round 376. A sound anchor satisfies `implied >= geom.dense_bytes`; every
     qwen36 anchor in this repo fails that by ~7 GB, because each was taken
-    mid-fill and labelled full residency. Callers that cannot switch to the
-    absolute model should at least SAY so -- `_plan_table` prints a warning."""
+    mid-fill and labelled full residency.
+
+    ROUND 382: this is now the RAW number behind `anchor_soundness`, which is
+    what every entry point actually gates on. Round 376 left this test living
+    only in `_plan_table` as a printed warning, one layer above the arithmetic
+    it was about."""
     return rss_full - cap_full * geom.layers * geom.expert_bytes
 
 
 def cap_for_free_bytes(geom: MoeGeometry, rss_full: int, cap_full: int,
-                       ram_total: int, need_free: int, os_reserve: int) -> int:
+                       ram_total: int, need_free: int, os_reserve: int,
+                       *, allow_unsound_anchor: bool = False) -> int:
     """Largest cap such that ram_total - os_reserve - RSS(cap) >= need_free.
-    Returns -1 when even cap 0 cannot make room."""
+    Returns -1 when even cap 0 cannot make room.
+
+    ROUND 382: refuses an unsound anchor (via `rss_at_cap`) rather than
+    silently answering. This is the call site that mattered -- `plan_rows`
+    reaches the arithmetic through here, never through the CLI's warning."""
     budget = ram_total - os_reserve - need_free
-    if budget < rss_at_cap(geom, rss_full, cap_full, 0):
+    empty = rss_at_cap(geom, rss_full, cap_full, 0,
+                       allow_unsound_anchor=allow_unsound_anchor)
+    if budget < empty:
         return -1
-    slack = budget - rss_at_cap(geom, rss_full, cap_full, 0)
+    slack = budget - empty
     cap = int(slack // (geom.layers * geom.expert_bytes))
     return max(0, min(cap, cap_full))
 
@@ -316,12 +497,14 @@ class CapCost:
 
 def cap_cost(geom: MoeGeometry, rss_full: int, cap_full: int, cap: int,
              topk: int, nvme_mb_s: float, skew: float = 0.0,
-             prefill_layers_touch_all: bool = True) -> CapCost:
+             prefill_layers_touch_all: bool = True,
+             *, allow_unsound_anchor: bool = False) -> CapCost:
     """What the production engine pays at a reduced cap.
     decode: misses/token x expert_bytes / disk rate.
     prefill: a batched prefill touches ~every expert per layer, so every slot
     the cache lacks streams once per request."""
-    rss = rss_at_cap(geom, rss_full, cap_full, cap)
+    rss = rss_at_cap(geom, rss_full, cap_full, cap,
+                     allow_unsound_anchor=allow_unsound_anchor)
     miss = expected_miss_fraction(cap, geom.experts, skew)
     per_byte_s = 1.0 / (nvme_mb_s * MB)
     decode = miss * topk * geom.layers * geom.expert_bytes * per_byte_s
@@ -564,20 +747,35 @@ def full_footprint(resident_bytes: int, swapped_bytes: int) -> int:
 def plan_rows(geom: MoeGeometry, lane: MoeGeometry, rss_full: int, cap_full: int,
               ram: int, reserve: int, lane_caps: Iterable[int], lane_ctx: int,
               nvme_mb_s: float, skew: float, topk: int = 8,
-              lane_workspace: int = int(0.3 * GB)) -> list[tuple[int, int, int, Optional[CapCost]]]:
+              lane_workspace: int = int(0.3 * GB),
+              *, allow_unsound_anchor: bool = False) -> list[tuple[int, int, int, Optional[CapCost]]]:
     """(lane_cap, lane_bytes, big_cap, cost) per lane size; lane cap 0 = no lane,
     i.e. the cap at which the production engine merely stops swapping."""
     rows = []
     for lane_cap in lane_caps:
         need = 0 if lane_cap == 0 else lane.footprint(lane_cap, lane_ctx, workspace_bytes=lane_workspace)
-        cap = cap_for_free_bytes(geom, rss_full, cap_full, ram, need, reserve)
+        cap = cap_for_free_bytes(geom, rss_full, cap_full, ram, need, reserve,
+                                 allow_unsound_anchor=allow_unsound_anchor)
         cost = cap_cost(geom, rss_full, cap_full, cap, topk=topk,
-                        nvme_mb_s=nvme_mb_s, skew=skew) if cap >= 0 else None
+                        nvme_mb_s=nvme_mb_s, skew=skew,
+                        allow_unsound_anchor=allow_unsound_anchor) if cap >= 0 else None
         rows.append((lane_cap, need, cap, cost))
     return rows
 
 
 def _plan_table(args) -> str:
+    """ROUND 382: REFUSES on an unsound anchor instead of warning and answering.
+
+    Round 376 left this warning-but-answering and asked a later round to
+    decide whether a model with no sound anchor should answer at all. It
+    should not. A warning above a table is read as a caveat on a number; the
+    number is not caveated, it is wrong -- 225 against a true 167. The
+    refusal names the absolute tool, and it is not permanent: pass a cap_full
+    whose full residency actually fits (`--cap-full 159 --resident-gb 31.03
+    --swapped-gb 0`, after the recommended restart) and this table answers
+    again, soundly. The default arguments are the unsound 2026-08-24 anchor,
+    so the default invocation is exactly the one that must refuse.
+    """
     geom = QWEN36
     rss_full = full_footprint(int(args.resident_gb * GB), int(args.swapped_gb * GB))
     ram = int(args.ram_gib * GIB)
@@ -585,14 +783,6 @@ def _plan_table(args) -> str:
     rows = plan_rows(geom, OLMOE, rss_full, args.cap_full, ram, reserve, (0, 16, 32, 64),
                      args.lane_ctx, args.nvme_mb_s, args.skew)
     out = []
-    implied = anchor_implied_dense(geom, rss_full, args.cap_full)
-    if implied < geom.dense_bytes:
-        out.append(
-            f"# WARNING (round 376): this anchor implies {implied / GB:.2f} GB of "
-            f"non-expert weights, but {geom.name} measures {geom.dense_bytes / GB:.2f} GB "
-            f"(engine journal: 'RSS after load'). The anchor is a MID-FILL reading "
-            f"labelled full residency, so every cap below is too high. The absolute "
-            f"answer for pgain-nuc is `python3 nuc/expert_cache.py plan` -> cap 167.")
     out += [f"# RAM plan: {geom.name} cap {args.cap_full} = {rss_full / GB:.2f} GB "
            f"(resident {args.resident_gb:.2f} + swapped {args.swapped_gb:.2f}); "
            f"RAM {args.ram_gib} GiB; OS reserve {args.os_reserve_gb} GB; lane ctx {args.lane_ctx}; "
@@ -670,7 +860,13 @@ def main(argv=None) -> int:
         print(json.dumps(asdict(d), indent=2))
         return 0 if d.ok else 2
     elif a.cmd == "plan":
-        print(_plan_table(a))
+        # ROUND 382: the refusal is the answer. Exit 2 like `gate`, so a
+        # script that pipes this table cannot mistake a refusal for a plan.
+        try:
+            print(_plan_table(a))
+        except UnsoundAnchorError as exc:
+            print(f"# REFUSED (round 382): {exc}")
+            return 2
     elif a.cmd == "turn":
         lane = lane_turn(a.prompt, a.reply, a.prefill_tps, a.decode_tps)
         big = qwen36_turn(a.prompt, a.reply)

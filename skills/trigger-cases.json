@@ -60,7 +60,7 @@
   "expect": [
    "agent-context-budgeting"
   ],
-  "prompt": "Prompt caching never hits after our agent trims old messages — cache reads are zero on every request. Why, and how do we trim without losing the cache?"
+  "prompt": "Prompt caching never hits after our agent trims old messages \u2014 cache reads are zero on every request. Why, and how do we trim without losing the cache?"
  },
  {
   "id": "gte-near",
@@ -109,7 +109,7 @@
   "expect": [
    "fuzz-mutate-kill-loop"
   ],
-  "prompt": "Find bugs in the parser and evaluator under languages/whence/ — crashes, not style issues — and pin each one with a regression test."
+  "prompt": "Find bugs in the parser and evaluator under languages/whence/ \u2014 crashes, not style issues \u2014 and pin each one with a regression test."
  },
  {
   "id": "fmk-mid",
@@ -216,7 +216,7 @@
   "expect": [
    "errors-that-name-the-fix"
   ],
-  "prompt": "The interpreter prints `expected a list, got a function` — accurate, points at the right argument, and three people this week reported it as a defect in the library. What should change?"
+  "prompt": "The interpreter prints `expected a list, got a function` \u2014 accurate, points at the right argument, and three people this week reported it as a defect in the library. What should change?"
  },
  {
   "id": "etnf-far",
@@ -335,7 +335,7 @@
   "expect": [
    "fuzz-mutate-kill-loop"
   ],
-  "prompt": "I had Claude review interp.py and it listed six 'bugs'. I don't trust the list — can we make it prove each one before I open tickets?"
+  "prompt": "I had Claude review interp.py and it listed six 'bugs'. I don't trust the list \u2014 can we make it prove each one before I open tickets?"
  },
  {
   "id": "fmk-timeouts",
@@ -356,7 +356,7 @@
   "expect": [
    "engine-prefix-reuse-audit"
   ],
-  "prompt": "Turn 5 of a chat on my self-hosted C inference engine takes about five times longer than turn 1 — nothing changed except the history got longer. Identical repeated prompts aren't faster either. What's wrong in the engine and how would I fix it?"
+  "prompt": "Turn 5 of a chat on my self-hosted C inference engine takes about five times longer than turn 1 \u2014 nothing changed except the history got longer. Identical repeated prompts aren't faster either. What's wrong in the engine and how would I fix it?"
  },
  {
   "id": "epr-far",
@@ -581,7 +581,7 @@
   "expect": [
    "optimization-transparency-differential"
   ],
-  "prompt": "Our compiler folds constants at parse time. A user reports the error message points at a different line when folding is on. Both lines are arguably right — how do we decide which one the compiler should say?"
+  "prompt": "Our compiler folds constants at parse time. A user reports the error message points at a different line when folding is on. Both lines are arguably right \u2014 how do we decide which one the compiler should say?"
  },
  {
   "id": "cri-near",
@@ -614,7 +614,7 @@
   "expect": [
    "deleted-vs-never-written"
   ],
-  "prompt": "Our CONTRIBUTING.md has a '## Release process' heading with nothing under it. Everyone cites 'the release process' in review comments. I guess nobody ever wrote it — can you draft one?"
+  "prompt": "Our CONTRIBUTING.md has a '## Release process' heading with nothing under it. Everyone cites 'the release process' in review comments. I guess nobody ever wrote it \u2014 can you draft one?"
  },
  {
   "id": "dvnw-mid",
@@ -638,7 +638,7 @@
  {
   "id": "neg-17",
   "expect": [],
-  "prompt": "I lost about an hour of edits when my editor crashed — the changes were never committed. Anything I can do to get them back?"
+  "prompt": "I lost about an hour of edits when my editor crashed \u2014 the changes were never committed. Anything I can do to get them back?"
  },
  {
   "id": "ccr-near",
@@ -774,7 +774,7 @@
   "expect": [
    "refusal-set-differential"
   ],
-  "prompt": "The reference interpreter returns an error record and the production one raises, so we never compare the two on malformed input — the shapes don't line up and the text is worded differently anyway. Is there anything in there worth testing?"
+  "prompt": "The reference interpreter returns an error record and the production one raises, so we never compare the two on malformed input \u2014 the shapes don't line up and the text is worded differently anyway. Is there anything in there worth testing?"
  },
  {
   "id": "rsd-neg-rename",
@@ -786,7 +786,7 @@
   "expect": [
    "measured-not-declared-dependencies"
   ],
-  "prompt": "Our incremental test runner skips a suite when the fingerprint hasn't moved. The fingerprint is a sha over every .py file under src/. In practice almost nothing is ever skipped — a one-line docstring edit in an unrelated package busts the whole thing. How should I make the fingerprint tighter without guessing wrong?"
+  "prompt": "Our incremental test runner skips a suite when the fingerprint hasn't moved. The fingerprint is a sha over every .py file under src/. In practice almost nothing is ever skipped \u2014 a one-line docstring edit in an unrelated package busts the whole thing. How should I make the fingerprint tighter without guessing wrong?"
  },
  {
   "id": "mndd-mid",
@@ -1013,7 +1013,7 @@
   "expect": [
    "zero-rate-needs-a-distance"
   ],
-  "prompt": "Our fuzz campaign ran 2000 seeds against the new differential checker and found zero instances of the divergence we added it for. I want to write that up as 'this class does not occur' — is that a safe conclusion?"
+  "prompt": "Our fuzz campaign ran 2000 seeds against the new differential checker and found zero instances of the divergence we added it for. I want to write that up as 'this class does not occur' \u2014 is that a safe conclusion?"
  },
  {
   "id": "zrd-mid",
@@ -1140,5 +1140,45 @@
   "id": "rbr-neg-effect",
   "expect": [],
   "prompt": "The latency difference between the two configs replicated cleanly across six independent runs: 240ms vs 251ms. Is an 11ms regression worth blocking the release over?"
+ },
+ {
+  "id": "efw-near",
+  "expect": [
+   "expiring-fixture-window"
+  ],
+  "prompt": "One of our tests just went red in CI with an empty diff \u2014 nobody touched the code. It builds a fake retention window from 2026-08-25 to 2026-08-31 and runs it against our live append-only audit log, and now the assertion `max_gap <= 301` is getting 15108. What happened?"
+ },
+ {
+  "id": "efw-mid",
+  "expect": [
+   "expiring-fixture-window"
+  ],
+  "prompt": "This test reads state/events.jsonl, which we only ever append to, and hard-codes a covers_to timestamp in its fixture. It passes today. Should I be worried?"
+ },
+ {
+  "id": "efw-far",
+  "expect": [
+   "expiring-fixture-window"
+  ],
+  "prompt": "We have an integration test asserting `len(report['streaks']) == 2` against the production metrics store. It has been green for months. Is that assertion actually testing anything?"
+ },
+ {
+  "id": "efw-quiet",
+  "expect": [
+   "expiring-fixture-window"
+  ],
+  "prompt": "Audit our test suite for fixtures that pin an absolute date and are also fed real production data, and tell me which ones have quietly stopped covering what they claim to cover."
+ },
+ {
+  "id": "efw-neg-synthetic",
+  "expect": [],
+  "prompt": "My unit test creates a tmp_path directory, writes three synthetic records dated 2026-01-01, and asserts the parser reads all three. Is hard-coding that date a problem?"
+ },
+ {
+  "id": "efw-neg-lazyfill",
+  "expect": [
+   "lazy-fill-ceiling"
+  ],
+  "prompt": "Our service's RSS has been byte-identical at 30.8 GB for nine hours with no OOM, so I'm going to write that down as its footprint and size the next box from it."
  }
 ]

@@ -9,6 +9,7 @@ live check lives in the round's own knowledge file, run manually.
 import json
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -1509,10 +1510,20 @@ def test_cli_continuity_gaps_flag_includes_the_per_gap_detail(capsys):
 
 
 def test_cli_continuity_verdict_filter_without_gaps_flag(capsys):
+    """ROUND 382: was `== ["down", "down"]`. Round 352 removed exactly this
+    pin from the `--verdict up` test one function above -- "pinning the COUNT
+    of up streaks made this test fail every time the box changes state, which
+    is the one event it has no opinion about" -- and left the `down` twin
+    untouched. The subject here is that `--verdict down` filters and that
+    omitting `--gaps` withholds per-gap detail; the number of down streaks in
+    an append-only log is not part of it. Fixed structurally, like its twin,
+    before the next outage makes it three.
+    """
     assert rc.main(["continuity", "--log-path", str(REAL_LOG),
                     "--verdict", "down"]) == 0
     out = json.loads(capsys.readouterr().out)
-    assert [s["verdict"] for s in out["streaks"]] == ["down", "down"]
+    verdicts = [s["verdict"] for s in out["streaks"]]
+    assert verdicts and set(verdicts) == {"down"}
     assert all("gaps" not in s for s in out["streaks"])
 
 
@@ -1978,42 +1989,131 @@ def test_boot_history_probe_swallows_a_raising_runner():
 
 
 def test_cli_continuity_accepts_a_saved_boot_history_file(tmp_path, capsys):
+    """ROUND 382: this test is the QUIET half of the window-pin class its
+    neighbour exhibited loudly. Its boot history was pinned to
+    2026-08-26T00:00:00Z..20:00:00Z, chosen when the log ended near there;
+    the log has since grown four days past it, so the fixture covered a
+    shrinking prefix while the test stayed green -- it asserted only
+    `boot_history_boots == 1` and `journal_seconds_loaded == 0`, neither of
+    which depends on coverage at all. A window pin fails loudly when an
+    assertion depends on it and goes silently VACUOUS when none does; both
+    are the same defect, and only the loud one announces itself.
+
+    Fixed twice over: the window now spans the live log, and the round-358
+    claim in the old comment -- boot history alone is `reboot_only`, so the
+    headline does not move -- is now ASSERTED rather than narrated.
+    """
+    boots, _capture, _n, _step = _covers_the_whole_live_log()
     hist = tmp_path / "boots.json"
-    hist.write_text(json.dumps([
-        {"index": 0, "boot_id": "covers-the-blind-spot",
-         "first_entry": _usec("2026-08-26T00:00:00Z"),
-         "last_entry": _usec("2026-08-26T20:00:00Z")}]))
+    hist.write_text(json.dumps(boots))
     assert rc.main(["continuity", "--log-path", str(REAL_LOG),
                     "--boot-history", str(hist)]) == 0
     out = json.loads(capsys.readouterr().out)
     assert out["boot_history_boots"] == 1
-    # ROUND 358: boot history alone is reboot_only, so the headline number
-    # does NOT move. The `--journal-seconds` case below is what moves it.
     assert out["journal_seconds_loaded"] == 0
+
+    # ROUND 358, now asserted: boot history alone is reboot_only, so the
+    # headline number does NOT move -- it only gains a source. The
+    # `--journal-seconds` case below is what moves it.
+    plain = rc.continuity_report(rc.load_log(str(REAL_LOG)))
+    assert out["max_unobserved_outage_s"] == plain["max_unobserved_outage_s"]
+    assert out["unobserved_total_s"] == plain["unobserved_total_s"]
+    assert out["bounded_gap_count"] == plain["bounded_gap_count"] == 0
+    assert plain["max_unobserved_outage_strength"] == rc.WITNESS_NONE
+    assert out["max_unobserved_outage_strength"] == rc.WITNESS_REBOOT_ONLY
+
+
+def _covers_the_whole_live_log(margin_s=3600, step_s=300):
+    """Synthetic (boot_history, journal_seconds) fixtures sized from the LIVE
+    log rather than from absolute dates.
+
+    ROUND 382. The fixtures below used to hard-code
+    `2026-08-25T00:00:00Z .. 2026-08-31T00:00:00Z`, chosen in round 358 to
+    span the log as it stood then. `state/nuc-reachability-log.jsonl` is
+    append-only, so wall-clock walked out of that window: round 382's own
+    first-contact record landed at 2026-08-31T00:05:32Z, **5m32s past
+    `covers_to_utc`**, the newest gap stopped being covered by the capture,
+    and `max_unobserved_outage_s` became that entire gap -- 15108.0 against
+    an asserted ceiling of 301.0.
+
+    This is round 340's "live-file aggregate pin" hazard in a shape its
+    next-steps item 4 did not name: not a pinned COUNT over a growing file,
+    but a pinned absolute TIME WINDOW that a growing file leaves behind. A
+    count pin fails loudly the round after the file grows; a window pin sits
+    green for as long as the window has runway and then fails on a date
+    nobody chose, for a reason that reads like an instrument regression.
+    Derive the window from the data instead.
+    """
+    recs = rc.load_log(str(REAL_LOG))
+    lo = rc._parse_ts(recs[0]["checked_at_utc"]).timestamp() - margin_s
+    hi = rc._parse_ts(recs[-1]["checked_at_utc"]).timestamp() + margin_s
+    lo_iso = rc._fmt_ts(datetime.fromtimestamp(lo, timezone.utc))
+    hi_iso = rc._fmt_ts(datetime.fromtimestamp(hi, timezone.utc))
+    n = int((hi - lo) // step_s) + 1
+    boots = [{"index": 0, "boot_id": "covers-everything",
+              "first_entry": int(lo) * 1_000_000,
+              "last_entry": int(hi) * 1_000_000}]
+    capture = {"covers_from_utc": lo_iso, "covers_to_utc": hi_iso,
+               "seconds": [int(lo + step_s * i) for i in range(n)]}
+    return boots, capture, n, step_s
 
 
 def test_cli_continuity_accepts_a_journal_seconds_capture(tmp_path, capsys):
     """ROUND 358: the CLI half of the fix. Same log, same boot history, plus
     a journal-interior capture -> the headline number stops being the whole
-    gap and becomes the measured silence."""
+    gap and becomes the measured silence.
+
+    ROUND 382: window derived from the log, see `_covers_the_whole_live_log`.
+    """
+    boots, capture, n, step_s = _covers_the_whole_live_log()
     hist = tmp_path / "boots.json"
-    hist.write_text(json.dumps([
-        {"index": 0, "boot_id": "covers-everything",
-         "first_entry": _usec("2026-08-25T00:00:00Z"),
-         "last_entry": _usec("2026-08-31T00:00:00Z")}]))
-    t0 = rc._parse_ts("2026-08-25T00:00:00Z").timestamp()
+    hist.write_text(json.dumps(boots))
     cap = tmp_path / "journal.json"
-    cap.write_text(json.dumps({
-        "covers_from_utc": "2026-08-25T00:00:00Z",
-        "covers_to_utc": "2026-08-31T00:00:00Z",
-        "seconds": [int(t0 + 300 * i) for i in range(1730)]}))
+    cap.write_text(json.dumps(capture))
     assert rc.main(["continuity", "--log-path", str(REAL_LOG),
                     "--boot-history", str(hist),
                     "--journal-seconds", str(cap)]) == 0
     out = json.loads(capsys.readouterr().out)
-    assert out["journal_seconds_loaded"] == 1730
+    assert out["journal_seconds_loaded"] == n
     assert out["bounded_gap_count"] > 0
-    assert out["max_unobserved_outage_s"] <= 301.0
+    # entries every `step_s`, so the largest interior silence is `step_s`
+    assert out["max_unobserved_outage_s"] <= step_s + 1
+
+
+def test_a_capture_window_that_ends_before_the_log_does_loses_the_bound():
+    """ROUND 382, the regression witness for the bug above -- the failure the
+    expired fixture was ACTUALLY exhibiting, pinned deliberately instead of
+    incidentally.
+
+    Truncating the capture so it stops before the newest record does not
+    merely weaken the bound a little: the final gap reverts to its own full
+    length, which on a log whose newest gap is hours long dwarfs every
+    interior silence. Round 364 proved a coverage hole "can only decline to
+    help"; this pins the size of that declining, which is what makes an
+    expired window look like an instrument regression rather than a fixture
+    running out of runway.
+    """
+    boots, capture, _n, step_s = _covers_the_whole_live_log()
+    recs = rc.load_log(str(REAL_LOG))
+    boot_objs = rc.parse_boot_history(json.dumps(boots))
+
+    full = rc.continuity_report(recs, boot_objs,
+                                silence=rc.make_silence_fn(capture))
+    assert full["max_unobserved_outage_s"] <= step_s + 1
+
+    # stop covering one second before the newest record
+    cutoff = rc._parse_ts(recs[-1]["checked_at_utc"]).timestamp() - 1
+    truncated = dict(capture,
+                     covers_to_utc=rc._fmt_ts(
+                         datetime.fromtimestamp(cutoff, timezone.utc)),
+                     seconds=[s for s in capture["seconds"] if s <= cutoff])
+    lost = rc.continuity_report(recs, boot_objs,
+                                silence=rc.make_silence_fn(truncated))
+
+    last_gap_s = (rc._parse_ts(recs[-1]["checked_at_utc"])
+                  - rc._parse_ts(recs[-2]["checked_at_utc"])).total_seconds()
+    assert lost["max_unobserved_outage_s"] >= last_gap_s
+    assert lost["max_unobserved_outage_s"] > full["max_unobserved_outage_s"]
 
 
 def test_cli_continuity_without_boot_history_reports_zero_boots(capsys):
