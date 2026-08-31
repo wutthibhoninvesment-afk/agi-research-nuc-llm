@@ -558,6 +558,27 @@ SCOPED_CONCLUSIVE = ("fresh_pass_scoped", "fresh_fail_scoped")
 FAILING = ("fresh_fail", "fresh_fail_scoped")
 
 
+def recorded_failing_but_stale(row):
+    """Round 385. A row whose LAST RECORDED RUN was red, but whose state is
+    inconclusive so it is not counted in `n_failing`.
+
+    The state machine is right and is not being changed: a failure measured
+    against a checkout that has since moved is not evidence about THIS
+    checkout. But `report_text` rendered such a row as the bare word
+    `stale_subject`, which reads exactly like a stale PASS, and that is the
+    one thing it is not. `test_swe_guest.py` sat at `2 failed, 65 passed` in
+    the ledger for 18 hours while `slow tier: ... 0 failing` was the line
+    every round's health log printed underneath it.
+
+    This is round 384's finding one level up — a fact computed, kept, and
+    never rendered — so it is reported as PROVENANCE ("the last time anybody
+    ran this, it was red"), never as freshness, and it gets its OWN count.
+    `n_failing` keeps the meaning it has had since round 341: three rounds of
+    published figures and `run_tests_fast.sh`'s printed line depend on it
+    (round 334's rule about `confirmed_span_s`, applied here)."""
+    return row.get("outcome") == "failed" and row.get("state") not in FAILING
+
+
 def status(ledger_path=DEFAULT_LEDGER, tests_dir=TESTS_DIR, whence_root=DEFAULT_WHENCE,
            digest=None):
     digest = checkout_digest(whence_root) if digest is None else digest
@@ -597,6 +618,10 @@ def status(ledger_path=DEFAULT_LEDGER, tests_dir=TESTS_DIR, whence_root=DEFAULT_
         # because the checkout moved outside their measured read-scope.
         "n_scoped": len(scoped),
         "n_failing": len([r for r in rows if r["state"] in FAILING]),
+        # Round 385, deliberately a SEPARATE count and never added to
+        # `n_failing` — see `recorded_failing_but_stale`.
+        "n_recorded_failing_stale":
+            len([r for r in rows if recorded_failing_but_stale(r)]),
         # The recall this view has on the CURRENT tree. Round 339's rule:
         # a checker must report its own recall so the gap stays visible.
         "coverage": (float(len(covered)) / len(rows)) if rows else 0.0,
@@ -620,8 +645,8 @@ def _size_prior(test_file, tests_dir=TESTS_DIR):
 def plan(st, budget_s, default_s=300.0, tests_dir=TESTS_DIR):
     """Which files to run next, in order, inside `budget_s`.
 
-    Order: never-conclusive first (worst evidence first), then oldest
-    `finished_at`. Estimated cost is the file's own last measured
+    Order: never-conclusive first (worst evidence first), then — round 385
+    — any file whose last recorded run was RED, then oldest `finished_at`. Estimated cost is the file's own last measured
     `seconds`, `default_s` when unmeasured. A file whose estimate ALONE
     exceeds the budget is still returned as the sole entry when nothing
     else fits — otherwise a file slower than every budget would never run
@@ -630,6 +655,23 @@ def plan(st, budget_s, default_s=300.0, tests_dir=TESTS_DIR):
     """
     def key(r):
         conclusive = r["state"] in CONCLUSIVE
+        # Round 385, the FIRST term and deliberately ahead of round 343's:
+        # a file whose last recorded run was RED but whose state is now
+        # inconclusive is the highest-information re-run in the tier. It
+        # either confirms a live bug or clears one, where a never-measured
+        # file can only ever produce a first data point. `finished_at` alone
+        # sorted it BEHIND every `unknown`, because a red file has a
+        # timestamp and an unmeasured one has 0 — so `report_text`'s "the
+        # first thing a slow-tier slice should re-run" was, until this term,
+        # a sentence the planner did not honour. Both are true now, and
+        # `test_the_planner_re_runs_a_last_red_file_before_an_unknown` is
+        # what keeps them agreeing.
+        #
+        # Cannot starve coverage: it fires only on a file that already has
+        # a ledger entry AND that entry is red, which is 0 or 1 files in
+        # practice, and a CONCLUSIVE red (`fresh_fail`) is excluded by
+        # `recorded_failing_but_stale` — it needs no re-run at all.
+        red_first = 0 if recorded_failing_but_stale(r) else 1
         # Round 343: among files with equally bad evidence, cheapest first.
         # With an EMPTY ledger every estimate is `default_s`, so round 341's
         # `(conclusive, finished_at, file)` key degenerated to ALPHABETICAL —
@@ -639,7 +681,7 @@ def plan(st, budget_s, default_s=300.0, tests_dir=TESTS_DIR):
         # prior, not a measurement, and it is only ever a TIE-break: any
         # file with a real `seconds` uses that. Named as a prior in
         # `plan_reasons` so nobody reads it as timing data.
-        return (1 if conclusive else 0, r["finished_at"] or 0,
+        return (1 if conclusive else 0, red_first, r["finished_at"] or 0,
                 r["seconds"] or (default_s + _size_prior(r["file"], tests_dir)),
                 r["file"])
 
@@ -832,6 +874,15 @@ def report_text(st):
     lines = ["slow tier: %d files, %d conclusive against checkout %s (%.0f%% recall), %d failing"
              % (st["n_files"], st["n_conclusive"], st["digest"],
                 100.0 * st["coverage"], st["n_failing"])]
+    if st.get("n_recorded_failing_stale"):
+        # Round 385. Never folded into the count above: this is provenance,
+        # not freshness. It is here because a reader who sees "0 failing"
+        # over a ledger holding a red result has been told something true
+        # and heard something false.
+        lines.append("  + %d file(s) LAST RAN RED, at a checkout that has since "
+                     "moved — not evidence about this one, and the first thing "
+                     "a slow-tier slice should re-run"
+                     % st["n_recorded_failing_stale"])
     if st.get("n_scoped"):
         # Never merged into the line above: this is the weaker claim, and it
         # says what it is weaker about.
@@ -842,9 +893,10 @@ def report_text(st):
         age = ""
         if r["finished_at"]:
             age = "  %.1fh ago" % ((time.time() - r["finished_at"]) / 3600.0)
-        lines.append("  %-34s %-18s %s%s"
+        lines.append("  %-34s %-18s %s%s%s"
                      % (r["file"], r["state"],
-                        ("%.0fs" % r["seconds"]) if r["seconds"] else "-", age))
+                        ("%.0fs" % r["seconds"]) if r["seconds"] else "-", age,
+                        "   [last run RED]" if recorded_failing_but_stale(r) else ""))
         if r["state"] == "stale_harness":
             moved = r["moved_deps"]
             lines.append("      moved: %s%s"

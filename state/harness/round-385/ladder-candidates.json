@@ -1,0 +1,95 @@
+{
+  "cap_s": 25.0,
+  "rows": [
+    {
+      "file": "test_swe_coverage.py",
+      "seconds": 5.77,
+      "outcome": "passed",
+      "returncode": 0,
+      "counts": {
+        "passed": 9
+      },
+      "cap_s": 25.0
+    },
+    {
+      "file": "test_swe_loop.py",
+      "seconds": 0.39,
+      "outcome": "passed",
+      "returncode": 0,
+      "counts": {
+        "passed": 4
+      },
+      "cap_s": 25.0
+    },
+    {
+      "file": "test_swe_mutation.py",
+      "seconds": 18.17,
+      "outcome": "passed",
+      "returncode": 0,
+      "counts": {
+        "passed": 15
+      },
+      "cap_s": 25.0
+    },
+    {
+      "file": "test_swe_oracles.py",
+      "seconds": 5.01,
+      "outcome": "passed",
+      "returncode": 0,
+      "counts": {
+        "passed": 37
+      },
+      "cap_s": 25.0
+    },
+    {
+      "file": "test_swe_prioritize.py",
+      "seconds": 2.44,
+      "outcome": "passed",
+      "returncode": 0,
+      "counts": {
+        "passed": 5
+      },
+      "cap_s": 25.0
+    },
+    {
+      "file": "test_swe_proc.py",
+      "seconds": 6.69,
+      "outcome": "passed",
+      "returncode": 0,
+      "counts": {
+        "passed": 6
+      },
+      "cap_s": 25.0
+    },
+    {
+      "file": "test_swe_regiontools.py",
+      "seconds": 0.41,
+      "outcome": "passed",
+      "returncode": 0,
+      "counts": {
+        "passed": 6
+      },
+      "cap_s": 25.0
+    },
+    {
+      "file": "test_swe_scoreaudit.py",
+      "seconds": 0.57,
+      "outcome": "passed",
+      "returncode": 0,
+      "counts": {
+        "passed": 18
+      },
+      "cap_s": 25.0
+    },
+    {
+      "file": "test_swe_triage.py",
+      "seconds": 1.0,
+      "outcome": "passed",
+      "returncode": 0,
+      "counts": {
+        "passed": 3
+      },
+      "cap_s": 25.0
+    }
+  ]
+}

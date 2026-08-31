@@ -1,0 +1,192 @@
+{
+  "cap_s": 25.0,
+  "rows": [
+    {
+      "file": "test_swe_alias_effects.py",
+      "seconds": 25.01,
+      "outcome": "over_cap",
+      "returncode": null,
+      "counts": {},
+      "cap_s": 25.0
+    },
+    {
+      "file": "test_swe_bymap.py",
+      "seconds": 25.02,
+      "outcome": "over_cap",
+      "returncode": null,
+      "counts": {},
+      "cap_s": 25.0
+    },
+    {
+      "file": "test_swe_campaign.py",
+      "seconds": 25.04,
+      "outcome": "over_cap",
+      "returncode": null,
+      "counts": {},
+      "cap_s": 25.0
+    },
+    {
+      "file": "test_swe_coverage.py",
+      "seconds": 4.91,
+      "outcome": "passed",
+      "returncode": 0,
+      "counts": {
+        "passed": 9
+      },
+      "cap_s": 25.0
+    },
+    {
+      "file": "test_swe_equivalence.py",
+      "seconds": 25.04,
+      "outcome": "over_cap",
+      "returncode": null,
+      "counts": {},
+      "cap_s": 25.0
+    },
+    {
+      "file": "test_swe_exemptaudit.py",
+      "seconds": 25.02,
+      "outcome": "over_cap",
+      "returncode": null,
+      "counts": {},
+      "cap_s": 25.0
+    },
+    {
+      "file": "test_swe_exemptmap.py",
+      "seconds": 25.13,
+      "outcome": "over_cap",
+      "returncode": null,
+      "counts": {},
+      "cap_s": 25.0
+    },
+    {
+      "file": "test_swe_fuzz.py",
+      "seconds": 25.02,
+      "outcome": "over_cap",
+      "returncode": null,
+      "counts": {},
+      "cap_s": 25.0
+    },
+    {
+      "file": "test_swe_guest.py",
+      "seconds": 25.04,
+      "outcome": "over_cap",
+      "returncode": null,
+      "counts": {},
+      "cap_s": 25.0
+    },
+    {
+      "file": "test_swe_killers.py",
+      "seconds": 25.05,
+      "outcome": "over_cap",
+      "returncode": null,
+      "counts": {},
+      "cap_s": 25.0
+    },
+    {
+      "file": "test_swe_loop.py",
+      "seconds": 0.43,
+      "outcome": "passed",
+      "returncode": 0,
+      "counts": {
+        "passed": 4
+      },
+      "cap_s": 25.0
+    },
+    {
+      "file": "test_swe_mutation.py",
+      "seconds": 16.27,
+      "outcome": "passed",
+      "returncode": 0,
+      "counts": {
+        "passed": 15
+      },
+      "cap_s": 25.0
+    },
+    {
+      "file": "test_swe_oraclekill.py",
+      "seconds": 25.05,
+      "outcome": "over_cap",
+      "returncode": null,
+      "counts": {},
+      "cap_s": 25.0
+    },
+    {
+      "file": "test_swe_oracles.py",
+      "seconds": 4.43,
+      "outcome": "passed",
+      "returncode": 0,
+      "counts": {
+        "passed": 37
+      },
+      "cap_s": 25.0
+    },
+    {
+      "file": "test_swe_prioritize.py",
+      "seconds": 2.93,
+      "outcome": "failed",
+      "returncode": 1,
+      "counts": {
+        "failed": 1,
+        "passed": 4
+      },
+      "cap_s": 25.0
+    },
+    {
+      "file": "test_swe_proc.py",
+      "seconds": 9.51,
+      "outcome": "passed",
+      "returncode": 0,
+      "counts": {
+        "passed": 6
+      },
+      "cap_s": 25.0
+    },
+    {
+      "file": "test_swe_regiontools.py",
+      "seconds": 0.44,
+      "outcome": "passed",
+      "returncode": 0,
+      "counts": {
+        "passed": 6
+      },
+      "cap_s": 25.0
+    },
+    {
+      "file": "test_swe_repair.py",
+      "seconds": 25.03,
+      "outcome": "over_cap",
+      "returncode": null,
+      "counts": {},
+      "cap_s": 25.0
+    },
+    {
+      "file": "test_swe_review.py",
+      "seconds": 25.04,
+      "outcome": "over_cap",
+      "returncode": null,
+      "counts": {},
+      "cap_s": 25.0
+    },
+    {
+      "file": "test_swe_scoreaudit.py",
+      "seconds": 2.58,
+      "outcome": "passed",
+      "returncode": 0,
+      "counts": {
+        "passed": 18
+      },
+      "cap_s": 25.0
+    },
+    {
+      "file": "test_swe_triage.py",
+      "seconds": 0.38,
+      "outcome": "passed",
+      "returncode": 0,
+      "counts": {
+        "passed": 3
+      },
+      "cap_s": 25.0
+    }
+  ]
+}

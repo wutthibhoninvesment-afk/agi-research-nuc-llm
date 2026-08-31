@@ -475,7 +475,29 @@ def test_oracle_names_is_the_single_pinned_registry():
     assert O.ORACLE_NAMES == (
         "totality", "fast_slow", "direct", "determinism", "render",
         "frames", "tail_transparency", "param_erasure")
-    assert set(O.ORACLES) == set(O.ORACLE_NAMES)
+    # Round 385: this was `set(O.ORACLES) == set(O.ORACLE_NAMES)`, and it was
+    # ORDER-DEPENDENT — green alone, red in any process that had already
+    # imported `swe.guest`. `guest.py` line 773 registers `self_eval` into the
+    # shared `ORACLES` dict AT IMPORT TIME, and `swe.review` imports guest
+    # explicitly to make that happen, so `swe.campaign` -> review -> guest
+    # pulls it in for anything downstream. Alphabetically `test_swe_campaign`
+    # precedes `test_swe_oracles`, so a full `pytest harness/tests/` run has
+    # been red here — and nobody has run one, because round 235 tiered the
+    # whole subsystem slow and round 341's slice runs ONE FILE PER PROCESS.
+    # Green under every way this repo actually runs its tests, red the moment
+    # two of them share an interpreter.
+    #
+    # The equality was the wrong assertion, not the registration: ORACLE_NAMES
+    # is the pinned CORE set, ORACLES is a registry `guest.py` extends by
+    # design. What round 343 wanted — no SECOND stale literal — is preserved
+    # by pinning the core as a subset and naming every extension.
+    assert set(O.ORACLE_NAMES) <= set(O.ORACLES)
+    extensions = set(O.ORACLES) - set(O.ORACLE_NAMES)
+    assert extensions <= {"self_eval"}, extensions
+    if "self_eval" in extensions:                     # only if guest was imported
+        import swe.guest as _G
+        assert O.ORACLES["self_eval"] is _G.oracle_self_eval
+        assert _G.GUEST_ORACLE == "self_eval"
 
 
 def test_param_erasure_reports_when_there_is_nothing_to_compare():

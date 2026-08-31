@@ -55,6 +55,8 @@ import os
 import random
 import shutil
 import sys
+import tempfile
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
@@ -86,10 +88,38 @@ def _load_json(path, default=None):
 
 
 def _dump_json(path, data):
-    tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=1, ensure_ascii=False)
-    os.replace(tmp, path)
+    """Atomic replace through a UNIQUE temp file.
+
+    Round 385 (harness A). This used a FIXED `path + ".tmp"`, which is not an
+    atomic write when two writers overlap — it is a crash. Two threads both
+    create `x.tmp`, the second truncating the first; the first `os.replace`
+    wins; the second raises `FileNotFoundError: '.../baseline.json.tmp' ->
+    '.../baseline.json'`. Overlap is not hypothetical here: `_sync`'s own
+    docstring designs for "two processes driving different stages of the
+    same campaign", `_run_mutants` runs a `ThreadPoolExecutor`, and every
+    worker in it reaches `_require_baseline`.
+
+    Measured on this host before the fix: `test_swe_prioritize.py`
+    ::test_campaign_records_first_file_and_killed_by failed 3 runs in 5 at
+    `workers=2`. It was invisible because round 235's filename rule put that
+    2.9-second file in the slow tier and no round had ever measured it —
+    `state/slow-tier-ledger.jsonl` had it as `unknown`, never once run.
+
+    `mkstemp` in the destination directory keeps the rename on one
+    filesystem, so `os.replace` stays atomic; the loser now simply loses,
+    which is what the read-modify-write `_sync` already assumes."""
+    d = os.path.dirname(path) or "."
+    fd, tmp = tempfile.mkstemp(dir=d, prefix=os.path.basename(path) + ".", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=1, ensure_ascii=False)
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
 
 def _read_jsonl(path):
@@ -127,6 +157,11 @@ class Campaign(object):
         self.allow_red_baseline = bool(allow_red_baseline)
         self.baseline_timeout_s = baseline_timeout_s
         self._baseline = None              # memo for `_require_baseline`
+        # Round 385: the memo is read and written from every worker thread in
+        # `_run_mutants`, so without this lock N threads all see `None` and
+        # all run the whole baseline suite. Fixing `_dump_json` alone stops
+        # the crash and leaves the redundant work.
+        self._baseline_lock = threading.Lock()
         self.prioritizer = prioritizer     # swe.prioritize.Prioritizer / MapPrioritizer or None
         self.coverage_map = coverage_map   # by-file coverage dict (round 113) or None
         self.out = os.path.abspath(out)
@@ -253,8 +288,14 @@ class Campaign(object):
         """Memoised gate. Raises `BaselineNotGreen` unless the checkout's own
         suite passes, or the caller explicitly accepted a red one."""
         if self._baseline is None:
-            self._baseline = (_load_json(self.path("baseline.json"))
-                              if self.done("baseline") else None) or self.stage_baseline()
+            # Double-checked under the lock (round 385): the cheap read above
+            # keeps the hot path lock-free once the memo is warm, and the
+            # re-check inside stops N workers each paying for a full suite.
+            with self._baseline_lock:
+                if self._baseline is None:
+                    self._baseline = (_load_json(self.path("baseline.json"))
+                                      if self.done("baseline") else None) \
+                        or self.stage_baseline()
         b = self._baseline
         if b["green"] or self.allow_red_baseline:
             return b

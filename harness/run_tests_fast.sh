@@ -1,9 +1,19 @@
 #!/usr/bin/env bash
 # Fast, synchronous smoke suite for the agent-harness core: every
-# harness/tests/*.py file EXCEPT harness/swe/'s test_swe_*.py (real-
-# interpreter-driven, slow by construction — see harness/tests/conftest.py
-# and knowledge/round-235-*.md). Confirmed 367 tests / ~45s on this host,
-# vs. 30+ minutes for the full suite including test_swe_*.py.
+# harness/tests/*.py file EXCEPT the test_swe_*.py files that are still in
+# the slow tier (real-interpreter-driven, slow by construction — see
+# harness/tests/conftest.py and knowledge/round-235-*.md).
+#
+# Round 385 (harness A): "still in" is now a MEASURED distinction, not a
+# filename. Round 235 tiered every `test_swe_*.py` file slow on the strength
+# of a seven-row cost table it quoted out of rounds 193-221 rather than
+# measured; 150 rounds later most of that tier is cheap. `harness/
+# tierbudget.py measure` times each file alone under a cap, and
+# `harness/tier-budget.json` promotes the measured-cheap, measured-green
+# ones into this suite. The rule is fail-closed — a file absent from the
+# registry is slow, so a new test_swe_*.py file still tiers itself with no
+# edit anywhere — and every promoted file is re-timed for free by this very
+# run, which prints a `tier-budget:` line just above pytest's count line.
 #
 # Run this every round that touches harness/ core code (agent loop, tool
 # registry, driver, retry/backoff, driver_health) for a complete pass/fail

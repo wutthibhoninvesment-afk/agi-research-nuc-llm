@@ -1,0 +1,25 @@
+file                                 seconds  outcome   counts
+test_swe_alias_effects.py            >= 25.0  over_cap  
+test_swe_bymap.py                    >= 25.0  over_cap  
+test_swe_campaign.py                 >= 25.0  over_cap  
+test_swe_coverage.py                    4.91  passed    9 passed
+test_swe_equivalence.py              >= 25.0  over_cap  
+test_swe_exemptaudit.py              >= 25.0  over_cap  
+test_swe_exemptmap.py                >= 25.0  over_cap  
+test_swe_fuzz.py                     >= 25.0  over_cap  
+test_swe_guest.py                    >= 25.0  over_cap  
+test_swe_killers.py                  >= 25.0  over_cap  
+test_swe_loop.py                        0.43  passed    4 passed
+test_swe_mutation.py                   16.27  passed    15 passed
+test_swe_oraclekill.py               >= 25.0  over_cap  
+test_swe_oracles.py                     4.43  passed    37 passed
+test_swe_prioritize.py                  2.93  failed    1 failed,4 passed
+test_swe_proc.py                        9.51  passed    6 passed
+test_swe_regiontools.py                 0.44  passed    6 passed
+test_swe_repair.py                   >= 25.0  over_cap  
+test_swe_review.py                   >= 25.0  over_cap  
+test_swe_scoreaudit.py                  2.58  passed    18 passed
+test_swe_triage.py                      0.38  passed    3 passed
+
+under cap and green: 8 of 21, 39.0s total
+wrote state/harness/round-385/ladder-cap25.json

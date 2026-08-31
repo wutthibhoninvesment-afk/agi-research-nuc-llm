@@ -1,0 +1,89 @@
+{
+  "_comment": "PROMOTION REGISTRY for harness/tests/'s fast tier (round 385, harness A). Read by harness/tierbudget.py, which harness/tests/conftest.py consults when it applies the `swe_slow` marker. Round 235's filename rule still decides the DEFAULT and still decides it alone: a `test_swe_*.py` file ABSENT from `promoted` is slow, so a new file tiers itself with no edit here -- round 235's self-maintenance property, kept. This file can only ever move a file toward the tier a human is watching, and only on a measurement. A stale entry costs wall-clock; it cannot cost coverage. Two bars for an entry: MEASURED under `cap_s` by `tierbudget.py measure` (each file alone, fresh process, PYTHONDONTWRITEBYTECODE=1), and GREEN when measured -- a red file is never promotable however cheap, because the fast tier is what the driver's per-round health check reports and a promotion must not turn every future round's line red for a defect it did not cause. Every promoted file is re-timed FOR FREE by the fast-tier run itself (conftest.py's pytest_terminal_summary hook), which prints a `tier-budget:` line above pytest's count line and says DRIFT when a file outgrows max(measured_s * drift_factor, measured_s + drift_floor_s). Do not hand-edit a `measured_s`: re-run the ladder and re-decide.",
+  "cap_s": 25.0,
+  "drift_factor": 2.0,
+  "drift_floor_s": 3.0,
+  "promoted": {
+    "test_swe_coverage.py": {
+      "measured_s": 5.77,
+      "measured_round": 385,
+      "measured_utc": "2026-08-31",
+      "measured_by": "python3 harness/tierbudget.py measure --cap-s 25",
+      "first_pass_s": 4.91,
+      "n_tests": 9,
+      "why": "coverage instrumentation over the whence tree; round 217 measured it with test_swe_triage.py at 150.4s for the pair, which is 28x its cost today"
+    },
+    "test_swe_loop.py": {
+      "measured_s": 0.39,
+      "measured_round": 385,
+      "measured_utc": "2026-08-31",
+      "measured_by": "python3 harness/tierbudget.py measure --cap-s 25",
+      "first_pass_s": 0.43,
+      "n_tests": 4,
+      "why": "SWE loop wiring; sub-second"
+    },
+    "test_swe_mutation.py": {
+      "measured_s": 18.17,
+      "measured_round": 385,
+      "measured_utc": "2026-08-31",
+      "measured_by": "python3 harness/tierbudget.py measure --cap-s 25",
+      "first_pass_s": 16.27,
+      "n_tests": 15,
+      "why": "the most expensive promotion and the one most likely to drift; kept because the cap is the policy and an unmeasured exemption is the thing this round removed"
+    },
+    "test_swe_oracles.py": {
+      "measured_s": 5.01,
+      "measured_round": 385,
+      "measured_utc": "2026-08-31",
+      "measured_by": "python3 harness/tierbudget.py measure --cap-s 25",
+      "first_pass_s": 4.43,
+      "n_tests": 37,
+      "why": "holds all three injected-bug tests (fast_slow / direct / frames) \u2014 round 383 item 5's actual ask; these are the tests that go red on a language change and the whole reason the tier was re-measured"
+    },
+    "test_swe_prioritize.py": {
+      "measured_s": 2.44,
+      "measured_round": 385,
+      "measured_utc": "2026-08-31",
+      "measured_by": "python3 harness/tierbudget.py measure --cap-s 25",
+      "first_pass_s": 2.93,
+      "n_tests": 5,
+      "why": "was NEVER measured (`unknown` in the slow-tier ledger) and was 60% red on this host until round 385 fixed campaign._dump_json's shared temp name; promoted so the fix cannot silently regress"
+    },
+    "test_swe_proc.py": {
+      "measured_s": 6.69,
+      "measured_round": 385,
+      "measured_utc": "2026-08-31",
+      "measured_by": "python3 harness/tierbudget.py measure --cap-s 25",
+      "first_pass_s": 9.51,
+      "n_tests": 6,
+      "why": "process helpers; reads the whence corpus (15k reads) but does almost no interpreting"
+    },
+    "test_swe_regiontools.py": {
+      "measured_s": 0.41,
+      "measured_round": 385,
+      "measured_utc": "2026-08-31",
+      "measured_by": "python3 harness/tierbudget.py measure --cap-s 25",
+      "first_pass_s": 0.44,
+      "n_tests": 6,
+      "why": "region patching; sub-second"
+    },
+    "test_swe_scoreaudit.py": {
+      "measured_s": 0.57,
+      "measured_round": 385,
+      "measured_utc": "2026-08-31",
+      "measured_by": "python3 harness/tierbudget.py measure --cap-s 25",
+      "first_pass_s": 2.58,
+      "n_tests": 18,
+      "why": "pure arithmetic over recorded campaign data, no interpreter reads at all"
+    },
+    "test_swe_triage.py": {
+      "measured_s": 1.0,
+      "measured_round": 385,
+      "measured_utc": "2026-08-31",
+      "measured_by": "python3 harness/tierbudget.py measure --cap-s 25",
+      "first_pass_s": 0.38,
+      "n_tests": 3,
+      "why": "mutation triage over JSON; no interpreter reads at all"
+    }
+  }
+}

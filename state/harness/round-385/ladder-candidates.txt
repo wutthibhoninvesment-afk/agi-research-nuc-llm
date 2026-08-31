@@ -1,0 +1,13 @@
+file                                 seconds  outcome   counts
+test_swe_coverage.py                    5.77  passed    9 passed
+test_swe_loop.py                        0.39  passed    4 passed
+test_swe_mutation.py                   18.17  passed    15 passed
+test_swe_oracles.py                     5.01  passed    37 passed
+test_swe_prioritize.py                  2.44  passed    5 passed
+test_swe_proc.py                        6.69  passed    6 passed
+test_swe_regiontools.py                 0.41  passed    6 passed
+test_swe_scoreaudit.py                  0.57  passed    18 passed
+test_swe_triage.py                      1.00  passed    3 passed
+
+under cap and green: 9 of 9, 40.5s total
+wrote state/harness/round-385/ladder-candidates.json

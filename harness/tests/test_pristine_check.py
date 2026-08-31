@@ -537,12 +537,34 @@ def test_bare_invocation_prints_help_and_exits_nonzero(capsys):
     assert pc.main([]) == 2
 
 
-def test_the_curated_corpus_rule_has_exactly_two_implementations():
+def test_the_curated_corpus_rule_is_duplicated_only_where_declared():
     """Round 355 duplicated `git ls-files` enumeration into the whence suite.
 
     That was deliberate (the language suite must not import `harness/`), and
-    this pins the count so a THIRD copy has to be a decision rather than an
-    accident. The checker itself is what catches the two drifting apart.
+    this pins the SET so a new copy has to be a decision rather than an
+    accident. The checker itself is what catches the copies drifting apart.
+
+    Round 385: the third copy arrived and the pin did its job. Round 384 added
+    `languages/whence/tests/test_v32.py::test_no_tracked_example_drops_a_miss`,
+    which enumerates the TRACKED example corpus for exactly the reason the
+    other two do — 14 of the 31 files in `examples/` are written by a separate
+    autonomous system and are not this language's corpus. Adjudicated and
+    ADMITTED as a decision rather than repaired away: the whence suite still
+    must not import `harness/`, so it cannot share an implementation, and
+    duplicating four words is cheaper than the coupling.
+
+    Two things this round learned here, both worth keeping:
+
+      * the pin could only fire once round 384's work was COMMITTED (`git
+        grep` reads tracked content), which is round 283's class in
+        miniature — an uncommitted diff is not yet subject to the checks
+        that guard the tree, so "the previous round's suite was green" is
+        not the same claim as "the previous round's diff is green";
+      * the test was named `..._has_exactly_two_implementations` and the
+        answer is now three. Renamed to say what it enforces rather than
+        what it counted, so the next admission does not have to rename it
+        again. (Round 383 item 4's class: a name asserting a number nobody
+        re-executes.)
     """
     roots = [os.path.join(pc.REPO_ROOT, "harness", "swe", "fuzz.py"),
              os.path.join(pc.REPO_ROOT, "languages", "whence", "tests",
@@ -562,7 +584,8 @@ def test_the_curated_corpus_rule_has_exactly_two_implementations():
     found = {l for l in others.stdout.splitlines()
              if l.endswith(".py") and l != SELF}
     assert found == {"harness/swe/fuzz.py",
-                     "languages/whence/tests/test_lexer_guest_parity.py"}, found
+                     "languages/whence/tests/test_lexer_guest_parity.py",
+                     "languages/whence/tests/test_v32.py"}, found
 
 
 # --------------------------------------------------------------------------

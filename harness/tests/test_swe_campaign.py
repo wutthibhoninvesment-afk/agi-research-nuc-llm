@@ -5,6 +5,7 @@ import re
 import shutil
 import sys
 import tempfile
+import time
 
 import pytest
 
@@ -600,3 +601,86 @@ def test_report_carries_the_score_audit_of_its_own_mutation_report(tmp_path, che
     md = open(os.path.join(out, "report.md")).read()
     assert "1 of 2 kills produced no verdict" in md and "[0.5, 1.0]" in md
     assert "| baseline pre-flight | GREEN" in md
+
+
+# --------------------------------------------------------------------------
+# round 385 (harness A): _dump_json's temp file must be unique per writer
+# --------------------------------------------------------------------------
+def test_dump_json_survives_concurrent_writers_to_the_same_path(tmp_path):
+    """The fixed `path + ".tmp"` this replaced was not an atomic write when
+    two writers overlapped — it was a crash. Both create `x.tmp`, the second
+    truncating the first; the first `os.replace` wins and the second raises
+    `FileNotFoundError: '.../x.tmp' -> '.../x'`.
+
+    Overlap is designed for, not hypothetical: `Campaign._sync`'s own
+    docstring is about "two processes driving different stages of the same
+    campaign", `_run_mutants` runs a ThreadPoolExecutor, and every worker in
+    it reaches `_require_baseline`. Round 385 measured
+    `test_swe_prioritize.py::test_campaign_records_first_file_and_killed_by`
+    failing 3 runs in 5 at `workers=2` on this host, on exactly that path.
+
+    This is the mechanism on its own: 8 threads, one path, 40 writes each.
+    Against the old `_dump_json` it raises within the first few rounds;
+    against the new one the only requirement is that the file always parses,
+    because a torn read is the OTHER thing a non-atomic write produces."""
+    import threading
+
+    path = str(tmp_path / "baseline.json")
+    errors = []
+    barrier = threading.Barrier(8)
+
+    def writer(n):
+        try:
+            barrier.wait(timeout=30)
+            for i in range(40):
+                C._dump_json(path, {"writer": n, "i": i, "pad": "x" * 400})
+        except BaseException as exc:                  # noqa: BLE001 - reported
+            errors.append("%s: %r" % (n, exc))
+
+    threads = [threading.Thread(target=writer, args=(n,)) for n in range(8)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=60)
+
+    assert not errors, errors
+    with open(path, encoding="utf-8") as fh:
+        blob = json.load(fh)                          # never torn, never empty
+    assert blob["i"] == 39 and blob["pad"] == "x" * 400
+    # and no temp file is left behind for the next reader to trip over
+    leftovers = [p for p in os.listdir(str(tmp_path)) if p.endswith(".tmp")]
+    assert leftovers == [], leftovers
+
+
+def test_require_baseline_runs_the_suite_once_for_all_workers(tmp_path):
+    """The second half of the same defect. `_dump_json`'s unique temp name
+    stops the crash; without the lock N workers still each see an empty memo
+    and each pay for a full baseline suite — on a one-CPU box that is N
+    serialised test-suite runs inside one stage."""
+    import threading
+
+    root = tmp_path / "proj"
+    (root / "tests").mkdir(parents=True)
+    (root / "mod.py").write_text("def f(x):\n    return x + 1\n")
+    c = C.Campaign(str(tmp_path / "camp"), str(root), ("mod.py",), log=lambda s: None)
+
+    calls = []
+    lock = threading.Lock()
+
+    def fake_stage_baseline():
+        with lock:
+            calls.append(1)
+        time.sleep(0.05)                              # widen the window
+        return {"green": True, "returncode": 0, "tail": ""}
+
+    c.stage_baseline = fake_stage_baseline
+    out = []
+    threads = [threading.Thread(target=lambda: out.append(c._require_baseline()))
+               for _ in range(8)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=60)
+
+    assert len(calls) == 1, "baseline ran %d times for 8 workers" % len(calls)
+    assert len(out) == 8 and all(b["green"] for b in out)

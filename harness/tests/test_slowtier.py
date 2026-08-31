@@ -869,3 +869,130 @@ def test_rule_10_changes_nothing_for_an_entry_with_no_returncode_field():
     e = _scoped_entry(["whence"], {"whence": "W1"})
     e.pop("returncode", None)
     assert ST.scope_digests_now(e) is not None
+
+
+# --------------------------------------------------------------------------
+# round 385: a recorded RED must not render as a neutral staleness word
+# --------------------------------------------------------------------------
+def test_a_stale_entry_that_last_ran_red_is_named_as_such(tmp_path):
+    """The state machine is unchanged and still right — a failure measured
+    against a checkout that has moved is not evidence about this one. What
+    changes is that `report_text` no longer prints it as the bare word
+    `stale_checkout`, which reads exactly like a stale PASS.
+
+    Live instance: `test_swe_guest.py` sat in the ledger at `2 failed, 65
+    passed` for 18 hours while every round's health log printed
+    `slow tier: ... 0 failing` over the top of it."""
+    tests = tmp_path / "t"
+    tests.mkdir()
+    for f in ("test_swe_a.py", "test_swe_b.py"):
+        (tests / f).write_text("")
+    p = str(tmp_path / "l.jsonl")
+    red = _entry(file="test_swe_a.py", outcome="failed", checkout_digest="OLD",
+                 seconds=201.7, finished_at=1.0)
+    red["dep_digests"] = ST.dep_digests("test_swe_a.py", tests_dir=str(tests))
+    green = _entry(file="test_swe_b.py", outcome="passed", checkout_digest="OLD",
+                   seconds=5.0, finished_at=1.0)
+    green["dep_digests"] = ST.dep_digests("test_swe_b.py", tests_dir=str(tests))
+    for e in (red, green):
+        ST.append_entry(p, e)
+
+    st = ST.status(ledger_path=p, tests_dir=str(tests), digest="NEW")
+    assert st["n_failing"] == 0, "the state machine must not start counting it"
+    assert st["n_recorded_failing_stale"] == 1
+    txt = ST.report_text(st)
+    assert "0 failing" in txt
+    assert "LAST RAN RED" in txt
+    lines = [ln for ln in txt.splitlines() if "test_swe_a.py" in ln]
+    assert lines and "[last run RED]" in lines[0], txt
+    assert not any("[last run RED]" in ln for ln in txt.splitlines()
+                   if "test_swe_b.py" in ln), txt
+
+
+def test_n_failing_keeps_the_meaning_it_has_had_since_round_341(tmp_path):
+    """Round 334's rule, applied again: the new fact is a NEW field. A
+    conclusive failure counts in `n_failing` and NOT in the new count, so no
+    row is ever counted twice and no published figure moves."""
+    tests = tmp_path / "t"
+    tests.mkdir()
+    (tests / "test_swe_a.py").write_text("")
+    p = str(tmp_path / "l.jsonl")
+    red = _entry(file="test_swe_a.py", outcome="failed", checkout_digest="D")
+    red["dep_digests"] = ST.dep_digests("test_swe_a.py", tests_dir=str(tests))
+    ST.append_entry(p, red)
+    st = ST.status(ledger_path=p, tests_dir=str(tests), digest="D")
+    assert st["rows"][0]["state"] == "fresh_fail"
+    assert st["n_failing"] == 1
+    assert st["n_recorded_failing_stale"] == 0
+    assert "LAST RAN RED" not in ST.report_text(st)
+
+
+def test_an_entry_with_no_outcome_at_all_is_not_called_red():
+    """`unknown` (no ledger entry) and a torn entry are absences, not
+    failures — fail-closed rule 1 must not be inverted by this annotation."""
+    assert ST.recorded_failing_but_stale({"state": "unknown", "outcome": None}) is False
+    assert ST.recorded_failing_but_stale({"state": "stale_checkout"}) is False
+    assert ST.recorded_failing_but_stale(
+        {"state": "stale_checkout", "outcome": "passed"}) is False
+    assert ST.recorded_failing_but_stale(
+        {"state": "stale_subject", "outcome": "failed"}) is True
+    assert ST.recorded_failing_but_stale(
+        {"state": "raced", "outcome": "failed"}) is True
+
+
+def test_the_planner_re_runs_a_last_red_file_before_an_unknown(tmp_path):
+    """`report_text` calls a last-red file "the first thing a slow-tier slice
+    should re-run". Before round 385 the planner disagreed: a red file has a
+    `finished_at` and an unmeasured one has 0, so round 341's key sorted the
+    red one BEHIND every `unknown`. The claim and the code agree now, and
+    this test is the thing that keeps them agreeing."""
+    tests = tmp_path / "t"
+    tests.mkdir()
+    for f in ("test_swe_red.py", "test_swe_unknown.py", "test_swe_ok.py"):
+        (tests / f).write_text("")
+    p = str(tmp_path / "l.jsonl")
+    red = _entry(file="test_swe_red.py", outcome="failed",
+                 checkout_digest="OLD", seconds=10.0, finished_at=99.0)
+    red["dep_digests"] = ST.dep_digests("test_swe_red.py", tests_dir=str(tests))
+    ok = _entry(file="test_swe_ok.py", outcome="passed",
+                checkout_digest="OLD", seconds=10.0, finished_at=1.0)
+    ok["dep_digests"] = ST.dep_digests("test_swe_ok.py", tests_dir=str(tests))
+    for e in (red, ok):
+        ST.append_entry(p, e)
+
+    st = ST.status(ledger_path=p, tests_dir=str(tests), digest="NEW")
+    picked = ST.plan(st, budget_s=10_000.0, tests_dir=str(tests))
+    assert picked[0] == "test_swe_red.py", picked
+    assert set(picked) == {"test_swe_red.py", "test_swe_unknown.py",
+                           "test_swe_ok.py"}, picked
+    # ... and it did not jump the CONCLUSIVE/non-conclusive line, which is
+    # still the OUTERMOST term. At the digest the entries were written
+    # against, the red one is `fresh_fail` — conclusive evidence about this
+    # very checkout — and the never-measured file outranks it again.
+    st2 = ST.status(ledger_path=p, tests_dir=str(tests), digest="OLD")
+    by_file = {r["file"]: r["state"] for r in st2["rows"]}
+    assert by_file["test_swe_red.py"] == "fresh_fail"
+    assert by_file["test_swe_unknown.py"] == "unknown"
+    assert ST.plan(st2, budget_s=10_000.0, tests_dir=str(tests))[0] \
+        == "test_swe_unknown.py"
+
+
+def test_a_conclusive_red_is_not_re_run_first_because_it_needs_no_re_run(tmp_path):
+    """`recorded_failing_but_stale` excludes `fresh_fail` on purpose: that
+    file's red IS evidence about this checkout, so spending the slice's
+    budget re-confirming it buys nothing. The term only ever promotes a
+    failure the state machine has had to discard."""
+    tests = tmp_path / "t"
+    tests.mkdir()
+    for f in ("test_swe_red.py", "test_swe_unknown.py"):
+        (tests / f).write_text("")
+    p = str(tmp_path / "l.jsonl")
+    red = _entry(file="test_swe_red.py", outcome="failed",
+                 checkout_digest="D", seconds=10.0, finished_at=99.0)
+    red["dep_digests"] = ST.dep_digests("test_swe_red.py", tests_dir=str(tests))
+    ST.append_entry(p, red)
+    st = ST.status(ledger_path=p, tests_dir=str(tests), digest="D")
+    assert st["rows"][0]["state"] == "fresh_fail" or st["rows"][1]["state"] == "fresh_fail"
+    assert st["n_recorded_failing_stale"] == 0
+    picked = ST.plan(st, budget_s=10_000.0, tests_dir=str(tests))
+    assert picked[0] == "test_swe_unknown.py", picked
