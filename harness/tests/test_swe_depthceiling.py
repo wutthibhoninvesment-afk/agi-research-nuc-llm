@@ -188,3 +188,60 @@ def test_default_out_is_no_longer_pinned_to_one_round(tmp_path):
             del os.environ["EXEMPTMAP_ROUND_DIR"]
         else:
             os.environ["EXEMPTMAP_ROUND_DIR"] = old
+
+
+# ------------------------------- the instrument digest (round 389, item 4) --
+
+def test_a_sweep_row_records_the_instrument_that_measured_it(pkg):
+    """`verify_sites()` runs once, at sweep start, so it can PREVENT a mixed
+    file and cannot DETECT one that a mid-flight edit created. This round
+    edited `oracles.py` while an arm was running and had to check the
+    resulting file by hand."""
+    row = M.sweep_record(pkg, 1, max_depth=500, with_oracles=False)
+    assert len(row["oracles_sha"]) == 12
+    assert row["oracles_sha"] == M.oracles_digest()
+
+
+def test_the_digest_follows_the_CONTENT_not_the_stat(tmp_path):
+    """An edit DURING a sweep must change the digest, so the rows written
+    after it disagree with the rows written before — the only way an
+    after-the-fact reader can see a mixed population.
+
+    This is the test that killed the stat-keyed cache: same size, same
+    mtime granularity, different content. `140 -> 190` is exactly the edit
+    this round made to a constant in `oracles.py`.
+    """
+    f = tmp_path / "fake_oracles.py"
+    f.write_text("FRAME_SLACK = 140\n")
+    d1 = M.oracles_digest(str(f))
+    f.write_text("FRAME_SLACK = 190\n")
+    d2 = M.oracles_digest(str(f))
+    assert d1 and d2 and d1 != d2
+    assert M.oracles_digest("/nonexistent/oracles.py") == ""
+
+
+def test_ab_reports_a_mixed_arm_rather_than_averaging_it(tmp_path):
+    a = tmp_path / "a.jsonl"
+    b = tmp_path / "b.jsonl"
+    a.write_text(
+        '{"seed": 0, "sites": {}, "oracles_sha": "aaaaaaaaaaaa", "max_depth": 500}\n'
+        '{"seed": 1, "sites": {}, "oracles_sha": "bbbbbbbbbbbb", "max_depth": 500}\n')
+    b.write_text(
+        '{"seed": 0, "sites": {}, "oracles_sha": "aaaaaaaaaaaa", "max_depth": 5000}\n'
+        '{"seed": 1, "sites": {}, "oracles_sha": "aaaaaaaaaaaa", "max_depth": 5000}\n')
+    r = M.ab(str(a), str(b))
+    assert r["mixed_instrument"] is True
+    assert r["digests_a"] == {"aaaaaaaaaaaa": 1, "bbbbbbbbbbbb": 1}
+    assert r["digests_b"] == {"aaaaaaaaaaaa": 2}
+
+
+def test_rows_written_before_round_389_are_named_not_guessed():
+    """The arms this round actually ran carry no digest; `sweep_digests`
+    reports them as `pre-r389` rather than inventing one."""
+    import os as _os
+    p = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.dirname(
+        _os.path.abspath(__file__)))), "state", "swe", "round-389",
+        "armA-500.jsonl")
+    if not _os.path.exists(p):
+        pytest.skip("round 389's arm A is not in this checkout")
+    assert M.sweep_digests(p) == {"pre-r389": 360}

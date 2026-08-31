@@ -45,6 +45,7 @@ usage:
   python3 -m harness.swe.exemptmap witnesses
 """
 
+import hashlib
 import json
 import os
 import re
@@ -204,6 +205,35 @@ def guarded(fn, timeout_s):
     finally:
         signal.setitimer(signal.ITIMER_REAL, 0)
         signal.signal(signal.SIGALRM, old)
+
+
+def oracles_digest(path=_ORACLES_PY):
+    """First 12 hex of `oracles.py`'s sha256, recomputed on every call.
+
+    The first version cached this per `(path, st_mtime_ns, st_size)`, which
+    is the standard trick and is WRONG for the one job this function has: an
+    edit that preserves both mtime and size — a same-length constant change,
+    a `touch` back, a checkout — reads as unchanged, and the row then carries
+    a digest naming an instrument that is not the one that measured it. The
+    test that caught it changed `140` to `190` in a 2-line file.
+
+    Reading a ~50 KB file is ~0.05 ms against a sweep row that costs ~1 s.
+    The cache was buying nothing and disabling the guard.
+    """
+    try:
+        with open(path, "rb") as f:
+            return hashlib.sha256(f.read()).hexdigest()[:12]
+    except OSError:
+        return ""
+
+
+def sweep_digests(path):
+    """`{digest: n_rows}` for a sweep file — one key means one instrument."""
+    counts = {}
+    for r in read_rows(path):
+        d = r.get("oracles_sha", "pre-r389")
+        counts[d] = counts.get(d, 0) + 1
+    return counts
 
 
 def _nc2(k):
@@ -373,6 +403,13 @@ def sweep_record(pkg, seed, stress_rate=0.5, max_depth=500, timeout_s=3.0,
     # A/B reader treats a missing key as 500, which is what they all were.
     row["max_depth"] = max_depth
     row["timeout_s"] = timeout_s
+    # (round 389) The digest of the instrument this row was measured with.
+    # `verify_sites()` runs ONCE, at sweep start, so it can only prevent a
+    # mixed file — it cannot detect one that a mid-flight edit created, and
+    # this round edited `oracles.py` while an arm was running. With the
+    # digest on the row, a mixed population is detectable AFTER the fact:
+    # `ab()` reports it and `oracles_digests()` lists it.
+    row["oracles_sha"] = oracles_digest()
     if with_oracles:
         vs = {}
         for name in O.ORACLE_NAMES:
@@ -1177,8 +1214,13 @@ def ab(path_a, path_b, sites=("R-CAP", "F-SLACK", "T-SPACE", "T-TAINT",
     A = dict((r["seed"], r) for r in read_rows(path_a) if "seed" in r)
     B = dict((r["seed"], r) for r in read_rows(path_b) if "seed" in r)
     shared = sorted(set(A) & set(B))
+    da, db = sweep_digests(path_a), sweep_digests(path_b)
     out = {"path_a": path_a, "path_b": path_b,
            "n_a": len(A), "n_b": len(B), "n_shared": len(shared),
+           "digests_a": da, "digests_b": db,
+           # >1 digest in an arm means the instrument changed mid-sweep and
+           # the arm is not one population. Reported, never silently fixed.
+           "mixed_instrument": len(da) > 1 or len(db) > 1,
            "max_depth_a": _mode([A[s].get("max_depth", 500) for s in shared]),
            "max_depth_b": _mode([B[s].get("max_depth", 500) for s in shared]),
            "sites": {}, "oracles": {}, "flips": []}
@@ -1321,6 +1363,9 @@ def main(argv):
             print(json.dumps(r, sort_keys=True))
         print("crossing (smallest length over slack %d): %s"
               % (O.FRAME_SLACK, chain_crossing()))
+    elif cmd == "digests":
+        print(json.dumps(sweep_digests(_flag(argv, "--out")
+                                       or default_out("sweep")), indent=1))
     elif cmd == "ab":
         print(json.dumps(ab(_flag(argv, "--a"), _flag(argv, "--b")), indent=1))
     elif cmd == "deepest":

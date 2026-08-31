@@ -314,6 +314,30 @@ arm-B number that looked like a result — but it is a lesson with a name:
 > **An anchor-verified registry makes source edits and long-running sweeps
 > mutually exclusive.** Finish the sweep or finish the edit.
 
+## 4b. The guard the registry episode needed (built this round)
+
+`verify_sites()` runs **once**, at sweep start. It can PREVENT a mixed file
+and it cannot DETECT one that a mid-flight edit created — which is exactly
+what this round produced, and I had to check the resulting arms by hand
+(`R-CAP` thresholds: `{6: 324}` in both, so no contamination).
+
+Every sweep row now carries `oracles_sha`, the sha256 prefix of the
+instrument that measured it; `sweep_digests(path)` reports `{digest: rows}`
+and `ab()` sets `mixed_instrument` when either arm has more than one. Rows
+written earlier this round are reported as `pre-r389`, not guessed.
+
+**The first version of this had the bug it was built to catch.** The digest
+was cached per `(path, st_mtime_ns, st_size)` — the standard trick — so an
+edit preserving mtime and size reads as unchanged and the row names an
+instrument that did not measure it. The test that caught it changes `140` to
+`190` in a two-line file: same size, same tick. The cache is gone; hashing
+50 KB is ~0.05 ms against a ~1 s row, so it was buying nothing and disabling
+the guard.
+
+> Second time in one round that a **stale-key optimisation** produced a
+> confident wrong answer, after `_body_entry`'s per-node `(bd, cost)` cache
+> (§3.2, why every ladder rung re-parses).
+
 ## 5. Round 383's item 5 was already discharged, by round 385
 
 Item 5 asked for the injected-bug tests to run in the fast tier.
@@ -343,7 +367,7 @@ The one thing that did need doing: this round's new file
   `recursive_program`, `clean_frame_excess_ladder`,
   `undercharge_detection_depth`, `deepest_undercharged_run`, `slack_band`
   and the `cleanladder` / `underdepth` / `deepest` / `slackband` commands.
-* `harness/tests/test_swe_depthceiling.py` — 13 tests, relations only.
+* `harness/tests/test_swe_depthceiling.py` — 17 tests, relations only.
 * `harness/tests/test_swe_exemptmap.py` — the FRAME_SLACK tests rewritten
   for the derivation; the old literal behaviour kept and renamed.
 
@@ -408,10 +432,10 @@ lucky about the digit, and the finding that matters (P8: the survivors are
 ### 7.3 Tests
 
 ```
-harness/tests/test_swe_depthceiling.py     13 passed        0.82s   (new)
+harness/tests/test_swe_depthceiling.py     17 passed        0.71s   (new)
 harness/tests/test_swe_oracles.py          37 passed        4.30s
 harness/tests/test_swe_exemptmap.py        25 passed
-  the three files together                 75 passed      106.68s
+  the three files together                 79 passed      106.03s
 bash harness/run_tests_fast.sh            748 passed       91.09s   (final tree)
 bash skills/run_checks_fast.sh   7 checkers, 0 errors, 6 warnings
                                           656 passed       46.60s

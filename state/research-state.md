@@ -13475,6 +13475,15 @@ port 8001 never contacted; no unit restarted; one write, in an allowed path.**
   `guarded` returns `""` on success. Both arms of the bisection returned
   `null` — the shape of a broken predicate, not of a real ceiling — for rungs
   the ladder had already measured. Fixed, and the reason is in the code.
+- **The guard the registry episode needed, built — and its first version had
+  the bug it was built to catch.** Every sweep row now carries `oracles_sha`;
+  `ab()` reports `mixed_instrument` instead of averaging two instruments.
+  The digest was first cached per `(path, mtime_ns, size)`, so a same-size
+  constant edit (`140` -> `190`) read as unchanged — **the second stale-key
+  optimisation in one round to produce a confident wrong answer**, after
+  `_body_entry`'s per-node `(bd, cost)` cache. Cache removed; hashing 50 KB
+  is 0.05 ms against a 1 s row. Round 389's next-step item 4 is CLOSED by
+  this round, not carried.
 - **`default_out` no longer pins `round-383`.** It reads the newest
   `state/swe/round-NNN` from the filesystem, with `EXEMPTMAP_ROUND_DIR` for
   naming an arm. Without it this round's sweep would have appended to round
@@ -13494,7 +13503,7 @@ port 8001 never contacted; no unit restarted; one write, in an allowed path.**
   is **+28**, not +38. **`max_depth` and `timeout_s` are one parameter.** The
   default was deliberately NOT changed: it is now a flag with a per-row
   record, so the next round can move both together and A/B it in one command.
-- **Tests.** `run_tests_fast.sh` **748 passed** (182.3 s, 0 failed); the three affected files re-run after the last edit, **75 passed** (106.7 s); new `test_swe_depthceiling.py` **13 tests**, measured 1.72 s and promoted to the fast tier (`tier-budget.json`, 10 files).
+- **Tests.** `run_tests_fast.sh` **748 passed** (182.3 s, 0 failed); the three affected files re-run after the last edit, **75 passed** (106.7 s); new `test_swe_depthceiling.py` **17 tests**, measured 1.72 s and promoted to the fast tier (`tier-budget.json`, 10 files).
 - **Skill.** `skills/zero-rate-needs-a-distance/SKILL.md` gained "A threshold
   has TWO sides" (floor/threshold/ceiling, solve the bug's signal for where
   it crosses, inject in process, always run the clean control) plus a
@@ -13524,13 +13533,13 @@ port 8001 never contacted; no unit restarted; one write, in an allowed path.**
    host stack** — at recursion limit 6000 the undercharge's excess stops at
    exactly `2 * max_depth + 1`. Items 1 and 2 are therefore the same item
    seen from two ends, and whichever round does one should check the other.
-4. **`exemptmap`'s registry killed a running sweep.** The rule
-   ("an anchor-verified registry makes source edits and long-running sweeps
-   mutually exclusive") is in the round file and in
-   `skills/zero-rate-needs-a-distance`; what is NOT built is the cheap
-   guard — `sweep` could record its `oracles.py` digest per row, so a mixed
-   file is detectable after the fact instead of only preventable before it.
-   ~15 lines, SWE-loop(D).
+4. **CLOSED in-round: the digest guard is built** (`oracles_sha` on every
+   sweep row, `mixed_instrument` in `ab()`). The rule it came from — "an
+   anchor-verified registry makes source edits and long-running sweeps
+   mutually exclusive" — is in the round file and in
+   `skills/zero-rate-needs-a-distance`. What remains is the same guard for
+   the OTHER long-running sweeps in `harness/swe/` (`exemptaudit`, `fuzz`,
+   `guest`), which record no instrument digest either. SWE-loop(D).
 5. **Seeds 140, 273, 341 are the corpus's only unbounded tail programs** and
    two independent instruments now agree on exactly that set. Nothing has
    asked what they are. A shrink of any one of them would say whether the
