@@ -109,6 +109,49 @@ Report the second; the first is only its shadow.
    "not observed".
    *Outcome:* a claim whose scope is written down beside it.
 
+## A threshold has TWO sides (round 389)
+
+Steps 1-7 measure the distance from the corpus to the threshold — the side
+where a **false negative** lives. A threshold that separates a legitimate
+value from a bug has a second distance, on the other side, and it is the one
+that decides whether the check can still SEE the bug:
+
+    floor    largest value CORRECT behaviour can produce
+    T        the threshold
+    ceiling  largest value the BUG can produce before something else stops it
+
+The check is sound only for `floor < T < ceiling`, and the two bounds have
+different owners: the floor is set by the system under test, the ceiling by
+whatever kills the buggy run first (a host limit, a fallback path, another
+ceiling upstream). Reporting only the floor is the same mistake as reporting
+only a rate, one level up.
+
+The move that makes this concrete: **derive the bug's signal as a function of
+some input dimension, then solve for where it crosses `T`.** In round 389 the
+signal was `excess = under * depth` — linear, with the bug's size as the
+slope — so a threshold of 140 was not "a threshold" but "blind below guest
+depth 140". Raising the floor (a perfectly correct fix) raised the blind spot
+with it, and that trade was invisible until the ceiling was measured.
+
+Two ways the ceiling turns out lower than the obvious one, both seen in a
+single measurement:
+
+- **A fallback caps the signal.** The buggy run exhausted a budget, fell
+  back to a path that does not exhibit the bug, and the signal *plateaued*
+  instead of growing. Robustness upstream is blindness downstream.
+- **An unrelated ceiling binds first.** The measurement was capped at
+  `2 * max_depth + 1` by a different constant entirely, in a different
+  module, so the check's usable range was set by a parameter its author
+  never considered.
+
+Inject the bug IN PROCESS (wrap the method, restore in `finally`) rather than
+running the project's mutation machinery: seconds instead of a campaign, and
+you can sweep the input dimension. Watch for per-node caches — re-parse or
+rebuild the input at every rung, or the first rung's honest value is reused.
+
+Always run the **clean control at the same rungs**. If a correct run's value
+also grows with the dimension, a rung crossing `T` says nothing.
+
 ## Pitfalls
 
 - **Pinning the measured rate manufactures a stale claim.** The number was
@@ -119,6 +162,11 @@ Report the second; the first is only its shadow.
   upper one.** Literal pools compose: a grammar whose largest literal is
   100 still reaches 10000 through `100 * 100`. Use the static scan as the
   cheap tripwire, and the dynamic ladder as the evidence.
+- **Deriving a threshold from another constant fixes the floor and moves
+  the ceiling.** `T = OTHER + margin` guarantees no false positive forever,
+  which is why it looks like a pure win. It also guarantees that raising
+  `OTHER` — for performance, say — silently enlarges the blind spot, with
+  no test going red. Derive, then assert the CEILING relation too.
 - **Zero rows and a zero rate are different results.** A sweep killed before
   it wrote anything reports the same "nothing found" as a sweep that
   completed. Write results incrementally — one flushed row per input — so

@@ -11,7 +11,7 @@ turned out to matter more than the extra oracles:
 
     A THRESHOLD site has a distance. A PREDICATE site has a SURFACE.
 
-`FRAME_SLACK = 140` and `names[:6]` are thresholds: the corpus demands a
+`FRAME_SLACK` and `RENDER_PAIR_CAP` are thresholds: the corpus demands a
 number, the code compares it against a constant, and the gap between them is
 the measurement. But `provenance_tainted_names` and `erasure_exemption` are
 predicates — there is no number to be far from. Their honest analogue is how
@@ -37,6 +37,8 @@ usage:
   python3 -m harness.swe.exemptmap sites
   python3 -m harness.swe.exemptmap sweep  [N] [--out P] [--budget-s S]
                                           [--stress R] [--start K]
+                                          [--max-depth D] [--timeout-s S]
+  python3 -m harness.swe.exemptmap ab      --a P --b Q   (paired arm diff)
   python3 -m harness.swe.exemptmap report [--out P]
   python3 -m harness.swe.exemptmap chainladder [--max N]
   python3 -m harness.swe.exemptmap paircap [--bindings K]
@@ -45,6 +47,7 @@ usage:
 
 import json
 import os
+import re
 import signal
 import sys
 import time
@@ -86,11 +89,18 @@ class Site(object):
 
 
 SITES = (
-    Site("R-CAP", "render", "diverge-symmetry checked on the first 6 bindings only",
-         "silent cap", "distance", 6,
-         "    for i, x in enumerate(names[:6]):", 1,
-         "the loop bound is a literal in the oracle; nothing reports what it "
-         "skipped"),
+    # (round 389) The anchor moved because the cap it names was fixed: the
+    # bound is now `RENDER_PAIR_CAP` and every render verdict carries
+    # `pairs k/n`. The registry caught the drift on its first run after the
+    # edit and killed a sweep arm mid-flight rather than report numbers for
+    # a branch that had moved — which is the behaviour it was built for.
+    # The site itself is NOT retired: the cap still exists and still skips
+    # pairs; what changed is that it is no longer SILENT.
+    Site("R-CAP", "render", "diverge-symmetry checked on the first RENDER_PAIR_CAP bindings only",
+         "reported cap", "distance", O.RENDER_PAIR_CAP,
+         "    for i, x in enumerate(names[:cap]):", 1,
+         "the cap is a named constant and every verdict reports `pairs k/n` "
+         "(round 389); before that it was a bare literal reporting nothing"),
     Site("F-SLACK", "frames", "host-frame excess over the charge must stay under FRAME_SLACK",
          "threshold", "distance", O.FRAME_SLACK,
          "FRAME_SLACK = 140", 1,
@@ -234,7 +244,7 @@ def measure(pkg, src, max_depth=500):
     interp, env, _out = O._run_ast(pkg, O._parse(pkg, src), max_depth=max_depth)
     names = list(env.vars)
     k = len(names)
-    cap = 6
+    cap = O.RENDER_PAIR_CAP          # round 389: was a second literal 6 here
     checked = _nc2(min(k, cap))
     total = _nc2(k)
     s["R-CAP"] = {
@@ -358,6 +368,11 @@ def sweep_record(pkg, seed, stress_rate=0.5, max_depth=500, timeout_s=3.0,
     row["seed"] = seed
     row["measure_s"] = round(secs, 4)
     row["src_lines"] = src.count("\n") + 1
+    # round 389: the ceiling is now a variable, so every row carries the one
+    # it was measured under. Rows written before round 389 have no key; the
+    # A/B reader treats a missing key as 500, which is what they all were.
+    row["max_depth"] = max_depth
+    row["timeout_s"] = timeout_s
     if with_oracles:
         vs = {}
         for name in O.ORACLE_NAMES:
@@ -567,7 +582,7 @@ def report(s):
     rp = s["render_pairs"]
     lines.append("")
     lines.append("render diverge-symmetry pairs: %d checked of %d (%.1f%%), "
-                 "%d skipped by the names[:6] cap"
+                 "%d skipped by the RENDER_PAIR_CAP cap"
                  % (rp["checked"], rp["total"], 100 * rp["checked_fraction"],
                     rp["skipped"]))
     if s.get("oracles"):
@@ -805,6 +820,189 @@ def deep_program(n):
             "let r = loop(%d)\nprint(str(r))\n" % n)
 
 
+def recursive_program(n):
+    """A NON-tail recursion `n` levels deep — one host charge per level.
+
+    `deep_program` is a tail loop and deliberately spends no depth; this is
+    its opposite, and is what the round-108 undercharge needs in order to
+    accumulate.
+    """
+    return ("fn f(n) { if n <= 0 { 0 } else { 1 + f(n - 1) } }\n"
+            "let r = f(%d)\nprint(str(r))\n" % n)
+
+
+def undercharge_detection_depth(pkg=None, root=WHENCE_ROOT, slack=None,
+                                depths=(1, 2, 4, 8, 16, 32, 64, 100, 160, 240,
+                                        320, 400),
+                                under=2, timeout_s=20.0):
+    """How deep the round-108 undercharge has to run before `oracle_frames`
+    can see it — the CEILING half of `FRAME_SLACK`'s bracket (round 389).
+
+    Round 383 derived the FLOOR: no correct program can exceed
+    `FAST_MAX_DEPTH - 2`, so a slack below that is a false-positive
+    generator. It said nothing about the other side, and the other side is
+    where the constant earns its keep: the round-108 bug is an uncharged
+    host frame per guest level, so its excess GROWS with guest depth and a
+    larger slack simply postpones detection. `FRAME_SLACK` is sound in a
+    BAND, not above a line.
+
+    The bug is injected the way `oraclekill`'s mutant injects it — the
+    direct-call charge is reduced by `under` frames per level — but in
+    process, by wrapping `Interpreter._body_entry`, so no tree is copied
+    and the measurement runs in ~1 s instead of a mutation campaign.
+    Every rung parses its OWN AST: `_body_entry` caches `(bd, cost)` on the
+    body node, so a reused AST would keep the honest charge from the first
+    run.
+    """
+    pkg = pkg or dict(load_whence(root, "r389under"))
+    pkg.setdefault("root", root)
+    if slack is None:
+        slack = O.frame_slack(pkg)
+    I = pkg["Interpreter"]
+    real = I._body_entry
+
+    def undercharged(self, body):
+        bd, cost = real(self, body)
+        ent = body.entry = (bd, cost - under)
+        return ent
+
+    rows = []
+    I._body_entry = undercharged
+    try:
+        for n in depths:
+            src = recursive_program(n)
+            res, err, secs = guarded(
+                lambda s=src: O.frame_excess(pkg, O._parse(pkg, s)), timeout_s)
+            if err:
+                rows.append({"depth": n, "excess": None, "error": err,
+                             "s": round(secs, 3)})
+                continue
+            best, at, _i = res
+            rows.append({"depth": n, "excess": best, "at_guest_depth": at,
+                         "over_slack": best > slack, "s": round(secs, 3)})
+    finally:
+        I._body_entry = real
+
+    seen = [r for r in rows if r.get("over_slack")]
+    return {"slack": slack, "under_per_level": under,
+            "fast_max_depth": O.fast_max_depth(pkg),
+            "rungs": rows,
+            "first_detected_at_depth": seen[0]["depth"] if seen else None,
+            "blind_below_depth": seen[0]["depth"] if seen else "never"}
+
+
+def clean_frame_excess_ladder(pkg=None, root=WHENCE_ROOT,
+                              depths=(1, 2, 4, 8, 16, 32, 64, 100, 160, 240,
+                                      320, 400), timeout_s=20.0):
+    """The same rungs with NO bug injected: the control the detection ladder
+    needs, so a rung that goes over slack cannot be blamed on the shape."""
+    pkg = pkg or dict(load_whence(root, "r389clean"))
+    pkg.setdefault("root", root)
+    slack = O.frame_slack(pkg)
+    rows = []
+    for n in depths:
+        src = recursive_program(n)
+        res, err, secs = guarded(
+            lambda s=src: O.frame_excess(pkg, O._parse(pkg, s)), timeout_s)
+        if err:
+            rows.append({"depth": n, "excess": None, "error": err})
+            continue
+        best, at, _i = res
+        rows.append({"depth": n, "excess": best, "at_guest_depth": at,
+                     "over_slack": best > slack})
+    return {"slack": slack, "rungs": rows,
+            "max_excess": max([r["excess"] for r in rows
+                               if r.get("excess") is not None] or [None])}
+
+
+def deepest_undercharged_run(pkg=None, root=WHENCE_ROOT, under=2,
+                             limit=None, lo=1, hi=2000, timeout_s=20.0):
+    """The deepest guest recursion the UNDERCHARGED interpreter survives at
+    host recursion limit `limit` — by bisection, on the real instrument.
+
+    This is the other end of the frames oracle's usable range. The excess
+    the bug produces is `under * depth`, so it can only be seen if the run
+    reaches depth > slack/under BEFORE the host stack gives out. Past that
+    point the bug still exists and `oracle_frames` reports `ok` on a run
+    that never produced a number — the crash is a different oracle's
+    (`modes`) finding.
+    """
+    pkg = pkg or dict(load_whence(root, "r389deep"))
+    pkg.setdefault("root", root)
+    I = pkg["Interpreter"]
+    real = I._body_entry
+
+    def undercharged(self, body):
+        bd, cost = real(self, body)
+        ent = body.entry = (bd, cost - under)
+        return ent
+
+    def survives(n):
+        res, err, _s = guarded(
+            lambda: O.frame_excess(pkg, O._parse(pkg, recursive_program(n))),
+            timeout_s)
+        # `guarded` returns "" on success, not None — the first version of
+        # this predicate tested `err is None` and reported "no depth
+        # survives" for every rung, including ones the ladder had already
+        # measured. A bisection that returns null for BOTH arms is the
+        # shape of a broken predicate, not of a real ceiling.
+        return (not err), (res[0] if not err else None)
+
+    old_limit = sys.getrecursionlimit()
+    I._body_entry = undercharged
+    try:
+        if limit is not None:
+            sys.setrecursionlimit(limit)
+        best, best_excess = None, None
+        while lo <= hi:
+            mid = (lo + hi) // 2
+            ok, ex = survives(mid)
+            if ok:
+                best, best_excess = mid, ex
+                lo = mid + 1
+            else:
+                hi = mid - 1
+    finally:
+        I._body_entry = real
+        sys.setrecursionlimit(old_limit)
+    return {"limit": limit if limit is not None else old_limit,
+            "under_per_level": under,
+            "deepest_surviving_depth": best,
+            "excess_there": best_excess,
+            "max_detectable_slack": (best_excess - 1)
+            if best_excess is not None else None,
+            "max_sound_fast_max_depth": (best_excess - 1 - O.FRAME_SLACK_MARGIN)
+            if best_excess is not None else None}
+
+
+def slack_band(pkg=None, root=WHENCE_ROOT, detect_by_depth=100):
+    """`FRAME_SLACK`'s two-sided bracket on today's tree.
+
+    floor  — the largest excess a CORRECT program can reach
+             (`FAST_MAX_DEPTH - 2`, round 383, re-executed here)
+    ceiling— the excess the round-108 undercharge reaches at guest depth
+             `detect_by_depth`; a slack at or above it is BLIND to the bug
+             at that depth
+    """
+    pkg = pkg or dict(load_whence(root, "r389band"))
+    pkg.setdefault("root", root)
+    clean = clean_frame_excess_ladder(pkg, depths=(2, 8, 32, 100, 200, 400))
+    floor = clean["max_excess"]
+    chain = chain_ladder(pkg=pkg, lengths=(64, 100, 200, 400))
+    floor = max([floor] + [r["excess"] for r in chain
+                           if isinstance(r.get("excess"), int)])
+    det = undercharge_detection_depth(pkg, depths=(detect_by_depth,))
+    ceil_row = det["rungs"][0]
+    return {"fast_max_depth": O.fast_max_depth(pkg),
+            "frame_slack_now": O.frame_slack(pkg),
+            "literal_FRAME_SLACK": O.FRAME_SLACK,
+            "margin": O.FRAME_SLACK_MARGIN,
+            "floor_measured": floor,
+            "ceiling_at_depth_%d" % detect_by_depth: ceil_row.get("excess"),
+            "sound": (floor is not None and ceil_row.get("excess") is not None
+                      and floor < O.frame_slack(pkg) < ceil_row["excess"])}
+
+
 def spec_shadow_program():
     """A program whose parameter spec NAME is bound twice — P-EXEMPT's first
     clause, which the fuzz grammar has no shape for.
@@ -964,13 +1162,113 @@ def round110_claims(root=WHENCE_ROOT, n=264, stress_rate=0.5, timeout_s=10.0):
     return res
 
 
+def ab(path_a, path_b, sites=("R-CAP", "F-SLACK", "T-SPACE", "T-TAINT",
+                             "T-NONE", "T-ALL", "P-EXEMPT", "P-NONE")):
+    """Pair two sweep files by SEED and report what the arm changed.
+
+    (round 389) The unit is the seed, not the rate: `ProgramGen(seed)` is
+    deterministic, so the two arms run the SAME programs and every
+    difference is attributable. Comparing two summary rates instead would
+    hide a conversion and a new firing that cancelled out — which is
+    exactly what happened between round 383's 746-seed sweep and this
+    round's 300-seed arm A (10.8 % vs 13.9 %, same instrument, same tree
+    behaviour, different seed range).
+    """
+    A = dict((r["seed"], r) for r in read_rows(path_a) if "seed" in r)
+    B = dict((r["seed"], r) for r in read_rows(path_b) if "seed" in r)
+    shared = sorted(set(A) & set(B))
+    out = {"path_a": path_a, "path_b": path_b,
+           "n_a": len(A), "n_b": len(B), "n_shared": len(shared),
+           "max_depth_a": _mode([A[s].get("max_depth", 500) for s in shared]),
+           "max_depth_b": _mode([B[s].get("max_depth", 500) for s in shared]),
+           "sites": {}, "oracles": {}, "flips": []}
+    for sid in sites:
+        conv, newfire, both, neither = [], [], 0, 0
+        for sd in shared:
+            fa = A[sd].get("sites", {}).get(sid, {}).get("fired")
+            fb = B[sd].get("sites", {}).get(sid, {}).get("fired")
+            if fa is None or fb is None:
+                continue
+            if fa and not fb:
+                conv.append(sd)
+            elif fb and not fa:
+                newfire.append(sd)
+            elif fa:
+                both += 1
+            else:
+                neither += 1
+        out["sites"][sid] = {
+            "fired_a": len(conv) + both, "fired_b": len(newfire) + both,
+            "converted": len(conv), "new_fires": len(newfire),
+            "still_firing": both, "never": neither,
+            "converted_pct": (100.0 * len(conv) / (len(conv) + both))
+            if (len(conv) + both) else None,
+            "converted_seeds": conv[:40], "new_fire_seeds": newfire[:40],
+            "still_firing_seeds": [sd for sd in shared
+                                   if A[sd].get("sites", {}).get(sid, {}).get("fired")
+                                   and B[sd].get("sites", {}).get(sid, {}).get("fired")][:40],
+        }
+    for name in O.ORACLE_NAMES:
+        tab = {}
+        for sd in shared:
+            ka = A[sd].get("oracles", {}).get(name, {}).get("kind")
+            kb = B[sd].get("oracles", {}).get(name, {}).get("kind")
+            if ka is None or kb is None:
+                continue
+            tab["%s->%s" % (ka, kb)] = tab.get("%s->%s" % (ka, kb), 0) + 1
+            if ka != kb:
+                out["flips"].append({"seed": sd, "oracle": name,
+                                     "from": ka, "to": kb,
+                                     "detail_b": B[sd]["oracles"][name].get("detail", "")[:120]})
+        out["oracles"][name] = tab
+    out["seconds_a"] = round(sum(A[sd].get("measure_s", 0.0) for sd in shared), 1)
+    out["seconds_b"] = round(sum(B[sd].get("measure_s", 0.0) for sd in shared), 1)
+    out["new_mismatches"] = [f for f in out["flips"] if f["to"] == "mismatch"]
+    out["new_timeouts"] = [f for f in out["flips"] if f["to"] == "timeout"]
+    out["new_crashes"] = [f for f in out["flips"] if f["to"] == "crash"]
+    return out
+
+
+def _mode(vals):
+    c = {}
+    for v in vals:
+        c[v] = c.get(v, 0) + 1
+    return max(c.items(), key=lambda kv: kv[1])[0] if c else None
+
+
 # -------------------------------------------------------------------- cli --
 
-def default_out(kind):
-    here = os.path.dirname(os.path.dirname(os.path.dirname(
+def round_dir(root=None):
+    """The newest `state/swe/round-NNN` directory that exists, or None.
+
+    Round 383 pinned `round-383` as a literal here. That is the same
+    stale-constant class this suite keeps finding in other people's code:
+    the next round's sweep would have appended to round 383's file and
+    silently mixed two arms into one population. The number is now read
+    from the filesystem, and `EXEMPTMAP_ROUND_DIR` overrides it outright
+    so an A/B can name its own arm.
+    """
+    env = os.environ.get("EXEMPTMAP_ROUND_DIR")
+    if env:
+        return env
+    here = root or os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__))))
-    d = os.path.join(here, "state", "swe", "round-383")
-    if os.path.isdir(d):
+    base = os.path.join(here, "state", "swe")
+    if not os.path.isdir(base):
+        return None
+    best = None
+    for name in os.listdir(base):
+        m = re.match(r"^round-(\d+)$", name)
+        if m and os.path.isdir(os.path.join(base, name)):
+            n = int(m.group(1))
+            if best is None or n > best[0]:
+                best = (n, os.path.join(base, name))
+    return best[1] if best else None
+
+
+def default_out(kind):
+    d = round_dir()
+    if d and os.path.isdir(d):
         return os.path.join(d, "%s.jsonl" % kind)
     return os.path.join(os.getcwd(), "%s.jsonl" % kind)
 
@@ -993,6 +1291,8 @@ def main(argv):
               stress_rate=_flag(argv, "--stress", float, 0.5),
               budget_s=_flag(argv, "--budget-s", float),
               start=_flag(argv, "--start", int, 0),
+              max_depth=_flag(argv, "--max-depth", int, 500),
+              timeout_s=_flag(argv, "--timeout-s", float, 3.0),
               with_oracles="--no-oracles" not in argv)
         print(report(summarize(read_rows(_flag(argv, "--out")
                                          or default_out("sweep")))))
@@ -1021,6 +1321,20 @@ def main(argv):
             print(json.dumps(r, sort_keys=True))
         print("crossing (smallest length over slack %d): %s"
               % (O.FRAME_SLACK, chain_crossing()))
+    elif cmd == "ab":
+        print(json.dumps(ab(_flag(argv, "--a"), _flag(argv, "--b")), indent=1))
+    elif cmd == "deepest":
+        out = {}
+        for lim in (None, 6000):
+            r = deepest_undercharged_run(limit=lim)
+            out[str(r["limit"])] = r
+        print(json.dumps(out, indent=1))
+    elif cmd == "underdepth":
+        print(json.dumps(undercharge_detection_depth(), indent=1))
+    elif cmd == "cleanladder":
+        print(json.dumps(clean_frame_excess_ladder(), indent=1))
+    elif cmd == "slackband":
+        print(json.dumps(slack_band(), indent=1))
     elif cmd == "paircap":
         print(json.dumps(paircap_witness(k=_flag(argv, "--bindings", int, 10)),
                          indent=1))

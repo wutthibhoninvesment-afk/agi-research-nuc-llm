@@ -1,0 +1,26 @@
+  seed 300 (0.1s elapsed)
+60 new row(s) in 44.8s -> state/swe/round-389/armB-5000.jsonl
+rows 360  usable 324  parse_errors 30  errors 6
+
+site      oracle             polarity     fire%   cost%  distance (demand vs threshold)
+R-CAP     render             suppress     38.6%   53.5%  max 16 of 6 = 267%  (at_boundary 164, one_away 43)
+F-SLACK   frames             tolerate      0.0%       -  max 98 of 140 = 70%  (at_boundary 0, one_away 0)
+T-SPACE   tail_transparency  suppress      0.9%  100.0%  max 5000+ of 500 = 1000%  (at_boundary 41, one_away 0)  [3 CENSORED: demand is a floor]
+T-TAINT   tail_transparency  suppress     92.3%   37.0%  predicate: no threshold to be far from
+T-NONE    tail_transparency  suppress     36.1%    0.0%  no-op branch: nothing suppressed
+T-ALL     tail_transparency  suppress      2.5%  100.0%  predicate: no threshold to be far from
+P-EXEMPT  param_erasure      suppress      4.6%  100.0%  max 4 of 2 = 200%  (at_boundary 15, one_away 19)
+P-NONE    param_erasure      suppress     58.3%    0.0%  no-op branch: nothing suppressed
+
+render diverge-symmetry pairs: 3290 checked of 6408 (51.3%), 3118 skipped by the RENDER_PAIR_CAP cap
+
+oracle             kinds                                    median_s    max_s
+totality           {"ok": 324, "parse_error": 30}             0.0020   1.9368
+fast_slow          {"ok": 323, "parse_error": 30, "timeout": 1}   0.0038   3.0185
+direct             {"ok": 321, "parse_error": 30, "timeout": 3}   0.0041   3.0769
+determinism        {"ok": 321, "parse_error": 30, "timeout": 3}   0.0050   3.0244
+render             {"ok": 324, "parse_error": 30}             0.0022   1.7957
+frames             {"ok": 321, "parse_error": 30, "timeout": 3}   0.0038   3.1365
+tail_transparency  {"ok": 323, "parse_error": 30, "timeout": 1}   0.0032   3.0041
+param_erasure      {"ok": 324, "parse_error": 30}             0.0024   1.6433
+DONE_B2

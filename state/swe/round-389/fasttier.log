@@ -1,0 +1,55 @@
+........................................................................ [  9%]
+........................................................................ [ 19%]
+........................................................................ [ 28%]
+........................................................................ [ 38%]
+........................................................................ [ 48%]
+........................................................................ [ 57%]
+........................................................................ [ 67%]
+........................................................................ [ 77%]
+........................................................................ [ 86%]
+........................................................................ [ 96%]
+............................                                             [100%]
+tier-budget: 10/10 promoted files timed, 84.3s of a 42.2s budget — DRIFT: test_swe_coverage.py 11.7s > 11.5s, test_swe_oracles.py 15.9s > 10.0s, test_swe_prioritize.py 6.7s > 5.4s, test_swe_proc.py 15.4s > 13.4s (re-run `python3 harness/tierbudget.py measure` and re-decide)
+748 passed, 268 deselected in 182.34s (0:03:02)
+
+--- end of measured output; recorded status below ---
+
+slow tier: 22 files, 0 conclusive against checkout 19264b23279f6b03 (0% recall), 0 failing
+  + 1 file(s) LAST RAN RED, at a checkout that has since moved — not evidence about this one, and the first thing a slow-tier slice should re-run
+  test_swe_alias_effects.py          unknown            -
+  test_swe_bymap.py                  unknown            -
+  test_swe_campaign.py               unknown            -
+  test_swe_coverage.py               stale_checkout     5s  21.7h ago
+  test_swe_depthceiling.py           unknown            -
+  test_swe_equivalence.py            unknown            -
+  test_swe_exemptaudit.py            unknown            -
+  test_swe_exemptmap.py              unknown            -
+  test_swe_fuzz.py                   stale_checkout     142s  34.2h ago
+  test_swe_guest.py                  stale_subject      202s  21.8h ago   [last run RED]
+      moved in scope: examples, whence
+  test_swe_killers.py                stale_checkout     40s  21.7h ago
+  test_swe_loop.py                   stale_subject      0s  21.8h ago
+      moved in scope: whence
+  test_swe_mutation.py               stale_checkout     17s  21.7h ago
+  test_swe_oraclekill.py             stale_checkout     58s  34.4h ago
+  test_swe_oracles.py                stale_checkout     5s  21.8h ago
+  test_swe_prioritize.py             unknown            -
+  test_swe_proc.py                   stale_checkout     13s  21.8h ago
+  test_swe_regiontools.py            stale_subject      5s  21.8h ago
+      moved in scope: whence
+  test_swe_repair.py                 stale_checkout     102s  34.2h ago
+  test_swe_review.py                 stale_checkout     81s  23.0h ago
+  test_swe_scoreaudit.py             stale_harness      1s  21.8h ago
+      moved: tests/conftest.py
+  test_swe_triage.py                 stale_harness      0s  21.8h ago
+      moved: swe/fuzz.py, tests/conftest.py
+  NOTE: 22 file(s) are NOT evidence about this checkout.
+
+RECORDED 2026-08-30T17:53:28Z (12.0 h ago) — a stored verdict, not a run just now
+  HEAD HAS MOVED SINCE: recorded at 91acd9c5af97, now 1bd242e9d3fc — this verdict is NOT about the current tree
+ref HEAD (91acd9c5af97)   verdict clean
+  17 untracked path(s) exist here and in no fresh clone
+  allowed-dirty (escalation pin, suite-neutral): languages/whence/SECURITY.md
+  harness-fast   clean                  live={'deselected': 323, 'passed': 587} pristine={'deselected': 323, 'passed': 587}  95.9s
+  whence-fast    clean                  live={'deselected': 70, 'passed': 1595, 'skipped': 3} pristine={'deselected': 70, 'passed': 1595, 'skipped': 3}  84.6s
+  whence-slow    clean                  live={'deselected': 1598, 'passed': 70} pristine={'deselected': 1598, 'passed': 70}  1014.6s

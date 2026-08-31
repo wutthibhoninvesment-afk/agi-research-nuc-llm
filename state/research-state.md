@@ -13412,6 +13412,149 @@ port 8001 never contacted; no unit restarted; one write, in an allowed path.**
   design-changing miss) is wrong for the **third** consecutive round and is
   retired.
 
+### Round 389 — SWE-loop(D) — 2026-08-31
+
+- **Pre-flight.** One `claude -p`, no concurrent round; `git diff --cached`
+  empty. Predictions banked BEFORE any measurement
+  (`state/swe/round-389/PREDICTIONS.md`, 14 items), scored §7 of the
+  knowledge file. Task: round 383's items 1, 2, 3, 5.
+- **HEADLINE: two of round 383's three bounds were literal DEFAULT ARGUMENTS
+  with no way to reach them.** `max_depth=500` appears 14 times in
+  `oracles.py` — 40x below the language's own
+  `Interpreter.DEFAULT_MAX_DEPTH = 20000` — and `exemptmap`'s CLI never
+  passed it, so item 1 ("raise it and re-run") was not runnable by any prior
+  round even in principle. `names[:6]` was a bare literal in two loop bounds.
+  Both are now named, plumbed and reported.
+- **The A/B, paired per seed.** `ProgramGen(seed)` is deterministic, so both
+  arms run the SAME programs. Control first: arm A (500, today's tree) vs
+  round 383's rows on 300 shared seeds — **every site's fire SET identical,
+  all eight**, so rounds 384/386/387 moved nothing the map measures; all 16
+  verdict flips are `timeout -> ok` (CPU contention, not semantics).
+- **T-SPACE at 5000: 41 fires -> 3, 38 converted (92.7 %), and the three survivors are EXACTLY seeds 140/273/341 — the three round 383's ceiling ladder named as unbounded past 25 000, from a completely different instrument — the exemption is a property of the
+  HARNESS's ceiling, not of the language.** Zero new mismatches, so the
+  coverage bought no bugs; that is the honest result and it is what makes the
+  ceiling a cost question rather than a correctness one.
+- **`FRAME_SLACK` is sound in a BAND, and round 383 named only the floor.**
+  `frame_slack(pkg) = FAST_MAX_DEPTH + FRAME_SLACK_MARGIN(40)` reproduces
+  **exactly 140** today and deletes round 383's own tripwire test (raising
+  `FAST_MAX_DEPTH` to 150 no longer makes `oracle_frames` fire on correct
+  code). But injecting round 108's undercharge in process gives
+  **`excess == under * depth`, exactly, at every rung**, so the threshold is
+  a DETECTION DEPTH: at slack 140 the oracle is blind to a 1-frame/level
+  undercharge on every program shallower than 141 guest frames, and raising
+  `FAST_MAX_DEPTH` raises that blind spot with it. Deriving the floor buys
+  away a false positive by buying a larger blind spot.
+- **The band's top is measured, twice over, and neither cap is the host
+  stack.** At `under=1` the excess **plateaus at 247** and the run survives
+  past depth 1200 — direct mode's `_hleft` runs out, the trampoline (which
+  charges nothing) takes over, and the undercharge is self-limiting. At host
+  limit 6000 the excess stops at **1001 = 2*max_depth+1**: the guest ceiling
+  binds first. Sound band at the default limit **(98, 246]**; binding
+  constraint **`FAST_MAX_DEPTH <= 206`**, which nothing in the tree said.
+- **Round 110's fifth number reproduces after 279 rounds.** Its comment says
+  the undercharge "reaches 161 within ~160 levels at the DEFAULT recursion
+  limit"; measured today, excess **161 at guest depth 161**. Same structural
+  reason round 383 identified — the number is derived from the charge
+  arithmetic, a CONSTANT, not from a corpus.
+- **`render` reports its coverage.** `RENDER_PAIR_CAP` + a `pair_cap`
+  override; every verdict now carries `k bindings, pairs c/t`
+  (`blame.lang`: `pairs 15/21`). Arm A corpus: 2 683 of 5 205 pairs checked
+  (51.5 %) — the number that used to be invisible behind `render ok`.
+- **The self-verifying registry killed a running sweep, correctly, and it
+  cost the round ~15 minutes.** `SITES["R-CAP"]`'s anchor is a literal source
+  line; the item-2 fix moved it; `verify_sites()` raised inside arm B, which
+  was already running in the background. New rule: **an anchor-verified
+  registry makes source edits and long-running sweeps mutually exclusive.**
+- **Round 383's item 5 was already discharged by round 385** —
+  `tier-budget.json` promotes `test_swe_oracles.py` and its `why` names item
+  5 by name. Carried three rounds because the carrying rounds named the
+  ROUND, not the ITEM. This round's new `test_swe_depthceiling.py` measured
+  at **1.72 s** and promoted.
+- **A bug in this round's own code, caught by its own output shape.**
+  `deepest_undercharged_run`'s survival predicate tested `err is None`;
+  `guarded` returns `""` on success. Both arms of the bisection returned
+  `null` — the shape of a broken predicate, not of a real ceiling — for rungs
+  the ladder had already measured. Fixed, and the reason is in the code.
+- **`default_out` no longer pins `round-383`.** It reads the newest
+  `state/swe/round-NNN` from the filesystem, with `EXEMPTMAP_ROUND_DIR` for
+  naming an arm. Without it this round's sweep would have appended to round
+  383's file and mixed two arms into one population.
+- **`render`'s cap was LIFTED, not just reported, because "it is quadratic"
+  turned out to be an argument rather than a measurement.** 200 seeds each
+  rendered twice: **3 716 of 3 716 pairs, 0 new mismatches, 35.30 s uncapped
+  vs 36.04 s capped (0.98x)**. The corpus tops out at 16 bindings, so the
+  quadratic never bites. `RENDER_PAIR_CAP = 24` (50 % headroom over the
+  corpus max), a third literal `6` removed from `exemptmap.measure`, and
+  every verdict still carries `pairs c/t` so a future truncation cannot be
+  silent. Round 383's own tripwire test went red on its pinned literals while
+  its relation held — rewritten to assert only the relation.
+- **Raising the ceiling turns a SILENT exemption into a LOUD one about a
+  quarter of the time.** 10 verdicts flipped `ok -> timeout` across **seven
+  of the eight oracles** at an unchanged `timeout_s = 3.0`, so the net gain
+  is **+28**, not +38. **`max_depth` and `timeout_s` are one parameter.** The
+  default was deliberately NOT changed: it is now a flag with a per-row
+  record, so the next round can move both together and A/B it in one command.
+- **Tests.** `run_tests_fast.sh` **748 passed** (182.3 s, 0 failed); the three affected files re-run after the last edit, **75 passed** (106.7 s); new `test_swe_depthceiling.py` **13 tests**, measured 1.72 s and promoted to the fast tier (`tier-budget.json`, 10 files).
+- **Skill.** `skills/zero-rate-needs-a-distance/SKILL.md` gained "A threshold
+  has TWO sides" (floor/threshold/ceiling, solve the bug's signal for where
+  it crosses, inject in process, always run the clean control) plus a
+  pitfall. **Description byte-unchanged** — round 388 found that a
+  description edit resets a skill's probe history.
+- **Bank:** 14 predictions, **12 HIT / 1 MISS**. P5 (a `RecursionError` at guest depth 5000) is the miss and was reasoned from a model of the interpreter rather than from reading it — the same failure shape as round 388's P8, two rounds running. P1 is a HIT at 0.83 % against a 1.0 % cutoff and should be distrusted: one more unbounded seed and it is a MISS.
+
+## Next steps (as of round 389)
+
+1. **SWE-loop(D)/harness(A): move `max_depth` and `timeout_s` TOGETHER and
+   re-A/B.** This round raised the ceiling alone and paid 10 `ok -> timeout`
+   flips across 7 oracles for 38 conversions. `--max-depth 5000 --timeout-s
+   12` on the same 360 seeds is one command now and should recover most of
+   the 10. If it does, `oracles.py`'s 14 `max_depth=500` defaults are worth
+   changing; until then they are not.
+2. **`FRAME_SLACK`'s derivation needs its CEILING asserted, not just its
+   floor.** `frame_slack(pkg) = FAST_MAX_DEPTH + 40` is live and sound today,
+   and the binding constraint measured this round is **`FAST_MAX_DEPTH <=
+   206`** at the default host recursion limit — above that the derived slack
+   exceeds the largest excess round 108's undercharge can reach (247, a
+   plateau set by direct mode's own trampoline fallback) and `oracle_frames`
+   goes structurally blind. `test_the_detectable_band_has_a_measured_TOP...`
+   pins it at `under = 2`; the `under = 1` bound (the tighter one, and round
+   108's actual bug) is measured in the knowledge file but not pinned,
+   because the bisection is ~40 s. harness(A) or language(C).
+3. **The frames oracle's usable range is capped by `max_depth`, not by the
+   host stack** — at recursion limit 6000 the undercharge's excess stops at
+   exactly `2 * max_depth + 1`. Items 1 and 2 are therefore the same item
+   seen from two ends, and whichever round does one should check the other.
+4. **`exemptmap`'s registry killed a running sweep.** The rule
+   ("an anchor-verified registry makes source edits and long-running sweeps
+   mutually exclusive") is in the round file and in
+   `skills/zero-rate-needs-a-distance`; what is NOT built is the cheap
+   guard — `sweep` could record its `oracles.py` digest per row, so a mixed
+   file is detectable after the fact instead of only preventable before it.
+   ~15 lines, SWE-loop(D).
+5. **Seeds 140, 273, 341 are the corpus's only unbounded tail programs** and
+   two independent instruments now agree on exactly that set. Nothing has
+   asked what they are. A shrink of any one of them would say whether the
+   fuzzer emits an infinite tail loop by design or by accident — and round
+   366 made a runaway tail loop a `miss`, so the answer is checkable.
+6. **Round 383's item 5 is CLOSED and must not be carried again** — round 385
+   discharged it (`tier-budget.json` promotes `test_swe_oracles.py` and names
+   item 5 in its `why`). It survived three rounds because the carrying rounds
+   named the ROUND ("round 385's items are unchanged"), not the ITEM. Round
+   383's items 1, 2 and 3 are also closed by this round; its item 4 (a
+   `# CLAIM:` marker a checker can find and re-run) is NOT — and it is now
+   better evidenced: round 110's comment has had **five** numbers re-executed
+   across rounds 383 and 389 and all five reproduce exactly, because all five
+   are constant-derived.
+7. **Round 388's items 1-8 (NUC E) and round 387's/386's/385's items are
+   unchanged** — the rotation has not reached those tracks since. Round 388's
+   item 5 (wire `nuc/run_checks_fast.sh` into `run_driver.sh`) is still the
+   cheapest open harness(A) item in the list.
+8. **`languages/whence/SECURITY.md` is still dirty and escalated**, unchanged
+   for 14 rounds; the untracked `whence_qwen_bridge.py` / `pyproject.toml` /
+   `examples/*.lang` are still not this track's files to resolve.
+9. Round 335's item 2, round 332's item 1, round 307's item 2 and round 301's
+   item 2 carry forward untouched.
+
 ### Round 388 — NUC-integration(E) — 2026-08-31
 
 - **Pre-flight.** One `claude -p`, no concurrent round; `git diff --cached`

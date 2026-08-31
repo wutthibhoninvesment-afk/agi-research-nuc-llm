@@ -113,36 +113,66 @@ def test_FRAME_SLACK_still_has_headroom_over_that_bound(pkg):
     `oracle_frames` starts reporting mismatches on correct programs.
     """
     fmd = pkg["Interpreter"].FAST_MAX_DEPTH
-    assert O.FRAME_SLACK > fmd, (
-        "FRAME_SLACK=%d no longer exceeds FAST_MAX_DEPTH=%d; a correct "
+    # (round 389) The relation is now COMPUTED, not asserted: `frame_slack`
+    # reads the same `FAST_MAX_DEPTH` this test reads. The assertion below
+    # therefore checks the DERIVATION rather than the literal, and the
+    # literal is checked separately for the packages that still use it.
+    assert O.frame_slack(pkg) > fmd, (
+        "derived slack=%d no longer exceeds FAST_MAX_DEPTH=%d; a correct "
         "call-free chain now produces excess %d and oracle_frames will "
-        "report a mismatch on it" % (O.FRAME_SLACK, fmd, fmd - 2))
+        "report a mismatch on it" % (O.frame_slack(pkg), fmd, fmd - 2))
+    assert O.frame_slack(pkg) == fmd + O.FRAME_SLACK_MARGIN
+    assert O.frame_slack(None) == O.FRAME_SLACK
 
 
-def test_raising_FAST_MAX_DEPTH_makes_the_frames_oracle_fire_on_correct_code(pkg):
-    """Step 5 of `zero-rate-needs-a-distance`: one input inside the band,
-    through the real instrument.
+def test_a_LITERAL_slack_still_fires_on_correct_code_when_FAST_MAX_DEPTH_rises(pkg):
+    """Round 383's tripwire, preserved as the reason for round 389's fix.
 
-    The band `(98, 140]` cannot be reached by any program this language can
-    express — `MAX_NESTING = 60` (parser.py:142) caps nested literals at
-    depth 59 and `FAST_MAX_DEPTH = 100` caps chains at 98 — so the input has
-    to move the ceiling instead of the program. That is exactly the change a
-    future round might make for performance, which is what makes this a
-    tripwire and not a curiosity.
+    This is what `oracle_frames` DID on every round from 110 to 388: the
+    threshold was the module literal, so raising `FAST_MAX_DEPTH` past
+    `FRAME_SLACK + 2` made a CORRECT call-free chain report a mismatch. The
+    literal path still exists (`slack=` is an explicit argument, and older
+    packages with no fast path get `FRAME_SLACK`), so the failure mode is
+    still reachable and is pinned here rather than deleted.
+    """
+    I = pkg["Interpreter"]
+    orig = I.FAST_MAX_DEPTH
+    src = M.chain_program(400)
+    try:
+        assert O.run_oracle("frames", pkg, src, timeout_s=30.0,
+                            slack=O.FRAME_SLACK).kind == "ok"
+        I.FAST_MAX_DEPTH = O.FRAME_SLACK + 10
+        o = O.run_oracle("frames", pkg, src, timeout_s=30.0,
+                         slack=O.FRAME_SLACK)
+        assert o.kind == "mismatch", o.detail
+        assert "excess %d > slack %d" % (I.FAST_MAX_DEPTH - 2, O.FRAME_SLACK) \
+            in o.detail
+    finally:
+        I.FAST_MAX_DEPTH = orig
+    assert O.run_oracle("frames", pkg, src, timeout_s=30.0,
+                        slack=O.FRAME_SLACK).kind == "ok"
+
+
+def test_the_DERIVED_slack_absorbs_a_raised_FAST_MAX_DEPTH(pkg):
+    """(round 389) The same edit, with the threshold derived: no verdict
+    changes, because the floor and the threshold move together.
+
+    This is the whole content of round 383's item 3. What it buys is not a
+    louder alarm — it is the ABSENCE of one on correct code.
     """
     I = pkg["Interpreter"]
     orig = I.FAST_MAX_DEPTH
     src = M.chain_program(400)
     try:
         assert O.run_oracle("frames", pkg, src, timeout_s=30.0).kind == "ok"
-        I.FAST_MAX_DEPTH = O.FRAME_SLACK + 10
+        I.FAST_MAX_DEPTH = O.FRAME_SLACK + 10          # 150, round 383's break
         o = O.run_oracle("frames", pkg, src, timeout_s=30.0)
-        assert o.kind == "mismatch", o.detail
-        assert "excess %d > slack %d" % (I.FAST_MAX_DEPTH - 2, O.FRAME_SLACK) \
+        assert o.kind == "ok", o.detail
+        assert "slack %d = FAST_MAX_DEPTH %d + %d" % (
+            O.frame_slack(pkg), I.FAST_MAX_DEPTH, O.FRAME_SLACK_MARGIN) \
             in o.detail
     finally:
         I.FAST_MAX_DEPTH = orig
-    # and the restore actually took
     assert O.run_oracle("frames", pkg, src, timeout_s=30.0).kind == "ok"
 
 
@@ -157,26 +187,30 @@ def test_the_parser_caps_nested_literals_below_the_slack_too(pkg):
     ok = P.MAX_NESTING - 1
     src = "let z = " + "[" * ok + "1" + "]" * ok + "\nprint(str(z))\n"
     excess, _at = O.frame_excess(pkg, O._parse(pkg, src))[:2]
-    assert 0 < excess < O.FRAME_SLACK
+    assert 0 < excess < O.frame_slack(pkg)
 
 
 # ------------------------------------------------------ R-CAP: the pair cap --
 
-def test_render_skips_pairs_beyond_the_sixth_binding_counted_live(pkg):
-    """Counted through `run_oracle("render", ...)`, not read off `names[:6]`.
+def test_render_skips_pairs_beyond_the_cap_counted_live(pkg):
+    """Counted through `run_oracle("render", ...)`, not read off the loop
+    bound.
 
-    With 10 bindings there are 45 pairs and the oracle checks 15. A future
-    round that lifts the cap makes this test red, which is the intended
-    signal — the assertion is on the RELATION `pairs_checked == C(6,2)`,
-    derived from the site's own declared threshold.
+    Round 383 wrote this as a tripwire — "a future round that lifts the cap
+    makes this test red, which is the intended signal" — and pinned the
+    literal 15/30 beside the relation. Round 389 lifted the cap from 6 to 24
+    after measuring that full coverage costs 0.98x, and the test went red on
+    the literals while the relation held. The literals are gone; the
+    relation, derived from the site's own declared threshold, is what is
+    asserted.
     """
-    k = 10
-    w = M.paircap_witness(pkg, k=k)
     cap = M.site("R-CAP").threshold
+    k = cap + 4                          # above the cap whatever the cap is
+    w = M.paircap_witness(pkg, k=k)
     assert w["kind"] == "ok"
-    assert w["pairs_total"] == k * (k - 1) // 2 == 45
-    assert w["pairs_checked"] == cap * (cap - 1) // 2 == 15
-    assert w["pairs_skipped"] == 30
+    assert w["pairs_total"] == k * (k - 1) // 2
+    assert w["pairs_checked"] == cap * (cap - 1) // 2
+    assert w["pairs_skipped"] == w["pairs_total"] - w["pairs_checked"] > 0
 
 
 def test_the_pair_cap_does_not_bind_below_seven_bindings(pkg):

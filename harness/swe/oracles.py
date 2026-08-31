@@ -103,6 +103,49 @@ ORACLE_NAMES = ("totality", "fast_slow", "direct", "determinism", "render",
 # ~1400 at the CLI's 6000 (`--limit`), so the slack separates the two.
 FRAME_SLACK = 140
 
+# (round 389) `FRAME_SLACK` and `Interpreter.FAST_MAX_DEPTH` live in two
+# different trees and the oracle is only SOUND while the first exceeds the
+# second: round 383 measured `max excess == FAST_MAX_DEPTH - 2` exactly, at
+# every value it tried (20/50/100/150/200), so at `FAST_MAX_DEPTH = 150` the
+# constant above turns `oracle_frames` into a false-positive generator on
+# CORRECT code. Round 383 pinned the relation in a test; a test says "this
+# is broken", it does not keep the number right. `frame_slack(pkg)` derives
+# it from the interpreter actually under test, so a language round that
+# raises the fast path's ceiling moves the oracle's threshold with it.
+#
+# The margin is NOT free headroom. It is also the oracle's BLINDNESS: the
+# round-108 undercharge (a host frame per guest level that direct mode never
+# charged) shows up as an excess that grows with guest depth, so a larger
+# slack means the bug must run deeper before the oracle sees it. See
+# `undercharge_detection_depth()` — round 389 measures that depth live
+# rather than asserting it.
+FRAME_SLACK_MARGIN = 40
+
+
+def fast_max_depth(pkg):
+    """`Interpreter.FAST_MAX_DEPTH` of the package under test, or None when
+    the package predates it (v0.8 and earlier had no compiled fast path)."""
+    try:
+        v = getattr(pkg["Interpreter"], "FAST_MAX_DEPTH")
+    except (KeyError, TypeError, AttributeError):
+        return None
+    return v if isinstance(v, int) else None
+
+
+def frame_slack(pkg=None):
+    """The frames oracle's threshold, DERIVED where it can be.
+
+    Floor: no correct program can exceed `FAST_MAX_DEPTH - 2` transient
+    frames, because `_compile_fast` refuses a subtree taller than
+    `FAST_MAX_DEPTH` and the trampoline charges everything else.
+    Returns the historical literal `FRAME_SLACK` for packages with no
+    fast path, so older-package differentials keep their old threshold.
+    """
+    fmd = fast_max_depth(pkg) if pkg is not None else None
+    if fmd is None:
+        return FRAME_SLACK
+    return fmd + FRAME_SLACK_MARGIN
+
 
 class OracleOutcome(object):
     """kind: ok | parse_error | timeout | crash | mismatch"""
@@ -263,12 +306,40 @@ def oracle_determinism(pkg, src, max_depth=500):
                          ("fresh-parse rerun: " + d) if d else "")
 
 
+# Bindings whose diverge-symmetry pairs `oracle_render` compares. Quadratic
+# in the number of bindings; 6 -> 15 pairs, 24 -> 276.
+#
+# It was 6, written as a bare literal into two loop bounds, and round 383
+# measured what that cost: corpus p50 is exactly 6 bindings, 39.6 % of
+# programs are past the cap, and 6 426 of 13 509 pairs were never compared
+# behind a green `render ok`.
+#
+# Round 389 measured the OTHER number — what the cap saves — because "it is
+# quadratic" is an argument, not a measurement. 200 seeds, each run twice,
+# capped and uncapped: 3 716 of 3 716 pairs compared, 0 new mismatches, and
+# **35.30 s uncapped against 36.04 s capped (0.98x)**. The quadratic never
+# bites, because the corpus maxes out at 16 bindings (120 pairs) and
+# `diverge` on small values is microseconds. So the cap was buying nothing
+# and costing half the coverage.
+#
+# 24 rather than unbounded: the corpus max is 16, this is 50 % headroom, and
+# a bound the corpus cannot reach is still a bound if some future generator
+# emits a program with 200 bindings (19 900 pairs). Every verdict carries
+# `pairs c/t`, so a truncation can no longer be silent — which is the part
+# that actually mattered.
+RENDER_PAIR_CAP = 24
+
+
+def _n_choose_2(k):
+    return k * (k - 1) // 2 if k >= 2 else 0
+
+
 def _mirror(origins):
     """diverge(a, b) origins with the a/b sides swapped."""
     return [(nb, na, kind) for (na, nb, kind) in origins]
 
 
-def oracle_render(pkg, src, max_depth=500):
+def oracle_render(pkg, src, max_depth=500, pair_cap=None):
     V = _values_mod(pkg)
     try:
         program = _parse(pkg, src)
@@ -289,15 +360,27 @@ def oracle_render(pkg, src, max_depth=500):
         c = V.render_contrast(v, v)
         if c != "no divergence":
             return OracleOutcome("mismatch", "render", "self-contrast[%s] %r" % (name, c[:80]))
-    # symmetry of diverge over every pair (bounded: first 6 bindings)
-    for i, x in enumerate(names[:6]):
-        for y in names[i + 1:6]:
+    # Symmetry of diverge over every pair, bounded to the first
+    # RENDER_PAIR_CAP bindings. (round 389) The bound used to be the literal
+    # 6 written into both loops, and NOTHING reported what it skipped:
+    # round 383 measured 6 426 of 13 509 corpus pairs never compared behind
+    # a green `render ok`. The cap stays (it is quadratic), but every
+    # verdict — ok OR mismatch — now carries `pairs k/n`, so a campaign
+    # reporting `render ok 677` reports the coverage it actually had.
+    cap = RENDER_PAIR_CAP if pair_cap is None else pair_cap
+    k = len(names)
+    checked = _n_choose_2(min(k, cap))
+    total = _n_choose_2(k)
+    cover = "%d bindings, pairs %d/%d" % (k, checked, total)
+    for i, x in enumerate(names[:cap]):
+        for y in names[i + 1:cap]:
             ab = V.diverge(env.vars[x], env.vars[y])
             ba = V.diverge(env.vars[y], env.vars[x])
-            if [(id(p), id(q), k) for p, q, k in _mirror(ab)] != [(id(p), id(q), k) for p, q, k in ba]:
+            if [(id(p), id(q), kk) for p, q, kk in _mirror(ab)] != [(id(p), id(q), kk) for p, q, kk in ba]:
                 return OracleOutcome("mismatch", "render",
-                                     "diverge asymmetry[%s,%s] %d vs %d origins" % (x, y, len(ab), len(ba)))
-    return OracleOutcome("ok", "render")
+                                     "diverge asymmetry[%s,%s] %d vs %d origins (%s)"
+                                     % (x, y, len(ab), len(ba), cover))
+    return OracleOutcome("ok", "render", cover)
 
 
 def has_direct_mode(pkg):
@@ -613,10 +696,15 @@ def oracle_frames(pkg, src, max_depth=500, slack=None):
         program = _parse(pkg, src)
     except (pkg["LexError"], pkg["ParseError"]) as e:
         return OracleOutcome("parse_error", "frames", type(e).__name__)
+    derived = ""
     if slack is None:
-        slack = FRAME_SLACK
+        slack = frame_slack(pkg)
+        fmd = fast_max_depth(pkg)
+        derived = (" = FAST_MAX_DEPTH %d + %d" % (fmd, FRAME_SLACK_MARGIN)
+                   if fmd is not None else " (literal: no fast path)")
     best, at, interp = frame_excess(pkg, program, max_depth=max_depth)
-    detail = "max excess %d frames at guest depth %d (slack %d)" % (best, at, slack)
+    detail = "max excess %d frames at guest depth %d (slack %d%s)" % (
+        best, at, slack, derived)
     if best > slack:
         return OracleOutcome("mismatch", "frames", "excess %d > slack %d\n  %s" %
                              (best, slack, detail))
