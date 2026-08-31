@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "whence-lang"
+version = "0.19.0"
+description = "A provenance-first language designed for autonomous research and debugging AI agent outputs."
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+authors = [
+    {name = "Jaby", email = "jaby@example.com"},
+]
+dependencies = []
+
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "pytest-cov>=4.0"]
+nuc = ["requests>=2.31.0"]
+bench = ["matplotlib>=3.7.0"]
+
+[project.scripts]
+whence = "whence.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["whence*"]

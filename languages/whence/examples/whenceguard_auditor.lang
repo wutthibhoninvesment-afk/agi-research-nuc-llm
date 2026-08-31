@@ -1,0 +1,75 @@
+# ========================================
+# WhenceGuard — Financial Compliance Auditor
+# Language: Whence v0.19 | Feature: Full Provenance Tracking
+# ========================================
+
+let max_budget = 5000.00
+let tax_rate = 0.07
+let approved_departments = ["Engineering", "Marketing", "Operations"]
+
+let transaction_id = "TXN-2026-8842"
+let department = "IT Support"
+let vendor = "SecureSupplier_Ltd"
+let items_list = [
+    {name: "Server Parts", qty: 2, price_per_unit: 2100.00},
+    {name: "Express Shipping", qty: 1, price_per_unit: 350.00}
+]
+
+fn validate_department(dept_name) {
+    for d in approved_departments {
+        if dept_name == d { return "AUTHORIZED" }
+    }
+    miss "DEPT_NOT_APPROVED:  + str(dept_name) +  requires VP sign-off."
+}
+
+fn calculate_line_total(item_entry) {
+    item_entry.qty * item_entry.price_per_unit
+}
+
+fn compute_gross(items_arr) {
+    fold(items_arr, 0.0, fn sum_lines(acc, line_item) {
+        acc + calculate_line_total(line_item)
+    })
+}
+
+fn apply_tax(base_amount) {
+    base_amount * (1.0 + tax_rate)
+}
+
+fn check_budget_limit(amount) {
+    if amount > max_budget {
+        miss "BUDGET_VIOLATION: exceeds limit."
+    } else {
+        amount
+    }
+}
+
+print("=== WHENCEGUARD AUDIT ENGINE STARTED ===")
+println("--- Transaction Details ---")
+println("ID: " + transaction_id)
+println("Department: " + department)
+
+let department_status = rescue { validate_department(department) } 
+                       catch Miss as dept_err {
+                           println("\nStep 1 FAILED: " + why(dept_err))
+                           "UNDER_REVIEW"
+                       }
+
+let gross_total = compute_gross(items_list)
+let net_total = apply_tax(gross_total)
+
+let safe_net = rescue { check_budget_limit(net_total) }
+              catch Miss as budget_err {
+                  println("\nStep 2 FAILED: " + why(budget_err))
+                  0.0
+              }
+
+if department_status == "AUTHORIZED" and safe_net != 0.0 {
+    print("✅ STATUS: APPROVED FOR PAYMENT")
+} else if department_status == "UNDER_REVIEW" {
+    print("🟡 STATUS: PENDING DEPARTMENT VERIFICATION")
+} else {
+    print("🔴 STATUS: REJECTED")
+}
+
+net_total

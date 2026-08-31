@@ -1,0 +1,42 @@
+# ========================================
+# WhenceLang v0.19 — Production Showcase
+# Demonstrating: Arithmetic, Provenance DAG, miss Values
+# ========================================
+
+# 1. Input Data
+let prices = [150.0, 200.5, 75.0, 300.25]
+let vat_rate = 0.07
+
+# 2. Helper Functions
+fn add_items(acc, x) {
+    acc + x
+}
+
+fn apply_vat(amount, rate) {
+    amount * (1.0 + rate)
+}
+
+# 3. Calculate with Full Provenance
+let subtotal = fold(prices, 0.0, add_items)
+let tax_amount = subtotal * vat_rate
+let final_total = apply_vat(subtotal, vat_rate)
+
+# 4. Show Results
+print("WhenceLang v0.19 — Production Showcase")
+print("=========================================")
+print("Prices: ")
+println(str(prices))
+print("Subtotal: ")
+println(str(subtotal))
+print("Tax Amount (7%%): ")
+println(str(tax_amount))
+print("Final Total: ")
+println(str(final_total))
+
+# 5. Generate a miss error value
+let err_value = miss calculation_error_detected
+print("Error Value Generated:")
+println(str(err_value))
+
+# 6. Final provenance tree
+final_total

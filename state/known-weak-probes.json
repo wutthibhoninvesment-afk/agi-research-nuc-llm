@@ -14,6 +14,20 @@
       "report": "round-369-owed-probes.json",
       "measured": "3/4 recall on 4 of 4 positive cases",
       "positives": 4
+    },
+    "derived-subject-set": {
+      "owner": "skills(B)",
+      "why": "REFUTED, not unmeasured, and one edit has already been tried and scored. Round 393 probed all three positives as 3 separate runs x 2 repeats (round-393-run{A,B,C}.json): 2 of 18, Wilson 95% [0.03, 0.33] -- the interval lies entirely below a coin flip, and the skill fired ZERO times in runs A and B. It loses to a different competitor almost every time (declaration-scope-parity, unenforced-documented-rule, citation-registry-integrity, fuzz-mutate-kill-loop) rather than to one consistent sibling, which is the signature of a description that stakes no claim rather than one that overlaps a neighbour. Round 393 then made ONE edit -- leading with the hand-written-list mechanism instead of gating on 'an anti-rot test is green', and naming the three displacing skills in the NOT clauses -- and re-probed it the same way (round-393-dss-run{D,E,F}.json): 0 of 18. THE EDIT MADE IT WORSE AND WAS REVERTED; the description on disk is round 392's. Round 141's stop-rule applies: no second edit without new information. The sharpest single datum for whoever picks this up is dss-near-2, the MODULES-tuple case and the cleanest instance of the skill, which ABSTAINED 6 of 6 post-edit even though the edited description contained that exact scenario almost verbatim -- quoting a case's own words into a description is not what makes it select.",
+      "report": "round-393-runC.json",
+      "measured": "2/18 pooled over 3 runs, Wilson [0.03, 0.33]; 0/18 after one reverted edit",
+      "positives": 3
+    },
+    "repeats-are-not-replicates": {
+      "owner": "skills(B)",
+      "why": "Authored AND probed by round 393, which is the round's own paraphrase scoring its own wording (round 357 item 3's independence concern) -- recorded, not hidden. 12 of 18 pooled over 3 separate runs x 2 repeats (round-393-rnr-run{A,B,C}.json), Wilson 95% [0.44, 0.84]: UNDECIDED, like 28 other skills in this corpus. What makes it worth an entry rather than a shrug is that the miss is NOT a run effect: rnr-far and rnr-mid fired 2/2 in every run and rnr-near fired 0/2 in EVERY run, so the per-case pattern is stable and rnr-near is a real boundary problem, not a draw -- the exact distinction this skill exists to make, applied to itself. rnr-near loses to `rerun-before-you-record` (2 of 6) or abstains (4 of 6), and the overlap is honest: that skill's subject is 'run it again before you record the verdict' and rnr-near's prompt is a re-run that disagreed. The negative case rnr-neg-selection ALSO false-fired 6 of 6 (this skill 2, rerun-before-you-record 3, freshness-is-not-outcome 2), and the case may simply be mis-authored: selection-on-outcome IS step 5 of this skill, so `expect: []` is arguable. NO EDIT HAS BEEN MADE. Round 141's stop-rule budget is untouched, and the next round to pick this up should decide the rnr-near / rerun-before-you-record boundary as a PAIR rather than rewriting one description in isolation.",
+      "report": "round-393-rnr-runC.json",
+      "measured": "12/18 pooled over 3 runs, Wilson [0.44, 0.84]; rnr-near 0/6 stable across all 3 runs",
+      "positives": 3
     }
   },
   "_round_375_note": "Created by round 375 (skills B), closing the gap round 369 wrote into state/known-unprobed-skills.json's _round_369_note by name. The SIX P006 skills found this round -- fuzz-mutate-kill-loop (1 of 7), measured-exemption (1 of 3), unrun-checker-latency (1 of 3), deleted-vs-never-written / optimization-transparency-differential / pristine-checkout-differential (2 of 3) -- are deliberately NOT entered here. They are newly discovered and nobody has adjudicated them; an entry here means 'decided and carried', and pre-filling it with everything the checker found on its first run is how a baseline becomes the mute button its own rot check exists to prevent. They stay as live WARNINGs owed to the next skills(B) re-probe batch.",

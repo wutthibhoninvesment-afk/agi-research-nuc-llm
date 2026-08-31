@@ -1,0 +1,40 @@
+# ========================================
+# WhenceLang — Production Feature Demo v5
+# Version: v0.19 | Provenance-First Language
+# ========================================
+
+let prices = [150.0, 200.5, 75.0, 300.25]
+let tax_rate = 0.07
+let budget_limit = 500.0
+
+fn add_items(acc, x) {
+    acc + x
+}
+
+fn compute_with_tax(items_arr, rate) {
+    let subtotal = fold(items_arr, 0.0, add_items)
+    let tax_amount = subtotal * rate
+    subtotal + tax_amount
+}
+
+print("=== Calculating Total ===")
+let final_total = compute_with_tax(prices, tax_rate)
+
+print("Total Amount:")
+println(str(final_total))
+
+fn safe_divide(numerator, denominator) {
+    if denominator == 0.0 {
+        miss division_by_zero_error
+    } else {
+        numerator / denominator
+    }
+}
+
+print("Testing error handling...")
+let div_result = rescue(safe_divide(100, 0)) catch(Miss as err) zero_point_zero
+
+print("Division result:")
+println(str(div_result))
+
+final_total

@@ -1,0 +1,35 @@
+# 📊 Expense Tracker — Audit-Ready Example
+# Language: Whence v0.14 | Feature: Provenance & First-Class Errors
+
+# Data Definition (Immutable List)
+let prices = [150.0, 200.5, 75.0, 300.25]
+let vat_rate = 0.07
+
+# Pure function for addition
+fn add_item(acc, x) {
+    acc + x
+}
+
+# Calculate total with VAT using fold
+fn compute_total(items, rate) {
+    let subtotal = fold(items, 0.0, add_item)
+    subtotal * (1.0 + rate)
+}
+
+# Execute calculation
+let final_total = compute_total(prices, vat_rate)
+
+# Helper to demonstrate safe division with first-class errors
+fn safe_divide(numerator, denominator) {
+    if denominator == 0 {
+        miss "Division by zero detected"
+    } else {
+        numerator / denominator
+    }
+}
+
+# Try a safe division that will fail gracefully
+let division_result = safe_divide(100, 0)
+
+# Return the main result
+final_total

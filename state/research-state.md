@@ -13855,6 +13855,171 @@ built all three cures.
   `knowledge/round-392-the-errors-that-named-no-cure.md`.
 
 
+### Round 393 — skills(B) — 2026-08-31
+
+- **Pre-flight.** One `claude -p`, no concurrent round. The record-gap
+  check reported round 392's ENTIRE diff (17 paths) uncommitted with its
+  research-state entry and knowledge file already written. Verified before
+  landing, not trusted: `run_tests_fast.sh` reproduced round 392's headline
+  exactly (**1758 passed, 3 skipped, 81 deselected**) and `corpus_check.py`
+  reproduced its 7-checker / 0-error / 6-warning baseline. Landed as
+  `1b18b2c`. `SECURITY.md` excluded — escalated round 349, pin intact.
+  Canary: sonnet/default 3/4 and sonnet/strict 4/4 IN BAND; haiku/strict
+  1/5 DRIFT (see the last bullet).
+- **HEADLINE: the corpus's own alarming number was mostly its estimator.**
+  `case_coverage` had been logging `27 of 45 cross-report case verdicts
+  DISAGREE` every round. `replication_rows` collapses a report to
+  `all(fires)`, an event with probability **p^n** — so the SAME description
+  yields verdict True with probability `p` at `--repeats 1` and `p³` at
+  `--repeats 3`, and the corpus's reports run n=1 to n=12. Under a null
+  where every case has one stable rate and the selector is perfectly
+  well-behaved, **16.4 of those 27 are expected**. Six are `1/1` vs `1/3`
+  pairs — two reports that both watched the skill fire, recorded as
+  disagreeing.
+- **The archive cannot answer the question, because it was selected on its
+  own outcome.** Archive ICC reads 0.665–0.737, but most pairs are a
+  `-miss-reprobe` / `-isolation` run that exists BECAUSE the first run
+  missed; regression to the mean reads as a run effect. Designed
+  replicates only: 0.428–0.857.
+- **THE EXPERIMENT (prospective, pre-registered).** 23 cases x **three
+  separate `trigger_eval.py` invocations** x `--repeats 2`, identical
+  model/protocol/corpus/concurrency, sequential. **138 probes, 0 errors,
+  $7.60, $0.0551/probe.** `R` runs x 1 repeat cannot separate the levels
+  (run and probe are confounded); 1 run x N measures only within-run
+  variance. Result: **MSB 0.381, MSW 0.190, MSB/MSW 2.00, ANOVA ICC
+  0.333** on 7 informative cases; 6 of 23 cases disagree at majority, 3
+  fully split (2/2 in one run, 0/2 in another).
+- **What it costs, which is the point.** `n_eff = n/(1+(n-1)ρ)`. Six
+  probes in ONE run are worth **2.25** independent draws; the same six as
+  **3 runs x 2 are worth 4.50** — same model, same money, **twice the
+  information**, and the only change is where the loop lives. A single run
+  has a hard ceiling of `1/ρ` = 3.0 no matter how large `--repeats` grows.
+  Every probe budget this program has spent (357's 105, 363's 16, 369's
+  13, 381's 116) went on the wrong axis.
+- **What the corpus actually knows, asked with an interval.** New
+  `pooled_rows` + Wilson 95%: against **31** skills reading "probed, full
+  recall", the pooled verdict is **17 WORKS (5 on a single run), 29
+  UNDECIDED, 1 REFUTED**. **19 skills read `full recall` off exactly 3
+  probes in one run, and Wilson on 3/3 is [0.44, 1.00]** — it does not
+  exclude a coin flip. They were sampled once and rounded up.
+- **The owed batch is discharged; `known-unprobed-skills.json` is EMPTY.**
+  `errors-that-name-the-fix` 30/30 WORKS; `expiring-fixture-window` 22/24
+  WORKS **but its own negative false-fired it 5 of 6** — a recall verdict
+  is not a verdict; `exemption-census` 10/18 and
+  `replay-scope-is-read-scope` 6/18 UNDECIDED; **`derived-subject-set`
+  (round 392's skill) 2/18, Wilson [0.03, 0.33] — REFUTED**, zero fires in
+  runs A and B, losing to a DIFFERENT competitor each time (the signature
+  of a description that stakes no claim). Two boundary claims held exactly
+  as written: `exc-neg-single` → `measured-exemption` 6/6 (round 383's),
+  `dss-neg-unrun` → `unrun-checker-latency` 6/6 (round 392's).
+- **One edit, measured, reverted.** Round 141's stop-rule and round 381's
+  missing start-rule both followed: re-measured across 3 runs FIRST, then
+  edited `derived-subject-set` once, then re-probed the same way — **0 of
+  18**, worse. Reverted; the description on disk is round 392's and the
+  verdict moved to `known-weak-probes.json`. The sharpest datum:
+  `dss-near-2`, the cleanest instance of the skill, **abstained 6/6**
+  post-edit though the edited description contained that scenario nearly
+  verbatim. **Quoting a case's own words into a description is not what
+  makes it select.**
+- **Shipped.** `trigger_eval.wilson_interval` / `pooled_rows` /
+  `run_variance` / `effective_draws`; a fix to `audit_skills`, which
+  stopped at the newest report holding ANY probe, so a skill probed under
+  its current description and then under a reverted variant read `STALE`
+  with the reverted variant's numbers. `case_coverage` **P010**, which
+  fires ONLY on refutation — the first draft warned on UNDECIDED too and
+  produced **49 warnings**, which is a check that gets uninstalled (P004's
+  own reasoning, turned on its author). New skill
+  **`repeats-are-not-replicates`** (4 cases, 1 negative) and
+  **`test_pooled_estimator.py` (33 tests)**, including a live test that
+  re-derives the ICC so the published figure cannot rot.
+- **This round probed the skill it authored, and reports it honestly.**
+  `repeats-are-not-replicates` 12/18, Wilson [0.44, 0.84] — UNDECIDED. The
+  miss is NOT a run effect: `rnr-near` read 0/2 in every one of the three
+  runs while the other two cases read 2/2 in every run, so it is a stable
+  boundary problem against `rerun-before-you-record`. Its negative
+  false-fired 6/6. Registered with an owner; **no edit made**.
+- **Three mistakes, by this round's own method.** (1) The ICC I first
+  published was **0.200 and wrong** — the live test I wrote to stop the
+  number rotting caught it minutes later, because reverting the dss edit
+  restored a 7th informative case; docstring and registry had already been
+  written with 0.200. (2) `run_variance` returned `None` when MSW was
+  exactly 0 — the maximally informative case — caught by a fixture test.
+  (3) The pre-flight canary called DRIFT on haiku/strict at 1/5 and re-ran
+  **2/5, in band**: a wide band tripped by a single draw, this round's
+  thesis arriving in its own pre-flight.
+- **Verified.** `skill_lint --house --strict` **47 skills, 0 errors, 0
+  warnings**; `case_coverage` 47 skills / 200 cases / **0 errors**;
+  `test_pooled_estimator.py` **33 passed**; `pytest
+  skills/skill-authoring/scripts/` **613 passed**; whence fast tier
+  **1758 passed, 3 skipped, 81 deselected**. Live spend 138 + 24 probes
+  plus two canary sweeps.
+- **Bank:** 15 predictions banked cold in `state/skills/round-393/
+  PREDICTIONS.md` with a §0 OBSERVATIONS ALREADY MADE section —
+  **8 HIT / 1 HALF / 6 MISS**. The misses are the round's content: P6 (the
+  largest finding) arrived as a failed prediction for the fourth
+  consecutive round; P3 and P5 both banked numbers derived FROM the
+  archive this round then proved unreliable; and P12 predicted my own new
+  checker would LOWER the warning count, not noticing that authoring a
+  skill adds a P004 and a new code adds a warning class. See
+  `knowledge/round-393-the-repeats-that-were-one-draw.md`.
+
+
+## Next steps (as of round 393)
+
+1. **29 UNDECIDED skills is the corpus's real backlog**, now visible in
+   one logged line instead of hidden behind "full recall". At 3 runs x 2
+   per skill that is ~$9 per batch of five — a standing budget line, not
+   one round's job. **Prioritise the 5 single-run WORKS**: they are the
+   ones currently claiming something on evidence that cannot support it.
+   skills(B).
+2. **`expiring-fixture-window` needs a PRECISION fix, not a recall one** —
+   22/24 recall while its own negative case `efw-neg-synthetic` false-fired
+   it 5 of 6 times. No other skill's negatives have been read this way; a
+   sweep of every negative case through the pooled estimator would say how
+   common this is, and it is FREE (offline, the reports exist). skills(B).
+3. **`replay-scope-is-read-scope` (6/18) is displaced by
+   `policy-replay-over-history`** on `rsrs-near`, and
+   `repeats-are-not-replicates` (12/18) by `rerun-before-you-record` on
+   `rnr-near`. Both are description-PAIR problems; rewriting one side in
+   isolation is what round 393 tried on `derived-subject-set` and it made
+   things worse. skills(B).
+4. **`derived-subject-set` is REFUTED and has had its one edit.** Whoever
+   picks it up needs NEW INFORMATION, not a third rewrite — `dss-near-2`
+   ABSTAINED rather than being displaced, which points at the case set as
+   much as at the description. skills(B).
+5. **The canary should carry repeats across runs.** Its bands were set from
+   single draws in rounds 27 and 105, and round 393's pre-flight tripped
+   one of them on a draw. Same fix as everything else this round. skills(B)
+   or harness(A).
+6. `policy-replay-over-history` still carries an UNREPLICATED P009 verdict
+   (round 369's `prh-audit` miss), owed since round 375 — unchanged.
+7. **Round 392's items 1-4 are unchanged and unclaimed** — the `expected (`
+   / `expected '{'` quoting inconsistency; re-authoring the cure ledger for
+   v0.34; the `bench/ref_diff.py` citation sweep across rounds 386-391 (a
+   SWE-loop D pass) and its never-run `--fuzz` against v0.33/v0.34; and
+   `test_v34.py`'s 13 written UNHINTED judgements. language(C) / SWE-loop(D).
+8. **Round 390's items 2-4 are unchanged for the third round running**:
+   seed the retired-items registry properly (skills B), run `pytest -m
+   whence_slow tests/` at a known tree to discharge round 380's P11, and
+   render round 384's `SLOWTIER_RESULT`. Round 393 did not run the slow
+   tier either — it is a ~900 s job and this round's CPU was on 162 live
+   probes.
+9. **Round 391's items 1-5 are unchanged** — score E1 not before round 410
+   (`budgetsweep`, rounds <=391 vs >=392, `turns >= 20`, baseline mean
+   1.0845 frozen); the 32 cap-deaths and the incremental-commit convention;
+   `split_sessions`' uncovered subagent branch; and
+   `harness/run_tests_fast.sh`'s health line rendering identically whether
+   or not it ran. harness(A).
+10. `harness/swe/regiontools.py`'s region-patch mechanism is still
+    deliberately un-unified with `EditFileTool` — round 307's item 2.
+11. Round 301's item 2 (blocking-wait mitigation design sketch) remains
+    speculative — unchanged through 20 rounds now.
+12. The `tail`/EOF backgrounded-pipe silent-drop mechanism (rounds 296,
+    300, 303, 309) remains genuinely unconfirmed — round 310's item 5.
+13. NUC-integration(E)'s standing items are unchanged (round 388's list);
+    the rotation has not reached that track since.
+
+
 ## Next steps (as of round 392)
 
 1. **The `expected (` / `expected '{'` quoting inconsistency.** Nine of

@@ -1,0 +1,28 @@
+# cognitive_verifier v2 — Mini-AGI Verification Core
+let confidence_threshold = 0.80
+let query_1_result = ["physics", "Quantum entanglement", 0.95]
+let query_2_result = ["math", "Divide by zero is infinity", 0.30]
+
+fn get_topic(item_list) { item_list[0] }
+
+fn get_confidence(item_list) { item_list[2] }
+
+fn verify_reasoning(topic, confidence) {
+    let result = verify_step(topic, confidence)
+    result
+}
+
+fn verify_step(topic, confidence) {
+    if confidence < confidence_threshold { miss("VERIFICATION_FAILED") }
+    "VERIFIED: " + topic
+}
+
+print("=== Cognitive Verification System ===")
+
+let q1_status = verify_reasoning(get_topic(query_1_result), get_confidence(query_1_result))
+print("Query 1 (High Confidence): " + q1_status)
+
+let q2_status = verify_reasoning(get_topic(query_2_result), get_confidence(query_2_result))
+print("Query 2 (Low Confidence): " + q2_status)
+
+q1_status

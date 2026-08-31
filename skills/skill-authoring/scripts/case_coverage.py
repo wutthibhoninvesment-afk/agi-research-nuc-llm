@@ -96,6 +96,13 @@ Codes
                    owner, debt discharged, or the pinned report is no
                    longer the newest one (someone re-probed and did not
                    re-adjudicate)
+    P009  warning  a durable weak-probe verdict rests on a single draw, or
+                   two same-description reports disagree
+    P010  warning  the POOLED interval over every same-digest probe lies
+                   entirely BELOW 0.5 — the evidence refutes the
+                   description (round 393). UNDECIDED is NOT a warning;
+                   it is a headline count, because 26 of 46 are undecided
+                   and 26 warnings is a check nobody reads.
 
 Duplicate case ids are NOT a code here: `trigger_eval.load_cases` already
 raises on them, and two checks for one property is how they drift apart.
@@ -207,6 +214,8 @@ def check(catalog, cases, reports, baseline, floor=DEFAULT_FLOOR,
     findings += check_replication(weak_baseline or {},
                                   trigger_eval.replication_rows(
                                       catalog, cases, reports))
+    findings += check_pooled(trigger_eval.pooled_rows(catalog, cases, reports),
+                             weak_baseline or {})
     return findings, rows
 
 
@@ -270,6 +279,63 @@ def check_outcomes(by_name, weak_baseline):
                 % (r["report"], r["recalled"], r["covered"],
                    " (%d flaky)" % r["flaky"] if r["flaky"] else "")))
     return findings
+
+
+def check_pooled(pooled, weak_baseline):
+    """P010 — what the POOLED evidence positively REFUTES.
+
+    Round 393. Every other code here reads a report at a time. P006/P007
+    read *the newest* one; P009 asks whether a *second* exists. None of
+    them ever asked the question a verdict actually needs: pool every
+    same-digest probe, and does the interval separate this description
+    from a coin flip?
+
+    Run it and the corpus's self-image changes. **19 skills** read
+    `probed`, `covered == positives`, `recalled == covered` — the state the
+    headline calls "full recall" — off exactly **3 probes in one run**.
+    Wilson 95% on 3/3 is [0.44, 1.00]. That does not exclude 0.5. Those
+    nineteen were never measured; they were sampled once and rounded up.
+
+    P010 fires ONLY where the interval lies entirely below the threshold —
+    a description the evidence refutes, which is rare and actionable. The
+    much larger UNDECIDED population, and the count of `WORKS` verdicts
+    resting on a single run (round 393 measured run-level ICC 0.333, so
+    six probes in one invocation are worth 2.25 independent draws — see
+    ``trigger_eval.run_variance``), ride in the summary line instead.
+
+    A WARNING, never an error, and a skill already carrying a weak-probe
+    acknowledgement is skipped: the fix is a live spend, and a check that
+    can only go green by spending money is a check a round uninstalls."""
+    findings = []
+    weak = weak_baseline.get("skills", {})
+    for r in sorted(pooled, key=lambda r: r["name"]):
+        if r["verdict"] != "BROKEN" or r["name"] in weak:
+            continue
+        findings.append((
+            "warning", "P010", r["name"],
+            "pooled %d/%d over %d run(s) — Wilson 95%% [%.2f, %.2f] lies "
+            "entirely BELOW 0.5, so the evidence REFUTES this description "
+            "rather than failing to confirm it. Edit it once and re-probe "
+            "(round 141's stop-rule), or acknowledge it with an owner."
+            % (r["k"], r["n"], r["runs"], r["lo"], r["hi"])))
+    return findings
+
+
+def pooled_summary(pooled):
+    """(works, undecided, broken, single_run_works) over probed skills.
+
+    Round 393 deliberately does NOT emit one warning per UNDECIDED skill.
+    26 of the 46 are undecided; 33 new warnings would bury P010's handful
+    of real refutations and the check would stop being read — P004's own
+    reasoning, and the reason `run_checks_fast.sh` is exit-code-driven by
+    errors only. The count rides in the summary line instead, which is the
+    line `run_driver.sh` logs every round."""
+    works = sum(1 for r in pooled if r["verdict"] == "WORKS")
+    und = sum(1 for r in pooled if r["verdict"] == "UNDECIDED")
+    broken = sum(1 for r in pooled if r["verdict"] == "BROKEN")
+    single = sum(1 for r in pooled
+                 if r["verdict"] == "WORKS" and r["runs"] < 2)
+    return works, und, broken, single
 
 
 def check_replication(weak_baseline, repl_rows):
@@ -427,13 +493,24 @@ def main(argv=None):
                      ", ".join(r["disagree"]) or "—"))
         print()
 
+    # Round 393: every figure to the left of this one counts REPORTS.
+    # None of them answers "does the pooled evidence put this description
+    # above a coin flip", and when that question was first asked, 28 of the
+    # 46 came back UNDECIDED at 95% -- including 19 skills reading
+    # "full recall" off 3 probes in a single run, where Wilson on 3/3 is
+    # [0.44, 1.00]. The pooled verdict is the last clause because it is the
+    # one that says how much is actually known.
+    pooled = trigger_eval.pooled_rows(catalog, cases, reports)
+    n_works, n_und, n_broken, n_single = pooled_summary(pooled)
     print("case-coverage: %d skill(s), %d case(s) (%d negative); %d probed "
           "under the description on disk, %d of those on every positive "
           "case with full recall; %d replicated (>=2 same-description "
           "reports), %d of %d cross-report case verdicts DISAGREE; "
-          "%d error(s), %d warning(s)"
+          "POOLED 95%%: %d WORKS (%d of them on a single run), %d UNDECIDED, "
+          "%d REFUTED; %d error(s), %d warning(s)"
           % (len(rows), len(cases), sum(1 for c in cases if not c["expect"]),
-             n_probed, n_clean, n_rep, n_dis, n_comp, n_err, n_warn))
+             n_probed, n_clean, n_rep, n_dis, n_comp,
+             n_works, n_single, n_und, n_broken, n_err, n_warn))
     return 1 if n_err else 0
 
 

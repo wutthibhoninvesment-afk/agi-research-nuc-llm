@@ -125,6 +125,7 @@ import argparse
 import concurrent.futures
 import hashlib
 import json
+import math
 import os
 import random
 import re
@@ -1030,11 +1031,32 @@ def audit_skills(catalog, cases, reports, positive_floor=3):
                "digest": description_digest(desc),
                "under_floor": len(pos) < positive_floor}
         pos_ids = {c["id"] for c in pos}
+        # Round 393: prefer the newest report that probed THE DESCRIPTION ON
+        # DISK, not merely the newest report holding any probe. The old
+        # loop broke at the first report with probes, so a skill probed
+        # under its current description and then probed again under a
+        # variant that was tried and REVERTED read `STALE`, with
+        # covered/recalled taken from the reverted variant's measurement.
+        # Round 393 hit exactly that on `derived-subject-set` and it is the
+        # same defect as everything else that round found: the estimator
+        # answered a question about one report instead of about the
+        # evidence. Fall back to the newest report of any digest only to
+        # tell STALE from never.
+        with_probes = []
         for path, _, data in reports:
             probes = [r for r in data["results"]
                       if name in (r.get("expect") or []) and not r.get("error")]
-            if not probes:
-                continue
+            if probes:
+                with_probes.append((path, data, probes))
+        chosen = None
+        for path, data, probes in with_probes:
+            if (data.get("descriptions") or {}).get(name) == row["digest"]:
+                chosen = (path, data, probes)
+                break
+        if chosen is None and with_probes:
+            chosen = with_probes[0]
+        if chosen is not None:
+            path, data, probes = chosen
             row["report"] = os.path.basename(path)
             row["probes"] = len(probes)
             row["protocol"] = data.get("protocol", "default")
@@ -1054,9 +1076,209 @@ def audit_skills(catalog, cases, reports, positive_floor=3):
                 row["status"] = "probed"
             else:
                 row["status"] = "STALE"
-            break
         rows.append(row)
     return rows
+
+
+def wilson_interval(k, n, z=1.96):
+    """Wilson score interval for k successes in n Bernoulli trials.
+
+    Round 393. The corpus had no interval at all: every verdict ever
+    written about a description was a point estimate off one report, and a
+    point estimate cannot say "3 of 3 and 30 of 30 are different evidence".
+    Wilson rather than normal-approximation because the rates that matter
+    here sit at the ends (0/6, 6/6) where the normal interval is degenerate
+    or runs outside [0, 1)."""
+    if n <= 0:
+        return (0.0, 1.0)
+    p = k / n
+    d = 1.0 + z * z / n
+    centre = p + z * z / (2 * n)
+    half = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n))
+    return (max(0.0, (centre - half) / d), min(1.0, (centre + half) / d))
+
+
+def pooled_rows(catalog, cases, reports, threshold=0.5):
+    """Per catalog skill: every same-digest probe POOLED, with the run count
+    and an interval — the estimator ``replication_rows`` should have been.
+
+    Round 393. ``replication_rows`` collapses each report to
+    ``all(fires)``. Under a true fire rate p that boolean is True with
+    probability p**n, so the SAME description yields verdict True with
+    probability p at ``--repeats 1`` and p**3 at ``--repeats 3``. The
+    estimator therefore disagrees with itself whenever 0 < p < 1 and the
+    repeat counts differ, and round 393 measured the size of that: of the
+    45 cross-report comparisons the corpus was reporting as "27 DISAGREE",
+    **16.4 are expected under a null in which every case has one stable
+    rate and the selector is perfectly well-behaved** — so most of that
+    headline number was the estimator disagreeing with itself.
+
+    What this returns instead is the sufficient statistic — k of n across
+    all same-digest reports — plus ``runs``, because round 393 measured
+    that the RUN, not the probe, is the unit of independence (see
+    ``run_variance``). A verdict is:
+
+      ``WORKS``      interval lower bound  > threshold
+      ``BROKEN``     interval upper bound  < threshold
+      ``UNDECIDED``  the interval straddles it — the honest answer for
+                     almost every single-report probe this corpus holds
+
+    Per skill:
+      ``k``/``n``    fires / non-errored probes on positive cases, pooled
+      ``runs``       distinct reports contributing (the replication depth
+                     that actually counts)
+      ``lo``/``hi``  Wilson 95% interval on k/n
+      ``verdict``    as above; ``UNPROBED`` when n == 0
+      ``cases``      {case id: {"k","n","runs","lo","hi","verdict"}}
+    """
+    rows = []
+    for name, desc, _ in catalog:
+        digest = description_digest(desc)
+        pos_ids = {c["id"] for c in cases
+                   if name in c["expect"] and c.get("body") is None}
+        per_case = {}
+        reps = set()
+        for path, _, data in reports:
+            if (data.get("descriptions") or {}).get(name) != digest:
+                continue
+            base = os.path.basename(path)
+            for r in data["results"]:
+                if r.get("error") or r.get("id") not in pos_ids:
+                    continue
+                if name not in (r.get("expect") or []):
+                    continue
+                c = per_case.setdefault(r["id"], {"k": 0, "n": 0, "runs": set()})
+                c["n"] += 1
+                c["runs"].add(base)
+                reps.add(base)
+                if name in (r.get("fired") or []):
+                    c["k"] += 1
+        k = sum(c["k"] for c in per_case.values())
+        n = sum(c["n"] for c in per_case.values())
+        lo, hi = wilson_interval(k, n)
+        row = {"name": name, "k": k, "n": n, "runs": len(reps),
+               "lo": lo, "hi": hi, "cases": {},
+               "verdict": ("UNPROBED" if n == 0 else
+                           "WORKS" if lo > threshold else
+                           "BROKEN" if hi < threshold else "UNDECIDED")}
+        for cid, c in sorted(per_case.items()):
+            clo, chi = wilson_interval(c["k"], c["n"])
+            row["cases"][cid] = {
+                "k": c["k"], "n": c["n"], "runs": len(c["runs"]),
+                "lo": clo, "hi": chi,
+                "verdict": ("WORKS" if clo > threshold else
+                            "BROKEN" if chi < threshold else "UNDECIDED")}
+        rows.append(row)
+    return rows
+
+
+def run_variance(catalog, cases, reports):
+    """Decompose probe variance into BETWEEN-run and WITHIN-run parts.
+
+    Round 393, measured prospectively: 23 cases x 3 separate invocations of
+    this script x ``--repeats 2``, identical model / protocol / corpus /
+    concurrency, run sequentially, on a case set chosen before any of it
+    ran (the five skills that owed a probe). 138 probes, 0 errors.
+
+    Result, over the three ``state/trigger-eval/round-393-run{A,B,C}.json``
+    reports and nothing else: **MSB = 0.381, MSW = 0.190, MSB/MSW = 2.00,
+    ANOVA ICC = 0.333**, on the 7 positive cases informative for it (a case
+    pooling to exactly 0 or 1 carries no dispersion). Two probes in the
+    same run are correlated beyond their shared rate, so ``--repeats N``
+    inside one invocation does NOT buy N independent draws:
+
+        n_eff = n / (1 + (n - 1) * ICC)
+
+    At ICC 0.333 a 6-probe single run is worth **2.25** independent draws;
+    the same six probes split as 3 runs x 2 repeats are worth **4.50**.
+    Same model, same money, **twice the information** — which is the whole
+    practical content of this function.
+
+    That figure is evaluated against the descriptions ON DISK, because a
+    stale digest removes a case from the pool: while round 393 briefly had
+    an edited `derived-subject-set` staged, the same three reports gave 6
+    informative cases and ICC 0.200. Editing any of the five descriptions
+    those runs probed will move it again. Re-derive, do not quote.
+
+    Do NOT take the ICC from the archived reports instead. Round 393 got
+    0.665-0.737 that way and it is an artefact: many archived pairs are a
+    ``*-miss-reprobe`` / ``*-isolation`` run that exists BECAUSE the
+    earlier run missed, so the pair is conditioned on its own outcome and
+    regression to the mean reads as a run effect. Restricted to designed
+    replicates the archive gives 0.428-0.857, and the prospective number is
+    0.200. Selection on the outcome inflated it roughly threefold. Calling
+    this function over the WHOLE of ``state/trigger-eval/`` returns 0.568
+    for exactly that reason; that number is not a measurement of the
+    selector.
+
+    Returns ``None`` when no case has >= 2 contributing runs; otherwise a
+    dict with ``msb``, ``msw``, ``ratio``, ``icc``, ``cases``, ``runs``.
+    """
+    cells = {}
+    for name, desc, _ in catalog:
+        digest = description_digest(desc)
+        pos_ids = {c["id"] for c in cases
+                   if name in c["expect"] and c.get("body") is None}
+        for path, _, data in reports:
+            if (data.get("descriptions") or {}).get(name) != digest:
+                continue
+            base = os.path.basename(path)
+            for r in data["results"]:
+                if r.get("error") or r.get("id") not in pos_ids:
+                    continue
+                if name not in (r.get("expect") or []):
+                    continue
+                cell = cells.setdefault((name, r["id"]), {}).setdefault(
+                    base, [0, 0])
+                cell[1] += 1
+                if name in (r.get("fired") or []):
+                    cell[0] += 1
+
+    msb_num = msb_df = msw_num = msw_df = 0.0
+    icc_num = icc_den = 0.0
+    used = 0
+    runs = set()
+    for key, d in cells.items():
+        if len(d) < 2:
+            continue
+        K = sum(k for k, n in d.values())
+        N = sum(n for k, n in d.values())
+        p = K / float(N)
+        if p in (0.0, 1.0) or N == len(d):
+            continue
+        R = len(d)
+        between = sum(n * (k / float(n) - p) ** 2 for k, n in d.values())
+        within = sum(k * (1 - k / float(n)) ** 2 + (n - k) * (k / float(n)) ** 2
+                     for k, n in d.values())
+        dfw = N - R
+        if dfw <= 0:
+            continue
+        msb, msw = between / (R - 1), within / dfw
+        n0 = (N - sum(n * n for k, n in d.values()) / float(N)) / (R - 1)
+        msb_num += between
+        msb_df += R - 1
+        msw_num += within
+        msw_df += dfw
+        icc_num += msb - msw
+        icc_den += msb + (n0 - 1) * msw
+        used += 1
+        runs |= set(d)
+    if not used or not icc_den:
+        return None
+    msb, msw = msb_num / msb_df, msw_num / msw_df
+    # MSW == 0 is a legitimate and maximally informative outcome (every run
+    # was internally unanimous and the runs disagreed), not a reason to
+    # refuse an answer -- the first draft returned None for it.
+    ratio = float("inf") if msw == 0 else msb / msw
+    return {"msb": msb, "msw": msw, "ratio": ratio,
+            "icc": icc_num / icc_den, "cases": used, "runs": len(runs)}
+
+
+def effective_draws(n, icc):
+    """Independent-draw equivalent of ``n`` probes inside ONE run."""
+    if n <= 0:
+        return 0.0
+    return n / (1.0 + (n - 1) * icc)
 
 
 def replication_rows(catalog, cases, reports):

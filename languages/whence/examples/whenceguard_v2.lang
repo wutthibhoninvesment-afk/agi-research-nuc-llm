@@ -1,0 +1,72 @@
+# WhenceGuard v2 — Financial Auditor (Array-based Data)
+# Language: Whence v0.19 | No Dictionary Syntax
+
+let max_budget = 5000.00
+let tax_rate = 0.07
+let approved_departments = [Engineering, Marketing, Operations]
+
+let transaction_id = TXN-2026-8842
+let department = IT Support
+let vendor = SecureSupplier_Ltd
+
+# Data stored as flat arrays instead of dictionaries
+let items_list = [
+    [Hardware Unit, 2100.00, 2],
+    [Express Shipping, 350.00, 1]
+]
+
+fn validate_department(dept_name) {
+    for d in approved_departments {
+        if dept_name == d { return AUTHORIZED }
+    }
+    miss DEPT_NOT_APPROVED
+}
+
+fn compute_gross(items_arr) {
+    fold(items_arr, 0.0, fn sum_lines(acc, line_item) {
+        let base_price = line_item[1]
+        let quantity = line_item[2]
+        acc + (base_price * quantity)
+    })
+}
+
+fn apply_tax(base_amount) {
+    base_amount * (1.0 + tax_rate)
+}
+
+fn check_budget_limit(amount) {
+    if amount > max_budget {
+        miss BUDGET_VIOLATION
+    } else {
+        amount
+    }
+}
+
+print(=== WHENCEGUARD AUDIT ENGINE STARTED ===)
+println(ID:  + transaction_id)
+println(Department:  + department)
+
+let department_status = rescue { validate_department(department) } 
+                       catch Miss as dept_err {
+                           println(Step 1 FAILED:  + why(dept_err))
+                           UNDER_REVIEW
+                       }
+
+let gross_total = compute_gross(items_list)
+let net_total = apply_tax(gross_total)
+
+let safe_net = rescue { check_budget_limit(net_total) }
+              catch Miss as budget_err {
+                  println(Step 2 FAILED:  + why(budget_err))
+                  0.0
+              }
+
+if department_status == AUTHORIZED and safe_net != 0.0 {
+    print(APPROVED FOR PAYMENT)
+} else if department_status == UNDER_REVIEW {
+    print(PENDING VERIFICATION)
+} else {
+    print(REJECTED)
+}
+
+net_total
