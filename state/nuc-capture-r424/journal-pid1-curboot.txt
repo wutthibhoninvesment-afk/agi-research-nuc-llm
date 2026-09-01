@@ -1,0 +1,360 @@
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Mounted dev-hugepages.mount - Huge Pages File System.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Mounted dev-mqueue.mount - POSIX Message Queue File System.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Mounted sys-kernel-debug.mount - Kernel Debug File System.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Mounted sys-kernel-tracing.mount - Kernel Trace File System.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Finished kmod-static-nodes.service - Create List of Static Device Nodes.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Finished lvm2-monitor.service - Monitoring of LVM2 mirrors, snapshots etc. using dmeventd or progress polling.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: modprobe@configfs.service: Deactivated successfully.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Finished modprobe@configfs.service - Load Kernel Module configfs.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: modprobe@dm_mod.service: Deactivated successfully.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Finished modprobe@dm_mod.service - Load Kernel Module dm_mod.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: modprobe@drm.service: Deactivated successfully.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Finished modprobe@drm.service - Load Kernel Module drm.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Finished keyboard-setup.service - Set the console keyboard layout.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: modprobe@efi_pstore.service: Deactivated successfully.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Finished modprobe@efi_pstore.service - Load Kernel Module efi_pstore.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: modprobe@fuse.service: Deactivated successfully.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Finished modprobe@fuse.service - Load Kernel Module fuse.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: modprobe@loop.service: Deactivated successfully.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Finished modprobe@loop.service - Load Kernel Module loop.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: modprobe@nvme_fabrics.service: Deactivated successfully.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Finished modprobe@nvme_fabrics.service - Load Kernel Module nvme_fabrics.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Finished systemd-modules-load.service - Load Kernel Modules.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Finished systemd-remount-fs.service - Remount Root and Kernel File Systems.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Activating swap swap.img.swap - /swap.img...
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Mounting sys-fs-fuse-connections.mount - FUSE Control File System...
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Mounting sys-kernel-config.mount - Kernel Configuration File System...
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Starting multipathd.service - Device-Mapper Multipath Device Controller...
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: systemd-hwdb-update.service - Rebuild Hardware Database was skipped because of an unmet condition check (ConditionNeedsUpdate=/etc).
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Starting systemd-journal-flush.service - Flush Journal to Persistent Storage...
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: systemd-pstore.service - Platform Persistent Storage Archival was skipped because of an unmet condition check (ConditionDirectoryNotEmpty=/sys/fs/pstore).
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Starting systemd-random-seed.service - Load/Save OS Random Seed...
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: systemd-repart.service - Repartition Root Disk was skipped because no trigger condition checks were met.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Starting systemd-sysctl.service - Apply Kernel Variables...
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Starting systemd-tmpfiles-setup-dev-early.service - Create Static Device Nodes in /dev gracefully...
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: systemd-tpm2-setup.service - TPM2 SRK Setup was skipped because of an unmet condition check (ConditionSecurity=measured-uki).
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Activated swap swap.img.swap - /swap.img.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Mounted sys-fs-fuse-connections.mount - FUSE Control File System.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Mounted sys-kernel-config.mount - Kernel Configuration File System.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Finished systemd-random-seed.service - Load/Save OS Random Seed.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Finished systemd-sysctl.service - Apply Kernel Variables.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Finished systemd-tmpfiles-setup-dev-early.service - Create Static Device Nodes in /dev gracefully.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Reached target swap.target - Swaps.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: systemd-sysusers.service - Create System Users was skipped because no trigger condition checks were met.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Starting systemd-tmpfiles-setup-dev.service - Create Static Device Nodes in /dev...
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Started multipathd.service - Device-Mapper Multipath Device Controller.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Finished systemd-tmpfiles-setup-dev.service - Create Static Device Nodes in /dev.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Starting systemd-udevd.service - Rule-based Manager for Device Events and Files...
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Finished systemd-journal-flush.service - Flush Journal to Persistent Storage.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Finished systemd-udev-trigger.service - Coldplug All udev Devices.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Started systemd-udevd.service - Rule-based Manager for Device Events and Files.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: nvmefc-boot-connections.service - Auto-connect to subsystems on FC-NVME devices found during boot was skipped because of an unmet condition check (ConditionPathExists=/sys/class/fc/fc_udev_device/nvme_discovery).
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Reached target local-fs-pre.target - Preparation for Local File Systems.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: plymouth-start.service - Show Plymouth Boot Screen was skipped because of an unmet condition check (ConditionKernelCommandLine=splash).
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Started systemd-ask-password-console.path - Dispatch Password Requests to Console Directory Watch.
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: systemd-ask-password-plymouth.path - Forward Password Requests to Plymouth Directory Watch was skipped because of an unmet condition check (ConditionPathExists=/run/plymouth/pid).
+2026-09-01T05:33:31+00:00 pgain-nuc systemd[1]: Reached target cryptsetup.target - Local Encrypted Volumes.
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Found device dev-disk-by\x2did-dm\x2duuid\x2dLVM\x2dGmeciVfJgbU9Qm5md2f6WBnVjAubj2fBpywKoC1qmcFWFhy9XEjURBjljeyrHwD4.device - /dev/disk/by-id/dm-uuid-LVM-GmeciVfJgbU9Qm5md2f6WBnVjAubj2fBpywKoC1qmcFWFhy9XEjURBjljeyrHwD4.
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Found device dev-disk-by\x2duuid-C66B\x2d40FA.device - WD Blue SN5000 1TB 1.
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Found device dev-disk-by\x2duuid-ccc0671a\x2dc1bf\x2d43a0\x2dbc37\x2d556570907824.device - WD Blue SN5000 1TB 2.
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Starting systemd-fsck@dev-disk-by\x2did-dm\x2duuid\x2dLVM\x2dGmeciVfJgbU9Qm5md2f6WBnVjAubj2fBpywKoC1qmcFWFhy9XEjURBjljeyrHwD4.service - File System Check on /dev/disk/by-id/dm-uuid-LVM-GmeciVfJgbU9Qm5md2f6WBnVjAubj2fBpywKoC1qmcFWFhy9XEjURBjljeyrHwD4...
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Starting systemd-fsck@dev-disk-by\x2duuid-C66B\x2d40FA.service - File System Check on /dev/disk/by-uuid/C66B-40FA...
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Starting systemd-fsck@dev-disk-by\x2duuid-ccc0671a\x2dc1bf\x2d43a0\x2dbc37\x2d556570907824.service - File System Check on /dev/disk/by-uuid/ccc0671a-c1bf-43a0-bc37-556570907824...
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Started systemd-fsckd.service - File System Check Daemon to report status.
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Finished systemd-fsck@dev-disk-by\x2duuid-ccc0671a\x2dc1bf\x2d43a0\x2dbc37\x2d556570907824.service - File System Check on /dev/disk/by-uuid/ccc0671a-c1bf-43a0-bc37-556570907824.
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Mounting boot.mount - /boot...
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Finished systemd-fsck@dev-disk-by\x2duuid-C66B\x2d40FA.service - File System Check on /dev/disk/by-uuid/C66B-40FA.
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Mounted boot.mount - /boot.
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Mounting boot-efi.mount - /boot/efi...
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Finished systemd-fsck@dev-disk-by\x2did-dm\x2duuid\x2dLVM\x2dGmeciVfJgbU9Qm5md2f6WBnVjAubj2fBpywKoC1qmcFWFhy9XEjURBjljeyrHwD4.service - File System Check on /dev/disk/by-id/dm-uuid-LVM-GmeciVfJgbU9Qm5md2f6WBnVjAubj2fBpywKoC1qmcFWFhy9XEjURBjljeyrHwD4.
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Mounting work.mount - /work...
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Mounted boot-efi.mount - /boot/efi.
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Mounted work.mount - /work.
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Reached target local-fs.target - Local File Systems.
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Listening on systemd-sysext.socket - System Extension Image Management (Varlink).
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Starting apparmor.service - Load AppArmor profiles...
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Starting console-setup.service - Set console font and keymap...
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Starting finalrd.service - Create final runtime dir for shutdown pivot root...
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: ldconfig.service - Rebuild Dynamic Linker Cache was skipped because no trigger condition checks were met.
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Starting plymouth-read-write.service - Tell Plymouth To Write Out Runtime Data...
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Starting systemd-binfmt.service - Set Up Additional Binary Formats...
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Starting systemd-tmpfiles-setup.service - Create Volatile Files and Directories...
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Starting ufw.service - Uncomplicated firewall...
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Finished console-setup.service - Set console font and keymap.
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Finished finalrd.service - Create final runtime dir for shutdown pivot root.
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Finished plymouth-read-write.service - Tell Plymouth To Write Out Runtime Data.
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: proc-sys-fs-binfmt_misc.automount: Got automount request for /proc/sys/fs/binfmt_misc, triggered by 533 (systemd-binfmt)
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Finished systemd-tmpfiles-setup.service - Create Volatile Files and Directories.
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: systemd-firstboot.service - First Boot Wizard was skipped because of an unmet condition check (ConditionFirstBoot=yes).
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: first-boot-complete.target - First Boot Complete was skipped because of an unmet condition check (ConditionFirstBoot=yes).
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: systemd-journal-catalog-update.service - Rebuild Journal Catalog was skipped because of an unmet condition check (ConditionNeedsUpdate=/var).
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: systemd-machine-id-commit.service - Commit a transient machine-id on disk was skipped because of an unmet condition check (ConditionPathIsMountPoint=/etc/machine-id).
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Starting systemd-resolved.service - Network Name Resolution...
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Starting systemd-timesyncd.service - Network Time Synchronization...
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: systemd-update-done.service - Update is Completed was skipped because no trigger condition checks were met.
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Starting systemd-update-utmp.service - Record System Boot/Shutdown in UTMP...
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Finished apparmor.service - Load AppArmor profiles.
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Listening on systemd-rfkill.socket - Load/Save RF Kill Switch Status /dev/rfkill Watch.
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Starting snapd.apparmor.service - Load AppArmor profiles managed internally by snapd...
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: vgauth.service - Authentication service for virtual machines hosted on VMware was skipped because of an unmet condition check (ConditionVirtualization=vmware).
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: open-vm-tools.service - Service for virtual machines hosted on VMware was skipped because of an unmet condition check (ConditionVirtualization=vmware).
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Finished systemd-update-utmp.service - Record System Boot/Shutdown in UTMP.
+2026-09-01T05:33:32+00:00 pgain-nuc systemd[1]: Mounting proc-sys-fs-binfmt_misc.mount - Arbitrary Executable File Formats File System...
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Mounted proc-sys-fs-binfmt_misc.mount - Arbitrary Executable File Formats File System.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Finished systemd-binfmt.service - Set Up Additional Binary Formats.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Finished snapd.apparmor.service - Load AppArmor profiles managed internally by snapd.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Starting systemd-rfkill.service - Load/Save RF Kill Switch Status...
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Started systemd-timesyncd.service - Network Time Synchronization.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Started systemd-rfkill.service - Load/Save RF Kill Switch Status.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Reached target bluetooth.target - Bluetooth Support.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Reached target time-set.target - System Time Set.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Started systemd-resolved.service - Network Name Resolution.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Reached target nss-lookup.target - Host and Network Name Lookups.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Reached target sysinit.target - System Initialization.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: apport-autoreport.path - Process error reports when automatic reporting is enabled (file watch) was skipped because of an unmet condition check (ConditionPathExists=/var/lib/apport/autoreport).
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: tpm-udev.path - Handle dynamically added tpm devices was skipped because of an unmet condition check (ConditionVirtualization=container).
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: apport-autoreport.timer - Process error reports when automatic reporting is enabled (timer based) was skipped because of an unmet condition check (ConditionPathExists=/var/lib/apport/autoreport).
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Started apt-daily.timer - Daily apt download activities.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Started apt-daily-upgrade.timer - Daily apt upgrade and clean activities.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Started dpkg-db-backup.timer - Daily dpkg database backup timer.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Started e2scrub_all.timer - Periodic ext4 Online Metadata Check for All Filesystems.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Started fstrim.timer - Discard unused filesystem blocks once a week.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Started fwupd-refresh.timer - Refresh fwupd metadata regularly.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Started logrotate.timer - Daily rotation of log files.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Started man-db.timer - Daily man-db regeneration.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Started motd-news.timer - Message of the Day.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: snapd.snap-repair.timer - Timer to automatically fetch and run repair assertions was skipped because no trigger condition checks were met.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Started sysstat-collect.timer - Run system activity accounting tool every 10 minutes.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Started sysstat-summary.timer - Generate summary of yesterday's process accounting.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Started systemd-tmpfiles-clean.timer - Daily Cleanup of Temporary Directories.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: ua-timer.timer - Ubuntu Pro Timer for running repeated jobs was skipped because of an unmet condition check (ConditionPathExists=/var/lib/ubuntu-advantage/private/machine-token.json).
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Reached target paths.target - Path Units.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: apport-forward.socket - Unix socket for apport crash forwarding was skipped because of an unmet condition check (ConditionVirtualization=container).
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Listening on dbus.socket - D-Bus System Message Bus Socket.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Listening on iscsid.socket - Open-iSCSI iscsid Socket.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Starting lxd-installer.socket - Helper to install lxd snap on demand...
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Starting snapd.socket - Socket activation for snappy daemon...
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Listening on ssh.socket - OpenBSD Secure Shell server socket.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Listening on uuidd.socket - UUID daemon activation socket.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: systemd-pcrphase-sysinit.service - TPM2 PCR Barrier (Initialization) was skipped because of an unmet condition check (ConditionSecurity=measured-uki).
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Listening on lxd-installer.socket - Helper to install lxd snap on demand.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Listening on snapd.socket - Socket activation for snappy daemon.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Reached target sockets.target - Socket Units.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Reached target basic.target - Basic System.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Starting dbus.service - D-Bus System Message Bus...
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Started dmesg.service - Save initial kernel messages after boot.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Starting dpkg-db-backup.service - Daily dpkg database backup service...
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Starting e2scrub_reap.service - Remove Stale Online ext4 Metadata Check Snapshots...
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: getty-static.service - getty on tty2-tty6 if dbus and logind are not available was skipped because of an unmet condition check (ConditionPathExists=!/usr/bin/dbus-daemon).
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Starting grub-common.service - Record successful boot for GRUB...
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Starting lm-sensors.service - Initialize hardware monitoring sensors...
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: networkd-dispatcher.service - Dispatcher daemon for systemd-networkd was skipped because no trigger condition checks were met.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Starting polkit.service - Authorization Manager...
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Starting rsyslog.service - System Logging Service...
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Starting secureboot-db.service - Secure Boot updates for DB and DBX...
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Starting smartmontools.service - Self Monitoring and Reporting Technology (SMART) Daemon...
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: snapd.core-fixup.service - Automatically repair incorrect owner/permissions on core devices was skipped because no trigger condition checks were met.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: snapd.recovery-chooser-trigger.service - Wait for the Ubuntu Core chooser trigger was skipped because of an unmet condition check (ConditionKernelCommandLine=snapd_recovery_mode).
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Reached target getty-pre.target - Preparation for Logins.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Starting snapd.seeded.service - Wait until snapd is fully seeded...
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Starting snapd.service - Snap Daemon...
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: ssl-cert.service - Generate snakeoil SSL keypair was skipped because of an unmet condition check (ConditionPathExists=!/etc/ssl/private/ssl-cert-snakeoil.key).
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Starting sysstat.service - Resets System Activity Logs...
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Starting systemd-logind.service - User Login Management...
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Starting thermald.service - Thermal Daemon Service...
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: ua-reboot-cmds.service - Ubuntu Pro reboot cmds was skipped because of an unmet condition check (ConditionPathExists=/var/lib/ubuntu-advantage/private/machine-token.json).
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Starting udisks2.service - Disk Manager...
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Starting logrotate.service - Rotate log files...
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Started dbus.service - D-Bus System Message Bus.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Started smartmontools.service - Self Monitoring and Reporting Technology (SMART) Daemon.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: dpkg-db-backup.service: Deactivated successfully.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Finished dpkg-db-backup.service - Daily dpkg database backup service.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: e2scrub_reap.service: Deactivated successfully.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Finished e2scrub_reap.service - Remove Stale Online ext4 Metadata Check Snapshots.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Finished ufw.service - Uncomplicated firewall.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Finished sysstat.service - Resets System Activity Logs.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Found device sys-subsystem-net-devices-wlp58s0.device - Wireless 8265 / 8275.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Finished lm-sensors.service - Initialize hardware monitoring sensors.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: logrotate.service: Deactivated successfully.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Finished logrotate.service - Rotate log files.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: grub-common.service: Deactivated successfully.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Finished grub-common.service - Record successful boot for GRUB.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Started thermald.service - Thermal Daemon Service.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Started systemd-logind.service - User Login Management.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: secureboot-db.service: Deactivated successfully.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Finished secureboot-db.service - Secure Boot updates for DB and DBX.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Started polkit.service - Authorization Manager.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Created slice user-1000.slice - User Slice of UID 1000.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Reached target network-pre.target - Preparation for Network.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Starting ModemManager.service - Modem Manager...
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Starting grub-initrd-fallback.service - GRUB failed boot detection...
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Started netplan-wpa-wlp58s0.service - WPA supplicant for netplan wlp58s0.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Starting systemd-networkd.service - Network Configuration...
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Starting tailscaled.service - Tailscale node agent...
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Starting user-runtime-dir@1000.service - User Runtime Directory /run/user/1000...
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Starting wpa_supplicant.service - WPA supplicant...
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Started udisks2.service - Disk Manager.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Finished user-runtime-dir@1000.service - User Runtime Directory /run/user/1000.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: grub-initrd-fallback.service: Deactivated successfully.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Finished grub-initrd-fallback.service - GRUB failed boot detection.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Started wpa_supplicant.service - WPA supplicant.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Started rsyslog.service - System Logging Service.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: Started ModemManager.service - Modem Manager.
+2026-09-01T05:33:33+00:00 pgain-nuc systemd[1]: tmp-syscheck\x2dmountpoint\x2d245067687.mount: Deactivated successfully.
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Started snapd.service - Snap Daemon.
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Starting systemd-timedated.service - Time & Date Service...
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Started systemd-networkd.service - Network Configuration.
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Started tailscaled.service - Tailscale node agent.
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Reached target network.target - Network.
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: netplan-regdom.service - Netplan regulatory-domain configuration was skipped because of an unmet condition check (ConditionFileIsExecutable=/usr/sbin/iw).
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Starting postgresql@16-main.service - PostgreSQL Cluster 16-main...
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: systemd-networkd-wait-online.service - Wait for Network to be Configured was skipped because of an unmet condition check (ConditionPathIsSymbolicLink=/run/systemd/generator/network-online.target.wants/systemd-networkd-wait-online.service).
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Reached target network-online.target - Network is Online.
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Started update-notifier-download.timer - Download data for packages that failed at package install time.
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Started update-notifier-motd.timer - Check to see whether there is a new version of Ubuntu available.
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Reached target timers.target - Timer Units.
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Starting nvmf-autoconnect.service - Connect NVMe-oF subsystems automatically during boot...
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: open-iscsi.service - Login to default iSCSI targets was skipped because no trigger condition checks were met.
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Finished blk-availability.service - Availability of block devices.
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: pollinate.service - Pollinate to seed the pseudo random number generator was skipped because of an unmet condition check (ConditionPathExists=!/var/cache/pollinate/seeded).
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Starting ssh.service - OpenBSD Secure Shell server...
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: ubuntu-advantage.service - Ubuntu Pro Background Auto Attach was skipped because no trigger condition checks were met.
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Started unattended-upgrades.service - Unattended Upgrades Shutdown.
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Finished snapd.seeded.service - Wait until snapd is fully seeded.
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: nvmf-autoconnect.service: Deactivated successfully.
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Finished nvmf-autoconnect.service - Connect NVMe-oF subsystems automatically during boot.
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Started systemd-timedated.service - Time & Date Service.
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Reached target remote-fs-pre.target - Preparation for Remote File Systems.
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Reached target remote-fs.target - Remote File Systems.
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Reached target sound.target - Sound Card.
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Starting apport.service - automatic crash report generation...
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Started cron.service - Regular background program processing daemon.
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: snapd.autoimport.service - Auto import assertions from block devices was skipped because no trigger condition checks were met.
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: systemd-pcrphase.service - TPM2 PCR Barrier (User) was skipped because of an unmet condition check (ConditionSecurity=measured-uki).
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Starting systemd-user-sessions.service - Permit User Sessions...
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Finished systemd-user-sessions.service - Permit User Sessions.
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Starting plymouth-quit-wait.service - Hold until boot process finishes up...
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Starting plymouth-quit.service - Terminate Plymouth Boot Screen...
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Starting user@1000.service - User Manager for UID 1000...
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Started ssh.service - OpenBSD Secure Shell server.
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Finished plymouth-quit-wait.service - Hold until boot process finishes up.
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Starting setvtrgb.service - Set console scheme...
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Finished plymouth-quit.service - Terminate Plymouth Boot Screen.
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Finished setvtrgb.service - Set console scheme.
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Created slice system-getty.slice - Slice /system/getty.
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Started getty@tty1.service - Getty on tty1.
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Reached target getty.target - Login Prompts.
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Finished apport.service - automatic crash report generation.
+2026-09-01T05:33:34+00:00 pgain-nuc systemd[1]: Started user@1000.service - User Manager for UID 1000.
+2026-09-01T05:33:37+00:00 pgain-nuc systemd[1]: Started postgresql@16-main.service - PostgreSQL Cluster 16-main.
+2026-09-01T05:33:37+00:00 pgain-nuc systemd[1]: Starting postgresql.service - PostgreSQL RDBMS...
+2026-09-01T05:33:37+00:00 pgain-nuc systemd[1]: Finished postgresql.service - PostgreSQL RDBMS.
+2026-09-01T05:33:37+00:00 pgain-nuc systemd[1]: Reached target multi-user.target - Multi-User System.
+2026-09-01T05:33:37+00:00 pgain-nuc systemd[1]: Reached target graphical.target - Graphical Interface.
+2026-09-01T05:33:37+00:00 pgain-nuc systemd[1]: Starting systemd-update-utmp-runlevel.service - Record Runlevel Change in UTMP...
+2026-09-01T05:33:37+00:00 pgain-nuc systemd[1]: systemd-update-utmp-runlevel.service: Deactivated successfully.
+2026-09-01T05:33:37+00:00 pgain-nuc systemd[1]: Finished systemd-update-utmp-runlevel.service - Record Runlevel Change in UTMP.
+2026-09-01T05:33:37+00:00 pgain-nuc systemd[1]: Startup finished in 12.620s (firmware) + 4.257s (loader) + 2.282s (kernel) + 5.944s (userspace) = 25.104s.
+2026-09-01T05:33:37+00:00 pgain-nuc systemd[1]: dmesg.service: Deactivated successfully.
+2026-09-01T05:33:38+00:00 pgain-nuc systemd[1]: systemd-rfkill.service: Deactivated successfully.
+2026-09-01T05:33:52+00:00 pgain-nuc systemd[1]: snapd.service: Deactivated successfully.
+2026-09-01T05:34:02+00:00 pgain-nuc systemd[1]: systemd-fsckd.service: Deactivated successfully.
+2026-09-01T05:34:04+00:00 pgain-nuc systemd[1]: systemd-timedated.service: Deactivated successfully.
+2026-09-01T05:38:42+00:00 pgain-nuc systemd[1]: Starting update-notifier-download.service - Download data for packages that failed at package install time...
+2026-09-01T05:38:42+00:00 pgain-nuc systemd[1]: update-notifier-download.service: Deactivated successfully.
+2026-09-01T05:38:42+00:00 pgain-nuc systemd[1]: Finished update-notifier-download.service - Download data for packages that failed at package install time.
+2026-09-01T05:40:12+00:00 pgain-nuc systemd[1]: Starting sysstat-collect.service - system activity accounting tool...
+2026-09-01T05:40:12+00:00 pgain-nuc systemd[1]: sysstat-collect.service: Deactivated successfully.
+2026-09-01T05:40:12+00:00 pgain-nuc systemd[1]: Finished sysstat-collect.service - system activity accounting tool.
+2026-09-01T05:42:54+00:00 pgain-nuc systemd[1]: Started session-3.scope - Session 3 of User jab.
+2026-09-01T05:48:28+00:00 pgain-nuc systemd[1]: Starting systemd-tmpfiles-clean.service - Cleanup of Temporary Directories...
+2026-09-01T05:48:28+00:00 pgain-nuc systemd[1]: systemd-tmpfiles-clean.service: Deactivated successfully.
+2026-09-01T05:48:28+00:00 pgain-nuc systemd[1]: Finished systemd-tmpfiles-clean.service - Cleanup of Temporary Directories.
+2026-09-01T05:50:01+00:00 pgain-nuc systemd[1]: Starting sysstat-collect.service - system activity accounting tool...
+2026-09-01T05:50:01+00:00 pgain-nuc systemd[1]: sysstat-collect.service: Deactivated successfully.
+2026-09-01T05:50:01+00:00 pgain-nuc systemd[1]: Finished sysstat-collect.service - system activity accounting tool.
+2026-09-01T05:51:52+00:00 pgain-nuc systemd[1]: Starting fwupd-refresh.service - Refresh fwupd metadata and update motd...
+2026-09-01T05:51:52+00:00 pgain-nuc systemd[1]: Starting modprobe@sd_mod.service - Load Kernel Module sd_mod...
+2026-09-01T05:51:52+00:00 pgain-nuc systemd[1]: modprobe@sd_mod.service: Deactivated successfully.
+2026-09-01T05:51:52+00:00 pgain-nuc systemd[1]: Finished modprobe@sd_mod.service - Load Kernel Module sd_mod.
+2026-09-01T05:51:52+00:00 pgain-nuc systemd[1]: Starting fwupd.service - Firmware update daemon...
+2026-09-01T05:51:52+00:00 pgain-nuc systemd[1]: Starting upower.service - Daemon for power management...
+2026-09-01T05:51:52+00:00 pgain-nuc systemd[1]: Started upower.service - Daemon for power management.
+2026-09-01T05:51:53+00:00 pgain-nuc systemd[1]: Started fwupd.service - Firmware update daemon.
+2026-09-01T05:51:55+00:00 pgain-nuc systemd[1]: fwupd-refresh.service: Deactivated successfully.
+2026-09-01T05:51:55+00:00 pgain-nuc systemd[1]: Finished fwupd-refresh.service - Refresh fwupd metadata and update motd.
+2026-09-01T06:00:02+00:00 pgain-nuc systemd[1]: Starting sysstat-collect.service - system activity accounting tool...
+2026-09-01T06:00:02+00:00 pgain-nuc systemd[1]: sysstat-collect.service: Deactivated successfully.
+2026-09-01T06:00:02+00:00 pgain-nuc systemd[1]: Finished sysstat-collect.service - system activity accounting tool.
+2026-09-01T06:10:02+00:00 pgain-nuc systemd[1]: Starting sysstat-collect.service - system activity accounting tool...
+2026-09-01T06:10:02+00:00 pgain-nuc systemd[1]: sysstat-collect.service: Deactivated successfully.
+2026-09-01T06:10:02+00:00 pgain-nuc systemd[1]: Finished sysstat-collect.service - system activity accounting tool.
+2026-09-01T06:20:01+00:00 pgain-nuc systemd[1]: Starting sysstat-collect.service - system activity accounting tool...
+2026-09-01T06:20:01+00:00 pgain-nuc systemd[1]: sysstat-collect.service: Deactivated successfully.
+2026-09-01T06:20:01+00:00 pgain-nuc systemd[1]: Finished sysstat-collect.service - system activity accounting tool.
+2026-09-01T06:30:24+00:00 pgain-nuc systemd[1]: Starting sysstat-collect.service - system activity accounting tool...
+2026-09-01T06:30:24+00:00 pgain-nuc systemd[1]: sysstat-collect.service: Deactivated successfully.
+2026-09-01T06:30:24+00:00 pgain-nuc systemd[1]: Finished sysstat-collect.service - system activity accounting tool.
+2026-09-01T06:39:39+00:00 pgain-nuc systemd[1]: Starting apt-daily-upgrade.service - Daily apt upgrade and clean activities...
+2026-09-01T06:39:41+00:00 pgain-nuc systemd[1]: apt-daily-upgrade.service: Deactivated successfully.
+2026-09-01T06:39:41+00:00 pgain-nuc systemd[1]: Finished apt-daily-upgrade.service - Daily apt upgrade and clean activities.
+2026-09-01T06:39:41+00:00 pgain-nuc systemd[1]: apt-daily-upgrade.service: Consumed 2.085s CPU time.
+2026-09-01T06:40:22+00:00 pgain-nuc systemd[1]: Starting sysstat-collect.service - system activity accounting tool...
+2026-09-01T06:40:22+00:00 pgain-nuc systemd[1]: sysstat-collect.service: Deactivated successfully.
+2026-09-01T06:40:22+00:00 pgain-nuc systemd[1]: Finished sysstat-collect.service - system activity accounting tool.
+2026-09-01T06:50:01+00:00 pgain-nuc systemd[1]: Starting sysstat-collect.service - system activity accounting tool...
+2026-09-01T06:50:01+00:00 pgain-nuc systemd[1]: sysstat-collect.service: Deactivated successfully.
+2026-09-01T06:50:01+00:00 pgain-nuc systemd[1]: Finished sysstat-collect.service - system activity accounting tool.
+2026-09-01T06:54:52+00:00 pgain-nuc systemd[1]: Starting fwupd-refresh.service - Refresh fwupd metadata and update motd...
+2026-09-01T06:54:52+00:00 pgain-nuc systemd[1]: fwupd-refresh.service: Deactivated successfully.
+2026-09-01T06:54:52+00:00 pgain-nuc systemd[1]: Finished fwupd-refresh.service - Refresh fwupd metadata and update motd.
+2026-09-01T07:00:12+00:00 pgain-nuc systemd[1]: Starting sysstat-collect.service - system activity accounting tool...
+2026-09-01T07:00:12+00:00 pgain-nuc systemd[1]: sysstat-collect.service: Deactivated successfully.
+2026-09-01T07:00:12+00:00 pgain-nuc systemd[1]: Finished sysstat-collect.service - system activity accounting tool.
+2026-09-01T07:10:24+00:00 pgain-nuc systemd[1]: Starting sysstat-collect.service - system activity accounting tool...
+2026-09-01T07:10:24+00:00 pgain-nuc systemd[1]: sysstat-collect.service: Deactivated successfully.
+2026-09-01T07:10:24+00:00 pgain-nuc systemd[1]: Finished sysstat-collect.service - system activity accounting tool.
+2026-09-01T07:20:01+00:00 pgain-nuc systemd[1]: Starting sysstat-collect.service - system activity accounting tool...
+2026-09-01T07:20:01+00:00 pgain-nuc systemd[1]: sysstat-collect.service: Deactivated successfully.
+2026-09-01T07:20:01+00:00 pgain-nuc systemd[1]: Finished sysstat-collect.service - system activity accounting tool.
+2026-09-01T07:29:05+00:00 pgain-nuc systemd[1]: Starting fwupd-refresh.service - Refresh fwupd metadata and update motd...
+2026-09-01T07:29:05+00:00 pgain-nuc systemd[1]: fwupd-refresh.service: Deactivated successfully.
+2026-09-01T07:29:05+00:00 pgain-nuc systemd[1]: Finished fwupd-refresh.service - Refresh fwupd metadata and update motd.
+2026-09-01T07:30:02+00:00 pgain-nuc systemd[1]: Starting sysstat-collect.service - system activity accounting tool...
+2026-09-01T07:30:02+00:00 pgain-nuc systemd[1]: sysstat-collect.service: Deactivated successfully.
+2026-09-01T07:30:02+00:00 pgain-nuc systemd[1]: Finished sysstat-collect.service - system activity accounting tool.
+2026-09-01T07:40:20+00:00 pgain-nuc systemd[1]: Starting sysstat-collect.service - system activity accounting tool...
+2026-09-01T07:40:20+00:00 pgain-nuc systemd[1]: sysstat-collect.service: Deactivated successfully.
+2026-09-01T07:40:20+00:00 pgain-nuc systemd[1]: Finished sysstat-collect.service - system activity accounting tool.
+2026-09-01T07:50:01+00:00 pgain-nuc systemd[1]: Starting sysstat-collect.service - system activity accounting tool...
+2026-09-01T07:50:01+00:00 pgain-nuc systemd[1]: sysstat-collect.service: Deactivated successfully.
+2026-09-01T07:50:01+00:00 pgain-nuc systemd[1]: Finished sysstat-collect.service - system activity accounting tool.
+2026-09-01T08:00:17+00:00 pgain-nuc systemd[1]: Starting sysstat-collect.service - system activity accounting tool...
+2026-09-01T08:00:17+00:00 pgain-nuc systemd[1]: sysstat-collect.service: Deactivated successfully.
+2026-09-01T08:00:17+00:00 pgain-nuc systemd[1]: Finished sysstat-collect.service - system activity accounting tool.
+2026-09-01T08:10:02+00:00 pgain-nuc systemd[1]: Starting sysstat-collect.service - system activity accounting tool...
+2026-09-01T08:10:02+00:00 pgain-nuc systemd[1]: sysstat-collect.service: Deactivated successfully.
+2026-09-01T08:10:02+00:00 pgain-nuc systemd[1]: Finished sysstat-collect.service - system activity accounting tool.
+2026-09-01T08:10:06+00:00 pgain-nuc systemd[1]: Started session-23.scope - Session 23 of User jab.
+2026-09-01T08:10:07+00:00 pgain-nuc systemd[1]: session-23.scope: Deactivated successfully.
+2026-09-01T08:10:47+00:00 pgain-nuc systemd[1]: Started session-24.scope - Session 24 of User jab.
+2026-09-01T08:10:47+00:00 pgain-nuc systemd[1]: session-24.scope: Deactivated successfully.
+2026-09-01T08:10:48+00:00 pgain-nuc systemd[1]: Started session-25.scope - Session 25 of User jab.
+2026-09-01T08:10:48+00:00 pgain-nuc systemd[1]: session-25.scope: Deactivated successfully.
+2026-09-01T08:10:49+00:00 pgain-nuc systemd[1]: Started session-26.scope - Session 26 of User jab.
+2026-09-01T08:10:49+00:00 pgain-nuc systemd[1]: session-26.scope: Deactivated successfully.
+2026-09-01T08:13:09+00:00 pgain-nuc systemd[1]: Started session-27.scope - Session 27 of User jab.
+2026-09-01T08:13:18+00:00 pgain-nuc systemd[1]: session-27.scope: Deactivated successfully.
+2026-09-01T08:13:18+00:00 pgain-nuc systemd[1]: session-27.scope: Consumed 8.082s CPU time.
+2026-09-01T08:14:06+00:00 pgain-nuc systemd[1]: Started session-28.scope - Session 28 of User jab.
+2026-09-01T08:14:06+00:00 pgain-nuc systemd[1]: session-28.scope: Deactivated successfully.
+2026-09-01T08:14:58+00:00 pgain-nuc systemd[1]: Started session-29.scope - Session 29 of User jab.
+2026-09-01T08:14:59+00:00 pgain-nuc systemd[1]: session-29.scope: Deactivated successfully.
+2026-09-01T08:15:55+00:00 pgain-nuc systemd[1]: Started session-31.scope - Session 31 of User jab.
+2026-09-01T08:15:56+00:00 pgain-nuc systemd[1]: session-31.scope: Deactivated successfully.
+2026-09-01T08:16:07+00:00 pgain-nuc systemd[1]: Started session-32.scope - Session 32 of User jab.
+2026-09-01T08:16:08+00:00 pgain-nuc systemd[1]: session-32.scope: Deactivated successfully.
+2026-09-01T08:16:20+00:00 pgain-nuc systemd[1]: Started session-33.scope - Session 33 of User jab.
+2026-09-01T08:16:22+00:00 pgain-nuc systemd[1]: session-33.scope: Deactivated successfully.
+2026-09-01T08:16:22+00:00 pgain-nuc systemd[1]: session-33.scope: Consumed 1.933s CPU time.
+2026-09-01T08:16:22+00:00 pgain-nuc systemd[1]: Started session-34.scope - Session 34 of User jab.

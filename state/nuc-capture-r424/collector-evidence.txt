@@ -1,0 +1,70 @@
+### CAPTURED_AT
+2026-09-01T08:18:35Z
+### BOOT
+2026-09-01 05:33:27
+f13afb47-9fc0-4783-9cf3-621342cf6995
+### KERNEL
+6.8.0-138-generic
+### SYSSTAT_VERSION
+sysstat version 12.6.1
+(C) Sebastien Godard (sysstat <at> orange.fr)
+ii  sysstat        12.6.1-2     amd64        system performance tools for Linux
+### SADC_VMSTAT_LITERALS  (the pgsteal_ prefix vs pgscan_kswapd/pgscan_direct full names)
+pgscan_direct
+pgscan_kswapd
+pgsteal_
+### PROC_VMSTAT_RECLAIM_FIELDS
+pgdemote_kswapd 0
+pgdemote_direct 0
+pgdemote_khugepaged 0
+pgsteal_kswapd 0
+pgsteal_direct 0
+pgsteal_khugepaged 0
+pgscan_kswapd 0
+pgscan_direct 0
+pgscan_khugepaged 0
+pgscan_direct_throttle 0
+pgscan_anon 0
+pgscan_file 0
+pgsteal_anon 0
+pgsteal_file 0
+### SYSSTAT_CONF
+HISTORY=7
+COMPRESSAFTER=10
+SADC_OPTIONS="-S DISK"
+SA_DIR=/var/log/sysstat
+ZIP="xz"
+DELAY_RANGE=0
+UMASK=0022
+### SA2_RETENTION_LINES
+14:HISTORY=7
+15:COMPRESSAFTER=10
+16:ZIP="xz"
+69:find "${SA_DIR}" -type f -mtime +${HISTORY} \
+71:	| xargs   rm -f
+75:find "${SA_DIR}" -type f -mtime +${COMPRESSAFTER} \
+77:	| xargs -r "${ZIP}" > /dev/null
+### FILES_DUE_FOR_DELETION_NOW
+sa23 mtime=2026-08-23
+sar23 mtime=2026-08-24
+### SUMMARY_TIMER_NEXT
+Wed 2026-09-02 00:07:00 UTC  15h -         - sysstat-summary.timer sysstat-summary.service
+### SYSSTAT_LS
+total 5048
+-rw-r--r-- 1 root root  36324 Sep  1 08:10 sa01
+-rw-r--r-- 1 root root 121012 Aug 23 23:50 sa23
+-rw-r--r-- 1 root root 293704 Aug 24 23:50 sa24
+-rw-r--r-- 1 root root 293788 Aug 25 23:50 sa25
+-rw-r--r-- 1 root root 305296 Aug 26 23:50 sa26
+-rw-r--r-- 1 root root 223324 Aug 27 23:50 sa27
+-rw-r--r-- 1 root root 317896 Aug 28 23:50 sa28
+-rw-r--r-- 1 root root  31896 Aug 29 02:10 sa29
+-rw-r--r-- 1 root root 309124 Aug 30 23:50 sa30
+-rw-r--r-- 1 root root 218896 Aug 31 16:20 sa31
+-rw-r--r-- 1 root root 192798 Aug 24 00:07 sar23
+-rw-r--r-- 1 root root 468081 Aug 25 00:07 sar24
+-rw-r--r-- 1 root root 467974 Aug 26 00:07 sar25
+-rw-r--r-- 1 root root 483198 Aug 27 00:07 sar26
+-rw-r--r-- 1 root root 352166 Aug 28 00:07 sar27
+-rw-r--r-- 1 root root 499182 Aug 29 00:07 sar28
+-rw-r--r-- 1 root root 485272 Aug 31 00:07 sar30

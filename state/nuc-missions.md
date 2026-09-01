@@ -1876,3 +1876,134 @@ item 6, third occurrence). The authority is
   with round 412's power-floor precondition — which this round showed cuts
   both ways: a null WITH a published floor is a result; (9) round 370's item 3
   needs a FRESH boot — capture `uptime -s` first on the next up round.
+
+## Round 424 (NUC-integration E) — 2026-09-01, box **UP** on a boot never seen before: `f13afb47`, `uptime -s 2026-09-01 05:33:27Z`, 2 h 36 m at first contact. Ends the 406/412/418 outage — and ends it by REBOOTING, which is the finding
+
+- **Reachability.** `reachability_check check --round 424` at
+  `2026-09-01T08:10:46Z`: ssh rc 0 on the tailnet path `jab@100.78.44.111`,
+  `tailscale_online true`, `boot_utc 2026-09-01T05:33:27Z`,
+  `slept_this_boot false`. Previous recorded boot `43e0c767` was
+  2026-08-30T00:32:27Z; `tailscale_last_seen` was pinned at
+  `2026-08-31T16:30:00.1Z` byte-identically across rounds 406/412/418. So the
+  outage ran 2026-08-31T16:30Z → 2026-09-01T05:33Z (~13 h) and ended with a
+  **reboot, not a resume**. `journalctl --list-boots` lists 7 boots back to
+  2026-08-23T14:02:08Z; journal storage is persistent, 3.3 G.
+- **Round 406's item 1 is CLOSED on its SEVENTH carry — and the plan was
+  wrong, in a way caused by the thing that let it run.** Step 3 was
+  `journalctl -b`. The plan can only run when the box is reachable and the box
+  became reachable by rebooting, so `-b` meant **2 h 40 m / 81 unit fires**
+  against **8 d 18 h / 1652** unrestricted. Both close round 400's `Finished`
+  gap perfectly (81/81 and 1652/1652 durations derivable vs round 400's
+  28/358): the plan succeeded at exactly what it was written for while losing
+  95 % of the window. Generalisation for any track: *a fix gated on condition
+  C is exposed to whatever usually causes C.*
+- **`audit` could not see it.** Run on both captures it returned identical
+  verdict, identical `n_gaps`, identical `n_blocking_gaps`, and
+  `durations_derivable_fraction` 1.0 for each. It graded which line KINDS
+  survived, never which DAYS they covered. New `journal_span_coverage` joins
+  the sources on day-of-month (the only key `sa<DD>` and a systemd timestamp
+  share). After: as-planned `narrow` 1/10 days, r424 `complete` 10/10,
+  **r400 `filtered` 2 of 9** — round 400's cost ledger could never have
+  attributed a fire on sa23–sa29 and nothing said so for 24 rounds.
+- **`state/nuc-capture-r424/` is the first capture ever to exit 0 under
+  `--strict`** — not because previous ones were bad, but because `Failed
+  <unit>.service` was a required kind, so a box on which nothing failed graded
+  `filtered` forever. `Gap.absence_means ∈ {filtered, box-state, window}` now
+  distinguishes evidence about the CAPTURE from evidence about the BOX; any
+  terminal kind witnesses an unfiltered capture. Two new kinds appeared:
+  **`Stopped` (133) and `Stopping` (95)** — the only source of a long-running
+  service's end time, which is what the engine needs.
+- **"sa23 is overwritten on 2026-09-23" was wrong by 21 days.**
+  `/usr/lib/sysstat/sa2` ends `find $SA_DIR -mtime +$HISTORY | xargs rm -f`
+  and `HISTORY=7`: files are DELETED at 7 days, the day-of-month ring never
+  wraps. `sysstat-summary.timer` next fires **2026-09-02 00:07 UTC**, ~15 h
+  after this capture, and takes `sa23, sa24, sar23, sar24`. New
+  `retention_forecast`, validated against the box's own
+  `find -mtime +7` (both return exactly `{sa23, sar23}`). `find` truncates age
+  to whole 24 h units — `int(7.012) == 7` is not `> 7` — which is the only
+  reason sa23 survived the 08-31 sweep to be captured at all.
+  **The outage that blocked this capture for seven rounds is the same thing
+  that preserved what the capture was for**: a box that is off at 00:07 does
+  not sweep. **And no round had ever banked the binary day files at all** —
+  `git log --all --diff-filter=A` returns exactly one matching path in the
+  whole history and it is this round's `sysstat-binary.tar.xz` (367 kB for all
+  17 files). Round 400's item 1 called that copy "the highest-value cheap
+  action available", was right, and was carried four E rounds against a
+  deadline stated 21 days too late.
+- **Round 400's item 2 (the `sarNN` reports as a second outage witness) is
+  four E rounds old and this is the first up-round since.** Round 400 already
+  named these files, already noticed `sar29` was missing, and already gave the
+  00:07-cron reason — that mechanism is round 400's and round 424 claims no
+  credit for it. What is new: they had never been **captured** (round 400 asked
+  for `sa*`, and the plan's `sa[0-9][0-9]` glob does not match `sar23`), they
+  expire on the same 7-day sweep as the binaries, and **`sar31` is missing
+  too** — the box was down at 00:07 on 09-01 as well, so the absence reproduces
+  on every outage spanning midnight rather than being a one-off.
+- **The `pgsteal` factor of two is CONFIRMED — and not by round 418's own
+  test.** `grep -E '^pg(scan|steal)' /proc/vmstat` returned **0 for all
+  fourteen counters** (fresh boot, no reclaim), so the partition identity held
+  as `0 == 0` and measured nothing. `strings /usr/lib/sysstat/sadc` settled it:
+  the collector carries `pgscan_direct`, `pgscan_kswapd` (full field names, one
+  partition) and **`pgsteal_` (a bare PREFIX)**, which on kernel 6.8 matches
+  five fields forming two complete partitions of the same events. Numerator
+  doubled, denominator not; `%vmeff` reads exactly 2×. Banked in
+  `collector-evidence.txt`. Corrected totals: **21.98 GiB → 10.99 GiB** over
+  the seven reclaim buckets, and `sa30 15:00:05`'s reported **14.56 GiB in one
+  600 s bucket on a 26 GB box** stops being impossible at 7.28 GiB. Five of
+  seven buckets correct to ~100 % efficiency (clean file-cache eviction) and
+  **04:00:03 stands alone at 16.6 %** — round 418's event is the least
+  efficient reclaim in the record, which the doubling hid. Reported columns
+  untouched; `corrected_*` rides beside them.
+- **Round 418's item 4 REFUTED: `sadf` makes the boundary hole worse.** On
+  sa01, sadf yields 16 distinct stamps to sar's 17 — both consume the first
+  record, but sar stamps its column header with it (05:40:12) and sadf drops it
+  entirely. The 1200 s stitch stays. What sadf *does* have is the true
+  per-record interval (**589 s**, not the assumed 600).
+- **Round 370's item 3, on the first fresh boot since it was written: half
+  closed, half permanently lost.** The journal holds the load retrospectively —
+  `05:33:34` start, `05:33:48` `resident weights loaded in 13.1s | RSS after
+  load: 9.25 GB` — so the timeline needs no polling and no request. The
+  `memory.current` trajectory is gone; an unsampled level does not survive.
+  Two corrections: there are **no `unpacking to int8 in slot` lines at all**
+  this boot (9 journal lines total; model dir `qwen36_i4_gs64`), and **sa01
+  shows no memory step because the load ran entirely inside the record `sar`
+  drops** (RESTART 05:33:33, first record 05:40:12 consumed, first printed
+  05:50:01). The engine is also near-invisible to the commit channel:
+  `kbcommit` 5.6 GB against RSS 9.25 GB, because the weights are file-backed
+  mappings and a mapping is not a promise. **This boot reclaimed nothing** —
+  every `pgsteal_*` counter 0 after 2 h 40 m, ~22 GB free.
+- **Predictions (D-013):** `nuc/predictions-e-round424.md`, written before any
+  measurement. **10 HIT / 3 PARTIAL / 3 MISS / 1 VACUOUS of 17** numbered
+  predictions, plus 3 hygiene commitments kept. The vacuous one is B2 and is deliberately not
+  scored a hit. Retention, the `sarNN` reports, `Stopped`/`Stopping`,
+  `pgscan_direct_throttle` and sadf's interval column were all **unpredicted**
+  and claim no foresight.
+- **Artifacts:** `nuc/capture_manifest.py` 388 → 693; `nuc/perturbation.py`
+  1805 → 1982 (round 418 recorded 1729; `git show 05eb40c:… | wc -l` is 1805,
+  so that figure was stale before this round); `state/nuc-capture-r424/` (3.2 MB — binary tar of all 17 files
+  xz'd to 367 kB, `sar-all.txt` 100 sections, full and current-boot journals as
+  a matched pair, user-manager journal, boot table, collector evidence);
+  `knowledge/round-424-nuc-e-the-plan-the-outage-outlived.md`.
+  **Tests 699 → 723, all green** (`723 passed in 213.34s`; baseline at round
+  start was `2 failed, 697 passed` — see the knowledge file §12).
+- **Hygiene: port 8001 never contacted; NO engine request of any kind to any
+  port.** No unit started, stopped, restarted or reloaded. **Nothing written on
+  the box at all** — not even `~/nuc-research/`; the tar streamed to stdout, so
+  the remote footprint is strictly read-only.
+- **Next E round, in order:** (1) **run `capture_manifest.py retention` first,
+  every up-round** — `--strict` exits 1 when the next sweep deletes something;
+  the archive rolls off in ~8 days of box-uptime; (2) **full-window attribution
+  is possible for the first time** — 1652 fires, 100 % durations, span 10/10,
+  plus `Stopped`/`Stopping`; every ledger result in this program was computed
+  on 2 of 9 day files, so re-run `cost_ledger`/`attribution_evidence`/
+  `channel_sweep` against `state/nuc-capture-r424/` and expect the power floors
+  to move; (3) re-derive round 418's `fwupd-refresh` result on corrected steal
+  (ordering should survive, magnitudes are all 2×); (4) ask what was pinned at
+  04:00 and not at 15:00, now that 04:00:03 is the one inefficient reclaim;
+  (5) use `sadf` for per-record intervals and retire the first-record item;
+  (6) `sar29`/`sar31` do not exist and never will; (7) round 370's item 3
+  should be rewritten or retired — it names a log line this config never emits,
+  and catching the next load needs a poller running at boot, i.e. a
+  `~/nuc-research/` unit, i.e. operator approval; (8) still blocked on the
+  operator: `--cap 196` and the E3 A/B with round 412's power-floor
+  precondition.

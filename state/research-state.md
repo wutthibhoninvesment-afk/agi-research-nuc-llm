@@ -12,13 +12,22 @@ Workspace: ~/agi-research
   - **Recurring pattern this track exists to catch, confirmed across 15+ rounds now (144/152/153/157/159/161/163/164/167/168/169/170/173/176/177/179/180/182/184/188/192/194/197/198/204/210, each eventually fixed by a later round):** real, tested, uncommitted work with no knowledge file and no research-state entry, usually from the driver's outer round-timeout firing mid-round. Every reconciliation follows the same discipline: verify from a clean re-read, never trust a prior round's own narration, check `git log` directly. Round 213 backfilled two more instances of the narrower "ran, real git_committed=True commits exist, but no `### Round N —` heading" variant: round 198 (language C, a clean backfill — real commits + knowledge file already existed) and round 197 (SWE-loop D, whose own work left no surviving diff — the flake it was chasing was independently fixed a different way by round 209).
   - **Closed (round 243):** the `--distractors`/`--paired` suppression diagnostic, open and un-run since round 105, was finally run live twice — a real near-miss pair (`~/.hermes/skills/{autonomous-ai-agents/merge-reconciler,devops/kanban-orchestrator}`) staged against `session-inheritance-audit`'s `sia-concurrent` case (`ok`, 4/4 plain vs 4/4 staged, distractors never fired) and a positive-control near-duplicate paraphrase distractor staged against `sia-{near,mid,concurrent}` (also `ok`, but the distractor co-fired in 10/12 probes rather than suppressing — sonnet's native Skill selection isn't forced-exclusive). See `references/trigger-evaluation.md`'s "Controlled distractors" section and `knowledge/round-243-skills-distractors-paired-diagnostic-first-live-run.md`. Cross-track file-ownership convention (rounds 165/174/183/188/196/207/212) — flag other tracks' uncommitted/unattributed work, don't fix or delete it outside skills(B)'s own files; this includes the non-driver Hermes-gateway files in `languages/whence/` (round 172/198/201/207/212/213, unchanged since round 212).
   - Full round-by-round detail for rounds 3-195 lives in this file's own round log above and each round's `knowledge/round-{...}-skills-*.md`; rounds 1-174's round-log entries are further archived to `state/research-state-archive.md`. Trust those over re-deriving from this summary.
-- **Language (C):** **v0.40** (round 410 — decision 49: `num()` and a
+- **Language (C):** **v0.41** (round 422 — the divergence a docstring was
+  holding open: `whence/parser.py:quote_str` and `whence/values.py:_quote`
+  are now ONE function. Round 408's item 6 was carried by rounds 410, 414,
+  416 and 420 because the round-408 docstring gave two reasons not to share
+  them, and only one was real — `limit` is an argument, and the escape-set
+  difference was a latent bug, not a design: the runtime rendered a string
+  holding a TAB as a literal no Whence program can contain. See `SPEC.md`
+  `## v0.41` and `tests/test_v41.py`. Round 422 was interrupted before
+  bumping this line, `SPEC.md`'s header and four pins; round 423 landed
+  them. Its predecessor: v0.40 (round 410 — decision 49: `num()` and a
   source LITERAL are two doors for one piece of numeric text, and only one
   of them was enforcing the 4000-digit `SHOW_INT_DIGITS` boundary round 368
   wrote into `whence/values.py` as a claim about *the language*.
   `whence/lexer.py` accepted an integer literal of any length. See
   `SPEC.md` `## v0.40` and
-  `knowledge/round-410-two-doors-for-one-piece-of-numeric-text.md`.)
+  `knowledge/round-410-two-doors-for-one-piece-of-numeric-text.md`.))
   *This line said v0.39/round 408 for six rounds — through 410 (which made
   the bump), 411, 412, 413, 414 and 415 — while `SPEC.md`'s own header
   correctly said v0.40 the whole time, because `tests/test_v22.py::
@@ -20193,3 +20202,335 @@ misses.**
     and round 336's remaining language(C) items carry forward where not
     closed above. The `Harness (A)` half of the Track-status audit is still
     the last one owed.
+
+### Round 423 — skills(B) — 2026-09-01 — the absence nobody re-derived
+
+Closed round 421's next-step 5 by **refuting it**. Knowledge:
+`knowledge/round-423-the-absence-nobody-re-derived.md`.
+
+- **The live block asserted that this checker lacked a capability the checker
+  had shipped four rounds earlier.** Round 421's item 5 read *"`state_claim_
+  check.py` still has no S009 finding class for a REFERENCE claim"*. S009 —
+  and S010 — were added by **round 417, commit `85422b7`**, documented in the
+  module docstring, with 30 tests. The item names, as the missing thing, one
+  of the seven codes the file could already emit. `git log -S 'S009'` returns
+  exactly one commit and it is round 417's.
+- **The cause is a POLARITY the four existing claim grammars did not cover.**
+  Every one of them re-derives an assertion that something IS so — a body-line
+  count, a lint code, a `cmd -> result`, a reference count. A next-steps item,
+  by construction, asserts something is NOT: it says what is missing. And an
+  absence claim is discharged **by a different round, in a different file** —
+  someone builds the thing, the ticket is satisfied in code, and the sentence
+  describing the hole is never touched. `state_claim_check.py` reported
+  `0 stale of 7 checked` on that block, honestly: the sentence was inside its
+  own published recall gap.
+- **`harness/wiring_audit.py token_refs` — the polarity dual of round 415's
+  `refs`.** `refs` resolves a FILE through the path index and counts
+  references to it; `token_refs` takes the index off the target and counts a
+  LITERAL STRING, keeping the raw/code split verbatim, because a file may
+  mention a token in a comment saying the thing does not exist *yet*. New CLI
+  verb `token-refs … --expect-absent`. 9 tests.
+- **S011 (STALE) and S012 (WARN), the fifth claim grammar.** Token in CODE →
+  S011, the sentence is false. In prose only → S012, documented-not-built.
+  Absent → clean. An unreadable or unresolvable container is recorded
+  UNCHECKED and **never clean** — "not found" is the verdict the claim is
+  asking for, and that is the one bug in this class testing would not show.
+  On the real document: `1 stale of 8 checked`, was `0 stale of 7`.
+- **Precision 3/3, recall 3/13 = 23%, measured over 336 corpus files before
+  the class was trusted.** 13 absence-shaped sentences; 3 name a literal
+  token. The gate is deliberate — *"has no caller"*, *"has no hook"*, *"has
+  no round-182 entry"* name concepts with no exact re-derivation, and round
+  351's standing condition forbids widening into a heuristic.
+- **The declined count is published on the SAME LINE as the zero** (round
+  339's rule in round 417's form), because aggregators quote the last line:
+  `… 8/8 claims, 1 absence sentence(s) declined for want of a literal token`.
+- **What the declined 10 contain is the sharper finding.** THREE of them are
+  the same claim that fired, written by rounds 415, 416 and 419 as *"still
+  has no finding class for a REFERENCE claim"* — no `S009` in it. Round 421
+  rewrote it to name the code. **The claim did not become false when it was
+  sharpened; it became false in round 417 and became CHECKABLE when it was
+  sharpened.** Verified: `--block 419` and `--block 416` each report exactly
+  1 declined absence sentence, and only `--block 421` reports S011.
+- **Round 421's item 2 closed too: `verb_audit` is now watched.**
+  `harness/verb_audit.py check` is the 8th checker in `corpus_check.py`
+  (~30 s, all findings WARN, so it can never turn the corpus red on its own),
+  and its summary line grew the `coverage 8/92 verbs (8.7%), 7/20 entry
+  points with a reached verb` clause that `corpus_check.coverage_of` lifts.
+- **Honest cost, stated rather than hidden: this round added the 85th
+  unreached verb.** `token-refs` is invoked by the test suite and by S011's
+  own finding text, and by nothing automatic — the same shape as `refs`,
+  which round 421 measured as a dead verb wrapping a live function. The count
+  moved 91→92 declared, 83→84 unreached, and 84→85 with this round's own
+  verb counted. That is the `manual`-vs-`wired` distinction round 421 asked
+  the registry to carry for verbs, and it still does not carry it.
+- **Round 422's leftovers landed by this round, and THE SUITE WAS RED.** Round
+  422 (language C) died interrupted with no knowledge file and no commit,
+  leaving a 524-insertion diff plus `state/round-422-predictions.md` and eight
+  artefacts under `state/whence/round-422/`. Running it before committing gave
+  **6 failed, 2162 passed, 3 skipped (26:21)** — the convention to land a
+  predecessor's work invites committing it unread, and only the 26-minute run
+  separated "landed" from "landed red under the word *verified*".
+  Diagnosed: round 422's substantive change is complete and good (it closed
+  round 408's item 6 — `parser.quote_str` IS `values.quote_str` now, and the
+  docstring four rounds deferred to gave two reasons for the split of which
+  only one was real; the escape-set half was a latent bug rendering a tab as a
+  literal no Whence program can contain). What it never reached was five pins
+  one round behind their own subject and one test *holding the bug open*.
+  Round 423 **re-derived** each by measurement — `161 passed, 0 failed`, 289
+  statements, 20 repointed guardians, SPEC header and the Language (C) line
+  to v0.41 — and **inverted rather than deleted** `test_v39`'s
+  `..._and_two_implementations`, which existed, in its own words, "so a future
+  round unifying them knows what it is changing". Full accounting in §8a of
+  the knowledge file. **Round 422's predictions were NOT scored and no
+  round-422 knowledge file was invented** — the bank is registered `unscored`
+  / owner `language(C)`, with its inputs named; signing another round's name
+  is the failure the ledger replaced.
+
+### Round 424 — NUC-integration(E) — 2026-09-01 — the plan the outage outlived
+
+**The box came back**, ending the 406/412/418 outage, and it came back by
+**rebooting** — which is the finding. Knowledge:
+`knowledge/round-424-nuc-e-the-plan-the-outage-outlived.md`. Predictions
+(D-013) `nuc/predictions-e-round424.md`, written before any measurement.
+
+- **Round 406's item 1 CLOSED on its SEVENTH carry, and the carried plan was
+  wrong because of the thing that let it run.** Step 3 was `journalctl -b`.
+  The plan is gated on the box being reachable; the box became reachable by
+  rebooting; so `-b` banked **2 h 40 m / 81 unit fires** where unrestricted
+  gives **8 d 18 h / 1652**. Both close round 400's `Finished` gap perfectly
+  (81/81 and 1652/1652 durations derivable, against round 400's 28/358) — the
+  plan succeeded at exactly what it was written for while losing 95 % of the
+  window. **A fix gated on condition C is exposed to whatever usually causes
+  C**, and here the gate and the invalidator were one event.
+- **The audit could not tell the two apart.** Same verdict, same `n_gaps`,
+  same `n_blocking_gaps`, `durations_derivable_fraction` 1.0 for both. It
+  graded which line KINDS survived and never which DAYS they covered. New
+  `journal_span_coverage` joins the sources on day-of-month — the only key
+  `sa<DD>` and a systemd timestamp share. After: as-planned `narrow` (1/10
+  days), r424 `complete` (10/10), **r400 `filtered` at 2 of 9** — round 400's
+  cost ledger could never have attributed a fire on sa23–sa29, and that was
+  true for twenty-four rounds with nothing reporting it.
+- **`state/nuc-capture-r424/` is the first capture ever to exit 0 under
+  `--strict`** — because `Failed <unit>.service` was a required kind, so a box
+  on which nothing failed graded `filtered` forever, and a gate that is red on
+  a healthy box is a gate nobody reads. `Gap.absence_means ∈ {filtered,
+  box-state, window}` separates evidence about the CAPTURE from evidence about
+  the BOX. Two unasked-for kinds appeared: **`Stopped` (133), `Stopping`
+  (95)** — the only source of a long-running service's end time.
+- **The expiry constant carried since round 406 was wrong by 21 days.** `sa2`
+  ends `find $SA_DIR -mtime +$HISTORY | xargs rm -f` with `HISTORY=7`: files
+  are DELETED at 7 days and the day-of-month ring never wraps. `sa23` was due
+  at **2026-09-02 00:07 UTC**, ~15 h after capture, not 2026-09-23. New
+  `retention_forecast` is validated against the box's own `find -mtime +7`
+  (both return exactly `{sa23, sar23}`), and models `find`'s truncation to
+  whole 24 h units — `int(7.012) == 7` is not `> 7`, which is the only reason
+  sa23 survived the 08-31 sweep to be captured. **The outage that blocked this
+  capture for seven rounds is what preserved the data**: `sysstat-summary` is
+  a timer, and a box that is off at 00:07 does not sweep. **No round had ever
+  banked the binary day files at all** — `git log --all --diff-filter=A`
+  returns exactly one matching path in the whole history, this round's
+  `sysstat-binary.tar.xz`, 367 kB for all 17 files. Round 400's item 1 called
+  that copy "the highest-value cheap action available and time-critical in a
+  way nothing else on this list is"; it was right, and it was carried four E
+  rounds against a deadline stated 21 days too late.
+- **Round 400's item 2 is four E rounds old and this was the first up-round
+  since — and the mechanism is ROUND 400's, not this round's.** Round 400
+  already named the `sarNN` pre-rendered reports, already noticed `sar29` was
+  missing, and already gave the 00:07-cron reason. This round's first draft
+  claimed it as a discovery and is corrected. What round 424 adds: they had
+  never been **captured** (round 400 asked for `sa*`, and `sa[0-9][0-9]` does
+  not match `sar23`), they expire on the same 7-day sweep as the binaries, and
+  **`sar31` is missing too** — so the absence reproduces on every outage
+  spanning midnight rather than being a one-off.
+- **The `pgsteal` factor of two is CONFIRMED, and NOT by round 418's own
+  test.** `grep -E '^pg(scan|steal)' /proc/vmstat` returned **0 for all
+  fourteen counters** on the fresh boot, so the partition identity held as
+  `0 == 0` and measured nothing — *a test that needs the phenomenon to have
+  recurred is only as available as the phenomenon.* `strings
+  /usr/lib/sysstat/sadc` settled it: `pgscan_direct` and `pgscan_kswapd` are
+  full field names covering one partition, **`pgsteal_` is a bare PREFIX**
+  matching five fields that form two complete partitions of the same events.
+  Numerator doubled, denominator not. Corrected: **21.98 GiB → 10.99 GiB**
+  over the seven reclaim buckets, and `sa30 15:00:05`'s reported **14.56 GiB
+  in one 600 s bucket on a 26 GB box** stops being impossible at 7.28 GiB.
+  Five of seven correct to ~100 % efficiency (clean file-cache eviction) and
+  **04:00:03 stands alone at 16.6 %** — round 418's own event is the least
+  efficient reclaim in the record, which the doubling hid. Reported columns
+  untouched; `corrected_*` rides beside them, so a caller must name which it
+  uses.
+- **Round 418's item 4 REFUTED: `sadf` makes the boundary hole worse.** 16
+  distinct stamps to `sar`'s 17 on sa01 — both consume the first record, but
+  `sar` stamps its column header with it and `sadf` drops it entirely. The
+  1200 s stitch stays. What `sadf` does have is the **true per-record interval
+  (589 s, not the assumed 600)**, which `bucket_span_s` currently infers.
+- **Round 370's item 3, on the first fresh boot since it was written: half
+  closed, half permanently lost.** The journal holds the load retrospectively
+  (`05:33:34` start → `05:33:48` `resident weights loaded in 13.1s | RSS after
+  load: 9.25 GB`), so the timeline needs no polling and no request; the
+  `memory.current` trajectory is gone, because an unsampled level does not
+  survive. Two corrections: **no `unpacking to int8 in slot` lines exist** this
+  boot (9 lines total; model dir `qwen36_i4_gs64`), and **sa01 shows no memory
+  step because the load ran entirely inside the record `sar` drops** — the
+  boundary hole and the one event worth seeing are the same hole. The engine is
+  also near-invisible to the commit channel (`kbcommit` 5.6 GB vs RSS 9.25 GB):
+  the weights are file-backed mappings, and a mapping is not a promise any more
+  than an eviction is. This boot reclaimed **nothing** — every `pgsteal_*` 0
+  after 2 h 40 m with ~22 GB free.
+- **Predictions: 10 HIT / 3 PARTIAL / 3 MISS / 1 VACUOUS of 17** numbered
+  predictions, plus 3 hygiene commitments kept. B2 is scored VACUOUS rather than HIT on purpose.
+  Retention, the `sarNN` reports, `Stopped`/`Stopping`,
+  `pgscan_direct_throttle` and sadf's interval column were all **unpredicted**
+  and claim no foresight.
+- **Tests 699 → 723, all green** (`723 passed in 213.34s`). The baseline at
+  round start was `2 failed, 697 passed` and **neither was inherited
+  breakage**: `test_a_capture_window_that_ends_before_the_log_does_loses_the_
+  bound` was broken by *this round's own reachability record* — rounds
+  406/412/418 logged `down`, round 424 logged `up`, so the newest up streak is
+  exactly one record and the fixture required two. That fixture has now pinned
+  a fact about the world three times (382: an absolute window; 406: "the log
+  ends in an up streak"; 424: "the newest up streak has ≥2 records"), and is
+  now written against the quantity actually wanted — the newest adjacent
+  `up`→`up` pair, which needs no streak-length assumption. The second failure
+  was the cascade through `run_checks_fast.sh`.
+- **Honest cost: this round added the 85th unreached verb.** `capture_manifest
+  retention` joins `plan` — 92 → 93 declared, 84 → 85 unreached. Both are
+  verbs whose job is to be run by a round against a live box, which is round
+  423's item 4 (`manual` vs `wired`) with a second concrete instance.
+- **Hygiene: port 8001 never contacted; no engine request of any kind to any
+  port; no unit started, stopped, restarted or reloaded; NOTHING written on the
+  box at all** — not even `~/nuc-research/`, since the tar streamed to stdout.
+  The remote footprint is strictly read-only.
+- **Rounds 422 and 423's uncommitted work was verified and landed by this
+  round** before it began its own — see the next-steps note below.
+
+## Next steps (as of round 424)
+
+1. **Round 421's item 5 is CLOSED, and the way it closed is the finding.**
+   It was not implemented — it was **refuted**. Any next-steps item of the
+   form *"`X` still has no Y"* is now re-derived by S011 whenever Y is a
+   literal token, and billed as a declined sentence whenever it is not. The
+   standing instruction for whoever writes the next block: if you carry an
+   absence item, **name the missing thing as a string**, or accept that
+   nothing will ever check it.
+2. **The declined-absence counter has a backlog of 10 and two of them look
+   real.** `ref_diff.py` still has no caller (round 415's block) and
+   `case_coverage.py` has no P00x code (round 357's) both have exact
+   re-derivations — `wiring_audit refs`/`orphans` for the first, a token grep
+   for the second — through a DIFFERENT class than S011. Neither is a reason
+   to widen the absence grammar; both are reasons to check whether the
+   sentences are still true. skills(B).
+3. **`verb_audit` is watched but its 85 unreached verbs still need DECISIONS,
+   not measurement** (round 421's item 1, unchanged in substance). The
+   tractable subset in priority order: `slowtier plan`/`run`, recommended by
+   `harness/run_tests_fast.sh`'s own header in a COMMENT and therefore run by
+   nothing; and `harness/swe/copyparity.py`'s two verbs, whose own SKILL.md
+   checklist asks for exactly the wiring they lack. harness(A) for the first,
+   SWE-loop(D) for the second.
+4. **A verb needs `manual` vs `wired`, and there are now THREE instances.**
+   `wiring_audit.py token-refs` SHOULD be unreached — it is a human's
+   re-derivation command, printed inside an S011 finding — and so should
+   `capture_manifest plan` and, as of round 424, `capture_manifest retention`:
+   both talk to the NUC, and the second is the standing first act of every
+   up-round, so "unreached" is its correct steady state rather than a defect.
+   The registry marks files, not verbs, so all three are indistinguishable
+   from a verb nobody wired by mistake. 92 → 93 declared, 84 → 85 unreached.
+   harness(A).
+5. **The MARKER half of round 419's item 5 is still open** and is now the
+   only half. `harness/tier-budget.json` and `harness/swe/slowtier.py` answer
+   *what is deselected*; nothing joins that to the registry, so `wired` still
+   means "the runner was pointed at it" for every `test_swe_*.py` file.
+   harness(A).
+6. **Round 409's items 2, 3 and 4 carry forward, and item 3 is load-bearing
+   three times now.** `run_tests_fast.sh`'s echoed recorded-status block
+   outgrowing every `tail` is what stopped rounds 415 and 421 adding a fifth
+   echo. Also unmoved: the `split_measured_output` count-line boundary and
+   `MEASURED_END_SENTINEL`, and the stale pristine-check ledger. harness(A).
+7. **`case_coverage` has 27 warnings and SEVEN skills registered unprobed** —
+   `cause-needs-a-denominator`, `verdict-carries-its-threshold`,
+   `null-result-needs-a-power-floor`, `named-guardian-must-go-red`,
+   `probe-where-the-rules-disagree`, `mutate-the-rule-both-ways` and
+   `copy-parity-differential`. The last group must be probed TOGETHER — they
+   are each other's named NOT-scopes. Needs a priced `trigger_eval` round
+   budgeted as a whole round. skills(B).
+8. **Round 422 has no knowledge file and never will.** Its diff, predictions
+   bank and eight result artefacts were landed by round 423 under round 422's
+   name; its findings live only in `state/round-422-predictions.md` and the
+   scored artefacts. A language(C) round wanting the out-of-sample polarity
+   result should read those directly rather than trusting this summary.
+   language(C).
+9. **Round 420's carried language(C) items are unchanged**: the 19
+   `-`-direction pins in `self_host.lang` still have no `+` counterparts (3
+   of 23 are LATERAL and need a new mechanism statement); `examples/
+   self_eval.lang`'s guest EVALUATOR still has no pin; and `parser.quote_str`
+   is still not unified with `values._quote` (round 408's item 6, sixth round
+   carried). language(C).
+10. **`polarity.py` has not been extended beyond Whence.** The same
+    monotonicity argument applies verbatim to `assertIn`/`assertRaises` in
+    the Python suites, and `harness/swe/guardpin.py` is the instrument that
+    would consume it. SWE-loop(D).
+11. **NUC-E: round 406's item 1 is CLOSED and the whole carried block is
+    replaced.** The box is up on boot `f13afb47`. The new standing first act
+    of every up-round is `python3 nuc/capture_manifest.py retention --capture
+    <newest> --now <T> --next-run <T> --strict`, which exits 1 when the next
+    sysstat sweep deletes something — the archive rolls off in ~8 days of box
+    UPTIME, and the sweep only runs while the box is up. **Do not re-derive
+    the deadline from prose; the constant that lived in the emitted plan was
+    wrong by 21 days.** NUC-integration(E).
+12. **Full-window attribution is possible for the first time, and every
+    ledger result in this program was computed on 2 of 9 day files.**
+    `state/nuc-capture-r424/` has 1652 fires at 100 % derivable durations
+    against ten day files, span 10/10, plus `Stopped`/`Stopping` for
+    long-running services. Re-run `cost_ledger`, `attribution_evidence` and
+    `channel_sweep` against it and expect the power floors to move. This is
+    the largest single change to the evidence base since round 400.
+    NUC-integration(E).
+13. **Round 418's published reclaim magnitudes are all exactly 2× and should
+    be re-derived, not re-quoted.** The divisor is confirmed (§6 of round
+    424's knowledge file) and `ReclaimEvent.corrected_*` carries it. Two
+    specific consequences: `fwupd-refresh`'s `p_chance 0.0154` was computed on
+    doubled bytes (ordering should survive, the divisor is uniform), and
+    **`04:00:03` is now the one bucket where reclaim was inefficient**
+    (16.6 % against ~100 % for five of the other six) rather than merely the
+    one with the odd `%vmeff`. Ask what was pinned or recently-referenced at
+    04:00 and not at 15:00. NUC-integration(E).
+14. **Three smaller E items, all settled enough to act on.** Use `sadf` for
+    per-record INTERVALS (589 s, not the assumed 600) and retire the
+    first-record item — `sadf` hides that record more completely than `sar`,
+    so round 418's item 4 is refuted, and the 1200 s stitch is not removable.
+    `sar29`/`sar31` do not exist and never will, so any analysis wanting a
+    pre-rendered day must check first. And **round 370's item 3 should be
+    rewritten or retired**: it names `unpacking to int8 in slot`, a line this
+    configuration never emits, and catching the next load needs a poller
+    already running at boot — i.e. a `~/nuc-research/` unit, i.e. operator
+    approval. NUC-integration(E).
+15. **Round 408's item 9 (CLAUDE.md's `🔴 CRITICAL MISSION` block is stale in
+    both halves) is re-escalated for the TENTH time.** Both its items were
+    answered by rounds 349 and 33/v0.23, and every round pays a re-read.
+    CLAUDE.md is the operator's file (round 346) — this needs the operator.
+16. **`languages/whence/SECURITY.md` has now been carried 75 rounds**, with
+    the round-349 pin still matching. The uncommitted gateway rewrite
+    asserting four controls this repo does not have (pre-commit secret hook,
+    CI dependency scanning, SHA-256 release checksums and signed tags,
+    `.gitignore` entries for `.env`/`*.key` — all four checkably false,
+    verified round 416) remains the operator's decision, overdue in two ways.
+17. **Blocked on the operator: `--cap 196` and the E3 A/B**, with round 412's
+    precondition (any A/B publishes its power floor BEFORE it runs). Round
+    406's items 2–7, round 405's 1–4, round 404's 1–4 and 7, round 403's 2–5
+    and round 336's remaining language(C) items carry forward where not
+    closed above. The `Harness (A)` half of the Track-status audit is owed.
+18. **A gated fix is exposed to whatever clears its gate — this is not a NUC
+    fact and the other tracks have the same shape.** Round 424's plan was
+    pinned to the box's state and could only run once the box returned, and
+    the usual way a box returns is a reboot, which invalidated the pin. Any
+    artifact of the form "run this the next time condition C holds" — and
+    this repo emits several — should be re-derived at run time rather than
+    replayed, or should at minimum re-audit its own assumptions first.
+    harness(A).
+19. **Rounds 422 and 423's work was landed by round 424**, verified against a
+    full `languages/whence/tests` run rather than committed unread. Round 423
+    had a research-state entry and a knowledge file but had never reached git;
+    round 422 died interrupted with no knowledge file and never will have one.
+    Both are recorded under their own names. Round 422's findings live only in
+    `state/round-422-predictions.md` and `state/whence/round-422/`, and a
+    language(C) round wanting the out-of-sample polarity result should read
+    those directly. language(C).

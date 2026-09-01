@@ -644,6 +644,17 @@ class ReclaimEvent:
     vmeff_pct: float           # derived: steal/(scank+scand)*100, 0 if no scan
     vmeff_reported: float      # sysstat's own %vmeff column, for comparison
     steal_exceeds_scan: bool
+    # Round 424. The divisor stopped being a hypothesis: `sadc` on the box
+    # matches `pgsteal_` as a bare PREFIX and `pgscan_kswapd`/`pgscan_direct`
+    # as full names (banked, `state/nuc-capture-r424/collector-evidence.txt`).
+    # The reported columns above are still untouched -- round 418's rule, that
+    # a silently halved byte count gets quoted without its caveat, is right and
+    # survives. These are the corrected view, carried BESIDE the raw one so a
+    # caller has to name which it is using.
+    corrected_steal_s: float = 0.0
+    corrected_stolen_pages: int = 0
+    corrected_stolen_bytes: int = 0
+    corrected_vmeff_pct: float = 0.0
 
     def as_dict(self) -> dict:
         return asdict(self)
@@ -703,7 +714,14 @@ def reclaim_events(table: SarTable, interval_s: int = SAR_INTERVAL_S,
             major_faults=_opt(r, "majflt/s"),
             vmeff_pct=(st / (sk + sd) * 100.0) if (sk + sd) > 0 else 0.0,
             vmeff_reported=_opt(r, "%vmeff"),
-            steal_exceeds_scan=st > (sk + sd)))
+            steal_exceeds_scan=st > (sk + sd),
+            corrected_steal_s=st / RECLAIM_STEAL_DIVISOR,
+            corrected_stolen_pages=round(st / RECLAIM_STEAL_DIVISOR * interval_s),
+            corrected_stolen_bytes=round(
+                st / RECLAIM_STEAL_DIVISOR * interval_s) * page_bytes,
+            corrected_vmeff_pct=(
+                (st / RECLAIM_STEAL_DIVISOR) / (sk + sd) * 100.0)
+            if (sk + sd) > 0 else 0.0))
     return out
 
 
@@ -735,6 +753,165 @@ def reclaim_events(table: SarTable, interval_s: int = SAR_INTERVAL_S,
 # `pgsteal_kswapd + pgsteal_direct + pgsteal_khugepaged` and sar's total is
 # their sum; refuted if sar's `pgsteal` matches a single family.
 RECLAIM_STEAL_DIVISOR_HYPOTHESIS = 2
+
+# ---------------------------------------------------------------- round 424
+# CONFIRMED, and NOT by the command round 418 wrote down.
+#
+# Round 418's falsification test was `grep -E '^pg(scan|steal)' /proc/vmstat`,
+# to be checked for `pgsteal_anon + pgsteal_file == pgsteal_kswapd +
+# pgsteal_direct + pgsteal_khugepaged`. Round 424 ran it on the first up
+# window since, and every one of those fourteen counters read **0**: the box
+# had rebooted 2 h 40 m earlier and had not reclaimed a single page. The
+# identity held as 0 == 0 and settled nothing. A test that needs the
+# phenomenon to have RECURRED is only as available as the phenomenon.
+#
+# What settled it was reading the collector instead of the kernel:
+#
+#     $ strings /usr/lib/sysstat/sadc | grep -E '^pg[a-z_]*$' | sort -u
+#     pgscan_direct
+#     pgscan_kswapd
+#     pgsteal_
+#
+# Three literals, and the asymmetry is the whole finding. `pgsteal_` is a bare
+# prefix; on kernel 6.8 it matches five fields forming TWO complete partitions
+# of the same events (kswapd/direct/khugepaged, and anon/file), so every
+# stolen page is counted exactly twice. `pgscan_kswapd` and `pgscan_direct`
+# are full field names matching one partition each, so the denominator is
+# counted once. `%vmeff = pgsteal / (pgscank + pgscand)` is therefore exactly
+# 2x the true reclaim efficiency -- numerator doubled, denominator not.
+#
+# Those literals are in the binary whether or not the box ever reclaimed
+# anything, which is why this route was available on a boot where the other
+# one was not. Banked: `state/nuc-capture-r424/collector-evidence.txt`
+# (sysstat 12.6.1-2, kernel 6.8.0-138-generic).
+#
+# The arithmetic in the r400 capture agrees to the digit: sa30 14:50:05 reads
+# `pgscank/s 55.44, pgsteal/s 110.88` -- 2.000x exactly -- and five more
+# buckets land within 1.4 % of 200 %.
+RECLAIM_STEAL_DIVISOR = 2
+
+# The literal `strings` output above, as data, so the claim is re-derivable
+# from the banked file instead of trusted from this comment.
+SADC_SCAN_LITERALS = ("pgscan_kswapd", "pgscan_direct")
+SADC_STEAL_PREFIX = "pgsteal_"
+
+
+def sadc_reclaim_literals(strings_text: str) -> dict:
+    """Classify the `pg*` literals `sadc` carries into prefixes and full names.
+
+    A literal is a PREFIX if some other exported vmstat field starts with it
+    and is longer -- which is exactly the condition under which a `strncmp`
+    accumulator over-collects. Deciding that needs the kernel's field list,
+    so this returns the classification and `steal_double_count_evidence`
+    joins it to `/proc/vmstat`.
+    """
+    lits = sorted({ln.strip() for ln in strings_text.splitlines()
+                   if ln.strip().startswith("pg") and " " not in ln.strip()})
+    return {
+        "literals": lits,
+        "scan_literals": [l for l in lits if l.startswith("pgscan")],
+        "steal_literals": [l for l in lits if l.startswith("pgsteal")],
+    }
+
+
+def parse_vmstat_fields(vmstat_text: str, prefixes=("pgscan", "pgsteal")) -> dict:
+    """`/proc/vmstat` -> {field: value} for the reclaim families."""
+    out = {}
+    for line in vmstat_text.splitlines():
+        parts = line.split()
+        if len(parts) == 2 and parts[0].startswith(prefixes):
+            try:
+                out[parts[0]] = int(parts[1])
+            except ValueError:
+                continue
+    return out
+
+
+def steal_double_count_evidence(strings_text: str, vmstat_text: str) -> dict:
+    """Is `pgsteal` double-counted, and does the KERNEL-state test say so too?
+
+    Reports the two routes separately and refuses to merge them. The literal
+    route is available whenever the collector is installed; the counter route
+    needs the box to have reclaimed something since boot, and on round 424's
+    fresh boot it had not. Calling an all-zero identity "confirmed" is how a
+    vacuous test gets quoted as a measurement, so it is named `vacuous` here
+    and `divisor` is decided by the literal route alone.
+    """
+    lits = sadc_reclaim_literals(strings_text)
+    fields = parse_vmstat_fields(vmstat_text)
+
+    def _over(lit):
+        return sorted(f for f in fields if f.startswith(lit) and f != lit)
+
+    # A literal counts the field it names ONLY if such a field exists.
+    # `pgsteal_` names none -- it is a bare prefix -- so counting it as a
+    # field inflated the total to 6 where the collector sums 5.
+    def _n(lit):
+        return len(_over(lit)) + (1 if lit in fields else 0)
+
+    steal_over = {l: _over(l) for l in lits["steal_literals"]}
+    scan_over = {l: _over(l) for l in lits["scan_literals"]}
+    n_steal = sum(_n(l) for l in steal_over)
+    n_scan_matched = {l: _n(l) for l in scan_over}
+
+    actor = ("pgsteal_kswapd", "pgsteal_direct", "pgsteal_khugepaged")
+    bytype = ("pgsteal_anon", "pgsteal_file")
+    matched_steal = {f for v in steal_over.values() for f in v}
+    matched_steal |= {l for l in steal_over if l in fields}
+    # The doubling is not "matches a lot of fields", it is "matches BOTH of
+    # two partitions that each already total every stolen page". Testing for
+    # that directly means a kernel which drops one partition is reported as
+    # single-counted rather than as a smaller double-count.
+    hits_actor = sorted(matched_steal & set(actor))
+    hits_type = sorted(matched_steal & set(bytype))
+    doubled = bool(hits_actor) and bool(hits_type)
+
+    # A second, far smaller asymmetry the same evidence exposes:
+    # `pgscan_direct` is a full name but still a prefix of
+    # `pgscan_direct_throttle`, a SUBSET counter, so throttled scans are
+    # charged twice in the denominator. It reads 0 on this box and on any box
+    # not under allocator pressure, which is why it has never shown up -- but
+    # it biases %vmeff DOWNWARD, i.e. the opposite way to the numerator bug.
+    scan_subset_overmatch = sorted(
+        f for v in scan_over.values() for f in v if f.endswith("_throttle"))
+
+    a_sum = sum(fields.get(f, 0) for f in actor)
+    t_sum = sum(fields.get(f, 0) for f in bytype)
+    all_zero = not any(fields.get(f, 0) for f in actor + bytype)
+
+    return {
+        "steal_literals": lits["steal_literals"],
+        "scan_literals": lits["scan_literals"],
+        "steal_fields_matched": steal_over,
+        "scan_fields_matched": scan_over,
+        "n_steal_fields_summed": n_steal,
+        "n_scan_fields_per_literal": n_scan_matched,
+        "steal_partitions_hit": {"actor": hits_actor, "by_type": hits_type},
+        "scan_subset_overmatch": scan_subset_overmatch,
+        "literal_route": "double-counted" if doubled else "single",
+        "divisor": RECLAIM_STEAL_DIVISOR if doubled else 1,
+        "actor_partition_sum": a_sum,
+        "type_partition_sum": t_sum,
+        "counter_route": ("vacuous -- every reclaim counter is 0 on this boot, "
+                          "so the partition identity holds trivially and "
+                          "measures nothing"
+                          if all_zero else
+                          "agree" if a_sum == t_sum else "disagree"),
+        "counters_all_zero": all_zero,
+        "why": ("`%s` is a bare prefix matching %d field(s) -- the actor "
+                "partition %s AND the page-type partition %s, which total the "
+                "same stolen pages -- while %s are full field names covering "
+                "one partition only. Numerator doubled, denominator not, so "
+                "%%vmeff reads %dx the true reclaim efficiency."
+                % (SADC_STEAL_PREFIX, n_steal, hits_actor, hits_type,
+                   "/".join(lits["scan_literals"]), RECLAIM_STEAL_DIVISOR)
+                if doubled else
+                "`%s` matches %d field(s) and hits only the %s partition; no "
+                "double count is implied." % (
+                    SADC_STEAL_PREFIX, n_steal,
+                    "actor" if hits_actor else "page-type" if hits_type
+                    else "no known")),
+    }
 
 
 def reclaim_double_count_check(events: Iterable,

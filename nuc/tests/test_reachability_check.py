@@ -2122,12 +2122,23 @@ def test_a_capture_window_that_ends_before_the_log_does_loses_the_bound():
     # one layer below where round 382 fixed it: not an absolute window this
     # time, but the assumption that the log ends in an up streak.
     #
-    # Target the last gap the metric can actually see instead.
-    last_up = max(i for i, r in enumerate(recs) if r["verdict"] == "up")
-    first_of_streak = last_up
-    while first_of_streak > 0 and recs[first_of_streak - 1]["verdict"] == "up":
-        first_of_streak -= 1
-    assert last_up - first_of_streak >= 1, "need an up streak with at least one gap"
+    # ROUND 424: and it pinned one MORE, a layer below round 406's. Round 406
+    # stopped assuming the log ends in an `up` record and went looking for the
+    # newest one -- but then walked back to the start of ITS streak and
+    # required that streak to be at least two records long. Round 424 found
+    # the box up after rounds 406/412/418 all found it down, so the newest up
+    # streak is exactly ONE record and has no interior gap at all. The metric
+    # is fine; the fixture had no gap to point at.
+    #
+    # The quantity actually wanted is "the newest gap `max_unobserved_outage_s`
+    # can see", i.e. the newest adjacent up->up pair. Asking for that directly
+    # needs no streak-length assumption and cannot be broken by the shape of
+    # the log's tail -- only by there being no up->up pair anywhere, which is
+    # the genuine precondition and is what the message now says.
+    eligible = [i for i in range(1, len(recs))
+                if recs[i]["verdict"] == "up" and recs[i - 1]["verdict"] == "up"]
+    assert eligible, "need at least one adjacent up->up pair in the live log"
+    last_up = max(eligible)
     start_of_gap, end_of_gap = recs[last_up - 1], recs[last_up]
 
     cutoff = rc._parse_ts(end_of_gap["checked_at_utc"]).timestamp() - 1

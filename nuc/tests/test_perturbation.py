@@ -1574,3 +1574,142 @@ def test_cli_sweep_stitch_flag(tmp_path):
     assert row["stitched_days"] == ["2026-08-31"]
     assert row["unstitchable_days"] == {}
     assert row["n_units_tested"] == 16
+
+
+# =====================================================================
+# Round 424 (NUC-integration E). Round 418 inferred a factor-of-two double
+# count in `pgsteal` from the shape of the data and wrote down the command
+# that would settle it. Round 424 ran that command and it settled nothing;
+# a different instrument settled it instead.
+# =====================================================================
+
+SADC_STRINGS_REAL = """pgscan_direct
+pgscan_kswapd
+pgsteal_
+"""
+
+VMSTAT_FRESH_BOOT = """pgsteal_kswapd 0
+pgsteal_direct 0
+pgsteal_khugepaged 0
+pgscan_kswapd 0
+pgscan_direct 0
+pgscan_khugepaged 0
+pgscan_direct_throttle 0
+pgscan_anon 0
+pgscan_file 0
+pgsteal_anon 0
+pgsteal_file 0
+"""
+
+VMSTAT_BUSY = VMSTAT_FRESH_BOOT.replace(
+    "pgsteal_kswapd 0", "pgsteal_kswapd 900").replace(
+    "pgsteal_anon 0", "pgsteal_anon 300").replace(
+    "pgsteal_file 0", "pgsteal_file 600")
+
+
+def test_the_literal_route_finds_the_asymmetry_that_makes_the_divisor_two():
+    """`pgsteal_` is a bare prefix and matches BOTH complete partitions of the
+    same events; `pgscan_kswapd`/`pgscan_direct` are full names and match one
+    each. Numerator doubled, denominator not."""
+    ev = pt.steal_double_count_evidence(SADC_STRINGS_REAL, VMSTAT_FRESH_BOOT)
+    assert ev["literal_route"] == "double-counted"
+    assert ev["divisor"] == pt.RECLAIM_STEAL_DIVISOR == 2
+    assert ev["steal_partitions_hit"]["actor"] == [
+        "pgsteal_direct", "pgsteal_khugepaged", "pgsteal_kswapd"]
+    assert ev["steal_partitions_hit"]["by_type"] == ["pgsteal_anon", "pgsteal_file"]
+    assert ev["n_steal_fields_summed"] == 5
+
+
+def test_the_bare_prefix_is_not_itself_a_field_and_is_not_counted_as_one():
+    """`pgsteal_` names no vmstat field. Counting the literal itself put the
+    summed total at 6 where the collector sums 5."""
+    ev = pt.steal_double_count_evidence(SADC_STRINGS_REAL, VMSTAT_FRESH_BOOT)
+    assert "pgsteal_" not in pt.parse_vmstat_fields(VMSTAT_FRESH_BOOT)
+    assert ev["n_steal_fields_summed"] == 5
+    # ...whereas `pgscan_kswapd` IS a field, and counts itself
+    assert ev["n_scan_fields_per_literal"]["pgscan_kswapd"] == 1
+
+
+def test_the_counter_route_on_a_fresh_boot_is_named_vacuous_not_confirmed():
+    """The whole methodological point. Round 418's falsification command was
+    `grep -E '^pg(scan|steal)' /proc/vmstat`, to be checked for
+    `anon+file == kswapd+direct+khugepaged`. Round 424 ran it 2h40m after a
+    reboot: all fourteen counters read 0, the identity held as 0 == 0, and it
+    measured nothing. Reporting that as agreement is how a vacuous test gets
+    quoted as a measurement."""
+    ev = pt.steal_double_count_evidence(SADC_STRINGS_REAL, VMSTAT_FRESH_BOOT)
+    assert ev["counters_all_zero"] is True
+    assert ev["counter_route"].startswith("vacuous")
+    assert "agree" not in ev["counter_route"].split("--")[0]
+    # ...and the verdict does NOT depend on it
+    assert ev["divisor"] == 2
+
+
+def test_the_counter_route_agrees_once_the_box_has_actually_reclaimed():
+    ev = pt.steal_double_count_evidence(SADC_STRINGS_REAL, VMSTAT_BUSY)
+    assert ev["counters_all_zero"] is False
+    assert ev["actor_partition_sum"] == ev["type_partition_sum"] == 900
+    assert ev["counter_route"] == "agree"
+
+
+def test_a_collector_that_reads_one_partition_is_reported_single_not_doubled():
+    """The refutation path has to work or the test is decoration. A kernel or
+    sysstat that names the actor fields individually implies no double count."""
+    single = "pgscan_direct\npgscan_kswapd\npgsteal_kswapd\npgsteal_direct\n"
+    ev = pt.steal_double_count_evidence(single, VMSTAT_FRESH_BOOT)
+    assert ev["literal_route"] == "single"
+    assert ev["divisor"] == 1
+    assert ev["steal_partitions_hit"]["by_type"] == []
+    assert "no double count is implied" in ev["why"]
+
+
+def test_the_scan_side_has_its_own_smaller_overmatch_in_the_other_direction():
+    """`pgscan_direct` is a full name but still a prefix of
+    `pgscan_direct_throttle`, a SUBSET counter. It reads 0 on any box not under
+    allocator pressure -- which is every sample this program has -- but it
+    inflates the DENOMINATOR, i.e. biases %vmeff the opposite way."""
+    ev = pt.steal_double_count_evidence(SADC_STRINGS_REAL, VMSTAT_FRESH_BOOT)
+    assert ev["scan_subset_overmatch"] == ["pgscan_direct_throttle"]
+    assert ev["n_scan_fields_per_literal"]["pgscan_direct"] == 2
+
+
+# ------------------------------------------- the corrected view, carried beside
+
+R424_SAR_B = """08:00:01     pgpgin/s pgpgout/s   fault/s  majflt/s   pgfree/s pgscank/s pgscand/s pgsteal/s    %vmeff
+08:10:01         0.00      0.00     10.00      0.00     100.00     55.44      0.00    110.88    200.00
+"""
+
+
+def test_reported_columns_are_untouched_and_the_correction_rides_alongside():
+    """Round 418's rule survives confirmation: a silently halved byte count is
+    the kind of number that gets quoted without its caveat. The raw columns
+    still say what the file says; the caller has to name `corrected_*`."""
+    ev = pt.reclaim_events(pt.parse_sar(R424_SAR_B))[0]
+    assert ev.steal_s == 110.88            # as sysstat reported it
+    assert ev.vmeff_pct == pytest.approx(200.0)
+    assert ev.steal_exceeds_scan is True
+    assert ev.corrected_steal_s == pytest.approx(55.44)
+    assert ev.corrected_vmeff_pct == pytest.approx(100.0)
+    assert ev.corrected_stolen_bytes * 2 == ev.stolen_bytes
+
+
+def test_the_exact_two_point_zero_ratio_is_in_the_banked_r400_capture():
+    """`sa30 14:50:05` reads pgscank 55.44 / pgsteal 110.88 -- 2.000x to the
+    digit. A noisy undercount of pgscan does not land on a round number."""
+    ev = pt.reclaim_events(pt.parse_sar(R424_SAR_B))[0]
+    assert ev.steal_s / ev.scan_kswapd_s == pytest.approx(2.0, abs=1e-9)
+
+
+def test_correcting_the_numerator_separates_clean_eviction_from_struggling_reclaim():
+    """The payoff. Published as an upper bound, six of seven buckets are just
+    'impossible'. Halved, five sit at ~100 % -- every page kswapd looked at, it
+    took, which is what evicting clean file-backed cache looks like -- and the
+    04:00:03 event stands out at 16.6 %, the one place reclaim actually had to
+    work for it. That distinction is invisible while the numerator is doubled."""
+    clean = pt.reclaim_events(pt.parse_sar(R424_SAR_B))[0]
+    struggling = pt.reclaim_events(pt.parse_sar(
+        R424_SAR_B.replace("55.44      0.00    110.88    200.00",
+                           "1207.00      0.00    401.70     33.28")))[0]
+    assert clean.corrected_vmeff_pct == pytest.approx(100.0)
+    assert struggling.corrected_vmeff_pct == pytest.approx(16.64, abs=0.01)
+    assert clean.corrected_vmeff_pct > 5 * struggling.corrected_vmeff_pct
