@@ -21498,3 +21498,135 @@ hygiene commitments kept.
    round 400's command. The item is CLOSED. Nothing to hand to harness(A) — but note the shape, because it is
    this round's finding for the third time in one round: a number survives by
    being quoted, and dies the moment anything re-derives it.
+
+### Round 432 — language(C) — 2026-09-01 — the one hop that decided one
+
+- **Round 428's next-step item 1 said a one-hop dataflow rule "would decide
+  all three" of CP17p/CP18p/CP19p and that "`_implies` is already the relation
+  it needs". Both halves are FALSE.** Built the rule (`_let_hop_relation`,
+  shape 5 in `polarity.py`): when the whole delta is one `let`'s RHS and the
+  bound name is read one hop later by an `if` whose arms differ in
+  missing-ness, substitute both RHSs into the guard condition and hand the
+  pair to shape 4's widening test. It decides **CP17p only** — 1 of 3.
+  Refusal-`unknown` 8 -> **7**, not the 3 the item implied.
+- **`_implies` could not do even that one, measured by stubbing.**
+  Substitution hands it `(if nm == "" {0} else {bound_line(...)}) != 0`, and
+  its four laws are shape rules over `and`/`or` — none looks inside an `if`
+  or folds `0 != 0`. The missing half is `_norm`, a truth-preserving
+  normaliser (distribute an `if` through a comparison with a literal, fold
+  same-type literal comparisons, simplify connectives). With `_norm` stubbed
+  to the identity and shape 5 fully live: **`holds` -> `unknown`**.
+- **THE FINDING: CP18p and CP19p reduce to a law that is FALSE in Whence,
+  and so does its obvious repair.** Both need
+  `contains(X, y) => len(X) > 0`. `contains` is registered `hay:str|list`,
+  so `contains("", "")` is **true** while `len("") > 0` is **false** — one
+  running program refutes it. The natural guard ("the block passes X to
+  `push`, which takes lists only, so a non-list misses anyway") is **also
+  false**: a `let` binding a miss does NOT abort the block, so
+  `probe("xyz")` is **42**, not a miss. Both counterexamples banked as
+  runnable `.lang` files. **The two pins stay `unknown`, and `unknown` is the
+  CORRECT answer, not a coverage gap.**
+- **What they gained instead is a legible residual.** New display-only
+  unparser `_expr_text`: the report went from
+  `unknown: contains(...) -> <Binary>` to
+  `unknown: contains(acc, nm.name) -> (len(acc) > 0)` — same verdict, but now
+  a proposition somebody can run, which is exactly what refuted it.
+- **Round 428 item 4 CLOSED: 161 is right; 162 had the instrument in it.**
+  `checkpin.run_pin` appends the pin's own WITNESS line to the mutated source
+  and then counted the record it produces, while `n_red` five lines below had
+  always excluded `WITNESS_PREFIX`. Not two valid populations — a fix, not a
+  reconciliation. `n_ran` 162 -> **161**, matching `classify_file`, with the
+  probe reported separately as `n_witness: 1`.
+- **A2 is my own MISS and the round's disclosure.** I predicted "12 unknown
+  of 22 blind pins", copying round 428's sentence into a prediction bank
+  without deriving it. Measured **8 of 23 pins, 15 blind** — and round 428's
+  OWN banked file ends `unknown 8`. Neither 12 nor 22 reproduces from any of
+  the three registries. Round 430 named "a number survives by being quoted"
+  as this program's recurring shape; I committed it in the round that read
+  the warning.
+- **Law table strengthens, and the disclosure now covers two shapes.**
+  [[8,0],[0,2]] p=0.0222 -> **[[9,0],[0,2]] p=0.0182**. Round 428 disclosed
+  that shape 4 was written after seeing CP16p's measured verdict; shape 5 is
+  the same hazard — round 428's next-steps NAMED these three pins beside
+  their measured verdicts. The control now removes each shape alone AND both
+  together: **[[7,0],[0,2]] p=0.0278, survives**.
+- **Skills.** New `skills/unknown-names-its-residual/`: make every `unknown`
+  print the proposition it failed to prove, read it as a program in the
+  target system, RUN it, and pin a refuted law with an executable
+  counterexample; test a proposed GUARD separately from the law it rescues.
+  `skills/recorder-in-the-record/` gains a **second instance outside sampled
+  data** — an instrument needs no cadence to contaminate its own record; the
+  tell is an exclusion present in one counter and missing five lines below.
+- **Round 431's leftovers landed** (18 uncommitted paths, no state entry, and
+  an orphaned pytest still alive 38 minutes after its session died). Its
+  stdout was a deleted tmpfile that had flushed **0 bytes**, so nothing was
+  recoverable. **This box has `nproc` = 1**, which is the whole explanation:
+  `test_cli_runs_offline_stages_and_stops` runs a full unfiltered whence
+  suite as its baseline and then a tracer-instrumented one for coverage, and
+  a `git worktree` at HEAD spawns the SAME child without `--junitxml` — so
+  the cost is **pre-existing, not round 431's flag**. Its `CAMPAIGN_RESULT`
+  placeholder is filled with 8 of 36 passed and the reason, not with a green
+  line.
+- **Results.** `polarity.py` 1618 -> 1966, `test_polarity.py` 116 -> **131**
+  (+15), `test_checkpin.py` 52 -> **53** (+1); whence fast tier
+  **2170 passed, 3 skipped, 91 deselected in 227.10s**, all green;
+  `skill_lint --house --strict` **74 skills, 0 errors, 0 warnings**.
+  **13 HIT (two vacuous and disclosed), 5 MISS, 1 PARTIAL of 19** predictions.
+  No SPEC bump: nothing under `languages/whence/whence/` was touched.
+
+## Next steps (as of round 432)
+
+1. **Round 428's item 1 is CLOSED and its answer is a refutation, not a
+   fix.** A one-hop rule decides CP17p; CP18p and CP19p stay `unknown`
+   because the residual `contains(X, y) => len(X) > 0` is FALSE in Whence
+   and so is the `push`-witness guard. Both counterexamples are runnable
+   under `state/whence/round-432/`. **Do not re-open these two pins by
+   adding that law** — `test_the_contains_length_law_is_false_in_whence`
+   and `test_a_let_bound_miss_does_not_abort_the_block` exist to stop it.
+   The only honest ways forward are an interprocedural list-type argument
+   (`acc` is `[]` at every call site) or rewriting the two pins. language(C).
+2. **Round 428's item 4 is CLOSED** (`n_ran` 162 -> 161, `n_witness` split
+   out). Round 428's items 2, 3 and 5 carry forward unchanged: `kind_stable`
+   still has no decider **and no pin in the host registry rests on it**, so
+   `no_decider` has never appeared in a routed map and the mechanism is
+   unexercised rather than merely absent; CP10p and NC02p are still
+   `unreachable`, two defective pins in a 23-pin registry; and the repointed
+   registry still fails its own acceptance criterion at 0 confirmations
+   against 5 violations. language(C).
+3. **`nproc` on this box is 1**, and that is a fact every track should plan
+   against. Round 431 died at `max_turns` waiting for a suite that was
+   contending with a health-check for one core, and left a 38-minute orphan.
+   `harness/tests/test_swe_campaign.py::test_cli_runs_offline_stages_and_stops`
+   runs a full unfiltered whence suite as a baseline pre-flight AND a
+   tracer-instrumented one for coverage — **verified pre-existing at HEAD in
+   a worktree, not caused by round 431's `--junitxml`** — which makes that
+   file a multi-hour proposition. It needs a slow marker so it stops being
+   run inside a round's turn budget by accident. harness(A) or SWE-loop(D).
+4. **A prediction bank must DERIVE the numbers it opens with.** Round 432's
+   A2 quoted round 428's "12 of 22 blind pins" into its own bank without
+   running anything; the measured figure is 8 of 23 pins, 15 blind, and
+   round 428's own banked file already said 8. This is round 430's "a number
+   survives by being quoted" committed by the round that had just read the
+   warning, so the control belongs in the instrument rather than in advice:
+   `skills/prediction-banking/SKILL.md` should require a bank's baseline
+   numbers to carry the command that produced them. skills(B).
+5. **Round 431's diff is landed and its `CAMPAIGN_RESULT` is filled with
+   8 of 36 passed plus the reason**, not with a green line. If a later round
+   wants that number it should run the two files ALONE on this box and
+   budget hours, not minutes.
+6. **Carried, and NOT re-derived by this round — read that as a warning
+   rather than as a re-assertion.** Round 430's items 1-9 and round 429's
+   items 4, 5 and 10 stand because nothing this round touched them, not
+   because this round checked them; round 428's items 1 and 4 closed above
+   are the measure of how well that holds up, since item 1's headline
+   numbers turned out to match nothing when finally re-run (§1a of the
+   round-432 knowledge file). The next round to pick one of these up should
+   re-derive its numbers FIRST. In
+   particular: the NUC `retention --strict` deadline
+   (`2026-09-10T00:07:00Z`, next loss `2026-09-03T00:07:00Z`); the `%vmeff`
+   residual; `case_coverage`'s 49-of-103 disagreeing verdicts; `claim_check`
+   executing 0 of ~295 commands; and CLAUDE.md's `CRITICAL MISSION` block,
+   re-escalated for the SIXTEENTH time and still a one-line deletion for the
+   operator. `languages/whence/SECURITY.md` is still uncommitted, still not
+   this program's, and still the operator's decision — **do not copy a carry
+   count for it from this file**; the checker's own line is the only source.

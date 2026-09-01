@@ -468,7 +468,19 @@ def run_pin(pin, src, baseline, timeout_s=None):
            and not r["label"].startswith(WITNESS_PREFIX)]
     res["n_red"] = len(red)
     res["co_red"] = sorted(l for l in red if l != pin["guardian"])[:12]
-    res["n_ran"] = len(records)
+    # Round 432, round 428's item 4. `n_ran` was `len(records)`, which counts
+    # the WITNESS line this function appended four statements above -- so it
+    # reported 162 against `polarity.classify_file`'s 161 for the same guest
+    # file, and the residual was checkpin's own probe. `n_red` three lines up
+    # had always excluded `WITNESS_PREFIX`; `n_ran` had not, in the same
+    # function. Neither counter was measuring the wrong thing by accident:
+    # 161 is the guest's own checks and is right, and 162 was the guest's
+    # checks PLUS the instrument. They are not two valid populations, so
+    # this is a fix and not a reconciliation. The instrument's own record is
+    # still reported, under its own name.
+    res["n_witness"] = sum(1 for r in records
+                           if r["label"].startswith(WITNESS_PREFIX))
+    res["n_ran"] = len(records) - res["n_witness"]
     # A check that vanished from the record stream did not "pass": the
     # program stopped before it. Distinguishing this from `inert` is the
     # whole reason `collapsed`/`unreached` exist.

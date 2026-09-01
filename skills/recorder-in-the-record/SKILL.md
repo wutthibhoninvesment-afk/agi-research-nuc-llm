@@ -163,3 +163,40 @@ also showed that the 218 MB bucket holds **five** named starts, so the "it was
 apt" attribution two prior rounds had published is not sole-attributable at
 all — the only sole-attributable swap event in that boot is a firmware
 metadata refresh.
+
+### A second instance, outside sampled data (round 432)
+
+The `sar` case above is about a SAMPLER in its own series. The same shape
+appears with no sampling, no rotation and no time axis at all, which is why
+this section exists rather than a NOT-scope widening.
+
+`languages/whence/checkpin.py` runs a guest program under an edit and counts
+what happened. To decide whether the edit changed anything observable it
+APPENDS one `check` line of its own — the pin's *witness* — to the mutated
+source before running it. Then:
+
+```python
+red = [r["label"] for r in records
+       if ... and not r["label"].startswith(WITNESS_PREFIX)]   # excludes it
+res["n_red"] = len(red)
+res["n_ran"] = len(records)                                    # does NOT
+```
+
+Two counters, five lines apart, disagreeing about whether the instrument is
+part of the population. `n_ran` came back **162** against
+`polarity.classify_file`'s **161** for the same guest file, and rounds 428
+through 431 carried the discrepancy forward as an open question about which
+counter was right — a question that reads as a real difference of
+denominator and is not one. The residual is exactly the probe: one witness
+line, 161 guest checks.
+
+The generalisation: **a recorder does not need a cadence to contaminate its
+own record.** Any instrument that INJECTS something into the subject —
+a probe, a canary, a synthetic transaction, a health-check request, a
+tracing span, a test fixture's own rows — will be counted by whatever
+counts the subject, unless someone excluded it on purpose. Look for the
+exclusion existing in one place and missing in the one beside it: that
+asymmetry is the tell, and it is cheaper to grep for than to reason about.
+Round 432 fixed it by making `n_ran` the guest's own checks and reporting
+the probe under its own name, `n_witness`, rather than by reconciling the
+two published numbers.

@@ -945,6 +945,66 @@ def delta_kind(old, new):
     return DELTA_INFIX
 
 
+def _expr_text(node, depth=0):
+    """Render an expression back to Whence-ish source. DISPLAY ONLY.
+
+    Never parsed back, and not required to round-trip. It exists because
+    `_brief` names a node by its CLASS, and round 428 printed
+
+        unknown: contains(...)  ->  <Binary>
+
+    for the three pins its own next-steps then called "the largest single
+    class". That line says something is undecided and hides WHAT is
+    undecided, which for a residual proof obligation is the entire content
+    of the finding. `+` chains keep `_brief`'s existing rendering, so the
+    `append_only` deltas are unchanged.
+    """
+    if depth > 6:
+        return "…"
+    if isinstance(node, A.Str):
+        return repr(node.value)
+    if isinstance(node, A.Num):
+        return repr(node.value)
+    if isinstance(node, A.BoolLit):
+        return "true" if node.value else "false"
+    if isinstance(node, A.NameRef):
+        return node.name
+    if isinstance(node, A.MissLit):
+        return "miss"
+    if isinstance(node, A.FieldAccess):
+        return "%s.%s" % (_expr_text(node.obj, depth + 1), node.name)
+    if isinstance(node, A.Index):
+        return "%s[%s]" % (_expr_text(node.obj, depth + 1),
+                           _expr_text(node.index, depth + 1))
+    if isinstance(node, A.Unary):
+        inner = _expr_text(node.operand, depth + 1)
+        return "not %s" % inner if node.op == "not" else "%s%s" % (node.op,
+                                                                   inner)
+    if isinstance(node, A.Binary):
+        return "(%s %s %s)" % (_expr_text(node.left, depth + 1), node.op,
+                               _expr_text(node.right, depth + 1))
+    if isinstance(node, A.Call):
+        fn = (node.fn.name if isinstance(node.fn, A.NameRef)
+              else _expr_text(node.fn, depth + 1))
+        return "%s(%s)" % (fn, ", ".join(_expr_text(a, depth + 1)
+                                         for a in node.args))
+    if isinstance(node, A.ListLit):
+        return "[%s]" % ", ".join(_expr_text(x, depth + 1) for x in node.items)
+    if isinstance(node, A.If):
+        other = ("" if node.otherwise is None
+                 else " else { %s }" % _expr_text(
+                     _block_value(node.otherwise), depth + 1))
+        return "if %s { %s }%s" % (_expr_text(node.cond, depth + 1),
+                                   _expr_text(_block_value(node.then),
+                                              depth + 1), other)
+    if isinstance(node, A.Block):
+        v = _block_value(node)
+        return _expr_text(v, depth + 1) if v is not node else "{…}"
+    if isinstance(node, A.Node):
+        return "<%s>" % type(node).__name__
+    return repr(node)
+
+
 def _brief(node, limit=44):
     if isinstance(node, A.Str):
         s = repr(node.value)
@@ -954,10 +1014,11 @@ def _brief(node, limit=44):
         s = node.name
     elif isinstance(node, A.Num):
         s = repr(node.value)
-    elif isinstance(node, A.Call):
-        s = "%s(...)" % (_brief(node.fn, 18)
-                         if not isinstance(node.fn, A.NameRef)
-                         else node.fn.name)
+    elif isinstance(node, (A.Call, A.Binary, A.Unary, A.If, A.BoolLit)):
+        # Round 432: was `%s(...)` for a Call and `<Binary>` for the rest.
+        # A residual obligation whose two sides both print as `(...)` is not
+        # a report, and the truncation below still bounds the width.
+        s = _expr_text(node)
     elif isinstance(node, A.Node):
         s = "<%s>" % type(node).__name__
     elif isinstance(node, (list, tuple)):
@@ -1158,6 +1219,143 @@ def _guard_relation(old, new):
     return None
 
 
+#: Literal node types whose value `_fold_cmp` is willing to read. Whence's
+#: `BoolLit` is its own node and is NOT an int here, so `0 == false` never
+#: folds -- guessing a cross-type comparison is the one error that turns a
+#: `holds` into a lie instead of into an `unknown`.
+_LIT_TYPES = (A.Num, A.Str, A.BoolLit)
+
+
+def _is_lit(node):
+    return isinstance(node, _LIT_TYPES)
+
+
+def _fold_cmp(op, a, b):
+    """`<lit> op <lit>` -> True/False, or None for "not folded".
+
+    Same-type literals only, and ORDERING folds only for numbers: this
+    module has not measured what Whence's `<` does to two strings, and a
+    report is not a place to find out.
+    """
+    if type(a) is not type(b):
+        return None
+    if not isinstance(a, A.Num) and op not in ("==", "!="):
+        return None
+    va, vb = a.value, b.value
+    return {"==": va == vb, "!=": va != vb, "<": va < vb, ">": va > vb,
+            "<=": va <= vb, ">=": va >= vb}[op]
+
+
+def _distribute_if(iff, op, other, other_on_left):
+    """`(if C {a} else {b}) op k` -> `(C and a op k) or (not C and b op k)`.
+
+    Returns None unless both arms unwrap to a single expression: an `else
+    if` chain leaves an `A.If` in the arm and a multi-statement block leaves
+    an `A.Block`, and comparing either against `k` is not a claim this
+    module can make.
+    """
+    if iff.otherwise is None:
+        return None
+    a = _block_value(iff.then)
+    b = _block_value(iff.otherwise)
+    if isinstance(a, (A.Block, A.If)) or isinstance(b, (A.Block, A.If)):
+        return None
+    ln = iff.line
+
+    def cmp(v):
+        return (A.Binary(ln, op, other, v) if other_on_left
+                else A.Binary(ln, op, v, other))
+
+    return A.Binary(ln, "or",
+                    A.Binary(ln, "and", iff.cond, cmp(a)),
+                    A.Binary(ln, "and", A.Unary(ln, "not", iff.cond), cmp(b)))
+
+
+def _simplify_bool(op, l, r, line):
+    """The connective folds that are valid under Whence's THREE outcomes.
+
+    Each rule below preserves the set of inputs on which the expression is
+    TRUE, and none of them preserves miss-vs-false. That is exactly the
+    right trade for `_implies`, which only ever asks "whenever p is true, is
+    q true": `p and false` is a miss when `p` is a miss and `false`
+    otherwise, and it is TRUE in neither case, so folding it to `false`
+    cannot make a proof succeed that should have failed.
+
+    The rule NOT written is the load-bearing one. `p or true` is NOT folded
+    to `true`, because nothing in this repo has measured whether Whence's
+    `or` short-circuits past a miss on the left, and `true` is true
+    everywhere. One unsound fold here silently turns every downstream
+    `holds` into a guess.
+    """
+    lb = l.value if isinstance(l, A.BoolLit) else None
+    rb = r.value if isinstance(r, A.BoolLit) else None
+    if op == "and":
+        if lb is False or rb is False:
+            return A.BoolLit(line, False)
+        if lb is True:
+            return r
+        if rb is True:
+            return l
+    elif op == "or":
+        if lb is False:
+            return r
+        if rb is False:
+            return l
+    return None
+
+
+def _norm(node, depth=0):
+    """Rewrite an expression toward a boolean skeleton, TRUTH-preserving.
+
+    Round 428's next-steps said `_implies` "is already the relation it
+    needs" for the one-hop class. It is not, and this function is the gap:
+    the four laws are shape rules over `and`/`or`, and the one-hop
+    substitution hands them a COMPARISON with an `if` inside it
+    (`(if nm == "" {0} else {bound_line(...)}) != 0`), which matches none of
+    them. Normalisation is what turns that into the `and`/`or` skeleton the
+    laws can work on.
+
+    Deliberately shallow: it descends through `not`, `and`, `or` and the
+    two-sided comparisons and stops. It does NOT rewrite inside call
+    arguments or `if` arms, because nothing downstream asks about them.
+    """
+    if depth > 8 or not isinstance(node, A.Node):
+        return node
+    if isinstance(node, A.Unary) and node.op == "not":
+        inner = _norm(node.operand, depth + 1)
+        if isinstance(inner, A.BoolLit):
+            return A.BoolLit(node.line, not inner.value)
+        return (node if inner is node.operand
+                else A.Unary(node.line, "not", inner))
+    if isinstance(node, A.Binary) and node.op in ("and", "or"):
+        l = _norm(node.left, depth + 1)
+        r = _norm(node.right, depth + 1)
+        s = _simplify_bool(node.op, l, r, node.line)
+        if s is not None:
+            return _norm(s, depth + 1)
+        if l is node.left and r is node.right:
+            return node
+        return A.Binary(node.line, node.op, l, r)
+    if isinstance(node, A.Binary) and node.op in TWO_SIDED_OPS:
+        l = _norm(node.left, depth + 1)
+        r = _norm(node.right, depth + 1)
+        if _is_lit(l) and _is_lit(r):
+            v = _fold_cmp(node.op, l, r)
+            if v is not None:
+                return A.BoolLit(node.line, v)
+        d = None
+        if isinstance(l, A.If) and _is_lit(r):
+            d = _distribute_if(l, node.op, r, False)
+        elif isinstance(r, A.If) and _is_lit(l):
+            d = _distribute_if(r, node.op, l, True)
+        if d is not None:
+            return _norm(d, depth + 1)
+        if l is node.left and r is node.right:
+            return node
+        return A.Binary(node.line, node.op, l, r)
+    return node
+
+
 def _implies(p, q, depth=0):
     """Is `p` -> `q` provable from the shape of the two conditions alone?
 
@@ -1166,9 +1364,16 @@ def _implies(p, q, depth=0):
     and the two all-branches forms. It is a PROOF procedure, not a decision
     procedure -- `False` means "not shown", never "does not hold" -- which
     is the direction that keeps a `holds` honest.
+
+    Round 432: both operands are `_norm`-alised once, at depth 0. The
+    recursion below only ever descends into sub-nodes of an already
+    normalised tree, so re-running it per level would be wasted work rather
+    than a second effect.
     """
     if depth > 6:
         return False
+    if depth == 0:
+        p, q = _norm(p), _norm(q)
     if _node_eq(p, q):
         return True
     if isinstance(q, A.Binary) and q.op == "or":
@@ -1224,6 +1429,146 @@ def _guard_cond_relation(old, new):
     if miss_then:
         return REF_REFUSE if widened else (REF_REVIVE if narrowed else None)
     return REF_REFUSE if narrowed else (REF_REVIVE if widened else None)
+
+
+def _uses_name(node, name):
+    """Does `name` occur free in this subtree?
+
+    Conservative at a binder: a `fn` that BINDS `name` as a parameter
+    reports True even though the inner occurrences are a different
+    variable. That answer is wrong in the safe direction -- every caller
+    below uses `_uses_name` to REFUSE to apply the one-hop rule -- and
+    getting shadowing right is not worth a soundness risk on a corpus that
+    contains no instance of it.
+    """
+    if isinstance(node, A.NameRef):
+        return node.name == name
+    if isinstance(node, (A.FnExpr, A.FnDef)) and _binder_mentions(node, name):
+        return True
+    if isinstance(node, A.Node):
+        return any(_uses_name(getattr(node, f), name) for f in _slots(node))
+    if isinstance(node, (list, tuple)):
+        return any(_uses_name(x, name) for x in node)
+    return False
+
+
+def _binder_mentions(fn_node, name):
+    """Does this `fn`'s parameter list mention `name` (in any encoding)?"""
+    for p in (fn_node.params or ()):
+        if p == name:
+            return True
+        if isinstance(p, (list, tuple)) and name in p:
+            return True
+        if getattr(p, "name", None) == name:
+            return True
+    return False
+
+
+def _rebinds_name(stmt, name):
+    return (isinstance(stmt, (A.Let, A.FnDef))
+            and getattr(stmt, "name", None) == name)
+
+
+def _substitute(node, name, repl):
+    """Replace every free `NameRef(name)` with `repl`. Never enters a `fn`."""
+    if isinstance(node, A.NameRef) and node.name == name:
+        return repl
+    if isinstance(node, (A.FnExpr, A.FnDef)):
+        return node
+    if isinstance(node, A.Node):
+        return type(node)(node.line, *[
+            _substitute(getattr(node, f), name, repl)
+            for f in type(node).__slots__])
+    if isinstance(node, list):
+        return [_substitute(x, name, repl) for x in node]
+    if isinstance(node, tuple):
+        return tuple(_substitute(x, name, repl) for x in node)
+    return node
+
+
+def _let_hop_relation(olds, news, whole_old, whole_new, out):
+    """Shape 5 (round 432): the delta is ONE `let`, read ONE hop later.
+
+        let dup = contains(acc, nm.name)      # <- the whole delta
+        let acc2 = push(acc, nm.name)
+        ...
+        if dup { miss (...) } else { ... }    # <- the guard, same block
+
+    `_refusal_leaf`'s three shapes all ask about a node that is itself a
+    miss or an `if`; this edit is neither, so the pairwise descent reaches
+    two `let` RHSs, finds `<Call>` against `<Binary>`, and returns
+    `unknown`. Nothing was wrong with that answer -- the decider genuinely
+    could not see that `dup` reaches a guard -- it was just the wrong
+    question. Substituting the two RHSs into the guard condition turns a
+    value-flow question into the CONDITION question shape 4 already
+    decides, and hands it to the same widening test.
+
+    Preconditions, each of which is a soundness obligation and not a
+    convenience:
+
+    * **Exactly one statement differs**, and it is a `let` with the same
+      name on both sides. More than one delta is more than one hop.
+    * **The tail is byte-identical**, so the guard itself did not move.
+    * **The name is read by exactly ONE later statement**, which is the
+      guard. A value that also flows somewhere else can change that place
+      too, and this rule would not have looked.
+    * **Nothing rebinds the name in between.** Whence has no rebinding at
+      all -- that is what CP17p's own rule says -- so on this corpus the
+      check is vacuous. It is written anyway because the rule is not about
+      this corpus, and a later round that reads it should not have to
+      re-derive why it is safe.
+    * **The guard's arms differ in missing-ness**, and the name is read by
+      the CONDITION and, at most, by an arm that only ever misses. A use
+      inside a surviving arm is a second consumer whose value changed; a
+      use inside the miss arm cannot revive anything, because that arm
+      misses whatever the value is. CP17p needs exactly this allowance --
+      its miss arm interpolates `str(first)` into the message.
+    """
+    if len(olds) != len(news):
+        return None
+    diff = [i for i in range(len(olds)) if not _node_eq(olds[i], news[i])]
+    if len(diff) != 1:
+        return None
+    i = diff[0]
+    a, b = olds[i], news[i]
+    if not (isinstance(a, A.Let) and isinstance(b, A.Let) and a.name == b.name):
+        return None
+    name = a.name
+    rest = list(olds[i + 1:])
+    if not _node_eq(rest, list(news[i + 1:])):
+        return None
+    users = [j for j, st in enumerate(rest) if _uses_name(st, name)]
+    if len(users) != 1:
+        return None
+    if any(_rebinds_name(st, name) for st in rest[:users[0]]):
+        return None
+    guard = rest[users[0]]
+    if isinstance(guard, A.ExprStmt):
+        guard = guard.expr
+    if not (isinstance(guard, A.If) and guard.otherwise is not None):
+        return None
+    miss_then = _yields_miss(guard.then)
+    if miss_then == _yields_miss(guard.otherwise):
+        return None
+    survivor = guard.otherwise if miss_then else guard.then
+    if _uses_name(survivor, name) or not _uses_name(guard.cond, name):
+        return None
+    old_cond = _substitute(guard.cond, name, a.expr)
+    new_cond = _substitute(guard.cond, name, b.expr)
+    widened = _implies(old_cond, new_cond)
+    narrowed = _implies(new_cond, old_cond)
+    if widened and narrowed:
+        return None                     # provably equivalent, yet not equal
+    if miss_then:
+        rel = REF_REFUSE if widened else (REF_REVIVE if narrowed else None)
+    else:
+        rel = REF_REFUSE if narrowed else (REF_REVIVE if widened else None)
+    # An undecided hop is recorded as `unknown` over the SUBSTITUTED
+    # conditions rather than left to the pairwise descent. The status is the
+    # same either way; the difference is that the report then names the
+    # residual proof obligation instead of printing `<Call> -> <Binary>`.
+    _record(out, rel or REF_UNKNOWN, old_cond, new_cond)
+    return rel or REF_UNKNOWN
 
 
 def _refusal_relation(old, new, out=None):
@@ -1288,6 +1633,9 @@ def _refusal_stmts(olds, news, whole_old, whole_new, out):
     and nothing below it is comparable.
     """
     if len(olds) == len(news):
+        hop = _let_hop_relation(olds, news, whole_old, whole_new, out)
+        if hop is not None:
+            return hop
         return _ref_combine(_refusal_relation(a, b, out)
                             for a, b in zip(olds, news))
     k = 0

@@ -1,0 +1,558 @@
+{
+  "CP03p": {
+    "status": "unknown",
+    "why": "append_only: unknown",
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "[append_only] structural: <Block>  ->  if (c == \"'\") { \"\\\\'\" } else { c }"
+    ],
+    "decided_over": [
+      "append_only"
+    ],
+    "per_precondition": {
+      "append_only": {
+        "status": "unknown",
+        "why": null,
+        "kinds": [
+          "structural"
+        ],
+        "deltas": [
+          "structural: <Block>  ->  if (c == \"'\") { \"\\\\'\" } else { c }"
+        ],
+        "decided_over": [
+          "append_only"
+        ]
+      }
+    }
+  },
+  "CP04p": {
+    "status": "holds",
+    "why": "append_only: holds",
+    "kinds": [
+      "append"
+    ],
+    "deltas": [
+      "[append_only] append: str(...)  ->  str(...) + ' (a number)'"
+    ],
+    "decided_over": [
+      "append_only"
+    ],
+    "per_precondition": {
+      "append_only": {
+        "status": "holds",
+        "why": null,
+        "kinds": [
+          "append"
+        ],
+        "deltas": [
+          "append: str(...)  ->  str(...) + ' (a number)'"
+        ],
+        "decided_over": [
+          "append_only"
+        ]
+      }
+    }
+  },
+  "CP05p": {
+    "status": "holds",
+    "why": "append_only: holds",
+    "kinds": [
+      "append"
+    ],
+    "deltas": [
+      "[append_only] append: 'a line break'  ->  'a line break (statement separator)'"
+    ],
+    "decided_over": [
+      "append_only"
+    ],
+    "per_precondition": {
+      "append_only": {
+        "status": "holds",
+        "why": null,
+        "kinds": [
+          "append"
+        ],
+        "deltas": [
+          "append: 'a line break'  ->  'a line break (statement separator)'"
+        ],
+        "decided_over": [
+          "append_only"
+        ]
+      }
+    }
+  },
+  "CP22p": {
+    "status": "holds",
+    "why": "append_only: holds",
+    "kinds": [
+      "append"
+    ],
+    "deltas": [
+      "[append_only] append: 'expected ' + what + ', got ' + show_tok(..\u2026  ->  'expected ' + what + ', got ' + show_tok(..\u2026"
+    ],
+    "decided_over": [
+      "append_only"
+    ],
+    "per_precondition": {
+      "append_only": {
+        "status": "holds",
+        "why": null,
+        "kinds": [
+          "append"
+        ],
+        "deltas": [
+          "append: 'expected ' + what + ', got ' + show_tok(..\u2026  ->  'expected ' + what + ', got ' + show_tok(..\u2026"
+        ],
+        "decided_over": [
+          "append_only"
+        ]
+      }
+    }
+  },
+  "CP22p2": {
+    "status": "broken",
+    "why": "append_only: broken",
+    "kinds": [
+      "infix"
+    ],
+    "deltas": [
+      "[append_only] infix: 'expected ' + what + ', got ' + show_tok(..\u2026  ->  'expected ' + what + ' here, got ' + show_t\u2026"
+    ],
+    "decided_over": [
+      "append_only"
+    ],
+    "per_precondition": {
+      "append_only": {
+        "status": "broken",
+        "why": null,
+        "kinds": [
+          "infix"
+        ],
+        "deltas": [
+          "infix: 'expected ' + what + ', got ' + show_tok(..\u2026  ->  'expected ' + what + ' here, got ' + show_t\u2026"
+        ],
+        "decided_over": [
+          "append_only"
+        ]
+      }
+    }
+  },
+  "CP06p": {
+    "status": "unknown",
+    "why": "append_only: unknown",
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "[append_only] structural: ((((t == '(') or (t == '[')) or (t == '@{')\u2026  ->  (((((t == '(') or (t == '[')) or (t == '@{'\u2026"
+    ],
+    "decided_over": [
+      "append_only"
+    ],
+    "per_precondition": {
+      "append_only": {
+        "status": "unknown",
+        "why": null,
+        "kinds": [
+          "structural"
+        ],
+        "deltas": [
+          "structural: ((((t == '(') or (t == '[')) or (t == '@{')\u2026  ->  (((((t == '(') or (t == '[')) or (t == '@{'\u2026"
+        ],
+        "decided_over": [
+          "append_only"
+        ]
+      }
+    }
+  },
+  "CP07p": {
+    "status": "unknown",
+    "why": "append_only: unknown",
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "[append_only] structural: ((((t == '(') or (t == '[')) or (t == '@{')\u2026  ->  (((t == '(') or (t == '@{')) or last_contin\u2026"
+    ],
+    "decided_over": [
+      "append_only"
+    ],
+    "per_precondition": {
+      "append_only": {
+        "status": "unknown",
+        "why": null,
+        "kinds": [
+          "structural"
+        ],
+        "deltas": [
+          "structural: ((((t == '(') or (t == '[')) or (t == '@{')\u2026  ->  (((t == '(') or (t == '@{')) or last_contin\u2026"
+        ],
+        "decided_over": [
+          "append_only"
+        ]
+      }
+    }
+  },
+  "CP08p": {
+    "status": "unknown",
+    "why": "append_only: unknown",
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "[append_only] structural: (((last.t == 'op') and contains(continue_op\u2026  ->  ((((last.t == 'op') and contains(continue_o\u2026"
+    ],
+    "decided_over": [
+      "append_only"
+    ],
+    "per_precondition": {
+      "append_only": {
+        "status": "unknown",
+        "why": null,
+        "kinds": [
+          "structural"
+        ],
+        "deltas": [
+          "structural: (((last.t == 'op') and contains(continue_op\u2026  ->  ((((last.t == 'op') and contains(continue_o\u2026"
+        ],
+        "decided_over": [
+          "append_only"
+        ]
+      }
+    }
+  },
+  "CP09p": {
+    "status": "inapplicable",
+    "why": "guardian is not blind in any direction, so no precondition is in play",
+    "kinds": [],
+    "deltas": [],
+    "decided_over": [],
+    "per_precondition": {}
+  },
+  "CP10p": {
+    "status": "inapplicable",
+    "why": "guardian is not blind in any direction, so no precondition is in play",
+    "kinds": [],
+    "deltas": [],
+    "decided_over": [],
+    "per_precondition": {}
+  },
+  "CP10p2": {
+    "status": "inapplicable",
+    "why": "guardian is not blind in any direction, so no precondition is in play",
+    "kinds": [],
+    "deltas": [],
+    "decided_over": [],
+    "per_precondition": {}
+  },
+  "CP11p": {
+    "status": "inapplicable",
+    "why": "guardian is not blind in any direction, so no precondition is in play",
+    "kinds": [],
+    "deltas": [],
+    "decided_over": [],
+    "per_precondition": {}
+  },
+  "CP12p": {
+    "status": "inapplicable",
+    "why": "guardian is not blind in any direction, so no precondition is in play",
+    "kinds": [],
+    "deltas": [],
+    "decided_over": [],
+    "per_precondition": {}
+  },
+  "CP13p": {
+    "status": "holds",
+    "why": "refusal: holds",
+    "kinds": [
+      "refuse"
+    ],
+    "deltas": [
+      "[refusal] refuse: <Block>  ->  <Block>"
+    ],
+    "decided_over": [
+      "refusal"
+    ],
+    "per_precondition": {
+      "refusal": {
+        "status": "holds",
+        "why": null,
+        "kinds": [
+          "refuse"
+        ],
+        "deltas": [
+          "refuse: <Block>  ->  <Block>"
+        ],
+        "decided_over": [
+          "refusal"
+        ]
+      }
+    }
+  },
+  "CP14p": {
+    "status": "holds",
+    "why": "refusal: holds",
+    "kinds": [
+      "refuse"
+    ],
+    "deltas": [
+      "[refusal] refuse: <Block>  ->  <Block>"
+    ],
+    "decided_over": [
+      "refusal"
+    ],
+    "per_precondition": {
+      "refusal": {
+        "status": "holds",
+        "why": null,
+        "kinds": [
+          "refuse"
+        ],
+        "deltas": [
+          "refuse: <Block>  ->  <Block>"
+        ],
+        "decided_over": [
+          "refusal"
+        ]
+      }
+    }
+  },
+  "CP15p": {
+    "status": "holds",
+    "why": "refusal: holds",
+    "kinds": [
+      "refuse"
+    ],
+    "deltas": [
+      "[refusal] refuse: <Block>  ->  <Block>"
+    ],
+    "decided_over": [
+      "refusal"
+    ],
+    "per_precondition": {
+      "refusal": {
+        "status": "holds",
+        "why": null,
+        "kinds": [
+          "refuse"
+        ],
+        "deltas": [
+          "refuse: <Block>  ->  <Block>"
+        ],
+        "decided_over": [
+          "refusal"
+        ]
+      }
+    }
+  },
+  "CP16p": {
+    "status": "holds",
+    "why": "refusal: holds",
+    "kinds": [
+      "refuse"
+    ],
+    "deltas": [
+      "[refusal] refuse: if ((k2.t == 'op') and contains(cmp_ops, k2\u2026  ->  if (((k2.t == 'op') and contains(cmp_ops, k\u2026"
+    ],
+    "decided_over": [
+      "refusal"
+    ],
+    "per_precondition": {
+      "refusal": {
+        "status": "holds",
+        "why": null,
+        "kinds": [
+          "refuse"
+        ],
+        "deltas": [
+          "refuse: if ((k2.t == 'op') and contains(cmp_ops, k2\u2026  ->  if (((k2.t == 'op') and contains(cmp_ops, k\u2026"
+        ],
+        "decided_over": [
+          "refusal"
+        ]
+      }
+    }
+  },
+  "CP17p": {
+    "status": "holds",
+    "why": "refusal: holds",
+    "kinds": [
+      "refuse"
+    ],
+    "deltas": [
+      "[refusal] refuse: (if (nm == '') { 0 } else { bound_line(boun\u2026  ->  (if (nm == '') { 0 } else { 1 } != 0)"
+    ],
+    "decided_over": [
+      "refusal"
+    ],
+    "per_precondition": {
+      "refusal": {
+        "status": "holds",
+        "why": null,
+        "kinds": [
+          "refuse"
+        ],
+        "deltas": [
+          "refuse: (if (nm == '') { 0 } else { bound_line(boun\u2026  ->  (if (nm == '') { 0 } else { 1 } != 0)"
+        ],
+        "decided_over": [
+          "refusal"
+        ]
+      }
+    }
+  },
+  "CP18p": {
+    "status": "unknown",
+    "why": "refusal: unknown",
+    "kinds": [
+      "unknown"
+    ],
+    "deltas": [
+      "[refusal] unknown: contains(...)  ->  (len(acc) > 0)"
+    ],
+    "decided_over": [
+      "refusal"
+    ],
+    "per_precondition": {
+      "refusal": {
+        "status": "unknown",
+        "why": null,
+        "kinds": [
+          "unknown"
+        ],
+        "deltas": [
+          "unknown: contains(...)  ->  (len(acc) > 0)"
+        ],
+        "decided_over": [
+          "refusal"
+        ]
+      }
+    }
+  },
+  "CP19p": {
+    "status": "unknown",
+    "why": "refusal: unknown",
+    "kinds": [
+      "unknown"
+    ],
+    "deltas": [
+      "[refusal] unknown: contains(...)  ->  (len(seen) > 0)"
+    ],
+    "decided_over": [
+      "refusal"
+    ],
+    "per_precondition": {
+      "refusal": {
+        "status": "unknown",
+        "why": null,
+        "kinds": [
+          "unknown"
+        ],
+        "deltas": [
+          "unknown: contains(...)  ->  (len(seen) > 0)"
+        ],
+        "decided_over": [
+          "refusal"
+        ]
+      }
+    }
+  },
+  "CP20p": {
+    "status": "unknown",
+    "why": "refusal: unknown",
+    "kinds": [
+      "unknown"
+    ],
+    "deltas": [
+      "[refusal] unknown: <RecordLit>  ->  if (bound_line(shapes_before(toks, pos, 'sc\u2026"
+    ],
+    "decided_over": [
+      "refusal"
+    ],
+    "per_precondition": {
+      "refusal": {
+        "status": "unknown",
+        "why": null,
+        "kinds": [
+          "unknown"
+        ],
+        "deltas": [
+          "unknown: <RecordLit>  ->  if (bound_line(shapes_before(toks, pos, 'sc\u2026"
+        ],
+        "decided_over": [
+          "refusal"
+        ]
+      }
+    }
+  },
+  "CP21p": {
+    "status": "holds",
+    "why": "refusal: holds",
+    "kinds": [
+      "refuse"
+    ],
+    "deltas": [
+      "[refusal] refuse: if (bound_line(shapes_before(toks, pos, 'sc\u2026  ->  if (bound_line(shapes_before(toks, pos, 'sc\u2026"
+    ],
+    "decided_over": [
+      "refusal"
+    ],
+    "per_precondition": {
+      "refusal": {
+        "status": "holds",
+        "why": null,
+        "kinds": [
+          "refuse"
+        ],
+        "deltas": [
+          "refuse: if (bound_line(shapes_before(toks, pos, 'sc\u2026  ->  if (bound_line(shapes_before(toks, pos, 'sc\u2026"
+        ],
+        "decided_over": [
+          "refusal"
+        ]
+      }
+    }
+  },
+  "NC02p": {
+    "status": "broken",
+    "why": "append_only: broken",
+    "kinds": [
+      "infix",
+      "structural",
+      "infix",
+      "structural"
+    ],
+    "deltas": [
+      "[append_only] infix: 'op'  ->  'kw'",
+      "[append_only] structural: continue_ops  ->  continue_kws",
+      "[append_only] infix: 'kw'  ->  'op'",
+      "[append_only] structural: continue_kws  ->  continue_ops"
+    ],
+    "decided_over": [
+      "append_only"
+    ],
+    "per_precondition": {
+      "append_only": {
+        "status": "broken",
+        "why": null,
+        "kinds": [
+          "infix",
+          "structural",
+          "infix",
+          "structural"
+        ],
+        "deltas": [
+          "infix: 'op'  ->  'kw'",
+          "structural: continue_ops  ->  continue_kws",
+          "infix: 'kw'  ->  'op'",
+          "structural: continue_kws  ->  continue_ops"
+        ],
+        "decided_over": [
+          "append_only"
+        ]
+      }
+    }
+  }
+}

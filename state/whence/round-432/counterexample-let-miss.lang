@@ -1,0 +1,14 @@
+# Round 432. The obvious REPAIR of `contains(X, y) -> len(X) > 0` is
+# "the same block passes X to push(), which takes lists only, so a
+# non-list X misses anyway". It does not: a `let` whose RHS is a miss
+# does NOT abort the block.
+fn probe(acc) {
+  let dup = contains(acc, "a")
+  let acc2 = push(acc, "a")
+  if dup { miss ("dup") }
+  else { 42 }
+}
+check "list, no dup": probe([]) == 42
+check "list, dup": missed(probe(["a"]))
+check "STRING hay returns a VALUE, the let-miss did not abort": probe("xyz") == 42
+check "so the push witness does not make the law sound": not missed(probe("xyz"))

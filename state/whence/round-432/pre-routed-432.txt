@@ -1,0 +1,73 @@
+precondition, decided from the EDIT alone, ROUTED to the one each pin's own
+guardian rests on (round 428) — examples/self_host.lang
+  deciders: append_only, refusal; no decider for: kind_stable
+  CP03p   unknown       over append_only             
+        [append_only] structural: <Block>  ->  if (c == "'") { "\\'" } else { c }
+        append_only: unknown
+  CP04p   holds         over append_only             
+        [append_only] append: str(k.v)  ->  str(k.v) + ' (a number)'
+        append_only: holds
+  CP05p   holds         over append_only             
+        [append_only] append: 'a line break'  ->  'a line break (statement separator)'
+        append_only: holds
+  CP22p   holds         over append_only             
+        [append_only] append: 'expected ' + what + ', got ' + show_tok(k)…  ->  'expected ' + what + ', got ' + show_tok(k)…
+        append_only: holds
+  CP22p2  broken        over append_only             
+        [append_only] infix: 'expected ' + what + ', got ' + show_tok(k)…  ->  'expected ' + what + ' here, got ' + show_t…
+        append_only: broken
+  CP06p   unknown       over append_only             
+        [append_only] structural: ((((t == '(') or (t == '[')) or (t == '@{')…  ->  (((((t == '(') or (t == '[')) or (t == '@{'…
+        append_only: unknown
+  CP07p   unknown       over append_only             
+        [append_only] structural: ((((t == '(') or (t == '[')) or (t == '@{')…  ->  (((t == '(') or (t == '@{')) or last_contin…
+        append_only: unknown
+  CP08p   unknown       over append_only             
+        [append_only] structural: (((last.t == 'op') and contains(continue_op…  ->  ((((last.t == 'op') and contains(continue_o…
+        append_only: unknown
+  CP09p   inapplicable  over -                       
+        guardian is not blind in any direction, so no precondition is in play
+  CP10p   inapplicable  over -                       
+        guardian is not blind in any direction, so no precondition is in play
+  CP10p2  inapplicable  over -                       
+        guardian is not blind in any direction, so no precondition is in play
+  CP11p   inapplicable  over -                       
+        guardian is not blind in any direction, so no precondition is in play
+  CP12p   inapplicable  over -                       
+        guardian is not blind in any direction, so no precondition is in play
+  CP13p   holds         over refusal                 
+        [refusal] refuse: <Block>  ->  <Block>
+        refusal: holds
+  CP14p   holds         over refusal                 
+        [refusal] refuse: <Block>  ->  <Block>
+        refusal: holds
+  CP15p   holds         over refusal                 
+        [refusal] refuse: <Block>  ->  <Block>
+        refusal: holds
+  CP16p   holds         over refusal                 
+        [refusal] refuse: if ((k2.t == 'op') and contains(cmp_ops, k2…  ->  if (((k2.t == 'op') and contains(cmp_ops, k…
+        refusal: holds
+  CP17p   holds         over refusal                 
+        [refusal] refuse: (if (nm == '') { 0 } else { bound_line(boun…  ->  (if (nm == '') { 0 } else { 1 } != 0)
+        refusal: holds
+  CP18p   unknown       over refusal                 
+        [refusal] unknown: contains(acc, nm.name)  ->  (len(acc) > 0)
+        refusal: unknown
+  CP19p   unknown       over refusal                 
+        [refusal] unknown: contains(seen, f.name)  ->  (len(seen) > 0)
+        refusal: unknown
+  CP20p   unknown       over refusal                 
+        [refusal] unknown: <RecordLit>  ->  if (bound_line(shapes_before(toks, pos, 'sc…
+        refusal: unknown
+  CP21p   holds         over refusal                 
+        [refusal] refuse: if (bound_line(shapes_before(toks, pos, 'sc…  ->  if (bound_line(shapes_before(toks, pos, 'sc…
+        refusal: holds
+  NC02p   broken        over append_only             
+        [append_only] infix: 'op'  ->  'kw'
+        [append_only] structural: continue_ops  ->  continue_kws
+        [append_only] infix: 'kw'  ->  'op'
+        [append_only] structural: continue_kws  ->  continue_ops
+        append_only: broken
+  broken 2, holds 9, inapplicable 5, unknown 7
+  0 pin(s) whose UNROUTED answer was a decision to a question the pin never asked
+wrote ../../state/whence/round-432/pre-routed-432.json

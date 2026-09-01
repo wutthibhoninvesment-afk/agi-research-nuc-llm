@@ -19,6 +19,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import curecheck as _C                                         # noqa: E402
 import polarity as PO                                          # noqa: E402
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -324,8 +325,20 @@ def test_repoint_reports_a_genuine_coverage_gap_as_an_empty_candidate_list():
 # real registries and are `whence_slow` because each pin costs one parse of a
 # ~2600-line guest file (measured: 6.9 s for 23 pins).
 
-REG_422 = os.path.join(HERE, "..", "..", "state", "whence", "round-422")
-REG_416 = os.path.join(HERE, "..", "..", "state", "whence", "round-416")
+#: ROUND 431 (SWE-loop D): resolved from `curecheck.AGI_ROOT`, which prefers
+#: the `AGI_RESEARCH_ROOT` env var that `harness/swe/proc.py` exports into
+#: every sandbox it starts, and only falls back to `__file__` arithmetic.
+#: These two lines used to read `os.path.join(HERE, "..", "..", ...)`, which
+#: is round 413's defect class for the FOURTH time (149, 413, 419, here) and
+#: which took the mutation engine down: `_copy_project` copies
+#: `languages/whence` alone, so in the sandbox `..` `..` is the TEMPDIR and
+#: `state/whence/round-422/host-pins-plus.json` is not there. Measured round
+#: 431: 17 tests in this file red in the sandbox, `baseline_check` exit 1,
+#: and NO campaign could start. Do not re-derive a repo path from `__file__`
+#: in this tree -- `swe/copyparity.py escapes` is what checks it now, and as
+#: of round 431 it can actually see this shape.
+REG_422 = os.path.join(_C.AGI_ROOT, "state", "whence", "round-422")
+REG_416 = os.path.join(_C.AGI_ROOT, "state", "whence", "round-416")
 
 
 def _pin(becomes, needle):
@@ -972,7 +985,16 @@ def _host_reg():
     ("CP15p", PO.PRE_HOLDS),
     ("CP16p", PO.PRE_HOLDS),      # guard WIDENED -- shape 4
     ("CP21p", PO.PRE_HOLDS),      # substitution
-    ("CP17p", PO.PRE_UNKNOWN),    # a bool feeding a downstream guard
+    # Round 432: CP17p was `unknown` here through round 431. Shape 5
+    # (`_let_hop_relation`) substitutes the edited `let`'s two RHSs into the
+    # guard condition one hop below it, and `_norm` turns the resulting
+    # `(if ...) != 0` into the `and`/`or` skeleton `_implies` can work on.
+    ("CP17p", PO.PRE_HOLDS),      # a value feeding a downstream guard
+    # CP18p/CP19p stay `unknown` on purpose, and §C of round 432's bank says
+    # why: both reduce to `contains(X, y) -> len(X) > 0`, which is FALSE in
+    # Whence. `test_the_contains_length_law_is_false_in_whence` is the
+    # counterexample, and it is the reason this is the right answer rather
+    # than a gap.
     ("CP18p", PO.PRE_UNKNOWN),
     ("CP19p", PO.PRE_UNKNOWN),
     ("CP20p", PO.PRE_UNKNOWN),    # branch selection, arms not all miss
@@ -1014,8 +1036,8 @@ def test_no_refusal_pin_in_the_corpus_comes_back_broken():
     assert len(ref) == 9
     got = [PO.refusal_precondition(src, p)["status"] for p in ref]
     assert got.count(PO.PRE_BROKEN) == 0
-    assert got.count(PO.PRE_HOLDS) == 5
-    assert got.count(PO.PRE_UNKNOWN) == 4
+    assert got.count(PO.PRE_HOLDS) == 6      # round 432: was 5, +CP17p
+    assert got.count(PO.PRE_UNKNOWN) == 3      # round 432: was 4, -CP17p
 
 
 def test_routing_more_than_doubles_the_decided_share_of_the_registry():
@@ -1029,7 +1051,7 @@ def test_routing_more_than_doubles_the_decided_share_of_the_registry():
                    if r["status"] in (PO.PRE_HOLDS, PO.PRE_BROKEN))
     assert len(reg["pins"]) == 23
     assert decided(unrouted) == 5           # round 426's number
-    assert decided(routed) == 10
+    assert decided(routed) == 11            # round 432: was 10, +CP17p
     # and the 5 pins whose guardian is not blind at all stop being counted
     # as `unknown`, which is what made 18 read as a coverage number.
     assert sum(1 for r in routed.values()
@@ -1133,7 +1155,7 @@ def _law_table(routed, campaigns):
 
 
 def _campaigns():
-    R428 = os.path.join(HERE, "..", "..", "state", "whence", "round-428")
+    R428 = os.path.join(_C.AGI_ROOT, "state", "whence", "round-428")  # round 431: see REG_422
     return [(os.path.join(HERE, "examples", "self_eval.lang"),
              os.path.join(REG_416, "eval-pins.json"),
              os.path.join(REG_416, "run.json")),
@@ -1159,23 +1181,272 @@ def test_routing_and_refusal_take_the_law_below_p_of_five_hundredths():
     pins move `unknown` -> `holds` and the table becomes [[8,0],[0,2]].
 
     This is not classifier-on-outcome: `refusal_precondition` reads the
-    edit and the guest source and never a verdict (guard 1)."""
+    edit and the guest source and never a verdict (guard 1).
+
+    Round 432: shape 5 adds CP17p to the confirmation cell, [[8,0],[0,2]]
+    -> [[9,0],[0,2]], p 0.0222 -> 0.0182."""
     a, b, c, d = _law_table(True, _campaigns())
-    assert (a, b, c, d) == (8, 0, 0, 2)
+    assert (a, b, c, d) == (9, 0, 0, 2)
     assert _fisher_two_sided(a, b, c, d) < 0.05
-    assert round(_fisher_two_sided(a, b, c, d), 4) == 0.0222
+    assert round(_fisher_two_sided(a, b, c, d), 4) == 0.0182
 
 
-def test_the_significance_does_not_rest_on_the_shape_added_after_looking():
-    """DISCLOSURE, pinned. Shape 4 (`_guard_cond_relation`) was written
-    AFTER round 428 had seen CP16p's measured verdict, which the decider
-    itself cannot see but its author could. Removing it costs one `holds`
-    and the result survives: [[7,0],[0,2]], p = 0.028."""
-    saved = PO._guard_cond_relation
+def test_the_significance_does_not_rest_on_the_shapes_added_after_looking():
+    """DISCLOSURE, pinned, and now covering TWO shapes.
+
+    Shape 4 (`_guard_cond_relation`) was written after round 428 had seen
+    CP16p's measured verdict. Shape 5 (`_let_hop_relation`) is the same
+    hazard one round on: round 428's next-steps NAMED CP17p/CP18p/CP19p as
+    the class to attack, and their measured verdicts (`shadowed`, i.e. the
+    not-guarded column) were in the file that named them. Neither decider
+    can see a verdict, but both authors could.
+
+    So the honest control removes them one at a time AND together. Each
+    alone costs one `holds`; both together cost two, and the result still
+    survives at [[7,0],[0,2]], p = 0.0278."""
+    def table(**kw):
+        saved = {k: getattr(PO, k) for k in kw}
+        try:
+            for k, v in kw.items():
+                setattr(PO, k, v)
+            return _law_table(True, _campaigns())
+        finally:
+            for k, v in saved.items():
+                setattr(PO, k, v)
+
+    no4 = table(_guard_cond_relation=lambda a, b: None)
+    no5 = table(_let_hop_relation=lambda *a, **k: None)
+    neither = table(_guard_cond_relation=lambda a, b: None,
+                    _let_hop_relation=lambda *a, **k: None)
+    assert no4 == (8, 0, 0, 2)
+    assert no5 == (8, 0, 0, 2)
+    assert neither == (7, 0, 0, 2)
+    assert round(_fisher_two_sided(*neither), 4) == 0.0278
+    assert _fisher_two_sided(*neither) < 0.05
+
+
+# --- round 432: shape 5, the one-hop let-substitution ----------------------
+
+def _checks(src):
+    """`{label: ok}` for a guest program, RUN. Used only by the two
+    counterexamples below, which are claims about Whence's semantics and
+    would be worthless asserted against the analyser's model of them."""
+    from whence.interp import Interpreter
+    it = Interpreter()
+    it.run(src)
+    return {c["label"]: c["ok"] for c in it.checks}
+
+
+def _hop_pin(needle, becomes):
+    return {"id": "T", "guest_file": "x.lang", "edit": "line_replace",
+            "needle": needle, "becomes": becomes}
+
+
+#: A block with the exact shape of CP18p: a `let` whose value is read one
+#: hop later by an `if` whose then-arm only ever misses.
+_HOP_SRC = """fn f(acc, x) {
+  let dup = contains(acc, x)
+  let acc2 = push(acc, x)
+  if dup { miss ("dup") }
+  else { acc2 }
+}
+check "c": missed(f([1], 1))
+"""
+
+
+def _hop_status(src, needle, becomes):
+    return PO.refusal_precondition(src, _hop_pin(needle, becomes))["status"]
+
+
+def test_cp17p_is_decided_only_by_the_one_hop_shape():
+    """REGRESSION, the mirror of `test_cp16p_is_decided_only_by_the_guard_
+    widening_shape`. Deleting `_let_hop_relation` must put CP17p back to
+    `unknown` and move nothing else in the `holds` column."""
+    reg, src = _host_reg(), _host_src()
+    pin = [p for p in reg["pins"] if p["id"] == "CP17p"][0]
+    assert PO.refusal_precondition(src, pin)["status"] == PO.PRE_HOLDS
+    saved = PO._let_hop_relation
     try:
-        PO._guard_cond_relation = lambda a, b: None
-        a, b, c, d = _law_table(True, _campaigns())
+        PO._let_hop_relation = lambda *a, **k: None
+        assert PO.refusal_precondition(src, pin)["status"] == PO.PRE_UNKNOWN
     finally:
-        PO._guard_cond_relation = saved
-    assert (a, b, c, d) == (7, 0, 0, 2)
-    assert _fisher_two_sided(a, b, c, d) < 0.05
+        PO._let_hop_relation = saved
+
+
+def test_the_one_hop_shape_alone_does_not_decide_cp17p_without_the_normaliser():
+    """Round 428's next-steps: a one-hop rule "would decide all three, and
+    `_implies` -- written this round -- is already the relation it needs".
+
+    The second half is FALSE, and this is the measurement. Shape 5 hands
+    `_implies` a COMPARISON with an `if` inside it, which matches none of
+    the four laws. With `_norm` stubbed out and shape 5 fully live, CP17p
+    is `unknown`; the normaliser is what earns the `holds`."""
+    reg, src = _host_reg(), _host_src()
+    pin = [p for p in reg["pins"] if p["id"] == "CP17p"][0]
+    saved = PO._norm
+    try:
+        PO._norm = lambda n, depth=0: n
+        PO._PARSE_CACHE.clear()
+        assert PO.refusal_precondition(src, pin)["status"] == PO.PRE_UNKNOWN
+    finally:
+        PO._norm = saved
+        PO._PARSE_CACHE.clear()
+    assert PO.refusal_precondition(src, pin)["status"] == PO.PRE_HOLDS
+
+
+def test_the_undecided_hop_names_its_residual_obligation():
+    """CP18p's report used to read `unknown: contains(...) -> <Binary>`.
+    An undecided verdict that does not say WHAT is undecided is the thing
+    round 428's own next-steps then mis-described. After shape 5 the delta
+    carries the two SUBSTITUTED conditions, so the residual is legible."""
+    reg, src = _host_reg(), _host_src()
+    pin = [p for p in reg["pins"] if p["id"] == "CP18p"][0]
+    got = PO.refusal_precondition(src, pin)
+    assert got["status"] == PO.PRE_UNKNOWN
+    assert any("contains(acc, nm.name)" in d and "(len(acc) > 0)" in d
+               for d in got["deltas"]), got["deltas"]
+
+
+def test_the_contains_length_law_is_false_in_whence():
+    """The residual CP18p and CP19p reduce to, refuted by RUNNING it.
+
+    `contains(X, y) -> len(X) > 0` reads as obviously true and is the law a
+    later round would reach for to close those two pins. It is false:
+    `contains` takes `hay:str|list` (interp.py) and the empty string
+    contains the empty string. Adding it would make `holds` a guess."""
+    got = _checks('check "law fails": contains("", "") and not (len("") > 0)\n'
+                  'check "list form holds": not contains([], 1)\n')
+    assert got["law fails"] is True
+    assert got["list form holds"] is True
+
+
+def test_a_let_bound_miss_does_not_abort_the_block():
+    """...and the obvious REPAIR of that law is unsound too.
+
+    The natural guard is "the same block passes X to `push`, which takes
+    lists only, so a non-list X misses anyway". It does not: a `let` whose
+    RHS is a miss does NOT abort the block, so a guard arm that never reads
+    the bound name returns a value as usual. `probe("xyz")` is 42, not a
+    miss. This is why shape 5 stops at `unknown` on CP18p/CP19p, and the
+    stopping is the correct answer rather than a coverage gap."""
+    got = _checks(
+        'fn probe(acc) {\n'
+        '  let dup = contains(acc, "a")\n'
+        '  let acc2 = push(acc, "a")\n'
+        '  if dup { miss ("dup") }\n'
+        '  else { 42 }\n'
+        '}\n'
+        'check "string hay still returns a value": probe("xyz") == 42\n'
+        'check "and the pushed name is unread": not missed(probe("xyz"))\n')
+    assert got["string hay still returns a value"] is True
+    assert got["and the pushed name is unread"] is True
+
+
+def test_the_hop_carries_the_polarity_flip_when_the_miss_is_in_the_else_arm():
+    """D2. Widening the condition refuses more when the MISS is the then-arm
+    and revives when it is the else-arm. Same edit, both ways round."""
+    then_miss = _HOP_SRC
+    else_miss = _HOP_SRC.replace('if dup { miss ("dup") }\n  else { acc2 }',
+                                 'if dup { acc2 }\n  else { miss ("dup") }')
+    wider = ("  let dup = contains(acc, x)", "  let dup = contains(acc, x) or true")
+    assert _hop_status(then_miss, *wider) == PO.PRE_HOLDS
+    assert _hop_status(else_miss, *wider) == PO.PRE_BROKEN
+
+
+def test_a_second_downstream_reader_of_the_name_stays_unknown():
+    """D3. One hop means ONE consumer. A value that also flows into a
+    surviving statement can change that statement too, and this rule did
+    not look at it."""
+    src = _HOP_SRC.replace("  else { acc2 }", "  else { [acc2, dup] }")
+    assert _hop_status(src, "  let dup = contains(acc, x)",
+                       "  let dup = contains(acc, x) or true") == PO.PRE_UNKNOWN
+
+
+def test_a_use_inside_the_miss_arm_is_allowed():
+    """The allowance CP17p needs: its miss arm interpolates `str(first)`
+    into the message. An arm that only ever misses cannot revive anything,
+    whatever value it reads."""
+    src = _HOP_SRC.replace('miss ("dup")', 'miss ("dup " + str(dup))')
+    assert _hop_status(src, "  let dup = contains(acc, x)",
+                       "  let dup = contains(acc, x) or true") == PO.PRE_HOLDS
+
+
+def test_a_rebinding_between_the_let_and_the_guard_stays_unknown():
+    """D4. Whence has no rebinding -- CP17p's own rule is that a duplicate
+    `let` in one block is a miss -- so this control is VACUOUS on this
+    corpus and is written for the rule, not for the corpus. It is asserted
+    against a hand-built block that the guest language would itself refuse."""
+    olds = PO._parse_cached(_HOP_SRC)
+    body = olds.stmts[0].body
+    stmts = list(body.stmts)
+    dup_let = stmts[0]
+    shadow = type(dup_let)(dup_let.line, "dup", dup_let.expr)
+    assert PO._rebinds_name(shadow, "dup")
+    news = list(stmts)
+    news[0] = type(dup_let)(dup_let.line, "dup",
+                            PO.A.BoolLit(dup_let.line, True))
+    assert PO._let_hop_relation(stmts, news, body, body, []) is not None
+    assert PO._let_hop_relation(stmts[:1] + [shadow] + stmts[1:],
+                                news[:1] + [shadow] + news[1:],
+                                body, body, []) is None
+
+
+def test_an_equivalent_condition_is_not_a_refusal_edge():
+    """A hop whose two conditions imply each other is not an edge at all,
+    and must fall through rather than be scored either way."""
+    src = _HOP_SRC
+    assert _hop_status(src, "  let dup = contains(acc, x)",
+                       "  let dup = contains(acc, x) and contains(acc, x)") \
+        in (PO.PRE_UNKNOWN, "identity")
+
+
+# --- round 432: the normaliser, and the fold it deliberately omits --------
+
+def _n(src):
+    """`_norm` applied to the expression of a one-check program."""
+    return PO._norm(PO._parse_cached(src).stmts[0].expr)
+
+
+def test_norm_folds_and_against_false_but_not_or_against_true():
+    """The asymmetry is the whole soundness argument. `p and false` is TRUE
+    on no input whatever `p` does, so folding it to `false` is safe under
+    Whence's three outcomes. `p or true` is NOT folded, because nothing in
+    this repo has measured whether `or` short-circuits past a miss on the
+    left -- and `true` is true everywhere, so a wrong fold there would
+    manufacture proofs."""
+    assert isinstance(_n('check "c": f(1) and false'), PO.A.BoolLit)
+    assert _n('check "c": f(1) and false').value is False
+    keep = _n('check "c": f(1) or true')
+    assert isinstance(keep, PO.A.Binary) and keep.op == "or"
+
+
+def test_norm_distributes_an_if_through_a_comparison_with_a_literal():
+    """The rewrite CP17p turns on."""
+    got = PO._expr_text(_n('check "c": (if p { 0 } else { 1 }) != 0'))
+    assert got == "not p", got
+
+
+def test_norm_refuses_to_distribute_through_an_else_if_chain():
+    """An `else if` leaves an `A.If` in the arm, and `<If> != 0` is not a
+    claim this module can make."""
+    src = 'check "c": (if p { 0 } else if q { 1 } else { 2 }) != 0'
+    assert isinstance(_n(src), PO.A.Binary)
+    assert _n(src).op == "!="
+
+
+def test_norm_does_not_fold_across_literal_types():
+    """Whence's `false` is not `0`. Folding `0 == false` either way would be
+    a guess about the language rather than a rule about the shape."""
+    got = _n('check "c": 0 == false')
+    assert isinstance(got, PO.A.Binary) and got.op == "=="
+
+
+def test_implies_is_unchanged_on_the_shapes_it_already_proved():
+    """The normaliser runs at depth 0 of every `_implies` call, so this is
+    the guard that it did not perturb round 428's four laws."""
+    p = PO._parse_cached('check "c": a and b').stmts[0].expr
+    q = PO._parse_cached('check "c": a').stmts[0].expr
+    r = PO._parse_cached('check "c": a or z').stmts[0].expr
+    assert PO._implies(p, q)
+    assert PO._implies(q, r)
+    assert not PO._implies(q, p)

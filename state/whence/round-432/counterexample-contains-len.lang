@@ -1,0 +1,4 @@
+check "contains empty in empty": contains("", "")
+check "len empty is zero": len("") == 0
+check "the naive law fails": contains("", "") and not (len("") > 0)
+check "list form: contains implies nonempty": not contains([], 1)

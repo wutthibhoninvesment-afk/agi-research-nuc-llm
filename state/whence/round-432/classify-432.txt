@@ -1,0 +1,4 @@
+========================================================================
+examples/self_host.lang: 161 check(s)
+  one-sided         76  (47.2%)   +blind 52, -blind 24, both 0
+  two-sided/unknown 85              of which unknown shape 0 (0.0%)

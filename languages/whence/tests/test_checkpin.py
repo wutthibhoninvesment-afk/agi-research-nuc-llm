@@ -704,3 +704,28 @@ def test_deleting_a_CHECK_is_itself_an_unobservable_edit():
                      "becomes": 'check "renamed away": 1 == 1'}]}
     out = _run_registry_over(reg, TOY_UNREACHABLE)
     assert out["results"][0]["verdict"] == C.UNREACHABLE_VERDICT
+
+
+def test_n_ran_counts_the_guests_checks_and_not_the_instruments_own():
+    """Round 432, closing round 428's item 4.
+
+    That item asked whether `polarity.classify_file`'s **161** or `checkpin
+    run`'s **n_ran: 162** was right, "rather than making them agree". The
+    answer is that 161 is right and 162 was not a second valid population:
+    `run_pin` appends this pin's WITNESS line to the mutated source and then
+    counted the record it produces, while `n_red` three lines below had
+    always excluded `WITNESS_PREFIX`. The instrument was in its own
+    denominator.
+
+    Both numbers now come from the guest alone, and the probe is reported
+    under `n_witness` instead of being folded into the total."""
+    import polarity as PO
+    with open(REGISTRY_PLUS, encoding="utf-8") as f:
+        reg = json.load(f)
+    out = C.run_registry(reg, only={"CP18p"})
+    res = (out["results"] if isinstance(out, dict) else out)[0]
+    static = len(PO.classify_file(
+        os.path.join(ROOT, "examples", "self_host.lang")))
+    assert res["n_witness"] == 1
+    assert res["n_ran"] == static
+    assert res["n_ran"] + res["n_witness"] == static + 1
