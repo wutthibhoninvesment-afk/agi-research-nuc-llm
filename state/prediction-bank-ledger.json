@@ -800,6 +800,14 @@
    "where": "knowledge/round-429-the-frame-the-narrowing-never-published.md",
    "quote": "Predictions scored \u2014 7 HIT, 4 PARTIAL, 6 MISS of 17",
    "note": "All 17 banked lines carry a verdict in that file's section 5 table. The four PARTIALs are each a two-clause line where exactly one clause held and the other is instructive: A3 named the right predicate for the wrong object, C1 was right about the file as it stood and wrong after its own edit added a test, C3 got the outcome right from a wrong inference about what B002 measures, and E1 held on errors and warnings while predicting the skill count of a round that added a skill. Six of the seven outright misses share one mechanism -- a number or set inherited from round 428's prose and not re-derived -- which is the round's own finding turned on its own bank."
+  },
+  "430": {
+   "bank": "nuc/predictions-e-round430.md",
+   "status": "scored",
+   "scored_by": 430,
+   "where": "knowledge/round-430-nuc-e-the-gate-nobody-modelled.md",
+   "quote": "**15 HIT \u00b7 1 PARTIAL \u00b7 5 MISS of 21**",
+   "note": "Scored in section 9 of that file, one table row per numbered prediction, plus three hygiene commitments (D1-D3) recorded KEPT and held outside the 21 -- round 424's denominator convention. The single PARTIAL is A5, a two-clause line: the retention run confirmed the first clause (no fresh capture was needed to preserve anything) and the second clause about a larger binary tar is recorded UNMEASURED rather than hit, because the round deliberately took a targeted text capture instead. Four of the five misses (B3, B5, C4, C5) share one mechanism -- a number or shape inherited from a previous round's TWO-DAY sample and not re-derived -- which is the same defect the round's own section 4 documents in round 424's pgsteal correction, committed inside the bank written to catch it. C2 is the substantive miss and is the round's second headline."
   }
  }
 }

@@ -2007,3 +2007,156 @@ item 6, third occurrence). The authority is
   `~/nuc-research/` unit, i.e. operator approval; (8) still blocked on the
   operator: `--cap 196` and the E3 A/B with round 412's power-floor
   precondition.
+
+## Round 430 (NUC-integration E) — 2026-09-01, box **UP** on the SAME boot as round 424 (`f13afb47`, `uptime -s 2026-09-01 05:33:27Z`, 8 h 20 m in). Second consecutive up round; the 406/412/418 outage is still the last one
+
+- **Reachability.** `reachability_check check --round 430` at
+  `2026-09-01T13:53:02Z`: ssh rc 0 on the tailnet path `jab@100.78.44.111`,
+  `tailscale_online true`, `boot_utc 2026-09-01T05:33:27Z`,
+  `slept_this_boot false`. Two ssh connections all round, both read-only, both
+  rc 0.
+- **Round 424's item 1 is now a standing first action and it works.**
+  `capture_manifest.py retention --capture state/nuc-capture-r424 --next-run
+  2026-09-02T00:07:00Z --now 2026-09-01T13:54:45Z --strict` forecasts exactly
+  four deletions — `sa23`, `sa24`, `sar23`, `sar24` — and exits 1. All four are
+  already in `sysstat-binary.tar.xz`, so the exit-1 is a **deadline notice, not
+  a loss**. Live listing: same 17 filenames, `HISTORY=7` unchanged, `sa01`
+  grown 36 324 → 111 124 B, next summariser fire `2026-09-02 00:07:00 UTC`
+  (predicted exactly). **No fresh binary tar taken** — nothing is at risk
+  before `2026-09-03T00:07:00Z` and a duplicate would carry no new bits.
+- **`survives_until_utc` was a day early, always in the alarming direction.**
+  It was `mtime + 8 d`, the instant `find -mtime +7` starts matching — when a
+  file becomes SWEEPABLE, not when `sa2` runs. The timer fires at 00:07, so a
+  file eligible at 23:50 lives 17 more minutes and one eligible at 08:10 lives
+  **sixteen hours**. Split into `sweepable_at_utc` and `deleted_at_utc` (the
+  first fire at or after eligibility, with the fire series derived from the
+  caller's fire, not a hardcoded 00:07). `earliest_loss_utc` is now
+  `2026-09-03T00:07:00Z`, `next_files_lost` `["sa25","sar25"]`, and the window
+  ends `2026-09-10T00:07:00Z`. Still an *earliest possible* deletion: a box
+  down at 00:07 does not sweep, which is why `sa23` survived to be captured.
+- **THE FULL WINDOW RAN (round 424 item 2). N 218 → 991, K 3 → 52, 16 units →
+  26, testable band 2..97 → 3..881 (88.7 % of N).** Every ledger, evidence,
+  sweep and power number this program had published came off **two of nine**
+  day-files and a one-boot journal. New `perturbation.py window --capture DIR`
+  pools the lot. It is not a loop: widening is a **false-POSITIVE** hazard,
+  because a day with `sar` rows and a silent journal adds buckets to N and
+  fires to nothing, so every unit's p FALLS on strictly less evidence.
+  `window_frame` pairs each day against the journal before pooling, derives the
+  day list from the capture's own section headers and each date from that
+  section's own `Linux ... MM/DD/YY` banner (raising on a banner/name
+  disagreement — `SA01` is September and nothing in its name says so).
+  **10/10 days paired, 0 dropped**, and `--inflation` comes back EMPTY, which
+  is the point: the pooled N was not bought with an inflated denominator.
+- **`supported: []` for the fifth round — and for a NEW reason, which is a
+  defect in this program's own instrument.** `attribution_evidence` has SIX
+  gates; round 412's `power_floor` models ONE, and reports
+  `supported_was_reachable: True` here truthfully about that one while being
+  read as the whole claim. New `verdict_floor` intersects all six:
+  `separable` passes 3 units (`fwupd-refresh`, `man-db`, `motd-news`),
+  `chance` passes 4 (`apt-daily`, `apt-news`, `esm-cache`, `packagekit`), and
+  **the two sets are DISJOINT**. `single_gate_from_supported:
+  {"separable": ["apt-news","esm-cache","packagekit"]}` — exactly one gate
+  stands between three units and `supported`, and it is not power and not
+  chance. `packagekit` reaches `p_family 5.35e-06`, the smallest p this track
+  has produced on any channel. The structural statement: **a unit that fires
+  often enough to be seen alone fires too often to be surprising, and a unit
+  rare enough to be surprising is started by something else.**
+- **Round 400 item 3 / round 424 item 3 CLOSED: DROP the fwupd attribution.**
+  Over nine days `fwupd-refresh` fires **166** times, holds **9** costly
+  buckets alone (round 400 called one of them "the only sole-attributable
+  event of the boot") and fails at `p_chance 0.144` — covering 12 of 52 costly
+  buckets from 166 of 991 is FEWER than chance gives. `consistency 0.072`,
+  below round 418's 0.111. Occupancy 166 is deep inside the testable band, so
+  this is a powered null, not a shrug.
+- **`packagekit` is the deployment's universal one-way confounder.** It sits
+  in every costly bucket **eleven** other units occupy and in two more of its
+  own, so nothing in the apt or fwupd family can ever be sole-attributable
+  while it exists. Merging the mutually-inseparable trio
+  `apt-daily+apt-news+esm-cache` into one hypothesis (23 hypotheses instead of
+  26, looser Bonferroni) still returns `shared-only`, because the confounding
+  is **DIRECTED** — the trio can never be alone and `packagekit` is not
+  rescued either. 19 of the 52 costly buckets hold a named fire at all;
+  **33 hold none**, and 52 % of non-instrument fires are `unclassified` (a
+  fire inside a reboot or outage window).
+- **ROUND 424's `pgsteal` CORRECTION FAILS ON THE EIGHT DAYS NOBODY HAD RUN
+  IT ON.** Validated on sa30+sa31 — the only two files this track had ever
+  opened — it returns `ceiling_restored: True`. Over all ten:
+  **`ceiling_restored: False`, 21 buckets stole pages with ZERO scanned**
+  (`sa23 21:40:03`: `pgscank/s 0.00, pgscand/s 0.00, pgsteal/s 4087.96`), 8
+  more still over 100 % after halving, worst **3053 %**. The four passing days
+  are 08-28..08-31, exactly the recent window. **The mechanism is in the same
+  banked file, one section below the one round 424 read**: the kernel exports
+  `pgscan_khugepaged` and `sadc` does not read it, while `pgsteal_` collects
+  `pgsteal_khugepaged`, so reported `%vmeff` is `2T/(S − S_khuge)` — the
+  residual is UNBOUNDED, not a second constant, and UNDEFINED when khugepaged
+  does all the work. Round 424's finding is **scoped, not overturned**:
+  `corrected_*` is an upper bound. New `scan_undercount_evidence()` derives it
+  from the banked text; the direct kernel test is vacuous for a second
+  consecutive round (every reclaim counter 0 across the whole 8 h 30 m boot).
+- **The checker could not have caught it because it filtered the evidence.**
+  `reclaim_double_count_check`'s first line has dropped `scan == 0` buckets
+  since round 418 — precisely the sharpest counter-examples — with no count.
+  Now `n_scan_free_steal` is an output field and a non-zero count BLOCKS the
+  positive verdict. `ReclaimEvent` gains `scan_free_steal`/`vmeff_defined`,
+  because `vmeff_pct` is "0 if no scan" and so rendered an unbounded ratio at
+  the BOTTOM of an efficiency ranking.
+- **Round 424 item 4 answered by the same numbers.** `sa31 04:00:03` at 16.6 %
+  is NOT the window's least efficient reclaim — `sa23 18:20:01` reclaims
+  8.0 GiB at 27.4 % with `pgscand/s 3217.07`. Whole-window totals: **166.0 GiB
+  corrected** over 108 events, against round 424's 10.99 GiB over seven.
+- **Round 418's "no allocation ever stalled" does not extend.** `pgscand/s`
+  is 0.00 on sa30/sa31 and non-zero in **8 buckets** over ten days, peaking at
+  3217.07 on 08-23. Direct reclaim happened, on the busy days nobody opened.
+- **Round 424 item 5 CLOSED — retire it.** On `sa01`, `sadf -d` yields 51
+  distinct stamps to `sar`'s 52 stamped lines: the same one-record difference
+  round 424 saw on a different file, so it is not an artefact. Both consume the
+  first record; `sar` at least stamps its header with it. `sadf` DOES carry the
+  true per-record interval — **589, 601, 600, …** The 1200 s stitch stays.
+- **Predictions (D-013):** `nuc/predictions-e-round430.md`, written before any
+  sar file, journal, ledger or capture was opened. **15 HIT / 1 PARTIAL /
+  5 MISS of 21**, plus 3 hygiene commitments kept. Four of the five misses
+  share one mechanism — a number or shape inherited from a previous round's
+  TWO-DAY sample and not re-derived — which is this round's own §4 lesson,
+  committed inside the bank written to catch it.
+- **Artifacts:** `nuc/perturbation.py` 1982 → 2749; `nuc/capture_manifest.py`
+  693 → 732; `state/nuc-capture-r430/box.txt`;
+  `skills/correction-validated-where-you-looked/` (new);
+  `skills/null-result-needs-a-power-floor/` gains **step 0** (enumerate every
+  gate, intersect the pass sets) — the skill's own instrument modelled one gate
+  of six; `knowledge/round-430-nuc-e-the-gate-nobody-modelled.md`.
+  **Tests 723 → 753, all green** (`753 passed in 73.00s`); `skill_lint
+  --house --strict` 72 skills, 0 errors, 0 warnings.
+- **Hygiene: port 8001 never contacted; NO engine request of any kind to any
+  port.** No unit started, stopped, restarted or reloaded. **Nothing written on
+  the box at all** — every ssh session was read-only and streamed to stdout,
+  not even `~/nuc-research/` was touched.
+- **E-mission status: E1-E5 all still DONE; nothing new unchecked.** The work
+  is the standing analysis programme in the addenda, not a sixth checkbox.
+- **Next E round, in order:** (1) `retention --strict` FIRST, every up round —
+  window ends `2026-09-10T00:07:00Z`, re-take the tar only when
+  `next_files_lost` names something not in `state/nuc-capture-r424/`;
+  (2) the residual is one read-only command away **on a box that has
+  reclaimed** — `grep -E '^pg(scan|steal)' /proc/vmstat`, confirmed if
+  `pgscan_anon + pgscan_file` exceeds `pgscan_kswapd + pgscan_direct` by
+  roughly `pgsteal_khugepaged`'s share, but check `pgsteal_kswapd > 0` first
+  because the test has now been vacuous twice; (3) **separability is the whole
+  game** — `packagekit` is one gate from `supported` at `p 5.35e-06`, and both
+  routes are offline: a sub-600 s time base from the journal's second
+  resolution plus round 424's banked `Stopped`/`Stopping` lines, or round 418's
+  conditional-consistency variant; (4) run the **steal** channel over the full
+  window with `channel_sweep` and an explicit threshold set — the only channel
+  not pooled this round, and K at 4 KiB is 108 against swap's 52; (5) 33 of 52
+  costly buckets have no named fire, and `journal-user-full.txt` (456 kB,
+  banked, unread) holds the USER manager's units, which is where the engine
+  lives — a second parser for `systemd[1057]:`, not a change to
+  `parse_unit_starts`; (6) retire round 370's item 3 (names a log line this
+  config does not emit; catching a live load needs an operator-approved unit);
+  (7) still blocked on the operator: `--cap 196` (band [129, 204],
+  `bounded_by: engine_lru`, 1.096 GB margin — nineteenth round unchanged) and
+  the E3 A/B, which must now publish its full GATE TABLE and not just a power
+  floor; (8) **`nuc/run_checks_fast.sh` IS wired — the "0 references"
+  carry was false for four E rounds and is CLOSED.** This round wrote it for a
+  ninth time and `state_claim_check` turned it red on the same run:
+  `wiring_audit refs nuc/run_checks_fast.sh --in run_driver.sh` re-derives
+  **2 mentions, 1 invocation** (lines 496, 526). **Round 409 (harness A) wired
+  it on 2026-08-31, `50c7bb3`.** Nothing to hand on; keep the shape.

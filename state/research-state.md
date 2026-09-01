@@ -21334,3 +21334,167 @@ Commit: see git log.
     from — or write "of the N I checked" instead. skills(B), but the rule
     is for every track.
 
+### Round 430 — NUC-integration(E) — 2026-09-01 — the gate nobody modelled
+
+`knowledge/round-430-nuc-e-the-gate-nobody-modelled.md`. Box **UP**, same boot
+as round 424 (`f13afb47`, 8 h 20 m in). Predictions
+`nuc/predictions-e-round430.md`: **15 HIT / 1 PARTIAL / 5 MISS of 21**, plus 3
+hygiene commitments kept.
+
+- **The full window ran for the first time. N 218 -> 991, K 3 -> 52, 16 units
+  -> 26, testable occupancy band 2..97 -> 3..881 (88.7 % of N).** Every
+  ledger, evidence, sweep and power-floor number this program has published
+  was computed on **two of nine** banked `sar` day-files and a **one-boot**
+  journal. New `perturbation.py window --capture DIR`. It is not a loop:
+  widening a window is a **false-POSITIVE** hazard, because a day with `sar`
+  rows and a silent journal adds buckets to N and fires to nothing, so every
+  unit's `p_chance` FALLS on strictly less evidence. `window_frame` pairs each
+  day against the journal before pooling, derives the day list from the
+  capture's own section headers and each date from that section's own
+  `Linux ... MM/DD/YY` banner rather than the `SA<DD>` name — `SA01` is
+  September and nothing in its name says so. **10/10 paired, 0 dropped**, and
+  `--inflation` comes back EMPTY, which is the function earning its keep.
+- **`supported: []` for the fifth round, and for a NEW reason that is a defect
+  in this program's own instrument.** `attribution_evidence` has SIX gates;
+  round 412's `power_floor` models ONE. It reports
+  `supported_was_reachable: True` here — truthfully about gate 4, and read as
+  the whole claim. New `verdict_floor` intersects all six: **`separable` passes
+  3 units and `chance` passes 4 and the sets are DISJOINT.**
+  `single_gate_from_supported: {"separable": ["apt-news","esm-cache",
+  "packagekit"]}` — one gate stands between three units and `supported`, and
+  it is neither power nor chance. `packagekit` reaches `p_family 5.35e-06`,
+  the smallest p this track has produced on any channel, blocked solely by
+  never having been alone in a costly bucket. The structural statement: **a
+  unit that fires often enough to be seen alone fires too often to be
+  surprising, and a unit rare enough to be surprising is started by something
+  else.**
+- **Round 400 item 3 CLOSED: drop the fwupd attribution.** Nine days, **166**
+  fires, **9** costly buckets held alone, and `p_chance 0.144` — covering 12
+  of 52 costly buckets from 166 of 991 is FEWER than chance gives.
+  `consistency 0.072`. Occupancy 166 is deep inside the testable band, so this
+  is a powered null. **`packagekit` is a one-way confounder of eleven units**
+  and of none itself; merging the mutually-inseparable trio into one
+  hypothesis still returns `shared-only`, because the confounding is
+  **directed**. 33 of 52 costly buckets hold no named fire at all; 52 % of
+  non-instrument fires are `unclassified`.
+- **Round 424's `pgsteal` correction FAILS on the eight days nobody ran it
+  on.** Validated on sa30+sa31 — the only files this track had opened — it
+  gives `ceiling_restored: True`. Over all ten: **False, with 21 buckets that
+  stole pages while scanning ZERO** (`pgscank/s 0.00, pgscand/s 0.00,
+  pgsteal/s 4087.96`), 8 more over 100 % after halving, worst 3053 %. The four
+  passing days are the four most recent. **The missing term was in the same
+  banked evidence file, one section below the one round 424 read**: the kernel
+  exports `pgscan_khugepaged`, `sadc` does not read it, and `pgsteal_` collects
+  `pgsteal_khugepaged` — so reported `%vmeff` is `2T/(S - S_khuge)`, the
+  residual is UNBOUNDED rather than a second constant, and UNDEFINED when that
+  path does all the work. Round 424 is **scoped, not overturned**;
+  `corrected_*` is an upper bound. And the checker could not have caught it:
+  its first line has dropped `scan == 0` buckets since round 418 — the
+  sharpest counter-examples — with no count. Now counted, and a non-zero count
+  blocks the verdict. Round 418's "no allocation ever stalled" also does not
+  extend: **8 buckets have `pgscand/s > 0`**, peak 3217.07.
+- **Round 424 items 1, 4 and 5 closed too.** `retention --strict` is now the
+  standing first action of an up round (4 deletions forecast, all banked, exit
+  1 as a deadline notice); `survives_until_utc` was a day early in the
+  alarming direction and is split into `sweepable_at_utc` / `deleted_at_utc`;
+  `sadf` reproduces the one-record boundary loss on a second file and is
+  retired, keeping only its true per-record interval column (589 s, not 600).
+- **Skills.** `null-result-needs-a-power-floor` gains **step 0** — enumerate
+  every gate, intersect the pass sets, print
+  `single_gate_from_supported` — because the round found that skill's own
+  instrument models one gate of six. New
+  `skills/correction-validated-where-you-looked/`: a correction is only
+  confirmed on the partition you ran it against, count what your checker's own
+  filters discard, and classify the residual as wrong / a second constant /
+  a missing term.
+- **Results.** `nuc/perturbation.py` 1982 -> 2749, `nuc/capture_manifest.py`
+  693 -> 732, **tests 723 -> 753, all green** (`753 passed in 73.00s`);
+  `skill_lint --house --strict` 72 skills, **0 errors, 0 warnings**.
+  Hygiene: **port 8001 never contacted, no engine request of any kind**, no
+  unit touched, **nothing written on the box at all** — two read-only ssh
+  connections, both rc 0.
+- **Disclosed cost.** `state_claim_check`'s live-block coverage falls 6/9 ->
+  5/9 (67 % -> 56 %) with `0 skipped, 0 stale` held. Closing item 9 wants a
+  reference count whose honest answer is TWO-valued (2 mentions, 1 an
+  invocation); the `N reference(s)` grammar takes one number, so any phrasing
+  it parses raises S010 against whichever number it gets, and a house pin
+  forbids S010 in the live block. **A reference count on a file whose mention
+  and invocation counts differ is not expressible as a checkable claim** —
+  that is a gap in the checker, handed to harness(A), not something to paper
+  over by picking a number.
+
+## Next steps (as of round 430)
+
+1. **NUC-integration(E), in order.** (a) `capture_manifest.py retention
+   --strict` FIRST on every up round — the window ends `2026-09-10T00:07:00Z`
+   and `next_files_lost` is `["sa25","sar25"]` at `2026-09-03T00:07:00Z`, all
+   banked; re-take the binary tar only when it names something
+   `state/nuc-capture-r424/` does not hold. (b) The `%vmeff` residual is one
+   read-only command away **on a box that has reclaimed** —
+   `grep -E '^pg(scan|steal)' /proc/vmstat` — but check `pgsteal_kswapd > 0`
+   before concluding: the test has now been vacuous on two consecutive rounds
+   because the box reclaims nothing when idle. (c) **Separability is the whole
+   game**: `packagekit` is one gate from `supported` at `p 5.35e-06`, and both
+   routes are OFFLINE — a sub-600 s time base built from the journal's second
+   resolution plus round 424's banked `Stopped`/`Stopping` lines, or round
+   418's conditional-consistency variant. (d) Run the **steal** channel over
+   the full window with `channel_sweep`; it is the only channel not pooled and
+   K at 4 KiB is 108 against swap's 52. (e) `journal-user-full.txt` (456 kB,
+   banked, unread) holds the USER manager's units, which is where the engine
+   lives, and 33 of 52 costly buckets have no named fire — that wants a second
+   parser for `systemd[1057]:`, not a change to `parse_unit_starts`.
+2. **A negative result in this repo now needs its GATE TABLE, not just a power
+   floor.** Round 412 taught "publish whether the bar was reachable"; round 430
+   found that the reachability flag covered one gate of six and the binding
+   gate was unmodelled. Any grader with more than one gate must print the pass
+   set per gate and their intersection —
+   `skills/null-result-needs-a-power-floor` step 0. This applies to the E3 A/B
+   the operator is blocking on, and to `case_coverage`'s pooled verdicts
+   (item 3 below), which are the same shape.
+3. **`case_coverage` reports 49 of 103 cross-report case verdicts DISAGREE,
+   27 UNDECIDED and 5 REFUTED at the pooled 95 % level** — round 429's item 2,
+   unchanged, still the largest unexamined number in the skills corpus, and now
+   with a named method to attack it (item 2). skills(B).
+4. **`claim_check` executes 0 of ~295 commands** because nothing passes
+   `--run`; 110 are classified `auto`. Round 429's item 3, unchanged — still
+   the cheapest unclaimed coverage in the repo. harness(A).
+5. **Round 429's items 4, 5 and 10 carry forward unchanged**: H006 is a house
+   rule with a corpus of one repo; the `_PLACEHOLDER` registry's live value is
+   entirely in the SEVENTH entry, so do not add one to quiet a fresh round's
+   unfinished run; and a negative or exhaustive claim in this file must carry
+   its frame. Round 430's `window_frame` and `verdict_floor` are that rule
+   built into an instrument rather than asked for in prose.
+6. **Round 428's items 1-4 and item 7 (language C) carry forward unchanged**:
+   the one-hop dataflow rule that would decide CP17p/CP18p/CP19p;
+   `kind_stable`, the last undecided precondition; CP10p and NC02p, two
+   defective pins in a 23-pin registry; `classify_file`'s 161 checks against
+   `checkpin run`'s `n_ran: 162` (say which is RIGHT rather than making them
+   agree); and the repointed registry that still fails its own acceptance
+   criterion at 0 confirmations against 5 violations — take it seriously or
+   retire it. language(C).
+7. **Round 427's items carry forward**: `mutation.baseline_check` still needs
+   the acknowledged-baseline mechanism pointed at its own tree (SWE-loop D);
+   the 11 acknowledged evaporations are still acknowledged and not fixed
+   (language C or the operator); nothing still runs `pristine_check check`
+   (harness A), though round 429 made its read-only verbs auto-checkable.
+8. **Round 425's items 2-20 carry forward** except where closed above. Round
+   408's item 9 — CLAUDE.md's `🔴 CRITICAL MISSION` block — is
+   re-escalated for the FIFTEENTH time and still needs the operator; round 428
+   tested both of its technical claims and neither is a bug, so the decision is
+   a one-line deletion. `languages/whence/SECURITY.md` is still uncommitted in
+   the worktree, still not this program's, and still the operator's decision;
+   **do not copy a carry count for it from this file** — the checker's own line
+   is the only source.
+9. **`nuc/run_checks_fast.sh` IS wired into `run_driver.sh`: 2 mentions,
+   lines 496 and 526, one of them an invocation** (`python3
+   harness/wiring_audit.py refs nuc/run_checks_fast.sh --in run_driver.sh`).
+   The count is deliberately given as *mentions and an invocation* rather than
+   as a reference count, because the two readings differ here and
+   `state_claim_check`'s `N reference(s)` grammar cannot express a two-valued
+   answer without raising S010 against whichever number it is handed. Round 430 wrote the carried "nothing calls it" claim for a
+   ninth time and `state_claim_check` turned it red on the same run. **Round
+   409 (harness A) wired it on 2026-08-31, commit `50c7bb3`**, four E rounds
+   ago; every round since re-copied round 400's sentence instead of running
+   round 400's command. The item is CLOSED. Nothing to hand to harness(A) — but note the shape, because it is
+   this round's finding for the third time in one round: a number survives by
+   being quoted, and dies the moment anything re-derives it.

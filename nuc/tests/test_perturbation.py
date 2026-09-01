@@ -1713,3 +1713,323 @@ def test_correcting_the_numerator_separates_clean_eviction_from_struggling_recla
     assert clean.corrected_vmeff_pct == pytest.approx(100.0)
     assert struggling.corrected_vmeff_pct == pytest.approx(16.64, abs=0.01)
     assert clean.corrected_vmeff_pct > 5 * struggling.corrected_vmeff_pct
+
+
+# ------------------------------------------------------- round 430: the window
+#
+# Fixtures are the round-424 capture on disk, which is the whole point: this
+# block exists because three rounds of analysis reached that capture only
+# through a test helper, and the nine unread day-files were never pooled.
+
+import pathlib as _pathlib430  # noqa: E402
+
+_CAP430 = (_pathlib430.Path(__file__).resolve().parents[2]
+           / "state" / "nuc-capture-r424")
+_SAR430 = (_CAP430 / "sar-all.txt").read_text()
+_JRNL430 = (_CAP430 / "journal-pid1-full.txt").read_text()
+_COLLECTOR430 = (_CAP430 / "collector-evidence.txt").read_text()
+
+
+def _collector_halves():
+    lits = _COLLECTOR430.split("### SADC_VMSTAT_LITERALS")[1].split("###")[0]
+    vm = _COLLECTOR430.split("### PROC_VMSTAT_RECLAIM_FIELDS")[1].split("###")[0]
+    return lits, vm
+
+
+def test_sar_sections_splits_the_banked_capture():
+    secs = pt.sar_sections(_SAR430)
+    assert len(secs) == 101
+    assert len([k for k in secs if k.startswith("SAR_W_")]) == 10
+    assert "SYSSTAT_FILES" in secs
+
+
+def test_a_day_files_date_comes_from_its_own_banner_not_its_name():
+    secs = pt.sar_sections(_SAR430)
+    assert pt.sar_banner_date(secs["SAR_W_SA31"]) == "2026-08-31"
+    # `SA01` is September, and nothing in the name says so.
+    assert pt.sar_banner_date(secs["SAR_W_SA01"]) == "2026-09-01"
+
+
+def test_a_section_with_no_banner_refuses_to_be_dated():
+    with pytest.raises(pt.PerturbationError, match="banner"):
+        pt.sar_banner_date("00:10:03   pswpout/s\n00:20:03   0.00\n")
+
+
+def test_the_full_window_pairs_every_day_with_the_journal():
+    f = pt.window_frame(_SAR430, _JRNL430)
+    assert f["n_day_files"] == 10
+    assert f["n_paired"] == 10
+    assert f["n_sar_only"] == 0 and f["n_journal_only"] == 0
+    assert f["dropped_dates"] == []
+    assert f["n_buckets_poolable"] == 991
+    assert f["n_journal_fires"] == 1652
+    assert f["journal_first_event_utc"] == "2026-08-23T14:03:06Z"
+
+
+def test_a_day_the_journal_is_silent_on_is_dropped_not_pooled():
+    """Round 412's constraint, made mechanical. Widening a window is a
+    false-POSITIVE hazard: an unpaired day adds buckets to N and fires to
+    nothing, so every unit's p falls on strictly less evidence."""
+    f = pt.window_frame(_SAR430, "\n".join(
+        l for l in _JRNL430.splitlines() if not l.startswith("2026-08-26")))
+    assert f["n_sar_only"] == 1
+    assert f["dropped_dates"] == ["2026-08-26"]
+    assert f["n_buckets_poolable"] < f["n_buckets_if_unpaired_pooled"]
+    day = [d for d in f["days"] if d["date"] == "2026-08-26"][0]
+    assert day["pairing"] == pt.PAIRING_SAR_ONLY
+    assert "ZERO non-instrument unit starts" in day["why"]
+
+
+def test_a_journal_date_with_no_sar_section_is_reported_not_ignored():
+    f = pt.window_frame(_SAR430, _JRNL430 + (
+        "\n2026-09-09T01:02:03+00:00 pgain-nuc systemd[1]: "
+        "Starting fstrim.service - Discard unused blocks.\n"))
+    assert f["n_journal_only"] == 1
+    day = [d for d in f["days"] if d["date"] == "2026-09-09"][0]
+    assert day["pairing"] == pt.PAIRING_JOURNAL_ONLY
+    assert day["n_rows"] == 0
+
+
+def test_a_banner_that_disagrees_with_the_file_name_raises():
+    secs = pt.sar_sections(_SAR430)
+    bad = _SAR430.replace(
+        "### SAR_W_SA31\nLinux 6.8.0-138-generic (pgain-nuc) \t08/31/26",
+        "### SAR_W_SA31\nLinux 6.8.0-138-generic (pgain-nuc) \t08/30/26", 1)
+    assert bad != _SAR430 and "SAR_W_SA31" in secs
+    with pytest.raises(pt.PerturbationError, match="file name says day"):
+        pt.window_frame(bad, _JRNL430)
+
+
+def test_the_full_window_swap_run_is_the_records_real_shape():
+    """N 218 -> 991 and K 3 -> 52. Every ledger, evidence, sweep and power
+    number this program published before round 430 came off two day-files."""
+    out = pt.window_attribution(_SAR430, _JRNL430)
+    ev = out["evidence"]
+    assert ev["n_buckets"] == 991
+    assert ev["n_costly_buckets"] == 52
+    assert ev["n_units_tested"] == 26
+    assert ev["supported"] == []
+    assert ev["power"]["max_testable_occupancy"] == 881
+
+
+def test_supported_was_unreachable_for_a_reason_power_floor_cannot_see():
+    """Round 412 built `power_floor` for the CHANCE gate and it reports
+    `supported_was_reachable: True` here. There are six gates and the pass
+    sets do not intersect: the units that fire alone fire hourly, and the
+    units that are surprising never fire alone."""
+    out = pt.window_attribution(_SAR430, _JRNL430)
+    assert out["evidence"]["supported_was_reachable"] is True
+    g = out["gates"]
+    assert g["supported_reachable_all_gates"] is False
+    assert g["all_gates_passed"] == []
+    assert g["pass_sets"]["separable"] == ["fwupd-refresh", "man-db",
+                                           "motd-news"]
+    assert g["pass_sets"]["chance"] == ["apt-daily", "apt-news", "esm-cache",
+                                        "packagekit"]
+    assert not (set(g["pass_sets"]["separable"]) & set(g["pass_sets"]["chance"]))
+
+
+def test_exactly_one_gate_stands_between_three_units_and_supported():
+    g = pt.window_attribution(_SAR430, _JRNL430)["gates"]
+    assert g["single_gate_from_supported"] == {
+        "separable": ["apt-news", "esm-cache", "packagekit"]}
+    assert g["blocking_gate_histogram"]["separable"] == 9
+
+
+def test_verdict_floor_says_reachable_when_a_unit_clears_every_gate():
+    """The negative case has to be able to come back positive or it is not a
+    measurement. Round 406's `supported: []` is the cautionary example."""
+    ok = pt.verdict_floor({
+        "max_family_p": 0.05, "min_consistency": 0.5, "min_fires": 2,
+        "units": [{"unit": "u", "n_fires": 4, "n_costly": 3, "n_clean": 2,
+                   "testable": True, "p_family": 0.001, "consistency": 0.75,
+                   "verdict": "supported"}]})
+    assert ok["supported_reachable_all_gates"] is True
+    assert ok["all_gates_passed"] == ["u"]
+    assert ok["per_unit"][0]["gates_failed"] == []
+
+
+def test_packagekit_is_the_universal_confounder_of_this_deployment():
+    """`shared-only` reports a fact about a unit; the fact is about a pair.
+    PackageKit sits in every costly bucket eleven other units occupy, and in two
+    more of its own -- so nothing in the apt or fwupd family can ever be
+    sole-attributable while it exists."""
+    c = pt.window_attribution(_SAR430, _JRNL430)["cofires"]
+    assert c["n_costly_buckets_with_a_named_fire"] == 19
+    assert c["n_sole_occupied"] == 11
+    assert c["max_units_in_one_bucket"] == 9
+    assert c["sole_occupants"] == ["fwupd-refresh", "man-db", "motd-news"]
+    assert len(c["one_way_confounders"]) == 11
+    assert all("packagekit" in v for v in c["one_way_confounders"].values())
+    assert "packagekit" not in c["never_without"]
+
+
+def test_only_63_percent_of_costly_buckets_have_any_named_fire_at_all():
+    out = pt.window_attribution(_SAR430, _JRNL430)
+    K = out["evidence"]["n_costly_buckets"]
+    named = out["cofires"]["n_costly_buckets_with_a_named_fire"]
+    assert (K, named) == (52, 19)
+    assert K - named == 33
+
+
+def test_inseparable_classes_are_mutual_only():
+    c = pt.costly_bucket_cofires(
+        [{"date": "d", "entries": [
+            {"unit": "a", "bucket_end": "1", "bucket_bytes": 9, "costly": True,
+             "bucket_shared_by": 2},
+            {"unit": "b", "bucket_end": "1", "bucket_bytes": 9, "costly": True,
+             "bucket_shared_by": 2},
+            {"unit": "b", "bucket_end": "2", "bucket_bytes": 9, "costly": True,
+             "bucket_shared_by": 1}]}])
+    # `a` is never without `b`; `b` IS seen without `a`, so they do not merge.
+    assert c["never_without"] == {"a": ["b"]}
+    assert c["one_way_confounders"] == {"a": ["b"]}
+    assert pt.inseparable_classes(c) == []
+
+
+def test_a_class_on_one_observation_is_not_a_class():
+    """Four boot-time units share the 08-30 restart bucket and nothing else.
+    'They always co-occur' over a single bucket restates the bucket."""
+    cls = pt.inseparable_classes(
+        pt.costly_bucket_cofires(pt._round430_ledgers_for_test())
+        if hasattr(pt, "_round430_ledgers_for_test") else
+        pt.costly_bucket_cofires([{"date": "d", "entries": [
+            {"unit": u, "bucket_end": "1", "bucket_bytes": 9, "costly": True,
+             "bucket_shared_by": 3} for u in ("x", "y", "z")]}]))
+    assert len(cls) == 1
+    assert cls[0]["n_costly_buckets_of_class"] == 1
+    assert cls[0]["testable_as_a_class"] is False
+
+
+def test_merging_the_apt_trio_does_not_rescue_it():
+    """The composite hypothesis the record CAN carry, run honestly -- and it
+    still fails, because the confounding is DIRECTED: packagekit is in every
+    bucket the trio occupies and in two more, so the trio can never be alone
+    and packagekit is not attributable either."""
+    cl = pt.window_attribution(_SAR430, _JRNL430)["clusters"]
+    assert cl["merged_labels"] == ["apt-daily+apt-news+esm-cache",
+                                   "fwupd+modprobe@sd_mod"]
+    ev = cl["evidence"]
+    assert ev["n_units_tested"] == 23        # 26 units -> 23 hypotheses
+    assert ev["supported"] == []
+    trio = [u for u in ev["units"]
+            if u["unit"] == "apt-daily+apt-news+esm-cache"][0]
+    assert trio["verdict"] == "shared-only"
+    assert trio["n_clean"] == 0
+
+
+def test_this_capture_has_no_unpaired_days_so_the_wide_number_is_clean():
+    """`unpaired_inflation` earns its keep by coming back EMPTY: the pooled
+    N was not bought by counting buckets from days the journal cannot see."""
+    inf = pt.unpaired_inflation(_SAR430, _JRNL430)
+    assert inf["comparable"] is True
+    assert inf["n_dropped_days"] == 0
+    assert inf["n_buckets_paired"] == inf["n_buckets_with_unpaired"] == 991
+    assert inf["units_whose_p_moved"] == []
+
+
+def test_window_refuses_when_nothing_is_poolable():
+    with pytest.raises(pt.PerturbationError, match="no poolable day-file"):
+        pt.window_attribution(_SAR430, "")
+
+
+def test_window_cli_frame_only_is_clean_on_this_capture():
+    r = subprocess.run(
+        [sys.executable, "nuc/perturbation.py", "window",
+         "--capture", str(_CAP430), "--frame-only", "--strict"],
+        capture_output=True, text=True,
+        cwd=str(_pathlib430.Path(__file__).resolve().parents[2]))
+    assert r.returncode == 0, r.stderr
+    assert json.loads(r.stdout)["n_paired"] == 10
+
+
+# ------------------------------- round 430: the correction that was incomplete
+
+
+def test_pages_stolen_with_zero_pages_scanned_are_flagged_not_ranked_last():
+    """`vmeff_pct` is documented '0 if no scan', so sa23 22:40 -- 4087.96
+    pgsteal/s against 0.00 scanned -- renders as 0.000 %, the BOTTOM of an
+    efficiency ranking, when it is an undefined ratio and the sharpest
+    possible violation of steal <= scan."""
+    secs = pt.sar_sections(_SAR430)
+    evs = pt.reclaim_events(pt.parse_sar(secs["SAR_B_SA23"]))
+    free = [e for e in evs if e.scan_free_steal]
+    assert len(free) == 5
+    e = [x for x in free if x.time == "21:40:03"][0]
+    assert (e.scan_kswapd_s, e.scan_direct_s) == (0.0, 0.0)
+    assert e.steal_s == 4087.96
+    assert e.vmeff_defined is False
+    assert e.vmeff_pct == 0.0 and e.corrected_vmeff_pct == 0.0
+    assert e.steal_exceeds_scan is True
+
+
+def test_the_factor_of_two_holds_on_the_two_days_anyone_had_looked_at():
+    """Round 418's result is not overturned; it is scoped. sa30 and sa31 both
+    still return `ceiling_restored: True`."""
+    secs = pt.sar_sections(_SAR430)
+    for day in ("SAR_B_SA30", "SAR_B_SA31"):
+        chk = pt.reclaim_double_count_check(
+            pt.reclaim_events(pt.parse_sar(secs[day])))
+        assert chk["ceiling_restored"] is True, day
+        assert chk["n_scan_free_steal"] == 0
+
+
+def test_and_fails_on_the_eight_days_nobody_had():
+    secs = pt.sar_sections(_SAR430)
+    evs = []
+    for k in sorted(s for s in secs if s.startswith("SAR_B_")):
+        evs += pt.reclaim_events(pt.parse_sar(secs[k]))
+    assert len(evs) == 108
+    chk = pt.reclaim_double_count_check(evs)
+    assert chk["ceiling_restored"] is False
+    assert chk["n_scan_free_steal"] == 21
+    assert chk["n_over_ceiling_reported"] == 66
+    assert chk["n_over_ceiling_corrected"] == 8
+    assert chk["max_corrected_pct"] > 3000
+    assert "no divisor can fix" in chk["why"]
+
+
+def test_the_dropped_buckets_are_counted_now_instead_of_filtered_silently():
+    """The `scan > 0` filter has been in this function since round 418 and it
+    dropped exactly the strongest counter-examples to the theorem the function
+    tests, without saying how many."""
+    secs = pt.sar_sections(_SAR430)
+    evs = pt.reclaim_events(pt.parse_sar(secs["SAR_B_SA23"]))
+    chk = pt.reclaim_double_count_check(evs)
+    assert chk["n_events"] + chk["n_scan_free_steal"] == len(evs)
+    assert chk["scan_free_steal_buckets"] == ["21:40:03", "21:50:01",
+                                             "22:10:03", "22:20:03",
+                                             "22:30:03"]
+
+
+def test_the_denominator_omits_a_whole_reclaim_path_the_numerator_keeps():
+    """The mechanism, from the SAME banked file round 424 read the numerator
+    half out of -- one section further down. `pgscan_khugepaged` is exported
+    by the kernel and is not a sadc literal, while `pgsteal_` collects
+    `pgsteal_khugepaged`. Reported %vmeff is 2T/(S - S_khuge), so the residual
+    is unbounded rather than a second constant, and undefined when khugepaged
+    does all the work."""
+    lits, vm = _collector_halves()
+    u = pt.scan_undercount_evidence(lits, vm)
+    assert u["denominator_is_complete"] is False
+    assert u["actor_fields_omitted"] == ["pgscan_khugepaged"]
+    assert u["steal_counterpart_collected"] == ["pgsteal_khugepaged"]
+    assert "unbounded" in u["why"]
+
+
+def test_a_collector_that_read_every_scan_field_would_report_complete():
+    lits, vm = _collector_halves()
+    u = pt.scan_undercount_evidence(lits + "\npgscan_khugepaged\n", vm)
+    assert u["denominator_is_complete"] is True
+    assert u["actor_fields_omitted"] == []
+    assert "denominator is complete" in u["why"]
+
+
+def test_round_424s_numerator_finding_is_untouched_by_the_new_half():
+    """Both halves are real and they are different defects: the numerator is
+    doubled (a constant) and the denominator is short one path (unbounded)."""
+    lits, vm = _collector_halves()
+    d = pt.steal_double_count_evidence(lits, vm)
+    assert d["literal_route"] == "double-counted"
+    assert d["divisor"] == 2
+    assert pt.scan_undercount_evidence(lits, vm)["n_omitted"] == 1

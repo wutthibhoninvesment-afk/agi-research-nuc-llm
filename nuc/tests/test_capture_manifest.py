@@ -466,3 +466,59 @@ def test_retention_cli_is_strict_and_refuses_to_guess_when_there_is_no_ls(tmp_pa
     rc = cm.main(["retention", "--capture", str(d), "--now",
                   "2026-09-01T08:18:35Z", "--next-run", "2026-09-02T00:07:00Z"])
     assert rc == 2      # not 0-with-an-empty-forecast
+
+
+# ------------------------------------------------ round 430: sweepable vs lost
+
+def test_a_file_is_not_deleted_the_moment_it_becomes_sweepable():
+    """`survives_until_utc` was mtime + 8 days, which is when `find -mtime +7`
+    starts matching -- not when `sa2` runs. The timer fires at 00:07, so a
+    file eligible at 08:10 lives another sixteen hours, and every capture
+    deadline read off the old field was early by up to a day."""
+    files = [{"name": "sa01", "size": 1,
+              "mtime_utc": "2026-09-01T08:10:00Z"}]
+    out = cm.retention_forecast(files, "2026-09-02T00:07:00Z")
+    row = out["spared"][0]
+    assert row["sweepable_at_utc"] == "2026-09-09T08:10:00Z"
+    assert row["deleted_at_utc"] == "2026-09-10T00:07:00Z"
+    assert out["earliest_loss_utc"] == "2026-09-10T00:07:00Z"
+    assert out["earliest_sweepable_utc"] == "2026-09-09T08:10:00Z"
+
+
+def test_a_file_sweepable_exactly_on_a_fire_dies_on_that_fire():
+    files = [{"name": "sar30", "size": 1,
+              "mtime_utc": "2026-08-31T00:07:00Z"}]
+    out = cm.retention_forecast(files, "2026-09-02T00:07:00Z")
+    row = out["spared"][0]
+    assert row["sweepable_at_utc"] == row["deleted_at_utc"] == \
+        "2026-09-08T00:07:00Z"
+
+
+def test_the_pair_that_dies_together_is_reported_as_a_pair():
+    """`saNN` and `sarNN` are seventeen minutes apart and land on one fire."""
+    out = cm.retention_forecast(
+        [{"name": "sa25", "size": 1, "mtime_utc": "2026-08-25T23:50:00Z"},
+         {"name": "sar25", "size": 1, "mtime_utc": "2026-08-26T00:07:00Z"},
+         {"name": "sa26", "size": 1, "mtime_utc": "2026-08-26T23:50:00Z"}],
+        "2026-09-02T00:07:00Z")
+    assert out["earliest_loss_utc"] == "2026-09-03T00:07:00Z"
+    assert out["next_files_lost"] == ["sa25", "sar25"]
+
+
+def test_the_live_capture_deadline_is_a_day_later_than_the_old_field_said():
+    """On the round-424 capture the two fields differ by seventeen minutes for
+    `sa25` and by sixteen hours for `sa01`; the deadline a round should act on
+    is the later one."""
+    out = cm.retention_forecast(
+        cm.parse_sysstat_ls(
+            (pathlib.Path(__file__).resolve().parents[2] / "state"
+             / "nuc-capture-r424" / "sar-all.txt"
+             ).read_text().split("### SAR_R_")[0],
+            "2026-09-01T13:54:45Z"),
+        "2026-09-02T00:07:00Z")
+    assert out["n_deleted_at_next_run"] == 4
+    assert [r["name"] for r in out["deleted_at_next_run"]] == \
+        ["sar24", "sa24", "sar23", "sa23"]
+    assert out["earliest_sweepable_utc"] == "2026-09-02T23:50:00Z"
+    assert out["earliest_loss_utc"] == "2026-09-03T00:07:00Z"
+    assert out["next_files_lost"] == ["sa25", "sar25"]

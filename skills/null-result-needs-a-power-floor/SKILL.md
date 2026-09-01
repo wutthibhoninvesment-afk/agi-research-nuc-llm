@@ -66,6 +66,37 @@ result unreachable without noticing.
 
 ## Steps
 
+0. **Enumerate every gate the verdict must pass, and intersect the pass sets.**
+   Do this before computing any power floor, because a power floor answers for
+   ONE gate and graders usually have several. Write them out, run each over the
+   candidates, and print the pass set per gate. If the intersection is empty,
+   the empty result was structurally guaranteed and *no* amount of data at this
+   shape changes it — publish that sentence instead of the p-values. Also print
+   `single_gate_from_supported`: the candidates that would pass if exactly one
+   named gate were dropped. That is the only actionable form of "what would have
+   to change".
+
+   Round 430 of this program is the cautionary case *for this skill's own
+   instrument*. `power_floor` (step 2 below, built by round 412) reported
+   `supported_was_reachable: True` — 17 of 26 units testable, occupancies
+   3..881 covering 88.7 % of the record. It was reporting on gate 4 of 6, and
+   readers took it for the whole claim. The six gates were:
+
+   | gate | rule | passed |
+   |---|---|---|
+   | min_fires | ≥ 2 fires | 19 |
+   | any_costly | ≥ 1 costly bucket | 15 |
+   | **separable** | ≥ 1 costly bucket held ALONE | **3** |
+   | testable | this skill's power floor | 17 |
+   | **chance** | `p_family ≤ 0.05` | **4** |
+   | consistency | ≥ 50 % of own fires costly | 7 |
+
+   `separable ∩ chance = ∅`. The three units that ever fire alone are hourly
+   timers, so nothing they do is surprising; the four units that are surprising
+   are started by one another and are never alone. `supported: []` was fixed
+   before a single p was computed, and the *binding* gate was the one nobody
+   had modelled.
+
 1. **Write down the bar, explicitly.** Not "p < 0.05" — the *effective*
    per-candidate bar after every correction. Bonferroni over `m` candidates
    makes it `α/m`. If you cannot state this number, stop here; you do not yet
@@ -145,6 +176,24 @@ result unreachable without noticing.
   is not a window that cost nothing. Return `None` and route it to
   `unclassified`; a zero silently inflates every denominator.
 
+* **Reporting a reachability flag that covers one gate.** The failure mode
+  this skill is *for*, applied to this skill. `supported_was_reachable` and
+  `testable` are honest names for what they compute and dishonest as answers
+  to "could anything have passed?". If your grader has more than one gate,
+  either name the flag after its gate (`chance_gate_reachable`) or make it the
+  AND of all of them. Round 430 chose the AND and kept the old field beside it
+  so the two disagreeing is visible.
+
+* **Merging confounded candidates to force a pass.** When the blocking gate is
+  separability, the tempting fix is to pool the candidates that co-occur into
+  one composite hypothesis. That is legitimate *only* if the grouping comes
+  from the co-occurrence structure and not from which grouping passes — and it
+  often does not help anyway: on the round-430 record the mutually-inseparable
+  trio still failed, because the confounding was **directed**. One unit sat in
+  every costly bucket the trio occupied *and two more of its own*, so merging
+  the trio could not make it sole and could not rescue the fourth either.
+  Report the direction of the confounding, not just its presence.
+
 ## Verification
 
 You have applied this correctly when all of the following hold:
@@ -158,7 +207,12 @@ You have applied this correctly when all of the following hold:
    introducing it.
 4. There is a test that the same evidence flips verdict when the family size
    changes, so the dependence is documented rather than discovered later.
-5. Every threshold the verdict depends on has either a written derivation from
+5. The gate enumeration from step 0 is in the output, with a pass set per gate
+   and an explicit intersection. There is a test that the intersection can come
+   back NON-empty on a constructed record — a reachability check that can only
+   report "unreachable" is the defect this skill names, one level up.
+
+6. Every threshold the verdict depends on has either a written derivation from
    labelled data, or a sweep in the round record showing the verdict across
    its range, or a hard refusal to default.
 

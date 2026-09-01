@@ -50,6 +50,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import math
 import re
 import sys
 from dataclasses import asdict, dataclass
@@ -632,6 +633,21 @@ def find_mtime_matches(age_s: float, days: int) -> bool:
     return int(age_s // 86400) > days
 
 
+def _next_sweep_at_or_after(stamp_utc: str, first_run: _dt.datetime,
+                            period_days: int = 1) -> _dt.datetime:
+    """The first `sysstat-summary` fire at or after `stamp_utc`.
+
+    The timer is `OnCalendar=*-*-* 00:07:00`, i.e. daily, so the fires are
+    `first_run + k*period` for k >= 0. Derived from the one fire the caller
+    passed rather than from a hardcoded 00:07, so a box whose timer moves does
+    not silently keep the old answer."""
+    t = _dt.datetime.fromisoformat(stamp_utc.replace("Z", "+00:00"))
+    if t <= first_run:
+        return first_run
+    k = math.ceil((t - first_run).total_seconds() / (period_days * 86400))
+    return first_run + _dt.timedelta(days=period_days * k)
+
+
 def retention_forecast(files, next_run_utc: str,
                        history_days: int = 7,
                        compress_after_days: int = 10,
@@ -665,9 +681,23 @@ def retention_forecast(files, next_run_utc: str,
         else:
             row["compressed_at_run"] = find_mtime_matches(
                 age_s, compress_after_days)
-            # seconds of grace left before this file becomes sweepable
-            row["survives_until_utc"] = (
+            # The instant the file becomes SWEEPABLE -- not the instant it is
+            # swept. `sa2` runs only when `sysstat-summary.timer` fires, so a
+            # file eligible at 23:50 survives until the next 00:07, and a file
+            # eligible at 08:10 survives sixteen hours. Round 430 split the two
+            # because the field was named `survives_until` and read as a
+            # deletion time: it is off by up to a day, always in the direction
+            # that makes a capture look more urgent than it is. And a box that
+            # is DOWN at 00:07 does not sweep at all, which is how `sa23`
+            # survived to be captured in the first place (round 424) -- so
+            # `deleted_at_utc` is the earliest possible deletion, never a
+            # promise.
+            row["sweepable_at_utc"] = (
                 mt + _dt.timedelta(days=history_days + 1)
+            ).strftime("%Y-%m-%dT%H:%M:%SZ")
+            row["survives_until_utc"] = row["sweepable_at_utc"]
+            row["deleted_at_utc"] = _next_sweep_at_or_after(
+                row["sweepable_at_utc"], run
             ).strftime("%Y-%m-%dT%H:%M:%SZ")
             spared.append(row)
     return {
@@ -678,8 +708,17 @@ def retention_forecast(files, next_run_utc: str,
         "deleted_at_next_run": doomed,
         "spared": spared,
         "not_swept": sorted(ignored),
-        "earliest_loss_utc": min((r["survives_until_utc"] for r in spared),
+        "earliest_sweepable_utc": min((r["sweepable_at_utc"] for r in spared),
+                                      default=None),
+        # The number a capture deadline should actually be set from.
+        "earliest_loss_utc": min((r["deleted_at_utc"] for r in spared),
                                  default=None),
+        # A tie is the normal case -- `saNN` and `sarNN` are seventeen minutes
+        # apart in mtime and land on the same 00:07 fire -- so this is a list.
+        "next_files_lost": sorted(
+            r["name"] for r in spared
+            if r["deleted_at_utc"] == min((x["deleted_at_utc"]
+                                           for x in spared), default=None)),
     }
 
 

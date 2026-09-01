@@ -2041,5 +2041,43 @@
   "id": "enif-neg-regex",
   "expect": [],
   "prompt": "Write me a regex that matches only lowercase hyphenated identifiers, no digits."
+ },
+ {
+  "id": "cvwyl-divisor-restores-ceiling",
+  "expect": [
+   "correction-validated-where-you-looked"
+  ],
+  "prompt": "Our metrics pipeline was reporting cache hit rates above 100 percent. Dividing the hit counter by two puts every sample back under the ceiling and I found the reason in the exporter source. I want to ship the divisor as a constant."
+ },
+ {
+  "id": "cvwyl-fix-checked-on-one-shard",
+  "expect": [
+   "correction-validated-where-you-looked"
+  ],
+  "prompt": "I calibrated the timing offset against the one capture file I had open and the numbers line up perfectly now. There are about forty more capture files in the archive. Is that enough to call it fixed?"
+ },
+ {
+  "id": "cvwyl-carried-constant-says-confirmed",
+  "expect": [
+   "correction-validated-where-you-looked"
+  ],
+  "prompt": "This scale factor has been carried in our notes as CONFIRMED for six weeks with no mention of what it was confirmed against. Before I depend on it for a capacity plan, how should I check it?"
+ },
+ {
+  "id": "cvwyl-checker-filters-then-verdicts",
+  "expect": [
+   "correction-validated-where-you-looked"
+  ],
+  "prompt": "Our invariant checker prints identity_holds true, but reading it I see it filters out rows where the denominator is zero before it does anything else. Should I trust the verdict?"
+ },
+ {
+  "id": "cvwyl-neg-plain-unit-conversion",
+  "expect": [],
+  "prompt": "Convert this function that returns milliseconds so it returns seconds instead, and update the two call sites."
+ },
+ {
+  "id": "cvwyl-neg-already-scoped",
+  "expect": [],
+  "prompt": "Our writeup already says the adjustment was validated on shards 1 through 3 of 40 and that shards 4 to 40 have not been run. Rewrite that paragraph so it reads well for a non-specialist audience."
  }
 ]
