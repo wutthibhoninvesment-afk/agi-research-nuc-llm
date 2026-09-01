@@ -749,6 +749,28 @@
    "where": "knowledge/round-421-the-verbs-nobody-ran.md",
    "quote": "**6 hits, 2 misses.**",
    "note": "No outstanding predictions: all eight banked numbers (B1-B8) were measured and scored. B5 landed ON its stated limit rather than inside it -- it accepted at most 3 observed-but-undeclared verbs provided each was individually explained, and exactly 3 occurred; one more would have obliged the round to call its own extractor refuted. That is recorded as a near-miss in the round file rather than folded into the hit. B6 is the load-bearing miss: it predicted that `wiring_audit.py check` was the one verb the driver ran and that `refs` was dead, and both are backwards -- `refs` is live as a Python function while `check` is invoked by nothing. Without B6 banked, the round would have written 'the driver runs the wiring check every round' into the knowledge file as background, because that is what the round-415 record reads like."
+  },
+  "422": {
+   "bank": "state/round-422-predictions.md",
+   "status": "unscored",
+   "owner": "language(C)",
+   "why": "Round 422 was INTERRUPTED: it ran per logs/driver.log, wrote no knowledge file and committed nothing. Round 423 (skills B) verified and landed its 524-insertion diff, this bank and its eight result artefacts under state/whence/round-422/ -- but did NOT score it, because inventing a language(C) round's verdict is exactly the prose-classifier failure this ledger replaced. Unlike round 132, this bank IS scorable and the scoring is mechanical: the banked per-pin table (A1-A3, B, CP03p..CP22p2) is scored against state/whence/round-422/run-plus-witnessed.json and host-pins-plus-repointed.json, both on disk. The out-of-sample test of round 420's polarity law -- a different guest file, pins written AFTER the law -- is the result nobody has read yet."
+  },
+  "424": {
+   "bank": "nuc/predictions-e-round424.md",
+   "status": "scored",
+   "scored_by": 424,
+   "where": "knowledge/round-424-nuc-e-the-plan-the-outage-outlived.md",
+   "quote": "**10 HIT \u00b7 3 PARTIAL \u00b7 3 MISS \u00b7 1 VACUOUS of 17**",
+   "note": "Registered by round 425 (SWE-loop D), NOT scored by it. Round 424 scored its own bank in \u00a79 of its knowledge file, table and all; it committed the bank and the knowledge file and was then killed at the driver's 3300 s ceiling before writing this entry, so K001 went red on a discharge that had actually happened. Round 425 transcribed the verdict line and the table's own denominator and re-read both in the file -- the same route round 421 used for round 420. Two features of round 424's scoring are worth keeping visible because they cost it hits: B2 is recorded VACUOUS rather than HIT (all 14 vmstat counters read 0 on the fresh boot, so the predicted partition identity held as 0 == 0 and measured nothing), and the file itself corrects a first-draft tally of '13/3/4/1 of 22' that had counted the three hygiene commitments into the denominator. The three commitments (E1-E3) are scored KEPT separately and are outside the 17."
+  },
+  "425": {
+   "bank": "state/round-425-predictions.md",
+   "status": "scored",
+   "scored_by": 425,
+   "where": "knowledge/round-425-the-instrument-nobody-pointed-at-the-subject.md",
+   "quote": "**19 numbered predictions. 11 HIT \u00b7 1 PARTIAL \u00b7 6 MISS \u00b7 1 VOID.**",
+   "note": "Two misses (A4, C4) are the load-bearing ones and they fail in the SAME direction: both predicted CONTINUITY -- that the next defect found would be the same class as the last one found. A4 named `test_checkpin.py` and the regression was `test_v37.py`, and not an escape at all but a `.git`-guarded `pytest.skip` that converts a passing test into a silent no-op inside the mutation sandbox while BOTH sides still exit 0. C4 predicted the escape class had recurred in a file touched after round 419; `git log -L` dates both static findings to rounds 360 and 380, i.e. round-413 residue, so it had not. Without those two banked the round would have recorded `copyparity found another escape` and never asked what a `passed -> skipped` transition means -- which is the round's main result. B1 is scored HIT but is called out in the round file as a bank too loose to be informative: it predicted `under 60 s` against a measured 3.84 s."
   }
  }
 }

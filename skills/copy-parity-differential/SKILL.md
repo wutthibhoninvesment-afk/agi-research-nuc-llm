@@ -69,17 +69,62 @@ about *inputs* that nothing validates is `unenforced-documented-rule`.
    python3 -m swe.copyparity run --test-args "-q tests" # per-node verdicts, full cost
    ```
 
-3. **Know which mode can see your defect.** A read at MODULE level aborts
-   collection, so the node vanishes and the cheap `collect` mode finds it. A
-   read inside a test body collects identically in both trees and only the
-   VERDICT moves — invisible to `collect`, and that blindness deserves its own
-   test rather than a sentence in a docstring.
+3. **Know which mode can see your defect — no single one covers the table.**
+   Round 425 measured all three against the real subject
+   (`languages/whence`) and found FOUR classes, not one:
 
-4. **Strip `-x` before diffing.** With exit-first the two runs stop at
+   | class | static `escapes` | `collect` | `run` | the exit-code gate |
+   |---|---|---|---|---|
+   | escape used at import | yes | yes | yes | yes |
+   | escape used in a test body | yes | no | yes | yes |
+   | escape **computed, never used** | yes | no | no | **no** |
+   | **coverage that evaporates** | no | no | yes | **no** |
+
+   A read at MODULE level aborts collection, so the node vanishes and the
+   cheap `collect` mode finds it. A read inside a test body collects
+   identically in both trees and only the VERDICT moves — invisible to
+   `collect`, and that blindness deserves its own test rather than a sentence
+   in a docstring.
+
+   The last two rows are the ones people miss:
+
+   * **Computed and never used.** `os.path.dirname` does not raise; it
+     happily returns `/`. So an escaping expression that nothing opens is
+     green in BOTH differentials, forever, until the round that finally reads
+     the variable. Round 425 found two in a tree both modes called clean —
+     each one a fix that repointed every USE and left the COMPUTATION behind,
+     which is not a fix, it is a smaller bug with no symptom.
+   * **Coverage that evaporates.** A test guarded by
+     `if <resource missing>: pytest.skip(...)` turns into a no-op when the
+     sandbox lacks that resource — `.git` is the common one, because copy
+     helpers exclude it. `passed -> skipped` is not a failure: **both sides
+     exit 0**, so every exit-code gate stays green while the test stops
+     providing evidence. In a mutation campaign that inflates the score by
+     exactly the amount nobody can see.
+
+4. **Read the arithmetic instead of running it, if you want a check you can
+   afford every time.** Measured costs on a 2000-test subtree: static scan
+   **0.4 s**, `collect` **3.8 s**, `run` **283 s** — a 74x gap between the
+   two differentials. Nothing at `run`'s price goes in a per-round check, and
+   wiring only the cheap mode installs a checker that cannot see the defect
+   it was built for, which is worse than none because it reports green.
+
+   A static scan evaluates path expressions as a DEPTH below the subtree
+   root: `__file__` is its own depth, `dirname` subtracts one, a `join`
+   component adds one, `".."`/`os.pardir` subtracts one, `Path.parent` and
+   `.parents[n]` likewise. Level 0 is the root; **any expression reaching a
+   negative level names a path outside the tree.** Two rules keep it
+   trustworthy: an unknown component counts +1 and never -1 (guess AWAY from
+   findings, or your checker gets uninstalled), and an escape reached through
+   the sanctioned root env var is exempt — that pattern survives the copy on
+   purpose, and flagging it makes the checker red at the very fix it is
+   recommending.
+
+5. **Strip `-x` before diffing.** With exit-first the two runs stop at
    different tests and the diff is noise. Report that you stripped it: the
    command you measured is then not the command the caller passed.
 
-5. **Grep for the escaping expression across the whole subtree**, not just the
+6. **Grep for the escaping expression across the whole subtree**, not just the
    file that failed. One failure means the rule is not enforced; there are
    usually more.
 
@@ -88,7 +133,7 @@ about *inputs* that nothing validates is `unenforced-documented-rule`.
    grep -rn "<ROOT_ENV_VAR>" <subtree> --include=*.py     # who already does it right
    ```
 
-6. **Fix at the ROOT, not at the site.** One module owns "where is the real
+7. **Fix at the ROOT, not at the site.** One module owns "where is the real
    repo", preferring an environment variable the sandbox-spawning process
    exports, falling back to the `__file__` computation. Every other site
    imports that name. Two sites computing the same root two ways is the defect
@@ -101,7 +146,7 @@ about *inputs* that nothing validates is `unenforced-documented-rule`.
    REGISTRY = os.path.join(_C.AGI_ROOT, "state", "...", "pins.json")
    ```
 
-7. **Leave a checker, not a comment.** If this is the second time, the fix is
+8. **Leave a checker, not a comment.** If this is the second time, the fix is
    not another comment — it is the command in step 2 wired into something that
    runs. A convention that has already been broken once will be broken again
    by whoever writes the next file, who will not have read the comment.
@@ -135,12 +180,23 @@ about *inputs* that nothing validates is `unenforced-documented-rule`.
 - [ ] The gate that refused now passes, and you ran it — not a proxy.
 - [ ] `copyparity run` (or your equivalent) reports the previously-failing
       node with the SAME verdict on both sides, and a node count > 0 on each.
-- [ ] `collect` mode is green too, and you know which of the two modes would
-      have caught your defect.
+- [ ] `collect` mode is green too, and you know which of the THREE modes
+      would have caught your defect — check it against the table in step 3
+      rather than assuming, and note that two of the four classes are
+      invisible to every exit-code gate.
+- [ ] A static scan of the subtree reports zero unguarded escapes, and its
+      file count is > 0. A scan that read nothing reports "no findings" and
+      is indistinguishable from a clean tree; make it exit non-zero on an
+      empty scan.
 - [ ] The grep in step 5 returns no remaining site that computes the outside
       root for itself.
-- [ ] There is a test that fails if a new file reintroduces the pattern —
+- [x] There is a test that fails if a new file reintroduces the pattern —
       either the differential itself, wired into a suite, or a static check.
+      Closed for this repo in round 425:
+      `harness/tests/test_swe_copyparity_real_subject.py`, 10 tests, 8.6 s,
+      promoted into the fast tier so it runs every round. The point is not
+      that the test exists; it is that it is pointed at the REAL subject and
+      is cheap enough to survive the budget review that kills slow checks.
 - [ ] The knowledge record says which claim was proven: *this file is
       copy-safe* and *the suite still collects* are weaker than *every node is
       copy-safe*, and only the last one requires the full two-run diff.

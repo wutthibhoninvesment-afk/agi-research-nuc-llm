@@ -1,0 +1,38 @@
+{
+ "mode": "collect",
+ "verdict": "copy_safe",
+ "copy_safe": true,
+ "test_cmd": [
+  "/home/pgain/agi-research-nuc-llm/.venv/bin/python3",
+  "-m",
+  "pytest",
+  "-p",
+  "no:cacheprovider",
+  "tests",
+  "--collect-only",
+  "-q"
+ ],
+ "stripped_exitfirst": true,
+ "in_place": {
+  "where": "in_place",
+  "root": "/home/pgain/agi-research-nuc-llm/languages/whence",
+  "returncode": 0,
+  "seconds": 0.81,
+  "timed_out": false,
+  "n_nodes": 2171,
+  "tail": "g_re_lexes_to_itself[a\\tb]\ntests/test_v41.py::test_the_runtime_snapshot_of_a_string_re_lexes_to_itself[a\\rb]\ntests/test_v41.py::test_the_runtime_snapshot_of_a_string_re_lexes_to_itself[a\\nb]\ntests/test_v41.py::test_the_runtime_snapshot_of_a_string_re_lexes_to_itself[q\"q]\ntests/test_v41.py::test_the_runtime_snapshot_of_a_string_re_lexes_to_itself[b\\\\b]\ntests/test_v41.py::test_the_limit_still_truncates_and_still_only_for_the_runtime\ntests/test_v41.py::test_truncation_cannot_cut_an_escape_in_half\ntests/test_v41.py::test_a_tab_inside_a_string_prints_as_an_escape_end_to_end\ntests/test_values.py::test_show_bool_before_int\ntests/test_values.py::test_show_string_quoted_and_truncated\ntests/test_values.py::test_show_list_preview\ntests/test_values.py::test_show_record_sorted\ntests/test_values.py::test_full_show_miss_lists_reasons\ntests/test_values.py::test_miss_dedup_keeps_order\ntests/test_values.py::test_render_leaf\ntests/test_values.py::test_render_depth_cap\ntests/test_values.py::test_render_node_budget\ntests/test_values.py::test_render_shared_node_marked\ntests/test_values.py::test_explanation_full_show_renders\ntests/test_values.py::test_show_nesting_is_capped\n\n2171 tests collected in 0.37s"
+ },
+ "copied": {
+  "where": "copied",
+  "root": "/tmp/copyparity-n8zbufom/proj",
+  "returncode": 0,
+  "seconds": 3.03,
+  "timed_out": false,
+  "n_nodes": 2171,
+  "tail": "g_re_lexes_to_itself[a\\tb]\ntests/test_v41.py::test_the_runtime_snapshot_of_a_string_re_lexes_to_itself[a\\rb]\ntests/test_v41.py::test_the_runtime_snapshot_of_a_string_re_lexes_to_itself[a\\nb]\ntests/test_v41.py::test_the_runtime_snapshot_of_a_string_re_lexes_to_itself[q\"q]\ntests/test_v41.py::test_the_runtime_snapshot_of_a_string_re_lexes_to_itself[b\\\\b]\ntests/test_v41.py::test_the_limit_still_truncates_and_still_only_for_the_runtime\ntests/test_v41.py::test_truncation_cannot_cut_an_escape_in_half\ntests/test_v41.py::test_a_tab_inside_a_string_prints_as_an_escape_end_to_end\ntests/test_values.py::test_show_bool_before_int\ntests/test_values.py::test_show_string_quoted_and_truncated\ntests/test_values.py::test_show_list_preview\ntests/test_values.py::test_show_record_sorted\ntests/test_values.py::test_full_show_miss_lists_reasons\ntests/test_values.py::test_miss_dedup_keeps_order\ntests/test_values.py::test_render_leaf\ntests/test_values.py::test_render_depth_cap\ntests/test_values.py::test_render_node_budget\ntests/test_values.py::test_render_shared_node_marked\ntests/test_values.py::test_explanation_full_show_renders\ntests/test_values.py::test_show_nesting_is_capped\n\n2171 tests collected in 2.54s"
+ },
+ "vanished": [],
+ "appeared": [],
+ "regressions": [],
+ "improvements": []
+}

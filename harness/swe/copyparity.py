@@ -3,6 +3,7 @@
 
     python3 -m swe.copyparity collect [--root PATH] [--json OUT]
     python3 -m swe.copyparity run     [--root PATH] [--json OUT] [--test-args "..."]
+    python3 -m swe.copyparity escapes [--root PATH] [--json OUT]
 
 WHY THIS EXISTS
 ---------------
@@ -56,9 +57,62 @@ Measuring in a different environment from the engine would measure nothing.
 gate wants to stop early; the diagnosis wants the whole list, and with `-x`
 in place the two runs stop at different tests and the diff is meaningless.
 `stripped_x` is reported so a reader knows the command was not the caller's.
+
+A THIRD MODE, BECAUSE THE OTHER TWO CANNOT BE AFFORDED EVERY ROUND
+-----------------------------------------------------------------
+Round 425 measured both differential modes against the REAL subject
+(`languages/whence`) for the first time -- every test in
+`harness/tests/test_swe_copyparity.py` builds a toy project under `tmp_path`,
+so the module that exists to catch this class had never been pointed at the
+tree it was written for. The two costs are three orders of magnitude apart:
+
+    collect    3.8 s   both sides summed, 2171 nodes each
+    run      283.4 s   both sides summed (146.1 + 137.3), 2086 nodes each,
+                       scoped `-m "not whence_slow"`. DEFAULT_TEST_CMD is
+                       UNFILTERED, so the engine's own cost is higher than
+                       this and 283 s is a floor, not the figure.
+
+`run` is the only mode that sees the RUNTIME class -- a registry read inside
+a test body, which is what actually stopped the engine in round 419 -- and at
+74x the cheap mode it is too expensive to put in a per-round check. `collect` is affordable and
+provably blind to that class (`test_collect_mode_is_blind_to_the_runtime_class`).
+Wiring only the affordable one would install a checker that cannot see the
+defect it was built for, which is worse than none: it reports green.
+
+`escapes` is the way out. It never runs the suite at all. It parses each
+`*.py` in the subtree and evaluates its path arithmetic SYMBOLICALLY, as a
+depth below the subtree root: `__file__` in `tests/test_checkpin.py` is level
+2, `dirname` subtracts one, a `join` component adds one and a literal `".."`
+subtracts one. Level 0 is the root; **any expression reaching a negative
+level names a path outside the tree**, which is the defect in one line of
+arithmetic. It costs milliseconds, it sees both classes because it never
+needed to execute anything, and it fires at authoring time rather than after
+a campaign has already refused to start.
+
+It is a STATIC check and therefore a hypothesis generator, not an oracle. It
+cannot know that a path it reconstructs is ever opened, and it cannot follow
+a level through a function call or a format string. Two guards keep the false
+positives down and are reported rather than hidden:
+
+  * an unknown `join` component counts +1, never -1, so an expression this
+    module cannot follow drifts AWAY from the finding rather than toward it;
+  * an escape reached through `AGI_RESEARCH_ROOT` -- the env var
+    `swe/proc.py` exports into every sandbox it spawns, so it still points at
+    the real checkout inside the copy -- is `env_guarded` and is NOT a
+    finding. That is round 413's sanctioned root helper, and the whole point
+    of it was that reaching outside THROUGH IT survives the copy.
+
+Confirm any finding with `run` (or by reading the file) before calling it a
+defect. The relationship between the three is not redundancy:
+
+    escapes   ms      both classes, statically, as a hypothesis
+    collect   s       import-time class only, confirmed by execution
+    run       min     both classes, confirmed by execution
 """
 
 import argparse
+import ast
+import io
 import json
 import os
 import shlex
@@ -269,15 +323,344 @@ def compare(root=WHENCE_ROOT, mode="collect", test_cmd=None, timeout_s=2400.0,
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+# ---------------------------------------------------------------------------
+# `escapes` -- the static mode. See the module docstring.
+# ---------------------------------------------------------------------------
+
+#: Directories `mutation._copy_project` does not copy. A file under one of
+#: these is not in the sandbox at all, so its path arithmetic cannot break
+#: there. Kept as a literal rather than imported so that a change to the
+#: ignore list shows up as a diff on BOTH sites instead of silently widening
+#: this scan.
+COPY_IGNORED_DIRS = frozenset((
+    "__pycache__", ".pytest_cache", ".venv", "research-env", ".git",
+    "node_modules"))
+
+#: The sanctioned way to reach the repo root from inside a copied subtree.
+#: `swe/proc.py` exports it into every subprocess it starts, so in the copy it
+#: still names the REAL checkout. Round 413 introduced it as
+#: `curecheck.AGI_ROOT`. An escape that goes through it is not a defect.
+ROOT_ENV_VAR = "AGI_RESEARCH_ROOT"
+
+#: Calls that pass a path through unchanged.
+_IDENTITY_FUNCS = frozenset((
+    "abspath", "realpath", "normpath", "resolve", "absolute", "expanduser",
+    "fspath", "Path", "PurePath", "str"))
+
+
+def _func_name(node):
+    """Trailing attribute/name of a call target: `os.path.dirname` -> `dirname`."""
+    f = node.func
+    if isinstance(f, ast.Attribute):
+        return f.attr
+    if isinstance(f, ast.Name):
+        return f.id
+    return None
+
+
+def _component_delta(text):
+    """Level change contributed by a literal path fragment.
+
+    `".."` is -1, `"."` is 0, `"a/b"` is +2. A fragment is allowed to carry
+    several components because `join(root, "../../state")` is one argument.
+    """
+    delta = 0
+    for part in text.replace("\\", "/").split("/"):
+        if part in ("", "."):
+            continue
+        delta += -1 if part == ".." else 1
+    return delta
+
+
+class _Escapes(ast.NodeVisitor):
+    """Symbolic path-depth evaluation over one module.
+
+    `levels` maps a variable name to its depth below the subtree root, when
+    that depth is knowable. `file_level` is the depth of the module itself:
+    `tests/test_checkpin.py` is 2, a top-level `run.py` is 1. Level 0 is the
+    root directory and a negative level is outside the tree.
+
+    Assignments are folded in source order across ALL scopes rather than
+    per-scope. That is deliberately imprecise in the harmless direction: a
+    module-level `ROOT` read inside a function body resolves, which is the
+    common shape, and a same-named local in another function can only ever
+    change WHICH escape is reported, never invent one -- the reported line
+    still contains arithmetic that reaches the level it is reported at.
+    """
+
+    def __init__(self, relpath, file_level, guarded_nodes):
+        self.relpath = relpath
+        self.file_level = file_level
+        self.guarded = guarded_nodes
+        self.levels = {}
+        self.findings = {}          # lineno -> finding dict
+        self._fn_depth = 0
+
+    # -- level evaluation ---------------------------------------------------
+
+    def level_of(self, node):
+        """Depth below the root, or None when this is not a path we follow."""
+        if isinstance(node, ast.Name):
+            if node.id == "__file__":
+                return self.file_level
+            return self.levels.get(node.id)
+        if isinstance(node, ast.Attribute):
+            # `X.parent` on a pathlib object.
+            if node.attr == "parent":
+                base = self.level_of(node.value)
+                return None if base is None else base - 1
+            return None
+        if isinstance(node, ast.Subscript):
+            # `X.parents[n]`
+            v = node.value
+            if isinstance(v, ast.Attribute) and v.attr == "parents":
+                base = self.level_of(v.value)
+                idx = _const_int(node.slice)
+                if base is not None and idx is not None:
+                    return base - (idx + 1)
+            return None
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
+            # `Path(__file__).parent / "x" / "y"`
+            base = self.level_of(node.left)
+            if base is None:
+                return None
+            return base + self._arg_delta(node.right)
+        if isinstance(node, ast.Call):
+            name = _func_name(node)
+            if name is None or not node.args:
+                return None
+            if name in _IDENTITY_FUNCS:
+                return self.level_of(node.args[0])
+            if name == "dirname":
+                base = self.level_of(node.args[0])
+                return None if base is None else base - 1
+            if name == "join":
+                base = self.level_of(node.args[0])
+                if base is None:
+                    return None
+                for extra in node.args[1:]:
+                    base += self._arg_delta(extra)
+                return base
+        return None
+
+    def _arg_delta(self, node):
+        """Level change for one `join`/`/` component.
+
+        An UNKNOWN component counts +1, never -1: a component this module
+        cannot read must push the answer away from a finding, not toward one.
+        """
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            return _component_delta(node.value)
+        if isinstance(node, ast.Attribute) and node.attr == "pardir":
+            return -1
+        if isinstance(node, ast.Starred):
+            return 1
+        return 1
+
+    # -- traversal ----------------------------------------------------------
+
+    def visit_FunctionDef(self, node):
+        self._fn_depth += 1
+        self.generic_visit(node)
+        self._fn_depth -= 1
+
+    visit_AsyncFunctionDef = visit_FunctionDef
+
+    def visit_Lambda(self, node):
+        self._fn_depth += 1
+        self.generic_visit(node)
+        self._fn_depth -= 1
+
+    def visit_Assign(self, node):
+        lvl = self.level_of(node.value)
+        if lvl is not None:
+            for tgt in node.targets:
+                if isinstance(tgt, ast.Name):
+                    self.levels[tgt.id] = lvl
+        self.generic_visit(node)
+
+    def visit_AnnAssign(self, node):
+        if node.value is not None:
+            lvl = self.level_of(node.value)
+            if lvl is not None and isinstance(node.target, ast.Name):
+                self.levels[node.target.id] = lvl
+        self.generic_visit(node)
+
+    def generic_visit(self, node):
+        lvl = self.level_of(node) if isinstance(
+            node, (ast.Call, ast.Attribute, ast.Subscript, ast.BinOp)) else None
+        if lvl is not None and lvl < 0:
+            self._record(node, lvl)
+        ast.NodeVisitor.generic_visit(self, node)
+
+    def _record(self, node, lvl):
+        line = getattr(node, "lineno", 0)
+        prev = self.findings.get(line)
+        # One finding per line, keeping the DEEPEST escape on it: nested
+        # subexpressions of a single escaping expression are one defect.
+        if prev is not None and prev["level"] <= lvl:
+            return
+        self.findings[line] = {
+            "file": self.relpath,
+            "line": line,
+            "level": lvl,
+            "kind": "runtime" if self._fn_depth else "import_time",
+            "env_guarded": _has_guarded_ancestor(node, self.guarded),
+            "expr": _snippet(node),
+        }
+
+
+def _const_int(node):
+    if isinstance(node, ast.Constant) and isinstance(node.value, int):
+        return node.value
+    # py<3.9 wrapped subscripts in ast.Index
+    inner = getattr(node, "value", None)
+    if isinstance(inner, ast.Constant) and isinstance(inner.value, int):
+        return inner.value
+    return None
+
+
+def _snippet(node):
+    try:
+        return ast.unparse(node)[:160]
+    except Exception:                              # pragma: no cover - py<3.9
+        return "<expr>"
+
+
+def _guarded_nodes(tree):
+    """Sub-expressions that only run when `ROOT_ENV_VAR` is absent.
+
+    Two shapes, both of them round 413's helper written out:
+        os.environ.get(AGI_RESEARCH_ROOT) or <fallback>
+        os.environ.get(AGI_RESEARCH_ROOT, <fallback>)
+    """
+    guarded = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.BoolOp) and isinstance(node.op, ast.Or):
+            seen_env = False
+            for value in node.values:
+                if seen_env:
+                    guarded.add(value)
+                if _mentions_env(value):
+                    seen_env = True
+        elif isinstance(node, ast.Call) and _func_name(node) == "get" \
+                and len(node.args) == 2 and _mentions_env(node.args[0]):
+            guarded.add(node.args[1])
+    return guarded
+
+
+def _mentions_env(node):
+    for sub in ast.walk(node):
+        if isinstance(sub, ast.Constant) and sub.value == ROOT_ENV_VAR:
+            return True
+        if isinstance(sub, ast.Name) and sub.id == ROOT_ENV_VAR:
+            return True
+    return False
+
+
+def _has_guarded_ancestor(node, guarded):
+    if not guarded:
+        return False
+    for g in guarded:
+        if g is node:
+            return True
+        for sub in ast.walk(g):
+            if sub is node:
+                return True
+    return False
+
+
+def scan_escapes(root=WHENCE_ROOT):
+    """Every path expression in `root`'s `*.py` files that reaches outside it.
+
+    Returns `(findings, stats)`. A finding with `env_guarded` true is
+    reported but is not a defect -- see the module docstring.
+    """
+    root = os.path.abspath(root)
+    findings, n_files, unreadable = [], 0, []
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in COPY_IGNORED_DIRS]
+        for fn in sorted(filenames):
+            if not fn.endswith(".py"):
+                continue
+            full = os.path.join(dirpath, fn)
+            rel = os.path.relpath(full, root)
+            n_files += 1
+            try:
+                src = io.open(full, encoding="utf-8").read()
+                tree = ast.parse(src, filename=full)
+            except (SyntaxError, UnicodeDecodeError, OSError) as exc:
+                unreadable.append({"file": rel, "error": str(exc)[:200]})
+                continue
+            file_level = len(rel.replace(os.sep, "/").split("/"))
+            v = _Escapes(rel, file_level, _guarded_nodes(tree))
+            v.visit(tree)
+            findings.extend(v.findings[k] for k in sorted(v.findings))
+    findings.sort(key=lambda f: (f["file"], f["line"]))
+    real = [f for f in findings if not f["env_guarded"]]
+    stats = {
+        "root": root,
+        "n_files": n_files,
+        "n_findings": len(real),
+        "n_env_guarded": len(findings) - len(real),
+        "n_import_time": sum(1 for f in real if f["kind"] == "import_time"),
+        "n_runtime": sum(1 for f in real if f["kind"] == "runtime"),
+        "files_with_findings": sorted({f["file"] for f in real}),
+        "unreadable": unreadable,
+    }
+    return findings, stats
+
+
+def escapes_summary(findings, stats):
+    real = [f for f in findings if not f["env_guarded"]]
+    head = ("copyparity(escapes): %s — %d file(s) scanned, %d escaping "
+            "expression(s) (%d import-time, %d runtime), %d env-guarded"
+            % ("copy_safe" if not real else "copy_breaks",
+               stats["n_files"], stats["n_findings"], stats["n_import_time"],
+               stats["n_runtime"], stats["n_env_guarded"]))
+    lines = [head]
+    if stats["n_files"] == 0:
+        lines.append("  NO FILE WAS SCANNED — a scan that read nothing is not "
+                     "a verdict (see the module docstring's first pitfall)")
+    for f in real:
+        lines.append("  ESCAPES  %s:%d  level %d  [%s]"
+                     % (f["file"], f["line"], f["level"], f["kind"]))
+        lines.append("           %s" % f["expr"])
+    for f in findings:
+        if f["env_guarded"]:
+            lines.append("  guarded  %s:%d  reaches level %d through %s"
+                         % (f["file"], f["line"], f["level"], ROOT_ENV_VAR))
+    for u in stats["unreadable"]:
+        lines.append("  UNREADABLE %s — %s" % (u["file"], u["error"]))
+    if not real and stats["n_files"]:
+        lines.append("  no expression resolves above the subtree root")
+    return "\n".join(lines)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("mode", choices=["collect", "run"])
+    ap.add_argument("mode", choices=["collect", "run", "escapes"])
     ap.add_argument("--root", default=WHENCE_ROOT)
     ap.add_argument("--test-args", default=None,
                     help="replace DEFAULT_TEST_CMD's pytest args, e.g. '-q tests/test_v01.py'")
     ap.add_argument("--timeout", type=float, default=2400.0)
     ap.add_argument("--json", default=None)
     a = ap.parse_args(argv)
+    if a.mode == "escapes":
+        findings, stats = scan_escapes(root=a.root)
+        print(escapes_summary(findings, stats))
+        if a.json:
+            with open(a.json, "w", encoding="utf-8") as f:
+                json.dump({"mode": "escapes", "stats": stats,
+                           "findings": findings}, f, indent=1)
+            print("wrote %s" % a.json)
+        # A scan that read NO file is not a verdict. Round 419's first
+        # differential reported `0 node(s)` on both sides and called the
+        # whence tree copy_safe; the same shape here would be a green exit
+        # for an empty scan, so it exits 2 instead.
+        if not stats["n_files"]:
+            return 2
+        return 0 if stats["n_findings"] == 0 else 1
     cmd = None
     if a.test_args:
         # shlex, not str.split: `-m "not whence_slow"` is one argument and

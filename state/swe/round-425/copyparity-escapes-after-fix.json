@@ -1,0 +1,71 @@
+{
+ "mode": "escapes",
+ "stats": {
+  "root": "/home/pgain/agi-research-nuc-llm/languages/whence",
+  "n_files": 84,
+  "n_findings": 0,
+  "n_env_guarded": 7,
+  "n_import_time": 0,
+  "n_runtime": 0,
+  "files_with_findings": [],
+  "unreadable": []
+ },
+ "findings": [
+  {
+   "file": "bench/ref_diff.py",
+   "line": 39,
+   "level": -2,
+   "kind": "import_time",
+   "env_guarded": true,
+   "expr": "os.path.dirname(os.path.dirname(ROOT))"
+  },
+  {
+   "file": "bench/reserve_probe.py",
+   "line": 26,
+   "level": -2,
+   "kind": "import_time",
+   "env_guarded": true,
+   "expr": "os.path.dirname(os.path.dirname(ROOT))"
+  },
+  {
+   "file": "curecheck.py",
+   "line": 804,
+   "level": -2,
+   "kind": "import_time",
+   "env_guarded": true,
+   "expr": "os.path.dirname(os.path.dirname(_HERE))"
+  },
+  {
+   "file": "tests/test_parser_differential.py",
+   "line": 474,
+   "level": -2,
+   "kind": "runtime",
+   "env_guarded": true,
+   "expr": "os.path.dirname(os.path.dirname(ROOT))"
+  },
+  {
+   "file": "tests/test_v10.py",
+   "line": 530,
+   "level": -2,
+   "kind": "runtime",
+   "env_guarded": true,
+   "expr": "os.path.dirname(os.path.dirname(ROOT))"
+  },
+  {
+   "file": "tests/test_v10.py",
+   "line": 603,
+   "level": -2,
+   "kind": "runtime",
+   "env_guarded": true,
+   "expr": "os.path.dirname(os.path.dirname(ROOT))"
+  },
+  {
+   "file": "tests/test_v10.py",
+   "line": 604,
+   "level": -1,
+   "kind": "runtime",
+   "env_guarded": true,
+   "expr": "os.path.dirname(ROOT)"
+  }
+ ]
+}

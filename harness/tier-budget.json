@@ -129,6 +129,15 @@
             "first_pass_s": 0.6,
             "n_tests": 17,
             "why": "ab()'s comparability guard: pure JSONL-in/dict-out over synthetic rows plus four committed sweep arms, no interpreter reads at all. Promoted for the same reason as test_swe_instrument.py above -- what it guards is a SILENT failure, and a guard in the slow tier is a guard nobody runs"
+        },
+        "test_swe_copyparity_real_subject.py": {
+            "measured_s": 8.57,
+            "measured_round": 425,
+            "measured_utc": "2026-09-01",
+            "measured_by": "python3 harness/tierbudget.py measure --cap-s 25 test_swe_copyparity_real_subject.py",
+            "first_pass_s": 7.96,
+            "n_tests": 10,
+            "why": "points copyparity at the REAL subject (languages/whence) instead of a tmp_path toy: the static `escapes` scan plus the `collect` differential. Belongs in the fast tier BECAUSE it is fail-closed -- a new file under languages/whence that resolves a path outside itself must go red in the round that writes it, which is the round that can still cheaply fix it, not weeks later in a mutation baseline gate. The expensive `run` mode (283 s) is deliberately NOT in this file."
         }
     }
 }

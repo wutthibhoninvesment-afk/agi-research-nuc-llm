@@ -30,7 +30,13 @@ from whence.lexer import _DIGITS, LexError, tokenize
 from whence.parser import ParseError, _show, _spell, parse
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-REPO = os.path.dirname(os.path.dirname(ROOT))
+# Round 425: `REPO = dirname(dirname(ROOT))` used to sit here. Round 413
+# repointed every USE of it (see the comments at `cwd=C.REPO_GIT_ROOT` below
+# and above the `ROOT/examples` join) and left the ASSIGNMENT, so the file
+# kept computing `/tmp` in every mutation sandbox for nothing. Neither
+# differential mode could see it -- `os.path.dirname` does not raise -- which
+# is why `copyparity escapes` exists. Reach outside this tree via
+# `curecheck.AGI_ROOT` or not at all.
 
 
 # --------------------------------------------------------------------------

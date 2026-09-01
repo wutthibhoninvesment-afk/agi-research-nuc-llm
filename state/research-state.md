@@ -20403,30 +20403,124 @@ Closed round 421's next-step 5 by **refuting it**. Knowledge:
 - **Rounds 422 and 423's uncommitted work was verified and landed by this
   round** before it began its own — see the next-steps note below.
 
-## Next steps (as of round 424)
+### Round 425 — SWE-loop(D) — 2026-09-01 — the instrument nobody pointed at the subject
 
-1. **Round 421's item 5 is CLOSED, and the way it closed is the finding.**
+`harness/swe/copyparity.py` (round 419) exists to keep `languages/whence`
+copy-safe. It had twelve tests and **every one built a toy project under
+`tmp_path`**, so in six rounds nothing had ever pointed it at
+`languages/whence`. This round did. Knowledge:
+`knowledge/round-425-the-instrument-nobody-pointed-at-the-subject.md`.
+Predictions (D-013) `state/round-425-predictions.md`, banked before the
+instrument was run against the real tree once. Artifacts
+`state/swe/round-425/` (four JSON reports).
+
+- **Three modes measured on the real subject for the first time, and the
+  price gap is the design.** `collect` **3.84 s** / 2171 nodes a side, verdict
+  `copy_safe`. `run` **283.38 s** / 2086 nodes a side, verdict `copy_breaks`.
+  New static `escapes` **0.39 s** / 84 files, 2 findings. `run` is **74x**
+  `collect`, which is why wiring only the affordable mode installs a checker
+  that cannot see the defect it was built for. DISCLOSED CAP: `run` was
+  scoped `-m "not whence_slow"`; `DEFAULT_TEST_CMD` is unfiltered, so 283 s
+  is a floor and the 85 slow nodes were never differentialled.
+- **FOUR defect classes, and no single instrument covers the table.** Two were
+  known (escape used at import → `collect` sees it; escape used in a test body
+  → only `run`). Two are this round's: an escape **computed and never used**
+  is invisible to BOTH differentials, because `os.path.dirname` never raises;
+  and **coverage that evaporates** is invisible to every exit-code gate.
+- **`test_v37::test_the_host_is_byte_unchanged_by_this_decision` goes
+  `passed -> skipped` in the sandbox, and BOTH sides exit 0.** `_copy_project`
+  excludes `.git`; round 404 gave the test a defensive `pytest.skip` when
+  `git show` fails. So `mutation.baseline_check` is green while that test
+  provides no evidence at all, and every mutant it would have killed survives
+  silently — round 349's inversion ("the run that tested nothing reported
+  twice the mutation score") arriving by a new route, through a guard added
+  to make the suite MORE robust. Found, **not fixed** — see item 1 below.
+- **Two escaping expressions removed, both round-413 RESIDUE rather than a
+  fourth recurrence.** `tests/test_v24.py:33` (`REPO = dirname(dirname(ROOT))`,
+  round 360) was assigned and read by nothing; `tests/test_v31.py:421`
+  (`sys.path.insert`, round 380) was superseded TWO LINES BELOW by round 413's
+  `curecheck.AGI_ROOT` block, added alongside it instead of replacing it.
+  Round 413 repointed every USE and left the COMPUTATION — which is not a fix,
+  it is a smaller bug with no symptom. Confirmed by reading the code before
+  being called defects (commitment E3). `escapes` now `copy_safe`, 0 findings;
+  `test_v24.py` + `test_v31.py` **79 passed** after.
+- **Wired, measured, and in the fast tier.**
+  `harness/tests/test_swe_copyparity_real_subject.py`, 10 tests, **8.57 s**,
+  promoted by the sanctioned ladder (`tierbudget.py measure --cap-s 25`,
+  green, under cap) so it runs EVERY round — unlike `test_swe_copyparity.py`,
+  which is still `swe_slow` and deselected. Verb audit 93 -> 94 declared,
+  8 -> 10 reached, V003 13 -> 12. `collect` and `escapes` REACHED; `run`
+  correctly stays unreached at 283 s. Verification suite **149 passed**.
+- **Two traps in `verb_audit` worth knowing.** It **disables the raw line scan
+  for `.py` files entirely** (all three false REACHEDs it ever measured were
+  path-plus-verb strings inside Python constants) and reads only AST-folded
+  list literals of string constants — so a comment or an f-string never
+  counts, by design. And its closure is built from **tracked** files, so a
+  brand-new test file reports V003 until it is `git add`ed.
+- **Inherited work landed, and round 424's item 19 was FALSE.** It said rounds
+  422 and 423 were "landed by round 424 ... rather than committed unread";
+  `git show --stat cc3ae6b` is `nuc/` + `state/nuc-*` + research-state +
+  round_counter + its own knowledge file, and the 422/423 diff was still
+  uncommitted. Round 424 was killed at the 3300 s ceiling, so the sentence was
+  an intention. Landed here. Also: the skills corpus was RED on two tests with
+  one root cause — round 424 banked `nuc/predictions-e-round424.md` and never
+  registered it (K001). Round 424 HAD scored its own bank (§9, 17-row table);
+  round 425 **transcribed** that verdict rather than inventing one.
+  `carryforward` now 0 errors. `nuc/tests` is **723 passed** — the driver's
+  `3 failed` at 09:14:16 does not reproduce and is recorded as unreproduced,
+  not fixed. `procreap` found no orphan.
+- **Predictions: 11 HIT, 1 PARTIAL, 6 MISS, 1 VOID of 19**; all four
+  commitments kept. The two load-bearing misses (A4, C4) fail in the SAME
+  direction — both predicted CONTINUITY, that the next defect would be the
+  same class as the last. Without them banked the round would have written
+  "copyparity found another escape" and never asked what `passed -> skipped`
+  means. B1 is a HIT and is called out as a bank too loose to be informative
+  ("under 60 s" against 3.84 s).
+
+## Next steps (as of round 425)
+
+1. **Round 425's class 4 is FOUND but NOT FIXED, and it is the highest-value
+   open item on this track.** `languages/whence/tests/test_v37.py::test_the_host_is_byte_unchanged_by_this_decision`
+   goes `passed -> skipped` inside every mutation sandbox (`_copy_project`
+   excludes `.git`; round 404 gave the test a defensive `pytest.skip`), and
+   **both sides exit 0**, so `mutation.baseline_check` and every other
+   exit-code gate in this repo stay green while that test provides no
+   evidence. The fix is NOT to delete the skip -- the guard is correct -- it
+   is an ACKNOWLEDGED-BASELINE mechanism so a NEW evaporation goes red while
+   this justified one does not cry wolf (the shape of
+   `state/known-escalated-diffs.json`). The hard part is that `run` at 283 s
+   is too expensive to be what checks it every round, and `escapes` cannot
+   see this class at all. Do NOT re-derive the cost from prose: re-run
+   `copyparity run` and read `Side.seconds`. SWE-loop(D).
+2. **The 85 `whence_slow` nodes have never been differentialled.** Round 425's
+   `run` was scoped `-m "not whence_slow"` to fit the round, and
+   `DEFAULT_TEST_CMD` -- what the mutation engine actually uses -- is
+   UNFILTERED. So 283 s is a floor on the engine's real cost and those 85
+   nodes are unmeasured, not clean. A slow-tier slice via
+   `harness/swe/slowtier.py run --budget-s N` is the affordable route.
+   SWE-loop(D).
+3. **Round 421's item 5 is CLOSED, and the way it closed is the finding.**
    It was not implemented — it was **refuted**. Any next-steps item of the
    form *"`X` still has no Y"* is now re-derived by S011 whenever Y is a
    literal token, and billed as a declined sentence whenever it is not. The
    standing instruction for whoever writes the next block: if you carry an
    absence item, **name the missing thing as a string**, or accept that
    nothing will ever check it.
-2. **The declined-absence counter has a backlog of 10 and two of them look
+4. **The declined-absence counter has a backlog of 10 and two of them look
    real.** `ref_diff.py` still has no caller (round 415's block) and
    `case_coverage.py` has no P00x code (round 357's) both have exact
    re-derivations — `wiring_audit refs`/`orphans` for the first, a token grep
    for the second — through a DIFFERENT class than S011. Neither is a reason
    to widen the absence grammar; both are reasons to check whether the
    sentences are still true. skills(B).
-3. **`verb_audit` is watched but its 85 unreached verbs still need DECISIONS,
+5. **`verb_audit` is watched but its 85 unreached verbs still need DECISIONS,
    not measurement** (round 421's item 1, unchanged in substance). The
    tractable subset in priority order: `slowtier plan`/`run`, recommended by
    `harness/run_tests_fast.sh`'s own header in a COMMENT and therefore run by
    nothing; and `harness/swe/copyparity.py`'s two verbs, whose own SKILL.md
    checklist asks for exactly the wiring they lack. harness(A) for the first,
    SWE-loop(D) for the second.
-4. **A verb needs `manual` vs `wired`, and there are now THREE instances.**
+6. **A verb needs `manual` vs `wired`, and there are now THREE instances.**
    `wiring_audit.py token-refs` SHOULD be unreached — it is a human's
    re-derivation command, printed inside an S011 finding — and so should
    `capture_manifest plan` and, as of round 424, `capture_manifest retention`:
@@ -20435,40 +20529,40 @@ Closed round 421's next-step 5 by **refuting it**. Knowledge:
    The registry marks files, not verbs, so all three are indistinguishable
    from a verb nobody wired by mistake. 92 → 93 declared, 84 → 85 unreached.
    harness(A).
-5. **The MARKER half of round 419's item 5 is still open** and is now the
+7. **The MARKER half of round 419's item 5 is still open** and is now the
    only half. `harness/tier-budget.json` and `harness/swe/slowtier.py` answer
    *what is deselected*; nothing joins that to the registry, so `wired` still
    means "the runner was pointed at it" for every `test_swe_*.py` file.
    harness(A).
-6. **Round 409's items 2, 3 and 4 carry forward, and item 3 is load-bearing
+8. **Round 409's items 2, 3 and 4 carry forward, and item 3 is load-bearing
    three times now.** `run_tests_fast.sh`'s echoed recorded-status block
    outgrowing every `tail` is what stopped rounds 415 and 421 adding a fifth
    echo. Also unmoved: the `split_measured_output` count-line boundary and
    `MEASURED_END_SENTINEL`, and the stale pristine-check ledger. harness(A).
-7. **`case_coverage` has 27 warnings and SEVEN skills registered unprobed** —
+9. **`case_coverage` has 27 warnings and SEVEN skills registered unprobed** —
    `cause-needs-a-denominator`, `verdict-carries-its-threshold`,
    `null-result-needs-a-power-floor`, `named-guardian-must-go-red`,
    `probe-where-the-rules-disagree`, `mutate-the-rule-both-ways` and
    `copy-parity-differential`. The last group must be probed TOGETHER — they
    are each other's named NOT-scopes. Needs a priced `trigger_eval` round
    budgeted as a whole round. skills(B).
-8. **Round 422 has no knowledge file and never will.** Its diff, predictions
+10. **Round 422 has no knowledge file and never will.** Its diff, predictions
    bank and eight result artefacts were landed by round 423 under round 422's
    name; its findings live only in `state/round-422-predictions.md` and the
    scored artefacts. A language(C) round wanting the out-of-sample polarity
    result should read those directly rather than trusting this summary.
    language(C).
-9. **Round 420's carried language(C) items are unchanged**: the 19
+11. **Round 420's carried language(C) items are unchanged**: the 19
    `-`-direction pins in `self_host.lang` still have no `+` counterparts (3
    of 23 are LATERAL and need a new mechanism statement); `examples/
    self_eval.lang`'s guest EVALUATOR still has no pin; and `parser.quote_str`
    is still not unified with `values._quote` (round 408's item 6, sixth round
    carried). language(C).
-10. **`polarity.py` has not been extended beyond Whence.** The same
+12. **`polarity.py` has not been extended beyond Whence.** The same
     monotonicity argument applies verbatim to `assertIn`/`assertRaises` in
     the Python suites, and `harness/swe/guardpin.py` is the instrument that
     would consume it. SWE-loop(D).
-11. **NUC-E: round 406's item 1 is CLOSED and the whole carried block is
+13. **NUC-E: round 406's item 1 is CLOSED and the whole carried block is
     replaced.** The box is up on boot `f13afb47`. The new standing first act
     of every up-round is `python3 nuc/capture_manifest.py retention --capture
     <newest> --now <T> --next-run <T> --strict`, which exits 1 when the next
@@ -20476,7 +20570,7 @@ Closed round 421's next-step 5 by **refuting it**. Knowledge:
     UPTIME, and the sweep only runs while the box is up. **Do not re-derive
     the deadline from prose; the constant that lived in the emitted plan was
     wrong by 21 days.** NUC-integration(E).
-12. **Full-window attribution is possible for the first time, and every
+14. **Full-window attribution is possible for the first time, and every
     ledger result in this program was computed on 2 of 9 day files.**
     `state/nuc-capture-r424/` has 1652 fires at 100 % derivable durations
     against ten day files, span 10/10, plus `Stopped`/`Stopping` for
@@ -20484,7 +20578,7 @@ Closed round 421's next-step 5 by **refuting it**. Knowledge:
     `channel_sweep` against it and expect the power floors to move. This is
     the largest single change to the evidence base since round 400.
     NUC-integration(E).
-13. **Round 418's published reclaim magnitudes are all exactly 2× and should
+15. **Round 418's published reclaim magnitudes are all exactly 2× and should
     be re-derived, not re-quoted.** The divisor is confirmed (§6 of round
     424's knowledge file) and `ReclaimEvent.corrected_*` carries it. Two
     specific consequences: `fwupd-refresh`'s `p_chance 0.0154` was computed on
@@ -20493,7 +20587,7 @@ Closed round 421's next-step 5 by **refuting it**. Knowledge:
     (16.6 % against ~100 % for five of the other six) rather than merely the
     one with the odd `%vmeff`. Ask what was pinned or recently-referenced at
     04:00 and not at 15:00. NUC-integration(E).
-14. **Three smaller E items, all settled enough to act on.** Use `sadf` for
+16. **Three smaller E items, all settled enough to act on.** Use `sadf` for
     per-record INTERVALS (589 s, not the assumed 600) and retire the
     first-record item — `sadf` hides that record more completely than `sar`,
     so round 418's item 4 is refuted, and the 1200 s stitch is not removable.
@@ -20503,22 +20597,22 @@ Closed round 421's next-step 5 by **refuting it**. Knowledge:
     configuration never emits, and catching the next load needs a poller
     already running at boot — i.e. a `~/nuc-research/` unit, i.e. operator
     approval. NUC-integration(E).
-15. **Round 408's item 9 (CLAUDE.md's `🔴 CRITICAL MISSION` block is stale in
+17. **Round 408's item 9 (CLAUDE.md's `🔴 CRITICAL MISSION` block is stale in
     both halves) is re-escalated for the TENTH time.** Both its items were
     answered by rounds 349 and 33/v0.23, and every round pays a re-read.
     CLAUDE.md is the operator's file (round 346) — this needs the operator.
-16. **`languages/whence/SECURITY.md` has now been carried 75 rounds**, with
+18. **`languages/whence/SECURITY.md` has now been carried 75 rounds**, with
     the round-349 pin still matching. The uncommitted gateway rewrite
     asserting four controls this repo does not have (pre-commit secret hook,
     CI dependency scanning, SHA-256 release checksums and signed tags,
     `.gitignore` entries for `.env`/`*.key` — all four checkably false,
     verified round 416) remains the operator's decision, overdue in two ways.
-17. **Blocked on the operator: `--cap 196` and the E3 A/B**, with round 412's
+19. **Blocked on the operator: `--cap 196` and the E3 A/B**, with round 412's
     precondition (any A/B publishes its power floor BEFORE it runs). Round
     406's items 2–7, round 405's 1–4, round 404's 1–4 and 7, round 403's 2–5
     and round 336's remaining language(C) items carry forward where not
     closed above. The `Harness (A)` half of the Track-status audit is owed.
-18. **A gated fix is exposed to whatever clears its gate — this is not a NUC
+20. **A gated fix is exposed to whatever clears its gate — this is not a NUC
     fact and the other tracks have the same shape.** Round 424's plan was
     pinned to the box's state and could only run once the box returned, and
     the usual way a box returns is a reboot, which invalidated the pin. Any
@@ -20526,11 +20620,18 @@ Closed round 421's next-step 5 by **refuting it**. Knowledge:
     this repo emits several — should be re-derived at run time rather than
     replayed, or should at minimum re-audit its own assumptions first.
     harness(A).
-19. **Rounds 422 and 423's work was landed by round 424**, verified against a
-    full `languages/whence/tests` run rather than committed unread. Round 423
-    had a research-state entry and a knowledge file but had never reached git;
-    round 422 died interrupted with no knowledge file and never will have one.
-    Both are recorded under their own names. Round 422's findings live only in
+21. **CORRECTION (round 425): rounds 422 and 423's work was NOT landed by
+    round 424.** The sentence that stood here -- "landed by round 424,
+    verified against a full `languages/whence/tests` run rather than committed
+    unread" -- was false. `git show --stat cc3ae6b` is `nuc/`, `state/nuc-*`,
+    research-state, round_counter and round 424's own knowledge file; the
+    422/423 diff was still uncommitted when round 425 started. Round 424 was
+    killed at the driver's 3300 s ceiling, so it was an intention written
+    before the act, and **round 425 landed it**. The lesson is the one round
+    283 already paid for: a round's own prose about what it committed is not
+    evidence, and `git show --stat` is. Round 423 had a research-state entry
+    and a knowledge file but had never reached git; round 422 died interrupted
+    with no knowledge file and never will have one. Round 422's findings live only in
     `state/round-422-predictions.md` and `state/whence/round-422/`, and a
     language(C) round wanting the out-of-sample polarity result should read
     those directly. language(C).
