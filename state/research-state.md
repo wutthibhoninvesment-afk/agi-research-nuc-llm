@@ -22283,6 +22283,123 @@ hygiene commitments kept.
   `knowledge/round-438-the-criterion-that-passed-in-the-circular-mode.md`;
   `state/round-438-predictions.md`.
 
+### Round 439 — harness(A) — 2026-09-01 — the red that two rounds measured green
+
+**Inherited work landed first.** Round 438 committed `883a23a` and kept
+working; three paths were still uncommitted when this round started
+(`harness/wiring-registry.json`, its own knowledge file, this file).
+Re-verified independently — `wiring_audit.py check` 115 entry points / 0
+errors, `test_wiring_audit.py` 62 passed — and committed unchanged as
+`67487a3`, attribution only.
+
+- **The carried item attacked is round 437's next-step 3, re-carried by round
+  438's item 6:** the slow tier's recall, 0% since round 341 and never raised.
+  Re-derived at HEAD before anything else: `31 files / 32 units, 0 conclusive
+  against checkout 29629ebd3b1eaa10 (0% recall), 0 failing` — 20 units never
+  run, 12 carrying a `stale_*` verdict 62-75 h old.
+- **Recall 0% -> 16%, and the first ledger entries since 2026-08-30.** The
+  hand-picked unit failed: `slowtier run --only "test_swe_campaign.py[light]"`
+  was killed by a 1500 s timeout with **no ledger entry** (a killed run
+  records nothing — slowtier's own rule 10, arriving as a bill), against a
+  571-697 s bare-pytest baseline. The instrument costs materially more than
+  the pytest run its estimate came from. Then the five cheapest units with a
+  measured cost — which is what `plan()` would have picked unprompted — ran
+  in **16 s of runtime for 5 units of evidence**, all `fresh_pass`, all
+  `checkout_stable`/`harness_stable` true: `slow tier: 31 files / 32 units,
+  **5 conclusive** against checkout 29629ebd3b1eaa10 (**16% recall**), 0
+  failing`; ledger 26 -> 31 rows. **`--only` overrides the planner and the
+  planner was right**; the round's artifact calls `plan()`, never `--only`.
+- **Two harness reds on the carry list were already green, and had been since
+  round 437.** `test_swe_campaign.py::test_review_stage_and_report` (carried
+  from round 433 with "two candidate shapes … do not guess between them, run
+  the file", re-listed by 434/435/436) and `test_verb_audit.py`'s V002
+  ("red since round 429"). Round 437 ran both, fixed both, and wrote both up;
+  its knowledge file was committed in `ce7a89d` and sitting in the tree when
+  this round started. This round re-derived the first from scratch — the test
+  passes solo in **45.73 s** against round 437's 46.21 s — and banked a
+  prediction (P4) on a question round 437 had already answered. **The carry
+  list is the index a round reads, and nothing updates a carried item when a
+  later round closes it.**
+- **That is what 0% recall actually costs.** The tier's recall gap was not
+  only failing to catch new breakage; it was failing to RETIRE fixed
+  breakage, and the second failure mode was the one occurring. A stale-open
+  red is re-escalated by every round that reads the list and re-derived at
+  full price by any round that acts on it.
+- **Artifact: `harness/run_slowtier_slice.sh`, the driver's FIFTH per-round
+  check and the first that MEASURES** (`run_driver.sh:647`, declared in the
+  wiring registry). `harness/run_tests_fast.sh` has printed `slowtier status`
+  since round 341 — 99 rounds of reporting a gap, which never closes one —
+  and its own header already named the fix. Three decisions, each tested:
+  SEQUENTIAL after the other four checks (nproc is 1; the slice writes a
+  `seconds` field `plan()` reads back as a cost estimate); bounded by
+  `DRIVER_SLOWTIER_BUDGET_S` (default 240) with the worst case documented
+  rather than capped (an outer `timeout` would kill a unit mid-run and a
+  killed run writes NO ledger entry, so the tier's dearest units could never
+  become evidence); and an off switch that keeps the recall line.
+  **`test_run_driver_slowtier_slice.py` 8 passed; `wiring_audit.py check`
+  116 entry points, 96 in closure, 0 errors.**
+- **`skills/carried-claim-rot/SKILL.md`** — new trigger bullet and a new
+  section, "a carried RED is an absence claim wearing a presence claim's
+  clothes", with this round's instance and two moves: re-derive against the
+  NEWEST round that touched an item (`grep -l '<token>' knowledge/round-4*.md
+  | tail -3`, seconds) rather than the round that raised it; and give a red a
+  mechanism that retires it, because the reds that rot are precisely the ones
+  too expensive to re-run casually.
+- **Predictions (D-013):** `state/round-439-predictions.md`, 7 banked before
+  measuring, plus an amendment logged BEFORE the number landed disclosing
+  that the slice ran contaminated (~25-30 s of concurrent CPU on a 1-core
+  box). Scored in the knowledge file.
+
+## Next steps (as of round 439)
+
+1. **The driver now takes a slice every round; the first three rounds of it
+   are the evidence that the design is right or wrong.** Watch
+   `logs/slowtier_round_*.log` and the `slowtier-slice OK (...)` line in
+   `logs/driver.log`. Recall should climb monotonically. Two things would
+   falsify the design: a round whose slice picks a unit far over budget and
+   delays the next round badly (the 873 s worst case is documented and
+   deliberate — report it if it fires), or entries coming back
+   `checkout_stable: false`, which would mean the post-round window is not
+   as quiet as this round assumed. **harness(A) or SWE-loop(D).**
+2. **27 of 32 units are still unmeasured at this checkout, and one of them
+   now has a measured floor nobody had before.**
+   `test_swe_campaign.py[light]` costs **> 1500 s through the instrument**
+   against a 571-697 s bare-pytest baseline — it was killed by this round's
+   timeout and wrote nothing. Do NOT plan it against the pytest number.
+   `test_swe_guest.py` is the file whose last recorded run was RED at a
+   checkout that has since moved; `plan()` puts it first by round 385's term,
+   so it should be an early pick of the new per-round slice — check that it
+   actually is, because that ordering rule has never run live.
+3. **Re-derive against the newest round that touched an item, not the round
+   that raised it.** Round 439 spent ~10 minutes re-deriving a red round 437
+   had already fixed and written up. The check is one `grep` over
+   `knowledge/round-4*.md`. This is the missing half of rounds 434-438's
+   "re-derive before quoting" rule. **any track.**
+4. **Round 438's items 1, 2, 3 and 5 stand, untouched by this round** — the
+   repointed registry's criterion text (language C), CP03p as the last
+   `append_only` residual (language C), the never-fired `strict_violation`
+   path (language C), and `PRE_UNDECIDABLE` needing a RUN rather than a
+   better static rule.
+5. **Round 437's items 2, 4, 5 and 6 stand, untouched:** three corpus
+   builders not re-run after the corpus shrank; `_docstring_const`'s dead
+   `or` disjunct (still fallback-shaped at HEAD, still a two-line change —
+   round 439 re-confirmed `MAX_NESTING` is on 0 lines of `interp.py`);
+   `selfdesc_check`'s 0/27 coverage; `example_curation` resolving `git`
+   first. **Two numbers in that cluster are already stale**: round 437's
+   corpus "27 -> 13" reads **32 on disk / 18 curated** at HEAD, and the
+   14 foreign `.lang` files are unchanged. SWE-loop(D) or skills(B).
+6. **Standing, and untouched by this round:** the operator-blocked `--cap
+   196`; the E3 A/B's six-gate table; `case_coverage`'s 49-of-103
+   disagreeing verdicts; `claim_check` executing 0 of its commands; the
+   `%vmeff` residual; the nuc health check's 3 reds (FAIL since at least
+   round 438, NUC-integration E); and CLAUDE.md's `CRITICAL MISSION` block,
+   re-escalated for the TWENTY-FIRST time and still a one-line deletion for
+   the operator. `languages/whence/SECURITY.md` is still uncommitted, still
+   not this program's, and still the operator's decision — **do not copy a
+   carry count for it from this file**; the checker's own line is the only
+   source.
+
+
 ## Next steps (as of round 438)
 
 1. **Decide what the repointed registry's criterion should DEMAND, then edit

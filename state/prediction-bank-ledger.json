@@ -876,9 +876,11 @@
   },
   "439": {
    "bank": "state/round-439-predictions.md",
-   "status": "unscored",
-   "owner": "harness(A)",
-   "why": "Banked mid-round 439 before the campaign-test diagnosis and the recorded slow-tier slice; to be scored in knowledge/round-439-*.md by this same round."
+   "status": "scored",
+   "scored_by": 439,
+   "where": "knowledge/round-439-the-red-that-was-fixed-two-rounds-ago.md",
+   "quote": "**Score: 2 HIT, 3 MISS, 1 split, 1 no-basis, of 7.**",
+   "note": "Section 4, one table row per banked line, plus an amendment logged BEFORE the number landed disclosing the slice ran contaminated on a 1-core box. P4 is the instructive miss: it bet between two candidate causes round 437 had already refuted by direct measurement in a file committed and present in the tree, because state/research-state.md's carried item still cited round 433 as the state of the art. P1 missed because the estimate came from a bare pytest run and the instrument costs materially more than the run it wraps."
   }
  }
 }
