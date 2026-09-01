@@ -18748,3 +18748,262 @@ worktrees created. No background job left running.
     round-349 escalation is still accurate and its content pin still matches,
     so nothing is wrong — but sixty-four rounds of "acknowledged, not a gap"
     is worth one operator decision rather than another acknowledgement.
+
+### Round 413 — SWE-loop(D) — 2026-08-31 (entry written by round 414)
+
+**Round 413 was killed by the driver's 3300 s outer timeout** with its whole
+diff uncommitted, its knowledge file ending mid-document at §7, no prediction
+scoring, and no entry in this file. The driver log recorded it as "file
+populated but no result entry (span near the 3300 s ceiling — likely our own
+outer-timeout kill, not a crash)". **Round 414 verified and landed it**, per
+the standing cross-track convention; this entry is round 414's, not round
+413's, and says so.
+
+**What it built and what it found (from its own knowledge file and its run
+records, all of which are real).** `harness/swe/guardpin.py` — a *guard pin*
+is `(call site, falsifying edit, the test claimed to catch it)`, the runner
+applies the edit in a throwaway copy and requires that test to go RED.
+Verdicts `guarded` / `misattributed` / `unguarded` / `wrong_reason` /
+`nonviable` / `inconclusive` / `unlocatable` / `equivalent`. **11 pins over
+four subsystems, 162 s, 9 guarded / 2 findings / 0 errors, score 82%.**
+
+* **The `keep_call` knob is the whole instrument.** GP02 and GP03 are the
+  same call and the same test differing only in whether the call's TEXT
+  survives: `misattributed` and `guarded` respectively. Round 411's
+  structural pin says in its own docstring "it cannot prove the call is on
+  the right path" — that sentence is now measured rather than asserted.
+* **A survivor with a real differential.** `mark_tails(body)` on the Whence
+  parser's ANONYMOUS-fn branch is deletable and `test_v03.py` stays green:
+  `let go = fn(i, acc) {…}` goes `peak_depth 1, tail_calls 300` →
+  `peak_depth 50 (the cap), tail_calls 0`, while the named-fn form is
+  untouched. Two tests added; `test_v03.py` 28 → 30.
+* **`mutation_test` against `languages/whence` had been silently unusable.**
+  `baseline_check` exited 1 in 0.55 s with `1 error` — `BaselineNotGreen`
+  before a single mutant. Cause: five sites ask "what does git track in
+  `examples/`?", each deriving its own root from `__file__`, none reading
+  `AGI_RESEARCH_ROOT`, which `harness/swe/proc.py` exports into every such
+  subprocess for exactly this and which four other files in the same tree
+  already read. Fixed with one home in `curecheck.py`
+  (`REPO_GIT_ROOT` / `WHENCE_GIT_ROOT` / `AGI_ROOT`).
+* **"Red" has grades.** GP07 and GP09 went red by *crashing before reaching
+  the assertion they are named for* (`ZeroDivisionError`; `TypeError` inside
+  `channel_sweep`, so the test evaluates none of its four assertions). Both
+  now carry `expect_in_failure` and report `wrong_reason` rather than
+  `guarded`.
+
+**Predictions, scored by round 414 from round 413's own recorded run table:
+10 HIT / 1 PARTIAL / 1 MISS / 2 UNSCORABLE of 13.** HIT: P1 (the structural
+pin is GREEN under `keep_call=true`), P2 (`misattributed`, and the *named
+guess* `test_the_old_cd_branch_called_a_placeholder_target_stale` is in the
+red set), P3 (`guarded` with the text removed), P4 (GP11 `unguarded`), P6
+(2 guardians failed to go red), P8 (GP04 `guarded`), P9 (GP05 `guarded`),
+P10 (162 s against "under 6 minutes", at 2 workers rather than the predicted
+4), P12 (`expect_in_failure` needed — twice, GP07 and GP09), and P7's second
+half (the `node_modules` ignore changed 0 existing verdicts, confirmed by
+round 414's harness-tier run). **PARTIAL: P5** — a `nonviable` did appear
+(GP12), but on the widening attempt, not "on its first run"; the 11-pin run
+had 0 errors. **MISS: P11** — the skills `unit_tests` scope did not hold at
+759 with 0 pre-existing tests red; 2 went red, both LIVE-CORPUS assertions
+that are red for any round in progress and clear when the round lands. Round
+413 could have anticipated that its own uncommitted work reddens them.
+**UNSCORABLE: P13** (per-pin timings are not in the write-up) — recorded as
+unscorable rather than guessed. A bank scored by a different round is weaker
+evidence than self-scoring and `state/prediction-bank-ledger.json` says so.
+
+**Verification of round 413's diff, re-run by round 414 on the landed tree:**
+harness fast tier **1017 passed, 280 deselected**, exit 0 (0 failures, which
+is P7's second half); whence fast tier **1999 passed, 3 skipped, 83
+deselected**, exit 0; skills corpus check **7 checkers, 0 errors**, its
+`unit_tests` back at **759 passed** — the exact figure round 413's P11 named,
+reached the moment the round landed; nuc **669 passed**, exit 0 (the driver's "3 failed" for round 413 was a dirty-tree
+artefact of measuring a tree being written under it — the standing
+pristine-worktree lesson, third instance). Its `skills/named-guardian-must-
+go-red/SKILL.md` was ERROR-red on `skill_lint --house` H001 (no trigger
+section) from the moment it was written; round 414 added the section.
+
+### Round 414 — language(C) — 2026-09-01
+
+**Round 408's item 2 has carried for six rounds and is now closed by
+measurement.** It asked: every `check "<name>"` in the guest files whose name
+asserts a RULE, asked whether any program in the file can distinguish that
+rule from its replacement. **`languages/whence/checkpin.py`** is that sweep —
+guard pins whose edits are GUEST source and whose guardians are `check`
+labels. Round 413's `guardpin.py` cannot reach this class at all: it edits
+host Python by `ast` and runs pytest, and `examples/self_host.lang` is a
+Whence lexer and parser written in Whence.
+
+**22 scored pins over 16 guest mechanisms: `20 guarded / 2 findings /
+0 errors` (91%) before the killers, `22 / 0 / 0` (100%) after. Negative
+control HELD on both runs.**
+
+**Finding 1 — round 408's own fix is half inert, for exactly the reason it
+diagnosed.** Round 408 §6.1 deleted the quote-switching rule, found the check
+named for it green either way, and replaced it with a pair. Restoring the old
+rule mechanically: the keyword/string half goes RED (`CP01 guarded`); the half
+labelled *"a string in the got slot is a Whence literal, **always**
+double-quoted"* stays GREEN while two siblings go red (`CP02 shadowed`).
+Its probe is `"a'b"` — the ONE string the two candidate rules render
+identically, because rule A single-quoted a string *unless it held a single
+quote*. **The discriminating input is the boring value (`ab`), not the
+interesting one.** A test author picks the interesting example; the
+interesting example is interesting *because both rules special-case it*.
+Killer: the same check, given the second probe the word "always" needs.
+
+**Finding 2 — a label true of the other implementation.** *"the `\r` escape
+decodes, so a CR can be written down at all"* hands the guest lexer a RAW
+carriage return (the HOST decodes the escape first), so the guest's own
+`else if e == "r"` arm is deletable with **all 154 checks green**
+(`inert`, `n_red 0`). The label is not false; it is a sentence about the host
+standing over a guest mechanism nothing tests. Killer added; `self_host.lang`
+**154 → 155**.
+
+**A Whence `check` cannot say what it expected, and the language has always
+computed the answer.** `Interpreter._record_check` gives a failing check one
+of three canned notes; `"value was false"` is the whole failure text of every
+boolean check, so round 412's `expect_in_failure` is inexpressible against it.
+The next line is `entry["why"] = render_why(v)` — the provenance tree of the
+value that came out false, produced on every failing check since v0.1 and read
+by **no instrument in this repo**. `checkpin` reads it (`expect_in_why`).
+Whether `check` should grow a `because "<substring>"` clause is a SPEC
+decision and is left open.
+
+**`n_red` splits the guest's rules into two populations, free.** One run
+yields all 155 verdicts, so specificity costs nothing (round 413 paid a second
+suite run per pin for the same fact). Nine pins redden exactly one check —
+each a rule that got a dedicated one-line probe when it was written. Four
+redden ≥4 — upstream rules every multi-line program lexes through. **CP20 and
+CP21 are one edit under two guardians and share a four-check red set**, so the
+guest has four labels naming four rules over ONE mechanism
+(`expect_type_name`'s final miss arm); no round can now claim any of the four
+pins its rule independently.
+
+**The asymmetry nobody predicted:** `suppressed` mutated in two directions
+gives `n_red` **1** (emit a separator that should be swallowed — the guest's
+`skip_nl` absorbs it) versus **10** (swallow a required one — every
+multi-statement block collapses). One pin per mechanism measures whichever
+direction you happened to pick.
+
+**A third copy of this file's size was found the hard way.**
+`test_examples.py` and `test_v23.py` both assert `"<N> passed, 0 failed"` and
+cross-reference each other as "the other copy of this number";
+`test_self_hosting.py::test_the_host_statement_count_of_self_host_lang_is_
+pinned` counts top-level STATEMENTS (280 → **281**), moves with them, and
+shares no literal, so a grep for the check count finds only two of the three.
+All three updated with the accounting each of them asks for.
+
+**Verification.** `checkpin.py locate` — 23 spans, every one exact, and the
+assertion that no byte outside the located span moves passed on all 23.
+`checkpin.py run` **22 guarded, 0 findings, 0 errors, 100%**, control HELD,
+50 s; `run-before.json` against `git show HEAD:…` **20 guarded, 2 findings,
+91%**, control HELD, 89 s. `run.py examples/self_host.lang` **155 passed, 0
+failed**. `tests/test_checkpin.py` **22 passed** (20 fast in 2.4 s). Whence
+fast tier **1999 passed, 3 skipped, 83 deselected**, exit 0; harness fast
+tier **1017 passed, 280 deselected**, exit 0; skills corpus check **7
+checkers, 0 errors, 6 warnings**, `unit_tests` **759 passed**; nuc **669
+passed**, exit 0. `skill_lint --house` **64 skills, 0 errors, 0 warnings**;
+`xref_check` **0 dangling in the authoritative scope**; `claim_check`
+**143 paths resolved, 0 stale**.
+
+**Predictions: 6 HIT / 2 PARTIAL / 3 MISS of 11** (mechanism 3/4; outcome
+3 HIT / 2 PARTIAL / 2 MISS of 7). **The scoring pattern is itself the
+finding:** both misses in the "my registry will be wrong before it is right"
+family (A2 `collapsed`, B4 `unlocatable`) failed for one reason — `locate`
+mode converts run-time errors into author-time ones, and the registry *was*
+wrong twice, both times caught in under a second before any verdict existed.
+A prediction about how often the instrument stumbles is really a prediction
+about whether you run the cheap check first. B1 (91% guarded against a 60–85%
+band) missed because these labels were written *by the rounds whose whole
+subject was that rule*, next to the implementation — provenance of the test
+author predicts guard strength.
+
+**Built:** `languages/whence/checkpin.py`,
+`state/whence/round-414/{check-pins.json,run.json,run-before.json}`,
+`languages/whence/tests/test_checkpin.py` (22 tests), two killer checks in
+`examples/self_host.lang`, `skills/probe-where-the-rules-disagree/` (+5
+trigger cases, registered unprobed), and the trigger section
+`skills/named-guardian-must-go-red/` had been missing since round 413.
+
+**Hygiene:** no NUC contact of any kind; **port 8001 never contacted** — every
+module touched is pure text-in/records-out and opens no socket. No scp, no
+writes on the box, no unit restarted. `languages/whence/SECURITY.md` was
+already modified on arrival (Hermes gateway): untouched, not reverted, not
+committed; **66 rounds carried**. `skills/trigger-cases.json` was rewritten
+with the file's own `ensure_ascii=True` convention, which also collapsed round
+413's unintended 53-line reformatting back to pure additions. No worktrees
+created. No background job left running.
+
+## Next steps (as of round 414)
+
+1. **`examples/self_eval.lang`'s guest EVALUATOR has no pin at all.** Its
+   first ~1050 lines are the same guest parser `checkpin`'s registry already
+   covers, so a registry pointed at the whole file would duplicate CP01–CP22;
+   what is unpinned is the evaluator — closures, env, provenance, the guest's
+   own `why` — which is the larger and less-tested half. This is the direct
+   continuation and it is a language(C) round's whole subject. language(C).
+2. **Should `check` carry a `because "<substring>"` clause?** Round 414 found
+   that a failing Whence `check` says only `"value was false"` while the
+   interpreter computes a full why-tree on the same line. `checkpin` reads the
+   why-tree from OUTSIDE (`expect_in_why`); the SPEC question — whether the
+   language should let a check state what it expected, or whether reading
+   provenance from outside is the right layer — is unanswered and is a
+   decision, not a patch. language(C).
+3. **Every rule with two opposite falsifying edits should get both.**
+   `suppressed` gave `n_red` 1 and 10 depending on direction, and a registry
+   with one pin per mechanism measures whichever direction the author picked.
+   Cheap to do (one 2 s run each); the question is whether the asymmetry
+   generalises past the newline rule. language(C) or SWE-loop(D).
+4. **Round 408's item 6 is still open and now has one more reason to look.**
+   `parser.quote_str` and `values._quote` are two implementations of one idea;
+   `quote_str` is the function CP03 pins and `values._quote` has no pin at
+   all. `test_v39.py::test_the_language_has_one_string_rendering_rule_and_two_
+   implementations` is what a unifying round reads first. language(C).
+5. **Round 408's item 1 (the 4001-digit divergence) was closed by round 410's
+   decision 49; its item 5 (the host-only HINT class, 18 of 68) is untouched
+   and carries forward.** language(C).
+6. **`case_coverage` has 27 warnings and remains the corpus's largest standing
+   debt** (P004/P006/P007/P009): 51 of 105 cross-report case verdicts DISAGREE,
+   5 descriptions REFUTED, 29 UNDECIDED. **FIVE skills are now registered
+   unprobed** — `cause-needs-a-denominator`, `verdict-carries-its-threshold`,
+   `null-result-needs-a-power-floor`, `named-guardian-must-go-red`,
+   `probe-where-the-rules-disagree` — and the last two should be probed
+   TOGETHER, since they share the restore-the-old-behaviour-and-require-red
+   move and probing either alone measures the wrong boundary. Needs a priced
+   `trigger_eval` round budgeted as a whole round. skills(B).
+7. **Round 411's item 2 carries forward** (a single
+   `command_exempt_reason(cmd, tok, bases)` composing all four suppression
+   rules). Its item 3 is **DONE twice over** — round 413 for host Python,
+   round 414 for the guest — and the pair is now the interesting artefact: two
+   instruments that partition the repo by which language implements the rule.
+   skills(B).
+8. **Round 409's items 2, 3, 4 and 5 are untouched and carry forward** (the
+   `split_measured_output` count-line boundary and `MEASURED_END_SENTINEL`;
+   the stale pristine-check ledger; `run_tests_fast.sh`'s echoed block
+   outgrowing every `tail`). Note that round 414 hit the last one directly:
+   `run_tests_fast.sh` exited **0 while one test failed**, and only the piped
+   `tail` showed it. harness(A).
+9. **NUC-E is unchanged and first for the next E round**: reachability, then
+   `python3 nuc/capture_manifest.py plan --capture state/nuc-capture-r400 >
+   /tmp/cap.sh && bash /tmp/cap.sh`. **Third round carried**, all three
+   because the box was down. `sa23` is still overwritten 2026-09-23. Round
+   412's items 2, 3 and 4 (the 04:00:03 reclaim via banked `sar -B`; stitching
+   consecutive `sar` day-files; a journal window wider than one boot) are all
+   OFFLINE work needing no box and are the fallback if it is still down.
+   NUC-integration(E).
+10. **`nuc/run_checks_fast.sh` still has 0 references in `run_driver.sh` —
+    SIXTH round carried.** harness(A) owns it. `skills/run_checks_fast.sh`
+    IS wired (round 363), so a basename grep lies.
+11. **Round 408's item 9 (CLAUDE.md's `🔴 CRITICAL MISSION` block is stale in
+    both halves) is re-escalated for the FIFTH time.** Both its items were
+    answered by rounds 349 and 33/v0.23, and every round pays a re-read for
+    it. CLAUDE.md is the operator's file (round 346), so this needs the
+    operator, not a round.
+12. **`languages/whence/SECURITY.md` has now been carried 66 rounds.** The
+    round-349 escalation is still accurate and its content pin still matches,
+    so nothing is wrong — but sixty-six rounds of "acknowledged, not a gap" is
+    worth one operator decision rather than another acknowledgement.
+13. **Blocked on the operator: `--cap 196` and the E3 A/B**, with round 412's
+    precondition (any A/B publishes its power floor BEFORE it runs). Round
+    406's items 1–7, round 405's 1–4, round 404's 1–4 and 7, round 403's 2–5
+    and round 336's remaining language(C) items carry forward where not closed
+    above. The `Harness (A)` half of the Track-status audit is still the last
+    one owed.

@@ -159,7 +159,13 @@ def test_self_hosting_real_syntax():
     # used to answer with `expected a name`. Round 408 (v0.39): 145 -> 148,
     # decision 48 -- see `test_v23.py`'s accounting, which is the other
     # copy of this number and moved with it.
-    assert "154 passed, 0 failed" in r.stdout   # round 410: 148 -> 154, v0.40 decision 49
+    # Round 414 (language C): 154 -> 155. `checkpin.py` deleted the guest's
+    # own `\r`-escape arm and every check in the file stayed green, so the
+    # guest-side decode got the check its label had always implied. The
+    # other round-414 change adds no check: the "always double-quoted" label
+    # gained the second probe the word "always" needs. See `test_v23.py`'s
+    # accounting, which is the other copy of this number and moved with it.
+    assert "155 passed, 0 failed" in r.stdout   # round 410: 148 -> 154, v0.40 decision 49
     assert "guest lexer+parser for real Whence syntax" in r.stdout
 
 

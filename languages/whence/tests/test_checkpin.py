@@ -1,0 +1,327 @@
+"""Round 414 (language C) — guard pins for the GUEST's own `check` statements.
+
+`state/research-state.md` next-step item 8 has carried round 408's item 2
+since round 408:
+
+    A check whose name states a mechanism should fail when the mechanism
+    goes. `self_host.lang`'s quote-switching check passed straight through
+    the deletion of quote-switching. The sweep is mechanical and cheap:
+    every `check "<name>"` in the two guest files whose name asserts a RULE,
+    asked whether any program in the file can distinguish that rule from its
+    replacement.
+
+`checkpin.py` is that sweep. It is NOT `harness/swe/guardpin.py` (round 413)
+with a different file extension: `guardpin` edits host Python and requires a
+named PYTEST node to go red, and no edit it can make touches
+`examples/self_host.lang`'s guest lexer and parser, which are written in
+Whence and guarded by `check` labels. The two instruments cannot reach each
+other's defects.
+
+WHAT THE FIRST RUN FOUND (22 scored pins over 16 guest mechanisms, 89 s):
+
+    20 guarded, 2 findings, 0 errors, score 91%
+
+  * `CP02` — **round 408's own replacement is HALF inert.** Round 408 §6.1
+    deleted the quote-switching rule, found the check named for it green
+    either way, and replaced it with a PAIR it said "CAN tell the two rules
+    apart". Putting the switching rule back: the keyword/string half goes
+    red (`CP01 guarded`) and the half labelled *"a string in the got slot is
+    a Whence literal, always double-quoted"* stays GREEN, because its probe
+    value `"a'b"` is exactly the string the two rules render IDENTICALLY.
+    A one-probe check cannot carry the word "always".
+
+  * `CP11` — the guest's own `\r`-escape decoder was deletable with all 154
+    checks green. The label *"the \r escape decodes, so a CR can be written
+    down at all"* is about the HOST escape (that is what made the probe
+    writable at all, round 350); the probe it hands the guest is a RAW
+    carriage return, which never reaches `lex_str_body`'s escape arm.
+
+Both killers are in `examples/self_host.lang` next to the checks they
+extend, and re-running the registry gives **22 guarded, 0 findings**.
+
+These tests are the instrument's own pins. They run on a THREE-LINE guest
+written to a tmpdir, not on `self_host.lang`, so the whole file costs about
+a second: the campaign is a `whence_slow` artefact, the machine that runs it
+is not.
+"""
+import json
+import os
+import sys
+
+import pytest
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
+
+import checkpin as C                                            # noqa: E402
+
+REGISTRY = os.path.normpath(
+    os.path.join(ROOT, "..", "..", "state", "whence", "round-414",
+                 "check-pins.json"))
+
+#: A whole guest program, small enough that a full run is ~0.3 s. Every unit
+#: test below edits THIS, not `self_host.lang`.
+TOY = '''fn twice(n) { n * 2 }
+fn boxed(n) { @{v: twice(n)} }
+check "twice doubles": twice(3) == 6
+check "boxed carries the doubling": (boxed(4)).v == 8
+check "unrelated arithmetic": 1 + 1 == 2
+'''
+
+
+# --- locating a site symbolically ----------------------------------------
+
+def test_fn_span_is_exactly_the_definition():
+    a, b = C.fn_span(TOY, "twice")
+    assert TOY[a:b] == "fn twice(n) { n * 2 }"
+
+
+def test_a_record_literal_does_not_end_the_span_early():
+    """`@{` is ONE token, closed by a plain `}`.
+
+    A depth counter that only knows `{` sees `boxed`'s body open once and
+    close twice, and returns a span ending at the record's `}` — half a
+    function, which `apply_edit` would then splice a replacement over. Every
+    guest parser function in `self_host.lang` returns a record literal, so
+    this is not a corner case: it is the common case.
+    """
+    a, b = C.fn_span(TOY, "boxed")
+    assert TOY[a:b] == "fn boxed(n) { @{v: twice(n)} }"
+    assert TOY[a:b].count("{") == 2 and TOY[a:b].endswith("}")
+
+
+def test_an_absent_function_is_unlocatable_not_a_wrong_answer():
+    with pytest.raises(C.PinUnlocatable):
+        C.fn_span(TOY, "nosuchfn")
+
+
+def test_a_duplicated_name_is_refused_rather_than_resolved_to_the_first():
+    """`guardpin.find_function`'s rule, and the reason a line number is not
+    an acceptable substitute for a name: a tool that silently takes the
+    first definition edits whichever one happens to be earlier in the file."""
+    two = TOY + "\nfn twice(n) { n * 2 }\n"
+    with pytest.raises(C.PinUnlocatable) as e:
+        C.fn_span(two, "twice")
+    assert "defined 2 times" in str(e.value)
+    assert C.fn_span(two, "twice", occurrence=1)[0] > C.fn_span(
+        two, "twice", occurrence=0)[0]
+
+
+def test_an_ambiguous_needle_is_refused_too():
+    with pytest.raises(C.PinUnlocatable):
+        C.line_span(TOY + TOY, "fn twice(n)")
+
+
+def test_an_anonymous_fn_literal_is_not_mistaken_for_a_definition():
+    src = 'let f = fn(n) { n * 2 }\ncheck "x": f(1) == 2\n'
+    with pytest.raises(C.PinUnlocatable):
+        C.fn_span(src, "f")
+
+
+# --- applying an edit -----------------------------------------------------
+
+def test_the_edit_changes_nothing_outside_its_own_span():
+    """The property that makes a RENDERING pin distinguishable from a
+    STRUCTURE pin. Round 413's first draft re-unparsed the whole enclosing
+    statement, which deleted comments and renormalised strings — not a wrong
+    answer but a wrong EXPERIMENT, because this module's subject is exactly
+    the text a rendering check reads."""
+    pin = {"id": "T", "edit": "fn_replace", "target": "twice",
+           "becomes": "fn twice(n) { n * 3 }"}
+    a, b = C.fn_span(TOY, "twice")
+    new = C.apply_edit(TOY, pin)
+    assert new[:a] == TOY[:a]
+    assert new[a + len(pin["becomes"]):] == TOY[b:]
+
+
+def test_a_byte_identical_replacement_is_an_error_not_a_finding():
+    """An edit that changes nothing and is reported as `inert` would be a
+    finding-shaped artefact of the tool. `guardpin.EquivalentEdit`'s rule."""
+    pin = {"id": "T", "edit": "fn_replace", "target": "twice",
+           "becomes": "fn twice(n) { n * 2 }"}
+    with pytest.raises(C.EquivalentEdit):
+        C.apply_edit(TOY, pin)
+
+
+# --- the verdicts ---------------------------------------------------------
+
+def _run(pin, src=TOY):
+    base = C.build_baseline(src)
+    assert base["n_failing"] == 0, base
+    return C.run_pin(pin, src, base)
+
+
+def test_a_named_guardian_that_goes_red_is_guarded():
+    r = _run({"id": "T1", "edit": "fn_replace", "target": "twice",
+              "becomes": "fn twice(n) { n * 3 }",
+              "guardian": "twice doubles"})
+    assert r["verdict"] == "guarded"
+    assert r["n_red"] == 2                       # `boxed` notices as well
+    assert r["co_red"] == ["boxed carries the doubling"]
+
+
+def test_a_guardian_that_stays_green_while_others_go_red_is_shadowed():
+    """The verdict round 411's `check_paths` bug and round 414's CP02 share:
+    something guards the rule, but not the thing the record names."""
+    r = _run({"id": "T2", "edit": "fn_replace", "target": "twice",
+              "becomes": "fn twice(n) { n * 3 }",
+              "guardian": "unrelated arithmetic"})
+    assert r["verdict"] == "shadowed"
+    assert r["n_red"] == 2
+
+
+def test_a_guardian_that_stays_green_with_nothing_red_is_inert():
+    """CP11's verdict, and NC01's. `n_red == 0` is what makes it a statement
+    about the FILE rather than about the guardian."""
+    r = _run({"id": "T3", "edit": "line_replace",
+              "needle": "fn twice(n) { n * 2 }",
+              "becomes": "fn twice(n) { n + n }",
+              "guardian": "twice doubles"})
+    assert r["verdict"] == "inert" and r["n_red"] == 0
+
+
+def test_a_program_that_does_not_parse_is_collapsed_and_not_credit():
+    """The failure channel round 408 §6.2 found in `bench/showtok.py`: the
+    most direct plant on a renderer desynchronised the comparison instead of
+    failing it. A verdict machine that scores "the program died" as "the
+    check caught it" is measuring its own edit."""
+    r = _run({"id": "T4", "edit": "fn_replace", "target": "twice",
+              "becomes": "fn twice(n) { n * }",
+              "guardian": "twice doubles"})
+    assert r["verdict"] == "collapsed"
+    assert r["verdict"] in C.ERROR_VERDICTS
+    assert r["verdict"] not in C.FINDING_VERDICTS
+
+
+def test_a_guardian_that_is_already_failing_is_nonviable():
+    """Round 349's rule, per pin: a red baseline is no evidence at all."""
+    src = TOY + 'check "already broken": 1 == 2\n'
+    base = C.build_baseline(src)
+    r = C.run_pin({"id": "T5", "edit": "fn_replace", "target": "twice",
+                   "becomes": "fn twice(n) { n * 3 }",
+                   "guardian": "already broken"}, src, base)
+    assert r["verdict"] == "nonviable"
+
+
+def test_a_guardian_label_that_is_not_in_the_file_is_unlocatable():
+    r = _run({"id": "T6", "edit": "fn_replace", "target": "twice",
+              "becomes": "fn twice(n) { n * 3 }",
+              "guardian": "no check is called this"})
+    assert r["verdict"] == "unlocatable"
+
+
+def test_a_duplicated_guardian_label_has_no_single_answer():
+    src = TOY + 'check "twice doubles": 1 == 1\n'
+    base = C.build_baseline(src)
+    assert base["dupes"] == ["twice doubles"]
+    r = C.run_pin({"id": "T7", "edit": "fn_replace", "target": "twice",
+                   "becomes": "fn twice(n) { n * 3 }",
+                   "guardian": "twice doubles"}, src, base)
+    assert r["verdict"] == "unlocatable"
+    assert "no single answer" in r["note"]
+
+
+def test_a_check_that_never_ran_is_unreached_and_not_credit():
+    """`unreached` cannot be provoked from a guest program — misses are
+    total in Whence, so a program keeps going — which is exactly why it is
+    tested against a stubbed run rather than left unpinned. A verdict whose
+    only path is an interpreter crash is still a verdict the reporter must
+    get right the day it fires."""
+    src = TOY
+    base = C.build_baseline(src)
+    real = C.run_guest
+    try:
+        C.run_guest = lambda *a, **k: (
+            [{"label": "unrelated arithmetic", "line": 5, "ok": True,
+              "note": "", "why": ""}], None, 0)
+        r = C.run_pin({"id": "T8", "edit": "fn_replace", "target": "twice",
+                       "becomes": "fn twice(n) { n * 3 }",
+                       "guardian": "twice doubles"}, src, base)
+    finally:
+        C.run_guest = real
+    assert r["verdict"] == "unreached"
+    assert r["verdict"] in C.ERROR_VERDICTS
+
+
+# --- round 412's discipline, in the only place the guest can express it ---
+
+def test_a_failing_check_cannot_say_what_it_expected_but_its_why_tree_can():
+    """`Interpreter._record_check` gives a failing check one of THREE canned
+    notes. `"value was false"` is every boolean check's whole failure text,
+    so round 412's `expect_in_failure` — "it went red, and it went red on
+    THIS" — is not expressible against the note at all.
+
+    `entry["why"]` is. `render_why` is the provenance tree of the value that
+    came out false, and it names the calls and lines that produced it. The
+    language has computed that on every failing check since v0.1 and no
+    instrument in this repo had ever read it.
+    """
+    pin = {"id": "T9", "edit": "fn_replace", "target": "twice",
+           "becomes": "fn twice(n) { n * 3 }", "guardian": "twice doubles"}
+    assert _run(dict(pin, expect_in_note="twice"))["verdict"] == "wrong_reason"
+    assert _run(dict(pin, expect_in_why="twice"))["verdict"] == "guarded"
+    bad = _run(dict(pin, expect_in_why="a phrase no why-tree holds"))
+    assert bad["verdict"] == "wrong_reason"
+    assert bad["verdict"] in C.FINDING_VERDICTS
+
+
+# --- the registry itself --------------------------------------------------
+
+def _registry():
+    with open(REGISTRY, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def test_every_pin_in_the_registry_still_locates():
+    """Pin rot, checked without running anything. A pin that names a guest
+    function some later round renamed is a fact about the REGISTRY, and it
+    should surface here rather than as a mysterious error in the campaign."""
+    reg = _registry()
+    src = open(os.path.join(ROOT, "examples", "self_host.lang"),
+               encoding="utf-8").read()
+    for pin in reg["pins"]:
+        C.apply_edit(src, pin)             # raises PinUnlocatable if it rots
+
+
+def test_every_guardian_label_is_a_real_check_in_the_guest_file():
+    reg = _registry()
+    src = open(os.path.join(ROOT, "examples", "self_host.lang"),
+               encoding="utf-8").read()
+    for pin in reg["pins"]:
+        assert 'check "%s"' % pin["guardian"] in src, pin["id"]
+
+
+def test_the_registry_carries_a_negative_control():
+    """Round 408 §6.2's rule — "a negative control has to name which one it
+    expects" — applied to this instrument. Without a pin that MUST come back
+    `inert`, an `inert` verdict anywhere else is unfalsifiable: it could
+    equally mean the runner never applied the edit."""
+    controls = [p for p in _registry()["pins"] if p.get("control_expect")]
+    assert controls, "no negative control in the registry"
+    for c in controls:
+        assert c["control_expect"] == {"verdict": "inert", "n_red": 0}
+
+
+@pytest.mark.whence_slow
+def test_the_negative_control_holds_against_the_real_guest_file():
+    reg = _registry()
+    ctrl = [p for p in reg["pins"] if p.get("control_expect")][0]
+    src = open(os.path.join(ROOT, "examples", "self_host.lang"),
+               encoding="utf-8").read()
+    r = C.run_pin(ctrl, src, C.build_baseline(src))
+    assert r["verdict"] == "inert" and r["n_red"] == 0
+
+
+@pytest.mark.whence_slow
+def test_the_two_killers_this_round_added_actually_kill():
+    """The round's own result, re-measured rather than asserted from the
+    write-up. `state/whence/round-414/run-before.json` records both as
+    findings against `git show HEAD~:...`; here they must be `guarded`."""
+    reg = {p["id"]: p for p in _registry()["pins"]}
+    src = open(os.path.join(ROOT, "examples", "self_host.lang"),
+               encoding="utf-8").read()
+    base = C.build_baseline(src)
+    for pid in ("CP02", "CP11"):
+        r = C.run_pin(reg[pid], src, base)
+        assert r["verdict"] == "guarded", (pid, r)

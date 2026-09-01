@@ -1,0 +1,240 @@
+{
+  "_": "Round 414 (language C) check-pin registry. Each pin removes a RULE from the guest lexer/parser in examples/self_host.lang and names the `check` label claimed to catch it. See languages/whence/checkpin.py for the verdicts.",
+  "pins": [
+    {
+      "id": "CP01",
+      "guest_file": "examples/self_host.lang",
+      "mechanism": "decision 48: a STRING in the got slot is always double-quoted",
+      "guardian": "...so a keyword and a string spelled alike no longer collide",
+      "why": "round 408 §6.1 replaced an inert quote-switching check with this pair; this is the first independent test of whether the replacement works",
+      "edit": "fn_replace",
+      "target": "show_tok",
+      "becomes": "fn show_tok(k) {\n  if k.t == \"eof\" { \"end of input\" }\n  else if k.t == \"nl\" { \"a line break\" }\n  else if k.t == \"num\" { str(k.v) }\n  else if k.t == \"str\" {\n    if contains(k.v, \"'\") { \"\\\"\" + k.v + \"\\\"\" } else { \"'\" + k.v + \"'\" }\n  }\n  else { \"'\" + str(k.v) + \"'\" }\n}"
+    },
+    {
+      "id": "CP02",
+      "guest_file": "examples/self_host.lang",
+      "mechanism": "decision 48 (same edit as CP01, other half of the pair)",
+      "guardian": "a string in the got slot is a Whence literal, always double-quoted",
+      "why": "the DIRECT descendant of round 408's inert check: its probe value is \"a'b\", which the switching rule ALSO renders double-quoted | ROUND 414 RESULT: `shadowed` before the killer -- its probe \"a'b\" is the one value both rules render identically. Re-measured after the second probe.",
+      "edit": "fn_replace",
+      "target": "show_tok",
+      "becomes": "fn show_tok(k) {\n  if k.t == \"eof\" { \"end of input\" }\n  else if k.t == \"nl\" { \"a line break\" }\n  else if k.t == \"num\" { str(k.v) }\n  else if k.t == \"str\" {\n    if contains(k.v, \"'\") { \"\\\"\" + k.v + \"\\\"\" } else { \"'\" + k.v + \"'\" }\n  }\n  else { \"'\" + str(k.v) + \"'\" }\n}"
+    },
+    {
+      "id": "CP03",
+      "guest_file": "examples/self_host.lang",
+      "mechanism": "quote_str escapes what the lexer can read back",
+      "guardian": "a quote inside a string in the got slot is escaped, so it re-lexes",
+      "why": "round 408 §6.2: `fn quote_str(s) { s }` is the most direct plant on the renderer and it desynchronised bench/showtok.py instead of failing",
+      "edit": "fn_replace",
+      "target": "quote_str",
+      "becomes": "fn quote_str(s) { \"\\\"\" + s + \"\\\"\" }"
+    },
+    {
+      "id": "CP04",
+      "guest_file": "examples/self_host.lang",
+      "mechanism": "a NUMBER in the got slot is bare, not quoted",
+      "guardian": "a number in the got slot is not quoted",
+      "why": "decision 44's three-way got-slot split; the num arm",
+      "edit": "line_replace",
+      "needle": "  else if k.t == \"num\" { str(k.v) }",
+      "becomes": "  else if k.t == \"num\" { quote_str(str(k.v)) }"
+    },
+    {
+      "id": "CP05",
+      "guest_file": "examples/self_host.lang",
+      "mechanism": "a NEWLINE in the got slot is prose, not a host escape",
+      "guardian": "a newline in the got slot is prose, not the host language's escape",
+      "why": "the nl arm of the same split — the one whose whole point is NOT spelling the host language's `'\\n'`",
+      "edit": "line_replace",
+      "needle": "  else if k.t == \"nl\" { \"a line break\" }",
+      "becomes": "  else if k.t == \"nl\" { \"'\\\\n'\" }"
+    },
+    {
+      "id": "CP06",
+      "guest_file": "examples/self_host.lang",
+      "mechanism": "newlines are suppressed inside ( [ @{",
+      "guardian": "lexer newline suppressed inside parens",
+      "why": "the host rule whence/lexer.py's module docstring opens with",
+      "edit": "fn_replace",
+      "target": "suppressed",
+      "becomes": "fn suppressed(stack, acc) {\n  let t = top_of(stack)\n  last_continues(acc)\n}"
+    },
+    {
+      "id": "CP07",
+      "guest_file": "examples/self_host.lang",
+      "mechanism": "a BLOCK brace does NOT suppress, even inside parens",
+      "guardian": "lexer newline NOT suppressed inside a block nested in parens",
+      "why": "the half of the rule that makes blocks contain statements; the guest gets it from `top_of`, not from a depth count",
+      "edit": "fn_replace",
+      "target": "suppressed",
+      "becomes": "fn suppressed(stack, acc) {\n  let t = top_of(stack)\n  t == \"(\" or t == \"[\" or t == \"@{\" or t == \"{\" or last_continues(acc)\n}"
+    },
+    {
+      "id": "CP08",
+      "guest_file": "examples/self_host.lang",
+      "mechanism": "a newline after a binary op is a line continuation",
+      "guardian": "newline after a binary op is a continuation, no brackets involved",
+      "why": "v0.23's continuation rule; SPEC.md's `check \"long\":` example depends on it and so does this file's own multi-line `check` syntax",
+      "edit": "fn_replace",
+      "target": "last_continues",
+      "becomes": "fn last_continues(acc) { false }"
+    },
+    {
+      "id": "CP09",
+      "guest_file": "examples/self_host.lang",
+      "mechanism": "a bare trailing e is not an exponent",
+      "guardian": "lexer bare trailing e is not consumed as an exponent",
+      "why": "round 332 mirrored whence/lexer.py's post-round-323 exponent scan here precisely so `5experiment` keeps lexing as NUMBER then NAME",
+      "edit": "fn_replace",
+      "target": "exp_end",
+      "becomes": "fn exp_end(s, j) {\n  if j < len(s) and (s[j] == \"e\" or s[j] == \"E\") {\n    let k = j + 1\n    let k2 = if k < len(s) and (s[k] == \"+\" or s[k] == \"-\") { k + 1 } else { k }\n    scan_while(s, k2, is_digit)\n  } else { j }\n}"
+    },
+    {
+      "id": "CP10",
+      "guest_file": "examples/self_host.lang",
+      "mechanism": "a carriage return is whitespace",
+      "guardian": "a carriage return is whitespace, as it is on the host",
+      "why": "round 350: the host has skipped CR since its first commit and the guest emitted `unexpected character` until v0.21 could spell it",
+      "edit": "line_replace",
+      "needle": "  else if s[i] == \" \" or s[i] == \"\\t\" or s[i] == \"\\r\" { lex(s, i + 1, stack, acc, line, bol) }",
+      "becomes": "  else if s[i] == \" \" or s[i] == \"\\t\" { lex(s, i + 1, stack, acc, line, bol) }"
+    },
+    {
+      "id": "CP11",
+      "guest_file": "examples/self_host.lang",
+      "mechanism": "the guest \\r ESCAPE decodes to a carriage return",
+      "guardian": "...and the GUEST decodes that escape too, not just the host",
+      "why": "round 350 added the escape so the guest could TEST for the character; asking whether any program in the file exercises the guest's own decode | ROUND 414 RESULT: with the ORIGINAL guardian (\"the \\\\r escape decodes, so a CR can be written down at all\") this pin was `inert`, n_red 0 -- that check hands the guest a RAW carriage return and never reaches the guest's escape decoder. Re-pointed at the killer this round added.",
+      "edit": "line_replace",
+      "needle": "        else if e == \"r\" { \"\\r\" }",
+      "becomes": "        else if e == \"r\" { \"\" }",
+      "guardian_was": "the \\r escape decodes, so a CR can be written down at all"
+    },
+    {
+      "id": "CP12",
+      "guest_file": "examples/self_host.lang",
+      "mechanism": "decision 49: an integer literal past 4000 digits is a lex error",
+      "guardian": "one digit past the cap is a lex error, in the host's own words",
+      "why": "round 410's decision 49 — the literal door enforcing the bound `num` always had; this guest branch is its other half",
+      "edit": "line_replace",
+      "needle": "    if j == j0 and j - i > num_text_digit_limit {",
+      "becomes": "    if false {"
+    },
+    {
+      "id": "CP13",
+      "guest_file": "examples/self_host.lang",
+      "mechanism": "a trailing comma is refused in a call",
+      "guardian": "a trailing comma is refused in a call",
+      "why": "one of six sibling rules (46-51) that each got their own one-line probe",
+      "edit": "fn_replace",
+      "target": "parse_args_rest",
+      "becomes": "fn parse_args_rest(toks, pos, acc) {\n  let a = parse_expr(toks, pos)\n  let acc2 = push(acc, a.node)\n  if is_op(toks, a.pos, \",\") and is_op(toks, a.pos + 1, \")\") {\n    @{args: acc2, pos: a.pos + 2}\n  }\n  else if is_op(toks, a.pos, \",\") { parse_args_rest(toks, a.pos + 1, acc2) }\n  else {\n    let after = expect_op(toks, a.pos, \")\")\n    @{args: acc2, pos: after}\n  }\n}"
+    },
+    {
+      "id": "CP14",
+      "guest_file": "examples/self_host.lang",
+      "mechanism": "a trailing comma is refused in a list literal",
+      "guardian": "...in a list literal",
+      "why": "the list sibling of CP13",
+      "edit": "fn_replace",
+      "target": "parse_list_rest",
+      "becomes": "fn parse_list_rest(toks, pos, acc) {\n  let it = parse_expr(toks, pos)\n  let acc2 = push(acc, it.node)\n  if is_op(toks, it.pos, \",\") and is_op(toks, it.pos + 1, \"]\") {\n    @{node: @{kind: \"list\", items: acc2}, pos: it.pos + 2}\n  }\n  else if is_op(toks, it.pos, \",\") { parse_list_rest(toks, it.pos + 1, acc2) }\n  else { @{node: @{kind: \"list\", items: acc2}, pos: expect_op(toks, it.pos, \"]\")} }\n}"
+    },
+    {
+      "id": "CP15",
+      "guest_file": "examples/self_host.lang",
+      "mechanism": "a trailing comma is refused in a parameter list",
+      "guardian": "...in a parameter list",
+      "why": "the parameter sibling of CP13",
+      "edit": "fn_replace",
+      "target": "parse_params_rest",
+      "becomes": "fn parse_params_rest(toks, pos, acc, tacc) {\n  let nm = expect_name_as(toks, pos, \"parameter name\")\n  let dup = contains(acc, nm.name)\n  let acc2 = push(acc, nm.name)\n  let tr = parse_typed_suffix(toks, nm.pos, \":\")\n  let tacc2 = push(tacc, tr.spec)\n  if dup { miss (\"duplicate parameter '\" + nm.name + \"'\" + tok_at(toks, pos)) }\n  else if is_op(toks, tr.pos, \",\") and is_op(toks, tr.pos + 1, \")\") {\n    @{params: acc2, types: tacc2, pos: tr.pos + 2}\n  }\n  else if is_op(toks, tr.pos, \",\") { parse_params_rest(toks, tr.pos + 1, acc2, tacc2) }\n  else { @{params: acc2, types: tacc2, pos: expect_op(toks, tr.pos, \")\")} }\n}"
+    },
+    {
+      "id": "CP16",
+      "guest_file": "examples/self_host.lang",
+      "mechanism": "comparisons do not chain",
+      "guardian": "chained comparisons are rejected, matching the host",
+      "why": "the guest re-enforces a host refusal rather than mirroring a shape",
+      "edit": "fn_replace",
+      "target": "parse_cmp",
+      "becomes": "fn parse_cmp(toks, pos) {\n  let left = parse_add(toks, pos)\n  parse_cmp_rest(left.node, toks, left.pos)\n}\nfn parse_cmp_rest(left, toks, pos) {\n  let k = t_at(toks, pos)\n  if k.t == \"op\" and contains(cmp_ops, k.v) {\n    let right = parse_add(toks, pos + 1)\n    parse_cmp_rest(@{kind: \"binary\", op: k.v, left: left, right: right.node},\n                   toks, right.pos)\n  } else { @{node: left, pos: pos} }\n}"
+    },
+    {
+      "id": "CP17",
+      "guest_file": "examples/self_host.lang",
+      "mechanism": "no rebinding: a duplicate let in one block is a miss",
+      "guardian": "duplicate let in one block is a miss",
+      "why": "SPEC decision 3, re-enforced by the guest parser itself",
+      "edit": "line_replace",
+      "needle": "    if first != 0 {",
+      "becomes": "    if false {"
+    },
+    {
+      "id": "CP18",
+      "guest_file": "examples/self_host.lang",
+      "mechanism": "a duplicate parameter is a miss",
+      "guardian": "duplicate param is a miss",
+      "why": "the parameter half of CP17's rule",
+      "edit": "line_replace",
+      "needle": "  if dup { miss (\"duplicate parameter '\" + nm.name + \"'\" + tok_at(toks, pos)) }",
+      "becomes": "  if false { miss (\"duplicate parameter '\" + nm.name + \"'\" + tok_at(toks, pos)) }"
+    },
+    {
+      "id": "CP19",
+      "guest_file": "examples/self_host.lang",
+      "mechanism": "duplicate shape fields are rejected",
+      "guardian": "duplicate shape fields are rejected",
+      "why": "round 404 decision 47's field table",
+      "edit": "line_replace",
+      "needle": "  let dup = contains(seen, f.name)",
+      "becomes": "  let dup = false"
+    },
+    {
+      "id": "CP20",
+      "guest_file": "examples/self_host.lang",
+      "mechanism": "an unknown type name is rejected",
+      "guardian": "an unknown type name is still rejected",
+      "why": "the miss arm every shape-scope rule funnels through",
+      "edit": "line_replace",
+      "needle": "  else { miss (\"unknown type '\" + name + \"'\" + tok_at(toks, pos)) }",
+      "becomes": "  else { @{type: name, spec: name_node(name), pos: pos + 1} }"
+    },
+    {
+      "id": "CP21",
+      "guest_file": "examples/self_host.lang",
+      "mechanism": "a shape cannot reference itself (SAME edit as CP20)",
+      "guardian": "a shape cannot reference itself",
+      "why": "round 413's GP02/GP03 pattern: one edit, two guardians, and the difference between the verdicts is the measurement",
+      "edit": "line_replace",
+      "needle": "  else { miss (\"unknown type '\" + name + \"'\" + tok_at(toks, pos)) }",
+      "becomes": "  else { @{type: name, spec: name_node(name), pos: pos + 1} }"
+    },
+    {
+      "id": "CP22",
+      "guest_file": "examples/self_host.lang",
+      "mechanism": "expect_name says which KIND of name it wanted",
+      "guardian": "expect_name says which KIND of name it wanted",
+      "why": "round 404 decision 46: one `expect_name` standing in for six host `what=` values is the divergence this fixed",
+      "edit": "fn_replace",
+      "target": "expect_name_as",
+      "becomes": "fn expect_name_as(toks, pos, what) {\n  let k = t_at(toks, pos)\n  if k.t == \"name\" { @{name: k.v, pos: pos + 1} }\n  else { miss (\"expected a name, got \" + show_tok(k) +\n               tok_at(toks, pos)) }\n}"
+    },
+    {
+      "id": "NC01",
+      "guest_file": "examples/self_host.lang",
+      "mechanism": "NEGATIVE CONTROL — a semantically identical rewrite",
+      "guardian": "lexer newline suppressed inside parens",
+      "why": "must be `inert` with n_red == 0; anything else voids the run",
+      "edit": "line_replace",
+      "needle": "fn top_of(stack) { if len(stack) == 0 { \"\" } else { stack[len(stack) - 1] } }",
+      "becomes": "fn top_of(stack) { if len(stack) < 1 { \"\" } else { stack[len(stack) - 1] } }",
+      "control_expect": {
+        "verdict": "inert",
+        "n_red": 0
+      }
+    }
+  ]
+}

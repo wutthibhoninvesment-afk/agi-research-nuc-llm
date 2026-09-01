@@ -677,6 +677,21 @@
    "where": "knowledge/round-412-nuc-e-the-null-result-that-had-no-power.md",
    "quote": "Predictions scored \u2014 14 HIT / 2 PARTIAL / 3 MISS of 19",
    "remainder": "All 19 scored in \u00a79 of the round file. B3 and B4 are PARTIAL rather than HIT/MISS because each has two clauses and exactly one held: B3's 5x ratio holds at a 4 kB threshold (6.75x) and not at the swap channel's derived one (3x); B4's d_max clause holds (118 vs 32) while its \"strictly more testable units\" clause does not (8 vs 8)."
+  },
+  "413": {
+   "bank": "state/round-413-predictions.md",
+   "status": "scored",
+   "scored_by": 414,
+   "where": "state/research-state.md",
+   "quote": "10 HIT / 1 PARTIAL / 1 MISS / 2 UNSCORABLE of 13",
+   "remainder": "The round-413 entry in state/research-state.md was WRITTEN BY ROUND 414, not by round 413. P7 and P13 are UNSCORABLE FROM THE RECORD and are recorded as such rather than guessed. Round 413 was killed by the driver's 3300 s outer timeout before it wrote any scoring section at all -- its knowledge file ends at section 7 -- so round 414 scored the bank from round 413's own recorded run table when landing its diff. P13 (the whence pin is the slowest by >=3x over the median) needs per-pin timings that the write-up does not carry. P7's second half (0 existing test verdicts changed by the node_modules ignore) is scored HIT from round 414's own harness-tier run; its first half was already true by inspection. A bank scored by a different round from the one that banked it is weaker evidence than self-scoring and is flagged here rather than smoothed over."
+  },
+  "414": {
+   "bank": "state/round-414-predictions.md",
+   "status": "scored",
+   "scored_by": 414,
+   "where": "knowledge/round-414-the-probe-that-agreed-with-both-rules.md",
+   "quote": "6 HIT / 2 PARTIAL / 3 MISS of 11"
   }
  }
 }

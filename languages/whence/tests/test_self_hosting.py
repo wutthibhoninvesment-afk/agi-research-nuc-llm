@@ -1126,7 +1126,23 @@ def test_the_host_statement_count_of_self_host_lang_is_pinned():
         `let` (`num_text_digit_limit`), +2 fns (`rep9`, `rep9_at`), +6
         `check`s for the boundary, the reported column, and the float
         non-rule.
+      * round 414 (language C): **280 -> 281**. ONE new `check`, for the
+        GUEST's own `\r`-escape decoder --- `checkpin.py` deleted that arm
+        and all 154 checks stayed green (`inert`, n_red 0), because the
+        check named for the escape hands the guest a RAW carriage return
+        that never reaches it. The round's other guest change adds no
+        statement: the "always double-quoted" check gained a second probe
+        (`and`-joined), because its only probe was `"a'b"` --- the one
+        string decision 48's rule and the switching rule it replaced render
+        IDENTICALLY.
+
+    THIS IS THE THIRD COPY OF THIS FILE'S SIZE, and the only one a grep for
+    the check count does not find. `test_examples.py` and `test_v23.py`
+    both assert `"<N> passed, 0 failed"` and cross-reference each other as
+    "the other copy of this number"; this one counts top-level STATEMENTS,
+    so it moves with them but shares no literal. Round 414 updated all
+    three; a round that greps for the check count will still find only two.
     """
     from whence.parser import parse as host_parse
     src = open(SELF_HOST, encoding="utf-8").read()
-    assert len(host_parse(src).stmts) == 280
+    assert len(host_parse(src).stmts) == 281

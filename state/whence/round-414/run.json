@@ -1,0 +1,353 @@
+{
+  "n_pins": 22,
+  "controls": [
+    {
+      "id": "NC01",
+      "verdict": "inert",
+      "n_red": 0,
+      "expected": {
+        "verdict": "inert",
+        "n_red": 0
+      },
+      "held": true
+    }
+  ],
+  "guarded": 22,
+  "findings": 0,
+  "errors": 0,
+  "score": 1.0,
+  "baselines": {
+    "examples/self_host.lang": {
+      "n_checks": 155,
+      "n_failing": 0,
+      "dupes": [],
+      "error": null
+    }
+  },
+  "results": [
+    {
+      "id": "CP01",
+      "guardian": "...so a keyword and a string spelled alike no longer collide",
+      "mechanism": "decision 48: a STRING in the got slot is always double-quoted",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 3,
+      "co_red": [
+        "a quote inside a string in the got slot is escaped, so it re-lexes",
+        "a string in the got slot is a Whence literal, always double-quoted"
+      ],
+      "note": "value was false",
+      "why": "round 408 \u00a76.1 replaced an inert quote-switching check with this pair; this is the first independent test of whether the replacement works",
+      "n_ran": 155
+    },
+    {
+      "id": "CP02",
+      "guardian": "a string in the got slot is a Whence literal, always double-quoted",
+      "mechanism": "decision 48 (same edit as CP01, other half of the pair)",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 3,
+      "co_red": [
+        "...so a keyword and a string spelled alike no longer collide",
+        "a quote inside a string in the got slot is escaped, so it re-lexes"
+      ],
+      "note": "value was false",
+      "why": "the DIRECT descendant of round 408's inert check: its probe value is \"a'b\", which the switching rule ALSO renders double-quoted | ROUND 414 RESULT: `shadowed` before the killer -- its probe \"a'b\" is the one value both rules render identically. Re-measured after the second probe.",
+      "n_ran": 155
+    },
+    {
+      "id": "CP03",
+      "guardian": "a quote inside a string in the got slot is escaped, so it re-lexes",
+      "mechanism": "quote_str escapes what the lexer can read back",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 1,
+      "co_red": [],
+      "note": "value was false",
+      "why": "round 408 \u00a76.2: `fn quote_str(s) { s }` is the most direct plant on the renderer and it desynchronised bench/showtok.py instead of failing",
+      "n_ran": 155
+    },
+    {
+      "id": "CP04",
+      "guardian": "a number in the got slot is not quoted",
+      "mechanism": "a NUMBER in the got slot is bare, not quoted",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 1,
+      "co_red": [],
+      "note": "value was false",
+      "why": "decision 44's three-way got-slot split; the num arm",
+      "n_ran": 155
+    },
+    {
+      "id": "CP05",
+      "guardian": "a newline in the got slot is prose, not the host language's escape",
+      "mechanism": "a NEWLINE in the got slot is prose, not a host escape",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 1,
+      "co_red": [],
+      "note": "value was false",
+      "why": "the nl arm of the same split \u2014 the one whose whole point is NOT spelling the host language's `'\\n'`",
+      "n_ran": 155
+    },
+    {
+      "id": "CP06",
+      "guardian": "lexer newline suppressed inside parens",
+      "mechanism": "newlines are suppressed inside ( [ @{",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 1,
+      "co_red": [],
+      "note": "value was false",
+      "why": "the host rule whence/lexer.py's module docstring opens with",
+      "n_ran": 155
+    },
+    {
+      "id": "CP07",
+      "guardian": "lexer newline NOT suppressed inside a block nested in parens",
+      "mechanism": "a BLOCK brace does NOT suppress, even inside parens",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 10,
+      "co_red": [
+        "...and the line is the FIRST binding's, not a constant",
+        "...while the position clause still points at the DUPLICATE",
+        "a block-local shape is a real type inside its own block",
+        "a name bound inside a closed block does not collide with a later one",
+        "an inner block may shadow an outer shape name",
+        "an inner block may still bind a name the outer block bound",
+        "duplicate let names the variable",
+        "out of scope is worded differently from never declared",
+        "sibling blocks may each declare the same shape name"
+      ],
+      "note": "value was false",
+      "why": "the half of the rule that makes blocks contain statements; the guest gets it from `top_of`, not from a depth count",
+      "n_ran": 155
+    },
+    {
+      "id": "CP08",
+      "guardian": "newline after a binary op is a continuation, no brackets involved",
+      "mechanism": "a newline after a binary op is a line continuation",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 5,
+      "co_red": [
+        "...and it still parses as one statement, not two",
+        "newline after ':' is a continuation (check-label style)",
+        "newline after '=' is a continuation (let style)",
+        "newline after 'and'/'or'/'not'/'rescue' is a continuation"
+      ],
+      "note": "value was false",
+      "why": "v0.23's continuation rule; SPEC.md's `check \"long\":` example depends on it and so does this file's own multi-line `check` syntax",
+      "n_ran": 155
+    },
+    {
+      "id": "CP09",
+      "guardian": "lexer bare trailing e is not consumed as an exponent",
+      "mechanism": "a bare trailing e is not an exponent",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 2,
+      "co_red": [
+        "lexer digit-then-name boundary unaffected by exponent scan"
+      ],
+      "note": "value was false",
+      "why": "round 332 mirrored whence/lexer.py's post-round-323 exponent scan here precisely so `5experiment` keeps lexing as NUMBER then NAME",
+      "n_ran": 155
+    },
+    {
+      "id": "CP10",
+      "guardian": "a carriage return is whitespace, as it is on the host",
+      "mechanism": "a carriage return is whitespace",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 2,
+      "co_red": [
+        "...including a lone CR that is not part of a CRLF"
+      ],
+      "note": "value was false",
+      "why": "round 350: the host has skipped CR since its first commit and the guest emitted `unexpected character` until v0.21 could spell it",
+      "n_ran": 155
+    },
+    {
+      "id": "CP11",
+      "guardian": "...and the GUEST decodes that escape too, not just the host",
+      "mechanism": "the guest \\r ESCAPE decodes to a carriage return",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 1,
+      "co_red": [],
+      "note": "value was false",
+      "why": "round 350 added the escape so the guest could TEST for the character; asking whether any program in the file exercises the guest's own decode | ROUND 414 RESULT: with the ORIGINAL guardian (\"the \\\\r escape decodes, so a CR can be written down at all\") this pin was `inert`, n_red 0 -- that check hands the guest a RAW carriage return and never reaches the guest's escape decoder. Re-pointed at the killer this round added.",
+      "n_ran": 155
+    },
+    {
+      "id": "CP12",
+      "guardian": "one digit past the cap is a lex error, in the host's own words",
+      "mechanism": "decision 49: an integer literal past 4000 digits is a lex error",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 1,
+      "co_red": [],
+      "note": "value was false",
+      "why": "round 410's decision 49 \u2014 the literal door enforcing the bound `num` always had; this guest branch is its other half",
+      "n_ran": 155
+    },
+    {
+      "id": "CP13",
+      "guardian": "a trailing comma is refused in a call",
+      "mechanism": "a trailing comma is refused in a call",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 1,
+      "co_red": [],
+      "note": "value was false",
+      "why": "one of six sibling rules (46-51) that each got their own one-line probe",
+      "n_ran": 155
+    },
+    {
+      "id": "CP14",
+      "guardian": "...in a list literal",
+      "mechanism": "a trailing comma is refused in a list literal",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 1,
+      "co_red": [],
+      "note": "value was false",
+      "why": "the list sibling of CP13",
+      "n_ran": 155
+    },
+    {
+      "id": "CP15",
+      "guardian": "...in a parameter list",
+      "mechanism": "a trailing comma is refused in a parameter list",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 2,
+      "co_red": [
+        "...and a parameter is a parameter, not just a name"
+      ],
+      "note": "value was false",
+      "why": "the parameter sibling of CP13",
+      "n_ran": 155
+    },
+    {
+      "id": "CP16",
+      "guardian": "chained comparisons are rejected, matching the host",
+      "mechanism": "comparisons do not chain",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 2,
+      "co_red": [
+        "...with the host's own wording"
+      ],
+      "note": "value was false",
+      "why": "the guest re-enforces a host refusal rather than mirroring a shape",
+      "n_ran": 155
+    },
+    {
+      "id": "CP17",
+      "guardian": "duplicate let in one block is a miss",
+      "mechanism": "no rebinding: a duplicate let in one block is a miss",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 6,
+      "co_red": [
+        "...and the line is the FIRST binding's, not a constant",
+        "...while the position clause still points at the DUPLICATE",
+        "a duplicate fn is reported exactly as a duplicate let is",
+        "a shape name cannot be rebound, like any other let",
+        "duplicate let names the variable"
+      ],
+      "note": "value was false",
+      "why": "SPEC decision 3, re-enforced by the guest parser itself",
+      "n_ran": 155
+    },
+    {
+      "id": "CP18",
+      "guardian": "duplicate param is a miss",
+      "mechanism": "a duplicate parameter is a miss",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 1,
+      "co_red": [],
+      "note": "value was false",
+      "why": "the parameter half of CP17's rule",
+      "n_ran": 155
+    },
+    {
+      "id": "CP19",
+      "guardian": "duplicate shape fields are rejected",
+      "mechanism": "duplicate shape fields are rejected",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 1,
+      "co_red": [],
+      "note": "value was false",
+      "why": "round 404 decision 47's field table",
+      "n_ran": 155
+    },
+    {
+      "id": "CP20",
+      "guardian": "an unknown type name is still rejected",
+      "mechanism": "an unknown type name is rejected",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 4,
+      "co_red": [
+        "a shape cannot reference itself",
+        "no forward references between shapes",
+        "out of scope is worded differently from never declared"
+      ],
+      "note": "value was false",
+      "why": "the miss arm every shape-scope rule funnels through",
+      "n_ran": 155
+    },
+    {
+      "id": "CP21",
+      "guardian": "a shape cannot reference itself",
+      "mechanism": "a shape cannot reference itself (SAME edit as CP20)",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 4,
+      "co_red": [
+        "an unknown type name is still rejected",
+        "no forward references between shapes",
+        "out of scope is worded differently from never declared"
+      ],
+      "note": "value was false",
+      "why": "round 413's GP02/GP03 pattern: one edit, two guardians, and the difference between the verdicts is the measurement",
+      "n_ran": 155
+    },
+    {
+      "id": "CP22",
+      "guardian": "expect_name says which KIND of name it wanted",
+      "mechanism": "expect_name says which KIND of name it wanted",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 2,
+      "co_red": [
+        "...and a parameter is a parameter, not just a name"
+      ],
+      "note": "value was false",
+      "why": "round 404 decision 46: one `expect_name` standing in for six host `what=` values is the divergence this fixed",
+      "n_ran": 155
+    },
+    {
+      "id": "NC01",
+      "guardian": "lexer newline suppressed inside parens",
+      "mechanism": "NEGATIVE CONTROL \u2014 a semantically identical rewrite",
+      "verdict": "inert",
+      "control": {
+        "verdict": "inert",
+        "n_red": 0
+      },
+      "n_red": 0,
+      "co_red": [],
+      "note": "the guardian passed and NOTHING in the file went red",
+      "why": "must be `inert` with n_red == 0; anything else voids the run",
+      "n_ran": 155
+    }
+  ]
+}

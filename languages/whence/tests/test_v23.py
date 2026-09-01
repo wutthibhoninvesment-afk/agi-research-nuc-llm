@@ -433,7 +433,15 @@ def test_both_self_hosting_examples_still_run_green():
     #        replaces would have stayed GREEN through the change: it
     #        asserted `got "a'b"` and named the quote-switching rule, and
     #        `got "a'b"` is what a always-double-quote rule prints too.
-    for name, expected in (("self_host.lang", "154 passed, 0 failed"),
+    #   155  round 414, language C: +1. `checkpin.py` restored the quote-
+    #        switching rule mechanically and found that ONE of round 408's
+    #        replacement pair -- the half labelled "always double-quoted" --
+    #        is still inert, because its probe `"a'b"` is exactly the value
+    #        both rules render the same way; it gained a second probe with
+    #        no apostrophe in it (no new check, the same one strengthened).
+    #        The +1 is elsewhere: deleting the GUEST's own `\r` escape arm
+    #        left all 154 green, so the guest-side decode got its own check.
+    for name, expected in (("self_host.lang", "155 passed, 0 failed"),
                            ("self_eval.lang", "166 passed, 0 failed")):
         r = subprocess.run(
             [sys.executable, os.path.join(ROOT, "run.py"),

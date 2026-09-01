@@ -1758,5 +1758,66 @@
   "id": "npf-neg-scan",
   "expect": [],
   "prompt": "The scanner found 14 high-severity findings in this repo. Which should I fix first?"
+ },
+ {
+  "id": "ngmgr-near",
+  "expect": [
+   "named-guardian-must-go-red"
+  ],
+  "prompt": "I fixed the bug and added test_gate_is_called to lock it in. The write-up says that test pins the fix. Is there anything I should check before I close the ticket?"
+ },
+ {
+  "id": "ngmgr-mid",
+  "expect": [
+   "named-guardian-must-go-red"
+  ],
+  "prompt": "Our regression test greps the module source and asserts `validate(` appears inside the handler. Suite's green. Does that actually protect us?"
+ },
+ {
+  "id": "ngmgr-far",
+  "expect": [
+   "named-guardian-must-go-red"
+  ],
+  "prompt": "The same normalisation is applied at two call sites and we only have one test named after it. How would I find out whether the second one is covered by anything?"
+ },
+ {
+  "id": "ngmgr-far2",
+  "expect": [
+   "named-guardian-must-go-red"
+  ],
+  "prompt": "If I deleted this line, which test in our suite would fail? I can't tell from reading it, and the suite passes either way as far as I know."
+ },
+ {
+  "id": "pwrd-near",
+  "expect": [
+   "probe-where-the-rules-disagree"
+  ],
+  "prompt": "We changed the error formatter so strings are always double-quoted instead of switching quotes based on content, and I added a test asserting the message contains got \"a'b\". Is that test actually pinning the new rule?"
+ },
+ {
+  "id": "pwrd-mid",
+  "expect": [
+   "probe-where-the-rules-disagree"
+  ],
+  "prompt": "This assertion's name says the value is ALWAYS normalised, but there's exactly one example in it and it's the tricky unicode one. How do I pick a better input?"
+ },
+ {
+  "id": "pwrd-far",
+  "expect": [
+   "probe-where-the-rules-disagree"
+  ],
+  "prompt": "We have the same escape-decoding table in the reference interpreter and in the real one. There's a test named after the escape, but I can't tell which of the two implementations its input actually runs through."
+ },
+ {
+  "id": "pwrd-far2",
+  "expect": [
+   "probe-where-the-rules-disagree"
+  ],
+  "prompt": "I want to prove this test would have caught the old rounding behaviour. Can I just put the old code back temporarily and see if it fails, and is there a way to do that without breaking the whole run?"
+ },
+ {
+  "id": "pwrd-neg-coverage",
+  "expect": [],
+  "prompt": "Coverage says this branch is never executed by any test. What's the quickest way to get a test in that reaches it?"
  }
 ]

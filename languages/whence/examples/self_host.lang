@@ -1156,6 +1156,16 @@ check "...including a lone CR that is not part of a CRLF":
   len(lex_all("a\rb")) == 3 and (lex_all("a\rb"))[1].v == "b"
 check "the \\r escape decodes, so a CR can be written down at all":
   len(lex_all("\"a\rb\"")) == 2 and len((lex_all("\"a\rb\""))[0].v) == 3
+# Round 414. The check above needs the HOST's `\r` escape to exist -- that is
+# what "can be written down at all" means, and it is why round 350 could not
+# have written it earlier -- but the two characters it hands the GUEST are a
+# quote and a RAW carriage return, so it never reaches the guest's own escape
+# decoder at all. Measured: deleting the guest's `else if e == "r"` arm left
+# every one of the 154 checks in this file GREEN (`checkpin.py` CP11, verdict
+# `inert`, n_red 0). This one hands the guest the two characters `\` and `r`.
+check "...and the GUEST decodes that escape too, not just the host":
+  (lex_all("\"a\\rb\""))[0].t == "str" and
+  (lex_all("\"a\\rb\""))[0].v == "a\rb"
 check "a raw newline inside a string literal is unterminated, as on the host":
   (lex_all("\"a\nb\""))[0].t == "bad" and
     (lex_all("\"a\nb\""))[0].v == "unterminated string"
@@ -1347,9 +1357,20 @@ check "a name in the got slot is quoted":
   contains(str(parse_whence("let let = 1")), "expected a name, got 'let'")
 check "a newline in the got slot is prose, not the host language's escape":
   contains(str(parse_whence("let x\nlet y = 1")), "expected '=', got a line break")
+# Round 414 (language C). ONE probe cannot support the word ALWAYS, and the
+# one this check had is the probe the rule it replaced renders IDENTICALLY:
+# decision 48's predecessor single-quoted a string UNLESS it held a single
+# quote, so `"a'b"` came out double-quoted under BOTH rules. `checkpin.py`
+# put the old switching rule back and this check stayed green while its two
+# siblings went red -- verdict `shadowed`, i.e. the direct descendant of the
+# inert check round 408 §6.1 replaced it with. A string with no apostrophe in
+# it is what the two rules actually disagree about, so the second probe is
+# the one carrying the word "always".
 check "a string in the got slot is a Whence literal, always double-quoted":
   contains(str(parse_whence("let f = fn(x) { x }\nlet v = f(1 \"a'b\")")),
-           "expected ')', got \"a'b\"")
+           "expected ')', got \"a'b\"") and
+  contains(str(parse_whence("let f = fn(x) { x }\nlet v = f(1 \"ab\")")),
+           "expected ')', got \"ab\"")
 check "...so a keyword and a string spelled alike no longer collide":
   contains(str(parse_whence("let \"let\" = 1")), "expected a name, got \"let\"")
 check "...and the keyword keeps decision 44's single quotes":
