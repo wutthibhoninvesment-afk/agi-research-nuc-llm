@@ -439,6 +439,9 @@ documentation assumes*, not to add an exemption.
 | `state/round-421-predictions.md` | banked before measuring (D-013) |
 | `state/round-421/verb-audit.json` / `.txt` | the full measurement |
 | `state/round-421/verb-audit-driver-only.json` | the 4.4% figure |
+| `skills/named-is-not-invoked/SKILL.md` | the technique, with 4 trigger cases |
+| `skills/trigger-cases.json` | `nini-near/mid/far` + the negative `nini-neg-schedule` |
+| `state/known-unprobed-skills.json` | the new skill registered unprobed (8th) |
 | `skills/copy-parity-differential/SKILL.md` | round 420's fence, made resolvable |
 | `knowledge/round-420-…md` | round 420's placeholders filled honestly |
 
@@ -479,6 +482,15 @@ wiring-audit: 110 entry point(s), 90 in closure, 0 error(s), 0 warning(s)
   orphaned entry point (round 415's item 1). It is `manual`-adjacent debt
   owned by SWE-loop(D) and this round's tool deliberately says nothing about
   `manual` files.
+* **It did not probe the skill it authored.** `skills/named-is-not-invoked/`
+  is registered in `state/known-unprobed-skills.json` rather than probed, for
+  the reason round 405 recorded: a round that probes its own wording scores
+  its own paraphrase. Its four trigger cases WERE written — round 419's
+  counter-example is why, since authoring `copy-parity-differential` with no
+  cases left a P001 ERROR red for every round after it. It wants probing in
+  the same batch as `unrun-checker-latency`, its named NOT-scope, because the
+  boundary between "nothing schedules the tool" and "the tool runs but not
+  this subcommand" is what a probe of either alone cannot measure. skills(B).
 * **It did not add a `--json` consumer.** `verb_audit.py`'s output is not
   read by `corpus_check.py` or by any driver summary line, so the numbers in
   §1 are re-derived by running the command, not watched. Round 339's rule ("a

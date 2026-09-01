@@ -1906,5 +1906,31 @@
    "copy-parity-differential"
   ],
   "prompt": "We fixed this same 'reaches outside the package' bug at four call sites two weeks ago and it's back at a fifth. They all do os.path.dirname(os.path.dirname(__file__)) to find a JSON registry that lives one level above the package. Is there a way to stop playing whack-a-mole?"
+ },
+ {
+  "id": "nini-near",
+  "expect": [
+   "named-is-not-invoked"
+  ],
+  "prompt": "Our wiring registry says every one of our tools is `wired`, and the audit is green. But I just noticed our backup tool has eight subcommands and I'm fairly sure CI only ever runs `status`. How do I find out which subcommands actually get run?"
+ },
+ {
+  "id": "nini-mid",
+  "expect": [
+   "named-is-not-invoked"
+  ],
+  "prompt": "Before we delete it: `reportgen.py` shows up in our import graph so it looks used, but the only hits are a help string and a test that asserts we never shell out to it. Is there a rigorous way to tell 'something mentions this' from 'this actually runs'?"
+ },
+ {
+  "id": "nini-far",
+  "expect": [
+   "named-is-not-invoked"
+  ],
+  "prompt": "We told the board that our nightly job runs the compliance checker. Turns out the only thing exercising that code is a unit test with a fake HTTP client. I want a number for how much of our CLI surface the scheduler genuinely exercises, per subcommand."
+ },
+ {
+  "id": "nini-neg-schedule",
+  "expect": [],
+  "prompt": "We have a linter that everyone agrees is correct, and it is simply not in any CI job or cron entry \u2014 there is one binary, no subcommands. What is the best way to get it scheduled and to measure how long violations have been surviving?"
  }
 ]
