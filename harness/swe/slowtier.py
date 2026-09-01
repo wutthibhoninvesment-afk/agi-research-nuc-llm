@@ -165,6 +165,187 @@ def slow_tier_files(tests_dir=TESTS_DIR):
                   if n.startswith("test_swe_") and n.endswith(".py"))
 
 
+# ------------------------------------------------------------------- units --
+#
+# Round 433 (harness A). Until this round the tier's unit of WORK and its
+# unit of EVIDENCE were the same thing — a file — and one file breaks that.
+#
+# `harness/tests/test_swe_campaign.py` holds 20 tests. Nineteen of them cost
+# 571.3 s together (measured this round, one process, `--durations=0`); the
+# twentieth, `test_cli_runs_offline_stages_and_stops`, is the only one that
+# does not seed a green baseline, so it runs a full unfiltered whence suite
+# as the campaign's pre-flight and a tracer-instrumented one for coverage.
+# The file therefore does not fit in any budget this program grants a round,
+# and the ledger records the consequence exactly: across 26 entries it has
+# held ZERO entries for that file. Nineteen real tests were never evidence
+# about any checkout, and `plan` could not help — it correctly refuses to
+# start a file it cannot finish, so the file's estimate kept it out of even
+# a 3600 s budget.
+#
+# Round 432's next-steps item 3 asked harness(A) for "a slow marker" on that
+# test. Measured, that remedy is already in place and does nothing: the file
+# matches `SLOW_PREFIX` and is absent from `tier-budget.json`, so
+# `-m "not swe_slow"` already deselects all 20 of its tests. What was missing
+# was not a marker. It was a unit smaller than a file.
+#
+# A UNIT is a file plus a selector. A file with no declared heavy tests is
+# ONE unit whose id is the filename, byte-for-byte the pre-433 behaviour, so
+# an empty registry changes nothing anywhere. A file with declared heavy
+# tests becomes TWO units, `<file>[light]` and `<file>[heavy]`, each with its
+# own ledger entry, its own cost estimate and its own freshness verdict.
+#
+# The direction is fail-closed, and it is the OPPOSITE direction to
+# `tierbudget.py`'s: that registry can only ever move a file toward the tier
+# a human is watching, and this one can only ever SPLIT one claim into two
+# smaller ones. A light unit's pass asserts strictly less than the file's
+# pass did, and the heavy unit it leaves behind starts `unknown` and stays
+# visible in the recall denominator. Declaring a test here cannot make
+# anything look greener than it was.
+_UNITS_PATH = os.path.join(HARNESS_ROOT, "tier-units.json")
+
+WHOLE, LIGHT, HEAVY = "whole", "light", "heavy"
+
+#: id suffix per kind. `[light]`/`[heavy]` are not pytest syntax on purpose —
+#: an id must never be mistakable for a node id a human could paste into a
+#: pytest command line and have silently do something else.
+_KIND_SUFFIX = {WHOLE: "", LIGHT: "[light]", HEAVY: "[heavy]"}
+
+
+def load_units_registry(path=None):
+    """The heavy-test registry, or an empty one.
+
+    Must never raise, for `tierbudget.load_registry`'s reason one level up:
+    this is read by `status`, which `run_tests_fast.sh` calls on every round,
+    and a registry that can abort the status line would be round 348's
+    `pyproject.toml` outage with this repo's own name on it. A missing or
+    malformed file means NOTHING is split — every file stays one unit, which
+    is the strongest claim and therefore the safe fallback.
+    """
+    path = path or _UNITS_PATH
+    try:
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except Exception:
+        return {"heavy": {}, "_load_error": True}
+    if not isinstance(data, dict) or not isinstance(data.get("heavy"), dict):
+        return {"heavy": {}, "_load_error": True}
+    return data
+
+
+def file_test_names(test_file, tests_dir=TESTS_DIR):
+    """Top-level `def test_*` names in a test file, by AST. None if unreadable.
+
+    Static and offline deliberately. `status` runs inside every round's fast
+    health check, and a real pytest collection here would cost the seconds
+    the tier exists to avoid. It sees exactly the shape this registry is
+    allowed to name — a plain top-level test function. A class method or a
+    parametrised id is not a name the registry can use, and naming one is a
+    registry ERROR rather than a silent partial match (see `split_file`).
+    """
+    try:
+        with open(os.path.join(tests_dir, test_file), encoding="utf-8") as fh:
+            tree = ast.parse(fh.read())
+    except Exception:
+        return None
+    return [n.name for n in tree.body
+            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and n.name.startswith("test_")]
+
+
+def unit_id(test_file, kind):
+    return test_file + _KIND_SUFFIX[kind]
+
+
+def unit_file(uid):
+    """The file a unit id belongs to. Pure string surgery, no registry read:
+    `run_slice` needs the file for its dep closure before it knows anything
+    else, and a ledger entry written by an older schema IS its file's id."""
+    for suffix in (_KIND_SUFFIX[LIGHT], _KIND_SUFFIX[HEAVY]):
+        if uid.endswith(suffix):
+            return uid[:-len(suffix)]
+    return uid
+
+
+def _whole(test_file, error=""):
+    return [{"id": test_file, "file": test_file, "kind": WHOLE, "tests": [],
+             "registry_error": error}]
+
+
+def split_file(test_file, heavy_names, tests_dir=TESTS_DIR):
+    """One file -> its units, plus a registry-error string ("" when clean).
+
+    Every refusal path returns the SINGLE whole-file unit. That is the
+    fail-closed choice for the property this module protects: the whole-file
+    unit is the strongest claim (nothing is covered until the entire file
+    has run), so a broken registry costs wall-clock, exactly as a stale
+    `tier-budget.json` entry does, and cannot cost coverage.
+    """
+    heavy_names = sorted(set(heavy_names or ()))
+    if not heavy_names:
+        return _whole(test_file), ""
+    names = file_test_names(test_file, tests_dir)
+    if names is None:
+        return _whole(test_file), ("unreadable: cannot confirm the declared "
+                                   "heavy test(s) exist")
+    missing = [n for n in heavy_names if n not in names]
+    if missing:
+        # A renamed or deleted test. Silently keeping the split would leave a
+        # `[heavy]` unit that collects nothing (pytest rc 4/5, never
+        # narrowing) and a `[light]` unit whose name claims to exclude
+        # something it does not.
+        return _whole(test_file), ("declared heavy test(s) not in the file: %s"
+                                   % ", ".join(missing))
+    if not [n for n in names if n not in heavy_names]:
+        return _whole(test_file), ("every test in the file is declared heavy: "
+                                   "the light unit would collect nothing")
+    return ([{"id": unit_id(test_file, LIGHT), "file": test_file,
+              "kind": LIGHT, "tests": heavy_names, "registry_error": ""},
+             {"id": unit_id(test_file, HEAVY), "file": test_file,
+              "kind": HEAVY, "tests": heavy_names, "registry_error": ""}], "")
+
+
+def slow_tier_units(tests_dir=TESTS_DIR, registry=None):
+    """Every unit of the slow tier, in file order. With an empty registry
+    this is `slow_tier_files()` with each name wrapped, one for one."""
+    registry = load_units_registry() if registry is None else registry
+    heavy = registry.get("heavy") or {}
+    units = []
+    for f in slow_tier_files(tests_dir):
+        decl = heavy.get(f) or {}
+        us, err = split_file(f, decl.get("tests"), tests_dir)
+        for u in us:
+            u["registry_error"] = err
+        units.extend(us)
+    return units
+
+
+def resolve_unit(uid, tests_dir=TESTS_DIR, registry=None):
+    """A unit id -> its unit dict, or a whole-file unit when the id names
+    nothing the registry knows (an injected test double's file, a name from
+    an older ledger). Never None: a caller holding an id always gets
+    something runnable."""
+    for u in slow_tier_units(tests_dir, registry):
+        if u["id"] == uid:
+            return u
+    return _whole(unit_file(uid))[0]
+
+
+def unit_pytest_args(unit, tests_dir=TESTS_DIR):
+    """The pytest argv tail that selects exactly this unit.
+
+    `[heavy]` selects by NODE ID rather than `-k`, so a substring of another
+    test's name can never widen it; `[light]` deselects the same node ids,
+    so the two are complements by construction over the same file.
+    """
+    path = os.path.join(tests_dir, unit["file"])
+    if unit["kind"] == HEAVY:
+        return [path + "::" + t for t in unit["tests"]]
+    args = [path]
+    for t in unit["tests"] if unit["kind"] == LIGHT else ():
+        args += ["--deselect", path + "::" + t]
+    return args
+
+
 # -------------------------------------------------------------- harness deps --
 #
 # Round 341's item 2, and a deliberate refinement of how it was worded.
@@ -488,6 +669,55 @@ def latest_by_file(entries):
     return best
 
 
+def entry_unit(entry):
+    """The unit an entry is about. An entry written before round 433 carries
+    no `unit` field and is about the whole file, which is what `file` already
+    says — so the default is not a guess, it is the same string."""
+    return entry.get("unit") or entry.get("file")
+
+
+def latest_by_unit(entries, units):
+    """`{unit id: (entry or None, inherited)}`.
+
+    Rule 11 (round 433), the one asymmetry a split introduces:
+
+      A whole-file entry whose outcome is `passed` IS evidence for every
+      unit of that file. The run is a strict superset of each unit's, and
+      "everything passed" entails "these passed".
+
+      A whole-file entry whose outcome is `failed` is evidence for the
+      whole-file unit ONLY. Somebody in there was red and pytest's exit code
+      does not say who, so attributing it to a unit would be inventing a
+      verdict — and attributing it to the OTHER unit as a pass would be
+      inventing the opposite one.
+
+    A sub-unit's entry never flows the other way. `[light]` passing says
+    nothing about `[heavy]`, and the file is covered only when both units
+    are, which is what makes the recall denominator honest after a split.
+
+    `inherited` is returned beside the entry rather than written into it:
+    `plan` must not use a whole-file `seconds` as a sub-unit's cost estimate,
+    and a reader must be able to see that a unit's green came from a run that
+    was not this unit.
+    """
+    out = {}
+    for u in units:
+        best, best_inherited = None, False
+        for e in entries:
+            eu = entry_unit(e)
+            if eu == u["id"]:
+                inherited = False
+            elif (u["kind"] != WHOLE and eu == u["file"]
+                    and e.get("outcome") == "passed"):
+                inherited = True
+            else:
+                continue
+            if best is None or (e.get("finished_at") or 0) >= (best.get("finished_at") or 0):
+                best, best_inherited = e, inherited
+        out[u["id"]] = (best, best_inherited)
+    return out
+
+
 # ------------------------------------------------------------------ status --
 
 def classify(entry, digest, cur_dep_digests=None, cur_scope_digests=None):
@@ -580,16 +810,29 @@ def recorded_failing_but_stale(row):
 
 
 def status(ledger_path=DEFAULT_LEDGER, tests_dir=TESTS_DIR, whence_root=DEFAULT_WHENCE,
-           digest=None):
+           digest=None, units=None):
     digest = checkout_digest(whence_root) if digest is None else digest
-    best = latest_by_file(read_entries(ledger_path))
+    units = slow_tier_units(tests_dir) if units is None else units
+    best = latest_by_unit(read_entries(ledger_path), units)
     rows = []
-    for f in slow_tier_files(tests_dir):
-        e = best.get(f)
+    for u in units:
+        f = u["file"]
+        e, inherited = best[u["id"]]
         cur = dep_digests(f, tests_dir)
         cur_scope = scope_digests_now(e, whence_root)
         scope = (e or {}).get("subject_scope") or {}
         rows.append({
+            "unit": u["id"],
+            "kind": u["kind"],
+            # The tests this unit runs (heavy) or refuses to run (light).
+            # Named, never counted: after a split the reader's first question
+            # is always "which ones", the same rule `moved_deps` follows.
+            "unit_tests": list(u["tests"]),
+            "registry_error": u.get("registry_error", ""),
+            # Rule 11: this row's evidence came from a whole-file PASS, not
+            # from a run of this unit. Surfaced so `plan` never mistakes the
+            # file's wall clock for the unit's.
+            "inherited": inherited,
             "file": f,
             "state": classify(e, digest, cur, cur_scope),
             "outcome": (e or {}).get("outcome"),
@@ -612,7 +855,15 @@ def status(ledger_path=DEFAULT_LEDGER, tests_dir=TESTS_DIR, whence_root=DEFAULT_
     return {
         "digest": digest,
         "rows": rows,
-        "n_files": len(rows),
+        # Round 433: `n_files` keeps the meaning it has had since round 341 —
+        # how many FILES the tier holds — and `n_units` is the new
+        # denominator. With an empty registry they are equal and every
+        # published figure is unchanged; a split makes them differ, and both
+        # are printed side by side rather than one silently replacing the
+        # other (round 334's rule about `confirmed_span_s`, applied again).
+        "n_files": len(set(r["file"] for r in rows)),
+        "n_units": len(rows),
+        "n_registry_errors": len([r for r in rows if r["registry_error"]]),
         "n_conclusive": len(covered),
         # Round 361, reported SEPARATELY: files whose evidence survives only
         # because the checkout moved outside their measured read-scope.
@@ -629,21 +880,57 @@ def status(ledger_path=DEFAULT_LEDGER, tests_dir=TESTS_DIR, whence_root=DEFAULT_
     }
 
 
-def _size_prior(test_file, tests_dir=TESTS_DIR):
+def _size_prior(test_file, tests_dir=TESTS_DIR, row=None):
     """Bytes of the test file, scaled to a fraction of a second.
 
-    Only a TIE-break among unmeasured files (see `plan`). Deliberately tiny
-    relative to `default_s` so it can never reorder a file that has a real
+    Only a TIE-break among unmeasured units (see `plan`). Deliberately tiny
+    relative to `default_s` so it can never reorder a unit that has a real
     measurement against one that does not.
+
+    Round 433, for split files. Bytes are a per-FILE quantity, so both units
+    of a split file would otherwise carry the SAME prior and sort adjacently
+    at the tail — which is the wrong order for the only thing this prior
+    decides. A `[light]` unit is scaled down by its share of the file's tests
+    and a `[heavy]` unit keeps the file's full prior, because being expensive
+    is the reason the registry named it at all. Both remain priors: any unit
+    with a real `seconds` uses that instead, which
+    `test_a_real_measurement_always_beats_the_size_prior` pins.
     """
     try:
-        return os.path.getsize(os.path.join(tests_dir, test_file)) / 1e6
+        size = os.path.getsize(os.path.join(tests_dir, test_file)) / 1e6
     except (IOError, OSError):
         return 0.0
+    kind = (row or {}).get("kind")
+    if kind == LIGHT:
+        names = file_test_names(test_file, tests_dir) or []
+        heavy = set((row or {}).get("unit_tests") or ())
+        light_n = len([n for n in names if n not in heavy])
+        if names and light_n:
+            size *= float(light_n) / len(names)
+    return size
+
+
+def _uid(row):
+    """A row's unit id. Falls back to its file, so a hand-built pre-433 row
+    (and every test that builds one) plans exactly as it did before."""
+    return row.get("unit") or row["file"]
+
+
+def _est(row):
+    """A row's usable cost estimate, or None.
+
+    Round 433: an INHERITED row's `seconds` is the whole FILE's wall clock,
+    not this unit's, and using it would make `[light]` look as expensive as
+    the file it was split out of — which is the one number the split exists
+    to stop believing. An inherited row therefore falls back to the
+    unmeasured prior, and says so in `plan_reasons`' spirit by being visible
+    as `inherited` in the row.
+    """
+    return None if row.get("inherited") else row.get("seconds")
 
 
 def plan(st, budget_s, default_s=300.0, tests_dir=TESTS_DIR):
-    """Which files to run next, in order, inside `budget_s`.
+    """Which units to run next, in order, inside `budget_s`.
 
     Order: never-conclusive first (worst evidence first), then — round 385
     — any file whose last recorded run was RED, then oldest `finished_at`. Estimated cost is the file's own last measured
@@ -682,16 +969,16 @@ def plan(st, budget_s, default_s=300.0, tests_dir=TESTS_DIR):
         # file with a real `seconds` uses that. Named as a prior in
         # `plan_reasons` so nobody reads it as timing data.
         return (1 if conclusive else 0, red_first, r["finished_at"] or 0,
-                r["seconds"] or (default_s + _size_prior(r["file"], tests_dir)),
-                r["file"])
+                _est(r) or (default_s + _size_prior(r["file"], tests_dir, r)),
+                _uid(r))
 
     ordered = sorted(st["rows"], key=key)
     picked, spent = [], 0.0
     for r in ordered:
-        est = r["seconds"] or default_s
+        est = _est(r) or default_s
         if picked and spent + est > budget_s:
             continue
-        picked.append(r["file"])
+        picked.append(_uid(r))
         spent += est
         if spent >= budget_s:
             break
@@ -700,9 +987,14 @@ def plan(st, budget_s, default_s=300.0, tests_dir=TESTS_DIR):
 
 # --------------------------------------------------------------------- run --
 
-def pytest_runner(test_file, tests_dir=TESTS_DIR, timeout_s=3000,
+def pytest_runner(unit, tests_dir=TESTS_DIR, timeout_s=3000,
                   whence_root=DEFAULT_WHENCE):
-    """The real runner: one pytest process per file, cwd at the repo root.
+    """The real runner: one pytest process per UNIT, cwd at the repo root.
+
+    Round 433: `unit` is a unit id (or a unit dict). An id the registry does
+    not know resolves to a whole-file unit, so every pre-433 caller — and
+    every ledger entry written before this round — still names something
+    runnable.
 
     `PYTHONDONTWRITEBYTECODE` is set for round 340's reason — a `.pyc`
     whose cache key (source size, source mtime truncated to whole seconds)
@@ -720,9 +1012,11 @@ def pytest_runner(test_file, tests_dir=TESTS_DIR, timeout_s=3000,
     — `readscope.read_scope_file` reports `ok: false` and `classify` falls
     back to the whole-checkout rule.
     """
+    if not isinstance(unit, dict):
+        unit = resolve_unit(unit, tests_dir)
     env = dict(os.environ)
     env["PYTHONDONTWRITEBYTECODE"] = "1"
-    args = ["-q", "-p", "no:randomly", os.path.join(tests_dir, test_file)]
+    args = ["-q", "-p", "no:randomly"] + unit_pytest_args(unit, tests_dir)
     tmpdir = tempfile.mkdtemp(prefix="slowtier-scope-")
     scope_path = os.path.join(tmpdir, "scope.json")
     cmd = [sys.executable, "-c",
@@ -793,10 +1087,15 @@ def _refuse_scope_if_incomplete(scope, result):
     return out
 
 
-def run_slice(files, ledger_path=DEFAULT_LEDGER, whence_root=DEFAULT_WHENCE,
+def run_slice(units, ledger_path=DEFAULT_LEDGER, whence_root=DEFAULT_WHENCE,
               runner=pytest_runner, clock=time.time, log=None,
               tests_dir=TESTS_DIR):
-    """Run each file, recording one ledger entry apiece.
+    """Run each unit, recording one ledger entry apiece.
+
+    Round 433: `units` is a list of unit IDs. An id with no `[light]`/
+    `[heavy]` suffix is a file, which is what every id was before this round,
+    so an injected runner still receives exactly the string it was given and
+    the entry's `file` field still holds a filename.
 
     The digest is read BEFORE and AFTER each file. If it moved, the entry
     is stamped `checkout_stable: false` and can never be counted as
@@ -813,12 +1112,14 @@ def run_slice(files, ledger_path=DEFAULT_LEDGER, whence_root=DEFAULT_WHENCE,
     """
     log = log or (lambda s: None)
     written = []
-    for f in files:
+    for uid in units:
+        u = resolve_unit(uid, tests_dir)
+        f = u["file"]
         before = checkout_digest(whence_root)
         deps = harness_deps(f, tests_dir)
         deps_before = dep_digests(f, tests_dir, deps)
         t0 = clock()
-        r = runner(f)
+        r = runner(uid)
         t1 = clock()
         # Round 361. A runner that reports no scope (every injected test
         # double, and the real one when the hook or the record failed) yields
@@ -840,6 +1141,13 @@ def run_slice(files, ledger_path=DEFAULT_LEDGER, whence_root=DEFAULT_WHENCE,
                    "passed" if r.get("returncode") == 0 else "failed")
         entry = {
             "file": f,
+            # Round 433. `file` stays a FILENAME so every pre-433 reader
+            # (`ledgerreplay`, `latest_by_file`, a human grepping the JSONL)
+            # keeps working unchanged; `unit` is what freshness is now keyed
+            # on, and for an unsplit file the two strings are equal.
+            "unit": uid,
+            "unit_kind": u["kind"],
+            "unit_tests": list(u["tests"]),
             "outcome": outcome,
             "returncode": r.get("returncode"),
             "seconds": round(t1 - t0, 2),
@@ -851,7 +1159,7 @@ def run_slice(files, ledger_path=DEFAULT_LEDGER, whence_root=DEFAULT_WHENCE,
             "harness_stable": harness_stable,
             "subject_scope": scope,
             "subject_digests": scope_digs,
-            "schema": 4,
+            "schema": 5,
             "tail": r.get("tail", "")[-800:],
         }
         append_entry(ledger_path, entry)
@@ -864,16 +1172,31 @@ def run_slice(files, ledger_path=DEFAULT_LEDGER, whence_root=DEFAULT_WHENCE,
             flags += "  scope=WHOLE (%s)" % ",".join(scope["opaque"])
         else:
             flags += "  scope=WHOLE (%s)" % (scope.get("why") or "unrecorded")
-        log("%-34s %-8s %6.1fs%s" % (f, outcome, entry["seconds"], flags))
+        log("%-38s %-8s %6.1fs%s" % (uid, outcome, entry["seconds"], flags))
     return written
 
 
 # ------------------------------------------------------------------ report --
 
 def report_text(st):
-    lines = ["slow tier: %d files, %d conclusive against checkout %s (%.0f%% recall), %d failing"
-             % (st["n_files"], st["n_conclusive"], st["digest"],
+    n_units = st.get("n_units", st["n_files"])
+    # Round 433: say "N files" when nothing is split (every published figure
+    # since round 341 reads that way) and "N files / M units" the moment they
+    # differ, so the denominator a recall percentage is over is never a thing
+    # the reader has to infer.
+    scale = ("%d files" % st["n_files"] if n_units == st["n_files"]
+             else "%d files / %d units" % (st["n_files"], n_units))
+    lines = ["slow tier: %s, %d conclusive against checkout %s (%.0f%% recall), %d failing"
+             % (scale, st["n_conclusive"], st["digest"],
                 100.0 * st["coverage"], st["n_failing"])]
+    for r in st["rows"]:
+        if r.get("registry_error"):
+            # Never silent. A registry error means the file fell back to a
+            # single whole-file unit, i.e. the split a human asked for is NOT
+            # in effect, and the recall above is over a different denominator
+            # than they think.
+            lines.append("  REGISTRY ERROR %s: %s — running it whole"
+                         % (r["file"], r["registry_error"]))
     if st.get("n_recorded_failing_stale"):
         # Round 385. Never folded into the count above: this is provenance,
         # not freshness. It is here because a reader who sees "0 failing"
@@ -889,14 +1212,18 @@ def report_text(st):
         lines.append("  + %d file(s) conclusive WITHIN their measured read-scope only "
                      "(%.0f%% combined) — the checkout moved outside what they read"
                      % (st["n_scoped"], 100.0 * st["coverage_scoped"]))
-    for r in sorted(st["rows"], key=lambda r: (r["state"] not in FAILING, r["file"])):
+    for r in sorted(st["rows"], key=lambda r: (r["state"] not in FAILING, _uid(r))):
         age = ""
         if r["finished_at"]:
             age = "  %.1fh ago" % ((time.time() - r["finished_at"]) / 3600.0)
-        lines.append("  %-34s %-18s %s%s%s"
-                     % (r["file"], r["state"],
+        lines.append("  %-38s %-18s %s%s%s%s"
+                     % (_uid(r), r["state"],
                         ("%.0fs" % r["seconds"]) if r["seconds"] else "-", age,
-                        "   [last run RED]" if recorded_failing_but_stale(r) else ""))
+                        "   [last run RED]" if recorded_failing_but_stale(r) else "",
+                        "   [inherited from a whole-file pass]"
+                        if r.get("inherited") else ""))
+        if r.get("kind") == LIGHT:
+            lines.append("      excludes: %s" % ", ".join(r["unit_tests"]))
         if r["state"] == "stale_harness":
             moved = r["moved_deps"]
             lines.append("      moved: %s%s"
@@ -906,34 +1233,44 @@ def report_text(st):
             lines.append("      moved in scope: %s" % ", ".join(r["moved_scope"][:4]))
         if r["state"] in SCOPED_CONCLUSIVE:
             lines.append("      scope: %s" % ", ".join(r["scope_dirs"] or ["(nothing)"]))
-    uncovered = st["n_files"] - st["n_conclusive"] - st.get("n_scoped", 0)
+    uncovered = n_units - st["n_conclusive"] - st.get("n_scoped", 0)
     if uncovered:
-        lines.append("  NOTE: %d file(s) are NOT evidence about this checkout." % uncovered)
+        lines.append("  NOTE: %d %s are NOT evidence about this checkout."
+                     % (uncovered, "file(s)" if n_units == st["n_files"] else "unit(s)"))
     return "\n".join(lines)
 
 
 def main(argv=None):
     import argparse
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("cmd", choices=["status", "plan", "run"])
+    ap.add_argument("cmd", choices=["status", "plan", "run", "units"])
     ap.add_argument("--ledger", default=DEFAULT_LEDGER)
     ap.add_argument("--budget-s", type=float, default=900.0)
     ap.add_argument("--only", default=None,
-                    help="comma-separated slow-tier files to run instead of "
-                         "the planner's pick (seeding, or re-running a file a "
-                         "round just edited). Unknown names are an error, not "
-                         "a silent no-op.")
+                    help="comma-separated slow-tier UNIT IDS to run instead of "
+                         "the planner's pick (seeding, or re-running a unit a "
+                         "round just edited). A unit id is a filename, or a "
+                         "filename with [light]/[heavy] when the file is split "
+                         "by harness/tier-units.json. Unknown names are an "
+                         "error, not a silent no-op.")
     a = ap.parse_args(argv)
+    if a.cmd == "units":
+        for u in slow_tier_units():
+            print("%-38s %-6s %s%s"
+                  % (u["id"], u["kind"], ",".join(u["tests"]) or "-",
+                     ("   ERROR: " + u["registry_error"]) if u.get("registry_error") else ""))
+        return 0
     st = status(ledger_path=a.ledger)
     if a.cmd == "status":
         print(report_text(st))
         return 1 if st["n_failing"] else 0
     if a.only:
-        known = set(slow_tier_files())
+        known = set(u["id"] for u in slow_tier_units())
         picked = [f.strip() for f in a.only.split(",") if f.strip()]
         bad = [f for f in picked if f not in known]
         if bad:
-            print("not slow-tier files: %s" % ", ".join(bad), file=sys.stderr)
+            print("not slow-tier units: %s\n(known: %s)"
+                  % (", ".join(bad), ", ".join(sorted(known))), file=sys.stderr)
             return 2
     else:
         picked = plan(st, a.budget_s)

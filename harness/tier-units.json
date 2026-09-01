@@ -1,0 +1,14 @@
+{
+  "_comment": "HEAVY-TEST REGISTRY for the slow tier's unit of EVIDENCE (round 433, harness A). Read by harness/swe/slowtier.py. It exists because the slow tier's unit of work and of evidence was the FILE, and one file breaks that: harness/tests/test_swe_campaign.py holds 20 tests, 19 of which cost 571s together, while the 20th runs two full unfiltered whence suites and does not finish inside any budget this program grants a round. The consequence is measured, not feared -- state/slow-tier-ledger.jsonl has held ZERO entries for that file across 26 entries and 92 rounds, so 19 real tests have never been evidence about any checkout, and one of them (test_review_stage_and_report) has been RED the whole time with nothing able to see it. Declaring a test here splits its file into two units, `<file>[light]` (everything else) and `<file>[heavy]` (the declared tests), each with its own ledger entry and its own freshness verdict. THE DIRECTION IS FAIL-CLOSED, and in the opposite direction to harness/tier-budget.json's: that registry can only move a file toward the tier a human watches, and this one can only ever SPLIT a claim into two smaller ones. A declared heavy test never becomes less covered by being named -- it was never separately covered before -- and the light unit's pass is a claim about strictly fewer tests than the file's pass was. A name that does not match a top-level `def test_*` in the file is a REGISTRY ERROR, not a silent partial match: the file falls back to a single whole-file unit (the strongest claim, hence the safe one) and slowtier status prints the error. Do not declare a test here to make a red one disappear -- splitting does not deselect anything; run_tests_fast.sh's `-m \"not swe_slow\"` already deselects the whole tier, and both units still have to go green for the file to be covered.",
+  "heavy": {
+    "test_swe_campaign.py": {
+      "tests": ["test_cli_runs_offline_stages_and_stops"],
+      "measured_round": 433,
+      "measured_utc": "2026-09-01",
+      "measured_by": "PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q -p no:randomly --durations=0 harness/tests/test_swe_campaign.py --deselect harness/tests/test_swe_campaign.py::test_cli_runs_offline_stages_and_stops",
+      "complement_s": 571.32,
+      "complement_result": "1 failed, 18 passed, 1 deselected in 571.32s",
+      "why": "the only test in the file that does not seed a green baseline: it calls C.main() with the DEFAULT test_cmd, so the campaign runs a full unfiltered whence suite as its baseline pre-flight and a tracer-instrumented one for coverage. Round 431 died at max_turns waiting for it; round 432 verified the cost is pre-existing at HEAD in a worktree, not caused by round 431's --junitxml."
+    }
+  }
+}

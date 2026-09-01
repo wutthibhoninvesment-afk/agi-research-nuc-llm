@@ -1,0 +1,1 @@
+A4 VERDICT: test_cli_runs_offline_stages_and_stops ran 748s (12m28s) without completing, then was killed. Predicted threshold was 600s, so A4 is decided; the 1500s cap was never reached and no upper bound was measured.

@@ -501,10 +501,15 @@ def test_run_slice_stamps_both_digests_and_detects_a_harness_race(tmp_path):
     assert calls == ["test_swe_fake.py"]
     # Round 361 bumped the schema to 3 (subject scope); round 367 bumped it
     # to 4, when rule 10 changed what `subject_scope.ok` MEANS for a run
-    # that did not finish. The pin stays a pin: an entry writer that stops
+    # that did not finish; round 433 bumped it to 5, when the entry stopped
+    # being about a FILE and started being about a unit (`unit`, `unit_kind`,
+    # `unit_tests`). The pin stays a pin: an entry writer that stops
     # stamping a version is how a reader silently starts guessing which
     # rules an entry obeyed.
-    assert e["outcome"] == "passed" and e["schema"] == 4
+    assert e["outcome"] == "passed" and e["schema"] == 5
+    # ...and an unsplit file's unit id IS its filename, which is why every
+    # pre-433 entry needs no migration.
+    assert e["unit"] == "test_swe_fake.py" and e["unit_kind"] == ST.WHOLE
     assert e["checkout_stable"] is True               # whence never moved
     assert e["harness_stable"] is False               # but swe/proc.py did
     assert "swe/proc.py" in e["dep_digests"]
@@ -702,7 +707,7 @@ def test_run_slice_records_the_scope_and_a_scopeless_runner_is_fail_closed(tmp_p
     a, b = ST.run_slice(["test_swe_a.py", "test_swe_b.py"], ledger_path=led,
                         whence_root=str(root), runner=runner,
                         clock=lambda: 1.0, tests_dir=str(tests))
-    assert a["schema"] == 4
+    assert a["schema"] == 5
     assert a["subject_digests"] == {"whence": RS.dir_digest(str(root), "whence")}
     # A runner that reports nothing is not a runner that reported "nothing".
     assert b["subject_digests"] is None
@@ -996,3 +1001,295 @@ def test_a_conclusive_red_is_not_re_run_first_because_it_needs_no_re_run(tmp_pat
     assert st["n_recorded_failing_stale"] == 0
     picked = ST.plan(st, budget_s=10_000.0, tests_dir=str(tests))
     assert picked[0] == "test_swe_unknown.py", picked
+
+
+# ------------------------------------------------------- units (round 433) --
+#
+# The tier's unit of work and of evidence was a FILE until round 433, and
+# `test_swe_campaign.py` is the file that broke it: 19 of its 20 tests cost
+# 571.3 s together and its 20th runs two full unfiltered whence suites, so
+# the file fits in no budget, has never had a ledger entry, and hid a red
+# test for 92 rounds. These tests pin the split AND — the half that matters —
+# every way the split is refused and every way it is forbidden to flatter a
+# verdict.
+
+def _tests_dir_with(tmp_path, files):
+    """A scratch tests dir. `files` maps basename -> list of test names."""
+    td = tmp_path / "t"
+    td.mkdir(exist_ok=True)
+    for name, tests in files.items():
+        body = "".join("def %s():\n    pass\n\n\n" % t for t in tests)
+        (td / name).write_text(body or "# no tests\n")
+    return str(td)
+
+
+def _reg(**heavy):
+    return {"heavy": dict((k, {"tests": v}) for k, v in heavy.items())}
+
+
+def test_an_empty_registry_leaves_every_file_exactly_one_unit(tmp_path):
+    """The property that makes this change free: with nothing declared, a
+    unit id IS a filename and every pre-433 caller is unaffected."""
+    td = _tests_dir_with(tmp_path, {"test_swe_a.py": ["test_x", "test_y"],
+                                    "test_swe_b.py": ["test_z"]})
+    units = ST.slow_tier_units(td, registry={"heavy": {}})
+    assert [u["id"] for u in units] == ST.slow_tier_files(td)
+    assert all(u["kind"] == ST.WHOLE and u["tests"] == [] for u in units)
+
+
+def test_a_declared_heavy_test_splits_its_file_into_two_units(tmp_path):
+    td = _tests_dir_with(tmp_path, {"test_swe_a.py": ["test_cheap", "test_slow"]})
+    units = ST.slow_tier_units(td, registry=_reg(**{"test_swe_a.py": ["test_slow"]}))
+    assert [(u["id"], u["kind"]) for u in units] == [
+        ("test_swe_a.py[light]", ST.LIGHT),
+        ("test_swe_a.py[heavy]", ST.HEAVY)]
+    assert all(u["file"] == "test_swe_a.py" for u in units)
+
+
+def test_the_two_units_of_a_split_file_are_complements(tmp_path):
+    """`[light]` must deselect exactly the node ids `[heavy]` selects. If the
+    two ever drift, a test is either run twice or run never — and "run never"
+    is invisible, because both units would still go green."""
+    td = _tests_dir_with(tmp_path, {"test_swe_a.py": ["test_p", "test_q", "test_r"]})
+    light, heavy = ST.slow_tier_units(td, registry=_reg(**{"test_swe_a.py": ["test_q", "test_r"]}))
+    hargs = ST.unit_pytest_args(heavy, td)
+    largs = ST.unit_pytest_args(light, td)
+    assert set(hargs) == set(a for a in largs if "::" in a)
+    assert len(hargs) == 2
+
+
+def test_heavy_selects_by_node_id_never_by_a_k_substring(tmp_path):
+    """`-k test_q` would also match `test_q_and_more`, silently widening the
+    heavy unit and shrinking the light one by a test nobody deselected."""
+    td = _tests_dir_with(tmp_path, {"test_swe_a.py": ["test_q", "test_q_and_more"]})
+    _, heavy = ST.slow_tier_units(td, registry=_reg(**{"test_swe_a.py": ["test_q"]}))
+    args = ST.unit_pytest_args(heavy, td)
+    assert "-k" not in args
+    assert args == [os.path.join(td, "test_swe_a.py") + "::test_q"]
+
+
+def test_a_declared_heavy_test_that_is_not_in_the_file_is_a_registry_error(tmp_path):
+    """A rename must not silently produce a `[heavy]` unit that collects
+    nothing and a `[light]` unit whose name claims an exclusion it does not
+    make. Falling back to the whole file is the fail-CLOSED direction: the
+    strongest claim is the one that has to be re-earned."""
+    td = _tests_dir_with(tmp_path, {"test_swe_a.py": ["test_kept"]})
+    units = ST.slow_tier_units(td, registry=_reg(**{"test_swe_a.py": ["test_renamed_away"]}))
+    assert [u["id"] for u in units] == ["test_swe_a.py"]
+    assert units[0]["kind"] == ST.WHOLE
+    assert "test_renamed_away" in units[0]["registry_error"]
+
+
+def test_declaring_every_test_heavy_refuses_to_split(tmp_path):
+    td = _tests_dir_with(tmp_path, {"test_swe_a.py": ["test_p", "test_q"]})
+    units = ST.slow_tier_units(td, registry=_reg(**{"test_swe_a.py": ["test_p", "test_q"]}))
+    assert [u["id"] for u in units] == ["test_swe_a.py"]
+    assert "collect nothing" in units[0]["registry_error"]
+
+
+def test_an_unreadable_test_file_refuses_to_split(tmp_path):
+    """`file_test_names` returns None rather than [] for a file it cannot
+    parse, so "I could not check" is never confused with "it has no tests"."""
+    td = _tests_dir_with(tmp_path, {"test_swe_a.py": []})
+    open(os.path.join(td, "test_swe_a.py"), "w").write("def broken(:\n")
+    assert ST.file_test_names("test_swe_a.py", td) is None
+    units = ST.slow_tier_units(td, registry=_reg(**{"test_swe_a.py": ["test_p"]}))
+    assert [u["id"] for u in units] == ["test_swe_a.py"]
+    assert "unreadable" in units[0]["registry_error"]
+
+
+def test_a_broken_registry_never_raises_and_splits_nothing(tmp_path):
+    """Round 348's `pyproject.toml` outage, one level up: `status` runs in
+    every round's fast health check, so a malformed registry must cost the
+    split and nothing else."""
+    bad = tmp_path / "bad.json"
+    bad.write_text("{ this is not json")
+    r = ST.load_units_registry(str(bad))
+    assert r["heavy"] == {} and r["_load_error"] is True
+    missing = ST.load_units_registry(str(tmp_path / "nope.json"))
+    assert missing["heavy"] == {} and missing["_load_error"] is True
+    wrong = tmp_path / "wrong.json"
+    wrong.write_text('{"heavy": ["not", "a", "dict"]}')
+    assert ST.load_units_registry(str(wrong))["heavy"] == {}
+
+
+def test_unit_file_is_pure_string_surgery():
+    assert ST.unit_file("test_swe_a.py") == "test_swe_a.py"
+    assert ST.unit_file("test_swe_a.py[light]") == "test_swe_a.py"
+    assert ST.unit_file("test_swe_a.py[heavy]") == "test_swe_a.py"
+
+
+def test_resolve_unit_never_returns_none_for_an_unknown_id(tmp_path):
+    td = _tests_dir_with(tmp_path, {"test_swe_a.py": ["test_p"]})
+    u = ST.resolve_unit("test_swe_ghost.py", td, registry={"heavy": {}})
+    assert u["id"] == "test_swe_ghost.py" and u["kind"] == ST.WHOLE
+
+
+# ------------------------------------------------------ rule 11 (round 433) --
+
+def _split_units():
+    return [{"id": "f.py[light]", "file": "f.py", "kind": ST.LIGHT,
+             "tests": ["test_slow"], "registry_error": ""},
+            {"id": "f.py[heavy]", "file": "f.py", "kind": ST.HEAVY,
+             "tests": ["test_slow"], "registry_error": ""}]
+
+
+def test_rule_11_a_whole_file_pass_is_evidence_for_every_unit():
+    """The run was a strict superset of each unit's, and "everything passed"
+    entails "these passed". Refusing to inherit it would throw away real
+    evidence the moment a file is split."""
+    e = {"file": "f.py", "outcome": "passed", "finished_at": 10, "seconds": 900}
+    best = ST.latest_by_unit([e], _split_units())
+    assert best["f.py[light]"] == (e, True)
+    assert best["f.py[heavy]"] == (e, True)
+
+
+def test_rule_11_a_whole_file_failure_is_evidence_for_no_sub_unit():
+    """pytest's exit code does not say WHO was red. Attributing it to a unit
+    invents a verdict; attributing a pass to the other unit invents the
+    opposite one. So a whole-file failure is inherited by neither."""
+    e = {"file": "f.py", "outcome": "failed", "finished_at": 10}
+    best = ST.latest_by_unit([e], _split_units())
+    assert best["f.py[light]"] == (None, False)
+    assert best["f.py[heavy]"] == (None, False)
+
+
+def test_a_light_pass_is_never_evidence_about_the_heavy_unit():
+    """Evidence flows only from the superset down. If it flowed sideways, a
+    split would be a way to make an unrun test look green — the one thing
+    the registry must not be able to do."""
+    e = {"file": "f.py", "unit": "f.py[light]", "outcome": "passed",
+         "finished_at": 10}
+    best = ST.latest_by_unit([e], _split_units())
+    assert best["f.py[light]"] == (e, False)
+    assert best["f.py[heavy]"] == (None, False)
+
+
+def test_an_own_entry_beats_an_inherited_one_when_it_is_newer():
+    whole = {"file": "f.py", "outcome": "passed", "finished_at": 10}
+    own = {"file": "f.py", "unit": "f.py[heavy]", "outcome": "failed",
+           "finished_at": 20}
+    best = ST.latest_by_unit([whole, own], _split_units())
+    assert best["f.py[heavy]"] == (own, False)
+    assert best["f.py[light]"] == (whole, True)
+
+
+def test_an_inherited_row_does_not_lend_the_file_wall_clock_to_the_unit():
+    """A `[light]` unit that inherited a 900 s whole-file pass must not be
+    estimated at 900 s — that is the exact number the split exists to stop
+    believing. It falls back to the unmeasured prior instead."""
+    rows = [{"unit": "f.py[light]", "file": "f.py", "kind": ST.LIGHT,
+             "unit_tests": [], "state": "unknown", "finished_at": None,
+             "seconds": 900.0, "inherited": True},
+            {"unit": "g.py", "file": "g.py", "kind": ST.WHOLE, "unit_tests": [],
+             "state": "unknown", "finished_at": None, "seconds": 20.0,
+             "inherited": False}]
+    # g's real 20 s beats light's *prior*; light is not treated as a 900 s file.
+    assert ST.plan({"rows": rows}, 200.0, default_s=100.0) == ["g.py", "f.py[light]"]
+
+
+# ------------------------------------------------------- status and report --
+
+def test_status_counts_units_and_files_separately(tmp_path):
+    td = _tests_dir_with(tmp_path, {"test_swe_a.py": ["test_p", "test_q"],
+                                    "test_swe_b.py": ["test_r"]})
+    units = ST.slow_tier_units(td, registry=_reg(**{"test_swe_a.py": ["test_q"]}))
+    st = ST.status(ledger_path=str(tmp_path / "absent.jsonl"), tests_dir=td,
+                   digest="D", units=units)
+    assert st["n_files"] == 2 and st["n_units"] == 3
+    assert st["coverage"] == 0.0 and st["n_registry_errors"] == 0
+    assert sorted(r["unit"] for r in st["rows"]) == [
+        "test_swe_a.py[heavy]", "test_swe_a.py[light]", "test_swe_b.py"]
+
+
+def test_report_text_says_units_only_when_something_is_split(tmp_path):
+    td = _tests_dir_with(tmp_path, {"test_swe_a.py": ["test_p", "test_q"]})
+    plain = ST.status(ledger_path=str(tmp_path / "a.jsonl"), tests_dir=td,
+                      digest="D", units=ST.slow_tier_units(td, registry={"heavy": {}}))
+    assert "1 files," in ST.report_text(plain)
+    split = ST.status(ledger_path=str(tmp_path / "a.jsonl"), tests_dir=td, digest="D",
+                      units=ST.slow_tier_units(td, registry=_reg(**{"test_swe_a.py": ["test_q"]})))
+    txt = ST.report_text(split)
+    assert "1 files / 2 units," in txt
+    assert "2 unit(s) are NOT evidence" in txt
+    assert "excludes: test_q" in txt
+
+
+def test_report_text_never_hides_a_registry_error(tmp_path):
+    """A registry error means the split a human asked for is NOT in effect
+    and the recall percentage is over a different denominator than they
+    think. Silence there is worse than the error."""
+    td = _tests_dir_with(tmp_path, {"test_swe_a.py": ["test_p"]})
+    units = ST.slow_tier_units(td, registry=_reg(**{"test_swe_a.py": ["test_gone"]}))
+    st = ST.status(ledger_path=str(tmp_path / "a.jsonl"), tests_dir=td,
+                   digest="D", units=units)
+    assert st["n_registry_errors"] == 1
+    txt = ST.report_text(st)
+    assert "REGISTRY ERROR test_swe_a.py" in txt and "test_gone" in txt
+    assert "running it whole" in txt
+
+
+def test_run_slice_records_the_unit_and_keeps_file_a_filename(tmp_path):
+    td = _tests_dir_with(tmp_path, {"test_swe_a.py": ["test_p", "test_q"]})
+    root = tmp_path / "co"
+    root.mkdir()
+    (root / "a.py").write_text("v = 1\n")
+    led = str(tmp_path / "l.jsonl")
+    seen = []
+
+    def runner(uid):
+        seen.append(uid)
+        return {"returncode": 0, "timed_out": False, "tail": ""}
+
+    import json as _json
+    reg = tmp_path / "units.json"
+    reg.write_text(_json.dumps(_reg(**{"test_swe_a.py": ["test_q"]})))
+    old = ST._UNITS_PATH
+    ST._UNITS_PATH = str(reg)
+    try:
+        [e] = ST.run_slice(["test_swe_a.py[light]"], ledger_path=led,
+                           whence_root=str(root), runner=runner,
+                           clock=iter([1.0, 2.0]).__next__, tests_dir=td)
+    finally:
+        ST._UNITS_PATH = old
+    assert seen == ["test_swe_a.py[light]"]
+    assert e["unit"] == "test_swe_a.py[light]" and e["file"] == "test_swe_a.py"
+    assert e["unit_kind"] == ST.LIGHT and e["unit_tests"] == ["test_q"]
+    # and `latest_by_file` — every pre-433 reader — still finds it by filename
+    assert ST.latest_by_file(ST.read_entries(led))["test_swe_a.py"]["unit_kind"] == ST.LIGHT
+
+
+# --------------------------------------------------------- against the repo --
+
+def test_the_live_registrys_declared_tests_all_exist():
+    """A live-tree check with teeth: a rename in `harness/tests/` silently
+    disables the split it belongs to (the file falls back to whole), which
+    costs the coverage this mechanism was built to buy. The failure is loud
+    here rather than a line nobody reads in a status report."""
+    reg = ST.load_units_registry()
+    assert not reg.get("_load_error"), "harness/tier-units.json is unreadable"
+    for f, decl in (reg.get("heavy") or {}).items():
+        names = ST.file_test_names(f)
+        assert names is not None, "%s is unreadable" % f
+        for t in decl.get("tests") or []:
+            assert t in names, "%s declares heavy test %s, which is not in it" % (f, t)
+
+
+def test_the_live_units_cover_every_slow_tier_file_exactly_once():
+    units = ST.slow_tier_units()
+    assert sorted(set(u["file"] for u in units)) == ST.slow_tier_files()
+    assert len(set(u["id"] for u in units)) == len(units)
+    for f in ST.slow_tier_files():
+        kinds = sorted(u["kind"] for u in units if u["file"] == f)
+        assert kinds in ([ST.WHOLE], sorted([ST.LIGHT, ST.HEAVY])), (f, kinds)
+
+
+def test_the_campaign_file_is_split_and_its_light_unit_is_the_measured_one():
+    """Round 433's subject, pinned. If somebody retires the split, this says
+    so out loud rather than letting the tier quietly go back to a file that
+    fits in no budget."""
+    units = [u for u in ST.slow_tier_units() if u["file"] == "test_swe_campaign.py"]
+    assert [u["kind"] for u in units] == [ST.LIGHT, ST.HEAVY]
+    assert units[0]["tests"] == ["test_cli_runs_offline_stages_and_stops"]
+    names = ST.file_test_names("test_swe_campaign.py")
+    assert len(names) == 20 and units[0]["tests"][0] in names

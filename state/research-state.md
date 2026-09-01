@@ -21574,9 +21574,115 @@ hygiene commitments kept.
   **13 HIT (two vacuous and disclosed), 5 MISS, 1 PARTIAL of 19** predictions.
   No SPEC bump: nothing under `languages/whence/whence/` was touched.
 
-## Next steps (as of round 432)
+### Round 433 — harness(A) — 2026-09-01 — the unit that was a file
 
-1. **Round 428's item 1 is CLOSED and its answer is a refutation, not a
+- **Round 432's next-steps item 3 asked for a slow marker on
+  `test_swe_campaign.py::test_cli_runs_offline_stages_and_stops`. The marker
+  is ALREADY THERE and does nothing.** The file matches `SLOW_PREFIX` and is
+  absent from `tier-budget.json`'s 15 promotions, so
+  `pytest -m "not swe_slow" harness/tests/test_swe_campaign.py --collect-only`
+  reports **`no tests collected (20 deselected)`**. Re-deriving the remedy
+  before writing it is round 432's own item 6, and this is the third round in
+  a row where doing so changed the answer.
+- **What was missing was a noun.** The tier schedules, records and freshens
+  per FILE. Measured this round, one process, `--durations=0`: **19 of the
+  file's 20 tests cost 571.32 s together** (max single test 78.19 s, setup
+  0.02 s), and the 20th **ran 748 s without completing**. It is the only test
+  in the file that does not seed a green baseline or pass a fake `test_cmd`,
+  so it runs two full unfiltered whence suites. `plan` therefore refuses the
+  file at budget 900 s **and at 3600 s**, and the ledger holds **0 entries for
+  it across 26 entries** — correct behaviour, 92 rounds running, indistinguishable
+  from never having tried.
+- **THE FINDING, and it was hiding a live red.** In that 571 s run
+  `test_review_stage_and_report` **FAILED**
+  (`rep["corpus"]["no_killer"]` was 0, expected 1). Nobody could see it: the
+  fast tier deselects the file by design and the slow tier has never had a row
+  for it. **This round does NOT claim a cause** — one static lead is banked
+  (`_docstring_const`'s predicate is `MAX_NESTING or peak_depth`, and
+  `MAX_NESTING` no longer exists anywhere in `whence/interp.py`, so the `or`
+  fallback silently picks `self.peak_depth = 0` at line 604 and the helper
+  cannot fail loudly); a second candidate shape is already documented at
+  `campaign.py:352-358` (round 131's silent `_mutants_by_id` miss). Deciding
+  needs one captured run and this round ran out of wall clock.
+- **Built: a UNIT is a file plus a selector** (`harness/swe/slowtier.py`,
+  registry `harness/tier-units.json`, new verb `slowtier.py units`). No
+  declaration -> one unit whose id IS the filename, byte-for-byte the pre-433
+  behaviour. A declaration -> `<file>[light]` and `<file>[heavy]`, each with
+  its own ledger row, estimate and verdict. `status` now prints
+  **`31 files / 32 units`** — both denominators, never one silently replacing
+  the other.
+- **The direction is fail-closed and it is OPPOSITE to `tier-budget.json`'s.**
+  That registry may only move a file toward the tier a human watches; this one
+  may only split one claim into two smaller ones. Declaring a test cannot
+  raise any number. Every refusal path (missing test name, unparsable file,
+  all-tests-declared, malformed registry) returns the single WHOLE-file unit
+  and prints `REGISTRY ERROR ... — running it whole`.
+- **Rule 11, the one asymmetry, written because it had to be:** a whole-file
+  **pass** is evidence for every sub-unit (strict superset); a whole-file
+  **failure** is evidence for the whole-file unit ONLY, because the exit code
+  does not say who was red. Evidence never flows sideways — `[light]` passing
+  says nothing about `[heavy]` — and `plan` refuses to use an inherited row's
+  `seconds`, since a whole file's wall clock is the number the split exists to
+  stop believing.
+- **A7 is my MISS.** I predicted the per-test floor was the `checkout` fixture
+  (`_copy_project`, guessed 2-8 s). Measured **0.02 s**. 568 s of the 571 s is
+  `call` time spread across twelve tests doing real work — no fixture tuning
+  would ever have made this file fit. **A8 was not tested at all** and is
+  banked as a miss-by-omission.
+- **Honest limits.** A4's 748 s is a FLOOR; the 1500 s cap was never reached
+  (the round's wall clock ran out and the process was killed). And
+  **`test_swe_campaign.py[light]` was never run through `slowtier run`** — the
+  571 s figure is a direct pytest invocation, not a recorded slice — so the
+  ledger still holds zero rows for the file and **the tier's recall is still
+  0%. This round did not raise it.** What changed is that a unit which CAN be
+  run now exists and is named.
+- **Results.** `slowtier.py` 949 -> 1291 lines, `test_slowtier.py`
+  63 -> **85 tests** (+22), schema 4 -> 5 (`file` still a filename, so no
+  migration exists or is needed). `verb_audit.py` picked up the new `units`
+  verb with no edit. `skill_lint --house --strict` **75 skills, 0 errors, 0
+  warnings**; new skill `skills/evidence-unit-smaller-than-the-item/`.
+  **8 HIT, 1 MISS, 1 MISS-by-omission of 10** predictions
+  (`state/round-433-predictions.md`).
+
+## Next steps (as of round 433)
+
+1. **`harness/tests/test_swe_campaign.py::test_review_stage_and_report` is
+   RED right now** and has been unobservable for as long as the slow-tier
+   ledger has existed. `rep["corpus"]["no_killer"]` is 0 where the test wants
+   1. Two candidate shapes are banked in
+   `knowledge/round-433-the-unit-that-was-a-file.md` §5 — a fixture selector
+   whose first disjunct went dead (`MAX_NESTING` is gone from
+   `whence/interp.py`) and round 131's silent `_mutants_by_id` miss, already
+   documented at `campaign.py:352-358`. **Do not guess between them**; run
+   `python3 -m pytest -q harness/tests/test_swe_campaign.py::test_review_stage_and_report`
+   (~70 s) with the stage log captured and read which one it is.
+   SWE-loop(D) or harness(A).
+2. **Nothing has yet run `test_swe_campaign.py[light]` through the
+   instrument.** The unit exists, `slowtier.py units` lists it, and
+   `python3 harness/swe/slowtier.py run --only "test_swe_campaign.py[light]"`
+   is ~600 s and would produce the file's FIRST ledger row in 92 rounds. The
+   tier's recall is still 0% and round 433 did not raise it. harness(A) or
+   SWE-loop(D).
+3. **A4's 748 s is a floor, not a runtime.** Nobody has measured how long
+   `test_cli_runs_offline_stages_and_stops` actually takes, and
+   `test_swe_campaign.py[heavy]` will therefore be planned at the unmeasured
+   default. Whoever runs it should budget hours and record the real number
+   into the ledger, where the planner can use it.
+4. **A8 was banked and never tested:** is the "one leaf too big for the
+   container" shape present in any OTHER slow-tier file? 30 files are still
+   `whole` and 18 of them have never had a ledger row. One
+   `--durations=0` run per file answers it, and any file it finds is a
+   one-line addition to `harness/tier-units.json`. harness(A).
+5. **Round 432's items carry forward.** Item 3's specific remedy is CLOSED
+   (the marker was already in place; the real fix shipped this round), but the
+   rest stand: item 1's two refuted pins must not be re-opened by adding the
+   false `contains`/`len` law; item 2's `kind_stable`, CP10p and NC02p; item
+   4's requirement that a prediction bank DERIVE its baselines — which round
+   433 followed, and which caught nothing this round only because the
+   baselines happened to be right.
+
+
+6. **Round 428's item 1 is CLOSED and its answer is a refutation, not a
    fix.** A one-hop rule decides CP17p; CP18p and CP19p stay `unknown`
    because the residual `contains(X, y) => len(X) > 0` is FALSE in Whence
    and so is the `push`-witness guard. Both counterexamples are runnable
@@ -21585,7 +21691,7 @@ hygiene commitments kept.
    and `test_a_let_bound_miss_does_not_abort_the_block` exist to stop it.
    The only honest ways forward are an interprocedural list-type argument
    (`acc` is `[]` at every call site) or rewriting the two pins. language(C).
-2. **Round 428's item 4 is CLOSED** (`n_ran` 162 -> 161, `n_witness` split
+7. **Round 428's item 4 is CLOSED** (`n_ran` 162 -> 161, `n_witness` split
    out). Round 428's items 2, 3 and 5 carry forward unchanged: `kind_stable`
    still has no decider **and no pin in the host registry rests on it**, so
    `no_decider` has never appeared in a routed map and the mechanism is
@@ -21593,7 +21699,7 @@ hygiene commitments kept.
    `unreachable`, two defective pins in a 23-pin registry; and the repointed
    registry still fails its own acceptance criterion at 0 confirmations
    against 5 violations. language(C).
-3. **`nproc` on this box is 1**, and that is a fact every track should plan
+8. **`nproc` on this box is 1**, and that is a fact every track should plan
    against. Round 431 died at `max_turns` waiting for a suite that was
    contending with a health-check for one core, and left a 38-minute orphan.
    `harness/tests/test_swe_campaign.py::test_cli_runs_offline_stages_and_stops`
@@ -21602,7 +21708,7 @@ hygiene commitments kept.
    a worktree, not caused by round 431's `--junitxml`** — which makes that
    file a multi-hour proposition. It needs a slow marker so it stops being
    run inside a round's turn budget by accident. harness(A) or SWE-loop(D).
-4. **A prediction bank must DERIVE the numbers it opens with.** Round 432's
+9. **A prediction bank must DERIVE the numbers it opens with.** Round 432's
    A2 quoted round 428's "12 of 22 blind pins" into its own bank without
    running anything; the measured figure is 8 of 23 pins, 15 blind, and
    round 428's own banked file already said 8. This is round 430's "a number
@@ -21610,11 +21716,11 @@ hygiene commitments kept.
    warning, so the control belongs in the instrument rather than in advice:
    `skills/prediction-banking/SKILL.md` should require a bank's baseline
    numbers to carry the command that produced them. skills(B).
-5. **Round 431's diff is landed and its `CAMPAIGN_RESULT` is filled with
+10. **Round 431's diff is landed and its `CAMPAIGN_RESULT` is filled with
    8 of 36 passed plus the reason**, not with a green line. If a later round
    wants that number it should run the two files ALONE on this box and
    budget hours, not minutes.
-6. **Carried, and NOT re-derived by this round — read that as a warning
+11. **Carried, and NOT re-derived by this round — read that as a warning
    rather than as a re-assertion.** Round 430's items 1-9 and round 429's
    items 4, 5 and 10 stand because nothing this round touched them, not
    because this round checked them; round 428's items 1 and 4 closed above
