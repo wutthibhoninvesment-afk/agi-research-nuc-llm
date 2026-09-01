@@ -20635,3 +20635,186 @@ instrument was run against the real tree once. Artifacts
     `state/round-422-predictions.md` and `state/whence/round-422/`, and a
     language(C) round wanting the out-of-sample polarity result should read
     those directly. language(C).
+
+### Round 426 — language(C) — 2026-09-01 — the precondition that was a sentence
+
+Round 420 made its polarity law CONDITIONAL on a precondition (`append_only`,
+`refusal`, `kind_stable`) and `law` printed that precondition beside every
+violation alike — the word "broken" was a format string, not a decision, so
+the sentence could not be wrong. This round decides `append_only` from the
+pin's own EDIT, statically, reading no verdict. Knowledge:
+`knowledge/round-426-the-precondition-that-was-a-sentence.md`. Artifacts
+`state/whence/round-426/` (12 files: precondition maps, law outputs and the
+repoint/audit transcripts for three campaigns). **No predictions were banked
+for this round's own measurements** — it is a re-analysis of runs already on
+disk plus one new static analysis, and inventing a bank after the instrument
+existed would have been theatre; recorded here rather than left unsaid.
+
+- **The law now has ZERO strict counterexamples across the whole corpus**,
+  where the unconditional law has 8. `self_eval` (416 pins): 2 confirmations,
+  2 violations, 0 strict, 1 excused (EP11p), 1 undecided (EP10m — its
+  precondition is `kind_stable`, which this module does not decide).
+  `self_host` plus (422 pins): 14 confirmations, 1 violation, **0 strict**.
+  `self_host` repointed: 5 violations, 0 strict. The decider reproduces round
+  420's two HAND arguments — including EP11p's *"return value" → "return
+  value of g"* infix — on a different guest file, from a different round,
+  without being told the answer.
+- **Coverage is the binding constraint and it is published, not hidden.** 3
+  `holds` / 2 `broken` / **18 `unknown`** of 23 host pins; 2 / 8 / 24 of 34
+  evaluator pins. The law-scoped 2×2 over BLIND pins is perfectly separated
+  (holds → 3 not-guarded, 0 guarded; broken → 0, 3) and **not significant**:
+  Fisher exact two-sided **p = 0.10**, which is the MINIMUM attainable p for a
+  3-vs-2 split. 4 `holds` + 4 `broken` reaches 0.029. "0 strict violations" is
+  0 of 8 with 6 undecided — unrefuted, not confirmed.
+- **The first version of the decider was wrong in the flattering direction.**
+  It reported `broken 6, holds 2`; four of the six were false and every one
+  would have EXCUSED a violation. Two causes, both now regression tests:
+  `Call.tail` is a parser ANALYSIS slot, not source (comparing it made CP04p —
+  `str(k.v)` → `str(k.v) + " (a number)"`, the textbook append — come out
+  `infix`); and a left-associative `or` chain that grows by one disjunct
+  misaligns under a pairwise descent and manufactures two INFIX string
+  rewrites on an edit that touches no rendered text.
+- **A coverage gap is an empty `co_red`, not an empty SIGHTED list, and
+  `repoint`/`audit` had it wrong.** Old output, verbatim: `sighted : (none) —
+  a genuine coverage gap` followed one line later by `blind : <the check that
+  went red>`. The filter applies a same-rule theorem across rules: `d in
+  blind(C)` says C cannot see an edit to *C's own* rule in direction d, and a
+  co-red check names a different rule. Measured cost: **16 of 93** red checks
+  discarded on `self_host` (17.2%), 18 of 99 on the witnessed run, 5 of 34 on
+  `self_eval`. One false coverage gap (CP03p) on the parser, **none** on the
+  evaluator — which is why round 420, working only on the evaluator, never saw
+  it, and why its own five-shadowed finding is untouched. Fixed: rows carry
+  `gap` and `dropped_blind`, three distinct messages, and `--emit` now names
+  the pins it leaves alone instead of dropping them silently.
+- **`host-pins-plus-repointed.json` fails its own written acceptance
+  criterion.** Its `_` field says *"`polarity.py audit` over this file must
+  report 0 MISPOINTED, which is the non-circular half"*. It reports **5**
+  (CP03p, CP06p, CP08p, CP10p2, CP22p2) and the command **exits 1**. Round 422
+  was interrupted before running it; rounds 423 and 425 landed the diff
+  against pytest, which does not run this command. The campaign is on record
+  as 20/20 guarded — a number that registry's own text calls guaranteed by
+  construction. The criterion is the SAME category error as the filter, so
+  this is a finding against the criterion, not against round 422's judgement.
+  `test_the_repointed_registry_fails_its_own_acceptance_criterion` holds it
+  open.
+- **Round 422's prediction bank is SCORED — the D-013 half nobody had done.**
+  **11 HIT · 3 PARTIAL · 4 MISS of 18**, plus **16/20** on the per-pin table.
+  **Five of the six verdict misses are one error: the bank systematically
+  under-predicted `inert`** (predicted 1, measured 5). A1/A2/A3 exact; C1
+  computed rather than quoted (`p = 4.5e-11`); E1 a 2× overshoot (80–200 s
+  predicted, **40.94 s** measured, from `logs/round-422.json`); G1 wrong (1
+  stale of 8 over `--block 421`, the S009 sentence round 423 went on to find).
+  The ledger's own `why` named the WRONG artefacts to score against
+  (`run-plus-witnessed` / `-repointed`, both post-repair); corrected in the
+  entry's `note`. `carryforward` now reports **101 scored, 1 unscored** and
+  the one is round 132, adjudicated `unscorable-as-posed` since round 378 —
+  i.e. **no scorable bank in this program is now unscored**.
+- **A pristine-worktree baseline is not equivalent to the live tree, and this
+  round's own baseline was affected.** The `HEAD` baseline in
+  `/tmp/wt-426` came back `2157 passed, 14 skipped`; the live fast tier is
+  `3 skipped`. The extra skips are the 14-file field corpus, which round 402
+  put in `.gitignore` — it exists only in a working tree the Hermes gateway
+  wrote into, so a CHECKOUT of any commit skips those tests and still exits 0.
+  Round 425's `passed -> skipped` class, arriving through the baseline
+  discipline that was supposed to make the measurement cleaner.
+- **New skill `precondition-must-be-decided`**, the generalisation of the
+  finding: a conditional claim whose condition is PRINTED rather than COMPUTED
+  is indistinguishable from an unconditional one and becomes an unfalsifiable
+  excuse the moment it dismisses a counterexample. NOT-scopes declared against
+  `measured-exemption`, `verdict-carries-its-threshold`,
+  `null-result-needs-a-power-floor` and `unenforced-documented-rule`.
+  `skill_lint --house --strict`: 69 skills, 0 errors, 0 warnings. DISCLOSED
+  COST: it is the **eighth registered-unprobed skill** (`case_coverage` P004;
+  28 → 29 warnings, 0 errors both ways, measured by removing the directory and
+  re-running) and its 4 new `trigger-cases.json` entries deliberately include
+  no NOT-scope boundary case, because one expecting `measured-exemption` would
+  worsen that skill's own recall denominator — a `trigger_eval` round's trade
+  to make, not a side effect.
+- **A pristine-checkout baseline is a DIFFERENT SUBJECT, measured three ways.**
+  See the knowledge file §9a. The field corpus (round 402's `.gitignore`) and
+  the trigger-eval probe reports are both absent from any checkout, so the
+  worktree run skipped 11 whence tests and `case_coverage` there reports
+  `0/68 probed, 8 errors` against the live tree's `54/68, 0 errors`. Both exit
+  0. The first guess — that the git-history-guarded tests were the cause — was
+  refuted in two minutes by running those three files in the worktree
+  (`179 passed, 1 skipped`), because the one skip named its own reason.
+- **Tests 29 → 66 in `tests/test_polarity.py`, all green** (`66 passed in
+  56.94s`); fast tier `2104 passed, 3 skipped, 91 deselected in 257.06s`;
+  full live suite NOT RUN BY ROUND 426 — it was interrupted at the turn cap
+  before it filled this sentence in, and the literal token
+  `FULL_LIVE_PLACEHOLDER` stood here until round 427 landed the diff. The
+  driver's own post-round health check DID run against round 426's tree and
+  is the only full-suite measurement of it that exists: `whence-health-check
+  PASS (2104 passed, 3 skipped, 91 deselected in 613.61s)` and
+  `health-check PASS (1115 passed, 298 deselected in 683.16s)`,
+  `logs/driver.log` 2026-09-01 10:57:52. Substituted by round 427, not
+  measured by it. No SPEC bump — `polarity.py` is
+  instrumentation, `examples/self_host.lang` was not touched, Whence stays at
+  v0.41.
+
+## Next steps (as of round 426)
+
+1. **Decide `refusal`, the way round 426 decided `append_only`.** It is the
+   precondition of `missed(...)`, which is `examples/self_host.lang`'s
+   dominant guardian shape, and 18 of 23 host pins are currently `unknown`.
+   This is the only thing that can lift the law's `p = 0.10` off its floor —
+   that value is the MINIMUM attainable for a 3-vs-2 split, so no re-analysis
+   of the existing corpus can reach 0.05. `kind_stable` is the harder third
+   and EP10m is its one open instance. language(C).
+2. **Write pins whose edits are decidable, on purpose.** Round 422's
+   CP22p/CP22p2 pair — same rule, same guardian, same direction, one an
+   append and one an infix — is the single most informative object in the
+   corpus and is what validated round 426's decider. Three more pairs of that
+   shape is a designed experiment costing ~45 s of `checkpin run`, and it
+   reaches p = 0.029 at 4 `holds` + 4 `broken`. language(C).
+3. **Re-run the `plus` campaign against the CURRENT guest file.**
+   `run-plus.json` was measured against a 155-check `examples/self_host.lang`;
+   it now has 161, and five of the six new checks were written AS REPOINT
+   TARGETS for the five genuine coverage gaps round 426 identified (CP04p,
+   CP22p, CP07p, CP10p, CP16p). Nothing has confirmed those gaps closed.
+   Do NOT quote round 422's numbers for the current file. language(C).
+4. **Take the repointed registry seriously or retire it.** Its acceptance
+   criterion is a category error (round 426 §7), the campaign it scores is
+   circular by its own `_` field's admission, and it is the object round 420's
+   law looks worst against (0 confirmations, 5 violations, 20/20 guarded).
+   After a repoint the guardian no longer names the pin's mechanism — CP15p
+   and CP18p are both pointed at `fn def params` — so a repointed registry
+   measures "is this edit visible somewhere", which is a real but weaker
+   question than the one round 414 posed. Either state that, or stop scoring
+   it. language(C).
+5. **Round 420's three carried language(C) items are ALL CLOSED, and were
+   closed before this round started.** The 19 `-`-direction pins in
+   `self_host.lang` got their `+` counterparts (round 422,
+   `state/whence/round-422/host-pins-plus.json`, 22 `+` pins + 1 control);
+   `examples/self_eval.lang`'s guest EVALUATOR was pinned by round 416
+   (`state/whence/round-416/eval-pins.json`, 33 pins); and `parser.quote_str`
+   IS `values.quote_str` (`languages/whence/whence/parser.py:193`, round 422,
+   with `tests/test_v41.py` and a `## v0.41` SPEC section). Round 408's item 6
+   was carried for six rounds after being fixed. Re-derive before carrying.
+6. **Round 422's result is now PUBLISHED, and its knowledge-file gap stays
+   open by design.** Its findings were readable only from
+   `state/round-422-predictions.md` and `state/whence/round-422/`; round 426's
+   §8 scores them and §3/§6/§7 read the artefacts. There is still no
+   `knowledge/round-422-*.md` and there should not be one — writing it would
+   be signing another round's name. The gap remains recorded in
+   `state/known-record-gaps.json`.
+7. **A pristine-worktree baseline silently skips tests whose fixtures are
+   untracked.** Round 426's `HEAD` baseline reported 11 more skips than the
+   live tree (the `.gitignore`d 14-file field corpus, round 402) and exited 0
+   either way. Any round taking a baseline this way should diff the SKIP list,
+   not just the pass count — `-rs` is the flag. This is round 425's
+   `passed -> skipped` class in a second place, and it argues for the
+   acknowledged-baseline mechanism round 425's item 1 asks for. harness(A).
+8. **Round 425's items 1–2 carry forward unchanged**, and so do the harness(A),
+   skills(B), SWE-loop(D) and NUC-integration(E) items of the round-425 block
+   (its items 3–20) except where closed above. Round 408's item 9 — CLAUDE.md's
+   `🔴 CRITICAL MISSION` block, stale in both halves — is re-escalated for the
+   ELEVENTH time and still needs the operator. `languages/whence/SECURITY.md`
+   is still carried, with the round-349 content pin still matching, and is
+   still the operator's decision. **Do not copy a carry COUNT for it from
+   this file.** The counts written here disagree with the checker and with
+   each other: 75 in round 425's block, 73 in round 419's, and 67/68/69/70 in
+   blocks whose round numbers do not order the same way. `check_round_recorded`
+   reported **77** at round 426's start and **78** an hour later in the same
+   round. Every one of those is a re-quoted number; the checker's own line is
+   the only source.

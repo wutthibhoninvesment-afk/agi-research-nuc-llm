@@ -1,0 +1,98 @@
+precondition `append_only`, decided from the EDIT alone — examples/self_eval.lang
+  EP01m   broken     
+        infix: "unbound name '" + name + "'" + name_hint(.…  ->  'unbound name' + name_hint(...)
+  EP01p   holds      
+        append: "unbound name '" + name + "'" + name_hint(.…  ->  "unbound name '" + name + "'" + name_hint(.…
+  EP02m   broken     
+        infix: ' (a miss reason … + n + '"`)'  ->  ''
+  EP02p   holds      
+        append: ' (a miss reason … + n + '"`)'  ->  ' (a miss reason … + n + '"`) [or use a li…
+  EP03m   unknown    
+        structural: <Binary>  ->  <BoolLit>
+  EP03p   unknown    
+        structural: <Binary>  ->  <Binary>
+  EP04m   unknown    
+        structural: <RecordLit>  ->  <Block>
+  EP04m2  unknown    
+        structural: <1 item(s)>  ->  <2 item(s)>
+        structural: <Block>  ->  <If>
+  EP04p   unknown    
+        structural: <Binary>  ->  <Binary>
+  EP05m   unknown    
+        structural: <Unary>  ->  <Binary>
+        structural: <Let>  ->  <Let>
+        structural: p  ->  <FieldAccess>
+        append: 'if'  ->  'if took else-branch'
+        structural: <1 item(s)>  ->  <2 item(s)>
+        structural: c  ->  r
+        structural: <If>  ->  <Block>
+  EP05p   unknown    
+        structural: <If>  ->  <Block>
+  EP06m   broken     
+        infix: 'if took then-branch'  ->  'if'
+  EP06p   broken     
+        infix: 'if took else-branch'  ->  'if took then-branch'
+  EP07m   broken     
+        structural: is_guess_val  ->  is_bool
+        infix: 'guess'  ->  'bool'
+        structural: is_bool  ->  is_num
+        infix: 'bool'  ->  'num'
+        structural: is_num  ->  is_str
+        infix: 'num'  ->  'str'
+        structural: is_str  ->  is_list
+        infix: 'str'  ->  'list'
+        structural: is_list  ->  is_guess_val
+        infix: 'list'  ->  'guess'
+  EP07m2  broken     
+        structural: <Binary>  ->  <Binary>
+        structural: is_guess_val  ->  is_bool
+        infix: 'guess'  ->  'bool'
+        structural: is_bool  ->  is_num
+        infix: 'bool'  ->  'num'
+        structural: is_num  ->  is_str
+        infix: 'num'  ->  'str'
+        structural: is_str  ->  is_list
+        infix: 'str'  ->  'list'
+        structural: is_list  ->  is_guess_val
+        infix: 'list'  ->  'guess'
+  EP08m   unknown    
+        structural: <Binary>  ->  <Binary>
+  EP08p   unknown    
+        structural: <Binary>  ->  <BoolLit>
+  EP09m   unknown    
+        structural: <MissLit>  ->  <If>
+  EP09p   unknown    
+        structural: <Binary>  ->  <Binary>
+  EP10m   unknown    
+        structural: <Binary>  ->  guest_eq(...)
+  EP10p   unknown    
+        structural: guest_eq(...)  ->  <Binary>
+  EP11m   broken     
+        infix: 'return value of ' + fn_name  ->  'return value'
+  EP11p   broken     
+        infix: 'return value'  ->  'return value of ' + fn_name
+  EP12m   unknown    
+        structural: <Binary>  ->  <Binary>
+  EP12m2  unknown    
+        structural: <Binary>  ->  <Binary>
+        structural: <Binary>  ->  <Binary>
+  EP12p   unknown    
+        structural: <If>  ->  box
+  EP13m   unknown    
+        structural: <Binary>  ->  missed(...)
+  EP13p   unknown    
+        structural: <Binary>  ->  <BoolLit>
+  EP14m   unknown    
+        structural: <2 item(s)>  ->  <1 item(s)>
+  EP15m   unknown    
+        structural: <3 item(s)>  ->  <0 item(s)>
+  EP16m   unknown    
+        structural: <3 item(s)>  ->  <1 item(s)>
+  EP16p   unknown    
+        structural: <3 item(s)>  ->  <1 item(s)>
+  NC01    unknown    
+        structural: <Binary>  ->  <Binary>
+  NC02    unknown    
+        structural: <Binary>  ->  <Binary>
+  broken 8, holds 2, unknown 24
+wrote ../../state/whence/round-426/pre-eval-416.json

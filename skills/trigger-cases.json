@@ -1932,5 +1932,31 @@
   "id": "nini-neg-schedule",
   "expect": [],
   "prompt": "We have a linter that everyone agrees is correct, and it is simply not in any CI job or cron entry \u2014 there is one binary, no subcommands. What is the best way to get it scheduled and to measure how long violations have been surviving?"
+ },
+ {
+  "id": "pmbd-near",
+  "expect": [
+   "precondition-must-be-decided"
+  ],
+  "prompt": "Our invariant checker says the rule holds \"as long as the update is append-only\", and every counterexample it prints carries that same sentence. Nobody has ever checked whether a given counterexample's update actually was append-only. How should I fix the report?"
+ },
+ {
+  "id": "pmbd-mid",
+  "expect": [
+   "precondition-must-be-decided"
+  ],
+  "prompt": "We have a guarantee with five known exceptions, and each one was argued away in a review comment by whoever hit it. I want to stop arguing them one at a time. What would make this falsifiable again?"
+ },
+ {
+  "id": "pmbd-far",
+  "expect": [
+   "precondition-must-be-decided"
+  ],
+  "prompt": "I'm adding an \"assuming the clock is monotonic\" clause to this ordering guarantee because two traces violate it. Reviewer is uneasy and I can't articulate why."
+ },
+ {
+  "id": "pmbd-neg-readme",
+  "expect": [],
+  "prompt": "Our README's assumptions section is out of date and mentions a database we stopped using. Can you rewrite that section?"
  }
 ]

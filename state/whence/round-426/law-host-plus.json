@@ -1,0 +1,318 @@
+{
+  "violations": [
+    {
+      "id": "CP22p2",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "expect_name says which KIND of name it wanted",
+      "blind": true,
+      "shape": "contains(...)",
+      "unknown": false,
+      "pre": [
+        "append_only"
+      ],
+      "dupe_label": false,
+      "pre_status": "broken"
+    }
+  ],
+  "confirmations": [
+    {
+      "id": "CP03p",
+      "dir": "+",
+      "verdict": "shadowed",
+      "guardian": "a quote inside a string in the got slot is escaped, so it re-lexes",
+      "blind": true,
+      "shape": "contains(...)",
+      "unknown": false,
+      "pre": [
+        "append_only"
+      ],
+      "dupe_label": false
+    },
+    {
+      "id": "CP04p",
+      "dir": "+",
+      "verdict": "shadowed",
+      "guardian": "a number in the got slot is not quoted",
+      "blind": true,
+      "shape": "contains(...)",
+      "unknown": false,
+      "pre": [
+        "append_only"
+      ],
+      "dupe_label": false
+    },
+    {
+      "id": "CP05p",
+      "dir": "+",
+      "verdict": "inert",
+      "guardian": "a newline in the got slot is prose, not the host language's escape",
+      "blind": true,
+      "shape": "contains(...)",
+      "unknown": false,
+      "pre": [
+        "append_only"
+      ],
+      "dupe_label": false
+    },
+    {
+      "id": "CP22p",
+      "dir": "+",
+      "verdict": "shadowed",
+      "guardian": "expect_name says which KIND of name it wanted",
+      "blind": true,
+      "shape": "contains(...)",
+      "unknown": false,
+      "pre": [
+        "append_only"
+      ],
+      "dupe_label": false
+    },
+    {
+      "id": "CP07p",
+      "dir": "+",
+      "verdict": "shadowed",
+      "guardian": "lexer newline NOT suppressed inside a block nested in parens",
+      "blind": true,
+      "shape": "contains(...)",
+      "unknown": false,
+      "pre": [
+        "append_only"
+      ],
+      "dupe_label": false
+    },
+    {
+      "id": "CP13p",
+      "dir": "+",
+      "verdict": "shadowed",
+      "guardian": "a trailing comma is refused in a call",
+      "blind": true,
+      "shape": "missed(...)",
+      "unknown": false,
+      "pre": [
+        "refusal"
+      ],
+      "dupe_label": false
+    },
+    {
+      "id": "CP14p",
+      "dir": "+",
+      "verdict": "shadowed",
+      "guardian": "...in a list literal",
+      "blind": true,
+      "shape": "missed(...)",
+      "unknown": false,
+      "pre": [
+        "refusal"
+      ],
+      "dupe_label": false
+    },
+    {
+      "id": "CP15p",
+      "dir": "+",
+      "verdict": "shadowed",
+      "guardian": "...in a parameter list",
+      "blind": true,
+      "shape": "missed(...)",
+      "unknown": false,
+      "pre": [
+        "refusal"
+      ],
+      "dupe_label": false
+    },
+    {
+      "id": "CP16p",
+      "dir": "+",
+      "verdict": "shadowed",
+      "guardian": "chained comparisons are rejected, matching the host",
+      "blind": true,
+      "shape": "missed(...)",
+      "unknown": false,
+      "pre": [
+        "refusal"
+      ],
+      "dupe_label": false
+    },
+    {
+      "id": "CP17p",
+      "dir": "+",
+      "verdict": "shadowed",
+      "guardian": "duplicate let in one block is a miss",
+      "blind": true,
+      "shape": "missed(...)",
+      "unknown": false,
+      "pre": [
+        "refusal"
+      ],
+      "dupe_label": false
+    },
+    {
+      "id": "CP18p",
+      "dir": "+",
+      "verdict": "shadowed",
+      "guardian": "duplicate param is a miss",
+      "blind": true,
+      "shape": "missed(...)",
+      "unknown": false,
+      "pre": [
+        "refusal"
+      ],
+      "dupe_label": false
+    },
+    {
+      "id": "CP19p",
+      "dir": "+",
+      "verdict": "shadowed",
+      "guardian": "duplicate shape fields are rejected",
+      "blind": true,
+      "shape": "missed(...)",
+      "unknown": false,
+      "pre": [
+        "refusal"
+      ],
+      "dupe_label": false
+    },
+    {
+      "id": "CP20p",
+      "dir": "+",
+      "verdict": "shadowed",
+      "guardian": "an unknown type name is still rejected",
+      "blind": true,
+      "shape": "missed(...)",
+      "unknown": false,
+      "pre": [
+        "refusal"
+      ],
+      "dupe_label": false
+    },
+    {
+      "id": "CP21p",
+      "dir": "+",
+      "verdict": "shadowed",
+      "guardian": "a shape cannot reference itself",
+      "blind": true,
+      "shape": "missed(...)",
+      "unknown": false,
+      "pre": [
+        "refusal"
+      ],
+      "dupe_label": false
+    }
+  ],
+  "unmatched": [],
+  "sighted": [
+    {
+      "id": "CP06p",
+      "dir": "+",
+      "verdict": "shadowed",
+      "guardian": "lexer newline suppressed inside parens",
+      "blind": false,
+      "shape": "not(contains(...))",
+      "unknown": false,
+      "pre": [
+        "append_only"
+      ],
+      "dupe_label": false
+    },
+    {
+      "id": "CP08p",
+      "dir": "+",
+      "verdict": "shadowed",
+      "guardian": "newline after a binary op is a continuation, no brackets involved",
+      "blind": false,
+      "shape": "not(contains(...))",
+      "unknown": false,
+      "pre": [
+        "append_only"
+      ],
+      "dupe_label": false
+    },
+    {
+      "id": "CP09p",
+      "dir": "+",
+      "verdict": "shadowed",
+      "guardian": "lexer bare trailing e is not consumed as an exponent",
+      "blind": false,
+      "shape": "two-sided `==` and two-sided `==` and two-sided `==` and two-sided `==`",
+      "unknown": false,
+      "pre": [],
+      "dupe_label": false
+    },
+    {
+      "id": "CP10p",
+      "dir": "+",
+      "verdict": "unreachable",
+      "guardian": "a carriage return is whitespace, as it is on the host",
+      "blind": false,
+      "shape": "two-sided `==` and two-sided `==`",
+      "unknown": false,
+      "pre": [],
+      "dupe_label": false
+    },
+    {
+      "id": "CP10p2",
+      "dir": "+",
+      "verdict": "shadowed",
+      "guardian": "a carriage return is whitespace, as it is on the host",
+      "blind": false,
+      "shape": "two-sided `==` and two-sided `==`",
+      "unknown": false,
+      "pre": [],
+      "dupe_label": false
+    },
+    {
+      "id": "CP11p",
+      "dir": "+",
+      "verdict": "shadowed",
+      "guardian": "...and the GUEST decodes that escape too, not just the host",
+      "blind": false,
+      "shape": "two-sided `==` and two-sided `==`",
+      "unknown": false,
+      "pre": [],
+      "dupe_label": false
+    },
+    {
+      "id": "CP12p",
+      "dir": "+",
+      "verdict": "shadowed",
+      "guardian": "one digit past the cap is a lex error, in the host's own words",
+      "blind": false,
+      "shape": "two-sided `==`",
+      "unknown": false,
+      "pre": [],
+      "dupe_label": false
+    },
+    {
+      "id": "NC02p",
+      "dir": null,
+      "verdict": "unreachable",
+      "guardian": "newline after a binary op is a continuation, no brackets involved",
+      "blind": false,
+      "shape": "not(contains(...))",
+      "unknown": false,
+      "pre": [
+        "append_only"
+      ],
+      "dupe_label": false
+    }
+  ],
+  "excused": [
+    {
+      "id": "CP22p2",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "expect_name says which KIND of name it wanted",
+      "blind": true,
+      "shape": "contains(...)",
+      "unknown": false,
+      "pre": [
+        "append_only"
+      ],
+      "dupe_label": false,
+      "pre_status": "broken"
+    }
+  ],
+  "undecided": [],
+  "strict_violations": [],
+  "n_scored": 23
+}

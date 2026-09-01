@@ -1,0 +1,36 @@
+law: BLIND(guardian, dir) => NOT guarded
+  scored 22 pin(s) against examples/self_host.lang
+  0 confirmation(s) — blind, and indeed not guarded:
+  17 sighted pin(s) — not blind in that direction:
+    CP04p   dir +  guarded     the got slot for a number is the number, with  [two-sided `==`]
+    CP22p   dir +  guarded     ...and a want sentence ends at its position cl [two-sided `==`]
+    CP07p   dir +  guarded     ...and a newline inside a list literal is supp [not(contains(...))]
+    CP09p   dir +  guarded     lexer exponent literal                         [two-sided `==`]
+    CP10p   dir +  unreachable a carriage return is whitespace, as it is on t [two-sided `==` and two-sided `==`]
+    CP11p   dir +  guarded     a bad escape is reported at the backslash, as  [two-sided `==`]
+    CP12p   dir +  guarded     an integer literal at the cap is accepted      [two-sided `==`]
+    CP13p   dir +  guarded     but a comma still separates two of anything    [not(missed(...)) and not(missed(..]
+    CP14p   dir +  guarded     list has three items                           [two-sided `==`]
+    CP15p   dir +  guarded     fn def params                                  [two-sided `==`]
+    CP16p   dir +  guarded     a comparison next to the 'and' its miss recomm [not(missed(...))]
+    CP17p   dir +  guarded     a name bound inside a closed block does not co [not(missed(...))]
+    CP18p   dir +  guarded     fn def params                                  [two-sided `==`]
+    CP19p   dir +  guarded     a shape declaration parses                     [not(missed(...))]
+    CP20p   dir +  guarded     a primitive field type becomes a str spec node [two-sided `==` and two-sided `==`]
+    CP21p   dir +  guarded     a shape-typed field becomes a name node, not a [two-sided `==` and two-sided `==`]
+    NC02p   dir None  unreachable newline after a binary op is a continuation, n [not(contains(...))]
+  5 VIOLATION(s) — guarded although blind. The law is CONDITIONAL on the
+  precondition named beside each; a violation is an edit that left the order,
+  not a check that saw through its own blindness:
+    *** CP03p   dir +  guarded but +-blind  [contains(...) and contains(...)]  precondition unknown: append_only
+          structural: <Block>  ->  <If>
+    *** CP22p2  dir +  guarded but +-blind  [contains(...)]  precondition broken: append_only
+          infix: 'expected ' + what + ', got ' + show_tok(..…  ->  'expected ' + what + ' here, got ' + show_t…
+    *** CP06p   dir +  guarded but +-blind  [contains(...)]  precondition unknown: append_only
+          structural: <Binary>  ->  <Binary>
+    *** CP08p   dir +  guarded but +-blind  [contains(...)]  precondition unknown: append_only
+          structural: <Binary>  ->  <Binary>
+    *** CP10p2  dir +  guarded but +-blind  [contains(...)]  precondition unknown: append_only
+          structural: <Binary>  ->  <Binary>
+  of those, 0 STRICT (`append_only` established for the edit, so the law is refuted here), 1 excused (`append_only` demonstrably BROKEN by the edit, so the law makes no claim) and 4 undecided (the edit is not string-shaped; appending is neither established nor refuted)
+wrote ../../state/whence/round-426/law-host-repointed.json

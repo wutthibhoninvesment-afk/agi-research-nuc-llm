@@ -1,0 +1,238 @@
+{
+  "CP03p": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: <Block>  ->  <If>"
+    ]
+  },
+  "CP04p": {
+    "status": "holds",
+    "why": null,
+    "kinds": [
+      "append"
+    ],
+    "deltas": [
+      "append: str(...)  ->  str(...) + ' (a number)'"
+    ]
+  },
+  "CP05p": {
+    "status": "holds",
+    "why": null,
+    "kinds": [
+      "append"
+    ],
+    "deltas": [
+      "append: 'a line break'  ->  'a line break (statement separator)'"
+    ]
+  },
+  "CP22p": {
+    "status": "holds",
+    "why": null,
+    "kinds": [
+      "append"
+    ],
+    "deltas": [
+      "append: 'expected ' + what + ', got ' + show_tok(..\u2026  ->  'expected ' + what + ', got ' + show_tok(..\u2026"
+    ]
+  },
+  "CP22p2": {
+    "status": "broken",
+    "why": null,
+    "kinds": [
+      "infix"
+    ],
+    "deltas": [
+      "infix: 'expected ' + what + ', got ' + show_tok(..\u2026  ->  'expected ' + what + ' here, got ' + show_t\u2026"
+    ]
+  },
+  "CP06p": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: <Binary>  ->  <Binary>"
+    ]
+  },
+  "CP07p": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: <Binary>  ->  <Binary>"
+    ]
+  },
+  "CP08p": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: <Binary>  ->  <Binary>"
+    ]
+  },
+  "CP09p": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: <If>  ->  j"
+    ]
+  },
+  "CP10p": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: <Binary>  ->  <Binary>"
+    ]
+  },
+  "CP10p2": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: <Binary>  ->  <Binary>"
+    ]
+  },
+  "CP11p": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: ''  ->  e"
+    ]
+  },
+  "CP12p": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: num_text_digit_limit  ->  10"
+    ]
+  },
+  "CP13p": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: parse_args_rest(...)  ->  <MissLit>"
+    ]
+  },
+  "CP14p": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: parse_list_rest(...)  ->  <MissLit>"
+    ]
+  },
+  "CP15p": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: parse_params_rest(...)  ->  <MissLit>"
+    ]
+  },
+  "CP16p": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: <Binary>  ->  <Binary>"
+    ]
+  },
+  "CP17p": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: bound_line(...)  ->  1"
+    ]
+  },
+  "CP18p": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: contains(...)  ->  <Binary>"
+    ]
+  },
+  "CP19p": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: contains(...)  ->  <Binary>"
+    ]
+  },
+  "CP20p": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: <RecordLit>  ->  <If>"
+    ]
+  },
+  "CP21p": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: <RecordLit>  ->  <MissLit>"
+    ]
+  },
+  "NC02p": {
+    "status": "broken",
+    "why": null,
+    "kinds": [
+      "infix",
+      "structural",
+      "infix",
+      "structural"
+    ],
+    "deltas": [
+      "infix: 'op'  ->  'kw'",
+      "structural: continue_ops  ->  continue_kws",
+      "infix: 'kw'  ->  'op'",
+      "structural: continue_kws  ->  continue_ops"
+    ]
+  }
+}

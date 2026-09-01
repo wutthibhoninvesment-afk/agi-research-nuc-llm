@@ -1,0 +1,52 @@
+precondition `append_only`, decided from the EDIT alone — examples/self_host.lang
+  CP03p   unknown    
+        structural: <Block>  ->  <If>
+  CP04p   holds      
+        append: str(...)  ->  str(...) + ' (a number)'
+  CP05p   holds      
+        append: 'a line break'  ->  'a line break (statement separator)'
+  CP22p   holds      
+        append: 'expected ' + what + ', got ' + show_tok(..…  ->  'expected ' + what + ', got ' + show_tok(..…
+  CP22p2  broken     
+        infix: 'expected ' + what + ', got ' + show_tok(..…  ->  'expected ' + what + ' here, got ' + show_t…
+  CP06p   unknown    
+        structural: <Binary>  ->  <Binary>
+  CP07p   unknown    
+        structural: <Binary>  ->  <Binary>
+  CP08p   unknown    
+        structural: <Binary>  ->  <Binary>
+  CP09p   unknown    
+        structural: <If>  ->  j
+  CP10p   unknown    
+        structural: <Binary>  ->  <Binary>
+  CP10p2  unknown    
+        structural: <Binary>  ->  <Binary>
+  CP11p   unknown    
+        structural: ''  ->  e
+  CP12p   unknown    
+        structural: num_text_digit_limit  ->  10
+  CP13p   unknown    
+        structural: parse_args_rest(...)  ->  <MissLit>
+  CP14p   unknown    
+        structural: parse_list_rest(...)  ->  <MissLit>
+  CP15p   unknown    
+        structural: parse_params_rest(...)  ->  <MissLit>
+  CP16p   unknown    
+        structural: <Binary>  ->  <Binary>
+  CP17p   unknown    
+        structural: bound_line(...)  ->  1
+  CP18p   unknown    
+        structural: contains(...)  ->  <Binary>
+  CP19p   unknown    
+        structural: contains(...)  ->  <Binary>
+  CP20p   unknown    
+        structural: <RecordLit>  ->  <If>
+  CP21p   unknown    
+        structural: <RecordLit>  ->  <MissLit>
+  NC02p   broken     
+        infix: 'op'  ->  'kw'
+        structural: continue_ops  ->  continue_kws
+        infix: 'kw'  ->  'op'
+        structural: continue_kws  ->  continue_ops
+  broken 2, holds 3, unknown 18
+wrote ../../state/whence/round-426/pre-host-plus.json

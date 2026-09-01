@@ -1,0 +1,353 @@
+{
+  "violations": [
+    {
+      "id": "CP03p",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "a string in the got slot is a Whence literal, always double-quoted",
+      "blind": true,
+      "shape": "contains(...) and contains(...)",
+      "unknown": false,
+      "pre": [
+        "append_only"
+      ],
+      "dupe_label": false,
+      "pre_status": "unknown"
+    },
+    {
+      "id": "CP22p2",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "expect_name says which KIND of name it wanted",
+      "blind": true,
+      "shape": "contains(...)",
+      "unknown": false,
+      "pre": [
+        "append_only"
+      ],
+      "dupe_label": false,
+      "pre_status": "broken"
+    },
+    {
+      "id": "CP06p",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "lexer newline NOT suppressed inside a block nested in parens",
+      "blind": true,
+      "shape": "contains(...)",
+      "unknown": false,
+      "pre": [
+        "append_only"
+      ],
+      "dupe_label": false,
+      "pre_status": "unknown"
+    },
+    {
+      "id": "CP08p",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "newline after a NAME (ordinary statement end) is still a separator",
+      "blind": true,
+      "shape": "contains(...)",
+      "unknown": false,
+      "pre": [
+        "append_only"
+      ],
+      "dupe_label": false,
+      "pre_status": "unknown"
+    },
+    {
+      "id": "CP10p2",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "lexer bad character reported",
+      "blind": true,
+      "shape": "contains(...)",
+      "unknown": false,
+      "pre": [
+        "append_only"
+      ],
+      "dupe_label": false,
+      "pre_status": "unknown"
+    }
+  ],
+  "confirmations": [],
+  "unmatched": [],
+  "sighted": [
+    {
+      "id": "CP04p",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "the got slot for a number is the number, with nothing appended",
+      "blind": false,
+      "shape": "two-sided `==`",
+      "unknown": false,
+      "pre": [],
+      "dupe_label": false
+    },
+    {
+      "id": "CP22p",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "...and a want sentence ends at its position clause",
+      "blind": false,
+      "shape": "two-sided `==`",
+      "unknown": false,
+      "pre": [],
+      "dupe_label": false
+    },
+    {
+      "id": "CP07p",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "...and a newline inside a list literal is suppressed too",
+      "blind": false,
+      "shape": "not(contains(...))",
+      "unknown": false,
+      "pre": [
+        "append_only"
+      ],
+      "dupe_label": false
+    },
+    {
+      "id": "CP09p",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "lexer exponent literal",
+      "blind": false,
+      "shape": "two-sided `==`",
+      "unknown": false,
+      "pre": [],
+      "dupe_label": false
+    },
+    {
+      "id": "CP10p",
+      "dir": "+",
+      "verdict": "unreachable",
+      "guardian": "a carriage return is whitespace, as it is on the host",
+      "blind": false,
+      "shape": "two-sided `==` and two-sided `==`",
+      "unknown": false,
+      "pre": [],
+      "dupe_label": false
+    },
+    {
+      "id": "CP11p",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "a bad escape is reported at the backslash, as on the host",
+      "blind": false,
+      "shape": "two-sided `==`",
+      "unknown": false,
+      "pre": [],
+      "dupe_label": false
+    },
+    {
+      "id": "CP12p",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "an integer literal at the cap is accepted",
+      "blind": false,
+      "shape": "two-sided `==`",
+      "unknown": false,
+      "pre": [],
+      "dupe_label": false
+    },
+    {
+      "id": "CP13p",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "but a comma still separates two of anything",
+      "blind": false,
+      "shape": "not(missed(...)) and not(missed(...)) and not(missed(...)) and not(missed(...))",
+      "unknown": false,
+      "pre": [
+        "refusal"
+      ],
+      "dupe_label": false
+    },
+    {
+      "id": "CP14p",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "list has three items",
+      "blind": false,
+      "shape": "two-sided `==`",
+      "unknown": false,
+      "pre": [],
+      "dupe_label": false
+    },
+    {
+      "id": "CP15p",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "fn def params",
+      "blind": false,
+      "shape": "two-sided `==`",
+      "unknown": false,
+      "pre": [],
+      "dupe_label": false
+    },
+    {
+      "id": "CP16p",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "a comparison next to the 'and' its miss recommends still parses",
+      "blind": false,
+      "shape": "not(missed(...))",
+      "unknown": false,
+      "pre": [
+        "refusal"
+      ],
+      "dupe_label": false
+    },
+    {
+      "id": "CP17p",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "a name bound inside a closed block does not collide with a later one",
+      "blind": false,
+      "shape": "not(missed(...))",
+      "unknown": false,
+      "pre": [
+        "refusal"
+      ],
+      "dupe_label": false
+    },
+    {
+      "id": "CP18p",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "fn def params",
+      "blind": false,
+      "shape": "two-sided `==`",
+      "unknown": false,
+      "pre": [],
+      "dupe_label": false
+    },
+    {
+      "id": "CP19p",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "a shape declaration parses",
+      "blind": false,
+      "shape": "not(missed(...))",
+      "unknown": false,
+      "pre": [
+        "refusal"
+      ],
+      "dupe_label": false
+    },
+    {
+      "id": "CP20p",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "a primitive field type becomes a str spec node",
+      "blind": false,
+      "shape": "two-sided `==` and two-sided `==`",
+      "unknown": false,
+      "pre": [],
+      "dupe_label": false
+    },
+    {
+      "id": "CP21p",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "a shape-typed field becomes a name node, not a copy",
+      "blind": false,
+      "shape": "two-sided `==` and two-sided `==`",
+      "unknown": false,
+      "pre": [],
+      "dupe_label": false
+    },
+    {
+      "id": "NC02p",
+      "dir": null,
+      "verdict": "unreachable",
+      "guardian": "newline after a binary op is a continuation, no brackets involved",
+      "blind": false,
+      "shape": "not(contains(...))",
+      "unknown": false,
+      "pre": [
+        "append_only"
+      ],
+      "dupe_label": false
+    }
+  ],
+  "excused": [
+    {
+      "id": "CP22p2",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "expect_name says which KIND of name it wanted",
+      "blind": true,
+      "shape": "contains(...)",
+      "unknown": false,
+      "pre": [
+        "append_only"
+      ],
+      "dupe_label": false,
+      "pre_status": "broken"
+    }
+  ],
+  "undecided": [
+    {
+      "id": "CP03p",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "a string in the got slot is a Whence literal, always double-quoted",
+      "blind": true,
+      "shape": "contains(...) and contains(...)",
+      "unknown": false,
+      "pre": [
+        "append_only"
+      ],
+      "dupe_label": false,
+      "pre_status": "unknown"
+    },
+    {
+      "id": "CP06p",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "lexer newline NOT suppressed inside a block nested in parens",
+      "blind": true,
+      "shape": "contains(...)",
+      "unknown": false,
+      "pre": [
+        "append_only"
+      ],
+      "dupe_label": false,
+      "pre_status": "unknown"
+    },
+    {
+      "id": "CP08p",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "newline after a NAME (ordinary statement end) is still a separator",
+      "blind": true,
+      "shape": "contains(...)",
+      "unknown": false,
+      "pre": [
+        "append_only"
+      ],
+      "dupe_label": false,
+      "pre_status": "unknown"
+    },
+    {
+      "id": "CP10p2",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "lexer bad character reported",
+      "blind": true,
+      "shape": "contains(...)",
+      "unknown": false,
+      "pre": [
+        "append_only"
+      ],
+      "dupe_label": false,
+      "pre_status": "unknown"
+    }
+  ],
+  "strict_violations": [],
+  "n_scored": 22
+}

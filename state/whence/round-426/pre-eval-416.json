@@ -1,0 +1,396 @@
+{
+  "EP01m": {
+    "status": "broken",
+    "why": null,
+    "kinds": [
+      "infix"
+    ],
+    "deltas": [
+      "infix: \"unbound name '\" + name + \"'\" + name_hint(.\u2026  ->  'unbound name' + name_hint(...)"
+    ]
+  },
+  "EP01p": {
+    "status": "holds",
+    "why": null,
+    "kinds": [
+      "append"
+    ],
+    "deltas": [
+      "append: \"unbound name '\" + name + \"'\" + name_hint(.\u2026  ->  \"unbound name '\" + name + \"'\" + name_hint(.\u2026"
+    ]
+  },
+  "EP02m": {
+    "status": "broken",
+    "why": null,
+    "kinds": [
+      "infix"
+    ],
+    "deltas": [
+      "infix: ' (a miss reason \u2026 + n + '\"`)'  ->  ''"
+    ]
+  },
+  "EP02p": {
+    "status": "holds",
+    "why": null,
+    "kinds": [
+      "append"
+    ],
+    "deltas": [
+      "append: ' (a miss reason \u2026 + n + '\"`)'  ->  ' (a miss reason \u2026 + n + '\"`) [or use a li\u2026"
+    ]
+  },
+  "EP03m": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: <Binary>  ->  <BoolLit>"
+    ]
+  },
+  "EP03p": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: <Binary>  ->  <Binary>"
+    ]
+  },
+  "EP04m": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: <RecordLit>  ->  <Block>"
+    ]
+  },
+  "EP04m2": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural",
+      "structural"
+    ],
+    "deltas": [
+      "structural: <1 item(s)>  ->  <2 item(s)>",
+      "structural: <Block>  ->  <If>"
+    ]
+  },
+  "EP04p": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: <Binary>  ->  <Binary>"
+    ]
+  },
+  "EP05m": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural",
+      "structural",
+      "structural",
+      "append",
+      "structural",
+      "structural",
+      "structural"
+    ],
+    "deltas": [
+      "structural: <Unary>  ->  <Binary>",
+      "structural: <Let>  ->  <Let>",
+      "structural: p  ->  <FieldAccess>",
+      "append: 'if'  ->  'if took else-branch'",
+      "structural: <1 item(s)>  ->  <2 item(s)>",
+      "structural: c  ->  r",
+      "structural: <If>  ->  <Block>"
+    ]
+  },
+  "EP05p": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: <If>  ->  <Block>"
+    ]
+  },
+  "EP06m": {
+    "status": "broken",
+    "why": null,
+    "kinds": [
+      "infix"
+    ],
+    "deltas": [
+      "infix: 'if took then-branch'  ->  'if'"
+    ]
+  },
+  "EP06p": {
+    "status": "broken",
+    "why": null,
+    "kinds": [
+      "infix"
+    ],
+    "deltas": [
+      "infix: 'if took else-branch'  ->  'if took then-branch'"
+    ]
+  },
+  "EP07m": {
+    "status": "broken",
+    "why": null,
+    "kinds": [
+      "structural",
+      "infix",
+      "structural",
+      "infix",
+      "structural",
+      "infix",
+      "structural",
+      "infix",
+      "structural",
+      "infix"
+    ],
+    "deltas": [
+      "structural: is_guess_val  ->  is_bool",
+      "infix: 'guess'  ->  'bool'",
+      "structural: is_bool  ->  is_num",
+      "infix: 'bool'  ->  'num'",
+      "structural: is_num  ->  is_str",
+      "infix: 'num'  ->  'str'",
+      "structural: is_str  ->  is_list",
+      "infix: 'str'  ->  'list'",
+      "structural: is_list  ->  is_guess_val",
+      "infix: 'list'  ->  'guess'"
+    ]
+  },
+  "EP07m2": {
+    "status": "broken",
+    "why": null,
+    "kinds": [
+      "structural",
+      "structural",
+      "infix",
+      "structural",
+      "infix",
+      "structural",
+      "infix",
+      "structural",
+      "infix",
+      "structural",
+      "infix"
+    ],
+    "deltas": [
+      "structural: <Binary>  ->  <Binary>",
+      "structural: is_guess_val  ->  is_bool",
+      "infix: 'guess'  ->  'bool'",
+      "structural: is_bool  ->  is_num",
+      "infix: 'bool'  ->  'num'",
+      "structural: is_num  ->  is_str",
+      "infix: 'num'  ->  'str'",
+      "structural: is_str  ->  is_list",
+      "infix: 'str'  ->  'list'",
+      "structural: is_list  ->  is_guess_val",
+      "infix: 'list'  ->  'guess'"
+    ]
+  },
+  "EP08m": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: <Binary>  ->  <Binary>"
+    ]
+  },
+  "EP08p": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: <Binary>  ->  <BoolLit>"
+    ]
+  },
+  "EP09m": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: <MissLit>  ->  <If>"
+    ]
+  },
+  "EP09p": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: <Binary>  ->  <Binary>"
+    ]
+  },
+  "EP10m": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: <Binary>  ->  guest_eq(...)"
+    ]
+  },
+  "EP10p": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: guest_eq(...)  ->  <Binary>"
+    ]
+  },
+  "EP11m": {
+    "status": "broken",
+    "why": null,
+    "kinds": [
+      "infix"
+    ],
+    "deltas": [
+      "infix: 'return value of ' + fn_name  ->  'return value'"
+    ]
+  },
+  "EP11p": {
+    "status": "broken",
+    "why": null,
+    "kinds": [
+      "infix"
+    ],
+    "deltas": [
+      "infix: 'return value'  ->  'return value of ' + fn_name"
+    ]
+  },
+  "EP12m": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: <Binary>  ->  <Binary>"
+    ]
+  },
+  "EP12m2": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural",
+      "structural"
+    ],
+    "deltas": [
+      "structural: <Binary>  ->  <Binary>",
+      "structural: <Binary>  ->  <Binary>"
+    ]
+  },
+  "EP12p": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: <If>  ->  box"
+    ]
+  },
+  "EP13m": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: <Binary>  ->  missed(...)"
+    ]
+  },
+  "EP13p": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: <Binary>  ->  <BoolLit>"
+    ]
+  },
+  "EP14m": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: <2 item(s)>  ->  <1 item(s)>"
+    ]
+  },
+  "EP15m": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: <3 item(s)>  ->  <0 item(s)>"
+    ]
+  },
+  "EP16m": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: <3 item(s)>  ->  <1 item(s)>"
+    ]
+  },
+  "EP16p": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: <3 item(s)>  ->  <1 item(s)>"
+    ]
+  },
+  "NC01": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: <Binary>  ->  <Binary>"
+    ]
+  },
+  "NC02": {
+    "status": "unknown",
+    "why": null,
+    "kinds": [
+      "structural"
+    ],
+    "deltas": [
+      "structural: <Binary>  ->  <Binary>"
+    ]
+  }
+}

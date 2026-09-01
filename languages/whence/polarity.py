@@ -105,6 +105,7 @@ Usage
     python3 polarity.py law <pins.json> <run.json>
     python3 polarity.py audit <pins.json> [run.json]
     python3 polarity.py repoint <pins.json> <run.json> [--emit out.json]
+    python3 polarity.py precondition <pins.json> [run.json]
 """
 
 import json
@@ -117,6 +118,7 @@ if _HERE not in sys.path:
 
 from whence import ast_nodes as A          # noqa: E402
 from whence import parser as P             # noqa: E402
+import checkpin as CP                      # noqa: E402
 
 PLUS = "+"
 MINUS = "-"
@@ -321,7 +323,7 @@ def summarise(verdicts):
 
 # --- the law: BLIND(guardian, dir) => NOT guarded --------------------------
 
-def check_law(pins, results, verdicts):
+def check_law(pins, results, verdicts, pre_status=None):
     """Join measured pin verdicts to static polarity and test the law.
 
     `pins` is the registry's `pins` list (each carrying `dir` and
@@ -333,6 +335,17 @@ def check_law(pins, results, verdicts):
     in that pin's dir -- these refute the law), `confirmations` (non-guarded
     pins whose guardian IS blind, the cases the law explains) and `unmatched`
     (a guardian label with no check of that name, i.e. registry rot).
+
+    `pre_status` (round 426, optional) is `precondition_map`'s output. The
+    law is conditional on each atom's precondition, and with the map present
+    `violations` is partitioned three ways: `strict_violations` (the
+    precondition is ESTABLISHED for this pin's edit, so the counterexample
+    stands), `excused` (the edit demonstrably BREAKS it) and `undecided`
+    (the edit is not string-shaped, so appending is neither established nor
+    refuted). All three are returned and all three are printed; the
+    partition is reported, never applied silently. WITHOUT the map every
+    violation is strict -- an absent precondition decision does not excuse
+    anything, which is the only reading that leaves the law falsifiable.
     """
     by_label = {}
     dupes = set()
@@ -363,8 +376,20 @@ def check_law(pins, results, verdicts):
             confirmations.append(row)
         else:
             other.append(row)
+    for row in violations:
+        row["pre_status"] = ((pre_status or {}).get(row["id"]) or {}).get(
+            "status")
+    if pre_status is None:
+        excused, undecided, strict = [], [], list(violations)
+    else:
+        excused = [r for r in violations if r["pre_status"] == PRE_BROKEN]
+        strict = [r for r in violations if r["pre_status"] == PRE_HOLDS]
+        undecided = [r for r in violations
+                     if r["pre_status"] not in (PRE_BROKEN, PRE_HOLDS)]
     return {"violations": violations, "confirmations": confirmations,
             "unmatched": unmatched, "sighted": other,
+            "excused": excused, "undecided": undecided,
+            "strict_violations": strict,
             "n_scored": len(violations) + len(confirmations) + len(other)}
 
 
@@ -426,17 +451,22 @@ def audit_registry(pins, verdicts, results=None):
                          "candidate_source": None, "pre": list(v.pre),
                          "shape": v.reason})
             continue
+        gap = None
         if pin["id"] in co_red:
-            cands = [c for c in co_red[pin["id"]]
-                     if c in by_label and d not in by_label[c].blind]
+            known = [c for c in co_red[pin["id"]] if c in by_label]
+            cands = [c for c in known if d not in by_label[c].blind]
+            dropped = [c for c in known if d in by_label[c].blind]
+            gap = not known
             src = "co_red"
         else:
             if sighted_all is None:
                 sighted_all = [x.label for x in verdicts]
             cands = [c for c in sighted_all if d not in by_label[c].blind]
+            dropped = []
             src = "whole file"
         rows.append({"id": pin["id"], "dir": d, "status": "mispointed",
                      "guardian": pin["guardian"], "candidates": cands,
+                     "dropped_blind": dropped, "gap": gap,
                      "candidate_source": src, "pre": list(v.pre),
                      "shape": v.reason})
     return rows
@@ -476,9 +506,16 @@ def _cmd_audit(args):
             print("        sighted candidates (%s):" % r["candidate_source"])
             for c in r["candidates"]:
                 print("          - %s" % c)
+        elif r["gap"]:
+            print("        NO candidate at all — nothing in the file went "
+                  "red. This one IS a coverage gap.")
+        elif r["gap"] is False:
+            print("        no SIGHTED candidate, but %d red check(s) were "
+                  "dropped by the sightedness filter — NOT a coverage gap: %s"
+                  % (len(r["dropped_blind"]), "; ".join(r["dropped_blind"])))
         else:
-            print("        NO sighted candidate — this one IS a coverage gap "
-                  "in the file.")
+            print("        NO sighted candidate in the whole file. Whether "
+                  "this is a coverage gap needs a run — pass run.json.")
     for r in fp:
         print("  (fp) %-7s dir %s statically %s-blind [%s] but MEASURED "
               "guarded:" % (r["id"], r["dir"], r["dir"], r["shape"][:30]))
@@ -522,17 +559,53 @@ def repoint(pins, verdicts, results):
         if pin is None or pin.get("dir") not in (PLUS, MINUS):
             continue
         d = pin["dir"]
-        cands = [c for c in (r.get("co_red") or ())
-                 if c in by_label and d not in by_label[c].blind]
-        blind_cands = [c for c in (r.get("co_red") or ())
-                       if c in by_label and d in by_label[c].blind]
+        co = [c for c in (r.get("co_red") or ()) if c in by_label]
+        cands = [c for c in co if d not in by_label[c].blind]
+        blind_cands = [c for c in co if d in by_label[c].blind]
         out.append({"id": r["id"], "dir": d, "verdict": r["verdict"],
                     "guardian": r["guardian"],
                     "guardian_blind": bool(by_label.get(r["guardian"]) and
                                            d in by_label[r["guardian"]].blind),
                     "sighted_candidates": cands,
-                    "blind_candidates": blind_cands})
+                    "blind_candidates": blind_cands,
+                    "gap": not co})
     return out
+
+
+def cored_polarity(pins, results, verdicts):
+    """How much of the measured evidence does the sightedness filter drop?
+
+    Round 426. `repoint` and `audit` both keep only the co-red checks that
+    are SIGHTED in the pin's direction, and both then call an empty result a
+    coverage gap. That filter is a same-rule theorem applied across rules:
+    `d in blind(C)` says check `C` cannot see an edit to the rule `C` NAMES
+    moving in direction `d`; a co-red check names a DIFFERENT rule, and the
+    pin's edit is not an edit to it in any direction, so the blindness has
+    no purchase. This function measures the size of the mistake instead of
+    arguing about it -- `blind` here is the count of checks that DID go red
+    and are nevertheless discarded.
+    """
+    by_label = {v.label: v for v in verdicts}
+    by_id = {p["id"]: p for p in pins}
+    total = blind = unmatched = 0
+    false_gaps = []
+    for r in results:
+        pin = by_id.get(r["id"])
+        if pin is None or pin.get("dir") not in (PLUS, MINUS):
+            continue
+        if r.get("verdict") == "guarded":
+            continue          # the filter never runs on a guarded pin
+        d = pin["dir"]
+        co = list(r.get("co_red") or ())
+        known = [c for c in co if c in by_label]
+        unmatched += len(co) - len(known)
+        total += len(known)
+        b = [c for c in known if d in by_label[c].blind]
+        blind += len(b)
+        if known and len(b) == len(known):
+            false_gaps.append(r["id"])
+    return {"co_red_total": total, "co_red_blind": blind,
+            "co_red_unmatched": unmatched, "false_gaps": false_gaps}
 
 
 def _cmd_repoint(args):
@@ -561,11 +634,26 @@ def _cmd_repoint(args):
         if r["sighted_candidates"]:
             for c in r["sighted_candidates"]:
                 print("      sighted : %s" % c)
+        elif r["gap"]:
+            print("      sighted : (none) — a genuine coverage gap: NOTHING "
+                  "in the file went red")
         else:
-            print("      sighted : (none) — a genuine coverage gap")
+            print("      sighted : (none sighted) — but %d check(s) below DID "
+                  "go red, so this is NOT a coverage gap"
+                  % len(r["blind_candidates"]))
         for c in r["blind_candidates"]:
-            print("      blind   : %s   (red, but blind in this direction — "
-                  "not a replacement)" % c)
+            print("      blind   : %s   (red, and dropped by the sightedness "
+                  "filter)" % c)
+    share = cored_polarity(reg["pins"], run["results"], vs)
+    print("  co-red evidence: %d red check(s) named across these pins, %d of "
+          "them (%.1f%%) dropped by the sightedness filter; %d pin(s) have a "
+          "red check and NO sighted one (%s)"
+          % (share["co_red_total"], share["co_red_blind"],
+             100.0 * share["co_red_blind"] / max(share["co_red_total"], 1),
+             len(share["false_gaps"]), ", ".join(share["false_gaps"]) or "-"))
+    gaps = [r["id"] for r in rows if r["gap"]]
+    print("  %d genuine coverage gap(s) — nothing red at all: %s"
+          % (len(gaps), ", ".join(gaps) or "-"))
     if emit:
         new = json.loads(json.dumps(reg))
         picked = {r["id"]: r["sighted_candidates"][0] for r in rows
@@ -582,6 +670,346 @@ def _cmd_repoint(args):
         with open(emit, "w", encoding="utf-8") as f:
             json.dump(new, f, indent=2)
         print("wrote %s (%d re-pointed pin(s))" % (emit, len(picked)))
+        left = [r["id"] for r in rows
+                if not r["sighted_candidates"] and not r["gap"]]
+        if left:
+            print("  NOT re-pointed, and not gaps either — a red check exists "
+                  "but the sightedness filter dropped it: %s" % ", ".join(left))
+    return 0
+
+
+# --- the PRECONDITION: is this pin's EDIT an append? ----------------------
+#
+# Round 426 (language C). Round 420 found that this module's blindness is a
+# property of an order on the OBSERVATION, not of the `dir` field, and it
+# recorded the assumption each atom's monotonicity rests on in `pre`. It
+# recorded it as PROSE. `law` prints "precondition broken: append_only"
+# beside every violation without ever deciding whether the edit broke it —
+# the sentence is emitted for all violations alike, so it carries no
+# information and cannot be wrong.
+#
+# It is decidable, and the guest file is the reason: `examples/self_host.lang`
+# is Whence, so the edit that a pin applies to it can be parsed with the same
+# parser the language ships. `append_only` says the edit only ever APPENDS to
+# the observed text; on the AST that is a statement about `+`-chains:
+#
+#     old:  "expected " + what + ", got "      + show_tok(k) + tok_at(t, p)
+#     new:  "expected " + what + ", got "      + show_tok(k) + tok_at(t, p)
+#                                                            + " [parser]"
+#             -> the old chain is a strict PREFIX of the new one   APPEND
+#
+#     old:  "expected " + what + ", got "      + show_tok(k) + tok_at(t, p)
+#     new:  "expected " + what + " here, got " + show_tok(k) + tok_at(t, p)
+#             -> same length, a non-final atom rewritten            INFIX
+#
+# Those two are pins CP22p and CP22p2 of round 422's registry: the SAME
+# direction on the SAME rule under the SAME guardian, planted by that round
+# as a discriminator with the note "if both come back the same way the
+# precondition is decoration". They did not: CP22p is a finding and CP22p2 is
+# `guarded` — the one violation of the law in that whole campaign. So the
+# precondition is load-bearing, and this section is what makes it checkable
+# by something other than a human reading two Whence functions side by side.
+#
+# THE HONESTY PROBLEM, and how it is handled. A precondition that excuses
+# violations can make any law unfalsifiable: declare every counterexample's
+# precondition broken and the law is unrefuted for ever. Three guards:
+#
+#   1. The decision is made from the EDIT ALONE (`pins.json` + the guest
+#      source) and never reads a verdict. `precondition_map` does not take a
+#      run.
+#   2. It returns THREE values, not two. `broken` is a positive finding — a
+#      string-valued expression demonstrably rewritten other than at its end.
+#      `unknown` is a delta that is not string-shaped at all, where appending
+#      is neither established nor refuted. Only `holds` is a claim.
+#   3. `check_law` treats a violation with no `holds` as still a violation
+#      unless a precondition map is supplied, and reports `strict_violations`
+#      (the law's real counterexamples, precondition established) SEPARATELY
+#      from `excused`, with both counts printed. A reader who distrusts the
+#      excuse can read the first number and ignore the second.
+
+_PARSE_CACHE = {}
+
+
+def _parse_cached(src):
+    prog = _PARSE_CACHE.get(src)
+    if prog is None:
+        prog = P.parse(src)
+        _PARSE_CACHE[src] = prog
+    return prog
+
+
+#: Slots the PARSER fills in as analysis rather than as a record of what the
+#: source says. They must be excluded from both the equality and the delta
+#: walk. Measured, round 426: including `Call.tail` alone made CP04p --
+#: `str(k.v)` -> `str(k.v) + " (a number)"`, the textbook append -- come out
+#: `infix`, because moving a call out of tail position flips the flag the
+#: parser set on it and the two `str(k.v)` nodes stop comparing equal.
+DERIVED_SLOTS = frozenset((
+    "tail",                 # A.Call, set by parser.mark_tails
+    "tail_alias_tag",       # A.Block, set by parser.block
+    "tail_param_name",      # A.Block, set by parser.block
+    "param_call_fact",      # A.FnExpr, set by parser.py
+))
+
+
+def _slots(node):
+    return [f for f in type(node).__slots__ if f not in DERIVED_SLOTS]
+
+
+def _is_concat(node):
+    return isinstance(node, A.Binary) and node.op == "+"
+
+
+def _chain_op(node):
+    return node.op if isinstance(node, A.Binary) else None
+
+
+def _chain_atoms(node, op):
+    """Flatten a left-associative chain of one operator into its atoms."""
+    if isinstance(node, A.Binary) and node.op == op:
+        return _chain_atoms(node.left, op) + _chain_atoms(node.right, op)
+    return [node]
+
+
+def _concat_atoms(node):
+    """Flatten a left-associative `+` chain into its atoms, in text order."""
+    return _chain_atoms(node, "+")
+
+
+def _block_value(node):
+    """The expression a single-value `{ ... }` block evaluates to.
+
+    An `if`/`else` arm in Whence is a Block, so a branch-selection delta
+    (below) would otherwise compare two Blocks and learn nothing. Only the
+    unambiguous case is unwrapped -- a block whose tail statement is a bare
+    expression -- and anything else is handed back untouched.
+    """
+    if isinstance(node, A.Block) and node.stmts:
+        tail = node.stmts[-1]
+        if isinstance(tail, A.ExprStmt) and len(node.stmts) == 1:
+            return tail.expr
+    return node
+
+
+def _node_eq(a, b):
+    """Structural equality over the source-bearing fields `_simple` declares.
+
+    `Node.line` is deliberately NOT compared: every edit moves the lines
+    below it, and a line shift is not a semantic delta. Neither are
+    `DERIVED_SLOTS`.
+    """
+    if type(a) is not type(b):
+        return False
+    if isinstance(a, A.Node):
+        return all(_node_eq(getattr(a, f), getattr(b, f)) for f in _slots(a))
+    if isinstance(a, (list, tuple)):
+        return len(a) == len(b) and all(_node_eq(x, y) for x, y in zip(a, b))
+    return a == b
+
+
+def _walk_delta(a, b, out):
+    """Collect the SHALLOWEST differing (old, new) pairs of two ASTs.
+
+    A `+` chain is treated as one unit: a difference anywhere inside it
+    surfaces as the whole chain, because "is this an append" is a question
+    about the chain and left-associativity misaligns a pairwise descent as
+    soon as the two chains have different lengths.
+
+    Any OTHER associative chain (`or`, `and`, ...) gets the same treatment
+    when the two chains have different LENGTHS, and for the same reason —
+    but the opposite consequence. Round 426 measured what happens without
+    it: CP06p adds one disjunct to `t == "(" or t == "[" or t == "@{" or
+    last_continues(acc)`, a pairwise descent then lines `"["` up against
+    `"@{"` and `"@{"` against `"{"`, and the edit is reported as two INFIX
+    string rewrites -- a positive `broken` finding manufactured entirely by
+    misalignment, on an edit that touches no rendered text at all. Chains of
+    equal length are still descended pairwise, which is where a real delta
+    inside one disjunct is found.
+    """
+    if _is_concat(a) or _is_concat(b):
+        if not _node_eq(a, b):
+            out.append((a, b))
+        return
+    if type(a) is not type(b):
+        out.append((a, b))
+        return
+    if isinstance(a, A.If) and isinstance(b, A.If):
+        # BRANCH SELECTION. A pin whose edit pins a condition to a constant
+        # does not rewrite any text at all -- it changes WHICH text is
+        # produced, and the two branches may stand in any relation to each
+        # other. Round 420 read exactly this shape by hand on EP11p
+        # (`if fn_name == "(anonymous)"` -> `if false`, so "return value"
+        # becomes "return value of g") and called it the infix insertion
+        # that broke `append_only`. Without this case the delta is
+        # `<Binary> -> <BoolLit>`, i.e. structural, i.e. undecided: the
+        # decider would leave round 420's own worked example unexplained.
+        if (isinstance(b.cond, A.BoolLit) and not isinstance(a.cond, A.BoolLit)
+                and a.otherwise is not None
+                and _node_eq(a.then, b.then)
+                and _node_eq(a.otherwise, b.otherwise)):
+            before, after = a.then, a.otherwise
+            if b.cond.value:
+                before, after = a.otherwise, a.then
+            out.append((_block_value(before), _block_value(after)))
+            return
+    if isinstance(a, A.Node):
+        op = _chain_op(a)
+        if op is not None and op == _chain_op(b):
+            lhs, rhs = _chain_atoms(a, op), _chain_atoms(b, op)
+            if len(lhs) != len(rhs):
+                out.append((a, b))
+                return
+        for f in _slots(a):
+            x, y = getattr(a, f), getattr(b, f)
+            if isinstance(x, (A.Node, list, tuple)) or \
+               isinstance(y, (A.Node, list, tuple)):
+                _walk_delta(x, y, out)
+            elif x != y:
+                out.append((a, b))
+                return
+        return
+    if isinstance(a, (list, tuple)):
+        if len(a) != len(b):
+            out.append((a, b))
+            return
+        for x, y in zip(a, b):
+            _walk_delta(x, y, out)
+        return
+    if a != b:
+        out.append((a, b))
+
+
+DELTA_APPEND = "append"
+DELTA_INFIX = "infix"
+DELTA_STRUCTURAL = "structural"
+
+
+def delta_kind(old, new):
+    """Classify one (old, new) delta as `append`, `infix` or `structural`."""
+    string_shaped = (_is_concat(old) or _is_concat(new)
+                     or (isinstance(old, A.Str) and isinstance(new, A.Str)))
+    if not string_shaped:
+        return DELTA_STRUCTURAL
+    lhs, rhs = _concat_atoms(old), _concat_atoms(new)
+    if len(rhs) > len(lhs) and all(_node_eq(x, y) for x, y in zip(lhs, rhs)):
+        return DELTA_APPEND
+    if (len(lhs) == len(rhs) and lhs
+            and all(_node_eq(x, y) for x, y in zip(lhs[:-1], rhs[:-1]))):
+        x, y = lhs[-1], rhs[-1]
+        if (isinstance(x, A.Str) and isinstance(y, A.Str)
+                and y.value.startswith(x.value)
+                and len(y.value) > len(x.value)):
+            return DELTA_APPEND
+    return DELTA_INFIX
+
+
+def _brief(node, limit=44):
+    if isinstance(node, A.Str):
+        s = repr(node.value)
+    elif _is_concat(node):
+        s = " + ".join(_brief(x, 18) for x in _concat_atoms(node))
+    elif isinstance(node, A.NameRef):
+        s = node.name
+    elif isinstance(node, A.Num):
+        s = repr(node.value)
+    elif isinstance(node, A.Call):
+        s = "%s(...)" % (_brief(node.fn, 18)
+                         if not isinstance(node.fn, A.NameRef)
+                         else node.fn.name)
+    elif isinstance(node, A.Node):
+        s = "<%s>" % type(node).__name__
+    elif isinstance(node, (list, tuple)):
+        s = "<%d item(s)>" % len(node)
+    else:
+        s = repr(node)
+    return s if len(s) <= limit else s[:limit - 1] + "…"
+
+
+PRE_HOLDS = "holds"
+PRE_BROKEN = "broken"
+PRE_UNKNOWN = "unknown"
+
+
+def edit_precondition(base_src, pin):
+    """Does this pin's edit respect `append_only`? Reads no verdict.
+
+    Returns a dict with `status` in {holds, broken, unknown, identity,
+    unlocatable, unparsable}, the per-delta `kinds`, and a human-readable
+    `deltas` list. `holds` is the only value that is a claim; `broken` is a
+    positive finding (a string-valued expression rewritten other than at its
+    end) and `unknown` means the edit is not string-shaped, so appending is
+    neither established nor refuted.
+    """
+    try:
+        mutant = CP.apply_edit(base_src, pin)
+    except Exception as exc:                                  # noqa: BLE001
+        return {"status": "unlocatable", "why": str(exc),
+                "kinds": [], "deltas": []}
+    try:
+        old = _parse_cached(base_src)
+        new = _parse_cached(mutant)
+    except Exception as exc:                                  # noqa: BLE001
+        return {"status": "unparsable", "why": str(exc),
+                "kinds": [], "deltas": []}
+    pairs = []
+    _walk_delta(old, new, pairs)
+    kinds = [delta_kind(a, b) for a, b in pairs]
+    shown = ["%s: %s  ->  %s" % (k, _brief(a), _brief(b))
+             for k, (a, b) in zip(kinds, pairs)]
+    if not pairs:
+        status = "identity"
+    elif DELTA_INFIX in kinds:
+        status = PRE_BROKEN
+    elif all(k == DELTA_APPEND for k in kinds):
+        status = PRE_HOLDS
+    else:
+        status = PRE_UNKNOWN
+    return {"status": status, "why": None, "kinds": kinds, "deltas": shown}
+
+
+def precondition_map(pins, base_src):
+    """`{pin id: edit_precondition(...)}` for every pin in a registry."""
+    return {p["id"]: edit_precondition(base_src, p) for p in pins}
+
+
+def _cmd_precondition(args):
+    if not args:
+        print("usage: polarity.py precondition <pins.json> [run.json]",
+              file=sys.stderr)
+        return 2
+    with open(args[0], encoding="utf-8") as f:
+        reg = json.load(f)
+    guest_files = sorted({p["guest_file"] for p in reg["pins"]})
+    if len(guest_files) != 1:
+        print("precondition: registry spans %d guest files; run one at a time"
+              % len(guest_files), file=sys.stderr)
+        return 2
+    with open(os.path.join(_HERE, guest_files[0]), encoding="utf-8") as f:
+        base = f.read()
+    pre = precondition_map(reg["pins"], base)
+    verdicts = None
+    if len(args) > 1:
+        with open(args[1], encoding="utf-8") as f:
+            verdicts = {r["id"]: r["verdict"] for r in json.load(f)["results"]}
+    counts = {}
+    for row in pre.values():
+        counts[row["status"]] = counts.get(row["status"], 0) + 1
+    print("precondition `append_only`, decided from the EDIT alone — %s"
+          % guest_files[0])
+    for pin in reg["pins"]:
+        row = pre[pin["id"]]
+        seen = "" if verdicts is None else "  measured %s" % verdicts.get(
+            pin["id"], "?")
+        print("  %-7s %-11s%s" % (pin["id"], row["status"], seen))
+        for d in row["deltas"]:
+            print("        %s" % d)
+        if row.get("why"):
+            print("        %s" % row["why"])
+    print("  " + ", ".join("%s %d" % (k, counts[k]) for k in sorted(counts)))
+    if os.environ.get("POLARITY_JSON"):
+        with open(os.environ["POLARITY_JSON"], "w", encoding="utf-8") as f:
+            json.dump(pre, f, indent=2)
+        print("wrote %s" % os.environ["POLARITY_JSON"])
     return 0
 
 
@@ -626,7 +1054,9 @@ def _cmd_law(args):
               % len(guest_files), file=sys.stderr)
         return 2
     vs = classify_file(os.path.join(_HERE, guest_files[0]))
-    out = check_law(reg["pins"], run["results"], vs)
+    with open(os.path.join(_HERE, guest_files[0]), encoding="utf-8") as f:
+        pre = precondition_map(reg["pins"], f.read())
+    out = check_law(reg["pins"], run["results"], vs, pre)
     print("law: BLIND(guardian, dir) => NOT guarded")
     print("  scored %d pin(s) against %s" % (out["n_scored"], guest_files[0]))
     print("  %d confirmation(s) — blind, and indeed not guarded:"
@@ -653,9 +1083,19 @@ def _cmd_law(args):
     print("  not a check that saw through its own blindness:")
     for r in out["violations"]:
         print("    *** %-7s dir %s  guarded but %s-blind  [%s]  precondition "
-              "broken: %s"
+              "%s: %s"
               % (r["id"], r["dir"], r["dir"], r["shape"][:34],
+                 r.get("pre_status") or "undecided",
                  ",".join(r["pre"]) or "-"))
+        for d in (pre.get(r["id"]) or {}).get("deltas") or ():
+            print("          %s" % d)
+    print("  of those, %d STRICT (`append_only` established for the edit, so "
+          "the law is refuted here), %d excused (`append_only` demonstrably "
+          "BROKEN by the edit, so the law makes no claim) and %d undecided "
+          "(the edit is not string-shaped; appending is neither established "
+          "nor refuted)"
+          % (len(out["strict_violations"]), len(out["excused"]),
+             len(out["undecided"])))
     if os.environ.get("POLARITY_JSON"):
         with open(os.environ["POLARITY_JSON"], "w", encoding="utf-8") as f:
             json.dump(out, f, indent=2)
@@ -667,11 +1107,14 @@ def _cmd_law(args):
 
 
 def main(argv):
-    if len(argv) < 2 or argv[1] not in ("classify", "law", "audit", "repoint"):
-        print("usage: polarity.py {classify|law|audit|repoint} ...", file=sys.stderr)
+    verbs = {"classify": _cmd_classify, "law": _cmd_law,
+             "audit": _cmd_audit, "repoint": _cmd_repoint,
+             "precondition": _cmd_precondition}
+    if len(argv) < 2 or argv[1] not in verbs:
+        print("usage: polarity.py {classify|law|audit|repoint|precondition} "
+              "...", file=sys.stderr)
         return 2
-    return {"classify": _cmd_classify, "law": _cmd_law,
-            "audit": _cmd_audit, "repoint": _cmd_repoint}[argv[1]](argv[2:])
+    return verbs[argv[1]](argv[2:])
 
 
 if __name__ == "__main__":

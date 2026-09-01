@@ -752,9 +752,12 @@
   },
   "422": {
    "bank": "state/round-422-predictions.md",
-   "status": "unscored",
-   "owner": "language(C)",
-   "why": "Round 422 was INTERRUPTED: it ran per logs/driver.log, wrote no knowledge file and committed nothing. Round 423 (skills B) verified and landed its 524-insertion diff, this bank and its eight result artefacts under state/whence/round-422/ -- but did NOT score it, because inventing a language(C) round's verdict is exactly the prose-classifier failure this ledger replaced. Unlike round 132, this bank IS scorable and the scoring is mechanical: the banked per-pin table (A1-A3, B, CP03p..CP22p2) is scored against state/whence/round-422/run-plus-witnessed.json and host-pins-plus-repointed.json, both on disk. The out-of-sample test of round 420's polarity law -- a different guest file, pins written AFTER the law -- is the result nobody has read yet."
+   "status": "scored",
+   "scored_by": 426,
+   "where": "knowledge/round-426-the-precondition-that-was-a-sentence.md",
+   "quote": "**18 lettered predictions: 11 HIT \u00b7 3 PARTIAL \u00b7 4 MISS. Per-pin table: 16/20.**",
+   "remainder": "D1 is scored PARTIAL and half of it is UNSCORABLE rather than wrong: its second clause ('at least one of the three lateral pins restates into a rule that already has a pin') was argued in the bank's own addendum and never measured, and no artefact on disk can settle it -- CP01/CP02 have no + pin, which is the bank's own conclusion, so there is nothing to score. F1 is PARTIAL for a different reason: the prediction named ONE blocker (`limit`) and the shipped unification had to deal with TWO, the second being a latent bug rather than a blocker.",
+   "note": "CORRECTION to this entry's own `why`, made when it was discharged. The `why` said the per-pin table is scored against `run-plus-witnessed.json` and `host-pins-plus-repointed.json`. Both are the WRONG artefacts. The bank's B table was written before the first `checkpin.py run` on `host-pins-plus.json`, so its subject is `run-plus.json` (20 scored pins, 155-check baseline); `run-plus-witnessed.json` is a later run against a guest file with five extra checks WRITTEN AS REPOINT TARGETS, in which four of the five `inert` pins the bank got wrong have already been repaired, and `host-pins-plus-repointed.json` is a registry whose guardians were changed after the fact. Scored against the witnessed run the bank looks 3 pins better than it was. E1 was scored from `logs/round-422.json` (`real 0m40.940s`), which the `why` did not name at all, and G1 from `state_claim_check.py --block 421`."
   },
   "424": {
    "bank": "nuc/predictions-e-round424.md",

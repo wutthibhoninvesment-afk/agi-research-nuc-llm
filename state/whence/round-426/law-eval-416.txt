@@ -1,0 +1,45 @@
+law: BLIND(guardian, dir) => NOT guarded
+  scored 34 pin(s) against examples/self_eval.lang
+  2 confirmation(s) — blind, and indeed not guarded:
+    EP05p   dir +  shadowed    guest strict if rejects 0                      [missed(...)]
+    EP08p   dir +  shadowed    is_num rejects a guess wrapping a number       [not(guest type test is_num(...))]
+  30 sighted pin(s) — not blind in that direction:
+    EP01m   dir -  guarded     guest unbound reason names the name            [contains(...)]
+    EP01p   dir +  guarded     ...and it is the host's sentence exactly, not  [two-sided `==`]
+    EP02m   dir -  guarded     guest miss <unbound name> names the miss-reaso [contains(...)]
+    EP02p   dir +  guarded     ...and that clause is the host's sentence exac [two-sided `==`]
+    EP03m   dir -  shadowed    guest miss <BOUND name> stays plain propagatio [contains(...) and not(contains(...]
+    EP03p   dir +  guarded     guest miss <BOUND name> stays plain propagatio [contains(...) and not(contains(...]
+    EP04m   dir -  guarded     guest short-circuit and skips the right        [two-sided `==` and two-sided `==` ]
+    EP04m2  dir -  guarded     guest short-circuit and skips the right        [two-sided `==` and two-sided `==` ]
+    EP04p   dir +  guarded     guest short-circuit and skips the right        [two-sided `==` and two-sided `==` ]
+    EP05m   dir -  guarded     guest strict if rejects 0                      [missed(...)]
+    EP06m   dir -  guarded     guest if records which branch ran              [two-sided `==` and two-sided `==`]
+    EP06p   dir +  guarded     guest if records which branch ran              [two-sided `==` and two-sided `==`]
+    EP07m   dir -  redundant   guest_kind says 'guess', and each probe under  [two-sided `==`]
+    EP07m2  dir -  guarded     guest_kind says 'guess', and each probe under  [two-sided `==`]
+    EP08m   dir -  guarded     is_num rejects a guess wrapping a number       [not(guest type test is_num(...))]
+    EP09m   dir -  guarded     guest == on functions misses                   [missed(...)]
+    EP09p   dir +  guarded     ...but a record is still compared structurally [two-sided `==` and two-sided `==`]
+    EP10p   dir +  shadowed    top-level == between two guesses yields a new  [is_guess(...)]
+    EP11m   dir -  guarded     guest NAMED fn return-type miss label still ha [contains(...)]
+    EP12m   dir +  redundant   guest return type is not re-checked over an al [missed(...) and not(contains(...))]
+    EP12m2  dir +  guarded     guest return type is not re-checked over an al [missed(...) and not(contains(...))]
+    EP12p   dir -  shadowed    guest return type is not re-checked over an al [missed(...) and not(contains(...))]
+    EP13m   dir +  guarded     guest blame answers the ORIGIN, not the whole  [two-sided `==` and two-sided `==`]
+    EP13p   dir -  guarded     guest blame answers the ORIGIN, not the whole  [two-sided `==` and two-sided `==`]
+    EP14m   dir +  guarded     ...and an origin's detail is the host's own se [two-sided `==`]
+    EP15m   dir -  guarded     renaming a value is not a divergence (NAMING_O [two-sided `==`]
+    EP16m   dir -  guarded     guest diverge finds the one origin             [two-sided `==`]
+    EP16p   dir +  guarded     identical histories have no origins            [two-sided `==`]
+    NC01    dir 0  inert       guest arithmetic                               [two-sided `==`]
+    NC02    dir 0  inert       guest diverge finds the one origin             [two-sided `==`]
+  2 VIOLATION(s) — guarded although blind. The law is CONDITIONAL on the
+  precondition named beside each; a violation is an edit that left the order,
+  not a check that saw through its own blindness:
+    *** EP10m   dir -  guarded but --blind  [is_guess(...)]  precondition unknown: kind_stable
+          structural: <Binary>  ->  guest_eq(...)
+    *** EP11p   dir +  guarded but +-blind  [contains(...)]  precondition broken: append_only
+          infix: 'return value'  ->  'return value of ' + fn_name
+  of those, 0 STRICT (`append_only` established for the edit, so the law is refuted here), 1 excused (`append_only` demonstrably BROKEN by the edit, so the law makes no claim) and 1 undecided (the edit is not string-shaped; appending is neither established nor refuted)
+wrote ../../state/whence/round-426/law-eval-416.json
