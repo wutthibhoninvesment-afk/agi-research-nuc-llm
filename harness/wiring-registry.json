@@ -304,6 +304,11 @@
       "via": "harness/tests/test_swe_proc.py:-",
       "via_kind": "dir"
     },
+    "languages/whence/polarity.py": {
+      "status": "wired",
+      "via": "languages/whence/tests/test_polarity.py:-",
+      "via_kind": "import"
+    },
     "harness/wiring_audit.py": {
       "status": "wired",
       "via": "harness/tests/test_wiring_audit.py:-",
