@@ -19612,6 +19612,197 @@ Predictions were written before any measurement
   copy-safe*. And no mutation campaign was run post-fix: the gate is open,
   but "the engine starts" is not "the engine scores".
 
+### Round 420 — language(C) — 2026-09-01 — the gaps that were mispointed pins
+
+**Recorded by round 421 (harness A), not by round 420.** Round 420 crashed:
+the driver log shows `"interrupted": true` at 05:00:05, then *"file populated
+but no result entry (span well under the 3300s ceiling — likely a genuine
+crash)"*. It wrote no `research-state.md` entry and left its ENTIRE diff — 11
+paths — uncommitted. This entry is reconstructed from its own artifacts
+(`knowledge/round-420-the-gaps-that-were-mispointed-pins.md`,
+`state/round-420-predictions.md`, `state/whence/round-420/`) and every number
+below was re-derived by round 421, not copied from round 420's prose.
+
+- **The finding: round 416's five surviving `shadowed` verdicts were not
+  coverage gaps in the guest evaluator — all five were MISPOINTED PINS.** In
+  each of the five, `examples/self_eval.lang` already contained a check that
+  went red and that is structurally capable of seeing that direction.
+  Re-pointing five `guardian` strings in a JSON registry — **zero lines of the
+  guest evaluator changed** — turns all five `guarded`: `5 pins: 5 guarded, 0
+  finding(s), 0 error(s), 0 redundant, score 100%` in 22.8 s, against four
+  rounds of carry. The `shadowed` verdict's own definition already said this
+  ("something in the file distinguishes the rule; not the thing the record
+  names") and nobody had read the second half.
+- **The instrument: `languages/whence/polarity.py`** (678 lines) computes each
+  `check`'s blind direction from its expression AST, with no run and no
+  mutant. `blind` is a LOWER bound, so an empty set means *not shown
+  one-sided*, and every unhandled shape is reported `unknown` with its share
+  published — 1 of 172 in `self_eval.lang`, 0 of 155 in `self_host.lang`.
+  Measured population: **327 checks, 147 one-sided (45.0%), 120 of them blind
+  in the same direction.**
+- **SPEC Decision 50: `check` gets no `because "<substring>"` clause**, closing
+  round 414's item 2 in its sixth round. `because` can only mean *the note
+  contains that substring*, and `contains` is monotone under appending, so a
+  claim written that way cannot be falsified by an implementation that says
+  strictly MORE. It would add no capability and would make the corpus's most
+  common failure mode the language's sanctioned idiom, on a keyword.
+- **Predictions scored 1 hit, 6 misses, 1 void** — and B6 is why the round
+  worked. The predicted repair (add a companion check per finding) was the one
+  round 416's §11 implied, and it is WRONG for 5 of 5 cases; without B6 banked
+  beforehand, five redundant checks would have gone into the guest file, five
+  pins would have gone green, and the round would have reported success while
+  leaving five mispointed registry entries behind.
+- **Verified by round 421 before landing:** `python3 -m pytest
+  tests/test_polarity.py -q` → **39 passed in 2.33s**, corroborating the
+  driver's own `whence-health-check PASS (2052 passed …)` against round 419's
+  2013 — `+39`, exactly the new file's size.
+- **Round 420's own edit made the skills corpus red**, and round 421 fixed it
+  (see the round-421 entry). Its `skills/copy-parity-differential/SKILL.md`
+  fence opened `cd harness` and then named `tests/test_lexer.py`, which is
+  relative to copyparity's `--root` (`languages/whence`).
+
+### Round 421 — harness(A) — 2026-09-01 — the verbs nobody ran
+
+Closed round 419's next-step 5, the VERB half: *"`harness/wiring_audit.py`
+cannot see verbs or pytest markers […] nothing answers the verb half."*
+Knowledge: `knowledge/round-421-the-verbs-nobody-ran.md`. Predictions banked
+before the analyser existed (`state/round-421-predictions.md`): **6 hits, 2
+misses.**
+
+- **`wired` is a claim about FILES, and measured as COMMANDS the coverage is
+  8.8%.** `harness/verb_audit.py` computes, for every wired entry point,
+  `DECLARED(f)` (argparse subparsers + positional `choices`) against
+  `REACHED(f)` (verbs anything in the closure is seen invoking):
+  **20 verb-declaring wired entry points, 91 declared verbs, 8 reached (8.8%),
+  83 unreached, 13 files with no verb reached at all.** Restricted to the
+  per-round pipeline (`--driver-only`): **4 reached (4.4%)** — `slowtier
+  status`, `pristine_check status`, `procreap scan`, `constant_audit audit`.
+- **The victim round 415 named reproduces exactly.** `harness/pristine_check.py`:
+  6 declared, `status` reached at `harness/run_tests_fast.sh:105`, and
+  `baseline`, `baseline-status`, `check`, `dirt`, `suites` invoked by nothing.
+  The registry's `_scope` had asserted this, unmeasured, for six rounds.
+- **`UNREACHED` is NOT `untested`, and the entry that proves it is our own.**
+  `wiring_audit.py check` is invoked by nothing — `grep -c wiring
+  logs/driver.log` is **1**, and that line is a round-415 test FAILURE, not a
+  checker run — yet its rules are enforced every round by
+  `test_wiring_audit.py::TestThisTree`. `pristine_check.py check` is the
+  weaker case: ~20 unit tests exercise `pc.differential(...)`, but every one
+  passes a MOCK runner, so the real worktree-plus-two-suites differential runs
+  on no round at all.
+- **Precision was measured, not assumed.** The first working version reported
+  13 reached; hand-checking every site found **3 of 11 false**, all the same
+  shape — a command inside a string that is displayed or asserted about rather
+  than executed, including a test asserting a command must NEVER run
+  unattended (`wiring_audit`'s own W006 shape, one level down). Fixed by a
+  language rule rather than an exemption list: **in `.sh` the raw line is the
+  command; in `.py` only a folded `subprocess.run([...])` argv literal is.**
+  Hand-audit after: **8 of 8 correct.** The headline moved 14.8% → 8.8%
+  because precision improved, not because the tree changed.
+- **A latent defect in round 415's instrument, found by using it.**
+  `wiring_audit.is_entry_point` used a raw-text regex, which cannot tell a
+  `__main__` guard from one quoted inside a string — so a test file building a
+  synthetic fixture was declared an entry point and raised W001. Replaced with
+  an AST read (regex kept as the fail-OPEN fallback for unparseable source).
+  Blast radius measured before the change: **197 → 196 entry points, one file
+  removed (the one that exposed it), none added.**
+- **Wired without a fifth echo.** Adding `verb_audit check` to
+  `harness/run_tests_fast.sh` would have made my own tool's V003 go away while
+  worsening round 409's item 3 (that script's echoed block outgrowing every
+  `tail`) — improving the number by damaging the signal. Enforcement went
+  where `wiring_audit`'s already is: a `TestThisTree` class asserting
+  INVARIANTS, never a pinned count (`REACHED ⊆ DECLARED`; V002 empty; no
+  `manual` file ever reported; the analysis non-vacuous; findings never set
+  the exit code). `verb_audit.py` therefore reports itself as V003, which is
+  the finding applied without an exception carved for the author.
+- **Landed round 420's entire uncommitted diff** (record-gap shapes 4 and 1 at
+  once), including filling its two unsubstituted knowledge-file placeholders
+  with the driver's own recorded health checks rather than invented numbers,
+  and fixing the `STALE C001` its SKILL.md edit introduced. `claim_check` is
+  back to **0 stale of 169 checked**.
+- **Suites:** `test_verb_audit.py` + `test_wiring_audit.py` → **79 passed**;
+  `harness/run_tests_fast.sh` → see the round file; `wiring_audit.py check` →
+  `110 entry point(s), 90 in closure, 0 error(s), 0 warning(s)`.
+
+## Next steps (as of round 421)
+
+1. **The 83 unreached verbs now need DECISIONS, not measurement.** For each,
+   the question is whether it should run automatically, and for several the
+   answer is plainly no (`pristine_check check` is a worktree plus two full
+   suites). The tractable subset, in priority order: `slowtier plan`/`run` —
+   `harness/run_tests_fast.sh`'s own header spends a paragraph recommending
+   `slowtier.py run --budget-s N` over `nohup … &`, and that recommendation
+   lives in a COMMENT, so the script it names has never been run by anything
+   automatic; and `harness/swe/copyparity.py`'s two verbs, whose own SKILL.md
+   checklist asks for exactly the wiring it does not have, one round after
+   round 419 wrote it. harness(A) for the first, SWE-loop(D) for the second.
+2. **`verb_audit.py`'s output is not watched by anything.** No driver summary
+   line and no `corpus_check.py` checker reads it, so the 8.8% is re-derived
+   by typing the command. Round 339's rule ("a checker nobody watches must
+   publish the recall gap") is met only weakly — the summary line carries its
+   own denominator, which is the round-417 fix, but nothing quotes it. The
+   natural home is the skills corpus check, which already aggregates seven
+   checkers. skills(B) or harness(A).
+3. **The MARKER half of round 419's item 5 is still open** and is now the only
+   half. `harness/tier-budget.json` and `harness/swe/slowtier.py` answer *what
+   is deselected*; nothing joins that to the registry, so `wired` still means
+   "the runner was pointed at it" for every `test_swe_*.py` file. harness(A).
+4. **Round 409's items 2, 3 and 4 carry forward, and item 3 is now load-bearing
+   twice.** `run_tests_fast.sh`'s echoed recorded-status block outgrowing every
+   `tail` is what stopped round 415 adding a fifth echo and what stopped round
+   421 adding one; the next round that wants a per-round diagnostic line has no
+   room and should fix the block rather than route around it. Also unmoved:
+   the `split_measured_output` count-line boundary and `MEASURED_END_SENTINEL`,
+   and the stale pristine-check ledger. harness(A).
+5. **`state_claim_check.py` still has no S009 finding class for a REFERENCE
+   claim** (round 415's item 2). Round 421 measured a detail that sharpens it:
+   `wiring_audit.refs` — the primitive the item is about — IS live, called as a
+   Python function at `state_claim_check.py:699`, while its CLI verb is dead.
+   An item asserting "X has N references in Y" therefore has to say which of
+   the three levels it means (named / called as a library / invoked as a
+   command), because they differ. skills(B).
+6. **`case_coverage` has 27 warnings and SEVEN skills now registered unprobed** —
+   `cause-needs-a-denominator`, `verdict-carries-its-threshold`,
+   `null-result-needs-a-power-floor`, `named-guardian-must-go-red`,
+   `probe-where-the-rules-disagree`, and round 420 added
+   `mutate-the-rule-both-ways` and `copy-parity-differential`. The last group
+   must be probed TOGETHER — they are each other's named NOT-scopes. Needs a
+   priced `trigger_eval` round budgeted as a whole round. skills(B).
+7. **Round 420's own carried items are unchanged and are language(C)'s:** the
+   19 `-`-direction pins in `self_host.lang` still have no `+` counterparts (3
+   of 23 are LATERAL and need a new mechanism statement, not a mirrored one);
+   `examples/self_eval.lang`'s guest EVALUATOR still has no pin; and
+   `parser.quote_str` is still not unified with `values._quote` (round 408's
+   item 6, fifth round carried). language(C).
+8. **`polarity.py` has not been extended beyond Whence.** The same monotonicity
+   argument applies verbatim to `assertIn`/`assertRaises` in the Python suites
+   and `harness/swe/guardpin.py` is the instrument that would consume it —
+   round 420 stated plainly that claiming the technique transfers is not the
+   same as having transferred it. SWE-loop(D).
+9. **NUC-E is unchanged and first for the next E round**: reachability, then
+   `python3 nuc/capture_manifest.py plan --capture state/nuc-capture-r400 >
+   /tmp/cap.sh && bash /tmp/cap.sh`. **Sixth round carried**, all six because
+   the box was down; `sa23` is still overwritten 2026-09-23. Round 412's items
+   2, 3 and 4 are OFFLINE work needing no box and are the fallback.
+   NUC-integration(E). Note round 421 measured `capture_manifest plan` as an
+   UNREACHED verb — the command this item has asked for six times is invoked by
+   nothing automatic, which is correct (it talks to the box) and is exactly the
+   `manual`-vs-`wired` distinction the registry should be carrying for verbs.
+10. **Round 408's item 9 (CLAUDE.md's `🔴 CRITICAL MISSION` block is stale in
+    both halves) is re-escalated for the EIGHTH time.** Both its items were
+    answered by rounds 349 and 33/v0.23, and every round pays a re-read.
+    CLAUDE.md is the operator's file (round 346) — this needs the operator.
+11. **`languages/whence/SECURITY.md` has now been carried 73 rounds**, with the
+    round-349 pin still matching. The uncommitted gateway rewrite asserting
+    four controls this repo does not have (pre-commit secret hook, CI dependency
+    scanning, SHA-256 release checksums and signed tags, `.gitignore` entries
+    for `.env`/`*.key` — all four checkably false, verified round 416) remains
+    the operator's decision, now overdue in two ways.
+12. **Blocked on the operator: `--cap 196` and the E3 A/B**, with round 412's
+    precondition (any A/B publishes its power floor BEFORE it runs). Round
+    406's items 1–7, round 405's 1–4, round 404's 1–4 and 7, round 403's 2–5
+    and round 336's remaining language(C) items carry forward where not closed
+    above. The `Harness (A)` half of the Track-status audit is still owed.
+
 ## Next steps (as of round 419)
 
 1. **Run the first Whence mutation campaign since round 414, and run

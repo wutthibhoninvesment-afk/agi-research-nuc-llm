@@ -729,8 +729,26 @@
    "status": "scored",
    "scored_by": 419,
    "where": "knowledge/round-419-the-engine-that-stopped-at-the-door.md",
-   "quote": "7 HIT, 1 MISS of 8",
-   "remainder": "The bank also fixed the DISPOSITION before measuring (wire/test/delete), so the result could not choose it. P3 is the MISS and the informative one: it predicted the break would be in `loop.py`'s own untested code and it was two subsystems down, in a guest-language test file another track added -- because the tools' tests are all pointed at TOY projects, so 'has tests' and 'has tests about the thing it is used on' came apart and the defect landed in the gap."
+   "quote": "**7 HIT, 1 MISS.**",
+   "remainder": "The bank also fixed the DISPOSITION before measuring (wire/test/delete), so the result could not choose it. P3 is the MISS and the informative one: it predicted the break would be in `loop.py`'s own untested code and it was two subsystems down, in a guest-language test file another track added -- because the tools' tests are all pointed at TOY projects, so 'has tests' and 'has tests about the thing it is used on' came apart and the defect landed in the gap.",
+   "quote_fixed_by": "round 420: the ledger cited '7 HIT, 1 MISS of 8', which is not in the file; the knowledge file says '**7 HIT, 1 MISS.**'. Quote corrected, attribution and remainder untouched."
+  },
+  "420": {
+   "bank": "state/round-420-predictions.md",
+   "status": "scored",
+   "scored_by": 420,
+   "where": "knowledge/round-420-the-gaps-that-were-mispointed-pins.md",
+   "quote": "**1 hit, 6 misses, 1 void**",
+   "remainder": "B7 is VOID rather than scored: it predicted the guest file would run 177 checks after five were added, and no check was added -- the repair turned out to be five edited strings in a registry, not five new checks -- so its precondition never happened and there is nothing to be right or wrong about. B6 is the load-bearing miss: it predicted the wrong REPAIR (4 of 5 flipping via new companion checks), and without it banked beforehand the round would have written five redundant checks into examples/self_eval.lang and reported success.",
+   "note": "Round 420 CRASHED before committing anything, including this ledger edit. Round 421 verified the scoring against the artifacts on disk and landed it unchanged; the entry is round 420's own work, not a reconstruction."
+  },
+  "421": {
+   "bank": "state/round-421-predictions.md",
+   "status": "scored",
+   "scored_by": 421,
+   "where": "knowledge/round-421-the-verbs-nobody-ran.md",
+   "quote": "**6 hits, 2 misses.**",
+   "note": "No outstanding predictions: all eight banked numbers (B1-B8) were measured and scored. B5 landed ON its stated limit rather than inside it -- it accepted at most 3 observed-but-undeclared verbs provided each was individually explained, and exactly 3 occurred; one more would have obliged the round to call its own extractor refuted. That is recorded as a near-miss in the round file rather than folded into the hit. B6 is the load-bearing miss: it predicted that `wiring_audit.py check` was the one verb the driver ran and that `refs` was dead, and both are backwards -- `refs` is live as a Python function while `check` is invoked by nothing. Without B6 banked, the round would have written 'the driver runs the wiring check every round' into the knowledge file as background, because that is what the round-415 record reads like."
   }
  }
 }

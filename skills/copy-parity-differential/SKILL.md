@@ -144,3 +144,35 @@ about *inputs* that nothing validates is `unenforced-documented-rule`.
 - [ ] The knowledge record says which claim was proven: *this file is
       copy-safe* and *the suite still collects* are weaker than *every node is
       copy-safe*, and only the last one requires the full two-run diff.
+
+The reference implementation, run narrow so it is affordable to type. Note
+the node count in the output — the first pitfall above is that a differential
+which collected NOTHING reports parity, so a verdict with no `N node(s)` on
+both sides is not a verdict:
+
+Run it from the REPO ROOT, not from `harness/`. `--test-args` are pytest
+arguments evaluated inside the tree copyparity copies (`--root`, default
+`languages/whence`), so `tests/test_lexer.py` below names
+`languages/whence/tests/test_lexer.py` and NOT `harness/tests/`. Round 421
+had to fix this line: written with a leading `cd harness`, the same token
+read to a human — and to `claim_check.py` — as if it named a file under
+`harness/tests/`, where no such file exists. The checker resolved it there,
+found nothing, and made the skills corpus red with a STALE C001. Note the
+general shape: a tool with its own `--root` flag moves the base out of every
+checker's sight, so a correct command can be unconfirmable. From the repo
+root the token is honestly
+unanchored — relative to a base no checker can see — and is skipped
+instead of mis-resolved.
+
+```bash
+PYTHONPATH=harness python3 -m swe.copyparity run \
+  --test-args '-q -p no:cacheprovider tests/test_lexer.py'
+# copyparity(run): copy_safe — in_place 32 node(s) rc=0 0.5s / copied 32 node(s) rc=0 0.5s
+#   no node changed verdict when the tree was copied
+python3 -m pytest -q harness/tests/test_swe_copyparity.py -p no:cacheprovider
+```
+
+Exit status is the verdict: `0` only when every shared node agrees AND
+nothing vanished or appeared. Widen with `--test-args` one directory at a
+time rather than pointing it at the whole suite first — round 419 measured
+the unfiltered whence run at 177 s per side.

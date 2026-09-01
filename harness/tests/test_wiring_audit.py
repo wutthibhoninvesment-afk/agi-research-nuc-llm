@@ -62,6 +62,37 @@ def write_registry(root, **kw):
 MAIN = '\nif __name__ == "__main__":\n    pass\n'
 
 
+class TestMainGuardDetection:
+    """Round 421. `is_entry_point` used a raw-text regex, which cannot tell a
+    `__main__` guard from one QUOTED INSIDE A STRING. A test file that builds
+    a synthetic entry-point fixture — `harness/tests/test_verb_audit.py` does
+    exactly this — was thereby declared an entry point and raised a W001
+    asking someone to wire a test fixture. Measured over this tree, moving to
+    the AST changed the entry-point set by exactly one file (that one) and
+    added none, so the fix is precise rather than a re-tiering."""
+
+    def test_a_real_module_level_guard_counts(self):
+        assert W._has_main_guard("import os\n" + MAIN)
+
+    def test_a_guard_inside_a_string_constant_does_not(self):
+        src = 'FIXTURE = """\nif __name__ == "__main__":\n    pass\n"""\n'
+        assert not W._has_main_guard(src)
+
+    def test_a_guard_nested_in_a_function_does_not(self):
+        """A guard that only runs when someone calls the function does not
+        make the FILE runnable."""
+        src = 'def go():\n    if __name__ == "__main__":\n        pass\n'
+        assert not W._has_main_guard(src)
+
+    def test_unparseable_source_falls_back_to_the_regex(self):
+        """Fail-OPEN on purpose: an over-declared entry point costs one
+        registry line, an under-declared one escapes W001 entirely."""
+        assert W._has_main_guard('def broken(:\n' + MAIN)
+
+    def test_the_reversed_comparison_still_counts(self):
+        assert W._has_main_guard('if "__main__" == __name__:\n    pass\n')
+
+
 # --------------------------------------------------------------------------
 # comment stripping
 # --------------------------------------------------------------------------

@@ -213,6 +213,46 @@ MAIN_GUARD_RE = re.compile(r"^if\s+__name__\s*==\s*['\"]__main__['\"]\s*:",
                            re.M)
 
 
+def _has_main_guard(src):
+    """True if `src` has a MODULE-LEVEL `if __name__ == "__main__":`.
+
+    Round 421: this used to be `MAIN_GUARD_RE.search(text)` over the raw file,
+    and a raw-text regex cannot tell a guard from a guard QUOTED INSIDE A
+    STRING. `harness/tests/test_verb_audit.py` builds a synthetic entry-point
+    fixture whose source text — inside a triple-quoted constant — contains the
+    line `if __name__ == "__main__":`, and the test file was thereupon
+    declared an entry point and raised a W001 asking someone to wire it. A
+    test-fixture string is not a program.
+
+    The AST answers the question the regex was approximating, and only at
+    module level: a guard nested inside a function or a class does not make
+    the file runnable either. The regex survives as the fallback for a file
+    `ast` cannot parse, where a weak answer beats no answer — that path is
+    fail-OPEN (it may over-declare), which is the safe direction here because
+    an over-declared entry point costs one registry line and an
+    under-declared one silently escapes the fail-closed W001 rule entirely.
+    """
+    try:
+        tree = ast.parse(src)
+    except (SyntaxError, ValueError):
+        return bool(MAIN_GUARD_RE.search(src))
+    for node in tree.body:
+        if not isinstance(node, ast.If):
+            continue
+        t = node.test
+        if not isinstance(t, ast.Compare) or len(t.ops) != 1:
+            continue
+        if not isinstance(t.ops[0], ast.Eq):
+            continue
+        left, right = t.left, t.comparators[0]
+        names = {n.id for n in (left, right) if isinstance(n, ast.Name)}
+        consts = {c.value for c in (left, right)
+                  if isinstance(c, ast.Constant) and isinstance(c.value, str)}
+        if "__name__" in names and "__main__" in consts:
+            return True
+    return False
+
+
 def is_entry_point(root, path):
     """A file a human or a script can plausibly *run*.
 
@@ -228,7 +268,7 @@ def is_entry_point(root, path):
     try:
         with open(os.path.join(root, path), "r", encoding="utf-8",
                   errors="replace") as fh:
-            return bool(MAIN_GUARD_RE.search(fh.read()))
+            return _has_main_guard(fh.read())
     except OSError:
         return False
 

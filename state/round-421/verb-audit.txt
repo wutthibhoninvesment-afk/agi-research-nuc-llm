@@ -1,0 +1,22 @@
+V001  harness/pristine_check.py: 5 of 6 declared verb(s) never invoked: baseline, baseline-status, check, dirt, suites
+V001  harness/procreap.py: 3 of 4 declared verb(s) never invoked: guard-rm, reap, status
+V003  harness/swe/copyparity.py: declares 2 verb(s); NONE is invoked anywhere in the closure (via_kind=import)
+V003  harness/swe/guardpin.py: declares 3 verb(s); NONE is invoked anywhere in the closure (via_kind=import)
+V003  harness/swe/review.py: declares 6 verb(s); NONE is invoked anywhere in the closure (via_kind=import)
+V001  harness/swe/slowtier.py: 2 of 3 declared verb(s) never invoked: plan, run
+V003  harness/swe/toolliveness.py: declares 5 verb(s); NONE is invoked anywhere in the closure (via_kind=import)
+V003  harness/tierbudget.py: declares 3 verb(s); NONE is invoked anywhere in the closure (via_kind=import)
+V003  harness/verb_audit.py: declares 3 verb(s); NONE is invoked anywhere in the closure (via_kind=import)
+V003  harness/wiring_audit.py: declares 5 verb(s); NONE is invoked anywhere in the closure (via_kind=import)
+V003  languages/whence/curecheck.py: declares 5 verb(s); NONE is invoked anywhere in the closure (via_kind=dir)
+V001  nuc/capture_manifest.py: 1 of 2 declared verb(s) never invoked: plan
+V001  nuc/expert_cache.py: 7 of 9 declared verb(s) never invoked: baseline, bound, curve, fill, plan, recommend, snapshot
+V003  nuc/fast_lane.py: declares 6 verb(s); NONE is invoked anywhere in the closure (via_kind=import)
+V001  nuc/perturbation.py: 9 of 10 declared verb(s) never invoked: evidence, gap, guard, ledger, power, reclaim, steps, swap, sweep
+V003  nuc/reachability_check.py: declares 8 verb(s); NONE is invoked anywhere in the closure (via_kind=import)
+V003  nuc/sysstat_archive.py: declares 3 verb(s); NONE is invoked anywhere in the closure (via_kind=import)
+V003  skills/skill-authoring/scripts/corpus_history.py: declares 4 verb(s); NONE is invoked anywhere in the closure (via_kind=dir)
+V003  skills/skill-authoring/scripts/displacement.py: declares 3 verb(s); NONE is invoked anywhere in the closure (via_kind=dir)
+
+verb-audit: 20 verb-declaring wired entry point(s), 91 declared verb(s), 8 reached (8.8%), 83 unreached; 13 file(s) with no verb reached at all
+verb-audit: 19 finding(s) (V001 6, V002 0, V003 13) — all WARN, exit code unaffected

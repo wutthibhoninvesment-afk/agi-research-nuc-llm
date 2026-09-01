@@ -234,6 +234,11 @@
       "via": "harness/tests/test_tiering.py:-",
       "via_kind": "import"
     },
+    "harness/verb_audit.py": {
+      "status": "wired",
+      "via": "harness/tests/test_verb_audit.py:-",
+      "via_kind": "import"
+    },
     "languages/whence/bench/bindline.py": {
       "status": "manual",
       "owner": "language(C)",

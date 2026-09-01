@@ -1,0 +1,684 @@
+{
+  "rows": [
+    {
+      "path": "harness/pristine_check.py",
+      "declared": [
+        "baseline",
+        "baseline-status",
+        "check",
+        "dirt",
+        "status",
+        "suites"
+      ],
+      "declared_kind": {
+        "check": "subparser",
+        "baseline": "subparser",
+        "baseline-status": "subparser",
+        "suites": "subparser",
+        "status": "subparser",
+        "dirt": "subparser"
+      },
+      "reached": [
+        "status"
+      ],
+      "unreached": [
+        "baseline",
+        "baseline-status",
+        "check",
+        "dirt",
+        "suites"
+      ],
+      "sites": {
+        "status": [
+          [
+            "harness/run_tests_fast.sh",
+            105,
+            "driver"
+          ]
+        ]
+      },
+      "via_kind": "path"
+    },
+    {
+      "path": "harness/procreap.py",
+      "declared": [
+        "guard-rm",
+        "reap",
+        "scan",
+        "status"
+      ],
+      "declared_kind": {
+        "scan": "subparser",
+        "reap": "subparser",
+        "guard-rm": "subparser",
+        "status": "subparser"
+      },
+      "reached": [
+        "scan"
+      ],
+      "unreached": [
+        "guard-rm",
+        "reap",
+        "status"
+      ],
+      "sites": {
+        "scan": [
+          [
+            "harness/run_tests_fast.sh",
+            124,
+            "driver"
+          ]
+        ]
+      },
+      "via_kind": "path"
+    },
+    {
+      "path": "harness/swe/copyparity.py",
+      "declared": [
+        "collect",
+        "run"
+      ],
+      "declared_kind": {
+        "collect": "choices",
+        "run": "choices"
+      },
+      "reached": [],
+      "unreached": [
+        "collect",
+        "run"
+      ],
+      "sites": {},
+      "via_kind": "import"
+    },
+    {
+      "path": "harness/swe/guardpin.py",
+      "declared": [
+        "check",
+        "locate",
+        "run"
+      ],
+      "declared_kind": {
+        "check": "choices",
+        "locate": "choices",
+        "run": "choices"
+      },
+      "reached": [],
+      "unreached": [
+        "check",
+        "locate",
+        "run"
+      ],
+      "sites": {},
+      "via_kind": "import"
+    },
+    {
+      "path": "harness/swe/review.py",
+      "declared": [
+        "fix",
+        "kill",
+        "mutant-diff",
+        "oracle",
+        "review",
+        "score-kill"
+      ],
+      "declared_kind": {
+        "kill": "choices",
+        "review": "choices",
+        "fix": "choices",
+        "oracle": "choices",
+        "mutant-diff": "choices",
+        "score-kill": "choices"
+      },
+      "reached": [],
+      "unreached": [
+        "fix",
+        "kill",
+        "mutant-diff",
+        "oracle",
+        "review",
+        "score-kill"
+      ],
+      "sites": {},
+      "via_kind": "import"
+    },
+    {
+      "path": "harness/swe/slowtier.py",
+      "declared": [
+        "plan",
+        "run",
+        "status"
+      ],
+      "declared_kind": {
+        "status": "choices",
+        "plan": "choices",
+        "run": "choices"
+      },
+      "reached": [
+        "status"
+      ],
+      "unreached": [
+        "plan",
+        "run"
+      ],
+      "sites": {
+        "status": [
+          [
+            "harness/run_tests_fast.sh",
+            91,
+            "driver"
+          ]
+        ]
+      },
+      "via_kind": "path"
+    },
+    {
+      "path": "harness/swe/toolliveness.py",
+      "declared": [
+        "cites",
+        "commits",
+        "intervals",
+        "report",
+        "sweep"
+      ],
+      "declared_kind": {
+        "commits": "choices",
+        "sweep": "choices",
+        "intervals": "choices",
+        "cites": "choices",
+        "report": "choices"
+      },
+      "reached": [],
+      "unreached": [
+        "cites",
+        "commits",
+        "intervals",
+        "report",
+        "sweep"
+      ],
+      "sites": {},
+      "via_kind": "import"
+    },
+    {
+      "path": "harness/tierbudget.py",
+      "declared": [
+        "measure",
+        "status",
+        "verify"
+      ],
+      "declared_kind": {
+        "measure": "subparser",
+        "status": "subparser",
+        "verify": "subparser"
+      },
+      "reached": [],
+      "unreached": [
+        "measure",
+        "status",
+        "verify"
+      ],
+      "sites": {},
+      "via_kind": "import"
+    },
+    {
+      "path": "harness/verb_audit.py",
+      "declared": [
+        "check",
+        "declared",
+        "verbs"
+      ],
+      "declared_kind": {
+        "verbs": "subparser",
+        "check": "subparser",
+        "declared": "subparser"
+      },
+      "reached": [],
+      "unreached": [
+        "check",
+        "declared",
+        "verbs"
+      ],
+      "sites": {},
+      "via_kind": "import"
+    },
+    {
+      "path": "harness/wiring_audit.py",
+      "declared": [
+        "bootstrap",
+        "check",
+        "closure",
+        "orphans",
+        "refs"
+      ],
+      "declared_kind": {
+        "closure": "subparser",
+        "orphans": "subparser",
+        "check": "subparser",
+        "bootstrap": "subparser",
+        "refs": "subparser"
+      },
+      "reached": [],
+      "unreached": [
+        "bootstrap",
+        "check",
+        "closure",
+        "orphans",
+        "refs"
+      ],
+      "sites": {},
+      "via_kind": "import"
+    },
+    {
+      "path": "languages/whence/curecheck.py",
+      "declared": [
+        "apply",
+        "corpus",
+        "replay",
+        "rules",
+        "verify"
+      ],
+      "declared_kind": {
+        "rules": "subparser",
+        "apply": "subparser",
+        "corpus": "subparser",
+        "verify": "subparser",
+        "replay": "subparser"
+      },
+      "reached": [],
+      "unreached": [
+        "apply",
+        "corpus",
+        "replay",
+        "rules",
+        "verify"
+      ],
+      "sites": {},
+      "via_kind": "dir"
+    },
+    {
+      "path": "nuc/capture_manifest.py",
+      "declared": [
+        "audit",
+        "plan"
+      ],
+      "declared_kind": {
+        "audit": "subparser",
+        "plan": "subparser"
+      },
+      "reached": [
+        "audit"
+      ],
+      "unreached": [
+        "plan"
+      ],
+      "sites": {
+        "audit": [
+          [
+            "nuc/tests/test_capture_manifest.py",
+            190,
+            "test"
+          ]
+        ]
+      },
+      "via_kind": "import"
+    },
+    {
+      "path": "nuc/constant_audit.py",
+      "declared": [
+        "audit"
+      ],
+      "declared_kind": {
+        "audit": "subparser"
+      },
+      "reached": [
+        "audit"
+      ],
+      "unreached": [],
+      "sites": {
+        "audit": [
+          [
+            "nuc/run_checks_fast.sh",
+            66,
+            "driver"
+          ]
+        ]
+      },
+      "via_kind": "path"
+    },
+    {
+      "path": "nuc/expert_cache.py",
+      "declared": [
+        "baseline",
+        "bound",
+        "curve",
+        "fill",
+        "geometry",
+        "plan",
+        "recommend",
+        "snapshot",
+        "wall"
+      ],
+      "declared_kind": {
+        "geometry": "subparser",
+        "plan": "subparser",
+        "fill": "subparser",
+        "wall": "subparser",
+        "snapshot": "subparser",
+        "baseline": "subparser",
+        "curve": "subparser",
+        "recommend": "subparser",
+        "bound": "subparser"
+      },
+      "reached": [
+        "geometry",
+        "wall"
+      ],
+      "unreached": [
+        "baseline",
+        "bound",
+        "curve",
+        "fill",
+        "plan",
+        "recommend",
+        "snapshot"
+      ],
+      "sites": {
+        "geometry": [
+          [
+            "nuc/tests/test_expert_cache.py",
+            279,
+            "test"
+          ]
+        ],
+        "wall": [
+          [
+            "nuc/tests/test_expert_cache.py",
+            469,
+            "test"
+          ]
+        ]
+      },
+      "via_kind": "import"
+    },
+    {
+      "path": "nuc/fast_lane.py",
+      "declared": [
+        "gate",
+        "handoff",
+        "parse",
+        "plan",
+        "transfer-cmd",
+        "turn"
+      ],
+      "declared_kind": {
+        "parse": "subparser",
+        "gate": "subparser",
+        "plan": "subparser",
+        "turn": "subparser",
+        "transfer-cmd": "subparser",
+        "handoff": "subparser"
+      },
+      "reached": [],
+      "unreached": [
+        "gate",
+        "handoff",
+        "parse",
+        "plan",
+        "transfer-cmd",
+        "turn"
+      ],
+      "sites": {},
+      "via_kind": "import"
+    },
+    {
+      "path": "nuc/perturbation.py",
+      "declared": [
+        "evidence",
+        "gap",
+        "guard",
+        "ledger",
+        "power",
+        "reclaim",
+        "steps",
+        "swap",
+        "sweep",
+        "timers"
+      ],
+      "declared_kind": {
+        "steps": "subparser",
+        "swap": "subparser",
+        "guard": "subparser",
+        "timers": "subparser",
+        "ledger": "subparser",
+        "evidence": "subparser",
+        "power": "subparser",
+        "sweep": "subparser",
+        "reclaim": "subparser",
+        "gap": "subparser"
+      },
+      "reached": [
+        "timers"
+      ],
+      "unreached": [
+        "evidence",
+        "gap",
+        "guard",
+        "ledger",
+        "power",
+        "reclaim",
+        "steps",
+        "swap",
+        "sweep"
+      ],
+      "sites": {
+        "timers": [
+          [
+            "nuc/tests/test_perturbation.py",
+            334,
+            "test"
+          ]
+        ]
+      },
+      "via_kind": "import"
+    },
+    {
+      "path": "nuc/reachability_check.py",
+      "declared": [
+        "bounds",
+        "check",
+        "continuity",
+        "journal-boots",
+        "journal-seconds",
+        "status",
+        "summarize",
+        "suspend-audit"
+      ],
+      "declared_kind": {
+        "check": "subparser",
+        "summarize": "subparser",
+        "status": "subparser",
+        "bounds": "subparser",
+        "journal-seconds": "subparser",
+        "journal-boots": "subparser",
+        "continuity": "subparser",
+        "suspend-audit": "subparser"
+      },
+      "reached": [],
+      "unreached": [
+        "bounds",
+        "check",
+        "continuity",
+        "journal-boots",
+        "journal-seconds",
+        "status",
+        "summarize",
+        "suspend-audit"
+      ],
+      "sites": {},
+      "via_kind": "import"
+    },
+    {
+      "path": "nuc/sysstat_archive.py",
+      "declared": [
+        "crosscheck",
+        "steps",
+        "witness"
+      ],
+      "declared_kind": {
+        "witness": "subparser",
+        "crosscheck": "subparser",
+        "steps": "subparser"
+      },
+      "reached": [],
+      "unreached": [
+        "crosscheck",
+        "steps",
+        "witness"
+      ],
+      "sites": {},
+      "via_kind": "import"
+    },
+    {
+      "path": "skills/skill-authoring/scripts/corpus_history.py",
+      "declared": [
+        "episodes",
+        "live",
+        "own",
+        "today"
+      ],
+      "declared_kind": {
+        "own": "choices",
+        "today": "choices",
+        "episodes": "choices",
+        "live": "choices"
+      },
+      "reached": [],
+      "unreached": [
+        "episodes",
+        "live",
+        "own",
+        "today"
+      ],
+      "sites": {},
+      "via_kind": "dir"
+    },
+    {
+      "path": "skills/skill-authoring/scripts/displacement.py",
+      "declared": [
+        "check",
+        "claims",
+        "report"
+      ],
+      "declared_kind": {
+        "report": "choices",
+        "claims": "choices",
+        "check": "choices"
+      },
+      "reached": [],
+      "unreached": [
+        "check",
+        "claims",
+        "report"
+      ],
+      "sites": {},
+      "via_kind": "dir"
+    }
+  ],
+  "findings": [
+    [
+      "V001",
+      "harness/pristine_check.py",
+      "5 of 6 declared verb(s) never invoked: baseline, baseline-status, check, dirt, suites"
+    ],
+    [
+      "V001",
+      "harness/procreap.py",
+      "3 of 4 declared verb(s) never invoked: guard-rm, reap, status"
+    ],
+    [
+      "V003",
+      "harness/swe/copyparity.py",
+      "declares 2 verb(s); NONE is invoked anywhere in the closure (via_kind=import)"
+    ],
+    [
+      "V003",
+      "harness/swe/guardpin.py",
+      "declares 3 verb(s); NONE is invoked anywhere in the closure (via_kind=import)"
+    ],
+    [
+      "V003",
+      "harness/swe/review.py",
+      "declares 6 verb(s); NONE is invoked anywhere in the closure (via_kind=import)"
+    ],
+    [
+      "V001",
+      "harness/swe/slowtier.py",
+      "2 of 3 declared verb(s) never invoked: plan, run"
+    ],
+    [
+      "V003",
+      "harness/swe/toolliveness.py",
+      "declares 5 verb(s); NONE is invoked anywhere in the closure (via_kind=import)"
+    ],
+    [
+      "V003",
+      "harness/tierbudget.py",
+      "declares 3 verb(s); NONE is invoked anywhere in the closure (via_kind=import)"
+    ],
+    [
+      "V003",
+      "harness/verb_audit.py",
+      "declares 3 verb(s); NONE is invoked anywhere in the closure (via_kind=import)"
+    ],
+    [
+      "V003",
+      "harness/wiring_audit.py",
+      "declares 5 verb(s); NONE is invoked anywhere in the closure (via_kind=import)"
+    ],
+    [
+      "V003",
+      "languages/whence/curecheck.py",
+      "declares 5 verb(s); NONE is invoked anywhere in the closure (via_kind=dir)"
+    ],
+    [
+      "V001",
+      "nuc/capture_manifest.py",
+      "1 of 2 declared verb(s) never invoked: plan"
+    ],
+    [
+      "V001",
+      "nuc/expert_cache.py",
+      "7 of 9 declared verb(s) never invoked: baseline, bound, curve, fill, plan, recommend, snapshot"
+    ],
+    [
+      "V003",
+      "nuc/fast_lane.py",
+      "declares 6 verb(s); NONE is invoked anywhere in the closure (via_kind=import)"
+    ],
+    [
+      "V001",
+      "nuc/perturbation.py",
+      "9 of 10 declared verb(s) never invoked: evidence, gap, guard, ledger, power, reclaim, steps, swap, sweep"
+    ],
+    [
+      "V003",
+      "nuc/reachability_check.py",
+      "declares 8 verb(s); NONE is invoked anywhere in the closure (via_kind=import)"
+    ],
+    [
+      "V003",
+      "nuc/sysstat_archive.py",
+      "declares 3 verb(s); NONE is invoked anywhere in the closure (via_kind=import)"
+    ],
+    [
+      "V003",
+      "skills/skill-authoring/scripts/corpus_history.py",
+      "declares 4 verb(s); NONE is invoked anywhere in the closure (via_kind=dir)"
+    ],
+    [
+      "V003",
+      "skills/skill-authoring/scripts/displacement.py",
+      "declares 3 verb(s); NONE is invoked anywhere in the closure (via_kind=dir)"
+    ]
+  ],
+  "summary": "verb-audit: 20 verb-declaring wired entry point(s), 91 declared verb(s), 8 reached (8.8%), 83 unreached; 13 file(s) with no verb reached at all"
+}
