@@ -520,22 +520,48 @@ class TestThisTree:
             assert kind == "ambiguous", (base, kind, val)
             assert len(val) == 2
 
-    def test_the_declared_debts_are_exactly_the_two_this_round_found(self):
-        """`python3 -m swe.loop` has no caller anywhere in the tree, and
-        `languages/whence/nuc_scripting/ncs_engine.py` has no reference of
-        any kind — round 172 recommended deleting it 243 rounds ago.
+    def test_the_declared_debts_are_exactly_the_one_still_owed(self):
+        """`python3 -m swe.loop` has no caller anywhere in the tree.
 
         Pinned as the registry's single `unwired` entry so that wiring it —
         or deciding it is `manual` — is a deliberate edit and not a drift.
+
+        Round 415 declared TWO. Round 416 (language C) discharged the other,
+        `languages/whence/nuc_scripting/ncs_engine.py`, by DELETING it —
+        one of the three exits W005 offers. It was a second, weaker
+        implementation of the task-script DSL that `nuc/taskscript/` already
+        ships (E5, done round 124, plus
+        `skills/preflight-priced-task-scripts/`), it ran its input through
+        `subprocess.run(..., shell=True)`, and round 172 recommended
+        `delete-as-dead-end` 244 rounds before it went. It is in git; the
+        commit that removed it is where to look.
         """
         reg = W.load_registry(REPO)
         debts = sorted(p for p, e in reg["entry_points"].items()
                        if e["status"] == "unwired")
-        assert debts == ["harness/swe/loop.py",
-                         "languages/whence/nuc_scripting/ncs_engine.py"]
-        closure = W.Graph(REPO).closure()
+        assert debts == ["harness/swe/loop.py"]
+        # `Graph.closure()` is NOT the predicate W003 uses, and asserting it
+        # flatly here was wrong on the tree that shipped it: `loop.py` is in
+        # the raw closure (its own test file names it as text) and W003
+        # deliberately defers to W006 for exactly that case — see
+        # `wiring_audit.check`'s `weak_only`. This assertion now states the
+        # checker's real rule, so the test and the checker agree instead of
+        # contradicting each other.
+        g = W.Graph(REPO)
+        closure = g.closure()
         for d in debts:
-            assert d not in closure
+            if d not in closure:
+                continue
+            edge = g.best_incoming(d)
+            assert edge is not None and edge[2] in W.WEAK_KINDS \
+                and W.is_test_file(edge[0]), (d, edge)
+
+    def test_the_deleted_orphan_is_gone_rather_than_merely_undeclared(self):
+        """Removing a registry entry and leaving the file is how an audited
+        debt turns into an unaudited one. Round 416 deleted the file, so the
+        check that it stays deleted is what makes the discharge real."""
+        assert not os.path.exists(
+            os.path.join(REPO, "languages", "whence", "nuc_scripting"))
 
     def test_the_cli_check_exits_zero_on_this_tree(self):
         p = subprocess.run([sys.executable, os.path.join(_HARNESS,

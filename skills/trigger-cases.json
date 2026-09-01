@@ -1819,5 +1819,38 @@
   "id": "pwrd-neg-coverage",
   "expect": [],
   "prompt": "Coverage says this branch is never executed by any test. What's the quickest way to get a test in that reaches it?"
+ },
+ {
+  "id": "mrbw-near",
+  "expect": [
+   "mutate-the-rule-both-ways"
+  ],
+  "prompt": "I ran a mutation campaign over our validator and it scored 91%. Every mutant I wrote deletes a rule or returns early. Is that score telling me what I think it is?"
+ },
+ {
+  "id": "mrbw-msg",
+  "expect": [
+   "mutate-the-rule-both-ways"
+  ],
+  "prompt": "Our error-message tests are all assertIn. If somebody appends an extra sentence to a message that's supposed to match the reference implementation exactly, nothing goes red. How should these be written instead?"
+ },
+ {
+  "id": "mrbw-inert",
+  "expect": [
+   "mutate-the-rule-both-ways"
+  ],
+  "prompt": "I broke this rule on purpose and not a single test failed, so I was about to add one. Before I do \u2014 is there a reason the suite might be right that nothing changed?"
+ },
+ {
+  "id": "mrbw-branch",
+  "expect": [
+   "mutate-the-rule-both-ways"
+  ],
+  "prompt": "This assertion is an equality check on the returned value, so it's two-sided, right? It only ever exercises the then-branch though."
+ },
+ {
+  "id": "mrbw-neg-flaky",
+  "expect": [],
+  "prompt": "This test fails about one run in twenty on CI and passes locally every time. Where do I start?"
  }
 ]

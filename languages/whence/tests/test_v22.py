@@ -587,6 +587,38 @@ def test_spec_level_header_matches_the_highest_version_section():
         % (header.group(1), highest))
 
 
+def test_research_state_track_c_names_the_same_version_as_spec_md():
+    """The SECOND copy of the same number, found by round 416 six rounds
+    after it went stale.
+
+    `state/research-state.md`'s `- **Language (C):**` line carries the
+    track's current version. It said `v0.39 (round 408)` through rounds
+    410 (which made the bump to v0.40), 411, 412, 413, 414 and 415, while
+    `SPEC.md`'s own header said v0.40 correctly the whole time — because
+    the test above pins THAT header and nothing pinned this one. Round 348
+    wrote the paragraph about exactly this failure mode, for SPEC.md, and
+    it rotted in the other file.
+
+    A version number belongs in one place. It is in two, so the second one
+    gets a test instead of a promise.
+    """
+    spec = open(os.path.join(ROOT, "SPEC.md"), encoding="utf-8").read()
+    header = re.search(r"^\*Spec level: \*\*v(\d+\.\d+)\*\*", spec, re.M)
+    assert header, "SPEC.md has no `*Spec level: **vN**` header line"
+
+    state_path = os.path.normpath(
+        os.path.join(ROOT, "..", "..", "state", "research-state.md"))
+    if not os.path.exists(state_path):          # a whence-only checkout
+        return
+    state = open(state_path, encoding="utf-8").read()
+    m = re.search(r"^- \*\*Language \(C\):\*\* \*\*v(\d+\.\d+)\*\*",
+                  state, re.M)
+    assert m, "research-state.md has no `- **Language (C):** **vN**` line"
+    assert m.group(1) == header.group(1), (
+        "research-state.md's Language (C) line says v%s; SPEC.md's header "
+        "says v%s" % (m.group(1), header.group(1)))
+
+
 # --- the fourth silence, found by an oracle five rounds later ----------------
 
 def test_a_contract_miss_never_carries_an_order_hint():

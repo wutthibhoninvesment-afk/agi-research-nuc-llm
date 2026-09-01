@@ -739,10 +739,18 @@ def test_the_example_still_passes_its_own_self_tests():
     stays green if a `check` line is deleted or stops being reached, which
     is the one regression this file cannot otherwise see. The contract is
     that a round which adds or removes checks updates this number in the
-    same commit -- round 390 took it 159 -> 166 (seven v0.33-parity checks).
+    same commit -- round 390 took it 159 -> 166 (seven v0.33-parity checks)
+    and round 416 took it 166 -> 172 (six killers for guest-EVALUATOR rules
+    a `checkpin` campaign found unguarded in at least one direction).
+
+    This is the THIRD copy of the number; the other two are
+    `test_v23.py::test_both_self_hosting_examples_still_run_green` and
+    `test_self_eval.py::test_self_eval_runs_green`. They share no literal,
+    so a grep for one finds two -- which is how this one went red in round
+    416 after the other two were updated.
     """
     r = subprocess.run([sys.executable, os.path.join(ROOT, "run.py"), EXAMPLE],
                        capture_output=True, text=True, cwd=ROOT)
     assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-2000:]
     assert "0 failed" in r.stdout, r.stdout[-3000:]
-    assert "166 passed" in r.stdout, r.stdout[-400:]
+    assert "172 passed" in r.stdout, r.stdout[-400:]

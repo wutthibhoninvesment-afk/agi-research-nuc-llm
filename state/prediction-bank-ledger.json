@@ -699,6 +699,14 @@
    "scored_by": 415,
    "where": "knowledge/round-415-what-the-driver-actually-runs.md",
    "quote": "12 HIT / 1 PARTIAL / 4 MISS of 17"
+  },
+  "416": {
+   "bank": "state/round-416-predictions.md",
+   "status": "scored",
+   "scored_by": 416,
+   "where": "knowledge/round-416-the-direction-nobody-mutated.md",
+   "quote": "10 HIT / 1 PARTIAL / 4 MISS of 15",
+   "remainder": "B4 is scored PARTIAL rather than MISS on one pin (M13, the `blame` family), which was inert in BOTH directions -- a category the bank had no prediction for at all, so half of B4's claim is unscorable rather than wrong. Recorded here because a PARTIAL that is really 'the prediction did not cover this case' is weaker than a PARTIAL that is 'half right'."
   }
  }
 }

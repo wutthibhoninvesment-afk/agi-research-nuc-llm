@@ -292,11 +292,10 @@
       "via": "harness/tests/test_swe_proc.py:-",
       "via_kind": "dir"
     },
-    "languages/whence/nuc_scripting/ncs_engine.py": {
-      "status": "unwired",
-      "owner": "language(C)",
-      "reason": "ZERO references anywhere in the tree -- not a test, not a comment, not a docstring. Round 172 (NUC-E) assessed this subtree and `whence_qwen_bridge.py` as orphaned WIP that duplicates E5's `nuc/taskscript/` with none of its budget discipline and recommended `delete-as-dead-end or a real language-feature redesign`; neither happened and the file is still tracked. Declared a debt rather than deleted because deletion is the owning track's call, not an audit's.",
-      "since_round": 415
+    "harness/wiring_audit.py": {
+      "status": "wired",
+      "via": "harness/tests/test_wiring_audit.py:-",
+      "via_kind": "import"
     },
     "languages/whence/run.py": {
       "status": "wired",

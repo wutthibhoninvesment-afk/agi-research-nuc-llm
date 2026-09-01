@@ -3909,13 +3909,41 @@ check "guest rescue recovers": gv("num(\"3O\") rescue 42") == 42
 check "guest unbound name misses": missed(gv("nope + 1"))
 check "guest unbound reason names the name":
   contains(str(gv("nope + 1")), "unbound name 'nope'")
+# Round 416 (`checkpin` EP01p/EP02p). `contains` is monotone in "the
+# evaluator says MORE": appending a clause the host never emits to
+# `lookup`'s miss, or to `miss_reason_hint`'s cure sentence, left every
+# `contains` guardian in this file green and reddened nothing. A
+# self-hosting evaluator's messages are not "must contain" claims, they are
+# EQUALITY claims against the host's own sentence -- and the host is right
+# here, so the check can just ask it. `drop_line_suffix` removes the one
+# thing the two legitimately disagree about (the guest's line number is a
+# self_eval.lang line; this evaluator's one documented provenance
+# divergence).
+check "...and it is the host's sentence exactly, not a superset of it":
+  drop_line_suffix(reasons(gv("nope + 1"))[0]) ==
+    drop_line_suffix(reasons(nope + 1)[0])
 check "guest division by zero misses": missed(gv("1 / 0"))
 check "guest strict if rejects 0": missed(gv("if 1 { 2 } else { 3 }"))
 check "guest calling a number misses": missed(gv("let f = 3\nf(1)"))
 check "guest arity mismatch misses": missed(gv("fn f(a, b) { a }\nf(1)"))
 check "guest == on functions misses": missed(gv("fn f(x) { x }\nf == f"))
+# Round 416 (`checkpin` EP09p): `missed(...)` is monotone in "refuses more",
+# so the check above stays green when `raw_deep_eq` is widened to refuse
+# RECORDS as well. This is the other side of the same rule.
+check "...but a record is still compared structurally, field by field":
+  gv("@{a: 1, b: 2} == @{b: 2, a: 1}") == true and
+  gv("@{a: 1} == @{a: 2}") == false
+# Round 416: the label says "skips the right", and the value alone cannot
+# say whether it did -- the HOST's own `and` short-circuits too, so
+# `false and <miss>` is false either way (`checkpin` EP04m2: removing the
+# guest's short-circuit ARM entirely left this check green). The op label
+# is where the skip is observable, and `true and true` is where a rule that
+# short-circuits too eagerly is (EP04p: an `and` that always answers false
+# reddened NOTHING in this file).
 check "guest short-circuit and skips the right":
-  gv("false and num(\"3O\") == 1") == false
+  gv("false and num(\"3O\") == 1") == false and
+  (gp("false and (1 / 0)")).op == "and short-circuit" and
+  gv("true and true") == true
 check "guest miss literal": missed(gv("miss \"deliberate\""))
 # round 210: a non-string reason still misses (value unchanged); the fix
 # only changes the why-SHAPE (miss node keeps 0 inputs, not 1) — see the
@@ -3933,6 +3961,10 @@ check "guest miss argument still runs the body (host does too)":
 check "guest miss <unbound name> names the miss-reason cure":
   contains(str(gv("miss NOSUCH")),
            "unbound name 'NOSUCH' (a miss reason is a string: write `miss \"NOSUCH\"`)")
+# ...and the same equality, for the same reason, over the v0.33 clause.
+check "...and that clause is the host's sentence exactly, not a superset":
+  drop_line_suffix(reasons(gv("miss NOSUCH"))[0]) ==
+    drop_line_suffix(reasons(miss NOSUCH)[0])
 # position beats vocabulary: `null` IS a foreign word, and in `miss` position
 # its foreign clause would advise writing the thing already being written.
 check "guest miss <foreign word> REPLACES the foreign clause, not joins it":
@@ -4007,8 +4039,15 @@ check "guest param guard runs before a rebind that reads it":
   missed(gv("fn f(a: num) { let a = a\na }\nf(\"x\")"))
 check "guest unknown type annotation is a parse-time miss":
   missed((run_src("fn f(a: Bogus) { a }\nf(1)")).v)
+# Round 416 (`checkpin` EP12m): `missed(...)` cannot see decision 2 at all.
+# Dropping `missed(box.v)` from `check_ret`'s early-out ADDS a "return value
+# of f expected num, got miss" gloss on top of the division-by-zero reason,
+# and the result is still a miss, so this check stayed green. Decision 2 is
+# about what the miss SAYS, so that is what has to be asserted.
 check "guest return type is not re-checked over an already-missed body":
-  missed(gv("fn f() -> num { 1 / 0 }\nf()"))
+  missed(gv("fn f() -> num { 1 / 0 }\nf()")) and
+  not contains(str(gv("fn f() -> num { 1 / 0 }\nf()")),
+               "return value of f expected")
 
 # --- AI-native primitives: guest parity (v0.15, round 176) ------------------
 # `guess`/`is_guess`/`confidence`/`sure` delegate straight to the real host
@@ -4044,7 +4083,17 @@ check "is_list rejects a guess wrapping a list":
   not is_list(guess([1, 2], 0.9, "s"))
 check "is_bool rejects a guess wrapping a bool":
   not is_bool(guess(true, 0.9, "s"))
-check "guest_kind reports 'guess' ahead of every other test":
+check "is_str rejects a guess wrapping a string":
+  not is_str(guess("s", 0.9, "s"))
+# Round 416 (`checkpin` EP07m). This check was labelled for the ORDERING,
+# and the ordering is inert: demoting `is_guess_val` below num/str/list/bool
+# left all 166 checks green, because each of those four probes ALREADY
+# excludes a Guess on its own (`not is_guess_val(v) and ...`). The comment
+# above says "checked FIRST (or these three guarded against it)" -- the code
+# does both, and it is the guard, not the order, that is load-bearing. The
+# label now says what holds; `is_str` is the fourth sibling, which was the
+# one missing from the three below.
+check "guest_kind says 'guess', and each probe under it independently agrees":
   guest_kind(guess(5, 0.9, "s")) == "guess"
 # typed()/: guess joins the guest's primitive-tag set exactly like the host.
 check "guest typed accepts a guess for spec 'guess'":
@@ -4097,7 +4146,12 @@ check "the call's input is the body result": (pc.ins[0]).op == "+"
 check "params bind through arg nodes": ((pc.ins[0]).ins[0]).op == "arg n"
 
 let pi = gp("if 2 > 1 { \"yes\" } else { \"no\" }")
-check "guest if records which branch ran": pi.op == "if took then-branch"
+# Round 416 (`checkpin` EP06p): one probe, one branch. Relabelling the ELSE
+# arm "if took then-branch" left this check green -- an `== V` predicate is
+# two-sided in the VALUE it compares and one-sided in the branches it visits.
+check "guest if records which branch ran":
+  pi.op == "if took then-branch" and
+  (gp("if false { 1 } else { 2 }")).op == "if took else-branch"
 check "guest if keeps the condition": (pi.ins[1]).op == ">"
 
 # `why` inside the guest: the derivation as guest DATA (records op/v/ins)
@@ -4121,6 +4175,27 @@ let blame_src = "fn origin(w) { let bad = find(fn(i) { missed(i.v) }, w.ins)\n" 
 let verdict = gv(blame_src)
 check "guest blame names the origin op": contains(verdict, "num:")
 check "guest blame reads the origin reason": contains(verdict, "cannot parse")
+
+# Round 416. The two checks above are about the guest PROGRAM's hand-written
+# `origin` above -- `find(fn(i) { missed(i.v) }, w.ins)`, three lines of
+# ordinary guest code. They say nothing about this evaluator's OWN `blame`
+# builtin (`guest_blame`/`keep_origins`/`guest_is_origin_miss`, v0.30, round
+# 378), which `checkpin` EP13m/EP13p found had no guardian in this file in
+# EITHER direction: making every missed node an origin, and making nothing
+# an origin, each left all 166 checks green. Written as a DIFFERENTIAL
+# against the host's own `blame` rather than against a constant, so it
+# cannot drift into pinning a guest-only answer.
+let host_t = fold(fn(a, r) { a + num(r) }, 0, ["1", "3O"])
+let GBLAME = "let t = fold(fn(a, r) { a + num(r) }, 0, [\"1\", \"3O\"])\n"
+check "guest blame answers the ORIGIN, not the whole miss chain":
+  gv(GBLAME + "len(blame(t))") == len(blame(host_t)) and
+  gv(GBLAME + "(blame(t))[0].op") == (blame(host_t))[0].op
+# ...and `guest_detail`'s ` (line N)` strip (`drop_line_suffix`), which
+# EP14m found equally unguarded: a guest origin miss carries a
+# self_eval.lang line number the host's never has, and dropping it is what
+# makes the two details the same string.
+check "...and an origin's detail is the host's own sentence, line-suffix stripped":
+  gv(GBLAME + "(blame(t))[0].detail") == (blame(host_t))[0].detail
 
 # --- `shape` in the guest EVALUATOR (v0.12/v0.13 parity, round 338) ---------
 # The parser above turns a `shape` into an ordinary `let`; everything below

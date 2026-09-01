@@ -1,0 +1,555 @@
+{
+  "n_pins": 30,
+  "controls": [
+    {
+      "id": "NC01",
+      "verdict": "inert",
+      "n_red": 0,
+      "expected": {
+        "verdict": "inert",
+        "n_red": 0
+      },
+      "held": true
+    },
+    {
+      "id": "NC02",
+      "verdict": "inert",
+      "n_red": 0,
+      "expected": {
+        "verdict": "inert",
+        "n_red": 0
+      },
+      "held": true
+    }
+  ],
+  "guarded": 25,
+  "redundant": [
+    {
+      "id": "EP07m",
+      "wider": "EP07m2"
+    },
+    {
+      "id": "EP12m",
+      "wider": "EP12m2"
+    }
+  ],
+  "findings": 5,
+  "errors": 0,
+  "score": 0.8333333333333334,
+  "baselines": {
+    "examples/self_eval.lang": {
+      "n_checks": 172,
+      "n_failing": 0,
+      "dupes": [],
+      "error": null
+    }
+  },
+  "results": [
+    {
+      "id": "EP01m",
+      "guardian": "guest unbound reason names the name",
+      "mechanism": "M1 lookup's unbound-name miss NAMES the name",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 3,
+      "co_red": [
+        "...and it is the host's sentence exactly, not a superset of it",
+        "guest miss <BOUND name> stays plain propagation"
+      ],
+      "note": "value was false",
+      "why": "the message says LESS: the quoted name is dropped",
+      "n_ran": 172
+    },
+    {
+      "id": "EP01p",
+      "guardian": "...and it is the host's sentence exactly, not a superset of it",
+      "mechanism": "M1 lookup's unbound-name miss NAMES the name",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 1,
+      "co_red": [],
+      "note": "value was false",
+      "why": "the message says MORE: a clause the host never emits is appended. A `contains` guardian is monotone in this direction and cannot see it.",
+      "n_ran": 172
+    },
+    {
+      "id": "EP02m",
+      "guardian": "guest miss <unbound name> names the miss-reason cure",
+      "mechanism": "M2 miss_reason_hint: `miss <unbound name>` gets the cure clause",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 3,
+      "co_red": [
+        "...and that clause is the host's sentence exactly, not a superset",
+        "guest miss <foreign word> REPLACES the foreign clause, not joins it"
+      ],
+      "note": "value was false",
+      "why": "the clause is deleted outright (round 386's host-side debt, mirrored round 390) -- the direct falsification",
+      "n_ran": 172
+    },
+    {
+      "id": "EP02p",
+      "guardian": "...and that clause is the host's sentence exactly, not a superset",
+      "mechanism": "M2 miss_reason_hint: `miss <unbound name>` gets the cure clause",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 1,
+      "co_red": [],
+      "note": "value was false",
+      "why": "the clause grows a second sentence the host does not have; the guardian's `contains` is satisfied by the prefix",
+      "n_ran": 172
+    },
+    {
+      "id": "EP03m",
+      "guardian": "guest miss <BOUND name> stays plain propagation",
+      "mechanism": "M3 miss_names_unbound: the clause fires only for an UNBOUND name",
+      "verdict": "shadowed",
+      "control": null,
+      "n_red": 3,
+      "co_red": [
+        "...and that clause is the host's sentence exactly, not a superset",
+        "guest miss <foreign word> REPLACES the foreign clause, not joins it",
+        "guest miss <unbound name> names the miss-reason cure"
+      ],
+      "note": "the guardian passed under the edit; 3 other check(s) went red",
+      "why": "the clause never fires at all. The guardian's positive half reads the ordinary unbound-name text, which survives; its negative half is satisfied a fortiori.",
+      "n_ran": 172
+    },
+    {
+      "id": "EP03p",
+      "guardian": "guest miss <BOUND name> stays plain propagation",
+      "mechanism": "M3 miss_names_unbound: the clause fires only for an UNBOUND name",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 1,
+      "co_red": [],
+      "note": "value was false",
+      "why": "the store query is dropped (round 390's REJECTED alternative, in its degenerate form): every name operand gets the clause, bound or not. This is the direction the guardian's `not contains` half exists for.",
+      "n_ran": 172
+    },
+    {
+      "id": "EP04m",
+      "guardian": "guest short-circuit and skips the right",
+      "mechanism": "M4 eval_and: a false left operand skips the right EXPRESSION",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 1,
+      "co_red": [],
+      "note": "value was miss: num: cannot parse \"3O\" (line 3617)",
+      "why": "the short-circuit arm is removed, so the right expression is evaluated. The host's OWN `and` (which this evaluator's payload computation delegates to) still short-circuits, so the VALUE is unchanged and only the provenance differs. | ROUND 416 RESULT: `guarded`, but CONTAMINATED -- the else arm's payload is `true and r.v.v`, which is only correct when the left IS true, so this edit changes the VALUE as well as the branch. EP04m2 is the isolated form.",
+      "n_ran": 172
+    },
+    {
+      "id": "EP04m2",
+      "guardian": "guest short-circuit and skips the right",
+      "mechanism": "M4 eval_and: a false left operand skips the right EXPRESSION",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 1,
+      "co_red": [],
+      "note": "value was false",
+      "why": "the ISOLATED removal EP04m should have been: the right expression is evaluated, and the payload is still computed as `false and r.v.v`, so the VALUE is unchanged and only the short-circuit itself is gone. Written after EP04m came back guarded for the wrong reason.",
+      "n_ran": 172
+    },
+    {
+      "id": "EP04p",
+      "guardian": "guest short-circuit and skips the right",
+      "mechanism": "M4 eval_and: a false left operand skips the right EXPRESSION",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 1,
+      "co_red": [],
+      "note": "value was false",
+      "why": "short-circuits on BOTH truth values, always yielding false: the rule fires more than it should. `false and ...` is still false.",
+      "n_ran": 172
+    },
+    {
+      "id": "EP05m",
+      "guardian": "guest strict if rejects 0",
+      "mechanism": "M5 eval_if: a non-boolean condition is a miss (decision: no truthiness)",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 2,
+      "co_red": [
+        "a bare guess cannot decide an if without sure()"
+      ],
+      "note": "value was false",
+      "why": "C-style truthiness -- the evaluator misses LESS. This is the anti-monotone direction for a `missed(...)` guardian.",
+      "n_ran": 172
+    },
+    {
+      "id": "EP05p",
+      "guardian": "guest strict if rejects 0",
+      "mechanism": "M5 eval_if: a non-boolean condition is a miss (decision: no truthiness)",
+      "verdict": "shadowed",
+      "control": null,
+      "n_red": 8,
+      "co_red": [
+        "guest blame names the origin op",
+        "guest blame reads the origin reason",
+        "guest block scoping (inner shadow leaves outer alone)",
+        "guest else-if chain",
+        "guest if",
+        "guest if keeps the condition",
+        "guest if records which branch ran",
+        "guest recursion (fib 10)"
+      ],
+      "note": "the guardian passed under the edit; 8 other check(s) went red",
+      "why": "EVERY condition is refused -- the evaluator misses more. A `missed(...)` guardian is monotone in exactly this direction.",
+      "n_ran": 172
+    },
+    {
+      "id": "EP06m",
+      "guardian": "guest if records which branch ran",
+      "mechanism": "M6 eval_if's provenance label names the branch taken",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 1,
+      "co_red": [],
+      "note": "value was false",
+      "why": "the label stops naming the branch",
+      "n_ran": 172
+    },
+    {
+      "id": "EP06p",
+      "guardian": "guest if records which branch ran",
+      "mechanism": "M6 eval_if's provenance label names the branch taken",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 1,
+      "co_red": [],
+      "note": "value was false",
+      "why": "the ELSE branch now claims it took the THEN branch. An `== V` guardian is two-sided in VALUE but one-sided in COVERAGE: it probes only the then-branch, so it cannot see this.",
+      "n_ran": 172
+    },
+    {
+      "id": "EP07m",
+      "guardian": "guest_kind says 'guess', and each probe under it independently agrees",
+      "mechanism": "M7 guest_kind probes is_guess_val ahead of every other test",
+      "verdict": "redundant",
+      "control": null,
+      "n_red": 0,
+      "co_red": [],
+      "note": "the guardian stayed green and nothing went red, but the wider edit EP07m2 \u2014 the same rule with every copy removed \u2014 went red. The rule is redundantly implemented, not unguarded.",
+      "why": "the guess probe is demoted below num/str/list, which (per the v0.15 parity note) all succeed for a Guess wrapping that shape | ROUND 416 RESULT: `inert`, n_red=0, and CORRECTLY so -- see EP07m2. The ordering is not the mechanism; the per-probe guard is.",
+      "n_ran": 172
+    },
+    {
+      "id": "EP07m2",
+      "guardian": "guest_kind says 'guess', and each probe under it independently agrees",
+      "mechanism": "M7 a Guess is never reported as its payload's kind (BOTH copies: guest_kind's ordering AND is_num's own guard)",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 5,
+      "co_red": [
+        "guest typed accepts a guess for spec 'guess'",
+        "guest typed param annotation accepts a guess",
+        "is_num rejects a guess wrapping a number",
+        "nested guess vs a plain value never matches"
+      ],
+      "note": "value was false",
+      "why": "EP07m removed the ORDERING and nothing went red, because each probe below it (`is_num`/`is_str`/`is_list`/`is_bool`) starts with `not is_guess_val(v) and`. That is redundancy, not a gap: the rule has two implementations and EP07m removed one. This pin removes both, and its verdict is what says which of the two readings of EP07m's `inert` is right.",
+      "n_ran": 172
+    },
+    {
+      "id": "EP08m",
+      "guardian": "is_num rejects a guess wrapping a number",
+      "mechanism": "M8 is_num excludes a Guess (Guess arithmetic is transparent)",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 2,
+      "co_red": [
+        "nested guess vs a plain value never matches"
+      ],
+      "note": "value was false",
+      "why": "the guard is dropped and is_num says yes to a Guess",
+      "n_ran": 172
+    },
+    {
+      "id": "EP08p",
+      "guardian": "is_num rejects a guess wrapping a number",
+      "mechanism": "M8 is_num excludes a Guess (Guess arithmetic is transparent)",
+      "verdict": "shadowed",
+      "control": null,
+      "n_red": 14,
+      "co_red": [
+        "...but a record is still compared structurally, field by field",
+        "an anonymous fn's shape return says just \"return value\"",
+        "and a non-record payload gets no clause either",
+        "guest arithmetic propagates a guess (weakest link kept)",
+        "guest filter",
+        "guest mutual recursion",
+        "guest passing check recorded",
+        "guest return type accepts a matching value",
+        "guest sure() is a no-op on a plain value",
+        "guest sure() unwraps above threshold",
+        "guest typed param accepts a matching value",
+        "guest typed param annotation accepts a guess"
+      ],
+      "note": "the guardian passed under the edit; 14 other check(s) went red",
+      "why": "is_num rejects EVERYTHING. A `not is_num(...)` guardian is monotone in this direction by construction.",
+      "n_ran": 172
+    },
+    {
+      "id": "EP09m",
+      "guardian": "guest == on functions misses",
+      "mechanism": "M9 raw_deep_eq refuses to compare callables (round 107/140)",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 1,
+      "co_red": [],
+      "note": "value was false",
+      "why": "the callable arm is removed, so a guest closure -- an ordinary record under the hood -- is compared structurally: round 18's tag-spoofing shape, in reverse",
+      "n_ran": 172
+    },
+    {
+      "id": "EP09p",
+      "guardian": "...but a record is still compared structurally, field by field",
+      "mechanism": "M9 raw_deep_eq refuses to compare callables (round 107/140)",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 1,
+      "co_red": [],
+      "note": "value was miss: cannot compare functions with == (line 1731)",
+      "why": "RECORDS are refused too -- the rule fires more widely than the host's. A `missed(...)` guardian is monotone in this direction.",
+      "n_ran": 172
+    },
+    {
+      "id": "EP10m",
+      "guardian": "top-level == between two guesses yields a new guess",
+      "mechanism": "M10 apply_binop delegates `==` to the host when either side is a Guess",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 2,
+      "co_red": [
+        "top-level == confidence is the weakest link"
+      ],
+      "note": "value was false",
+      "why": "never delegate: guest_eq returns a plain bool and the host's _guess_binop re-wrap is lost",
+      "n_ran": 172
+    },
+    {
+      "id": "EP10p",
+      "guardian": "top-level == between two guesses yields a new guess",
+      "mechanism": "M10 apply_binop delegates `==` to the host when either side is a Guess",
+      "verdict": "shadowed",
+      "control": null,
+      "n_red": 2,
+      "co_red": [
+        "guest == on functions misses",
+        "nested guess-vs-guess equality ignores confidence"
+      ],
+      "note": "the guardian passed under the edit; 2 other check(s) went red",
+      "why": "ALWAYS delegate: guest_eq is bypassed for every ==, so the guest-authored opaque-closure comparator never runs",
+      "n_ran": 172
+    },
+    {
+      "id": "EP11m",
+      "guardian": "guest NAMED fn return-type miss label still has the 'of' suffix (round 326)",
+      "mechanism": "M11 check_ret's label: 'of <fn>' iff the closure is NAMED (round 326)",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 3,
+      "co_red": [
+        "and a primitive return mismatch still misses",
+        "the miss names the shape, not \"record\""
+      ],
+      "note": "value was false",
+      "why": "every closure reads as anonymous. The one mechanism in this file whose author already wrote BOTH directions as two checks.",
+      "n_ran": 172
+    },
+    {
+      "id": "EP11p",
+      "guardian": "guest anonymous fn return-type miss label has no 'of' suffix (round 326)",
+      "mechanism": "M11 check_ret's label: 'of <fn>' iff the closure is NAMED (round 326)",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 2,
+      "co_red": [
+        "an anonymous fn's shape return says just \"return value\""
+      ],
+      "note": "value was false",
+      "why": "every closure reads as named -- the exact divergence round 326 found and fixed, restored",
+      "n_ran": 172
+    },
+    {
+      "id": "EP12m",
+      "guardian": "guest return type is not re-checked over an already-missed body",
+      "mechanism": "M12 check_ret is a no-op over an already-missed body (decision 2)",
+      "verdict": "redundant",
+      "control": null,
+      "n_red": 0,
+      "co_red": [],
+      "note": "the guardian stayed green and nothing went red, but the wider edit EP12m2 \u2014 the same rule with every copy removed \u2014 went red. The rule is redundantly implemented, not unguarded.",
+      "why": "the early-out loses its `missed(box.v)` half, so a division-by-zero body ALSO gets a 'wrong return type' gloss. It is still a miss, and the guardian only asks whether it misses. | ROUND 416 RESULT: `inert`, n_red=0 even after the guardian was strengthened to assert the absent gloss -- see EP12m2. Decision 2 is enforced TWICE.",
+      "n_ran": 172
+    },
+    {
+      "id": "EP12m2",
+      "guardian": "guest return type is not re-checked over an already-missed body",
+      "mechanism": "M12 decision 2: an already-missed body gets no return-type gloss (BOTH copies: check_ret's early-out AND check_contract's)",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 2,
+      "co_red": [
+        "one signature means ONE shape \u2014 the outer P, at both ends"
+      ],
+      "note": "value was false",
+      "why": "EP12m removed `check_ret`'s `missed(box.v)` and the message did not change, because `check_contract` -- the function `check_ret` tail-calls -- opens with the SAME early-out. Two copies of decision 2, one rule. This pin removes both.",
+      "n_ran": 172
+    },
+    {
+      "id": "EP12p",
+      "guardian": "guest return type is not re-checked over an already-missed body",
+      "mechanism": "M12 check_ret is a no-op over an already-missed body (decision 2)",
+      "verdict": "shadowed",
+      "control": null,
+      "n_red": 9,
+      "co_red": [
+        "...and a wrongly-typed field, from the RETURN end",
+        "...and the RETURN half says the identical sentence",
+        "an anonymous fn's shape return says just \"return value\"",
+        "and a primitive return mismatch still misses",
+        "guest NAMED fn return-type miss label still has the 'of' suffix (round 326)",
+        "guest anonymous fn return-type miss label has no 'of' suffix (round 326)",
+        "guest catches a broken shape return",
+        "guest return type rejects a mismatched value",
+        "the miss names the shape, not \"record\""
+      ],
+      "note": "the guardian passed under the edit; 9 other check(s) went red",
+      "why": "the return contract is removed entirely. 1/0 still misses, so the guardian is still green.",
+      "n_ran": 172
+    },
+    {
+      "id": "EP13m",
+      "guardian": "guest blame answers the ORIGIN, not the whole miss chain",
+      "mechanism": "M13 guest_is_origin_miss: missed AND no missed input (v0.30, round 378)",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 2,
+      "co_red": [
+        "...and an origin's detail is the host's own sentence, line-suffix stripped"
+      ],
+      "note": "value was false",
+      "why": "every missed node counts as an origin, so guest `blame` reports the whole miss chain instead of its root",
+      "n_ran": 172
+    },
+    {
+      "id": "EP13p",
+      "guardian": "guest blame answers the ORIGIN, not the whole miss chain",
+      "mechanism": "M13 guest_is_origin_miss: missed AND no missed input (v0.30, round 378)",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 2,
+      "co_red": [
+        "...and an origin's detail is the host's own sentence, line-suffix stripped"
+      ],
+      "note": "value was false",
+      "why": "NOTHING is an origin: guest `blame` always answers []. The opposite direction of the same rule.",
+      "n_ran": 172
+    },
+    {
+      "id": "EP14m",
+      "guardian": "...and an origin's detail is the host's own sentence, line-suffix stripped",
+      "mechanism": "M14 drop_line_suffix: a guest origin-miss detail sheds its (line N)",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 3,
+      "co_red": [
+        "...and it is the host's sentence exactly, not a superset of it",
+        "...and that clause is the host's sentence exactly, not a superset"
+      ],
+      "note": "value was false",
+      "why": "the suffix stays, so a guest step detail carries a self_eval.lang line number the host's never has -- this evaluator's one long-documented provenance divergence, un-fixed",
+      "n_ran": 172
+    },
+    {
+      "id": "EP15m",
+      "guardian": "renaming a value is not a divergence (NAMING_OPS)",
+      "mechanism": "M15 NAMING_OPS: two histories differing only in a NAME have not diverged",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 4,
+      "co_red": [
+        "...and contrast says so in the host's own words",
+        "...and n-way contrast skips the runs that agree",
+        "identical histories have no origins"
+      ],
+      "note": "value was false",
+      "why": "the exemption list is emptied, so `let x` vs `let zzz` diverges",
+      "n_ran": 172
+    },
+    {
+      "id": "EP16m",
+      "guardian": "guest diverge finds the one origin",
+      "mechanism": "M16 dv_same_payload: two nodes agree when their payloads do",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 9,
+      "co_red": [
+        "...and calls it a value divergence, not a shape one",
+        "...and n-way contrast skips the runs that agree",
+        "...and names the two literals, not this evaluator's locals",
+        "...and tags each origin with WHICH run diverged",
+        "contrast renders the column rule and the origin marker",
+        "sharing over-reports rather than under-reports",
+        "the n-way form compares every run with the first",
+        "the origin's step records are the same shape steps() returns"
+      ],
+      "note": "value was false",
+      "why": "every payload compares equal, so no value divergence is ever found",
+      "n_ran": 172
+    },
+    {
+      "id": "EP16p",
+      "guardian": "identical histories have no origins",
+      "mechanism": "M16 dv_same_payload: two nodes agree when their payloads do",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 9,
+      "co_red": [
+        "...and contrast says so in the host's own words",
+        "...and n-way contrast skips the runs that agree",
+        "...and tags each origin with WHICH run diverged",
+        "contrast renders the column rule and the origin marker",
+        "guest diverge finds the one origin",
+        "renaming a value is not a divergence (NAMING_OPS)",
+        "sharing over-reports rather than under-reports",
+        "the n-way form compares every run with the first"
+      ],
+      "note": "value was false",
+      "why": "no payload ever compares equal, so identical histories diverge everywhere. The opposite direction, under the guardian written for it.",
+      "n_ran": 172
+    },
+    {
+      "id": "NC01",
+      "guardian": "guest arithmetic",
+      "mechanism": "CONTROL: a semantically identical rewrite",
+      "verdict": "inert",
+      "control": {
+        "verdict": "inert",
+        "n_red": 0
+      },
+      "n_red": 0,
+      "co_red": [],
+      "note": "the guardian passed and NOTHING in the file went red",
+      "why": "`i >= len(s)` and `len(s) <= i` are the same predicate. Nothing may go red. Without this, an `inert` verdict is unfalsifiable: it reads the same whether the file cannot see the rule or the runner never applied the edit.",
+      "n_ran": 172
+    },
+    {
+      "id": "NC02",
+      "guardian": "guest diverge finds the one origin",
+      "mechanism": "CONTROL: a second semantically identical rewrite, in the provenance half rather than the string half",
+      "verdict": "inert",
+      "control": {
+        "verdict": "inert",
+        "n_red": 0
+      },
+      "n_red": 0,
+      "co_red": [],
+      "note": "the guardian passed and NOTHING in the file went red",
+      "why": "same predicate, different subsystem, so a control that held only because nothing in the run touched `first_space` is ruled out",
+      "n_ran": 172
+    }
+  ]
+}

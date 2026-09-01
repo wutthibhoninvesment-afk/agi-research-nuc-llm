@@ -59,6 +59,14 @@ import checkpin as C                                            # noqa: E402
 REGISTRY = os.path.normpath(
     os.path.join(ROOT, "..", "..", "state", "whence", "round-414",
                  "check-pins.json"))
+#: Round 416's registry, over the guest EVALUATOR half of
+#: `examples/self_eval.lang`. Kept as a second entry rather than merged into
+#: the first: the two guest files have separate baselines, and a pin that
+#: rots should name which registry it rotted in.
+REGISTRY_EVAL = os.path.normpath(
+    os.path.join(ROOT, "..", "..", "state", "whence", "round-416",
+                 "eval-pins.json"))
+REGISTRIES = ((REGISTRY, "self_host.lang"), (REGISTRY_EVAL, "self_eval.lang"))
 
 #: A whole guest program, small enough that a full run is ~0.3 s. Every unit
 #: test below edits THIS, not `self_host.lang`.
@@ -325,3 +333,190 @@ def test_the_two_killers_this_round_added_actually_kill():
     for pid in ("CP02", "CP11"):
         r = C.run_pin(reg[pid], src, base)
         assert r["verdict"] == "guarded", (pid, r)
+
+
+# --- round 416: `also`, and the `redundant` verdict -----------------------
+
+#: A toy whose rule has TWO implementations, which is the situation round
+#: 416 found twice in `self_eval.lang` (`guest_kind`'s ordering plus each
+#: probe's own guard; `check_ret`'s early-out plus `check_contract`'s).
+TOY_REDUNDANT = (
+    "fn belt(n) { if n < 0 { 0 } else { n } }\n"
+    "fn braces(n) { if belt(n) < 0 { 0 } else { belt(n) } }\n"
+    'check "never negative": braces(-5) == 0\n'
+    'check "unrelated arithmetic": 1 + 1 == 2\n'
+)
+
+
+def _run_registry_over(reg, src):
+    """`run_registry` against an in-memory guest file rather than a path."""
+    import tempfile
+    d = tempfile.mkdtemp(prefix="checkpin-test-")
+    with open(os.path.join(d, "toy"), "w", encoding="utf-8") as f:
+        f.write(src)
+    return C.run_registry(reg, root=d)
+
+
+def test_also_applies_every_edit_and_each_locates_in_the_previous_result():
+    """`also` edits are chained, not applied to the original source, so a
+    later edit may target text an earlier one wrote."""
+    new = C.apply_edit(TOY, {
+        "id": "A1", "edit": "fn_replace", "target": "twice",
+        "becomes": "fn twice(n) { n * 3 }",
+        "also": [{"edit": "line_replace", "needle": "fn twice(n) { n * 3 }",
+                  "becomes": "fn twice(n) { n * 4 }"}]})
+    assert "fn twice(n) { n * 4 }" in new
+    assert "n * 2" not in new and "n * 3" not in new
+
+
+def test_an_also_chain_that_cancels_itself_out_is_equivalent_not_a_finding():
+    """Two edits whose net effect is nothing must be refused for the same
+    reason one such edit is: a pin whose source did not change measures the
+    tool, and every check would 'pass' it."""
+    with pytest.raises(C.EquivalentEdit):
+        C.apply_edit(TOY, {
+            "id": "A2", "edit": "fn_replace", "target": "twice",
+            "becomes": "fn twice(n) { n * 3 }",
+            "also": [{"edit": "line_replace",
+                      "needle": "fn twice(n) { n * 3 }",
+                      "becomes": "fn twice(n) { n * 2 }"}]})
+
+
+def test_removing_one_copy_of_a_redundant_rule_reads_as_inert():
+    """The defect the `redundant` verdict exists for: the narrow edit is
+    invisible, and `inert` alone says 'write a check', which is the wrong
+    advice -- the behaviour genuinely did not change."""
+    r = _run({"id": "R1", "edit": "fn_replace", "target": "belt",
+              "becomes": "fn belt(n) { n }",
+              "guardian": "never negative"}, src=TOY_REDUNDANT)
+    assert r["verdict"] == "inert" and r["n_red"] == 0
+
+
+def test_removing_every_copy_of_the_same_rule_is_guarded():
+    r = _run({"id": "R2", "edit": "fn_replace", "target": "belt",
+              "becomes": "fn belt(n) { n }",
+              "also": [{"edit": "fn_replace", "target": "braces",
+                        "becomes": "fn braces(n) { belt(n) }"}],
+              "guardian": "never negative"}, src=TOY_REDUNDANT)
+    assert r["verdict"] == "guarded"
+
+
+def test_redundant_with_demotes_inert_and_is_scored_out():
+    """`inert` + a WIDER pin that went red = `redundant`: a fact about the
+    code, not about the suite. It must not count against the score, or a
+    file that defends a rule twice scores worse for having done so."""
+    reg = {"pins": [
+        {"id": "R1", "guest_file": "toy", "edit": "fn_replace",
+         "target": "belt", "becomes": "fn belt(n) { n }",
+         "guardian": "never negative", "redundant_with": "R2"},
+        {"id": "R2", "guest_file": "toy", "edit": "fn_replace",
+         "target": "belt", "becomes": "fn belt(n) { n }",
+         "also": [{"edit": "fn_replace", "target": "braces",
+                   "becomes": "fn braces(n) { belt(n) }"}],
+         "guardian": "never negative"},
+    ]}
+    out = _run_registry_over(reg, TOY_REDUNDANT)
+    verdicts = {r["id"]: r["verdict"] for r in out["results"]}
+    assert verdicts == {"R1": C.REDUNDANT_VERDICT, "R2": "guarded"}
+    assert out["findings"] == 0
+    assert out["redundant"] == [{"id": "R1", "wider": "R2"}]
+    assert out["score"] == 1.0
+    assert out["n_pins"] == 1               # the redundant pin is scored out
+
+
+def test_redundant_with_does_not_demote_when_the_wider_pin_is_absent():
+    """The conservative direction, and the one `--only` hits: if the wider
+    pin did not run, or did not go red, `inert` must stand."""
+    reg = {"pins": [
+        {"id": "R1", "guest_file": "toy", "edit": "fn_replace",
+         "target": "belt", "becomes": "fn belt(n) { n }",
+         "guardian": "never negative", "redundant_with": "R9"},
+    ]}
+    out = _run_registry_over(reg, TOY_REDUNDANT)
+    assert out["results"][0]["verdict"] == "inert"
+    assert out["redundant"] == []
+    assert out["findings"] == 1
+
+
+# --- round 416: the eval registry ----------------------------------------
+
+@pytest.mark.parametrize("path,guest", REGISTRIES)
+def test_every_pin_in_every_registry_still_locates(path, guest):
+    with open(path, encoding="utf-8") as f:
+        reg = json.load(f)
+    src = open(os.path.join(ROOT, "examples", guest), encoding="utf-8").read()
+    for pin in reg["pins"]:
+        assert pin["guest_file"] == "examples/" + guest, pin["id"]
+        C.apply_edit(src, pin)
+
+
+@pytest.mark.parametrize("path,guest", REGISTRIES)
+def test_every_guardian_label_in_every_registry_is_a_real_check(path, guest):
+    with open(path, encoding="utf-8") as f:
+        reg = json.load(f)
+    src = open(os.path.join(ROOT, "examples", guest), encoding="utf-8").read()
+    for pin in reg["pins"]:
+        assert 'check "%s"' % pin["guardian"] in src, (pin["id"], guest)
+
+
+@pytest.mark.parametrize("path,guest", REGISTRIES)
+def test_every_mutated_source_still_parses(path, guest):
+    """Round 416's prediction A5, kept as a test. A `collapsed` verdict
+    caused by a syntax error in the pin's OWN replacement text is the tool
+    measuring itself; a `collapsed` caused by the mutated SEMANTICS is a
+    result. Only the second may happen at run time."""
+    from whence.parser import parse
+    with open(path, encoding="utf-8") as f:
+        reg = json.load(f)
+    src = open(os.path.join(ROOT, "examples", guest), encoding="utf-8").read()
+    for pin in reg["pins"]:
+        parse(C.apply_edit(src, pin))     # raises ParseError if it does not
+
+
+def test_the_eval_registry_pairs_directions_under_one_guardian():
+    """Round 414's item 3 ("give every rule with two opposite falsifying
+    edits both of them") is what this registry is FOR, so the pairing is
+    pinned rather than left to the write-up."""
+    with open(REGISTRY_EVAL, encoding="utf-8") as f:
+        pins = json.load(f)["pins"]
+    dirs = {}
+    for p in pins:
+        if p.get("control_expect"):
+            continue
+        assert p["dir"] in ("-", "+"), p["id"]
+        assert p.get("predicate"), p["id"]
+        dirs.setdefault(p["mechanism"].split()[0], set()).add(p["dir"])
+    both = [m for m, d in dirs.items() if d == {"-", "+"}]
+    assert len(both) >= 12, sorted(dirs.items())
+
+
+@pytest.mark.whence_slow
+def test_the_round_416_killers_actually_kill():
+    """The round's own result, re-measured rather than asserted from the
+    write-up. `state/whence/round-416/run-before.json` records each of these
+    as a finding; after the killers each must be `guarded`."""
+    with open(REGISTRY_EVAL, encoding="utf-8") as f:
+        reg = {p["id"]: p for p in json.load(f)["pins"]}
+    src = open(os.path.join(ROOT, "examples", "self_eval.lang"),
+               encoding="utf-8").read()
+    base = C.build_baseline(src)
+    for pid in ("EP01p", "EP02p", "EP04p", "EP06p", "EP09p",
+                "EP13m", "EP13p", "EP14m"):
+        r = C.run_pin(reg[pid], src, base)
+        assert r["verdict"] == "guarded", (pid, r)
+
+
+@pytest.mark.whence_slow
+def test_the_two_redundant_rules_are_redundant_and_not_unguarded():
+    """Both halves, because either alone is an assertion. The NARROW edit
+    must be invisible (the rule has a second copy) and the WIDE edit must go
+    red (it is guarded once every copy is gone)."""
+    with open(REGISTRY_EVAL, encoding="utf-8") as f:
+        reg = {p["id"]: p for p in json.load(f)["pins"]}
+    src = open(os.path.join(ROOT, "examples", "self_eval.lang"),
+               encoding="utf-8").read()
+    base = C.build_baseline(src)
+    for narrow, wide in (("EP07m", "EP07m2"), ("EP12m", "EP12m2")):
+        assert reg[narrow]["redundant_with"] == wide
+        assert C.run_pin(reg[narrow], src, base)["verdict"] == "inert"
+        assert C.run_pin(reg[wide], src, base)["verdict"] == "guarded"

@@ -168,12 +168,20 @@ def test_example_runs_green():
                        capture_output=True, text=True)
     assert r.returncode == 0, r.stdout + r.stderr
     # Round 398: 142 -> 166, the THIRD copy of this same number in the
-    # suite (`test_v23.py`, `test_examples.py`, here). Round 396 named one
-    # of the three. The 24 are not this round's: 142 at r360 `5969ded`,
-    # 159 at r380 `dbf1042` (+17, v0.31), 166 at r390 `54a74c7` (+7),
-    # measured by running the historical file. See `test_v23.py::
-    # test_both_self_hosting_examples_still_run_green` for the derivation.
-    assert "166 passed, 0 failed" in r.stdout
+    # suite. Round 396 named one of the three. The 24 are not this round's:
+    # 142 at r360 `5969ded`, 159 at r380 `dbf1042` (+17, v0.31), 166 at
+    # r390 `54a74c7` (+7), measured by running the historical file. See
+    # `test_v23.py::test_both_self_hosting_examples_still_run_green` for the
+    # derivation.
+    #
+    # Round 416: 166 -> 172, and the list of copies above was WRONG. It
+    # said `test_v23.py`, `test_examples.py`, here. `test_examples.py`
+    # holds `self_host.lang`'s count, not this one; the third copy is
+    # `test_v31.py:test_the_example_still_passes_its_own_self_tests`, which
+    # is what went red after the other two were updated -- round 414's
+    # "three count pins moved, not two", one file over. The copies are:
+    # `test_v23.py`, `test_v31.py`, here.
+    assert "172 passed, 0 failed" in r.stdout
     assert "all in Whence" in r.stdout
 
 

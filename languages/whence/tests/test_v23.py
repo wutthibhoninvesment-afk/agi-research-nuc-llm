@@ -441,8 +441,20 @@ def test_both_self_hosting_examples_still_run_green():
     #        no apostrophe in it (no new check, the same one strengthened).
     #        The +1 is elsewhere: deleting the GUEST's own `\r` escape arm
     #        left all 154 green, so the guest-side decode got its own check.
+    #   172  round 416, language C: +6 over `self_eval.lang`'s guest
+    #        EVALUATOR. `checkpin.py`'s registry mutated 16 evaluator rules
+    #        in BOTH directions under the same guardian; 11 of 11 such pairs
+    #        had at least one direction the named check could not see, and
+    #        not one guardian caught both. The +6 are the killers for the
+    #        directions nothing saw: `and`'s short-circuit as a provenance
+    #        label rather than a value, the ELSE arm of `if`, record `==`
+    #        surviving a widened refusal, the guest `blame` family (which
+    #        had no guardian at all in either direction), and two message
+    #        checks rewritten from `contains` to EQUALITY against the host's
+    #        own sentence. `is_str`'s guess-guard is the sixth, the missing
+    #        sibling of three that were already there.
     for name, expected in (("self_host.lang", "155 passed, 0 failed"),
-                           ("self_eval.lang", "166 passed, 0 failed")):
+                           ("self_eval.lang", "172 passed, 0 failed")):
         r = subprocess.run(
             [sys.executable, os.path.join(ROOT, "run.py"),
              os.path.join(ROOT, "examples", name)],

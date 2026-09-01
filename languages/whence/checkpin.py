@@ -48,6 +48,11 @@ The verdicts, and why two of them are not credit
 `inert`          the named check stayed green and NOTHING went red. The
                  file cannot tell the rule from its replacement at all.
                  This is round 408's finding, found mechanically.
+`redundant`      (round 416) `inert`, AND the pin named a wider pin in
+                 `redundant_with` that removes every copy of the same rule,
+                 and THAT one went red. The file could not see this edit
+                 because the rule is implemented more than once, not
+                 because nothing guards it. Scored out, like a control.
 `collapsed`      the run produced NO check records — a parse error, a lex
                  error, or a crash before the checks. NOT credit: round 408
                  §6.2 found the same second failure channel in
@@ -67,6 +72,17 @@ The verdicts, and why two of them are not credit
 `unlocatable`, `equivalent`) are reported SEPARATELY and excluded from the
 denominator on purpose: an unlocatable pin is a fact about the registry and
 an inert check is a fact about the suite, and averaging them hides both.
+`redundant` is excluded for a third reason: it is a fact about the CODE,
+and counting it would make a file that defends a rule twice score worse for
+having done so.
+
+A pin also carries, from round 416, the two fields that campaign was built
+to compare: `dir` ("-" the rule does less / "+" the rule does more) and
+`predicate` (the SHAPE of the guardian's expression). A guardian whose
+predicate is one-sided — `missed(X)`, `contains(X, s)`, `len(X) > 0`,
+`not is_num(X)` — is monotone in one of those directions and cannot go red
+there however badly the rule is broken. Mutating each rule in only ONE
+direction measures the direction the registry author happened to pick.
 """
 import json
 import os
@@ -86,6 +102,19 @@ from whence.lexer import tokenize, LexError            # noqa: E402
 FINDING_VERDICTS = ("inert", "shadowed", "wrong_reason")
 ERROR_VERDICTS = ("collapsed", "unreached", "nonviable", "unlocatable",
                   "equivalent")
+
+#: Round 416. `inert` answers "the guardian stayed green and nothing else
+#: went red", and that sentence has TWO causes which want opposite
+#: responses: nothing in the file can see this rule (write a check), or the
+#: rule has more than one implementation and this pin removed one of them
+#: (write nothing — the suite is right that the behaviour did not change).
+#: A pin says which by naming, in `redundant_with`, a WIDER pin that removes
+#: every copy. `inert` here + `guarded` there demotes this pin to
+#: `redundant`, which is neither a finding nor an error and is scored out,
+#: for the same reason a control is: counting a correctly-redundant rule as
+#: a suite defect would make a file that defends a rule twice look worse for
+#: having done so.
+REDUNDANT_VERDICT = "redundant"
 
 #: Wall-clock cap for one guest run. `self_host.lang` takes 3.3 s cold on
 #: this box; a mutated guest can recurse forever, and round 413's lesson (c)
@@ -209,6 +238,21 @@ def line_span(src, needle, occurrence=None):
     return starts[k], starts[k] + len(lines[k])
 
 
+def _apply_one(src, spec):
+    """Apply ONE edit spec (`edit` + its site fields) and return the source."""
+    kind = spec["edit"]
+    if kind == "fn_replace":
+        a, b = fn_span(src, spec["target"], spec.get("occurrence"))
+        return src[:a] + spec["becomes"] + src[b:]
+    if kind == "line_replace":
+        a, b = line_span(src, spec["needle"], spec.get("occurrence"))
+        return src[:a] + spec["becomes"] + src[b:]
+    if kind == "line_delete":
+        a, b = line_span(src, spec["needle"], spec.get("occurrence"))
+        return src[:a] + src[b:]
+    raise PinError("unknown edit kind %r" % kind)
+
+
 def apply_edit(src, pin):
     """Return the mutated guest source for one pin.
 
@@ -217,19 +261,26 @@ def apply_edit(src, pin):
     telling a check that reads a RENDERING from one that reads a STRUCTURE,
     and an edit that reflows the file changes the very text a rendering
     check reads.
+
+    `also` (round 416) is a list of ADDITIONAL edit specs applied on top of
+    the pin's own, in order. It exists because `inert` was found conflating
+    two different facts:
+
+      * nothing in the file can see this rule; and
+      * the rule has more than one implementation, and this pin removed one
+        of them.
+
+    Both read `guardian green, n_red == 0`, and they call for opposite
+    responses — the first wants a new check, the second wants none, because
+    the suite is right that the behaviour did not change. A pin that names
+    every copy of its rule in `also` is the only thing that tells them
+    apart: if the WIDER edit goes `guarded`, the rule was redundant, not
+    unguarded. Each extra edit is located in the source produced by the
+    previous one, so an `also` may target text the pin's own edit wrote.
     """
-    kind = pin["edit"]
-    if kind == "fn_replace":
-        a, b = fn_span(src, pin["target"], pin.get("occurrence"))
-        new = src[:a] + pin["becomes"] + src[b:]
-    elif kind == "line_replace":
-        a, b = line_span(src, pin["needle"], pin.get("occurrence"))
-        new = src[:a] + pin["becomes"] + src[b:]
-    elif kind == "line_delete":
-        a, b = line_span(src, pin["needle"], pin.get("occurrence"))
-        new = src[:a] + src[b:]
-    else:
-        raise PinError("unknown edit kind %r" % kind)
+    new = _apply_one(src, pin)
+    for extra in pin.get("also", ()):
+        new = _apply_one(new, extra)
     if new == src:
         raise EquivalentEdit(
             "the edit for %s produced byte-identical source" % pin["id"])
@@ -443,8 +494,28 @@ def run_registry(reg, root=None, only=None):
     # measurement that says the other verdicts mean anything. Scoring it in
     # the denominator would make an instrument that WORKS look 4% worse for
     # having checked itself, which is the wrong incentive to build in.
+    # Round 416: resolve `redundant_with` before scoring. A pin can only be
+    # demoted if the wider pin actually RAN — under `--only` it stays
+    # `inert`, which is the conservative answer.
+    by_id = {r["id"]: r for r in results}
+    for pin in reg["pins"]:
+        r = by_id.get(pin["id"])
+        wider = pin.get("redundant_with")
+        if not r or not wider or r["verdict"] != "inert":
+            continue
+        w = by_id.get(wider)
+        if w is not None and w["verdict"] == "guarded":
+            r["verdict"] = REDUNDANT_VERDICT
+            r["note"] = (
+                "the guardian stayed green and nothing went red, but the "
+                "wider edit %s — the same rule with every copy removed — "
+                "went red. The rule is redundantly implemented, not "
+                "unguarded." % wider)
     controls = [r for r in results if r.get("control")]
-    scored = [r for r in results if not r.get("control")]
+    redundant = [r for r in results
+                 if r["verdict"] == REDUNDANT_VERDICT and not r.get("control")]
+    scored = [r for r in results
+              if not r.get("control") and r["verdict"] != REDUNDANT_VERDICT]
     guarded = sum(1 for r in scored if r["verdict"] == "guarded")
     findings = [r for r in scored if r["verdict"] in FINDING_VERDICTS]
     errors = [r for r in scored if r["verdict"] in ERROR_VERDICTS]
@@ -457,6 +528,9 @@ def run_registry(reg, root=None, only=None):
                                and r["n_red"] == r["control"].get("n_red"))}
                      for r in controls],
         "guarded": guarded,
+        "redundant": [{"id": r["id"], "wider": next(
+            p["redundant_with"] for p in reg["pins"] if p["id"] == r["id"])}
+            for r in redundant],
         "findings": len(findings),
         "errors": len(errors),
         "score": (guarded / denom) if denom else None,
@@ -490,26 +564,38 @@ def _cmd_locate(args):
         print("=" * 70)
         print("%s  %s  (%s)" % (pin["id"], pin.get("mechanism", ""),
                                 pin["edit"]))
-        try:
-            if pin["edit"] == "fn_replace":
-                a, b = fn_span(src, pin["target"], pin.get("occurrence"))
-            else:
-                a, b = line_span(src, pin["needle"], pin.get("occurrence"))
-        except PinError as e:
-            print("  UNLOCATABLE: %s" % e)
+        cur, refused = src, False
+        # The pin's own edit, then each `also` edit, each located in the
+        # source the previous one produced. The span invariant is asserted
+        # PER EDIT rather than over the whole file, because an `also` pin
+        # changes more than one span on purpose.
+        for n, spec in enumerate([pin] + list(pin.get("also", ()))):
+            try:
+                if spec["edit"] == "fn_replace":
+                    a, b = fn_span(cur, spec["target"], spec.get("occurrence"))
+                else:
+                    a, b = line_span(cur, spec["needle"],
+                                     spec.get("occurrence"))
+            except PinError as e:
+                print("  UNLOCATABLE%s: %s" % ("" if not n else " (also %d)" % n, e))
+                refused = True
+                break
+            print("  %sspan %d..%d (%d chars)"
+                  % ("" if not n else "also %d: " % n, a, b, b - a))
+            for line in cur[a:b].split("\n"):
+                print("  - %s" % line)
+            nxt = _apply_one(cur, spec)
+            for line in nxt[a:a + (b - a) + (len(nxt) - len(cur))].split("\n"):
+                print("  + %s" % line)
+            assert nxt[:a] == cur[:a] and \
+                nxt[len(nxt) - (len(cur) - b):] == cur[b:], (
+                    "edit %d of %s changed bytes OUTSIDE its located span"
+                    % (n, pin["id"]))
+            cur = nxt
+        if refused:
             continue
-        print("  span %d..%d (%d chars)" % (a, b, b - a))
-        for line in src[a:b].split("\n"):
-            print("  - %s" % line)
-        try:
-            new = apply_edit(src, pin)
-        except PinError as e:
-            print("  REFUSED: %s" % e)
-            continue
-        for line in new[a:a + (b - a) + (len(new) - len(src))].split("\n"):
-            print("  + %s" % line)
-        assert new[:a] == src[:a] and new[len(new) - (len(src) - b):] == src[b:], (
-            "the edit changed bytes OUTSIDE the located span")
+        if cur == src:
+            print("  REFUSED: the edit produced byte-identical source")
     return 0
 
 
@@ -526,8 +612,13 @@ def _cmd_run(args):
               % (c["id"], c["verdict"], c["n_red"], c["expected"],
                  "HELD" if c["held"] else "*** BROKEN: every verdict above "
                  "is void ***"))
-    print("\n%d pins: %d guarded, %d finding(s), %d error(s), score %s"
+    for r in out["redundant"]:
+        print("REDUNDANT %s: inert, but the wider edit %s went red — the rule "
+              "has more than one implementation" % (r["id"], r["wider"]))
+    print("\n%d pins: %d guarded, %d finding(s), %d error(s), "
+          "%d redundant, score %s"
           % (out["n_pins"], out["guarded"], out["findings"], out["errors"],
+             len(out["redundant"]),
              "n/a" if out["score"] is None else "%.0f%%" % (100 * out["score"])))
     if len(args) > 0 and os.environ.get("CHECKPIN_JSON"):
         with open(os.environ["CHECKPIN_JSON"], "w", encoding="utf-8") as f:
