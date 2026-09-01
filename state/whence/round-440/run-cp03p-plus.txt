@@ -1,0 +1,5 @@
+CP03p  shadowed      a quote inside a string in the got n_red=1    the guardian passed under the edit; 1 other check(s) went red
+
+1 pins: 0 guarded, 1 finding(s), 0 error(s), 0 redundant, 0 unreachable, score 0%; 0 of 0 inert verdict(s) witnessed
+wrote ../../state/whence/round-440/run-cp03p-plus.json
+exit=1

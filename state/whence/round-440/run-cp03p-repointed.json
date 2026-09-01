@@ -1,0 +1,38 @@
+{
+  "n_pins": 1,
+  "controls": [],
+  "guarded": 1,
+  "redundant": [],
+  "unreachable": [],
+  "inert_total": 0,
+  "inert_witnessed": 0,
+  "findings": 0,
+  "errors": 0,
+  "score": 1.0,
+  "baselines": {
+    "examples/self_host.lang": {
+      "n_checks": 161,
+      "n_witnesses": 23,
+      "n_failing": 0,
+      "dupes": [],
+      "error": null
+    }
+  },
+  "results": [
+    {
+      "id": "CP03p",
+      "guardian": "a string in the got slot is a Whence literal, always double-quoted",
+      "mechanism": "quote_str escapes what the lexer can read back",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 1,
+      "co_red": [],
+      "note": "value was false",
+      "why": "+ = the escaper escapes MORE characters. `'` needs no escape and `\\'` is not a valid Whence escape, so the rendering stops re-lexing for any string containing an apostrophe. The guardian's probe string has no apostrophe in it at all, so it cannot see this however broken the escaper is.",
+      "witness": "quote_str(\"a'b\") == \"\\\"a'b\\\"\"",
+      "witness_moved": true,
+      "n_witness": 1,
+      "n_ran": 161
+    }
+  ]
+}

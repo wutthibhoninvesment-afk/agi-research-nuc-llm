@@ -1,0 +1,5 @@
+CP03p  guarded       a string in the got slot is a When n_red=1    value was false
+
+1 pins: 1 guarded, 0 finding(s), 0 error(s), 0 redundant, 0 unreachable, score 100%; 0 of 0 inert verdict(s) witnessed
+wrote ../../state/whence/round-440/run-cp03p-repointed.json
+exit=0

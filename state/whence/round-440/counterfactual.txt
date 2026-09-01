@@ -1,0 +1,10 @@
+========================================================================
+host-pins-plus-repointed.json   (CP03p measured guarded)
+  CP03p pre=broken_on_branch -> audit undecided           | law strict=[] excused=['CP22p2'] undecided=['CP03p', 'CP06p', 'CP08p', 'CP10p2']
+  CP03p pre=holds            -> audit strict_violation    | law strict=['CP03p'] excused=['CP22p2'] undecided=['CP06p', 'CP08p', 'CP10p2']
+  CP03p pre=broken           -> audit precondition_broken | law strict=[] excused=['CP03p', 'CP22p2'] undecided=['CP06p', 'CP08p', 'CP10p2']
+========================================================================
+host-pins-plus.json   (CP03p measured shadowed)
+  CP03p pre=broken_on_branch -> audit undecided           | law strict=[] excused=['CP22p2'] undecided=[]
+  CP03p pre=holds            -> audit mispointed          | law strict=[] excused=['CP22p2'] undecided=[]
+  CP03p pre=broken           -> audit precondition_broken | law strict=[] excused=['CP22p2'] undecided=[]
