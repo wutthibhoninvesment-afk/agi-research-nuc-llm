@@ -21759,3 +21759,183 @@ hygiene commitments kept.
    operator. `languages/whence/SECURITY.md` is still uncommitted, still not
    this program's, and still the operator's decision — **do not copy a carry
    count for it from this file**; the checker's own line is the only source.
+
+### Round 434 — language(C) — 2026-09-01 — the last precondition, and the registry that could only lose
+
+- **`kind_stable` HAS A DECIDER.** Round 428's item 2, carried unchanged
+  through rounds 429-433, is CLOSED. `polarity.kind_precondition` decides all
+  four pins that rest on it: **EP08m/EP08p `holds`, EP10m/EP10p `broken`**.
+  Eval registry routed map `broken 5, inapplicable 18, unknown 11` ->
+  **`broken 7, holds 2, inapplicable 18, unknown 7`**; `no_decider` no longer
+  appears in any routed map. All three preconditions in the atom table are
+  now decided from the edit alone.
+- **THE RESULT: the corpus has ZERO undecided law violations.** EP10m was the
+  only `guarded`-although-blind pin this program has ever measured that
+  nothing had decided. `law` on round 416's registry goes
+  `0 STRICT, 1 excused, 1 undecided` -> **`0 STRICT, 2 excused, 0 undecided`**.
+  Round 420's hand argument ("both a broken precondition rather than a broken
+  predicate") is mechanised and it agrees. Contingency table
+  `[[9,0],[0,2]]` -> **`[[10,0],[0,3]]`, Fisher p 0.0182 -> 0.0035**, with no
+  campaign re-run.
+- **The decider had to be routed one level deeper than round 428's routing.**
+  "Did the kind change?" answers `unknown` on EP10m — base `{bool, guess}`
+  vs mutant `{bool, miss}` are not disjoint. They differ on `guess`, the one
+  kind the guardian tests, so `Verdict` grew `kinds` and the decider is routed
+  to the KIND, not just the precondition name. `append_only`/`refusal` are
+  single predicates; `kind_stable` is a FAMILY indexed by a kind.
+- **One v0.15 language rule carries the whole result.** In Whence
+  `guess(1,.9,"a") == guess(1,.8,"b")` is a **Guess**, not a bool
+  (`_guess_binop`). Monkeypatch the contagion off — the rule any reader
+  would write — and EP10m flips `broken` -> `holds`, promoting the corpus's
+  last counterexample from *excused* to **STRICT** and reporting the
+  conditional law as REFUTED.
+  `test_the_naive_comparison_kind_rule_would_invert_ep10m` pins it; the
+  language facts under it are asserted by RUNNING guest programs.
+- **The analysis:** a finite kind-set lattice over `interp._kind`'s exact
+  vocabulary, Guess contagion, path-sensitive refinement from `is_<k>` /
+  `missed` guards (a disjunctive guard is a CASE SPLIT, joined, not an
+  intersection), and an interprocedural least fixpoint that settles the
+  mutually recursive `guest_eq`/`raw_deep_eq`/`raw_deep_eq_list`/
+  `raw_deep_eq_fields` triangle at **`{bool, miss}`** — the set EP10m turns
+  on.
+- **A bug the prediction bank found: one depth counter for two kinds of
+  depth.** Tree descent and call descent shared a cap of 40, so a function
+  body was analysed from whatever depth its first caller sat at.
+  `raw_deep_eq` (an eleven-arm `else if` chain) settled at `{bool, miss}`
+  asked directly and answered **TOP** reached from inside `apply_binop` —
+  so **EP10p's decision depended on which pin ran first in the process**.
+  Fixed with two caps and a call frame that RESETS the tree budget. Found
+  only because K4 predicted `broken` and the first measurement said
+  `unknown`.
+- **Round 426 §7 / round 428 item 7 CLOSED, and the answer is structural.**
+  `host-pins-plus-repointed.json` still scores 0 confirmations against 5
+  violations at HEAD — and it **cannot** score otherwise. `repoint`
+  re-points only NOT-guarded pins, and only at a check that DID go red, so
+  every re-pointed pin is `guarded` on the re-run (measured: 20 of 20 that
+  ran). A confirmation is `blind AND NOT guarded`; the not-guarded column is
+  empty by construction. **Decision: it stays in `_campaigns()`** — a corpus
+  that can only ever hurt a p-value is the conservative one to keep — and
+  `_law_table(campaigns[:2]) == _law_table(campaigns)` is asserted, so
+  "contributes nothing" is measured.
+- **A latent silent overwrite in `_law_table`, found while proving that.**
+  Two campaigns are registries over the SAME guest with the SAME pin ids, and
+  the dedup key was `(guest, id)`, so dict order decided which measurement of
+  **CP03p** reached the table (`('unknown', False)` vs `('unknown', True)`).
+  Harmless today (both `unknown`, so neither lands in a cell); active the day
+  CP03p is decided. Key is now `(guest, id, guardian)`; **no cell changes**.
+- **Round 428 item 3 CLOSED as a REFUTATION.** "CP10p and NC02p are
+  `unreachable` — defective pins ... that measure nothing", carried for five
+  rounds, is contradicted by the registry's own fields. **NC02p is a NEGATIVE
+  CONTROL whose `control_expect` is literally `{"verdict": "unreachable",
+  "n_red": 0}`** and every recorded run scores it `held: True`. **CP10p was
+  already replaced by CP10p2 in the same registry, by round 422** — CP10p2's
+  own `why` opens "The REACHABLE `+` for this rule, written after CP10p came
+  back `unreachable`". A claim survived five rounds by being quoted.
+- **One real defect found there:** `repoint --emit` filtered the emitted
+  registry to the pins it repointed, and a control is never `guarded`, so it
+  was dropped — `state/whence/round-420/run-repointed.json` records
+  `"controls": []`, a campaign whose `inert`/`unreachable` verdicts have
+  nothing to distinguish them from a runner that never applied an edit.
+  Fixed; `test_repoint_emit_carries_the_negative_control_through`.
+- **Baselines re-derived, not quoted (round 433 item 10, followed).** The
+  state file's `broken 2, holds 8, inapplicable 5, unknown 8` for the host
+  registry is round 432's PRE-shape-5 number; measured at HEAD it is
+  **`broken 2, holds 9, inapplicable 5, unknown 7`**. Every baseline in
+  `state/round-434-predictions.md` carries the command that produced it.
+- **Tests: `150 passed in 89.34s` for `tests/test_polarity.py`** (baseline
+  `131 passed in 51.74s`), 19 added and 3 rewritten in place; **whence fast
+  tier `2189 passed, 3 skipped, 91 deselected in 229.02s`**, green.
+  Fast-tier collection 2173 -> 2192, exactly the 19 added, verified against
+  a stashed HEAD — the round's own +37.6 s on `test_polarity.py` is the
+  price of keeping the corpus tests in the tier that actually runs. `skill_lint --house --strict` **75 skills, 0 errors, 0
+  warnings**. Skills upgraded: `precondition-must-be-decided` (route to the
+  condition's PARAMETER; test the one modelling rule that carries a verdict;
+  keep the no-decider branch alive) and `null-result-needs-a-power-floor`
+  (unreachability built into the CORPUS, not the threshold). **11 HIT, 1
+  MISS of 12** predictions (`state/round-434-predictions.md`); the miss is
+  K8 — I predicted one existing test would break and three did, all three
+  for the right reason, because I did not predict my own headline reaching
+  the tests that pin the headline number. No SPEC bump: Whence stays v0.41,
+  no `examples/*.lang` file touched.
+
+## Next steps (as of round 434)
+
+1. **`state/research-state.md`'s round-433 item 8 is CLOSED IN FULL** — all
+   three of its clauses. `kind_stable` has a decider (round 428 item 2);
+   CP10p and NC02p are a matched unreachable/reachable pair and a passing
+   negative control respectively, not defective pins (round 428 item 3,
+   closed as a REFUTATION); and the repointed registry's "0 confirmations
+   against 5 violations" is structurally the only result it can produce
+   (round 428 item 7 — note the state file has been calling that one "item
+   5" since round 429, which is a mislabel: 428's item 5 is the duration-
+   prediction rule and belongs to skills(B)).
+2. **The atom table is now fully decided, and that is a NEW risk rather than
+   a finished job.** Three preconditions, three deciders, no gaps — so the
+   next atom added to `polarity.MONOTONE_BUILTINS` will arrive naming a
+   precondition with nothing to decide it, and
+   `test_every_precondition_in_the_atom_table_has_a_decider` is the only
+   thing that will say so. Do not weaken it into a warning, and do not delete
+   the `no_decider` branch for want of a user — it is re-pinned against a
+   synthetic name on purpose. language(C).
+3. **7 `unknown` rows remain in each registry and they are ALL `append_only`
+   or `refusal` residuals now**, not a missing decider. The host set is
+   CP18p/CP19p (the `contains`/`len` residual round 432 proved FALSE in
+   Whence — **do not re-open it**) plus CP03p/CP06p/CP08p/CP10p2/CP20p, which
+   are one shape: an extra disjunct added to a BOOLEAN condition, asked about
+   by a decider whose question is about TEXT. `unknown` is correct there. The
+   honest moves are a widening rule for `append_only` analogous to round
+   428's shape 4 for `refusal`, or a written decision that the class is out
+   of scope. Say which. language(C).
+4. **CP03p is the one pin whose decision has a consequence.** It is the
+   colliding id in round 434's `_law_table` fix: decided, it stops being
+   latent and starts moving the contingency table. Whoever decides it should
+   run `_law_table(True, _campaigns(), collisions)` BEFORE and AFTER and
+   report both. language(C).
+5. **Round 428 item 4 is the last one still open from that round.**
+   `classify_file` says 161 checks for `self_host.lang`, `checkpin run` says
+   `n_ran: 162`; both feed published denominators. `classify` still reports
+   161 at HEAD (re-derived round 434), so the number to re-derive is the
+   other one, and whoever chases it should say which is RIGHT rather than
+   making them agree. language(C).
+6. **Two of round 434's findings are the same shape: the instrument lost
+   something in a list comprehension.** `repoint --emit` dropped the
+   registry's negative control because a control is never `guarded`;
+   `_law_table` dropped one of two measurements of CP03p because its dedup
+   key did not include the thing the derivation changed. Neither was found by
+   a test — both were found by comparing an artefact against the prose that
+   describes it. That comparison has not been run against the other
+   registries in `state/whence/`. language(C) or skills(B).
+7. **Carried from round 433, NOT re-derived by this round.** The harness fast
+   tier's `test_verb_audit.py::TestThisTree::test_no_unexplained_broken_invocation`
+   V002 (red since round 429, fix the RULE not an exemption);
+   `harness/tests/test_swe_campaign.py::test_review_stage_and_report`
+   (`rep["corpus"]["no_killer"]` 0 where 1 is wanted, two candidate shapes
+   banked in `knowledge/round-433-the-unit-that-was-a-file.md` §5 — do not
+   guess between them, run the file); `test_swe_campaign.py[light]` still
+   never run through the slow-tier instrument, whose recall is still 0%; A4's
+   748 s still a floor rather than a runtime; and A8's "one leaf too big for
+   the container" never tested against the other 30 `whole` files.
+   harness(A) or SWE-loop(D).
+8. **`nproc` on this box is 1.** Round 434 ran two pytest processes
+   concurrently by accident and each took roughly twice its solo time; round
+   431 died at `max_turns` for the same reason. Plan every suite as
+   serialised.
+9. **Round 433 item 10's rule works and should stay.** Round 434's bank
+   carried the command behind every baseline, and the very first one it
+   re-derived was stale by a round (`broken 2, holds 8 …` is round 432's
+   pre-shape-5 number; HEAD is `broken 2, holds 9 …`). The rule belongs in
+   `skills/prediction-banking/SKILL.md` if it is not there yet. skills(B).
+10. **Round 430's items 1-9 and round 429's items 4, 5 and 10 stand because
+   nothing touched them, not because anything checked them.** Round 434
+   closed two five-round-old carried claims by reading the artefacts' own
+   text and finding both refuted, which is the third consecutive round where
+   re-deriving a carried item changed its answer. Re-derive FIRST. In
+   particular: the NUC `retention --strict` deadline
+   (`2026-09-10T00:07:00Z`, next loss `2026-09-03T00:07:00Z`); the `%vmeff`
+   residual; `case_coverage`'s 49-of-103 disagreeing verdicts; `claim_check`
+   executing 0 of ~295 commands; and CLAUDE.md's `CRITICAL MISSION` block,
+   re-escalated for the SEVENTEENTH time and still a one-line deletion for
+   the operator. `languages/whence/SECURITY.md` is still uncommitted, still
+   not this program's, and still the operator's decision — **do not copy a
+   carry count for it from this file**; the checker's own line is the only
+   source.

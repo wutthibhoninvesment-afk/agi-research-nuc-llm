@@ -1,0 +1,113 @@
+precondition, decided from the EDIT alone, ROUTED to the one each pin's own
+guardian rests on (round 428) — examples/self_eval.lang
+  deciders: append_only, kind_stable, refusal; every precondition in the atom table is decided (round 434)
+  EP01m   broken        over append_only             
+        [append_only] infix: "unbound name '" + name + "'" + name_hint(n…  ->  'unbound name' + name_hint(name)
+        append_only: broken
+  EP01p   inapplicable  over -                       
+        guardian is not blind in any direction, so no precondition is in play
+        !! the unrouted decider called this `holds` on `append_only`, which this pin does not rest on
+  EP02m   broken        over append_only             
+        [append_only] infix: ' (a miss reason … + n + '"`)'  ->  ''
+        append_only: broken
+  EP02p   inapplicable  over -                       
+        guardian is not blind in any direction, so no precondition is in play
+        !! the unrouted decider called this `holds` on `append_only`, which this pin does not rest on
+  EP03m   unknown       over append_only             
+        [append_only] structural: ((node.operand.kind == 'name') and missed(l…  ->  false
+        append_only: unknown
+  EP03p   unknown       over append_only             
+        [append_only] structural: ((node.operand.kind == 'name') and missed(l…  ->  (node.operand.kind == 'name')
+        append_only: unknown
+  EP04m   inapplicable  over -                       
+        guardian is not blind in any direction, so no precondition is in play
+  EP04m2  inapplicable  over -                       
+        guardian is not blind in any direction, so no precondition is in play
+  EP04p   inapplicable  over -                       
+        guardian is not blind in any direction, so no precondition is in play
+  EP05m   unknown       over refusal                 
+        [refusal] unknown: not is_bool(c.v.v)  ->  (is_bool(c.v.v) and (c.v.v == false))
+        [refusal] unknown: 'p'  ->  'r'
+        [refusal] unknown: if is_compound(c.v.v) { remsg(if c.v.v { tr…  ->  eval(node.otherwise, env, c.st)
+        [refusal] unknown: p  ->  <FieldAccess>
+        [refusal] unknown: 'if'  ->  'if took else-branch'
+        [refusal] unknown: <1 item(s)>  ->  <2 item(s)>
+        [refusal] unknown: 'c'  ->  'r'
+        [refusal] unknown: if c.v.v { {…} } else { {…} }  ->  <Block>
+        refusal: unknown
+  EP05p   unknown       over refusal                 
+        [refusal] unknown: if c.v.v { {…} } else { {…} }  ->  <Block>
+        refusal: unknown
+  EP06m   inapplicable  over -                       
+        guardian is not blind in any direction, so no precondition is in play
+        !! the unrouted decider called this `broken` on `append_only`, which this pin does not rest on
+  EP06p   inapplicable  over -                       
+        guardian is not blind in any direction, so no precondition is in play
+        !! the unrouted decider called this `broken` on `append_only`, which this pin does not rest on
+  EP07m   inapplicable  over -                       
+        guardian is not blind in any direction, so no precondition is in play
+        !! the unrouted decider called this `broken` on `append_only`, which this pin does not rest on
+  EP07m2  inapplicable  over -                       
+        guardian is not blind in any direction, so no precondition is in play
+        !! the unrouted decider called this `broken` on `append_only`, which this pin does not rest on
+  EP08m   holds         over kind_stable             
+        [kind_stable] stable (num): ((not is_guess_val(v) and not missed(v)) an… {bool}  ->  (not missed(v) and not missed((v + 0))) {bool}
+        kind_stable: holds
+  EP08p   holds         over kind_stable             
+        [kind_stable] stable (num): ((not is_guess_val(v) and not missed(v)) an… {bool}  ->  false {bool}
+        kind_stable: holds
+  EP09m   broken        over refusal                 
+        [refusal] revive: <MissLit>  ->  if (is_guess_val(x) and is_guess_val(y)) { …
+        refusal: broken
+  EP09p   inapplicable  over -                       
+        guardian is not blind in any direction, so no precondition is in play
+  EP10m   broken        over kind_stable             
+        [kind_stable] changed (guess): (a.v == b.v) {bool,guess}  ->  guest_eq(a, b) {bool,miss}
+        kind_stable: broken
+  EP10p   broken        over kind_stable             
+        [kind_stable] changed (guess): guest_eq(a, b) {bool,miss}  ->  (a.v == b.v) {bool,guess}
+        kind_stable: broken
+  EP11m   broken        over append_only             
+        [append_only] infix: 'return value of ' + fn_name  ->  'return value'
+        append_only: broken
+  EP11p   broken        over append_only             
+        [append_only] infix: 'return value'  ->  'return value of ' + fn_name
+        append_only: broken
+  EP12m   unknown       over append_only,refusal     
+        [append_only] structural: ((ret_spec == '') or missed(box.v))  ->  (ret_spec == '')
+        [refusal] unknown: 'or'  ->  '=='
+        [refusal] unknown: (ret_spec == '')  ->  ret_spec
+        [refusal] unknown: missed(box.v)  ->  ''
+        append_only: unknown; refusal: unknown
+  EP12m2  unknown       over append_only,refusal     
+        [append_only] structural: ((ret_spec == '') or missed(box.v))  ->  (ret_spec == '')
+        [append_only] structural: ((spec == '') or missed(box.v))  ->  (spec == '')
+        [refusal] unknown: 'or'  ->  '=='
+        [refusal] unknown: (ret_spec == '')  ->  ret_spec
+        [refusal] unknown: missed(box.v)  ->  ''
+        [refusal] unknown: 'or'  ->  '=='
+        [refusal] unknown: (spec == '')  ->  spec
+        [refusal] unknown: missed(box.v)  ->  ''
+        append_only: unknown; refusal: unknown
+  EP12p   unknown       over append_only,refusal     
+        [append_only] structural: if ((ret_spec == '') or missed(box.v)) { bo…  ->  box
+        [refusal] unknown: if ((ret_spec == '') or missed(box.v)) { bo…  ->  box
+        append_only: unknown; refusal: unknown
+  EP13m   inapplicable  over -                       
+        guardian is not blind in any direction, so no precondition is in play
+  EP13p   inapplicable  over -                       
+        guardian is not blind in any direction, so no precondition is in play
+  EP14m   inapplicable  over -                       
+        guardian is not blind in any direction, so no precondition is in play
+  EP15m   inapplicable  over -                       
+        guardian is not blind in any direction, so no precondition is in play
+  EP16m   inapplicable  over -                       
+        guardian is not blind in any direction, so no precondition is in play
+  EP16p   inapplicable  over -                       
+        guardian is not blind in any direction, so no precondition is in play
+  NC01    inapplicable  over -                       
+        guardian is not blind in any direction, so no precondition is in play
+  NC02    inapplicable  over -                       
+        guardian is not blind in any direction, so no precondition is in play
+  broken 7, holds 2, inapplicable 18, unknown 7
+  6 pin(s) whose UNROUTED answer was a decision to a question the pin never asked

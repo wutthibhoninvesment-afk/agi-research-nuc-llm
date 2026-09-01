@@ -580,7 +580,14 @@ def test_the_planted_discriminator_pair_is_decided_from_the_edit_alone():
 @pytest.mark.whence_slow
 def test_round_420s_two_law_violations_are_both_explained_or_out_of_scope():
     """EP11p's precondition is `append_only` and the decider breaks it;
-    EP10m's is `kind_stable`, which this module does not decide at all."""
+    EP10m's is `kind_stable`, which the UNROUTED map below cannot reach.
+
+    Round 434 note: `kind_stable` now HAS a decider, and the routed map
+    calls EP10m `broken` (see
+    `test_no_violation_in_the_recorded_corpus_is_undecided_any_more`).
+    This test deliberately keeps the unrouted call, because what it pins is
+    round 428's finding that an `append_only`-only map answers a question
+    EP10m never asked -- and that stays true however many deciders exist."""
     import json
     with open(os.path.join(REG_416, "eval-pins.json"), encoding="utf-8") as f:
         reg = json.load(f)
@@ -921,14 +928,35 @@ def test_routing_is_conjunctive_and_broken_wins():
 
 
 def test_a_precondition_with_no_decider_drags_the_row_to_unknown():
-    """`kind_stable` is deliberately absent from `PRECONDITION_DECIDERS`.
-    An undecidable member must never let the row read `holds`."""
-    assert PO.PRE_KIND_STABLE not in PO.PRECONDITION_DECIDERS
+    """The `no_decider` MECHANISM, pinned against a synthetic name.
+
+    Round 428 wrote this against `kind_stable`, the last precondition with
+    no decider. Round 434 built that decider, which would have left the
+    branch with no user at all -- `no_decider` unreachable, and round 422's
+    own finding is that an unreachable thing is not a tested thing. So the
+    mechanism is re-pinned here against a precondition name nothing decides,
+    and `test_every_precondition_in_the_atom_table_has_a_decider` is what
+    says the REAL table has no gap."""
+    assert "invented_for_this_test" not in PO.PRECONDITION_DECIDERS
     row = PO.routed_precondition(
         REF_BASE, _fnpin('fn f(x) {\n  let a = x + 1\n  miss ("no")\n}'),
-        (PO.PRE_REFUSAL, PO.PRE_KIND_STABLE))
+        (PO.PRE_REFUSAL, "invented_for_this_test"))
     assert row["per_precondition"][PO.PRE_REFUSAL]["status"] == PO.PRE_HOLDS
+    assert row["per_precondition"]["invented_for_this_test"]["status"] == \
+        PO.PRE_NO_DECIDER
     assert row["status"] == PO.PRE_UNKNOWN
+
+
+def test_every_precondition_in_the_atom_table_has_a_decider():
+    """Round 434. Each atom in `MONOTONE_BUILTINS` names the precondition
+    its monotonicity rests on, and from this round every one of them is
+    decided from the edit alone. A new atom that names a fourth
+    precondition must arrive with its decider or fail here -- which is the
+    only reading under which the conditional law stays falsifiable."""
+    named = set(pre for _, pre in PO.MONOTONE_BUILTINS.values())
+    named.add(PO.PRE_KIND_STABLE)          # the guest `is_*` convention
+    assert named == {PO.PRE_APPEND_ONLY, PO.PRE_REFUSAL, PO.PRE_KIND_STABLE}
+    assert named <= set(PO.PRECONDITION_DECIDERS)
 
 
 # --- check_law refuses to bucket on the wrong precondition ----------------
@@ -1127,10 +1155,25 @@ def _fisher_two_sided(a, b, c, d):
     return sum(p(x) for x in range(0, min(r1, c1) + 1) if p(x) <= p0 + 1e-12)
 
 
-def _law_table(routed, campaigns):
-    """The law-scoped contingency over BLIND pins, deduplicated by pin."""
+def _law_table(routed, campaigns, collisions=None):
+    """The law-scoped contingency over BLIND pins, deduplicated by pin.
+
+    Round 434: the dedup key is `(guest, id, GUARDIAN)`, not `(guest, id)`.
+    Two of the three campaigns are registries over the SAME guest file with
+    the SAME pin ids -- `host-pins-plus.json` and its repointed twin -- so
+    the old key silently let the last campaign overwrite the first, and
+    `dict` update order decided which measurement of CP03p reached the
+    table. The same pin pointed at the same check is the same evidence and
+    must dedup (CP22p2, unmoved by the repoint, is measured twice); the same
+    pin pointed at a DIFFERENT check is different evidence and must not.
+    Measured: the fix changes no cell today (CP03p is `unknown` on both
+    sides, so it lands in none of the four), which is why it is landed with
+    a test rather than a new number --
+    `test_the_two_host_registries_do_not_silently_overwrite_each_other`.
+    """
     import json
     seen = {}
+    by_pin = {}
     for guest, pinf, runf in campaigns:
         with open(pinf, encoding="utf-8") as f:
             reg = json.load(f)
@@ -1143,9 +1186,13 @@ def _law_table(routed, campaigns):
                else PO.precondition_map(reg["pins"], src))
         out = PO.check_law(reg["pins"], run["results"], vs, pre)
         for row in out["violations"] + out["confirmations"]:
-            seen[(guest, row["id"])] = (
-                (pre.get(row["id"]) or {}).get("status"),
-                row["verdict"] == "guarded")
+            cell = ((pre.get(row["id"]) or {}).get("status"),
+                    row["verdict"] == "guarded")
+            was = by_pin.get((guest, row["id"]))
+            if was is not None and was != cell and collisions is not None:
+                collisions.append((guest, row["id"], was, cell))
+            by_pin[(guest, row["id"])] = cell
+            seen[(guest, row["id"], row.get("guardian"))] = cell
 
     def cell(status, guarded):
         return sum(1 for s, g in seen.values()
@@ -1184,11 +1231,17 @@ def test_routing_and_refusal_take_the_law_below_p_of_five_hundredths():
     edit and the guest source and never a verdict (guard 1).
 
     Round 432: shape 5 adds CP17p to the confirmation cell, [[8,0],[0,2]]
-    -> [[9,0],[0,2]], p 0.0222 -> 0.0182."""
+    -> [[9,0],[0,2]], p 0.0222 -> 0.0182.
+
+    Round 434: `kind_precondition` decides the third and last precondition.
+    EP08p (`shadowed`, i.e. not guarded) moves `unknown` -> `holds` and
+    EP10m (`guarded`) moves `unknown` -> `broken`, so BOTH diagonal cells
+    grow: [[9,0],[0,2]] -> [[10,0],[0,3]], p 0.0182 -> 0.0035. Nothing was
+    re-run to get it; the campaigns are round 416's and round 428's."""
     a, b, c, d = _law_table(True, _campaigns())
-    assert (a, b, c, d) == (9, 0, 0, 2)
+    assert (a, b, c, d) == (10, 0, 0, 3)
     assert _fisher_two_sided(a, b, c, d) < 0.05
-    assert round(_fisher_two_sided(a, b, c, d), 4) == 0.0182
+    assert round(_fisher_two_sided(a, b, c, d), 4) == 0.0035
 
 
 def test_the_significance_does_not_rest_on_the_shapes_added_after_looking():
@@ -1201,9 +1254,19 @@ def test_the_significance_does_not_rest_on_the_shapes_added_after_looking():
     not-guarded column) were in the file that named them. Neither decider
     can see a verdict, but both authors could.
 
+    Round 434 is the same hazard a THIRD time, and the worst instance of
+    it: `kind_precondition` was written to decide EP10m, whose measured
+    `guarded` verdict is printed by the very `law` command whose baseline
+    round 434 read first. The decider still cannot see a verdict -- it
+    reads the edit, the guest source and the guardian's tested KIND -- but
+    the author could, so it is removable here like the other two.
+
     So the honest control removes them one at a time AND together. Each
-    alone costs one `holds`; both together cost two, and the result still
-    survives at [[7,0],[0,2]], p = 0.0278."""
+    shape alone costs one `holds`; both shapes together cost two; removing
+    the kind decider costs one `holds` AND one `broken`. With all three
+    gone the table is [[7,0],[0,2]] -- round 428's number exactly, which is
+    the point of the control -- and the result still survives at
+    p = 0.0278."""
     def table(**kw):
         saved = {k: getattr(PO, k) for k in kw}
         try:
@@ -1214,15 +1277,29 @@ def test_the_significance_does_not_rest_on_the_shapes_added_after_looking():
             for k, v in saved.items():
                 setattr(PO, k, v)
 
+    def without_kind(**kw):
+        saved = dict(PO.PRECONDITION_DECIDERS)
+        try:
+            PO.PRECONDITION_DECIDERS.pop(PO.PRE_KIND_STABLE, None)
+            return table(**kw) if kw else _law_table(True, _campaigns())
+        finally:
+            PO.PRECONDITION_DECIDERS.clear()
+            PO.PRECONDITION_DECIDERS.update(saved)
+
     no4 = table(_guard_cond_relation=lambda a, b: None)
     no5 = table(_let_hop_relation=lambda *a, **k: None)
     neither = table(_guard_cond_relation=lambda a, b: None,
                     _let_hop_relation=lambda *a, **k: None)
-    assert no4 == (8, 0, 0, 2)
-    assert no5 == (8, 0, 0, 2)
-    assert neither == (7, 0, 0, 2)
-    assert round(_fisher_two_sided(*neither), 4) == 0.0278
-    assert _fisher_two_sided(*neither) < 0.05
+    assert no4 == (9, 0, 0, 3)
+    assert no5 == (9, 0, 0, 3)
+    assert neither == (8, 0, 0, 3)
+    # round 434's own removal, alone and on top of both shapes
+    assert without_kind() == (9, 0, 0, 2)
+    none_of_three = without_kind(_guard_cond_relation=lambda a, b: None,
+                                 _let_hop_relation=lambda *a, **k: None)
+    assert none_of_three == (7, 0, 0, 2)
+    assert round(_fisher_two_sided(*none_of_three), 4) == 0.0278
+    assert _fisher_two_sided(*none_of_three) < 0.05
 
 
 # --- round 432: shape 5, the one-hop let-substitution ----------------------
@@ -1450,3 +1527,335 @@ def test_implies_is_unchanged_on_the_shapes_it_already_proved():
     assert PO._implies(p, q)
     assert PO._implies(q, r)
     assert not PO._implies(q, p)
+
+
+# --- round 434: the `kind_stable` decider ---------------------------------
+#
+# Two kinds of test again, and the split matters more here than anywhere
+# else in this file: the analysis MODELS Whence's kinds, so a test that
+# asserts the model against itself proves nothing about the language. Every
+# claim about what Whence actually does is therefore RUN, through `_checks`.
+
+
+def test_the_kind_vocabulary_matches_the_interpreter():
+    """`polarity.KINDS` is a literal copy of `interp._kind`'s vocabulary,
+    kept literal so a 40 ms static analysis does not import an interpreter.
+    This is the pin that makes the copy safe."""
+    from whence import interp
+    names = [n for _, n in interp._KIND_ORDER] + ["value"]
+    assert sorted(PO.KINDS) == sorted(names)
+
+
+def test_kind_tested_by_reads_the_is_convention_and_its_three_exceptions():
+    assert PO.kind_tested_by("is_guess") == "guess"
+    assert PO.kind_tested_by("is_num") == "num"
+    assert PO.kind_tested_by("is_record") == "record"
+    # the guest's own spellings
+    assert PO.kind_tested_by("is_guess_val") == "guess"
+    assert PO.kind_tested_by("is_callable") == "fn"
+    assert PO.kind_tested_by("is_closure") == "fn"
+    # an `is_*` predicate that is not a KIND test at all
+    assert PO.kind_tested_by("is_digit") is None
+    assert PO.kind_tested_by("is_op") is None
+    assert PO.kind_tested_by("contains") is None
+
+
+def test_miss_is_not_a_testable_kind():
+    """The decider models `miss` only where it is syntactically produced,
+    which is safe exactly because no ATOM tests for it -- `missed` belongs
+    to `refusal`. Adding an `is_miss` atom would invalidate that argument,
+    and this is where it would be noticed."""
+    tested = set()
+    for name in list(PO.MONOTONE_BUILTINS) + ["is_guess_val", "is_num"]:
+        k = PO.kind_tested_by(name)
+        if k is not None:
+            tested.add(k)
+    assert "miss" not in tested
+
+
+def test_a_guardian_records_the_kind_its_type_test_probes():
+    assert one('check "c": is_guess(guess(1, 0.5, "s"))').kinds == ("guess",)
+    src = 'fn is_num(v) { true }\ncheck "c": not is_num(1)'
+    assert one(src).kinds == ("num",)
+    # an `is_*` guest predicate that names no kind
+    src = 'fn is_digit(c) { true }\ncheck "c": is_digit("1")'
+    assert one(src).kinds == ()
+
+
+def test_a_guardian_with_no_resolvable_kind_test_is_unknown_not_holds():
+    """`kinds` empty means there is no question to ask. The answer must be
+    `unknown`; a `holds` here would excuse a violation on an assumption
+    nothing established, which is round 426's guard 3."""
+    row = PO.kind_precondition(REF_BASE, _fnpin('fn f(x) {\n  x + 2\n}'), ())
+    assert row["status"] == PO.PRE_UNKNOWN
+    assert row["decided_over"] == (PO.PRE_KIND_STABLE,)
+
+
+# --- the language facts the analysis rests on, RUN ------------------------
+
+def test_a_comparison_with_a_guess_operand_is_a_guess_in_whence():
+    """The rule that makes EP10m decidable, and the one a kind analysis for
+    almost any other language would get wrong. Asserted by RUNNING it."""
+    got = _checks(
+        'check "cmp of two guesses is a guess":\n'
+        '  is_guess(guess(1, 0.9, "a") == guess(1, 0.8, "b"))\n'
+        'check "cmp of two plain values is a bool":\n'
+        '  not is_guess(1 == 2)\n')
+    assert got == {"cmp of two guesses is a guess": True,
+                   "cmp of two plain values is a bool": True}
+
+
+def test_and_or_do_not_propagate_a_guess():
+    """The one place contagion STOPS: `and`/`or` need a definite bool, so
+    `_binary_kinds` answers `{bool}` for them with no contagion. If Whence
+    ever propagated there, this goes red before the model does."""
+    got = _checks(
+        'check "and over a guess is not a guess": missed('
+        'guess(true, 0.9, "a") and true)\n')
+    assert got == {"and over a guess is not a guess": True}
+
+
+def test_the_naive_comparison_kind_rule_would_invert_ep10m():
+    """DISCLOSURE, and the sharpest single fact this round measured.
+
+    Drop the Guess contagion from comparisons -- the rule any reader would
+    write from "a comparison yields a bool" -- and EP10m stops being
+    `broken` and becomes `holds`, which promotes this program's one
+    remaining violation from `excused` to STRICT and reports the
+    conditional law as REFUTED. The decider's answer is carried entirely by
+    a v0.15 language decision, not by the analysis being clever."""
+    pin = _eval_pin("EP10m")
+    base = _eval_src()
+    assert PO.kind_precondition(base, pin, ("guess",))["status"] == \
+        PO.PRE_BROKEN
+    saved = PO._contagion
+    try:
+        PO._contagion = lambda ks, operands: ks
+        PO._KIND_CTX_CACHE.clear()
+        naive = PO.kind_precondition(base, pin, ("guess",))
+    finally:
+        PO._contagion = saved
+        PO._KIND_CTX_CACHE.clear()
+    assert naive["status"] == PO.PRE_HOLDS, naive["deltas"]
+
+
+# --- the interprocedural fixpoint -----------------------------------------
+
+def _eval_src():
+    with open(SELF_EVAL, encoding="utf-8") as f:
+        return f.read()
+
+
+def _eval_pin(pin_id):
+    import json
+    with open(os.path.join(REG_416, "eval-pins.json"), encoding="utf-8") as f:
+        reg = json.load(f)
+    return [p for p in reg["pins"] if p["id"] == pin_id][0]
+
+
+def test_the_fixpoint_settles_the_mutually_recursive_equality_triangle():
+    """`guest_eq` -> `raw_deep_eq` <-> `raw_deep_eq_list` /
+    `raw_deep_eq_fields`. A single pass answers TOP; the least fixpoint
+    from the empty set answers `{bool, miss}`, and that is exactly the set
+    EP10m's decision turns on."""
+    ctx = PO._kind_ctx(PO._parse_cached(_eval_src()))
+    assert ctx.fn_kinds("guest_eq") == frozenset(("bool", "miss"))
+    assert ctx.fn_kinds("raw_deep_eq") == frozenset(("bool", "miss"))
+    assert ctx.fn_kinds("raw_deep_eq_list") == frozenset(("bool", "miss"))
+
+
+def test_a_function_means_the_same_thing_wherever_it_is_called():
+    """REGRESSION, round 434. The tree budget and the call budget were one
+    counter, so a body was analysed from whatever depth its first caller
+    sat at: `raw_deep_eq` answered `{bool, miss}` asked directly and TOP
+    reached from inside `apply_binop`, and EP10p's DECISION therefore
+    depended on which pin ran first in the process."""
+    src = _eval_src()
+    PO._KIND_CTX_CACHE.clear()
+    ctx = PO._kind_ctx(PO._parse_cached(src))
+    direct = ctx.fn_kinds("raw_deep_eq")
+    PO._KIND_CTX_CACHE.clear()
+    ctx2 = PO._kind_ctx(PO._parse_cached(src))
+    deep = PO._kinds_of(PO._parse_cached(
+        'fn q(a, b) { guest_eq(a, b) }\n').stmts[0].body,
+        {"a": PO.KIND_TOP, "b": PO.KIND_TOP}, ctx2)
+    assert deep == frozenset(("bool", "miss"))
+    assert ctx2.fn_kinds("raw_deep_eq") == direct
+
+
+def test_the_kind_decider_is_order_independent():
+    """The observable consequence of the bug above, pinned at the level a
+    reader cares about: the same four pins, two orders, one answer set."""
+    want = {"EP08m": PO.PRE_HOLDS, "EP08p": PO.PRE_HOLDS,
+            "EP10m": PO.PRE_BROKEN, "EP10p": PO.PRE_BROKEN}
+    base = _eval_src()
+    vs = {v.label: v for v in PO.classify_file(SELF_EVAL)}
+    for order in (("EP08m", "EP08p", "EP10m", "EP10p"),
+                  ("EP10p", "EP10m", "EP08p", "EP08m")):
+        PO._KIND_CTX_CACHE.clear()
+        PO._PARSE_CACHE.clear()
+        got = {}
+        for pid in order:
+            pin = _eval_pin(pid)
+            got[pid] = PO.kind_precondition(
+                base, pin, vs[pin["guardian"]].kinds)["status"]
+        assert got == want, (order, got)
+
+
+# --- the corpus, and the result the decider was built for ------------------
+
+def test_ep10m_is_broken_and_names_the_kind_that_moved():
+    """Round 420 argued BY HAND that its second law violation was "a broken
+    precondition rather than a broken predicate". This is that argument,
+    mechanised: the value at the edit site goes from `{bool, guess}` to
+    `{bool, miss}`, and `guess` is the kind the guardian tests."""
+    row = PO.kind_precondition(_eval_src(), _eval_pin("EP10m"), ("guess",))
+    assert row["status"] == PO.PRE_BROKEN
+    assert len(row["deltas"]) == 1, row["deltas"]
+    d = row["deltas"][0]
+    assert "changed (guess)" in d
+    assert "{bool,guess}" in d and "{bool,miss}" in d
+
+
+def test_the_predicate_body_edits_are_kind_stable():
+    """EP08m/EP08p replace `is_num`'s BODY. Both sides are boolean, the
+    kind under test (`num`) is in neither, and the observed value is not
+    touched at all -- so `holds`, and EP08p's confirmation of the law is
+    strengthened rather than excused."""
+    for pid in ("EP08m", "EP08p"):
+        row = PO.kind_precondition(_eval_src(), _eval_pin(pid), ("num",))
+        assert row["status"] == PO.PRE_HOLDS, (pid, row["deltas"])
+
+
+def test_no_violation_in_the_recorded_corpus_is_undecided_any_more():
+    """The result. Every `guarded`-although-blind pin this program has ever
+    measured now has its OWN precondition decided from the edit, and every
+    one of them is `broken` -- so the conditional law is nowhere refuted,
+    and nowhere excused by an undecided assumption either."""
+    import json
+    with open(os.path.join(REG_416, "eval-pins.json"), encoding="utf-8") as f:
+        reg = json.load(f)
+    with open(os.path.join(REG_416, "run.json"), encoding="utf-8") as f:
+        run = json.load(f)
+    vs = PO.classify_file(SELF_EVAL)
+    pre = PO.precondition_map(reg["pins"], _eval_src(), vs)
+    out = PO.check_law(reg["pins"], run["results"], vs, pre)
+    assert len(out["violations"]) == 2
+    assert out["strict_violations"] == []
+    assert [r["id"] for r in out["undecided"]] == []
+    assert sorted(r["id"] for r in out["excused"]) == ["EP10m", "EP11p"]
+
+
+def test_the_host_registry_is_untouched_by_the_third_decider():
+    """The control. No pin in round 422's registry rests on `kind_stable`,
+    so adding its decider must move nothing there. A decider that changes a
+    registry it does not apply to is routing wrongly."""
+    import json
+    with open(os.path.join(REG_422, "host-pins-plus.json"),
+              encoding="utf-8") as f:
+        reg = json.load(f)
+    with open(SELF_HOST, encoding="utf-8") as f:
+        src = f.read()
+    vs = PO.classify_file(SELF_HOST)
+    pre = PO.precondition_map(reg["pins"], src, vs)
+    counts = {}
+    for row in pre.values():
+        counts[row["status"]] = counts.get(row["status"], 0) + 1
+    assert counts == {PO.PRE_BROKEN: 2, PO.PRE_HOLDS: 9,
+                      PO.PRE_INAPPLICABLE: 5, PO.PRE_UNKNOWN: 7}
+    assert not any(PO.PRE_KIND_STABLE in (v.pre or ()) for v in vs)
+
+
+def test_the_two_host_registries_do_not_silently_overwrite_each_other():
+    """Round 434. Two of the three campaigns are registries over the SAME
+    guest file with the SAME pin ids, so a `(guest, id)` dedup key let the
+    last one silently replace the first. Measured on the recorded corpus the
+    collision is real (CP03p: not-guarded in `host-pins-plus`, guarded in
+    its repointed twin) and currently harmless (its precondition is
+    `unknown` on both sides, so it lands in none of the four cells). This
+    pins BOTH halves: the collision exists, and the table is unchanged by
+    keying on the guardian as well."""
+    collisions = []
+    tab = _law_table(True, _campaigns(), collisions)
+    assert tab == (10, 0, 0, 3)
+    ids = sorted(c[1] for c in collisions)
+    assert ids == ["CP03p"], collisions
+    was, now = [c for c in collisions if c[1] == "CP03p"][0][2:]
+    assert was == (PO.PRE_UNKNOWN, False)
+    assert now == (PO.PRE_UNKNOWN, True)
+
+
+def test_a_repointed_registry_can_never_produce_a_confirmation():
+    """Round 434, closing round 426 §7 / round 428 item 7 — "the repointed
+    registry needs taking seriously or retiring".
+
+    The answer is structural rather than a matter of degree. `repoint`
+    re-points ONLY pins that did not come back `guarded`, and only to a
+    check that DID go red for that pin's own edit. So on the re-run every
+    repointed pin's guardian is red, i.e. `guarded` -- 20 of 20 that ran,
+    score 1.0, which round 426 already noted is guaranteed by construction.
+    A law CONFIRMATION is `blind AND NOT guarded`. The not-guarded column of
+    a repointed registry is therefore empty by construction, and "0
+    confirmations against 5 violations" is not a weak result: it is the only
+    result that registry can produce.
+
+    It stays in `_campaigns()` anyway, because a campaign that can only ever
+    hurt the p-value is the conservative one to keep. What it may NOT do is
+    silently help, which is what the test above is for.
+    """
+    import json
+    guest, pinf, runf = _campaigns()[2]
+    with open(pinf, encoding="utf-8") as f:
+        reg = json.load(f)
+    with open(runf, encoding="utf-8") as f:
+        run = json.load(f)
+    verdicts = {r["id"]: r["verdict"] for r in run["results"]}
+    repointed = [p["id"] for p in reg["pins"]
+                 if p.get("repointed_from") or p.get("guardian_was")]
+    assert len(repointed) == 20, repointed
+    ran = [i for i in repointed if verdicts.get(i) not in (None, "unreachable")]
+    assert ran and all(verdicts[i] == "guarded" for i in ran), \
+        {i: verdicts.get(i) for i in repointed}
+    with open(guest, encoding="utf-8") as f:
+        src = f.read()
+    vs = PO.classify_file(guest)
+    out = PO.check_law(reg["pins"], run["results"], vs,
+                       PO.precondition_map(reg["pins"], src, vs))
+    assert out["confirmations"] == []
+    # ...and it contributes nothing at all to the contingency table
+    assert _law_table(True, _campaigns()[:2]) == _law_table(True, _campaigns())
+
+
+def test_repoint_emit_carries_the_negative_control_through():
+    """Round 434. `repoint` only ever names pins that did NOT come back
+    `guarded`, and a negative control is never guarded and is never named --
+    so the emitted registry used to lose it. `state/whence/round-420/
+    run-repointed.json` records `controls: []`: a campaign whose `inert` and
+    `unreachable` verdicts have nothing to distinguish them from a runner
+    that never applied an edit, which is exactly what round 408 §6.2 wrote
+    the control rule for."""
+    import json
+    import tempfile
+    with open(os.path.join(REG_416, "eval-pins.json"), encoding="utf-8") as f:
+        reg = json.load(f)
+    controls = [p["id"] for p in reg["pins"] if p.get("control_expect")]
+    assert controls, "fixture has no control to carry"
+    with tempfile.NamedTemporaryFile("w", suffix=".json",
+                                     delete=False) as tmp:
+        out = tmp.name
+    try:
+        rc = PO._cmd_repoint([os.path.join(REG_416, "eval-pins.json"),
+                              os.path.join(REG_416, "run.json"),
+                              "--emit", out])
+        assert rc == 0
+        with open(out, encoding="utf-8") as f:
+            emitted = json.load(f)
+    finally:
+        os.unlink(out)
+    ids = [p["id"] for p in emitted["pins"]]
+    for c in controls:
+        assert c in ids, (c, ids)
+    # ...and a carried control is NOT repointed
+    for p in emitted["pins"]:
+        if p.get("control_expect"):
+            assert "guardian_was" not in p, p["id"]

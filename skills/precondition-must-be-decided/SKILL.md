@@ -61,6 +61,50 @@ pairwise descent and manufacturing two "the text was rewritten in the middle"
 findings on an edit that touches no text at all. A decider that excuses
 counterexamples fails silently and in the direction you want.
 
+### Round 434: the last precondition, and two things the first two did not teach
+
+`kind_stable` — "the edit does not change the KIND of the observed value" —
+was the third and last condition, and it stayed undecided for six rounds
+because the obvious decider asks the wrong question. Written as *"did the
+kind at the edit site change?"* it answers `unknown` on the one case that
+mattered: the base kind set is `{bool, guess}` and the mutant's is
+`{bool, miss}`, and those are not disjoint. They differ on ONE kind —
+`guess` — which is the only kind the failing check actually tests.
+
+**A decider is routed to a condition NAME; it usually also needs the
+condition's PARAMETER.** `append_only` and `refusal` are yes/no properties
+of an edit, so their deciders need nothing from the case but the edit.
+`kind_stable` is a family of conditions indexed by a kind, and the case
+knows which member it rests on. Routing stopped one level too shallow, and
+the cost was six rounds of `unknown` on a decidable case. Ask, for each
+condition: *is this one predicate, or a family? if a family, what does the
+case know that selects the member?*
+
+**If one modelling default carries the verdict, that default is the finding
+and it needs its own test.** The kind analysis decides the case only because
+Whence re-wraps `x == y` in a Guess when an operand is a Guess. Substitute
+the rule any reader would write from "a comparison yields a bool" and the
+verdict flips from `broken` to `holds` — which promotes the corpus's one
+remaining counterexample from *excused* to STRICT and reports the
+conditional law as REFUTED. That is a one-line change in a lattice nobody
+would have questioned. Test it by monkeypatching the rule off and asserting
+the inversion, and assert the language fact underneath by RUNNING a program,
+not by asserting the model against itself.
+
+**A decided condition can strengthen a result on BOTH diagonals.** The third
+decider moved one confirming case `unknown -> holds` and one violating case
+`unknown -> broken`; the contingency table went `[[9,0],[0,2]]` to
+`[[10,0],[0,3]]`, Fisher p 0.0182 -> 0.0035, with no new data collected.
+Predict that before you build it: a decider that decides something must move
+the numbers that number-pinning tests hold, and if your prediction bank says
+"one test will break" it is probably wrong.
+
+**When the last condition gets a decider, the no-decider branch loses its
+only user.** Do not delete it — it is the behaviour a fourth condition gets
+on the day it is named and before it is decided. Re-pin it against a
+synthetic name and add an invariant test that every condition the rule table
+NAMES has a decider, so the next atom cannot arrive silently undecided.
+
 ## When to use
 
 - A rule, invariant, benchmark result or SLA is stated with a "provided
@@ -212,6 +256,16 @@ You have done this when all of these hold:
    decided table is small, with the minimum attainable p for its shape.
 6. Each remaining undecided precondition is named in the report with its own
    case count.
+7. (Round 434) For each condition, the record says whether it is one
+   predicate or a FAMILY indexed by a parameter, and a family's decider
+   receives that parameter from the case rather than guessing it.
+8. (Round 434) Any single modelling rule that, flipped, would invert a
+   published verdict has a test that flips it and asserts the inversion —
+   and the fact underneath that rule is asserted by RUNNING the system, not
+   by asserting the model against itself.
+9. (Round 434) Every condition the rule table names has a decider, asserted
+   by a test; the no-decider branch survives, pinned against a synthetic
+   name rather than deleted for want of a user.
 
 Worked commands from the instance:
 

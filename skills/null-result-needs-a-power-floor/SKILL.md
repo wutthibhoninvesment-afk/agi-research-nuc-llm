@@ -56,6 +56,43 @@ power floor and found:
 Nothing was miscomputed. Every p-value was correct. The missing quantity was
 whether the bar was reachable at all.
 
+### Round 434: unreachability built into the CORPUS, not the threshold
+
+The instances above are all "the bar was too high for the data". There is a
+second shape, and it is harder to see because nothing about it looks like a
+threshold: **the corpus is constructed so that one outcome cannot occur.**
+
+A registry of mutation pins had been scored against a law for four rounds
+and kept coming back `0 confirmations against 5 violations`. Three rounds of
+next-steps carried it as "needs taking seriously or retiring". It was a
+DERIVED registry: a tool had re-pointed every pin that failed to trip its
+named guard at a check that DID trip for that pin's edit. So on the re-run
+every re-pointed pin trips — 20 of 20 — and the law's confirming outcome is
+literally `blind AND NOT tripped`. The not-tripped column is empty by
+construction. **`0 confirmations` was not a weak result; it was the only
+result that registry could produce**, and every round that read it as
+evidence was reading arithmetic.
+
+The tell is a derivation step that SELECTS on the outcome you later score.
+Ask, of any derived corpus: *which cell of my contingency did the
+construction empty?* Then either say so beside the number or stop scoring it.
+
+What to do when you find one — the conservative answer is usually to KEEP
+the corpus and prove it contributes nothing, not to drop it:
+
+* keep it in the campaign list, because a corpus that can only ever hurt a
+  headline is the safe one to keep;
+* pin the structural argument as a test — "this corpus's confirming cell is
+  necessarily empty", asserted from the construction (every derived member
+  trips), not from the number;
+* assert `table(campaigns_without_it) == table(campaigns)`, so "it
+  contributes nothing" is measured rather than argued;
+* and check the dedup key while you are there. Two corpora derived from one
+  source share their member ids; the same-source key silently let the later
+  one overwrite the earlier, and dict order decided which measurement
+  reached the table. Key on the thing the derivation CHANGED (here, the
+  guard each pin names) so the same member measured two ways is two rows.
+
 ## When to use — trigger conditions
 
 Any time you are about to write "no X found", "not significant", "no
@@ -215,6 +252,15 @@ You have applied this correctly when all of the following hold:
 6. Every threshold the verdict depends on has either a written derivation from
    labelled data, or a sweep in the round record showing the verdict across
    its range, or a hard refusal to default.
+
+7. (Round 434) For every DERIVED corpus in the scoring set, the record names
+   which contingency cell its derivation emptied, and there is a test
+   asserting the emptiness follows from the construction. Where the derived
+   corpus stays in the set, a test asserts the aggregate is identical with
+   and without it.
+8. (Round 434) The dedup key across corpora is the thing the derivation
+   CHANGED, not the member id alone; a test names the colliding members and
+   asserts the aggregate is unmoved by the fix.
 
 ```bash
 # 1. can a record of this shape support ANYTHING? no data needed -- run it

@@ -80,15 +80,21 @@ therefore reported as CONDITIONAL — sound exactly when the pin's edit
 respects the guardian's precondition — and `law` partitions its output that
 way instead of printing a pass/fail.
 
-Two of the three preconditions are DECIDED from the edit alone
---------------------------------------------------------------
+All THREE preconditions are DECIDED from the edit alone
+-------------------------------------------------------
 Round 426 built `edit_precondition` for `append_only`; round 428 built
-`refusal_precondition` for `refusal`. `kind_stable` has no decider and is
-deliberately not stubbed. A conditional law whose condition is only ever
-PRINTED is indistinguishable from an unconditional one and becomes an
-unfalsifiable excuse, which is why both deciders read the edit and never a
-verdict, return three values with `broken` as a positive finding, and are
-reported rather than applied.
+`refusal_precondition` for `refusal`; round 434 built `kind_precondition`
+for `kind_stable`, the last one. A conditional law whose condition is only
+ever PRINTED is indistinguishable from an unconditional one and becomes an
+unfalsifiable excuse, which is why all three deciders read the edit and
+never a verdict, return three values with `broken` as a positive finding,
+and are reported rather than applied.
+
+Measured consequence, round 434: EP10m -- the ONE `guarded`-although-blind
+pin in this program's whole recorded corpus that nothing had decided -- is
+`broken`, mechanising round 420's hand argument. The law-scoped contingency
+table goes [[9,0],[0,2]] -> [[10,0],[0,3]], Fisher p 0.0182 -> 0.0035, with
+no campaign re-run. `test_no_violation_in_the_recorded_corpus_is_undecided_any_more`.
 
 With two deciders there is a new way to be wrong, and round 428 checks for
 it rather than arguing it: each pin is ROUTED to the precondition its own
@@ -202,9 +208,11 @@ class Verdict(object):
     a reason this object can name rather than a lower bound in general.
     """
 
-    __slots__ = ("label", "line", "blind", "unknown", "reason", "pre")
+    __slots__ = ("label", "line", "blind", "unknown", "reason", "pre",
+                 "kinds")
 
-    def __init__(self, label, line, blind, unknown, reason, pre=()):
+    def __init__(self, label, line, blind, unknown, reason, pre=(),
+                 kinds=()):
         self.label = label
         self.line = line
         self.blind = frozenset(blind)
@@ -214,6 +222,12 @@ class Verdict(object):
         #: when `blind` is empty. A caller that reports blindness WITHOUT
         #: reporting these is making the claim round 420 disproved.
         self.pre = tuple(sorted(set(pre)))
+        #: Round 434. The KINDS this guardian's type tests probe, which is
+        #: what `kind_stable`'s decider has to be routed to: the question is
+        #: not "did the kind change" but "did the value stop being a K", for
+        #: the K this check looks at. Empty for a guardian with no resolvable
+        #: type test, which is `unknown` and never `holds`.
+        self.kinds = tuple(sorted(set(kinds)))
 
     @property
     def one_sided(self):
@@ -313,7 +327,8 @@ def classify_source(src):
         if not isinstance(st, A.Check):
             continue
         blind, unknown, reason, pre = _analyse(st.expr, guest_fns)
-        out.append(Verdict(st.label, st.line, blind, unknown, reason, pre))
+        out.append(Verdict(st.label, st.line, blind, unknown, reason, pre,
+                           guardian_kinds(st.expr, guest_fns)))
     return out
 
 
@@ -329,8 +344,19 @@ def summarise(verdicts):
     both = sum(1 for v in verdicts if v.blind == BOTH)
     one = sum(1 for v in verdicts if v.one_sided)
     unknown = sum(1 for v in verdicts if v.unknown)
+    kinded = sum(1 for v in verdicts if v.kinds)
+    kind_rests = sum(1 for v in verdicts if PRE_KIND_STABLE in v.pre)
     return {
         "n": n,
+        #: Round 434. `kind_stable` rests on a NAMING convention twice over:
+        #: `is_*` means a type test, and `is_<k>` names the kind `k`. The
+        #: first denominator has been printed since round 420; this is the
+        #: second, and a check that rests on `kind_stable` while resolving
+        #: no kind is the case `kind_precondition` answers `unknown` for.
+        "kind_tested": kinded,
+        "rests_on_kind_stable": kind_rests,
+        "kind_unresolved": sum(1 for v in verdicts
+                               if PRE_KIND_STABLE in v.pre and not v.kinds),
         "blind_plus": plus,
         "blind_minus": minus,
         "blind_both": both,
@@ -710,8 +736,19 @@ def _cmd_repoint(args):
         new["_"] = ("Round 420: %d guardian(s) re-pointed by `polarity.py "
                     "repoint` to a check SIGHTED in the pin's own direction. "
                     "`guardian_was` keeps the label round 416 named. Derived "
-                    "file — regenerate, do not hand-edit." % len(picked))
-        new["pins"] = [p for p in new["pins"] if p["id"] in picked]
+                    "file — regenerate, do not hand-edit. Round 434: the "
+                    "registry's NEGATIVE CONTROL pins are carried through "
+                    "unrepointed." % len(picked))
+        # Round 434. A control is never `guarded`, so `repoint` never names
+        # it and the filter below used to drop it: `state/whence/round-420/
+        # run-repointed.json` records `controls: []`, i.e. a campaign whose
+        # `inert`/`unreachable` verdicts are exactly as unfalsifiable as
+        # round 408 §6.2 said they are without one. Round 422's host
+        # repointed registry kept its control only because a human built it
+        # by hand. Carrying controls costs one guest run and restores the
+        # thing the emitted registry was missing.
+        new["pins"] = [p for p in new["pins"]
+                       if p["id"] in picked or p.get("control_expect")]
         with open(emit, "w", encoding="utf-8") as f:
             json.dump(new, f, indent=2)
         print("wrote %s (%d re-pointed pin(s))" % (emit, len(picked)))
@@ -1033,7 +1070,7 @@ PRE_BROKEN = "broken"
 PRE_UNKNOWN = "unknown"
 
 
-def edit_precondition(base_src, pin):
+def edit_precondition(base_src, pin, kinds=()):
     """Does this pin's edit respect `append_only`? Reads no verdict.
 
     Returns a dict with `status` in {holds, broken, unknown, identity,
@@ -1668,7 +1705,7 @@ def _record(out, rel, old, new):
         out.append((rel, old, new))
 
 
-def refusal_precondition(base_src, pin):
+def refusal_precondition(base_src, pin, kinds=()):
     """Does this pin's edit respect `refusal`? Reads no verdict.
 
     Same return contract as `edit_precondition`: `status` in {holds, broken,
@@ -1697,17 +1734,646 @@ def refusal_precondition(base_src, pin):
             "decided_over": (PRE_REFUSAL,)}
 
 
+# --- the THIRD precondition: does this pin's edit change the KIND? --------
+#
+# Round 434 (language C). Round 428 closed with "`kind_stable` has no decider
+# and is the last one … EP10m in round 416's campaign is the pin waiting for
+# it", and rounds 429-433 carried that item unchanged. This section is the
+# decider, and it is the one that had a RESULT waiting on it: EP10m is the
+# only violation in this program's entire recorded corpus that reads
+# `undecided`, so until now the sentence "the law is CONDITIONAL and nothing
+# strictly refutes it" rested on a pin nothing had decided.
+#
+# WHAT `kind_stable` SAYS. `is_guess(E)` -- and, by the `is_` naming
+# convention, a guest `is_num(E)`/`is_list(E)`/... -- is a test on the KIND of
+# the value it observes, not on how permissive the rule that produced it is.
+# It is monotone along a "the rule does less" edge exactly while the edit
+# cannot move E out of (or into) the kind being tested. So the question this
+# decider asks is not "is the value the same" and not even "is the kind the
+# same": it is
+#
+#     does the edit change whether the value at the edit site is a K,
+#     for the specific K the pin's own guardian tests?
+#
+# ROUTED ONE LEVEL DEEPER THAN ROUND 428'S ROUTING. Round 428 made a decider
+# answer only about the precondition the pin's guardian rests on. This one
+# additionally needs to know WHICH KIND that guardian probes, so `Verdict`
+# grew `kinds` and `routed_precondition` passes it through. A decider that
+# asked "did the kind change at all" instead would be answering a strictly
+# harder question than the law needs, and would come back `unknown` on
+# EP10m: the base kind there is `{bool, guess}` (a comparison whose operand
+# is a Guess is a Guess, but the analysis cannot rule out the bool) and the
+# mutant kind is `{bool, miss}`. Those two sets are NOT disjoint. They differ
+# on `guess`, which is the only kind the guardian looks at.
+#
+# THE LANGUAGE FACT THAT MAKES IT WORK, and the naive rule that would have
+# inverted the answer. In most languages `x == y` is a bool and a kind
+# analysis writes that rule without thinking. In Whence it is not:
+# `_guess_binop` re-wraps a comparison whose operand is a Guess in a NEW
+# Guess at weakest-link confidence (interp.py, v0.15), which is the entire
+# mechanism EP10m pins. Under the naive rule `a.v == b.v` is `{bool}`,
+# `guest_eq(a, b)` is `{bool, miss}`, `guess` is in neither, the membership
+# does not change, and the decider returns `holds` -- which would move EP10m
+# from `undecided` to STRICT, i.e. would report this program's conditional
+# law as REFUTED, on a rule nobody would have questioned.
+# `test_the_naive_comparison_kind_rule_would_invert_ep10m` is what stops that
+# rule from being reintroduced.
+#
+# WHAT IT ABSTRACTS AWAY, stated because a `holds` is a claim. Whence turns a
+# type error into an ordinary miss on almost any operation, so a sound
+# may-analysis would put `miss` in nearly every kind set and nothing would
+# ever be disjoint. This analysis models `miss` only where it is
+# SYNTACTICALLY produced -- a `miss` literal, an arm reached under
+# `missed(x)`, a callee whose own body produces one. That is safe for the
+# decision rule above and only for it: the tested kind K comes from a type
+# test in the guardian, `missed` is an atom of the OTHER precondition
+# (`refusal`) and never appears as a K, so an unmodelled implicit miss can
+# neither add nor remove K from a kind set. It would matter the day someone
+# adds `is_miss` to the atom table; `test_miss_is_not_a_testable_kind` says
+# so out loud.
+#
+# WHAT IT IS LOCAL ABOUT. Like `edit_precondition` and `refusal_precondition`
+# it reads the EDIT and the guest source and never a verdict, and its claim
+# is about the value AT THE EDIT SITE, not about the guardian's observed
+# value -- which for EP10m is the result of interpreting a Whence program
+# inside a Whence interpreter written in Whence, three call layers and one
+# `gv(...)` string away. The two existing deciders make exactly the same
+# local claim (`append_only` decides "every replaced string expression is
+# rewritten at its end", not "the observed text only grew"), so this is the
+# established strength of a `holds` on this axis rather than a new weakness.
+
+#: `interp._kind`'s vocabulary, verbatim. Kept as a literal rather than
+#: imported because importing the interpreter to run a static analysis over
+#: the parser's output would make a 40 ms module take seconds; the two are
+#: pinned together by `test_the_kind_vocabulary_matches_the_interpreter`.
+KINDS = ("num", "str", "bool", "list", "record", "fn", "guess", "miss",
+         "value")
+KIND_TOP = frozenset(KINDS)
+KIND_BOTTOM = frozenset()
+
+#: `is_<k>` names a kind test when `<k>` is a kind. The guest spells three of
+#: them differently and this is the whole exception list; it is corpus-
+#: derived, like `IS_PREFIX` itself, so `classify` reports how many `is_*`
+#: names in the file it resolved and how many it did not.
+GUEST_KIND_ALIASES = {
+    "guess_val": "guess",     # self_eval.lang:1382
+    "callable": "fn",         # self_eval.lang:1417
+    "closure": "fn",          # self_eval.lang:1415
+    "builtin_ref": "fn",      # self_eval.lang:1416
+}
+
+
+def kind_tested_by(name):
+    """The kind `name` tests, or None. `is_guess` -> guess, `is_op` -> None."""
+    if not name.startswith(IS_PREFIX):
+        return None
+    rest = name[len(IS_PREFIX):]
+    rest = GUEST_KIND_ALIASES.get(rest, rest)
+    return rest if rest in KINDS else None
+
+
+def guardian_kinds(expr, guest_fns):
+    """Every kind the type tests in a guardian expression probe.
+
+    Deliberately a SEPARATE walk from `_analyse` rather than a fifth value
+    threaded through it: `_analyse` is the monotonicity algebra and 131
+    tests pin its four-tuple. This collects a fact the algebra does not
+    need and the new decider does.
+    """
+    out = []
+    stack = [expr]
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, A.Node):
+            continue
+        nm = _callee_name(node)
+        if nm is not None and (nm in MONOTONE_BUILTINS or nm in guest_fns):
+            k = kind_tested_by(nm)
+            if k is not None:
+                out.append(k)
+        for f in _slots(node):
+            v = getattr(node, f)
+            if isinstance(v, A.Node):
+                stack.append(v)
+            elif isinstance(v, (list, tuple)):
+                stack.extend(x for x in v if isinstance(x, A.Node))
+    return tuple(sorted(set(out)))
+
+
+#: Builtin -> the kinds its result can have. Only the builtins this corpus's
+#: guest files actually use in a position this analysis descends into; every
+#: other call is TOP, which is `unknown` and costs a decision rather than
+#: risking a wrong one. `sure` is TOP on purpose: it hands back whatever was
+#: inside the Guess.
+BUILTIN_KINDS = {
+    "len": frozenset(("num",)),
+    "str": frozenset(("str",)),
+    "keys": frozenset(("list",)),
+    "contains": frozenset(("bool",)),
+    "has": frozenset(("bool",)),
+    "missed": frozenset(("bool",)),
+    "matches": frozenset(("bool",)),
+    "is_guess": frozenset(("bool",)),
+    "guess": frozenset(("guess",)),
+    "confidence": frozenset(("num", "miss")),
+    "split": frozenset(("list",)),
+    "join": frozenset(("str",)),
+    "upper": frozenset(("str",)),
+    "lower": frozenset(("str",)),
+    "abs": frozenset(("num",)),
+    "num": frozenset(("num", "miss")),
+    "shapeof": frozenset(("str",)),
+    "reasons": frozenset(("list",)),
+    "keys_of": frozenset(("list",)),
+}
+
+#: `+` is the one overloaded arithmetic operator; the rest are numeric.
+_NUMERIC_OPS = ("-", "*", "/", "%")
+_CONCAT_KINDS = frozenset(("num", "str", "list"))
+
+#: How many times the interprocedural least fixpoint may re-derive one
+#: function before giving up and answering TOP. The lattice is finite
+#: (2**9 kind sets) so a monotone iteration terminates; the cap is a
+#: runaway guard, not the termination argument.
+_KIND_FIX_ROUNDS = 16
+
+#: TWO caps, deliberately not one. `_KIND_DEPTH` bounds the descent through
+#: one expression TREE; `_KIND_CALL_DEPTH` bounds the chain of guest calls.
+#: Round 434 wrote them as a single counter and measured the consequence: a
+#: function body is analysed starting from whatever depth its first caller
+#: happened to sit at, so `raw_deep_eq` -- an eleven-arm `else if` chain --
+#: blew a 40-deep cap and answered TOP when it was reached from inside
+#: `apply_binop`'s tree, and `{bool, miss}` when it was asked for directly.
+#: That made the DECISION for EP10p depend on which pin ran first in the
+#: same process. A call frame resets the tree budget, which is the only
+#: reading under which a function means the same thing wherever it is called.
+_KIND_DEPTH = 160
+_KIND_CALL_DEPTH = 24
+
+
+def _path_key(node):
+    """`a`, `a.v`, `a.v.w` -> a stable string key; anything else -> None."""
+    if isinstance(node, A.NameRef):
+        return node.name
+    if isinstance(node, A.FieldAccess):
+        base = _path_key(node.obj)
+        return None if base is None else base + "." + node.name
+    return None
+
+
+def _may_guess(ks):
+    return "guess" in ks
+
+
+def _contagion(ks, operands):
+    """Whence propagates a Guess operand through arithmetic, comparison and
+    `not` (interp.py v0.15: "the only two places a v0.15 value can flow
+    through without being resolved are the operators themselves")."""
+    if any(_may_guess(o) for o in operands):
+        return ks | frozenset(("guess",))
+    return ks
+
+
+class _KindCtx(object):
+    """Per-program interprocedural state for `_kinds_of`.
+
+    `done` holds converged answers; `approx` holds the current
+    under-approximation of a function still inside its own fixpoint. A
+    result computed while any in-progress function was consulted is NOT
+    promoted to `done`, because it rests on an approximation that may still
+    grow -- the standard hazard when an SCC is entered at more than one
+    node, and the reason `guest_eq` (which reaches the mutually recursive
+    `raw_deep_eq` / `raw_deep_eq_list` / `raw_deep_eq_fields` triangle)
+    needs it.
+    """
+
+    __slots__ = ("fns", "done", "approx", "stack", "used_in_progress")
+
+    def __init__(self, prog):
+        self.fns = {}
+        for st in prog.stmts:
+            if isinstance(st, A.FnDef):
+                self.fns[st.name] = (st.params, st.body)
+            elif isinstance(st, A.Let) and isinstance(st.expr, A.FnExpr):
+                self.fns[st.name] = (st.expr.params, st.expr.body)
+        self.done = {}
+        self.approx = {}
+        self.stack = []
+        self.used_in_progress = set()
+
+    def fn_kinds(self, name, depth=0):
+        if name in self.done:
+            return self.done[name]
+        if name not in self.fns:
+            return KIND_TOP
+        if name in self.stack:
+            self.used_in_progress.add(name)
+            return self.approx.get(name, KIND_BOTTOM)
+        if len(self.stack) >= _KIND_CALL_DEPTH:
+            return KIND_TOP
+        params, body = self.fns[name]
+        cur = self.approx.get(name, KIND_BOTTOM)
+        outer_used = self.used_in_progress
+        used = set()
+        settled = False
+        for _ in range(_KIND_FIX_ROUNDS):
+            self.approx[name] = cur
+            self.stack.append(name)
+            self.used_in_progress = set()
+            try:
+                env = dict((p, KIND_TOP) for p in params)
+                got = _kinds_of(body, env, self, 0) | cur
+            finally:
+                self.stack.pop()
+                used = self.used_in_progress
+                self.used_in_progress = outer_used
+            if got == cur:
+                settled = True
+                break
+            cur = got
+        outer = used - set([name])
+        if outer:
+            # This SCC was entered at an inner node while an ancestor was
+            # still iterating, so `cur` rests on the ancestor's current
+            # approximation. Publish it as an APPROXIMATION and let the
+            # ancestor's own loop re-derive it: caching it as final is the
+            # order-dependence bug round 434 measured, where `guest_eq` came
+            # out `{bool, miss}` on one call order and TOP on another, which
+            # is the difference between deciding EP10p and not.
+            self.approx[name] = cur
+            self.used_in_progress |= outer
+            return cur
+        if not settled:
+            cur = KIND_TOP          # did not settle: answer TOP, not a guess
+        self.approx[name] = cur
+        self.done[name] = cur
+        return cur
+
+
+def _kinds_of(node, env, ctx, depth=0):
+    """The set of kinds `node`'s value can have. `KIND_TOP` = not known.
+
+    A may-analysis over a finite lattice: every rule either names a set or
+    answers TOP, and TOP is absorbing, so no rule here can make a kind set
+    SMALLER than the truth except through the one documented abstraction
+    (implicit type-error misses).
+    """
+    if depth > _KIND_DEPTH or not isinstance(node, A.Node):
+        return KIND_TOP
+    if isinstance(node, A.Num):
+        return frozenset(("num",))
+    if isinstance(node, A.Str):
+        return frozenset(("str",))
+    if isinstance(node, A.BoolLit):
+        return frozenset(("bool",))
+    if isinstance(node, A.ListLit):
+        return frozenset(("list",))
+    if isinstance(node, A.RecordLit):
+        return frozenset(("record",))
+    if isinstance(node, A.MissLit):
+        return frozenset(("miss",))
+    if isinstance(node, A.FnExpr):
+        return frozenset(("fn",))
+    if isinstance(node, (A.NameRef, A.FieldAccess)):
+        key = _path_key(node)
+        if key is not None and key in env:
+            return env[key]
+        if isinstance(node, A.NameRef) and node.name in ctx.fns:
+            return frozenset(("fn",))
+        return KIND_TOP
+    if isinstance(node, A.Unary):
+        inner = _kinds_of(node.operand, env, ctx, depth + 1)
+        base = frozenset(("bool",)) if node.op == "not" \
+            else frozenset(("num",))
+        return _contagion(base, (inner,))
+    if isinstance(node, A.Binary):
+        return _binary_kinds(node, env, ctx, depth)
+    if isinstance(node, A.Rescue):
+        left = _kinds_of(node.left, env, ctx, depth + 1)
+        right = _kinds_of(node.right, env, ctx, depth + 1)
+        return (left - frozenset(("miss",))) | right
+    if isinstance(node, A.If):
+        return _if_kinds(node, env, ctx, depth)
+    if isinstance(node, A.Block):
+        return _block_kinds(node, env, ctx, depth)
+    if isinstance(node, A.ExprStmt):
+        return _kinds_of(node.expr, env, ctx, depth + 1)
+    if isinstance(node, A.Call):
+        name = _callee_name(node)
+        if name is None:
+            return KIND_TOP
+        hit = BUILTIN_KINDS.get(name)
+        if hit is not None and name not in ctx.fns:
+            return hit
+        return ctx.fn_kinds(name)
+    return KIND_TOP
+
+
+def _binary_kinds(node, env, ctx, depth):
+    left = _kinds_of(node.left, env, ctx, depth + 1)
+    right = _kinds_of(node.right, env, ctx, depth + 1)
+    if node.op in ("and", "or"):
+        # `and`/`or` require a definite bool in Whence (`_logic_left`), so a
+        # Guess does NOT flow through them -- the one place contagion stops.
+        return frozenset(("bool",))
+    if node.op in TWO_SIDED_OPS:
+        return _contagion(frozenset(("bool",)), (left, right))
+    if node.op == "+":
+        common = (left & right) & _CONCAT_KINDS
+        base = common if common else _CONCAT_KINDS
+        return _contagion(base, (left, right))
+    if node.op in _NUMERIC_OPS:
+        return _contagion(frozenset(("num",)), (left, right))
+    return KIND_TOP
+
+
+def _block_kinds(node, env, ctx, depth):
+    """A block's value is its tail's, evaluated under its own `let`s."""
+    if not node.stmts:
+        return KIND_TOP
+    local = dict(env)
+    for st in node.stmts[:-1]:
+        if isinstance(st, A.Let):
+            local[st.name] = _kinds_of(st.expr, local, ctx, depth + 1)
+    tail = node.stmts[-1]
+    if isinstance(tail, A.Let):
+        return KIND_TOP
+    return _kinds_of(tail, local, ctx, depth + 1)
+
+
+def _if_kinds(node, env, ctx, depth):
+    then_envs = refine(node.cond, True, env, ctx)
+    ks = KIND_BOTTOM
+    for e in then_envs:
+        ks |= _kinds_of(node.then, e, ctx, depth + 1)
+    if node.otherwise is None:
+        return KIND_TOP         # a one-armed `if` yields a miss-or-value
+    for e in refine(node.cond, False, env, ctx):
+        ks |= _kinds_of(node.otherwise, e, ctx, depth + 1)
+    return ks
+
+
+def refine(cond, truth, env, ctx):
+    """Environments in which `cond` has truth value `truth`.
+
+    Returns a LIST because a disjunction taken as true, and a conjunction
+    taken as false, are case splits rather than single refinements: EP10m's
+    guard is `is_guess_val(a.v) or is_guess_val(b.v)`, and the honest
+    reading of it is "either a.v is a guess, or b.v is" -- two worlds, whose
+    kind sets the caller joins. Collapsing them to one env by intersecting
+    would claim BOTH operands are guesses, which the guard does not say.
+    """
+    if isinstance(cond, A.Unary) and cond.op == "not":
+        return refine(cond.operand, not truth, env, ctx)
+    if isinstance(cond, A.Binary) and cond.op in ("and", "or"):
+        conj = (cond.op == "and") == bool(truth)
+        if conj:
+            out = env
+            for part in _chain_atoms(cond, cond.op):
+                envs = refine(part, truth, out, ctx)
+                out = envs[0] if len(envs) == 1 else out
+            return [out]
+        out = []
+        for part in _chain_atoms(cond, cond.op):
+            out.extend(refine(part, truth, env, ctx))
+        return out or [env]
+    name = _callee_name(cond)
+    if name is not None and len(getattr(cond, "args", ())) == 1:
+        key = _path_key(cond.args[0])
+        if key is None:
+            return [env]
+        k = kind_tested_by(name)
+        if k is None and name == "missed":
+            k = "miss"
+        if k is None:
+            return [env]
+        known = env.get(key, KIND_TOP)
+        got = frozenset((k,)) if truth else (known - frozenset((k,)))
+        if truth:
+            got = known & got if known != KIND_TOP else got
+        out = dict(env)
+        out[key] = got or KIND_BOTTOM
+        return [out]
+    return [env]
+
+
+# --- relating two ASTs by the tested kind ---------------------------------
+
+KIND_SAME = "same"
+KIND_STABLE = "stable"
+KIND_UNKNOWN = "unknown"
+KIND_CHANGED = "changed"
+
+#: `changed` dominates for the same reason `revive` does in `refusal`: it is
+#: the POSITIVE finding, and one delta that provably moves the value out of
+#: the tested kind breaks the precondition however stable the others are.
+_KIND_RANK = {KIND_SAME: 0, KIND_STABLE: 1, KIND_UNKNOWN: 2, KIND_CHANGED: 3}
+
+
+def _kind_combine(rels):
+    best = KIND_SAME
+    for r in rels:
+        if _KIND_RANK[r] > _KIND_RANK[best]:
+            best = r
+    return best
+
+
+def _delta_kind_relation(old, new, env_old, env_new, ctx_old, ctx_new,
+                         tested, out, ks_old=None, ks_new=None):
+    if ks_old is None:
+        ks_old = _kinds_of(old, env_old, ctx_old)
+    if ks_new is None:
+        ks_new = _kinds_of(new, env_new, ctx_new)
+    if ks_old == KIND_TOP or ks_new == KIND_TOP or not ks_old or not ks_new:
+        rel = KIND_UNKNOWN
+    elif any((k in ks_old) != (k in ks_new) for k in tested):
+        rel = KIND_CHANGED
+    else:
+        rel = KIND_STABLE
+    if out is not None:
+        out.append((rel, old, new, ks_old, ks_new))
+    return rel
+
+
+def _kind_relation(old, new, env_old, env_new, ctx_old, ctx_new, tested,
+                   out, depth=0):
+    """Walk two ASTs together, carrying the kind facts each side is under.
+
+    The shape is `_walk_delta`'s -- the same chain rule, the same
+    branch-selection case -- but it cannot BE `_walk_delta`, because the
+    environments are what make EP10m decidable and a pair-collecting walk
+    throws them away. The two agree on which pairs are the deltas;
+    `test_the_kind_walk_finds_the_same_deltas_as_walk_delta` says so.
+    """
+    if depth > _KIND_DEPTH:
+        return KIND_UNKNOWN
+    if _node_eq(old, new) and env_old == env_new:
+        return KIND_SAME
+    if isinstance(old, A.If) and isinstance(new, A.If):
+        picked = _pinned_branch(old, new)
+        if picked is not None:
+            # The arm that USED to run was reached under the old condition;
+            # the arm that runs NOW is unguarded, because the mutant's
+            # condition is the constant that selected it.
+            keep_true = isinstance(new.cond, A.BoolLit) and new.cond.value
+            # The case split a disjunctive guard opens is JOINED here rather
+            # than decided per world: "either a.v is a guess or b.v is" is
+            # one fact about one value, and reporting it twice would put the
+            # same delta in the report twice and let one world's `changed`
+            # outrank the other world's `stable`.
+            ks_before = KIND_BOTTOM
+            for eb in refine(old.cond, not keep_true, env_old, ctx_old):
+                ks_before |= _kinds_of(picked[0], eb, ctx_old)
+            return _delta_kind_relation(
+                picked[0], picked[1], env_old, env_new, ctx_old, ctx_new,
+                tested, out, ks_old=ks_before)
+    if type(old) is not type(new):
+        return _delta_kind_relation(old, new, env_old, env_new, ctx_old,
+                                    ctx_new, tested, out)
+    if isinstance(old, (A.FnDef, A.FnExpr)):
+        if list(old.params) != list(new.params):
+            return _delta_kind_relation(old, new, env_old, env_new, ctx_old,
+                                        ctx_new, tested, out)
+        fresh = dict((p, KIND_TOP) for p in old.params)
+        return _kind_relation(old.body, new.body, fresh, fresh, ctx_old,
+                              ctx_new, tested, out, depth + 1)
+    if isinstance(old, A.Block):
+        return _kind_stmts(old.stmts, new.stmts, old, new, env_old, env_new,
+                           ctx_old, ctx_new, tested, out, depth)
+    if isinstance(old, A.If):
+        if _node_eq(old.cond, new.cond):
+            rel = _kind_relation(old.cond, new.cond, env_old, env_new,
+                                 ctx_old, ctx_new, tested, out, depth + 1)
+            for truth, a, b in ((True, old.then, new.then),
+                                (False, old.otherwise, new.otherwise)):
+                if a is None or b is None:
+                    continue
+                eo = refine(old.cond, truth, env_old, ctx_old)[0]
+                en = refine(new.cond, truth, env_new, ctx_new)[0]
+                rel = _kind_combine((rel, _kind_relation(
+                    a, b, eo, en, ctx_old, ctx_new, tested, out, depth + 1)))
+            return rel
+        return _delta_kind_relation(old, new, env_old, env_new, ctx_old,
+                                    ctx_new, tested, out)
+    if isinstance(old, (list, tuple)):
+        if len(old) != len(new):
+            return _delta_kind_relation(old, new, env_old, env_new, ctx_old,
+                                        ctx_new, tested, out)
+        return _kind_combine(
+            _kind_relation(a, b, env_old, env_new, ctx_old, ctx_new, tested,
+                           out, depth + 1)
+            for a, b in zip(old, new))
+    if isinstance(old, A.Node):
+        op = _chain_op(old)
+        if op is not None and op == _chain_op(new):
+            if len(_chain_atoms(old, op)) != len(_chain_atoms(new, op)):
+                return _delta_kind_relation(old, new, env_old, env_new,
+                                            ctx_old, ctx_new, tested, out)
+        rels = []
+        for f in _slots(old):
+            x, y = getattr(old, f), getattr(new, f)
+            if isinstance(x, (A.Node, list, tuple)) or \
+               isinstance(y, (A.Node, list, tuple)):
+                rels.append(_kind_relation(x, y, env_old, env_new, ctx_old,
+                                           ctx_new, tested, out, depth + 1))
+            elif x != y:
+                return _delta_kind_relation(old, new, env_old, env_new,
+                                            ctx_old, ctx_new, tested, out)
+        return _kind_combine(rels) if rels else KIND_SAME
+    if old != new:
+        return _delta_kind_relation(old, new, env_old, env_new, ctx_old,
+                                    ctx_new, tested, out)
+    return KIND_SAME
+
+
+def _kind_stmts(olds, news, whole_old, whole_new, env_old, env_new, ctx_old,
+                ctx_new, tested, out, depth):
+    """Statement lists, threading each side's `let` bindings as it goes."""
+    if len(olds) != len(news):
+        return _delta_kind_relation(whole_old, whole_new, env_old, env_new,
+                                    ctx_old, ctx_new, tested, out)
+    eo, en = dict(env_old), dict(env_new)
+    rels = []
+    for a, b in zip(olds, news):
+        rels.append(_kind_relation(a, b, eo, en, ctx_old, ctx_new, tested,
+                                   out, depth + 1))
+        if isinstance(a, A.Let):
+            eo[a.name] = _kinds_of(a.expr, eo, ctx_old)
+        if isinstance(b, A.Let):
+            en[b.name] = _kinds_of(b.expr, en, ctx_new)
+    return _kind_combine(rels) if rels else KIND_SAME
+
+
+def kind_precondition(base_src, pin, kinds=()):
+    """Does this pin's edit respect `kind_stable`? Reads no verdict.
+
+    Same return contract as the other two deciders. `kinds` is the guardian's
+    own tested-kind tuple (`Verdict.kinds`); WITHOUT it there is no question
+    to ask and the answer is `unknown` rather than a guess -- an `is_*`
+    guardian this module cannot name a kind for is exactly the case round
+    426's third guard was written for.
+    """
+    tested = tuple(k for k in kinds if k in KINDS)
+    if not tested:
+        return {"status": PRE_UNKNOWN,
+                "why": "the guardian's type test names no kind this analysis "
+                       "resolves", "kinds": [], "deltas": [],
+                "decided_over": (PRE_KIND_STABLE,)}
+    try:
+        mutant = CP.apply_edit(base_src, pin)
+    except Exception as exc:                                  # noqa: BLE001
+        return {"status": "unlocatable", "why": str(exc), "kinds": [],
+                "deltas": [], "decided_over": (PRE_KIND_STABLE,)}
+    try:
+        old = _parse_cached(base_src)
+        new = _parse_cached(mutant)
+    except Exception as exc:                                  # noqa: BLE001
+        return {"status": "unparsable", "why": str(exc), "kinds": [],
+                "deltas": [], "decided_over": (PRE_KIND_STABLE,)}
+    seen = []
+    rel = _kind_relation(old, new, {}, {}, _kind_ctx(old), _kind_ctx(new),
+                         tested, seen)
+    status = {KIND_SAME: "identity", KIND_STABLE: PRE_HOLDS,
+              KIND_CHANGED: PRE_BROKEN, KIND_UNKNOWN: PRE_UNKNOWN}[rel]
+    shown = ["%s (%s): %s {%s}  ->  %s {%s}"
+             % (r, "/".join(tested), _brief(a), ",".join(sorted(ka)),
+                _brief(b), ",".join(sorted(kb)))
+             for r, a, b, ka, kb in seen]
+    return {"status": status, "why": None,
+            "kinds": [r for r, _, _, _, _ in seen], "deltas": shown,
+            "decided_over": (PRE_KIND_STABLE,)}
+
+
+_KIND_CTX_CACHE = {}
+
+
+def _kind_ctx(prog):
+    """One `_KindCtx` per parsed Program, so the interprocedural fixpoint is
+    paid once per source rather than once per pin."""
+    ctx = _KIND_CTX_CACHE.get(id(prog))
+    if ctx is None or ctx[0] is not prog:
+        ctx = (prog, _KindCtx(prog))
+        _KIND_CTX_CACHE[id(prog)] = ctx
+    return ctx[1]
+
+
 # --- routing: decide the precondition THIS pin's guardian rests on --------
 
 #: precondition name -> the decider that decides it from the edit alone.
-#: `kind_stable` is deliberately ABSENT rather than stubbed. An absent
-#: decider yields `no_decider`, which combines as undecided and therefore
-#: excuses nothing -- the same reading round 426 gave to an absent
+#: Complete as of round 434: every precondition an atom in
+#: `MONOTONE_BUILTINS` names is here, and
+#: `test_every_precondition_in_the_atom_table_has_a_decider` is what keeps
+#: it complete when a fourth atom arrives. The `no_decider` branch below is
+#: NOT dead code waiting to be deleted -- it is the behaviour a fourth
+#: precondition gets on the day it is named and before it is decided, and it
+#: yields `no_decider`, which combines as undecided and therefore excuses
+#: nothing. That is the same reading round 426 gave to an absent
 #: precondition map, for the same reason: it is the only one that leaves the
 #: law falsifiable.
 PRECONDITION_DECIDERS = {
     PRE_APPEND_ONLY: edit_precondition,
     PRE_REFUSAL: refusal_precondition,
+    PRE_KIND_STABLE: kind_precondition,
 }
 
 #: The guardian is not blind in any direction, so no precondition is in play
@@ -1718,7 +2384,7 @@ PRE_INAPPLICABLE = "inapplicable"
 PRE_NO_DECIDER = "no_decider"
 
 
-def routed_precondition(base_src, pin, pres):
+def routed_precondition(base_src, pin, pres, kinds=()):
     """Decide every precondition in `pres` for this pin, and combine.
 
     `pres` is the guardian verdict's own `pre` tuple. The combination is
@@ -1741,7 +2407,7 @@ def routed_precondition(base_src, pin, pres):
                           "why": "no decider for `%s`" % name,
                           "kinds": [], "deltas": [], "decided_over": (name,)}
         else:
-            rows[name] = decider(base_src, pin)
+            rows[name] = decider(base_src, pin, kinds)
     stats = [rows[n]["status"] for n in pres]
     for hard in ("unlocatable", "unparsable"):
         if hard in stats:
@@ -1791,7 +2457,8 @@ def precondition_map(pins, base_src, verdicts=None):
                             "kinds": [], "deltas": [], "decided_over": (),
                             "per_precondition": {}}
         else:
-            out[p["id"]] = routed_precondition(base_src, p, v.pre)
+            out[p["id"]] = routed_precondition(base_src, p, v.pre,
+                                                v.kinds)
     return out
 
 
@@ -1822,10 +2489,11 @@ def _cmd_precondition(args):
     print("precondition, decided from the EDIT alone, ROUTED to the one each "
           "pin's own")
     print("guardian rests on (round 428) — %s" % guest_files[0])
+    missing = sorted(set((PRE_REFUSAL, PRE_APPEND_ONLY, PRE_KIND_STABLE))
+                     - set(PRECONDITION_DECIDERS))
     print("  deciders: " + ", ".join(sorted(PRECONDITION_DECIDERS)) +
-          "; no decider for: " + ", ".join(
-              sorted(set((PRE_REFUSAL, PRE_APPEND_ONLY, PRE_KIND_STABLE))
-                     - set(PRECONDITION_DECIDERS))))
+          ("; no decider for: " + ", ".join(missing) if missing else
+           "; every precondition in the atom table is decided (round 434)"))
     wrong = 0
     for pin in reg["pins"]:
         row = pre[pin["id"]]
@@ -1873,6 +2541,9 @@ def _cmd_classify(args):
         print("  two-sided/unknown%3d              of which unknown shape %d "
               "(%.1f%%)" % (s["two_sided_or_unknown"], s["unknown"],
                             s["unknown_pct"]))
+        print("  kind tests       %3d  of which %d rest on `kind_stable`; "
+              "%d name no kind" % (s["kind_tested"], s["rests_on_kind_stable"],
+                                   s["kind_unresolved"]))
         if verbose:
             for v in vs:
                 print("  %-5s %-4s %-58s %s"
