@@ -43,11 +43,18 @@ class PolicyLLM(LLM):
 
 
 def swe_plan(files, test_file, fuzz_seed=0, fuzz_n=300, corpus_n=300, mutant_limit=0,
-             oracle_n=100):
+             oracle_n=100, pytest_args="-q tests"):
     """The loop: baseline tests -> fuzz (totality) -> oracle fuzz (differential,
-    round 11) -> mutate -> kill -> re-test -> report."""
+    round 11) -> mutate -> kill -> re-test -> report.
+
+    `pytest_args` (round 419) is the ONE suite the baseline and the re-test
+    both run. It was hard-coded to `-q tests` in both steps, which is the
+    whole whence suite (~7 min here) twice per loop and is why no test could
+    afford to drive this plan end-to-end. Both steps still use the SAME
+    value: a baseline and a re-test over different suites compare nothing.
+    """
     def s_baseline(obs, st):
-        return call("pytest", args="-q tests")
+        return call("pytest", args=pytest_args)
 
     def s_fuzz(obs, st):
         st["baseline"] = obs
@@ -71,7 +78,7 @@ def swe_plan(files, test_file, fuzz_seed=0, fuzz_n=300, corpus_n=300, mutant_lim
     def s_retest(obs, st):
         if not st.get("skip_kill"):
             st["killers"] = obs
-        return call("pytest", args="-q tests")
+        return call("pytest", args=pytest_args)
 
     def s_report(obs, st):
         st["retest"] = obs

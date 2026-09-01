@@ -539,7 +539,14 @@ class TestThisTree:
         reg = W.load_registry(REPO)
         debts = sorted(p for p, e in reg["entry_points"].items()
                        if e["status"] == "unwired")
-        assert debts == ["harness/swe/loop.py"]
+        # Round 419 (SWE-loop D, the owning track) discharged the last one by
+        # WIRING it: `harness/tests/test_swe_loop_cli.py` imports `swe.loop`
+        # and drives `main()` end to end. Both of round 415's declared debts
+        # are now closed, by the two different exits W005 offers — 416/418 by
+        # deletion, 419 by a caller. An EMPTY list is the assertion: a new
+        # `unwired` entry has to be a deliberate edit here too, in the same
+        # way wiring one was.
+        assert debts == []
         # `Graph.closure()` is NOT the predicate W003 uses, and asserting it
         # flatly here was wrong on the tree that shipped it: `loop.py` is in
         # the raw closure (its own test file names it as text) and W003

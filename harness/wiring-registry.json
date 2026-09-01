@@ -86,6 +86,11 @@
       "via": "harness/tests/test_swe_prioritize.py:-",
       "via_kind": "import"
     },
+    "harness/swe/copyparity.py": {
+      "status": "wired",
+      "via": "harness/tests/test_swe_copyparity.py:-",
+      "via_kind": "import"
+    },
     "harness/swe/coverage.py": {
       "status": "wired",
       "via": "harness/tests/test_swe_coverage.py:-",
@@ -137,10 +142,12 @@
       "via_kind": "import"
     },
     "harness/swe/loop.py": {
-      "status": "unwired",
+      "status": "wired",
+      "via": "harness/tests/test_swe_loop_cli.py:-",
+      "via_kind": "import",
       "owner": "SWE-loop(D)",
-      "reason": "`python3 -m swe.loop` is the SWE-loop track's own entry point and NOTHING reaches it -- not the driver, not a test. harness/tests/test_swe_loop.py exists and tests `agentloop` + `swe.policy` + `swe.tools` directly; it never imports swe.loop, so the module that composes them has no caller in the tree. Found by this round's first clean orphan list, not by review.",
-      "since_round": 415
+      "reason": "Round 419 (the owning track) discharged round 415's debt by WIRING rather than deleting: `loop.py` is the only file that composes the track's engines into one runnable pipeline, and `policy.py::swe_plan` -- which IS tested -- exists to feed it. `harness/tests/test_swe_loop_cli.py` imports the module and drives `main()` end to end against a --work-copy of the checkout. Three flags had to exist first: both pytest steps were hard-coded to the whole whence suite and `mutate` to DEFAULT_TEST_CMD per mutant, so no test could afford the composition. Round 415's finding stands as written: nothing reached it between the initial commit and round 419.",
+      "since_round": 419
     },
     "harness/swe/mutation.py": {
       "status": "wired",

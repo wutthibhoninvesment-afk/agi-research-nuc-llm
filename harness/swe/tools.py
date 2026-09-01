@@ -108,15 +108,20 @@ class MutationTool(Tool):
     }
     required = ["files"]
 
-    def __init__(self, root, outdir, json_name="mutation.json"):
+    def __init__(self, root, outdir, json_name="mutation.json", test_cmd=None):
         self.root = root
         self.outdir = outdir
         self.json_name = json_name
+        #: Round 419: the suite each mutant is scored against. Was
+        #: `M.DEFAULT_TEST_CMD` unconditionally, which is the entire whence
+        #: suite per mutant — correct for a real campaign and unaffordable
+        #: for any test of the loop that composes this tool.
+        self.test_cmd = list(test_cmd) if test_cmd else list(M.DEFAULT_TEST_CMD)
         self.last = None
 
     def run(self, files, limit=0, workers=4):
         rels = [p.strip() for p in files.split(",") if p.strip()]
-        rep = M.mutation_test(self.root, rels, M.DEFAULT_TEST_CMD, workers=int(workers),
+        rep = M.mutation_test(self.root, rels, self.test_cmd, workers=int(workers),
                               limit=int(limit) or None)
         self.last = rep
         os.makedirs(self.outdir, exist_ok=True)

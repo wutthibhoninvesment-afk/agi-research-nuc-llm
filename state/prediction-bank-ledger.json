@@ -723,6 +723,14 @@
    "where": "knowledge/round-418-nuc-e-the-eviction-the-promise-channel-could-not-see.md",
    "quote": "16 HIT, 1 PARTIAL, 2 MISS,",
    "remainder": "All 22 items carry a verdict in that file's section 8 table. Three (B1, B5's first clause, C2) are labelled DISCLOSED in the bank ITSELF as already-read at writing time, so they are bookkeeping and are not counted as foresight. B5 is split: its disclosed clause is bookkeeping and its second clause (\"larger than any Committed_AS step in the entire boot\") is a MISS -- the 13:30:05 step is 18.43 GB against 987 MB stolen. B9 is the MISS worth reading: it predicted the steal channel's null would be as powerless as round 406's swap null, and the opposite held (max_testable_occupancy 97, 9 of 16 units testable), which makes `supported: []` on that channel the first null on this record that is a statement about the box rather than about the arithmetic."
+  },
+  "419": {
+   "bank": "state/swe/round-419/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 419,
+   "where": "knowledge/round-419-the-engine-that-stopped-at-the-door.md",
+   "quote": "7 HIT, 1 MISS of 8",
+   "remainder": "The bank also fixed the DISPOSITION before measuring (wire/test/delete), so the result could not choose it. P3 is the MISS and the informative one: it predicted the break would be in `loop.py`'s own untested code and it was two subsystems down, in a guest-language test file another track added -- because the tools' tests are all pointed at TOY projects, so 'has tests' and 'has tests about the thing it is used on' came apart and the defect landed in the gap."
   }
  }
 }

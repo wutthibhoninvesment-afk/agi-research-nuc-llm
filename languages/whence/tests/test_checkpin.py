@@ -55,17 +55,26 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 import checkpin as C                                            # noqa: E402
+import curecheck as _C                                          # noqa: E402
 
-REGISTRY = os.path.normpath(
-    os.path.join(ROOT, "..", "..", "state", "whence", "round-414",
-                 "check-pins.json"))
+#: Round 419: resolved from `curecheck.AGI_ROOT` (which prefers
+#: `AGI_RESEARCH_ROOT`, exported by `harness/swe/proc.py` into every test
+#: subprocess) rather than from this file's own `__file__`. Under a
+#: `harness/swe/mutation.py` copy of `languages/whence` alone, `ROOT/../..`
+#: is `/tmp`, and the three tests below opened
+#: `/tmp/state/whence/round-414/check-pins.json` -> FileNotFoundError ->
+#: `baseline_check` red -> `mutation_test` raised `BaselineNotGreen` before
+#: generating a single mutant. Round 413 fixed six sites of exactly this and
+#: wrote the rule in `curecheck.AGI_ROOT`'s comment; rounds 414 and 416 added
+#: these two. See `harness/swe/copyparity.py`, which now measures it.
+REGISTRY = os.path.join(_C.AGI_ROOT, "state", "whence", "round-414",
+                        "check-pins.json")
 #: Round 416's registry, over the guest EVALUATOR half of
 #: `examples/self_eval.lang`. Kept as a second entry rather than merged into
 #: the first: the two guest files have separate baselines, and a pin that
 #: rots should name which registry it rotted in.
-REGISTRY_EVAL = os.path.normpath(
-    os.path.join(ROOT, "..", "..", "state", "whence", "round-416",
-                 "eval-pins.json"))
+REGISTRY_EVAL = os.path.join(_C.AGI_ROOT, "state", "whence", "round-416",
+                             "eval-pins.json")
 REGISTRIES = ((REGISTRY, "self_host.lang"), (REGISTRY_EVAL, "self_eval.lang"))
 
 #: A whole guest program, small enough that a full run is ~0.3 s. Every unit
