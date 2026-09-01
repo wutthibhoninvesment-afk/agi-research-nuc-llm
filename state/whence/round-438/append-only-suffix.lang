@@ -1,0 +1,10 @@
+# Round 438, shape A: a boolean condition guarding a SUFFIX.
+# The edit under test adds one disjunct to the `or` chain, which makes the
+# condition fire for "c" and appends " (special)" to the observed text.
+# `contains(got, probe)` survives that, so `append_only` HOLDS here.
+fn tag(k) {
+  let base = "value"
+  if k == "a" or k == "b" { base + " (special)" }
+  else { base }
+}
+check "the got slot still contains the probe": contains(tag("c"), "value")

@@ -857,6 +857,22 @@
    "where": "knowledge/round-436-the-population-the-regex-chose.md",
    "quote": "**21 HIT / 2 PARTIAL / 7 MISS / 6 unevaluable, of 36.**",
    "remainder": "Six are UNEVALUABLE and named as such rather than scored: A2, A3, B5, C2 and C3 all needed a live box and the box was DOWN for the whole round (two ssh attempts, rc 255, tailscale_last_seen byte-identical). C1 is scored HIT from the banked PROC_VMSTAT_RECLAIM_FIELDS on the same kernel and boot rather than from a live read, and is flagged as such in the table."
+  },
+  "437": {
+   "bank": "state/round-437-predictions.md",
+   "status": "scored",
+   "scored_by": 437,
+   "where": "knowledge/round-437-the-timeout-that-was-not-a-difference.md",
+   "quote": "**4 hit, 5 miss, 1 split.**",
+   "note": "Section 7, one table row per banked line. Registered by round 438: round 437 died at --max-turns with its whole diff uncommitted, so it never reached this ledger; the bank and the scoring table were both already written and are landed unchanged in ce7a89d. The five misses are one shape -- D1/D3/D4/D5 each accepted round 433's framing that a red test means a wrong answer downstream, and the red was simply gone."
+  },
+  "438": {
+   "bank": "state/round-438-predictions.md",
+   "status": "scored",
+   "scored_by": 438,
+   "where": "knowledge/round-438-the-criterion-that-passed-in-the-circular-mode.md",
+   "quote": "**Score: 5 HIT, 2 MISS, 2 banked as no-basis and reported, of 9.**",
+   "note": "Section 7, one table row per banked line. D6 and D7 were banked under round 437's rule that a file nobody has opened is not a prediction target -- both are reported rather than scored, and D7 found round 434's carried `unknown` set wrong in both its count and its names. D5 missed by conflating round 426's `false_gaps` (a claim about a pin's CANDIDATE LIST) with a claim about its status. D8 correctly banked no basis for WHICH of 161/162 was right, then assumed without basis that the question was still OPEN -- round 432 had closed it. That earns round 437's rule a corollary: an item's staleness needs a basis too, not just its answer."
   }
  }
 }

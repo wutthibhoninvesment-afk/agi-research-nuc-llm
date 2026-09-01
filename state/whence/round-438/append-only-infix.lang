@@ -1,0 +1,10 @@
+# Round 438, shape B: the SAME boolean-condition edit guarding an INFIX.
+# Adding one disjunct to the `or` chain makes the condition fire for "c" and
+# splices " of g" into the MIDDLE of the observed text. Containment of the
+# probe is destroyed, so `append_only` is BROKEN here.
+fn tag(k) {
+  let mid = if k == "a" or k == "b" { " of g" }
+    else { "" }
+  "return value" + mid + " here"
+}
+check "the got slot still contains the probe": contains(tag("c"), "return value here")

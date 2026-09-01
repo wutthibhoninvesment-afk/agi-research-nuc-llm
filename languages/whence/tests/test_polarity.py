@@ -21,6 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import curecheck as _C                                         # noqa: E402
 import polarity as PO                                          # noqa: E402
+import checkpin as CP                                          # noqa: E402
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SELF_EVAL = os.path.join(HERE, "examples", "self_eval.lang")
@@ -421,8 +422,152 @@ def test_a_longer_or_chain_is_one_structural_delta_not_manufactured_infixes():
             'check "g": f("(")\n')
     r = _pre(base, 'fn f(t) { t == "(" or t == "[" or t == "@{" or t == "{" }',
              'fn f(t)')
-    assert r["status"] == PO.PRE_UNKNOWN
+    # ROUND 438: was PRE_UNKNOWN. The regression this test guards -- ONE
+    # structural delta, not two manufactured infixes -- is unchanged; what
+    # moved is the NAME for "and therefore undecided". An `or` chain rewrite
+    # is the class round 438 proved no syntactic rule can settle, so it is
+    # `undecidable` rather than an open invitation to widen the rule.
+    assert r["status"] == PO.PRE_UNDECIDABLE
     assert r["kinds"] == [PO.DELTA_STRUCTURAL]
+    assert "boolean condition" in r["why"]
+
+
+# --- round 438: `undecidable`, and the construction that earns it ---------
+#
+# Round 434 item 3 left the `append_only` residual as a choice: "a widening
+# rule for `append_only` analogous to round 428's shape 4 for `refusal`, or a
+# written decision that the class is out of scope. Say which." Round 438 says
+# OUT OF SCOPE, and does not say it by argument: the two programs under
+# `state/whence/round-438/` produce the same delta and disagree, so there is
+# no rule over the delta to widen TO.
+
+_R438 = os.path.join(_C.AGI_ROOT, "state", "whence", "round-438")
+
+_BOOL_EDIT = ('k == "a" or k == "b"', 'k == "a" or k == "b" or k == "c"')
+
+
+def _r438_case(stem):
+    path = os.path.join(_R438, "append-only-%s.lang" % stem)
+    with open(path, encoding="utf-8") as f:
+        src = f.read()
+    fn = src[src.index("fn tag(k) {"):]
+    fn = fn[:fn.index("\n}\n") + 2]
+    pin = {"id": stem, "guest_file": path, "dir": "+", "guardian":
+           "the got slot still contains the probe", "edit": "fn_replace",
+           "target": "tag", "becomes": fn.replace(*_BOOL_EDIT)}
+    assert pin["becomes"] != fn, "the edit did not apply to %s" % stem
+    return src, pin
+
+
+def test_the_two_counterexamples_produce_the_identical_delta():
+    """The load-bearing half of `PRE_UNDECIDABLE`.
+
+    Same guardian shape, same precondition, same edit, and the delta strings
+    are equal BYTE FOR BYTE. Whatever a rule could read off this delta, it
+    reads the same thing in both programs.
+    """
+    a_src, a_pin = _r438_case("suffix")
+    b_src, b_pin = _r438_case("infix")
+    a = PO.edit_precondition(a_src, a_pin)
+    b = PO.edit_precondition(b_src, b_pin)
+    assert a["deltas"] == b["deltas"]
+    assert a["deltas"] == ["structural: ((k == 'a') or (k == 'b'))  ->  "
+                           "(((k == 'a') or (k == 'b')) or (k == 'c'))"]
+    assert a["kinds"] == b["kinds"] == [PO.DELTA_STRUCTURAL]
+    # and both guest files' single check is the same blind shape
+    for src in (a_src, b_src):
+        v, = PO.classify_source(src)
+        assert v.blind == frozenset(("+",)) and v.pre == (PO.PRE_APPEND_ONLY,)
+
+
+def test_the_two_counterexamples_disagree_when_actually_run():
+    """The other half: the answers really are opposite.
+
+    `append_only` HOLDS for the suffix program (the edit appends, the
+    `contains` guardian stays blind, the check still passes) and is BROKEN
+    for the infix program (the edit splices into the middle, containment is
+    destroyed, the check goes red). Run rather than argued -- this is the
+    step that makes `undecidable` a measurement.
+    """
+    import subprocess
+    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    got = {}
+    for stem in ("suffix", "infix"):
+        src, pin = _r438_case(stem)
+        mutant = CP.apply_edit(src, pin)
+        prog = os.path.join(here, "_r438_%s.lang" % stem)
+        with open(prog, "w", encoding="utf-8") as f:
+            f.write(mutant)
+        try:
+            p = subprocess.run([sys.executable, os.path.join(here, "run.py"),
+                                prog], cwd=here, capture_output=True,
+                               text=True, timeout=120)
+        finally:
+            os.remove(prog)
+        got[stem] = p.returncode
+    assert got == {"suffix": 0, "infix": 1}
+
+
+def test_both_counterexamples_are_called_undecidable():
+    """The rule must classify the very cases that prove it. If a future
+    change made one of these `holds` or `broken`, the pair would no longer
+    be a counterexample and `PRE_UNDECIDABLE`'s justification would be gone
+    — so this is the test that fails when the claim stops being true.
+    """
+    for stem in ("suffix", "infix"):
+        src, pin = _r438_case(stem)
+        r = PO.edit_precondition(src, pin)
+        assert r["status"] == PO.PRE_UNDECIDABLE, stem
+        assert "not a function of this delta" in r["why"]
+
+
+def test_undecidable_is_narrower_than_not_string_shaped():
+    """`structural` is not `undecidable`. CP03p's edit adds an `if` branch —
+    also structural, also not string-shaped — and stays `unknown`, because
+    an if-expression's arms ARE observed text and a widening rule could
+    reach them. Over-broadening the new status would swallow that.
+    """
+    base = 'fn f(c) { c }\ncheck "g": contains(f("x"), "x")\n'
+    r = _pre(base, 'fn f(c) { if c == "q" { "Q" } else { c } }', 'fn f(c)')
+    assert r["kinds"] == [PO.DELTA_STRUCTURAL]
+    assert r["status"] == PO.PRE_UNKNOWN
+    # a guest predicate CALL returning a bool is not boolean-shaped either
+    base2 = ('fn p(c) { true }\nfn f(c) { c }\n'
+             'check "g": contains(f("x"), "x")\n')
+    r2 = _pre(base2, 'fn f(c) { p(c) }', 'fn f(c)')
+    assert r2["status"] == PO.PRE_UNKNOWN
+
+
+def test_undecidable_never_becomes_holds_or_broken_downstream():
+    """It is a REFUSAL to decide, so `check_law` must neither excuse nor
+    strictly refute on it, and the audit must call it undecided."""
+    v = _v("blindy", ("+",), (PO.PRE_APPEND_ONLY,))
+    pins = [{"id": "U", "guest_file": "x.lang", "dir": "+",
+             "guardian": "blindy"}]
+    pre = {"U": {"status": PO.PRE_UNDECIDABLE,
+                 "decided_over": (PO.PRE_APPEND_ONLY,)}}
+    res = [{"id": "U", "guardian": "blindy", "verdict": "guarded",
+            "co_red": []}]
+    law = PO.check_law(pins, res, [v], pre)
+    assert [r["id"] for r in law["undecided"]] == ["U"]
+    assert law["excused"] == [] and law["strict_violations"] == []
+    assert PO.audit_registry(pins, [v], res, pre)[0]["status"] == "undecided"
+
+
+def test_a_mixed_row_stays_unknown_rather_than_undecidable():
+    """The conjunction rule: undecidable on one precondition and merely
+    un-ruled on another is `unknown`, because widening the second could
+    still settle the row."""
+    v = _v("mixed", ("+",), (PO.PRE_APPEND_ONLY, PO.PRE_REFUSAL))
+    base = 'fn f(t) { t == "(" or t == "[" }\ncheck "mixed": f("(")\n'
+    pin = {"id": "M", "guest_file": "x.lang", "dir": "+", "guardian": "mixed",
+           "edit": "fn_replace", "target": "f",
+           "becomes": 'fn f(t) { t == "(" or t == "[" or t == "{" }'}
+    row = PO.routed_precondition(base, pin, v.pre)
+    per = {k: r["status"] for k, r in row["per_precondition"].items()}
+    assert per[PO.PRE_APPEND_ONLY] == PO.PRE_UNDECIDABLE
+    assert per[PO.PRE_REFUSAL] == PO.PRE_UNKNOWN
+    assert row["status"] == PO.PRE_UNKNOWN
 
 
 def test_equal_length_or_chains_are_still_descended_pairwise():
@@ -634,27 +779,221 @@ def test_the_law_has_no_strict_counterexample_on_either_guest_file():
             os.path.basename(pf), [r["id"] for r in out["strict_violations"]])
 
 
-@pytest.mark.whence_slow
-def test_the_repointed_registry_fails_its_own_acceptance_criterion():
-    """`host-pins-plus-repointed.json`'s own `_` field says:
-
-        `polarity.py audit` over this file must report 0 MISPOINTED, which
-        is the non-circular half
-
-    It reports five. Round 422 hand-repointed five pins onto guardians that
-    are blind in the pin's own direction; every one then came back `guarded`
-    (a repoint onto a co-red check is guarded by construction) and the
-    campaign scored 20/20. Nothing ran the criterion, and `audit` exits 1.
-    This test holds the failure open rather than letting it be inherited
-    again as a green result.
-    """
+def _repointed_registry():
     import json
     with open(os.path.join(REG_422, "host-pins-plus-repointed.json"),
               encoding="utf-8") as f:
-        reg = json.load(f)
+        return json.load(f)
+
+
+@pytest.mark.whence_slow
+def test_the_unconditional_audit_calls_five_pins_mispointed():
+    """Round 426's measurement, kept: `audit_registry` with NO precondition
+    map applies round 420's blindness as if it were unconditional, and on
+    the repointed registry that names five pins.
+
+    Round 426 read this as "the registry fails its own acceptance criterion"
+    and held the failure open. Round 438 measured that the same command
+    answers 0 MISPOINTED the moment `run.json` is passed, so the five were
+    never the finding -- the PREDICATE was. This test keeps the
+    unconditional number pinned, because it is the input to that comparison
+    and the mode every pre-438 caller got by default.
+    """
+    reg = _repointed_registry()
     rows = PO.audit_registry(reg["pins"], PO.classify_file(SELF_HOST))
     bad = sorted(r["id"] for r in rows if r["status"] == "mispointed")
     assert bad == ["CP03p", "CP06p", "CP08p", "CP10p2", "CP22p2"]
+    # ...and every one of them is called mispointed on blindness ALONE.
+    assert {r["decided_by"] for r in rows if r["status"] == "mispointed"} == {
+        "blindness"}
+
+
+@pytest.mark.whence_slow
+def test_the_precondition_aware_audit_clears_all_five_but_decides_only_one():
+    """Round 438. The five are not mispointed and four are not anything.
+
+    `precondition_map` decides, from the EDIT TEXT with no run, that CP22p2
+    breaks `append_only` -- so its guardian is not blind to that edit and
+    the flag is a false positive. The other four are `unknown`: nothing
+    decided the precondition their blindness rests on, so neither
+    `mispointed` nor `precondition_broken` is established, and neither is
+    claimed.
+
+    So `host-pins-plus-repointed.json`'s criterion -- *"`polarity.py audit`
+    over this file must report 0 MISPOINTED"* -- is now literally satisfied
+    and is still NOT MET: 0 is reached by declining to decide four rows.
+    That is why `undecided` counts against the exit code.
+    """
+    reg = _repointed_registry()
+    vs = PO.classify_file(SELF_HOST)
+    with open(SELF_HOST, encoding="utf-8") as f:
+        pre = PO.precondition_map(reg["pins"], f.read(), vs)
+    rows = PO.audit_registry(reg["pins"], vs, None, pre)
+    by = lambda st: sorted(r["id"] for r in rows if r["status"] == st)
+    assert by("mispointed") == []
+    assert by("precondition_broken") == ["CP22p2"]
+    assert by("undecided") == ["CP03p", "CP06p", "CP08p", "CP10p2"]
+    assert by("strict_violation") == []
+    cp = [r for r in rows if r["id"] == "CP22p2"][0]
+    assert cp["decided_by"] == "precondition"     # not "measurement"
+    assert cp["pre_status"] == PO.PRE_BROKEN
+    # The four split: three rewrite a boolean `or` chain and are
+    # `undecidable` (round 438 proved no syntactic rule reaches them);
+    # CP03p's delta is an `if` expression, a shape a widening rule could
+    # still settle, so it stays honestly `unknown`.
+    pre_of = {r["id"]: r["pre_status"] for r in rows
+              if r["status"] == "undecided"}
+    assert pre_of == {"CP03p": PO.PRE_UNKNOWN,
+                      "CP06p": PO.PRE_UNDECIDABLE,
+                      "CP08p": PO.PRE_UNDECIDABLE,
+                      "CP10p2": PO.PRE_UNDECIDABLE}
+
+
+@pytest.mark.whence_slow
+def test_the_audit_answer_no_longer_moves_when_the_run_is_passed():
+    """The circularity, and the fix, in one assertion.
+
+    Before round 438 the same command over the same registry reported
+    **5 MISPOINTED / exit 1** without `run.json` and **0 MISPOINTED / exit
+    0** with it -- and the mode that PASSED the "non-circular half" criterion
+    was the one that consults the measured `guarded` the criterion exists to
+    forbid. `results` may now only sharpen a mispointed pin's candidate
+    list; it can no longer decide a status.
+    """
+    reg = _repointed_registry()
+    import json
+    with open(os.path.join(REG_422, "run-repointed.json"),
+              encoding="utf-8") as f:
+        run = json.load(f)
+    vs = PO.classify_file(SELF_HOST)
+    with open(SELF_HOST, encoding="utf-8") as f:
+        pre = PO.precondition_map(reg["pins"], f.read(), vs)
+    without = PO.audit_registry(reg["pins"], vs, None, pre)
+    with_run = PO.audit_registry(reg["pins"], vs, run["results"], pre)
+    assert ([(r["id"], r["status"]) for r in without] ==
+            [(r["id"], r["status"]) for r in with_run])
+    # and every one of those five measured `guarded`, which is exactly the
+    # evidence that used to flip the answer.
+    mv = {r["id"]: r["verdict"] for r in run["results"]}
+    assert all(mv[i] == "guarded" for i in
+               ("CP03p", "CP06p", "CP08p", "CP10p2", "CP22p2"))
+
+
+@pytest.mark.whence_slow
+def test_the_audit_and_check_law_agree_row_for_row():
+    """Two instruments, one campaign, one answer.
+
+    `check_law` has conditioned blindness on the precondition since round
+    426; `audit_registry` did not until round 438, and on this campaign the
+    three modes gave three different answers -- audit-static 5 mispointed,
+    audit-with-run 0 mispointed / 5 false positives, `check_law` 1 excused /
+    4 undecided. Only `check_law` distinguished "decided broken" from "not
+    decided". This pins the agreement so a future divergence is a failure
+    rather than a discovery.
+    """
+    reg = _repointed_registry()
+    import json
+    with open(os.path.join(REG_422, "run-repointed.json"),
+              encoding="utf-8") as f:
+        run = json.load(f)
+    vs = PO.classify_file(SELF_HOST)
+    with open(SELF_HOST, encoding="utf-8") as f:
+        pre = PO.precondition_map(reg["pins"], f.read(), vs)
+    rows = PO.audit_registry(reg["pins"], vs, run["results"], pre)
+    law = PO.check_law(reg["pins"], run["results"], vs, pre)
+    st = lambda k: sorted(r["id"] for r in rows if r["status"] == k)
+    ids = lambda rs: sorted(r["id"] for r in rs)
+    assert st("precondition_broken") == ids(law["excused"])
+    assert st("undecided") == ids(law["undecided"])
+    assert st("strict_violation") == ids(law["strict_violations"])
+
+
+def test_the_audit_reports_a_refuted_law_as_a_refutation_not_a_false_positive():
+    """The defect this change closes, demonstrated by construction.
+
+    Blind in the pin's direction + precondition ESTABLISHED + measured
+    `guarded` is `check_law`'s STRICT violation: round 420's law refuted.
+    Pre-438 `audit_registry` hard-coded the opposite conclusion -- it read
+    any measured `guarded` as proof the precondition broke -- so the one
+    instrument that "runs BEFORE any campaign", and would therefore meet a
+    new counterexample first, would have labelled it `(fp)` and moved on.
+
+    Unreachable on the three campaigns on disk (there is no strict violation
+    in any of them, which is round 426's headline), so it is pinned
+    synthetically on purpose -- the same reason round 434's `no_decider`
+    branch is pinned against a synthetic name.
+    """
+    v = _v("blindy", ("+",), (PO.PRE_APPEND_ONLY,))
+    pins = [{"id": "S", "guest_file": "x.lang", "dir": "+",
+             "guardian": "blindy"}]
+    res = [{"id": "S", "guardian": "blindy", "verdict": "guarded",
+            "co_red": []}]
+    pre = {"S": {"status": PO.PRE_HOLDS,
+                 "decided_over": (PO.PRE_APPEND_ONLY,)}}
+    row = PO.audit_registry(pins, [v], res, pre)[0]
+    assert row["status"] == "strict_violation"
+    assert row["decided_by"] == "precondition"
+    # `check_law` calls the identical input a strict violation...
+    law = PO.check_law(pins, res, [v], pre)
+    assert [r["id"] for r in law["strict_violations"]] == ["S"]
+    # ...and this is what the audit used to say about it.
+    assert PO.audit_registry(pins, [v], res)[0]["status"] == \
+        "precondition_broken"
+
+
+def test_a_blind_guardian_naming_no_precondition_is_unconditionally_blind():
+    """`pre` empty means the blindness rests on nothing, so no edit can
+    excuse it: `mispointed` stands, and a measured `guarded` refutes the
+    ANALYSIS rather than the law. Not reachable from `classify_file` today
+    (every blind verdict it builds carries a precondition) and pinned so
+    that stays a property rather than an accident.
+    """
+    v = _v("blindy", ("+",))                       # no precondition
+    pins = [{"id": "U", "guest_file": "x.lang", "dir": "+",
+             "guardian": "blindy"}]
+    pre = {"U": {"status": PO.PRE_INAPPLICABLE, "decided_over": ()}}
+    assert PO.audit_registry(pins, [v], None, pre)[0]["status"] == \
+        "mispointed"
+    res = [{"id": "U", "guardian": "blindy", "verdict": "guarded",
+            "co_red": []}]
+    assert PO.audit_registry(pins, [v], res, pre)[0]["status"] == \
+        "strict_violation"
+
+
+def test_an_undecided_pin_is_never_promoted_to_either_side():
+    """`unknown` drags the row to `undecided` whatever the run says. A
+    measured `guarded` is not evidence the precondition broke -- it is
+    equally evidence the blindness analysis is wrong -- and choosing the
+    first is the unfalsifiable excuse round 426's guards exist to prevent.
+    """
+    v = _v("blindy", ("+",), (PO.PRE_APPEND_ONLY,))
+    pins = [{"id": "U", "guest_file": "x.lang", "dir": "+",
+             "guardian": "blindy"}]
+    pre = {"U": {"status": PO.PRE_UNKNOWN,
+                 "decided_over": (PO.PRE_APPEND_ONLY,)}}
+    for res in (None, [{"id": "U", "guardian": "blindy",
+                        "verdict": "guarded", "co_red": []}],
+                [{"id": "U", "guardian": "blindy", "verdict": "shadowed",
+                  "co_red": []}]):
+        assert PO.audit_registry(pins, [v], res, pre)[0]["status"] == \
+            "undecided"
+
+
+@pytest.mark.whence_slow
+def test_the_audit_cli_exits_nonzero_on_undecided_rows(capsys):
+    """0 MISPOINTED is not a pass while a row is open. Both modes agree,
+    which is the round-438 property; the exit code is 1 in both because
+    four rows are undecided, not because anything is mispointed.
+    """
+    reg_path = os.path.join(REG_422, "host-pins-plus-repointed.json")
+    run_path = os.path.join(REG_422, "run-repointed.json")
+    assert PO.main(["polarity.py", "audit", reg_path]) == 1
+    first = capsys.readouterr().out
+    assert PO.main(["polarity.py", "audit", reg_path, run_path]) == 1
+    second = capsys.readouterr().out
+    assert first == second
+    assert "0 MISPOINTED" in first and "4 undecided" in first
+    assert "1 precondition-broken" in first and "0 strict-violation" in first
 
 
 @pytest.mark.whence_slow
@@ -1761,8 +2100,14 @@ def test_the_host_registry_is_untouched_by_the_third_decider():
     counts = {}
     for row in pre.values():
         counts[row["status"]] = counts.get(row["status"], 0) + 1
+    # ROUND 438 split the old `PRE_UNKNOWN: 7` into 4 unknown + 3
+    # undecidable. That is the `append_only` decider naming a permanent
+    # limit, NOT the `kind_stable` decider reaching pins it does not apply
+    # to -- which is what this control exists to catch, and which would show
+    # up as a `holds` or `broken` moving. Those two are unchanged.
     assert counts == {PO.PRE_BROKEN: 2, PO.PRE_HOLDS: 9,
-                      PO.PRE_INAPPLICABLE: 5, PO.PRE_UNKNOWN: 7}
+                      PO.PRE_INAPPLICABLE: 5, PO.PRE_UNKNOWN: 4,
+                      PO.PRE_UNDECIDABLE: 3}
     assert not any(PO.PRE_KIND_STABLE in (v.pre or ()) for v in vs)
 
 

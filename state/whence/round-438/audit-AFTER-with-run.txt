@@ -1,0 +1,12 @@
+audit: examples/self_host.lang — 22 directional pin(s), 0 MISPOINTED, 0 unlocatable, 1 precondition-broken, 4 undecided, 0 strict-violation
+  (fp) CP22p2  dir + statically +-blind [contains(...)] but the precondition is BROKEN, per the edit itself:
+        the edit broke the precondition `append_only`, so the check saw it after all
+  ( ?) CP03p   dir + statically +-blind [contains(...) and contains(...], precondition `append_only` unknown
+        NOT mispointed and NOT excused — nothing decided the precondition the blindness rests on
+  ( ?) CP06p   dir + statically +-blind [contains(...)], precondition `append_only` undecidable
+        NOT mispointed and NOT excused — nothing decided the precondition the blindness rests on
+  ( ?) CP08p   dir + statically +-blind [contains(...)], precondition `append_only` undecidable
+        NOT mispointed and NOT excused — nothing decided the precondition the blindness rests on
+  ( ?) CP10p2  dir + statically +-blind [contains(...)], precondition `append_only` undecidable
+        NOT mispointed and NOT excused — nothing decided the precondition the blindness rests on
+rc=1

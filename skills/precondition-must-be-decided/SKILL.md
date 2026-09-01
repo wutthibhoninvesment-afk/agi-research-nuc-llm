@@ -1,6 +1,6 @@
 ---
 name: precondition-must-be-decided
-description: Use when a rule, law, guarantee or check is stated CONDITIONALLY — "holds provided the input is append-only / the schema is stable / the clock is monotonic / traffic is stationary" — and the condition is written down rather than computed. Symptoms: a report that prints the same condition string beside every counterexample; a docstring listing assumptions that no code reads; counterexamples dismissed one at a time in prose by whoever looked at them; a "known limitation" section that grows and never shrinks; an exception whose message names an assumption the caller cannot query; a law with zero counterexamples where every counterexample was excused by hand. Covers computing the condition from the case's own inputs (never from the outcome), returning THREE values so "not established" is not "refuted", partitioning counterexamples into strict / excused / undecided and publishing all three counts plus the undecided share, and validating the decider against cases a human already argued in BOTH directions.
+description: Use when a rule, law, guarantee or check is stated CONDITIONALLY — "holds provided the input is append-only / the schema is stable / the clock is monotonic" — and the condition is written down rather than computed. Symptoms: a report printing the same condition string beside every counterexample; a docstring of assumptions no code reads; counterexamples dismissed one at a time in prose; a "known limitation" list that only grows; a law with zero counterexamples where each was excused by hand; the same command answering differently with an optional argument; an `unknown` conflating "no rule fires yet" with "no rule can". Covers computing the condition from the case's own inputs (never the outcome), returning THREE values so "not established" is not "refuted", publishing strict/excused/undecided counts, validating against cases argued by hand BOTH ways, auditing every CONSUMER once a decider exists, and PROVING a class undecidable with a counterexample pair instead of widening the rule.
 ---
 
 # A precondition you print is not a precondition you decided
@@ -104,6 +104,82 @@ only user.** Do not delete it — it is the behaviour a fourth condition gets
 on the day it is named and before it is decided. Re-pin it against a
 synthetic name and add an invariant test that every condition the rule table
 NAMES has a decider, so the next atom cannot arrive silently undecided.
+
+### Round 438: the decider existed, and the other instrument never called it
+
+Two rounds after `append_only` got a decider, a SECOND instrument over the
+same registry still applied round 420's conditional blindness as if it were
+absolute. Its flag was `pin.dir in guardian.blind`, full stop — and its only
+precondition-aware branch was keyed on the OUTCOME:
+
+```python
+if measured.get(pin["id"]) == "guarded":
+    ...  status = "precondition_broken"      # step 2, violated, in the fix's own module
+```
+
+That is step 2's prohibition, in the same file as the decider that obeys it.
+The decider needed no run at all — it reads the edit text and the subject
+source, both of which the reporting command already had in hand.
+
+**The symptom is a mode-dependent answer.** The registry's acceptance
+criterion named a command; that command takes an optional second argument;
+and the answer moved with it:
+
+| command | MISPOINTED | exit |
+|---|---|---|
+| `audit <pins.json>` | **5** | **1** |
+| `audit <pins.json> <run.json>` | **0** | **0** |
+
+The criterion's own text says it exists so that "pointing a pin at whatever
+happened to go red would guarantee `guarded` and measure nothing" — and the
+mode that MET it is the one that consults `guarded`. **A criterion was
+satisfied precisely by the circularity it was written to forbid.** One round
+evaluated the strict mode and correctly held the failure open; nothing ever
+evaluated the other; both were right about the mode they ran.
+
+Three instruments over one campaign gave three answers: 5 mispointed; 0
+mispointed / 5 "false positive"; 1 excused / 4 undecided. Only the third
+distinguished **decided broken** from **not decided** — i.e. only the one
+that had already done step 3.
+
+**The dangerous cell is the one nobody could reach.** Condition HOLDS +
+outcome `guarded` is the law REFUTED. Hard-coding "guarded means the
+condition broke" puts a refutation in the false-positive bucket — and it does
+it in the pre-flight tool, the one that meets a new counterexample FIRST.
+Unreachable on the archive, so it was pinned synthetically.
+
+### Round 438: prove the residual undecidable instead of widening the rule
+
+The pitfall below says *"say so rather than widening the rule until it
+guesses."* Saying so is an argument. Round 438 made it a measurement, and it
+took two twelve-line programs.
+
+The residual was one shape: the edit rewrites a BOOLEAN CONDITION, and
+`append_only` is a property of the observed TEXT. Two subject programs were
+written with the SAME guardian shape and the same edit — add one disjunct to
+an `or` chain — such that the decider's input is **byte-identical**:
+
+```
+structural: ((k == 'a') or (k == 'b'))  ->  (((k == 'a') or (k == 'b')) or (k == 'c'))
+```
+
+In one, the condition guards a SUFFIX: the edit appends, containment
+survives, the check still passes (`append_only` holds, exit 0). In the other,
+the same condition guards a SPLICE into the middle: containment is destroyed,
+the check goes red (broken, exit 1).
+
+**Same input, both answers ⇒ no rule over that input can decide it.** There
+is nothing to widen *to*, and that is a fact about the analysis rather than
+an admission about the analyst. It earns its own status — `undecidable`, not
+`unknown` — because the two call for opposite responses: `unknown` invites
+the next round to widen the rule, `undecidable` tells it not to bother.
+
+The status stays **refutable**: exhibit a third program that breaks the
+pairing and it is wrong. And it must be **narrower than the symptom that
+suggested it** — "not string-shaped" covered the four boolean cases AND a
+fifth whose edit adds an `if` branch, whose arms *are* observed text and
+which a widening rule really could reach. Over-broadening would have retired
+the one residual still worth attacking.
 
 ## When to use
 
@@ -209,6 +285,46 @@ NAMES has a decider, so the next atom cannot arrive silently undecided.
    silently treating the others as decided is worse than deciding none. Name
    the undecided ones in the report and count their cases separately.
 
+9. **(Round 438) Audit every CONSUMER of the condition, not just the
+   reporter you fixed.** Building the decider is half the job; the other half
+   is that nothing still applies the rule unconditionally. Grep for the
+   blindness/applicability test itself rather than for the condition's name —
+   the offender does not mention the condition, which is the point:
+
+   ```
+   $ grep -rn 'in .*\.blind\|dir in\|applies_to\|is_exempt' --include=*.py .
+   $ grep -n 'def .*(' <module>.py | # then, for each, does it take pre_status?
+   ```
+
+   For each consumer ask the step-2 question again: **can it reach the
+   outcome, and does it?** A consumer whose only route to the condition is a
+   measured result has step 2's bug even if the decider next to it is clean.
+   Then check the two must-agree properties:
+
+   * **The answer does not move with an optional argument.** Run the command
+     with and without every optional input and diff the output. If they
+     differ, the answer is not a function of the subject.
+   * **The consumers agree row for row.** Two instruments partitioning the
+     same cases must produce the same partition. Assert it in a test; a
+     divergence found later reads as a discovery instead of a regression.
+
+10. **(Round 438) Before widening a rule to reach a residual, try to prove it
+    cannot be reached.** Cheaper than widening, and it terminates.
+
+    Take two subjects that produce the **identical** decider input and whose
+    ground truth differs. Construct them: keep the analysed input fixed and
+    vary only what the analysis cannot see. RUN both to establish the ground
+    truth — do not derive it from the model you are testing.
+
+    If the pair exists, the class is undecidable *by this analysis*, and it
+    gets a status distinct from `unknown`. If you cannot build the pair, that
+    is evidence a widening rule exists and you now know what it must
+    separate. Either way you stop guessing.
+
+    Keep the pair as fixtures and test that the rule classifies **both** — if
+    a later change decides one of them, the justification for the status is
+    gone and that test is what says so.
+
 ## Pitfalls
 
 - **Comparing derived fields as if they were source.** Parsers, ORMs and
@@ -230,6 +346,31 @@ NAMES has a decider, so the next atom cannot arrive silently undecided.
   present (an `if` pinned to a literal). One that swaps a variable is
   `undecided` for ever, short of an interpreter. Say so rather than widening
   the rule until it guesses.
+- **`unknown` is two answers wearing one name.** "No rule of mine fires on
+  this yet" invites the next round to widen; "no rule over this input CAN"
+  tells it to stop. Reported as one word, the second is re-litigated every
+  few cycles at full cost. Split them — and only after you have built the
+  counterexample pair, because the second is a claim.
+- **(Round 438) The consumer that skips the decider does not mention the
+  condition.** You will not find it by grepping the condition's name. It
+  reads the applicability flag directly, and it may sit in the same module
+  as the decider, written by the same round.
+- **(Round 438) An acceptance criterion that names a COMMAND inherits every
+  optional argument that command has.** "`tool check <file>` must report 0
+  X" is not a property of the file if `tool check` takes a second argument
+  that changes the answer. Pin the exact invocation, or state the property
+  over the data rather than over a command line.
+- **(Round 438) "0 findings" can be reached by declining to decide.** Once
+  `undecided` exists, a criterion phrased as a count of the BAD status is
+  satisfiable by silence. Either the criterion counts undecided too, or the
+  exit code does. Round 438's audit reports `0 MISPOINTED` and exits 1,
+  because four rows are open.
+- **(Round 438) Excusing on an undecided condition and refuting on one are
+  the same error in opposite directions.** A measured failure of the
+  conclusion, with the condition undecided, is equally evidence that the
+  condition broke and that the applicability analysis is wrong. Picking the
+  first is the unfalsifiability the whole skill is about; picking the second
+  reports a refutation you cannot support. `undecided` is the answer.
 - **Coverage is the result, not an aside.** If the decider decides 20% of the
   corpus, the honest headline is about 20% of the corpus. Leading with "0
   strict violations" and burying "6 of 8 undecided" is the same failure in a
@@ -266,6 +407,19 @@ You have done this when all of these hold:
 9. (Round 434) Every condition the rule table names has a decider, asserted
    by a test; the no-decider branch survives, pinned against a synthetic
    name rather than deleted for want of a user.
+10. (Round 438) Every consumer of the applicability flag takes the decider's
+    output, and a test asserts that any two consumers partitioning the same
+    cases agree row for row.
+11. (Round 438) Running the reporting command with and without each optional
+    argument produces **identical** output, asserted by a test. An optional
+    input may sharpen a report; it may never decide a status.
+12. (Round 438) The cell "condition HOLDS and the conclusion failed anyway"
+    is reported as a REFUTATION of the conditional claim, not as a false
+    positive — with a test, synthetic if the archive has no instance.
+13. (Round 438) Any residual class called permanently undecidable has a
+    committed counterexample PAIR whose analysed input is identical and whose
+    ground truth differs, established by running both; and a test asserts the
+    rule classifies both members.
 
 Worked commands from the instance:
 
@@ -281,4 +435,42 @@ $ python3 polarity.py law state/whence/round-422/host-pins-plus.json \
                           state/whence/round-422/run-plus-witnessed.json
   1 VIOLATION(s) …
   of those, 0 STRICT, 1 excused and 0 undecided
+```
+
+Round 438 — the consumer audit (step 9). Before: the answer moves.
+
+```
+$ python3 polarity.py audit state/whence/round-422/host-pins-plus-repointed.json
+  audit: … 22 directional pin(s), 5 MISPOINTED, 0 unlocatable, 0 precondition-broken
+$ echo $?
+1
+$ python3 polarity.py audit …/host-pins-plus-repointed.json …/run-repointed.json
+  audit: … 22 directional pin(s), 0 MISPOINTED, 0 unlocatable, 5 precondition-broken
+$ echo $?
+0
+```
+
+After: it does not, and `undecided` is visible and costs the exit code.
+
+```
+$ python3 polarity.py audit …/host-pins-plus-repointed.json          # rc 1
+  audit: … 0 MISPOINTED, 0 unlocatable, 1 precondition-broken, 4 undecided,
+         0 strict-violation
+  (fp) CP22p2  … the precondition is BROKEN, per the edit itself
+  ( ?) CP03p   … precondition `append_only` unknown
+  ( ?) CP06p   … precondition `append_only` undecidable
+$ diff <(… audit PINS) <(… audit PINS RUN) && echo "modes agree"
+modes agree
+```
+
+Round 438 — the undecidability pair (step 10). `state/whence/round-438/`:
+
+```
+$ python3 run.py state/whence/round-438/append-only-suffix.lang ; echo $?   # 0
+$ python3 run.py state/whence/round-438/append-only-infix.lang  ; echo $?   # 0
+# then apply the SAME edit (one extra `or` disjunct) to each:
+$ … suffix+edit → check passes, exit 0     # append_only HOLDS
+$ … infix +edit → check fails,  exit 1     # append_only BROKEN
+# and the decider's input is byte-identical for both:
+structural: ((k == 'a') or (k == 'b'))  ->  (((k == 'a') or (k == 'b')) or (k == 'c'))
 ```

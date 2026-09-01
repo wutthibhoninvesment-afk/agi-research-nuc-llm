@@ -466,7 +466,27 @@ def check_law(pins, results, verdicts, pre_status=None):
 
 # --- audit: a pin whose DIRECTION its guardian cannot see -----------------
 
-def audit_registry(pins, verdicts, results=None):
+#: Round 438. The four outcomes for a pin whose `dir` lies in its guardian's
+#: blind set. "Blind" is not one of them: round 420's blindness is
+#: CONDITIONAL, so it takes the precondition's verdict to say which.
+#:
+#: `mispointed`          the precondition HOLDS -- the guardian really cannot
+#:                       see this edit, so measuring the pin costs a run and
+#:                       learns nothing about the code. This is the ONLY
+#:                       status a registry's "0 MISPOINTED" criterion is
+#:                       about.
+#: `precondition_broken` the precondition is BROKEN -- the guardian is not
+#:                       blind to THIS edit and the flag is a false positive.
+#: `strict_violation`    the precondition HOLDS and the pin came back
+#:                       `guarded` regardless. That refutes round 420's law;
+#:                       it is `check_law`'s `strict_violations` seen from
+#:                       here, and it is NOT a false positive.
+#: `undecided`           nothing decided the precondition. Neither of the
+#:                       above is established and neither is claimed.
+AUDIT_BLIND_STATUSES = ("mispointed", "precondition_broken",
+                        "strict_violation", "undecided")
+
+def audit_registry(pins, verdicts, results=None, pre_status=None):
     """Flag every pin whose `dir` lies in its guardian's blind set.
 
     This is the round-420 instrument, and it runs BEFORE any campaign: a pin
@@ -484,6 +504,26 @@ def audit_registry(pins, verdicts, results=None):
     Without it the candidates are every sighted check in the file, which is a
     much weaker suggestion -- so the two modes are reported distinctly rather
     than blended.
+
+    ROUND 438. `pre_status` is `precondition_map`'s output, and without it
+    this instrument applies round 420's law AS IF IT WERE UNCONDITIONAL.
+    It is not: `contains(...)` is `+`-blind only while the edit is
+    `append_only`, and `check_law` has conditioned exactly this since round
+    426. The only route to the condition here was a MEASURED `guarded` --
+    from the run this function's own docstring says it precedes -- so the
+    answer moved with an optional argument: on
+    `state/whence/round-422/host-pins-plus-repointed.json` the CLI reports
+    **5 MISPOINTED, exit 1** without `run.json` and **0 MISPOINTED, exit 0**
+    with it. That registry's acceptance criterion is *"`polarity.py audit`
+    over this file must report 0 MISPOINTED, which is the non-circular
+    half"* -- so the criterion was MET only in the mode that consults
+    `guarded`, which is the circularity it was written to forbid.
+
+    `precondition_map` decides the same condition from the EDIT TEXT alone
+    and needs no run, which is what a pre-campaign instrument can actually
+    use. With it the four outcomes are `AUDIT_BLIND_STATUSES` below, the
+    answer stops moving when `results` is passed, and it agrees row-for-row
+    with `check_law` on the same campaign.
     """
     by_label = {v.label: v for v in verdicts}
     co_red, measured = {}, {}
@@ -509,18 +549,50 @@ def audit_registry(pins, verdicts, results=None):
                          "guardian": pin["guardian"], "candidates": [],
                          "candidate_source": None, "pre": list(v.pre)})
             continue
-        if measured.get(pin["id"]) == "guarded":
-            # Measured guarded although statically blind: the edit did not
-            # respect the precondition this blindness rests on, so the flag
-            # is a FALSE POSITIVE and the run says so. Reported as its own
-            # status rather than dropped, because the precondition it names
-            # is the round-420 finding and suppressing it silently would
-            # hide the very thing that makes the static rule conditional.
-            rows.append({"id": pin["id"], "dir": d,
-                         "status": "precondition_broken",
-                         "guardian": pin["guardian"], "candidates": [],
-                         "candidate_source": None, "pre": list(v.pre),
-                         "shape": v.reason})
+        # ROUND 438. `d in v.blind` does not decide anything on its own --
+        # the blindness rests on `v.pre`, and whether THIS pin's edit keeps
+        # that precondition is a separate question with its own decider.
+        guarded = measured.get(pin["id"]) == "guarded"
+        row = {"id": pin["id"], "dir": d, "guardian": pin["guardian"],
+               "candidates": [], "candidate_source": None,
+               "pre": list(v.pre), "shape": v.reason,
+               "pre_status": None, "decided_by": None}
+        if pre_status is None:
+            # Pre-438 behaviour, kept verbatim for callers with no map: the
+            # only evidence about the condition is a measured `guarded`.
+            row["status"] = "precondition_broken" if guarded else "mispointed"
+            row["decided_by"] = "measurement" if guarded else "blindness"
+        else:
+            st = ((pre_status or {}).get(pin["id"]) or {}).get("status")
+            row["pre_status"] = st
+            if not v.pre or st == PRE_INAPPLICABLE:
+                # Blind with NO precondition named: the blindness is
+                # unconditional, so nothing can excuse it and a measured
+                # `guarded` refutes the analysis rather than the law.
+                row["decided_by"] = "blindness"
+                row["status"] = ("strict_violation" if guarded
+                                 else "mispointed")
+            elif st == PRE_BROKEN:
+                # Decided from the EDIT, with no run: the guardian is not
+                # blind to this edit, so the flag is a false positive.
+                row["decided_by"] = "precondition"
+                row["status"] = "precondition_broken"
+            elif st == PRE_HOLDS:
+                row["decided_by"] = "precondition"
+                # Established precondition + measured `guarded` is round
+                # 420's law REFUTED -- `check_law`'s `strict_violations`.
+                # Calling that a false positive, as this function did for
+                # eighteen rounds, reports a refutation as a nuisance.
+                row["status"] = ("strict_violation" if guarded
+                                 else "mispointed")
+            else:
+                # `unknown` / `no_decider` / `identity` / `unlocatable`.
+                # Never promoted to either side: excusing a violation on a
+                # precondition nothing decided is the unfalsifiability
+                # round 426's three guards exist to prevent.
+                row["status"] = "undecided"
+        if row["status"] != "mispointed":
+            rows.append(row)
             continue
         gap = None
         if pin["id"] in co_red:
@@ -535,17 +607,18 @@ def audit_registry(pins, verdicts, results=None):
             cands = [c for c in sighted_all if d not in by_label[c].blind]
             dropped = []
             src = "whole file"
-        rows.append({"id": pin["id"], "dir": d, "status": "mispointed",
-                     "guardian": pin["guardian"], "candidates": cands,
-                     "dropped_blind": dropped, "gap": gap,
-                     "candidate_source": src, "pre": list(v.pre),
-                     "shape": v.reason})
+        row.update({"candidates": cands, "dropped_blind": dropped,
+                    "gap": gap, "candidate_source": src})
+        rows.append(row)
     return rows
 
 
 def _cmd_audit(args):
     if not args:
-        print("usage: polarity.py audit <pins.json> [run.json]",
+        print("usage: polarity.py audit <pins.json> [run.json]\n"
+              "  the precondition each blind pin rests on is decided from "
+              "the edit text;\n"
+              "  run.json only sharpens the candidate list (round 438)",
               file=sys.stderr)
         return 2
     with open(args[0], encoding="utf-8") as f:
@@ -559,14 +632,25 @@ def _cmd_audit(args):
         print("audit: registry spans %d guest files; run one at a time"
               % len(guest_files), file=sys.stderr)
         return 2
-    vs = classify_file(os.path.join(_HERE, guest_files[0]))
-    rows = audit_registry(reg["pins"], vs, results)
+    guest_path = os.path.join(_HERE, guest_files[0])
+    vs = classify_file(guest_path)
+    # ROUND 438. The precondition map is built from the EDIT TEXT and the
+    # guest file, both of which this command already has, and it costs no
+    # run. Before this, passing `run.json` moved the headline from 5
+    # MISPOINTED to 0 on the same registry -- the criterion the registry
+    # states was decidable only in the mode that consults `guarded`.
+    with open(guest_path, encoding="utf-8") as f:
+        pre_status = precondition_map(reg["pins"], f.read(), vs)
+    rows = audit_registry(reg["pins"], vs, results, pre_status)
     bad = [r for r in rows if r["status"] == "mispointed"]
     lost = [r for r in rows if r["status"] == "unlocatable"]
     fp = [r for r in rows if r["status"] == "precondition_broken"]
+    strict = [r for r in rows if r["status"] == "strict_violation"]
+    undec = [r for r in rows if r["status"] == "undecided"]
     print("audit: %s — %d directional pin(s), %d MISPOINTED, %d unlocatable, "
-          "%d precondition-broken" % (guest_files[0], len(rows), len(bad),
-                                      len(lost), len(fp)))
+          "%d precondition-broken, %d undecided, %d strict-violation"
+          % (guest_files[0], len(rows), len(bad), len(lost), len(fp),
+             len(undec), len(strict)))
     for r in bad:
         print("  *** %-7s dir %s is in the blind set of its guardian"
               % (r["id"], r["dir"]))
@@ -587,11 +671,25 @@ def _cmd_audit(args):
         else:
             print("        NO sighted candidate in the whole file. Whether "
                   "this is a coverage gap needs a run — pass run.json.")
+    for r in strict:
+        print("  !!! %-7s dir %s: precondition `%s` HOLDS and the pin came "
+              "back guarded" % (r["id"], r["dir"], ",".join(r["pre"]) or "-"))
+        print("        that is round 420's law REFUTED, not a false "
+              "positive — see `polarity.py law`")
     for r in fp:
-        print("  (fp) %-7s dir %s statically %s-blind [%s] but MEASURED "
-              "guarded:" % (r["id"], r["dir"], r["dir"], r["shape"][:30]))
+        how = ("the edit itself" if r["decided_by"] == "precondition"
+               else "the measured verdict")
+        print("  (fp) %-7s dir %s statically %s-blind [%s] but the "
+              "precondition is BROKEN, per %s:"
+              % (r["id"], r["dir"], r["dir"], r["shape"][:30], how))
         print("        the edit broke the precondition `%s`, so the check "
               "saw it after all" % (",".join(r["pre"]) or "-"))
+    for r in undec:
+        print("  ( ?) %-7s dir %s statically %s-blind [%s], precondition "
+              "`%s` %s" % (r["id"], r["dir"], r["dir"], r["shape"][:30],
+                           ",".join(r["pre"]) or "-", r["pre_status"]))
+        print("        NOT mispointed and NOT excused — nothing decided "
+              "the precondition the blindness rests on")
     for r in lost:
         print("  ??? %-7s guardian names no check in the file: %s"
               % (r["id"], r["guardian"]))
@@ -599,7 +697,12 @@ def _cmd_audit(args):
         with open(os.environ["POLARITY_JSON"], "w", encoding="utf-8") as f:
             json.dump(rows, f, indent=2)
         print("wrote %s" % os.environ["POLARITY_JSON"])
-    return 0 if not bad and not lost else 1
+    # ROUND 438. `undecided` counts against the exit code. A registry whose
+    # criterion is "0 MISPOINTED" is NOT satisfied by an instrument that
+    # declined to decide: reporting 0 because four rows were left open is
+    # the same green-by-silence round 426 wrote its held-open test against.
+    # `strict_violation` is a refutation of the law and never exits 0.
+    return 0 if not (bad or lost or undec or strict) else 1
 
 
 def repoint(pins, verdicts, results):
@@ -963,6 +1066,35 @@ DELTA_INFIX = "infix"
 DELTA_STRUCTURAL = "structural"
 
 
+#: Round 438. The operators that make a node a BOOLEAN CONDITION rather than
+#: an expression whose text is observed. `append_only` is a property of the
+#: OBSERVATION delta; an edit confined to nodes like these reaches the
+#: observation only through evaluation, which is the gap `_walk_delta` cannot
+#: cross. Round 428 wrote the same finding in prose for the `refusal` decider
+#: ("six of the nine `refusal` pins edit a BOOLEAN that a downstream `if`
+#: turns into a miss ... they come back `unknown`, which is correct and is
+#: not a bug to be fixed by loosening the test"); this is that decision made
+#: machine-readable, for the OTHER decider, and backed by a construction.
+BOOLEAN_OPS = ("and", "or") + TWO_SIDED_OPS
+
+
+def _is_boolean_shaped(node):
+    """Is this node a boolean condition — an `and`/`or` chain, a comparison,
+    or a `not`?
+
+    Deliberately syntactic and deliberately narrow. A guest predicate CALL
+    returning a bool (`is_space(c)`) is NOT boolean-shaped here: naming it
+    one would take the `is_`-prefix convention -- which `MONOTONE_BUILTINS`
+    already flags as the one assumption the corpus rather than the language
+    justifies -- and spend it a second time, on a harder question.
+    """
+    if isinstance(node, A.Binary):
+        return node.op in BOOLEAN_OPS
+    if isinstance(node, A.Unary):
+        return node.op == "not"
+    return False
+
+
 def delta_kind(old, new):
     """Classify one (old, new) delta as `append`, `infix` or `structural`."""
     string_shaped = (_is_concat(old) or _is_concat(new)
@@ -1068,6 +1200,22 @@ def _brief(node, limit=44):
 PRE_HOLDS = "holds"
 PRE_BROKEN = "broken"
 PRE_UNKNOWN = "unknown"
+#: Round 438. `unknown` conflates two answers a caller must tell apart: "no
+#: rule of mine fires on this delta yet" (a future round can widen the rule)
+#: and "no syntactic rule over this delta CAN decide it" (no round can).
+#: `undecidable` is the second, and it is REFUTABLE rather than asserted --
+#: `state/whence/round-438/append-only-{suffix,infix}.lang` are two programs
+#: whose edits produce the BYTE-IDENTICAL delta
+#:
+#:   structural: ((k == 'a') or (k == 'b'))  ->  (((k == 'a') or (k == 'b')) or (k == 'c'))
+#:
+#: under the same `contains(...)` guardian, and whose measured answers are
+#: opposite: the suffix program's check still passes after the edit
+#: (`append_only` HOLDS, the guardian is blind), the infix program's fails
+#: (`append_only` BROKEN, the guardian is sighted). Same delta, both
+#: answers, so the delta does not determine the answer. Exhibit a third
+#: program that breaks that pairing and this status is wrong.
+PRE_UNDECIDABLE = "undecidable"
 
 
 def edit_precondition(base_src, pin, kinds=()):
@@ -1096,15 +1244,29 @@ def edit_precondition(base_src, pin, kinds=()):
     kinds = [delta_kind(a, b) for a, b in pairs]
     shown = ["%s: %s  ->  %s" % (k, _brief(a), _brief(b))
              for k, (a, b) in zip(kinds, pairs)]
+    why = None
     if not pairs:
         status = "identity"
     elif DELTA_INFIX in kinds:
         status = PRE_BROKEN
     elif all(k == DELTA_APPEND for k in kinds):
         status = PRE_HOLDS
+    elif (all(k == DELTA_STRUCTURAL for k in kinds)
+          and all(_is_boolean_shaped(a) and _is_boolean_shaped(b)
+                  for a, b in pairs)):
+        # ROUND 438. Every delta is a rewrite of a BOOLEAN CONDITION, so
+        # whether the observed TEXT only grows at its end is mediated by
+        # evaluation and is not a function of this delta. Not `unknown`:
+        # `unknown` invites a widening rule, and there is no widening rule
+        # to find -- see `PRE_UNDECIDABLE`'s two counterexample programs,
+        # which share this delta byte for byte and disagree.
+        status = PRE_UNDECIDABLE
+        why = ("every delta rewrites a boolean condition; `append_only` is "
+               "a property of the observed text and is not a function of "
+               "this delta (see state/whence/round-438/)")
     else:
         status = PRE_UNKNOWN
-    return {"status": status, "why": None, "kinds": kinds, "deltas": shown,
+    return {"status": status, "why": why, "kinds": kinds, "deltas": shown,
             "decided_over": (PRE_APPEND_ONLY,)}
 
 
@@ -2420,6 +2582,14 @@ def routed_precondition(base_src, pin, pres, kinds=()):
             status = PRE_BROKEN
         elif all(s in (PRE_HOLDS, "identity") for s in stats):
             status = PRE_HOLDS
+        elif (PRE_UNDECIDABLE in stats
+              and all(s in (PRE_UNDECIDABLE, PRE_HOLDS, "identity")
+                      for s in stats)):
+            # ROUND 438. `undecidable` survives the conjunction only when
+            # nothing else is merely `unknown`: a row that is undecidable on
+            # one precondition and un-ruled on another is `unknown`, because
+            # widening the second rule could still settle it.
+            status = PRE_UNDECIDABLE
         else:
             status = PRE_UNKNOWN
     why = "; ".join("%s: %s" % (n, rows[n]["status"]) for n in pres)

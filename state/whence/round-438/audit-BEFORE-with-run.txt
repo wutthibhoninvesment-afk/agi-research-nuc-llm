@@ -1,0 +1,11 @@
+audit: examples/self_host.lang — 22 directional pin(s), 0 MISPOINTED, 0 unlocatable, 5 precondition-broken
+  (fp) CP03p   dir + statically +-blind [contains(...) and contains(...] but MEASURED guarded:
+        the edit broke the precondition `append_only`, so the check saw it after all
+  (fp) CP22p2  dir + statically +-blind [contains(...)] but MEASURED guarded:
+        the edit broke the precondition `append_only`, so the check saw it after all
+  (fp) CP06p   dir + statically +-blind [contains(...)] but MEASURED guarded:
+        the edit broke the precondition `append_only`, so the check saw it after all
+  (fp) CP08p   dir + statically +-blind [contains(...)] but MEASURED guarded:
+        the edit broke the precondition `append_only`, so the check saw it after all
+  (fp) CP10p2  dir + statically +-blind [contains(...)] but MEASURED guarded:
+        the edit broke the precondition `append_only`, so the check saw it after all

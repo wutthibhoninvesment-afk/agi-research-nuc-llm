@@ -22179,6 +22179,155 @@ hygiene commitments kept.
   `knowledge/round-437-the-timeout-that-was-not-a-difference.md`;
   `state/round-437-predictions.md`.
 
+### Round 438 — language(C) — 2026-09-01 — the criterion that passed only in the circular mode
+
+- **Round 437's entire diff was landed first.** It died at `--max-turns` with
+  15 uncommitted paths; committed unchanged as `ce7a89d` after verifying the
+  driver's own post-437 checks (harness `1187 passed / 3 failed`, whence tier
+  PASS). The three harness reds are NOT round 437's: `test_wiring_audit.py`
+  W001 on `skills/skill-authoring/scripts/selfdesc_check.py` and its test,
+  both landed **undeclared in round 435's commit `cfc4461`** and already
+  reported by round 436's health check. Still open, still a two-line registry
+  fix, and owned by whoever next runs skills(B) or harness(A).
+- **Round 435's item 1 is answered, and the answer is neither of the two it
+  offered.** `host-pins-plus-repointed.json`'s criterion is *"`polarity.py
+  audit` over this file must report 0 MISPOINTED, which is the non-circular
+  half"*. That command takes an optional second argument, and at HEAD it
+  reported **5 MISPOINTED / exit 1** without `run.json` and **0 MISPOINTED /
+  exit 0** with it. The mode that MET the criterion is the circular one:
+  `audit_registry`'s only precondition-aware branch was keyed on
+  `measured == "guarded"`, and all five pins measured `guarded`. Round 426
+  evaluated the first mode and correctly held it open; nothing evaluated the
+  second. **The criterion names a command whose answer is not a function of
+  the registry.**
+- **The MISPOINTED predicate applied a CONDITIONAL law as absolute.** Round
+  420's blindness holds only while the edit is `append_only`; `check_law` has
+  conditioned it since round 426, `audit_registry` never did — and the
+  decider needs **no run** (`precondition_map` reads the edit text and the
+  guest source, both of which `_cmd_audit` already had). The one instrument
+  documented as running BEFORE any campaign was the only one that could not
+  reach the condition without a campaign. Three instruments gave three
+  answers on one campaign: audit-static 5 mispointed; audit-with-run 0
+  mispointed / 5 "false positive"; `check_law` 1 excused / 4 undecided. Only
+  `check_law` distinguished *decided broken* from *not decided*.
+- **Fixed:** `audit_registry(pins, verdicts, results=None, pre_status=None)`
+  with a four-way blind branch (`AUDIT_BLIND_STATUSES`: `mispointed` /
+  `precondition_broken` / `strict_violation` / `undecided`); `_cmd_audit`
+  builds the map itself. Both modes now report **0 MISPOINTED, 1
+  precondition-broken, 4 undecided, 0 strict-violation, exit 1** and their
+  output is **byte-identical** (1134 bytes each) — `results` can only sharpen
+  a candidate list, never decide a status. Audit and `check_law` agree row
+  for row (pinned). CP22p2 is excused **from the edit** (`decided_by:
+  "precondition"`), which is what makes the pass non-circular. **The
+  criterion is now literally satisfied and still NOT MET**: 0 is reached by
+  declining to decide four rows, which is why `undecided` counts against the
+  exit code.
+- **A latent defect closed: the audit called a REFUTATION a nuisance.** Blind
+  + precondition HOLDS + measured `guarded` is `check_law`'s STRICT violation
+  — round 420's law refuted, the one number round 426 says can move. Pre-438
+  the audit read any measured `guarded` as proof the precondition broke, so
+  it would have printed `(fp)` and moved on. Unreachable on the three
+  campaigns on disk, so pinned synthetically on purpose (as round 434's
+  `no_decider` branch is).
+- **Round 434's item 3 is DECIDED: out of scope, and proved rather than
+  argued.** `state/whence/round-438/append-only-{suffix,infix}.lang` are two
+  Whence programs whose edits produce the **byte-identical** delta
+  `structural: ((k == 'a') or (k == 'b')) -> (((k == 'a') or (k == 'b')) or
+  (k == 'c'))` under the same `contains(...)` guardian, and whose measured
+  answers are OPPOSITE (suffix: `append_only` holds, `run.py` exit 0; infix:
+  broken, exit 1). Same delta, both answers ⇒ there is no rule over the delta
+  to widen to. New status **`PRE_UNDECIDABLE`**, refutable by a third program
+  that breaks the pairing. Round 428 had written the same conclusion in prose
+  for the OTHER decider; it is now in the artefact. `unknown 7 -> unknown 4 +
+  undecidable 3` on `host-pins-plus.json`, `unknown 6 -> unknown 2 +
+  undecidable 4` on the repointed one. **CP03p stays honestly `unknown`** —
+  its delta adds an `if` whose arms ARE observed text, so a widening rule
+  could still reach it. So four of the five residuals are permanently out of
+  scope and one is genuinely open.
+- **Round 428's item 4 (161 vs 162) was CLOSED BY ROUND 432 and carried as
+  open by rounds 434 and 435.** `checkpin.py:471` records it in full: `n_ran`
+  counted the WITNESS line `run_pin` appends itself — *the instrument was in
+  its own denominator* — while `n_red` three lines below already excluded it.
+  161 is right, and there is a live test that re-derives it from
+  `classify_file` rather than hard-coding it. Independently re-derived here:
+  parser **161** `Check` stmts, `classify_file` **161**, raw grep **161**.
+  The mechanism: round 434 wrote *"`classify` still reports 161 … so the
+  number to re-derive is the other one"* and then re-derived neither.
+  **For a carried item shaped "A says X, B says Y, say which", re-deriving A
+  settles nothing — the item is closed or not by B.**
+- **Predictions (D-013):** `state/round-438-predictions.md`, 9 banked before
+  any measurement. **5 HIT, 2 MISS, 2 no-basis reported.** D5 missed by
+  conflating round 426's `false_gaps` (a statement about a pin's CANDIDATE
+  LIST) with a statement about its status. D8 missed by banking "I have no
+  basis for which of 161/162 is right" — correctly — while assuming without
+  basis that the question was still OPEN. Round 437's rule earned a
+  corollary: **an item's staleness needs a basis too, not just its answer.**
+  D7 (banked no-basis) found round 434's carried `unknown` set wrong in two
+  places: it is 7 rows in `host-pins-plus.json` and **6**, not 7, in the
+  repointed one, and the named list is a union matching neither — it includes
+  CP10p2 (repointed only) and omits CP07p entirely.
+- **Artifacts:** `languages/whence/polarity.py` (`AUDIT_BLIND_STATUSES`,
+  `PRE_UNDECIDABLE`, `BOOLEAN_OPS`/`_is_boolean_shaped`, the four-way blind
+  branch, `routed_precondition`'s conjunction rule, `_cmd_audit`);
+  `state/whence/round-438/` (2 counterexample programs, 4 audit measurements,
+  1 precondition dump); **13 tests added**, 1 rewritten, 3 pinned counts
+  updated — `test_polarity.py` **150 -> 163 passed, 0 failed**;
+  `knowledge/round-438-the-criterion-that-passed-in-the-circular-mode.md`;
+  `state/round-438-predictions.md`.
+
+## Next steps (as of round 438)
+
+1. **Decide what the repointed registry's criterion should DEMAND, then edit
+   the `_` field.** "0 MISPOINTED" is now literally true and still not met —
+   four rows are undecided, and an instrument can satisfy the criterion by
+   declining to answer. The honest criterion is probably "every directional
+   pin positively decided", which today would read `0 mispointed, 1
+   precondition-broken, 4 undecided` and fail. This round made the exit code
+   stop lying about it but did NOT rewrite the registry's own text, because
+   the criterion is round 422's authorship. language(C).
+2. **CP03p is the one `append_only` residual still open, and it is now the
+   ONLY one.** Its delta adds an `if` branch whose arms are observed text, so
+   a widening rule analogous to round 428's shape 4 is genuinely possible
+   here — unlike the four `undecidable` ones, where round 438 proved there is
+   nothing to widen to. Anyone attacking it should write the counterexample
+   FIRST and only widen if none exists. language(C).
+3. **The `strict_violation` path has never fired on real data.** It is pinned
+   synthetically. If it ever fires, round 420's law is refuted and that is the
+   headline of whatever round sees it — do not treat it as a nuisance flag,
+   which is exactly what the pre-438 code did. language(C).
+4. **`test_wiring_audit.py` has 3 reds naming
+   `skills/skill-authoring/scripts/selfdesc_check.py` and its test**, both
+   landed undeclared by round 435 and reported by every health check since.
+   It is a registry entry, not a code fix. Round 438 attributed it and did
+   not fix it: it is not language(C) and the wiring registry is harness(A)'s
+   artefact. **harness(A) or skills(B).**
+5. **`PRE_UNDECIDABLE` is a claim about SYNTACTIC rules over `_walk_delta`'s
+   output, not about the question.** A campaign run separates the two
+   counterexample programs immediately. If a future round wants the four pins
+   decided, the route is a RUN, not a better static rule — and that is a
+   different instrument from the one the criterion names.
+6. **Round 437's items stand, unchecked by this round** — in particular
+   `undecided` in `killers.json` as a live hypothesis with a counter
+   attached, the corpus change's unmeasured blast radius across
+   `swe/oracles.py`, `swe/oraclekill.py` and `swe/exemptmap.py`, and the
+   slow-tier ledger whose newest entry of ANY kind is still 2026-08-30 08:08.
+   SWE-loop(D) or harness(A).
+7. **Rounds 434/435/436's lists stand because nothing here touched them.** Two
+   corrections earned this round: round 434's item 5 (161 vs 162) is CLOSED —
+   delete it rather than carrying it — and its item 3's `unknown` set is
+   misstated in both count and names (see the round entry). Round 435's item
+   1 is CLOSED. **Re-derive before quoting: four rounds running, re-deriving
+   a carried item has changed its answer.**
+8. **Standing, and untouched by this round:** the operator-blocked `--cap
+   196`; the E3 A/B's six-gate table; `case_coverage`'s 49-of-103 disagreeing
+   verdicts; `claim_check` executing 0 of its commands; the `%vmeff`
+   residual; and CLAUDE.md's `CRITICAL MISSION` block, re-escalated for the
+   TWENTIETH time and still a one-line deletion for the operator.
+   `languages/whence/SECURITY.md` is still uncommitted, still not this
+   program's, and still the operator's decision — **do not copy a carry count
+   for it from this file**; the checker's own line is the only source.
+
+
 ## Next steps (as of round 437)
 
 1. **`undecided` is a hypothesis with a counter attached — read it.** Round
