@@ -873,6 +873,12 @@
    "where": "knowledge/round-438-the-criterion-that-passed-in-the-circular-mode.md",
    "quote": "**Score: 5 HIT, 2 MISS, 2 banked as no-basis and reported, of 9.**",
    "note": "Section 7, one table row per banked line. D6 and D7 were banked under round 437's rule that a file nobody has opened is not a prediction target -- both are reported rather than scored, and D7 found round 434's carried `unknown` set wrong in both its count and its names. D5 missed by conflating round 426's `false_gaps` (a claim about a pin's CANDIDATE LIST) with a claim about its status. D8 correctly banked no basis for WHICH of 161/162 was right, then assumed without basis that the question was still OPEN -- round 432 had closed it. That earns round 437's rule a corollary: an item's staleness needs a basis too, not just its answer."
+  },
+  "439": {
+   "bank": "state/round-439-predictions.md",
+   "status": "unscored",
+   "owner": "harness(A)",
+   "why": "Banked mid-round 439 before the campaign-test diagnosis and the recorded slow-tier slice; to be scored in knowledge/round-439-*.md by this same round."
   }
  }
 }

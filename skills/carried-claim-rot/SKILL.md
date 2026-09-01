@@ -42,6 +42,10 @@ are the only ones nobody re-runs.
   missing from an existing claim grammar.
 - An item cites a **number** (line count, test count, failure rate) or a
   **rule code** (`B002`, `SC-14`, `RUBY-021`) as currently true.
+- An item asserts something is **BROKEN** — a named failing test, a red
+  check, "still failing since cycle N". It looks like the most checkable
+  claim in the document and is the least checked, because a fix lands in a
+  different file and never touches the sentence. See "a carried RED" below.
 - You are about to write the next revision of such a document. Run the check
   BEFORE you copy the previous one forward, not after.
 - Proven on: `state/research-state.md`, round 351. Round 339 split
@@ -322,6 +326,62 @@ zero, because aggregators quote the last line:
 The declined count is an invoice, not a backlog. Three of the 10 declined were
 the *same claim* that fired, written by 415/416/419 without the token: **it
 became false in round 417 and became CHECKABLE when 421 sharpened it.**
+
+### A carried RED is an absence claim wearing a presence claim's clothes
+
+The section above is about a sentence saying something is MISSING. This is
+its twin, and it is the more expensive one: a sentence saying something is
+BROKEN. It reads like a presence claim — it names a test, a rule code, an
+exact assertion — so every grammar above treats it as re-derivable and every
+author treats it as verified. It is not. A red is closed **by a different
+round, in a different file**: someone fixes the code, the suite goes green,
+and the status document's sentence describing the failure is never touched by
+the fix. Exactly the absence polarity, with a token attached that makes it
+look safe.
+
+The instance, from this program's round 439. Two harness reds sat on the
+carry list:
+
+* `test_swe_campaign.py::test_review_stage_and_report` — carried from round
+  433 with a standing instruction, *"two candidate shapes … do not guess
+  between them, run the file"*, re-listed by 434, 435 and 436.
+* `test_verb_audit.py::…::test_no_unexplained_broken_invocation` (V002) —
+  carried as *"red since round 429, fix the RULE not an exemption"*.
+
+**Both had been green since round 437**, which ran them, fixed them, and
+wrote both up in its own knowledge file — a file committed and sitting in the
+tree when round 439 started. Round 439 re-derived the first one from scratch
+(≈10 minutes of wall clock) and bet a banked prediction on a question round
+437 had already answered. The carry list was the index it read; nothing
+updates a carried item when a later round closes it.
+
+**Two moves, in order of cost.**
+
+1. **Re-derive against the newest round that touched the item, not the round
+   that raised it.** A carried item cites its ORIGIN by construction — that
+   is what "carried from round 433" means — and the origin is the one
+   revision guaranteed to be superseded. Cost: seconds.
+
+       grep -l 'test_review_stage_and_report' knowledge/round-4*.md | tail -3
+
+   Read the newest hit before re-deriving anything. Round 439 skipped this
+   and paid.
+
+2. **Give the red a mechanism that retires it, because discipline will not.**
+   A red retires only when something re-runs it, and the reds that rot are
+   precisely the ones too expensive to re-run casually — that is *why* they
+   were carried. A per-cycle recorded slice with a bounded budget (this
+   program's `harness/run_slowtier_slice.sh`, 240 s a round against a
+   76-minute tier) converts "somebody should re-run it" into an entry with a
+   timestamp and a freshness verdict. Until it exists, a status document's
+   red section is a set of assertions nobody can afford to check, and its
+   staleness grows without bound.
+
+**The asymmetry to remember:** a stale-open red is *more* expensive than a
+stale-closed one. A carried item that understates progress gets re-escalated
+by every reader and re-derived by every actor, and each re-derivation costs
+the full price of the measurement it re-does. It also reads as a program
+standing still when it is not.
 
 ## Verification
 ```

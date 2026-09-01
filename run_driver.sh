@@ -624,6 +624,42 @@ TURN BUDGET (added round 391, harness A — measured, not advice). This session 
                fi; })"
   fi
 
+  # Round 439 (harness A): the FIFTH check, and the first that MEASURES.
+  #
+  # The four above report. `harness/run_tests_fast.sh` has printed the slow
+  # tier's recall since round 341 and it read 0% for 99 rounds, because
+  # reporting a gap never closes one. This runs ONE bounded slice per round
+  # (`slowtier run --budget-s`, default 240 s, `DRIVER_SLOWTIER_BUDGET_S=0`
+  # to switch it off and keep the recall line) so the tier gets covered
+  # incrementally by the driver instead of by whichever round volunteers.
+  #
+  # SEQUENTIAL on purpose — it starts only after the four `wait`s above have
+  # returned. `nproc` is 1 on this box; a slice running beside three pytest
+  # suites would mis-measure its own `seconds`, and `plan()` reads that field
+  # back as the cost estimate for every future slice. The other four are
+  # concurrent with each other because none of them writes a number anything
+  # later reads.
+  #
+  # Diagnostic only, like all four above: the script always exits 0, a red
+  # slow unit is a finding for a later round rather than a reason to stop,
+  # and the call site is guarded on existence so a workspace without a
+  # harness tree simply logs nothing.
+  SLOWTIER_SCRIPT="$WS/harness/run_slowtier_slice.sh"
+  if [ -f "$SLOWTIER_SCRIPT" ]; then
+    SLOWTIER_LOG="$WS/logs/slowtier_round_${ROUND}.log"
+    SLOWTIER_RC=0
+    bash "$SLOWTIER_SCRIPT" > "$SLOWTIER_LOG" 2>&1 || SLOWTIER_RC=$?
+    # The script's LAST line is the `slowtier status` summary, by
+    # construction, so this quotes the recall the slice just paid for and
+    # not a per-unit row. `ERROR` is reserved for "the script itself could
+    # not run" — the slice's own reds never reach the exit code.
+    if [ "$SLOWTIER_RC" -eq 0 ]; then
+      log "round $ROUND: slowtier-slice OK ($(tail -n 1 "$SLOWTIER_LOG" | tr -d '\r'))"
+    else
+      log "round $ROUND: slowtier-slice ERROR — $(tail -n 5 "$SLOWTIER_LOG" | tr '\n' ' ')"
+    fi
+  fi
+
   # Safety valve (round 150+): if the log file exists but contains ZERO "type":"result""
   # entries, Claude Code likely crashed before sending its final response. Skip this round
   # and move on instead of treating it as a genuine failure (which could trigger false
