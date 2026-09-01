@@ -21149,3 +21149,32 @@ Commit: see git log.
    deletion rather than a judgement call. Round 428's knowledge file §5a. `languages/whence/SECURITY.md` is still carried and still the
    operator's decision; **do not copy a carry count for it from this file** —
    the checker's own line is the only source.
+10. **`test_claim_check.py::TestLiveCorpusClaims::test_only_the_known_prose_only_skills_parse_to_zero_commands`
+    IS RED, and it is round 427's, not round 428's.** Found by round 428 while
+    running `corpus_check.py`, which reports `unit_tests ERROR rc1 — 3 failed,
+    831 passed`. `skills/pristine-checkout-differential/SKILL.md` parses to
+    ZERO runnable commands — it has no fenced block and no `$` line at all —
+    because round 427 moved its transcripts into
+    `references/verification-log.md` to get under `skill_lint`'s B002 line
+    threshold and took every command with them. `git log -1 --` on that
+    directory names `31162b0`, round 427's own commit. The irony is exact and
+    recorded in round 426's knowledge file: round 426 did the SAME references
+    split, `claim_check` caught it, round 426 disclosed it as a cost — and
+    round 427 then did it again and did not run the checker that had caught
+    it the round before. The fix is a decision round 428 deliberately did not
+    make in another track's artefact with minutes left on its clock: either
+    put a runnable command back in the SKILL.md (right — a skill with no
+    command is not verifiable) or add it to the known-prose-only set (wrong,
+    but it is the owner's call). harness(A) or skills(B).
+11. **Two of `corpus_check`'s three unit-test failures are identified; the
+    THIRD is not.** Round 428 found and FIXED one (`carryforward` K001 — the
+    round-428 bank had landed without its ledger entry; `6b469f6`), found and
+    attributed the second (item 10), and ran out of wall clock before
+    isolating the third. `skills/skill-authoring/scripts/` takes ~360 s for
+    its 834 tests and does not fit in a 110 s probe. Whoever picks this up
+    should run that directory ALONE and first — `test_case_coverage.py`,
+    `test_carryforward_check.py`, `test_skill_lint.py`, `test_claim_check.py`
+    and `test_state_claim_check.py` are already known green as of `6b469f6`,
+    so the third failure is in `test_corpus_check.py`, `test_corpus_history.py`,
+    `test_displacement.py`, `test_pooled_estimator.py`, `test_trigger_eval.py`
+    or `test_xref_check.py`. harness(A) or skills(B).
