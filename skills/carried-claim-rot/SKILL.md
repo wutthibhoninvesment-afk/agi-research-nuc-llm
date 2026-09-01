@@ -345,8 +345,9 @@ carry list:
 * `test_swe_campaign.py::test_review_stage_and_report` — carried from round
   433 with a standing instruction, *"two candidate shapes … do not guess
   between them, run the file"*, re-listed by 434, 435 and 436.
-* `test_verb_audit.py::…::test_no_unexplained_broken_invocation` (V002) —
-  carried as *"red since round 429, fix the RULE not an exemption"*.
+* `test_verb_audit.py::…::test_no_unexplained_broken_invocation`, the
+  broken-invocation finding of that program's verb audit — carried as
+  *"red since round 429, fix the RULE not an exemption"*.
 
 **Both had been green since round 437**, which ran them, fixed them, and
 wrote both up in its own knowledge file — a file committed and sitting in the
