@@ -266,6 +266,18 @@ two different exits W005 offers, 416/418 by deletion and 419 by a caller.
 
 ---
 
+### Tiering, decided on the measurement rather than the filename
+
+Both new files start with `test_swe_`, so `conftest.py` marks them `swe_slow`
+by default and `harness/tier-budget.json` can only promote them ON a
+measurement under its 25.0 s cap. Measured: `test_swe_copyparity.py`
+**31.36 s** and `test_swe_loop_cli.py` **100.60 s** (4 passed). Both are over
+the cap, so neither is promoted and no registry edit was made — the default
+is right here, and recording the number is what makes that a decision rather
+than an omission.
+
+---
+
 ## 6. What this round did NOT do
 
 * **The full `copyparity run` over the whole whence suite was not completed.**

@@ -61,6 +61,7 @@ in place the two runs stop at different tests and the diff is meaningless.
 import argparse
 import json
 import os
+import shlex
 import shutil
 import sys
 import tempfile
@@ -279,7 +280,10 @@ def main(argv=None):
     a = ap.parse_args(argv)
     cmd = None
     if a.test_args:
-        cmd = [sys.executable, "-m", "pytest", "-p", "no:cacheprovider"] + a.test_args.split()
+        # shlex, not str.split: `-m "not whence_slow"` is one argument and
+        # splitting on whitespace hands pytest three broken ones.
+        cmd = ([sys.executable, "-m", "pytest", "-p", "no:cacheprovider"]
+               + shlex.split(a.test_args))
     rep = compare(root=a.root, mode=a.mode, test_cmd=cmd, timeout_s=a.timeout)
     print(rep.summary())
     if a.json:
