@@ -80,6 +80,21 @@ Findings
         than one tracked file. "How many references" has two right answers;
         a sentence that does not say which one it means is under-specified
         rather than wrong, and the cure is a word, not a patch.
+`S011`  an ABSENCE claim -- *X still has no S009 finding class* -- whose
+        named token is found IN CODE in the named file. The polarity dual of
+        S009, and the polarity a next-steps document is made of: an open item
+        says what is MISSING. Round 423 found the instance in this file's own
+        live block, four rounds after round 417 built the very code the item
+        called missing. The claim must name a LITERAL token (backticked, or a
+        bare house code) or it is not a claim here; the count of absence
+        sentences declined for want of one is published on the summary line.
+`S012`  (WARN, never an error) the same claim whose token appears only in
+        PROSE -- a comment or docstring -- or naming a container whose
+        basename resolves to more than one tracked file. "Documented but not
+        built" and "absent" read the same in that sentence, and the cure is a
+        word. NOTE the failure direction this class must never take: an
+        unreadable or unresolvable container is recorded UNCHECKED, never
+        clean, because "not found" is the verdict the claim is asking for.
 `CARRIED` (never an error) the age of each extracted claim: how many
         distinct next-steps blocks assert it verbatim, and from which round.
         An age of 1 means this round derived it. An age of 11 means eleven
@@ -450,12 +465,125 @@ def reference_anchor(payload):
     return anchor
 
 
+# `state_claim_check.py` still has no S009 finding class for a REFERENCE claim
+# `harness/swe/copyparity.py` has no --json flag
+#
+# Round 423 (skills B). The FIFTH claim grammar, and the POLARITY DUAL of the
+# fourth. Round 415 found a status document asserting a count that was wrong
+# and built `refs` so a count could be re-counted; every claim shape in this
+# file up to now asserts that something IS so. This one asserts that something
+# is NOT -- *X still has no Y* -- and that is the shape the corpus was
+# actually rotting in, because it is the shape a next-steps item takes by
+# construction. An open item says what is missing. Nothing re-derives it, and
+# the round that supplies the missing thing closes the ticket in code without
+# editing the sentence.
+#
+# The instance that forced it, found in this file's own LIVE block:
+#
+#   round 415  item 2: "`state_claim_check.py` has no finding class for a
+#              REFERENCE claim" -- true when written.
+#   round 417  IMPLEMENTS it. Commit 85422b7 adds S009 AND S010, documents
+#              both in the module docstring, and adds 30 tests.
+#   round 416  (block, physically later in the file) carries the item.
+#   round 421  carries it again, verbatim, four rounds after the fix, and
+#              sharpens the wording to "still has no S009 finding class" --
+#              naming, as the missing thing, the exact code that had been
+#              live for four rounds and 1 of the 7 findings this very file
+#              can emit.
+#
+# And `state_claim_check.py` reported `0 stale of 7 checked` on that block
+# every time, honestly: the sentence was in the 5 of 12 items it could not
+# check. A checker that publishes its recall gap (round 339's rule, which
+# this file obeys) still has to spend the gap on the claims that rot, and
+# ABSENCE is where a forward-looking document does its rotting.
+#
+# The re-derivation is exact and is the cheapest one in this file: resolve
+# the named file, look for the named token in it. `wiring_audit.token_refs`
+# is `refs` with the path index taken off the target, keeping the raw/code
+# split -- because a file may MENTION a token in a comment saying the thing
+# does not exist yet, and that does not make it exist.
+#
+# Two gates keep this from becoming the heuristic round 351 warned about,
+# and both cost recall on purpose:
+#
+#   * the missing thing must be a LITERAL TOKEN -- backticked, or a bare
+#     house code (`S009`, `B002`, `V003`, `D-013`), which this corpus uses
+#     as identifiers and which appear verbatim in source. "`X` has no pin"
+#     names a concept, not a string, and is correctly extracted to nothing:
+#     there is no exact re-derivation for it, so there is no claim here.
+#   * the SUBJECT must be the backticked file immediately left of the verb,
+#     with no sentence break between. "`a.py` is fine. `b.py` has no S009"
+#     must not read `a.py` as the subject.
+# `has never had no X` is not English; the two forms are separate branches.
+ABSENCE_VERB = (r"(?:still\s+)?(?:has|have)\s+no\b"
+                r"|(?:has|have)\s+never\s+had\b"
+                r"|(?:still\s+)?lacks\b"
+                r"|does\s+not\s+(?:have|contain|define|implement)\b"
+                r"|contains?\s+no\b")
+
+# A bare house code: `S009`, `B002`, `V003`, `W005`, `X002`, `D-013`, `CP03`.
+HOUSE_CODE = r"[A-Z]{1,2}-?\d{2,3}"
+
+ABSENCE_CLAIM_RE = re.compile(
+    r"`(?P<path>[^`]{1,160}?\.(?:py|sh|json|md))`"
+    r"(?P<gap>(?:(?!\.\s)[^`]){0,24}?)\s+"
+    r"(?:" + ABSENCE_VERB + r")\s+"
+    r"(?:`(?P<btok>[^`\s]{2,60})`|\b(?P<ctok>" + HOUSE_CODE + r")\b)")
+
+# The token must follow the verb IMMEDIATELY -- no adjective slot. Allowing
+# even two words between them admits *"`a/b.py` has no caller and S009 is
+# fine"*, where the sentence makes no claim about S009 at all. The cost is
+# that *"has no dedicated S009 class"* is declined; that is the fail-closed
+# direction, it is counted by `absence_declined`, and the author's cure is a
+# word.
+
+
+def absence_payload(m):
+    """`{container, token}` for one ABSENCE_CLAIM_RE match."""
+    return {"container": _tidy_path(m.group("path")),
+            "token": m.group("btok") or m.group("ctok")}
+
+
+# The SAME sentence shape with the literal-token gate taken off. Nothing is
+# ever checked through this pattern -- it exists only to count what the gate
+# costs, and the number it produces is the point.
+#
+# Measured over 336 corpus files when this class shipped: 13 absence-shaped
+# sentences, 3 of which name a literal token. Recall 23%, precision 3/3.
+# Round 339's rule is that a checker nobody watches must publish its recall
+# gap, and round 417's refinement is that it must publish it on the SAME LINE
+# as the zero, because aggregators quote the last line. This is both, applied
+# to the class as it is introduced rather than four rounds later.
+#
+# The 10 declined sentences are not a backlog to widen into. Most name a
+# CONCEPT with no exact re-derivation -- "has no caller", "has no hook",
+# "has no round-182 entry". But three of them are the very claim that forced
+# this class, written by rounds 415, 416 and 419 as *"`state_claim_check.py`
+# still has no finding class for a REFERENCE claim"*, with no `S009` in it.
+# Round 421 rewrote it to name the code, and that is the only reason it is
+# catchable. The claim did not become false when it was sharpened; it became
+# false in round 417 and became CHECKABLE when it was sharpened. Specificity
+# is what a status document owes a checker, and this counter is the invoice.
+ABSENCE_LOOSE_RE = re.compile(
+    r"`(?P<path>[^`]{1,160}?\.(?:py|sh|json|md))`"
+    r"(?:(?!\.\s)[^`]){0,24}?\s+"
+    r"(?:" + ABSENCE_VERB + r")")
+
+
+def absence_declined(item):
+    """Absence-shaped sentences in `item` that name no literal token."""
+    taken = {m.start() for m in ABSENCE_CLAIM_RE.finditer(item.text)}
+    return sum(1 for m in ABSENCE_LOOSE_RE.finditer(item.text)
+               if m.start() not in taken)
+
+
 class Claim:
     """One extracted, re-derivable assertion."""
 
     def __init__(self, item, kind, offset, span_text, payload):
         self.item = item
-        self.kind = kind                # body-lines|command|citation|reference
+        self.kind = kind                # body-lines|command|citation|
+                                        # reference|absence
         self.offset = offset
         self.span_text = span_text      # verbatim matched text (for CARRIED)
         self.payload = payload          # kind-specific dict
@@ -500,6 +628,9 @@ def extract_claims(item):
             c.skip_reason = ("reference scope: no container file -- "
                              "`wiring_audit.py refs` needs `--in FILE`")
         out.append(c)
+    for m in ABSENCE_CLAIM_RE.finditer(item.text):
+        out.append(Claim(item, "absence", m.start(), m.group(0),
+                         absence_payload(m)))
     for m in COMMAND_CLAIM_RE.finditer(item.text):
         cmd = re.sub(r"\s+", " ", m.group("cmd")).strip()
         claim_text = m.group("claim").strip()
@@ -753,6 +884,78 @@ def check_reference(claim, repo_root):
         "`%s` in `%s`: claimed %d reference(s); re-derived %d mention(s) and "
         "%d invocation(s) (%s). Neither reading matches -- `%s`."
         % (res["target"], p["container"], n, raw, code, lines, cmd))]
+
+
+def check_absence(claim, repo_root):
+    """S011/S012 -- an ABSENCE claim, refuted by finding the thing.
+
+    Three-valued for the same reason `check_reference` is, and the middle
+    value is the one that matters. "Is it there" has two right answers in a
+    file that is nine parts commentary:
+
+        occurs in CODE          S011, STALE -- the thing exists; the
+                                sentence saying it does not is false
+        occurs only in PROSE    S012, WARN -- the file talks about it and
+                                nothing runs it. That is often exactly what
+                                the author meant ("documented, not built"),
+                                so it is reported and never an error
+        does not occur          clean -- nothing here contradicts the claim
+
+    Note which direction is which. A CLEAN verdict here is weak evidence:
+    the token might be spelled differently, or the capability might live in
+    another file. A STALE verdict is strong -- the token is right there, in
+    code, in the file the sentence named. This class is built to be certain
+    when it fires and silent when it is not, which is the only setting a
+    checker nobody watches can be trusted in.
+    """
+    p = claim.payload
+    mod = wiring_audit or _load_wiring_audit(repo_root)
+    if mod is None:
+        claim.checkable = False
+        claim.skip_reason = ("wiring_audit unavailable: no usable "
+                             "harness/wiring_audit.py under this repo root")
+        return []
+    try:
+        res = mod.token_refs(repo_root, p["token"], p["container"])
+    except (OSError, subprocess.SubprocessError) as exc:
+        claim.checkable = False
+        claim.skip_reason = ("wiring_audit could not read the tree: %s"
+                             % str(exc).split("\n")[0][:60])
+        return []
+
+    if res.get("error") == "ambiguous":
+        return [Finding(
+            claim, "S012",
+            "`%s` is not one file: it names %d tracked paths (%s). A "
+            "basename is not an identity -- say which one."
+            % (p["container"], len(res["candidates"]),
+               ", ".join(res["candidates"][:4])),
+            level="WARN")]
+    if "error" in res:
+        claim.checkable = False
+        claim.skip_reason = "unresolved container: %s" % p["container"]
+        return []
+
+    cmd = ("python3 harness/wiring_audit.py token-refs %s --in %s "
+           "--expect-absent" % (p["token"], res["in"]))
+    if res["code"]:
+        return [Finding(
+            claim, "S011",
+            "`%s` is claimed absent from `%s`, but occurs in CODE there on "
+            "line(s) %s (%d mention(s) in all). The sentence is false -- `%s`."
+            % (p["token"], res["in"],
+               ", ".join(str(i) for i in res["code_lines"]),
+               res["raw"], cmd))]
+    if res["raw"]:
+        return [Finding(
+            claim, "S012",
+            "`%s` is claimed absent from `%s`; it is mentioned on line(s) %s "
+            "but never in code. Documented-not-built and absent read the "
+            "same in this sentence -- say which -- `%s`."
+            % (p["token"], res["in"],
+               ", ".join(str(i) for i in res["raw_lines"]), cmd),
+            level="WARN")]
+    return []
 
 
 # resolvable targets, so it can turn S004 into resolved and never the
@@ -1125,7 +1328,9 @@ def analyse(path, repo_root, run=False, timeout=300, block_round=None):
 
     items = parse_items(live)
     findings, claims = [], []
+    n_declined = 0
     for item in items:
+        n_declined += absence_declined(item)
         for claim in extract_claims(item):
             claims.append(claim)
             findings.extend(check_ordinal(claim, blocks))
@@ -1136,6 +1341,8 @@ def analyse(path, repo_root, run=False, timeout=300, block_round=None):
                 findings.extend(check_retired(claim, repo_root))
             elif claim.kind == "reference" and claim.checkable:
                 findings.extend(check_reference(claim, repo_root))
+            elif claim.kind == "absence" and claim.checkable:
+                findings.extend(check_absence(claim, repo_root))
             elif claim.kind == "command" and claim.checkable:
                 if run:
                     findings.extend(check_command(claim, repo_root, timeout))
@@ -1148,6 +1355,7 @@ def analyse(path, repo_root, run=False, timeout=300, block_round=None):
         "n_blocks": len(blocks),
         "n_items": len(items),
         "n_items_with_claims": len({c.item.number for c in claims}),
+        "n_absence_declined": n_declined,
         "claims": claims,
         "ages": ages,
         "ran": run,
@@ -1195,14 +1403,17 @@ def format_report(findings, report, show_carried=True):
                   report["n_items_with_claims"]))
     out.append("state_claim_check: %d claim(s): %d re-derivable, %d skipped "
                "(%s)%s; %d stale of %d checked; coverage %d/%d items (%d%%), "
-               "%d/%d claims"
+               "%d/%d claims%s"
                % (len(report["claims"]), len(checkable), len(skipped),
                   ", ".join("%s %d" % kv for kv in sorted(reasons.items()))
                   or "none",
                   "" if not unrun else
                   "; %d command claim(s) need --run" % len(unrun),
                   n_stale, n_checked, report["n_items_with_claims"],
-                  report["n_items"], pct, n_checked, len(report["claims"])))
+                  report["n_items"], pct, n_checked, len(report["claims"]),
+                  "" if not report.get("n_absence_declined") else
+                  ", %d absence sentence(s) declined for want of a literal "
+                  "token" % report["n_absence_declined"]))
     return "\n".join(out)
 
 

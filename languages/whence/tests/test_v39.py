@@ -378,25 +378,39 @@ def test_the_check_that_would_have_stayed_green():
     assert quote_str("a'b") == '"a\'b"'       # ...and the NEW one
 
 
-def test_the_language_has_one_string_rendering_rule_and_two_implementations():
-    """`whence/values.py:_quote` renders a string for the RUNTIME (`print`,
-    `why`, a failing check's report). It is Whence-native and predates this
-    version — and it is not the same function, deliberately.
+def test_the_language_has_one_string_rendering_rule_and_ONE_implementation():
+    """TOMBSTONE. Until v0.41 this test was named
+    `..._and_two_implementations` and pinned the DIVERGENCE — that
+    `values._quote` left a tab raw where `parser.quote_str` escaped it — with
+    a docstring saying it was pinned "so a future round unifying them knows
+    what it is changing".
 
-    Pinned here rather than shared, with the exact difference, so a future
-    round unifying them knows what it is changing: `values._quote`
-    truncates to a `limit` and does not escape `\\t` or `\\r`, both of which
-    are wrong for a diagnostic that is quoting what the author typed.
+    Round 422 was that round, and what it found is why this test is inverted
+    rather than deleted: the divergence was **not** a design. `limit` is an
+    argument, so it never blocked sharing; and a runtime snapshot rendering a
+    tab raw produced a spelling no Whence program can contain, which is the
+    exact rule v0.39 decision 48 wrote for the parser's half of the same job.
+    The second half of the reason four rounds carried round 408's item 6 was
+    a latent bug wearing a refactor's clothes, and this test was pinning it.
+
+    Kept here, inverted, because deleting it would erase the evidence that a
+    test can hold a bug open by asserting it. `tests/test_v41.py` owns the
+    positive pins; this one only asserts the old divergence is gone.
+
+    Landed by round 423 (skills B) with the rest of round 422's leftovers:
+    round 422 unified the functions and wrote `test_v41.py`, but was
+    interrupted before updating the v0.39 test that contradicted it.
     """
-    assert values._quote("a\tb", None) == '"a\tb"'      # raw tab, no escape
-    assert quote_str("a\tb") == '"a\\tb"'               # escaped
-    assert values._quote("a\rb", None) == '"a\rb"'
-    assert quote_str("a\rb") == '"a\\rb"'
-    # they AGREE on the three that matter to both
-    for v in ["a\\b", 'a"b', "a\nb", "plain"]:
+    assert values.quote_str is quote_str, "one implementation, not two"
+    # The divergence this test used to pin, asserted GONE in both directions.
+    assert values._quote("a\tb", None) == '"a\\tb"'     # was: raw tab
+    assert values._quote("a\rb", None) == '"a\\rb"'     # was: raw CR
+    # They agree on everything now, not just "the three that matter to both".
+    for v in ["a\\b", 'a"b', "a\nb", "plain", "a\tb", "a\rb"]:
         assert values._quote(v, None) == quote_str(v), v
-    # ...and only `quote_str`'s output re-lexes for the tab.
-    assert [t.value for t in tokenize("let s = %s" % quote_str("a\tb"))
+    # ...and the runtime's output now re-lexes for the tab too, which is the
+    # behaviour change, not just the refactor.
+    assert [t.value for t in tokenize("let s = %s" % values._quote("a\tb", None))
             if t.type == "STRING"] == ["a\tb"]
 
 

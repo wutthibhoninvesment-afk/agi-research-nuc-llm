@@ -1579,3 +1579,232 @@ class TestRound412OrdinalRegression(unittest.TestCase):
                     got[b.round_no] = o and o[0]
         self.assertEqual(got, {400: 3, 406: 4, 407: 5, 408: 6,
                                412: 5, 414: 6})
+
+
+# --------------------------------------------------------------------------
+# Round 423 — S011/S012, the ABSENCE claim.
+#
+# The instance, verbatim from the round-421 live block. Round 415 wrote the
+# item, round 417 IMPLEMENTED it (commit 85422b7 added S009 and S010 plus 30
+# tests), and rounds 416, 419 and 421 carried it anyway. Round 421 sharpened
+# the wording to name `S009` — the exact code that had been live for four
+# rounds — and that sharpening is the only reason the sentence is
+# mechanically checkable at all.
+# --------------------------------------------------------------------------
+
+ABS421 = ("**`state_claim_check.py` still has no S009 finding class for a "
+          "REFERENCE claim** (round 415's item 2).")
+
+# The same claim as rounds 415, 416 and 419 wrote it: no literal token, so no
+# exact re-derivation, so deliberately NOT a claim. Counted, never checked.
+ABS419 = ("**`state_claim_check.py` still has no finding class for a "
+          "REFERENCE claim** (round 415's item 2).")
+
+
+def self_declined(text, round_no=400):
+    blk = scc.find_blocks(block(round_no, "1. " + text))[0]
+    blk.path = "<test>"
+    return scc.absence_declined(scc.parse_items(blk)[0])
+
+
+class TestAbsenceGrammar(unittest.TestCase):
+    """Extraction only — no tree is read by any test in this class."""
+
+    def test_the_round_421_sentence_extracts_container_and_token(self):
+        c = [c for c in claims_of(ABS421) if c.kind == "absence"][0]
+        self.assertEqual(c.payload["container"], "state_claim_check.py")
+        self.assertEqual(c.payload["token"], "S009")
+        self.assertTrue(c.checkable)
+
+    def test_a_backticked_token_is_accepted(self):
+        c = one_claim("`harness/swe/copyparity.py` has no `--json` flag")
+        self.assertEqual(c.kind, "absence")
+        self.assertEqual(c.payload["token"], "--json")
+
+    def test_every_absence_verb_form(self):
+        for verb in ("has no", "still has no", "has never had",
+                     "lacks", "still lacks", "does not have",
+                     "does not define", "does not implement", "contains no"):
+            text = "`a/b.py` %s `S009` today" % verb
+            got = [c for c in claims_of(text) if c.kind == "absence"]
+            self.assertEqual(len(got), 1, verb)
+            self.assertEqual(got[0].payload["token"], "S009", verb)
+
+    def test_an_untokened_absence_sentence_is_not_a_claim(self):
+        # Rounds 415/416/419's wording. "a finding class for a REFERENCE
+        # claim" names a CONCEPT; there is no string to look for, so there is
+        # no exact re-derivation, so this file must not pretend to have one.
+        self.assertEqual([c.kind for c in claims_of(ABS419)], ["citation"])
+
+    def test_a_concept_noun_is_never_read_as_a_token(self):
+        for text in ("`a/b.py` has no caller",
+                     "`a/b.py` still has no pin",
+                     "`a/b.py` has no round-182 entry at all",
+                     "`a/b.py` contains no assertion restating this"):
+            self.assertNotIn("absence", [c.kind for c in claims_of(text)],
+                             text)
+
+    def test_a_sentence_break_stops_the_subject_from_drifting(self):
+        # "`a.py` is fine. `b.py` has no S009" must never read `a.py` as the
+        # subject — an absence claim checked against the wrong file comes
+        # back CLEAN, which is the verdict the claim wanted.
+        got = [c for c in claims_of("`a/one.py` is fine. `a/two.py` has no "
+                                    "S009") if c.kind == "absence"]
+        self.assertEqual(len(got), 1)
+        self.assertEqual(got[0].payload["container"], "a/two.py")
+
+    def test_house_code_shapes_this_corpus_actually_uses(self):
+        for code in ("S009", "B002", "V003", "W005", "X002", "D-013", "CP03"):
+            c = one_claim("`a/b.py` has no %s handling" % code)
+            self.assertEqual(c.payload["token"], code, code)
+
+    def test_the_token_must_follow_the_verb_immediately(self):
+        # An adjective slot would admit "`a/b.py` has no caller and S009 is
+        # fine", which makes no claim about S009. Declined, counted, and the
+        # author's cure is a word.
+        for text in ("`a/b.py` has no caller and S009 is fine",
+                     "`a/b.py` has no dedicated S009 class"):
+            self.assertNotIn("absence", [c.kind for c in claims_of(text)],
+                             text)
+        self.assertEqual(self_declined(text=("`a/b.py` has no dedicated S009 "
+                                             "class")), 1)
+
+    def test_a_bare_lowercase_word_is_not_a_house_code(self):
+        self.assertNotIn("absence",
+                         [c.kind for c in claims_of("`a/b.py` has no s009")])
+
+
+@unittest.skipUnless(shutil.which("git"), "git absent")
+class TestCheckAbsence(unittest.TestCase):
+    """The three-valued verdict, against a real tracked tree.
+
+    `tool.py` names `S009` twice: once in a comment saying it is not built,
+    once in code that emits it. That is the real geometry of the file this
+    class was written against, reduced to the smallest tree reproducing it.
+    """
+
+    def setUp(self):
+        self.tmp = git_repo()
+        git_add(self.tmp, "scripts/tool.py",
+                '# S009 -- the finding class, documented here\n'
+                'def emit():\n'
+                '    return Finding("S009")\n')
+        git_add(self.tmp, "scripts/planned.py",
+                '# S099 would be the next one; nothing implements it\n')
+        git_add(self.tmp, "scripts/quiet.py", "pass\n")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def check(self, text):
+        c = [c for c in claims_of(text) if c.kind == "absence"][0]
+        return scc.check_absence(c, self.tmp), c
+
+    def test_a_token_present_in_code_is_S011_stale(self):
+        f, _ = self.check("`scripts/tool.py` still has no S009 finding class")
+        self.assertEqual(codes(f), ["S011"])
+        self.assertEqual(f[0].level, "STALE")
+        self.assertIn("occurs in CODE", f[0].message)
+        self.assertIn("line(s) 3", f[0].message)
+
+    def test_a_token_present_only_in_prose_is_S012_warn(self):
+        f, _ = self.check("`scripts/planned.py` has no S099 handling")
+        self.assertEqual(codes(f), ["S012"])
+        self.assertEqual(f[0].level, "WARN")
+        self.assertIn("never in code", f[0].message)
+
+    def test_a_token_that_is_really_absent_is_clean(self):
+        f, c = self.check("`scripts/quiet.py` has no S009 finding class")
+        self.assertEqual(f, [])
+        self.assertTrue(c.checkable)
+
+    def test_every_finding_carries_the_command_that_re_derives_it(self):
+        # Round 415's closing rule, which S009 already obeys: an item making
+        # this kind of assertion should be written with its re-derivation
+        # beside it, so the finding hands the author a copy-paste.
+        for text in ("`scripts/tool.py` still has no S009 finding class",
+                     "`scripts/planned.py` has no S099 handling"):
+            f, _ = self.check(text)
+            self.assertIn("token-refs", f[0].message, text)
+            self.assertIn("--expect-absent", f[0].message, text)
+
+    def test_an_ambiguous_basename_is_S012_and_never_a_verdict(self):
+        git_add(self.tmp, "other/tool.py", "pass\n")
+        f, _ = self.check("`tool.py` has no S009 finding class")
+        self.assertEqual(codes(f), ["S012"])
+        self.assertIn("not one file", f[0].message)
+
+    def test_an_unresolved_container_is_skipped_never_clean(self):
+        # The dangerous direction for this class. "Not found" is the verdict
+        # the claim is asking for, so a container this tool cannot read must
+        # be recorded as UNCHECKED and counted against coverage — never
+        # silently agreed with.
+        f, c = self.check("`does/not/exist.py` has no S009 finding class")
+        self.assertEqual(f, [])
+        self.assertFalse(c.checkable)
+        self.assertIn("unresolved container", c.skip_reason)
+
+
+class TestCheckAbsenceDegradesSafely(unittest.TestCase):
+
+    def test_a_tree_that_is_not_a_checkout_is_skipped_not_agreed_with(self):
+        tmp = tempfile.mkdtemp()
+        try:
+            c = [c for c in claims_of("`a/b.py` has no S009 handling")
+                 if c.kind == "absence"][0]
+            self.assertEqual(scc.check_absence(c, tmp), [])
+            self.assertFalse(c.checkable)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
+class TestAbsenceRecallGapIsPublished(unittest.TestCase):
+    """The gate costs recall, and the count of what it drops is reported.
+
+    Round 339's rule is that a checker nobody watches must publish its recall
+    gap; round 417's refinement is that it must publish it on the SAME LINE
+    as the zero, because aggregators quote the last line. Both, applied to
+    this class at the moment it ships rather than four rounds later.
+    """
+
+    def _declined(self, text):
+        blk = scc.find_blocks(block(400, "1. " + text))[0]
+        blk.path = "<test>"
+        return scc.absence_declined(scc.parse_items(blk)[0])
+
+    def test_an_untokened_absence_sentence_is_counted_not_dropped(self):
+        self.assertEqual(self._declined(ABS419), 1)
+
+    def test_a_tokened_one_is_checked_and_not_double_counted(self):
+        self.assertEqual(self._declined(ABS421), 0)
+
+    def test_a_sentence_with_no_absence_shape_counts_nothing(self):
+        self.assertEqual(self._declined("`a/b.py` is now at 399 body lines"), 0)
+
+
+@unittest.skipUnless(os.path.exists(os.path.join(REPO_ROOT,
+                                                 "state/research-state.md")),
+                     "live corpus absent")
+class TestRound421AbsenceRegression(unittest.TestCase):
+    """The bug this class was written for, pinned against the real document.
+
+    Round 423 corrects the live block, so the tool will exit 0 on the live
+    document — which would quietly delete the evidence that it works. Round
+    421's block is frozen history and stays checkable by `--block`, exactly
+    as `TestRound349Regression` keeps round 349's text.
+    """
+
+    def setUp(self):
+        self.path = os.path.join(REPO_ROOT, "state/research-state.md")
+
+    def test_round_421s_item_5_is_S011(self):
+        findings, _ = scc.analyse(self.path, REPO_ROOT, block_round=421)
+        s11 = [f for f in findings if f.code == "S011"]
+        self.assertEqual(len(s11), 1, [f.message for f in findings])
+        self.assertIn("S009", s11[0].message)
+        self.assertIn("state_claim_check.py", s11[0].message)
+        self.assertIn("occurs in CODE", s11[0].message)
+
+    def test_the_untokened_wording_of_the_same_claim_is_counted_in_419(self):
+        _, report = scc.analyse(self.path, REPO_ROOT, block_round=419)
+        self.assertGreaterEqual(report["n_absence_declined"], 1)

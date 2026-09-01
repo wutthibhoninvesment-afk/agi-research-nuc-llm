@@ -491,11 +491,20 @@ def summarise(rows):
     n_reached = sum(len(r["reached"]) for r in rows)
     n_dead_files = sum(1 for r in rows if not r["reached"])
     pct = (100.0 * n_reached / n_declared) if n_declared else 0.0
+    # Round 423. The trailing `coverage ...` clause is not decoration: it is
+    # the shape `corpus_check.coverage_of` parses, and this line is now the
+    # one that file quotes. Round 421's item 2 was that this audit's output
+    # "is not watched by anything" -- so the 8.7% was re-derived only by a
+    # human typing the command. Aggregators quote the LAST line, so the
+    # denominator has to ride on it (round 417's rule, in the form round 415
+    # asked for it).
     return ("verb-audit: %d verb-declaring wired entry point(s), %d declared "
             "verb(s), %d reached (%.1f%%), %d unreached; %d file(s) with no "
-            "verb reached at all"
+            "verb reached at all; coverage %d/%d verbs (%.1f%%), "
+            "%d/%d entry points with a reached verb"
             % (n_files, n_declared, n_reached, pct,
-               n_declared - n_reached, n_dead_files))
+               n_declared - n_reached, n_dead_files,
+               n_reached, n_declared, pct, n_files - n_dead_files, n_files))
 
 
 # --------------------------------------------------------------------------

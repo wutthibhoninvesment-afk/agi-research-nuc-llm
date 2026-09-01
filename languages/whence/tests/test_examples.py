@@ -165,7 +165,17 @@ def test_self_hosting_real_syntax():
     # other round-414 change adds no check: the "always double-quoted" label
     # gained the second probe the word "always" needs. See `test_v23.py`'s
     # accounting, which is the other copy of this number and moved with it.
-    assert "155 passed, 0 failed" in r.stdout   # round 410: 148 -> 154, v0.40 decision 49
+    # Round 422 (language C): 155 -> 160. `host-pins-plus.json` mutated
+    # nineteen of this file's rules in the `+` direction (the rule doing
+    # MORE); five of them changed observable behaviour with NOTHING in the
+    # file going red. Two message checks (the got slot for a number, and a
+    # want sentence's end) use EQUALITY over a line-suffix-stripped reason
+    # rather than `contains`, which is monotone under appending and cannot
+    # see a suffix; two probe newline suppression inside `[` and `@{`, the
+    # two members of the suppression set the file had never probed; one
+    # parses a comparison next to the `and` its own chain message names.
+    assert "161 passed, 0 failed" in r.stdout   # round 410: 148 -> 154, v0.40 decision 49;
+                                               # round 422: -> 161 (landed by 423)
     assert "guest lexer+parser for real Whence syntax" in r.stdout
 
 

@@ -453,7 +453,20 @@ def test_both_self_hosting_examples_still_run_green():
     #        checks rewritten from `contains` to EQUALITY against the host's
     #        own sentence. `is_str`'s guess-guard is the sixth, the missing
     #        sibling of three that were already there.
-    for name, expected in (("self_host.lang", "155 passed, 0 failed"),
+    #   160  round 422, language C: +5 over `self_host.lang`'s guest LEXER and
+    #        PARSER, the same instrument round 416 pointed at the evaluator.
+    #        `host-pins-plus.json` mutated nineteen rules in the `+` direction
+    #        (the rule doing MORE: refusing more, saying more, suppressing
+    #        more) and five changed observable behaviour with NOTHING in the
+    #        file going red. Two are message checks written as EQUALITY over a
+    #        `drop_line_suffix`-stripped reason, because `contains` is monotone
+    #        under appending and cannot see a suffix -- `expect_name_as` grew
+    #        " [parser]" on EVERY want sentence in the file and all 155 checks
+    #        stayed green. Two probe newline suppression inside `[` and `@{`:
+    #        the file probed `(` and the `{` exception and never the other two
+    #        members of the set. The fifth parses `1 < 2 and 3 < 4` -- no probe
+    #        had ever put a comparison next to the `and` the chain miss names.
+    for name, expected in (("self_host.lang", "161 passed, 0 failed"),
                            ("self_eval.lang", "172 passed, 0 failed")):
         r = subprocess.run(
             [sys.executable, os.path.join(ROOT, "run.py"),

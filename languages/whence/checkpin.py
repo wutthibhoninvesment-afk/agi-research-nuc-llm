@@ -103,6 +103,36 @@ FINDING_VERDICTS = ("inert", "shadowed", "wrong_reason")
 ERROR_VERDICTS = ("collapsed", "unreached", "nonviable", "unlocatable",
                   "equivalent")
 
+#: Round 422. `equivalent` above is a SYNTACTIC test — `apply_edit` produced
+#: byte-identical source — and it cannot see the case round 422 hit: an edit
+#: that changes the text, parses, and is UNREACHABLE. `CP10p` added `"\n"` to
+#: the guest lexer's whitespace arm, and the `"\n"` arm above it means no
+#: input ever reaches the line that changed. The verdict was `inert`, which
+#: reads "nothing in this file guards the rule" — a finding about the SUITE,
+#: charged to the file, for a defect in the PIN.
+#:
+#: So `inert` has a THIRD cause, and round 416's argument for splitting off
+#: `redundant` applies unchanged: two causes under one verdict that want
+#: opposite responses. A pin separates them by carrying a `witness` — a guest
+#: expression that is TRUE unmutated and must go FALSE under the edit. The
+#: witness is appended as an extra `check` to the mutated source (and, for the
+#: baseline, to a single combined run), so it costs no extra guest run.
+#:
+#:   witness moves   + guardian green + nothing red -> `inert`  (a real gap)
+#:   witness HOLDS   + guardian green + nothing red -> `unreachable`
+#:   no witness given                               -> `inert_unwitnessed`
+#:
+#: `unreachable` is scored OUT, like a control and like `redundant`: the file
+#: is not worse for failing to notice an edit nothing can observe.
+#: `inert_unwitnessed` is an ERROR rather than a finding for the reason round
+#: 417 gave — an unmeasured claim must not be counted as a measured one.
+UNREACHABLE_VERDICT = "unreachable"
+
+#: Labels of witness checks are prefixed so they can never be mistaken for a
+#: guardian, and are excluded from `n_red`/`co_red`: a witness going red is
+#: the instrument working, not the suite noticing.
+WITNESS_PREFIX = "__witness__ "
+
 #: Round 416. `inert` answers "the guardian stayed green and nothing else
 #: went red", and that sentence has TWO causes which want opposite
 #: responses: nothing in the file can see this rule (write a check), or the
@@ -377,12 +407,20 @@ def index_checks(records):
 
 # --- the verdict ----------------------------------------------------------
 
+def witness_check(pin):
+    """The guest `check` line that carries this pin's witness, or ``""``."""
+    if not pin.get("witness"):
+        return ""
+    return 'check "%s%s": %s' % (WITNESS_PREFIX, pin["id"], pin["witness"])
+
+
 def run_pin(pin, src, baseline, timeout_s=None):
     """Apply one pin and judge its named guardian. Returns a result dict."""
     res = {"id": pin["id"], "guardian": pin["guardian"],
            "mechanism": pin.get("mechanism", ""), "verdict": None,
            "control": pin.get("control_expect"),
-           "n_red": 0, "co_red": [], "note": "", "why": pin.get("why", "")}
+           "n_red": 0, "co_red": [], "note": "", "why": pin.get("why", ""),
+           "witness": pin.get("witness") or None, "witness_moved": None}
     base_idx, base_dupes = baseline["index"], baseline["dupes"]
     if pin["guardian"] in base_dupes:
         res["verdict"] = "unlocatable"
@@ -411,6 +449,9 @@ def run_pin(pin, src, baseline, timeout_s=None):
         res["note"] = str(e)
         return res
 
+    wline = witness_check(pin)
+    if wline:
+        mutated = mutated + "\n" + wline + "\n"
     records, error, rc = run_guest(
         mutated, timeout_s or pin.get("timeout_s") or DEFAULT_TIMEOUT_S)
     if not records:
@@ -419,8 +460,12 @@ def run_pin(pin, src, baseline, timeout_s=None):
         return res
 
     idx, _ = index_checks(records)
+    if wline:
+        wrec = idx.get(WITNESS_PREFIX + pin["id"])
+        res["witness_moved"] = (wrec is not None and not wrec["ok"])
     red = [r["label"] for r in records
-           if not r["ok"] and base_idx.get(r["label"], {}).get("ok")]
+           if not r["ok"] and base_idx.get(r["label"], {}).get("ok")
+           and not r["label"].startswith(WITNESS_PREFIX)]
     res["n_red"] = len(red)
     res["co_red"] = sorted(l for l in red if l != pin["guardian"])[:12]
     res["n_ran"] = len(records)
@@ -435,10 +480,25 @@ def run_pin(pin, src, baseline, timeout_s=None):
 
     rec = idx[pin["guardian"]]
     if rec["ok"]:
-        res["verdict"] = "shadowed" if red else "inert"
-        res["note"] = ("the guardian passed under the edit; %d other check(s) "
-                       "went red" % len(red)) if red else (
-            "the guardian passed and NOTHING in the file went red")
+        if red:
+            res["verdict"] = "shadowed"
+            res["note"] = ("the guardian passed under the edit; %d other "
+                           "check(s) went red" % len(red))
+        elif not wline:
+            res["verdict"] = "inert"
+            res["note"] = ("the guardian passed and NOTHING in the file went "
+                           "red -- UNWITNESSED, so whether the edit changes "
+                           "any observable behaviour was not measured")
+        elif res["witness_moved"]:
+            res["verdict"] = "inert"
+            res["note"] = ("the guardian passed and NOTHING in the file went "
+                           "red, yet the witness went red: the edit IS "
+                           "observable and this file cannot see it")
+        else:
+            res["verdict"] = UNREACHABLE_VERDICT
+            res["note"] = ("the witness held under the edit: nothing this "
+                           "pin can observe changed, so the file is right "
+                           "that nothing went red. The PIN is the defect")
         return res
 
     # Round 412's discipline, in the only place the guest can express it.
@@ -485,10 +545,31 @@ def run_registry(reg, root=None, only=None):
         gf = pin["guest_file"]
         if gf not in baselines:
             with open(os.path.join(root, gf), encoding="utf-8") as f:
-                baselines[gf] = (f.read(), None)
-            src = baselines[gf][0]
-            baselines[gf] = (src, build_baseline(src))
+                src = f.read()
+            # Round 422. Every witness in this registry for this guest file is
+            # appended to ONE baseline run, so a witness costs no extra guest
+            # process. A witness that is already FALSE unmutated is not a
+            # witness -- it cannot "go" red -- and its pin is failed rather
+            # than silently judged, which is round 413's `BaselineNotGreen`
+            # rule one level down.
+            wlines = [witness_check(p2) for p2 in reg["pins"]
+                      if p2["guest_file"] == gf and p2.get("witness")]
+            probe = src + ("\n" + "\n".join(wlines) + "\n" if wlines else "")
+            baselines[gf] = (src, build_baseline(probe))
         src, base = baselines[gf]
+        wlab = WITNESS_PREFIX + pin["id"]
+        if pin.get("witness") and not base["index"].get(wlab, {}).get("ok"):
+            results.append({
+                "id": pin["id"], "guardian": pin["guardian"],
+                "mechanism": pin.get("mechanism", ""), "verdict": "nonviable",
+                "control": pin.get("control_expect"), "n_red": 0,
+                "co_red": [], "why": pin.get("why", ""),
+                "witness": pin["witness"], "witness_moved": None,
+                "note": ("the witness is not TRUE on the unmutated file, so "
+                         "it cannot witness anything: %s"
+                         % (base["index"].get(wlab, {}).get("note")
+                            or "no such record"))})
+            continue
         results.append(run_pin(pin, src, base))
     # A negative control is not a finding and not an error: it is the
     # measurement that says the other verdicts mean anything. Scoring it in
@@ -514,8 +595,13 @@ def run_registry(reg, root=None, only=None):
     controls = [r for r in results if r.get("control")]
     redundant = [r for r in results
                  if r["verdict"] == REDUNDANT_VERDICT and not r.get("control")]
+    unreachable = [r for r in results
+                   if r["verdict"] == UNREACHABLE_VERDICT
+                   and not r.get("control")]
     scored = [r for r in results
-              if not r.get("control") and r["verdict"] != REDUNDANT_VERDICT]
+              if not r.get("control")
+              and r["verdict"] not in (REDUNDANT_VERDICT,
+                                       UNREACHABLE_VERDICT)]
     guarded = sum(1 for r in scored if r["verdict"] == "guarded")
     findings = [r for r in scored if r["verdict"] in FINDING_VERDICTS]
     errors = [r for r in scored if r["verdict"] in ERROR_VERDICTS]
@@ -531,10 +617,23 @@ def run_registry(reg, root=None, only=None):
         "redundant": [{"id": r["id"], "wider": next(
             p["redundant_with"] for p in reg["pins"] if p["id"] == r["id"])}
             for r in redundant],
+        "unreachable": [{"id": r["id"], "witness": r["witness"]}
+                        for r in unreachable],
+        # Round 417's denominator rule: an `inert` verdict that was never
+        # witnessed has not been shown to be a gap rather than an unreachable
+        # edit, and the summary says how many of each there are.
+        "inert_total": sum(1 for r in scored if r["verdict"] == "inert"),
+        "inert_witnessed": sum(1 for r in scored if r["verdict"] == "inert"
+                               and r.get("witness")),
         "findings": len(findings),
         "errors": len(errors),
         "score": (guarded / denom) if denom else None,
-        "baselines": {gf: {"n_checks": len(b["records"]),
+        "baselines": {gf: {"n_checks": sum(
+                               1 for r in b["records"]
+                               if not r["label"].startswith(WITNESS_PREFIX)),
+                           "n_witnesses": sum(
+                               1 for r in b["records"]
+                               if r["label"].startswith(WITNESS_PREFIX)),
                            "n_failing": b["n_failing"],
                            "dupes": b["dupes"], "error": b["error"]}
                       for gf, (_, b) in baselines.items()},
@@ -615,11 +714,18 @@ def _cmd_run(args):
     for r in out["redundant"]:
         print("REDUNDANT %s: inert, but the wider edit %s went red — the rule "
               "has more than one implementation" % (r["id"], r["wider"]))
+    for r in out["unreachable"]:
+        print("UNREACHABLE %s: the guardian stayed green, nothing went red, "
+              "AND the witness `%s` held — the edit changes no observable "
+              "behaviour, so this is a defect in the pin and is scored out"
+              % (r["id"], (r["witness"] or "")[:60]))
     print("\n%d pins: %d guarded, %d finding(s), %d error(s), "
-          "%d redundant, score %s"
+          "%d redundant, %d unreachable, score %s; %d of %d inert verdict(s) "
+          "witnessed"
           % (out["n_pins"], out["guarded"], out["findings"], out["errors"],
-             len(out["redundant"]),
-             "n/a" if out["score"] is None else "%.0f%%" % (100 * out["score"])))
+             len(out["redundant"]), len(out["unreachable"]),
+             "n/a" if out["score"] is None else "%.0f%%" % (100 * out["score"]),
+             out["inert_witnessed"], out["inert_total"]))
     if len(args) > 0 and os.environ.get("CHECKPIN_JSON"):
         with open(os.environ["CHECKPIN_JSON"], "w", encoding="utf-8") as f:
             json.dump(out, f, indent=2)

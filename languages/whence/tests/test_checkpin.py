@@ -75,7 +75,20 @@ REGISTRY = os.path.join(_C.AGI_ROOT, "state", "whence", "round-414",
 #: rots should name which registry it rotted in.
 REGISTRY_EVAL = os.path.join(_C.AGI_ROOT, "state", "whence", "round-416",
                              "eval-pins.json")
-REGISTRIES = ((REGISTRY, "self_host.lang"), (REGISTRY_EVAL, "self_eval.lang"))
+#: Round 422's PLUS half of the FIRST registry — the same nineteen mechanisms
+#: `REGISTRY` mutates, mutated in the opposite direction. Two entries, not one
+#: merged file, for the reason the `REGISTRY_EVAL` comment gives and one more:
+#: the repointed copy differs from the as-written copy in nineteen guardian
+#: LABELS and nothing else, so keeping both is what makes "repointing alone
+#: moved the score" checkable rather than asserted.
+REGISTRY_PLUS = os.path.join(_C.AGI_ROOT, "state", "whence", "round-422",
+                             "host-pins-plus.json")
+REGISTRY_PLUS_REPOINTED = os.path.join(
+    _C.AGI_ROOT, "state", "whence", "round-422",
+    "host-pins-plus-repointed.json")
+REGISTRIES = ((REGISTRY, "self_host.lang"), (REGISTRY_EVAL, "self_eval.lang"),
+              (REGISTRY_PLUS, "self_host.lang"),
+              (REGISTRY_PLUS_REPOINTED, "self_host.lang"))
 
 #: A whole guest program, small enough that a full run is ~0.3 s. Every unit
 #: test below edits THIS, not `self_host.lang`.
@@ -529,3 +542,165 @@ def test_the_two_redundant_rules_are_redundant_and_not_unguarded():
         assert reg[narrow]["redundant_with"] == wide
         assert C.run_pin(reg[narrow], src, base)["verdict"] == "inert"
         assert C.run_pin(reg[wide], src, base)["verdict"] == "guarded"
+
+
+# --- round 422: the witness, and the third cause of `inert` ---------------
+
+#: A guest program with a branch that cannot be reached. `pick(n)`'s second
+#: arm repeats the first arm's condition, so no input evaluates it.
+TOY_UNREACHABLE = '''fn pick(n) {
+  if n > 0 { "pos" }
+  else if n > 0 { "never" }
+  else { "neg" }
+}
+fn label(n) { "n=" + str(n) }
+check "pick is positive": pick(1) == "pos"
+check "pick is negative": pick(0 - 1) == "neg"
+'''
+
+
+def test_a_pin_with_no_witness_still_reads_inert():
+    """Backwards compatibility is the point: the two registries written
+    before `witness` existed must keep the verdicts they were scored with."""
+    reg = {"pins": [{"id": "U0", "guest_file": "toy",
+                     "guardian": "pick is positive",
+                     "edit": "line_replace",
+                     "needle": 'else if n > 0 { "never" }',
+                     "becomes": '  else if n > 0 { "changed" }'}]}
+    out = _run_registry_over(reg, TOY_UNREACHABLE)
+    r = out["results"][0]
+    assert r["verdict"] == "inert"
+    assert "UNWITNESSED" in r["note"]
+    assert out["inert_total"] == 1 and out["inert_witnessed"] == 0
+    assert out["unreachable"] == []
+
+
+def test_a_witness_that_holds_makes_an_unreachable_edit_say_so():
+    reg = {"pins": [{"id": "U1", "guest_file": "toy",
+                     "guardian": "pick is positive",
+                     "witness": 'pick(1) == "pos" and pick(0 - 1) == "neg"',
+                     "edit": "line_replace",
+                     "needle": 'else if n > 0 { "never" }',
+                     "becomes": '  else if n > 0 { "changed" }'}]}
+    out = _run_registry_over(reg, TOY_UNREACHABLE)
+    r = out["results"][0]
+    assert r["verdict"] == C.UNREACHABLE_VERDICT
+    assert r["witness_moved"] is False
+    # scored OUT: not a finding, not an error, not in the denominator.
+    assert out["findings"] == 0 and out["errors"] == 0
+    assert out["n_pins"] == 0 and out["score"] is None
+    assert [x["id"] for x in out["unreachable"]] == ["U1"]
+
+
+def test_a_witness_that_moves_leaves_a_real_gap_as_inert():
+    """Same shape as above but a REACHABLE edit no check covers: the witness
+    goes red, so `inert` keeps its original meaning — a gap in the suite."""
+    reg = {"pins": [{"id": "U2", "guest_file": "toy",
+                     "guardian": "pick is positive",
+                     "witness": 'label(1) == "n=1"',
+                     "edit": "line_replace",
+                     "needle": 'fn label(n)',
+                     "becomes": 'fn label(n) { "N=" + str(n) }'}]}
+    out = _run_registry_over(reg, TOY_UNREACHABLE)
+    r = out["results"][0]
+    assert r["verdict"] == "inert", r
+    assert r["witness_moved"] is True
+    assert out["inert_total"] == 1 and out["inert_witnessed"] == 1
+    assert out["unreachable"] == []
+
+
+def test_a_witness_that_is_false_unmutated_fails_its_own_pin():
+    """Round 413's `BaselineNotGreen` one level down: an instrument that
+    cannot distinguish anything must say so rather than judge."""
+    reg = {"pins": [{"id": "U3", "guest_file": "toy",
+                     "guardian": "pick is positive",
+                     "witness": 'pick(1) == "NOPE"',
+                     "edit": "line_replace",
+                     "needle": 'else if n > 0 { "never" }',
+                     "becomes": '  else if n > 0 { "changed" }'}]}
+    out = _run_registry_over(reg, TOY_UNREACHABLE)
+    r = out["results"][0]
+    assert r["verdict"] == "nonviable"
+    assert "not TRUE on the unmutated file" in r["note"]
+
+
+def test_a_witness_going_red_is_never_counted_as_the_suite_noticing():
+    """`n_red`/`co_red` must exclude witness labels — a witness firing is the
+    instrument working, and counting it would turn every witnessed `inert`
+    into a `shadowed` with the tool as its own co-red."""
+    reg = {"pins": [{"id": "U4", "guest_file": "toy",
+                     "guardian": "pick is positive",
+                     "witness": 'label(1) == "n=1"',
+                     "edit": "line_replace",
+                     "needle": 'fn label(n)',
+                     "becomes": 'fn label(n) { "N=" + str(n) }'}]}
+    out = _run_registry_over(reg, TOY_UNREACHABLE)
+    r = out["results"][0]
+    assert r["n_red"] == 0 and r["co_red"] == []
+    assert not any(l.startswith(C.WITNESS_PREFIX) for l in r["co_red"])
+
+
+def test_the_witness_label_prefix_cannot_collide_with_a_guardian():
+    """A guest file whose own check is named like a witness would make
+    `did the guardian go red` ill-posed."""
+    for path, guest in REGISTRIES:
+        src = open(os.path.join(ROOT, "examples", guest),
+                   encoding="utf-8").read()
+        assert C.WITNESS_PREFIX not in src, guest
+
+
+def test_every_witness_in_the_round_422_registry_is_true_unmutated():
+    """The single most expensive way to be wrong here is a witness that was
+    never true: it makes every `unreachable` verdict unearned. One baseline
+    run answers it for the whole registry."""
+    with open(REGISTRY_PLUS, encoding="utf-8") as f:
+        reg = json.load(f)
+    pins = [p for p in reg["pins"] if p.get("witness")]
+    assert len(pins) == len(reg["pins"]), "every pin must carry a witness"
+    src = open(os.path.join(ROOT, "examples", "self_host.lang"),
+               encoding="utf-8").read()
+    probe = src + "\n" + "\n".join(C.witness_check(p) for p in pins) + "\n"
+    base = C.build_baseline(probe)
+    bad = [p["id"] for p in pins
+           if not base["index"].get(C.WITNESS_PREFIX + p["id"], {}).get("ok")]
+    assert not bad, bad
+    assert base["n_failing"] == 0
+
+
+def test_the_repointed_registry_changes_labels_and_nothing_else():
+    """Round 420's claim, made checkable: repointing moved the score with
+    ZERO change to any edit, witness or guest line."""
+    with open(REGISTRY_PLUS, encoding="utf-8") as f:
+        a = {p["id"]: p for p in json.load(f)["pins"]}
+    with open(REGISTRY_PLUS_REPOINTED, encoding="utf-8") as f:
+        b = {p["id"]: p for p in json.load(f)["pins"]}
+    assert set(a) == set(b)
+    moved = 0
+    for pid in a:
+        for field in ("edit", "target", "needle", "becomes", "witness",
+                      "dir", "occurrence", "guest_file"):
+            assert a[pid].get(field) == b[pid].get(field), (pid, field)
+        if a[pid]["guardian"] != b[pid]["guardian"]:
+            moved += 1
+            assert b[pid]["repointed_from"] == a[pid]["guardian"]
+    # Round 422 repointed 20 guardians, not the 19 its own in-flight pin
+    # update said; the twentieth is CP22p2, the pin round 422's
+    # predictions file describes as deliberately planted to violate
+    # round 420's law. Re-derived by round 423, not adjusted to fit.
+    assert moved == 20, moved
+
+
+def test_deleting_a_CHECK_is_itself_an_unobservable_edit():
+    """Found while writing the test above, and worth pinning: an edit whose
+    only effect is to rename a `check` away changes no BEHAVIOUR, so the
+    witness holds and the verdict is `unreachable`. That is the right answer
+    — the pin measured the suite's own text rather than the rule — and it is
+    the failure mode `guardpin`'s `misattributed` cannot express either."""
+    reg = {"pins": [{"id": "U5", "guest_file": "toy",
+                     "guardian": "pick is positive",
+                     "witness": 'pick(0 - 1) == "neg"',
+                     "edit": "line_replace",
+                     "needle": 'check "pick is negative"',
+                     "becomes": 'check "renamed away": 1 == 1'}]}
+    out = _run_registry_over(reg, TOY_UNREACHABLE)
+    assert out["results"][0]["verdict"] == C.UNREACHABLE_VERDICT

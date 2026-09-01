@@ -4,7 +4,7 @@ and reduce them to one PASS/FAIL line.
 
 Why this exists
 ---------------
-The corpus owns six checkers (`skill_lint`, `case_coverage`, `xref_check`,
+The corpus owns seven checkers (`skill_lint`, `case_coverage`, `xref_check`,
 `claim_check`, `state_claim_check`, and `carryforward_check` since round
 369), all offline, all free, all fast — and before round 363 **nothing in
 `run_driver.sh` ran any of them**. The driver
@@ -159,6 +159,19 @@ def checks(root):
         # while two language(C) rounds ran past it. 0.7 s.
         ("carryforward", [os.path.join(s, "carryforward_check.py"),
                           "--repo-root", root]),
+        # Round 423. Round 421 measured that 84 of 92 declared CLI verbs on
+        # wired entry points are invoked by nothing automatic, and then found
+        # the second-order problem: no driver line and no checker read that
+        # number, so 8.7% was re-derived only by a human typing the command.
+        # A measurement nobody watches decays at the rate of the rotation,
+        # which is this file's entire premise. All findings are WARN (V001/
+        # V002/V003), so this can never turn the corpus red on its own --
+        # it reports, and the coverage clause on its summary line is what
+        # `coverage_of` lifts into the aggregate. ~30 s.
+        # `--repo-root` is a TOP-LEVEL argument on this parser and must
+        # precede the subcommand; argparse rejects it after `check`.
+        ("verb_audit", [os.path.join(root, "harness", "verb_audit.py"),
+                        "--repo-root", root, "check"]),
         # Last because it is the slow one (~37s vs ~3s for the five above),
         # and because a checker failing is the cheaper diagnosis to read
         # first. pytest's own exit codes land correctly on this file's

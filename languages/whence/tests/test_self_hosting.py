@@ -1145,4 +1145,16 @@ def test_the_host_statement_count_of_self_host_lang_is_pinned():
     """
     from whence.parser import parse as host_parse
     src = open(SELF_HOST, encoding="utf-8").read()
-    assert len(host_parse(src).stmts) == 281
+    # Round 422 (language C): 281 -> 289. +6 checks and +2 helper `fn`s
+    # (`find_last_open`/`drop_line_suffix`, mirrored from
+    # `self_eval.lang:2547`) for the `+`-direction gaps -- see the
+    # `161 passed` accounting in `test_v23.py`, the second copy.
+    #
+    # Round 423 (skills B) landed round 422's leftovers and bumped this from
+    # 288 to 289 -- MEASURED, not adjusted to fit. Round 422 wrote its pin
+    # updates and then made one more edit to the guest file (the CP16p probe,
+    # `a comparison next to the 'and' its miss recommends still parses`)
+    # before it was interrupted. That edit is +1 statement and +1 check, and
+    # it moves all three copies of the number together, which is exactly what
+    # the docstring above says this pin exists to catch.
+    assert len(host_parse(src).stmts) == 289

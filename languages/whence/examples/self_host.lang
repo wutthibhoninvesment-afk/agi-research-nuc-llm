@@ -1583,4 +1583,69 @@ check "and an overflowing float literal is still inf on this side too":
   ((lex_all("let a = " + rep9(num_text_digit_limit + 1) + ".5"))[3]).v ==
     pos_inf
 
+# ---- round 422: the PLUS direction ----------------------------------------
+# `state/whence/round-422/host-pins-plus.json` mutated nineteen of this file's
+# rules in the direction round 414 never tried: `+`, the rule doing MORE
+# (refusing more, saying more, suppressing more). Fourteen of the nineteen
+# guardians could not see their own rule break, and five of those fourteen
+# were not merely mispointed — NOTHING in this file went red. The five checks
+# below are those gaps, and each names the pin it was written against.
+#
+# The two message checks use EQUALITY, not `contains`. That is round 416's
+# rule applied here: `contains(msg, "...")` is monotone under appending, so a
+# want-sentence that grows a suffix satisfies it exactly as well as the right
+# one does. `drop_line_suffix` is the same function `self_eval.lang:2547`
+# already carries, for the same reason — a guest `miss` reason ends in
+# ` (line N)` where N is a line in THIS file, so an equality check that kept
+# it would break on every edit to this file, including this one.
+fn find_last_open(s, i) {
+  if i < 0 { -1 }
+  else if s[i] == "(" { i }
+  else { find_last_open(s, i - 1) }
+}
+fn drop_line_suffix(s) {
+  let k = find_last_open(s, len(s) - 1)
+  if k < 1 { s }
+  else if slice(s, k, k + 6) == "(line " and s[k - 1] == " " and
+          s[len(s) - 1] == ")" { slice(s, 0, k - 1) }
+  else { s }
+}
+
+# CP04p: `show_tok`'s num arm appended " (a number)" to the got slot and not
+# one of this file's 155 checks noticed, because the only check that reads
+# that slot asks `contains`.
+check "the got slot for a number is the number, with nothing appended":
+  drop_line_suffix((reasons(parse_whence("check 1: 1 == 1")))[0]) ==
+    "expected a string label after 'check', got 1 at line 1, col 7"
+
+# CP22p: `expect_name_as` appended " [parser]" after the position clause on
+# EVERY want sentence in the file and nothing went red. Every check that reads
+# a parse error here is a `contains`, and a suffix is invisible to all of them.
+check "...and a want sentence ends at its position clause":
+  drop_line_suffix((reasons(parse_whence("let r = @{a: 1,}")))[0]) ==
+    "expected field name, got '}' at line 1, col 16"
+
+# CP07p: `suppressed` dropped "[" from the suppression set and nothing went
+# red — the file probes newline suppression inside "(" and non-suppression
+# inside "{", and never the other two members of the set.
+check "...and a newline inside a list literal is suppressed too":
+  not contains(map(fn(t) { t.t }, lex_all("[1\n2]")), "nl")
+check "...and inside a record literal":
+  not contains(map(fn(t) { t.t }, lex_all("@{a: 1\nb: 2}")), "nl")
+
+# CP05p: `show_tok`'s newline arm grew " (statement separator)" and nothing
+# went red. Round 420 had filed this rule as LATERAL — its minus edit swaps
+# one rendering for another of the same size — but "the newline is DESCRIBED,
+# not spelled" is a quantity, and the description growing is its `+`. The
+# check that names the rule reads it with `contains`, which a suffix
+# satisfies; this one asks the renderer directly.
+check "...and the newline's prose is exactly that prose, not a longer one":
+  show_tok(@{t: "nl", v: "\n"}) == "a line break"
+
+# CP16p: `parse_cmp` was widened to refuse a comparison followed by ANY
+# keyword and nothing went red — no probe in this file had ever put a
+# comparison next to `and`, the very operator the chain message recommends.
+check "a comparison next to the 'and' its miss recommends still parses":
+  not missed(parse_whence("let b = 1 < 2 and 3 < 4"))
+
 print("self_host.lang: guest lexer+parser for real Whence syntax, all checks above passed")

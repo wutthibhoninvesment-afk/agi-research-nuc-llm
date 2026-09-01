@@ -1077,6 +1077,68 @@ def refs(root, target, in_file):
             "raw": len(hits(raw)), "code": len(hits(code))}
 
 
+def token_refs(root, token, in_file):
+    r"""Count occurrences of a literal TOKEN inside `in_file`, raw and code-only.
+
+    The dual of `refs`. `refs` answers *how many times does this FILE get
+    referenced here*, and resolves its target through the path index. This
+    answers *does this LITERAL STRING occur here at all*, and resolves
+    nothing -- the token is matched verbatim.
+
+    It exists because the claims a status document makes about a file come in
+    two polarities and only one of them had a re-derivation. Round 415 built
+    `refs` for the PRESENCE claim (*X has 0 references in Y* -- a count that
+    can be re-counted). Round 423 found the ABSENCE claim (*Y still has no
+    S009 finding class*), which is not a count at all: it asserts that a
+    named thing does not occur in a named file, and the cheapest possible
+    refutation is to find it there.
+
+    The raw/code split is kept verbatim from `refs`, because it carries the
+    same distinction and the same trap. A file may MENTION a token in a
+    comment that says the thing does not exist yet, which does not make the
+    thing exist; a file that mentions it in CODE is running it. So:
+
+        code > 0            the named thing is implemented -- the absence
+                            claim is refutable on its face
+        raw > 0, code == 0  mentioned only in prose. Under-specified, not
+                            false: the author may have meant either.
+        raw == 0            nothing here contradicts the claim
+
+    Word boundaries are `(?<![\w-])` / `(?![\w-])` rather than `\b`, so
+    `S009` does not match inside `S0091` and `--cap` does not match inside
+    `--capture`. `-` is inside the boundary class on purpose: every CLI flag
+    in this tree is a token whose neighbours would otherwise be invisible to
+    `\b`, which treats `-` as a boundary and would report `--cap` present in
+    `--capture`.
+    """
+    index = Index(tracked_files(root))
+    resolved = in_file
+    if in_file not in index.files:
+        kind, val = resolve_reference(index, in_file)
+        if kind == "file":
+            resolved = val
+        elif kind == "ambiguous":
+            return {"token": token, "in": in_file,
+                    "error": "ambiguous", "candidates": val}
+        else:
+            return {"token": token, "in": in_file, "error": "unresolved"}
+
+    raw = read_text(root, resolved)
+    if not raw:
+        return {"token": token, "in": resolved,
+                "error": "unreadable or empty: %s" % resolved}
+    code = code_text(root, resolved)
+    pat = re.compile(r"(?<![\w-])" + re.escape(token) + r"(?![\w-])")
+
+    def hits(text):
+        return [i for i, line in enumerate(text.split("\n"), 1)
+                if pat.search(line)]
+
+    return {"token": token, "in": resolved,
+            "raw_lines": hits(raw), "code_lines": hits(code),
+            "raw": len(hits(raw)), "code": len(hits(code))}
+
+
 # --------------------------------------------------------------------------
 # CLI
 # --------------------------------------------------------------------------
@@ -1198,6 +1260,29 @@ def cmd_refs(args, root):
     return 0
 
 
+def cmd_token_refs(args, root):
+    res = token_refs(root, args.token, args.in_file)
+    print(json.dumps(res, indent=2))
+    if "error" in res:
+        return 2
+    if args.expect_absent:
+        if res["code"]:
+            print("ABSENCE REFUTED: `%s` occurs in code on line(s) %s of %s"
+                  % (args.token,
+                     ", ".join(str(i) for i in res["code_lines"]),
+                     res["in"]))
+            return 1
+        if res["raw"]:
+            print("ABSENCE UNDER-SPECIFIED: `%s` is mentioned on line(s) %s "
+                  "but never in code" % (args.token,
+                                         ", ".join(str(i)
+                                                   for i in res["raw_lines"])))
+            return 0
+        print("ABSENCE HOLDS: `%s` does not occur in %s"
+              % (args.token, res["in"]))
+    return 0
+
+
 def build_parser():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--repo-root", default=DEFAULT_REPO_ROOT)
@@ -1224,6 +1309,13 @@ def build_parser():
     r.add_argument("--in", dest="in_file", required=True)
     r.add_argument("--expect", type=int, default=None)
     r.add_argument("--code-only", action="store_true")
+
+    t = sub.add_parser("token-refs")
+    t.add_argument("token")
+    t.add_argument("--in", dest="in_file", required=True)
+    t.add_argument("--expect-absent", action="store_true",
+                   help="exit 1 if the token occurs in code -- the "
+                        "re-derivation for an ABSENCE claim")
     return ap
 
 
@@ -1243,6 +1335,8 @@ def main(argv=None):
         return cmd_bootstrap(args, root)
     if args.cmd == "refs":
         return cmd_refs(args, root)
+    if args.cmd == "token-refs":
+        return cmd_token_refs(args, root)
     ap.print_help()
     return 2
 

@@ -481,11 +481,40 @@ class Explanation(object):
         self.root = root
 
 
+#: The characters the LEXER treats specially inside a string literal, in the
+#: order they must be substituted (backslash first, or the escapes this table
+#: introduces get escaped again). Round 422 (language C): this is the single
+#: copy. `whence/parser.py:quote_str` was a second one, carried since v0.39
+#: (round 408) with a comment naming both reasons it was not shared -- the
+#: `limit` truncation, and `\t`/`\r`, which the runtime copy did not escape.
+#: The first reason is dischargeable by an argument (`limit=None`); the second
+#: was a DIVERGENCE, not a design: a snapshot containing a raw tab or carriage
+#: return is not a Whence literal, which is exactly the rule decision 48 wrote
+#: down for the parser's half of the same job and never applied to this half.
+#: `tests/test_v41.py` is the pin.
+QUOTE_ESCAPES = (("\\", "\\\\"), ('"', '\\"'),
+                 ("\n", "\\n"), ("\t", "\\t"), ("\r", "\\r"))
+
+
+def quote_str(s, limit=None):
+    """A string VALUE, spelled as the Whence literal that produces it.
+
+    Round-trip exact by construction rather than by enumeration: the five
+    characters the lexer treats specially are escaped, everything else is
+    copied. `limit` truncates the ESCAPED text and appends `…`, which is
+    what the runtime snapshot path wants and what a parse diagnostic must
+    never do -- so the diagnostic passes `limit=None` rather than keeping a
+    second function.
+    """
+    for raw, esc in QUOTE_ESCAPES:
+        s = s.replace(raw, esc)
+    if limit is not None and len(s) > limit:
+        s = s[:limit] + "…"
+    return '"%s"' % s
+
+
 def _quote(s, limit):
-    out = s.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
-    if limit is not None and len(out) > limit:
-        out = out[:limit] + "…"
-    return '"%s"' % out
+    return quote_str(s, limit)
 
 
 SHOW_NEST = 3   # containers nested deeper than this render as […] / @{…}

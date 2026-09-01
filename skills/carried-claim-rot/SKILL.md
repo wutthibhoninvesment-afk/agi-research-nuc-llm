@@ -1,6 +1,6 @@
 ---
 name: carried-claim-rot
-description: Use when a project keeps a ROLLING status document that each cycle rewrites by copying the last one — a "next steps" / open-items block, a sprint carryover list, a risk register, a README "current limitations" section. Symptoms: an item prefixed "still", "unchanged", "standing", or "Nth consecutive week carried"; a number or rule code re-stated verbatim across many revisions; a backlog item marked open whose own closure is recorded elsewhere in the same file; the carry COUNT being the only field anybody edits. The move is to treat "still N" as an executable assertion, re-derive it against the artefact, and report each claim's carry AGE so an unaudited copy-forward becomes a number. Covers picking the live revision when file order is not chronological, an allowlist claim grammar with zero false positives, and pinning the historical instance as a fixture so the fix cannot erase its own evidence. NOT for checking that links or citations RESOLVE, and NOT for verifying a code comment matches nearby code.
+description: Use when a project keeps a ROLLING status document that each cycle rewrites by copying the last one — a "next steps" / open-items block, a sprint carryover list, a risk register, a README "current limitations" section. Symptoms: an item prefixed "still", "unchanged", or "Nth week carried"; an open item naming what is MISSING ("still has no X") that a later cycle quietly built; a number or rule code re-stated verbatim across revisions; a backlog item marked open whose closure is recorded elsewhere in the same file; the carry COUNT being the only field anybody edits. The move is to treat "still N" as an executable assertion, re-derive it, and report each claim's carry AGE so an unaudited copy-forward becomes a number. Covers picking the live revision when file order is not chronological, an allowlist grammar with zero false positives, and pinning the instance as a fixture so the fix cannot erase its evidence. NOT for checking that links or citations RESOLVE, nor that a code comment matches nearby code.
 ---
 
 # Carried-claim rot
@@ -257,24 +257,71 @@ Two corollaries, both measured on the same document:
   containing that item was `7 claim(s): 7 re-derivable, 0 skipped; 0 stale`.
   Its finding classes were body-line counts, lint codes, carry ordinals,
   inline `cmd -> result` pairs and retired-item pointers; a reference count is
-  in none of them, so the item produced **no finding of any kind** — not even
-  a carry-age row. Never quote a stale count without its denominator: the
-  honest sentence is "0 stale of the 7 we can check, out of 13 items".
+  in none of them, so the item produced **no finding of any kind**. Never
+  quote a stale count without its denominator: the honest sentence is "0
+  stale of the 7 we can check, out of 13 items".
 * **The true and false halves can be in one sentence.** The item read: *"X
   still has 0 references in run_driver.sh … `skills/run_checks_fast.sh` IS
   wired (round 363), so a basename grep lies."* Re-derived: the first clause
-  is false (2 mentions, 1 invocation), the second is true (2 mentions, 1
-  invocation) — identical evidence, opposite verdicts, because nobody ran
-  either. Extract claims per CLAUSE, not per item.
+  is false (2 mentions, 1 invocation), the second true on identical evidence,
+  because nobody ran either. Extract claims per CLAUSE, not per item.
 
 ### A reference count has two right answers
 
 `refs X --in Y` on the file above returns **2 raw, 1 code-only**: one mention
 is the comment explaining the wiring and one is the wiring. "How many
-references" is therefore ambiguous, and the item picked neither number. When
-you add this claim shape to a grammar, report both and let the claim say which
-it meant; a checker that silently picks one will be right half the time and
-unfalsifiable the other half.
+references" is ambiguous and the item picked neither. Report both and let the
+claim say which it meant; a checker that silently picks one is right half the
+time and unfalsifiable the other half.
+
+### The claim a status document is MADE of is the absence claim
+
+Every grammar above re-derives an assertion that something **is** so — a
+count, a line total, a lint code, a pointer. That is the wrong polarity. An
+open item, by construction, says what is **missing**, and absence fails
+differently. A presence claim is closed by whoever wrote it: you fix the
+count. An absence claim is closed **by a different round, in a different
+file** — someone implements the missing thing, the ticket is satisfied in
+code, and the sentence describing the hole is never touched. Nothing notices.
+
+Round 423 found this in the checker's own status block. Round 415 wrote *"no
+finding class for a REFERENCE claim"* (true); round 417 **implemented it** —
+S009 and S010, documented, 30 tests; rounds 416, 419 and 421 carried it
+anyway, and 421 *sharpened* it to name `S009`: the exact code live for four
+rounds. The checker reported `0 stale of 7 checked` each time, correctly — the
+sentence was in its published recall gap, and **absence is where a
+forward-looking document does its rotting**.
+
+**Re-derivation**, the cheapest there is: resolve the named file, look for
+the named token in it, keeping the raw/code split from the reference grammar
+— a file may mention a token in a comment saying the thing does not exist
+*yet*. Token in CODE -> **STALE**, the thing exists and the sentence is false.
+In PROSE only -> **WARN**, documented-not-built; say which you meant. Absent
+-> clean.
+
+**One direction is strong, one is weak.** STALE is near-certain: the token is
+right there, in code, in the file the sentence named. CLEAN is weak — the
+token may be spelled differently, or live elsewhere. So: certain when it fires
+and silent when it is not, and **never let an unreadable or unresolvable
+container come back clean**. "Not found" is the verdict the claim wants, so an
+unreadable container must be UNCHECKED, never agreed with — the one bug in
+this class that testing would not show you.
+
+**Gate it on a literal token, then bill the gap.** The sentence must name a
+**string you can look for** — backticked, or a bare house code (`S009`,
+`D-013`). *"has no caller"* names a concept; there is no exact re-derivation
+for a concept, so there is no claim, and widening until one matches is how a
+checker becomes the heuristic it replaced. Measured when the class shipped:
+**13 absence-shaped sentences across 336 files, 3 naming a literal token —
+precision 3/3, recall 3/13 = 23%.** Publish that on the *same line* as the
+zero, because aggregators quote the last line:
+
+    ... 1 stale of 8 checked; coverage 7/12 items (58%), 8/8 claims,
+    1 absence sentence(s) declined for want of a literal token
+
+The declined count is an invoice, not a backlog. Three of the 10 declined were
+the *same claim* that fired, written by 415/416/419 without the token: **it
+became false in round 417 and became CHECKABLE when 421 sharpened it.**
 
 ## Verification
 ```
@@ -285,11 +332,11 @@ python3 skills/skill-authoring/scripts/state_claim_check.py state/research-state
 
 # 2. the same, executing the allowlisted command claims
 python3 skills/skill-authoring/scripts/state_claim_check.py --run --timeout 120 state/research-state.md
-# expected: identical verdict; `--run` adds S003/S004 for `cmd -> result` claims
+# expected: identical verdict; `--run` adds S003/S004 for `cmd -> result`
 
 # 3. every claim with its verdict and skip reason (the coverage detail)
 python3 skills/skill-authoring/scripts/state_claim_check.py --list state/research-state.md
-# expected: exit 0, one `body-lines`/`command` line per extracted claim
+# expected: exit 0, one line per extracted claim, tagged with its kind
 
 # 4. a historical block, to reproduce a finding the live document no longer has
 python3 skills/skill-authoring/scripts/state_claim_check.py --block 349 state/research-state.md
@@ -300,20 +347,33 @@ python3 skills/skill-authoring/scripts/state_claim_check.py --block 349 state/re
 python3 skills/skill-authoring/scripts/state_claim_check.py state/research-state.md
 # expected: S006 for any live-block citation of an item
 # state/retired-next-step-items.json records as discharged; SILENT when the
-# citing item's own text acknowledges the closure. Verified against the real
-# document: with round 389 live it fired exactly once (round 332's item 1,
-# discharged by round 350 and resurrected at round 375) and stayed silent on
-# round 383's item 5, whose citation says "is CLOSED and must not be carried
-# again".
+# citing item's own text acknowledges the closure. With round 389 live it
+# fired exactly once (round 332's item 1, discharged by 350, resurrected at
+# 375) and stayed silent on round 383's item 5, which says "is CLOSED".
 
 # 6. the carry counter, against its own history
 python3 skills/skill-authoring/scripts/state_claim_check.py --block 398 state/research-state.md
 # expected: exit 1, S007 naming the previous asserting block and printing the
-# whole sequence by cycle: `333:6 skills(b) round, 334:6 skills(b) round,
-# 336:7 round, 338:8 round, 343:-, 346:7 skills(b) round, 347:8 round,
-# 348:9 round, 349:8 round, 398:8 round`
+# sequence by cycle: `333:6 .. 348:9 round, 349:8 round, 398:8 round`
 
-# 7. the guard that makes this run every cycle
+# 7. the ABSENCE polarity — the claim the document is made of
+python3 skills/skill-authoring/scripts/state_claim_check.py --block 421 state/research-state.md
+# expected: exit 1, exactly one S011 — `S009` claimed absent from
+# state_claim_check.py, found in CODE. Round 423 corrected the live block;
+# this reproduces the finding against frozen history.
+
+# 8. the same claim one revision earlier, written without the token
+python3 skills/skill-authoring/scripts/state_claim_check.py --block 419 state/research-state.md
+# expected: exit 0, summary ending `1 absence sentence(s) declined for want
+# of a literal token` — the recall gap billed on the quoted line.
+
+# 9. the re-derivation an S011 finding hands you, verbatim
+python3 harness/wiring_audit.py token-refs S009 \
+  --in skills/skill-authoring/scripts/state_claim_check.py --expect-absent
+# expected: exit 1, `ABSENCE REFUTED: ... occurs in code on line(s) ...`;
+# exit 0 and `ABSENCE HOLDS` against a file that really lacks it.
+
+# 10. the guard that makes this run every cycle
 python3 -m unittest discover -s skills/skill-authoring/scripts -p 'test_state_claim_check.py'
 # expected: exit 0, OK. TestLiveCorpus is the live assertion;
 # TestRound349Regression pins the historical text so correcting the document

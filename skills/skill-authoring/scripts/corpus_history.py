@@ -101,6 +101,10 @@ CLAIM_CHECK = "skills/skill-authoring/scripts/claim_check.py"
 STATE_CLAIM_CHECK = "skills/skill-authoring/scripts/state_claim_check.py"
 XREF_CHECK = "skills/skill-authoring/scripts/xref_check.py"
 CARRYFORWARD = "skills/skill-authoring/scripts/carryforward_check.py"
+# Round 423. The first checker in the set that does NOT live under `skills/`.
+# It audits `harness/`'s wired entry points, and round 421 found that nothing
+# read its number, so it joined `corpus_check.py`'s list.
+VERB_AUDIT = "harness/verb_audit.py"
 
 # v2 (round 387). The replay ran TWO checkers; `run_checks_fast.sh`, shipped
 # by the SAME round (363), runs seven. Over rounds 364-386 -- the whole window
@@ -118,7 +122,7 @@ CARRYFORWARD = "skills/skill-authoring/scripts/carryforward_check.py"
 CHECKER_SETS = {
     "core": (SKILL_LINT, CASE_COVERAGE),
     "all": (SKILL_LINT, CASE_COVERAGE, CLAIM_CHECK, STATE_CLAIM_CHECK,
-            XREF_CHECK, CARRYFORWARD),
+            XREF_CHECK, CARRYFORWARD, VERB_AUDIT),
 }
 
 # Paths every checker in `all` reads, for `--scope read`. Round 363's filter
@@ -128,7 +132,10 @@ CHECKER_SETS = {
 # `prediction-bank-ledger.json`, every `known-*.json` baseline and every
 # `*/round-*/PREDICTIONS.md` bank -- i.e. the entire input set of the two
 # checkers responsible for three of the five live failures.
-READ_SET = ("skills/", "state/", "knowledge/", "CLAUDE.md",
+# Round 423 added `harness/`: `verb_audit.py` reads every wired entry point in
+# it, so a commit touching only `harness/` can now change the verdict, and a
+# `--scope read` replay that filtered it out would miss exactly those.
+READ_SET = ("skills/", "state/", "knowledge/", "CLAUDE.md", "harness/",
             "languages/whence/SPEC.md")
 
 # Trees are materialized with `git archive`, so a path git does not carry is
@@ -176,7 +183,7 @@ ARTIFACT_CODES = frozenset({"P004", "P006", "P007", "P008"})
 # on its own -- `test_corpus_history.py` re-derives the bank paths from the
 # live ledger and fails if any of them falls outside this tuple.
 EXTRACT_TOPS = ("skills", "state", "knowledge", "languages", "nuc",
-                "CLAUDE.md")
+                "harness", "CLAUDE.md")
 
 # Two output shapes, both keyed by SEVERITY, because the distinction is the
 # whole point of this tool. `skill_lint.py` prints

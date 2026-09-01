@@ -1,0 +1,397 @@
+{
+  "n_pins": 20,
+  "controls": [
+    {
+      "id": "NC02p",
+      "verdict": "inert",
+      "n_red": 0,
+      "expected": {
+        "verdict": "inert",
+        "n_red": 0
+      },
+      "held": true
+    }
+  ],
+  "guarded": 1,
+  "redundant": [],
+  "findings": 19,
+  "errors": 0,
+  "score": 0.05,
+  "baselines": {
+    "examples/self_host.lang": {
+      "n_checks": 155,
+      "n_failing": 0,
+      "dupes": [],
+      "error": null
+    }
+  },
+  "results": [
+    {
+      "id": "CP03p",
+      "guardian": "a quote inside a string in the got slot is escaped, so it re-lexes",
+      "mechanism": "quote_str escapes what the lexer can read back",
+      "verdict": "shadowed",
+      "control": null,
+      "n_red": 1,
+      "co_red": [
+        "a string in the got slot is a Whence literal, always double-quoted"
+      ],
+      "note": "the guardian passed under the edit; 1 other check(s) went red",
+      "why": "+ = the escaper escapes MORE characters. `'` needs no escape and `\\'` is not a valid Whence escape, so the rendering stops re-lexing for any string containing an apostrophe. The guardian's probe string has no apostrophe in it at all, so it cannot see this however broken the escaper is.",
+      "n_ran": 155
+    },
+    {
+      "id": "CP04p",
+      "guardian": "a number in the got slot is not quoted",
+      "mechanism": "a NUMBER in the got slot is bare, not quoted",
+      "verdict": "inert",
+      "control": null,
+      "n_red": 0,
+      "co_red": [],
+      "note": "the guardian passed and NOTHING in the file went red",
+      "why": "+ = the got slot says MORE about the number. `contains` is monotone under appending, so a suffix is exactly the edit this guardian's shape cannot see. Round 420's `append_only` precondition, tested on the OTHER guest file.",
+      "n_ran": 155
+    },
+    {
+      "id": "CP22p",
+      "guardian": "expect_name says which KIND of name it wanted",
+      "mechanism": "expect_name says which KIND of name it wanted",
+      "verdict": "inert",
+      "control": null,
+      "n_red": 0,
+      "co_red": [],
+      "note": "the guardian passed and NOTHING in the file went red",
+      "why": "+ = the want sentence says MORE, appended at the END, after `tok_at`. The guardian is `contains(..., \"expected field name, got '}'\")` and the substring survives a suffix.",
+      "n_ran": 155
+    },
+    {
+      "id": "CP22p2",
+      "guardian": "expect_name says which KIND of name it wanted",
+      "mechanism": "expect_name says which KIND of name it wanted",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 5,
+      "co_red": [
+        "...and a parameter is a parameter, not just a name",
+        "...and the keyword keeps decision 44's single quotes",
+        "...so a keyword and a string spelled alike no longer collide",
+        "a name in the got slot is quoted"
+      ],
+      "note": "value was false",
+      "why": "The SAME direction as CP22p, inserted in the MIDDLE instead of at the end. Round 420's EP11p shape, planted deliberately: `contains` is monotone under APPENDING and this edit is not an append, so the `append_only` precondition breaks and the +blind guardian sees it. If CP22p is a finding and CP22p2 is guarded, the law's precondition is doing real work rather than decorating it.",
+      "n_ran": 155
+    },
+    {
+      "id": "CP06p",
+      "guardian": "lexer newline suppressed inside parens",
+      "mechanism": "newlines are suppressed inside ( [ @{",
+      "verdict": "shadowed",
+      "control": null,
+      "n_red": 10,
+      "co_red": [
+        "...and the line is the FIRST binding's, not a constant",
+        "...while the position clause still points at the DUPLICATE",
+        "a block-local shape is a real type inside its own block",
+        "a name bound inside a closed block does not collide with a later one",
+        "an inner block may shadow an outer shape name",
+        "an inner block may still bind a name the outer block bound",
+        "duplicate let names the variable",
+        "lexer newline NOT suppressed inside a block nested in parens",
+        "out of scope is worded differently from never declared",
+        "sibling blocks may each declare the same shape name"
+      ],
+      "note": "the guardian passed under the edit; 10 other check(s) went red",
+      "why": "+ = the suppression set GROWS by one member: a block brace suppresses too. This is byte-for-byte round 414's CP07 MINUS edit. For a rule of the form `x is in S`, the + mutant of `( is in S` IS the - mutant of `{ is not in S`, so a file that pinned the pair guards both directions with one check each.",
+      "n_ran": 155
+    },
+    {
+      "id": "CP07p",
+      "guardian": "lexer newline NOT suppressed inside a block nested in parens",
+      "mechanism": "a BLOCK brace does NOT suppress, even inside parens",
+      "verdict": "inert",
+      "control": null,
+      "n_red": 0,
+      "co_red": [],
+      "note": "the guardian passed and NOTHING in the file went red",
+      "why": "+ = the NON-suppression set grows: `[` stops suppressing too. The guardian probes `f(fn(x) { x\\nx })`, which contains no `[`, so it cannot see this. The question this pin asks is whether ANY check in the file probes a newline inside a list literal.",
+      "n_ran": 155
+    },
+    {
+      "id": "CP08p",
+      "guardian": "newline after a binary op is a continuation, no brackets involved",
+      "mechanism": "a newline after a binary op is a line continuation",
+      "verdict": "shadowed",
+      "control": null,
+      "n_red": 5,
+      "co_red": [
+        "`shape` needs three adjacent tokens",
+        "a carriage return is whitespace, as it is on the host",
+        "a newline in the got slot is prose, not the host language's escape",
+        "lexer newline NOT suppressed inside a block nested in parens",
+        "newline after a NAME (ordinary statement end) is still a separator"
+      ],
+      "note": "the guardian passed under the edit; 5 other check(s) went red",
+      "why": "+ = MORE tokens continue a line: a bare NAME does too. The guardian probes `1 +\\n2` and asks for NO `nl`, which stays true when strictly more things continue. `check \"newline after a NAME (ordinary statement end) is still a separator\"` is the opposite side, written on purpose.",
+      "n_ran": 155
+    },
+    {
+      "id": "CP09p",
+      "guardian": "lexer bare trailing e is not consumed as an exponent",
+      "mechanism": "a bare trailing e is not an exponent",
+      "verdict": "shadowed",
+      "control": null,
+      "n_red": 6,
+      "co_red": [
+        "an overflowing literal is inf, as the host's own literal scan makes it",
+        "lexer exponent literal",
+        "lexer negative exponent",
+        "lexer positive-signed exponent",
+        "lexer uppercase exponent",
+        "parser handles an exponent literal end-to-end"
+      ],
+      "note": "the guardian passed under the edit; 6 other check(s) went red",
+      "why": "+ = the REFUSAL grows to cover every exponent: `exp_end` consumes nothing at all, so `1e5` lexes as `1` then the name `e5`. The guardian asserts what `5e` does and `5e` does exactly the same thing under this edit.",
+      "n_ran": 155
+    },
+    {
+      "id": "CP10p",
+      "guardian": "a carriage return is whitespace, as it is on the host",
+      "mechanism": "a carriage return is whitespace",
+      "verdict": "inert",
+      "control": null,
+      "n_red": 0,
+      "co_red": [],
+      "note": "the guardian passed and NOTHING in the file went red",
+      "why": "+ = MORE characters are whitespace: a raw newline is skipped as whitespace too, so nothing ever emits an `nl`. The guardian is a two-sided `==` over a token COUNT and a token KIND, both of which move.",
+      "n_ran": 155
+    },
+    {
+      "id": "CP11p",
+      "guardian": "...and the GUEST decodes that escape too, not just the host",
+      "mechanism": "the guest \\r ESCAPE decodes to a carriage return",
+      "verdict": "shadowed",
+      "control": null,
+      "n_red": 2,
+      "co_red": [
+        "a bad escape is reported at the backslash, as on the host",
+        "a lex error carries the host's bare message and no line number"
+      ],
+      "note": "the guardian passed under the edit; 2 other check(s) went red",
+      "why": "+ = the escape TABLE accepts more: an unknown escape decodes to its own letter instead of being refused. `\\r` still decodes to a carriage return, so the guardian's `==` over `\"a\\\\rb\"` is untouched; what moved is the bad-escape refusal.",
+      "n_ran": 155
+    },
+    {
+      "id": "CP12p",
+      "guardian": "one digit past the cap is a lex error, in the host's own words",
+      "mechanism": "decision 49: an integer literal past 4000 digits is a lex error",
+      "verdict": "shadowed",
+      "control": null,
+      "n_red": 1,
+      "co_red": [
+        "an integer literal at the cap is accepted"
+      ],
+      "note": "the guardian passed under the edit; 1 other check(s) went red",
+      "why": "+ = the refusal fires EARLIER \u2014 at 10 digits rather than 4000 \u2014 while the message still quotes `num_text_digit_limit`. The guardian pins the sentence produced for 4001 digits and that sentence is unchanged character for character, so a two-sided `==` guardian is still blind here. This is the pin that tests whether `polarity`'s empty blind set means anything.",
+      "n_ran": 155
+    },
+    {
+      "id": "CP13p",
+      "guardian": "a trailing comma is refused in a call",
+      "mechanism": "a trailing comma is refused in a call",
+      "verdict": "shadowed",
+      "control": null,
+      "n_red": 10,
+      "co_red": [
+        "but a comma still separates two of anything",
+        "call has two args",
+        "hello.lang has 13 top-level statements",
+        "hello.lang's first statement is the greeting let",
+        "hello.lang's last statement is the verdict check",
+        "postfix chain innermost is call",
+        "postfix chain middle is index",
+        "postfix chain outermost is field",
+        "the guest parser consumes hello.lang's real source without error",
+        "the if/else in hello.lang round-trips structurally"
+      ],
+      "note": "the guardian passed under the edit; 10 other check(s) went red",
+      "why": "+ = the refusal grows to every comma, so `f(1, 2)` is refused as well as `f(1,)`. `missed(...)` is monotone in `refuses more` \u2014 round 420's `refusal` precondition \u2014 so the guardian stays green by construction.",
+      "n_ran": 155
+    },
+    {
+      "id": "CP14p",
+      "guardian": "...in a list literal",
+      "mechanism": "a trailing comma is refused in a list literal",
+      "verdict": "shadowed",
+      "control": null,
+      "n_red": 4,
+      "co_red": [
+        "but a comma still separates two of anything",
+        "list has three items",
+        "record field b is a list",
+        "record literal"
+      ],
+      "note": "the guardian passed under the edit; 4 other check(s) went red",
+      "why": "+ = as CP13p, in the list literal: every comma is refused, not only a trailing one.",
+      "n_ran": 155
+    },
+    {
+      "id": "CP15p",
+      "guardian": "...in a parameter list",
+      "mechanism": "a trailing comma is refused in a parameter list",
+      "verdict": "shadowed",
+      "control": null,
+      "n_red": 10,
+      "co_red": [
+        "...and a parameter is a parameter, not just a name",
+        "but a comma still separates two of anything",
+        "fn body is a block whose expr is the sum",
+        "fn def params",
+        "fn def parses",
+        "hello.lang has 13 top-level statements",
+        "hello.lang's first statement is the greeting let",
+        "hello.lang's last statement is the verdict check",
+        "the guest parser consumes hello.lang's real source without error",
+        "the if/else in hello.lang round-trips structurally"
+      ],
+      "note": "the guardian passed under the edit; 10 other check(s) went red",
+      "why": "+ = as CP13p, in the parameter list: a second parameter is refused.",
+      "n_ran": 155
+    },
+    {
+      "id": "CP16p",
+      "guardian": "chained comparisons are rejected, matching the host",
+      "mechanism": "comparisons do not chain",
+      "verdict": "inert",
+      "control": null,
+      "n_red": 0,
+      "co_red": [],
+      "note": "the guardian passed and NOTHING in the file went red",
+      "why": "+ = the chain refusal grows to cover a comparison followed by ANY keyword, so `1 < 2 and 3 < 4` is refused as well as `1 < 2 < 3`.",
+      "n_ran": 155
+    },
+    {
+      "id": "CP17p",
+      "guardian": "duplicate let in one block is a miss",
+      "mechanism": "no rebinding: a duplicate let in one block is a miss",
+      "verdict": "shadowed",
+      "control": null,
+      "n_red": 52,
+      "co_red": [
+        "...and a parameter is a parameter, not just a name",
+        "...and the line is the FIRST binding's, not a constant",
+        "...and the miss names the line the second statement is on",
+        "...while the position clause still points at the DUPLICATE",
+        "__shape comes first and names the shape",
+        "`shape` is contextual, not reserved",
+        "a block-local shape is a real type inside its own block",
+        "a field may be called shape",
+        "a name bound inside a closed block does not collide with a later one",
+        "a newline in the got slot is prose, not the host language's escape",
+        "a parameter contract carries index, name and label",
+        "a parameter contract reads a shape by name"
+      ],
+      "note": "the guardian passed under the edit; 52 other check(s) went red",
+      "why": "+ = the no-rebinding refusal fires on EVERY named binding, not only a repeat. The guardian is `missed(<a program with a duplicate let>)`, which is exactly as true when the rule over-fires as when it fires correctly.",
+      "n_ran": 155
+    },
+    {
+      "id": "CP18p",
+      "guardian": "duplicate param is a miss",
+      "mechanism": "a duplicate parameter is a miss",
+      "verdict": "shadowed",
+      "control": null,
+      "n_red": 9,
+      "co_red": [
+        "but a comma still separates two of anything",
+        "fn body is a block whose expr is the sum",
+        "fn def params",
+        "fn def parses",
+        "hello.lang has 13 top-level statements",
+        "hello.lang's first statement is the greeting let",
+        "hello.lang's last statement is the verdict check",
+        "the guest parser consumes hello.lang's real source without error",
+        "the if/else in hello.lang round-trips structurally"
+      ],
+      "note": "the guardian passed under the edit; 9 other check(s) went red",
+      "why": "+ = every parameter after the first is treated as a duplicate.",
+      "n_ran": 155
+    },
+    {
+      "id": "CP19p",
+      "guardian": "duplicate shape fields are rejected",
+      "mechanism": "duplicate shape fields are rejected",
+      "verdict": "shadowed",
+      "control": null,
+      "n_red": 5,
+      "co_red": [
+        "__shape comes first and names the shape",
+        "a primitive field type becomes a str spec node",
+        "a shape declaration parses",
+        "a shape desugars to an ordinary let",
+        "the bound value is a record literal"
+      ],
+      "note": "the guardian passed under the edit; 5 other check(s) went red",
+      "why": "+ = every shape field after the first is treated as a duplicate.",
+      "n_ran": 155
+    },
+    {
+      "id": "CP20p",
+      "guardian": "an unknown type name is still rejected",
+      "mechanism": "an unknown type name is rejected",
+      "verdict": "shadowed",
+      "control": null,
+      "n_red": 15,
+      "co_red": [
+        "__shape comes first and names the shape",
+        "a block-local shape is a real type inside its own block",
+        "a parameter contract carries index, name and label",
+        "a parameter contract reads a shape by name",
+        "a primitive field type becomes a str spec node",
+        "a return annotation carries a name node for a shape",
+        "a return annotation carries a str node for a primitive",
+        "a shape declaration parses",
+        "a shape desugars to an ordinary let",
+        "a shape-typed field becomes a name node, not a copy",
+        "an annotated fn's body is left alone, no prepended guard",
+        "an inner block may shadow an outer shape name"
+      ],
+      "note": "the guardian passed under the edit; 15 other check(s) went red",
+      "why": "+ = the unknown-type refusal grows over the PRIMITIVES: `num` is refused too. `missed(fn f(a: Nope) {...})` cannot tell a rule that rejects one more name from one that rejects every name.",
+      "n_ran": 155
+    },
+    {
+      "id": "CP21p",
+      "guardian": "a shape cannot reference itself",
+      "mechanism": "a shape cannot reference itself",
+      "verdict": "shadowed",
+      "control": null,
+      "n_red": 6,
+      "co_red": [
+        "a block-local shape is a real type inside its own block",
+        "a parameter contract carries index, name and label",
+        "a parameter contract reads a shape by name",
+        "a return annotation carries a name node for a shape",
+        "a shape-typed field becomes a name node, not a copy",
+        "an annotated fn's body is left alone, no prepended guard"
+      ],
+      "note": "the guardian passed under the edit; 6 other check(s) went red",
+      "why": "+ = the self-reference refusal grows to every DECLARED shape name, so `shape Line = @{a: Point}` is refused as well as `shape P = @{x: P}`. Round 414 gave CP20 and CP21 the SAME minus edit; their plus edits are different arms of the same function, which is the first evidence that the two rules were ever distinguishable.",
+      "n_ran": 155
+    },
+    {
+      "id": "NC02p",
+      "guardian": "newline after a binary op is a continuation, no brackets involved",
+      "mechanism": "NEGATIVE CONTROL - a semantically identical rewrite of the function CP08p mutates",
+      "verdict": "inert",
+      "control": {
+        "verdict": "inert",
+        "n_red": 0
+      },
+      "n_red": 0,
+      "co_red": [],
+      "note": "the guardian passed and NOTHING in the file went red",
+      "why": "must be `inert` with n_red == 0; anything else voids the run. The two `or` operands are pure and total, so swapping them cannot change a result. Placed in `last_continues` rather than round 414's `top_of` so the control shares a function with a scored pin in THIS registry.",
+      "n_ran": 155
+    }
+  ]
+}

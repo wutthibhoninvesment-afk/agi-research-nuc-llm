@@ -9,7 +9,7 @@ Enforced at parse time (not runtime):
 from .lexer import tokenize
 from . import ast_nodes as A
 from .foreign import FOREIGN_NAMES, bound_anywhere
-from .values import show_int
+from .values import show_int, quote_str as _values_quote_str
 
 
 class ParseError(Exception):
@@ -179,29 +179,18 @@ _NAME_INTRODUCERS = ("shape",)
 # input, for all 256 of them. Rendering it as `\x00` -- which is what
 # Python's `repr` does, and what `_show` did until this version -- prints a
 # spelling no Whence program can contain.
-_QUOTE_ESCAPES = (("\\", "\\\\"), ('"', '\\"'),
-                  ("\n", "\\n"), ("\t", "\\t"), ("\r", "\\r"))
-
-
-def quote_str(s):
-    """A string VALUE, spelled as the Whence literal that produces it.
-
-    Round-trip exact by construction rather than by enumeration: the five
-    characters the lexer treats specially are escaped, everything else is
-    copied. `tests/test_v39.py::test_every_byte_round_trips` runs the
-    inverse over all 256 single-byte values and re-lexes each one.
-
-    This is the parser's copy of a rule `whence/values.py:_quote` already
-    owned for the RUNTIME (`print`, `why`, a failing `check`'s report).
-    The two are not shared because `values._quote` also truncates to a
-    `limit` and does not escape `\t`/`\r`, both of which are wrong for a
-    diagnostic that is telling an author what they typed; see SPEC.md
-    decision 48 for why the language ended up with three renderings of one
-    idea and which one won.
-    """
-    for raw, esc in _QUOTE_ESCAPES:
-        s = s.replace(raw, esc)
-    return '"%s"' % s
+#: Round 422 (language C), closing round 408's item 6 in its fifth carried
+#: round. This WAS a second implementation of `values.quote_str`, kept apart
+#: by a docstring naming two obstacles. Only one of them was real. `limit` is
+#: an argument, so the parser passes `limit=None` and the runtime keeps its
+#: truncation. The other -- that the runtime copy did not escape `\t`/`\r`
+#: -- was a divergence rather than a decision, and the direction of the fix
+#: is set by decision 48's own sentence: a `got` slot holds EITHER a literal
+#: the author can type back verbatim OR prose, and a snapshot with a raw tab
+#: in it is neither. `tests/test_v39.py::test_every_byte_round_trips` runs
+#: the inverse of this over all 256 single-byte values and re-lexes each one;
+#: `tests/test_v41.py` pins that there is now exactly one implementation.
+quote_str = _values_quote_str
 
 
 def _spell(tok):

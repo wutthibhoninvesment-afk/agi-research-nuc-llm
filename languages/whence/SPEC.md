@@ -1,6 +1,6 @@
 # Whence — a provenance-first language
 
-*Spec level: **v0.40** (round 410). The `## vN` sections below are the
+*Spec level: **v0.41** (round 422). The `## vN` sections below are the
 authoritative version list and each names the round that built it; this
 line deliberately no longer enumerates rounds, because the enumeration it
 replaced had said "v0.16.6 + v0.14.2" since round 266 while the file went
@@ -8551,4 +8551,65 @@ right tool when the rule itself is one-sided, and 27 `-`-blind checks in
 interpreter: a `check`'s polarity is a property of a whole SUITE's coverage,
 not of one statement, and a per-statement diagnostic would fire on 147
 correct lines. And it does not unify `parser.quote_str` with
-`values._quote`, which is now carried for a fifth round.
+`values._quote`, which is now carried for a fifth round. *(Round 422 closed
+it — see v0.41 below, where the second half of the reason it was carried
+turned out to be a bug rather than a design.)*
+
+---
+
+## v0.41 (round 422, language C) — the divergence a docstring was holding open
+
+Round 408's item 6 — *unify `whence/parser.py:quote_str` with
+`whence/values.py:_quote`* — was carried by rounds 410, 414, 416 and 420. It
+is one function, forty lines apart, and every round that read it stopped at
+the docstring the round-408 author had left behind:
+
+> The two are not shared because `values._quote` also truncates to a `limit`
+> and does not escape `\t`/`\r`, both of which are wrong for a diagnostic
+> that is telling an author what they typed.
+
+Two obstacles, stated as one sentence, and the sentence is half true.
+`limit` is an **argument**: the parse-diagnostic caller passes `None` and the
+runtime keeps its truncation. The escape set was not a design at all —
+`values._quote` escaped `\\`, `"` and `\n` and left a TAB and a CARRIAGE
+RETURN raw, so `show_payload` rendered a string holding a tab as text the
+lexer refuses to read back as one token:
+
+```
+before   check "x": "a<TAB>b" == "nope"   ->   why: "a<TAB>b" ← literal
+after    check "x": "a\tb"    == "nope"   ->   why: "a\tb"   ← literal
+```
+
+That is decision 48's own rule — *a slot holds EITHER a literal the author
+can type back verbatim OR prose, never a spelling borrowed from the
+implementation language* — applied to the half of the codebase decision 48
+did not reach. The parser had it right and the runtime did not, and the
+comment recorded the difference as a reason to keep both.
+
+**Decided: one implementation.** `values.quote_str(s, limit=None)` is the
+single copy; `whence/parser.py` binds the name and owns no escape table.
+`values._quote` remains as a one-line alias so the snapshot path reads as it
+did. The runtime's rendering of `\t` and `\r` CHANGED, and that change is
+the point: `tests/test_v41.py::test_the_runtime_snapshot_of_a_string_re_lexes
+_to_itself` re-lexes the snapshot and asserts it produces the original value,
+for all five special characters.
+
+### What this decision does NOT do
+
+It does not touch the `limit` semantics — truncation still lands on the
+ESCAPED text and can cut an escape in half, which the trailing `…` already
+declares as abridged rather than re-lexable, and which now has its own pin.
+It does not merge `parser._spell` with `parser._show`; v0.24's argument for
+keeping those two apart is about which QUESTION each answers and is
+unaffected.
+
+### The general shape, which is the part worth keeping
+
+A carried item whose obstacle lives in a comment is carried by the comment.
+Four rounds read a docstring that stated two reasons, verified neither, and
+re-filed the item. The item was not a refactor: it was a latent divergence
+wearing a refactor's clothes, and its cost was paid every time a `check`
+failed on a string with a tab in it. When a comment explains why two things
+are not shared, the comment is a CLAIM about the two things, and it wants the
+same treatment as any other claim in this repo — re-derive it or carry it as
+unverified, but do not spend a fifth round quoting it.

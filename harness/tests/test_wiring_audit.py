@@ -608,3 +608,94 @@ class TestThisTree:
                            text=True, timeout=300)
         assert p.returncode == 0, p.stdout + p.stderr
         assert "0 error(s)" in p.stdout
+
+
+# --------------------------------------------------------------------------
+# Round 423 — `token_refs`, the polarity dual of `refs`.
+#
+# `refs` re-derives a PRESENCE claim (*X is referenced N times in Y*).
+# `token_refs` re-derives an ABSENCE claim (*Y still has no X*), where X is a
+# literal string rather than a path. The raw/code split is the same and
+# carries the same distinction: a file that MENTIONS a token in a comment
+# saying the thing does not exist yet has not thereby made it exist.
+# --------------------------------------------------------------------------
+
+
+class TestTokenRefs:
+
+    def test_a_token_in_code_is_separated_from_one_in_a_comment(self, tmp_path):
+        files = {"a/tool.py": ('# S009 is not implemented yet\n'
+                               'CODE = "S009"\n')}
+        root = make_repo(tmp_path, files)
+        r = W.token_refs(root, "S009", "a/tool.py")
+        assert (r["raw"], r["code"]) == (2, 1)
+        assert r["code_lines"] == [2]
+
+    def test_a_docstring_mention_is_prose_not_code(self, tmp_path):
+        # `strip_python_comments` blanks a string that BEGINS a logical line.
+        # This is the shape the real instance had: `state_claim_check.py`
+        # documents S009 in a 120-line module docstring and emits it from
+        # one `Finding(...)` call.
+        files = {"a/tool.py": ('"""S009 -- what this module does."""\n'
+                               'def f():\n'
+                               '    return Finding("S009")\n')}
+        root = make_repo(tmp_path, files)
+        r = W.token_refs(root, "S009", "a/tool.py")
+        assert (r["raw"], r["code"]) == (2, 1)
+        assert r["code_lines"] == [3]
+
+    def test_an_absent_token_is_zero_and_zero(self, tmp_path):
+        files = {"a/tool.py": "x = 1\n"}
+        root = make_repo(tmp_path, files)
+        r = W.token_refs(root, "S009", "a/tool.py")
+        assert (r["raw"], r["code"]) == (0, 0)
+
+    def test_the_boundary_is_not_a_substring_match(self, tmp_path):
+        # `\b` would report `--cap` present in `--capture`, because `-` is a
+        # word boundary to `re`. Both halves of this matter: round 412's
+        # blocked `--cap 196` and round 400's `--capture` are real, live,
+        # co-resident tokens in this corpus.
+        files = {"a/tool.py": 'x = "S0091"\ny = "--capture"\n'}
+        root = make_repo(tmp_path, files)
+        assert W.token_refs(root, "S009", "a/tool.py")["raw"] == 0
+        assert W.token_refs(root, "--cap", "a/tool.py")["raw"] == 0
+        assert W.token_refs(root, "--capture", "a/tool.py")["raw"] == 1
+
+    def test_a_basename_resolves_the_way_refs_resolves_one(self, tmp_path):
+        files = {"deep/nest/tool.py": 'CODE = "S009"\n'}
+        root = make_repo(tmp_path, files)
+        r = W.token_refs(root, "S009", "tool.py")
+        assert r["in"] == "deep/nest/tool.py"
+        assert r["code"] == 1
+
+    def test_an_ambiguous_container_is_refused_rather_than_guessed(self,
+                                                                  tmp_path):
+        files = {"a/tool.py": 'X = "S009"\n', "b/tool.py": "pass\n"}
+        root = make_repo(tmp_path, files)
+        r = W.token_refs(root, "S009", "tool.py")
+        assert r["error"] == "ambiguous"
+        assert r["candidates"] == ["a/tool.py", "b/tool.py"]
+
+    def test_an_unresolved_container_is_an_error_not_a_zero(self, tmp_path):
+        # The dangerous failure for an ABSENCE check: a container that does
+        # not resolve reads as "the token is not there", which is the exact
+        # verdict the claim wants. It must never be reported as clean.
+        root = make_repo(tmp_path, {"a/tool.py": "pass\n"})
+        assert W.token_refs(root, "S009", "nope.py")["error"] == "unresolved"
+
+    def test_expect_absent_scores_a_written_claim(self, tmp_path):
+        files = {"a/tool.py": 'CODE = "S009"\n', "b/quiet.py": "pass\n"}
+        root = make_repo(tmp_path, files)
+        refuted = ["--repo-root", root, "token-refs", "S009", "--in",
+                   "a/tool.py", "--expect-absent"]
+        assert W.main(refuted) == 1
+        holds = ["--repo-root", root, "token-refs", "S009", "--in",
+                 "b/quiet.py", "--expect-absent"]
+        assert W.main(holds) == 0
+
+    def test_a_prose_only_mention_does_not_refute_the_claim(self, tmp_path):
+        files = {"a/tool.py": "# S009 would go here one day\n"}
+        root = make_repo(tmp_path, files)
+        argv = ["--repo-root", root, "token-refs", "S009", "--in",
+                "a/tool.py", "--expect-absent"]
+        assert W.main(argv) == 0
