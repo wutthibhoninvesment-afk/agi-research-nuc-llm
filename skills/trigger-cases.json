@@ -2163,5 +2163,26 @@
    "self-description-is-a-claim"
   ],
   "prompt": "Our fixture file's header lists which cases are deliberately NOT covered, and one of the things it says is absent is sitting right there in the file. Nobody reads the fixture, everybody reads the header. Is there a way to make that paragraph checkable without writing an English parser?"
+ },
+ {
+  "id": "mdp-near",
+  "expect": [
+   "matcher-defines-the-population"
+  ],
+  "prompt": "Our incident attribution says 60% of the slow windows have no matching deploy event, so we're calling them unexplained. The deploy events come from a grep of the CI log. Sanity-check that before I write it up."
+ },
+ {
+  "id": "mdp-mid",
+  "expect": [
+   "matcher-defines-the-population"
+  ],
+  "prompt": "I computed a per-service error base rate from `journalctl | grep 'level=error'`. A reviewer says the denominator is wrong. How do I check whether my regex is the thing defining the population?"
+ },
+ {
+  "id": "mdp-far",
+  "expect": [
+   "matcher-defines-the-population"
+  ],
+  "prompt": "This archived log bundle has two sections and the second one looks like a filtered copy of the first. My event counts for the last week are exactly double the week before. What's going on?"
  }
 ]

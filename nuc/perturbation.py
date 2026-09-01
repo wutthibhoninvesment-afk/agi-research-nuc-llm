@@ -2484,6 +2484,985 @@ def cluster_evidence(ledgers: Iterable,
                     "hurts) against a looser Bonferroni bar (which helps)")}
 
 
+# ============================================================ round 436
+# The engine's own log, and the section that was a copy of another section
+#
+# Round 430's next-E item 5 named `journal-user-full.txt` (456 kB, banked by
+# round 424, never opened) as the candidate explanation for the 33 of 52
+# costly swap buckets that hold no named fire, and proposed "a second parser
+# for `systemd[1057]:`, not a change to `parse_unit_starts`".
+#
+# Both halves of that are wrong, and the file says so on its own first read.
+#
+# 1. THE USER MANAGER STARTS ALMOST NOTHING. Over the ten-day window it
+#    emits FIFTEEN `Starting` lines: seven `dbus.socket`, seven
+#    `gpg-agent-ssh.socket` and one `dbus.service`, two per login session.
+#    A population of 15 socket activations cannot account for 33 costly
+#    buckets, and `parse_user_unit_starts` below exists mainly to MEASURE
+#    that refutation rather than to leave it as an assertion.
+#
+# 2. THE SECTION LABELLED `### USER_MANAGER` CONTAINS NO `systemd[` LINE AT
+#    ALL. It is 329 `coli[...]` lines -- the inference engine's own log, and
+#    that is what the command under it asked for: `capture_plan` step 3b runs
+#    `journalctl _SYSTEMD_USER_UNIT=qwen36-colibri.service`, under a COMMENT
+#    that calls it "the USER manager, which owns the engine". The header
+#    records the comment's intent and the section holds the command's output.
+#    The phrase was then cited for six rounds without anyone opening the file.
+#
+# 3. AND IT IS A COPY. Every one of those 329 lines already appears in the
+#    file's unlabelled lead section; `### USER_MANAGER` is a filtered VIEW of
+#    text the file already contains, appended after it. A `grep -c` over the
+#    whole file therefore reports 26 engine loads where there are 13, and 363
+#    chat completions where there are 182. The inflation is not a clean
+#    factor of two either: the duplicated view starts at 2026-08-23T21:30:22,
+#    so events before that instant are counted once and events after it
+#    twice, which makes the late window look twice as busy as the early one.
+#    That is the shape of error that survives a sanity check on totals.
+#
+# `journal_sections` keeps the unlabelled lead (which `sar_sections` drops on
+# the floor, because `sar-all.txt` has a header before its first byte and this
+# file does not), and `redundant_sections` reports any section whose lines are
+# all present in an earlier one. The redundancy test is done per SECTION and
+# never per line: two genuine `[api]` requests can share a second, and a
+# line-level dedup would silently delete the second one.
+
+JOURNAL_LEAD_SECTION = "(unlabelled lead)"
+_BOOT_MARKER = re.compile(r"^-- Boot [0-9a-f]{32} --\s*$")
+
+
+def journal_sections(text: str) -> dict:
+    """`### NAME` -> body, KEEPING any text that precedes the first header.
+
+    `sar_sections` returns {} for a file with no `###` line, which is correct
+    for `sar-all.txt` and catastrophic for `journal-user-full.txt`: 3731 of
+    its 4067 lines sit above the only header it has.
+    """
+    secs: dict = {JOURNAL_LEAD_SECTION: []}
+    cur = JOURNAL_LEAD_SECTION
+    for line in text.splitlines():
+        m = _SECTION_HEAD.match(line)
+        if m:
+            cur = m.group(1)
+            secs.setdefault(cur, [])
+        else:
+            secs[cur].append(line)
+    if not secs[JOURNAL_LEAD_SECTION]:
+        del secs[JOURNAL_LEAD_SECTION]
+    return {k: "\n".join(v) for k, v in secs.items()}
+
+
+def _record_lines(body: str) -> list:
+    """Journal record lines: no blanks, no `-- Boot <id> --` separators."""
+    return [l for l in body.splitlines()
+            if l.strip() and not _BOOT_MARKER.match(l)]
+
+
+def redundant_sections(secs: dict) -> dict:
+    """Sections whose every record line already appears in an EARLIER one.
+
+    Returns {redundant_name: covering_name}. Order is the dict's order, which
+    is file order, because "earlier" is what makes one of the two the copy.
+    A section is redundant only if it is a SUBSET; a section that adds even
+    one line is kept whole, since dropping it would lose that line.
+    """
+    names = list(secs)
+    sets = {n: set(_record_lines(secs[n])) for n in names}
+    out: dict = {}
+    for i, n in enumerate(names):
+        if not sets[n]:
+            continue
+        for m in names[:i]:
+            if sets[n] <= sets[m]:
+                out[n] = m
+                break
+    return out
+
+
+def dedupe_journal(text: str) -> tuple:
+    """(text of the non-redundant sections, a report of what was dropped).
+
+    The report is the deliverable, not a side effect: "this file's counts are
+    inflated and here is by how much" is the finding, and a function that
+    quietly returned clean text would have hidden it.
+    """
+    secs = journal_sections(text)
+    dup = redundant_sections(secs)
+    kept = [n for n in secs if n not in dup]
+    n_all = sum(len(_record_lines(b)) for b in secs.values())
+    n_kept = sum(len(_record_lines(secs[n])) for n in kept)
+    dropped_first = {}
+    for n in dup:
+        lines = _record_lines(secs[n])
+        dropped_first[n] = lines[0][:19] if lines else ""
+    return "\n".join(secs[n] for n in kept), {
+        "n_sections": len(secs),
+        "sections": names_of(secs),
+        "n_redundant_sections": len(dup),
+        "redundant_sections": dup,
+        "n_record_lines_all": n_all,
+        "n_record_lines_kept": n_kept,
+        "n_record_lines_dropped": n_all - n_kept,
+        "inflation_factor_naive": (round(n_all / n_kept, 4) if n_kept else None),
+        "duplicated_view_starts_utc": dropped_first,
+        "why": ("a section whose lines all appear in an earlier section is a "
+                "VIEW of that section, and counting both double-counts every "
+                "event inside the view's own time span -- not the whole file, "
+                "which is why a totals check does not catch it"),
+    }
+
+
+def names_of(secs: dict) -> list:
+    return list(secs)
+
+
+# ---- the user manager, so its irrelevance is measured and not asserted
+
+_USER_UNIT_START = re.compile(
+    r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:[+-]\d{2}:\d{2}|Z)?\s+"
+    r"\S+\s+systemd\[(\d+)\]:\s+Starting\s+(\S+?)\.(service|socket|target|timer)\b")
+
+
+def parse_user_unit_starts(text: str, include_kinds=("service",)) -> list:
+    """`systemd[<pid != 1>]: Starting <unit>.<kind>` -> `Event`.
+
+    `parse_unit_starts` pins `systemd\\[1\\]` and so returns [] on this file;
+    that is correct for it and is why the 456 kB contributed nothing to any
+    published number. Labels are prefixed `user:` so a user unit can never be
+    confused with, or pooled into, a PID-1 unit of the same name.
+
+    `include_kinds` defaults to services only, matching `parse_unit_starts`.
+    Pass `("service", "socket")` to see the socket activations -- on this
+    record that is 13 of the 15 lines, which is the measurement that refutes
+    round 430's item 5.
+    """
+    out = []
+    for line in text.splitlines():
+        m = _USER_UNIT_START.match(line)
+        if m and m.group(2) != "1" and m.group(4) in include_kinds:
+            out.append(Event(at_utc=m.group(1) + "Z",
+                             label=f"user:{m.group(3)}.{m.group(4)}"))
+    return out
+
+
+# ---- the engine, which is what the file actually holds
+
+# Three line shapes, and they do NOT share event semantics. `parse_unit_starts`
+# yields START instants and `cost_ledger` adds `LEDGER_BOUNDARY_SLACK_S` to
+# them because a unit that starts at T has done nothing at T. Two of the three
+# engine shapes are COMPLETION lines, logged after the work, so the slack
+# pushes them the wrong way.
+#
+#   [load]   `resident weights loaded in 13.2s | RSS after load: 9.25 GB`
+#            a completion line that CARRIES ITS DURATION, so the start is
+#            derivable from the line itself and no convention is invented.
+#   [listen] `OpenAI-compatible API listening on http://127.0.0.1:8000/v1`
+#            a start instant: the process is up and has done its allocation.
+#   [api]    `[api] 127.0.0.1 - "POST /v1/chat/completions HTTP/1.1" 200 -`
+#            a completion line with NO duration. Nothing in the record says
+#            how far back the work began, and on this box a single 26.5k-token
+#            Hermes turn prefills for ~87 minutes -- eight buckets. There is no
+#            honest single placement, so `completion_shift_s` is an explicit
+#            argument with no default that hides it, and
+#            `engine_placement_sensitivity` reports which buckets survive the
+#            choice instead of a run that pretends the choice was free.
+
+ENGINE_LOAD = re.compile(
+    r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:[+-]\d{2}:\d{2}|Z)?\s+\S+\s+"
+    r"coli\[\d+\]:\s+resident weights loaded in ([\d.]+)s\s*\|\s*"
+    r"RSS after load:\s*([\d.]+)\s*GB")
+ENGINE_LISTEN = re.compile(
+    r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:[+-]\d{2}:\d{2}|Z)?\s+\S+\s+"
+    r"coli\[\d+\]:\s+OpenAI-compatible API listening on "
+    r"http://[\d.]+:(\d+)/")
+ENGINE_API = re.compile(
+    r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:[+-]\d{2}:\d{2}|Z)?\s+\S+\s+"
+    r"coli\[\d+\]:\s+\[api\]\s+\S+\s+-\s+\"(\w+)\s+(/\S*)\s+HTTP/[\d.]+\"\s+(\d+)")
+
+ENGINE_LOAD_LABEL = "engine:weights-load"
+ENGINE_LISTEN_LABEL = "engine:listen"
+ENGINE_CHAT_LABEL = "engine:chat-completion"
+ENGINE_COMPLETION_LABEL = "engine:completion"
+ENGINE_OTHER_LABEL = "engine:api-other"
+
+# The GLM frontier lane. CLAUDE.md forbids this program from ever SENDING to
+# port 8001; it does not forbid noticing that the box served on it, and the
+# distinction matters here because a :8001 listen is a DIFFERENT model with a
+# different resident size (`[RAM_GB=20.0] ... projected peak 19.7 GB` against
+# qwen36's `RSS after load: 9.25 GB`). Pooling the two under one label would
+# average two memory footprints that differ by more than a factor of two.
+FRONTIER_PORT = "8001"
+
+
+@dataclass(frozen=True)
+class EngineEvent:
+    at_utc: str                # the instant this event is placed at
+    label: str
+    logged_utc: str            # the instant the line was written
+    semantics: str             # "start" | "completion"
+    duration_s: float          # 0.0 when the line carries none
+    detail: str
+
+    def as_dict(self) -> dict:
+        return asdict(self)
+
+
+def _shift_utc(stamp: str, seconds: float) -> str:
+    """`YYYY-MM-DDTHH:MM:SSZ` shifted by `seconds`, without a tz library."""
+    d, _, t = stamp.rstrip("Z").partition("T")
+    secs = _hms_to_s(t[:8]) + int(round(seconds))
+    ordinal = _date_ordinal(d)
+    while secs < 0:
+        secs += 86400
+        ordinal -= 1
+    while secs >= 86400:
+        secs -= 86400
+        ordinal += 1
+    nd = _date.fromordinal(ordinal).isoformat()
+    return f"{nd}T{secs // 3600:02d}:{secs % 3600 // 60:02d}:{secs % 60:02d}Z"
+
+
+def parse_engine_events(text: str, completion_shift_s: float = 0.0,
+                        dedupe: bool = True) -> list:
+    """The engine's own log lines as placed events.
+
+    `dedupe` runs `dedupe_journal` first, because on the banked capture the
+    same 329 lines appear twice and a caller who forgets would double every
+    engine count after 2026-08-23T21:30:22.
+
+    `completion_shift_s` moves the two completion-line classes earlier by that
+    many seconds. It is 0.0 by default -- meaning "placed where it was logged",
+    the only placement the record actually states -- and any other value is a
+    modelling choice the caller has to make and report.
+    """
+    if dedupe:
+        text, _ = dedupe_journal(text)
+    out = []
+    for line in text.splitlines():
+        m = ENGINE_LOAD.match(line)
+        if m:
+            logged, dur, rss = m.group(1) + "Z", float(m.group(2)), m.group(3)
+            out.append(EngineEvent(
+                at_utc=_shift_utc(logged, -dur), label=ENGINE_LOAD_LABEL,
+                logged_utc=logged, semantics="completion", duration_s=dur,
+                detail=f"RSS after load {rss} GB"))
+            continue
+        m = ENGINE_LISTEN.match(line)
+        if m:
+            logged, port = m.group(1) + "Z", m.group(2)
+            out.append(EngineEvent(
+                at_utc=logged,
+                label=(ENGINE_LISTEN_LABEL + ":" + port
+                       if port == FRONTIER_PORT else ENGINE_LISTEN_LABEL),
+                logged_utc=logged, semantics="start", duration_s=0.0,
+                detail=f"port {port}"))
+            continue
+        m = ENGINE_API.match(line)
+        if m:
+            logged, verb, path, status = (m.group(1) + "Z", m.group(2),
+                                          m.group(3), m.group(4))
+            if verb == "POST" and path.endswith("/chat/completions"):
+                label = ENGINE_CHAT_LABEL
+            elif verb == "POST" and path.endswith("/completions"):
+                label = ENGINE_COMPLETION_LABEL
+            else:
+                label = ENGINE_OTHER_LABEL
+            out.append(EngineEvent(
+                at_utc=_shift_utc(logged, -completion_shift_s),
+                label=label, logged_utc=logged, semantics="completion",
+                duration_s=0.0, detail=f"{verb} {path} {status}"))
+    out.sort(key=lambda e: (e.at_utc, e.label))
+    return out
+
+
+def engine_event_summary(events: Iterable) -> dict:
+    events = list(events)
+    by_label: dict = {}
+    by_date: dict = {}
+    for e in events:
+        by_label[e.label] = by_label.get(e.label, 0) + 1
+        by_date[e.at_utc[:10]] = by_date.get(e.at_utc[:10], 0) + 1
+    return {
+        "n_events": len(events),
+        "by_label": dict(sorted(by_label.items())),
+        "by_date": dict(sorted(by_date.items())),
+        "n_completion_semantics": sum(1 for e in events
+                                      if e.semantics == "completion"),
+        "n_with_derivable_start": sum(1 for e in events if e.duration_s > 0),
+        "first_utc": events[0].at_utc if events else None,
+        "last_utc": events[-1].at_utc if events else None,
+    }
+
+
+def engine_placement_sensitivity(text: str, sar_text: str,
+                                 channel: Channel = SWAP_CHANNEL,
+                                 min_bytes=_UNSET,
+                                 shifts=(0.0, 300.0, 600.0),
+                                 interval_s: int = SAR_INTERVAL_S) -> dict:
+    """Which engine attributions survive the completion-placement choice.
+
+    An `[api]` line says when a request FINISHED. The bucket that paid for it
+    is the one the work ran in, and the record does not say which that was.
+    Rather than pick a shift and publish one ledger, this runs the whole
+    window at each candidate shift and reports, per label, the set of costly
+    buckets it lands in at EVERY shift (`stable`) against the ones it lands in
+    at some (`unstable`). Only the stable set is evidence.
+    """
+    secs = sar_sections(sar_text)
+    prefix = CHANNEL_SECTION_PREFIX[channel.name]
+    days = []
+    for name in sorted(s for s in secs if s.startswith(prefix)):
+        body = secs[name]
+        days.append((parse_sar(body), sar_banner_date(body)))
+    per_shift = {}
+    for sh in shifts:
+        events = parse_engine_events(text, completion_shift_s=sh)
+        hits: dict = {}
+        for table, date in days:
+            led = cost_ledger(events, table, date, interval_s,
+                              min_bytes=min_bytes, exclude_units=(),
+                              channel=channel)
+            for e in led["entries"]:
+                if e["costly"]:
+                    hits.setdefault(e["unit"], set()).add(
+                        (date, e["bucket_end"]))
+        per_shift[sh] = hits
+    labels = sorted({l for h in per_shift.values() for l in h})
+    rows = []
+    for label in labels:
+        sets = [per_shift[sh].get(label, set()) for sh in shifts]
+        stable = set.intersection(*sets) if sets else set()
+        union = set().union(*sets) if sets else set()
+        rows.append({
+            "label": label,
+            "n_costly_buckets_stable": len(stable),
+            "n_costly_buckets_any_shift": len(union),
+            "stable": sorted(f"{d} {b}" for d, b in stable),
+            "unstable": sorted(f"{d} {b}" for d, b in (union - stable)),
+            "placement_dependent": len(union) != len(stable),
+        })
+    return {
+        "channel": channel.name,
+        "shifts_s": list(shifts),
+        "min_bytes": (CHANNEL_MIN_BYTES.get(channel.name)
+                      if min_bytes is _UNSET else min_bytes),
+        "n_days": len(days),
+        "labels": rows,
+        "why": ("an `[api]` line is logged when the request finished; the "
+                "bucket that paid is the one the work ran in, and only an "
+                "attribution that holds at every candidate shift is evidence"),
+    }
+
+
+# ---- round 436: the direct measurement that was in the record all along
+#
+# Every attribution number this track has published -- `p_chance`, the six
+# gates, `power_floor`, the whole `shared-only` verdict class -- is INFERRED,
+# by asking whether a unit's fires land in costly `sar` buckets more often
+# than chance allows over a 600 s grid. Round 430 dropped the `fwupd`
+# attribution on a powered null and called `packagekit` a one-way confounder
+# nothing could ever separate.
+#
+# systemd measured all of it directly, per invocation, and wrote the answer
+# into the same two banked journals:
+#
+#   fwupd.service: Consumed 3.661s CPU time, 209.7M memory peak,
+#                  6.2M memory swap peak.
+#   qwen36-colibri.service: Consumed 27min 46.334s CPU time, 30.0G memory
+#                  peak, 3.9G memory swap peak.
+#
+# That is cgroup accounting: a per-unit, per-run high-water mark with no
+# bucket, no threshold, no confounder and no hypergeometric null. It is not a
+# substitute for the ledger -- a peak is not the same quantity as pages
+# written out in an interval, and only a minority of runs carry it -- but it
+# is an INDEPENDENT check on the inferences, and every one it can reach it
+# agrees with.
+#
+# The reason nobody used it is the same reason the engine was invisible:
+# `parse_unit_starts` matches `systemd[1]: Starting`, and these lines are
+# `Consumed`, on units whose journal is the USER manager's.
+
+_SIZE_UNITS = {"B": 1, "K": 1024, "M": 1024 ** 2, "G": 1024 ** 3,
+               "T": 1024 ** 4}
+_SIZE = re.compile(r"^([\d.]+)([BKMGT])$")
+_RESOURCE_LINE = re.compile(
+    r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:[+-]\d{2}:\d{2}|Z)?\s+\S+\s+"
+    r"systemd\[(\d+)\]:\s+(\S+?):\s+Consumed\s+(.+?)\.\s*$")
+_CPU = re.compile(r"([\d.]+)\s*(h|min|s|ms)")
+_MEM_PEAK = re.compile(r"([\d.]+[BKMGT])\s+memory peak")
+_SWAP_PEAK = re.compile(r"([\d.]+[BKMGT])\s+memory swap peak")
+_CPU_SCALE = {"h": 3600.0, "min": 60.0, "s": 1.0, "ms": 0.001}
+
+
+def parse_size(text: str) -> int:
+    m = _SIZE.match(text.strip())
+    if not m:
+        raise PerturbationError(f"not a systemd size literal: {text!r}")
+    return int(round(float(m.group(1)) * _SIZE_UNITS[m.group(2)]))
+
+
+def _parse_cpu(text: str) -> float:
+    total, seen = 0.0, False
+    for value, unit in _CPU.findall(text):
+        total += float(value) * _CPU_SCALE[unit]
+        seen = True
+    if not seen:
+        raise PerturbationError(f"no CPU time in {text!r}")
+    return round(total, 3)
+
+
+@dataclass(frozen=True)
+class ResourceAccounting:
+    """One `<unit>: Consumed ...` line: systemd's own cgroup accounting."""
+    unit: str
+    at_utc: str
+    manager: str                  # "system" (pid 1) | "user"
+    cpu_s: float
+    memory_peak_bytes: object     # int, or None when the line omits it
+    memory_swap_peak_bytes: object
+
+    @property
+    def has_memory(self) -> bool:
+        return self.memory_peak_bytes is not None
+
+    def as_dict(self) -> dict:
+        return asdict(self) | {"has_memory": self.has_memory}
+
+
+def parse_resource_accounting(text: str, kinds=("service",),
+                              dedupe: bool = True) -> list:
+    """`systemd[N]: <unit>: Consumed <cpu>[, <peak> memory peak, ...]` lines.
+
+    `kinds` filters on the unit suffix; `.scope` and `.slice` are excluded by
+    default because a slice's peak is the SUM over its children (`app.slice`
+    reports the same 30.0G as the engine inside it) and pooling both would
+    double-count the one measurement that matters.
+    """
+    if dedupe:
+        text, _ = dedupe_journal(text)
+    out = []
+    for line in text.splitlines():
+        m = _RESOURCE_LINE.match(line)
+        if not m:
+            continue
+        at, pid, unit, body = (m.group(1) + "Z", m.group(2), m.group(3),
+                               m.group(4))
+        suffix = unit.rpartition(".")[2]
+        if kinds and suffix not in kinds:
+            continue
+        mp = _MEM_PEAK.search(body)
+        sp = _SWAP_PEAK.search(body)
+        out.append(ResourceAccounting(
+            unit=unit.rpartition(".")[0] if suffix == "service" else unit,
+            at_utc=at, manager=("system" if pid == "1" else "user"),
+            cpu_s=_parse_cpu(body),
+            memory_peak_bytes=parse_size(mp.group(1)) if mp else None,
+            memory_swap_peak_bytes=parse_size(sp.group(1)) if sp else None))
+    out.sort(key=lambda r: (r.at_utc, r.unit))
+    return out
+
+
+def direct_cost_table(records: Iterable) -> dict:
+    """Per unit, what systemd actually measured -- no inference anywhere."""
+    records = list(records)
+    per: dict = {}
+    for r in records:
+        u = per.setdefault(r.unit, {
+            "unit": r.unit, "managers": set(), "n_invocations": 0,
+            "n_with_memory": 0, "cpu_s_total": 0.0,
+            "max_memory_peak_bytes": None, "max_swap_peak_bytes": None,
+            "swap_peaks_bytes": []})
+        u["managers"].add(r.manager)
+        u["n_invocations"] += 1
+        u["cpu_s_total"] = round(u["cpu_s_total"] + r.cpu_s, 3)
+        if r.has_memory:
+            u["n_with_memory"] += 1
+            u["max_memory_peak_bytes"] = max(
+                u["max_memory_peak_bytes"] or 0, r.memory_peak_bytes)
+            u["max_swap_peak_bytes"] = max(
+                u["max_swap_peak_bytes"] or 0, r.memory_swap_peak_bytes or 0)
+            u["swap_peaks_bytes"].append(r.memory_swap_peak_bytes or 0)
+    rows = []
+    for u in per.values():
+        u = dict(u, managers=sorted(u["managers"]))
+        rows.append(u)
+    rows.sort(key=lambda u: (-(u["max_swap_peak_bytes"] or -1),
+                             -(u["max_memory_peak_bytes"] or -1), u["unit"]))
+    measured = [u for u in rows if u["n_with_memory"]]
+    return {
+        "n_records": len(records),
+        "n_units": len(rows),
+        "n_units_with_a_memory_measurement": len(measured),
+        "n_records_with_memory": sum(1 for r in records if r.has_memory),
+        "units": rows,
+        "why": ("`memory swap peak` is a cgroup high-water mark over one "
+                "invocation; `pswpout/s` is pages written out in a 600 s "
+                "bucket. They are different quantities and only their ORDER "
+                "may be compared -- which is enough, because the orders here "
+                "differ by 10^3"),
+    }
+
+
+def direct_vs_inferred(evidence: dict, records: Iterable,
+                       costly_threshold_bytes: int = LEDGER_MIN_BYTES) -> dict:
+    """Cross-check every graded unit against its own direct measurement.
+
+    For each unit the ledger machinery produced a verdict for, ask whether the
+    record ALSO contains systemd's cgroup accounting for it, and whether the
+    two agree. `agrees` is deliberately weak: a direct swap peak below the
+    costly threshold agrees with any verdict that is not `supported`, and a
+    peak above it agrees with any verdict that is not `no-evidence`. The point
+    is to find CONTRADICTIONS, not to relabel anything.
+    """
+    table = {u["unit"]: u for u in direct_cost_table(records)["units"]}
+    rows, contradictions = [], []
+    for u in evidence["units"]:
+        d = table.get(u["unit"])
+        measured = d["max_swap_peak_bytes"] if d and d["n_with_memory"] else None
+        row = {
+            "unit": u["unit"],
+            "inferred_verdict": u["verdict"],
+            "inferred_n_costly": u["n_costly"],
+            "inferred_max_bucket_bytes": u["max_bucket_bytes"],
+            "has_direct_measurement": measured is not None,
+            "direct_max_swap_peak_bytes": measured,
+            "direct_max_memory_peak_bytes":
+                (d["max_memory_peak_bytes"] if d else None),
+            "direct_n_invocations": (d["n_invocations"] if d else 0),
+        }
+        if measured is not None:
+            row["direct_says_costly"] = measured >= costly_threshold_bytes
+            if u["verdict"] == "supported" and not row["direct_says_costly"]:
+                row["agrees"] = False
+                contradictions.append(u["unit"])
+            elif u["verdict"] == "no-evidence" and row["direct_says_costly"]:
+                row["agrees"] = False
+                contradictions.append(u["unit"])
+            else:
+                row["agrees"] = True
+        rows.append(row)
+    covered = [r for r in rows if r["has_direct_measurement"]]
+    return {
+        "costly_threshold_bytes": costly_threshold_bytes,
+        "n_graded_units": len(rows),
+        "n_with_a_direct_measurement": len(covered),
+        "coverage": (round(len(covered) / len(rows), 4) if rows else 0.0),
+        "n_contradictions": len(contradictions),
+        "contradictions": sorted(contradictions),
+        "units_never_graded_but_measured": sorted(
+            set(table) - {u["unit"] for u in evidence["units"]}),
+        "rows": rows,
+        "why": ("a direct cgroup measurement cannot be confounded, cannot be "
+                "shared with another unit, and needs no threshold sweep; "
+                "where it exists it is the better evidence, and where it "
+                "contradicts an inferred verdict the inference loses"),
+    }
+
+
+# ---- round 436: the fires `parse_unit_starts` cannot see, and why
+
+# `parse_unit_starts` matches `Starting`, with a docstring saying `Started`
+# "fires for the same unit and would double every count". That is true of the
+# 74 units in this journal that emit both -- and FALSE of the six that emit
+# only `Started`, which systemd does for a unit with no startup phase to
+# announce (`Type=simple` and friends log `Started` alone). Those six have
+# been absent from every ledger, every base rate and every denominator this
+# program has published, and one of them is `unattended-upgrades`.
+#
+# The fix is a second pass, not a looser regex: collect the units that emit
+# `Starting` anywhere in the text, then admit `Started` fires only for units
+# that never do. That preserves the no-double-count property exactly, and it
+# is why `parse_unit_starts` itself is left untouched -- a silent widening
+# would move every published number without saying so.
+
+_UNIT_VERB = re.compile(
+    r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:[+-]\d{2}:\d{2}|Z)?\s+"
+    r"\S+\s+systemd\[(\d+)\]:\s+(Starting|Started)\s+(\S+?)\.service")
+
+
+def unit_start_verb_audit(text: str) -> dict:
+    """Which units announce `Starting`, which only ever say `Started`."""
+    starting: dict = {}
+    started: dict = {}
+    for line in text.splitlines():
+        m = _UNIT_VERB.match(line)
+        if not m:
+            continue
+        d = starting if m.group(3) == "Starting" else started
+        d[m.group(4)] = d.get(m.group(4), 0) + 1
+    only = {u: n for u, n in sorted(started.items()) if u not in starting}
+    return {
+        "n_units_with_starting": len(starting),
+        "n_starting_fires": sum(starting.values()),
+        "n_units_with_started": len(started),
+        "n_started_fires": sum(started.values()),
+        "units_started_only": only,
+        "n_units_started_only": len(only),
+        "n_fires_invisible_to_parse_unit_starts": sum(only.values()),
+        "why": ("systemd logs `Starting` only for a unit with a startup phase "
+                "to announce; a `Type=simple` unit logs `Started` alone, so a "
+                "parser pinned to `Starting` drops it entirely rather than "
+                "half-counting it"),
+    }
+
+
+def parse_unit_starts_complete(text: str) -> list:
+    """Every unit start, with `Started` admitted only where `Starting` never is.
+
+    Same `Event` shape as `parse_unit_starts`, and identical output on any
+    text where every unit announces itself. The added fires are labelled with
+    the plain unit name, because they ARE the unit's start -- the verb is
+    systemd's choice, not a different event.
+    """
+    audit = unit_start_verb_audit(text)
+    only = set(audit["units_started_only"])
+    out = list(parse_unit_starts(text))
+    for line in text.splitlines():
+        m = _UNIT_VERB.match(line)
+        if m and m.group(3) == "Started" and m.group(2) == "1" \
+                and m.group(4) in only:
+            out.append(Event(at_utc=m.group(1) + "Z", label=m.group(4)))
+    out.sort(key=lambda e: (e.at_utc, e.label))
+    return out
+
+
+def engine_verdict_stability(sar_text: str, journal_text: str,
+                             engine_journal_text: str,
+                             channel: Channel = STEAL_CHANNEL,
+                             min_bytes=_UNSET,
+                             shifts=(0.0, 150.0, 300.0, 600.0, 1200.0),
+                             interval_s: int = SAR_INTERVAL_S,
+                             **kw) -> dict:
+    """Re-grade with the engine pooled in at every candidate placement.
+
+    An `[api]` line is logged when a request FINISHED, so the bucket that paid
+    for it is unknown to the record. A verdict that appears at one shift and
+    not another is a property of the shift. This runs them all and reports,
+    per label, at how many placements each verdict held -- and the CONSISTENCY
+    series, because a consistency that falls monotonically as the event is
+    moved away from where it was logged is the record choosing the placement
+    rather than the analyst choosing it.
+    """
+    secs = sar_sections(sar_text)
+    prefix = CHANNEL_SECTION_PREFIX[channel.name]
+    days = [(parse_sar(secs[n]), sar_banner_date(secs[n]))
+            for n in sorted(x for x in secs if x.startswith(prefix))]
+    base = list(parse_unit_starts(journal_text))
+    per_shift = {}
+    for sh in shifts:
+        fires = base + list(parse_engine_events(engine_journal_text,
+                                                completion_shift_s=sh))
+        ledgers = [cost_ledger(fires, t, d, interval_s, min_bytes=min_bytes,
+                               channel=channel) for t, d in days]
+        per_shift[sh] = attribution_evidence(ledgers, **kw)
+    labels = sorted({u["unit"] for e in per_shift.values() for u in e["units"]
+                     if u["unit"].startswith("engine:")})
+    rows = []
+    for label in labels:
+        series = []
+        for sh in shifts:
+            u = next((x for x in per_shift[sh]["units"] if x["unit"] == label),
+                     None)
+            series.append({"shift_s": sh,
+                           "verdict": u["verdict"] if u else None,
+                           "n_fires": u["n_fires"] if u else 0,
+                           "n_costly": u["n_costly"] if u else 0,
+                           "n_clean": u["n_clean"] if u else 0,
+                           "consistency": round(u["consistency"], 4) if u else None,
+                           "p_family": u["p_family"] if u else None})
+        cons = [r["consistency"] for r in series if r["consistency"] is not None]
+        n_sup = sum(1 for r in series if r["verdict"] == "supported")
+        rows.append({
+            "label": label,
+            "n_shifts": len(shifts),
+            "n_shifts_supported": n_sup,
+            "supported_at_every_shift": n_sup == len(shifts),
+            "supported_at_a_majority": n_sup * 2 > len(shifts),
+            "verdicts": [r["verdict"] for r in series],
+            "consistency_series": cons,
+            "consistency_falls_monotonically_with_shift":
+                all(a >= b for a, b in zip(cons, cons[1:])) and len(cons) > 1,
+            "series": series,
+        })
+    rows.sort(key=lambda r: (-r["n_shifts_supported"], r["label"]))
+    return {
+        "channel": channel.name,
+        "min_bytes": (CHANNEL_MIN_BYTES.get(channel.name)
+                      if min_bytes is _UNSET else min_bytes),
+        "shifts_s": list(shifts),
+        "n_days": len(days),
+        "labels": rows,
+        "supported_at_every_shift": [r["label"] for r in rows
+                                     if r["supported_at_every_shift"]],
+        "supported_at_a_majority": [r["label"] for r in rows
+                                    if r["supported_at_a_majority"]],
+        "why": ("only a verdict that survives the placement it cannot pin is "
+                "evidence; a monotone fall in consistency as the event is "
+                "moved earlier says the logged instant is close to the truth"),
+    }
+
+
+# ---- round 436: the box OOM-killed, three times, and nobody had looked
+#
+# The largest costly bucket in the record that no fire explains is
+# `2026-08-23 21:20:02`, 2.34 GiB of swap-out. Eight minutes later systemd
+# wrote `tmux-spawn-....scope: Failed with result 'oom-kill'`, and a minute
+# after that `-.slice: A process of this unit has been killed by the OOM
+# killer`. On 2026-08-24 the same line names the engine itself:
+# `qwen36-colibri.service: A process of this unit has been killed by the OOM
+# killer` / `Failed with result 'oom-kill'`.
+#
+# Three OOM episodes in a ten-day window on the machine this whole track
+# exists to make usable, and no round had grepped for the word. They are not
+# an attribution problem -- an OOM kill is systemd naming the cgroup out loud,
+# with no bucket, no threshold and no null hypothesis. What the `sar` record
+# adds is the SIZE of the episode, which is why this pairs the two.
+
+_OOM_LINE = re.compile(
+    r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:[+-]\d{2}:\d{2}|Z)?\s+\S+\s+"
+    r"systemd\[(\d+)\]:\s+(\S+?):\s+"
+    r"(A process of this unit has been killed by the OOM killer|"
+    r"Failed with result 'oom-kill')")
+
+OOM_KILLED = "oom-killed"
+OOM_FAILED = "oom-failed"
+
+
+@dataclass(frozen=True)
+class OomEvent:
+    at_utc: str
+    unit: str
+    manager: str
+    kind: str          # OOM_KILLED (a child died) | OOM_FAILED (the unit died)
+
+    def as_dict(self) -> dict:
+        return asdict(self)
+
+
+def parse_oom_kills(text: str, dedupe: bool = True) -> list:
+    """systemd's OOM lines, from either manager's journal.
+
+    Two shapes and they are NOT the same event: "A process of this unit has
+    been killed" is reported by every cgroup ANCESTOR of the victim (so one
+    kill appears against the scope, the slice and `user@1000.service`), while
+    "Failed with result 'oom-kill'" is the unit that actually died. Keeping
+    both and labelling them is what lets `oom_episodes` collapse the ancestors
+    without losing the name of the victim.
+    """
+    if dedupe:
+        text, _ = dedupe_journal(text)
+    out = []
+    for line in text.splitlines():
+        m = _OOM_LINE.match(line)
+        if m:
+            out.append(OomEvent(
+                at_utc=m.group(1) + "Z", unit=m.group(3),
+                manager=("system" if m.group(2) == "1" else "user"),
+                kind=(OOM_FAILED if m.group(4).startswith("Failed")
+                      else OOM_KILLED)))
+    out.sort(key=lambda e: (e.at_utc, e.unit))
+    return out
+
+
+OOM_EPISODE_GAP_S = 300
+
+
+def oom_episodes(events: Iterable, gap_s: int = OOM_EPISODE_GAP_S) -> list:
+    """Group OOM lines within `gap_s` into one episode, naming its victim.
+
+    A single kill fans out across the cgroup ancestry and across BOTH
+    journals; counting lines would report ten OOMs where there were three.
+    """
+    events = sorted(events, key=lambda e: e.at_utc)
+    episodes = []
+    for e in events:
+        if episodes and (_hms_to_s(e.at_utc[11:19])
+                         - _hms_to_s(episodes[-1]["last_utc"][11:19])
+                         <= gap_s) and e.at_utc[:10] == episodes[-1]["date"]:
+            ep = episodes[-1]
+        else:
+            ep = {"date": e.at_utc[:10], "first_utc": e.at_utc,
+                  "last_utc": e.at_utc, "units": [], "victims": [],
+                  "managers": set(), "n_lines": 0}
+            episodes.append(ep)
+        ep["last_utc"] = max(ep["last_utc"], e.at_utc)
+        ep["n_lines"] += 1
+        ep["managers"].add(e.manager)
+        if e.unit not in ep["units"]:
+            ep["units"].append(e.unit)
+        if e.kind == OOM_FAILED and e.unit not in ep["victims"]:
+            ep["victims"].append(e.unit)
+    for ep in episodes:
+        ep["managers"] = sorted(ep["managers"])
+        ep["named_victim"] = ep["victims"][0] if ep["victims"] else None
+        ep["why"] = ("`Failed with result 'oom-kill'` names the unit that died; "
+                     "the other lines are its cgroup ancestors reporting the "
+                     "same kill"
+                     if ep["victims"] else
+                     "no unit reported `Failed with result 'oom-kill'`: the "
+                     "victim was a bare process inside a cgroup that survived")
+    return episodes
+
+
+def oom_cost_context(episodes: Iterable, sar_text: str,
+                     channel: Channel = SWAP_CHANNEL,
+                     min_bytes=_UNSET,
+                     interval_s: int = SAR_INTERVAL_S,
+                     window_s: int = 1800) -> dict:
+    """What the channel recorded around each OOM episode.
+
+    The OOM line says WHO; the sar record says HOW BIG. `rank` is the
+    episode's bucket among all costly buckets of the window, which is the form
+    of the claim that survives being read out of context.
+    """
+    if min_bytes is _UNSET:
+        min_bytes = CHANNEL_MIN_BYTES.get(channel.name)
+        if min_bytes is None:
+            raise PerturbationError(
+                f"channel {channel.name!r} has no derived costly-threshold; "
+                f"pass min_bytes explicitly and report it")
+    secs = sar_sections(sar_text)
+    prefix = CHANNEL_SECTION_PREFIX[channel.name]
+    per_bucket: dict = {}
+    for name in sorted(x for x in secs if x.startswith(prefix)):
+        body = secs[name]
+        date = sar_banner_date(body)
+        for bn, _v, byts in bucket_costs(parse_sar(body), channel, interval_s):
+            if byts is not None:
+                per_bucket[(date, bn)] = byts
+    costly = {k: v for k, v in per_bucket.items() if v >= min_bytes}
+    ranked = sorted(costly.items(), key=lambda kv: -kv[1])
+    rank = {k: i + 1 for i, (k, _v) in enumerate(ranked)}
+
+    rows = []
+    for ep in episodes:
+        d, t = ep["date"], _hms_to_s(ep["first_utc"][11:19])
+        hit = [(bn, v) for (dd, bn), v in per_bucket.items()
+               if dd == d and _hms_to_s(bn) - interval_s < t <= _hms_to_s(bn)]
+        near = [(bn, v) for (dd, bn), v in per_bucket.items()
+                if dd == d and abs(_hms_to_s(bn) - t) <= window_s]
+        bn, byts = (hit[0] if hit else (None, None))
+        rows.append({
+            "first_utc": ep["first_utc"],
+            "named_victim": ep["named_victim"],
+            "units": ep["units"],
+            "bucket": bn,
+            "bucket_bytes": byts,
+            "bucket_is_costly": bool(bn and (d, bn) in costly),
+            "rank_among_costly": rank.get((d, bn)),
+            "n_costly_buckets": len(costly),
+            "window_s": window_s,
+            "n_buckets_in_window": len(near),
+            "bytes_in_window": sum(v for _b, v in near),
+            "why_no_bucket": (None if bn else
+                              "no bucket of this day-file covers the instant "
+                              "with a defined cost (first row, post-restart "
+                              "row, or a gap in collection)"),
+        })
+    rows.sort(key=lambda r: r["first_utc"])
+    return {
+        "channel": channel.name,
+        "min_bytes": min_bytes,
+        "n_episodes": len(rows),
+        "n_episodes_in_a_costly_bucket": sum(1 for r in rows
+                                             if r["bucket_is_costly"]),
+        "n_episodes_with_no_covering_bucket": sum(1 for r in rows
+                                                  if r["bucket"] is None),
+        "episodes": rows,
+        "why": ("an OOM kill is systemd naming the cgroup out loud -- no "
+                "bucket, no threshold, no null. The sar record adds only the "
+                "SIZE of the episode, and `rank` is the honest form of that"),
+    }
+
+
+# ---- round 430 item 4: the steal channel needs a swept window, not one run
+
+def window_sweep(sar_text: str, journal_text: str,
+                 channel: Channel = STEAL_CHANNEL,
+                 thresholds: Iterable = (),
+                 interval_s: int = SAR_INTERVAL_S,
+                 exclude_units: Iterable = LEDGER_EXCLUDE_UNITS,
+                 extra_fires: Iterable = (),
+                 stitch: bool = False,
+                 max_family_p: float = ATTRIBUTION_MAX_FAMILY_P,
+                 min_consistency: float = ATTRIBUTION_MIN_CONSISTENCY) -> dict:
+    """`window_attribution` re-run at every threshold, with the gate table.
+
+    Round 430 left the steal channel as the one channel never pooled, and
+    said to sweep it because `CHANNEL_MIN_BYTES["steal"]` is `None` -- this
+    record has no bucket independently labelled "reclaim noise" to derive one
+    from, so any single threshold IS the result.
+
+    `channel_sweep` already sweeps, but it reports `supported_was_reachable`,
+    which round 430 proved is a claim about ONE of six gates while being read
+    as a claim about all of them. This carries `verdict_floor` at every
+    threshold instead, so "no unit was supported" comes with which gate said
+    so, at each setting.
+    """
+    extra_fires = list(extra_fires)
+    frame = window_frame(sar_text, journal_text, channel, exclude_units)
+    secs = sar_sections(sar_text)
+    fires = list(parse_unit_starts(journal_text)) + extra_fires
+    use = [d for d in frame["days"] if d["pairing"] == PAIRING_PAIRED]
+    if not use:
+        raise PerturbationError(
+            "no poolable day-file: every sar day is unpaired with the journal")
+    tables = [(parse_sar(secs[d["section"]]), d["date"]) for d in use]
+    stitches = auto_stitches(tables, interval_s) if stitch else {}
+    rows = []
+    for mb in thresholds:
+        ledgers = [cost_ledger(fires, t, date, interval_s, min_bytes=int(mb),
+                               exclude_units=exclude_units, channel=channel,
+                               stitch=(stitches.get(date)
+                                       if isinstance(stitches.get(date), Stitch)
+                                       else None))
+                   for t, date in tables]
+        ev = attribution_evidence(ledgers, max_family_p=max_family_p,
+                                  min_consistency=min_consistency)
+        gates = verdict_floor(ev)
+        cof = costly_bucket_cofires(ledgers)
+        rows.append({
+            "min_bytes": int(mb),
+            "n_buckets": ev["n_buckets"],
+            "n_costly_buckets": ev["n_costly_buckets"],
+            "n_units_tested": ev["n_units_tested"],
+            "n_testable_units": ev["n_testable_units"],
+            "testable_band": [ev["power"]["min_testable_occupancy"],
+                              ev["power"]["max_testable_occupancy"]],
+            "by_verdict": ev["by_verdict"],
+            "supported": ev["supported"],
+            "supported_was_reachable_one_gate": ev["supported_was_reachable"],
+            "supported_reachable_all_gates":
+                gates["supported_reachable_all_gates"],
+            "pass_counts": gates["pass_counts"],
+            "pass_sets": gates["pass_sets"],
+            "single_gate_from_supported": gates["single_gate_from_supported"],
+            "blocking_gate_histogram": gates["blocking_gate_histogram"],
+            "n_costly_with_a_named_fire":
+                cof["n_costly_buckets_with_a_named_fire"],
+            "n_costly_unnamed": (ev["n_costly_buckets"]
+                                 - cof["n_costly_buckets_with_a_named_fire"]),
+            "n_sole_occupied": cof["n_sole_occupied"],
+        })
+    ever = sorted({u for r in rows for u in r["supported"]})
+    all_gate_rows = [r for r in rows if r["supported_reachable_all_gates"]]
+    blocking = sorted({g for r in rows
+                       for g in r["single_gate_from_supported"]})
+    return {
+        "frame": frame,
+        "channel": channel.name,
+        "n_extra_fires": len(extra_fires),
+        "thresholds": [int(t) for t in thresholds],
+        "rows": rows,
+        "supported_at_any_threshold": ever,
+        "n_thresholds_where_all_gates_reachable": len(all_gate_rows),
+        "blocking_gates_seen": blocking,
+        "verdict_is_a_setting": len({tuple(r["supported"]) for r in rows}) > 1,
+        "why": ("a channel with no derived costly-threshold has no single "
+                "verdict; if `supported` changes across the sweep the "
+                "threshold IS the result and no single run may be quoted"),
+    }
+
+
 # ------------------------------------------------------------------- CLI
 
 
@@ -2644,6 +3623,92 @@ def main(argv=None) -> int:
     swin.add_argument("--strict", action="store_true",
                       help="exit 1 if any day-file was dropped as unpaired")
 
+    sj = sub.add_parser(
+        "journal",
+        help="round 436: what a banked journal file actually holds, and "
+             "which of its sections are copies of another")
+    sj.add_argument("--journal", required=True)
+
+    sen = sub.add_parser(
+        "engine",
+        help="round 436: the engine's own log lines as placed events")
+    sen.add_argument("--journal", required=True)
+    sen.add_argument("--completion-shift-s", type=float, default=0.0,
+                     help="move COMPLETION-semantics events this many seconds "
+                          "earlier; 0.0 = placed where they were logged, the "
+                          "only placement the record states")
+    sen.add_argument("--events", action="store_true",
+                     help="print every event, not just the summary")
+    sen.add_argument("--user-units", action="store_true",
+                     help="also report `systemd[pid != 1]: Starting` lines, "
+                          "services AND sockets -- round 430's item-5 "
+                          "hypothesis, measured")
+
+    spl = sub.add_parser(
+        "place",
+        help="round 436: which engine attributions survive the "
+             "completion-placement choice")
+    spl.add_argument("--journal", required=True)
+    spl.add_argument("--capture", required=True)
+    spl.add_argument("--channel", default="swap", choices=sorted(CHANNELS))
+    spl.add_argument("--min-bytes", type=int, default=None)
+    spl.add_argument("--shifts", default="0,300,600",
+                     help="comma-separated seconds")
+
+    so = sub.add_parser(
+        "oom",
+        help="round 436: the OOM kills in a capture, and what the channel "
+             "recorded around each")
+    so.add_argument("--journal", action="append", required=True,
+                    metavar="FILE", help="repeat for system AND user journals")
+    so.add_argument("--capture", default=None)
+    so.add_argument("--channel", default="swap", choices=sorted(CHANNELS))
+    so.add_argument("--min-bytes", type=int, default=None)
+
+    sst = sub.add_parser(
+        "stability",
+        help="round 436: does the engine's verdict survive the placement the "
+             "record cannot pin?")
+    sst.add_argument("--capture", required=True)
+    sst.add_argument("--engine-journal", required=True)
+    sst.add_argument("--channel", default="steal", choices=sorted(CHANNELS))
+    sst.add_argument("--min-bytes", type=int, default=None)
+    sst.add_argument("--shifts", default="0,150,300,600,1200")
+
+    sws = sub.add_parser(
+        "wsweep",
+        help="round 436: `window` re-run at every threshold, carrying the "
+             "six-gate table -- for a channel with no derived threshold")
+    sws.add_argument("--capture", required=True)
+    sws.add_argument("--journal", default=None)
+    sws.add_argument("--channel", default="steal", choices=sorted(CHANNELS))
+    sws.add_argument("--thresholds", default=None)
+    sws.add_argument("--interval-s", type=int, default=SAR_INTERVAL_S)
+    sws.add_argument("--stitch", action="store_true")
+    sws.add_argument("--engine-journal", default=None,
+                     help="a user journal whose engine events are pooled in "
+                          "as extra fires (round 436 item 5)")
+    sws.add_argument("--completion-shift-s", type=float, default=0.0)
+    sws.add_argument("--max-family-p", type=float,
+                     default=ATTRIBUTION_MAX_FAMILY_P)
+    sws.add_argument("--min-consistency", type=float,
+                     default=ATTRIBUTION_MIN_CONSISTENCY)
+
+    sd = sub.add_parser(
+        "direct",
+        help="round 436: systemd's own per-invocation cgroup accounting, and "
+             "how it compares with the inferred verdicts")
+    sd.add_argument("--journal", action="append", required=True,
+                    metavar="FILE",
+                    help="repeat for the system AND user journals")
+    sd.add_argument("--capture", default=None,
+                    help="cross-check against the window verdicts from this "
+                         "capture")
+    sd.add_argument("--channel", default="swap", choices=sorted(CHANNELS))
+    sd.add_argument("--min-bytes", type=int, default=None)
+    sd.add_argument("--verbs", action="store_true",
+                    help="also report which units only ever say `Started`")
+
     args = p.parse_args(argv)
     if args.mode == "steps":
         table = parse_sar(_load(args.sar_r))
@@ -2739,6 +3804,132 @@ def main(argv=None) -> int:
                   f"dropped as unpaired: {frame.get('dropped_dates')}",
                   file=sys.stderr)
             return 1
+    elif args.mode == "journal":
+        text = _load(args.journal)
+        _clean, rep = dedupe_journal(text)
+        rep["user_unit_starts_services_only"] = [
+            e.label for e in parse_user_unit_starts(_clean)]
+        rep["user_unit_starts_all_kinds"] = _hist(
+            e.label for e in parse_user_unit_starts(
+                _clean, ("service", "socket", "target", "timer")))
+        rep["pid1_unit_starts_in_this_file"] = len(parse_unit_starts(_clean))
+        clean_ev = engine_event_summary(parse_engine_events(_clean,
+                                                             dedupe=False))
+        naive_ev = engine_event_summary(parse_engine_events(text,
+                                                            dedupe=False))
+        rep["engine"] = clean_ev
+        # The line-level inflation factor is the WRONG number to quote here.
+        # The redundant view is 329 of 4054 record lines (1.088x) because the
+        # file is mostly `sshd`, while the events it duplicates inflate by
+        # very nearly 2x. A reader who checks the totals sees 9% and moves on.
+        rep["engine_inflation_if_not_deduped"] = {
+            "n_events_naive": naive_ev["n_events"],
+            "n_events_deduped": clean_ev["n_events"],
+            "factor_events": (round(naive_ev["n_events"]
+                                    / clean_ev["n_events"], 4)
+                              if clean_ev["n_events"] else None),
+            "factor_record_lines": rep["inflation_factor_naive"],
+            "by_label": {k: [naive_ev["by_label"].get(k, 0), v]
+                         for k, v in clean_ev["by_label"].items()},
+            "why": ("the line-level factor is diluted by 2774 `sshd` lines "
+                    "the duplicated view does not contain; the per-EVENT "
+                    "factor is the one a count is exposed to"),
+        }
+        print(json.dumps(rep, indent=2))
+    elif args.mode == "engine":
+        text = _load(args.journal)
+        evs = parse_engine_events(text,
+                                  completion_shift_s=args.completion_shift_s)
+        out = {"completion_shift_s": args.completion_shift_s,
+               "summary": engine_event_summary(evs)}
+        if args.user_units:
+            clean, _ = dedupe_journal(text)
+            out["user_units"] = {
+                "services": _hist(e.label for e in
+                                  parse_user_unit_starts(clean)),
+                "all_kinds": _hist(
+                    e.label for e in parse_user_unit_starts(
+                        clean, ("service", "socket", "target", "timer"))),
+                "pid1_starts_found_by_parse_unit_starts":
+                    len(parse_unit_starts(clean)),
+            }
+        if args.events:
+            out["events"] = [e.as_dict() for e in evs]
+        print(json.dumps(out, indent=2))
+    elif args.mode == "place":
+        cap = args.capture
+        sar_path = (cap if cap.endswith(".txt")
+                    else os.path.join(cap, "sar-all.txt"))
+        print(json.dumps(engine_placement_sensitivity(
+            _load(args.journal), _load(sar_path),
+            channel=CHANNELS[args.channel],
+            min_bytes=(_UNSET if args.min_bytes is None else args.min_bytes),
+            shifts=tuple(float(x) for x in args.shifts.split(","))), indent=2))
+    elif args.mode == "wsweep":
+        cap = args.capture
+        sar_path = (cap if cap.endswith(".txt")
+                    else os.path.join(cap, "sar-all.txt"))
+        jrnl_path = args.journal or os.path.join(
+            os.path.dirname(sar_path) or ".", "journal-pid1-full.txt")
+        extra = ()
+        if args.engine_journal:
+            extra = parse_engine_events(
+                _load(args.engine_journal),
+                completion_shift_s=args.completion_shift_s)
+        ths = ([int(x) for x in args.thresholds.split(",")]
+               if args.thresholds
+               else [4096, 1 << 15, 1 << 17, 1 << 19, LEDGER_MIN_BYTES,
+                     1 << 23, 1 << 25, 1 << 27, 1 << 30])
+        print(json.dumps(window_sweep(
+            _load(sar_path), _load(jrnl_path), CHANNELS[args.channel], ths,
+            interval_s=args.interval_s, stitch=args.stitch,
+            extra_fires=extra, max_family_p=args.max_family_p,
+            min_consistency=args.min_consistency), indent=2))
+    elif args.mode == "direct":
+        texts = [_load(f) for f in args.journal]
+        recs = [r for t in texts for r in parse_resource_accounting(t)]
+        out = {"journals": args.journal, "direct": direct_cost_table(recs)}
+        if args.verbs:
+            out["verb_audit"] = [unit_start_verb_audit(t) for t in texts]
+        if args.capture:
+            cap = args.capture
+            sar_path = (cap if cap.endswith(".txt")
+                        else os.path.join(cap, "sar-all.txt"))
+            jrnl_path = os.path.join(os.path.dirname(sar_path) or ".",
+                                     "journal-pid1-full.txt")
+            win = window_attribution(
+                _load(sar_path), _load(jrnl_path), CHANNELS[args.channel],
+                (_UNSET if args.min_bytes is None else args.min_bytes))
+            out["cross_check"] = direct_vs_inferred(
+                win["evidence"], recs,
+                costly_threshold_bytes=(
+                    win["per_day"][0]["min_bytes"] if win["per_day"]
+                    else LEDGER_MIN_BYTES))
+        print(json.dumps(out, indent=2, default=str))
+    elif args.mode == "stability":
+        cap = args.capture
+        sar_path = (cap if cap.endswith(".txt")
+                    else os.path.join(cap, "sar-all.txt"))
+        jrnl_path = os.path.join(os.path.dirname(sar_path) or ".",
+                                 "journal-pid1-full.txt")
+        print(json.dumps(engine_verdict_stability(
+            _load(sar_path), _load(jrnl_path), _load(args.engine_journal),
+            CHANNELS[args.channel],
+            (_UNSET if args.min_bytes is None else args.min_bytes),
+            shifts=tuple(float(x) for x in args.shifts.split(","))), indent=2))
+    elif args.mode == "oom":
+        evs = [e for f in args.journal for e in parse_oom_kills(_load(f))]
+        eps = oom_episodes(evs)
+        out = {"journals": args.journal, "n_oom_lines": len(evs),
+               "n_episodes": len(eps), "episodes": eps}
+        if args.capture:
+            cap = args.capture
+            sar_path = (cap if cap.endswith(".txt")
+                        else os.path.join(cap, "sar-all.txt"))
+            out["context"] = oom_cost_context(
+                eps, _load(sar_path), CHANNELS[args.channel],
+                (_UNSET if args.min_bytes is None else args.min_bytes))
+        print(json.dumps(out, indent=2, default=str))
     elif args.mode == "timers":
         print(json.dumps([asdict(t) | {"avoidable": t.avoidable}
                           for t in NUC_TIMERS], indent=2))

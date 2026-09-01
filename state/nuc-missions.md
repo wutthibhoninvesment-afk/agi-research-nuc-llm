@@ -2160,3 +2160,184 @@ item 6, third occurrence). The authority is
   `wiring_audit refs nuc/run_checks_fast.sh --in run_driver.sh` re-derives
   **2 mentions, 1 invocation** (lines 496, 526). **Round 409 (harness A) wired
   it on 2026-08-31, `50c7bb3`.** Nothing to hand on; keep the shape.
+
+## Round 436 (NUC-integration E) — 2026-09-01, box **DOWN** the whole round; ends the 424/430 up streak on boot `f13afb47`. All findings are offline work on round 424's banked capture
+
+- **Reachability.** Two attempts, `reachability_check check --round 436` at
+  `2026-09-01T19:30:39Z` and `19:46:19Z`: ssh rc **255**
+  (`connect to host 100.78.44.111 port 22: Connection timed out`) both times,
+  `tailscale_online false`, and `tailscale_last_seen_utc` **byte-identical**
+  at `2026-09-01T18:30:00.1Z` across the two — one continuous outage, no up
+  window between the probes. Stopped after the second per CLAUDE.md's
+  two-failures rule. **Zero ssh sessions succeeded, so nothing was read from
+  or written to the box; port 8001 was never contacted and no engine request
+  of any kind was made.**
+- **Item 1 (retention) ran first and is offline.** `retention --capture
+  state/nuc-capture-r424 --next-run 2026-09-02T00:07:00Z --now
+  2026-09-01T08:18:35Z --strict` → rc 1, four deletions `sar24 sa24 sar23
+  sa23`, identical to round 430's forecast at the identical `--next-run`.
+  `tar -tJf sysstat-binary.tar.xz` = 17 members and all four are in it, so
+  **deadline notice, no loss, no fresh tar**. `earliest_loss_utc
+  2026-09-03T00:07:00Z`, `next_files_lost ["sa25","sar25"]`, both also banked.
+  Window still ends `2026-09-10T00:07:00Z`. Note `--now` should be the
+  capture's own `CAPTURED_AT` (`08:18:35Z`), not the caller's clock; both
+  resolve the same year here so nothing published moves. **And the box is
+  down: a box down at 00:07 does not sweep, so the deadline may simply slide.**
+- **ROUND 430's ITEM 5 IS REFUTED IN EVERY CLAUSE.** The user manager emits
+  **15** `Starting` lines in ten days (7 `dbus.socket`, 7
+  `gpg-agent-ssh.socket`, 1 `dbus.service`) — it cannot account for 33 costly
+  buckets. The section labelled `### USER_MANAGER` holds **no `systemd[` line
+  at all**: 329 `coli[...]` lines, the engine's own log, which is what the
+  command under it (`capture_plan` step 3b,
+  `journalctl _SYSTEMD_USER_UNIT=qwen36-colibri.service`) asks for. The
+  header records the plan's COMMENT ("the USER manager, which owns the
+  engine") and the section holds the command's OUTPUT. Round 424 identified
+  this gap correctly and banked the evidence; six rounds then cited the
+  comment's phrase instead of opening the file.
+- **The file is DUPLICATED, and the honest inflation factor is 1.99x not
+  1.088x.** `### USER_MANAGER` is a strict subset of the file's unlabelled
+  lead section. Over record lines the inflation is 1.088 (the lead holds 2774
+  `sshd` lines the view does not); over the EVENTS any count would use it is
+  **1.9917** — 482 naive against 242 real, `POST /v1/chat/completions` 363
+  against 182, weight-loads 26 against 13. And it is not uniform: the view
+  starts at `2026-08-23T21:30:22Z`, so the late window looks twice as busy as
+  the early one — an error a totals check survives. New `journal_sections` /
+  `redundant_sections` / `dedupe_journal` detect it per SECTION, never per
+  line (two real `[api]` requests can share a second).
+- **`parse_unit_starts` has been blind to a whole class of unit, and the class
+  is the one that allocates.** systemd logs `Starting` only for a unit with a
+  startup phase; a `Type=simple` unit logs `Started` alone. **6 PID-1 units
+  emit only `Started` — 40 fires absent from every ledger this program has
+  published** (`cron`, `dmesg`, `getty@tty1`, `netplan-wpa-wlp58s0`,
+  `systemd-fsckd`, **`unattended-upgrades`**), plus 4 more in the user journal
+  for **24 further fires**, including `qwen36-colibri` × 13. New
+  `unit_start_verb_audit` + `parse_unit_starts_complete` (a SECOND PASS, not a
+  looser regex; `parse_unit_starts` is untouched so nothing published moves).
+  **Honest null: the 40 recovered PID-1 fires change the swap coverage by
+  zero** — 19 of 52 buckets before and after.
+- **SYSTEMD MEASURED ALL OF IT DIRECTLY AND NOBODY HAD READ THE LINES.**
+  `<unit>: Consumed <cpu> CPU time, <X> memory peak, <Y> memory swap peak` is
+  per-invocation cgroup accounting — no bucket, no threshold, no confounder,
+  no hypergeometric null. 57 records, 19 units, 8 with memory:
+  **`qwen36-colibri` 30.0 GiB peak / 3.9 GiB swap peak** on a 31.2 GiB box;
+  `colibri-glm` (the `:8001` lane) 24.0 GiB / 0 B; `apt-daily-upgrade`
+  446.9 MiB / **0 B**; `fwupd` 209.7 MiB / **6.2 MiB**. `direct_vs_inferred`:
+  **0 contradictions**, coverage 4 of 26 graded units — and **13 units carry a
+  measurement and were never graded at all**. Round 430's "DROP the fwupd
+  attribution" is independently corroborated at a factor of **644**;
+  `apt-daily-upgrade`, one gate from `supported`, swapped **0 B** and was
+  measured doing so.
+- **The 33 unnamed costly buckets are 73.3 % of every swapped byte.** K = 52
+  holding 31.53 GiB. The published fire population names 19 buckets and
+  **26.7 %** of the bytes; engine events ALONE name 18 and **53.2 %**; both
+  together name 33 and 75.0 %. Adding the engine names **14 of the 33**
+  (15.23 GiB); **7 of those (10.82 GiB) survive every placement shift**;
+  **14 buckets / 4.25 GiB are still named by nothing**, the largest
+  `2026-08-23 21:20:02` at 2.34 GiB.
+- **Item 4 done: the steal channel, pooled and swept.** New `window_sweep`
+  (frame + threshold sweep + the six-gate table at each threshold, which
+  `channel_sweep` did not carry). Frame 10/10 paired, N 991, `--inflation`
+  0 dropped days. **`supported: []` at all nine thresholds and
+  `verdict_is_a_setting: False`** — five decades of threshold and the verdict
+  does not move, so on steal it is a fact about the record. **K is flat at 108
+  from one page to 4.8 MB**: there is no small-reclaim population on this box,
+  which is *why* no noise/real pair exists to derive a threshold from. The
+  blocking gate is **`separable`** at every threshold, naming **the same three
+  units as the swap channel** (`apt-news`, `esm-cache`, `packagekit`) — the
+  gate that blocks this deployment is channel-invariant.
+- **FIRST `supported` VERDICT THIS TRACK HAS EVER PRODUCED.** With 242 engine
+  events pooled in (26 → 31 hypotheses, so Bonferroni TIGHTENS and no
+  incumbent's p falls), on the steal channel at `min_bytes 4096`:
+  **`engine:chat-completion` — 181 fires, 44/991 buckets, 166 costly, 105 in a
+  bucket it holds ALONE, consistency 0.917, `p_family` 4.5e-32.** Previous
+  best on any channel was `packagekit` at 5.35e-06, which failed separability.
+  Stress-tested at five placements of a completion-semantics event
+  (`engine_verdict_stability`): **supported at 4 of 5**, `p_family ≤ 3.3e-14`
+  at each, and consistency falls **monotonically** (0.917 → 0.901 → 0.841 →
+  0.626 → 0.356) as the event is moved away from where it was logged — the
+  record choosing the placement, not the analyst.
+- **The two channels disagree, and the disagreement is the physics.** On SWAP,
+  `engine:chat-completion` is `coincidence` at every placement (consistency
+  0.34) and `supported` appears only for `engine:completion` at exactly one
+  shift — refused as a verdict. **An inference request reliably causes page
+  reclaim (92 %) and only sometimes causes swap-out (34 %).** Round 418's
+  claim that `pgsteal` sees what the other two channels are blind to is
+  confirmed against a workload for the first time.
+  `engine:listen`/`engine:weights-load` are `shared-only` at every placement
+  on both channels and always will be: 5 s apart, one 600 s bucket.
+- **THE BOX OOM-KILLED THREE TIMES IN THE WINDOW AND NO ROUND HAD GREPPED FOR
+  THE WORD — once the victim was the ENGINE.** `2026-08-23T21:28:09Z`
+  (`tmux-spawn-….scope`), **`2026-08-24T10:34:11Z`
+  (`qwen36-colibri.service: Failed with result 'oom-kill'`)**,
+  `2026-08-25T00:37:03Z` (no unit reported `Failed`, so a bare process inside
+  a surviving cgroup). New `parse_oom_kills` + `oom_episodes`: **10 lines, 3
+  episodes** — "A process of this unit has been killed" fires for every cgroup
+  ANCESTOR and in BOTH journals, so line-counting would report ten. The first
+  two land in the record's **3rd and 5th largest** costly swap buckets of 52
+  (2.94 and 2.63 GiB, with 8.21 and 6.97 GiB in their ±30 min windows; 14th
+  and 24th of 108 on steal, 27.17 and 15.45 GiB). The third has no covering
+  bucket with a defined cost — `sa25` has two `LINUX RESTART`s — and
+  `oom_cost_context` says so rather than reporting zero. **The largest costly
+  bucket no fire explains (`2026-08-23 21:20:02`, 2.34 GiB) is the run-up to
+  the first episode: not a fire, and never will be one.**
+- **This is the evidence `--cap 196` never had.** The engine's directly
+  measured footprint is 30.0 GiB peak on a 31.2 GiB box and the OOM killer has
+  already fired at it. The twentieth-round-unchanged recommendation is no
+  longer a projection about a margin — the configuration has gone through the
+  ceiling, with the engine as victim. Caveat honestly: three observations, two
+  of them on the window's two busiest days. Not a rate.
+- **A hunch checked and dropped.** The record's biggest costly bucket
+  (2026-08-23 15:00:03, 3.90 GiB) and the engine's 3.9 GiB swap peak are the
+  same number to three significant figures and are NOT the same event — the
+  peaks are logged 08-25 and 08-26, and on 08-23 the resident model was
+  `colibri-glm` with a measured swap peak of 0 B. One grep, not published.
+- **Predictions (D-013):** `nuc/predictions-e-round436.md`, written before the
+  first ssh and before any capture byte was read. **21 HIT / 2 PARTIAL /
+  7 MISS / 6 unevaluable of 36.** Five of the seven misses share one
+  mechanism: I predicted the CONTENTS of a file nobody had opened, from round
+  430's prose about it. Everything predicted from a banked COMMAND hit;
+  everything predicted from a banked SENTENCE missed.
+- **Artifacts:** `nuc/perturbation.py` 2749 → 3940 (17 new functions, 7 new
+  CLI verbs: `journal`, `engine`, `place`, `direct`, `wsweep`, `stability`,
+  `oom`); `nuc/tests/test_perturbation.py` 2035 → 2429; **tests 753 → 794, all
+  green** (`794 passed in 84.54s`); `corpus_check` 10 checkers, 0 errors, 6
+  warnings, `894 passed`; prediction bank registered in
+  `state/prediction-bank-ledger.json` (round 435's K001 rule); `skill_lint skills --house --strict` 77 skills,
+  **0 errors, 0 warnings**; `skills/matcher-defines-the-population/` (new,
+  3 positive trigger cases, registered in `state/known-unprobed-skills.json`);
+  `knowledge/round-436-the-population-the-regex-chose.md`.
+- **E-mission status: E1-E5 all still DONE; nothing new unchecked.** The work
+  is the standing analysis programme in these addenda.
+- **Next E round, in order:** (1) `retention --strict` FIRST, with `--now` =
+  the capture's own `CAPTURED_AT`; (2) **re-capture and fix three things in
+  `capture_plan`** — step 3b's comment says "the USER manager" where the
+  command asks for the engine unit; the plan emits no `###` header for that
+  file, which is how two views ended up concatenated with only the second
+  labelled; and it should capture the wide user journal OR the narrow
+  engine-unit one but not both in one file. Add
+  `_SYSTEMD_USER_UNIT=qwen36-toolproxy.service` — it has its own `Consumed`
+  records and 9 invisible `Started` fires; (3) the `%vmeff` residual is still
+  one read-only command away on a box that has RECLAIMED — check
+  `pgsteal_kswapd > 0` first, the test has now been vacuous three times;
+  (4) **run the engine against the `commit` channel** — a 9.25 GB weights load
+  should be visible to `kbcommit` where it is `shared-only` on steal and swap,
+  and if it is not that is a finding about the channel; (5) **treat the
+  `Consumed` accounting as a channel in its own right** — build the ledger
+  that uses it as the outcome variable and compare rankings; establish on the
+  box (read-only) which units have `MemoryAccounting=` on, since coverage is
+  only 4 of 26; (6) **14 costly buckets / 4.25 GiB named by no FIRE** — but the
+  largest is the run-up to an OOM episode, so ask how many of the other 13 sit
+  inside an OOM or restart window before calling them unexplained;
+  `journal-pid1-full.txt` has never been read for anything but `Starting`
+  lines, and `session-*.scope` records (474.0M and 208.7M peaks) were skipped
+  by this round's `.service`-only default; (7) still blocked on the operator:
+  `--cap 196` (band [129, 204], `bounded_by: engine_lru`, 1.096 GB margin —
+  **twentieth** round unchanged) and the E3 A/B, which must publish its full
+  six-gate table; (8) retire round 370's item 3 (names a log line this config
+  does not emit) — carried untouched for eleven E rounds, untouched again
+  here; (9) **the separability route is open and nobody has walked it** —
+  round 430 called separability "the whole game" and the engine cleared that
+  gate with 105 sole-occupied buckets, so the record CAN separate when the
+  population holds something firing off the housekeeping cadence. The sub-600 s
+  time base for the apt trio, and round 424's banked `Stopped`/`Stopping`
+  lines, are still unused.

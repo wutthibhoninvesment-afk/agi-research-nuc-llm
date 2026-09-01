@@ -2033,3 +2033,397 @@ def test_round_424s_numerator_finding_is_untouched_by_the_new_half():
     assert d["literal_route"] == "double-counted"
     assert d["divisor"] == 2
     assert pt.scan_undercount_evidence(lits, vm)["n_omitted"] == 1
+
+
+# ======================================================== round 436
+# The file round 430 said held the user manager, the verb `parse_unit_starts`
+# cannot see, and the direct measurement that was in the record all along.
+
+_USER436 = (_CAP430 / "journal-user-full.txt").read_text()
+
+
+def test_a_journal_with_one_header_has_3731_lines_above_it():
+    """`sar_sections` returns {} for text whose first byte is not a header, and
+    on this file that silently discards 92% of it."""
+    assert pt.sar_sections(_USER436).get(pt.JOURNAL_LEAD_SECTION) is None
+    secs = pt.journal_sections(_USER436)
+    assert list(secs) == [pt.JOURNAL_LEAD_SECTION, "USER_MANAGER"]
+    assert len(secs[pt.JOURNAL_LEAD_SECTION].splitlines()) > 3000
+
+
+def test_the_section_labelled_user_manager_is_a_copy_of_earlier_text():
+    dup = pt.redundant_sections(pt.journal_sections(_USER436))
+    assert dup == {"USER_MANAGER": pt.JOURNAL_LEAD_SECTION}
+
+
+def test_a_section_that_adds_one_line_is_not_redundant():
+    """Subset, not overlap. A view that contributes anything is kept whole."""
+    secs = {"a": "x\ny", "b": "x\ny\nz"}
+    assert pt.redundant_sections(secs) == {}
+    assert pt.redundant_sections({"a": "x\ny\nz", "b": "x\ny"}) == {"b": "a"}
+
+
+def test_boot_separators_are_not_records():
+    secs = {"a": "-- Boot " + "0" * 32 + " --\nx", "b": "x"}
+    assert pt.redundant_sections(secs) == {"b": "a"}
+
+
+def test_the_line_level_inflation_hides_the_event_level_one():
+    """1.088x over record lines, 1.99x over the events a count would use --
+    because the duplicated view holds none of the file's 2774 sshd lines."""
+    _clean, rep = pt.dedupe_journal(_USER436)
+    assert rep["n_redundant_sections"] == 1
+    assert rep["n_record_lines_dropped"] == 329
+    assert 1.08 < rep["inflation_factor_naive"] < 1.09
+    naive = pt.engine_event_summary(pt.parse_engine_events(_USER436,
+                                                           dedupe=False))
+    clean = pt.engine_event_summary(pt.parse_engine_events(_USER436))
+    assert naive["n_events"] == 482 and clean["n_events"] == 242
+    assert 1.99 < naive["n_events"] / clean["n_events"] < 2.0
+
+
+def test_dedupe_is_per_section_so_a_repeated_second_survives():
+    """Two genuine requests can share a second; a line-level dedup would
+    delete the second one and a section-level dedup cannot."""
+    line = ('2026-08-24T10:00:00+00:00 h coli[1]: [api] 127.0.0.1 - '
+            '"POST /v1/chat/completions HTTP/1.1" 200 -')
+    assert len(pt.parse_engine_events(line + "\n" + line)) == 2
+
+
+# ---- round 430's item 5, measured and refuted
+
+def test_the_user_manager_starts_fifteen_things_in_ten_days():
+    clean, _ = pt.dedupe_journal(_USER436)
+    allk = pt.parse_user_unit_starts(
+        clean, ("service", "socket", "target", "timer"))
+    assert len(allk) == 15
+    assert sum(1 for e in allk if e.label.endswith(".socket")) == 14
+    assert [e.label for e in pt.parse_user_unit_starts(clean)] == \
+        ["user:dbus.service"]
+
+
+def test_parse_unit_starts_finds_nothing_in_the_user_journal():
+    """Why 456 kB contributed nothing to any published number."""
+    assert pt.parse_unit_starts(_USER436) == []
+
+
+def test_user_unit_labels_can_never_collide_with_a_pid1_unit():
+    line = ("2026-08-24T10:00:00+00:00 h systemd[998]: Starting "
+            "cron.service - x")
+    assert [e.label for e in pt.parse_user_unit_starts(line)] == \
+        ["user:cron.service"]
+
+
+# ---- what the file actually holds
+
+def test_the_engine_log_is_what_the_user_journal_holds():
+    s = pt.engine_event_summary(pt.parse_engine_events(_USER436))
+    assert s["by_label"] == {
+        "engine:api-other": 8, "engine:chat-completion": 182,
+        "engine:completion": 25, "engine:listen": 13,
+        "engine:listen:8001": 1, "engine:weights-load": 13}
+    assert s["n_completion_semantics"] == 228
+    assert s["n_with_derivable_start"] == 13
+
+
+def test_the_frontier_lane_gets_its_own_label():
+    """A :8001 listen is a different model with a different resident size;
+    pooling it with qwen36 would average 24.0 GB against 9.25 GB."""
+    labels = {e.label for e in pt.parse_engine_events(_USER436)}
+    assert pt.FRONTIER_PORT == "8001"
+    assert "engine:listen:8001" in labels
+
+
+def test_a_load_line_carries_its_own_duration_so_the_start_is_derived():
+    line = ("2026-08-23T21:30:35+00:00 h coli[5986]: resident weights loaded "
+            "in 13.2s | RSS after load: 9.25 GB")
+    e = pt.parse_engine_events(line)[0]
+    assert e.logged_utc == "2026-08-23T21:30:35Z"
+    assert e.at_utc == "2026-08-23T21:30:22Z"
+    assert e.duration_s == 13.2 and e.semantics == "completion"
+
+
+def test_shifting_a_completion_across_midnight_moves_the_date():
+    line = ('2026-08-24T00:02:00+00:00 h coli[1]: [api] 127.0.0.1 - '
+            '"POST /v1/chat/completions HTTP/1.1" 200 -')
+    assert pt.parse_engine_events(line, completion_shift_s=300)[0].at_utc == \
+        "2026-08-23T23:57:00Z"
+
+
+def test_completion_shift_defaults_to_the_only_placement_the_record_states():
+    e = pt.parse_engine_events(_USER436)
+    assert all(x.at_utc == x.logged_utc for x in e if x.duration_s == 0)
+
+
+# ---- the verb `parse_unit_starts` cannot see
+
+def test_six_pid1_units_only_ever_say_started():
+    a = pt.unit_start_verb_audit(_JRNL430)
+    assert a["n_units_with_starting"] == 74
+    assert a["n_starting_fires"] == 1652
+    assert sorted(a["units_started_only"]) == [
+        "cron", "dmesg", "getty@tty1", "netplan-wpa-wlp58s0",
+        "systemd-fsckd", "unattended-upgrades"]
+    assert a["n_fires_invisible_to_parse_unit_starts"] == 40
+
+
+def test_the_engine_unit_is_started_never_starting():
+    """`qwen36-colibri` restarts 13 times in the window and no ledger has ever
+    held one of them: it is a user unit AND it never says `Starting`."""
+    a = pt.unit_start_verb_audit(_USER436)
+    assert a["units_started_only"]["qwen36-colibri"] == 13
+    assert a["n_units_with_starting"] == 1          # only `dbus`
+    assert "Starting qwen36-colibri" not in _USER436
+    assert pt.parse_unit_starts_complete(_USER436) == []   # not a PID-1 unit
+
+
+def test_complete_starts_adds_the_missing_fires_and_doubles_nothing():
+    base = pt.parse_unit_starts(_JRNL430)
+    full = pt.parse_unit_starts_complete(_JRNL430)
+    assert len(full) - len(base) == 40
+    from collections import Counter
+    b, f = Counter(e.label for e in base), Counter(e.label for e in full)
+    for unit in b:
+        assert f[unit] == b[unit], unit
+
+
+def test_complete_starts_is_identical_where_every_unit_announces_itself():
+    txt = ("2026-08-24T10:00:00+00:00 h systemd[1]: Starting a.service - x\n"
+           "2026-08-24T10:00:01+00:00 h systemd[1]: Started a.service - x\n")
+    assert [e.label for e in pt.parse_unit_starts_complete(txt)] == ["a"]
+
+
+# ---- the direct measurement
+
+def test_systemd_measured_the_engine_at_thirty_gigabytes():
+    recs = pt.parse_resource_accounting(_USER436)
+    t = pt.direct_cost_table(recs)
+    eng = [u for u in t["units"] if u["unit"] == "qwen36-colibri"][0]
+    assert eng["max_memory_peak_bytes"] == 30 * 1024 ** 3
+    assert eng["max_swap_peak_bytes"] == pt.parse_size("3.9G")
+    assert eng["n_invocations"] == 9 and eng["n_with_memory"] == 4
+
+
+def test_slices_and_scopes_are_excluded_or_the_engine_is_counted_twice():
+    """`app.slice` reports the same 30.0G as the engine inside it."""
+    recs = pt.parse_resource_accounting(_USER436)
+    assert not any(r.unit.endswith((".slice", ".scope")) for r in recs)
+    both = pt.parse_resource_accounting(_USER436,
+                                        kinds=("service", "slice"))
+    assert any(r.unit == "app.slice" for r in both)
+
+
+def test_size_and_cpu_literals():
+    assert pt.parse_size("0B") == 0
+    assert pt.parse_size("412.0K") == 421888
+    assert pt.parse_size("30.0G") == 32212254720
+    assert pt._parse_cpu("1h 14min 23.699s") == 4463.699
+    assert pt._parse_cpu("3.661s") == 3.661
+    with pytest.raises(pt.PerturbationError):
+        pt.parse_size("30.0Q")
+    with pytest.raises(pt.PerturbationError):
+        pt._parse_cpu("no time here")
+
+
+def test_the_direct_measurement_never_contradicts_an_inferred_verdict():
+    recs = [r for t in (_JRNL430, _USER436)
+            for r in pt.parse_resource_accounting(t)]
+    win = pt.window_attribution(_SAR430, _JRNL430)
+    x = pt.direct_vs_inferred(win["evidence"], recs)
+    assert x["n_contradictions"] == 0
+    assert x["n_graded_units"] == 26
+    assert x["n_with_a_direct_measurement"] == 4
+
+
+def test_the_biggest_thing_on_the_box_was_never_graded_at_all():
+    """13 units carry a cgroup measurement and were never in any ledger --
+    including the one with the largest memory peak on the machine."""
+    recs = [r for t in (_JRNL430, _USER436)
+            for r in pt.parse_resource_accounting(t)]
+    win = pt.window_attribution(_SAR430, _JRNL430)
+    x = pt.direct_vs_inferred(win["evidence"], recs)
+    assert "qwen36-colibri" in x["units_never_graded_but_measured"]
+    assert len(x["units_never_graded_but_measured"]) == 13
+
+
+def test_apt_daily_upgrade_swapped_nothing_it_was_measured_doing_so():
+    """One gate from `supported` on the inferential side, and 0 B of swap on
+    the direct one. The bucket moved 3.9 GiB; this unit did not."""
+    recs = pt.parse_resource_accounting(_JRNL430)
+    t = pt.direct_cost_table(recs)
+    u = [x for x in t["units"] if x["unit"] == "apt-daily-upgrade"][0]
+    assert u["max_swap_peak_bytes"] == 0
+    assert u["max_memory_peak_bytes"] == pt.parse_size("446.9M")
+
+
+def test_fwupd_is_three_orders_below_the_engine_and_round_430_was_right():
+    recs = [r for t in (_JRNL430, _USER436)
+            for r in pt.parse_resource_accounting(t)]
+    by = {u["unit"]: u for u in pt.direct_cost_table(recs)["units"]}
+    assert by["fwupd"]["max_swap_peak_bytes"] == pt.parse_size("6.2M")
+    assert (by["qwen36-colibri"]["max_swap_peak_bytes"]
+            > 600 * by["fwupd"]["max_swap_peak_bytes"])
+
+
+# ---- round 430 item 4: the steal channel, swept
+
+def test_the_steal_window_pairs_the_same_ten_days_as_swap():
+    f = pt.window_frame(_SAR430, _JRNL430, pt.STEAL_CHANNEL)
+    assert f["section_prefix"] == "SAR_B_"
+    assert f["n_day_files"] == 10 and f["n_paired"] == 10
+    assert f["n_buckets_poolable"] == 991
+
+
+def test_the_steal_verdict_is_not_a_setting():
+    """`supported: []` on steal holds across five decades of threshold, so it
+    is a fact about the record and not about `min_bytes`."""
+    sw = pt.window_sweep(_SAR430, _JRNL430, pt.STEAL_CHANNEL,
+                         [4096, 1 << 19, pt.LEDGER_MIN_BYTES, 1 << 25, 1 << 30])
+    assert sw["supported_at_any_threshold"] == []
+    assert sw["verdict_is_a_setting"] is False
+    assert sw["n_thresholds_where_all_gates_reachable"] == 0
+    assert sw["blocking_gates_seen"] == ["separable"]
+
+
+def test_reclaim_on_this_box_is_never_small():
+    """K is flat at 108 from one page to 4.8 MB: there is no small-reclaim
+    population, which is why no noise/real pair could be derived for it."""
+    sw = pt.window_sweep(_SAR430, _JRNL430, pt.STEAL_CHANNEL,
+                         [4096, 1 << 17, 1 << 19, pt.LEDGER_MIN_BYTES])
+    assert {r["n_costly_buckets"] for r in sw["rows"]} == {108}
+
+
+def test_the_blocking_gate_is_the_same_on_a_channel_it_was_never_run_on():
+    sw = pt.window_sweep(_SAR430, _JRNL430, pt.STEAL_CHANNEL, [4096])
+    r = sw["rows"][0]
+    assert r["pass_counts"]["separable"] == 4
+    assert r["single_gate_from_supported"] == {
+        "separable": ["apt-news", "esm-cache", "packagekit"]}
+
+
+# ---- the first supported verdict this track has produced
+
+def test_the_engine_is_supported_on_steal_and_not_on_swap():
+    st = pt.engine_verdict_stability(_SAR430, _JRNL430, _USER436,
+                                     pt.STEAL_CHANNEL, 4096)
+    sw = pt.engine_verdict_stability(_SAR430, _JRNL430, _USER436,
+                                     pt.SWAP_CHANNEL)
+    assert st["supported_at_a_majority"] == ["engine:chat-completion"]
+    assert sw["supported_at_a_majority"] == []
+
+
+def test_the_verdict_survives_four_of_five_placements():
+    st = pt.engine_verdict_stability(_SAR430, _JRNL430, _USER436,
+                                     pt.STEAL_CHANNEL, 4096)
+    row = [r for r in st["labels"]
+           if r["label"] == "engine:chat-completion"][0]
+    assert row["n_shifts_supported"] == 4
+    assert row["verdicts"][-1] == "coincidence"
+    assert row["consistency_falls_monotonically_with_shift"]
+    assert row["series"][0]["n_clean"] == 105
+    assert row["series"][0]["p_family"] < 1e-30
+
+
+def test_a_load_and_its_listen_are_inseparable_by_construction():
+    """Five seconds apart, always in the same bucket: `shared-only` at every
+    placement and on both channels, and no widening can fix it."""
+    for ch, mb in ((pt.STEAL_CHANNEL, 4096), (pt.SWAP_CHANNEL, None)):
+        st = pt.engine_verdict_stability(
+            _SAR430, _JRNL430, _USER436, ch,
+            pt._UNSET if mb is None else mb)
+        for label in ("engine:listen", "engine:weights-load"):
+            row = [r for r in st["labels"] if r["label"] == label][0]
+            assert set(row["verdicts"]) == {"shared-only"}
+
+
+def test_the_stability_cli_runs_on_the_banked_capture():
+    out = subprocess.run(
+        [sys.executable, "nuc/perturbation.py", "stability",
+         "--capture", str(_CAP430), "--engine-journal",
+         str(_CAP430 / "journal-user-full.txt"),
+         "--channel", "steal", "--min-bytes", "4096"],
+        capture_output=True, text=True, check=True)
+    d = json.loads(out.stdout)
+    assert d["supported_at_a_majority"] == ["engine:chat-completion"]
+
+
+def test_the_journal_cli_reports_the_duplicate_and_the_refutation():
+    out = subprocess.run(
+        [sys.executable, "nuc/perturbation.py", "journal", "--journal",
+         str(_CAP430 / "journal-user-full.txt")],
+        capture_output=True, text=True, check=True)
+    d = json.loads(out.stdout)
+    assert d["redundant_sections"] == {"USER_MANAGER": pt.JOURNAL_LEAD_SECTION}
+    assert d["pid1_unit_starts_in_this_file"] == 0
+    assert sum(d["user_unit_starts_all_kinds"].values()) == 15
+
+
+# ---- round 436: the OOM kills nobody had grepped for
+
+def test_the_box_oom_killed_three_times_in_ten_days():
+    evs = [e for t in (_JRNL430, _USER436) for e in pt.parse_oom_kills(t)]
+    assert len(evs) == 10
+    eps = pt.oom_episodes(evs)
+    assert len(eps) == 3
+    assert [e["first_utc"] for e in eps] == [
+        "2026-08-23T21:28:09Z", "2026-08-24T10:34:11Z",
+        "2026-08-25T00:37:03Z"]
+
+
+def test_one_of_them_names_the_engine():
+    evs = [e for t in (_JRNL430, _USER436) for e in pt.parse_oom_kills(t)]
+    eps = pt.oom_episodes(evs)
+    assert eps[1]["named_victim"] == "qwen36-colibri.service"
+    assert eps[1]["managers"] == ["system", "user"]
+
+
+def test_ten_lines_are_three_kills_because_ancestors_report_too():
+    """`A process of this unit has been killed` fires for every cgroup
+    ancestor and in BOTH journals; only `Failed with result 'oom-kill'` names
+    the unit that actually died."""
+    evs = [e for t in (_JRNL430, _USER436) for e in pt.parse_oom_kills(t)]
+    assert sum(1 for e in evs if e.kind == pt.OOM_FAILED) == 2
+    assert sum(1 for e in evs if e.kind == pt.OOM_KILLED) == 8
+    eps = pt.oom_episodes(evs)
+    assert eps[2]["named_victim"] is None
+    assert "cgroup that survived" in eps[2]["why"]
+
+
+def test_two_oom_episodes_land_in_the_records_biggest_buckets():
+    evs = [e for t in (_JRNL430, _USER436) for e in pt.parse_oom_kills(t)]
+    ctx = pt.oom_cost_context(pt.oom_episodes(evs), _SAR430)
+    assert ctx["n_episodes_in_a_costly_bucket"] == 2
+    assert ctx["n_episodes_with_no_covering_bucket"] == 1
+    ranks = [r["rank_among_costly"] for r in ctx["episodes"]]
+    assert ranks == [3, 5, None]
+    assert ctx["episodes"][0]["n_costly_buckets"] == 52
+
+
+def test_the_third_episode_reports_why_it_has_no_bucket():
+    evs = [e for t in (_JRNL430, _USER436) for e in pt.parse_oom_kills(t)]
+    ctx = pt.oom_cost_context(pt.oom_episodes(evs), _SAR430)
+    r = ctx["episodes"][2]
+    assert r["bucket"] is None and r["bytes_in_window"] == 0
+    assert "post-restart row" in r["why_no_bucket"]
+
+
+def test_a_steal_context_needs_its_threshold_stated():
+    evs = [e for t in (_JRNL430, _USER436) for e in pt.parse_oom_kills(t)]
+    eps = pt.oom_episodes(evs)
+    with pytest.raises(pt.PerturbationError):
+        pt.oom_cost_context(eps, _SAR430, pt.STEAL_CHANNEL)
+    ctx = pt.oom_cost_context(eps, _SAR430, pt.STEAL_CHANNEL, min_bytes=4096)
+    assert ctx["min_bytes"] == 4096
+    assert [r["rank_among_costly"] for r in ctx["episodes"]] == [14, 24, None]
+
+
+def test_the_oom_cli_runs_on_the_banked_capture():
+    out = subprocess.run(
+        [sys.executable, "nuc/perturbation.py", "oom",
+         "--journal", str(_CAP430 / "journal-pid1-full.txt"),
+         "--journal", str(_CAP430 / "journal-user-full.txt"),
+         "--capture", str(_CAP430)],
+        capture_output=True, text=True, check=True)
+    d = json.loads(out.stdout)
+    assert d["n_oom_lines"] == 10 and d["n_episodes"] == 3
+    assert d["context"]["n_episodes_in_a_costly_bucket"] == 2

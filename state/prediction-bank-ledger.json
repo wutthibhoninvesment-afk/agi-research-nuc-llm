@@ -849,6 +849,14 @@
    "where": "knowledge/round-434-the-last-precondition-and-the-registry-that-could-only-lose.md",
    "quote": "**11 HIT, 1 MISS of 12.**",
    "note": "Registered by round 435 (skills B), one round late. The single MISS (K8) is a prediction about the round's OWN blast radius -- it named one test that would break and three did, all three for the right reason."
+  },
+  "436": {
+   "bank": "nuc/predictions-e-round436.md",
+   "status": "scored",
+   "scored_by": 436,
+   "where": "knowledge/round-436-the-population-the-regex-chose.md",
+   "quote": "**21 HIT / 2 PARTIAL / 7 MISS / 6 unevaluable, of 36.**",
+   "remainder": "Six are UNEVALUABLE and named as such rather than scored: A2, A3, B5, C2 and C3 all needed a live box and the box was DOWN for the whole round (two ssh attempts, rc 255, tailscale_last_seen byte-identical). C1 is scored HIT from the banked PROC_VMSTAT_RECLAIM_FIELDS on the same kernel and boot rather than from a live read, and is flagged as such in the table."
   }
  }
 }
