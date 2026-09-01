@@ -1,0 +1,53 @@
+{
+ "_comment": "Content-pinned acknowledgements for placeholder_check.py (round 429). Each entry says WHY a template token in the permanent record cannot be filled. `hash` is sha256[:16] of the 7 lines centred on the hole (placeholder_check.context_hash), NOT the path or the line number: edit that passage and the acknowledgement expires as U003 instead of muting the location forever -- see skills/content-pinned-acknowledgement. `line_when_pinned` is a human breadcrumb and is never matched on. All six entries here are historical: every one belongs to a session that ended before its measurement landed, and each reason states what was checked to conclude the number is unrecoverable rather than merely inconvenient. A SEVENTH hole is an ERROR, which is the whole point -- do not add an entry to make a fresh round's own unfinished run go quiet.",
+ "acknowledged": [
+  {
+   "path": "knowledge/round-005-swe-loop-fuzz-mutate-kill.md",
+   "token": "AFTER_TESTS_PLACEHOLDER",
+   "hash": "a9175272146644b3",
+   "line_when_pinned": 56,
+   "since_round": 429,
+   "reason": "Round 005 (SWE-loop D) meant to paste a post-fix mutation re-run here and the session ended first. The v0.3 interpreter it mutated no longer exists and no round-005 campaign artefact survives under logs/mutation/, so the number is not recoverable. Verified round 429."
+  },
+  {
+   "path": "knowledge/round-005-swe-loop-fuzz-mutate-kill.md",
+   "token": "METRICS_PLACEHOLDER",
+   "hash": "a3e516b75b009a56",
+   "line_when_pinned": 126,
+   "since_round": 429,
+   "reason": "Same session, same cause: the '## Metrics summary' heading was written before the metrics existed. Round 005's own prose above it carries the survivor analysis, which is the part that was actually measured. Verified round 429."
+  },
+  {
+   "path": "knowledge/round-009-whence-v04-fast-path-merged-history.md",
+   "token": "MUTATION_RESULT_PLACEHOLDER",
+   "hash": "23b27523e037d91b",
+   "line_when_pinned": 162,
+   "since_round": 429,
+   "reason": "Round 009's mutation score on the v0.4 whence/interp.py. That file is 32 SPEC levels gone; re-running the campaign today would measure a different program and would not be round 009's number. Unrecoverable by design of the question. Verified round 429."
+  },
+  {
+   "path": "knowledge/round-011-swe-loop-oracles-model-review.md",
+   "token": "LIVE_PLACEHOLDER",
+   "hash": "4bd12d283dc148a3",
+   "line_when_pinned": 100,
+   "since_round": 429,
+   "reason": "Round 011's live-model section. state/research-state-archive.md:79 independently records this: 'knowledge/round-011 exists but holds LIVE_PLACEHOLDER/MUTATION_PLACEHOLDER -- the live-model and mutation sections never finalized.' Adjudicated by round 014, re-verified 429."
+  },
+  {
+   "path": "knowledge/round-011-swe-loop-oracles-model-review.md",
+   "token": "MUTATION_PLACEHOLDER",
+   "hash": "87537e00a112d244",
+   "line_when_pinned": 103,
+   "since_round": 429,
+   "reason": "The second half of the same round-014 adjudication at state/research-state-archive.md:79. Re-verified round 429."
+  },
+  {
+   "path": "state/research-state.md",
+   "token": "TEST_RESULT_PLACEHOLDER",
+   "hash": "04fc25f7ce61704e",
+   "line_when_pinned": 667,
+   "since_round": 429,
+   "reason": "Round 205 launched harness/tests/ in the background and the session ended before it landed -- the entry says so in its own sentence ('third round in a row attempting this confirmation'). Found by round 415 after 222 rounds and deliberately left in place by rounds 415, 427 and 428: filling it now would be inventing a result for a run nobody saw. It is the load-bearing example of why this check exists."
+  }
+ ]
+}

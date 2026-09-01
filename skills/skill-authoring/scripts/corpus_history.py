@@ -105,6 +105,9 @@ CARRYFORWARD = "skills/skill-authoring/scripts/carryforward_check.py"
 # It audits `harness/`'s wired entry points, and round 421 found that nothing
 # read its number, so it joined `corpus_check.py`'s list.
 VERB_AUDIT = "harness/verb_audit.py"
+# Round 429. Unfilled template tokens in `knowledge/` and `state/`. Its
+# reads are already inside READ_SET, so nothing there changes.
+PLACEHOLDER_CHECK = "skills/skill-authoring/scripts/placeholder_check.py"
 
 # v2 (round 387). The replay ran TWO checkers; `run_checks_fast.sh`, shipped
 # by the SAME round (363), runs seven. Over rounds 364-386 -- the whole window
@@ -122,7 +125,7 @@ VERB_AUDIT = "harness/verb_audit.py"
 CHECKER_SETS = {
     "core": (SKILL_LINT, CASE_COVERAGE),
     "all": (SKILL_LINT, CASE_COVERAGE, CLAIM_CHECK, STATE_CLAIM_CHECK,
-            XREF_CHECK, CARRYFORWARD, VERB_AUDIT),
+            XREF_CHECK, CARRYFORWARD, PLACEHOLDER_CHECK, VERB_AUDIT),
 }
 
 # Paths every checker in `all` reads, for `--scope read`. Round 363's filter

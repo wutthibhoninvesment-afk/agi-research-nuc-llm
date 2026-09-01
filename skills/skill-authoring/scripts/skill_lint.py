@@ -29,6 +29,7 @@ House format (--house; this workspace's CLAUDE.md rule 5):
 """
 
 import argparse
+import glob
 import os
 import re
 import sys
@@ -136,6 +137,50 @@ def strip_fenced_code(body):
 
 DUP_MIN_CHARS = 120
 SKIP_DIRS = {"__pycache__", ".git", "node_modules"}
+
+
+VERIF_HEADING_RE = re.compile(r"^(#{1,6})\s+(.*verif.*)$", re.I | re.M)
+ANY_HEADING_RE = re.compile(r"^(#{1,6})\s+", re.M)
+# A fenced line that INVOKES something, as opposed to one that shows output,
+# a diff, JSON, or a fragment of Python source. Round 429: this is the whole
+# discriminator behind H006, and it was chosen by measurement, not taste.
+# `filter-shares-the-defect`'s references file has four fenced blocks holding
+# fifteen lines of Python source and ZERO invocations — it is legitimately
+# prose-only and H006 must not touch it. `pristine-checkout-differential`'s
+# had four blocks and 23 lines, of which the invocations are `$ python3
+# harness/pristine_check.py ...`, so the `$ ` prompt has to be tolerated.
+INVOCATION_RE = re.compile(
+    r"^\s*(?:\$\s+)?(?:python3?|pytest|bash|sh|git|grep|find|make|npm|node|\./)"
+    r"(?![\w.-])")
+
+
+def verification_body(body):
+    """The text under the first `## Verification`-ish heading, or ""."""
+    m = VERIF_HEADING_RE.search(body)
+    if not m:
+        return ""
+    level = len(m.group(1))
+    for h in ANY_HEADING_RE.finditer(body, m.end()):
+        if len(h.group(1)) <= level:
+            return body[m.end():h.start()]
+    return body[m.end():]
+
+
+def fenced_invocations(text):
+    """Count lines inside fences that invoke a program."""
+    n, tok = 0, None
+    for line in text.split("\n"):
+        s = line.lstrip()
+        if tok is None:
+            if s.startswith("```") or s.startswith("~~~"):
+                tok = s[:3]
+            continue
+        if s.startswith(tok):
+            tok = None
+            continue
+        if INVOCATION_RE.match(line):
+            n += 1
+    return n
 
 
 def _norm(text):
@@ -557,6 +602,35 @@ def lint_skill(skill_dir, house=False):
         if not FENCE_RE.search(body):
             house_finding("H005", "no fenced code block (house format wants "
                                   "exact commands)")
+        # H006 (round 429). H004 asks whether a Verification section EXISTS
+        # and H005 whether the body has a fence anywhere; neither notices when
+        # a `references/` split carries the section's only runnable commands
+        # out of the file. That has now happened three times in this corpus
+        # (round 426 caught itself and disclosed it; round 427 did it again to
+        # `pristine-checkout-differential`, which then parsed to zero commands
+        # for two rounds; `generator-trampoline-evaluator` had been in that
+        # state longer). B002 is the pressure that causes it — it fires at 400
+        # body lines and transcripts are the easiest lines to move — so the
+        # rule that pushes commands out now has one that pulls them back.
+        verif = verification_body(body)
+        if verif and not FENCE_RE.search(verif):
+            moved = []
+            for ref in sorted(glob.glob(os.path.join(skill_dir, "references",
+                                                     "*.md"))):
+                try:
+                    with open(ref, encoding="utf-8") as f:
+                        n = fenced_invocations(f.read())
+                except (OSError, UnicodeDecodeError):
+                    continue
+                if n:
+                    moved.append("%s (%d)" % (_rel(ref, skill_dir), n))
+            if moved:
+                house_finding(
+                    "H006", "Verification section has no fenced command, but "
+                            "%s carries runnable invocations — a references "
+                            "split moved the skill's own evidence out of it; "
+                            "keep at least one command in SKILL.md"
+                            % ", ".join(moved))
     return findings
 
 

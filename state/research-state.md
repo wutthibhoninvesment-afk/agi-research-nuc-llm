@@ -21183,3 +21183,154 @@ Commit: see git log.
     `test_corpus_check.py` or `test_trigger_eval.py`, and nowhere else** —
     both exceeded a 110 s probe, which is why round 428 stopped there rather
     than guessing. harness(A) or skills(B).
+
+### Round 429 — skills(B) — 2026-09-01 — the frame the narrowing never published
+
+`knowledge/round-429-the-frame-the-narrowing-never-published.md`.
+Commit: see git log.
+
+- **Round 428's two narrowed claims are both false, and for the same
+  reason.** "The third failure is in `test_corpus_check.py` or
+  `test_trigger_eval.py`, and nowhere else" — both pass alone (27 and 92).
+  "True unfilled inventory after round 428: `state/research-state.md:667`
+  and nothing else" — the scan finds **six**, five of them in `knowledge/`.
+  Neither reasoning step was wrong; the **frame** was. `corpus_check`'s
+  `unit_tests` tier passes **two** directories to pytest and round 428
+  enumerated one of them with `ls`. Its own published arithmetic shows the
+  hole without running anything: 621 + 92 + 27 = 740 against a reported
+  834, and the missing 93 are `skills/session-inheritance-audit/scripts`.
+- **The "third failure" was never a third cause.**
+  `test_corpus_check.py::TestLiveCorpus::test_live_corpus_is_clean` calls
+  `corpus_check.main()` and reddens when ANY checker errors, so it mirrored
+  the `carryforward` K001 that round 428 had **already fixed in its own
+  commit `6b469f6`**. Two of three failures closed by one edit; the tier was
+  never re-run; three probes then hunted a symptom that no longer existed.
+  **Item 11 is closed: there was no third defect.**
+- **Item 10 closed, and the class it belongs to is now caught at the
+  source.** `pristine-checkout-differential` parsed to ZERO Verification
+  commands because round 427's `references/` split — done to get under
+  B002's 400-line body threshold — took every command with it. Third
+  occurrence (426 caught itself, 427 repeated it). **`skill_lint` gains
+  H006**: Verification has no fenced command while a `references/*.md`
+  carries runnable invocations. The discriminator is *invocation lines*,
+  not *fences* — measured, because "has a fence" flags
+  `filter-shares-the-defect`, whose references file is Python source and
+  which is legitimately prose-only. It found a SECOND real case,
+  `generator-trampoline-evaluator`, standing longer than round 427's and
+  invisible because it sat on `test_claim_check.py`'s
+  `PROSE_ONLY_VERIFICATION` allowlist — the pin that catches this class had
+  been told to ignore it. Fixing it turned that pin red from the other side
+  (`gained a command — drop it from the set`), which is the allowlist
+  working once something disagrees with it.
+  Both fixed rather than allowlisted; `pristine_check.py`'s four read-only
+  verbs joined `claim_check`'s auto allowlist so the restored block actually
+  runs (**3 auto, 3/3 commands, 0 stale**), with `check`/`baseline` kept
+  manual by naming verbs rather than the script.
+- **Item 6 closed by RUNNING it.** New `placeholder_check.py`: 332 files,
+  **6 unfilled, 26 non-bare mentions declined** (a fixed-token grep matches
+  41 lines). "Alone on its line" needs code, not a regex — the load-bearing
+  instance is `  [TEST_RESULT_PLACEHOLDER].`, which a `^TOKEN$` anchor
+  misses. All six are CONTENT-PINNED in
+  `state/known-unfilled-placeholders.json` with a reason each, so a seventh
+  is an ERROR and an edit to any acknowledged passage expires its entry
+  (U003). Wired into `corpus_check` (nine checkers) and into
+  `corpus_history.CHECKER_SETS["all"]` — the latter because round 387's
+  cross-instrument pin went red the moment it was added to one list only.
+- **Item 5 closed, and the reason the softer rule failed is measured.**
+  Round 427 asked banks to NAME a duration's source; round 428 complied and
+  missed by 40×. The ask was never written into
+  `skills/prediction-banking/SKILL.md`, which contained **zero** occurrences
+  of `logs/round-` and no duration guidance at all — so it applied for
+  exactly one round. New **step 4**: a wall-clock band comes from a RECORDED
+  DISTRIBUTION or is not banked. The mechanism was on disk and unread:
+  `logs/round-NNN.json`'s terminal `result` carries `duration_ms` —
+  **232 of 276 logs**, median **20.9 min**, p25-p75 **11.4-34.3** (3.0x
+  spread), last 20 rounds median **35.5 min**, and **32 of 232** rounds
+  ended in `error_max_turns`. Derivation is a runnable command in the
+  skill's own Verification block.
+- **New skill**: `skills/elimination-needs-its-frame/SKILL.md` — derive the
+  candidate set from the artefact's own argv/config, reconcile it against a
+  total the artefact publishes, classify symptoms root-vs-derived before
+  eliminating, re-run after a fix, and publish the frame beside the claim.
+  Six trigger cases registered (4 positive, 2 negative).
+- **Bank scored: 7 HIT · 4 PARTIAL · 6 MISS of 17.** Six of the seven
+  outright misses share one mechanism — a number or set inherited from round
+  428's prose and not re-derived (A1/A2/D1 directly, B1/B2 from a corpus I
+  had not scanned, F2 from assuming a request had been implemented). E1 made
+  the same slip against my own round, predicting "70 skills" for a round
+  that added one. The round's new skill is the rule that would have caught
+  all of them, and it was written after the bank, not before.
+- **Results**: `corpus_check` on the finished tree — **9 checker(s), 0
+  error(s), 7 warning(s)**, `unit_tests` **864 passed in 132.38s**, exit 0.
+  `skill_lint --house --strict` 71 skills, 0 errors, 0 warnings;
+  `case_coverage` 308 cases, 0 errors, 31 warnings; `claim_check` 295
+  commands, 0 stale of 183 paths; `state_claim_check` 0 stale of 5;
+  `xref_check` 0 NEW dangling; `carryforward` 0 errors;
+  `placeholder_check` 6 unfilled, all 6 acknowledged, 0 errors. New tests:
+  9 (H006) + 19 (`placeholder_check`) + 1 (`pristine_check` allowlist) + 1
+  (`checks()` membership pin); 834 -> 864 collected. Full detail in §6 of
+  the knowledge file.
+
+## Next steps (as of round 429)
+
+1. **Round 428's items 5, 6, 10 and 11 are CLOSED** (duration predictions;
+   the `_PLACEHOLDER` check, built and run; the red `prose_only` pin; the
+   "third failure", which did not exist). Item 11 needs no successor: there
+   was no third defect, only an aggregator counted as one.
+2. **`case_coverage` reports 49 of 103 cross-report case verdicts DISAGREE,
+   27 UNDECIDED and 5 REFUTED at the pooled 95% level.** That is the largest
+   unexamined number in the skills corpus and it is about the PROBES, not
+   the skills — a corpus of 71 skills whose trigger evidence disagrees with
+   itself half the time cannot support any claim about whether a skill
+   fires. Nothing has looked at it since the pooled estimator landed.
+   skills(B).
+3. **`claim_check` executes 0 of ~295 commands** because nothing passes
+   `--run`, and its own summary line has said so honestly since round 417.
+   110 are classified `auto` (cheap, offline, read-only). A `--run` tier
+   over the auto subset is now the cheapest unclaimed coverage in the repo,
+   and round 429's three restored commands are in it. harness(A).
+4. **H006 is a house rule with a corpus of one repo.** It has never been
+   tried against a skill written elsewhere, where prose Verification plus a
+   references file is a normal shape. If skills are exported to
+   `~/.hermes/skills/` per the endgame, decide then whether it travels.
+   skills(B).
+5. **The `_PLACEHOLDER` registry is six entries of historical debt.** All
+   six are content-pinned with reasons and none is recoverable. The live
+   value of `placeholder_check` is entirely in the SEVENTH — a round that
+   ends before its own measurement lands. Do not add an entry to quiet a
+   fresh round's unfinished run; the registry's own comment says so.
+6. **Round 428's items 1-4 (language C) carry forward unchanged**: the
+   one-hop dataflow rule that would decide CP17p/CP18p/CP19p; `kind_stable`,
+   the last undecided precondition; CP10p and NC02p, two defective pins in a
+   23-pin registry; and `classify_file`'s 161 checks against `checkpin run`'s
+   `n_ran: 162` — whoever chases that last one should say which is RIGHT
+   rather than making them agree. language(C).
+7. **Round 428 item 7 carries forward**: the repointed registry still fails
+   its own acceptance criterion and still scores 0 confirmations against 5
+   violations. Take it seriously or retire it. language(C).
+8. **Round 427's items 1-5 carry forward** except 3 and 5, closed above.
+   `mutation.baseline_check` still needs the acknowledged-baseline mechanism
+   pointed at its own tree (SWE-loop D); the 11 acknowledged evaporations
+   are still acknowledged and not fixed (language C or the operator);
+   nothing still runs `pristine_check check` (harness A) — though round 429
+   made its read-only verbs auto-checkable, so `claim_check --run` now
+   exercises three of them.
+9. **Round 425's items 2-20 carry forward** except where closed above.
+   Round 408's item 9 — CLAUDE.md's `🔴 CRITICAL MISSION` block — is
+   re-escalated for the FOURTEENTH time and still needs the operator. Round
+   428 tested both of its technical claims and neither is a bug (`fold` is
+   `fold(fn, acc, xs)` and works 6/6; the brace rule is real and its parse
+   error documents itself; the block's "v0.19" is 22 spec levels stale), so
+   the operator's decision is a one-line deletion rather than a judgement
+   call. `languages/whence/SECURITY.md` is still uncommitted in the
+   worktree, still not this program's, and still the operator's decision;
+   **do not copy a carry count for it from this file** — the checker's own
+   line is the only source.
+10. **A negative or exhaustive claim in this file must now carry its
+    frame.** `skills/elimination-needs-its-frame/SKILL.md` exists because
+    two of round 428's next-steps items were such claims and both were
+    false, and the next round inherited both as premises. When writing
+    "and nothing else" here, name the enumeration and where it was derived
+    from — or write "of the N I checked" instead. skills(B), but the rule
+    is for every track.
+

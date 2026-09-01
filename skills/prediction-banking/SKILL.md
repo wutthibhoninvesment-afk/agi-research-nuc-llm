@@ -57,17 +57,43 @@ and only needs reporting; one-off numbers nobody will act on.
    Checkable outcome: for every ratio, the file shows the number it was
    derived from.
 
-4. **Grep before betting on novelty.** Before predicting "no prior art in
+4. **A wall-clock band comes from a RECORDED DISTRIBUTION, or it is not
+   banked at all.** This is the one class where "name your source" was
+   tried and failed. Three rounds of this program in seven missed a
+   duration re-quoted out of an earlier round's PROSE — the last by 40x
+   (30-45 minutes predicted, 54 seconds measured) — and that bank had named
+   its source and flagged itself as its own weakest line. Naming the source
+   is not the control; refusing the prediction is.
+   - A recorded distribution is a machine-written log of the SAME quantity:
+     CI job durations, a benchmark ledger, `/usr/bin/time` output, a
+     run-record JSON. Prose in a report is not one, even your own, even
+     from last week. A sentence records one run, and duration is the
+     widest-spread quantity you will ever bet on.
+   - Quote three numbers from it, never one: **median, p25-p75, and whether
+     the recent window has moved.** If you cannot get all three you have a
+     sample, not a distribution, and the honest bank line is
+     "unpredicted — no recorded prior".
+   - The prior is usually already on disk and unread. Here it is
+     `logs/round-NNN.json`, the driver's raw stream, whose terminal
+     `result` object carries `duration_ms`: **232 of 276 round logs have
+     one and nothing had ever read them** (round 429). Median 20.9 min,
+     p25-p75 11.4-34.3 — a 3x spread — while the last 20 rounds sit at a
+     35.5 min median. No prose sentence can carry that, which is precisely
+     why re-quoting one keeps missing by multiples.
+   Checkable outcome: every duration line in the bank cites a file a
+   MACHINE wrote, and states a spread rather than a point.
+
+5. **Grep before betting on novelty.** Before predicting "no prior art in
    the tree" or "this is the first X", search (`grep -rl`, `git log -S`).
    Two rounds of a research program under-predicted prior art that a
    one-line grep would have found.
 
-5. **Add base-rate bets on your own process.** "At least one of my new
+6. **Add base-rate bets on your own process.** "At least one of my new
    tests is wrong on first run", "the suite will be red in a component I
    didn't touch", "cost ≤ $X". These are the cheapest predictions to score
    and they track discipline drift over time.
 
-6. **Freeze the file, then measure.** Write
+7. **Freeze the file, then measure.** Write
    `state/round-NNN-predictions.md` (or `predictions.md` next to the
    benchmark) with a timestamp and "banked BEFORE …" in the first line.
    Anything learned after that goes under `## Amendments` with its own
@@ -75,7 +101,7 @@ and only needs reporting; one-off numbers nobody will act on.
    amendment written after the number is a rationalisation, not a
    prediction.
 
-7. **Score every line as HIT / MISS with the direction.** MISS (high) /
+8. **Score every line as HIT / MISS with the direction.** MISS (high) /
    MISS (low), and for each miss one sentence naming the mechanism ("cold
    start bit a timing band", "anchored on the optimistic edge of the smoke
    bound", "lower bound was the point estimate"). Vacuous lines ("precision
@@ -83,7 +109,7 @@ and only needs reporting; one-off numbers nobody will act on.
    Checkable outcome: a ledger line `P k/n, A k/n` (predictions,
    amendments) in the report.
 
-8. **Turn the miss pattern into a rule, once.** After scoring, look at the
+9. **Turn the miss pattern into a rule, once.** After scoring, look at the
    misses together: optimism clustered on machine-state timings → the
    warm/cold rule; misses on the upside after an optimism lesson →
    over-padding; "P1 missed by a hair" → lower-bound-at-point-estimate.
@@ -117,6 +143,11 @@ and only needs reporting; one-off numbers nobody will act on.
   values many times, so an occurrence rate is dominated by frequency and a
   distinct rate by the long tail. Reasoning about one and betting on the
   other is a category error, not a band that needs widening.
+- **A duration re-quoted from prose.** The failure step 4 bans outright.
+  It survives every softer control — the three misses that forced the ban
+  had each NAMED their source, and one had labelled itself the weakest line
+  in its own bank. The tell is a band whose two endpoints are the two
+  numbers in somebody's sentence.
 - **Bands so loose they can't miss** ("wall time 1–60 min") prove
   nothing; if a computable effect gets a 3× band, the computation was
   skipped.
@@ -126,8 +157,22 @@ and only needs reporting; one-off numbers nobody will act on.
 head -3 state/round-NNN-predictions.md     # first line contains "banked BEFORE"
 grep -c "computed\|machine-state" state/round-NNN-predictions.md   # ≥ number of quantities
 grep -n "HIT\|MISS\|unscorable" knowledge/round-NNN-*.md            # one verdict per prediction line
+python3 -c "
+import glob, json
+d = []
+for p in glob.glob('logs/round-*.json'):
+    r = [json.loads(l) for l in open(p, errors='replace') if '\"duration_ms\"' in l]
+    r = [o for o in r if o.get('type') == 'result']
+    if r: d.append(r[-1]['duration_ms'] / 60000.0)
+d.sort(); n = len(d)
+print('%d of %d rounds recorded; median %.1f min; p25-p75 %.1f-%.1f min'
+      % (n, len(glob.glob('logs/round-*.json')), d[n//2], d[n//4], d[3*n//4]))"
+# expected: the step-4 prior, re-derived rather than re-quoted. At round 429
+# it printed `232 of 276 rounds recorded; median 20.9 min; p25-p75
+# 11.4-34.3 min`. The numbers WILL drift; that is the point of the command.
 ```
 - [ ] Every quantity has a class tag and a band derived from a number in the file
 - [ ] Amendments are timestamped and precede their measurement
 - [ ] Ledger line `P k/n` present; each MISS has a direction and a mechanism
 - [ ] One rule added or confirmed from this round's miss pattern
+- [ ] No duration band without a machine-written prior behind it

@@ -2003,5 +2003,43 @@
   "id": "dmnq-neg-two-linters",
   "expect": [],
   "prompt": "We run eslint and prettier and they disagree about trailing commas. Which config should win?"
+ },
+ {
+  "id": "enif-three-reds-all-green-alone",
+  "expect": [
+   "elimination-needs-its-frame"
+  ],
+  "prompt": "Our nightly job reports three failing tests. I ran each test file on its own and every one of them passes. Before I start bisecting commits I want to be sure I am even looking at the right set of files in the first place."
+ },
+ {
+  "id": "enif-signing-off-on-a-narrowing",
+  "expect": [
+   "elimination-needs-its-frame"
+  ],
+  "prompt": "A colleague's incident writeup says they narrowed the regression down to two modules and nowhere else, and I have to approve it. How much should I trust a conclusion that was produced by ruling things out, and what would I ask for to check it?"
+ },
+ {
+  "id": "enif-no-other-callers-delete",
+  "expect": [
+   "elimination-needs-its-frame"
+  ],
+  "prompt": "I grepped the package and found no other callers of this helper, so I am going to delete it. Is there anything I should double-check before I do that?"
+ },
+ {
+  "id": "enif-inventory-was-wrong-again",
+  "expect": [
+   "elimination-needs-its-frame"
+  ],
+  "prompt": "Last sprint we published a list saying only one config file still had the deprecated key. Someone just found a second one in a directory we thought we had covered. I want to write this as a real check this time instead of a claim."
+ },
+ {
+  "id": "enif-neg-honest-bisect",
+  "expect": [],
+  "prompt": "git bisect landed on commit abc123 and I reproduced the failure at that commit and confirmed it is absent at its parent. Can you walk me through what that diff actually changes?"
+ },
+ {
+  "id": "enif-neg-regex",
+  "expect": [],
+  "prompt": "Write me a regex that matches only lowercase hyphenated identifiers, no digits."
  }
 ]

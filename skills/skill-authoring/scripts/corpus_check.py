@@ -129,8 +129,9 @@ REENTRY_ENV = "SKILLS_CORPUS_CHECK_RUNNING"
 def checks(root):
     """(name, argv). Order is cheapest-first so a broken tree fails fast.
 
-    TWO enforcement surfaces, not one. The six checkers are the obvious
-    half; `skills/*/scripts/test_*.py` is the other, and round 363 found it
+    TWO enforcement surfaces, not one. The checkers are the obvious half
+    (the count is deliberately not written here — it was "five" for two
+    checkers' worth of drift, and round 429 made it eight); `skills/*/scripts/test_*.py` is the other, and round 363 found it
     the hard way — `test_claim_check.py::test_only_the_known_prose_only_
     skills_parse_to_zero_commands` had been RED since round 359's commit
     `a439262`, four rounds, and nothing ran it either. A health check that
@@ -159,6 +160,16 @@ def checks(root):
         # while two language(C) rounds ran past it. 0.7 s.
         ("carryforward", [os.path.join(s, "carryforward_check.py"),
                           "--repo-root", root]),
+        # Round 429. Template tokens the record never filled in. Proposed by
+        # round 427 and not run; round 428 gave it a discriminator and
+        # published an inventory of ONE without running the scan, which finds
+        # SIX -- five of them in `knowledge/`, the directory round 427's
+        # version had already been burned for omitting. All six are
+        # content-pinned in state/known-unfilled-placeholders.json with a
+        # reason each, so this is green today and a SEVENTH hole is an error.
+        # <0.5 s.
+        ("placeholder_check", [os.path.join(s, "placeholder_check.py"),
+                               "--repo-root", root]),
         # Round 423. Round 421 measured that 84 of 92 declared CLI verbs on
         # wired entry points are invoked by nothing automatic, and then found
         # the second-order problem: no driver line and no checker read that

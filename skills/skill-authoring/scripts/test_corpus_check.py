@@ -209,6 +209,13 @@ class TestLiveCorpus(unittest.TestCase):
             self.assertEqual(r["status"], "ran", r)
             self.assertTrue(r["summary"], r)
 
+    def test_placeholder_check_is_wired_in(self):
+        """Round 429. Named membership, not a count: the count assertion
+        above is derived and would have stayed green if the new checker had
+        been written and never added to `checks()` — which is the exact
+        failure round 427 had with this very check (proposed, never run)."""
+        self.assertIn("placeholder_check", [n for n, _ in corpus_check.checks(ROOT)])
+
     def test_the_wrapper_script_exists_and_is_what_the_driver_calls(self):
         wrapper = os.path.join(ROOT, "skills", "run_checks_fast.sh")
         self.assertTrue(os.path.exists(wrapper))

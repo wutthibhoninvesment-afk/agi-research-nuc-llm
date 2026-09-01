@@ -246,6 +246,109 @@ class TestHouseChecks(unittest.TestCase):
         self.assertFalse([c for c in codes(f) if c.startswith("H")])
 
 
+class TestH006ReferencesSplitTookTheCommands(unittest.TestCase):
+    """Round 429. B002 tells an author to shorten a long SKILL.md and
+    transcripts are the easiest lines to move; nothing then noticed that the
+    `## Verification` section's only runnable commands had gone with them.
+    `pristine-checkout-differential` parsed to ZERO commands for two rounds
+    that way, and `generator-trampoline-evaluator` for longer.
+
+    The discriminator is `fenced_invocations`, not "has a fence": a
+    references file full of Python SOURCE (which is what
+    `filter-shares-the-defect` has — four fenced blocks, fifteen lines, zero
+    invocations) is a legitimately prose-only skill and must stay silent."""
+
+    PROSE_VERIF = ("## When to use (triggers)\n- x\n\n## Steps\n1. do it\n\n"
+                   "```\nillustrative fence, not in Verification\n```\n\n"
+                   "## Pitfalls\n- y\n\n## Verification\n- a judgement, "
+                   "no command\n")
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = self.tmp.name
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def build(self, body, ref_text=None, dirname="my-skill"):
+        d = make_skill(self.root, dirname=dirname, body=body)
+        if ref_text is not None:
+            os.makedirs(os.path.join(d, "references"), exist_ok=True)
+            with open(os.path.join(d, "references", "log.md"), "w",
+                      encoding="utf-8") as f:
+                f.write(ref_text)
+        return d
+
+    def test_fires_when_the_commands_moved_into_references(self):
+        d = self.build(self.PROSE_VERIF,
+                       "# log\n\n```\npython3 -m pytest -q tests/x.py\n```\n")
+        f = skill_lint.lint_skill(d, house=True)
+        self.assertIn("H006", codes(f, "ERROR"))
+        msg = [x.message for x in f if x.code == "H006"][0]
+        self.assertIn("references/log.md (1)", msg)
+
+    def test_the_dollar_prompt_still_counts_as_an_invocation(self):
+        """`pristine-checkout-differential`'s transcripts are shell sessions:
+        every command line is prefixed `$ `. Without this the rule would have
+        missed the exact case that motivated it."""
+        d = self.build(self.PROSE_VERIF,
+                       "```\n$ python3 harness/pristine_check.py dirt\n"
+                       "tracked-modified 2 (blocking 0)\n```\n")
+        self.assertIn("H006", codes(skill_lint.lint_skill(d, house=True),
+                                    "ERROR"))
+
+    def test_silent_when_the_references_fence_is_source_not_commands(self):
+        d = self.build(self.PROSE_VERIF,
+                       "```\n_RE = re.compile(r\"^expected (.*)$\")\n"
+                       "mh = _RE.match(h)\n```\n")
+        self.assertNotIn("H006", codes(skill_lint.lint_skill(d, house=True)))
+
+    def test_silent_when_verification_has_its_own_fence(self):
+        d = self.build("## When to use (triggers)\n- x\n\n## Steps\n1. go\n\n"
+                       "## Pitfalls\n- y\n\n## Verification\n```\n"
+                       "python3 -m pytest -q\n```\n",
+                       "```\npython3 -m pytest -q tests/x.py\n```\n")
+        self.assertNotIn("H006", codes(skill_lint.lint_skill(d, house=True)))
+
+    def test_silent_with_no_references_directory(self):
+        d = self.build(self.PROSE_VERIF)
+        self.assertNotIn("H006", codes(skill_lint.lint_skill(d, house=True)))
+
+    def test_silent_outside_house_mode(self):
+        d = self.build(self.PROSE_VERIF,
+                       "```\npython3 -m pytest -q tests/x.py\n```\n")
+        self.assertNotIn("H006", codes(skill_lint.lint_skill(d)))
+
+    def test_an_invocation_outside_a_fence_does_not_count(self):
+        """Prose in a references file often NAMES a command mid-sentence.
+        Only fenced lines are invocations, the same rule `claim_check`
+        applies to SKILL.md itself."""
+        d = self.build(self.PROSE_VERIF,
+                       "We ran it under\npython3 -m pytest -q tests/x.py\n"
+                       "and it was green.\n")
+        self.assertNotIn("H006", codes(skill_lint.lint_skill(d, house=True)))
+
+    def test_a_verbish_word_is_not_an_invocation(self):
+        """`(?![\\w.-])` and not `\\b`: `python3` must not be matched inside
+        `python3x`, and `make` must not match `makefiles are ...`."""
+        d = self.build(self.PROSE_VERIF,
+                       "```\nmakefiles are generated here\nnodes: 12\n```\n")
+        self.assertNotIn("H006", codes(skill_lint.lint_skill(d, house=True)))
+
+    def test_the_live_corpus_has_no_H006(self):
+        """The enforcement. Round 429 cleared both instances; a future
+        references split that takes the commands with it lands here."""
+        skills = os.path.join(skill_lint.__file__.rsplit("scripts", 1)[0]
+                              .rsplit("skill-authoring", 1)[0])
+        if not os.path.isdir(skills):
+            self.skipTest("live corpus not present")
+        hits = []
+        for d in sorted(skill_lint.discover_skill_dirs(skills)):
+            hits += [f for f in skill_lint.lint_skill(d, house=True)
+                     if f.code == "H006"]
+        self.assertEqual([str(h) for h in hits], [])
+
+
 class TestDiscoveryAndMain(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

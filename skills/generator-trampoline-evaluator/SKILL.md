@@ -345,6 +345,18 @@ python3 -m pytest tests/ -q
   run in a fresh process, not in the suite.
 
 ## Verification
+```
+cd languages/whence
+python3 -c "import sys; sys.setrecursionlimit(200)
+from whence.interp import Interpreter
+i = Interpreter(); env = i.run('fn c(n) { if n == 0 { 0 } else { 1 + c(n-1) } }\nlet r = c(3000)')
+print(env.get('r').payload, i.peak_depth)"
+# expected: `3000 3001` — a guest recursion 15x deeper than the host limit,
+# reporting the GUEST's depth. A RecursionError here means no trampoline.
+python3 -m pytest -c pytest.ini tests/test_trampoline.py -q
+# expected: all green — the trampoline is control flow, not semantics.
+```
+
 - A guest recursion of depth ≥ 3000 succeeds with `sys.setrecursionlimit(200)`
   in the test process.
 - Runaway recursion returns the language's error value with the depth in the

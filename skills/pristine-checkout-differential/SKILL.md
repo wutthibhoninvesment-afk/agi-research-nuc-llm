@@ -363,25 +363,26 @@ problem), `git stash` (mutates the tree you are comparing against), or
 
 ## Verification
 
-Full transcripts of every run cited above, with the mutation checks on the
-checker's own rules:
-[references/verification-log.md](references/verification-log.md).
+Three read-only commands that check the instrument itself. None runs a
+suite; none writes anything.
 
-- **Round 355** — first finding. `whence-fast` green in the live tree,
-  `1 failed, 1191 passed` in a worktree at the same commit: a `glob`-built
-  corpus guarded by `assert len(paths) >= 20` in a directory holding 30
-  files of which git tracked 16. **A fresh clone had failed the repo's own
-  suite for five rounds.**
-- **Round 409** — the ungated `baseline` mode, and the substring pitfall
-  that made the instrument structurally incapable of finding the bug in its
-  own test double.
-- **Round 427** — step 4a. Same commit, both suites green, both trees exit
-  0, verdict `skip_evaporation`, and **eleven whence tests provided no
-  evidence** (`live 3 skipped / pristine 14 skipped`). The same two runs
-  under the pre-427 code: `verdict clean`, exit 0. The eleven are round
-  402's `.gitignore`d field corpus, reached through the guard round 409
-  added to close four reds — 4 call sites then, 11 tests across 4 files now,
-  and none of the growth was a decision.
+```
+python3 harness/pristine_check.py suites
+# expected: three suites (harness-fast, whence-fast, whence-slow), each
+# printing the `cd` its command needs — a suite that forgets its working
+# directory compares two trees at two different roots.
+python3 harness/pristine_check.py dirt
+# expected: `tracked-modified N (blocking M)`, then one LABELLED line per
+# path — blocking paths are named, waived ones say they were waived.
+python3 harness/pristine_check.py status
+# expected: the stored verdict stamped `a stored verdict, not a run just
+# now`, plus `HEAD HAS MOVED SINCE` when it has — a recorded green that
+# cannot say which tree it is about is this skill's failure mode one up.
+```
+
+Transcripts of every run cited above (rounds 355, 409, 427), with the
+mutation checks on the checker's own rules:
+[references/verification-log.md](references/verification-log.md).
 
 ## Related
 

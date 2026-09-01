@@ -305,6 +305,13 @@ AUTO_PATTERNS = [
     r"\bclaim_check\.py\b",
     r"\bstate_claim_check\.py\b(?!.*--run\b)",   # --run would nest executors
     r"\bcase_coverage\.py\b",   # offline: reads the case file + report dir
+    # Round 429. Only the READ-ONLY subcommands. `check` and `baseline` run
+    # whole suites in a fresh worktree (minutes) and append to
+    # state/pristine-check-ledger.jsonl, so they must stay manual; naming the
+    # four verbs explicitly is what keeps them there when a fifth is added.
+    # `(?![\w.-])` and not `\b`: `\b` matches before a hyphen, so a future
+    # `suites-and-write` verb would have inherited `suites`'s auto verdict.
+    r"\bpristine_check\.py\s+(suites|status|baseline-status|dirt)(?![\w.-])",
     r"^\s*(wc|head|tail|cat|ls|grep)\b",
     r"^\s*git\s+(status|log|diff|show)\b",
 ]

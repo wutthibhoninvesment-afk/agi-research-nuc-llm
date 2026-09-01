@@ -171,6 +171,25 @@ class TestClassify(unittest.TestCase):
         self.assertTrue(reason.startswith(category),
                         "%r classified %r, wanted %s" % (command, reason, category))
 
+    def test_pristine_check_read_only_verbs_are_auto_and_the_rest_are_not(self):
+        """Round 429. `pristine_check.py` was added to the allowlist so that
+        `pristine-checkout-differential`'s Verification block executes at all
+        — it had parsed to ZERO commands since round 427 moved its transcripts
+        into `references/`. The allowlist entry names FOUR verbs rather than
+        the script, because two of the others (`check`, `baseline`) run whole
+        suites in a fresh worktree and append to
+        `state/pristine-check-ledger.jsonl`. A future verb is manual until
+        someone adds it here on purpose, which is the point."""
+        for c in ("python3 harness/pristine_check.py suites",
+                  "python3 harness/pristine_check.py status",
+                  "python3 harness/pristine_check.py dirt",
+                  "python3 harness/pristine_check.py baseline-status"):
+            self.assertEqual(claim_check.classify(c)[0], "auto", c)
+        for c in ("python3 harness/pristine_check.py check --suite harness-fast",
+                  "python3 harness/pristine_check.py baseline HEAD",
+                  "python3 harness/pristine_check.py suites-and-then-some"):
+            self.assertEqual(claim_check.classify(c)[0], "manual", c)
+
     def test_pytest_and_unittest_are_auto(self):
         for c in ("python3 -m pytest -q tests/t.py",
                   "python3 -m unittest discover -s scripts",
@@ -757,8 +776,11 @@ class TestLiveCorpusClaims(unittest.TestCase):
         self.assertEqual(stale, [], "stale path claims in Verification blocks:\n"
                                     + "\n".join(stale))
 
-    # Six skills verify by judgement, not by a command: their Verification
-    # sections are prose checklists with no fence. That is legitimate (and
+    # These skills verify by judgement, not by a command: their Verification
+    # sections are prose checklists with no fence. (The comment used to open
+    # "Six skills"; it listed eight. Round 429 removed the count rather than
+    # correcting it — `len(PROSE_ONLY_VERIFICATION)` is the number and this
+    # is a gloss.) That is legitimate (and
     # `skill_lint.py`'s H005 permits it — it only requires a fence SOMEWHERE
     # in the body), but it has to be an explicit list, because "0 commands
     # parsed" and "the parser broke" look identical from the outside. Two
@@ -791,7 +813,15 @@ class TestLiveCorpusClaims(unittest.TestCase):
         # finding.
         "filter-shares-the-defect",
         "engine-prefix-reuse-audit",
-        "generator-trampoline-evaluator",
+        # `generator-trampoline-evaluator` was here until round 429, and it
+        # should not have been. `skill_lint`'s new H006 found its
+        # `references/commands.md` holding six runnable invocations while its
+        # `## Verification` had none — the same references-split that emptied
+        # `pristine-checkout-differential` in round 427, standing longer and
+        # absorbed by this allowlist instead of being fixed. It now carries
+        # the decoupling proof and its trampoline suite in the SKILL.md.
+        # An entry here has to be a skill whose verification genuinely cannot
+        # be a command, not one whose commands live somewhere else.
         "llm-engine-benchmarking",
         "optimization-transparency-differential",
         "shared-tip-immutable-lists",
