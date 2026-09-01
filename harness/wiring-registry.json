@@ -1,0 +1,573 @@
+{
+  "_comment": "Read by harness/wiring_audit.py (round 415). Declares, for every non-vendored, non-frozen ENTRY POINT in the tree (a *.sh, or a *.py with an `if __name__ == \"__main__\"` guard), whether anything automatic runs it. `wired` MUST be reachable from run_driver.sh through the invocation closure; `unwired` MUST NOT be. Both directions are errors, because both have happened: round 388 built nuc/run_checks_fast.sh and six rounds carried the un-wiring, and round 409 wired it while three later next-steps blocks kept asserting it had 0 references in run_driver.sh. FAIL-CLOSED: an entry point with no entry here is a W001 error, so a script built next round classifies itself instead of waiting to be noticed.",
+  "_scope": "The closure is `does anything automatic touch this file, by any route` -- not `does the driver invoke it directly`. `python3 -m pytest harness/tests/` is an edge to every file under that directory, so a module imported by a green test is `wired`. Two things the file-level closure CANNOT express, stated here so nobody reads more into a `wired` than is there: (1) VERBS. harness/pristine_check.py is wired via `status` only; the driver never runs its `check` or `baseline`. (2) MARKERS. harness/tests/test_swe_*.py files are inside the pytest directory argument but most are deselected by `-m \"not swe_slow\"`, so `wired` here means `the runner was pointed at it`, not `it ran green this round`. harness/tier-budget.json and harness/swe/slowtier.py are the instruments that answer the marker question.",
+  "vendored_prefixes": [
+    {
+      "prefix": "nuc/fast_lane/colibri-c/",
+      "reason": "Vendored mirror of the colibri-c upstream project, read-only, taken during the E4 fast-lane feasibility work. Not ours to wire."
+    },
+    {
+      "prefix": "nuc/fast_lane/upstream/",
+      "reason": "Vendored upstream OLMoE conversion script, kept for reference alongside the E4 verdict."
+    },
+    {
+      "prefix": "nuc/kv_reuse/upstream/",
+      "reason": "Vendored copy of the engine's openai_server.py as shipped, the `before` side of the E3 prefix-reuse patch differential."
+    },
+    {
+      "prefix": "nuc/kv_reuse/patched/",
+      "reason": "The `after` side of the same differential. Compile-verified, never run with weights (CLAUDE.md Track E: read-only on /work/src/colibri*)."
+    }
+  ],
+  "frozen_prefixes": [
+    {
+      "prefix": "state/",
+      "reason": "state/ is a RECORDS tree, not a code tree. The scripts under it are per-round artifacts -- state/whence/round-380/ins_arity_sweep.py, state/swe/round-401/apply_patches.py, state/round-405/run_batch.sh -- written to run once, in their own round, against a checkout that has since moved. Asking `does anything run this every round` of a frozen record produces a permanent finding for a state the program deliberately keeps, which is the mute-button failure skills/run_checks_fast.sh and case_coverage.py's P004 split both exist to avoid. Same concept and the same word as xref_check.py's FROZEN_PREFIXES, widened from its four state/ subtrees to all of state/ because state/whence/round-110, state/round-405 and state/nuc-swap-watch-r352 are the same kind of artifact and were outside its list."
+    }
+  ],
+  "entry_points": {
+    "claude-wrapper.sh": {
+      "status": "wired",
+      "via": "run_driver.sh:48",
+      "via_kind": "path"
+    },
+    "harness/bench_delegation.py": {
+      "status": "manual",
+      "owner": "harness(A)",
+      "reason": "Delegation-economics benchmark. Produces a number a round asks for; running it every round would spend minutes to re-derive a constant."
+    },
+    "harness/bench_elision.py": {
+      "status": "manual",
+      "owner": "harness(A)",
+      "reason": "Elision benchmark. `claim_check.py` classifies `python3 bench_elision.py` as EXPENSIVE and skills/.../test_claim_check.py:212 asserts it — that assertion is the only thing in the tree that names the file, so its apparent reachability is a test guaranteeing it is never run automatically. W006 found it; the status records the answer."
+    },
+    "harness/demo.py": {
+      "status": "manual",
+      "owner": "harness(A)",
+      "reason": "Offline end-to-end demo of the agentloop harness against MockLLM. Its job is to be READ and run once by a human; harness/tests/ covers the same code paths as assertions."
+    },
+    "harness/driver_health.py": {
+      "status": "wired",
+      "via": "run_driver.sh:192",
+      "via_kind": "dashm"
+    },
+    "harness/live_smoke.py": {
+      "status": "manual",
+      "owner": "harness(A)",
+      "reason": "Live API smoke test. `claim_check.py` classifies `python3 live_smoke.py cli-guards` as PRICED and skills/.../test_claim_check.py:187 asserts it. Same shape as bench_elision.py and a harder rule: this one spends money, so it must never be reachable from an unattended round."
+    },
+    "harness/pristine_check.py": {
+      "status": "wired",
+      "via": "harness/run_tests_fast.sh:105",
+      "via_kind": "path"
+    },
+    "harness/procreap.py": {
+      "status": "wired",
+      "via": "harness/run_tests_fast.sh:124",
+      "via_kind": "path"
+    },
+    "harness/roundheadings.py": {
+      "status": "wired",
+      "via": "skills/session-inheritance-audit/scripts/check_round_recorded.py:-",
+      "via_kind": "import"
+    },
+    "harness/run_tests_fast.sh": {
+      "status": "wired",
+      "via": "run_driver.sh:523",
+      "via_kind": "path"
+    },
+    "harness/swe/bench_prioritize.py": {
+      "status": "manual",
+      "owner": "SWE-loop(D)",
+      "reason": "Paired default-order vs kill-first-order benchmark over sampled killed mutants. Each leg runs the real interpreter twice; this is slow-tier work by construction."
+    },
+    "harness/swe/campaign.py": {
+      "status": "wired",
+      "via": "harness/tests/test_swe_prioritize.py:-",
+      "via_kind": "import"
+    },
+    "harness/swe/coverage.py": {
+      "status": "wired",
+      "via": "harness/tests/test_swe_coverage.py:-",
+      "via_kind": "import"
+    },
+    "harness/swe/equivalence.py": {
+      "status": "wired",
+      "via": "harness/tests/test_swe_equivalence.py:-",
+      "via_kind": "import"
+    },
+    "harness/swe/exemptaudit.py": {
+      "status": "wired",
+      "via": "harness/tests/test_swe_exemptaudit.py:-",
+      "via_kind": "import"
+    },
+    "harness/swe/exemptmap.py": {
+      "status": "wired",
+      "via": "harness/tests/test_swe_spacewitness.py:-",
+      "via_kind": "import"
+    },
+    "harness/swe/fuzz.py": {
+      "status": "wired",
+      "via": "harness/tests/test_swe_regiontools.py:-",
+      "via_kind": "import"
+    },
+    "harness/swe/guardpin.py": {
+      "status": "wired",
+      "via": "harness/tests/guardpin_fixture.py:-",
+      "via_kind": "import"
+    },
+    "harness/swe/guest.py": {
+      "status": "wired",
+      "via": "harness/tests/test_swe_oracles.py:-",
+      "via_kind": "import"
+    },
+    "harness/swe/instrument.py": {
+      "status": "wired",
+      "via": "harness/tests/test_swe_spacewitness.py:-",
+      "via_kind": "import"
+    },
+    "harness/swe/killers.py": {
+      "status": "wired",
+      "via": "harness/tests/test_swe_killers.py:-",
+      "via_kind": "import"
+    },
+    "harness/swe/ledgerreplay.py": {
+      "status": "wired",
+      "via": "harness/tests/test_ledgerreplay.py:-",
+      "via_kind": "import"
+    },
+    "harness/swe/loop.py": {
+      "status": "unwired",
+      "owner": "SWE-loop(D)",
+      "reason": "`python3 -m swe.loop` is the SWE-loop track's own entry point and NOTHING reaches it -- not the driver, not a test. harness/tests/test_swe_loop.py exists and tests `agentloop` + `swe.policy` + `swe.tools` directly; it never imports swe.loop, so the module that composes them has no caller in the tree. Found by this round's first clean orphan list, not by review.",
+      "since_round": 415
+    },
+    "harness/swe/mutation.py": {
+      "status": "wired",
+      "via": "harness/tests/test_swe_triage.py:-",
+      "via_kind": "import"
+    },
+    "harness/swe/oraclekill.py": {
+      "status": "wired",
+      "via": "harness/tests/test_swe_oraclekill.py:-",
+      "via_kind": "import"
+    },
+    "harness/swe/oracles.py": {
+      "status": "wired",
+      "via": "harness/tests/test_swe_spacewitness.py:-",
+      "via_kind": "import"
+    },
+    "harness/swe/repair.py": {
+      "status": "wired",
+      "via": "harness/tests/test_swe_repair.py:-",
+      "via_kind": "import"
+    },
+    "harness/swe/review.py": {
+      "status": "wired",
+      "via": "harness/tests/test_round101.py:-",
+      "via_kind": "import"
+    },
+    "harness/swe/scoreaudit.py": {
+      "status": "wired",
+      "via": "harness/tests/test_swe_scoreaudit.py:-",
+      "via_kind": "import"
+    },
+    "harness/swe/slowtier.py": {
+      "status": "wired",
+      "via": "harness/run_tests_fast.sh:91",
+      "via_kind": "path"
+    },
+    "harness/swe/spacewitness.py": {
+      "status": "wired",
+      "via": "harness/tests/test_swe_spacewitness.py:-",
+      "via_kind": "import"
+    },
+    "harness/swe/toolliveness.py": {
+      "status": "wired",
+      "via": "harness/tests/test_swe_toolliveness.py:-",
+      "via_kind": "import"
+    },
+    "harness/swe/triage.py": {
+      "status": "wired",
+      "via": "harness/tests/test_swe_triage.py:-",
+      "via_kind": "import"
+    },
+    "harness/tests/test_agent.py": {
+      "status": "wired",
+      "via": "harness/run_tests_fast.sh:51",
+      "via_kind": "dir"
+    },
+    "harness/tests/test_evals.py": {
+      "status": "wired",
+      "via": "harness/run_tests_fast.sh:51",
+      "via_kind": "dir"
+    },
+    "harness/tests/test_memory_trace_llm.py": {
+      "status": "wired",
+      "via": "harness/run_tests_fast.sh:51",
+      "via_kind": "dir"
+    },
+    "harness/tests/test_retry.py": {
+      "status": "wired",
+      "via": "harness/run_tests_fast.sh:51",
+      "via_kind": "dir"
+    },
+    "harness/tests/test_tools.py": {
+      "status": "wired",
+      "via": "harness/run_tests_fast.sh:51",
+      "via_kind": "dir"
+    },
+    "harness/tests/test_truncate.py": {
+      "status": "wired",
+      "via": "harness/run_tests_fast.sh:51",
+      "via_kind": "dir"
+    },
+    "harness/tierbudget.py": {
+      "status": "wired",
+      "via": "harness/tests/test_tiering.py:-",
+      "via_kind": "import"
+    },
+    "languages/whence/bench/bindline.py": {
+      "status": "manual",
+      "owner": "language(C)",
+      "reason": "A `bench/` measurement script. Every reference to it in languages/whence/tests/ is inside a comment or a docstring explaining what it once measured -- correctly not an edge -- so nothing runs it automatically and nothing should: each one drives the real interpreter over large programs to produce a number a round asks for once."
+    },
+    "languages/whence/bench/expectsites.py": {
+      "status": "manual",
+      "owner": "language(C)",
+      "reason": "A `bench/` measurement script. Every reference to it in languages/whence/tests/ is inside a comment or a docstring explaining what it once measured -- correctly not an edge -- so nothing runs it automatically and nothing should: each one drives the real interpreter over large programs to produce a number a round asks for once."
+    },
+    "languages/whence/bench/minof.py": {
+      "status": "manual",
+      "owner": "language(C)",
+      "reason": "A `bench/` measurement script. Every reference to it in languages/whence/tests/ is inside a comment or a docstring explaining what it once measured -- correctly not an edge -- so nothing runs it automatically and nothing should: each one drives the real interpreter over large programs to produce a number a round asks for once."
+    },
+    "languages/whence/bench/pmap_scaling.py": {
+      "status": "manual",
+      "owner": "language(C)",
+      "reason": "A `bench/` measurement script. Every reference to it in languages/whence/tests/ is inside a comment or a docstring explaining what it once measured -- correctly not an edge -- so nothing runs it automatically and nothing should: each one drives the real interpreter over large programs to produce a number a round asks for once."
+    },
+    "languages/whence/bench/ref_diff.py": {
+      "status": "manual",
+      "owner": "language(C)",
+      "reason": "A `bench/` measurement script. Every reference to it in languages/whence/tests/ is inside a comment or a docstring explaining what it once measured -- correctly not an edge -- so nothing runs it automatically and nothing should: each one drives the real interpreter over large programs to produce a number a round asks for once."
+    },
+    "languages/whence/bench/reserve_probe.py": {
+      "status": "manual",
+      "owner": "language(C)",
+      "reason": "A `bench/` measurement script. Every reference to it in languages/whence/tests/ is inside a comment or a docstring explaining what it once measured -- correctly not an edge -- so nothing runs it automatically and nothing should: each one drives the real interpreter over large programs to produce a number a round asks for once."
+    },
+    "languages/whence/bench/runaway_cost.py": {
+      "status": "manual",
+      "owner": "language(C)",
+      "reason": "A `bench/` measurement script. Every reference to it in languages/whence/tests/ is inside a comment or a docstring explaining what it once measured -- correctly not an edge -- so nothing runs it automatically and nothing should: each one drives the real interpreter over large programs to produce a number a round asks for once."
+    },
+    "languages/whence/bench/sanitisers.py": {
+      "status": "wired",
+      "via": "languages/whence/tests/test_v38.py:-",
+      "via_kind": "join"
+    },
+    "languages/whence/bench/self_host_memscale.py": {
+      "status": "manual",
+      "owner": "language(C)",
+      "reason": "A `bench/` measurement script. Every reference to it in languages/whence/tests/ is inside a comment or a docstring explaining what it once measured -- correctly not an edge -- so nothing runs it automatically and nothing should: each one drives the real interpreter over large programs to produce a number a round asks for once."
+    },
+    "languages/whence/bench/showtok.py": {
+      "status": "manual",
+      "owner": "language(C)",
+      "reason": "A `bench/` measurement script. Every reference to it in languages/whence/tests/ is inside a comment or a docstring explaining what it once measured -- correctly not an edge -- so nothing runs it automatically and nothing should: each one drives the real interpreter over large programs to produce a number a round asks for once."
+    },
+    "languages/whence/bench/value_size.py": {
+      "status": "manual",
+      "owner": "language(C)",
+      "reason": "A `bench/` measurement script. Every reference to it in languages/whence/tests/ is inside a comment or a docstring explaining what it once measured -- correctly not an edge -- so nothing runs it automatically and nothing should: each one drives the real interpreter over large programs to produce a number a round asks for once."
+    },
+    "languages/whence/checkpin.py": {
+      "status": "wired",
+      "via": "harness/tests/test_swe_proc.py:-",
+      "via_kind": "dir"
+    },
+    "languages/whence/curecheck.py": {
+      "status": "wired",
+      "via": "harness/tests/test_swe_proc.py:-",
+      "via_kind": "dir"
+    },
+    "languages/whence/nuc_scripting/ncs_engine.py": {
+      "status": "unwired",
+      "owner": "language(C)",
+      "reason": "ZERO references anywhere in the tree -- not a test, not a comment, not a docstring. Round 172 (NUC-E) assessed this subtree and `whence_qwen_bridge.py` as orphaned WIP that duplicates E5's `nuc/taskscript/` with none of its budget discipline and recommended `delete-as-dead-end or a real language-feature redesign`; neither happened and the file is still tracked. Declared a debt rather than deleted because deletion is the owning track's call, not an audit's.",
+      "since_round": 415
+    },
+    "languages/whence/run.py": {
+      "status": "wired",
+      "via": "harness/tests/test_swe_proc.py:-",
+      "via_kind": "dir"
+    },
+    "languages/whence/run_tests_fast.sh": {
+      "status": "wired",
+      "via": "run_driver.sh:524",
+      "via_kind": "path"
+    },
+    "languages/whence/tests/test_timetravel.py": {
+      "status": "wired",
+      "via": "harness/tests/test_swe_proc.py:-",
+      "via_kind": "dir"
+    },
+    "nuc/bench.py": {
+      "status": "wired",
+      "via": "nuc/tests/test_bench.py:-",
+      "via_kind": "import"
+    },
+    "nuc/calib_decode.py": {
+      "status": "manual",
+      "owner": "NUC-integration(E)",
+      "reason": "Sends LIVE requests to the NUC engine to settle the streaming-vs-differencing decode discrepancy. Must never fire unattended: CLAUDE.md Track E requires predictions before measuring (D-013) and forbids stray traffic near port 8001."
+    },
+    "nuc/capture_manifest.py": {
+      "status": "wired",
+      "via": "nuc/tests/test_capture_manifest.py:-",
+      "via_kind": "import"
+    },
+    "nuc/constant_audit.py": {
+      "status": "wired",
+      "via": "nuc/run_checks_fast.sh:66",
+      "via_kind": "path"
+    },
+    "nuc/decode_fix.py": {
+      "status": "manual",
+      "owner": "NUC-integration(E)",
+      "reason": "Same class as calib_decode.py -- a live on-box decode measurement, ~70 s of engine time per run. Deliberately hand-launched."
+    },
+    "nuc/expert_cache.py": {
+      "status": "wired",
+      "via": "nuc/tests/test_fast_lane.py:-",
+      "via_kind": "import"
+    },
+    "nuc/fast_lane.py": {
+      "status": "wired",
+      "via": "nuc/tests/test_fast_lane.py:-",
+      "via_kind": "import"
+    },
+    "nuc/fast_lane_sink.py": {
+      "status": "wired",
+      "via": "nuc/tests/test_fast_lane.py:-",
+      "via_kind": "import"
+    },
+    "nuc/kv_reuse/build_scenarios.py": {
+      "status": "manual",
+      "owner": "NUC-integration(E)",
+      "reason": "One-shot generator for the E3 prompt-sequence scenarios. Its OUTPUT is what later rounds read; re-running it every round would rewrite a recorded input."
+    },
+    "nuc/kv_reuse/make_patch.py": {
+      "status": "manual",
+      "owner": "NUC-integration(E)",
+      "reason": "Generates qwen36-prefix-reuse.patch from the vendored upstream/patched pair. Run once, when the patch changes."
+    },
+    "nuc/kv_reuse/make_server_patch.py": {
+      "status": "manual",
+      "owner": "NUC-integration(E)",
+      "reason": "Same, for the openai_server.py half of the E3 patch."
+    },
+    "nuc/kv_reuse_model.py": {
+      "status": "wired",
+      "via": "nuc/tests/test_kv_reuse_model.py:-",
+      "via_kind": "import"
+    },
+    "nuc/lane_bench.py": {
+      "status": "wired",
+      "via": "nuc/tests/test_lane_bench.py:-",
+      "via_kind": "import"
+    },
+    "nuc/nuc-adapter-copy.py": {
+      "status": "wired",
+      "via": "nuc/tests/test_kv_reuse_model.py:-",
+      "via_kind": "join"
+    },
+    "nuc/nuc_mini.py": {
+      "status": "manual",
+      "owner": "NUC-integration(E)",
+      "reason": "The E2 minimal agent profile. It TALKS to the qwen36 lane; automating it would put unattended traffic on the box. Its budgeting logic is exercised indirectly by nuc/tests/test_kv_reuse_model.py's prefix probes."
+    },
+    "nuc/perturbation.py": {
+      "status": "wired",
+      "via": "nuc/tests/test_perturbation.py:-",
+      "via_kind": "import"
+    },
+    "nuc/prompt_budget.py": {
+      "status": "wired",
+      "via": "nuc/tests/test_kv_reuse_model.py:-",
+      "via_kind": "import"
+    },
+    "nuc/reachability_backfill.py": {
+      "status": "wired",
+      "via": "nuc/tests/test_reachability_check.py:-",
+      "via_kind": "join"
+    },
+    "nuc/reachability_check.py": {
+      "status": "wired",
+      "via": "nuc/tests/test_reachability_check.py:-",
+      "via_kind": "import"
+    },
+    "nuc/run_checks_fast.sh": {
+      "status": "wired",
+      "via": "run_driver.sh:526",
+      "via_kind": "path"
+    },
+    "nuc/swap_analysis.py": {
+      "status": "wired",
+      "via": "nuc/tests/test_swap_analysis.py:-",
+      "via_kind": "import"
+    },
+    "nuc/swap_watch.py": {
+      "status": "wired",
+      "via": "nuc/tests/test_swap_analysis.py:-",
+      "via_kind": "import"
+    },
+    "nuc/swap_watch_launch.py": {
+      "status": "wired",
+      "via": "nuc/tests/test_swap_watch_launch.py:-",
+      "via_kind": "import"
+    },
+    "nuc/sysstat_archive.py": {
+      "status": "wired",
+      "via": "nuc/tests/test_sysstat_archive.py:-",
+      "via_kind": "import"
+    },
+    "nuc/taskscript/run.py": {
+      "status": "wired",
+      "via": "nuc/tests/test_taskscript.py:-",
+      "via_kind": "join"
+    },
+    "redeploy_driver.sh": {
+      "status": "manual",
+      "owner": "operator",
+      "reason": "Operator tool: redeploys the driver. Only a human decides when."
+    },
+    "run_driver.sh": {
+      "status": "wired",
+      "via": "harness/tests/test_run_driver_record_gap_check.py:-",
+      "via_kind": "join"
+    },
+    "skills/run_checks_fast.sh": {
+      "status": "wired",
+      "via": "run_driver.sh:525",
+      "via_kind": "path"
+    },
+    "skills/session-inheritance-audit/scripts/check_round_recorded.py": {
+      "status": "wired",
+      "via": "run_driver.sh:287",
+      "via_kind": "path"
+    },
+    "skills/skill-authoring/scripts/carryforward_check.py": {
+      "status": "wired",
+      "via": "skills/skill-authoring/scripts/corpus_check.py:-",
+      "via_kind": "dir"
+    },
+    "skills/skill-authoring/scripts/case_coverage.py": {
+      "status": "wired",
+      "via": "skills/skill-authoring/scripts/corpus_check.py:-",
+      "via_kind": "dir"
+    },
+    "skills/skill-authoring/scripts/claim_check.py": {
+      "status": "wired",
+      "via": "skills/skill-authoring/scripts/corpus_check.py:-",
+      "via_kind": "dir"
+    },
+    "skills/skill-authoring/scripts/corpus_check.py": {
+      "status": "wired",
+      "via": "run_driver.sh:608",
+      "via_kind": "path"
+    },
+    "skills/skill-authoring/scripts/corpus_history.py": {
+      "status": "wired",
+      "via": "skills/skill-authoring/scripts/corpus_check.py:-",
+      "via_kind": "dir"
+    },
+    "skills/skill-authoring/scripts/displacement.py": {
+      "status": "wired",
+      "via": "skills/skill-authoring/scripts/corpus_check.py:-",
+      "via_kind": "dir"
+    },
+    "skills/skill-authoring/scripts/skill_lint.py": {
+      "status": "wired",
+      "via": "skills/skill-authoring/scripts/corpus_check.py:-",
+      "via_kind": "dir"
+    },
+    "skills/skill-authoring/scripts/state_claim_check.py": {
+      "status": "wired",
+      "via": "skills/skill-authoring/scripts/corpus_check.py:-",
+      "via_kind": "dir"
+    },
+    "skills/skill-authoring/scripts/test_carryforward_check.py": {
+      "status": "wired",
+      "via": "skills/skill-authoring/scripts/corpus_check.py:-",
+      "via_kind": "dir"
+    },
+    "skills/skill-authoring/scripts/test_case_coverage.py": {
+      "status": "wired",
+      "via": "skills/skill-authoring/scripts/corpus_check.py:-",
+      "via_kind": "dir"
+    },
+    "skills/skill-authoring/scripts/test_claim_check.py": {
+      "status": "wired",
+      "via": "skills/skill-authoring/scripts/corpus_check.py:-",
+      "via_kind": "dir"
+    },
+    "skills/skill-authoring/scripts/test_corpus_check.py": {
+      "status": "wired",
+      "via": "skills/skill-authoring/scripts/corpus_check.py:-",
+      "via_kind": "dir"
+    },
+    "skills/skill-authoring/scripts/test_corpus_history.py": {
+      "status": "wired",
+      "via": "skills/skill-authoring/scripts/corpus_check.py:-",
+      "via_kind": "dir"
+    },
+    "skills/skill-authoring/scripts/test_displacement.py": {
+      "status": "wired",
+      "via": "skills/skill-authoring/scripts/corpus_check.py:-",
+      "via_kind": "dir"
+    },
+    "skills/skill-authoring/scripts/test_pooled_estimator.py": {
+      "status": "wired",
+      "via": "skills/skill-authoring/scripts/corpus_check.py:-",
+      "via_kind": "dir"
+    },
+    "skills/skill-authoring/scripts/test_skill_lint.py": {
+      "status": "wired",
+      "via": "skills/skill-authoring/scripts/corpus_check.py:-",
+      "via_kind": "dir"
+    },
+    "skills/skill-authoring/scripts/test_state_claim_check.py": {
+      "status": "wired",
+      "via": "skills/skill-authoring/scripts/corpus_check.py:-",
+      "via_kind": "dir"
+    },
+    "skills/skill-authoring/scripts/test_trigger_eval.py": {
+      "status": "wired",
+      "via": "skills/skill-authoring/scripts/corpus_check.py:-",
+      "via_kind": "dir"
+    },
+    "skills/skill-authoring/scripts/test_xref_check.py": {
+      "status": "wired",
+      "via": "skills/skill-authoring/scripts/corpus_check.py:-",
+      "via_kind": "dir"
+    },
+    "skills/skill-authoring/scripts/trigger_eval.py": {
+      "status": "wired",
+      "via": "skills/skill-authoring/scripts/corpus_check.py:-",
+      "via_kind": "dir"
+    },
+    "skills/skill-authoring/scripts/xref_check.py": {
+      "status": "wired",
+      "via": "skills/skill-authoring/scripts/corpus_check.py:-",
+      "via_kind": "dir"
+    },
+    "swap_driver.sh": {
+      "status": "manual",
+      "owner": "operator",
+      "reason": "Operator tool: swaps the driver script. Only a human decides when; run_driver.sh re-execs itself (round 145) and must not also be swapping itself."
+    }
+  },
+  "_since_round": "`since_round` on an `unwired` entry is the round that DECLARED the debt, not a guess at when the file stopped being run. W005 therefore measures how long a declared, undischarged deferral has stood -- one full rotation (6 rounds) and it rides in the summary line. Dating it any other way would require inventing a number no record carries."
+}

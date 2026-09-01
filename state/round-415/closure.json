@@ -1,0 +1,1325 @@
+{
+ "roots": [
+  "run_driver.sh"
+ ],
+ "reached": [
+  "claude-wrapper.sh",
+  "harness/agentloop/__init__.py",
+  "harness/agentloop/adapters.py",
+  "harness/agentloop/checkpoint.py",
+  "harness/agentloop/context.py",
+  "harness/agentloop/guards.py",
+  "harness/agentloop/llm.py",
+  "harness/agentloop/sim.py",
+  "harness/agentloop/tools.py",
+  "harness/agentloop/trace.py",
+  "harness/agentloop/usage.py",
+  "harness/bench_elision.py",
+  "harness/driver_health.py",
+  "harness/live_smoke.py",
+  "harness/pristine_check.py",
+  "harness/procreap.py",
+  "harness/roundheadings.py",
+  "harness/run_tests_fast.sh",
+  "harness/swe/__init__.py",
+  "harness/swe/alias_effects.py",
+  "harness/swe/campaign.py",
+  "harness/swe/coverage.py",
+  "harness/swe/equivalence.py",
+  "harness/swe/exemptaudit.py",
+  "harness/swe/exemptmap.py",
+  "harness/swe/fuzz.py",
+  "harness/swe/guardpin.py",
+  "harness/swe/guest.py",
+  "harness/swe/instrument.py",
+  "harness/swe/killers.py",
+  "harness/swe/ledgerreplay.py",
+  "harness/swe/mutation.py",
+  "harness/swe/oraclekill.py",
+  "harness/swe/oracles.py",
+  "harness/swe/policy.py",
+  "harness/swe/prioritize.py",
+  "harness/swe/proc.py",
+  "harness/swe/readscope.py",
+  "harness/swe/regiontools.py",
+  "harness/swe/repair.py",
+  "harness/swe/review.py",
+  "harness/swe/scoreaudit.py",
+  "harness/swe/slowtier.py",
+  "harness/swe/spacewitness.py",
+  "harness/swe/toolliveness.py",
+  "harness/swe/tools.py",
+  "harness/swe/triage.py",
+  "harness/tests/__init__.py",
+  "harness/tests/conftest.py",
+  "harness/tests/guardpin_fixture.py",
+  "harness/tests/synthetic_crash.py",
+  "harness/tests/test_adapters.py",
+  "harness/tests/test_agent.py",
+  "harness/tests/test_agent_round6.py",
+  "harness/tests/test_anthropic_api.py",
+  "harness/tests/test_bash_timeout.py",
+  "harness/tests/test_caching.py",
+  "harness/tests/test_checkpoint.py",
+  "harness/tests/test_context.py",
+  "harness/tests/test_delegate.py",
+  "harness/tests/test_driver_health.py",
+  "harness/tests/test_evals.py",
+  "harness/tests/test_guardpin.py",
+  "harness/tests/test_guards.py",
+  "harness/tests/test_ledgerreplay.py",
+  "harness/tests/test_memory_trace_llm.py",
+  "harness/tests/test_nuc_health_line.py",
+  "harness/tests/test_pristine_check.py",
+  "harness/tests/test_procreap.py",
+  "harness/tests/test_retry.py",
+  "harness/tests/test_round101.py",
+  "harness/tests/test_round25.py",
+  "harness/tests/test_roundheadings.py",
+  "harness/tests/test_run_driver_health_check.py",
+  "harness/tests/test_run_driver_kill_after.py",
+  "harness/tests/test_run_driver_lock.py",
+  "harness/tests/test_run_driver_maxturns_safety_valve.py",
+  "harness/tests/test_run_driver_nuc_health_check.py",
+  "harness/tests/test_run_driver_record_gap_check.py",
+  "harness/tests/test_run_driver_round_timeout.py",
+  "harness/tests/test_run_driver_selfexec.py",
+  "harness/tests/test_run_driver_skills_health_check.py",
+  "harness/tests/test_run_driver_turn_budget_prompt.py",
+  "harness/tests/test_run_driver_whence_health_check.py",
+  "harness/tests/test_sim.py",
+  "harness/tests/test_slowtier.py",
+  "harness/tests/test_snapshot_race.py",
+  "harness/tests/test_streaming.py",
+  "harness/tests/test_swe_abconfound.py",
+  "harness/tests/test_swe_alias_effects.py",
+  "harness/tests/test_swe_bymap.py",
+  "harness/tests/test_swe_campaign.py",
+  "harness/tests/test_swe_coverage.py",
+  "harness/tests/test_swe_depthceiling.py",
+  "harness/tests/test_swe_equivalence.py",
+  "harness/tests/test_swe_exemptaudit.py",
+  "harness/tests/test_swe_exemptmap.py",
+  "harness/tests/test_swe_fuzz.py",
+  "harness/tests/test_swe_guardpin.py",
+  "harness/tests/test_swe_guest.py",
+  "harness/tests/test_swe_instrument.py",
+  "harness/tests/test_swe_killers.py",
+  "harness/tests/test_swe_loop.py",
+  "harness/tests/test_swe_mutation.py",
+  "harness/tests/test_swe_oraclekill.py",
+  "harness/tests/test_swe_oracles.py",
+  "harness/tests/test_swe_prioritize.py",
+  "harness/tests/test_swe_proc.py",
+  "harness/tests/test_swe_regiontools.py",
+  "harness/tests/test_swe_repair.py",
+  "harness/tests/test_swe_review.py",
+  "harness/tests/test_swe_scoreaudit.py",
+  "harness/tests/test_swe_spacewitness.py",
+  "harness/tests/test_swe_toolliveness.py",
+  "harness/tests/test_swe_triage.py",
+  "harness/tests/test_tierbudget.py",
+  "harness/tests/test_tiering.py",
+  "harness/tests/test_tools.py",
+  "harness/tests/test_truncate.py",
+  "harness/tests/test_usage.py",
+  "harness/tierbudget.py",
+  "languages/whence/bench/ref_diff.py",
+  "languages/whence/bench/sanitisers.py",
+  "languages/whence/checkpin.py",
+  "languages/whence/curecheck.py",
+  "languages/whence/run.py",
+  "languages/whence/run_tests_fast.sh",
+  "languages/whence/tests/conftest.py",
+  "languages/whence/tests/test_checkpin.py",
+  "languages/whence/tests/test_contract_message_differential.py",
+  "languages/whence/tests/test_examples.py",
+  "languages/whence/tests/test_field_corpus_selector.py",
+  "languages/whence/tests/test_fuzz_regressions.py",
+  "languages/whence/tests/test_generated_killers.py",
+  "languages/whence/tests/test_generated_killers_r29.py",
+  "languages/whence/tests/test_history.py",
+  "languages/whence/tests/test_interp.py",
+  "languages/whence/tests/test_lexer.py",
+  "languages/whence/tests/test_lexer_guest_parity.py",
+  "languages/whence/tests/test_miss_message_differential.py",
+  "languages/whence/tests/test_parse_error_differential.py",
+  "languages/whence/tests/test_parser.py",
+  "languages/whence/tests/test_parser_differential.py",
+  "languages/whence/tests/test_self_eval.py",
+  "languages/whence/tests/test_self_hosting.py",
+  "languages/whence/tests/test_spec_builtins.py",
+  "languages/whence/tests/test_tiering.py",
+  "languages/whence/tests/test_timetravel.py",
+  "languages/whence/tests/test_trampoline.py",
+  "languages/whence/tests/test_v03.py",
+  "languages/whence/tests/test_v04.py",
+  "languages/whence/tests/test_v05.py",
+  "languages/whence/tests/test_v06.py",
+  "languages/whence/tests/test_v07.py",
+  "languages/whence/tests/test_v08.py",
+  "languages/whence/tests/test_v09.py",
+  "languages/whence/tests/test_v10.py",
+  "languages/whence/tests/test_v11.py",
+  "languages/whence/tests/test_v12.py",
+  "languages/whence/tests/test_v13.py",
+  "languages/whence/tests/test_v14.py",
+  "languages/whence/tests/test_v15.py",
+  "languages/whence/tests/test_v16.py",
+  "languages/whence/tests/test_v20.py",
+  "languages/whence/tests/test_v22.py",
+  "languages/whence/tests/test_v23.py",
+  "languages/whence/tests/test_v24.py",
+  "languages/whence/tests/test_v26.py",
+  "languages/whence/tests/test_v27.py",
+  "languages/whence/tests/test_v29.py",
+  "languages/whence/tests/test_v30.py",
+  "languages/whence/tests/test_v31.py",
+  "languages/whence/tests/test_v32.py",
+  "languages/whence/tests/test_v33.py",
+  "languages/whence/tests/test_v34.py",
+  "languages/whence/tests/test_v35.py",
+  "languages/whence/tests/test_v36.py",
+  "languages/whence/tests/test_v37.py",
+  "languages/whence/tests/test_v38.py",
+  "languages/whence/tests/test_v39.py",
+  "languages/whence/tests/test_v40.py",
+  "languages/whence/tests/test_values.py",
+  "languages/whence/whence/__init__.py",
+  "languages/whence/whence/ast_nodes.py",
+  "languages/whence/whence/foreign.py",
+  "languages/whence/whence/interp.py",
+  "languages/whence/whence/lexer.py",
+  "languages/whence/whence/parser.py",
+  "languages/whence/whence/timetravel.py",
+  "languages/whence/whence/values.py",
+  "nuc/bench.py",
+  "nuc/capture_manifest.py",
+  "nuc/constant_audit.py",
+  "nuc/expert_cache.py",
+  "nuc/fast_lane.py",
+  "nuc/fast_lane_sink.py",
+  "nuc/kv_reuse_model.py",
+  "nuc/lane_bench.py",
+  "nuc/nuc-adapter-copy.py",
+  "nuc/perturbation.py",
+  "nuc/prompt_budget.py",
+  "nuc/reachability_backfill.py",
+  "nuc/reachability_check.py",
+  "nuc/run_checks_fast.sh",
+  "nuc/swap_analysis.py",
+  "nuc/swap_watch.py",
+  "nuc/swap_watch_launch.py",
+  "nuc/sysstat_archive.py",
+  "nuc/taskscript/__init__.py",
+  "nuc/taskscript/interp.py",
+  "nuc/taskscript/lexer.py",
+  "nuc/taskscript/parser.py",
+  "nuc/taskscript/run.py",
+  "nuc/taskscript/transport.py",
+  "nuc/tests/test_bench.py",
+  "nuc/tests/test_capture_manifest.py",
+  "nuc/tests/test_constant_audit.py",
+  "nuc/tests/test_expert_cache.py",
+  "nuc/tests/test_fast_lane.py",
+  "nuc/tests/test_kv_reuse_model.py",
+  "nuc/tests/test_lane_bench.py",
+  "nuc/tests/test_perturbation.py",
+  "nuc/tests/test_prompt_budget.py",
+  "nuc/tests/test_reachability_check.py",
+  "nuc/tests/test_swap_analysis.py",
+  "nuc/tests/test_swap_watch.py",
+  "nuc/tests/test_swap_watch_launch.py",
+  "nuc/tests/test_sysstat_archive.py",
+  "nuc/tests/test_taskscript.py",
+  "run_driver.sh",
+  "skills/run_checks_fast.sh",
+  "skills/session-inheritance-audit/scripts/check_round_recorded.py",
+  "skills/session-inheritance-audit/scripts/test_check_round_recorded.py",
+  "skills/skill-authoring/scripts/carryforward_check.py",
+  "skills/skill-authoring/scripts/case_coverage.py",
+  "skills/skill-authoring/scripts/claim_check.py",
+  "skills/skill-authoring/scripts/corpus_check.py",
+  "skills/skill-authoring/scripts/corpus_history.py",
+  "skills/skill-authoring/scripts/displacement.py",
+  "skills/skill-authoring/scripts/skill_lint.py",
+  "skills/skill-authoring/scripts/state_claim_check.py",
+  "skills/skill-authoring/scripts/test_carryforward_check.py",
+  "skills/skill-authoring/scripts/test_case_coverage.py",
+  "skills/skill-authoring/scripts/test_claim_check.py",
+  "skills/skill-authoring/scripts/test_corpus_check.py",
+  "skills/skill-authoring/scripts/test_corpus_history.py",
+  "skills/skill-authoring/scripts/test_displacement.py",
+  "skills/skill-authoring/scripts/test_pooled_estimator.py",
+  "skills/skill-authoring/scripts/test_skill_lint.py",
+  "skills/skill-authoring/scripts/test_state_claim_check.py",
+  "skills/skill-authoring/scripts/test_trigger_eval.py",
+  "skills/skill-authoring/scripts/test_xref_check.py",
+  "skills/skill-authoring/scripts/trigger_eval.py",
+  "skills/skill-authoring/scripts/xref_check.py",
+  "state/swe/round-137/snapshot/whence/interp.py"
+ ],
+ "entry_points": [
+  "claude-wrapper.sh",
+  "harness/bench_elision.py",
+  "harness/driver_health.py",
+  "harness/live_smoke.py",
+  "harness/pristine_check.py",
+  "harness/procreap.py",
+  "harness/roundheadings.py",
+  "harness/run_tests_fast.sh",
+  "harness/swe/campaign.py",
+  "harness/swe/coverage.py",
+  "harness/swe/equivalence.py",
+  "harness/swe/exemptaudit.py",
+  "harness/swe/exemptmap.py",
+  "harness/swe/fuzz.py",
+  "harness/swe/guardpin.py",
+  "harness/swe/guest.py",
+  "harness/swe/instrument.py",
+  "harness/swe/killers.py",
+  "harness/swe/ledgerreplay.py",
+  "harness/swe/mutation.py",
+  "harness/swe/oraclekill.py",
+  "harness/swe/oracles.py",
+  "harness/swe/repair.py",
+  "harness/swe/review.py",
+  "harness/swe/scoreaudit.py",
+  "harness/swe/slowtier.py",
+  "harness/swe/spacewitness.py",
+  "harness/swe/toolliveness.py",
+  "harness/swe/triage.py",
+  "harness/tests/test_agent.py",
+  "harness/tests/test_evals.py",
+  "harness/tests/test_memory_trace_llm.py",
+  "harness/tests/test_retry.py",
+  "harness/tests/test_tools.py",
+  "harness/tests/test_truncate.py",
+  "harness/tierbudget.py",
+  "languages/whence/bench/ref_diff.py",
+  "languages/whence/bench/sanitisers.py",
+  "languages/whence/checkpin.py",
+  "languages/whence/curecheck.py",
+  "languages/whence/run.py",
+  "languages/whence/run_tests_fast.sh",
+  "languages/whence/tests/test_timetravel.py",
+  "nuc/bench.py",
+  "nuc/capture_manifest.py",
+  "nuc/constant_audit.py",
+  "nuc/expert_cache.py",
+  "nuc/fast_lane.py",
+  "nuc/fast_lane_sink.py",
+  "nuc/kv_reuse_model.py",
+  "nuc/lane_bench.py",
+  "nuc/nuc-adapter-copy.py",
+  "nuc/perturbation.py",
+  "nuc/prompt_budget.py",
+  "nuc/reachability_backfill.py",
+  "nuc/reachability_check.py",
+  "nuc/run_checks_fast.sh",
+  "nuc/swap_analysis.py",
+  "nuc/swap_watch.py",
+  "nuc/swap_watch_launch.py",
+  "nuc/sysstat_archive.py",
+  "nuc/taskscript/run.py",
+  "run_driver.sh",
+  "skills/run_checks_fast.sh",
+  "skills/session-inheritance-audit/scripts/check_round_recorded.py",
+  "skills/skill-authoring/scripts/carryforward_check.py",
+  "skills/skill-authoring/scripts/case_coverage.py",
+  "skills/skill-authoring/scripts/claim_check.py",
+  "skills/skill-authoring/scripts/corpus_check.py",
+  "skills/skill-authoring/scripts/corpus_history.py",
+  "skills/skill-authoring/scripts/displacement.py",
+  "skills/skill-authoring/scripts/skill_lint.py",
+  "skills/skill-authoring/scripts/state_claim_check.py",
+  "skills/skill-authoring/scripts/test_carryforward_check.py",
+  "skills/skill-authoring/scripts/test_case_coverage.py",
+  "skills/skill-authoring/scripts/test_claim_check.py",
+  "skills/skill-authoring/scripts/test_corpus_check.py",
+  "skills/skill-authoring/scripts/test_corpus_history.py",
+  "skills/skill-authoring/scripts/test_displacement.py",
+  "skills/skill-authoring/scripts/test_pooled_estimator.py",
+  "skills/skill-authoring/scripts/test_skill_lint.py",
+  "skills/skill-authoring/scripts/test_state_claim_check.py",
+  "skills/skill-authoring/scripts/test_trigger_eval.py",
+  "skills/skill-authoring/scripts/test_xref_check.py",
+  "skills/skill-authoring/scripts/trigger_eval.py",
+  "skills/skill-authoring/scripts/xref_check.py"
+ ],
+ "ambiguous_summary": {
+  "_comment": "Every reference whose longest resolving path-component suffix matched more than one tracked path. None became an edge. Kept as counts plus up to 8 distinct tokens per file: the full occurrence list was 11k lines and its content is re-derivable with `wiring_audit.py closure --json`.",
+  "total_references": 771,
+  "files": 114,
+  "by_file": {
+   "skills/skill-authoring/scripts/corpus_check.py": {
+    "n": 2,
+    "distinct_tokens": [
+     "skills"
+    ],
+    "n_distinct": 1
+   },
+   "harness/swe/slowtier.py": {
+    "n": 6,
+    "distinct_tokens": [
+     "swe",
+     "swe/",
+     "tests",
+     "tests/conftest.py"
+    ],
+    "n_distinct": 4
+   },
+   "harness/tests/guardpin_fixture.py": {
+    "n": 3,
+    "distinct_tokens": [
+     "tests"
+    ],
+    "n_distinct": 1
+   },
+   "harness/tests/synthetic_crash.py": {
+    "n": 3,
+    "distinct_tokens": [
+     "interp.py",
+     "whence/interp.py"
+    ],
+    "n_distinct": 2
+   },
+   "harness/tests/test_driver_health.py": {
+    "n": 3,
+    "distinct_tokens": [
+     "run_tests_fast.sh"
+    ],
+    "n_distinct": 1
+   },
+   "harness/tests/test_guards.py": {
+    "n": 14,
+    "distinct_tokens": [
+     "interp.py",
+     "whence/interp.py"
+    ],
+    "n_distinct": 2
+   },
+   "harness/tests/test_ledgerreplay.py": {
+    "n": 4,
+    "distinct_tokens": [
+     "examples/",
+     "tests/conftest.py",
+     "whence/"
+    ],
+    "n_distinct": 3
+   },
+   "harness/tests/test_nuc_health_line.py": {
+    "n": 3,
+    "distinct_tokens": [
+     "harness",
+     "run_checks_fast.sh"
+    ],
+    "n_distinct": 2
+   },
+   "harness/tests/test_pristine_check.py": {
+    "n": 6,
+    "distinct_tokens": [
+     "-m \"not swe_slow\" harness/tests/",
+     ".gitignore",
+     "languages/whence/interp.py",
+     "run_tests_fast.sh"
+    ],
+    "n_distinct": 4
+   },
+   "harness/tests/test_procreap.py": {
+    "n": 3,
+    "distinct_tokens": [
+     "harness",
+     "tests/"
+    ],
+    "n_distinct": 2
+   },
+   "harness/tests/test_round101.py": {
+    "n": 14,
+    "distinct_tokens": [
+     "whence/interp.py",
+     "whence/lexer.py"
+    ],
+    "n_distinct": 2
+   },
+   "harness/tests/test_run_driver_health_check.py": {
+    "n": 5,
+    "distinct_tokens": [
+     "harness",
+     "logs",
+     "run_tests_fast.sh"
+    ],
+    "n_distinct": 3
+   },
+   "harness/tests/test_run_driver_kill_after.py": {
+    "n": 1,
+    "distinct_tokens": [
+     "logs"
+    ],
+    "n_distinct": 1
+   },
+   "harness/tests/test_run_driver_lock.py": {
+    "n": 1,
+    "distinct_tokens": [
+     "logs"
+    ],
+    "n_distinct": 1
+   },
+   "harness/tests/test_run_driver_maxturns_safety_valve.py": {
+    "n": 1,
+    "distinct_tokens": [
+     "logs"
+    ],
+    "n_distinct": 1
+   },
+   "harness/tests/test_run_driver_nuc_health_check.py": {
+    "n": 12,
+    "distinct_tokens": [
+     "logs",
+     "run_checks_fast.sh",
+     "run_tests_fast.sh"
+    ],
+    "n_distinct": 3
+   },
+   "harness/tests/test_run_driver_record_gap_check.py": {
+    "n": 4,
+    "distinct_tokens": [
+     ".gitignore",
+     "logs"
+    ],
+    "n_distinct": 2
+   },
+   "harness/tests/test_run_driver_round_timeout.py": {
+    "n": 1,
+    "distinct_tokens": [
+     "logs"
+    ],
+    "n_distinct": 1
+   },
+   "harness/tests/test_run_driver_selfexec.py": {
+    "n": 1,
+    "distinct_tokens": [
+     "logs"
+    ],
+    "n_distinct": 1
+   },
+   "harness/tests/test_run_driver_skills_health_check.py": {
+    "n": 14,
+    "distinct_tokens": [
+     "logs",
+     "run_checks_fast.sh",
+     "run_tests_fast.sh"
+    ],
+    "n_distinct": 3
+   },
+   "harness/tests/test_run_driver_turn_budget_prompt.py": {
+    "n": 1,
+    "distinct_tokens": [
+     "logs"
+    ],
+    "n_distinct": 1
+   },
+   "harness/tests/test_run_driver_whence_health_check.py": {
+    "n": 14,
+    "distinct_tokens": [
+     "health/whence",
+     "logs",
+     "run_tests_fast.sh"
+    ],
+    "n_distinct": 3
+   },
+   "harness/tests/test_slowtier.py": {
+    "n": 78,
+    "distinct_tokens": [
+     "SPEC.md",
+     "examples",
+     "examples/self_eval.lang",
+     "interp.py",
+     "parser.py",
+     "run.py",
+     "run_tests_fast.sh",
+     "self_eval.lang"
+    ],
+    "n_distinct": 12
+   },
+   "harness/tests/test_snapshot_race.py": {
+    "n": 1,
+    "distinct_tokens": [
+     "interp.py"
+    ],
+    "n_distinct": 1
+   },
+   "harness/tests/test_swe_bymap.py": {
+    "n": 7,
+    "distinct_tokens": [
+     "campaign.json",
+     "tests"
+    ],
+    "n_distinct": 2
+   },
+   "harness/tests/test_swe_campaign.py": {
+    "n": 60,
+    "distinct_tokens": [
+     "-q -x tests/test_interp.py",
+     "campaign.json",
+     "coverage.json",
+     "mutation.json",
+     "mutation.partial.jsonl",
+     "repair.partial.jsonl",
+     "report.json",
+     "report.md"
+    ],
+    "n_distinct": 14
+   },
+   "harness/tests/test_swe_coverage.py": {
+    "n": 22,
+    "distinct_tokens": [
+     "tests",
+     "tests/test_lexer.py",
+     "whence/interp.py",
+     "whence/lexer.py"
+    ],
+    "n_distinct": 4
+   },
+   "harness/tests/test_swe_depthceiling.py": {
+    "n": 1,
+    "distinct_tokens": [
+     "swe"
+    ],
+    "n_distinct": 1
+   },
+   "harness/tests/test_swe_equivalence.py": {
+    "n": 10,
+    "distinct_tokens": [
+     "interp.py",
+     "whence/interp.py"
+    ],
+    "n_distinct": 2
+   },
+   "harness/tests/test_swe_exemptaudit.py": {
+    "n": 2,
+    "distinct_tokens": [
+     "examples",
+     "self_eval.lang"
+    ],
+    "n_distinct": 2
+   },
+   "harness/tests/test_swe_exemptmap.py": {
+    "n": 1,
+    "distinct_tokens": [
+     "sweep.jsonl"
+    ],
+    "n_distinct": 1
+   },
+   "harness/tests/test_swe_guest.py": {
+    "n": 1,
+    "distinct_tokens": [
+     "examples/self_eval.lang"
+    ],
+    "n_distinct": 1
+   },
+   "harness/tests/test_swe_killers.py": {
+    "n": 11,
+    "distinct_tokens": [
+     "interp.py",
+     "values.py",
+     "whence/interp.py"
+    ],
+    "n_distinct": 3
+   },
+   "harness/tests/test_swe_loop.py": {
+    "n": 2,
+    "distinct_tokens": [
+     "whence/interp.py"
+    ],
+    "n_distinct": 1
+   },
+   "harness/tests/test_swe_mutation.py": {
+    "n": 4,
+    "distinct_tokens": [
+     "tests"
+    ],
+    "n_distinct": 1
+   },
+   "harness/tests/test_swe_oraclekill.py": {
+    "n": 12,
+    "distinct_tokens": [
+     "interp.py",
+     "whence/interp.py"
+    ],
+    "n_distinct": 2
+   },
+   "harness/tests/test_swe_oracles.py": {
+    "n": 1,
+    "distinct_tokens": [
+     "whence"
+    ],
+    "n_distinct": 1
+   },
+   "harness/tests/test_swe_prioritize.py": {
+    "n": 7,
+    "distinct_tokens": [
+     "tests",
+     "tests/test_v09.py"
+    ],
+    "n_distinct": 2
+   },
+   "harness/tests/test_swe_regiontools.py": {
+    "n": 7,
+    "distinct_tokens": [
+     "whence/interp.py"
+    ],
+    "n_distinct": 1
+   },
+   "harness/tests/test_swe_repair.py": {
+    "n": 32,
+    "distinct_tokens": [
+     "-q -x tests/test_interp.py",
+     "tests/test_interp.py",
+     "whence/interp.py"
+    ],
+    "n_distinct": 3
+   },
+   "harness/tests/test_swe_review.py": {
+    "n": 24,
+    "distinct_tokens": [
+     "mutation.json",
+     "whence/interp.py"
+    ],
+    "n_distinct": 2
+   },
+   "harness/tests/test_swe_scoreaudit.py": {
+    "n": 3,
+    "distinct_tokens": [
+     "expected archived mutation reports under state/swe/",
+     "mutation.json",
+     "tests/test_v06.py"
+    ],
+    "n_distinct": 3
+   },
+   "harness/tests/test_swe_toolliveness.py": {
+    "n": 1,
+    "distinct_tokens": [
+     "bench/ref_diff.py"
+    ],
+    "n_distinct": 1
+   },
+   "harness/tests/test_tierbudget.py": {
+    "n": 1,
+    "distinct_tokens": [
+     "harness"
+    ],
+    "n_distinct": 1
+   },
+   "harness/tests/test_tiering.py": {
+    "n": 2,
+    "distinct_tokens": [
+     "run_tests_fast.sh"
+    ],
+    "n_distinct": 1
+   },
+   "languages/whence/tests/test_checkpin.py": {
+    "n": 4,
+    "distinct_tokens": [
+     "examples/self_host.lang"
+    ],
+    "n_distinct": 1
+   },
+   "languages/whence/tests/test_contract_message_differential.py": {
+    "n": 4,
+    "distinct_tokens": [
+     "examples/self_eval.lang",
+     "interp.py",
+     "whence/interp.py"
+    ],
+    "n_distinct": 3
+   },
+   "languages/whence/tests/test_examples.py": {
+    "n": 4,
+    "distinct_tokens": [
+     "examples/deep.lang",
+     "run.py"
+    ],
+    "n_distinct": 2
+   },
+   "languages/whence/tests/test_field_corpus_selector.py": {
+    "n": 5,
+    "distinct_tokens": [
+     "examples",
+     "examples/"
+    ],
+    "n_distinct": 2
+   },
+   "languages/whence/tests/test_lexer_guest_parity.py": {
+    "n": 3,
+    "distinct_tokens": [
+     "examples/",
+     "examples/self_eval.lang"
+    ],
+    "n_distinct": 2
+   },
+   "languages/whence/tests/test_miss_message_differential.py": {
+    "n": 4,
+    "distinct_tokens": [
+     "examples/self_eval.lang",
+     "interp.py",
+     "whence/interp.py"
+    ],
+    "n_distinct": 3
+   },
+   "languages/whence/tests/test_parse_error_differential.py": {
+    "n": 9,
+    "distinct_tokens": [
+     "examples/self_eval.lang",
+     "lexer.py",
+     "parser.py",
+     "whence/parser.py"
+    ],
+    "n_distinct": 4
+   },
+   "languages/whence/tests/test_parser_differential.py": {
+    "n": 3,
+    "distinct_tokens": [
+     "examples",
+     "examples/self_eval.lang",
+     "harness"
+    ],
+    "n_distinct": 3
+   },
+   "languages/whence/tests/test_self_eval.py": {
+    "n": 5,
+    "distinct_tokens": [
+     "examples/self_eval.lang",
+     "examples/self_host.lang",
+     "run.py"
+    ],
+    "n_distinct": 3
+   },
+   "languages/whence/tests/test_self_hosting.py": {
+    "n": 2,
+    "distinct_tokens": [
+     "examples/self_eval.lang",
+     "examples/self_host.lang"
+    ],
+    "n_distinct": 2
+   },
+   "languages/whence/tests/test_spec_builtins.py": {
+    "n": 4,
+    "distinct_tokens": [
+     "SPEC.md",
+     "interp.py",
+     "whence/interp.py"
+    ],
+    "n_distinct": 3
+   },
+   "languages/whence/tests/test_tiering.py": {
+    "n": 12,
+    "distinct_tokens": [
+     "tests",
+     "tests/",
+     "tests/test_v10.py"
+    ],
+    "n_distinct": 3
+   },
+   "languages/whence/tests/test_v06.py": {
+    "n": 3,
+    "distinct_tokens": [
+     "run.py"
+    ],
+    "n_distinct": 1
+   },
+   "languages/whence/tests/test_v09.py": {
+    "n": 5,
+    "distinct_tokens": [
+     "examples/self_host.lang",
+     "examples/tco.lang",
+     "run.py"
+    ],
+    "n_distinct": 3
+   },
+   "languages/whence/tests/test_v10.py": {
+    "n": 32,
+    "distinct_tokens": [
+     "bench/ref_diff.py",
+     "examples/history.lang",
+     "harness",
+     "interp.py",
+     "ref_diff.py",
+     "run.py",
+     "whence"
+    ],
+    "n_distinct": 7
+   },
+   "languages/whence/tests/test_v11.py": {
+    "n": 4,
+    "distinct_tokens": [
+     "bench",
+     "bench/minof.py",
+     "minof.py"
+    ],
+    "n_distinct": 3
+   },
+   "languages/whence/tests/test_v20.py": {
+    "n": 4,
+    "distinct_tokens": [
+     "examples/self_eval.lang",
+     "interp.py",
+     "whence/interp.py"
+    ],
+    "n_distinct": 3
+   },
+   "languages/whence/tests/test_v22.py": {
+    "n": 8,
+    "distinct_tokens": [
+     "SPEC.md",
+     "examples/self_host.lang",
+     "interp.py",
+     "run.py",
+     "whence/interp.py"
+    ],
+    "n_distinct": 5
+   },
+   "languages/whence/tests/test_v23.py": {
+    "n": 4,
+    "distinct_tokens": [
+     "examples/self_host.lang",
+     "run.py"
+    ],
+    "n_distinct": 2
+   },
+   "languages/whence/tests/test_v24.py": {
+    "n": 2,
+    "distinct_tokens": [
+     "SPEC.md",
+     "examples"
+    ],
+    "n_distinct": 2
+   },
+   "languages/whence/tests/test_v26.py": {
+    "n": 5,
+    "distinct_tokens": [
+     "examples/",
+     "examples/deep.lang",
+     "run.py"
+    ],
+    "n_distinct": 3
+   },
+   "languages/whence/tests/test_v27.py": {
+    "n": 5,
+    "distinct_tokens": [
+     "examples",
+     "examples/tco.lang",
+     "run.py"
+    ],
+    "n_distinct": 3
+   },
+   "languages/whence/tests/test_v29.py": {
+    "n": 1,
+    "distinct_tokens": [
+     "examples/self_eval.lang"
+    ],
+    "n_distinct": 1
+   },
+   "languages/whence/tests/test_v30.py": {
+    "n": 4,
+    "distinct_tokens": [
+     "examples/self_eval.lang",
+     "run.py"
+    ],
+    "n_distinct": 2
+   },
+   "languages/whence/tests/test_v31.py": {
+    "n": 12,
+    "distinct_tokens": [
+     "examples/deep.lang",
+     "examples/self_eval.lang",
+     "examples/tco.lang",
+     "interp.py",
+     "run.py",
+     "whence/interp.py"
+    ],
+    "n_distinct": 6
+   },
+   "languages/whence/tests/test_v32.py": {
+    "n": 5,
+    "distinct_tokens": [
+     "examples/hello.lang",
+     "examples/self_eval.lang",
+     "run.py"
+    ],
+    "n_distinct": 3
+   },
+   "languages/whence/tests/test_v33.py": {
+    "n": 5,
+    "distinct_tokens": [
+     "examples",
+     "interp.py",
+     "self_eval.lang",
+     "whence/interp.py"
+    ],
+    "n_distinct": 4
+   },
+   "languages/whence/tests/test_v34.py": {
+    "n": 5,
+    "distinct_tokens": [
+     "examples",
+     "parser.py",
+     "self_eval.lang",
+     "whence/parser.py"
+    ],
+    "n_distinct": 4
+   },
+   "languages/whence/tests/test_v35.py": {
+    "n": 1,
+    "distinct_tokens": [
+     "bench"
+    ],
+    "n_distinct": 1
+   },
+   "languages/whence/tests/test_v36.py": {
+    "n": 3,
+    "distinct_tokens": [
+     "bench",
+     "examples/self_eval.lang",
+     "examples/self_host.lang"
+    ],
+    "n_distinct": 3
+   },
+   "languages/whence/tests/test_v37.py": {
+    "n": 7,
+    "distinct_tokens": [
+     "bench",
+     "examples/self_eval.lang",
+     "examples/self_host.lang",
+     "tests",
+     "whence/"
+    ],
+    "n_distinct": 5
+   },
+   "languages/whence/tests/test_v40.py": {
+    "n": 15,
+    "distinct_tokens": [
+     "run.py",
+     "values.py",
+     "whence/interp.py",
+     "whence/lexer.py",
+     "whence/parser.py",
+     "whence/values.py"
+    ],
+    "n_distinct": 6
+   },
+   "nuc/tests/test_constant_audit.py": {
+    "n": 8,
+    "distinct_tokens": [
+     "harness",
+     "run_checks_fast.sh",
+     "tests",
+     "upstream"
+    ],
+    "n_distinct": 4
+   },
+   "nuc/tests/test_taskscript.py": {
+    "n": 2,
+    "distinct_tokens": [
+     "run.py"
+    ],
+    "n_distinct": 1
+   },
+   "skills/session-inheritance-audit/scripts/test_check_round_recorded.py": {
+    "n": 4,
+    "distinct_tokens": [
+     "logs",
+     "scripts"
+    ],
+    "n_distinct": 2
+   },
+   "skills/skill-authoring/scripts/case_coverage.py": {
+    "n": 1,
+    "distinct_tokens": [
+     "skills"
+    ],
+    "n_distinct": 1
+   },
+   "skills/skill-authoring/scripts/claim_check.py": {
+    "n": 2,
+    "distinct_tokens": [
+     "SKILL.md"
+    ],
+    "n_distinct": 1
+   },
+   "skills/skill-authoring/scripts/corpus_history.py": {
+    "n": 7,
+    "distinct_tokens": [
+     "skills",
+     "skills/"
+    ],
+    "n_distinct": 2
+   },
+   "skills/skill-authoring/scripts/displacement.py": {
+    "n": 1,
+    "distinct_tokens": [
+     "skills"
+    ],
+    "n_distinct": 1
+   },
+   "skills/skill-authoring/scripts/skill_lint.py": {
+    "n": 3,
+    "distinct_tokens": [
+     "SKILL.md"
+    ],
+    "n_distinct": 1
+   },
+   "skills/skill-authoring/scripts/state_claim_check.py": {
+    "n": 2,
+    "distinct_tokens": [
+     "skills",
+     "skills/"
+    ],
+    "n_distinct": 2
+   },
+   "skills/skill-authoring/scripts/test_carryforward_check.py": {
+    "n": 2,
+    "distinct_tokens": [
+     "/PREDICTIONS.md",
+     "state/round-400/PREDICTIONS.md"
+    ],
+    "n_distinct": 2
+   },
+   "skills/skill-authoring/scripts/test_case_coverage.py": {
+    "n": 9,
+    "distinct_tokens": [
+     "SKILL.md",
+     "skills"
+    ],
+    "n_distinct": 2
+   },
+   "skills/skill-authoring/scripts/test_claim_check.py": {
+    "n": 11,
+    "distinct_tokens": [
+     "SKILL.md",
+     "harness",
+     "skills",
+     "skills/",
+     "tests/"
+    ],
+    "n_distinct": 5
+   },
+   "skills/skill-authoring/scripts/test_corpus_check.py": {
+    "n": 4,
+    "distinct_tokens": [
+     "/a/SKILL.md",
+     "/x/SKILL.md",
+     "run_checks_fast.sh"
+    ],
+    "n_distinct": 3
+   },
+   "skills/skill-authoring/scripts/test_corpus_history.py": {
+    "n": 5,
+    "distinct_tokens": [
+     ".gitignore",
+     "/x/SKILL.md",
+     "skills/"
+    ],
+    "n_distinct": 3
+   },
+   "skills/skill-authoring/scripts/test_displacement.py": {
+    "n": 4,
+    "distinct_tokens": [
+     "SKILL.md",
+     "skills"
+    ],
+    "n_distinct": 2
+   },
+   "skills/skill-authoring/scripts/test_pooled_estimator.py": {
+    "n": 2,
+    "distinct_tokens": [
+     "SKILL.md",
+     "skills"
+    ],
+    "n_distinct": 2
+   },
+   "skills/skill-authoring/scripts/test_skill_lint.py": {
+    "n": 14,
+    "distinct_tokens": [
+     "../nope/SKILL.md",
+     "../other/SKILL.md",
+     "SKILL.md",
+     "a/SKILL.md",
+     "b/SKILL.md",
+     "nope/SKILL.md",
+     "other/SKILL.md",
+     "references"
+    ],
+    "n_distinct": 10
+   },
+   "skills/skill-authoring/scripts/test_state_claim_check.py": {
+    "n": 26,
+    "distinct_tokens": [
+     "A/SKILL.md",
+     "SKILL.md",
+     "a/SKILL.md",
+     "demo/SKILL.md",
+     "ghost/SKILL.md",
+     "nope/SKILL.md",
+     "s/SKILL.md",
+     "skills/s/SKILL.md"
+    ],
+    "n_distinct": 9
+   },
+   "skills/skill-authoring/scripts/test_trigger_eval.py": {
+    "n": 8,
+    "distinct_tokens": [
+     ".claude/skills",
+     "SKILL.md",
+     "alpha/SKILL.md",
+     "beta/SKILL.md"
+    ],
+    "n_distinct": 4
+   },
+   "skills/skill-authoring/scripts/test_xref_check.py": {
+    "n": 11,
+    "distinct_tokens": [
+     "node_modules/x/README.md",
+     "skills/",
+     "skills/x/SKILL.md",
+     "state/swe/round-1/SPEC.md",
+     "state/swe/round-137/SPEC.md"
+    ],
+    "n_distinct": 5
+   },
+   "skills/skill-authoring/scripts/trigger_eval.py": {
+    "n": 5,
+    "distinct_tokens": [
+     ".claude/skills",
+     ".claude/skills/",
+     "SKILL.md"
+    ],
+    "n_distinct": 3
+   },
+   "skills/skill-authoring/scripts/xref_check.py": {
+    "n": 7,
+    "distinct_tokens": [
+     "^skills/[^/]+/scripts/",
+     "scripts/",
+     "skills",
+     "skills/",
+     "skills/."
+    ],
+    "n_distinct": 5
+   },
+   "harness/swe/fuzz.py": {
+    "n": 4,
+    "distinct_tokens": [
+     "examples",
+     "examples/",
+     "run.py"
+    ],
+    "n_distinct": 3
+   },
+   "harness/swe/ledgerreplay.py": {
+    "n": 2,
+    "distinct_tokens": [
+     "swe/"
+    ],
+    "n_distinct": 1
+   },
+   "harness/swe/review.py": {
+    "n": 6,
+    "distinct_tokens": [
+     "whence/interp.py"
+    ],
+    "n_distinct": 1
+   },
+   "harness/swe/campaign.py": {
+    "n": 10,
+    "distinct_tokens": [
+     "review.trace.jsonl",
+     "review/repair",
+     "tests/test_generated_killers_r29.py",
+     "whence/interp.py"
+    ],
+    "n_distinct": 4
+   },
+   "harness/swe/coverage.py": {
+    "n": 2,
+    "distinct_tokens": [
+     "whence/interp.py"
+    ],
+    "n_distinct": 1
+   },
+   "harness/swe/killers.py": {
+    "n": 2,
+    "distinct_tokens": [
+     "examples",
+     "whence"
+    ],
+    "n_distinct": 2
+   },
+   "harness/swe/prioritize.py": {
+    "n": 1,
+    "distinct_tokens": [
+     "tests/"
+    ],
+    "n_distinct": 1
+   },
+   "harness/swe/oracles.py": {
+    "n": 1,
+    "distinct_tokens": [
+     "examples"
+    ],
+    "n_distinct": 1
+   },
+   "harness/swe/exemptaudit.py": {
+    "n": 1,
+    "distinct_tokens": [
+     "examples/self_eval.lang"
+    ],
+    "n_distinct": 1
+   },
+   "harness/swe/guest.py": {
+    "n": 1,
+    "distinct_tokens": [
+     "examples/self_eval.lang"
+    ],
+    "n_distinct": 1
+   },
+   "harness/swe/tools.py": {
+    "n": 1,
+    "distinct_tokens": [
+     "killers.json"
+    ],
+    "n_distinct": 1
+   },
+   "harness/swe/oraclekill.py": {
+    "n": 2,
+    "distinct_tokens": [
+     "bench/ref_diff.py",
+     "examples"
+    ],
+    "n_distinct": 2
+   },
+   "harness/swe/repair.py": {
+    "n": 2,
+    "distinct_tokens": [
+     "tests/"
+    ],
+    "n_distinct": 1
+   },
+   "languages/whence/bench/ref_diff.py": {
+    "n": 2,
+    "distinct_tokens": [
+     "examples",
+     "harness"
+    ],
+    "n_distinct": 2
+   },
+   "languages/whence/bench/sanitisers.py": {
+    "n": 1,
+    "distinct_tokens": [
+     "tests"
+    ],
+    "n_distinct": 1
+   }
+  }
+ }
+}

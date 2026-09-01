@@ -33,7 +33,13 @@ are the only ones nobody re-runs.
   7, 8, -, 7, 8, 9, 8, 8 — it does not count carries. Each author derived it
   from whichever earlier revision they happened to read, so its VALUE
   identifies the source copy, and a counter that fails to advance is proof
-  the item was transcribed rather than re-derived.
+  the item was transcribed rather than re-derived. **A counter that DOES
+  advance is not the converse.** See "the ordinal that advanced" below: the
+  worst instance this skill has found had a perfectly maintained counter.
+- An item asserts a **reference count** — "nothing calls X", "X has 0
+  references in Y", "no caller anywhere", "not wired into Z". This shape is a
+  single command away from being re-derived and is the one most likely to be
+  missing from an existing claim grammar.
 - An item cites a **number** (line count, test count, failure rate) or a
   **rule code** (`B002`, `SC-14`, `RUBY-021`) as currently true.
 - You are about to write the next revision of such a document. Run the check
@@ -222,6 +228,54 @@ are the only ones nobody re-runs.
   finding as it is produced, and offer a way to check one item at a time, or
   the expensive mode is one nobody can afford to start.
 
+### The ordinal that advanced
+
+The skill above reads a stalled carry counter as proof of transcription. The
+inverse does not hold, and the instance that proves it is worse than any
+stalled one.
+
+    round 409  wired `nuc/run_checks_fast.sh` into the driver and recorded the
+               closure in bold in its own entry: "is wired into run_driver.sh
+               — SIXTH round carried, 0 references in-tree, closed".
+    round 411  "still has 0 references in run_driver.sh — FOURTH round carried"
+    round 412  "… FIFTH round carried"
+    round 414  "… SIXTH round carried"
+
+`grep -c run_checks_fast run_driver.sh` was **4** throughout. The ordinal went
+up on schedule, every cycle, because incrementing it is the one edit a
+copy-forward author reliably makes — it is the field that *looks* like the
+maintenance. The claim beside it was false the whole time.
+
+So: **the carry ordinal is a fact about the ledger, not about the artefact.**
+A well-maintained counter is evidence that somebody read the item, and nothing
+more. Where a stalled counter is a cheap detector, an advancing one is not
+even weak evidence in the other direction — treat it as absent information.
+
+Two corollaries, both measured on the same document:
+
+* **A recall gap reads as a clean bill.** The checker's verdict on the block
+  containing that item was `7 claim(s): 7 re-derivable, 0 skipped; 0 stale`.
+  Its finding classes were body-line counts, lint codes, carry ordinals,
+  inline `cmd -> result` pairs and retired-item pointers; a reference count is
+  in none of them, so the item produced **no finding of any kind** — not even
+  a carry-age row. Never quote a stale count without its denominator: the
+  honest sentence is "0 stale of the 7 we can check, out of 13 items".
+* **The true and false halves can be in one sentence.** The item read: *"X
+  still has 0 references in run_driver.sh … `skills/run_checks_fast.sh` IS
+  wired (round 363), so a basename grep lies."* Re-derived: the first clause
+  is false (2 mentions, 1 invocation), the second is true (2 mentions, 1
+  invocation) — identical evidence, opposite verdicts, because nobody ran
+  either. Extract claims per CLAUSE, not per item.
+
+### A reference count has two right answers
+
+`refs X --in Y` on the file above returns **2 raw, 1 code-only**: one mention
+is the comment explaining the wiring and one is the wiring. "How many
+references" is therefore ambiguous, and the item picked neither number. When
+you add this claim shape to a grammar, report both and let the claim say which
+it meant; a checker that silently picks one will be right half the time and
+unfalsifiable the other half.
+
 ## Verification
 ```
 # 1. the live revision, static (no command execution at all)
@@ -279,3 +333,11 @@ ERROR-red on S007 (rounds 334, 349, 398) and **2** more WARN on S008 (rounds
 therefore not a one-instance rule, and none of the five was ever noticed by
 the rounds that wrote them. The sets, not the counts, are pinned in
 `TestLiveCorpusOrdinals`, so a new instance names itself.
+
+Round 415 added the two sections above and measured the instance behind them:
+`python3 harness/wiring_audit.py refs nuc/run_checks_fast.sh --in
+run_driver.sh --expect 0` exits **1** with `EXPECT MISS: claimed 0,
+re-derived 2`, and the same command against `skills/run_checks_fast.sh` with
+`--expect 1 --code-only` exits **0**. Both clauses come from one sentence in
+one item of one block, and `state_claim_check.py` reported that block `0
+stale`.

@@ -692,6 +692,13 @@
    "scored_by": 414,
    "where": "knowledge/round-414-the-probe-that-agreed-with-both-rules.md",
    "quote": "6 HIT / 2 PARTIAL / 3 MISS of 11"
+  },
+  "415": {
+   "bank": "state/round-415-predictions.md",
+   "status": "scored",
+   "scored_by": 415,
+   "where": "knowledge/round-415-what-the-driver-actually-runs.md",
+   "quote": "12 HIT / 1 PARTIAL / 4 MISS of 17"
   }
  }
 }

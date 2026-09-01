@@ -109,6 +109,80 @@ deferred run, not a runner); the rule is documented but no tool implements it
     survive being reached through a test framework whose argv no caller
     controls.
 
+### Find them by CLOSURE, not one at a time
+
+The steps above start from "you already suspect this checker is unrun". The
+harder failure is the one nobody suspects, and it has a mechanical answer:
+**compute what the automation actually reaches, and subtract.**
+
+Build one graph. Nodes are the repo's runnable files; an edge `A -> B` means
+A's *code text* names B; take the transitive closure from the entry point the
+scheduler invokes. Everything outside the closure is code no automatic run
+touches, by any route. Five rules make the difference between a graph that
+answers the question and one that answers a different one:
+
+1. **Strip comments first.** A scheduler script that documents itself names
+   instruments it does not run. Measured on a 49.6 KB driver script and the
+   tree around it: **22 nodes, 16 of them entry points, were reachable ONLY
+   through commentary** — and one of the 16 was the single real orphan the
+   audit found. Commentary makes things look covered, so a whole-text grep
+   fails in the direction that hides the finding.
+2. **A basename is not an identity.** Match the longest path-component suffix
+   that resolves and refuse to fall through to a shorter one; report a
+   multi-match as *ambiguous* and never as an edge. Two pairs of health-check
+   scripts in that tree share a basename, and 771 ambiguous references were
+   recorded during one closure.
+3. **A directory is an edge only when a TEST RUNNER is pointed at it.**
+   Gating on "any directory named in code" pulled a data directory created by
+   `mkdir` into the closure (+107 files); gating on "any interpreter token on
+   the line" let `python3 audit_tool.py audit src/` through, because the
+   directory belongs to the audited program, not the interpreter (+158 files,
+   and six correct declarations flipped to errors). Naming `pytest` exactly is
+   both more accurate and more honest than a list of interpreter names.
+4. **A relative path is relative to the referrer.** A script that `cd`s to its
+   own directory and then says `pytest tests/` is unresolvable globally when
+   five `tests/` directories exist. Try the referrer's own directory first,
+   exact match only.
+5. **A dotted module name resolves against an ANCESTOR of the importer.**
+   Tests that do `sys.path.insert(0, parent)` then `from pkg import mod` are
+   the normal case. Without this rule the audit reported the newest instrument
+   in the tree — built two rounds earlier, with its own passing test file — as
+   an orphan, which is the one false positive that would have made the whole
+   check unusable.
+
+### Weight the edges, or "reached" will mean the opposite of what you think
+
+Not every route in is equal. Rank them: an import or a `-m module` invocation
+is strong; a directory handed to a runner, or a path *constructed* by
+`os.path.join`/`pathlib`, is medium; a bare textual mention is weak. Then warn
+on any artefact whose best route in is a bare mention **from inside a test
+file**, because that is routinely evidence of the opposite:
+
+    self.assertManual("python3 bench_elision.py", "expensive")
+    self.assertManual("python3 live_smoke.py cli-guards", "priced")
+
+Those two lines were the only thing in the tree naming either file, and they
+exist so that nothing runs them automatically — one of the two spends money.
+Being named in a refusal is not being run. The same shape appears in exclusion
+lists: a constant `FROZEN_PREFIXES = ("state/swe", ...)`, listing the
+directories a checker refuses to scan, reads to a naive matcher as a list of
+directories to run.
+
+Splitting *constructed* paths from *mentioned* ones is what makes this usable:
+before the split, three of five warnings were files genuinely executed by
+their tests through `spec_from_file_location` and `subprocess.run`. After it,
+two of two were real.
+
+### Declare the answer in three states, not two
+
+A `wired`/`unwired` registry over every entry point produced **eleven
+permanent warnings** for operator tools, benchmarks and scripts that talk to a
+live service and must never fire unattended — and a check that warns every
+cycle for a state the project chose gets ignored and then uninstalled. A third
+status, `manual` ("outside the closure, and that is the answer, not a debt"),
+left exactly two real debts under those eleven. Only the debt status carries an
+owner and a date, and only it can raise the age warning.
+
 ## Pitfalls
 
 - **Reporting one red number.** ERROR-red and strict-warning-red have
@@ -182,3 +256,12 @@ deferred run, not a runner); the rule is documented but no tool implements it
 
 Worked example, with every number and both misses:
 `knowledge/round-363-the-corpus-had-five-checkers-and-nothing-ran-them.md`.
+
+Round 415 built the closure described above (`harness/wiring_audit.py`) and
+ran it on this repo: **108 entry points declared, 82 wired, 24 manual, 2
+unwired**, `0 error(s), 0 warning(s)`, 7.27 s, 47 unit tests. The two debts it
+found were both OLD — one is a track's own `-m` entry point whose test file
+imports its four collaborators and never it, the other had ZERO references of
+any kind and a delete-as-dead-end recommendation from 243 rounds earlier.
+Nothing built in the previous 40 rounds was orphaned, so the value of the
+sweep was in the aged tail, not the recent work.

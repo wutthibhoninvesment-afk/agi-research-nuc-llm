@@ -19007,3 +19007,218 @@ created. No background job left running.
     and round 336's remaining language(C) items carry forward where not closed
     above. The `Harness (A)` half of the Track-status audit is still the last
     one owed.
+
+### Round 415 — harness(A) — 2026-09-01
+
+**The live next-steps item 10 was false, and had been for six rounds.**
+*"`nuc/run_checks_fast.sh` still has 0 references in `run_driver.sh` — SIXTH
+round carried"* — `grep -c run_checks_fast run_driver.sh` is **4**. Round 409
+wired it and said so in bold in its own entry 780 lines earlier in this file;
+rounds 411, 412 and 414 re-asserted the opposite, each advancing its own
+ordinal. **The ordinal is the only part of that item anybody maintained** — a
+number about the ledger, not about the tree — and `state_claim_check.py`'s
+S007, which checks exactly that the ordinal advances, was satisfied. Its
+verdict on the block was `7 claim(s): 7 re-derivable, 0 stale`: the item's
+claim is in no class it extracts, so a recall gap read as a clean bill. Both
+halves of the same sentence are checkable and they disagree — the second half,
+*"`skills/run_checks_fast.sh` IS wired (round 363)"*, re-derives to exactly 1
+code reference and is **true**.
+
+**Nobody in this program could say what `run_driver.sh` runs.** Round 242
+built the whence health check and deferred its wiring 5 rounds; round 388
+built the nuc one and deferred it 6, citing 242→247 by name; round 374 read
+one `driver.log` line and concluded in writing that the driver runs a pristine
+checkout every round (it does not — that became round 375's item 3 and was
+carried twice). All four are claims about edges in one graph that was never
+computed. **New `harness/wiring_audit.py`** computes it: nodes are every
+tracked `.py`/`.sh`, an edge is *A's code text names B*, closure from
+`run_driver.sh`. Subcommands `closure` / `closure --why` / `orphans` /
+`check` / `bootstrap` / `refs`. **New `harness/wiring-registry.json`**, fail-
+closed over all **108** non-excluded entry points — **82 wired, 24 manual, 2
+unwired** — so a script built next round classifies itself as a W001 error
+instead of waiting six rounds to be noticed.
+
+**Five rules, every one a correction made after a visibly wrong answer.**
+(a) Comments are not code: **22 nodes / 16 entry points are reachable ONLY
+through commentary** (255 vs 277), and one of the 16 is this round's own real
+debt — a naive grep would have hidden it. (b) A basename is not an identity;
+the corpus said so in prose and this executes it — **3** ambiguous basenames
+among the 108 (`run_tests_fast.sh`, `run_checks_fast.sh`, and `run.py`, which
+the prediction did not name), 771 ambiguous references recorded and none
+promoted to an edge. (c) A directory only runs when **`pytest`** is pointed at
+it: gating on "any directory" let the driver's own `mkdir -p "$WS/state"` pull
+107 files in (294 nodes); gating on "any runner token on the line" let `python3
+nuc/constant_audit.py audit nuc/` through (427 nodes, six correct `manual`
+declarations turned into errors). (d) A relative path is relative to the
+referrer — `pytest … tests/` after a `cd` is globally ambiguous across five
+`tests/` dirs, and resolving it globally silently dropped the whole whence
+subtree. (e) A dotted name resolves against an ANCESTOR of the importer;
+without it, `from swe import guardpin` reported **round 413's newest
+instrument as an orphan**.
+
+**The instrument's own worst bug, found by tracing ONE missing edge.**
+`strip_python_comments` blanks docstrings in place to keep line geometry,
+which leaves functions with empty bodies: **320 of this repo's 420 tracked
+`.py` files fail to parse after stripping**, and every `ast` pass sat behind
+`except SyntaxError: return []` — silently returning nothing for 76% of the
+tree. No aggregate would have shown it; 76% returning `[]` looks exactly like
+76% having nothing to say. Fixed by parsing the ORIGINAL source and excluding
+docstrings structurally; the SyntaxError is now pinned as a test.
+
+**Two genuine orphans, and they are OLD.** `harness/swe/loop.py` — `python3
+-m swe.loop`, the SWE-loop track's own entry point, reached by nothing;
+`harness/tests/test_swe_loop.py` imports `agentloop`, `swe.policy`,
+`swe.tools` and `swe.killers` directly and never the module that composes
+them. `languages/whence/nuc_scripting/ncs_engine.py` — **zero references of
+any kind**, and round 172 recommended `delete-as-dead-end` for it 243 rounds
+ago. Everything built in the last 40 rounds is reached, usually by its own
+test, which is the opposite of the predicted failure mode.
+
+**Two statuses were not enough, and "reached" needed a strength.** A
+`wired`/`unwired` registry emitted **11 permanent warnings** for scripts
+nobody intends to automate — the mute-button failure `skills/run_checks_fast.sh`
+exists to avoid — so `manual` is a third status and there were exactly 2 real
+debts under those 11. Separately: `test_claim_check.py` names `python3
+bench_elision.py` and `python3 live_smoke.py cli-guards` **in order to assert
+they are refused**, and those two lines are the only thing in the tree naming
+either file; `live_smoke.py` spends money. Edges therefore carry a kind
+(`import`/`dashm` 3, `dir`/`join` 2, `path` 1) and **W006** reports a `wired`
+entry whose best route in is bare text inside a test. Its first run found 5,
+of which **3 were false positives** — `nuc-adapter-copy.py`,
+`reachability_backfill.py` and `taskscript/run.py` are all genuinely executed
+by their tests via `spec_from_file_location`/`subprocess.run` — and splitting
+`join` (path *construction*, incl. pathlib `/`) out of `path` (path
+*mention*) took the rate from 2/5 to **2/2**. `best_incoming` ranks by
+`(depth, strength)` over a BFS; under DFS all four health checks were judged
+on a depth-3 route through a test file and reported as weakly reached.
+
+**Stated limits, because `wired` will be read as "covered".** Verbs
+(`pristine_check.py` is wired through `status` only — round 374's error in its
+exact form) and pytest MARKERS (`test_swe_*.py` are inside the directory
+argument and then deselected) are both inexpressible in a file-level graph.
+
+**Not wired as a fifth health check, on purpose.** Round 409's item 5 — the
+echoed recorded-status block outgrowing every `tail` — is live in
+`harness/run_tests_fast.sh`, and a fifth echo would make it worse. The audit
+runs as a TEST the fast tier already executes every round, and goes red.
+
+**Tests.** `wiring_audit check` **108 entry points, 86 in closure, 0 errors,
+0 warnings**, exit 0, and `closure` 255 nodes in **7.27 s**;
+`harness/tests/test_wiring_audit.py` **47 passed**. All four health checks
+green on the landed tree: whence fast **1999 passed, 3 skipped, 83
+deselected** (105.27 s); harness fast **1064 passed, 280 deselected**
+(194.31 s — 1017 at round 414, +47 this round's file, still inside 4 min);
+`nuc/run_checks_fast.sh` **669 passed**, constant-audit 23/18 derived/4
+bare/0 transform-risk, `nuc-checks PASS`; `skills/run_checks_fast.sh`
+**7 checkers, 0 errors, 6 warnings** (`skill_lint` 64 skills 0/0,
+`claim_check` 143 paths 0 stale, `state_claim_check` 9 claims 0 stale,
+`xref_check` 0 dangling authoritative, `carryforward` 0 errors,
+`unit_tests` 759 passed). `xref_check` caught two paths this round
+introduced — `ast.py` examples written into a docstring as paths that
+deliberately do not exist — and the docstring was reworded rather than the
+paths allowlisted.
+
+**Skills upgraded, not added.** `skills/carried-claim-rot/` gains *the ordinal
+that advanced* — the converse of its own stalled-counter rule, and worse: the
+counter was maintained perfectly over a claim that was false throughout —
+plus the two corollaries (a recall gap reads as a clean bill; extract claims
+per CLAUSE, since the true and false halves were in one sentence).
+`skills/unrun-checker-latency/` gains the detection METHOD it lacked: find
+unrun code by CLOSURE rather than one suspicion at a time, with all five
+rules, the edge-strength weighting and the three-status registry. No new
+skill, so no new unprobed-skill debt.
+
+**Predictions: 12 HIT / 1 PARTIAL / 4 MISS of 17** (mechanism 5/5). Three of
+the four misses are about SIZE — how big the closure is, how many tests, how
+old the orphans — not about mechanism, which is the right way round for an
+instrument. The most useful miss is L2: the false item produces **no finding
+of any kind** from `state_claim_check`, not the weak one predicted, so "0
+stale of 7 checkable, out of 13 items" needs its denominator every time it is
+quoted.
+
+## Next steps (as of round 415)
+
+1. **Two orphaned entry points now have owners and dates.**
+   `harness/swe/loop.py` (`python3 -m swe.loop`, the SWE-loop track's own
+   entry point, reached by nothing — its test file imports `agentloop`,
+   `swe.policy`, `swe.tools` and `swe.killers` directly and never the module
+   that composes them) is SWE-loop(D)'s. `languages/whence/nuc_scripting/
+   ncs_engine.py` (zero references of any kind; round 172 recommended
+   `delete-as-dead-end` 243 rounds ago) is language(C)'s. Both are declared
+   `unwired` `since_round: 415` in `harness/wiring-registry.json`, so W005
+   raises them once a rotation has passed. Either wire it, test it, or
+   delete it — all three discharge the debt; carrying it silently no longer
+   does. SWE-loop(D) and language(C).
+2. **`state_claim_check.py` has no finding class for a REFERENCE claim.**
+   Round 415's item was *"`X` has 0 references in `Y`"*, which is a
+   `harness/wiring_audit.py refs X --in Y --expect N` away from being
+   re-derived, and it produced no finding — not S003, not CARRIED. The
+   primitive now exists and is unit-tested; wiring it in as an `S009` is a
+   skills(B) edit to a skills(B) file. Note the shape it must preserve: the
+   honest answer has TWO numbers (2 mentions, 1 invocation) and the item
+   picked neither. skills(B).
+3. **`0 stale` needs its denominator wherever it is quoted.** The round-414
+   block was reported `7 claim(s): 7 re-derivable, 0 stale` while containing
+   a flatly false item, because the item is in the published recall gap.
+   `corpus_check.py`'s summary line — the line `run_driver.sh` logs — carries
+   the stale count and not the coverage fraction. Round 339's own rule ("a
+   checker nobody watches must publish the recall gap") applied to the line
+   the driver actually reads. skills(B) or harness(A).
+4. **Round 409's items 2, 3 and 4 are untouched and carry forward** (the
+   `split_measured_output` count-line boundary and `MEASURED_END_SENTINEL`;
+   the stale pristine-check ledger; `run_tests_fast.sh`'s echoed block
+   outgrowing every `tail`). Its item 5 is what kept round 415 from adding a
+   fifth echo to that block, so the block is now the thing standing between
+   the harness check and a readable last line. **harness(A).**
+5. **`harness/wiring_audit.py` cannot see verbs or pytest markers**, and both
+   gaps have a live victim. `pristine_check.py` is `wired` through `status`
+   only and the driver never runs `check` or `baseline` — which is round
+   374's error in its exact form, now recorded in the registry's `_scope`
+   rather than left for the next reader to re-derive. `harness/tier-budget.json`
+   and `harness/swe/slowtier.py` already answer the marker half; nothing
+   answers the verb half. harness(A).
+6. **`examples/self_eval.lang`'s guest EVALUATOR still has no pin** (round
+   414's item 1, unchanged). Its first ~1050 lines duplicate the guest parser
+   `checkpin`'s registry covers; the evaluator — closures, env, provenance,
+   the guest's own `why` — is the larger and less-tested half. language(C).
+7. **Round 414's items 2, 3 and 4 carry forward unchanged**: whether `check`
+   should carry a `because "<substring>"` clause (a SPEC decision, not a
+   patch); giving every rule with two opposite falsifying edits both of them;
+   and unifying `parser.quote_str` with `values._quote` (round 408's item 6,
+   now with CP03 pinning one of the two). language(C).
+8. **`case_coverage` has 27 warnings and remains the corpus's largest
+   standing debt**, with **FIVE skills registered unprobed** —
+   `cause-needs-a-denominator`, `verdict-carries-its-threshold`,
+   `null-result-needs-a-power-floor`, `named-guardian-must-go-red`,
+   `probe-where-the-rules-disagree` — the last two to be probed TOGETHER.
+   Needs a priced `trigger_eval` round budgeted as a whole round. skills(B).
+9. **Round 411's item 2 carries forward** (a single
+   `command_exempt_reason(cmd, tok, bases)` composing all four suppression
+   rules). skills(B).
+10. **NUC-E is unchanged and first for the next E round**: reachability, then
+    `python3 nuc/capture_manifest.py plan --capture state/nuc-capture-r400 >
+    /tmp/cap.sh && bash /tmp/cap.sh`. **Fourth round carried**, all four
+    because the box was down. `sa23` is still overwritten 2026-09-23. Round
+    412's items 2, 3 and 4 are all OFFLINE work needing no box and are the
+    fallback if it is still down. NUC-integration(E).
+11. **Round 414's item 10 is CLOSED, and the way it was closed is the
+    finding.** `nuc/run_checks_fast.sh` has been wired since round 409; the
+    claim that it was not survived three blocks because the only number in it
+    that anybody maintained was the carry ordinal. Any future item asserting
+    a reference count should be written with the command that re-derives it
+    beside it.
+12. **Round 408's item 9 (CLAUDE.md's `🔴 CRITICAL MISSION` block is stale in
+    both halves) is re-escalated for the SIXTH time.** Both its items were
+    answered by rounds 349 and 33/v0.23, and every round pays a re-read for
+    it. CLAUDE.md is the operator's file (round 346), so this needs the
+    operator, not a round.
+13. **`languages/whence/SECURITY.md` has now been carried 67 rounds.** The
+    round-349 escalation is still accurate and its content pin still matches,
+    so nothing is wrong — but sixty-seven rounds of "acknowledged, not a gap"
+    is worth one operator decision rather than another acknowledgement.
+14. **Blocked on the operator: `--cap 196` and the E3 A/B**, with round 412's
+    precondition (any A/B publishes its power floor BEFORE it runs). Round
+    406's items 1–7, round 405's 1–4, round 404's 1–4 and 7, round 403's 2–5
+    and round 336's remaining language(C) items carry forward where not
+    closed above. The `Harness (A)` half of the Track-status audit is still
+    the last one owed.
