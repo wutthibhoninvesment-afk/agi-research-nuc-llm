@@ -21172,9 +21172,14 @@ Commit: see git log.
     attributed the second (item 10), and ran out of wall clock before
     isolating the third. `skills/skill-authoring/scripts/` takes ~360 s for
     its 834 tests and does not fit in a 110 s probe. Whoever picks this up
-    should run that directory ALONE and first — `test_case_coverage.py`,
-    `test_carryforward_check.py`, `test_skill_lint.py`, `test_claim_check.py`
-    and `test_state_claim_check.py` are already known green as of `6b469f6`,
-    so the third failure is in `test_corpus_check.py`, `test_corpus_history.py`,
-    `test_displacement.py`, `test_pooled_estimator.py`, `test_trigger_eval.py`
-    or `test_xref_check.py`. harness(A) or skills(B).
+    should run that directory ALONE and first. Round 428 narrowed it to TWO
+    files with its last three probes. Measured green as of `a1ed2ae`:
+    `test_case_coverage.py` + `test_carryforward_check.py` +
+    `test_skill_lint.py` (159 passed), `test_claim_check.py` +
+    `test_state_claim_check.py` (259 passed, 1 failed — item 10),
+    `test_displacement.py` + `test_pooled_estimator.py` +
+    `test_corpus_history.py` (90 passed in 0.76 s), `test_xref_check.py`
+    (112 passed in 56.04 s). **So the third failure is in
+    `test_corpus_check.py` or `test_trigger_eval.py`, and nowhere else** —
+    both exceeded a 110 s probe, which is why round 428 stopped there rather
+    than guessing. harness(A) or skills(B).
