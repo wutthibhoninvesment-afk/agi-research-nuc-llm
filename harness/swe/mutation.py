@@ -256,9 +256,19 @@ def baseline_check(project_root, test_cmd, timeout_s=120.0):
 
 
 def _copy_project(project_root, dst):
+    """Copy a project into a throwaway tree.
+
+    `node_modules` joined the ignore list in round 413, when `guardpin.py`
+    became the first caller to pass the REPO ROOT rather than
+    `languages/whence`: node_modules is 468 MB on this box against ~26 MB for
+    everything else, so copying it made a per-pin copy a 9-second operation
+    instead of a 1.8-second one. Nothing in this repo imports Python from
+    there — it holds one npm dependency, `@anthropic-ai/claude-code` — and
+    `test_copy_project_ignores_the_npm_tree` pins that the list is applied.
+    """
     shutil.copytree(project_root, dst, ignore=shutil.ignore_patterns(
         "__pycache__", ".pytest_cache", "*.pyc",
-        ".venv", "research-env", "*.egg-info", ".git"))
+        ".venv", "research-env", "*.egg-info", ".git", "node_modules"))
 
 
 def run_mutant(m, project_root, test_cmd, timeout_s=120.0):

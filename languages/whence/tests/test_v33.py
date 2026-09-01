@@ -42,8 +42,13 @@ from whence.values import Miss                              # noqa: E402
 from whence.parser import ParseError, parse                 # noqa: E402
 
 CENSUS = C.FIELD_CENSUS      # round 410: one spelling of the path, in curecheck
-LEDGER = os.path.join(os.path.dirname(ROOT), "..", "state", "whence",
-                      "round-386", "cure-ledger.json")
+# Round 413: resolved from `curecheck.AGI_ROOT` (which prefers
+# `AGI_RESEARCH_ROOT`) rather than from this file's own `__file__`. Under a
+# `harness/swe/mutation.py` copy the old expression pointed at
+# `/tmp/<tmpdir>/../state/whence/...` and raised FileNotFoundError.
+import curecheck as _C                                       # noqa: E402
+LEDGER = os.path.join(_C.AGI_ROOT, "state", "whence", "round-386",
+                      "cure-ledger.json")
 EXAMPLES = os.path.join(ROOT, "examples")
 
 

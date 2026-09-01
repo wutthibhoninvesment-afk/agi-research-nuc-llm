@@ -406,6 +406,52 @@ def test_the_corpus_exercises_both_outcomes():
 # stream parity — every example file GIT TRACKS
 # --------------------------------------------------------------------------
 
+def _corpus_git_dirs():
+    """Where to ASK git about the corpus, in order.
+
+    `ROOT` is this file's own tree. Under `harness/swe/mutation.py` that is a
+    tempdir copy of `languages/whence` with no `.git` anywhere above it, so
+    `git ls-files` exits 128 — round 149's defect, and `harness/swe/proc.py`
+    exports `AGI_RESEARCH_ROOT` into every such subprocess for exactly this.
+    The FILES still come from `ROOT`: it is the tracked-SET question that has
+    to be asked of the real checkout, and the copy holds byte-identical
+    examples, so the two answers describe the same corpus.
+    """
+    import curecheck as C          # same tree, not `harness/` — see the pin
+    dirs = [ROOT]
+    if C.WHENCE_GIT_ROOT != ROOT:
+        dirs.append(C.WHENCE_GIT_ROOT)
+    return dirs
+
+
+def git_tracked_examples():
+    """`examples/*.lang` as git enumerates them, or None if no git can answer.
+
+    THE one home for the git question (round 413). `_example_files` had the
+    graceful fallback and
+    `test_the_corpus_is_what_git_tracks_and_not_what_the_directory_holds` —
+    the very test that pins it — re-derived the same `git ls-files` with its
+    own `subprocess.run(..., check=True)` and no fallback. Round 411's shape
+    exactly: a gate inside a producer is only as strong as the producer's
+    monopoly, and a second door consulted none of it. In a mutation copy the
+    producer degraded to a glob and the pin raised `CalledProcessError`, and
+    since `mutation_test` requires a green baseline that ONE line blocked
+    every Whence mutation campaign (measured round 413).
+    """
+    for cwd in _corpus_git_dirs():
+        try:
+            out = subprocess.run(
+                ["git", "ls-files", "examples"], cwd=cwd,
+                capture_output=True, text=True, timeout=10, check=True)
+        except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+            continue
+        names = sorted(line for line in out.stdout.splitlines()
+                       if line.startswith("examples/") and line.endswith(".lang"))
+        if names:
+            return names
+    return None
+
+
 def _example_files():
     """The CURATED corpus: `examples/*.lang` as enumerated by `git ls-files`.
 
@@ -431,17 +477,9 @@ def _example_files():
     Falls back to the old glob if `git` is unavailable or this is not a
     checkout at all — a corpus of 16 is better than a collection error.
     """
-    try:
-        out = subprocess.run(
-            ["git", "ls-files", "examples"], cwd=ROOT,
-            capture_output=True, text=True, timeout=10, check=True)
-        names = sorted(os.path.join(ROOT, line)
-                       for line in out.stdout.splitlines()
-                       if line.startswith("examples/") and line.endswith(".lang"))
-        if names:
-            return names
-    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
-        pass
+    names = git_tracked_examples()
+    if names:
+        return sorted(os.path.join(ROOT, n) for n in names)
     return sorted(glob.glob(os.path.join(ROOT, "examples", "*.lang")))
 
 
@@ -496,10 +534,14 @@ def test_the_corpus_is_what_git_tracks_and_not_what_the_directory_holds():
     not in a fresh clone) at least one of them is excluded.
     """
     listed = {os.path.basename(p) for p in _example_files()}
-    tracked = subprocess.run(["git", "ls-files", "examples"], cwd=ROOT,
-                             capture_output=True, text=True, check=True)
-    tracked = {os.path.basename(l) for l in tracked.stdout.splitlines()
-               if l.endswith(".lang")}
+    lines = git_tracked_examples()
+    # Still loud, not skipped: in any checkout git CAN answer, and a silent
+    # pass here is what round 355's fix exists to prevent.
+    assert lines is not None, (
+        "git could not enumerate the corpus from any of %s; the "
+        "tracked-vs-on-disk discrimination this test asserts is unobservable"
+        % (_corpus_git_dirs(),))
+    tracked = {os.path.basename(l) for l in lines if l.endswith(".lang")}
     assert listed == tracked, listed ^ tracked
 
     on_disk = {os.path.basename(p)

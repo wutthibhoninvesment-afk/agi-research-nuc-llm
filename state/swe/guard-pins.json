@@ -1,0 +1,166 @@
+{
+ "_comment": "Guard-pin registry, read by harness/swe/guardpin.py (round 413, SWE-loop D). A pin is a CLAIM: 'if this call stopped doing its job, THIS named test would tell us.' The runner falsifies it — it applies the declared edit in a throwaway copy and requires the named test to go RED. Sites are located SYMBOLICALLY (path + func + target), never by line number: a line number rots silently and would have the tool confidently mutating whatever moved into its place, while a symbol that moved makes the pin `unlocatable` and loud. `keep_call: true` keeps the call running and its NAME in the source and discards only its VALUE, which is what tells a source-grep pin apart from a behavioural one; it is rejected as an `equivalent` edit on a bare call statement, where the value is discarded anyway. Add a pin whenever a round's knowledge file says 'and this test pins it' — that sentence is the claim this file exists to check.",
+ "pins": [
+  {
+   "id": "GP01",
+   "path": "skills/skill-authoring/scripts/claim_check.py",
+   "func": "path_tokens",
+   "edit": "call_value",
+   "target": "token_exempt_reason",
+   "becomes": "none",
+   "keep_call": true,
+   "test": "skills/skill-authoring/scripts/test_claim_check.py::TestPathTokens::test_skips_placeholder_tokens",
+   "check_sole": true,
+   "why": "round 411's exemption gate, asked by the FIRST of its two doors. Neutering its answer to None makes every placeholder token a checkable claim again — the pre-411 behaviour of the other door."
+  },
+  {
+   "id": "GP02",
+   "path": "skills/skill-authoring/scripts/claim_check.py",
+   "func": "check_paths",
+   "edit": "call_value",
+   "target": "token_exempt_reason",
+   "becomes": "none",
+   "keep_call": true,
+   "test": "skills/skill-authoring/scripts/test_claim_check.py::TestExemptionGateHasOneHome::test_every_c001_site_consults_the_exemption_gate",
+   "check_sole": true,
+   "why": "the SECOND door — round 411's actual bug. The claimed guardian is a structural pin whose own docstring says it 'cannot prove the call is on the right path'; keep_call=true is the edit that tests that sentence."
+  },
+  {
+   "id": "GP03",
+   "path": "skills/skill-authoring/scripts/claim_check.py",
+   "func": "check_paths",
+   "edit": "call_value",
+   "target": "token_exempt_reason",
+   "becomes": "none",
+   "keep_call": false,
+   "test": "skills/skill-authoring/scripts/test_claim_check.py::TestExemptionGateHasOneHome::test_every_c001_site_consults_the_exemption_gate",
+   "check_sole": true,
+   "why": "GP02's twin with the call TEXT removed. Same site, same test; the only difference is whether the identifier survives. Whatever the two verdicts are, their difference is the measurement."
+  },
+  {
+   "id": "GP04",
+   "path": "harness/swe/mutation.py",
+   "func": "mutation_test",
+   "edit": "drop_stmt",
+   "stmt_kind": "raise",
+   "target": "BaselineNotGreen",
+   "test": "harness/tests/test_swe_mutation.py::test_mutation_test_refuses_to_score_against_a_broken_baseline",
+   "check_sole": true,
+   "why": "round 349's fix: without this raise a campaign scores a suite that never ran, and scores it HIGH."
+  },
+  {
+   "id": "GP05",
+   "path": "harness/swe/mutation.py",
+   "func": "classify_mutant_run",
+   "edit": "call_value",
+   "target": "is_pytest_cmd",
+   "becomes": "false",
+   "keep_call": true,
+   "test": "harness/tests/test_swe_mutation.py::test_classify_mutant_run_whitelists_rather_than_blacklists_pytest_codes",
+   "check_sole": true,
+   "why": "round 349's whitelist. False here restores the pre-349 rule that every non-zero exit code is a kill, including the ones that mean the suite never ran."
+  },
+  {
+   "id": "GP06",
+   "path": "harness/swe/campaign.py",
+   "func": "_run_one",
+   "edit": "drop_stmt",
+   "stmt_kind": "expr",
+   "target": "_require_baseline",
+   "test": "harness/tests/test_swe_campaign.py::test_every_mutant_run_in_campaign_py_goes_through_the_gate",
+   "timeout_s": 1500,
+   "why": "the gate campaign.py's five run_mutant call sites forgot. Its claimed guardian is structural — it counts occurrences in the file — so this pin asks whether removing the call is enough to trip it."
+  },
+  {
+   "id": "GP07",
+   "path": "nuc/perturbation.py",
+   "func": "power_floor",
+   "edit": "drop_stmt",
+   "stmt_kind": "raise",
+   "target": "power_floor needs N > 0",
+   "test": "nuc/tests/test_perturbation.py::test_power_floor_rejects_an_impossible_record_shape",
+   "check_sole": true,
+   "why": "round 412's input guard. A power floor computed from N <= 0 is a number with no record behind it. `expect_in_failure` added after the first run: the test DID go red, but with `ZeroDivisionError: division by zero` from inside power_floor rather than with `DID NOT RAISE`. Red by crash is not the same evidence as red by the assertion the test is named for.",
+   "expect_in_failure": "DID NOT RAISE"
+  },
+  {
+   "id": "GP08",
+   "path": "nuc/perturbation.py",
+   "func": "attribution_evidence",
+   "edit": "call_value",
+   "target": "best_case_p",
+   "becomes": "false",
+   "keep_call": true,
+   "test": "nuc/tests/test_perturbation.py::test_a_unit_too_large_to_test_is_graded_untestable_not_coincidence",
+   "check_sole": true,
+   "why": "round 412's `untestable` verdict. False is 0 numerically, so p_best * n_tested <= bar always holds and NOTHING is ever untestable — the pre-412 world, where a unit with no power was graded `coincidence`."
+  },
+  {
+   "id": "GP09",
+   "path": "nuc/perturbation.py",
+   "func": "attribution_evidence",
+   "edit": "call_value",
+   "target": "power_floor",
+   "becomes": "none",
+   "keep_call": true,
+   "test": "nuc/tests/test_perturbation.py::test_the_swap_channels_power_collapses_to_zero_and_commits_does_not",
+   "check_sole": true,
+   "why": "the `power` block round 412 put in every attribution report. None here means the report still has the key and no number behind it. `expect_in_failure` added after the first run: under the edit this test dies with `TypeError: 'NoneType' object is not subscriptable` inside channel_sweep and never evaluates ANY of its four assertions. It is red, and it is not red about n_testable_units -- round 412's shape, one layer out.",
+   "expect_in_failure": "n_testable_units"
+  },
+  {
+   "id": "GP10",
+   "path": "languages/whence/whence/parser.py",
+   "func": "Parser.statement",
+   "edit": "drop_stmt",
+   "stmt_kind": "expr",
+   "target": "mark_tails",
+   "test": "languages/whence/tests/test_v03.py::test_parser_marks_tails_only_inside_fn_bodies",
+   "check_sole": true,
+   "why": "v0.3's tail marking on the NAMED-fn branch. Without it no call is ever in tail position, so the tail-loop optimisation silently stops applying."
+  },
+  {
+   "id": "GP11",
+   "path": "languages/whence/whence/parser.py",
+   "func": "Parser.primary",
+   "edit": "drop_stmt",
+   "stmt_kind": "expr",
+   "target": "mark_tails",
+   "test": "languages/whence/tests/test_v03.py::test_parser_marks_tails_only_inside_fn_bodies",
+   "check_sole": true,
+   "why": "the SAME call on the ANONYMOUS-fn branch (v0.14.10). Two doors, one behaviour, one named guardian — the round-411 shape, asked before it becomes a bug."
+  },
+  {
+   "id": "GP12",
+   "path": "languages/whence/whence/parser.py",
+   "func": "Parser.primary",
+   "edit": "drop_stmt",
+   "stmt_kind": "expr",
+   "target": "mark_tails",
+   "test": "languages/whence/tests/test_v03.py::test_parser_marks_tails_only_inside_fn_bodies",
+   "suite": "languages/whence/tests",
+   "suite_args": [
+    "-m",
+    "not whence_slow",
+    "-x",
+    "--deselect",
+    "languages/whence/tests/test_v03.py::test_a_let_bound_anonymous_fn_is_a_tail_loop_like_a_named_one",
+    "--deselect",
+    "languages/whence/tests/test_v03.py::test_the_parser_marks_tails_in_an_anonymous_fn_body_too"
+   ],
+   "timeout_s": 1200,
+   "why": "GP11 widened from one file to the whole whence fast tier. Round 413's own killer tests are DESELECTED here on purpose: the question this pin answers is the pre-fix one — did any of the ~1000 fast-tier tests notice this call being deleted BEFORE round 413 added a test for it — and leaving them in would have the round grading its own homework."
+  },
+  {
+   "id": "GP13",
+   "path": "languages/whence/whence/parser.py",
+   "func": "Parser.primary",
+   "edit": "drop_stmt",
+   "stmt_kind": "expr",
+   "target": "mark_tails",
+   "test": "languages/whence/tests/test_v03.py::test_a_let_bound_anonymous_fn_is_a_tail_loop_like_a_named_one",
+   "check_sole": true,
+   "why": "GP11's killer. Round 413 measured the survivor (nothing in test_v03.py noticed), built the differential (peak_depth 1 -> 50, tail_calls 300 -> 0 for a let-bound anonymous fn, named fn unchanged) and turned it into this test. The pin is what keeps that true."
+  }
+ ]
+}

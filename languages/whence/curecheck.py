@@ -787,9 +787,49 @@ def run_program(path, timeout=90, strict=False):
 
 # --- the corpus -----------------------------------------------------------
 
+# `_HERE`'s grandparent is the repo root only when this file is IN the
+# checkout. Under `harness/swe/mutation.py` the suite runs from a tempdir copy
+# of `languages/whence` alone, where the grandparent is `/tmp` — round 149's
+# defect, and `harness/swe/proc.py` exports `AGI_RESEARCH_ROOT` into every such
+# subprocess for exactly this. Four other files in this tree already read it
+# (`bench/ref_diff.py`, `bench/reserve_probe.py`, `tests/test_v10.py`,
+# `tests/test_parser_differential.py`); this one did not, and because the read
+# happens at IMPORT time in `tests/test_field_corpus_selector.py`, the
+# resulting `FileNotFoundError: /tmp/state/whence/round-384/field-names.json`
+# aborted COLLECTION of the whole suite. Measured round 413: `baseline_check(
+# "languages/whence", DEFAULT_TEST_CMD)` exited 1 in 0.55 s with `1 error`, so
+# `mutation_test` raised `BaselineNotGreen` before generating a single mutant
+# — every Whence mutation campaign was blocked at the door.
+_AGI_ROOT = (os.environ.get("AGI_RESEARCH_ROOT")
+             or os.path.dirname(os.path.dirname(_HERE)))
+
+#: Where to run `git` when asking about the example corpus. THE one home for
+#: that root (round 413). The corpus-in-git QUESTION is deliberately
+#: duplicated across this tree — `harness/tests/test_pristine_check.py::
+#: test_the_curated_corpus_rule_is_duplicated_only_where_declared` censuses
+#: the copies on purpose, because the whence suite must not import
+#: `harness/`. What was duplicated by ACCIDENT is the root each copy runs
+#: git in: five sites, five `__file__`-derived roots, none of them consulting
+#: `AGI_RESEARCH_ROOT`. Under a mutation copy they degrade three different
+#: ways — `CalledProcessError` (test_lexer_guest_parity), an empty stdout
+#: silently read as "nothing is tracked" (test_v24, test_v26 without
+#: `check=True`), and a glob fallback that returns the untracked field corpus
+#: too — and any one of them is enough to make `mutation_test` raise
+#: `BaselineNotGreen`.
+#:
+#: Outside a `harness/swe/proc.py` subprocess the env var is unset and both
+#: values are exactly what each site computed before, so this changes nothing
+#: about a plain `pytest languages/whence/tests`.
+REPO_GIT_ROOT = _AGI_ROOT
+WHENCE_GIT_ROOT = os.path.join(_AGI_ROOT, "languages", "whence")
+
+#: Public alias. Anything in this tree that must reach a path OUTSIDE it —
+#: `state/`, `harness/`, git — resolves it from here rather than from its own
+#: `__file__`, so it keeps working when the tree is copied somewhere else.
+AGI_ROOT = _AGI_ROOT
+
 FIELD_CENSUS = os.path.join(
-    os.path.dirname(os.path.dirname(_HERE)), "state", "whence", "round-384",
-    "field-names.json")
+    _AGI_ROOT, "state", "whence", "round-384", "field-names.json")
 
 
 def _census_md5():

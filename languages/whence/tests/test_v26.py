@@ -186,9 +186,11 @@ def test_every_example_stays_under_the_default_with_margin():
     # TRACKED only: a separate system leaves untracked .lang files under
     # examples/ (see state/known-standing-dirty-paths.json), and the corpus
     # this constant answers to is the one in git.
+    import curecheck as C           # round 413: the git root, not the file root
     tracked = subprocess.run(
         ["git", "ls-files", "--", "examples/*.lang"],
-        cwd=ROOT, capture_output=True, text=True, check=True).stdout.split()
+        cwd=C.WHENCE_GIT_ROOT, capture_output=True, text=True,
+        check=True).stdout.split()
     assert tracked, "no tracked examples found — the guard would be vacuous"
     # ROUND 402: this loop used to have no `try`, so the FIRST tracked
     # example that failed to parse aborted it and the failure named exactly

@@ -323,8 +323,9 @@ def test_no_tracked_example_drops_a_miss():
     """The property that makes the report readable: a green corpus is a
     silent one. If a future example needs to drop a miss, it belongs in
     DROPS_ON_PURPOSE with a reason, not in the noise."""
+    import curecheck as C           # round 413: the git root, not the file root
     out = subprocess.run(["git", "ls-files", "examples"], capture_output=True,
-                         text=True, cwd=ROOT).stdout.split()
+                         text=True, cwd=C.WHENCE_GIT_ROOT).stdout.split()
     assert len(out) >= 18, out
     assert set(DROPS_ON_PURPOSE) <= set(out), sorted(DROPS_ON_PURPOSE)
     sys.setrecursionlimit(6000)

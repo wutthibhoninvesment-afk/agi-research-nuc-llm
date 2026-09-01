@@ -419,6 +419,13 @@ def test_the_generator_reaches_every_registered_builtin():
     nothing re-ran the diff, so the next builtin re-opened it. This is the
     diff, as a test."""
     sys.path.insert(0, os.path.dirname(os.path.dirname(ROOT)))
+    # Round 413: `harness/` is OUTSIDE this tree, so a mutation copy of
+    # `languages/whence` alone cannot import it from cwd. `curecheck.AGI_ROOT`
+    # prefers `AGI_RESEARCH_ROOT` (exported by `harness/swe/proc.py` into every
+    # such subprocess) and is a no-op in the checkout.
+    import curecheck as _C
+    if _C.AGI_ROOT not in sys.path:
+        sys.path.insert(0, _C.AGI_ROOT)
     from harness.swe.fuzz import BUILTIN_ARITY
     import whence.interp as I
     registered = set(dict(I._make_builtin_table()))

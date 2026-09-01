@@ -135,7 +135,7 @@ def test_timeout_kills_grandchild_holding_stdout(tmp_path):
 # Measured live over 6 mutants of `whence/values.py`: broken 6 killed /
 # score 1.00, repaired 3 killed 3 survived / score 0.50.
 
-from swe.mutation import (BaselineNotGreen, baseline_check, classify_mutant_run,
+from swe.mutation import (BaselineNotGreen, _copy_project, baseline_check, classify_mutant_run,
                           is_pytest_cmd)
 import pytest
 
@@ -259,3 +259,26 @@ def test_classify_mutant_run_whitelists_rather_than_blacklists_pytest_codes():
         assert classify_mutant_run(rc, "", ["make", "test"]) == "killed", rc
     # Signals kill under either runner.
     assert classify_mutant_run(-9, "", ["make", "test"]) == "killed"
+
+
+def test_copy_project_ignores_the_npm_tree(tmp_path):
+    """Round 413. `guardpin.py` is the first caller to pass the REPO ROOT to
+    `_copy_project` rather than `languages/whence`, and `node_modules` is
+    468 MB against ~26 MB for the rest of the checkout — a 9-second copy per
+    mutant instead of a 1.8-second one.
+
+    Pinned because the ignore list is the only thing standing between a
+    per-mutant copy and half a gigabyte, and nothing else in this suite reads
+    it: every pattern already in the list was added without a test.
+    """
+    src = tmp_path / "src"
+    (src / "node_modules" / "@anthropic-ai").mkdir(parents=True)
+    (src / "node_modules" / "@anthropic-ai" / "big.js").write_text("x" * 4096)
+    (src / "__pycache__").mkdir()
+    (src / "__pycache__" / "m.cpython-3.pyc").write_text("junk")
+    (src / "keep.py").write_text("K = 1\n")
+    dst = tmp_path / "dst"
+    _copy_project(str(src), str(dst))
+    assert (dst / "keep.py").read_text() == "K = 1\n"
+    assert not (dst / "node_modules").exists()
+    assert not (dst / "__pycache__").exists()

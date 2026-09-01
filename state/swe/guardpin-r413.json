@@ -1,0 +1,668 @@
+{
+ "pins": 11,
+ "guarded": 9,
+ "findings": 2,
+ "errors": 0,
+ "score": 0.8182,
+ "seconds": 162.2,
+ "results": [
+  {
+   "id": "GP01",
+   "verdict": "guarded",
+   "note": "claim_check.py:410 token_exempt_reason -> none (call kept, value discarded)",
+   "detail": "the named test went RED under the edit; 4 other test(s) in skills/skill-authoring/scripts/test_claim_check.py catch it too: test_skips_scratch_paths, test_a_false_cd_positive_used_to_mask_every_token_behind_it, test_the_live_corpus_line_that_provoked_this",
+   "diff": "@@ -409,3 +409,3 @@\n         tok = raw.strip(\"'\\\"`,;()\")\n-        if token_exempt_reason(tok) is not None:\n+        if (token_exempt_reason(tok), None)[1] is not None:\n             continue",
+   "path": "skills/skill-authoring/scripts/claim_check.py",
+   "func": "path_tokens",
+   "target": "token_exempt_reason",
+   "edit": "call_value",
+   "keep_call": true,
+   "test": "skills/skill-authoring/scripts/test_claim_check.py::TestPathTokens::test_skips_placeholder_tokens",
+   "suite": "skills/skill-authoring/scripts/test_claim_check.py",
+   "why": "round 411's exemption gate, asked by the FIRST of its two doors. Neutering its answer to None makes every placeholder token a checkable claim again \u2014 the pre-411 behaviour of the other door.",
+   "sole_guardian": false,
+   "seconds": 31.8,
+   "runs": {
+    "baseline_test": {
+     "status": "survived",
+     "returncode": 0,
+     "seconds": 0.75,
+     "failed": [],
+     "tail": ".                                                                        [100%]\n1 passed in 0.10s"
+    },
+    "mutant_test": {
+     "status": "killed",
+     "returncode": 1,
+     "seconds": 0.97,
+     "failed": [
+      "skills/skill-authoring/scripts/test_claim_check.py::TestPathTokens::test_skips_placeholder_tokens"
+     ],
+     "tail": "ns(c), [], c)\nE           AssertionError: Lists differ: ['state/round-NNN-x.md'] != []\nE           \nE           First list contains 1 additional elements.\nE           First extra element 0:\nE           'state/round-NNN-x.md'\nE           \nE           - ['state/round-NNN-x.md']\nE           + [] : head -3 state/round-NNN-x.md\n\nskills/skill-authoring/scripts/test_claim_check.py:273: AssertionError\n=========================== short test summary info ============================\nFAILED skills/skill-authoring/scripts/test_claim_check.py::TestPathTokens::test_skips_placeholder_tokens\n1 failed in 0.22s"
+    },
+    "baseline_suite": {
+     "status": "survived",
+     "returncode": 0,
+     "seconds": 10.68,
+     "failed": [],
+     "tail": "........................................................................ [ 76%]\n......................                                                   [100%]\n94 passed in 9.65s"
+    },
+    "mutant_suite_without_named": {
+     "status": "killed",
+     "returncode": 1,
+     "seconds": 10.88,
+     "failed": [
+      "skills/skill-authoring/scripts/test_claim_check.py::TestPathTokens::test_skips_scratch_paths",
+      "skills/skill-authoring/scripts/test_claim_check.py::TestCdTargetConsultsTheExemptionGate::test_a_false_cd_positive_used_to_mask_every_token_behind_it",
+      "skills/skill-authoring/scripts/test_claim_check.py::TestCdTargetConsultsTheExemptionGate::test_the_live_corpus_line_that_provoked_this",
+      "skills/skill-authoring/scripts/test_claim_check.py::TestLiveCorpusClaims::test_no_stale_paths_in_the_real_corpus"
+     ],
+     "tail": "mary info ============================\nFAILED skills/skill-authoring/scripts/test_claim_check.py::TestPathTokens::test_skips_scratch_paths\nFAILED skills/skill-authoring/scripts/test_claim_check.py::TestCdTargetConsultsTheExemptionGate::test_a_false_cd_positive_used_to_mask_every_token_behind_it\nFAILED skills/skill-authoring/scripts/test_claim_check.py::TestCdTargetConsultsTheExemptionGate::test_the_live_corpus_line_that_provoked_this\nFAILED skills/skill-authoring/scripts/test_claim_check.py::TestLiveCorpusClaims::test_no_stale_paths_in_the_real_corpus\n4 failed, 89 passed, 1 deselected in 9.78s"
+    }
+   }
+  },
+  {
+   "id": "GP02",
+   "verdict": "misattributed",
+   "note": "claim_check.py:485 token_exempt_reason -> none (call kept, value discarded)",
+   "detail": "the NAMED test stayed green; 5 other test(s) in skills/skill-authoring/scripts/test_claim_check.py went red: test_a_false_cd_positive_used_to_mask_every_token_behind_it, test_the_live_corpus_line_that_provoked_this, test_the_old_cd_branch_called_a_placeholder_target_stale, test_the_old_cd_branch_called_a_scratch_target_stale",
+   "diff": "@@ -484,3 +484,3 @@\n             # the worktree was created). Only the FINDING is suppressed.\n-            exempt = token_exempt_reason(target)\n+            exempt = (token_exempt_reason(target), None)[1]\n             resolved = resolve_token(target, [cwd, repo_root])",
+   "path": "skills/skill-authoring/scripts/claim_check.py",
+   "func": "check_paths",
+   "target": "token_exempt_reason",
+   "edit": "call_value",
+   "keep_call": true,
+   "test": "skills/skill-authoring/scripts/test_claim_check.py::TestExemptionGateHasOneHome::test_every_c001_site_consults_the_exemption_gate",
+   "suite": "skills/skill-authoring/scripts/test_claim_check.py",
+   "why": "the SECOND door \u2014 round 411's actual bug. The claimed guardian is a structural pin whose own docstring says it 'cannot prove the call is on the right path'; keep_call=true is the edit that tests that sentence.",
+   "sole_guardian": null,
+   "seconds": 31.7,
+   "runs": {
+    "baseline_test": {
+     "status": "survived",
+     "returncode": 0,
+     "seconds": 0.74,
+     "failed": [],
+     "tail": ".                                                                        [100%]\n1 passed in 0.11s"
+    },
+    "mutant_test": {
+     "status": "survived",
+     "returncode": 0,
+     "seconds": 0.9,
+     "failed": [],
+     "tail": ".                                                                        [100%]\n1 passed in 0.16s"
+    },
+    "baseline_suite": {
+     "status": "survived",
+     "returncode": 0,
+     "seconds": 10.68,
+     "failed": [],
+     "tail": "........................................................................ [ 76%]\n......................                                                   [100%]\n94 passed in 9.65s"
+    },
+    "mutant_suite": {
+     "status": "killed",
+     "returncode": 1,
+     "seconds": 10.79,
+     "failed": [
+      "skills/skill-authoring/scripts/test_claim_check.py::TestCdTargetConsultsTheExemptionGate::test_a_false_cd_positive_used_to_mask_every_token_behind_it",
+      "skills/skill-authoring/scripts/test_claim_check.py::TestCdTargetConsultsTheExemptionGate::test_the_live_corpus_line_that_provoked_this",
+      "skills/skill-authoring/scripts/test_claim_check.py::TestCdTargetConsultsTheExemptionGate::test_the_old_cd_branch_called_a_placeholder_target_stale",
+      "skills/skill-authoring/scripts/test_claim_check.py::TestCdTargetConsultsTheExemptionGate::test_the_old_cd_branch_called_a_scratch_target_stale",
+      "skills/skill-authoring/scripts/test_claim_check.py::TestLiveCorpusClaims::test_no_stale_paths_in_the_real_corpus"
+     ],
+     "tail": "nd_it\nFAILED skills/skill-authoring/scripts/test_claim_check.py::TestCdTargetConsultsTheExemptionGate::test_the_live_corpus_line_that_provoked_this\nFAILED skills/skill-authoring/scripts/test_claim_check.py::TestCdTargetConsultsTheExemptionGate::test_the_old_cd_branch_called_a_placeholder_target_stale\nFAILED skills/skill-authoring/scripts/test_claim_check.py::TestCdTargetConsultsTheExemptionGate::test_the_old_cd_branch_called_a_scratch_target_stale\nFAILED skills/skill-authoring/scripts/test_claim_check.py::TestLiveCorpusClaims::test_no_stale_paths_in_the_real_corpus\n5 failed, 89 passed in 9.74s"
+    }
+   }
+  },
+  {
+   "id": "GP03",
+   "verdict": "guarded",
+   "note": "claim_check.py:485 token_exempt_reason -> none (call text removed)",
+   "detail": "the named test went RED under the edit; 5 other test(s) in skills/skill-authoring/scripts/test_claim_check.py catch it too: test_a_false_cd_positive_used_to_mask_every_token_behind_it, test_the_live_corpus_line_that_provoked_this, test_the_old_cd_branch_called_a_placeholder_target_stale",
+   "diff": "@@ -484,3 +484,3 @@\n             # the worktree was created). Only the FINDING is suppressed.\n-            exempt = token_exempt_reason(target)\n+            exempt = None\n             resolved = resolve_token(target, [cwd, repo_root])",
+   "path": "skills/skill-authoring/scripts/claim_check.py",
+   "func": "check_paths",
+   "target": "token_exempt_reason",
+   "edit": "call_value",
+   "keep_call": false,
+   "test": "skills/skill-authoring/scripts/test_claim_check.py::TestExemptionGateHasOneHome::test_every_c001_site_consults_the_exemption_gate",
+   "suite": "skills/skill-authoring/scripts/test_claim_check.py",
+   "why": "GP02's twin with the call TEXT removed. Same site, same test; the only difference is whether the identifier survives. Whatever the two verdicts are, their difference is the measurement.",
+   "sole_guardian": false,
+   "seconds": 14.58,
+   "runs": {
+    "baseline_test": {
+     "status": "survived",
+     "returncode": 0,
+     "seconds": 0.74,
+     "failed": [],
+     "tail": ".                                                                        [100%]\n1 passed in 0.11s"
+    },
+    "mutant_test": {
+     "status": "killed",
+     "returncode": 1,
+     "seconds": 0.8,
+     "failed": [
+      "skills/skill-authoring/scripts/test_claim_check.py::TestExemptionGateHasOneHome::test_every_c001_site_consults_the_exemption_gate"
+     ],
+     "tail": "   continue\\n            findings.append(Finding(\\n                cmd, \"C001\", \"path %r resolves nowhere (checked %s)\"\\n                % (tok, _describe_bases(bases, repo_root))))\\n    return findings, n_checked, n_skipped\\n\\n\\n' : check_paths emits C001 without CALLING token_exempt_reason\n\nskills/skill-authoring/scripts/test_claim_check.py:559: AssertionError\n=========================== short test summary info ============================\nFAILED skills/skill-authoring/scripts/test_claim_check.py::TestExemptionGateHasOneHome::test_every_c001_site_consults_the_exemption_gate\n1 failed in 0.16s"
+    },
+    "baseline_suite": {
+     "status": "survived",
+     "returncode": 0,
+     "seconds": 10.68,
+     "failed": [],
+     "tail": "........................................................................ [ 76%]\n......................                                                   [100%]\n94 passed in 9.65s"
+    },
+    "mutant_suite_without_named": {
+     "status": "killed",
+     "returncode": 1,
+     "seconds": 11.32,
+     "failed": [
+      "skills/skill-authoring/scripts/test_claim_check.py::TestCdTargetConsultsTheExemptionGate::test_a_false_cd_positive_used_to_mask_every_token_behind_it",
+      "skills/skill-authoring/scripts/test_claim_check.py::TestCdTargetConsultsTheExemptionGate::test_the_live_corpus_line_that_provoked_this",
+      "skills/skill-authoring/scripts/test_claim_check.py::TestCdTargetConsultsTheExemptionGate::test_the_old_cd_branch_called_a_placeholder_target_stale",
+      "skills/skill-authoring/scripts/test_claim_check.py::TestCdTargetConsultsTheExemptionGate::test_the_old_cd_branch_called_a_scratch_target_stale",
+      "skills/skill-authoring/scripts/test_claim_check.py::TestLiveCorpusClaims::test_no_stale_paths_in_the_real_corpus"
+     ],
+     "tail": "ills/skill-authoring/scripts/test_claim_check.py::TestCdTargetConsultsTheExemptionGate::test_the_live_corpus_line_that_provoked_this\nFAILED skills/skill-authoring/scripts/test_claim_check.py::TestCdTargetConsultsTheExemptionGate::test_the_old_cd_branch_called_a_placeholder_target_stale\nFAILED skills/skill-authoring/scripts/test_claim_check.py::TestCdTargetConsultsTheExemptionGate::test_the_old_cd_branch_called_a_scratch_target_stale\nFAILED skills/skill-authoring/scripts/test_claim_check.py::TestLiveCorpusClaims::test_no_stale_paths_in_the_real_corpus\n5 failed, 88 passed, 1 deselected in 10.07s"
+    }
+   }
+  },
+  {
+   "id": "GP04",
+   "verdict": "guarded",
+   "note": "mutation.py:397 drop raise-statement mentioning BaselineNotGreen",
+   "detail": "the named test went RED under the edit; 1 other test(s) in harness/tests/test_swe_mutation.py catch it too: test_baseline_also_catches_a_merely_red_suite",
+   "diff": "@@ -396,3 +396,3 @@\n         if b[\"returncode\"] != 0:\n-            raise BaselineNotGreen(b[\"returncode\"], b[\"tail\"])\n+            pass\n     mutants = []",
+   "path": "harness/swe/mutation.py",
+   "func": "mutation_test",
+   "target": "BaselineNotGreen",
+   "edit": "drop_stmt",
+   "keep_call": false,
+   "test": "harness/tests/test_swe_mutation.py::test_mutation_test_refuses_to_score_against_a_broken_baseline",
+   "suite": "harness/tests/test_swe_mutation.py",
+   "why": "round 349's fix: without this raise a campaign scores a suite that never ran, and scores it HIGH.",
+   "sole_guardian": false,
+   "seconds": 71.01,
+   "runs": {
+    "baseline_test": {
+     "status": "survived",
+     "returncode": 0,
+     "seconds": 1.5,
+     "failed": [],
+     "tail": ".                                                                        [100%]\ntier-budget: 1/14 promoted files timed, 0.4s of a 48.0s budget \u2014 worst test_swe_mutation.py 0.4s of 36.3s\n1 passed in 0.81s"
+    },
+    "mutant_test": {
+     "status": "killed",
+     "returncode": 1,
+     "seconds": 1.04,
+     "failed": [
+      "harness/tests/test_swe_mutation.py::test_mutation_test_refuses_to_score_against_a_broken_baseline"
+     ],
+     "tail": "e_against_a_broken_baseline(tmp_path):\n        root = make_project(tmp_path)\n        (tmp_path / \"pyproject.toml\").write_text(BROKEN_PYPROJECT)\n>       with pytest.raises(BaselineNotGreen) as ei:\nE       Failed: DID NOT RAISE BaselineNotGreen\n\nharness/tests/test_swe_mutation.py:198: Failed\ntier-budget: 1/14 promoted files timed, 0.7s of a 48.0s budget \u2014 worst test_swe_mutation.py 0.7s of 36.3s\n=========================== short test summary info ============================\nFAILED harness/tests/test_swe_mutation.py::test_mutation_test_refuses_to_score_against_a_broken_baseline\n1 failed in 0.74s"
+    },
+    "baseline_suite": {
+     "status": "survived",
+     "returncode": 0,
+     "seconds": 25.91,
+     "failed": [],
+     "tail": "...............                                                          [100%]\ntier-budget: 1/14 promoted files timed, 25.0s of a 48.0s budget \u2014 worst test_swe_mutation.py 25.0s of 36.3s\n15 passed in 25.16s"
+    },
+    "mutant_suite_without_named": {
+     "status": "killed",
+     "returncode": 1,
+     "seconds": 36.85,
+     "failed": [
+      "harness/tests/test_swe_mutation.py::test_baseline_also_catches_a_merely_red_suite"
+     ],
+     "tail": "oot = make_project(tmp_path)\n        (tmp_path / \"tests\" / \"test_already_red.py\").write_text(\"def test_red():\\n    assert False\\n\")\n>       with pytest.raises(BaselineNotGreen) as ei:\nE       Failed: DID NOT RAISE BaselineNotGreen\n\nharness/tests/test_swe_mutation.py:213: Failed\ntier-budget: 1/14 promoted files timed, 32.4s of a 48.0s budget \u2014 worst test_swe_mutation.py 32.4s of 36.3s\n=========================== short test summary info ============================\nFAILED harness/tests/test_swe_mutation.py::test_baseline_also_catches_a_merely_red_suite\n1 failed, 13 passed, 1 deselected in 32.77s"
+    }
+   }
+  },
+  {
+   "id": "GP05",
+   "verdict": "guarded",
+   "note": "mutation.py:205 is_pytest_cmd -> false (call kept, value discarded)",
+   "detail": "the named test went RED under the edit; 2 other test(s) in harness/tests/test_swe_mutation.py catch it too: test_classify_mutant_run_only_counts_a_real_test_failure_as_a_kill, test_broken_config_now_errors_every_mutant_instead_of_killing_it",
+   "diff": "@@ -204,3 +204,3 @@\n         return \"killed\"\n-    if is_pytest_cmd(cmd):\n+    if (is_pytest_cmd(cmd), False)[1]:\n         # Whitelist, not blacklist. Under pytest exactly one positive code",
+   "path": "harness/swe/mutation.py",
+   "func": "classify_mutant_run",
+   "target": "is_pytest_cmd",
+   "edit": "call_value",
+   "keep_call": true,
+   "test": "harness/tests/test_swe_mutation.py::test_classify_mutant_run_whitelists_rather_than_blacklists_pytest_codes",
+   "suite": "harness/tests/test_swe_mutation.py",
+   "why": "round 349's whitelist. False here restores the pre-349 rule that every non-zero exit code is a kill, including the ones that mean the suite never ran.",
+   "sole_guardian": false,
+   "seconds": 72.73,
+   "runs": {
+    "baseline_test": {
+     "status": "survived",
+     "returncode": 0,
+     "seconds": 0.4,
+     "failed": [],
+     "tail": ".                                                                        [100%]\ntier-budget: 1/14 promoted files timed, 0.0s of a 48.0s budget \u2014 worst test_swe_mutation.py 0.0s of 36.3s\n1 passed in 0.07s"
+    },
+    "mutant_test": {
+     "status": "killed",
+     "returncode": 1,
+     "seconds": 0.81,
+     "failed": [
+      "harness/tests/test_swe_mutation.py::test_classify_mutant_run_whitelists_rather_than_blacklists_pytest_codes"
+     ],
+     "tail": "rc in (6, 7, 42, 99):\n>           assert classify_mutant_run(rc, \"\", PYTEST_CMD) == \"error\", rc\nE           AssertionError: 6\nE           assert 'killed' == 'error'\nE             \nE             - error\nE             + killed\n\nharness/tests/test_swe_mutation.py:255: AssertionError\ntier-budget: 1/14 promoted files timed, 0.0s of a 48.0s budget \u2014 worst test_swe_mutation.py 0.0s of 36.3s\n=========================== short test summary info ============================\nFAILED harness/tests/test_swe_mutation.py::test_classify_mutant_run_whitelists_rather_than_blacklists_pytest_codes\n1 failed in 0.16s"
+    },
+    "baseline_suite": {
+     "status": "survived",
+     "returncode": 0,
+     "seconds": 25.91,
+     "failed": [],
+     "tail": "...............                                                          [100%]\ntier-budget: 1/14 promoted files timed, 25.0s of a 48.0s budget \u2014 worst test_swe_mutation.py 25.0s of 36.3s\n15 passed in 25.16s"
+    },
+    "mutant_suite_without_named": {
+     "status": "killed",
+     "returncode": 1,
+     "seconds": 31.63,
+     "failed": [
+      "harness/tests/test_swe_mutation.py::test_classify_mutant_run_only_counts_a_real_test_failure_as_a_kill",
+      "harness/tests/test_swe_mutation.py::test_broken_config_now_errors_every_mutant_instead_of_killing_it"
+     ],
+     "tail": "n_config_now_errors_every_mutant_instead_of_killing_it.<locals>.<genexpr> at 0x794278697850>)\n\nharness/tests/test_swe_mutation.py:229: AssertionError\ntier-budget: 1/14 promoted files timed, 30.1s of a 48.0s budget \u2014 worst test_swe_mutation.py 30.1s of 36.3s\n=========================== short test summary info ============================\nFAILED harness/tests/test_swe_mutation.py::test_classify_mutant_run_only_counts_a_real_test_failure_as_a_kill\nFAILED harness/tests/test_swe_mutation.py::test_broken_config_now_errors_every_mutant_instead_of_killing_it\n2 failed, 12 passed, 1 deselected in 30.23s"
+    }
+   }
+  },
+  {
+   "id": "GP06",
+   "verdict": "guarded",
+   "note": "campaign.py:312 drop expr-statement mentioning _require_baseline",
+   "detail": "the named test went RED under the edit",
+   "diff": "@@ -311,3 +311,3 @@\n         \"\"\"\n-        self._require_baseline()\n+        pass\n         return run_mutant(m, self.root, cmd, timeout_s)",
+   "path": "harness/swe/campaign.py",
+   "func": "_run_one",
+   "target": "_require_baseline",
+   "edit": "drop_stmt",
+   "keep_call": false,
+   "test": "harness/tests/test_swe_campaign.py::test_every_mutant_run_in_campaign_py_goes_through_the_gate",
+   "suite": "harness/tests/test_swe_campaign.py",
+   "why": "the gate campaign.py's five run_mutant call sites forgot. Its claimed guardian is structural \u2014 it counts occurrences in the file \u2014 so this pin asks whether removing the call is enough to trip it.",
+   "sole_guardian": null,
+   "seconds": 7.52,
+   "runs": {
+    "baseline_test": {
+     "status": "survived",
+     "returncode": 0,
+     "seconds": 0.6,
+     "failed": [],
+     "tail": ".                                                                        [100%]\n1 passed in 0.27s"
+    },
+    "mutant_test": {
+     "status": "killed",
+     "returncode": 1,
+     "seconds": 1.72,
+     "failed": [
+      "harness/tests/test_swe_campaign.py::test_every_mutant_run_in_campaign_py_goes_through_the_gate"
+     ],
+     "tail": "seline()\" in body and \"run_mutant(m, self.root\" in body\nE       assert ('self._require_baseline()' in 'self, m, cmd, timeout_s):\\n        \"\"\"THE mutant-running call in this module.\\n\\n        Every stage goes through her..._mutant(m, self.root, cmd, timeout_s)\\n\\n    # ------------------------------------------------------------ helpers --')\n\nharness/tests/test_swe_campaign.py:570: AssertionError\n=========================== short test summary info ============================\nFAILED harness/tests/test_swe_campaign.py::test_every_mutant_run_in_campaign_py_goes_through_the_gate\n1 failed in 0.82s"
+    }
+   }
+  },
+  {
+   "id": "GP07",
+   "verdict": "guarded",
+   "note": "perturbation.py:900 drop raise-statement mentioning power_floor needs N > 0",
+   "detail": "the named test went RED under the edit; and it is the ONLY test in nuc/tests/test_perturbation.py that goes red",
+   "diff": "@@ -899,3 +899,3 @@\n     if N <= 0:\n-        raise PerturbationError(\"power_floor needs N > 0\")\n+        pass\n     if not 0 <= K <= N:",
+   "path": "nuc/perturbation.py",
+   "func": "power_floor",
+   "target": "power_floor needs N > 0",
+   "edit": "drop_stmt",
+   "keep_call": false,
+   "test": "nuc/tests/test_perturbation.py::test_power_floor_rejects_an_impossible_record_shape",
+   "suite": "nuc/tests/test_perturbation.py",
+   "why": "round 412's input guard. A power floor computed from N <= 0 is a number with no record behind it.",
+   "sole_guardian": true,
+   "seconds": 21.75,
+   "runs": {
+    "baseline_test": {
+     "status": "survived",
+     "returncode": 0,
+     "seconds": 3.04,
+     "failed": [],
+     "tail": ".                                                                        [100%]\n1 passed in 1.28s"
+    },
+    "mutant_test": {
+     "status": "killed",
+     "returncode": 1,
+     "seconds": 1.36,
+     "failed": [
+      "nuc/tests/test_perturbation.py::test_power_floor_rejects_an_impossible_record_shape"
+     ],
+     "tail": "e\n                    f\"occupancies {testable[0]}..{testable[-1]} can clear the bar \"\n                    f\"(contiguous)\" if testable[-1] - testable[0] + 1 == len(testable)\n                    else f\"{len(testable)} occupancies in [{testable[0]}, \"\n                         f\"{testable[-1]}] can clear the bar\"),\n        }\nE       ZeroDivisionError: division by zero\n\nnuc/perturbation.py:917: ZeroDivisionError\n=========================== short test summary info ============================\nFAILED nuc/tests/test_perturbation.py::test_power_floor_rejects_an_impossible_record_shape\n1 failed in 0.63s"
+    },
+    "baseline_suite": {
+     "status": "survived",
+     "returncode": 0,
+     "seconds": 4.9,
+     "failed": [],
+     "tail": "........................................................................ [ 75%]\n........................                                                 [100%]\n96 passed in 3.84s"
+    },
+    "mutant_suite_without_named": {
+     "status": "survived",
+     "returncode": 0,
+     "seconds": 2.9,
+     "failed": [],
+     "tail": "........................................................................ [ 75%]\n.......................                                                  [100%]\n95 passed, 1 deselected in 2.26s"
+    }
+   }
+  },
+  {
+   "id": "GP08",
+   "verdict": "guarded",
+   "note": "perturbation.py:1008 best_case_p -> false (call kept, value discarded)",
+   "detail": "the named test went RED under the edit; 9 other test(s) in nuc/tests/test_perturbation.py catch it too: test_round_406s_consistency_fixture_never_reached_the_consistency_rule, test_fwupd_refresh_fires_36_times_and_33_of_them_cost_nothing, test_cli_evidence_pools_ledger_files_and_filters_by_unit",
+   "diff": "@@ -1007,3 +1007,3 @@\n         p_family = min(1.0, p_chance * n_tested)\n-        p_best = best_case_p(N, K, n_distinct)\n+        p_best = (best_case_p(N, K, n_distinct), False)[1]\n         testable = p_best * n_tested <= max_family_p",
+   "path": "nuc/perturbation.py",
+   "func": "attribution_evidence",
+   "target": "best_case_p",
+   "edit": "call_value",
+   "keep_call": true,
+   "test": "nuc/tests/test_perturbation.py::test_a_unit_too_large_to_test_is_graded_untestable_not_coincidence",
+   "suite": "nuc/tests/test_perturbation.py",
+   "why": "round 412's `untestable` verdict. False is 0 numerically, so p_best * n_tested <= bar always holds and NOTHING is ever untestable \u2014 the pre-412 world, where a unit with no power was graded `coincidence`.",
+   "sole_guardian": false,
+   "seconds": 17.77,
+   "runs": {
+    "baseline_test": {
+     "status": "survived",
+     "returncode": 0,
+     "seconds": 1.14,
+     "failed": [],
+     "tail": ".                                                                        [100%]\n1 passed in 0.48s"
+    },
+    "mutant_test": {
+     "status": "killed",
+     "returncode": 1,
+     "seconds": 1.64,
+     "failed": [
+      "nuc/tests/test_perturbation.py::test_a_unit_too_large_to_test_is_graded_untestable_not_coincidence"
+     ],
+     "tail": " i in range(15)]\n        res = attribution_evidence([_ledger(_noisy() + filler, 218, 3)])\n        u = {x[\"unit\"]: x for x in res[\"units\"]}[\"noisy\"]\n        assert u[\"n_distinct_buckets\"] == 36 and u[\"n_costly\"] == 3\n        assert u[\"n_clean\"] == 3 and u[\"consistency\"] > 0.05\n>       assert u[\"testable\"] is False\nE       assert True is False\n\nnuc/tests/test_perturbation.py:874: AssertionError\n=========================== short test summary info ============================\nFAILED nuc/tests/test_perturbation.py::test_a_unit_too_large_to_test_is_graded_untestable_not_coincidence\n1 failed in 0.69s"
+    },
+    "baseline_suite": {
+     "status": "survived",
+     "returncode": 0,
+     "seconds": 4.9,
+     "failed": [],
+     "tail": "........................................................................ [ 75%]\n........................                                                 [100%]\n96 passed in 3.84s"
+    },
+    "mutant_suite_without_named": {
+     "status": "killed",
+     "returncode": 1,
+     "seconds": 3.65,
+     "failed": [
+      "nuc/tests/test_perturbation.py::test_round_406s_consistency_fixture_never_reached_the_consistency_rule",
+      "nuc/tests/test_perturbation.py::test_fwupd_refresh_fires_36_times_and_33_of_them_cost_nothing",
+      "nuc/tests/test_perturbation.py::test_cli_evidence_pools_ledger_files_and_filters_by_unit",
+      "nuc/tests/test_perturbation.py::test_testability_depends_on_how_many_OTHER_units_are_in_the_ledger",
+      "nuc/tests/test_perturbation.py::test_half_the_boots_units_could_never_have_been_supported",
+      "nuc/tests/test_perturbation.py::test_sa30_ALONE_is_a_record_that_could_not_have_supported_anything",
+      "nuc/tests/test_perturbation.py::test_the_commit_channel_gives_fwupd_the_powered_test_swap_could_not",
+      "nuc/tests/test_perturbation.py::test_the_swap_channels_power_collapses_to_zero_and_commits_does_not",
+      "nuc/tests/test_perturbation.py::test_cli_sweep_reports_the_verdict_as_a_function_of_the_threshold"
+     ],
+     "tail": "_many_OTHER_units_are_in_the_ledger\nFAILED nuc/tests/test_perturbation.py::test_half_the_boots_units_could_never_have_been_supported\nFAILED nuc/tests/test_perturbation.py::test_sa30_ALONE_is_a_record_that_could_not_have_supported_anything\nFAILED nuc/tests/test_perturbation.py::test_the_commit_channel_gives_fwupd_the_powered_test_swap_could_not\nFAILED nuc/tests/test_perturbation.py::test_the_swap_channels_power_collapses_to_zero_and_commits_does_not\nFAILED nuc/tests/test_perturbation.py::test_cli_sweep_reports_the_verdict_as_a_function_of_the_threshold\n9 failed, 86 passed, 1 deselected in 2.76s"
+    }
+   }
+  },
+  {
+   "id": "GP09",
+   "verdict": "guarded",
+   "note": "perturbation.py:1059 power_floor -> none (call kept, value discarded)",
+   "detail": "the named test went RED under the edit; 3 other test(s) in nuc/tests/test_perturbation.py catch it too: test_sa30_ALONE_is_a_record_that_could_not_have_supported_anything, test_neither_channel_supports_anything_at_any_threshold, test_cli_sweep_reports_the_verdict_as_a_function_of_the_threshold",
+   "diff": "@@ -1058,3 +1058,3 @@\n         by_verdict[e.verdict] = by_verdict.get(e.verdict, 0) + 1\n-    floor = power_floor(N, K, n_tested, max_family_p)\n+    floor = (power_floor(N, K, n_tested, max_family_p), None)[1]\n     n_testable = sum(1 for e in out if e.testable)",
+   "path": "nuc/perturbation.py",
+   "func": "attribution_evidence",
+   "target": "power_floor",
+   "edit": "call_value",
+   "keep_call": true,
+   "test": "nuc/tests/test_perturbation.py::test_the_swap_channels_power_collapses_to_zero_and_commits_does_not",
+   "suite": "nuc/tests/test_perturbation.py",
+   "why": "the `power` block round 412 put in every attribution report. None here means the report still has the key and no number behind it.",
+   "sole_guardian": false,
+   "seconds": 10.84,
+   "runs": {
+    "baseline_test": {
+     "status": "survived",
+     "returncode": 0,
+     "seconds": 0.99,
+     "failed": [],
+     "tail": ".                                                                        [100%]\n1 passed in 0.40s"
+    },
+    "mutant_test": {
+     "status": "killed",
+     "returncode": 1,
+     "seconds": 1.6,
+     "failed": [
+      "nuc/tests/test_perturbation.py::test_the_swap_channels_power_collapses_to_zero_and_commits_does_not"
+     ],
+     "tail": "e_occupancy\": ev[\"power\"][\"min_testable_occupancy\"],\n                \"n_testable_units\": ev[\"n_testable_units\"],\n                \"supported_was_reachable\": ev[\"supported_was_reachable\"],\n                \"supported\": ev[\"supported\"],\n                \"by_verdict\": ev[\"by_verdict\"],\n            })\nE           TypeError: 'NoneType' object is not subscriptable\n\nnuc/perturbation.py:1114: TypeError\n=========================== short test summary info ============================\nFAILED nuc/tests/test_perturbation.py::test_the_swap_channels_power_collapses_to_zero_and_commits_does_not\n1 failed in 0.73s"
+    },
+    "baseline_suite": {
+     "status": "survived",
+     "returncode": 0,
+     "seconds": 4.9,
+     "failed": [],
+     "tail": "........................................................................ [ 75%]\n........................                                                 [100%]\n96 passed in 3.84s"
+    },
+    "mutant_suite_without_named": {
+     "status": "killed",
+     "returncode": 1,
+     "seconds": 3.07,
+     "failed": [
+      "nuc/tests/test_perturbation.py::test_sa30_ALONE_is_a_record_that_could_not_have_supported_anything",
+      "nuc/tests/test_perturbation.py::test_neither_channel_supports_anything_at_any_threshold",
+      "nuc/tests/test_perturbation.py::test_cli_sweep_reports_the_verdict_as_a_function_of_the_threshold"
+     ],
+     "tail": "            ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^\\nTypeError: \\'NoneType\\' object is not subscriptable\\n').returncode\n\nnuc/tests/test_perturbation.py:1123: AssertionError\n=========================== short test summary info ============================\nFAILED nuc/tests/test_perturbation.py::test_sa30_ALONE_is_a_record_that_could_not_have_supported_anything\nFAILED nuc/tests/test_perturbation.py::test_neither_channel_supports_anything_at_any_threshold\nFAILED nuc/tests/test_perturbation.py::test_cli_sweep_reports_the_verdict_as_a_function_of_the_threshold\n3 failed, 92 passed, 1 deselected in 2.45s"
+    }
+   }
+  },
+  {
+   "id": "GP10",
+   "verdict": "guarded",
+   "note": "parser.py:1282 drop expr-statement mentioning mark_tails",
+   "detail": "the named test went RED under the edit; 7 other test(s) in languages/whence/tests/test_v03.py catch it too: test_tail_loop_does_not_consume_depth, test_merged_call_node_counts_frames_and_keeps_every_branch, test_step_records_expose_count_and_render_shows_it",
+   "diff": "@@ -1281,3 +1281,3 @@\n             param_types = self._param_contracts(body, params, types, name)\n-            mark_tails(body)\n+            pass\n             return A.FnDef(tok.line, name, params, body, ret_type,",
+   "path": "languages/whence/whence/parser.py",
+   "func": "Parser.statement",
+   "target": "mark_tails",
+   "edit": "drop_stmt",
+   "keep_call": false,
+   "test": "languages/whence/tests/test_v03.py::test_parser_marks_tails_only_inside_fn_bodies",
+   "suite": "languages/whence/tests/test_v03.py",
+   "why": "v0.3's tail marking on the NAMED-fn branch. Without it no call is ever in tail position, so the tail-loop optimisation silently stops applying.",
+   "sole_guardian": false,
+   "seconds": 20.7,
+   "runs": {
+    "baseline_test": {
+     "status": "survived",
+     "returncode": 0,
+     "seconds": 0.83,
+     "failed": [],
+     "tail": ".                                                                        [100%]\n1 passed in 0.24s"
+    },
+    "mutant_test": {
+     "status": "killed",
+     "returncode": 1,
+     "seconds": 0.91,
+     "failed": [
+      "languages/whence/tests/test_v03.py::test_parser_marks_tails_only_inside_fn_bodies"
+     ],
+     "tail": "ssert body.stmts[-1].expr.then.stmts[-1].expr.tail is True\nE       AssertionError: assert False is True\nE        +  where False = Call(fn=NameRef(name='f'), args=[Num(value=1)], tail=False).tail\nE        +    where Call(fn=NameRef(name='f'), args=[Num(value=1)], tail=False) = ExprStmt(expr=Call(fn=NameRef(name='f'), args=[Num(value=1)], tail=False)).expr\n\nlanguages/whence/tests/test_v03.py:233: AssertionError\n=========================== short test summary info ============================\nFAILED languages/whence/tests/test_v03.py::test_parser_marks_tails_only_inside_fn_bodies\n1 failed in 0.29s"
+    },
+    "baseline_suite": {
+     "status": "survived",
+     "returncode": 0,
+     "seconds": 9.59,
+     "failed": [],
+     "tail": "............................                                             [100%]\n28 passed in 8.89s"
+    },
+    "mutant_suite_without_named": {
+     "status": "killed",
+     "returncode": 1,
+     "seconds": 2.38,
+     "failed": [
+      "languages/whence/tests/test_v03.py::test_tail_loop_does_not_consume_depth",
+      "languages/whence/tests/test_v03.py::test_merged_call_node_counts_frames_and_keeps_every_branch",
+      "languages/whence/tests/test_v03.py::test_step_records_expose_count_and_render_shows_it",
+      "languages/whence/tests/test_v03.py::test_mutual_tail_recursion_merges_under_both_names",
+      "languages/whence/tests/test_v03.py::test_max_iter_turns_an_infinite_tail_loop_into_a_miss",
+      "languages/whence/tests/test_v03.py::test_tail_loop_through_else_if_chain",
+      "languages/whence/tests/test_v03.py::test_parser_marks_tails_only_inside_fn_bodies"
+     ],
+     "tail": "t_consume_depth\nFAILED languages/whence/tests/test_v03.py::test_merged_call_node_counts_frames_and_keeps_every_branch\nFAILED languages/whence/tests/test_v03.py::test_step_records_expose_count_and_render_shows_it\nFAILED languages/whence/tests/test_v03.py::test_mutual_tail_recursion_merges_under_both_names\nFAILED languages/whence/tests/test_v03.py::test_max_iter_turns_an_infinite_tail_loop_into_a_miss\nFAILED languages/whence/tests/test_v03.py::test_tail_loop_through_else_if_chain\nFAILED languages/whence/tests/test_v03.py::test_parser_marks_tails_only_inside_fn_bodies\n7 failed, 21 passed in 1.61s"
+    }
+   }
+  },
+  {
+   "id": "GP11",
+   "verdict": "unguarded",
+   "note": "parser.py:2433 drop expr-statement mentioning mark_tails",
+   "detail": "nothing in languages/whence/tests/test_v03.py notices the edit",
+   "diff": "@@ -2432,3 +2432,3 @@\n             param_types = self._param_contracts(body, params, types, None)\n-            mark_tails(body)\n+            pass\n             # v0.14.10 (round 302): unlike the NAMED-fn branch above (which",
+   "path": "languages/whence/whence/parser.py",
+   "func": "Parser.primary",
+   "target": "mark_tails",
+   "edit": "drop_stmt",
+   "keep_call": false,
+   "test": "languages/whence/tests/test_v03.py::test_parser_marks_tails_only_inside_fn_bodies",
+   "suite": "languages/whence/tests/test_v03.py",
+   "why": "the SAME call on the ANONYMOUS-fn branch (v0.14.10). Two doors, one behaviour, one named guardian \u2014 the round-411 shape, asked before it becomes a bug.",
+   "sole_guardian": null,
+   "seconds": 19.23,
+   "runs": {
+    "baseline_test": {
+     "status": "survived",
+     "returncode": 0,
+     "seconds": 0.83,
+     "failed": [],
+     "tail": ".                                                                        [100%]\n1 passed in 0.24s"
+    },
+    "mutant_test": {
+     "status": "survived",
+     "returncode": 0,
+     "seconds": 1.06,
+     "failed": [],
+     "tail": ".                                                                        [100%]\n1 passed in 0.29s"
+    },
+    "baseline_suite": {
+     "status": "survived",
+     "returncode": 0,
+     "seconds": 9.59,
+     "failed": [],
+     "tail": "............................                                             [100%]\n28 passed in 8.89s"
+    },
+    "mutant_suite": {
+     "status": "survived",
+     "returncode": 0,
+     "seconds": 4.1,
+     "failed": [],
+     "tail": "............................                                             [100%]\n28 passed in 3.79s"
+    }
+   }
+  }
+ ],
+ "baselines": {
+  "skills/skill-authoring/scripts/test_claim_check.py::TestExemptionGateHasOneHome::test_every_c001_site_consults_the_exemption_gate": {
+   "status": "survived",
+   "returncode": 0,
+   "seconds": 0.74,
+   "failed": [],
+   "tail": ".                                                                        [100%]\n1 passed in 0.11s"
+  },
+  "skills/skill-authoring/scripts/test_claim_check.py::TestPathTokens::test_skips_placeholder_tokens": {
+   "status": "survived",
+   "returncode": 0,
+   "seconds": 0.75,
+   "failed": [],
+   "tail": ".                                                                        [100%]\n1 passed in 0.10s"
+  },
+  "skills/skill-authoring/scripts/test_claim_check.py": {
+   "status": "survived",
+   "returncode": 0,
+   "seconds": 10.68,
+   "failed": [],
+   "tail": "........................................................................ [ 76%]\n......................                                                   [100%]\n94 passed in 9.65s"
+  },
+  "harness/tests/test_swe_mutation.py::test_mutation_test_refuses_to_score_against_a_broken_baseline": {
+   "status": "survived",
+   "returncode": 0,
+   "seconds": 1.5,
+   "failed": [],
+   "tail": ".                                                                        [100%]\ntier-budget: 1/14 promoted files timed, 0.4s of a 48.0s budget \u2014 worst test_swe_mutation.py 0.4s of 36.3s\n1 passed in 0.81s"
+  },
+  "harness/tests/test_swe_mutation.py::test_classify_mutant_run_whitelists_rather_than_blacklists_pytest_codes": {
+   "status": "survived",
+   "returncode": 0,
+   "seconds": 0.4,
+   "failed": [],
+   "tail": ".                                                                        [100%]\ntier-budget: 1/14 promoted files timed, 0.0s of a 48.0s budget \u2014 worst test_swe_mutation.py 0.0s of 36.3s\n1 passed in 0.07s"
+  },
+  "harness/tests/test_swe_mutation.py": {
+   "status": "survived",
+   "returncode": 0,
+   "seconds": 25.91,
+   "failed": [],
+   "tail": "...............                                                          [100%]\ntier-budget: 1/14 promoted files timed, 25.0s of a 48.0s budget \u2014 worst test_swe_mutation.py 25.0s of 36.3s\n15 passed in 25.16s"
+  },
+  "harness/tests/test_swe_campaign.py::test_every_mutant_run_in_campaign_py_goes_through_the_gate": {
+   "status": "survived",
+   "returncode": 0,
+   "seconds": 0.6,
+   "failed": [],
+   "tail": ".                                                                        [100%]\n1 passed in 0.27s"
+  },
+  "nuc/tests/test_perturbation.py::test_power_floor_rejects_an_impossible_record_shape": {
+   "status": "survived",
+   "returncode": 0,
+   "seconds": 3.04,
+   "failed": [],
+   "tail": ".                                                                        [100%]\n1 passed in 1.28s"
+  },
+  "nuc/tests/test_perturbation.py::test_a_unit_too_large_to_test_is_graded_untestable_not_coincidence": {
+   "status": "survived",
+   "returncode": 0,
+   "seconds": 1.14,
+   "failed": [],
+   "tail": ".                                                                        [100%]\n1 passed in 0.48s"
+  },
+  "nuc/tests/test_perturbation.py": {
+   "status": "survived",
+   "returncode": 0,
+   "seconds": 4.9,
+   "failed": [],
+   "tail": "........................................................................ [ 75%]\n........................                                                 [100%]\n96 passed in 3.84s"
+  },
+  "nuc/tests/test_perturbation.py::test_the_swap_channels_power_collapses_to_zero_and_commits_does_not": {
+   "status": "survived",
+   "returncode": 0,
+   "seconds": 0.99,
+   "failed": [],
+   "tail": ".                                                                        [100%]\n1 passed in 0.40s"
+  },
+  "languages/whence/tests/test_v03.py::test_parser_marks_tails_only_inside_fn_bodies": {
+   "status": "survived",
+   "returncode": 0,
+   "seconds": 0.83,
+   "failed": [],
+   "tail": ".                                                                        [100%]\n1 passed in 0.24s"
+  },
+  "languages/whence/tests/test_v03.py": {
+   "status": "survived",
+   "returncode": 0,
+   "seconds": 9.59,
+   "failed": [],
+   "tail": "............................                                             [100%]\n28 passed in 8.89s"
+  }
+ }
+}

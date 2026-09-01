@@ -1,0 +1,70 @@
+{
+ "pins": 1,
+ "guarded": 0,
+ "findings": 0,
+ "errors": 1,
+ "score": 0.0,
+ "seconds": 26.6,
+ "results": [
+  {
+   "id": "GP12",
+   "verdict": "nonviable",
+   "note": "parser.py:2433 drop expr-statement mentioning mark_tails",
+   "detail": "the named test is green under the edit and the wider suite languages/whence/tests is not green UNMUTATED (killed), so misattributed/unguarded cannot be told apart",
+   "diff": "@@ -2432,3 +2432,3 @@\n             param_types = self._param_contracts(body, params, types, None)\n-            mark_tails(body)\n+            pass\n             # v0.14.10 (round 302): unlike the NAMED-fn branch above (which",
+   "path": "languages/whence/whence/parser.py",
+   "func": "Parser.primary",
+   "target": "mark_tails",
+   "edit": "drop_stmt",
+   "keep_call": false,
+   "test": "languages/whence/tests/test_v03.py::test_parser_marks_tails_only_inside_fn_bodies",
+   "suite": "languages/whence/tests",
+   "why": "GP11 widened from one file to the whole whence fast tier. GP11 says test_v03.py does not notice this call being deleted; this pin asks whether ANY of the ~1000 fast-tier tests does.",
+   "sole_guardian": null,
+   "seconds": 26.64,
+   "runs": {
+    "baseline_test": {
+     "status": "survived",
+     "returncode": 0,
+     "seconds": 0.61,
+     "failed": [],
+     "tail": ".                                                                        [100%]\n1 passed in 0.22s"
+    },
+    "mutant_test": {
+     "status": "survived",
+     "returncode": 0,
+     "seconds": 0.4,
+     "failed": [],
+     "tail": ".                                                                        [100%]\n1 passed in 0.11s"
+    },
+    "baseline_suite": {
+     "status": "killed",
+     "returncode": 1,
+     "seconds": 21.38,
+     "failed": [
+      "languages/whence/tests/test_lexer_guest_parity.py::test_the_corpus_is_what_git_tracks_and_not_what_the_directory_holds"
+     ],
+     "tail": "rocess.args,\n                                         output=stdout, stderr=stderr)\nE               subprocess.CalledProcessError: Command '['git', 'ls-files', 'examples']' returned non-zero exit status 128.\n\n/usr/lib/python3.12/subprocess.py:571: CalledProcessError\n=========================== short test summary info ============================\nFAILED languages/whence/tests/test_lexer_guest_parity.py::test_the_corpus_is_what_git_tracks_and_not_what_the_directory_holds\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 355 passed, 81 deselected in 17.45s"
+    }
+   }
+  }
+ ],
+ "baselines": {
+  "languages/whence/tests/test_v03.py::test_parser_marks_tails_only_inside_fn_bodies": {
+   "status": "survived",
+   "returncode": 0,
+   "seconds": 0.61,
+   "failed": [],
+   "tail": ".                                                                        [100%]\n1 passed in 0.22s"
+  },
+  "languages/whence/tests -m not whence_slow -x": {
+   "status": "killed",
+   "returncode": 1,
+   "seconds": 21.38,
+   "failed": [
+    "languages/whence/tests/test_lexer_guest_parity.py::test_the_corpus_is_what_git_tracks_and_not_what_the_directory_holds"
+   ],
+   "tail": "rocess.args,\n                                         output=stdout, stderr=stderr)\nE               subprocess.CalledProcessError: Command '['git', 'ls-files', 'examples']' returned non-zero exit status 128.\n\n/usr/lib/python3.12/subprocess.py:571: CalledProcessError\n=========================== short test summary info ============================\nFAILED languages/whence/tests/test_lexer_guest_parity.py::test_the_corpus_is_what_git_tracks_and_not_what_the_directory_holds\n!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!\n1 failed, 355 passed, 81 deselected in 17.45s"
+  }
+ }
+}

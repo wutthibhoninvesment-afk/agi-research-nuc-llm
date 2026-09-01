@@ -225,6 +225,42 @@ def test_tail_loop_through_else_if_chain():
         ["took else-branch", "took then-branch"]
 
 
+def test_the_parser_marks_tails_in_an_anonymous_fn_body_too():
+    """Round 413 (SWE-loop D). The killer for a survivor `guardpin` found.
+
+    `mark_tails(body)` appears TWICE in the parser — `Parser.statement` for
+    `fn name(...) {...}` (v0.3) and `Parser.primary` for the anonymous
+    `fn(...) {...}` literal (v0.14.10, round 302). The test below this one is
+    named `..._only_inside_fn_bodies` and parses only the NAMED form, so it
+    reaches one of the two branches. `harness/swe/guardpin.py` deleted the
+    other call and ran this whole file: nothing went red.
+
+    Two doors, one behaviour, one named guardian — round 411's shape, caught
+    here before it was a bug rather than 71 rounds after.
+    """
+    from whence.parser import parse
+    prog = parse("let f = fn(n) { if n { f(1) } else { g(2) } }")
+    body = prog.stmts[0].expr.body                  # Let -> FnExpr -> Block
+    branches = body.stmts[-1].expr
+    assert branches.then.stmts[-1].expr.tail is True
+    assert branches.otherwise.stmts[-1].expr.tail is True
+
+
+def test_a_let_bound_anonymous_fn_is_a_tail_loop_like_a_named_one():
+    """The behavioural half, and the one that measures what the marking BUYS.
+
+    With `Parser.primary`'s `mark_tails(body)` dropped, this exact program
+    goes from `peak_depth 1, tail_calls 300` to `peak_depth 50 (the cap),
+    tail_calls 0` — the named-fn form is untouched — so the anonymous branch
+    was carrying real tail-call elimination that no test observed.
+    """
+    src = ("let go = fn(i, acc) { if i == 0 { acc } else { go(i - 1, acc + i) } }\n"
+           "let result = go(300, 0)")
+    interp, v = result(src, max_depth=50)
+    assert v.payload == 45150                       # 300 * 301 / 2
+    assert interp.peak_depth == 1 and interp.tail_calls == 300
+
+
 def test_parser_marks_tails_only_inside_fn_bodies():
     from whence.parser import parse
     from whence import ast_nodes as A

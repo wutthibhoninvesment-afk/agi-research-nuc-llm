@@ -153,10 +153,19 @@ def _field_corpus():
 
 
 def _tracked_examples():
+    """Round 413: `cwd` is `curecheck.REPO_GIT_ROOT`, not `REPO`.
+
+    `REPO` is this file's own grandparent — `/tmp/mut-xxxx` under a
+    `harness/swe/mutation.py` copy, where `git ls-files` exits 128. There is
+    no `check=True` here, so that exit was read as an EMPTY tracked set and
+    reported as `declared but no longer tracked: [every example]`. The files
+    still come from `REPO`; only the question goes to the real checkout.
+    """
+    import curecheck as C
     out = subprocess.run(["git", "ls-files", "languages/whence/examples"],
-                         cwd=REPO, capture_output=True, text=True)
-    return [os.path.join(REPO, p) for p in out.stdout.split()
-            if p.endswith(".lang")]
+                         cwd=C.REPO_GIT_ROOT, capture_output=True, text=True)
+    return [os.path.join(ROOT, "examples", os.path.basename(p))
+            for p in out.stdout.split() if p.endswith(".lang")]
 
 
 def test_the_tracked_example_set_is_the_one_this_repo_decided_on():
@@ -195,8 +204,11 @@ def test_the_tracked_example_set_is_the_one_this_repo_decided_on():
     import curecheck as C
     if C.field_corpus_absent():
         pytest.skip(C.FIELD_CORPUS_ABSENT_REASON)
-    on_disk = {n for n in os.listdir(os.path.join(REPO, "languages", "whence",
-                                                  "examples"))
+    # Round 413: `ROOT/examples`, not `REPO/languages/whence/examples`. The
+    # two are the same directory in the checkout and are NOT the same under a
+    # `harness/swe/mutation.py` copy, where the tree is copied without its
+    # `languages/whence/` prefix and `REPO` resolves to `/tmp`.
+    on_disk = {n for n in os.listdir(os.path.join(ROOT, "examples"))
                if n.endswith(".lang")}
     assert field - on_disk == set(), (
         "declared field corpus missing from disk: %s" % sorted(field - on_disk))
