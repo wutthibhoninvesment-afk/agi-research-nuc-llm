@@ -21858,6 +21858,154 @@ hygiene commitments kept.
   the tests that pin the headline number. No SPEC bump: Whence stays v0.41,
   no `examples/*.lang` file touched.
 
+### Round 435 — skills(B) — 2026-09-01 — the prose inside the data
+
+- **The corpus health check had been ERROR-red for FOUR consecutive rounds
+  (431-434) and this was the first skills(B) round since.** `logs/driver.log`
+  shows `carryforward ERROR K001` growing 1 -> 2 -> 3 -> 4, one per round:
+  every round banks predictions, every round scored its bank properly in its
+  own knowledge file, and none wrote the ledger line. Four red tests, **three
+  root causes** (round 429's classify-before-eliminating rule, applied): K001
+  x4; `P001` x3 (three skills with ZERO positive trigger cases); and two of
+  those same three skills having a `## Verification` section with no runnable
+  command. All fixed at the source — banks 431-434 registered with quotes
+  K002 re-reads, nine trigger cases written, real fenced commands added.
+  **`corpus_check` is green for the first time since round 430: `10
+  checker(s), 0 error(s), 5 warning(s)`, `894 passed`** (was `4 failed, 860
+  passed`).
+- **Item 6 CLOSED, and the seam is one constant.** `xref_check.py:126`
+  `SCANNED_EXTS = (".md", ".py", ".lang", ".sh")` — no `.json`, so nothing in
+  ninety rounds had read the ~26 000 characters of present-tense assertion
+  this repo's data files make about THEMSELVES. `selfdesc_check.py` (round
+  435) sweeps **26 artefacts of 607 JSON files** and re-derives eleven claim
+  shapes, all derived from reading the corpus rather than invented.
+- **Four defects on the first run, three fixed by this round.**
+  (1) `host-pins-plus-repointed.json` said **nineteen** guardian labels
+  repointed; it is **20**, the file's own `repointed_from` says so, and
+  `test_checkpin.py`'s `assert moved == 20` has said so since **round 423** —
+  590 lines below a comment in the same file that still said nineteen.
+  (2) `host-pins-plus.json` said "CP01/CP02/**CP05** … have no mirror" with
+  `CP05p` eleven pins below it, whose own `why` is the argument for why CP05
+  is not lateral; CP01/CP02 are correct in the same clause, which is what
+  makes it the fixture.
+  (3) `check-pins-dir.json` said "regenerate, do not hand-edit" for fifteen
+  rounds; nothing can regenerate it (the `dir` column is a per-pin judgement),
+  and the instruction is replaced by the derivation that IS re-derivable, now
+  asserted by `test_the_dir_registry_is_round_414s_registry_plus_one_authored_column`.
+  (4) `state/swe/round-431/evaporating-test-kills-nothing.json`'s "it has no
+  baseline" against a top-level `baseline` key — two nouns spelled the same,
+  another track's frozen record, content-pinned in
+  `state/known-selfdesc-drift.json` instead of reworded.
+- **The corpus's one executable self-claim is FALSE and has been since round
+  426.** `host-pins-plus-repointed.json` says "`polarity.py audit` over this
+  file must report 0 MISPOINTED"; it reports **5**, and
+  `state/whence/round-426/audit-repointed-r426.txt` records the identical line
+  four directories away. Round 426's `test_the_repointed_registry_fails_its_own_acceptance_criterion`
+  already holds it open, which is why J011 fires only on an UNWATCHED claim —
+  a checker that reported this would have been crying wolf at the one place
+  the discipline worked.
+- **Three false positives, three discriminators, each now a named test.** A
+  historical subset ("Five banks had been dropped"), a different container
+  ("27 skills in the corpus"), and a partitive — the last one tripped by my
+  OWN correction on its first draft. The past-tense window had to widen from
+  look-behind to whole-sentence because the corpus instance opens with its
+  numeral; the recall that costs is pinned as
+  `test_a_past_tense_true_count_is_dropped` rather than left to be found. The
+  near-miss that must stay quiet is `known-absent-paths.json`'s "Two kinds so
+  far" over a three-entry map.
+- **Item 9 CLOSED.** `prediction-banking/SKILL.md` step 1 now carries round
+  433 item 10's rule — every baseline re-derived at HEAD with the command that
+  produced it printed beside it — with round 434's instance, a pitfall, a
+  checklist line and a Verification command. This round's own bank has a
+  five-row baseline table and it paid immediately: the duration prior it
+  re-derived (median 21.6 min over 238 rounds, but **41.3 min over the last
+  20**) is why C5's band was 25-52 min rather than the 14.1-minute skills(B)
+  historical median.
+- **Tests: `894 passed` in the corpus tier** (from `4 failed, 860 passed`;
+  860 + 4 + 30 = 894, so nothing else moved), **whence fast tier `2190
+  passed, 3 skipped, 91 deselected`** (from 2189, +1 for the new checkpin
+  test), `skill_lint --house --strict` **76 skills, 0 errors, 0 warnings**.
+  31 tests added. Skills: `self-description-is-a-claim` authored,
+  `prediction-banking` upgraded. **9 HIT, 2 PARTIAL, 6 MISS of 17**
+  (`state/round-435-predictions.md`); C5 (wall clock 25-52 min) scores **HIT**
+  — round start 18:28:50 UTC, this entry written at 19:12, ~44 min. The miss
+  pattern is one shape: A1/A3/A4/B5 all bet the corpus would be WORSE than it
+  is, each priced off a rate measured somewhere else, while the two
+  predictions naming a specific sentence in a specific file (B1, B2) are the
+  two that found real defects. **A rate over a population has nowhere to be
+  surprising.**
+- **Fourteen skills registered in `state/known-unprobed-skills.json` and none
+  probed.** A probe is a priced live-model run and this round had no
+  authorisation to spend; the debt is declared with an owner rather than left
+  as fourteen unowned P004 warnings. Three of the fourteen were P001 ERRORS
+  until this round wrote their cases.
+
+## Next steps (as of round 435)
+
+1. **`polarity.py audit` reports 5 MISPOINTED against a registry whose own
+   header calls 0 its acceptance criterion, and has since at least round
+   426.** Round 426 also measured that the sightedness filter behind
+   MISPOINTED discards 16 of the 93 checks that actually went red and calls
+   CP03p a coverage gap on that basis. So the question is not "repoint five
+   pins" — it is whether MISPOINTED is the right predicate. Round 426's
+   `test_the_repointed_registry_fails_its_own_acceptance_criterion` holds the
+   failure open; whoever answers should say which of the two is wrong.
+   language(C).
+2. **The J005 recall gap is real, named and unclosed.** A count claim whose
+   noun is a per-element FIELD (`nineteen guardian labels`) is invisible to
+   it; J010 catches only the sub-case where a sibling artefact is named in the
+   same sentence. The `nineteen` defect was found by hand-diffing AFTER J005
+   came back silent — a checker written from imagination would not have had
+   J010. The next instance will also be found by hand unless somebody widens
+   it. skills(B).
+3. **`selfdesc_check` sweeps TOP-LEVEL prose fields only.**
+   `known-unprobed-skills.json` alone carries twelve `_round_NNN_note` fields
+   and `known-standing-dirty-paths.json` a `_round_349_addendum`; none is
+   swept. Counted in the round file, not covered. `coverage 1/26
+   prose-fields` is the honest headline: one of 26 self-descriptions yields a
+   checkable claim today. skills(B).
+4. **The probe batch is FOURTEEN deep and has grown in every round since 405
+   without a skills(B) round paying it.** Price it before adding to it; a
+   probe is ~$0.05 and needs operator authorisation this round did not have.
+   `state/known-unprobed-skills.json`'s `_round_435_note` records the rate.
+   skills(B).
+5. **`state/swe/round-431/evaporating-test-kills-nothing.json` has a
+   top-level `baseline` key and prose saying it has none.** Acknowledged and
+   content-pinned, so renaming either the key or the sentence expires the
+   entry by itself. SWE-loop(D).
+6. **Round 434's items 2, 3, 4 and 5 stand, UNCHECKED by this round** — the
+   atom table's new risk (a precondition arriving with no decider), the 7
+   `append_only`/`refusal` `unknown` residuals, CP03p as the one pin whose
+   decision moves the contingency table, and `classify` 161 vs `checkpin run`
+   162. Re-derive before quoting: this round re-derived four carried numbers
+   and one (`nineteen`) was wrong. language(C).
+7. **Carried from round 433 and STILL not re-derived.** The harness fast
+   tier's V002 `test_no_unexplained_broken_invocation` (red since round 429 —
+   `verb_audit` still reports `V002 1` on every corpus-check line, including
+   this round's); `test_swe_campaign.py::test_review_stage_and_report`;
+   `test_swe_campaign.py[light]` never run through the slow-tier instrument;
+   A4's 748 s still a floor; A8's "one leaf too big for the container" never
+   tested against the other 30 `whole` files. harness(A) or SWE-loop(D).
+8. **`nproc` on this box is 1.** Plan every suite as serialised. This round
+   ran the corpus tier at 144 s solo where the driver's own concurrent run of
+   the same tier took 419-447 s in rounds 432-434 — a 3x penalty that is
+   contention, not the tests.
+9. **The corpus health check goes red at the rate of the ROTATION, and the
+   rotation is six rounds.** It was red for four this time and the error count
+   grew monotonically because the cause was one per round. A non-skills round
+   authoring a skill owes it three positive trigger cases (P001, an ERROR) and
+   a runnable Verification command (C001) — not just a
+   `known-unprobed-skills.json` entry, which silences a WARNING and says
+   nothing about either error. Worth a line in CLAUDE.md rule 5. any track.
+10. **Standing, and not touched by this round:** the NUC `retention --strict`
+   deadline; the `%vmeff` residual; `case_coverage`'s 49-of-103 disagreeing
+   verdicts; `claim_check` executing 0 of 311 commands; and CLAUDE.md's
+   `CRITICAL MISSION` block, re-escalated for the EIGHTEENTH time and still a
+   one-line deletion for the operator. `languages/whence/SECURITY.md` is
+   still uncommitted, still not this program's, and still the operator's
+   decision — do not copy a carry count for it from this file; the checker's
+   own line is the only source.
+
 ## Next steps (as of round 434)
 
 1. **`state/research-state.md`'s round-433 item 8 is CLOSED IN FULL** — all

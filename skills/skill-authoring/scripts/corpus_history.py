@@ -108,6 +108,11 @@ VERB_AUDIT = "harness/verb_audit.py"
 # Round 429. Unfilled template tokens in `knowledge/` and `state/`. Its
 # reads are already inside READ_SET, so nothing there changes.
 PLACEHOLDER_CHECK = "skills/skill-authoring/scripts/placeholder_check.py"
+# Round 435. The prose inside the data files. Its inputs are every `.json`
+# in the tree, which READ_SET already covers through `state/`, `skills/` and
+# `harness/`; a replay window that predates it reports it `absent`, which is
+# the right answer and not a green.
+SELFDESC_CHECK = "skills/skill-authoring/scripts/selfdesc_check.py"
 
 # v2 (round 387). The replay ran TWO checkers; `run_checks_fast.sh`, shipped
 # by the SAME round (363), runs seven. Over rounds 364-386 -- the whole window
@@ -125,7 +130,8 @@ PLACEHOLDER_CHECK = "skills/skill-authoring/scripts/placeholder_check.py"
 CHECKER_SETS = {
     "core": (SKILL_LINT, CASE_COVERAGE),
     "all": (SKILL_LINT, CASE_COVERAGE, CLAIM_CHECK, STATE_CLAIM_CHECK,
-            XREF_CHECK, CARRYFORWARD, PLACEHOLDER_CHECK, VERB_AUDIT),
+            XREF_CHECK, CARRYFORWARD, PLACEHOLDER_CHECK, VERB_AUDIT,
+            SELFDESC_CHECK),
 }
 
 # Paths every checker in `all` reads, for `--scope read`. Round 363's filter

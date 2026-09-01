@@ -78,9 +78,15 @@ REGISTRY_EVAL = os.path.join(_C.AGI_ROOT, "state", "whence", "round-416",
 #: Round 422's PLUS half of the FIRST registry — the same nineteen mechanisms
 #: `REGISTRY` mutates, mutated in the opposite direction. Two entries, not one
 #: merged file, for the reason the `REGISTRY_EVAL` comment gives and one more:
-#: the repointed copy differs from the as-written copy in nineteen guardian
+#: the repointed copy differs from the as-written copy in TWENTY guardian
 #: LABELS and nothing else, so keeping both is what makes "repointing alone
-#: moved the score" checkable rather than asserted.
+#: moved the score" checkable rather than asserted. (Round 435: this said
+#: `nineteen` while `test_the_repointed_registry_changes_labels_and_nothing_
+#: else`, 590 lines below, has asserted `moved == 20` since round 423. The
+#: `nineteen` in the sentence ABOVE is correct and is a different quantity --
+#: 19 of the 20 `+` mechanisms match a `-` mechanism in `REGISTRY` verbatim;
+#: the twentieth, `a shape cannot reference itself`, differs by the
+#: parenthetical `(SAME edit as CP20)`.)
 REGISTRY_PLUS = os.path.join(_C.AGI_ROOT, "state", "whence", "round-422",
                              "host-pins-plus.json")
 REGISTRY_PLUS_REPOINTED = os.path.join(
@@ -688,6 +694,33 @@ def test_the_repointed_registry_changes_labels_and_nothing_else():
     # predictions file describes as deliberately planted to violate
     # round 420's law. Re-derived by round 423, not adjusted to fit.
     assert moved == 20, moved
+
+
+def test_the_dir_registry_is_round_414s_registry_plus_one_authored_column():
+    """`check-pins-dir.json`'s own header, made checkable.
+
+    It claimed for fifteen rounds to be "Derived from ...check-pins.json;
+    regenerate, do not hand-edit", and nothing in the tree has ever
+    regenerated it -- the `dir` column is a per-pin judgement and is in no
+    derivation, so the instruction named a producer that cannot exist. Round
+    435 replaced the instruction with the part that IS re-derivable, and this
+    is where it gets re-derived: same ids, same order, every other field
+    byte-identical, `dir` added to every directional pin and to no control.
+    """
+    with open(REGISTRY, encoding="utf-8") as f:
+        base = json.load(f)["pins"]
+    with open(os.path.join(_C.AGI_ROOT, "state", "whence", "round-420",
+                           "check-pins-dir.json"), encoding="utf-8") as f:
+        dirreg = json.load(f)["pins"]
+    assert [p["id"] for p in base] == [p["id"] for p in dirreg]
+    for a, b in zip(base, dirreg):
+        assert set(b) - set(a) == {"dir"} or set(b) == set(a), a["id"]
+        for field in a:
+            assert a[field] == b[field], (a["id"], field)
+    directional = [p for p in dirreg if "dir" in p]
+    assert len(directional) == 22
+    assert [p["id"] for p in dirreg if "dir" not in p] == ["NC01"]
+    assert {p["dir"] for p in directional} == {"-", "~"}
 
 
 def test_deleting_a_CHECK_is_itself_an_unobservable_edit():

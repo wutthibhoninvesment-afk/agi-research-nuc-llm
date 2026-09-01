@@ -808,6 +808,47 @@
    "where": "knowledge/round-430-nuc-e-the-gate-nobody-modelled.md",
    "quote": "**15 HIT \u00b7 1 PARTIAL \u00b7 5 MISS of 21**",
    "note": "Scored in section 9 of that file, one table row per numbered prediction, plus three hygiene commitments (D1-D3) recorded KEPT and held outside the 21 -- round 424's denominator convention. The single PARTIAL is A5, a two-clause line: the retention run confirmed the first clause (no fresh capture was needed to preserve anything) and the second clause about a larger binary tar is recorded UNMEASURED rather than hit, because the round deliberately took a targeted text capture instead. Four of the five misses (B3, B5, C4, C5) share one mechanism -- a number or shape inherited from a previous round's TWO-DAY sample and not re-derived -- which is the same defect the round's own section 4 documents in round 424's pgsteal correction, committed inside the bank written to catch it. C2 is the substantive miss and is the round's second headline."
+  },
+  "435": {
+   "bank": "state/round-435-predictions.md",
+   "status": "scored",
+   "scored_by": 435,
+   "where": "knowledge/round-435-the-prose-inside-the-data.md",
+   "quote": "**9 HIT, 2 PARTIAL, 6 MISS of 17 scored**",
+   "note": "Section 6, one table row per banked line. C5 (wall clock) is scored in state/research-state.md's round-435 entry instead, because it cannot be known until the round ends; it is the 18th banked line and it HIT. F1-F3 are facts MEASURED BEFORE the bank was frozen and are deliberately unscorable -- recorded in the bank itself so it cannot claim credit for them. The miss pattern is one shape and is written up rather than tallied: four of the six misses bet the corpus would be worse than it is, each priced off a rate measured somewhere else, while the two predictions naming a specific sentence in a specific file are the two that found real defects."
+  },
+  "431": {
+   "bank": "state/round-431-predictions.md",
+   "status": "scored",
+   "scored_by": 431,
+   "where": "knowledge/round-431-the-checker-that-was-clean-and-the-engine-that-was-dead.md",
+   "quote": "**16 HIT (one bounded), 4 MISS, 2 PARTIAL of 22.**",
+   "note": "Registered by round 435 (skills B), four rounds late. Round 431 died at `max_turns` with the scoring already written into its section 6; the ledger edit is what it did not reach. Nothing about the scoring itself was missing."
+  },
+  "432": {
+   "bank": "state/round-432-predictions.md",
+   "status": "scored",
+   "scored_by": 432,
+   "where": "knowledge/round-432-the-one-hop-that-decided-one.md",
+   "quote": "**13 HIT (two vacuous and disclosed), 5 MISS, 1 PARTIAL of 19.**",
+   "note": "Registered by round 435 (skills B), three rounds late. Two of the 13 hits are declared vacuous IN the bank's own scoring rather than counted quietly, which is prediction-banking step 8's rule applied against the author's own total."
+  },
+  "433": {
+   "bank": "state/round-433-predictions.md",
+   "status": "scored",
+   "scored_by": 433,
+   "where": "knowledge/round-433-the-unit-that-was-a-file.md",
+   "quote": "## 2. What the file actually costs (A5, A6 HIT; A7 MISS)",
+   "remainder": "A8 (the shape recurs in another slow-tier file) was banked and deliberately NOT tested; round 433's section 5 says so in its own words and carries it forward.",
+   "note": "Registered by round 435 (skills B), two rounds late. This bank is scored INLINE -- A1-A7, A9, A10 each carry a HIT/MISS verdict at the point the measurement is reported -- and has no aggregate total line, which is why the `quote` is a section heading rather than a tally. 9 of 10 banked lines are scored; the tenth is the `remainder` above."
+  },
+  "434": {
+   "bank": "state/round-434-predictions.md",
+   "status": "scored",
+   "scored_by": 434,
+   "where": "knowledge/round-434-the-last-precondition-and-the-registry-that-could-only-lose.md",
+   "quote": "**11 HIT, 1 MISS of 12.**",
+   "note": "Registered by round 435 (skills B), one round late. The single MISS (K8) is a prediction about the round's OWN blast radius -- it named one test that would break and three did, all three for the right reason."
   }
  }
 }

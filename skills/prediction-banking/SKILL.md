@@ -25,6 +25,20 @@ and only needs reporting; one-off numbers nobody will act on.
    failing tests. Checkable outcome: every number in the eventual report
    has a line in the predictions file, or is marked "unpredicted".
 
+   **Every BASELINE in the bank is re-derived at HEAD, with the command that
+   produced it printed beside it.** A baseline is not context; it is the
+   thing your band is measured against, so a stale one moves every verdict
+   under it and does so invisibly. The failure mode is not laziness — it is
+   that the previous round's number is sitting in a status file, correct
+   *when written*, in a sentence that reads like a fact. Round 433 of this
+   program made the rule; round 434 followed it and the very first baseline
+   it re-derived was already stale (`broken 2, holds 8 …` in the status
+   file; `broken 2, holds 9 …` at HEAD), because a fix had landed in the
+   same round that printed the pre-fix number. The command is the whole
+   control: a band derived from a number nobody can re-run is a band nobody
+   can audit. Checkable outcome: the bank has a baseline table and every row
+   in it carries a runnable command, not a citation.
+
 2. **Classify each quantity into one of two band classes.**
    - *Computed-by-you* (an effect you can derive: frames per call, bytes
      per node, tokens in a prompt, mutants per operator): a NARROW band
@@ -148,6 +162,12 @@ and only needs reporting; one-off numbers nobody will act on.
   had each NAMED their source, and one had labelled itself the weakest line
   in its own bank. The tell is a band whose two endpoints are the two
   numbers in somebody's sentence.
+- **A baseline quoted from the status file.** The sibling of the
+  re-quoted duration, and more dangerous because it is invisible: a
+  duration miss shows up as a miss, while a stale baseline silently
+  re-centres every band above it and the bank still scores well. Sweep
+  baselines by what they DERIVE FROM — a corpus rate drifts every round, a
+  constant does not — and re-run the corpus ones.
 - **Bands so loose they can't miss** ("wall time 1–60 min") prove
   nothing; if a computable effect gets a 3× band, the computation was
   skipped.
@@ -155,6 +175,10 @@ and only needs reporting; one-off numbers nobody will act on.
 ## Verification
 ```bash
 head -3 state/round-NNN-predictions.md     # first line contains "banked BEFORE"
+# every baseline row carries a runnable command, not a citation (round 433):
+# count the table rows, then the ones holding a command
+grep -c '^| ' state/round-NNN-predictions.md
+grep '^| ' state/round-NNN-predictions.md | grep -c 'python3\|bash\|grep'
 grep -c "computed\|machine-state" state/round-NNN-predictions.md   # ≥ number of quantities
 grep -n "HIT\|MISS\|unscorable" knowledge/round-NNN-*.md            # one verdict per prediction line
 python3 -c "
@@ -172,6 +196,7 @@ print('%d of %d rounds recorded; median %.1f min; p25-p75 %.1f-%.1f min'
 # 11.4-34.3 min`. The numbers WILL drift; that is the point of the command.
 ```
 - [ ] Every quantity has a class tag and a band derived from a number in the file
+- [ ] Every baseline row carries the command that produced it, run this session
 - [ ] Amendments are timestamped and precede their measurement
 - [ ] Ledger line `P k/n` present; each MISS has a direction and a mechanism
 - [ ] One rule added or confirmed from this round's miss pattern

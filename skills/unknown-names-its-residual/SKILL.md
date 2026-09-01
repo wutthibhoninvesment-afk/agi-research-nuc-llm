@@ -140,6 +140,24 @@ You have applied this skill when all of these are true:
 6. If your rule's target cases were named in a document that recorded their
    outcomes, a control test removes the rule and shows the result survives.
 
+```bash
+# Step 2, as an executable artefact rather than an assertion. Each of these
+# is the REFUTED law, written as a program in the target system and run
+# there: the first shows `contains(X, y) -> len(X) > 0` is false in Whence
+# (`contains("", "")` is true while `len("") > 0` is false), the second
+# shows the guard invented to rescue it is false too (a `let` binding a miss
+# does not abort the block, so the arm still returns a value).
+python3 languages/whence/run.py state/whence/round-432/counterexample-contains-len.lang
+python3 languages/whence/run.py state/whence/round-432/counterexample-let-miss.lang
+# -> "checks: 4 passed, 0 failed" from each (exit 0)
+
+# The residual itself: every `unknown` prints the proposition it failed to
+# prove, not the AST class on each side.
+python3 languages/whence/polarity.py precondition \
+    state/whence/round-422/host-pins-plus.json 2>/dev/null | grep -c "unknown"
+# -> a count, and every one of those lines carries a readable proposition
+```
+
 ## The instance this came from
 
 Round 432 (language C). Round 428's next-steps, item 1, verbatim: the

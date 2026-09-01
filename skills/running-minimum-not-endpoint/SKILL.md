@@ -173,3 +173,18 @@ check that DOES run and answers the wrong question.
       one decided.
 - [ ] The write-up says what the OLD rule's verdict was on the same corpus,
       so nobody reads the new count as a regression.
+
+```bash
+# The worked instance's checker, re-run. `escapes` is the static mode whose
+# predicate this skill rewrote: it prints the FLOOR each expression dips to,
+# not only the level it ends on, so a `+1` net with a `-2` dip still reads as
+# an escape. `guarded` = the dip goes through the env-var override and is a
+# deliberate exception, not a finding.
+python3 harness/swe/copyparity.py escapes | tail -1
+# -> "no expression resolves above the subtree root" (exit 0)
+
+# The pair of tests that make the endpoint rule unrestorable in silence:
+# one asserts the (net, floor) pair on a case where the two DISAGREE, the
+# other asserts a boundary-touching-but-legal path is NOT a finding.
+python3 -m pytest -q harness/tests/test_swe_copyparity.py
+```

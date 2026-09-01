@@ -170,6 +170,16 @@ def checks(root):
         # <0.5 s.
         ("placeholder_check", [os.path.join(s, "placeholder_check.py"),
                                "--repo-root", root]),
+        # Round 435. The prose INSIDE the data files. Every other checker
+        # here reads markdown, Python or a registry's STRUCTURE; none had
+        # ever read a `_comment`, because `xref_check.SCANNED_EXTS` has no
+        # `.json` in it. 26 artefacts carry ~26 000 characters of
+        # present-tense assertion about themselves, and the first sweep found
+        # four defects in them, one of which -- a registry header that
+        # undercounted its own repoints by one -- had been contradicted by an
+        # assertion in this tree since round 423. ~2 s.
+        ("selfdesc_check", [os.path.join(s, "selfdesc_check.py"),
+                            "--repo-root", root]),
         # Round 423. Round 421 measured that 84 of 92 declared CLI verbs on
         # wired entry points are invoked by nothing automatic, and then found
         # the second-order problem: no driver line and no checker read that

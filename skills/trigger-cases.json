@@ -2079,5 +2079,89 @@
   "id": "cvwyl-neg-already-scoped",
   "expect": [],
   "prompt": "Our writeup already says the adjustment was validated on shards 1 through 3 of 40 and that shards 4 to 40 have not been run. Rewrite that paragraph so it reads well for a non-specialist audience."
+ },
+ {
+  "id": "eusi-near",
+  "expect": [
+   "evidence-unit-smaller-than-the-item"
+  ],
+  "prompt": "Our nightly verification records freshness per test FILE. One file holds forty tests, but one of them spins up a whole cluster and has never finished inside the thirty-minute budget, so the planner refuses the file and it has read `unknown` for months \u2014 the other thirty-nine have never been evidence about any build. Marking it slow is already done and changed nothing. What is the actual fix?"
+ },
+ {
+  "id": "eusi-mid",
+  "expect": [
+   "evidence-unit-smaller-than-the-item"
+  ],
+  "prompt": "Our coverage dashboard's denominator counts services, and one service has never reported once in six months because its smoke run exceeds the collection window. The number reads 22/23 and I think that is a lie about the other twenty-two as much as about the one."
+ },
+ {
+  "id": "eusi-far",
+  "expect": [
+   "evidence-unit-smaller-than-the-item"
+  ],
+  "prompt": "I want to split one \"is this package verified\" claim into two smaller claims so the cheap half can go green on its own. Which direction is the safe one, and what may the new halves inherit from the old whole-package result?"
+ },
+ {
+  "id": "rmne-near",
+  "expect": [
+   "running-minimum-not-endpoint"
+  ],
+  "prompt": "Our sandbox-escape scanner prints \"0 escaping expressions\" and I can hand you a path in the scanned file that escapes the sandbox at runtime. The scanner adds +1 per component and -1 per `..` and flags a negative total. Where is it wrong?"
+ },
+ {
+  "id": "rmne-mid",
+  "expect": [
+   "running-minimum-not-endpoint"
+  ],
+  "prompt": "The overdraft check applies a day's transactions in order and then asserts the closing balance is non-negative. Accounts are still getting flagged by the bank for going below zero mid-day. The check passes on every one of them."
+ },
+ {
+  "id": "rmne-far",
+  "expect": [
+   "running-minimum-not-endpoint"
+  ],
+  "prompt": "We fold a list of privilege raises and drops and test the level we end on. Someone on review said the test is asking the wrong question but could not say why. Can you make the objection concrete, and say what the check should report instead?"
+ },
+ {
+  "id": "unr-near",
+  "expect": [
+   "unknown-names-its-residual"
+  ],
+  "prompt": "Our verifier prints `unknown: <Call> vs <Binary>` for the cases we want to close, so the report tells us something is undecided without ever saying what it failed to prove. The backlog item claims one extra rewrite rule would decide all three. How would I check that before writing it?"
+ },
+ {
+  "id": "unr-mid",
+  "expect": [
+   "unknown-names-its-residual"
+  ],
+  "prompt": "I am about to add the axiom \"if the collection contains something then its length is greater than zero\" to our solver so three maybe-results become proofs. It reads obviously true. Is there a step I should take first?"
+ },
+ {
+  "id": "unr-far",
+  "expect": [
+   "unknown-names-its-residual"
+  ],
+  "prompt": "A reviewer talked me out of a simplification law by inventing a side condition that rescues it. I want the law and the side condition tested separately, and I want the refuted version pinned so nobody re-adds it in a year. How should that be set up?"
+ },
+ {
+  "id": "sdic-near",
+  "expect": [
+   "self-description-is-a-claim"
+  ],
+  "prompt": "Our config registry opens with a long `_comment` that says what reads it, how many entries it has, and that it is derived and must be regenerated. I just noticed the entry count in that paragraph is wrong and there is no generator anywhere. How do I stop this whole class of thing?"
+ },
+ {
+  "id": "sdic-mid",
+  "expect": [
+   "self-description-is-a-claim"
+  ],
+  "prompt": "Someone corrected a number in a test assertion last year and the comment eight lines above it still has the old value, as does the header of the data file the test reads. The test has been green the whole time. What should have caught this?"
+ },
+ {
+  "id": "sdic-far",
+  "expect": [
+   "self-description-is-a-claim"
+  ],
+  "prompt": "Our fixture file's header lists which cases are deliberately NOT covered, and one of the things it says is absent is sitting right there in the file. Nobody reads the fixture, everybody reads the header. Is there a way to make that paragraph checkable without writing an English parser?"
  }
 ]

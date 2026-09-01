@@ -1,0 +1,14 @@
+{
+ "_comment": "CONTENT-PINNED ACKNOWLEDGEMENTS for skills/skill-authoring/scripts/selfdesc_check.py (round 435, skills B), and read by nothing else. An entry says WHY a claim a data file makes about itself is left standing. `hash` is sha256[:16] of the WHOLE prose field (selfdesc_check.prose_hash): edit the sentence and the acknowledgement expires as J009 rather than muting the artefact forever -- the discipline of state/known-unfilled-placeholders.json and state/known-escalated-diffs.json, and round 349's refusal to allowlist anything unconditionally. An entry matching no finding is reported DEAD and must be DELETED, because an acknowledgement that suppresses nothing reads as coverage. Adding an entry asserts that a round inspected THIS EXACT prose and recorded its reasoning somewhere findable; `why` must name that round's artefact. Prefer FIXING the prose: three of the four findings this checker opened with were fixed in the round that found them, and only the one owned by another track's frozen round record is here.",
+ "acknowledged": [
+  {
+   "path": "state/swe/round-431/evaporating-test-kills-nothing.json",
+   "field": "_",
+   "code": "J005",
+   "hash": "c0b0f2808023930f",
+   "line_when_pinned": "it has no baseline, no score and no denominator over a file's mutation sites",
+   "owner": "SWE-loop(D)",
+   "why": "Round 435 inspected it; see knowledge/round-435-the-prose-inside-the-data.md section 4. The sentence is TRUE in its own frame and false in the checker's: `no baseline` means `not a mutation-campaign baseline in swe/scoreaudit.py's sense` -- the surrounding clause is about that module's discovery predicate -- while the artefact does carry a top-level `baseline` key holding the worktree's green-baseline record. Two different nouns spelled the same. Left standing rather than reworded because this is round 431's frozen record of a measurement and SWE-loop(D) owns it; the honest repair is to rename the KEY or the sentence, and that is a decision about round 431's own artefact."
+  }
+ ]
+}

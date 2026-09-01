@@ -1,5 +1,5 @@
 {
-  "_": "Round 420: round 414's check-pin registry with a `dir` field added, assigned relative to the MECHANISM each pin names. `~` = lateral (neither more nor less). Derived from state/whence/round-414/check-pins.json; regenerate, do not hand-edit.",
+  "_": "Round 420: round 414's check-pin registry with a `dir` field added, assigned relative to the MECHANISM each pin names. `~` = lateral (neither more nor less). Derived from state/whence/round-414/check-pins.json: the same 23 pin ids, every other field byte-identical, plus one authored column. The `dir` column is a JUDGEMENT per pin and is in no derivation, so this file CANNOT be regenerated -- round 435 removed the `regenerate, do not hand-edit` instruction it carried for fifteen rounds, which named a producer that has never existed. What IS re-derivable is the rest of the file, and `languages/whence/tests/test_checkpin.py::test_the_dir_registry_is_round_414s_registry_plus_one_authored_column` asserts it.",
   "pins": [
     {
       "id": "CP01",
