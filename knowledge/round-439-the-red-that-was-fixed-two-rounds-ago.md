@@ -301,3 +301,29 @@ the slow tier on any schedule. §3 is that fix.
   it as a two-line change and a decision about what the fixture is FOR; this
   round re-confirmed the premise (`MAX_NESTING`: 0 lines) and also did not
   make the decision.
+
+## 8. Verification, run at the end of the round rather than assumed
+
+Round 438's own next-step 4 says to run the checks *before* writing the round
+file, not after. Done, and it caught one regression this round caused:
+
+| check | result |
+|---|---|
+| `harness/tests/test_run_driver_slowtier_slice.py` | **8 passed** |
+| every driver test — `test_run_driver_*.py` + `test_driver_health.py` | **191 passed** (the `run_driver.sh` edit breaks nothing) |
+| `harness/wiring_audit.py check` | **116 entry points, 96 in closure, 0 errors, 0 warnings** |
+| `harness/verb_audit.py check` | **18 findings (V001 6, V002 0, V003 12)**, 20/103 verbs reached — up from 19 because the new call site invokes `slowtier.py run` |
+| `harness/swe/slowtier.py status` | **5 conclusive of 32, 16% recall, 0 failing** (was 0%) |
+| `skills/run_checks_fast.sh` | first run **2 errors** → after the fix **0 errors, 6 warnings**, `unit_tests` **894 passed** |
+| `python3 -m pytest skills/skill-authoring/scripts/` | **801 passed** |
+
+**The regression was mine and the check found it.** The new SKILL.md section
+cited `V002` as a bare rule code; `xref_check`'s X003 reads a bare code as a
+citation into the skills lint registry, and `V002` belongs to
+`harness/verb_audit.py`, so it landed as the corpus's one NEW dangling
+citation and took three `unit_tests` assertions down with it. Rephrased in
+commit `de09a92`; `xref_check` back to `0 NEW (3 pre-acknowledged)`.
+
+That is the round-438 rule earning its keep on the round that quoted it: the
+error was introduced by the very section arguing that carried claims rot, and
+nothing but running the check would have found it.
