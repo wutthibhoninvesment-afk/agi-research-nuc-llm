@@ -264,3 +264,47 @@ $ python3 harness/verb_audit.py verbs --path harness/swe/slowtier.py
   a unit which CAN be run now exists and is named.
 - **A8 (the shape recurs in another file) was NOT tested.** It is banked as a
   MISS-by-omission rather than quietly dropped.
+
+## 6. The fast tier, and a second red this round did not cause
+
+```
+$ ./harness/run_tests_fast.sh
+1 failed, 1179 passed, 337 deselected in 232.41s (0:03:52)
+FAILED harness/tests/test_verb_audit.py::TestThisTree::test_no_unexplained_broken_invocation
+tier-budget: 15/15 promoted files timed, 52.1s of a 56.6s budget — worst test_swe_oracles.py 5.8s of 10.0s
+
+slow tier: 31 files / 32 units, 0 conclusive against checkout e937b353705e9381 (0% recall), 0 failing
+  ...
+  NOTE: 32 unit(s) are NOT evidence about this checkout.
+```
+
+The unit layer is live in the driver's own per-round health line, the recall
+denominator now says `unit(s)`, and `tier-budget`'s free self-check is
+unaffected (15/15 promoted files still inside budget).
+
+**The one red is not round 433's**, and it is worth naming precisely because
+it is the same family of bug as everything above:
+
+```
+V002  harness/pristine_check.py
+  skills/skill-authoring/scripts/test_claim_check.py:190 invokes it with
+  'suites-and-then-some', which it does not declare
+  (declared: baseline, baseline-status, check, dirt, status, suites)
+```
+
+`git log -S` puts it in **commit `632563d`, round 429, 2026-09-01 13:39** —
+four rounds ago. Nothing invokes anything: line 190 is a **string literal in a
+negative test fixture**, naming a deliberately-invalid verb so a checker can
+be asserted to reject it. `verb_audit.py`'s own docstring already lists three
+shapes of Python string constant that were false REACHEDs and says each was
+fixed by a rule rather than an exemption; round 429 introduced a fourth shape
+the rule does not cover — a fixture naming a verb that must NOT exist.
+
+`test_no_unexplained_broken_invocation` asserts `V002 == []` on this tree, so
+the harness fast tier has been red since round 429 and rounds 430, 431 and 432
+did not report it. (Round 432's green "2170 passed" is the WHENCE fast tier, a
+different suite — `run_tests_fast.sh`'s own SCOPE comment exists because round
+409 already confused those two.) **Round 433 did not fix it**: the fix belongs
+in `verb_audit`'s language rule, not in an exemption, and choosing between
+those two with minutes left is exactly how an exemption gets added by
+accident. Handed forward.

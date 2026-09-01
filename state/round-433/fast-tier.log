@@ -1,0 +1,101 @@
+........................................................................ [  6%]
+........................................................................ [ 12%]
+........................................................................ [ 18%]
+........................................................................ [ 24%]
+........................................................................ [ 30%]
+........................................................................ [ 36%]
+........................................................................ [ 42%]
+........................................................................ [ 48%]
+........................................................................ [ 54%]
+........................................................................ [ 61%]
+........................................................................ [ 67%]
+........................................................................ [ 73%]
+........................................................................ [ 79%]
+........................................................................ [ 85%]
+........................................................................ [ 91%]
+................................F....................................... [ 97%]
+............................                                             [100%]
+=================================== FAILURES ===================================
+______________ TestThisTree.test_no_unexplained_broken_invocation ______________
+
+self = <tests.test_verb_audit.TestThisTree object at 0x709a1c075eb0>
+live = (<verb_audit.VerbGraph object at 0x709a18de9a00>, [{'path': 'harness/pristine_check.py', 'declared': ['baseline', 'bas...a_kind=import)'), ('V001', 'harness/swe/slowtier.py', '3 of 4 declared verb(s) never invoked: plan, run, units'), ...])
+
+    def test_no_unexplained_broken_invocation(self, live):
+        """V002 is 0 on this tree. All three instances that existed while the
+        extractor was being built were artefacts and each was fixed by a rule
+        (`_NOT_A_VERB`, the argv-completeness flag, the language rule) rather
+        than by an exemption."""
+        _, _, findings = live
+>       assert [f for f in findings if f[0] == "V002"] == []
+E       assert [('V002', 'ha...us, suites)')] == []
+E         
+E         Left contains one more item: ('V002', 'harness/pristine_check.py', "skills/skill-authoring/scripts/test_claim_check.py:188 invokes it with 'suites-and-then-some', which it does not declare (declared: baseline, baseline-status, check, dirt, status, suites)")
+E         Use -v to get more diff
+
+harness/tests/test_verb_audit.py:270: AssertionError
+tier-budget: 15/15 promoted files timed, 52.1s of a 56.6s budget — worst test_swe_oracles.py 5.8s of 10.0s
+=========================== short test summary info ============================
+FAILED harness/tests/test_verb_audit.py::TestThisTree::test_no_unexplained_broken_invocation
+1 failed, 1179 passed, 337 deselected in 232.41s (0:03:52)
+
+--- end of measured output; recorded status below ---
+
+slow tier: 31 files / 32 units, 0 conclusive against checkout e937b353705e9381 (0% recall), 0 failing
+  + 1 file(s) LAST RAN RED, at a checkout that has since moved — not evidence about this one, and the first thing a slow-tier slice should re-run
+  test_swe_abconfound.py                 unknown            -
+  test_swe_alias_effects.py              unknown            -
+  test_swe_bymap.py                      unknown            -
+  test_swe_campaign.py[heavy]            unknown            -
+  test_swe_campaign.py[light]            unknown            -
+      excludes: test_cli_runs_offline_stages_and_stops
+  test_swe_copyparity.py                 unknown            -
+  test_swe_copyparity_real_subject.py    unknown            -
+  test_swe_coverage.py                   stale_checkout     5s  57.0h ago
+  test_swe_depthceiling.py               unknown            -
+  test_swe_equivalence.py                unknown            -
+  test_swe_exemptaudit.py                unknown            -
+  test_swe_exemptmap.py                  unknown            -
+  test_swe_fuzz.py                       stale_checkout     142s  69.5h ago
+  test_swe_guardpin.py                   unknown            -
+  test_swe_guest.py                      stale_subject      202s  57.1h ago   [last run RED]
+      moved in scope: examples, whence
+  test_swe_instrument.py                 unknown            -
+  test_swe_killers.py                    stale_checkout     40s  57.1h ago
+  test_swe_loop.py                       stale_subject      0s  57.1h ago
+      moved in scope: whence
+  test_swe_loop_cli.py                   unknown            -
+  test_swe_mutation.py                   stale_checkout     17s  57.0h ago
+  test_swe_oraclekill.py                 stale_checkout     58s  69.7h ago
+  test_swe_oracles.py                    stale_checkout     5s  57.1h ago
+  test_swe_prioritize.py                 unknown            -
+  test_swe_proc.py                       stale_checkout     13s  57.1h ago
+  test_swe_regiontools.py                stale_subject      5s  57.1h ago
+      moved in scope: whence
+  test_swe_repair.py                     stale_checkout     102s  69.5h ago
+  test_swe_review.py                     stale_checkout     81s  58.3h ago
+  test_swe_sandbox_evidence.py           unknown            -
+  test_swe_scoreaudit.py                 stale_harness      1s  57.1h ago
+      moved: tests/conftest.py
+  test_swe_spacewitness.py               unknown            -
+  test_swe_toolliveness.py               unknown            -
+  test_swe_triage.py                     stale_harness      0s  57.1h ago
+      moved: swe/fuzz.py, swe/instrument.py, swe/mutation.py, swe/sandboxevidence.py (+1 more)
+  NOTE: 32 unit(s) are NOT evidence about this checkout.
+
+RECORDED 2026-08-31T20:28:10Z (20.7 h ago) — a stored verdict, not a run just now
+  HEAD HAS MOVED SINCE: recorded at 50c7bb3caf0a, now 2e3285805979 — this verdict is NOT about the current tree
+ref HEAD (50c7bb3caf0a)   verdict dirty_worktree
+  the live tree differs from HEAD in 1 tracked file(s);
+  a differential against it cannot attribute anything.  Commit or stash first:
+    M state/baseline-ledger.jsonl
+
+procreap scan: under=/home/pgain/agi-research-nuc-llm verdict=residue matched=4 unreadable=0 (protected=2 vanished=0)
+  pid=680210   ppid=1      ORPHANED cwd=/home/pgain/agi-research-nuc-llm
+      open: /home/pgain/agi-research-nuc-llm/logs/driver_bg.log, /home/pgain/agi-research-nuc-llm/logs/round-433.json, /home/pgain/agi-research-nuc-llm/run_driver.sh, /home/pgain/agi-research-nuc-llm/state/.driver.lock
+  pid=2723149  ppid=680210          cwd=/home/pgain/agi-research-nuc-llm
+      open: /home/pgain/agi-research-nuc-llm/logs/round-433.json, /home/pgain/agi-research-nuc-llm/state/.driver.lock
+  pid=2723150  ppid=2723149          cwd=/home/pgain/agi-research-nuc-llm
+      open: /home/pgain/agi-research-nuc-llm/claude-wrapper.sh, /home/pgain/agi-research-nuc-llm/logs/round-433.json, /home/pgain/agi-research-nuc-llm/state/.driver.lock
+  pid=2723151  ppid=2723150          cwd=/home/pgain/agi-research-nuc-llm
+      open: /home/pgain/agi-research-nuc-llm/logs/round-433.json, /home/pgain/agi-research-nuc-llm/state/.driver.lock, /proc/2723151/statm

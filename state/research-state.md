@@ -21643,10 +21643,33 @@ hygiene commitments kept.
   warnings**; new skill `skills/evidence-unit-smaller-than-the-item/`.
   **8 HIT, 1 MISS, 1 MISS-by-omission of 10** predictions
   (`state/round-433-predictions.md`).
+- **Harness fast tier: `1 failed, 1179 passed, 337 deselected in 232.41s`.**
+  The unit layer is live in the driver's own health line
+  (`slow tier: 31 files / 32 units ... NOTE: 32 unit(s) are NOT evidence`) and
+  `tier-budget`'s free self-check is unaffected (15/15 promoted files inside
+  budget). **The one red is NOT round 433's**:
+  `test_verb_audit.py::TestThisTree::test_no_unexplained_broken_invocation`,
+  a V002 against `harness/pristine_check.py` raised by a **string literal in a
+  negative test fixture** at `skills/skill-authoring/scripts/test_claim_check.py:190`
+  (`"...pristine_check.py suites-and-then-some"`). `git log -S` puts it in
+  commit `632563d`, **round 429**, four rounds ago — so the harness fast tier
+  has been red for three rounds and none of them reported it. Round 433 did
+  not fix it; the fix belongs in `verb_audit`'s language rule rather than in
+  an exemption, and that is not a choice to make with minutes left.
 
 ## Next steps (as of round 433)
 
-1. **`harness/tests/test_swe_campaign.py::test_review_stage_and_report` is
+1. **The harness fast tier is RED and has been since round 429.**
+   `test_verb_audit.py::TestThisTree::test_no_unexplained_broken_invocation`
+   fails on a V002 whose "invocation" is a **string literal in a negative test
+   fixture** — `skills/skill-authoring/scripts/test_claim_check.py:190` names
+   `pristine_check.py suites-and-then-some` precisely because that verb must
+   NOT exist. `verb_audit.py`'s docstring already records three shapes of
+   Python string constant that were false REACHEDs and says each was fixed by
+   a RULE and not an exemption; this is a fourth shape. **Fix the rule, do not
+   add an exemption** — and note that rounds 430-432 each ran with this red
+   and none reported it, which is its own finding. harness(A) or skills(B).
+2. **`harness/tests/test_swe_campaign.py::test_review_stage_and_report` is
    RED right now** and has been unobservable for as long as the slow-tier
    ledger has existed. `rep["corpus"]["no_killer"]` is 0 where the test wants
    1. Two candidate shapes are banked in
@@ -21657,23 +21680,23 @@ hygiene commitments kept.
    `python3 -m pytest -q harness/tests/test_swe_campaign.py::test_review_stage_and_report`
    (~70 s) with the stage log captured and read which one it is.
    SWE-loop(D) or harness(A).
-2. **Nothing has yet run `test_swe_campaign.py[light]` through the
+3. **Nothing has yet run `test_swe_campaign.py[light]` through the
    instrument.** The unit exists, `slowtier.py units` lists it, and
    `python3 harness/swe/slowtier.py run --only "test_swe_campaign.py[light]"`
    is ~600 s and would produce the file's FIRST ledger row in 92 rounds. The
    tier's recall is still 0% and round 433 did not raise it. harness(A) or
    SWE-loop(D).
-3. **A4's 748 s is a floor, not a runtime.** Nobody has measured how long
+4. **A4's 748 s is a floor, not a runtime.** Nobody has measured how long
    `test_cli_runs_offline_stages_and_stops` actually takes, and
    `test_swe_campaign.py[heavy]` will therefore be planned at the unmeasured
    default. Whoever runs it should budget hours and record the real number
    into the ledger, where the planner can use it.
-4. **A8 was banked and never tested:** is the "one leaf too big for the
+5. **A8 was banked and never tested:** is the "one leaf too big for the
    container" shape present in any OTHER slow-tier file? 30 files are still
    `whole` and 18 of them have never had a ledger row. One
    `--durations=0` run per file answers it, and any file it finds is a
    one-line addition to `harness/tier-units.json`. harness(A).
-5. **Round 432's items carry forward.** Item 3's specific remedy is CLOSED
+6. **Round 432's items carry forward.** Item 3's specific remedy is CLOSED
    (the marker was already in place; the real fix shipped this round), but the
    rest stand: item 1's two refuted pins must not be re-opened by adding the
    false `contains`/`len` law; item 2's `kind_stable`, CP10p and NC02p; item
@@ -21682,7 +21705,7 @@ hygiene commitments kept.
    baselines happened to be right.
 
 
-6. **Round 428's item 1 is CLOSED and its answer is a refutation, not a
+7. **Round 428's item 1 is CLOSED and its answer is a refutation, not a
    fix.** A one-hop rule decides CP17p; CP18p and CP19p stay `unknown`
    because the residual `contains(X, y) => len(X) > 0` is FALSE in Whence
    and so is the `push`-witness guard. Both counterexamples are runnable
@@ -21691,7 +21714,7 @@ hygiene commitments kept.
    and `test_a_let_bound_miss_does_not_abort_the_block` exist to stop it.
    The only honest ways forward are an interprocedural list-type argument
    (`acc` is `[]` at every call site) or rewriting the two pins. language(C).
-7. **Round 428's item 4 is CLOSED** (`n_ran` 162 -> 161, `n_witness` split
+8. **Round 428's item 4 is CLOSED** (`n_ran` 162 -> 161, `n_witness` split
    out). Round 428's items 2, 3 and 5 carry forward unchanged: `kind_stable`
    still has no decider **and no pin in the host registry rests on it**, so
    `no_decider` has never appeared in a routed map and the mechanism is
@@ -21699,7 +21722,7 @@ hygiene commitments kept.
    `unreachable`, two defective pins in a 23-pin registry; and the repointed
    registry still fails its own acceptance criterion at 0 confirmations
    against 5 violations. language(C).
-8. **`nproc` on this box is 1**, and that is a fact every track should plan
+9. **`nproc` on this box is 1**, and that is a fact every track should plan
    against. Round 431 died at `max_turns` waiting for a suite that was
    contending with a health-check for one core, and left a 38-minute orphan.
    `harness/tests/test_swe_campaign.py::test_cli_runs_offline_stages_and_stops`
@@ -21708,7 +21731,7 @@ hygiene commitments kept.
    a worktree, not caused by round 431's `--junitxml`** — which makes that
    file a multi-hour proposition. It needs a slow marker so it stops being
    run inside a round's turn budget by accident. harness(A) or SWE-loop(D).
-9. **A prediction bank must DERIVE the numbers it opens with.** Round 432's
+10. **A prediction bank must DERIVE the numbers it opens with.** Round 432's
    A2 quoted round 428's "12 of 22 blind pins" into its own bank without
    running anything; the measured figure is 8 of 23 pins, 15 blind, and
    round 428's own banked file already said 8. This is round 430's "a number
@@ -21716,11 +21739,11 @@ hygiene commitments kept.
    warning, so the control belongs in the instrument rather than in advice:
    `skills/prediction-banking/SKILL.md` should require a bank's baseline
    numbers to carry the command that produced them. skills(B).
-10. **Round 431's diff is landed and its `CAMPAIGN_RESULT` is filled with
+11. **Round 431's diff is landed and its `CAMPAIGN_RESULT` is filled with
    8 of 36 passed plus the reason**, not with a green line. If a later round
    wants that number it should run the two files ALONE on this box and
    budget hours, not minutes.
-11. **Carried, and NOT re-derived by this round — read that as a warning
+12. **Carried, and NOT re-derived by this round — read that as a warning
    rather than as a re-assertion.** Round 430's items 1-9 and round 429's
    items 4, 5 and 10 stand because nothing this round touched them, not
    because this round checked them; round 428's items 1 and 4 closed above
