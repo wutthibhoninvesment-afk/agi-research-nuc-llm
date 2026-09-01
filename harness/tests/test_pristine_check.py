@@ -678,8 +678,15 @@ def test_exit_codes_distinguish_the_verdicts():
     assert pc._EXIT["both_failed"] == 2
     assert pc._EXIT["dirty_worktree"] == 3
     assert pc._EXIT["inconclusive"] == 3
+    # Round 427. `skip_evaporation` shares an exit code with the two other
+    # findings on purpose: it is the same class as `git_incomplete` (git does
+    # not carry something a test needs) and differs only in whether the test
+    # went red or defended itself with a skip. A quieter exit code would
+    # reward the defence.
+    assert pc._EXIT["skip_evaporation"] == 1
     assert set(pc._EXIT) == {"clean", "git_incomplete", "untracked_breaks_test",
-                             "both_failed", "dirty_worktree", "inconclusive"}
+                             "skip_evaporation", "both_failed",
+                             "dirty_worktree", "inconclusive"}
 
 
 def test_every_verdict_compare_can_emit_has_an_exit_code():
@@ -1145,3 +1152,508 @@ def test_status_prints_the_freshness_lines_before_the_verdict(tmp_path, capsys,
     assert out[0].startswith("RECORDED ")
     assert "HEAD HAS MOVED SINCE" in out[1]
     assert out[2].startswith("ref HEAD (91acd9c5af97)   verdict clean")
+
+
+# --------------------------------------------------------------------------
+# round 427 — the evaporation class: `passed -> skipped`, both trees exit 0
+# --------------------------------------------------------------------------
+#
+# Everything above this line is about tests that go RED in a pristine tree.
+# This section is about the ones that go QUIET. Round 426 found the live
+# instance by hand (its `HEAD` baseline reported 14 skipped where the live
+# tier reports 3) and round 425 found the same shape one tree over; neither
+# could be seen by `compare`, which reads failure sets only.
+
+def _junit(nodes, ok=True):
+    """A `parse_junit`-shaped record from `{name: status}` or
+    `{name: ("skipped", reason)}`. Keys are bare test names in a fake module
+    so the tests below read as node ids rather than as XML."""
+    rec = {"ok": ok, "path": "/tmp/fake.xml", "error": None if ok else "boom",
+           "statuses": {}, "skips": []}
+    for name, st in nodes.items():
+        reason = None
+        if isinstance(st, tuple):
+            st, reason = st
+        key = pc.skip_key("tests.test_m", name)
+        rec["statuses"][key] = st
+        if st == "skipped":
+            rec["skips"].append({"key": key,
+                                 "nid": pc.junit_node_id("tests.test_m", name),
+                                 "reason": reason or "because"})
+    return rec
+
+
+def _runj(failures, junit, passed=10, completed=True, suite="s"):
+    r = _run(failures, passed=passed, completed=completed)
+    r["suite"] = suite
+    r["junit"] = junit
+    return r
+
+
+def _ack(name, reason="because", suite="s", rnd=427):
+    return {"suite": suite, "key": pc.skip_key("tests.test_m", name),
+            "nid": pc.junit_node_id("tests.test_m", name),
+            "reason_pin": reason, "why": "adjudicated in a test",
+            "acknowledged_round": rnd, "acknowledged_utc": "2026-09-01"}
+
+
+# --- node ids and junit parsing -------------------------------------------
+
+def test_junit_node_id_rebuilds_module_paths_and_class_paths():
+    assert pc.junit_node_id("tests.test_v37", "test_a") == \
+        "tests/test_v37.py::test_a"
+    assert pc.junit_node_id("harness.tests.test_verb_audit.TestDeclared",
+                            "test_a") == \
+        "harness/tests/test_verb_audit.py::TestDeclared::test_a"
+    assert pc.junit_node_id("test_probe", "test_a") == "test_probe.py::test_a"
+    # Never consumes the last component: a classname that is ALL capitalised
+    # would otherwise reconstruct to a path of `.py` and nothing else.
+    assert pc.junit_node_id("Foo", "test_a") == "Foo.py::test_a"
+    assert pc.junit_node_id("", "test_a") == "test_a"
+
+
+def test_the_node_id_heuristic_cannot_change_a_verdict():
+    # Decision 2 in the module: keys are the raw junit attribute pair, so a
+    # wrong reconstruction misprints a line and nothing else. Proven by
+    # breaking `junit_node_id` outright and re-running the comparison.
+    live, pris = _junit({"t": "passed"}), _junit({"t": ("skipped", "r")})
+    before = pc.compare_skips(live, pris, suite="s", acks=[])
+    real = pc.junit_node_id
+    try:
+        pc.junit_node_id = lambda c, n: "GARBAGE"
+        after = pc.compare_skips(live, pris, suite="s", acks=[])
+    finally:
+        pc.junit_node_id = real
+    assert len(before["unacknowledged"]) == len(after["unacknowledged"]) == 1
+    assert (before["unacknowledged"][0]["key"]
+            == after["unacknowledged"][0]["key"])
+    assert pc._skip_verdict(before) == pc._skip_verdict(after)
+
+
+def test_the_test_tree_has_no_capitalised_module_or_directory(tmp_path):
+    # What makes `junit_node_id`'s heuristic decidable at all, checked
+    # against the real tree rather than asserted in a docstring. If someone
+    # adds `harness/tests/Helpers/test_x.py` this goes red and the heuristic
+    # needs replacing, not patching.
+    bad = []
+    for base in ("harness/tests", "languages/whence/tests"):
+        root = os.path.join(pc.REPO_ROOT, base)
+        for dirpath, dirnames, filenames in os.walk(root):
+            dirnames[:] = [d for d in dirnames if d != "__pycache__"]
+            for part in os.path.relpath(dirpath, pc.REPO_ROOT).split(os.sep):
+                if part[:1].isupper():
+                    bad.append(dirpath)
+            bad += [os.path.join(dirpath, f) for f in filenames
+                    if f.endswith(".py") and f[:1].isupper()]
+    assert bad == [], bad
+
+
+def test_an_xfail_is_not_a_skip(tmp_path):
+    xml = tmp_path / "r.xml"
+    xml.write_text(
+        '<testsuites><testsuite name="pytest">'
+        '<testcase classname="tests.test_m" name="test_s">'
+        '<skipped type="pytest.skip" message="really skipped"/></testcase>'
+        '<testcase classname="tests.test_m" name="test_x">'
+        '<skipped type="pytest.xfail" message="expected fail"/></testcase>'
+        '</testsuite></testsuites>', encoding="utf-8")
+    got = pc.parse_junit(str(xml))
+    assert got["ok"] is True
+    assert [s["nid"] for s in got["skips"]] == ["tests/test_m.py::test_s"]
+    assert got["statuses"][pc.skip_key("tests.test_m", "test_x")] == "xfailed"
+
+
+def test_parse_junit_classifies_pass_fail_and_error(tmp_path):
+    xml = tmp_path / "r.xml"
+    xml.write_text(
+        '<testsuites><testsuite name="pytest">'
+        '<testcase classname="tests.test_m" name="test_p"/>'
+        '<testcase classname="tests.test_m" name="test_f">'
+        '<failure message="boom"/></testcase>'
+        '<testcase classname="tests.test_m" name="test_e">'
+        '<error message="boom"/></testcase>'
+        '</testsuite></testsuites>', encoding="utf-8")
+    got = pc.parse_junit(str(xml))
+    assert [got["statuses"][pc.skip_key("tests.test_m", n)]
+            for n in ("test_p", "test_f", "test_e")] == \
+        ["passed", "failed", "error"]
+
+
+def test_a_missing_junit_report_is_absence_not_emptiness(tmp_path):
+    got = pc.parse_junit(str(tmp_path / "nope.xml"))
+    assert got["ok"] is False and got["skips"] == [] and got["error"]
+
+
+def test_a_malformed_junit_report_is_absence_not_emptiness(tmp_path):
+    xml = tmp_path / "r.xml"
+    xml.write_text("<testsuites><testcase", encoding="utf-8")
+    got = pc.parse_junit(str(xml))
+    assert got["ok"] is False and "ParseError" in got["error"]
+
+
+# --- the differential ------------------------------------------------------
+
+def test_the_evaporation_the_failure_differential_cannot_see():
+    # The whole point, in one assertion pair: identical (empty) failure sets,
+    # both runs completed, and a test that stopped being evidence.
+    live = _runj([], _junit({"t": "passed"}))
+    pris = _runj([], _junit({"t": ("skipped", "no fixture")}))
+    got = pc.compare(live, pris, acks=[])
+    assert got["skips"]["unacknowledged"][0]["nid"] == "tests/test_m.py::t"
+    assert got["verdict"] == "skip_evaporation"
+    assert pc._EXIT[got["verdict"]] == 1
+    # ...and what it looked like before: same inputs, no junit.
+    assert pc.compare(_run([]), _run([]))["verdict"] == "clean"
+
+
+def test_a_skip_in_both_trees_is_not_an_evaporation():
+    got = pc.compare_skips(_junit({"t": ("skipped", "r")}),
+                           _junit({"t": ("skipped", "r")}),
+                           suite="s", acks=[])
+    assert got["unacknowledged"] == [] and got["live_skips"] == 1
+
+
+def test_a_test_that_does_not_exist_in_the_live_run_is_not_an_evaporation():
+    # A test added to the pristine ref but absent here has not LOST evidence;
+    # it never had any in this tree. Counting it would make every stale
+    # checkout report findings.
+    got = pc.compare_skips(_junit({}), _junit({"t": ("skipped", "r")}),
+                           suite="s", acks=[])
+    assert got["unacknowledged"] == [] and got["pristine_skips"] == 1
+
+
+def test_a_failure_that_becomes_a_skip_is_not_counted_as_evaporation():
+    # Red here, skipped from git alone. Evidence was already absent; the
+    # failure differential owns this case and reports it as live_only.
+    got = pc.compare_skips(_junit({"t": "failed"}),
+                           _junit({"t": ("skipped", "r")}), suite="s", acks=[])
+    assert got["unacknowledged"] == []
+
+
+def test_the_mirror_is_reported_and_never_sets_a_verdict():
+    # Skipped HERE, runs from git alone: an untracked file is SUPPRESSING a
+    # test. Worth printing, but the live tree having less evidence than git
+    # is not a defect in git-completeness.
+    block = pc.compare_skips(_junit({"t": ("skipped", "r")}),
+                             _junit({"t": "passed"}), suite="s", acks=[])
+    assert [c["nid"] for c in block["condensed"]] == \
+        [pc.skip_key("tests.test_m", "t")]
+    assert pc._skip_verdict(block) is None
+    assert any("runs from git alone" in l for l in pc._fmt_skips(block))
+
+
+def test_no_junit_report_is_not_evidence_that_nothing_evaporated():
+    # Rule 3 for this class. A run that produced no report has not shown
+    # that nothing was lost, and must not be able to say `clean` about it.
+    block = pc.compare_skips(_junit({"t": "passed"}),
+                             _junit({"t": ("skipped", "r")}, ok=False),
+                             suite="s", acks=[])
+    assert block["evidence"] == "unavailable"
+    assert block["unacknowledged"] == [] and pc._skip_verdict(block) is None
+    assert any("NOT COMPARED" in l for l in pc._fmt_skips(block))
+    # ...and the suite verdict falls back to the failure comparison, not to
+    # a skip verdict invented from missing data.
+    assert pc.compare(_runj([], _junit({"t": "passed"})),
+                      _runj([], _junit({}, ok=False)),
+                      acks=[])["verdict"] == "clean"
+
+
+# --- verdict precedence ----------------------------------------------------
+
+def test_git_incomplete_still_outranks_skip_evaporation():
+    got = pc.compare(_runj([], _junit({"t": "passed"})),
+                     _runj(["t.py::k"], _junit({"t": ("skipped", "r")})),
+                     acks=[])
+    assert got["verdict"] == "git_incomplete"
+    assert got["skips"]["unacknowledged"] != []      # still reported
+
+
+def test_skip_evaporation_outranks_untracked_breaks_test_and_both_failed():
+    got = pc.compare(_runj(["t.py::k"], _junit({"t": "passed"})),
+                     _runj([], _junit({"t": ("skipped", "r")})), acks=[])
+    assert got["verdict"] == "skip_evaporation"
+    got = pc.compare(_runj(["t.py::k"], _junit({"t": "passed"})),
+                     _runj(["t.py::k"], _junit({"t": ("skipped", "r")})),
+                     acks=[])
+    assert got["verdict"] == "skip_evaporation"
+
+
+def test_an_incomplete_run_still_outranks_everything():
+    got = pc.compare(_runj([], _junit({"t": "passed"}), completed=False),
+                     _runj([], _junit({"t": ("skipped", "r")})), acks=[])
+    assert got["verdict"] == "inconclusive"
+
+
+def test_the_differential_verdict_order_covers_every_compare_verdict():
+    import inspect
+    src = inspect.getsource(pc.differential)
+    assert '"skip_evaporation"' in src.split("order = ")[1]
+
+
+# --- the acknowledgement registry -----------------------------------------
+
+def test_an_acknowledged_evaporation_does_not_set_the_verdict():
+    live = _runj([], _junit({"t": "passed"}))
+    pris = _runj([], _junit({"t": ("skipped", "no fixture")}))
+    got = pc.compare(live, pris, acks=[_ack("t", "no fixture")])
+    assert got["verdict"] == "clean"
+    assert got["skips"]["acknowledged"] and got["skips"]["unacknowledged"] == []
+
+
+def test_an_acknowledged_evaporation_is_still_printed_every_run():
+    # The registry keeps a KNOWN loss from setting a verdict; it does not
+    # hide it. A silent suppression is round 349's "never look at this
+    # again" with a JSON file in front of it.
+    block = pc.compare_skips(_junit({"t": "passed"}),
+                             _junit({"t": ("skipped", "no fixture")}),
+                             suite="s", acks=[_ack("t", "no fixture")])
+    assert any("acknowledged (round 427)" in l for l in pc._fmt_skips(block))
+
+
+def test_an_acknowledgement_expires_when_the_skip_reason_changes():
+    # D2: a name-only allowlist would let a test acquire a SECOND, unrelated
+    # reason to skip and stay silent forever. The pin is the reason text.
+    live = _runj([], _junit({"t": "passed"}))
+    pris = _runj([], _junit({"t": ("skipped", "a totally different reason")}))
+    got = pc.compare(live, pris, acks=[_ack("t", "no fixture")])
+    assert got["verdict"] == "skip_evaporation"
+    assert got["skips"]["pin_expired"] and got["skips"]["acknowledged"] == []
+
+
+def test_an_expired_pin_reports_louder_than_an_unacknowledged_skip():
+    block = pc.compare_skips(_junit({"t": "passed"}),
+                             _junit({"t": ("skipped", "new reason")}),
+                             suite="s", acks=[_ack("t", "old reason")])
+    text = "\n".join(pc._fmt_skips(block))
+    assert "ACKNOWLEDGEMENT EXPIRED" in text
+    assert "old reason" in text and "new reason" in text
+
+
+def test_a_dead_acknowledgement_is_reported_so_it_can_be_deleted():
+    block = pc.compare_skips(_junit({"t": "passed"}), _junit({"t": "passed"}),
+                             suite="s", acks=[_ack("t")])
+    assert [d["nid"] for d in block["dead_acknowledgements"]] == \
+        ["tests/test_m.py::t"]
+    assert any("DEAD ACKNOWLEDGEMENT" in l for l in pc._fmt_skips(block))
+    assert pc._skip_verdict(block) is None      # dead ≠ a finding about git
+
+
+def test_acknowledgements_are_scoped_to_a_suite():
+    # An entry written for `whence-fast` must not silence the same node id
+    # under `harness-fast`, and must not be called dead when that suite runs.
+    block = pc.compare_skips(_junit({"t": "passed"}),
+                             _junit({"t": ("skipped", "because")}),
+                             suite="harness-fast",
+                             acks=[_ack("t", suite="whence-fast")])
+    assert block["unacknowledged"] and block["dead_acknowledgements"] == []
+
+
+def test_a_missing_registry_acknowledges_nothing_rather_than_everything(
+        tmp_path):
+    # Fail-loud direction: deleting the file must not be able to silence the
+    # checker. The worst a broken registry can do is make a known loss red.
+    assert pc.load_skip_acks(str(tmp_path / "nope.json")) == []
+
+
+def test_a_corrupt_registry_acknowledges_nothing(tmp_path):
+    bad = tmp_path / "r.json"
+    bad.write_text("{not json", encoding="utf-8")
+    assert pc.load_skip_acks(str(bad)) == []
+
+
+def test_registry_entries_without_a_suite_or_key_are_ignored(tmp_path):
+    r = tmp_path / "r.json"
+    r.write_text(json.dumps({"acknowledged": [
+        {"suite": "s"}, {"key": "k"}, "not a dict",
+        {"suite": "s", "key": "k", "reason_pin": "r"}]}), encoding="utf-8")
+    assert [e["key"] for e in pc.load_skip_acks(str(r))] == ["k"]
+
+
+# --- this repo's own registry ---------------------------------------------
+
+def test_the_registry_describes_tests_that_exist_here():
+    # An entry naming a node that no longer exists suppresses nothing and is
+    # the `dead` case a differential would only reach by running for minutes.
+    for e in pc.load_skip_acks():
+        path = e["nid"].split("::")[0]
+        root = (os.path.join(pc.REPO_ROOT, "languages", "whence")
+                if e["suite"].startswith("whence") else pc.REPO_ROOT)
+        assert os.path.exists(os.path.join(root, path)), e["nid"]
+
+
+def test_every_registry_entry_pins_a_reason_and_names_its_round():
+    for e in pc.load_skip_acks():
+        assert e.get("reason_pin"), e["key"]
+        assert e.get("acknowledged_round"), e["key"]
+        assert e.get("why") and len(e["why"]) > 80, e["key"]
+        assert e["suite"] in pc.SUITES, e["suite"]
+
+
+def test_the_registry_lives_under_state_and_is_not_the_other_two():
+    assert pc.SKIP_ACK_REGISTRY.startswith(os.path.join(pc.REPO_ROOT, "state"))
+    assert pc.SKIP_ACK_REGISTRY not in (
+        os.path.join(pc.REPO_ROOT, "state", "known-standing-dirty-paths.json"),
+        os.path.join(pc.REPO_ROOT, "state", "known-escalated-diffs.json"))
+
+
+# --- plumbing: the report must not dirty either tree ----------------------
+
+def test_run_suite_argv_is_unchanged_when_no_junit_is_requested():
+    r = recording_runner([])
+    pc.run_suite("whence-fast", "/tmp/tree", runner=r)
+    assert r.calls[0]["argv"][3:] == pc.SUITES["whence-fast"]["argv"]
+
+
+def test_run_suite_adds_exactly_one_junit_flag_when_asked():
+    r = recording_runner([])
+    pc.run_suite("whence-fast", "/tmp/tree", runner=r, junit_path="/tmp/x.xml")
+    argv = r.calls[0]["argv"]
+    assert argv[-1] == "--junitxml=/tmp/x.xml"
+    assert argv[3:-1] == pc.SUITES["whence-fast"]["argv"]
+
+
+def test_a_run_without_a_junit_path_reports_absence_not_zero_skips():
+    r = recording_runner([])
+    got = pc.run_suite("whence-fast", "/tmp/tree", runner=r)
+    assert got["junit"]["ok"] is False and got["junit"]["skips"] == []
+
+
+def test_the_junit_scratch_lives_outside_both_trees(tmp_path):
+    # B4 / round 409's OWN_RECORDS trap in a new place: a report written
+    # into the live tree makes it dirty and rule 1 blocks the NEXT check;
+    # written into the worktree it is handed to `git worktree remove`.
+    with pc._JunitScratch() as js:
+        path = js.path("whence-fast", "live")
+        assert not _cwd_under(path, pc.REPO_ROOT)
+        assert path.endswith(".xml") and "whence-fast" in path
+        assert js.path("whence-fast", "live") != js.path("whence-fast",
+                                                         "pristine")
+
+
+def test_the_junit_scratch_is_removed_even_when_the_body_raises():
+    seen = {}
+    with pytest.raises(RuntimeError):
+        with pc._JunitScratch() as js:
+            seen["root"] = js.root
+            open(js.path("a", "b"), "w").write("x")
+            raise RuntimeError("boom")
+    assert not os.path.exists(seen["root"])
+
+
+def test_a_caller_supplied_scratch_dir_is_not_deleted(tmp_path):
+    # Only what this module created is what it removes — the same rule
+    # `PristineWorktree` follows about a path it did not allocate.
+    with pc._JunitScratch(root=str(tmp_path)) as js:
+        assert js.root == str(tmp_path)
+    assert os.path.isdir(str(tmp_path))
+
+
+def test_the_differential_gives_the_two_trees_different_report_paths():
+    r = recording_runner([("@/tmp/wt", PASS)])
+    pc.differential(["whence-fast"], repo="/tmp/tree", runner=r,
+                    worktree_path="/tmp/wt", acks=[],
+                    dirt={"ok": True, "tracked_modified": [], "untracked": [],
+                          "ignored": []})
+    reports = [a for c in r.calls for a in c["argv"]
+               if a.startswith("--junitxml=")]
+    assert len(reports) == 2 and reports[0] != reports[1]
+
+
+def test_the_baseline_records_the_skip_list_not_just_the_count(tmp_path,
+                                                               monkeypatch):
+    # Round 426's next-steps item 7. Its own baseline record kept a COUNT,
+    # so finding out WHICH eleven tests had evaporated meant re-running the
+    # suite by hand.
+    xml = tmp_path / "b.xml"
+    xml.write_text(
+        '<testsuites><testsuite name="pytest">'
+        '<testcase classname="tests.test_m" name="test_s">'
+        '<skipped type="pytest.skip" message="no corpus"/></testcase>'
+        '</testsuite></testsuites>', encoding="utf-8")
+    monkeypatch.setattr(pc._JunitScratch, "path",
+                        lambda self, *parts: str(xml))
+    r = recording_runner([])
+    rec = pc.baseline(["whence-fast"], repo="/tmp/tree", runner=r,
+                      worktree_path="/tmp/wt",
+                      dirt={"ok": True, "tracked_modified": [],
+                            "untracked": [], "ignored": []})
+    res = rec["results"][0]
+    assert res["verdict"] == "green"          # unchanged: a skip is not red
+    assert res["skip_evidence"] == "available"
+    assert [s["nid"] for s in res["skips"]] == ["tests/test_m.py::test_s"]
+    out = pc._fmt_baseline(rec)
+    assert "SKIPPED tests/test_m.py::test_s" in out and "no corpus" in out
+
+
+def test_a_baseline_without_a_junit_report_says_so_rather_than_zero(tmp_path):
+    rec = {"ref": "HEAD", "resolved": "a" * 40, "verdict": "green",
+           "live_tree_dirty": {}, "results": [
+               {"suite": "whence-fast", "verdict": "green", "counts": {},
+                "failures": [], "duration_s": 1.0,
+                "skip_evidence": "unavailable", "skips": []}]}
+    assert "skips: NOT RECORDED" in pc._fmt_baseline(rec)
+
+
+# --- end to end, against real git -----------------------------------------
+
+def test_a_real_gitignored_fixture_makes_a_real_test_evaporate(tmp_path,
+                                                               monkeypatch):
+    """The whole class, built from nothing and measured for real.
+
+    No fakes: a real repo, a real `.gitignore`, a real `git worktree`, two
+    real pytest runs. The suite is two tests — one that always passes, and
+    one that skips when its fixture is missing, which is exactly what round
+    404 wrote and round 426 tripped over. Before this round the differential
+    called that `clean`; the assertions below are that it no longer does,
+    and that an acknowledgement — and only a matching one — quiets it.
+    """
+    g = _repo(tmp_path)
+    suite = tmp_path / "suite"
+    suite.mkdir()
+    (suite / "test_e.py").write_text(
+        "import os\n"
+        "import pytest\n"
+        "HERE = os.path.dirname(os.path.abspath(__file__))\n"
+        "def test_always():\n"
+        "    assert True\n"
+        "def test_needs_corpus():\n"
+        "    if not os.path.exists(os.path.join(HERE, 'corpus.txt')):\n"
+        "        pytest.skip('the corpus is absent from this checkout')\n"
+        "    assert True\n", encoding="utf-8")
+    (tmp_path / ".gitignore").write_text(
+        "ignored.txt\nsuite/corpus.txt\n", encoding="utf-8")
+    g("add", "-A")
+    g("commit", "-qm", "suite")
+    # The fixture exists HERE and in no commit — the gateway corpus in
+    # miniature.
+    (suite / "corpus.txt").write_text("data\n", encoding="utf-8")
+
+    monkeypatch.setitem(pc.SUITES, "tmp-suite",
+                        {"cwd": ".", "argv": ["-q", "suite/"], "note": "t"})
+    key = pc.skip_key("suite.test_e", "test_needs_corpus")
+
+    rec = pc.differential(["tmp-suite"], repo=str(tmp_path), acks=[],
+                          worktree_path=str(tmp_path / "wt"), timeout_s=300)
+    res = rec["results"][0]
+    assert res["live_counts"].get("failed") is None
+    assert res["pristine_counts"].get("failed") is None      # nothing went red
+    assert res["skips"]["evidence"] == "available"
+    assert res["skips"]["live_skips"] == 0
+    assert res["skips"]["pristine_skips"] == 1
+    assert [s["key"] for s in res["skips"]["unacknowledged"]] == [key]
+    assert rec["verdict"] == "skip_evaporation"
+    assert pc._EXIT[rec["verdict"]] == 1
+
+    ack = {"suite": "tmp-suite", "key": key, "nid": "suite/test_e.py::x",
+           "reason_pin": "the corpus is absent from this checkout",
+           "why": "adjudicated by this test", "acknowledged_round": 427}
+    rec = pc.differential(["tmp-suite"], repo=str(tmp_path), acks=[ack],
+                          worktree_path=str(tmp_path / "wt2"), timeout_s=300)
+    assert rec["verdict"] == "clean"
+    assert len(rec["results"][0]["skips"]["acknowledged"]) == 1
+
+    ack["reason_pin"] = "some other reason entirely"
+    rec = pc.differential(["tmp-suite"], repo=str(tmp_path), acks=[ack],
+                          worktree_path=str(tmp_path / "wt3"), timeout_s=300)
+    assert rec["verdict"] == "skip_evaporation"
+    assert len(rec["results"][0]["skips"]["pin_expired"]) == 1

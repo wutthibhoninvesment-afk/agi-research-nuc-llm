@@ -20818,3 +20818,157 @@ existed would have been theatre; recorded here rather than left unsaid.
    reported **77** at round 426's start and **78** an hour later in the same
    round. Every one of those is a re-quoted number; the checker's own line is
    the only source.
+
+### Round 427 — harness(A) — 2026-09-01 — the evidence that evaporates without going red
+
+`knowledge/round-427-the-evidence-that-evaporates.md`. Commit: see git log.
+
+- **Pre-flight: round 426's diff landed as `02b6ef0`** — the fourth
+  interrupted round in five. Verified before landing (`66 passed in 25.28s`
+  on `tests/test_polarity.py`). **One substitution**: its research-state
+  entry carried the literal token `FULL_LIVE_PLACEHOLDER` where a full-suite
+  result belonged. Round 427 did not run a suite on round 426's behalf and
+  did not invent a number; it replaced the token with a statement that the
+  suite was not run plus the driver's own post-round health check, the only
+  full-suite measurement of that tree that exists. **A template token
+  survived a driver health check, a skills check and a record-gap check —
+  nothing in this repo looks for one, and this is the SECOND instance.**
+  Round 205 left `[TEST_RESULT_PLACEHOLDER]` at line 667 of this file for
+  the same reason (a suite launched in the background and never read);
+  round 207 found it, wrote a paragraph citing it, and did not fill it in.
+  It has been there 222 rounds. Both tokens end in `_PLACEHOLDER`.
+- **`harness/pristine_check.py` has compared the two trees by FAILURE SET
+  only since round 355, and that is half the class.** A test whose fixture
+  git does not carry can fail — `git_incomplete`, exit 1 — or SKIP, which
+  produces empty failure sets on both sides, verdict `clean`, exit 0 in both
+  trees. Measured at `02b6ef0`: `whence-fast` live `2104 passed, 3 skipped`
+  against pristine `2093 passed, 14 skipped`. **Eleven tests, both sides
+  green.** HEAD's own `compare`, loaded from `git show` and run on those two
+  records, returns `clean` / exit `0` — the blindness is demonstrated, not
+  argued.
+- **`-rs` is the wrong flag and probing said so before the design settled.**
+  It keys a skip by `file:LINE`, so inserting an import above a test reports
+  a phantom evaporation. `--junitxml` keys by `classname` + `name`. Two more
+  facts only a probe gives: an xfail is `<skipped type="pytest.xfail">` in
+  junit (filtered, or it is a permanent false positive in every report), and
+  this pytest emits no `file`/`line` attribute, so the readable node id must
+  be RECONSTRUCTED — a heuristic, which is why **every comparison and
+  acknowledgement is keyed on the raw attribute pair and the reconstruction
+  can only misprint a line.** Pinned by replacing `junit_node_id` with
+  `lambda c, n: "GARBAGE"` and asserting the verdict is identical.
+- **The finding behind the finding: this repo's own skill built the class.**
+  `skills/pristine-checkout-differential/SKILL.md` step 4 said to ignore
+  skips as count noise; a pitfall said the fix for an ignored corpus is *a
+  SKIP with a reason that names the cause*. The two halves cancelled for
+  eighteen rounds. Measured, not read: at `50c7bb3` (round 409) the guard
+  had **2 call sites and skipped 4 tests**; at `02b6ef0` it has **4 files
+  and skips 11**, and the growth was never a decision — each new test
+  reached for the sibling's guard. That is exactly why the new registry is
+  keyed **per node, never per reason**.
+- **Built:** `parse_junit`, `skip_key`/`junit_node_id`, `compare_skips`
+  (four buckets: unacknowledged sets the verdict, acknowledged is printed
+  but silent, `pin_expired` is LOUDER than unacknowledged, dead
+  acknowledgements must be deleted; plus `condensed`, the mirror),
+  `_JunitScratch` (reports outside both trees — round 409's `OWN_RECORDS`
+  trap in a new place), new verdict **`skip_evaporation` at exit 1** ranked
+  directly below `git_incomplete` (same cause, quieter reaction — ranking it
+  lower would reward defending a test with `pytest.skip`), and `baseline`
+  now records the skip LIST rather than a count.
+- **`state/known-pristine-skips.json`, the third acknowledgement registry**,
+  deliberately not merged with `known-standing-dirty-paths.json` (untracked
+  files a third party leaves) or `known-escalated-diffs.json` (an
+  adjudicated tracked diff). Eleven entries, each pinned to the exact skip
+  REASON TEXT: change why a test skips and the acknowledgement expires by
+  itself.
+- **Tests 87 → 126 in `harness/tests/test_pristine_check.py`, all green**
+  (`126 passed in 3.12s`). 38 are offline; the 39th
+  (`test_a_real_gitignored_fixture_makes_a_real_test_evaporate`, 5.09 s) uses
+  no fakes at all — real repo, real `.gitignore`, real worktrees, three real
+  `differential` runs proving detection, suppression, and expiry of the
+  suppression.
+- **Skill upgraded**: step 4 lost the word "skips", new step 4a (difference
+  the skipped ids, `--junitxml` not `-rs`, with a paste-able helper and the
+  three look-alike non-findings), step 5 went four verdicts to five, three
+  new pitfalls including "this skill's own fix manufactures this class", and
+  the round-355/409 transcripts moved to `references/verification-log.md` to
+  stay under `skill_lint`'s B002 line threshold. `skill_lint --house
+  --strict`: **69 skills, 0 errors, 0 warnings.**
+- **Bank scored: 10 HIT · 2 PARTIAL · 1 MISS of 13** (B1 explicitly not
+  scored — it recorded a decision already made). The PARTIAL is the useful
+  one: B3 predicted a THREE-component junit classname as the breaking case,
+  and the component count is not the discriminator at any depth — a
+  CAPITALISED trailing component is. C1 missed a wall-clock by 2-3× in the
+  same direction as round 422's E1, both from re-quoting a duration out of
+  prose instead of `logs/round-NNN.json`. C2 is the other PARTIAL: a
+  controlled A/B put `--junitxml`'s cost at `+3.92 s` (125.09 → 129.01 s),
+  but the same suite ran 127.87 / 128.79 / 124.49 / 128.38 s across four
+  runs today, so at n=1 the overhead is BOUNDED ABOVE by ~4 s and not
+  resolved. Recorded as a bound, not a point estimate.
+- **Disclosed costs**: `case_coverage` 54/69 → 53/69 probed (the description
+  edit made this skill's probe STALE — a `trigger_eval` round re-probes it);
+  3 unprobed trigger cases added; the references split briefly took every
+  runnable command out of the skill and `claim_check` caught it.
+- **Results**: harness fast tier `1154 passed, 298 deselected in 225.09s`
+  (was 1115); `corpus_check` 0 errors after the ledger entry landed. No SPEC
+  bump — nothing under `languages/whence/whence/` was touched, Whence stays
+  at v0.41.
+
+## Next steps (as of round 427)
+
+1. **Round 425's item 1 is now HALF-answered, and the other half is still
+   SWE-loop(D).** The acknowledged-baseline mechanism it asked for exists —
+   `state/known-pristine-skips.json` plus `compare_skips`, reason-pinned,
+   with expiry and dead-entry reporting — but it lives in `pristine_check`,
+   whose second tree is a `git worktree`. Round 425's actual instance
+   (`test_v37.py::test_the_host_is_byte_unchanged_by_this_decision`)
+   evaporates in the MUTATION SANDBOX, `_copy_project`'s tree, which excludes
+   `.git`. Round 427 MEASURED that it does not evaporate in a worktree
+   (`live=passed, pristine=passed`), so do not read this round's registry as
+   covering it. `mutation.baseline_check` needs the same mechanism pointed at
+   its own tree; the format and the four buckets are there to copy.
+   SWE-loop(D).
+2. **The 11 acknowledged evaporations are acknowledged, not fixed.** A fresh
+   clone runs 11 fewer whence tests than this box, permanently, because round
+   402 `.gitignore`d the 14-file field corpus a separate system writes. Three
+   options, none of them a harness round's to pick: commit a curated subset
+   as fixtures (and adopt files another system owns — the trap this repo's
+   own skill warns about); synthesise an equivalent corpus git CAN carry; or
+   accept the loss and stop counting those tests as evidence in published
+   numbers. language(C) or the operator.
+3. **A literal template token survives into the permanent record and nothing
+   looks for one — TWICE, 222 rounds apart.** `FULL_LIVE_PLACEHOLDER` (round
+   426) passed a driver health check, a skills check and a record-gap check;
+   `[TEST_RESULT_PLACEHOLDER]` (round 205, line 667 of this file) is STILL
+   THERE, and round 207 found it, wrote a paragraph citing it, and left it.
+   Same cause both times: a suite launched in the background whose result
+   the round never read. Both end in `_PLACEHOLDER`, which answers the
+   objection that a fixed token list only catches repeats — the repeat is
+   what the record has. A grep for `_PLACEHOLDER|TODO|TBD|XXX|FIXME` over
+   `state/*.md` and `knowledge/*.md` is ten lines and belongs beside
+   `state_claim_check` in `corpus_check.py`. Round 205's instance is
+   unrecoverable (its output lived in `/tmp`) and should be marked as such
+   in place, not filled in by a later round. harness(A) or skills(B).
+4. **Nothing runs `pristine_check check`, and now it has something to say.**
+   `harness/run_tests_fast.sh:105` runs `status`, which re-prints a stored
+   verdict and swallows the exit code with `|| true`. The last stored record
+   before this round was 14.9 h old and pinned to `50c7bb3`, a commit HEAD
+   had moved off — `status_freshness` said so, correctly, and nobody was
+   reading. The differential costs a second full suite run so it cannot be
+   per-round, but the gap between "14.9 h stale" and "never" is a scheduling
+   decision nobody has made. harness(A).
+5. **Two banks in a row over-estimated wall-clock by 2-3×** (round 427's C1,
+   round 422's E1), both by re-quoting a duration out of prose instead of
+   `logs/round-NNN.json`, which carries the real per-round timings and which
+   no bank has ever consulted. A bank predicting a duration should name the
+   log line it derived the estimate from. skills(B).
+6. **Round 426's items 1-6 carry forward unchanged.** `refusal` is still
+   undecided; the designed pin-pair experiment is still the cheapest route to
+   `p = 0.029`; the `plus` campaign has still not been re-run against the
+   current guest file; the repointed registry still needs taking seriously or
+   retiring. All language(C).
+7. **Round 425's items 2-20 carry forward** except where closed above. Round
+   408's item 9 — CLAUDE.md's `🔴 CRITICAL MISSION` block, stale in both
+   halves — is re-escalated for the TWELFTH time and still needs the
+   operator. `languages/whence/SECURITY.md` is still carried and still the
+   operator's decision; **do not copy a carry count for it from this file** —
+   the checker's own line is the only source.

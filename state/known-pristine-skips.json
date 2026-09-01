@@ -1,0 +1,126 @@
+{
+  "_comment": "KNOWN PRISTINE-ONLY SKIPS -- tests that PASS in this working tree and SKIP in a `git worktree` checkout of the same commit. Read by harness/pristine_check.py's load_skip_acks/compare_skips (round 427) and by NOTHING else. This is the third acknowledgement registry in state/ and it is none of the other two: known-standing-dirty-paths.json models UNTRACKED FILES a third party leaves behind and its entries are unconditional; known-escalated-diffs.json models a TRACKED DIFF a round adjudicated and left uncommitted; this one models a TEST that stops being evidence in a fresh clone. The shared discipline is round 349's refusal to allowlist anything unconditionally ('that would mean never look at this again, which is the wrong answer'), so every entry here is PINNED TO THE SKIP REASON TEXT. Change why a test skips and the acknowledgement expires by itself, and the checker reports it LOUDER than an unacknowledged one -- because a node id that has acquired a second, unrelated reason to skip is precisely what a name-only allowlist would hide. An entry matching no evaporation in a suite that RAN is reported DEAD and must be DELETED: an acknowledgement that suppresses nothing reads as coverage. Entries are PER NODE, never per reason: a NEW test that acquires an already-acknowledged skip reason goes red on purpose, because 'should this test depend on a corpus git does not carry' is a decision, and inheriting it from a sibling is how the 11 below became 11 without anyone deciding once. Adding an entry asserts that a round inspected THIS node's skip and recorded its reasoning somewhere findable; `why` must name that round's artifact. An acknowledged evaporation is still PRINTED on every run.",
+  "acknowledged": [
+    {
+      "suite": "whence-fast",
+      "key": "tests.test_field_corpus_selector::test_ten_of_the_fourteen_still_fail_to_parse",
+      "nid": "tests/test_field_corpus_selector.py::test_ten_of_the_fourteen_still_fail_to_parse",
+      "reason_pin": "the 14-file field corpus is absent from this checkout: round 402 named all fourteen in .gitignore, so they exist only in a working tree the Hermes gateway has written into and in no checkout of any commit. A test whose subject is that corpus has no subject here — this is not a regression in anything this project wrote.",
+      "why": "Round 402 put the 14-file field corpus in .gitignore: those files were written into this working tree by the Hermes gateway (a separate autonomous system sharing this checkout) and are in no commit. A test whose SUBJECT is that corpus therefore has no subject in a fresh clone, and round 404's defensive pytest.skip is the correct reaction -- failing would be a false alarm about a regression nobody caused. What is acknowledged here is not that the skip is wrong but that the EVIDENCE LOSS IS REAL AND PERMANENT: a fresh clone of this repo runs 11 fewer whence tests than this box does, forever, and every green number this program has quoted for the whence fast tier was measured with them running. Round 426 found this by hand (baseline 2157 passed / 14 skipped against a live 3 skipped) and left it as its next-steps item 7; round 427 measured it again against commit 02b6ef0 (pristine 2093 passed / 14 skipped, live 2104 passed / 3 skipped) and built the mechanism. See knowledge/round-427-*.md.",
+      "acknowledged_round": 427,
+      "acknowledged_utc": "2026-09-01",
+      "found_by_round": 426,
+      "measured_at_commit": "02b6ef0"
+    },
+    {
+      "suite": "whence-fast",
+      "key": "tests.test_field_corpus_selector::test_the_census_and_the_directory_still_agree",
+      "nid": "tests/test_field_corpus_selector.py::test_the_census_and_the_directory_still_agree",
+      "reason_pin": "the 14-file field corpus is absent from this checkout: round 402 named all fourteen in .gitignore, so they exist only in a working tree the Hermes gateway has written into and in no checkout of any commit. A test whose subject is that corpus has no subject here — this is not a regression in anything this project wrote.",
+      "why": "Round 402 put the 14-file field corpus in .gitignore: those files were written into this working tree by the Hermes gateway (a separate autonomous system sharing this checkout) and are in no commit. A test whose SUBJECT is that corpus therefore has no subject in a fresh clone, and round 404's defensive pytest.skip is the correct reaction -- failing would be a false alarm about a regression nobody caused. What is acknowledged here is not that the skip is wrong but that the EVIDENCE LOSS IS REAL AND PERMANENT: a fresh clone of this repo runs 11 fewer whence tests than this box does, forever, and every green number this program has quoted for the whence fast tier was measured with them running. Round 426 found this by hand (baseline 2157 passed / 14 skipped against a live 3 skipped) and left it as its next-steps item 7; round 427 measured it again against commit 02b6ef0 (pristine 2093 passed / 14 skipped, live 2104 passed / 3 skipped) and built the mechanism. See knowledge/round-427-*.md.",
+      "acknowledged_round": 427,
+      "acknowledged_utc": "2026-09-01",
+      "found_by_round": 426,
+      "measured_at_commit": "02b6ef0"
+    },
+    {
+      "suite": "whence-fast",
+      "key": "tests.test_field_corpus_selector::test_the_live_tree_has_no_drift",
+      "nid": "tests/test_field_corpus_selector.py::test_the_live_tree_has_no_drift",
+      "reason_pin": "the 14-file field corpus is absent from this checkout: round 402 named all fourteen in .gitignore, so they exist only in a working tree the Hermes gateway has written into and in no checkout of any commit. A test whose subject is that corpus has no subject here — this is not a regression in anything this project wrote.",
+      "why": "Round 402 put the 14-file field corpus in .gitignore: those files were written into this working tree by the Hermes gateway (a separate autonomous system sharing this checkout) and are in no commit. A test whose SUBJECT is that corpus therefore has no subject in a fresh clone, and round 404's defensive pytest.skip is the correct reaction -- failing would be a false alarm about a regression nobody caused. What is acknowledged here is not that the skip is wrong but that the EVIDENCE LOSS IS REAL AND PERMANENT: a fresh clone of this repo runs 11 fewer whence tests than this box does, forever, and every green number this program has quoted for the whence fast tier was measured with them running. Round 426 found this by hand (baseline 2157 passed / 14 skipped against a live 3 skipped) and left it as its next-steps item 7; round 427 measured it again against commit 02b6ef0 (pristine 2093 passed / 14 skipped, live 2104 passed / 3 skipped) and built the mechanism. See knowledge/round-427-*.md.",
+      "acknowledged_round": 427,
+      "acknowledged_utc": "2026-09-01",
+      "found_by_round": 426,
+      "measured_at_commit": "02b6ef0"
+    },
+    {
+      "suite": "whence-fast",
+      "key": "tests.test_v24::test_the_tracked_example_set_is_the_one_this_repo_decided_on",
+      "nid": "tests/test_v24.py::test_the_tracked_example_set_is_the_one_this_repo_decided_on",
+      "reason_pin": "the 14-file field corpus is absent from this checkout: round 402 named all fourteen in .gitignore, so they exist only in a working tree the Hermes gateway has written into and in no checkout of any commit. A test whose subject is that corpus has no subject here — this is not a regression in anything this project wrote.",
+      "why": "Round 402 put the 14-file field corpus in .gitignore: those files were written into this working tree by the Hermes gateway (a separate autonomous system sharing this checkout) and are in no commit. A test whose SUBJECT is that corpus therefore has no subject in a fresh clone, and round 404's defensive pytest.skip is the correct reaction -- failing would be a false alarm about a regression nobody caused. What is acknowledged here is not that the skip is wrong but that the EVIDENCE LOSS IS REAL AND PERMANENT: a fresh clone of this repo runs 11 fewer whence tests than this box does, forever, and every green number this program has quoted for the whence fast tier was measured with them running. Round 426 found this by hand (baseline 2157 passed / 14 skipped against a live 3 skipped) and left it as its next-steps item 7; round 427 measured it again against commit 02b6ef0 (pristine 2093 passed / 14 skipped, live 2104 passed / 3 skipped) and built the mechanism. See knowledge/round-427-*.md.",
+      "acknowledged_round": 427,
+      "acknowledged_utc": "2026-09-01",
+      "found_by_round": 426,
+      "measured_at_commit": "02b6ef0"
+    },
+    {
+      "suite": "whence-fast",
+      "key": "tests.test_v33::test_following_the_cures_mechanically_fixes_none_of_them",
+      "nid": "tests/test_v33.py::test_following_the_cures_mechanically_fixes_none_of_them",
+      "reason_pin": "the 14-file field corpus is absent from this checkout: round 402 named all fourteen in .gitignore, so they exist only in a working tree the Hermes gateway has written into and in no checkout of any commit. A test whose subject is that corpus has no subject here — this is not a regression in anything this project wrote.",
+      "why": "Round 402 put the 14-file field corpus in .gitignore: those files were written into this working tree by the Hermes gateway (a separate autonomous system sharing this checkout) and are in no commit. A test whose SUBJECT is that corpus therefore has no subject in a fresh clone, and round 404's defensive pytest.skip is the correct reaction -- failing would be a false alarm about a regression nobody caused. What is acknowledged here is not that the skip is wrong but that the EVIDENCE LOSS IS REAL AND PERMANENT: a fresh clone of this repo runs 11 fewer whence tests than this box does, forever, and every green number this program has quoted for the whence fast tier was measured with them running. Round 426 found this by hand (baseline 2157 passed / 14 skipped against a live 3 skipped) and left it as its next-steps item 7; round 427 measured it again against commit 02b6ef0 (pristine 2093 passed / 14 skipped, live 2104 passed / 3 skipped) and built the mechanism. See knowledge/round-427-*.md.",
+      "acknowledged_round": 427,
+      "acknowledged_utc": "2026-09-01",
+      "found_by_round": 426,
+      "measured_at_commit": "02b6ef0"
+    },
+    {
+      "suite": "whence-fast",
+      "key": "tests.test_v33::test_seven_edits_fix_text_the_grammar_accepts",
+      "nid": "tests/test_v33.py::test_seven_edits_fix_text_the_grammar_accepts",
+      "reason_pin": "the 14-file field corpus is absent from this checkout: round 402 named all fourteen in .gitignore, so they exist only in a working tree the Hermes gateway has written into and in no checkout of any commit. A test whose subject is that corpus has no subject here — this is not a regression in anything this project wrote.",
+      "why": "Round 402 put the 14-file field corpus in .gitignore: those files were written into this working tree by the Hermes gateway (a separate autonomous system sharing this checkout) and are in no commit. A test whose SUBJECT is that corpus therefore has no subject in a fresh clone, and round 404's defensive pytest.skip is the correct reaction -- failing would be a false alarm about a regression nobody caused. What is acknowledged here is not that the skip is wrong but that the EVIDENCE LOSS IS REAL AND PERMANENT: a fresh clone of this repo runs 11 fewer whence tests than this box does, forever, and every green number this program has quoted for the whence fast tier was measured with them running. Round 426 found this by hand (baseline 2157 passed / 14 skipped against a live 3 skipped) and left it as its next-steps item 7; round 427 measured it again against commit 02b6ef0 (pristine 2093 passed / 14 skipped, live 2104 passed / 3 skipped) and built the mechanism. See knowledge/round-427-*.md.",
+      "acknowledged_round": 427,
+      "acknowledged_utc": "2026-09-01",
+      "found_by_round": 426,
+      "measured_at_commit": "02b6ef0"
+    },
+    {
+      "suite": "whence-fast",
+      "key": "tests.test_v33::test_ten_field_programs_still_fail_to_parse",
+      "nid": "tests/test_v33.py::test_ten_field_programs_still_fail_to_parse",
+      "reason_pin": "the 14-file field corpus is absent from this checkout: round 402 named all fourteen in .gitignore, so they exist only in a working tree the Hermes gateway has written into and in no checkout of any commit. A test whose subject is that corpus has no subject here — this is not a regression in anything this project wrote.",
+      "why": "Round 402 put the 14-file field corpus in .gitignore: those files were written into this working tree by the Hermes gateway (a separate autonomous system sharing this checkout) and are in no commit. A test whose SUBJECT is that corpus therefore has no subject in a fresh clone, and round 404's defensive pytest.skip is the correct reaction -- failing would be a false alarm about a regression nobody caused. What is acknowledged here is not that the skip is wrong but that the EVIDENCE LOSS IS REAL AND PERMANENT: a fresh clone of this repo runs 11 fewer whence tests than this box does, forever, and every green number this program has quoted for the whence fast tier was measured with them running. Round 426 found this by hand (baseline 2157 passed / 14 skipped against a live 3 skipped) and left it as its next-steps item 7; round 427 measured it again against commit 02b6ef0 (pristine 2093 passed / 14 skipped, live 2104 passed / 3 skipped) and built the mechanism. See knowledge/round-427-*.md.",
+      "acknowledged_round": 427,
+      "acknowledged_utc": "2026-09-01",
+      "found_by_round": 426,
+      "measured_at_commit": "02b6ef0"
+    },
+    {
+      "suite": "whence-fast",
+      "key": "tests.test_v33::test_the_ledger_still_replays_and_every_program_reaches_a_value",
+      "nid": "tests/test_v33.py::test_the_ledger_still_replays_and_every_program_reaches_a_value",
+      "reason_pin": "the 14-file field corpus is absent from this checkout: round 402 named all fourteen in .gitignore, so they exist only in a working tree the Hermes gateway has written into and in no checkout of any commit. A test whose subject is that corpus has no subject here — this is not a regression in anything this project wrote.",
+      "why": "Round 402 put the 14-file field corpus in .gitignore: those files were written into this working tree by the Hermes gateway (a separate autonomous system sharing this checkout) and are in no commit. A test whose SUBJECT is that corpus therefore has no subject in a fresh clone, and round 404's defensive pytest.skip is the correct reaction -- failing would be a false alarm about a regression nobody caused. What is acknowledged here is not that the skip is wrong but that the EVIDENCE LOSS IS REAL AND PERMANENT: a fresh clone of this repo runs 11 fewer whence tests than this box does, forever, and every green number this program has quoted for the whence fast tier was measured with them running. Round 426 found this by hand (baseline 2157 passed / 14 skipped against a live 3 skipped) and left it as its next-steps item 7; round 427 measured it again against commit 02b6ef0 (pristine 2093 passed / 14 skipped, live 2104 passed / 3 skipped) and built the mechanism. See knowledge/round-427-*.md.",
+      "acknowledged_round": 427,
+      "acknowledged_utc": "2026-09-01",
+      "found_by_round": 426,
+      "measured_at_commit": "02b6ef0"
+    },
+    {
+      "suite": "whence-fast",
+      "key": "tests.test_v34::test_following_the_cures_still_fixes_none_of_the_ten",
+      "nid": "tests/test_v34.py::test_following_the_cures_still_fixes_none_of_the_ten",
+      "reason_pin": "the 14-file field corpus is absent from this checkout: round 402 named all fourteen in .gitignore, so they exist only in a working tree the Hermes gateway has written into and in no checkout of any commit. A test whose subject is that corpus has no subject here — this is not a regression in anything this project wrote.",
+      "why": "Round 402 put the 14-file field corpus in .gitignore: those files were written into this working tree by the Hermes gateway (a separate autonomous system sharing this checkout) and are in no commit. A test whose SUBJECT is that corpus therefore has no subject in a fresh clone, and round 404's defensive pytest.skip is the correct reaction -- failing would be a false alarm about a regression nobody caused. What is acknowledged here is not that the skip is wrong but that the EVIDENCE LOSS IS REAL AND PERMANENT: a fresh clone of this repo runs 11 fewer whence tests than this box does, forever, and every green number this program has quoted for the whence fast tier was measured with them running. Round 426 found this by hand (baseline 2157 passed / 14 skipped against a live 3 skipped) and left it as its next-steps item 7; round 427 measured it again against commit 02b6ef0 (pristine 2093 passed / 14 skipped, live 2104 passed / 3 skipped) and built the mechanism. See knowledge/round-427-*.md.",
+      "acknowledged_round": 427,
+      "acknowledged_utc": "2026-09-01",
+      "found_by_round": 426,
+      "measured_at_commit": "02b6ef0"
+    },
+    {
+      "suite": "whence-fast",
+      "key": "tests.test_v34::test_nano_reasoner_now_takes_two_steps_and_stalls_somewhere_else",
+      "nid": "tests/test_v34.py::test_nano_reasoner_now_takes_two_steps_and_stalls_somewhere_else",
+      "reason_pin": "the 14-file field corpus is absent from this checkout: round 402 named all fourteen in .gitignore, so they exist only in a working tree the Hermes gateway has written into and in no checkout of any commit. A test whose subject is that corpus has no subject here — this is not a regression in anything this project wrote.",
+      "why": "Round 402 put the 14-file field corpus in .gitignore: those files were written into this working tree by the Hermes gateway (a separate autonomous system sharing this checkout) and are in no commit. A test whose SUBJECT is that corpus therefore has no subject in a fresh clone, and round 404's defensive pytest.skip is the correct reaction -- failing would be a false alarm about a regression nobody caused. What is acknowledged here is not that the skip is wrong but that the EVIDENCE LOSS IS REAL AND PERMANENT: a fresh clone of this repo runs 11 fewer whence tests than this box does, forever, and every green number this program has quoted for the whence fast tier was measured with them running. Round 426 found this by hand (baseline 2157 passed / 14 skipped against a live 3 skipped) and left it as its next-steps item 7; round 427 measured it again against commit 02b6ef0 (pristine 2093 passed / 14 skipped, live 2104 passed / 3 skipped) and built the mechanism. See knowledge/round-427-*.md.",
+      "acknowledged_round": 427,
+      "acknowledged_utc": "2026-09-01",
+      "found_by_round": 426,
+      "measured_at_commit": "02b6ef0"
+    },
+    {
+      "suite": "whence-fast",
+      "key": "tests.test_v34::test_no_field_program_stalls_on_a_no_cure_error_any_more",
+      "nid": "tests/test_v34.py::test_no_field_program_stalls_on_a_no_cure_error_any_more",
+      "reason_pin": "the 14-file field corpus is absent from this checkout: round 402 named all fourteen in .gitignore, so they exist only in a working tree the Hermes gateway has written into and in no checkout of any commit. A test whose subject is that corpus has no subject here — this is not a regression in anything this project wrote.",
+      "why": "Round 402 put the 14-file field corpus in .gitignore: those files were written into this working tree by the Hermes gateway (a separate autonomous system sharing this checkout) and are in no commit. A test whose SUBJECT is that corpus therefore has no subject in a fresh clone, and round 404's defensive pytest.skip is the correct reaction -- failing would be a false alarm about a regression nobody caused. What is acknowledged here is not that the skip is wrong but that the EVIDENCE LOSS IS REAL AND PERMANENT: a fresh clone of this repo runs 11 fewer whence tests than this box does, forever, and every green number this program has quoted for the whence fast tier was measured with them running. Round 426 found this by hand (baseline 2157 passed / 14 skipped against a live 3 skipped) and left it as its next-steps item 7; round 427 measured it again against commit 02b6ef0 (pristine 2093 passed / 14 skipped, live 2104 passed / 3 skipped) and built the mechanism. See knowledge/round-427-*.md.",
+      "acknowledged_round": 427,
+      "acknowledged_utc": "2026-09-01",
+      "found_by_round": 426,
+      "measured_at_commit": "02b6ef0"
+    }
+  ]
+}

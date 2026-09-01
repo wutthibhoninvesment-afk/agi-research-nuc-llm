@@ -59,9 +59,12 @@ import calendar
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 import time
+import xml.etree.ElementTree as ET
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(HERE)
@@ -72,6 +75,13 @@ DEFAULT_LEDGER = os.path.join(REPO_ROOT, "state", "pristine-check-ledger.jsonl")
 #: pristine tree is green" be read as "the two trees agree", which is the one
 #: inference this module exists to refuse.
 BASELINE_LEDGER = os.path.join(REPO_ROOT, "state", "baseline-ledger.jsonl")
+#: Round 427. Acknowledged pristine-only SKIPS -- see `compare_skips`. Kept
+#: in `state/` beside the other two acknowledgement registries and NOT merged
+#: with either: `known-standing-dirty-paths.json` models untracked files a
+#: third party leaves behind, `known-escalated-diffs.json` models a tracked
+#: diff a round adjudicated, and this one models a TEST that stops being
+#: evidence in a fresh clone. Same content-pin discipline, different subject.
+SKIP_ACK_REGISTRY = os.path.join(REPO_ROOT, "state", "known-pristine-skips.json")
 
 #: Named suites this repo actually runs as its health check. `cwd` is
 #: repo-relative so the same entry addresses both trees; `argv` is passed to
@@ -163,14 +173,304 @@ def parse_pytest_output(text):
     }
 
 
-def run_suite(name, root, runner=None, timeout_s=1800, python=None):
-    """Run one named suite inside the checkout `root`. Never raises."""
+# --------------------------------------------------------------------------
+# skips: the evidence that evaporates without ever going red
+# --------------------------------------------------------------------------
+#
+# Round 427. Everything above this line compares the two trees by FAILURE
+# SET. That is a real class and it is not the only one. A test whose fixture
+# git does not carry has two ways to react to a pristine checkout:
+#
+#   * fail -- `compare` sees it, `git_incomplete`, exit 1. Round 355's class.
+#   * skip -- `compare` sees NOTHING. `pf - lf` is empty, `lf - pf` is empty,
+#     `lf` is empty, verdict `clean`, exit 0, in BOTH trees.
+#
+# The second is strictly more dangerous than the first, because a defended
+# test looks exactly like a passing one at the exit code and at the count
+# line, and the count line is what every round quotes. Round 426 hit it by
+# hand: its `HEAD` baseline came back `2157 passed, 14 skipped` where the
+# live tier reports `3 skipped`, so ELEVEN tests provided no evidence and
+# the baseline still exited 0. Round 425 found the same shape one tree over
+# (`test_v37.py::test_the_host_is_byte_unchanged_by_this_decision` goes
+# `passed -> skipped` inside every mutation sandbox, both sides exit 0) and
+# asked for the acknowledgement mechanism this section is.
+#
+# Two decisions worth keeping:
+#
+# 1. **The key is junit's `(classname, name)`, never a line number.**
+#    `pytest -rs` -- the flag round 426's next-steps item names -- prints
+#    `SKIPPED [1] tests/test_x.py:12: reason`, keyed by FILE AND LINE. A
+#    differential keyed on that reports a phantom evaporation every time
+#    someone inserts an import above the test. `--junitxml` carries the node
+#    identity instead, which is what the comparison actually means.
+# 2. **Node ids are for READING, keys are for DECIDING.** `junit_node_id`
+#    reconstructs `tests/test_x.py::TestC::test_y` from the dotted
+#    `classname` by a heuristic (a trailing capitalised component is a
+#    class), because pytest's junit writer emits no `file` attribute here.
+#    A heuristic must not be able to change a verdict, so it does not: every
+#    comparison and every acknowledgement is keyed on the raw attribute pair,
+#    and a wrong reconstruction can only misprint a line.
+
+#: A junit `classname` component that is a CLASS rather than a package or
+#: module. Python's own convention (PEP 8 CapWords for classes, lowercase
+#: for modules) is what makes this decidable at all; this repo's test tree
+#: has no capitalised directory or module name, which
+#: `test_junit_node_ids_round_trip_against_this_repos_own_test_tree` checks
+#: against the real tree rather than asserting.
+_JUNIT_CLASS_RE = re.compile(r"^[A-Z]")
+
+#: junit records an xfail as `<skipped type="pytest.xfail">`. An xfail is a
+#: test that ran and behaved as declared -- it is not lost evidence, and
+#: counting it here would put a permanent false positive in every report.
+_XFAIL_TYPE = "pytest.xfail"
+
+
+def skip_key(classname, name):
+    """The identity a skip is compared and acknowledged by.
+
+    Deliberately the RAW junit attribute pair and not the reconstructed node
+    id: see decision 2 above. Stable across trees, across line edits, and
+    across any bug in `junit_node_id`.
+    """
+    return "%s::%s" % (classname or "", name or "")
+
+
+def junit_node_id(classname, name):
+    """A readable pytest node id rebuilt from a junit `testcase`.
+
+    `tests.test_v37` + `test_foo` -> `tests/test_v37.py::test_foo`;
+    `tests.test_v37.TestC` + `test_foo` -> `tests/test_v37.py::TestC::test_foo`.
+    Capitalised trailing components are peeled off as classes, at most down
+    to a single remaining component, so a module is never consumed. A
+    classname with no components at all yields the bare test name rather
+    than a fabricated path.
+    """
+    parts = [x for x in (classname or "").split(".") if x]
+    classes = []
+    while len(parts) > 1 and _JUNIT_CLASS_RE.match(parts[-1]):
+        classes.insert(0, parts.pop())
+    if not parts:
+        return name or ""
+    return "::".join(["/".join(parts) + ".py"] + classes
+                     + ([name] if name else []))
+
+
+def parse_junit(path):
+    """Per-node outcomes from a `--junitxml` report. Never raises.
+
+    Returns `ok=False` with an `error` for a missing, empty or malformed
+    file, and callers must treat that as ABSENCE OF EVIDENCE rather than as
+    "no skips" -- rule 3 applied to this class. Every fake-runner test in
+    this repo produces exactly that case, which is why the default has to be
+    right.
+    """
+    rec = {"ok": False, "path": path, "error": None,
+           "statuses": {}, "skips": []}
+    try:
+        tree = ET.parse(path)
+    except (OSError, ET.ParseError, ValueError) as e:
+        rec["error"] = "%s: %s" % (type(e).__name__, e)
+        return rec
+    for tc in tree.iter("testcase"):
+        cn, nm = tc.get("classname"), tc.get("name")
+        key = skip_key(cn, nm)
+        skipped = tc.find("skipped")
+        if skipped is not None and skipped.get("type") != _XFAIL_TYPE:
+            rec["statuses"][key] = "skipped"
+            rec["skips"].append({
+                "key": key,
+                "nid": junit_node_id(cn, nm),
+                "reason": " ".join((skipped.get("message") or "").split()),
+            })
+        elif skipped is not None:
+            rec["statuses"][key] = "xfailed"
+        elif tc.find("failure") is not None:
+            rec["statuses"][key] = "failed"
+        elif tc.find("error") is not None:
+            rec["statuses"][key] = "error"
+        else:
+            rec["statuses"][key] = "passed"
+    rec["ok"] = True
+    return rec
+
+
+def load_skip_acks(path=None):
+    """Acknowledged pristine-only skips, as a list of entries. Never raises.
+
+    Missing or corrupt registry reads as EMPTY, i.e. acknowledges nothing,
+    which is the fail-loud direction: the worst a broken registry can do is
+    make a known evaporation go red again. The opposite default -- suppress
+    on read failure -- would let deleting the file silence the checker.
+    """
+    try:
+        with open(path or SKIP_ACK_REGISTRY, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, ValueError):
+        return []
+    out = []
+    for e in (data.get("acknowledged") or []):
+        if isinstance(e, dict) and e.get("suite") and e.get("key"):
+            out.append(e)
+    return out
+
+
+#: Why an acknowledgement did not apply. Kept as constants because all three
+#: are printed and two of them are LOUDER than an unacknowledged evaporation.
+ACK_HOLDS = "holds"
+ACK_PIN_EXPIRED = "pin_expired"
+ACK_DEAD = "dead"
+
+
+def compare_skips(live, pristine, suite=None, acks=None):
+    """The `passed -> skipped` differential for one suite.
+
+    `live` and `pristine` are `parse_junit` records. The finding is a test
+    the PRISTINE tree skipped and the LIVE tree actually ran: evidence this
+    repo believes it has and a fresh clone does not.
+
+    Four buckets, and the reason there are four rather than two:
+
+      `unacknowledged` -- nobody has adjudicated this. Sets the verdict.
+      `acknowledged`   -- a round inspected it, wrote down why, and pinned
+          the exact skip REASON. Printed every time (an acknowledgement that
+          suppresses invisibly reads as coverage) but does not set a verdict.
+      `pin_expired`    -- the (suite, key) is acknowledged but the reason
+          text has CHANGED, so the test is now skipped for a reason nobody
+          adjudicated. Reported LOUDER than an unacknowledged one and it
+          sets the verdict, exactly as `known-escalated-diffs.json` treats a
+          moved blob. This is what stops an acknowledgement from decaying
+          into a permanent blanket over a node id.
+      `dead`           -- an acknowledgement matching no evaporation in a
+          suite that RAN. Suppresses nothing, so it must be deleted; the
+          same rule the escalated-diff registry states about itself.
+
+    `condensed` is the mirror (`skipped live, passed pristine`): an
+    untracked file is CAUSING a skip here. Rare, reported, never a verdict --
+    the live tree having less evidence than git is not a git defect.
+
+    Rule 3: if either junit report is unavailable the answer is
+    `evidence: "unavailable"` and NO bucket is populated. A run that produced
+    no report has not shown that nothing evaporated.
+    """
+    out = {"suite": suite, "evidence": "unavailable", "error": None,
+           "live_skips": None, "pristine_skips": None,
+           "unacknowledged": [], "acknowledged": [], "pin_expired": [],
+           "dead_acknowledgements": [], "condensed": []}
+    live = live or {}
+    pristine = pristine or {}
+    if not live.get("ok") or not pristine.get("ok"):
+        out["error"] = (pristine.get("error") if not pristine.get("ok")
+                        else live.get("error")) or "no junit report"
+        return out
+    out["evidence"] = "available"
+    lstat = live.get("statuses") or {}
+    pstat = pristine.get("statuses") or {}
+    out["live_skips"] = sum(1 for v in lstat.values() if v == "skipped")
+    out["pristine_skips"] = len(pristine.get("skips") or [])
+    by_key = {}
+    for e in (acks if acks is not None else load_skip_acks()):
+        if suite is None or e.get("suite") == suite:
+            by_key[e.get("key")] = e
+    matched = set()
+    for sk in (pristine.get("skips") or []):
+        was = lstat.get(sk["key"])
+        if was != "passed":
+            # Skipped in both, or absent from the live run entirely (a test
+            # git does not carry cannot have "evaporated" -- it was added
+            # here and never existed there, which is not this class).
+            continue
+        row = dict(sk)
+        row["live_status"] = was
+        ack = by_key.get(sk["key"])
+        if ack is None:
+            row["ack"] = None
+            out["unacknowledged"].append(row)
+            continue
+        matched.add(sk["key"])
+        row["ack"] = {k: ack.get(k) for k in
+                      ("why", "acknowledged_round", "acknowledged_utc")}
+        if ack.get("reason_pin") == sk["reason"]:
+            row["ack_state"] = ACK_HOLDS
+            out["acknowledged"].append(row)
+        else:
+            row["ack_state"] = ACK_PIN_EXPIRED
+            row["ack"]["reason_pin"] = ack.get("reason_pin")
+            out["pin_expired"].append(row)
+    for key, ack in sorted(by_key.items()):
+        if key not in matched:
+            out["dead_acknowledgements"].append({
+                "key": key, "nid": ack.get("nid") or key,
+                "why": ack.get("why"), "state": ACK_DEAD})
+    for key, st in sorted(lstat.items()):
+        if st == "skipped" and pstat.get(key) == "passed":
+            out["condensed"].append({"key": key, "nid": key})
+    return out
+
+
+def _skip_verdict(block):
+    """`skip_evaporation` when a suite lost evidence nobody has signed off.
+
+    `None` when the block cannot decide -- unavailable evidence, or nothing
+    but acknowledged rows -- so the caller keeps whatever the failure
+    comparison said. Absence of a junit report never produces a verdict in
+    either direction.
+    """
+    if block.get("evidence") != "available":
+        return None
+    if block.get("unacknowledged") or block.get("pin_expired"):
+        return "skip_evaporation"
+    return None
+
+
+class _JunitScratch(object):
+    """A /tmp directory for the two junit reports, removed on every exit.
+
+    OUTSIDE both trees on purpose. Written into the live tree the report
+    makes it dirty and rule 1 blocks the very next `check` -- round 409's
+    `OWN_RECORDS` trap in a new place; written into the pristine worktree it
+    would be handed to `git worktree remove` as dirt.
+    """
+
+    def __init__(self, root=None):
+        self.root = root
+        self._made = False
+
+    def __enter__(self):
+        if self.root is None:
+            self.root = tempfile.mkdtemp(prefix="pristine-junit-")
+            self._made = True
+        return self
+
+    def path(self, *parts):
+        return os.path.join(self.root, "-".join(parts) + ".xml")
+
+    def __exit__(self, *exc):
+        if self._made:
+            shutil.rmtree(self.root, ignore_errors=True)
+            self._made = False
+        return False
+
+
+def run_suite(name, root, runner=None, timeout_s=1800, python=None,
+              junit_path=None):
+    """Run one named suite inside the checkout `root`. Never raises.
+
+    `junit_path` (round 427) adds `--junitxml=<path>` and parses the result
+    into `junit`. It DEFAULTS TO OFF so that the argv of a bare `run_suite`
+    is still exactly `SUITES[name]["argv"]` -- which
+    `test_run_suite_builds_the_registered_argv` asserts, and which is worth
+    keeping true: the registered argv is the claim "this is what the driver
+    runs", and silently appending to it would make that claim false. The
+    path must lie outside both trees; `_JunitScratch` is what picks one.
+    """
     if name not in SUITES:
         raise KeyError("unknown suite %r (known: %s)"
                        % (name, ", ".join(sorted(SUITES))))
     spec = SUITES[name]
     cwd = os.path.normpath(os.path.join(root, spec["cwd"]))
     argv = [python or sys.executable, "-m", "pytest"] + list(spec["argv"])
+    if junit_path:
+        argv.append("--junitxml=%s" % junit_path)
     t0 = time.time()
     rc, out = (runner or _default_runner)(argv, cwd=cwd, timeout=timeout_s)
     parsed = parse_pytest_output(out)
@@ -184,6 +484,10 @@ def run_suite(name, root, runner=None, timeout_s=1800, python=None):
     })
     if rc is None:
         parsed["completed"] = False
+    parsed["junit"] = (parse_junit(junit_path) if junit_path
+                       else {"ok": False, "path": None,
+                             "error": "junit report not requested",
+                             "statuses": {}, "skips": []})
     return parsed
 
 
@@ -382,20 +686,36 @@ def blocking_dirt(dirt, allow=None):
 # the differential
 # --------------------------------------------------------------------------
 
-def compare(live, pristine):
+def compare(live, pristine, acks=None):
     """Verdict for one suite from its two runs.
 
     `pristine_only` is the finding: green here, red from git alone.
     `live_only` is its mirror (red here, green from git alone) and means an
     untracked file is BREAKING a test — rarer, but the same class and just
     as invisible, so it is reported rather than dropped.
+
+    Round 427 adds the SILENT half of `pristine_only`. A test that reacts to
+    a missing fixture by skipping rather than failing produces an empty
+    `pf - lf`, an empty `lf`, and verdict `clean` — see `compare_skips`. The
+    skip block is computed whenever both runs left a junit report and is
+    reported either way; it can promote `clean` to `skip_evaporation`, and
+    it is deliberately ranked ABOVE `untracked_breaks_test` and below
+    `git_incomplete`, because it has the same CAUSE as `git_incomplete`
+    (git does not carry something the test needs) and differs only in how
+    loudly the test reacted. A verdict that ranked the quiet reaction below
+    the noisy one would reward defending a test with `pytest.skip`.
     """
+    skips = compare_skips(live.get("junit"), pristine.get("junit"),
+                          suite=live.get("suite") or pristine.get("suite"),
+                          acks=acks)
     if not live.get("completed") or not pristine.get("completed"):
         verdict = "inconclusive"                       # rule 3
     else:
         lf, pf = set(live["failures"]), set(pristine["failures"])
         if pf - lf:
             verdict = "git_incomplete"
+        elif _skip_verdict(skips):
+            verdict = "skip_evaporation"
         elif lf - pf:
             verdict = "untracked_breaks_test"
         elif lf:
@@ -406,6 +726,7 @@ def compare(live, pristine):
     return {
         "suite": live.get("suite") or pristine.get("suite"),
         "verdict": verdict,
+        "skips": skips,
         "pristine_only": sorted(pf - lf),
         "live_only": sorted(lf - pf),
         "both": sorted(lf & pf),
@@ -420,7 +741,8 @@ def compare(live, pristine):
 
 def differential(suites, ref="HEAD", repo=REPO_ROOT, runner=None,
                  timeout_s=1800, worktree_path=None, dirt=None,
-                 allow_dirty=(), escalation_allow=None):
+                 allow_dirty=(), escalation_allow=None, acks=None,
+                 junit_dir=None):
     """Run each suite in both trees and return one record for the whole check.
 
     Rule 1 is enforced HERE, before any worktree is spent: a blocking dirty
@@ -472,16 +794,21 @@ def differential(suites, ref="HEAD", repo=REPO_ROOT, runner=None,
         record["error"] = "git status failed"
         return record
 
+    acks = load_skip_acks() if acks is None else acks
     try:
         with PristineWorktree(ref=ref, path=worktree_path, runner=runner,
-                              repo=repo) as wt:
+                              repo=repo) as wt, _JunitScratch(
+                                  root=junit_dir) as js:
             record["worktree"] = wt.path
+            record["junit_dir"] = js.root
             for name in suites:
                 live = run_suite(name, repo, runner=runner,
-                                 timeout_s=timeout_s)
+                                 timeout_s=timeout_s,
+                                 junit_path=js.path(name, "live"))
                 pris = run_suite(name, wt.path, runner=runner,
-                                 timeout_s=timeout_s)
-                record["results"].append(compare(live, pris))
+                                 timeout_s=timeout_s,
+                                 junit_path=js.path(name, "pristine"))
+                record["results"].append(compare(live, pris, acks=acks))
                 record["results"][-1]["pristine_tail"] = pris.get("tail", "")
     except RuntimeError as e:
         # Rule 3 again: a worktree we could not create (a ref that does not
@@ -492,15 +819,15 @@ def differential(suites, ref="HEAD", repo=REPO_ROOT, runner=None,
         record["error"] = str(e)
         return record
 
-    order = ["inconclusive", "git_incomplete", "untracked_breaks_test",
-             "both_failed", "clean"]
+    order = ["inconclusive", "git_incomplete", "skip_evaporation",
+             "untracked_breaks_test", "both_failed", "clean"]
     seen = [r["verdict"] for r in record["results"]]
     record["verdict"] = next((v for v in order if v in seen), "inconclusive")
     return record
 
 
 def baseline(suites, ref="HEAD", repo=REPO_ROOT, runner=None,
-             timeout_s=1800, worktree_path=None, dirt=None):
+             timeout_s=1800, worktree_path=None, dirt=None, junit_dir=None):
     """What the named suites do in a PRISTINE checkout of `ref`. ONE tree.
 
     Round 409. This is the operation every round has been hand-rolling —
@@ -548,11 +875,13 @@ def baseline(suites, ref="HEAD", repo=REPO_ROOT, runner=None,
     }
     try:
         with PristineWorktree(ref=ref, path=worktree_path, runner=runner,
-                              repo=repo) as wt:
+                              repo=repo) as wt, _JunitScratch(
+                                  root=junit_dir) as js:
             record["worktree"] = wt.path
             for name in suites:
                 res = run_suite(name, wt.path, runner=runner,
-                                timeout_s=timeout_s)
+                                timeout_s=timeout_s,
+                                junit_path=js.path(name, "baseline"))
                 record["results"].append({
                     "suite": name,
                     "completed": res["completed"],
@@ -569,6 +898,18 @@ def baseline(suites, ref="HEAD", repo=REPO_ROOT, runner=None,
                                      or res["counts"].get("failed")
                                      or res["counts"].get("error")
                                 else "green"),
+                    # Round 426's next-steps item 7, made mechanical: "any
+                    # round taking a baseline this way should diff the SKIP
+                    # list, not just the pass count". One tree cannot DIFF
+                    # anything, so this records the list and says so; the
+                    # differential is `check`. Recording it is still the
+                    # load-bearing half -- round 426 had to re-run the suite
+                    # by hand to find out WHICH eleven tests it had lost,
+                    # because its own baseline record kept only a count.
+                    "skips": (res.get("junit") or {}).get("skips") or [],
+                    "skip_evidence": ("available"
+                                      if (res.get("junit") or {}).get("ok")
+                                      else "unavailable"),
                 })
     except RuntimeError as e:
         record["verdict"] = "inconclusive"
@@ -604,6 +945,19 @@ def _fmt_baseline(rec):
             lines.append("      FAILED %s" % f)
         if len(r["failures"]) > 20:
             lines.append("      ... and %d more" % (len(r["failures"]) - 20))
+        if r.get("skip_evidence") == "unavailable":
+            lines.append("      skips: NOT RECORDED (no junit report) — this"
+                         " baseline cannot say what it did not run")
+        else:
+            sk = r.get("skips") or []
+            lines.append("      skips: %d recorded — a skip is not a pass,"
+                         " and `check` is what decides whether any of these"
+                         " ran in the live tree" % len(sk))
+            for one in sk[:20]:
+                lines.append("        SKIPPED %s — %s"
+                             % (one["nid"], (one.get("reason") or "")[:90]))
+            if len(sk) > 20:
+                lines.append("        ... and %d more" % (len(sk) - 20))
     return "\n".join(lines)
 
 
@@ -639,7 +993,8 @@ def read_ledger(path=None):
 # CLI
 # --------------------------------------------------------------------------
 
-_EXIT = {"clean": 0, "git_incomplete": 1, "untracked_breaks_test": 1,
+_EXIT = {"clean": 0, "git_incomplete": 1, "skip_evaporation": 1,
+         "untracked_breaks_test": 1,
          "both_failed": 2, "dirty_worktree": 3, "inconclusive": 3}
 
 
@@ -672,7 +1027,47 @@ def _fmt(record):
             lines.append("      UNTRACKED-BREAKS %s" % nid)
         for nid in r["both"]:
             lines.append("      fails in both (not this class)  %s" % nid)
+        lines.extend(_fmt_skips(r.get("skips") or {}))
     return "\n".join(lines)
+
+
+def _fmt_skips(block):
+    """The skip half of one suite's row. Everything is printed, always.
+
+    An acknowledged evaporation still gets a line. The registry's job is to
+    keep a KNOWN loss from setting the verdict, not to hide it — the failure
+    mode being avoided is the one round 349 named about allowlists, "never
+    look at this again", and a silent suppression is that failure mode with
+    a JSON file in front of it.
+    """
+    if block.get("evidence") != "available":
+        return ["      skips: NOT COMPARED (%s) — this run did not show that"
+                " nothing evaporated" % (block.get("error") or "no evidence")]
+    out = ["      skips: live %s / pristine %s"
+           % (block.get("live_skips"), block.get("pristine_skips"))]
+    for r in block.get("unacknowledged", []):
+        out.append("      EVAPORATED (passes here, skipped from git alone)"
+                   "  %s\n          reason: %s"
+                   % (r["nid"], (r.get("reason") or "")[:160]))
+    for r in block.get("pin_expired", []):
+        out.append("      EVAPORATED, ACKNOWLEDGEMENT EXPIRED — the reason"
+                   " text changed since round %s pinned it, so this skip is"
+                   " no longer the one that was adjudicated  %s\n"
+                   "          now:    %s\n          pinned: %s"
+                   % ((r.get("ack") or {}).get("acknowledged_round"), r["nid"],
+                      (r.get("reason") or "")[:120],
+                      ((r.get("ack") or {}).get("reason_pin") or "")[:120]))
+    for r in block.get("acknowledged", []):
+        out.append("      evaporated, acknowledged (round %s): %s"
+                   % ((r.get("ack") or {}).get("acknowledged_round"), r["nid"]))
+    for r in block.get("dead_acknowledgements", []):
+        out.append("      DEAD ACKNOWLEDGEMENT — suppresses nothing, delete"
+                   " it (an entry that covers no live case reads as"
+                   " coverage): %s" % r["nid"])
+    for r in block.get("condensed", []):
+        out.append("      skipped HERE, runs from git alone (untracked file"
+                   " is suppressing a test): %s" % r["nid"])
+    return out
 
 
 def status_freshness(record, repo=REPO_ROOT, now=None, runner=None,

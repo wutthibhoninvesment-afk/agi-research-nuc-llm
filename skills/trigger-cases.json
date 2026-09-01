@@ -1958,5 +1958,24 @@
   "id": "pmbd-neg-readme",
   "expect": [],
   "prompt": "Our README's assumptions section is out of date and mentions a database we stopped using. Can you rewrite that section?"
+ },
+ {
+  "id": "pcd-skip-near",
+  "expect": [
+   "pristine-checkout-differential"
+  ],
+  "prompt": "Our CI runs the suite in a fresh checkout and our dev boxes run it in a long-lived working copy. Both go green, but the fresh checkout reports eleven more skipped than we do. Nobody can tell me which eleven. How do I find out and how do I keep it from drifting again?"
+ },
+ {
+  "id": "pcd-skip-mid",
+  "expect": [
+   "pristine-checkout-differential"
+  ],
+  "prompt": "Someone fixed a test that failed in every clean checkout by wrapping it in a pytest.skip when its data files are missing. The build is green again. I have a bad feeling about what we just did to our coverage and I want to be able to prove it either way."
+ },
+ {
+  "id": "pcd-skip-neg-ratio",
+  "expect": [],
+  "prompt": "About 8% of our test suite is skipped on every platform including CI and it has been that way for years. Management wants the skip ratio down. Which ones should we prioritise unskipping?"
  }
 ]

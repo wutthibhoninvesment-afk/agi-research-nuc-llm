@@ -1,6 +1,6 @@
 ---
 name: pristine-checkout-differential
-description: Use when a test suite has only ever run in the tree it was written in — one long-lived working directory, one host, a CI box that never re-clones — and you need to know whether it passes from version control alone. Symptoms: a test builds its corpus by scanning a directory (glob/listdir/iterdir) instead of asking the VCS what it tracks; a corpus size floor (`assert len(files) >= 20`) whose number nobody can source; another process or agent writes files into a directory your tests read; `git status` shows untracked paths that have sat there for months and nobody sees any more; a suite green every day that has never been checked out clean and run. Covers building the pristine tree with `git worktree`, differencing the two runs by failing node id, the four fail-closed rules that keep the answer interpretable, and the VCS-derived enumeration that fixes the test. NOT for flaky tests, and NOT for environment drift — a missing package fails in BOTH trees, deliberately a different class.
+description: Use when a test suite has only ever run in the tree it was written in — one working directory, one host, CI that never re-clones — and you need to know whether it passes from version control alone. Symptoms: a test builds its corpus by scanning a directory (glob/listdir/iterdir) instead of asking the VCS; a corpus size floor (`assert len(files) >= 20`) nobody can source; another agent writes into a directory your tests read; long-lived untracked paths in `git status`. Also the SILENT half: a pristine skip count higher than the live one, a test answering a missing fixture with `pytest.skip` so both trees exit 0, a `.gitignore`d corpus a previous fix turned from a red into an invisible skip. Covers `git worktree`, differencing by failing AND skipped node id (`--junitxml`, never `-rs`), the reason-pinned acknowledgement registry that stops it crying wolf, five fail-closed rules, and VCS-derived enumeration. NOT for flaky tests or environment drift — a missing package fails in BOTH trees.
 ---
 
 # Pristine-checkout differential
@@ -119,35 +119,90 @@ problem), `git stash` (mutates the tree you are comparing against), or
    worktree's NAME and run it again.** One extra checkout, seconds, and it
    separates two causes that look identical: "this commit does not carry
    what the test needs" and "this test is sensitive to where it was checked
-   out". Round 409:
-
-   ```
-   ( cd /tmp/wt-409       && pytest -q harness/tests/test_pristine_check.py )  # 1 failed
-   ( cd /tmp/pristine-409 && pytest -q harness/tests/test_pristine_check.py )  # 67 passed
-   ```
-
-   Same commit, same command, two verdicts — so the dependence is the
-   directory NAME, and no amount of reading the diff would have found it.
-   A failure that survives the rename is about the commit; one that does not
-   is about your environment, and reporting it as a finding costs the next
-   round a paragraph of disproof. Round 408 reported five reds from a
-   hand-made worktree: four were the ignored-corpus pitfall below and the
-   fifth was this, and it characterised neither.
+   out". Round 409 got `1 failed` in `/tmp/wt-409` and `67 passed` in
+   `/tmp/pristine-409` — same commit, same command, so the dependence was
+   the directory NAME and no amount of reading the diff would have found it
+   (transcript in the verification log). A failure that survives the rename
+   is about the commit; one that does not is about your environment, and
+   reporting it as a finding costs the next round a paragraph of disproof.
 
 4. **Difference the FAILING TEST IDS, not the pass counts.** Counts move for
-   uninteresting reasons (collection differences, skips, a parametrised case
-   count that depends on the corpus you are investigating). Node ids do not.
+   uninteresting reasons (collection differences, a parametrised case count
+   that depends on the corpus you are investigating). Node ids do not.
    Normalise separators and any `./` prefix so the same test compares equal
    across two roots.
 
-5. **Sort each difference into one of four verdicts**, and never collapse
+   **This step used to say "skips" in that list, and that word cost eighteen
+   rounds.** Round 427 deleted it. A skip differential is not a count
+   differential and it is not noise: it is the SILENT HALF of step 5's
+   finding, and the half this skill's own ignored-corpus fix manufactures.
+
+4a. **Difference the SKIPPED test ids, keyed by node id and never by line.**
+   A test whose fixture git does not carry has two ways to react to a
+   pristine checkout — fail, which step 5 catches, or skip, which nothing
+   catches. A skipped test is green at the exit code, green in the summary
+   line, and provides no evidence. **Both trees exit 0 and the count line is
+   what every reader quotes.**
+
+   `pytest -rs` is the obvious flag and it is the wrong one for this: it
+   prints `SKIPPED [1] tests/test_x.py:12: reason`, keyed by FILE AND LINE,
+   so inserting an import above the test reports a phantom evaporation.
+   `--junitxml` carries `classname` + `name`, which is the node identity,
+   and it costs nothing on top of a run you are already paying for:
+
+   ```
+   pytest -q --junitxml=/tmp/live.xml <suite>          # outside BOTH trees
+   ( cd "$WT" && pytest -q --junitxml=/tmp/pris.xml <suite> )
+   ```
+
+   ```python
+   import xml.etree.ElementTree as ET
+   def outcomes(path):
+       out = {}
+       for tc in ET.parse(path).iter("testcase"):
+           key = (tc.get("classname"), tc.get("name"))
+           sk = tc.find("skipped")
+           # An xfail is `<skipped type="pytest.xfail">`. It is a test that
+           # ran and behaved as declared — counting it here is a permanent
+           # false positive in every report you will ever generate.
+           if sk is not None and sk.get("type") != "pytest.xfail":
+               out[key] = ("skipped", sk.get("message") or "")
+           elif tc.find("failure") is not None or tc.find("error") is not None:
+               out[key] = ("failed", "")
+           else:
+               out[key] = ("passed", "")
+       return out
+
+   live, pris = outcomes("/tmp/live.xml"), outcomes("/tmp/pris.xml")
+   evaporated = [k for k, (st, _) in pris.items()
+                 if st == "skipped" and live.get(k, (None,))[0] == "passed"]
+   ```
+
+   Write the reports **outside both trees**. In the live tree the report is
+   an untracked file that makes step 1's rule block your next run; in the
+   worktree it is dirt handed to `git worktree remove`.
+
+   Three cases that look like the finding and are not, all worth encoding
+   before you report anything: skipped in BOTH trees (nothing was lost);
+   absent from the live run entirely (a test the pristine ref has and you do
+   not — it never had evidence here); and failing live, skipped pristine
+   (evidence was already absent, and step 5 owns it).
+
+5. **Sort each difference into one of five verdicts**, and never collapse
    them:
    - `git_incomplete` — fails only in pristine. **This is the finding.**
+   - `skip_evaporation` — PASSES live, SKIPS in pristine. The same finding
+     with the volume turned off: same cause (git does not carry what the
+     test needs), no red, exit 0 on both sides. Rank it directly below
+     `git_incomplete` and ABOVE the two below, or you have built a checker
+     that rewards defending a test with `pytest.skip`.
    - `untracked_breaks_test` — fails only in the live tree. The mirror case:
      a stray file is breaking a test, equally invisible, equally worth
      knowing.
    - `both_failed` — a plain broken test. Not this class; report separately.
-   - `inconclusive` — either run did not complete. No verdict.
+   - `inconclusive` — either run did not complete, OR one of them left no
+     junit report. A run that produced no skip evidence has not shown that
+     nothing evaporated.
 
 6. **For each `git_incomplete`, find the file it wanted.** Read the failure,
    then `git status --porcelain --untracked-files=all` for candidates under
@@ -261,6 +316,30 @@ problem), `git stash` (mutates the tree you are comparing against), or
   never the tree that has it", so skip; *some* present means real drift, so
   stay red. A skip keyed on "any file missing" swallows the deletion you
   built the corpus check to catch.
+
+- **That fix is how you MANUFACTURE the evaporation class, and this skill
+  recommended it for eighteen rounds without saying so.** The pitfall above
+  converts a `git_incomplete` — loud, exit 1, named in the report — into a
+  skip, which step 4's old wording then told you to ignore as count noise.
+  The two halves of this document cancelled out. Measured here: round 409
+  introduced the guard at 2 test files, closing 4 reds; at round 427 the
+  same guard skips **11 tests across 4 files**, and *the growth was never a
+  decision* — each new test reached for the sibling's guard because it was
+  there. The conversion is still the right fix. **Doing it without an
+  acknowledgement entry (below) in the same change is not.**
+
+- **An acknowledgement registry is the only thing that stops this check
+  crying wolf, and it must expire by itself.** Once you difference skips,
+  every legitimately-absent fixture reports every run, and a checker that
+  cries wolf gets ignored. Do NOT suppress on node id — a test can acquire a
+  SECOND, unrelated reason to skip, and a name-only allowlist hides exactly
+  that. **Pin the skip REASON TEXT**, and report an expired pin LOUDER than
+  an unacknowledged skip: it is a skip nobody adjudicated, wearing a
+  signature that says somebody did. Three rules, each earned:
+  *per node, never per reason* (a NEW test inheriting an acknowledged reason
+  must go red — that is how 4 became 11); *print acknowledged entries every
+  run* (silent suppression reads as coverage); *an entry matching nothing is
+  DEAD and the checker must say so.*
 - **A test double that tells two trees apart by a path substring will
   eventually be fooled by where the repo is checked out.** The instrument's
   own default path is usually collision-proof, so the instrument can never
@@ -272,76 +351,37 @@ problem), `git stash` (mutates the tree you are comparing against), or
 - **Counts are not ids.** "1191 vs 1192 passed" invites you to hunt for one
   test; the FAILED lines name it. And a count differential goes silent
   entirely when one test starts failing as another starts passing.
+- **A baseline that records only counts cannot be re-read.** Round 426 saw
+  `14 skipped` against a live `3 skipped` and had to RE-RUN the whole suite
+  by hand to learn which eleven, because its record kept a number. Record
+  the skip LIST — node id and reason. One tree cannot difference anything,
+  so say that too: a baseline reports what it skipped, `check` decides
+  whether any of it evaporated.
 - **The check costs a full second suite run.** Budget for it. It is a
   periodic or pre-handoff check, not a per-commit one — but its *recorded
   verdict* is free to display, and that is what keeps it honest.
 
 ## Verification
 
-Round 355 (harness A), on this workspace, `harness/pristine_check.py`:
+Full transcripts of every run cited above, with the mutation checks on the
+checker's own rules:
+[references/verification-log.md](references/verification-log.md).
 
-```
-$ python3 harness/pristine_check.py check \
-      --suite harness-fast --suite whence-fast \
-      --allow-dirty languages/whence/SECURITY.md
-ref HEAD   verdict git_incomplete
-  18 untracked path(s) exist here and in no fresh clone
-  allowed-dirty (rule 1 waived by hand): languages/whence/SECURITY.md
-  harness-fast   clean            live={'passed': 476, ...} pristine={'passed': 476, ...}
-  whence-fast    git_incomplete   live={'passed': 1192, ...} pristine={'failed': 1, 'passed': 1191, ...}
-      GIT-INCOMPLETE  tests/test_lexer_guest_parity.py::test_small_example_files_lex_identically
-```
-
-Step 1's blocking rule, observed rather than asserted — one tracked file
-was dirty and the check refused to run until it was named:
-
-```
-$ python3 harness/pristine_check.py dirt
-tracked-modified 2 (blocking 1)  untracked 18  ignored 456
-  BLOCKING  languages/whence/SECURITY.md
-```
-
-Step 10, the pin reverted on purpose:
-
-```
-$ <put the glob back>; python3 -m pytest -c pytest.ini tests/test_lexer_guest_parity.py -q
-FAILED tests/test_lexer_guest_parity.py::test_the_corpus_is_what_git_tracks_and_not_what_the_directory_holds
-1 failed, 81 passed in 45.76s
-```
-
-Step 8's re-derived floors, measured on the curated corpus (2026-08-30):
-12 small files / 3972 tokens, 16 files total / 35188 tokens, 0 divergences.
-The floors they replaced were 20 and 26, both unreachable by a clone.
-
-The checker's own rules are mutation-checked, not assumed — dropping the
-step-1 short-circuit, forcing "the run completed", dropping `--force` from
-worktree removal, and disabling the pristine-only comparison each kill 1-2
-of the 49 tests in `harness/tests/test_pristine_check.py`. 4/4 caught.
-
-Round 409 (harness A), the ungated second mode, first run, at `d71d7cd`
-with seven tracked files dirty — a tree in which `check` refuses to run at
-all:
-
-```
-$ python3 harness/pristine_check.py baseline --ref HEAD
-baseline  HEAD (d71d7cd36c81)  verdict=red
-  NOTE: taken while the live tree had 7 tracked-modified and 0 untracked
-        path(s) — the baseline is of the COMMIT, not of that tree.
-  harness-fast   green      269 deselected, 961 passed (98s)
-  whence-fast    red        81 deselected, 4 failed, 1933 passed, 10 skipped (89s)
-      FAILED tests/test_field_corpus_selector.py::test_ten_of_the_fourteen_still_fail_to_parse
-      FAILED tests/test_field_corpus_selector.py::test_the_census_and_the_directory_still_agree
-      FAILED tests/test_field_corpus_selector.py::test_the_live_tree_has_no_drift
-      FAILED tests/test_v24.py::test_the_tracked_example_set_is_the_one_this_repo_decided_on
-```
-
-Those four are the ignored-corpus pitfall above, reproduced exactly: green
-in the live tree, red at the same commit in any checkout. Note also what
-this run does NOT show — `harness-fast` is green here while the same tier
-was red in a hand-made `/tmp/wt-408`, because this command's own worktree
-path (`/tmp/pristine-check-<pid>-<ts>`) cannot prefix-match, which is the
-substring pitfall from the other side: **the instrument was structurally
-incapable of finding the bug in its own test double.**
+- **Round 355** — first finding. `whence-fast` green in the live tree,
+  `1 failed, 1191 passed` in a worktree at the same commit: a `glob`-built
+  corpus guarded by `assert len(paths) >= 20` in a directory holding 30
+  files of which git tracked 16. **A fresh clone had failed the repo's own
+  suite for five rounds.**
+- **Round 409** — the ungated `baseline` mode, and the substring pitfall
+  that made the instrument structurally incapable of finding the bug in its
+  own test double.
+- **Round 427** — step 4a. Same commit, both suites green, both trees exit
+  0, verdict `skip_evaporation`, and **eleven whence tests provided no
+  evidence** (`live 3 skipped / pristine 14 skipped`). The same two runs
+  under the pre-427 code: `verdict clean`, exit 0. The eleven are round
+  402's `.gitignore`d field corpus, reached through the guard round 409
+  added to close four reds — 4 call sites then, 11 tests across 4 files now,
+  and none of the growth was a decision.
 
 ## Related
 
@@ -353,3 +393,9 @@ incapable of finding the bug in its own test double.**
   nobody re-derives. Step 8 is that skill's rule applied to a threshold.
 - [[deleted-vs-never-written]] — when a pristine-only failure looks like a
   missing file, that skill separates "removed" from "never committed".
+- [[skip-reason-is-a-claim]] — the adjacent question, and the boundary is
+  sharp. That skill asks whether a skip's REASON is true for the case that
+  triggered it. Step 4a asks a question that survives the reason being
+  perfectly true: a correct skip is still a test that stopped being
+  evidence, and nothing counts it. Route a wrong-reason guard there; route
+  a right-reason skip that a fresh clone acquires here.
