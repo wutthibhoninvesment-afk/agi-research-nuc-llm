@@ -1790,3 +1790,89 @@ item 6, third occurrence). The authority is
   `uptime -s` first; (8) harness(A) still owns wiring `nuc/run_checks_fast.sh`
   into `run_driver.sh` — 0 references, **fifth round carried** (note
   `skills/run_checks_fast.sh` IS wired, round 363, so a basename grep lies).
+
+## Round 418 (NUC-integration E) — 2026-09-01, box **DOWN** the whole round; SAME continuous outage as rounds 406 and 412 (`tailscale_last_seen` byte-identical across all three), so no up window has occurred since 2026-08-31T16:30Z
+
+- **Reachability.** `reachability_check check --round 418` at
+  `2026-09-01T03:11:39Z`: ssh rc 255 `Connection timed out` on the tailnet
+  path `jab@100.78.44.111`; second attempt on the LAN path
+  `jab@192.168.1.37` also rc 255, timed out. `tailscale_online false`,
+  `tailscale_last_seen_utc 2026-08-31T16:30:00.1Z` — identical to rounds 406
+  and 412, ~10.7 h old at probe time. Two consecutive failures ⇒ probing
+  stopped, per CLAUDE.md. Logged to the reachability log as `down`.
+- **Coordinate note.** `~/.ssh/id_ed25519_nuc` **does not exist on the driver
+  host** (`Warning: Identity file ... not accessible`). CLAUDE.md offers the
+  LAN path with that key and correctly scopes it "Mac-adjacent hosts only";
+  the stronger fact is that from THIS machine the LAN path is not a fallback
+  under any box state. This file already leads with the tailnet path and wins
+  per CLAUDE.md — no rule changes, this is a note for the next reader.
+- **Round 412's next-round items 3 and 4 are CLOSED** — both were marked
+  runnable offline and both were this round's work.
+  - **Item 3 (the 04:00:03 reclaim).** `sar -B`, banked by round 400 and
+    unread for nine rounds, has the answer: `pgscank/s 1207.00`,
+    `pgscand/s 0.00`, `pgsteal/s 401.70` — kswapd stole 241 020 pages
+    (941 MiB as reported) while 325 MiB was read back from disk. The new
+    `perturbation.py gap` verb shows the commit channel's cost at that bucket
+    is **exactly 0 bytes**. `Committed_AS` counts promises and an eviction
+    revokes none, so the commit channel is blind to it BY CONSTRUCTION, not
+    by coarseness. `pgscand/s` is 0.00 in every bucket of both days: seven
+    reclaim events, all kswapd, **no allocation ever stalled** — pressure on
+    this box is page-cache eviction and re-read, not allocator latency.
+  - **Item 4 (stitch day-files).** Done, with four refusals. The boundary hole
+    is in the RENDERING: `sar` consumes each day-file's first record as a
+    reference and never prints it, so the stitched bucket spans **1200 s**,
+    and `LedgerEntry.bucket_span_s` now carries that. The three lost units
+    (`dpkg-db-backup`, `logrotate`, `sysstat-summary`) return —
+    `n_unclassified` 3 → 0, units 13 → 16 — their bucket costs **0 bytes**,
+    and because K stays 4 the Bonferroni bar tightens and the testable band
+    SHRINKS 2..54 → 2..52. More data, less power; recorded rather than hidden.
+- **A factor-of-two artifact in `pgsteal`.** Six of seven reclaim buckets
+  report `%vmeff > 100`, impossible if the columns count the same pages.
+  Halving `pgsteal` puts all seven at or under 100 %, max exactly **100.000**,
+  five within 1 % of the ceiling. `reclaim_double_count_check()` reports the
+  evidence and the corrected view and **does not apply the correction**.
+  Every reclaim byte figure this round published is an upper bound with a
+  factor-of-two question over it.
+- **`pgsteal/s` as a third `Channel`.** Pooled sa30+sa31: `n_buckets 218,
+  K 7, units 16, testable 9, supported [], testable occupancies 2..97
+  (44.0 % of N)` — **the first null on this record with real power**, which is
+  what round 412 said round 406's was missing. Threshold-FREE: K = 7 from
+  4 KiB to 128 MiB, because reclaim here is bimodal (0 or ≥ 260 MiB). K by
+  channel at the same floor: **swap 3 < steal 7 < commit 9**.
+- **`fwupd-refresh`**: 4 of 7 costly buckets, 2 held alone at `110.88` and
+  `110.88` pg/s eleven hours apart, `p_chance 0.0154` — the smallest any unit
+  has reached on any channel here — still `coincidence` at `p_family 0.2461`.
+  Blocked by `consistency 0.111`, which conflates "costs nothing" with "costs
+  conditionally". Every hourly timer on this box has that shape.
+- **Artifacts:** `nuc/perturbation.py` 1285 → 1729 lines (`STEAL_CHANNEL`,
+  `Stitch`/`stitch_from`/`auto_stitches`/`stitch_applies`/`bucket_spans`,
+  `LedgerEntry.bucket_span_s`, `ReclaimEvent`/`reclaim_events`/
+  `reclaim_summary`/`reclaim_double_count_check`/`eviction_gap`, CLI verbs
+  `reclaim` and `gap`, `--stitch-prev`, `--stitch`);
+  `nuc/predictions-e-round418.md`;
+  `knowledge/round-418-nuc-e-the-eviction-the-promise-channel-could-not-see.md`.
+  Tests **669 → 699**, all green; audit 23/18/0.783/0 transform risks
+  (unchanged). **16 HIT / 1 PARTIAL / 2 MISS of 22**, plus 3 disclosed in the
+  bank as already-read.
+- Hygiene: no contact with the box was possible; two ssh attempts, both timed
+  out, then stopped. No scp, no writes on the box, no unit restarted. **Port
+  8001 never contacted; no engine request of any kind.** Every module touched
+  is pure text-in/dict-out and opens no socket.
+- **Next E round, in order:** (1) reachability check first; **if UP, run
+  `python3 nuc/capture_manifest.py plan --capture state/nuc-capture-r400 > /tmp/cap.sh && bash /tmp/cap.sh`
+  before anything else** — round 406's item 1, **seventh round carried**;
+  (2) **then one read-only command: `grep -E '^pg(scan|steal)' /proc/vmstat`**
+  — it settles the factor-of-two question over every reclaim byte in the
+  record and nothing offline can; (3) capture `sar -B` for EVERY day in the
+  retention window, not two — it is now the channel that sees the most, and
+  `-r`/`-W` already cover sa23–sa31; (4) test whether `sadf` emits a day-file's
+  first record, which would remove the 1200 s stitch instead of working around
+  it; (5) capture a journal window WIDER than one boot — round 412's item 5,
+  unchanged, and still the binding constraint on attribution (it also sees
+  system units only, which is why the boot's largest reclaim, the engine load
+  at 13:30–15:10 on sa30, has no named fire); (6) a conditional-work variant
+  of `consistency`; (7) close the stitched bucket's previous-day blind spot in
+  `cost_ledger`; (8) still blocked on the operator: `--cap 196` and the E3 A/B,
+  with round 412's power-floor precondition — which this round showed cuts
+  both ways: a null WITH a published floor is a result; (9) round 370's item 3
+  needs a FRESH boot — capture `uptime -s` first on the next up round.

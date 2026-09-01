@@ -19420,6 +19420,194 @@ shape as `0 stale` with no denominator and `0 references` with no command
 beside it. A prediction of the form "X stays Y" needs the measurement of Y in
 the same breath.
 
+### Round 418 — NUC-integration(E) — 2026-09-01 — the eviction the promise channel could not see
+
+**Box DOWN for the sixth consecutive E round.** `reachability_check check
+--round 418` at `2026-09-01T03:11:39Z`: ssh rc 255 (timeout) on the tailnet
+path, rc 255 on the LAN path, `tailscale_last_seen 2026-08-31T16:30:00.1Z` —
+**byte-identical to rounds 406 and 412**, so this is one continuous outage,
+not three. Probing stopped after two failures per CLAUDE.md. Round 406's
+capture plan is carried a SIXTH time; `sa23` is still overwritten 2026-09-23.
+Coordinate note found by actually making the second attempt: **`~/.ssh/
+id_ed25519_nuc` does not exist on the driver host**, so CLAUDE.md's LAN line
+is not a fallback from here under any box state.
+
+Round 412's items 2 and 3, both banked as offline-runnable, both done. Full
+write-up: `knowledge/round-418-nuc-e-the-eviction-the-promise-channel-could-not-see.md`.
+
+- **Item 2 — the 04:00:03 perturbation is an EVICTION, and the commit channel
+  is blind to it by construction.** `sar -B` was captured by round 400 and sat
+  unread for nine rounds. That bucket: `pgscank/s 1207.00`, `pgscand/s 0.00`,
+  `pgsteal/s 401.70` — kswapd stole 241 020 pages (941 MiB as reported) while
+  325 MiB was read back from disk. The new `eviction_gap` verb puts the two
+  instruments side by side: the commit channel's cost there is **exactly 0
+  bytes**, not merely small. `Committed_AS` counts promises; reclaiming a
+  resident page revokes no promise. The commit and swap channels are not
+  ranked coarse-to-fine — they are blind in different directions, and the
+  record's largest perturbations fall where neither faces.
+- **`pgscand/s` is 0.00 in every bucket of both days.** Seven reclaim events,
+  all kswapd, zero direct. Usable negative for the track's goal: memory
+  pressure on this box shows up as page-cache eviction and re-read, not as
+  allocator stalls.
+- **A factor-of-two artifact in `pgsteal`, pinned by a ceiling test.** Six of
+  seven reclaim buckets report `%vmeff > 100`, which is impossible if the
+  columns count the same pages. Halving `pgsteal` puts all seven at or under
+  100 %, with the max landing on **exactly 100.000** and five of seven within
+  1 % of the ceiling — a ceiling that sharp is a double count, not a noisy
+  undercount of `pgscan`. `reclaim_double_count_check()` reports the evidence
+  and the corrected view; **it does not apply the correction**, because a
+  silently halved byte count is the kind of number that gets quoted without
+  its caveat. Settled on the next UP round by `grep -E '^pg(scan|steal)'
+  /proc/vmstat`.
+- **Item 3 — the day-boundary hole is in the RENDERING, not the archive.**
+  `sar` consumes each day-file's first record as a reference and never prints
+  it; the swallowed sample's stamp is what it puts on the header line
+  (`00:00:05` on sa31). So the stitched boundary bucket spans **1200 s, not
+  600**, and `LedgerEntry` now carries `bucket_span_s` so it cannot be read as
+  a ten-minute one. `stitch_from` refuses four ways — non-consecutive dates,
+  a row after `LINUX RESTART` (which would have booked the boot's 25 GB
+  address space as one bucket's cost), mismatched columns, over-wide span.
+- **The three lost units come back and the power floor gets WORSE.**
+  `dpkg-db-backup`, `logrotate`, `sysstat-summary`: `n_unclassified` 3 → 0,
+  `n_units_tested` 13 → 16. Their bucket costs **0 bytes** (`kbcommit` pinned
+  at 30 634 440 across the boundary), so K stays 4, the Bonferroni bar
+  tightens 0.003846 → 0.003125, and the testable band shrinks 2..54 → 2..52.
+  None of the three is itself testable. **More data, less power** — which is
+  not an argument against stitching, but is an argument that "we recovered
+  more data" is not a claim of improved evidence.
+- **`pgsteal/s` as a third `Channel`, graded end to end.** Pooled over
+  sa30+sa31: `n_buckets 218, K 7, n_units_tested 16, n_testable_units 9,
+  supported [], testable occupancies 2..97 (44.0 % of N)`. **This is the first
+  null on this record with real power** — exactly what round 412 said round
+  406's was missing. And its verdict is threshold-FREE: K = 7 is stable from
+  4 KiB to 128 MiB because reclaim here is bimodal (a bucket steals 0 or
+  ≥ 260 MiB), unlike the commit channel whose verdict round 412 showed is a
+  setting. K by channel at the same floor: **swap 3 < steal 7 < commit 9**.
+- **`fwupd-refresh` is the closest this record has come to an attribution, and
+  it exposes a defect in `consistency`.** 4 of 7 costly buckets, 2 held alone,
+  `p_chance 0.0154` (the smallest any unit has reached on any channel here),
+  ample power (`p_best 2.0e-06`) — still `coincidence` at `p_family 0.2461`.
+  The two clean buckets read `110.88` and `110.88` pg/s, eleven hours apart on
+  different days: a twice-replicated point estimate the family test rejects.
+  The blocker is `consistency = 0.111`, and `consistency = n_costly / n_fires`
+  **conflates "this unit costs nothing" with "this unit costs conditionally"**
+  — `fwupd-refresh` fires hourly and does work only when a remote fetch
+  returns something new. Every hourly timer on this box has that shape.
+- **The boot's largest reclaim has no named fire and that is the right
+  answer.** sa30's 13:30:05 / 15:00:05 / 15:10:03 hold ~22 GB (as reported) of
+  reclaim and 18.43 + 7.32 GB of commit rise, and no systemd unit start covers
+  any of them — the engine runs as user processes (round 400's deployment
+  drift), so `unit-starts.txt` cannot see it. Reported as
+  `costly_buckets_without_a_named_fire`.
+
+Suites: `python3 -m pytest nuc/tests/ -q` **699 passed, 69.4 s** (669 before,
++30, all in `test_perturbation.py`: 96 → 126); `nuc/constant_audit.py audit
+nuc/` **23 constants, 18 derived, 0.783, 0 transform risks** (unchanged);
+`bash skills/run_checks_fast.sh` **skill_lint 66 skills 0/0 · claim_check 159
+resolved, 0 stale · xref_check 0 NEW dangling · state_claim_check 0 stale of
+12**; repo-wide `pytest` **2 failed, 811 passed** — both failures were
+**K001 on this round's own predictions bank**, i.e. D-013's second half being
+enforced, cleared by the ledger entry below.
+
+**Predictions: 16 HIT / 1 PARTIAL / 2 MISS of 22**, plus 3 disclosed in the
+bank itself as already-read and therefore not foresight. Registered in
+`state/prediction-bank-ledger.json`. **B9 is the miss worth keeping**: it
+predicted the steal channel's null would be as powerless as round 406's swap
+null, and the opposite held — which is what turned `supported: []` on that
+channel into a statement about the box. **B5's second clause is the miss worth
+being embarrassed by**: I claimed 987 MB was larger than any `Committed_AS`
+step in the boot, having read only sa31's commit column; the 13:30:05 step is
+18.43 GB. That is round 412's own error ("true of the channel, false of the
+analysis") committed by the round that quoted it.
+
+## Next steps (as of round 418)
+
+1. **When the box comes up, run ONE read-only command before anything else:**
+   `grep -E '^pg(scan|steal)' /proc/vmstat`. It settles whether every reclaim
+   byte round 418 published is right or double — the `%vmeff` ceiling test
+   says `pgsteal` is a factor of two high (all seven buckets at or under 100 %
+   after halving, max exactly 100.000, five within 1 % of the ceiling), and
+   nothing offline can decide it. Add it to `nuc/capture_manifest.py`. The
+   evidence it would overturn is pinned by
+   `python3 -m pytest nuc/tests/test_perturbation.py -q -k ceiling` ->
+   **2 passed**. NUC-integration(E).
+2. **`sar -B` is now the channel that sees the most, and it is banked for two
+   days out of nine.** `-r` and `-W` cover sa23–sa31; `-B` covers sa30–sa31:
+   `grep -c '^### SAR_B_' state/nuc-capture-r400/sar-all.txt` -> **2**;
+   `grep -c '^### SAR_R_' state/nuc-capture-r400/sar-all.txt` -> **9**;
+   Any future capture should take `-B` for every day in the retention window.
+   The reason matters: round 418 showed the commit and swap channels are blind
+   to eviction in two different ways, and eviction is where this box's largest
+   perturbations live. NUC-integration(E).
+3. **The swallowed day-boundary sample is recoverable at capture time and
+   nobody has tried.** `sar` consumes each day-file's first record as a
+   reference and never prints it, which is the entire reason round 418 needed
+   a 1200 s stitch. Whether `sadf` emits that record is a one-command test on
+   the box and would remove the stitch rather than working around it.
+   NUC-integration(E).
+4. **`consistency` conflates "costs nothing" with "costs conditionally", and
+   it is what blocks this record's only near-attribution.** `fwupd-refresh`
+   reaches `p_chance 0.0154` with a twice-replicated 110.88 pg/s point
+   estimate held alone on two different days, and is graded `coincidence`
+   because it fires 36 times and moves the channel 4. An hourly timer that
+   does real work only when a remote fetch returns something new is SUPPOSED
+   to have 32 quiet fires. Needs a conditional-work variant of the statistic,
+   not a lower threshold. NUC-integration(E).
+5. **Close the stitched bucket's previous-day blind spot.** `cost_ledger`
+   widens the first bucket's window to its true 1200 s but still filters fires
+   by `date`, so a previous-day fire inside that window is dropped. No victim
+   on the r400 record — `grep -c '^2026-08-30T23:5[0-9]' state/nuc-capture-r400/fires.txt`
+   -> **1**, and that one fire is the excluded `sysstat-collect` instrument —
+   which is why round 418 recorded it instead of fixing it.
+   NUC-integration(E).
+6. **"We recovered more data" is not a claim of improved evidence, and the
+   record now has a worked instance.** Stitching recovered three real fires
+   and made the power floor STRICTLY WORSE — K unchanged at 4, the Bonferroni
+   bar tightened, the testable band shrank 2..54 → 2..52, and none of the
+   three recovered units was itself testable. Any future round that reports a
+   coverage gain should report what it did to the family size. The whole
+   instance is re-derivable offline:
+   `python3 -m pytest nuc/tests/test_perturbation.py -q` -> **126 passed**.
+   Candidate for a skills(B) skill; it generalises past this track.
+7. **Round 417's items 1–11 carry forward unchanged** (tree-wide reference
+   count, S007's subject identity, the seven unprobed skills, round 411's
+   item 2, the `self_host.lang` direction replication, the five `shadowed`
+   findings, round 416's items 3–4, `self_eval.lang`'s guest evaluator, round
+   409's items 2–4, `wiring_audit`'s verb/marker blindness, the two orphaned
+   entry points). Round 418 touched none of them; it is an E round.
+8. **`nuc/capture_manifest.py plan` is carried a SEVENTH time**, all seven
+   because the box was down — one continuous outage since
+   `2026-08-31T16:30:00.1Z` by tailscale's own last-seen, identical across
+   rounds 406, 412 and 418. `sa23` is still overwritten 2026-09-23. Round
+   412's items 2 and 3 are now CLOSED (round 418); its item 4 (take a journal
+   window WIDER than one boot) is still open and is the binding constraint on
+   attribution — `unit-starts.txt` covers 2026-08-30 → 08-31 only, and it sees
+   system units only, which is why the boot's largest reclaim has no named
+   fire. NUC-integration(E).
+9. **CLAUDE.md's LAN line has no key on the driver host.**
+   `~/.ssh/id_ed25519_nuc` does not exist here, so the documented fallback is
+   not one from this machine under any box state. `state/nuc-missions.md`
+   already leads with the tailnet path and wins per CLAUDE.md; this is a note
+   for the next reader who expects a second chance, not a rule change.
+10. **Round 408's item 9 (CLAUDE.md's `🔴 CRITICAL MISSION` block is stale in
+    both halves) is re-escalated for the NINTH time.** Both its items were
+    answered by rounds 349 and 33/v0.23, and every round pays a re-read for
+    it. CLAUDE.md is the operator's file (round 346), so this needs the
+    operator, not a round.
+11. **`languages/whence/SECURITY.md`, 70 rounds carried, and the working tree
+    STILL holds the unattributed uncommitted rewrite** whose four security
+    claims round 416 verified as false of this repo. Round 418 did not commit
+    or revert it either — it is the operator's file, and an E round is not
+    where that call gets made. **Operator decision, overdue in two ways.**
+12. **Blocked on the operator: `--cap 196` and the E3 A/B**, with round 412's
+    precondition (any A/B publishes its power floor BEFORE it runs) — which
+    round 418 has now shown cuts both ways: a null WITH a published floor
+    (`steal`, 9 of 16 units testable, 44 % of occupancies) is a result, and a
+    null without one is not. Round 406's items 1–7, round 405's 1–4, round
+    404's 1–4 and 7, round 403's 2–5 and round 336's remaining language(C)
+    items carry forward where not closed above. The `Harness (A)` half of the
+    Track-status audit is still the last one owed.
+
 ## Next steps (as of round 417)
 
 1. **A tree-wide reference count.** `wiring_audit.py refs` requires

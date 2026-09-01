@@ -1148,3 +1148,429 @@ def test_cli_ledger_defaults_to_the_channels_threshold_and_refuses_when_none():
                     "--min-bytes", "4825700")
         assert good.returncode == 0, good.stderr
         assert json.loads(good.stdout)["channel"] == "commit"
+
+
+# ===================================================================== r418
+# Round 418, NUC-integration(E), box DOWN. Two items from round 412's handoff,
+# both answerable from `state/nuc-capture-r400/` with no box:
+#   item 3 -- stitch consecutive day-files, so a LEVEL channel can cost a
+#             day's first bucket and stops losing three real fires;
+#   item 2 -- read `sar -B`, banked since round 400 and never opened, to say
+#             what touched already-committed pages at 04:00:03 on sa31.
+# Every number these tests pin is quoted in
+# `knowledge/round-418-nuc-e-the-eviction-the-promise-channel-could-not-see.md`.
+
+
+def _r418_sections():
+    return _sar_sections((_CAP / "sar-all.txt").read_text())
+
+
+def _r418_fires():
+    return pt.parse_unit_starts((_CAP / "unit-starts.txt").read_text())
+
+
+def _r418_stitch():
+    secs = _r418_sections()
+    return pt.stitch_from(parse_sar(secs["SAR_R_SA30"]), "2026-08-30",
+                          parse_sar(secs["SAR_R_SA31"]), "2026-08-31")
+
+
+# ------------------------------------------------------------- the stitch
+
+
+def test_stitched_boundary_bucket_is_two_intervals_wide():
+    """`sar` consumes each day-file's first record as its reference point and
+    never prints it, so sa30 ends at 23:50:05 and sa31 begins at 00:10:05.
+    The recovered bucket covers 1200 s, not 600, and saying otherwise puts ten
+    minutes of the previous day inside a bucket labelled ten minutes wide."""
+    st = _r418_stitch()
+    assert (st.prev_time, st.next_time) == ("23:50:05", "00:10:05")
+    assert st.span_s == 1200
+    assert st.as_dict()["spans_more_than_one_interval"] is True
+    # the swallowed sample's stamp is what sar prints on the HEADER line
+    hdr = [l for l in _r418_sections()["SAR_R_SA31"].splitlines()
+           if "kbmemfree" in l][0]
+    assert hdr.split()[0] == "00:00:05"
+
+
+def test_stitch_refuses_non_consecutive_days():
+    secs = _r418_sections()
+    with pytest.raises(pt.PerturbationError, match="2 day\\(s\\) apart"):
+        pt.stitch_from(parse_sar(secs["SAR_R_SA29"]), "2026-08-29",
+                       parse_sar(secs["SAR_R_SA31"]), "2026-08-31")
+
+
+def test_stitch_refuses_a_first_row_that_follows_a_restart():
+    """sa30's first printed row follows `LINUX RESTART 00:32:34`. Differencing
+    it against sa29's last row books a whole reboot's address space as one
+    bucket's cost -- 25 GB of it, on this record."""
+    secs = _r418_sections()
+    with pytest.raises(pt.PerturbationError, match="LINUX RESTART"):
+        pt.stitch_from(parse_sar(secs["SAR_R_SA29"]), "2026-08-29",
+                       parse_sar(secs["SAR_R_SA30"]), "2026-08-30")
+
+
+def test_stitch_refuses_two_different_activity_types():
+    secs = _r418_sections()
+    with pytest.raises(pt.PerturbationError, match="different columns"):
+        pt.stitch_from(parse_sar(secs["SAR_R_SA30"]), "2026-08-30",
+                       parse_sar(secs["SAR_W_SA31"]), "2026-08-31")
+
+
+def test_stitch_refuses_a_span_wider_than_a_sample_gap():
+    secs = _r418_sections()
+    with pytest.raises(pt.PerturbationError, match="more than max_span_s"):
+        pt.stitch_from(parse_sar(secs["SAR_R_SA30"]), "2026-08-30",
+                       parse_sar(secs["SAR_R_SA31"]), "2026-08-31",
+                       max_span_s=900)
+
+
+def test_stitch_refuses_a_bad_date_rather_than_guessing():
+    secs = _r418_sections()
+    with pytest.raises(pt.PerturbationError, match="not YYYY-MM-DD"):
+        pt.stitch_from(parse_sar(secs["SAR_R_SA30"]), "sa30",
+                       parse_sar(secs["SAR_R_SA31"]), "2026-08-31")
+
+
+def test_bucket_costs_refuses_a_stitch_without_the_channel_column():
+    """A stitch carried from a `sar -W` row into a commit-channel cost would
+    silently leave the first bucket undefined; it raises instead."""
+    secs = _r418_sections()
+    st = _r418_stitch()
+    bad = pt.Stitch(prev_date=st.prev_date, prev_time=st.prev_time,
+                    next_date=st.next_date, next_time=st.next_time,
+                    span_s=st.span_s, values={"pswpout/s": 0.0})
+    with pytest.raises(pt.PerturbationError, match="has no column 'kbcommit'"):
+        pt.bucket_costs(parse_sar(secs["SAR_R_SA31"]), pt.COMMIT_CHANNEL,
+                        stitch=bad)
+
+
+def test_stitch_recovers_the_three_units_round_412_lost():
+    """`dpkg-db-backup`, `logrotate` (00:00:05) and `sysstat-summary`
+    (00:07:05) all land in sa31's 00:10:05 bucket, which the commit channel
+    could not cost. 3 unclassified -> 0."""
+    secs, fires, st = _r418_sections(), _r418_fires(), _r418_stitch()
+    t = parse_sar(secs["SAR_R_SA31"])
+    mb = 50_000 * 1024
+    no = pt.cost_ledger(fires, t, "2026-08-31", channel=pt.COMMIT_CHANNEL,
+                        min_bytes=mb)
+    yes = pt.cost_ledger(fires, t, "2026-08-31", channel=pt.COMMIT_CHANNEL,
+                         min_bytes=mb, stitch=st)
+    assert (no["n_unclassified"], yes["n_unclassified"]) == (3, 0)
+    assert sorted(u["unit"] for u in no["unclassified"]) == [
+        "dpkg-db-backup", "logrotate", "sysstat-summary"]
+    assert (no["n_buckets"], yes["n_buckets"]) == (78, 79)
+    assert (no["n_undefined_buckets"], yes["n_undefined_buckets"]) == (1, 0)
+    assert (no["stitch_applied"], yes["stitch_applied"]) == (False, True)
+
+
+def test_the_recovered_bucket_cost_nothing_and_carries_its_width():
+    """Recovering the fires does not recover any COST: `kbcommit` is pinned at
+    30 634 440 kB across the boundary, so the bucket's rise is exactly zero.
+    Three units come back and zero attributions do."""
+    secs, fires, st = _r418_sections(), _r418_fires(), _r418_stitch()
+    led = pt.cost_ledger(fires, parse_sar(secs["SAR_R_SA31"]), "2026-08-31",
+                         channel=pt.COMMIT_CHANNEL, min_bytes=50_000 * 1024,
+                         stitch=st)
+    wide = [e for e in led["entries"] if e["bucket_span_s"] != 600]
+    assert len(wide) == 3 and led["n_wide_buckets"] == 1
+    assert {e["bucket_end"] for e in wide} == {"00:10:05"}
+    assert all(e["bucket_bytes"] == 0 and e["costly"] is False
+               and e["bucket_span_s"] == 1200 for e in wide)
+    assert st.values["kbcommit"] == 30_634_440.0
+
+
+def test_stitching_a_rate_channel_changes_nothing():
+    """A `pswpout/s` bucket is self-contained. Handing it a stitch is allowed
+    -- `channel_sweep` hands the same one to every channel -- and is a no-op."""
+    secs, fires = _r418_sections(), _r418_fires()
+    t = parse_sar(secs["SAR_W_SA31"])
+    st = pt.stitch_from(parse_sar(secs["SAR_W_SA30"]), "2026-08-30",
+                        t, "2026-08-31")
+    no = pt.cost_ledger(fires, t, "2026-08-31", channel=pt.SWAP_CHANNEL)
+    yes = pt.cost_ledger(fires, t, "2026-08-31", channel=pt.SWAP_CHANNEL,
+                         stitch=st)
+    assert pt.stitch_applies(pt.SWAP_CHANNEL, st) is False
+    assert yes["stitch_applied"] is False
+    assert no["entries"] == yes["entries"]
+    assert no["n_buckets"] == yes["n_buckets"]
+
+
+def test_recovering_data_makes_the_power_floor_strictly_worse():
+    """The counter-intuitive half of item 3, and the reason it is worth
+    writing down. The three recovered units enter the Bonferroni family and
+    bring no costly buckets with them, so K is unchanged, the per-unit bar
+    tightens, and the testable band SHRINKS. More data, less power."""
+    secs, fires = _r418_sections(), _r418_fires()
+    st = _r418_stitch()
+    mb = 50_000 * 1024
+    l30 = pt.cost_ledger(fires, parse_sar(secs["SAR_R_SA30"]), "2026-08-30",
+                         channel=pt.COMMIT_CHANNEL, min_bytes=mb)
+    t31 = parse_sar(secs["SAR_R_SA31"])
+    no = pt.attribution_evidence(
+        [l30, pt.cost_ledger(fires, t31, "2026-08-31",
+                             channel=pt.COMMIT_CHANNEL, min_bytes=mb)])
+    yes = pt.attribution_evidence(
+        [l30, pt.cost_ledger(fires, t31, "2026-08-31",
+                             channel=pt.COMMIT_CHANNEL, min_bytes=mb,
+                             stitch=st)])
+    assert (no["n_units_tested"], yes["n_units_tested"]) == (13, 16)
+    assert no["n_costly_buckets"] == yes["n_costly_buckets"] == 4
+    assert (no["power"]["max_testable_occupancy"],
+            yes["power"]["max_testable_occupancy"]) == (54, 52)
+    assert yes["power"]["per_unit_bar"] < no["power"]["per_unit_bar"]
+    assert no["n_testable_units"] == yes["n_testable_units"] == 8
+    assert no["supported"] == yes["supported"] == []
+
+
+def test_auto_stitches_keeps_the_reason_a_day_was_not_joined():
+    secs = _r418_sections()
+    tables = [(parse_sar(secs[f"SAR_R_SA{d}"]), f"2026-08-{d}")
+              for d in ("29", "30", "31")]
+    got = pt.auto_stitches(tables)
+    assert isinstance(got["2026-08-31"], pt.Stitch)
+    assert "LINUX RESTART" in got["2026-08-30"]
+
+
+# ------------------------------------------------------------ the reclaim
+
+
+def _r418_B(day):
+    return parse_sar(_r418_sections()[f"SAR_B_SA{day}"])
+
+
+def test_reclaim_refuses_a_table_that_is_not_sar_B():
+    """A `sar -W` table parses fine and has no scan columns, so a lenient
+    reader would report "this box never reclaimed" -- a false negative, which
+    is exactly the claim this module exists to prevent."""
+    with pytest.raises(pt.PerturbationError, match="not a `sar -B` table"):
+        pt.reclaim_events(parse_sar(_r418_sections()["SAR_W_SA31"]))
+
+
+def test_no_direct_reclaim_anywhere_in_the_banked_boot():
+    """`pgscand/s` is 0.00 in every bucket of both days: the kernel woke
+    kswapd seven times and never once stalled an allocation. Memory pressure
+    on this box shows up as eviction, not as allocator latency."""
+    for day in ("30", "31"):
+        s = pt.reclaim_summary(_r418_B(day), f"2026-08-{day}")
+        assert s["n_direct_reclaim_buckets"] == 0
+        assert set(s["by_kind"]) <= {"quiet", "kswapd"}
+
+
+def test_the_reclaim_denominator_is_kept():
+    s30 = pt.reclaim_summary(_r418_B("30"), "2026-08-30")
+    s31 = pt.reclaim_summary(_r418_B("31"), "2026-08-31")
+    assert (s30["n_buckets"], s30["n_reclaim_buckets"]) == (139, 4)
+    assert (s31["n_buckets"], s31["n_reclaim_buckets"]) == (79, 3)
+    assert round(s30["reclaim_bucket_fraction"], 5) == 0.02878
+    assert round(s31["reclaim_bucket_fraction"], 5) == 0.03797
+
+
+def test_the_04_00_03_bucket_is_the_largest_reclaim_of_sa31():
+    """Round 412's unexplained bucket, read on the channel that can see it."""
+    big = pt.reclaim_summary(_r418_B("31"), "2026-08-31")["largest_bucket"]
+    assert big["time"] == "04:00:03" and big["kind"] == "kswapd"
+    assert (big["scan_kswapd_s"], big["scan_direct_s"], big["steal_s"]) == (
+        1207.0, 0.0, 401.7)
+    assert big["stolen_pages"] == 241_020
+    assert big["stolen_bytes"] == 987_217_920
+    assert big["paged_in_kb"] == 332_856
+    assert round(big["vmeff_pct"], 2) == big["vmeff_reported"] == 33.28
+
+
+def test_the_commit_channel_is_not_coarse_at_04_00_03_it_is_zero():
+    """The finding. If the commit channel were merely a blunter instrument,
+    its cost at a bucket that reclaimed a gigabyte would be the same order of
+    magnitude. It is exactly 0 bytes: eviction moves residency, and
+    `Committed_AS` counts promises, which an eviction does not revoke."""
+    gap = pt.eviction_gap(_r418_B("31"),
+                          parse_sar(_r418_sections()["SAR_R_SA31"]),
+                          pt.COMMIT_CHANNEL, stitch=_r418_stitch())
+    at = {g["time"]: g for g in gap}
+    assert at["04:00:03"]["stolen_bytes"] == 987_217_920
+    assert at["04:00:03"]["level_bytes"] == 0
+    assert at["04:00:03"]["ratio"] == 0.0
+    assert at["00:40:05"]["level_bytes"] == 0
+
+
+def test_vmeff_over_100_is_reported_not_averaged_away():
+    """Six of the seven reclaim buckets in this capture report `%vmeff > 100`,
+    which is impossible if pgsteal and pgscan count the same pages."""
+    loud = (pt.reclaim_events(_r418_B("30"))
+            + pt.reclaim_events(_r418_B("31")))
+    assert len(loud) == 7
+    assert sum(1 for e in loud if e.steal_exceeds_scan) == 6
+    assert max(e.vmeff_reported for e in loud) == 200.0
+
+
+def test_halving_pgsteal_restores_the_reclaim_efficiency_ceiling():
+    """`%vmeff <= 100` is a theorem, not a convention: you cannot steal a page
+    you did not scan. Dividing pgsteal by 2 puts all seven observations at or
+    under the ceiling, with the maximum landing on exactly 100.000 and five of
+    seven within 1 % of it -- a sharp ceiling, not a scatter."""
+    loud = (pt.reclaim_events(_r418_B("30"))
+            + pt.reclaim_events(_r418_B("31")))
+    chk = pt.reclaim_double_count_check(loud)
+    assert chk["n_events"] == 7
+    assert chk["n_over_ceiling_reported"] == 6
+    assert chk["n_over_ceiling_corrected"] == 0
+    assert chk["ceiling_restored"] is True
+    assert round(chk["max_corrected_pct"], 3) == 100.0
+    assert chk["n_near_ceiling"] == 5
+
+
+def test_a_divisor_that_does_not_restore_the_ceiling_says_so():
+    loud = pt.reclaim_events(_r418_B("30"))
+    chk = pt.reclaim_double_count_check(loud, divisor=1.5)
+    assert chk["ceiling_restored"] is False
+    assert "does NOT restore the ceiling" in chk["why"]
+    with pytest.raises(pt.PerturbationError, match="divisor must be > 0"):
+        pt.reclaim_double_count_check(loud, divisor=0)
+
+
+# ---------------------------------------------- the steal channel, graded
+
+
+def test_steal_channel_has_no_derivable_threshold_either():
+    """Round 412's rule, applied to a third channel: there is no bucket on
+    this record independently labelled reclaim-noise, so a default would BE
+    the result."""
+    assert pt.CHANNEL_MIN_BYTES["steal"] is None
+    with pytest.raises(pt.PerturbationError, match="no derived costly-thresh"):
+        pt.cost_ledger(_r418_fires(), _r418_B("31"), "2026-08-31",
+                       channel=pt.STEAL_CHANNEL)
+
+
+def test_every_swapout_bucket_also_reclaimed_and_three_reclaimed_without():
+    """`pgsteal > 0` is a strict superset of `pswpout > 0` pooled over the
+    boot -- reclaim precedes swap-out. On sa31 alone the two sets are EQUAL;
+    the three steal-only buckets are all on sa30."""
+    secs = _r418_sections()
+    def nz(t, col):
+        return {r.time for r in t.rows if r.get(col) > 0}
+    s30 = nz(_r418_B("30"), "pgsteal/s")
+    w30 = nz(parse_sar(secs["SAR_W_SA30"]), "pswpout/s")
+    s31 = nz(_r418_B("31"), "pgsteal/s")
+    w31 = nz(parse_sar(secs["SAR_W_SA31"]), "pswpout/s")
+    assert w30 < s30 and len(s30 - w30) == 3
+    assert w31 == s31
+    assert (w30 | w31) < (s30 | s31)
+
+
+def test_the_steal_channel_verdict_does_not_turn_on_its_threshold():
+    """The commit channel's verdict moves with an unpinned threshold, so it is
+    a setting (round 412). The steal channel's does not: reclaim on this box
+    is bimodal -- a bucket steals 0 or >= 260 MiB -- so K = 7 is stable over
+    five orders of magnitude and only collapses past 1 GiB."""
+    secs = _r418_sections()
+    tables = [(_r418_B("30"), "2026-08-30"), (_r418_B("31"), "2026-08-31")]
+    sw = pt.channel_sweep(_r418_fires(), tables, pt.STEAL_CHANNEL,
+                          [4096, 1 << 20, pt.LEDGER_MIN_BYTES,
+                           1 << 25, 1 << 27, 1 << 30])
+    assert [r["n_costly_buckets"] for r in sw] == [7, 7, 7, 7, 7, 3]
+    assert all(r["supported"] == [] for r in sw)
+    assert all(r["n_units_tested"] == 16 for r in sw)
+
+
+def test_the_steal_null_has_power_where_the_swap_null_did_not():
+    """Round 412's whole point. `supported: []` on the steal channel is a
+    statement about the box, because 9 of 16 units WERE testable and 44 % of
+    occupancies could have cleared the bar."""
+    fires = _r418_fires()
+    ev = pt.attribution_evidence([
+        pt.cost_ledger(fires, _r418_B("30"), "2026-08-30",
+                       channel=pt.STEAL_CHANNEL, min_bytes=pt.LEDGER_MIN_BYTES),
+        pt.cost_ledger(fires, _r418_B("31"), "2026-08-31",
+                       channel=pt.STEAL_CHANNEL, min_bytes=pt.LEDGER_MIN_BYTES)])
+    assert (ev["n_buckets"], ev["n_costly_buckets"]) == (218, 7)
+    assert (ev["n_units_tested"], ev["n_testable_units"]) == (16, 9)
+    assert ev["supported"] == [] and ev["supported_was_reachable"] is True
+    assert round(ev["power"]["testable_fraction_of_N"], 4) == 0.4404
+
+
+def test_fwupd_refresh_is_the_first_unit_this_record_can_nearly_support():
+    """4 of 7 costly buckets, 2 of them held alone, p_chance 0.0154 -- the
+    smallest p any unit has reached on any channel here -- and still
+    `coincidence`, because 16-way Bonferroni puts it at 0.246. Its
+    `consistency` of 0.111 is the reason it cannot be rescued: it fires 36
+    times and moves the reclaim channel 4 times."""
+    fires = _r418_fires()
+    ev = pt.attribution_evidence([
+        pt.cost_ledger(fires, _r418_B("30"), "2026-08-30",
+                       channel=pt.STEAL_CHANNEL, min_bytes=pt.LEDGER_MIN_BYTES),
+        pt.cost_ledger(fires, _r418_B("31"), "2026-08-31",
+                       channel=pt.STEAL_CHANNEL, min_bytes=pt.LEDGER_MIN_BYTES)])
+    u = next(x for x in ev["units"] if x["unit"] == "fwupd-refresh")
+    assert (u["n_fires"], u["n_costly"], u["n_clean"]) == (36, 4, 2)
+    assert round(u["p_chance"], 4) == 0.0154
+    assert round(u["p_family"], 4) == 0.2461
+    assert u["testable"] is True and u["verdict"] == "coincidence"
+
+
+def test_the_biggest_reclaim_on_the_record_has_no_named_fire():
+    """22 GB of sa30's reclaim falls in three buckets between 13:30 and 15:10
+    that no systemd unit start covers -- the engine load, which runs as a user
+    process (round 400's deployment drift), not as a system unit."""
+    led = pt.cost_ledger(_r418_fires(), _r418_B("30"), "2026-08-30",
+                         channel=pt.STEAL_CHANNEL,
+                         min_bytes=pt.LEDGER_MIN_BYTES)
+    assert led["costly_buckets_without_a_named_fire"] == [
+        "13:30:05", "15:00:05", "15:10:03"]
+    assert led["n_costly_buckets"] == 4
+
+
+# ------------------------------------------------------------------- CLI
+
+
+def test_cli_reclaim(tmp_path):
+    f = tmp_path / "b31.txt"
+    f.write_text(_r418_sections()["SAR_B_SA31"])
+    out = _run("reclaim", "--sar-b", str(f), "--date", "2026-08-31")
+    assert out.returncode == 0, out.stderr
+    d = json.loads(out.stdout)
+    assert d["largest_bucket"]["time"] == "04:00:03"
+    assert d["double_count"]["ceiling_restored"] is True
+
+
+def test_cli_gap(tmp_path):
+    secs = _r418_sections()
+    b = tmp_path / "b31.txt"; b.write_text(secs["SAR_B_SA31"])
+    r = tmp_path / "r31.txt"; r.write_text(secs["SAR_R_SA31"])
+    out = _run("gap", "--sar-b", str(b), "--sar-r", str(r))
+    assert out.returncode == 0, out.stderr
+    at = {g["time"]: g for g in json.loads(out.stdout)}
+    assert at["04:00:03"]["level_bytes"] == 0
+
+
+def test_cli_ledger_stitch_prev(tmp_path):
+    secs = _r418_sections()
+    p30 = tmp_path / "r30.txt"; p30.write_text(secs["SAR_R_SA30"])
+    p31 = tmp_path / "r31.txt"; p31.write_text(secs["SAR_R_SA31"])
+    base = ["ledger", "--sar-w", str(p31),
+            "--journal", str(_CAP / "unit-starts.txt"),
+            "--date", "2026-08-31", "--channel", "commit",
+            "--min-bytes", str(50_000 * 1024)]
+    no = json.loads(_run(*base).stdout)
+    yes_run = _run(*base, "--stitch-prev", f"{p30}:2026-08-30")
+    assert yes_run.returncode == 0, yes_run.stderr
+    yes = json.loads(yes_run.stdout)
+    assert (no["n_unclassified"], yes["n_unclassified"]) == (3, 0)
+    assert yes["stitch"]["span_s"] == 1200
+
+
+def test_cli_sweep_stitch_flag(tmp_path):
+    secs = _r418_sections()
+    days = []
+    for d in ("30", "31"):
+        p = tmp_path / f"r{d}.txt"; p.write_text(secs[f"SAR_R_SA{d}"])
+        days += ["--day", f"{p}:2026-08-{d}"]
+    out = _run("sweep", *days, "--journal", str(_CAP / "unit-starts.txt"),
+               "--channel", "commit", "--thresholds", "51200000", "--stitch")
+    assert out.returncode == 0, out.stderr
+    row = json.loads(out.stdout)[0]
+    # sa30 has no predecessor among the --day files, so it gets no entry at
+    # all -- "not stitched because its previous day was not supplied" is not
+    # the same fact as "not stitchable", and auto_stitches keeps them apart.
+    assert row["stitched_days"] == ["2026-08-31"]
+    assert row["unstitchable_days"] == {}
+    assert row["n_units_tested"] == 16

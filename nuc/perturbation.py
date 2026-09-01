@@ -51,6 +51,7 @@ import json
 import math
 import re
 import sys
+from datetime import date as _date
 from dataclasses import asdict, dataclass, field
 from typing import Iterable, Sequence
 
@@ -265,17 +266,141 @@ SWAP_CHANNEL = Channel("swap", "pswpout/s", "rate", PAGE_BYTES)
 # would make the ledger's sign depend on who happened to die nearby.
 COMMIT_CHANNEL = Channel("commit", "kbcommit", "level", KB, "rise")
 
-CHANNELS = {c.name: c for c in (SWAP_CHANNEL, COMMIT_CHANNEL)}
+# Round 418, from `sar -B`. Round 412 left the 04:00:03 perturbation
+# "unexplained in a SPECIFIC way": the commit channel says nothing was
+# ALLOCATED there, so whatever happened touched pages that were already
+# committed. `pgsteal/s` is that event. It counts pages the reclaim path took
+# BACK -- a page that is stolen was already promised and already resident, so
+# stealing it moves neither `kbcommit` (the promise stands; the mapping is
+# still there) nor necessarily `pswpout/s` (a clean file page is dropped, not
+# written). The commit and swap channels are not "one coarser than the other";
+# they are blind to eviction in two different ways, and this is the column
+# that is not.
+#
+# A RATE channel, like swap: `pgsteal/s` is pages per second over the bucket,
+# self-contained, so it needs no stitch and no predecessor.
+STEAL_CHANNEL = Channel("steal", "pgsteal/s", "rate", PAGE_BYTES)
+
+CHANNELS = {c.name: c for c in (SWAP_CHANNEL, COMMIT_CHANNEL, STEAL_CHANNEL)}
+
+
+# ------------------------------------------------------------ stitching days
+
+# `sar` reads ONE day-file. Round 412 found the consequence: a level channel
+# has no cost for a day-file's first row, because the row it must difference
+# against is in the PREVIOUS file. On `sa31` that swallows three real fires
+# (`dpkg-db-backup`, `logrotate`, `sysstat-summary`, all at 00:00:05/00:07:05),
+# which land in the 00:10:05 bucket and are reported `unclassified`.
+#
+# The fix is to carry the previous day's LAST row in as the predecessor. It is
+# only legitimate when the two rows are genuinely adjacent samples of the same
+# boot, so `stitch_from` refuses in four ways rather than one, and each refusal
+# is a distinct way the naive version would have been wrong:
+#
+#   * the dates are not consecutive        -> a 24 h hole differenced as 10 min
+#   * the later row follows a LINUX RESTART -> a 30 GB reboot booked as a cost
+#   * the two rows are further apart than a sample gap can explain
+#   * the two tables do not have the same columns -> `sar -r` into `sar -W`
+#
+# And it carries a SPAN, because the stitched bucket is not 10 minutes wide.
+# `sar` consumes the first record of each file as its reference point and never
+# prints it, so `sa30` ends at 23:50:05 and `sa31` begins at 00:10:05: the
+# recovered bucket covers 1200 s, and a fire inside it shares that bucket with
+# ten minutes of the previous day.
+STITCH_MAX_SPAN_S = 2 * SAR_INTERVAL_S + 180
+
+
+@dataclass(frozen=True)
+class Stitch:
+    """The previous day-file's last row, carried in as a predecessor."""
+    prev_date: str
+    prev_time: str
+    next_date: str
+    next_time: str
+    span_s: int
+    values: dict
+
+    def as_dict(self) -> dict:
+        return {"prev_date": self.prev_date, "prev_time": self.prev_time,
+                "next_date": self.next_date, "next_time": self.next_time,
+                "span_s": self.span_s,
+                "spans_more_than_one_interval": self.span_s > SAR_INTERVAL_S}
+
+
+def _date_ordinal(date: str) -> int:
+    try:
+        y, m, d = (int(x) for x in date.split("-"))
+    except ValueError as exc:
+        raise PerturbationError(
+            f"date {date!r} is not YYYY-MM-DD; a stitch that guesses the date "
+            "is how a 24-hour hole gets differenced as ten minutes") from exc
+    return _date(y, m, d).toordinal()
+
+
+def stitch_from(prev_table: SarTable, prev_date: str,
+                next_table: SarTable, next_date: str,
+                interval_s: int = SAR_INTERVAL_S,
+                max_span_s: int = STITCH_MAX_SPAN_S) -> Stitch:
+    """Carry `prev_table`'s last row in as `next_table`'s first predecessor.
+
+    Raises `PerturbationError` -- never returns a degraded object -- when the
+    join cannot be justified. See the block comment above for the four
+    refusals and why each exists.
+    """
+    if not prev_table.rows:
+        raise PerturbationError(f"{prev_date}: no rows to stitch FROM")
+    if not next_table.rows:
+        raise PerturbationError(f"{next_date}: no rows to stitch INTO")
+    if tuple(prev_table.columns) != tuple(next_table.columns):
+        raise PerturbationError(
+            f"cannot stitch {prev_date} into {next_date}: different columns "
+            f"({sorted(prev_table.columns)} vs {sorted(next_table.columns)}) "
+            "-- these are two different sar activity types")
+    gap_days = _date_ordinal(next_date) - _date_ordinal(prev_date)
+    if gap_days != 1:
+        raise PerturbationError(
+            f"cannot stitch {prev_date} into {next_date}: they are "
+            f"{gap_days} day(s) apart, not 1; only consecutive day-files "
+            "have adjacent samples")
+    last, first = prev_table.rows[-1], next_table.rows[0]
+    if first.restart_before:
+        raise PerturbationError(
+            f"cannot stitch into {next_date} {first.time}: it follows a LINUX "
+            "RESTART, so its predecessor describes a different boot's address "
+            "space")
+    span_s = _hms_to_s(first.time) + 86_400 - _hms_to_s(last.time)
+    if span_s <= 0:
+        raise PerturbationError(
+            f"cannot stitch {prev_date} {last.time} -> {next_date} "
+            f"{first.time}: non-positive span {span_s}s")
+    if span_s > max_span_s:
+        raise PerturbationError(
+            f"cannot stitch {prev_date} {last.time} -> {next_date} "
+            f"{first.time}: {span_s}s apart, more than max_span_s "
+            f"({max_span_s}s). Samples that far apart are a gap in the "
+            "record, not a bucket boundary")
+    return Stitch(prev_date=prev_date, prev_time=last.time,
+                  next_date=next_date, next_time=first.time,
+                  span_s=span_s, values=dict(last.values))
 
 
 def bucket_costs(table: SarTable, channel: Channel = SWAP_CHANNEL,
-                 interval_s: int = SAR_INTERVAL_S) -> list:
+                 interval_s: int = SAR_INTERVAL_S,
+                 stitch: "Stitch | None" = None) -> list:
     """[(bucket_end, raw_value, cost_bytes_or_None)], one per row, in order.
 
     `cost_bytes is None` means UNDEFINED, and only a level channel produces
     it: the table's first row, and any row sysstat marked `restart_before`.
     Callers must not treat `None` as `0` -- that is the whole reason it is not
     `0`.
+
+    Round 418: `stitch` supplies the missing predecessor for the FIRST row, so
+    a level channel can cost a day-file's opening bucket (see `stitch_from`).
+    It is deliberately a NO-OP for a rate channel -- a `pswpout/s` bucket is
+    self-contained and has no predecessor to be joined to -- and passing one
+    there is not an error, because `channel_sweep` hands the same stitch to
+    every channel it sweeps. Ask `stitch_applies(channel, stitch)` if you need
+    to report whether it did anything.
     """
     if interval_s <= 0:
         raise PerturbationError("interval_s must be > 0")
@@ -285,6 +410,13 @@ def bucket_costs(table: SarTable, channel: Channel = SWAP_CHANNEL,
             f"table has {sorted(table.columns)}")
     out = []
     prev = None
+    if stitch_applies(channel, stitch):
+        if channel.column not in stitch.values:
+            raise PerturbationError(
+                f"stitch from {stitch.prev_date} {stitch.prev_time} has no "
+                f"column {channel.column!r}; it carries "
+                f"{sorted(stitch.values)}")
+        prev = stitch.values[channel.column]
     for r in table.rows:
         v = r.get(channel.column)
         if channel.kind == "rate":
@@ -303,6 +435,30 @@ def bucket_costs(table: SarTable, channel: Channel = SWAP_CHANNEL,
         out.append((r.time, v, None if cost is None else int(cost)))
         prev = v
     return out
+
+
+def stitch_applies(channel: Channel, stitch) -> bool:
+    """Would this stitch change this channel's costs? Level only.
+
+    Exists so that "a stitch was supplied" and "a stitch did something" are
+    two different questions with two different answers, and a ledger can
+    report the second rather than the first."""
+    return stitch is not None and channel.kind == "level"
+
+
+def bucket_spans(table: SarTable, interval_s: int = SAR_INTERVAL_S,
+                 stitch=None, channel: Channel = SWAP_CHANNEL) -> dict:
+    """{bucket_end: seconds the bucket actually covers}.
+
+    Every bucket is `interval_s` wide EXCEPT a stitched first bucket, which is
+    as wide as the gap the stitch crossed -- 1200 s on this record, because
+    `sar` never prints a day-file's first sample. A caller that assumes 600 s
+    there is dividing by the wrong number and, worse, is unaware that ten
+    minutes of the PREVIOUS day fall inside the bucket it is attributing."""
+    spans = {r.time: interval_s for r in table.rows}
+    if stitch_applies(channel, stitch) and table.rows:
+        spans[table.rows[0].time] = stitch.span_s
+    return spans
 
 
 @dataclass(frozen=True)
@@ -435,6 +591,267 @@ def classify_bucket(pgpgin_s: float, pgpgin_baseline_s: float,
     if swapped_bytes > 0:
         return "unattributed"
     return "quiet"
+
+
+# --------------------------------------------------------------- reclaim
+
+# Round 418, answering round 412's handoff item 2. Round 412 established that
+# `Committed_AS` does not move at 04:00:03 on sa31 and concluded: "the question
+# is no longer 'which unit allocated' but 'what touched already-committed
+# pages'". `sar -B` is the column family that can answer it, and it was banked
+# in `state/nuc-capture-r400/sar-all.txt` nine rounds before anyone read it.
+#
+# The three columns that matter, and what each does NOT mean:
+#
+#   `pgscank/s` -- pages/s scanned by kswapd. Non-zero means the kernel crossed
+#       a watermark and woke the background reclaimer. It does NOT mean any
+#       allocation stalled.
+#   `pgscand/s` -- pages/s scanned in DIRECT reclaim, i.e. inside an
+#       allocation that could not be satisfied. This is the column that means
+#       something waited. On this box's whole banked boot it is zero.
+#   `pgsteal/s` -- pages/s actually reclaimed. A stolen page was already
+#       committed and already resident, which is exactly why neither the commit
+#       channel nor the swap channel sees a clean-page eviction.
+#
+# `%vmeff` is sysstat's `pgsteal / (pgscank + pgscand) * 100`. This record
+# contains buckets where it EXCEEDS 100 -- 199.23 and 137.56 on sa31 -- which
+# is impossible if the two columns counted the same pages. They do not: the
+# steal and scan counters in `/proc/vmstat` have different member families, so
+# pages can be reclaimed on paths that were never charged as scanned. This
+# module reports the excess as `steal_exceeds_scan` instead of averaging it
+# away, because a "reclaim efficiency" quoted from such a bucket is not one.
+
+RECLAIM_SCAN_KSWAPD = "pgscank/s"
+RECLAIM_SCAN_DIRECT = "pgscand/s"
+RECLAIM_STEAL = "pgsteal/s"
+RECLAIM_REQUIRED = (RECLAIM_SCAN_KSWAPD, RECLAIM_SCAN_DIRECT, RECLAIM_STEAL)
+
+
+@dataclass(frozen=True)
+class ReclaimEvent:
+    """One `sar -B` bucket, read as a page-reclaim event."""
+    time: str
+    kind: str                  # "direct" | "mixed" | "kswapd" | "quiet"
+    scan_kswapd_s: float
+    scan_direct_s: float
+    steal_s: float
+    scanned_pages: int
+    stolen_pages: int
+    stolen_bytes: int
+    paged_in_kb: int
+    paged_out_kb: int
+    major_faults: float
+    vmeff_pct: float           # derived: steal/(scank+scand)*100, 0 if no scan
+    vmeff_reported: float      # sysstat's own %vmeff column, for comparison
+    steal_exceeds_scan: bool
+
+    def as_dict(self) -> dict:
+        return asdict(self)
+
+
+def _opt(row: SarRow, column: str, default: float = 0.0) -> float:
+    return row.values.get(column, default)
+
+
+def reclaim_events(table: SarTable, interval_s: int = SAR_INTERVAL_S,
+                   page_bytes: int = PAGE_BYTES,
+                   include_quiet: bool = False) -> list:
+    """Every bucket of a `sar -B` table, classified by which reclaim path ran.
+
+    `include_quiet=False` (the default) returns only buckets that scanned or
+    stole something. The quiet ones are not dropped from the analysis -- they
+    are the denominator, and `reclaim_summary` counts them -- but a list of 138
+    all-zero rows is not what a caller wants back.
+
+    Raises rather than guessing if the table is not `sar -B`: the columns of
+    `sar -W` parse perfectly well and would silently produce a table of zeros,
+    i.e. "this box never reclaimed", which is the exact false negative this
+    function exists to prevent."""
+    if interval_s <= 0:
+        raise PerturbationError("interval_s must be > 0")
+    missing = [c for c in RECLAIM_REQUIRED if c not in table.columns]
+    if missing:
+        raise PerturbationError(
+            f"not a `sar -B` table: missing {missing}; this table has "
+            f"{sorted(table.columns)}. Reading a non -B table here would "
+            "report zero reclaim everywhere, which is a false negative, not "
+            "an empty result")
+    out = []
+    for r in table.rows:
+        sk = r.get(RECLAIM_SCAN_KSWAPD)
+        sd = r.get(RECLAIM_SCAN_DIRECT)
+        st = r.get(RECLAIM_STEAL)
+        scanned = round((sk + sd) * interval_s)
+        stolen = round(st * interval_s)
+        if sd > 0 and sk > 0:
+            kind = "mixed"
+        elif sd > 0:
+            kind = "direct"
+        elif sk > 0 or st > 0:
+            kind = "kswapd"
+        else:
+            kind = "quiet"
+        if kind == "quiet" and not include_quiet:
+            continue
+        out.append(ReclaimEvent(
+            time=r.time, kind=kind,
+            scan_kswapd_s=sk, scan_direct_s=sd, steal_s=st,
+            scanned_pages=scanned, stolen_pages=stolen,
+            stolen_bytes=stolen * page_bytes,
+            paged_in_kb=round(_opt(r, "pgpgin/s") * interval_s),
+            paged_out_kb=round(_opt(r, "pgpgout/s") * interval_s),
+            major_faults=_opt(r, "majflt/s"),
+            vmeff_pct=(st / (sk + sd) * 100.0) if (sk + sd) > 0 else 0.0,
+            vmeff_reported=_opt(r, "%vmeff"),
+            steal_exceeds_scan=st > (sk + sd)))
+    return out
+
+
+# Round 418. Six of the seven reclaim buckets in the r400 capture report
+# `%vmeff > 100` -- pgsteal exceeding pgscank+pgscand, which is impossible if
+# the two columns count the same pages. Halving `pgsteal` puts ALL SEVEN at or
+# below 100 %, with the maximum landing on exactly 100.000 and five of seven
+# within 1 % of that ceiling. A ceiling that sharp is not what a noisy
+# undercount of `pgscan` would produce; it is what a factor-of-two DOUBLE
+# COUNT of `pgsteal` produces.
+#
+# The mechanism this predicts, stated so it can be refuted rather than
+# believed: modern kernels export `pgsteal_*` under two independent
+# breakdowns in `/proc/vmstat` -- by actor (`pgsteal_kswapd`,
+# `pgsteal_direct`, `pgsteal_khugepaged`) and by page type (`pgsteal_anon`,
+# `pgsteal_file`) -- which sum to the same pages twice, while `pgscan_kswapd`
+# and `pgscan_direct` are read as named singles. If sysstat totals the
+# `pgsteal_*` family it charges every reclaimed page twice.
+#
+# THIS MODULE DOES NOT APPLY THE CORRECTION. `ReclaimEvent` reports what the
+# file says, because a silently halved byte count is exactly the kind of
+# number that ends up quoted without its caveat. `reclaim_double_count_check`
+# reports the evidence and the corrected view side by side, and the round file
+# quotes both.
+#
+# Falsified or confirmed on the next UP round by one read-only command:
+#     grep -E '^pg(scan|steal)' /proc/vmstat
+# Confirmed if `pgsteal_anon + pgsteal_file` equals
+# `pgsteal_kswapd + pgsteal_direct + pgsteal_khugepaged` and sar's total is
+# their sum; refuted if sar's `pgsteal` matches a single family.
+RECLAIM_STEAL_DIVISOR_HYPOTHESIS = 2
+
+
+def reclaim_double_count_check(events: Iterable,
+                               divisor: float = RECLAIM_STEAL_DIVISOR_HYPOTHESIS,
+                               ceiling_pct: float = 100.0,
+                               near_pct: float = 1.0) -> dict:
+    """Does dividing `pgsteal` by `divisor` restore the %vmeff ceiling?
+
+    The test has real content only because `%vmeff <= 100` is a THEOREM about
+    reclaim, not a convention: you cannot steal a page you did not scan. Any
+    divisor that leaves observations above the ceiling is refuted; a divisor
+    that pushes every observation far BELOW it explains nothing, which is why
+    `n_near_ceiling` is reported too -- a correct divisor should leave the
+    efficient buckets pinned AT the ceiling, not scattered under it."""
+    if divisor <= 0:
+        raise PerturbationError("divisor must be > 0")
+    evs = [e for e in events if (e.scan_kswapd_s + e.scan_direct_s) > 0]
+    if not evs:
+        return {"n_events": 0, "verdict": "no scanned buckets to test",
+                "divisor": divisor}
+    rep = [e.vmeff_pct for e in evs]
+    cor = [v / divisor for v in rep]
+    return {
+        "n_events": len(evs),
+        "divisor": divisor,
+        "ceiling_pct": ceiling_pct,
+        "max_reported_pct": max(rep),
+        "max_corrected_pct": max(cor),
+        "n_over_ceiling_reported": sum(1 for v in rep if v > ceiling_pct),
+        "n_over_ceiling_corrected": sum(1 for v in cor if v > ceiling_pct),
+        "n_near_ceiling": sum(1 for v in cor
+                              if ceiling_pct - near_pct <= v <= ceiling_pct),
+        "ceiling_restored": all(v <= ceiling_pct + 1e-9 for v in cor),
+        "corrected_pct": cor,
+        "why": ("dividing pgsteal by %g puts every bucket at or under the "
+                "%g%% reclaim-efficiency ceiling (max %.3f%%), which %d of %d "
+                "buckets violate as reported"
+                % (divisor, ceiling_pct, max(cor),
+                   sum(1 for v in rep if v > ceiling_pct), len(rep))
+                if all(v <= ceiling_pct + 1e-9 for v in cor) else
+                "divisor %g does NOT restore the ceiling: %d bucket(s) still "
+                "exceed %g%%" % (divisor,
+                                 sum(1 for v in cor if v > ceiling_pct),
+                                 ceiling_pct)),
+    }
+
+
+def reclaim_summary(table: SarTable, date: str = "",
+                    interval_s: int = SAR_INTERVAL_S,
+                    page_bytes: int = PAGE_BYTES) -> dict:
+    """Totals over a `sar -B` day, with the denominator kept.
+
+    `n_buckets` is every bucket in the file, not just the noisy ones: a
+    reclaim rate with no denominator is round 417's finding in a new column."""
+    events = reclaim_events(table, interval_s, page_bytes, include_quiet=True)
+    loud = [e for e in events if e.kind != "quiet"]
+    by_kind: dict = {}
+    for e in events:
+        by_kind[e.kind] = by_kind.get(e.kind, 0) + 1
+    biggest = max(loud, key=lambda e: e.stolen_bytes, default=None)
+    return {
+        "date": date,
+        "n_buckets": len(events),
+        "n_reclaim_buckets": len(loud),
+        "reclaim_bucket_fraction": (len(loud) / len(events)) if events else None,
+        "by_kind": by_kind,
+        "n_direct_reclaim_buckets": by_kind.get("direct", 0) + by_kind.get("mixed", 0),
+        "total_scanned_pages": sum(e.scanned_pages for e in loud),
+        "total_stolen_pages": sum(e.stolen_pages for e in loud),
+        "total_stolen_bytes": sum(e.stolen_bytes for e in loud),
+        "total_paged_in_kb": sum(e.paged_in_kb for e in events),
+        "total_paged_out_kb": sum(e.paged_out_kb for e in events),
+        "n_steal_exceeds_scan": sum(1 for e in loud if e.steal_exceeds_scan),
+        "steal_exceeds_scan_buckets": [e.time for e in loud if e.steal_exceeds_scan],
+        "largest_bucket": biggest.as_dict() if biggest else None,
+        "double_count": reclaim_double_count_check(loud),
+        "events": [e.as_dict() for e in loud],
+    }
+
+
+def eviction_gap(reclaim_table: SarTable, level_table: SarTable,
+                 channel: Channel = COMMIT_CHANNEL,
+                 interval_s: int = SAR_INTERVAL_S,
+                 page_bytes: int = PAGE_BYTES,
+                 stitch=None) -> list:
+    """For every reclaim bucket, what the LEVEL channel said about it.
+
+    This is round 412's item 2 as one number per event. If the commit channel
+    is merely coarse, its cost at a reclaim bucket should be the same order of
+    magnitude as the pages stolen there. If the two instruments are blind in
+    different directions -- eviction moves residency, not commitment -- the
+    ratio collapses, and the size of the collapse is the evidence.
+
+    `ratio` is `commit_cost_bytes / stolen_bytes`, or `None` where the level
+    channel has no defined cost for that bucket (first row, post-restart)."""
+    costs = {name: b for name, _v, b in
+             bucket_costs(level_table, channel, interval_s, stitch=stitch)}
+    out = []
+    for e in reclaim_events(reclaim_table, interval_s, page_bytes):
+        if e.time not in costs:
+            out.append({"time": e.time, "stolen_bytes": e.stolen_bytes,
+                        "level_bytes": None, "ratio": None,
+                        "why": f"no {channel.name} bucket at {e.time}"})
+            continue
+        b = costs[e.time]
+        out.append({
+            "time": e.time, "kind": e.kind,
+            "stolen_bytes": e.stolen_bytes,
+            "paged_in_kb": e.paged_in_kb,
+            "level_channel": channel.name,
+            "level_bytes": b,
+            "ratio": (None if b is None or e.stolen_bytes == 0
+                      else b / e.stolen_bytes),
+            "why": (f"{channel.name} cost undefined for this bucket"
+                    if b is None else ""),
+        })
+    return out
 
 
 # ------------------------------------------------------------- timer windows
@@ -593,6 +1010,7 @@ class LedgerEntry:
     bucket_bytes: int
     bucket_shared_by: int        # DISTINCT UNITS in this bucket, not fires
     bucket_fires: int            # fires in it, which may exceed shared_by
+    bucket_span_s: int           # 418: a stitched boundary bucket is WIDER
     costly: bool
     sole_attributable: bool
 
@@ -628,7 +1046,11 @@ LEDGER_MIN_BYTES = int((LEDGER_NOISE_BUCKET_BYTES
 # record carries the number it was produced with. Use `channel_sweep` to see
 # how much the verdict depends on it -- if it moves, the threshold IS the
 # result and no single run should be quoted.
-CHANNEL_MIN_BYTES = {"swap": LEDGER_MIN_BYTES, "commit": None}
+# Round 418 adds `steal` with the same `None`, and for the same reason: this
+# record has no bucket independently labelled "reclaim noise" to pair against a
+# smallest real reclaim. Every one of its three non-zero scan buckets is large.
+# A threshold invented here would be the result.
+CHANNEL_MIN_BYTES = {"swap": LEDGER_MIN_BYTES, "commit": None, "steal": None}
 
 # `sysstat-collect` is what WRITES the bucket. It is present in every costly
 # bucket by construction, so including it makes the base rate a statement
@@ -655,7 +1077,8 @@ def cost_ledger(fires: Iterable, swap_table: SarTable, date: str,
                 min_bytes=_UNSET,
                 exclude_units: Iterable = LEDGER_EXCLUDE_UNITS,
                 boundary_slack_s: int = LEDGER_BOUNDARY_SLACK_S,
-                channel: Channel = SWAP_CHANNEL) -> dict:
+                channel: Channel = SWAP_CHANNEL,
+                stitch=None) -> dict:
     """Join every named unit start to the sar bucket it fell in.
 
     Round 394 asked whether the identity of a housekeeping timer predicts what
@@ -699,8 +1122,13 @@ def cost_ledger(fires: Iterable, swap_table: SarTable, date: str,
     if min_bytes < 0:
         raise PerturbationError("min_bytes must be >= 0")
     excluded = set(exclude_units or ())
-    costs = bucket_costs(swap_table, channel, interval_s)
-    ends = [(name, _hms_to_s(name), value) for name, value, _b in costs]
+    costs = bucket_costs(swap_table, channel, interval_s, stitch=stitch)
+    spans = bucket_spans(swap_table, interval_s, stitch, channel)
+    # A bucket's window is (end - its OWN span, end]. Only a stitched first
+    # bucket differs from `interval_s`, and using `interval_s` for it would
+    # leave a real 10-minute hole that no bucket claims.
+    ends = [(name, _hms_to_s(name) - spans[name], _hms_to_s(name), value)
+            for name, value, _b in costs]
     bucket_bytes = {name: b for name, _v, b in costs}
     # A level channel's undefined buckets (first row, post-restart row) are
     # not part of the denominator: they are buckets whose cost is UNKNOWN, and
@@ -716,8 +1144,8 @@ def cost_ledger(fires: Iterable, swap_table: SarTable, date: str,
             skipped += 1
             continue
         t = _hms_to_s(at.split("T")[-1][:8]) + boundary_slack_s
-        hit = next(((name, rate) for name, end, rate in ends
-                    if end - interval_s < t <= end), None)
+        hit = next(((name, rate) for name, start, end, rate in ends
+                    if start < t <= end), None)
         if hit is None:
             unclassified.append({"at_utc": at, "unit": unit,
                                  "why": "no sar bucket covers this instant"})
@@ -751,7 +1179,7 @@ def cost_ledger(fires: Iterable, swap_table: SarTable, date: str,
             at_utc=at, unit=unit, bucket_end=name, channel=channel.name,
             channel_value=rate,
             bucket_bytes=b, bucket_shared_by=share[name],
-            bucket_fires=fires_in[name],
+            bucket_fires=fires_in[name], bucket_span_s=spans[name],
             costly=costly, sole_attributable=costly and share[name] == 1))
 
     by_unit = {}
@@ -772,6 +1200,9 @@ def cost_ledger(fires: Iterable, swap_table: SarTable, date: str,
         "channel_column": channel.column,
         "channel_kind": channel.kind,
         "n_undefined_buckets": len(bucket_bytes) - len(defined),
+        "stitch": stitch.as_dict() if stitch is not None else None,
+        "stitch_applied": stitch_applies(channel, stitch),
+        "n_wide_buckets": sum(1 for v in spans.values() if v != interval_s),
         "n_fires": len(entries),
         "n_excluded_fires": skipped,
         "excluded_units": sorted(excluded),
@@ -1079,11 +1510,30 @@ def attribution_evidence(ledgers: Iterable,
     }
 
 
+def auto_stitches(tables: Iterable, interval_s: int = SAR_INTERVAL_S,
+                  max_span_s: int = STITCH_MAX_SPAN_S) -> dict:
+    """{date: Stitch} for every day-file whose PREDECESSOR is also present.
+
+    Refusals are swallowed here and only here, because "these two days cannot
+    be joined" is the normal case for a nine-day capture with holes in it --
+    but the reason is kept, so a caller can print why a day was not stitched
+    rather than wondering whether it tried."""
+    tables = sorted(list(tables), key=lambda td: td[1])
+    out = {}
+    for (pt, pd), (nt, nd) in zip(tables, tables[1:]):
+        try:
+            out[nd] = stitch_from(pt, pd, nt, nd, interval_s, max_span_s)
+        except PerturbationError as exc:
+            out[nd] = str(exc)
+    return out
+
+
 def channel_sweep(fires: Iterable, tables: Iterable, channel: Channel,
                   thresholds: Iterable,
                   interval_s: int = SAR_INTERVAL_S,
                   max_family_p: float = ATTRIBUTION_MAX_FAMILY_P,
-                  exclude_units: Iterable = LEDGER_EXCLUDE_UNITS) -> list:
+                  exclude_units: Iterable = LEDGER_EXCLUDE_UNITS,
+                  stitch: bool = False) -> list:
     """Re-grade the whole record at each costly-threshold, and report the
     verdict AS A FUNCTION of it.
 
@@ -1096,10 +1546,14 @@ def channel_sweep(fires: Iterable, tables: Iterable, channel: Channel,
     `tables` is an iterable of `(SarTable, date)`, one per sar day-file.
     """
     tables = list(tables)
+    stitches = auto_stitches(tables, interval_s) if stitch else {}
     out = []
     for mb in thresholds:
         ledgers = [cost_ledger(fires, t, date, interval_s, min_bytes=int(mb),
-                               exclude_units=exclude_units, channel=channel)
+                               exclude_units=exclude_units, channel=channel,
+                               stitch=(stitches.get(date)
+                                       if isinstance(stitches.get(date), Stitch)
+                                       else None))
                    for t, date in tables]
         try:
             ev = attribution_evidence(ledgers, max_family_p=max_family_p)
@@ -1108,6 +1562,10 @@ def channel_sweep(fires: Iterable, tables: Iterable, channel: Channel,
         out.append({
             "channel": channel.name,
             "min_bytes": int(mb),
+            "stitched_days": sorted(d for d, v in stitches.items()
+                                    if isinstance(v, Stitch)),
+            "unstitchable_days": {d: v for d, v in stitches.items()
+                                  if not isinstance(v, Stitch)},
             "n_buckets": ev["n_buckets"],
             "n_costly_buckets": ev["n_costly_buckets"],
             "n_units_tested": ev["n_units_tested"],
@@ -1154,6 +1612,25 @@ def _load(path: str) -> str:
         return fh.read()
 
 
+def _stitch_arg(spec, next_table: SarTable, next_date: str,
+                interval_s: int):
+    """`--stitch-prev FILE:DATE` -> a `Stitch`, or None when not asked for.
+
+    The date of the file being stitched INTO must be known; when the verb has
+    no `--date` (the `gap` verb does not), it is derived as prev_date + 1 day,
+    which is the only date a legitimate stitch could have."""
+    if not spec:
+        return None
+    path, _, prev_date = spec.rpartition(":")
+    if not path or not prev_date:
+        raise SystemExit(f"--stitch-prev wants FILE:DATE, got {spec!r}")
+    prev = parse_sar(_load(path))
+    if not next_date:
+        nxt = _date.fromordinal(_date_ordinal(prev_date) + 1)
+        next_date = nxt.isoformat()
+    return stitch_from(prev, prev_date, next_table, next_date, interval_s)
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = p.add_subparsers(dest="mode", required=True)
@@ -1187,7 +1664,14 @@ def main(argv=None) -> int:
                     help="do NOT exclude sysstat-collect (see LEDGER_EXCLUDE_UNITS)")
     sl.add_argument("--channel", default="swap", choices=sorted(CHANNELS),
                     help="swap = sar -W pswpout/s (default); commit = sar -r "
-                         "kbcommit. --sar-w takes whichever file matches.")
+                         "kbcommit; steal = sar -B pgsteal/s. --sar-w takes "
+                         "whichever file matches.")
+    sl.add_argument("--stitch-prev", default=None, metavar="FILE:DATE",
+                    help="round 418: the PREVIOUS day-file and its date, so a "
+                         "level channel can cost this file's first bucket. "
+                         "Refused unless the two days are consecutive, the "
+                         "columns match, and no LINUX RESTART sits between "
+                         "them. No-op on a rate channel.")
 
     se = sub.add_parser("evidence",
                         help="round 406: does a ledger actually license "
@@ -1225,6 +1709,29 @@ def main(argv=None) -> int:
                     help="comma-separated byte thresholds (default: a decade "
                          "sweep from one page to 1 GiB)")
     ss.add_argument("--interval-s", type=int, default=SAR_INTERVAL_S)
+    ss.add_argument("--stitch", action="store_true",
+                    help="round 418: join consecutive --day files so a level "
+                         "channel can cost each day's first bucket")
+
+    sr = sub.add_parser(
+        "reclaim",
+        help="round 418: what the page-reclaim path did (sar -B). Answers "
+             "\"what touched already-committed pages\" -- the question left "
+             "when the commit channel says nothing was allocated")
+    sr.add_argument("--sar-b", required=True, help="`sar -B` text")
+    sr.add_argument("--date", default="")
+    sr.add_argument("--interval-s", type=int, default=SAR_INTERVAL_S)
+
+    sy = sub.add_parser(
+        "gap",
+        help="round 418: per reclaim bucket, what the LEVEL channel said "
+             "about it -- the eviction-vs-allocation blindness, as a ratio")
+    sy.add_argument("--sar-b", required=True)
+    sy.add_argument("--sar-r", required=True, help="the same day's `sar -r`")
+    sy.add_argument("--channel", default="commit", choices=sorted(CHANNELS))
+    sy.add_argument("--interval-s", type=int, default=SAR_INTERVAL_S)
+    sy.add_argument("--stitch-prev", default=None, metavar="FILE:DATE",
+                    help="previous day's file for the LEVEL table")
 
     args = p.parse_args(argv)
     if args.mode == "steps":
@@ -1246,7 +1753,20 @@ def main(argv=None) -> int:
             min_bytes=_UNSET if args.min_bytes is None else args.min_bytes,
             exclude_units=() if args.include_instrument
             else LEDGER_EXCLUDE_UNITS,
-            channel=CHANNELS[args.channel]), indent=2))
+            channel=CHANNELS[args.channel],
+            stitch=_stitch_arg(args.stitch_prev, table, args.date,
+                               args.interval_s)), indent=2))
+    elif args.mode == "reclaim":
+        print(json.dumps(reclaim_summary(
+            parse_sar(_load(args.sar_b)), args.date, args.interval_s),
+            indent=2))
+    elif args.mode == "gap":
+        level = parse_sar(_load(args.sar_r))
+        print(json.dumps(eviction_gap(
+            parse_sar(_load(args.sar_b)), level,
+            channel=CHANNELS[args.channel], interval_s=args.interval_s,
+            stitch=_stitch_arg(args.stitch_prev, level, "", args.interval_s)),
+            indent=2))
     elif args.mode == "power":
         print(json.dumps(power_floor(
             args.n_buckets, args.n_costly_buckets, args.n_units_tested,
@@ -1265,7 +1785,7 @@ def main(argv=None) -> int:
                      1 << 23, 1 << 25, 1 << 27, 1 << 30])
         print(json.dumps(channel_sweep(
             fires, tables, CHANNELS[args.channel], ths,
-            interval_s=args.interval_s), indent=2))
+            interval_s=args.interval_s, stitch=args.stitch), indent=2))
     elif args.mode == "evidence":
         result = attribution_evidence(
             [json.loads(_load(f)) for f in args.ledger],
