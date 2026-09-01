@@ -523,14 +523,21 @@ def test_both_counterexamples_are_called_undecidable():
 
 def test_undecidable_is_narrower_than_not_string_shaped():
     """`structural` is not `undecidable`. CP03p's edit adds an `if` branch —
-    also structural, also not string-shaped — and stays `unknown`, because
-    an if-expression's arms ARE observed text and a widening rule could
-    reach them. Over-broadening the new status would swallow that.
+    also structural, also not string-shaped — and round 438 kept it out of
+    `undecidable` because "an if-expression's arms ARE observed text and a
+    widening rule could reach them".
+
+    ROUND 440 wrote that widening rule, so the expected status moves from
+    `unknown` to `broken_on_branch` — and the point of the test does not:
+    `undecidable` must still not swallow this shape, because the shape IS
+    decidable as an edit. The top-level `kinds` stays `structural`; the
+    decision comes from the guarded arm, which the top level cannot see.
     """
     base = 'fn f(c) { c }\ncheck "g": contains(f("x"), "x")\n'
     r = _pre(base, 'fn f(c) { if c == "q" { "Q" } else { c } }', 'fn f(c)')
     assert r["kinds"] == [PO.DELTA_STRUCTURAL]
-    assert r["status"] == PO.PRE_UNKNOWN
+    assert r["status"] == PO.PRE_BROKEN_ON_BRANCH
+    assert r["status"] != PO.PRE_UNDECIDABLE
     # a guest predicate CALL returning a bool is not boolean-shaped either
     base2 = ('fn p(c) { true }\nfn f(c) { c }\n'
              'check "g": contains(f("x"), "x")\n')
@@ -839,11 +846,14 @@ def test_the_precondition_aware_audit_clears_all_five_but_decides_only_one():
     assert cp["pre_status"] == PO.PRE_BROKEN
     # The four split: three rewrite a boolean `or` chain and are
     # `undecidable` (round 438 proved no syntactic rule reaches them);
-    # CP03p's delta is an `if` expression, a shape a widening rule could
-    # still settle, so it stays honestly `unknown`.
+    # CP03p's delta is an `if` expression, and ROUND 440's widening rule
+    # settles it — `broken_on_branch`, the edit rewrites the observed text
+    # in place on the arm its own guard selects. The BUCKET is deliberately
+    # unchanged: four undecided rows before, four after. `broken_on_branch`
+    # is a decision about inputs and this bucket is about observers.
     pre_of = {r["id"]: r["pre_status"] for r in rows
               if r["status"] == "undecided"}
-    assert pre_of == {"CP03p": PO.PRE_UNKNOWN,
+    assert pre_of == {"CP03p": PO.PRE_BROKEN_ON_BRANCH,
                       "CP06p": PO.PRE_UNDECIDABLE,
                       "CP08p": PO.PRE_UNDECIDABLE,
                       "CP10p2": PO.PRE_UNDECIDABLE}
@@ -2105,9 +2115,12 @@ def test_the_host_registry_is_untouched_by_the_third_decider():
     # limit, NOT the `kind_stable` decider reaching pins it does not apply
     # to -- which is what this control exists to catch, and which would show
     # up as a `holds` or `broken` moving. Those two are unchanged.
+    # ROUND 440 moved exactly one more row: CP03p `unknown` ->
+    # `broken_on_branch`. `holds`, `broken` and `inapplicable` are again
+    # unchanged, which is what this control is for.
     assert counts == {PO.PRE_BROKEN: 2, PO.PRE_HOLDS: 9,
-                      PO.PRE_INAPPLICABLE: 5, PO.PRE_UNKNOWN: 4,
-                      PO.PRE_UNDECIDABLE: 3}
+                      PO.PRE_INAPPLICABLE: 5, PO.PRE_UNKNOWN: 3,
+                      PO.PRE_UNDECIDABLE: 3, PO.PRE_BROKEN_ON_BRANCH: 1}
     assert not any(PO.PRE_KIND_STABLE in (v.pre or ()) for v in vs)
 
 
@@ -2116,18 +2129,29 @@ def test_the_two_host_registries_do_not_silently_overwrite_each_other():
     guest file with the SAME pin ids, so a `(guest, id)` dedup key let the
     last one silently replace the first. Measured on the recorded corpus the
     collision is real (CP03p: not-guarded in `host-pins-plus`, guarded in
-    its repointed twin) and currently harmless (its precondition is
-    `unknown` on both sides, so it lands in none of the four cells). This
+    its repointed twin) and currently harmless (its precondition is the
+    same on both sides, so it lands in none of the four cells). This
     pins BOTH halves: the collision exists, and the table is unchanged by
-    keying on the guardian as well."""
+    keying on the guardian as well.
+
+    ROUND 440 read that collision as the finding rather than the nuisance.
+    One edit, one guest program, two guardians, opposite measured verdicts
+    — so `append_only` is a property of the (edit, guardian) PAIR while
+    every decider in the module is keyed on the PIN. The status is now
+    `broken_on_branch` on both sides and the table is STILL (10, 0, 0, 3),
+    which is the whole point: the decision is about inputs, the cells are
+    about observers, and a status that moved this table would be claiming
+    something about an observer it never read. Round 434's item 4 and round
+    438's item 4 both asked for this table BEFORE and AFTER a CP03p
+    decision; both values are here."""
     collisions = []
     tab = _law_table(True, _campaigns(), collisions)
     assert tab == (10, 0, 0, 3)
     ids = sorted(c[1] for c in collisions)
     assert ids == ["CP03p"], collisions
     was, now = [c for c in collisions if c[1] == "CP03p"][0][2:]
-    assert was == (PO.PRE_UNKNOWN, False)
-    assert now == (PO.PRE_UNKNOWN, True)
+    assert was == (PO.PRE_BROKEN_ON_BRANCH, False)
+    assert now == (PO.PRE_BROKEN_ON_BRANCH, True)
 
 
 def test_a_repointed_registry_can_never_produce_a_confirmation():
@@ -2204,3 +2228,304 @@ def test_repoint_emit_carries_the_negative_control_through():
     for p in emitted["pins"]:
         if p.get("control_expect"):
             assert "guardian_was" not in p, p["id"]
+
+
+# --- ROUND 440: `append_only` is a property of the (edit, guardian) PAIR ---
+#
+# Round 438 left CP03p as the one open `append_only` residual and set the
+# procedure: "write the counterexample FIRST and only widen if none exists."
+# The counterexample was already in the repository, in the one form that
+# leaves nothing to construct -- ONE edit, ONE guest program, TWO guardians
+# of it, opposite measured verdicts. The widening rule exists too, and what
+# it decides is the EDIT ("this rewrites the observed text in place on the
+# arm its own guard selects"), which is not the question `check_law` and
+# `audit_registry` ask ("is THIS guardian blind to it"). Hence a status of
+# its own that is never promoted to either side.
+
+REG_440 = os.path.join(_C.AGI_ROOT, "state", "whence", "round-440")
+
+
+def _cp03p(registry):
+    import json
+    with open(os.path.join(REG_422, registry), encoding="utf-8") as f:
+        return [p for p in json.load(f)["pins"] if p["id"] == "CP03p"][0]
+
+
+def _verdict_of(runfile, pid="CP03p"):
+    import json
+    with open(os.path.join(REG_422, runfile), encoding="utf-8") as f:
+        return [r for r in json.load(f)["results"] if r["id"] == pid][0]
+
+
+def test_one_edit_two_guardians_and_opposite_measured_verdicts():
+    """The counterexample round 438 asked for, read off the recorded corpus.
+
+    `host-pins-plus.json` and its repointed twin hold CP03p with a
+    BYTE-IDENTICAL edit and different `guardian` labels. Both guardians are
+    checks in the SAME guest file. One measured `shadowed` (it stayed green;
+    the edit was observable elsewhere) and the other `guarded`. So no rule
+    over the delta can decide "is the guardian blind": the delta is the same
+    in both rows.
+
+    The `shadowed` row also names its own replacement -- `co_red` holds
+    exactly the label the repointed registry uses -- which is why the pair
+    exists at all and why no new program had to be written.
+    """
+    a, b = _cp03p("host-pins-plus.json"), _cp03p("host-pins-plus-repointed.json")
+    assert a["becomes"] == b["becomes"]
+    assert a["edit"] == b["edit"] == "fn_replace"
+    assert a["guardian"] != b["guardian"]
+    assert b["repointed_from"] == a["guardian"]
+    ra, rb = _verdict_of("run-plus.json"), _verdict_of("run-repointed.json")
+    assert (ra["verdict"], rb["verdict"]) == ("shadowed", "guarded")
+    assert ra["co_red"] == [b["guardian"]]
+
+
+def test_cp03p_is_decided_from_the_edit_and_the_decision_is_broken_on_branch():
+    """The widening rule, on the pin it was written for.
+
+    `_walk_delta` can only call this pair `structural` -- a Block against an
+    If. The guarded arm is where the decision is: the else arm keeps `c`
+    verbatim, the guard is `c == "'"`, so on the arm the guard selects the
+    OLD text is the literal `'` and the new text is `\\'`. That is an INFIX
+    rewrite, decided with no run and no verdict.
+    """
+    import json
+    with open(SELF_HOST, encoding="utf-8") as f:
+        src = f.read()
+    r = PO.edit_precondition(src, _cp03p("host-pins-plus.json"))
+    assert r["kinds"] == [PO.DELTA_STRUCTURAL]
+    assert r["status"] == PO.PRE_BROKEN_ON_BRANCH
+    arm = [d for d in r["deltas"] if "guarded arm" in d]
+    assert len(arm) == 1, r["deltas"]
+    assert "refined" in arm[0] and "[%s]" % PO.DELTA_INFIX in arm[0]
+    # ...and the SAME edit against the SAME guest source gives the SAME
+    # answer for the repointed pin, whose guardian measured the opposite.
+    r2 = PO.edit_precondition(src, _cp03p("host-pins-plus-repointed.json"))
+    assert r2["status"] == r["status"] == PO.PRE_BROKEN_ON_BRANCH
+
+
+def test_widening_cp03p_to_holds_or_broken_would_publish_a_false_sentence():
+    """Why the answer is a NEW status and not one of round 438's two.
+
+    Both alternatives are wrong loudly rather than subtly, and this test
+    runs the counterfactual rather than arguing it. Recorded in
+    `state/whence/round-440/counterfactual.txt`.
+
+      `holds`  -> the repointed registry reports `strict_violation` for
+                  CP03p. That is the path round 438's next-step 3 says has
+                  never fired on real data and whose firing "is the headline
+                  of whatever round sees it" -- round 420's law refuted. It
+                  would be announced against a guardian whose observed text
+                  this edit demonstrably rewrote (`"a'b"` -> `"a\\'b"`).
+      `broken` -> BOTH registries report `precondition_broken`, whose
+                  printed reading is "the guardian is not blind to THIS edit
+                  and the flag is a false positive". On `host-pins-plus.json`
+                  the guardian measured `shadowed`, i.e. blind to this edit.
+    """
+    import json
+    with open(SELF_HOST, encoding="utf-8") as f:
+        src = f.read()
+    vs = PO.classify_file(SELF_HOST)
+    got = {}
+    for regname, runname in (("host-pins-plus-repointed.json", "run-repointed.json"),
+                             ("host-pins-plus.json", "run-plus.json")):
+        with open(os.path.join(REG_422, regname), encoding="utf-8") as f:
+            pins = json.load(f)["pins"]
+        with open(os.path.join(REG_422, runname), encoding="utf-8") as f:
+            res = json.load(f)["results"]
+        pre = PO.precondition_map(pins, src, vs)
+        for forced in (PO.PRE_BROKEN_ON_BRANCH, PO.PRE_HOLDS, PO.PRE_BROKEN):
+            m = {k: dict(v) for k, v in pre.items()}
+            m["CP03p"]["status"] = forced
+            rows = {r["id"]: r for r in PO.audit_registry(pins, vs, res, m)}
+            law = PO.check_law(pins, res, vs, m)
+            got[(regname, forced)] = (
+                rows["CP03p"]["status"],
+                "CP03p" in [r["id"] for r in law["strict_violations"]],
+                "CP03p" in [r["id"] for r in law["excused"]])
+    rep, plus = "host-pins-plus-repointed.json", "host-pins-plus.json"
+    assert got[(rep, PO.PRE_HOLDS)] == ("strict_violation", True, False)
+    assert got[(rep, PO.PRE_BROKEN)] == ("precondition_broken", False, True)
+    assert got[(plus, PO.PRE_BROKEN)][0] == "precondition_broken"
+    # ...and the status actually shipped claims neither, on either registry.
+    assert got[(rep, PO.PRE_BROKEN_ON_BRANCH)] == ("undecided", False, False)
+    assert got[(plus, PO.PRE_BROKEN_ON_BRANCH)][0] == "undecided"
+
+
+def test_broken_on_branch_is_never_promoted_downstream():
+    """Same guarantee round 438 gave `undecidable`, for the same reason and
+    with one difference worth naming: this status arrives WITH a decision.
+    It is still refused by both consumers, because the decision is about
+    inputs and both consumers ask about observers."""
+    v = _v("blindy", ("+",), (PO.PRE_APPEND_ONLY,))
+    pins = [{"id": "B", "guest_file": "x.lang", "dir": "+",
+             "guardian": "blindy"}]
+    results = [{"id": "B", "guardian": "blindy", "verdict": "guarded"}]
+    pre = {"B": {"status": PO.PRE_BROKEN_ON_BRANCH,
+                 "decided_over": (PO.PRE_APPEND_ONLY,)}}
+    law = PO.check_law(pins, results, [v], pre)
+    assert [r["id"] for r in law["violations"]] == ["B"]
+    assert law["excused"] == [] and law["strict_violations"] == []
+    assert [r["id"] for r in law["undecided"]] == ["B"]
+    rows = PO.audit_registry(pins, [v], results, pre)
+    assert [r["status"] for r in rows] == ["undecided"]
+
+
+def test_a_conjunction_never_promotes_broken_on_branch_either():
+    """`routed_precondition` combines per-precondition rows. A
+    `broken_on_branch` beside a `holds` stays `broken_on_branch`; beside
+    anything merely un-ruled it drops to `unknown`, by round 438's rule."""
+    assert PO._combine_precondition([PO.PRE_BROKEN_ON_BRANCH, PO.PRE_HOLDS]) \
+        == PO.PRE_BROKEN_ON_BRANCH
+    assert PO._combine_precondition([PO.PRE_BROKEN_ON_BRANCH, PO.PRE_UNKNOWN]) \
+        == PO.PRE_UNKNOWN
+    assert PO._combine_precondition([PO.PRE_BROKEN_ON_BRANCH,
+                                 PO.PRE_UNDECIDABLE]) == PO.PRE_UNKNOWN
+    # a real `broken` still dominates: an unconditional rewrite is not made
+    # conditional by a conditional one sitting next to it.
+    assert PO._combine_precondition([PO.PRE_BROKEN_ON_BRANCH, PO.PRE_BROKEN]) \
+        == PO.PRE_BROKEN
+
+
+def test_a_guarded_arm_that_appends_is_a_real_widening_of_holds():
+    """The positive half of the rule, with no instance in the corpus.
+
+    `X -> if C { X + "!" } else { X }` only ever grows the observed text at
+    its end, on BOTH arms, so it holds for every observer -- which is what
+    `holds` means. Pinned synthetically on purpose, as round 434's
+    `no_decider` branch and round 438's `strict_violation` are: the branch
+    exists because the rule is stated over a shape, not over the corpus.
+    """
+    base = 'fn f(c) { c }\ncheck "g": contains(f("x"), "x")\n'
+    r = _pre(base, 'fn f(c) { if c == "q" { c + "!" } else { c } }', 'fn f(c)')
+    assert r["status"] == PO.PRE_HOLDS
+    assert "only ever grow the text at its end" in r["why"]
+
+
+def test_the_refinement_folds_only_an_equality_against_a_literal():
+    """`_eq_literal` is the one substitution this module makes, and it is
+    exact. A guard that is not an equality against a literal leaves the arms
+    compared as written, which for two unrelated expressions is
+    `structural` -- so the row stays `unknown` rather than being guessed
+    into a decision."""
+    base = 'fn f(c) { c }\ncheck "g": contains(f("x"), "x")\n'
+    r = _pre(base, 'fn f(c) { if c > "q" { g(c) } else { c } }', 'fn f(c)')
+    assert r["status"] == PO.PRE_UNKNOWN
+    # The guard KEEPS the old expression on its TRUE arm, so the new text is
+    # selected by `not C`, and an equality that HOLDS says nothing about the
+    # inputs where it FAILS. That arm is compared as written -- which for a
+    # bare name against a literal is `structural`, i.e. `unknown`. This is a
+    # refusal to guess, not a gap: `c` is every character but `"q"` there.
+    r2 = _pre(base, 'fn f(c) { if c == "q" { c } else { "Q" } }', 'fn f(c)')
+    assert r2["status"] == PO.PRE_UNKNOWN
+    # ...and the unrefined comparison still decides the arm whenever the two
+    # sides are relatable WITHOUT knowing what the name holds. Both
+    # directions, on the same negated shape:
+    r3 = _pre(base, 'fn f(c) { if c == "q" { c } else { c + "!" } }',
+              'fn f(c)')
+    assert r3["status"] == PO.PRE_HOLDS
+    r4 = _pre(base, 'fn f(c) { if c == "q" { c } else { "x" + c } }',
+              'fn f(c)')
+    assert r4["status"] == PO.PRE_BROKEN_ON_BRANCH
+    arm = [d for d in r4["deltas"] if "guarded arm" in d]
+    assert len(arm) == 1 and "refined" not in arm[0], arm
+
+
+def test_a_guard_whose_arms_are_both_new_is_not_a_guarded_substitution():
+    """The shape requires ONE arm kept verbatim. Without it the edit is a
+    rewrite, not a guard -- the same rule `_guard_relation` states for
+    `refusal` ("an `if` that misses on one side and returns something merely
+    similar on the other is not a guard, it is a rewrite")."""
+    base = 'fn f(c) { c }\ncheck "g": contains(f("x"), "x")\n'
+    r = _pre(base, 'fn f(c) { if c == "q" { "Q" } else { "Z" } }', 'fn f(c)')
+    assert PO._guarded_substitution is not None
+    assert r["status"] == PO.PRE_UNKNOWN
+    assert not [d for d in r["deltas"] if "guarded arm" in d]
+
+
+def test_every_repointed_pin_still_carries_its_predecessors_rationale():
+    """Round 440. `repoint` moves the `guardian` label and nothing else, and
+    `why` is prose ABOUT the guardian — so a repoint leaves every pin
+    arguing about a check it no longer names.
+
+    Measured: 20 of 20 repointed pins had a `why` byte-identical to their
+    pre-repoint twin's, and CP03p's was measurably FALSE of its own
+    guardian. Its second sentence read "The guardian's probe string has no
+    apostrophe in it at all, so it cannot see this however broken the
+    escaper is"; the guardian it names probes `"a'b"`, and the pin measures
+    `guarded` there. That sentence is now corrected in place, which is why
+    the count is 19 and not 20. The other 19 are not asserted correct — they
+    are asserted UNRE-AUTHORED, which is the fact this test exists to keep
+    visible.
+
+    `test_the_repointed_registry_changes_labels_and_nothing_else` in
+    `test_checkpin.py` enumerates the fields a repoint may not move and
+    `why` is not among them, so this correction does not weaken it.
+    """
+    import json
+    with open(os.path.join(REG_422, "host-pins-plus.json"), encoding="utf-8") as f:
+        a = {p["id"]: p for p in json.load(f)["pins"]}
+    with open(os.path.join(REG_422, "host-pins-plus-repointed.json"),
+              encoding="utf-8") as f:
+        b = {p["id"]: p for p in json.load(f)["pins"]}
+    repointed = [i for i in b if "repointed_from" in b[i]]
+    assert len(repointed) == 20
+    carried = sorted(i for i in repointed if a[i]["why"] == b[i]["why"])
+    assert len(carried) == 19, carried
+    assert "CP03p" not in carried
+    assert "no apostrophe in it at all" in a["CP03p"]["why"]
+    # The corrected field QUOTES the false sentence rather than deleting it,
+    # so the test cannot be "the string is gone" -- it is "the string is no
+    # longer asserted". Both halves are pinned.
+    b_why = b["CP03p"]["why"]
+    assert "ROUND 440 corrected the second half of this field" in b_why
+    assert "false of this label" in b_why
+    assert a["CP03p"]["why"] != b_why
+
+
+def test_the_repointed_registrys_criterion_is_restated_and_still_not_met():
+    """Round 438's next-step 1, discharged, and kept from rotting.
+
+    The registry's `_` field now names a criterion in two parts and quotes
+    what it measures TODAY. Both quoted measurements are re-derived here, so
+    the header cannot drift from the instrument the way round 435 found its
+    `nineteen` had.
+
+    Part A is `0 MISPOINTED and 0 undecided and 0 strict-violation`. It is
+    NOT met, and the assertion below says so positively rather than pinning
+    a passing number -- a criterion whose test goes green the moment the
+    instrument stops answering is the failure mode round 438 found in the
+    criterion this one replaces.
+    """
+    import json
+    with open(os.path.join(REG_422, "host-pins-plus-repointed.json"),
+              encoding="utf-8") as f:
+        reg = json.load(f)
+    hdr = reg["_"]
+    assert "THE CRITERION FROM HERE" in hdr
+    with open(SELF_HOST, encoding="utf-8") as f:
+        src = f.read()
+    vs = PO.classify_file(SELF_HOST)
+    pre = PO.precondition_map(reg["pins"], src, vs)
+    rows = PO.audit_registry(reg["pins"], vs, None, pre)
+    n = {s: sum(1 for r in rows if r["status"] == s)
+         for s in PO.AUDIT_BLIND_STATUSES}
+    assert (n["mispointed"], n["precondition_broken"], n["undecided"],
+            n["strict_violation"]) == (0, 1, 4, 0)
+    assert len([r for r in rows if r["dir"] in (PO.PLUS, PO.MINUS)]) == 22
+    # the criterion, evaluated: NOT met, on the `undecided` clause alone
+    assert n["undecided"] > 0
+    assert ("`22 directional pin(s), 0 MISPOINTED, 0 unlocatable, 1"
+            " precondition-broken, 4 undecided, 0 strict-violation`") in hdr
+    # ...and part (2) of why the OLD criterion was the wrong quantity: the
+    # score the repoint moved, re-derived from the two campaigns.
+    runs = {}
+    for name in ("run-plus.json", "run-repointed.json"):
+        with open(os.path.join(REG_422, name), encoding="utf-8") as f:
+            runs[name] = json.load(f)
+    assert (runs["run-plus.json"]["guarded"],
+            runs["run-plus.json"]["n_pins"]) == (1, 20)
+    assert (runs["run-repointed.json"]["guarded"],
+            runs["run-repointed.json"]["n_pins"]) == (20, 20)
+    assert "1/20 = 5%" in hdr and "20/20 = 100%" in hdr

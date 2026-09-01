@@ -481,8 +481,14 @@ def check_law(pins, results, verdicts, pre_status=None):
 #:                       `guarded` regardless. That refutes round 420's law;
 #:                       it is `check_law`'s `strict_violations` seen from
 #:                       here, and it is NOT a false positive.
-#: `undecided`           nothing decided the precondition. Neither of the
-#:                       above is established and neither is claimed.
+#: `undecided`           nothing decided the precondition FOR THIS
+#:                       GUARDIAN. Neither of the above is established and
+#:                       neither is claimed. Round 440: this bucket holds
+#:                       two different things and says so in the row --
+#:                       `pre_status` `unknown`/`undecidable`, where no
+#:                       rule decided the edit, and `broken_on_branch`,
+#:                       where a rule decided the edit and the answer is
+#:                       about inputs rather than about observers.
 AUDIT_BLIND_STATUSES = ("mispointed", "precondition_broken",
                         "strict_violation", "undecided")
 
@@ -586,10 +592,18 @@ def audit_registry(pins, verdicts, results=None, pre_status=None):
                 row["status"] = ("strict_violation" if guarded
                                  else "mispointed")
             else:
-                # `unknown` / `no_decider` / `identity` / `unlocatable`.
-                # Never promoted to either side: excusing a violation on a
-                # precondition nothing decided is the unfalsifiability
-                # round 426's three guards exist to prevent.
+                # `unknown` / `undecidable` / `broken_on_branch` /
+                # `no_decider` / `identity` / `unlocatable`. Never promoted
+                # to either side: excusing a violation on a precondition
+                # nothing decided is the unfalsifiability round 426's three
+                # guards exist to prevent. ROUND 440: `broken_on_branch` is
+                # the one that arrives with a DECISION attached -- the edit
+                # does rewrite text in place, on the arm its own guard
+                # selects -- and it still lands here, because the decision
+                # is about the edit and both of the branches above are
+                # about this guardian. Promoting it would print
+                # `strict_violation` for CP03p against a guardian whose
+                # observed text that edit provably rewrote.
                 row["status"] = "undecided"
         if row["status"] != "mispointed":
             rows.append(row)
@@ -688,8 +702,17 @@ def _cmd_audit(args):
         print("  ( ?) %-7s dir %s statically %s-blind [%s], precondition "
               "`%s` %s" % (r["id"], r["dir"], r["dir"], r["shape"][:30],
                            ",".join(r["pre"]) or "-", r["pre_status"]))
-        print("        NOT mispointed and NOT excused — nothing decided "
-              "the precondition the blindness rests on")
+        if r["pre_status"] == PRE_BROKEN_ON_BRANCH:
+            # ROUND 440. Same bucket, different sentence, because the row
+            # is different: a rule DID decide this edit. What it decided is
+            # about inputs and the bucket is about observers.
+            print("        NOT mispointed and NOT excused — the edit is "
+                  "decided (it rewrites the observed text in place on the")
+            print("        arm its own guard selects) and the decision does "
+                  "not say whether THIS guardian's probes take that arm")
+        else:
+            print("        NOT mispointed and NOT excused — nothing decided "
+                  "the precondition the blindness rests on")
     for r in lost:
         print("  ??? %-7s guardian names no check in the file: %s"
               % (r["id"], r["guardian"]))
@@ -1114,6 +1137,70 @@ def delta_kind(old, new):
     return DELTA_INFIX
 
 
+def _eq_literal(cond):
+    """`NAME == <literal>` (either way round) -> `(name, literal node)`.
+
+    The one refinement this module is willing to make. It is exact rather
+    than clever: on the true arm of `c == "'"` the name `c` IS the literal
+    `"'"`, so the old observed text is decidable without running anything.
+    Anything else -- `<`, a call, a comparison of two names -- returns None
+    and the caller compares the arms unrefined.
+    """
+    if not (isinstance(cond, A.Binary) and cond.op == "=="):
+        return None
+    for a, b in ((cond.left, cond.right), (cond.right, cond.left)):
+        if isinstance(a, A.NameRef) and _is_lit(b):
+            return (a.name, b)
+    return None
+
+
+def _guarded_substitution(old, new):
+    """`X  ->  if C { Y } else { X }`: the (old, new) pair ON THE GUARDED ARM.
+
+    Returns `(refined_old, refined_new, cond_text, refined)` or None when
+    this is not that shape. It is `refusal`'s shape 2 (round 428, "GUARD
+    INSERTED") read by the OTHER decider: a guard put in front of an
+    expression that is kept VERBATIM as the other arm.
+
+    What it decides. On the arm that keeps `X` the observed text is
+    IDENTICAL, so `append_only` holds there trivially. On the arm the
+    guard selects the text is `Y` where it was `X`, and `delta_kind` can
+    classify that pair -- after `_eq_literal` refinement when the guard is
+    an equality against a literal. CP03p is the corpus instance: the old
+    arm is the bare name `c`, the guard is `c == "'"`, so the branch delta
+    refines to `'  ->  \\'`, which is an INFIX rewrite, decided from the
+    edit text with no run.
+
+    What it does NOT decide, and the reason `PRE_BROKEN_ON_BRANCH` exists:
+    whether any given guardian's probes ever take that arm. That is a
+    question about the GUARDIAN, and no decider in this module reads one.
+    """
+    if not (isinstance(new, A.If) and new.otherwise is not None):
+        return None
+    ov = _block_value(old)
+    then_v, else_v = _block_value(new.then), _block_value(new.otherwise)
+    if _node_eq(else_v, ov):
+        taken, negated = then_v, False
+    elif _node_eq(then_v, ov):
+        # The guard KEEPS the old expression on its true arm, so the new
+        # text is selected by `not C`. `_eq_literal` refines an equality
+        # that HOLDS; it says nothing about the inputs where it fails, so
+        # this arm is compared unrefined on purpose.
+        taken, negated = else_v, True
+    else:
+        return None
+    refined_old, refined_new, did = ov, taken, False
+    if not negated:
+        pair = _eq_literal(new.cond)
+        if pair is not None:
+            nm, lit = pair
+            refined_old = _substitute(ov, nm, lit)
+            refined_new = _substitute(taken, nm, lit)
+            did = (not _node_eq(refined_old, ov)
+                   or not _node_eq(refined_new, taken))
+    return (refined_old, refined_new, _brief(new.cond), did)
+
+
 def _expr_text(node, depth=0):
     """Render an expression back to Whence-ish source. DISPLAY ONLY.
 
@@ -1217,16 +1304,66 @@ PRE_UNKNOWN = "unknown"
 #: program that breaks that pairing and this status is wrong.
 PRE_UNDECIDABLE = "undecidable"
 
+#: Round 440. The edit rewrites observed text IN PLACE, but only on inputs
+#: that satisfy a guard the edit itself introduced. That is an EXISTENTIAL
+#: claim -- "there is an input on which this is not an append" -- and every
+#: consumer of `broken` reads `broken` as a UNIVERSAL one: `check_law`
+#: EXCUSES a violation on it and `AUDIT_BLIND_STATUSES` spells the reading
+#: out, "the guardian is not blind to THIS edit and the flag is a false
+#: positive". For an UNCONDITIONAL rewrite (NC02p's `'op' -> 'kw'`) the two
+#: readings coincide on the edited expression and nothing distinguished
+#: them. CP03p is the first pin where they come apart, and the corpus
+#: already held the measurement:
+#:
+#:   ONE edit (`quote_body` gains `else if c == "'" { "\\'" }`), ONE guest
+#:   program, TWO guardians of it --
+#:     "a quote inside a string in the got slot is escaped, so it re-lexes"
+#:        probes `"a\"b"`, no apostrophe, verdict `shadowed`  (BLIND)
+#:     "a string in the got slot is a Whence literal, always double-quoted"
+#:        probes `"a'b"`,  an apostrophe, verdict `guarded`   (SIGHTED)
+#:
+#: -- recorded in `state/whence/round-422/run-plus.json` and
+#: `run-repointed.json` and re-measured at HEAD into
+#: `state/whence/round-440/`. So `append_only` is a property of the
+#: (edit, guardian) PAIR and every decider here is keyed on the PIN.
+#:
+#: Both widenings round 438's next-step 2 offered are therefore wrong, and
+#: wrong LOUDLY rather than subtly:
+#:   `holds`  would make `polarity.py audit …-repointed.json` print
+#:            `strict_violation` for CP03p -- the path round 438 says has
+#:            never fired on real data and whose firing "is the headline of
+#:            whatever round sees it" -- announcing round 420's law refuted
+#:            by a guardian whose observed text the edit demonstrably
+#:            rewrote.
+#:   `broken` would make the same command print "the guardian is not blind
+#:            to THIS edit" about the guardian measured `shadowed`.
+#: Neither is promoted: this status routes to `undecided` in `check_law`
+#: and in `audit_registry`, exactly as `unknown` did, so no published
+#: number moves. What changes is the REASON, from "no rule of mine fires"
+#: to "a rule fires, decides the edit, and does not answer the question the
+#: consumer asks".
+#:
+#: Distinct from `undecidable`, which round 438 proved with two PROGRAMS
+#: whose byte-identical delta had opposite answers because the delta was a
+#: boolean condition and the observed text lay downstream of it. Here the
+#: delta IS the observed text and IS decided; it is the OBSERVER that is
+#: not a function of the delta. Refute this status by exhibiting a rule
+#: over the delta that names which guardians take the guarded arm.
+PRE_BROKEN_ON_BRANCH = "broken_on_branch"
+
 
 def edit_precondition(base_src, pin, kinds=()):
     """Does this pin's edit respect `append_only`? Reads no verdict.
 
-    Returns a dict with `status` in {holds, broken, unknown, identity,
-    unlocatable, unparsable}, the per-delta `kinds`, and a human-readable
-    `deltas` list. `holds` is the only value that is a claim; `broken` is a
-    positive finding (a string-valued expression rewritten other than at its
-    end) and `unknown` means the edit is not string-shaped, so appending is
-    neither established nor refuted.
+    Returns a dict with `status` in {holds, broken, broken_on_branch,
+    undecidable, unknown, identity, unlocatable, unparsable}, the per-delta
+    `kinds`, and a human-readable `deltas` list. `holds` is the only value
+    that is a claim about EVERY observer; `broken` is a positive finding (a
+    string-valued expression rewritten other than at its end) and `unknown`
+    means the edit is not string-shaped, so appending is neither established
+    nor refuted. `broken_on_branch` (round 440) is `broken` restricted to
+    the inputs a guard the edit introduced selects -- an existential, and
+    never promoted to `broken`, see `PRE_BROKEN_ON_BRANCH`.
     """
     try:
         mutant = CP.apply_edit(base_src, pin)
@@ -1242,8 +1379,19 @@ def edit_precondition(base_src, pin, kinds=()):
     pairs = []
     _walk_delta(old, new, pairs)
     kinds = [delta_kind(a, b) for a, b in pairs]
+    # ROUND 440. A delta the top-level `kinds` can only call `structural`
+    # may still be a guard INSERTED in front of an expression kept verbatim,
+    # whose guarded arm is decidable on its own. `branch[i]` is that arm's
+    # (old, new) pair or None; `bkinds[i]` is `delta_kind` on it.
+    branch = [_guarded_substitution(a, b) for a, b in pairs]
+    bkinds = [None if g is None else delta_kind(g[0], g[1]) for g in branch]
     shown = ["%s: %s  ->  %s" % (k, _brief(a), _brief(b))
              for k, (a, b) in zip(kinds, pairs)]
+    for g, bk in zip(branch, bkinds):
+        if g is not None:
+            shown.append("  guarded arm (%s%s): %s  ->  %s  [%s]"
+                         % (g[2], ", refined" if g[3] else "",
+                            _brief(g[0]), _brief(g[1]), bk))
     why = None
     if not pairs:
         status = "identity"
@@ -1251,6 +1399,27 @@ def edit_precondition(base_src, pin, kinds=()):
         status = PRE_BROKEN
     elif all(k == DELTA_APPEND for k in kinds):
         status = PRE_HOLDS
+    elif all(k == DELTA_APPEND or bk == DELTA_APPEND
+             for k, bk in zip(kinds, bkinds)):
+        # Every delta either appends outright, or inserts a guard whose
+        # guarded arm APPENDS to the expression the other arm keeps. Both
+        # arms only grow the observed text at its end, so this holds for
+        # every observer and is a real widening of `holds`. Nothing in the
+        # corpus has this shape; it is pinned synthetically, as round 434's
+        # `no_decider` branch and round 438's `strict_violation` are.
+        status = PRE_HOLDS
+        why = ("every delta is an append, or a guard inserted in front of "
+               "an expression kept verbatim whose guarded arm appends to "
+               "it -- both arms only ever grow the text at its end")
+    elif (any(bk == DELTA_INFIX for bk in bkinds)
+          and all(k == DELTA_APPEND or bk in (DELTA_APPEND, DELTA_INFIX)
+                  for k, bk in zip(kinds, bkinds))):
+        status = PRE_BROKEN_ON_BRANCH
+        why = ("a guard inserted in front of an expression kept verbatim "
+               "rewrites the observed text IN PLACE on the arm it selects; "
+               "whether this pin's guardian ever takes that arm is a fact "
+               "about the guardian and no decider here reads one "
+               "(see state/whence/round-440/)")
     elif (all(k == DELTA_STRUCTURAL for k in kinds)
           and all(_is_boolean_shaped(a) and _is_boolean_shaped(b)
                   for a, b in pairs)):
@@ -2546,6 +2715,45 @@ PRE_INAPPLICABLE = "inapplicable"
 PRE_NO_DECIDER = "no_decider"
 
 
+def _combine_precondition(stats):
+    """Conjoin the per-precondition statuses of ONE pin into one status.
+
+    Extracted from `routed_precondition` in round 440 so the promotion rules
+    are testable without a registry. The conjunction is over the
+    preconditions a single guardian's blindness rests on, so it is
+    deliberately pessimistic in both directions: only `broken` -- an
+    UNCONDITIONAL rewrite -- may excuse, and only an all-`holds` row may
+    strictly refute.
+    """
+    for hard in ("unlocatable", "unparsable"):
+        if hard in stats:
+            return hard
+    if all(s == "identity" for s in stats):
+        return "identity"
+    if PRE_BROKEN in stats:
+        return PRE_BROKEN
+    if all(s in (PRE_HOLDS, "identity") for s in stats):
+        return PRE_HOLDS
+    if (PRE_BROKEN_ON_BRANCH in stats
+            and all(s in (PRE_BROKEN_ON_BRANCH, PRE_HOLDS, "identity")
+                    for s in stats)):
+        # ROUND 440. Never promoted to `broken`, here or anywhere: a break
+        # confined to the arm the edit's own guard selects does not
+        # establish that THIS guardian's probes reach it. Mixed with a
+        # merely `unknown` or `undecidable` row it drops to `unknown`, by
+        # the same rule round 438 wrote for `undecidable`.
+        return PRE_BROKEN_ON_BRANCH
+    if (PRE_UNDECIDABLE in stats
+            and all(s in (PRE_UNDECIDABLE, PRE_HOLDS, "identity")
+                    for s in stats)):
+        # ROUND 438. `undecidable` survives the conjunction only when
+        # nothing else is merely `unknown`: a row that is undecidable on
+        # one precondition and un-ruled on another is `unknown`, because
+        # widening the second rule could still settle it.
+        return PRE_UNDECIDABLE
+    return PRE_UNKNOWN
+
+
 def routed_precondition(base_src, pin, pres, kinds=()):
     """Decide every precondition in `pres` for this pin, and combine.
 
@@ -2570,28 +2778,7 @@ def routed_precondition(base_src, pin, pres, kinds=()):
                           "kinds": [], "deltas": [], "decided_over": (name,)}
         else:
             rows[name] = decider(base_src, pin, kinds)
-    stats = [rows[n]["status"] for n in pres]
-    for hard in ("unlocatable", "unparsable"):
-        if hard in stats:
-            status = hard
-            break
-    else:
-        if all(s == "identity" for s in stats):
-            status = "identity"
-        elif PRE_BROKEN in stats:
-            status = PRE_BROKEN
-        elif all(s in (PRE_HOLDS, "identity") for s in stats):
-            status = PRE_HOLDS
-        elif (PRE_UNDECIDABLE in stats
-              and all(s in (PRE_UNDECIDABLE, PRE_HOLDS, "identity")
-                      for s in stats)):
-            # ROUND 438. `undecidable` survives the conjunction only when
-            # nothing else is merely `unknown`: a row that is undecidable on
-            # one precondition and un-ruled on another is `unknown`, because
-            # widening the second rule could still settle it.
-            status = PRE_UNDECIDABLE
-        else:
-            status = PRE_UNKNOWN
+    status = _combine_precondition([rows[n]["status"] for n in pres])
     why = "; ".join("%s: %s" % (n, rows[n]["status"]) for n in pres)
     return {"status": status, "why": why,
             "kinds": [k for n in pres for k in rows[n]["kinds"]],
@@ -2670,7 +2857,7 @@ def _cmd_precondition(args):
         seen = "" if verdicts is None else "  measured %s" % verdicts.get(
             pin["id"], "?")
         over = ",".join(row.get("decided_over") or ()) or "-"
-        print("  %-7s %-13s over %-24s%s"
+        print("  %-7s %-16s over %-24s%s"
               % (pin["id"], row["status"], over, seen))
         for d in row["deltas"]:
             print("        %s" % d)
