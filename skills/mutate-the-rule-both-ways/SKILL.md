@@ -1,6 +1,6 @@
 ---
 name: mutate-the-rule-both-ways
-description: Use when judging whether a test or check actually guards the rule it names — mutation testing, test-suite audits, or before claiming a rule is pinned. The failure is directional: a one-sided guardian (`assert missed(x)`, `assertIn(s, msg)`, `assert len(xs) > 0`, `assert not is_num(v)`, `assertRaises`, `x is None`) is monotone one way and cannot go red when the rule breaks THAT way, however badly. Symptoms: every mutant weakens the rule; a suite scores well against one-directional mutants; a message can grow text nobody asserted the absence of; a check named for one branch, arm or operand; a mutant that reddens nothing because the rule is implemented twice. Covers pairing every mutation with its opposite under the SAME guardian, classifying guardians by predicate shape, and telling "nothing guards this" from "the rule is redundant". NOT for choosing the probe VALUE (probe-where-the-rules-disagree), NOT for a call site nobody claimed anything about (named-guardian-must-go-red).
+description: Use when judging whether a test or check actually guards the rule it names — mutation testing, test-suite audits, or before claiming a rule is pinned. The failure is directional: a one-sided guardian (`assert missed(x)`, `assertIn(s, msg)`, `assertRaises`) is monotone one way and cannot go red when the rule breaks THAT way. Symptoms: every mutant weakens the rule; a message grows text nobody asserted the absence of; a mutant that reddens nothing because the rule is implemented twice; a mutant invisible to the check you named but visible to others. Covers pairing each mutation with its opposite under the SAME guardian, classifying guardians by predicate shape before any campaign runs, telling "nothing guards this" from "redundant", and telling a MISPOINTED pin from a blind file (5 of 5 such findings were fixed by re-pointing the pin, not the code). NOT for choosing the probe VALUE (probe-where-the-rules-disagree), NOT for a call site nobody claimed anything about (named-guardian-must-go-red).
 ---
 
 # Mutate the rule both ways, or you measured the direction you picked
@@ -106,7 +106,28 @@ Concretely, all of these left 166 of 166 checks green:
    guarded themselves, and a decision enforced in both a function and the
    function it tail-calls. Both would have collected a pointless new test.
 
-6. **Fix the one-sided guardian by making it two-sided, not by adding a
+6. **Before you touch the code under test, ask whether the pin is
+   mispointed.** This is round 420's correction to step 7 below, and it is
+   the step that pays for the whole skill. A `shadowed` verdict says *the
+   file distinguished the rule; the check you named did not* — so the right
+   guardian may already be in the file, and it is in the co-red list. Filter
+   the checks that went red by polarity and keep the ones SIGHTED in this
+   mutant's direction:
+
+   * a sighted candidate exists  ->  the pin is **mispointed**. Change the
+     registry's `guardian` string. Write no test, touch no source.
+   * no sighted candidate        ->  now it is a coverage gap. Go to 7.
+
+   Measured, Whence round 420 over round 416's five `shadowed` findings:
+   **all five had a sighted, already-red candidate**, and re-pointing the
+   five turned 5 findings into 5 `guarded` in 22.8 s with **not one line of
+   the guest evaluator changed**. Round 416 had read them as five coverage
+   gaps and written the round-419 next-step item "argued but not fixed".
+   They were not gaps. Only 2 of the 5 were even predicate blindness; the
+   other 3 were probe agreement (see `probe-where-the-rules-disagree`),
+   which no new predicate over the same probe can fix.
+
+7. **Fix the one-sided guardian by making it two-sided, not by adding a
    second test.** In order of preference:
    * replace containment with **equality against the reference
      implementation's own output** (`assert strip(guest_msg) ==
@@ -116,7 +137,7 @@ Concretely, all of these left 166 of 166 checks green:
    * add the unprobed branch/operand to the existing check, so the label
      that carries the claim is the thing that goes red.
 
-7. **Re-run and require the killer to be red under its mutant and GREEN
+8. **Re-run and require the killer to be red under its mutant and GREEN
    under a neighbour**, so it discriminates the rule it names rather than a
    neighbouring one.
 
@@ -135,9 +156,31 @@ Concretely, all of these left 166 of 166 checks green:
 * **Direction as a synonym for severity.** `+` mutants are not "weirder"
   than `-` ones. A message that grows a clause and a `blame` that reports
   the whole chain are ordinary refactor damage.
-* **A `shadowed` verdict counted as coverage.** Something in the file
-  noticed; the check you named did not. That is still a finding about the
-  label, and the fix may legitimately be "nothing" — but say which.
+* **A `shadowed` verdict read as a gap in the CODE.** Something in the file
+  noticed; the check you named did not. Round 420 measured which it usually
+  is: **5 of 5** of round 416's `shadowed` findings were mispointed pins,
+  not blind files. Run step 6 before you believe a coverage claim, and
+  never carry a `shadowed` verdict forward as "the file needs a new check"
+  without having looked at what went red.
+* **Reading a static polarity flag as a verdict.** Monotonicity holds along
+  an order, and the order the ASSERTION is monotone along is not the order
+  the pin's `dir` names. `dir` describes a change to the RULE; polarity
+  describes the OBSERVATION. Two ways they come apart, both measured:
+  *infix growth* — `contains(msg, "return value expected num")` is monotone
+  under APPENDING, and the `+` edit inserted `of g` in the MIDDLE, which
+  destroys containment; and *kind change* — `is_guess(x)` is monotone under
+  a rule that accepts more, and the `-` edit stopped the value being a
+  Guess at all. So record the PRECONDITION beside every blindness claim
+  (`append_only`, `refusal`, `kind_stable`) and treat a flag contradicted by
+  a measured `guarded` as *the edit left the order*, not as a broken tool.
+  False-positive rate, two independent registries, 51 directional pins:
+  **4** (2 in each), 3 of them `append_only`.
+* **Forcing a direction onto a lateral edit.** Some replacements are
+  neither more nor less — swapping one rendering for another of the same
+  size. Round 420 found **3 of 23** pins in Whence's parser registry are
+  lateral, and a lateral edit has no order for a monotone predicate to be
+  blind along, so scoring it invents a verdict. Give the registry a third
+  value (`~`) and skip those pins rather than rounding them to `-`.
 * **No negative control.** An invisible mutant reads the same whether the
   file cannot see the rule or your runner never applied the edit. Put a
   semantically identical rewrite in the SAME batch, through the SAME
@@ -158,7 +201,13 @@ You have applied this skill when, for each rule you claim is pinned:
 4. at least one negative control ran in the same batch and came back
    invisible;
 5. every killer you wrote is red under its own mutant and green under a
-   neighbouring one.
+   neighbouring one;
+6. every `shadowed` verdict was passed through the mispointed-pin test of
+   step 6 and is recorded as *mispointed* (with the label it should have
+   named) or *coverage gap* (with the co-red list that had no sighted
+   candidate) — never as bare "shadowed";
+7. every blindness claim carries the precondition it rests on, and every
+   pin whose direction is lateral is marked `~` rather than scored.
 
 Round 416's own record, re-runnable. The first command shows every mutant's
 direction and predicate WITHOUT running anything, which is where a
@@ -190,7 +239,48 @@ before the killers and compare the score:
 git show HEAD~1:languages/whence/examples/self_eval.lang > /tmp/before.lang
 ```
 
+### The round-420 half: polarity before the campaign
+
+`polarity.py` computes each guardian's blind direction from its expression
+AST, so steps 4 and 6 stop being judgement calls. Nothing here runs the
+guest program, and the whole sweep is milliseconds against a campaign's
+~100 s:
+
+```bash
+cd languages/whence
+python3 polarity.py classify examples/self_eval.lang examples/self_host.lang
+python3 polarity.py audit   ../../state/whence/round-416/eval-pins.json \
+                            ../../state/whence/round-416/run.json
+python3 polarity.py repoint ../../state/whence/round-416/eval-pins.json \
+                            ../../state/whence/round-416/run.json
+```
+
+Expected — `audit` names the mispointed pins AND the false positives it
+cannot resolve without the run, which is the honest form of a conditional
+rule:
+
+```
+examples/self_eval.lang: 172 check(s)
+  one-sided         74  (43.0%)   +blind 68, -blind 6, both 0
+examples/self_host.lang: 155 check(s)
+  one-sided         73  (47.1%)   +blind 52, -blind 21, both 0
+
+audit: examples/self_eval.lang — 32 directional pin(s), 2 MISPOINTED,
+       0 unlocatable, 2 precondition-broken
+```
+
+And the demonstration, which changes no source at all:
+
+```bash
+CHECKPIN_JSON=/tmp/r420.json python3 checkpin.py run \
+  ../../state/whence/round-420/eval-pins-repointed.json
+# 5 pins: 5 guarded, 0 finding(s), 0 error(s), 0 redundant, score 100%
+```
+
 Reference implementation: `languages/whence/checkpin.py` (`dir`,
-`predicate`, `also`, `redundant_with`, the `redundant` verdict) and
-`state/whence/round-416/eval-pins.json`. Tests:
-`python3 -m pytest languages/whence/tests/test_checkpin.py -q`.
+`predicate`, `also`, `redundant_with`, the `redundant` verdict),
+`languages/whence/polarity.py` (`classify`, `law`, `audit`, `repoint`),
+`state/whence/round-416/eval-pins.json` and
+`state/whence/round-420/eval-pins-repointed.json`. Tests:
+`python3 -m pytest languages/whence/tests/test_checkpin.py
+languages/whence/tests/test_polarity.py -q`.

@@ -1885,5 +1885,26 @@
   "id": "ccnd-neg-rename",
   "expect": [],
   "prompt": "I need to rename a column from `count` to `total_rows` across a Django app and its migrations without downtime. What's the safest ordering of the deploys?"
+ },
+ {
+  "id": "cpd-near",
+  "expect": [
+   "copy-parity-differential"
+  ],
+  "prompt": "Our mutation campaign won't start \u2014 it aborts with \"baseline not green\" and names one test. That test passes fine when I run pytest in the checkout. The runner copies the project into a tempdir first."
+ },
+ {
+  "id": "cpd-mid",
+  "expect": [
+   "copy-parity-differential"
+  ],
+  "prompt": "A test blows up with FileNotFoundError on a path under /tmp/build-xyz/... The file it's looking for definitely exists in the repo. This only happens in CI, which builds an sdist and runs the tests out of the extracted copy."
+ },
+ {
+  "id": "cpd-far",
+  "expect": [
+   "copy-parity-differential"
+  ],
+  "prompt": "We fixed this same 'reaches outside the package' bug at four call sites two weeks ago and it's back at a fifth. They all do os.path.dirname(os.path.dirname(__file__)) to find a JSON registry that lives one level above the package. Is there a way to stop playing whack-a-mole?"
  }
 ]

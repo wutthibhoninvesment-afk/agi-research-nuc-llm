@@ -1,0 +1,419 @@
+{
+  "violations": [
+    {
+      "id": "EP10m",
+      "dir": "-",
+      "verdict": "guarded",
+      "guardian": "top-level == between two guesses yields a new guess",
+      "blind": true,
+      "shape": "is_guess(...)",
+      "unknown": false,
+      "pre": [
+        "kind_stable"
+      ],
+      "dupe_label": false
+    },
+    {
+      "id": "EP11p",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "guest anonymous fn return-type miss label has no 'of' suffix (round 326)",
+      "blind": true,
+      "shape": "contains(...)",
+      "unknown": false,
+      "pre": [
+        "append_only"
+      ],
+      "dupe_label": false
+    }
+  ],
+  "confirmations": [
+    {
+      "id": "EP05p",
+      "dir": "+",
+      "verdict": "shadowed",
+      "guardian": "guest strict if rejects 0",
+      "blind": true,
+      "shape": "missed(...)",
+      "unknown": false,
+      "pre": [
+        "refusal"
+      ],
+      "dupe_label": false
+    },
+    {
+      "id": "EP08p",
+      "dir": "+",
+      "verdict": "shadowed",
+      "guardian": "is_num rejects a guess wrapping a number",
+      "blind": true,
+      "shape": "not(guest type test is_num(...))",
+      "unknown": false,
+      "pre": [
+        "kind_stable"
+      ],
+      "dupe_label": false
+    }
+  ],
+  "unmatched": [],
+  "sighted": [
+    {
+      "id": "EP01m",
+      "dir": "-",
+      "verdict": "guarded",
+      "guardian": "guest unbound reason names the name",
+      "blind": false,
+      "shape": "contains(...)",
+      "unknown": false,
+      "pre": [
+        "append_only"
+      ],
+      "dupe_label": false
+    },
+    {
+      "id": "EP01p",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "...and it is the host's sentence exactly, not a superset of it",
+      "blind": false,
+      "shape": "two-sided `==`",
+      "unknown": false,
+      "pre": [],
+      "dupe_label": false
+    },
+    {
+      "id": "EP02m",
+      "dir": "-",
+      "verdict": "guarded",
+      "guardian": "guest miss <unbound name> names the miss-reason cure",
+      "blind": false,
+      "shape": "contains(...)",
+      "unknown": false,
+      "pre": [
+        "append_only"
+      ],
+      "dupe_label": false
+    },
+    {
+      "id": "EP02p",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "...and that clause is the host's sentence exactly, not a superset",
+      "blind": false,
+      "shape": "two-sided `==`",
+      "unknown": false,
+      "pre": [],
+      "dupe_label": false
+    },
+    {
+      "id": "EP03m",
+      "dir": "-",
+      "verdict": "shadowed",
+      "guardian": "guest miss <BOUND name> stays plain propagation",
+      "blind": false,
+      "shape": "contains(...) and not(contains(...))",
+      "unknown": false,
+      "pre": [
+        "append_only"
+      ],
+      "dupe_label": false
+    },
+    {
+      "id": "EP03p",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "guest miss <BOUND name> stays plain propagation",
+      "blind": false,
+      "shape": "contains(...) and not(contains(...))",
+      "unknown": false,
+      "pre": [
+        "append_only"
+      ],
+      "dupe_label": false
+    },
+    {
+      "id": "EP04m",
+      "dir": "-",
+      "verdict": "guarded",
+      "guardian": "guest short-circuit and skips the right",
+      "blind": false,
+      "shape": "two-sided `==` and two-sided `==` and two-sided `==`",
+      "unknown": false,
+      "pre": [],
+      "dupe_label": false
+    },
+    {
+      "id": "EP04m2",
+      "dir": "-",
+      "verdict": "guarded",
+      "guardian": "guest short-circuit and skips the right",
+      "blind": false,
+      "shape": "two-sided `==` and two-sided `==` and two-sided `==`",
+      "unknown": false,
+      "pre": [],
+      "dupe_label": false
+    },
+    {
+      "id": "EP04p",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "guest short-circuit and skips the right",
+      "blind": false,
+      "shape": "two-sided `==` and two-sided `==` and two-sided `==`",
+      "unknown": false,
+      "pre": [],
+      "dupe_label": false
+    },
+    {
+      "id": "EP05m",
+      "dir": "-",
+      "verdict": "guarded",
+      "guardian": "guest strict if rejects 0",
+      "blind": false,
+      "shape": "missed(...)",
+      "unknown": false,
+      "pre": [
+        "refusal"
+      ],
+      "dupe_label": false
+    },
+    {
+      "id": "EP06m",
+      "dir": "-",
+      "verdict": "guarded",
+      "guardian": "guest if records which branch ran",
+      "blind": false,
+      "shape": "two-sided `==` and two-sided `==`",
+      "unknown": false,
+      "pre": [],
+      "dupe_label": false
+    },
+    {
+      "id": "EP06p",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "guest if records which branch ran",
+      "blind": false,
+      "shape": "two-sided `==` and two-sided `==`",
+      "unknown": false,
+      "pre": [],
+      "dupe_label": false
+    },
+    {
+      "id": "EP07m",
+      "dir": "-",
+      "verdict": "redundant",
+      "guardian": "guest_kind says 'guess', and each probe under it independently agrees",
+      "blind": false,
+      "shape": "two-sided `==`",
+      "unknown": false,
+      "pre": [],
+      "dupe_label": false
+    },
+    {
+      "id": "EP07m2",
+      "dir": "-",
+      "verdict": "guarded",
+      "guardian": "guest_kind says 'guess', and each probe under it independently agrees",
+      "blind": false,
+      "shape": "two-sided `==`",
+      "unknown": false,
+      "pre": [],
+      "dupe_label": false
+    },
+    {
+      "id": "EP08m",
+      "dir": "-",
+      "verdict": "guarded",
+      "guardian": "is_num rejects a guess wrapping a number",
+      "blind": false,
+      "shape": "not(guest type test is_num(...))",
+      "unknown": false,
+      "pre": [
+        "kind_stable"
+      ],
+      "dupe_label": false
+    },
+    {
+      "id": "EP09m",
+      "dir": "-",
+      "verdict": "guarded",
+      "guardian": "guest == on functions misses",
+      "blind": false,
+      "shape": "missed(...)",
+      "unknown": false,
+      "pre": [
+        "refusal"
+      ],
+      "dupe_label": false
+    },
+    {
+      "id": "EP09p",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "...but a record is still compared structurally, field by field",
+      "blind": false,
+      "shape": "two-sided `==` and two-sided `==`",
+      "unknown": false,
+      "pre": [],
+      "dupe_label": false
+    },
+    {
+      "id": "EP10p",
+      "dir": "+",
+      "verdict": "shadowed",
+      "guardian": "top-level == between two guesses yields a new guess",
+      "blind": false,
+      "shape": "is_guess(...)",
+      "unknown": false,
+      "pre": [
+        "kind_stable"
+      ],
+      "dupe_label": false
+    },
+    {
+      "id": "EP11m",
+      "dir": "-",
+      "verdict": "guarded",
+      "guardian": "guest NAMED fn return-type miss label still has the 'of' suffix (round 326)",
+      "blind": false,
+      "shape": "contains(...)",
+      "unknown": false,
+      "pre": [
+        "append_only"
+      ],
+      "dupe_label": false
+    },
+    {
+      "id": "EP12m",
+      "dir": "+",
+      "verdict": "redundant",
+      "guardian": "guest return type is not re-checked over an already-missed body",
+      "blind": false,
+      "shape": "missed(...) and not(contains(...))",
+      "unknown": false,
+      "pre": [
+        "append_only",
+        "refusal"
+      ],
+      "dupe_label": false
+    },
+    {
+      "id": "EP12m2",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "guest return type is not re-checked over an already-missed body",
+      "blind": false,
+      "shape": "missed(...) and not(contains(...))",
+      "unknown": false,
+      "pre": [
+        "append_only",
+        "refusal"
+      ],
+      "dupe_label": false
+    },
+    {
+      "id": "EP12p",
+      "dir": "-",
+      "verdict": "shadowed",
+      "guardian": "guest return type is not re-checked over an already-missed body",
+      "blind": false,
+      "shape": "missed(...) and not(contains(...))",
+      "unknown": false,
+      "pre": [
+        "append_only",
+        "refusal"
+      ],
+      "dupe_label": false
+    },
+    {
+      "id": "EP13m",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "guest blame answers the ORIGIN, not the whole miss chain",
+      "blind": false,
+      "shape": "two-sided `==` and two-sided `==`",
+      "unknown": false,
+      "pre": [],
+      "dupe_label": false
+    },
+    {
+      "id": "EP13p",
+      "dir": "-",
+      "verdict": "guarded",
+      "guardian": "guest blame answers the ORIGIN, not the whole miss chain",
+      "blind": false,
+      "shape": "two-sided `==` and two-sided `==`",
+      "unknown": false,
+      "pre": [],
+      "dupe_label": false
+    },
+    {
+      "id": "EP14m",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "...and an origin's detail is the host's own sentence, line-suffix stripped",
+      "blind": false,
+      "shape": "two-sided `==`",
+      "unknown": false,
+      "pre": [],
+      "dupe_label": false
+    },
+    {
+      "id": "EP15m",
+      "dir": "-",
+      "verdict": "guarded",
+      "guardian": "renaming a value is not a divergence (NAMING_OPS)",
+      "blind": false,
+      "shape": "two-sided `==`",
+      "unknown": false,
+      "pre": [],
+      "dupe_label": false
+    },
+    {
+      "id": "EP16m",
+      "dir": "-",
+      "verdict": "guarded",
+      "guardian": "guest diverge finds the one origin",
+      "blind": false,
+      "shape": "two-sided `==`",
+      "unknown": false,
+      "pre": [],
+      "dupe_label": false
+    },
+    {
+      "id": "EP16p",
+      "dir": "+",
+      "verdict": "guarded",
+      "guardian": "identical histories have no origins",
+      "blind": false,
+      "shape": "two-sided `==`",
+      "unknown": false,
+      "pre": [],
+      "dupe_label": false
+    },
+    {
+      "id": "NC01",
+      "dir": "0",
+      "verdict": "inert",
+      "guardian": "guest arithmetic",
+      "blind": false,
+      "shape": "two-sided `==`",
+      "unknown": false,
+      "pre": [],
+      "dupe_label": false
+    },
+    {
+      "id": "NC02",
+      "dir": "0",
+      "verdict": "inert",
+      "guardian": "guest diverge finds the one origin",
+      "blind": false,
+      "shape": "two-sided `==`",
+      "unknown": false,
+      "pre": [],
+      "dupe_label": false
+    }
+  ],
+  "n_scored": 34
+}

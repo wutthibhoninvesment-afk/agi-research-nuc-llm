@@ -624,6 +624,29 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    digit bound down by one would make decision 48's summarising branch
    unreachable from any source file. So the wording was corrected instead
    and the residual measured. See § v0.40.
+50. **A `check` is one boolean expression, and the reason it asserts is an
+   EQUALITY against the other implementation, not a substring of a message
+   (round 420).** Round 414 proposed `check "label" because "<substring>":
+   expr`, so that a check could assert both *this is true* and *and the miss
+   said this*. `because` can only mean *the note contains that substring* —
+   a note is prose — and `contains` is monotone under appending, so a claim
+   written that way cannot be falsified by an implementation that says
+   strictly MORE. That is not a hypothetical: `polarity.py` computes each
+   `check`'s blind direction from its AST, and **147 of the 327 checks in
+   the two self-hosting guest programs (45.0%) are already blind to one
+   direction, 120 of them to the same one**, almost entirely through
+   `missed(...)` and `contains(...)`. A `because` clause would add no
+   capability and would make the corpus's most common failure mode the
+   language's sanctioned idiom, on a keyword, where a reader would assume
+   something had been checked. The two-sided form needs no syntax and both
+   guest files reached it unprompted — `drop_line_suffix(reasons(gv(X))[0])
+   == drop_line_suffix(reasons(X)[0])`, an equality against the host's own
+   sentence, which fails when the guest says less OR more. The decision is
+   about the GRAMMAR only: a one-sided check is right when the rule itself
+   is one-sided (27 such checks in `examples/self_host.lang` are correct as
+   written), and no per-statement interpreter warning is added, because
+   polarity is a property of a suite's coverage and a per-statement
+   diagnostic would fire on 147 correct lines. See § Decision 50.
 
 ## Syntax (statements are newline-separated; `#` comments)
 ```
@@ -8452,3 +8475,80 @@ miss with the literal's `inf`, does not move `SHOW_INT_DIGITS` or
 touch the `rebind`/hint divergence class (round 402's item 1 still wants a
 decision arguing either way), and it does not unify `parser.quote_str` with
 `values._quote`.
+
+## Decision 50 (round 420, language C) — `check` gets no `because` clause, and the number that decided it
+
+Round 414's item 2 asked whether a `check` should be able to carry a reason:
+
+```
+check "guest division by zero misses" because "divided by zero":
+  missed(gv("1 / 0"))
+```
+
+so that a check asserts not only *this expression is true* but *and the
+miss said this*. It has been carried, unanswered, for six rounds. Round 416
+argued against it from one case — its §5.1 finding was that what those
+checks needed was not a reason field but **equality with the other
+implementation**, which the language could already express. That was an
+argument from an example. This is the argument from the corpus.
+
+### The clause is a `contains` claim, and `contains` is the one-sided shape
+
+`because "<s>"` can only mean *the note contains `s`*; a note is prose and
+an equality against it would be unwritable. `contains` is monotone under
+appending: an implementation that says strictly MORE keeps every substring
+a substring, so a `contains` claim cannot be falsified by it. That is not a
+theory — it is the mechanism behind round 408's inert quote-switching
+check, behind round 416's EP01p and EP02p (a clause appended to `lookup`'s
+miss and to the cure sentence left every `contains` guardian in the file
+green and reddened nothing), and behind two of round 416's five
+`shadowed` findings.
+
+`polarity.py` (round 420) computes the direction each `check` in a guest
+file can see, statically. Measured over both self-hosting programs:
+
+| file | checks | one-sided | `+`-blind | `-`-blind |
+| --- | --- | --- | --- | --- |
+| `examples/self_eval.lang` | 172 | 74 (43.0%) | 68 | 6 |
+| `examples/self_host.lang` | 155 | 73 (47.1%) | 52 | 21 |
+| **both** | **327** | **147 (45.0%)** | **120** | **27** |
+
+Forty-five per cent of the corpus's checks are already blind to one
+direction, and **120 of those 147 are blind to the same one** — the
+evaluator doing more — almost entirely through `missed(...)` and
+`contains(...)`. A `because` clause would not add a new capability. It
+would take the language's most common existing failure mode and make it
+the *sanctioned* way to say "and for this reason", on a keyword, where a
+reader would reasonably assume the language had checked something.
+
+### What the language already has, and what the corpus already did
+
+The two-sided form needs no new syntax, and both guest files converged on
+it without one:
+
+```
+check "...and it is the host's sentence exactly, not a superset of it":
+  drop_line_suffix(reasons(gv("nope + 1"))[0]) ==
+    drop_line_suffix(reasons(nope + 1)[0])
+```
+
+An equality against the other implementation's own sentence. It is
+two-sided by construction, it needs no vocabulary for "reason", and it
+fails when the guest says less OR more. Round 416 wrote four of these as
+killers; round 420's re-measurement found each of them sighted in the
+direction its `contains` predecessor was blind to.
+
+**Decided: no.** `check` stays a single boolean expression. The gap
+`because` was proposed to fill is real, and the repair is a second check
+whose predicate is an equality — which is why `polarity.py classify` exists
+and why its output belongs in a review, not in the grammar.
+
+### What this decision does NOT do
+
+It does not deprecate `contains` in a check — a one-sided check is the
+right tool when the rule itself is one-sided, and 27 `-`-blind checks in
+`self_host.lang` are correct as written. It does not add a warning to the
+interpreter: a `check`'s polarity is a property of a whole SUITE's coverage,
+not of one statement, and a per-statement diagnostic would fire on 147
+correct lines. And it does not unify `parser.quote_str` with
+`values._quote`, which is now carried for a fifth round.

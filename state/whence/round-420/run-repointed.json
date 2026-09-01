@@ -1,0 +1,114 @@
+{
+  "n_pins": 5,
+  "controls": [],
+  "guarded": 5,
+  "redundant": [],
+  "findings": 0,
+  "errors": 0,
+  "score": 1.0,
+  "baselines": {
+    "examples/self_eval.lang": {
+      "n_checks": 172,
+      "n_failing": 0,
+      "dupes": [],
+      "error": null
+    }
+  },
+  "results": [
+    {
+      "id": "EP03m",
+      "guardian": "guest miss <unbound name> names the miss-reason cure",
+      "mechanism": "M3 miss_names_unbound: the clause fires only for an UNBOUND name",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 3,
+      "co_red": [
+        "...and that clause is the host's sentence exactly, not a superset",
+        "guest miss <foreign word> REPLACES the foreign clause, not joins it"
+      ],
+      "note": "value was false",
+      "why": "the clause never fires at all. The guardian's positive half reads the ordinary unbound-name text, which survives; its negative half is satisfied a fortiori.",
+      "n_ran": 172
+    },
+    {
+      "id": "EP05p",
+      "guardian": "guest if",
+      "mechanism": "M5 eval_if: a non-boolean condition is a miss (decision: no truthiness)",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 8,
+      "co_red": [
+        "guest blame names the origin op",
+        "guest blame reads the origin reason",
+        "guest block scoping (inner shadow leaves outer alone)",
+        "guest else-if chain",
+        "guest if keeps the condition",
+        "guest if records which branch ran",
+        "guest recursion (fib 10)"
+      ],
+      "note": "value was false",
+      "why": "EVERY condition is refused -- the evaluator misses more. A `missed(...)` guardian is monotone in exactly this direction.",
+      "n_ran": 172
+    },
+    {
+      "id": "EP08p",
+      "guardian": "guest return type accepts a matching value",
+      "mechanism": "M8 is_num excludes a Guess (Guess arithmetic is transparent)",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 14,
+      "co_red": [
+        "...but a record is still compared structurally, field by field",
+        "an anonymous fn's shape return says just \"return value\"",
+        "and a non-record payload gets no clause either",
+        "guest arithmetic propagates a guess (weakest link kept)",
+        "guest filter",
+        "guest mutual recursion",
+        "guest passing check recorded",
+        "guest sure() is a no-op on a plain value",
+        "guest sure() unwraps above threshold",
+        "guest typed param accepts a matching value",
+        "guest typed param annotation accepts a guess",
+        "nested guess-vs-guess equality ignores confidence"
+      ],
+      "note": "value was miss: return value of f expected num, got value (line 2328)",
+      "why": "is_num rejects EVERYTHING. A `not is_num(...)` guardian is monotone in this direction by construction.",
+      "n_ran": 172
+    },
+    {
+      "id": "EP10p",
+      "guardian": "nested guess-vs-guess equality ignores confidence",
+      "mechanism": "M10 apply_binop delegates `==` to the host when either side is a Guess",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 2,
+      "co_red": [
+        "guest == on functions misses"
+      ],
+      "note": "value was false",
+      "why": "ALWAYS delegate: guest_eq is bypassed for every ==, so the guest-authored opaque-closure comparator never runs",
+      "n_ran": 172
+    },
+    {
+      "id": "EP12p",
+      "guardian": "guest return type rejects a mismatched value",
+      "mechanism": "M12 check_ret is a no-op over an already-missed body (decision 2)",
+      "verdict": "guarded",
+      "control": null,
+      "n_red": 9,
+      "co_red": [
+        "...and a wrongly-typed field, from the RETURN end",
+        "...and the RETURN half says the identical sentence",
+        "an anonymous fn's shape return says just \"return value\"",
+        "and a primitive return mismatch still misses",
+        "guest NAMED fn return-type miss label still has the 'of' suffix (round 326)",
+        "guest anonymous fn return-type miss label has no 'of' suffix (round 326)",
+        "guest catches a broken shape return",
+        "the miss names the shape, not \"record\""
+      ],
+      "note": "value was false",
+      "why": "the return contract is removed entirely. 1/0 still misses, so the guardian is still green.",
+      "n_ran": 172
+    }
+  ]
+}

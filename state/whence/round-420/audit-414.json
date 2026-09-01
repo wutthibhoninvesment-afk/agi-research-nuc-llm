@@ -1,0 +1,205 @@
+[
+  {
+    "id": "CP03",
+    "dir": "-",
+    "status": "ok",
+    "guardian": "a quote inside a string in the got slot is escaped, so it re-lexes",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": [
+      "append_only"
+    ]
+  },
+  {
+    "id": "CP04",
+    "dir": "-",
+    "status": "ok",
+    "guardian": "a number in the got slot is not quoted",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": [
+      "append_only"
+    ]
+  },
+  {
+    "id": "CP06",
+    "dir": "-",
+    "status": "precondition_broken",
+    "guardian": "lexer newline suppressed inside parens",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": [
+      "append_only"
+    ],
+    "shape": "not(contains(...))"
+  },
+  {
+    "id": "CP07",
+    "dir": "-",
+    "status": "ok",
+    "guardian": "lexer newline NOT suppressed inside a block nested in parens",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": [
+      "append_only"
+    ]
+  },
+  {
+    "id": "CP08",
+    "dir": "-",
+    "status": "precondition_broken",
+    "guardian": "newline after a binary op is a continuation, no brackets involved",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": [
+      "append_only"
+    ],
+    "shape": "not(contains(...))"
+  },
+  {
+    "id": "CP09",
+    "dir": "-",
+    "status": "ok",
+    "guardian": "lexer bare trailing e is not consumed as an exponent",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": []
+  },
+  {
+    "id": "CP10",
+    "dir": "-",
+    "status": "ok",
+    "guardian": "a carriage return is whitespace, as it is on the host",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": []
+  },
+  {
+    "id": "CP11",
+    "dir": "-",
+    "status": "ok",
+    "guardian": "...and the GUEST decodes that escape too, not just the host",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": []
+  },
+  {
+    "id": "CP12",
+    "dir": "-",
+    "status": "ok",
+    "guardian": "one digit past the cap is a lex error, in the host's own words",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": []
+  },
+  {
+    "id": "CP13",
+    "dir": "-",
+    "status": "ok",
+    "guardian": "a trailing comma is refused in a call",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": [
+      "refusal"
+    ]
+  },
+  {
+    "id": "CP14",
+    "dir": "-",
+    "status": "ok",
+    "guardian": "...in a list literal",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": [
+      "refusal"
+    ]
+  },
+  {
+    "id": "CP15",
+    "dir": "-",
+    "status": "ok",
+    "guardian": "...in a parameter list",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": [
+      "refusal"
+    ]
+  },
+  {
+    "id": "CP16",
+    "dir": "-",
+    "status": "ok",
+    "guardian": "chained comparisons are rejected, matching the host",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": [
+      "refusal"
+    ]
+  },
+  {
+    "id": "CP17",
+    "dir": "-",
+    "status": "ok",
+    "guardian": "duplicate let in one block is a miss",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": [
+      "refusal"
+    ]
+  },
+  {
+    "id": "CP18",
+    "dir": "-",
+    "status": "ok",
+    "guardian": "duplicate param is a miss",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": [
+      "refusal"
+    ]
+  },
+  {
+    "id": "CP19",
+    "dir": "-",
+    "status": "ok",
+    "guardian": "duplicate shape fields are rejected",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": [
+      "refusal"
+    ]
+  },
+  {
+    "id": "CP20",
+    "dir": "-",
+    "status": "ok",
+    "guardian": "an unknown type name is still rejected",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": [
+      "refusal"
+    ]
+  },
+  {
+    "id": "CP21",
+    "dir": "-",
+    "status": "ok",
+    "guardian": "a shape cannot reference itself",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": [
+      "refusal"
+    ]
+  },
+  {
+    "id": "CP22",
+    "dir": "-",
+    "status": "ok",
+    "guardian": "expect_name says which KIND of name it wanted",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": [
+      "append_only"
+    ]
+  }
+]

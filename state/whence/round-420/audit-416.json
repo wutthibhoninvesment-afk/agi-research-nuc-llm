@@ -1,0 +1,347 @@
+[
+  {
+    "id": "EP01m",
+    "dir": "-",
+    "status": "ok",
+    "guardian": "guest unbound reason names the name",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": [
+      "append_only"
+    ]
+  },
+  {
+    "id": "EP01p",
+    "dir": "+",
+    "status": "ok",
+    "guardian": "...and it is the host's sentence exactly, not a superset of it",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": []
+  },
+  {
+    "id": "EP02m",
+    "dir": "-",
+    "status": "ok",
+    "guardian": "guest miss <unbound name> names the miss-reason cure",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": [
+      "append_only"
+    ]
+  },
+  {
+    "id": "EP02p",
+    "dir": "+",
+    "status": "ok",
+    "guardian": "...and that clause is the host's sentence exactly, not a superset",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": []
+  },
+  {
+    "id": "EP03m",
+    "dir": "-",
+    "status": "ok",
+    "guardian": "guest miss <BOUND name> stays plain propagation",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": [
+      "append_only"
+    ]
+  },
+  {
+    "id": "EP03p",
+    "dir": "+",
+    "status": "ok",
+    "guardian": "guest miss <BOUND name> stays plain propagation",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": [
+      "append_only"
+    ]
+  },
+  {
+    "id": "EP04m",
+    "dir": "-",
+    "status": "ok",
+    "guardian": "guest short-circuit and skips the right",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": []
+  },
+  {
+    "id": "EP04m2",
+    "dir": "-",
+    "status": "ok",
+    "guardian": "guest short-circuit and skips the right",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": []
+  },
+  {
+    "id": "EP04p",
+    "dir": "+",
+    "status": "ok",
+    "guardian": "guest short-circuit and skips the right",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": []
+  },
+  {
+    "id": "EP05m",
+    "dir": "-",
+    "status": "ok",
+    "guardian": "guest strict if rejects 0",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": [
+      "refusal"
+    ]
+  },
+  {
+    "id": "EP05p",
+    "dir": "+",
+    "status": "mispointed",
+    "guardian": "guest strict if rejects 0",
+    "candidates": [
+      "guest block scoping (inner shadow leaves outer alone)",
+      "guest else-if chain",
+      "guest if",
+      "guest if keeps the condition",
+      "guest if records which branch ran",
+      "guest recursion (fib 10)"
+    ],
+    "candidate_source": "co_red",
+    "pre": [
+      "refusal"
+    ],
+    "shape": "missed(...)"
+  },
+  {
+    "id": "EP06m",
+    "dir": "-",
+    "status": "ok",
+    "guardian": "guest if records which branch ran",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": []
+  },
+  {
+    "id": "EP06p",
+    "dir": "+",
+    "status": "ok",
+    "guardian": "guest if records which branch ran",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": []
+  },
+  {
+    "id": "EP07m",
+    "dir": "-",
+    "status": "ok",
+    "guardian": "guest_kind says 'guess', and each probe under it independently agrees",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": []
+  },
+  {
+    "id": "EP07m2",
+    "dir": "-",
+    "status": "ok",
+    "guardian": "guest_kind says 'guess', and each probe under it independently agrees",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": []
+  },
+  {
+    "id": "EP08m",
+    "dir": "-",
+    "status": "ok",
+    "guardian": "is_num rejects a guess wrapping a number",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": [
+      "kind_stable"
+    ]
+  },
+  {
+    "id": "EP08p",
+    "dir": "+",
+    "status": "mispointed",
+    "guardian": "is_num rejects a guess wrapping a number",
+    "candidates": [
+      "...but a record is still compared structurally, field by field",
+      "guest arithmetic propagates a guess (weakest link kept)",
+      "guest filter",
+      "guest mutual recursion",
+      "guest passing check recorded",
+      "guest return type accepts a matching value",
+      "guest sure() is a no-op on a plain value",
+      "guest sure() unwraps above threshold",
+      "guest typed param accepts a matching value",
+      "guest typed param annotation accepts a guess"
+    ],
+    "candidate_source": "co_red",
+    "pre": [
+      "kind_stable"
+    ],
+    "shape": "not(guest type test is_num(...))"
+  },
+  {
+    "id": "EP09m",
+    "dir": "-",
+    "status": "ok",
+    "guardian": "guest == on functions misses",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": [
+      "refusal"
+    ]
+  },
+  {
+    "id": "EP09p",
+    "dir": "+",
+    "status": "ok",
+    "guardian": "...but a record is still compared structurally, field by field",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": []
+  },
+  {
+    "id": "EP10m",
+    "dir": "-",
+    "status": "precondition_broken",
+    "guardian": "top-level == between two guesses yields a new guess",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": [
+      "kind_stable"
+    ],
+    "shape": "is_guess(...)"
+  },
+  {
+    "id": "EP10p",
+    "dir": "+",
+    "status": "ok",
+    "guardian": "top-level == between two guesses yields a new guess",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": [
+      "kind_stable"
+    ]
+  },
+  {
+    "id": "EP11m",
+    "dir": "-",
+    "status": "ok",
+    "guardian": "guest NAMED fn return-type miss label still has the 'of' suffix (round 326)",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": [
+      "append_only"
+    ]
+  },
+  {
+    "id": "EP11p",
+    "dir": "+",
+    "status": "precondition_broken",
+    "guardian": "guest anonymous fn return-type miss label has no 'of' suffix (round 326)",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": [
+      "append_only"
+    ],
+    "shape": "contains(...)"
+  },
+  {
+    "id": "EP12m",
+    "dir": "+",
+    "status": "ok",
+    "guardian": "guest return type is not re-checked over an already-missed body",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": [
+      "append_only",
+      "refusal"
+    ]
+  },
+  {
+    "id": "EP12m2",
+    "dir": "+",
+    "status": "ok",
+    "guardian": "guest return type is not re-checked over an already-missed body",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": [
+      "append_only",
+      "refusal"
+    ]
+  },
+  {
+    "id": "EP12p",
+    "dir": "-",
+    "status": "ok",
+    "guardian": "guest return type is not re-checked over an already-missed body",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": [
+      "append_only",
+      "refusal"
+    ]
+  },
+  {
+    "id": "EP13m",
+    "dir": "+",
+    "status": "ok",
+    "guardian": "guest blame answers the ORIGIN, not the whole miss chain",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": []
+  },
+  {
+    "id": "EP13p",
+    "dir": "-",
+    "status": "ok",
+    "guardian": "guest blame answers the ORIGIN, not the whole miss chain",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": []
+  },
+  {
+    "id": "EP14m",
+    "dir": "+",
+    "status": "ok",
+    "guardian": "...and an origin's detail is the host's own sentence, line-suffix stripped",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": []
+  },
+  {
+    "id": "EP15m",
+    "dir": "-",
+    "status": "ok",
+    "guardian": "renaming a value is not a divergence (NAMING_OPS)",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": []
+  },
+  {
+    "id": "EP16m",
+    "dir": "-",
+    "status": "ok",
+    "guardian": "guest diverge finds the one origin",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": []
+  },
+  {
+    "id": "EP16p",
+    "dir": "+",
+    "status": "ok",
+    "guardian": "identical histories have no origins",
+    "candidates": [],
+    "candidate_source": null,
+    "pre": []
+  }
+]

@@ -1,0 +1,75 @@
+{
+  "_": "Round 420 (language C). The five pins round 416 measured `shadowed`, each re-pointed to a guardian SIGHTED in its own direction. `guardian_was` is the label round 416 named; `repoint_why` is why the new one is the right one. Candidates came from `python3 polarity.py repoint`; the pick among them is by MECHANISM and is the author's.",
+  "pins": [
+    {
+      "id": "EP03m",
+      "guest_file": "examples/self_eval.lang",
+      "dir": "-",
+      "mechanism": "M3 miss_names_unbound: the clause fires only for an UNBOUND name",
+      "guardian": "guest miss <unbound name> names the miss-reason cure",
+      "predicate": "contains(A, s) and not contains(A, t)",
+      "why": "the clause never fires at all. The guardian's positive half reads the ordinary unbound-name text, which survives; its negative half is satisfied a fortiori.",
+      "edit": "fn_replace",
+      "target": "miss_names_unbound",
+      "becomes": "fn miss_names_unbound(node, env, st) { false }",
+      "guardian_was": "guest miss <BOUND name> stays plain propagation",
+      "repoint_why": "M3 is a biconditional -- the cure clause fires for an UNBOUND name and for no other. Round 416 pointed the `-` edit (the clause never fires at all) at the BOUND-name half, which is the half that agrees with the mutant: a bound name gets no clause either way. The UNBOUND half is the one the edit moves, it is `contains(...)` and therefore SIGHTED on `-`, and it went red in round 416's own campaign."
+    },
+    {
+      "id": "EP05p",
+      "guest_file": "examples/self_eval.lang",
+      "dir": "+",
+      "mechanism": "M5 eval_if: a non-boolean condition is a miss (decision: no truthiness)",
+      "guardian": "guest if",
+      "predicate": "missed(gv(...))",
+      "why": "EVERY condition is refused -- the evaluator misses more. A `missed(...)` guardian is monotone in exactly this direction.",
+      "edit": "line_replace",
+      "needle": "  if not is_bool(c.v.v) {",
+      "becomes": "  if true {",
+      "guardian_was": "guest strict if rejects 0",
+      "repoint_why": "M5's `+` edit refuses EVERY condition. `missed(gv(\"if 1 {...}\"))` is monotone along refusal and cannot see that; the check that an ordinary `if true` still evaluates is two-sided and dies immediately. The pair `guest if` / `guest strict if rejects 0` already spans both directions -- round 416 named the wrong one of the two."
+    },
+    {
+      "id": "EP08p",
+      "guest_file": "examples/self_eval.lang",
+      "dir": "+",
+      "mechanism": "M8 is_num excludes a Guess (Guess arithmetic is transparent)",
+      "guardian": "guest return type accepts a matching value",
+      "predicate": "not is_num(...)",
+      "why": "is_num rejects EVERYTHING. A `not is_num(...)` guardian is monotone in this direction by construction.",
+      "edit": "fn_replace",
+      "target": "is_num",
+      "becomes": "fn is_num(v) { false }",
+      "guardian_was": "is_num rejects a guess wrapping a number",
+      "repoint_why": "M8's `+` edit makes `is_num` answer false for everything. `not is_num(guess(...))` is monotone along rejection. The `-> num` return contract ACCEPTING 5 is the positive use of `is_num` in the same file, is two-sided, and is the direction the negative check cannot see."
+    },
+    {
+      "id": "EP10p",
+      "guest_file": "examples/self_eval.lang",
+      "dir": "+",
+      "mechanism": "M10 apply_binop delegates `==` to the host when either side is a Guess",
+      "guardian": "nested guess-vs-guess equality ignores confidence",
+      "predicate": "is_guess(gv(...))",
+      "why": "ALWAYS delegate: guest_eq is bypassed for every ==, so the guest-authored opaque-closure comparator never runs",
+      "edit": "line_replace",
+      "needle": "      if is_guess_val(a.v) or is_guess_val(b.v) { a.v == b.v }",
+      "becomes": "      if true { a.v == b.v }",
+      "guardian_was": "top-level == between two guesses yields a new guess",
+      "repoint_why": "M10's `+` edit delegates EVERY `==` to the host. The named guardian's probe is two guesses, which delegate under both rules -- probe agreement, not predicate blindness (`is_guess(...)` is `-`-blind, not `+`-blind). The NESTED comparison is the case the two rules disagree on, and it is the only sighted co-red candidate."
+    },
+    {
+      "id": "EP12p",
+      "guest_file": "examples/self_eval.lang",
+      "dir": "-",
+      "mechanism": "M12 check_ret is a no-op over an already-missed body (decision 2)",
+      "guardian": "guest return type rejects a mismatched value",
+      "predicate": "missed(gv(...))",
+      "why": "the return contract is removed entirely. 1/0 still misses, so the guardian is still green.",
+      "edit": "fn_replace",
+      "target": "check_ret",
+      "becomes": "fn check_ret(box, ret_spec, fn_name) { box }",
+      "guardian_was": "guest return type is not re-checked over an already-missed body",
+      "repoint_why": "M12's `-` edit deletes the return contract outright. The named guardian asserts what the contract does NOT do to an already-missed body, and deleting the contract satisfies that a fortiori. That a mismatched value still misses is the claim the deletion breaks."
+    }
+  ]
+}
