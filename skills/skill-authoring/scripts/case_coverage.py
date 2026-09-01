@@ -507,10 +507,12 @@ def main(argv=None):
           "case with full recall; %d replicated (>=2 same-description "
           "reports), %d of %d cross-report case verdicts DISAGREE; "
           "POOLED 95%%: %d WORKS (%d of them on a single run), %d UNDECIDED, "
-          "%d REFUTED; %d error(s), %d warning(s)"
+          "%d REFUTED; %d error(s), %d warning(s); "
+          "coverage %d/%d skills, %d/%d replicated"
           % (len(rows), len(cases), sum(1 for c in cases if not c["expect"]),
              n_probed, n_clean, n_rep, n_dis, n_comp,
-             n_works, n_single, n_und, n_broken, n_err, n_warn))
+             n_works, n_single, n_und, n_broken, n_err, n_warn,
+             n_probed, len(rows), n_rep, len(rows)))
     return 1 if n_err else 0
 
 

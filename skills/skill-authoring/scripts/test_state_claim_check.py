@@ -17,6 +17,7 @@ rather than a sentence in a knowledge file.
 import os
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -1095,5 +1096,486 @@ class TestLiveCorpusOrdinals(unittest.TestCase):
                     s7.add(b.round_no)
                 elif x.code == "S008":
                     s8.add(b.round_no)
-        self.assertEqual(sorted(s7), [334, 349, 398], "S007 set moved")
+        # Round 417 added 412 and NOTHING else. Two changes were needed to
+        # see it and neither alone was enough — measured by ablation:
+        #   widened ORDINAL_RE, verbatim key   -> [334, 349, 398]
+        #   subject anchor, narrow ORDINAL_RE  -> [334, 349, 398]
+        #   both                               -> [334, 349, 398, 412]
+        # The S008 set did not move, which is the check that the widening
+        # did not start reading unit changes into a vocabulary difference.
+        self.assertEqual(sorted(s7), [334, 349, 398, 412], "S007 set moved")
         self.assertEqual(sorted(s8), [318, 346], "S008 set moved")
+
+
+# --------------------------------------------------------------------------
+# Round 417 — S009/S010, the REFERENCE-count claim.
+#
+# The instance: rounds 412 and 414 both asserted "`nuc/run_checks_fast.sh`
+# still has 0 references in `run_driver.sh`" in their LIVE blocks, three and
+# five rounds after round 409 wired it. `state_claim_check` reported both
+# blocks `0 stale`, because no class extracted the claim — while S007 checked
+# the carry ordinal sitting in the same sentence, and passed it.
+# --------------------------------------------------------------------------
+
+REF414 = ("`nuc/run_checks_fast.sh` still has 0 references in "
+          "`run_driver.sh` — SIXTH round carried.")
+LIVE_DOC = os.path.join(REPO_ROOT, "state", "research-state.md")
+
+
+def claims_of(text, round_no=400):
+    blk = scc.find_blocks(block(round_no, "1. " + text))[0]
+    blk.path = "<test>"
+    return scc.extract_claims(scc.parse_items(blk)[0])
+
+
+class TestReferenceGrammar(unittest.TestCase):
+    """Extraction only — no tree is read by any test in this class."""
+
+    def test_scoped_claim_extracts_target_container_and_count(self):
+        c = one_claim(REF414)
+        self.assertEqual(c.kind, "reference")
+        self.assertEqual(c.payload["target"], "nuc/run_checks_fast.sh")
+        self.assertEqual(c.payload["container"], "run_driver.sh")
+        self.assertEqual(c.payload["n"], 0)
+        self.assertTrue(c.checkable)
+
+    def test_zero_and_no_are_read_as_the_number_zero(self):
+        for word in ("zero", "no", "0"):
+            c = one_claim("`a/b.py` has %s references in `c.sh`" % word)
+            self.assertEqual(c.payload["n"], 0, word)
+
+    def test_a_nonzero_count_parses_too(self):
+        # The class is not "assertions of zero". A claim of 4 is exactly as
+        # checkable, and exactly as able to rot.
+        c = one_claim("`a/b.py` has 4 references in `c.sh`")
+        self.assertEqual(c.payload["n"], 4)
+
+    def test_a_path_wrapped_across_a_line_break_still_matches(self):
+        # Round 415's item 1, verbatim shape. research-state.md wraps prose
+        # at ~76 columns and will break a path inside its own backticks. The
+        # other three grammars in this file use a whitespace-free path group
+        # and cannot see this claim at all.
+        c = one_claim("`languages/whence/nuc_scripting/\n   ncs_engine.py` "
+                      "(zero references of any kind; round 172 said so)")
+        self.assertEqual(c.payload["target"],
+                         "languages/whence/nuc_scripting/ncs_engine.py")
+
+    def test_a_claim_with_no_container_is_extracted_but_not_checkable(self):
+        # "zero references of any kind" names no container, and `refs` counts
+        # references INSIDE one. Recorded as a skip rather than dropped: the
+        # skip is what puts it in the published coverage denominator.
+        c = one_claim("`x/y.py` has zero references of any kind")
+        self.assertFalse(c.checkable)
+        self.assertIn("reference scope", c.skip_reason)
+        self.assertIsNone(c.payload["container"])
+
+    def test_the_wiring_shape_puts_the_subject_before_the_container(self):
+        # Rounds 400/406/407/408 wrote this same claim the other way round,
+        # and the path NEAREST the number is the container, not the subject.
+        c = one_claim("harness(A) still owns wiring `nuc/run_checks_fast.sh` "
+                      "into `run_driver.sh` — 0 references, FOURTH round "
+                      "carried.")
+        self.assertEqual(c.payload["target"], "nuc/run_checks_fast.sh")
+        self.assertEqual(c.payload["container"], "run_driver.sh")
+        self.assertTrue(c.checkable)
+
+    def test_a_sentence_break_between_path_and_count_does_not_pair_them(self):
+        # `a/b.py` is the only backticked path BEFORE the count, and a
+        # sentence ends between them. The grammar declines rather than
+        # pairing them — the fail-closed direction, since a wrong subject
+        # produces a confident wrong verdict where a skip only costs recall
+        # (and the skip is counted in the published coverage).
+        got = [c.payload["target"] for c in
+               claims_of("`a/b.py` is fine. Something else entirely has "
+                         "0 references in `c.sh`")
+               if c.kind == "reference"]
+        self.assertEqual(got, [])
+
+    def test_without_the_sentence_break_the_same_words_do_pair(self):
+        # The control for the test above: the ONLY difference is the `.`, so
+        # the refusal above is the sentence rule and not the grammar failing
+        # to see the shape at all.
+        got = [c.payload["target"] for c in
+               claims_of("`a/b.py` is fine and has 0 references in `c.sh`")
+               if c.kind == "reference"]
+        self.assertEqual(got, ["a/b.py"])
+
+    def test_a_one_character_filename_stem_still_matches(self):
+        # Found by a test, not by review: the target group was written
+        # `[^`]{2,160}?\.(?:py|sh|...)`, so a path whose stem is ONE
+        # character (`c.sh`, `x.py`) could never match — the group's own
+        # minimum ate the stem. Every real path in the corpus has a longer
+        # stem, so the live sweep looked perfect while the grammar had a
+        # silent floor on filename length.
+        for path in ("c.sh", "x.py", "a/b.py"):
+            c = one_claim("`%s` has 0 references in `d.py`" % path)
+            self.assertEqual(c.payload["target"], path, path)
+
+    def test_prose_about_references_naming_no_file_extracts_nothing(self):
+        self.assertEqual(
+            [c.kind for c in claims_of("this item has 0 references to speak "
+                                       "of and names no file")], [])
+
+
+def git_repo():
+    """A real git checkout — `refs` reads the tree through `git ls-files`."""
+    tmp = tempfile.mkdtemp()
+    subprocess.run(["git", "init", "-q"], cwd=tmp, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t"], cwd=tmp, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=tmp, check=True)
+    return tmp
+
+
+def git_add(tmp, rel, text):
+    p = os.path.join(tmp, rel)
+    if os.path.dirname(p):
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+    with open(p, "w", encoding="utf-8") as f:
+        f.write(text)
+    subprocess.run(["git", "add", rel], cwd=tmp, check=True)
+
+
+@unittest.skipUnless(shutil.which("git"), "git absent")
+class TestCheckReference(unittest.TestCase):
+    """The three-valued verdict, against a real tracked tree.
+
+    `driver.sh` names `nuc/tool.sh` on two lines: one comment, one command.
+    That is round 415's real geometry — `run_driver.sh:496` is the comment
+    explaining the wiring and `:526` is the wiring — reduced to the smallest
+    tree that reproduces it.
+    """
+
+    def setUp(self):
+        self.tmp = git_repo()
+        git_add(self.tmp, "nuc/tool.sh", "echo hi\n")
+        git_add(self.tmp, "driver.sh",
+                "# the wiring for nuc/tool.sh is explained here\n"
+                "bash nuc/tool.sh\n")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def check(self, text):
+        c = one_claim(text)
+        return scc.check_reference(c, self.tmp), c
+
+    def test_a_count_matching_both_numbers_is_clean(self):
+        git_add(self.tmp, "solo.sh", "bash nuc/tool.sh\n")
+        f, c = self.check("`nuc/tool.sh` has 1 reference in `solo.sh`")
+        self.assertEqual(f, [])
+        self.assertTrue(c.checkable)
+
+    def test_a_count_matching_neither_number_is_S009_stale(self):
+        f, _ = self.check("`nuc/tool.sh` still has 0 references in `driver.sh`")
+        self.assertEqual(codes(f), ["S009"])
+        self.assertEqual(f[0].level, "STALE")
+        self.assertIn("2 mention(s)", f[0].message)
+        self.assertIn("1 invocation(s)", f[0].message)
+
+    def test_a_count_matching_only_the_invocation_number_is_S010_warn(self):
+        f, _ = self.check("`nuc/tool.sh` has 1 reference in `driver.sh`")
+        self.assertEqual(codes(f), ["S010"])
+        self.assertEqual(f[0].level, "WARN")
+        self.assertIn("invocation count", f[0].message)
+        self.assertIn("mention count is 2", f[0].message)
+
+    def test_a_count_matching_only_the_mention_number_is_S010_warn(self):
+        f, _ = self.check("`nuc/tool.sh` has 2 references in `driver.sh`")
+        self.assertEqual(codes(f), ["S010"])
+        self.assertIn("mention count", f[0].message)
+        self.assertIn("invocation count is 1", f[0].message)
+
+    def test_every_finding_carries_the_command_that_re_derives_it(self):
+        # Round 415's closing rule turned into output: an item asserting a
+        # reference count should be written with its re-derivation beside it.
+        for text in ("`nuc/tool.sh` still has 0 references in `driver.sh`",
+                     "`nuc/tool.sh` has 1 reference in `driver.sh`"):
+            f, _ = self.check(text)
+            self.assertIn("wiring_audit.py refs nuc/tool.sh --in driver.sh",
+                          f[0].message, text)
+
+    def test_an_ambiguous_basename_is_S010_and_never_a_verdict(self):
+        git_add(self.tmp, "skills/tool.sh", "echo other\n")
+        f, _ = self.check("`tool.sh` has 0 references in `driver.sh`")
+        self.assertEqual(codes(f), ["S010"])
+        self.assertIn("not one file", f[0].message)
+        self.assertIn("nuc/tool.sh", f[0].message)
+
+    def test_an_unresolved_target_is_skipped_rather_than_flagged(self):
+        # Next-steps prose names files that do not exist yet on purpose.
+        f, c = self.check("`does/not/exist.py` has 0 references in `driver.sh`")
+        self.assertEqual(f, [])
+        self.assertFalse(c.checkable)
+        self.assertIn("unresolved target", c.skip_reason)
+
+    def test_an_unreadable_container_is_skipped_rather_than_flagged(self):
+        f, c = self.check("`nuc/tool.sh` has 0 references in `nope.sh`")
+        self.assertEqual(f, [])
+        self.assertFalse(c.checkable)
+
+
+class TestCheckReferenceDegradesSafely(unittest.TestCase):
+    """Both ways of not having the instrument end in `skipped`, not a crash.
+
+    A checker that raised here would take a whole document down over one
+    claim class; one that returned `[]` quietly would report `0 stale` for a
+    claim it never looked at — which is the failure this class exists to end.
+    """
+
+    def test_a_tree_that_is_not_a_git_checkout_is_skipped(self):
+        tmp = tempfile.mkdtemp()
+        try:
+            c = one_claim("`a/b.py` has 0 references in `c.sh`")
+            self.assertEqual(scc.check_reference(c, tmp), [])
+            self.assertFalse(c.checkable)
+            self.assertIn("could not read the tree", c.skip_reason)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_a_checkout_with_no_harness_is_skipped(self):
+        tmp = tempfile.mkdtemp()
+        saved = scc.wiring_audit
+        scc.wiring_audit = None
+        try:
+            c = one_claim("`a/b.py` has 0 references in `c.sh`")
+            self.assertEqual(scc.check_reference(c, tmp), [])
+            self.assertFalse(c.checkable)
+            self.assertIn("wiring_audit unavailable", c.skip_reason)
+        finally:
+            scc.wiring_audit = saved
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_the_live_checkout_really_does_have_the_harness(self):
+        # Without this, the test above passes just as well when the loader
+        # is broken everywhere.
+        self.assertIsNotNone(scc._load_wiring_audit(REPO_ROOT))
+
+
+@unittest.skipUnless(os.path.isfile(LIVE_DOC), "research-state.md absent")
+class TestRound414ReferenceRegression(unittest.TestCase):
+    """The historical block, kept as the evidence that the class works.
+
+    Round 414's block is frozen in the record, so this cannot be invalidated
+    by a later edit to the live document — the same reason
+    `TestRound349Regression` exists.
+    """
+
+    def test_round_414s_item_10_is_S009(self):
+        findings, _ = scc.analyse(LIVE_DOC, REPO_ROOT, block_round=414)
+        s9 = [f for f in findings if f.code == "S009"]
+        self.assertEqual(len(s9), 1, [str(f) for f in findings])
+        self.assertIn("nuc/run_checks_fast.sh", s9[0].message)
+        self.assertIn("claimed 0 reference(s)", s9[0].message)
+
+    def test_the_ordinal_in_the_same_sentence_passed_at_the_time(self):
+        # The whole class in one assertion: S007 was checking that item, and
+        # the ordinal it checks DID advance. The number about the ledger was
+        # maintained; the number about the tree was not.
+        findings, _ = scc.analyse(LIVE_DOC, REPO_ROOT, block_round=414)
+        self.assertEqual([f for f in findings if f.code in ("S007", "S008")],
+                         [])
+
+    def test_the_scoped_reference_claim_set_over_the_whole_document(self):
+        # Pinned as a SET of round numbers, like the S007/S008 sweep above.
+        # Six blocks assert this one claim, in two different prose shapes.
+        # These are re-derived against HEAD, so a block that was TRUE when
+        # written reads STALE here — which is exactly why this tool's default
+        # scope is the LIVE block only. 400/406/407/408 predate round 409's
+        # wiring and were true when written; 412 and 414 were not.
+        with open(LIVE_DOC, encoding="utf-8") as f:
+            blocks = scc.find_blocks(f.read())
+        scoped, unscoped = set(), set()
+        for b in blocks:
+            for item in scc.parse_items(b):
+                for c in scc.extract_claims(item):
+                    if c.kind != "reference":
+                        continue
+                    (scoped if c.payload["container"] else unscoped).add(
+                        b.round_no)
+        self.assertEqual(sorted(scoped), [400, 406, 407, 408, 412, 414])
+        # 417 is this round's own block, which QUOTES round 415's unscoped
+        # claim while describing it. The grammar cannot tell a quotation from
+        # an assertion and does not try to — either way the honest verdict is
+        # the same (no container, therefore skipped, therefore counted in the
+        # published coverage), so the cheap rule is kept over a clever one.
+        self.assertEqual(sorted(unscoped), [415, 417])
+
+    def test_the_live_block_has_no_reference_findings(self):
+        findings, _ = scc.analyse(LIVE_DOC, REPO_ROOT)
+        bad = [str(f) for f in findings if f.code in ("S009", "S010")]
+        self.assertEqual(bad, [], "\n".join(bad))
+
+
+class TestStaleCountCarriesItsDenominator(unittest.TestCase):
+    """Round 417: `0 stale` and its denominators on ONE line.
+
+    Round 414's block was reported `7 claim(s): 7 re-derivable, 0 stale` while
+    containing a flatly false item. Nothing lied — the coverage was printed on
+    the line above, and every aggregator downstream keeps `lines[-1]`.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.doc = os.path.join(self.tmp, "s.md")
+        with open(self.doc, "w", encoding="utf-8") as f:
+            f.write(block(9,
+                          "1. plain prose, no claim at all",
+                          "2. `wc -l s.md` -> 5 s.md",
+                          "3. more prose",
+                          "4. and more"))
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def text(self, run=False):
+        findings, report = scc.analyse(self.doc, self.tmp, run=run)
+        return scc.format_report(findings, report)
+
+    def test_the_stale_line_carries_items_and_claims(self):
+        self.assertRegex(self.text(),
+                         r"0 stale of \d+ checked; "
+                         r"coverage 1/4 items \(25%\), \d+/1 claims")
+
+    def test_a_command_claim_nobody_ran_is_not_counted_as_checked(self):
+        # Without `--run` the one command claim is checkABLE and unchecked.
+        # Counting it as checked would inflate the denominator with work the
+        # tool declined to do — the same overstatement in miniature.
+        self.assertIn("0 stale of 0 checked", self.text())
+        self.assertIn("0 stale of 1 checked", self.text(run=True))
+
+    def test_the_coverage_token_is_shaped_for_the_aggregator(self):
+        import corpus_check
+        self.assertEqual(corpus_check.coverage_of(self.text()),
+                         "1/4 items (25%), 0/1 claims")
+
+
+# --------------------------------------------------------------------------
+# Round 417 — the ordinal that was maintained and the checker that could not
+# see it.
+#
+# Round 415 wrote, of the very episode S009 was built for: "`state_claim_
+# check.py`'s S007 checks exactly that ordinal advances; it did." The ordinal
+# did advance. S007 never saw it — `ORDINAL_RE` required the literal word
+# `consecutive`, and blocks 406/407/408/412/414 all write the counter as
+# `FOURTH round carried`. Widening the grammar exposes a second thing: across
+# the rewrite from "wiring X into Y — 0 references" to "X still has 0
+# references in Y", the counter went SIXTH -> FIFTH. Backwards.
+# --------------------------------------------------------------------------
+
+
+class TestOrdinalWithoutTheWordConsecutive(unittest.TestCase):
+    def test_the_corpus_spelling_without_consecutive_now_parses(self):
+        c = one_claim("`a/b.py` has 0 references in `c.sh` — SIXTH round "
+                      "carried.")
+        self.assertEqual(scc.ordinal_for(c.item.text, c.key()),
+                         (6, ("round",)))
+
+    def test_both_spellings_yield_the_SAME_unit(self):
+        # If they did not, S007 would report S008 ("the unit changed too")
+        # every time an author dropped or added the word, and the real
+        # backwards step would be reported as a vocabulary change.
+        a = one_claim(B002 + " — 8th consecutive round carried.")
+        b = one_claim(B002 + " — 8th round carried.")
+        self.assertEqual(scc.ordinal_for(a.item.text, a.key())[1],
+                         scc.ordinal_for(b.item.text, b.key())[1])
+
+    def test_an_ordinal_in_ordinary_prose_is_not_a_carry_counter(self):
+        # `carried` within three words is the gate. Without it this widening
+        # would read any ordinal in the item as the claim's carry count.
+        for text in ("`a/b.py` has 0 references in `c.sh` — the fifth round "
+                     "of the campaign found nothing",
+                     "`a/b.py` has 0 references in `c.sh`, third time I have "
+                     "looked at this file today and given up"):
+            c = one_claim(text)
+            self.assertIsNone(scc.ordinal_for(c.item.text, c.key()), text)
+
+    def test_consecutive_still_parses_without_the_word_carried(self):
+        c = one_claim(B002 + " — SEVENTH consecutive down-round.")
+        self.assertEqual(scc.ordinal_for(c.item.text, c.key())[0], 7)
+
+
+class TestSubjectIdentityAcrossARewrite(unittest.TestCase):
+    """S007 keys on the sentence; a reference claim keys on its subject."""
+
+    def blocks(self, *pairs):
+        text = "\n".join(block(r, "1. " + t) for r, t in pairs)
+        bs = scc.find_blocks(text)
+        for b in bs:
+            b.path = "<test>"
+        return bs
+
+    def test_a_reworded_claim_is_still_the_same_claim(self):
+        bs = self.blocks(
+            (8, "still owns wiring `a/b.py` into `c.sh` — 0 references, "
+                "SIXTH round carried."),
+            (9, "`a/b.py` still has 0 references in `c.sh` — FIFTH round "
+                "carried."))
+        claim = [c for c in scc.extract_claims(scc.parse_items(bs[1])[0])
+                 if c.kind == "reference"][0]
+        f = scc.check_ordinal(claim, bs)
+        self.assertEqual(codes(f), ["S007"])
+        self.assertIn("not above round 8's 6", f[0].message)
+
+    def test_the_verbatim_key_alone_would_have_missed_it(self):
+        # The ablation, as a test: with the substring matcher the two blocks
+        # share no span, so block 9 has no prior and nothing fires. This is
+        # what makes the subject matcher load-bearing rather than tidy.
+        bs = self.blocks(
+            (8, "still owns wiring `a/b.py` into `c.sh` — 0 references, "
+                "SIXTH round carried."),
+            (9, "`a/b.py` still has 0 references in `c.sh` — FIFTH round "
+                "carried."))
+        claim = [c for c in scc.extract_claims(scc.parse_items(bs[1])[0])
+                 if c.kind == "reference"][0]
+        hist = scc.ordinal_history(claim.key(), bs)          # no anchor
+        self.assertEqual([r for r, _ in hist], [9])
+        hist = scc.ordinal_history(claim.key(), bs,
+                                   anchor=scc.reference_anchor(claim.payload))
+        self.assertEqual([r for r, _ in hist], [8, 9])
+
+    def test_a_different_subject_is_not_matched(self):
+        bs = self.blocks(
+            (8, "`other/x.py` has 0 references in `c.sh` — SIXTH round "
+                "carried."),
+            (9, "`a/b.py` still has 0 references in `c.sh` — FIFTH round "
+                "carried."))
+        claim = [c for c in scc.extract_claims(scc.parse_items(bs[1])[0])
+                 if c.kind == "reference"][0]
+        self.assertEqual(scc.check_ordinal(claim, bs), [])
+
+    def test_a_rising_ordinal_across_a_rewrite_is_clean(self):
+        bs = self.blocks(
+            (8, "still owns wiring `a/b.py` into `c.sh` — 0 references, "
+                "FIFTH round carried."),
+            (9, "`a/b.py` still has 0 references in `c.sh` — SIXTH round "
+                "carried."))
+        claim = [c for c in scc.extract_claims(scc.parse_items(bs[1])[0])
+                 if c.kind == "reference"][0]
+        self.assertEqual(scc.check_ordinal(claim, bs), [])
+
+
+@unittest.skipUnless(os.path.isfile(LIVE_DOC), "research-state.md absent")
+class TestRound412OrdinalRegression(unittest.TestCase):
+    def test_block_412s_counter_went_backwards_across_the_rewrite(self):
+        findings, _ = scc.analyse(LIVE_DOC, REPO_ROOT, block_round=412)
+        s7 = [f for f in findings if f.code == "S007"]
+        self.assertEqual(len(s7), 1, [str(f) for f in findings])
+        self.assertIn("carry ordinal is 5, not above round 408's 6",
+                      s7[0].message)
+
+    def test_the_ordinals_the_narrow_grammar_could_not_see(self):
+        # Every block in the run_checks_fast carry chain writes its counter
+        # WITHOUT the word `consecutive`, which is why S007 was silent for
+        # the whole episode round 415 credited it with checking.
+        with open(LIVE_DOC, encoding="utf-8") as f:
+            blocks = scc.find_blocks(f.read())
+        got = {}
+        for b in blocks:
+            for item in scc.parse_items(b):
+                for c in scc.extract_claims(item):
+                    if c.kind != "reference" or not c.payload["container"]:
+                        continue
+                    o = scc.ordinal_for(item.text, c.key())
+                    got[b.round_no] = o and o[0]
+        self.assertEqual(got, {400: 3, 406: 4, 407: 5, 408: 6,
+                               412: 5, 414: 6})

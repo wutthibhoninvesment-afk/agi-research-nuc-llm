@@ -784,9 +784,21 @@ def main(argv=None):
     print("claim_check: %d skill(s), %d command(s): %d auto-checkable, "
           "%d manual (%s)" % (len(md_paths), n_auto + n_manual, n_auto,
                               n_manual, reason_str or "none"))
+    # Round 417. This line is the one `corpus_check.py` quotes and the one
+    # `run_driver.sh` therefore logs, and until now the only number on it
+    # that a reader could act on was `0 stale`. The denominators were on the
+    # line ABOVE it, which no aggregator reads. Two of them matter and they
+    # say different things: `paths` is what the static tier really checked,
+    # and `commands` is 0 of 264 unless `--run` was passed -- so without
+    # `--run` this tool's `0 stale` is zero-of-zero on the command tier, and
+    # says so now instead of reading as a clean bill of health.
+    n_ran = n_auto if args.run else 0
     print("claim_check: %d path(s) resolved, %d unresolvable-by-design "
-          "(scratch/placeholder/output/unanchored); %d stale claim(s)"
-          % (paths_checked, paths_skipped, n_stale))
+          "(scratch/placeholder/output/unanchored); %d stale claim(s) of %d "
+          "checked; coverage %d/%d paths, %d/%d commands"
+          % (paths_checked, paths_skipped, n_stale, paths_checked + n_ran,
+             paths_checked, paths_checked + paths_skipped,
+             n_ran, n_auto + n_manual))
     return 1 if n_stale else 0
 
 

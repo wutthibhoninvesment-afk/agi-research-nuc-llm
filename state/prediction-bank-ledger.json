@@ -707,6 +707,14 @@
    "where": "knowledge/round-416-the-direction-nobody-mutated.md",
    "quote": "10 HIT / 1 PARTIAL / 4 MISS of 15",
    "remainder": "B4 is scored PARTIAL rather than MISS on one pin (M13, the `blame` family), which was inert in BOTH directions -- a category the bank had no prediction for at all, so half of B4's claim is unscorable rather than wrong. Recorded here because a PARTIAL that is really 'the prediction did not cover this case' is weaker than a PARTIAL that is 'half right'."
+  },
+  "417": {
+   "bank": "state/round-417-predictions.md",
+   "status": "scored",
+   "scored_by": 417,
+   "where": "knowledge/round-417-the-zero-that-had-no-denominator.md",
+   "quote": "13 HIT / 1 PARTIAL / 3 MISS of 17",
+   "remainder": "C3 is scored PARTIAL rather than MISS because its premise, not its claim, was wrong: it predicted `harness/run_tests_fast.sh` would STAY green without measuring that it was green, and the suite was already red at HEAD from round 416's non-canonical entry heading. The wiring_audit half of C3 was a clean HIT."
   }
  }
 }

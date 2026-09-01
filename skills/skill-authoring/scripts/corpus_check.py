@@ -92,6 +92,31 @@ FINDING_RE = re.compile(
     r"(?:^|:\s*)(ERROR|WARN|STALE|CARRIED|error|warning)\b[:\s]+([A-Z]\d{3})\b")
 ERROR_SEVERITIES = {"error", "stale"}
 
+# Round 417. The recall gap, carried to the line the driver actually reads.
+#
+# Round 339's rule is that a checker nobody watches must publish its recall
+# gap. Every checker here obeyed it -- and published the gap on a line the
+# AGGREGATOR THROWS AWAY. `run_one` keeps `lines[-1]`, so a denominator on
+# the second-to-last line is invisible from here, and `driver_line` then
+# reports a bare `0 error(s)` into `driver.log`. Round 415 paid for that
+# exactly: round 414's block was logged `0 stale` while containing a flatly
+# false item, because the item sat in the published-but-unquoted gap.
+#
+# The contract is one token, `coverage A/B unit[, C/D unit]*`, scanned out of
+# the checker's FULL output rather than its last line -- deliberately, and
+# not for elegance: `case_coverage`'s last line is already longer than the
+# 200-character summary truncation below, so a clause appended to the end of
+# it would be cut off before it ever reached here.
+COVERAGE_RE = re.compile(
+    r"\bcoverage[:\s]+((?:\d+/\d+\s+[a-z][a-z\-]*(?:\s+\(\d+%\))?)"
+    r"(?:,\s*\d+/\d+\s+[a-z][a-z\-]*(?:\s+\(\d+%\))?)*)")
+
+
+def coverage_of(output):
+    """The LAST `coverage ...` clause in a checker's output, or ""."""
+    found = COVERAGE_RE.findall(output or "")
+    return re.sub(r"\s+", " ", found[-1]).strip() if found else ""
+
 
 # Re-entry guard. `test_corpus_check.py::TestLiveCorpus` calls `main()` on
 # the live corpus, and `main()` runs the `skills/` test suite — which
@@ -152,7 +177,8 @@ def checks(root):
 def run_one(name, argv, root, timeout=600):
     if argv[0] != "-m" and not os.path.exists(argv[0]):
         return {"check": name, "status": "absent", "errors": [],
-                "warnings": [], "summary": "script not present"}
+                "warnings": [], "coverage": "",
+                "summary": "script not present"}
     t0 = time.time()
     env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1", **{REENTRY_ENV: "1"})
     try:
@@ -160,12 +186,13 @@ def run_one(name, argv, root, timeout=600):
                            capture_output=True, text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
         return {"check": name, "status": "timeout", "errors": [],
-                "warnings": [], "summary": "timed out after %ds" % timeout}
+                "warnings": [], "coverage": "",
+                "summary": "timed out after %ds" % timeout}
     out = (p.stdout or "") + (p.stderr or "")
     lines = [l for l in out.strip().splitlines() if l.strip()]
     if p.returncode == 2 or (p.returncode not in (0, 1)):
         return {"check": name, "status": "error", "rc": p.returncode,
-                "errors": [], "warnings": [],
+                "errors": [], "warnings": [], "coverage": coverage_of(out),
                 "summary": lines[-1][:200] if lines else "rc=%d" % p.returncode}
     errors, warnings = set(), set()
     for line in lines:
@@ -181,6 +208,7 @@ def run_one(name, argv, root, timeout=600):
         errors.add("rc1")
     return {"check": name, "status": "ran", "rc": p.returncode,
             "errors": sorted(errors), "warnings": sorted(warnings),
+            "coverage": coverage_of(out),
             "elapsed_s": round(time.time() - t0, 2),
             "summary": lines[-1][:200] if lines else ""}
 
@@ -251,10 +279,14 @@ def main(argv=None):
     # carries the whole verdict including the warning count.
     nested = " (nested: unit_tests skipped)" if os.environ.get(REENTRY_ENV) \
         else ""
-    print("corpus-check: %d checker(s)%s, %d error(s), %d warning(s)%s%s"
+    cov = [r for r in results if r.get("coverage")]
+    print("corpus-check: %d checker(s)%s, %d error(s), %d warning(s)%s%s%s"
           % (len(results), nested, n_err, n_warn,
              "; COULD NOT RUN: " + ",".join(broken) if broken else "",
-             "; absent: " + ",".join(absent) if absent else ""))
+             "; absent: " + ",".join(absent) if absent else "",
+             ("; coverage: " + "; ".join("%s %s" % (r["check"], r["coverage"])
+                                         for r in cov)) if cov else
+             "; coverage: none published"))
     if broken:
         return COULD_NOT_RUN
     return ERRORS_FOUND if n_err else PASS

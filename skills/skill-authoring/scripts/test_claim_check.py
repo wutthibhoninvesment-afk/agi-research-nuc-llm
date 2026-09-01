@@ -5,6 +5,7 @@ cases that deliberately run `true`/`echo` through the executor, and the live
 corpus regression test at the bottom, which is static-only (no --run).
 """
 
+import contextlib
 import io
 import os
 import re
@@ -811,6 +812,73 @@ class TestLiveCorpusClaims(unittest.TestCase):
             % (sorted(empty - self.PROSE_ONLY_VERIFICATION),
                sorted(self.PROSE_ONLY_VERIFICATION - empty)))
 
+
+# --------------------------------------------------------------------------
+# Round 417 — `0 stale` and its denominators on the SAME line.
+#
+# `corpus_check.py` quotes each checker's LAST line and `run_driver.sh` logs
+# the result. This file's denominators lived one line higher, so the driver's
+# record of a claim_check run was a bare `0 stale claim(s)` — including on
+# runs where the command tier executed nothing at all.
+# --------------------------------------------------------------------------
+
+
+class TestSummaryCarriesItsDenominators(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.skill = os.path.join(self.tmp, "a-skill")
+        os.makedirs(self.skill)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def write(self, verification):
+        with open(os.path.join(self.skill, "SKILL.md"), "w") as f:
+            f.write("---\nname: a-skill\ndescription: d\n---\n\n# T\n\n"
+                    + verification)
+
+    def last_line(self, *extra):
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            claim_check.main([self.skill, "--repo-root", self.tmp] +
+                             list(extra))
+        return [l for l in buf.getvalue().splitlines() if l.strip()][-1]
+
+    def test_the_last_line_carries_paths_and_commands(self):
+        self.write(fence("python3 -m pytest -q tests/x.py"))
+        os.makedirs(os.path.join(self.tmp, "tests"))
+        open(os.path.join(self.tmp, "tests", "x.py"), "w").close()
+        line = self.last_line()
+        self.assertIn("0 stale claim(s) of", line)
+        self.assertRegex(line, r"coverage \d+/\d+ paths, \d+/\d+ commands")
+
+    def test_without_run_the_command_denominator_is_zero(self):
+        # The honest reading of a static `claim_check` run: it checked paths
+        # and executed nothing. Before this line said so, `0 stale` read as a
+        # clean bill of health for a tier that had not been entered.
+        self.write(fence("python3 -m pytest -q tests/x.py"))
+        self.assertRegex(self.last_line(), r"coverage \d+/\d+ paths, 0/1 commands")
+
+    def test_with_run_the_command_denominator_is_the_auto_count(self):
+        self.write(fence("wc -l SKILL.md"))
+        self.assertRegex(self.last_line("--run"),
+                         r"coverage \d+/\d+ paths, 1/1 commands")
+
+    def test_a_manual_command_is_in_the_denominator_and_never_the_numerator(self):
+        # `--run` never executes a `manual` command, so a corpus of manual
+        # commands must still report 0 executed against a non-zero total.
+        self.write(fence("ssh box uptime"))
+        self.assertRegex(self.last_line("--run"),
+                         r"coverage \d+/\d+ paths, 0/1 commands")
+
+    def test_the_coverage_token_is_shaped_for_the_aggregator(self):
+        self.write(fence("python3 -m pytest -q tests/x.py"))
+        os.makedirs(os.path.join(self.tmp, "tests"))
+        open(os.path.join(self.tmp, "tests", "x.py"), "w").close()
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import corpus_check
+        self.assertEqual(corpus_check.coverage_of(self.last_line()),
+                         "1/1 paths, 0/1 commands")
 
 if __name__ == "__main__":
     unittest.main()

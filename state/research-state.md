@@ -19151,7 +19151,7 @@ of any kind** from `state_claim_check`, not the weak one predicted, so "0
 stale of 7 checkable, out of 13 items" needs its denominator every time it is
 quoted.
 
-## Round 416 (language C) — the direction nobody mutated
+### Round 416 — language(C) — 2026-09-01 — the direction nobody mutated
 
 Round 415's next-step 6 (round 414's item 1): `examples/self_eval.lang`'s
 guest EVALUATOR had no pin. Round 415's next-step 7 carried round 414's
@@ -19307,6 +19307,195 @@ variable. **A2 missed for the second round running** (predicted a
 a parse check converts run-time failures into author-time ones, so a
 prediction about how often the instrument stumbles is really a prediction
 about whether you will run the cheap check first.
+
+### Round 417 — skills(B) — 2026-09-01 — the zero that had no denominator
+
+Closed round 416's item 5, both halves, and found two things underneath it
+that nobody had asked for. Full write-up:
+`knowledge/round-417-the-zero-that-had-no-denominator.md`.
+
+- **`S009`/`S010`, a REFERENCE-count claim class** in
+  `state_claim_check.py` — the fourth claim grammar, admissible under round
+  351's condition because round 415 built its exact re-derivation first
+  (`harness/wiring_audit.py refs`). Verdict is THREE-valued, not two:
+  matching both of `refs`'s numbers is clean, matching neither is `S009`
+  STALE, **matching exactly one is `S010` WARN** — a sentence true under one
+  honest reading is under-specified, not false, and an error there trains
+  people to mute the check. Every finding prints the command that re-derives
+  it. `S010` also executes round 415's prose rule *a basename is not an
+  identity*: a target naming two tracked paths is a WARN, never a verdict.
+- **The historical regression is `--block 414`**, which now emits exactly
+  the finding round 415 found by hand. Kept as a test, so "this catches the
+  bug it was written for" is re-executed rather than asserted.
+- **The corpus writes the claim in TWO shapes and the first grammar saw
+  one.** Blocks 412/414 say ``X still has 0 references in `Y` ``; blocks
+  400/406/407/408 say ``wiring `X` into `Y` — 0 references``, where the path
+  NEAREST the number is the CONTAINER. Matched by the verb, not by widening a
+  proximity window. Also: the target group must permit whitespace (this file
+  wraps paths across line breaks inside their own backticks — verified as an
+  ablation, a whitespace-free group returns `[]` on the real item), the gap
+  may not cross a sentence break, and a claim with no container is
+  **extracted and SKIPPED**, which is what puts it in the coverage
+  denominator instead of nowhere.
+- **A grammar bug found by a synthetic fixture, not by the sweep.** The
+  target group's minimum was `{2,160}`, so a path whose STEM is one character
+  (`c.sh`, `x.py`) could never match — the floor ate the stem. Every path in
+  this corpus is longer, so the live sweep, six historical blocks and the
+  round-414 regression all passed over it. A live-corpus sweep cannot find a
+  defect the live corpus does not exercise.
+- **`0 stale` now carries its denominator ON THE LINE THAT SURVIVES.** Round
+  339's rule ("a checker nobody watches must publish its recall gap") was
+  obeyed by every checker here and still failed, because of WHERE: the gap
+  was on the line above the zero, and `corpus_check.py` keeps `lines[-1]`,
+  which is what `run_driver.sh` logs. Three checkers now emit a
+  `coverage A/B unit` token and the aggregator lifts it onto its own final
+  line. Four details are load-bearing: `claim_check` reports **`0/273
+  commands`** (without `--run` its command tier executes NOTHING, and its
+  `0 stale` had been a clean bill of health for a tier never entered);
+  `0 stale of N checked` excludes checkable-but-unrun claims; the aggregator
+  parses the checker's FULL output because `case_coverage`'s last line is
+  already past the 200-char summary truncation; and an empty result prints
+  `coverage: none published` rather than nothing.
+- **Round 415's own account of the episode was wrong in one clause, and this
+  round measured it.** Round 415 wrote *"S007 checks exactly that ordinal
+  advances; it did"*. S007 required the literal word `consecutive` and every
+  block in that carry chain writes `FOURTH round carried`; `ordinal_for`
+  returned `None` for all of 406, 407, 408, 412, 414. S007 was silent for the
+  whole episode it was credited with checking. Widened (ordinal + `carried`
+  within three words, matched as a LOOKAHEAD so `ordinal_unit` still reads
+  the unit) the counters are: 400:3, 406:4, 407:5, 408:6, **412:5**, 414:6 —
+  the counter went BACKWARDS across a sentence rewrite, and the FOURTH/FIFTH/
+  SIXTH round 415 attributed to the post-wiring blocks are the PRE-wiring
+  ones. Only TWO blocks re-assert the claim after round 409 wired it (412 and
+  414); there is no round-410 or round-413 next-steps block at all.
+- **Seeing that needed a second change: subject identity.** S007 keys "the
+  same claim" on the verbatim sentence, and the sentence was rewritten
+  mid-chain. A reference claim is the first class here with a STRUCTURED
+  subject — `(target, container)` — so `ordinal_history` takes an optional
+  anchor. Single-ablation over all 109 blocks, and neither change alone is
+  sufficient: widened grammar + verbatim key → S007 red on [334, 349, 398];
+  subject anchor + narrow grammar → [334, 349, 398]; **both → [334, 349, 398,
+  412]**. S008 held still at [318, 346] in all three, which is the control
+  that the widening did not read a vocabulary difference as a unit change.
+- **`harness/run_tests_fast.sh` was ALREADY RED at HEAD**, and this file said
+  otherwise. Round 416's entry heading was written `## Round 416 (language
+  C) — …` where the canonical form is `### Round N — <track> — <date>`, so
+  `test_roundheadings.py::test_the_live_record_is_fully_canonical` had been
+  failing since that commit: **1064 passed, 1 failed** against the `1065
+  passed` this file asserted. Canonicalised here (this round edits this file
+  anyway) and the suite is green again. Same defect class as everything else
+  in the round: a number in the record that no round re-derived.
+- New skill **`count-carries-its-noun-and-denominator`** (5 trigger cases,
+  3 positive / 2 negative): a bare count strips off the NOUN it counts (which
+  reading of "reference"?) and the DENOMINATOR it came from, and the two are
+  lost in different places — the noun to an ambiguous word, the denominator to
+  whatever downstream thing quotes one line of your output. Steps cover
+  finding the surface the reader actually reads, splitting the denominator by
+  tier, enumerating the noun's defensible readings, and the three-valued
+  verdict. Cross-references `cause-needs-a-denominator`,
+  `zero-rate-needs-a-distance`, `verdict-carries-its-threshold` as NOT-fors.
+
+Suites: `python3 -m pytest skills/skill-authoring/scripts
+skills/session-inheritance-audit/scripts -q` **813 passed** (759 before this
+round, +54); `bash harness/run_tests_fast.sh` **1065 passed, 280 deselected**;
+`python3 harness/wiring_audit.py check` **108 entry point(s), 88 in closure,
+0 error(s), 0 warning(s)**; `skill_lint --house --strict` **66 skill(s), 0
+error(s), 0 warning(s)**; `corpus_check.py` **7 checker(s), 0 error(s), 6
+warning(s); coverage: case_coverage 55/66 skills, 32/66 replicated;
+claim_check 159/193 paths, 0/273 commands; state_claim_check 12/15 items
+(80%), 12/13 claims** — the last of those measured on THIS round's own
+next-steps block, whose item 1 quotes round 415's unscoped claim and is
+therefore the 1 skipped. Adding a skill reddened ONE check, not the four round
+416 measured — `claim_check` had commands, X004 had no dangling path, and the
+K001 that fired came from the predictions bank rather than the skill.
+
+**Predictions: 13 HIT / 1 PARTIAL / 3 MISS of 17.** The pattern holds for a
+FOURTH consecutive round: everything derivable by reading code HIT (13 of
+13), every guessed count of instances in the corpus MISSED (A2 predicted 5
+blocks and got 6; A3 predicted 3 and got 2; C1 predicted 4 reddened checks
+and got 1). **C3 is the miss worth keeping**: it predicted a suite would
+*stay* green without ever measuring that it was green, and the suite was
+already red. That is a claim about a baseline nobody re-derived — the same
+shape as `0 stale` with no denominator and `0 references` with no command
+beside it. A prediction of the form "X stays Y" needs the measurement of Y in
+the same breath.
+
+## Next steps (as of round 417)
+
+1. **A tree-wide reference count.** `wiring_audit.py refs` requires
+   `--in FILE`, so *"`ncs_engine.py` has zero references of any kind"* (round
+   415's item 1) is the one reference claim in the corpus that S009 extracts
+   and cannot check. A `refs --in-tree` mode would close it, and would also
+   answer the "is this dead" question rounds 172/415 both asked about that
+   file. harness(A).
+2. **S007's subject identity is available to the other three claim classes
+   and used by none of them.** Body-line and citation claims have structured
+   subjects too (`path`, `(round, items)`), and the rewrite that hid the
+   block-412 reset can hide theirs the same way. skills(B).
+3. **`case_coverage` has SEVEN skills registered unprobed** — the six round
+   416 listed (`cause-needs-a-denominator`, `verdict-carries-its-threshold`,
+   `null-result-needs-a-power-floor`, `named-guardian-must-go-red`,
+   `probe-where-the-rules-disagree`, `mutate-the-rule-both-ways`) plus this
+   round's `count-carries-its-noun-and-denominator`. Round 416's grouping
+   still stands: the last three of its six should be probed TOGETHER because
+   they are three defects in one family. Needs a priced `trigger_eval` round
+   budgeted as a whole round. skills(B).
+4. **Round 411's item 2 carries forward, fourth round** (a single
+   `command_exempt_reason(cmd, tok, bases)` composing all four suppression
+   rules). skills(B).
+5. **Replicate the direction experiment on `self_host.lang`** — round 416's
+   item 1, unchanged. Its 22-pin parser registry is 21 `-` and 1 `+`, so
+   round 416's p = 0.009 comes from ONE campaign over pins it chose, and the
+   honest falsifiable form is that it should reproduce on the other guest
+   file. Highest-value language(C) item. language(C).
+6. **Five `shadowed` findings survive, argued but not fixed** (EP03m, EP05p,
+   EP08p, EP10p, EP12p) — round 416's item 2, unchanged. language(C).
+7. **Round 416's items 3 and 4 carry forward** (whether `check` should carry
+   a `because "<substring>"` clause — now with an argument AGAINST it, and
+   leaving it open a fifth round is not defensible; and unifying
+   `parser.quote_str` with `values._quote`, fifth round carried).
+   language(C).
+8. **`examples/self_eval.lang`'s guest EVALUATOR still has no pin** (round
+   414's item 1). language(C).
+9. **Round 409's items 2, 3 and 4 are untouched and carry forward** (the
+   `split_measured_output` count-line boundary and `MEASURED_END_SENTINEL`;
+   the stale pristine-check ledger; `run_tests_fast.sh`'s echoed block
+   outgrowing every `tail`). harness(A).
+10. **`harness/wiring_audit.py` cannot see verbs or pytest markers** (round
+    415's item 5), and round 416's §9 finding stands beside it: where a
+    checker's test restates the checker's rule in its own words, the
+    restatement is a second implementation and drifts like any other.
+    harness(A).
+11. **Two orphaned entry points still have owners and dates** (round 415's
+    item 1): `harness/swe/loop.py` is SWE-loop(D)'s,
+    `languages/whence/nuc_scripting/ncs_engine.py` is language(C)'s. Both
+    declared `unwired since_round: 415`. Either wire it, test it, or delete
+    it. Item 1 above would give the second one its number.
+12. **NUC-E is unchanged and first for the next E round**: reachability, then
+    `python3 nuc/capture_manifest.py plan --capture state/nuc-capture-r400 >
+    /tmp/cap.sh && bash /tmp/cap.sh`. **Sixth round carried**, all six
+    because the box was down. `sa23` is still overwritten 2026-09-23. Round
+    412's items 2, 3 and 4 are OFFLINE work needing no box and are the
+    fallback. NUC-integration(E).
+13. **Round 408's item 9 (CLAUDE.md's `🔴 CRITICAL MISSION` block is stale in
+    both halves) is re-escalated for the EIGHTH time.** Both its items were
+    answered by rounds 349 and 33/v0.23, and every round pays a re-read for
+    it. CLAUDE.md is the operator's file (round 346), so this needs the
+    operator, not a round.
+14. **`languages/whence/SECURITY.md`, 69 rounds carried, and the working tree
+    still holds an UNATTRIBUTED uncommitted rewrite** whose four security
+    claims round 416 verified as false of this repo (no pre-commit hook, no
+    `.github/`, no tags, no `.env`/`*.key` in any `.gitignore`), which
+    replaces the section the round-349 content pin was written against and
+    gives a placeholder contact. Round 417 did not commit or revert it
+    either — it is the operator's file. **Operator decision, overdue in two
+    ways.**
+15. **Blocked on the operator: `--cap 196` and the E3 A/B**, with round 412's
+    precondition (any A/B publishes its power floor BEFORE it runs). Round
+    406's items 1–7, round 405's 1–4, round 404's 1–4 and 7, round 403's 2–5
+    and round 336's remaining language(C) items carry forward where not
+    closed above. The `Harness (A)` half of the Track-status audit is still
+    the last one owed.
 
 ## Next steps (as of round 416)
 

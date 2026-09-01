@@ -67,6 +67,19 @@ Findings
         asks whether the pointer RESOLVES; this asks whether the thing it
         points at is still open. Exempt when the citing item's own text
         acknowledges the closure -- saying so is the cure, not the disease.
+`S009`  a REFERENCE-count claim -- *X still has 0 references in Y* --
+        whose count matches NEITHER of the two numbers
+        `harness/wiring_audit.py refs` re-derives. Round 415 found the
+        instance: three consecutive blocks asserted `0` where the tree said
+        2 mentions / 1 invocation, and the only number in that item anybody
+        maintained was the carry ordinal beside it -- which S007 was
+        checking, and which advanced on schedule while the sentence next to
+        it was false.
+`S010`  (WARN, never an error) the same claim matching exactly ONE of the
+        two numbers, or naming a target whose basename resolves to more
+        than one tracked file. "How many references" has two right answers;
+        a sentence that does not say which one it means is under-specified
+        rather than wrong, and the cure is a word, not a patch.
 `CARRIED` (never an error) the age of each extracted claim: how many
         distinct next-steps blocks assert it verbatim, and from which round.
         An age of 1 means this round derived it. An age of 11 means eleven
@@ -88,9 +101,11 @@ Exit codes: 0 = no stale claims, 1 = at least one, 2 = usage/IO problem.
 """
 
 import argparse
+import importlib.util
 import json
 import os
 import re
+import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -106,6 +121,41 @@ if HERE not in sys.path:                                  # pragma: no cover
 # keep in sync — exactly what skills/copied-mirror-drift warns about.
 import claim_check
 import skill_lint
+
+
+def _load_wiring_audit(repo_root=None):
+    """`harness/wiring_audit.py`, loaded by PATH rather than by import.
+
+    S009's re-derivation lives in `harness/`, and this import is unlike the
+    two above it in two ways. `claim_check` and `skill_lint` sit in this
+    directory, which is already on `sys.path`; reaching `wiring_audit` the
+    same way would mean putting `harness/` on `sys.path`, and `harness/`
+    holds ten top-level module names (`demo`, `procreap`, `tierbudget`, ...)
+    that would then shadow anything of the same name for the rest of the
+    process. Second, the tree under test is a runtime argument
+    (`--repo-root`), so "the module" and "the tree" are not the same thing:
+    the module is loaded once from the checkout THIS file belongs to, and
+    the tree is passed to `refs(root, ...)`, which already takes it.
+
+    Returns None -- never raises -- when the harness is absent or broken.
+    S009 then degrades to `skipped`, which counts against published
+    coverage instead of vanishing.
+    """
+    root = DEFAULT_REPO_ROOT if repo_root is None else repo_root
+    path = os.path.join(root, "harness", "wiring_audit.py")
+    if not os.path.isfile(path):
+        return None
+    try:
+        spec = importlib.util.spec_from_file_location("_scc_wiring_audit",
+                                                      path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+    except (OSError, SyntaxError, ImportError):           # pragma: no cover
+        return None
+    return mod if hasattr(mod, "refs") else None
+
+
+wiring_audit = _load_wiring_audit()
 
 
 BLOCK_HEADING_RE = re.compile(r"^##\s+Next steps\s*\(as of round\s+(\d+)[^)]*\)",
@@ -307,12 +357,105 @@ def citation_numbers(text):
 
 
 
+# `nuc/run_checks_fast.sh` still has 0 references in `run_driver.sh`
+# `languages/whence/nuc_scripting/ncs_engine.py` (zero references of any kind
+#
+# Round 417 (skills B). The FOURTH claim grammar, added under round 351's
+# standing condition: every new shape must have an exact re-derivation or it
+# becomes the heuristic this tool exists to avoid. This one has
+# `harness/wiring_audit.py refs`, which round 415 built for precisely this
+# claim after finding it false in three consecutive blocks.
+#
+# Two details in the pattern are load-bearing, and both were found by running
+# it against the real file rather than by design:
+#
+#   * the target group permits WHITESPACE. The other three grammars use
+#     `[^`\s]+` for a path, and round 415's own next-steps item wraps one
+#     across a line break inside its backticks --
+#     ``languages/whence/nuc_scripting/\n   ncs_engine.py`` -- so a
+#     whitespace-free group cannot see the claim that motivated the class.
+#     The match is de-wrapped by `_tidy_path` afterwards.
+#   * the gap between the path and the number may not contain a SENTENCE
+#     BREAK (`.` followed by whitespace). Without that the grammar happily
+#     pairs a path in one sentence with a count in the next one.
+#   * the SUBJECT of the claim is not always the path nearest the number.
+#     Four blocks (400, 406, 407, 408) write the same claim the other way
+#     round -- *"harness(A) still owns wiring `nuc/run_checks_fast.sh` into
+#     `run_driver.sh` -- 0 references"* -- where the nearest path is the
+#     CONTAINER and the subject is two tokens further left. The first version
+#     of this grammar read those four as unscoped and skipped them. That is
+#     the fail-closed direction (a skip costs recall and is counted; a
+#     reversed subject would have produced a confident wrong answer), but it
+#     is still a miss, so the `wiring X into Y` shape is matched explicitly
+#     rather than by widening the gap until the right path happens to land
+#     in it. The verb says which path is which; a heuristic would guess.
+REFERENCE_CLAIM_RE = re.compile(
+    r"(?:wiring\s+`(?P<wired>[^`]{1,160}?\.(?:py|sh))`\s+into\s+)?"
+    r"`(?P<target>[^`]{1,160}?\.(?:py|sh|json|md))`"
+    r"(?P<gap>(?:(?!\.\s)[^`]){0,48}?)"
+    r"\b(?P<n>\d+|zero|no)\s+references?\b"
+    r"(?:\s+of any kind)?"
+    r"(?:\s+in\s+`(?P<in_container>[^`]{1,160}?)`)?")
+
+REFERENCE_WORDS = {"zero": 0, "no": 0}
+
+
+def _tidy_path(text):
+    """A backticked path with its prose line-wrapping removed."""
+    return re.sub(r"\s+", "", text)
+
+
+def reference_payload(m):
+    """`{target, container, n}` for one REFERENCE_CLAIM_RE match."""
+    n = m.group("n")
+    if m.group("wired"):
+        # `wiring X into Y -- N references`: the subject is X, and the
+        # container is the path the count happens to sit next to.
+        target, container = m.group("wired"), m.group("target")
+    else:
+        target, container = m.group("target"), m.group("in_container")
+    return {"target": _tidy_path(target),
+            "container": _tidy_path(container) if container else None,
+            "n": int(n) if n.isdigit() else REFERENCE_WORDS[n.lower()]}
+
+
+def reference_anchor(payload):
+    """A SUBJECT-identity matcher for S007, keyed on what the claim is about.
+
+    S007 asks whether a carry ordinal advanced, and it identifies "the same
+    claim" across blocks by the verbatim sentence. That holds until an author
+    rewrites the sentence -- and this corpus did exactly that, in the middle
+    of the episode that motivated S009:
+
+        block 408  wiring `nuc/run_checks_fast.sh` into `run_driver.sh`
+                   -- 0 references, SIXTH round carried
+        round 409  wires it
+        block 412  `nuc/run_checks_fast.sh` still has 0 references in
+                   `run_driver.sh` -- FIFTH round carried
+
+    The counter went BACKWARDS across a rewrite, which is the exact signal
+    S007 exists to raise, and no check saw it because the two spans share no
+    substring. A reference claim is the first class here with a STRUCTURED
+    subject -- `(target, container)` -- so it can be recognised by what it is
+    about instead of by how it was phrased. Returns a callable giving the
+    normalised span of the matching claim in an item, or None.
+    """
+    def anchor(item_text):
+        for m in REFERENCE_CLAIM_RE.finditer(item_text):
+            p = reference_payload(m)
+            if (p["target"], p["container"]) == (payload["target"],
+                                                 payload["container"]):
+                return normalise(m.group(0))
+        return None
+    return anchor
+
+
 class Claim:
     """One extracted, re-derivable assertion."""
 
     def __init__(self, item, kind, offset, span_text, payload):
         self.item = item
-        self.kind = kind                # "body-lines" | "command"
+        self.kind = kind                # body-lines|command|citation|reference
         self.offset = offset
         self.span_text = span_text      # verbatim matched text (for CARRIED)
         self.payload = payload          # kind-specific dict
@@ -344,6 +487,19 @@ def extract_claims(item):
         out.append(Claim(item, "citation", m.start(), m.group(0),
                          {"round": int(m.group("round")),
                           "items": citation_numbers(m.group("items"))}))
+    for m in REFERENCE_CLAIM_RE.finditer(item.text):
+        c = Claim(item, "reference", m.start(), m.group(0),
+                  reference_payload(m))
+        if c.payload["container"] is None:
+            # PUBLISHED, not dropped. `refs` counts references INSIDE a named
+            # container; "zero references of any kind" names no container at
+            # all, and inventing one -- "the whole tree", say -- would be a
+            # different measurement wearing this claim's clothes. It counts
+            # against coverage, which is the honest place for it.
+            c.checkable = False
+            c.skip_reason = ("reference scope: no container file -- "
+                             "`wiring_audit.py refs` needs `--in FILE`")
+        out.append(c)
     for m in COMMAND_CLAIM_RE.finditer(item.text):
         cmd = re.sub(r"\s+", " ", m.group("cmd")).strip()
         claim_text = m.group("claim").strip()
@@ -509,6 +665,96 @@ def check_command(claim, repo_root, timeout):
 # bare in 17. Round 375 found the gap the way this checker is meant to be
 # found: a citation of `round 374's item 1` was reported STALE while the
 # item was right there under `## 10. Next steps`. Widening only ADDS
+def check_reference(claim, repo_root):
+    """S009/S010 -- a reference count, re-derived through `wiring_audit.refs`.
+
+    `refs` returns TWO numbers on purpose, and the gap between them IS the
+    finding. `raw` counts lines that MENTION the target; `code` counts the
+    ones that mention it outside a comment -- lines that make it run. For the
+    instance that forced this class they were 2 and 1: line 496 of
+    `run_driver.sh` is the comment explaining the wiring and line 526 is the
+    wiring. The item asserting `0` was wrong under both readings, and round
+    415's write-up named the trap in one sentence -- *"how many references"
+    has two right answers and the item picked neither.*
+
+    So the verdict table is three-valued, not two:
+
+        matches BOTH      clean
+        matches NEITHER   S009, STALE -- the sentence is false
+        matches ONE       S010, WARN  -- the sentence is under-specified
+
+    A checker that quietly picked `raw` or `code` and compared against that
+    would be committing, in its own implementation, the exact error it was
+    built to catch. The WARN says which reading the sentence is true under
+    and leaves the choice of word to the author.
+    """
+    p = claim.payload
+    mod = wiring_audit or _load_wiring_audit(repo_root)
+    if mod is None:
+        claim.checkable = False
+        claim.skip_reason = ("wiring_audit unavailable: no usable "
+                             "harness/wiring_audit.py under this repo root")
+        return []
+    try:
+        res = mod.refs(repo_root, p["target"], p["container"])
+    except (OSError, subprocess.SubprocessError) as exc:
+        # `refs` -> `tracked_files` -> `git ls-files` with `check=True`. A
+        # tree that is not a git checkout -- which is what every unit test
+        # here builds -- raises, and the honest verdict for that is "not
+        # checked", never "clean".
+        claim.checkable = False
+        claim.skip_reason = ("wiring_audit could not read the tree: %s"
+                             % str(exc).split("\n")[0][:60])
+        return []
+
+    if res.get("error") == "ambiguous":
+        # Round 415's rule (b), executed: a basename is not an identity.
+        # `run_checks_fast.sh` names two tracked files in this repo and the
+        # prose that started all of this said so -- "a basename grep lies".
+        return [Finding(
+            claim, "S010",
+            "`%s` is not one file: it names %d tracked paths (%s). A "
+            "basename is not an identity -- say which one."
+            % (p["target"], len(res["candidates"]),
+               ", ".join(res["candidates"][:4])),
+            level="WARN")]
+    if "error" in res:
+        # Unresolved is NOT a finding, for `resolve_md`'s stated reason:
+        # next-steps prose names files that do not exist yet on purpose, and
+        # a checker that flags those gets muted.
+        claim.checkable = False
+        claim.skip_reason = "unresolved target: %s" % p["target"]
+        return []
+
+    raw, code, n = res["raw"], res["code"], p["n"]
+    lines = ("mentions on line(s) %s; code on line(s) %s"
+             % (", ".join(str(i) for i in res["raw_lines"]) or "none",
+                ", ".join(str(i) for i in res["code_lines"]) or "none"))
+    # Round 415's closing rule, applied to this tool's own output: any item
+    # asserting a reference count should carry the command that re-derives
+    # it. The finding prints that command so the fix is a copy-paste.
+    cmd = ("python3 harness/wiring_audit.py refs %s --in %s --expect %d"
+           % (res["target"], p["container"], n))
+    if n == raw == code:
+        return []
+    if n in (raw, code):
+        which = "invocation" if n == code else "mention"
+        other, other_n = (("mention", raw) if n == code
+                          else ("invocation", code))
+        return [Finding(
+            claim, "S010",
+            "`%s` in `%s`: %d is the %s count; the %s count is %d (%s). The "
+            "sentence does not say which it means -- `%s`."
+            % (res["target"], p["container"], n, which, other, other_n,
+               lines, cmd),
+            level="WARN")]
+    return [Finding(
+        claim, "S009",
+        "`%s` in `%s`: claimed %d reference(s); re-derived %d mention(s) and "
+        "%d invocation(s) (%s). Neither reading matches -- `%s`."
+        % (res["target"], p["container"], n, raw, code, lines, cmd))]
+
+
 # resolvable targets, so it can turn S004 into resolved and never the
 # reverse.
 KNOWLEDGE_NEXT_STEPS_RE = re.compile(r"^#{2,3}\s+(?:\d+\.\s+)?Next steps\b",
@@ -605,12 +851,32 @@ ORDINAL_WORDS = {
 }
 
 # `8th consecutive round carried`, `SEVENTH consecutive down-round`,
-# `unchanged, 7th consecutive skills(B) round`.
+# `unchanged, 7th consecutive skills(B) round`, `SIXTH round carried`.
 #
 # Digits AND words, because this corpus writes both and an author who
 # reaches for `TWELFTH` is emphasising the very field this rule audits.
+#
+# Round 417 widened this, and the reason is a measurement rather than a
+# preference. The word `consecutive` was REQUIRED until now, and the corpus
+# does not always write it: blocks 406, 407, 408, 412 and 414 each carry an
+# ordinal as `FOURTH round carried` .. `SIXTH round carried`, and S007
+# extracted `None` from every one of them. Round 415's write-up of that same
+# episode says "`state_claim_check.py`'s S007 checks exactly that ordinal
+# advances; it did" -- the ordinal did advance, but S007 never saw it. The
+# author maintained the counter; the checker credited for maintaining it was
+# blind to that spelling.
+#
+# The second alternative is a LOOKAHEAD on purpose. `ordinal_unit` reads the
+# words at `m.end()`, so consuming `round carried` would eat the unit; the
+# lookahead leaves the match ending immediately after the ordinal token, and
+# both spellings then yield the same unit (`round`) and stay comparable to
+# each other across a rewrite. `carried` is required within three words so
+# that an ordinal in ordinary prose ("the fifth round of the campaign") is
+# not read as a carry counter.
 ORDINAL_RE = re.compile(
-    r"\b(?:(?P<digits>\d{1,2})(?:st|nd|rd|th)|(?P<word>%s))\b[\s,]*consecutive"
+    r"\b(?:(?P<digits>\d{1,2})(?:st|nd|rd|th)|(?P<word>%s))\b"
+    r"(?:[\s,]*consecutive\b"
+    r"|(?=[\s,]*(?:[\w()\-]+[\s,]*){0,3}carried\b))"
     % "|".join(sorted(ORDINAL_WORDS, key=len, reverse=True),),
     re.I)
 
@@ -678,19 +944,29 @@ def ordinal_for(item_text, key):
     return (ordinal_value(m), ordinal_unit(window, m.end()))
 
 
-def ordinal_history(key, blocks):
+def ordinal_history(key, blocks, anchor=None):
     """[(round, (ordinal, unit)-or-None)] per block asserting `key`, by round.
 
     Sorted by the block's own declared round, NEVER by file position: in this
     corpus 51 of 92 adjacent block pairs are out of chronological order and
     the physically last block is 65 rounds behind the live one, so file order
     would compare a counter against a block written long after it.
+
+    `anchor`, when given, replaces the verbatim-substring test with a
+    subject-identity one and supplies the per-item span the ordinal attaches
+    to. That is what lets a claim survive being REWORDED between blocks; see
+    `reference_anchor`. Without it the behaviour is unchanged, which is
+    deliberate -- the other three claim classes have no structured subject to
+    match on, and inventing a fuzzy one would make this the heuristic the
+    file exists to avoid.
     """
     rows = []
     for block in blocks:
         for item in parse_items(block):
-            if key in normalise(item.text):
-                rows.append((block.round_no, ordinal_for(item.text, key)))
+            hit = anchor(item.text) if anchor else (
+                key if key in normalise(item.text) else None)
+            if hit is not None:
+                rows.append((block.round_no, ordinal_for(item.text, hit)))
                 break
     rows.sort(key=lambda r: r[0])
     return rows
@@ -716,11 +992,13 @@ def check_ordinal(claim, blocks):
     are equal would make this checker the thing it audits.
     """
     key = claim.key()
+    anchor = (reference_anchor(claim.payload)
+              if claim.kind == "reference" else None)
     live_round = claim.item.block.round_no
     mine = ordinal_for(claim.item.text, key)
     if mine is None:
         return []
-    history = ordinal_history(key, blocks)
+    history = ordinal_history(key, blocks, anchor=anchor)
     prior = [(r, o) for r, o in history if r < live_round and o is not None]
     if not prior:
         return []
@@ -856,6 +1134,8 @@ def analyse(path, repo_root, run=False, timeout=300, block_round=None):
             elif claim.kind == "citation":
                 findings.extend(check_citation(claim, blocks, repo_root))
                 findings.extend(check_retired(claim, repo_root))
+            elif claim.kind == "reference" and claim.checkable:
+                findings.extend(check_reference(claim, repo_root))
             elif claim.kind == "command" and claim.checkable:
                 if run:
                     findings.extend(check_command(claim, repo_root, timeout))
@@ -897,19 +1177,32 @@ def format_report(findings, report, show_carried=True):
         reasons[head] = reasons.get(head, 0) + 1
     unrun = [c for c in checkable if c.kind == "command" and not report["ran"]]
     n_stale = sum(1 for f in findings if f.level == "STALE")
+    # Round 417. `0 stale` on its own is the number this file was built to
+    # distrust in OTHER documents. Round 414's block was reported
+    # `7 claim(s): 7 re-derivable, 0 stale` while containing a flatly false
+    # item, and the reason was not a bug: the item was in this checker's
+    # published recall gap, and the gap was published on a DIFFERENT LINE
+    # from the zero. Aggregators quote the last line. So the denominators
+    # move onto the same line as the zero, in a form `corpus_check.py`
+    # parses -- `coverage A/B unit, C/D unit`.
+    n_checked = len(checkable) - len(unrun)
+    n_items = report["n_items"] or 1
+    pct = int(round(100.0 * report["n_items_with_claims"] / n_items))
     out.append("state_claim_check: %s — live block is round %d (line %d) of "
                "%d blocks; %d item(s), %d with a checkable claim"
                % (os.path.basename(report["path"]), report["live_round"],
                   report["live_line"], report["n_blocks"], report["n_items"],
                   report["n_items_with_claims"]))
     out.append("state_claim_check: %d claim(s): %d re-derivable, %d skipped "
-               "(%s)%s; %d stale"
+               "(%s)%s; %d stale of %d checked; coverage %d/%d items (%d%%), "
+               "%d/%d claims"
                % (len(report["claims"]), len(checkable), len(skipped),
                   ", ".join("%s %d" % kv for kv in sorted(reasons.items()))
                   or "none",
                   "" if not unrun else
                   "; %d command claim(s) need --run" % len(unrun),
-                  n_stale))
+                  n_stale, n_checked, report["n_items_with_claims"],
+                  report["n_items"], pct, n_checked, len(report["claims"])))
     return "\n".join(out)
 
 

@@ -1852,5 +1852,38 @@
   "id": "mrbw-neg-flaky",
   "expect": [],
   "prompt": "This test fails about one run in twenty on CI and passes locally every time. Where do I start?"
+ },
+ {
+  "id": "ccnd-near",
+  "expect": [
+   "count-carries-its-noun-and-denominator"
+  ],
+  "prompt": "Our nightly health job logs one line per run and it has said `audit: 0 stale claim(s)` for six weeks. Someone just found a genuinely stale entry that the audit had never looked at. The tool does print how many entries it can check -- on the line before that one, which the job doesn't keep. How should the summary line be written?"
+ },
+ {
+  "id": "ccnd-mid",
+  "expect": [
+   "count-carries-its-noun-and-denominator"
+  ],
+  "prompt": "The ticket says `payments/retry.py` has 0 callers so we can delete it. `grep -rn payments/retry.py` gives me two hits: one is a comment in the deploy script explaining why it runs, the other is the line that runs it. Is the ticket right?"
+ },
+ {
+  "id": "ccnd-far",
+  "expect": [
+   "count-carries-its-noun-and-denominator"
+  ],
+  "prompt": "I'm adding a check to our release bot that compares a PR description's claim about test counts against what CI measured. Some PRs say \"12 tests\" meaning test functions and some mean parametrised cases, and CI reports both numbers. What should the bot do when the PR's number matches only one of them?"
+ },
+ {
+  "id": "ccnd-neg-cause",
+  "expect": [
+   "cause-needs-a-denominator"
+  ],
+  "prompt": "The p99 spike started at 02:10 and the only job scheduled in that window is the nightly reindex, so I'm going to write the incident up as caused by the reindex. Anything I should check first?"
+ },
+ {
+  "id": "ccnd-neg-rename",
+  "expect": [],
+  "prompt": "I need to rename a column from `count` to `total_rows` across a Django app and its migrations without downtime. What's the safest ordering of the deploys?"
  }
 ]
