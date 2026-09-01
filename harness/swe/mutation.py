@@ -355,10 +355,30 @@ def _copy_project(project_root, dst):
     instead of a 1.8-second one. Nothing in this repo imports Python from
     there — it holds one npm dependency, `@anthropic-ai/claude-code` — and
     `test_copy_project_ignores_the_npm_tree` pins that the list is applied.
+
+    Round 437 (SWE-loop D): `.git` is in that ignore list on purpose, and
+    `swe.fuzz.list_example_files` resolves the curated `examples/*.lang`
+    corpus by shelling `git ls-files`. So every copy made here silently
+    demoted that curation to `os.listdir`, and the 14 gitignored `.lang`
+    files another process drops into `languages/whence/examples/` entered
+    the differential corpus of every campaign stage that runs against a
+    copy — 27 programs where the checkout itself yields 13. This is the
+    same defect class `swe/copyparity.py` exists for (a file that resolves
+    something outside the copy behaves differently inside it) and the same
+    one `swe/sandboxevidence.py` already documents for a `git show` in
+    whence's own suite; what is new is that this one produced no error and
+    no failing test, only a bigger corpus. `write_example_curation` is
+    called HERE, at the one boundary where the checkout is still reachable,
+    and writes the answer into the copy.
     """
     shutil.copytree(project_root, dst, ignore=shutil.ignore_patterns(
         "__pycache__", ".pytest_cache", "*.pyc",
         ".venv", "research-env", "*.egg-info", ".git", "node_modules"))
+    try:
+        from .fuzz import write_example_curation
+    except ImportError:                      # imported as a top-level module
+        from fuzz import write_example_curation
+    write_example_curation(project_root, dst)
 
 
 def run_mutant(m, project_root, test_cmd, timeout_s=120.0):

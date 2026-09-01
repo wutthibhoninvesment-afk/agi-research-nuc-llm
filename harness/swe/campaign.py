@@ -69,6 +69,7 @@ from . import prioritize as PR
 from . import review as R
 from . import sandboxevidence as SE
 from . import scoreaudit as SA
+from . import fuzz as F
 from .fuzz import WHENCE_ROOT
 from .mutation import (DEFAULT_TEST_CMD, BaselineEvidenceLost, BaselineNotGreen,
                        Mutant, MutationReport, _copy_project, baseline_check,
@@ -651,6 +652,13 @@ class Campaign(object):
         by_id = self._mutants_by_id(survivors)
         programs = list(extra_programs) + K.corpus(seed, corpus_n, self.root,
                                                    include_examples=include_examples)
+        # Round 437: WHICH examples is a denominator, and `self.root` is a
+        # copy for every caller that sandboxes. Record how the curated set
+        # was resolved so a killers.json can be read years later without
+        # re-deriving it: "git" = this tree's index, "manifest" = the
+        # curation `_copy_project` carried in from the checkout, "listdir" =
+        # uncurated, i.e. whatever was in the directory.
+        curation = F.example_curation(self.root)[1] if include_examples else None
         original = K.load_whence(self._original_project_dir(), "orig_camp")
         cache = {}
         killers = []
@@ -661,15 +669,23 @@ class Campaign(object):
                 continue
             k = K.find_killer(m, programs, original, self.root, cache)
             killers.append(k)
-            self.log("%-9s %s tried=%d %.1fs" % ("KILLER" if k.found else "no_killer",
-                                                 m.id, k.tried, k.seconds))
+            self.log("%-9s %s tried=%d%s %.1fs" % ("KILLER" if k.found else "no_killer",
+                                                    m.id, k.tried,
+                                                    " undecided=%d" % k.undecided if k.undecided else "",
+                                                    k.seconds))
         found = [k for k in killers if k.found]
         if found:
             self._pin(found, test_file)
         data = {"seed": seed, "corpus_n": corpus_n, "include_examples": include_examples,
                 "extra_programs": len(extra_programs),
-                "programs": len(programs), "survivors": len(survivors), "found": len(found),
-                "no_killer": len(killers) - len(found), "test_file": test_file,
+                "programs": len(programs), "example_curation": curation,
+                "survivors": len(survivors), "found": len(found),
+                "no_killer": len(killers) - len(found),
+                # Round 437: how many (mutant, program) pairs produced NO
+                # evidence because the mutant blew the wall-clock budget and
+                # a 3x one did not settle it. A `no_killer` with undecided>0
+                # is a weaker claim than one with undecided==0.
+                "undecided": sum(k.undecided for k in killers), "test_file": test_file,
                 "seconds": round(time.time() - t0, 1), "killers": [k.as_dict() for k in killers]}
         _dump_json(art, data)
         self._mark("corpus", "done", survivors=len(survivors), found=len(found),

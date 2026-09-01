@@ -162,13 +162,21 @@ def corpus(seed=0, n=300, root=WHENCE_ROOT, include_examples=True):
 
 
 class Killer(object):
-    def __init__(self, mutant, program, expected, mutant_behaviour, tried, seconds):
+    def __init__(self, mutant, program, expected, mutant_behaviour, tried, seconds,
+                 undecided=0):
         self.mutant = mutant
         self.program = program          # minimized killer source (None if none)
         self.expected = expected        # original behaviour on `program`
         self.mutant_behaviour = mutant_behaviour
         self.tried = tried              # corpus programs examined
         self.seconds = seconds
+        # Round 437: programs on which the mutant could not be MEASURED (it
+        # blew the wall-clock budget and a longer one did not settle it).
+        # `tried` counts programs looked at; `undecided` says how many of
+        # those produced no evidence either way. A `no_killer` verdict with a
+        # non-zero `undecided` is weaker than one with zero, and until this
+        # field existed the two were spelled the same.
+        self.undecided = undecided
 
     @property
     def found(self):
@@ -176,11 +184,72 @@ class Killer(object):
 
     def as_dict(self):
         return {"mutant": self.mutant.id, "found": self.found, "tried": self.tried,
+                "undecided": self.undecided,
                 "seconds": round(self.seconds, 2), "program": self.program,
                 "expected": self.expected, "mutant_behaviour": self.mutant_behaviour}
 
 
-def find_killer(mutant, programs, original_pkg, project_root, orig_cache=None):
+#: Round 437. How much longer the confirmation run gets when the MUTANT (and
+#: only the mutant) blows the budget. 3x is not arbitrary: `nproc` is 1 on
+#: this host and research-state item 8 measures a 3x wall-clock penalty for
+#: the same suite run under contention versus solo, which is the size of the
+#: effect this guard exists to absorb.
+TIMEOUT_RETRY_FACTOR = 3.0
+
+
+def compare(original_pkg, mut_pkg, src, expected, timeout_s=2.0):
+    """`(verdict, expected, got)` for one program. Verdict is one of
+    `"same"`, `"differs"`, `"undecided"`.
+
+    Round 437 (SWE-loop D). `find_killer` used to guard exactly one side of
+    this comparison:
+
+        if expected["kind"] == "timeout":
+            continue                      # original timed out: not evidence
+        got = behaviour(mut_pkg, src)
+        if got != expected:               # mutant timing out lands HERE
+            ...a killer...
+
+    A timeout is a statement about the WALL CLOCK, not about the program. On
+    the original's side that was understood and skipped; on the mutant's side
+    the same non-measurement was read as a behavioural difference, so any
+    corpus program running near the 2 s SIGALRM budget turned into a killer
+    for ANY mutant the moment the box got busy — and `nproc` is 1 here.
+    `examples/self_host.lang` measures 0.60 s solo against that 2 s budget:
+    a 3.3x load spike between the cached original run and the mutant run is
+    all it takes, and the spurious kill is unreproducible by construction
+    because the next run is not loaded the same way.
+
+    Round 203 met this family already (a slow example producing "a different,
+    flaky killer on every run") and fixed the variant it saw — `_Timeout`
+    leaking into `canonical`'s `except Exception` as a partial-output crash.
+    The asymmetry underneath it survived.
+
+    A mutant that genuinely diverges — an infinite loop from a mutated bound —
+    is a real kill and must stay one, so a mutant-only timeout is not
+    discarded, it is RE-MEASURED at `TIMEOUT_RETRY_FACTOR` x the budget with
+    the original re-measured beside it at the same budget. Still timing out
+    while the original completes is evidence; anything else is not.
+    """
+    got = behaviour(mut_pkg, src, timeout_s=timeout_s)
+    if got == expected:
+        return "same", expected, got
+    if got.get("kind") != "timeout" or expected.get("kind") == "timeout":
+        return "differs", expected, got
+    long_s = timeout_s * TIMEOUT_RETRY_FACTOR
+    again_orig = behaviour(original_pkg, src, timeout_s=long_s)
+    again_mut = behaviour(mut_pkg, src, timeout_s=long_s)
+    if again_orig.get("kind") == "timeout":
+        return "undecided", again_orig, again_mut     # no clean expected to compare to
+    if again_mut == again_orig:
+        return "same", again_orig, again_mut          # the first timeout was load, not behaviour
+    if again_mut.get("kind") == "timeout":
+        return "differs", again_orig, again_mut       # diverges at 3x the budget: a real kill
+    return "differs", again_orig, again_mut
+
+
+def find_killer(mutant, programs, original_pkg, project_root, orig_cache=None,
+                timeout_s=2.0):
     """Search `programs` for one whose behaviour differs under the mutant;
     shrink it; return a Killer (found or not)."""
     t0 = time.time()
@@ -196,21 +265,37 @@ def find_killer(mutant, programs, original_pkg, project_root, orig_cache=None):
             return Killer(mutant, None, None, {"kind": "import_error", "exc": repr(e)},
                           0, time.time() - t0)
         orig_cache = orig_cache if orig_cache is not None else {}
+        undecided = 0
         for i, src in enumerate(programs):
             if src not in orig_cache:
-                orig_cache[src] = behaviour(original_pkg, src)
+                orig_cache[src] = behaviour(original_pkg, src, timeout_s=timeout_s)
             expected = orig_cache[src]
             if expected["kind"] == "timeout":
                 continue
-            got = behaviour(mut_pkg, src)
-            if got != expected:
+            verdict, expected, got = compare(original_pkg, mut_pkg, src, expected,
+                                             timeout_s=timeout_s)
+            if verdict == "undecided":
+                undecided += 1
+                continue
+            if verdict == "differs":
                 def keep(cand):
-                    e = behaviour(original_pkg, cand)
-                    return e["kind"] != "timeout" and behaviour(mut_pkg, cand) != e
+                    e = behaviour(original_pkg, cand, timeout_s=timeout_s)
+                    if e["kind"] == "timeout":
+                        return False
+                    v, _, _ = compare(original_pkg, mut_pkg, cand, e, timeout_s=timeout_s)
+                    return v == "differs"
                 small = shrink(src, keep) or src
-                return Killer(mutant, small, behaviour(original_pkg, small),
-                              behaviour(mut_pkg, small), i + 1, time.time() - t0)
-        return Killer(mutant, None, None, None, len(programs), time.time() - t0)
+                if small == src:
+                    small_expected, small_got = expected, got
+                else:
+                    _, small_expected, small_got = compare(
+                        original_pkg, mut_pkg, small,
+                        behaviour(original_pkg, small, timeout_s=timeout_s),
+                        timeout_s=timeout_s)
+                return Killer(mutant, small, small_expected, small_got,
+                              i + 1, time.time() - t0, undecided=undecided)
+        return Killer(mutant, None, None, None, len(programs), time.time() - t0,
+                      undecided=undecided)
     finally:
         import shutil
         shutil.rmtree(tmp, ignore_errors=True)

@@ -6,7 +6,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from swe.fuzz import WHENCE_ROOT
 from swe.killers import (load_whence, behaviour, find_killer, corpus, render_tests,
-                         Killer, CANONICAL_HELPER_SRC)
+                         Killer, CANONICAL_HELPER_SRC, compare, TIMEOUT_RETRY_FACTOR)
+import swe.killers as K
 from swe.mutation import generate
 
 
@@ -36,22 +37,36 @@ def test_behaviour_is_plain_data_and_stable():
 def test_find_killer_for_a_real_semantic_mutant():
     with open(os.path.join(WHENCE_ROOT, "whence", "interp.py")) as f:
         src = f.read()
-    # string concat: since v0.10 a `+` node compiles to its own closure
-    # (`f_add`) whose string case is `Prov("+", "concat", line, (l, r),
-    # _LAZY, x + y)` — anchor on THAT site (v0.6's `binop` concat line is
-    # unreachable for two strings now; round-20 and round-109 re-anchors,
-    # process rule 7). The arith mutant turns `+` into `-`, which crashes on
-    # strings. If the site moves again, list the candidate lines: every
-    # arith mutant on a line containing `"concat"` is a legitimate anchor.
+    # string concat: an arith mutant on a line that builds a "concat"
+    # provenance. The arith mutant turns `+` into `-`, which crashes on
+    # strings. Re-anchored in rounds 20, 109 and 437 (process rule 7); the
+    # standing instruction has always been "every arith mutant on a line
+    # containing `"concat"` is a legitimate anchor", so round 437 dropped the
+    # extra `x + y` clause that had narrowed it to ONE line.
+    #
+    # That clause is why this test was red: v0.27 (round ~370) deleted the
+    # inline string-concat case it named — `interp.py` says so in a comment
+    # at the site, "the inline string-concat case is GONE, deliberately" —
+    # and the surviving concat sites spell their operands `l + r`. The
+    # fixture was pinned to a spelling, not to a behaviour.
+    #
+    # Iterating the candidates rather than taking the first is deliberate:
+    # a concat site can be unreachable for two string literals (that is
+    # exactly what happened to v0.6's `binop` line), and "no anchor at all"
+    # is the failure worth reporting, not "the first one I tried".
     candidates = [m for m in generate(src, "whence/interp.py")
-                  if m.op == "arith" and '"concat"' in src.splitlines()[m.lineno - 1]
-                  and "x + y" in src.splitlines()[m.lineno - 1]]
-    assert candidates, "no arith mutant on a `\"concat\"` line with `x + y` — re-anchor (rule 7)"
-    m = candidates[0]
+                  if m.op == "arith" and '"concat"' in src.splitlines()[m.lineno - 1]]
+    assert candidates, "no arith mutant on a `\"concat\"` line — re-anchor (rule 7)"
     orig = load_whence(WHENCE_ROOT, "orig")
     progs = ['let a = "x" + "y"\n', "let b = 1\n"]
-    k = find_killer(m, progs, orig, WHENCE_ROOT)
-    assert k.found and k.tried == 1
+    for m in candidates:
+        k = find_killer(m, progs, orig, WHENCE_ROOT)
+        if k.found:
+            break
+    assert k.found, ("no `\"concat\"` arith mutant is reachable from two string "
+                     "literals — re-anchor (rule 7); tried %s"
+                     % [c.id for c in candidates])
+    assert k.tried == 1
     # the shrinker may have minimised the literals; the sum must still differ
     assert k.expected["vals"]["a"] != k.mutant_behaviour.get("vals", {}).get("a")
     assert k.mutant_behaviour != k.expected
@@ -97,3 +112,125 @@ def test_generated_file_compiles_with_hostile_docstring_text():
     body = write_tests([killer], TEST_HEADER)
     ast.parse(body)                                   # must compile
     assert '"' not in docstring_safe('a"b\\c\nd') and docstring_safe("x" * 500) == "x" * 120
+
+
+# --------------------------------------------------------------------------
+# Round 437 (SWE-loop D): a timeout is a fact about the wall clock.
+#
+# `find_killer` skipped a program the ORIGINAL could not finish and counted a
+# program the MUTANT could not finish as a behavioural difference. On a
+# one-core host where the same suite measures 3x slower under contention than
+# solo, and where `examples/self_host.lang` runs 0.60 s against a 2 s SIGALRM
+# budget, that asymmetry manufactures a killer for an arbitrary mutant out of
+# a load spike — and the kill is unreproducible by construction.
+#
+# These drive `compare` through a stub `behaviour`, so they are deterministic
+# and cost no interpreter: what is under test is the DECISION, and the real
+# thing it decides about is a race no test can schedule.
+
+_OK = {"kind": "ok", "out": ["1"], "checks": [], "vals": {}}
+_OTHER = {"kind": "ok", "out": ["2"], "checks": [], "vals": {}}
+_TIMEOUT = {"kind": "timeout"}
+
+
+class _StubBehaviour(object):
+    """`behaviour(pkg, src, timeout_s)` from a table keyed `(pkg, budget)`."""
+
+    def __init__(self, table):
+        self.table = table
+        self.calls = []
+
+    def __call__(self, pkg, src, timeout_s=2.0, max_depth=500):
+        self.calls.append((pkg, round(timeout_s, 3)))
+        return dict(self.table[(pkg, round(timeout_s, 3))])
+
+
+def _run_compare(monkeypatch, table, expected):
+    stub = _StubBehaviour(table)
+    monkeypatch.setattr(K, "behaviour", stub)
+    verdict, exp, got = K.compare("orig", "mut", "let a = 1\n", expected, timeout_s=2.0)
+    return verdict, exp, got, stub
+
+
+def test_a_mutant_only_timeout_that_settles_at_a_longer_budget_is_not_a_kill(monkeypatch):
+    """The round-433 shape. Nothing about the mutant changed between the two
+    budgets; the box did."""
+    long_s = round(2.0 * TIMEOUT_RETRY_FACTOR, 3)
+    verdict, exp, got, stub = _run_compare(monkeypatch, {
+        ("mut", 2.0): _TIMEOUT,
+        ("orig", long_s): _OK,
+        ("mut", long_s): _OK,
+    }, _OK)
+    assert verdict == "same"
+    assert ("mut", long_s) in stub.calls and ("orig", long_s) in stub.calls
+
+
+def test_a_mutant_that_still_diverges_at_the_longer_budget_is_a_kill(monkeypatch):
+    """A mutated loop bound is a real infinite loop and must stay a kill: the
+    guard re-measures, it does not forgive."""
+    long_s = round(2.0 * TIMEOUT_RETRY_FACTOR, 3)
+    verdict, exp, got, _ = _run_compare(monkeypatch, {
+        ("mut", 2.0): _TIMEOUT,
+        ("orig", long_s): _OK,
+        ("mut", long_s): _TIMEOUT,
+    }, _OK)
+    assert verdict == "differs"
+    assert got == _TIMEOUT and exp == _OK
+
+
+def test_a_program_the_original_cannot_finish_at_the_longer_budget_is_undecided(monkeypatch):
+    """No clean `expected` exists, so there is nothing to compare against.
+    `undecided` is reported, never silently folded into `no_killer`."""
+    long_s = round(2.0 * TIMEOUT_RETRY_FACTOR, 3)
+    verdict, _, _, _ = _run_compare(monkeypatch, {
+        ("mut", 2.0): _TIMEOUT,
+        ("orig", long_s): _TIMEOUT,
+        ("mut", long_s): _TIMEOUT,
+    }, _OK)
+    assert verdict == "undecided"
+
+
+def test_a_mutant_that_settles_to_a_DIFFERENT_answer_is_still_a_kill(monkeypatch):
+    """The re-measurement is not a second chance to agree: if the longer run
+    produces a different answer than the original's longer run, that is a
+    behavioural difference and the program is a killer."""
+    long_s = round(2.0 * TIMEOUT_RETRY_FACTOR, 3)
+    verdict, exp, got, _ = _run_compare(monkeypatch, {
+        ("mut", 2.0): _TIMEOUT,
+        ("orig", long_s): _OK,
+        ("mut", long_s): _OTHER,
+    }, _OK)
+    assert verdict == "differs" and got == _OTHER and exp == _OK
+
+
+def test_a_plain_behavioural_difference_costs_no_extra_measurement(monkeypatch):
+    """The guard must be free on the path that matters. A non-timeout
+    difference decides on ONE call, exactly as before round 437."""
+    verdict, exp, got, stub = _run_compare(monkeypatch, {
+        ("mut", 2.0): _OTHER,
+    }, _OK)
+    assert verdict == "differs" and got == _OTHER
+    assert stub.calls == [("mut", 2.0)]
+
+
+def test_agreement_costs_no_extra_measurement_either(monkeypatch):
+    verdict, _, _, stub = _run_compare(monkeypatch, {("mut", 2.0): _OK}, _OK)
+    assert verdict == "same" and stub.calls == [("mut", 2.0)]
+
+
+def test_an_original_timeout_is_still_not_evidence(monkeypatch):
+    """The one side that was already guarded stays guarded, and stays guarded
+    for the same reason the other side now is."""
+    verdict, _, got, stub = _run_compare(monkeypatch, {("mut", 2.0): _OK}, _TIMEOUT)
+    assert verdict == "differs"          # compare() is only reached past the guard
+    assert stub.calls == [("mut", 2.0)]
+
+
+def test_killer_records_undecided_and_defaults_it_to_zero():
+    """`tried` counts programs looked at; a `no_killer` verdict carrying
+    `undecided > 0` is a weaker claim, and before round 437 both were spelled
+    the same way in `killers.json`."""
+    from types import SimpleNamespace
+    m = SimpleNamespace(id="x.py:1:const#0")
+    assert Killer(m, None, None, None, 5, 0.1).as_dict()["undecided"] == 0
+    assert Killer(m, None, None, None, 5, 0.1, undecided=2).as_dict()["undecided"] == 2

@@ -667,3 +667,39 @@ def test_shape_builtin_programs_stay_total_end_to_end():
         o = run_program(src, timeout_s=2.0)
         assert o.kind != "crash", (i, o.exc_type, o.message)
     assert seen >= 40, seen
+
+
+def test_the_whence_checkout_and_its_copy_agree_on_the_corpus(tmp_path):
+    """Round 437 (SWE-loop D), the defect on the real tree.
+
+    `list_example_files` curates `examples/*.lang` through `git ls-files`
+    and `swe.mutation._copy_project` excludes `.git` on purpose, so before
+    round 437 the copy every campaign stage runs against answered with a
+    plain `os.listdir` — every gitignored `.lang` file another process had
+    dropped into `languages/whence/examples/` entered the differential
+    corpus, and nothing said so.
+
+    The mechanism is pinned on a synthetic checkout in
+    `test_swe_mutation.py` (fast tier). This one costs a real ~1.8 s copy
+    and is deliberately in the slow tier, because it is the only test that
+    would notice the manifest being dropped from `_copy_project` while the
+    synthetic ones still passed against some other writer of it.
+
+    Written not to assume foreign files are present: the assertion is
+    checkout-vs-copy AGREEMENT plus "nothing untracked leaked in", both of
+    which hold on a pristine checkout too.
+    """
+    from swe.mutation import _copy_project
+    from swe.fuzz import WHENCE_ROOT, example_curation
+
+    dst = str(tmp_path / "copy")
+    _copy_project(WHENCE_ROOT, dst)
+    src_names, src_from = example_curation(WHENCE_ROOT)
+    cp_names, cp_from = example_curation(dst)
+    assert src_from == "git", "the real checkout must curate through git"
+    assert cp_from == "manifest", "the copy must inherit that decision"
+    assert cp_names == src_names
+    on_disk = sorted(n for n in os.listdir(os.path.join(dst, "examples"))
+                     if n.endswith(".lang"))
+    assert set(cp_names) <= set(on_disk)
+    assert not (set(on_disk) - set(src_names)) & set(cp_names)

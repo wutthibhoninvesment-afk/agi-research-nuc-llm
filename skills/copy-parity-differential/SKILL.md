@@ -1,6 +1,6 @@
 ---
 name: copy-parity-differential
-description: Use when code is tested somewhere other than where it lives — a mutation/repair sandbox, a tempdir copy, a Docker COPY of a subdirectory, an extracted sdist, a `git worktree` — and something fails only there. Symptoms: a sandboxed campaign refuses to start with "baseline not green" and names one test; `FileNotFoundError` on a `/tmp/...` path that exists in the real checkout; a test reading a registry/fixture OUTSIDE the subtree under test; `join(ROOT, "..", "..")` reaching over the project root; a defect class fixed at N sites reappearing at N+1; a static copy-safety scan reporting clean on a tree that is measurably not; a test evaporating into a skip or a bare `return` only in the sandbox. Covers per-node verdict diffing, which of six defect classes each mode sees, the running-minimum rule for path arithmetic, a signed skip registry, and the one-root fix. NOT for untracked files a clean clone would lack (pristine-checkout-differential), NOT for missing packages, which fail in BOTH trees.
+description: Use when code is tested somewhere other than where it lives — a mutation/repair sandbox, a tempdir copy, a Docker COPY of a subdirectory, an extracted sdist, a `git worktree` — and something fails only there. Symptoms: a sandboxed campaign refuses to start with "baseline not green" and names one test; `FileNotFoundError` on a `/tmp/...` path that exists in the real checkout; a test reading a registry/fixture OUTSIDE the subtree under test; `join(ROOT, "..", "..")` reaching over the project root; a defect class fixed at N sites reappearing at N+1; a static copy-safety scan reporting clean on a tree that is measurably not; a test evaporating into a skip or a bare `return` only in the sandbox; a corpus/allowlist/denominator that is silently BIGGER in the sandbox because the guard curating it reads `.git` or other repo metadata the copy helper excludes. Covers per-node verdict diffing, which of seven defect classes each mode sees — including one no mode sees — the running-minimum rule for path arithmetic, a signed skip registry, and the one-root fix. NOT for untracked files a clean clone would lack (pristine-checkout-differential), NOT for missing packages, which fail in BOTH trees.
 ---
 
 # The tree that only works where it was written
@@ -43,6 +43,13 @@ next round's new file did not follow.
   comment, a docstring, or a convention.
 - Before quoting any sandboxed campaign's score: a gate that has never been
   green produces no score at all, which is not the same as a low one.
+- A function promises a CURATED set — `only committed`, `only tracked`, `excluding vendored` — and resolves it by shelling `git`/`hg`/`pip`/`npm`
+  inside a `try/except: pass` with a `listdir`/`glob` fallback, and its
+  result feeds a corpus, an allowlist or any denominator. In a copy it
+  falls back, and the fallback is always LARGER.
+- A count in a sandboxed artefact does not match the same count in the
+  checkout, and nothing failed. `programs: 27` against `programs: 13` is a
+  finding, not a rounding difference.
 
 **When NOT to use:** files a clean clone would not have (untracked fixtures,
 gateway leftovers) is `pristine-checkout-differential` — that differential
@@ -71,7 +78,8 @@ about *inputs* that nothing validates is `unenforced-documented-rule`.
 
 3. **Know which mode can see your defect — no single one covers the table.**
    Rounds 425 and 431 measured all three against the real subject
-   (`languages/whence`) and found SIX classes, not one:
+   (`languages/whence`) and found SIX classes, not one. Round 437 added a
+   seventh, and it is the first one **no column catches**:
 
    | class | static `escapes` | `collect` | `run` | signed skip list | the exit-code gate |
    |---|---|---|---|---|---|
@@ -81,6 +89,7 @@ about *inputs* that nothing validates is `unenforced-documented-rule`.
    | **coverage that evaporates** (`pytest.skip`) | no | no | yes | yes | **no** |
    | **evaporates into a vacuous PASS** (early `return`) | yes | no | **no** | **no** | **no** |
    | **silently FEWER collected nodes** | no | yes | yes | node floor | **no** |
+   | **a curated SET silently WIDENS** (round 437) | **no** | **no** | **no** | **no** | **no** |
 
    A read at MODULE level aborts collection, so the node vanishes and the
    cheap `collect` mode finds it. A read inside a test body collects
@@ -88,7 +97,7 @@ about *inputs* that nothing validates is `unenforced-documented-rule`.
    `collect`, and that blindness deserves its own test rather than a sentence
    in a docstring.
 
-   The last two rows are the ones people miss:
+   The last three rows are the ones people miss:
 
    * **Computed and never used.** `os.path.dirname` does not raise; it
      happily returns `/`. So an escaping expression that nothing opens is
@@ -127,6 +136,57 @@ about *inputs* that nothing validates is `unenforced-documented-rule`.
      every campaign actually mutates, and 0 of 60 mutants killed** when the
      test was run against them in a tree where it does not skip. The class
      was real; that instance's cost was zero.
+
+   * **A curated SET that silently widens, because the thing that curates it
+     lives outside the copy.** The copy helper excludes `.git` deliberately —
+     it is large, and nothing in a test tree needs it. Anything that resolves
+     a LIST by asking git therefore gets a different, WEAKER answer in the
+     copy, and getting a weaker answer is not an error:
+
+     ```python
+     def list_example_files(root):
+         """Only COMMITTED examples enter differential corpora."""
+         try:
+             out = subprocess.run(["git", "ls-files", "examples"], cwd=root,
+                                  capture_output=True, check=True)
+             ...
+         except (OSError, subprocess.CalledProcessError):
+             pass
+         return sorted(n for n in os.listdir(ex_dir) if n.endswith(".lang"))
+     ```
+
+     Round 437, this repo: 32 `.lang` files on disk, 18 tracked, 14 named in
+     `.gitignore` and written by a different process. In the checkout the
+     corpus was 13 programs. In every copied tree it was **27** — and every
+     mutation/differential campaign that ran against a sandbox had been
+     scoring against 14 files nobody curated, for as long as the guard had
+     existed.
+
+     **Why no column catches it.** The static scan looks for path expressions
+     that leave the subtree LEXICALLY; this one leaves at RUNTIME, when git
+     walks up from `cwd` looking for a repo and does not find one. `collect`
+     sees the same node ids. `run` sees the same per-node verdicts — the tests
+     still pass, they just assert over a bigger set. There is no skip to sign
+     and no non-zero exit to gate on. **The defect is in a denominator, and a
+     verdict differential has no denominator column.**
+
+     The tell is grammatical, so you can grep for it: a function whose
+     docstring promises a CURATED set (`only committed`, `only tracked`,
+     `excluding vendored`, `the allowlisted N`) and whose body has a
+     `try/except: pass` around a `git`, `hg`, `svn`, `pip`, `npm ls` or
+     package-metadata call, with a bare `listdir`/`glob` after it. Every one
+     of those falls back to *more*, never to *fewer*, and never says so.
+
+     **Fix at the boundary, not at the reader.** The copy helper is the one
+     place where the original is still reachable, so materialise the answer
+     INTO the copy (a `.curated` manifest beside the data) and let the reader
+     resolve `real source -> manifest -> fallback`, **naming which one it
+     took** so a caller can record it. A copy of a copy inherits the manifest
+     for free and must NOT regenerate it — the intermediate tree cannot ask
+     either, and "regenerate if you can" re-curates from whatever that tree
+     happens to contain. A source that can answer neither gets NO manifest: a
+     manifest asserts that a curation decision was made, and inventing one
+     freezes a `listdir` snapshot under a name that claims otherwise.
 
 4. **Read the arithmetic instead of running it, if you want a check you can
    afford every time.** Measured costs on a 2000-test subtree: static scan
@@ -277,6 +337,20 @@ about *inputs* that nothing validates is `unenforced-documented-rule`.
   children with `start_new_session=True` precisely so they can kill the whole
   group on timeout — which also means killing the parent's group leaves the
   child alive. Find it by `readlink /proc/<pid>/cwd` and kill its own group.
+- **A verdict differential has no denominator column.** Every mode in the
+  table answers "did this node's outcome move?". A defect that leaves every
+  outcome identical while changing what the test asserted OVER is outside all
+  of them, and it is the one shape that gets *more* evidence rather than an
+  error — so it never looks like a failure. If a sandboxed run produces a
+  COUNT (programs, cases, files, fixtures), diff that count against the same
+  count in the checkout; that comparison is cheap and no mode does it for you.
+- **`.git` is excluded from the copy on purpose, and that is a dependency
+  nobody declares.** Grep the subtree for every reader of each thing your copy
+  helper's ignore list names — `.git`, `node_modules`, `.venv`, `*.egg-info` —
+  before trusting any guard that reads one. This repo had already hit it once
+  (a test shelling `git show`) and wrote it in a docstring; the second
+  instance was in the harness, not the subject, and the docstring did not
+  reach it.
 - **Cost claims in docstrings rot like any other number.** "This file costs
   about a second" was 177 seconds. Time it before budgeting a differential
   around it.
@@ -288,8 +362,9 @@ about *inputs* that nothing validates is `unenforced-documented-rule`.
       node with the SAME verdict on both sides, and a node count > 0 on each.
 - [ ] `collect` mode is green too, and you know which of the THREE modes
       would have caught your defect — check it against the table in step 3
-      rather than assuming, and note that two of the four classes are
-      invisible to every exit-code gate.
+      rather than assuming. **Four of the seven classes are invisible to every
+      exit-code gate, and the seventh is invisible to all five columns**, so
+      "the modes are green" is not the same claim as "the tree is clean".
 - [ ] A static scan of the subtree reports zero unguarded escapes, and its
       file count is > 0. A scan that read nothing reports "no findings" and
       is indistinguishable from a clean tree; make it exit non-zero on an
@@ -317,6 +392,9 @@ about *inputs* that nothing validates is `unenforced-documented-rule`.
       promoted into the fast tier so it runs every round. The point is not
       that the test exists; it is that it is pointed at the REAL subject and
       is cheap enough to survive the budget review that kills slow checks.
+- [ ] Every COUNT the sandboxed run produced has been compared to the same
+      count taken in the checkout, and you can say why any difference is
+      intended. This is the only check that sees class seven.
 - [ ] The knowledge record says which claim was proven: *this file is
       copy-safe* and *the suite still collects* are weaker than *every node is
       copy-safe*, and only the last one requires the full two-run diff.

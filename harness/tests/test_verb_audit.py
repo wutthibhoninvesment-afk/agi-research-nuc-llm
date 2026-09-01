@@ -230,6 +230,67 @@ if __name__ == "__main__":
         assert [s for s in sites["tool.py"] if s[2] == "check"] == []
         assert any(s[2] == "status" for s in sites["tool.py"])
 
+    def test_a_literal_tuple_of_commands_is_data_not_an_argv_list(self, tmp_path):
+        """Round 437. The fourth false-invocation shape, and the one V002
+        finding standing on this tree since round 429.
+
+        A `for c in (...)` tuple holding three INDEPENDENT command strings is
+        not an argv list. Folded as one it reads as
+        `... tool.py check ... tool.py nope`, and the trailing word is a verb
+        the target deliberately does not declare — which is the fixture's
+        whole point: it asserts that an unknown verb classifies as manual.
+
+        The verb REACHED from such a line is still sound (the word really is
+        there), so only the V002 trust flag is withdrawn. That is the same
+        split the `*argv` rule already makes.
+        """
+        vg = self._graph(tmp_path, {
+            "run_driver.sh": "python3 caller.py\n",
+            "caller.py": ('def t():\n'
+                          '    for c in ("python3 tool.py check",\n'
+                          '              "python3 tool.py nope"):\n'
+                          '        assert classify(c) == "manual"\n'),
+            "tool.py": self.TARGET,
+        })
+        sites = vg.sites({"tool.py": {"status": "subparser",
+                                      "check": "subparser"}})
+        assert sites["tool.py"], "the fold must still SEE the line"
+        assert all(not trusted for (_, _, _, _, _, trusted) in sites["tool.py"])
+        assert any(s[2] == "check" for s in sites["tool.py"])   # REACHED unchanged
+
+    def test_an_argv_list_assigned_to_a_name_is_still_trusted(self, tmp_path):
+        """`cmd = [...]` then `subprocess.run(cmd)` is the other way this repo
+        spells an argv list, and it must not lose its V002 trust — otherwise
+        the rule would buy a false negative with every true one it removes.
+
+        Every element is a string constant on purpose: a list holding
+        `sys.executable` is already untrusted by the round-421 `*argv` rule
+        (`len(seq) == n_elts` fails), so it could not tell this rule apart
+        from that one.
+        """
+        vg = self._graph(tmp_path, {
+            "run_driver.sh": "python3 caller.py\n",
+            "caller.py": ('import subprocess, sys\n'
+                          'cmd = ["python3", "tool.py", "check"]\n'
+                          'subprocess.run(cmd)\n'),
+            "tool.py": self.TARGET,
+        })
+        sites = vg.sites({"tool.py": {"status": "subparser",
+                                      "check": "subparser"}})
+        assert any(s[2] == "check" and s[5] for s in sites["tool.py"])
+
+    def test_a_direct_call_argv_list_is_still_trusted(self, tmp_path):
+        vg = self._graph(tmp_path, {
+            "run_driver.sh": "python3 caller.py\n",
+            "caller.py": ('import subprocess, sys\n'
+                          'subprocess.run(["python3", "tool.py", "nope"])\n'),
+            "tool.py": self.TARGET,
+        })
+        sites = vg.sites({"tool.py": {"status": "subparser",
+                                      "check": "subparser"}})
+        # `nope` is undeclared AND trusted: this is the shape V002 exists for
+        assert any(s[3] == "nope" and s[5] for s in sites["tool.py"])
+
     def test_a_files_own_usage_block_is_not_evidence_it_runs(self, tmp_path):
         """A self-reference is dropped: a script documenting its own verbs in
         a runnable `Usage:` block proves nothing about what invokes them."""

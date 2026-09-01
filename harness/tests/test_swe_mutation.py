@@ -7,6 +7,7 @@ import textwrap
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from swe.mutation import generate, mutation_test, run_mutant, DEFAULT_TEST_CMD
+from swe.fuzz import CURATION_MANIFEST, example_curation, list_example_files
 
 MOD = textwrap.dedent('''
     """docstring must not be mutated"""
@@ -282,3 +283,133 @@ def test_copy_project_ignores_the_npm_tree(tmp_path):
     assert (dst / "keep.py").read_text() == "K = 1\n"
     assert not (dst / "node_modules").exists()
     assert not (dst / "__pycache__").exists()
+
+
+# --------------------------------------------------------------------------
+# Round 437 (SWE-loop D): the curation that did not survive the copy.
+#
+# `swe.fuzz.list_example_files` resolves the curated `examples/*.lang` corpus
+# by shelling `git ls-files`, because `languages/whence/examples/` is shared
+# with another autonomous process whose files `.gitignore` lists by name.
+# `_copy_project` excludes `.git` deliberately (round 413, size). So in every
+# copied tree the git branch could not answer and the function fell through
+# to `os.listdir` — 27 programs in a campaign's differential corpus where the
+# checkout itself yields 13, with no error and no failing test, because a
+# widened corpus produces MORE evidence rather than an exception.
+#
+# These use a tiny synthetic checkout, not `languages/whence`: the mechanism
+# is `git` + `_copy_project` + a manifest, and a real-tree copy costs ~1.8 s
+# in a file the fast tier has a 25 s budget for. The real-tree pin lives in
+# `test_swe_fuzz.py::test_the_whence_checkout_and_its_copy_agree_on_the_corpus`.
+
+
+def _tiny_checkout(root, tracked=("a.lang", "b.lang"), ignored=("foreign.lang",)):
+    """A git checkout shaped like `languages/whence`: an `examples/` dir with
+    committed files AND gitignored ones sitting in the same directory."""
+    ex = os.path.join(root, "examples")
+    os.makedirs(ex)
+    for n in tracked:
+        with open(os.path.join(ex, n), "w") as f:
+            f.write("print(1)\n")
+    for n in ignored:
+        with open(os.path.join(ex, n), "w") as f:
+            f.write("print(2)\n")
+    with open(os.path.join(root, ".gitignore"), "w") as f:
+        f.write("\n".join("examples/" + n for n in ignored) + "\n")
+    env = dict(os.environ, GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t",
+               GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t")
+    for cmd in (["git", "init", "-q"], ["git", "add", "-A"],
+                ["git", "commit", "-qm", "x"]):
+        subprocess.run(cmd, cwd=root, env=env, check=True,
+                       capture_output=True, text=True)
+    return root
+
+
+def test_a_checkout_curates_by_git_and_hides_the_gitignored_neighbour(tmp_path):
+    src = _tiny_checkout(str(tmp_path / "src"))
+    names, source = example_curation(src)
+    assert source == "git"
+    assert names == ["a.lang", "b.lang"]          # foreign.lang is on disk and out
+    assert os.path.exists(os.path.join(src, "examples", "foreign.lang"))
+
+
+def test_copy_project_carries_the_example_curation_into_the_copy(tmp_path):
+    """The defect and its fix in one assertion: before round 437 the copy
+    answered `listdir` and included `foreign.lang`."""
+    src = _tiny_checkout(str(tmp_path / "src"))
+    dst = str(tmp_path / "dst")
+    _copy_project(src, dst)
+    assert not os.path.exists(os.path.join(dst, ".git"))      # still excluded
+    assert os.path.exists(os.path.join(dst, "examples", CURATION_MANIFEST))
+    names, source = example_curation(dst)
+    assert source == "manifest"
+    assert names == ["a.lang", "b.lang"] == list_example_files(src)
+    # the foreign file is still THERE — it is excluded, not deleted
+    assert os.path.exists(os.path.join(dst, "examples", "foreign.lang"))
+
+
+def test_a_copy_of_a_copy_inherits_the_curation_unchanged(tmp_path):
+    """`find_killer` copies a tree that is itself already a copy, so the
+    manifest has to survive an arbitrary chain. It must also not be
+    REWRITTEN by a later copy: the second copy has no git either, and a
+    regenerate-if-you-can rule would quietly re-curate from whatever the
+    intermediate tree happens to contain."""
+    src = _tiny_checkout(str(tmp_path / "src"))
+    a, b = str(tmp_path / "a"), str(tmp_path / "b")
+    _copy_project(src, a)
+    with open(os.path.join(a, "examples", "dropped_later.lang"), "w") as f:
+        f.write("print(3)\n")
+    _copy_project(a, b)
+    assert example_curation(b) == (["a.lang", "b.lang"], "manifest")
+    first = open(os.path.join(a, "examples", CURATION_MANIFEST)).read()
+    second = open(os.path.join(b, "examples", CURATION_MANIFEST)).read()
+    assert first == second
+
+
+def test_a_foreign_lang_file_dropped_into_a_copy_never_enters_the_corpus(tmp_path):
+    """The live shape: another process writes into `examples/` while a
+    campaign is running against a copy of it."""
+    src = _tiny_checkout(str(tmp_path / "src"))
+    dst = str(tmp_path / "dst")
+    _copy_project(src, dst)
+    with open(os.path.join(dst, "examples", "gateway.lang"), "w") as f:
+        f.write("print(9)\n")
+    assert list_example_files(dst) == ["a.lang", "b.lang"]
+
+
+def test_curation_falls_back_to_listdir_when_there_is_no_git_and_no_manifest(tmp_path):
+    """The old behaviour is kept as the LAST resort and is reported by name.
+    Returning it rather than raising is deliberate: a caller with no corpus
+    at all is worse off than one with an uncurated corpus it can record."""
+    root = str(tmp_path / "plain")
+    os.makedirs(os.path.join(root, "examples"))
+    for n in ("z.lang", "a.lang"):
+        with open(os.path.join(root, "examples", n), "w") as f:
+            f.write("print(1)\n")
+    assert example_curation(root) == (["a.lang", "z.lang"], "listdir")
+
+
+def test_copy_project_writes_no_manifest_when_the_source_is_not_a_checkout(tmp_path):
+    """A manifest asserts that a curation decision was MADE. A source with no
+    git and no manifest made none, so inventing one would freeze a listdir
+    snapshot and call it curated."""
+    src = str(tmp_path / "plain")
+    os.makedirs(os.path.join(src, "examples"))
+    with open(os.path.join(src, "examples", "a.lang"), "w") as f:
+        f.write("print(1)\n")
+    dst = str(tmp_path / "dst")
+    _copy_project(src, dst)
+    assert not os.path.exists(os.path.join(dst, "examples", CURATION_MANIFEST))
+    assert example_curation(dst)[1] == "listdir"
+
+
+def test_copy_project_is_unchanged_for_a_tree_with_no_examples_dir(tmp_path):
+    """`guardpin.py` passes the REPO ROOT, which has no top-level
+    `examples/`. The curation hook must be invisible there."""
+    src = str(tmp_path / "src")
+    os.makedirs(src)
+    with open(os.path.join(src, "keep.py"), "w") as f:
+        f.write("K = 1\n")
+    dst = str(tmp_path / "dst")
+    _copy_project(src, dst)
+    assert sorted(os.listdir(dst)) == ["keep.py"]

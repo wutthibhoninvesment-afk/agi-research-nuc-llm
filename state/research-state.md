@@ -22071,6 +22071,186 @@ hygiene commitments kept.
   narratively reconciled in this file (its leftovers landed, its
   `CAMPAIGN_RESULT` is filled) and its knowledge file is committed.
 
+### Round 437 — SWE-loop(D) — 2026-09-01 — the timeout that was not a difference
+
+- **The carried red from round 433 is GONE, and both of its banked candidate
+  shapes are refuted.** `test_swe_campaign.py::test_review_stage_and_report`
+  passes three ways at HEAD: a standalone repro of its stage sequence
+  (`no_killer: 1`), the test alone (**1 passed in 46.21s**), and round 433's
+  exact whole-file command (**19 passed, 1 deselected in 592.42s**). Shape 1
+  (round 131's `_mutants_by_id` matching nothing) is refuted by the repro
+  printing the survivor in `by_id`; shape 2 (a corpus program kills it) by
+  `found: 0` over 27 programs in three runs. Round 433's fixture lead was
+  right — `MAX_NESTING` is on 0 lines, the `or` fallback silently re-points to
+  `interp.py:604:const#366` (`self.peak_depth = 0 -> 1`) — but that mutant is
+  INERT (18 whence Python test files name `peak_depth`, 0 `.lang` files do,
+  and `canonical()` captures `kind`/`out`/`checks`/`vals` only), so
+  `no_killer == 1` is the right answer.
+- **`find_killer` guarded ONE side of a two-sided comparison, and that is the
+  only path to round 433's symptom.** A timeout of the ORIGINAL was skipped
+  (`continue`, not evidence); a timeout of the MUTANT fell into `got !=
+  expected` and became a killer. `examples/self_host.lang` measures **0.602 s
+  against a 2.0 s SIGALRM budget**; `nproc` is 1 and this program measures a
+  **3x** contention penalty — so a **3.3x** spike turns any near-budget
+  program into a killer for ANY mutant, unreproducibly. Round 203 fixed a
+  different variant of this family and left the asymmetry. **Fixed** with
+  `killers.compare()`: a mutant-only timeout is RE-MEASURED at
+  `TIMEOUT_RETRY_FACTOR = 3.0` with the original re-measured beside it; still
+  timing out while the original completes is a real kill, anything else is
+  not. New third outcome `undecided`, counted in `Killer.undecided` and
+  `killers.json["undecided"]`. Agreement and a plain difference still cost
+  exactly one measurement (pinned).
+  **Not caught in the act** — the race is not schedulable and round 433 left
+  no artefact. Mechanism + margin, stated as such.
+- **The example curation did not survive `_copy_project`, and 14 foreign
+  `.lang` files were in every copied tree's differential corpus.**
+  `fuzz.list_example_files` resolves the curated corpus through `git ls-files`
+  ("only committed, curated examples ever enter differential-testing
+  corpora"); `_copy_project` excludes `.git` deliberately (round 413, size).
+  So the copy fell through to `os.listdir`: **32 `.lang` on disk, 18 tracked,
+  14 named in `.gitignore`, corpus 13 in the checkout vs 27 in a copy.** No
+  error, no failing test — a widened corpus produces more evidence, not an
+  exception. Same class as `swe/copyparity.py` and `swe/sandboxevidence.py`,
+  but copyparity CANNOT see it: it diffs node ids and per-node verdicts, and
+  this changes a denominator. **Fixed** — `_copy_project` materialises
+  `examples/.curated-examples` at the one boundary where the checkout is still
+  reachable; `example_curation(root)` resolves `git` -> `manifest` ->
+  `listdir` and NAMES which it took; a copy of a copy inherits the manifest
+  unchanged and must not regenerate it; a source that is neither gets no
+  manifest, because a manifest asserts a decision was made.
+  `killers.json` now records `example_curation` beside `programs`.
+- **Verified after the fix:** `19 passed, 1 deselected in 696.63s` with
+  `programs: 13`, `example_curation: "manifest"`, `undecided: 0` — and
+  `test_corpus_stage_pins_killers` still finds its real killer
+  (`interp.py:2382:arith#1450`, `tried=1`) on the curated corpus. The 592 ->
+  697 s is CONTENTION (a `test_verb_audit.py` run overlapped it on one core),
+  not the change, and is not offered as an A/B.
+- **Two reds nobody was looking at, both fixed.**
+  (1) `test_swe_killers.py::test_find_killer_for_a_real_semantic_mutant` —
+  `no arith mutant on a "concat" line with x + y — re-anchor (rule 7)`.
+  Bisected by content: present in `48b8967` (round 366), absent in `f568a79`
+  (round 368, v0.27, 2026-08-30 14:08). The slow-tier ledger's last entry for
+  the file is **2026-08-30 08:08 (`7 passed`)**, six hours before the break,
+  and is still the ledger's newest entry of ANY kind — **red for ~69 rounds,
+  unobserved**. Re-anchored per the fixture's own standing instruction; the
+  stale clause pinned a SPELLING (`x + y`) where the surviving sites spell
+  `l + r`.
+  (2) `test_verb_audit.py::TestThisTree::test_no_unexplained_broken_invocation`
+  — the fast tier's V002, **red since round 429** and re-escalated by 433/434/
+  435 without a fix. Mechanism found: the raw line scan is already off for
+  `.py`; the hit comes from the AST fold, which folded a `for c in (...)`
+  tuple of THREE independent command strings into one pseudo-argv, so the
+  trailing `suites-and-then-some` read as a verb slot. **Fixed by a RULE, not
+  an exemption** (round 433's explicit requirement): a sequence literal that
+  is not in an ARGV POSITION (an argument of a `Call`, or the value of an
+  assignment) is data, and only the V002 trust flag is withdrawn — the same
+  split the round-421 `*argv` rule makes. `V002 1 -> 0` with **reached verbs
+  byte-identical at 19/103 (18.4%)**. Carried line number was stale:
+  `test_claim_check.py:188`, not `:190`.
+- **Round 435's item 5 CLOSED.**
+  `state/swe/round-431/evaporating-test-kills-nothing.json`'s top-level
+  `baseline` key renamed to `node_precheck` (it records a per-node pre-check,
+  not a mutation-campaign baseline); no number moved; the now-DEAD
+  acknowledgement deleted from `state/known-selfdesc-drift.json` per that
+  registry's own rule. The explanatory field is named `_note`, not
+  `_round_437_note`, because `selfdesc_check.SELF_FIELDS` is an exact-name
+  allowlist — a `_round_NNN_note` is invisible to the checker (research-state
+  item 3, confirmed by measurement). **`selfdesc-check` 1 acknowledged ->
+  0, coverage 1/26 -> 0/27**: the one checkable claim in the entire corpus was
+  the contradiction that just got fixed, so the instrument now demonstrably
+  checks nothing.
+- **Predictions (D-013):** `state/round-437-predictions.md`, 10 banked before
+  any measurement. **4 HIT, 5 MISS, 1 split.** D1/D3/D4/D5 all failed the same
+  way: they accepted round 433's framing that a red test means a wrong answer
+  somewhere downstream. It did not. **A carried red is a claim with a
+  timestamp: the first question is not WHICH explanation is right, it is
+  whether the observation still holds.** Rounds 434/435/436 each re-derived a
+  carried NUMBER and found one wrong; this round re-derived a carried FAILURE
+  and found the failure gone.
+- **Artifacts:** `harness/swe/fuzz.py` (+`CURATION_MANIFEST`,
+  `example_curation`, `write_example_curation`, `_git_example_names`,
+  `_manifest_example_names`), `harness/swe/mutation.py` (`_copy_project`
+  materialises the curation), `harness/swe/killers.py` (`compare`,
+  `TIMEOUT_RETRY_FACTOR`, `Killer.undecided`), `harness/swe/campaign.py`
+  (corpus provenance + `undecided` in `killers.json`), `harness/verb_audit.py`
+  (`_argv_positions`); **19 tests added** (8 `test_swe_killers.py`, 7
+  `test_swe_mutation.py`, 3 `test_verb_audit.py`, 1 `test_swe_fuzz.py`), 2
+  pre-existing reds fixed, 0 new reds;
+  `knowledge/round-437-the-timeout-that-was-not-a-difference.md`;
+  `state/round-437-predictions.md`.
+
+## Next steps (as of round 437)
+
+1. **`undecided` is a hypothesis with a counter attached — read it.** Round
+   437 argues that `killers.find_killer` manufactured round 433's red out of a
+   wall-clock spike, and could not catch it in the act. `killers.json` now
+   carries `undecided` per killer and per corpus. **The first non-zero
+   `undecided` anywhere is this hypothesis producing its first direct
+   evidence**; a round that sees one should say so in its round file rather
+   than treating it as noise. Equally, if fifty campaigns pass with
+   `undecided: 0` on a loaded box, that is evidence AGAINST it and should be
+   written down too. SWE-loop(D) or harness(A).
+2. **Three corpus builders were not re-run after the corpus shrank 27 -> 13.**
+   `swe/oracles.py:1117`, `swe/oraclekill.py:346` and `swe/exemptmap.py:1181`
+   all call `list_example_files` and all now get the curated set inside a
+   copied tree. The direction is fail-closed (a smaller, curated corpus) but
+   that is an ARGUMENT, not a measurement, and round 437 did not have the wall
+   clock for three more slow-tier suites. Run them and report any count that
+   moved. SWE-loop(D).
+3. **The slow tier's newest ledger entry is still 2026-08-30 08:08.** That is
+   how `test_swe_killers.py` stayed red for ~69 rounds — nothing looked. Round
+   433 built the unit layer and left recall at 0%; rounds 434-437 did not
+   raise it. `test_swe_campaign.py[light]` still has zero entries and the
+   whole-file run this round took 592 s / 697 s, so it CAN be run inside a
+   round if a round decides to spend it. Until somebody records a slice, every
+   claim about that tier is about an instrument nobody has pointed at
+   anything. harness(A) or SWE-loop(D).
+4. **A fixture with a fallback cannot tell you it drifted.** `_docstring_const`
+   and `test_find_killer_for_a_real_semantic_mutant` suffered the SAME
+   interp.py drift at the same time; the one with an `or` fallback silently
+   re-pointed at an inert mutant and the one without failed with the word
+   "re-anchor" in its message. `_docstring_const` is still fallback-shaped at
+   HEAD — its first disjunct still names `MAX_NESTING`, which is on 0 lines.
+   Deleting the dead disjunct makes it fail loudly the next time interp.py
+   moves. Nobody did that this round; it is a two-line change and a decision
+   about what that fixture is FOR. SWE-loop(D).
+5. **`selfdesc_check` now derives 0 checkable claims from 27 prose fields.**
+   Round 435 called `coverage 1/26` the honest headline; round 437 fixed the
+   one contradiction that made up the 1, so the honest headline is `0/27` and
+   the checker's next regression is invisible. Its `SELF_FIELDS` is also an
+   exact-name allowlist (`_`, `_comment`, `_note`, `_why`, `note`, `comment`),
+   so every `_round_NNN_note` in `state/` is unswept — research-state item 3,
+   now measured rather than counted. Widening the allowlist would raise the
+   denominator without raising coverage; deriving a claim from a second SHAPE
+   of sentence would raise both. skills(B).
+6. **`example_curation` resolves `git` first, even for a copy.** A copy placed
+   inside an unrelated checkout that tracks something under `examples/` would
+   answer from the wrong index. Untracked copies already fall through (git
+   returns nothing), so reaching this needs someone to copy the tree into
+   another repo AND commit it. Recorded, not guarded. SWE-loop(D).
+7. **Carried, re-derived, and still open from round 435:** the probe batch is
+   fourteen deep and unpaid (skills(B)); `polarity.py audit`'s 5 MISPOINTED
+   against a registry whose header calls 0 the criterion (language(C)); the
+   J005 recall gap on per-element FIELD count claims (skills(B)); round 434's
+   items 2/3/4/5 (language(C)). Round 437 touched none of them.
+8. **Carried from round 433, and now PARTLY closed.** V002 is fixed (item
+   above); `test_review_stage_and_report` is green and explained; A4's 748 s is
+   still a floor, not a runtime; A8's "one leaf too big for the container" is
+   still untested against the other 30 `whole` files. harness(A).
+9. **`nproc` on this box is 1, and round 437 paid for forgetting it once.** The
+   post-fix campaign run (697 s) overlapped a `test_verb_audit.py` run (75 s)
+   and came out 104 s SLOWER than the pre-fix run (592 s) despite doing
+   strictly less work. The A/B is unusable. Plan every suite as serialised —
+   and if two must overlap, do not compare their wall clocks afterwards.
+10. **Standing, and not touched by this round:** the NUC `retention --strict`
+   deadline; the `%vmeff` residual; `case_coverage`'s 49-of-103 disagreeing
+   verdicts; `claim_check` executing 0 of 311 commands; and CLAUDE.md's
+   `CRITICAL MISSION` block, re-escalated for the NINETEENTH time and still a
+   one-line deletion for the operator. `languages/whence/SECURITY.md` is still
+   uncommitted, still not this program's, and still the operator's decision —
+   do not copy a carry count for it from this file; the checker's own line is
+   the only source.
+
 ## Next steps (as of round 436)
 
 1. **The blocking gate on this deployment is `separable`, it is

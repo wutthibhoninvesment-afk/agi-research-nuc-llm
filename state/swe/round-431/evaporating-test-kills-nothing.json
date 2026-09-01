@@ -5,13 +5,14 @@
   "whence/parser.py"
  ],
  "worktree": "/tmp/r431-wt-36xuzb1z/t",
- "baseline": {
+ "node_precheck": {
   "rc": 0,
   "tail": ".                                                                        [100%]\n1 passed in 0.17s"
  },
  "n": 60,
  "killed": 0,
  "_": "Round 431. NOT a mutation campaign report. Each entry is one mutant run against a SINGLE test node in a git worktree, to answer whether the round-425 evaporating test kills anything at all. The list is called `trials` and not `mutants` on purpose: `swe/scoreaudit.py` discovers archived campaigns by `\"mutants\" in data`, and this file is not one -- it has no baseline, no score and no denominator over a file's mutation sites.",
+ "_note": "Round 437 (SWE-loop D) renamed the top-level key `baseline` to `node_precheck`. Nothing else in this file changed and no number moved: the object records that the single test node above passed in the worktree BEFORE any mutant was applied, which is a per-node pre-check and not a mutation-campaign baseline. The old name made the `_` field above read as a self-contradiction (`it has no baseline` beside a key called `baseline`), which round 435 opened as J005 in skills/skill-authoring/scripts/selfdesc_check.py and parked in state/known-selfdesc-drift.json as owned by SWE-loop(D). Renaming the KEY was one of the two repairs that entry named; the acknowledgement was deleted in the same round because it now suppresses nothing.",
  "trials": [
   {
    "id": "values.py:15:const#0",

@@ -168,6 +168,46 @@ def _str_seq(node):
     return out
 
 
+def _argv_positions(tree):
+    """`id()` of every node that sits where an ARGV LIST is spelled.
+
+    Round 437 (SWE-loop D). The AST fold below exists because Python starts a
+    program by passing an argv LIST, so a list/tuple of string constants is
+    the shape a real invocation has. It folded EVERY list/tuple literal,
+    including ones that are plainly data — and the one V002 finding standing
+    on this tree since round 429 was exactly that: a `for c in (...)` tuple in
+    `skills/skill-authoring/scripts/test_claim_check.py` holding three
+    INDEPENDENT command strings, asserted to classify as `manual`. Folded into
+    one pseudo-line it reads as `... pristine_check.py check ... baseline ...
+    suites-and-then-some`, and the last word is a verb `pristine_check.py`
+    deliberately does not declare — the fixture's whole point.
+
+    `verb_audit`'s docstring already records three shapes of Python string
+    constant that were false REACHEDs and says each was fixed by a rule
+    rather than an exemption. This is the fourth: a sequence literal that is
+    not in an argv position is a datum, and the tell is syntactic, not
+    textual. An argv position is an argument of a `Call`
+    (`subprocess.run([...])`, `check_output(cmd=[...])`) or the value of an
+    assignment (`cmd = [...]`, later passed) — the two ways this repo spells
+    one. The iterable of a `for`, an element of a bigger literal, a `return`
+    value and a comparison operand are not.
+
+    As with the `*argv` rule above, only V002 is suppressed: a verb REACHED
+    from such a line is still sound, because the word really is there.
+    """
+    out = set()
+    for parent in ast.walk(tree):
+        if isinstance(parent, ast.Call):
+            for a in list(parent.args) + [k.value for k in parent.keywords]:
+                if isinstance(a, ast.Starred):
+                    a = a.value
+                out.add(id(a))
+        elif isinstance(parent, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+            if getattr(parent, "value", None) is not None:
+                out.add(id(parent.value))
+    return out
+
+
 def declared_verbs(root, path):
     """`{verb: kind}` for a tracked `.py` file. Empty for `.sh` and for a
     single-command CLI.
@@ -347,13 +387,15 @@ class VerbGraph:
             if is_py:
                 tree, doc_ids = wa._parse_for_ast(wa.read_text(self.root, src))
                 if tree is not None:
+                    argv_pos = _argv_positions(tree)
                     for node in ast.walk(tree):
                         seq = _str_seq(node)
                         if seq and len(seq) >= 2:
                             n_elts = len(getattr(node, "elts", []))
                             extra.append((getattr(node, "lineno", 0),
                                           " ".join(seq),
-                                          len(seq) == n_elts))
+                                          len(seq) == n_elts
+                                          and id(node) in argv_pos))
 
             # HOW A COMMAND IS SPELLED DECIDES WHAT COUNTS, and this is the
             # rule that took the verb layer from 8-of-11 correct to 8-of-8.
