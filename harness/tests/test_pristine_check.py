@@ -1657,3 +1657,20 @@ def test_a_real_gitignored_fixture_makes_a_real_test_evaporate(tmp_path,
                           worktree_path=str(tmp_path / "wt3"), timeout_s=300)
     assert rec["verdict"] == "skip_evaporation"
     assert len(rec["results"][0]["skips"]["pin_expired"]) == 1
+
+
+def test_the_ledger_does_not_duplicate_the_registrys_prose():
+    # The skip block is appended to a JSONL ledger once per `check`. Copying
+    # each entry's `why` paragraph into it duplicated 11 KB of the 18 KB
+    # block every run, for text already in git at a known path and reachable
+    # from the `key` this row carries.
+    ack = _ack("t", "because")
+    ack["why"] = "W" * 4000
+    block = pc.compare_skips(_junit({"t": "passed"}),
+                             _junit({"t": ("skipped", "because")}),
+                             suite="s", acks=[ack])
+    row = block["acknowledged"][0]
+    assert row["ack"]["acknowledged_round"] == 427
+    assert "why" not in row["ack"]
+    assert "W" * 100 not in json.dumps(block)
+    assert row["key"]                      # the registry is still reachable

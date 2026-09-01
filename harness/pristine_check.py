@@ -387,8 +387,14 @@ def compare_skips(live, pristine, suite=None, acks=None):
             out["unacknowledged"].append(row)
             continue
         matched.add(sk["key"])
+        # The registry's `why` is a paragraph, and it is deliberately NOT
+        # copied here. This dict lands in an APPEND-ONLY ledger once per
+        # `check`, so copying it duplicated 11 KB of the 18 KB skip block
+        # every run for text that is already in git at a known path, keyed
+        # by the `key` field two lines up. The round and date stay because
+        # the formatter prints them and they are what dates the judgement.
         row["ack"] = {k: ack.get(k) for k in
-                      ("why", "acknowledged_round", "acknowledged_utc")}
+                      ("acknowledged_round", "acknowledged_utc")}
         if ack.get("reason_pin") == sk["reason"]:
             row["ack_state"] = ACK_HOLDS
             out["acknowledged"].append(row)
