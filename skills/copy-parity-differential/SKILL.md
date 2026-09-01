@@ -1,6 +1,6 @@
 ---
 name: copy-parity-differential
-description: Use when code is tested somewhere other than where it lives — a mutation/repair sandbox, a tempdir copy, a Docker COPY of a subdirectory, an extracted sdist, a `git worktree` — and something fails only there. Symptoms: a sandboxed campaign refuses to start with "baseline not green" and names one test; `FileNotFoundError` on a path under `/tmp/...` that exists in the real checkout; a test that reads a registry/ledger/census/fixture living OUTSIDE the subtree under test; `os.path.dirname(os.path.dirname(__file__))` or `join(ROOT, "..", "..")` reaching over the project root; a defect class fixed at N sites that reappears at site N+1 a round later; a gate that says "red" without saying which test. Covers diffing per-node verdicts in place vs. copied, the two modes (collect-time vs. run-time) and why the cheap one is blind to half the class, and the one-root fix. NOT for untracked files a clean clone would lack (pristine-checkout-differential), NOT for missing packages, which fail in BOTH trees.
+description: Use when code is tested somewhere other than where it lives — a mutation/repair sandbox, a tempdir copy, a Docker COPY of a subdirectory, an extracted sdist, a `git worktree` — and something fails only there. Symptoms: a sandboxed campaign refuses to start with "baseline not green" and names one test; `FileNotFoundError` on a `/tmp/...` path that exists in the real checkout; a test reading a registry/fixture OUTSIDE the subtree under test; `join(ROOT, "..", "..")` reaching over the project root; a defect class fixed at N sites reappearing at N+1; a static copy-safety scan reporting clean on a tree that is measurably not; a test evaporating into a skip or a bare `return` only in the sandbox. Covers per-node verdict diffing, which of six defect classes each mode sees, the running-minimum rule for path arithmetic, a signed skip registry, and the one-root fix. NOT for untracked files a clean clone would lack (pristine-checkout-differential), NOT for missing packages, which fail in BOTH trees.
 ---
 
 # The tree that only works where it was written
@@ -70,15 +70,17 @@ about *inputs* that nothing validates is `unenforced-documented-rule`.
    ```
 
 3. **Know which mode can see your defect — no single one covers the table.**
-   Round 425 measured all three against the real subject
-   (`languages/whence`) and found FOUR classes, not one:
+   Rounds 425 and 431 measured all three against the real subject
+   (`languages/whence`) and found SIX classes, not one:
 
-   | class | static `escapes` | `collect` | `run` | the exit-code gate |
-   |---|---|---|---|---|
-   | escape used at import | yes | yes | yes | yes |
-   | escape used in a test body | yes | no | yes | yes |
-   | escape **computed, never used** | yes | no | no | **no** |
-   | **coverage that evaporates** | no | no | yes | **no** |
+   | class | static `escapes` | `collect` | `run` | signed skip list | the exit-code gate |
+   |---|---|---|---|---|---|
+   | escape used at import | yes | yes | yes | no | yes |
+   | escape used in a test body | yes | no | yes | no | yes |
+   | escape **computed, never used** | yes | no | no | no | **no** |
+   | **coverage that evaporates** (`pytest.skip`) | no | no | yes | yes | **no** |
+   | **evaporates into a vacuous PASS** (early `return`) | yes | no | **no** | **no** | **no** |
+   | **silently FEWER collected nodes** | no | yes | yes | node floor | **no** |
 
    A read at MODULE level aborts collection, so the node vanishes and the
    cheap `collect` mode finds it. A read inside a test body collects
@@ -99,8 +101,32 @@ about *inputs* that nothing validates is `unenforced-documented-rule`.
      sandbox lacks that resource — `.git` is the common one, because copy
      helpers exclude it. `passed -> skipped` is not a failure: **both sides
      exit 0**, so every exit-code gate stays green while the test stops
-     providing evidence. In a mutation campaign that inflates the score by
-     exactly the amount nobody can see.
+     providing evidence.
+   * **The same guard written as `return` instead of `skip`, which is
+     strictly worse.** `if not os.path.exists(p): return` records the node
+     as **PASSED**. It is invisible to the exit code, invisible to a per-node
+     verdict differential (the verdict did not move), and invisible to a skip
+     registry (there is no skip). Only the static scan can see it, because
+     only the static scan does not need the defect to fire. Round 431 found
+     one live in this repo. If you convert a red to a skip you owe an
+     acknowledgement entry; if you convert one to a bare `return` you have
+     deleted an assertion and told nobody.
+   * **Get the DIRECTION right when you write this up.** Round 425 wrote
+     that an evaporated test leaves "the mutation score inflated by exactly
+     the amount nobody can see", and every later round quoted it. It is
+     backwards. A mutation score is `killed / total`; a test that stops
+     running moves the mutants it would have killed from `killed` to
+     `survived`, so the score goes **DOWN** and the SURVIVOR list grows.
+     That is not the flattering direction — it is phantom test gaps, and
+     each phantom is paid for a second time by whatever killer-search or
+     auto-repair stage consumes the survivor list hunting for a killer that
+     already exists in the tree. Before you claim a magnitude, measure it:
+     the honest question is *does this test kill anything at all*, and the
+     cheap answer is its line coverage of the files being mutated. Round 431
+     asked it of the instance round 425 found: **0 covered lines in the file
+     every campaign actually mutates, and 0 of 60 mutants killed** when the
+     test was run against them in a tree where it does not skip. The class
+     was real; that instance's cost was zero.
 
 4. **Read the arithmetic instead of running it, if you want a check you can
    afford every time.** Measured costs on a 2000-test subtree: static scan
@@ -112,19 +138,99 @@ about *inputs* that nothing validates is `unenforced-documented-rule`.
    A static scan evaluates path expressions as a DEPTH below the subtree
    root: `__file__` is its own depth, `dirname` subtracts one, a `join`
    component adds one, `".."`/`os.pardir` subtracts one, `Path.parent` and
-   `.parents[n]` likewise. Level 0 is the root; **any expression reaching a
-   negative level names a path outside the tree.** Two rules keep it
-   trustworthy: an unknown component counts +1 and never -1 (guess AWAY from
-   findings, or your checker gets uninstalled), and an escape reached through
-   the sanctioned root env var is exempt — that pattern survives the copy on
-   purpose, and flagging it makes the checker red at the very fix it is
-   recommending.
+   `.parents[n]` likewise. Level 0 is the root.
 
-5. **Strip `-x` before diffing.** With exit-first the two runs stop at
+   **The finding is the RUNNING MINIMUM, not the final level.** Get this
+   wrong and the checker reports clean on the tree it was built for. Round
+   425's rule was `final level < 0`; round 431 measured what that missed:
+
+   ```python
+   REG = os.path.join(HERE, "..", "..", "state", "whence", "round-422")
+   #                    0    -1    -2     -1      0        +1   <- ends at +1
+   ```
+
+   Final level **+1**, so "copy-safe" — while the path is
+   `<repo>/state/whence/round-422`, which in the sandbox is
+   `/tmp/xxx/proj/../../state/...` and does not exist. **27 expressions of
+   that shape, 17 tests red in the sandbox, the mutation gate at exit 1 and
+   no campaign able to start — under a static checker that had been reporting
+   `copy_safe` on the same tree since it was written.** The final level is
+   not even meaningful once the expression has left the tree: +1 would mean
+   "one level under the root", and the path is not under the root at all.
+
+   The rule, stated so it cannot be re-derived wrong:
+
+   ```
+   floor < 0  <=>  this expression names something outside the tree
+   ```
+
+   `os.path.join` does not normalise, so the `..` is resolved lexically by
+   the OS at open time — against the copy's parent. A path that leaves and
+   comes back has still left. Carry the floor through variable bindings too:
+   `REG` above is bound to a path outside the tree, and every later
+   `join(REG, "f.json")` is a second finding, not a fresh start from zero.
+   Note which of the two numbers your own findings were selected on before
+   you believe a clean report.
+
+   Two more rules keep it trustworthy: an unknown component counts +1 and
+   never -1 (guess AWAY from findings, or your checker gets uninstalled —
+   and +1 can only RAISE a running minimum, so the guard holds for the floor
+   as well), and an escape reached through the sanctioned root env var is
+   exempt — that pattern survives the copy on purpose, and flagging it makes
+   the checker red at the very fix it is recommending.
+
+   A dip that stays inside is NOT a finding: `join(HERE, "tests", "..",
+   "examples")` floors at 0 and resolves inside the copy. The floor rule is
+   exact, not merely stricter — it goes negative exactly when the expression
+   names the parent of the subtree root.
+
+5. **Make the gate itself grade the skip list — it costs zero extra runs.**
+   The two-run differential is what ESTABLISHES which skips the copy caused;
+   it is the wrong shape for re-checking that every campaign. The gate
+   already runs the suite once in the copy. Add `--junitxml` to *that* run
+   and compare its skip list against a signed registry:
+
+   ```python
+   cmd = list(test_cmd) + ["--junitxml=%s" % xml]   # xml OUTSIDE both trees
+   rec = parse_junit(xml)                            # never raises; ok=False on absence
+   block = check(rec, suite="<tree>-<cmd>")          # 4 buckets + a verdict
+   ```
+
+   Design rules, each of which cost a round somewhere:
+
+   * **Key on junit's `(classname, name)`, never file:line.** `pytest -rs`
+     keys by line and reports a phantom every time somebody adds an import.
+   * **Pin the REASON, not just the node.** A node signed forever is a mute
+     button; a changed reason means it is skipped for something nobody
+     adjudicated, and that must go red (`pin_expired`).
+   * **Print acknowledged rows every run.** An acknowledgement that
+     suppresses invisibly reads as coverage.
+   * **Report acknowledgements that match nothing** — they suppress nothing
+     and must be deleted.
+   * **A one-sided run cannot tell "the copy caused it" from "it is skipped
+     everywhere".** Do not pretend otherwise: sign BOTH, and record which is
+     which in a `class` field the two-run differential filled in.
+   * **Record whether the skip can cost you anything.** For a mutation gate
+     the question is whether the test covers the mutated files at all; carry
+     the answer (`kills_mutants`) and print a `true` LOUDLY on every run.
+     A signed skip that costs nothing is bookkeeping; one that costs kills is
+     a standing debt against every number you publish.
+   * **Absence of a report is not "no skips."** No junit ⇒ `unavailable` ⇒
+     no verdict in either direction.
+   * **Pin the node COUNT too.** It is the only thing that sees a suite which
+     silently collected fewer tests: exit 0, no failure, no skip, less
+     evidence. A floor only fires when the count DROPS, so adding tests makes
+     it stale-low and never false-positive.
+   * **Report first, refuse on request.** Default the new refusal OFF until
+     the registry is populated. A gate whose false-positive cost is "no
+     campaign runs at all" is how engines get stopped at the door — which in
+     this repo has now happened four times.
+
+6. **Strip `-x` before diffing.** With exit-first the two runs stop at
    different tests and the diff is noise. Report that you stripped it: the
    command you measured is then not the command the caller passed.
 
-6. **Grep for the escaping expression across the whole subtree**, not just the
+7. **Grep for the escaping expression across the whole subtree**, not just the
    file that failed. One failure means the rule is not enforced; there are
    usually more.
 
@@ -133,7 +239,7 @@ about *inputs* that nothing validates is `unenforced-documented-rule`.
    grep -rn "<ROOT_ENV_VAR>" <subtree> --include=*.py     # who already does it right
    ```
 
-7. **Fix at the ROOT, not at the site.** One module owns "where is the real
+8. **Fix at the ROOT, not at the site.** One module owns "where is the real
    repo", preferring an environment variable the sandbox-spawning process
    exports, falling back to the `__file__` computation. Every other site
    imports that name. Two sites computing the same root two ways is the defect
@@ -146,7 +252,7 @@ about *inputs* that nothing validates is `unenforced-documented-rule`.
    REGISTRY = os.path.join(_C.AGI_ROOT, "state", "...", "pins.json")
    ```
 
-8. **Leave a checker, not a comment.** If this is the second time, the fix is
+9. **Leave a checker, not a comment.** If this is the second time, the fix is
    not another comment — it is the command in step 2 wired into something that
    runs. A convention that has already been broken once will be broken again
    by whoever writes the next file, who will not have read the comment.
@@ -188,6 +294,20 @@ about *inputs* that nothing validates is `unenforced-documented-rule`.
       file count is > 0. A scan that read nothing reports "no findings" and
       is indistinguishable from a clean tree; make it exit non-zero on an
       empty scan.
+- [ ] **You know what predicate that clean scan was computed with**, and it
+      is the running minimum rather than the final level. Round 431: the
+      scan said `copy_safe — 0 escaping expressions` over a tree with 29 of
+      them and a dead mutation engine. A clean report from an unsound
+      predicate is worse than no report; check `_component_delta("../../a")`
+      (or your equivalent) directly, in a test, so a later simplification
+      back to the endpoint rule fails on a clean tree.
+- [ ] Every skip the sandbox produced is signed, with its REASON pinned, and
+      the acknowledged ones are printed. Count them: `N skipped` in the
+      gate's own tail is a number nobody has ever compared to anything.
+- [ ] You have said which direction the defect moves the number, and measured
+      the magnitude rather than asserting it. "Inflated" and "deflated" are
+      different bugs with different remedies, and a lost test that covers
+      none of the mutated files costs exactly nothing.
 - [ ] The grep in step 5 returns no remaining site that computes the outside
       root for itself.
 - [x] There is a test that fails if a new file reintroduces the pattern —

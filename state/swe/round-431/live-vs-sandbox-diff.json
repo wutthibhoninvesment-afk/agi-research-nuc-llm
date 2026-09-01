@@ -1,0 +1,187 @@
+{
+ "live_ok": true,
+ "sandbox_ok": true,
+ "n_live": 2157,
+ "n_sandbox": 2157,
+ "vanished": [],
+ "appeared": [],
+ "changed": [
+  {
+   "key": "tests.test_polarity::test_cp16p_is_decided_only_by_the_guard_widening_shape",
+   "live": "passed",
+   "sandbox": "failed",
+   "sandbox_reason": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/r431-s83g0vzx/proj/../../state/whence/round-422/host-pins-plus.json'",
+   "live_reason": ""
+  },
+  {
+   "key": "tests.test_polarity::test_no_refusal_pin_in_the_corpus_comes_back_broken",
+   "live": "passed",
+   "sandbox": "failed",
+   "sandbox_reason": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/r431-s83g0vzx/proj/../../state/whence/round-422/host-pins-plus.json'",
+   "live_reason": ""
+  },
+  {
+   "key": "tests.test_polarity::test_routing_and_refusal_take_the_law_below_p_of_five_hundredths",
+   "live": "passed",
+   "sandbox": "failed",
+   "sandbox_reason": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/r431-s83g0vzx/proj/../../state/whence/round-416/eval-pins.json'",
+   "live_reason": ""
+  },
+  {
+   "key": "tests.test_polarity::test_routing_more_than_doubles_the_decided_share_of_the_registry",
+   "live": "passed",
+   "sandbox": "failed",
+   "sandbox_reason": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/r431-s83g0vzx/proj/../../state/whence/round-422/host-pins-plus.json'",
+   "live_reason": ""
+  },
+  {
+   "key": "tests.test_polarity::test_the_law_headline_is_unchanged_by_routing",
+   "live": "passed",
+   "sandbox": "failed",
+   "sandbox_reason": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/r431-s83g0vzx/proj/../../state/whence/round-422/host-pins-plus.json'",
+   "live_reason": ""
+  },
+  {
+   "key": "tests.test_polarity::test_the_refusal_pins_decide_the_way_round_428_measured[CP13p-holds]",
+   "live": "passed",
+   "sandbox": "failed",
+   "sandbox_reason": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/r431-s83g0vzx/proj/../../state/whence/round-422/host-pins-plus.json'",
+   "live_reason": ""
+  },
+  {
+   "key": "tests.test_polarity::test_the_refusal_pins_decide_the_way_round_428_measured[CP14p-holds]",
+   "live": "passed",
+   "sandbox": "failed",
+   "sandbox_reason": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/r431-s83g0vzx/proj/../../state/whence/round-422/host-pins-plus.json'",
+   "live_reason": ""
+  },
+  {
+   "key": "tests.test_polarity::test_the_refusal_pins_decide_the_way_round_428_measured[CP15p-holds]",
+   "live": "passed",
+   "sandbox": "failed",
+   "sandbox_reason": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/r431-s83g0vzx/proj/../../state/whence/round-422/host-pins-plus.json'",
+   "live_reason": ""
+  },
+  {
+   "key": "tests.test_polarity::test_the_refusal_pins_decide_the_way_round_428_measured[CP16p-holds]",
+   "live": "passed",
+   "sandbox": "failed",
+   "sandbox_reason": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/r431-s83g0vzx/proj/../../state/whence/round-422/host-pins-plus.json'",
+   "live_reason": ""
+  },
+  {
+   "key": "tests.test_polarity::test_the_refusal_pins_decide_the_way_round_428_measured[CP17p-unknown]",
+   "live": "passed",
+   "sandbox": "failed",
+   "sandbox_reason": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/r431-s83g0vzx/proj/../../state/whence/round-422/host-pins-plus.json'",
+   "live_reason": ""
+  },
+  {
+   "key": "tests.test_polarity::test_the_refusal_pins_decide_the_way_round_428_measured[CP18p-unknown]",
+   "live": "passed",
+   "sandbox": "failed",
+   "sandbox_reason": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/r431-s83g0vzx/proj/../../state/whence/round-422/host-pins-plus.json'",
+   "live_reason": ""
+  },
+  {
+   "key": "tests.test_polarity::test_the_refusal_pins_decide_the_way_round_428_measured[CP19p-unknown]",
+   "live": "passed",
+   "sandbox": "failed",
+   "sandbox_reason": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/r431-s83g0vzx/proj/../../state/whence/round-422/host-pins-plus.json'",
+   "live_reason": ""
+  },
+  {
+   "key": "tests.test_polarity::test_the_refusal_pins_decide_the_way_round_428_measured[CP20p-unknown]",
+   "live": "passed",
+   "sandbox": "failed",
+   "sandbox_reason": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/r431-s83g0vzx/proj/../../state/whence/round-422/host-pins-plus.json'",
+   "live_reason": ""
+  },
+  {
+   "key": "tests.test_polarity::test_the_refusal_pins_decide_the_way_round_428_measured[CP21p-holds]",
+   "live": "passed",
+   "sandbox": "failed",
+   "sandbox_reason": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/r431-s83g0vzx/proj/../../state/whence/round-422/host-pins-plus.json'",
+   "live_reason": ""
+  },
+  {
+   "key": "tests.test_polarity::test_the_significance_does_not_rest_on_the_shape_added_after_looking",
+   "live": "passed",
+   "sandbox": "failed",
+   "sandbox_reason": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/r431-s83g0vzx/proj/../../state/whence/round-416/eval-pins.json'",
+   "live_reason": ""
+  },
+  {
+   "key": "tests.test_polarity::test_the_unrouted_table_reproduces_round_426s_p_of_one_tenth",
+   "live": "passed",
+   "sandbox": "failed",
+   "sandbox_reason": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/r431-s83g0vzx/proj/../../state/whence/round-416/eval-pins.json'",
+   "live_reason": ""
+  },
+  {
+   "key": "tests.test_polarity::test_the_wrong_question_hazard_is_latent_in_every_recorded_artefact",
+   "live": "passed",
+   "sandbox": "failed",
+   "sandbox_reason": "FileNotFoundError: [Errno 2] No such file or directory: '/tmp/r431-s83g0vzx/proj/../../state/whence/round-422/host-pins-plus.json'",
+   "live_reason": ""
+  },
+  {
+   "key": "tests.test_v37::test_the_host_is_byte_unchanged_by_this_decision",
+   "live": "passed",
+   "sandbox": "skipped",
+   "sandbox_reason": "not a git checkout, or 768954b is not present",
+   "live_reason": ""
+  }
+ ],
+ "skipped_both": [
+  {
+   "key": "tests.test_parse_error_differential::test_acceptance_agrees[deep-nesting]",
+   "reason": "host-only: MAX_NESTING is a HOST RESOURCE guard (`_enter` counts Python recursion depth so a deeply nested expression is a ParseError and not a RecursionError), not a rule of the grammar. The guest runs on the trampoline and has no host stack to protect.",
+   "live_reason": "host-only: MAX_NESTING is a HOST RESOURCE guard (`_enter` counts Python recursion depth so a deeply nested expression is a ParseError and not a RecursionError), not a rule of the grammar. The guest runs on the trampoline and has no host stack to protect."
+  },
+  {
+   "key": "tests.test_parse_error_differential::test_acceptance_agrees[effect-arg-not-permitted]",
+   "reason": "host-only: Same absence, at the call-site half of the same system (`_check_call_site_param_effects`, v0.14.12). Listed separately because it is a separate host raise site, and the coverage floor below counts raise sites.",
+   "live_reason": "host-only: Same absence, at the call-site half of the same system (`_check_call_site_param_effects`, v0.14.12). Listed separately because it is a separate host raise site, and the coverage floor below counts raise sites."
+  },
+  {
+   "key": "tests.test_parse_error_differential::test_acceptance_agrees[effect-not-permitted]",
+   "reason": "host-only: The effects system is parse-time in the host and absent in the guest: `parse_effects_clause` SKIPS `effects [...]` without recording it. Pre-existing and documented at that function (round 164); implementing it means six scope stacks the guest has no mutation to carry.",
+   "live_reason": "host-only: The effects system is parse-time in the host and absent in the guest: `parse_effects_clause` SKIPS `effects [...]` without recording it. Pre-existing and documented at that function (round 164); implementing it means six scope stacks the guest has no mutation to carry."
+  }
+ ],
+ "live_skips": [
+  {
+   "key": "tests.test_parse_error_differential::test_acceptance_agrees[deep-nesting]",
+   "reason": "host-only: MAX_NESTING is a HOST RESOURCE guard (`_enter` counts Python recursion depth so a deeply nested expression is a ParseError and not a RecursionError), not a rule of the grammar. The guest runs on the trampoline and has no host stack to protect."
+  },
+  {
+   "key": "tests.test_parse_error_differential::test_acceptance_agrees[effect-arg-not-permitted]",
+   "reason": "host-only: Same absence, at the call-site half of the same system (`_check_call_site_param_effects`, v0.14.12). Listed separately because it is a separate host raise site, and the coverage floor below counts raise sites."
+  },
+  {
+   "key": "tests.test_parse_error_differential::test_acceptance_agrees[effect-not-permitted]",
+   "reason": "host-only: The effects system is parse-time in the host and absent in the guest: `parse_effects_clause` SKIPS `effects [...]` without recording it. Pre-existing and documented at that function (round 164); implementing it means six scope stacks the guest has no mutation to carry."
+  }
+ ],
+ "sandbox_skips": [
+  {
+   "key": "tests.test_parse_error_differential::test_acceptance_agrees[deep-nesting]",
+   "reason": "host-only: MAX_NESTING is a HOST RESOURCE guard (`_enter` counts Python recursion depth so a deeply nested expression is a ParseError and not a RecursionError), not a rule of the grammar. The guest runs on the trampoline and has no host stack to protect."
+  },
+  {
+   "key": "tests.test_parse_error_differential::test_acceptance_agrees[effect-arg-not-permitted]",
+   "reason": "host-only: Same absence, at the call-site half of the same system (`_check_call_site_param_effects`, v0.14.12). Listed separately because it is a separate host raise site, and the coverage floor below counts raise sites."
+  },
+  {
+   "key": "tests.test_parse_error_differential::test_acceptance_agrees[effect-not-permitted]",
+   "reason": "host-only: The effects system is parse-time in the host and absent in the guest: `parse_effects_clause` SKIPS `effects [...]` without recording it. Pre-existing and documented at that function (round 164); implementing it means six scope stacks the guest has no mutation to carry."
+  },
+  {
+   "key": "tests.test_v37::test_the_host_is_byte_unchanged_by_this_decision",
+   "reason": "not a git checkout, or 768954b is not present"
+  }
+ ],
+ "xfail_live": [],
+ "xfail_sandbox": []
+}

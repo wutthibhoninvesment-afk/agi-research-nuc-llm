@@ -38,6 +38,7 @@ import re
 
 import pytest
 
+import curecheck as _C
 from whence.interp import Interpreter
 from whence.values import Miss
 
@@ -606,10 +607,22 @@ def test_research_state_track_c_names_the_same_version_as_spec_md():
     header = re.search(r"^\*Spec level: \*\*v(\d+\.\d+)\*\*", spec, re.M)
     assert header, "SPEC.md has no `*Spec level: **vN**` header line"
 
-    state_path = os.path.normpath(
-        os.path.join(ROOT, "..", "..", "state", "research-state.md"))
+    # ROUND 431 (SWE-loop D). Two changes, one defect each.
+    #
+    # `_C.AGI_ROOT` replaces `os.path.join(ROOT, "..", "..")`: round 413's
+    # class, and in a mutation sandbox `..` `..` is the tempdir, so this test
+    # was reading a path that cannot exist there.
+    #
+    # `pytest.skip` replaces a bare `return`: the guard below is the SAME
+    # class as `test_v37`'s `pytest.skip` (round 425) with one difference
+    # that makes it strictly worse -- a test that returns early is recorded
+    # as PASSED. It is invisible to the exit code, invisible to a per-node
+    # verdict differential, and invisible to a skip registry. Nothing this
+    # repo runs could ever have told you this assertion had stopped being
+    # made. A skip at least leaves a mark.
+    state_path = os.path.join(_C.AGI_ROOT, "state", "research-state.md")
     if not os.path.exists(state_path):          # a whence-only checkout
-        return
+        pytest.skip("no repo checkout above this tree: %s is absent" % state_path)
     state = open(state_path, encoding="utf-8").read()
     m = re.search(r"^- \*\*Language \(C\):\*\* \*\*v(\d+\.\d+)\*\*",
                   state, re.M)

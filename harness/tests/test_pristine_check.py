@@ -1674,3 +1674,36 @@ def test_the_ledger_does_not_duplicate_the_registrys_prose():
     assert "why" not in row["ack"]
     assert "W" * 100 not in json.dumps(block)
     assert row["key"]                      # the registry is still reachable
+
+
+def test_parse_junit_carries_the_message_that_decided_each_status(tmp_path):
+    """`details` (round 431). `swe/copyparity.py` had its own junit reader
+    purely because this one dropped the failure message; the two disagreed
+    about an xfail, which is a phantom regression waiting for the first tree
+    that has one. This field is what let that second reader become a
+    four-line adapter over this one.
+    """
+    xml = tmp_path / "j.xml"
+    xml.write_text(
+        '<testsuites><testsuite name="pytest">'
+        '<testcase classname="tests.test_a" name="ok"/>'
+        '<testcase classname="tests.test_a" name="bad">'
+        '<failure message="assert 0 ==   1"/></testcase>'
+        '<testcase classname="tests.test_a" name="boom">'
+        '<error message="FileNotFoundError: /tmp/x"/></testcase>'
+        '<testcase classname="tests.test_a" name="sk">'
+        '<skipped type="pytest.skip" message="no git"/></testcase>'
+        '<testcase classname="tests.test_a" name="xf">'
+        '<skipped type="pytest.xfail" message="known"/></testcase>'
+        '</testsuite></testsuites>', encoding="utf-8")
+    got = pc.parse_junit(str(xml))
+    assert got["ok"]
+    assert got["statuses"]["tests.test_a::xf"] == "xfailed"
+    assert got["details"] == {
+        "tests.test_a::bad": "assert 0 == 1",          # whitespace collapsed
+        "tests.test_a::boom": "FileNotFoundError: /tmp/x",
+        "tests.test_a::sk": "no git",
+        "tests.test_a::xf": "known"}
+    # A passing node contributes nothing: absence is the encoding of "green".
+    assert "tests.test_a::ok" not in got["details"]
+    assert pc.parse_junit(str(tmp_path / "gone.xml"))["details"] == {}

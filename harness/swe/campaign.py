@@ -67,10 +67,12 @@ from . import triage as TR
 from . import repair as RP
 from . import prioritize as PR
 from . import review as R
+from . import sandboxevidence as SE
 from . import scoreaudit as SA
 from .fuzz import WHENCE_ROOT
-from .mutation import (DEFAULT_TEST_CMD, BaselineNotGreen, Mutant, MutationReport,
-                       _copy_project, baseline_check, generate, run_mutant)
+from .mutation import (DEFAULT_TEST_CMD, BaselineEvidenceLost, BaselineNotGreen,
+                       Mutant, MutationReport, _copy_project, baseline_check,
+                       generate, run_mutant)
 
 STAGES = ("baseline", "mutation", "recheck", "coverage", "corpus", "verify", "triage",
           "oracle_kill", "live_kill", "review", "repair", "report")
@@ -147,7 +149,15 @@ def pinned_test_cmd(test_file):
 class Campaign(object):
     def __init__(self, out, root=WHENCE_ROOT, files=("whence/interp.py",),
                  test_cmd=DEFAULT_TEST_CMD, log=None, prioritizer=None, coverage_map=None,
-                 allow_red_baseline=False, baseline_timeout_s=1200.0):
+                 allow_red_baseline=False, baseline_timeout_s=1200.0,
+                 evidence_suite=None, require_baseline_evidence=False):
+        # Round 431: `evidence_suite` names the (tree, test command) pair that
+        # `state/known-sandbox-skips.json` is keyed by, so the baseline's own
+        # junit can be graded against a signed skip list at no extra suite
+        # run. `None` matches every registry entry regardless of suite, which
+        # is permissive for MATCHING and not for the verdict.
+        self.evidence_suite = evidence_suite
+        self.require_baseline_evidence = bool(require_baseline_evidence)
         # Round 353: `allow_red_baseline` is an escape hatch for a caller whose
         # "suite" is a deliberate fixture (the tests below drive stages with
         # `python -c 'sys.exit(1)'`), NOT a convenience. It never suppresses
@@ -261,7 +271,8 @@ class Campaign(object):
             return _load_json(art)
         self._mark("baseline", "running")
         b = baseline_check(self.root, self.test_cmd,
-                           timeout_s if timeout_s is not None else self.baseline_timeout_s)
+                           timeout_s if timeout_s is not None else self.baseline_timeout_s,
+                           suite=self.evidence_suite)
         b["green"] = (b["returncode"] == 0)
         b["test_cmd"] = list(self.test_cmd)
         b["allow_red"] = self.allow_red_baseline
@@ -281,6 +292,13 @@ class Campaign(object):
             self.log("WARNING: baseline is RED and allow_red_baseline is set -- this "
                      "campaign will run and every number it produces is NOT EVIDENCE.\n%s"
                      % b["tail"])
+        # Round 431. Printed on EVERY campaign, green or not, and before any
+        # mutant runs. A green exit code says the suite did not object; it
+        # does not say the suite ran. `format_block` prints the acknowledged
+        # rows too, on purpose -- an acknowledgement nobody sees reads as
+        # coverage.
+        for line in SE.format_block(b.get("skips") or {}):
+            self.log(line.rstrip())
         self._baseline = b
         return b
 
@@ -297,9 +315,16 @@ class Campaign(object):
                                       if self.done("baseline") else None) \
                         or self.stage_baseline()
         b = self._baseline
-        if b["green"] or self.allow_red_baseline:
-            return b
-        raise BaselineNotGreen(b["returncode"], b["tail"])
+        if not (b["green"] or self.allow_red_baseline):
+            raise BaselineNotGreen(b["returncode"], b["tail"])
+        # Round 431, and deliberately AFTER the exit-code check: a red
+        # baseline is reported as red, not as "lost evidence". A resumed
+        # campaign re-reads `baseline.json`, which is why the block is
+        # persisted there rather than recomputed -- a resume must be able to
+        # refuse for the same reason the first run would have.
+        if self.require_baseline_evidence and SE.is_lost(b.get("skips") or {}):
+            raise BaselineEvidenceLost(b["skips"])
+        return b
 
     def _run_one(self, m, cmd, timeout_s):
         """THE mutant-running call in this module.

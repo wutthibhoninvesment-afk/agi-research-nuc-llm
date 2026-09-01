@@ -504,6 +504,11 @@
       "via": "skills/skill-authoring/scripts/corpus_check.py:-",
       "via_kind": "dir"
     },
+    "skills/skill-authoring/scripts/placeholder_check.py": {
+      "status": "wired",
+      "via": "skills/skill-authoring/scripts/corpus_check.py:-",
+      "via_kind": "dir"
+    },
     "skills/skill-authoring/scripts/skill_lint.py": {
       "status": "wired",
       "via": "skills/skill-authoring/scripts/corpus_check.py:-",
@@ -540,6 +545,11 @@
       "via_kind": "dir"
     },
     "skills/skill-authoring/scripts/test_displacement.py": {
+      "status": "wired",
+      "via": "skills/skill-authoring/scripts/corpus_check.py:-",
+      "via_kind": "dir"
+    },
+    "skills/skill-authoring/scripts/test_placeholder_check.py": {
       "status": "wired",
       "via": "skills/skill-authoring/scripts/corpus_check.py:-",
       "via_kind": "dir"

@@ -1,0 +1,91 @@
+{
+ "_": [
+  "Acknowledged SKIPS inside the mutation sandbox (`swe/mutation.py::_copy_project`).",
+  "Read by `swe/sandboxevidence.py::check`, which every `baseline_check` run now",
+  "calls on its own junit report -- zero extra suite runs. Round 431 (SWE-loop D).",
+  "",
+  "WHAT AN ENTRY MEANS. A round ran the suite in the sandbox, saw this node skip,",
+  "looked at WHY, and signed it. `reason_pin` is the exact skip message: if it",
+  "changes, the node is being skipped for a reason nobody adjudicated and the check",
+  "goes red (`pin_expired`), exactly as `state/known-escalated-diffs.json` treats a",
+  "moved blob. An acknowledgement is not a mute button with no expiry.",
+  "",
+  "`class` -- `sandbox_only` means the COPY caused it (established by running the",
+  "suite both ways, `swe/copyparity.py run`); `both` means the live tree skips it",
+  "too, so it is not a copy defect but it IS still a test that did not contribute",
+  "to the mutation score. Both are signed here on purpose: a one-sided run cannot",
+  "tell them apart, and the honest question a one-sided run CAN answer is `is every",
+  "test the sandbox did not run signed off`.",
+  "",
+  "`kills_mutants` -- can this test's absence change a mutant verdict? `false` needs",
+  "evidence, and the evidence is line coverage of the files the campaign mutates.",
+  "An entry with `true` is printed LOUDLY on every campaign and never goes quiet.",
+  "",
+  "This file is NOT `state/known-pristine-skips.json`. That one models a test git",
+  "does not carry; this one models a test the COPY does not run. Different trees,",
+  "different ignore lists, deliberately different registries.",
+  "",
+  "`suites[].node_floor` is the node count the entries were taken against. It fires",
+  "only when the sandbox collects FEWER nodes -- a conftest that stops collecting a",
+  "file when something it reads is absent exits 0, reports no skip and no failure,",
+  "and was invisible to everything in this repo before round 431. Adding tests",
+  "makes the floor stale-low (never a false positive); removing them is what it is",
+  "for."
+ ],
+ "suites": {
+  "whence-fast-sandbox": {
+   "root": "languages/whence",
+   "test_cmd": "python3 -m pytest -p no:cacheprovider -q -m 'not whence_slow' tests",
+   "node_floor": 2157,
+   "recorded_round": 431,
+   "recorded_utc": "2026-09-01",
+   "how": "swe/copyparity.py run, both sides 2157 nodes; see state/swe/round-431/"
+  }
+ },
+ "acknowledged": [
+  {
+   "suite": "whence-fast-sandbox",
+   "key": "tests.test_v37::test_the_host_is_byte_unchanged_by_this_decision",
+   "nid": "tests/test_v37.py::test_the_host_is_byte_unchanged_by_this_decision",
+   "class": "sandbox_only",
+   "reason_pin": "not a git checkout, or 768954b is not present",
+   "kills_mutants": false,
+   "acknowledged_round": 431,
+   "acknowledged_utc": "2026-09-01",
+   "why": "Found by round 425, the instance this whole mechanism was asked for. `_copy_project` excludes `.git`; the test shells out to `git show --name-only 768954b -- whence/` and round 404 gave it a `pytest.skip` guard, so in the sandbox a real assertion becomes a no-op with both sides exiting 0. `kills_mutants: false` is MEASURED, not assumed: `swe.coverage.collect` over `languages/whence/whence/*.py` running this node ALONE reports 0 covered lines in `whence/interp.py` -- the file every campaign in this program has actually mutated -- and 315 lines elsewhere, all of them module-import lines executed by the import of the test module rather than by the test body, which asserts only on `git show` stdout. Round 431 also ran 60 mutants of the two most-covered files against this node alone in a git worktree (where it does NOT skip) and killed 0 of 60. Round 425 wrote that the score is `inflated by exactly the amount nobody can see`; the sign is backwards (an evaporated killer moves mutants from `killed` to `survived`, so the score falls) and on this instance the amount is zero."
+  },
+  {
+   "suite": "whence-fast-sandbox",
+   "key": "tests.test_parse_error_differential::test_acceptance_agrees[deep-nesting]",
+   "nid": "tests/test_parse_error_differential.py::test_acceptance_agrees[deep-nesting]",
+   "class": "both",
+   "reason_pin": "host-only: MAX_NESTING is a HOST RESOURCE guard (`_enter` counts Python recursion depth so a deeply nested expression is a ParseError and not a RecursionError), not a rule of the grammar. The guest runs on the trampoline and has no host stack to protect.",
+   "kills_mutants": false,
+   "acknowledged_round": 431,
+   "acknowledged_utc": "2026-09-01",
+   "why": "Declared host-only by the differential itself, skipped identically in the live tree and in the sandbox (measured round 431: 3 skips live, 4 in the sandbox, these 3 in both). Not a copy defect. Signed here because a one-sided check cannot tell that from one, and because a skip that has always been there is still a test the score was computed without."
+  },
+  {
+   "suite": "whence-fast-sandbox",
+   "key": "tests.test_parse_error_differential::test_acceptance_agrees[effect-not-permitted]",
+   "nid": "tests/test_parse_error_differential.py::test_acceptance_agrees[effect-not-permitted]",
+   "class": "both",
+   "reason_pin": "host-only: The effects system is parse-time in the host and absent in the guest: `parse_effects_clause` SKIPS `effects [...]` without recording it. Pre-existing and documented at that function (round 164); implementing it means six scope stacks the guest has no mutation to carry.",
+   "kills_mutants": false,
+   "acknowledged_round": 431,
+   "acknowledged_utc": "2026-09-01",
+   "why": "Same class as the entry above: a declared host-only case of the parse-error differential, skipped in both trees."
+  },
+  {
+   "suite": "whence-fast-sandbox",
+   "key": "tests.test_parse_error_differential::test_acceptance_agrees[effect-arg-not-permitted]",
+   "nid": "tests/test_parse_error_differential.py::test_acceptance_agrees[effect-arg-not-permitted]",
+   "class": "both",
+   "reason_pin": "host-only: Same absence, at the call-site half of the same system (`_check_call_site_param_effects`, v0.14.12). Listed separately because it is a separate host raise site, and the coverage floor below counts raise sites.",
+   "kills_mutants": false,
+   "acknowledged_round": 431,
+   "acknowledged_utc": "2026-09-01",
+   "why": "Same class as the two entries above: the call-site half of the same declared host-only absence, skipped identically in both trees, listed separately because it is a separate host raise site."
+  }
+ ]
+}

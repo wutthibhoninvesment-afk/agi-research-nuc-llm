@@ -263,9 +263,17 @@ def parse_junit(path):
     "no skips" -- rule 3 applied to this class. Every fake-runner test in
     this repo produces exactly that case, which is why the default has to be
     right.
+
+    `details` (round 431) carries the `message` attribute of whichever
+    non-pass element decided the status, so a second parser is not needed to
+    say WHY a node is red. Added when `swe.copyparity` became the second
+    caller: it had its own junit reader, which counted an xfail as a skip
+    (this one does not), and two readers of the same XML that disagree about
+    the same node is a defect waiting for the first tree that has an xfail
+    in it.
     """
     rec = {"ok": False, "path": path, "error": None,
-           "statuses": {}, "skips": []}
+           "statuses": {}, "skips": [], "details": {}}
     try:
         tree = ET.parse(path)
     except (OSError, ET.ParseError, ValueError) as e:
@@ -276,18 +284,20 @@ def parse_junit(path):
         key = skip_key(cn, nm)
         skipped = tc.find("skipped")
         if skipped is not None and skipped.get("type") != _XFAIL_TYPE:
+            reason = " ".join((skipped.get("message") or "").split())
             rec["statuses"][key] = "skipped"
-            rec["skips"].append({
-                "key": key,
-                "nid": junit_node_id(cn, nm),
-                "reason": " ".join((skipped.get("message") or "").split()),
-            })
+            rec["details"][key] = reason
+            rec["skips"].append({"key": key, "nid": junit_node_id(cn, nm),
+                                 "reason": reason})
         elif skipped is not None:
             rec["statuses"][key] = "xfailed"
+            rec["details"][key] = " ".join((skipped.get("message") or "").split())
         elif tc.find("failure") is not None:
             rec["statuses"][key] = "failed"
+            rec["details"][key] = " ".join((tc.find("failure").get("message") or "").split())
         elif tc.find("error") is not None:
             rec["statuses"][key] = "error"
+            rec["details"][key] = " ".join((tc.find("error").get("message") or "").split())
         else:
             rec["statuses"][key] = "passed"
     rec["ok"] = True

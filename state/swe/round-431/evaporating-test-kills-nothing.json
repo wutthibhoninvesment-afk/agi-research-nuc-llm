@@ -1,0 +1,617 @@
+{
+ "node": "tests/test_v37.py::test_the_host_is_byte_unchanged_by_this_decision",
+ "files": [
+  "whence/values.py",
+  "whence/parser.py"
+ ],
+ "worktree": "/tmp/r431-wt-36xuzb1z/t",
+ "baseline": {
+  "rc": 0,
+  "tail": ".                                                                        [100%]\n1 passed in 0.17s"
+ },
+ "n": 60,
+ "killed": 0,
+ "_": "Round 431. NOT a mutation campaign report. Each entry is one mutant run against a SINGLE test node in a git worktree, to answer whether the round-425 evaporating test kills anything at all. The list is called `trials` and not `mutants` on purpose: `swe/scoreaudit.py` discovers archived campaigns by `\"mutants\" in data`, and this file is not one -- it has no baseline, no score and no denominator over a file's mutation sites.",
+ "trials": [
+  {
+   "id": "values.py:15:const#0",
+   "file": "whence/values.py",
+   "line": 15,
+   "op": "const",
+   "desc": "40 -> 41",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.09s"
+  },
+  {
+   "id": "values.py:578:const#10",
+   "file": "whence/values.py",
+   "line": 578,
+   "op": "const",
+   "desc": "13287 -> 13288",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.09s"
+  },
+  {
+   "id": "values.py:637:ifneg#20",
+   "file": "whence/values.py",
+   "line": 637,
+   "op": "ifneg",
+   "desc": "negate if-condition",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.07s"
+  },
+  {
+   "id": "values.py:724:ifneg#30",
+   "file": "whence/values.py",
+   "line": 724,
+   "op": "ifneg",
+   "desc": "negate if-condition",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.07s"
+  },
+  {
+   "id": "values.py:79:ifneg#40",
+   "file": "whence/values.py",
+   "line": 79,
+   "op": "ifneg",
+   "desc": "negate if-condition",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.08s"
+  },
+  {
+   "id": "values.py:294:cmp#50",
+   "file": "whence/values.py",
+   "line": 294,
+   "op": "cmp",
+   "desc": "Is -> IsNot",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.20s"
+  },
+  {
+   "id": "values.py:523:const#60",
+   "file": "whence/values.py",
+   "line": 523,
+   "op": "const",
+   "desc": "0 -> 1",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.07s"
+  },
+  {
+   "id": "values.py:711:ifneg#70",
+   "file": "whence/values.py",
+   "line": 711,
+   "op": "ifneg",
+   "desc": "negate if-condition",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.08s"
+  },
+  {
+   "id": "values.py:768:ifneg#80",
+   "file": "whence/values.py",
+   "line": 768,
+   "op": "ifneg",
+   "desc": "negate if-condition",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.07s"
+  },
+  {
+   "id": "values.py:849:ifneg#90",
+   "file": "whence/values.py",
+   "line": 849,
+   "op": "ifneg",
+   "desc": "negate if-condition",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.08s"
+  },
+  {
+   "id": "values.py:61:cmp#100",
+   "file": "whence/values.py",
+   "line": 61,
+   "op": "cmp",
+   "desc": "Eq -> NotEq",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.07s"
+  },
+  {
+   "id": "values.py:253:arith#110",
+   "file": "whence/values.py",
+   "line": 253,
+   "op": "arith",
+   "desc": "Add -> Sub",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.08s"
+  },
+  {
+   "id": "values.py:374:cmp#120",
+   "file": "whence/values.py",
+   "line": 374,
+   "op": "cmp",
+   "desc": "IsNot -> Is",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.08s"
+  },
+  {
+   "id": "values.py:531:arith#130",
+   "file": "whence/values.py",
+   "line": 531,
+   "op": "arith",
+   "desc": "Add -> Sub",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.10s"
+  },
+  {
+   "id": "values.py:671:cmp#140",
+   "file": "whence/values.py",
+   "line": 671,
+   "op": "cmp",
+   "desc": "Eq -> NotEq",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.09s"
+  },
+  {
+   "id": "values.py:765:arith#150",
+   "file": "whence/values.py",
+   "line": 765,
+   "op": "arith",
+   "desc": "Mod -> Mult",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.11s"
+  },
+  {
+   "id": "values.py:808:cmp#160",
+   "file": "whence/values.py",
+   "line": 808,
+   "op": "cmp",
+   "desc": "Eq -> NotEq",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.07s"
+  },
+  {
+   "id": "values.py:902:arith#170",
+   "file": "whence/values.py",
+   "line": 902,
+   "op": "arith",
+   "desc": "Mod -> Mult",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.14s"
+  },
+  {
+   "id": "values.py:67:arith#180",
+   "file": "whence/values.py",
+   "line": 67,
+   "op": "arith",
+   "desc": "Add -> Sub",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.08s"
+  },
+  {
+   "id": "values.py:250:cmp#190",
+   "file": "whence/values.py",
+   "line": 250,
+   "op": "cmp",
+   "desc": "IsNot -> Is",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.08s"
+  },
+  {
+   "id": "values.py:284:const#200",
+   "file": "whence/values.py",
+   "line": 284,
+   "op": "const",
+   "desc": "0 -> 1",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.07s"
+  },
+  {
+   "id": "values.py:619:arith#210",
+   "file": "whence/values.py",
+   "line": 619,
+   "op": "arith",
+   "desc": "Add -> Sub",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.06s"
+  },
+  {
+   "id": "values.py:726:const#220",
+   "file": "whence/values.py",
+   "line": 726,
+   "op": "const",
+   "desc": "1 -> 2",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.08s"
+  },
+  {
+   "id": "values.py:783:cmp#230",
+   "file": "whence/values.py",
+   "line": 783,
+   "op": "cmp",
+   "desc": "Eq -> NotEq",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.11s"
+  },
+  {
+   "id": "values.py:867:ifneg#240",
+   "file": "whence/values.py",
+   "line": 867,
+   "op": "ifneg",
+   "desc": "negate if-condition",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.17s"
+  },
+  {
+   "id": "values.py:50:const#250",
+   "file": "whence/values.py",
+   "line": 50,
+   "op": "const",
+   "desc": "0 -> 1",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.09s"
+  },
+  {
+   "id": "values.py:728:cmp#260",
+   "file": "whence/values.py",
+   "line": 728,
+   "op": "cmp",
+   "desc": "In -> NotIn",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.07s"
+  },
+  {
+   "id": "values.py:850:cmp#270",
+   "file": "whence/values.py",
+   "line": 850,
+   "op": "cmp",
+   "desc": "NotEq -> Eq",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.08s"
+  },
+  {
+   "id": "values.py:621:cmp#280",
+   "file": "whence/values.py",
+   "line": 621,
+   "op": "cmp",
+   "desc": "Lt -> LtE",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.07s"
+  },
+  {
+   "id": "values.py:863:cmp#290",
+   "file": "whence/values.py",
+   "line": 863,
+   "op": "cmp",
+   "desc": "NotIn -> In",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.09s"
+  },
+  {
+   "id": "parser.py:158:ifneg#0",
+   "file": "whence/parser.py",
+   "line": 158,
+   "op": "ifneg",
+   "desc": "negate if-condition",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.12s"
+  },
+  {
+   "id": "parser.py:207:arith#18",
+   "file": "whence/parser.py",
+   "line": 207,
+   "op": "arith",
+   "desc": "Mod -> Mult",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.09s"
+  },
+  {
+   "id": "parser.py:672:ifneg#36",
+   "file": "whence/parser.py",
+   "line": 672,
+   "op": "ifneg",
+   "desc": "negate if-condition",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.08s"
+  },
+  {
+   "id": "parser.py:1375:ifneg#54",
+   "file": "whence/parser.py",
+   "line": 1375,
+   "op": "ifneg",
+   "desc": "negate if-condition",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.10s"
+  },
+  {
+   "id": "parser.py:2036:ifneg#72",
+   "file": "whence/parser.py",
+   "line": 2036,
+   "op": "ifneg",
+   "desc": "negate if-condition",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.08s"
+  },
+  {
+   "id": "parser.py:2371:ifneg#90",
+   "file": "whence/parser.py",
+   "line": 2371,
+   "op": "ifneg",
+   "desc": "negate if-condition",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.09s"
+  },
+  {
+   "id": "parser.py:648:cmp#108",
+   "file": "whence/parser.py",
+   "line": 648,
+   "op": "cmp",
+   "desc": "Gt -> GtE",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.09s"
+  },
+  {
+   "id": "parser.py:820:cmp#126",
+   "file": "whence/parser.py",
+   "line": 820,
+   "op": "cmp",
+   "desc": "Lt -> LtE",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.09s"
+  },
+  {
+   "id": "parser.py:1375:cmp#144",
+   "file": "whence/parser.py",
+   "line": 1375,
+   "op": "cmp",
+   "desc": "IsNot -> Is",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.21s"
+  },
+  {
+   "id": "parser.py:1730:ifneg#162",
+   "file": "whence/parser.py",
+   "line": 1730,
+   "op": "ifneg",
+   "desc": "negate if-condition",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.11s"
+  },
+  {
+   "id": "parser.py:2028:bool#180",
+   "file": "whence/parser.py",
+   "line": 2028,
+   "op": "bool",
+   "desc": "And -> Or",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.08s"
+  },
+  {
+   "id": "parser.py:2254:ifneg#198",
+   "file": "whence/parser.py",
+   "line": 2254,
+   "op": "ifneg",
+   "desc": "negate if-condition",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.09s"
+  },
+  {
+   "id": "parser.py:2376:bool#216",
+   "file": "whence/parser.py",
+   "line": 2376,
+   "op": "bool",
+   "desc": "And -> Or",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.07s"
+  },
+  {
+   "id": "parser.py:723:cmp#234",
+   "file": "whence/parser.py",
+   "line": 723,
+   "op": "cmp",
+   "desc": "NotIn -> In",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.10s"
+  },
+  {
+   "id": "parser.py:817:cmp#252",
+   "file": "whence/parser.py",
+   "line": 817,
+   "op": "cmp",
+   "desc": "GtE -> Gt",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.10s"
+  },
+  {
+   "id": "parser.py:941:const#270",
+   "file": "whence/parser.py",
+   "line": 941,
+   "op": "const",
+   "desc": "False -> True",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.08s"
+  },
+  {
+   "id": "parser.py:1286:cmp#288",
+   "file": "whence/parser.py",
+   "line": 1286,
+   "op": "cmp",
+   "desc": "Eq -> NotEq",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.10s"
+  },
+  {
+   "id": "parser.py:1540:ifneg#306",
+   "file": "whence/parser.py",
+   "line": 1540,
+   "op": "ifneg",
+   "desc": "negate if-condition",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.08s"
+  },
+  {
+   "id": "parser.py:2009:bool#324",
+   "file": "whence/parser.py",
+   "line": 2009,
+   "op": "bool",
+   "desc": "Or -> And",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.09s"
+  },
+  {
+   "id": "parser.py:2189:cmp#342",
+   "file": "whence/parser.py",
+   "line": 2189,
+   "op": "cmp",
+   "desc": "Eq -> NotEq",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.09s"
+  },
+  {
+   "id": "parser.py:2484:ifneg#360",
+   "file": "whence/parser.py",
+   "line": 2484,
+   "op": "ifneg",
+   "desc": "negate if-condition",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.07s"
+  },
+  {
+   "id": "parser.py:978:cmp#378",
+   "file": "whence/parser.py",
+   "line": 978,
+   "op": "cmp",
+   "desc": "Is -> IsNot",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.08s"
+  },
+  {
+   "id": "parser.py:1763:const#396",
+   "file": "whence/parser.py",
+   "line": 1763,
+   "op": "const",
+   "desc": "1 -> 2",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.10s"
+  },
+  {
+   "id": "parser.py:2286:const#414",
+   "file": "whence/parser.py",
+   "line": 2286,
+   "op": "const",
+   "desc": "1 -> 2",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.09s"
+  },
+  {
+   "id": "parser.py:828:bool#432",
+   "file": "whence/parser.py",
+   "line": 828,
+   "op": "bool",
+   "desc": "And -> Or",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.11s"
+  },
+  {
+   "id": "parser.py:1697:const#450",
+   "file": "whence/parser.py",
+   "line": 1697,
+   "op": "const",
+   "desc": "1 -> 2",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.09s"
+  },
+  {
+   "id": "parser.py:829:const#468",
+   "file": "whence/parser.py",
+   "line": 829,
+   "op": "const",
+   "desc": "True -> False",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.08s"
+  },
+  {
+   "id": "parser.py:1286:const#486",
+   "file": "whence/parser.py",
+   "line": 1286,
+   "op": "const",
+   "desc": "2 -> 3",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.09s"
+  },
+  {
+   "id": "parser.py:1043:const#504",
+   "file": "whence/parser.py",
+   "line": 1043,
+   "op": "const",
+   "desc": "1 -> 2",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.05s"
+  },
+  {
+   "id": "parser.py:1070:const#522",
+   "file": "whence/parser.py",
+   "line": 1070,
+   "op": "const",
+   "desc": "1 -> 2",
+   "rc": 0,
+   "killed": false,
+   "tail": ".                                                                        [100%]\n1 passed in 0.09s"
+  }
+ ]
+}

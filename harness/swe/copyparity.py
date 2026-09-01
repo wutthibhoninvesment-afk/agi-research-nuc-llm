@@ -123,6 +123,7 @@ import xml.etree.ElementTree as ET
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from swe import sandboxevidence as SE                         # noqa: E402
 from swe.mutation import DEFAULT_TEST_CMD, _copy_project      # noqa: E402
 from swe.proc import run_capped                               # noqa: E402
 from swe.fuzz import WHENCE_ROOT                              # noqa: E402
@@ -155,25 +156,26 @@ def parse_collect(output):
 
 
 def parse_junit(path):
-    """`{node_id: status}` from a junit xml, `status` in
-    passed/failed/error/skipped. Node id is `classname::name`, which is
-    stable across two runs of the same suite in different directories
-    (the `file` attribute is not emitted by every pytest)."""
-    if not os.path.exists(path):
+    """`{node_id: (status, detail)}` from a junit xml. Node id is
+    `classname::name`, which is stable across two runs of the same suite in
+    different directories (the `file` attribute is not emitted by every
+    pytest).
+
+    ROUND 431: an ADAPTER now, not a parser. This module used to read the
+    XML itself and classified `<skipped type="pytest.xfail">` as `skipped`,
+    while `pristine_check.parse_junit` -- written two rounds later for the
+    same job one tree over -- excludes it. Two readers of the same file that
+    disagree about the same node is a latent phantom: an xfail whose type
+    attribute differs between the trees would have been reported here as a
+    regression forever. Neither tree has an xfail today, which is the only
+    reason it never fired. One parser now, and this is the thin end of it.
+    """
+    rec = SE.parse_junit(path)
+    if not rec.get("ok"):
         return {}
-    out = {}
-    root = ET.parse(path).getroot()
-    for tc in root.iter("testcase"):
-        node = "%s::%s" % (tc.get("classname", ""), tc.get("name", ""))
-        status = "passed"
-        detail = ""
-        for child in tc:
-            if child.tag in ("failure", "error", "skipped"):
-                status = {"failure": "failed"}.get(child.tag, child.tag)
-                detail = (child.get("message") or "").strip()
-                break
-        out[node] = (status, detail[:400])
-    return out
+    details = rec.get("details") or {}
+    return {k: (v, (details.get(k) or "")[:400])
+            for k, v in (rec.get("statuses") or {}).items()}
 
 
 class Side(object):
@@ -215,6 +217,28 @@ class Report(object):
         self.test_cmd = list(test_cmd)
         self.stripped_x = stripped_x
 
+    #: ROUND 431. `regressions` merges two findings with OPPOSITE visibility
+    #: to the engine, and merging them is why round 425's single instance
+    #: read as one more red test rather than as a hole in the gate:
+    #:
+    #:   passed -> failed/error   the copy's exit code is non-zero, so
+    #:                            `mutation.baseline_check` REFUSES to run
+    #:                            the campaign. Loud, already handled.
+    #:   passed -> skipped        both sides exit 0. Nothing in this repo
+    #:                            saw it before `swe/sandboxevidence.py`.
+    #:
+    #: `regressions` is unchanged so every existing reader still works; these
+    #: are views over it, and the summary prints the invisible class FIRST.
+    @property
+    def evaporated(self):
+        """`passed -> skipped`: evidence lost with both sides exiting 0."""
+        return [r for r in self.regressions if r[1] == "passed" and r[2] == "skipped"]
+
+    @property
+    def broken(self):
+        """Every other regression: the ones an exit-code gate can see."""
+        return [r for r in self.regressions if not (r[1] == "passed" and r[2] == "skipped")]
+
     @property
     def copy_safe(self):
         return not (self.vanished or self.appeared or self.regressions or self.improvements)
@@ -233,6 +257,12 @@ class Report(object):
             "vanished": sorted(self.vanished), "appeared": sorted(self.appeared),
             "regressions": [{"node": n, "in_place": a, "copied": b, "detail": d}
                             for n, a, b, d in self.regressions],
+            # Round 431: additive views, see the properties.
+            "evaporated": [{"node": n, "in_place": a, "copied": b, "detail": d}
+                           for n, a, b, d in self.evaporated],
+            "broken": [{"node": n, "in_place": a, "copied": b, "detail": d}
+                       for n, a, b, d in self.broken],
+            "n_evaporated": len(self.evaporated), "n_broken": len(self.broken),
             "improvements": [{"node": n, "in_place": a, "copied": b}
                              for n, a, b in self.improvements],
         }
@@ -250,12 +280,23 @@ class Report(object):
             lines.append("  ... and %d more vanished" % (len(self.vanished) - 20))
         for n in sorted(self.appeared)[:20]:
             lines.append("  APPEARED   %s" % n)
-        for n, a, b, d in self.regressions[:20]:
+        # Round 431: the class the exit code CANNOT see goes first, and says
+        # so on its own line. Sorting by severity is not cosmetic here --
+        # `EVAPORATED` is the only line in this report that names something
+        # no other check in the repo would ever have told you about.
+        for n, a, b, d in self.evaporated[:20]:
+            lines.append("  EVAPORATED %-64s %s -> %s" % (n[:64], a, b))
+            lines.append("             (both sides exit 0; no exit-code gate sees this)")
+            if d:
+                lines.append("             %s" % d.splitlines()[0][:100])
+        if len(self.evaporated) > 20:
+            lines.append("  ... and %d more evaporated" % (len(self.evaporated) - 20))
+        for n, a, b, d in self.broken[:20]:
             lines.append("  REGRESSED  %-64s %s -> %s" % (n[:64], a, b))
             if d:
                 lines.append("             %s" % d.splitlines()[0][:100])
-        if len(self.regressions) > 20:
-            lines.append("  ... and %d more regressions" % (len(self.regressions) - 20))
+        if len(self.broken) > 20:
+            lines.append("  ... and %d more regressions" % (len(self.broken) - 20))
         for n, a, b in self.improvements[:20]:
             lines.append("  ONLY-GREEN-IN-COPY %-52s %s -> %s" % (n[:52], a, b))
         if self.copy_safe:
@@ -359,17 +400,22 @@ def _func_name(node):
 
 
 def _component_delta(text):
-    """Level change contributed by a literal path fragment.
+    """`(net, floor)` for a literal path fragment, evaluated LEFT TO RIGHT.
 
     `".."` is -1, `"."` is 0, `"a/b"` is +2. A fragment is allowed to carry
     several components because `join(root, "../../state")` is one argument.
+
+    ROUND 431 -- `floor` is the running MINIMUM, and it is the number that
+    decides an escape. `"../../state"` nets +1 and dips to -2; the dip is
+    what leaves the tree. See `_Escapes`.
     """
-    delta = 0
+    delta, floor = 0, 0
     for part in text.replace("\\", "/").split("/"):
         if part in ("", "."):
             continue
         delta += -1 if part == ".." else 1
-    return delta
+        floor = min(floor, delta)
+    return delta, floor
 
 
 class _Escapes(ast.NodeVisitor):
@@ -386,6 +432,36 @@ class _Escapes(ast.NodeVisitor):
     common shape, and a same-named local in another function can only ever
     change WHICH escape is reported, never invent one -- the reported line
     still contains arithmetic that reaches the level it is reported at.
+
+    ROUND 431 -- THE FINDING RULE IS THE FLOOR, NOT THE FINAL LEVEL
+    ---------------------------------------------------------------
+    Round 425 recorded an escape when the FINAL level was negative. That
+    test is unsound, and unsound in the direction that matters: it misses
+    the exact shape every recurrence of this class has had.
+
+        REG_422 = os.path.join(HERE, "..", "..", "state", "whence", "round-422")
+
+    `HERE` is the whence root (level 0), so this is 0 -1 -1 +1 +1 +1 = **+1**
+    and round 425's rule says copy-safe. The path is
+    `<repo>/state/whence/round-422`; in the sandbox it is
+    `/tmp/xxx/proj/../../state/...`, which does not exist, and it took down
+    17 tests and the whole mutation engine (round 431, measured). The final
+    level is not even meaningful once the expression has left the tree: +1
+    would mean "one level under the whence root", and the path is not under
+    the whence root at all.
+
+    A path that steps ABOVE the subtree root has left the tree whatever it
+    does afterwards -- `os.path.join` does not normalise, so the `..` is
+    resolved lexically by the OS at open time against a directory that, in
+    the copy, is the tempdir. So the rule is the running minimum:
+
+        floor < 0   <=>   this expression names something outside the tree
+
+    `level` (the final depth) is still reported, because it is what tells a
+    reader WHERE the expression landed. `floor` is what decides.
+
+    Both round 425's own findings ended negative, which is why its rule
+    looked adequate against them; neither of round 419's did.
     """
 
     def __init__(self, relpath, file_level, guarded_nodes):
@@ -399,63 +475,86 @@ class _Escapes(ast.NodeVisitor):
     # -- level evaluation ---------------------------------------------------
 
     def level_of(self, node):
-        """Depth below the root, or None when this is not a path we follow."""
+        """Depth below the root, or None when this is not a path we follow.
+
+        The final level only. `evaluate` is what a caller deciding whether
+        something escapes must use -- see the class docstring.
+        """
+        got = self.evaluate(node)
+        return None if got is None else got[0]
+
+    def evaluate(self, node):
+        """`(level, floor)`, or None when this is not a path we follow.
+
+        `level` is where the expression ends up; `floor` is the lowest level
+        it passes through on the way, and a negative floor is the escape.
+        """
         if isinstance(node, ast.Name):
             if node.id == "__file__":
-                return self.file_level
-            return self.levels.get(node.id)
+                return (self.file_level, self.file_level)
+            got = self.levels.get(node.id)
+            return None if got is None else got
         if isinstance(node, ast.Attribute):
             # `X.parent` on a pathlib object.
             if node.attr == "parent":
-                base = self.level_of(node.value)
-                return None if base is None else base - 1
+                base = self.evaluate(node.value)
+                return None if base is None else (base[0] - 1, min(base[1], base[0] - 1))
             return None
         if isinstance(node, ast.Subscript):
             # `X.parents[n]`
             v = node.value
             if isinstance(v, ast.Attribute) and v.attr == "parents":
-                base = self.level_of(v.value)
+                base = self.evaluate(v.value)
                 idx = _const_int(node.slice)
                 if base is not None and idx is not None:
-                    return base - (idx + 1)
+                    end = base[0] - (idx + 1)
+                    return (end, min(base[1], end))
             return None
         if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
             # `Path(__file__).parent / "x" / "y"`
-            base = self.level_of(node.left)
+            base = self.evaluate(node.left)
             if base is None:
                 return None
-            return base + self._arg_delta(node.right)
+            return self._apply(base, node.right)
         if isinstance(node, ast.Call):
             name = _func_name(node)
             if name is None or not node.args:
                 return None
             if name in _IDENTITY_FUNCS:
-                return self.level_of(node.args[0])
+                return self.evaluate(node.args[0])
             if name == "dirname":
-                base = self.level_of(node.args[0])
-                return None if base is None else base - 1
+                base = self.evaluate(node.args[0])
+                return None if base is None else (base[0] - 1, min(base[1], base[0] - 1))
             if name == "join":
-                base = self.level_of(node.args[0])
+                base = self.evaluate(node.args[0])
                 if base is None:
                     return None
                 for extra in node.args[1:]:
-                    base += self._arg_delta(extra)
+                    base = self._apply(base, extra)
                 return base
         return None
 
+    def _apply(self, base, node):
+        """Fold one `join`/`/` component onto a `(level, floor)` pair."""
+        delta, dip = self._arg_delta(node)
+        end = base[0] + delta
+        return (end, min(base[1], base[0] + dip))
+
     def _arg_delta(self, node):
-        """Level change for one `join`/`/` component.
+        """`(net, floor)` for one `join`/`/` component.
 
         An UNKNOWN component counts +1, never -1: a component this module
-        cannot read must push the answer away from a finding, not toward one.
+        cannot read must push the answer away from a finding, not toward one
+        -- and that is true of the floor as well, since +1 can only raise the
+        running minimum.
         """
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
             return _component_delta(node.value)
         if isinstance(node, ast.Attribute) and node.attr == "pardir":
-            return -1
+            return (-1, -1)
         if isinstance(node, ast.Starred):
-            return 1
-        return 1
+            return (1, 0)
+        return (1, 0)
 
     # -- traversal ----------------------------------------------------------
 
@@ -472,38 +571,44 @@ class _Escapes(ast.NodeVisitor):
         self._fn_depth -= 1
 
     def visit_Assign(self, node):
-        lvl = self.level_of(node.value)
-        if lvl is not None:
+        got = self.evaluate(node.value)
+        if got is not None:
             for tgt in node.targets:
                 if isinstance(tgt, ast.Name):
-                    self.levels[tgt.id] = lvl
+                    # The FLOOR is carried through the binding. `REG = join(
+                    # HERE, "..", "..", "state")` followed by `join(REG, "x")`
+                    # must still read as escaping: a name bound to a path
+                    # outside the tree does not come back inside it.
+                    self.levels[tgt.id] = got
         self.generic_visit(node)
 
     def visit_AnnAssign(self, node):
         if node.value is not None:
-            lvl = self.level_of(node.value)
-            if lvl is not None and isinstance(node.target, ast.Name):
-                self.levels[node.target.id] = lvl
+            got = self.evaluate(node.value)
+            if got is not None and isinstance(node.target, ast.Name):
+                self.levels[node.target.id] = got
         self.generic_visit(node)
 
     def generic_visit(self, node):
-        lvl = self.level_of(node) if isinstance(
+        got = self.evaluate(node) if isinstance(
             node, (ast.Call, ast.Attribute, ast.Subscript, ast.BinOp)) else None
-        if lvl is not None and lvl < 0:
-            self._record(node, lvl)
+        if got is not None and got[1] < 0:
+            self._record(node, got[0], got[1])
         ast.NodeVisitor.generic_visit(self, node)
 
-    def _record(self, node, lvl):
+    def _record(self, node, lvl, floor):
         line = getattr(node, "lineno", 0)
         prev = self.findings.get(line)
         # One finding per line, keeping the DEEPEST escape on it: nested
         # subexpressions of a single escaping expression are one defect.
-        if prev is not None and prev["level"] <= lvl:
+        # Ranked on the FLOOR, since that is what makes it a finding.
+        if prev is not None and prev.get("floor", prev["level"]) <= floor:
             return
         self.findings[line] = {
             "file": self.relpath,
             "line": line,
             "level": lvl,
+            "floor": floor,
             "kind": "runtime" if self._fn_depth else "import_time",
             "env_guarded": _has_guarded_ancestor(node, self.guarded),
             "expr": _snippet(node),
@@ -623,13 +728,19 @@ def escapes_summary(findings, stats):
         lines.append("  NO FILE WAS SCANNED — a scan that read nothing is not "
                      "a verdict (see the module docstring's first pitfall)")
     for f in real:
-        lines.append("  ESCAPES  %s:%d  level %d  [%s]"
-                     % (f["file"], f["line"], f["level"], f["kind"]))
+        # `floor` is the finding; `level` is where it landed. Printing both
+        # is the difference between "this leaves the tree" and "this ends up
+        # above the tree", and round 431 exists because the second was
+        # mistaken for the first.
+        lines.append("  ESCAPES  %s:%d  floor %d (ends at level %d)  [%s]"
+                     % (f["file"], f["line"], f.get("floor", f["level"]),
+                        f["level"], f["kind"]))
         lines.append("           %s" % f["expr"])
     for f in findings:
         if f["env_guarded"]:
             lines.append("  guarded  %s:%d  reaches level %d through %s"
-                         % (f["file"], f["line"], f["level"], ROOT_ENV_VAR))
+                         % (f["file"], f["line"], f.get("floor", f["level"]),
+                            ROOT_ENV_VAR))
     for u in stats["unreadable"]:
         lines.append("  UNREADABLE %s — %s" % (u["file"], u["error"]))
     if not real and stats["n_files"]:

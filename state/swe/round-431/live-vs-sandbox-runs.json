@@ -1,0 +1,34 @@
+{
+ "cmd": [
+  "/home/pgain/agi-research-nuc-llm/.venv/bin/python3",
+  "-m",
+  "pytest",
+  "-p",
+  "no:cacheprovider",
+  "-q",
+  "-m",
+  "not whence_slow",
+  "tests"
+ ],
+ "started": "2026-09-01T14:51:49Z",
+ "copy_seconds": 0.02,
+ "live": {
+  "root": "/home/pgain/agi-research-nuc-llm/languages/whence",
+  "returncode": 0,
+  "timed_out": false,
+  "seconds": 191.46,
+  "tail": "...................................................... [ 80%]\n........................................................................ [ 83%]\n........................................................................ [ 86%]\n........................................................................ [ 90%]\n........................................................................ [ 93%]\n........................................................................ [ 96%]\n.....................................................................    [100%]\n2154 passed, 3 skipped, 91 deselected in 186.09s (0:03:06)"
+ },
+ "sandbox": {
+  "root": "/tmp/r431-s83g0vzx/proj",
+  "returncode": 1,
+  "timed_out": false,
+  "seconds": 135.5,
+  "tail": "::test_routing_more_than_doubles_the_decided_share_of_the_registry\nFAILED tests/test_polarity.py::test_the_wrong_question_hazard_is_latent_in_every_recorded_artefact\nFAILED tests/test_polarity.py::test_the_law_headline_is_unchanged_by_routing\nFAILED tests/test_polarity.py::test_the_unrouted_table_reproduces_round_426s_p_of_one_tenth\nFAILED tests/test_polarity.py::test_routing_and_refusal_take_the_law_below_p_of_five_hundredths\nFAILED tests/test_polarity.py::test_the_significance_does_not_rest_on_the_shape_added_after_looking\n17 failed, 2136 passed, 4 skipped, 91 deselected in 134.74s (0:02:14)"
+ },
+ "live_no_junit": {
+  "returncode": 0,
+  "seconds": 200.35,
+  "tail": "]\n........................................................................ [ 93%]\n........................................................................ [ 96%]\n.....................................................................    [100%]\n2154 passed, 3 skipped, 91 deselected in 195.15s (0:03:15)"
+ }
+}

@@ -212,7 +212,16 @@ def test_an_escape_through_the_root_env_var_is_not_a_finding(tmp_path):
 
 def test_an_unreadable_component_pushes_away_from_a_finding(tmp_path):
     """A component the scanner cannot evaluate counts +1, never -1. A static
-    check that guesses toward findings gets uninstalled."""
+    check that guesses toward findings gets uninstalled.
+
+    ROUND 431 rewrote the assertion, not the rule. Under the floor rule BOTH
+    lines are findings — `join(_HERE, "..", X)` names `<parent>/X`, which is
+    outside the tree whatever `X` turns out to be — so the property to check
+    is that the unknown component did not DEEPEN either floor: line 3 sits at
+    -1, exactly the dip its one literal `..` accounts for, and line 4 at -2.
+    Under the old final-level rule line 3 read as level 0 and was silently
+    clean, which is the class this round found.
+    """
     root = tmp_path / "proj"
     root.mkdir()
     (root / "m.py").write_text(
@@ -221,8 +230,10 @@ def test_an_unreadable_component_pushes_away_from_a_finding(tmp_path):
         "A = os.path.join(_HERE, '..', some_name())\n"
         "B = os.path.join(_HERE, '..', '..', 'x')\n", encoding="utf-8")
     findings, stats = scan_escapes(str(root))
-    lines = {f["line"] for f in findings}
-    assert lines == {4}, escapes_summary(findings, stats)
+    by_line = {f["line"]: f for f in findings}
+    assert set(by_line) == {3, 4}, escapes_summary(findings, stats)
+    assert by_line[3]["floor"] == -1 and by_line[3]["level"] == 0
+    assert by_line[4]["floor"] == -2 and by_line[4]["level"] == -1
 
 
 def test_empty_scan_is_not_a_pass(tmp_path):
@@ -250,5 +261,48 @@ def test_json_output_carries_every_finding_field(tmp_path):
     assert doc["mode"] == "escapes"
     assert doc["stats"]["n_findings"] == 0
     for f in doc["findings"]:
-        assert set(f) == {"file", "line", "level", "kind", "env_guarded", "expr"}
-        assert f["level"] < 0 and f["kind"] in ("import_time", "runtime")
+        # `floor` joined the schema in round 431 and is the field that
+        # DECIDES; `level` stayed because it is what tells a reader where the
+        # expression landed, and it is no longer required to be negative.
+        assert set(f) == {"file", "line", "level", "floor", "kind",
+                          "env_guarded", "expr"}
+        assert f["floor"] < 0 and f["kind"] in ("import_time", "runtime")
+
+
+# ==========================================================================
+# ROUND 431 (SWE-loop D)
+# ==========================================================================
+
+def test_the_rule_in_force_on_the_real_tree_is_the_floor_not_the_final_level(real_scan):
+    """`test_the_real_whence_tree_has_no_unguarded_escape` above passed on
+    2026-09-01 over a tree with TWENTY-NINE escaping expressions in it, and
+    it was not lying: under round 425's rule (final level < 0) there were
+    none. Twenty-seven of them were in `tests/test_polarity.py`, they took
+    17 tests down in the mutation sandbox, `mutation.baseline_check` exited
+    1, and no campaign could start at all.
+
+    So the previous test is only worth what its RULE is worth, and that is
+    what this one pins: every finding this module can produce carries a
+    `floor`, and the floor is what `scan_escapes` decides on. A later round
+    that "simplifies" `_Escapes.evaluate` back to a single level will fail
+    here even on a clean tree, because `_component_delta` is checked
+    directly.
+    """
+    findings, _ = real_scan
+    assert findings, "no expression at all reaches outside — see the test above"
+    for f in findings:
+        assert "floor" in f, f
+        assert f["floor"] <= f["level"], f
+    # The arithmetic itself, on the exact fragment the fourth recurrence used.
+    from swe.copyparity import _component_delta
+    assert _component_delta("../../state/whence/round-422") == (1, -2)
+    assert _component_delta("tests/../examples") == (1, 0)
+
+
+def test_the_guarded_expressions_are_guarded_by_the_env_var_and_not_by_the_rule(real_scan):
+    """The seven guarded expressions must still be REACHED by the analyser
+    under the floor rule — an exemption over an empty set exempts nothing."""
+    findings, stats = real_scan
+    guarded = [f for f in findings if f["env_guarded"]]
+    assert len(guarded) == stats["n_env_guarded"] >= 7
+    assert all(f["floor"] < 0 for f in guarded), guarded

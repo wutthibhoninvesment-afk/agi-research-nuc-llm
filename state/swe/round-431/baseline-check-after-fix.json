@@ -1,0 +1,72 @@
+{
+ "returncode": 0,
+ "timed_out": false,
+ "seconds": 247.68,
+ "tail": ".............. [ 70%]\n........................................................................ [ 73%]\n........................................................................ [ 76%]\n........................................................................ [ 80%]\n........................................................................ [ 83%]\n........................................................................ [ 86%]\n........................................................................ [ 90%]\n........................................................................ [ 93%]\n....................................s................................... [ 96%]\n.....................................................................    [100%]\n2153 passed, 4 skipped, 91 deselected in 236.20s (0:03:56)",
+ "junit_ok": true,
+ "skips": {
+  "suite": "whence-fast-sandbox",
+  "evidence": "available",
+  "error": null,
+  "n_nodes": 2157,
+  "n_skipped": 4,
+  "node_floor": 2157,
+  "unacknowledged": [],
+  "acknowledged": [
+   {
+    "key": "tests.test_parse_error_differential::test_acceptance_agrees[deep-nesting]",
+    "nid": "tests/test_parse_error_differential.py::test_acceptance_agrees[deep-nesting]",
+    "reason": "host-only: MAX_NESTING is a HOST RESOURCE guard (`_enter` counts Python recursion depth so a deeply nested expression is a ParseError and not a RecursionError), not a rule of the grammar. The guest runs on the trampoline and has no host stack to protect.",
+    "ack": {
+     "acknowledged_round": 431,
+     "acknowledged_utc": "2026-09-01",
+     "class": "both",
+     "kills_mutants": false
+    },
+    "ack_state": "holds"
+   },
+   {
+    "key": "tests.test_parse_error_differential::test_acceptance_agrees[effect-not-permitted]",
+    "nid": "tests/test_parse_error_differential.py::test_acceptance_agrees[effect-not-permitted]",
+    "reason": "host-only: The effects system is parse-time in the host and absent in the guest: `parse_effects_clause` SKIPS `effects [...]` without recording it. Pre-existing and documented at that function (round 164); implementing it means six scope stacks the guest has no mutation to carry.",
+    "ack": {
+     "acknowledged_round": 431,
+     "acknowledged_utc": "2026-09-01",
+     "class": "both",
+     "kills_mutants": false
+    },
+    "ack_state": "holds"
+   },
+   {
+    "key": "tests.test_parse_error_differential::test_acceptance_agrees[effect-arg-not-permitted]",
+    "nid": "tests/test_parse_error_differential.py::test_acceptance_agrees[effect-arg-not-permitted]",
+    "reason": "host-only: Same absence, at the call-site half of the same system (`_check_call_site_param_effects`, v0.14.12). Listed separately because it is a separate host raise site, and the coverage floor below counts raise sites.",
+    "ack": {
+     "acknowledged_round": 431,
+     "acknowledged_utc": "2026-09-01",
+     "class": "both",
+     "kills_mutants": false
+    },
+    "ack_state": "holds"
+   },
+   {
+    "key": "tests.test_v37::test_the_host_is_byte_unchanged_by_this_decision",
+    "nid": "tests/test_v37.py::test_the_host_is_byte_unchanged_by_this_decision",
+    "reason": "not a git checkout, or 768954b is not present",
+    "ack": {
+     "acknowledged_round": 431,
+     "acknowledged_utc": "2026-09-01",
+     "class": "sandbox_only",
+     "kills_mutants": false
+    },
+    "ack_state": "holds"
+   }
+  ],
+  "acknowledged_costly": [],
+  "pin_expired": [],
+  "dead_acknowledgements": [],
+  "verdict": "ok"
+ },
+ "n_nodes": 2157,
+ "evidence_verdict": "ok"
+}

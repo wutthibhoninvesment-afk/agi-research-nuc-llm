@@ -30,6 +30,7 @@ import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor
 
+from . import sandboxevidence as SE
 from .proc import run_capped
 
 _CMP_SWAP = {
@@ -234,23 +235,112 @@ class BaselineNotGreen(RuntimeError):
             "Tail:\n%s" % (returncode, tail))
 
 
-def baseline_check(project_root, test_cmd, timeout_s=120.0):
+class BaselineEvidenceLost(RuntimeError):
+    """The unmutated copy exited 0 but did not run everything it should.
+
+    Round 431. Separate from `BaselineNotGreen` because the two say opposite
+    things about the run: `BaselineNotGreen` means the suite SPOKE and said
+    no, `BaselineEvidenceLost` means part of the suite never spoke at all
+    and the exit code cannot tell you so. Raised only when the caller passes
+    `require_evidence=True`; the default is to record and print, because a
+    gate whose false-positive cost is "no campaign runs at all" needs a
+    populated registry in front of it (`state/known-sandbox-skips.json`) and
+    this engine has already been stopped at the door three times.
+    """
+
+    def __init__(self, block):
+        self.block = block
+        self.verdict = block.get("verdict")
+        super(BaselineEvidenceLost, self).__init__(
+            "baseline run of the unmutated project exited 0 but its evidence "
+            "is incomplete (%s); a mutation score over a suite that did not "
+            "run is not evidence.\n%s"
+            % (self.verdict, "\n".join(SE.format_block(block))))
+
+
+def _looks_like_pytest(cmd):
+    """Is `cmd` a pytest invocation we may append `--junitxml` to?
+
+    Conservative on purpose: a caller running something else gets NO extra
+    flag and an `unavailable` evidence block, which is rule 3 -- absence of
+    a report is never read as "nothing was lost".
+    """
+    argv = [str(c) for c in (cmd or [])]
+    for i, c in enumerate(argv):
+        base = os.path.basename(c)
+        if base == "pytest" or base.startswith("pytest."):
+            return True
+        if c == "-m" and i + 1 < len(argv) and argv[i + 1] == "pytest":
+            return True
+    return False
+
+
+def _existing_junit_path(cmd):
+    """The caller's own `--junitxml` target, if it supplied one."""
+    argv = [str(c) for c in (cmd or [])]
+    for i, c in enumerate(argv):
+        if c.startswith("--junitxml="):
+            return c.split("=", 1)[1]
+        if c == "--junitxml" and i + 1 < len(argv):
+            return argv[i + 1]
+    return None
+
+
+def baseline_check(project_root, test_cmd, timeout_s=120.0, junit=True,
+                   suite=None, registry_path=None):
     """Run `test_cmd` against an unmutated COPY of the project.
 
     Deliberately a copy made by `_copy_project`, not the original checkout:
     round 349's defect lived in a file that only matters once copied into the
     mutant tree, so a baseline run against the original would have missed it.
     This exercises byte-for-byte the same path every mutant takes.
+
+    ROUND 431 -- the exit code is not the whole grade. `returncode` cannot
+    see a test that reacts to the copy by SKIPPING (round 425 measured one:
+    `test_v37.py::test_the_host_is_byte_unchanged_by_this_decision`, whose
+    `git show` guard fires because `_copy_project` excludes `.git`), and it
+    cannot see a suite that silently collected fewer tests. `junit=True`
+    adds `--junitxml` to this one run -- a run the campaign already pays for,
+    so the check costs ZERO extra suite runs -- and grades the skip list
+    against `state/known-sandbox-skips.json`. See `swe/sandboxevidence.py`.
+
+    The report is written OUTSIDE the copied tree, as a sibling of `proj`.
+    Inside it, the file is one more entry for every test that walks the
+    subtree, and this module's whole job is to hand the suite a tree that
+    behaves like the original.
+
+    Additive: the four original keys are untouched, `green` is still the
+    caller's `returncode == 0`, and nothing here raises. `evidence_verdict`
+    is the new signal and `mutation_test(require_evidence=True)` is the only
+    thing that turns it into a refusal.
     """
     tmp = tempfile.mkdtemp(prefix="mut-baseline-")
     try:
         dst = os.path.join(tmp, "proj")
         _copy_project(project_root, dst)
-        r = run_capped(test_cmd, dst, timeout_s)
-        return {"returncode": -9 if r.timed_out else r.returncode,
-                "timed_out": r.timed_out,
-                "seconds": round(r.seconds, 2),
-                "tail": (r.output or "").strip()[-800:]}
+        cmd = list(test_cmd)
+        xml = _existing_junit_path(cmd)
+        reason = None
+        if junit and xml is None:
+            if _looks_like_pytest(cmd):
+                xml = os.path.join(tmp, "baseline.xml")
+                cmd.append("--junitxml=%s" % xml)
+            else:
+                reason = "test_cmd is not a pytest invocation"
+        elif not junit:
+            reason = "junit not requested"
+        r = run_capped(cmd, dst, timeout_s)
+        out = {"returncode": -9 if r.timed_out else r.returncode,
+               "timed_out": r.timed_out,
+               "seconds": round(r.seconds, 2),
+               "tail": (r.output or "").strip()[-800:]}
+        rec = (SE.parse_junit(xml) if xml
+               else {"ok": False, "error": reason or "no junit report"})
+        out["junit_ok"] = bool(rec.get("ok"))
+        out["skips"] = SE.check(rec, suite=suite, registry_path=registry_path)
+        out["n_nodes"] = out["skips"].get("n_nodes")
+        out["evidence_verdict"] = out["skips"]["verdict"]
+        return out
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
@@ -375,7 +465,8 @@ class MutationReport(object):
 
 
 def mutation_test(project_root, rel_paths, test_cmd, workers=4, timeout_s=120.0,
-                  ops=None, limit=None, on_result=None, baseline=True):
+                  ops=None, limit=None, on_result=None, baseline=True,
+                  require_evidence=False, suite=None, registry_path=None):
     """Score `rel_paths`' mutants against `test_cmd`.
 
     `baseline=True` (round 349, the default) runs the suite once against an
@@ -390,11 +481,24 @@ def mutation_test(project_root, rel_paths, test_cmd, workers=4, timeout_s=120.0,
     Pass `baseline=False` only when the caller has already established a
     green baseline itself -- `campaign.py` re-runs recorded mutants against
     a checkout it has separately verified.
+
+    `require_evidence=True` (round 431) additionally raises
+    `BaselineEvidenceLost` when the green baseline did not RUN everything:
+    an unacknowledged skip in the sandbox, an expired reason pin, or fewer
+    collected nodes than `state/known-sandbox-skips.json` was taken against.
+    Default False -- see that exception's docstring for why a gate here
+    needs the registry populated first.
     """
     if baseline:
-        b = baseline_check(project_root, test_cmd, timeout_s)
+        b = baseline_check(project_root, test_cmd, timeout_s, suite=suite,
+                           registry_path=registry_path)
         if b["returncode"] != 0:
             raise BaselineNotGreen(b["returncode"], b["tail"])
+        # Order matters: a red baseline is reported as red even when it ALSO
+        # lost evidence. The exit code is the stronger statement and the one
+        # every caller since round 349 has been reading.
+        if require_evidence and SE.is_lost(b["skips"]):
+            raise BaselineEvidenceLost(b["skips"])
     mutants = []
     for rel in rel_paths:
         with open(os.path.join(project_root, rel), encoding="utf-8") as f:

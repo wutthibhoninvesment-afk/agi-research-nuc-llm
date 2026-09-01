@@ -16,7 +16,8 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from swe.copyparity import (Report, compare, main, parse_collect, parse_junit,   # noqa: E402
+from swe.copyparity import (Report, compare, escapes_summary, main,   # noqa: E402
+                            parse_collect, parse_junit, scan_escapes,
                             strip_exitfirst)
 
 PYTEST_CMD = [sys.executable, "-m", "pytest", "-q", "-x", "-p", "no:cacheprovider", "tests"]
@@ -196,3 +197,141 @@ class _Side(object):
 
     def as_dict(self, with_nodes=False):
         return {"where": self.where, "n_nodes": 0}
+
+
+# ==========================================================================
+# ROUND 431 (SWE-loop D)
+# ==========================================================================
+
+def test_a_pass_to_skip_is_its_own_bucket_and_is_printed_first(tmp_path):
+    """`regressions` merged two findings with OPPOSITE visibility to the
+    engine. `passed -> failed` makes the copy exit non-zero, so
+    `mutation.baseline_check` already refuses. `passed -> skipped` leaves
+    both sides at exit 0 and was invisible to everything in this repo.
+    Merging them is why round 425's one instance read as one more red test.
+    """
+    rep = Report("run", _Side(), _Side(), set(), set(),
+                 [("tests.t::a", "passed", "skipped", "no git here"),
+                  ("tests.t::b", "passed", "failed", "FileNotFoundError")],
+                 [], ["pytest"], False)
+    assert [n for n, _, _, _ in rep.evaporated] == ["tests.t::a"]
+    assert [n for n, _, _, _ in rep.broken] == ["tests.t::b"]
+    d = rep.as_dict()
+    assert d["n_evaporated"] == 1 and d["n_broken"] == 1
+    assert len(d["regressions"]) == 2          # unchanged for existing readers
+    text = rep.summary()
+    assert text.index("EVAPORATED") < text.index("REGRESSED")
+    assert "no exit-code gate sees this" in text
+
+
+def test_a_skip_to_pass_is_not_counted_as_an_evaporation(tmp_path):
+    """The mirror. Only `passed -> skipped` is evidence going missing."""
+    rep = Report("run", _Side(), _Side(), set(), set(),
+                 [("tests.t::a", "skipped", "failed", "")], [], ["pytest"], False)
+    assert rep.evaporated == [] and len(rep.broken) == 1
+
+
+def test_parse_junit_no_longer_counts_an_xfail_as_a_skip(tmp_path):
+    """This module had its own junit reader and classified
+    `<skipped type="pytest.xfail">` as `skipped`, while
+    `pristine_check.parse_junit` -- same job, one tree over -- excludes it.
+    An xfail whose type differed between the trees would have been reported
+    as a regression forever. One parser now."""
+    p = tmp_path / "j.xml"
+    p.write_text(
+        '<testsuites><testsuite name="pytest">'
+        '<testcase classname="tests.test_a" name="xf">'
+        '<skipped type="pytest.xfail" message="known"/></testcase>'
+        '<testcase classname="tests.test_a" name="sk">'
+        '<skipped type="pytest.skip" message="real"/></testcase>'
+        '</testsuite></testsuites>', encoding="utf-8")
+    got = parse_junit(str(p))
+    assert got["tests.test_a::xf"][0] == "xfailed"
+    assert got["tests.test_a::sk"][0] == "skipped"
+
+
+# -- `escapes`: the finding is the FLOOR, not the final level ---------------
+
+def _escaping_project(tmp_path, expr):
+    root = tmp_path
+    (root / "tests").mkdir(parents=True, exist_ok=True)
+    (root / "tests" / "test_x.py").write_text(
+        "import os\n"
+        "HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))\n"
+        "def test_one():\n"
+        "    p = %s\n"
+        "    assert p\n" % expr, encoding="utf-8")
+    return str(root)
+
+
+def test_a_path_that_leaves_the_tree_and_comes_back_is_still_outside_it(tmp_path):
+    """THE round-431 finding. Round 425 recorded an escape when the FINAL
+    level was negative; `join(HERE, "..", "..", "state", "whence", "r422")`
+    nets +1 and was called copy-safe. It took the mutation engine down: 17
+    tests red in the sandbox, `baseline_check` exit 1, no campaign could
+    start. `os.path.join` does not normalise, so the `..` is resolved
+    lexically against a tempdir in the copy."""
+    root = _escaping_project(
+        tmp_path, "os.path.join(HERE, '..', '..', 'state', 'whence', 'r422')")
+    findings, stats = scan_escapes(root)
+    assert stats["n_findings"] == 1, escapes_summary(findings, stats)
+    f = findings[0]
+    assert f["floor"] == -2, f
+    assert f["level"] == 1, "the expression ENDS one level down; that is the trap"
+    assert "floor -2 (ends at level 1)" in escapes_summary(findings, stats)
+
+
+def test_the_old_final_level_rule_would_have_missed_it(tmp_path):
+    """Stated as a test rather than a comment, so the regression is pinned:
+    a rule reading `level < 0` calls this shape clean."""
+    root = _escaping_project(
+        tmp_path, "os.path.join(HERE, '..', '..', 'state', 'x.json')")
+    findings, _ = scan_escapes(root)
+    assert findings and findings[0]["level"] >= 0
+    assert findings[0]["floor"] < 0
+
+
+def test_a_dip_that_stays_inside_the_tree_is_not_a_finding(tmp_path):
+    """`tests/../examples` resolves INSIDE the subtree and exists in the
+    copy, so it must not fire. The floor rule is exact, not merely stricter:
+    it goes negative only when the expression names the parent of the root."""
+    root = _escaping_project(
+        tmp_path, "os.path.join(HERE, 'tests', '..', 'examples', 'x.lang')")
+    findings, stats = scan_escapes(root)
+    assert stats["n_findings"] == 0, escapes_summary(findings, stats)
+
+
+def test_the_floor_survives_a_binding(tmp_path):
+    """`REG = join(HERE, '..', '..', 'state')` then `join(REG, 'f.json')`:
+    a name bound to a path outside the tree does not come back inside it,
+    and both lines are findings."""
+    root = tmp_path
+    (root / "tests").mkdir(parents=True, exist_ok=True)
+    (root / "tests" / "test_x.py").write_text(
+        "import os\n"
+        "HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))\n"
+        "REG = os.path.join(HERE, '..', '..', 'state', 'whence')\n"
+        "def test_one():\n"
+        "    assert os.path.join(REG, 'f.json')\n", encoding="utf-8")
+    findings, stats = scan_escapes(str(root))
+    assert stats["n_findings"] == 2, escapes_summary(findings, stats)
+    assert {f["kind"] for f in findings} == {"import_time", "runtime"}
+    assert all(f["floor"] == -2 for f in findings)
+
+
+def test_an_unknown_component_still_pushes_away_from_a_finding(tmp_path):
+    """The guard has to hold for the floor too: an unreadable component
+    counts +1, which can only RAISE the running minimum."""
+    root = _escaping_project(tmp_path, "os.path.join(HERE, '..', name)")
+    findings, stats = scan_escapes(root)
+    # `..` alone reaches -1 -- that IS an escape and is reported; the point
+    # is that the unknown `name` did not deepen it.
+    assert stats["n_findings"] == 1
+    assert findings[0]["floor"] == -1 and findings[0]["level"] == 0
+
+
+def test_pardir_and_pathlib_parents_carry_a_floor(tmp_path):
+    root = _escaping_project(
+        tmp_path, "os.path.join(HERE, os.path.pardir, os.path.pardir, 'state')")
+    findings, _ = scan_escapes(root)
+    assert findings and findings[0]["floor"] == -2 and findings[0]["level"] == -1
