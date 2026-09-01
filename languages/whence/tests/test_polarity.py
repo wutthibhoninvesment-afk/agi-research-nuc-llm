@@ -672,3 +672,510 @@ def test_the_precondition_verb_runs_end_to_end(capsys):
     out = capsys.readouterr().out
     assert rc == 0
     assert "CP22p2  broken" in out and "CP22p   holds" in out
+
+
+# --- round 428: the `refusal` precondition, decided from the edit alone ----
+#
+# `refusal` is what `missed(...)` -- the parser guest file's dominant
+# guardian -- is monotone along. Round 426 decided `append_only` and left
+# this one as its own item 1. The four shapes below are the ones the corpus
+# uses; the hermetic tests pin each shape in BOTH polarities, because a
+# decider that can only ever say `holds` is the unfalsifiable excuse round
+# 426's three guards exist to prevent.
+
+REF_BASE = (
+    'fn f(x) {\n'
+    '  let a = x + 1\n'
+    '  a\n'
+    '}\n'
+    'check "g": missed(f(1))\n'
+)
+
+
+def _fnpin(becomes, target="f"):
+    return {"id": "R1", "guest_file": "examples/self_host.lang", "dir": "+",
+            "guardian": "g", "edit": "fn_replace", "target": target,
+            "becomes": becomes}
+
+
+def _ref(base, becomes, target="f"):
+    return PO.refusal_precondition(base, _fnpin(becomes, target))
+
+
+def test_substituting_a_miss_for_a_value_holds():
+    r = _ref(REF_BASE, 'fn f(x) {\n  let a = x + 1\n  miss ("no")\n}')
+    assert r["status"] == PO.PRE_HOLDS
+    assert r["kinds"] == [PO.REF_REFUSE]
+    assert r["decided_over"] == (PO.PRE_REFUSAL,)
+
+
+def test_substituting_a_value_for_a_miss_is_a_positive_broken():
+    base = ('fn f(x) {\n  miss ("no")\n}\ncheck "g": missed(f(1))\n')
+    r = _ref(base, 'fn f(x) {\n  x + 1\n}')
+    assert r["status"] == PO.PRE_BROKEN
+    assert r["kinds"] == [PO.REF_REVIVE]
+
+
+def test_a_guard_inserted_around_the_tail_holds():
+    """Shape 2, and the shape CP13p uses: the old statements survive
+    verbatim as one arm of a new trailing `if` whose other arm misses."""
+    r = _ref(REF_BASE,
+             'fn f(x) {\n'
+             '  let a = x + 1\n'
+             '  if x > 3 { miss ("too big") } else { a }\n'
+             '}')
+    assert r["status"] == PO.PRE_HOLDS
+
+
+def test_a_guard_removed_from_the_tail_is_broken():
+    base = ('fn f(x) {\n'
+            '  let a = x + 1\n'
+            '  if x > 3 { miss ("too big") } else { a }\n'
+            '}\ncheck "g": missed(f(9))\n')
+    r = _ref(base, 'fn f(x) {\n  let a = x + 1\n  a\n}')
+    assert r["status"] == PO.PRE_BROKEN
+
+
+def test_a_guard_inserted_with_extra_statements_is_not_read_as_a_guard():
+    """The surviving arm must be the old statements EXACTLY. An `if` that
+    also rewrites what it wraps is a rewrite, and belongs in `unknown`."""
+    r = _ref(REF_BASE,
+             'fn f(x) {\n'
+             '  let a = x + 1\n'
+             '  if x > 3 { miss ("too big") } else { a + 100 }\n'
+             '}')
+    assert r["status"] == PO.PRE_UNKNOWN
+
+
+def test_widening_an_existing_miss_guard_holds():
+    """Shape 4 -- the one three shapes missed. CP16p is exactly this."""
+    base = ('fn f(x) {\n'
+            '  if x > 3 { miss ("no") } else { x }\n'
+            '}\ncheck "g": missed(f(9))\n')
+    r = _ref(base, 'fn f(x) {\n  if x > 3 or x < 0 { miss ("no") } else { x }\n}')
+    assert r["status"] == PO.PRE_HOLDS
+
+
+def test_narrowing_an_existing_miss_guard_is_broken():
+    base = ('fn f(x) {\n'
+            '  if x > 3 { miss ("no") } else { x }\n'
+            '}\ncheck "g": missed(f(9))\n')
+    r = _ref(base,
+             'fn f(x) {\n  if x > 3 and x < 9 { miss ("no") } else { x }\n}')
+    assert r["status"] == PO.PRE_BROKEN
+
+
+def test_the_polarity_flips_when_the_miss_is_in_the_else_arm():
+    base = ('fn f(x) {\n'
+            '  if x > 3 { x } else { miss ("no") }\n'
+            '}\ncheck "g": missed(f(1))\n')
+    wider = _ref(base,
+                 'fn f(x) {\n  if x > 3 or x < 0 { x } else { miss ("no") }\n}')
+    narrower = _ref(base,
+                    'fn f(x) {\n'
+                    '  if x > 3 and x < 9 { x } else { miss ("no") }\n}')
+    assert wider["status"] == PO.PRE_BROKEN      # fewer inputs reach the miss
+    assert narrower["status"] == PO.PRE_HOLDS    # more do
+
+
+def test_a_guard_whose_two_arms_both_miss_is_not_a_refusal_edge():
+    base = ('fn f(x) {\n'
+            '  if x > 3 { miss ("a") } else { miss ("b") }\n'
+            '}\ncheck "g": missed(f(1))\n')
+    r = _ref(base,
+             'fn f(x) {\n  if x > 3 or x < 0 { miss ("a") } else { miss ("b") }\n}')
+    assert r["status"] == PO.PRE_UNKNOWN
+
+
+def test_a_value_to_value_edit_is_undecided_not_broken():
+    r = _ref(REF_BASE, 'fn f(x) {\n  let a = x + 2\n  a\n}')
+    assert r["status"] == PO.PRE_UNKNOWN
+
+
+def test_a_rescue_arm_is_not_a_miss_however_it_is_written():
+    """`a rescue b` is the operator that turns a miss BACK into a value, so
+    a node containing one can never satisfy `_yields_miss`."""
+    prog = PO.P.parse(
+        'fn f(x) { miss ("no") rescue 1 }\ncheck "g": f(1) == 1\n')
+    fn = prog.stmts[0]
+    assert not PO._yields_miss(fn.body)
+
+
+def test_an_edit_that_refuses_in_one_place_and_rewrites_in_another_is_unknown():
+    base = ('fn f(x) {\n  x + 1\n}\n'
+            'fn h(x) {\n  x + 2\n}\n'
+            'check "g": missed(f(1))\n')
+    pin = {"id": "R1", "guest_file": "examples/self_host.lang", "dir": "+",
+           "guardian": "g", "edit": "line_replace", "needle": "  x + 1",
+           "becomes": '  miss ("no")'}
+    only_refuse = PO.refusal_precondition(base, pin)
+    assert only_refuse["status"] == PO.PRE_HOLDS
+    pin2 = dict(pin, needle="  x + 2", becomes="  x + 99")
+    assert PO.refusal_precondition(base, pin2)["status"] == PO.PRE_UNKNOWN
+
+
+def test_a_revive_anywhere_outranks_a_refuse_elsewhere():
+    base = ('fn f(x) {\n  x + 1\n}\n'
+            'fn h(x) {\n  miss ("no")\n}\n'
+            'check "g": missed(f(1))\n')
+    pin = {"id": "R1", "guest_file": "examples/self_host.lang", "dir": "+",
+           "guardian": "g", "edit": "fn_replace", "target": "f",
+           "becomes": 'fn f(x) {\n  miss ("gone")\n}',
+           "also": [{"edit": "line_replace", "needle": '  miss ("no")',
+                     "becomes": "  x + 7"}]}
+    r = PO.refusal_precondition(base, pin)
+    assert r["status"] == PO.PRE_BROKEN
+    assert PO.REF_REVIVE in r["kinds"] and PO.REF_REFUSE in r["kinds"]
+
+
+def test_an_identity_edit_is_identity_under_refusal_too():
+    base = 'fn f() { 1 }\n\ncheck "g": missed(f())\n'
+    r = PO.refusal_precondition(base, _fnpin('fn f() { 1 }\n'))
+    assert r["status"] == "identity"
+
+
+def test_an_unlocatable_refusal_edit_is_reported_not_raised():
+    r = _ref(REF_BASE, 'fn nope() { 1 }', target="nowhere")
+    assert r["status"] == "unlocatable"
+    assert r["decided_over"] == (PO.PRE_REFUSAL,)
+
+
+# --- `_implies`: a proof procedure, so False means "not shown" -------------
+
+def _cond(src):
+    return PO.P.parse('check "c": %s' % src).stmts[0].expr
+
+
+@pytest.mark.parametrize("p,q,expected", [
+    ("a", "a", True),
+    ("a", "a or b", True),
+    ("a", "b or a", True),
+    ("a and b", "a", True),
+    ("a or b", "a", False),
+    ("a", "a and b", False),
+    ("a and b", "a and b or c", True),
+    ("a or b", "b or a or c", True),
+    ("a", "b", False),
+])
+def test_implies_proves_only_what_is_syntactically_there(p, q, expected):
+    assert PO._implies(_cond(p), _cond(q)) is expected
+
+
+# --- routing: decide the precondition THIS pin's guardian rests on ---------
+
+def test_an_unrouted_map_still_answers_append_only_and_says_so():
+    pins = [_fnpin('fn f(x) {\n  let a = x + 1\n  miss ("no")\n}')]
+    row = PO.precondition_map(pins, REF_BASE)["R1"]
+    assert row["decided_over"] == (PO.PRE_APPEND_ONLY,)
+    assert row["status"] == PO.PRE_UNKNOWN      # not string-shaped
+
+
+def test_a_routed_map_sends_a_missed_guardian_to_refusal():
+    pins = [_fnpin('fn f(x) {\n  let a = x + 1\n  miss ("no")\n}')]
+    vs = PO.classify_source(REF_BASE)
+    row = PO.precondition_map(pins, REF_BASE, vs)["R1"]
+    assert row["decided_over"] == (PO.PRE_REFUSAL,)
+    assert row["status"] == PO.PRE_HOLDS
+
+
+def test_a_guardian_that_is_not_blind_has_no_precondition_to_decide():
+    base = ('fn f(x) {\n  let a = x + 1\n  a\n}\n'
+            'check "g": f(1) == 2\n')
+    pins = [_fnpin('fn f(x) {\n  let a = x + 1\n  miss ("no")\n}')]
+    row = PO.precondition_map(pins, base, PO.classify_source(base))["R1"]
+    assert row["status"] == PO.PRE_INAPPLICABLE
+    assert row["decided_over"] == ()
+
+
+def test_a_guardian_naming_no_check_is_inapplicable_not_unknown():
+    pins = [dict(_fnpin('fn f(x) {\n  miss ("no")\n}'), guardian="nowhere")]
+    row = PO.precondition_map(pins, REF_BASE,
+                              PO.classify_source(REF_BASE))["R1"]
+    assert row["status"] == PO.PRE_INAPPLICABLE
+
+
+def test_routing_is_conjunctive_and_broken_wins():
+    base = ('fn f(x) {\n  miss ("no")\n}\n'
+            'check "g": missed(f(1)) and contains("abc", "a")\n')
+    vs = PO.classify_source(base)
+    assert set(vs[0].pre) == {PO.PRE_REFUSAL, PO.PRE_APPEND_ONLY}
+    # revives the miss AND is not an append -> refusal broken, append_only
+    # undecided; the conjunction is `broken`.
+    row = PO.routed_precondition(base, _fnpin('fn f(x) {\n  x + 1\n}'),
+                                 vs[0].pre)
+    assert row["status"] == PO.PRE_BROKEN
+    assert row["per_precondition"][PO.PRE_REFUSAL]["status"] == PO.PRE_BROKEN
+
+
+def test_a_precondition_with_no_decider_drags_the_row_to_unknown():
+    """`kind_stable` is deliberately absent from `PRECONDITION_DECIDERS`.
+    An undecidable member must never let the row read `holds`."""
+    assert PO.PRE_KIND_STABLE not in PO.PRECONDITION_DECIDERS
+    row = PO.routed_precondition(
+        REF_BASE, _fnpin('fn f(x) {\n  let a = x + 1\n  miss ("no")\n}'),
+        (PO.PRE_REFUSAL, PO.PRE_KIND_STABLE))
+    assert row["per_precondition"][PO.PRE_REFUSAL]["status"] == PO.PRE_HOLDS
+    assert row["status"] == PO.PRE_UNKNOWN
+
+
+# --- check_law refuses to bucket on the wrong precondition ----------------
+
+def _mismatch_law(status):
+    pins = [{"id": "P", "dir": "+", "guardian": "g"}]
+    res = [{"id": "P", "verdict": "guarded", "guardian": "g"}]
+    pre = {"P": {"status": status, "decided_over": (PO.PRE_APPEND_ONLY,)}}
+    return PO.check_law(pins, res, [_v("g", ("+",), (PO.PRE_REFUSAL,))], pre)
+
+
+def test_a_holds_decided_over_the_wrong_precondition_does_not_refute():
+    out = _mismatch_law(PO.PRE_HOLDS)
+    assert out["strict_violations"] == []
+    assert [r["id"] for r in out["undecided"]] == ["P"]
+    assert out["violations"][0]["pre_mismatch"] is True
+
+
+def test_a_broken_decided_over_the_wrong_precondition_does_not_excuse():
+    out = _mismatch_law(PO.PRE_BROKEN)
+    assert out["excused"] == []
+    assert [r["id"] for r in out["undecided"]] == ["P"]
+
+
+def test_a_row_with_no_decided_over_is_read_as_append_only():
+    """Back-compat: every precondition map written before round 428 was an
+    `append_only` map, and a pin resting on `append_only` must still be
+    bucketed by it."""
+    pins = [{"id": "P", "dir": "+", "guardian": "g"}]
+    res = [{"id": "P", "verdict": "guarded", "guardian": "g"}]
+    out = PO.check_law(pins, res, [_v("g", ("+",), (PO.PRE_APPEND_ONLY,))],
+                       {"P": {"status": PO.PRE_HOLDS}})
+    assert [r["id"] for r in out["strict_violations"]] == ["P"]
+    assert out["violations"][0]["pre_mismatch"] is False
+
+
+# --- corpus: what round 428 actually measured on the parser guest file -----
+
+def _host_src():
+    with open(SELF_HOST, encoding="utf-8") as f:
+        return f.read()
+
+
+def _host_reg():
+    import json
+    with open(os.path.join(REG_422, "host-pins-plus.json"),
+              encoding="utf-8") as f:
+        return json.load(f)
+
+
+@pytest.mark.parametrize("pid,expected", [
+    ("CP13p", PO.PRE_HOLDS),      # guard inserted: trailing-comma rejection
+    ("CP14p", PO.PRE_HOLDS),
+    ("CP15p", PO.PRE_HOLDS),
+    ("CP16p", PO.PRE_HOLDS),      # guard WIDENED -- shape 4
+    ("CP21p", PO.PRE_HOLDS),      # substitution
+    ("CP17p", PO.PRE_UNKNOWN),    # a bool feeding a downstream guard
+    ("CP18p", PO.PRE_UNKNOWN),
+    ("CP19p", PO.PRE_UNKNOWN),
+    ("CP20p", PO.PRE_UNKNOWN),    # branch selection, arms not all miss
+])
+def test_the_refusal_pins_decide_the_way_round_428_measured(pid, expected):
+    reg = _host_reg()
+    pin = [p for p in reg["pins"] if p["id"] == pid][0]
+    assert PO.refusal_precondition(_host_src(), pin)["status"] == expected
+
+
+def test_cp16p_is_decided_only_by_the_guard_widening_shape():
+    """REGRESSION for the round's own measured miss: the three shapes
+    written first (substitute / guard inserted / guard removed) all return
+    `unknown` on CP16p, which widens an EXISTING guard's condition. Deleting
+    `_guard_cond_relation` must break this test and nothing else in the
+    `holds` column."""
+    reg = _host_reg()
+    pin = [p for p in reg["pins"] if p["id"] == "CP16p"][0]
+    src = _host_src()
+    saved = PO._guard_cond_relation
+    try:
+        PO._guard_cond_relation = lambda a, b: None
+        assert PO.refusal_precondition(src, pin)["status"] == PO.PRE_UNKNOWN
+    finally:
+        PO._guard_cond_relation = saved
+    assert PO.refusal_precondition(src, pin)["status"] == PO.PRE_HOLDS
+
+
+def test_no_refusal_pin_in_the_corpus_comes_back_broken():
+    """Every `+` pin on a `missed(...)` rule was written to refuse MORE. A
+    `broken` here would be a mis-designed pin, not a broken law -- so this
+    test is a claim about the REGISTRY, and it is the one that would notice
+    a future pin planted the wrong way round."""
+    reg, src = _host_reg(), _host_src()
+    vs = PO.classify_file(SELF_HOST)
+    by = {v.label: v for v in vs}
+    ref = [p for p in reg["pins"]
+           if by.get(p["guardian"]) and PO.PRE_REFUSAL in by[p["guardian"]].pre]
+    assert len(ref) == 9
+    got = [PO.refusal_precondition(src, p)["status"] for p in ref]
+    assert got.count(PO.PRE_BROKEN) == 0
+    assert got.count(PO.PRE_HOLDS) == 5
+    assert got.count(PO.PRE_UNKNOWN) == 4
+
+
+def test_routing_more_than_doubles_the_decided_share_of_the_registry():
+    reg, src = _host_reg(), _host_src()
+    vs = PO.classify_file(SELF_HOST)
+    routed = PO.precondition_map(reg["pins"], src, vs)
+    unrouted = PO.precondition_map(reg["pins"], src)
+
+    def decided(m):
+        return sum(1 for r in m.values()
+                   if r["status"] in (PO.PRE_HOLDS, PO.PRE_BROKEN))
+    assert len(reg["pins"]) == 23
+    assert decided(unrouted) == 5           # round 426's number
+    assert decided(routed) == 10
+    # and the 5 pins whose guardian is not blind at all stop being counted
+    # as `unknown`, which is what made 18 read as a coverage number.
+    assert sum(1 for r in routed.values()
+               if r["status"] == PO.PRE_INAPPLICABLE) == 5
+
+
+def test_the_wrong_question_hazard_is_latent_in_every_recorded_artefact():
+    """The finding that made this round's guard prophylactic rather than a
+    fix: 14 of 23 pins rest on something other than `append_only`, and not
+    one of them has ever been a violation, so no published number of this
+    program is wrong. If a future campaign makes one a violation, THIS test
+    goes red and the round that sees it must read the partition again."""
+    import json
+    src = _host_src()
+    vs = PO.classify_file(SELF_HOST)
+    by = {v.label: v for v in vs}
+    reg = _host_reg()
+    off = [p["id"] for p in reg["pins"]
+           if by.get(p["guardian"]) is not None
+           and PO.PRE_APPEND_ONLY not in by[p["guardian"]].pre]
+    assert len(off) == 14
+    for regf, runf in (("host-pins-plus.json", "run-plus-witnessed.json"),
+                       ("host-pins-plus-repointed.json", "run-repointed.json")):
+        with open(os.path.join(REG_422, regf), encoding="utf-8") as f:
+            r = json.load(f)
+        with open(os.path.join(REG_422, runf), encoding="utf-8") as f:
+            run = json.load(f)
+        out = PO.check_law(r["pins"], run["results"], vs,
+                           PO.precondition_map(r["pins"], src, vs))
+        assert [v["id"] for v in out["violations"] if v["pre_mismatch"]] == []
+
+
+def test_the_law_headline_is_unchanged_by_routing():
+    """Routing changes which decider answers; on the recorded campaign it
+    changes no bucket, because the one violation rests on `append_only`."""
+    import json
+    src = _host_src()
+    vs = PO.classify_file(SELF_HOST)
+    with open(os.path.join(REG_422, "host-pins-plus.json"),
+              encoding="utf-8") as f:
+        reg = json.load(f)
+    with open(os.path.join(REG_422, "run-plus-witnessed.json"),
+              encoding="utf-8") as f:
+        run = json.load(f)
+    routed = PO.check_law(reg["pins"], run["results"], vs,
+                          PO.precondition_map(reg["pins"], src, vs))
+    plain = PO.check_law(reg["pins"], run["results"], vs,
+                         PO.precondition_map(reg["pins"], src))
+    for k in ("confirmations", "violations", "strict_violations", "excused",
+              "undecided"):
+        assert len(routed[k]) == len(plain[k]), k
+    assert [r["id"] for r in routed["excused"]] == ["CP22p2"]
+
+
+# --- the power table, which is this round's headline and its regression ---
+
+def _fisher_two_sided(a, b, c, d):
+    """Fisher exact, two-sided by the sum-of-smaller-probabilities rule.
+
+    Written out rather than imported: this repo is stdlib-first, and the
+    whole point of the number is that a reader can check it.
+    """
+    import math
+    n, r1, r2, c1 = a + b + c + d, a + b, c + d, a + c
+
+    def p(x):
+        y, z = r1 - x, c1 - x
+        w = r2 - z
+        if min(x, y, z, w) < 0:
+            return 0.0
+        return math.comb(r1, x) * math.comb(r2, z) / math.comb(n, c1)
+    p0 = p(a)
+    return sum(p(x) for x in range(0, min(r1, c1) + 1) if p(x) <= p0 + 1e-12)
+
+
+def _law_table(routed, campaigns):
+    """The law-scoped contingency over BLIND pins, deduplicated by pin."""
+    import json
+    seen = {}
+    for guest, pinf, runf in campaigns:
+        with open(pinf, encoding="utf-8") as f:
+            reg = json.load(f)
+        with open(runf, encoding="utf-8") as f:
+            run = json.load(f)
+        with open(guest, encoding="utf-8") as f:
+            src = f.read()
+        vs = PO.classify_file(guest)
+        pre = (PO.precondition_map(reg["pins"], src, vs) if routed
+               else PO.precondition_map(reg["pins"], src))
+        out = PO.check_law(reg["pins"], run["results"], vs, pre)
+        for row in out["violations"] + out["confirmations"]:
+            seen[(guest, row["id"])] = (
+                (pre.get(row["id"]) or {}).get("status"),
+                row["verdict"] == "guarded")
+
+    def cell(status, guarded):
+        return sum(1 for s, g in seen.values()
+                   if s == status and g is guarded)
+    return (cell(PO.PRE_HOLDS, False), cell(PO.PRE_HOLDS, True),
+            cell(PO.PRE_BROKEN, False), cell(PO.PRE_BROKEN, True))
+
+
+def _campaigns():
+    R428 = os.path.join(HERE, "..", "..", "state", "whence", "round-428")
+    return [(os.path.join(HERE, "examples", "self_eval.lang"),
+             os.path.join(REG_416, "eval-pins.json"),
+             os.path.join(REG_416, "run.json")),
+            (SELF_HOST, os.path.join(REG_422, "host-pins-plus.json"),
+             os.path.join(R428, "run-plus-428.json")),
+            (SELF_HOST, os.path.join(REG_422, "host-pins-plus-repointed.json"),
+             os.path.join(REG_422, "run-repointed.json"))]
+
+
+def test_the_unrouted_table_reproduces_round_426s_p_of_one_tenth():
+    """A cross-check on the arithmetic before the new number is believed:
+    with round 426's single decider this reproduces its published
+    `[[3,0],[0,2]]`, p = 0.10, computed here independently."""
+    a, b, c, d = _law_table(False, _campaigns())
+    assert (a, b, c, d) == (3, 0, 0, 2)
+    assert round(_fisher_two_sided(a, b, c, d), 4) == 0.1000
+
+
+def test_routing_and_refusal_take_the_law_below_p_of_five_hundredths():
+    """Round 426 §11 costed this at "two more `holds` and two more `broken`
+    in the law-scoped table", i.e. a designed campaign. Deciding the
+    precondition each pin ACTUALLY rests on gets there for nothing: five
+    pins move `unknown` -> `holds` and the table becomes [[8,0],[0,2]].
+
+    This is not classifier-on-outcome: `refusal_precondition` reads the
+    edit and the guest source and never a verdict (guard 1)."""
+    a, b, c, d = _law_table(True, _campaigns())
+    assert (a, b, c, d) == (8, 0, 0, 2)
+    assert _fisher_two_sided(a, b, c, d) < 0.05
+    assert round(_fisher_two_sided(a, b, c, d), 4) == 0.0222
+
+
+def test_the_significance_does_not_rest_on_the_shape_added_after_looking():
+    """DISCLOSURE, pinned. Shape 4 (`_guard_cond_relation`) was written
+    AFTER round 428 had seen CP16p's measured verdict, which the decider
+    itself cannot see but its author could. Removing it costs one `holds`
+    and the result survives: [[7,0],[0,2]], p = 0.028."""
+    saved = PO._guard_cond_relation
+    try:
+        PO._guard_cond_relation = lambda a, b: None
+        a, b, c, d = _law_table(True, _campaigns())
+    finally:
+        PO._guard_cond_relation = saved
+    assert (a, b, c, d) == (7, 0, 0, 2)
+    assert _fisher_two_sided(a, b, c, d) < 0.05

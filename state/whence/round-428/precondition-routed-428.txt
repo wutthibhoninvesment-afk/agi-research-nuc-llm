@@ -1,0 +1,72 @@
+precondition, decided from the EDIT alone, ROUTED to the one each pin's own
+guardian rests on (round 428) — examples/self_host.lang
+  deciders: append_only, refusal; no decider for: kind_stable
+  CP03p   unknown       over append_only               measured shadowed
+        [append_only] structural: <Block>  ->  <If>
+        append_only: unknown
+  CP04p   holds         over append_only               measured shadowed
+        [append_only] append: str(...)  ->  str(...) + ' (a number)'
+        append_only: holds
+  CP05p   holds         over append_only               measured shadowed
+        [append_only] append: 'a line break'  ->  'a line break (statement separator)'
+        append_only: holds
+  CP22p   holds         over append_only               measured shadowed
+        [append_only] append: 'expected ' + what + ', got ' + show_tok(..…  ->  'expected ' + what + ', got ' + show_tok(..…
+        append_only: holds
+  CP22p2  broken        over append_only               measured guarded
+        [append_only] infix: 'expected ' + what + ', got ' + show_tok(..…  ->  'expected ' + what + ' here, got ' + show_t…
+        append_only: broken
+  CP06p   unknown       over append_only               measured shadowed
+        [append_only] structural: <Binary>  ->  <Binary>
+        append_only: unknown
+  CP07p   unknown       over append_only               measured shadowed
+        [append_only] structural: <Binary>  ->  <Binary>
+        append_only: unknown
+  CP08p   unknown       over append_only               measured shadowed
+        [append_only] structural: <Binary>  ->  <Binary>
+        append_only: unknown
+  CP09p   inapplicable  over -                         measured shadowed
+        guardian is not blind in any direction, so no precondition is in play
+  CP10p   inapplicable  over -                         measured unreachable
+        guardian is not blind in any direction, so no precondition is in play
+  CP10p2  inapplicable  over -                         measured shadowed
+        guardian is not blind in any direction, so no precondition is in play
+  CP11p   inapplicable  over -                         measured shadowed
+        guardian is not blind in any direction, so no precondition is in play
+  CP12p   inapplicable  over -                         measured shadowed
+        guardian is not blind in any direction, so no precondition is in play
+  CP13p   holds         over refusal                   measured shadowed
+        [refusal] refuse: <Block>  ->  <Block>
+        refusal: holds
+  CP14p   holds         over refusal                   measured shadowed
+        [refusal] refuse: <Block>  ->  <Block>
+        refusal: holds
+  CP15p   holds         over refusal                   measured shadowed
+        [refusal] refuse: <Block>  ->  <Block>
+        refusal: holds
+  CP16p   holds         over refusal                   measured shadowed
+        [refusal] refuse: <If>  ->  <If>
+        refusal: holds
+  CP17p   unknown       over refusal                   measured shadowed
+        [refusal] unknown: bound_line(...)  ->  1
+        refusal: unknown
+  CP18p   unknown       over refusal                   measured shadowed
+        [refusal] unknown: contains(...)  ->  <Binary>
+        refusal: unknown
+  CP19p   unknown       over refusal                   measured shadowed
+        [refusal] unknown: contains(...)  ->  <Binary>
+        refusal: unknown
+  CP20p   unknown       over refusal                   measured shadowed
+        [refusal] unknown: <RecordLit>  ->  <If>
+        refusal: unknown
+  CP21p   holds         over refusal                   measured shadowed
+        [refusal] refuse: <If>  ->  <If>
+        refusal: holds
+  NC02p   broken        over append_only               measured unreachable
+        [append_only] infix: 'op'  ->  'kw'
+        [append_only] structural: continue_ops  ->  continue_kws
+        [append_only] infix: 'kw'  ->  'op'
+        [append_only] structural: continue_kws  ->  continue_ops
+        append_only: broken
+  broken 2, holds 8, inapplicable 5, unknown 8
+  0 pin(s) whose UNROUTED answer was a decision to a question the pin never asked

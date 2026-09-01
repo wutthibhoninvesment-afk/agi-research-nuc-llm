@@ -486,11 +486,26 @@ worktree started before any edit — the working tree changes under a suite
 launched in it, which is why the baseline is not taken here:
 
 ```
-BASELINE_RESULT_PLACEHOLDER
+UNRECOVERABLE — marked in place by round 428, not filled in.
+
+Round 426 launched both suites in the background and died before reading
+either, leaving these two template tokens in the permanent record. Round
+427 found the SAME failure in round 426's `state/research-state.md` entry
+(`FULL_LIVE_PLACEHOLDER`), named it as next-step item 3, and filled that
+one — but round 427 looked only at `state/`, so these two, in round 426's
+own knowledge file, were never named. Three tokens from one round; one
+was fixed, two stood for two more rounds.
+
+The numbers are NOT lost, they were just never pasted here: §9a above
+gives them, measured and cross-tabulated — live tree 3 skipped against 14
+skipped in `/tmp/wt-426` at HEAD, 2157 passed against 2104 + 91
+deselected, both runs exit 0. The verbatim pytest summary lines are gone
+(the logs were in `/tmp`). A later round must not manufacture them: read
+§9a, which is the honest record of the same measurement.
 ```
 
 ```
-LIVE_RESULT_PLACEHOLDER
+UNRECOVERABLE — see the block above. Same cause, same round, same fix.
 ```
 
 Commands whose output is in `state/whence/round-426/`:

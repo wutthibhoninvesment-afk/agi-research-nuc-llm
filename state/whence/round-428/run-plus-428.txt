@@ -1,0 +1,28 @@
+CP03p  shadowed      a quote inside a string in the got n_red=1    the guardian passed under the edit; 1 other check(s) went red
+CP04p  shadowed      a number in the got slot is not qu n_red=1    the guardian passed under the edit; 1 other check(s) went red
+CP05p  shadowed      a newline in the got slot is prose n_red=1    the guardian passed under the edit; 1 other check(s) went red
+CP22p  shadowed      expect_name says which KIND of nam n_red=1    the guardian passed under the edit; 1 other check(s) went red
+CP22p2 guarded       expect_name says which KIND of nam n_red=6    value was false
+CP06p  shadowed      lexer newline suppressed inside pa n_red=10   the guardian passed under the edit; 10 other check(s) went red
+CP07p  shadowed      lexer newline NOT suppressed insid n_red=1    the guardian passed under the edit; 1 other check(s) went red
+CP08p  shadowed      newline after a binary op is a con n_red=5    the guardian passed under the edit; 5 other check(s) went red
+CP09p  shadowed      lexer bare trailing e is not consu n_red=6    the guardian passed under the edit; 6 other check(s) went red
+CP10p  unreachable   a carriage return is whitespace, a n_red=0    the witness held under the edit: nothing this pin can observe changed,
+CP10p2 shadowed      a carriage return is whitespace, a n_red=2    the guardian passed under the edit; 2 other check(s) went red
+CP11p  shadowed      ...and the GUEST decodes that esca n_red=2    the guardian passed under the edit; 2 other check(s) went red
+CP12p  shadowed      one digit past the cap is a lex er n_red=1    the guardian passed under the edit; 1 other check(s) went red
+CP13p  shadowed      a trailing comma is refused in a c n_red=10   the guardian passed under the edit; 10 other check(s) went red
+CP14p  shadowed      ...in a list literal               n_red=4    the guardian passed under the edit; 4 other check(s) went red
+CP15p  shadowed      ...in a parameter list             n_red=10   the guardian passed under the edit; 10 other check(s) went red
+CP16p  shadowed      chained comparisons are rejected,  n_red=1    the guardian passed under the edit; 1 other check(s) went red
+CP17p  shadowed      duplicate let in one block is a mi n_red=54   the guardian passed under the edit; 54 other check(s) went red
+CP18p  shadowed      duplicate param is a miss          n_red=9    the guardian passed under the edit; 9 other check(s) went red
+CP19p  shadowed      duplicate shape fields are rejecte n_red=5    the guardian passed under the edit; 5 other check(s) went red
+CP20p  shadowed      an unknown type name is still reje n_red=15   the guardian passed under the edit; 15 other check(s) went red
+CP21p  shadowed      a shape cannot reference itself    n_red=6    the guardian passed under the edit; 6 other check(s) went red
+NC02p  unreachable   newline after a binary op is a con n_red=0    the witness held under the edit: nothing this pin can observe changed,
+CONTROL NC02p: unreachable (n_red=0), expected {'verdict': 'unreachable', 'n_red': 0} -> HELD
+UNREACHABLE CP10p: the guardian stayed green, nothing went red, AND the witness `contains(map(fn(t) { t.t }, lex_all("a\nb")), "nl")` held — the edit changes no observable behaviour, so this is a defect in the pin and is scored out
+
+21 pins: 1 guarded, 20 finding(s), 0 error(s), 0 redundant, 1 unreachable, score 5%; 0 of 0 inert verdict(s) witnessed
+wrote ../../state/whence/round-428/run-plus-428.json

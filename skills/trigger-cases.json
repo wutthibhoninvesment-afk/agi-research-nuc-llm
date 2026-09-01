@@ -1977,5 +1977,31 @@
   "id": "pcd-skip-neg-ratio",
   "expect": [],
   "prompt": "About 8% of our test suite is skipped on every platform including CI and it has been that way for years. Management wants the skip ratio down. Which ones should we prioritise unskipping?"
+ },
+ {
+  "id": "dmnq-second-validator",
+  "expect": [
+   "decision-must-name-its-question"
+  ],
+  "prompt": "We have one policy checker whose verdict the release gate reads to waive blocking findings. I'm about to add a second checker for a different policy. The gate just reads `status`. What do I need to change before I land the second one?"
+ },
+ {
+  "id": "dmnq-wrong-criterion",
+  "expect": [
+   "decision-must-name-its-question"
+  ],
+  "prompt": "Our findings table prints each finding's `applies_to` field next to a `waived` flag that came out of a validator that only knows how to evaluate one of the four policies. Nobody joined them. How bad is this and how do I find out whether it has actually bitten us?"
+ },
+ {
+  "id": "dmnq-one-entry-dispatch",
+  "expect": [
+   "decision-must-name-its-question"
+  ],
+  "prompt": "Code review flagged that our HANDLERS dict has exactly one key and everything else falls through to it via .get(kind, default). It has been fine for two years. I want to add a real second handler without silently changing what the existing cases get."
+ },
+ {
+  "id": "dmnq-neg-two-linters",
+  "expect": [],
+  "prompt": "We run eslint and prettier and they disagree about trailing commas. Which config should win?"
  }
 ]

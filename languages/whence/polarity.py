@@ -80,6 +80,27 @@ therefore reported as CONDITIONAL — sound exactly when the pin's edit
 respects the guardian's precondition — and `law` partitions its output that
 way instead of printing a pass/fail.
 
+Two of the three preconditions are DECIDED from the edit alone
+--------------------------------------------------------------
+Round 426 built `edit_precondition` for `append_only`; round 428 built
+`refusal_precondition` for `refusal`. `kind_stable` has no decider and is
+deliberately not stubbed. A conditional law whose condition is only ever
+PRINTED is indistinguishable from an unconditional one and becomes an
+unfalsifiable excuse, which is why both deciders read the edit and never a
+verdict, return three values with `broken` as a positive finding, and are
+reported rather than applied.
+
+With two deciders there is a new way to be wrong, and round 428 checks for
+it rather than arguing it: each pin is ROUTED to the precondition its own
+guardian's blindness rests on, and a `holds` or `broken` produced by any
+other decider is DEMOTED to undecided (`pre_mismatch`). On round 422's
+23-pin registry 14 pins rest on something other than `append_only` — 9 on
+`refusal`, 5 on nothing at all because their guardian is not blind — and
+round 426's single decider answered for all 23 alike. No recorded number is
+wrong: not one of those 14 has ever been a violation, so the hazard was
+latent. `test_the_wrong_question_hazard_is_latent_in_every_recorded_artefact`
+is what says so, and what goes red if a future campaign changes it.
+
 What it deliberately does NOT explain
 -------------------------------------
 A `shadowed` verdict has (at least) two independent causes, and this module
@@ -341,11 +362,22 @@ def check_law(pins, results, verdicts, pre_status=None):
     `violations` is partitioned three ways: `strict_violations` (the
     precondition is ESTABLISHED for this pin's edit, so the counterexample
     stands), `excused` (the edit demonstrably BREAKS it) and `undecided`
-    (the edit is not string-shaped, so appending is neither established nor
-    refuted). All three are returned and all three are printed; the
-    partition is reported, never applied silently. WITHOUT the map every
+    (nothing decided it). All three are returned and all three are printed;
+    the partition is reported, never applied silently. WITHOUT the map every
     violation is strict -- an absent precondition decision does not excuse
     anything, which is the only reading that leaves the law falsifiable.
+
+    Round 428 adds the fourth way a row lands in `undecided`: `pre_mismatch`,
+    set when the decider that produced `pre_status` did not ask about the
+    precondition this pin's guardian actually rests on. Round 426 shipped one
+    decider (`append_only`) and applied its answer to every pin alike; on
+    round 422's registry 14 of 23 pins rest on something else. No recorded
+    violation was ever mis-bucketed by it -- every violation this program has
+    measured happens to rest on `append_only` -- but with a second decider in
+    the module the mistake becomes reachable, so it is checked rather than
+    argued. A mismatched row is demoted to `undecided`, never promoted:
+    excusing a violation on the wrong precondition is the unfalsifiability
+    the three guards exist to prevent.
     """
     by_label = {}
     dupes = set()
@@ -377,15 +409,28 @@ def check_law(pins, results, verdicts, pre_status=None):
         else:
             other.append(row)
     for row in violations:
-        row["pre_status"] = ((pre_status or {}).get(row["id"]) or {}).get(
-            "status")
+        m = ((pre_status or {}).get(row["id"]) or {})
+        row["pre_status"] = m.get("status")
+        # ROUND 428. `pre` is what THIS pin's guardian's blindness rests on;
+        # `decided_over` is what the decider that produced `pre_status`
+        # actually asked about. Rounds 426-427 compared neither, so a
+        # `missed(...)` pin could be called STRICT ("`append_only`
+        # established, the law is refuted here") on an answer to a question
+        # it never asked. A row with no `decided_over` predates the field
+        # and is read as `append_only`, which is what it was.
+        decided = tuple(m.get("decided_over", (PRE_APPEND_ONLY,)))
+        row["pre_decided_over"] = list(decided)
+        row["pre_mismatch"] = bool(row["pre"]) and not set(row["pre"]) <= set(
+            decided)
     if pre_status is None:
         excused, undecided, strict = [], [], list(violations)
     else:
-        excused = [r for r in violations if r["pre_status"] == PRE_BROKEN]
-        strict = [r for r in violations if r["pre_status"] == PRE_HOLDS]
-        undecided = [r for r in violations
-                     if r["pre_status"] not in (PRE_BROKEN, PRE_HOLDS)]
+        excused = [r for r in violations
+                   if r["pre_status"] == PRE_BROKEN and not r["pre_mismatch"]]
+        strict = [r for r in violations
+                  if r["pre_status"] == PRE_HOLDS and not r["pre_mismatch"]]
+        settled = {id(r) for r in excused} | {id(r) for r in strict}
+        undecided = [r for r in violations if id(r) not in settled]
     return {"violations": violations, "confirmations": confirmations,
             "unmatched": unmatched, "sighted": other,
             "excused": excused, "undecided": undecided,
@@ -843,14 +888,11 @@ def _walk_delta(a, b, out):
         # that broke `append_only`. Without this case the delta is
         # `<Binary> -> <BoolLit>`, i.e. structural, i.e. undecided: the
         # decider would leave round 420's own worked example unexplained.
-        if (isinstance(b.cond, A.BoolLit) and not isinstance(a.cond, A.BoolLit)
-                and a.otherwise is not None
-                and _node_eq(a.then, b.then)
-                and _node_eq(a.otherwise, b.otherwise)):
-            before, after = a.then, a.otherwise
-            if b.cond.value:
-                before, after = a.otherwise, a.then
-            out.append((_block_value(before), _block_value(after)))
+        # The test itself lives in `_pinned_branch` (round 428): `refusal`
+        # reads the same edit shape and must read it identically.
+        picked = _pinned_branch(a, b)
+        if picked is not None:
+            out.append(picked)
             return
     if isinstance(a, A.Node):
         op = _chain_op(a)
@@ -944,13 +986,13 @@ def edit_precondition(base_src, pin):
         mutant = CP.apply_edit(base_src, pin)
     except Exception as exc:                                  # noqa: BLE001
         return {"status": "unlocatable", "why": str(exc),
-                "kinds": [], "deltas": []}
+                "kinds": [], "deltas": [], "decided_over": (PRE_APPEND_ONLY,)}
     try:
         old = _parse_cached(base_src)
         new = _parse_cached(mutant)
     except Exception as exc:                                  # noqa: BLE001
         return {"status": "unparsable", "why": str(exc),
-                "kinds": [], "deltas": []}
+                "kinds": [], "deltas": [], "decided_over": (PRE_APPEND_ONLY,)}
     pairs = []
     _walk_delta(old, new, pairs)
     kinds = [delta_kind(a, b) for a, b in pairs]
@@ -964,12 +1006,445 @@ def edit_precondition(base_src, pin):
         status = PRE_HOLDS
     else:
         status = PRE_UNKNOWN
-    return {"status": status, "why": None, "kinds": kinds, "deltas": shown}
+    return {"status": status, "why": None, "kinds": kinds, "deltas": shown,
+            "decided_over": (PRE_APPEND_ONLY,)}
 
 
-def precondition_map(pins, base_src):
-    """`{pin id: edit_precondition(...)}` for every pin in a registry."""
-    return {p["id"]: edit_precondition(base_src, p) for p in pins}
+# --- the SECOND precondition: does this pin's edit only REFUSE? -----------
+#
+# Round 428 (language C). Round 426 decided `append_only` and closed with
+# "`kind_stable` and `refusal` are not decided at all … `refusal` is
+# probably the easier of the two — 'does this edit only ever turn a value
+# into a miss' is a question about `miss` literals in the mutant's control
+# flow — and it is the precondition of `missed(...)`, the parser file's
+# dominant guardian shape." This section is that decider.
+#
+# WHY IT MATTERS MORE THAN A SECOND DATA POINT. `check_law` already carried
+# both halves of a comparison nobody was making. Each violation row holds
+# `pre` — the preconditions THIS pin's guardian's blindness rests on, read
+# off the guardian's own expression by `classify_file` — and `pre_status`,
+# the verdict of a decider that only ever asks about `append_only`. The two
+# were never compared, so a violation on a `missed(...)` pin was bucketed
+# STRICT ("`append_only` established, the law is refuted here") or EXCUSED
+# ("`append_only` demonstrably BROKEN") by the answer to a question that pin
+# never asked. Measured on every artefact this program has: of the 23 pins
+# in round 422's `host-pins-plus.json`, 14 rest on something other than
+# `append_only` — 9 on `refusal`, and 5 whose guardian is not blind at all,
+# so `pre` is empty. NONE of them is currently decided and NONE of them has
+# ever been a violation, so the hazard is LATENT in the recorded corpus, not
+# active: no published number of this program is wrong because of it. It
+# stops being latent the moment a second decider exists, which is this
+# section, so the routing (`routed_precondition`) and the refusal to excuse
+# across a mismatch (`check_law`'s `pre_mismatch`) land in the same round as
+# the decider itself.
+#
+# WHAT `refusal` SAYS, on the AST. `missed(E)` is monotone along an edge that
+# only ever turns a value into a miss, because nothing turns a miss back into
+# a value. Three shapes carry that, and they are the three the corpus uses:
+#
+#   1. SUBSTITUTION.   `@{type: name, ...}`  ->  `miss ("..." + tok_at(...))`
+#      The edited expression yielded a value and now yields a miss.  (CP21p)
+#
+#   2. GUARD INSERTED. `X`  ->  `if C { miss ("...") } else { X }`
+#      One arm is the untouched old expression, the other only ever misses,
+#      so every input either lands where it landed before or refuses. This
+#      is the shape a `+` pin on a refusal rule almost always takes, because
+#      "the rule refuses MORE" is written by adding a rejection.  (CP13p,
+#      CP16p)
+#
+#   3. GUARD REMOVED.  the converse of 2, and the only way to get a positive
+#      `broken`: a miss arm deleted so an input that refused now returns a
+#      value. Nothing in this corpus does it — see the round-428 knowledge
+#      file, which records that as a prediction that came back a HIT and is
+#      therefore weak evidence, not a property of the language.
+#
+# THE HONESTY PROBLEM IS THE SAME ONE, and so are the three guards round 426
+# wrote for `append_only`: the decision reads the EDIT and the guest source
+# and never a verdict; it returns three values, with `broken` a positive
+# finding (shape 3) and `unknown` the default; and `check_law` reports the
+# partition rather than applying it. One guard is NEW here, because a second
+# decider makes it possible to be wrong in a way one decider could not be:
+# a decider is only ever consulted about a precondition the pin's own
+# guardian rests on, and a `holds` or `broken` from any other decider is
+# demoted to undecided rather than used.
+#
+# WHAT IT CANNOT DO, stated because the corpus is mostly this. Six of the
+# nine `refusal` pins edit a BOOLEAN that a downstream `if` turns into a
+# miss — `contains(acc, nm.name)` -> `len(acc) > 0`, two statements above a
+# `if dup { miss ... }`. Whether that boolean fires strictly more often is
+# a question about value flow, and round 426's §9 already recorded that the
+# decider cannot see value flow. They come back `unknown`, which is correct
+# and is not a bug to be fixed by loosening the test.
+
+REF_SAME = "same"
+REF_REFUSE = "refuse"
+REF_REVIVE = "revive"
+REF_UNKNOWN = "unknown"
+
+#: How two relations on sibling nodes combine. `revive` dominates because it
+#: is a positive finding; `unknown` beats `refuse` because an edit that
+#: refuses in one place and does something unclassified in another has NOT
+#: been shown to only ever refuse.
+_REF_RANK = {REF_SAME: 0, REF_REFUSE: 1, REF_UNKNOWN: 2, REF_REVIVE: 3}
+
+
+def _ref_combine(rels):
+    best = REF_SAME
+    for r in rels:
+        if _REF_RANK[r] > _REF_RANK[best]:
+            best = r
+    return best
+
+
+def _yields_miss(node):
+    """Is this expression's value a miss on EVERY path through it?
+
+    Syntactic and deliberately conservative: a `MissLit`, a block whose tail
+    is one, or an `if`/`else` both of whose arms are. A `Rescue` (`a ? b`)
+    is not, and never can be -- it is the operator that turns a miss back
+    into a value, which is precisely what `refusal` forbids.
+    """
+    if isinstance(node, A.MissLit):
+        return True
+    if isinstance(node, A.ExprStmt):
+        return _yields_miss(node.expr)
+    if isinstance(node, A.Block):
+        return bool(node.stmts) and _yields_miss(node.stmts[-1])
+    if isinstance(node, A.If):
+        return (node.otherwise is not None and _yields_miss(node.then)
+                and _yields_miss(node.otherwise))
+    return False
+
+
+def _pinned_branch(a, b):
+    """`if C {X} else {Y}` -> `if false {X} else {Y}`: the two VALUES.
+
+    Returns `(before, after)` -- what the edited `if` used to produce and
+    what it produces now -- or None when this is not a branch-selection
+    edit. Extracted from `_walk_delta`, which had this inline since round
+    426 and is now one of two callers: the same edit shape has to be read
+    the same way by both preconditions.
+    """
+    if not (isinstance(a, A.If) and isinstance(b, A.If)):
+        return None
+    if not (isinstance(b.cond, A.BoolLit) and not isinstance(a.cond, A.BoolLit)
+            and a.otherwise is not None
+            and _node_eq(a.then, b.then)
+            and _node_eq(a.otherwise, b.otherwise)):
+        return None
+    before, after = a.then, a.otherwise
+    if b.cond.value:
+        before, after = a.otherwise, a.then
+    return (_block_value(before), _block_value(after))
+
+
+def _guard_relation(old, new):
+    """Shapes 2 and 3: an `if` arm that only ever misses, added or removed.
+
+    Returns `REF_REFUSE`, `REF_REVIVE` or None. The surviving arm must be
+    STRUCTURALLY the other side of the delta -- an `if` that misses on one
+    side and returns something merely similar on the other is not a guard,
+    it is a rewrite, and belongs in `unknown`.
+    """
+    for node, other_side, verdict in ((new, old, REF_REFUSE),
+                                      (old, new, REF_REVIVE)):
+        if not (isinstance(node, A.If) and node.otherwise is not None):
+            continue
+        for keep, gone in ((node.then, node.otherwise),
+                           (node.otherwise, node.then)):
+            if _yields_miss(gone) and not _yields_miss(keep) and \
+                    _node_eq(_block_value(keep), _block_value(other_side)):
+                return verdict
+    return None
+
+
+def _implies(p, q, depth=0):
+    """Is `p` -> `q` provable from the shape of the two conditions alone?
+
+    Four valid laws, applied syntactically and nothing else: identity,
+    `p -> (q1 or q2)` from `p -> qi`, `(p1 and p2) -> q` from `pi -> q`,
+    and the two all-branches forms. It is a PROOF procedure, not a decision
+    procedure -- `False` means "not shown", never "does not hold" -- which
+    is the direction that keeps a `holds` honest.
+    """
+    if depth > 6:
+        return False
+    if _node_eq(p, q):
+        return True
+    if isinstance(q, A.Binary) and q.op == "or":
+        if any(_implies(p, d, depth + 1) for d in _chain_atoms(q, "or")):
+            return True
+    if isinstance(p, A.Binary) and p.op == "and":
+        if any(_implies(c, q, depth + 1) for c in _chain_atoms(p, "and")):
+            return True
+    if isinstance(p, A.Binary) and p.op == "or":
+        ds = _chain_atoms(p, "or")
+        if len(ds) > 1 and all(_implies(d, q, depth + 1) for d in ds):
+            return True
+    if isinstance(q, A.Binary) and q.op == "and":
+        cs = _chain_atoms(q, "and")
+        if len(cs) > 1 and all(_implies(p, c, depth + 1) for c in cs):
+            return True
+    return False
+
+
+def _guard_cond_relation(old, new):
+    """Shape 4: an EXISTING miss guard whose condition moved.
+
+    `if C { miss ... } else { X }` -> `if C or D { miss ... } else { X }`
+    sends strictly more inputs to the miss and none back to a value, so it
+    is a refusal edge even though no `miss` was added and no arm changed.
+    Round 428 found this by measuring: CP16p ("comparisons do not chain")
+    is exactly this shape, it is the pin round 422 planted as a `missed(...)`
+    guardian's own killer, and the three shapes written first all missed it
+    -- the decider descended into the two conditions, found `and` against
+    `or`, and returned `unknown` on a pin a human reads in one glance.
+
+    The polarity flips when the MISS is in the `else` arm: narrowing the
+    condition is then what refuses more. Both are handled; a guard whose
+    two arms both miss (or neither) is not a refusal edge at all and
+    returns None.
+    """
+    if not (isinstance(old, A.If) and isinstance(new, A.If)):
+        return None
+    if old.otherwise is None or new.otherwise is None:
+        return None
+    if not (_node_eq(old.then, new.then)
+            and _node_eq(old.otherwise, new.otherwise)):
+        return None
+    if _node_eq(old.cond, new.cond):
+        return None
+    miss_then, miss_else = _yields_miss(old.then), _yields_miss(old.otherwise)
+    if miss_then == miss_else:
+        return None
+    widened = _implies(old.cond, new.cond)
+    narrowed = _implies(new.cond, old.cond)
+    if widened and narrowed:
+        return None                     # provably equivalent, yet not equal
+    if miss_then:
+        return REF_REFUSE if widened else (REF_REVIVE if narrowed else None)
+    return REF_REFUSE if narrowed else (REF_REVIVE if widened else None)
+
+
+def _refusal_relation(old, new, out=None):
+    """Relate two nodes as `same` / `refuse` / `revive` / `unknown`.
+
+    `out`, when given, collects `(relation, old, new)` at the point each
+    non-`same` verdict is DECIDED, so the report can show the reader the
+    node that carried it rather than the whole function.
+    """
+    if _node_eq(old, new):
+        return REF_SAME
+    rel = _refusal_leaf(old, new, out)
+    if rel is not None:
+        return rel
+    if isinstance(old, A.Block) and isinstance(new, A.Block):
+        return _refusal_stmts(old.stmts, new.stmts, old, new, out)
+    if isinstance(old, (list, tuple)) and isinstance(new, (list, tuple)):
+        return _refusal_stmts(old, new, old, new, out)
+    if type(old) is type(new) and isinstance(old, A.Node):
+        return _ref_combine(
+            _refusal_relation(getattr(old, f), getattr(new, f), out)
+            for f in _slots(old))
+    _record(out, REF_UNKNOWN, old, new)
+    return REF_UNKNOWN
+
+
+def _refusal_leaf(old, new, out):
+    """The three shapes, in the order the corpus uses them. None = descend."""
+    m_old, m_new = _yields_miss(old), _yields_miss(new)
+    if m_new and not m_old:
+        _record(out, REF_REFUSE, old, new)
+        return REF_REFUSE
+    if m_old and not m_new:
+        _record(out, REF_REVIVE, old, new)
+        return REF_REVIVE
+    g = _guard_relation(old, new)
+    if g is None:
+        g = _guard_cond_relation(old, new)
+    if g is not None:
+        _record(out, g, old, new)
+        return g
+    picked = _pinned_branch(old, new)
+    if picked is not None:
+        return _refusal_relation(picked[0], picked[1], out)
+    if isinstance(old, A.Node) != isinstance(new, A.Node) or \
+            (isinstance(old, A.Node) and type(old) is not type(new)):
+        _record(out, REF_UNKNOWN, old, new)
+        return REF_UNKNOWN
+    return None
+
+
+def _refusal_stmts(olds, news, whole_old, whole_new, out):
+    """Relate two statement lists, including the guard-insertion shape.
+
+    Equal lengths descend pairwise. Different lengths are the shape a `+`
+    refusal pin takes when it wraps the tail of a function: a common prefix
+    survives, and the REST of the old body reappears verbatim as one arm of
+    a new trailing `if` whose other arm only ever misses. Round 428 measured
+    that without this case CP13p -- `parse_args_rest` gaining a trailing
+    comma rejection, the plainest refusal edit in the corpus -- comes back
+    `unknown`, because `_walk_delta`'s list rule emits the two whole lists
+    and nothing below it is comparable.
+    """
+    if len(olds) == len(news):
+        return _ref_combine(_refusal_relation(a, b, out)
+                            for a, b in zip(olds, news))
+    k = 0
+    while k < len(olds) and k < len(news) and _node_eq(olds[k], news[k]):
+        k += 1
+    for short, long_, verdict in ((olds, news, REF_REFUSE),
+                                  (news, olds, REF_REVIVE)):
+        if len(long_) - k != 1:
+            continue
+        tail = long_[k]
+        if isinstance(tail, A.ExprStmt):
+            tail = tail.expr
+        if not (isinstance(tail, A.If) and tail.otherwise is not None):
+            continue
+        rest = list(short[k:])
+        for keep, gone in ((tail.then, tail.otherwise),
+                           (tail.otherwise, tail.then)):
+            if _yields_miss(gone) and not _yields_miss(keep) and \
+                    isinstance(keep, A.Block) and \
+                    _node_eq(list(keep.stmts), rest):
+                _record(out, verdict, whole_old, whole_new)
+                return verdict
+    _record(out, REF_UNKNOWN, whole_old, whole_new)
+    return REF_UNKNOWN
+
+
+def _record(out, rel, old, new):
+    """Note where a non-`same` verdict was DECIDED, for the report."""
+    if out is not None:
+        out.append((rel, old, new))
+
+
+def refusal_precondition(base_src, pin):
+    """Does this pin's edit respect `refusal`? Reads no verdict.
+
+    Same return contract as `edit_precondition`: `status` in {holds, broken,
+    unknown, identity, unlocatable, unparsable}, plus `kinds`, `deltas` and
+    `decided_over`. `holds` is the only value that is a claim about the
+    edit; `broken` is the positive finding that a miss became a value.
+    """
+    try:
+        mutant = CP.apply_edit(base_src, pin)
+    except Exception as exc:                                  # noqa: BLE001
+        return {"status": "unlocatable", "why": str(exc), "kinds": [],
+                "deltas": [], "decided_over": (PRE_REFUSAL,)}
+    try:
+        old = _parse_cached(base_src)
+        new = _parse_cached(mutant)
+    except Exception as exc:                                  # noqa: BLE001
+        return {"status": "unparsable", "why": str(exc), "kinds": [],
+                "deltas": [], "decided_over": (PRE_REFUSAL,)}
+    seen = []
+    rel = _refusal_relation(old, new, seen)
+    status = {REF_SAME: "identity", REF_REFUSE: PRE_HOLDS,
+              REF_REVIVE: PRE_BROKEN, REF_UNKNOWN: PRE_UNKNOWN}[rel]
+    kinds = [r for r, _, _ in seen]
+    shown = ["%s: %s  ->  %s" % (r, _brief(a), _brief(b)) for r, a, b in seen]
+    return {"status": status, "why": None, "kinds": kinds, "deltas": shown,
+            "decided_over": (PRE_REFUSAL,)}
+
+
+# --- routing: decide the precondition THIS pin's guardian rests on --------
+
+#: precondition name -> the decider that decides it from the edit alone.
+#: `kind_stable` is deliberately ABSENT rather than stubbed. An absent
+#: decider yields `no_decider`, which combines as undecided and therefore
+#: excuses nothing -- the same reading round 426 gave to an absent
+#: precondition map, for the same reason: it is the only one that leaves the
+#: law falsifiable.
+PRECONDITION_DECIDERS = {
+    PRE_APPEND_ONLY: edit_precondition,
+    PRE_REFUSAL: refusal_precondition,
+}
+
+#: The guardian is not blind in any direction, so no precondition is in play
+#: and there is nothing to decide. Distinct from `unknown`, which means a
+#: decider ran and could not tell.
+PRE_INAPPLICABLE = "inapplicable"
+#: The pin's precondition is named but nothing can decide it (`kind_stable`).
+PRE_NO_DECIDER = "no_decider"
+
+
+def routed_precondition(base_src, pin, pres):
+    """Decide every precondition in `pres` for this pin, and combine.
+
+    `pres` is the guardian verdict's own `pre` tuple. The combination is
+    conjunctive because the blindness rests on all of them at once: any
+    `broken` breaks it, and it `holds` only when every named precondition
+    does. An undecidable member drags the whole row to `unknown`, never to
+    `broken` -- excusing a violation on a precondition nothing decided is
+    exactly the unfalsifiability round 426 wrote its three guards against.
+    """
+    pres = tuple(pres)
+    if not pres:
+        return {"status": PRE_INAPPLICABLE, "why": "guardian is not blind in "
+                "any direction, so no precondition is in play", "kinds": [],
+                "deltas": [], "decided_over": (), "per_precondition": {}}
+    rows = {}
+    for name in pres:
+        decider = PRECONDITION_DECIDERS.get(name)
+        if decider is None:
+            rows[name] = {"status": PRE_NO_DECIDER,
+                          "why": "no decider for `%s`" % name,
+                          "kinds": [], "deltas": [], "decided_over": (name,)}
+        else:
+            rows[name] = decider(base_src, pin)
+    stats = [rows[n]["status"] for n in pres]
+    for hard in ("unlocatable", "unparsable"):
+        if hard in stats:
+            status = hard
+            break
+    else:
+        if all(s == "identity" for s in stats):
+            status = "identity"
+        elif PRE_BROKEN in stats:
+            status = PRE_BROKEN
+        elif all(s in (PRE_HOLDS, "identity") for s in stats):
+            status = PRE_HOLDS
+        else:
+            status = PRE_UNKNOWN
+    why = "; ".join("%s: %s" % (n, rows[n]["status"]) for n in pres)
+    return {"status": status, "why": why,
+            "kinds": [k for n in pres for k in rows[n]["kinds"]],
+            "deltas": ["[%s] %s" % (n, d) for n in pres
+                       for d in rows[n]["deltas"]] or
+                      ["[%s] %s" % (n, rows[n].get("why") or rows[n]["status"])
+                       for n in pres],
+            "decided_over": pres, "per_precondition": rows}
+
+
+def precondition_map(pins, base_src, verdicts=None):
+    """`{pin id: <precondition row>}` for every pin in a registry.
+
+    WITHOUT `verdicts` every pin is decided against `append_only`, which is
+    what round 426 built and what every caller predating round 428 wants.
+    That is not a safe default once a second decider exists -- 14 of round
+    422's 23 pins rest on something else -- so the row carries
+    `decided_over` and `check_law` refuses to excuse or strictly-refute
+    across a mismatch. Passing `verdicts` (the `classify_file` output for
+    the guest file these pins were measured against) routes each pin to the
+    precondition its OWN guardian's blindness rests on, which is the
+    version a caller with a guest file in hand should use.
+    """
+    if verdicts is None:
+        return {p["id"]: edit_precondition(base_src, p) for p in pins}
+    by_label = {v.label: v for v in verdicts}
+    out = {}
+    for p in pins:
+        v = by_label.get(p.get("guardian"))
+        if v is None:
+            out[p["id"]] = {"status": PRE_INAPPLICABLE,
+                            "why": "guardian names no check in this file",
+                            "kinds": [], "deltas": [], "decided_over": (),
+                            "per_precondition": {}}
+        else:
+            out[p["id"]] = routed_precondition(base_src, p, v.pre)
+    return out
 
 
 def _cmd_precondition(args):
@@ -986,7 +1461,9 @@ def _cmd_precondition(args):
         return 2
     with open(os.path.join(_HERE, guest_files[0]), encoding="utf-8") as f:
         base = f.read()
-    pre = precondition_map(reg["pins"], base)
+    vs = classify_file(os.path.join(_HERE, guest_files[0]))
+    pre = precondition_map(reg["pins"], base, vs)
+    unrouted = precondition_map(reg["pins"], base)
     verdicts = None
     if len(args) > 1:
         with open(args[1], encoding="utf-8") as f:
@@ -994,18 +1471,34 @@ def _cmd_precondition(args):
     counts = {}
     for row in pre.values():
         counts[row["status"]] = counts.get(row["status"], 0) + 1
-    print("precondition `append_only`, decided from the EDIT alone — %s"
-          % guest_files[0])
+    print("precondition, decided from the EDIT alone, ROUTED to the one each "
+          "pin's own")
+    print("guardian rests on (round 428) — %s" % guest_files[0])
+    print("  deciders: " + ", ".join(sorted(PRECONDITION_DECIDERS)) +
+          "; no decider for: " + ", ".join(
+              sorted(set((PRE_REFUSAL, PRE_APPEND_ONLY, PRE_KIND_STABLE))
+                     - set(PRECONDITION_DECIDERS))))
+    wrong = 0
     for pin in reg["pins"]:
         row = pre[pin["id"]]
         seen = "" if verdicts is None else "  measured %s" % verdicts.get(
             pin["id"], "?")
-        print("  %-7s %-11s%s" % (pin["id"], row["status"], seen))
+        over = ",".join(row.get("decided_over") or ()) or "-"
+        print("  %-7s %-13s over %-24s%s"
+              % (pin["id"], row["status"], over, seen))
         for d in row["deltas"]:
             print("        %s" % d)
         if row.get("why"):
             print("        %s" % row["why"])
+        old = unrouted[pin["id"]]["status"]
+        if PRE_APPEND_ONLY not in (row.get("decided_over") or ()) and \
+                old in (PRE_HOLDS, PRE_BROKEN):
+            wrong += 1
+            print("        !! the unrouted decider called this `%s` on "
+                  "`append_only`, which this pin does not rest on" % old)
     print("  " + ", ".join("%s %d" % (k, counts[k]) for k in sorted(counts)))
+    print("  %d pin(s) whose UNROUTED answer was a decision to a question "
+          "the pin never asked" % wrong)
     if os.environ.get("POLARITY_JSON"):
         with open(os.environ["POLARITY_JSON"], "w", encoding="utf-8") as f:
             json.dump(pre, f, indent=2)
@@ -1055,7 +1548,7 @@ def _cmd_law(args):
         return 2
     vs = classify_file(os.path.join(_HERE, guest_files[0]))
     with open(os.path.join(_HERE, guest_files[0]), encoding="utf-8") as f:
-        pre = precondition_map(reg["pins"], f.read())
+        pre = precondition_map(reg["pins"], f.read(), vs)
     out = check_law(reg["pins"], run["results"], vs, pre)
     print("law: BLIND(guardian, dir) => NOT guarded")
     print("  scored %d pin(s) against %s" % (out["n_scored"], guest_files[0]))
@@ -1087,13 +1580,17 @@ def _cmd_law(args):
               % (r["id"], r["dir"], r["dir"], r["shape"][:34],
                  r.get("pre_status") or "undecided",
                  ",".join(r["pre"]) or "-"))
+        if r.get("pre_mismatch"):
+            print("          DEMOTED to undecided: that verdict was decided "
+                  "over %s, which is not what this pin rests on"
+                  % (",".join(r.get("pre_decided_over") or ()) or "nothing"))
         for d in (pre.get(r["id"]) or {}).get("deltas") or ():
             print("          %s" % d)
-    print("  of those, %d STRICT (`append_only` established for the edit, so "
-          "the law is refuted here), %d excused (`append_only` demonstrably "
-          "BROKEN by the edit, so the law makes no claim) and %d undecided "
-          "(the edit is not string-shaped; appending is neither established "
-          "nor refuted)"
+    print("  of those, %d STRICT (the pin's OWN precondition established for "
+          "the edit, so the law is refuted here), %d excused (that "
+          "precondition demonstrably BROKEN by the edit, so the law makes no "
+          "claim) and %d undecided (nothing decided it, or it was decided "
+          "over a precondition this pin does not rest on)"
           % (len(out["strict_violations"]), len(out["excused"]),
              len(out["undecided"])))
     if os.environ.get("POLARITY_JSON"):

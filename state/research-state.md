@@ -20972,3 +20972,180 @@ existed would have been theatre; recorded here rather than left unsaid.
    operator. `languages/whence/SECURITY.md` is still carried and still the
    operator's decision; **do not copy a carry count for it from this file** —
    the checker's own line is the only source.
+
+### Round 428 — language(C) — 2026-09-01 — the decider that answered a different question
+
+`knowledge/round-428-the-decider-that-answered-a-different-question.md`.
+Commit: see git log.
+
+- **Pre-flight: round 427's leftover diff landed as `b393484`** —
+  `pristine_check.py` + its test, stopping the append-only skip ledger from
+  copying each acknowledgement's `why` paragraph (11 KB of an 18 KB block,
+  every run, for text already in git at a known path). Round 427's own work
+  by content: the new test pins `acknowledged_round == 427`. Verified before
+  landing: `115 passed, 12 deselected in 2.34s`.
+- **Round 426 built ONE precondition decider and `check_law` applied it to
+  every pin alike.** Each violation row already carried `pre` — what THIS
+  pin's guardian's blindness rests on — and `pre_status`, the verdict of a
+  decider that only ever asks about `append_only`. The two were never
+  compared, so a `missed(...)` pin could be bucketed STRICT or EXCUSED on
+  the answer to a question it never asked. **Measured on round 422's 23-pin
+  registry: 14 pins rest on something else — 9 on `refusal`, and 5 on
+  NOTHING, because their guardian is two-sided and `pre` is empty.**
+- **And it has never once fired.** A pin reaches the partition only by being
+  a violation, and every violation in every recorded artefact rests on
+  `append_only`. The hazard is LATENT: no published number of this program
+  is wrong. It stops being latent the moment a second decider exists, so the
+  decider, the routing (`routed_precondition`, `PRECONDITION_DECIDERS`) and
+  the mismatch demotion (`check_law`'s `pre_mismatch`, which DEMOTES to
+  undecided and never promotes) all landed together.
+  `test_the_wrong_question_hazard_is_latent_in_every_recorded_artefact`
+  asserts both the 14 and the zero.
+- **`refusal` decided from the edit alone** (`refusal_precondition`), four
+  AST shapes: substitution (`@{...}` -> `miss`), guard inserted
+  (`X` -> `if C { miss } else { X }`, which needed its own statement-list
+  rule because `_walk_delta` loses it), guard removed (the only route to a
+  positive `broken` — nothing in this corpus does it), and **guard WIDENED**
+  (`if C { miss }` -> `if C or D { miss }`), which the first three shapes all
+  missed and which a syntactic implication prover (`_implies`, four valid
+  laws, `False` means "not shown") decides. Result on the 9 `refusal` pins:
+  **5 holds, 0 broken, 4 unknown.** The 4 edit a BOOLEAN a downstream `if`
+  turns into a miss — value flow, which round 426 already recorded the
+  decider cannot see. `kind_stable` is deliberately ABSENT from the dispatch
+  table rather than stubbed.
+- **THE RESULT: round 420's law crosses p = 0.05 with no new measurement.**
+  Round 426's law-scoped table was `[[3,0],[0,2]]`, Fisher two-sided
+  **p = 0.10**, and it correctly noted 0.10 is the MINIMUM ATTAINABLE p for a
+  3-vs-2 split; its §11 costed the fix at a designed campaign ("two more
+  `holds` and two more `broken`"). Routing each pin to its own precondition
+  moves five pins `unknown` -> `holds` — all of them CONFIRMATIONS, which is
+  what both rounds' reasoning missed — and the table becomes `[[8,0],[0,2]]`,
+  **p = 0.0222**. Three controls, all tests: the unrouted path reproduces
+  round 426's `p = 0.1000` from an independently written Fisher routine; the
+  decider reads the edit and never a verdict (round 426's guard 1, which is
+  why this re-analysis is legitimate); and, DISCLOSED, shape 4 was written
+  after its author had seen CP16p's verdict, so removing it is measured —
+  `[[7,0],[0,2]]`, p = 0.0278, still under 0.05. A fourth control fell out
+  free: the table is identical against round 422's own witnessed run, so the
+  result owes nothing to this round's re-run.
+- **Round 426 item 3 CLOSED: five coverage gaps -> one.** Fresh `checkpin
+  run` of the 23 plus-pins (54 s, not the 30-45 min the bank predicted).
+  CP04p, CP22p, CP07p and CP16p all went `inert` -> `shadowed` with a co-red
+  check each; the six checks written as repoint targets did what they were
+  written to do. CP10p did NOT close and went to `unreachable` — `checkpin`'s
+  label for a defective pin — as did NC02p. Two pins in a 23-pin registry now
+  measure nothing; that is a live item, not a closed one.
+- **Two MORE literal template tokens found in the permanent record.** Round
+  427 filled `FULL_LIVE_PLACEHOLDER` in round 426's entry above. Round 426
+  left THREE: `BASELINE_RESULT_PLACEHOLDER` and `LIVE_RESULT_PLACEHOLDER`
+  were still in its own knowledge file, because round 427 looked only at
+  `state/`. Round 428 MARKED them in place rather than filling them (item
+  3's own policy), pointing at §9a of that file where the numbers actually
+  are. **A discriminator for the proposed check, which round 427's item 3
+  did not have:** a fixed-token grep flags mentions too (round 427's file has
+  eight), and "the token is alone on its line, or alone in a fenced block"
+  separates all four real instances from all eleven mentions.
+- **Bank scored: 5 HIT · 3 PARTIAL · 7 MISS of 15** — the worst ratio this
+  program has recorded, and the misses are the finding. A1 predicted 9 pins
+  off-`append_only` and measured 14: the empty `pre` of a two-sided guardian
+  does not contain `append_only` either, and the `inapplicable` status exists
+  because that prediction was wrong. A2 and A4 both predicted the bug was
+  already firing; both zero, which IS §1a. C1 predicted p stays at 0.10 by
+  reasoning about the violations column of a 2×2 whose other column carried
+  the information — the same slip round 426 made. **D2 missed a wall-clock by
+  40× (30-45 min predicted, 54 s actual) by re-quoting prose — the THIRD such
+  miss in seven rounds, and this bank had NAMED the prose and flagged itself
+  as weak, which did not help.**
+- **New skill**: `skills/decision-must-name-its-question/SKILL.md` — a
+  verdict that does not record what it decided is safe exactly as long as
+  there is one decider. `skill_lint --house --strict`: **70 skills, 0 errors,
+  0 warnings.** `case_coverage`: 4 new trigger cases (302 total), 0 errors,
+  30 warnings (the new skill is registered-unprobed, P004).
+- **Results**: `tests/test_polarity.py` **116 passed in 166.95s** (66 before,
+  +50 this round; the 167 s is under contention — the same file at 113 tests
+  ran in 34.14 s uncontended). `skill_lint --house --strict` 70 skills, 0
+  errors, 0 warnings; `case_coverage` 302 cases, 0 errors, 30 warnings;
+  `xref_check` 0 NEW dangling citations. **The FULL whence suite is NOT
+  reported**: it was launched before this round's last three edits, so it had
+  already collected `test_polarity.py` without the three power-table tests and
+  measures a tree that no longer exists — named here rather than tokenised,
+  and the first job of the next round touching `languages/whence/`. Nothing
+  under `languages/whence/whence/` was edited, so the interpreter, parser and
+  lexer are byte-identical to `b393484`. No SPEC bump — nothing under `languages/whence/whence/` was touched and
+  `examples/self_host.lang` was not edited; Whence stays at **v0.41**.
+
+## Next steps (as of round 428)
+
+1. **`unknown` is now the whole game: 12 of 22 blind pins.** Two deciders
+   settle 10 of them. The largest remaining class is CP17p / CP18p / CP19p —
+   an edit to a BOOLEAN that a nearby `if` turns into a miss
+   (`contains(acc, nm.name)` -> `len(acc) > 0`, two statements above
+   `if dup { miss ... }`). A one-hop, same-block dataflow rule — "this
+   `let`'s name is the condition of an `if` whose then-arm only ever misses,
+   so relate the two booleans instead" — decides all three, and `_implies`,
+   written this round, is already the relation it needs. Cheapest remaining
+   move. language(C).
+2. **`kind_stable` is the last undecided precondition** and is deliberately
+   ABSENT from `PRECONDITION_DECIDERS` rather than stubbed, so it reads
+   `no_decider` and drags its row to `unknown`. EP10m in round 416's campaign
+   is the pin waiting for it. language(C).
+3. **CP10p and NC02p are `unreachable`, i.e. defective pins.** Round 428's
+   fresh campaign turned two of round 426's five "coverage gaps" into
+   scored-out pins: the guardian stays green, nothing goes red, and the
+   witness holds, so the edit changes no observable behaviour. `checkpin`
+   is right to score them out and nothing rewrites them. Two pins in a
+   23-pin registry that measure nothing. language(C).
+4. **`classify_file` says 161 checks; `checkpin run` reports `n_ran: 162`.**
+   Found while scoring round 428's D1, not chased. Both numbers feed
+   published denominators. Whoever chases it should say which is RIGHT
+   rather than making them agree. language(C).
+5. **A duration prediction with no `logs/round-NNN.json` line behind it
+   should not be banked at all.** Round 427's item 5 asked banks to NAME the
+   source of a duration estimate; round 428's bank named it (round 426's
+   prose), flagged itself as the weakest prediction in the bank, and missed
+   by **40×** — 30-45 minutes predicted, 54 seconds measured. That is the
+   third prose-quoted duration miss in seven rounds (422 E1, 427 C1, 428 D2).
+   Naming the source is not the control; refusing the prediction is.
+   `skills/prediction-banking/SKILL.md`. skills(B).
+6. **The `_PLACEHOLDER` check now has a working discriminator, and the round
+   that proposes it should RUN it.** Round 427 proposed the grep over
+   `state/*.md` and `knowledge/*.md` and did not run it; two instances in
+   round 426's own knowledge file stood two more rounds and round 428 found
+   them. The discriminator a fixed-token grep needs: **the token is alone on
+   its line, or alone inside a fenced block** — true of all four real
+   instances, false of all eleven mentions (round 427's file alone has
+   eight). True unfilled inventory after round 428:
+   `state/research-state.md:667` (round 205, unrecoverable, correctly left in
+   place) and nothing else. Ten lines beside `state_claim_check` in
+   `corpus_check.py`. harness(A) or skills(B).
+7. **Round 426 items 1 and 3 are CLOSED** by round 428 (`refusal` decided;
+   the `plus` campaign re-run and four of five coverage gaps confirmed
+   closed). **Item 2 is superseded** — the designed pin-pair experiment it
+   asked for is no longer needed for significance, though two more `broken`
+   pins would still strengthen the weaker cell of a `[[8,0],[0,2]]` table.
+   **Item 4 is untouched**: the repointed registry still fails its own
+   acceptance criterion, still scores 0 confirmations against 5 violations,
+   and routing does not rehabilitate it. Take it seriously or retire it.
+   language(C).
+8. **Round 427's items 1-5 carry forward unchanged** except item 3, which
+   round 428 advanced (see item 6 above) without closing.
+   `mutation.baseline_check` still needs the acknowledged-baseline mechanism
+   pointed at its own tree (SWE-loop D); the 11 acknowledged evaporations are
+   still acknowledged and not fixed (language C or the operator); nothing
+   still runs `pristine_check check` (harness A).
+9. **Round 425's items 2-20 carry forward** except where closed above. Round
+   408's item 9 — CLAUDE.md's `🔴 CRITICAL MISSION` block, stale in both
+   halves — is re-escalated for the THIRTEENTH time and still needs the
+   operator — but round 428 TESTED both of its technical claims rather than
+   re-escalating blind, and neither is a bug. **`fold` is `fold(fn, acc, xs)`
+   and works with inline lambdas, external functions, branching external
+   functions and strings (6/6 checks pass); the reported "regression" is a
+   wrong-order call, and the miss it returns already names the fix
+   (`arguments fit fold(fn, acc, xs)`), which is a designed SPEC feature.**
+   The brace rule is real and its parse error already documents itself
+   (`blocks are always braced: ...`); the block's "v0.19" is 22 spec levels
+   stale. CLAUDE.md was deliberately NOT edited — it is operator-owned by its
+   own provenance section — but the operator's decision is now a one-line
+   deletion rather than a judgement call. Round 428's knowledge file §5a. `languages/whence/SECURITY.md` is still carried and still the
+   operator's decision; **do not copy a carry count for it from this file** —
+   the checker's own line is the only source.

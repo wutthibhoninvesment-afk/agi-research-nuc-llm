@@ -1,0 +1,148 @@
+repoint: 21 non-guarded directional pin(s)
+  CP03p   dir +  shadowed   guardian +-blind=True
+      named   : a quote inside a string in the got slot is escaped, so it re-lexes
+      sighted : (none sighted) — but 1 check(s) below DID go red, so this is NOT a coverage gap
+      blind   : a string in the got slot is a Whence literal, always double-quoted   (red, and dropped by the sightedness filter)
+  CP04p   dir +  shadowed   guardian +-blind=True
+      named   : a number in the got slot is not quoted
+      sighted : the got slot for a number is the number, with nothing appended
+  CP05p   dir +  shadowed   guardian +-blind=True
+      named   : a newline in the got slot is prose, not the host language's escape
+      sighted : ...and the newline's prose is exactly that prose, not a longer one
+  CP22p   dir +  shadowed   guardian +-blind=True
+      named   : expect_name says which KIND of name it wanted
+      sighted : ...and a want sentence ends at its position clause
+  CP06p   dir +  shadowed   guardian +-blind=False
+      named   : lexer newline suppressed inside parens
+      sighted : a block-local shape is a real type inside its own block
+      sighted : a name bound inside a closed block does not collide with a later one
+      sighted : an inner block may shadow an outer shape name
+      sighted : an inner block may still bind a name the outer block bound
+      sighted : sibling blocks may each declare the same shape name
+      blind   : ...and the line is the FIRST binding's, not a constant   (red, and dropped by the sightedness filter)
+      blind   : ...while the position clause still points at the DUPLICATE   (red, and dropped by the sightedness filter)
+      blind   : duplicate let names the variable   (red, and dropped by the sightedness filter)
+      blind   : lexer newline NOT suppressed inside a block nested in parens   (red, and dropped by the sightedness filter)
+      blind   : out of scope is worded differently from never declared   (red, and dropped by the sightedness filter)
+  CP07p   dir +  shadowed   guardian +-blind=True
+      named   : lexer newline NOT suppressed inside a block nested in parens
+      sighted : ...and a newline inside a list literal is suppressed too
+  CP08p   dir +  shadowed   guardian +-blind=False
+      named   : newline after a binary op is a continuation, no brackets involved
+      sighted : a carriage return is whitespace, as it is on the host
+      blind   : `shape` needs three adjacent tokens   (red, and dropped by the sightedness filter)
+      blind   : a newline in the got slot is prose, not the host language's escape   (red, and dropped by the sightedness filter)
+      blind   : lexer newline NOT suppressed inside a block nested in parens   (red, and dropped by the sightedness filter)
+      blind   : newline after a NAME (ordinary statement end) is still a separator   (red, and dropped by the sightedness filter)
+  CP09p   dir +  shadowed   guardian +-blind=False
+      named   : lexer bare trailing e is not consumed as an exponent
+      sighted : an overflowing literal is inf, as the host's own literal scan makes it
+      sighted : lexer exponent literal
+      sighted : lexer negative exponent
+      sighted : lexer positive-signed exponent
+      sighted : lexer uppercase exponent
+      sighted : parser handles an exponent literal end-to-end
+  CP10p   dir +  unreachable guardian +-blind=False
+      named   : a carriage return is whitespace, as it is on the host
+      sighted : (none) — a genuine coverage gap: NOTHING in the file went red
+  CP10p2  dir +  shadowed   guardian +-blind=False
+      named   : a carriage return is whitespace, as it is on the host
+      sighted : (none sighted) — but 2 check(s) below DID go red, so this is NOT a coverage gap
+      blind   : bad token in a string is a miss   (red, and dropped by the sightedness filter)
+      blind   : lexer bad character reported   (red, and dropped by the sightedness filter)
+  CP11p   dir +  shadowed   guardian +-blind=False
+      named   : ...and the GUEST decodes that escape too, not just the host
+      sighted : a bad escape is reported at the backslash, as on the host
+      sighted : a lex error carries the host's bare message and no line number
+  CP12p   dir +  shadowed   guardian +-blind=False
+      named   : one digit past the cap is a lex error, in the host's own words
+      sighted : an integer literal at the cap is accepted
+  CP13p   dir +  shadowed   guardian +-blind=True
+      named   : a trailing comma is refused in a call
+      sighted : but a comma still separates two of anything
+      sighted : call has two args
+      sighted : hello.lang has 13 top-level statements
+      sighted : hello.lang's first statement is the greeting let
+      sighted : hello.lang's last statement is the verdict check
+      sighted : postfix chain innermost is call
+      sighted : postfix chain middle is index
+      sighted : postfix chain outermost is field
+      sighted : the guest parser consumes hello.lang's real source without error
+      sighted : the if/else in hello.lang round-trips structurally
+  CP14p   dir +  shadowed   guardian +-blind=True
+      named   : ...in a list literal
+      sighted : but a comma still separates two of anything
+      sighted : list has three items
+      sighted : record field b is a list
+      sighted : record literal
+  CP15p   dir +  shadowed   guardian +-blind=True
+      named   : ...in a parameter list
+      sighted : but a comma still separates two of anything
+      sighted : fn body is a block whose expr is the sum
+      sighted : fn def params
+      sighted : fn def parses
+      sighted : hello.lang has 13 top-level statements
+      sighted : hello.lang's first statement is the greeting let
+      sighted : hello.lang's last statement is the verdict check
+      sighted : the guest parser consumes hello.lang's real source without error
+      sighted : the if/else in hello.lang round-trips structurally
+      blind   : ...and a parameter is a parameter, not just a name   (red, and dropped by the sightedness filter)
+  CP16p   dir +  shadowed   guardian +-blind=True
+      named   : chained comparisons are rejected, matching the host
+      sighted : a comparison next to the 'and' its miss recommends still parses
+  CP17p   dir +  shadowed   guardian +-blind=True
+      named   : duplicate let in one block is a miss
+      sighted : ...and a want sentence ends at its position clause
+      sighted : __shape comes first and names the shape
+      sighted : `shape` is contextual, not reserved
+      sighted : a block-local shape is a real type inside its own block
+      sighted : a comparison next to the 'and' its miss recommends still parses
+      sighted : a field may be called shape
+      sighted : a name bound inside a closed block does not collide with a later one
+      blind   : ...and a parameter is a parameter, not just a name   (red, and dropped by the sightedness filter)
+      blind   : ...and the line is the FIRST binding's, not a constant   (red, and dropped by the sightedness filter)
+      blind   : ...and the miss names the line the second statement is on   (red, and dropped by the sightedness filter)
+      blind   : ...while the position clause still points at the DUPLICATE   (red, and dropped by the sightedness filter)
+      blind   : a newline in the got slot is prose, not the host language's escape   (red, and dropped by the sightedness filter)
+  CP18p   dir +  shadowed   guardian +-blind=True
+      named   : duplicate param is a miss
+      sighted : but a comma still separates two of anything
+      sighted : fn body is a block whose expr is the sum
+      sighted : fn def params
+      sighted : fn def parses
+      sighted : hello.lang has 13 top-level statements
+      sighted : hello.lang's first statement is the greeting let
+      sighted : hello.lang's last statement is the verdict check
+      sighted : the guest parser consumes hello.lang's real source without error
+      sighted : the if/else in hello.lang round-trips structurally
+  CP19p   dir +  shadowed   guardian +-blind=True
+      named   : duplicate shape fields are rejected
+      sighted : __shape comes first and names the shape
+      sighted : a primitive field type becomes a str spec node
+      sighted : a shape declaration parses
+      sighted : a shape desugars to an ordinary let
+      sighted : the bound value is a record literal
+  CP20p   dir +  shadowed   guardian +-blind=True
+      named   : an unknown type name is still rejected
+      sighted : __shape comes first and names the shape
+      sighted : a block-local shape is a real type inside its own block
+      sighted : a parameter contract carries index, name and label
+      sighted : a parameter contract reads a shape by name
+      sighted : a primitive field type becomes a str spec node
+      sighted : a return annotation carries a name node for a shape
+      sighted : a return annotation carries a str node for a primitive
+      sighted : a shape declaration parses
+      sighted : a shape desugars to an ordinary let
+      sighted : a shape-typed field becomes a name node, not a copy
+      sighted : an annotated fn's body is left alone, no prepended guard
+      sighted : an inner block may shadow an outer shape name
+  CP21p   dir +  shadowed   guardian +-blind=True
+      named   : a shape cannot reference itself
+      sighted : a block-local shape is a real type inside its own block
+      sighted : a parameter contract carries index, name and label
+      sighted : a parameter contract reads a shape by name
+      sighted : a return annotation carries a name node for a shape
+      sighted : a shape-typed field becomes a name node, not a copy
+      sighted : an annotated fn's body is left alone, no prepended guard
+  co-red evidence: 100 red check(s) named across these pins, 18 of them (18.0%) dropped by the sightedness filter; 2 pin(s) have a red check and NO sighted one (CP03p, CP10p2)
+  1 genuine coverage gap(s) — nothing red at all: CP10p

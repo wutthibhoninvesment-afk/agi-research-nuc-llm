@@ -1,0 +1,33 @@
+law: BLIND(guardian, dir) => NOT guarded
+  scored 23 pin(s) against examples/self_host.lang
+  14 confirmation(s) — blind, and indeed not guarded:
+    CP03p   dir +  shadowed    a quote inside a string in the got slot is esc [contains(...)]
+    CP04p   dir +  shadowed    a number in the got slot is not quoted         [contains(...)]
+    CP05p   dir +  shadowed    a newline in the got slot is prose, not the ho [contains(...)]
+    CP22p   dir +  shadowed    expect_name says which KIND of name it wanted  [contains(...)]
+    CP07p   dir +  shadowed    lexer newline NOT suppressed inside a block ne [contains(...)]
+    CP13p   dir +  shadowed    a trailing comma is refused in a call          [missed(...)]
+    CP14p   dir +  shadowed    ...in a list literal                           [missed(...)]
+    CP15p   dir +  shadowed    ...in a parameter list                         [missed(...)]
+    CP16p   dir +  shadowed    chained comparisons are rejected, matching the [missed(...)]
+    CP17p   dir +  shadowed    duplicate let in one block is a miss           [missed(...)]
+    CP18p   dir +  shadowed    duplicate param is a miss                      [missed(...)]
+    CP19p   dir +  shadowed    duplicate shape fields are rejected            [missed(...)]
+    CP20p   dir +  shadowed    an unknown type name is still rejected         [missed(...)]
+    CP21p   dir +  shadowed    a shape cannot reference itself                [missed(...)]
+  8 sighted pin(s) — not blind in that direction:
+    CP06p   dir +  shadowed    lexer newline suppressed inside parens         [not(contains(...))]
+    CP08p   dir +  shadowed    newline after a binary op is a continuation, n [not(contains(...))]
+    CP09p   dir +  shadowed    lexer bare trailing e is not consumed as an ex [two-sided `==` and two-sided `==` ]
+    CP10p   dir +  unreachable a carriage return is whitespace, as it is on t [two-sided `==` and two-sided `==`]
+    CP10p2  dir +  shadowed    a carriage return is whitespace, as it is on t [two-sided `==` and two-sided `==`]
+    CP11p   dir +  shadowed    ...and the GUEST decodes that escape too, not  [two-sided `==` and two-sided `==`]
+    CP12p   dir +  shadowed    one digit past the cap is a lex error, in the  [two-sided `==`]
+    NC02p   dir None  unreachable newline after a binary op is a continuation, n [not(contains(...))]
+  1 VIOLATION(s) — guarded although blind. The law is CONDITIONAL on the
+  precondition named beside each; a violation is an edit that left the order,
+  not a check that saw through its own blindness:
+    *** CP22p2  dir +  guarded but +-blind  [contains(...)]  precondition broken: append_only
+          [append_only] infix: 'expected ' + what + ', got ' + show_tok(..…  ->  'expected ' + what + ' here, got ' + show_t…
+  of those, 0 STRICT (the pin's OWN precondition established for the edit, so the law is refuted here), 1 excused (that precondition demonstrably BROKEN by the edit, so the law makes no claim) and 0 undecided (nothing decided it, or it was decided over a precondition this pin does not rest on)
+wrote ../../state/whence/round-428/law-428.json
