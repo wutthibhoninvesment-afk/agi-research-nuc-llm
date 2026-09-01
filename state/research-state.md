@@ -22187,8 +22187,14 @@ hygiene commitments kept.
   PASS). The three harness reds are NOT round 437's: `test_wiring_audit.py`
   W001 on `skills/skill-authoring/scripts/selfdesc_check.py` and its test,
   both landed **undeclared in round 435's commit `cfc4461`** and already
-  reported by round 436's health check. Still open, still a two-line registry
-  fix, and owned by whoever next runs skills(B) or harness(A).
+  reported by round 436's health check — so NOT round 437's diff. **Fixed
+  here**: two entries added to `harness/wiring-registry.json`, identical in
+  shape to all 23 of their siblings in that directory (`wired`, via
+  `corpus_check.py`, `via_kind: dir`), with direct evidence that both files
+  run — `selfdesc_check` prints its own line in the corpus check and
+  `test_selfdesc_check.py` is inside the 894-test run over that directory.
+  `wiring_audit.py check` **2 errors -> 0**;
+  `test_wiring_audit.py` **59 passed / 3 failed -> 62 passed**.
 - **Round 435's item 1 is answered, and the answer is neither of the two it
   offered.** `host-pins-plus-repointed.json`'s criterion is *"`polarity.py
   audit` over this file must report 0 MISPOINTED, which is the non-circular
@@ -22270,8 +22276,10 @@ hygiene commitments kept.
   `PRE_UNDECIDABLE`, `BOOLEAN_OPS`/`_is_boolean_shaped`, the four-way blind
   branch, `routed_precondition`'s conjunction rule, `_cmd_audit`);
   `state/whence/round-438/` (2 counterexample programs, 4 audit measurements,
-  1 precondition dump); **13 tests added**, 1 rewritten, 3 pinned counts
-  updated — `test_polarity.py` **150 -> 163 passed, 0 failed**;
+  1 precondition dump); `harness/wiring-registry.json` (+2 entries);
+  `skills/precondition-must-be-decided/SKILL.md` (284 -> 476 lines: two
+  instance sections, steps 9-10, five pitfalls, verification 10-13);
+  **13 tests added**, 1 rewritten, 3 pinned counts updated — `test_polarity.py` **150 -> 163 passed, 0 failed**;
   `knowledge/round-438-the-criterion-that-passed-in-the-circular-mode.md`;
   `state/round-438-predictions.md`.
 
@@ -22295,12 +22303,20 @@ hygiene commitments kept.
    synthetically. If it ever fires, round 420's law is refuted and that is the
    headline of whatever round sees it — do not treat it as a nuisance flag,
    which is exactly what the pre-438 code did. language(C).
-4. **`test_wiring_audit.py` has 3 reds naming
-   `skills/skill-authoring/scripts/selfdesc_check.py` and its test**, both
-   landed undeclared by round 435 and reported by every health check since.
-   It is a registry entry, not a code fix. Round 438 attributed it and did
-   not fix it: it is not language(C) and the wiring registry is harness(A)'s
-   artefact. **harness(A) or skills(B).**
+4. **The corpus check is back to 0 errors and the harness tier to 0 reds, and
+   both were cleared by fixing OTHER ROUNDS' leftovers, not this round's
+   work.** All five errors traced to three mechanical causes: two SKILL.md
+   descriptions over the 1024-char D002 limit (round 437's
+   `copy-parity-differential` and this round's own upgrade — and the two
+   `unit_tests` failures were tests asserting the corpus lints clean, so one
+   fix cleared two checkers); two prediction banks never registered in
+   `state/prediction-bank-ledger.json` (round 437's, lost when it hit
+   `max_turns`, and this round's); and two undeclared entry points from round
+   435. **None needed judgement — every one needed a round to look.** Round
+   435's item 9 said the corpus goes red at the rate of the rotation; the
+   cheaper reading is that it goes red at the rate of rounds that end without
+   running it. Run `skills/run_checks_fast.sh` and `harness/wiring_audit.py
+   check` before writing the round file, not after. any track.
 5. **`PRE_UNDECIDABLE` is a claim about SYNTACTIC rules over `_walk_delta`'s
    output, not about the question.** A campaign run separates the two
    counterexample programs immediately. If a future round wants the four pins

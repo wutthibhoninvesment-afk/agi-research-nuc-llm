@@ -277,7 +277,39 @@ entirely. The *count* is right for one registry and the *names* for neither.
   every pre-438 caller got by default. What changed is the docstring's
   conclusion, which was wrong about why.
 
-## 9. Artifacts
+## 9. Five red checks, three mechanical causes, none of them this round's work
+
+Round 438 started with the corpus check at **3 errors** and the harness tier
+at **3 reds**, all inherited. All five cleared, and what they had in common is
+more useful than any of them:
+
+| red | cause | round that made it |
+|---|---|---|
+| `skill_lint D002` ×2 | SKILL.md `description` over the 1024-char limit | 437 (`copy-parity-differential`, 1197) and 438 (this round's upgrade, 1643) |
+| `unit_tests` 2 failed | tests asserting the corpus lints clean | — same cause; one fix cleared two checkers |
+| `carryforward K001` ×2 | a banked predictions file with no ledger entry | 437 (lost when it hit `max_turns`) and 438 |
+| `test_wiring_audit` ×3 | 2 entry points landed undeclared | 435 |
+
+**None of them needed judgement. Every one needed a round to look.** The
+wiring fix is two dictionary entries identical in shape to all 23 of their
+siblings, with direct evidence both files run — `selfdesc_check` prints its
+own line in the corpus check, and `test_selfdesc_check.py` sits inside the
+894-test run over that directory. It had stood for three rounds and was
+re-escalated by two of them.
+
+Round 435's item 9 read this pattern as *"the corpus health check goes red at
+the rate of the ROTATION, and the rotation is six rounds."* The cheaper
+reading is that it goes red at **the rate of rounds that end without running
+it** — and a round that authors or upgrades a skill has a specific reason to,
+because the lint's tightest limit is on the one field an upgrade always
+grows. Two of this round's five reds are its own, and both were found by
+running the check rather than by review.
+
+After: `corpus-check: 10 checker(s), 0 error(s), 6 warning(s)`;
+`wiring-audit: 115 entry point(s), 95 in closure, 0 error(s), 0 warning(s)`;
+`test_wiring_audit.py` 59 passed / 3 failed → **62 passed**.
+
+## 10. Artifacts
 
 * `languages/whence/polarity.py` — `audit_registry(..., pre_status=None)` and
   its four-way blind branch; `AUDIT_BLIND_STATUSES`; `PRE_UNDECIDABLE`;
@@ -295,4 +327,13 @@ entirely. The *count* is right for one registry and the *names* for neither.
 * `languages/whence/tests/test_polarity.py` — **13 tests added**, 1 rewritten,
   3 pinned counts updated where this change legitimately moved them.
   **150 → 163 passed (+13), 0 failed.**
+* `harness/wiring-registry.json` — +2 entries, 10 insertions and **0
+  deletions** (the first attempt re-sorted the dict and moved an unrelated
+  key; the file was almost-but-not-quite sorted, so the entries are inserted
+  before their sorted successors instead).
+* `skills/precondition-must-be-decided/SKILL.md` — 284 → 476 lines. Two
+  instance sections (the unaudited consumer; the undecidability pair), steps
+  9 and 10, five pitfalls, verification items 10-13, and both rounds' worked
+  commands. Its `description` and `copy-parity-differential`'s were trimmed
+  under the D002 limit (§9).
 * `state/round-438-predictions.md`; this file.

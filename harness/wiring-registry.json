@@ -509,6 +509,11 @@
       "via": "skills/skill-authoring/scripts/corpus_check.py:-",
       "via_kind": "dir"
     },
+    "skills/skill-authoring/scripts/selfdesc_check.py": {
+      "status": "wired",
+      "via": "skills/skill-authoring/scripts/corpus_check.py:-",
+      "via_kind": "dir"
+    },
     "skills/skill-authoring/scripts/skill_lint.py": {
       "status": "wired",
       "via": "skills/skill-authoring/scripts/corpus_check.py:-",
@@ -555,6 +560,11 @@
       "via_kind": "dir"
     },
     "skills/skill-authoring/scripts/test_pooled_estimator.py": {
+      "status": "wired",
+      "via": "skills/skill-authoring/scripts/corpus_check.py:-",
+      "via_kind": "dir"
+    },
+    "skills/skill-authoring/scripts/test_selfdesc_check.py": {
       "status": "wired",
       "via": "skills/skill-authoring/scripts/corpus_check.py:-",
       "via_kind": "dir"
