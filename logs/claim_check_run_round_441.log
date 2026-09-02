@@ -1,0 +1,250 @@
+=== START 00:29:53 ===
+agent-completion-guards |skills/agent-completion-guards/SKILL.md:113: UNQUANTIFIED C003 claim 'unit + corpus + loop' states no checkable number; ran it anyway for the exit code only
+agent-completion-guards |claim_check: 2 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 3 checked; coverage 2/2 paths, 1/2 commands
+TIMING agent-completion-guards 0s
+agent-context-budgeting |skills/agent-context-budgeting/SKILL.md:165: UNQUANTIFIED C003 claim 'expected: all passed, < 1s' states no checkable number; ran it anyway for the exit code only
+agent-context-budgeting |claim_check: 6 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 7 checked; coverage 6/6 paths, 1/3 commands
+TIMING agent-context-budgeting 1s
+bounded-not-binary-witness |skills/bounded-not-binary-witness/SKILL.md:98: STALE C002 claim says passed=165, observed passed=207
+bounded-not-binary-witness |claim_check: 6 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 1 stale claim(s) of 7 checked; coverage 6/6 paths, 1/3 commands
+TIMING bounded-not-binary-witness 1s
+carried-claim-rot |skills/carried-claim-rot/SKILL.md:408: UNQUANTIFIED C003 claim 'expected: S006 for any live-block citation of an item state/retired-next-step-items.json records as discharged; SILENT when the citing item\'s own text acknowledges the closure. With round 389 live it fired exactly once (round 332\'s item 1, discharged by 350, resurrected at 375) and stayed silent on round 383\'s item 5, which says "is CLOSED".' states no checkable number; ran it anyway for the exit code only
+carried-claim-rot |claim_check: 18 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 26 checked; coverage 18/18 paths, 8/10 commands
+TIMING carried-claim-rot 13s
+cause-needs-a-denominator |claim_check: 0 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 0 checked; coverage 0/0 paths, 0/4 commands
+TIMING cause-needs-a-denominator 0s
+citation-registry-integrity |skills/citation-registry-integrity/SKILL.md:237: STALE C002 claim says ran_tests=64, observed ran_tests=112
+citation-registry-integrity |claim_check: 4 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 1 stale claim(s) of 5 checked; coverage 4/4 paths, 1/4 commands
+TIMING citation-registry-integrity 30s
+colocated-model-lane |skills/colocated-model-lane/SKILL.md:135: STALE C002 claim says passed=276, observed passed=794
+colocated-model-lane |claim_check: 0 path(s) resolved, 7 unresolvable-by-design (scratch/placeholder/output/unanchored); 1 stale claim(s) of 1 checked; coverage 0/7 paths, 1/3 commands
+TIMING colocated-model-lane 87s
+content-pinned-acknowledgement |skills/content-pinned-acknowledgement/SKILL.md:154: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+content-pinned-acknowledgement |skills/content-pinned-acknowledgement/SKILL.md:159: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+content-pinned-acknowledgement |skills/content-pinned-acknowledgement/SKILL.md:164: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+content-pinned-acknowledgement |skills/content-pinned-acknowledgement/SKILL.md:167: STALE C002 claim says passed=62, observed passed=128
+content-pinned-acknowledgement |claim_check: 4 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 1 stale claim(s) of 8 checked; coverage 4/4 paths, 4/4 commands
+TIMING content-pinned-acknowledgement 10s
+copied-mirror-drift |skills/copied-mirror-drift/SKILL.md:98: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+copied-mirror-drift |claim_check: 1 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 2 checked; coverage 1/1 paths, 1/3 commands
+TIMING copied-mirror-drift 2s
+copy-parity-differential |skills/copy-parity-differential/SKILL.md:426: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+copy-parity-differential |claim_check: 1 path(s) resolved, 1 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 2 checked; coverage 1/2 paths, 1/2 commands
+TIMING copy-parity-differential 10s
+correction-validated-where-you-looked |skills/correction-validated-where-you-looked/SKILL.md:173: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+correction-validated-where-you-looked |claim_check: 1 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 2 checked; coverage 1/1 paths, 1/2 commands
+TIMING correction-validated-where-you-looked 0s
+count-carries-its-noun-and-denominator |skills/count-carries-its-noun-and-denominator/SKILL.md:145: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+count-carries-its-noun-and-denominator |skills/count-carries-its-noun-and-denominator/SKILL.md:168: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+count-carries-its-noun-and-denominator |skills/count-carries-its-noun-and-denominator/SKILL.md:169: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+count-carries-its-noun-and-denominator |skills/count-carries-its-noun-and-denominator/SKILL.md:176: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+count-carries-its-noun-and-denominator |claim_check: 13 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 17 checked; coverage 13/13 paths, 4/9 commands
+TIMING count-carries-its-noun-and-denominator 91s
+decision-must-name-its-question |claim_check: 0 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 0 checked; coverage 0/0 paths, 0/7 commands
+TIMING decision-must-name-its-question 0s
+declaration-scope-parity |skills/declaration-scope-parity/SKILL.md:125: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+declaration-scope-parity |skills/declaration-scope-parity/SKILL.md:132: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+declaration-scope-parity |claim_check: 5 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 7 checked; coverage 5/5 paths, 2/5 commands
+TIMING declaration-scope-parity 93s
+deferral-blockers-are-claims |skills/deferral-blockers-are-claims/SKILL.md:210: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+deferral-blockers-are-claims |skills/deferral-blockers-are-claims/SKILL.md:213: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+deferral-blockers-are-claims |claim_check: 2 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 4 checked; coverage 2/2 paths, 2/2 commands
+TIMING deferral-blockers-are-claims 0s
+deleted-vs-never-written |claim_check: 2 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 3 checked; coverage 2/2 paths, 1/2 commands
+TIMING deleted-vs-never-written 35s
+derived-subject-set |skills/derived-subject-set/SKILL.md:210: SKIPPED C004 not run here: 'tests/test_v34.py' absent from this checkout (a portable skill documenting the READER's repo, not this one)
+derived-subject-set |skills/derived-subject-set/SKILL.md:213: SKIPPED C004 not run here: 'tests/test_v34.py' absent from this checkout (a portable skill documenting the READER's repo, not this one)
+derived-subject-set |skills/derived-subject-set/SKILL.md:218: SKIPPED C004 not run here: 'tests/test_v33.py' absent from this checkout (a portable skill documenting the READER's repo, not this one)
+derived-subject-set |claim_check: 0 path(s) resolved, 3 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 0 checked; coverage 0/3 paths, 0/4 commands
+TIMING derived-subject-set 0s
+echoed-record-vs-measurement |skills/echoed-record-vs-measurement/SKILL.md:171: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+echoed-record-vs-measurement |skills/echoed-record-vs-measurement/SKILL.md:174: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+echoed-record-vs-measurement |claim_check: 0 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 2 checked; coverage 0/0 paths, 2/3 commands
+TIMING echoed-record-vs-measurement 0s
+elimination-needs-its-frame |skills/elimination-needs-its-frame/SKILL.md:138: UNQUANTIFIED C003 claim 'expected: one `N tests collected` total. Step 3 is this number reconciled against the per-file sum; a gap between them IS the missing frame.' states no checkable number; ran it anyway for the exit code only
+elimination-needs-its-frame |claim_check: 0 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 1 checked; coverage 0/0 paths, 1/2 commands
+TIMING elimination-needs-its-frame 1s
+engine-prefix-reuse-audit |claim_check: 0 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 0 checked; coverage 0/0 paths, 0/0 commands
+TIMING engine-prefix-reuse-audit 0s
+errors-that-name-the-fix |skills/errors-that-name-the-fix/SKILL.md:270: SKIPPED C004 not run here: 'tests/' absent from this checkout (a portable skill documenting the READER's repo, not this one)
+errors-that-name-the-fix |skills/errors-that-name-the-fix/SKILL.md:274: SKIPPED C004 not run here: 'tests/' absent from this checkout (a portable skill documenting the READER's repo, not this one)
+errors-that-name-the-fix |skills/errors-that-name-the-fix/SKILL.md:278: SKIPPED C004 not run here: 'tests/' absent from this checkout (a portable skill documenting the READER's repo, not this one)
+errors-that-name-the-fix |skills/errors-that-name-the-fix/SKILL.md:282: SKIPPED C004 not run here: 'tests/' absent from this checkout (a portable skill documenting the READER's repo, not this one)
+errors-that-name-the-fix |claim_check: 0 path(s) resolved, 4 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 0 checked; coverage 0/4 paths, 0/5 commands
+TIMING errors-that-name-the-fix 1s
+evidence-unit-smaller-than-the-item |skills/evidence-unit-smaller-than-the-item/SKILL.md:185: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+evidence-unit-smaller-than-the-item |claim_check: 3 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 4 checked; coverage 3/3 paths, 1/3 commands
+TIMING evidence-unit-smaller-than-the-item 12s
+exemption-census |claim_check: 0 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 0 checked; coverage 0/0 paths, 0/6 commands
+TIMING exemption-census 0s
+expiring-fixture-window |skills/expiring-fixture-window/SKILL.md:140: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+expiring-fixture-window |claim_check: 1 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 2 checked; coverage 1/1 paths, 1/10 commands
+TIMING expiring-fixture-window 1s
+filter-shares-the-defect |claim_check: 0 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 0 checked; coverage 0/0 paths, 0/0 commands
+TIMING filter-shares-the-defect 0s
+freshness-is-not-outcome |skills/freshness-is-not-outcome/SKILL.md:129: SKIPPED C004 not run here: 'fab139b:skills/skill-authoring/scripts/case_coverage.py' absent from this checkout (a portable skill documenting the READER's repo, not this one)
+freshness-is-not-outcome |skills/freshness-is-not-outcome/SKILL.md:135: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+freshness-is-not-outcome |skills/freshness-is-not-outcome/SKILL.md:144: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+freshness-is-not-outcome |claim_check: 2 path(s) resolved, 1 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 4 checked; coverage 2/3 paths, 2/3 commands
+TIMING freshness-is-not-outcome 1s
+TIMING fuzz-mutate-kill-loop 400s
+generator-trampoline-evaluator |skills/generator-trampoline-evaluator/SKILL.md:356: UNQUANTIFIED C003 claim 'expected: all green — the trampoline is control flow, not semantics.' states no checkable number; ran it anyway for the exit code only
+generator-trampoline-evaluator |claim_check: 2 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 3 checked; coverage 2/2 paths, 1/3 commands
+TIMING generator-trampoline-evaluator 3s
+instruments-already-running |skills/instruments-already-running/SKILL.md:131: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+instruments-already-running |claim_check: 2 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 3 checked; coverage 2/2 paths, 1/5 commands
+TIMING instruments-already-running 19s
+kill-what-you-launched |skills/kill-what-you-launched/SKILL.md:117: STALE C002 claim says passed=45, observed passed=46
+kill-what-you-launched |claim_check: 3 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 1 stale claim(s) of 4 checked; coverage 3/3 paths, 1/3 commands
+TIMING kill-what-you-launched 1s
+lazy-fill-ceiling |claim_check: 6 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 6 checked; coverage 6/6 paths, 0/6 commands
+TIMING lazy-fill-ceiling 0s
+llm-engine-benchmarking |claim_check: 0 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 0 checked; coverage 0/0 paths, 0/0 commands
+TIMING llm-engine-benchmarking 0s
+losses-name-their-winner |skills/losses-name-their-winner/SKILL.md:169: UNQUANTIFIED C003 claim '16 tests, offline fixtures' states no checkable number; ran it anyway for the exit code only
+losses-name-their-winner |skills/losses-name-their-winner/SKILL.md:170: UNQUANTIFIED C003 claim '35 tests' states no checkable number; ran it anyway for the exit code only
+losses-name-their-winner |claim_check: 1 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 3 checked; coverage 1/1 paths, 2/4 commands
+TIMING losses-name-their-winner 0s
+matcher-defines-the-population |skills/matcher-defines-the-population/SKILL.md:218: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+matcher-defines-the-population |claim_check: 4 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 5 checked; coverage 4/4 paths, 1/4 commands
+TIMING matcher-defines-the-population 8s
+measured-budget-sizing |skills/measured-budget-sizing/SKILL.md:146: STALE C002 claim says passed=179, observed passed=207
+measured-budget-sizing |claim_check: 3 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 1 stale claim(s) of 4 checked; coverage 3/3 paths, 1/2 commands
+TIMING measured-budget-sizing 1s
+measured-exemption |claim_check: 0 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 0 checked; coverage 0/0 paths, 0/0 commands
+TIMING measured-exemption 0s
+measured-not-declared-dependencies |claim_check: 0 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 0 checked; coverage 0/0 paths, 0/3 commands
+TIMING measured-not-declared-dependencies 0s
+mutate-the-rule-both-ways |claim_check: 12 path(s) resolved, 1 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 12 checked; coverage 12/13 paths, 0/20 commands
+TIMING mutate-the-rule-both-ways 0s
+named-guardian-must-go-red |skills/named-guardian-must-go-red/SKILL.md:154: UNQUANTIFIED C003 claim 'offline half, 14 tests' states no checkable number; ran it anyway for the exit code only
+named-guardian-must-go-red |claim_check: 5 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 6 checked; coverage 5/5 paths, 1/5 commands
+TIMING named-guardian-must-go-red 1s
+named-is-not-invoked |skills/named-is-not-invoked/SKILL.md:188: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+named-is-not-invoked |claim_check: 5 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 6 checked; coverage 5/5 paths, 1/4 commands
+TIMING named-is-not-invoked 32s
+null-result-needs-a-power-floor |skills/null-result-needs-a-power-floor/SKILL.md:277: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+null-result-needs-a-power-floor |claim_check: 1 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 2 checked; coverage 1/1 paths, 1/3 commands
+TIMING null-result-needs-a-power-floor 8s
+obligation-ledger |skills/obligation-ledger/SKILL.md:142: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+obligation-ledger |claim_check: 3 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 4 checked; coverage 3/3 paths, 1/5 commands
+TIMING obligation-ledger 1s
+offline-agent-testing |claim_check: 6 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 7 checked; coverage 6/6 paths, 1/2 commands
+TIMING offline-agent-testing 1s
+one-shot-agent-no-background-wait |claim_check: 0 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 0 checked; coverage 0/0 paths, 0/1 commands
+TIMING one-shot-agent-no-background-wait 0s
+optimization-transparency-differential |claim_check: 0 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 0 checked; coverage 0/0 paths, 0/0 commands
+TIMING optimization-transparency-differential 0s
+policy-replay-over-history |skills/policy-replay-over-history/SKILL.md:152: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+policy-replay-over-history |claim_check: 3 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 4 checked; coverage 3/3 paths, 1/3 commands
+TIMING policy-replay-over-history 2s
+precondition-must-be-decided |claim_check: 6 path(s) resolved, 3 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 6 checked; coverage 6/9 paths, 0/30 commands
+TIMING precondition-must-be-decided 0s
+prediction-banking |claim_check: 1 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 1 checked; coverage 1/1 paths, 0/6 commands
+TIMING prediction-banking 0s
+preflight-priced-task-scripts |claim_check: 4 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 5 checked; coverage 4/4 paths, 1/3 commands
+TIMING preflight-priced-task-scripts 14s
+pristine-checkout-differential |skills/pristine-checkout-differential/SKILL.md:370: UNQUANTIFIED C003 claim 'expected: three suites (harness-fast, whence-fast, whence-slow), each printing the `cd` its command needs — a suite that forgets its working directory compares two trees at two different roots.' states no checkable number; ran it anyway for the exit code only
+pristine-checkout-differential |skills/pristine-checkout-differential/SKILL.md:374: UNQUANTIFIED C003 claim 'expected: `tracked-modified N (blocking M)`, then one LABELLED line per path — blocking paths are named, waived ones say they were waived.' states no checkable number; ran it anyway for the exit code only
+pristine-checkout-differential |skills/pristine-checkout-differential/SKILL.md:377: UNQUANTIFIED C003 claim "expected: the stored verdict stamped `a stored verdict, not a run just now`, plus `HEAD HAS MOVED SINCE` when it has — a recorded green that cannot say which tree it is about is this skill's failure mode one up." states no checkable number; ran it anyway for the exit code only
+pristine-checkout-differential |claim_check: 3 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 6 checked; coverage 3/3 paths, 3/3 commands
+TIMING pristine-checkout-differential 0s
+probe-where-the-rules-disagree |skills/probe-where-the-rules-disagree/SKILL.md:143: STALE C002 claim says passed=22, observed passed=54
+probe-where-the-rules-disagree |claim_check: 3 path(s) resolved, 1 unresolvable-by-design (scratch/placeholder/output/unanchored); 1 stale claim(s) of 4 checked; coverage 3/4 paths, 1/4 commands
+TIMING probe-where-the-rules-disagree 80s
+recorder-in-the-record |skills/recorder-in-the-record/SKILL.md:129: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+recorder-in-the-record |skills/recorder-in-the-record/SKILL.md:137: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+recorder-in-the-record |claim_check: 3 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 5 checked; coverage 3/3 paths, 2/5 commands
+TIMING recorder-in-the-record 1s
+refusal-set-differential |skills/refusal-set-differential/SKILL.md:155: SKIPPED C004 not run here: 'tests/test_parse_error_differential.py' absent from this checkout (a portable skill documenting the READER's repo, not this one)
+refusal-set-differential |skills/refusal-set-differential/SKILL.md:160: SKIPPED C004 not run here: 'tests/test_parse_error_differential.py' absent from this checkout (a portable skill documenting the READER's repo, not this one)
+refusal-set-differential |skills/refusal-set-differential/SKILL.md:164: SKIPPED C004 not run here: 'tests/test_parse_error_differential.py' absent from this checkout (a portable skill documenting the READER's repo, not this one)
+refusal-set-differential |skills/refusal-set-differential/SKILL.md:168: SKIPPED C004 not run here: 'tests/test_v24.py' absent from this checkout (a portable skill documenting the READER's repo, not this one)
+refusal-set-differential |skills/refusal-set-differential/SKILL.md:183: SKIPPED C004 not run here: 'tests/test_parse_error_differential.py' absent from this checkout (a portable skill documenting the READER's repo, not this one)
+refusal-set-differential |claim_check: 0 path(s) resolved, 6 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 0 checked; coverage 0/6 paths, 0/7 commands
+TIMING refusal-set-differential 0s
+repeats-are-not-replicates |skills/repeats-are-not-replicates/SKILL.md:247: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+repeats-are-not-replicates |skills/repeats-are-not-replicates/SKILL.md:249: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+repeats-are-not-replicates |claim_check: 2 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 4 checked; coverage 2/2 paths, 2/2 commands
+TIMING repeats-are-not-replicates 1s
+replay-scope-is-read-scope |skills/replay-scope-is-read-scope/SKILL.md:172: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+replay-scope-is-read-scope |skills/replay-scope-is-read-scope/SKILL.md:190: UNQUANTIFIED C003 claim 'green remove one checker from the replay set, re-run: MUST fail' states no checkable number; ran it anyway for the exit code only
+replay-scope-is-read-scope |claim_check: 0 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 2 checked; coverage 0/0 paths, 2/4 commands
+TIMING replay-scope-is-read-scope 1s
+rerun-before-you-record |skills/rerun-before-you-record/SKILL.md:134: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+rerun-before-you-record |claim_check: 1 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 2 checked; coverage 1/1 paths, 1/1 commands
+TIMING rerun-before-you-record 0s
+residency-is-not-allocation |skills/residency-is-not-allocation/SKILL.md:119: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+residency-is-not-allocation |skills/residency-is-not-allocation/SKILL.md:132: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+residency-is-not-allocation |claim_check: 1 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 3 checked; coverage 1/1 paths, 2/4 commands
+TIMING residency-is-not-allocation 2s
+run-the-comparison-you-suppress |skills/run-the-comparison-you-suppress/SKILL.md:170: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+run-the-comparison-you-suppress |claim_check: 1 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 2 checked; coverage 1/1 paths, 1/5 commands
+TIMING run-the-comparison-you-suppress 1s
+running-minimum-not-endpoint |skills/running-minimum-not-endpoint/SKILL.md:189: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+running-minimum-not-endpoint |claim_check: 2 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 3 checked; coverage 2/2 paths, 1/2 commands
+TIMING running-minimum-not-endpoint 9s
+sampled-interval-brackets |skills/sampled-interval-brackets/SKILL.md:143: SKIPPED C004 not run here: 'tests/test_bounds.py' absent from this checkout (a portable skill documenting the READER's repo, not this one)
+sampled-interval-brackets |skills/sampled-interval-brackets/SKILL.md:147: SKIPPED C004 not run here: 'tests/test_bounds.py' absent from this checkout (a portable skill documenting the READER's repo, not this one)
+sampled-interval-brackets |skills/sampled-interval-brackets/SKILL.md:151: SKIPPED C004 not run here: 'tests/test_bounds.py' absent from this checkout (a portable skill documenting the READER's repo, not this one)
+sampled-interval-brackets |claim_check: 0 path(s) resolved, 3 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 0 checked; coverage 0/3 paths, 0/3 commands
+TIMING sampled-interval-brackets 0s
+sanitiser-outgrows-its-noise |claim_check: 0 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 0 checked; coverage 0/0 paths, 0/1 commands
+TIMING sanitiser-outgrows-its-noise 0s
+second-door-skips-the-gate |skills/second-door-skips-the-gate/SKILL.md:212: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+second-door-skips-the-gate |skills/second-door-skips-the-gate/SKILL.md:216: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+second-door-skips-the-gate |skills/second-door-skips-the-gate/SKILL.md:220: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+second-door-skips-the-gate |skills/second-door-skips-the-gate/SKILL.md:225: UNQUANTIFIED C003 claim 'expect: FAILED' states no checkable number; ran it anyway for the exit code only
+second-door-skips-the-gate |skills/second-door-skips-the-gate/SKILL.md:229: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+second-door-skips-the-gate |skills/second-door-skips-the-gate/SKILL.md:232: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+second-door-skips-the-gate |claim_check: 0 path(s) resolved, 1 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 6 checked; coverage 0/1 paths, 6/9 commands
+TIMING second-door-skips-the-gate 1s
+self-description-is-a-claim |skills/self-description-is-a-claim/SKILL.md:161: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+self-description-is-a-claim |claim_check: 4 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 5 checked; coverage 4/4 paths, 1/4 commands
+TIMING self-description-is-a-claim 4s
+self-updating-driver-loop |claim_check: 1 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 2 checked; coverage 1/1 paths, 1/1 commands
+TIMING self-updating-driver-loop 1s
+session-inheritance-audit |skills/session-inheritance-audit/SKILL.md:252: UNQUANTIFIED C003 claim "only the CURRENT session's stub" states no checkable number; ran it anyway for the exit code only
+session-inheritance-audit |skills/session-inheritance-audit/SKILL.md:253: UNQUANTIFIED C003 claim '' states no checkable number; ran it anyway for the exit code only
+session-inheritance-audit |skills/session-inheritance-audit/SKILL.md:278: STALE C002 claim says passed=43, observed passed=44
+session-inheritance-audit |claim_check: 7 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 1 stale claim(s) of 12 checked; coverage 7/7 paths, 5/9 commands
+TIMING session-inheritance-audit 10s
+shared-tip-immutable-lists |claim_check: 0 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 0 checked; coverage 0/0 paths, 0/0 commands
+TIMING shared-tip-immutable-lists 0s
+skill-authoring |skills/skill-authoring/SKILL.md:343: STALE C002 claim says ran_tests=458 but the command printed no ran_tests at all
+skill-authoring |skills/skill-authoring/SKILL.md:354: STALE C002 claim says exit=0, observed exit=1
+skill-authoring |skills/skill-authoring/SKILL.md:354: STALE C002 claim says skills=27, observed skills=78
+skill-authoring |skills/skill-authoring/SKILL.md:354: STALE C002 claim says warnings=0, observed warnings=3
+skill-authoring |skills/skill-authoring/SKILL.md:363: STALE C002 claim says skills=27, observed skills=78
+skill-authoring |skills/skill-authoring/SKILL.md:369: STALE C002 claim says skills=27, observed skills=78
+skill-authoring |claim_check: 10 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 6 stale claim(s) of 15 checked; coverage 10/10 paths, 5/8 commands
+TIMING skill-authoring 90s
+skip-reason-is-a-claim |skills/skip-reason-is-a-claim/SKILL.md:192: SKIPPED C004 not run here: 'tests/' absent from this checkout (a portable skill documenting the READER's repo, not this one)
+skip-reason-is-a-claim |skills/skip-reason-is-a-claim/SKILL.md:198: SKIPPED C004 not run here: 'tests/' absent from this checkout (a portable skill documenting the READER's repo, not this one)
+skip-reason-is-a-claim |claim_check: 0 path(s) resolved, 3 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 0 checked; coverage 0/3 paths, 0/8 commands
+TIMING skip-reason-is-a-claim 0s
+subprocess-cli-testing |skills/subprocess-cli-testing/SKILL.md:92: STALE C002 claim says passed=8, observed passed=21
+subprocess-cli-testing |claim_check: 2 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 1 stale claim(s) of 3 checked; coverage 2/2 paths, 1/1 commands
+TIMING subprocess-cli-testing 22s
+tiny-language-implementation |claim_check: 0 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 0 checked; coverage 0/0 paths, 0/0 commands
+TIMING tiny-language-implementation 0s
+unenforced-documented-rule |claim_check: 0 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 0 checked; coverage 0/0 paths, 0/6 commands
+TIMING unenforced-documented-rule 0s
+unknown-names-its-residual |claim_check: 6 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 6 checked; coverage 6/6 paths, 0/3 commands
+TIMING unknown-names-its-residual 0s
+unrun-checker-latency |claim_check: 0 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 0 checked; coverage 0/0 paths, 0/6 commands
+TIMING unrun-checker-latency 0s
+untested-default-path |skills/untested-default-path/SKILL.md:188: SKIPPED C004 not run here: 'tests/test_v10.py' absent from this checkout (a portable skill documenting the READER's repo, not this one)
+untested-default-path |claim_check: 0 path(s) resolved, 1 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 0 checked; coverage 0/1 paths, 0/2 commands
+TIMING untested-default-path 0s
+verdict-carries-its-threshold |claim_check: 1 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 2 checked; coverage 1/1 paths, 1/3 commands
+TIMING verdict-carries-its-threshold 1s
+would-a-constant-have-passed |claim_check: 0 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 0 checked; coverage 0/0 paths, 0/1 commands
+TIMING would-a-constant-have-passed 0s
+zero-rate-needs-a-distance |claim_check: 0 path(s) resolved, 0 unresolvable-by-design (scratch/placeholder/output/unanchored); 0 stale claim(s) of 0 checked; coverage 0/0 paths, 0/5 commands
+TIMING zero-rate-needs-a-distance 0s
+=== END 00:48:17 ===
+4,5d3
+< ?? logs/slowtier_round_440.log
+< ?? state/round-441-predictions.md
+TREE CHANGED

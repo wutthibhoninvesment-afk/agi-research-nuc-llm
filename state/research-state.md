@@ -22422,13 +22422,23 @@ errors, `test_wiring_audit.py` 62 passed — and committed unchanged as
   the ceiling on this tier is 91/336, not 110/336. `--dry-run` was added
   because the only safe way to ask what the tier would do to the tree was a
   tier that does not do it. `test_claim_check.py` **100 passed**.
-- **First whole-corpus `--run`, and every finding has the same sign.**
+- **First whole-corpus `--run` completed: 77 skills, 1104 s (contended),
+  15 `C002` across 10 skills, 57 `C003`, 19 `C004`, and the sweep itself
+  dirtied nothing (`git status --porcelain` digested before and after).
+  Every count finding has the same sign.**
   `bounded-not-binary-witness` 165→**207**; `citation-registry-integrity`
   64→**112**; `colocated-model-lane` 276→**794**;
   `content-pinned-acknowledgement` 62→**128**; `kill-what-you-launched`
-  45→**46**; `measured-budget-sizing` 179→**207**. **Six of six understate.**
-  These are suite sizes and a suite only gains tests, so the rot has a
-  direction and a floor-pinning test could have caught it. Two are the direct
+  45→**46**; `measured-budget-sizing` 179→**207**;
+  `probe-where-the-rules-disagree` 22→**54**; `session-inheritance-audit`
+  43→**44**; `subprocess-cli-testing` 8→**21**. **Every count understates.**
+  These are suite and corpus sizes and both only grow, so the rot has a
+  direction and a FLOOR-pinning claim (`>= 207 passed`) could not rot at all.
+  **The worst block is `skill-authoring`'s OWN** — five of the fifteen,
+  including `skills=27` against **78** and a claimed `exit=0` against an
+  observed **1**: `skill_lint --house --strict skills/` really does exit 1
+  now. The skill that teaches Verification blocks, in the same directory as
+  the tool that checks them. Two are the direct
   yield of `PROMPT_RE`. They COLLIDE: `expiring-fixture-window:140` and
   `measured-budget-sizing:146` document the SAME command with `203` and
   `179`, observed **207**, never compared.
@@ -22460,12 +22470,15 @@ errors, `test_wiring_audit.py` 62 passed — and committed unchanged as
 
 ## Next steps (as of round 441)
 
-1. **The whole-corpus `--run` did not finish and the six C002s are a FLOOR,
-   not a total.** It reached 50 of 77 skills at ~822 s and was still going,
-   sharing one core with the round's own tool calls, so the per-skill
-   timings are contaminated upward. Finish it on a quiet box before quoting
-   any total. skills(B) or harness(A).
-2. **The six stale claims are REPORTED, not corrected — deliberately.** Each
+1. **`skill_lint --house --strict skills/` EXITS 1 and nothing in the wired
+   corpus check says so.** Found by the `--run` sweep against
+   `skill-authoring`'s own Verification block, which claims `exit=0`. The
+   corpus check reports `skill_lint warn B002 … 0 error(s), 3 warning(s)` and
+   is driven by ERRORS only, deliberately — but `--strict` is a different
+   verdict and `skill-authoring`'s block is the only place that verdict is
+   published. Decide which is authoritative and make one of them stop
+   claiming the other. skills(B).
+2. **The fifteen stale claims are REPORTED, not corrected — deliberately.** Each
    correction needs its command re-run solo and the number re-derived; a
    number written from a contended run is the same defect again. Do them one
    at a time, and consider what round 441 could not: these are suite sizes,
@@ -22474,7 +22487,7 @@ errors, `test_wiring_audit.py` 62 passed — and committed unchanged as
    skills(B).
 3. **`claim_check --run` is still not wired into `corpus_check.py` and the
    published coverage is still `0/336`.** That is now a COST question with a
-   measured answer — ~822 s for 50 of 77 skills on a contended 1-core box,
+   measured answer — 1104 s for all 77 skills on a contended 1-core box,
    against a corpus check that currently costs 171 s. Options with numbers
    rather than a shrug: a `--run` tier on a cadence (say every skills(B)
    round), or a fast subset. Whoever wires it should also make the summary

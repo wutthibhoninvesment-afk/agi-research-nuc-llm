@@ -170,7 +170,17 @@ tier do to my tree" was a tier that does not do it.
 ## 3. Running the tier: what `0/336` was hiding
 
 First whole-corpus `--run`, per-skill so partial results survive, `--timeout
-90`. Every finding is the same shape:
+90`. It **completed all 77 skills in 1104 s** — contended, sharing one core
+with this session's own tool calls, so that is an upper bound on a quiet box
+rather than a clean figure. **15 `C002` across 10 skills, 57 `C003`
+unquantified, 19 `C004` skipped.** Full log: `logs/claim_check_run_round_441.log`.
+
+The tree was digested with `git status --porcelain` before and after: **the
+sweep itself dirtied nothing.** (The two paths that differ between the
+snapshots are this round's own — a log that got ignored and a bank that got
+committed while the sweep ran.)
+
+Every count finding is the same shape:
 
 | skill | claim | observed |
 |---|---|---|
@@ -180,10 +190,24 @@ First whole-corpus `--run`, per-skill so partial results survive, `--timeout
 | `content-pinned-acknowledgement` | `passed=62` | **128** |
 | `kill-what-you-launched` | `passed=45` | **46** |
 | `measured-budget-sizing` | `passed=179` | **207** |
+| `probe-where-the-rules-disagree` | `passed=22` | **54** |
+| `session-inheritance-audit` | `passed=43` | **44** |
+| `subprocess-cli-testing` | `passed=8` | **21** |
+| `skill-authoring` (×3 sites) | `skills=27` | **78** |
+| `skill-authoring` | `warnings=0`, `exit=0` | **3**, **1** |
+| `skill-authoring` | `ran_tests=458` | printed no `ran_tests` at all |
 
-**Six of six understate, and none by a little.** These are suite sizes, and a
-suite only ever gains tests, so the rot has a direction. A number that can
-only drift one way is a number a test could have pinned as a floor.
+**Every count understates, and none by a little.** These are suite and corpus sizes, and
+both only ever grow, so the rot has a DIRECTION. A number that can only drift
+one way is a number a test could have pinned as a floor (`>= 207 passed`)
+instead of an equality that rots every time somebody adds a test.
+
+**The worst block in the corpus is `skill-authoring`'s own** — five stale
+claims including a corpus size of `27` against **78**, and a claimed `exit=0`
+against an observed **1**. The skill that teaches Verification blocks, in the
+same directory as the tool that checks them, holds the most rotten one. It is
+also the only one whose staleness is not merely a grown number:
+`skill_lint --house --strict skills/` really does exit 1 now.
 
 Two of the six are the direct yield of the `PROMPT_RE` fix: `measured-budget-
 sizing:146` was `$`-prefixed and therefore invisible. And it collides —
@@ -208,11 +232,11 @@ written without a `#` is invisible to the tier that checks expected values.**
 | P3 | `slowtier_round` has exactly one in-tree hit | **SPLIT** — one *source* hit (`run_driver.sh:649`) plus two prose citations in `state/research-state.md`. The substance held; the literal count did not, and prose citations are not readers |
 | P4 | fewer than 80 `auto`, point estimate 45 | **MISS**, and badly — **116**. The estimate came from "the allowlist fails closed"; the whole point of §2 is that it did not |
 | P5 | `unknown program` exceeds all other `manual` reasons combined | **HIT** — 141 vs 79 |
-| P6 | `--run` finds ≥ 1 stale claim, estimate 3 | **HIT** — 6 and counting |
+| P6 | `--run` finds ≥ 1 stale claim, estimate 3 | **HIT** — **15**, across 10 skills |
 | P7 | some `auto` command fails to EXECUTE, not just to match | **HIT** — `C004` skips 19 of 110 before execution |
-| P8 | whole-corpus `--run` under 300 s (flagged at bank time as the weakest line) | **MISS** — 822 s over the first 39 skills alone, ~14× the banked figure |
+| P8 | whole-corpus `--run` under 300 s (flagged at bank time as the weakest line) | **MISS** — **1104 s** for all 77 skills, ~3.7× the banked figure (and contended) |
 | P9 | `0/336` is structural, not configuration | **HIT** — no flag, env var or config reaches `--run` from `corpus_check.py` or `run_checks_fast.sh` |
-| P10 | banked as no-basis: where the C002s land, and whether `auto` is concentrated | **REPORTED**, not guessed — all six are in this program's own skills, none in `skill-authoring`'s block; spread across 6 distinct skills, not concentrated |
+| P10 | banked as no-basis: where the C002s land, and whether `auto` is concentrated | **REPORTED**, not guessed — 15 findings across 10 skills, spread rather than concentrated, and **five of the fifteen are in `skill-authoring`'s own Verification block**, the most of any skill |
 
 **6 HIT, 2 MISS, 1 SPLIT, 1 no-basis-reported, of 10.**
 
@@ -227,12 +251,12 @@ refuted it.
 
 ## 5. Honest failures and what was NOT done
 
-- **The whole-corpus `--run` did not finish inside this round.** It reached
-  39+ of 77 skills at 822 s and was still going. The six C002s are a floor,
-  not a total, and the run shared one core with this session's own tool
-  calls, so the per-skill timings are contaminated upward. Left as a next
-  step with the cost measured.
-- **The six stale claims are reported, not corrected.** Correcting them means
+- **The sweep's 1104 s is contaminated upward** — it shared one core with
+  this session's own tool calls throughout, which is exactly the hazard
+  round 434 recorded and round 431 died of. It is an upper bound, not a
+  runtime, and an earlier draft of this file quoted "39 of 77 at 822 s, still
+  going" because it was written while the sweep was still running.
+- **The fifteen stale claims are reported, not corrected.** Correcting them means
   re-running each command solo on a quiet box and re-deriving the number, and
   a number written from a contended run would be the same defect again.
 - **`claim_check --run` is still not wired into `corpus_check.py`,** so the
