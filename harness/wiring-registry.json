@@ -608,6 +608,11 @@
       "status": "manual",
       "owner": "operator",
       "reason": "Operator tool: swaps the driver script. Only a human decides when; run_driver.sh re-execs itself (round 145) and must not also be swapping itself."
+    },
+    "harness/swe/killerrepin.py": {
+      "status": "wired",
+      "via": "harness/tests/test_swe_killerrepin.py:-",
+      "via_kind": "import"
     }
   },
   "_since_round": "`since_round` on an `unwired` entry is the round that DECLARED the debt, not a guess at when the file stopped being run. W005 therefore measures how long a declared, undischarged deferral has stood -- one full rotation (6 rounds) and it rides in the summary line. Dating it any other way would require inventing a number no record carries."

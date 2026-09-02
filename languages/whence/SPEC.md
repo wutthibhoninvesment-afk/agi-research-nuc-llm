@@ -668,6 +668,29 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    fire on `examples/history.lang`'s `print(culprits)`, a list of blame
    records the next five lines interrogate. See § v0.42.
 
+52. **Observation is what the rendering NAMED, and the suppressor carries the
+   renderer's bound (v0.43, round 450).** Decision 51's companion half —
+   *`print` observes a printed container* — is a claim about TEXT, and
+   nothing compared it against the text. `full_show` rendered a nested miss
+   as the bare token `miss`, so `print([nosuch(1)])` printed `[miss]` and
+   suppressed the report that would have named the reason: **adding a
+   `print` to a program REMOVED information about a miss.** And `full_show`
+   stops at `SHOW_NEST`, so `print([[[[[nosuch(1)]]]]])` prints
+   `[[[[[…]]]]]` — no substring `miss` — while the container was still
+   marked observed and the run said nothing about that miss anywhere. The
+   detector had no depth bound; the suppressor's whole evidence did. So: the
+   FULL rendering names the reason, spelled as the Whence literal
+   (`miss "reason"`, quoted because reasons contain commas), while the
+   BOUNDED snapshot keeps the bare token — the two promises decision 37
+   already wrote down, applied one level in; and `print` marks exactly the
+   miss NODES the rendering named (`values.named_misses`, held to
+   `full_show` by a differential, not by a comment). `SHOW_NEST` is not
+   lifted: it keeps a `RecursionError` out of the explanation path — the
+   same failure `SHOW_INT_DIGITS` (v0.27, round 368) exists to keep out of
+   it, in a language whose rule 2 is *no exceptions*. A `Guess` is walked, because the drop
+   rule's predicate is REACHABILITY after the statement and not the value's
+   epistemic status. See § v0.43.
+
 ## Syntax (statements are newline-separated; `#` comments)
 ```
 let x = 12                        fn add(a, b) { a + b }
@@ -8953,7 +8976,7 @@ interior.
 tracked corpus       18 file(s), 1 drop      before and after     (unmoved)
 curecheck.py corpus  12 miss value(s) dropped before and after    (unmoved)
 curecheck.py replay  23 miss value(s) dropped before and after    (unmoved)
-run_tests_fast.sh    2245 -> 2287 passed, 3 skipped, 97 deselected
+run_tests_fast.sh    2245 -> 2286 passed, 3 skipped, 97 -> 98 deselected
 ```
 
 The class decision 52 closes is real and demonstrable in three lines; its

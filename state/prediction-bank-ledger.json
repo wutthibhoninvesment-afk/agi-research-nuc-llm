@@ -964,9 +964,11 @@
   },
   "450": {
    "bank": "state/whence/round-450/PREDICTIONS.md",
-   "status": "unscored",
-   "owner": "language(C)",
-   "why": "banked and committed at d3d4f32 before any measurement; this round scores it in its own knowledge file and will flip this entry to scored before its final commit."
+   "status": "scored",
+   "scored_by": 450,
+   "where": "knowledge/round-450-the-promise-the-renderer-did-not-keep.md",
+   "quote": "**11 HIT, 1 PARTIAL, 4 MISS of 16.**",
+   "note": "Section 8, one table row per banked line, all 16. The bank fixed its DISPOSITION before the numbers (round 419's rule): implement (a) AND (b) together on the argument that (b) alone re-opens the history.lang false positive, whatever the measurement showed -- so no result could choose the fix. THREE claims established by READING are recorded in the bank as DERIVED, in their own section, so they could not be re-labelled as hits; one of them (D1) records a suspicion I had before banking and disproved by reading, namely that round 446's 'eleven pinned killers' claim was about the bounded show_payload path -- it is about full_show and the claim was right. The two MISSes that matter are one family: P11 and P12 both banked a claim about `guess(nosuch(1), 0.5, [])`, a program COPIED from round 446's own prose without running it, which builds no Guess at all (the miss propagates and the source is not a string). The mechanism in both was right; the program was not one the mechanism applies to. Round 449's lesson was that a bank line whose mechanism is an `ls` deserves the verdict its mechanism earns; round 450's is the mirror image -- A BANK LINE THAT QUOTES A PREDECESSOR'S EXAMPLE INHERITS THAT EXAMPLE'S DEFECTS, and running it costs one second. That miss is also the round's best finding, because the invalid example is the one v0.42 cited as MEASURED for a live code branch. P2 was banked as a separate low-confidence line precisely so a wrong bracket count could not hide inside P1's correct finding about observation; it is the MISS and P1 is the HIT. P15 is the clean informative miss: I expected str() being full_show to make decision 52 visible outside the generated-oracle file and the limit gate confined it so tightly that nothing else in 2245 tests noticed, which is evidence about the gate rather than about luck. P10 is PARTIAL -- _observed_aggr survives as predicted, but TWO test_v42.py bodies moved where the bank said one, and the second is the unbanked compositionality finding."
   }
  }
 }

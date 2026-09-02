@@ -2325,5 +2325,31 @@
   "id": "eda-neg-single-use-helper",
   "expect": [],
   "prompt": "I extracted a 12-line retry loop out of one function into a helper because the function was getting long. There was only ever the one call site. Should I be worried the helper drifts from its caller?"
+ },
+ {
+  "id": "drgo-near",
+  "expect": [
+   "differential-repin-of-a-generated-oracle"
+  ],
+  "prompt": "I changed how our formatter renders nested nulls and now 14 approval tests are red. The .approved files are generated and the header says don't edit them by hand. Is `--update-approved` the answer or is there something safer?"
+ },
+ {
+  "id": "drgo-mid",
+  "expect": [
+   "differential-repin-of-a-generated-oracle"
+  ],
+  "prompt": "We have a directory of __snapshots__ from jest. A deliberate refactor moved 30 of them. My worry is that some of those 30 moved for a reason I didn't intend and running -u would bury it. How do I tell the two apart without reading 30 diffs by eye?"
+ },
+ {
+  "id": "drgo-far",
+  "expect": [
+   "differential-repin-of-a-generated-oracle"
+  ],
+  "prompt": "Our golden files were produced by a generator whose input corpus was deleted years ago. Each one is just `assert output == <big blob>`. Nothing else records what any of them was supposed to catch. A schema change is about to move a bunch of them and I don't want to just paste in the new blobs."
+ },
+ {
+  "id": "drgo-neg-handwritten",
+  "expect": [],
+  "prompt": "I have a hand-written test asserting `format_price(3) == \"$3.00\"` and my change makes it `\"$3\"`. The new output is what I want. Should I do anything special before editing the assertion?"
  }
 ]

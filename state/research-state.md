@@ -23436,6 +23436,222 @@ errors, `test_wiring_audit.py` 62 passed — and committed unchanged as
   measurement artefacts);
   `knowledge/round-449-one-definition-one-adopter.md`.
 
+### Round 450 — language(C) — 2026-09-02 — the promise the renderer did not keep
+
+- **Landed a predecessor's orphan FIRST** (`d486aca`).
+  `state/slow-tier-ledger.jsonl` row 47, written 08:28:48Z by the driver's
+  post-round `slowtier-slice` for round 449, after round 449's last commit.
+  The EIGHTH consecutive round to inherit one — regular enough now to name
+  the mechanism rather than the instance: the driver appends to a TRACKED
+  file after the round that produced the measurement has exited, so only the
+  NEXT round can ever land it.
+- **HEADLINE: v0.42's "a printed container is observed" was a claim about
+  TEXT that nothing compared against the text.** It was false two ways and
+  the one v0.42 WROTE DOWN was the mild one. Mild: `full_show` rendered a
+  nested miss as the bare token `miss`, so `print([nosuch(1)])` printed
+  `[miss]`. Stated sharply, which round 446 did not — **adding a `print` to a
+  program REMOVED information about a miss**, because the print suppressed
+  the drop report, the one mechanism that would have named the reason.
+  TOTAL, and unnamed by anyone: `full_show` stops at `SHOW_NEST`, so
+  `print([[[[[nosuch(1)]]]]])` prints `[[[[[…]]]]]` — a line with no
+  substring `miss` in it — and the container was still marked observed, so
+  the run said NOTHING about that miss from any mechanism and exited 0.
+- **The detector had no depth bound and the suppressor's whole evidence did.**
+  That is round 446's own `suppressor-shares-the-detector-shape` class, left
+  inside round 446's own fix, four rounds later. Why it survived: the mild
+  residual is the one you can SEE. `[miss]` reads as a quality gap and gets
+  written into a docstring; `[…]` reads as ordinary truncation and is
+  invisible precisely because there is nothing to look at.
+- **Round 446's next-step 1 asked (a) or (b); the answer is that they are not
+  alternatives.** (b) — *a container is observed only when it renders every
+  miss inside it* — is unreachable alone, because under the v0.42 rendering a
+  container renders no reason ever, so (b) by itself hands back the
+  `history.lang` false positive that forced v0.42's companion half. The
+  disposition was fixed in the bank BEFORE the numbers (round 419's rule).
+- **Decision 52, half one: the rendering, limit-gated.** `values._show` names
+  the reason when `limit is None` — `print` and `str` — and keeps the bare
+  token under any finite limit. The argument was already in the repo:
+  decision 37's comment in `b_show` states BOTH contracts (*"`str` is
+  `full_show` — unbounded, a miss lists its reasons"* vs *"every MISS MESSAGE
+  … a miss is the word `miss`"*), and `full_show` kept the first at the TOP
+  level only. Spelled `miss "reason"` — the Whence literal, SPEC *Finding 5*,
+  the spelling the language's own cure sentence tells an author to write —
+  and QUOTED because reasons contain commas (`arguments fit fold(fn, acc,
+  xs)`), so the quotes are load-bearing. Source-SHAPED, **not** a round trip,
+  and the test pins the gap (`miss "gone"` has runtime reason
+  `gone (line 1)`).
+- **Decision 52, half two: the suppressor is DERIVED from the renderer.**
+  `b_print` marks exactly the miss NODES the rendering named
+  (`values.named_misses`, mirroring `full_show` branch for branch), not the
+  container. Held together by a DIFFERENTIAL over 15 values — *the reason is
+  in the text iff the walk claims it*, with cases on both sides of the bound
+  (four levels named, five not) — because a docstring saying two walks agree
+  cannot fail. Falsified by monkeypatching `named_misses` to the DETECTOR's
+  unbounded shape: the deep case goes silent again with byte-identical
+  stdout. `SHOW_NEST` deliberately NOT lifted — it keeps a `RecursionError`
+  out of the explanation path, which is round 368's whole argument.
+- **An unbanked consequence: observation was not COMPOSITIONAL.** v0.42 gave
+  `[print(nosuch(1)), 1]` 0 drops and `print([nosuch(1)]) + [2]` 1 drop —
+  the same information to the reader, differing only in whether `print`'s
+  argument was the miss or the container around it — and reported a node
+  three lines below its own printed reason. Both are 0 now. v0.32's actual
+  rule is untouched and pinned: `print(nosuch(1)) + 1` builds a NEW miss node
+  and is still a drop. The moved `test_v42.py` pin is renamed to say it
+  changed and carries the argument.
+- **`Guess`: v0.42's written justification named a program that cannot reach
+  the branch.** SPEC § v0.42 and `_misses_within`'s docstring both say the
+  case was MEASURED: `guess(nosuch(1), 0.5, [])`. That program builds no
+  `Guess` — `guess` propagates a miss argument, and a guess source must be a
+  string — and at round 446's own HEAD it reports 1 drop, v0.32's plain
+  scalar case. The real case is `guess([nosuch(1)], 0.5, "s")`, which
+  reported NOTHING, and so did `[guess([nosuch(1)], 0.5, "s")]`. v0.43 walks
+  it, on v0.32's own argument: **the drop rule's predicate is REACHABILITY
+  after the statement, not the value's epistemic status.** This was banked as
+  P11 and is a scored MISS; it is the round's best finding and it cost one
+  second of running the program the prose named.
+- **Blast radius: 11 of 64 oracles in a `do not edit by hand` generated file
+  whose generator inputs are gone.** MEASURED before being abandoned: the
+  obvious verification ("rebuild the mutant from its id") scores **0 of 64** —
+  a mutant id is a line number plus a generation counter and both move on
+  every edit; `interp.py:486:ifneg#150`'s description names **486** sites in
+  today's file. New `harness/swe/killerrepin.py` discharges the obligation
+  that IS available: run each pinned program against a baseline ref AND the
+  working tree, rewrite only when the BASELINE reproduces the old pin exactly
+  — so every rewritten byte is attributable to the declared diff, and a pin
+  neither tree reproduces is `stale` and refused. `64 pins: holds 53, repin
+  11, stale 0`, every moved leaf inside `vals`/`out`, diff exactly 11+/11−,
+  byte-identical to a freshly generated file.
+- **Corpus, before and after, which is what round 446 asked for:** tracked
+  1 → 1; `curecheck.py corpus` 12 → 12; `replay` 23 → 23. **The class is real
+  and demonstrable in three lines and its yield on this corpus is ZERO**,
+  published as zero in the voice round 446 used to publish its yield of one.
+- **Predictions (D-013):** `state/whence/round-450/PREDICTIONS.md`, committed
+  `d3d4f32` before any measurement. **11 HIT, 1 PARTIAL, 4 MISS of 16**, plus
+  3 claims recorded as DERIVED-by-reading (so they could not be re-labelled
+  as hits; one of them corrected my own first reading) and 2 no-basis items
+  reported. P11 and P12 are one family and the lesson is the mirror of round
+  449's: **a bank line that quotes a predecessor's example inherits that
+  example's defects.** P2 was banked separately from P1 on purpose so a wrong
+  bracket count could not hide inside a correct finding — it is the MISS.
+  P15 is the clean miss worth keeping: I expected `str()` being `full_show`
+  to make this language-visible outside the oracle file, and the limit gate
+  confined it so tightly that nothing else in 2245 tests noticed.
+- **Suites, run LAST and SOLO** (nproc 1; nothing else running, which is the
+  contention condition a wall-time band needs). `languages/whence/
+  run_tests_fast.sh` **2286 passed, 3 skipped, 98 deselected in 240.95s,
+  rc 0** (was 2245/3/97). `tests/test_v43.py` 42 passed;
+  `test_swe_killerrepin.py` 9 passed; `skill_lint --house --strict` 2
+  skill(s) 0 errors 0 warnings. The intermediate run is kept because it is
+  what makes P4/P5 scorable: after the rendering change ALONE,
+  `11 failed, 2234 passed` — confirming the 2245 baseline by arithmetic.
+  240.95 s solo against round 449's 866.77 s for the same tier under the
+  driver's four-way concurrency re-confirms the ~3.3x penalty in the other
+  direction. The HARNESS tier caught something and it was mine: three
+  `test_wiring_audit.py::TestThisTree` reds, one cause —
+  `W001 harness/swe/killerrepin.py — entry point with no registry entry`. A
+  new module with an `argparse` main is an entry point and this tree makes
+  you declare how it is reached (`harness/wiring-registry.json`, 116 → 117).
+  Recorded rather than fixed silently: the check did exactly what it exists
+  for, on the first new entry point since it was written.
+- **Skills.** UPGRADED `suppressor-shares-the-detector-shape` (211 → 311
+  lines) with step 4b (hold the halves by differential, cases on both sides
+  of every bound the artefact has) and three pitfalls, chief among them *the
+  suppressor's evidence has a bound and the detector does not* — whenever the
+  excuse is "some artefact shows it", that artefact has caps the detector
+  does not (nesting depth, `head -n`, `LIMIT 100`, a 4 KB message). NEW
+  `differential-repin-of-a-generated-oracle` (8 steps, 7 pitfalls, 4
+  Verification commands all run first), which generalises past mutation
+  killers to every snapshot/approval/golden/cassette file that ships a `-u`
+  unable to tell your change from a regression it caused. 4 cases (350 →
+  **354**, one negative). Registered UNPROBED (28 → **29**, thirteenth
+  consecutive round of growth) and the batch **re-derived rather than
+  carried**: 100 positive cases × 5 = 500 probes at round 447's measured
+  $0.0584 = **$29.20**, not $26.57 and not "a floor". The RATE is the one
+  half not re-derived, so it is the half to distrust.
+- See `knowledge/round-450-the-promise-the-renderer-did-not-keep.md`.
+
+## Next steps (as of round 450)
+
+1. **`SHOW_NEST` is now the only thing between a reader and a deep miss, and
+   nothing measures how often that bites.** v0.43 reports what the renderer
+   could not show, which is the honest answer and not the complete one: a
+   miss five levels down is REPORTED but never RENDERED, so `print(x)` and
+   `str(x)` still cannot show it to a program. The open question is whether
+   the FULL rendering should carry a depth-bounded-but-deeper cap of its own
+   (`SHOW_NEST` exists for host frames, and `full_show` already pays O(n) in
+   elements), and it needs a number: the deepest value any corpus program
+   actually builds. Nobody has measured that. language(C).
+2. **The `Guess` finding is a checkable CLASS and this round only fixed the
+   instance.** *A decision's written justification cites a program in which
+   the branch it justifies is unreachable.* It is mechanically detectable
+   wherever a docstring says "measured the case (`<program>`)" — run the
+   program, assert the value's TYPE is the one the branch tests. This repo
+   has many such sentences and exactly one has now been checked. A proposed
+   skill name is `cited-case-must-exercise-the-branch`; it is recorded as a
+   pitfall in `suppressor-shares-the-detector-shape` this round rather than
+   authored, to keep the unprobed batch at +1. skills(B).
+3. **`killerrepin` can re-pin, and nothing schedules it.** The tool exists
+   and its own suite pins the green-tree statement, but the next deliberate
+   language change will still surface as eleven mystery reds unless someone
+   knows to run it. Either the whence tier should fail with a pointer, or
+   `killers.py`'s generated header should name it. One line either way.
+   harness(A) or SWE-loop(D).
+4. **`--audit-ids` says 0 of 64 and that number should be a tripwire, not a
+   footnote.** The generated killers' only record of what each test catches
+   is a coordinate that has fully decayed. A campaign that re-generated them
+   would restore it; nobody has costed that. Until then every one of those 64
+   tests is an assertion whose subject is unknown, which is a real gap in the
+   mutation-score story this program publishes. SWE-loop(D).
+5. **Round 446's item 3 is now the oldest untouched language(C) item.** Round
+   444's items 1-3 were never re-derived, and this round did not touch them
+   either. Its item 2 (*an ABSENCE carries a reason and nothing re-derives
+   one*) has a fresh live example: § 9 of this round's knowledge file is six
+   deliberate absences and FOUR of them have a test (the depth cap, the
+   unchanged bounded renderer, the non-round-trip, the no-dedupe-by-reason
+   rule); the two without are the two that are not testable at all — that
+   the re-pinned killers were not re-proved to kill, and that neither skill
+   was probed. language(C) or skills(B).
+6. **Round 435's item 1 and round 434's items 2-5 stand, UNCHECKED for the
+   fifth consecutive round.** `polarity.py audit`'s 5 MISPOINTED against a
+   registry whose own header calls 0 its criterion; the atom table's
+   decided-precondition risk; the 7 `append_only`/`refusal` `unknown`
+   residuals; CP03p as the one pin whose decision moves the contingency
+   table; and `classify` 161 vs `checkpin run` 162. This round chose the
+   rendering residual over all five because round 446 named it FIRST and it
+   had a runnable three-line demonstration; that is a reason, not an excuse.
+   language(C).
+7. **Round 449's items 1-4 and 6-8 stand, untouched by this round** — the
+   adoption census beyond round headings, `state_claim_check`'s fourth
+   parser, `toolliveness`'s latent span fix, whether `## Next steps (as of
+   round N)` belongs to round N's scope, the confirmed-and-closable V002
+   carry, round 447's items 2-4, and round 445's items 1-3. harness(A),
+   skills(B), SWE-loop(D).
+8. **Round 448's items 1-5 stand** — the perishable `sa23`/`sa24` capture,
+   `Persistent=` scored against the derived `false`, the two-command standing
+   E action, the `tailscale_last_seen_utc` drift, and round 436's items 4-6
+   and 9. NUC-integration(E).
+9. **The unprobed batch is 29 and its price is $29.20, re-derived this round
+   rather than carried.** Round 449's note asked for exactly that and this
+   round paid it; what is still unpaid is the PROBES. The rate ($0.0584) is
+   round 447's and was not re-measured, so it is the half to distrust first.
+   Operator authorisation remains the only missing input. skills(B).
+10. **`nproc` on this box is 1**, respected: every suite ran solo and the
+   round says so beside each wall time. 240.95 s solo against round 449's
+   866.77 s contended for the same tier is the fourth independent
+   reproduction of the ~3x penalty. any track.
+11. **Standing, and not touched by this round:** the NUC `retention --strict`
+   deadline; the `%vmeff` residual; `case_coverage`'s disagreeing verdicts;
+   `claim_check` executing 0 of its commands; the operator-blocked
+   `--cap 196`; the exhausted E-mission list; and CLAUDE.md's `CRITICAL
+   MISSION` block, which round 444 REFUTED rather than re-escalated and
+   round 446 traced to its most likely ORIGIN (`fold needs a list, got <fn
+   add_item>` inside a dropped miss). It is still a deletion only the
+   operator should make — and note that v0.43 changes what that reader would
+   see today: the miss inside the dropped value now RENDERS its reason.
+   `languages/whence/SECURITY.md` is still uncommitted, still not this
+   program's, and still the operator's decision — do not copy a carry count
+   for it from this file; the checker's own line is the only source.
+
 ## Next steps (as of round 449)
 
 1. **The adoption census covers ROUND HEADINGS only, and the same question is
