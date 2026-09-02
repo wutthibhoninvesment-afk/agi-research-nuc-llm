@@ -772,6 +772,35 @@ node per run, call-free code runs as compiled closures (3–5× faster), and
    488 test programs by at most 3 levels, against 86x on `examples/` — a
    test BINDS the value it is about and an example throws it away, which is
    decision 54's rule seen from the other side. See § Decision 55.
+56. **A residual is a claim about the INSTRUMENT and is as falsifiable as
+   the corpus: audit it in BOTH directions, and count a call excluded for a
+   stated reason separately from a call that defeated the walk (round
+   462).** `depthcensus.py`'s test-corpus harvester shipped in round 458
+   with a declared residual of 258, on the rule that an instrument which
+   returns a corpus without saying what it could not reach reads as
+   exhaustive. That rule is right and the number it produced was wrong in
+   **both** directions at once. `_EXEC_ATTRS` answered two questions with
+   one tuple — *does this call execute guest source?*, the seed of the
+   runner fixed point, and *is its first argument a source string?*, what
+   puts a node in a source position — and the two disagree on real code:
+   `subprocess.run([sys.executable, RUN, path])` has an argv LIST for arg0
+   (45 calls, 43 of them in the residual) and `interp.exec_stmt(
+   prog.stmts[0], env)` an already-parsed statement (17 calls, 8 in the
+   residual). **51 of the 131 non-constant nodes — 39% of that class and
+   20% of the whole declared residual — were never a blind spot at all.**
+   The recall half is the class where the right answer is SEVERAL programs:
+   `val("A" if C else "B")`, and a `%` template driven by a
+   `for spec, want in TABLE:` row. A `str | None` folder cannot express
+   either, so `_const_strs` returns the LIST of strings a node denotes,
+   capped at `MAX_FOLD = 32` with the cap as a counter. **488 -> 559
+   programs, a strict SUPERSET with 0 of round 458's programs lost;
+   residual 258 -> 166; excluded-and-counted 0 -> 67**, reconciled against
+   the walk as `918 + 45 + 22 = 985` exactly. **No constant moves**, and
+   the corpus was never contaminated: 0 harvested programs came from an
+   excluded site, before or after, so what was wrong was the self-report
+   and not the measurement. An overstated blind spot is not the safe error
+   — it hides a precision bug behind a number that reads as humility.
+   See § Decision 56.
 
 ## Syntax (statements are newline-separated; `#` comments)
 ```
