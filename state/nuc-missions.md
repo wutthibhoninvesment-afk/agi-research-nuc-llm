@@ -2632,3 +2632,135 @@ it guards (5 falsifiers, 8/2/2/2 tests red respectively).
 6. **Still blocked on the operator:** `--cap 196` (band [129, 204],
    `bounded_by: engine_lru`, 1.096 GB margin — **twenty-third** round
    unchanged) and the E3 A/B with its full six-gate table.
+
+## Round 460 (NUC-integration E) — 2026-09-02, box **DOWN** the whole round; FIFTH consecutive down window (436, 442, 448, 454, 460), one continuous outage
+
+**Reachability.** Two probes, one per documented path, both before any code
+ran; CLAUDE.md's two-failure rule fired after the second.
+
+- tailnet `ssh -o ConnectTimeout=12 -i ~/.ssh/id_ed25519 jab@100.78.44.111`
+  issued 2026-09-02T19:33:25Z -> `Connection timed out`, rc 255, by 19:33:37Z.
+- LAN `ssh -i ~/.ssh/id_ed25519_nuc jab@192.168.1.37` at 19:33:37Z -> same,
+  **and the key still does not exist on this host**, so that path proves
+  nothing either way.
+- `tailscale status --json`: `Online false`,
+  `LastSeen 2026-09-01T18:27:56.1Z` — **byte-identical to rounds 448 and
+  454**, so 436/442/448/454/460 is ONE outage. `status`: **24h22m15s**
+  confirmed, upper bracket 25h24m57s. It passes the longest completed streak
+  in this log (19h38m06s) by a *definite* 1h59m48s and the longest unobserved
+  one (14h00m00s) by 10h22m15s — **the longest outage this log has confirmed.**
+  Round 460's row appended as `live-replay-r460`, and this time by a program.
+
+**Headline: `precision` has been on every row since round 310 and no rule ever
+read it.** 20 of 61 rows are `coarse` (a `boot + minute-truncated uptime`
+reconstruction, so a LOWER bound on the true instant); 23 of 53 gaps have a
+coarse endpoint; those gaps carry **60.3% of `unobserved_total_s`** (239090 s
+of 396378 s). The headline `max_unobserved_outage`, printed as exactly
+`14h00m00s`, is really **13h59m00s .. 14h01m00s** — a round number produced by
+two minute-truncated endpoints agreeing on their seconds field. The RANKING
+survives (runner-up 27780 s), and the new audit reports those two facts
+separately.
+
+Every comparison in `_gap_witness` now runs on the bound that makes its claim
+harder. The dangerous one is the accusation branch: a coarse `checked_at_utc`
+understates when a gap STARTED, which is the direction that sweeps a sighting
+into the gap and manufactures a missed excursion. Round 448 fixed that hazard
+on the LastSeen side; it was sitting on the `checked_at_utc` side the whole
+time, on 20 rows the log had already flagged. A bracket that straddles a
+boundary now decides nothing — neither witness nor accusation.
+
+**And it changes nothing today.** New `precision-audit [--strict]` runs the
+rules twice, once with every timestamp declared exact, and diffs: **0 unearned
+claims, 0 unearned missed excursions.** The guards are preventive; `--strict`
+goes red the day that stops being true. One reachable path to an unearned
+claim is pinned by a fixture. A property that explains the empty list: a
+witness can never be lost to the EARLIER check's precision, because witnessing
+reads that check's lower bound and coarseness only opens a bracket forward.
+
+**Round 454's item 4, DONE — as a bracket, not a division.** The plaintext age
+renderer was CALIBRATED against `--json`'s exact `LastSeen` on this host, four
+peers, same instant: it FLOORs (macbook 7.638m -> `7m`, REDMI 13.7045d ->
+`13d` both discriminate), one integer, one unit, never compound. Round 190 read
+`3h` **twice**, 6m18s apart, from two different Bash calls — an ssh-only scan
+sees one, the new `transcript_lastseen_readings` sees both — and the two
+brackets intersect to `[04:03:21Z, 04:57:04Z]`, 3223 s instead of 3601 s,
+tightened by exactly the spacing. **Round 196's JSON `LastSeen`
+(04:48:21.1Z, read three hours later by a different check) falls inside it**,
+45m00.1s above the floor and 8m42.9s below the ceiling; under round-to-nearest
+the bracket would miss it by nine minutes. That cross-check re-derives rather
+than reading the committed row, so it falsifies the MODEL.
+
+The bracket witnesses gap 184->190 directly, replacing round 454's inherited
+forward witness. No published number moves.
+
+**Round 454's item 3, CLOSED.** The up-side split-gap regression was "latent
+and unexhibited"; the exhibit is a fixture and was cheaper than waiting for the
+row that creates one. Fix is round 454's own argument run outward: bracketing
+readings on both sides of a gap that agree on `boot_utc` (within round 376's
+5 s jitter) rule out a reboot across the whole span. **May witness, may not
+accuse.** Live: rounds 202/220/226/250 all report boot `2026-08-27T11:50:48Z`
+to the second, so **seven gaps** move from `none` to `reboot_only`. No headline
+number moves — but `_silence_upgrade` is keyed on `REBOOT_ONLY`, so **16h49m
+(15.3% of the log's ignorance) is now one journal capture away from a bound
+instead of permanently out of reach.**
+
+**Two things nobody was running.** (1) `lastseen-drift --strict` has been
+exiting 1 since round 448 introduced it and no round file says so, because
+nothing runs the strict instruments — they run when an E round remembers, every
+sixth round at best. `nuc/run_checks_fast.sh` now prints
+`nuc-instruments coverage=0 precision-audit=0 lastseen-drift=1` every round,
+DIAGNOSTIC ONLY: the `nuc-checks ...` line is parsed by
+`harness/driver_health.py` and widening that contract is harness(A)'s artifact.
+(2) **`live-replay-r<N>` appeared in NO source file** — rounds 448 and 454 both
+typed it. New `reachability_check.py replay` is the producer, running `check`'s
+own code path with observations injected through its existing test seams.
+
+**A finding about this repo, not the NUC.** `.gitignore:20` excludes
+`logs/round-*.json`, so round 454's recovered rows are pinned against files
+deliberately not in the repository. A pristine `git worktree` at HEAD gives
+**11 failed / 857 passed**; with the seven transcripts symlinked in, 866
+passed / 2 failed (both environmental) / 1 skipped.
+
+**Tests:** `nuc/tests` **869 -> 915, all green** (103.17 s); `nuc-checks PASS`
+(**ninth** consecutive). Nine falsifiers, each red on exactly its guards
+(10/1/2/3/5/2/6/4/2).
+
+**Predictions (D-013):** `nuc/predictions-e-round460.md`, banked before any
+instrument ran. **13 HIT, 1 PARTIAL, 0 MISS of 14**, plus one declared
+no-basis item resolved. The PARTIAL is P12 and it is a PROCESS failure: a
+baseline predicted but never measured pristine, which is only measurable in a
+worktree and only after the tree was already dirty.
+
+**E-mission status: E1-E5 all still DONE; nothing new unchecked.**
+
+**Next E round, in order:**
+1. **`coverage --strict` AND `precision-audit --strict` FIRST**, before
+   anything else. Both are green today; `precision-audit` going red means the
+   log has started publishing conclusions drawn from digits it flagged as
+   rounded, and the round file must name the gap before writing prose.
+2. **If the box is up, capture `sa23`/`sa24`/`sar23`/`sar24` BEFORE anything
+   else**, then the current `capture_plan`. Round 448's items 1-3 still need a
+   reachable box; in particular READ `Persistent=` — if it says `true`, round
+   448's §2 correction is wrong in the dangerous direction and must be
+   withdrawn loudly. **Then capture a journal interior covering rounds
+   202-250**: seven gaps and 16h49m are now REBOOT_ONLY and therefore eligible
+   for the BOUNDED upgrade that was unreachable for them before round 460.
+   This is the single largest reduction in this log's ignorance now available.
+3. **The `.gitignore` question is the operator's, and it is a real one.**
+   Seven log rows and eleven tests depend on `logs/round-*.json`, which is
+   ignored on purpose. Either the provenance claim is weaker than round 454's
+   prose says, or those seven transcripts belong in the repo. Do not "fix" it
+   by deleting the tests; say which of the two is intended.
+4. **Widening the `nuc-checks` line to carry the strict instruments' exit
+   codes is harness(A)'s call**, not E's — `harness/driver_health.py` parses it
+   and `harness/tests/test_nuc_health_line.py` pins the format. `coverage` and
+   `precision-audit` are the two that mean "a published conclusion is wrong";
+   `lastseen-drift` means "the field moved again" and is arguably information,
+   not a break.
+5. Round 448's item 4 (round 436's items 4-6 and 9) stands **untouched** for a
+   third round: the `commit` channel vs the 9.25 GB load, `Consumed` coverage
+   at 4 of 26 units, the 13 costly buckets named by no fire, and the
+   separability route.
+6. **Still blocked on the operator:** `--cap 196` (band [129, 204],
+   `bounded_by: engine_lru`, 1.096 GB margin — **twenty-fourth** round
+   unchanged) and the E3 A/B with its full six-gate table.

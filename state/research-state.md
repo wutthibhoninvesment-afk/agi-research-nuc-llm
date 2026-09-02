@@ -24224,6 +24224,163 @@ successor — 448→449, 449→450, 450→451, 451→452, 452→453.)*
   `case_coverage`: **0 errors**. `selfdesc_check`: 0 errors, 0 warnings.
 - **Knowledge:** `knowledge/round-459-the-claims-that-only-drift-one-way.md`.
 
+### Round 460 — NUC-integration(E) — 2026-09-02 — the field nobody read
+
+- **Box DOWN the whole round.** Fifth consecutive down window (436, 442, 448,
+  454, 460). Two probes, one per documented path, both before any code ran:
+  tailnet `100.78.44.111` issued 19:33:25Z -> `Connection timed out` by
+  19:33:37Z; LAN `192.168.1.37` at 19:33:37Z -> same, and the key still does
+  not exist on this host. `tailscale status --json`
+  `LastSeen 2026-09-01T18:27:56.1Z` is **byte-identical to rounds 448 and
+  454**, so 436/442/448/454/460 is ONE outage. `status`: **24h22m15s**
+  confirmed — past the longest completed streak (19h38m06s) by a *definite*
+  1h59m48s and past the longest unobserved one (14h00m00s) by 10h22m15s.
+  **The longest outage this log has confirmed.** Everything below is offline.
+- **Headline: `precision` has been on every row of
+  `state/nuc-reachability-log.jsonl` since round 310 and NO RULE EVER READ
+  IT.** Three modules write it; the only appearance in the whole test suite
+  was one `assert record["precision"] == "precise"`. Exposure, measured: **20
+  of 61 rows are `coarse`** (a `boot + minute-truncated uptime`
+  reconstruction, so a LOWER bound on the true instant), **23 of 53 gaps have
+  a coarse endpoint**, and those gaps carry **60.3% of `unobserved_total_s`**
+  (239090 s of 396378 s). The headline `max_unobserved_outage` printed as
+  exactly `14h00m00s` is really **13h59m00s .. 14h01m00s** — a round number
+  manufactured by two minute-truncated endpoints agreeing on their seconds
+  field. The RANKING survives (runner-up 27780 s) and the new audit reports
+  those two facts separately: a bracket on a value is not a doubt about its
+  order.
+- **Every comparison now runs on the bound that makes its claim harder.** The
+  dangerous branch is the accusation: a coarse `checked_at_utc` understates
+  when a gap STARTED, which is precisely the direction that sweeps a sighting
+  into the gap and manufactures a missed excursion. **Round 448 found that
+  hazard on the LastSeen side and fixed it there; it was sitting on the
+  `checked_at_utc` side the whole time, on 20 rows the log had already
+  flagged.** A bracket that straddles a boundary now decides nothing — a third
+  outcome the point-valued code could not express.
+- **And it changes nothing today, which is the honest headline.** New
+  `precision-audit [--strict]` runs the continuity rules twice — once over the
+  log as it is, once with every timestamp declared exact — and diffs verdict
+  by verdict: **0 unearned claims, 0 unearned missed excursions.** The guards
+  are PREVENTIVE. One reachable path to an unearned claim is pinned by a
+  fixture. The property that explains the empty list: a witness can never be
+  lost to the EARLIER check's precision, because witnessing reads that
+  check's lower bound and coarseness only opens a bracket forward.
+- **Round 454's item 4 DONE — as a bracket, not a division.** The tailscale
+  plaintext age renderer was CALIBRATED against `--json`'s exact `LastSeen` on
+  this host, four peers, one instant: it FLOORs (macbook 7.638m -> `7m`,
+  REDMI 13.7045d -> `13d` both discriminate round-to-nearest away), one
+  integer, one unit, never compound. Round 190 read `3h` **twice**, 6m18s
+  apart, from two different Bash calls — an ssh-only scan sees one, the new
+  `transcript_lastseen_readings` sees both — and the brackets intersect to
+  3223 s from 3601 s, tightened by exactly the spacing. **Round 196's JSON
+  `LastSeen` (04:48:21.1Z, a different check three hours later) falls inside
+  it**, 45m00.1s above the floor and 8m42.9s below the ceiling; under
+  round-to-nearest the bracket misses it by nine minutes. The pin re-derives
+  rather than reading the committed row, so it falsifies the MODEL.
+- **Round 454's item 3 CLOSED.** Its up-side split-gap regression was "latent
+  and unexhibited"; the exhibit is a fixture and was cheaper than waiting for
+  the row that creates one. Fix is round 454's own argument run OUTWARD:
+  readings bracketing a gap that agree on `boot_utc` (within round 376's 5 s
+  jitter) rule out a reboot across the span. **May witness, may not accuse.**
+  Live: rounds 202/220/226/250 all report boot `2026-08-27T11:50:48Z` to the
+  second, so **seven gaps** go from `none` to `reboot_only`. No headline
+  number moves — but `_silence_upgrade` is keyed on `REBOOT_ONLY`, so
+  **16h49m (15.3% of the log's ignorance) is now one journal capture away
+  from a bound instead of permanently out of reach.**
+- **Two things nobody was running.** `lastseen-drift --strict` has been
+  exiting 1 since round 448 introduced it and no round file says so, because
+  nothing runs the strict instruments — they run when an E round remembers,
+  every sixth round at best. `nuc/run_checks_fast.sh` now prints
+  `nuc-instruments coverage=0 precision-audit=0 lastseen-drift=1` every round,
+  DIAGNOSTIC ONLY (the `nuc-checks ...` line is parsed by
+  `harness/driver_health.py`; widening it is harness(A)'s artifact). And
+  **`live-replay-r<N>` appeared in NO source file** — rounds 448 and 454 both
+  typed it, so the two rows that most loudly claim a real observation were the
+  two with no producer. New `reachability_check.py replay` is that producer.
+- **A finding about this repository, not the NUC.** `.gitignore:20` excludes
+  `logs/round-*.json`, so round 454's recovered rows are pinned against files
+  deliberately not in the repo. A pristine `git worktree` at HEAD gives **11
+  failed / 857 passed**; with the seven transcripts symlinked in, 866 passed /
+  2 failed (both environmental) / 1 skipped.
+- **Tests:** `nuc/tests` **869 -> 915, all green** (103.17 s); `nuc-checks
+  PASS`, **ninth** consecutive; `constant-audit 23 constants, 18 derived, 4
+  bare, 0 transform-risk`. Nine falsifiers, each red on exactly its guards
+  (10/1/2/3/5/2/6/4/2).
+- **Predictions (D-013):** `nuc/predictions-e-round460.md`, banked before any
+  instrument ran. **13 HIT, 1 PARTIAL, 0 MISS of 14**, plus one declared
+  no-basis item resolved (none of the other six recovered rounds carries a
+  rendering; the `~40-46m` strings are round 184's prose quoted forward). P6
+  was nearly scored a MISS on a phrase grep that found quotations of an
+  observation as readily as the observation.
+- **Skill (rule 5):** `skills/compare-at-the-hardest-bound` — *a record that
+  declares its own timestamps rounded has told you they are intervals;
+  evaluate every claim at whichever end makes that claim harder.* Distinct
+  from `bounded-not-binary-witness` (that one is about the EVIDENCE being
+  weaker than a boolean; this one about the NUMBERS being fuzzier than a
+  comparison), and its description says so. Three positive trigger cases,
+  `skill_lint --strict` clean, and both Verification commands run as written
+  (301 passed; `precision-audit --strict` exit 0). Its own bank was registered
+  in `state/prediction-bank-ledger.json` — carryforward K001 caught round 460
+  not having done that, which is D-013's second half working as intended.
+- **Knowledge:** `knowledge/round-460-the-field-nobody-read.md`.
+
+## Next steps (as of round 460)
+
+1. **Run `precision-audit --strict` FIRST, alongside `coverage --strict`.**
+   Both are green today. `precision-audit` going red means the log has started
+   publishing conclusions drawn from digits it itself flagged as rounded —
+   name the gap before writing prose about anything else. NUC(E), but the
+   command is offline and any track can run it.
+2. **The largest reduction in this log's ignorance now available is a journal
+   capture covering rounds 202-250.** Seven gaps and 16h49m became
+   `REBOOT_ONLY` this round and are therefore eligible for the BOUNDED
+   upgrade; before round 460 they were stuck at `none` no matter what evidence
+   arrived. Needs a reachable box. NUC(E).
+3. **`.gitignore:20` excludes `logs/round-*.json`, and seven log rows plus
+   eleven tests depend on them.** Round 454 called the transcript "the
+   observation itself rather than a later summary of it" — and that
+   observation lives only on this box. Either the provenance claim is weaker
+   than the prose says, or those seven files belong in the repo. Say which; do
+   NOT resolve it by deleting the tests. operator or any track.
+4. **Widening the `nuc-checks` line to carry the strict instruments' exit
+   codes is harness(A)'s call.** `harness/driver_health.py` parses it and
+   `harness/tests/test_nuc_health_line.py` pins the format. `coverage` and
+   `precision-audit` mean "a published conclusion is wrong"; `lastseen-drift`
+   means "the field moved again", which round 448 established as expected
+   behaviour and is arguably information rather than a break. harness(A).
+5. **Measure a baseline in a PRISTINE WORKTREE before touching the tree.**
+   This round's only non-HIT was a baseline predicted and never measured, and
+   measuring it afterwards is what surfaced item 3 — so the process failure
+   paid for itself once, which is not a reason to repeat it. The rule is
+   already in this program's memory; it was not applied. any track.
+6. **A phrase grep over a transcript finds QUOTATIONS of an observation as
+   readily as the observation.** Round 460 nearly refuted a true carried claim
+   of round 454's on four `~40-46m` hits that were all round 184's prose being
+   quoted forward. Anchor the extraction on the record's own structure (here,
+   the `pgain-nuc` status line), not on the phrase. Belongs in
+   `skills/prediction-banking/SKILL.md` beside round 436's no-basis rule.
+   skills(B).
+7. **Round 448's item 4 (round 436's items 4-6 and 9) stands UNTOUCHED for a
+   third E round**: the `commit` channel vs the 9.25 GB load, `Consumed`
+   coverage at 4 of 26 units, the 13 costly buckets named by no fire, and the
+   separability route. NUC(E).
+8. **Rounds 455-459's next-steps lists stand because nothing here touched
+   them**, not because anything checked them. This round re-derived four
+   carried claims of round 454's and all four held — but they all came from a
+   round whose bank recorded the command behind each. Re-derive first, and
+   prefer a carried number whose COMMAND is banked over one whose prose is.
+   any track.
+9. **Standing, and untouched by this round:** the operator-blocked `--cap 196`
+   (band [129, 204], `bounded_by: engine_lru`, 1.096 GB margin —
+   **twenty-fourth** round unchanged) and the E3 A/B, which must publish its
+   full six-gate table; `case_coverage`'s 49-of-103 disagreeing verdicts;
+   `claim_check` executing 0 of its commands; and CLAUDE.md's `CRITICAL
+   MISSION` block, re-escalated for the TWENTIETH time and still a one-line
+   deletion for the operator. `languages/whence/SECURITY.md` is still
+   uncommitted, still not this program's, and still the operator's decision —
+   **do not copy a carry count for it from this file**; the checker's own line
+   is the only source.
+
 ## Next steps (as of round 459)
 
 1. **Nothing schedules the execution tier, and now there is no cost excuse.**
