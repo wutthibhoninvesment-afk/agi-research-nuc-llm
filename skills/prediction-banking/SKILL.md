@@ -123,7 +123,41 @@ and only needs reporting; one-off numbers nobody will act on.
    Checkable outcome: a ledger line `P k/n, A k/n` (predictions,
    amendments) in the report.
 
-9. **Turn the miss pattern into a rule, once.** After scoring, look at the
+9. **A quantity you have NO BASIS for is not a prediction target — say so
+   and report it.** "Bank predictions before measuring" is not "guess at
+   everything the run will print". A file nobody has opened, a corpus
+   nobody has counted, a box that has been down all week: writing five
+   numbers about it produces five misses that share one cause and teach
+   nothing, and it makes the bank's HIT rate a measure of how much you
+   declined to bet rather than of how well you understand the system. The
+   honest line is *"I have no basis here and will report what it holds"* —
+   which is still a commitment (you must report it), can still be broken
+   (by quietly not reporting), and scores as **no-basis-reported**. It is
+   also the only line that gets *better* with honesty rather than worse.
+
+   **And a band may not be laid over a SUM one of whose terms you have
+   just declared unpredictable.** Round 447 of this program banded "28 →
+   70-110 prose fields" four lines above a no-basis line saying it could
+   not predict how many of those fields lived at depth — and depth was the
+   dominant term. The answer was 663. Decompose the sum and band only the
+   terms you can reason about (the top-level term in that bank was fine:
+   reasoned to "two dense files plus some", came in at 24), or drop the
+   band and report the total. Checkable outcome: no banded quantity
+   contains a term another line calls unpredictable.
+
+10. **Predict what the INSTRUMENT will report, not what the world
+    contains.** When the run's output comes from something you are about
+    to build or change, the world and the measurement are two different
+    predictions and only the second one is scored. Round 447 predicted "a
+    new rule will fire on ZERO live fields" as a claim about the corpus —
+    and was RIGHT about the corpus: after the rule was debugged its live
+    yield was 0. It scored a MISS because the rule as first written fired
+    twice, both times wrongly. A new instrument's first output is at least
+    as likely to be about the instrument as about the subject. If you mean
+    the world, bank both lines: "the corpus contains no true instance"
+    AND "the first run of the new rule reports N false ones".
+
+11. **Turn the miss pattern into a rule, once.** After scoring, look at the
    misses together: optimism clustered on machine-state timings → the
    warm/cold rule; misses on the upside after an optimism lesson →
    over-padding; "P1 missed by a hair" → lower-bound-at-point-estimate.
@@ -180,6 +214,14 @@ head -3 state/round-NNN-predictions.md     # first line contains "banked BEFORE"
 grep -c '^| ' state/round-NNN-predictions.md
 grep '^| ' state/round-NNN-predictions.md | grep -c 'python3\|bash\|grep'
 grep -c "computed\|machine-state" state/round-NNN-predictions.md   # ≥ number of quantities
+# step 9: a bank that declines to bet must SAY it declines, and the scoring
+# must carry the verdict back. Both halves, or the decline is just a silence:
+grep -c "no basis\|no-basis" state/round-NNN-predictions.md
+grep -c "no-basis-reported" knowledge/round-NNN-*.md
+# At round 447 these printed 3 and 2: one no-basis line banked (P10), and the
+# verdict `no-basis-reported` carried back into both the round file's headline
+# and its scoring table. Checked before being written down -- the first draft
+# of this comment said "3 and 3".
 grep -n "HIT\|MISS\|unscorable" knowledge/round-NNN-*.md            # one verdict per prediction line
 python3 -c "
 import glob, json
@@ -200,4 +242,10 @@ print('%d of %d rounds recorded; median %.1f min; p25-p75 %.1f-%.1f min'
 - [ ] Amendments are timestamped and precede their measurement
 - [ ] Ledger line `P k/n` present; each MISS has a direction and a mechanism
 - [ ] One rule added or confirmed from this round's miss pattern
+- [ ] Every quantity with no basis says so and promises a report, instead of
+      carrying a number
+- [ ] No banded quantity is a sum containing a term another line calls
+      unpredictable
+- [ ] Where a new or changed instrument produces the number, the bank says
+      whether it is predicting the instrument or the world
 - [ ] No duration band without a machine-written prior behind it
