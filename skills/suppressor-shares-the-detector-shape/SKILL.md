@@ -283,6 +283,52 @@ suppressor that did not know.
   witness that found nothing. Step 4b's bound cases are that idea applied to
   the suppressor's evidence.
 
+## The terminal fix: stop having two walks
+
+Steps 1-5 keep a mirrored suppressor CORRECT. They do not stop it needing to
+be kept correct, and the maintenance cost is not evenly spread — it is
+concentrated on exactly one edit:
+
+> **Moving the detector's bound is the edit that breaks a mirror.**
+
+A mirror is written once, against a bound that is fixed at that moment, and
+reviewed by a differential over cases chosen at that moment. Widening the
+detector is the situation this skill is for and the mirror survives it,
+because widening is what the differential was built to check. What it does
+not survive is the bound MOVING: every case in the differential was chosen
+relative to the old boundary, so after the move the corpus tests the wrong
+side of the new one, and it does it silently — the tests still pass.
+
+When you reach that edit, consider not fixing the mirror. Make the second
+walk a BY-PRODUCT of the first instead:
+
+```python
+# before: two walks that must agree, and a test to make them
+text  = render(value)                  # walks it
+named = collect_misses(value)          # walks it again, "mirrors render()"
+
+# after: one walk, both results
+r = render_named(value)                # returns (text, named, why_it_stopped)
+```
+
+Three things fall out, and the third is the one to check for:
+
+* the property stops being testable-and-therefore-fallible and becomes
+  structural — there is one walk and one bound;
+* the caller usually gets FASTER (it was traversing the value twice);
+* **the differential becomes tautological.** Keep it anyway. It is the record
+  of what agreement looked like when there were two walks, and its
+  falsification arm — restore the old unbounded suppressor, require the
+  defect back — still works and still proves the bound is what decides the
+  answer. Deleting it removes the only evidence the class was ever real.
+
+The move is not always available. It needs the two walks to visit the same
+nodes in a compatible order and the collecting half to be cheap enough to run
+on the paths that only want the first half. If the renderer is hot and the
+collection is not free, keep the mirror and keep the differential — but say
+in the mirror's docstring which edit will break it, because the next person
+to move the bound is the person who needs to know.
+
 ## Proven on
 
 - **Round 446, `languages/whence` v0.42.** `_note_drop` widened from
@@ -309,3 +355,16 @@ suppressor that did not know.
   published as such. Blast radius: 11 pinned oracles in a generated file
   that says *do not edit by hand* — see
   `differential-repin-of-a-generated-oracle`.
+- **Round 452, `languages/whence` v0.44 — the class closed structurally, one
+  round later.** Decision 53 had to MOVE the renderer's bound (a corpus census
+  showed the full rendering stopped at 4 container levels while the language's
+  own self-hosting program built values 14 deep), which is the edit named
+  above. Three of v0.43's tests pinned the boundary at the literal `4`/`5`
+  rather than at the constant that decides it and went red on the move; the
+  mirror itself would have needed re-synchronising against two new bounds, a
+  depth cap and a node budget. Instead `full_show_named` now returns the text
+  AND the named misses from one walk, `named_misses` is its second return
+  value, and `b_print` stopped rendering the value twice. The 15-case
+  differential still passes, is now tautological, and was kept — its
+  falsification arm still restores the v0.42 defect. Corpus output yield:
+  **zero of 33 programs changed**, pinned per-program rather than asserted.

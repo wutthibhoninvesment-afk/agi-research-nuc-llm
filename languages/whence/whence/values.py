@@ -519,12 +519,146 @@ def _quote(s, limit):
 
 SHOW_NEST = 3   # containers nested deeper than this render as […] / @{…}
 
+# v0.44 (round 452), decision 53. THE FULL RENDERING'S OWN CAP.
+#
+# Until v0.44 `full_show` and `show_payload` read ONE constant, and that is
+# why "lifting the cap" read as impossible: it is not one cap, it is two
+# promises wearing one number. Decision 37 wrote both promises down and
+# decision 52 restated them — `str` is `full_show`, unbounded, a miss lists
+# its reasons; every miss MESSAGE is `show_payload`, one line, bounded — and
+# then left the bounded one's constant deciding how much of a value the
+# unbounded one may show.
+#
+# 24 IS DERIVED FROM TWO MEASUREMENTS, NOT CHOSEN (round 452, `depthcensus.py`,
+# re-runnable; `state/whence/round-452/depth-census.json` is that round's
+# reading):
+#
+#   * the deepest value any program in `examples/` builds is **14** container
+#     levels — `examples/self_host.lang`'s `let p7`, the AST the Whence-in-
+#     Whence parser produces, whose spine is
+#     Record>WList>Record>Record>WList>Record>Record>Record>WList>Record>
+#     Record>WList>Record>Record>str. At the v0.43 cap of SHOW_NEST + 1 = 4
+#     levels, `print(p7)` showed 139 characters and stopped at
+#     `stmts: […]` — the language's own self-hosting program builds values
+#     three and a half times deeper than the language can print. 24 leaves
+#     ten levels of headroom over the deepest thing the corpus builds.
+#   * host frames. `Interpreter.HOST_RESERVE`'s own comment lists "rendering
+#     (depth-capped)" as one of the three things the 250-frame reserve
+#     covers, so this cap is a claim about that reserve and had to be paid
+#     for before it could be raised. Measured by recursion-limit bisection,
+#     not by instrumenting the renderer — a counting wrapper adds one frame
+#     per level and inflates the very number being taken, which is how round
+#     452's first reading came out at 4:
+#
+#         v0.43 path   4 + 3/level   (7, 10, 13 frames at depths 1, 2, 3)
+#         v0.44 path   3 + 1/level   (4, 8, 13, 23, 27 at 1, 5, 10, 20, 24)
+#
+#     Three of v0.43's four frames per level were the trip out through
+#     `show_payload` and a generator expression to get back to `_show`. At
+#     3/level a cap of 24 would have cost ~79 frames, a third of the whole
+#     reserve against a bound-by-construction of ~110 for everything else in
+#     it. The full path now calls `_show` directly from an explicit loop:
+#     **27 frames at the new cap**, versus 13 at v0.43's. A +14 delta buys
+#     20 extra levels. `tests/test_v44.py::
+#     test_the_full_rendering_costs_one_host_frame_per_level` re-takes it.
+FULL_SHOW_NEST = 24
 
-def show_payload(p, limit=SHOW_LIMIT, nest=0):
+# v0.44: the cap was silently doing a SECOND job nobody had named, and the
+# job does not survive the cap being raised.
+#
+# Round 450's next step said "`full_show` already pays O(n) in elements", and
+# that is false for a value with SHARING. Whence values are immutable and
+# `WList` shares storage on purpose, so the value graph is a DAG — and a
+# renderer walks a DAG as a TREE, once per PATH. Round 452 measured it:
+# `let a = [1, 2]` followed by twelve `let v = [v, v]` renders 108 characters
+# at a cap of 3, 892 at 6, 7164 at 9 and 40956 at 12. That is 2^n, not O(n),
+# and raising the cap from 4 to 25 levels without a size bound would have
+# turned a printable value into hundreds of megabytes of text.
+#
+# So the depth cap was load-bearing for OUTPUT SIZE and only ever documented
+# as load-bearing for HOST FRAMES. Splitting the two constants means the size
+# job needs an owner, and this is it. It bounds the WIDTH direction too,
+# which v0.43 never bounded at all: `full_show` of a million-element list
+# rendered a million elements, in a language that caps an integer at 4000
+# digits so the explanation path cannot crash.
+#
+# 20000 is 666x the largest full rendering the corpus produces — 30 rendered
+# nodes, `examples/show.lang` (max over all 33 programs; the widest text is
+# 1883 characters, `examples/blame.lang`). A rendering that stops on this
+# budget says so in the text (the same `, …` a truncated head has always
+# used) and, because the suppressor is now the same walk, `print` claims
+# exactly nothing about what it did not reach.
+FULL_SHOW_NODES = 20000
+
+
+class _FullCtx(object):
+    """State carried down ONE full rendering: its depth cap, its node budget,
+    and the miss nodes the rendering NAMED.
+
+    The third field is why this object exists. v0.43 computed it with a
+    second walk (`named_misses`) written to mirror `_show` branch for branch,
+    guarded by a differential test — and `skills/suppressor-shares-the-
+    detector-shape/SKILL.md` is a whole skill about that class of defect
+    recurring. A mirror can drift; a by-product cannot. v0.44 collects the
+    misses IN the renderer, so "the suppressor has the renderer's bound" is
+    not a property a test has to keep true.
+    """
+
+    __slots__ = ("cap", "left", "misses", "seen", "depth_stopped",
+                 "node_stopped")
+
+    def __init__(self, cap=FULL_SHOW_NEST, budget=FULL_SHOW_NODES):
+        self.cap = cap
+        self.left = budget
+        self.misses = []
+        self.seen = set()
+        self.depth_stopped = False
+        self.node_stopped = False
+
+    def name_miss(self, node):
+        nid = id(node)
+        if nid not in self.seen:
+            self.seen.add(nid)
+            self.misses.append(node)
+
+    def spend(self):
+        """True if there is budget for one more rendered node."""
+        if self.left <= 0:
+            self.node_stopped = True
+            return False
+        self.left -= 1
+        return True
+
+
+class FullRendering(object):
+    """What one `full_show` walk produced: the text, and the miss nodes that
+    text NAMES. `depth_stopped` / `node_stopped` say which bound stopped it
+    (neither, either or both), so a caller can tell "nothing was hidden" from
+    "something was, and here is why"."""
+
+    __slots__ = ("text", "misses", "depth_stopped", "node_stopped")
+
+    def __init__(self, text, misses, depth_stopped, node_stopped):
+        self.text = text
+        self.misses = misses
+        self.depth_stopped = depth_stopped
+        self.node_stopped = node_stopped
+
+    @property
+    def stopped(self):
+        return self.depth_stopped or self.node_stopped
+
+
+def show_payload(p, limit=SHOW_LIMIT, nest=0, ctx=None):
     """Short one-line snapshot of a payload, truncated to `limit` chars.
     Nesting is capped so snapshotting a deeply nested list is O(1), not
-    O(depth) (a 2500-deep list would otherwise recurse 2500 frames)."""
-    s = _show(p, limit, nest)
+    O(depth) (a 2500-deep list would otherwise recurse 2500 frames).
+
+    `ctx` (v0.44) is the FULL rendering's state and is None for every
+    snapshot caller, which is every caller in this file except `full_show`.
+    With `ctx` None the behaviour is byte-for-byte what it was in v0.43.
+    """
+    s = _show(p, limit, nest, ctx)
     # Strings are already truncated (with their closing quote) by _quote;
     # only containers need the outer cut.
     if limit is not None and not isinstance(p, str) and len(s) > limit + 2:
@@ -602,7 +736,7 @@ def show_int(n):
 _SHOW_INT_CUT = 1 << SHOW_INT_BITS
 
 
-def _show(p, limit, nest):
+def _show(p, limit, nest, ctx=None):
     if isinstance(p, bool):
         return "true" if p else "false"
     if isinstance(p, int):
@@ -613,15 +747,49 @@ def _show(p, limit, nest):
         return _quote(p, limit)
     # limit=None means "full rendering": show every element and field.
     if isinstance(p, WList):
-        if nest >= SHOW_NEST:
+        if nest >= (SHOW_NEST if ctx is None else ctx.cap):
+            if ctx is not None and len(p):
+                ctx.depth_stopped = True
             return "[…]" if len(p) else "[]"
+        if ctx is not None:
+            # ONE host frame per level: straight back into `_show`, not out
+            # through `show_payload` and a generator expression. See
+            # FULL_SHOW_NEST's comment for the 4-frames-per-level
+            # measurement this replaces. `show_payload(x, None, n, ctx)` is
+            # `_show(x, None, n, ctx)` exactly — its only extra work is an
+            # outer character cut guarded by `limit is not None`.
+            parts = []
+            cut = False
+            for e in p:
+                if not ctx.spend():
+                    cut = True
+                    break
+                q = e.payload
+                if isinstance(q, Miss):
+                    ctx.name_miss(e)
+                parts.append(_show(q, None, nest + 1, ctx))
+            return "[" + ", ".join(parts) + (", …" if cut else "") + "]"
         head = p.to_list() if limit is None else p.head(6)
         return "[" + ", ".join(
             show_payload(e.payload, limit and 12, nest + 1) for e in head) + \
             (", …" if len(head) < len(p) else "") + "]"
     if isinstance(p, Record):
-        if nest >= SHOW_NEST:
+        if nest >= (SHOW_NEST if ctx is None else ctx.cap):
+            if ctx is not None and p.fields:
+                ctx.depth_stopped = True
             return "@{…}" if p.fields else "@{}"
+        if ctx is not None:
+            parts = []
+            cut = False
+            for k, v in sorted(p.fields.items()):
+                if not ctx.spend():
+                    cut = True
+                    break
+                q = v.payload
+                if isinstance(q, Miss):
+                    ctx.name_miss(v)
+                parts.append("%s: %s" % (k, _show(q, None, nest + 1, ctx)))
+            return "@{" + ", ".join(parts) + (", …" if cut else "") + "}"
         items = sorted(p.fields.items())
         head = items if limit is None else items[:4]
         return "@{" + ", ".join(
@@ -662,6 +830,22 @@ def _show(p, limit, nest):
             return "miss " + quote_str("; ".join(p.reasons), None)
         return "miss"
     if isinstance(p, Guess):
+        if ctx is not None:
+            # `Guess` has no cap check of its own, in v0.43 and here: the
+            # branch descends into `Guess.node` unconditionally, and the
+            # child's own branch is where a cap applies. The node BUDGET
+            # does apply, which is the first bound this branch has ever had
+            # — a long enough `guess(guess(guess(...)))` chain recursed
+            # until the host stack ran out.
+            n = p.node
+            if not ctx.spend():
+                return "guess %.2g (%s): …" % (
+                    p.confidence, ", ".join(p.sources))
+            if isinstance(n.payload, Miss):
+                ctx.name_miss(n)
+            return "guess %.2g (%s): %s" % (
+                p.confidence, ", ".join(p.sources),
+                _show(n.payload, None, nest + 1, ctx))
         return "guess %.2g (%s): %s" % (
             p.confidence, ", ".join(p.sources),
             show_payload(p.node.payload, limit and 12, nest + 1))
@@ -674,92 +858,119 @@ def _show(p, limit, nest):
     return "<?>"
 
 
-def named_misses(node):
-    """v0.43 (round 450): the miss NODES whose reason `full_show` prints.
+class _Bare(object):
+    """A stand-in node for a bare payload. `full_show` takes a payload and
+    `full_show_named` takes a node; both run the same walk, so the payload
+    entry point needs something with a `.payload` slot for the two to be one
+    function rather than two that agree."""
 
-    THE SUPPRESSOR'S HALF OF ONE PREDICATE. `print(x)` suppresses the v0.32
-    drop report for what it showed, and until v0.43 it did that by marking
-    the whole CONTAINER observed -- a promise about text nobody had compared
-    against the text. Two ways it was false:
+    __slots__ = ("payload",)
 
-      * a nested miss rendered as the bare token `miss`, so the reader was
-        told THAT and not WHY (fixed above, in `_show`);
-      * a miss nested deeper than `SHOW_NEST` is not rendered AT ALL --
-        `print([[[[[nosuch(1)]]]]])` prints `[[[[[…]]]]]`, which does not
-        contain the substring `miss`, and reported nothing. The detector
-        (`Interpreter._misses_within`) has NO depth bound; the renderer has
-        one. Detector and suppressor had different shapes, which is the
-        class round 446 named in
-        `skills/suppressor-shares-the-detector-shape/SKILL.md` -- and left an
-        instance of inside its own fix.
+    def __init__(self, payload):
+        self.payload = payload
 
-    So this walk is written to MIRROR the renderer above, node for node:
-    `full_show`'s own `WList`/`Record` branch renders elements at `nest=0`
-    (one level deeper than `show_payload(p, None)` would), `_show` descends
-    only while `nest < SHOW_NEST`, and `_show`'s `Guess` branch descends into
-    `Guess.node` with no nest guard of its own. `tests/test_v43.py::
-    test_the_renderer_and_the_suppressor_name_the_same_misses` holds the two
-    together by DIFFERENTIAL -- it renders the value and asserts a miss's
-    reason is in the text iff its node is in this list -- rather than by this
-    docstring, because a comment cannot fail.
 
-    Not fixed here, deliberately: `SHOW_NEST` itself. `show_payload`'s cap
-    exists so that rendering a 2500-deep value costs O(1) host frames rather
-    than O(depth); lifting it for the full rendering would put a
-    `RecursionError` in the explanation path, which is the exact failure
-    `SHOW_INT_DIGITS` exists to keep out of it. The renderer is allowed to
-    stop -- what it is not allowed to do is have someone else claim it
-    didn't.
+def full_show_named(node, cap=None, budget=None):
+    """v0.44 (round 452), decision 53. The full rendering AND the miss nodes
+    it names, from ONE walk.
+
+    THE POINT OF THIS FUNCTION IS THAT IT RETURNS BOTH. v0.43 needed the
+    second half — `print(x)` suppresses the v0.32 drop report for what it
+    showed, so the suppressor must not claim a miss the renderer did not
+    render — and computed it with `named_misses`, a separate walk written to
+    mirror `_show` branch for branch and held to it by
+    `tests/test_v43.py::test_the_renderer_and_the_suppressor_name_the_same_
+    misses`. That test is a good test and the design under it is the one
+    `skills/suppressor-shares-the-detector-shape/SKILL.md` exists to warn
+    about: two walks that MUST agree, kept agreeing by a third thing.
+
+    v0.44 had to move the renderer's bound — a new depth cap and a new node
+    budget — which is exactly the edit that breaks a mirror. So the mirror is
+    gone. The misses are collected by the renderer as it renders, in
+    `_show`'s own container branches, at the moment it emits the text that
+    names them. "The suppressor has the renderer's bound" stopped being a
+    property to test and became a thing that cannot be otherwise: there is
+    one walk and one bound.
+
+    `named_misses` is kept as the name the interpreter and v0.43's tests use;
+    it is now this function's second return value.
     """
-    p = getattr(node, "value", None)
+    # Resolved HERE, not in the signature. A default argument captures the
+    # module global at DEFINITION time, so `FULL_SHOW_NEST` baked into the
+    # signature would make every test that moves the constant pass
+    # vacuously — round 452 wrote two such tests, watched both go green
+    # against an unchanged renderer, and only caught it because a third
+    # asserted a specific string rather than an equality between two runs.
+    # A constant a test cannot move is a constant nothing measures.
+    ctx = _FullCtx(FULL_SHOW_NEST if cap is None else cap,
+                   FULL_SHOW_NODES if budget is None else budget)
+    p = getattr(node, "payload", None)
     if isinstance(p, Miss):
-        return [node]                    # full_show's own top-level branch
-    if isinstance(p, WList):
-        stack = [(e, 0) for e in p]
+        # `full_show`'s own top-level branch: the reasons ARE the text, so
+        # the node is named. Unreachable from `b_print` (which handles a
+        # top-level miss through `_observed`) and reachable from the
+        # differential in tests/test_v43.py.
+        ctx.name_miss(node)
+        text = "miss: " + "; ".join(p.reasons)
+    elif isinstance(p, Explanation):
+        text = render_why(p.root)
+    elif isinstance(p, str):
+        text = p                      # print of a string is the raw string
+    elif isinstance(p, WList):
+        # The top-level container is rendered HERE rather than by `_show`,
+        # so its elements sit at nest 0 — one level shallower than
+        # `show_payload(p, None)` would put them. That has been true since
+        # v0.29 and v0.43's differential covers it; it is restated here
+        # because it is the detail a rewrite of this function gets wrong.
+        parts = []
+        cut = False
+        for e in p:
+            if not ctx.spend():
+                cut = True
+                break
+            q = e.payload
+            if isinstance(q, Miss):
+                ctx.name_miss(e)
+            parts.append(_show(q, None, 0, ctx))
+        text = "[" + ", ".join(parts) + (", …" if cut else "") + "]"
     elif isinstance(p, Record):
-        stack = [(v, 0) for _, v in p.fields.items()]
+        parts = []
+        cut = False
+        for k, v in sorted(p.fields.items()):
+            if not ctx.spend():
+                cut = True
+                break
+            q = v.payload
+            if isinstance(q, Miss):
+                ctx.name_miss(v)
+            parts.append("%s: %s" % (k, _show(q, None, 0, ctx)))
+        text = "@{" + ", ".join(parts) + (", …" if cut else "") + "}"
     else:
-        stack = [(node, 0)]
-    out = []
-    best = {}
-    while stack:
-        n, nest = stack.pop()
-        # A node reachable at two depths is rendered at both; revisit only
-        # when we arrive SHALLOWER, because a shallower arrival can see
-        # inside a container a deeper one truncated. Depth is bounded by
-        # SHOW_NEST + 1, so this is at most a handful of visits per node.
-        if best.get(id(n), SHOW_NEST + 2) <= nest:
-            continue
-        best[id(n)] = nest
-        q = getattr(n, "value", None)
-        if isinstance(q, Miss):
-            out.append(n)
-        elif isinstance(q, WList):
-            if nest < SHOW_NEST:
-                stack.extend((e, nest + 1) for e in q)
-        elif isinstance(q, Record):
-            if nest < SHOW_NEST:
-                stack.extend((v, nest + 1) for _, v in q.fields.items())
-        elif isinstance(q, Guess):
-            stack.append((q.node, nest + 1))
-    return out
+        text = _show(p, None, 0, ctx)
+    return FullRendering(text, ctx.misses, ctx.depth_stopped,
+                         ctx.node_stopped)
+
+
+def named_misses(node, cap=None, budget=None):
+    """The miss NODES whose reason `full_show` prints (v0.43, decision 52).
+
+    v0.44: a thin call to `full_show_named`, which is the renderer. Before
+    v0.44 this was a second walk over the same value, and its docstring had
+    to explain how it mirrored the first one — `full_show`'s own container
+    branch rendering elements a level shallower, `_show`'s `Guess` branch
+    descending with no nest guard, a `best` map so a node reachable at two
+    depths was judged at the shallower one. All three were real and all three
+    were places a mirror could be wrong. None of them can be wrong now,
+    because there is nothing to mirror.
+    """
+    return full_show_named(node, cap, budget).misses
 
 
 def full_show(p):
-    """Full rendering used by print(): misses list reasons, explanations render."""
-    if isinstance(p, Miss):
-        return "miss: " + "; ".join(p.reasons)
-    if isinstance(p, Explanation):
-        return render_why(p.root)
-    if isinstance(p, str):
-        return p                      # print of a string is the raw string
-    if isinstance(p, WList):
-        return "[" + ", ".join(show_payload(e.payload, None) for e in p) + "]"
-    if isinstance(p, Record):
-        items = sorted(p.fields.items())
-        return "@{" + ", ".join(
-            "%s: %s" % (k, show_payload(v.payload, None)) for k, v in items) + "}"
-    return show_payload(p, None)
+    """Full rendering used by print(): misses list reasons, explanations
+    render. See `full_show_named` for the walk and for the half of it this
+    entry point throws away."""
+    return full_show_named(_Bare(p)).text
 
 
 def leaf(op, detail, line, payload):

@@ -145,6 +145,64 @@ became a bug rather than 71 rounds after.
   "did anything else notice?" question can only be answered by deselecting
   the test you just wrote. Deselect it and say so.
 
+## The differential arm nothing moved
+
+A guard test claims *removing the line turns me red*. Its close relative is
+the **configuration differential** — a test that runs the same code twice
+under two settings and asserts the outputs differ, or asserts they are the
+same:
+
+```python
+new_out = run(src)                      # today's constant
+old_cap = M.CAP
+try:
+    M.CAP = OLD_VALUE                   # "and here is how it used to behave"
+    old_out = run(src)
+finally:
+    M.CAP = old_cap
+assert new_out == old_out               # or != , either way
+```
+
+This has the same defect class and a nastier delivery: **the arm that is
+supposed to be different may not be different at all**, and then the
+assertion compares a thing to itself and passes with no signal whatever.
+The usual mechanism in Python is a DEFAULT ARGUMENT:
+
+```python
+def render(node, cap=CAP):     # CAP is read at DEFINITION time, once
+```
+
+Patch the module global afterwards and the function never sees it. Round 452
+wrote two such tests, watched both go green against a completely unchanged
+renderer, and caught it only because a third test asserted a specific
+expected STRING instead of an equality between two runs.
+
+Other mechanisms with the same shape: a value captured in a closure at import
+time; a constant already folded into a compiled regex, a lookup table or a
+`functools.lru_cache`; a setting read once into `self._x` in `__init__`; a
+subprocess that does not inherit the environment variable you exported; a
+config file the code re-reads only on start.
+
+**The check, and it costs one command.** Before trusting any test whose two
+arms differ only by a setting, prove the setting moves the OUTPUT on an input
+where it obviously must:
+
+```python
+assert out(cap=3) != out(cap=24), "the differential would be vacuous"
+```
+
+Pick the input where the difference is undeniable — not a corpus program,
+whose whole point in such a test is usually that it does NOT change. Round
+452's was `print([[[[[1]]]]])`: `[[[[[…]]]]]` at cap 3, `[[[[[1]]]]]` at cap
+24. Record the check beside the test, because the next reader will have the
+same doubt.
+
+The rule underneath: **a constant a test cannot move is a constant nothing
+measures**, and an equality between two runs of the same code is the
+assertion shape that hides it. Resolve such constants inside the function
+body rather than in the signature — it costs one `if x is None` and makes the
+knob testable.
+
 ## Verification
 
 ```bash

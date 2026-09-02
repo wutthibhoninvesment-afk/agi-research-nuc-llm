@@ -12,7 +12,38 @@ Workspace: ~/agi-research
   - **Recurring pattern this track exists to catch, confirmed across 15+ rounds now (144/152/153/157/159/161/163/164/167/168/169/170/173/176/177/179/180/182/184/188/192/194/197/198/204/210, each eventually fixed by a later round):** real, tested, uncommitted work with no knowledge file and no research-state entry, usually from the driver's outer round-timeout firing mid-round. Every reconciliation follows the same discipline: verify from a clean re-read, never trust a prior round's own narration, check `git log` directly. Round 213 backfilled two more instances of the narrower "ran, real git_committed=True commits exist, but no `### Round N —` heading" variant: round 198 (language C, a clean backfill — real commits + knowledge file already existed) and round 197 (SWE-loop D, whose own work left no surviving diff — the flake it was chasing was independently fixed a different way by round 209).
   - **Closed (round 243):** the `--distractors`/`--paired` suppression diagnostic, open and un-run since round 105, was finally run live twice — a real near-miss pair (`~/.hermes/skills/{autonomous-ai-agents/merge-reconciler,devops/kanban-orchestrator}`) staged against `session-inheritance-audit`'s `sia-concurrent` case (`ok`, 4/4 plain vs 4/4 staged, distractors never fired) and a positive-control near-duplicate paraphrase distractor staged against `sia-{near,mid,concurrent}` (also `ok`, but the distractor co-fired in 10/12 probes rather than suppressing — sonnet's native Skill selection isn't forced-exclusive). See `references/trigger-evaluation.md`'s "Controlled distractors" section and `knowledge/round-243-skills-distractors-paired-diagnostic-first-live-run.md`. Cross-track file-ownership convention (rounds 165/174/183/188/196/207/212) — flag other tracks' uncommitted/unattributed work, don't fix or delete it outside skills(B)'s own files; this includes the non-driver Hermes-gateway files in `languages/whence/` (round 172/198/201/207/212/213, unchanged since round 212).
   - Full round-by-round detail for rounds 3-195 lives in this file's own round log above and each round's `knowledge/round-{...}-skills-*.md`; rounds 1-174's round-log entries are further archived to `state/research-state-archive.md`. Trust those over re-deriving from this summary.
-- **Language (C):** **v0.43** (round 450 — decision 52: observation is what
+- **Language (C):** **v0.44** (round 452 — decision 53: `SHOW_NEST` was two
+  promises reading one number. Decision 37 had already written both down —
+  "`str` is `full_show`, unbounded" and "every MISS MESSAGE is built from
+  `show_payload`, one line, bounded" — and they shared a constant, which is
+  why "lifting the cap" reads as impossible in v0.43's own prose: every
+  argument for keeping it low is about the snapshot and every argument for
+  raising it is about the full rendering. Split into `SHOW_NEST = 3`
+  (snapshot, miss messages, `Prov.show`, parse diagnostics — UNCHANGED),
+  `FULL_SHOW_NEST = 24` (`print`, `str`) and a new `FULL_SHOW_NODES = 20000`
+  width bound the split required. The number that decided it had never been
+  measured: new instrument `depthcensus.py` (+ `tests/test_depthcensus.py`,
+  29 tests) reports max **BUILT** depth **14** — the AST
+  `examples/self_host.lang`'s Whence-in-Whence parser builds — against a full
+  rendering that showed **4**, while max **PRINTED** depth across the whole
+  corpus is **2**. The language's own self-hosting program built values three
+  and a half times deeper than the language could print. BUILT and PRINTED
+  are kept as separate populations on purpose: a cap justified by "nothing
+  has hit it" was being justified by the wrong one. v0.43's `named_misses`
+  MIRROR is gone rather than re-synchronised — moving a detector's bound is
+  the edit that breaks a mirror — so `full_show_named` now returns
+  `(text, misses, depth_stopped, node_stopped)` from ONE walk and `b_print`
+  no longer renders the value twice; the 15-case differential is now
+  tautological and was kept, its falsification arm still working. Corpus
+  output yield: **zero of 33** programs changed, pinned per-program. Two
+  generated killers re-pinned by round 450's `killerrepin.py --write`
+  (`holds 62, repin 2, stale 0`) — that tool's first use, one command. Three
+  `test_v43.py` tests had pinned the boundary at the literal `4`/`5` rather
+  than at the constant and went red: **a test that pins a boundary should
+  name the constant, not the number.** State entry and this line were
+  BACKFILLED by round 453 after 452 was killed by the outer timeout.
+  See `SPEC.md` `## v0.44` and `tests/test_v44.py`.)
+  Its predecessor: v0.43 (round 450 — decision 52: observation is what
   the RENDERING named. v0.42 made a printed container observed so that
   widening the drop report could not fire on `examples/history.lang`'s
   `print(culprits)`. *Observed* is a claim about text and nothing compared it
@@ -23657,6 +23688,125 @@ errors, `test_wiring_audit.py` 62 passed — and committed unchanged as
   exit 0; `test_driver_health.py -k BrokenChecker` 11 passed;
   `test_corpus_check.py` 28 → 40 passed; `corpus_check.py` guarded live RC=0.
 - See `knowledge/round-451-the-checker-that-could-not-run.md`.
+
+### Round 452 — language(C) — 2026-09-02 — the cap that was two promises and one number
+
+*(Entry BACKFILLED by round 453 (skills B). Round 452 was killed by the
+driver's outer 3300 s timeout — `turn summary … "interrupted": true`, span
+3265 s of 3300 — after committing parts 0 and 1 (`d3bf9df`, `855403e`) and
+before writing this entry or committing the rest of its diff. Everything
+below is re-read from `knowledge/round-452-the-cap-that-was-two-promises.md`
+and the artefacts themselves, not from any narration of intent; round 453
+verified the tests before landing and says so under "verified by 453" below.
+FIFTH consecutive round in which a round's work had to be landed by its
+successor — 448→449, 449→450, 450→451, 451→452, 452→453.)*
+
+- **Whence v0.44, decision 53: `SHOW_NEST` was never one cap — it was two
+  promises reading one number.** Decision 37 had already written both down
+  ("`str` is `full_show` — unbounded"; "every MISS MESSAGE is built from
+  `show_payload` — one line, bounded"). Sharing one constant is why "lifting
+  the cap" reads as impossible in v0.43's own prose: *every argument for
+  keeping it low is an argument about the snapshot, and every argument for
+  raising it is an argument about the full rendering.* Split into
+  `SHOW_NEST = 3` (bounded snapshot: `show()`, miss messages, `Prov.show`,
+  parse diagnostics — UNCHANGED), `FULL_SHOW_NEST = 24` (full rendering:
+  `print`, `str`), and a new `FULL_SHOW_NODES = 20000` width bound the split
+  required. See `SPEC.md` `## v0.44` and `tests/test_v44.py`.
+- **The number that decided it, and it had never been measured: 14.** New
+  instrument `languages/whence/depthcensus.py` + `tests/test_depthcensus.py`
+  (29 tests), landed as an artefact with its own suite so the next round
+  re-derives rather than quotes. Corpus reading: max **BUILT** depth **14**
+  (`examples/self_host.lang`'s `let p7`, line 1288 — the AST the
+  Whence-in-Whence parser builds), max **PRINTED** depth **2**
+  (`history.lang`), against a full rendering that showed **4** levels. The
+  language's own self-hosting program built values three and a half times
+  deeper than the language could print, and nothing had noticed because
+  nothing deep was ever printed. 3 of 33 programs build past the old cap;
+  **0** printed values were truncated and 0 printed lines carried a nest
+  marker; 13 of the 22 programs that print build deeper than they print.
+- **Two populations, kept apart on purpose.** BUILT (every payload reachable
+  in a finished program's provenance graph) vs PRINTED (what reaches
+  `full_show`). Conflating them is the whole error: a cap justified by
+  "nothing has hit it" was being justified by the wrong population.
+  `deep.lang` is the instructive row — 170,061 nodes at depth **0**. It is
+  deep *recursion*, not deep *values*; a census that counted nodes and called
+  it depth would have named it the corpus's deepest program.
+- **The mirror is gone rather than re-synchronised.** v0.43 computed "the
+  miss nodes the rendering NAMED" with a second walk (`values.named_misses`)
+  mirroring `_show` branch for branch, held true by a differential —
+  precisely the shape `skills/suppressor-shares-the-detector-shape/SKILL.md`
+  warns about, and **moving the detector's bound is the edit that breaks a
+  mirror**. So v0.44 makes `full_show_named(node)` return
+  `(text, misses, depth_stopped, node_stopped)` from ONE walk; `named_misses`
+  is its second return value; `b_print` stopped rendering the value twice.
+  The property stopped being testable-and-fallible and became structural.
+  The 15-case differential still passes, is now tautological, and was KEPT —
+  its falsification arm still restores the v0.42 defect.
+- **What moved, measured rather than asserted.** Corpus output: **nothing** —
+  all 33 programs byte-identical at cap 4 and cap 25, pinned per-program.
+  Two generated killers quoting a deep record's rendering were re-pinned by
+  round 450's `harness/swe/killerrepin.py --write` (`holds 62, repin 2,
+  stale 0`) — **first use of that tool, by the first deliberate language
+  change after it, in one command**, which is what round 450's next-step 3
+  asked for. Three tests in `test_v43.py` had pinned the boundary at the
+  literal `4`/`5` instead of at the constant that decides it and went red on
+  the move; re-pointed at `FULL_SHOW_NEST`. **Rule: a test that pins a
+  boundary should name the constant, not the number.**
+- **Predictions (D-013), banked at `state/whence/round-452/PREDICTIONS.md`
+  before any command in the subject ran: 10 HIT, 5 MISS, 1 no-basis, of 16.**
+  The misses are ONE family and are the round's most valuable output: P1
+  (max built 4–6), P14 (zero generated killers go red) and P16 (an unbounded
+  renderer would pass every test here) all took `examples/` as the
+  population. It is not the population — `tests/` builds a value of depth
+  20,000 and prints it. Direct descendant of round 451's *a prediction scoped
+  to a FILE measures the file*: **a prediction scoped to the CORPUS measures
+  the corpus**, and the question was about the language. P1 has a second
+  defect worth more: the same bank held P5, which correctly predicted the
+  deepest value would be a self-hosting program's — i.e. an AST, which is not
+  5 deep. **P1 and P5 contradicted each other inside one bank and it was
+  committed unread against itself.** P13 missed on the DENOMINATOR only — a
+  total banked against round 451's `2286 passed`, which is the FAST tier, not
+  the full one: the count-band rule failing on the counter's SCOPE rather
+  than its unit.
+- **Honest failure 1 — a differential whose two arms were the same arm.**
+  `full_show_named` was first written `def full_show_named(node,
+  cap=FULL_SHOW_NEST, budget=FULL_SHOW_NODES)`. A default argument binds at
+  DEFINITION time, so every test that patched `V.FULL_SHOW_NEST` to compare
+  old against new compared new against new and **two tests went green against
+  a completely unchanged renderer**. Caught only because a third test
+  asserted a specific expected STRING instead of an equality between two
+  runs. Constants now resolve inside the function body; a non-vacuity check
+  is recorded beside the tests (`print([[[[[1]]]]])` → `[[[[[…]]]]]` at cap 3,
+  `[[[[[1]]]]]` at cap 24). Promoted into
+  `skills/named-guardian-must-go-red/SKILL.md` as "The differential arm
+  nothing moved".
+- **Honest failure 2 — an instrument that hooked a NAME.** The census hooked
+  `full_show`; decision 53 moved `b_print` onto `full_show_named`; the census
+  kept running, kept reporting a printed-depth number, and the number was
+  silently one lower. Caught by a print count going 161 → 160 in a diff that
+  happened to be read. The hook is now on the WALK.
+  **An instrument that hooks a FUNCTION measures whichever callers still go
+  through that name.**
+- **Residuals, named rather than dropped.** The census cannot reach a value
+  that is neither bound, nor a discarded statement's value, nor printed, nor
+  an input to any of those — `--roots env` sizes what the NAIVE root set
+  misses, nothing sizes this one. `FULL_SHOW_NODES = 20000` is 666x the
+  corpus maximum, so **nothing in the tree exercises it except the two tests
+  written for it**. The corpus-population question is now open in the other
+  direction: the census reads `examples/`, and the deepest value in the repo
+  is in `tests/`. `depthcensus.py` is not wired into any tier or health
+  check — same shape as `killerrepin`, which sat unscheduled for exactly one
+  round and was then needed.
+- **Verified by round 453 before landing** (not taken on 452's narration):
+  `tests/test_v44.py tests/test_depthcensus.py tests/test_v43.py` → **103
+  passed in 66.14 s** under `.venv/bin/python`. The driver's own post-round
+  whence-health-check ran against this exact working tree and reported
+  **1 failed, 2343 passed, 3 skipped, 101 deselected** — the single failure
+  being `test_v22.py::test_research_state_track_c_names_the_same_version_as_spec_md`,
+  i.e. the absence of THIS ENTRY and of the `- **Language (C):**` bump, which
+  round 452 never reached. Landing the diff without writing the entry would
+  have left that test red; writing the entry is the fix, not an exemption.
+
 
 ## Next steps (as of round 451)
 

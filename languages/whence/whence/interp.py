@@ -58,7 +58,8 @@ from .values import (
     Explanation,
     _slot,
     WList, wlist,
-    show_payload, full_show, named_misses, show_int, SHOW_INT_DIGITS,
+    show_payload, full_show, full_show_named, named_misses, show_int,
+    SHOW_INT_DIGITS,
     NUM_TEXT_LIMIT_MSG,
     leaf, derived, mk_miss, merge_miss,
     render_why, render_contrast, is_origin_miss, walk_steps, find_step,
@@ -3477,7 +3478,12 @@ def _make_builtin_table():
 
     @register("print", 1, "v")
     def b_print(interp, args, line):
-        interp._out(full_show(args[0].payload))
+        # v0.44 (round 452), decision 53: ONE walk. v0.43 rendered the value
+        # and then walked it a second time to find out what the rendering had
+        # named; `full_show_named` returns both halves of the walk it already
+        # did, so the second walk is gone and the two can no longer disagree.
+        rendering = full_show_named(args[0])
+        interp._out(rendering.text)
         # v0.32: printing a miss IS observing it, so the value this returns
         # is not an unobserved drop when the statement throws it away. The
         # gate is `isinstance` on the payload, so a program that never
@@ -3505,7 +3511,7 @@ def _make_builtin_table():
             # `Guess.node` --- see `_misses_within` for the walk's matching
             # half and why v0.42's written reason for excluding it was
             # anchored on a program that never built one.
-            for n in named_misses(a):
+            for n in rendering.misses:
                 if len(interp._observed_aggr) >= interp.DROP_CAP:
                     break
                 interp._observed_aggr[id(n)] = n

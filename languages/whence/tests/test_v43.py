@@ -58,7 +58,7 @@ sys.path.insert(0, ROOT)
 from whence.interp import Interpreter                           # noqa: E402
 from whence.parser import parse                                 # noqa: E402
 from whence.values import (                                     # noqa: E402
-    Miss, SHOW_NEST, full_show, named_misses, show_payload,
+    FULL_SHOW_NEST, Miss, SHOW_NEST, full_show, named_misses, show_payload,
 )
 import run as RUNPY                                             # noqa: E402
 
@@ -210,6 +210,7 @@ def test_the_v042_shape_of_the_defect_is_reproducible(monkeypatch):
     whether the suppressor's walk has the renderer's bound. Reverting nothing
     else brings the defect back."""
     import whence.interp as I
+    import whence.values as V
 
     def unbounded(node):                       # v0.42's claim, restated
         out, stack, seen = [], [node], set()
@@ -227,14 +228,38 @@ def test_the_v042_shape_of_the_defect_is_reproducible(monkeypatch):
                 stack.extend(v for _, v in p.fields.items())
         return out
 
-    src = "print([[[[[nosuch(1)]]]]])\n"
+    # v0.44 (round 452): the depth is taken from the constant, not written.
+    # This test needs a value PAST the full rendering's cap and v0.43 spelled
+    # that `5` — correct then, and wrong the moment decision 53 gave the full
+    # rendering its own deeper constant. The thesis is about the boundary,
+    # never about the number 5.
+    deep = FULL_SHOW_NEST + 2
+    src = "print(%snosuch(1)%s)\n" % ("[" * deep, "]" * deep)
     good_lines = []
     good = Interpreter(out=good_lines.append)
     good.run(src)
-    assert good_lines == ["[[[[[…]]]]]"] and "miss" not in good_lines[0]
+    # FULL_SHOW_NEST + 1 container levels render in full; the next one down
+    # renders as the bare `[…]`, which contributes a bracket of its own. So
+    # a value deeper than the cap shows FULL_SHOW_NEST + 2 brackets whatever
+    # its real depth is.
+    shown = FULL_SHOW_NEST + 2
+    assert good_lines == ["[" * shown + "…" + "]" * shown]
+    assert "miss" not in good_lines[0]
     assert good.dropped_total == 1, "the deep case stopped being reported"
 
-    monkeypatch.setattr(I, "named_misses", unbounded)
+    # v0.44: `b_print` reads `rendering.misses` from the one walk, so the
+    # v0.42 claim is restored by making that walk's second half unbounded
+    # rather than by replacing a separate `named_misses`. The falsification
+    # is the same falsification; what it has to reach into changed, which is
+    # itself the evidence that the two halves are now one thing.
+    real_named = I.full_show_named
+
+    def unbounded_rendering(node, *a, **kw):
+        r = real_named(node, *a, **kw)
+        return V.FullRendering(r.text, unbounded(node), r.depth_stopped,
+                               r.node_stopped)
+
+    monkeypatch.setattr(I, "full_show_named", unbounded_rendering)
     bad_lines = []
     bad = Interpreter(out=bad_lines.append)
     bad.run(src)
@@ -307,22 +332,47 @@ def test_the_renderer_and_the_suppressor_name_the_same_misses(expr):
             % (expr, spelled in text, id(n) in named, text))
 
 
-def test_the_depth_boundary_is_show_nest_and_is_measured_not_assumed():
-    """Four levels of list are named; five are not. `full_show`'s own branch
-    renders elements at nest 0 and `_show` descends while nest < SHOW_NEST,
-    which is SHOW_NEST + 1 = 4 visible levels."""
-    assert SHOW_NEST == 3
-    for depth in range(1, 5):
+def test_the_depth_boundary_is_a_constant_and_is_measured_not_assumed():
+    """`FULL_SHOW_NEST + 1` levels of list are named; one more is not.
+
+    v0.43 wrote this as "four are named, five are not" and asserted
+    `SHOW_NEST == 3` beside it, because the full rendering and the bounded
+    snapshot shared one constant. v0.44 (decision 53) split them, and the
+    literal 4/5 was the whole cost of the split: three tests in this file
+    pinned a boundary at a number rather than at the thing that decides it.
+    The property is unchanged and it is the one worth pinning — there IS a
+    boundary, the rendering stops at it, and the suppressor stops with it.
+
+    `full_show_named`'s own branch renders a top-level container's elements
+    at nest 0 and `_show` descends while nest < FULL_SHOW_NEST, so the full
+    rendering shows FULL_SHOW_NEST + 1 container levels.
+    """
+    cap = FULL_SHOW_NEST + 1
+    for depth in (1, 2, cap - 1, cap):
         expr = "[" * depth + "nosuch(1)" + "]" * depth
         assert len(named_misses(value_of(expr + "\n"))) == 1, depth
         assert "unbound" in printed("print(%s)\n" % expr)[0], depth
-    expr = "[" * 5 + "nosuch(1)" + "]" * 5
+    expr = "[" * (cap + 1) + "nosuch(1)" + "]" * (cap + 1)
     assert named_misses(value_of(expr + "\n")) == []
-    assert printed("print(%s)\n" % expr) == ["[[[[[…]]]]]"]
+    shown = cap + 1          # the truncated level contributes its own bracket
+    assert printed("print(%s)\n" % expr) == ["[" * shown + "…" + "]" * shown]
+
+
+def test_the_snapshot_boundary_is_still_show_nest_and_did_not_move():
+    """The other half of decision 53: `show()` and every miss MESSAGE are
+    the BOUNDED path, and v0.44 did not touch their cap. Eleven generated
+    mutation killers and `show()`'s published contract depend on it, and
+    a change to `full_show` that quietly moved this one would be exactly the
+    regression splitting the constants exists to make impossible."""
+    assert SHOW_NEST == 3
+    node = value_of("[" * 5 + "1" + "]" * 5 + "\n")
+    assert show_payload(node.payload) == "[[[[…]]]]"
+    assert FULL_SHOW_NEST > SHOW_NEST, "the split is the point"
 
 
 def test_a_miss_past_the_render_depth_is_reported_as_a_drop():
-    i = run("print([[[[[nosuch(1)]]]]])\n")
+    deep = FULL_SHOW_NEST + 2
+    i = run("print(%snosuch(1)%s)\n" % ("[" * deep, "]" * deep))
     assert i.dropped_total == 1
     assert i.dropped[0]["reasons"] == ("unbound name 'nosuch' (line 1)",)
 

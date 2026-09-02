@@ -1,6 +1,6 @@
 # Whence — a provenance-first language
 
-*Spec level: **v0.43** (round 450). The `## vN` sections below are the
+*Spec level: **v0.44** (round 452). The `## vN` sections below are the
 authoritative version list and each names the round that built it; this
 line deliberately no longer enumerates rounds, because the enumeration it
 replaced had said "v0.16.6 + v0.14.2" since round 266 while the file went
@@ -8998,3 +8998,191 @@ nested rendering re-parse to the value that produced it. And it does not
 teach the drop report to dedupe by reason text: `print([nosuch(1)])` followed
 by a second, different `[nosuch(1)]` still reports one drop, because the gate
 is node identity and a reason is not a name.
+
+## v0.44 (round 452, language C) — the cap that was two promises and one number
+
+Round 450 closed decision 52 with a residual it stated honestly and could not
+price:
+
+> `SHOW_NEST` is now the only thing between a reader and a deep miss, and
+> nothing measures how often that bites. … The open question is whether the
+> FULL rendering should carry a depth-bounded-but-deeper cap of its own …
+> and it needs a number: the deepest value any corpus program actually
+> builds. Nobody has measured that.
+
+`depthcensus.py` (round 452) is that measurement, landed as an artefact with
+its own suite (`tests/test_depthcensus.py`) so the next round re-derives the
+number instead of quoting this one. It runs every program in `examples/` and
+reports two populations that had been discussed as one:
+
+* **BUILT** — the deepest value the program constructs, over every payload
+  reachable in its finished provenance graph. Whence retains history, so a
+  walk from the top-level `Env` plus every value handed to
+  `Interpreter._note_drop` reaches intermediates and values nothing keeps.
+* **PRINTED** — the deepest value that actually reaches `full_show`.
+
+### The reading
+
+    max BUILT depth      14   examples/self_host.lang, `let p7` (line 1288)
+    max PRINTED depth     2   examples/history.lang
+    full rendering shows  4   levels, at v0.43's SHOW_NEST + 1
+    printed values the cap truncated:  0 of 33 programs
+    values BUILT past the cap:         3 of 33 (self_host, self_eval, meta)
+
+The deepest value in the corpus is an AST — the one the Whence-in-Whence
+parser in `examples/self_host.lang` builds, spine
+
+    Record>WList>Record>Record>WList>Record>Record>Record>WList>Record>
+    Record>WList>Record>Record>str
+
+**The language's own self-hosting program builds values three and a half
+times deeper than the language could print.** At v0.43's cap `print(p7)` was
+139 characters ending in `stmts: […]` — it never reached the expression the
+function evaluates. And nothing in the corpus ever printed it, so no test,
+no example and no health check had ever seen the boundary bite.
+
+That pair is the finding, and it was banked as a prediction before it was
+taken (`state/whence/round-452/PREDICTIONS.md`, P11): *a value can be built
+far deeper than anything ever printed, and the renderer's cap is a claim
+about the second population while "what the language builds" is a claim about
+the first.* A cap justified by "nothing has hit it" was being justified by the
+wrong population.
+
+### Decision 53: two promises, two constants
+
+`SHOW_NEST` was never one cap. It was two promises — decision 37 wrote both
+down, decision 52 restated them — reading one number:
+
+    SHOW_NEST       = 3      the BOUNDED snapshot: `show()`, every miss
+                             message, `Prov.show`, every parse diagnostic.
+                             UNCHANGED by v0.44.
+    FULL_SHOW_NEST  = 24     the FULL rendering: `print`, `str`.
+    FULL_SHOW_NODES = 20000  new, and required by the change.
+
+Sharing the constant is why "lifting the cap" read as impossible in v0.43's
+own prose: every argument for keeping it low is an argument about the
+snapshot, and every argument for raising it is an argument about the full
+rendering. Splitting them costs one constant and settles the question.
+
+**24 is derived from two measurements, not chosen.**
+
+*Host frames.* `Interpreter.HOST_RESERVE`'s comment lists "rendering
+(depth-capped)" among the three things its 250-frame reserve covers, so this
+cap spends that reserve and had to be paid for before it could be raised.
+Measured by recursion-limit bisection — not by instrumenting the renderer,
+which adds a frame per level and inflates the number being taken (round 452's
+first reading came out at 4 that way and 3 by bisection):
+
+    v0.43 path   4 + 3 frames/level     7, 10, 13 at depths 1, 2, 3
+    v0.44 path   3 + 1 frames/level     4, 8, 13, 23, 27 at 1, 5, 10, 20, 24
+
+Three of v0.43's four frames per level were the trip out through
+`show_payload` and a generator expression to get back into `_show`. The full
+path now re-enters `_show` directly from an explicit loop. **27 frames at the
+new cap against 13 at the old one** — a +14 delta buys 20 extra levels.
+
+*The corpus.* 24 leaves ten levels of headroom over the deepest value any
+example builds.
+
+### `FULL_SHOW_NODES`, and the job the cap was doing without saying so
+
+Round 450's next step said *"`full_show` already pays O(n) in elements"*.
+That is false for a value with SHARING, and Whence values share on purpose:
+`WList` is a length-bounded view over an append-only buffer, so the value
+graph is a DAG — and a renderer walks a DAG as a TREE, once per PATH. Sixteen
+levels of `[v, v]` over a two-element list is 33 distinct nodes and 2^16
+rendering paths:
+
+    cap  3 ->    108 chars
+    cap  6 ->    892
+    cap  9 ->   7164
+    cap 12 ->  57340
+
+2^n, not O(n). **The depth cap was load-bearing for OUTPUT SIZE and only ever
+documented as load-bearing for host frames**, and that second job does not
+survive being raised from 4 levels to 25. `FULL_SHOW_NODES` takes it over —
+and takes over the WIDTH direction too, which v0.43 never bounded at all:
+`full_show` of a million-element list rendered a million elements, in a
+language that caps an integer at 4000 digits precisely so the explanation
+path cannot crash.
+
+20000 is 666x the largest full rendering the corpus produces (30 rendered
+nodes, `examples/show.lang`; the widest text is 1883 characters,
+`examples/blame.lang`). It is a safety valve, not a limit anyone reaches, and
+a rendering that stops on it says so with the same `, …` a truncated head has
+always used.
+
+### Why a deeper cap and not no cap
+
+The tempting reading of "max BUILT depth 14" is that the bound could simply
+go away. It could not, and the evidence was already in this tree. The deepest
+value this repo builds anywhere is not 14 — it is **20000**, built by
+`tests/test_generated_killers.py`'s `test_kill_values_py_139_arith_120`:
+
+    fn wrap(n) { if n == 0 { @{v: 0} } else { @{v: wrap(n - 0)} } }
+    let rec = wrap(1)
+
+a runaway recursion whose unwind builds one record per frame, so the value's
+depth is exactly `DEFAULT_MAX_DEPTH`. At 1 host frame per level an unbounded
+renderer would need 20000 frames — past CPython's default limit of 1000 and
+past `run.py`'s raised 6000. **`max_depth` is the real upper bound on value
+depth in Whence, and it is 800x the new cap.** A `RecursionError` out of
+`print` is the exact failure rule 2 forbids and `SHOW_INT_DIGITS` exists to
+keep out of the explanation path.
+
+### The mirror is gone
+
+v0.43 computed "the miss nodes the rendering NAMED" with a second walk,
+`values.named_misses`, written to mirror `_show` branch for branch and held
+to it by `test_the_renderer_and_the_suppressor_name_the_same_misses`. That is
+the shape `skills/suppressor-shares-the-detector-shape/SKILL.md` exists to
+warn about, and moving the renderer's bound is exactly the edit that breaks a
+mirror.
+
+So v0.44 removes the mirror rather than re-synchronising it. `full_show_named`
+collects the misses AS IT RENDERS, in `_show`'s own container branches, at the
+moment it emits the text that names them; `named_misses` is that function's
+second return value and `b_print` reads both halves of one walk. *The
+suppressor has the renderer's bound* stopped being a property a test keeps
+true and became a thing that cannot be otherwise. The v0.43 differential still
+passes and is now tautological, which is the intended end state — and it
+still earns its place, because it is what agreement looked like when there
+were two walks.
+
+`b_print` also got cheaper: it rendered and then walked the same value again.
+
+### What moved, and what a reader will notice
+
+Nothing, in the corpus. Max PRINTED depth is 2, so every one of the 33
+example programs produces byte-identical output at a cap of 4 and a cap of
+25 — pinned per-program by
+`tests/test_v44.py::test_raising_the_cap_changed_no_corpus_output` rather than
+asserted in prose, because the prose is the part a reader would doubt.
+
+Two generated killers moved, both quoting a deep record's rendering, and both
+were re-pinned by `harness/swe/killerrepin.py --write` (`holds 62, repin 2,
+stale 0`) — the first use of round 450's tool by the first deliberate language
+change after it, which is what round 450's next-step 3 asked for.
+
+Three tests in `tests/test_v43.py` pinned the boundary at the literal 4/5
+rather than at the constant that decides it, and were re-pointed at
+`FULL_SHOW_NEST`. That was the entire cost of the split, and it is worth
+naming as a rule: **a test that pins a boundary should name the constant, not
+the number** — otherwise moving the constant looks like a regression in three
+places at once.
+
+### What v0.44 deliberately does NOT do
+
+It does not touch `SHOW_NEST`, so `show()`, every miss message, every parse
+diagnostic and `Prov.show` are byte-identical to v0.43 —
+`test_the_snapshot_boundary_is_still_show_nest_and_did_not_move` is that
+claim. It does not change the exit-code contract, any reason string, or any
+check result. It does not make `Guess` obey the depth cap (it never did; the
+node budget is the first bound that branch has ever had). It does not
+regenerate `tests/test_generated_killers.py`, which cannot be regenerated —
+it re-pins two lines differentially. And it does not measure the population
+this census cannot see: a value that is neither bound, nor a discarded
+statement's value, nor printed, nor an input to any of those. `--roots env`
+measures how much the naive root set misses; nothing measures that residual,
+and `depthcensus.py`'s module docstring says so rather than leaving a reader
+to find it.

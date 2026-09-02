@@ -332,7 +332,7 @@ def test_kill_values_py_113_cmp_50():
 def test_kill_values_py_134_cmp_54():
     """mutant values.py:134:cmp#54: GtE -> Gt (line 134) — mutant gave {'kind': 'ok', 'out': [], 'checks': [], 'vals': {'wrap': '<fn wrap>', 'rec': '@{v: @{v: @{v: @{v: @{v: @{/u2026}}}}}}'}}"""
     src = 'fn wrap(n) { if n == 0 { @{v: 0} } else { @{v: wrap(n - 0)} } }\nlet rec = wrap(1)\n'
-    assert run(src) == {'kind': 'ok', 'out': [], 'checks': [], 'vals': {'wrap': '<fn wrap>', 'rec': '@{v: @{v: @{v: @{v: @{…}}}}}'}}
+    assert run(src) == {'kind': 'ok', 'out': [], 'checks': [], 'vals': {'wrap': '<fn wrap>', 'rec': '@{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{…}}}}}}}}}}}}}}}}}}}}}}}}}}'}}
 
 
 def test_kill_values_py_147_arith_56():
@@ -410,7 +410,7 @@ def test_kill_values_py_139_bool_119():
 def test_kill_values_py_139_arith_120():
     """mutant values.py:139:arith#120: Add -> Sub (line 139) — mutant gave {'kind': 'crash', 'exc': 'RecursionError', 'out': []}"""
     src = 'fn wrap(n) { if n == 0 { @{v: 0} } else { @{v: wrap(n - 0)} } }\nlet rec = wrap(1)\n'
-    assert run(src) == {'kind': 'ok', 'out': [], 'checks': [], 'vals': {'wrap': '<fn wrap>', 'rec': '@{v: @{v: @{v: @{v: @{…}}}}}'}}
+    assert run(src) == {'kind': 'ok', 'out': [], 'checks': [], 'vals': {'wrap': '<fn wrap>', 'rec': '@{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{v: @{…}}}}}}}}}}}}}}}}}}}}}}}}}}'}}
 
 
 def test_kill_values_py_139_const_121():
