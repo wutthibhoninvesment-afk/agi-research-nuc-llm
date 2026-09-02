@@ -1058,6 +1058,14 @@
    "where": "knowledge/round-461-the-checker-that-was-a-suite.md",
    "quote": "**12 HIT, 5 MISS, 1 vacuous of 18.**",
    "note": "Section 12, one table row per banked line. The four misses are one miss: P1-P4 are all BASELINE predictions and all four were wrong because they were taken from round 455's published prose instead of measured on the tree first -- round 460's item 5 named that exact failure one round earlier. P3 could not be scored at all until a `git worktree add HEAD --detach` was built after the edits, and doing that is what found section 11 (the instrument's whole evidence base is gitignored, so a pristine worktree reports 4 failed where the truth is 2). The most useful miss is P16, which is about a SHAPE: a reclassification does not flip an episode from invisible to visible inside its class, it moves the episode to another class and moves the denominator too -- 1/9 to 0/8, not 0/9. P8 is recorded as VACUOUS rather than HIT: its antecedent (a row-vs-summary disagreement) never occurred, and claiming the hit would be scoring an unfired conditional."
+  },
+  "462": {
+   "bank": "state/whence/round-462/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 462,
+   "where": "knowledge/round-462-the-residual-that-was-not-a-residual.md",
+   "quote": "**10 HIT, 3 MISS, 1 PARTIAL of 14.**",
+   "note": "Section 6, one table row per banked line. Banked AFTER the baseline was measured on the tree and BEFORE any code changed -- round 460's item 5 and round 461's P1-P4 applied for the first time, and the baseline re-derivation immediately refuted round 458's published class breakdown (it sums to 191 against its own stated total of 130). Every prediction derived from code already read (P1-P5, P12, P14) held; all four non-hits are predictions about a POPULATION nobody had counted: how many folded templates would be ill-formed (P8, MISS -- unparsed stayed at exactly 3, the ill-formed cases go through parse-only runners and parse_only_programs went 73->145), how much of the `src` class is foldable (P13, MISS on its second half), and which file wins a dedup (P7, PARTIAL -- the champion's DEPTH does not move but its file:line does, for a reason that predates this round). That split is round 458's own P1/P2-vs-P3/P4/P8/P9 split reproduced one language round later."
   }
  }
 }

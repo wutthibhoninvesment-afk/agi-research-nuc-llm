@@ -24424,6 +24424,146 @@ successor — 448→449, 449→450, 450→451, 451→452, 452→453.)*
   EVIDENCE). Neither `description` touched, so no re-probe is owed.
 - **Knowledge:** `knowledge/round-461-the-checker-that-was-a-suite.md`.
 
+### Round 462 — language(C) — 2026-09-02 — the residual that was not a residual
+
+- **Round 458's next-step 2 is CLOSED, and its residual was wrong in BOTH
+  directions.** 51 of the 131 non-constant entries — **39% of that class,
+  20% of the whole declared residual** — are call sites that are not Whence
+  runners at all: `subprocess.run([sys.executable, RUN, path])` (45 calls,
+  43 in the residual, arg0 an argv LIST) and `interp.exec_stmt(prog.stmts[0],
+  env)` (17 calls, 8 in the residual, arg0 an already-parsed statement). The
+  instrument was overstating its own blind spot, and the direction round 458
+  named — recall — is the smaller one.
+- **The generator of the bug is one predicate answering two questions.**
+  `_EXEC_ATTRS` answered both *does this call execute?* (the runner
+  fixed-point seed) and *is arg0 a source string?* (what puts a node in a
+  source position). They disagree on real code. Split into `_EXEC_ATTRS` /
+  `_SRC_ARG0_ATTRS`; both exclusions **counted** in their own fields and
+  printed above the corpus, because a call dropped for a stated reason and a
+  call that defeated the walk must not share a counter. Reconciliation is a
+  test: **918 + 45 + 22 = 985**, exactly.
+- **The `subprocess` exclusion is derived from the file's OWN imports**
+  (`ast.Import` only), not a denylist — a denylist is a guess about a corpus,
+  this is a fact about the module. `ImportFrom` is excluded on purpose:
+  `from whence.interp import Interpreter` binds a class, and a class is
+  exactly what a legitimate receiver may be.
+- **`str | None` cannot say "two programs".** The genuinely-missing classes
+  are the ones where the right answer is several: `val("A" if C else "B")`,
+  and `'... %s ...' % spec` under `for spec, want in NAME_SLOT_CASES:`.
+  `_const_strs` returns the LIST a node denotes (literal, every binding of a
+  name, `+`, f-string, `%`, constant `.join`, `.replace`, both arms of an
+  `IfExp`), capped at `MAX_FOLD = 32` with the cap as a counter. `%` needed a
+  second, LITERAL environment — its right operand is not a string — and the
+  same environment unpacks `for a, b in TABLE:`.
+- **488 -> 559 programs, a strict SUPERSET: 0 of round 458's programs lost**,
+  proved by set difference against the module at `508b95f`, not argued.
+  Residual **258 -> 166 (-36%)**; excluded-and-counted 0 -> 67. **The corpus
+  was never contaminated — only the self-report**: 0 harvested programs come
+  from a `subprocess`/`exec_stmt` site, before or after.
+- **The champion does not move (20000, second 3001) but its NAME does, and
+  not because of this round.** Round 458 published `test_v44.py:332`; at HEAD
+  the census names `test_testcorpus_census.py:41` and `test_v44.py:332` is
+  not in the corpus — dedup is on `(src, max_depth)` across files and
+  `sorted(os.listdir())` decides the winner. **Re-running round 458's own
+  module against HEAD names the same file**, so round 458 ran its census and
+  then wrote a test file containing the same program: its attribution was
+  stale against its own commit before the round ended. *A depth is a property
+  of the runner; an attribution is a property of the dedup order.*
+- **Round 458's item 1 understated itself.** `main()` had no path to
+  `harvest_tests`/`census_tests` at all — the test census could not be RUN
+  from a command line, by a tier or a person. Now
+  `--tests [suite|default] [--limit N] [--harvest-only] [--json OUT]`;
+  `--harvest-only` is 1.6 s and prints residual/exclusions/fold counters
+  BEFORE the corpus. A schedule can now be argued about.
+- **Three carried numbers re-derived, three found stale**, all before any
+  code changed (round 460's item 5 / round 461's P1-P4 applied for the first
+  time): round 458's class breakdown sums to **191 against its own stated
+  total of 130** (BinOp is 60, not 120; the total is 131, not 130), and its
+  "25 tests" file collects **18**. Sixth consecutive round where re-deriving a
+  carried number changed its answer.
+- **Predictions:** `state/whence/round-462/PREDICTIONS.md`, banked at
+  `02606e7` AFTER the baseline was measured and BEFORE any code changed.
+  **10 HIT, 3 MISS, 1 PARTIAL of 14.** Every prediction derived from code
+  already read held; all four non-hits are predictions about a POPULATION
+  nobody had counted — round 458's own P1/P2-vs-P3/P4/P8/P9 split reproduced
+  one language round later.
+- **Tests:** `test_testcorpus_census.py` **18 -> 30 passed in 2.27 s** (12
+  new, one per finding); `test_depthcensus.py` **45 passed, 3 deselected in
+  0.37 s**; suite-mode census **559 programs, 0 errors, 0 alloc
+  disagreements, 0 caps hit, 28.1 s**. The whence fast tier was started solo
+  after the census finished (`nproc` is 1) — its result is in this round's
+  commit trailer.
+- **Skill (rule 5):** `skills/residual-audited-both-ways` — *a residual is a
+  claim about the instrument and is as falsifiable as the corpus; audit it in
+  both directions, and count a thing excluded for a reason separately from a
+  thing that defeated you.* `skill_lint --strict` clean, two runnable
+  Verification commands.
+- **SPEC:** decision **56**. No constant changes; 53/54/55 unamended.
+- **Knowledge:** `knowledge/round-462-the-residual-that-was-not-a-residual.md`.
+
+## Next steps (as of round 462)
+
+1. **`depthcensus.py --tests` now EXISTS, so the tiering question is finally
+   a real one.** `--harvest-only` is 1.6 s and would catch a regression in
+   the harvester on every round for free; a full suite-mode census is 28.1 s
+   of interpreter time plus ~2 s of harvest. Neither is wired to anything.
+   Round 456's item 1 and round 458's item 1 both offered this to
+   language(C) or harness(A) and language(C) has now passed three times —
+   but it passed the first two times on a command that did not exist. Name
+   the tier or write down that it is deliberately unscheduled. harness(A).
+2. **The 166 remaining residual entries are ARGUED undecidable, not measured
+   undecidable.** `"".join(parts)` over a loop-built list (18 `.join` nodes)
+   and `open(path).read()` over a runtime `listdir` (4) are the named
+   classes, and `src` is still 94 of the total. Whoever takes this should
+   classify the 94 the way §0 classified the 131 — twenty lines, one row per
+   entry — before widening anything. The counter alone only ever says
+   "widen the folder". language(C).
+3. **`parse_only_programs` went 73 -> 145 and nobody has looked at what is in
+   it.** The fold now resolves strings that flow into parse-only runners, so
+   that class doubled without a single new program being censused. Those are
+   real Whence sources the suite parses and never evaluates; whether they
+   belong in a census of VALUES is a decision nobody has made. language(C).
+4. **A SPEC citation of a file:line is not durable and decision 55 has one.**
+   §4.2: the harvest dedups on `(src, max_depth)` across files, so the file a
+   program is attributed to changes when any earlier-sorting file gains the
+   same source — which is what a test ABOUT the champion does. Either cite
+   the depth without the file, or make the dedup keep every site and let the
+   census name them all. language(C).
+5. **Round 458's items 3 and 5 stand, UNTOUCHED for a second language
+   round** — `FULL_SHOW_NODES` and `DEFAULT_MAX_DEPTH` both being 20000 with
+   nothing saying whether that is a decision or an accident, and whether
+   `self_eval.lang`'s `reify` should carry a depth bound of its own.
+   language(C).
+6. **Round 434's items 2-6 are now ELEVEN rounds untouched** — the atom
+   table's decided-precondition risk, the 7 `append_only`/`refusal`
+   residuals, CP03p, and `classify` 161 vs `checkpin run` 162. They have been
+   carried forward by every language round since without one of them being
+   re-derived. Either take one or strike them; carrying them a twelfth time
+   is not a plan. language(C).
+7. **Round 461's items 1-8 stand, untouched by this round** — the
+   unrecoverable `unit_tests` failures, the fail-closed registry's one-round
+   lag in its own message, the ledger slice's ordering, `--precommit` as a
+   rule-5 addendum, the five unrun whole-tree nodes, the clustered p-value,
+   the untracked evidence base, and round 455's item 5. harness(A),
+   skills(B), SWE-loop(D).
+8. **The rule that produced this round's first finding, stated for reuse:**
+   *classify a residual item by item before narrowing it.* Twenty lines, one
+   row per entry with a file:line and a node kind. The summary counter
+   `nonconstant_programs: 131` can only ever say "widen the folder"; the rows
+   said "a third of these are `subprocess`". Now
+   `skills/residual-audited-both-ways`. any track.
+9. **`nproc` on this box is 1**, respected: the census ran solo and the fast
+   tier was not started until it had finished.
+10. **Standing, and untouched by this round:** the operator-blocked
+   `--cap 196` and the E3 A/B; `case_coverage`'s 49-of-103 disagreeing
+   verdicts; `claim_check` executing 0 of its commands; the NUC journal
+   capture for rounds 202-250; and CLAUDE.md's `CRITICAL MISSION` block,
+   re-escalated for the TWENTY-SECOND time and still a one-line deletion for
+   the operator. `languages/whence/SECURITY.md` is still uncommitted, still
+   not this program's, and still the operator's decision — **do not copy a
+   carry count for it from this file**; the checker's own line is the only
+   source.
+
 ## Next steps (as of round 461)
 
 1. **`unit_tests` is 25 of the 60 red checker-rows and its failures are
