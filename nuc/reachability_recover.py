@@ -72,6 +72,124 @@ WHO_BOOT_RE = re.compile(r"system boot\s+(\d{4}-\d{2}-\d{2} \d{2}:\d{2})", re.M)
 KEY_MISSING_RE = re.compile(r"Identity file (\S+) not accessible")
 TS_PEER_RE = re.compile(r"^\S+\s+pgain-nuc\s+.*$", re.M)
 
+# ---------------------------------------------- rendered LastSeen (round 460)
+#
+# Round 454 left this open and said exactly why: round 190's transcript has
+# `offline, last seen 3h ago`, "coarse, and deliberately NOT converted, because
+# an hour-derived LastSeen is exactly the 'rounded value walks into a gap'
+# hazard round 448 found. The honest route is a precision-aware LastSeen, not
+# a division."
+#
+# So: a bracket, never a point, and the bracket's width comes from a MEASURED
+# contract rather than an assumed one. Round 460 calibrated `tailscale
+# status`'s plain-text age renderer against `tailscale status --json`'s exact
+# `LastSeen` on this host, same instant, all four offline peers
+# (2026-09-02T19:37:38Z):
+#
+#   macbook-neo   age    458.3 s = 7.638 m  -> "7m"    floor 7,  round 8
+#   pgain-nuc     age  90582.3 s = 1.0484 d -> "1d"    floor 1,  round 1
+#   REDMI 15C     age 1184072.3 s = 13.7045 d -> "13d" floor 13, round 14
+#   ROG_Phone6    age 2718719.3 s = 31.4667 d -> "31d" floor 31, round 31
+#
+# Two of the four discriminate floor from round-to-nearest and both say FLOOR.
+# The renderer emits ONE integer and ONE unit -- the largest unit whose floor
+# is non-zero -- and never a compound form. So a rendering of `N<unit>` read at
+# R means the true age was in [N*u, (N+1)*u).
+#
+# The read instant R is itself a bracket: the transcript's timestamp is
+# truncated to the second by `_to_z`, so R_true is in [R, R+1). Composing:
+#
+#     LastSeen = R_true - age_true  in  [R - (N+1)*u,  R + 1 - N*u]
+#
+# closed at both ends because widening our own stated ignorance by a second is
+# the safe direction. `reachability_check.last_seen_bounds` consumes this, and
+# every rule there evaluates the bracket at whichever end makes its claim
+# harder, so a one-hour-wide reading can WITNESS a gap it clears entirely and
+# can never ACCUSE across a boundary it straddles.
+RENDERED_AGE_RE = re.compile(r"last seen (\d+)([smhd]) ago")
+RENDERED_AGE_UNIT_S = {"s": 1, "m": 60, "h": 3600, "d": 86400}
+
+# The read instant's own truncation, in seconds. Same quantity as
+# `reachability_check.PRECISION_RESOLUTION_S["precise"]` and deliberately not
+# imported from it: that constant is about a LOG ROW's `checked_at_utc`, this
+# one is about a TRANSCRIPT timestamp. They agree today for the same reason
+# (both are whole-second truncations) and there is no rule saying they must.
+READ_INSTANT_RESOLUTION_S = 1
+
+
+def rendered_age_bounds(read_at_utc: str, n: int, unit: str):
+    """`(lo, hi)` ISO-Z strings bracketing the LastSeen behind one rendering.
+
+    `read_at_utc` is the transcript's own truncated-to-the-second timestamp
+    for the reading. Raises on an unknown unit rather than guessing a width.
+    """
+    u = RENDERED_AGE_UNIT_S[unit]
+    r = datetime.fromisoformat(read_at_utc.replace("Z", "+00:00"))
+    lo = r - timedelta(seconds=(n + 1) * u)
+    hi = r + timedelta(seconds=READ_INSTANT_RESOLUTION_S - n * u)
+    return (lo.strftime("%Y-%m-%dT%H:%M:%SZ"), hi.strftime("%Y-%m-%dT%H:%M:%SZ"))
+
+
+def intersect_bounds(brackets: list):
+    """Fold several brackets for the SAME LastSeen into one.
+
+    Two readings of one unchanging value must agree, so their brackets
+    intersect -- and the intersection is strictly tighter than either whenever
+    the reads are not exactly one unit apart. Round 190 read `3h` twice,
+    6m18s apart, which narrows a 3601 s bracket to 3223 s.
+
+    An EMPTY intersection is not an error to be papered over: it is positive
+    evidence that the value moved between reads, which is round 448's
+    recomputation finding arriving through the plain-text door. Returns None,
+    and the caller says so in the row's notes rather than picking a favourite.
+    """
+    if not brackets:
+        return None
+    lo = max(b[0] for b in brackets)
+    hi = min(b[1] for b in brackets)
+    return (lo, hi) if lo <= hi else None
+
+
+def transcript_lastseen_readings(text: str) -> list:
+    """Every rendered `pgain-nuc ... last seen N<unit> ago` in one transcript.
+
+    Deliberately NOT restricted to ssh probes the way `transcript_probes` is:
+    round 190's two readings came from two different Bash calls and only one
+    of them ran ssh. Scanning every tool result is what finds both, and the
+    second reading is exactly what tightens the bracket.
+    """
+    out, pending = [], {}
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        ts = rec.get("timestamp")
+        for b in _blocks(rec):
+            if not isinstance(b, dict):
+                continue
+            if b.get("type") == "tool_use":
+                pending[b.get("id")] = ts
+            elif b.get("type") == "tool_result":
+                if pending.pop(b.get("tool_use_id"), None) is None:
+                    continue
+                for m in TS_PEER_RE.finditer(_result_text(b)):
+                    a = RENDERED_AGE_RE.search(m.group(0))
+                    if not a:
+                        continue
+                    read_at = _to_z(ts)
+                    if not read_at:
+                        continue
+                    n, unit = int(a.group(1)), a.group(2)
+                    out.append({"read_at_utc": read_at, "n": n, "unit": unit,
+                                "rendering": "%d%s" % (n, unit),
+                                "bounds": rendered_age_bounds(read_at, n, unit),
+                                "line": m.group(0).strip()})
+    return out
+
 
 def _blocks(rec: dict) -> list:
     msg = rec.get("message") or {}
@@ -210,7 +328,8 @@ def verdict_from_probes(probes: list) -> dict:
             "deciding": None, "conflicts": []}
 
 
-def record_from_probes(round_: int, probes: list, extra_note: str = "") -> dict:
+def record_from_probes(round_: int, probes: list, extra_note: str = "",
+                       readings: list = ()) -> dict:
     v = verdict_from_probes(probes)
     if v["verdict"] is None:
         raise ValueError("round %s: %s" % (round_, v["why"]))
@@ -229,6 +348,30 @@ def record_from_probes(round_: int, probes: list, extra_note: str = "") -> dict:
 
     ts_online = next((p["tailscale_online"] for p in probes
                       if p["tailscale_online"] is not None), None)
+
+    # ROUND 460. `tailscale_last_seen_utc` stays null -- a rendered `3h ago` is
+    # not that field and must never be written into it -- and the bracket goes
+    # in beside it under its own name. Emitted only when a reading exists, so
+    # the six recovered rows with no rendering re-derive byte-identically and
+    # this round's diff touches exactly one row.
+    ls_bounds = intersect_bounds([r["bounds"] for r in readings]) if readings else None
+    ls_note = None
+    if readings and ls_bounds is None:
+        ls_note = ("%d rendered LastSeen reading(s) in this transcript (%s) whose "
+                   "brackets do NOT intersect -- the value moved between reads, so "
+                   "no bracket is emitted." % (
+                       len(readings), ", ".join(sorted({r["rendering"] for r in readings}))))
+    elif readings:
+        ls_note = ("tailscale_last_seen_bounds_utc from %d plain-text reading(s) "
+                   "(%s) at %s. `tailscale_last_seen_utc` stays null on purpose: the "
+                   "renderer gives an AGE, not the JSON field's instant, and round "
+                   "454 refused to divide one into the other. The bracket is the "
+                   "honest form -- see reachability_recover.rendered_age_bounds for "
+                   "the renderer contract and the calibration behind it." % (
+                       len(readings),
+                       ", ".join("%s@%s" % (r["rendering"], r["read_at_utc"])
+                                 for r in readings),
+                       readings[0]["read_at_utc"]))
 
     stderr = ""
     rccode = 0 if up else 255
@@ -254,10 +397,12 @@ def record_from_probes(round_: int, probes: list, extra_note: str = "") -> dict:
     if key_missing:
         notes.append("LAN path unusable, not merely unreachable: %s does not exist on the "
                      "driver host." % key_missing)
+    if ls_note:
+        notes.append(ls_note)
     if extra_note:
         notes.append(extra_note)
 
-    return {
+    out = {
         "checked_at_utc": d["at_utc"],
         "round": round_,
         "track": "NUC-integration(E)",
@@ -275,13 +420,90 @@ def record_from_probes(round_: int, probes: list, extra_note: str = "") -> dict:
         "precision": "precise",
         "notes": " ".join(notes),
     }
+    if ls_bounds:
+        out["tailscale_last_seen_bounds_utc"] = list(ls_bounds)
+    return out
 
 
 def recover(round_: int, transcript_dir: str = "logs", extra_note: str = "") -> dict:
     p = Path(transcript_dir) / ("round-%d.json" % round_)
     if not p.exists():
         raise FileNotFoundError("no transcript for round %d at %s" % (round_, p))
-    return record_from_probes(round_, transcript_probes(p.read_text()), extra_note)
+    text = p.read_text()
+    return record_from_probes(round_, transcript_probes(text), extra_note,
+                              transcript_lastseen_readings(text))
+
+
+def rewrite_plan(log_path: str, transcript_dir: str = "logs") -> dict:
+    """What re-deriving every `transcript-r*` row would change, key by key.
+
+    The log is append-only for OBSERVATIONS -- a live check never edits an
+    older row -- but a recovered row is not an observation, it is a DERIVATION
+    from a file that is still on disk, and `test_every_recovered_row_in_the_
+    live_log_still_re_derives` already demands the two agree byte-for-byte. So
+    when the derivation learns something (round 460: a bracket the transcript
+    always carried), the row has to move with it or that test goes red.
+
+    The safety rule, and the reason this is a `plan` before it is a write:
+    a rewrite may only ADD keys. Any changed or removed key means the
+    derivation's MEANING moved, not just its coverage, and that is a thing a
+    human should read about before it lands -- so it is reported as
+    `unsafe` and `rewrite` refuses the whole batch.
+    """
+    rows = rc.load_log(log_path)
+    changes, unsafe = [], []
+    for i, row in enumerate(rows):
+        if not str(row.get("source", "")).startswith("transcript-r"):
+            continue
+        fresh = recover(row["round"], transcript_dir)
+        if fresh == row:
+            continue
+        added = sorted(set(fresh) - set(row))
+        removed = sorted(set(row) - set(fresh))
+        changed = sorted(k for k in set(row) & set(fresh) if row[k] != fresh[k])
+        # `notes` is the one field a safe rewrite may touch, and only in one
+        # direction: the new prose must EXTEND the old, character for
+        # character. A recovered row's notes exist to explain the row's own
+        # fields, so a rewrite that adds a field has to add the sentence that
+        # describes it -- refusing that would make the add-only rule
+        # unsatisfiable in exactly the case it was written for. Requiring a
+        # prefix keeps it from becoming a loophole: nothing already said about
+        # this row can be edited away under cover of "just the notes".
+        notes_appended = ("notes" in changed
+                          and isinstance(row.get("notes"), str)
+                          and isinstance(fresh.get("notes"), str)
+                          and fresh["notes"].startswith(row["notes"]))
+        blocking = [k for k in changed if not (k == "notes" and notes_appended)]
+        entry = {"round": row["round"], "index": i, "added": added,
+                 "removed": removed, "changed": changed,
+                 "notes_appended_only": notes_appended,
+                 "blocking": blocking,
+                 "added_values": {k: fresh[k] for k in added}}
+        changes.append(entry)
+        if removed or blocking:
+            unsafe.append(entry)
+    return {"n_rows": len(rows), "n_changes": len(changes),
+            "changes": changes, "unsafe": unsafe,
+            "safe": not unsafe}
+
+
+def rewrite(log_path: str, transcript_dir: str = "logs", apply: bool = False) -> dict:
+    plan = rewrite_plan(log_path, transcript_dir)
+    if not plan["safe"]:
+        plan["applied"] = False
+        plan["refused"] = ("a rewrite may only ADD keys, plus APPEND to `notes`; "
+                           "these rows would have a key removed, or a key changed "
+                           "in a way that is not a pure notes extension")
+        return plan
+    if apply and plan["changes"]:
+        rows = rc.load_log(log_path)
+        for c in plan["changes"]:
+            rows[c["index"]] = recover(rows[c["index"]]["round"], transcript_dir)
+        with open(log_path, "w") as f:
+            for r in rows:
+                f.write(json.dumps(r) + "\n")
+    plan["applied"] = bool(apply and plan["changes"])
+    return plan
 
 
 def main(argv=None) -> int:
@@ -294,7 +516,18 @@ def main(argv=None) -> int:
         sp.add_argument("--log-path", default=rc.DEFAULT_LOG_PATH)
         if name == "recover":
             sp.add_argument("--append", action="store_true")
+    rw = sub.add_parser("rewrite", help="re-derive every transcript-sourced row "
+                                       "in place; add-only, refuses otherwise")
+    rw.add_argument("--transcript-dir", default="logs")
+    rw.add_argument("--log-path", default=rc.DEFAULT_LOG_PATH)
+    rw.add_argument("--apply", action="store_true")
+
     args = ap.parse_args(argv)
+
+    if args.mode == "rewrite":
+        out = rewrite(args.log_path, args.transcript_dir, args.apply)
+        print(json.dumps(out, indent=2))
+        return 0 if out["safe"] else 1
 
     if args.mode == "show":
         for n in args.round:
