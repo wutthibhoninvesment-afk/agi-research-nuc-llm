@@ -24596,6 +24596,177 @@ successor — 448→449, 449→450, 450→451, 451→452, 452→453.)*
   123.4 s.
 - **Knowledge:** `knowledge/round-463-the-row-whose-child-was-a-runner.md`.
 
+### Round 464 — language(C) — 2026-09-02 — the definition that was a citation of itself
+
+- **Round 463's next-step 2 is CLOSED, both halves, and the first half was
+  bigger than "one edit".** `xref_check` DID report round 462's unregistered
+  decision 56 — but only because the section heading contains the words
+  `Decision 56` and X001's citation pattern is the word "decision" followed
+  by digits. **The definition was caught by being, accidentally, a citation
+  of itself.** Rounds 446, 450 and 452 titled their sections `## v0.42
+  (round 446, language C) — …`; under that convention — the majority one, 3
+  of the 4 preceding decisions — the id appears nowhere in citable text, the
+  registry is one entry short, and no instrument in this tree says a word.
+- **The consequence was live at HEAD and was not a missing sentence.** The
+  registry is the only site that assigns the NEXT number and its own
+  reserved comment says "Append here in the SAME round that mints a number".
+  A round obeying that reads max **55** and mints **56**, which round 462
+  had already used 8 700 lines further down. *A missing registry entry is a
+  taken number that looks free.*
+- **New instrument `languages/whence/specreg.py`** reads the numbering as a
+  NUMBERING SYSTEM rather than a membership set, on the rule that **a
+  registry which mints ordinals is a DENSE RANGE, and density is checkable
+  without a single citation**. Three sites parsed (ordinal registry, prose
+  `Decision N` heading, version-history heading) plus the declared reserved
+  range. `S001` minted-unregistered, `S002` collision, `S003` undeclared
+  hole, `S004` tag-vs-heading disagreement (ERRORs); `S005` untagged,
+  `S006` orphan (WARNs, exit code from errors only). `specreg.py next`
+  derives the next free id from EVERY site, so no author has to know there
+  is more than one.
+- **Measured on the live SPEC, 0.88 s: S001 1, S002 0, S003 0, S004 0,
+  S005 0, S006 5.** Two of those zeros are results. **S004 = 0 of the 29
+  round-carrying tags** says the tag discipline is perfect and the APPEND
+  discipline is what failed — they look like one habit and are not; writing
+  `(v0.20, round 348)` happens inside the sentence, appending to a list
+  8 000 lines away is a separate act with no detector. **S002 = 0** had
+  never been looked for: `ordinal_registry` builds a set, so a duplicate id
+  would be invisible to it by construction.
+- **`S006` is the inverse of X001 and nothing in this tree measured it.**
+  Decisions **4, 5, 10, 11 and 12** are cited nowhere outside their own
+  registry entries in 464 rounds. A WARNING on purpose (round 363's rule).
+  Citation distribution printed for the first time: 754 citations over 40
+  ids, top three (53, 48, 2) = 25.7%.
+- **The module reported ITSELF on its first run.** `specreg.py` lives in
+  X001's authoritative scope, and the first draft of its "Pitfall this file
+  walks around" paragraph — whose point is that a hypothetical id written
+  here is a live dangling citation — spelled the next free number out as the
+  example. `ids cited that are NOT minted: [14, 57]`. Fixed by writing
+  `decision N`, pinned by
+  `test_specreg.py::test_this_module_cites_no_unminted_decision`. Second
+  instance of round 463's shape in two rounds.
+- **Repairs, with the ORIGINAL checkers' counts as the proof.** Decision 56
+  appended (29 lines, house form): `X001 42 entries; 763 citation(s), 2
+  dangling id(s): 14, 56` -> **`43 entries; 769 citation(s), 1 dangling
+  id(s): 14`**, authoritative 4 -> 3, **0 NEW**. 14 stays dangling by round
+  348's design. `carryforward` K002: round 462's ledger `quote` was
+  `state/research-state.md`'s wording **verbatim** and never was in the
+  knowledge file the entry names — the round wrote both in one sitting and
+  took the sentence off the wrong screen. Repaired to the knowledge file's
+  own §6 heading; K002 clear.
+- **The same scan found two shapes K002 cannot see**, over all 138 scored
+  entries: **1 quote occurs TWICE in its `where` file** (round 421), and
+  **54 quotes are under 40 characters**, several bare headings. Both pass by
+  matching rather than by being the claim. Recorded in the ledger's own
+  note; `carryforward_check.py` is skills(B)'s.
+- **Predictions:** `state/whence/round-464/PREDICTIONS.md`, banked at
+  `6118e52` after the baseline was re-derived at `52b6100` and before any
+  code changed. **9 HIT, 1 MISS, 1 PARTIAL, 1 KEPT of 12.** Every
+  prediction derived from something already read landed exactly. The single
+  MISS (P5) was the one predicted from a pattern in this program's HISTORY
+  — "seven consecutive rounds found a stale number, so this will too" is a
+  prior about rounds, not a measurement of SPEC.md. P8 is PARTIAL and
+  self-inflicted: it predicted `carryforward` 1 error -> 0 without
+  accounting for its own bank opening a K001 in that same checker.
+- **Skill (rule 5):** `skills/registry-density-not-membership` — *audit an
+  id namespace for density and for who assigns the next number, not just
+  for whether every cited id resolves.* Nine steps, six pitfalls, three
+  positive trigger cases (deliberately ADR/error-code/RFC, not SPEC.md),
+  two runnable Verification commands plus a cross-check against
+  `xref_check`. `skill_lint --house --strict` 0 errors 0 warnings;
+  registered unprobed with owner skills(B).
+- **SPEC:** registry entry 56 added; **no language version, no constant and
+  no decision minted.** `specreg.py next` reports **57** as the next free
+  id — derived from every site, which is the point.
+- **Tests:** `languages/whence/tests/test_specreg.py` **39 passed in
+  4.70 s** (new). The whence fast tier solo (`nproc` 1): **2431 passed, 3
+  skipped, 103 deselected in 232.15 s, rc=0** — round 462's 2392 + exactly
+  39. The live corpus check 10 checkers, **3 errors -> 2**, and both
+  remaining are one fact (this round's own K001, seen twice, discharged by
+  the ledger entry written after scoring).
+- **`corpus_check.py --precommit` RUN before the last commit** — round
+  461's item 4 / round 463's item 4, carried three rounds as "a rule-5
+  addendum nobody has written". 9 checkers, no `unit_tests`, **0 errors, 8
+  warnings** in 51 s. It caught nothing, which is the outcome a round wants
+  and not an argument against the check.
+- **Knowledge:** `knowledge/round-464-the-definition-that-was-a-citation-of-itself.md`.
+
+## Next steps (as of round 464)
+
+1. **`S006` has five names and no owner.** Decisions 4, 5, 10, 11 and 12
+   are cited nowhere outside their own registry entries in 464 rounds. That
+   is now a MEASURED number, not a suspicion, and the next language round
+   should decide what it means rather than re-measure it: are they load-
+   bearing rules nobody needs to point at (4 "tests are statements" plausibly
+   is), or entries the document could cross-reference from the prose that
+   already restates them without the number? Do NOT retire one without
+   reading the section it summarises. language(C).
+2. **The two ledger shapes K002 cannot see are named and unfixed.** Round
+   421's `quote` occurs TWICE in its `where` file, so a re-derivation cannot
+   tell which occurrence is the scoring line; and 54 of 138 scored quotes
+   are under 40 characters, several of them bare headings that would match
+   any round's file. `carryforward_check.py`'s K002 tests `quote in body` —
+   the honest widening is a UNIQUENESS check plus a minimum length, both of
+   which would go red on real entries today, so whoever takes it should
+   price the backlog before turning either into an ERROR. skills(B).
+3. **`specreg.py next` exists; nothing MAKES a round run it.** The reserved
+   comment in SPEC.md still says "Append here in the SAME round that mints a
+   number", which is the instruction that produced this defect — it names
+   the registry as the source of the next id and the registry is exactly
+   what round 462 did not update. The comment should name the command
+   instead. One edit, and it belongs to the round that next mints an id, not
+   to a checker. language(C).
+4. **The counterfactual in §1 of the round file is an argument, not a
+   test.** "Had round 462 used the majority heading convention, nothing
+   would have reported it" is derived by reading X001's pattern and the four
+   preceding section titles. `specreg`'s S001 covers the class either way —
+   that is why it exists — but the claim that X001 alone would have been
+   silent has not been run against a synthetic SPEC. Twenty lines, and it
+   would make the case for S001 a measurement. language(C) or skills(B).
+5. **Round 463's item 1 now has a non-zero denominator.**
+   `logs/corpus-evidence/round-464/` retained three files and the
+   `unit_tests` row named its two failing node ids, which is how this
+   round's K001-cascade diagnosis took one command instead of a re-run.
+   `python3 harness/redattrib.py evidence` should be re-run to see the ratio
+   the item asked for; this round did not run it. harness(A).
+6. **`verb_audit` reports `V002 0` on this round's corpus-check line.**
+   Round 435's item 7 and round 434's item 7 both carry "V002 still reports
+   1 on every corpus-check line", and the harness fast tier's
+   `test_no_unexplained_broken_invocation` has been carried as red since
+   round 429. The corpus-check line no longer agrees with either. This round
+   did NOT run the harness fast tier, so the test's status is unknown here —
+   re-derive both before carrying the item an eighth time. harness(A).
+7. **Round 462's items 2, 3, 4 and 5 stand, untouched by this round** — the
+   166 argued-undecidable residual entries and the 94 `src` class nobody has
+   classified item by item, the 145 `parse_only_programs` nobody has looked
+   inside, decision 55's non-durable file:line citation (whose fragility
+   this round demonstrated by moving the section 29 lines), and
+   `FULL_SHOW_NODES`/`DEFAULT_MAX_DEPTH` both being 20000 with nothing
+   saying whether that is a decision. language(C).
+8. **Round 434's items 2-6 are now THIRTEEN rounds untouched** — the atom
+   table's decided-precondition risk, the 7 `append_only`/`refusal`
+   residuals, CP03p, and `classify` 161 vs `checkpin run` 162. Round 462's
+   item 6 said carrying them a twelfth time is not a plan; this is the
+   thirteenth. Take one or strike them. language(C).
+9. **`depthcensus.py --tests` tiering has now been offered five times and
+   declined five times** (rounds 456, 458, 462 to language(C); 462 and 463
+   to harness(A)). This round declined it too and says so. It is worth
+   noting that `specreg.py` got the cheap half for free — a sub-second audit
+   lands in the fast tier just by having a test file in `tests/` — so the
+   open question for `--harvest-only` (1.6 s) is not "which tier" but "who
+   writes the test file". harness(A).
+10. **Standing, and untouched by this round:** round 463's items 3, 4, 6 and
+   7 (the pristine-checkout asymmetry, the `--precommit` rule-5 addendum,
+   round 461's six unpaid items, round 457's three six-round-old ones); the
+   operator-blocked `--cap 196` and the E3 A/B; `case_coverage`'s
+   49-of-103 disagreeing verdicts; `claim_check` executing 0 of 419
+   commands; the NUC journal capture for rounds 202-250; and CLAUDE.md's
+   `CRITICAL MISSION` block, re-escalated for the TWENTY-FOURTH time and
+   still a one-line deletion for the operator. `languages/whence/SECURITY.md`
+   is still uncommitted, still not this program's, and still the operator's
+   decision — **do not copy a carry count for it from this file**; the
+   checker's own line is the only source.
+
+
 ## Next steps (as of round 463)
 
 1. **The retention mechanism now has a coverage number and it is 0 of 0.**

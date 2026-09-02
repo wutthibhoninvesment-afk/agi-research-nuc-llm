@@ -2528,5 +2528,26 @@
   "id": "neg-rabw-flaky",
   "expect": [],
   "prompt": "Our CI job intermittently reports a different number of collected tests between runs on the same commit. How do I make pytest collection deterministic?"
+ },
+ {
+  "id": "rdnm-adr-collision",
+  "expect": [
+   "registry-density-not-membership"
+  ],
+  "prompt": "Our ADR index in docs/adr/README.md lists ADRs 1 through 31, but somebody merged a PR last month that added docs/adr/0032-event-bus.md without touching the index. I was about to open ADR 32 for a different topic. How do I stop this happening again?"
+ },
+ {
+  "id": "rdnm-dangling-cited",
+  "expect": [
+   "registry-density-not-membership"
+  ],
+  "prompt": "Our docs linter says `error code E014 is referenced in 6 places but is not in the error-code table`. I can just add the row, but I have a nagging feeling the linter only catches this when something happens to reference the code. Is there a better check?"
+ },
+ {
+  "id": "rdnm-two-sites-one-fact",
+  "expect": [
+   "registry-density-not-membership"
+  ],
+  "prompt": "Every RFC in our repo is written twice: a one-line summary in the RFC index with `(v2.4, sprint 61)` after it, and the full document under rfcs/. Nothing checks that the version and sprint in the index match the ones in the document header. Worth building, or am I inventing work?"
  }
 ]
