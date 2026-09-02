@@ -15,7 +15,7 @@ An **overstated** blind spot is not the safe error. It hides a precision bug
 behind a number that reads as humility, and it sends the next worker to
 "narrow the residual" by adding recall they did not need.
 
-## When this fires
+## When this triggers
 
 * A tool prints `unresolved: N`, `could not reach`, `unknown`, `skipped`,
   `unparsed`, `not covered`, `n/a`.

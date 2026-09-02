@@ -2476,5 +2476,57 @@
    "compare-at-the-hardest-bound"
   ],
   "prompt": "We have one function that decides both 'this proves the service was down the whole time' and 'this proves someone reached it mid-outage', and both branches use the same `<=` against a sampled timestamp. That feels wrong but I can't articulate why."
+ },
+ {
+  "id": "wpiov-union-row",
+  "expect": [
+   "wrapper-publishes-its-own-verdict"
+  ],
+  "prompt": "Our nightly quality report runs eight linters plus a `make check` target and builds one table by grepping each command's stdout for error codes. The `make check` row keeps showing the same codes as the two linter rows above it, and the report's 'total issues' number is bigger than the number of distinct issues anyone can find in the repo. Is my grep wrong?"
+ },
+ {
+  "id": "wpiov-duplicate-metric",
+  "expect": [
+   "wrapper-publishes-its-own-verdict"
+  ],
+  "prompt": "The status page for our test pipeline shows a coverage percentage for every job. The integration-suite job and the smoke-suite job have printed byte-identical coverage figures for months, and the integration suite is the one that shells out to run the smoke suite. Where should I look first?"
+ },
+ {
+  "id": "wpiov-blame-table",
+  "expect": [
+   "wrapper-publishes-its-own-verdict"
+  ],
+  "prompt": "I built a script that attributes each red CI check to whichever tool reported it, by parsing the aggregate log. The wrapper job that invokes all the other tools comes out as the top reporter of every category, which cannot be right, and its own failures only ever say 'exit 1' with no detail. How do I make that row say something true?"
+ },
+ {
+  "id": "neg-wpiov-plain-parse",
+  "expect": [],
+  "prompt": "Write a Python function that parses a pytest -q summary line like '3 failed, 120 passed in 12.34s' into a dict of counts."
+ },
+ {
+  "id": "rabw-near",
+  "expect": [
+   "residual-audited-both-ways"
+  ],
+  "prompt": "Our dependency scanner prints 'unresolved: 131 call sites' at the end of every run and the number has been in the README for months. The next ticket says to widen the resolver until that count comes down. Before I do that, is there anything I should check about the 131 itself?"
+ },
+ {
+  "id": "rabw-mid",
+  "expect": [
+   "residual-audited-both-ways"
+  ],
+  "prompt": "A coverage tool we wrote reports a 'skipped' bucket that it says it cannot analyse statically. I want to quote that bucket as our known blind spot in a design doc. How do I make sure the bucket really is what it claims to be?"
+ },
+ {
+  "id": "rabw-far",
+  "expect": [
+   "residual-audited-both-ways"
+  ],
+  "prompt": "One predicate in our AST walker decides both whether a call executes code and whether its first argument is a source string, and the walker's 'could not determine' list keeps growing. Should I add an ignore list for the call sites that keep showing up in it?"
+ },
+ {
+  "id": "neg-rabw-flaky",
+  "expect": [],
+  "prompt": "Our CI job intermittently reports a different number of collected tests between runs on the same commit. How do I make pytest collection deterministic?"
  }
 ]
