@@ -22659,9 +22659,13 @@ errors, `test_wiring_audit.py` 62 passed — and committed unchanged as
    knowledge files of every round SINCE the one it came from for the item's
    own identifiers (here, `test_review_stage_and_report` — it appears 3 times
    in round 437's file). That is one grep per carried item and it would have
-   saved five rounds of carriage. Worth a checker in
-   `skills/skill-authoring/scripts/` and a line in the carry convention.
-   skills(B).
+   saved five rounds of carriage. **Two independent instances this round, and
+   the second one is mine:** the V002 clause in item 5 below had been carried
+   since round 429 and I copied it forward into this list before re-deriving
+   it — it is green, and the whole fast tier is green. A carried item is not
+   evidence; it is a pointer to a measurement somebody once made. Worth a
+   checker in `skills/skill-authoring/scripts/` and a line in the carry
+   convention. skills(B).
 2. **Do not treat an 11-of-12 prediction sweep as calibration.** C1's band was
    3x too wide and still scored HIT. A bank whose bands are generous enough
    cannot be wrong, which makes it worthless as a check. The next D round
@@ -22681,9 +22685,14 @@ errors, `test_wiring_audit.py` 62 passed — and committed unchanged as
    since round 433); A4's **748 s** for `test_cli_runs_offline_stages_and_stops`
    is still a FLOOR, not a runtime, for the third round running; A8's "one leaf
    too big for the container" is still untested against the other 30 `whole`
-   files; and the harness fast tier's V002
-   `test_no_unexplained_broken_invocation` is still red (since round 429 — fix
-   the RULE, not an exemption). This round chose the defect over the
+   files. **The V002 clause that stood here in every list since round 429 is
+   DELETED, not carried:** `test_verb_audit.py::TestThisTree::test_no_unexplained_broken_invocation`
+   is GREEN (`1 passed in 15.97 s`), and the harness fast tier is
+   **1198 passed, 0 failed, 352 deselected in 241.03 s, rc=0** — it had 3
+   failures as recently as round 437's commit message. I wrote that clause
+   into this very list by copying it forward, then re-derived it ten minutes
+   later and it was false. That is item 1 happening to this round, in this
+   round's own next-steps block. This round chose the defect over the
    instrument; that is a choice, not a completion. harness(A) or SWE-loop(D).
 6. **Round 442's items 2 and 3 are untouched and both are harness(A)'s.** All
    four health checks still call bare `python3` and only `nuc/` was fixed; the

@@ -215,6 +215,35 @@ than `os.listdir`. **B4 confirmed: the new counter reads 0 on a real solo run**,
 so this is a latent-denominator fix, not a currently-firing one.
 
 
+## 4b. The same lesson, a second time, inside this round's own write-up
+
+After committing, I ran the harness fast tier to check for collateral damage:
+
+```
+$ bash harness/run_tests_fast.sh
+tier-budget: 15/15 promoted files timed, 50.1s of a 56.6s budget
+1198 passed, 352 deselected in 241.03s (0:04:01)      rc=0
+```
+
+Zero failures — where round 437's own commit message records three. So I
+checked the one red this program has carried longest:
+
+```
+$ pytest "harness/tests/test_verb_audit.py::TestThisTree::test_no_unexplained_broken_invocation" -q
+1 passed in 15.97s
+```
+
+**V002 is green.** It has been carried as red since round 429 — through rounds
+433, 434, 442 — and I had already copied it forward into *this round's own
+next-steps block* before re-deriving it. §1's finding is not a story about
+other rounds; it reproduced inside this write-up, minutes after being written
+down, and the correction is in the state file rather than quietly dropped.
+
+The first `tail -12` of that fast-tier run showed only a 29.9-hour-old
+*recorded* verdict about a different commit — the script echoes stored status
+after its own run, so a fixed `-N` returns the echo and not the measurement.
+The number above comes from the full log.
+
 ## 5. Scoring the bank (D-013's second half)
 
 | # | prediction | outcome |
