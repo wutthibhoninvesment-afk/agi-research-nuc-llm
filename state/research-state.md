@@ -22995,6 +22995,199 @@ errors, `test_wiring_audit.py` 62 passed — and committed unchanged as
   reading that makes the report explicable rather than wrong-headed.
 - See `knowledge/round-446-the-rule-and-the-predicate-that-tested-one-node.md`.
 
+### Round 447 — skills(B) — 2026-09-02 — the count that no checker could read
+
+- **Round 446's slow-tier orphan was landed FIRST, attributed rather than
+  adopted** (`1c7f7c3`). One `state/slow-tier-ledger.jsonl` row written
+  2026-09-02 05:32:42 UTC by the driver's post-round `slowtier-slice` for
+  round 446 — 49 s before this session started, which is why 446 could not
+  have committed it. Matches `driver.log`'s `round 446: slowtier-slice OK
+  (… 1 conclusive against checkout da17658b647a0ae2 (3% recall), 0 failing)`.
+- **`selfdesc_check`'s published `coverage N/M prose-fields` was not
+  coverage; it was the finding count.** `sweep()` counted a field SILENT when
+  it produced no `Finding` and `report()` published `prose_fields -
+  silent_fields` as `checked`, so a claim looked up and found CORRECT was
+  published as uncovered — the token could only rise as the corpus got worse
+  and read `coverage 0/28` on round 446's driver line precisely because the
+  corpus was clean. Demonstrated with two artefacts differing in one word
+  (`three pins`/`four pins` over a 3-element list): the true one is silent
+  and uncovered, `coverage 1/2`. Round 435's own item 3 read `1/26` as "one
+  of 26 self-descriptions yields a checkable claim", which is what the token
+  was meant to mean and not what it measured. Every `check_*` now returns
+  `(findings, n_claims)`; a rule's DECLINES (partitive, past-tense, wrong
+  container) are counted as neither. Two numbers now published, and
+  `test_the_coverage_token_is_not_the_finding_count` fails if they collapse.
+- **Round 435 item 3's "TOP-LEVEL only" was the wrong diagnosis, and the
+  right one is two gaps with two fixes.** `SELF_FIELDS` was an exact-NAME
+  tuple; every `_round_NNN_note` in `state/known-unprobed-skills.json` is
+  top-level and was skipped on its name. NAME gap → `SELF_FIELD_RE` accepts
+  the round-stamped idiom (+24 top-level fields). DEPTH gap → prose collected
+  at any depth, each `ProseField` carrying the `Subject` it describes, with
+  rules split subject-scoped / tree-scoped / artefact-scoped so a nested
+  claim is checked against its own parent. **28 → 664 prose fields
+  (51 top-level, 613 nested, 23 round-stamped), 27 → 46 artefacts** — 663 at
+  the moment of measurement; this round's own ledger entry added the 664th,
+  which is why the SKILL.md Verification block pins FLOORS and not equalities
+  (round 441's measured lesson).
+- **The population predicate was measured, not chosen.** Accepting every
+  prose-shaped key at depth reached **1415** fields; dropping `description`
+  and `summary` alone removed **803** — the key names in the OpenAI tool
+  payloads under `nuc/hermes-dump/` and the frontmatter mirrors under
+  `state/skills*/`, text this repo RECORDED rather than ASSERTED. The
+  tempting alternative gate ("the artefact has a top-level
+  self-description") was REFUSED: it drops 359 nested fields in this
+  program's own `state/whence/round-4NN/run*.json` on a property unrelated to
+  whose prose it is.
+- **THE LIVE FINDING: the unprobed-skills batch is 26, not SIXTEEN, and four
+  rounds have priced it wrong.** `state/known-unprobed-skills.json` holds 26
+  entries (r405-r421 nine, r435 fourteen, r436/r445/r446 one each). Round
+  435's own note says "the queue is 14 deep" — fourteen is what THAT round
+  registered, dropping the nine already there — and round 436's entry
+  (`matcher-defines-the-population`) was never counted at all, so the carried
+  arithmetic ran 14 → 15 (r445) → 16 (r446) against a true 23 → 24 → 25 → 26.
+  Deficit 10 = 9 dropped base + 1 skipped entry. Re-quoted into this file's
+  next steps every round since 435.
+- **Round 435 item 4 (price the batch) is PAID, from the batch's own cases.**
+  All 26 entries have >=3 positive cases in `skills/trigger-cases.json` (91
+  total, none missing — round 435's "three have no cases at all" blocker is
+  CLOSED). Round 405's measured whole-batch payment was 41 cases / 205 probes
+  / $11.97 = 5.00 probes per case, $0.0584 per probe. **91 x 5 = 455 probes =
+  $26.57**, bracketed above by round 405's per-skill average at 26 x $1.33 =
+  $34.58. "Sixteen" prices out at $16.35, so the batch is 62% larger and
+  $10.22 dearer than the standing ask. Still needs operator authorisation.
+  Recorded in `_round_447_note`; round 446's note is left intact as the
+  record it is.
+- **The rule that told the one live error apart from five historical
+  records.** `J007` already meant "a dated claim is a record"; `AS_OF_RE`
+  scans the SENTENCE and this repo puts the date in the KEY. Dating every
+  round-stamped field would have suppressed the finding above. The rule
+  shipped: **a round-stamped note is a record; the NEWEST stamp in the
+  artefact is still the present tense**, because nothing in the artefact says
+  anything happened after it. Derived from the artefact, no list. Splits six
+  J005s into five J007 records and one J005 error. Its cost is written into
+  the code: it is a proxy for "nothing changed the collection since", and a
+  round that edits without stamping makes the newest older note wear the
+  blame — the right direction, since the repair is to add a note.
+- **J012 closes round 435 item 2** — a count whose noun is a per-element
+  FIELD of the subject's own elements with no sibling named, the gap between
+  J005 (denominator: a COLLECTION) and J010 (denominator: another FILE). It
+  is TWO-READING and fires only when the number matches NEITHER how many
+  elements carry the field NOR how many distinct values it takes, printing
+  both. **Its first two live hits were both FALSE**, in two independent ways,
+  each now fixed with its own test and control: (1) `no`/`zero` are number
+  words because "no pins" counts a CONTAINER, but before an ATTRIBUTE name
+  they are English negation ("no edit text, no witness"); (2) the hand-off to
+  J010 was scoped to the SENTENCE while the sibling reference is a property
+  of the DOCUMENT — `host-pins-plus-repointed.json` names its sibling 200
+  characters and one `SENTENCE_RE` split before the count it governs. Live
+  yield after both: 0, with synthetic fixtures proving the rule can fire.
+- **Three smaller mechanisms.** (a) `collections` filtered on truthiness, so
+  an EMPTY collection contributed no noun — the direction drift travels. The
+  instance is this checker's own `state/known-selfdesc-drift.json`, emptied
+  by round 437 with "only the one … is here" left standing; the fix does NOT
+  reach it (past tense, plus the numeral's noun resolves to a participle),
+  reported as a recall miss and the prose corrected by hand. (b) J002/J008
+  are claims about the FILE and are now de-duplicated one per artefact. (c)
+  The checker constrained its own author twice — it rejected a present-tense
+  "nine skills" in the new note, and held the suite red until this round's
+  knowledge file existed.
+- **A count was DELETED from a docstring rather than corrected.** The first
+  fix wrote "the 17 `_round_NNN_note` fields" into the module and a test
+  docstring — a hand-maintained count of a collection that grows one entry
+  per round, i.e. the exact shape this checker catches. Both now say "every"
+  and the tests assert lower bounds. (The bank's baseline row also said 17
+  where the file held 16 at bank time; a bank is a frozen record and is
+  scored, not corrected.)
+- **Predictions (D-013):** `state/round-447-predictions.md`, 10 banked before
+  any run of the widened checker. **3 HIT, 3 MISS, 3 SPLIT, 1
+  no-basis-reported.** P2 is the instructive miss and it indicts the bank:
+  it banded a TOTAL whose dominant term was depth, four lines above P10
+  declaring depth unpredictable — 663 fields against a 70-110 band. The rule
+  earned: *a bank line may not include a quantity another bank line declares
+  unpredictable.* P5 is the second: I predicted the CORPUS ("no true
+  per-element drift left" — correct, final yield 0) and scored the
+  INSTRUMENT, which fired twice because the new rule was wrong. P7 beat its
+  band — **zero** of the 30 existing tests were edited.
+- **Artifacts:** `skills/skill-authoring/scripts/selfdesc_check.py`
+  (`Subject`, `ProseField`, `_walk_prose`, `SELF_FIELD_RE`, `ROUND_STAMP_RE`,
+  `ZERO_WORDS`, `check_element_counts`, claims accounting, artefact-scoped
+  de-dup); `test_selfdesc_check.py` **30 → 47 tests, none of the 30 edited**;
+  `skills/self-description-is-a-claim/SKILL.md` (steps 10-13, five new
+  pitfalls, Verification block re-run — it had quoted `5 MISPOINTED` for
+  seven rounds after round 440 replaced that criterion, HEAD reports `0
+  MISPOINTED, 1 precondition-broken, 4 undecided`);
+  `state/known-unprobed-skills.json`; `state/known-selfdesc-drift.json`;
+  `knowledge/round-447-the-count-that-no-checker-could-read.md`;
+  `state/round-447-predictions.md`; round 446's ledger orphan (`1c7f7c3`).
+
+## Next steps (as of round 447)
+
+1. **BUY THE BATCH, or say in writing that it is not being bought.** It is
+   priced: 26 skills, 91 positive cases, `91 x 5 = 455 probes = $26.57`
+   (round 405's measured rate), upper bracket $34.58, and every entry has
+   cases so nothing blocks it. Eleven rounds asked for the price; it exists
+   now, and the only remaining input is operator authorisation. Re-derive
+   before spending — `python3 -c "import json;
+   print(len(json.load(open('state/known-unprobed-skills.json'))['skills']))"`
+   -> **26**. skills(B).
+2. **J004 finds NOTHING at depth, and the reason is structural.**
+   `xref_check.prose_path_tokens` only treats a token as checkable when it
+   starts with a repo TOP-LEVEL directory, and the nested `why` fields in the
+   whence pin registries name `examples/self_host.lang` — relative to
+   `languages/whence/`, not to the root. So the 612 nested fields contributed
+   zero path claims, and the anchoring that stops J004 crying wolf is also
+   what makes it blind there. Either resolve a nested prose path against the
+   artefact's own directory first, or publish the limit as a number. Do NOT
+   simply widen the anchor. skills(B).
+3. **The newest-round-stamp rule has an untested failure mode.** It is a
+   proxy for "nothing changed the collection since a note was written", and a
+   round that edits a collection WITHOUT stamping a note will make the newest
+   older note wear the blame. No test covers that path and no live instance
+   has occurred. Write the fixture, decide whether the message should say
+   "…or a later round changed this without a note", and leave the direction
+   alone — it errs toward reporting. skills(B).
+4. **`state/known-selfdesc-drift.json`'s stale sentence was fixed by HAND,
+   not found by the checker,** and the two reasons are both recall limits
+   worth a decision: `PAST_TENSE_RE` suppresses any sentence containing
+   `were`, and `COUNT_RE`'s noun slot accepts a participle (`one owned by`)
+   and stops there. The second is cheap to improve (skip participles and
+   retry the next noun); the first is the known cost round 435 pinned. Say
+   which, and re-run the corpus before and after. skills(B).
+5. **Round 446's items 1 and 2 stand, UNCHECKED by this round** — the
+   `full_show` nested-miss rendering residual (decide (a) 11 re-pinned
+   killers or (b) a narrower suppression) and `Guess`, the one aggregate
+   v0.42 does not walk on an untested written argument. language(C).
+6. **Round 445's items 1-3 stand, unchecked** — `guardpin_fixture.py`'s 14
+   never-collected `test_*` functions, the slow tier's 3% recall and
+   unpublished achievable ceiling, and the cross-file body-hash duplication
+   checker. harness(A) or SWE-loop(D).
+7. **Round 435's item 1 and round 434's items 2-5 stand, unchecked.**
+   `polarity.py audit` now reports **0 MISPOINTED, 1 precondition-broken, 4
+   undecided, 0 strict-violation** at HEAD (re-derived this round while
+   refreshing a Verification block that had quoted `5 MISPOINTED` for seven
+   rounds) — so round 435's item 1, which asks whether MISPOINTED is the
+   right predicate, must be re-read against round 440's REPLACED criterion
+   and not against the 5. language(C).
+8. **`nproc` on this box is 1.** Respected: only text edits ran beside the
+   background corpus check.
+9. **A rule this round earned, for `skills/prediction-banking/SKILL.md`:** a
+   bank line may not put a band on a SUM one of whose terms another bank line
+   declares unpredictable. P2 banded 70-110 prose fields; P10, four lines
+   below, said the depth term had no basis and would be reported rather than
+   guessed. The answer was 663, and the top-level half of P2 was fine. Also
+   worth the same file: predict what the INSTRUMENT will report, not what the
+   corpus contains — P5 was right about the corpus and scored as a miss
+   because a new rule can be wrong. skills(B).
+10. **Standing, and not touched by this round:** the NUC `retention --strict`
+   deadline; the `%vmeff` residual; `case_coverage`'s disagreeing verdicts;
+   `claim_check` executing 0 of its commands; the operator-blocked
+   `--cap 196`; the exhausted E-mission list; and CLAUDE.md's `CRITICAL
+   MISSION` block, which round 444 REFUTED rather than re-escalated and which
+   is still a deletion only the operator should make.
+   `languages/whence/SECURITY.md` is still uncommitted, still not this
+   program's, and still the operator's decision — do not copy a carry count
+   for it from this file; the checker's own line is the only source.
+
 ## Next steps (as of round 446)
 
 1. **The rendering residual is the only thing keeping "print is observation"

@@ -232,15 +232,20 @@ grep -rn "SCANNED_EXTS\|SCANNED_EXT\|include=" --include=*.py . | head
 # 2. The corpus and its denominator, plus every finding.
 python3 skills/skill-authoring/scripts/selfdesc_check.py --repo-root . \
     --show-acknowledged
-# -> "  fields: 612 of 663 nested below the artefact root; 136 claim(s)
-#     checked in 72 field(s), 6 field(s) yielded a finding"
-# -> "selfdesc-check: 46 artefact(s) of 622 json file(s), 663 prose field(s),
-#     0 error(s), 0 warning(s), 7 info, 0 acknowledged;
-#     coverage 72/663 prose-fields, 2/2 must-claims"
-# TWO numbers, and they must be different ones. 72 fields had a lookup RUN in
+# -> ">= 46 artefacts, >= 600 nested prose fields, 0 error(s), and a
+#     `coverage <checked>/<total>` whose <checked> EXCEEDS the number of
+#     fields that yielded a finding."
+# At round 447: "  fields: 613 of 664 nested below the artefact root;
+# 137 claim(s) checked in 73 field(s), 6 field(s) yielded a finding" and
+# "coverage 73/664 prose-fields, 2/2 must-claims".
+# TWO numbers, and they must be different ones. 73 fields had a lookup RUN in
 # them; 6 produced a finding. Publishing the second under the first's name is
 # step 8's trap, and this line read "coverage 0/28" for twelve rounds because
 # the corpus was CLEAN.
+# PINNED AS A FLOOR, not as an equality, and that is round 441's measured
+# lesson applied: these are corpus sizes and they only grow. Round 447's own
+# third commit added one nested `note` to a registry and moved 663 -> 664
+# between this block being written and the round finishing.
 
 # 3. Both halves of the discrimination, from one sentence, and the near-miss
 #    that must stay quiet.
@@ -252,9 +257,9 @@ python3 -c "import sys; sys.path.insert(0,'skills/skill-authoring/scripts'); \
 import selfdesc_check as S; a,_n,_u,_s = S.scan_tree('.'); \
 print(sum(1 for x in a for f in x.fields if f.depth), 'nested,', \
 sum(1 for x in a for f in x.fields if f.round is not None), 'round-stamped')"
-# -> "612 nested, 23 round-stamped"
-# Both were zero before the sweep matched field names by SHAPE and carried a
-# subject with each field.
+# -> "613 nested, 23 round-stamped" at round 447; both must stay well above
+# zero, which is what they were before the sweep matched field names by SHAPE
+# and carried a subject with each field.
 
 # 5. The executable claim, actually executed (the step nobody does).
 python3 languages/whence/polarity.py audit \
@@ -317,7 +322,7 @@ neither sentence was quite right, which is the useful part.
 Every `_round_NNN_note` in the registry that item cited is top-level and was
 skipped anyway. Reading a name gap as a depth gap points at the wrong fix, and
 both turned out to exist with different repairs (steps 10 and 11). 28 prose
-fields became **663** — 51 top-level, 612 nested — across 27 → **46**
+fields became **664** — 51 top-level, 613 nested — across 27 → **46**
 artefacts.
 
 **"`coverage 1/26` is the honest headline: one of 26 self-descriptions yields
