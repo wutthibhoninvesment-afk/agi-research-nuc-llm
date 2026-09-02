@@ -2393,3 +2393,118 @@ Full write-up, including the prediction scoring and the three misses:
 **Open, handed to harness(A):** all four health checks call bare `python3` and
 are exposed identically; `nuc/` was just the only one with a venv-only import.
 The general fix is in `run_driver.sh`, which is harness(A)'s artifact.
+
+## Round 448 (NUC-integration E) — 2026-09-02, box **DOWN** the whole round; THIRD consecutive down window (436, 442, 448). All findings offline
+
+**Reachability.** Two attempts, one per documented path, both failed;
+CLAUDE.md's two-failures rule fired after the second.
+
+- tailnet `ssh -o ConnectTimeout=15 -i ~/.ssh/id_ed25519 jab@100.78.44.111`
+  at 2026-09-02T06:31:32Z -> `Connection timed out`, rc 255.
+- LAN `ssh -i ~/.ssh/id_ed25519_nuc jab@192.168.1.37` at 06:32:01Z ->
+  `Connection timed out`, **and the key still does not exist on this host**.
+- `tailscale status`: `Online False`, `LastSeen 2026-09-01T18:27:56.1Z` — the
+  box has been away ~12 h and was away across the 2026-09-02T00:07 sweep.
+
+**Round 442 left a hole in the durable record and this round closed it by
+one.** `state/nuc-reachability-log.jsonl`'s previous entry was round 436's:
+round 442 probed twice, wrote the failure into prose, and appended nothing.
+Round 448's record is appended as `source: "live-replay-r448"` — it replays
+the two probes above rather than opening a third connection after the rule had
+fired. **Every E round owes this log one line, up or down.**
+
+**Headline: the retention deadline this file and `state/research-state.md`
+have carried for four rounds is not a date.** `sysstat-summary.service`
+deletes only when its timer FIRES, the timer fires only while the box is up,
+and the box is up perhaps half the time. Derived from the banked journal
+(`sweeps` verb, new this round):
+
+```
+9 scheduled fires in the r424 capture's window, 7 ran, 2 MISSED
+  (2026-08-30T00:07Z, 2026-09-01T00:07Z) — both inside a boot-table gap
+persistence: FALSE — 0 of 2 missed fires re-ran within 3600 s of the box
+  returning; it came back 25 min after one of them and still did not
+```
+
+So a slept-through sweep is **lost, not deferred**, and with the 2026-09-02
+fire also missed:
+
+- **`sa23`, `sa24`, `sar23`, `sar24` are STILL ON THE BOX** (~1.08 MB of `sar`
+  history the standing note had written off).
+- They die, together with `sa25`/`sar25` — **six files, not four** — at the
+  next fire the box is awake for. Earliest **2026-09-03T00:07:00Z**.
+- `sa01`'s deadline is unmoved at `2026-09-10T00:07:00Z`. The two numbers do
+  not move together; quoting them as a pair implied a coupling that is absent.
+
+**Standing action, replacing round 430's "run `retention --strict` first".**
+Run BOTH, in this order, every E round:
+
+```bash
+.venv/bin/python3 nuc/capture_manifest.py sweeps \
+    --capture state/nuc-capture-r424 --anchor <a measured fire> --strict
+.venv/bin/python3 nuc/capture_manifest.py retention \
+    --capture state/nuc-capture-r424 --now <CAPTURED_AT> --next-run <fire> \
+    --history 7 --down-since <tailscale LastSeen> --down-until <now> --strict
+```
+
+`retention` alone answers the calendar question. It over-reports loss, in the
+direction that makes a later round abandon data still on disk.
+
+**Capture-plan fixes (closes round 436's next-E item 2, all four clauses).**
+Step 3b's comment said "the USER manager" over a command reading
+`_SYSTEMD_USER_UNIT=qwen36-colibri.service`; there was no `### ` marker on that
+redirect, which is how `journal-user-full.txt` ended up two views concatenated;
+`qwen36-toolproxy` was captured nowhere. Now: `journal-user-qwen36-colibri.txt`,
+`journal-user-qwen36-toolproxy.txt` and `journal-user-manager.txt`, each
+self-labelling; plus **new step 3e** `systemctl cat` + `systemctl show -p
+Persistent -p OnCalendar -p RandomizedDelaySec` for both sysstat timers, so the
+next up-round READS what this round had to INFER. The emitted plan is now
+`bash -n`-checked.
+
+**`%vmeff` — CLOSED by written decision, not carried a fifth time.** The
+capture's own `pgsteal_kswapd`/`pgsteal_direct`/`pgscan_*` are all 0, so the
+test is vacuous and cannot be resolved by analysis. It needs a box that has
+actually reclaimed. It belongs in a precondition, not a next-steps list;
+reopen when a capture shows a non-zero counter.
+
+**Second finding: `tailscale_last_seen_utc` is not stable.** One outage, box
+down throughout, local `tailscaled` unrestarted since 2026-08-09, and the field
+read `18:30:00.1Z` at round 436 and `18:27:56.1Z` at round 448 — **124 s
+earlier, 11 h later**. `streak_bounds` took the LATEST reading, which is unsafe
+once two readings contradict; a disputed streak now takes the minimum and says
+so. And a rounded-UP reading can walk into a down gap and make
+`_gap_witness` assert a *missed excursion* that never happened — now fails
+closed when another reading of the same streak disputes it. New verb:
+`reachability_check.py lastseen-drift --strict` (live log: 1 drifting streak,
+spread 124.0 s).
+
+**Tests:** `nuc/tests` **802 -> 828, all green** (95.09 s); every pin falsified
+by reverting the fix it guards. `nuc-checks PASS` (7 consecutive, 442-448).
+`skill_lint skills --house --strict` 81 skills, 0 errors, 3 warnings.
+New skill `skills/deadline-names-its-executor/` (4 trigger cases, registered
+unprobed — batch is now **27**, so round 447's priced 26 is one round stale).
+
+**E-mission status: E1-E5 all still DONE; nothing new unchecked.**
+
+**Next E round, in order:**
+1. **If the box is up, capture `sa23`/`sa24`/`sar23`/`sar24` BEFORE anything
+   else** — they are alive only until the first 00:07 the box is awake for.
+   Then run the new `capture_plan`, which finally takes `Persistent=` and the
+   toolproxy journal.
+2. **Read `Persistent=` and compare it against this round's derived `false`.**
+   Two natural experiments is a verdict, not a proof; the unit text settles it.
+   If it says `true`, this round's model is wrong in the *dangerous* direction
+   and the whole §2 correction must be withdrawn — say so loudly.
+3. **Score the sweep model against reality.** The capture's `ls -l` will show
+   whether `sa23`/`sa24`/`sar23`/`sar24` survived. That is a real prediction
+   this round has already made in public; do not quietly skip it.
+4. Round 436's items 4-6 and 9 stand, untouched: the `commit` channel vs a
+   9.25 GB weights load; `Consumed` as a channel in its own right (coverage is
+   4 of 26 units — establish which have `MemoryAccounting=`); the 13 remaining
+   costly buckets named by no fire, asked *inside* an OOM/restart window; and
+   the separability route nobody has walked.
+5. Still blocked on the operator: `--cap 196` (band [129, 204],
+   `bounded_by: engine_lru`, 1.096 GB margin — **twenty-second** round
+   unchanged) and the E3 A/B with its full six-gate table.
+6. Retire round 370's item 3 (names a log line this config does not emit) —
+   carried untouched for thirteen E rounds, untouched again here.

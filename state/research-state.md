@@ -23143,6 +23143,199 @@ errors, `test_wiring_audit.py` 62 passed — and committed unchanged as
   `knowledge/round-447-the-count-that-no-checker-could-read.md`;
   `state/round-447-predictions.md`; round 446's ledger orphan (`1c7f7c3`).
 
+## Round 448 (NUC-integration E) — 2026-09-02, box DOWN, third consecutive down E round
+
+- **Reachability: DOWN.** Two probes, one per documented path, both rc 255
+  (tailnet 06:31:32Z, LAN 06:32:01Z — the LAN key still does not exist on this
+  host). CLAUDE.md's two-failures rule fired after the second; no third
+  connection was opened all round. `tailscale`: `Online False`, `LastSeen
+  2026-09-01T18:27:56.1Z`. Rounds 436, 442 and 448 have all been down.
+- **The reachability log's round-442 hole is closed by one round.** Round 442
+  probed twice, wrote prose, and appended NOTHING to
+  `state/nuc-reachability-log.jsonl` — the durable record that exists to
+  replace exactly that prose. Round 448's line is appended as
+  `source: "live-replay-r448"`, replaying the two probes rather than probing
+  again. Every E round owes this log one line, up or down.
+- **HEADLINE: the retention deadline this program has quoted for four rounds
+  is not a date.** `2026-09-03T00:07:00Z` is a *systemd timer fire conditional
+  on the box being awake*. Derived from the banked journal by the new `sweeps`
+  verb: **9 scheduled fires in the r424 window, 7 ran, 2 MISSED**
+  (2026-08-30 and 2026-09-01), both inside a boot-table gap, and
+  **`persistence: FALSE` — 0 of 2 re-ran within an hour of the box returning**
+  (it came back 25 minutes after one of them and still did not). A
+  slept-through sweep is LOST, not deferred.
+- **Consequence, and it is operational, not cosmetic.** The box was also down
+  across the 2026-09-02T00:07 fire, so **`sa23`, `sa24`, `sar23` and `sar24`
+  — the four files the standing next-steps item had written off — are still on
+  disk**, ~1.08 MB of `sar` history, capturable until the first 00:07 the box
+  is awake for. Six files, not four, die on that fire: an outage does not save
+  files, it BATCHES them. `sa01`'s `2026-09-10T00:07:00Z` is unmoved, so the
+  two numbers the state file quoted as a pair do not move together. The
+  calendar model errs by OVER-reporting loss — the direction that makes a
+  later round abandon data still on the box.
+- **Second finding: `tailscale_last_seen_utc` is not a stable datum.** The
+  module adopted it over the plain-text renderer because the renderer "is a
+  SNAPSHOT recomputed fresh each round". The JSON field is recomputed too: one
+  continuous outage, box down throughout, local `tailscaled` unrestarted since
+  2026-08-09, read `18:30:00.1Z` at round 436 and `18:27:56.1Z` at round 448 —
+  **124 s EARLIER, 11 h later** (3 reads 3 s apart, all identical). Three of
+  the log's five distinct non-zero values sit on an exact `:00` second, two on
+  an exact half-hour; round 448's does not. `streak_bounds` took the LATEST
+  reading in a streak, which is unsound once two readings contradict each
+  other — a disputed streak now takes the MINIMUM and reports
+  `lastseen_disputed` (current outage's declared start uncertainty widens
+  `1h00m38s` → `1h02m42s`; the old bracket was narrower than the evidence
+  supports). And a rounded-UP reading can land inside a down gap, where
+  `_gap_witness` reports it as POSITIVE evidence of a missed excursion — now
+  fails closed when another reading disputes it, with the negative control
+  kept. New verb `lastseen-drift --strict`: **1 drifting streak, spread 124.0
+  s, direction `earlier`.**
+- **A round-334 test was REVERSED on purpose, not deleted.**
+  `test_streak_bounds_takes_the_latest_last_seen_across_the_whole_streak` is
+  now `..._scans_the_whole_streak_and_takes_the_earliest_if_disputed`; its
+  docstring names round 334, what it asserted, and why the measurement changed
+  the answer. The property it was really protecting — the WHOLE streak is
+  scanned, not just its first record — is unchanged and still asserted.
+- **A bug this round wrote, caught by its own negative control.**
+  `persistence_verdict` first drew its evidence from the fires MATCHED to a
+  schedule — and a catch-up run is by construction not at its scheduled slot,
+  so the one event the verdict exists to detect was the one event excluded.
+  It could only ever return `False`, which is the answer this round wanted, on
+  the live data, correctly, for the wrong reason. Caught by
+  `test_a_caught_up_fire_would_read_as_persistent`, written because a verdict
+  that agrees with you is the kind you do not check.
+- **`capture_plan`: round 436's next-E item 2 CLOSED, all four clauses.** The
+  step-3b comment said "the USER manager" over `_SYSTEMD_USER_UNIT=` (two
+  different journals); the redirect emitted no `### ` marker, which is how
+  `journal-user-full.txt` became two views concatenated with only the second
+  labelled; `qwen36-toolproxy` appeared in no capture ever taken. Now three
+  self-labelling files, plus **new step 3e** reading `Persistent=`,
+  `OnCalendar` and `RandomizedDelaySec` off both sysstat timers so the next
+  up-round READS what this round had to INFER. The emitted plan is now
+  `bash -n`-checked — it is shell a future round pastes into a live box in its
+  first thirty seconds, and this round introduced a quoting slip in it while
+  editing.
+- **`%vmeff` CLOSED by written decision rather than carried a fifth time.**
+  The capture's own `pgsteal_kswapd`/`pgsteal_direct`/`pgscan_*` are all 0, so
+  the test is vacuous and no analysis can resolve it. It belongs in a
+  precondition ("run when `pgsteal_kswapd > 0`"), not in a next-steps list.
+- **Predictions (D-013):** `nuc/predictions-e-round448.md`, banked before the
+  first `ssh`, before `retention` ran, and before `capture_plan`'s body was
+  opened. **17 HIT / 1 MISS / 1 PARTIAL / 2 no-basis-reported of 21.** Every
+  line carries an explicit BASIS tag so **round 436's untested conclusion
+  could be scored by a round that did not author it**: `[CMD]` 4/4, `[MODEL]`
+  5/5, `[SENT]` **5/6**. Round 436's *"everything from a banked SENTENCE
+  missed"* is **REFUTED as stated**; the narrower true rule is that the one
+  prose miss was the only one whose source sentence was IMPERATIVE — *a
+  recommendation is not an observation, and predicting a defect exists because
+  a previous round recommended fixing it is the error.* D3 is the PARTIAL and
+  is a bank defect: a 120-260 s wall-time band copied from round 442's 150.5 s
+  without noting that round measured it under contention on a one-core box;
+  actual 101 s solo. Both `[NONE]` lines were reported, the first outside use
+  of `prediction-banking` step 9 — verdict on that rule: **usable, and it
+  changed behaviour.**
+- **Two errors this round CREATED and closed.** Writing the bank took
+  `skills/run_checks_fast.sh` from 0 to 2 errors, both the same fact: round
+  435's K001 sweep found `nuc/predictions-e-round448.md` unregistered (a
+  seventh naming convention, discovered exactly as designed). Registering it
+  closed `carryforward K001` and `unit_tests rc1` together. The ledger edit is
+  **8 lines, not 955** — the file is `indent=1, ensure_ascii=True`, verified
+  by asserting an exact round-trip before editing, and `quote` is re-read by
+  K002 so it had to match the knowledge file verbatim (it was wrong once).
+- **Tests:** `nuc/tests` **802 → 828, all green** (95.09 s, +26: 17 in
+  `test_capture_manifest.py`, 9 in `test_reachability_check.py`). Every pin
+  falsified by reverting the fix it guards and restored — five reverts, each
+  failing exactly the tests it should. `bash nuc/run_checks_fast.sh` →
+  `nuc-checks PASS`, exit 0, **7 consecutive PASSes (442-448)**, 101 s.
+  `skill_lint skills --house --strict` 81 skills, 0 errors, 3 warnings.
+- **Worth recording, not this round's doing:** `verb_audit` now reports
+  **`V002 0`**. Round 447's item 7 lists that check as red on "every
+  corpus-check line, including this round's". Nothing here touched
+  `verb_audit`; harness(A) should confirm and CLOSE the carry rather than copy
+  it forward a sixth time.
+- **Artifacts:** `nuc/capture_manifest.py` (+~290 lines: `parse_service_fires`,
+  `parse_boot_table`, `scheduled_fires`, `_covering_boot_gap`, `sweep_history`,
+  `persistence_verdict`, `fires_lost_to_outage`, `_fmt_utc`/`_parse_utc`,
+  `_journal_timestamps`; `retention_forecast(skipped_fires=, period_days=)`;
+  new `sweeps` verb and `retention --skipped-fire/--down-since/--down-until/
+  --period-days`; `capture_plan` steps 3b/3c/3e);
+  `nuc/reachability_check.py` (`lastseen_drift`, `_streak_lastseen_values`,
+  disputed-start rule, phantom-excursion guard, `lastseen-drift` verb);
+  `nuc/tests/test_capture_manifest.py` +17, `test_reachability_check.py` +9;
+  `state/nuc-reachability-log.jsonl` +1 record;
+  `skills/deadline-names-its-executor/SKILL.md` (new, 4 trigger cases in
+  `skills/trigger-cases.json` including one NEGATIVE, registered in
+  `state/known-unprobed-skills.json` — batch is now **27**, so round 447's
+  priced 26 is one round stale); `state/prediction-bank-ledger.json`;
+  `state/nuc-missions.md` addendum; `nuc/predictions-e-round448.md`;
+  `knowledge/round-448-the-deadline-that-was-not-a-calendar.md`; round 447's
+  ledger orphan (`c21f5a0`).
+
+## Next steps (as of round 448)
+
+1. **IF THE BOX IS UP, CAPTURE `sa23`/`sa24`/`sar23`/`sar24` FIRST.** They are
+   alive only until the first `00:07` the box is awake for, and they are alive
+   at all only because it slept through 2026-09-02's. This is the one item on
+   this list with a clock on it. Then run the new `capture_plan`, which finally
+   takes `Persistent=` and the toolproxy journal. NUC-integration(E).
+2. **Read `Persistent=` and score it against this round's derived `false`.**
+   Two natural experiments is a verdict, not a proof. If the unit text says
+   `true`, this round's whole §2 correction is wrong in the DANGEROUS
+   direction — data written off as surviving when it is gone — and must be
+   withdrawn loudly rather than quietly amended. The capture's `ls -l` also
+   settles whether the four files survived, which is a public prediction this
+   round has already made. NUC-integration(E).
+3. **The standing E action is now TWO commands, not one.** `retention
+   --strict` alone answers the calendar question and over-reports loss.
+   Run `sweeps --strict` first, then `retention ... --down-since <tailscale
+   LastSeen> --down-until <now> --strict`. Both are in
+   `state/nuc-missions.md`'s round-448 addendum verbatim. NUC-integration(E).
+4. **`tailscale_last_seen_utc` drifted ONCE, measured.** One instance is a
+   fact, not a rate. `lastseen-drift --strict` will report a second the moment
+   it happens, and the honest next step is to LET IT, not to model the
+   quantisation from one 124 s sample. If a second arrives with the opposite
+   sign, the disputed-streak minimum rule needs re-reading — a value that
+   drifts LATER is the one that can manufacture a phantom excursion, and only
+   the guard, not the bound, protects against that. NUC-integration(E).
+5. **Round 436's items 4-6 and 9 stand, UNTOUCHED by this round** — the
+   `commit` channel against a 9.25 GB weights load; `Consumed` as a channel in
+   its own right (`MemoryAccounting=` coverage is 4 of 26 units); the 13
+   remaining costly buckets named by no fire, asked INSIDE an OOM/restart
+   window before being called unexplained; and the separability route round 430
+   called "the whole game" that nobody has walked. NUC-integration(E).
+6. **Round 447's items 2, 3 and 4 stand, UNCHECKED by this round** — J004's
+   structural blindness to nested prose paths, the newest-round-stamp rule's
+   untested failure mode, and `known-selfdesc-drift.json`'s two recall limits
+   (`PAST_TENSE_RE` on `were`, `COUNT_RE`'s participle noun slot). skills(B).
+7. **Round 447's item 1 is now ONE ROUND STALE and must be re-derived before
+   it is quoted.** The batch was priced at **26** skills; this round added
+   `deadline-names-its-executor`, so it is **27**. Re-derive with
+   `python3 -c "import json; print(len(json.load(open('state/known-unprobed-skills.json'))['skills']))"`
+   rather than copying the price. The operator authorisation it waits on is
+   unchanged. skills(B).
+8. **`verb_audit` V002 is GREEN and the state file still says it is red.**
+   Round 447's item 7 asserts `V002 1` on "every corpus-check line"; this
+   round's reads `V002 0`. Nothing here touched it. Confirm and close the
+   carry — it has been copied forward since round 429. harness(A).
+9. **`nproc` on this box is 1, and this round has a number for what that
+   costs a PREDICTION.** D3's band was built on a wall time round 442 measured
+   while doing other work; solo, the same check ran 101 s against a 120 s
+   floor. **A wall-time band must state the contention condition of the
+   measurement it derives from, or it is not a prediction about this run.**
+   That belongs in `skills/prediction-banking/SKILL.md` beside round 447's two
+   new rules. any track.
+10. **Standing, and not touched by this round:** `case_coverage`'s disagreeing
+   verdicts; `claim_check` executing 0 of its 367 commands; the
+   operator-blocked `--cap 196` (**twenty-second** round unchanged) and the E3
+   A/B's six-gate table; round 370's item 3, carried untouched for thirteen E
+   rounds; and CLAUDE.md's `CRITICAL MISSION` block, which round 444 REFUTED
+   rather than re-escalated and which is still a deletion only the operator
+   should make. The `%vmeff` residual is **no longer on this list** — round
+   448 closed it by decision, see the round entry. `languages/whence/SECURITY.md`
+   is still uncommitted, still not this program's, and still the operator's
+   decision — do not copy a carry count for it from this file; the checker's
+   own line is the only source.
+
 ## Next steps (as of round 447)
 
 1. **BUY THE BATCH, or say in writing that it is not being bought.** It is
