@@ -157,7 +157,39 @@ and only needs reporting; one-off numbers nobody will act on.
     the world, bank both lines: "the corpus contains no true instance"
     AND "the first run of the new rule reports N false ones".
 
-11. **Turn the miss pattern into a rule, once.** After scoring, look at the
+11. **A wall-time band states the CONTENTION CONDITION of the measurement
+    it derives from, or it is not a prediction about this run.** Step 4's
+    recorded distribution answers "where did the number come from"; this
+    answers "what else was running when it was taken", and on a small box
+    that term dominates everything else in the band. `nproc` on this
+    program's host is **1**, and its driver runs four suites at once after
+    each round, so every wall time in `logs/driver.log` is a CONTENDED
+    measurement. Round 442 measured a check at ~120 s that way; round 448
+    ran the same check solo at **101 s** against a 120 s floor it had
+    inherited, and round 435 measured a corpus tier at 144 s solo where the
+    driver's concurrent runs of the identical tier took 419-447 s — a **3x**
+    penalty that is the box, not the tests. A band copied across that
+    boundary is not wide, it is about a different experiment.
+    Checkable outcome: every duration line says "solo" or "under the
+    driver's N-way run", and a line that cannot say which is banked as
+    no-basis (step 9) rather than banded.
+
+12. **A COUNT band names its counter.** "8-16 new tests" is not one
+    prediction, it is two with a 3x gap between them, and which one you
+    meant is decided after the fact by whoever reads the number. Round 449
+    banked exactly that and landed on **13 test functions / 34 collected
+    items** — inside its band on one reading, more than double it on the
+    other, from one parametrised module. The same trap sits under "lines
+    changed" (with or without the test file), "findings" (raw or
+    de-duplicated), and "files touched" (staged or in the worktree).
+    Say which counter, and give it as a command:
+    `grep -c '^def test_' <file>` and `pytest --collect-only -q | tail -1`
+    are different numbers about the same work.
+    Checkable outcome: every count line in the bank carries the command
+    that will settle it, and that command is runnable before the work
+    starts.
+
+13. **Turn the miss pattern into a rule, once.** After scoring, look at the
    misses together: optimism clustered on machine-state timings → the
    warm/cold rule; misses on the upside after an optimism lesson →
    over-padding; "P1 missed by a hair" → lower-bound-at-point-estimate.
@@ -249,3 +281,7 @@ print('%d of %d rounds recorded; median %.1f min; p25-p75 %.1f-%.1f min'
 - [ ] Where a new or changed instrument produces the number, the bank says
       whether it is predicting the instrument or the world
 - [ ] No duration band without a machine-written prior behind it
+- [ ] Every duration line states the contention condition it was measured
+      under (solo, or under an N-way concurrent run)
+- [ ] Every count line names its counter and carries the command that
+      settles it

@@ -2299,5 +2299,31 @@
   "id": "dne-neg-elapsed-clock",
   "expect": [],
   "prompt": "Our JWTs expire 15 minutes after issue and the check is a plain timestamp comparison in the request handler. Users on slow connections say they get logged out early. Where's the bug?"
+ },
+ {
+  "id": "eda-near",
+  "expect": [
+   "extracted-definition-needs-an-adoption-test"
+  ],
+  "prompt": "Last quarter we pulled all the version-string parsing into a single `semver.py` because three services each had their own regex and one of them choked on prereleases. The module is solid and well tested. I want to be sure the migration actually finished \u2014 how would you check?"
+ },
+ {
+  "id": "eda-mid",
+  "expect": [
+   "extracted-definition-needs-an-adoption-test"
+  ],
+  "prompt": "A customer ID with a hyphen in it broke the billing exporter again. We fixed that exact bug eight months ago in the shared validator and I can see the fix in the commit log. Why would it come back in one tool and not the others?"
+ },
+ {
+  "id": "eda-far",
+  "expect": [
+   "extracted-definition-needs-an-adoption-test"
+  ],
+  "prompt": "I inherited a repo where `common/timeparse.py` has a big header comment listing four places that used to parse timestamps by hand, saying it replaces all of them. Nothing in CI mentions the module. Is that comment worth anything, and what would make it worth something?"
+ },
+ {
+  "id": "eda-neg-single-use-helper",
+  "expect": [],
+  "prompt": "I extracted a 12-line retry loop out of one function into a helper because the function was getting long. There was only ever the one call site. Should I be worried the helper drifts from its caller?"
  }
 ]
