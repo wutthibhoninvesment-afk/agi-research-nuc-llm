@@ -961,6 +961,12 @@
    "where": "knowledge/round-449-one-definition-one-adopter.md",
    "quote": "**7 HIT, 2 MISS, 1 SPLIT, 1 PARTIAL, 1 DISCLOSED, 1 no-basis-reported.**",
    "note": "Section 7, one table row per banked line, all 13. The bank fixed its own DISPOSITION before measuring (round 419's rule): normalise the drifted heading AND move the remaining parsers onto harness.roundheadings, whatever the measurement showed -- so the result could not choose the fix. Two lines declined to bet and both are carried back: P3 DISCLOSED (the heading line numbers were already in hand, so the section-ratio was derivable and is not a bet) and P11 no-basis-reported (no solo measurement of the harness fast tier exists at any HEAD, and round 448's item 9 forbids a wall-time band that does not state the contention condition behind it). The two MISSes are one family: P7 banded the whole tool's published output when only a two-finding path was reachable from the code being changed, and P5 was RIGHT with a wrong mechanism -- it checked whether round 448 had a bank under the state/round-NNN-predictions.md convention, found none, and called that 'round 448 banked nothing', when 448 had banked nuc/predictions-e-round448.md and the real reason nothing moved is that scan() runs only for `unscored` entries, of which there is one. P8 SPLIT (15 test functions, inside the 8-16 band; 36 collected items, 2.25x over it) earned step 12 of skills/prediction-banking/SKILL.md: a count band names its counter. P12 is a base-rate bet on this round's own discipline that was LOST in the good direction -- no test needed editing after its first run, though two numbers in the new SKILL.md's Verification block did, which is reported rather than counted."
+  },
+  "450": {
+   "bank": "state/whence/round-450/PREDICTIONS.md",
+   "status": "unscored",
+   "owner": "language(C)",
+   "why": "banked and committed at d3d4f32 before any measurement; this round scores it in its own knowledge file and will flip this entry to scored before its final commit."
   }
  }
 }

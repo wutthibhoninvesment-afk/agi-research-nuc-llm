@@ -58,7 +58,7 @@ from .values import (
     Explanation,
     _slot,
     WList, wlist,
-    show_payload, full_show, show_int, SHOW_INT_DIGITS,
+    show_payload, full_show, named_misses, show_int, SHOW_INT_DIGITS,
     NUM_TEXT_LIMIT_MSG,
     leaf, derived, mk_miss, merge_miss,
     render_why, render_contrast, is_origin_miss, walk_steps, find_step,
@@ -780,11 +780,17 @@ class Interpreter(object):
         rather than its outermost node."""
         val = getattr(v, "value", None)
         if isinstance(val, Miss):
-            if id(v) in self._observed:
+            # v0.43: `_seen_by_print`, not `self._observed` alone. Both
+            # spellings are equivalent before v0.43 (nothing ever put a MISS
+            # node in `_observed_aggr`); from v0.43 a miss shown inside a
+            # printed container is in the second dict, and
+            # `print([m])` followed by a bare `m` must not report a miss
+            # whose reason is already on stdout.
+            if self._seen_by_print(v):
                 return
             self._record_drop(v, at)
             return
-        if type(val) is WList or type(val) is Record:
+        if isinstance(val, (WList, Record, Guess)):
             # The observation gate applies to the CONTAINER, and that is what
             # keeps `print(xs)` (and a `let`-bound list printed later) out of
             # the report: `print(x) is x`, so the node this statement drops
@@ -866,7 +872,7 @@ class Interpreter(object):
         chose to leave it; if that turns out to be wrong it needs its own
         sentence in the report, not a silent third branch here."""
         payload = getattr(v, "value", None)
-        if type(payload) is not WList and type(payload) is not Record:
+        if not isinstance(payload, (WList, Record, Guess)):
             return [], False
         out = []
         seen = {id(v)}
@@ -877,6 +883,8 @@ class Interpreter(object):
             p = stack.pop()
             if type(p) is WList:
                 kids = p
+            elif type(p) is Guess:
+                kids = [p.node]
             else:
                 kids = [n for _, n in p.fields.items()]
             for node in kids:
@@ -892,7 +900,7 @@ class Interpreter(object):
                 q = getattr(node, "value", None)
                 if isinstance(q, Miss):
                     out.append(node)
-                elif type(q) is WList or type(q) is Record:
+                elif isinstance(q, (WList, Record, Guess)):
                     stack.append(q)
         return out, truncated
 
@@ -3479,24 +3487,28 @@ def _make_builtin_table():
         if isinstance(p, Miss):
             if len(interp._observed) < interp.DROP_CAP:
                 interp._observed[id(a)] = a
-        elif type(p) is WList or type(p) is Record:
-            # v0.42: a printed list or record is observed too, because from
-            # v0.42 a DISCARDED one is walked for misses inside it. The two
-            # halves have to arrive together: the walk without this line
-            # reports `print(<a list of blame records>)` as a drop.
+        elif isinstance(p, (WList, Record, Guess)):
+            # v0.43 (round 450), decision 52. v0.42 marked the CONTAINER
+            # observed, which is a claim about text that nothing compared
+            # against the text --- and it was false at every depth past
+            # `SHOW_NEST`, where `full_show` prints `[[[[…]]]]` and names no
+            # miss at all. What is marked now is exactly the miss NODES the
+            # rendering NAMED (`values.named_misses`, written to mirror the
+            # renderer branch for branch), so the suppressor cannot claim
+            # more than the renderer did. A printed container with no miss
+            # inside it now marks NOTHING, which is strictly better than
+            # v0.42 for the reason `_observed_aggr` exists at all: a program
+            # printing a hundred harmless lists no longer spends any of the
+            # cap.
             #
-            # Known and deliberate residual: `full_show` renders a miss
-            # nested inside a container as the bare token `miss`, with no
-            # reason (`[miss]`, `@{v: miss}`), so `print([nosuch(1)])` shows
-            # the reader THAT there is a miss and not WHY. Calling that
-            # observation is generous. It is still the right call here ---
-            # the alternative reports a drop for `history.lang`'s
-            # `print(culprits)` --- and the fix belongs in the RENDERING,
-            # which round 446 did not touch because 11 pinned mutation-killer
-            # regressions in `tests/test_generated_killers.py` quote the
-            # `[miss, miss]` spelling verbatim. See SPEC "v0.42".
-            if len(interp._observed_aggr) < interp.DROP_CAP:
-                interp._observed_aggr[id(a)] = a
+            # `Guess` joins the gate because `_show`'s Guess branch renders
+            # `Guess.node` --- see `_misses_within` for the walk's matching
+            # half and why v0.42's written reason for excluding it was
+            # anchored on a program that never built one.
+            for n in named_misses(a):
+                if len(interp._observed_aggr) >= interp.DROP_CAP:
+                    break
+                interp._observed_aggr[id(n)] = n
         return a  # pass-through: print(x) is x
 
     @register("rand", 0, "")

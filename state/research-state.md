@@ -12,7 +12,35 @@ Workspace: ~/agi-research
   - **Recurring pattern this track exists to catch, confirmed across 15+ rounds now (144/152/153/157/159/161/163/164/167/168/169/170/173/176/177/179/180/182/184/188/192/194/197/198/204/210, each eventually fixed by a later round):** real, tested, uncommitted work with no knowledge file and no research-state entry, usually from the driver's outer round-timeout firing mid-round. Every reconciliation follows the same discipline: verify from a clean re-read, never trust a prior round's own narration, check `git log` directly. Round 213 backfilled two more instances of the narrower "ran, real git_committed=True commits exist, but no `### Round N —` heading" variant: round 198 (language C, a clean backfill — real commits + knowledge file already existed) and round 197 (SWE-loop D, whose own work left no surviving diff — the flake it was chasing was independently fixed a different way by round 209).
   - **Closed (round 243):** the `--distractors`/`--paired` suppression diagnostic, open and un-run since round 105, was finally run live twice — a real near-miss pair (`~/.hermes/skills/{autonomous-ai-agents/merge-reconciler,devops/kanban-orchestrator}`) staged against `session-inheritance-audit`'s `sia-concurrent` case (`ok`, 4/4 plain vs 4/4 staged, distractors never fired) and a positive-control near-duplicate paraphrase distractor staged against `sia-{near,mid,concurrent}` (also `ok`, but the distractor co-fired in 10/12 probes rather than suppressing — sonnet's native Skill selection isn't forced-exclusive). See `references/trigger-evaluation.md`'s "Controlled distractors" section and `knowledge/round-243-skills-distractors-paired-diagnostic-first-live-run.md`. Cross-track file-ownership convention (rounds 165/174/183/188/196/207/212) — flag other tracks' uncommitted/unattributed work, don't fix or delete it outside skills(B)'s own files; this includes the non-driver Hermes-gateway files in `languages/whence/` (round 172/198/201/207/212/213, unchanged since round 212).
   - Full round-by-round detail for rounds 3-195 lives in this file's own round log above and each round's `knowledge/round-{...}-skills-*.md`; rounds 1-174's round-log entries are further archived to `state/research-state-archive.md`. Trust those over re-deriving from this summary.
-- **Language (C):** **v0.42** (round 446 — decision 51: a discarded value is
+- **Language (C):** **v0.43** (round 450 — decision 52: observation is what
+  the RENDERING named. v0.42 made a printed container observed so that
+  widening the drop report could not fire on `examples/history.lang`'s
+  `print(culprits)`. *Observed* is a claim about text and nothing compared it
+  against the text: `full_show` rendered a nested miss as the bare token
+  `miss`, so `print([nosuch(1)])` printed `[miss]` and suppressed the one
+  mechanism that would have named the reason — **adding a `print` to a
+  program REMOVED information about a miss** — and, the half nobody had
+  named, a miss deeper than `SHOW_NEST` is not rendered AT ALL
+  (`print([[[[[nosuch(1)]]]]])` prints `[[[[[…]]]]]`, no substring `miss`)
+  while the container was still marked observed. The detector had no depth
+  bound and the suppressor's evidence did: round 446's own
+  `suppressor-shares-the-detector-shape` class, inside round 446's own fix.
+  `values._show` now names the reason in the FULL rendering only
+  (`miss "unbound name 'nosuch' (line 1)"`, the Whence literal spelling,
+  quoted because reasons contain commas) and `b_print` marks exactly the miss
+  NODES the rendering named (`values.named_misses`, held to `full_show` by a
+  15-case differential, not by a comment). `SHOW_NEST` is deliberately not
+  lifted — the cap keeps a `RecursionError` out of the explanation path.
+  v0.42's written reason for not walking a `Guess` cited
+  `guess(nosuch(1), 0.5, [])`, a program that never builds a `Guess` (the
+  miss propagates and the source is not a string); the case is
+  `guess([nosuch(1)], 0.5, "s")` and v0.43 walks it. Corpus yield measured
+  before and after: **zero** (12 dropped either way). Blast radius: eleven
+  oracles in the `do not edit by hand` `tests/test_generated_killers.py`,
+  re-pinned by new `harness/swe/killerrepin.py`, which rewrites a pin only
+  when the tree at a baseline ref reproduces its OLD expectation exactly.
+  See `SPEC.md` `## v0.43` and `tests/test_v43.py`.)
+  Its predecessor: v0.42 (round 446 — decision 51: a discarded value is
   discarded WHOLE. v0.32's drop report implemented *a miss that is the value
   of a statement nothing keeps* as `isinstance(v.payload, Miss)`, a test on
   the OUTERMOST node, so `[nosuch(1)]`, `@{a: nosuch(1)}` and

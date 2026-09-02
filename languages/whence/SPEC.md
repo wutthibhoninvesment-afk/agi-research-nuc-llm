@@ -1,6 +1,6 @@
 # Whence — a provenance-first language
 
-*Spec level: **v0.42** (round 446). The `## vN` sections below are the
+*Spec level: **v0.43** (round 450). The `## vN` sections below are the
 authoritative version list and each names the round that built it; this
 line deliberately no longer enumerates rounds, because the enumeration it
 replaced had said "v0.16.6 + v0.14.2" since round 266 while the file went
@@ -8730,6 +8730,9 @@ fire, so deleting `_observed_aggr` cannot pass the suite.
 
 **Known residual, deliberate.** `full_show` renders a miss nested inside a
 container as the bare token `miss`, with no reason (`[miss]`, `@{v: miss}`),
+[*read as of v0.43: this residual is CLOSED — see § v0.43, decision 52, which
+also found the second and larger half of it, a miss past `SHOW_NEST` that the
+rendering does not name at all while the suppressor claims it did.*]
 so `print([nosuch(1)])` shows the reader THAT there is a miss and not WHY.
 Calling that observation is generous. It is still the right call over
 reporting `print(culprits)`, and the fix belongs in the RENDERING — which
@@ -8809,3 +8812,166 @@ a bare `xs` is still a drop even though `xs` is in scope, because that is
 v0.32's own rule for the scalar case
 (`test_the_last_top_level_expression_is_a_drop_too`) and the two must not
 disagree about the same program.
+
+## v0.43 (round 450, language C) — what `print` promised, and what it kept
+
+### Decision 52: observation is what the rendering NAMED
+
+v0.42 (decision 51) made a printed container OBSERVED, so that widening the
+drop report to misses inside a discarded list could not fire on
+`examples/history.lang`'s `print(culprits)`. *Observed* is a claim about
+text — the reader has been shown this — and nothing compared it against the
+text. It was false two different ways.
+
+**One, known and written down.** `full_show` rendered a miss nested inside a
+container as the bare token `miss`, so `print([nosuch(1)])` printed `[miss]`:
+THAT there is a miss, not WHY. v0.42 recorded that as a deliberate residual
+and called it *generous*. The sharpest statement of it is the one that
+version did not make:
+
+```
+[nosuch(1)]          ->  (no output)  +  dropped: … unbound name 'nosuch'
+print([nosuch(1)])   ->  [miss]       +  (nothing)
+```
+
+**adding a `print` to a program REMOVED information about a miss.** The print
+suppressed the one mechanism that would have named the reason and replaced it
+with four characters that do not. For a language whose second decision is
+*a failure can explain itself*, that is the wrong direction for a `print` to
+move a program.
+
+**Two, which nobody had named.** `full_show` stops at `SHOW_NEST`. A miss
+nested deeper renders as nothing at all —
+
+```
+print([[[[[nosuch(1)]]]]])   ->  [[[[[…]]]]]
+```
+
+— a line that does not contain the substring `miss`, and v0.42 still marked
+the container observed, so the run said nothing about that miss anywhere.
+`Interpreter._misses_within`, the DETECTOR, has no depth bound; `full_show`,
+the SUPPRESSOR's evidence, has one. Detector and suppressor had different
+shapes, which is exactly the class round 446 named in
+`skills/suppressor-shares-the-detector-shape/SKILL.md` — and left an instance
+of inside its own fix. The reason it survived is that the residual v0.42 DID
+write down is the mild one: `[miss]` at least says the word.
+
+Decision 52 fixes both halves as one predicate.
+
+**The rendering.** `values._show` names the reason when `limit is None` — the
+FULL rendering, which is `print` and `str` — and keeps the bare token under
+any finite limit. The two are different promises and decision 37 already
+wrote both down, in `interp.b_show`'s comment: *"`str` is `full_show` —
+unbounded, a miss lists its reasons"*, against *"every MISS MESSAGE in this
+file is built from `show_payload` instead: one line, bounded …, a miss is the
+word `miss`"*. `full_show` kept the first promise at the TOP level only and
+silently fell back to the second one element down. The bounded path is
+deliberately unchanged: under a limit the recursive calls pass `limit and 12`,
+so a reason would arrive as a twelve-character slice of a sentence, and
+`show()` — the builtin decision 37 exposed precisely so a Whence program can
+build the messages the interpreter builds — is that path.
+
+Spelled as the Whence LITERAL that produces one:
+
+```
+print([nosuch(1)])        ->  [miss "unbound name 'nosuch' (line 1)"]
+print(@{v: nosuch(1)})    ->  @{v: miss "unbound name 'nosuch' (line 1)"}
+print(nosuch(1))          ->  miss: unbound name 'nosuch' (line 1)   (unchanged)
+```
+
+`miss "text"` is real syntax (§ *Finding 5 — a miss in a record field is not
+a failure*), and the language's own cure sentence tells an author to write
+exactly it. The quoting is load-bearing rather than decorative: miss reasons
+contain commas (`if condition must be true/false, got [1]`; `arguments fit
+fold(fn, acc, xs)`), and an unquoted reason inside `[...]` has no reading that
+recovers where the element ends. It is source-SHAPED and **not** a round
+trip — the runtime reason of `miss "gone"` is `gone (line 1)`, because a miss
+stamps the line it was made on — and `test_v43.py::
+test_the_rendering_is_source_SHAPED_and_not_a_round_trip` pins the gap rather
+than implying there isn't one.
+
+**The suppressor.** `b_print` no longer marks the container. It marks exactly
+the miss NODES the rendering NAMED, computed by `values.named_misses`, which
+mirrors `full_show` branch for branch — including the two details a
+hand-written mirror gets wrong, that `full_show`'s own container branch
+renders elements one level shallower than `show_payload` would, and that
+`_show`'s `Guess` branch descends with no nest guard of its own. The two
+walks are held together by a DIFFERENTIAL and not by a comment:
+`test_v43.py::test_the_renderer_and_the_suppressor_name_the_same_misses`
+renders each of fifteen values and asserts, for every miss node reachable
+inside it, that its reason is in the text if and only if `named_misses`
+claims it.
+
+Three consequences, each measured:
+
+* a miss past the render depth is now REPORTED, with its reason, instead of
+  being silently claimed as shown;
+* a printed container with no miss inside it now marks NOTHING, so a program
+  printing a hundred harmless lists spends none of `DROP_CAP` — the case
+  `_observed_aggr` was split off for in v0.42 is now cheap rather than tight;
+* observation became COMPOSITIONAL. v0.42 gave two programs carrying the same
+  information to the reader different answers — `[print(nosuch(1)), 1]` 0
+  drops, `print([nosuch(1)]) + [2]` 1 drop — for no reason except whether
+  `print`'s argument was the miss or the container around it. Both are 0.
+  v0.32's actual rule is untouched: `print(nosuch(1)) + 1` builds a NEW miss
+  node and is still a drop.
+
+**`SHOW_NEST` is deliberately NOT lifted.** The cap exists so that rendering
+a 2500-deep value costs O(1) host frames rather than O(depth); lifting it for
+the full rendering would put a `RecursionError` in the explanation path,
+which is the failure `SHOW_INT_DIGITS` exists to keep out of it. The renderer
+is allowed to stop. What it is not allowed to do is have someone else claim
+it didn't.
+
+### The `Guess` decision, and the program it was measured on
+
+v0.42 declined to walk a `Guess` and said so in prose, in
+`_misses_within`'s docstring and in § v0.42: *"Round 446 measured the case
+(`guess(nosuch(1), 0.5, [])` as a dropped statement) and chose to leave it"*.
+
+That program has two defects and neither leaves a `Guess` anywhere. `guess`
+propagates a miss ARGUMENT (`_propagate`), so `nosuch(1)` comes straight back
+out; and a guess source must be a string, so `[]` is a second miss of its own.
+The value measured was a `Miss`, and a dropped `Miss` was already reported by
+v0.32 — so the branch the argument justifies was unreachable from the program
+cited for it. The written reason for a decision named a case in which the
+decision does nothing.
+
+The program the decision is actually about is `guess([nosuch(1)], 0.5, "s")`:
+the miss has to be INSIDE the guessed value. v0.43 walks it, and the argument
+is v0.32's own. The drop rule's predicate is REACHABILITY after the statement,
+not the value's epistemic status: a `Guess` is interrogable through
+`confidence`/`sources` only by a program that has a NAME for it, and a
+discarded statement leaves none. v0.42's sentence conflated *a value built to
+be interrogated* with *a value someone can still interrogate*. A printed
+`Guess` is observed like any other container, because `_show` renders its
+interior.
+
+### Measured
+
+```
+tracked corpus       18 file(s), 1 drop      before and after     (unmoved)
+curecheck.py corpus  12 miss value(s) dropped before and after    (unmoved)
+curecheck.py replay  23 miss value(s) dropped before and after    (unmoved)
+run_tests_fast.sh    2245 -> 2287 passed, 3 skipped, 97 deselected
+```
+
+The class decision 52 closes is real and demonstrable in three lines; its
+yield on this corpus is **zero**, and that is published rather than described.
+The blast radius was eleven pinned oracles in
+`tests/test_generated_killers.py` — a file that says *do not edit by hand* and
+cannot be regenerated — re-pinned by `harness/swe/killerrepin.py`, which
+rewrites a pin only when the tree at a baseline ref reproduces its OLD
+expectation exactly, so the movement is attributable to this change and to
+nothing else.
+
+### What v0.43 deliberately does NOT do
+
+It does not move the exit code, add a flag, or change any value, reason
+string or check result. It does not change the BOUNDED renderer, so every
+miss message the interpreter builds and everything `show()` returns is
+byte-identical to v0.42. It does not lift `SHOW_NEST`. It does not make the
+nested rendering re-parse to the value that produced it. And it does not
+teach the drop report to dedupe by reason text: `print([nosuch(1)])` followed
+by a second, different `[nosuch(1)]` still reports one drop, because the gate
+is node identity and a reason is not a name.

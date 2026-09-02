@@ -141,11 +141,33 @@ def test_an_observed_element_inside_an_unobserved_container_is_skipped():
     assert i.dropped_total == 0
 
 
-def test_an_expression_around_a_printed_container_is_still_a_drop():
-    """v0.32's `1 + print(y)` rule, in the aggregate register: `concat`
-    built a NEW list that nothing showed."""
+def test_an_expression_around_a_printed_container_was_a_drop_until_v043():
+    """CHANGED BY v0.43 (round 450), and re-pinned to the new answer with the
+    argument rather than flipped quietly.
+
+    v0.42 read this program as v0.32's `1 + print(y)` rule in the aggregate
+    register: `concat` built a NEW list that nothing showed, so report it.
+    But the drop report reports MISS NODES, not containers, and `+` on lists
+    reuses the element nodes — so v0.42 printed the miss's reason and then
+    reported the same node as *"nothing can ask it why"* three lines later.
+
+    Worse, it disagreed with its own sibling. These two programs put exactly
+    the same information in front of the reader:
+
+        [print(nosuch(1)), 1]      -> 0 drops   (v0.42 and v0.43)
+        print([nosuch(1)]) + [2]   -> 1 drop    (v0.42) / 0 drops (v0.43)
+
+    and v0.42 answered them differently for no reason except whether
+    `print`'s argument was the miss or the container around it. v0.43 marks
+    the miss NODES the rendering named, so both are 0.
+
+    `test_a_new_miss_built_around_a_printed_one_is_still_a_drop` in
+    `test_v43.py` holds v0.32's actual rule: `print(nosuch(1)) + 1` builds a
+    NEW miss node and is still a drop."""
     i = run("print([nosuch(1)]) + [2]\n")
-    assert i.dropped_total == 1
+    assert i.dropped_total == 0
+    assert run("[print(nosuch(1)), 1]\n").dropped_total == 0
+    assert run("print(nosuch(1)) + 1\n").dropped_total == 1
 
 
 @pytest.mark.whence_slow
@@ -186,7 +208,19 @@ def test_the_two_observation_sets_are_bounded_separately():
     i = run(src)
     assert i.dropped_total == 0, i.dropped
     assert len(i._observed) == 1
-    assert len(i._observed_aggr) == Interpreter.DROP_CAP
+    assert len(i._observed_aggr) < Interpreter.DROP_CAP
+
+    # v0.43 (round 450): the INVARIANT is unchanged and still the reason the
+    # second dict exists; the numbers moved, in the direction that makes the
+    # case safer rather than the one that makes it moot. v0.42 spent one slot
+    # per printed CONTAINER, so this program filled `_observed_aggr` to its
+    # cap and the separation is what kept the final `print(nosuch(1))`
+    # observable. v0.43 marks the miss NODES the rendering NAMED, and a
+    # harmless list names none, so the cap is not touched at all. The
+    # assertion is `< DROP_CAP` rather than `== 0` on purpose: what must hold
+    # here is that harmless printing cannot crowd out a real one, and pinning
+    # the exact spend would make this a second copy of
+    # `test_v43.py::test_printing_a_harmless_container_marks_nothing`.
 
 
 def test_past_its_cap_the_observation_record_errs_toward_reporting():
