@@ -172,7 +172,8 @@ python3 -m pytest tests/test_v42.py -q \
 
 # 4. the whole pair, plus the corpus that must not move
 python3 -m pytest tests/test_v42.py tests/test_v32.py -q -m ""
-#    -> 29 passed  and  26 passed
+#    -> 59 passed in ~30s  (29 + 30; `-m ""` un-deselects whence_slow, which
+#       is what makes step 2's falsification part of this run)
 
 # 5. the YIELD, measured before/after rather than claimed (step 8)
 python3 curecheck.py corpus | tail -1
