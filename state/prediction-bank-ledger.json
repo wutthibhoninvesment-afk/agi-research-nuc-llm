@@ -1050,6 +1050,14 @@
    "where": "knowledge/round-460-the-field-nobody-read.md",
    "quote": "**13 HIT, 1 PARTIAL, 0 MISS of 14, plus one",
    "note": "Section 7 of the knowledge file, with the full table in the bank file's own SCORING section. The one non-HIT, P12, is a PROCESS failure rather than a forecast failure: the round predicted a test-suite baseline it had never measured, and by the time it tried, the tree was already dirty. Measuring it in a git worktree afterwards is what surfaced the round's fifth finding -- .gitignore excludes logs/round-*.json, so seven of the reachability log's rows and eleven of its tests are pinned against files deliberately not in the repository -- so the process failure paid for itself once, which is not a reason to repeat it. Two calibration results worth keeping: both LOW-confidence predictions (P8, the tailscale age renderer floors rather than rounds; P15, round 190's recovered bracket moves no published number) HELD, because flagging weak evidence made the round go and measure rather than assume. And P6 was nearly scored a MISS on a phrase grep that returned four quotations of round 184's prose alongside the two real readings -- a grep over a transcript finds citations of an observation as readily as the observation. The bank also used round 436's no-basis clause once, declining to guess whether six unopened transcripts carried a rendering; none did."
+  },
+  "461": {
+   "bank": "state/swe/round-461/PREDICTIONS.md",
+   "status": "scored",
+   "scored_by": 461,
+   "where": "knowledge/round-461-the-checker-that-was-a-suite.md",
+   "quote": "**12 HIT, 5 MISS, 1 vacuous of 18.**",
+   "note": "Section 12, one table row per banked line. The four misses are one miss: P1-P4 are all BASELINE predictions and all four were wrong because they were taken from round 455's published prose instead of measured on the tree first -- round 460's item 5 named that exact failure one round earlier. P3 could not be scored at all until a `git worktree add HEAD --detach` was built after the edits, and doing that is what found section 11 (the instrument's whole evidence base is gitignored, so a pristine worktree reports 4 failed where the truth is 2). The most useful miss is P16, which is about a SHAPE: a reclassification does not flip an episode from invisible to visible inside its class, it moves the episode to another class and moves the denominator too -- 1/9 to 0/8, not 0/9. P8 is recorded as VACUOUS rather than HIT: its antecedent (a row-vs-summary disagreement) never occurred, and claiming the hit would be scoring an unfired conditional."
   }
  }
 }

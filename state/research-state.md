@@ -24324,6 +24324,176 @@ successor — 448→449, 449→450, 450→451, 451→452, 452→453.)*
   not having done that, which is D-013's second half working as intended.
 - **Knowledge:** `knowledge/round-460-the-field-nobody-read.md`.
 
+### Round 461 — SWE-loop(D) — 2026-09-02 — the checker that was a suite
+
+- **Round 455's item 2 is CLOSED: `redattrib.py` now reads the second log
+  grammar.** `skills-check`'s log is `corpus_check.py`'s checker/verdict
+  table, not pytest output, and round 455 withdrew it behind a printed
+  GRAMMAR GAP rather than report a silent zero. Round 461 taught the module
+  the other grammar (`parse_corpus_row`, `corpus_rows`, `observed_nodes`,
+  `unconclusive_rows`) instead of loosening the pytest one. The check that
+  was 0 nodes / 0 episodes is **7 nodes / 46 episodes**, and the headline
+  moved **19/32 = 59% -> 65/78 = 83%** invisible-open.
+- **Round 453's 16 episodes are REPRODUCED, not refuted — by a derivation
+  that shares no code and no anchor with it.** Round 453 read each log's
+  `corpus-check:` aggregate `N error(s)`; this reads the per-row `ERROR`
+  flags. Over rounds 364-452 both give **24 red of 89, 16 episodes, mean
+  1.50, longest 4, openers C7 / D6 / A2 / E1 and skills(B) ZERO**, and
+  closed-by-skills(B) 9 of 15. Pinned by
+  `test_round_453s_check_level_measurement_is_reproduced_exactly`. Extending
+  to all 97 retained logs: 26 red, 18 episodes, skills(B) still 0.
+- **A fifth `subject_scope`, forced by the data: `shared-corpus`.** Round
+  455's four values were measured on three checks whose subjects are code
+  trees written mainly by their own track. For `skill_lint` / `case_coverage`
+  / `state_claim_check`, `own-suite` is empirically false (0 of 46 episodes
+  opened by skills(B)) and `whole-tree` overstates the radius (`skill_lint`'s
+  argv reads `skills/` and nothing else). Each checker's scope was decided
+  from what it READS — `corpus_check.checks()`'s argv — never from who opened
+  its episodes.
+- **The granularity floor is real and is the record's, not the parser's.**
+  One row (`unit_tests`) is a whole 959-test pytest suite, and
+  `corpus_check.run_one` writes the child's output to a `tempfile.mkstemp`
+  sink that a `finally` unlinks. WHICH tests failed inside a red row is
+  retained nowhere, for any round.
+- **A latent defect in round 455's own cross-check, exposed by widening it.**
+  It reconciled with `len(parsed_red) + len(unrunnable & driver_bad)`.
+  skills-check round 431 is in BOTH sets (an `ERROR K001` row and a `TIMEOUT`
+  row), so a sum double-counts it. Now a SET UNION, moved out of the test into
+  `analyse()` so the CLI prints the cross-check the test asserts on. All four
+  checks agree round-by-round: 20/20, 10/10, 32/32, 30/30.
+- **Two live reds closed.** `redattrib.py audit` was rc=1 with four R001s and
+  `test_redattrib.py` was **2 failed, 17 passed** at HEAD; all four nodes are
+  declared and the audit is green (31 ever red, 31 declared, 0 errors).
+- **The floor under the floor.** A fail-closed registry CANNOT fire in the
+  round that breaks it: round 459's undeclared red lives in
+  `logs/health_round_459.log`, the file being written by the run the check
+  was part of. It fired at 460 and named round 460 (NUC E) — which did
+  nothing — as the opener. Moving the runner earlier makes this worse.
+- **Post-round automation breaks checks with no author near them.**
+  `test_one_unit_has_never_been_evidence_and_the_registry_says_why` went red
+  because round 459's post-round slice appended a `[heavy]` ledger row at
+  19:31:45, **50 minutes after round 459's own health check reported at
+  18:41:43**. Its predicate (`unit not in seen`) was a proxy for its claim
+  ("never been EVIDENCE"); the row is `outcome: timeout, returncode: -9,
+  3000.12s`, which `slowtier.classify` already called `unknown`. Repaired
+  over the outcome field and pinned positively.
+- **Round 455's item 4 re-derived, and stale by 5x.** Slow-tier recall is
+  **45.5% (15 conclusive of 33)** against checkout `577ec506192cbff2`, not 9%.
+  `[light]` is no longer `unknown` — round 457's slice ran it (timeout,
+  3000.23 s) so it is `stale_checkout`. Substance holds: both halves time out,
+  neither has ever been evidence, so round 457's ceiling is 31/33 while that
+  lasts. Now a test, not a next-steps line.
+- **Round 455's item 6 DECIDED, and both offered answers were wrong.**
+  `test_whence_health_check_fail_logged_when_script_fails` is
+  `environmental`, not `own-suite` and not `shared-file-own-content`: the
+  round-362 failure is `subprocess.TimeoutExpired` / `pytest.fail("driver did
+  not stop within 45s")` inside an 854 s health run on `nproc` 1; round 362
+  committed six files, all under `languages/whence/` and `state/whence/`, and
+  touched nothing the test reads; one red in 218 runs; and
+  `shared-file-own-content` fails at its premise because `run_driver.sh` is
+  harness(A)'s in 17 of 20 attributed commits. own-suite goes 1/9 -> **0/8**
+  (round 455 predicted 0/9 — the episode leaves the class, it does not flip
+  inside it); the overall rate is unchanged at 65/78, published both ways
+  because the change strengthens this round's own result.
+- **A pristine worktree cannot reproduce this instrument.** `.gitignore` 28,
+  29, 35 and 60 exclude all four per-round health logs; `git ls-files logs/`
+  is 9 against the 578 the module reads. A `git worktree add HEAD --detach`
+  reports **4 failed, 15 passed** where the truth is 2 failed, 17 passed —
+  two of the four are R002 floods caused by the missing evidence. Round 460's
+  item 3 arriving at a second instrument, with a consequence attached.
+- **Predictions:** 12 HIT, 5 MISS, 1 vacuous of 18, banked in
+  `state/swe/round-461/PREDICTIONS.md` before measuring, registered in
+  `state/prediction-bank-ledger.json`. All four misses are the SAME miss —
+  P1-P4 are baseline predictions taken from round 455's prose instead of
+  measured first, which is round 460's item 5 verbatim, unapplied one round
+  later.
+- **Tests:** the WHOLE harness fast tier is green — **1296 passed, 361
+  deselected in 255.33s, exit 0**, against round 460's **4 failed, 1281
+  passed in 767.99s** (that run was contended; this one was not).
+  `test_redattrib.py` **29 passed in 0.67s** (19 at HEAD, 2 of them
+  failing); `test_slowtier_rotation_ceiling.py` **6 passed in 5.16s** (5 at
+  HEAD, 1 failing); `redattrib.py audit` 0 errors; `wiring_audit.py check`
+  121 entry points, 101 in closure, 0 errors; `corpus_check.py --precommit`
+  0 errors after registering this round's own bank (carryforward K001 caught
+  it, exactly as it did to round 460).
+- **Skills:** `skills/unrun-checker-latency/SKILL.md` (four-runner table, the
+  `shared-corpus` scope, the floor-under-the-floor, the two-grammars rule;
+  detail in `references/detection-latency-floor.md` with a ToC, 399 body
+  lines, 0 warnings) and `skills/freshness-is-not-outcome/SKILL.md` (new
+  pitfall: asserting the absence of a ROW when you mean the absence of
+  EVIDENCE). Neither `description` touched, so no re-probe is owed.
+- **Knowledge:** `knowledge/round-461-the-checker-that-was-a-suite.md`.
+
+## Next steps (as of round 461)
+
+1. **`unit_tests` is 25 of the 60 red checker-rows and its failures are
+   unrecoverable.** `corpus_check.run_one` unlinks its `tempfile.mkstemp`
+   sink in a `finally`, so no round can say WHICH test failed inside any red
+   `unit_tests` row, ever. The cheap repair is to keep the sink under
+   `logs/` when the child exits non-zero — a few KB per red round — which
+   would give `redattrib.py` real per-node granularity on the reddest node in
+   the repo. skills(B) owns the file; harness(A) owns the log-retention
+   convention. skills(B) or harness(A).
+2. **The fail-closed registry's one-round lag should be in its own failure
+   message.** `test_the_registry_is_fail_closed_over_the_live_logs` says
+   "every node that has ever gone red must be classified" and names the
+   ROUND THAT NOTICED as the opener. It should say that the node it is
+   complaining about was opened by the PREVIOUS round and that the current
+   round is innocent — otherwise every future R001 misattributes itself. The
+   fix is one sentence in the assertion message plus an `opened_by_log_round`
+   field on the episode row. harness(A) or SWE-loop(D).
+3. **`state/slow-tier-ledger.jsonl` is appended AFTER the health checks run.**
+   Round 459's slice broke a harness test 50 minutes after round 459's own
+   checks reported green, and round 460 was recorded as the opener. Either
+   run the slice before the health checks, or mark ledger-subject episodes
+   as driver-authored so `redattrib` stops attributing them to a track.
+   `run_driver.sh` ordering is harness(A)'s call. harness(A).
+4. **`shared-corpus` is the one scope where a pre-commit checker would
+   actually reach the author.** 8 of 8 of its episodes are invisible, but
+   unlike `whole-tree` the subject is one directory the opening round was
+   already editing. `corpus_check.py --precommit` exists and costs ~25 s; no
+   ground rule tells a round to run it. That is a CLAUDE.md rule-5 addendum,
+   not a code change. operator or harness(A).
+5. **Round 455's item 1 stands, UNTOUCHED and now larger.** Nothing makes a
+   non-harness round run the five whole-tree nodes, and whole-tree is now
+   **53/57 = 93%** invisible over 578 logs. This round ran them by hand
+   because track D's suites include `harness/tests`; no rule made it. It is
+   still a CLAUDE.md ground-rule change and still belongs to harness(A) or
+   the operator. harness(A).
+6. **Do not read the p-value as a significance test.** 46 of the 78
+   attributable episodes come from one runner and are not independent — 11
+   rounds open episodes on two or three checkers at once. `p = 9.81e-08` is
+   the direction, stated with a number that is narrower than the data earns.
+   Whoever quotes it should quote the caveat with it, or compute a
+   round-clustered version. any track.
+7. **The instrument's evidence base is untracked and nothing says so where a
+   reader would look.** `redattrib.py`'s docstring says "all 578 of them are
+   retained" without saying retained WHERE; a fresh clone gets 9 tracked
+   files and a wrong answer that looks like a real failure. Round 460's item
+   3 asked the same question of `logs/round-*.json` and is unanswered. Either
+   the health logs belong in the repo or every whole-tree test that reads
+   them owes a skip-with-reason. operator or any track.
+8. **Round 455's item 5 (a check wired by one track over another's suite
+   must be run green BEFORE wiring) is still not a rule anywhere**, and this
+   round is the second consecutive instance of the shape it describes —
+   round 457 (harness A) wrote an assertion about a ledger that the driver
+   writes, and round 459's driver broke it. harness(A).
+9. **Rounds 455-460's next-steps lists stand except where named above.**
+   Closed by this round: 455's items 2, 4 and 6. Re-derived and found stale:
+   455's item 4's recall number (9% -> 45.5%) and `[light]`'s state
+   (`unknown` -> `stale_checkout`). The rule holds for the fifth consecutive
+   round: **re-derive before quoting, and prefer a carried number whose
+   COMMAND is banked over one whose prose is.** any track.
+10. **Standing, and untouched by this round:** the operator-blocked
+   `--cap 196` and the E3 A/B; `case_coverage`'s 49-of-103 disagreeing
+   verdicts; `claim_check` executing 0 of 415 commands; the NUC journal
+   capture for rounds 202-250; and CLAUDE.md's `CRITICAL MISSION` block,
+   re-escalated for the TWENTY-FIRST time and still a one-line deletion for
+   the operator. `languages/whence/SECURITY.md` is still uncommitted, still
+   not this program's, and still the operator's decision — **do not copy a
+   carry count for it from this file**; the checker's own line is the only
+   source.
+
 ## Next steps (as of round 460)
 
 1. **Run `precision-audit --strict` FIRST, alongside `coverage --strict`.**
