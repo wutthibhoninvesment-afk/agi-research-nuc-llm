@@ -895,9 +895,23 @@ def _payload_size(p):
 
 TESTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tests")
 
+# Two DIFFERENT facts, conflated in one tuple until round 462.
+#
+# `_EXEC_ATTRS` answers *does this call execute guest source?* -- it is the
+# seed of the runner fixed point.  `_SRC_ARG0_ATTRS` answers *is this call's
+# first argument a source STRING?*, which is what puts a node in a source
+# position.  `exec_stmt` belongs to the first and not the second: its
+# argument is an already-parsed statement (`interp.exec_stmt(prog.stmts[0],
+# env)`), so under one tuple every `exec_stmt` call landed in
+# `nonconstant_programs` -- a program the harvester "could not reach" where
+# there was no program to reach.  17 calls, 8 of them in round 458's
+# published residual, 0 of them a program.
 _EXEC_ATTRS = ("run", "exec_stmt", "exec_src", "eval_src")
+_SRC_ARG0_ATTRS = ("run", "exec_src", "eval_src")
 _PARSE_CALLS = ("parse", "lex", "tokens")
 _SRC_KEYWORDS = ("src", "source", "program", "code", "text")
+_NOLIT = object()
+MAX_FOLD = 32                    # strings one node may denote; see `_cross`
 
 
 def _walk_scope(scope):
@@ -936,28 +950,229 @@ def _callee(call):
     return (None, None)
 
 
+def _receiver(call):
+    """The receiver name of an attribute call (`x.run(...)` -> `"x"`), or
+    None when the receiver is not a bare name."""
+    f = call.func
+    if isinstance(f, ast.Attribute) and isinstance(f.value, ast.Name):
+        return f.value.id
+    return None
+
+
+def _imported_modules(tree):
+    """The top-level names bound by `import x` / `import x.y as z` here.
+
+    A `.run(...)` whose receiver is one of these is a MODULE call, not an
+    interpreter call.  `subprocess.run([sys.executable, RUN, path])` is 45
+    of the 985 calls this walk sees and its first argument is an argv LIST;
+    round 458 counted 43 of them as source positions it could not fold,
+    which is a third of its published `nonconstant_programs`.  The exclusion
+    is derived from the file's OWN imports rather than from a denylist of
+    module names, because a denylist is a guess about a corpus and this is a
+    fact about the module.
+
+    `ImportFrom` is deliberately excluded: `from whence.interp import
+    Interpreter` binds a class, and a class is exactly what a legitimate
+    receiver may be."""
+    out = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for a in node.names:
+                out.add(a.asname or a.name.split(".")[0])
+    return out
+
+
+def _drives_source(call, mods):
+    """True when `call` is `<interpreter>.run/exec_src/eval_src(src, ...)`."""
+    kind, nm = _callee(call)
+    return (kind == "attr" and nm in _SRC_ARG0_ATTRS and bool(call.args)
+            and _receiver(call) not in mods)
+
+
+def _cross(cols, sep):
+    """Every `sep`-join of one element from each column, capped at
+    `MAX_FOLD`.  The cap is a real bound: `A + B` where each side has five
+    bindings is twenty-five programs, and a harvester that expands that
+    silently reports a corpus larger than the suite runs."""
+    if not cols or not all(cols):
+        return []
+    out = list(cols[0])[:MAX_FOLD]
+    for col in cols[1:]:
+        nxt = []
+        for pre in out:
+            for c in col:
+                nxt.append(pre + sep + c)
+                if len(nxt) >= MAX_FOLD:
+                    break
+            if len(nxt) >= MAX_FOLD:
+                break
+        out = nxt
+    return out
+
+
+def _product(cols):
+    """`_cross` for `%`'s right operand, which is a tuple and not a join."""
+    out = [()]
+    for col in cols:
+        nxt = []
+        for pre in out:
+            for c in col:
+                nxt.append(pre + (c,))
+                if len(nxt) >= MAX_FOLD:
+                    break
+            if len(nxt) >= MAX_FOLD:
+                break
+        out = nxt
+        if not out:
+            return []
+    return out
+
+
+def _literal(node, lits=None, depth=0):
+    """The Python object a node denotes, or `_NOLIT`.
+
+    `%`'s right operand is not a string, so the string folder cannot reach
+    it: `'let r = typed(1, %s, "L")' % spec` needs `spec`, which the suite
+    binds by unpacking a module-level table of tuples.  A separate literal
+    environment is what makes that class foldable; `_NOLIT` rather than
+    `None` because `None` is itself a legal literal."""
+    if depth > 6:
+        return _NOLIT
+    if isinstance(node, ast.Constant):
+        return node.value
+    if isinstance(node, ast.Name):
+        vals = (lits or {}).get(node.id)
+        if vals and len(vals) == 1:
+            return vals[0]
+        return _NOLIT
+    if isinstance(node, (ast.Tuple, ast.List)):
+        out = []
+        for e in node.elts:
+            v = _literal(e, lits, depth + 1)
+            if v is _NOLIT:
+                return _NOLIT
+            out.append(v)
+        return tuple(out) if isinstance(node, ast.Tuple) else out
+    return _NOLIT
+
+
+def _const_strs(node, env=None, lits=None, depth=0):
+    """EVERY string a node can denote, as a list -- `[]` when the walk
+    cannot say.
+
+    A `str | None` folder cannot express the two shapes that dominate this
+    tree's residual, and both are cases where the *right answer is more than
+    one program*: a name with several bindings, and a node that genuinely
+    denotes several sources (`val("A" if False else "B")`, or
+    `'... %s ...' % spec` under `for spec, want in NAME_SLOT_CASES`).
+    Round 458's folder returned None for both and counted them as misses,
+    which reads as "could not reach" where the truth is "reached several".
+
+    `_const_str` is kept as the single-valued view for callers that must
+    refuse to guess."""
+    if depth > 8:
+        return []
+    env = env or {}
+    lits = lits or {}
+    if isinstance(node, ast.Constant):
+        return [node.value] if isinstance(node.value, str) else []
+    if isinstance(node, ast.Name):
+        return list(env.get(node.id) or [])[:MAX_FOLD]
+    if isinstance(node, ast.IfExp):
+        # Both arms. A conditional source is two programs, not an unknown.
+        return (_const_strs(node.body, env, lits, depth + 1) +
+                _const_strs(node.orelse, env, lits, depth + 1))[:MAX_FOLD]
+    if isinstance(node, ast.JoinedStr):
+        parts = []
+        for v in node.values:
+            if isinstance(v, ast.Constant) and isinstance(v.value, str):
+                parts.append([v.value])
+            elif isinstance(v, ast.FormattedValue):
+                if v.format_spec is not None:
+                    return []
+                sub = _const_strs(v.value, env, lits, depth + 1)
+                if not sub:
+                    lit = _literal(v.value, lits)
+                    if lit is _NOLIT:
+                        return []
+                    sub = [lit if isinstance(lit, str) else str(lit)]
+                if v.conversion == 114:          # !r
+                    sub = [repr(x) for x in sub]
+                parts.append(sub)
+            else:
+                return []
+        return _cross(parts, "")
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+        return _cross([_const_strs(node.left, env, lits, depth + 1),
+                       _const_strs(node.right, env, lits, depth + 1)], "")
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Mod):
+        tmpls = _const_strs(node.left, env, lits, depth + 1)
+        if not tmpls:
+            return []
+        r = node.right
+        if isinstance(r, ast.Tuple):
+            cols = []
+            for e in r.elts:
+                v = _literal(e, lits)
+                if v is _NOLIT:
+                    ss = _const_strs(e, env, lits, depth + 1)
+                    if not ss:
+                        return []
+                    cols.append(ss)
+                else:
+                    cols.append([v])
+            rights = _product(cols)
+        else:
+            v = _literal(r, lits)
+            if v is _NOLIT:
+                ss = _const_strs(r, env, lits, depth + 1)
+                if not ss:
+                    return []
+                rights = [(x,) for x in ss]
+            else:
+                rights = [v if isinstance(v, tuple) else (v,)]
+        out = []
+        for t in tmpls:
+            for rr in rights:
+                try:
+                    out.append(t % rr)
+                except (TypeError, ValueError, KeyError):
+                    return []
+                if len(out) >= MAX_FOLD:
+                    return out
+        return out
+    if isinstance(node, ast.Call):
+        kind, nm = _callee(node)
+        if kind == "attr" and nm == "join" and len(node.args) == 1:
+            seps = _const_strs(node.func.value, env, lits, depth + 1)
+            arg = node.args[0]
+            if len(seps) == 1 and isinstance(arg, (ast.List, ast.Tuple)):
+                cols = [_const_strs(e, env, lits, depth + 1)
+                        for e in arg.elts]
+                return _cross(cols, seps[0])
+            return []
+        if kind == "attr" and nm == "replace" and len(node.args) == 2:
+            base = _const_strs(node.func.value, env, lits, depth + 1)
+            a = _literal(node.args[0], lits)
+            b = _literal(node.args[1], lits)
+            if base and isinstance(a, str) and isinstance(b, str):
+                return [x.replace(a, b) for x in base][:MAX_FOLD]
+            return []
+    return []
+
+
 def _const_str(node, env=None):
-    """The string a node denotes, or None.
+    """The string a node denotes, or None -- the single-valued view of
+    `_const_strs`.
 
     Handles a literal, a `+` chain, and a name bound to a string earlier in
     the same or the module scope -- `test_v03.py` writes
     `src = LOOP + "let s = go(3, 0)\n..."` eighteen times, and a harvester
     that stopped at literals reported that file at 18 programs where it
-    builds 86. Anything else is deliberately None so the caller can COUNT
-    it rather than guess at it."""
-    if isinstance(node, ast.Constant) and isinstance(node.value, str):
-        return node.value
-    if isinstance(node, ast.Name) and env:
-        vals = env.get(node.id)
-        if vals and len(vals) == 1:
-            return vals[0]
-        return None
-    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
-        a = _const_str(node.left, env)
-        b = _const_str(node.right, env)
-        if a is not None and b is not None:
-            return a + b
-    return None
+    builds 86. A node that denotes several strings is None here, so the
+    caller can COUNT it rather than guess at it."""
+    ss = _const_strs(node, env)
+    return ss[0] if len(ss) == 1 else None
 
 
 def _param_order(fn):
@@ -1019,6 +1234,7 @@ def runners_in(tree):
     in this module that runs guest source. Fixed point; see the section
     comment for the seed and the step."""
     fns = [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)]
+    mods = _imported_modules(tree)
     runners = {}
     for _ in range(len(fns) + 2):
         changed = False
@@ -1031,15 +1247,17 @@ def runners_in(tree):
                 if not isinstance(node, ast.Call):
                     continue
                 kind, nm = _callee(node)
+                mod_recv = _receiver(node) in mods
                 if nm == "Interpreter" or \
-                        (kind == "attr" and nm in _EXEC_ATTRS):
+                        (kind == "attr" and nm in _EXEC_ATTRS
+                         and not mod_recv):
                     executes = True
                 if kind == "name" and nm in runners:
                     if runners[nm]["executes"]:
                         executes = True
                 sink_order, sink_src = None, ()
-                if (kind == "attr" and nm in _EXEC_ATTRS) or \
-                        nm in _PARSE_CALLS:
+                if (kind == "attr" and nm in _SRC_ARG0_ATTRS
+                        and not mod_recv) or nm in _PARSE_CALLS:
                     sink_order = ["<src>"]
                 elif kind == "name" and nm in runners and nm != fn.name:
                     sink_order = runners[nm]["order"]
@@ -1082,12 +1300,19 @@ def harvest_file(path):
     text = open(path, encoding="utf-8").read()
     tree = ast.parse(text)
     runners = runners_in(tree)
+    mods = _imported_modules(tree)
     stats = {"runners": sorted(runners),
              "executing_runners": sorted(n for n in runners
                                          if runners[n]["executes"]),
              "calls": 0, "unresolved_args": 0, "forwarded_args": 0,
              "nonconstant_programs": 0, "parse_only_programs": 0,
-             "unparsed_programs": 0, "ambiguous_scopes": 0}
+             "unparsed_programs": 0, "ambiguous_scopes": 0,
+             # Round 462. Not residuals -- EXCLUSIONS, counted so that the
+             # exclusion is auditable rather than invisible. A call skipped
+             # for a reason is not a program the walk failed to reach, and
+             # the two must not share a counter.
+             "module_calls": 0, "stmt_node_args": 0,
+             "multivalued_nodes": 0, "fold_capped": 0}
 
     scopes = [tree] + [n for n in ast.walk(tree)
                        if isinstance(n, (ast.FunctionDef, ast.ClassDef))]
@@ -1096,41 +1321,73 @@ def harvest_file(path):
     # a two-link chain; a longer chain is left unresolved and counted rather
     # than iterated to a fixed point on data that does not need one.
     bindings = {}
+    lit_bindings = {}
     for sc in scopes:
         bindings[id(sc)] = {}
+        lit_bindings[id(sc)] = {}
+
+    def _bind(b, name, v):
+        cur = b.setdefault(name, [])
+        if len(cur) < MAX_FOLD and not any(x is v or x == v for x in cur):
+            cur.append(v)
+
     for _pass in range(3):
         for sc in scopes:
             b = bindings[id(sc)]
+            lb = lit_bindings[id(sc)]
             env = dict(bindings[id(tree)])
             env.update(b)
+            lits = dict(lit_bindings[id(tree)])
+            lits.update(lb)
             for node in _walk_scope(sc):
                 targets, value = None, None
                 if isinstance(node, ast.Assign):
                     targets, value = node.targets, node.value
-                elif isinstance(node, ast.For) and \
-                        isinstance(node.iter, (ast.List, ast.Tuple)):
+                elif isinstance(node, ast.For):
                     # `for src in ["...", "..."]:` runs every element as a
                     # program. Twelve of these files drive a table that way
                     # and a harvester that only reads `=` cannot see them.
-                    for elt in node.iter.elts:
-                        v = _const_str(elt, env)
-                        if v is None or not isinstance(node.target, ast.Name):
-                            continue
-                        cur = b.setdefault(node.target.id, [])
-                        if v not in cur:
-                            cur.append(v)
+                    #
+                    # Round 462 adds the OTHER table shape, which is what
+                    # unlocks the `%` class: `for spec, want in
+                    # NAME_SLOT_CASES:` over a module-level list of tuples.
+                    # 25 of round 458's 131 non-constant nodes are a `%`
+                    # whose right operand is a name bound only here.
+                    seq = _literal(node.iter, lits)
+                    if seq is not _NOLIT and isinstance(seq, (list, tuple)):
+                        for elt in seq:
+                            if isinstance(node.target, ast.Name):
+                                if isinstance(elt, str):
+                                    _bind(b, node.target.id, elt)
+                                _bind(lb, node.target.id, elt)
+                            elif isinstance(node.target, (ast.Tuple, ast.List)) \
+                                    and isinstance(elt, (list, tuple)) \
+                                    and len(elt) == len(node.target.elts):
+                                for t, v in zip(node.target.elts, elt):
+                                    if not isinstance(t, ast.Name):
+                                        continue
+                                    if isinstance(v, str):
+                                        _bind(b, t.id, v)
+                                    _bind(lb, t.id, v)
+                    elif isinstance(node.iter, (ast.List, ast.Tuple)) and \
+                            isinstance(node.target, ast.Name):
+                        for elt in node.iter.elts:
+                            for v in _const_strs(elt, env, lits):
+                                _bind(b, node.target.id, v)
                     continue
                 else:
                     continue
-                v = _const_str(value, env)
-                if v is None:
-                    continue
-                for t in targets:
-                    if isinstance(t, ast.Name):
-                        cur = b.setdefault(t.id, [])
-                        if v not in cur:
-                            cur.append(v)
+                for v in _const_strs(value, env, lits):
+                    for t in targets:
+                        if isinstance(t, ast.Name):
+                            _bind(b, t.id, v)
+                lv = _literal(value, lits)
+                if lv is not _NOLIT:
+                    for t in targets:
+                        if isinstance(t, ast.Name):
+                            _bind(lb, t.id, lv)
     module_b = bindings[id(tree)]
+    module_lb = lit_bindings[id(tree)]
 
     out = []
     seen = set()
@@ -1138,6 +1395,8 @@ def harvest_file(path):
         b = bindings[id(sc)]
         env = dict(module_b)
         env.update(b)
+        lits = dict(module_lb)
+        lits.update(lit_bindings[id(sc)])
         params = set()
         if isinstance(sc, ast.FunctionDef):
             params = set(_param_order(sc)) | \
@@ -1182,6 +1441,16 @@ def harvest_file(path):
                 # this class cost `test_v03.py` alone 5 programs on the
                 # first harvest, and there is no reason a direct driver is
                 # less a program than an indirect one.
+                #
+                # Two exclusions, both COUNTED (round 462). A receiver that
+                # this file imported as a module is not an interpreter, and
+                # `exec_stmt` takes a parsed statement rather than source.
+                if _receiver(node) in mods:
+                    stats["module_calls"] += 1
+                    continue
+                if nm not in _SRC_ARG0_ATTRS:
+                    stats["stmt_node_args"] += 1
+                    continue
                 cands = [node.args[0]]
                 depth = scope_depth
                 label = "." + nm
@@ -1194,13 +1463,13 @@ def harvest_file(path):
                         isinstance(kw.value.value, int):
                     depth = kw.value.value
             for a in cands:
-                srcs = []
-                lit = _const_str(a, env)
-                if lit is not None:
-                    srcs = [lit]
-                elif isinstance(a, ast.Name):
-                    srcs = env.get(a.id) or []
-                    if not srcs:
+                srcs = _const_strs(a, env, lits)
+                if len(srcs) > 1:
+                    stats["multivalued_nodes"] += 1
+                if len(srcs) >= MAX_FOLD:
+                    stats["fold_capped"] += 1
+                if not srcs:
+                    if isinstance(a, ast.Name):
                         # A parameter forwarded from this scope's own caller
                         # is not a missed program -- the program arrives at
                         # the CALL SITE, which this walk also visits.
@@ -1208,8 +1477,8 @@ def harvest_file(path):
                             stats["forwarded_args"] += 1
                         else:
                             stats["unresolved_args"] += 1
-                else:
-                    stats["nonconstant_programs"] += 1
+                    else:
+                        stats["nonconstant_programs"] += 1
                 for s in srcs:
                     if not executes:
                         stats["parse_only_programs"] += 1
@@ -1242,7 +1511,9 @@ def harvest_tests(directory=None):
              "forwarded_args": 0, "nonconstant_programs": 0,
              "parse_only_programs": 0, "unparsed_programs": 0,
              "ambiguous_scopes": 0, "programs_before_dedup": 0,
-             "executing_runners": 0, "parse_only_runners": 0}
+             "executing_runners": 0, "parse_only_runners": 0,
+             "module_calls": 0, "stmt_node_args": 0,
+             "multivalued_nodes": 0, "fold_capped": 0}
     progs = []
     seen = set()
     for f in sorted(os.listdir(directory)):
@@ -1252,7 +1523,9 @@ def harvest_tests(directory=None):
         rows, s = harvest_file(os.path.join(directory, f))
         for k in ("calls", "unresolved_args", "forwarded_args",
                   "nonconstant_programs", "parse_only_programs",
-                  "unparsed_programs", "ambiguous_scopes"):
+                  "unparsed_programs", "ambiguous_scopes",
+                  "module_calls", "stmt_node_args", "multivalued_nodes",
+                  "fold_capped"):
             stats[k] += s[k]
         stats["executing_runners"] += len(s["executing_runners"])
         stats["parse_only_runners"] += (len(s["runners"]) -
@@ -1454,16 +1727,79 @@ def render(rows, summary):
     return "\n".join(lines)
 
 
+def _main_tests(mode, limit, alloc, max_nodes, out_json):
+    """`--tests` : harvest `tests/`, then census what was harvested.
+
+    Prints the residual FIRST and unconditionally. An instrument whose
+    coverage line is below a hundred rows of output is an instrument whose
+    coverage nobody reads."""
+    progs, stats = harvest_tests()
+    residual = stats["unresolved_args"] + stats["nonconstant_programs"]
+    sys.stderr.write(
+        "harvest: %d programs from %d files, %d calls\n"
+        "residual: %d (%d unresolved names + %d non-constant nodes)\n"
+        "excluded: %d module calls + %d statement-node args "
+        "(not residual -- not source positions)\n"
+        "folded:   %d multi-valued nodes, %d capped at MAX_FOLD=%d\n"
+        % (stats["programs"], stats["files"], stats["calls"], residual,
+           stats["unresolved_args"], stats["nonconstant_programs"],
+           stats["module_calls"], stats["stmt_node_args"],
+           stats["multivalued_nodes"], stats["fold_capped"], MAX_FOLD))
+    if limit == 0:
+        if out_json:
+            with open(out_json, "w") as fh:
+                json.dump({"mode": mode, "stats": stats, "programs": progs},
+                          fh, indent=1, sort_keys=True)
+                fh.write("\n")
+        return 0
+    rows = census_tests(progs, depth=mode, alloc=alloc, max_nodes=max_nodes,
+                        limit=limit,
+                        progress=lambda i, p: sys.stderr.write(
+                            "  %4d %s:%d\n" % (i, p["file"], p["line"])))
+    summary = summarise(rows)
+    print(render(rows, summary))
+    if out_json:
+        with open(out_json, "w") as fh:
+            json.dump({"mode": mode, "stats": stats, "summary": summary,
+                       "programs": rows}, fh, indent=1, sort_keys=True)
+            fh.write("\n")
+    return 0
+
+
 def main(argv):
     args = argv[1:]
     out_json = None
     roots = "all"
     alloc = True
     paths = None
+    tests_mode = None
+    limit = None
     max_nodes = DEFAULT_MAX_NODES
     i = 0
     while i < len(args):
         a = args[i]
+        if a == "--tests":
+            # Round 458 wrote `harvest_tests`/`census_tests` and wired them
+            # to nothing: `main()` has only ever called `census()` over
+            # `examples/`. Its own next-step 1 called the census "not wired
+            # into any tier", which understates it -- until this flag the
+            # test-corpus census could not be RUN from a command line at
+            # all, by a tier or by a person. A schedule cannot be argued
+            # about before the entry point exists.
+            has_arg = i + 1 < len(args) and \
+                args[i + 1] in ("suite", "default")
+            tests_mode = args[i + 1] if has_arg else "suite"
+            i += 2 if has_arg else 1
+            continue
+        if a == "--limit":
+            limit = int(args[i + 1])
+            i += 2
+            continue
+        if a == "--harvest-only":
+            tests_mode = tests_mode or "suite"
+            limit = 0
+            i += 1
+            continue
         if a == "--json":
             out_json = args[i + 1]
             i += 2
@@ -1484,9 +1820,14 @@ def main(argv):
         else:
             sys.stderr.write("usage: depthcensus.py [--roots all|env] "
                              "[--no-alloc] [--program NAME] [--max-nodes N] "
-                             "[--json OUT]\n")
+                             "[--tests suite|default] [--limit N] "
+                             "[--harvest-only] [--json OUT]\n")
             return 2
         continue
+
+    if tests_mode is not None:
+        return _main_tests(tests_mode, limit, alloc, max_nodes, out_json)
+
     rows = census(paths, roots, max_nodes,
                   progress=lambda p: sys.stderr.write(
                       "  %s\n" % os.path.basename(p)),

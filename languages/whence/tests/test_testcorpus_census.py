@@ -259,3 +259,194 @@ def test_census_program_honours_the_max_depth_it_is_given():
     assert (a["max_depth"], b["max_depth"]) == (40, 400)
     assert (a["alloc_depth"], b["alloc_depth"]) == (40, 400)
     assert a["alloc_agrees"] and b["alloc_agrees"]
+
+
+# ---------------------------------------------------------------------------
+# 4. round 462: the residual that was not a residual
+#
+# Round 458 published `unresolved_args 127` + `nonconstant_programs 130` as
+# "257 programs this instrument cannot reach". A third of the second number
+# was call sites that are not Whence runners at all, so the instrument was
+# overstating its own blind spot -- a PRECISION defect reported as a RECALL
+# defect. These tests pin the two exclusions, the counters that keep them
+# auditable, and the multi-valued fold that closes the classes that were
+# genuinely missing.
+# ---------------------------------------------------------------------------
+
+def _harvest_source(src, tag):
+    """Harvest one synthetic module; returns (rows, stats)."""
+    path = os.path.join(HERE, "__tmp_%s.py" % tag)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(src)
+    try:
+        return dc.harvest_file(path)
+    finally:
+        os.remove(path)
+
+
+def test_a_module_call_is_not_an_interpreter_call():
+    """`subprocess.run([sys.executable, RUN, path])` is 45 of the 985 calls
+    the round-458 walk saw, and its first argument is an argv LIST. The
+    exclusion is derived from the file's own `import` statements, not from a
+    denylist of module names."""
+    rows, stats = _harvest_source(
+        "import subprocess\n"
+        "import sys\n"
+        "from whence.interp import Interpreter\n"
+        "def test_x():\n"
+        "    subprocess.run([sys.executable, 'run.py', 'x.lang'])\n"
+        "    Interpreter().run('let a = 1')\n", "modcall")
+    assert [r["src"] for r in rows] == ["let a = 1"]
+    assert stats["module_calls"] == 1
+    # and the exclusion did NOT land in either residual counter
+    assert stats["nonconstant_programs"] == 0
+    assert stats["unresolved_args"] == 0
+
+
+def test_an_imported_module_is_not_confused_with_an_imported_class():
+    """`from whence.interp import Interpreter` binds a class, and a class is
+    exactly what a legitimate receiver may be. Only `ast.Import` contributes
+    to the exclusion set."""
+    mods = dc._imported_modules(ast.parse(
+        "import subprocess\n"
+        "import os.path\n"
+        "import numpy as np\n"
+        "from whence.interp import Interpreter\n"))
+    assert mods == {"subprocess", "os", "np"}
+    assert "Interpreter" not in mods
+
+
+def test_exec_stmt_takes_a_statement_and_not_a_source_string():
+    """`interp.exec_stmt(prog.stmts[0], env)` -- the argument is already
+    parsed. Every one of these was landing in `nonconstant_programs` as a
+    program that could not be reached, where there is no program to reach.
+    The call still makes its enclosing function an EXECUTING runner: the two
+    facts are different, which is why the module now keeps two tuples."""
+    rows, stats = _harvest_source(
+        "from whence.interp import Interpreter\n"
+        "from whence.parser import parse\n"
+        "def drive(src):\n"
+        "    i = Interpreter()\n"
+        "    for st in parse(src).stmts:\n"
+        "        i.exec_stmt(st, i.globals)\n"
+        "def test_x():\n"
+        "    drive('let a = 1')\n", "execstmt")
+    assert "drive" in stats["executing_runners"], "exec_stmt still executes"
+    assert [r["src"] for r in rows] == ["let a = 1"]
+    assert stats["stmt_node_args"] == 1
+    assert stats["nonconstant_programs"] == 0
+    assert "exec_stmt" in dc._EXEC_ATTRS
+    assert "exec_stmt" not in dc._SRC_ARG0_ATTRS
+
+
+def test_a_conditional_source_is_two_programs_not_an_unknown():
+    """`val("A" if C else "B")` denotes two programs. A `str | None` folder
+    can only call that a miss; `test_fuzz_regressions.py:211` is the real
+    instance and it contributed 2 of this round's 71 recovered programs."""
+    got = dc._const_strs(ast.parse("('let a = 1' if x else 'let b = 2')",
+                                   mode="eval").body)
+    assert got == ["let a = 1", "let b = 2"]
+    assert dc._const_str(ast.parse("('let a = 1' if x else 'let b = 2')",
+                                   mode="eval").body) is None
+
+
+def test_a_percent_template_over_a_table_of_tuples_is_folded():
+    """25 of round 458's 131 non-constant nodes are this one shape:
+    `host_reason('let r = typed(1, %s, "L")' % spec)` under
+    `for spec, want in NAME_SLOT_CASES:`. It needs a LITERAL environment as
+    well as a string one -- `%`'s right operand is not a string."""
+    rows, stats = _harvest_source(
+        "from whence.interp import Interpreter\n"
+        "CASES = [('num', 'a'), ('str', 'b')]\n"
+        "def run(src):\n    return Interpreter().run(src)\n"
+        "def test_x():\n"
+        "    for spec, want in CASES:\n"
+        "        run('let r = typed(1, %s)' % spec)\n", "pct")
+    assert sorted(r["src"] for r in rows) == \
+        ["let r = typed(1, num)", "let r = typed(1, str)"]
+    assert stats["multivalued_nodes"] == 1
+    assert stats["nonconstant_programs"] == 0
+
+
+def test_an_f_string_source_is_folded():
+    rows, _ = _harvest_source(
+        "from whence.interp import Interpreter\n"
+        "N = 7\n"
+        "def run(src):\n    return Interpreter().run(src)\n"
+        "def test_x():\n"
+        "    run(f'let a = {N}')\n", "fstr")
+    assert [r["src"] for r in rows] == ["let a = 7"]
+
+
+def test_a_constant_join_is_folded_and_a_loop_built_one_is_not():
+    """The line between the two is the whole point of counting a residual:
+    `"".join(["a", "b"])` is decidable and `"".join(parts)` where `parts` is
+    appended to in a loop is not. 18 `.join` nodes are in the tree and the
+    loop-built ones stay in the residual on purpose."""
+    assert dc._const_strs(ast.parse(
+        '"\\n".join(["let a = 1", "let b = 2"])', mode="eval").body) == \
+        ["let a = 1\nlet b = 2"]
+    assert dc._const_strs(ast.parse('"".join(parts)',
+                                    mode="eval").body) == []
+
+
+def test_the_fold_is_capped_and_the_cap_is_counted():
+    """`A + B` with five bindings each is twenty-five programs. A harvester
+    that expands that silently reports a corpus larger than the suite runs,
+    so the product is bounded and the bound is a counter."""
+    env = {"A": ["a%d" % i for i in range(8)],
+           "B": ["b%d" % i for i in range(8)]}
+    got = dc._const_strs(ast.parse("A + B", mode="eval").body, env)
+    assert len(got) == dc.MAX_FOLD == 32
+    assert got[0] == "a0b0"
+
+
+# ---------------------------------------------------------------------------
+# 5. round 462, over the real tree
+# ---------------------------------------------------------------------------
+
+def test_the_exclusions_are_counted_and_reconcile_with_the_old_call_count(
+        harvest):
+    """985 calls at round 458 = 918 + 45 module calls + 22 statement-node
+    arguments. The exclusions are auditable arithmetic, not a silent
+    narrowing of the walk."""
+    _, stats = harvest
+    assert stats["module_calls"] == 45
+    assert stats["stmt_node_args"] == 22
+    assert stats["calls"] + stats["module_calls"] + \
+        stats["stmt_node_args"] == 985
+
+
+def test_the_exclusions_removed_no_programs_from_the_corpus(harvest):
+    """The false positives contaminated the RESIDUAL, not the corpus: the
+    round-462 harvest is a strict SUPERSET of round 458's 488 programs.
+    Measured by set difference against the module at 508b95f, 0 lost."""
+    progs, stats = harvest
+    assert stats["programs"] >= 559
+    assert len(progs) == stats["programs"]
+    # one representative from each class the round recovered
+    srcs = {p["src"] for p in progs}
+    assert 'let r = typed(1, @{__shape: "Pt", a: "num"}, "L")' in srcs
+    assert 'let result = [f] == [f]\nfn f(x) { x }\n' in srcs
+
+
+def test_the_residual_fell_by_more_than_a_third_and_did_not_reach_zero(
+        harvest):
+    """258 = 127 + 131 at round 458; both counters must stay POSITIVE.
+    `"".join(parts)` over a loop-built list and `open(path).read()` over a
+    runtime `listdir` are not statically foldable and saying so is the
+    instrument's job."""
+    _, stats = harvest
+    residual = stats["unresolved_args"] + stats["nonconstant_programs"]
+    assert residual <= 170, residual
+    assert residual < 258 * 2 // 3
+    assert stats["unresolved_args"] > 0
+    assert stats["nonconstant_programs"] > 0
+
+
+def test_the_multivalued_fold_is_load_bearing_and_not_decorative(harvest):
+    """P9: at least 10 recovered programs come from a node that denotes two
+    or more strings, so a `str | None` folder could not have closed these
+    classes however many shapes it learned."""
+    _, stats = harvest
+    assert stats["multivalued_nodes"] >= 10, stats["multivalued_nodes"]

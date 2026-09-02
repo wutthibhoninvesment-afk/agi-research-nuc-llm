@@ -9442,3 +9442,92 @@ two shipped in one sentence for six rounds because the test was read rather
 than run — including by round 456's next step, which asserted the number "has
 never been re-derived by anything" while `test_v44.py` had been re-deriving it
 since round 452.
+
+### Decision 56 (round 462, language C): a residual counts what an instrument could not reach — not what it should never have looked at
+
+**No constant changes.** Decisions 53, 54 and 55 stand as written; the
+numbers in decision 55's harvest table are superseded by this one.
+
+Round 458 shipped the test-corpus harvester with a residual, on the rule that
+*"an instrument that returns a corpus without saying what it could not reach
+reads as exhaustive"*. That rule is right and the number it produced was
+wrong in **both** directions at once.
+
+**The precision half.** `_EXEC_ATTRS = ("run", "exec_stmt", "exec_src",
+"eval_src")` answered two different questions with one tuple:
+
+* *does this call execute guest source?* — the seed of the runner fixed
+  point; and
+* *is this call's first argument a source string?* — what puts a node in a
+  source position.
+
+They disagree on real code. `interp.exec_stmt(prog.stmts[0], env)` executes,
+but its argument is an already-parsed statement: **17 calls, 8 of them
+counted as "a program I could not reach" where there was no program.** And
+`.run` is not owned by Whence — `subprocess.run([sys.executable, RUN, path])`
+is **45 of the 985 calls the walk saw**, its first argument an argv *list*,
+and **43 of them were in the published residual**. Together they are **51 of
+round 458's 131 non-constant nodes: 39% of that class, and 20% of the whole
+declared residual, was never a blind spot at all.**
+
+The module now keeps `_EXEC_ATTRS` (executes) and `_SRC_ARG0_ATTRS`
+(arg0 is source) separately, and rejects a receiver that the file bound with
+an `import` statement. That exclusion is derived from the module's **own
+imports**, not from a denylist of module names, because a denylist is a guess
+about a corpus and this is a fact about the file. `ImportFrom` is excluded on
+purpose: `from whence.interp import Interpreter` binds a class, and a class
+is exactly what a legitimate receiver may be.
+
+Both exclusions are **counted** (`module_calls`, `stmt_node_args`) and printed
+above the corpus, because a call dropped for a reason and a call the walk
+failed on are different facts and must not share a counter.
+
+**The recall half, and why a `str | None` folder could not close it.** The
+classes that were genuinely missing are the ones where *the right answer is
+more than one program*:
+
+    val("A" if C else "B")                        two programs
+    for spec, want in NAME_SLOT_CASES:            one per row of the table
+        host_reason('let r = typed(1, %s)' % spec)
+
+Round 458's `_const_str` returns one string or `None`, so it reported both as
+misses. `_const_strs` returns the LIST of strings a node can denote — a
+literal, a `+` chain, an f-string, a `%` template, a constant `.join`, a
+`.replace`, both arms of a conditional, and every binding of a name. `%`
+needs a second environment, of *literals* rather than strings, because its
+right operand is not a string; the same environment is what lets a
+`for a, b in TABLE:` unpack a module-level table of tuples. The product is
+capped at `MAX_FOLD = 32` per node and the cap is a counter, because `A + B`
+with five bindings each is twenty-five programs and a harvester that expands
+that silently reports a corpus larger than the suite runs.
+
+**Result.**
+
+    harvested programs        488 -> 559     (+71, and a strict SUPERSET:
+                                              0 of round 458's programs lost)
+    runner calls              985 -> 918     (= 918 + 45 + 22, exactly)
+    unresolved names          127 ->  94
+    non-constant nodes        131 ->  72     (round 458 published 130, and a
+                                              class breakdown summing to 191)
+    declared residual         258 -> 166     (-36%)
+    excluded, counted            0 ->  67     (45 module calls, 22 stmt args)
+    multi-valued nodes           -    30     (a str|None folder cannot
+                                              express any of these)
+
+**The corpus was never contaminated; only the self-report was.** 0 harvested
+programs came from a `subprocess` or `exec_stmt` call site, before or after —
+the false positives could not become programs because an argv list and an AST
+node do not parse as Whence. So round 458's 488 programs were all real, and
+its statement about its own coverage was the thing that was wrong.
+
+**The champion does not move.** Deepest test-corpus value is still
+`test_v44.py` at D = 20000 in suite mode, second still 3001
+(`test_v04.py:259`). Decision 55's finding survives its instrument getting
+15% larger, which is the strongest thing that can be said for it.
+
+**The rule.** *A residual is a claim about the instrument, and it is as
+falsifiable as the corpus is. Audit it in both directions: every entry must be
+a source position the walk failed on, and a call excluded for a reason must be
+counted separately from a call that defeated you.* An overstated blind spot is
+not the safe error — it hides a precision bug behind a number that reads as
+humility.
