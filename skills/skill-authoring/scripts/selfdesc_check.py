@@ -31,8 +31,8 @@ happened to open.
 What is checkable, and what deliberately is not
 -----------------------------------------------
 Prose is not a specification language and this file does not pretend to parse
-English. It looks for five claim SHAPES that recur across the corpus and that
-each reduce to a lookup:
+English. It looks for the claim SHAPES that recur across the corpus and that each
+reduce to a lookup:
 
 `J001` ERROR  a "read by <path>" claim naming a path that does not exist.
 `J002` ERROR  the artefact's own basename appears in NO source file in the
@@ -45,8 +45,10 @@ each reduce to a lookup:
               recovery rules, same `state/known-absent-paths.json` allowlist —
               because a path in a `_comment` is not a different kind of path.
 `J005` ERROR  a COUNT claim: a numeral or number-word whose noun names one of
-              the artefact's own top-level collections, disagreeing with that
-              collection's length.
+              the SUBJECT's own collections, disagreeing with that
+              collection's length. The subject is the node the prose sits on
+              (round 447), so a `why` inside one entry counts that entry's
+              collections and not the file's.
 `J006` ERROR  an ABSENCE claim: the prose says some id is not here, and it is.
 `J007` INFO   a count/absence claim that carries its own "as of round N"
               qualifier. Never an error, and reported so the difference is
@@ -61,6 +63,13 @@ each reduce to a lookup:
               not a collection (`pins`) — found by hand-diffing the corpus
               after J005 came back silent on a registry whose own header
               undercounts by one.
+`J012` ERROR  a count whose noun is a per-element FIELD of the subject's own
+              elements, with no sibling named — the recall gap round 435's
+              next-steps item 2 opened between J005 (whose denominator is a
+              COLLECTION) and J010 (whose denominator is another FILE). Two
+              readings of the phrase are both honest — how many elements
+              CARRY the field, and how many DISTINCT values it takes — so it
+              fires only when the number matches neither, and prints both.
 `J011` WARN   an UNWATCHED executable claim — "`polarity.py audit` over this
               file must report 0 MISPOINTED" — in a data file that no test
               names. Reported statically with an `N/M must-claims` coverage
@@ -80,6 +89,22 @@ coverage" — is a claim about MEANING and is left alone. Silence on those is no
 coverage, so the summary line publishes the denominator: how many artefacts, how
 many prose fields, and how many of those fields yielded no checkable claim at
 all.
+
+WHAT THE COVERAGE TOKEN COUNTS, and what it counted until round 447
+-------------------------------------------------------------------
+`coverage N/M prose-fields` is now N = fields in which at least one lookup RAN
+— a count compared, a path resolved, a reader looked up — whether or not it
+produced a finding.
+
+It used to be `prose_fields - silent_fields`, where a field was silent when it
+produced no `Finding`. That is the FINDING COUNT wearing coverage's name. A
+field whose count claim was checked and found CORRECT was published as
+uncovered, so the token could only rise when the corpus got WORSE, and it read
+`coverage 0/28` on the live tree for exactly the reason the corpus was clean.
+Round 435's own next-steps item 3 read that number as "one of 26
+self-descriptions yields a checkable claim today", which is what the token was
+meant to mean and not what it measured. The two numbers are now both
+published, on the line above the summary, and they move independently.
 
 The two discriminators that carry the design
 --------------------------------------------
@@ -108,6 +133,27 @@ expires by itself. An entry that matches nothing is reported DEAD (`J009`), an
 acknowledgement that suppresses nothing being the mute button those files exist
 to refuse.
 
+Where the prose is, and what it is about
+----------------------------------------
+Until round 447 this file read six literal field NAMES at the TOP LEVEL of
+each artefact. Both halves of that were too narrow, and they are separate
+gaps with separate fixes:
+
+  * the NAME gap — `SELF_FIELD_RE` now accepts this repo's round-stamped
+    idiom (`_round_446_note`, `_round_349_addendum`). Every such field in
+    `state/known-unprobed-skills.json` is top-level and was skipped on its
+    name, which is why calling this a "top-level only" sweep pointed at the
+    wrong fix. No count is given here on purpose: the file grows one note
+    per round, and a number in this docstring would be the very shape of
+    claim the checker below exists to catch;
+  * the DEPTH gap — prose is now collected at any depth, and each field
+    carries the `Subject` it describes, so a nested claim is checked against
+    its own parent rather than against the file. See `Subject`.
+
+`description` and `summary` are deliberately excluded: they are the key names
+in captured OpenAI tool payloads and skill-frontmatter mirrors, 803 fields of
+text this repo RECORDED rather than ASSERTED.
+
 Usage:
     python3 selfdesc_check.py [--repo-root DIR] [--json OUT] [--show-acknowledged]
 Exit: 0 = no ERRORs, 1 = at least one ERROR.
@@ -127,10 +173,34 @@ if HERE not in sys.path:
 
 import xref_check                                            # noqa: E402
 
-#: Top-level string fields that are a self-description rather than data. `_`
-#: and `_comment` are this repo's two idioms; the rest are what the corpus
+#: The string fields that are a self-description rather than data. `_` and
+#: `_comment` are this repo's two idioms; the rest are what the corpus
 #: actually contains, checked rather than guessed.
+#:
+#: Round 447: this was an exact-name tuple, and round 435's own next-steps
+#: item 3 called the resulting gap a TOP-LEVEL-only sweep. That reading was
+#: wrong in a way worth recording, because it points at the wrong fix: every
+#: `_round_NNN_note` field in `state/known-unprobed-skills.json` is TOP-LEVEL
+#: and was skipped anyway, on its NAME. Depth was a second,
+#: independent gap. The tuple is kept — it is what the six idiom names are —
+#: and the rule below is what decides.
 SELF_FIELDS = ("_", "_comment", "_note", "_why", "note", "comment")
+
+#: A field name that carries this repo's own prose about the node it sits on.
+#: `_round_449_note` / `_round_349_addendum` are the round-stamped idiom: a
+#: round appends its reasoning under a new key rather than editing the one
+#: below it, so the NAME is generated and cannot be enumerated.
+#:
+#: `description` and `summary` are deliberately NOT here, and the exclusion is
+#: measured rather than assumed: they are the key names in the OpenAI tool
+#: payloads captured under `nuc/hermes-dump/` and in the skill-frontmatter
+#: mirrors under `state/skills*/`, which together hold 803 fields of text this
+#: repo RECORDED rather than ASSERTED. A checker that reads a captured payload
+#: as a self-description is checking somebody else's sentence.
+SELF_FIELD_RE = re.compile(
+    r"^(?:_|_?comment|_?note|_?why|_?rationale|_?caveat"
+    r"|_round_\d+_[a-z0-9_]+"
+    r"|[a-z0-9_]*addendum)$", re.I)
 
 #: Under this and a field is a label, not a description. 40 chars is roughly
 #: one clause; nothing shorter in the corpus makes a checkable claim.
@@ -147,7 +217,7 @@ ACK_FILE = os.path.join("state", "known-selfdesc-drift.json")
 
 SEV = {"J001": "ERROR", "J002": "ERROR", "J003": "WARN", "J004": "ERROR",
        "J005": "ERROR", "J006": "ERROR", "J007": "INFO", "J008": "ERROR",
-       "J009": "ERROR", "J010": "ERROR", "J011": "WARN"}
+       "J009": "ERROR", "J010": "ERROR", "J011": "WARN", "J012": "ERROR"}
 
 PASS, ERRORS_FOUND = 0, 1
 
@@ -171,6 +241,10 @@ NUMBER_WORDS = {
     "sixteen": 16, "seventeen": 17, "eighteen": 18, "nineteen": 19,
     "twenty": 20, "thirty": 30, "forty": 40, "fifty": 50,
 }
+
+#: The number words that are also English negation determiners. Meaningful
+#: as a count of a CONTAINER, not of an attribute. See `check_element_counts`.
+ZERO_WORDS = {"no", "zero"}
 
 #: `<count> <adjectives>* <noun>`. The adjective slot is what lets "nineteen
 #: guardian labels" and "the five shadowed pins" reach their noun; it is capped
@@ -217,6 +291,14 @@ ABSENCE_RE = re.compile(
 AS_OF_RE = re.compile(r"\bas of round \d+|\bwhen this was written\b|"
                       r"\bat capture\b|\bfrozen\b", re.I)
 
+#: A field NAME that dates its own contents: `_round_446_note`,
+#: `_round_349_addendum`. Round 447. The checker already had the right
+#: concept — J007's "a dated claim is a record, an undated one is an
+#: assertion about the present tense" — and looked for the date in the wrong
+#: place. `AS_OF_RE` scans the SENTENCE; this repo's registries put the date
+#: in the KEY and then write in the present tense underneath it.
+ROUND_STAMP_RE = re.compile(r"^_round_(\d+)_")
+
 #: An id in this corpus: a short alphabetic stem, digits, an optional
 #: alphanumeric suffix. Derived ids are matched by STEM, never by this regex
 #: alone — the regex only proposes candidates for a lookup.
@@ -260,18 +342,43 @@ def sentences(text):
 # The artefact
 # --------------------------------------------------------------------------
 
-class Artefact(object):
-    """One JSON file plus the prose fields it carries about itself."""
+class Subject(object):
+    """The NODE a prose field describes — the thing its claims are about.
 
-    def __init__(self, rel, data):
-        self.rel = rel
-        self.data = data
-        self.base = os.path.basename(rel)
-        self.prose = [(k, data[k]) for k in SELF_FIELDS
-                      if isinstance(data.get(k), str)
-                      and len(data[k]) >= MIN_PROSE]
-        self.collections = {k: v for k, v in data.items()
-                            if isinstance(v, (list, dict)) and v}
+    Round 447. A prose field's subject is the node it sits on, not the file
+    it happens to be in. `state/known-unprobed-skills.json`'s top-level
+    `_comment` describes the whole registry; the `why` inside
+    `skills["losses-name-their-winner"]` describes that ONE entry. Counting
+    "the five reasons" in the second against the FILE's collections is a
+    category error, and it is the error a depth sweep makes by default.
+
+    So the rules divide by subject scope, and the split is the design:
+
+      * subject-scoped — J005 (counts), J006 (absence), J010/J012 (element
+        deltas). Their denominator is `nouns()`/`ids()`/`elements()` of the
+        node the prose sits on. A nested element with no sub-collections has
+        no nouns, so these rules go quiet there BY CONSTRUCTION rather than
+        by an exclusion list.
+      * tree-scoped — J001/J003 (a named reader), J004 (a path), J011 (an
+        executable claim). A path is the same claim at any depth.
+      * artefact-scoped — J002 (nothing reads this file), J008 (nothing
+        regenerates it). One defect per FILE however many fields repeat it,
+        so `sweep` de-duplicates them.
+
+    `collections` no longer filters on truthiness. An EMPTY collection is
+    still a collection, and it is where drift lives: a list drained to zero
+    by a later round leaves the sentence that counted it standing. The live
+    instance is this checker's own acknowledgement registry — round 435
+    created `state/known-selfdesc-drift.json` with one entry and prose saying
+    so, round 437 fixed the prose it acknowledged and emptied the list, and
+    the sentence "only the one … is here" survived. Under `and v` the noun
+    `acknowledged` did not exist, so the claim was unreachable.
+    """
+
+    def __init__(self, node):
+        self.node = node if isinstance(node, dict) else {}
+        self.collections = {k: v for k, v in self.node.items()
+                            if isinstance(v, (list, dict))}
         self.ids = self._ids()
 
     def _ids(self):
@@ -297,7 +404,7 @@ class Artefact(object):
         for key, val in self.collections.items():
             if isinstance(val, dict):
                 found.update(k for k in val if isinstance(k, str))
-        walk(self.data)
+        walk(self.node)
         return {i for i in found if i}
 
     def elements(self):
@@ -335,6 +442,110 @@ class Artefact(object):
             else:
                 out[k + "s"] = n
         return out
+
+
+class ProseField(object):
+    """One self-description: where it is, what it says, what it is about."""
+
+    def __init__(self, path, text, subject, depth, name):
+        self.path = path            # "_comment", "skills.foo.why"
+        self.text = text
+        self.subject = subject      # the Subject its claims are about
+        self.depth = depth          # 0 = describes the whole artefact
+        self.name = name            # the key itself, without the dotted path
+        m = ROUND_STAMP_RE.match(name)
+        self.round = int(m.group(1)) if m else None
+        #: Set by `Artefact`: True when a LATER round-stamped note exists in
+        #: the same artefact. See `Artefact.__init__`.
+        self.superseded = False
+
+    def __repr__(self):
+        return "<ProseField %s depth=%d>" % (self.path, self.depth)
+
+
+def _walk_prose(node, path, depth, out):
+    """Every prose-shaped field at any depth, each with its parent Subject.
+
+    The parent is the SUBJECT (see `Subject`), so the walk carries the
+    containing dict down rather than re-deriving it from a dotted path.
+    List indices appear in the reported path as `[i]` and never become a
+    subject: a claim's denominator is the dict that holds it.
+    """
+    if isinstance(node, dict):
+        subject = Subject(node)
+        for k, v in node.items():
+            if (isinstance(v, str) and len(v) >= MIN_PROSE
+                    and SELF_FIELD_RE.match(k)):
+                out.append(ProseField(
+                    ".".join(path + [k]) if path else k, v, subject, depth, k))
+        for k, v in node.items():
+            _walk_prose(v, path + [k], depth + 1, out)
+    elif isinstance(node, list):
+        for i, v in enumerate(node):
+            _walk_prose(v, path + ["[%d]" % i], depth + 1, out)
+
+
+class Artefact(object):
+    """One JSON file plus every prose field it carries, at any depth."""
+
+    def __init__(self, rel, data):
+        self.rel = rel
+        self.data = data
+        self.base = os.path.basename(rel)
+        self.root = Subject(data)
+        fields = []
+        _walk_prose(data, [], 0, fields)
+        #: THE NEWEST ROUND STAMP IS STILL THE PRESENT TENSE. Round 447.
+        #:
+        #: A round-stamped note is a claim about the artefact AT THAT ROUND,
+        #: and today's file cannot falsify a claim about round 377 — this
+        #: registry is not append-only, entries leave it when their debt is
+        #: paid. So an OLDER stamp is a record (J007 INFO). The NEWEST stamp
+        #: is different: nothing in the artefact says anything happened after
+        #: it, so it is the file's most recent description of itself and is
+        #: checked as an assertion about now.
+        #:
+        #: This is not free. The rule is a PROXY for "nothing has changed the
+        #: collection since", and a round that edits a collection without
+        #: stamping a note breaks the proxy — the newest older note would
+        #: then be blamed for a change it predates. That direction is the
+        #: right one: the false report is fixed by adding a note, which is
+        #: the convention these files already document, and the alternative
+        #: (dating every stamped field) is what hid this round's finding.
+        #:
+        #: Measured on the corpus the day it was written: it separates six
+        #: J005s in `state/known-unprobed-skills.json` into five historical
+        #: records and ONE live error — the batch depth carried as "SIXTEEN"
+        #: against a map holding 26.
+        newest = max([f.round for f in fields if f.round is not None],
+                     default=None)
+        if newest is not None:
+            for f in fields:
+                if f.round is not None and f.round < newest:
+                    f.superseded = True
+        self.newest_round_stamp = newest
+        self.fields = fields
+        #: Back-compat for callers that only ever wanted (name, text) pairs.
+        self.prose = [(f.path, f.text) for f in fields]
+
+    # The artefact's own root-scoped views, kept as attributes because the
+    # tree-scoped rules and the tests both read them off the Artefact.
+    @property
+    def collections(self):
+        return self.root.collections
+
+    @property
+    def ids(self):
+        return self.root.ids
+
+    def elements(self):
+        return self.root.elements()
+
+    def element_fields(self):
+        return self.root.element_fields()
+
+    def nouns(self):
+        return self.root.nouns()
 
 
 def _is_jsonl(path):
@@ -450,10 +661,16 @@ _TOPS_SNAPSHOT = set()
 
 
 def check_readers(art, field, text, index, repo_root):
-    """J001 / J002 / J003 — the "read by X" claim."""
-    out = []
+    """J001 / J002 / J003 — the "read by X" claim.
+
+    Returns `(findings, n_claims)`. A CLAIM is one resolved lookup — a
+    `read by <module>` whose module token was found and looked up — whether
+    or not the lookup produced a finding. See `sweep` for why the two are
+    counted separately.
+    """
+    out, claims = [], 0
     if not READER_RE.search(text):
-        return out
+        return out, claims
     mentions = [rel for rel, body in index.items()
                 if rel != art.rel and art.base in body]
     if not mentions:
@@ -461,13 +678,14 @@ def check_readers(art, field, text, index, repo_root):
                            "prose names a reader, but `%s` appears in no "
                            "source file in the tree — nothing reads it"
                            % art.base))
-        return out
+        return out, 1
     for m in READER_RE.finditer(text):
         tail = text[m.end():m.end() + 200]
         mods = MODULE_TOKEN_RE.findall(tail)
         if not mods:
             continue
         mod = mods[0]
+        claims += 1
         hits = [rel for rel in mentions if os.path.basename(rel) == mod]
         exists = [rel for rel in index if os.path.basename(rel) == mod]
         if not exists:
@@ -484,7 +702,7 @@ def check_readers(art, field, text, index, repo_root):
                                "claim points at the wrong module"
                                % (mod, mod, art.base),
                                tail.split("\n")[0][:90]))
-    return out
+    return out, claims
 
 
 def check_paths(art, field, text, repo_root, tops, allowlist, already=()):
@@ -494,38 +712,49 @@ def check_paths(art, field, text, repo_root, tops, allowlist, already=()):
     that is ALSO a declared reader is one defect, and J001 says more about it
     than J004 does, so it is reported once under the sharper code.
     """
-    out = []
+    out, claims = [], 0
     for tok, _off, checkable in xref_check.prose_path_tokens(text, tops):
         if not checkable or tok in allowlist or tok in already:
             continue
+        claims += 1
         if xref_check.resolve_prose_path(repo_root, tok, tops) == "missing":
             out.append(Finding(art.rel, field, "J004",
                                "prose names `%s`, which does not exist" % tok,
                                tok))
-    return out
+    return out, claims
 
 
-def check_counts(art, field, text):
-    """J005 / J007 — a numeral whose noun is one of this artefact's own
-    collections."""
-    out = []
-    nouns = art.nouns()
+def check_counts(art, field, text, subject, superseded=False):
+    """J005 / J007 — a numeral whose noun is one of the SUBJECT's own
+    collections.
+
+    `subject` is the node the prose sits on, not necessarily the artefact
+    root (round 447). A claim is counted when the noun RESOLVES and survives
+    the three discriminators — that is the point at which a comparison was
+    actually made — and not when it merely disagrees.
+    """
+    out, claims = [], 0
+    nouns = subject.nouns()
     for sent, _off in sentences(text):
-        dated = bool(AS_OF_RE.search(sent))
+        dated = bool(AS_OF_RE.search(sent)) or superseded
         for m in COUNT_RE.finditer(sent):
             raw, _adj, noun = m.group(1), m.group(2), m.group(3).lower()
             if noun not in nouns:
                 continue
             said = int(raw) if raw.isdigit() else NUMBER_WORDS[raw.lower()]
             real = nouns[noun]
-            if said == real:
-                continue
             if OTHER_CONTAINER_RE.match(sent[m.end():m.end() + 24]):
                 continue                    # counts a different container
             if PARTITIVE_RE.match(sent[m.end(1):m.end(1) + 20]):
                 continue                    # counts a subset: "20 of the 23"
             if PAST_TENSE_RE.search(sent):
                 continue                    # counts a historical subset
+            # Past this line a comparison HAPPENED: this is the claim, and it
+            # is counted whether it holds or not. The three `continue`s above
+            # are declines, not passes, so they are deliberately not counted.
+            claims += 1
+            if said == real:
+                continue
             code = "J007" if dated else "J005"
             out.append(Finding(
                 art.rel, field, code,
@@ -534,20 +763,23 @@ def check_counts(art, field, text):
                    " (claim is dated; recorded, not an error)"
                    if dated else ""),
                 sent.strip()[:110]))
-    return out
+    return out, claims
 
 
-def check_absence(art, field, text):
-    """J006 / J007 — the prose denies an id the artefact contains."""
-    out = []
+def check_absence(art, field, text, subject, superseded=False):
+    """J006 / J007 — the prose denies an id the SUBJECT contains."""
+    out, claims = [], 0
     for sent, _off in sentences(text):
         if not ABSENCE_RE.search(sent):
             continue
-        dated = bool(AS_OF_RE.search(sent))
+        dated = bool(AS_OF_RE.search(sent)) or superseded
         for tok in IDLIKE_RE.findall(sent):
-            if tok in art.ids:
+            # Every id-like token in an absence sentence is a lookup that
+            # returned an answer, including "it really is absent".
+            claims += 1
+            if tok in subject.ids:
                 continue
-            hits = sorted(i for i in art.ids if i.startswith(tok))
+            hits = sorted(i for i in subject.ids if i.startswith(tok))
             if not hits:
                 continue
             code = "J007" if dated else "J006"
@@ -556,30 +788,30 @@ def check_absence(art, field, text):
                 "prose denies `%s` and %s is in this artefact%s"
                 % (tok, "/".join(hits), " (claim is dated)" if dated else ""),
                 sent.strip()[:110]))
-    return out
+    return out, claims
 
 
 def check_regen(art, field, text, index):
     """J008 — an instruction to regenerate an artefact nothing generates."""
     if not REGEN_RE.search(text):
-        return []
+        return [], 0
     producers = [rel for rel, body in index.items()
                  if rel != art.rel and rel.endswith((".py", ".sh"))
                  and art.base in body]
     if producers:
-        return []
+        return [], 1
     return [Finding(art.rel, field, "J008",
                     "prose says the file is derived and must be regenerated, "
-                    "and no .py/.sh in the tree names `%s`" % art.base)]
+                    "and no .py/.sh in the tree names `%s`" % art.base)], 1
 
 
-def check_delta(art, field, text, repo_root):
+def check_delta(art, field, text, repo_root, subject):
     """J010 — "<sibling.json> with N <element-field>s <verb>"."""
-    out = []
-    fields = art.element_fields()
+    out, claims = [], 0
+    fields = subject.element_fields()
     if not fields:
-        return out
-    mine = {el.get("id"): el for el in art.elements() if el.get("id")}
+        return out, claims
+    mine = {el.get("id"): el for el in subject.elements() if el.get("id")}
     for sent, _off in sentences(text):
         if not DELTA_VERB_RE.search(sent):
             continue
@@ -613,6 +845,7 @@ def check_delta(art, field, text, repo_root):
                 said = int(raw) if raw.isdigit() else NUMBER_WORDS[raw.lower()]
                 real = sum(1 for i in shared
                            if mine[i].get(key) != theirs[i].get(key))
+                claims += 1
                 if said == real:
                     continue
                 out.append(Finding(
@@ -622,7 +855,126 @@ def check_delta(art, field, text, repo_root):
                     % (raw, noun, os.path.basename(tok), real, len(shared),
                        key),
                     sent.strip()[:110]))
-    return out
+    return out, claims
+
+
+def check_element_counts(art, field, text, subject, superseded=False):
+    """J012 — a count whose noun is a per-element FIELD of this same subject.
+
+    Round 435's next-steps item 2, unpaid for twelve rounds: *"A count claim
+    whose noun is a per-element FIELD (`nineteen guardian labels`) is
+    invisible to J005; J010 catches only the sub-case where a sibling
+    artefact is named in the same sentence."* J005's denominator is
+    `nouns()`, which only knows COLLECTIONS (`pins` -> 23); `guardian` is a
+    key inside each pin and names no collection, so the count falls through.
+    J010's denominator is a diff against another file, so a sentence naming
+    no sibling reaches nothing.
+
+    The gap is the sentence that counts a FIELD inside the file it is in:
+    "nineteen guardian labels", "the four `dir` values", "three exempt
+    entries". Its denominator is the elements of the subject's own primary
+    element list.
+
+    **The rule is deliberately two-reading and fires only when BOTH fail.**
+    English does not say which of two counts it means, and both are honest
+    readings of the same phrase:
+
+      * PRESENT — how many elements carry the field with a non-empty value
+        ("nineteen guardian labels" = nineteen pins have a guardian);
+      * DISTINCT — how many different values it takes ("nineteen guardian
+        labels" = nineteen different labels).
+
+    A rule that picked one would be right about half the corpus and would
+    report the other half as drift. Firing only when the number matches
+    NEITHER is the same discipline as `bounded-not-binary-witness`: the
+    finding says "no reading of this sentence is true", which is a claim the
+    prose can be held to, and the message prints both denominators so the
+    reader can see which one the writer meant.
+
+    Excluded on purpose, each because it is another rule's job or another
+    rule's known decline:
+      * a noun that is ALSO a collection name — J005 owns it, and reporting
+        both would double-count one sentence;
+      * a sentence naming a sibling `.json` — J010 owns it;
+      * the three J005 discriminators (other-container, partitive,
+        past-tense), applied unchanged: a widening that quietly dropped them
+        would re-introduce the two false positives that took J005's
+        precision to zero before they existed.
+    """
+    out, claims = [], 0
+    elements = subject.elements()
+    if not elements:
+        return out, claims
+    fields = subject.element_fields()
+    nouns = subject.nouns()
+    # J010's hand-off, with each half scoped to what it is a property of.
+    # WHICH FILE this one is derived from is a property of the DOCUMENT; a
+    # delta VERB is a property of the sentence. Scoping both to the sentence
+    # (the first draft) mis-fired on
+    # `state/whence/round-422/host-pins-plus-repointed.json`, whose header
+    # names its sibling in a clause that `SENTENCE_RE` splits away 200
+    # characters before the count — the exclusion was looking in a window
+    # the claim had left. A sentence splitter is not a claim's scope.
+    field_names_a_sibling = any(
+        os.path.basename(m.group(1)) != art.base
+        for m in SIBLING_RE.finditer(text))
+    for sent, _off in sentences(text):
+        if field_names_a_sibling and DELTA_VERB_RE.search(sent):
+            continue                        # J010's sentence
+        dated = bool(AS_OF_RE.search(sent)) or superseded
+        for m in COUNT_RE.finditer(sent):
+            raw, adj, noun = m.group(1), m.group(2), m.group(3).lower()
+            # A CONTAINER can hold zero things; an ATTRIBUTE cannot be held
+            # zero times in the sense English means by "no witness". `no`
+            # and `zero` are in NUMBER_WORDS because "no pins" is a real
+            # count claim about a collection — J005's subject. Before a
+            # per-element FIELD name they are a negation of the field's
+            # CONTENT ("no edit text, no witness" = the repoint changed
+            # neither), and reading them as 0 made J012's only two live
+            # hits on this corpus both false. The recall cost is explicit
+            # and pinned by `test_a_true_zero_element_field_count_is_dropped`:
+            # a genuine "no elements carry `witness`" is dropped with them.
+            if raw.lower() in ZERO_WORDS:
+                continue
+            words = [w for w in (adj + " " + noun).split() if w]
+            hit = next((w for w in words
+                        if (w in fields or w.rstrip("s") in fields)
+                        and w not in nouns and w.rstrip("s") not in nouns),
+                       None)
+            if hit is None:
+                continue
+            key = hit if hit in fields else hit.rstrip("s")
+            if OTHER_CONTAINER_RE.match(sent[m.end():m.end() + 24]):
+                continue
+            if PARTITIVE_RE.match(sent[m.end(1):m.end(1) + 20]):
+                continue
+            if PAST_TENSE_RE.search(sent):
+                continue
+            said = int(raw) if raw.isdigit() else NUMBER_WORDS[raw.lower()]
+            present = sum(1 for el in elements
+                          if el.get(key) not in (None, "", [], {}))
+            distinct = len({_hashable(el.get(key)) for el in elements
+                            if el.get(key) not in (None, "", [], {})})
+            claims += 1
+            if said in (present, distinct):
+                continue
+            code = "J007" if dated else "J012"
+            out.append(Finding(
+                art.rel, field, code,
+                "prose says `%s %s` and `%s` is a per-element field: %d "
+                "element(s) carry it, %d distinct value(s)%s"
+                % (raw, noun, key, present, distinct,
+                   " (claim is dated; recorded, not an error)"
+                   if dated else ""),
+                sent.strip()[:110]))
+    return out, claims
+
+
+def _hashable(v):
+    """A set key for an element field value of any JSON type."""
+    if isinstance(v, (list, dict)):
+        return json.dumps(v, sort_keys=True)
+    return v
 
 
 def find_must_claims(text):
@@ -653,39 +1005,82 @@ def sweep(repo_root):
     _TOPS_SNAPSHOT = tops
     allowlist = xref_check.load_absent_allowlist(repo_root)
 
-    findings, n_fields, n_silent, n_must, n_watched = [], 0, 0, 0, 0
+    findings = []
+    n_fields = n_silent = n_must = n_watched = n_claims = 0
+    n_nested = n_checked = 0
+    #: J002 and J008 are claims about the FILE. Two prose fields repeating
+    #: one of them is one defect, so they are reported once per artefact.
+    seen_artefact_scoped = set()
     for art in arts:
-        for field, text in art.prose:
+        for pf in art.fields:
+            field, text, subject = pf.path, pf.text, pf.subject
             n_fields += 1
-            got = []
-            got += check_readers(art, field, text, index, repo_root)
-            claimed = {f.quote for f in got if f.code == "J001"}
-            got += check_paths(art, field, text, repo_root, tops, allowlist,
+            if pf.depth:
+                n_nested += 1
+            got, claims = [], 0
+            f, c = check_readers(art, field, text, index, repo_root)
+            got += f
+            claims += c
+            claimed = {x.quote for x in got if x.code == "J001"}
+            f, c = check_paths(art, field, text, repo_root, tops, allowlist,
                                claimed)
-            got += check_counts(art, field, text)
-            got += check_absence(art, field, text)
-            got += check_regen(art, field, text, index)
-            got += check_delta(art, field, text, repo_root)
-            claims = find_must_claims(text)
-            n_must += len(claims)
-            watched = watched_by_a_test(art.base, index) if claims else []
-            n_watched += len(claims) if watched else 0
-            for claim in claims:
+            got += f
+            claims += c
+            f, c = check_counts(art, field, text, subject, pf.superseded)
+            got += f
+            claims += c
+            f, c = check_absence(art, field, text, subject, pf.superseded)
+            got += f
+            claims += c
+            f, c = check_regen(art, field, text, index)
+            got += f
+            claims += c
+            f, c = check_delta(art, field, text, repo_root, subject)
+            got += f
+            claims += c
+            f, c = check_element_counts(art, field, text, subject,
+                                        pf.superseded)
+            got += f
+            claims += c
+            must = find_must_claims(text)
+            n_must += len(must)
+            claims += len(must)
+            watched = watched_by_a_test(art.base, index) if must else []
+            n_watched += len(must) if watched else 0
+            for claim in must:
                 if watched:
                     continue
                 got.append(Finding(
                     art.rel, field, "J011",
                     "an executable claim in a data file, and no test in the "
                     "tree names `%s`" % art.base, claim[:110]))
-            if not got:
+            kept = []
+            for x in got:
+                if x.code in ("J002", "J008"):
+                    key = (art.rel, x.code)
+                    if key in seen_artefact_scoped:
+                        continue
+                    seen_artefact_scoped.add(key)
+                kept.append(x)
+            # Round 447: SILENT and CHECKED are different questions, and
+            # until this round the summary answered the first while calling
+            # it the second. A field whose count claim is TRUE produces no
+            # finding and IS checked; the old `prose_fields - silent_fields`
+            # published it as uncovered, so the coverage token could only
+            # rise when the corpus got worse and read 0/28 precisely because
+            # the corpus was clean.
+            if not kept:
                 n_silent += 1
-            findings += got
+            if claims:
+                n_checked += 1
+            n_claims += claims
+            findings += kept
 
     acks = load_acks(repo_root)
     by_pin = {}
     for art in arts:
-        for field, text in art.prose:
-            by_pin[(art.rel, field)] = prose_hash(text)
+        for pf in art.fields:
+            by_pin[(art.rel, pf.path)] = prose_hash(pf.text)
 
     acked, live, used = [], [], set()
     for f in findings:
@@ -710,6 +1105,8 @@ def sweep(repo_root):
 
     stats = {"artefacts": len(arts), "json_files": n_json,
              "prose_fields": n_fields, "silent_fields": n_silent,
+             "nested_fields": n_nested, "checked_fields": n_checked,
+             "claims": n_claims,
              "unparseable": unparseable, "streams": len(streams),
              "must_claims": n_must, "watched_claims": n_watched,
              "acknowledged": len(acked)}
@@ -736,15 +1133,22 @@ def report(findings, acked, stats, show_acknowledged=False, out=sys.stdout):
     n_err = sum(1 for f in findings if f.severity == "ERROR")
     n_warn = sum(1 for f in findings if f.severity == "WARN")
     n_info = sum(1 for f in findings if f.severity == "INFO")
-    checked = stats["prose_fields"] - stats["silent_fields"]
+    # `checked_fields` counts fields where a lookup RAN. It is not
+    # `prose_fields - silent_fields`, which counts fields that produced a
+    # FINDING and was published as coverage until round 447.
+    out.write("  fields: %d of %d nested below the artefact root; %d claim(s) "
+              "checked in %d field(s), %d field(s) yielded a finding\n"
+              % (stats["nested_fields"], stats["prose_fields"],
+                 stats["claims"], stats["checked_fields"],
+                 stats["prose_fields"] - stats["silent_fields"]))
     out.write(
         "selfdesc-check: %d artefact(s) of %d json file(s), %d prose field(s), "
         "%d error(s), %d warning(s), %d info, %d acknowledged; "
         "coverage %d/%d prose-fields, %d/%d must-claims\n"
         % (stats["artefacts"], stats["json_files"], stats["prose_fields"],
            n_err, n_warn, n_info, stats["acknowledged"],
-           checked, stats["prose_fields"], stats["watched_claims"],
-           stats["must_claims"]))
+           stats["checked_fields"], stats["prose_fields"],
+           stats["watched_claims"], stats["must_claims"]))
     return n_err
 
 
