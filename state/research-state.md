@@ -22650,6 +22650,173 @@ errors, `test_wiring_audit.py` 62 passed — and committed unchanged as
   `harness/tests/test_swe_killers.py`; `harness/swe/killers.py` and
   `harness/swe/campaign.py`; `state/prediction-bank-ledger.json` row 443.
 
+### Round 444 — language(C) — 2026-09-02 — the evidence that was also the selector
+
+- **The red was real and the obvious fix was an edit to evidence.**
+  `tests/test_field_corpus_selector.py::test_the_live_tree_has_no_drift` has
+  been the driver's only whence-health FAIL since round 441, because a
+  fifteenth Hermes-gateway program (`examples/agi_buy_and_hold.lang`,
+  2026-09-01 23:12:22 UTC) is not in the fourteen-name census. That census,
+  `state/whence/round-384/field-names.json`, is cited BY PATH by
+  `whence/foreign.py`'s entry rule as the reason each `FOREIGN_NAMES` key
+  exists (`println` because *34 uses across 9 of 14 files*), and its own
+  comment says "Frozen on purpose". **One file was answering two questions
+  with opposite freshness requirements** — what did we measure (frozen) and
+  what is the population (live) — and the fifteenth program is the first
+  event that cannot satisfy both.
+- **The census had no producer and its reason for that had expired.**
+  `grep -rn unbound_identifier_counts --include=*.py` finds three readers and
+  no writer, so for sixty rounds the numbers behind every rule-(a) entry
+  could be quoted and not re-derived. Round 384's stated reason — *"a test
+  that re-derived this census would be pinning a live file"* — was correct
+  and was made obsolete FIFTEEN ROUNDS LATER by round 410's
+  `field_corpus_skip_reason`, the guard for exactly that hazard. An absence
+  carries a reason and reasons expire like claims do.
+- **`curecheck.unbound_identifier_census(paths)` reproduces round 384's
+  frozen payload EXACTLY** — all 80 keys, all counts, `unbound_identifier_files`
+  and `file_md5` — on the first run, no tuning. Exact reproduction is the
+  acceptance bar on purpose: a binder rule that mishandles `fn` parameters
+  still reproduces the headline `println: 34`.
+- **The delta decided the design.** The fifteenth program contributes **zero**
+  unbound identifiers; distinct names over 15 = 80 = over the frozen 14. So
+  evidence did not need to move and membership did. The split:
+  `state/whence/round-384/field-names.json` untouched and still the
+  attestation (`curecheck.frozen_census()`); new
+  `state/whence/round-444/field-roster.json` is the membership
+  (`field_roster_names()` → `field_programs()`), 15 names, re-declarable by
+  design. `field_census_names()` is gone — leaving the selector carrying the
+  evidence file's noun is how the two re-merge.
+- **Declared first, ignored second, in one commit.** `field_corpus_drift()`
+  went `(['agi_buy_and_hold.lang'], [])` → `([], [])` **from the roster
+  alone, measured before any `.gitignore` line existed**; the ignore line
+  landed after, which is round 441's ordering rule carried out and its
+  addendum's last sentence discharged. The detector still names the
+  sixteenth program, which will be neither declared nor ignored.
+- **A corpus fact nobody was looking for.** `agi_buy_and_hold.lang` is the
+  **only one of the fifteen that uses Whence's `check` at all** (4, all
+  passing), the largest that parses (85 lines vs. 48 next), and has no
+  `println` where 10 of the other 14 do. Of the five programs that parse,
+  **three run only by DISCARDING misses** (`dropped: 1`, `4`, `6` on stdout
+  while `rc=0`) — `rc=0` is not "it worked" for three of five.
+- **An unbanked prediction of mine was FALSE and is recorded as such.** "the
+  first gateway program that runs clean" — `test_simple.lang` also is, in two
+  lines. I wrote it into a test docstring before running the other four
+  programs; §5.1 carries the correction and the narrower true claim.
+- **Bank: 8 HIT, 0 MISS of 8, scored as a WEAKNESS of the bank** (round 443's
+  item 2): seven of eight asked whether an instrument I was about to build
+  would agree with a file I had already read. Only P3 was about the world.
+- **CLAUDE.md's `CRITICAL MISSION` block is REFUTED, not re-escalated.** Its
+  two claims are about this repo's own interpreter and had been deferred to
+  the operator as unactionable twenty-three times without anyone running
+  them. Claim 1 ("`fold()` returns `Miss` … with inline lambdas or external
+  functions") is FALSE in both named forms — `fold(fn(acc,x){acc+x}, 0, xs)`
+  and `fold(add, 0, xs)` both return **10**. The miss appears only on WRONG
+  ARGUMENT ORDER and names the fix: `fold needs a list, got 0 (arguments fit
+  fold(fn, acc, xs))` — which is exactly what `expense_tracker.lang` and
+  `prod_showcase_final.lang` print while exiting 0, the most likely place
+  the block's author saw a `Miss`. Claim 2 asks for documentation that
+  exists twice (`SPEC.md`'s `### Blocks are always braced` and
+  `parser.py`'s `_BRACE_HINT`), and cites v0.19 against a SPEC now at v0.41.
+  `languages/whence/tests/test_critical_mission_claims.py` (6 tests) pins
+  all of it and SKIPS if the block is deleted — the deletion is still the
+  operator's call and this round did not touch CLAUDE.md.
+- **Checks.** `languages/whence/run_tests_fast.sh` **2218 passed, 3 skipped,
+  95 deselected in 237.14s, rc=0** (was `1 failed, 2208 passed`): 2208 + the
+  red now green = 2209, +3 split tests = 2212, +6 CRITICAL-MISSION tests =
+  2218. The 2212 figure was measured under BOTH interpreters — `.venv`
+  236.70 s and `/usr/bin/python3` 231.80 s, same pass count — because the
+  driver's health checks call bare `python3` (round 442's item 2, still
+  open).
+  `skills/run_checks_fast.sh` `10 checker(s), 0 error(s), 7 warning(s)` —
+  it first read `2 error(s)`, both one cause (`carryforward K001`, this
+  round's own unlisted bank), fixed within the round.
+- **Landed a predecessor's orphan:** `state/slow-tier-ledger.jsonl`, the
+  driver's `slowtier-slice` append at 02:45:11 after round 443's commits —
+  the record-gap check's shape 4, same shape round 442 landed for round 441.
+  Attributed and committed, not allowlisted.
+- **Artifacts:** `knowledge/round-444-the-evidence-that-was-also-the-selector.md`;
+  `state/whence/round-444/PREDICTIONS.md` and `field-roster.json`;
+  `languages/whence/curecheck.py` (`frozen_census`, `_roster_md5`,
+  `field_roster_names`, `unbound_identifier_census`, `_bound_names`);
+  3 new + 6 retargeted tests in `tests/test_field_corpus_selector.py`;
+  `skills/evidence-is-not-membership/SKILL.md` + 3 trigger cases;
+  `.gitignore`; `state/known-standing-dirty-paths.json` round-444 addendum;
+  `state/prediction-bank-ledger.json` row 444;
+  `skills/suppression-has-many-readers/SKILL.md` (its round-441 verification
+  expectation moved because of this round's change, and says so).
+
+## Next steps (as of round 444)
+
+1. **The other frozen artefacts in `state/whence/` have not been checked for
+   the same double duty.** This round found one file doing two jobs by
+   walking into it, not by looking. The question is mechanical and one grep
+   per artefact: *does anything cite this path as a REASON, and does anything
+   read it as a SUBJECT SET?* `round-422/host-pins-plus.json` and its
+   repointed twin are the obvious next two — round 434's next-step 6 already
+   asked for an artefact-vs-prose sweep and nobody has run it. The split this
+   round landed is two integers that must NOT converge. Membership, which is
+   re-declarable:
+   `grep -c '"n_files": 15' state/whence/round-444/field-roster.json` -> **1**;
+   attestation, which is frozen:
+   `grep -c '"n_files": 14' state/whence/round-384/field-names.json` -> **1**;
+   if those two ever name the same integer, either the gateway dropped a
+   program or somebody re-merged the files. language(C).
+2. **An ABSENCE carries a reason, and nothing in this program re-derives
+   one.** Round 384's "we deliberately did not build a generator" outlived
+   its premise by 45 rounds because a later round built the guard that made
+   it safe. `carryforward_check` and `state_claim_check` re-derive positive
+   claims; there is no checker for "X was deliberately not built, because
+   Y" where Y has since changed. The grep is cheap — deliberate-absence
+   sentences cluster around the words *deliberately NOT*, *there is
+   deliberately no*, *was rejected because* — and this repo has many.
+   skills(B).
+3. **`curecheck.unbound_identifier_census` has exactly one acceptance test
+   and it is against a 14-file corpus that cannot change.** If the gateway
+   ever rewrites one of the fourteen the reproduction test SKIPS (by design)
+   and the generator then has no live pin at all except the synthetic
+   `test_the_generator_binds_the_three_things_whence_binds`. Someone should
+   decide whether that synthetic pin is enough, and say so, rather than
+   discovering it during a rewrite. The generator's live pin today is
+   `cd languages/whence && python3 -m pytest tests/test_field_corpus_selector.py -q`
+   -> **20 passed**, three of which are round 444's. (I wrote 23 here first,
+   by adding 3 to a number I had not re-read; `state_claim_check --run`
+   caught it inside the round. That is the checker doing exactly the job
+   round 442's item on it asked for.) language(C).
+4. **The exit contract is misleading for 3 of the 5 field programs that
+   run.** `expense_tracker`, `mini_agi_guardian` and `prod_showcase_final`
+   all exit 0 while `run.py` prints `dropped: N miss values computed and
+   discarded`. `--strict-miss` (round 384) exists and nothing in the corpus
+   tooling uses it; `curecheck.survey` records `rc` and not whether anything
+   was dropped. That is a one-field change to `survey` and a real number
+   nobody publishes. language(C).
+5. **Round 443's items 1-9 stand and were NOT re-derived by this round,**
+   with one exception: item 1's own rule WAS applied. The carry-check grep
+   (`knowledge/round-44[0-3]*.md` for `test_swe_campaign.py[light]`, `748`,
+   `requirements.txt`, `unmeasured`) found only the rounds that carried
+   those items, not a round that closed one — so they are carried on
+   evidence rather than on habit. `test_swe_campaign.py[light]` slow-tier
+   recall still 0%; A4's 748 s still a floor; A8 untested against the other
+   30 `whole` files; all four health checks still call bare `python3`; the
+   repo still has no dependency file. harness(A) or SWE-loop(D).
+6. **`nproc` on this box is 1.** Respected: the whence tier ran alone for
+   its 236.70 s figure. The `2 error(s)` skills reading was taken while a
+   pytest run was in flight and is quoted only as a count, never as a time.
+7. **Standing, and not touched by this round:** the NUC `retention --strict`
+   deadline; the `%vmeff` residual; `case_coverage`'s disagreeing verdicts;
+   `claim_check` executing 0 of its commands; the operator-blocked
+   `--cap 196`; the exhausted E-mission list; and CLAUDE.md's
+   `CRITICAL MISSION` block — which this round REFUTED rather than
+   re-escalated (see the entry above and
+   `languages/whence/tests/test_critical_mission_claims.py`). It is still a
+   deletion only the operator should make, but it is no longer an open
+   question: claim 1 is false, claim 2 is already satisfied twice, and the
+   fast tier now says so on every run:
+   `cd languages/whence && python3 -m pytest tests/test_critical_mission_claims.py -q`
+   -> **6 passed**. `languages/whence/SECURITY.md` is still uncommitted,
+   still not this program's, and still the operator's decision — do not copy
+   a carry count for it from this file; the checker's own line is the only
+   source.
+
 ## Next steps (as of round 443)
 
 1. **A carried next-step has no way to notice that a later round CLOSED it.**

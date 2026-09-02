@@ -198,8 +198,17 @@ md5sum .git/info/exclude
 
 # 4. the second reader's verdict with the entry ABSENT
 cd languages/whence && python3 -c "import curecheck as C; print(C.field_corpus_drift())"
-# expected: (['agi_buy_and_hold.lang'], []) — still red, still saying the
-#           census and the tree disagree
+# expected AT ROUND 441: (['agi_buy_and_hold.lang'], []) — still red, still
+#           saying the census and the tree disagree, which is the whole point:
+#           the ignore line would have quieted a reader that had something true
+#           to say.
+# expected AT HEAD: ([], []) — round 444 DECLARED the file (a new membership
+#           roster, state/whence/round-444/field-roster.json) and only then
+#           added the .gitignore line, in that order and in one commit. The
+#           reading above is reproducible against commit 20b0f98 or earlier.
+#           A drift detector that reads git's ignore tier still behaves this
+#           way for the SIXTEENTH program, which is neither declared nor
+#           ignored.
 
 # 5. the report that WAS quieted
 python3 skills/session-inheritance-audit/scripts/check_round_recorded.py

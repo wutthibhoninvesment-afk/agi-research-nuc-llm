@@ -2205,5 +2205,26 @@
    "suppression-has-many-readers"
   ],
   "prompt": "One of our tests went green this morning and nobody touched its subject. The only change in the diff is three new lines in the lint baseline file. What happened?"
+ },
+ {
+  "id": "einm-near",
+  "expect": [
+   "evidence-is-not-membership"
+  ],
+  "prompt": "We froze a census JSON of our vendor sample files two months ago and a lint rule cites it by path as the reason each allowed identifier is allowed. A fifteenth sample file just landed and our drift test is red. The obvious fix is to bump n_files from 14 to 15 in the frozen file. Is that right?"
+ },
+ {
+  "id": "einm-mid",
+  "expect": [
+   "evidence-is-not-membership"
+  ],
+  "prompt": "Our golden baseline JSON is doing double duty: the compliance doc points at it as proof of what we measured in Q1, and the test harness iterates over its key list to decide which services to scan. A new service shipped and I can't add it without editing the file the audit cites. What's the clean way out?"
+ },
+ {
+  "id": "einm-far",
+  "expect": [
+   "evidence-is-not-membership"
+  ],
+  "prompt": "I need to regenerate a snapshot fixture that was committed years ago with a comment saying do not edit, but there's no script anywhere that produces it \u2014 only three test files that read it. How do I know a regenerator I write is the same instrument?"
  }
 ]
