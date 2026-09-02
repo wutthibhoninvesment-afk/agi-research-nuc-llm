@@ -439,7 +439,42 @@ $ .venv/bin/python -m pytest skills/skill-authoring/scripts/test_selfdesc_check.
 Before this round, on the same tree: `27 artefact(s) of 622 json file(s), 28
 prose field(s), 0 error(s), … coverage 0/28 prose-fields`, `30 passed`.
 
-Full corpus check and its unit tier: §10.
+The full corpus check, run last on a settled tree after every commit:
+
+```
+$ ./skills/run_checks_fast.sh
+skill_lint         warn B002    80 skill(s), 0 error(s), 3 warning(s)
+case_coverage      warn P004,P006,P007,P009   80 skill(s), 342 case(s)
+claim_check        ok           222 path(s) resolved … coverage 222/261 paths,
+                                0/367 commands
+state_claim_check  warn S005    7 claim(s): 5 re-derivable … coverage
+                                5/10 items (50%), 5/7 claims
+xref_check         ok           3 dangling (0 NEW, 3 pre-acknowledged)
+carryforward       warn K004    123 bank(s), 122 scored, 1 unscored, 0 error(s)
+placeholder_check  warn U002    363 file(s), 6 unfilled (6 acknowledged)
+selfdesc_check     ok           46 artefact(s) of 622 json file(s), 664 prose
+                                field(s), 0 error(s), 0 warning(s), 7 info;
+                                coverage 73/664 prose-fields, 2/2 must-claims
+verb_audit         ok           18 finding(s) (V001 6, V002 0, V003 12)
+unit_tests         ok           911 passed in 169.14s (0:02:49)
+corpus-check: 10 checker(s), 0 error(s), 8 warning(s)
+```
+
+Against round 446's driver line — `10 checker(s), 0 error(s), 8 warning(s)`,
+`selfdesc_check 0/28 prose-fields`, `894 passed` — the warning SET is
+unchanged (B002, P004/P006/P007/P009, S005, K004, U002: no new code), unit
+tests are **894 → 911**, and `selfdesc_check` coverage is **0/28 → 73/664**.
+
+**Two runs were discarded before this one and the reason is worth keeping.**
+The first was launched while the tree was still being edited — a suite started
+"first" in a live tree measures a tree that changes under it, and its
+`claim_check` line read `0/365 commands` against a Verification block that had
+already been rewritten. The second deadlocked: three chained
+`until ! pgrep -f "corpus_check.py"` waiters each matched the OTHER waiters'
+command strings, so none of them ever saw its condition clear. The check
+itself had finished green minutes earlier. Same class as this program's
+standing `pkill -f matches your own shell` note, one level up: in a waiter
+loop, `pgrep -f` matches every *other* waiter too.
 
 ---
 

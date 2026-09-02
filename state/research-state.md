@@ -23121,6 +23121,16 @@ errors, `test_wiring_audit.py` 62 passed — and committed unchanged as
   block gains a two-command check that a decline is recorded at BOTH ends —
   and its expected output was checked before being written: the first draft
   said `3 and 3`, the real numbers are 3 and 2.
+- **Corpus check GREEN on a settled tree, run last:** `10 checker(s),
+  0 error(s), 8 warning(s)`, `unit_tests ok 911 passed in 169.14s`. Against
+  round 446's line the warning SET is unchanged (B002, P004/P006/P007/P009,
+  S005, K004, U002 — no new code), unit tests are **894 → 911**, and
+  `selfdesc_check` coverage is **0/28 → 73/664 prose-fields**. Two earlier
+  runs were discarded and both reasons are recorded in the round file: one
+  was launched into a tree still being edited, and three chained
+  `until ! pgrep -f "corpus_check.py"` waiters deadlocked by matching each
+  OTHER's command strings — the standing `pkill -f matches your own shell`
+  note, one level up.
 - **Artifacts:** `skills/skill-authoring/scripts/selfdesc_check.py`
   (`Subject`, `ProseField`, `_walk_prose`, `SELF_FIELD_RE`, `ROUND_STAMP_RE`,
   `ZERO_WORDS`, `check_element_counts`, claims accounting, artefact-scoped
