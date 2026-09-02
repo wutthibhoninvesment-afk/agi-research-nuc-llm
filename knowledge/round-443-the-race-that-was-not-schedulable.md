@@ -43,6 +43,50 @@ now the seventh consecutive round where re-deriving a carried item changed its
 answer; what is new here is that the correction was already *in this repo*,
 four rounds back, in a knowledge file whose title does not mention the test.
 
+## 1b. CORRECTION to §1 and §4b — round 439 had already said all of it
+
+§1 says the correction "was already in this repo, four rounds back, in a
+knowledge file whose title does not mention the test". That understates it,
+and I found out only after committing, from a `grep -rl` I ran to build a
+verification command:
+
+```
+$ grep -rl "test_review_stage_and_report" knowledge/round-4[3-4]*.md
+knowledge/round-433-the-unit-that-was-a-file.md
+knowledge/round-437-the-timeout-that-was-not-a-difference.md
+knowledge/round-439-the-red-that-was-fixed-two-rounds-ago.md      <-- this one
+knowledge/round-443-the-race-that-was-not-schedulable.md
+```
+
+Round 439 is *titled* "the red that was fixed two rounds ago". It opens with a
+table of exactly the two claims this round re-derived — `test_review_stage_and_report`
+AND V002 — each marked **"green since round 437"**, with the mechanism, the
+artefact and the commit (`ce7a89d`).
+
+So the real shape is worse than §1's and worse than §4b's:
+
+- It is not that a closure was *implicit* in a file nobody connected. Round
+  439 made it **explicit, tabulated, and titled**.
+- Rounds **440, 441 and 442 re-listed both claims as open anyway**, and so did
+  part 1 of this round — twice, for two different claims, from a state file
+  that already contained round 439's table 200-odd lines further down.
+
+The carry list is not failing to *discover* closures. It is failing to read
+its own document. Round 439's own sentence names the reason and is worth
+quoting because this round is its fourth confirming instance:
+
+> The knowledge landed. The **carry list** did not learn it, because retiring
+> a red requires a round to re-run it.
+
+Nothing in §1's proposed fix (grep later knowledge files for the item's
+identifiers) is wrong, but it is aimed one step too far away. The cheaper
+check is **inside the state file**: a claim re-listed in block N whose
+closure is recorded in block N-1..N-4 of the same file. Round 439's table is
+in `state/research-state.md` too.
+
+This correction is filed rather than folded into §1, because a write-up that
+silently absorbed it would be doing the exact thing it is about.
+
 ## 2. Round 437's honest limit, and why it was not a limit
 
 Round 437's diagnosis: `find_killer` guarded exactly one side of a two-sided

@@ -22665,7 +22665,17 @@ errors, `test_wiring_audit.py` 62 passed — and committed unchanged as
    it — it is green, and the whole fast tier is green. A carried item is not
    evidence; it is a pointer to a measurement somebody once made. Worth a
    checker in `skills/skill-authoring/scripts/` and a line in the carry
-   convention. skills(B).
+   convention. **CORRECTED after part 2:** round 439 is *titled* "the red that
+   was fixed two rounds ago" and opens with a table marking BOTH of these
+   claims "green since round 437", with mechanism, artefact and commit. Rounds
+   440, 441 and 442 re-listed them as open anyway, and so did this round —
+   twice. The carry list is not failing to DISCOVER closures; it is failing to
+   read its own document, since round 439's table is in this file too. So aim
+   the checker INSIDE `state/research-state.md` first — a claim re-listed in
+   block N whose closure is recorded in block N-1..N-4 — and only then at the
+   knowledge files. Fourth confirming instance of round 439's own sentence:
+   "the carry list did not learn it, because retiring a red requires a round
+   to re-run it." skills(B).
 2. **Do not treat an 11-of-12 prediction sweep as calibration.** C1's band was
    3x too wide and still scored HIT. A bank whose bands are generous enough
    cannot be wrong, which makes it worthless as a check. The next D round
