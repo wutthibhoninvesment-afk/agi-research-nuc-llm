@@ -881,6 +881,14 @@
    "where": "knowledge/round-439-the-red-that-was-fixed-two-rounds-ago.md",
    "quote": "**Score: 2 HIT, 3 MISS, 1 split, 1 no-basis, of 7.**",
    "note": "Section 4, one table row per banked line, plus an amendment logged BEFORE the number landed disclosing the slice ran contaminated on a 1-core box. P4 is the instructive miss: it bet between two candidate causes round 437 had already refuted by direct measurement in a file committed and present in the tree, because state/research-state.md's carried item still cited round 433 as the state of the art. P1 missed because the estimate came from a bare pytest run and the instrument costs materially more than the run it wraps."
+  },
+  "440": {
+   "bank": "state/round-440-predictions.md",
+   "status": "scored",
+   "scored_by": 440,
+   "where": "knowledge/round-440-the-precondition-that-belonged-to-a-pair.md",
+   "quote": "**8 HIT, 1 MISS, 1 banked as no-basis and reported, of 10.**",
+   "note": "Section 8, one table row per banked line. The bank records what had already been READ at bank time (both registries' CP03p entries, the guardian checks, the precondition output) and states that no run*.json had been opened and no campaign run -- so the reader can see which of the ten were cheap. P3 came back stronger than banked: the counterexample is not merely on disk, the `shadowed` verdict's own `co_red` field names its partner, so the verdict IS the counterexample. P7 is the miss and it ran in the round's own favour: `precondition_map` DOES read `pin[\"guardian\"]`, to choose WHICH precondition to decide, and never to answer it -- a prediction wrong in the convenient direction, flagged rather than waved through. P10 was banked as no-basis for two questions and both were measured and reported instead of guessed."
   }
  }
 }

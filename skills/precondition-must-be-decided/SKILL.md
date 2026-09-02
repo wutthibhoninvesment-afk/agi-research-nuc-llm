@@ -61,125 +61,28 @@ pairwise descent and manufacturing two "the text was rewritten in the middle"
 findings on an edit that touches no text at all. A decider that excuses
 counterexamples fails silently and in the direction you want.
 
-### Round 434: the last precondition, and two things the first two did not teach
+### The four instances, in full: [`references/instances.md`](references/instances.md)
 
-`kind_stable` — "the edit does not change the KIND of the observed value" —
-was the third and last condition, and it stayed undecided for six rounds
-because the obvious decider asks the wrong question. Written as *"did the
-kind at the edit site change?"* it answers `unknown` on the one case that
-mattered: the base kind set is `{bool, guess}` and the mutant's is
-`{bool, miss}`, and those are not disjoint. They differ on ONE kind —
-`guess` — which is the only kind the failing check actually tests.
+Split out in round 440 (the body crossed `skill_lint`'s 500-line B001
+limit). Each is a measurement, not an anecdote:
 
-**A decider is routed to a condition NAME; it usually also needs the
-condition's PARAMETER.** `append_only` and `refusal` are yes/no properties
-of an edit, so their deciders need nothing from the case but the edit.
-`kind_stable` is a family of conditions indexed by a kind, and the case
-knows which member it rests on. Routing stopped one level too shallow, and
-the cost was six rounds of `unknown` on a decidable case. Ask, for each
-condition: *is this one predicate, or a family? if a family, what does the
-case know that selects the member?*
-
-**If one modelling default carries the verdict, that default is the finding
-and it needs its own test.** The kind analysis decides the case only because
-Whence re-wraps `x == y` in a Guess when an operand is a Guess. Substitute
-the rule any reader would write from "a comparison yields a bool" and the
-verdict flips from `broken` to `holds` — which promotes the corpus's one
-remaining counterexample from *excused* to STRICT and reports the
-conditional law as REFUTED. That is a one-line change in a lattice nobody
-would have questioned. Test it by monkeypatching the rule off and asserting
-the inversion, and assert the language fact underneath by RUNNING a program,
-not by asserting the model against itself.
-
-**A decided condition can strengthen a result on BOTH diagonals.** The third
-decider moved one confirming case `unknown -> holds` and one violating case
-`unknown -> broken`; the contingency table went `[[9,0],[0,2]]` to
-`[[10,0],[0,3]]`, Fisher p 0.0182 -> 0.0035, with no new data collected.
-Predict that before you build it: a decider that decides something must move
-the numbers that number-pinning tests hold, and if your prediction bank says
-"one test will break" it is probably wrong.
-
-**When the last condition gets a decider, the no-decider branch loses its
-only user.** Do not delete it — it is the behaviour a fourth condition gets
-on the day it is named and before it is decided. Re-pin it against a
-synthetic name and add an invariant test that every condition the rule table
-NAMES has a decider, so the next atom cannot arrive silently undecided.
-
-### Round 438: the decider existed, and the other instrument never called it
-
-Two rounds after `append_only` got a decider, a SECOND instrument over the
-same registry still applied round 420's conditional blindness as if it were
-absolute. Its flag was `pin.dir in guardian.blind`, full stop — and its only
-precondition-aware branch was keyed on the OUTCOME:
-
-```python
-if measured.get(pin["id"]) == "guarded":
-    ...  status = "precondition_broken"      # step 2, violated, in the fix's own module
-```
-
-That is step 2's prohibition, in the same file as the decider that obeys it.
-The decider needed no run at all — it reads the edit text and the subject
-source, both of which the reporting command already had in hand.
-
-**The symptom is a mode-dependent answer.** The registry's acceptance
-criterion named a command; that command takes an optional second argument;
-and the answer moved with it:
-
-| command | MISPOINTED | exit |
-|---|---|---|
-| `audit <pins.json>` | **5** | **1** |
-| `audit <pins.json> <run.json>` | **0** | **0** |
-
-The criterion's own text says it exists so that "pointing a pin at whatever
-happened to go red would guarantee `guarded` and measure nothing" — and the
-mode that MET it is the one that consults `guarded`. **A criterion was
-satisfied precisely by the circularity it was written to forbid.** One round
-evaluated the strict mode and correctly held the failure open; nothing ever
-evaluated the other; both were right about the mode they ran.
-
-Three instruments over one campaign gave three answers: 5 mispointed; 0
-mispointed / 5 "false positive"; 1 excused / 4 undecided. Only the third
-distinguished **decided broken** from **not decided** — i.e. only the one
-that had already done step 3.
-
-**The dangerous cell is the one nobody could reach.** Condition HOLDS +
-outcome `guarded` is the law REFUTED. Hard-coding "guarded means the
-condition broke" puts a refutation in the false-positive bucket — and it does
-it in the pre-flight tool, the one that meets a new counterexample FIRST.
-Unreachable on the archive, so it was pinned synthetically.
-
-### Round 438: prove the residual undecidable instead of widening the rule
-
-The pitfall below says *"say so rather than widening the rule until it
-guesses."* Saying so is an argument. Round 438 made it a measurement, and it
-took two twelve-line programs.
-
-The residual was one shape: the edit rewrites a BOOLEAN CONDITION, and
-`append_only` is a property of the observed TEXT. Two subject programs were
-written with the SAME guardian shape and the same edit — add one disjunct to
-an `or` chain — such that the decider's input is **byte-identical**:
-
-```
-structural: ((k == 'a') or (k == 'b'))  ->  (((k == 'a') or (k == 'b')) or (k == 'c'))
-```
-
-In one, the condition guards a SUFFIX: the edit appends, containment
-survives, the check still passes (`append_only` holds, exit 0). In the other,
-the same condition guards a SPLICE into the middle: containment is destroyed,
-the check goes red (broken, exit 1).
-
-**Same input, both answers ⇒ no rule over that input can decide it.** There
-is nothing to widen *to*, and that is a fact about the analysis rather than
-an admission about the analyst. It earns its own status — `undecidable`, not
-`unknown` — because the two call for opposite responses: `unknown` invites
-the next round to widen the rule, `undecidable` tells it not to bother.
-
-The status stays **refutable**: exhibit a third program that breaks the
-pairing and it is wrong. And it must be **narrower than the symptom that
-suggested it** — "not string-shaped" covered the four boolean cases AND a
-fifth whose edit adds an `if` branch, whose arms *are* observed text and
-which a widening rule really could reach. Over-broadening would have retired
-the one residual still worth attacking.
+- **Round 434** — a condition named in the rule table with no decider, and
+  a modelling rule that would have inverted the published result if
+  flipped.
+- **Round 438 (consumers)** — the decider already existed and the one
+  instrument documented as running BEFORE any campaign never called it, so
+  the same command answered differently with an optional argument.
+- **Round 438 (undecidable)** — two twelve-line programs with a
+  byte-identical delta and opposite answers prove a residual class
+  undecidable. Same input, both answers ⇒ nothing to widen to, and it earns
+  a status distinct from `unknown` because the two call for opposite
+  responses.
+- **Round 440** — the property was defined over *the observed text* and
+  every decider took only the producer; the corpus already held the
+  counterexample in a verdict whose definition IS a disagreement; and both
+  available answers made a consumer publish a sentence contradicting a
+  recorded measurement, which is the signal that the value set is short one
+  member.
 
 ## When to use
 
@@ -194,6 +97,12 @@ the one residual still worth attacking.
   someone who already knows which cases it must excuse.
 - A "known limitations" or "does not apply when" list has grown for several
   cycles and nothing has ever moved off it.
+- The condition's own definition contains a word like *observed*, *visible*,
+  *reachable*, *effective* or *as seen by* — anything with an implicit second
+  argument — and the decider's signature has only the first.
+- A three-valued decider's `broken`/`fails` value is consumed as proof that
+  something DOES happen, when the rule that produced it only established that
+  something CAN happen.
 
 ### NOT this skill
 
@@ -325,6 +234,27 @@ the one residual still worth attacking.
     a later change decides one of them, the justification for the status is
     gone and that test is what says so.
 
+11. **(Round 440) Check the decider's arity against the property's arity,
+    then check each decision's quantifier against how consumers read it.**
+    Two greps and a counterfactual:
+
+    ```
+    # (a) what does the property quantify over? read its own definition
+    $ grep -n 'PRE_[A-Z_]* *=' -B 8 <analysis>.py     # the atom table's prose
+    # (b) what does the decider actually receive?
+    $ grep -n 'def .*_precondition' <analysis>.py
+    # (c) what do consumers infer from each value?
+    $ grep -n 'PRE_BROKEN\|PRE_HOLDS' <analysis>.py
+    ```
+
+    If (a) names an observer and (b) has no parameter for one, every value
+    the decider returns is about the producer alone. Split the value that is
+    existential into its own status and give it the `unknown` treatment
+    downstream — never promoted, both consumers unchanged. Then run (c) as a
+    counterfactual: force each candidate value and print what each consumer
+    would publish. A published sentence that contradicts a recorded
+    measurement is the proof; an argument is not.
+
 ## Pitfalls
 
 - **Comparing derived fields as if they were source.** Parsers, ORMs and
@@ -337,6 +267,25 @@ the one residual still worth attacking.
   as sequences; surface the whole chain when the lengths differ. Applies to
   `or`/`and`/`||` chains, middleware stacks, join lists — anything
   left-folded.
+- **(Round 440) Widening a rule until it answers, when the answer is to the
+  wrong question.** The residual really was decidable — the shape had a
+  clean syntactic rule and the rule was correct. It decided the EDIT while
+  every consumer asked about the OBSERVER. A rule that fires is not a rule
+  that helps; check who reads the answer before you ship it.
+- **(Round 440) A refinement that folds the condition where it is FALSE.**
+  On the true arm of `x == "q"` the name `x` is `"q"` and substituting it is
+  exact. On the other arm `x` is everything else and substituting anything is
+  a guess — the kind that turns an `unknown` into a lie rather than into a
+  gap. Fold only where the equality HOLDS, and let the other arm be compared
+  as written.
+- **(Round 440) Prose that describes a field which has since moved.** A
+  registry entry's rationale argued about an observer the entry no longer
+  named, because the tool that repointed the entry moved the label and
+  nothing else — by design, and enforced by a test listing the fields it may
+  not move. The rationale was not on that list, so it was structurally
+  guaranteed to rot, for every entry, silently. When a generator rewrites one
+  field, enumerate the fields that DESCRIBE it and either regenerate or flag
+  them.
 - **The decider fails toward the answer you want.** Both bugs above produced
   false `broken`, i.e. false excuses. Budget a review pass that reads every
   `broken` verdict against the case's own recorded reasoning, not a tally.
@@ -420,6 +369,20 @@ You have done this when all of these hold:
     committed counterexample PAIR whose analysed input is identical and whose
     ground truth differs, established by running both; and a test asserts the
     rule classifies both members.
+14. (Round 440) The property's own definition and the decider's signature
+    quantify over the same things. If the definition says "observed" /
+    "visible" / "as seen by", the decider either takes the observer or the
+    record says which of its values are about the producer alone.
+15. (Round 440) Before any counterexample pair is authored, the archive was
+    searched for a verdict whose definition records disagreement between two
+    observers of one event. If one exists, it is cited instead.
+16. (Round 440) Every value the decider can return has been forced through
+    the consumers in a counterfactual, and the output of each is in a test.
+    No shipped value makes a consumer print a sentence that contradicts a
+    recorded measurement.
+17. (Round 440) When a new value is added and no published number moves,
+    that is stated as the correctness argument with the before/after
+    numbers, not omitted as a null result.
 
 Worked commands from the instance:
 

@@ -22350,6 +22350,237 @@ errors, `test_wiring_audit.py` 62 passed — and committed unchanged as
   that the slice ran contaminated (~25-30 s of concurrent CPU on a 1-core
   box). Scored in the knowledge file.
 
+### Round 440 — language(C) — 2026-09-01 — the precondition that belonged to a pair
+
+- **The carried item attacked is round 438's next-step 2**, the last open
+  `append_only` residual: *"CP03p … Anyone attacking it should write the
+  counterexample FIRST and only widen if none exists."* Both halves were
+  right and they pointed at different answers. **The counterexample was
+  already in the repository** — `state/whence/round-422/host-pins-plus.json`
+  and its repointed twin hold CP03p with a **byte-identical** edit, two
+  different `guardian` labels, both checks in the SAME guest file, and
+  opposite recorded verdicts: `shadowed` (the probe `f(1 "a\"b")` has no
+  apostrophe, so the escaper edit is invisible) against `guarded` (the probe
+  `f(1 "a'b")` has one, so the needle `got "a'b"` breaks). Re-measured live
+  at HEAD, ~90 s per pin, into `state/whence/round-440/`. **No new program
+  was written; round 438 wrote two by hand for the same job.**
+- **A `shadowed` verdict IS a counterexample.** `checkpin.py` defines it as
+  "the named check stayed GREEN and other checks went red" — two observers
+  of one edit who disagree — and the `shadowed` row's own `co_red` field
+  names its partner, here exactly the label the repointed registry uses.
+  Every `shadowed` row this program has recorded is a ready-made
+  counterexample to any claim of the form "this edit is blind/sighted", and
+  nothing had ever mined them for that.
+- **The finding: `append_only` is a property of the (edit, guardian) PAIR
+  and every decider is keyed on the PIN.** The atom table says it in its own
+  words — "an edge that only ever APPENDS to *the observed text*". For an
+  edit that rewrites text unconditionally the distinction is invisible; put
+  the rewrite behind a guard the edit itself introduces and the two come
+  apart. CP03p is the first pin where they do.
+- **The widening rule exists and decides the EDIT, which is not the question
+  the consumers ask.** `_guarded_substitution` reads `X -> if C { Y } else
+  { X }` (round 428's `refusal` shape 2, read by the other decider) and
+  `_eq_literal` folds the one exact substitution available: on the true arm
+  of `c == "'"` the name `c` IS `"'"`, so CP03p's arm refines to `'  ->  \'`
+  — `infix`, decided with no run. Deliberate limits, each tested: the fold
+  applies only where the equality HOLDS (the `not C` arm is compared as
+  written, and `if c == "q" { c } else { "Q" }` stays `unknown` rather than
+  being guessed); a guard whose arms are BOTH new is a rewrite, not a guard;
+  and the positive half — `X -> if C { X + "!" } else { X }` → `holds` — is
+  a real widening with no corpus instance, pinned synthetically.
+- **Both of round 438's proposed answers publish a FALSE sentence, measured
+  as a counterfactual rather than argued** (`state/whence/round-440/
+  counterfactual.txt`, pinned by a test). `holds` makes the repointed
+  registry print **`strict_violation`** — round 438's next-step 3, the path
+  that "has never fired on real data" and whose firing "is the headline of
+  whatever round sees it" — announcing round 420's law refuted by a guardian
+  whose observed text the edit demonstrably rewrote. `broken` makes BOTH
+  registries print `precondition_broken`, whose documented reading is "the
+  guardian is not blind to THIS edit", about the guardian measured
+  `shadowed`. The asymmetry is a QUANTIFIER: `holds` is universal and
+  licenses the consumers' inferences, `broken` is existential and licenses
+  none of them; on an unconditional corpus the two coincide.
+- **`PRE_BROKEN_ON_BRANCH` is that existential, named, and never promoted.**
+  `check_law` neither excuses nor strictly refutes on it; `audit_registry`
+  calls it `undecided`, exactly as `unknown` did. **No published number
+  moves** — `0 MISPOINTED, 1 precondition-broken, 4 undecided, 0
+  strict-violation` before and after, `_law_table` `(10, 0, 0, 3)` before and
+  after — and that IS the correctness argument: a status that moved the
+  table would be claiming something about an observer it never read. Round
+  434's item 4 and round 438's item 4 both asked for that table before and
+  after a CP03p decision; both values are now in the test. Distinct from
+  round 438's `undecidable` (there the delta is a boolean condition and the
+  observed text lies downstream; here the delta IS the observed text and IS
+  decided, and the OBSERVER is what the delta does not determine).
+- **Round 438's next-step 1 is DISCHARGED, and the answer is worse than
+  "0 MISPOINTED is satisfiable by declining to decide".** `polarity.py
+  repoint` draws every candidate from the pin's `co_red` list — the checks
+  that ACTUALLY went red under that pin — so *"pointing a pin at whatever
+  happened to go red"*, the hazard the criterion's own sentence names, **is
+  the procedure that produced the file**. The score moved **1/20 = 5%**
+  (`run-plus.json`) to **20/20 = 100%** (`run-repointed.json`), and
+  MISPOINTED is structurally blind to it: a check that went red under an
+  edit is by construction not blind to that edit. The `_` field now states a
+  two-part criterion, both parts currently FAILING, with the old sentence
+  kept verbatim above it; a test re-derives every number it quotes,
+  including the 5% and the 100%, and asserts the criterion NOT met
+  positively (`undecided > 0`) rather than pinning a passing number.
+- **A whole registry's rationales point at checks they no longer name.**
+  `repoint` moves the `guardian` label and nothing else; `why` is prose
+  ABOUT the guardian. Measured: **20 of 20** repointed pins carried a `why`
+  byte-identical to their pre-repoint twin's. CP03p's is measurably FALSE of
+  its own guardian ("The guardian's probe string has no apostrophe in it at
+  all") — corrected in place, quoting the old sentence rather than deleting
+  it, so the count is now 19. The other 19 are asserted UNRE-AUTHORED, not
+  wrong. `test_the_repointed_registry_changes_labels_and_nothing_else` lists
+  eight fields a repoint may not move and `why` is not among them, so this
+  does not weaken it.
+- **A citation that outlived the thing it cites, by two rounds.** Round
+  435's item 1 and round 439's item 4 both cite round 426's
+  `test_the_repointed_registry_fails_its_own_acceptance_criterion` as
+  "holding the failure open". **It does not exist** — round 438 deleted it
+  (`git log -S` → `883a23a`), replacing it with
+  `test_the_audit_cli_exits_nonzero_on_undecided_rows`, and its own
+  knowledge file cites the dead name too. This is round 439's finding
+  recurring in the list that published it. A test name in a carried item is
+  an absence claim wearing a presence claim's clothes, and `grep -rn` costs
+  seconds.
+- **A FIFTEENTH foreign `.lang` file arrived mid-round and the fast tier is
+  red for it.** `examples/agi_buy_and_hold.lang`, md5
+  `b567a36caa1f467bb3eeb7824b7beada`, 85 lines, written **2026-09-01 23:12
+  UTC** by the Hermes gateway while this round was running (round 439's item
+  5 recorded 14 unchanged). `test_field_corpus_selector.py::
+  test_the_live_tree_has_no_drift` is red and its own docstring says so:
+  "it is NOT a regression in anything this project wrote". **NOT re-made
+  here** — see next steps. Measured for whoever does: it **parses and runs
+  green**, `4 checks passed, 0 failed`, exit 0, against 10 of the 14
+  declared field programs that do not parse at all.
+- **Checks run BEFORE writing this entry** (round 438's item 4).
+  `harness/wiring_audit.py check` **116 entry points, 96 in closure, 0
+  errors, 0 warnings**. `languages/whence/run_tests_fast.sh` **2208 passed,
+  1 failed, 3 skipped in 222.83 s** — the one failure is the gateway drift
+  above. `tests/test_polarity.py` **163 → 173 passed, 0 failed** (10 tests
+  added, 4 pinned expectations updated, every one of the four the single
+  CP03p row moving).
+- **Predictions (D-013):** `state/round-440-predictions.md`, 10 banked
+  before any run and before any `run*.json` was opened. **8 HIT, 1 MISS, 1
+  banked as no-basis and reported.** P7 is the miss and it is instructive:
+  `precondition_map` DOES read `pin["guardian"]` — to choose WHICH question
+  to ask (`v.pre`, `v.kinds`) — and never to ANSWER it. The banked sentence
+  was too strong; the correction runs in the round's own direction, which is
+  the kind of miss worth flagging rather than waving through.
+- **Artifacts:** `languages/whence/polarity.py` (`PRE_BROKEN_ON_BRANCH`,
+  `_guarded_substitution`, `_eq_literal`, two new rungs on
+  `edit_precondition`'s ladder, `_combine_precondition` extracted from
+  `routed_precondition`, the audit's `broken_on_branch` sentence, updated
+  `AUDIT_BLIND_STATUSES` doc); `state/whence/round-422/
+  host-pins-plus-repointed.json` (2 lines: the criterion and CP03p's `why`,
+  round-tripped at `indent=1, ensure_ascii=False` verified byte-identical
+  first); `state/whence/round-440/` (2 live single-pin campaigns + the
+  counterfactual script and its output); `languages/whence/tests/
+  test_polarity.py` (+10 tests); `skills/precondition-must-be-decided/
+  SKILL.md` (476 → 589+ lines: a round-440 instance section, step 11, three
+  pitfalls, verification 14-17, two trigger bullets);
+  `knowledge/round-440-the-precondition-that-belonged-to-a-pair.md`;
+  `state/round-440-predictions.md`.
+
+## Next steps (as of round 440)
+
+1. **The four `undecided` rows in the repointed registry now split three
+   ways and only ONE of them is still open to a static rule.** CP06p/CP08p/
+   CP10p2 are `undecidable` (round 438 PROVED no rule over the delta reaches
+   them) and CP03p is `broken_on_branch` (round 440 proved the rule reaches
+   the edit and not the observer). So the registry's new criterion part (A)
+   — `0 MISPOINTED and 0 undecided and 0 strict-violation` — **cannot be met
+   by any static instrument**, and saying so is the finding rather than the
+   excuse. The route for all four is round 438's next-step 5: a RUN, which
+   is a different instrument from the one the criterion names. Whoever
+   builds it should say what it costs — the two single-pin campaigns this
+   round ran took ~90 s each on a 1-core box. language(C).
+2. **`broken_on_branch` decides the EDIT and nothing decides the OBSERVER,
+   and the observer is now the only thing left.** The honest next instrument
+   is a decider that takes the guardian's PROBES, not just its label: for
+   CP03p, "does any probe of this check produce a string containing `'`" is
+   a question about `parse_whence("…\"a'b\"…")`, i.e. a run of the guest.
+   That is the first precondition decider that would not be static, and
+   whoever writes it must keep round 426's guard — it may read the probe,
+   never the verdict. language(C).
+3. **19 of 20 repointed pins carry a rationale written about a check they no
+   longer name.** Not wrong, UNRE-AUTHORED, and now asserted as such by
+   `test_every_repointed_pin_still_carries_its_predecessors_rationale`.
+   Re-authoring is a per-pin judgement about whether the new label names the
+   same mechanism — which is exactly the question `0 MISPOINTED` could not
+   ask and the new criterion part (B) does. CP03p was the one that was
+   measurably FALSE; there is no reason to believe it is the only one, and
+   the cheap screen is the same one that caught it: read the `why`'s claim
+   about the probe against the guardian's actual probe text. language(C).
+4. **A FIFTEENTH foreign `.lang` file landed mid-round and the whence fast
+   tier is red for it.** `examples/agi_buy_and_hold.lang`, md5
+   `b567a36caa1f467bb3eeb7824b7beada`, 85 lines, 2026-09-01 23:12 UTC,
+   written by the Hermes gateway while round 440 ran. Round 439's item 5 had
+   just recorded "the 14 foreign `.lang` files are unchanged".
+   `test_the_live_tree_has_no_drift` is red and its docstring says this is a
+   census to re-make, not a regression. **NOT re-made here** — it touches
+   three published numbers (`field-names.json`'s 14 declared, the "10 of the
+   14 still fail to parse" that `test_v33.py`/`test_v34.py` publish, and
+   `.gitignore`'s list) and would bake an md5 of a file a live foreign
+   system may rewrite an hour later. Measured for whoever does it: the new
+   program **parses and runs green**, `4 checks passed, 0 failed`, exit 0 —
+   against 10 of 14 declared programs that do not parse at all, which is
+   itself worth a sentence. any track.
+5. **Round 438's items 3 and 5 stand, and item 3 is now nearly reachable.**
+   `strict_violation` has still never fired on real data — but round 440
+   showed exactly what makes it fire (a pin measured `guarded` whose
+   precondition is decided `holds`) and that the one candidate on disk is
+   CP03p, held out of it by a status rather than by luck. If a future
+   widening promotes any `broken_on_branch` or `undecidable` row to `holds`,
+   check the measured verdict FIRST. language(C).
+6. **A test name inside a carried item is an absence claim, and this one is
+   false.** `test_the_repointed_registry_fails_its_own_acceptance_criterion`
+   is cited in two next-steps blocks (most recently round 439's item 4) and
+   three knowledge files as the thing "holding the failure open". **It does
+   not exist at HEAD.** Re-derived
+   this round, in seconds, by the two commands nobody had run:
+   `grep -rn 'fails_its_own_acceptance_criterion' --include=*.py .` (no
+   hits) and `git log --oneline -S'fails_its_own_acceptance_criterion'`
+   (round 438's `883a23a` deleted it, replacing it with
+   `test_the_audit_cli_exits_nonzero_on_undecided_rows`). Round 438's own
+   knowledge file cites the dead name too. This is round 439's carried-red
+   finding recurring in the list that published it, on the cheaper case: an
+   identifier reads as a fact, so nobody greps it. Worth a line in
+   `skills/carried-claim-rot/SKILL.md`. any track.
+7. **Round 439's items 1, 2 and 5 stand, untouched by this round** — the
+   per-round slow-tier slice's first three rounds of evidence (watch
+   `logs/slowtier_round_*.log` and the `slowtier-slice OK` line; recall
+   should climb monotonically); `test_swe_campaign.py[light]`'s **> 1500 s
+   through the instrument** floor and `test_swe_guest.py`'s never-run
+   ordering rule; and round 437's `_docstring_const` dead disjunct /
+   `selfdesc_check`'s 0/27 coverage / `example_curation` resolving `git`
+   first. harness(A) or SWE-loop(D).
+8. **`nproc` on this box is 1 and this round measured the cost again.** The
+   whence fast tier took **222.83 s** run solo; two single-pin `checkpin`
+   campaigns took ~90 s each and were deliberately chained in ONE background
+   command rather than run concurrently. Plan every suite as serialised.
+9. **The corpus check's 3 errors at the start of this round were all
+   leftovers or bookkeeping**, and this round cleared the two that were
+   its own to clear: `skill_lint B001` (this round's own skill upgrade
+   crossed the 500-line body limit — split into
+   `references/instances.md`, 0 errors) and `carryforward K001` (this
+   round's own bank, now registered). Round 438's item 4 rule held: run
+   `skills/run_checks_fast.sh` and `harness/wiring_audit.py check` BEFORE
+   writing the round file. Both were run before this entry existed.
+10. **Standing, and untouched by this round:** the operator-blocked `--cap
+   196`; the E3 A/B's six-gate table; `case_coverage`'s 49-of-103
+   disagreeing verdicts; `claim_check` executing **0 of 336** commands (the
+   denominator moved from 311 — re-derive it, do not copy it); the `%vmeff`
+   residual; the nuc health check's 3 reds; and CLAUDE.md's `CRITICAL
+   MISSION` block, re-escalated for the TWENTY-SECOND time and still a
+   one-line deletion for the operator. `languages/whence/SECURITY.md` is
+   still uncommitted, still not this program's, and still the operator's
+   decision — **do not copy a carry count for it from this file**; the
+   checker's own line is the only source.
+
+
 ## Next steps (as of round 439)
 
 1. **The driver now takes a slice every round; the first three rounds of it
