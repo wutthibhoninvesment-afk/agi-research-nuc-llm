@@ -56,10 +56,12 @@ Exit codes: 0 = no stale claims, 1 = at least one, 2 = usage/IO problem.
 import argparse
 import os
 import re
+import json
 import shlex
 import signal
 import subprocess
 import sys
+import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_REPO_ROOT = os.path.normpath(os.path.join(HERE, "..", "..", ".."))
@@ -707,17 +709,69 @@ METRICS = [
 EXIT_RE = re.compile(r"\bexit (\d+)\b")
 
 
-def claim_metrics(claim):
-    """Metric name -> asserted integer, for every metric named in `claim`."""
+# Round 459. A claim on a MONOTONE number is the wrong shape as an equality.
+# Round 441 ran this tier once and found 15 stale C002s; every single one
+# understated, because every one was a suite or corpus size and those only
+# grow. `== 165 passed` is therefore a claim that is guaranteed to go stale
+# on the next test somebody adds, and correcting it only resets the clock.
+# `>= 165 passed` is the same fact with the direction of drift written into
+# it: it stays true until somebody DELETES a test, which is the event a
+# reader actually wants to hear about.
+#
+# Four spellings, all found in this corpus's prose: `>= 207 passed`,
+# `\u2265 207 passed`, `at least 207 passed`, `207+ passed`.
+FLOOR_PREFIX_RE = re.compile(
+    r"(?:>=|\u2265|at least|no fewer than|minimum(?: of)?)\s*$", re.I)
+
+
+def _constraint_at(claim, m):
+    """`">="` if the number matched at `m` is written as a FLOOR, else `"=="`.
+
+    The 24-character lookbehind is a window, not a parse: it has to reach
+    over `expected: ` and a `**` or two without reaching back into the
+    PREVIOUS metric of a multi-metric claim (`0 error(s), >= 27 skill(s)`),
+    whose nearest neighbour in this corpus is 26 characters away.
+    """
+    before = claim[max(0, m.start(1) - 24):m.start(1)]
+    if FLOOR_PREFIX_RE.search(before):
+        return ">="
+    if claim[m.end(1):m.end(1) + 1] == "+":
+        return ">="
+    return "=="
+
+
+#: `207+ passed` never reaches `_constraint_at`, because `METRICS`'s
+#: `\b(\d+) passed\b` wants ONE space and finds `+ `. Normalising it here --
+#: on the CLAIM side only -- keeps the fourth spelling working without
+#: touching the regexes that also read a command's real output, where a
+#: trailing `+` would mean nothing. Caught by the test that asserted all four
+#: spellings, which is why all four were listed rather than the three that
+#: happened to work.
+PLUS_FLOOR_RE = re.compile(r"\b(\d+)\+(?=\s)")
+
+
+def claim_constraints(claim):
+    """Metric name -> (op, asserted integer), for every metric in `claim`."""
+    claim = PLUS_FLOOR_RE.sub(r">= \1", claim)
     out = {}
     for name, rx in METRICS:
         m = rx.search(claim)
         if m:
-            out[name] = int(m.group(1))
+            out[name] = (_constraint_at(claim, m), int(m.group(1)))
     m = EXIT_RE.search(claim)
     if m:
-        out["exit"] = int(m.group(1))
+        out["exit"] = (_constraint_at(claim, m), int(m.group(1)))
     return out
+
+
+def claim_metrics(claim):
+    """Metric name -> asserted integer, for every metric named in `claim`.
+
+    The equality VIEW of `claim_constraints`, kept at this exact signature
+    because `state_claim_check.py:748` consumes it and a floor means nothing
+    to that tool's `S003` comparison yet.
+    """
+    return dict((k, v) for k, (_op, v) in claim_constraints(claim).items())
 
 
 def observed_metrics(output, returncode):
@@ -728,6 +782,44 @@ def observed_metrics(output, returncode):
             out[name] = int(found[-1])
     out["exit"] = returncode
     return out
+
+
+# Round 459. `expiring-fixture-window:140` writes its expected value as a
+# bare output line UNDER the command instead of a `#` comment. `parse_commands`
+# reads that line as a COMMAND, so the real command's claim is empty and the
+# whole site degrades to `C003 UNQUANTIFIED` -- an expected value invisible to
+# the tier whose entire job is checking expected values. Round 441 found it by
+# hand while chasing something else and called it "a finding of its own"; it
+# was never given a detector, so nothing would have found the second one.
+#
+# The rule fires only on a command that ALSO failed to classify (`unknown
+# program`), which is what keeps the false-positive rate at zero: a real
+# program named `203` does not exist, and a real command that happens to
+# start with the word `expected` does not either.
+BARE_EXPECTATION_RE = re.compile(
+    r"^\s*(?:expected\b"
+    r"|\d+\s+(?:passed|failed|skipped|deselected|error|warning|test)"
+    r"|(?:Ran|OK\b)\s*\d*\s*(?:tests?)?\s*$"
+    r")", re.I)
+
+
+def check_bare_expectations(commands):
+    """C005: lines that state an expectation where a command should be."""
+    findings = []
+    for cmd in commands:
+        if cmd.kind != "manual":
+            continue
+        if not (cmd.reason or "").startswith("unknown program"):
+            continue
+        first = cmd.command.split("\n")[0]
+        if BARE_EXPECTATION_RE.match(first):
+            findings.append(Finding(
+                cmd, "C005",
+                "expectation written as a bare line, not a `#` comment: %r "
+                "parses as a COMMAND, so the real command above it has an "
+                "empty claim and is never number-checked" % first[:70],
+                level="UNCOMMENTED"))
+    return findings
 
 
 def run_command(cmd, repo_root, cwd, timeout):
@@ -768,7 +860,8 @@ def run_command(cmd, repo_root, cwd, timeout):
         return (out or "") + "\nclaim_check: TIMEOUT after %ss" % timeout, -1
 
 
-def check_by_running(commands, repo_root, timeout, dry_run=False):
+def check_by_running(commands, repo_root, timeout, dry_run=False,
+                     ledger=None, budget=None, skill=None):
     """C002: run every `auto` command and diff its metrics against the claim.
 
     Returns `(findings, n_executed)`. Round 441: the summary line used to
@@ -791,6 +884,7 @@ def check_by_running(commands, repo_root, timeout, dry_run=False):
     """
     findings = []
     n_executed = 0
+    spent = 0.0
     cwd = repo_root
     for cmd in commands:
         m = re.match(r"^\s*cd\s+(\S+)", cmd.command)
@@ -828,7 +922,18 @@ def check_by_running(commands, repo_root, timeout, dry_run=False):
             if pending_cwd:
                 cwd = pending_cwd
             continue
-        wanted = claim_metrics(cmd.claim)
+        # Round 459. A budget that silently stops is worse than no budget: it
+        # reports a clean sweep over a prefix. Every command the budget
+        # declines is reported, by name, as its own finding.
+        if budget is not None and spent >= budget:
+            findings.append(Finding(
+                cmd, "C006", "not run: %.0fs budget already spent (%d command"
+                             "(s) into this block)" % (spent, n_executed),
+                level="BUDGETED"))
+            if pending_cwd:
+                cwd = pending_cwd
+            continue
+        wanted = claim_constraints(cmd.claim)
         if not wanted:
             findings.append(Finding(
                 cmd, "C003", "claim %r states no checkable number; ran it "
@@ -841,18 +946,42 @@ def check_by_running(commands, repo_root, timeout, dry_run=False):
             if pending_cwd:
                 cwd = pending_cwd
             continue
+        t0 = time.monotonic()
         output, rc = run_command(cmd, repo_root, cwd, timeout)
+        elapsed = time.monotonic() - t0
+        spent += elapsed
         n_executed += 1
         got = observed_metrics(output, rc)
-        for name, want in sorted(wanted.items()):
+        mine = []
+        for name, (op, want) in sorted(wanted.items()):
             if name not in got:
-                findings.append(Finding(
+                mine.append(Finding(
                     cmd, "C002", "claim says %s=%d but the command printed no "
                                  "%s at all" % (name, want, name)))
-            elif got[name] != want:
-                findings.append(Finding(
+            elif op == ">=" and got[name] < want:
+                mine.append(Finding(
+                    cmd, "C002", "claim says %s>=%d, observed %s=%d"
+                    % (name, want, name, got[name])))
+            elif op == "==" and got[name] != want:
+                mine.append(Finding(
                     cmd, "C002", "claim says %s=%d, observed %s=%d"
                     % (name, want, name, got[name])))
+        findings.extend(mine)
+        if ledger is not None:
+            ledger.append({
+                "skill": skill, "path": cmd.path, "line": cmd.line_no,
+                "command": cmd.command.replace("\n", " ")[:400],
+                "claim": cmd.claim[:400], "seconds": round(elapsed, 2),
+                "returncode": rc,
+                "timed_out": "claim_check: TIMEOUT" in output,
+                "wanted": dict((k, "%s%d" % (op, v))
+                               for k, (op, v) in sorted(wanted.items())),
+                "observed": dict(sorted(got.items())),
+                "findings": [f.code for f in mine],
+                # the process cwd, not the effective one: a `cd X &&`
+                # line carries its own cd and runs from HERE.
+                "cwd": os.path.relpath(cwd, repo_root),
+            })
         if pending_cwd:
             cwd = pending_cwd
     return findings, n_executed
@@ -919,6 +1048,13 @@ def main(argv=None):
                          "executing anything")
     ap.add_argument("--timeout", type=int, default=300,
                     help="per-command timeout in seconds under --run")
+    ap.add_argument("--budget", type=float, default=None,
+                    help="stop EXECUTING once this many seconds of command "
+                         "time have been spent; every declined command is "
+                         "still reported, as C006")
+    ap.add_argument("--ledger", default=None,
+                    help="append one JSON row per executed command to this "
+                         "file (the receipt --run has never left behind)")
     args = ap.parse_args(argv)
 
     md_paths = []
@@ -933,6 +1069,9 @@ def main(argv=None):
     repo_root = os.path.abspath(args.repo_root)
     findings, n_auto, n_manual, reasons = [], 0, 0, {}
     paths_checked = paths_skipped = n_executed = 0
+    ledger = [] if args.ledger else None
+    budget_left = args.budget
+    t_start = time.monotonic()
     for md in md_paths:
         try:
             cmds = commands_for(md)
@@ -950,19 +1089,34 @@ def main(argv=None):
                 print("%s:%d: %-6s %s%s" % (
                     c.path, c.line_no, c.kind, c.command.split("\n")[0][:90],
                     "" if c.kind == "auto" else "   [%s]" % c.reason))
+        findings.extend(check_bare_expectations(cmds))
         path_findings, checked, skipped = check_paths(cmds, repo_root)
         findings.extend(path_findings)
         paths_checked += checked
         paths_skipped += skipped
         if args.run or args.dry_run:
+            before = time.monotonic()
             run_findings, ran = check_by_running(
-                cmds, repo_root, args.timeout, dry_run=args.dry_run)
+                cmds, repo_root, args.timeout, dry_run=args.dry_run,
+                ledger=ledger, budget=budget_left,
+                skill=os.path.basename(os.path.dirname(md)))
             findings.extend(run_findings)
             n_executed += ran
+            # The budget is global, so what one skill spends the next one
+            # does not have. `check_by_running` gets the REMAINDER.
+            if budget_left is not None:
+                budget_left = max(0.0, budget_left - (time.monotonic() - before))
+            if ledger:
+                with open(args.ledger, "a", encoding="utf-8") as fh:
+                    for row in ledger:
+                        fh.write(json.dumps(row, sort_keys=True) + "\n")
+                del ledger[:]
 
     for f in findings:
         print(f)
     n_stale = sum(1 for f in findings if f.level == "STALE")
+    n_bare = sum(1 for f in findings if f.level == "UNCOMMENTED")
+    n_budgeted = sum(1 for f in findings if f.level == "BUDGETED")
     reason_str = ", ".join("%s %d" % (k, v) for k, v in sorted(reasons.items()))
     print("claim_check: %d skill(s), %d command(s): %d auto-checkable, "
           "%d manual (%s)" % (len(md_paths), n_auto + n_manual, n_auto,
@@ -975,6 +1129,18 @@ def main(argv=None):
     # and `commands` is 0 of 264 unless `--run` was passed -- so without
     # `--run` this tool's `0 stale` is zero-of-zero on the command tier, and
     # says so now instead of reading as a clean bill of health.
+    # Round 459. These two are recall gaps and must be PUBLISHED, but not
+    # last: `TestSummaryCarriesItsDenominators` pins the `coverage` clause as
+    # the final line because `corpus_check.run_one` keeps `lines[-1]` for the
+    # driver's one-line summary. Round 417 moved the denominators there
+    # deliberately; appending after them would evict them from driver.log and
+    # re-open the exact hole round 417 closed. `COVERAGE_RE` scans the FULL
+    # output, so a line above it is still aggregated -- it is only the
+    # 200-character summary that is last-line-only.
+    if n_bare or n_budgeted or args.run:
+        print("claim_check: %d uncommented expectation(s) invisible to the "
+              "number tier; %d command(s) declined by --budget; %.1fs elapsed"
+              % (n_bare, n_budgeted, time.monotonic() - t_start))
     n_ran = n_executed
     print("claim_check: %d path(s) resolved, %d unresolvable-by-design "
           "(scratch/placeholder/output/unanchored); %d stale claim(s) of %d "

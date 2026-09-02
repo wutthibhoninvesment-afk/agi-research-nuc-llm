@@ -7,6 +7,7 @@ corpus regression test at the bottom, which is static-only (no --run).
 
 import contextlib
 import io
+import json
 import os
 import re
 import shutil
@@ -909,6 +910,217 @@ class TestSummaryCarriesItsDenominators(unittest.TestCase):
         import corpus_check
         self.assertEqual(corpus_check.coverage_of(self.last_line()),
                          "1/1 paths, 0/1 commands")
+
+
+# --------------------------------------------------------------------------
+# Round 459. The three things `--run` could not do, each forced by a real
+# corpus case rather than invented:
+#   * a claim on a MONOTONE number written as a FLOOR (15 of round 441's 15
+#     C002s were suite sizes that only grow, so `==` guarantees rot);
+#   * a receipt (`--ledger`) -- round 441's sweep left a shell-loop log and
+#     nothing machine-readable, so nobody could ask which command cost the
+#     400 s;
+#   * a BUDGET, because 1104 s does not fit a round and an unbounded tier is
+#     one nobody schedules.
+# --------------------------------------------------------------------------
+
+class TestFloorClaims(unittest.TestCase):
+    def test_a_bare_number_is_still_an_equality(self):
+        self.assertEqual(claim_check.claim_constraints("expected: 165 passed"),
+                         {"passed": ("==", 165)})
+
+    def test_the_four_floor_spellings_all_parse(self):
+        for text in ("expected: >= 165 passed", "expected: \u2265 165 passed",
+                     "expected: at least 165 passed", "expected: 165+ passed"):
+            with self.subTest(text=text):
+                self.assertEqual(claim_check.claim_constraints(text),
+                                 {"passed": (">=", 165)}, text)
+
+    def test_claim_metrics_still_returns_plain_ints(self):
+        # `state_claim_check.py:748` consumes this and compares with `!=`.
+        # Changing its return type would have broken a tool in another file
+        # with no test of its own reaching this line.
+        self.assertEqual(claim_check.claim_metrics("expected: >= 165 passed"),
+                         {"passed": 165})
+
+    def test_a_floor_does_not_leak_across_metrics(self):
+        # `0 error(s), >= 27 skill(s)`: the floor belongs to `skill(s)` only.
+        got = claim_check.claim_constraints("expected: 0 error(s), >= 27 skill(s)")
+        self.assertEqual(got["errors"], ("==", 0))
+        self.assertEqual(got["skills"], (">=", 27))
+
+    def test_a_less_than_is_not_read_as_a_floor(self):
+        self.assertEqual(claim_check.claim_constraints("expected: <= 5 failed"),
+                         {"failed": ("==", 5)})
+
+
+class TestFloorComparison(unittest.TestCase):
+    """The point of a floor: growth is silent, shrinkage is a finding."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.skill = os.path.join(self.tmp, "skills", "a-skill")
+        os.makedirs(self.skill)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _run(self, claim, *extra):
+        # `wc -l` on a file of known length is the cheapest real command that
+        # prints a number this tool's METRICS table understands -- via `echo`
+        # it would be `shell`-classified and never run.
+        body = os.path.join(self.tmp, "out.txt")
+        with open(body, "w") as f:
+            f.write("7 passed\n")
+        with open(os.path.join(self.skill, "SKILL.md"), "w") as f:
+            f.write("---\nname: a-skill\ndescription: d\n---\n\n# T\n\n"
+                    "## Verification\n```bash\ncat out.txt      # %s\n```\n"
+                    % claim)
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = claim_check.main([self.skill, "--repo-root", self.tmp,
+                                   "--run"] + list(extra))
+        return rc, buf.getvalue()
+
+    def test_an_equality_below_the_observation_is_stale(self):
+        rc, out = self._run("expected: 5 passed")
+        self.assertEqual(rc, 1)
+        self.assertIn("claim says passed=5, observed passed=7", out)
+
+    def test_a_floor_below_the_observation_is_not(self):
+        rc, out = self._run("expected: >= 5 passed")
+        self.assertEqual(rc, 0, out)
+        self.assertNotIn("C002", out)
+
+    def test_a_floor_ABOVE_the_observation_is_still_a_finding(self):
+        # A floor is not a mute button. A suite that LOSES tests is exactly
+        # the event the floor exists to report.
+        rc, out = self._run("expected: >= 9 passed")
+        self.assertEqual(rc, 1)
+        self.assertIn("claim says passed>=9, observed passed=7", out)
+
+
+class TestLedgerAndBudget(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.skill = os.path.join(self.tmp, "skills", "a-skill")
+        os.makedirs(self.skill)
+        with open(os.path.join(self.tmp, "out.txt"), "w") as f:
+            f.write("7 passed\n")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def write(self, verification):
+        with open(os.path.join(self.skill, "SKILL.md"), "w") as f:
+            f.write("---\nname: a-skill\ndescription: d\n---\n\n# T\n\n"
+                    + verification)
+
+    def run_cc(self, *extra):
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = claim_check.main([self.skill, "--repo-root", self.tmp,
+                                   "--run"] + list(extra))
+        return rc, buf.getvalue()
+
+    def test_the_ledger_records_one_row_per_executed_command(self):
+        self.write(fence("cat out.txt      # expected: 7 passed",
+                         "wc -l out.txt    # expected: 1 passed"))
+        led = os.path.join(self.tmp, "ledger.jsonl")
+        self.run_cc("--ledger", led)
+        rows = [json.loads(l) for l in open(led) if l.strip()]
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[0]["skill"], "a-skill")
+        self.assertEqual(rows[0]["observed"]["passed"], 7)
+        self.assertEqual(rows[0]["wanted"], {"passed": "==7"})
+        self.assertEqual(rows[0]["findings"], [])
+        self.assertEqual(rows[0]["returncode"], 0)
+        self.assertIsInstance(rows[0]["seconds"], float)
+
+    def test_the_ledger_records_the_finding_beside_the_command(self):
+        self.write(fence("cat out.txt      # expected: 5 passed"))
+        led = os.path.join(self.tmp, "ledger.jsonl")
+        self.run_cc("--ledger", led)
+        row = json.loads(open(led).read().strip())
+        self.assertEqual(row["findings"], ["C002"])
+
+    def test_the_ledger_appends_rather_than_truncating(self):
+        # A sweep is per-skill so a crash keeps the prefix. Truncating would
+        # make the receipt as fragile as the thing it is a receipt for.
+        self.write(fence("cat out.txt      # expected: 7 passed"))
+        led = os.path.join(self.tmp, "ledger.jsonl")
+        self.run_cc("--ledger", led)
+        self.run_cc("--ledger", led)
+        self.assertEqual(len([l for l in open(led) if l.strip()]), 2)
+
+    def test_a_zero_budget_declines_every_command_and_names_each(self):
+        self.write(fence("cat out.txt      # expected: 7 passed",
+                         "wc -l out.txt    # expected: 1 passed"))
+        rc, out = self.run_cc("--budget", "0")
+        self.assertEqual(out.count("C006"), 2)
+        self.assertIn("0 stale claim(s)", out)
+        self.assertIn("2 command(s) declined by --budget", out)
+
+    def test_a_declined_command_is_not_counted_as_covered(self):
+        # The failure mode a budget invites: a sweep that stops early and
+        # reports a clean prefix as a clean corpus.
+        self.write(fence("cat out.txt      # expected: 5 passed"))
+        rc, out = self.run_cc("--budget", "0")
+        self.assertEqual(rc, 0)
+        self.assertRegex(out, r"coverage \d+/\d+ paths, 0/1 commands")
+
+    def test_a_generous_budget_declines_nothing(self):
+        self.write(fence("cat out.txt      # expected: 7 passed"))
+        rc, out = self.run_cc("--budget", "600")
+        self.assertNotIn("C006", out)
+        self.assertRegex(out, r"coverage \d+/\d+ paths, 1/1 commands")
+
+
+class TestBareExpectationDetector(unittest.TestCase):
+    """C005 -- an expected value written where the parser reads a command."""
+
+    def _codes(self, *lines):
+        cmds = claim_check.parse_commands(fence(*lines))
+        for c in cmds:
+            c.kind, c.reason = claim_check.classify(c.command)
+        return codes(claim_check.check_bare_expectations(cmds))
+
+    def test_a_bare_pytest_summary_line_is_reported(self):
+        self.assertEqual(
+            self._codes("python3 -m pytest -q tests/x.py", "203 passed"),
+            ["C005"])
+
+    def test_a_bare_checker_summary_line_is_reported(self):
+        self.assertEqual(
+            self._codes("python3 lint.py", "0 error(s), 6 warning(s)"),
+            ["C005"])
+
+    def test_the_same_expectation_as_a_comment_is_not_reported(self):
+        self.assertEqual(
+            self._codes("python3 -m pytest -q tests/x.py   # 203 passed"), [])
+
+    def test_a_real_command_is_never_reported(self):
+        # The zero-false-positive gate: C005 only ever looks at a command
+        # that ALREADY failed to classify as a known program.
+        self.assertEqual(self._codes("python3 -m pytest -q tests/x.py"), [])
+        self.assertEqual(self._codes("expected_output.py --check"), [])
+
+    def test_the_live_corpus_has_exactly_the_two_known_sites(self):
+        # Round 441 found `expiring-fixture-window`'s by hand and called it
+        # "a finding of its own"; it never got a detector, so the SECOND one
+        # (`obligation-ledger`) sat undiscovered until round 459 wrote one.
+        # Both are fixed by round 459; this asserts the class stays empty.
+        skills_dir = os.path.join(REPO_ROOT, "skills")
+        if not os.path.isdir(skills_dir):
+            self.skipTest("live corpus not present")
+        hits = []
+        for md in claim_check.skill_md_paths(skills_dir):
+            cmds = claim_check.commands_for(md)
+            hits.extend(f.command.path
+                        for f in claim_check.check_bare_expectations(cmds))
+        self.assertEqual(sorted(hits), [], "a Verification block states an "
+                                           "expectation the number tier cannot see")
+
 
 if __name__ == "__main__":
     unittest.main()
